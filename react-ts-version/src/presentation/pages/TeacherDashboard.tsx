@@ -14,7 +14,7 @@ import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
 import { ref, onValue, set, update, onDisconnect, serverTimestamp } from "firebase/database";
 import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, readSessionStartedAt, TEACHER_DISCONNECT_GRACE_MS, type ClassSessionStatus } from "@/core/classSession";
-import { database, auth, functions, firestore, serverNow } from "@/infrastructure/firebase";
+import { database, auth, functions, firestore, serverNow, fetchServerClockOffset, isServerClockKnown } from "@/infrastructure/firebase";
 import { doc, onSnapshot, collection, writeBatch } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
 import { httpsCallable } from "firebase/functions";
@@ -209,11 +209,20 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
     let autoClosedStart: number | null = null;
     let lastLiveSessionNum: number | null = null;
+    // The stamps in the record are the server's. Until the database has
+    // reported the server clock in this page, serverNow() is only this
+    // laptop's clock, and a laptop X minutes fast would close the meeting for
+    // the whole class after 45 − X minutes. So until then no time limit is
+    // decided here: the record is read without its stamps, and the 45-minute
+    // close is neither shown nor written. The clock's arrival re-evaluates.
+    const timedRecord = (): Record<string, unknown> | null =>
+      lastVal && !isServerClockKnown() ? { ...lastVal, startedAt: null, teacherDisconnectedAt: null } : lastVal;
     const applySessionState = () => {
-      if (lastVal && isClassSessionLive(lastVal)) {
+      const val = timedRecord();
+      if (lastVal && val && isClassSessionLive(val)) {
         const liveNum = (lastVal.sessionNumber as number) || 1;
         setIsClassSessionActive(true);
-        setClassSessionStatus(getClassSessionStatus(lastVal));
+        setClassSessionStatus(getClassSessionStatus(val));
         // The server's start stamp (Module 14 §ב). Until the placeholder of
         // our own write resolves, keep what activation set (serverNow()).
         const serverStart = readSessionStartedAt(lastVal);
@@ -231,8 +240,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       // 45-minute hard cap (core/classSession.ts): every client already treats
       // the meeting as closed; the teacher's client, the one allowed to write,
       // also records the close so the shared record says so. Once per start.
-      const autoCloseAt = getSessionAutoCloseAt(lastVal);
-      const startedAt = readSessionStartedAt(lastVal);
+      const autoCloseAt = getSessionAutoCloseAt(val);
+      const startedAt = readSessionStartedAt(val);
       if (lastVal?.active === true && autoCloseAt !== null && serverNow() >= autoCloseAt && startedAt !== autoClosedStart) {
         autoClosedStart = startedAt;
         set(sessionRef, {
@@ -261,7 +270,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       }
     );
     const graceTimer = setInterval(applySessionState, 30000);
+    let mounted = true;
+    fetchServerClockOffset()
+      .then(() => { if (mounted) applySessionState(); })
+      .catch(() => {});
     return () => {
+      mounted = false;
       unsub();
       clearInterval(graceTimer);
     };
@@ -280,8 +294,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     const seenKey = `mathmaticore_deadline_notice_${selectedSessionNum}_${_sessionStartTime}`;
 
     const evaluate = () => {
-      // The start stamp is the server's, so the elapsed time is too (Module 14 §ב).
-      if (serverNow() < deadlineAt) return;
+      // The start stamp is the server's, so the elapsed time is too (Module 14 §ב),
+      // and not before the server clock has been read (the 15s tick retries).
+      if (!isServerClockKnown() || serverNow() < deadlineAt) return;
       try {
         if (localStorage.getItem(seenKey) === '1') return;
         localStorage.setItem(seenKey, '1');
@@ -462,8 +477,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         toast.warning('המפגש שודר לתלמידים, אך עדכון מסמכי הכיתה בשרת נדחה. ודאו שהחשבון משויך לכיתה.');
       }
 
-      // The listener replaces this with the server's stamp as soon as it arrives.
-      setSessionStartTime(serverNow());
+      // The listener has usually set the server's stamp already (the SDK raises
+      // our own write locally, resolved on the server clock); never overwrite it.
+      // Only when no stamp has arrived yet, an estimate on the server clock.
+      setSessionStartTime((prev) => prev ?? serverNow());
       setSelectedSessionNum(sessionNum);
       setPickedSessionNum(sessionNum);
       setClassSessionStatus('active');

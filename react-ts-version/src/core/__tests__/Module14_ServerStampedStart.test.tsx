@@ -24,6 +24,9 @@ const { fake, serverClock, snapOf, resolveServerValues, emitSession } = vi.hoist
   const fake = {
     /** server clock − teacher clock */
     skewMs: 0,
+    /** Whether this page has read the server clock yet (firebase.ts isServerClockKnown). */
+    clockKnown: true,
+    clockWaiters: [] as Array<(offset: number) => void>,
     session: null as Record<string, unknown> | null,
     listeners: new Set<(snap: unknown) => void>(),
     writes: [] as Array<{ path: string; payload: unknown }>,
@@ -59,8 +62,11 @@ vi.mock('@/infrastructure/firebase', () => ({
   },
   authReady: Promise.resolve(),
   // The dashboard knows the server offset (main.tsx measures it at start-up).
-  serverNow: () => Date.now() + fake.skewMs,
-  fetchServerClockOffset: () => Promise.resolve(fake.skewMs),
+  // As firebase.ts: the offset is 0 until the database has reported it.
+  serverNow: () => Date.now() + (fake.clockKnown ? fake.skewMs : 0),
+  isServerClockKnown: () => fake.clockKnown,
+  fetchServerClockOffset: () =>
+    fake.clockKnown ? Promise.resolve(fake.skewMs) : new Promise<number>((r) => fake.clockWaiters.push(r)),
 }));
 
 vi.mock('firebase/database', () => ({
@@ -164,6 +170,8 @@ const autoCloseWrites = () =>
 describe('Module 14 §ב — the meeting start comes from the server clock', () => {
   beforeEach(() => {
     fake.session = null;
+    fake.clockKnown = true;
+    fake.clockWaiters = [];
     fake.listeners.clear();
     fake.writes = [];
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -211,6 +219,53 @@ describe('Module 14 §ב — the meeting start comes from the server clock', () 
       expect(serverClock() - serverStart).toBeLessThan(SESSION_HARD_CAP_MS + 10_000);
     });
   }
+});
+
+describe('the teacher side reads the server clock before it decides any time limit', () => {
+  beforeEach(() => {
+    fake.session = null;
+    fake.listeners.clear();
+    fake.writes = [];
+    fake.clockWaiters = [];
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    useAuthStore.setState({
+      user: { uid: 'teacher_test_01', email: 'teacher@mathmaticore.local', role: 'teacher', displayName: 'מורה' } as never,
+      role: 'teacher',
+      isAuthenticated: true,
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('a laptop 50 minutes fast, clock not read yet: the meeting stays open and no close is written; once read, it closes on time', async () => {
+    fake.skewMs = -50 * MIN;
+    fake.clockKnown = false;
+    await activateMeeting();
+
+    // On this laptop's own clock the server start is already 50 minutes old.
+    // No time limit is decided before the server clock is read.
+    expect(await screen.findByRole('button', { name: /עצרו את המפגש/ })).toBeTruthy();
+    act(() => emitSession());
+    expect(autoCloseWrites()).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: /עצרו את המפגש/ })).toBeTruthy();
+
+    // The handshake arrives: the real offset.
+    await act(async () => {
+      fake.clockKnown = true;
+      fake.clockWaiters.splice(0).forEach((r) => r(fake.skewMs));
+    });
+    expect(autoCloseWrites()).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: /עצרו את המפגש/ })).toBeTruthy();
+
+    const serverStart = fake.session!.startedAt as number;
+    serverTimePasses(45 * MIN + 1000);
+    await waitFor(() => expect(autoCloseWrites()).toHaveLength(1));
+    expect(serverClock() - serverStart).toBeLessThan(SESSION_HARD_CAP_MS + 10_000);
+  });
 });
 
 describe('readers tolerate the placeholder until the server value arrives', () => {

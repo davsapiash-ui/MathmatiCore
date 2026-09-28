@@ -98,11 +98,16 @@ const getStoredAuth = () => {
     let rawRole: string | null = null;
     let rawTime: string | null = null;
     let rawWindowClosed: string | null = null;
+    let rawLastActive: string | null = null;
+    // sessionStorage belongs to this tab: it survives a reload and a device
+    // that slept, and a new window or tab starts without it.
+    let restoredFromThisTab = false;
 
     if (typeof sessionStorage !== 'undefined') {
       rawUser = sessionStorage.getItem(STORAGE_KEY_USER);
       rawRole = sessionStorage.getItem(STORAGE_KEY_ROLE);
       rawTime = sessionStorage.getItem(STORAGE_KEY_TIMESTAMP);
+      restoredFromThisTab = Boolean(rawUser && rawRole);
     }
     if ((!rawUser || !rawRole) && typeof localStorage !== 'undefined') {
       rawUser = localStorage.getItem(STORAGE_KEY_USER);
@@ -111,6 +116,7 @@ const getStoredAuth = () => {
     }
     if (typeof localStorage !== 'undefined') {
       rawWindowClosed = localStorage.getItem(STORAGE_KEY_STUDENT_WINDOW_CLOSED);
+      rawLastActive = localStorage.getItem(STORAGE_KEY_STUDENT_LAST_ACTIVE);
     }
 
     if (rawUser && rawRole) {
@@ -126,10 +132,22 @@ const getStoredAuth = () => {
           clearStoredAuth();
           return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
         }
-        // The presence stamp (`mc_student_last_active`) is never a reason to
-        // sign a learner out: a sleeping tablet stops refreshing it, and the OS
-        // may reload the tab on wake (register: "הטיימר הוסר עבור לומדים";
-        // Module 14 §ב1). Only a genuinely closed window counts, above.
+        // A window can close without pagehide: swiped away in a tablet's app
+        // switcher, a browser crash, a dead battery. On a shared tablet the
+        // next child would then continue as the previous learner for up to
+        // 8 hours. Such a close leaves a new window behind — no auth record
+        // in this tab's sessionStorage — and a presence stamp that stopped.
+        // Register: "וחלון שנסגר באמת עדיין מטופל".
+        //
+        // The same stamp stops while a device sleeps or its screen is locked,
+        // but that tab keeps its sessionStorage (also through a reload on
+        // wake), so sleep never signs a learner out (register: "הטיימר הוסר
+        // עבור לומדים"; Module 14 §ב1).
+        const lastActive = rawLastActive ? parseInt(rawLastActive, 10) : null;
+        if (!restoredFromThisTab && lastActive && now - lastActive > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) {
+          clearStoredAuth();
+          return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
+        }
       }
 
       // Check 8-hour token expiration

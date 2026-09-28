@@ -84,17 +84,25 @@ export { syncSessionState, logTelemetryEvent, fetchTeacherClassrooms, fetchClass
  * Firebase RTDB מציע .info/serverTimeOffset: מספר המייצג את ההפרש בין שעון השרת לשעון הלקוח (ms).
  * serverNow() = Date.now() + _serverClockOffsetMs
  *
- * קוראים את ה-offset פעם אחת בתחילת הסשן (via fetchServerClockOffset) ושומרים בזיכרון.
  * כל חישוב deadline משתמש ב-serverNow() במקום ב-Date.now() ישיר.
+ *
+ * How the offset is read. `.info/*` is local to the SDK: it is served by
+ * `onValue`, never by `get()`. `get()` sends the path to the server, and the
+ * live database rejects it ("Invalid token in path"), so until 28.9.2026 the
+ * read failed on every device, the offset stayed 0, and serverNow() was each
+ * device's own clock. Since the meeting start is now stamped by the server
+ * (TeacherDashboard, Module 14 §ב), a clock that is X minutes fast would close
+ * the meeting for everyone after 45 − X minutes. So the offset is read with
+ * `onValue`, and the listener stays attached: every reconnect handshake
+ * refreshes it.
  */
-import { get as rtdbGet, ref as rtdbRef } from 'firebase/database';
+import { onValue as rtdbOnValue, ref as rtdbRef } from 'firebase/database';
 
 let _serverClockOffsetMs = 0;
+let _serverClockKnown = false;
+let _serverClockListening = false;
+const _serverClockWaiters = new Set<(offset: number) => void>();
 
-/**
- * קורא את serverTimeOffset מה-RTDB פעם אחת ושומר.
- * יש לקרוא ב-initSession לפני חישוב ה-deadline.
- */
 /**
  * How long a caller may wait for the server clock. The read never settles
  * while the database is unreachable, and meeting 3's opening awaits it — a
@@ -104,17 +112,58 @@ let _serverClockOffsetMs = 0;
  */
 const SERVER_CLOCK_TIMEOUT_MS = 4000;
 
-export async function fetchServerClockOffset(): Promise<number> {
+function listenToServerClock(): void {
+  if (_serverClockListening) return;
+  _serverClockListening = true;
   try {
-    const snap = await Promise.race([
-      rtdbGet(rtdbRef(database, '.info/serverTimeOffset')),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('server clock timeout')), SERVER_CLOCK_TIMEOUT_MS)),
-    ]);
-    _serverClockOffsetMs = snap.exists() ? (snap.val() as number) : 0;
+    rtdbOnValue(
+      rtdbRef(database, '.info/serverTimeOffset'),
+      (snap) => {
+        const offset = snap.val();
+        if (typeof offset !== 'number' || !Number.isFinite(offset)) return;
+        _serverClockOffsetMs = offset;
+        _serverClockKnown = true;
+        const waiters = [..._serverClockWaiters];
+        _serverClockWaiters.clear();
+        waiters.forEach((resolve) => resolve(offset));
+      },
+      () => {
+        // Cancelled: the next call attaches again.
+        _serverClockListening = false;
+      }
+    );
   } catch {
-    // Unreachable or slow: keep the last known offset rather than reset it.
+    _serverClockListening = false;
   }
-  return _serverClockOffsetMs;
+}
+
+/**
+ * Resolves with the server clock offset once the database has reported it,
+ * or with the last known offset (0 at first) after SERVER_CLOCK_TIMEOUT_MS.
+ * Never rejects. The first call attaches the listener that keeps it fresh.
+ */
+export function fetchServerClockOffset(): Promise<number> {
+  listenToServerClock();
+  if (_serverClockKnown) return Promise.resolve(_serverClockOffsetMs);
+  return new Promise<number>((resolve) => {
+    const settle = (offset: number) => {
+      clearTimeout(timer);
+      _serverClockWaiters.delete(settle);
+      resolve(offset);
+    };
+    // Unreachable or slow: keep the last known offset rather than wait for good.
+    const timer = setTimeout(() => settle(_serverClockOffsetMs), SERVER_CLOCK_TIMEOUT_MS);
+    _serverClockWaiters.add(settle);
+  });
+}
+
+/**
+ * Whether the database has reported the server clock in this page. Until it
+ * has, serverNow() is only this device's clock, so a decision that affects
+ * everyone (the teacher's client recording the 45-minute close) waits for it.
+ */
+export function isServerClockKnown(): boolean {
+  return _serverClockKnown;
 }
 
 /**

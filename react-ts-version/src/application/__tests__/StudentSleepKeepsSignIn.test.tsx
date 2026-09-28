@@ -24,6 +24,7 @@ import {
   useAuthStore,
   STORAGE_KEY_STUDENT_WINDOW_CLOSED,
   STORAGE_KEY_STUDENT_LAST_ACTIVE,
+  STORAGE_KEY_USER,
 } from '../useAuthStore';
 
 const MIN = 60 * 1000;
@@ -92,8 +93,10 @@ describe('a learner whose device sleeps stays signed in', () => {
     act(() => setVisibility('hidden'));
     vi.setSystemTime(Date.now() + 6 * MIN);
 
-    // The presence stamp is 6 minutes old, and that is all.
+    // The presence stamp is 6 minutes old, and that is all: the same tab,
+    // so its sessionStorage auth record is still there.
     expect(Date.now() - Number(localStorage.getItem(STORAGE_KEY_STUDENT_LAST_ACTIVE))).toBeGreaterThanOrEqual(6 * MIN);
+    expect(sessionStorage.getItem(STORAGE_KEY_USER)).not.toBeNull();
     const restored = await reloadAuthStore();
     expect(restored.isAuthenticated).toBe(true);
     expect(restored.role).toBe('student');
@@ -141,6 +144,33 @@ describe('a window that really closed is still handled as today', () => {
 
     act(() => { window.dispatchEvent(new Event('pagehide')); });
     vi.setSystemTime(Date.now() + 2 * MIN);
+    const restored = await reloadAuthStore();
+    expect(restored.isAuthenticated).toBe(true);
+  });
+
+  // A close that fires no pagehide: the browser swiped away in a tablet's app
+  // switcher, a crash, a dead battery. What is left is a new window (no auth
+  // record in its sessionStorage) and a presence stamp that stopped.
+  it('closed without pagehide, a new window more than 5 minutes later: signed out', async () => {
+    signInLearner();
+    const { unmount } = renderHook(() => useIdleTimeout(), { wrapper });
+    unmount(); // the page is gone; no pagehide, no close stamp
+    expect(localStorage.getItem(STORAGE_KEY_STUDENT_WINDOW_CLOSED)).toBeNull();
+
+    vi.setSystemTime(Date.now() + 6 * MIN);
+    sessionStorage.clear(); // a new window starts with an empty sessionStorage
+    const restored = await reloadAuthStore();
+    expect(restored.isAuthenticated).toBe(false);
+    // And the shared device keeps nothing of the previous learner's sign-in.
+    expect(localStorage.getItem(STORAGE_KEY_USER)).toBeNull();
+  });
+
+  it('a new window within 5 minutes of the last presence stamp: still signed in', async () => {
+    signInLearner();
+    const { unmount } = renderHook(() => useIdleTimeout(), { wrapper });
+    unmount();
+    vi.setSystemTime(Date.now() + 2 * MIN);
+    sessionStorage.clear();
     const restored = await reloadAuthStore();
     expect(restored.isAuthenticated).toBe(true);
   });
