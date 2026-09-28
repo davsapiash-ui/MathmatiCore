@@ -212,7 +212,9 @@ service cloud.firestore {
                        writerMayTouchSupportProfileOnCreate();
       allow update: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnUpdate();
-      allow delete: if isAdmin();
+      // Module 23א §ו: deleting learning data is a reset, and the admin is
+      // blocked from resets. Resets run in backupAndResetSessionData (Admin SDK).
+      allow delete: if false;
     }
 
     match /users/students/{studentId} {
@@ -221,19 +223,22 @@ service cloud.firestore {
                        writerMayTouchSupportProfileOnCreate();
       allow update: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnUpdate();
-      allow delete: if isAdmin();
+      // Module 23א §ו: deleting learning data is a reset, and the admin is
+      // blocked from resets. Resets run in backupAndResetSessionData (Admin SDK).
+      allow delete: if false;
     }
 
     // Sessions Collection: Students can create/update their OWN session, but ONLY teachers can approve teacher_gate_approved
+    // Module 24 §ב: a learner's session document is a personal document — no admin read.
     match /sessions/{sessionId} {
-      allow read: if isTeacher() || isAdmin() || isOwningSession(sessionId);
+      allow read: if isTeacher() || isOwningSession(sessionId);
       allow create: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == false) &&
                        (isTeacher() || gateDecisionFieldsAreEmpty());
       allow update: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == resource.data.teacher_gate_approved) &&
                        (isTeacher() || gateDecisionFieldsAreEmpty());
-      allow delete: if isAdmin();
+      allow delete: if false; // Module 23א §ו — see students
     }
 
     // Telemetry Logs: Strictly Owning Student or Teacher; Idempotency Doc ID; Schema Allowlist (Direct read denied for Admin)
@@ -246,7 +251,7 @@ service cloud.firestore {
                        (request.resource.data.idempotency_key == logId) &&
                        isValidTelemetryDoc();
       allow update: if false;
-      allow delete: if isAdmin();
+      allow delete: if false; // Module 23א §ו — see students
     }
 
     // Authorized Teachers / Whitelist (Module 25)
@@ -332,18 +337,20 @@ service cloud.firestore {
     }
 
     // Workspace States & Radar Logs
+    // Module 24 §ב: a learner's board and the radar's per-learner alerts are
+    // individual data — the teacher's and the learner's, not the admin's.
     match /workspace_states/{stateId} {
-      allow read: if isTeacher() || isAdmin() || isOwningStudent(string(resource.data.student_id));
+      allow read: if isTeacher() || isOwningStudent(string(resource.data.student_id));
       allow create, update: if (isTeacher() || isOwningStudent(string(request.resource.data.student_id))) &&
                                request.resource.data.keys().hasOnly([
                                  'student_id', 'session_id', 'exercise_id', 'active_column_index', 'ones_count', 'tens_count', 'hundreds_count', 'memory_circles', 'updated_at'
                                ]);
-      allow delete: if isAdmin();
+      allow delete: if false; // Module 23א §ו — see students
     }
 
     match /radar_alerts/{alertId} {
-      allow read: if isTeacher() || isAdmin();
-      allow write: if isAdmin();
+      allow read: if isTeacher();
+      allow write: if false; // no client writes these; per-learner alerts are not the admin's
     }
 
     match /audit_logs/{logId} {
@@ -354,7 +361,8 @@ service cloud.firestore {
     // Reset Audit Logs (Module 23א: Immutable Audit Log for All Data Resets & Dataset Exports)
     match /reset_audit_log/{logId} {
       allow read: if isTeacher() || isAdmin();
-      allow create: if isTeacher() || isAdmin();
+      // Module 23א §ו: resets are the teacher's, so is their log.
+      allow create: if isTeacher();
       allow update, delete: if false; // Strict requirement: log is immutable and cannot be deleted
     }
 
@@ -435,7 +443,7 @@ service cloud.firestore {
       allow create: if isOwningStudent(string(request.resource.data.student_id)) &&
                        isValidSRLReflectionDoc();
       allow update: if false;
-      allow delete: if isAdmin();
+      allow delete: if false; // Module 23א §ו — see students
     }
 
     // Pedagogical Reports (Module 23 & 27: Strict Class-Scoped Read-Only Access)

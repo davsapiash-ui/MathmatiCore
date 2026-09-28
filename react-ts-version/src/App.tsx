@@ -15,6 +15,7 @@ import { RoleSelectionModal } from "@/presentation/components/RoleSelectionModal
 import { useAuthStore } from "@/application/useAuthStore";
 import { SocraticEngine } from "./infrastructure/services/SocraticEngine";
 import { useStore } from "@/application/useStore";
+import { ensureStaffRoleClaims, type StaffRole } from "@/infrastructure/services/staffRoleClaims";
 
 // Teacher/Admin surfaces are code-split out of the student bundle: a student
 // opening /workspace should never pay for downloading the teacher dashboard,
@@ -65,6 +66,15 @@ if (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'test') {
 import { useIdleTimeout } from "@/application/useIdleTimeout";
 
 /**
+ * PRD Module 24 §ב: "מנהלי מערכת חסומים מגישה לנתוני טלמטריה פרטניים או
+ * למסמכי תלמידים אישיים". The teacher dashboard, the learner reports, the
+ * learner's screen and the projector are the teacher's; an admin sign-in has
+ * the console only (register, gap יא — the owner picks the role at each
+ * sign-in). The admin's "תצוגת מורה" page is gone for the same reason.
+ */
+const TEACHER_ONLY = ["teacher"];
+
+/**
  * Mount-gate on the Firebase session: children mount only after sign-in completes.
  */
 function FirebaseGate({ children }: { children: React.ReactNode }) {
@@ -92,6 +102,35 @@ function FirebaseGate({ children }: { children: React.ReactNode }) {
       clearTimeout(timer);
     };
   }, []);
+  if (!ready) {
+    return (
+      <div dir="rtl" className="flex h-screen items-center justify-center bg-ws-bg text-ws-soft font-bold">
+        מתחבר…
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
+/**
+ * Holds a staff page until its token carries a single staff role (register,
+ * gap יא; PRD Module 24 §ב). Only a legacy dual-claim token — or one with no
+ * role — is re-stamped, and the page's listeners attach after that, so none
+ * of them is refused first and never re-attached. Bounded: after 8 seconds,
+ * or on a failure, the page opens with the token it has.
+ */
+function StaffClaimsGate({ role, children }: { role: StaffRole; children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const open = () => { if (!cancelled) setReady(true); };
+    const timer = setTimeout(open, 8000);
+    authReady
+      .then(() => ensureStaffRoleClaims(role))
+      .catch((e) => console.warn("[StaffClaimsGate] role sync notice:", e))
+      .finally(() => { clearTimeout(timer); open(); });
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [role]);
   if (!ready) {
     return (
       <div dir="rtl" className="flex h-screen items-center justify-center bg-ws-bg text-ws-soft font-bold">
@@ -229,14 +268,14 @@ function App() {
         {/* App Shell wraps authenticated routes */}
         <Route element={<AppShell />}>
           <Route path="/hub" element={
-            <AuthGuard allowedRoles={["student", "teacher", "admin"]}>
+            <AuthGuard allowedRoles={["student", "teacher"]}>
               <StudentHub />
             </AuthGuard>
           } />
 
           {/* Master PRD v5.0 Route Aliases */}
           <Route path="/student/lobby" element={
-            <AuthGuard allowedRoles={["student", "teacher", "admin"]}>
+            <AuthGuard allowedRoles={["student", "teacher"]}>
               <StudentHub />
             </AuthGuard>
           } />
@@ -244,41 +283,41 @@ function App() {
 
         {/* Teacher Dashboard: standalone full-screen workstation with single scroll and dedicated sidebar */}
         <Route path="/dashboard" element={
-          <AuthGuard allowedRoles={["teacher", "admin"]}>
+          <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
-              <TeacherDashboard />
+              <StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>
             </FirebaseGate>
           </AuthGuard>
         } />
 
         <Route path="/teacher/dashboard" element={
-          <AuthGuard allowedRoles={["teacher", "admin"]}>
+          <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
-              <TeacherDashboard />
+              <StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>
             </FirebaseGate>
           </AuthGuard>
         } />
 
         {/* PRD Section 4.3 Navigation Redundancy for student reports */}
         <Route path="/reports/student/:id" element={
-          <AuthGuard allowedRoles={["teacher", "admin"]}>
+          <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
-              <TeacherDashboard />
+              <StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>
             </FirebaseGate>
           </AuthGuard>
         } />
 
         <Route path="/dashboard/student/:id/view" element={
-          <AuthGuard allowedRoles={["teacher", "admin"]}>
+          <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
-              <TeacherDashboard />
+              <StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>
             </FirebaseGate>
           </AuthGuard>
         } />
 
         {/* Student workspace: standalone fullscreen experience */}
         <Route path="/workspace" element={
-          <AuthGuard allowedRoles={["student", "teacher", "admin"]}>
+          <AuthGuard allowedRoles={["student", "teacher"]}>
             <FirebaseGate>
               <StudentWorkspacePage />
             </FirebaseGate>
@@ -287,7 +326,7 @@ function App() {
 
         {/* Projector Sandbox for Teacher (no recording, clean slate) */}
         <Route path="/projector" element={
-          <AuthGuard allowedRoles={["teacher", "admin"]}>
+          <AuthGuard allowedRoles={TEACHER_ONLY}>
             <ProjectorSandboxPage />
           </AuthGuard>
         } />
@@ -298,7 +337,7 @@ function App() {
         <Route path="/admin/login-cards" element={
           <AuthGuard allowedRoles={["admin"]}>
             <FirebaseGate>
-              <StudentLoginCardsPage />
+              <StaffClaimsGate role="admin"><StudentLoginCardsPage /></StaffClaimsGate>
             </FirebaseGate>
           </AuthGuard>
         } />
@@ -306,7 +345,7 @@ function App() {
         <Route path="/admin" element={
           <AuthGuard allowedRoles={["admin"]}>
             <FirebaseGate>
-              <AdminLayout />
+              <StaffClaimsGate role="admin"><AdminLayout /></StaffClaimsGate>
             </FirebaseGate>
           </AuthGuard>
         }>
@@ -317,7 +356,6 @@ function App() {
           <Route path="security" element={<AdminSecurityView />} />
           <Route path="settings" element={<AdminSettingsView />} />
           <Route path="chat" element={<AdminChatView />} />
-          <Route path="teacher-view" element={<TeacherDashboard hideSidebar={true} />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

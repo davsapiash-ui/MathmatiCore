@@ -746,6 +746,14 @@ export const useStore = create<AppState>()(
             toast.error(serverMessage || 'אין הרשאה לאיפוס. לא נמחקו נתונים.');
             throw new Error('RESET_PERMISSION_DENIED');
           }
+          // The server refused before any backup (for example: no meeting is open
+          // and the learner's record names no meeting). Not a backup failure, so
+          // the teacher sees the server's own reason, as in the class reset.
+          if (code.endsWith('failed-precondition') || code.endsWith('invalid-argument')) {
+            console.error('[Module 23א] Student reset refused, no data deleted:', err);
+            toast.error(serverMessage || 'האיפוס נדחה. לא נמחקו נתונים.');
+            throw new Error('RESET_REFUSED');
+          }
           reportResetFailureAfterBackupStage(err, code, serverMessage);
           console.error('[Module 23א] Backup failed — reset aborted, no data deleted:', err);
           toast.error(serverMessage ? `הגיבוי נכשל: ${serverMessage}. האיפוס בוטל ולא נמחקו נתונים.` : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');

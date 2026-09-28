@@ -55,6 +55,18 @@ describe('Module 1: teacher whitelist guard', () => {
     expect(isWhitelistedTeacherEmail('reviewer@gmail.com')).toBe(false);
   });
 
+  it('the login check reads authorizedTeachers only — never the RTDB teacher list (28.9.2026)', () => {
+    // The RTDB users/teachers node was a second whitelist: any signed-in
+    // identity could read every teacher's email there, and write its own
+    // record and pass this check. It is staff-only now (database.rules.json).
+    const check = auth.slice(
+      auth.indexOf('export async function isWhitelistedTeacherEmailAsync'),
+      auth.indexOf('export function isWhitelistedTeacherEmail('),
+    );
+    expect(check).toContain('"authorizedTeachers"');
+    expect(check).not.toMatch(/ref\(database,\s*['"`]users\/teachers/);
+  });
+
   it('a session without the stamp and outside the fallback is still logged out (fail-closed)', () => {
     // The guard is `whitelistVerified !== true && !fallback` → logout. A forged
     // or stale session with neither is rejected, as before.

@@ -438,8 +438,8 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // other learner's full individual report — score, narrative, knowledge-gap
   // analysis and a permanent download link. Module 23 §ג gives this action to
   // the teacher, and Module 24 §ב blocks a system admin from an individual
-  // learner's documents; the product owner's identity carries both claims and
-  // is unaffected.
+  // learner's documents. An admin sign-in carries no teacher claim
+  // (roleClaims.ts).
   requireTeacherForIndividualData(request.auth.token as Record<string, unknown>);
 
   const { sessionId, classId = "class_1", sessionNumber, studentId: explicitStudentId } = request.data || {};

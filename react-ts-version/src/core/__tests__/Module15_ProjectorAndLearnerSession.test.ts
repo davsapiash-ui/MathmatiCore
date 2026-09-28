@@ -31,10 +31,19 @@ describe('מודול 15 — המורה היא שמפעילה את המקרן', (
     expect(write).toContain("auth.token.role == 'teacher'");
   });
 
-  it('שאר system_control נשאר למנהל בלבד', () => {
-    const parentWrite = rules.rules.system_control['.write'];
-    expect(parentWrite).toContain("auth.token.role == 'admin'");
-    expect(parentWrite).not.toContain("auth.token.role == 'teacher'");
+  it('המנהל אינו מפעיל את המקרן (מודול 24): מצב המקרן למורה בלבד', () => {
+    const projectorRules = rules.rules.system_control.projector_mode;
+    for (const key of ['.write', '.validate']) {
+      expect(projectorRules[key]).toContain("auth.token.teacher == true");
+      expect(projectorRules[key]).not.toContain('admin');
+    }
+  });
+
+  it('ב-system_control המנהל כותב רק את מגבלת התלמידים', () => {
+    const control = rules.rules.system_control;
+    expect(control['.write']).toBeUndefined();
+    expect(control.globalStudentLimit['.write']).toContain("auth.token.role == 'admin'");
+    expect(control.globalStudentLimit['.write']).not.toContain("auth.token.role == 'teacher'");
   });
 
   it('השרת משחרר את הכיתה גם כשהלשונית נסגרת', () => {
