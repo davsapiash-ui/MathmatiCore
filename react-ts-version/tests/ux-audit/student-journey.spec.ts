@@ -42,6 +42,8 @@ import { selectedViewports, type Viewport } from './viewports';
 
 type Scope = 'full' | 'core' | 'smoke';
 const SCOPE = ((process.env.UX_AUDIT_SCOPE as Scope) || 'full') as Scope;
+/** `UX_AUDIT_ONLY=<regex>` measures only the states whose id matches — to re-check one screen after a fix. */
+const ONLY = process.env.UX_AUDIT_ONLY ? new RegExp(process.env.UX_AUDIT_ONLY) : null;
 const PRIMARY_VIEWPORT = 'laptop-1366';
 const HIGH = new Set(['page-scroll-y', 'page-scroll-x', 'needs-scroll', 'clipped', 'offscreen']);
 
@@ -356,6 +358,17 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
       await cc.page.locator('.fixed.inset-0 button:not([disabled])').last().click();
     },
   });
+  // After the reflection is stored the learner stays on the quiet end screen of
+  // station 8 (PR #126; PRD Module 16 §ג). Older code has no finishReflection
+  // and shows the generic end card for the same flow status.
+  steps.push({
+    id: 'm8-finished',
+    meeting: 8,
+    note: 'the end screen of station 8, after the reflection was stored',
+    run: async (cc) => {
+      await ws(cc.page, 'if (typeof st.finishReflection === "function") st.finishReflection(); else api.setState({ flowStatus: "sessionDone", awaitingNext: false });');
+    },
+  });
 
   return steps;
 }
@@ -594,6 +607,7 @@ async function runSteps(
     let currentMeeting: number | null | undefined;
     let currentUrl: string | undefined;
     for (const step of steps) {
+      if (ONLY && !ONLY.test(step.id)) continue;
       const label = `${opts.mode}/${opts.path}/${step.id}`;
       try {
         if (step.meeting !== null && step.meeting !== currentMeeting) {
