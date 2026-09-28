@@ -35,8 +35,9 @@ export function readCallerRoles(token: Record<string, unknown>): CallerRoles {
  * (`allow read: if (isTeacher() || ...) && !isAdmin()`), and an Admin-SDK
  * function has to say it too.
  *
- * The product owner's identity carries both the teacher and the admin claim,
- * so it passes. An admin-only identity does not.
+ * Since 28.9.2026 a sign-in carries the claims of one role only (roleClaims.ts;
+ * register, gap יא): the owner signed in as the teacher passes, signed in as
+ * the admin does not.
  */
 export function requireTeacherForIndividualData(token: Record<string, unknown>): CallerRoles {
   const caller = readCallerRoles(token);

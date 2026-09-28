@@ -313,7 +313,10 @@ describe('Module 13: proxy and credential hardening (pinned from source)', () =>
     // ולרשום שורות ניטור על שם כל אחד מ-12 הלומדים.
     expect(proxy).toContain('callerStudentId !== req.student_id');
     expect(proxy).toContain('permission-denied');
-    expect(proxy).toMatch(/callerRole === "teacher" \|\| callerRole === "admin"/);
+    // The teacher may ask on a learner's behalf; an admin sign-in may not
+    // (PRD Module 24 §ב, report 28.9.2026 נ.2).
+    expect(proxy).toContain('readCallerRoles(request.auth.token as Record<string, unknown>).isTeacher');
+    expect(proxy).not.toMatch(/callerRole === "teacher" \|\| callerRole === "admin"/);
   });
 
   it('keeps the Zero-Chatbot policy and the legacy PII scrub', () => {

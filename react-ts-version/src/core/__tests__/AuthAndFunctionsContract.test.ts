@@ -71,8 +71,9 @@ describe('קליטת אירועי תלמיד — הכותב חייב להיות 
     expect(fnIndex).toContain('permission-denied');
   });
 
-  it('צוות כן רשאי להגיש בשם לומד', () => {
-    expect(fnIndex).toMatch(/callerRole === "teacher" \|\| callerRole === "admin"/);
+  it('המורה כן רשאית להגיש בשם לומד; כניסת מנהל לא (PRD מודול 24 §ב, דוח 28.9 נ.2)', () => {
+    expect(fnIndex).toContain('readCallerRoles(request.auth.token as Record<string, unknown>).isTeacher');
+    expect(fnIndex).not.toMatch(/callerRole === "teacher" \|\| callerRole === "admin"/);
   });
 
   it('אפס מידע מזהה: רק שדות מספריים מוכרים נשמרים', () => {

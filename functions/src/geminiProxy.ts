@@ -9,6 +9,8 @@ import {
   withGeminiTimeout,
 } from "./geminiConfig";
 import { recordAiCall, type AiOutcome } from "./aiMonitoring";
+import { readCallerRoles } from "./callerIdentity";
+import { redactPhoneNumbers } from "./phonePattern";
 import {
   SOCRATIC_RESPONSE_SCHEMA,
   SOCRATIC_SYSTEM_INSTRUCTION,
@@ -42,6 +44,7 @@ export function scrubPII(text: string): string {
   // Scrub Emails
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   scrubbed = scrubbed.replace(emailRegex, "[REDACTED_EMAIL]");
+  scrubbed = redactPhoneNumbers(scrubbed); // every common Israeli layout (phonePattern.ts)
 
   // Scrub Israeli IDs (9 digits, with or without hyphens/spaces) and basic phone numbers
   const idRegex = /\b\d{1,3}[-\s]?\d{3}[-\s]?\d{3}\b/g;
@@ -237,11 +240,11 @@ export const callGeminiSocraticProxy = onCall(
       // any authenticated caller — including the anonymous session the login
       // screen opens before a child identifies — could spend the project's
       // model quota and file monitoring rows against any of the twelve
-      // learners. Staff may ask on a learner's behalf.
-      const callerRole = String(request.auth.token.role || "");
-      const isStaff = callerRole === "teacher" || callerRole === "admin";
+      // learners. The teacher may ask on a learner's behalf; an admin sign-in
+      // may not (PRD Module 24 §ב: no individual learner data for the admin).
+      const isTeacher = readCallerRoles(request.auth.token as Record<string, unknown>).isTeacher;
       const callerStudentId = Number(request.auth.token.student_id);
-      if (!isStaff && callerStudentId !== req.student_id) {
+      if (!isTeacher && callerStudentId !== req.student_id) {
         recordAiCall({ feature: "socratic", outcome: "invalid_request", latency_ms: 0, model_id: GEMINI_MODEL_ID, detail: "caller_student_mismatch" });
         throw new HttpsError("permission-denied", "A learner may only request a hint for their own work.");
       }

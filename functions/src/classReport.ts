@@ -845,7 +845,7 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   // score, wrong digits by column, hesitations and per-exercise outcomes.
   // Module 24 §ב blocks a system administrator from exactly that, and the
   // Firestore rules already say so — but the Admin SDK bypasses them, so the
-  // check has to live here. A dual teacher+admin identity still passes.
+  // check has to live here. An admin sign-in carries no teacher claim.
   requireTeacherForIndividualData(request.auth.token as Record<string, unknown>);
   const token: Record<string, any> = request.auth.token;
 
