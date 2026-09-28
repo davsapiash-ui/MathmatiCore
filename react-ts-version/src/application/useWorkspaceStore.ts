@@ -56,6 +56,7 @@ import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/Fi
 import type { TelemetryEventType } from '@/types/telemetry';
 import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
 import type { VRAWorkspaceState } from '@/types';
+import { workspaceSavedAt } from '@/core/workspaceSnapshot';
 import {
   EMPTY_PERSISTENCE_COUNTS,
   addPersistenceEvent,
@@ -116,6 +117,21 @@ function cancelSocraticRequest(): void {
 }
 
 export type SessionNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
+/**
+ * Module 17: the learner and meeting the workspace was last started
+ * (initSession) or restored (restoreSession) for on this device. Until then
+ * the store holds defaults, and the sync saves nothing — neither on this
+ * device nor on the learner record — until this names the signed-in learner
+ * and the meeting in the store (FirebaseSyncService).
+ */
+export interface WorkspaceInitialization {
+  /** currentStudentUid() when the meeting was started or restored; '' for no learner. */
+  learner: string;
+  meeting: SessionNumber;
+  /** The stamp (WORKSPACE_SAVED_AT_KEY) of the saved copy it was restored from; 0 for a fresh start. */
+  restoredSavedAt: number;
+}
 
 /**
  * U, E and G of the meeting in progress (owner decision E1, 27.9.2026,
@@ -412,6 +428,8 @@ interface WorkspaceState {
   supportProfileApplied: boolean;
   activeDeviceId: string | null;
   isSupersededByOtherDevice: boolean;
+  /** Which learner and meeting the workspace was started or restored for; null until then and after resetWorkspace. */
+  workspaceInitializedFor: WorkspaceInitialization | null;
 
   // actions
   setActiveDeviceId: (id: string) => void;
@@ -2181,6 +2199,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     supportProfileApplied: false,
     activeDeviceId: null,
     isSupersededByOtherDevice: false,
+    workspaceInitializedFor: null,
 
     setActiveDeviceId: (id) => set({ activeDeviceId: id }),
     setSupersededByOtherDevice: (superseded) => {
@@ -2300,6 +2319,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // 18): a new meeting starts without them.
         isAdditionHelperOpen: false,
         additionHelperOffered: false,
+        // Module 17: from here on the store holds this learner's meeting.
+        workspaceInitializedFor: { learner: currentStudentUid(), meeting: sanitized, restoredSavedAt: 0 },
       });
       applyPendingSupportProfile();
 
@@ -2471,6 +2492,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Register 18 / decision ב: the return tab, and an open grid, survive a reload.
         additionHelperOffered: saved.additionHelperOffered === true,
         isAdditionHelperOpen: saved.isAdditionHelperOpen === true,
+        // Module 17: from here on the store holds this learner's meeting, as saved.
+        workspaceInitializedFor: { learner: currentStudentUid(), meeting: sanitized, restoredSavedAt: workspaceSavedAt(saved) },
       });
       // A reload is a task start too (Module 19 §ב).
       applyPendingSupportProfile();
@@ -3684,6 +3707,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         hasPendingSupportProfile: false,
         activeSupportProfileId: null,
         supportProfileApplied: false,
+        // Defaults again: nothing here is a learner's meeting until the next start or restore.
+        workspaceInitializedFor: null,
         currentState: 'IDLE' as VRAWorkspaceState,
         activeColumnIndex: 0,
         isSocraticCardLocked: false,

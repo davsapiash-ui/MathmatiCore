@@ -1,9 +1,9 @@
 import { ref, set, get, update, runTransaction, serverTimestamp, onValue, onDisconnect, push, type DataSnapshot } from 'firebase/database';
 import { database, firestore, serverNow } from '@/infrastructure/firebase';
-import { WORKSPACE_SAVED_AT_KEY } from '@/core/workspaceSnapshot';
+import { WORKSPACE_SAVED_AT_KEY, workspaceSavedAt, isRestorableFor } from '@/core/workspaceSnapshot';
 import { doc, getDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
-import { useWorkspaceStore, getActiveTasks, resolveLearningPath } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, resolveLearningPath, type WorkspaceInitialization } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
 
@@ -25,6 +25,8 @@ import {
   type UndoExecutedDetails,
   validateTelemetryColumnIndexRule,
 } from '@/types/telemetry';
+
+type WorkspaceStoreState = ReturnType<typeof useWorkspaceStore.getState>;
 
 /**
  * The ONE key a teacher's record lives under in RTDB users/teachers, and the
@@ -296,7 +298,20 @@ export class FirebaseSyncService {
    * inside the write throttle does not undo the press.
    */
   private lastRemoteHelpRequested: boolean | undefined = undefined;
+  /**
+   * True from startSync until the learner record's first snapshot. Nothing is
+   * written to the record meanwhile. Without a connection that snapshot never
+   * comes, so this can last the whole lesson.
+   */
   private isInitialLoad = false;
+  /**
+   * Module 17, while isInitialLoad: the meeting the store was last started or
+   * restored to, and that state's payload as this device last saved it. The
+   * start or restore itself is not new work and is not saved again: saved
+   * again it would take a new stamp and could then beat a later copy on the
+   * record (X55). Every change after it is saved on this device.
+   */
+  private localBaseline: { marker: WorkspaceInitialization; payloadKey: string } | null = null;
   private unsubscribeSchools: (() => void) | null = null;
   private unsubscribeClasses: (() => void) | null = null;
   private unsubscribePublicClasses: (() => void) | null = null;
@@ -403,6 +418,7 @@ export class FirebaseSyncService {
     this.isInitialLoad = true;
     this.lastSyncedPayloadKey = null;
     this.lastRemoteHelpRequested = undefined;
+    this.localBaseline = null;
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
       window.removeEventListener('pagehide', this.flushRemoteSyncOnPageHide);
       window.addEventListener('pagehide', this.flushRemoteSyncOnPageHide);
@@ -410,6 +426,12 @@ export class FirebaseSyncService {
 
     // Load initial state from Firebase and keep it synced LIVE
     this.unsubscribeFirebase = onValue(studentRef, (snapshot: DataSnapshot) => {
+      // The first snapshot since startSync: the record may now get what this
+      // device saved without it (sendWorkKeptOnDevice). Not after a teacher's
+      // reset (forceReload), which that copy must not undo.
+      const firstSnapshot = this.isInitialLoad;
+      let recordCopy: unknown;
+      let mayReceiveDeviceWork = false;
       try {
         if (snapshot.exists()) {
           const rawData = snapshot.val();
@@ -429,6 +451,8 @@ export class FirebaseSyncService {
             });
             return;
           }
+          recordCopy = data.workspaceState;
+          mayReceiveDeviceWork = true;
 
           // Real-time synchronization of teacher adaptations to student workspace
           const wsOverrides: Record<string, any> = {};
@@ -518,19 +542,67 @@ export class FirebaseSyncService {
             additionBoardEnabled: false
           });
           useStore.setState({ firebaseLoaded: true });
+          mayReceiveDeviceWork = true;
         }
       } catch (e) {
         console.error("Firebase sync error:", e);
       } finally {
         this.isInitialLoad = false;
+        if (firstSnapshot) {
+          this.localBaseline = null;
+          if (mayReceiveDeviceWork) this.sendWorkKeptOnDevice(recordCopy);
+        }
       }
     });
 
 
     // Subscribe to local Workspace changes and push to Firebase
-    this.unsubscribeWorkspace = useWorkspaceStore.subscribe((state) => {
-      if (this.isInitialLoad) return;
+    this.unsubscribeWorkspace = useWorkspaceStore.subscribe((state) => this.syncWorkspaceState(state));
+    // A meeting already started or restored before this subscription is the
+    // baseline too, not new work.
+    this.adoptLocalBaseline(useWorkspaceStore.getState());
+  }
 
+  /**
+   * The learner's own workspace: the store was started or restored for the
+   * learner this sync runs for, on the meeting it now holds. Null while the
+   * store holds defaults, or another learner's or another meeting's state.
+   */
+  private initializedForThisLearner(state: WorkspaceStoreState): WorkspaceInitialization | null {
+    const marker = state.workspaceInitializedFor;
+    if (!marker || !marker.learner || !this.currentUserId) return null;
+    if (normalizeStudentId(marker.learner) !== normalizeStudentId(this.currentUserId)) return null;
+    return marker.meeting === state.sessionNumber ? marker : null;
+  }
+
+  private adoptLocalBaseline(state: WorkspaceStoreState) {
+    if (!this.isInitialLoad) return;
+    const marker = this.initializedForThisLearner(state);
+    this.localBaseline = marker ? { marker, payloadKey: JSON.stringify(this.buildSyncPayload()) } : null;
+  }
+
+  /**
+   * One store change: this device's copy at once, the learner record once per
+   * window (scheduleRemoteSync).
+   *
+   * Module 17. Only the learner's own workspace is ever saved
+   * (initializedForThisLearner). Until the meeting page starts or restores a
+   * meeting the store holds defaults — meeting 1, an empty board — and they
+   * must never replace a good copy: after a sign-in or a reload the learner
+   * waits in the lobby with those defaults, and a teacher's board lock copied
+   * into the store used to write them over the record's copy and this
+   * device's, so the meeting then started again from its first exercise.
+   *
+   * Until the record's first snapshot (isInitialLoad) nothing is written to
+   * the record — it may hold a later copy (X55), and without a connection it
+   * never arrives — but this device's copy is. This used to return here
+   * unconditionally, so what a learner did after a reload without a
+   * connection was saved nowhere, and a second reload lost it.
+   */
+  private syncWorkspaceState(state: WorkspaceStoreState) {
+    const recordOpen = !this.isInitialLoad;
+
+    if (recordOpen) {
       // Module 18 §ב: RED is "כרטיס חניכה סוקרטי פעיל כעת". isSocraticActive was
       // set when the card opened and cleared only by a correct answer in it. The
       // card also closes by its X, by "הבנתי", three seconds after a typed digit,
@@ -544,65 +616,52 @@ export class FirebaseSyncService {
           if (key) throttledRtdbUpdate(`users/students/${key}`, { isSocraticActive: cardOpen }).catch(() => {});
         }
       }
-      
-      const activeTasks = getActiveTasks(state);
-      const currentTask = activeTasks[state.standardTaskIdx] || null;
+    }
 
-      // Teacher-controlled authority fields (isBoardLocked, pendingAdaptation, support_profile_id)
-      // are strictly omitted so the student client never overwrites teacher controls in RTDB
-      // (isBoardLocked is forced to false below).
-      //
-      // One snapshot for both writers. This object used to be built here a
-      // second time, and the two drifted: every field added to
-      // getSyncableWorkspaceState — the wrong-answer streak and board-check
-      // counters (22.9.2026), the meeting 1 progress flags — reached only the
-      // record's creation, never the in-lesson sync that restoreSession
-      // actually reads, so a reload still reset them.
-      const syncableData: Record<string, any> = this.getSyncableWorkspaceState();
+    const own = this.initializedForThisLearner(state);
+    if (!own) return;
 
-      // מודול 5: "Validate payload size (≤50KB) before every update".
-      const updatePayload = enforceMaxPayloadBytes(syncableData);
+    const sanitizedPayload = this.buildSyncPayload();
+    const normId = normalizeStudentId(this.currentUserId || '');
+    const rawNum = (this.currentUserId || '').replace(/[^0-9]/g, '');
+    const studentKeys = Array.from(new Set([this.currentUserId, normId, rawNum ? `student_user${rawNum}` : null, rawNum ? `user${rawNum}` : null].filter(Boolean) as string[]));
 
-      // Clean all undefined values to guarantee Firebase Realtime Database compatibility
-      const sanitizedPayload = JSON.parse(JSON.stringify(updatePayload, (_k, v) => (v === undefined ? null : v)));
+    // The same synced state again (a focus change, a toast, the device-lock
+    // echo) is not a new event: PRD Module 5 §ב, "סנכרון… מבוסס אירועים בלבד".
+    const payloadKey = JSON.stringify(sanitizedPayload);
 
-      // Authority Guard: explicitly clear any stale board lock in workspaceState
-      sanitizedPayload.isBoardLocked = false;
-      delete sanitizedPayload.pendingAdaptation;
-      delete sanitizedPayload.support_profile_id;
-      delete sanitizedPayload.enhanced_support_profile;
-      delete sanitizedPayload.teacher_gate_approved;
-      delete sanitizedPayload.routeStatus;
-      delete sanitizedPayload.physicalOverride;
-
-      const normId = normalizeStudentId(this.currentUserId || '');
-      const rawNum = (this.currentUserId || '').replace(/[^0-9]/g, '');
-      const studentKeys = Array.from(new Set([this.currentUserId, normId, rawNum ? `student_user${rawNum}` : null, rawNum ? `user${rawNum}` : null].filter(Boolean) as string[]));
-      
-      // The same synced state again (a focus change, a toast, the device-lock
-      // echo) is not a new event: PRD Module 5 §ב, "סנכרון… מבוסס אירועים בלבד".
-      const payloadKey = JSON.stringify(sanitizedPayload);
-      if (payloadKey === this.lastSyncedPayloadKey) return;
-      this.lastSyncedPayloadKey = payloadKey;
-
-      // One stamp on both copies — the local cache and the record — on the
-      // server's clock, never the device's. A reload compares the two by it
-      // (newerWorkspaceSnapshot): the server copy wins unless this device
-      // holds a strictly later state it has not sent yet.
-      const stampedPayload = { ...sanitizedPayload, [WORKSPACE_SAVED_AT_KEY]: serverNow() };
-
-      // Save locally at once (a reload reads it), and send the database writes
-      // of the latest state once per short window, so the main thread is never
-      // behind a burst of writes ("הממשק מגיב מיידית בצד הלקוח").
-      if (normId) this.saveSessionProgressLocally(normId, stampedPayload);
-      if (this.currentUserId && this.currentUserId !== normId) {
-        this.saveSessionProgressLocally(this.currentUserId, stampedPayload);
+    if (!recordOpen) {
+      const baseline = this.localBaseline;
+      if (!baseline || baseline.marker !== own) {
+        // The start or restore itself (see localBaseline).
+        this.localBaseline = { marker: own, payloadKey };
+        return;
       }
+      if (payloadKey === baseline.payloadKey) return;
+      baseline.payloadKey = payloadKey;
+      // lastSyncedPayloadKey is left alone: the record has not had this yet.
+      this.saveWorkspaceOnDevice({ ...sanitizedPayload, [WORKSPACE_SAVED_AT_KEY]: this.nextSavedAt() });
+      return;
+    }
 
-      const standardTaskIdx = state.standardTaskIdx;
-      const flowStatus = state.flowStatus;
-      const keyboardState = state.keyboardState;
-      this.pendingRemoteSync = () => {
+    if (payloadKey === this.lastSyncedPayloadKey) return;
+    this.lastSyncedPayloadKey = payloadKey;
+
+    // One stamp on both copies — the local cache and the record — on the
+    // server's clock, never the device's. A reload compares the two by it
+    // (newerWorkspaceSnapshot): the server copy wins unless this device
+    // holds a strictly later state it has not sent yet.
+    const stampedPayload = { ...sanitizedPayload, [WORKSPACE_SAVED_AT_KEY]: this.nextSavedAt() };
+
+    // Save locally at once (a reload reads it), and send the database writes
+    // of the latest state once per short window, so the main thread is never
+    // behind a burst of writes ("הממשק מגיב מיידית בצד הלקוח").
+    this.saveWorkspaceOnDevice(stampedPayload);
+
+    const standardTaskIdx = state.standardTaskIdx;
+    const flowStatus = state.flowStatus;
+    const keyboardState = state.keyboardState;
+    this.pendingRemoteSync = () => {
       studentKeys.forEach(key => {
         throttledRtdbUpdate(`users/students/${key}`, {
           workspaceState: stampedPayload,
@@ -623,8 +682,8 @@ export class FirebaseSyncService {
         // the approved one.
         // The bank the meeting runs on; null (no path yet) clears the field.
         const currentPath = state.activeBankPath ?? resolveLearningPath();
-        const sessionStatus: 'active' | 'locked' | 'completed' = flowStatus === 'sessionDone' 
-          ? 'completed' 
+        const sessionStatus: 'active' | 'locked' | 'completed' = flowStatus === 'sessionDone'
+          ? 'completed'
           : keyboardState === 'LOCKED' ? 'locked' : 'active';
 
         const sessionState: SessionState = {
@@ -639,9 +698,103 @@ export class FirebaseSyncService {
           console.warn('[FirebaseSyncService] syncSessionState notice:', err);
         });
       }
-      };
-      this.scheduleRemoteSync();
-    });
+    };
+    this.scheduleRemoteSync();
+  }
+
+  /** This device's copy, under each key the learner's copy is read by. */
+  private saveWorkspaceOnDevice(stampedPayload: Record<string, unknown>) {
+    const normId = normalizeStudentId(this.currentUserId || '');
+    if (normId) this.saveSessionProgressLocally(normId, stampedPayload);
+    if (this.currentUserId && this.currentUserId !== normId) {
+      this.saveSessionProgressLocally(this.currentUserId, stampedPayload);
+    }
+  }
+
+  /** The latest copy saved on this device for this learner, or null. */
+  private newestDeviceCopy(): Record<string, unknown> | null {
+    const normId = normalizeStudentId(this.currentUserId || '');
+    let newest: Record<string, unknown> | null = null;
+    for (const key of new Set([normId, this.currentUserId])) {
+      if (!key) continue;
+      const copy = this.getLocalSessionProgress(key);
+      if (copy && (!newest || workspaceSavedAt(copy) > workspaceSavedAt(newest))) newest = copy;
+    }
+    return newest;
+  }
+
+  /**
+   * The stamp of the next saved copy: the server's clock, and never at or
+   * before the copy this device saved last. After a reload without a
+   * connection the server offset is 0 until the database answers, so
+   * serverNow() is only the device clock — on a tablet whose clock is behind,
+   * earlier than the copy it saved a minute before. A stamp that went
+   * backwards would lose the new work at the next reload to the older copy on
+   * the record (newerWorkspaceSnapshot keeps the record's copy unless this
+   * device's is strictly later).
+   */
+  private nextSavedAt(): number {
+    return Math.max(serverNow(), workspaceSavedAt(this.newestDeviceCopy()) + 1);
+  }
+
+  /**
+   * Module 17, on the record's first snapshot after a start without it (a
+   * reload without a connection, or before the record loaded): if this
+   * device's copy of the meeting on screen is strictly later than the
+   * record's, the record gets it now — the learner may not touch the board
+   * again before the lesson ends, and the next change would be the first to
+   * send it.
+   *
+   * Not when the record's copy is later than the copy this meeting was
+   * restored from: that one was written elsewhere after it, and the page
+   * restores it instead (StudentWorkspacePage, X55 — the same comparison).
+   * Writing this device's copy first would overwrite it.
+   */
+  private sendWorkKeptOnDevice(recordCopy: unknown) {
+    try {
+      const state = useWorkspaceStore.getState();
+      const marker = this.initializedForThisLearner(state);
+      if (!marker) return;
+      const deviceCopy = this.newestDeviceCopy();
+      if (!isRestorableFor(deviceCopy, marker.meeting)) return;
+      const recordSavedAt = workspaceSavedAt(recordCopy as Record<string, unknown> | null);
+      if (recordSavedAt > marker.restoredSavedAt) return;
+      if (workspaceSavedAt(deviceCopy) <= recordSavedAt) return;
+      this.syncWorkspaceState(state);
+    } catch (e) {
+      console.error('[FirebaseSyncService] Could not send the work kept on this device:', e);
+    }
+  }
+
+  /** The workspace payload both copies are written from. */
+  private buildSyncPayload(): Record<string, any> {
+    // Teacher-controlled authority fields (isBoardLocked, pendingAdaptation, support_profile_id)
+    // are strictly omitted so the student client never overwrites teacher controls in RTDB
+    // (isBoardLocked is forced to false below).
+    //
+    // One snapshot for both writers. This object used to be built here a
+    // second time, and the two drifted: every field added to
+    // getSyncableWorkspaceState — the wrong-answer streak and board-check
+    // counters (22.9.2026), the meeting 1 progress flags — reached only the
+    // record's creation, never the in-lesson sync that restoreSession
+    // actually reads, so a reload still reset them.
+    const syncableData: Record<string, any> = this.getSyncableWorkspaceState();
+
+    // מודול 5: "Validate payload size (≤50KB) before every update".
+    const updatePayload = enforceMaxPayloadBytes(syncableData);
+
+    // Clean all undefined values to guarantee Firebase Realtime Database compatibility
+    const sanitizedPayload = JSON.parse(JSON.stringify(updatePayload, (_k, v) => (v === undefined ? null : v)));
+
+    // Authority Guard: explicitly clear any stale board lock in workspaceState
+    sanitizedPayload.isBoardLocked = false;
+    delete sanitizedPayload.pendingAdaptation;
+    delete sanitizedPayload.support_profile_id;
+    delete sanitizedPayload.enhanced_support_profile;
+    delete sanitizedPayload.teacher_gate_approved;
+    delete sanitizedPayload.routeStatus;
+    delete sanitizedPayload.physicalOverride;
+    return sanitizedPayload;
   }
 
   /** Database writes go out once per window; the latest payload wins. */
@@ -758,6 +911,7 @@ export class FirebaseSyncService {
       this.unsubscribeWorkspace();
       this.unsubscribeWorkspace = null;
     }
+    this.localBaseline = null;
     if (this.currentUserId) {
       rtdbUpdateNow(`users/students/${this.currentUserId}`, { isOnline: false }).catch((err) => {
         console.error("Failed to set student offline during logout:", err);
