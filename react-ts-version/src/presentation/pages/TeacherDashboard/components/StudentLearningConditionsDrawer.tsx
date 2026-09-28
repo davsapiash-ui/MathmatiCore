@@ -44,12 +44,15 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
     Boolean(student?.isASD || sAny.isASD)
   );
 
+  // The dashboard hands in the live learner, a new object on every update of
+  // the class (each heartbeat). The form follows the STORED value only when it
+  // changes, or when another learner is opened, so a toggle not yet saved is
+  // not thrown away every few seconds.
+  const storedIsASD = Boolean(student?.isASD || sAny.isASD);
   useEffect(() => {
-    if (student) {
-      const s = student as any;
-      setIsASD(Boolean(student.isASD || s.isASD));
-    }
-  }, [student]);
+    if (student) setIsASD(storedIsASD);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student?.studentId, storedIsASD]);
 
   // מסמך העיצוב §1.2: Escape סוגר, הפוקוס נלכד בתוך המגירה, ובסגירה חוזר
   // לאלמנט שממנו היא נפתחה.

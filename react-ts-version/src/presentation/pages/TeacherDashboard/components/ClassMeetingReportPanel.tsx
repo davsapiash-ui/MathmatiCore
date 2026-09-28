@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FileDown, FileText, Loader2, Sparkles, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { AI_FALLBACK_TEXT, REPORT_PROCESSING_TEXT, describeReportError, formatClock, formatDate } from '@/infrastructure/services/LearnerJourneyService';
 import {
@@ -111,14 +111,26 @@ export function ClassMeetingReportPanel() {
     return () => { cancelled = true; };
   }, [selectedSession]);
 
+  // A report is generated for one meeting. The meeting buttons used to stay
+  // live meanwhile: switching from 2 to 3 showed meeting 2's report under
+  // meeting 3 when it arrived, and cleared "generating" so a second run could
+  // start. The buttons are now disabled while generating, and a result for a
+  // meeting that is no longer selected is dropped all the same.
+  const selectedSessionRef = useRef(selectedSession);
+  selectedSessionRef.current = selectedSession;
+  const isGenerating = state === 'generating';
+
   const requestReport = async () => {
+    const forSession = selectedSession;
     setState('generating');
     setError('');
     try {
-      const r = await generateClassReport(selectedSession);
+      const r = await generateClassReport(forSession);
+      if (selectedSessionRef.current !== forSession) return;
       setReport(r);
       setState('idle');
     } catch (err) {
+      if (selectedSessionRef.current !== forSession) return;
       setError(describeReportError(err).message);
       setState('error');
     }
@@ -140,7 +152,8 @@ export function ClassMeetingReportPanel() {
                 key={n}
                 type="button"
                 onClick={() => setSelectedSession(n)}
-                className={`w-11 h-11 rounded-lg text-sm font-black transition-colors cursor-pointer ${
+                disabled={isGenerating}
+                className={`w-11 h-11 rounded-lg text-sm font-black transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
                   selectedSession === n ? 'bg-indigo-600 text-white' : 'bg-ws-bg text-ws-soft hover:text-ws-ink'
                 }`}
                 aria-pressed={selectedSession === n}

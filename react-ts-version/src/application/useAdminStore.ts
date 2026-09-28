@@ -86,8 +86,9 @@ interface AdminState {
 }
 
 /**
- * users/teachers also receives presence stubs ({isOnline, lastPing}) from the
- * teacher dashboard and login-time records that carry `email` instead of
+ * users/teachers may still hold presence stubs ({isOnline, lastPing}) that the
+ * teacher dashboard once tried to write (it no longer does — the rules refuse
+ * a teacher's write there), and login-time records that carry `email` instead of
  * `ssoEmail`. Only a record with an e-mail is a teacher the console can show,
  * count, or address; presence stubs are dropped rather than counted as staff.
  */

@@ -71,6 +71,10 @@ vi.mock('firebase/database', () => ({
           },
         }),
       });
+    } else if (_ref?.path === '.info/connected') {
+      // A connected dashboard: the write below is in flight, not queued offline
+      // (an offline write releases the buttons at once — Module14_TeacherTransitions).
+      callback({ exists: () => true, val: () => true });
     } else {
       callback({ exists: () => false, val: () => null });
     }
