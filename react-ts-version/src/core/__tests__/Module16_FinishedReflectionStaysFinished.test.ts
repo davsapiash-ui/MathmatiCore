@@ -88,6 +88,13 @@ describe('8.10 — the finished reflection board leads to the quiet end screen',
     expect(block).not.toContain("navigate('/hub')");
   });
 
+  it('a save that failed does not end the meeting: the board stays, the reflection is not lost', () => {
+    const page = src('features/workspace/StudentWorkspacePage.tsx');
+    const block = page.slice(page.indexOf('<Session8ReflectionScreen'), page.indexOf("endScreen === 'sessionDone' && sessionNumber === 2"));
+    const failed = block.slice(block.indexOf('if (!outcome.ok) {'), block.indexOf('finishReflection();'));
+    expect(failed).toContain('return false;');
+  });
+
   it('a learner whose reflection is already saved is not shown the board again', () => {
     const page = src('features/workspace/StudentWorkspacePage.tsx');
     expect(page).toMatch(/sessionNumber !== 8 \|\| flowStatus !== 'reflection'\) return;[\s\S]{0,200}hasSavedSRLReflection\(currentStudentUid\(\)\)[\s\S]{0,120}finishReflection\(\)/);

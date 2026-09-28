@@ -9,8 +9,10 @@ interface Session8ReflectionScreenProps {
   /**
    * מקבל את שלושת שלבי הרפלקציה במלואם. עד כה הועברה רק רמת המאמץ, תחת
    * השם focusArea, והיא נכתבה לשדה צבע המסלול — כך שכל השאר אבד.
+   * מחזיר false כשהשמירה לא הצליחה: הלוח נשאר בשלב 3 עם אותן תשובות, וכפתור
+   * הסיום פעיל שוב — הרפלקציה אינה נזרקת.
    */
-  onComplete: (result: SRLReflectionResult) => void;
+  onComplete: (result: SRLReflectionResult) => void | Promise<boolean | void>;
   metrics?: {
     fastestTaskType?: string;
     slowestTaskType?: string;
@@ -134,13 +136,15 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
   const handleComplete = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    onComplete({
+    Promise.resolve(onComplete({
       effortLevel,
       strategies: selectedStrategies,
       persistenceIndex: persistenceRatio,
       undoCount: U,
       errorCount: E,
       guessCount: G,
+    })).then((done) => {
+      if (done === false) setIsSubmitting(false);
     });
   };
 

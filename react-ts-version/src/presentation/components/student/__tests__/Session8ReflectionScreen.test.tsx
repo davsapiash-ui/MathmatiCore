@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, fireEvent, cleanup, screen } from '@testing-library/react';
+import { render, fireEvent, cleanup, screen, waitFor } from '@testing-library/react';
 
 /**
  * מודול 16 / מסמך 03 §3.8 — מסך הרפלקציה של מפגש 8, כפי שהילד רואה ושומע אותו.
@@ -158,6 +158,32 @@ describe('שלב 3 — משפט עידוד לפי מדד ההתמדה של מפ�
       expect(s).not.toContain('אחוז');
     });
   }
+
+  // Audit 8.10 (28.9.2026): a save that failed does not end the meeting —
+  // the board stays on step 3 and the finish button works again.
+  it('שמירה שנכשלה: הלוח נשאר בשלב 3 והכפתור פעיל שוב', async () => {
+    const onComplete = vi.fn(() => Promise.resolve(false));
+    toStep3(onComplete);
+    const finish = screen.getByRole('button', { name: /סיום התחנה/ }) as HTMLButtonElement;
+    fireEvent.click(finish);
+    expect(finish.disabled).toBe(true);
+    await waitFor(() => expect(finish.disabled).toBe(false));
+    expect(screen.getByText(REFLECTION_TEXT_HE.stepLabel(3))).toBeTruthy();
+    fireEvent.click(finish);
+    expect(onComplete).toHaveBeenCalledTimes(2);
+  });
+
+  it('שמירה שהצליחה: הכפתור אינו נלחץ פעם שנייה', async () => {
+    const onComplete = vi.fn(() => Promise.resolve(true));
+    toStep3(onComplete);
+    const finish = screen.getByRole('button', { name: /סיום התחנה/ }) as HTMLButtonElement;
+    fireEvent.click(finish);
+    await Promise.resolve();
+    await Promise.resolve();
+    fireEvent.click(finish);
+    expect(finish.disabled).toBe(true);
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
 
   it('הנתונים שנשלחים בסיום לא השתנו', () => {
     const onComplete = vi.fn();

@@ -843,8 +843,8 @@ export function StudentWorkspacePage() {
   }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, isASDMode, activeClassSession, isTeacherSessionActive]);
 
   // Meeting 8, 8.10 of the 28.9.2026 audit: a learner whose reflection is
-  // already saved is done (PRD Module 16 §ג; Module 14 §ג, "ממתין במסך סיום
-  // שקט"). The finished state is saved with the workspace, so this only acts
+  // already saved is done (PRD Module 16 §ג, "כפתור סיום מפגש סופי"). The
+  // finished state is saved with the workspace, so this only acts
   // when that state did not land before a reload — the board is not shown again
   // over a reflection the rules will not let anyone overwrite.
   useEffect(() => {
@@ -1078,13 +1078,18 @@ export function StudentWorkspacePage() {
           // דרסה את routeStatus ל-'PENDING', כלומר ביטלה את החלטת השער.
           const outcome = await submitSRLReflection(currentStudentUid(), result);
           if (!outcome.ok) {
+            // Not saved: the board stays on step 3 with the same answers and
+            // the button works again. Ending the meeting here would lose the
+            // reflection for good behind "העבודה נשמרה בבטחה".
             toast.error('לא הצלחנו לשמור הפעם. זה בסדר.');
+            return false;
           }
-          // "כפתור סיום מפגש סופי" (Module 16 §ג): the learner stays here, on
-          // the quiet end screen (Module 14 §ג). Sending them to the lobby sent
-          // them straight back into meeting 8 — still open — and the board
-          // started again at step 1.
+          // Saved (or already saved): "כפתור סיום מפגש סופי" (Module 16 §ג).
+          // The learner stays here, on the quiet end screen. Sending them to the
+          // lobby sent them straight back into meeting 8 — still open — and the
+          // board started again at step 1 (audit 8.10).
           useWorkspaceStore.getState().finishReflection();
+          return true;
         }}
       />
         {classStateOverlays}

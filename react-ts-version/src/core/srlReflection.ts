@@ -71,8 +71,10 @@ export interface SRLPersistResult {
 
 /**
  * Whether this learner's meeting-8 reflection is already saved. The rules let
- * the owner read the document; one that does not exist (never saved, or removed
- * by a reset of meeting 8) is refused, and every failure reads as "not saved".
+ * the owner read the document; one that does not exist is refused, and every
+ * failure reads as "not saved". A teacher's reset of meeting 8 backs the
+ * document up and keeps it (functions/src/exportDriveReport.ts, backupOnly);
+ * only the system-wide reset deletes it.
  */
 export async function hasSavedSRLReflection(rawStudentId: string | number): Promise<boolean> {
   const studentNumber = asPilotNumber(rawStudentId);
