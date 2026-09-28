@@ -274,7 +274,7 @@ describe('the child reads "בית המספרים" and "לבנים"', () => {
   it('the live cards count "לבנים" and tap "לבנת העשרת"', () => {
     const crowded = SocraticEngine.analyzeLiveBoardState({ id: 's4_r_t1', numberA: 146, numberB: 235 }, 'regrouping_fluency', { ...EMPTY_COUNTS, hundreds: 3, tens: 7, units: 14 })!;
     expect(crowded.questionHe).toContain('14 לבנים');
-    expect(crowded.choices.map((c) => c.textHe).join(' ')).toContain('נעביר לבנה אחת בלבד');
+    expect(crowded.choices.map((c) => c.textHe).join(' ')).toContain('מעבירים לבנה אחת בלבד');
     const deficit = SocraticEngine.analyzeLiveBoardState({ id: 's1_r_sub61', numberA: 52, numberB: 27, isSubtraction: true }, 'subtraction_regrouping', { ...EMPTY_COUNTS, tens: 5, units: 2 })!;
     expect(deficit.choices[0].feedbackHe).toBe('מעולה! לחצו על לבנת העשרת בבית המספרים כדי לפרוט אותה ל-10 יחידות.');
     for (const card of [crowded, deficit]) {

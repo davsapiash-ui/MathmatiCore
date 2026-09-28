@@ -72,7 +72,7 @@ describe('the static card is about the exercise on the screen (3.14, 8.5)', () =
   it('a skeleton exercise is shown with its hidden digits hidden', () => {
     for (const { task } of rows.filter((r) => (r.task as any).hiddenDigits)) {
       const q = SocraticEngine.getSynchronousTaskHint(task, EMPTY).questionHe;
-      const shown = /בתרגיל (.+), איך נגלה/.exec(q)?.[1];
+      const shown = /בתרגיל (.+), איך מגלים/.exec(q)?.[1];
       expect(shown, task.id).toBeTruthy();
       expect(shown, task.id).toContain('▢');
       expect(task.instructionHe, task.id).toContain(shown!);
@@ -134,21 +134,21 @@ describe('the two cards the audit saw', () => {
 
   it('3.14 — "represent 4,500 with hundreds only" is about 4,500 and 45 hundreds', () => {
     const card = SocraticEngine.getSynchronousTaskHint(byId('s3_g_t3'), EMPTY);
-    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: באילו לבנים ההנחיה מבקשת לבנות את המספר 4,500?');
-    expect(card.choices.map((c) => c.textHe)).toEqual(['נשתמש ב-45 מאות', 'נשתמש ב-4 אלפים ו-5 מאות', 'נשתמש ב-4,500 יחידות']);
+    expect(card.questionHe).toBe('נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר 4,500?');
+    expect(card.choices.map((c) => c.textHe)).toEqual(['משתמשים ב-45 מאות', 'משתמשים ב-4 אלפים ו-5 מאות', 'משתמשים ב-4,500 יחידות']);
     expect(JSON.stringify(card)).not.toMatch(/3,?400|34/);
   });
 
   it('8.5 — 1,245 + 328 in meeting 8: the units convert, and there are no blocks', () => {
     const card = SocraticEngine.getSynchronousTaskHint(byId('s8_g_t1'), EMPTY);
-    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 1,245 + 328, בטור היחידות מצטברות 10 יחידות או יותר. מה עושים איתן?');
+    expect(card.questionHe).toBe('נסו לחשוב: בתרגיל 1,245 + 328, בטור היחידות מצטברות 10 יחידות או יותר. מה עושים איתן?');
     expect(card.choices[0].textHe).toBe('ממירים 10 יחידות לעשרת אחת, ורושמים אותה בעיגול הזיכרון שמעל טור העשרות');
     expect(JSON.stringify(card)).not.toMatch(/עשרות הצטברו|יותר מ-9 עשרות|לבנ|פח|1245/);
   });
 
   it('8.5 — the same exercise in meeting 4 names the units too, with the blocks that are on that screen', () => {
     const card = SocraticEngine.getSynchronousTaskHint(byId('s4_g_t1'), EMPTY);
-    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 1,245 + 328, בטור היחידות מצטברות 10 יחידות או יותר. מה עושים איתן?');
+    expect(card.questionHe).toBe('נסו לחשוב: בתרגיל 1,245 + 328, בטור היחידות מצטברות 10 יחידות או יותר. מה עושים איתן?');
     expect(card.choices[0].textHe).toBe('מקבצים 10 יחידות לעשרת אחת ומעבירים אותה שמאלה לטור העשרות');
   });
 
@@ -165,7 +165,7 @@ describe('the two cards the audit saw', () => {
 describe('meeting 1 target task (347): the card does not answer the task\'s question', () => {
   it('the wrong-option hints no longer say that the quantity is kept', () => {
     const card = SocraticEngine.getSynchronousTaskHint({ id: 's1_target_347', type: 'representation', numberA: 347 }, EMPTY);
-    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: מה קורה בבית המספרים כשפורטים עשרת אחת?');
+    expect(card.questionHe).toBe('נסו לחשוב: מה קורה בבית המספרים כשפורטים עשרת אחת?');
     const hints = card.choices.filter((c) => !c.isCorrect).map((c) => c.feedbackHe);
     expect(hints).toEqual([
       'רמז: הפריטה משנה את בית המספרים. בדקו מה קורה בטור העשרות ובטור היחידות.',
@@ -355,28 +355,28 @@ describe('with blocks on the screen, the card follows the board', () => {
       { thousands: 5, hundreds: 4, tens: 2, units: 4 }, // 8 units taken away
     ]) {
       const card = SocraticEngine.getSynchronousTaskHint(t, counts);
-      expect(card.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 5,432 − 2,118, מה בודקים לפני שמוציאים לבנים מטור?');
-      expect(JSON.stringify(card)).not.toMatch(/סיימנו|פורטים רק כש/);
+      expect(card.questionHe).toBe('נסו לחשוב: בתרגיל 5,432 − 2,118, מה בודקים לפני שמוציאים לבנים מטור?');
+      expect(JSON.stringify(card)).not.toMatch(/סיימנו|סיימתם|פורטים רק כש/);
     }
     // Both numbers built: only the first one is built in subtraction.
     const both = SocraticEngine.getSynchronousTaskHint(rows.find((r) => r.task.id === 's6_g_t3')!.task, { thousands: 5, hundreds: 5, tens: 6, units: 2 });
     expect(both.choices[0].textHe).toBe('רק את המספר הראשון, 4,000');
     // Everything taken away: the result row.
     const done = SocraticEngine.getSynchronousTaskHint(t, { thousands: 3, hundreds: 3, tens: 1, units: 4 });
-    expect(done.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 5,432 − 2,118, אם כבר הוצאתם לפח את כל מה שמחסרים, מה עושים עכשיו?');
+    expect(done.questionHe).toBe('נסו לחשוב: בתרגיל 5,432 − 2,118, אם כבר הוצאתם לפח את כל מה שמחסרים, מה עושים עכשיו?');
   });
 
   it('independent review, 28.9.2026: a short column with nothing to its left is not "every column has enough"', () => {
     const t = rows.find((r) => r.task.id === 's5_g_t1')!.task; // 5,432 − 2,118
     const card = SocraticEngine.getSynchronousTaskHint(t, { thousands: 0, hundreds: 54, tens: 2, units: 12 });
-    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 5,432 − 2,118, מה בודקים לפני שמוציאים לבנים מטור?');
+    expect(card.questionHe).toBe('נסו לחשוב: בתרגיל 5,432 − 2,118, מה בודקים לפני שמוציאים לבנים מטור?');
     expect(JSON.stringify(card)).not.toMatch(/בכל טור יש מספיק/);
   });
 
   it('an addition whose blocks are all on the board, grouped, asks for the result row', () => {
     const t = rows.find((r) => r.task.id === 's4_g_t1')!.task; // 1,245 + 328 = 1,573
     const done = SocraticEngine.getSynchronousTaskHint(t, { thousands: 1, hundreds: 5, tens: 7, units: 3 });
-    expect(done.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 1,245 + 328, כל הלבנים כבר בבית המספרים. מה עושים עכשיו?');
+    expect(done.questionHe).toBe('נסו לחשוב: בתרגיל 1,245 + 328, כל הלבנים כבר בבית המספרים. מה עושים עכשיו?');
     // Before that, the grouping advice holds in any state: the button shows only at 10.
     const building = SocraticEngine.getSynchronousTaskHint(t, { thousands: 1, hundreds: 2, tens: 4, units: 5 });
     expect(building.choices[0].feedbackHe).toBe('נכון מאוד! כשיש בטור היחידות 10 לבנים או יותר, לחצו על הכפתור "קבץ 10" שבראש הטור.');

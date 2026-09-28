@@ -34,18 +34,18 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
     expect(sessionCardKeysForTaskId('s3_g_reinforce_1').filter((k) => k in TASK_HINTS)).toEqual([]);
     const tasks = [...SESSIONS_BY_PATH[3].remediation_path, ...SESSIONS_BY_PATH[3].green_path];
     const rem = (await SocraticEngine.getSocraticHint(tasks.find((t) => t.id === 's3_r_t3') as any, 'flexible_regrouping', EMPTY))!;
-    expect(rem.questionHe).toBe('בואו נחשוב רגע יחד: באילו לבנים ההנחיה מבקשת לבנות את המספר 450?');
-    expect(rem.choices[0].textHe).toBe('נשתמש ב-45 עשרות');
+    expect(rem.questionHe).toBe('נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר 450?');
+    expect(rem.choices[0].textHe).toBe('משתמשים ב-45 עשרות');
     const green = (await SocraticEngine.getSocraticHint(tasks.find((t) => t.id === 's3_g_t3') as any, 'flexible_regrouping', EMPTY))!;
-    expect(green.questionHe).toBe('בואו נחשוב רגע יחד: באילו לבנים ההנחיה מבקשת לבנות את המספר 4,500?');
-    expect(green.choices[0].textHe).toBe('נשתמש ב-45 מאות');
+    expect(green.questionHe).toBe('נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר 4,500?');
+    expect(green.choices[0].textHe).toBe('משתמשים ב-45 מאות');
     expect(JSON.stringify(green)).not.toMatch(/3,?400|34 מאות/);
   });
 
   it('an unrecognised meeting-3 task gets the card that marks no representation wrong', () => {
     const card = SocraticEngine.getSynchronousTaskHint({ id: 's3_g_t99', type: 'unknown' } as any, EMPTY);
-    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: איך יודעים איזה מספר בנוי בבית המספרים?');
-    expect(JSON.stringify(card)).not.toMatch(/נשתמש ב/);
+    expect(card.questionHe).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+    expect(JSON.stringify(card)).not.toMatch(/נשתמש ב|משתמשים ב/);
   });
 
   it('every other session serves the document card, correct option first, with feedback on each option', async () => {
@@ -53,8 +53,8 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
       4: 'מקבצים 10 יחידות לעשרת אחת',
       5: 'פורטים עשרת אחת לעשר יחידות',
       6: 'פרטו תחילה לבנת מאה אחת לעשר עשרות',
-      7: 'ניעזר בלבנים',
-      8: 'נתבונן בתרגיל',
+      7: 'נעזרים בלבנים',
+      8: 'מתבוננים בתרגיל',
     };
     for (const [session, opening] of Object.entries(expected)) {
       for (const id of [`s${session}_r_t1`, `s${session}_g_t7`, ...(Number(session) <= 7 ? [`s${session}_g_challenge_1`] : [])]) {

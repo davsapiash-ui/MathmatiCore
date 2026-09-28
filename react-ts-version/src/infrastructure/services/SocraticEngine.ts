@@ -63,9 +63,9 @@ export function groundCardInExercise(card: SocraticHintResponse, currentTask?: a
     context = `בתרגיל על המספר ${a.toLocaleString('he-IL')}`;
   }
   if (!context) return card;
-  // "בואו נחשוב רגע יחד: בתרגיל 425 פחות 162, אין מספיק יחידות…", not two
-  // colons in a row ("בתרגיל 425 פחות 162: בואו נחשוב רגע יחד: …").
-  const OPENING = 'בואו נחשוב רגע יחד: ';
+  // "נסו לחשוב: בתרגיל 61 פחות 24, אין מספיק יחידות…", not two
+  // colons in a row ("בתרגיל 61 פחות 24: נסו לחשוב: …").
+  const OPENING = 'נסו לחשוב: ';
   const grounded = (text: string) =>
     text.startsWith(OPENING) ? `${OPENING}${context}, ${text.slice(OPENING.length)}` : `${context}: ${text}`;
   return {
@@ -284,12 +284,12 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // Steps 1–2: free dragging, the digits follow the blocks.
   's1_sandbox_controlled': {
     pedagogical_intent: "procedural",
-    tts_text: 'בואו נסתכל ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
+    tts_text: 'הסתכלו ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
     suggested_highlight: "tour-place-value-board",
-    questionHe: 'בואו נסתכל ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
+    questionHe: 'הסתכלו ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
     choices: [
       { id: "1", textHe: "לגרור עוד לבנים לטורים ולצפות בספרות בבית המספרים", isCorrect: true, feedbackHe: "בדיוק! כל לבנה שגוררים משנה את הספרה בטור שלה." },
-      { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "זה נכון מבחינה מתמטית, אבל כרגע אנחנו מכירים את הכלים ולא פותרים תרגיל." },
+      { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "זה נכון מבחינה מתמטית, אבל כרגע מכירים את הכלים ולא פותרים תרגיל." },
       { id: "3", textHe: "לכתוב מספר בשורת התוצאה", isCorrect: false, feedbackHe: "במשימה הזו לא כותבים. גוררים לבנים ומסתכלים על בית המספרים." }
     ],
     correctChoiceId: "1"
@@ -304,9 +304,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // gives the answer). "פורטים עשרת" takes no "לטור…": one decomposes a ten, into units (owner, 28.9.2026).
   's1_target_347': {
     pedagogical_intent: "conceptual",
-    tts_text: "בואו נחשוב רגע יחד: מה קורה בבית המספרים כשפורטים עשרת אחת?",
+    tts_text: "נסו לחשוב: מה קורה בבית המספרים כשפורטים עשרת אחת?",
     suggested_highlight: "tour-column-tens",
-    questionHe: "בואו נחשוב רגע יחד: מה קורה בבית המספרים כשפורטים עשרת אחת?",
+    questionHe: "נסו לחשוב: מה קורה בבית המספרים כשפורטים עשרת אחת?",
     choices: [
       { id: "opt_1", textHe: "מקבלים עשר יחידות שנוספות לטור היחידות", isCorrect: true, feedbackHe: "נכון מאוד! לחצו על לבנת עשרת, וראו את היחידות שנוספות לטור היחידות." },
       { id: "opt_2", textHe: "בית המספרים נשאר בלי שינוי", isCorrect: false, feedbackHe: "רמז: הפריטה משנה את בית המספרים. בדקו מה קורה בטור העשרות ובטור היחידות." },
@@ -342,7 +342,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       { id: "opt_1", textHe: "מקבצים 10 עשרות למאה אחת בטור המאות", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור העשרות 10 עשרות, לחצו על הכפתור "קבץ 10" שבראש הטור.' },
       { id: "opt_2", textHe: "מוחקים 10 עשרות לפח בלי להוסיף מאה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר. מקבצים למאה." },
-      { id: "opt_3", textHe: "נרשום 10 בתיבת העשרות", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד, מ-0 עד 9." }
+      { id: "opt_3", textHe: "רושמים 10 בתיבת העשרות", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד, מ-0 עד 9." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -353,13 +353,13 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // after it — and does not give the result.
   's1_r_sub61': {
     pedagogical_intent: "procedural",
-    tts_text: "בחיסור 61 − 24: איך יודעים שסיימנו להוציא מבית המספרים?",
+    tts_text: "בחיסור 61 − 24: איך יודעים שסיימתם להוציא מבית המספרים?",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "בחיסור 61 − 24: איך יודעים שסיימנו להוציא מבית המספרים?",
+    questionHe: "בחיסור 61 − 24: איך יודעים שסיימתם להוציא מבית המספרים?",
     choices: [
-      { id: "opt_1", textHe: "כשהוצאנו בסך הכול 4 יחידות ו-2 עשרות. את מה שנשאר בבית המספרים כותבים בשורת התוצאה", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
-      { id: "opt_2", textHe: "כשפרטנו עוד עשרת", isCorrect: false, feedbackHe: "רמז: בתרגיל הזה פורטים עשרת אחת בלבד." },
-      { id: "opt_3", textHe: "כשהוספנו 24 לבנים לבית המספרים", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים." }
+      { id: "opt_1", textHe: "כשהוצאתם בסך הכול 4 יחידות ו-2 עשרות. את מה שנשאר בבית המספרים כותבים בשורת התוצאה", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
+      { id: "opt_2", textHe: "כשפרטתם עוד עשרת", isCorrect: false, feedbackHe: "רמז: בתרגיל הזה פורטים עשרת אחת בלבד." },
+      { id: "opt_3", textHe: "כשהוספתם 24 לבנים לבית המספרים", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -369,13 +369,13 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // every later point, and does not give the result.
   's1_r_sub806': {
     pedagogical_intent: "procedural",
-    tts_text: "בחיסור 806 − 351: איך יודעים שסיימנו להוציא מבית המספרים?",
+    tts_text: "בחיסור 806 − 351: איך יודעים שסיימתם להוציא מבית המספרים?",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "בחיסור 806 − 351: איך יודעים שסיימנו להוציא מבית המספרים?",
+    questionHe: "בחיסור 806 − 351: איך יודעים שסיימתם להוציא מבית המספרים?",
     choices: [
-      { id: "opt_1", textHe: "כשהוצאנו בסך הכול יחידה אחת, 5 עשרות ו-3 מאות. את מה שנשאר בבית המספרים כותבים בשורת התוצאה", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
-      { id: "opt_2", textHe: "כשפרטנו עוד מאה", isCorrect: false, feedbackHe: "רמז: בתרגיל הזה פורטים מאה אחת בלבד." },
-      { id: "opt_3", textHe: "כשהוספנו 351 לבנים לבית המספרים", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים." }
+      { id: "opt_1", textHe: "כשהוצאתם בסך הכול יחידה אחת, 5 עשרות ו-3 מאות. את מה שנשאר בבית המספרים כותבים בשורת התוצאה", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
+      { id: "opt_2", textHe: "כשפרטתם עוד מאה", isCorrect: false, feedbackHe: "רמז: בתרגיל הזה פורטים מאה אחת בלבד." },
+      { id: "opt_3", textHe: "כשהוספתם 351 לבנים לבית המספרים", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -392,9 +392,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   's4_card':   {
     pedagogical_intent: "procedural",
     error_category: "procedural",
-    tts_text: 'בואו נחשוב רגע יחד: נצברו עשר יחידות בטור. מה עושים איתן?',
+    tts_text: 'נסו לחשוב: נצברו עשר יחידות בטור. מה עושים איתן?',
     suggested_highlight: "tour-column-units",
-    questionHe: 'בואו נחשוב רגע יחד: נצברו עשר יחידות בטור. מה עושים איתן?',
+    questionHe: 'נסו לחשוב: נצברו עשר יחידות בטור. מה עושים איתן?',
     choices: [
       { id: "opt_1", textHe: 'מקבצים 10 יחידות לעשרת אחת ומעבירים אותה שמאלה לטור העשרות', isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבץ 10" וצפו בעשרת הנודדת שמאלה.' },
       { id: "opt_2", textHe: 'משאירים את כולן בטור היחידות', isCorrect: false, feedbackHe: 'רמז: טור היחידות קטן וצפוף. הוא יכול להכיל רק ספרה אחת בין 0 ל-9.' },
@@ -406,12 +406,12 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   's5_card':   {
     pedagogical_intent: "procedural",
     error_category: "procedural",
-    tts_text: 'בואו נחשוב רגע יחד: אין מספיק יחידות כדי להחסיר. מה עושים?',
+    tts_text: 'נסו לחשוב: אין מספיק יחידות כדי להחסיר. מה עושים?',
     suggested_highlight: "tour-column-tens",
-    questionHe: 'בואו נחשוב רגע יחד: אין מספיק יחידות כדי להחסיר. מה עושים?',
+    questionHe: 'נסו לחשוב: אין מספיק יחידות כדי להחסיר. מה עושים?',
     choices: [
       { id: "opt_1", textHe: 'פורטים עשרת אחת לעשר יחידות בודדות ומעבירים אותן לטור היחידות', isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על לבנת עשרת אחת כדי לפרוט אותה לעשר יחידות.' },
-      { id: "opt_2", textHe: 'מחסירים את המספר הקטן מהמספר הגדול בטור היחידות', isCorrect: false, feedbackHe: 'רמז: בואו נשמור על סדר התרגיל ונחסיר את המחסר מהמחוסר.' },
+      { id: "opt_2", textHe: 'מחסירים את המספר הקטן מהמספר הגדול בטור היחידות', isCorrect: false, feedbackHe: 'רמז: שמרו על סדר התרגיל והחסירו את המחסר מהמחוסר.' },
       { id: "opt_3", textHe: 'כותבים את התשובה בטור העשרות תחילה', isCorrect: false, feedbackHe: 'רמז: בחיסור במאונך מתחילים בטור היחידות, בצד ימין.' }
     ],
     correctChoiceId: "opt_1"
@@ -420,13 +420,13 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   's6_card':   {
     pedagogical_intent: "conceptual",
     error_category: "conceptual",
-    tts_text: 'בואו נחשוב רגע יחד: איך פורטים כשבטור העשרות יש אפס?',
+    tts_text: 'נסו לחשוב: איך פורטים כשבטור העשרות יש אפס?',
     suggested_highlight: "tour-column-hundreds",
-    questionHe: 'בואו נחשוב רגע יחד: איך פורטים כשבטור העשרות יש אפס?',
+    questionHe: 'נסו לחשוב: איך פורטים כשבטור העשרות יש אפס?',
     choices: [
       { id: "opt_1", textHe: 'פרטו תחילה לבנת מאה אחת לעשר עשרות בטור העשרות', isCorrect: true, feedbackHe: 'מצוין! כעת לחצו על לבנת המאה וצפו בעשרות הנוצרות בבית המספרים.' },
-      { id: "opt_2", textHe: 'התעלמו מהאפס והמשיכו לטור הבא', isCorrect: false, feedbackHe: 'רמז: ספרת האפס היא שומר מקום חשוב. בואו נתחשב בה בחישוב.' },
-      { id: "opt_3", textHe: 'הוסיפו עשרת אחת לטור היחידות ללא פריטה', isCorrect: false, feedbackHe: 'רמז: בואו נשמור על ערך המספר המקורי תמיד.' }
+      { id: "opt_2", textHe: 'התעלמו מהאפס והמשיכו לטור הבא', isCorrect: false, feedbackHe: 'רמז: ספרת האפס היא שומר מקום חשוב. התחשבו בה בחישוב.' },
+      { id: "opt_3", textHe: 'הוסיפו עשרת אחת לטור היחידות ללא פריטה', isCorrect: false, feedbackHe: 'רמז: שמרו תמיד על ערך המספר המקורי.' }
     ],
     correctChoiceId: "opt_1"
   },
@@ -434,13 +434,13 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   's7_card':   {
     pedagogical_intent: "procedural",
     error_category: "procedural",
-    tts_text: 'בואו נחשוב רגע יחד: איך נגלה כמה יחידות או עשרות חסרות כדי להגיע לתוצאה?',
+    tts_text: 'נסו לחשוב: איך מגלים כמה יחידות או עשרות חסרות כדי להגיע לתוצאה?',
     suggested_highlight: "tour-column-tens",
-    questionHe: 'בואו נחשוב רגע יחד: איך נגלה כמה יחידות או עשרות חסרות כדי להגיע לתוצאה?',
+    questionHe: 'נסו לחשוב: איך מגלים כמה יחידות או עשרות חסרות כדי להגיע לתוצאה?',
     choices: [
-      { id: "opt_1", textHe: 'ניעזר בלבנים משמאל, נבדוק כמה עשרות יש לנו כעת בבית המספרים וכמה חסרות כדי להגיע לתוצאה הרשומה בתרגיל', isCorrect: true, feedbackHe: 'מדויק! בואו נבצע את הבדיקה בבית המספרים ונכתוב את הספרה החסרה.' },
-      { id: "opt_2", textHe: 'ננחש מספר אקראי ונכתוב אותו בתיבת התשובה', isCorrect: false, feedbackHe: 'רמז: בואו נשתמש בבית המספרים כדי להוכיח את התשובה בבטחה.' },
-      { id: "opt_3", textHe: 'נעבור לפתור את הטור הבא תחילה', isCorrect: false, feedbackHe: 'רמז: פותרים לפי הסדר, טור אחר טור. מה שרושמים בעיגול הזיכרון משנה את החשבון בטור הבא.' }
+      { id: "opt_1", textHe: 'נעזרים בלבנים משמאל, בודקים כמה עשרות יש כעת בבית המספרים וכמה חסרות כדי להגיע לתוצאה הרשומה בתרגיל', isCorrect: true, feedbackHe: 'מדויק! בדקו בבית המספרים וכתבו את הספרה החסרה.' },
+      { id: "opt_2", textHe: 'מנחשים מספר אקראי וכותבים אותו בתיבת התשובה', isCorrect: false, feedbackHe: 'רמז: היעזרו בבית המספרים כדי לבדוק את התשובה.' },
+      { id: "opt_3", textHe: 'עוברים קודם לטור הבא', isCorrect: false, feedbackHe: 'רמז: פותרים לפי הסדר, טור אחר טור. מה שרושמים בעיגול הזיכרון משנה את החשבון בטור הבא.' }
     ],
     correctChoiceId: "opt_1"
   },
@@ -448,13 +448,13 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   's8_card':   {
     pedagogical_intent: "procedural",
     error_category: "procedural",
-    tts_text: 'בואו נחשוב רגע יחד: כיצד תפתרו את התרגיל כאשר אין לכם לבנים על המסך?',
+    tts_text: 'נסו לחשוב: כיצד תפתרו את התרגיל כאשר אין לכם לבנים על המסך?',
     suggested_highlight: "tour-column-units",
-    questionHe: 'בואו נחשוב רגע יחד: כיצד תפתרו את התרגיל כאשר אין לכם לבנים על המסך?',
+    questionHe: 'נסו לחשוב: כיצד תפתרו את התרגיל כאשר אין לכם לבנים על המסך?',
     choices: [
-      { id: "opt_1", textHe: 'נתבונן בתרגיל וניעזר בעיגולי הזיכרון בראש הטורים כדי לנהל את פעולת ההמרה או הפריטה בשלבים', isCorrect: true, feedbackHe: 'מצוין! התקדמו טור אחר טור ורשמו את המעברים בעיגולי הזיכרון.' },
-      { id: "opt_2", textHe: 'ננחש את התוצאה הסופית ונקליד אותה מיד', isCorrect: false, feedbackHe: 'רמז: הימנעו מניחושים מהירים. פתרו את התרגיל בצורה מסודרת מימין לשמאל.' },
-      { id: "opt_3", textHe: 'נחכה שהתשובה הנכונה תופיע על המסך', isCorrect: false, feedbackHe: 'רמז: התשובה לא תופיע מעצמה. אתם יכולים לפתור בעצמכם, שלב אחר שלב.' }
+      { id: "opt_1", textHe: 'מתבוננים בתרגיל ונעזרים בעיגולי הזיכרון בראש הטורים כדי לנהל את פעולת ההמרה או הפריטה בשלבים', isCorrect: true, feedbackHe: 'מצוין! התקדמו טור אחר טור ורשמו את המעברים בעיגולי הזיכרון.' },
+      { id: "opt_2", textHe: 'מנחשים את התוצאה הסופית ומקלידים אותה מיד', isCorrect: false, feedbackHe: 'רמז: הימנעו מניחושים מהירים. פתרו את התרגיל בצורה מסודרת מימין לשמאל.' },
+      { id: "opt_3", textHe: 'מחכים שהתשובה הנכונה תופיע על המסך', isCorrect: false, feedbackHe: 'רמז: התשובה לא תופיע מעצמה. אתם יכולים לפתור בעצמכם, שלב אחר שלב.' }
     ],
     correctChoiceId: "opt_1"
   }
@@ -517,7 +517,7 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
     pedagogical_intent: "conceptual",
     tts_text: "כאשר טור ריק לחלוטין — כותבים 0 כדי לשמור על ערכי הטורים האחרים.",
     suggested_highlight: "tour-column-tens",
-    questionHe: "מה קורה לספרות האחרות אם לא נרשום 0 בטור הריק?",
+    questionHe: "מה קורה לספרות האחרות אם לא רושמים 0 בטור הריק?",
     choices: [
       { id: "opt_1", textHe: "הספרות יזוזו ממקומן וישנו את ערך המספר כולו" },
       { id: "opt_2", textHe: "כלום — אפשר לדלג על טורים ריקים" },
@@ -529,7 +529,7 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
     pedagogical_intent: "focus",
     tts_text: "חשבו: אם הפעולה הפוכה — חיבור ↔ חיסור — מה אפשר לגלות מכך?",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "איך פעולה הפוכה עוזרת לנו לבדוק תשובה?",
+    questionHe: "איך פעולה הפוכה עוזרת לבדוק תשובה?",
     choices: [
       { id: "opt_1", textHe: "מחסירים את אחד המחוברים מהסכום — אם מקבלים את השני, נכון" },
       { id: "opt_2", textHe: "עושים שוב את אותה פעולה" },
@@ -539,11 +539,11 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
   },
   missing_subtrahend: {
     pedagogical_intent: "conceptual",
-    tts_text: "אם יודעים מה נשאר — נחסר אותו מהמספר המקורי כדי לגלות מה חיסרנו.",
+    tts_text: "אם יודעים מה נשאר — מורידים אותו מהמספר המקורי כדי לגלות את המספר שמחסרים.",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "כיצד מוצאים את המספר שחיסרנו?",
+    questionHe: "כיצד מוצאים את המספר שמחסרים?",
     choices: [
-      { id: "opt_1", textHe: "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו" },
+      { id: "opt_1", textHe: "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שמחסרים" },
       { id: "opt_2", textHe: "מנחשים" },
       { id: "opt_3", textHe: "אי אפשר למצוא" }
     ],
@@ -591,9 +591,9 @@ export class SocraticEngine {
       // Legacy names kept for backward-compat with tests
       subtraction_regrouping: {
         pedagogical_intent: "procedural",
-        tts_text: "חסרות לנו יחידות בבית המספרים כדי לחסר. פרטו עשרת אחת ל-10 יחידות.",
+        tts_text: "חסרות יחידות בבית המספרים כדי לחסר. פרטו עשרת אחת ל-10 יחידות.",
         suggested_highlight: "tour-column-units",
-        questionHe: "חסרות לנו יחידות בבית המספרים לחיסור — מה עושים?",
+        questionHe: "חסרות יחידות בבית המספרים לחיסור — מה עושים?",
         choices: [
           { id: "opt_1", textHe: "פורטים עשרת אחת מטור העשרות ל-10 יחידות" },
           { id: "opt_2", textHe: "מוסיפים יחידות חדשות" },
@@ -661,23 +661,23 @@ export class SocraticEngine {
         pedagogical_intent: "procedural",
         tts_text: `בטור היחידות יש ${counts.units} לבנים. צריך לקבץ 10 מהן לעשרת אחת.`,
         suggested_highlight: "tour-column-units",
-        questionHe: `בטור היחידות הצטברו ${counts.units} לבנים (יותר מ-9). מה הצעד הבא שנבצע?`,
+        questionHe: `בטור היחידות הצטברו ${counts.units} לבנים (יותר מ-9). מה הצעד הבא?`,
         choices: [
           { 
             id: "opt_1", 
-            textHe: "נאסוף 10 יחידות מטור היחידות ונמיר אותן לעשרת אחת בטור העשרות", 
+            textHe: "אוספים 10 יחידות מטור היחידות וממירים אותן לעשרת אחת בטור העשרות", 
             isCorrect: true, 
             feedbackHe: 'תשובה נכונה! לחצו על הכפתור "קבץ 10" שבראש טור היחידות.'
           },
           { 
             id: "opt_2", 
-            textHe: "נמחק 10 יחידות מטור היחידות לפח מבלי להוסיף עשרת", 
+            textHe: "מוחקים 10 יחידות מטור היחידות לפח האשפה מבלי להוסיף עשרת", 
             isCorrect: false, 
             feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר! צריך לשמור על הכמות הכוללת בעזרת המרה. אפשר להשתמש בכפתור ביטול פעולה ↺."
           },
           { 
             id: "opt_3", 
-            textHe: "נעביר לבנה אחת בלבד לטור העשרות", 
+            textHe: "מעבירים לבנה אחת בלבד לטור העשרות", 
             isCorrect: false, 
             feedbackHe: "רמז: עשרת אחת שווה בדיוק ל-10 יחידות. לבנת יחידה אחת היא לא עשרת. אפשר להשתמש בכפתור ביטול פעולה ↺."
           }
@@ -695,19 +695,19 @@ export class SocraticEngine {
         choices: [
           { 
             id: "opt_1", 
-            textHe: "נאסוף 10 עשרות ונקבץ אותן למאה אחת בטור המאות", 
+            textHe: "אוספים 10 עשרות ומקבצים אותן למאה אחת בטור המאות", 
             isCorrect: true, 
             feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבץ 10" שבראש טור העשרות כדי להמיר למאה אחת.'
           },
           { 
             id: "opt_2", 
-            textHe: "נמחק עשרות מיותרות לפח האשפה", 
+            textHe: "מוחקים עשרות מיותרות לפח האשפה", 
             isCorrect: false, 
             feedbackHe: "רמז: מחיקת לבנים בלי המרה מורידה מהערך הכולל של המספר. מקבצים במקום למחוק." 
           },
           { 
             id: "opt_3", 
-            textHe: "נרשום מספר דו-ספרתי בתיבת העשרות", 
+            textHe: "רושמים מספר דו-ספרתי בתיבת העשרות", 
             isCorrect: false, 
             feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד, מ-0 עד 9." 
           }
@@ -725,19 +725,19 @@ export class SocraticEngine {
         choices: [
           { 
             id: "opt_1", 
-            textHe: "נאסוף 10 מאות ונקבץ אותן לאלף אחד בטור האלפים", 
+            textHe: "אוספים 10 מאות ומקבצים אותן לאלף אחד בטור האלפים", 
             isCorrect: true, 
             feedbackHe: 'מצוין! לחצו על הכפתור "קבץ 10" שבראש טור המאות כדי לקבץ אותן לאלף אחד.'
           },
           { 
             id: "opt_2", 
-            textHe: "נשאיר 10 מאות באותו הטור", 
+            textHe: "משאירים 10 מאות באותו הטור", 
             isCorrect: false, 
             feedbackHe: "רמז: בסוף התרגיל נשארות בכל טור לכל היותר 9 לבנים, כי 10 לבנים יוצרות לבנה אחת בטור השמאלי." 
           },
           { 
             id: "opt_3", 
-            textHe: "נמחק מאות לפח האשפה", 
+            textHe: "מוחקים מאות לפח האשפה", 
             isCorrect: false, 
             feedbackHe: "רמז: שמרו על הכמות הכוללת בעזרת הקבצה לאלפים."
           }
@@ -782,19 +782,19 @@ export class SocraticEngine {
           choices: [
             {
               id: "opt_1",
-              textHe: `נבנה רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''} בבית המספרים, ואחר כך נוציא ממנו ${formatNumberHe(subtrahend)} לפח האשפה`,
+              textHe: `בונים רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''} בבית המספרים, ואחר כך מוציאים ממנו ${formatNumberHe(subtrahend)} לפח האשפה`,
               isCorrect: true,
               feedbackHe: "נכון! גררו לבנים לבית המספרים עד שהוא מראה את המספר הראשון, ורק אז הוציאו ממנו."
             },
             {
               id: "opt_2",
-              textHe: "נבנה את שני המספרים בבית המספרים ונחבר אותם",
+              textHe: "בונים את שני המספרים בבית המספרים ומחברים אותם",
               isCorrect: false,
               feedbackHe: "רמז: בחיסור לא בונים את שני המספרים. בונים את הראשון ומוציאים ממנו את השני."
             },
             {
               id: "opt_3",
-              textHe: "נקליד את התוצאה בלי לבנות כלום",
+              textHe: "מקלידים את התוצאה בלי לבנות כלום",
               isCorrect: false,
               feedbackHe: "רמז: קודם מייצגים את המספר בלבנים, ורק אחר כך כותבים את התוצאה."
             }
@@ -836,19 +836,19 @@ export class SocraticEngine {
           choices: [
             {
               id: "opt_1",
-              textHe: "נלחץ על עשרת אחת מטור העשרות כדי לפרוט אותה ל-10 יחידות",
+              textHe: "לוחצים על עשרת אחת מטור העשרות כדי לפרוט אותה ל-10 יחידות",
               isCorrect: true,
               feedbackHe: "מעולה! לחצו על לבנת העשרת בבית המספרים כדי לפרוט אותה ל-10 יחידות."
             },
             {
               id: "opt_2",
-              textHe: `נחסיר הפוך: ${unitsB} פחות ${counts.units}`,
+              textHe: `מחסירים הפוך: ${unitsB} פחות ${counts.units}`,
               isCorrect: false,
               feedbackHe: "רמז: בחיסור מוציאים רק מהכמות הקיימת. אי אפשר להחסיר הפוך מלמטה למעלה. אפשר להשתמש בכפתור ביטול פעולה ↺."
             },
             { 
               id: "opt_3", 
-              textHe: unitsB - counts.units === 1 ? 'נוסיף לבנת יחידה אחת חדשה' : `נוסיף ${unitsB - counts.units} לבני יחידה חדשות`, 
+              textHe: unitsB - counts.units === 1 ? 'מוסיפים לבנת יחידה אחת חדשה' : `מוסיפים ${unitsB - counts.units} לבני יחידה חדשות`, 
               isCorrect: false, 
               feedbackHe: "רמז: הוספת לבנים חדשות משנה את ערך המספר המקורי! פורטים מהטור השכן כדי לשמור על הכמות." 
             }
@@ -863,23 +863,23 @@ export class SocraticEngine {
           pedagogical_intent: "procedural",
           tts_text: `${inTensHe(counts.tens)}, וצריך להחסיר ${tensB}. פרטו מאה אחת ל-10 עשרות.`,
           suggested_highlight: "tour-column-hundreds",
-          questionHe: `${inTensHe(counts.tens)}, וצריך להחסיר ${tensHe(tensB)}. מאיזה טור שכן נוכל לפרוט לבנה?`,
+          questionHe: `${inTensHe(counts.tens)}, וצריך להחסיר ${tensHe(tensB)}. מאיזה טור שכן אפשר לפרוט לבנה?`,
           choices: [
             {
               id: "opt_1",
-              textHe: "נלחץ על מאה אחת מטור המאות כדי לפרוט אותה ל-10 עשרות",
+              textHe: "לוחצים על מאה אחת מטור המאות כדי לפרוט אותה ל-10 עשרות",
               isCorrect: true,
               feedbackHe: "מצוין! לחצו על לבנת המאה בבית המספרים כדי לפרוט אותה ל-10 עשרות."
             },
             {
               id: "opt_2",
-              textHe: `נחסיר הפוך: ${tensB} פחות ${counts.tens}`,
+              textHe: `מחסירים הפוך: ${tensB} פחות ${counts.tens}`,
               isCorrect: false,
-              feedbackHe: "רמז: בחיסור מוציאים מהכמות שיש לנו. אסור להחסיר הפוך. אפשר להשתמש בכפתור ביטול פעולה ↺."
+              feedbackHe: "רמז: בחיסור מוציאים מהכמות שיש בבית המספרים. אסור להחסיר הפוך. אפשר להשתמש בכפתור ביטול פעולה ↺."
             },
             { 
               id: "opt_3", 
-              textHe: "נמחק לבנת מאה לפח האשפה",
+              textHe: "מוחקים לבנת מאה לפח האשפה",
               isCorrect: false,
               feedbackHe: "רמז: מחיקת מאות ללא פריטה תקטין את המספר במקום לשמור על הכמות הכוללת."
             }
@@ -898,19 +898,19 @@ export class SocraticEngine {
           choices: [
             { 
               id: "opt_1", 
-              textHe: "נלחץ על אלף אחד מטור האלפים כדי לפרוט אותו ל-10 מאות", 
+              textHe: "לוחצים על אלף אחד מטור האלפים כדי לפרוט אותו ל-10 מאות", 
               isCorrect: true, 
               feedbackHe: "מדויק! לחצו על לבנת האלף בטור האלפים כדי לפרוט אותה ל-10 מאות." 
             },
             { 
               id: "opt_2", 
-              textHe: `נחסיר הפוך: ${hundredsB} פחות ${counts.hundreds}`,
+              textHe: `מחסירים הפוך: ${hundredsB} פחות ${counts.hundreds}`,
               isCorrect: false,
               feedbackHe: "רמז: בחיסור גורעים רק מהכמות הקיימת. נסו לחקור את הפריטה בעזרת כפתור ביטול פעולה ↺."
             },
             {
               id: "opt_3",
-              textHe: "נוסיף לבני מאה חדשות",
+              textHe: "מוסיפים לבני מאה חדשות",
               isCorrect: false,
               feedbackHe: "רמז: הוספת לבנים חדשות משנה את המספר. צריך לשמור על הכמות בעזרת פריטה מטור האלפים."
             }
@@ -1245,7 +1245,7 @@ export class SocraticEngine {
     const staticFallback: SocraticHintResponse = (fallbackTask?.id && TASK_HINTS[fallbackTask.id]) || {
         pedagogical_intent: 'conceptual',
         error_category: 'conceptual',
-        questionHe: 'מה הפעולה המתמטית שנרצה לבצע בבית המספרים?',
+        questionHe: 'מה הפעולה המתמטית שצריך לבצע בבית המספרים?',
         choices: [
           { id: 'opt_1', textHe: 'לבדוק את כמות הלבנים בכל טור בבית המספרים', isCorrect: true },
           { id: 'opt_2', textHe: 'לפרוט עשרת אחת ל-10 יחידות', isCorrect: false },
