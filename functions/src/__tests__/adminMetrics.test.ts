@@ -99,6 +99,16 @@ describe('Module 24: store_cache/admin_metrics', () => {
     expect(m.average_mastery_percent).toBeNull();
   });
 
+  it('a meeting learners started but none completed has no score (null), not 0', () => {
+    const m = build({ highestCompletedByLearner: new Map([[1, 2], [2, 2]]) });
+    expect(m.session_breakdown['3']).toMatchObject({ created: 2, completed: 0, average_score_percent: null });
+  });
+
+  it('a completed meeting whose compulsory exercises cannot be resolved has no score (null)', () => {
+    const m = build({ compulsory: new Map() });
+    expect(m.session_breakdown['3']).toMatchObject({ completed: 1, average_score_percent: null });
+  });
+
   it('a learner who got nothing right on the first try keeps a real 0', () => {
     const m = build({
       byMeeting: groupTelemetryByMeeting([
