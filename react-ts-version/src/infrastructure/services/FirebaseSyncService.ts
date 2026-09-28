@@ -11,6 +11,7 @@ export const REMOTE_SYNC_WINDOW_MS = 500;
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME } from '@/core/pilotInstitution';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
+import { throttledRtdbUpdate, rtdbUpdateNow, flushThrottledWrites } from './ThrottledRtdbWriter';
 import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
 import type { SessionDocument, PedagogicalPath } from '@/types';
 import {
@@ -280,7 +281,9 @@ export class FirebaseSyncService {
   /** The database writes of the latest payload, sent once per window (PRD Module 5 §ב: local-first, event-driven). */
   private pendingRemoteSync: (() => void) | null = null;
   private remoteSyncTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly flushRemoteSyncOnPageHide = () => this.flushRemoteSync();
+  // Page hide: the latest state goes out now — the throttled writer's pending
+  // window would otherwise die with the page.
+  private readonly flushRemoteSyncOnPageHide = () => { this.flushRemoteSync(); flushThrottledWrites(); };
   /** The coaching-card state last published to the radar; null until the first change is seen. */
   private lastPublishedCardOpen: boolean | null = null;
   private unsubscribeFirebase: (() => void) | null = null;
@@ -374,16 +377,17 @@ export class FirebaseSyncService {
     const studentId = normalizeStudentId(rawStudentId);
     this.currentUserId = studentId;
     const studentRef = ref(database, `users/students/${studentId}`);
-    // Set online presence
+    // Set online presence — through the one throttled writer of this record
+    // (PRD 18: at most one client write per 1000 ms).
     const statusRef = ref(database, `users/students/${studentId}/isOnline`);
-    set(statusRef, true);
     try {
       onDisconnect(statusRef).set(false);
       onDisconnect(ref(database, `users/students/${studentId}/lastPing`)).set(0);
     } catch {}
-    update(studentRef, {
+    throttledRtdbUpdate(`users/students/${studentId}`, {
+      isOnline: true,
       onlineStatus: 'active',
-      lastPing: Date.now(),
+      lastPing: serverTimestamp(),
       lastActivityTimestamp: Date.now(),
       hasJoinedSession: true,
     }).catch(() => {});
@@ -512,7 +516,7 @@ export class FirebaseSyncService {
         this.lastPublishedCardOpen = cardOpen;
         const canonical = normalizeStudentId(this.currentUserId);
         for (const key of new Set([canonical, this.currentUserId])) {
-          if (key) update(ref(database, `users/students/${key}`), { isSocraticActive: cardOpen }).catch(() => {});
+          if (key) throttledRtdbUpdate(`users/students/${key}`, { isSocraticActive: cardOpen }).catch(() => {});
         }
       }
       
@@ -569,8 +573,7 @@ export class FirebaseSyncService {
       const keyboardState = state.keyboardState;
       this.pendingRemoteSync = () => {
       studentKeys.forEach(key => {
-        const studentDirectRef = ref(database, `users/students/${key}`);
-        update(studentDirectRef, {
+        throttledRtdbUpdate(`users/students/${key}`, {
           workspaceState: sanitizedPayload,
           lastActive: serverTimestamp(),
           currentTaskIdx: standardTaskIdx,
@@ -708,17 +711,18 @@ export class FirebaseSyncService {
   }
 
   private stopSync() {
-    if (this.currentUserId) {
-      const statusRef = ref(database, `users/students/${this.currentUserId}/isOnline`);
-      set(statusRef, false).catch((err) => {
-        console.error("Failed to set student offline during logout:", err);
-      });
-      this.currentUserId = null;
-    }
+    // The last synced state first, then the offline mark sent at once and
+    // merged with it — so a pending "online" write can never land after it.
     if (this.unsubscribeWorkspace) {
       this.flushRemoteSync();
       this.unsubscribeWorkspace();
       this.unsubscribeWorkspace = null;
+    }
+    if (this.currentUserId) {
+      rtdbUpdateNow(`users/students/${this.currentUserId}`, { isOnline: false }).catch((err) => {
+        console.error("Failed to set student offline during logout:", err);
+      });
+      this.currentUserId = null;
     }
     if (this.unsubscribeFirebase) {
       this.unsubscribeFirebase();
@@ -770,13 +774,19 @@ export class FirebaseSyncService {
   public async syncTraceData(rawStudentId: string, traceDataUpdates: Partial<TraceData>) {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
-    const traceRef = ref(database, `users/students/${studentId}/traceData`);
-    await update(traceRef, traceDataUpdates).catch((err) => {
+    // PRD 18: at most one write per second to the learner record. traceData is
+    // logged on every digit and block action, so it joins the same throttled
+    // window as every other lesson-time write (as `traceData/<field>` keys).
+    const fields: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(traceDataUpdates)) fields[`traceData/${k}`] = v;
+    if (Object.keys(fields).length === 0) return;
+    // Not awaited: the window resolves up to a second later, and no caller
+    // needs to wait for it (the live telemetry update does the same).
+    throttledRtdbUpdate(`users/students/${studentId}`, fields).catch((err) => {
       console.error(`[FirebaseSyncService] Failed to sync trace data for ${studentId}:`, err);
-      throw err;
     });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}/traceData`), traceDataUpdates).catch((err) => {
+      throttledRtdbUpdate(`users/students/${rawStudentId}`, fields).catch((err) => {
         console.warn(`[FirebaseSyncService] Legacy trace data mirror notice for ${rawStudentId}:`, err);
       });
     }
@@ -1096,7 +1106,7 @@ export class FirebaseSyncService {
 
     // 5. Unified RTDB live-state snapshot update (Module 4 & Module 18)
     const rtdbLiveUpdate: Record<string, any> = {
-      lastPing: Date.now(),
+      lastPing: serverTimestamp(),
       lastActivityTimestamp: Date.now(),
       onlineStatus: 'active',
     };
@@ -1149,10 +1159,12 @@ export class FirebaseSyncService {
       rtdbLiveUpdate['workspaceState/undoCount'] = (event.details as UndoExecutedDetails).undo_stack_depth_before;
     }
 
-    // Write live snapshot to RTDB for both student aliases
-    update(ref(database, `users/students/${normUid}`), rtdbLiveUpdate).catch(() => {});
+    // Write live snapshot to RTDB for both student aliases — merged into the
+    // record's one write per window (PRD 18: at most once per 1000 ms). It used
+    // to be a write of its own on every event: ten block drops, ten writes.
+    throttledRtdbUpdate(`users/students/${normUid}`, rtdbLiveUpdate).catch(() => {});
     if (normUid !== rawStudentUid) {
-      update(ref(database, `users/students/${rawStudentUid}`), rtdbLiveUpdate).catch(() => {});
+      throttledRtdbUpdate(`users/students/${rawStudentUid}`, rtdbLiveUpdate).catch(() => {});
     }
 
     // 6. Enqueue into IndexedDB FIFO queue (Module 17) -> syncs to Firestore telemetry_logs
@@ -1168,7 +1180,11 @@ export class FirebaseSyncService {
     if (!studentId) return;
     const normId = normalizeStudentId(studentId);
     const path = `users/students/${normId}/sessionState`;
-    await update(ref(database, path), sessionState as any).catch((err) => {
+    // The fields of sessionState, written through the learner record's one
+    // throttled writer (PRD 18: at most once per 1000 ms).
+    const fields: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(sessionState)) fields[`sessionState/${k}`] = v;
+    await throttledRtdbUpdate(`users/students/${normId}`, fields).catch((err) => {
       console.warn(`[FirebaseSyncService] Failed to sync sessionState for ${normId}, enqueuing to offline queue:`, err);
       // The same fields, merged into sessionState itself on replay — never a
       // child of it — under one key per learner and meeting, so a replay

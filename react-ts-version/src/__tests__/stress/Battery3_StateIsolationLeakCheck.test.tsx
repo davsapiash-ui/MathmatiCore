@@ -23,6 +23,7 @@ vi.mock('@/infrastructure/firebase', () => ({
   // מודול 14 §ד: שעון השרת הוא הסמכות; classSession קורא לו בהשוואות.
   serverNow: () => Date.now(),
   fetchServerClockOffset: () => Promise.resolve(0),
+  isServerClockKnown: () => true,
 }));
 
 vi.mock('firebase/database', () => ({

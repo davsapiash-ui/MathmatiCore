@@ -141,12 +141,21 @@ export function StudentChatOverlay() {
 
   if (!isOpen) return null;
 
+  // `rr-block` — rrweb's default blockClass. The screen recording documents the
+  // board, not the conversation: PRD Module 21 §ב "ההקלטה מתעדת שינויי DOM
+  // ושינויי קנבס בלבד", and invariant 1 / Module 3 §א (Zero-PII). The panel
+  // renders inside the recorded page, so without this the recording carried
+  // every bubble and every keystroke typed here — even a message the PII filter
+  // refused to send — to RTDB, the teacher's replay and the Drive backups.
+  // rrweb replaces a blocked element with an empty box of the same size and
+  // records no input, mutation or text inside it. The math inputs stay
+  // recorded (Module 21: the teacher analyses the steps), so no maskAllInputs.
   return (
     <div
       ref={panelRef}
       role="dialog"
       aria-label="הודעות עם המורה"
-      className="fixed bottom-6 left-6 z-50 w-80 sm:w-96 h-[480px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-ws-surface2 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200"
+      className="rr-block fixed bottom-6 left-6 z-50 w-80 sm:w-96 h-[480px] bg-ws-surface rounded-3xl shadow-2xl border-2 border-ws-surface2 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200"
       dir="rtl"
     >
       {/* Header */}

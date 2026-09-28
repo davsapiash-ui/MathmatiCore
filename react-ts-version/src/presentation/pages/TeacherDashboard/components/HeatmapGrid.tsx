@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ref, onValue } from 'firebase/database';
-import { database, functions } from '@/infrastructure/firebase';
+import { database, functions, serverNow } from '@/infrastructure/firebase';
+import { isHeartbeatFresh, readLastPing } from '@/core/presence';
 import { httpsCallable } from 'firebase/functions';
 import { useAuthStore } from '@/application/useAuthStore';
 import { approveTeacherGate } from '@/core/teacherGate';
@@ -215,11 +216,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           // Strict real-time presence:
           // 1. Must NOT be explicitly offline
           // 2. Must have isOnline === true AND fresh heartbeat within 12 seconds (students ping every 4s)
-          const lastPing = data.lastPing || 0;
+          // lastPing is the server's stamp, so it is compared with the server
+          // clock — never with this laptop's own (Module 18 §ג, core/presence.ts).
+          const serverClockNow = serverNow();
+          const lastPing = readLastPing(data.lastPing, serverClockNow);
           const hasJoinedSession = Boolean(lastPing > 0 || data.hasJoinedSession || data.sessionJoined);
           const isExplicitlyOffline = data.isOnline === false || data.onlineStatus === 'offline';
-          const isHeartbeatFresh = lastPing > 0 && Math.abs(now - lastPing) <= 12000;
-          const isOnline = Boolean(!isExplicitlyOffline && data.isOnline === true && isHeartbeatFresh);
+          const isOnline = Boolean(!isExplicitlyOffline && data.isOnline === true && isHeartbeatFresh(data.lastPing, serverClockNow));
 
           const wsState = data.workspaceState || {};
           const sessionState = data.sessionState || {};

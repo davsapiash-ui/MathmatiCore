@@ -3,7 +3,7 @@ import { requireAdmin, requireTeacherForIndividualData } from "./callerIdentity"
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { GoogleAuth } from "google-auth-library";
-import { computeToolMastery, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
+import { computeToolMastery, truncatedRecordingMeetings, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
 import { recomputeAdminMetrics } from "./adminAggregator";
 import { containsPhoneNumber } from "./phonePattern";
 
@@ -1634,6 +1634,15 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
           const prev = recordingMinutesByKey.get(k) ?? { minutes: 0, truncated: false };
           recordingMinutesByKey.set(k, { minutes: Math.round((prev.minutes + minutes) * 10) / 10, truncated: prev.truncated || truncated });
         }
+      }
+      // Module 21: the 50MB budget is per learner per meeting, and its flag
+      // lives with the budget — filed under that meeting, also when the
+      // recording that reached the cap holds no chunk (and so no meeting) of its own.
+      for (const meeting of truncatedRecordingMeetings(node)) {
+        if (scopedSession !== null && meeting !== scopedSession) continue;
+        const k = `${n}:${meeting}`;
+        const prev = recordingMinutesByKey.get(k) ?? { minutes: 0, truncated: false };
+        recordingMinutesByKey.set(k, { ...prev, truncated: true });
       }
 
       if (node.reflections && typeof node.reflections === "object") {
