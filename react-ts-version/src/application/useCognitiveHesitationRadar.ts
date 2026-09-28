@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useAuthStore, currentStudentUid } from './useAuthStore';
+import { currentStudentUid } from './useAuthStore';
 import { useWorkspaceStore, activeExerciseId } from '@/application/useWorkspaceStore';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { database } from '@/infrastructure/firebase';
@@ -87,9 +87,8 @@ export function useCognitiveHesitationRadar({
     // decides when to ask.
     gridTimeoutRef.current = setTimeout(() => {
       const wsState = useWorkspaceStore.getState();
-      const authUser = useAuthStore.getState().user;
-      const supportProfileId =
-        (authUser as any)?.support_profile_id ?? (wsState as any).support_profile_id;
+      // Module 19 §ב: the profile applied at this exercise's start, never the live record.
+      const supportProfileId = wsState.activeSupportProfileId;
       if (
         shouldOpenAdaptiveGrid({
           supportProfileId,

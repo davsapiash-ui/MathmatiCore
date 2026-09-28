@@ -3,10 +3,12 @@ import { useWorkspaceStore } from '../../application/useWorkspaceStore';
 import { SESSION1_TASKS, SESSION3_TASKS } from '../../data/sessionTasks';
 import { getSessionBranchTasks } from '../../data/sessionBranchTasks';
 import type { SessionDocument } from '../../types';
+import { approvePath } from '@/test/approvedPath';
 
 describe('Work Package 4 (WP4): Session Progression (1-8), Projector Sync & SRL Reflection Suite', () => {
   beforeEach(() => {
     useWorkspaceStore.getState().resetWorkspace();
+    approvePath(); // Module 26: meetings 3–8 run on the learner's approved path
     if (typeof localStorage !== 'undefined') {
       localStorage.clear();
     }

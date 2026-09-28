@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
+import { approvePath } from '@/test/approvedPath';
 
 /**
  * מודול 11 §א: "שחזור Snapshot דטרמיניסטי של מצב ה-VRA (קואורדינטות, כמויות,
@@ -19,6 +20,7 @@ const src = (p: string) => readFileSync(resolve(__dirname, '../../', p), 'utf-8'
 describe('undo restores what the learner typed (Module 11 §א)', () => {
   beforeEach(() => {
     useWorkspaceStore.getState().resetWorkspace();
+    approvePath(); // Module 26: meetings 3–8 run on the learner's approved path
     useWorkspaceStore.getState().initSession(8, false);
     const s = useWorkspaceStore.getState();
     const idx = getActiveTasks(s).findIndex((t) => typeof t.numberA === 'number' && typeof t.numberB === 'number');
