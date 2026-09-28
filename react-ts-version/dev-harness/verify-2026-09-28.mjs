@@ -167,8 +167,8 @@ for (const [w, h] of sizes) {
     await browser.close();
   }
 
-  /* 3.20 — no box and no sum, meetings 3, 4, 7. */
-  for (const [m, idxFind] of [[3, 0], [4, 0], [7, 5]]) {
+  /* 3.20 — no box and no sum, meetings 3–7 (owner, 28.9.2026: the sum is removed in 5 and 6 as well). */
+  for (const [m, idxFind] of [[3, 0], [4, 0], [5, 0], [6, 0], [7, 5]]) {
     const { browser, page } = await open(m, w, h);
     await page.evaluate(([m, i]) => window.__ws.getState().initSession(m, false, i), [m, idxFind]);
     await page.waitForTimeout(700);
@@ -177,17 +177,6 @@ for (const [w, h] of sizes) {
     const t = await text(page);
     check(`${tag} 3.20 meeting ${m}: no box, no sum`, !/בנו בלוח בדיוק|בלוח כרגע|הלוח תואם|בניתי את/.test(t));
     await page.screenshot({ path: `${out}/3.20-m${m}-built-${tag}.png` });
-    await browser.close();
-  }
-
-  /* 3.20 — meetings 5 and 6 keep the sum (not in the owner's decision). */
-  {
-    const { browser, page } = await open(5, w, h);
-    await page.evaluate(() => window.__ws.getState().initSession(5, false, 0));
-    await page.waitForTimeout(700);
-    await drop(page, 'hundreds', 3); await drop(page, 'tens', 4);
-    await page.waitForTimeout(500);
-    check(`${tag} 3.20 meeting 5 keeps "בניתי את"`, (await text(page)).includes('בניתי את'));
     await browser.close();
   }
 

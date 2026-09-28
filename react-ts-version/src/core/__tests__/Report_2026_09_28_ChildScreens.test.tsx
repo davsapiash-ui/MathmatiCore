@@ -5,7 +5,8 @@ import React from 'react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, screen, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { readFileSync } from 'fs';
+import { DndContext } from '@dnd-kit/core';
+import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
 vi.mock('@/presentation/design-system/UdlSpeechButton', () => ({
@@ -20,7 +21,7 @@ import { SESSION1_TASKS, getSessionTasks } from '@/data/sessionTasks';
 import { SESSION_BRANCH_TASKS } from '@/data/sessionBranchTasks';
 import { LOGOUT_HE, PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames';
 import { DEFAULT_LEFT_PX, useLeftClearOfSidePanel } from '@/features/workspace/board/useLeftClearOfSidePanel';
-import { showsBuiltSum } from '@/core/boardVisibility';
+import { PlaceValueBoard } from '@/features/workspace/board/PlaceValueBoard';
 
 /**
  * The spec-vs-software report of 28.9.2026 (branch claude/spec-vs-software-report),
@@ -180,17 +181,32 @@ describe('row 1.28 — the addition grid keeps clear of the coaching card', () =
   });
 });
 
-describe('row 3.20 (owner, 28.9.2026) — no "בנו בלוח בדיוק / בלוח כרגע" box, and no "בניתי את" sum in meetings 3, 4 and 7', () => {
+describe('row 3.20 (owner, 28.9.2026) — no "בנו בלוח בדיוק / בלוח כרגע" box, and no "בניתי את" sum in any meeting', () => {
   it('the box is gone from every representation exercise', () => {
     const rep = src('features/workspace/tasks/RepresentationTask.tsx');
     expect(rep).not.toContain('describeCountsHe');
     for (const gone of ['בנו בלוח בדיוק', 'בלוח כרגע', 'הלוח תואם']) expect(rep).not.toContain(gone);
   });
 
-  it('the sum is shown in meetings 5 and 6 only — not in 3, 4 and 7 (the decision), not in 1 (as before)', () => {
-    for (const m of [1, 2, 3, 4, 7, 8]) expect(showsBuiltSum(m), `meeting ${m}`).toBe(false);
-    for (const m of [5, 6]) expect(showsBuiltSum(m), `meeting ${m}`).toBe(true);
-    expect(src('features/workspace/board/PlaceValueBoard.tsx')).toContain('{showsBuiltSum(sessionNumber) && <ValueDisplay />}');
+  // Not in 3, 4 and 7 (the first decision), not in 5 and 6 (the second,
+  // "כל עוד שזה לא נוגד את האפיון אז אני מאשר"), not in 1 (as before).
+  it.each([1, 3, 4, 5, 6, 7] as const)('meeting %i: blocks on the board, and no sum under the columns', (meeting) => {
+    ws().initSession(meeting, false, 0);
+    useWorkspaceStore.setState({ counts: { units: 7, tens: 4, hundreds: 3, thousands: 0 } });
+    const { container } = render(
+      <DndContext>
+        <PlaceValueBoard />
+      </DndContext>
+    );
+    expect(container.querySelector('section[aria-label="בית המספרים"]')).not.toBeNull();
+    expect(container.textContent).not.toContain('בניתי');
+    expect(container.querySelector('[aria-label="ערך כולל"]')).toBeNull();
+  });
+
+  it('the component and its per-meeting switch are gone, so no meeting can bring the sum back', () => {
+    expect(existsSync(resolve(__dirname, '../../features/workspace/board/ValueDisplay.tsx'))).toBe(false);
+    expect(src('features/workspace/board/PlaceValueBoard.tsx')).not.toMatch(/<ValueDisplay|showsBuiltSum/);
+    expect(src('core/boardVisibility.ts')).not.toContain('showsBuiltSum');
   });
 });
 

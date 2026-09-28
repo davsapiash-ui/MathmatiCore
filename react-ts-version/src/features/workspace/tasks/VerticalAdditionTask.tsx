@@ -26,6 +26,23 @@ const PLACE_TINT: Record<Place, string> = {
   thousands: 'var(--block-thousand-dark)',
 };
 
+/** How a screen reader says a hidden operand digit (skeleton exercises). */
+const MISSING_DIGIT_HE = 'ספרה חסרה';
+
+/**
+ * An operand as the exercise's screen-reader label says it. In a skeleton
+ * exercise the hidden digit is what the child has to find, and the label must
+ * not say it (PRD Module 13: the answer is never revealed): the operand is
+ * read digit by digit, each hidden place as "ספרה חסרה" — "3, ספרה חסרה, 6".
+ * An operand with no hidden digit is said as the number, as before.
+ */
+function spokenOperand(digits: string, hidden: Place[]): string {
+  const said = digits
+    .split('')
+    .map((d, i) => (hidden.includes(PLACE_ORDER[digits.length - 1 - i]) ? MISSING_DIGIT_HE : d));
+  return said.includes(MISSING_DIGIT_HE) ? said.join(', ') : digits;
+}
+
 /** One notebook square: grid columns AND paper background share it. A CSS
  * length (--ws-cell, index.css) — 64px on a tall screen, smaller on a short or
  * narrow laptop screen so the result row stays in view (owner, 27.9.2026). */
@@ -184,7 +201,7 @@ export function VerticalAdditionTask({
       <div
         dir="ltr"
         role="group"
-        aria-label={`תרגיל במאונך: ${numberA} ${isSubtraction ? 'פחות' : 'ועוד'} ${numberB}`}
+        aria-label={`תרגיל במאונך: ${spokenOperand(aStr, hiddenA)} ${isSubtraction ? 'פחות' : 'ועוד'} ${spokenOperand(bStr, hiddenB)}`}
         className="grid rounded-2xl shadow-sm"
         style={{
           gridTemplateColumns: `${CELL} repeat(${cols}, ${CELL})`,
