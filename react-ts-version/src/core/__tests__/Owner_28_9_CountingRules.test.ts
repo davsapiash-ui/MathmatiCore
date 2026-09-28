@@ -298,9 +298,34 @@ describe('Rules 4+5 — the card, driven through the store (meeting 4, 1,245 + 3
     hint.mockRestore();
   });
 
+  it('a card opened for another reason does not reset the streak', async () => {
+    for (const d of ['9', '8', '6']) ws().setAnswerDigit('tens', d);
+    ws().openSocraticCard('hesitation_45s');
+    await flush();
+    expect(ws().helpState).toBe('socratic');
+    expect(ws().digitErrorStreak).toBe(3);
+    expect(ws().socraticCardPlace).toBeNull();
+  });
+
   it('a card opened for another reason keeps the focused box as its column', () => {
     useWorkspaceStore.setState({ socraticTriggerReason: 'hesitation_45s', socraticCardPlace: null, focusedPlace: 'hundreds' } as any);
     expect(socraticCardColumnIndex(ws())).toBe(2);
+  });
+
+  it('the streak resets to 0 when the next exercise loads (advance → startTask → resetTaskInteraction)', () => {
+    const first = byId('s4_r_t1'); // 142 + 23 = 165, no carry
+    load(4, first);
+    useWorkspaceStore.setState({ dynamicTasks: [first, byId('s4_r_t2')] } as any);
+    boardOf(165);
+    ws().setAnswerDigit('units', '5');
+    ws().setAnswerDigit('tens', '6');
+    ws().setAnswerDigit('hundreds', '1');
+    // A streak left over from the exercise (set directly: a solved exercise ends on correct digits).
+    useWorkspaceStore.setState({ digitErrorStreak: 3, digitErrorStreakPlace: 'tens' });
+    proceed();
+    expect(ws().standardTaskIdx).toBe(1);
+    expect(ws().digitErrorStreak).toBe(0);
+    expect(ws().digitErrorStreakPlace).toBeNull();
   });
 
   it('the streak resets to 0 when a task loads', () => {
@@ -346,11 +371,24 @@ describe('Rules 4+5 — missing-digit boxes use the same streak (meetings 5–8)
     expect(ws().socraticCardPlace).toBe('tens');
   });
 
-  it('a result-row digit and a hidden digit in the same column are one streak; a correct hidden digit resets it', () => {
+  it('other triggers keep the old "already solved" guard in a skeleton with a filled-in wrong digit', async () => {
+    load(7, byId('s7_r_t2')); // 31▢ + 254 = 568
+    ws().setOperandDigit('a', 'units', '5');
+    ws().openSocraticCard('hesitation_45s');
+    ws().openSocraticCard('consecutive_errors_4'); // the wrong-submission source: no column
+    await flush();
+    expect(ws().helpState).not.toBe('socratic');
+  });
+
+  // The banks have no exercise with both a hidden operand digit and an open
+  // result-row box, so the two sources meet only through the shared rule.
+  it('hidden digits: wrong digits accumulate, a correct one resets, deleting counts nothing', () => {
     const t = byId('s7_r_t3'); // 3▢6 + 271 = 657, the tens hidden
     load(7, t);
     ws().setOperandDigit('a', 'tens', '1');
     ws().setOperandDigit('a', 'tens', '2');
+    expect(ws().digitErrorStreak).toBe(2);
+    ws().setOperandDigit('a', 'tens', '');
     expect(ws().digitErrorStreak).toBe(2);
     ws().setOperandDigit('a', 'tens', '8');
     expect(ws().digitErrorStreak).toBe(0);
@@ -429,6 +467,29 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
     expect(locked('units')).toBe(false);
   });
 
+  it('a grouping does not open a decomposition column (s3_g_t4: 12 hundreds grouped)', () => {
+    load(3, byId('s3_g_t4'), ENH);
+    board({ thousands: 5, hundreds: 12, tens: 3 });
+    ws().groupColumnClick('hundreds');
+    expect(ws().conversionsByColumn.composed.hundreds).toBe(true);
+    expect(locked('hundreds')).toBe(true);
+  });
+
+  it('every representation exercise that needs a conversion has a lock (none can silently lose it)', () => {
+    const PL: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
+    const standard = (n: number) => Object.fromEntries(PL.map((p) => [p, Math.floor(n / UNIT[p]) % 10]));
+    const same = (a: any, b: any) => PL.every((p) => (a[p] ?? 0) === (b[p] ?? 0));
+    const reps = [...new Map(allTasks().filter((t) => t.type === 'representation').map((t) => [t.id, t])).values()];
+    const needs = reps
+      .filter((t) => {
+        const init = (t as any).initialCounts;
+        return !same(t.requiredCounts, standard(t.numberA!)) || (init && !same(init, standard(t.numberA!)));
+      })
+      .map((t) => t.id);
+    // s7_g_t5 and s7_g_t6 end in standard form; their conversions are in the instruction.
+    expect([...needs, 's7_g_t5', 's7_g_t6'].sort()).toEqual(Object.keys(REPRESENTATION_LOCKS).sort());
+  });
+
   it('safety valve: a board equal to requiredCounts opens every column', () => {
     load(3, byId('s3_r_t3'), ENH); // 45 tens, dragged directly
     board({ tens: 45 });
@@ -445,6 +506,9 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
     expect(locked('hundreds')).toBe(false);
     load(3, byId('s3_g_t4'), ENH);
     useWorkspaceStore.setState({ sessionNumber: 8 } as any);
+    expect(locked('hundreds')).toBe(false);
+    load(3, byId('s3_g_t4'), ENH);
+    useWorkspaceStore.setState({ sessionNumber: 2 } as any);
     expect(locked('hundreds')).toBe(false);
   });
 
