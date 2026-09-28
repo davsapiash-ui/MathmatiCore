@@ -240,6 +240,24 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       signIn(3);
     });
 
+    it('N2 — a legacy gate mirror without an owner belongs to staff, not to the learner in its path', async () => {
+      const data = fakeIDB.store(DB_NAME, STORE);
+      data.records.set(850, { id: 850, refPath: 'users/students/student_user4', payload: { teacher_gate_approved: true, routeStatus: 'APPROVED', idempotency_key: 'gate_mirror_4_1' }, idempotency_key: 'gate_mirror_4_1', timestamp: 1, retry_count: 0 });
+      data.nextKey = 851;
+      expect(queueModule.inferOwner(data.records.get(850))).toBe(queueModule.ANY_STAFF_OWNER);
+
+      signIn(4);
+      await vi.advanceTimersByTimeAsync(3000);
+      const mirrorWrites = () => rtdb.update.mock.calls.filter((c) => (c[1] as Record<string, unknown>)?.routeStatus === 'APPROVED');
+      expect(mirrorWrites()).toEqual([]); // was: sent with learner 4's claims, and refused
+
+      signInTeacher();
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(rtdb.update).toHaveBeenCalledWith({ path: 'users/students/student_user4' }, { teacher_gate_approved: true, routeStatus: 'APPROVED' });
+      expect(await stored()).toEqual([]);
+      signIn(3);
+    });
+
     it('no sign-out path in the app clears the queue', () => {
       const src = resolve(__dirname, '../..');
       const offenders: string[] = [];
@@ -278,13 +296,18 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       data.records.set(900, { id: 900, refPath: 'users/students/student_user3/sessionState', payload: { status: 'active' }, idempotency_key: 'legacy_1', timestamp: 1, retry_count: 0 });
       data.records.set(901, { id: 901, refPath: 'users/students/student_user3', payload: { teacher_gate_approved: true, routeStatus: 'APPROVED', idempotency_key: 'gate_mirror_3_1' }, idempotency_key: 'gate_mirror_3_1', timestamp: 2, retry_count: 0 });
       data.nextKey = 902;
-      await queue.flushQueue();
+      await queue.flushQueue(); // learner 3: the sessionState item
+      signInTeacher();
+      await vi.advanceTimersByTimeAsync(0);
+      await queue.flushQueue(); // the teacher: the gate mirror
 
       expect(rtdb.update.mock.calls).toEqual([
         [{ path: 'users/students/student_user3/sessionState' }, { status: 'active' }],
         [{ path: 'users/students/student_user3' }, { teacher_gate_approved: true, routeStatus: 'APPROVED' }],
       ]);
-      expect(rtdb.set).not.toHaveBeenCalled();
+      // Neither is written as a child any more (presence writes aside).
+      expect(rtdb.set.mock.calls.filter((c) => /legacy_1|gate_mirror/.test((c[0] as { path: string }).path))).toEqual([]);
+      signIn(3);
     });
 
     it('sessionState: a failed write is queued as a merge under one stable key', async () => {
@@ -493,6 +516,92 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       const left = await queue.getAll();
       expect(left.map((i) => [i.idempotency_key, i.retry_count, i.transient_count])).toEqual([['tam_1', 0, 20]]);
       signIn(3);
+    });
+  });
+
+  describe('N1 — an outage the browser does not report parks nothing for good', () => {
+    const offlineRead = () => Object.assign(new Error('Failed to get document because the client is offline.'), { code: 'unavailable' });
+    const internal = () => Object.assign(new Error('INTERNAL'), { code: 'functions/internal' });
+
+    /** Parks the teacher's message by 20 internal failures; the queue is left signed in as the teacher. */
+    const parkMessage = async () => {
+      signInTeacher();
+      await vi.advanceTimersByTimeAsync(0);
+      callable.mockImplementation(async () => { throw internal(); });
+      await queue.enqueueCallable('sendTeacherAdminMessage', { message_body: 'x', client_message_id: 'tam_p' }, 'tam_p');
+      for (let i = 0; i < 40; i++) {
+        const [head] = await queue.getAll();
+        if (queueModule.isParked(head)) break;
+        await queue.flushQueue();
+      }
+      const [parked] = await queue.getAll();
+      expect(parked.transient_count).toBe(20);
+      callable.mockImplementation(async () => ({ data: {} }));
+    };
+
+    it('(a) a pre-read that finds the network down never parks the meeting-2 completion; the network returns without a reload → delivered', async () => {
+      // The browser still says "online"; every read fails at once, as offline.
+      rtdb.get.mockImplementation(async () => { throw new Error('Client is offline.'); });
+      fs.getDoc.mockImplementation(async () => { throw offlineRead(); });
+      await sync.firebaseSyncService.syncSession2Completion('student_user3', 71, 'green_path');
+
+      // Well past 20 attempts (the old item was parked after ~18 minutes).
+      for (let i = 0; i < 40; i++) await queue.flushQueue();
+      await vi.advanceTimersByTimeAsync(30 * 60 * 1000);
+      const waiting = await queue.getAll();
+      expect(waiting.map((i) => [i.idempotency_key, i.retry_count ?? 0, i.transient_count ?? 0])).toEqual([
+        ['s2_done_rtdb_student_user3', 0, 0],
+        ['s2_done_doc_session_02_student_3', 0, 0],
+      ]);
+      expect(rtdb.update).not.toHaveBeenCalled();
+      expect(fs.setDoc).not.toHaveBeenCalled();
+
+      // The network comes back. No reload, no online/offline event.
+      rtdb.get.mockImplementation(async () => ({ val: () => null }));
+      fs.getDoc.mockImplementation(async () => ({ exists: () => false, data: () => undefined }));
+      await vi.advanceTimersByTimeAsync(31_000); // the next backoff retry
+      expect(rtdb.update).toHaveBeenCalledTimes(1);
+      expect(fs.setDoc.mock.calls.map((c) => (c[0] as { id: string }).id)).toEqual(['session_02_student_3']);
+      expect(await stored()).toEqual([]);
+      expect(queue.getSyncState()).toBe('synced');
+    });
+
+    it('(b) the browser "online" event revives an item parked by transient failures', async () => {
+      await parkMessage();
+      fakeWindow.dispatchEvent(new Event('online'));
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.waitFor(async () => expect(await stored()).toEqual([]));
+      expect(callable).toHaveBeenLastCalledWith('sendTeacherAdminMessage', { message_body: 'x', client_message_id: 'tam_p' });
+      signIn(3);
+    });
+
+    it('(b) a successful delivery in a later pass revives it', async () => {
+      await parkMessage();
+      await queue.enqueueRtdbMerge('users/students/student_user3', { teacher_gate_approved: true }, 'gate_mirror_3_9');
+      await queue.flushQueue(); // the mirror is delivered → the parked message gets another chance
+      expect(rtdb.update).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(2000);
+      await vi.waitFor(async () => expect(await stored()).toEqual([]));
+      signIn(3);
+    });
+
+    it('(b) while something is parked by transient failures, it is revived every 2 minutes', async () => {
+      await parkMessage();
+      // No event, no other delivery: only the periodic revival can send it.
+      await vi.advanceTimersByTimeAsync(121_000);
+      await vi.waitFor(async () => expect(await stored()).toEqual([]));
+      signIn(3);
+    });
+
+    it('an item parked by real refusals waits for the next page load, as before', async () => {
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_refused_5'));
+      for (let i = 0; i < 5; i++) await queue.flushQueue();
+      fs.setDoc.mockImplementation(async () => {});
+      fakeWindow.dispatchEvent(new Event('online'));
+      await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+      const [item] = await queue.getAll();
+      expect([item.idempotency_key, item.retry_count]).toEqual(['e_refused_5', 5]);
     });
   });
 

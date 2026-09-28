@@ -11,7 +11,7 @@ export const REMOTE_SYNC_WINDOW_MS = 500;
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME } from '@/core/pilotInstitution';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
-import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, type RtdbDelivery } from './IndexedDBQueue';
+import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
 import type { SessionDocument, PedagogicalPath } from '@/types';
 import {
   type TelemetryPayload,
@@ -252,17 +252,19 @@ export async function deliverQueuedRtdbWrite(refPath: string, payload: any, deli
   const { idempotency_key: _key, ...fields } = (payload ?? {}) as Record<string, unknown>;
   const guarded = delivery.skipFieldsIfGateApproved ?? [];
   if (guarded.length > 0) {
+    // A pre-read that fails because the network is down does not count
+    // toward parking (preReadFailure): the item waits, as the write would.
     const [approvedSnap, routeSnap] = await Promise.all([
       get(ref(database, `${refPath}/teacher_gate_approved`)),
       get(ref(database, `${refPath}/routeStatus`)),
-    ]);
+    ]).catch((err) => { throw preReadFailure(err); });
     const approved = approvedSnap?.val?.() === true || routeSnap?.val?.() === 'APPROVED';
     if (approved) for (const field of guarded) delete fields[field];
   }
   const scored = delivery.skipFieldsIfEvaluated;
   if (scored && scored.fields.some((f) => f in fields)) {
     // A read that fails throws: the item is retried, never written blind.
-    const snap = await getDoc(doc(firestore, scored.collection, scored.docId));
+    const snap = await getDoc(doc(firestore, scored.collection, scored.docId)).catch((err) => { throw preReadFailure(err); });
     const evaluatedAt = snap.exists() ? (snap.data() as Record<string, unknown>)?.evaluated_at : undefined;
     if (evaluatedAt !== undefined && evaluatedAt !== null) for (const field of scored.fields) delete fields[field];
   }

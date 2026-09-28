@@ -138,6 +138,20 @@ export function isParked(item: QueuedAction): boolean {
   return (item.retry_count ?? 0) >= MAX_RETRIES_BEFORE_PARKING
     || (item.transient_count ?? 0) >= MAX_TRANSIENT_BEFORE_PARKING;
 }
+
+/**
+ * Parked by the transient threshold only — not by real refusals. These are
+ * revived without a reload: on the browser 'online' event, after any
+ * successful delivery in a later pass, and every TRANSIENT_REVIVE_MS while
+ * one is parked. A tab left open through an outage must not keep a child on
+ * "ממתין לאישור" until someone reloads it. Refusal-parked items
+ * (retry_count ≥ 5) are revived on page load only, as before.
+ */
+export function isTransientParked(item: QueuedAction): boolean {
+  return (item.retry_count ?? 0) < MAX_RETRIES_BEFORE_PARKING
+    && (item.transient_count ?? 0) >= MAX_TRANSIENT_BEFORE_PARKING;
+}
+const TRANSIENT_REVIVE_MS = 2 * 60 * 1000;
 /** השהיה מדורגת בין ניסיונות ריקון, עד תקרה. */
 const RETRY_BACKOFF_MS = [2000, 4000, 8000, 16000, 30000];
 /**
@@ -184,6 +198,29 @@ function errorMessageOf(err: unknown): string {
 
 export function isPermissionDenied(err: unknown): boolean {
   return errorCodeOf(err) === 'permission-denied' || /permission[-_ ]denied/i.test(errorMessageOf(err));
+}
+
+/** No answer at all: the network is down (Firestore `unavailable`, RTDB "Client is offline", a failed fetch). */
+export function isUnreachable(err: unknown): boolean {
+  const code = errorCodeOf(err);
+  if (code) return code === 'unavailable' || code === 'network-request-failed' || code === 'network-error' || code === 'disconnected';
+  return /offline|network|failed to fetch|unavailable/i.test(errorMessageOf(err));
+}
+
+/**
+ * A read made BEFORE a write (to check it is not already delivered) fails at
+ * once while offline, where the write it guards would simply have waited. That
+ * failure is the network, not the item: it is marked so it does not count
+ * toward parking — the pass stops and the item waits, like the write did.
+ */
+export function preReadFailure(err: unknown): unknown {
+  if (!isUnreachable(err)) return err;
+  const marked = err instanceof Error ? err : new Error(errorMessageOf(err));
+  return Object.assign(marked, { queueUnreached: true });
+}
+
+function isMarkedUnreached(err: unknown): boolean {
+  return Boolean((err as { queueUnreached?: boolean } | null)?.queueUnreached);
 }
 
 /**
@@ -235,6 +272,9 @@ function learnerOwner(n: unknown): string | null {
  */
 export function inferOwner(item: QueuedAction): string {
   if (item.owner) return item.owner;
+  // The teacher's gate mirror names the LEARNER in its path, but only the
+  // teacher may write it (rtdbDeliveryOf recognises it by the same key).
+  if (String(item.idempotency_key ?? item.payload?.idempotency_key ?? '').startsWith('gate_mirror_')) return ANY_STAFF_OWNER;
   const fromTelemetry = learnerOwner(item.student_id ?? (item.payload?.event_type ? item.payload?.student_id : undefined));
   if (fromTelemetry) return fromTelemetry;
   const path = item.refPath ?? '';
@@ -277,6 +317,9 @@ export function rtdbDeliveryOf(item: QueuedAction): RtdbDelivery {
 
 /** The item's counters after one more failure (see isParked). */
 function failureCounts(item: QueuedAction, err: unknown): { retry_count: number; transient_count: number; last_error: string } {
+  if (isMarkedUnreached(err)) {
+    return { retry_count: item.retry_count ?? 0, transient_count: item.transient_count ?? 0, last_error: errorMessageOf(err).slice(0, 300) };
+  }
   const transient = isTransientFailure(err);
   return {
     retry_count: (item.retry_count ?? 0) + (transient ? 0 : 1),
@@ -315,6 +358,11 @@ export class IndexedDBQueue {
   private lastOwner: string | null | undefined = undefined;
   private consecutiveFlushFailures = 0;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private transientReviveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Whether the last recount saw an item parked by the transient threshold. */
+  private hasTransientParked = false;
+  /** The browser came back online: the next pass first revives transient-parked items. */
+  private reviveTransientOnNextPass = false;
   private backgroundFlushTimer: ReturnType<typeof setTimeout> | null = null;
   /** Something was enqueued while a flush was already running; flush again when it ends. */
   private flushAgainAfterCurrent = false;
@@ -404,8 +452,9 @@ export class IndexedDBQueue {
     // Without a database getAll() IS the memory fallback — counting both
     // counted every waiting item twice.
     const items = this.db ? await this.getAll() : [];
-    const count = [...items, ...this.memoryFallback].filter((i) => this.belongsToCurrentOwner(i)).length;
-    this.setPendingCount(count);
+    const all = [...items, ...this.memoryFallback];
+    this.hasTransientParked = all.some(isTransientParked);
+    this.setPendingCount(all.filter((i) => this.belongsToCurrentOwner(i)).length);
   }
 
   /** מתזמן ניסיון ריקון נוסף בהשהיה מדורגת. */
@@ -508,6 +557,8 @@ export class IndexedDBQueue {
 
     window.addEventListener('online', () => {
       this.browserOnline = true;
+      // Items parked by transient failures get another chance in the next pass.
+      this.reviveTransientOnNextPass = true;
       this.onBackOnline();
     });
 
@@ -716,6 +767,52 @@ export class IndexedDBQueue {
     }
   }
 
+  /**
+   * Gives every item parked by the transient threshold a fresh set of
+   * attempts (see isTransientParked). `except`: items parked in the pass that
+   * is ending — they get their next chance in a later one. Returns how many.
+   */
+  private async reviveTransientParked(except: Set<unknown> = new Set()): Promise<number> {
+    let revived = 0;
+    for (const item of this.memoryFallback) {
+      if (isTransientParked(item) && !except.has(item)) { item.transient_count = 0; revived++; }
+    }
+    if (!this.db) return revived;
+    const targetStore = this.db.objectStoreNames.contains(STORE_NAME) ? STORE_NAME : LEGACY_STORE_NAME;
+    await new Promise<void>((resolve) => {
+      try {
+        const tx = this.db!.transaction([targetStore], 'readwrite');
+        const req = tx.objectStore(targetStore).openCursor();
+        req.onsuccess = (e) => {
+          const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+          if (!cursor) return;
+          if (isTransientParked(cursor.value ?? {}) && !except.has(cursor.primaryKey)) {
+            cursor.update({ ...cursor.value, transient_count: 0 });
+            revived++;
+          }
+          cursor.continue();
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      } catch {
+        resolve();
+      }
+    });
+    return revived;
+  }
+
+  /** While something is parked by the transient threshold, revive it every TRANSIENT_REVIVE_MS. */
+  private scheduleTransientRevive() {
+    if (!this.hasTransientParked || this.transientReviveTimer) return;
+    this.transientReviveTimer = setTimeout(() => {
+      this.transientReviveTimer = null;
+      this.reviveTransientParked()
+        .catch(() => 0)
+        .then(() => this.flushQueue())
+        .catch(console.error);
+    }, TRANSIENT_REVIVE_MS);
+  }
+
   /** Gives every parked item a fresh set of attempts; called once per page load. */
   private async reviveParkedItems(): Promise<void> {
     if (!this.db) return;
@@ -789,7 +886,10 @@ export class IndexedDBQueue {
    * reach the server; nothing behind it is sent before it. Only an item that
    * has failed often enough to be parked (isParked: 5 refusals or 20
    * transient-looking failures) is passed over, so one poison item cannot
-   * hold the queue for ever. It is kept, and revived on the next page load.
+   * hold the queue for ever. It is kept: an item parked by refusals is revived
+   * on the next page load, one parked by transient failures sooner (see
+   * isTransientParked). A pre-read that finds the network down does not count
+   * at all (preReadFailure).
    *
    * Nothing is sent while nobody is signed in: without claims every write
    * would be refused, and the refusals would park the items.
@@ -809,9 +909,16 @@ export class IndexedDBQueue {
       if (!this.db) {
         await this.initDB();
       }
+      if (this.reviveTransientOnNextPass) {
+        this.reviveTransientOnNextPass = false;
+        if (this.hasTransientParked) await this.reviveTransientParked().catch(() => 0);
+      }
 
       let failures = 0;
       let stopped = false;
+      let delivered = 0;
+      // Items parked in this pass: revived in a later one, not at its end.
+      const parkedNow = new Set<unknown>();
 
       // Step 1 & 2: Process memory fallback items if any
       if (this.memoryFallback.length > 0) {
@@ -821,11 +928,12 @@ export class IndexedDBQueue {
           try {
             if ((await this.attempt(item)) === 'no-route') { stopped = true; break; }
             this.memoryFallback = this.memoryFallback.filter((i) => i !== item);
+            delivered++;
           } catch (err) {
             failures++;
             Object.assign(item, failureCounts(item, err));
             console.error('[IndexedDBQueue] Sync failed for memory item:', item.idempotency_key, err);
-            if (isParked(item)) continue; // parked just now: the queue behind it may move on
+            if (isParked(item)) { parkedNow.add(item); continue; } // parked just now: the queue behind it may move on
             stopped = true;
             break;
           }
@@ -833,6 +941,7 @@ export class IndexedDBQueue {
       }
 
       if (!this.db || stopped) {
+        if (delivered > 0) await this.afterPass(parkedNow);
         this.noteFlushOutcome(failures);
         return;
       }
@@ -895,6 +1004,7 @@ export class IndexedDBQueue {
             if (item.id !== undefined && this.db) {
               await this.deleteById(targetStore, item.id);
             }
+            delivered++;
           } catch (err) {
             failures++;
             const counts = failureCounts(item, err);
@@ -904,7 +1014,7 @@ export class IndexedDBQueue {
             );
             await this.recordFailure(targetStore, item, counts);
             // Parked just now: the queue behind it may move on.
-            if (isParked({ ...item, ...counts })) continue;
+            if (isParked({ ...item, ...counts })) { parkedNow.add(item.id); continue; }
             // Strict FIFO: the pass ends here, and the retry starts from this item.
             hasMore = false;
             break;
@@ -916,17 +1026,29 @@ export class IndexedDBQueue {
         }
       }
 
+      if (delivered > 0) await this.afterPass(parkedNow);
       this.noteFlushOutcome(failures);
     } finally {
       this.isFlushing = false;
       this.currentFlush = null;
       finished();
       await this.refreshPendingCount().catch(() => {});
+      this.scheduleTransientRevive();
       if (this.flushAgainAfterCurrent) {
         this.flushAgainAfterCurrent = false;
         this.scheduleBackgroundFlush();
       }
     }
+  }
+
+  /**
+   * A delivery succeeded, so the server answers: what was parked by the
+   * transient threshold in an EARLIER pass gets another chance now.
+   */
+  private async afterPass(parkedNow: Set<unknown>): Promise<void> {
+    if (!this.hasTransientParked) return; // from the recount that ended the previous pass
+    const revived = await this.reviveTransientParked(parkedNow).catch(() => 0);
+    if (revived > 0) this.flushAgainAfterCurrent = true;
   }
 
   private noteFlushOutcome(failures: number) {
@@ -970,7 +1092,12 @@ export class IndexedDBQueue {
       // overwrite what the server computed since (Module 23 §ב score).
       const deliveredWhen = deliveredWhenOf(item);
       if (deliveredWhen) {
-        const snap = await getDoc(ref);
+        let snap;
+        try {
+          snap = await getDoc(ref);
+        } catch (err) {
+          throw preReadFailure(err);
+        }
         if (snap.exists() && matches(snap.data(), deliveredWhen)) return true;
       }
       await setDoc(ref, item.payload, { merge: true });
