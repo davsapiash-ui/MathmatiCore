@@ -810,10 +810,25 @@ export function resolveLearningPath(): LearningPath | null {
   const students = useStore.getState().students;
   const canonical = currentStudentUid();
   const student = (canonical ? students[canonical] : null) ?? (authUser?.uid ? students[authUser.uid] : null);
-  const path = asLearningPath((student as any)?.pedagogicalPath);
+  const path = recordLearningPath(student as Record<string, unknown> | null);
   if (path) return path;
   if (!canonical && isStaffViewer(auth.role ?? authUser?.role)) return 'green_path';
   return null;
+}
+
+/**
+ * The path a learner record carries: `pedagogicalPath`, the field the engine
+ * reads and the gate has mirrored since 2.9.2026 (#18). A learner approved
+ * before that carries only `teacher_selected_path`; it counts only together
+ * with the gate's approval (`teacher_gate_approved` or routeStatus APPROVED),
+ * so a stale value on an unapproved record never opens a bank.
+ */
+export function recordLearningPath(record: Record<string, unknown> | null | undefined): LearningPath | null {
+  if (!record) return null;
+  const path = asLearningPath(record.pedagogicalPath);
+  if (path) return path;
+  const approved = record.teacher_gate_approved === true || record.routeStatus === 'APPROVED';
+  return approved ? asLearningPath(record.teacher_selected_path) : null;
 }
 
 function isStaffViewer(role: unknown): boolean {

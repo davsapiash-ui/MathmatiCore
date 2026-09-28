@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
-import { useWorkspaceStore, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -547,9 +547,9 @@ export function StudentWorkspacePage() {
   // record the meeting is not started (a teacher previewing the workspace has
   // no learner path and is not held).
   const needsApprovedPath = isPathSplitMeeting(meeting) && !isTeacherOrAdmin;
-  const learnerPath = myData?.pedagogicalPath === 'green_path' || myData?.pedagogicalPath === 'remediation_path'
-    ? myData.pedagogicalPath
-    : null;
+  // pedagogicalPath, or — for a learner approved before 2.9.2026 — the gate's
+  // teacher_selected_path (recordLearningPath).
+  const learnerPath = recordLearningPath(myData as Record<string, unknown> | null);
   const hasApprovedPath = isGateApproved && learnerPath !== null;
   // The bee screen says "סיימתם את התחנה השנייה בהצלחה": it is shown only to a
   // learner who did finish meeting 2 and is waiting for the gate. Anyone else
@@ -637,6 +637,7 @@ export function StudentWorkspacePage() {
                   scaffoldLevel: val.scaffoldLevel !== undefined ? val.scaffoldLevel : existing.scaffoldLevel,
                   // The snapshot is the whole record: a path reset to null is gone (Module 26).
                   pedagogicalPath: val.pedagogicalPath || undefined,
+                  teacher_selected_path: val.teacher_selected_path || undefined,
                   routeStatus: val.routeStatus || existing.routeStatus,
                   teacher_gate_approved: val.teacher_gate_approved !== undefined ? val.teacher_gate_approved : existing.teacher_gate_approved,
                 },
@@ -755,7 +756,8 @@ export function StudentWorkspacePage() {
   // receiveSupportProfile), so the grid does not appear or vanish under the
   // learner's hands.
   const hasEnhancedSupport = useWorkspaceStore((s) => s.activeSupportProfileId === ENHANCED_SUPPORT_PROFILE_ID);
-  const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber !== 2 && sessionNumber !== 8;
+  // Register 18: "רק לפרופיל תמיכה מוגבר, ורק במפגשים 3–7" — never meeting 1, 2 or 8.
+  const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber >= 3 && sessionNumber <= 7;
 
 
   useEffect(() => {

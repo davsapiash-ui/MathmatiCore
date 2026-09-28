@@ -79,7 +79,7 @@ vi.mock('@/features/workspace/board/DienesBlock', () => ({ DienesBlock: () => nu
 vi.mock('@/features/workspace/overlays/FeedbackToast', () => ({ FeedbackToast: () => null }));
 vi.mock('@/features/workspace/overlays/HelpOverlays', () => ({ HelpOverlays: () => null, SocraticSidePanel: () => null }));
 vi.mock('@/features/workspace/overlays/StudentChatOverlay', () => ({ StudentChatOverlay: () => null }));
-vi.mock('@/features/workspace/board/AdaptiveAdditionGrid', () => ({ AdaptiveAdditionGrid: () => null, ADDITION_GRID_HE: 'לוח החיבור' }));
+vi.mock('@/features/workspace/board/AdaptiveAdditionGrid', () => ({ AdaptiveAdditionGrid: () => <div data-testid="addition-grid" />, ADDITION_GRID_HE: 'לוח החיבור' }));
 vi.mock('@/features/workspace/board/useLeftClearOfSidePanel', () => ({ useLeftClearOfSidePanel: () => 24 }));
 vi.mock('@/features/workspace/ClosingSentence', () => ({ ClosingSentence: () => null }));
 vi.mock('@/features/workspace/StationOpening', () => ({ StationOpening: () => <div data-testid="station-opening" /> }));
@@ -250,5 +250,60 @@ describe('meetings 3–7 start only on an approved path', () => {
     expect(ws().sessionNumber).toBe(4);
     expect(ws().standardTaskIdx).toBe(2);
     expect(card()?.textContent).toBe(getSessionTasks(4, 'remediation_path')[2].id);
+  });
+});
+
+describe('a learner approved before 2.9.2026 (#18): the gate wrote only teacher_selected_path', () => {
+  it('approval + teacher_selected_path and no pedagogicalPath: their own bank, no waiting screen', async () => {
+    record({ teacher_gate_approved: true, routeStatus: 'APPROVED', teacher_selected_path: 'remediation_path' });
+    open(5);
+    await flush();
+    expect(waiting()).toBeNull();
+    expect(ws().sessionNumber).toBe(5);
+    expect(ws().activeBankPath).toBe('remediation_path');
+    expect(card()?.textContent).toBe(getSessionTasks(5, 'remediation_path')[0].id);
+  });
+
+  it('teacher_selected_path without the approval flags opens nothing', async () => {
+    record({ teacher_gate_approved: false, routeStatus: null, teacher_selected_path: 'green_path' });
+    open(5);
+    await flush();
+    expect(waiting()).not.toBeNull();
+    expect(ws().sessionNumber).toBe(2);
+    expect(getActiveTasks(ws())).toEqual([]);
+  });
+});
+
+describe('register 18: the addition grid and its return tab only in meetings 3–7', () => {
+  const tab = () => screen.queryByRole('button', { name: 'הצגה חוזרת של לוח החיבור' });
+  const grid = () => screen.queryByTestId('addition-grid');
+
+  async function openWithEnhanced(meeting: number) {
+    record(approved('green_path'));
+    open(meeting);
+    await flush();
+    act(() => {
+      useWorkspaceStore.setState({
+        activeSupportProfileId: 'enhanced_cognitive_support',
+        additionHelperOffered: true,
+        isAdditionHelperOpen: true,
+      } as any);
+    });
+  }
+
+  it('meeting 1, enhanced profile: no grid and no tab', async () => {
+    await openWithEnhanced(1);
+    expect(ws().sessionNumber).toBe(1);
+    expect(grid()).toBeNull();
+    act(() => { useWorkspaceStore.setState({ isAdditionHelperOpen: false }); });
+    expect(tab()).toBeNull();
+  });
+
+  it('meeting 4, enhanced profile: the grid, and the tab once it is closed', async () => {
+    await openWithEnhanced(4);
+    expect(ws().sessionNumber).toBe(4);
+    expect(grid()).not.toBeNull();
+    act(() => { useWorkspaceStore.setState({ isAdditionHelperOpen: false }); });
+    expect(tab()).not.toBeNull();
   });
 });

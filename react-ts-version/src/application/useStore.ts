@@ -98,6 +98,8 @@ export interface StudentData {
   support_profile_id?: string | null;
   scaffoldLevel?: number;
   pedagogicalPath?: string;
+  /** The gate's approved path (Module 20 §ב); before 2.9.2026 the gate mirrored only this, not pedagogicalPath. */
+  teacher_selected_path?: string | null;
   isBoardLocked?: boolean;
   helpRequested?: boolean;
   handRaised?: boolean;

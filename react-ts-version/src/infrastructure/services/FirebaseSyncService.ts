@@ -484,6 +484,8 @@ export class FirebaseSyncService {
             // The snapshot is the whole record: a path the server reset to null
             // is gone, not kept from before (Module 26 — no path, no bank).
             pedagogicalPath: data.pedagogicalPath ?? undefined,
+            // A learner approved before 2.9.2026 carries only the gate's own field (recordLearningPath).
+            teacher_selected_path: data.teacher_selected_path ?? undefined,
             ...(data.teacher_gate_approved !== undefined && { teacher_gate_approved: data.teacher_gate_approved }),
             ...(targetBoardLocked !== undefined && { isBoardLocked: targetBoardLocked }),
             ...((data.support_profile_id !== undefined || data.enhanced_support_profile !== undefined) && {
