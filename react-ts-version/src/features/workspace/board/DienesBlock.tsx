@@ -18,6 +18,9 @@ export interface DienesBlockProps {
   onRemove?: () => void;
   onSplit?: () => void;
   noEnter?: boolean;
+  /** In a column: the block's rendered size and the padding around it
+   *  (core/blockLayout.ts). The whole cell is the click-and-drag area. */
+  cell?: { w: number; h: number; pad: number };
 }
 
 // ----------------------------------------------------------------------
@@ -207,7 +210,8 @@ export function DienesBlock({
   interactive: _interactive,
   onClick,
   onRemove, 
-  onSplit
+  onSplit,
+  cell,
 }: DienesBlockProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
@@ -221,7 +225,7 @@ export function DienesBlock({
   const inner = (
     <div
       className="relative select-none shrink-0 inline-flex items-center justify-center pointer-events-none"
-      style={visual.style}
+      style={cell ? { width: `${cell.w}px`, height: `${cell.h}px` } : visual.style}
     >
       <SvgElement />
     </div>
@@ -229,7 +233,7 @@ export function DienesBlock({
 
   if (isOverlay) return inner;
 
-  const hitPadding = place === 'units' ? 'p-3 -m-1.5' : 'p-1 -m-0.5';
+  const hitPadding = cell ? '' : place === 'units' ? 'p-3 -m-1.5' : 'p-1 -m-0.5';
 
   const handleAction = (_e?: React.MouseEvent | React.KeyboardEvent) => {
     if (onClick) onClick();
@@ -246,7 +250,9 @@ export function DienesBlock({
       role="button"
       tabIndex={0}
       aria-label={visual.labelHe}
-      style={{ touchAction: 'none' }}
+      style={cell ? { touchAction: 'none', padding: `${cell.pad}px`, boxSizing: 'content-box' } : { touchAction: 'none' }}
+      data-block-w={cell?.w}
+      data-block-h={cell?.h}
       className={`touch-none cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-ws-accent rounded-[3px] hover:brightness-110 ${hitPadding} ${isDragging ? 'opacity-30' : ''}`}
       onClick={handleAction}
       onKeyDown={(e) => {

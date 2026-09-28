@@ -1,9 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { motion, useAnimationControls } from 'framer-motion';
 import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { fitBlockGrid, type Size } from '@/core/blockLayout';
+import { calculationFocusPlace, isColumnDimmed, DIMMED_COLUMN_FILTER } from '@/core/columnFocus';
+import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
 import { DienesBlock } from './DienesBlock';
+import { COLUMN_CELLS } from './columnCells';
 import { useVisibleRegroup, arrivingBlockCount } from './RegroupAnimationLayer';
 
 /** Per-place functional colors (vanilla workspace.css 346–375). */
@@ -14,6 +17,26 @@ const COLUMN_COLORS: Record<Place, { header: string; border: string; tint: strin
   thousands: { header: 'var(--block-thousand-dark)', border: 'var(--block-thousand)', tint: 'rgba(239,68,68,0.08)', headerBg: 'rgba(239,68,68,0.14)' },
 };
 
+/** Content-box size of an element, kept current. */
+function useContentSize(ref: React.RefObject<HTMLElement | null>): Size | null {
+  const [size, setSize] = useState<Size | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // First measure before paint, so blocks never flash at the wrong size.
+    if (el.clientWidth > 0 && el.clientHeight > 0) setSize({ w: el.clientWidth, h: el.clientHeight });
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([entry]) => {
+      const w = Math.floor(entry.contentRect.width);
+      const h = Math.floor(entry.contentRect.height);
+      setSize((prev) => (prev && prev.w === w && prev.h === h ? prev : { w, h }));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return size;
+}
+
 export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDragPlace?: Place | null }) {
   const count = useWorkspaceStore((s) => s.counts?.[place] ?? 0);
   const errorPlace = useWorkspaceStore((s) => s.errorPlace);
@@ -22,7 +45,7 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
   const groupColumnClick = useWorkspaceStore((s) => s.groupColumnClick);
   const splitBlockClick = useWorkspaceStore((s) => s.splitBlockClick);
   const removeBlockClick = useWorkspaceStore((s) => s.removeBlockClick);
-  const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
+  const taskType = useWorkspaceStore((s) => getActiveTasks(s)[s.standardTaskIdx]?.type ?? null);
 
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${place}`,
@@ -49,13 +72,16 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
   // bricks (VRA: the concrete and the symbolic change together).
   const shownCount = count - (regroup && regroup.to === place ? arrivingBlockCount(regroup, place) : 0);
   const isError = errorPlace === place;
-  const activeColumnIndex = useWorkspaceStore((s) => s.activeColumnIndex);
-  const places: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
-  const activePlaceByCol = typeof activeColumnIndex === 'number' && activeColumnIndex >= 0 && activeColumnIndex < places.length ? places[activeColumnIndex] : null;
-  const effectiveFocus = focusedPlace || (sessionNumber >= 3 ? activePlaceByCol : null);
 
-  // Column dimming per Master PRD Module 7: opacity 0.7, brightness 0.6 for inactive columns
-  const isDimmed = effectiveFocus !== null && effectiveFocus !== place;
+  // PRD Module 7 §א: columns outside the current calculation focus are dimmed
+  // to brightness 0.6 (core/columnFocus.ts says which column that is).
+  const isDimmed = isColumnDimmed(place, calculationFocusPlace(taskType, focusedPlace));
+
+  // Every block the digit counts is on the screen (core/blockLayout.ts).
+  const blocksRef = useRef<HTMLDivElement | null>(null);
+  const space = useContentSize(blocksRef);
+  // Unmeasured (no layout engine, e.g. in unit tests): drawn size.
+  const fit = fitBlockGrid(renderCount, COLUMN_CELLS[place], space ?? { w: Infinity, h: Infinity });
 
   // Constraint-error shake (vanilla .constraint-error, 400ms). errorNonce retriggers repeats.
   const shakeControls = useAnimationControls();
@@ -70,18 +96,16 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
       id={`column-${place}`}
       ref={setNodeRef}
       animate={shakeControls}
-      className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 border-solid transition-colors duration-150 select-none ${
-        isDimmed ? 'opacity-60' : ''
-      } ${isOver ? 'ring-4 ring-offset-1 z-10' : 'shadow-sm'}`}
+      className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 border-solid transition-colors duration-150 select-none ${isOver ? 'ring-4 ring-offset-1 z-10' : 'shadow-sm'}`}
       style={{
         borderColor: isOver ? colors.border : `${colors.border}55`,
         backgroundColor: isOver ? colors.headerBg : isError ? colors.tint : 'hsl(var(--ws-surface))',
         boxShadow: isOver 
           ? `0 12px 28px -6px ${colors.tint}, 0 0 0 3px ${colors.border}` 
           : '0 4px 14px -6px rgba(0,0,0,0.06)',
-        filter: isDimmed ? 'brightness(0.6)' : undefined,
-        opacity: isDimmed ? 0.6 : 1,
+        filter: isDimmed ? DIMMED_COLUMN_FILTER : undefined,
       }}
+      data-dimmed={isDimmed ? 'true' : undefined}
       aria-label={`טור ${PLACE_NAMES_HE[place]}`}
     >
       <div
@@ -126,47 +150,59 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
         </motion.div>
       )}
 
-      {/* Drop zone container — blocks ground at the bottom base of the column */}
+      {/* Drop zone — the whole column accepts a drop (מסמך 04, Affordance). */}
       <div
         id={`column-${place}-dropzone`}
         role="group"
         aria-label={`אזור גרירה — ${PLACE_NAMES_HE[place]}`}
         style={{ touchAction: 'none' }}
-        className="relative flex-1 min-h-0 p-3 pb-4 overflow-y-auto overflow-x-hidden no-scrollbar touch-none flex flex-col justify-end"
+        className="relative flex-1 min-h-0 p-2 overflow-hidden touch-none flex flex-col"
       >
-        {/* Grounded block stack anchored at the bottom — horizontal flex wrap */}
-        <div
-          className="w-full mt-auto flex flex-row flex-wrap content-end justify-center items-end gap-1.5 min-w-0"
-        >
-          {Array.from({ length: renderCount }).map((_, i) => (
-            <div
-              key={`${place}-${i}`}
-              className="shrink-0 flex items-center justify-center select-none"
-              data-arriving={i >= firstArrivingIdx ? 'true' : undefined}
-              style={i >= firstArrivingIdx ? { visibility: 'hidden' } : undefined}
-            >
-              <DienesBlock 
-                id={`column-${place}-${i}`}
-                place={place} 
-                source="column"
-                noEnter={i < renderCount - 1}
-                onClick={() => {
-                  // מודול 8 §א: לחיצה על לבנה = פריטה לעשר לבנות בערך הנמוך
-                  // הסמוך. ליחידה אין ערך נמוך יותר, ולכן הלחיצה אינה עושה
-                  // דבר — עד כה היא מחקה את הלבנה, נתיב מחיקה שלישי שאינו
-                  // באפיון (יש בדיוק שניים: גרירה לפח ולחיצה על הפח), וילד
-                  // שנגע בלבנה בטעות איבד אותה בלי להבין למה.
-                  if (place !== 'units') splitBlockClick(place);
+        {/* The blocks stand on the bottom of the column, in rows. Their size is
+            computed so that all of them fit; nothing here scrolls or clips. */}
+        <div ref={blocksRef} className="relative flex-1 min-h-0 flex flex-col justify-end items-center">
+          <div
+            data-testid={`column-${place}-blocks`}
+            data-scale={fit.scale}
+            className="flex flex-row flex-wrap content-end justify-center"
+            style={{ width: `${fit.perRow * fit.cell.w}px`, maxWidth: '100%' }}
+          >
+            {Array.from({ length: renderCount }).map((_, i) => (
+              <div
+                key={`${place}-${i}`}
+                className="shrink-0 flex items-center justify-center select-none"
+                data-arriving={i >= firstArrivingIdx ? 'true' : undefined}
+                style={{
+                  width: `${fit.cell.w}px`,
+                  height: `${fit.cell.h}px`,
+                  ...(i >= firstArrivingIdx ? { visibility: 'hidden' as const } : {}),
                 }}
-              />
-            </div>
-          ))}
+              >
+                <DienesBlock
+                    id={`column-${place}-${i}`}
+                    place={place}
+                    source="column"
+                    noEnter={i < renderCount - 1}
+                    cell={{ w: fit.block.w, h: fit.block.h, pad: fit.pad }}
+                    onClick={() => {
+                      // מודול 8 §א: לחיצה על לבנה = פריטה לעשר לבנות בערך הנמוך
+                      // הסמוך. ליחידה אין ערך נמוך יותר, ולכן הלחיצה אינה עושה
+                      // דבר — עד כה היא מחקה את הלבנה, נתיב מחיקה שלישי שאינו
+                      // באפיון (יש בדיוק שניים: גרירה לפח ולחיצה על הפח), וילד
+                      // שנגע בלבנה בטעות איבד אותה בלי להבין למה.
+                      if (place !== 'units') splitBlockClick(place);
+                    }}
+                  />
+              </div>
+            ))}
+          </div>
         </div>
 
+        {/* Drawn over the column, not in its flow, so the blocks never move. */}
         {isPreviewingDecomp && (
-          <div className="flex flex-wrap gap-1 p-1 bg-ws-accentSoft/30 border border-dashed border-ws-accent rounded-xl animate-pulse mt-2">
+          <div className="absolute top-2 inset-x-2 z-10 flex flex-wrap justify-center gap-1 p-1 bg-ws-accentSoft/80 border border-dashed border-ws-accent rounded-xl animate-pulse pointer-events-none">
             {Array.from({ length: 10 }).map((_, idx) => (
-              <div key={`prev-${idx}`} className="w-5 h-5 rounded-md bg-amber-400/60" />
+              <div key={`prev-${idx}`} className="w-4 h-4 rounded-md bg-amber-400/70" />
             ))}
           </div>
         )}
