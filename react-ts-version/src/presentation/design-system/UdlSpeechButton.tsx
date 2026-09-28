@@ -49,10 +49,13 @@ export function UdlSpeechButton({ text, lang = 'he-IL', className = '' }: UdlSpe
       size="icon"
       semanticColor={isPlaying ? "primary" : "neutral"}
       onClick={handleSpeak}
-      // 44×44: the smallest touch target the design rules allow
-      // (DESIGN_SYSTEM_RULES.md) — this is the child's read-aloud, on every
-      // screen, on tablets too. The icon size stays; only the target grows.
-      className={`size-11 rounded-full shadow-sm hover:shadow-md transition-all ${isPlaying ? 'animate-pulse' : ''} ${className}`}
+      // The touch target is 44×44 (DESIGN_SYSTEM_RULES.md) — this is the
+      // child's read-aloud, on every screen, on tablets too — but the button
+      // keeps its 32px look: the extra 6px on each side is an invisible hit
+      // area, so no instruction row, checklist or heading grows and no screen
+      // that fits today stops fitting (a visible 44px button pushed the iPad's
+      // task card and the meeting-1 checklist into scrolling).
+      className={`relative before:absolute before:-inset-1.5 before:content-[''] before:rounded-full rounded-full shadow-sm hover:shadow-md transition-all ${isPlaying ? 'animate-pulse' : ''} ${className}`}
       aria-label="הקראה בקול"
       title="הקראה בקול"
     >
