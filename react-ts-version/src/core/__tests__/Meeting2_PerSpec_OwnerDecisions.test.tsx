@@ -34,7 +34,8 @@ function atTask(id: string, phase: QMatrixFlowState['phase'] = 'primary', subpha
 }
 
 function setProfile(enhanced: boolean) {
-  useWorkspaceStore.setState({ support_profile_id: enhanced ? ENHANCED_SUPPORT_PROFILE_ID : null } as never);
+  // The profile in force (receiveSupportProfile → activeSupportProfileId), as in production since #139.
+  useWorkspaceStore.setState({ activeSupportProfileId: enhanced ? ENHANCED_SUPPORT_PROFILE_ID : null });
 }
 
 /** jsdom keeps var() colours as written; compare the declared style. */
