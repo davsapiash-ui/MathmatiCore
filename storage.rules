@@ -40,8 +40,9 @@ service firebase.storage {
     }
 
     // Module 23א: Reset Backup Vault (Cloud Storage fallback for backupAndResetSessionData)
+    // A backup holds every learner's data; Module 24 §ב and 23א §ו keep it the teacher's.
     match /backups/{classId}/{allPaths=**} {
-      allow read: if isTeacherOfClass(classId) || isAdmin();
+      allow read: if isTeacherOfClass(classId);
       allow write: if false; // Writes restricted strictly to Cloud Functions Admin SDK
     }
 

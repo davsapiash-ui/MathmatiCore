@@ -35,7 +35,10 @@ const studentNodes: Array<[string, any]> = [
   ['students/$studentId', rules.rules.students.$studentId],
 ];
 
-const STAFF_MARKERS = ["auth.token.role == 'teacher'", "auth.token.role == 'admin'"];
+const STAFF_MARKERS = ["auth.token.role == 'teacher'", "auth.token.teacher == true"];
+// דוח 28.9.2026, נ.2 — PRD מודול 24 §ב: ההחלטה בשער היא של המורה. כניסת מנהל
+// אינה "צוות" כאן (הבדיקה במנוע האמיתי: Module24_AdminBlocked.live.test.ts).
+const ADMIN_MARKERS = ["auth.token.role == 'admin'", "auth.token.admin == true"];
 
 describe('מודול 20 — שער המעבר נאכף בשרת, לא רק בדפדפן', () => {
   for (const [label, node] of studentNodes) {
@@ -45,6 +48,7 @@ describe('מודול 20 — שער המעבר נאכף בשרת, לא רק בד�
           const validate = node?.[field]?.['.validate'];
           expect(typeof validate).toBe('string');
           for (const marker of STAFF_MARKERS) expect(validate).toContain(marker);
+          for (const marker of ADMIN_MARKERS) expect(validate).not.toContain(marker);
           // או שהכותב הוא צוות, או שהערך נשאר בדיוק כפי שהיה. אין אפשרות שלישית.
           // אין אפשרות שלישית: הסעיף היחיד שאינו "צוות" הוא "הערך לא השתנה".
           expect(validate.trim().endsWith('|| newData.val() == data.val()')).toBe(true);
@@ -58,6 +62,7 @@ describe('מודול 20 — שער המעבר נאכף בשרת, לא רק בד�
         const validate = node?.routeStatus?.['.validate'];
         expect(typeof validate).toBe('string');
         for (const marker of STAFF_MARKERS) expect(validate).toContain(marker);
+        for (const marker of ADMIN_MARKERS) expect(validate).not.toContain(marker);
         expect(validate).toContain("newData.val() == 'PENDING_TEACHER_APPROVAL'");
         expect(validate).not.toContain("'APPROVED'");
       });
@@ -66,6 +71,7 @@ describe('מודול 20 — שער המעבר נאכף בשרת, לא רק בד�
         const validate = node?.teacher_gate_approved?.['.validate'];
         expect(typeof validate).toBe('string');
         for (const marker of STAFF_MARKERS) expect(validate).toContain(marker);
+        for (const marker of ADMIN_MARKERS) expect(validate).not.toContain(marker);
         expect(validate).toContain('newData.val() == false');
         expect(validate).not.toContain('newData.val() == true');
       });

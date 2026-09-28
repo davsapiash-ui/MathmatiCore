@@ -18,6 +18,7 @@ import { database, auth, functions, firestore, serverNow } from "@/infrastructur
 import { doc, onSnapshot, collection, writeBatch } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
 import { httpsCallable } from "firebase/functions";
+import { ensureStaffRoleClaims } from "@/infrastructure/services/staffRoleClaims";
 import { indexedDBQueue } from "@/infrastructure/services/IndexedDBQueue";
 import {
   BarChart,
@@ -291,19 +292,6 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     return () => clearInterval(timer);
   }, [isClassSessionActive, _sessionStartTime, selectedSessionNum]);
 
-  // Auto-sync teacher role claim on dashboard mount
-  useEffect(() => {
-    if (auth.currentUser) {
-      auth.currentUser.getIdTokenResult().then((tokenResult) => {
-        if (!tokenResult.claims.role || (tokenResult.claims.role !== "teacher" && tokenResult.claims.role !== "admin")) {
-          const syncCallable = httpsCallable(functions, "syncUserRoles");
-          syncCallable()
-            .then(() => auth.currentUser?.getIdToken(true))
-            .catch((e) => console.warn("Auto-sync role warning:", e));
-        }
-      }).catch(console.warn);
-    }
-  }, []);
 
   // Teacher Presence heartbeat + 5-minute session grace window.
   // PRD v7.1 Module 14: an opened session must survive a momentary teacher
@@ -398,12 +386,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       // 1. Synchronize custom claims if needed
       if (auth.currentUser) {
         try {
-          const tokenRes = await auth.currentUser.getIdTokenResult();
-          if (!tokenRes.claims.role || (tokenRes.claims.role !== "teacher" && tokenRes.claims.role !== "admin")) {
-            const syncCallable = httpsCallable(functions, "syncUserRoles");
-            await syncCallable();
-            await auth.currentUser.getIdToken(true);
-          }
+          await ensureStaffRoleClaims("teacher");
         } catch (roleErr) {
           console.warn('[TeacherDashboard] Role sync notice (non-fatal):', roleErr);
         }
@@ -501,12 +484,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     try {
       if (auth.currentUser) {
         try {
-          const tokenRes = await auth.currentUser.getIdTokenResult();
-          if (!tokenRes.claims.role || (tokenRes.claims.role !== "teacher" && tokenRes.claims.role !== "admin")) {
-            const syncCallable = httpsCallable(functions, "syncUserRoles");
-            await syncCallable();
-            await auth.currentUser.getIdToken(true);
-          }
+          await ensureStaffRoleClaims("teacher");
         } catch (roleErr) {
           console.warn('[TeacherDashboard] Role sync notice (non-fatal):', roleErr);
         }
