@@ -1,6 +1,23 @@
 import React, { useRef, useEffect } from 'react';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import type { Place } from '@/core/placeValue';
+import { NEUTRAL_BOX_BORDER, PLACE_COLORS } from '../placeColors';
+import { useEnhancedSupport } from './useEnhancedSupport';
+
+type BoxPlace = 'hundreds' | 'tens' | 'units';
+
+const PLACE_LABEL_HE: Record<BoxPlace, string> = { hundreds: 'מאות', tens: 'עשרות', units: 'יחידות' };
+
+/**
+ * One square of the exercise sheet, by the window's height and width with no
+ * step at any screen size: `--ws-cell` (index.css), the cell the vertical
+ * exercises share.
+ */
+const CELL = 'var(--ws-cell)';
+
+/** Shape and type of every answer box of meeting 2; the colour comes from the style. */
+const NEUTRAL_BOX_CLASS =
+  'text-center font-display font-black text-[length:calc(var(--ws-cell)*0.55)] text-ws-ink bg-white dark:bg-slate-800 border-2 focus:ring-4 focus:ring-slate-200 dark:focus:ring-slate-700 rounded-2xl outline-none shadow-sm transition-all';
 
 interface PlaceValueInputBoxesProps {
   mode: 'three_digits' | 'two_digits' | 'single_value';
@@ -8,6 +25,8 @@ interface PlaceValueInputBoxesProps {
   highlightNumber?: string;
   highlightIndex?: number;
   labels?: { hundreds?: string; tens?: string; units?: string };
+  /** Shown between the given text and the boxes (task 5: the picture of the blocks). */
+  children?: React.ReactNode;
 }
 
 export function PlaceValueInputBoxes({
@@ -16,7 +35,12 @@ export function PlaceValueInputBoxes({
   highlightNumber,
   highlightIndex,
   labels = { hundreds: 'מאות', tens: 'עשרות', units: 'יחידות' },
+  children,
 }: PlaceValueInputBoxesProps) {
+  // Place-value headings and colours over the boxes (owner, 27.9.2026): only for
+  // a learner with the enhanced cognitive support profile; everyone else sees
+  // the boxes in one neutral colour, without headings.
+  const placeCues = useEnhancedSupport();
   const answerDigits = useWorkspaceStore((s) => s.answerDigits);
   const setAnswerDigit = useWorkspaceStore((s) => s.setAnswerDigit);
   const probeAnswer = useWorkspaceStore((s) => s.probeAnswer);
@@ -26,6 +50,9 @@ export function PlaceValueInputBoxes({
   const tensRef = useRef<HTMLInputElement>(null);
   const unitsRef = useRef<HTMLInputElement>(null);
   const singleRef = useRef<HTMLInputElement>(null);
+  const refs: Record<BoxPlace, React.RefObject<HTMLInputElement | null>> = { hundreds: hundredsRef, tens: tensRef, units: unitsRef };
+  /** Left to right on the screen: the highest place first. */
+  const places: BoxPlace[] = mode === 'three_digits' ? ['hundreds', 'tens', 'units'] : ['tens', 'units'];
 
   useEffect(() => {
     if (mode === 'single_value') {
@@ -46,6 +73,9 @@ export function PlaceValueInputBoxes({
   };
 
   return (
+    // Gaps and the given number follow the window's height (600px → 950px, the
+    // `fl-*` sizes), so the card fits any window of meeting 2 without scrolling
+    // (owner, 28.9.2026).
     <div className="flex flex-col items-center justify-center gap-fl-10-24 py-fl-2-24" dir="rtl">
       {givenText && (
         <div className="bg-ws-accentSoft/60 border border-ws-accent/30 rounded-3xl px-8 py-fl-10-20 text-center shadow-sm">
@@ -56,12 +86,25 @@ export function PlaceValueInputBoxes({
       )}
 
       {highlightNumber && (
-        <div className="bg-white dark:bg-slate-800 border-2 border-indigo-200 dark:border-indigo-800 rounded-3xl px-10 py-fl-10-24 text-center shadow-md flex items-center justify-center gap-2">
+        /* dir="ltr": each digit is its own flex item, and inside the page's
+           dir="rtl" the row ran right to left — 742 was shown as 247. */
+        <div
+          dir="ltr"
+          role="img"
+          aria-label={
+            highlightIndex !== undefined && highlightNumber[highlightIndex] !== undefined
+              ? `${highlightNumber}, הספרה המסומנת: ${highlightNumber[highlightIndex]}`
+              : highlightNumber
+          }
+          data-testid="pv-highlight-number"
+          className="bg-white dark:bg-slate-800 border-2 border-indigo-200 dark:border-indigo-800 rounded-3xl px-10 py-fl-10-24 text-center shadow-md flex items-center justify-center gap-2"
+        >
           {highlightNumber.split('').map((char, idx) => {
             const isHighlighted = idx === highlightIndex;
             return (
               <span
                 key={idx}
+                aria-hidden="true"
                 className={`font-display font-black text-fl-44-60 leading-none tabular-nums transition-all ${
                   isHighlighted
                     ? 'text-indigo-600 dark:text-indigo-400 underline decoration-indigo-500 decoration-4 underline-offset-8 scale-110'
@@ -74,6 +117,8 @@ export function PlaceValueInputBoxes({
           })}
         </div>
       )}
+
+      {children}
 
       {mode === 'single_value' ? (
         <div className="flex flex-col items-center gap-2">
@@ -96,60 +141,55 @@ export function PlaceValueInputBoxes({
               }
             }}
             placeholder="?"
-            className="w-32 h-16 text-center font-display font-black text-3xl text-indigo-600 dark:text-indigo-300 bg-white dark:bg-slate-800 border-2 border-indigo-400 dark:border-indigo-600 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100 rounded-2xl outline-none shadow-sm transition-all"
+            dir="ltr"
+            className={`w-32 ${NEUTRAL_BOX_CLASS}`}
+            style={{ height: CELL, borderColor: NEUTRAL_BOX_BORDER }}
           />
         </div>
       ) : (
-        <div className="flex items-center justify-center gap-4 md:gap-6">
-          {mode === 'three_digits' && (
-            <div className="flex flex-col items-center gap-1.5">
-              <span id="pv-label-hundreds" className="text-sm font-bold text-amber-700 dark:text-amber-300">
-                {labels.hundreds || 'מאות'}
-              </span>
-              <input
-                ref={hundredsRef}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={answerDigits.hundreds ?? ''}
-                aria-labelledby="pv-label-hundreds"
-                onChange={(e) => handleDigitChange('hundreds', e.target.value, tensRef)}
-                className="w-fl-56-80 h-fl-56-80 text-center font-display font-black text-fl-30-36 text-amber-900 dark:text-amber-100 bg-amber-50/70 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 rounded-2xl outline-none shadow-sm transition-all"
-              />
-            </div>
-          )}
-
-          <div className="flex flex-col items-center gap-1.5">
-            <span id="pv-label-tens" className="text-sm font-bold text-blue-700 dark:text-blue-300">
-              {labels.tens || 'עשרות'}
-            </span>
-            <input
-              ref={tensRef}
-              type="text"
-              inputMode="numeric"
-              maxLength={1}
-              value={answerDigits.tens ?? ''}
-              aria-labelledby="pv-label-tens"
-              onChange={(e) => handleDigitChange('tens', e.target.value, unitsRef)}
-              className="w-fl-56-80 h-fl-56-80 text-center font-display font-black text-fl-30-36 text-blue-900 dark:text-blue-100 bg-blue-50/70 dark:bg-blue-950/40 border-2 border-blue-300 dark:border-blue-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-2xl outline-none shadow-sm transition-all"
-            />
-          </div>
-
-          <div className="flex flex-col items-center gap-1.5">
-            <span id="pv-label-units" className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
-              {labels.units || 'יחידות'}
-            </span>
-            <input
-              ref={unitsRef}
-              type="text"
-              inputMode="numeric"
-              maxLength={1}
-              value={answerDigits.units ?? ''}
-              aria-labelledby="pv-label-units"
-              onChange={(e) => handleDigitChange('units', e.target.value)}
-              className="w-fl-56-80 h-fl-56-80 text-center font-display font-black text-fl-30-36 text-emerald-900 dark:text-emerald-100 bg-emerald-50/70 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-700 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 rounded-2xl outline-none shadow-sm transition-all"
-            />
-          </div>
+        /* Writing order for every learner (owner, 27.9.2026): hundreds on the
+           LEFT, units on the RIGHT, like the vertical exercises and the board.
+           The row is dir="ltr" so the DOM order is the visual order, and the
+           focus and the auto-advance run hundreds → tens → units. */
+        <div
+          dir="ltr"
+          role="group"
+          aria-label="שורת התוצאה"
+          data-testid="pv-result-row"
+          className="flex items-end justify-center gap-[calc(var(--ws-cell)*0.3)]"
+        >
+          {places.map((place, i) => {
+            const colors = PLACE_COLORS[place];
+            const labelId = `pv-label-${place}`;
+            const next = places[i + 1];
+            return (
+              <div key={place} className="flex flex-col items-center gap-1.5">
+                {placeCues && (
+                  <span id={labelId} className="text-sm font-bold" style={{ color: colors.header }}>
+                    {labels[place] || PLACE_LABEL_HE[place]}
+                  </span>
+                )}
+                <input
+                  ref={refs[place]}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={answerDigits[place] ?? ''}
+                  data-place={place}
+                  {...(placeCues
+                    ? { 'aria-labelledby': labelId }
+                    : { 'aria-label': `ספרה ${i + 1} מתוך ${places.length} בשורת התוצאה` })}
+                  onChange={(e) => handleDigitChange(place, e.target.value, next ? refs[next] : undefined)}
+                  className={NEUTRAL_BOX_CLASS}
+                  style={
+                    placeCues
+                      ? { width: CELL, height: CELL, borderColor: colors.header, backgroundColor: colors.tint, color: colors.header }
+                      : { width: CELL, height: CELL, borderColor: NEUTRAL_BOX_BORDER }
+                  }
+                />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

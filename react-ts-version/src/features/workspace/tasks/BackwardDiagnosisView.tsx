@@ -4,7 +4,8 @@ import type { QMatrixFlowState } from '@/core/qmatrixFlow';
 import { getEffectiveChoices, getEffectiveNumber } from '@/core/qmatrixFlow';
 import { ChoiceList } from './ChoiceList';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
-import { InlineMath } from 'react-katex';
+import { NEUTRAL_BOX_BORDER } from '../placeColors';
+import { probeExerciseText } from './probeExerciseText';
 import { getValue } from '@/core/placeValue';
 import { motion } from 'framer-motion';
 import { VisualGraphicOrganizer } from './VisualGraphicOrganizer';
@@ -142,12 +143,18 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
             </div>
           ) : (
             <div className="bg-ws-surface2/50 rounded-2xl px-8 py-4">
-              <span className="font-mono font-black text-4xl text-ws-ink tabular-nums" dir="ltr" aria-label={`תרגיל: ${effProbeA} ${task.isSubtraction ? 'פחות' : 'פלוס'} ${task.type === 'missing_element' ? 'כמה' : effProbeB} שווה ${task.type === 'missing_element' ? effProbeB : 'כמה'}`}>
-                <InlineMath math={
-                  task.type === 'missing_element' 
-                    ? `${effProbeA} ${task.isSubtraction ? '-' : '+'} \\text{?} = ${effProbeB}`
-                    : `${effProbeA} ${task.isSubtraction ? '-' : '+'} ${effProbeB} = \\text{?}`
-                } />
+              {/* Plain text, once (row 2.23): the KaTeX rendering showed the
+                  exercise twice — its stylesheet is loaded nowhere, so the
+                  hidden MathML copy was visible too — and both copies read
+                  "\text?" because the production build mangles the component. */}
+              <span
+                role="img"
+                data-testid="probe-exercise"
+                className="font-mono font-black text-4xl text-ws-ink tabular-nums"
+                dir="ltr"
+                aria-label={`תרגיל: ${effProbeA} ${task.isSubtraction ? 'פחות' : 'ועוד'} ${task.type === 'missing_element' ? 'כמה' : effProbeB} שווה ${task.type === 'missing_element' ? effProbeB : 'כמה'}`}
+              >
+                {probeExerciseText(task, effProbeA, effProbeB)}
               </span>
             </div>
           )}
@@ -158,7 +165,9 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
             value={probeAnswer}
             onChange={(e) => setProbeAnswer(e.target.value.replace(/[^0-9]/g, ''))}
             aria-label="תשובה"
-            className="w-28 h-16 rounded-xl border-2 border-ws-accent text-center font-mono font-black text-4xl bg-ws-surface focus:outline-none focus:ring-2"
+            dir="ltr"
+            className="w-28 h-16 rounded-xl border-2 text-center font-mono font-black text-4xl bg-ws-surface focus:outline-none focus:ring-2"
+            style={{ borderColor: NEUTRAL_BOX_BORDER }}
           />
           {/* The "upload your written solution" control was removed. No handler
               read the chosen file, nothing was uploaded and no telemetry was
@@ -182,7 +191,9 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
             maxLength={6}
             value={probeAnswer}
             onChange={(e) => setProbeAnswer(e.target.value.replace(/[^0-9]/g, ''))}
-            className="w-36 h-16 rounded-xl border-2 border-ws-accent text-center font-mono font-black text-4xl bg-ws-surface focus:outline-none focus:ring-2"
+            dir="ltr"
+            className="w-36 h-16 rounded-xl border-2 text-center font-mono font-black text-4xl bg-ws-surface focus:outline-none focus:ring-2"
+            style={{ borderColor: NEUTRAL_BOX_BORDER }}
           />
         </div>
       )}

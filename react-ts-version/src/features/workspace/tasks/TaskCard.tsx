@@ -15,6 +15,7 @@ import { SmallChangeTask } from './SmallChangeTask';
 import { BackwardDiagnosisView } from './BackwardDiagnosisView';
 
 import { PlaceValueInputBoxes } from './PlaceValueInputBoxes';
+import { UnitBlocksPicture } from './UnitBlocksPicture';
 import { FeedbackToast } from '../overlays/FeedbackToast';
 
 /**
@@ -69,7 +70,8 @@ export function TaskCard() {
   // is a flex column whose paddings, gaps and big number grow and shrink with
   // the window's height (`fl-*` in tailwind.config.js, `--ws-cell`), with no
   // step at any screen size (owner, 28.9.2026). The card itself still scrolls
-  // as a last resort, so nothing is ever out of reach.
+  // as a last resort, so nothing is ever out of reach. Meeting 2 has no board:
+  // its card is the whole screen, centred, with the same sizes.
   return (
     <AccessibleCard id="tour-task-card" className="flex-1 min-w-0 min-h-0 p-fl-12-32 overflow-y-auto relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95">
       {/* Soft decorative corner glow — warmth without noise */}
@@ -158,7 +160,7 @@ export function TaskCard() {
                 animate={{ opacity: 1, scale: 1, rotateX: 0 }}
                 exit={{ opacity: 0, scale: 0.9, rotateX: -20 }}
                 transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                className="bg-amber-50 dark:bg-amber-900/20 border-4 border-amber-300 rounded-[2rem] p-6 shadow-xl"
+                className="bg-amber-50 dark:bg-amber-900/20 border-4 border-amber-300 rounded-[2rem] p-[clamp(12px,calc(3.4286vh-8.57px),24px)] shadow-xl"
               >
                 <BackwardDiagnosisView task={qTask} qflow={qflow} isASD={isASD} />
               </motion.div>
@@ -197,13 +199,18 @@ export function TaskCard() {
                   />
                 )}
 
-                {/* 5. המרה עצמאית בין עזרים וירטואליים */}
+                {/* 5. המרה עצמאית בין עזרים וירטואליים — the blocks are the
+                    question: a still picture for every learner (owner, 27.9.2026). */}
                 {qTask.type === 'conversion' && (
                   <PlaceValueInputBoxes
                     mode="two_digits"
-                    givenText={qTask.givenHe}
+                    givenText={qTask.pictureUnitBlocks === undefined ? qTask.givenHe : undefined}
                     labels={{ tens: 'עשרות', units: 'יחידות' }}
-                  />
+                  >
+                    {qTask.pictureUnitBlocks !== undefined && (
+                      <UnitBlocksPicture count={qTask.pictureUnitBlocks} label={qTask.givenHe ?? ''} />
+                    )}
+                  </PlaceValueInputBoxes>
                 )}
 
                 {/* 3, 6, 7. חישוב במאונך (חיבור או חיסור) */}
