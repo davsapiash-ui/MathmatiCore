@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as dotenv from "dotenv";
+import { readCallerRoles } from "./callerIdentity";
 
 admin.initializeApp();
 
@@ -114,11 +115,12 @@ export const onStudentEvent = onCall(async (request) => {
   // lives in the Firestore rules — which this function bypasses entirely,
   // because the Admin SDK is not subject to them. Without the check here, any
   // authenticated caller could file events against any of the twelve learners.
-  // Staff may write on a learner's behalf; a learner may only write their own.
-  const callerRole = String(request.auth.token.role || "");
-  const isStaff = callerRole === "teacher" || callerRole === "admin";
+  // The teacher may write on a learner's behalf; a learner may only write
+  // their own. An admin sign-in may not: Module 24 §ב blocks the admin from
+  // individual telemetry.
+  const isTeacher = readCallerRoles(request.auth.token as Record<string, unknown>).isTeacher;
   const callerStudentId = Number(request.auth.token.student_id);
-  if (!isStaff && callerStudentId !== numericStudentId) {
+  if (!isTeacher && callerStudentId !== numericStudentId) {
     throw new HttpsError("permission-denied", "A learner may only submit events for their own id.");
   }
 

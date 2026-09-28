@@ -88,21 +88,11 @@ export async function isWhitelistedTeacherEmailAsync(email?: string | null): Pro
     console.warn("Firestore authorizedTeachers exact match check error:", err);
   }
 
-  // Check Realtime Database users/teachers as fallback for existing records
-  try {
-    const teachersSnap = await get(ref(database, 'users/teachers'));
-    if (teachersSnap.exists()) {
-      const teachersObj = teachersSnap.val();
-      // Admin-created records carry ssoEmail; login-created ones carried email.
-      const match = Object.values(teachersObj).some((t: any) =>
-        [t?.ssoEmail, t?.email].some((e) => typeof e === 'string' && e.toLowerCase().trim() === normalized)
-      );
-      if (match) return true;
-    }
-  } catch (err) {
-    console.warn("Database teacher whitelist fallback check warning:", err);
-  }
-
+  // No second list. The RTDB users/teachers node used to be read here as a
+  // fallback, which kept it readable by every visitor (the anonymous session
+  // every page load creates) and let anyone who wrote a record there pass this
+  // check. It is now staff-only (database.rules.json), and authorizedTeachers is
+  // the single source, as the admin security screen states.
   return false;
 }
 
@@ -199,10 +189,12 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
     throw new Error(`גישה נדחתה: כתובת הדוא"ל (${email || "לא זוהתה"}) אינה מוגדרת כמורה במערכת. רק מורים שהוקמו במערכת על ידי מנהל רשאים להיכנס.`);
   }
 
-  // Stamp verified teacher/admin custom claims on the token via Cloud Function
+  // Stamp verified teacher/admin custom claims on the token via Cloud Function.
+  // The claims are those of the role chosen for this sign-in only (register,
+  // gap יא; PRD Module 24 §ב): an admin sign-in does not carry the teacher's.
   try {
     const syncCallable = httpsCallable(functions, "syncUserRoles");
-    await syncCallable();
+    await syncCallable({ role: targetRole });
     await user.getIdToken(true);
   } catch (syncErr) {
     console.warn("syncUserRoles error during Google SSO:", syncErr);

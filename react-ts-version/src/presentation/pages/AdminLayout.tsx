@@ -78,9 +78,6 @@ export function AdminLayout() {
           <NavLink to="/admin/chat" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             צ'אט
           </NavLink>
-          <NavLink to="/admin/teacher-view" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
-            תצוגת מורה
-          </NavLink>
           <NavLink to="/admin/settings" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             הגדרות (UDL)
           </NavLink>
@@ -157,15 +154,6 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink to="/admin/teacher-view" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
-                      <Layers className="w-5 h-5 ml-3 opacity-90" /> 
-                      <span className="text-sm lg:text-base tracking-wide">תצוגת מורה</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild className={NAV_BUTTON}>
                     <NavLink id="tour-admin-settings" to="/admin/settings" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
                       <Settings className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">נגישות ופדגוגיה מותאמת (UDL)</span>
@@ -184,7 +172,7 @@ export function AdminLayout() {
               <div className="flex-1 overflow-hidden">
                 <div className="font-bold text-sm truncate">{(user?.displayName as string) || "System Admin"}</div>
                 <div className="text-[9px] text-slate-500 dark:text-slate-400 tracking-wider uppercase font-semibold">
-                  {user?.role === "admin" ? "Root Access" : "Teacher Mode"}
+                  Root Access
                 </div>
               </div>
             </div>
