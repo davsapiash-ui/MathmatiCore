@@ -125,6 +125,11 @@ async function openCard(page, reason = 'hesitation_45s') {
   await page.waitForTimeout(9000);
 }
 
+async function setBoard(page, c) {
+  await page.evaluate((counts) => window.__ws.setState({ counts: { units: 0, tens: 0, hundreds: 0, thousands: 0, ...counts } }), c);
+  await page.waitForTimeout(500);
+}
+
 async function cardText(page) {
   return page.getByTestId('socratic-card').innerText();
 }
@@ -178,6 +183,11 @@ const SCENARIOS = {
       await page.waitForTimeout(9000);
     },
   },
+  // Board states (the review of 28.9.2026). The blocks are put on the board
+  // through the store; the card is then opened by the store's own action.
+  m6_4000_built: { meeting: 6, path: 'green_path', expectId: 's6_g_t3', act: async (page) => { await setBoard(page, { thousands: 4 }); await openCard(page); } },
+  m5_after_borrow: { meeting: 5, path: 'green_path', expectId: 's5_g_t1', act: async (page) => { await setBoard(page, { thousands: 5, hundreds: 4, tens: 2, units: 12 }); await openCard(page); } },
+  m4_all_built: { meeting: 4, path: 'green_path', expectId: 's4_g_t1', act: async (page) => { await setBoard(page, { thousands: 1, hundreds: 5, tens: 7, units: 3 }); await openCard(page); } },
   // 1.14 — a wrong choice locks the answer buttons
   lock: {
     meeting: 3, path: 'green_path', expectId: 's3_g_t3',
@@ -189,7 +199,7 @@ const SCENARIOS = {
   },
 };
 
-const indexOf = { m1_347_card: 4, m1_347_wrong: 4, m3_4500: 2, m8_1245: 0, m4_1245: 0, m8_53_18: 4, m6_602: 4, m7_skeleton: 1, m7_3800: 4, m3_85: 3, lock: 2 };
+const indexOf = { m6_4000_built: 2, m5_after_borrow: 0, m4_all_built: 0, m1_347_card: 4, m1_347_wrong: 4, m3_4500: 2, m8_1245: 0, m4_1245: 0, m8_53_18: 4, m6_602: 4, m7_skeleton: 1, m7_3800: 4, m3_85: 3, lock: 2 };
 
 const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM ?? '/opt/pw-browsers/chromium' });
 fs.mkdirSync(outDir, { recursive: true });
