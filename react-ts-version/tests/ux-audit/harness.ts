@@ -139,7 +139,20 @@ export class FakeRtdb {
     this.broadcast(clean);
   }
 
-  private write(p: string, value: Json): void {
+  /** Server values the client sends as placeholders ({".sv":"timestamp"}) become real ones. */
+  private resolve(value: Json): Json {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const o = value as Record<string, Json>;
+      if (o['.sv'] === 'timestamp' && Object.keys(o).length === 1) return Date.now();
+      const out: Record<string, Json> = {};
+      for (const [k, v] of Object.entries(o)) out[k] = this.resolve(v);
+      return out;
+    }
+    return value;
+  }
+
+  private write(p: string, raw: Json): void {
+    const value = this.resolve(raw);
     const parts = segs(p);
     if (parts.length === 0) {
       this.root = value ?? {};
