@@ -45,10 +45,9 @@
         }
       },
       "teachers": {
-        ".read": "auth != null",
+        ".read": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true || auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true)",
         "$teacherId": {
-          ".read": "auth != null",
-          ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.uid == $teacherId)",
+          ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
           "licenseActive": {
             ".validate": "newData.isBoolean()"
           }
