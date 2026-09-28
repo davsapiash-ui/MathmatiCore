@@ -1,0 +1,214 @@
+{
+  "teacher_tiles": [
+    {
+      "label": "תלמיד 1. יצא מהחלון. סיים אבחון וממתין בשער אישור המורה. להצגת הלוח והפרטים",
+      "radarColor": "GREY",
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "יצא מהחלון"
+    },
+    {
+      "label": "תלמיד 2. כרטיס החניכה פתוח. סיים אבחון וממתין בשער אישור המורה. להצגת הלוח והפרטים",
+      "radarColor": "RED",
+      "background": "rgba(244, 63, 94, 0.2)",
+      "border": "rgb(244, 63, 94)",
+      "tag": "כרטיס החניכה פתוח"
+    },
+    {
+      "label": "תלמיד 3. מהסס מעל 45 שניות. סיים אבחון וממתין בשער אישור המורה. להצגת הלוח והפרטים",
+      "radarColor": "YELLOW",
+      "background": "rgba(245, 158, 11, 0.2)",
+      "border": "rgb(245, 158, 11)",
+      "tag": "היסוס"
+    },
+    {
+      "label": "תלמיד 4. פעיל ותקין. סיים אבחון וממתין בשער אישור המורה. להצגת הלוח והפרטים",
+      "radarColor": "GREEN",
+      "background": "rgba(16, 185, 129, 0.15)",
+      "border": "rgb(16, 185, 129)",
+      "tag": "פעיל"
+    },
+    {
+      "label": "תלמיד 5. קורא לעזרה. סיים אבחון וממתין בשער אישור המורה. להצגת הלוח והפרטים",
+      "radarColor": "BLUE",
+      "background": "rgba(59, 130, 246, 0.2)",
+      "border": "rgb(59, 130, 246)",
+      "tag": "קריאה לעזרה"
+    },
+    {
+      "label": "תלמיד 6. פעיל ותקין. להצגת הלוח והפרטים",
+      "radarColor": "GREEN",
+      "background": "rgba(16, 185, 129, 0.15)",
+      "border": "rgb(16, 185, 129)",
+      "tag": "פעיל"
+    },
+    {
+      "label": "תלמיד 7. לא מחובר. להצגת הלוח והפרטים",
+      "radarColor": "GREY",
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "מנותק"
+    },
+    {
+      "label": "תלמיד 8. לא מחובר. להצגת הלוח והפרטים",
+      "radarColor": "GREY",
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "מנותק"
+    },
+    {
+      "label": "תלמיד 9. לא מחובר. להצגת הלוח והפרטים",
+      "radarColor": "GREY",
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "מנותק"
+    },
+    {
+      "label": "תלמיד 10. לא מחובר. להצגת הלוח והפרטים",
+      "radarColor": "GREY",
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "מנותק"
+    },
+    {
+      "label": "תלמיד 11. לא מחובר. להצגת הלוח והפרטים",
+      "radarColor": "GREY",
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "מנותק"
+    },
+    {
+      "label": "תלמיד 12. לא מחובר. להצגת הלוח והפרטים",
+      "radarColor": "GREY",
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "מנותק"
+    }
+  ],
+  "teacher_gate_banner": "5 תלמידים סיימו את שלב האבחון וממתינים בשער אישור המורה למפגש 3",
+  "teacher_probes": {
+    "rtdb read users/students": "ALLOWED",
+    "rtdb write active_class_session (pause)": "ALLOWED",
+    "rtdb write active_class_session (resume)": "ALLOWED",
+    "rtdb gate approve learner 6 (routeStatus)": "ALLOWED",
+    "firestore read sessions/session_02_student_4": "ALLOWED",
+    "firestore read students/student_user4": "ALLOWED"
+  },
+  "teacher_after_approve_toast": [
+    "✓ המסלול הירוק אושר עבור תלמיד 1! שער אישור המורה למפגש 3 נפתח."
+  ],
+  "teacher_pause_toast": [
+    "המפגש הושהה. כל התלמידים רואים עכשיו \"המורה עצרה את הפעילות לרגע\"."
+  ],
+  "teacher_errors": [],
+  "admin_nav": [
+    "סקירה כללית",
+    "מוסדות ומורים",
+    "פדגוגיה",
+    "מוקד תמיכה",
+    "אבטחה",
+    "צ'אט",
+    "הגדרות (UDL)",
+    "תוכנית לימודים ופדגוגיה",
+    "מוקד תמיכה ופניות",
+    "אבטחה והרשאות",
+    "ערוץ פניות מורים",
+    "נגישות ופדגוגיה מותאמת (UDL)"
+  ],
+  "admin_direct /admin/teacher-view": {
+    "finalUrl": "/admin",
+    "radarTiles": 0,
+    "openMeetingButtons": 0
+  },
+  "admin_direct /dashboard": {
+    "finalUrl": "/admin",
+    "radarTiles": 0,
+    "openMeetingButtons": 0
+  },
+  "admin_direct /reports/student/student_user4": {
+    "finalUrl": "/admin",
+    "radarTiles": 0,
+    "openMeetingButtons": 0
+  },
+  "admin_direct /projector": {
+    "finalUrl": "/admin",
+    "radarTiles": 0,
+    "openMeetingButtons": 0
+  },
+  "admin_direct /workspace": {
+    "finalUrl": "/admin",
+    "radarTiles": 0,
+    "openMeetingButtons": 0
+  },
+  "admin_direct /hub": {
+    "finalUrl": "/admin",
+    "radarTiles": 0,
+    "openMeetingButtons": 0
+  },
+  "admin_probes": {
+    "rtdb read users/students": "DENIED (Permission denied)",
+    "rtdb write active_class_session (pause)": "DENIED (PERMISSION_DENIED)",
+    "rtdb write active_class_session (resume)": "DENIED (PERMISSION_DENIED)",
+    "rtdb gate approve learner 6 (routeStatus)": "DENIED (PERMISSION_DENIED)",
+    "firestore read sessions/session_02_student_4": "DENIED (permission-denied)",
+    "firestore read students/student_user4": "DENIED (permission-denied)"
+  },
+  "admin_screen /admin/schools": {
+    "finalUrl": "/admin/schools",
+    "h": [
+      "ממשק ניהול מערכת",
+      "פריסת מוסדות, מורים וכיתות",
+      "מכסת תלמידים מרבית לכיתה"
+    ],
+    "permissionErrors": []
+  },
+  "admin_screen /admin/curriculum": {
+    "finalUrl": "/admin/curriculum",
+    "h": [
+      "ממשק ניהול מערכת",
+      "קטלוג פדגוגי וכיול מנוע הלמידה",
+      "קטלוג מפגשי הלמידה (משימות חובה + משימות בחירה לפי מסלול)"
+    ],
+    "permissionErrors": []
+  },
+  "admin_screen /admin/support": {
+    "finalUrl": "/admin/support",
+    "h": [
+      "ממשק ניהול מערכת",
+      "פניות תמיכה וסיוע לצוותי ההוראה"
+    ],
+    "permissionErrors": []
+  },
+  "admin_screen /admin/security": {
+    "finalUrl": "/admin/security",
+    "h": [
+      "ממשק ניהול מערכת",
+      "ניהול אבטחה וזהויות",
+      "הזדהות אחידה (SSO)"
+    ],
+    "permissionErrors": []
+  },
+  "admin_screen /admin/settings": {
+    "finalUrl": "/admin/settings",
+    "h": [
+      "ממשק ניהול מערכת",
+      "נגישות והרדאר הפדגוגי השקט"
+    ],
+    "permissionErrors": []
+  },
+  "admin_screen /admin/chat": {
+    "finalUrl": "/admin/chat",
+    "h": [
+      "ממשק ניהול מערכת",
+      "ערוץ פניות מורים והנהלה"
+    ],
+    "permissionErrors": []
+  },
+  "admin_screen /admin/login-cards": {
+    "finalUrl": "/admin/login-cards",
+    "h": [
+      "כרטיסי כניסה לתלמידים"
+    ],
+    "permissionErrors": []
+  }
+}

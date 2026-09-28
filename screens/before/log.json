@@ -1,0 +1,212 @@
+{
+  "teacher_tiles": [
+    {
+      "label": "תלמיד 1. סיים אבחון וממתין בשער אישור המורה. להצגת הלוח והפרטים",
+      "radarColor": null,
+      "background": "rgba(245, 158, 11, 0.25)",
+      "border": "rgb(245, 158, 11)",
+      "tag": "שער אישור המורה"
+    },
+    {
+      "label": "תלמיד 2. סיים אבחון וממתין בשער אישור המורה. להצגת הלוח והפרטים",
+      "radarColor": null,
+      "background": "rgba(245, 158, 11, 0.25)",
+      "border": "rgb(245, 158, 11)",
+      "tag": "שער אישור המורה"
+    },
+    {
+      "label": "תלמיד 3. סיים אבחון וממתין בשער אישור המורה. להצגת הלוח והפרטים",
+      "radarColor": null,
+      "background": "rgba(245, 158, 11, 0.25)",
+      "border": "rgb(245, 158, 11)",
+      "tag": "שער אישור המורה"
+    },
+    {
+      "label": "תלמיד 4. סיים אבחון וממתין בשער אישור המורה. להצגת הלוח והפרטים",
+      "radarColor": null,
+      "background": "rgba(245, 158, 11, 0.25)",
+      "border": "rgb(245, 158, 11)",
+      "tag": "שער אישור המורה"
+    },
+    {
+      "label": "תלמיד 5. קורא לעזרה. להצגת הלוח והפרטים",
+      "radarColor": null,
+      "background": "rgba(59, 130, 246, 0.2)",
+      "border": "rgb(59, 130, 246)",
+      "tag": "שער אישור המורה"
+    },
+    {
+      "label": "תלמיד 6. פעיל ותקין. להצגת הלוח והפרטים",
+      "radarColor": null,
+      "background": "rgba(16, 185, 129, 0.15)",
+      "border": "rgb(16, 185, 129)",
+      "tag": "פעיל"
+    },
+    {
+      "label": "תלמיד 7. לא מחובר. להצגת הלוח והפרטים",
+      "radarColor": null,
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "מנותק"
+    },
+    {
+      "label": "תלמיד 8. לא מחובר. להצגת הלוח והפרטים",
+      "radarColor": null,
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "מנותק"
+    },
+    {
+      "label": "תלמיד 9. לא מחובר. להצגת הלוח והפרטים",
+      "radarColor": null,
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "מנותק"
+    },
+    {
+      "label": "תלמיד 10. לא מחובר. להצגת הלוח והפרטים",
+      "radarColor": null,
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "מנותק"
+    },
+    {
+      "label": "תלמיד 11. לא מחובר. להצגת הלוח והפרטים",
+      "radarColor": null,
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "מנותק"
+    },
+    {
+      "label": "תלמיד 12. לא מחובר. להצגת הלוח והפרטים",
+      "radarColor": null,
+      "background": "rgb(241, 245, 249)",
+      "border": "rgb(203, 213, 225)",
+      "tag": "מנותק"
+    }
+  ],
+  "teacher_gate_banner": "5 תלמידים סיימו את שלב האבחון וממתינים בשער אישור המורה למפגש 3",
+  "teacher_probes": {
+    "rtdb read users/students": "ALLOWED",
+    "rtdb write active_class_session (pause)": "ALLOWED",
+    "rtdb write active_class_session (resume)": "ALLOWED",
+    "rtdb gate approve learner 6 (routeStatus)": "ALLOWED",
+    "firestore read sessions/session_02_student_4": "ALLOWED",
+    "firestore read students/student_user4": "ALLOWED"
+  },
+  "teacher_after_approve_toast": [
+    "✓ המסלול הירוק אושר עבור תלמיד 1! שער אישור המורה למפגש 3 נפתח."
+  ],
+  "teacher_errors": [],
+  "admin_nav": [
+    "סקירה כללית",
+    "מוסדות ומורים",
+    "פדגוגיה",
+    "מוקד תמיכה",
+    "אבטחה",
+    "צ'אט",
+    "תצוגת מורה",
+    "הגדרות (UDL)",
+    "תוכנית לימודים ופדגוגיה",
+    "מוקד תמיכה ופניות",
+    "אבטחה והרשאות",
+    "ערוץ פניות מורים",
+    "נגישות ופדגוגיה מותאמת (UDL)"
+  ],
+  "admin_direct /admin/teacher-view": {
+    "finalUrl": "/admin/teacher-view",
+    "radarTiles": 12,
+    "openMeetingButtons": 3
+  },
+  "admin_direct /dashboard": {
+    "finalUrl": "/dashboard",
+    "radarTiles": 12,
+    "openMeetingButtons": 3
+  },
+  "admin_direct /reports/student/student_user4": {
+    "finalUrl": "/reports/student/student_user4",
+    "radarTiles": 0,
+    "openMeetingButtons": 3
+  },
+  "admin_direct /projector": {
+    "finalUrl": "/projector",
+    "radarTiles": 0,
+    "openMeetingButtons": 0
+  },
+  "admin_direct /workspace": {
+    "finalUrl": "/workspace",
+    "radarTiles": 0,
+    "openMeetingButtons": 0
+  },
+  "admin_direct /hub": {
+    "finalUrl": "/workspace?meeting=2",
+    "radarTiles": 0,
+    "openMeetingButtons": 0
+  },
+  "admin_probes": {
+    "rtdb read users/students": "ALLOWED",
+    "rtdb write active_class_session (pause)": "ALLOWED",
+    "rtdb write active_class_session (resume)": "ALLOWED",
+    "rtdb gate approve learner 6 (routeStatus)": "ALLOWED",
+    "firestore read sessions/session_02_student_4": "ALLOWED",
+    "firestore read students/student_user4": "DENIED (permission-denied)"
+  },
+  "admin_screen /admin/schools": {
+    "finalUrl": "/admin/schools",
+    "h": [
+      "ממשק ניהול מערכת",
+      "פריסת מוסדות, מורים וכיתות",
+      "מכסת תלמידים מרבית לכיתה"
+    ],
+    "permissionErrors": []
+  },
+  "admin_screen /admin/curriculum": {
+    "finalUrl": "/admin/curriculum",
+    "h": [
+      "ממשק ניהול מערכת",
+      "קטלוג פדגוגי וכיול מנוע הלמידה",
+      "קטלוג מפגשי הלמידה (משימות חובה + משימות בחירה לפי מסלול)"
+    ],
+    "permissionErrors": []
+  },
+  "admin_screen /admin/support": {
+    "finalUrl": "/admin/support",
+    "h": [
+      "ממשק ניהול מערכת",
+      "פניות תמיכה וסיוע לצוותי ההוראה"
+    ],
+    "permissionErrors": []
+  },
+  "admin_screen /admin/security": {
+    "finalUrl": "/admin/security",
+    "h": [
+      "ממשק ניהול מערכת",
+      "ניהול אבטחה וזהויות",
+      "הזדהות אחידה (SSO)"
+    ],
+    "permissionErrors": []
+  },
+  "admin_screen /admin/settings": {
+    "finalUrl": "/admin/settings",
+    "h": [
+      "ממשק ניהול מערכת",
+      "נגישות והרדאר הפדגוגי השקט"
+    ],
+    "permissionErrors": []
+  },
+  "admin_screen /admin/chat": {
+    "finalUrl": "/admin/chat",
+    "h": [
+      "ממשק ניהול מערכת",
+      "ערוץ פניות מורים והנהלה"
+    ],
+    "permissionErrors": []
+  },
+  "admin_screen /admin/login-cards": {
+    "finalUrl": "/admin/login-cards",
+    "h": [
+      "כרטיסי כניסה לתלמידים"
+    ],
+    "permissionErrors": []
+  }
+}
