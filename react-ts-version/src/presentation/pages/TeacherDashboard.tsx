@@ -394,6 +394,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     };
   }, [user?.uid]);
 
+  // The RTDB broadcast (what unlocks the learners) already succeeded, so a
+  // refused class/student mirror is a warning, not a rollback — but the
+  // teacher must know the canonical documents did not take the update.
+  const warnClassDocsRefused = (firestoreErr: unknown) => {
+    console.warn('[TeacherDashboard] Firestore class session sync failed:', firestoreErr);
+    toast.warning('המפגש שודר לתלמידים, אך עדכון מסמכי הכיתה בשרת נדחה. ודאו שהחשבון משויך לכיתה.');
+  };
+
   const handleStartClassSession = async (sessionNum: number) => {
     const now = Date.now();
     const activeSessionId = `session_0${sessionNum}`;
@@ -435,6 +443,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       }
 
       // 3. Secondary Firestore atomic batch update for class & student documents (PRD v7.1 Module 14 §ב0)
+      // Not awaited: the meeting is already open for the class (the RTDB write
+      // above). On a network that blocks or stalls Firestore, commit() neither
+      // resolves nor rejects — awaiting it left the activation window on its
+      // spinner, "ביטול" disabled, and the teacher unable to reach the pause or
+      // close controls. The SDK keeps the write queued and sends it when it can;
+      // a refusal still reaches the teacher as the warning below.
       try {
         const batch = writeBatch(firestore);
         batch.set(
@@ -469,13 +483,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             { merge: true }
           );
         }
-        await batch.commit();
+        batch.commit().catch(warnClassDocsRefused);
       } catch (firestoreErr) {
-        // The RTDB broadcast (what unlocks the learners) already succeeded, so
-        // this is a warning, not a rollback — but the teacher must know the
-        // canonical class/student documents did not take the update.
-        console.warn('[TeacherDashboard] Firestore class session sync failed:', firestoreErr);
-        toast.warning('המפגש שודר לתלמידים, אך עדכון מסמכי הכיתה בשרת נדחה. ודאו שהחשבון משויך לכיתה.');
+        warnClassDocsRefused(firestoreErr);
       }
 
       // The listener has usually set the server's stamp already (the SDK raises
