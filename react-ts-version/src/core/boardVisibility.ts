@@ -19,3 +19,13 @@ export const BOARD_STAYS_OPEN_HE = 'בתחנה הזו בית המספרים נש
 export function boardStaysOpen(sessionNumber: number): boolean {
   return sessionNumber === 1;
 }
+
+/**
+ * Where the sum is shown: meetings 5 and 6 only. The owner removed it in
+ * meetings 3, 4 and 7 (28.9.2026: it is in no document); meeting 1 never
+ * showed it; meetings 2 and 8 have no board. Meetings 5 and 6 were not part of
+ * the decision, so they keep it until the owner says otherwise.
+ */
+export function showsBuiltSum(sessionNumber: number): boolean {
+  return sessionNumber === 5 || sessionNumber === 6;
+}

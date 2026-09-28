@@ -52,9 +52,10 @@ describe('the target task, done', () => {
     expect(text).not.toContain('מצוין');
     // the sentence has its read-aloud button (PRD Module 24), in the same words
     const speech = [...box.querySelectorAll('[data-testid="speech"]')].map((e) => e.getAttribute('data-text'));
-    expect(speech).toEqual([`${note} לחצו על הכפתור ממשיכים בסרגל העליון כדי לעבור לשלב הבא!`]);
+    expect(speech).toEqual([`${note} לחצו על הכפתור "ממשיכים" בסרגל העליון כדי לעבור לשלב הבא!`]);
     // screen and speech are the same sentence, naming the button by its own name
-    expect(shown(screen.getByTestId('proceed-sentence'))).toBe(proceedSentenceHe());
+    // (the screen draws the name as a copy of the button, the speech quotes it)
+    expect(shown(screen.getByTestId('proceed-sentence'))).toBe(proceedSentenceHe().replace(/"/g, ''));
     expect(screen.getByTestId('proceed-chip').textContent).toContain(PROCEED_HE);
     expect(PROCEED_HE).toBe('ממשיכים');
   });
@@ -74,7 +75,7 @@ describe('the other steps keep their words', () => {
     const text = screen.getByTestId('session1-done').textContent ?? '';
     expect(text.startsWith('✨ מצוין! לחצו על הכפתור ממשיכים')).toBe(true);
     expect(text).not.toContain('נכון!');
-    expect(shown(screen.getByTestId('proceed-sentence'))).toBe(`✨ מצוין! ${proceedSentenceHe()}`);
+    expect(shown(screen.getByTestId('proceed-sentence'))).toBe(`✨ מצוין! ${proceedSentenceHe().replace(/"/g, '')}`);
     const speech = [...screen.getByTestId('session1-done').querySelectorAll('[data-testid="speech"]')].map((e) => e.getAttribute('data-text'));
     expect(speech).toEqual([`מצוין! ${proceedSentenceHe()}`]);
   });

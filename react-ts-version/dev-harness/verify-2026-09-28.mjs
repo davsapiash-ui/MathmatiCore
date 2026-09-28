@@ -17,10 +17,13 @@ const check = (name, ok, detail = '') => {
 };
 
 async function open(meeting, w, h, opts = {}) {
-  try {
-    return await openOnce(meeting, w, h, opts);
-  } catch {
-    return openOnce(meeting, w, h, opts); // a cold dev server: one more try
+  // a cold or busy dev server can be slow: up to three tries
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await openOnce(meeting, w, h, opts);
+    } catch (e) {
+      if (attempt >= 3) throw e;
+    }
   }
 }
 async function openOnce(meeting, w, h, { path = 'green_path', record = {} } = {}) {
@@ -169,6 +172,29 @@ for (const [w, h] of sizes) {
     const t = await text(page);
     check(`${tag} 3.20 meeting ${m}: no box, no sum`, !/בנו בלוח בדיוק|בלוח כרגע|הלוח תואם|בניתי את/.test(t));
     await page.screenshot({ path: `${out}/3.20-m${m}-built-${tag}.png` });
+    await browser.close();
+  }
+
+  /* 3.20 — meetings 5 and 6 keep the sum (not in the owner's decision). */
+  {
+    const { browser, page } = await open(5, w, h);
+    await page.evaluate(() => window.__ws.getState().initSession(5, false, 0));
+    await page.waitForTimeout(700);
+    await drop(page, 'hundreds', 3); await drop(page, 'tens', 4);
+    await page.waitForTimeout(500);
+    check(`${tag} 3.20 meeting 5 keeps "בניתי את"`, (await text(page)).includes('בניתי את'));
+    await browser.close();
+  }
+
+  /* The proceed button: its name is what it shows. */
+  {
+    const { browser, page } = await open(3, w, h);
+    const b = page.locator('[data-testid="proceed-button"]');
+    const name = await b.evaluate((e) => e.getAttribute('aria-label') ?? e.textContent.trim());
+    check(`${tag} proceed button announced as "ממשיכים"`, name === 'ממשיכים', name);
+    const exitText = (await page.locator('nav button[aria-label="יציאה מהמערכת"]').innerText()).trim();
+    const badge = (await page.locator('[data-testid="student-badge"]').innerText()).replace(/\s+/g, ' ').trim();
+    check(`${tag} "יציאה" and "מספר 12" written on the bar`, exitText === 'יציאה' && badge.includes('מספר 12'), `${exitText} | ${badge}`);
     await browser.close();
   }
 

@@ -13,8 +13,6 @@
  *  - "מספר 12": the login screen calls it "המספר שלי בכיתה".
  */
 export const PROCEED_HE = 'ממשיכים';
-/** What the proceed button is announced as (unchanged). */
-export const PROCEED_ARIA_HE = 'מעבר למשימה הבאה';
 
 export const LOGOUT_HE = 'יציאה';
 export const LOGOUT_ARIA_HE = 'יציאה מהמערכת';
@@ -35,5 +33,6 @@ export const PROCEED_SENTENCE_HE = {
   after: 'בסרגל העליון כדי לעבור לשלב הבא!',
 } as const;
 
+/** The sentence as read aloud: the button's name in quotes, as in every other sentence that names it. */
 export const proceedSentenceHe = (): string =>
-  `${PROCEED_SENTENCE_HE.before} ${PROCEED_HE} ${PROCEED_SENTENCE_HE.after}`;
+  `${PROCEED_SENTENCE_HE.before} "${PROCEED_HE}" ${PROCEED_SENTENCE_HE.after}`;

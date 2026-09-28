@@ -20,7 +20,6 @@ import {
   type Place,
   type PlaceCounts,
   countsEqual,
-  describeCountsHe,
   digitAt,
 } from '@/core/placeValue';
 import { session1Checklist, session1NextStep } from '@/core/session1Checklist';
@@ -1344,7 +1343,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       if (s.selectedChoiceId !== task.correctAnswer) {
-        handleFailure('wrong_choice', 'בּוֹאוּ נַחְשֹׁב שׁוּב 🤔', 'הַאִם הוֹסַפְנוּ אוֹ גָּרַעְנוּ קֻבִּיּוֹת כָּלְשֵׁהֵן מִבֵּית הַמְּסִפָּרִים?', 2800);
+        handleFailure('wrong_choice', 'בּוֹאוּ נַחְשֹׁב שׁוּב 🤔', 'האם הוספנו או הורדנו לבנים כלשהן מבית המספרים?', 2800);
         return;
       }
       handleSuccess('נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
@@ -1359,8 +1358,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (isBoardEmpty) {
           handleFailure(
             'empty_board',
-            'בְּנִיַּת הַמִּסְפָּר בַּבַּיִת 🧱',
-            'עֲדַיִן לֹא הִנַּחְתֶּם קֻבִּיּוֹת בְּבֵית הַמְּסִפָּרִים. לַחֲצוּ אוֹ גִּרְרוּ אֶת קֻבִּיּוֹת הַדִּינֶס מֵאַרְגַּז הַכֵּלִים כְּדֵי לִבְנוֹת אֶת הַמִּסְפָּר!',
+            'בונים בבית המספרים 🧱',
+            'עדיין אין לבנים בבית המספרים. לחצו על לבנה בארגז הכלים או גררו אותה לטור, ובנו את המספרים שבתרגיל.',
             3500
           );
           return;
@@ -1378,12 +1377,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10 || s.counts.hundreds >= 10;
         if (hasOvercrowded) {
-          // Names the column and the one action (מסמך 02: "כפתור הקבץ 10 שבראש הטור").
+          // Names the column and the one action: the button "קבץ 10" at the head of the column (מסמך 02).
           const crowded = s.counts.units >= 10 ? 'היחידות' : s.counts.tens >= 10 ? 'העשרות' : 'המאות';
           handleFailure(
             'overcrowded_columns',
             'בּוֹאוּ נְקַבֵּץ 🧱',
-            `בטור ${crowded} יש 10 לבנים או יותר. לחצו על כפתור הקבץ 10 שבראש הטור.`,
+            `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "קבץ 10" שבראש הטור.`,
             4000
           );
           return;
@@ -1489,20 +1488,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         handleFailure(
           'wrong_representation',
           'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍',
-          task.hideRequiredCounts
-            ? 'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.'
-            : `בבית המספרים צריך להיות בדיוק: ${describeCountsHe(required)}. עכשיו יש בו: ${describeCountsHe(s.counts)}.`,
+          // One sentence for every representation exercise. It used to spell out
+          // the blocks to build, as the box by the result row did; with the box
+          // gone (owner, 28.9.2026) that gave the answer away on a wrong press
+          // ("איזה מספר קיבלתם?"), and it was too long for the feedback note.
+          'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.',
           3500
         );
         return;
       }
       // Meeting 1: the exercise is the conversion itself, not only its result.
       if (task.requiresGrouping && !s.hasGrouped) {
-        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבני יחידה בכל פעם, בעזרת כפתור הקבץ 10 שבראש הטור.', 3500);
+        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבני יחידה בכל פעם, בעזרת הכפתור "קבץ 10" שבראש הטור.', 3500);
         return;
       }
       if (task.requiresUngrouping && !s.hasUngrouped) {
-        handleFailure('conversion_skipped', 'בּוֹאוּ נִפְרֹט 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנה כדי לפרק אותה.', 3500);
+        handleFailure('conversion_skipped', 'בּוֹאוּ נִפְרֹט 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנה כדי לפרוט אותה.', 3500);
         return;
       }
       const typed = answerDigitsToNumber(s.answerDigits);

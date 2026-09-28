@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
  */
 export function ProgressDots({ total, current }: { total: number; current: number }) {
   return (
-    <div className="flex gap-1.5 xl:gap-2.5 items-center" aria-hidden="true">
+    <div className="flex gap-1 xl:gap-2.5 items-center" aria-hidden="true">
       {Array.from({ length: total }).map((_, i) => {
         const done = i < current;
         const active = i === current;
@@ -18,10 +18,10 @@ export function ProgressDots({ total, current }: { total: number; current: numbe
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             className={`rounded-full flex items-center justify-center transition-colors duration-300 ${
               active
-                ? 'w-5 h-5 ws-btn-primary'
+                ? 'w-4 h-4 xl:w-5 xl:h-5 ws-btn-primary'
                 : done
-                  ? 'w-5 h-5 bg-ws-success text-white text-[10px] leading-none'
-                  : 'w-3 h-3 bg-ws-surface2'
+                  ? 'w-4 h-4 xl:w-5 xl:h-5 bg-ws-success text-white text-[9px] xl:text-[10px] leading-none'
+                  : 'w-2.5 h-2.5 xl:w-3 xl:h-3 bg-ws-surface2'
             }`}
           >
             {done && '✓'}

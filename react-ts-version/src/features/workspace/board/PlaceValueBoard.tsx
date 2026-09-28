@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
+import { ValueDisplay } from './ValueDisplay';
+import { showsBuiltSum } from '@/core/boardVisibility';
 import { useWorkspaceStore, selectScaffoldLevel, selectBoardOpen } from '@/application/useWorkspaceStore';
 import { PlaceColumn } from './PlaceColumn';
 import { BlockPalette } from './BlockPalette';
@@ -145,9 +147,11 @@ export function PlaceValueBoard({
               <RegroupAnimationLayer containerRef={columnsRef} />
             </div>
 
-            {/* No running sum ("בניתי את X") under the columns (owner, 28.9.2026):
-                it is in no document; the digit at the head of each column is the
-                board's own reading (מסמך 04 §3). */}
+            {/* The running sum ("בניתי את X") is in no document, and the owner
+                removed it in meetings 3, 4 and 7 (28.9.2026). Meeting 1 never
+                showed it. Meetings 5 and 6 keep it until the owner decides
+                (register, decision ו) — the owner's decision named 3, 4 and 7. */}
+            {showsBuiltSum(sessionNumber) && <ValueDisplay />}
           </div>
 
           <div className="transition-opacity">

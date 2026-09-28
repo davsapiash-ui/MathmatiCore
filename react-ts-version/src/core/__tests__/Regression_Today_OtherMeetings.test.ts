@@ -514,14 +514,15 @@ describe('representation tasks outside meeting 1 (RepresentationTask.tsx, procee
     expect(html(SESSION1_TASKS.find((t) => t.id === 's1_target_347')!)).not.toContain('בנו בלוח בדיוק:');
   });
 
-  it('meeting 3: a wrong board is refused with the exact board spelled out; the right one advances', () => {
+  it('meeting 3: a wrong board is refused without spelling out the answer; the right one advances', () => {
     startMeeting(3, 'remediation_path'); // s3_r_t1: 340 as 3 hundreds and 4 tens
     drop('hundreds', 3);
     drop('tens', 3);
     typeResult(340);
     expect(selectCanProceed(ws())).toBe(true);
     ws().proceed();
-    expect(ws().feedback?.sub).toContain('בבית המספרים צריך להיות בדיוק: 3 מאות ו-4 עשרות');
+    // The box that listed the blocks is gone (owner, 28.9.2026), and so is the sentence that repeated it.
+    expect(ws().feedback?.sub).toBe('בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.');
     expect(ws().standardTaskIdx).toBe(0);
     drop('tens');
     ws().proceed();

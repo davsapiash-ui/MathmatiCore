@@ -10,7 +10,7 @@ import { RotateCcw, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff, Hand
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { Logo } from '@/presentation/components/ui/Logo';
 import { indexedDBQueue, type QueueSyncState } from '@/infrastructure/services/IndexedDBQueue';
-import { PROCEED_ARIA_HE, PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames';
+import { PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames';
 
 /**
  * הסרגל העליון של מרחב הפעילות.
@@ -25,9 +25,9 @@ import { PROCEED_ARIA_HE, PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames
  *    the last element, alone in the left corner (RTL end).
  *  - Every button is fully on the screen at 1024 px wide (a tablet, מסמך 03),
  *    in every meeting (owner, 28.9.2026). Below 1280 px the bar tightens: the
- *    logo keeps its badge only, the learner's badge keeps its number, and
- *    "יציאה" keeps its icon (its name stays in aria-label and title). The row
- *    no longer scrolls sideways — a hidden scroll is how "התקדם" disappeared.
+ *    logo keeps its badge only and the progress dots are smaller; every
+ *    button keeps its words ("יציאה", "מספר 12"). The row no longer scrolls
+ *    sideways — a hidden scroll is how "התקדם" disappeared.
  * No time indicator anywhere (visible timers are forbidden).
  * Undo is exactly 48x48px per PRD Module 11.
  */
@@ -102,10 +102,8 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
             לכל לומד שמזההו לא נפתר. */}
         {studentNumber !== null && (
           <div className="flex items-center gap-2 bg-ws-accentSoft border border-ws-accent/25 px-2 xl:px-3 py-1.5 rounded-xl shadow-xs" title={studentBadgeHe(studentNumber)} data-testid="student-badge">
-            <div aria-hidden="true" className="w-6 h-6 rounded-lg bg-ws-accent text-white flex items-center justify-center font-black text-xs">
-              {studentNumber}
-            </div>
-            <span className="sr-only xl:not-sr-only text-xs font-black text-ws-ink whitespace-nowrap">
+            {/* The number once: "מספר 12", not a "12" chip beside it. */}
+            <span className="text-xs font-black text-ws-ink whitespace-nowrap">
               {studentBadgeHe(studentNumber)}
             </span>
           </div>
@@ -232,8 +230,10 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           onClick={proceed}
           disabled={!canProceed}
           className="h-12 px-4 xl:px-6 rounded-2xl text-base font-display font-extrabold text-white whitespace-nowrap bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
-          aria-label={PROCEED_ARIA_HE}
-          title={PROCEED_ARIA_HE}
+          // Announced by the name it shows (label in name), the name every
+          // sentence uses; it was "מעבר למשימה הבאה", also in meeting 1, whose
+          // steps are not "משימות".
+          title={PROCEED_HE}
           data-testid="proceed-button"
         >
           <span>{PROCEED_HE}</span>
@@ -241,7 +241,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         </button>
 
         {/* Module 1: Clean Synchronous Logout */}
-        <LogoutButton labelClassName="sr-only xl:not-sr-only" className="h-12 px-3 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap text-ws-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 border border-transparent hover:border-red-200" />
+        <LogoutButton className="h-12 px-2 xl:px-3 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap text-ws-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 border border-transparent hover:border-red-200" />
       </div>
 
       {/* Station 1: why the board button does nothing — a quiet note under the

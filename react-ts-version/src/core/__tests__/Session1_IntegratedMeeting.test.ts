@@ -54,7 +54,8 @@ const PENDING_DOC03_SYNC_27_9: ReadonlySet<string> = new Set([
  * TEMPORARY — pending Drive sync (28.9.2026).
  *
  * One name per thing on the child's screen (owner, 28.9.2026): "לבנים", not
- * "לבני דינס"; "בית המספרים", not "הלוח". Each pair is [what the screen says
+ * "לבני דינס"; "בית המספרים", not "הלוח"; a sentence names the button by the
+ * words it shows, "קבץ 10" (not "כפתור הקבץ 10"). Each pair is [what the screen says
  * now, the words of the repository copy of מסמך 03 it replaces]. The owner's
  * script updates מסמך 03 in Drive; until the repository copy is synced, a
  * line counts as the document's if the copy holds the old words the pair
@@ -66,6 +67,14 @@ const PENDING_DOC03_SYNC_28_9: ReadonlyArray<readonly [string, string]> = [
   ['נסו לבנות את המספר 305 בלבנים', 'נסו לבנות את המספר 305 בלבני דינס'],
   ['אחר כך לחצו על פח האשפה כדי לנקות את בית המספרים.', 'אחר כך לחצו על פח האשפה כדי לנקות את הלוח.'],
   ['בנו את המספר 347 בלבנים', 'בנו את המספר 347 בלבני דינס'],
+  [
+    'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת הכפתור "קבץ 10" שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.',
+    'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת כפתור הקבץ 10 שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.',
+  ],
+  [
+    'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבץ 10" שבראש הטור. כתבו את התשובה בשורת התוצאה.',
+    'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברות 10 לבנים בטור, לחצו על כפתור הקבץ 10 שבראש הטור. כתבו את התשובה בשורת התוצאה.',
+  ],
   [
     'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בבית המספרים או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
     'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בלוח או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
@@ -448,7 +457,7 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 2, units: 6 }, answerDigits: { tens: '2', units: '6' } });
     useWorkspaceStore.getState().proceed();
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_r_group26'));
-    expect(useWorkspaceStore.getState().feedback?.sub).toContain('כפתור הקבץ 10');
+    expect(useWorkspaceStore.getState().feedback?.sub).toContain('הכפתור "קבץ 10"');
     // Grouped from loose units: accepted, and the target task comes next.
     useWorkspaceStore.setState({ hasGrouped: true });
     useWorkspaceStore.getState().proceed();

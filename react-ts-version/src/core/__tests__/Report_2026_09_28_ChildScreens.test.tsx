@@ -20,6 +20,7 @@ import { SESSION1_TASKS, getSessionTasks } from '@/data/sessionTasks';
 import { SESSION_BRANCH_TASKS } from '@/data/sessionBranchTasks';
 import { LOGOUT_HE, PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames';
 import { DEFAULT_LEFT_PX, useLeftClearOfSidePanel } from '@/features/workspace/board/useLeftClearOfSidePanel';
+import { showsBuiltSum } from '@/core/boardVisibility';
 
 /**
  * The spec-vs-software report of 28.9.2026 (branch claude/spec-vs-software-report),
@@ -81,16 +82,29 @@ describe('rows 1.30, 2.11, 3.18 — every toolbar button fits a 1024 px screen',
     expect(row).toContain('shrink-0');
   });
 
-  it('below 1280 px the bar tightens: logo badge only, the number only, the exit icon only — names kept for screen readers', () => {
+  it('below 1280 px the bar tightens (logo badge only, smaller dots) but every button keeps its words', () => {
     const bar = src('features/workspace/WorkspaceTopbar.tsx');
     expect(bar).toContain('<span className="hidden xl:inline-flex"><Logo size="md" subtitle="מרחב חקר אישי" /></span>');
     expect(bar).toContain('<span className="inline-flex xl:hidden"><Logo size="md" showText={false} /></span>');
-    expect(bar).toContain('<LogoutButton labelClassName="sr-only xl:not-sr-only"');
+    expect(bar).not.toContain('sr-only xl:not-sr-only');
     ws().initSession(4, false, 0);
     topbar();
     const exit = [...document.querySelectorAll('nav button')].find((b) => b.getAttribute('aria-label') === 'יציאה מהמערכת')!;
     expect(exit.getAttribute('title')).toBe('יציאה');
-    expect(exit.querySelector('span')!.className).toContain('sr-only');
+    expect(exit.textContent).toBe('יציאה');
+    expect(exit.querySelector('span')!.className).not.toContain('sr-only');
+    const badge = screen.getByTestId('student-badge').querySelector('span')!;
+    expect(badge.textContent?.trim()).toBe('מספר 12');
+    expect(badge.className).not.toContain('sr-only');
+  });
+
+  it('the proceed button is announced by the name it shows', () => {
+    ws().initSession(3, false, 0);
+    topbar();
+    const b = screen.getByTestId('proceed-button');
+    expect(b.hasAttribute('aria-label')).toBe(false);
+    expect(b.textContent).toBe('ממשיכים');
+    expect(b.getAttribute('title')).toBe('ממשיכים');
   });
 });
 
@@ -161,13 +175,17 @@ describe('row 1.28 — the addition grid keeps clear of the coaching card', () =
   });
 });
 
-describe('row 3.20 (owner, 28.9.2026) — no "בנו בלוח בדיוק / בלוח כרגע" box and no "בניתי את" sum', () => {
-  it('neither text is anywhere in the child\'s workspace', () => {
+describe('row 3.20 (owner, 28.9.2026) — no "בנו בלוח בדיוק / בלוח כרגע" box, and no "בניתי את" sum in meetings 3, 4 and 7', () => {
+  it('the box is gone from every representation exercise', () => {
     const rep = src('features/workspace/tasks/RepresentationTask.tsx');
     expect(rep).not.toContain('describeCountsHe');
     for (const gone of ['בנו בלוח בדיוק', 'בלוח כרגע', 'הלוח תואם']) expect(rep).not.toContain(gone);
-    expect(src('features/workspace/board/PlaceValueBoard.tsx')).not.toContain('ValueDisplay');
-    expect(() => src('features/workspace/board/ValueDisplay.tsx')).toThrow();
+  });
+
+  it('the sum is shown in meetings 5 and 6 only — not in 3, 4 and 7 (the decision), not in 1 (as before)', () => {
+    for (const m of [1, 2, 3, 4, 7, 8]) expect(showsBuiltSum(m), `meeting ${m}`).toBe(false);
+    for (const m of [5, 6]) expect(showsBuiltSum(m), `meeting ${m}`).toBe(true);
+    expect(src('features/workspace/board/PlaceValueBoard.tsx')).toContain('{showsBuiltSum(sessionNumber) && <ValueDisplay />}');
   });
 });
 
@@ -204,6 +222,7 @@ describe('one name per thing on the child\'s screen: "בית המספרים", "�
 
   it('no exercise instruction in meetings 1 and 3–7 says "הלוח", "לבני דינס" or "הקבצו"; subtraction says "פרטו", not "פרקו"', () => {
     for (const [id, text] of childTexts()) {
+      expect(text, id).not.toContain('כפתור הקבץ');
       if (/[−-]\s?\d/.test(text) && /^פתרו (במאונך|חיסור)/.test(text)) expect(text, id).not.toMatch(/(^|\s)פרקו(\s|$)/);
       expect(text, id).not.toMatch(/(^|[\s(])(ה|ב|על ה|ל)?לוח(?!\s*החיבור)/);
       expect(text, id).not.toMatch(/לבני (ה)?דינס/);
@@ -216,7 +235,11 @@ describe('one name per thing on the child\'s screen: "בית המספרים", "�
     expect(store).toContain("'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.'");
     expect(store).toContain("'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.'");
     expect(store).toContain("'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!'");
-    expect(store).not.toMatch(/תואם ללוח|שבלוח|קֻּבִּיּוֹת|להקבץ|הניסוי/);
+    // niqqud stripped, so no spelling of "קוביות" slips through
+    const plain = store.replace(/[\u0591-\u05C7]/g, '');
+    expect(plain).not.toMatch(/תואם ללוח|שבלוח|קוביות|קביות|להקבץ|הניסוי|כפתור הקבץ|כדי לפרק אותה|לבני הדינס|קוביות הדינס/);
+    // a wrong board is refused without spelling out the blocks to build
+    expect(store).not.toContain('בבית המספרים צריך להיות בדיוק');
   });
 
   it('the tray and the trash name them the same way', () => {

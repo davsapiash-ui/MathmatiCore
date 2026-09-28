@@ -56,16 +56,22 @@ async function openMeeting(page) {
 
 for (const [w, h] of sizes) {
   for (const { m, p } of meetings) {
-    await seed(m, p);
-    let { browser, page } = await openAs(undefined, { width: w, height: h });
-    try {
-      await openMeeting(page);
-    } catch {
-      // A cold dev server can be slow on the first load: one more try.
-      await browser.close();
+    // A cold or busy dev server can be slow: up to three tries, then report and go on.
+    let browser, page, opened = false;
+    for (let attempt = 1; attempt <= 3 && !opened; attempt++) {
       await seed(m, p);
       ({ browser, page } = await openAs(undefined, { width: w, height: h }));
-      await openMeeting(page);
+      try {
+        await openMeeting(page);
+        opened = true;
+      } catch {
+        await browser.close();
+      }
+    }
+    if (!opened) {
+      console.log(`m${m}${p === 'remediation_path' ? 'r' : ''} ${w}x${h}: COULD NOT OPEN (3 tries)`);
+      results.push({ meeting: m, path: p, size: `${w}x${h}`, error: 'could not open' });
+      continue;
     }
     const count = await page.evaluate((m) => {
       const s = window.__ws.getState();
