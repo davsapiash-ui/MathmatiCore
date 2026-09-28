@@ -5,14 +5,10 @@ import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValu
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { DienesBlock } from './DienesBlock';
 import { useVisibleRegroup, arrivingBlockCount } from './RegroupAnimationLayer';
+import { PLACE_COLORS } from '../placeColors';
 
-/** Per-place functional colors (vanilla workspace.css 346–375). */
-const COLUMN_COLORS: Record<Place, { header: string; border: string; tint: string; headerBg: string }> = {
-  units: { header: 'var(--block-unit-dark)', border: 'var(--block-unit)', tint: 'rgba(245,158,11,0.08)', headerBg: 'rgba(245,158,11,0.14)' },
-  tens: { header: 'var(--block-ten-dark)', border: 'var(--block-ten)', tint: 'rgba(16,185,129,0.08)', headerBg: 'rgba(16,185,129,0.14)' },
-  hundreds: { header: 'var(--block-hundred-dark)', border: 'var(--block-hundred)', tint: 'rgba(59,130,246,0.08)', headerBg: 'rgba(59,130,246,0.14)' },
-  thousands: { header: 'var(--block-thousand-dark)', border: 'var(--block-thousand)', tint: 'rgba(239,68,68,0.08)', headerBg: 'rgba(239,68,68,0.14)' },
-};
+/** Per-place functional colors — one code, shared with the answer boxes (placeColors.ts). */
+const COLUMN_COLORS = PLACE_COLORS;
 
 export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDragPlace?: Place | null }) {
   const count = useWorkspaceStore((s) => s.counts?.[place] ?? 0);

@@ -15,6 +15,7 @@ import { SmallChangeTask } from './SmallChangeTask';
 import { BackwardDiagnosisView } from './BackwardDiagnosisView';
 
 import { PlaceValueInputBoxes } from './PlaceValueInputBoxes';
+import { UnitBlocksPicture } from './UnitBlocksPicture';
 
 /**
  * כרטיס המשימה — כותרת, הוראה (עם הקראה), וגוף דינמי לפי סוג המשימה והשלב.
@@ -184,13 +185,18 @@ export function TaskCard() {
                   />
                 )}
 
-                {/* 5. המרה עצמאית בין עזרים וירטואליים */}
+                {/* 5. המרה עצמאית בין עזרים וירטואליים — the blocks are the
+                    question: a still picture for every learner (owner, 27.9.2026). */}
                 {qTask.type === 'conversion' && (
                   <PlaceValueInputBoxes
                     mode="two_digits"
                     givenText={qTask.givenHe}
                     labels={{ tens: 'עשרות', units: 'יחידות' }}
-                  />
+                  >
+                    {qTask.pictureUnitBlocks !== undefined && (
+                      <UnitBlocksPicture count={qTask.pictureUnitBlocks} label={qTask.givenHe ?? ''} />
+                    )}
+                  </PlaceValueInputBoxes>
                 )}
 
                 {/* 3, 6, 7. חישוב במאונך (חיבור או חיסור) */}

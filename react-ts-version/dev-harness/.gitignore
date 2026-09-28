@@ -1,0 +1,5 @@
+emulators.log
+vite.log
+*-debug.log
+shots/
+.rules/
