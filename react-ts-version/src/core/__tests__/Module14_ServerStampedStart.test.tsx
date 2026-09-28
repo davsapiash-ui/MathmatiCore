@@ -284,3 +284,43 @@ describe('readers tolerate the placeholder until the server value arrives', () =
     expect(isClassSessionLive(rec, start + SESSION_HARD_CAP_MS)).toBe(false);
   });
 });
+
+describe('a stalled Firestore does not trap the teacher in the activation window', () => {
+  beforeEach(() => {
+    fake.session = null;
+    fake.skewMs = 0;
+    fake.clockKnown = true;
+    fake.clockWaiters = [];
+    fake.listeners.clear();
+    fake.writes = [];
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    useAuthStore.setState({
+      user: { uid: 'teacher_test_01', email: 'teacher@mathmaticore.local', role: 'teacher', displayName: 'מורה' } as never,
+      role: 'teacher',
+      isAuthenticated: true,
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('commit() that never settles: the meeting opens, the window closes, and "עצרו את המפגש" is reachable', async () => {
+    // A school network that blocks firestore.googleapis.com: the batch neither
+    // resolves nor rejects. The class mirror is still written (queued by the SDK).
+    const { writeBatch } = await import('firebase/firestore');
+    const commit = vi.fn(() => new Promise<void>(() => {}));
+    vi.mocked(writeBatch).mockImplementation(() => ({ set: vi.fn(), commit }) as never);
+
+    await activateMeeting();
+
+    expect(commit).toHaveBeenCalledTimes(1);
+    // The activation window closes: it used to stay open on its spinner with
+    // "ביטול" disabled until the teacher reloaded.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByRole('button', { name: 'ביטול' })).toBeNull();
+    expect(await screen.findByRole('button', { name: /עצרו את המפגש/ })).toBeTruthy();
+  });
+});
