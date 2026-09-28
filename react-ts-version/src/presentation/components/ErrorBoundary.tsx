@@ -1,5 +1,14 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { useAuthStore } from '@/application/useAuthStore';
+import {
+  claimQuietReload,
+  isSignedInStaff,
+  pageReload,
+  QUIET_RECOVERY_TEXT,
+  QUIET_RELOAD_DELAY_MS,
+  QUIET_RETRY_LABEL,
+  resetQuietReloads,
+} from './quietRecovery';
 
 interface Props {
   children: ReactNode;
@@ -10,24 +19,60 @@ interface State {
   error: Error | null;
   errorInfo: ErrorInfo | null;
   copied: boolean;
+  /** Anyone but signed-in staff: no error text, automatic recovery. */
+  quiet: boolean;
+  /** The quiet reloads of the last minute are used up: one calm button. */
+  recoveryExhausted: boolean;
 }
 
+/**
+ * PRD Module 1 §ב: "במקרה של תקלה חמורה, הממשק מחזיר את התלמיד למצב עבודה שקט
+ * ולא מציג הודעת שגיאה" — "המצב מתאפס לערך התקין האחרון הידוע".
+ *
+ * This boundary wraps the whole app (main.tsx). It used to show every user
+ * "אירעה שגיאה בטעינת הדף", the technical details with the stack trace, and
+ * three buttons, one of which signed the child out. Now anyone but signed-in
+ * staff gets the quiet recovery of quietRecovery.ts: a calm screen, one
+ * automatic reload, and after repeated crashes one "נסו שוב" button. Staff keep
+ * the technical view below.
+ */
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
     errorInfo: null,
     copied: false,
+    quiet: false,
+    recoveryExhausted: false,
   };
 
+  private reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
   public static getDerivedStateFromError(error: Error): Partial<State> {
-    return { hasError: true, error };
+    return { hasError: true, error, quiet: !isSignedInStaff() };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ErrorBoundary caught an error]:', error, errorInfo);
     this.setState({ errorInfo });
+    if (!this.state.quiet || this.reloadTimer) return;
+
+    if (claimQuietReload()) {
+      this.reloadTimer = setTimeout(() => pageReload.run(), QUIET_RELOAD_DELAY_MS);
+    } else {
+      this.setState({ recoveryExhausted: true });
+    }
   }
+
+  public componentWillUnmount() {
+    if (this.reloadTimer) clearTimeout(this.reloadTimer);
+  }
+
+  private handleQuietRetry = () => {
+    // The child asked: a fresh set of quiet reloads, then load again.
+    resetQuietReloads();
+    pageReload.run();
+  };
 
   private handleReload = () => {
     window.location.reload();
@@ -76,7 +121,38 @@ export class ErrorBoundary extends Component<Props, State> {
     }
   };
 
+  private renderQuiet() {
+    return (
+      <div
+        dir="rtl"
+        data-testid="quiet-recovery"
+        className="min-h-screen flex flex-col items-center justify-center p-6 bg-ws-bg text-ws-ink font-body select-none text-center"
+      >
+        {this.state.recoveryExhausted ? (
+          <button
+            type="button"
+            onClick={this.handleQuietRetry}
+            className="min-h-11 px-8 py-3 rounded-full bg-ws-accent text-white text-lg font-bold shadow-sm hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+          >
+            {QUIET_RETRY_LABEL}
+          </button>
+        ) : (
+          <div role="status" className="flex flex-col items-center gap-4">
+            <span
+              aria-hidden="true"
+              className="w-10 h-10 rounded-full border-4 border-ws-surface2 border-t-ws-accent animate-spin motion-reduce:animate-none"
+            />
+            <p className="text-lg font-bold">{QUIET_RECOVERY_TEXT}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   public render() {
+    if (this.state.hasError && this.state.quiet) {
+      return this.renderQuiet();
+    }
     if (this.state.hasError) {
       return (
         <div

@@ -5,6 +5,8 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
+const BEE_FLIGHT_MESSAGE_HE = 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.';
+
 interface BeeFlightWaitingScreenProps {
   onApproved?: () => void;
 }
@@ -71,11 +73,16 @@ export function BeeFlightWaitingScreen({ onApproved }: BeeFlightWaitingScreenPro
         <div aria-hidden="true" className="h-20 flex items-center justify-center">
           <span className="bee-flight inline-block text-5xl will-change-transform">🐝</span>
         </div>
-        {/* §ב specifies this message verbatim. */}
+        {/* PRD Module 20 §ב gives the message; the words on screen are
+            reworded under the owner's delegation of on-screen wording
+            (28.9.2026; register deviation 25, not a line-by-line approval):
+            the teacher is feminine as on every other screen of the child, the
+            address has its comma, and nothing promises an immediate
+            continuation — the wait can last until the next lesson. */}
         <p className="text-base text-slate-700 dark:text-slate-200 font-semibold leading-relaxed">
-          כל הכבוד מתמטיקאים! סיימתם את התחנה השנייה בהצלחה. המורה בודק את העבודה שלכם כעת, ומיד נמשיך במסע המשותף שלנו.
+          {BEE_FLIGHT_MESSAGE_HE}
         </p>
-        <UdlSpeechButton text="כל הכבוד מתמטיקאים! סיימתם את התחנה השנייה בהצלחה. המורה בודק את העבודה שלכם כעת, ומיד נמשיך במסע המשותף שלנו." />
+        <UdlSpeechButton text={BEE_FLIGHT_MESSAGE_HE} />
       </div>
     </div>
   );

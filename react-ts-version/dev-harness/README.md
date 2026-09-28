@@ -2,8 +2,9 @@
 
 Nothing here is imported by `src`, and nothing here is part of `npm run build`
 (Vite builds from `index.html` → `src/main.tsx` only). It exists so that anyone
-can check a screen the way the 28.9.2026 audit did, without the live site and
-without any password or access code.
+can check a screen the way the 28.9.2026 audit did, without the live site (it
+never touches https://mathimaticore.web.app) and without any password or access
+code.
 
 What it does:
 
@@ -18,7 +19,13 @@ What it does:
   measures on the page whether every toolbar button and every answer box is
   fully on the screen.
 
-## Run
+Both runs below use the same emulator config, `firebase.harness.json`. The
+Firestore rules are copied next to it into `.rules/` (the emulator refuses paths
+outside its project dir). The RTDB rules are PUT after start, by `seed.mjs` or
+`meeting2-walk.mjs`: the CLI's own upload of them goes through the outbound
+proxy in some sandboxes.
+
+## Run: every meeting (`shoot.mjs`)
 
 ```bash
 cd react-ts-version
@@ -36,3 +43,28 @@ The seed opens the meeting as the teacher would (`active_class_session`) and,
 for meetings 3–8, marks student 12 as approved at the teacher gate on the given
 path. The harness jumps to an exercise with the store's own `initSession`, the
 same call the workspace makes when a meeting starts.
+
+## Run: meeting 2, with and without the support profile (`meeting2-walk.mjs`)
+
+Needs Java, `firebase-tools` and Playwright's Chromium.
+
+```bash
+# 1. emulators + frontend (http://localhost:5199)
+FIREBASE_BIN=/path/to/firebase react-ts-version/dev-harness/start.sh
+# 2. walk meeting 2 as student 12 and take a screenshot of every screen
+cd react-ts-version
+node dev-harness/meeting2-walk.mjs --profile plain --size 1366x768 --answers wrong --out dev-harness/shots/after
+```
+
+`start.sh` starts the same emulators and the frontend with
+`vite.harness.config.ts`, whose sign-in builds the emulator token from the
+claims in localStorage `harness_claims`; it writes `emulators.log` and
+`vite.log` here (gitignored), and `restart-vite.sh` restarts only the frontend.
+The walk puts the RTDB rules in place, then opens meeting 2 as the teacher
+would. `--profile enhanced` sets
+`support_profile_id: 'enhanced_cognitive_support'` on the learner's record, as
+the teacher's toggle does. `--answers wrong` answers every task wrongly so the
+whole correction round is shown; `--answers right` answers 605, 40, 27, 563,
+25, 209, 273. Each run also writes a JSON file with what the screen said, the
+answer boxes (left edge, bottom, border colour) and the task-5 picture. If
+Chromium is not where Playwright looks, set `CHROMIUM_PATH`.

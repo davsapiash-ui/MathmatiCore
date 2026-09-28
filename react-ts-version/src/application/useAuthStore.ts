@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
-import { auth, database, functions } from "@/infrastructure/firebase";
+import { auth, functions } from "@/infrastructure/firebase";
 import { httpsCallable } from "firebase/functions";
-import { ref, update } from "firebase/database";
+import { rtdbUpdateNow } from "@/infrastructure/services/ThrottledRtdbWriter";
 import { useStore } from "@/application/useStore";
 import { useWorkspaceStore } from "@/application/useWorkspaceStore";
 import { useAdminStore } from "@/application/useAdminStore";
@@ -99,13 +99,17 @@ const getStoredAuth = () => {
     let rawUser: string | null = null;
     let rawRole: string | null = null;
     let rawTime: string | null = null;
-    let rawLastActive: string | null = null;
     let rawWindowClosed: string | null = null;
+    let rawLastActive: string | null = null;
+    // sessionStorage belongs to this tab: it survives a reload and a device
+    // that slept, and a new window or tab starts without it.
+    let restoredFromThisTab = false;
 
     if (typeof sessionStorage !== 'undefined') {
       rawUser = sessionStorage.getItem(STORAGE_KEY_USER);
       rawRole = sessionStorage.getItem(STORAGE_KEY_ROLE);
       rawTime = sessionStorage.getItem(STORAGE_KEY_TIMESTAMP);
+      restoredFromThisTab = Boolean(rawUser && rawRole);
     }
     if ((!rawUser || !rawRole) && typeof localStorage !== 'undefined') {
       rawUser = localStorage.getItem(STORAGE_KEY_USER);
@@ -113,8 +117,8 @@ const getStoredAuth = () => {
       rawTime = localStorage.getItem(STORAGE_KEY_TIMESTAMP);
     }
     if (typeof localStorage !== 'undefined') {
-      rawLastActive = localStorage.getItem(STORAGE_KEY_STUDENT_LAST_ACTIVE);
       rawWindowClosed = localStorage.getItem(STORAGE_KEY_STUDENT_WINDOW_CLOSED);
+      rawLastActive = localStorage.getItem(STORAGE_KEY_STUDENT_LAST_ACTIVE);
     }
 
     if (rawUser && rawRole) {
@@ -122,16 +126,27 @@ const getStoredAuth = () => {
       const authTime = rawTime ? parseInt(rawTime, 10) : Date.now();
       const now = Date.now();
 
-      // Student 5-minute disconnect check (after window closure or inactivity)
+      // Student 5-minute disconnect check: after a genuine window close only
       if (rawRole === 'student') {
         const lastClosed = rawWindowClosed ? parseInt(rawWindowClosed, 10) : null;
-        const lastActive = rawLastActive ? parseInt(rawLastActive, 10) : null;
 
         if (lastClosed && now - lastClosed > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) {
           clearStoredAuth();
           return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
         }
-        if (lastActive && now - lastActive > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) {
+        // A window can close without pagehide: swiped away in a tablet's app
+        // switcher, a browser crash, a dead battery. On a shared tablet the
+        // next child would then continue as the previous learner for up to
+        // 8 hours. Such a close leaves a new window behind — no auth record
+        // in this tab's sessionStorage — and a presence stamp that stopped.
+        // Register: "וחלון שנסגר באמת עדיין מטופל".
+        //
+        // The same stamp stops while a device sleeps or its screen is locked,
+        // but that tab keeps its sessionStorage (also through a reload on
+        // wake), so sleep never signs a learner out (register: "הטיימר הוסר
+        // עבור לומדים"; Module 14 §ב1).
+        const lastActive = rawLastActive ? parseInt(rawLastActive, 10) : null;
+        if (!restoredFromThisTab && lastActive && now - lastActive > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) {
           clearStoredAuth();
           return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
         }
@@ -141,6 +156,21 @@ const getStoredAuth = () => {
       if (now - authTime > JWT_EXPIRY_MS) {
         clearStoredAuth();
         return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
+      }
+
+      // A learner restored from localStorage in a new tab: mark this tab as
+      // theirs, with the same keys setStoredAuth writes. Otherwise the tab
+      // stays unmarked for its whole life, and a later sleep with a reload on
+      // wake would look like a new window and sign the learner out — the very
+      // sleep sign-out the check above must never cause.
+      if (rawRole === 'student' && !restoredFromThisTab && typeof sessionStorage !== 'undefined') {
+        try {
+          sessionStorage.setItem(STORAGE_KEY_USER, rawUser);
+          sessionStorage.setItem(STORAGE_KEY_ROLE, rawRole);
+          sessionStorage.setItem(STORAGE_KEY_TIMESTAMP, rawTime ?? authTime.toString());
+        } catch {
+          // Storage unavailable: nothing to mark; the sign-in itself stands.
+        }
       }
 
       return {
@@ -289,9 +319,10 @@ export function unifiedLogout() {
     const isSuperseded = useWorkspaceStore.getState().isSupersededByOtherDevice;
     if (!isSuperseded) {
       try {
-        update(ref(database, `users/students/${normId}`), { isOnline: false, lastPing: 0 }).catch(() => {});
+        // Sent now, merged with anything still pending on the record (PRD 18 throttle).
+        rtdbUpdateNow(`users/students/${normId}`, { isOnline: false, lastPing: 0 }).catch(() => {});
         if (normId !== currentUser.uid) {
-          update(ref(database, `users/students/${currentUser.uid}`), { isOnline: false, lastPing: 0 }).catch(() => {});
+          rtdbUpdateNow(`users/students/${currentUser.uid}`, { isOnline: false, lastPing: 0 }).catch(() => {});
         }
       } catch (e) {
         console.warn("Presence logout reset error:", e);
@@ -383,11 +414,9 @@ export const useAuthStore = create<AuthState>()(
             const lastClosed = parseInt(lastClosedStr, 10);
             if (now - lastClosed > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) return true;
           }
-          const lastActiveStr = localStorage.getItem(STORAGE_KEY_STUDENT_LAST_ACTIVE);
-          if (lastActiveStr) {
-            const lastActive = parseInt(lastActiveStr, 10);
-            if (now - lastActive > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) return true;
-          }
+          // No comparison with the presence stamp: a device that slept or
+          // locked its screen for five minutes did not close the window
+          // (register: "הטיימר הוסר עבור לומדים"; Module 14 §ב1).
         } catch {}
       }
 

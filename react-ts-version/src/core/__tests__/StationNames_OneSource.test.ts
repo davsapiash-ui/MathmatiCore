@@ -266,8 +266,9 @@ describe('the child reads "בית המספרים" and "לבנים"', () => {
   it('diagnostic task 5 shows "25 לבני יחידה"', () => {
     const t5 = DIAGNOSTIC_TASKS.find((t) => t.id === 'task5_units_to_tens')!;
     expect(t5.givenHe).toBe('25 לבני יחידה');
-    expect(t5.instructionHe).toContain('תקבלו מהלבנים שעל המסך');
-    expect(t5.backwardDiagnosis?.probeInstructionHe).toContain('תקבלו מהלבנים');
+    // owner, 27.9.2026: the grouping is named (הקבצה) and the blocks are on the screen
+    expect(t5.instructionHe).toContain('תקבצו לעשרות את הלבנים שעל המסך');
+    expect(t5.backwardDiagnosis?.probeInstructionHe).toContain('תקבצו לעשרות את הלבנים שעל המסך');
   });
 
   it('the live cards count "לבנים" and tap "לבנת העשרת"', () => {

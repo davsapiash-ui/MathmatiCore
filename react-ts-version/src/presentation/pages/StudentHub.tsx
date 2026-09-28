@@ -5,9 +5,10 @@ import { useAuthStore, stampStudentWindowClosed, touchStudentActivity } from '@/
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { ref, onValue, update, onDisconnect } from 'firebase/database';
+import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import { throttledRtdbUpdate, rtdbUpdateNow } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { Sparkles } from 'lucide-react';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
 import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
@@ -126,7 +127,7 @@ export function StudentHub() {
         if (snap.exists()) {
           const val = snap.val();
           if (val?.forceReload === true) {
-            update(studentRef, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
+            rtdbUpdateNow(`users/students/${normUid}`, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
             useWorkspaceStore.getState().resetWorkspace?.();
             firebaseSyncService.clearLocalSessionProgress(normUid);
             if (uid) firebaseSyncService.clearLocalSessionProgress(uid);
@@ -166,12 +167,14 @@ export function StudentHub() {
   // Maintain live presence heartbeat while in Student Hub / Lobby
   useEffect(() => {
     if (!normUid) return;
-    const studentPresenceRef = ref(database, `users/students/${normUid}`);
+    // Every write to the learner record goes through its one throttled writer
+    // (PRD 18: at most once per 1000 ms); leaving is sent at once.
+    const presencePath = `users/students/${normUid}`;
 
-    update(studentPresenceRef, {
+    throttledRtdbUpdate(presencePath, {
       isOnline: true,
       onlineStatus: 'active',
-      lastPing: Date.now(),
+      lastPing: serverTimestamp(),
       lastActivityTimestamp: Date.now(),
       hasJoinedSession: true,
       lastAction: 'בלובי / ממתין לשיעור',
@@ -186,7 +189,7 @@ export function StudentHub() {
 
     const handleDisconnect = () => {
       stampStudentWindowClosed();
-      update(studentPresenceRef, {
+      rtdbUpdateNow(presencePath, {
         isOnline: false,
         onlineStatus: 'offline',
         lastPing: 0,
@@ -199,10 +202,10 @@ export function StudentHub() {
 
     const interval = setInterval(() => {
       touchStudentActivity();
-      update(studentPresenceRef, {
+      throttledRtdbUpdate(presencePath, {
         isOnline: true,
         onlineStatus: 'active',
-        lastPing: Date.now(),
+        lastPing: serverTimestamp(),
         lastActivityTimestamp: Date.now(),
       }).catch(() => {});
     }, 4000);

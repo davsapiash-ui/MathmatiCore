@@ -32,7 +32,7 @@ import {
   stampStudentWindowClosed,
 } from '../useAuthStore';
 
-describe('Student 5-Minute Window Close & Inactivity Timeout Suite', () => {
+describe('Student 5-Minute Window Close Suite (a closed window, never inactivity)', () => {
   beforeEach(() => {
     mockLocalStorage.clear();
     mockSessionStorage.clear();
@@ -97,7 +97,14 @@ describe('Student 5-Minute Window Close & Inactivity Timeout Suite', () => {
     expect(useAuthStore.getState().isTokenExpired()).toBe(true);
   });
 
-  it('4. Automatically marks token expired if student had no activity for MORE than 5 minutes', () => {
+  // Until 28.9.2026 this case expected `true`: six minutes without a presence
+  // stamp signed the learner out. That is exactly a tablet whose screen locked,
+  // or a laptop that slept, during the teacher's explanation at the projector.
+  // The register: "הטיימר הוסר עבור לומדים; חותם הנוכחות נשאר, כך שהמורה עדיין
+  // רואה אותם לא פעילים, וחלון שנסגר באמת עדיין מטופל" — and PRD Module 14 §ב1
+  // forbids disconnecting the learner. Only a genuinely closed window (case 3)
+  // still ends the sign-in.
+  it('4. A learner with no presence stamp for MORE than 5 minutes (device asleep, screen locked) stays signed in', () => {
     const studentUser = {
       uid: 'student_user4',
       student_id: 4,
@@ -107,12 +114,12 @@ describe('Student 5-Minute Window Close & Inactivity Timeout Suite', () => {
 
     useAuthStore.getState().setUser(studentUser, 'student');
 
-    // Simulate no activity for 6 minutes (360,000ms > 300,000ms)
+    // No presence stamp for 6 minutes (360,000ms > 300,000ms), and no window close
     const sixMinutesAgo = Date.now() - 6 * 60 * 1000;
     mockLocalStorage.setItem(STORAGE_KEY_STUDENT_LAST_ACTIVE, sixMinutesAgo.toString());
     mockLocalStorage.removeItem(STORAGE_KEY_STUDENT_WINDOW_CLOSED);
 
-    expect(useAuthStore.getState().isTokenExpired()).toBe(true);
+    expect(useAuthStore.getState().isTokenExpired()).toBe(false);
   });
 
   it('5. Teacher sessions are NOT disconnected by the 5-minute rule (teachers use 8-hour token policy)', () => {
