@@ -322,6 +322,9 @@ describe('meeting 2: the diagnostic', () => {
         const q = getCurrentQTask(ws().qflow);
         if (!q) break;
         if (seen[seen.length - 1] !== q.id) seen.push(q.id);
+        // Task 2's one box holds the answer, and it is what "התקדם" judges
+        // (owner, 28.9.2026); the box also fills the tens and units.
+        if (q.type === 'digit_value') ws().setProbeAnswer(String(q.correctAnswer));
         typeResult(q.correctAnswer!);
         ws().proceed();
         vi.advanceTimersByTime(3000);
