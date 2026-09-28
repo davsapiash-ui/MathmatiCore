@@ -54,6 +54,20 @@ export const BLOCK_NOUN_HE: Record<SocraticColumn, string> = {
   thousands: "אלפים",
 };
 
+/** A number as the child's screen writes it: "1,245", "328". */
+export function formatNumberHe(n: number): string {
+  const str = String(Math.abs(n));
+  return str.length > 3 ? `${str.slice(0, -3)},${str.slice(-3)}` : str;
+}
+
+/** A number with its hidden digits shown as the skeleton shows them: "2,▢3▢". */
+export function maskedNumberHe(n: number, hidden: SocraticColumn[] = []): string {
+  const cols: SocraticColumn[] = ["units", "tens", "hundreds", "thousands"];
+  const len = Math.max(1, String(Math.abs(n)).length);
+  const str = cols.slice(0, len).reverse().map((c) => (hidden.includes(c) ? "▢" : String(digitAt(n, c)))).join("");
+  return str.length > 3 ? `${str.slice(0, -3)},${str.slice(-3)}` : str;
+}
+
 const TRIGGER_HE: Record<SocraticTriggerReason, string> = {
   hesitation_45s: "השהיה של 45 שניות ומעלה ללא פעולה בטור הפעיל",
   consecutive_errors_4: "ארבע שגיאות רצופות בהקלדה",
@@ -76,6 +90,12 @@ export interface SocraticExerciseContext {
   active_column: SocraticColumn;
   active_column_index: number;
   target_sub_problem: string;
+  /**
+   * Digits the exercise hides on the screen (a skeleton: "31▢ + 254 = 568").
+   * The learner is finding them, so the prompt never shows them and a card
+   * that names the whole hidden operand is refused.
+   */
+  hidden_places?: { a: SocraticColumn[]; b: SocraticColumn[] };
 }
 
 export interface SocraticWorkspaceState {
@@ -239,6 +259,15 @@ export function validateSocraticRequest(raw: unknown): Validation<SocraticReques
       active_column_index: isInt(ec.active_column_index, 0, 3) ? ec.active_column_index : raw.active_column_index,
       target_sub_problem: typeof ec.target_sub_problem === "string" ? ec.target_sub_problem.slice(0, 40) : "",
     };
+    if (ec.hidden_places !== undefined && ec.hidden_places !== null) {
+      const hp = ec.hidden_places;
+      const cols = (v: unknown): SocraticColumn[] | null =>
+        Array.isArray(v) && v.every((c) => typeof c === "string" && SOCRATIC_COLUMNS.includes(c as SocraticColumn)) ? (v as SocraticColumn[]) : null;
+      const ha = isPlainObject(hp) ? cols(hp.a ?? []) : null;
+      const hb = isPlainObject(hp) ? cols(hp.b ?? []) : null;
+      if (!ha || !hb) return { ok: false, reason: "exercise_context.hidden_places invalid" };
+      if (ha.length || hb.length) exercise_context.hidden_places = { a: ha, b: hb };
+    }
   }
 
   let student_progress_state: SocraticProgressState | undefined;
@@ -308,6 +337,9 @@ export interface ColumnFact {
   column: SocraticColumn;
   digit_a: number;
   digit_b: number;
+  /** The digits as the screen shows them — "▢" where the exercise hides one. Only these go into the prompt. */
+  shown_a: string;
+  shown_b: string;
   blocks_on_board: number;
   /** addition: digits sum to 10 or more; subtraction: top digit smaller than bottom. */
   needs_conversion: boolean;
@@ -333,6 +365,8 @@ export interface SocraticFacts {
   number_b: number | null;
   /** Kept ONLY for the leak check; never written into the prompt. */
   final_answer: number | null;
+  /** Operands whose digits the screen hides (skeleton) — kept ONLY for the leak check. */
+  hidden_operands: number[];
   active_column: SocraticColumn;
   board_value: number;
   columns: ColumnFact[];
@@ -381,6 +415,8 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
       column,
       digit_a,
       digit_b,
+      shown_a: ec?.hidden_places?.a.includes(column) ? "▢" : String(digit_a),
+      shown_b: ec?.hidden_places?.b.includes(column) ? "▢" : String(digit_b),
       blocks_on_board: blocks[column],
       needs_conversion,
       board_deficit,
@@ -410,22 +446,22 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   if (!blocks_on_screen && ec && active && active.needs_conversion && !active.completed) {
     suggested_category = "procedural";
     suggested_focus_he = ec.operation === "subtraction"
-      ? `ב${COLUMN_NAME_HE[active.column]} צריך לחסר ${active.digit_b} מ-${active.digit_a} — נדרשת פריטה מהטור השכן, ורישום השינוי בעיגול הזיכרון.`
-      : `ב${COLUMN_NAME_HE[active.column]} החיבור ${active.digit_a} + ${active.digit_b}${(memory[active.column] ?? 0) > 0 ? ` + ${memory[active.column]} מעיגול הזיכרון` : ""} עובר את 9 — נדרשת המרה, ורישום שלה בעיגול הזיכרון שמעל הטור הבא.`;
+      ? `ב${COLUMN_NAME_HE[active.column]} צריך לחסר ${active.shown_b} מ-${active.shown_a} — נדרשת פריטה מהטור השכן, ורישום השינוי בעיגול הזיכרון.`
+      : `ב${COLUMN_NAME_HE[active.column]} החיבור ${active.shown_a} + ${active.shown_b}${(memory[active.column] ?? 0) > 0 ? ` + ${memory[active.column]} מעיגול הזיכרון` : ""} עובר את 9 — נדרשת המרה, ורישום שלה בעיגול הזיכרון שמעל הטור הבא.`;
   } else if (ec && emptyBoard) {
     suggested_category = "procedural";
     suggested_focus_he = ec.operation === "subtraction"
-      ? `בית המספרים ריק. הצעד הראשון בחיסור הוא לבנות רק את המספר הגדול (${ec.number_a}) בלבנים.`
-      : `בית המספרים ריק. הצעד הראשון הוא לבנות את שני המספרים (${ec.number_a} ו-${ec.number_b}) בלבנים.`;
+      ? `בית המספרים ריק. הצעד הראשון בחיסור הוא לבנות רק את המספר הגדול (${maskedNumberHe(ec.number_a, ec.hidden_places?.a)}) בלבנים.`
+      : `בית המספרים ריק. הצעד הראשון הוא לבנות את שני המספרים (${maskedNumberHe(ec.number_a, ec.hidden_places?.a)} ו-${maskedNumberHe(ec.number_b, ec.hidden_places?.b)}) בלבנים.`;
   } else if (blocks_on_screen && overcrowded) {
     suggested_category = "conceptual";
     suggested_focus_he = `ב${COLUMN_NAME_HE[overcrowded.column]} יש ${overcrowded.blocks_on_board} ${BLOCK_NOUN_HE[overcrowded.column]} — יותר מ-9, ולכן נדרש קיבוץ של 10 ללבנה אחת בטור הבא.`;
   } else if (blocks_on_screen && ec && active && ec.operation === "subtraction" && active.needs_conversion && active.board_deficit > 0) {
     suggested_category = "procedural";
-    suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} צריך להחסיר ${active.digit_b} אבל בלוח יש רק ${active.blocks_on_board} ${BLOCK_NOUN_HE[active.column]} — נדרשת פריטה מהטור השכן הגדול יותר.`;
+    suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} צריך להחסיר ${active.shown_b} אבל בלוח יש רק ${active.blocks_on_board} ${BLOCK_NOUN_HE[active.column]} — נדרשת פריטה מהטור השכן הגדול יותר.`;
   } else if (ec && active && ec.operation === "addition" && active.needs_conversion && !active.completed) {
     suggested_category = "procedural";
-    suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} החיבור ${active.digit_a} + ${active.digit_b}${(memory[active.column] ?? 0) > 0 ? ` + ${memory[active.column]} מעיגול הזיכרון` : ""} עובר את 9 — נדרש קיבוץ של 10 ${BLOCK_NOUN_HE[active.column]} והעברה לטור הבא.`;
+    suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} החיבור ${active.shown_a} + ${active.shown_b}${(memory[active.column] ?? 0) > 0 ? ` + ${memory[active.column]} מעיגול הזיכרון` : ""} עובר את 9 — נדרש קיבוץ של 10 ${BLOCK_NOUN_HE[active.column]} והעברה לטור הבא.`;
   } else if (trigger === "consecutive_errors_4" && active && !active.needs_conversion) {
     suggested_category = "calculation";
     suggested_focus_he = `הטור הפעיל (${COLUMN_NAME_HE[active.column]}) אינו דורש המרה, והלומד טעה בהקלדה ארבע פעמים — כנראה טעות בעובדת החשבון הבסיסית של הטור.`;
@@ -448,6 +484,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   return {
     meeting,
     blocks_on_screen,
+    hidden_operands: ec?.hidden_places ? [...(ec.hidden_places.a.length ? [ec.number_a] : []), ...(ec.hidden_places.b.length ? [ec.number_b] : [])] : [],
     operation: ec?.operation ?? null,
     number_a: ec?.number_a ?? null,
     number_b: ec?.number_b ?? null,
@@ -493,10 +530,35 @@ IRON RULES:
 - Never act as a chatbot, never address the learner by name, never reveal any personal data.
 - Output ONLY the JSON object requested. No prose outside JSON.`;
 
+/**
+ * Meetings 2 and 8 show no blocks, no trash and no number house (PRD Module
+ * 14 §ב). The instruction above describes them; this one replaces it there,
+ * so the model is not asked to name a board it cannot point at.
+ */
+export const SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS = SOCRATIC_SYSTEM_INSTRUCTION
+  .replace(
+    'working in a DIGITAL place-value workspace ("בית המספרים") with virtual Dienes blocks, memory circles ("עיגולי הזיכרון") and a recycle bin ("פח האשפה").',
+    'solving a vertical exercise WITHOUT blocks: on the screen there are only the exercise, the memory circles ("עיגולי הזיכרון") above the columns and the result row ("שורת התוצאה"). There are no blocks, no number house and no trash on this screen.'
+  )
+  .replace(
+    "2. THE LIVE BOARD — the exact block count in each column and whether a regrouping/decomposition was already performed in blocks.",
+    "2. THE WRITTEN STATE — what is written in the memory circles and in the result row."
+  )
+  .replace(
+    "Name the exercise, the active column sub-problem and the board state in the question itself.",
+    "Name the exercise and the active column sub-problem in the question itself."
+  )
+  .replace(
+    'tools are "עיגולי הזיכרון" and "פח האשפה". The blocks are "לבנים" ONLY ("לבנה" in the singular; never "קוביות", "קובייה", "בלוק" or "בלוקים"), and the board is "בית המספרים" ONLY (never "לוח הדינס", "לוח הלבנים" or "קנבס").',
+    'the only tools on this screen are "עיגולי הזיכרון" and "שורת התוצאה". NEVER mention blocks (לבנים), a board or number house (בית המספרים, לוח), the trash (פח) or grouping buttons.'
+  )
+  .replace("blocks deleted without preserving the total, 10 or more blocks left in one column.", "a conversion not written in the memory circle.")
+  .replace('the workspace is "בית המספרים" with "טור היחידות / טור העשרות / טור המאות / טור האלפים";', 'the columns are "טור היחידות / טור העשרות / טור המאות / טור האלפים";');
+
 function fmtColumnFact(c: ColumnFact, facts: SocraticFacts): string {
   const parts = [`${COLUMN_NAME_HE[c.column]}: ${c.blocks_on_board} ${BLOCK_NOUN_HE[c.column]} בלוח`];
   if (facts.operation) {
-    parts.push(facts.operation === "subtraction" ? `תת-תרגיל ${c.digit_a} − ${c.digit_b}` : `תת-תרגיל ${c.digit_a} + ${c.digit_b}`);
+    parts.push(facts.operation === "subtraction" ? `תת-תרגיל ${c.shown_a} − ${c.shown_b}` : `תת-תרגיל ${c.shown_a} + ${c.shown_b}`);
     if (facts.memory_circles[c.column] !== undefined) parts.push(`עיגול זיכרון: ${facts.memory_circles[c.column]}`);
     if (c.needs_conversion) parts.push(facts.operation === "subtraction" ? "דורש פריטה" : "דורש קיבוץ");
     if (c.board_deficit > 0) parts.push(`חסרות ${c.board_deficit} ${BLOCK_NOUN_HE[c.column]} בלוח לביצוע החיסור`);
@@ -518,9 +580,15 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   lines.push("=== עמוד 1: התרגיל והאלגוריתם ===");
   if (ec) {
     const sign = ec.operation === "subtraction" ? "−" : "+";
-    lines.push(`פעולה: ${ec.operation === "subtraction" ? "חיסור" : "חיבור"} במאונך. התרגיל: ${ec.number_a} ${sign} ${ec.number_b}.`);
+    // As the screen writes it: "1,245 + 328"; a skeleton's hidden digits as "▢".
+    lines.push(`פעולה: ${ec.operation === "subtraction" ? "חיסור" : "חיבור"} במאונך. התרגיל: ${maskedNumberHe(ec.number_a, ec.hidden_places?.a)} ${sign} ${maskedNumberHe(ec.number_b, ec.hidden_places?.b)}.`);
+    if (ec.hidden_places) {
+      lines.push(`על המסך התוצאה נתונה (${formatNumberHe(ec.operation === "subtraction" ? ec.number_a - ec.number_b : ec.number_a + ec.number_b)}), והספרות שמסומנות ▢ מוסתרות: הלומד מגלה אותן. אסור לכתוב ספרה מוסתרת או את המספר המלא.`);
+    }
     if (ec.session_topic) lines.push(`נושא המפגש: ${ec.session_topic}`);
-    lines.push(`הטור הפעיל: ${COLUMN_NAME_HE[facts.active_column]}${ec.target_sub_problem ? ` (תת-תרגיל: ${ec.target_sub_problem})` : ""}.`);
+    const activeFact = facts.columns.find((c) => c.column === facts.active_column);
+    const subProblem = activeFact ? `${activeFact.shown_a} ${sign} ${activeFact.shown_b}` : ec.target_sub_problem;
+    lines.push(`הטור הפעיל: ${COLUMN_NAME_HE[facts.active_column]}${subProblem ? ` (תת-תרגיל: ${subProblem})` : ""}.`);
   } else {
     lines.push(`תרגיל ${req.exercise_id} (ללא אופרנדים מספריים — משימת ייצוג/בנייה בבית המספרים). הטור הפעיל: ${COLUMN_NAME_HE[facts.active_column]}.`);
   }
@@ -540,7 +608,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
     lines.push("אסור להזכיר לבנים, פח אשפה, מחסן, כפתור הקבץ או בית המספרים. כוונו לעיגולי הזיכרון ולשורת התוצאה בלבד.");
     if (facts.operation) {
       for (const c of [...facts.columns].reverse()) {
-        const sub = facts.operation === "subtraction" ? `${c.digit_a} − ${c.digit_b}` : `${c.digit_a} + ${c.digit_b}`;
+        const sub = facts.operation === "subtraction" ? `${c.shown_a} − ${c.shown_b}` : `${c.shown_a} + ${c.shown_b}`;
         lines.push(`  - ${COLUMN_NAME_HE[c.column]}: תת-תרגיל ${sub}${c.needs_conversion ? (facts.operation === "subtraction" ? " | דורש פריטה" : " | דורש המרה") : ""} | ${c.completed ? "הטור כבר נפתר נכון" : c.column === facts.active_column ? "<< הטור הפעיל" : "טרם נפתר"}`);
       }
     }
@@ -548,7 +616,10 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
 
   lines.push("");
   lines.push("=== עמוד 3: שלב הביצוע וההיסטוריה של הלומד (ניטור) ===");
-  lines.push(`סיבת הטריגר: ${facts.trigger_reason ? TRIGGER_HE[facts.trigger_reason] : "לא דווחה"}.`);
+  const triggerText = facts.trigger_reason === "conversion_not_performed" && !facts.blocks_on_screen
+    ? "הקלדה בטור שדורש המרה או פריטה לפני שנרשמה בעיגול הזיכרון"
+    : facts.trigger_reason ? TRIGGER_HE[facts.trigger_reason] : "לא דווחה";
+  lines.push(`סיבת הטריגר: ${triggerText}.`);
   lines.push(`טורים שכבר נפתרו נכון: ${facts.completed_columns.length ? facts.completed_columns.map((c) => COLUMN_NAME_HE[c]).join(", ") : "אף אחד עדיין"}.`);
   lines.push(`הקלט הנוכחי בטור הפעיל: ${facts.current_input === null || facts.current_input === "" ? "ריק" : facts.current_input}.`);
   lines.push(`עיגולי הזיכרון: ${Object.keys(facts.memory_circles).length ? JSON.stringify(facts.memory_circles) : "ריקים"}.`);
@@ -657,14 +728,16 @@ export function leaksFinalAnswer(texts: string[], facts: Pick<SocraticFacts, "fi
  * Whole words only: "לבנות" (to build) and "לפחות" (at least) are not aids.
  * Mirrored on the client (SocraticEngine.absentAidViolation).
  */
-const HE_WORD = (w: string) => new RegExp(`(^|[^א-ת])[ובלמהש]{0,2}(${w})(?![א-ת])`);
+const HE_WORD = (w: string) => new RegExp(`(^|[^א-ת])[ובלמהשכ]{0,4}(${w})(?![א-ת])`);
 export const ABSENT_AIDS_NO_BOARD: RegExp[] = [
   HE_WORD("לבנה|לבנים|לבנת|לבני"),
   HE_WORD("פח"),
   HE_WORD("מחסן"),
   HE_WORD("לוח"),
+  HE_WORD("קבץ"),
+  HE_WORD("דינס"),
+  /קובי/,
   /בית המספרים/,
-  /הקבץ/,
 ];
 
 export function findAbsentAid(texts: string[], blocksOnScreen: boolean): string | null {
@@ -746,6 +819,9 @@ export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | n
   const forbidden = findForbiddenTerm(texts);
   if (forbidden) return { ok: false, reason: `forbidden terminology: ${forbidden}` };
   if (facts && leaksFinalAnswer(texts, facts)) return { ok: false, reason: "final answer leaked" };
+  if (facts && (facts.hidden_operands ?? []).some((n) => texts.some((t) => containsNumberToken(t, n) || t.includes(formatNumberHe(n))))) {
+    return { ok: false, reason: "hidden digits leaked" };
+  }
   if (facts && findAbsentAid(texts, facts.blocks_on_screen !== false)) return { ok: false, reason: "names an aid that is not on the screen" };
 
   const ids: SocraticOption["id"][] = ["opt_1", "opt_2", "opt_3"];

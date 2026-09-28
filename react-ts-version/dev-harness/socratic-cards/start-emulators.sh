@@ -6,8 +6,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p .rules
-cp ../../firestore.rules .rules/firestore.rules
-cp ../../database.rules.json .rules/database.rules.json
+cp ../../../firestore.rules .rules/firestore.rules
+cp ../../../database.rules.json .rules/database.rules.json
 # The CLI talks to the emulators on localhost; a proxy in the environment must
 # not carry those calls.
 exec env -u HTTP_PROXY -u http_proxy -u HTTPS_PROXY -u https_proxy \

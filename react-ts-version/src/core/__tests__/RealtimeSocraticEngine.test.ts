@@ -26,11 +26,11 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     
     const correctOpt = hint?.choices.find(c => c.id === hint?.correctChoiceId);
     expect(correctOpt).toBeDefined();
-    expect(correctOpt?.textHe).toContain('אלף אחד מטור האלפים כדי לפרוט');
+    expect(correctOpt?.textHe).toContain('פורטים אלף אחד לעשר מאות'); // the exercise card reads the board (28.9.2026)
     expect(correctOpt?.isCorrect).toBe(true);
 
     const distractorOpt = hint?.choices.find(c => c.id === 'opt_2');
-    expect(distractorOpt?.textHe).toContain('נחסיר הפוך');
+    expect(distractorOpt?.textHe).toContain('מחסרים הפוך');
     expect(distractorOpt?.isCorrect).toBe(false);
   });
 

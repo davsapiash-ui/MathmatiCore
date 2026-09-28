@@ -1,11 +1,11 @@
 /**
- * DEV ONLY. Drives the real frontend (dev-harness/vite.emulator.config.ts)
+ * DEV ONLY. Drives the real frontend (dev-harness/socratic-cards/vite.emulator.config.ts)
  * against the Firebase Emulator Suite as student 12, and takes screenshots.
  * No real project, no password, no class passcode: the identity is set in the
  * emulators directly (custom claims through the Auth emulator's admin API,
  * which accepts "Bearer owner" for demo projects only).
  *
- *   node dev-harness/drive.mjs <baseUrl> <outDir> <scenario> [WxH ...]
+ *   node dev-harness/socratic-cards/drive.mjs <baseUrl> <outDir> <scenario> [WxH ...]
  *
  * A scenario opens one exercise of one meeting and path, the way the page does
  * at the start of a meeting (initSession with a starting index), then acts.
@@ -14,7 +14,7 @@ import { chromium } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const [, , baseUrl = 'http://127.0.0.1:5180', outDir = 'dev-harness/screens-tmp', scenarioName = 'all', ...sizesArg] = process.argv;
+const [, , baseUrl = 'http://127.0.0.1:5180', outDir = 'dev-harness/socratic-cards/screens-tmp', scenarioName = 'all', ...sizesArg] = process.argv;
 const SIZES = (sizesArg.length ? sizesArg : ['1366x768', '1024x768']).map((s) => s.split('x').map(Number));
 const RTDB = 'http://127.0.0.1:9000';
 const NS = 'demo-mathmaticore-default-rtdb';
@@ -84,7 +84,7 @@ async function openExercise(browser, [w, h], meeting, pathName, idx) {
   const start = page.getByRole('button', { name: 'מתחילים' });
   if (await start.isVisible({ timeout: 8000 }).catch(() => false)) await start.click();
   // Let the page finish its own start of the meeting, then move to the exercise.
-  const firstTask = page.getByText(/משימה 1 מתוך|משימת היכרות/).first();
+  const firstTask = page.getByText(/משימה \d+ מתוך|משימת היכרות/).first();
   if (!(await firstTask.isVisible({ timeout: 20000 }).catch(() => false))) {
     if (await start.isVisible().catch(() => false)) await start.click();
     await firstTask.waitFor({ timeout: 20000 });

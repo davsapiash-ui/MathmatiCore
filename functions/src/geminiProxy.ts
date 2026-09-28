@@ -12,6 +12,7 @@ import { recordAiCall, type AiOutcome } from "./aiMonitoring";
 import {
   SOCRATIC_RESPONSE_SCHEMA,
   SOCRATIC_SYSTEM_INSTRUCTION,
+  SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS,
   buildSocraticPrompt,
   deriveSocraticFacts,
   toLegacyIntervention,
@@ -106,7 +107,8 @@ async function generateOnce(prompt: string, facts: SocraticFacts | null, timeout
         Parameters<typeof ai.getGenerativeModel>[0]["generationConfig"]
       >["responseSchema"],
     },
-    systemInstruction: SOCRATIC_SYSTEM_INSTRUCTION,
+    // Meetings 2 and 8 have no blocks on the screen (PRD Module 14 §ב).
+    systemInstruction: facts && facts.blocks_on_screen === false ? SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS : SOCRATIC_SYSTEM_INSTRUCTION,
   });
 
   let raw: string;

@@ -159,14 +159,16 @@ export function socraticTextViolation(
  * the child at something that is not there (Module 13 §א). Mirrored on the
  * server (functions/src/socraticContract.ts).
  */
-const WORD = (w: string) => new RegExp(`(^|[^א-ת])[ובלמהש]{0,2}(${w})(?![א-ת])`);
+const WORD = (w: string) => new RegExp(`(^|[^א-ת])[ובלמהשכ]{0,4}(${w})(?![א-ת])`);
 export const ABSENT_AIDS_MEETING_8_HE: RegExp[] = [
   WORD('לבנה|לבנים|לבנת|לבני'), // not "לבנות" (to build)
   WORD('פח'), // not "לפחות"
   WORD('מחסן'),
   WORD('לוח'), // not "לוחצים"
+  WORD('קבץ'), // the button "קבץ 10 לעשרת"
+  WORD('דינס'),
+  /קובי/,
   /בית המספרים/,
-  /הקבץ/,
 ];
 
 export function absentAidViolation(texts: string[], sessionNumber?: number | null): string | null {
@@ -822,6 +824,15 @@ export class SocraticEngine {
       const needTens = tensA - (needUnits ? 1 : 0) < tensB;
       const needHundreds = hundredsA - (needTens ? 1 : 0) < hundredsB;
 
+      // From here on the card reads a deficit off the board, which is only true
+      // while the first number stands on it whole: once taking away starts,
+      // "5 units, and 8 to take" asked for a second decomposition. In meetings
+      // 3–7 the exercise card (staticSocraticCards.ts) reads the board itself,
+      // and also handles the empty column on the way ("4,000 − 1,562": no ten
+      // to break); this reading stays for meeting 1's refresh exercises.
+      const deficitMeeting = meetingOfTaskId(currentTask?.id);
+      if ((deficitMeeting !== null && deficitMeeting !== 1) || (digitsKnown && boardValue !== minuend)) return null;
+
       // Check Units Deficit — real for this exercise, and not yet resolved on the board.
       if (needUnits && unitsB > 0 && counts.units < unitsB) {
         return {
@@ -859,7 +870,7 @@ export class SocraticEngine {
           pedagogical_intent: "procedural",
           tts_text: `יש לנו ${counts.tens} עשרות ואנו צריכים להחסיר ${tensB}. פרטו מאה אחת ל-10 עשרות.`,
           suggested_highlight: "tour-column-hundreds",
-          questionHe: `יש לנו ${counts.tens} עשרות בלוח ואנו צריכים להחסיר ${tensB} עשרות. מאיזה טור שכן נוכל לפרוט לבנה?`,
+          questionHe: `יש לנו ${counts.tens === 1 ? 'עשרת אחת' : `${counts.tens} עשרות`} בלוח ואנו צריכים להחסיר ${tensB === 1 ? 'עשרת אחת' : `${tensB} עשרות`}. מאיזה טור שכן נוכל לפרוט לבנה?`,
           choices: [
             { 
               id: "opt_1", 
@@ -890,7 +901,7 @@ export class SocraticEngine {
           pedagogical_intent: "procedural",
           tts_text: `יש לנו ${counts.hundreds} מאות ואנו צריכים להחסיר ${hundredsB}. פרטו אלף אחד ל-10 מאות.`,
           suggested_highlight: "tour-column-thousands",
-          questionHe: `יש לנו ${counts.hundreds} מאות בלוח ואנו צריכים להחסיר ${hundredsB} מאות. מה עלינו לעשות?`,
+          questionHe: `יש לנו ${counts.hundreds === 1 ? 'מאה אחת' : `${counts.hundreds} מאות`} בלוח ואנו צריכים להחסיר ${hundredsB === 1 ? 'מאה אחת' : `${hundredsB} מאות`}. מה עלינו לעשות?`,
           choices: [
             { 
               id: "opt_1", 
@@ -967,8 +978,11 @@ export class SocraticEngine {
 
       let exerciseContext: GeminiSocraticRequest['exercise_context'];
       if (operands && operands.a >= 0 && operands.b >= 0 && !(operands.isSubtraction && operands.b > operands.a)) {
-        const da = digitAt(operands.a, activeColumn);
-        const db = digitAt(operands.b, activeColumn);
+        // A skeleton's hidden digits never leave the client as digits.
+        const hiddenA: Place[] = currentTask?.hiddenDigits?.a ?? [];
+        const hiddenB: Place[] = currentTask?.hiddenDigits?.b ?? [];
+        const da = hiddenA.includes(activeColumn) ? '▢' : digitAt(operands.a, activeColumn);
+        const db = hiddenB.includes(activeColumn) ? '▢' : digitAt(operands.b, activeColumn);
         exerciseContext = {
           operation: operands.isSubtraction ? 'subtraction' : 'addition',
           number_a: operands.a,
@@ -978,6 +992,7 @@ export class SocraticEngine {
           active_column: activeColumn,
           active_column_index: colIdx,
           target_sub_problem: operands.isSubtraction ? `${da} - ${db}` : `${da} + ${db}`,
+          ...(hiddenA.length || hiddenB.length ? { hidden_places: { a: hiddenA, b: hiddenB } } : {}),
         };
       }
 
@@ -1355,7 +1370,7 @@ export class SocraticEngine {
     //    (hidden digits stay hidden), the column where it really converts, and
     //    in meeting 8 the memory circles instead of blocks (register, approved
     //    deviation 2; owner, 28.9.2026 — staticSocraticCards.ts).
-    const computed = exerciseCard(currentTask);
+    const computed = exerciseCard(currentTask, currentCounts);
     if (computed) return computed;
 
     // 4. The מסמך 03 session card, grounded in this exercise. It comes AFTER the

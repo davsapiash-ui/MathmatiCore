@@ -5,6 +5,8 @@ import {
   deriveSocraticFacts,
   buildSocraticPrompt,
   findAbsentAid,
+  SOCRATIC_SYSTEM_INSTRUCTION,
+  SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS,
 } from '../socraticContract';
 
 /**
@@ -81,5 +83,63 @@ describe('meeting 8: the prompt and the check know there are no blocks', () => {
     const req = request('session_4_student_12');
     const prompt = buildSocraticPrompt(req, deriveSocraticFacts(req));
     expect(prompt).toContain('המצב הייצוגי בבית המספרים (לבנים)');
+  });
+});
+
+/**
+ * Independent review, 28.9.2026. (1) A skeleton's hidden digits ("31▢ + 254
+ * = 568") reached the model as digits; it could name them. (2) The system
+ * instruction still described blocks and a trash in meeting 8. (3) The
+ * prompt wrote "1245", the screen writes "1,245".
+ */
+describe('what the model is told matches the screen', () => {
+  const skeleton = (sessionId: string, hidden: unknown) => {
+    const v = validateSocraticRequest({
+      student_id: 12, session_id: sessionId, exercise_id: 's7_r_t2', active_column_index: 0,
+      workspace_state: { ones_count: 0, tens_count: 0, hundreds_count: 0, memory_circles: {} },
+      recent_actions: [],
+      exercise_context: {
+        operation: 'addition', number_a: 314, number_b: 254, session_id: sessionId, session_topic: '',
+        active_column: 'units', active_column_index: 0, target_sub_problem: '▢ + 4', hidden_places: hidden,
+      },
+    });
+    if (!v.ok) throw new Error(v.reason);
+    return v.value;
+  };
+
+  it('hidden digits are shown as ▢, never as digits', () => {
+    const req = skeleton('session_7_student_12', { a: ['units'], b: [] });
+    const facts = deriveSocraticFacts(req);
+    const prompt = buildSocraticPrompt(req, facts);
+    expect(prompt).toContain('התרגיל: 31▢ + 254.');
+    expect(prompt).toContain('תת-תרגיל: ▢ + 4');
+    expect(prompt).not.toMatch(/(^|[^0-9,])314(?![0-9])/);
+    expect(prompt).not.toContain('4 + 4');
+  });
+
+  it('a card that names the hidden operand is refused', () => {
+    const facts = deriveSocraticFacts(skeleton('session_7_student_12', { a: ['units'], b: [] }));
+    expect(validateSocraticResponse(card('בתרגיל 314 + 254, מה בטור היחידות?', 'נבדוק'), facts).ok).toBe(false);
+    expect(validateSocraticResponse(card('בתרגיל 31▢ + 254, מה חסר בטור היחידות?', 'נבדוק'), facts).ok).toBe(true);
+  });
+
+  it('hidden_places must name columns', () => {
+    expect(() => skeleton('session_7_student_12', { a: ['ones'], b: [] })).toThrow();
+  });
+
+  it('numbers are written with a comma, as on the exercise sheet', () => {
+    const req = request('session_8_student_12');
+    expect(buildSocraticPrompt(req, deriveSocraticFacts(req))).toContain('התרגיל: 1,245 + 328.');
+  });
+
+  it('the no-blocks instruction describes the memory circles and the result row only', () => {
+    expect(SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS).not.toMatch(/Dienes|recycle bin|THE LIVE BOARD|board state|פח האשפה"\./);
+    expect(SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS).toContain('WITHOUT blocks');
+    expect(SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS).not.toBe(SOCRATIC_SYSTEM_INSTRUCTION);
+  });
+
+  it('prefixes like "כשהלבנים" and the button "קבץ 10" are caught', () => {
+    expect(findAbsentAid(['וכשהלבנים בטור'], false)).not.toBeNull();
+    expect(findAbsentAid(['לחצו על קבץ 10 לעשרת'], false)).not.toBeNull();
   });
 });

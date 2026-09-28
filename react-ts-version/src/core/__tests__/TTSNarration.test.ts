@@ -694,7 +694,7 @@ describe('האפיון: הקראה בממשק הלומד בלבד', () => {
 
   it('החונך הסוקרטי מקריא גם את האפשרויות, לא רק את השאלה', () => {
     const card = SRC('features/workspace/overlays/HelpOverlays.tsx');
-    expect(card).toContain('aiSocraticHint?.choices?.map((c) => c.textHe)');
+    expect(card).toContain('shownCard?.choices?.map((c) => c.textHe)');
   });
 
   it('שלושת שלבי לוח מפגש 8 מוקראים, ולא רק הראשון', () => {

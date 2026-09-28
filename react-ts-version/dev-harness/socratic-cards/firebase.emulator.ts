@@ -1,5 +1,5 @@
 /**
- * DEV ONLY — never imported by src. dev-harness/vite.emulator.config.ts
+ * DEV ONLY — never imported by src. dev-harness/socratic-cards/vite.emulator.config.ts
  * aliases "@/infrastructure/firebase" to this file, so the real frontend runs
  * against the local Firebase Emulator Suite (demo project, no credentials).
  * Everything below the config is the production module, unchanged, plus the
@@ -120,7 +120,7 @@ export function serverNow(): number {
   return Date.now() + _serverClockOffsetMs;
 }
 
-// The driver (dev-harness/drive.mjs) reaches the stores through these handles.
+// The driver (dev-harness/socratic-cards/drive.mjs) reaches the stores through these handles.
 if (typeof window !== 'undefined') {
   setTimeout(() => {
     import('@/application/useWorkspaceStore').then((m) => { (window as any).__ws = m.useWorkspaceStore; (window as any).__wsm = m; });

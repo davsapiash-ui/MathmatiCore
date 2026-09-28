@@ -187,9 +187,26 @@ function card(
 const HL = (p: Place) => `tour-column-${p}`;
 const ONE_DIGIT_PER_BOX = 'רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד, מ-0 עד 9.';
 
-/** Vertical addition, both numbers on the screen. */
-function additionCard(a: number, b: number, blocks: boolean): SocraticHintResponse {
+export type BoardCounts = Record<Place, number>;
+const boardValue = (c: BoardCounts) => LOW_TO_HIGH.reduce((sum, p) => sum + (c[p] ?? 0) * DIVISOR[p], 0);
+
+/**
+ * Vertical addition, both numbers on the screen. With blocks on the screen
+ * (meetings 3–7) the board decides between two cards: all the blocks of both
+ * numbers are there and grouped (board value = a + b, nothing to group — the
+ * live card speaks while a column holds 10 or more), or the exercise's first
+ * conversion column. The second card's advice is true in every board state:
+ * the "הקבץ 10" button only appears once a column holds 10 blocks.
+ */
+function additionCard(a: number, b: number, blocks: boolean, counts?: BoardCounts): SocraticHintResponse {
   const ex = `${formatNumberHe(a)} + ${formatNumberHe(b)}`;
+  if (blocks && counts && boardValue(counts) === a + b && LOW_TO_HIGH.every((p) => (counts[p] ?? 0) < 10)) {
+    return card(`${OPEN}בתרגיל ${ex}, כל הלבנים כבר בבית המספרים. מה עושים עכשיו?`, 'procedural', 'tour-place-value-board', [
+      ['כותבים בכל תיבה בשורת התוצאה את מספר הלבנים שבטור שלה', 'נכון מאוד! התחילו בטור היחידות.'],
+      ['מוסיפים עוד לבנים', 'רמז: כל הלבנים של שני המספרים כבר בבית המספרים.'],
+      ['מקבצים שוב את טור היחידות', 'רמז: מקבצים רק כשיש בטור 10 לבנים או יותר.'],
+    ]);
+  }
   const c = carryColumns(a, b)[0];
   const n = c ? next(c) : null;
   if (!c || !n) {
@@ -203,8 +220,8 @@ function additionCard(a: number, b: number, blocks: boolean): SocraticHintRespon
   const question = `${OPEN}בתרגיל ${ex}, ב${COLUMN[c]} מצטברות 10 ${PLURAL[c]} או יותר. מה עושים איתן?`;
   if (blocks) {
     return card(question, 'procedural', HL(c), [
-      [`מקבצים 10 ${PLURAL[c]} ל${ONE[n]} ומעבירים ${it} שמאלה ל${COLUMN[n]}`, `נכון מאוד! לחצו על כפתור הקבץ 10 שבראש ${COLUMN[c]}, ורשמו את ההמרה בעיגול הזיכרון.`],
-      [`משאירים את כולן ב${COLUMN[c]}`, ONE_DIGIT_PER_BOX],
+      [`מקבצים 10 ${PLURAL[c]} ל${ONE[n]} ומעבירים ${it} שמאלה ל${COLUMN[n]}`, `נכון מאוד! כשיש ב${COLUMN[c]} 10 לבנים או יותר, לחצו על כפתור הקבץ 10 שבראש הטור.`],
+      [`משאירים את כולן ב${COLUMN[c]}`, 'רמז: בסוף החיבור יש בכל טור 9 לבנים לכל היותר. 10 לבנים הופכות ללבנה אחת בטור שמשמאל.'],
       [`מוחקים את ה${PLURAL[c]} המיותרות`, 'רמז: מחיקת לבנים משנה את המספר. שומרים על כל הלבנים.'],
     ]);
   }
@@ -215,9 +232,83 @@ function additionCard(a: number, b: number, blocks: boolean): SocraticHintRespon
   ]);
 }
 
-/** Vertical subtraction, both numbers on the screen. */
-function subtractionCard(a: number, b: number, blocks: boolean): SocraticHintResponse {
+/**
+ * The decomposition card: column `c` has `have` and must give `need`; the
+ * blocks come from `m`, across the empty columns `zeros` (מסמך 03 §3.6 when
+ * there are any, §3.5 otherwise).
+ */
+function borrowCard(ex: string, c: Place, have: number, need: number, zeros: Place[], m: Place, blocks: boolean): SocraticHintResponse {
+  const n = next(c)!;
+  if (zeros.length > 0) {
+    const below = LOW_TO_HIGH[LOW_TO_HIGH.indexOf(m) - 1];
+    const where = zeros.length === 1 ? `ב${COLUMN[zeros[0]]} יש אפס` : `${zeros.map((z) => `ב${COLUMN[z]}`).join(' ו')} יש אפסים`;
+    return card(`${OPEN}בתרגיל ${ex}, איך פורטים כש${where}?`, 'conceptual', HL(m), [
+      blocks
+        ? [`פורטים תחילה ${ONE[m]} ל${TEN_OF[below]} ב${COLUMN[below]}`, `מצוין! לחצו על ${BLOCK[m]} כדי לפרוט אותה. אחר כך פורטים שוב, טור אחר טור, עד ${COLUMN[c]}.`]
+        : [`פורטים תחילה ${ONE[m]} ל${TEN_OF[below]}, ורושמים את השינוי בעיגולי הזיכרון`, `מצוין! אחר כך פורטים שוב, טור אחר טור, עד ${COLUMN[c]}.`],
+      ['מדלגים על האפס וממשיכים לטור הבא', 'רמז: ספרת האפס היא שומר מקום חשוב. בואו נתחשב בה בחישוב.'],
+      blocks
+        ? [`מוסיפים ${ONE[n]} ל${COLUMN[c]} בלי לפרוט`, 'רמז: בואו נשמור על ערך המספר המקורי תמיד.']
+        : [`כותבים 0 בתיבת ה${PLURAL[c]} וממשיכים`, `רמז: לא מדלגים. פורטים ${ONE[m]}, ואחר כך ממשיכים לפרוט טור אחר טור עד ${COLUMN[c]}.`],
+    ]);
+  }
+  const haveText = have === 0 ? `ב${COLUMN[c]} אין ${NONE[c]}` : `ב${COLUMN[c]} יש ${count(have, c)}`;
+  return card(`${OPEN}בתרגיל ${ex}, ${haveText}, וצריך לחסר ${count(need, c)}. מה עושים?`, 'procedural', HL(n), [
+    blocks
+      ? [`פורטים ${ONE[n]} ל${TEN_OF[c]} ומעבירים אותן ל${COLUMN[c]}`, `נכון מאוד! לחצו על ${BLOCK[n]} כדי לפרוט אותה.`]
+      : [`פורטים ${ONE[n]} ל${TEN_OF[c]}, ורושמים בעיגול הזיכרון שמעל ${COLUMN[n]} כמה ${PLURAL[n]} נשארו`, `נכון מאוד! עכשיו יש מספיק ${PLURAL[c]} כדי לחסר.`],
+    [`מחסרים הפוך: ${need} פחות ${have}`, 'רמז: בכל טור מחסרים את הספרה התחתונה מהספרה העליונה. לא מחליפים את הסדר.'],
+    blocks
+      ? [`מוסיפים לבנים חדשות ל${COLUMN[c]}`, 'רמז: לבנים חדשות משנות את המספר. פורטים לבנה מהטור שמשמאל.']
+      : [`כותבים 0 בתיבת ה${PLURAL[c]} וממשיכים`, `רמז: לא מדלגים. פורטים ${ONE[n]}, ואז יש מספיק ${PLURAL[c]}.`],
+  ]);
+}
+
+/** The first column to the left of `c` that holds something, and the empty ones on the way. */
+function source(c: Place, has: (p: Place) => number): { zeros: Place[]; m: Place | null } {
+  const zeros: Place[] = [];
+  let m: Place | null = next(c);
+  while (m && has(m) === 0) {
+    zeros.push(m);
+    m = next(m);
+  }
+  return { zeros, m };
+}
+
+/**
+ * Vertical subtraction, both numbers on the screen. Without blocks (meeting
+ * 8) the card reads the exercise. With blocks it reads the board, because
+ * the child does the decompositions there:
+ *  - the first number is on the board (board value = a): the first column
+ *    that still has fewer blocks than it must give, and where its blocks come
+ *    from — across empty columns if need be; or, when every column has
+ *    enough, "take away";
+ *  - anything else (taking away has started): how the child knows the taking
+ *    away is done — the meeting-1 card's question (register, decision ו).
+ * The empty board has its own live card ("מה בונים קודם?").
+ */
+function subtractionCard(a: number, b: number, blocks: boolean, counts?: BoardCounts): SocraticHintResponse {
   const ex = `${formatNumberHe(a)} − ${formatNumberHe(b)}`;
+  const takeAway = countsPhrase(standardCounts(b));
+  if (blocks && counts && boardValue(counts) > 0) {
+    if (boardValue(counts) === a) {
+      const c = LOW_TO_HIGH.find((p) => (counts[p] ?? 0) < digit(b, p));
+      if (c) {
+        const { zeros, m } = source(c, (p) => counts[p] ?? 0);
+        if (m) return borrowCard(ex, c, counts[c] ?? 0, digit(b, c), zeros, m, true);
+      }
+      return card(`${OPEN}בתרגיל ${ex}, בכל טור יש עכשיו מספיק לבנים. מה עושים עכשיו?`, 'procedural', 'tour-place-value-board', [
+        [`מוציאים לפח האשפה ${takeAway}`, 'נכון מאוד! את מה שנשאר בבית המספרים כותבים בשורת התוצאה.'],
+        ['פורטים עוד לבנה', 'רמז: פורטים רק כשאין בטור מספיק לבנים.'],
+        ['מוסיפים לבנים', 'רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים.'],
+      ]);
+    }
+    return card(`${OPEN}בחיסור ${ex}, איך יודעים שסיימנו להוציא?`, 'procedural', 'tour-place-value-board', [
+      [`כשהוצאנו בסך הכול ${takeAway}. את מה שנשאר כותבים בשורת התוצאה`, 'נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו את מה שנשאר בבית המספרים.'],
+      ['כשפרטנו עוד לבנה', 'רמז: פורטים רק כשאין בטור מספיק לבנים.'],
+      [`כשהוספנו ${formatNumberHe(b)} לבנים`, 'רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים.'],
+    ]);
+  }
   const c = borrowColumns(a, b)[0];
   if (!c) {
     return card(`${OPEN}בתרגיל ${ex}, מאיזה טור מתחילים לחסר?`, 'procedural', HL('units'), [
@@ -226,43 +317,8 @@ function subtractionCard(a: number, b: number, blocks: boolean): SocraticHintRes
       ['מחברים את שני המספרים', 'רמז: זה תרגיל חיסור. בדקו את הסימן שבין המספרים.'],
     ]);
   }
-  const n = next(c)!;
-  // The first column to the left that has something to give.
-  const zeros: Place[] = [];
-  let m: Place | null = n;
-  while (m && digit(a, m) === 0) {
-    zeros.push(m);
-    m = next(m);
-  }
-  if (zeros.length > 0 && m) {
-    const below = LOW_TO_HIGH[LOW_TO_HIGH.indexOf(m) - 1];
-    const where = zeros.length === 1 ? `ב${COLUMN[zeros[0]]} יש אפס` : `${zeros.map((z) => `ב${COLUMN[z]}`).join(' ו')} יש אפסים`;
-    const itM = MASC[m] ? 'אותו' : 'אותה';
-    const question = `${OPEN}בתרגיל ${ex}, איך פורטים כש${where}?`;
-    return card(question, 'conceptual', HL(m), [
-      blocks
-        ? [`פורטים תחילה ${ONE[m]} ל${TEN_OF[below]} ב${COLUMN[below]}`, `מצוין! לחצו על ${BLOCK[m]} כדי לפרוט ${itM}. אחר כך פורטים שוב, טור אחר טור, עד ${COLUMN[c]}.`]
-        : [`פורטים תחילה ${ONE[m]} ל${TEN_OF[below]}, ורושמים את השינוי בעיגולי הזיכרון`, `מצוין! אחר כך פורטים שוב, טור אחר טור, עד ${COLUMN[c]}.`],
-      ['מדלגים על האפס וממשיכים לטור הבא', 'רמז: ספרת האפס היא שומר מקום חשוב. בואו נתחשב בה בחישוב.'],
-      blocks
-        ? [`מוסיפים ${ONE[n]} ל${COLUMN[c]} בלי לפרוט`, 'רמז: בואו נשמור על ערך המספר המקורי תמיד.']
-        : [`כותבים 0 בתיבת ה${PLURAL[c]} וממשיכים`, `רמז: לא מדלגים. פורטים ${ONE[m]}, ואז יש מספיק ${PLURAL[c]}.`],
-    ]);
-  }
-  const dA = digit(a, c);
-  const dB = digit(b, c);
-  const have = dA === 0 ? `ב${COLUMN[c]} אין ${NONE[c]}` : `ב${COLUMN[c]} יש ${count(dA, c)}`;
-  const question = `${OPEN}בתרגיל ${ex}, ${have}, וצריך לחסר ${count(dB, c)}. מה עושים?`;
-  const itN = MASC[n] ? 'אותו' : 'אותה';
-  return card(question, 'procedural', HL(n), [
-    blocks
-      ? [`פורטים ${ONE[n]} ל${TEN_OF[c]} ומעבירים אותן ל${COLUMN[c]}`, `נכון מאוד! לחצו על ${BLOCK[n]} כדי לפרוט ${itN}.`]
-      : [`פורטים ${ONE[n]} ל${TEN_OF[c]}, ורושמים בעיגול הזיכרון שמעל ${COLUMN[n]} כמה ${PLURAL[n]} נשארו`, `נכון מאוד! עכשיו יש מספיק ${PLURAL[c]} כדי לחסר.`],
-    [`מחסרים הפוך: ${dB} פחות ${dA}`, 'רמז: בכל טור מחסרים את הספרה התחתונה מהספרה העליונה. לא מחליפים את הסדר.'],
-    blocks
-      ? [`מוסיפים לבנים חדשות ל${COLUMN[c]}`, 'רמז: לבנים חדשות משנות את המספר. פורטים לבנה מהטור שמשמאל.']
-      : [`כותבים 0 בתיבת ה${PLURAL[c]} וממשיכים`, `רמז: לא מדלגים. פורטים ${ONE[n]}, ואז יש מספיק ${PLURAL[c]}.`],
-  ]);
+  const { zeros, m } = source(c, (p) => digit(a, p));
+  return borrowCard(ex, c, digit(a, c), digit(b, c), zeros, m ?? next(c)!, blocks);
 }
 
 /** Skeleton exercise: digits of an operand hidden, or one result digit missing. */
@@ -284,8 +340,11 @@ function missingDigitsCard(task: any, blocks: boolean): SocraticHintResponse {
     'procedural',
     blocks ? 'tour-place-value-board' : HL('units'),
     [
-      ['נבדוק טור אחר טור, מטור היחידות, איזו ספרה משלימה את התרגיל', blocks ? 'מדויק! בדקו בלבנים בבית המספרים, וכתבו את הספרה בתיבה הריקה.' : 'מדויק! שימו לב לעיגולי הזיכרון, וכתבו את הספרה בתיבה הריקה.'],
-      ['ננחש ספרה ונכתוב אותה בתיבה', blocks ? 'רמז: בואו נשתמש בבית המספרים כדי להוכיח את התשובה.' : 'רמז: הימנעו מניחושים. פתרו את התרגיל בצורה מסודרת, טור אחר טור.'],
+      [
+        'נבדוק טור אחר טור, מטור היחידות, איזו ספרה משלימה את התרגיל',
+        `מדויק! ${blocks ? 'בדקו בלבנים בבית המספרים' : 'שימו לב לעיגולי הזיכרון'}, וכתבו ${missing === 1 ? 'את הספרה בתיבה הריקה' : 'את הספרות בתיבות הריקות'}.`,
+      ],
+      [missing === 1 ? 'ננחש ספרה ונכתוב אותה בתיבה' : 'ננחש ספרות ונכתוב אותן בתיבות', blocks ? 'רמז: בואו נשתמש בבית המספרים כדי להוכיח את התשובה.' : 'רמז: הימנעו מניחושים. פתרו את התרגיל בצורה מסודרת, טור אחר טור.'],
       ['נתחיל מהטור השמאלי', sub ? 'רמז: מתחילים בטור היחידות, כדי לדעת אם צריך לפרוט מהטור שמשמאלו.' : 'רמז: מתחילים בטור היחידות, כדי לדעת אם יש המרה לטור שמשמאלו.'],
     ],
   );
@@ -372,7 +431,7 @@ function smallChangeCard(task: any): SocraticHintResponse {
  * The static card of a meeting 3–8 exercise, or null when the exercise has a
  * shape this module does not know (the caller then falls back further).
  */
-export function exerciseCard(task: any): SocraticHintResponse | null {
+export function exerciseCard(task: any, counts?: BoardCounts): SocraticHintResponse | null {
   if (!task) return null;
   const blocks = blocksOnScreen(meetingOfTaskId(task.id));
   switch (task.type) {
@@ -392,7 +451,7 @@ export function exerciseCard(task: any): SocraticHintResponse | null {
       if (typeof a !== 'number' || typeof b !== 'number') return null;
       const skeleton = Boolean(task.hiddenDigits?.a?.length || task.hiddenDigits?.b?.length || task.revealedResultDigits);
       if (skeleton) return missingDigitsCard(task, blocks);
-      return task.isSubtraction ? subtractionCard(a, b, blocks) : additionCard(a, b, blocks);
+      return task.isSubtraction ? subtractionCard(a, b, blocks, counts) : additionCard(a, b, blocks, counts);
     }
     default:
       return null;

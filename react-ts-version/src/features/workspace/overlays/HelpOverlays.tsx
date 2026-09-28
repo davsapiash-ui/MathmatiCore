@@ -3,7 +3,6 @@ import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useWorkspaceStore, getActiveTasks, placeToColumnIndex } from '@/application/useWorkspaceStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
-import { SUPPORT_CONTENT, getDynamicSocraticHint } from '@/data/sessionTasks';
 import { SocraticEngine, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
@@ -133,16 +132,18 @@ export function SocraticSidePanel() {
     }).catch(console.error);
   }, [helpState, aiSocraticHint]);
 
-  // Strict fallback: when the AI hint is not available the card shows the
-  // static Socratic content, with the line adapted to the task's target node.
-  let content = helpState === 'socratic' && !aiSocraticHint ? { ...SUPPORT_CONTENT.socratic } : null;
-  if (content) {
-    const s = useWorkspaceStore.getState();
-    const task = getActiveTasks(s)[s.standardTaskIdx];
-    if (task?.targetNode) {
-      content.lines = [getDynamicSocraticHint(task.targetNode, s.counts, task, s.answerDigits, s.carryDigits)];
-    }
-  }
+  // A card open without content (restored from a saved session before the
+  // store refilled it) shows the static card of the exercise on the screen —
+  // the same one the store serves. It used to show a generic "נקודה למחשבה"
+  // with a ten-rod picture and board lines, also in meeting 8, where there
+  // are no blocks (PRD Module 13 §א).
+  const fallbackCard = helpState === 'socratic' && !aiSocraticHint
+    ? (() => {
+        const s = useWorkspaceStore.getState();
+        return SocraticEngine.getSynchronousTaskHint(getActiveTasks(s)[s.standardTaskIdx] ?? undefined, s.counts);
+      })()
+    : null;
+  const shownCard = aiSocraticHint ?? fallbackCard;
 
   return (
     <AnimatePresence initial={false}>
@@ -177,11 +178,10 @@ export function SocraticSidePanel() {
                   <span className="text-2xl" aria-hidden="true">💡</span>
                   <UdlSpeechButton
                     text={[
-                      aiSocraticHint?.questionHe || content?.titleHe || 'שאלה מנחה לחשיבה',
-                      ...(!aiSocraticHint ? content?.lines ?? [] : []),
+                      shownCard?.questionHe || 'שאלה מנחה לחשיבה',
                       // הקראת השאלה בלי האפשרויות משאירה ילד שנעזר בהקראה
                       // מול שלוש אפשרויות שלא שמע. מודול 7 (UDL).
-                      ...(aiSocraticHint?.choices?.map((c) => c.textHe) ?? []),
+                      ...(shownCard?.choices?.map((c) => c.textHe) ?? []),
                     ].join('. ')}
                     className="shrink-0"
                   />
@@ -195,32 +195,8 @@ export function SocraticSidePanel() {
                 </button>
               </div>
               <h2 className="font-display font-black text-lg xl:text-xl text-ws-ink leading-tight mb-3">
-                {aiSocraticHint?.questionHe || content?.titleHe || 'שאלה מנחה לחשיבה'}
+                {shownCard?.questionHe || 'שאלה מנחה לחשיבה'}
               </h2>
-
-              {content && (
-                /* Visual 10 ↔ ten-units equivalence (vanilla socratic graphic) */
-                <div className="flex items-center justify-center gap-4 mb-4 bg-ws-surface2/50 rounded-2xl p-3" dir="ltr" aria-hidden="true">
-                  <div className="w-[80px] h-[10px] rounded-[2px]" style={{ backgroundColor: 'var(--block-ten)' }} />
-                  <span className="font-black text-xl text-ws-soft">=</span>
-                  <div className="flex gap-0.5">
-                    {Array.from({ length: 10 }).map((_, i) => (
-                      <span key={i} className="w-2.5 h-2.5 rounded-[1px] inline-block" style={{ backgroundColor: 'var(--block-unit)' }} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {content?.lines && content.lines.length > 0 && !aiSocraticHint && (
-                <ul className="flex flex-col gap-2 mb-3">
-                  {content.lines.map((line, i) => (
-                    <li key={i} className="flex items-start gap-2 text-base text-ws-ink leading-relaxed font-semibold">
-                      <span className="text-ws-accent font-black shrink-0 mt-0.5" aria-hidden="true">•</span>
-                      {line}
-                    </li>
-                  ))}
-                </ul>
-              )}
 
               {/* 3 Closed Dynamic Options for Socratic Mentoring */}
               <SocraticPenaltyLockOptions onClose={closeHelp} />

@@ -128,6 +128,8 @@ export interface GeminiSocraticRequest {
     active_column: 'units' | 'tens' | 'hundreds' | 'thousands';
     active_column_index: number;
     target_sub_problem: string;
+    /** Digits a skeleton exercise hides on the screen; the server never shows them to the model. */
+    hidden_places?: { a: ('units' | 'tens' | 'hundreds' | 'thousands')[]; b: ('units' | 'tens' | 'hundreds' | 'thousands')[] };
   };
   workspace_state: {
     ones_count: number;

@@ -448,18 +448,21 @@ describe('live coaching card (SocraticEngine.analyzeLiveBoardState), meetings 3�
   it('meeting 5, 5,432 − 2,118: the deficit card before the borrow, never "group them back" after it', () => {
     const t = task(5, 'green_path', 's5_g_t1');
     const before = card(t, { thousands: 5, hundreds: 4, tens: 3, units: 2 });
-    expect(before.questionHe).toContain('יש לנו 2 יחידות בלוח ואנו צריכים להחסיר 8');
+    expect(before.questionHe).toContain('בטור היחידות יש 2 יחידות, וצריך לחסר 8 יחידות');
     const afterBorrow = card(t, { thousands: 5, hundreds: 4, tens: 2, units: 12 });
     expect(isGroupCard(afterBorrow)).toBe(false);
+    // The borrow is done: the card no longer asks for a second one (28.9.2026).
+    expect(afterBorrow.questionHe).toContain('בכל טור יש עכשיו מספיק לבנים');
     const afterRemoving = card(t, { thousands: 5, hundreds: 4, tens: 2, units: 4 });
     expect(isGroupCard(afterRemoving)).toBe(false);
+    expect(afterRemoving.questionHe).toContain('איך יודעים שסיימנו להוציא');
   });
 
   it('meeting 6, 300 − 142 (double borrow through a zero): no "group back" at either step', () => {
     const t = task(6, 'remediation_path', 's6_r_t4');
     const afterHundred = card(t, { hundreds: 2, tens: 10 });
     expect(isGroupCard(afterHundred)).toBe(false);
-    expect(afterHundred.questionHe).toContain('יש לנו 0 יחידות'); // the next step: a ten into units
+    expect(afterHundred.questionHe).toContain('בטור היחידות אין אף יחידה, וצריך לחסר 2 יחידות'); // the next step: a ten into units
     const afterTen = card(t, { hundreds: 2, tens: 9, units: 10 });
     expect(isGroupCard(afterTen)).toBe(false);
   });

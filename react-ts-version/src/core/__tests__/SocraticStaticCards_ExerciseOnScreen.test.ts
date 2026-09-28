@@ -222,3 +222,85 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
     expect(absentAidViolation(['גררו לפח'], 7)).toBeNull();
   });
 });
+
+/**
+ * Independent review of 28.9.2026: with blocks on the screen (meetings 3–7)
+ * the card must follow the board. A card that still said "break a ten" after
+ * the ten was broken — or "break a ten" when the tens column is empty
+ * (4,000 − 1,562) — sent the child the wrong way.
+ */
+describe('with blocks on the screen, the card follows the board', () => {
+  const PL = ['units', 'tens', 'hundreds', 'thousands'] as const;
+  const ONE: Record<string, string> = { units: 'יחידה אחת', tens: 'עשרת אחת', hundreds: 'מאה אחת', thousands: 'אלף אחד' };
+  const digit = (n: number, i: number) => Math.floor(n / 10 ** i) % 10;
+
+  it('every subtraction of meetings 3–7: follow the card, one decomposition at a time, until every column has enough', () => {
+    const subs = rows.filter((r) => r.meeting <= 7 && (r.task as any).type === 'vertical_addition' && (r.task as any).isSubtraction && !(r.task as any).hiddenDigits && !(r.task as any).revealedResultDigits);
+    expect(subs.length).toBeGreaterThan(20);
+    for (const { task } of subs) {
+      const a = (task as any).numberA as number;
+      const b = (task as any).numberB as number;
+      const counts: Record<string, number> = { units: digit(a, 0), tens: digit(a, 1), hundreds: digit(a, 2), thousands: digit(a, 3) };
+      for (let step = 0; step < 12; step++) {
+        const card = SocraticEngine.getSynchronousTaskHint(task, counts as any);
+        const lacking = PL.findIndex((p, i) => counts[p] < digit(b, i));
+        if (lacking < 0) {
+          expect(card.questionHe, task.id).toContain('בכל טור יש עכשיו מספיק לבנים');
+          break;
+        }
+        // Where the blocks come from: the first column to the left that has any.
+        let m = lacking + 1;
+        while (counts[PL[m]] === 0) m++;
+        const correct = card.choices.find((c) => c.isCorrect)!.textHe;
+        expect(correct, `${task.id} ${JSON.stringify(counts)}`).toMatch(new RegExp(`^פורטים (תחילה )?${ONE[PL[m]]}`));
+        if (m > lacking + 1) expect(card.questionHe, task.id).toMatch(/איך פורטים כש.* (אפס|אפסים)\?$/);
+        else expect(card.questionHe, task.id).toContain(`וצריך לחסר`);
+        // Do what the card says: break one block of column m.
+        counts[PL[m]] -= 1;
+        counts[PL[m - 1]] += 10;
+        expect(step, task.id).toBeLessThan(11);
+      }
+    }
+  });
+
+  it('once taking away has started, the card asks how we know we are done — not for another decomposition', () => {
+    const t = rows.find((r) => r.task.id === 's5_g_t1')!.task; // 5,432 − 2,118
+    const card = SocraticEngine.getSynchronousTaskHint(t, { thousands: 5, hundreds: 4, tens: 2, units: 4 });
+    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: בחיסור 5,432 − 2,118, איך יודעים שסיימנו להוציא?');
+    expect(card.choices[0].textHe).toBe('כשהוצאנו בסך הכול 2 אלפים, מאה אחת, עשרת אחת ו-8 יחידות. את מה שנשאר כותבים בשורת התוצאה');
+  });
+
+  it('an addition whose blocks are all on the board, grouped, asks for the result row', () => {
+    const t = rows.find((r) => r.task.id === 's4_g_t1')!.task; // 1,245 + 328 = 1,573
+    const done = SocraticEngine.getSynchronousTaskHint(t, { thousands: 1, hundreds: 5, tens: 7, units: 3 });
+    expect(done.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 1,245 + 328, כל הלבנים כבר בבית המספרים. מה עושים עכשיו?');
+    // Before that, the grouping advice holds in any state: the button shows only at 10.
+    const building = SocraticEngine.getSynchronousTaskHint(t, { thousands: 1, hundreds: 2, tens: 4, units: 5 });
+    expect(building.choices[0].feedbackHe).toBe('נכון מאוד! כשיש בטור היחידות 10 לבנים או יותר, לחצו על כפתור הקבץ 10 שבראש הטור.');
+  });
+
+  it('a block is feminine: "לחצו על לבנת אלף כדי לפרוט אותה"', () => {
+    for (const { task } of rows) {
+      for (const counts of [EMPTY, SOME]) {
+        const all = textsOf(SocraticEngine.getSynchronousTaskHint(task, counts)).join(' ');
+        expect(all, task.id).not.toMatch(/לבנת \S+ כדי לפרוט אותו/);
+      }
+    }
+  });
+
+  it('meeting 8, through a zero: one decomposition does not yet give units', () => {
+    const t = rows.find((r) => r.task.id === 's8_g_t5')!.task; // 4,000 − 1,562
+    const all = textsOf(SocraticEngine.getSynchronousTaskHint(t, EMPTY)).join(' ');
+    expect(all).not.toContain('פורטים אלף אחד, ואז יש מספיק');
+    expect(all).toContain('ואחר כך ממשיכים לפרוט טור אחר טור עד טור היחידות');
+  });
+
+  it('a skeleton with several empty boxes speaks of boxes, in the plural', () => {
+    for (const { task } of rows.filter((r) => ((r.task as any).hiddenDigits?.a?.length ?? 0) > 1)) {
+      const all = textsOf(SocraticEngine.getSynchronousTaskHint(task, EMPTY)).join(' ');
+      expect(all, task.id).toContain('בתיבות הריקות');
+      expect(all, task.id).not.toContain('בתיבה הריקה');
+    }
+  });
+});
+
