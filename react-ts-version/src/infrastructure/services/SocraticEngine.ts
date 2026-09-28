@@ -787,9 +787,9 @@ export class SocraticEngine {
           choices: [
             {
               id: "opt_1",
-              textHe: `נבנה רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''} מהמחסן, ואחר כך נוציא ממנו ${formatNumberHe(subtrahend)} לפח האשפה`,
+              textHe: `נבנה רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''} בבית המספרים, ואחר כך נוציא ממנו ${formatNumberHe(subtrahend)} לפח האשפה`,
               isCorrect: true,
-              feedbackHe: "נכון! גררו לבנים מהמחסן עד שהלוח מראה את המספר הראשון, ורק אז הוציאו ממנו."
+              feedbackHe: "נכון! גררו לבנים לבית המספרים עד שהוא מראה את המספר הראשון, ורק אז הוציאו ממנו."
             },
             {
               id: "opt_2",
@@ -844,9 +844,9 @@ export class SocraticEngine {
             },
             { 
               id: "opt_3", 
-              textHe: `נוסיף ${unitsB - counts.units} יחידות חדשות מהמחסן`, 
+              textHe: unitsB - counts.units === 1 ? 'נוסיף לבנת יחידה אחת חדשה' : `נוסיף ${unitsB - counts.units} לבני יחידה חדשות`, 
               isCorrect: false, 
-              feedbackHe: "רמז: הוספת לבנים מהמחסן משנה את ערך המספר המקורי! פורטים מהטור השכן כדי לשמור על הכמות." 
+              feedbackHe: "רמז: הוספת לבנים חדשות משנה את ערך המספר המקורי! פורטים מהטור השכן כדי לשמור על הכמות." 
             }
           ],
           correctChoiceId: "opt_1"
@@ -906,9 +906,9 @@ export class SocraticEngine {
             },
             { 
               id: "opt_3", 
-              textHe: "נוסיף מאות נוספות מהמחסן", 
+              textHe: "נוסיף לבני מאה חדשות", 
               isCorrect: false, 
-              feedbackHe: "רמז: הוספת לבנים מהמחסן משנה את המספר. עלינו לשמר את הכמות על ידי פריטה מטור האלפים." 
+              feedbackHe: "רמז: הוספת לבנים חדשות משנה את המספר. עלינו לשמר את הכמות על ידי פריטה מטור האלפים." 
             }
           ],
           correctChoiceId: "opt_1"

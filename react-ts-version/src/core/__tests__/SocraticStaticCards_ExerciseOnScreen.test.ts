@@ -115,6 +115,20 @@ describe('the static card is about the exercise on the screen (3.14, 8.5)', () =
   });
 });
 
+describe('one name per thing, as the screen names it (owner, 27.9.2026, register ט)', () => {
+  // The block tray has no visible name ("מחסן" is only its screen-reader
+  // label), and the result row's cells are "תיבות".
+  it('no card says "מחסן" or "משבצת", in any board state', () => {
+    const states = [EMPTY, SOME, { units: 14, tens: 12, hundreds: 11, thousands: 0 }, { units: 1, tens: 0, hundreds: 3, thousands: 2 }];
+    for (const { task } of rows) {
+      for (const counts of states) {
+        const all = textsOf(SocraticEngine.getSynchronousTaskHint(task, counts)).join(' ');
+        expect(all, `${task.id} ${JSON.stringify(counts)}`).not.toMatch(/מחסן|משבצת/);
+      }
+    }
+  });
+});
+
 describe('the two cards the audit saw', () => {
   const byId = (id: string) => rows.find((r) => r.task.id === id)!.task;
 
