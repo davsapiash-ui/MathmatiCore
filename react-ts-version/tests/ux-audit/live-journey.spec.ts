@@ -101,17 +101,11 @@ test('live scenario: teacher and learner together', async ({ browser }) => {
     await t.page.getByRole('button', { name: /הפעילו מפגש/ }).click();
     await t.page.getByRole('button', { name: /הפעלה|אישור|הפעילו/ }).last().click();
     await expect.poll(() => (c.rtdb.get('active_class_session') as { sessionNumber?: number; active?: boolean } | null)?.sessionNumber, { timeout: 20_000 }).toBe(3);
-    // The confirmation window then waits for a Firestore batch (class and
-    // student mirrors). With Firestore unreachable that write never settles and
-    // the window stays on its spinner, although the meeting is already open.
-    await t.page.waitForTimeout(4000);
-    const stuck = await t.page.getByRole('button', { name: 'ביטול' }).isVisible().catch(() => false);
-    if (stuck) {
-      await t.page.reload({ waitUntil: 'domcontentloaded' });
-      await expect(t.page.getByRole('button', { name: /עצרו את המפגש/ })).toBeVisible({ timeout: 45_000 });
-      return 'מפגש 3 פעיל אצל הלומדים; חלון האישור אצל המורה נשאר פתוח עם ספינר (ממתין ל-Firestore) — נדרש רענון';
-    }
-    return 'active_class_session: מפגש 3 פעיל, החלון נסגר';
+    // Firestore is unreachable in this harness: the window must still close and
+    // the pause / close controls must be reachable without a reload.
+    await expect(t.page.getByRole('button', { name: 'ביטול' })).toBeHidden({ timeout: 10_000 });
+    await expect(t.page.getByRole('button', { name: /עצרו את המפגש/ })).toBeVisible({ timeout: 10_000 });
+    return 'מפגש 3 פעיל; חלון האישור נסגר מיד וכפתורי העצירה והסגירה זמינים — גם כש-Firestore לא עונה';
   }, t.page);
 
   await step('learner-moved-in', 'הלומד עובר לבד מהלובי למפגש 3', async () => {
