@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   globalSetup: './tests/global-setup.ts',
   testDir: './tests',
+  // The UX audit has its own config (playwright.ux-audit.config.ts): no live-DB
+  // seeding, its own dev-server port, an hour-long matrix. `npm run ux-audit`.
+  testIgnore: ['**/ux-audit/**'],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

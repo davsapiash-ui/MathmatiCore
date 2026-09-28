@@ -480,7 +480,7 @@ describe('live coaching card (SocraticEngine.analyzeLiveBoardState), meetings 3�
   });
 });
 
-/* ── 5. meeting 3 and 7 representation tasks still show and check their box ─ */
+/* ── 5. meeting 3 and 7 representation tasks: no box (owner, 28.9.2026), still checked ─ */
 
 describe('representation tasks outside meeting 1 (RepresentationTask.tsx, proceed)', () => {
   // Server rendering reads zustand's getInitialState() (useSyncExternalStore's
@@ -497,7 +497,7 @@ describe('representation tasks outside meeting 1 (RepresentationTask.tsx, procee
     }
   };
 
-  it('meeting 3 and 7 tasks render "בנו בלוח בדיוק" and "בלוח כרגע"; the board matching turns it into "✓ הלוח תואם"', () => {
+  it('meeting 3 and 7 tasks show neither "בנו בלוח בדיוק" nor "בלוח כרגע", with the board empty or matching', () => {
     const reps = [
       ...getSessionTasks(3, 'green_path'),
       ...getSessionTasks(3, 'remediation_path'),
@@ -508,23 +508,24 @@ describe('representation tasks outside meeting 1 (RepresentationTask.tsx, procee
     signIn();
     for (const t of reps) {
       const empty = html(t);
-      expect(empty, t.id).toContain('בנו בלוח בדיוק:');
-      expect(empty, t.id).toContain('בלוח כרגע:');
+      expect(empty, t.id).not.toContain('בנו בלוח בדיוק');
+      expect(empty, t.id).not.toContain('בלוח כרגע');
       expect(empty, t.id).not.toContain('משימות החקר שלך'); // no meeting 1 checklist
-      expect(html(t, t.requiredCounts), t.id).toContain('✓ הלוח תואם');
+      expect(html(t, t.requiredCounts), t.id).not.toContain('הלוח תואם');
     }
     // …and meeting 1's target task is the one without it
     expect(html(SESSION1_TASKS.find((t) => t.id === 's1_target_347')!)).not.toContain('בנו בלוח בדיוק:');
   });
 
-  it('meeting 3: a wrong board is refused with the exact board spelled out; the right one advances', () => {
+  it('meeting 3: a wrong board is refused without spelling out the answer; the right one advances', () => {
     startMeeting(3, 'remediation_path'); // s3_r_t1: 340 as 3 hundreds and 4 tens
     drop('hundreds', 3);
     drop('tens', 3);
     typeResult(340);
     expect(selectCanProceed(ws())).toBe(true);
     ws().proceed();
-    expect(ws().feedback?.sub).toContain('הלוח צריך להציג בדיוק: 3 מאות ו-4 עשרות');
+    // The box that listed the blocks is gone (owner, 28.9.2026), and so is the sentence that repeated it.
+    expect(ws().feedback?.sub).toBe('בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.');
     expect(ws().standardTaskIdx).toBe(0);
     drop('tens');
     ws().proceed();
@@ -801,7 +802,20 @@ describe('performance: what one store change costs in the lesson, today vs befor
 
   it('store notifications per ordinary action, and which of them change the synced payload at all', async () => {
     startMeeting(4);
+    // Wait until earlier actions' async work has landed: in a loaded full run a
+    // late store update from an earlier action once fell inside the device-lock
+    // echo's 5 ms window and was counted against it (1 instead of 0).
+    const settle = async () => {
+      for (let i = 0; i < 50; i++) {
+        let n = 0;
+        const off = useWorkspaceStore.subscribe(() => { n++; });
+        await new Promise((r) => setTimeout(r, 20));
+        off();
+        if (n === 0) return;
+      }
+    };
     const count = async (fn: () => void) => {
+      await settle();
       let n = 0;
       let payloadChanges = 0;
       let last = JSON.stringify(svc.getSyncableWorkspaceState());

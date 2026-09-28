@@ -411,7 +411,16 @@ export const useStore = create<AppState>()(
         return newState;
       }),
       
-      logout: () => set({ currentUserRole: null, currentUserId: null, firebaseLoaded: false }),
+      // PRD Module 2 §ב: "איפוס מלא להקשר הסשן המקומי". A teacher's session
+      // holds all twelve learners' records here; on a shared device they stayed
+      // in memory after sign-out. The localStorage session cache is NOT cleared:
+      // offline it is the only copy of progress not yet sent.
+      logout: () => set({
+        currentUserRole: null,
+        currentUserId: null,
+        firebaseLoaded: false,
+        students: generateInitialStudents(),
+      }),
 
       incrementHesitation: (studentId) => set((state) => {
         const student = state.students[studentId];

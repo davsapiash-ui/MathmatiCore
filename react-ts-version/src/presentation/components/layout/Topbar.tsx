@@ -2,6 +2,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { useLocation } from 'react-router-dom';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { Logo } from '@/presentation/components/ui/Logo';
+import { studentBadgeHe } from '@/core/toolbarNames';
 
 /** כותרת פשוטה שנגזרת מהנתיב הנוכחי — במקום פירורי לחם מזויפים. */
 function titleForPath(pathname: string): string {
@@ -26,7 +27,9 @@ export function Topbar() {
         <div className="flex items-center gap-2.5 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl py-1.5 px-3 border border-slate-200/50 dark:border-slate-700/50">
           <div className="flex flex-col items-end leading-tight">
             <span className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
-              {(user?.displayName as string) || (user?.role === 'student' ? `תלמיד ${user?.student_id || ''}` : 'משתמש')}
+              {/* The child's badge is the number alone, in neutral words (owner, 28.9.2026);
+                  the stored displayName ("תלמיד N") is not shown to the child. */}
+              {user?.role === 'student' ? studentBadgeHe(user?.student_id || '') : ((user?.displayName as string) || 'משתמש')}
             </span>
             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
               {user?.role === 'student' ? (user?.class_name || 'כיתת פיילוט') : user?.role === 'teacher' ? 'מורה מוביל' : 'מנהל מערכת'}

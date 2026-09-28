@@ -122,8 +122,10 @@ export interface SessionTask {
 /* ── Session 1 — ארגז החול המונחה: היכרות עם הכלים וריענון לקראת האבחון ── */
 
 /**
- * מפגש 1 (owner, 24.9.2026 — register decision ו): the six introduction steps
- * of מסמך 03 §3.1, then four refresh exercises. Each refresh exercise mirrors
+ * מפגש 1 (owner, 24.9.2026 — register decision ו): the introduction steps of
+ * מסמך 03 §3.1 and four refresh exercises. Since 27.9.2026 (register decision
+ * י) the order is: steps 1–5, the grouping exercise, the target task (step 6),
+ * then the other three refresh exercises. Each refresh exercise mirrors
  * one diagnostic task of meeting 2 column for column with other numbers, so a
  * wrong answer in the diagnostic is a real gap, not rust and not the interface.
  * Meeting 1 is never scored (PRD Module 14 §ב); the teacher's report shows
@@ -170,7 +172,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_build_305',
     type: 'session1_intro',
     titleHe: 'האפס כשומר מקום',
-    instructionHe: 'נסו לבנות את המספר 305 בלבני דינס ושימו לב לתפקיד של הספרה אפס בבית המספרים הריק מעשרות.',
+    instructionHe: 'נסו לבנות את המספר 305 בלבנים ושימו לב לתפקיד של הספרה אפס בבית המספרים הריק מעשרות.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },
@@ -179,27 +181,38 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_undo_trash',
     type: 'session1_intro',
     titleHe: 'ביטול פעולה וניקוי הלוח',
-    instructionHe: 'לחצו על כפתור ביטול פעולה כדי לחזור צעד אחד אחורה.\nאחר כך לחצו על פח האשפה כדי לנקות את הלוח.',
+    instructionHe: 'לחצו על כפתור ביטול פעולה כדי לחזור צעד אחד אחורה.\nאחר כך לחצו על פח האשפה כדי לנקות את בית המספרים.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
     // מסמך 03: undo "the last typing or dragging", then the trash "resets the
     // workspace" — the board step 4 built, with its history.
     continuesBoard: true,
   },
-  // מסמך 03 §3.1 step 6 (formerly 7) — the target task: 347 → 3 hundreds, 3 tens, 17 units.
-  s1(representation('s1_target_347', 347, { hundreds: 3, tens: 3, units: 17 },
-    'משימת יעד מסכמת',
-    'משימת היעד: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות, וכתבו בשורת התוצאה את המספר שעל הלוח!'),
-    { requiresUngrouping: true, hideRequiredCounts: true }),
-
   // ── Refresh exercises: each mirrors one diagnostic task (QMatrix.ts) ──
+  // Order (owner, 27.9.2026 — register decision י): the grouping exercise
+  // comes before the target task, easy to hard. Grouping ends in the familiar
+  // standard form (2 tens, 6 units); the target task's decomposition ends in a
+  // non-standard one (3 hundreds, 3 tens, 17 units), where the child has to see
+  // that the quantity did not change. SESSION1_ORDER_BEFORE_27_9 in
+  // useWorkspaceStore.ts keeps a learner who was mid-meeting under the old
+  // order on it, so nobody skips or repeats an exercise.
   // ★ chosen (owner, 24.9.2026). Mirrors task 5, where 25 unit cubes are on the
   // screen and the learner finds how many tens and units they make: here 26
   // unit cubes wait on the board, and are grouped twice into tens.
   s1(representation('s1_r_group26', 26, { tens: 2, units: 6 },
     'המרה עצמאית בין עזרים וירטואליים',
-    'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת כפתור הקבץ 10 שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
+    'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת הכפתור "קבץ 10" שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
     { requiresGrouping: true, initialCounts: { units: 26 }, hideRequiredCounts: true }),
+
+  // מסמך 03 §3.1 step 6 — the target task: 347 → 3 hundreds, 3 tens, 17 units.
+  // On-screen wording: the owner's, 27.9.2026 (register decision י). The child
+  // is asked which number the blocks show after the decomposition, so that
+  // they see the quantity did not change; the numbers are unchanged.
+  s1(representation('s1_target_347', 347, { hundreds: 3, tens: 3, units: 17 },
+    'משימת יעד מסכמת',
+    'משימת היעד: בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.'),
+    { requiresUngrouping: true, hideRequiredCounts: true }),
+
   // ★ chosen (owner, 24.9.2026). Mirrors task 6 (124 + 85) in structure with
   // other numbers: three digits plus two, no carry in the units, the tens sum
   // to exactly 10, so the answer has a 0 in the tens.
@@ -208,7 +221,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     type: 'addition_simple',
     numberA: 713, numberB: 94, correctAnswer: 807,
     titleHe: 'חיבור במאונך עם המרה מעל מאה',
-    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברות 10 לבנים בטור, לחצו על כפתור הקבץ 10 שבראש הטור. כתבו את התשובה בשורת התוצאה.',
+    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבץ 10" שבראש הטור. כתבו את התשובה בשורת התוצאה.',
     scaffoldLevel: 1,
     requiresGrouping: true,
     targetNode: 'regrouping_fluency',
@@ -217,14 +230,14 @@ export const SESSION1_TASKS: SessionTask[] = [
   // two, one borrow in the units, the tens need no borrow.
   s1(subtraction('s1_r_sub61', 61, 24,
     'חיסור חד-שלבי עם פריטה בתחום המאה',
-    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בלוח או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
+    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בבית המספרים או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
     { scaffoldLevel: 1 })),
   // ★ chosen (owner, 24.9.2026). Mirrors task 7 (405 − 132): a 0 in the tens
   // of the minuend, no borrow in the units, one borrow from the hundreds into
   // the tens.
   s1(subtraction('s1_r_sub806', 806, 351,
     'חיסור במאונך עם פריטה דרך אפס בטור העשרות',
-    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בלוח או גררו אותה לטור העשרות. כתבו את התשובה בשורת התוצאה.',
+    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בבית המספרים או גררו אותה לטור העשרות. כתבו את התשובה בשורת התוצאה.',
     { scaffoldLevel: 1 })),
 ];
 
@@ -245,7 +258,7 @@ export const SESSION3_REMEDIATION_TASKS: SessionTask[] = [
     S3_NONSTANDARD('מאה אחת לעשר עשרות', '340', '2 מאות ו-14 עשרות')),
   representation('s3_r_t3', 450, { tens: 45 },
     'מעבר לייצוג לא סטנדרטי מלא',
-    'ייצגו את המספר 450 באמצעות עשרות בלבד: 45 עשרות על הלוח. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!'),
+    'ייצגו את המספר 450 באמצעות עשרות בלבד: 45 עשרות. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!'),
   representation('s3_r_t4', 85, { tens: 7, units: 15 },
     'פירוק עשרות ליחידות בתחום המאה',
     S3_NONSTANDARD('עשרת אחת לעשר יחידות', '85', '7 עשרות ו-15 יחידות')),
@@ -260,7 +273,7 @@ export const SESSION3_REMEDIATION_TASKS: SessionTask[] = [
   withOpts({
     id: 's3_r_t7', type: 'missing_element', numberA: 100, numberB: 160, correctAnswer: 60,
     titleHe: 'משימת חקר ואינטגרציה',
-    instructionHe: 'המספר 160 מורכב ממאה אחת ועוד כמה? בנו את המספר בלוח משמאל וכתבו את החלק החסר בתיבת התשובה.',
+    instructionHe: 'המספר 160 מורכב ממאה אחת ועוד כמה? בנו את המספר בבית המספרים וכתבו את החלק החסר בתיבת התשובה.',
     targetNode: 'decimal_structure',
   }, {}),
 ];
@@ -274,7 +287,7 @@ export const SESSION3_GREEN_TASKS: SessionTask[] = [
     S3_NONSTANDARD('לבנת אלף אחת לעשר מאות', '3,400', '2 אלפים ו-14 מאות')),
   representation('s3_g_t3', 4500, { hundreds: 45 },
     'מעבר לייצוג לא סטנדרטי מלא',
-    'ייצגו את המספר 4,500 באמצעות מאות בלבד: 45 מאות על הלוח. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!'),
+    'ייצגו את המספר 4,500 באמצעות מאות בלבד: 45 מאות. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!'),
   representation('s3_g_t4', 5230, { thousands: 4, hundreds: 11, tens: 13 },
     'פירוק מעורב רב שלבי',
     S3_NONSTANDARD('אלף אחד למאות ומאה אחת לעשרות', '5,230', '4 אלפים, 11 מאות ו-13 עשרות')),
@@ -310,7 +323,7 @@ export const SESSION4_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen: מסמך 03 names the task ("ספרה חסרה בטור התוצאה") without numbers.
   missingResultDigit('s4_r_t7', 328, 145, false, 'tens',
     'משימת חקר וגילוי ספרה חסרה',
-    'בתרגיל 328 + 145 חסרה ספרת העשרות בשורת התוצאה. בצעו את ההקבצה בלבני הדינס כדי לגלות אותה, וכתבו אותה בתיבה הריקה.',
+    'בתרגיל 328 + 145 חסרה ספרת העשרות בשורת התוצאה. בצעו את ההקבצה בלבנים כדי לגלות אותה, וכתבו אותה בתיבה הריקה.',
     { targetNode: 'relational_thinking' }),
 ];
 
@@ -354,7 +367,7 @@ export const SESSION5_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen: מסמך 03 names the task ("ספרה חסרה בטור המחוסר") without numbers.
   skeleton('s5_r_t7', 442, 128, true, { a: ['tens'] },
     'משימת חקר וגילוי ספרה חסרה',
-    'בשורת המחוסר חסרה ספרת העשרות: 4▢2 − 128 = 314. בצעו את הפריטה בלבני הדינס כדי לגלות את הספרה המקורית, וכתבו אותה בתיבה הריקה.',
+    'בשורת המחוסר חסרה ספרת העשרות: 4▢2 − 128 = 314. בצעו את הפריטה בלבנים כדי לגלות את הספרה המקורית, וכתבו אותה בתיבה הריקה.',
     { targetNode: 'relational_thinking' }),
 ];
 
@@ -404,7 +417,7 @@ export const SESSION6_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen (400 − 156 is the grade-ג example in מסמך 05, המטריקס).
   missingResultDigit('s6_r_t7', 400, 156, true, 'tens',
     'משימת חקר וספרה חסרה',
-    'בתרגיל 400 − 156 חסרה ספרת העשרות בשורת התוצאה. בצעו את הפריטה הכפולה בלבני הדינס כדי לגלות אותה, וכתבו אותה בתיבה הריקה.',
+    'בתרגיל 400 − 156 חסרה ספרת העשרות בשורת התוצאה. בצעו את הפריטה הכפולה בלבנים כדי לגלות אותה, וכתבו אותה בתיבה הריקה.',
     ZERO),
 ];
 
@@ -418,7 +431,7 @@ export const SESSION6_GREEN_TASKS: SessionTask[] = [
   // ★ chosen: מסמך 03 names the task ("השלמת ספרות חסרות בשורת המחוסר") without numbers.
   skeleton('s6_g_t7', 6005, 2847, true, { a: ['tens', 'units'] },
     'משימת חקר של השלמת ספרות חסרות בתחום הרבבה',
-    'בשורת המחוסר חסרות שתי ספרות: 6,0▢▢ − 2,847 = 3,158. גלו אותן בעזרת הפריטה המשולשת בלבני הדינס וכתבו אותן בתיבות הריקות. אפשר להיעזר בכפתור ביטול פעולה לחקירה עצמאית.',
+    'בשורת המחוסר חסרות שתי ספרות: 6,0▢▢ − 2,847 = 3,158. גלו אותן בעזרת הפריטה המשולשת בלבנים וכתבו אותן בתיבות הריקות. רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול פעולה ↺.',
     ZERO),
 ];
 
@@ -433,7 +446,7 @@ const INQUIRY: BuildOpts = { targetNode: 'relational_thinking' };
 export const SESSION7_REMEDIATION_TASKS: SessionTask[] = [
   flexible('s7_r_t1', 125,
     'משימת הוכחת ערך מקום',
-    'הוכיחו בלבני דינס ש-12 עשרות ו-5 יחידות שוות בדיוק למאה אחת, 2 עשרות ו-5 יחידות: בנו 12 עשרות ו-5 יחידות ולחצו "הוספת ייצוג". לאחר מכן הקבצו 10 עשרות למאה אחת והוסיפו את הייצוג השני.',
+    'הוכיחו בלבנים ש-12 עשרות ו-5 יחידות שוות בדיוק למאה אחת, 2 עשרות ו-5 יחידות: בנו 12 עשרות ו-5 יחידות ולחצו "הוספת ייצוג". לאחר מכן קבצו 10 עשרות למאה אחת והוסיפו את הייצוג השני.',
     INQUIRY),
   // ★ chosen: מסמך 03 describes the skeleton without numbers.
   skeleton('s7_r_t2', 314, 254, false, { a: ['units'] },
@@ -448,28 +461,28 @@ export const SESSION7_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen.
   skeleton('s7_r_t4', 542, 178, true, { a: ['tens', 'units'] },
     'שתי ספרות חסרות בחיסור עם פריטה',
-    'בתרגיל 5▢▢ − 178 = 364 חסרות ספרת היחידות וספרת העשרות של המחוסר. גלו אותן בעזרת הפריטה בלבני הדינס וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 5▢▢ − 178 = 364 חסרות ספרת היחידות וספרת העשרות של המחוסר. גלו אותן בעזרת הפריטה בלבנים וכתבו אותן בתיבות הריקות.',
     INQUIRY),
   // ★ chosen: the imaginary learner's error is the one מסמך 03 describes (a forgotten memory-circle carry).
   addition('s7_r_t5', 247, 135,
     'ניתוח שגיאה של לומד דמיוני',
-    'תלמיד פתר 247 + 135 וקיבל 372, כי שכח לרשום את ההמרה בעיגול הזיכרון מעל טור העשרות. תקנו את התרגיל בעזרת לבני הדינס: בנו את המספרים, הקבצו, רשמו את ההמרה בעיגול הזיכרון וכתבו את התוצאה הנכונה.',
+    'תלמיד פתר 247 + 135 וקיבל 372, כי שכח לרשום את ההמרה בעיגול הזיכרון מעל טור העשרות. תקנו את התרגיל בעזרת הלבנים: בנו את המספרים, קבצו, רשמו את ההמרה בעיגול הזיכרון וכתבו את התוצאה הנכונה.',
     INQUIRY),
   // ★ chosen: two-step add-then-remove reaching a defined target.
   representation('s7_r_t6', 510, { hundreds: 5, tens: 1 },
     'אינטגרציה דו שלבית של הוספה והפחתה',
-    'בנו את המספר 340 בלוח. הוסיפו 2 מאות, ואז הסירו 3 עשרות. איזה מספר קיבלתם? השאירו אותו על הלוח וכתבו אותו בשורת התוצאה.',
+    'בנו את המספר 340 בבית המספרים. הוסיפו 2 מאות, ואז הסירו 3 עשרות. איזה מספר קיבלתם? השאירו אותו בבית המספרים וכתבו אותו בשורת התוצאה.',
     INQUIRY),
   flexible('s7_r_t7', 150,
     'בעיית חקר פתוחה למחצה של הרכבים משתנים',
-    `מצאו דרכים שונות לייצג את המספר 150 כך שבכל דרך מספר העשרות זוגי (למשל 14 עשרות ו-10 יחידות). ${FLEX_HOWTO}`,
+    `מצאו שתי דרכים שונות לייצג את המספר 150 כך שבכל דרך מספר העשרות זוגי. ${FLEX_HOWTO}`,
     { ...INQUIRY, requireEvenTens: true }),
 ];
 
 export const SESSION7_GREEN_TASKS: SessionTask[] = [
   flexible('s7_g_t1', 2500,
     'משימת הוכחת שימור כמות מורכבת בתחום הרבבה',
-    'הוכיחו בלבנים ש-25 מאות שוות בדיוק ל-2 אלפים ו-5 מאות: בנו 25 מאות ולחצו "הוספת ייצוג". לאחר מכן הקבצו 10 מאות לאלף אחד, ושוב, והוסיפו את הייצוג הרגיל.',
+    'הוכיחו בלבנים ש-25 מאות שוות בדיוק ל-2 אלפים ו-5 מאות: בנו 25 מאות ולחצו "הוספת ייצוג". לאחר מכן קבצו 10 מאות לאלף אחד, ושוב, והוסיפו את הייצוג הרגיל.',
     INQUIRY),
   // ★ chosen: מסמך 03 describes the skeleton without numbers.
   skeleton('s7_g_t2', 2637, 1554, false, { a: ['hundreds', 'units'] },
@@ -479,17 +492,17 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
   // ★ chosen.
   skeleton('s7_g_t3', 5006, 2847, true, { a: ['hundreds', 'tens', 'units'] },
     'שלוש ספרות חסרות בחיסור עם פריטה משולשת',
-    'בתרגיל 5,▢▢▢ − 2,847 = 2,159 חסרות שלוש ספרות של המחוסר. הפתרון עובר מעל האפסים שבטור העשרות ובטור המאות. גלו את הספרות בעזרת הפריטה בלבני הדינס וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 5,▢▢▢ − 2,847 = 2,159 חסרות שלוש ספרות של המחוסר. הפתרון עובר מעל האפסים שבטור העשרות ובטור המאות. גלו את הספרות בעזרת הפריטה בלבנים וכתבו אותן בתיבות הריקות.',
     INQUIRY),
   // ★ chosen: the imaginary learner's error is the one מסמך 03 describes (a wrong double regrouping in the hundreds).
   addition('s7_g_t4', 4857, 3568,
     'איתור ותיקון שגיאה בשרשרת המרות',
-    'תלמיד פתר 4,857 + 3,568 וקיבל 7,425. התרגיל דורש שלוש המרות רצופות, והוא שכח לרשום בטור האלפים את ההמרה מטור המאות. תקנו את התרגיל בעזרת הלבנים על הלוח וכתבו את התוצאה הנכונה.',
+    'תלמיד פתר 4,857 + 3,568 וקיבל 7,425. התרגיל דורש שלוש המרות רצופות, והוא שכח לרשום בטור האלפים את ההמרה מטור המאות. תקנו את התרגיל בעזרת הלבנים בבית המספרים וכתבו את התוצאה הנכונה.',
     INQUIRY),
   // ★ chosen: add one thousand, remove hundreds, reach a defined target.
   representation('s7_g_t5', 3800, { thousands: 3, hundreds: 8 },
     'אינטגרציה דו שלבית של פעולות הפוכות בתחום הרבבה',
-    'בנו את המספר 3,400 בלוח. הוסיפו אלף אחד, ואז הסירו 6 מאות. איזה מספר קיבלתם? השאירו אותו על הלוח וכתבו אותו בשורת התוצאה.',
+    'בנו את המספר 3,400 בבית המספרים. הוסיפו אלף אחד, ואז הסירו 6 מאות. איזה מספר קיבלתם? השאירו אותו בבית המספרים וכתבו אותו בשורת התוצאה.',
     INQUIRY),
   // ★ chosen: a quantity given in non-standard form, to be regrouped into the fewest blocks.
   representation('s7_g_t6', 2730, { thousands: 2, hundreds: 7, tens: 3 },
