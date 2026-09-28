@@ -326,7 +326,11 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     const { unmount } = render(React.createElement(SocraticSidePanel, null));
     const card = screen.getByTestId('socratic-card');
     const answers = (within(card).getAllByRole('button') as HTMLButtonElement[]).filter((b) => b.className.includes('text-right'));
-    act(() => { fireEvent.click(answers[1]); });
+    // A wrong option, found by its text: the correct one is not always first (owner, 28.9.2026).
+    const wrongTexts = new Set((ws().aiSocraticHint?.choices ?? []).filter((c) => c.isCorrect === false).map((c) => c.textHe));
+    const wrong = answers.find((b) => wrongTexts.has(b.textContent ?? ''))!;
+    expect(wrong).toBeDefined();
+    act(() => { fireEvent.click(wrong); });
     const indicator = screen.getByTestId('socratic-lock-indicator');
     expect(indicator.textContent).toBe('⏳רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.');
     const box = indicator.parentElement!;

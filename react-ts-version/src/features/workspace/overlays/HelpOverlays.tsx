@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useWorkspaceStore, getActiveTasks, placeToColumnIndex } from '@/application/useWorkspaceStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { SocraticEngine, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
+import { orderSocraticChoices } from '@/infrastructure/services/socraticOptionOrder';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
@@ -144,6 +145,25 @@ export function SocraticSidePanel() {
       })()
     : null;
   const shownCard = aiSocraticHint ?? fallbackCard;
+  // The options, computed once so the buttons and the read-aloud show and say
+  // the same list in the same order. The correct option is not always first
+  // (owner, 28.9.2026; socraticOptionOrder.ts): one order per exercise and
+  // question, the same for every learner and every reload, for static and AI
+  // cards alike. Ids and isCorrect travel with the option, so
+  // SOCRATIC_OPTION_SELECTED records what it recorded before. A card stored
+  // without options gets those of the static card of the exercise on the
+  // screen — the same one the store serves — not a generic one that could
+  // speak of the tens in a units exercise, or of blocks in meeting 8.
+  const shownChoices: SocraticChoice[] = helpState === 'socratic'
+    ? (() => {
+        const s = useWorkspaceStore.getState();
+        const task = getActiveTasks(s)[s.standardTaskIdx] ?? undefined;
+        const source = aiSocraticHint?.choices && aiSocraticHint.choices.length > 0
+          ? aiSocraticHint
+          : fallbackCard ?? SocraticEngine.getSynchronousTaskHint(task, s.counts);
+        return orderSocraticChoices(source.choices, task?.id, source.questionHe, source.correctChoiceId);
+      })()
+    : [];
 
   return (
     <AnimatePresence initial={false}>
@@ -188,7 +208,7 @@ export function SocraticSidePanel() {
                       shownCard?.questionHe || 'שאלה מנחה לחשיבה',
                       // הקראת השאלה בלי האפשרויות משאירה ילד שנעזר בהקראה
                       // מול שלוש אפשרויות שלא שמע. מודול 7 (UDL).
-                      ...(shownCard?.choices?.map((c) => c.textHe) ?? []),
+                      ...shownChoices.map((c) => c.textHe),
                     ].join('. ')}
                     className="shrink-0"
                   />
@@ -207,7 +227,7 @@ export function SocraticSidePanel() {
               </div>
 
               {/* 3 Closed Dynamic Options for Socratic Mentoring */}
-              <SocraticPenaltyLockOptions onClose={closeHelp} />
+              <SocraticPenaltyLockOptions choices={shownChoices} onClose={closeHelp} />
             </aside>
         </motion.div>
       )}
@@ -215,8 +235,7 @@ export function SocraticSidePanel() {
   );
 }
 
-function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
-  const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
+function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticChoice[]; onClose: () => void }) {
   const socraticPenaltyLockoutUntil = useWorkspaceStore((s) => s.socraticPenaltyLockoutUntil);
   const triggerSocraticPenaltyLockout = useWorkspaceStore((s) => s.triggerSocraticPenaltyLockout);
   const getSocraticPenaltyRemaining = useWorkspaceStore((s) => s.getSocraticPenaltyRemaining);
@@ -237,22 +256,10 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
   }, [socraticPenaltyLockoutUntil, getSocraticPenaltyRemaining]);
 
   const wsState = useWorkspaceStore.getState();
-  const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
 
-  // A card restored without its content gets the static card of the exercise
-  // on the screen — the same one the store serves (SocraticEngine) — not a
-  // generic one that could speak of the tens in a units exercise, or of blocks
-  // in meeting 8.
-  const defaultChoices: SocraticChoice[] = SocraticEngine.getSynchronousTaskHint(currentTask ?? undefined, wsState.counts).choices;
-
-  const rawChoices: SocraticChoice[] = (aiSocraticHint?.choices && aiSocraticHint.choices.length > 0)
-    ? aiSocraticHint.choices
-    : defaultChoices;
-
-  const options = rawChoices.map((c, idx) => {
-    const isCorrect = c.isCorrect !== undefined
-      ? c.isCorrect
-      : (aiSocraticHint?.correctChoiceId ? c.id === aiSocraticHint.correctChoiceId : idx === 0);
+  const options = choices.map((c) => {
+    // orderSocraticChoices resolved an implicit isCorrect before moving anything.
+    const isCorrect = c.isCorrect === true;
     // Meeting 8 has no number house on the screen (PRD Module 14 §ב).
     const noBoard = wsState.sessionNumber === 8;
     const hint = c.feedbackHe || c.hint || (isCorrect
