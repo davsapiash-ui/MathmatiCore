@@ -230,16 +230,26 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
           await cc.page.evaluate(() => document.dispatchEvent(new CustomEvent('toggle-chat')));
         },
       });
+      // The soft device lock is driven from the database, as another device
+      // would drive it: the page's listener compares active_device_id with its
+      // own id. Setting the store flag directly was undone by the next echo.
       steps.push({
         id: 'm3-other-device',
         meeting: 3,
         note: 'the "continued on another device" lock',
         run: async (cc) => {
           await ws(cc.page, INIT, { meeting: 3, isASD, idx: 0 });
-          await ws(cc.page, SET, { isSupersededByOtherDevice: true });
+          cc.rtdb.set(`users/students/${STUDENT_UID}/active_device_id`, 'ux-audit-other-device');
         },
       });
-      steps.push({ id: 'm3-other-device-release', meeting: 3, run: async (cc) => ws(cc.page, SET, { isSupersededByOtherDevice: false }) });
+      steps.push({
+        id: 'm3-other-device-release',
+        meeting: 3,
+        run: async (cc) => {
+          const mine = await ws<string | null>(cc.page, 'return st.activeDeviceId;');
+          cc.rtdb.set(`users/students/${STUDENT_UID}/active_device_id`, mine || 'ux-audit-this-device');
+        },
+      });
       // The teacher's three controls and the projector reach the learner live (Module 14 / 15).
       steps.push({
         id: 'm3-teacher-paused',
