@@ -91,7 +91,7 @@ describe('"הצגת בית המספרים" appears only in meetings that have a 
   const page = src('features/workspace/StudentWorkspacePage.tsx');
 
   it('the board toggle is gated on meetings 2 and 8, like the board itself', () => {
-    const at = topbar.indexOf('onClick={toggleBoard}');
+    const at = topbar.indexOf(': toggleBoard}'); // station 1 shows a note instead (owner, 27.9.2026)
     expect(at).toBeGreaterThan(-1);
     const gate = topbar.slice(topbar.lastIndexOf('{sessionNumber', at), at);
     expect(gate).toContain('sessionNumber !== 2 && sessionNumber !== 8');

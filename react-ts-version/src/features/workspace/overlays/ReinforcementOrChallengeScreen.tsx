@@ -15,14 +15,14 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
  * רק שהם בחירה ולא חובה.
  */
 const BRANCH_CHOICE_TEXT = {
-  badge: 'סיימתם את שבעת התרגילים של המפגש!',
+  badge: 'סיימתם את שבעת התרגילים של התחנה!',
   heading: 'איך תרצו להמשיך?',
   intro: 'התרגילים הבאים הם בחירה שלכם, לא חובה.',
   reinforcementTitle: 'מסלול ביסוס',
   reinforcement: 'שני תרגילים נוספים, לחזרה על מה שתרגלנו היום.',
   challengeTitle: 'מסלול אתגר',
   challenge: 'תרגיל אתגר אחד, קשה יותר, בנושא של היום.',
-  finish: 'סיום המפגש עכשיו',
+  finish: 'סיום התחנה עכשיו',
 } as const;
 
 const BRANCH_CHOICE_SPEECH = [
@@ -31,7 +31,7 @@ const BRANCH_CHOICE_SPEECH = [
   BRANCH_CHOICE_TEXT.intro,
   `${BRANCH_CHOICE_TEXT.reinforcementTitle}: ${BRANCH_CHOICE_TEXT.reinforcement}`,
   `${BRANCH_CHOICE_TEXT.challengeTitle}: ${BRANCH_CHOICE_TEXT.challenge}`,
-  'אפשר גם לסיים את המפגש עכשיו.',
+  'אפשר גם לסיים את התחנה עכשיו.',
 ].join(' ');
 
 interface ReinforcementOrChallengeScreenProps {

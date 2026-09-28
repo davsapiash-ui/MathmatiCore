@@ -57,7 +57,7 @@ describe('מפגש 2 — אישור שקט, לא חגיגה על טעות', () =
   });
 
   it('קונפטי אינו יורה על משוב ניטרלי', () => {
-    expect(toast).toContain('if (feedback?.correct && !feedback.neutral && !isASD)');
+    expect(toast).toContain('if (feedback?.correct && !feedback.neutral && !isASD && lastCelebrated !== feedback)');
   });
 
   it('משוב ניטרלי אינו נראה ירוק ואינו נראה אדום', () => {
