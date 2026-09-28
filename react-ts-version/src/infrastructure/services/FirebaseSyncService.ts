@@ -1,6 +1,12 @@
 import { ref, set, get, update, runTransaction, serverTimestamp, onValue, onDisconnect, push, type DataSnapshot } from 'firebase/database';
 import { database, firestore, serverNow } from '@/infrastructure/firebase';
-import { WORKSPACE_SAVED_AT_KEY, workspaceSavedAt, isRestorableFor, keepsFreshStartWork } from '@/core/workspaceSnapshot';
+import {
+  WORKSPACE_SAVED_AT_KEY,
+  WORKSPACE_STARTED_WITHOUT_RECORD_KEY,
+  workspaceSavedAt,
+  isRestorableFor,
+  keepsFreshStartWork,
+} from '@/core/workspaceSnapshot';
 import { doc, getDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, getActiveTasks, resolveLearningPath, type WorkspaceInitialization } from '@/application/useWorkspaceStore';
@@ -12,7 +18,7 @@ export const REMOTE_SYNC_WINDOW_MS = 500;
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME } from '@/core/pilotInstitution';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
-import { throttledRtdbUpdate, rtdbUpdateNow, flushThrottledWrites } from './ThrottledRtdbWriter';
+import { throttledRtdbUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
 import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
 import type { SessionDocument, PedagogicalPath } from '@/types';
 import {
@@ -27,6 +33,15 @@ import {
 } from '@/types/telemetry';
 
 type WorkspaceStoreState = ReturnType<typeof useWorkspaceStore.getState>;
+
+/**
+ * Module 23א: what a device writes when it takes up a teacher's reset
+ * (forceReload). The server already cleared the meeting's workspaceState and
+ * sessionState; a write of the reset meeting sent a moment before (the
+ * throttle window, or the database's own offline queue) could still land
+ * after that. This write, sent last, clears them again.
+ */
+export const TEACHER_RESET_FIELDS = { forceReload: null, workspaceState: null, sessionState: null } as const;
 
 /**
  * The ONE key a teacher's record lives under in RTDB users/teachers, and the
@@ -312,6 +327,12 @@ export class FirebaseSyncService {
    * record (X55). Every change after it is saved on this device.
    */
   private localBaseline: { marker: WorkspaceInitialization; payloadKey: string } | null = null;
+  /**
+   * The meeting a teacher's reset discarded (discardUnsentWorkspace). Its
+   * state is never saved again, on this device or on the record; the next
+   * start or restore is a new meeting and is saved as usual.
+   */
+  private discardedStart: WorkspaceInitialization | null = null;
   private unsubscribeSchools: (() => void) | null = null;
   private unsubscribeClasses: (() => void) | null = null;
   private unsubscribePublicClasses: (() => void) | null = null;
@@ -419,6 +440,7 @@ export class FirebaseSyncService {
     this.lastSyncedPayloadKey = null;
     this.lastRemoteHelpRequested = undefined;
     this.localBaseline = null;
+    this.discardedStart = null;
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
       window.removeEventListener('pagehide', this.flushRemoteSyncOnPageHide);
       window.addEventListener('pagehide', this.flushRemoteSyncOnPageHide);
@@ -447,7 +469,10 @@ export class FirebaseSyncService {
           
           if (data.forceReload) {
             // Teacher initiated a deep reset. Reload the browser to clear local memory.
-            update(studentRef, { forceReload: null }).then(() => {
+            // Nothing of the reset meeting that is still waiting goes out after
+            // it, and this write — the last one — carries the reset again.
+            this.discardUnsentWorkspace();
+            update(studentRef, { ...TEACHER_RESET_FIELDS }).then(() => {
               window.location.reload();
             }).catch((err) => {
               console.error("Failed to clear forceReload flag:", err);
@@ -512,7 +537,10 @@ export class FirebaseSyncService {
             ...(data.physicalOverride !== undefined && { physicalOverride: data.physicalOverride }),
             ...(data.overrideUpdatedAt !== undefined && { overrideUpdatedAt: data.overrideUpdatedAt }),
             ...(data.isOnline !== undefined && { isOnline: data.isOnline }),
-            ...(data.workspaceState && { workspaceState: data.workspaceState }),
+            // The snapshot is the whole record: a copy the teacher's reset
+            // cleared is gone, not kept from before — the lobby opened the
+            // reset meeting from it again (Module 23א).
+            workspaceState: data.workspaceState ?? undefined,
             ...(data.additionBoardEnabled !== undefined || data.forceAdditionHelper !== undefined ? { additionBoardEnabled: additionEnabled } : {}),
             ...(data.forceAdditionHelper !== undefined && { forceAdditionHelper: data.forceAdditionHelper }),
             ...(data.scaffoldLevel !== undefined && { scaffoldLevel: data.scaffoldLevel }),
@@ -625,12 +653,10 @@ export class FirebaseSyncService {
     }
 
     const own = this.initializedForThisLearner(state);
-    if (!own) return;
+    if (!own || own === this.discardedStart) return;
 
     const sanitizedPayload = this.buildSyncPayload();
-    const normId = normalizeStudentId(this.currentUserId || '');
-    const rawNum = (this.currentUserId || '').replace(/[^0-9]/g, '');
-    const studentKeys = Array.from(new Set([this.currentUserId, normId, rawNum ? `student_user${rawNum}` : null, rawNum ? `user${rawNum}` : null].filter(Boolean) as string[]));
+    const studentKeys = this.learnerRecordKeys();
 
     // The same synced state again (a focus change, a toast, the device-lock
     // echo) is not a new event: PRD Module 5 §ב, "סנכרון… מבוסס אירועים בלבד".
@@ -646,7 +672,16 @@ export class FirebaseSyncService {
       if (payloadKey === baseline.payloadKey) return;
       baseline.payloadKey = payloadKey;
       // lastSyncedPayloadKey is left alone: the record has not had this yet.
-      this.saveWorkspaceOnDevice({ ...sanitizedPayload, [WORKSPACE_SAVED_AT_KEY]: this.nextSavedAt() });
+      // A meeting started afresh without the record says so in its copy, so a
+      // reload that restores the copy still settles it against the record
+      // by the fresh-start rule (useWorkspaceStore restoreSession,
+      // settleStartWithoutRecord). Copies saved with the record open never
+      // carry it.
+      this.saveWorkspaceOnDevice({
+        ...sanitizedPayload,
+        [WORKSPACE_SAVED_AT_KEY]: this.nextSavedAt(),
+        ...(own.restoredSavedAt === null ? { [WORKSPACE_STARTED_WITHOUT_RECORD_KEY]: true } : {}),
+      });
       return;
     }
 
@@ -708,6 +743,36 @@ export class FirebaseSyncService {
     this.scheduleRemoteSync();
   }
 
+  /** Every key this learner's record is written under (the canonical one and its legacy mirrors). */
+  private learnerRecordKeys(): string[] {
+    const normId = normalizeStudentId(this.currentUserId || '');
+    const rawNum = (this.currentUserId || '').replace(/[^0-9]/g, '');
+    return Array.from(new Set([this.currentUserId, normId, rawNum ? `student_user${rawNum}` : null, rawNum ? `user${rawNum}` : null].filter(Boolean) as string[]));
+  }
+
+  /**
+   * Module 23א: the teacher reset this learner's meeting (forceReload). The
+   * reset meeting's state that is still waiting to be sent is dropped — the
+   * coalescing window here and the throttled writer's — together with this
+   * device's copy of it, and that meeting is never saved again. Otherwise a
+   * board the learner changed a moment before the reset was written after it
+   * and undid it. Called by this service's own listener and by every screen
+   * that takes up the reset (acknowledgeTeacherReset); running twice is harmless.
+   */
+  public discardUnsentWorkspace() {
+    if (this.remoteSyncTimer) {
+      clearTimeout(this.remoteSyncTimer);
+      this.remoteSyncTimer = null;
+    }
+    this.pendingRemoteSync = null;
+    for (const key of this.learnerRecordKeys()) {
+      dropPendingFields(`users/students/${key}`, ['workspaceState', 'sessionState']);
+      this.clearLocalSessionProgress(key);
+    }
+    const discarded = this.initializedForThisLearner(useWorkspaceStore.getState());
+    if (discarded) this.discardedStart = discarded;
+  }
+
   /** This device's copy, under each key the learner's copy is read by. */
   private saveWorkspaceOnDevice(stampedPayload: Record<string, unknown>) {
     const normId = normalizeStudentId(this.currentUserId || '');
@@ -749,19 +814,20 @@ export class FirebaseSyncService {
    * record loaded). The meeting on screen was chosen without the record's
    * copy; now the two meet.
    *
-   * Started afresh (no copy of the meeting on this device): the record's copy
-   * of the meeting is restored, unless what the learner did in the fresh
-   * start is newer, non-empty and not behind it (keepsFreshStartWork). The
+   * Started afresh (no copy of the meeting on this device), or restored from
+   * a copy of such a start saved before any record arrived
+   * (WORKSPACE_STARTED_WITHOUT_RECORD_KEY): the record's copy of the meeting
+   * is restored, unless the fresh start's work is kept by keepsFreshStartWork
+   * (further into the meeting; at equal progress, newer and not empty). The
    * restore is a store change like any other, so both copies then get the
    * record's state, stamped later than anything this device saved: the fresh
    * start is never pushed over the record's progress, and the next reload
-   * cannot bring it back.
+   * cannot bring it back. Work that is kept goes to the record at once.
    *
-   * Restored from this device's copy: when the record's copy is later than
-   * that one, it was written elsewhere after it, and the page restores it
-   * instead (StudentWorkspacePage, X55 — the same comparison). Writing this
-   * device's copy first would overwrite it.
-   *
+   * Restored from this device's copy of a meeting the record had seen: when
+   * the record's copy is later than that one, it was written elsewhere after
+   * it, and the page restores it instead (StudentWorkspacePage, X55 — the
+   * same comparison). Writing this device's copy first would overwrite it.
    * Otherwise, if this device's copy of the meeting is strictly later than the
    * record's, the record gets it now — the learner may not touch the board
    * again before the lesson ends, and the next change would be the first to
@@ -782,7 +848,10 @@ export class FirebaseSyncService {
           useWorkspaceStore.setState(teacherControls);
           return;
         }
-      } else if (workspaceSavedAt(record) > start.restoredSavedAt) {
+        if (isRestorableFor(deviceCopy, start.meeting)) this.syncWorkspaceState(state);
+        return;
+      }
+      if (workspaceSavedAt(record) > start.restoredSavedAt) {
         return;
       }
       if (!isRestorableFor(deviceCopy, start.meeting)) return;
@@ -939,6 +1008,7 @@ export class FirebaseSyncService {
       this.unsubscribeWorkspace = null;
     }
     this.localBaseline = null;
+    this.discardedStart = null;
     if (this.currentUserId) {
       rtdbUpdateNow(`users/students/${this.currentUserId}`, { isOnline: false }).catch((err) => {
         console.error("Failed to set student offline during logout:", err);
@@ -1920,6 +1990,26 @@ export class FirebaseSyncService {
 }
 
 export const firebaseSyncService = FirebaseSyncService.getInstance();
+
+/**
+ * Module 23א: a learner's screen takes up the teacher's reset (forceReload on
+ * the record) — the workspace and the hub both. What of the reset meeting is
+ * still waiting is dropped, the flag is cleared with a write that carries the
+ * reset again (TEACHER_RESET_FIELDS; a device another device took over only
+ * clears the flag), and the workspace and this device's copies are reset.
+ */
+export function acknowledgeTeacherReset(normUid: string, otherUid: string | null | undefined, canWrite: boolean): void {
+  firebaseSyncService.discardUnsentWorkspace();
+  const path = `users/students/${normUid}`;
+  if (canWrite) {
+    rtdbUpdateNow(path, { ...TEACHER_RESET_FIELDS, isOnline: false, lastPing: 0 }).catch(() => {});
+  } else {
+    update(ref(database, path), { forceReload: null }).catch(() => {});
+  }
+  useWorkspaceStore.getState().resetWorkspace?.();
+  firebaseSyncService.clearLocalSessionProgress(normUid);
+  if (otherUid) firebaseSyncService.clearLocalSessionProgress(otherUid);
+}
 
 export const syncSessionState = (studentId: string, sessionState: SessionState) =>
   firebaseSyncService.syncSessionState(studentId, sessionState);

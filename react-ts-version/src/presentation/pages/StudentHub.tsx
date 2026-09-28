@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity } from '@/application/useAuthStore';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
-import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import { acknowledgeTeacherReset } from '@/infrastructure/services/FirebaseSyncService';
 import { throttledRtdbUpdate, rtdbUpdateNow } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { Sparkles } from 'lucide-react';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
@@ -127,10 +126,7 @@ export function StudentHub() {
         if (snap.exists()) {
           const val = snap.val();
           if (val?.forceReload === true) {
-            rtdbUpdateNow(`users/students/${normUid}`, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
-            useWorkspaceStore.getState().resetWorkspace?.();
-            firebaseSyncService.clearLocalSessionProgress(normUid);
-            if (uid) firebaseSyncService.clearLocalSessionProgress(uid);
+            acknowledgeTeacherReset(normUid, uid, true);
             setHasCompletedSession2(false);
             setIsTeacherGateApproved(false);
             setLiveRouteStatus(null);

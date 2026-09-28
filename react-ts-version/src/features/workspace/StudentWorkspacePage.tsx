@@ -20,7 +20,7 @@ import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentSt
 import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, fetchServerClockOffset } from '@/infrastructure/firebase';
-import { ref, onValue, update, onDisconnect, serverTimestamp } from 'firebase/database';
+import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
@@ -35,7 +35,7 @@ import { ClosingSentence } from './ClosingSentence';
 import { hasClosingSentence } from '@/core/persistenceEncouragement';
 import { StationOpening } from './StationOpening';
 import { hasOpeningScreen } from '@/core/stationOpening';
-import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
+import { firebaseSyncService, emitTelemetry, acknowledgeTeacherReset } from '@/infrastructure/services/FirebaseSyncService';
 import { throttledRtdbUpdate, rtdbUpdateNow } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { shouldRecordScreen, startScreenRecorder } from './screenRecorder';
 import { useStore } from '@/application/useStore';
@@ -52,7 +52,7 @@ import { toast } from 'sonner';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
 import { TeacherWillOpenWaitingScreen } from '@/presentation/components/student/TeacherWillOpenWaitingScreen';
 import { ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
-import { newerWorkspaceSnapshot, isRestorableFor, workspaceSavedAt } from '@/core/workspaceSnapshot';
+import { newerWorkspaceSnapshot, isRestorableFor, workspaceSavedAt, startedWithoutRecord } from '@/core/workspaceSnapshot';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { SessionPausedOverlay } from '@/presentation/components/student/SessionPausedOverlay';
 import { SessionClosedOverlay } from '@/presentation/components/student/SessionClosedOverlay';
@@ -541,14 +541,7 @@ export function StudentWorkspacePage() {
       if (snap.exists()) {
         const val = snap.val();
         if (val?.forceReload === true) {
-          if (canWriteWorkspaceData(normUid, isSupersededRef.current)) {
-            rtdbUpdateNow(`users/students/${normUid}`, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
-          } else {
-            update(studentRef, { forceReload: null }).catch(() => {});
-          }
-          useWorkspaceStore.getState().resetWorkspace?.();
-          firebaseSyncService.clearLocalSessionProgress(normUid);
-          if (user?.uid) firebaseSyncService.clearLocalSessionProgress(user.uid);
+          acknowledgeTeacherReset(normUid, user?.uid, canWriteWorkspaceData(normUid, isSupersededRef.current));
           window.location.href = '/hub';
         }
       }
@@ -781,7 +774,11 @@ export function StudentWorkspacePage() {
         restoreSession(cached);
         // X55: shown at once, but provisional — when the record arrives, a
         // later copy of this meeting on it replaces this one (effect start).
-        restoredFromCacheRef.current = { meeting, savedAt: workspaceSavedAt(cached) };
+        // A copy of a fresh start made without the record is settled by the
+        // sync instead, by the fresh-start rule (Module 17, keepsFreshStartWork).
+        if (!startedWithoutRecord(cached)) {
+          restoredFromCacheRef.current = { meeting, savedAt: workspaceSavedAt(cached) };
+        }
         markInitialized();
       } else {
         // No local copy of this meeting: wait for the learner's Firebase

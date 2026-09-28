@@ -58,7 +58,7 @@ vi.mock('@/infrastructure/services/FirebaseSyncService', async () => {
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
-import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import { firebaseSyncService, acknowledgeTeacherReset } from '@/infrastructure/services/FirebaseSyncService';
 import { flushThrottledWrites, resetThrottledWrites } from '@/infrastructure/services/ThrottledRtdbWriter';
 import {
   newerWorkspaceSnapshot,
@@ -66,6 +66,8 @@ import {
   WORKSPACE_SAVED_AT_KEY,
   keepsFreshStartWork,
   meetingProgress,
+  startedWithoutRecord,
+  WORKSPACE_STARTED_WITHOUT_RECORD_KEY,
 } from '@/core/workspaceSnapshot';
 import { EMPTY_COUNTS } from '@/core/placeValue';
 import { fetchServerClockOffset, serverNow } from '@/infrastructure/firebase';
@@ -109,6 +111,8 @@ function sendNow() {
 
 const workspaceWritesSince = (mark: number) =>
   rtdb.updates.slice(mark).filter((u) => u.path === `users/students/${STUDENT}` && 'workspaceState' in (u.value ?? {}));
+/** Writes since `mark` that put a workspace state on the record (a teacher's reset writes null). */
+const statesWrittenSince = (mark: number) => workspaceWritesSince(mark).filter((u) => u.value.workspaceState !== null);
 
 /** Signs in and works online in meeting 4: the units digit is on the record. Returns the record's copy. */
 function workOnlineInMeeting4(): Record<string, any> {
@@ -378,7 +382,8 @@ describe('Module 17 — when the connection returns', () => {
     serverClockOffset(TEN_MIN);
     deliverRecord({ ...APPROVED, forceReload: true });
     sendNow();
-    expect(workspaceWritesSince(mark)).toHaveLength(0);
+    expect(statesWrittenSince(mark)).toHaveLength(0);
+    expect(deviceCopy(), "the reset meeting's copy is gone from this device").toBeNull();
   });
 
   it('an ordinary reload with nothing new writes nothing when the record arrives', () => {
@@ -497,12 +502,33 @@ describe('Module 17 — a meeting started afresh without the record never overwr
     expect(workspaceSavedAt(writes[writes.length - 1].value.workspaceState)).toBeGreaterThan(workspaceSavedAt(recordCopy));
   });
 
-  it("fresh-start work stamped before the record's copy (the device clock is behind) is not newer: the record wins", () => {
+  it('fresh-start work that got further is kept even on a device clock that is behind (the stamps are not compared)', () => {
     const recordCopy = workOnlineInMeeting2(1);
     freshStartOffline(2);
-    // Two minutes later on a clock ten minutes behind: stamped before the record's copy.
+    // Two minutes later on a clock ten minutes behind: stamped before the
+    // record's copy, but four tasks further.
     clock.device += 2 * 60_000;
-    useWorkspaceStore.setState({ qflow: { ...ws().qflow, taskIdx: 2 } });
+    useWorkspaceStore.setState({ qflow: { ...ws().qflow, taskIdx: 5 } });
+    ws().setAnswerDigit('units', '9');
+    expect(workspaceSavedAt(deviceCopy())).toBeLessThan(workspaceSavedAt(recordCopy));
+    const mark = rtdb.updates.length;
+
+    serverClockOffset(TEN_MIN);
+    deliverRecord({ workspaceState: recordCopy });
+    expect(ws().qflow.taskIdx).toBe(5);
+    expect(ws().answerDigits).toMatchObject({ units: '9' });
+    sendNow();
+    const writes = statesWrittenSince(mark);
+    expect(writes.length, 'the record gets it at once').toBeGreaterThan(0);
+    for (const w of writes) expect(w.value.workspaceState.qflow.taskIdx).toBe(5);
+    expect(workspaceSavedAt(writes[writes.length - 1].value.workspaceState)).toBeGreaterThan(workspaceSavedAt(recordCopy));
+  });
+
+  it('at equal progress the stamp decides: fresh-start work stamped before the record\'s copy loses', () => {
+    const recordCopy = workOnlineInMeeting2(1);
+    freshStartOffline(2);
+    clock.device += 2 * 60_000;
+    useWorkspaceStore.setState({ qflow: { ...ws().qflow, taskIdx: 1 } });
     ws().setAnswerDigit('units', '9');
     expect(workspaceSavedAt(deviceCopy())).toBeLessThan(workspaceSavedAt(recordCopy));
     const mark = rtdb.updates.length;
@@ -510,8 +536,9 @@ describe('Module 17 — a meeting started afresh without the record never overwr
     serverClockOffset(TEN_MIN);
     deliverRecord({ workspaceState: recordCopy });
     expect(ws().qflow.taskIdx).toBe(1);
+    expect(ws().answerDigits).toMatchObject({ units: '5' });
     sendNow();
-    for (const w of workspaceWritesSince(mark)) expect(w.value.workspaceState.qflow.taskIdx).toBe(1);
+    for (const w of statesWrittenSince(mark)) expect(w.value.workspaceState.answerDigits).toMatchObject({ units: '5' });
   });
 
   it('with no copy of this meeting on the record, the fresh start goes on and the record gets it', () => {
@@ -557,7 +584,56 @@ describe('Module 17 — a meeting started afresh without the record never overwr
     deliverRecord({ workspaceState: recordCopy, forceReload: true });
     sendNow();
     expect(ws().qflow.taskIdx).toBe(0);
-    expect(workspaceWritesSince(mark)).toHaveLength(0);
+    expect(statesWrittenSince(mark)).toHaveLength(0);
+  });
+
+  it("fresh start, one change, a second offline reload (or the lobby and back), then reconnect: the record's progress still wins", () => {
+    const recordCopy = workOnlineInMeeting2(3);
+    freshStartOffline(2);
+    ws().setAnswerDigit('units', '7');
+
+    // Reloaded again, still offline: the page restores that copy (its cache path).
+    reloadPage(0);
+    pageRestoresDeviceCopy(2);
+    expect(ws().answerDigits).toMatchObject({ units: '7' });
+    ws().setAnswerDigit('tens', '1');
+    const mark = rtdb.updates.length;
+
+    serverClockOffset(TEN_MIN);
+    deliverRecord({ workspaceState: recordCopy });
+    expect(ws().qflow.taskIdx, "the record's task is back on screen").toBe(3);
+    expect(ws().answerDigits).toMatchObject({ units: '5' });
+    sendNow();
+    const writes = statesWrittenSince(mark);
+    expect(writes.length).toBeGreaterThan(0);
+    for (const w of writes) expect(w.value.workspaceState.qflow.taskIdx, 'the fresh start is never written').toBe(3);
+
+    // How: the fresh start's copy said so, the restore kept it a fresh start,
+    // and the mark never reached the record; once settled it is gone.
+    for (const w of writes) expect(startedWithoutRecord(w.value.workspaceState)).toBe(false);
+    expect(startedWithoutRecord(deviceCopy())).toBe(false);
+    expect(deviceCopy()?.qflow.taskIdx).toBe(3);
+  });
+
+  it('a fresh start that got further, across a second offline reload, is kept and sent on reconnect', () => {
+    const recordCopy = workOnlineInMeeting2(1);
+    freshStartOffline(2);
+    useWorkspaceStore.setState({ qflow: { ...ws().qflow, taskIdx: 4 } });
+    ws().setAnswerDigit('units', '9');
+    expect(startedWithoutRecord(deviceCopy()), 'the device copy says it began without the record').toBe(true);
+    reloadPage(0);
+    pageRestoresDeviceCopy(2);
+    expect(ws().workspaceInitializedFor?.restoredSavedAt, 'restored, and still a fresh start').toBeNull();
+    const mark = rtdb.updates.length;
+
+    serverClockOffset(TEN_MIN);
+    deliverRecord({ workspaceState: recordCopy });
+    expect(ws().qflow.taskIdx).toBe(4);
+    sendNow();
+    const writes = statesWrittenSince(mark);
+    expect(writes.length, 'the record gets it at once').toBeGreaterThan(0);
+    expect(writes[writes.length - 1].value.workspaceState.qflow.taskIdx).toBe(4);
+    expect(startedWithoutRecord(writes[writes.length - 1].value.workspaceState)).toBe(false);
   });
 
   it('a meeting started after the record arrived is not second-guessed by later snapshots', () => {
@@ -586,17 +662,103 @@ describe('Module 17 — the rule for a fresh start, as stated', () => {
       .toBeGreaterThan(meetingProgress(m2({ phase: 'correction', correctionIdx: 0, subphase: 'subtask', taskIdx: 1 })));
   });
 
-  it('kept only when newer, not empty and not behind', () => {
+  it('kept when further; at equal progress when not empty and strictly newer; never when behind', () => {
     const record = copy({ standardTaskIdx: 2, [WORKSPACE_SAVED_AT_KEY]: 1_000 });
     const device = (fields: Record<string, unknown>) =>
       copy({ [WORKSPACE_SAVED_AT_KEY]: 2_000, hasInteracted: true, standardTaskIdx: 2, ...fields });
-    expect(keepsFreshStartWork(record, device({}), 4)).toBe(true);
-    expect(keepsFreshStartWork(record, device({ [WORKSPACE_SAVED_AT_KEY]: 1_000 }), 4), 'a tie is not newer').toBe(false);
-    expect(keepsFreshStartWork(record, device({ standardTaskIdx: 1 }), 4), 'behind').toBe(false);
+    expect(keepsFreshStartWork(record, device({ standardTaskIdx: 3, [WORKSPACE_SAVED_AT_KEY]: 500 }), 4), 'further, stamped earlier').toBe(true);
+    expect(keepsFreshStartWork(record, device({ standardTaskIdx: 1, [WORKSPACE_SAVED_AT_KEY]: 9_000 }), 4), 'behind, stamped later').toBe(false);
+    expect(keepsFreshStartWork(record, device({}), 4), 'equal, newer').toBe(true);
+    expect(keepsFreshStartWork(record, device({ [WORKSPACE_SAVED_AT_KEY]: 1_000 }), 4), 'equal, a tie is not newer').toBe(false);
+    expect(keepsFreshStartWork(record, device({ [WORKSPACE_SAVED_AT_KEY]: 500 }), 4), 'equal, older').toBe(false);
     const onFirst = copy({ standardTaskIdx: 0, [WORKSPACE_SAVED_AT_KEY]: 1_000 });
     expect(keepsFreshStartWork(onFirst, device({ standardTaskIdx: 0, hasInteracted: false }), 4), 'empty').toBe(false);
     expect(keepsFreshStartWork(onFirst, device({ standardTaskIdx: 0 }), 4)).toBe(true);
     expect(keepsFreshStartWork(record, null, 4), 'nothing done on the device').toBe(false);
     expect(keepsFreshStartWork(copy({ sessionNumber: 3 }), device({}), 4), 'the record has no copy of this meeting').toBe(true);
+  });
+
+  it('a device copy of a fresh start is judged by that rule wherever it meets the record', () => {
+    const record = copy({ standardTaskIdx: 3, [WORKSPACE_SAVED_AT_KEY]: 1_000 });
+    const fresh = copy({ standardTaskIdx: 0, hasInteracted: true, [WORKSPACE_SAVED_AT_KEY]: 5_000, [WORKSPACE_STARTED_WITHOUT_RECORD_KEY]: true });
+    expect(startedWithoutRecord(fresh)).toBe(true);
+    // Later by the stamp, but behind: the record's copy is the one to restore.
+    expect(newerWorkspaceSnapshot(record, fresh, 4)).toBe(record);
+    const further = { ...fresh, standardTaskIdx: 4, [WORKSPACE_SAVED_AT_KEY]: 500 };
+    expect(newerWorkspaceSnapshot(record, further, 4)).toBe(further);
+    // An ordinary device copy keeps the stamp rule.
+    const ordinary = copy({ standardTaskIdx: 0, [WORKSPACE_SAVED_AT_KEY]: 5_000 });
+    expect(newerWorkspaceSnapshot(record, ordinary, 4)).toBe(ordinary);
+  });
+});
+
+/* ── A teacher's reset ────────────────────────────────────────────────────── */
+
+describe("Module 23א — a teacher's reset is never undone by a board changed a moment before", () => {
+  /** What the server leaves on the record (buildActiveSessionResetValues). */
+  const RESET = { ...APPROVED, workspaceState: null, sessionState: null, forceReload: true };
+
+  /** The learner's screen (StudentWorkspacePage, StudentHub) takes up the reset. */
+  const screenTakesUpReset = () => acknowledgeTeacherReset(STUDENT, STUDENT, true);
+  /** The page is left or hidden: what is pending goes out (flushRemoteSyncOnPageHide). */
+  const pageHide = () => {
+    svc.flushRemoteSync();
+    flushThrottledWrites();
+  };
+
+  function expectResetKept(mark: number) {
+    const after = rtdb.updates.slice(mark).filter((u) => u.path === `users/students/${STUDENT}`);
+    for (const u of after) {
+      expect(u.value.workspaceState ?? null, 'no board of the reset meeting after the reset').toBeNull();
+      const nested = Object.keys(u.value).filter((k) => k.startsWith('workspaceState/') || k.startsWith('sessionState/'));
+      expect(nested, 'no field of the reset meeting after the reset').toEqual([]);
+    }
+    expect(workspaceWritesSince(mark).pop()?.value.workspaceState, 'the last write carries the reset').toBeNull();
+    expect(deviceCopy(), "the reset meeting's copy is gone from this device").toBeNull();
+  }
+
+  const acted: Array<[string, () => void]> = [
+    // Still in the sync's own 500 ms window.
+    ['under 0.5 s before', () => {}],
+    // Handed on to the throttled writer, waiting out its 1000 ms window.
+    ['0.5 to 1.5 s before', () => svc.flushRemoteSync()],
+  ];
+  for (const [when, age] of acted) {
+    it(`the child acted ${when}; the sync sees the reset first`, () => {
+      workOnlineInMeeting4();
+      ws().setAnswerDigit('tens', '6');
+      age();
+      const mark = rtdb.updates.length;
+      deliverRecord(RESET);
+      screenTakesUpReset();
+      pageHide();
+      expectResetKept(mark);
+    });
+
+    it(`the child acted ${when}; the screen sees the reset first`, () => {
+      workOnlineInMeeting4();
+      ws().setAnswerDigit('tens', '6');
+      age();
+      const mark = rtdb.updates.length;
+      screenTakesUpReset();
+      deliverRecord(RESET);
+      pageHide();
+      expectResetKept(mark);
+    });
+  }
+
+  it('in the lobby after the reset, the reset meeting is not opened again from a copy held in memory', () => {
+    const recordCopy = workOnlineInMeeting4();
+    expect(useStore.getState().students[STUDENT]?.workspaceState).toBeUndefined();
+    deliverRecord({ ...APPROVED, workspaceState: recordCopy });
+    expect(useStore.getState().students[STUDENT]?.workspaceState?.sessionNumber).toBe(4);
+
+    // The learner waits in the lobby; the teacher resets meeting 4 (StudentHub takes it up, no reload).
+    deliverRecord(RESET);
+    screenTakesUpReset();
+    deliverRecord({ ...APPROVED, workspaceState: null });
+    // Entering meeting 4 again: the page chooses between the record and this device (runInit).
+    const saved = newerWorkspaceSnapshot(useStore.getState().students[STUDENT]?.workspaceState, deviceCopy() as any, 4);
+    expect(saved, 'nothing to restore: the meeting starts over').toBeNull();
   });
 });

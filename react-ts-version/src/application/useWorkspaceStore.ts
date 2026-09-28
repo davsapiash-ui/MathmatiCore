@@ -57,7 +57,7 @@ import { readStoredMeetingDeadline, storeMeetingDeadline } from '@/application/m
 import type { TelemetryEventType } from '@/types/telemetry';
 import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
 import type { VRAWorkspaceState } from '@/types';
-import { workspaceSavedAt } from '@/core/workspaceSnapshot';
+import { workspaceSavedAt, startedWithoutRecord } from '@/core/workspaceSnapshot';
 import {
   EMPTY_PERSISTENCE_COUNTS,
   addPersistenceEvent,
@@ -130,7 +130,11 @@ export interface WorkspaceInitialization {
   /** currentStudentUid() when the meeting was started or restored; '' for no learner. */
   learner: string;
   meeting: SessionNumber;
-  /** The stamp (WORKSPACE_SAVED_AT_KEY) of the saved copy it was restored from (0: unstamped); null when started afresh. */
+  /**
+   * The stamp (WORKSPACE_SAVED_AT_KEY) of the saved copy it was restored from
+   * (0: unstamped); null when started afresh, or restored from a copy of a
+   * fresh start made without the record (WORKSPACE_STARTED_WITHOUT_RECORD_KEY).
+   */
   restoredSavedAt: number | null;
 }
 
@@ -2506,7 +2510,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         additionHelperOffered: saved.additionHelperOffered === true,
         isAdditionHelperOpen: saved.isAdditionHelperOpen === true,
         // Module 17: from here on the store holds this learner's meeting, as saved.
-        workspaceInitializedFor: { learner: currentStudentUid(), meeting: sanitized, restoredSavedAt: workspaceSavedAt(saved) },
+        // A copy of a fresh start made without the record is still a fresh
+        // start: the record's first snapshot settles it by the fresh-start rule.
+        workspaceInitializedFor: {
+          learner: currentStudentUid(),
+          meeting: sanitized,
+          restoredSavedAt: startedWithoutRecord(saved) ? null : workspaceSavedAt(saved),
+        },
       });
       // A reload is a task start too (Module 19 §ב).
       applyPendingSupportProfile();
