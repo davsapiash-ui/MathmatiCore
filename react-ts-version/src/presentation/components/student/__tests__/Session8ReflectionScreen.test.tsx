@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, fireEvent, cleanup, screen, waitFor } from '@testing-library/react';
+import { render, fireEvent, cleanup, screen, waitFor, act } from '@testing-library/react';
 
 /**
  * מודול 16 / מסמך 03 §3.8 — מסך הרפלקציה של מפגש 8, כפי שהילד רואה ושומע אותו.
@@ -177,11 +177,17 @@ describe('שלב 3 — משפט עידוד לפי מדד ההתמדה של מפ�
     const onComplete = vi.fn(() => Promise.resolve(true));
     toStep3(onComplete);
     const finish = screen.getByRole('button', { name: /סיום התחנה/ }) as HTMLButtonElement;
-    fireEvent.click(finish);
-    await Promise.resolve();
-    await Promise.resolve();
-    fireEvent.click(finish);
+    // act() lets the save's promise settle and React apply every state update
+    // before the second click, so the second click meets the settled button.
+    await act(async () => {
+      fireEvent.click(finish);
+    });
+    expect(onComplete).toHaveBeenCalledTimes(1);
     expect(finish.disabled).toBe(true);
+    await act(async () => {
+      fireEvent.click(finish);
+    });
+    // The second click sends nothing.
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 

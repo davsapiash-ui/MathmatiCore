@@ -30,7 +30,7 @@ import { WorkspaceTopbar } from './WorkspaceTopbar';
 import { TaskCard } from './tasks/TaskCard';
 import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays, SocraticSidePanel } from './overlays/HelpOverlays';
-import { Session8ReflectionScreen } from '@/presentation/components/student/Session8ReflectionScreen';
+import { Session8ReflectionScreen, REFLECTION_TEXT_HE } from '@/presentation/components/student/Session8ReflectionScreen';
 import { ClosingSentence } from './ClosingSentence';
 import { hasClosingSentence } from '@/core/persistenceEncouragement';
 import { StationOpening } from './StationOpening';
@@ -1078,13 +1078,16 @@ export function StudentWorkspacePage() {
           // דרסה את routeStatus ל-'PENDING', כלומר ביטלה את החלטת השער.
           const outcome = await submitSRLReflection(currentStudentUid(), result);
           if (!outcome.ok) {
-            // Not saved: the board stays on step 3 with the same answers and
-            // the button works again. Ending the meeting here would lose the
+            // Not saved and not queued either (Module 17 buffers every write
+            // that fails; this is what is left): the board stays on step 3
+            // with the same answers, the button works again, and the child is
+            // told what to do. Ending the meeting here would lose the
             // reflection for good behind "העבודה נשמרה בבטחה".
-            toast.error('לא הצלחנו לשמור הפעם. זה בסדר.');
+            toast.error(REFLECTION_TEXT_HE.notSaved, { duration: 15000 });
             return false;
           }
-          // Saved (or already saved): "כפתור סיום מפגש סופי" (Module 16 §ג).
+          // Saved, already saved, or waiting in the offline queue to be sent:
+          // "כפתור סיום מפגש סופי" (Module 16 §ג).
           // The learner stays here, on the quiet end screen. Sending them to the
           // lobby sent them straight back into meeting 8 — still open — and the
           // board started again at step 1 (audit 8.10).

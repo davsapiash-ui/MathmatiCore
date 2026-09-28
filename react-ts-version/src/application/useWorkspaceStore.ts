@@ -415,10 +415,12 @@ interface WorkspaceState {
   /** "סיום המפגש כעת" from the early-finisher screen; records completion like every other exit. */
   finishMeetingEarly: () => void;
   /**
-   * Meeting 8's reflection board is done (PRD Module 16 §ג, "כפתור סיום מפגש
-   * סופי"): the learner now waits on the quiet end screen (Module 14 §ג). The
-   * state is synced like every other, so a reload or a new sign-in does not
-   * bring the board back while the teacher keeps meeting 8 open.
+   * Meeting 8's reflection board is done. PRD Module 16 §ג gives "כפתור סיום
+   * מפגש סופי"; Module 14 §ג gives the quiet waiting screen ("ממתין במסך סיום
+   * שקט"). The rest is the implementer's reading: the finish button leads to
+   * that quiet end screen, and the state is synced like every other, so a
+   * reload or a new sign-in does not bring the board back while the teacher
+   * keeps meeting 8 open.
    */
   finishReflection: () => void;
   /**

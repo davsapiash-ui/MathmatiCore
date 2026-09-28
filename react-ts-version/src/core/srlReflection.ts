@@ -12,10 +12,11 @@
  * לאותו מפגש נדחית בחוקים (`allow update: if false`), כך שהראשונה קובעת.
  */
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDocFromServer, setDoc } from 'firebase/firestore';
 import { ref, update } from 'firebase/database';
 import { firestore, database } from '@/infrastructure/firebase';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
+import { indexedDBQueue } from '@/infrastructure/services/IndexedDBQueue';
 
 export type SRLEffortLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 export type SRLStrategy = 'UNDO_BUTTON' | 'MEMORY_CIRCLES' | 'SOCRATIC_CARD';
@@ -67,24 +68,54 @@ export interface SRLPersistResult {
   reason?: 'unknown_student' | 'write_failed';
   /** The write was refused because this learner's reflection was already saved; it stays as it was. */
   alreadySaved?: boolean;
+  /**
+   * The write did not reach the server; the same document waits in the
+   * offline queue (Module 17) and is sent when the connection returns.
+   */
+  queued?: boolean;
 }
 
 /**
- * Whether this learner's meeting-8 reflection is already saved. The rules let
- * the owner read the document; one that does not exist is refused, and every
- * failure reads as "not saved". A teacher's reset of meeting 8 backs the
- * document up and keeps it (functions/src/exportDriveReport.ts, backupOnly);
- * only the system-wide reset deletes it.
+ * A Firestore write made offline does not fail: its promise waits for the
+ * server. The learner is not kept waiting on the board that long — after this
+ * the document goes to the offline queue, and the learner can finish.
  */
-export async function hasSavedSRLReflection(rawStudentId: string | number): Promise<boolean> {
-  const studentNumber = asPilotNumber(rawStudentId);
-  if (studentNumber === null) return false;
+export const SRL_DIRECT_WRITE_BUDGET_MS = 8000;
+
+/**
+ * Whether this learner's meeting-8 reflection is already saved on the server.
+ * The read goes to the server, never to the cache: the cache also holds a
+ * write that has not been sent. The rules let the owner read the document; one
+ * that does not exist is refused, and every failure reads as "not saved". A
+ * teacher's reset of meeting 8 backs the document up and keeps it
+ * (functions/src/exportDriveReport.ts, backupOnly); only the system-wide reset
+ * deletes it.
+ */
+async function isOnServer(studentNumber: number): Promise<boolean> {
   try {
-    const snap = await getDoc(doc(firestore, 'srl_reflections', srlReflectionDocId(studentNumber)));
+    const snap = await getDocFromServer(doc(firestore, 'srl_reflections', srlReflectionDocId(studentNumber)));
     return snap.exists();
   } catch {
     return false;
   }
+}
+
+/** Whether this learner's reflection waits in the offline queue on this device. */
+async function isQueued(studentNumber: number): Promise<boolean> {
+  const docId = srlReflectionDocId(studentNumber);
+  try {
+    const items = await indexedDBQueue.getAll();
+    return items.some((i) => i.firestoreDoc?.collection === 'srl_reflections' && i.firestoreDoc.docId === docId);
+  } catch {
+    return false;
+  }
+}
+
+/** Whether this learner's meeting-8 reflection is saved: on the server, or waiting in the offline queue. */
+export async function hasSavedSRLReflection(rawStudentId: string | number): Promise<boolean> {
+  const studentNumber = asPilotNumber(rawStudentId);
+  if (studentNumber === null) return false;
+  return (await isOnServer(studentNumber)) || (await isQueued(studentNumber));
 }
 
 /**
@@ -106,27 +137,49 @@ export async function submitSRLReflection(
   const submittedAt = Date.now();
   const persistenceIndex = Math.min(100, Math.max(0, Math.round(result.persistenceIndex)));
 
+  // The one definition of the stored document (Module 16 §ב). The direct write
+  // and the queued one send this same object, so nothing stored depends on the
+  // route: submitted_at is the moment the learner pressed, not the delivery.
+  const record = {
+    student_id: studentNumber,
+    session_id: docId,
+    session_number: 8,
+    effort_level: toSRLEffortLevel(result.effortLevel),
+    selected_strategies: toSRLStrategies(result.strategies),
+    persistence_index: persistenceIndex,
+    undo_count: Math.max(0, Math.round(result.undoCount || 0)),
+    error_count: Math.max(0, Math.round(result.errorCount || 0)),
+    guess_count: Math.max(0, Math.round(result.guessCount || 0)),
+    submitted_at: submittedAt,
+  };
+
+  let queued = false;
+  const write = setDoc(doc(firestore, 'srl_reflections', docId), record);
+  // Past the budget the write may still land, or be refused; nobody awaits it then.
+  write.catch(() => {});
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    await setDoc(doc(firestore, 'srl_reflections', docId), {
-      student_id: studentNumber,
-      session_id: docId,
-      session_number: 8,
-      effort_level: toSRLEffortLevel(result.effortLevel),
-      selected_strategies: toSRLStrategies(result.strategies),
-      persistence_index: persistenceIndex,
-      undo_count: Math.max(0, Math.round(result.undoCount || 0)),
-      error_count: Math.max(0, Math.round(result.errorCount || 0)),
-      guess_count: Math.max(0, Math.round(result.guessCount || 0)),
-      submitted_at: submittedAt,
-    });
+    const landed = await Promise.race([
+      write.then(() => true),
+      new Promise<false>((resolve) => { timer = setTimeout(() => resolve(false), SRL_DIRECT_WRITE_BUDGET_MS); }),
+    ]).finally(() => clearTimeout(timer));
+    if (!landed) throw new Error('the reflection write did not reach the server in time');
   } catch (err) {
     // A second write for the same learner is refused (create-only). That is
     // not a failure: the first reflection stands, and the learner is done.
-    if (await hasSavedSRLReflection(studentNumber)) {
+    if (await isOnServer(studentNumber)) {
       return { ok: true, alreadySaved: true };
     }
-    console.error('[srlReflection] failed writing the reflection document:', err);
-    return { ok: false, reason: 'write_failed' };
+    // Module 17: a failed write is buffered, never discarded. The queue
+    // writes the same document once, create-only, when the connection returns.
+    console.warn('[srlReflection] reflection write did not land; queued for delivery:', err);
+    try {
+      await indexedDBQueue.enqueueFirestoreDoc('srl_reflections', docId, record, `srl_${docId}`, { createOnly: true });
+      queued = true;
+    } catch (queueErr) {
+      console.error('[srlReflection] the reflection could not be queued either:', queueErr);
+      return { ok: false, reason: 'write_failed' };
+    }
   }
 
   // נספח א׳ §3: REFLECTION_SUBMITTED. האירוע נפלט עד כה רק ממסך הרפלקציה
@@ -156,5 +209,5 @@ export async function submitSRLReflection(
     console.warn('[srlReflection] live mirror notice:', err);
   });
 
-  return { ok: true };
+  return queued ? { ok: true, queued: true } : { ok: true };
 }

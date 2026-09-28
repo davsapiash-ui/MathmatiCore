@@ -6,7 +6,7 @@
  * אפס מידע מזהה (Zero PII).
  */
 
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDocFromServer } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import type { TelemetryPayload, TelemetryEventType } from '@/types/telemetry';
 
@@ -34,7 +34,12 @@ export interface QueuedAction {
    * עם החיבור — ב-merge, כך שחזרה על הכתיבה אינה דורסת אישור מורה שבינתיים
    * נכתב על אותו מסמך.
    */
-  firestoreDoc?: { collection: string; docId: string };
+  /**
+   * createOnly: a document the rules let be created once and never updated
+   * (Module 16, srl_reflections). It is written whole, never merged, and a
+   * refusal because the document already exists on the server is the Ack.
+   */
+  firestoreDoc?: { collection: string; docId: string; createOnly?: boolean };
   payload: any;
   timestamp: number;
   idempotency_key?: string;
@@ -385,10 +390,16 @@ export class IndexedDBQueue {
     this.scheduleBackgroundFlush();
   }
 
-  /** Queue a Firestore document merge for delivery on reconnect (see QueuedAction.firestoreDoc). */
-  public async enqueueFirestoreDoc(collection: string, docId: string, payload: Record<string, unknown>, idempotencyKey: string): Promise<void> {
+  /** Queue a Firestore document merge (or a create-only write) for delivery on reconnect (see QueuedAction.firestoreDoc). */
+  public async enqueueFirestoreDoc(
+    collection: string,
+    docId: string,
+    payload: Record<string, unknown>,
+    idempotencyKey: string,
+    options: { createOnly?: boolean } = {}
+  ): Promise<void> {
     const item: QueuedAction = {
-      firestoreDoc: { collection, docId },
+      firestoreDoc: options.createOnly ? { collection, docId, createOnly: true } : { collection, docId },
       payload,
       timestamp: Date.now(),
       idempotency_key: idempotencyKey,
@@ -626,6 +637,18 @@ export class IndexedDBQueue {
     const { firestore, functions } = await import('@/infrastructure/firebase');
     if (item.callable) {
       await httpsCallable(functions, item.callable)(item.payload);
+      return true;
+    }
+    if (item.firestoreDoc?.createOnly) {
+      const target = doc(firestore, item.firestoreDoc.collection, item.firestoreDoc.docId);
+      try {
+        await setDoc(target, item.payload);
+      } catch (err) {
+        // Already created (an earlier attempt landed): that is the Ack. Read
+        // from the server, never from the cache, which holds pending writes.
+        const existing = await getDocFromServer(target).catch(() => null);
+        if (!existing?.exists()) throw err;
+      }
       return true;
     }
     if (item.firestoreDoc) {
