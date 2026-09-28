@@ -101,7 +101,7 @@ describe('Verification Suite: Module 12(c) and Module 13(a)', () => {
       const result = await SocraticEngine.requestSocraticHintWithFallback(request, { id: 's1_target_347' });
 
       expect(result).toBeDefined();
-      expect(result.questionHe).toBe('בואו נחשוב רגע יחד: מה קורה בבית המספרים כשפורטים עשרת אחת?');
+      expect(result.questionHe).toBe('נסו לחשוב: מה קורה בבית המספרים כשפורטים עשרת אחת?');
     });
 
     it('accepts response containing valid error_category and populates error_category in hint', async () => {

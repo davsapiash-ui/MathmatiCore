@@ -219,8 +219,8 @@ describe('5 — the coaching-card texts the owner rewrote', () => {
     expect(engine).toContain('tts_text: "מחובר ועוד מחובר שווה סכום. אם חסר מחובר, מחסרים מהסכום את המחובר הידוע."');
     expect(engine).toContain('questionHe: "כיצד מוצאים מחובר חסר?"');
     expect(engine).toContain('textHe: "מהסכום מחסרים את המחובר הידוע, ומקבלים את המחובר החסר"');
-    expect(engine).toContain('questionHe: "כיצד מוצאים את המספר שחיסרנו?"');
-    expect(engine).toContain('textHe: "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו"');
+    expect(engine).toContain('questionHe: "כיצד מוצאים את המספר שמחסרים?"');
+    expect(engine).toContain('textHe: "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שמחסרים"');
     expect(engine).not.toMatch(/מחוברים חסר|מחוברים ידוע|תוצאה - מה שנשאר/);
   });
 

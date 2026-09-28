@@ -230,9 +230,10 @@ export function revealsSecretInCounts(texts: string[], secrets: number[]): numbe
  * marks them wrong, or marks other blocks right, contradicts the screen
  * (owner, 28.9.2026, שהB.1: no path may mark the instruction's own
  * representation wrong). Only an option that IS a choice of blocks is read —
- * "נשתמש ב-34 מאות", "נבנה את המספר ב-3 אלפים ו-4 מאות" — not a step
- * ("נפרוט מאה אחת ל-10 עשרות") or an action on the blocks ("נכתוב 3 מאות ו-4
- * עשרות בלי לבנות אותן").
+ * "משתמשים ב-34 מאות", "בונים את המספר ב-3 אלפים ו-4 מאות", and the same
+ * in the first person, which the model may still write ("נשתמש…", "נבנה…") —
+ * not a step ("פורטים מאה אחת ל-10 עשרות") or an action on the blocks
+ * ("כותבים 3 מאות ו-4 עשרות בלי לבנות אותן").
  */
 const REPRESENTATION_CHOICE = /^(נשתמש|משתמשים|נבנה|בונים|נייצג|מייצגים)(\s+אותו|\s+את(\s+המספר)?(\s+[\d,]+)?)?\s+ב-?(?=\d|יחידה|עשרת|מאה|אלף)/;
 function chosenCounts(text: string): Counts | null {
@@ -260,7 +261,7 @@ export function contradictsRequiredRepresentation(task: any, choices: { textHe: 
 // Cards
 // ─────────────────────────────────────────────────────────────
 
-const OPEN = 'בואו נחשוב רגע יחד: ';
+const OPEN = 'נסו לחשוב: ';
 
 function card(
   questionHe: string,
@@ -341,9 +342,9 @@ function borrowCard(ex: string, c: Place, have: number, need: number, zeros: Pla
       blocks
         ? [`פורטים תחילה ${ONE[m]} ל${TEN_OF[below]} ב${COLUMN[below]}`, `מצוין! לחצו על ${BLOCK[m]} כדי לפרוט אותה. אחר כך פורטים שוב, טור אחר טור, עד ${COLUMN[c]}.`]
         : [`פורטים תחילה ${ONE[m]} ל${TEN_OF[below]}, ורושמים את השינוי בעיגולי הזיכרון`, `מצוין! אחר כך פורטים שוב, טור אחר טור, עד ${COLUMN[c]}.`],
-      [zeros.length === 1 ? 'מדלגים על האפס וממשיכים לטור הבא' : 'מדלגים על האפסים וממשיכים לטור הבא', 'רמז: ספרת האפס היא שומר מקום חשוב. בואו נתחשב בה בחישוב.'],
+      [zeros.length === 1 ? 'מדלגים על האפס וממשיכים לטור הבא' : 'מדלגים על האפסים וממשיכים לטור הבא', 'רמז: ספרת האפס היא שומר מקום חשוב. התחשבו בה בחישוב.'],
       blocks
-        ? [`מוסיפים ${ONE[n]} ל${COLUMN[c]} בלי לפרוט`, 'רמז: בואו נשמור על ערך המספר המקורי תמיד.']
+        ? [`מוסיפים ${ONE[n]} ל${COLUMN[c]} בלי לפרוט`, 'רמז: שמרו תמיד על ערך המספר המקורי.']
         : [`כותבים 0 בתיבת ה${PLURAL[c]} וממשיכים`, `רמז: לא מדלגים. פורטים ${ONE[m]}, ואחר כך ממשיכים לפרוט טור אחר טור עד ${COLUMN[c]}.`],
     ]);
   }
@@ -458,16 +459,16 @@ function missingDigitsCard(task: any, blocks: boolean): SocraticHintResponse {
     : `${formatNumberHe(a)} ${sign} ${formatNumberHe(b)}`;
   const missing = operandHidden ? hiddenA.length + hiddenB.length : places(result).length - (task.revealedResultDigits?.length ?? 0);
   return card(
-    `${OPEN}בתרגיל ${shown}, איך נגלה את ${missing === 1 ? 'הספרה החסרה' : 'הספרות החסרות'}?`,
+    `${OPEN}בתרגיל ${shown}, איך מגלים את ${missing === 1 ? 'הספרה החסרה' : 'הספרות החסרות'}?`,
     'procedural',
     blocks ? 'tour-place-value-board' : HL('units'),
     [
       [
-        'נבדוק טור אחר טור, מטור היחידות, איזו ספרה משלימה את התרגיל',
+        'בודקים טור אחר טור, מטור היחידות, איזו ספרה משלימה את התרגיל',
         `מדויק! ${blocks ? 'בדקו בלבנים בבית המספרים' : 'שימו לב לעיגולי הזיכרון'}, וכתבו ${missing === 1 ? 'את הספרה בתיבה הריקה' : 'את הספרות בתיבות הריקות'}.`,
       ],
-      [missing === 1 ? 'ננחש ספרה ונכתוב אותה בתיבה' : 'ננחש ספרות ונכתוב אותן בתיבות', blocks ? 'רמז: בואו נשתמש בבית המספרים כדי להוכיח את התשובה.' : 'רמז: הימנעו מניחושים. פתרו את התרגיל בצורה מסודרת, טור אחר טור.'],
-      ['נתחיל מהטור השמאלי', sub ? 'רמז: מתחילים בטור היחידות, כדי לדעת אם צריך לפרוט מהטור שמשמאלו.' : 'רמז: מתחילים בטור היחידות, כדי לדעת אם צריך להמיר 10 יחידות לעשרת אחת.'],
+      [missing === 1 ? 'מנחשים ספרה וכותבים אותה בתיבה' : 'מנחשים ספרות וכותבים אותן בתיבות', blocks ? 'רמז: היעזרו בבית המספרים כדי לבדוק את התשובה.' : 'רמז: הימנעו מניחושים. פתרו את התרגיל בצורה מסודרת, טור אחר טור.'],
+      ['מתחילים מהטור השמאלי', sub ? 'רמז: מתחילים בטור היחידות, כדי לדעת אם צריך לפרוט מהטור שמשמאלו.' : 'רמז: מתחילים בטור היחידות, כדי לדעת אם צריך להמיר 10 יחידות לעשרת אחת.'],
     ],
   );
 }
@@ -503,7 +504,7 @@ function placeValueSlip(task: any, n: number, standard: Counts): [string, string
     if (from) {
       const moved: Counts = { ...standard, [empty]: standard[from], [from]: 0 };
       return [
-        `נשתמש ${withBe(countsPhrase(moved))}`,
+        `משתמשים ${withBe(countsPhrase(moved))}`,
         `רמז: במספר ${N} הספרה ${standard[from]} היא ספרת ה${PLURAL[from]}, ו${COLUMN[empty]} נשאר ריק.`,
       ];
     }
@@ -512,7 +513,7 @@ function placeValueSlip(task: any, n: number, standard: Counts): [string, string
     const [p1, p2] = ps;
     const swapped: Counts = { ...standard, [p1]: standard[p2], [p2]: standard[p1] };
     return [
-      `נשתמש ${withBe(countsPhrase(swapped))}`,
+      `משתמשים ${withBe(countsPhrase(swapped))}`,
       `רמז: במספר ${N} הספרה ${standard[p1]} היא ספרת ה${PLURAL[p1]}, והספרה ${standard[p2]} היא ספרת ה${PLURAL[p2]}.`,
     ];
   }
@@ -537,18 +538,18 @@ function representationCard(task: any): SocraticHintResponse {
   }
   const standard = standardCounts(n);
   const isStandard = sameCounts(required, standard);
-  const choices: [string, string][] = [[`נשתמש ${withBe(requiredPhrase)}`, 'נכון מאוד! בנו את זה בבית המספרים.']];
+  const choices: [string, string][] = [[`משתמשים ${withBe(requiredPhrase)}`, 'נכון מאוד! בנו את זה בבית המספרים.']];
   if (!isStandard) {
-    choices.push([`נשתמש ${withBe(countsPhrase(standard))}`, `רמז: גם זה ${N}, בדרך הרגילה. ההנחיה מבקשת דרך אחרת. קראו אותה שוב.`]);
+    choices.push([`משתמשים ${withBe(countsPhrase(standard))}`, `רמז: גם זה ${N}, בדרך הרגילה. ההנחיה מבקשת דרך אחרת. קראו אותה שוב.`]);
   } else {
     const slip = placeValueSlip(task, n, standard);
     if (slip) choices.push(slip);
   }
   if (!sameCounts(required, { units: n })) {
-    choices.push([`נשתמש ב-${N} יחידות`, `רמז: גם זה ${N}, אבל ההנחיה מבקשת לבנות אותו בטורים אחרים.`]);
+    choices.push([`משתמשים ב-${N} יחידות`, `רמז: גם זה ${N}, אבל ההנחיה מבקשת לבנות אותו בטורים אחרים.`]);
   }
   if (choices.length < 3) {
-    choices.push(['נכתוב את המספר בלי לבנות אותו', 'רמז: קודם בונים בבית המספרים, ורק אחר כך כותבים בשורת התוצאה.']);
+    choices.push(['כותבים את המספר בלי לבנות אותו', 'רמז: קודם בונים בבית המספרים, ורק אחר כך כותבים בשורת התוצאה.']);
   }
   return card(`${OPEN}באילו לבנים ההנחיה מבקשת לבנות את המספר ${N}?`, 'conceptual', 'tour-place-value-board', choices.slice(0, 3));
 }
@@ -573,20 +574,20 @@ function missingElementCard(task: any): SocraticHintResponse | null {
   const partWords = countsPhrase(standardCounts(part));
   const P = onScreen(task, partWords) ? partWords : formatNumberHe(part);
   const fromP = /^\d/.test(P) ? `מ-${P}` : `מ${P}`;
-  return card(`${OPEN}איך נגלה מה יש במספר ${W} חוץ ${fromP}?`, 'conceptual', 'tour-place-value-board', [
-    [`נבנה את ${W} בבית המספרים ונבדוק מה יש בו חוץ ${fromP}`, 'נכון מאוד! את מה שנשאר כתבו בתיבת התשובה.'],
-    ['נחבר את שני המספרים', `רמז: ${W} הוא המספר כולו. מחפשים רק את החלק החסר.`],
-    [`נכתוב ${W} בתיבת התשובה`, `רמז: ${W} הוא המספר כולו. התשובה היא רק החלק החסר.`],
+  return card(`${OPEN}איך מגלים מה יש במספר ${W} חוץ ${fromP}?`, 'conceptual', 'tour-place-value-board', [
+    [`בונים את ${W} בבית המספרים ובודקים מה יש בו חוץ ${fromP}`, 'נכון מאוד! את מה שנשאר כתבו בתיבת התשובה.'],
+    ['מחברים את שני המספרים', `רמז: ${W} הוא המספר כולו. מחפשים רק את החלק החסר.`],
+    [`כותבים ${W} בתיבת התשובה`, `רמז: ${W} הוא המספר כולו. התשובה היא רק החלק החסר.`],
   ]);
 }
 
 /** "What changes if we change one digit?" — a closed question about two near exercises. */
 function smallChangeCard(task: any): SocraticHintResponse {
   const sub = typeof task.givenHe === 'string' && task.givenHe.includes('−');
-  return card(`${OPEN}איך נגלה מה ישתנה בתרגיל החדש?`, 'procedural', HL('units'), [
-    ['נפתור את התרגיל החדש טור אחר טור, מטור היחידות, ונשווה לתרגיל הראשון', `נכון מאוד! בדקו בכל טור אם יש ${sub ? 'פריטה' : 'המרה'}.`],
-    ['נבדוק רק את הטור שבו הספרה השתנתה', 'רמז: שינוי בטור אחד יכול לשנות גם את הטור שמשמאלו. בדקו את כל הטורים.'],
-    ['נבחר תשובה בלי לפתור', 'רמז: הימנעו מניחושים. פתרו את התרגיל החדש בעצמכם.'],
+  return card(`${OPEN}איך מגלים מה ישתנה בתרגיל החדש?`, 'procedural', HL('units'), [
+    ['פותרים את התרגיל החדש טור אחר טור, מטור היחידות, ומשווים לתרגיל הראשון', `נכון מאוד! בדקו בכל טור אם יש ${sub ? 'פריטה' : 'המרה'}.`],
+    ['בודקים רק את הטור שבו הספרה השתנתה', 'רמז: שינוי בטור אחד יכול לשנות גם את הטור שמשמאלו. בדקו את כל הטורים.'],
+    ['בוחרים תשובה בלי לפתור', 'רמז: הימנעו מניחושים. פתרו את התרגיל החדש בעצמכם.'],
   ]);
 }
 

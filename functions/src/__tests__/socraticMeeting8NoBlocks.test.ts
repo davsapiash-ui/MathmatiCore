@@ -147,6 +147,18 @@ describe('what the model is told matches the screen', () => {
     expect(SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS).not.toBe(SOCRATIC_SYSTEM_INSTRUCTION);
   });
 
+  it('the learner is addressed in the second person plural, options in the impersonal present, never in the first person plural', () => {
+    for (const s of [SOCRATIC_SYSTEM_INSTRUCTION, SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS]) {
+      expect(s).toContain('second person plural');
+      expect(s).toContain('NEVER use the first person plural');
+      expect(s).not.toContain('plural-neutral');
+    }
+    expect(SOCRATIC_SYSTEM_INSTRUCTION).toContain('("מקבצים", "פורטים", "משתמשים")');
+    // Meeting 8 converts in the memory circle: no grouping verb in its examples.
+    expect(SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS).toContain('("ממירים", "פורטים", "רושמים")');
+    expect(SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS).not.toContain('מקבצים');
+  });
+
   it('prefixes like "כשהלבנים" and the button "קבץ 10" are caught', () => {
     expect(findAbsentAid(['וכשהלבנים בטור'], false)).not.toBeNull();
     expect(findAbsentAid(['לחצו על קבץ 10 לעשרת'], false)).not.toBeNull();

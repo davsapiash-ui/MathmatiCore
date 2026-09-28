@@ -115,8 +115,8 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     expect(hint).toBeDefined();
     expect(hint?.suggested_highlight).toBe('tour-column-units');
     expect(hint?.questionHe).toContain('14 לבנים');
-    expect(hint?.choices[0].textHe).toContain('נאסוף 10 יחידות מטור היחידות ונמיר אותן לעשרת אחת בטור העשרות');
-    expect(hint?.choices[1].textHe).toContain('נמחק 10 יחידות');
+    expect(hint?.choices[0].textHe).toContain('אוספים 10 יחידות מטור היחידות וממירים אותן לעשרת אחת בטור העשרות');
+    expect(hint?.choices[1].textHe).toContain('מוחקים 10 יחידות');
   });
 
   it('4. Dynamically detects overcrowding in tens (>= 10)', async () => {
@@ -134,7 +134,7 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     expect(hint).toBeDefined();
     expect(hint?.suggested_highlight).toBe('tour-column-tens');
     expect(hint?.questionHe).toContain('13 עשרות');
-    expect(hint?.choices[0].textHe).toContain('נאסוף 10 עשרות ונקבץ אותן למאה אחת בטור המאות');
+    expect(hint?.choices[0].textHe).toContain('אוספים 10 עשרות ומקבצים אותן למאה אחת בטור המאות');
   });
 
   // The "zero placeholder" live card ("אין לבנים בטור העשרות ... נרשום 0 בטור

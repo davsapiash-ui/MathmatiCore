@@ -141,6 +141,6 @@ describe('Workspace Drag-and-Drop & Trash Deletion Suite', () => {
     expect(hint).toBeDefined();
     // Must NOT ask about overcrowding (12 tens)
     expect(hint?.questionHe).not.toContain('12 עשרות');
-    expect(hint?.questionHe).toContain('בואו נסתכל ברשימה "מה עושים בשלב הזה"');
+    expect(hint?.questionHe).toContain('הסתכלו ברשימה "מה עושים בשלב הזה"');
   });
 });

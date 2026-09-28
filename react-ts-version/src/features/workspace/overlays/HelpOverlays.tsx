@@ -57,7 +57,7 @@ export function HelpOverlays() {
             >
               🤔
             </motion.span>
-            <p className="font-display font-extrabold text-2xl text-white">בואו נחשוב רגע יחד…</p>
+            <p className="font-display font-extrabold text-2xl text-white">נסו לחשוב…</p>
             <p className="text-white/80 font-medium">מכין רמז מותאם אישית...</p>
           </motion.div>
         )}

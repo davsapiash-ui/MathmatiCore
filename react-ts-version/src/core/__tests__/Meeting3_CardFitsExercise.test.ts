@@ -26,9 +26,9 @@ for (const path of ['green_path', 'remediation_path'] as const) {
 const byId = (id: string) => tasks.find((t) => t.id === id)!;
 const reps = tasks.filter((t) => t.type === 'representation');
 
-/** "נשתמש ב-4 אלפים, 11 מאות ו-13 עשרות" → { thousands: 4, hundreds: 11, tens: 13 }. */
+/** "משתמשים ב-4 אלפים, 11 מאות ו-13 עשרות" → { thousands: 4, hundreds: 11, tens: 13 }. */
 function parseCounts(text: string): Partial<Record<keyof typeof PLACES, number>> | null {
-  const m = /^נשתמש ב-?(.*)$/.exec(text);
+  const m = /^משתמשים ב-?(.*)$/.exec(text);
   if (!m) return null;
   const out: Partial<Record<keyof typeof PLACES, number>> = {};
   for (const part of m[1].split(/, | ו-?/)) {
@@ -57,7 +57,7 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
     for (const t of reps) {
       const card = SocraticEngine.getSynchronousTaskHint(t, EMPTY);
       const N = (t.numberA as number).toLocaleString('en-US');
-      expect(card.questionHe, t.id).toBe(`בואו נחשוב רגע יחד: באילו לבנים ההנחיה מבקשת לבנות את המספר ${N}?`);
+      expect(card.questionHe, t.id).toBe(`נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר ${N}?`);
     }
   });
 
@@ -87,29 +87,29 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
 
   it('s3_g_t1 and s3_r_t1: the correct option is the usual way the instruction asks for', () => {
     expect(SocraticEngine.getSynchronousTaskHint(byId('s3_g_t1'), EMPTY).choices.map((c) => [c.textHe, c.isCorrect])).toEqual([
-      ['נשתמש ב-3 אלפים ו-4 מאות', true],
-      ['נשתמש ב-4 אלפים ו-3 מאות', false],
-      ['נשתמש ב-3,400 יחידות', false],
+      ['משתמשים ב-3 אלפים ו-4 מאות', true],
+      ['משתמשים ב-4 אלפים ו-3 מאות', false],
+      ['משתמשים ב-3,400 יחידות', false],
     ]);
     expect(SocraticEngine.getSynchronousTaskHint(byId('s3_r_t1'), EMPTY).choices.map((c) => [c.textHe, c.isCorrect])).toEqual([
-      ['נשתמש ב-3 מאות ו-4 עשרות', true],
-      ['נשתמש ב-4 מאות ו-3 עשרות', false],
-      ['נשתמש ב-340 יחידות', false],
+      ['משתמשים ב-3 מאות ו-4 עשרות', true],
+      ['משתמשים ב-4 מאות ו-3 עשרות', false],
+      ['משתמשים ב-340 יחידות', false],
     ]);
   });
 
   it('the fixed hints: the usual way in a non-standard task, and the units option', () => {
     const t2 = SocraticEngine.getSynchronousTaskHint(byId('s3_g_t2'), EMPTY);
-    expect(t2.choices[1]).toMatchObject({ textHe: 'נשתמש ב-3 אלפים ו-4 מאות', feedbackHe: 'רמז: גם זה 3,400, בדרך הרגילה. ההנחיה מבקשת דרך אחרת. קראו אותה שוב.' });
-    expect(t2.choices[2]).toMatchObject({ textHe: 'נשתמש ב-3,400 יחידות', feedbackHe: 'רמז: גם זה 3,400, אבל ההנחיה מבקשת לבנות אותו בטורים אחרים.' });
+    expect(t2.choices[1]).toMatchObject({ textHe: 'משתמשים ב-3 אלפים ו-4 מאות', feedbackHe: 'רמז: גם זה 3,400, בדרך הרגילה. ההנחיה מבקשת דרך אחרת. קראו אותה שוב.' });
+    expect(t2.choices[2]).toMatchObject({ textHe: 'משתמשים ב-3,400 יחידות', feedbackHe: 'רמז: גם זה 3,400, אבל ההנחיה מבקשת לבנות אותו בטורים אחרים.' });
   });
 
   it('a standard task whose instruction names an empty column: the digit moves into it (★ chosen)', () => {
     expect(SocraticEngine.getSynchronousTaskHint(byId('s3_r_t5'), EMPTY).choices[1]).toMatchObject({
-      textHe: 'נשתמש ב-5 מאות ו-6 עשרות', isCorrect: false, feedbackHe: 'רמז: במספר 506 הספרה 6 היא ספרת היחידות, וטור העשרות נשאר ריק.',
+      textHe: 'משתמשים ב-5 מאות ו-6 עשרות', isCorrect: false, feedbackHe: 'רמז: במספר 506 הספרה 6 היא ספרת היחידות, וטור העשרות נשאר ריק.',
     });
     expect(SocraticEngine.getSynchronousTaskHint(byId('s3_g_t5'), EMPTY).choices[1]).toMatchObject({
-      textHe: 'נשתמש ב-6 אלפים ו-3 מאות', isCorrect: false, feedbackHe: 'רמז: במספר 6,030 הספרה 3 היא ספרת העשרות, וטור המאות נשאר ריק.',
+      textHe: 'משתמשים ב-6 אלפים ו-3 מאות', isCorrect: false, feedbackHe: 'רמז: במספר 6,030 הספרה 3 היא ספרת העשרות, וטור המאות נשאר ריק.',
     });
   });
 
@@ -143,6 +143,9 @@ describe('the AI guard reads only an option that is a choice of blocks (second r
     expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('נשתמש ב-34 מאות', 'נשתמש ב-3 אלפים ו-4 מאות'))).toBe(true);
     expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('נבנה את המספר ב-3,400 יחידות', 'ננחש'))).toBe(true);
     expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('נשתמש ב-3 אלפים ו-4 מאות', 'נשתמש ב-34 מאות'))).toBe(false);
+    // The cards, and the model since 28.9.2026, write the options in the impersonal present.
+    expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('משתמשים ב-34 מאות', 'משתמשים ב-3 אלפים ו-4 מאות'))).toBe(true);
+    expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('משתמשים ב-3 אלפים ו-4 מאות', 'משתמשים ב-34 מאות'))).toBe(false);
   });
   it('keeps a card whose options are steps or actions, not a choice of blocks', () => {
     const t347 = { id: 's1_target_347', type: 'representation', numberA: 347, requiredCounts: { hundreds: 3, tens: 3, units: 17 } };
@@ -173,7 +176,7 @@ describe('s3_r_t7 ("160 is 100 and how much more?") is not a subtraction', () =>
     it(`board ${name}: the missing-element card, no subtraction card, no "34" card`, () => {
       expect(SocraticEngine.analyzeLiveBoardState(t, t.targetNode ?? '', counts)).toBeNull();
       const card = SocraticEngine.getSynchronousTaskHint(t, counts);
-      expect(card.questionHe).toBe('בואו נחשוב רגע יחד: איך נגלה מה יש במספר 160 חוץ ממאה אחת?');
+      expect(card.questionHe).toBe('נסו לחשוב: איך מגלים מה יש במספר 160 חוץ ממאה אחת?');
       expect(card.error_category).toBe('conceptual');
       expect(JSON.stringify(card)).not.toMatch(/חיסור|מחסר|להחסיר|פורטים|פח|ריק|34|(^|[^0-9])60(?![0-9])/);
     });
