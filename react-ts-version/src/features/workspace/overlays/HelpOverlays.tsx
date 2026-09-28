@@ -158,24 +158,31 @@ export function SocraticSidePanel() {
           animate={{ maxWidth: 400, opacity: 1 }}
           exit={{ maxWidth: 0, opacity: 0, pointerEvents: 'none' }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden w-[260px] xl:w-[280px] 2xl:w-[340px]"
+          className="socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px]"
           dir="rtl"
           data-testid="socratic-side-panel"
         >
             <aside
               ref={cardRef}
               /* Fixed inner width, so the text does not reflow while the panel
-                 slides out. Scrolls inside itself on a short screen. */
-              className="pointer-events-auto h-full w-[260px] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-5 overflow-y-auto"
+                 slides out. The owner's rule (28.9.2026): no scroll, nothing
+                 clipped, on every screen size — so the spacing and the type
+                 follow the screen's height (clamp on vh) and every option and
+                 the close button fit in the panel down to a 585px-high window.
+                 overflow-y-auto stays only as a last resort for a still
+                 shorter screen. */
+              className="pointer-events-auto h-full min-h-0 flex flex-col w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto"
               role="region"
               aria-label="כרטיס החניכה"
               data-testid="socratic-card"
             >
-              {/* The panel is narrow, so the question gets its own full-width
-                  line under the icon, read-aloud and close buttons. */}
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl" aria-hidden="true">💡</span>
+              {/* The read-aloud and ✕ buttons float at the top-left corner and
+                  the question flows beside them, instead of a row of their
+                  own above it: on a 585–700px-high window that row pushed the
+                  close button below the panel (owner, 28.9.2026: no scroll
+                  at any size). */}
+              <div className="flow-root shrink-0 mb-[clamp(0.25rem,1vh,0.75rem)]">
+                <div className="float-left flex items-center gap-1 ms-2 mb-1">
                   <UdlSpeechButton
                     text={[
                       shownCard?.questionHe || 'שאלה מנחה לחשיבה',
@@ -185,18 +192,19 @@ export function SocraticSidePanel() {
                     ].join('. ')}
                     className="shrink-0"
                   />
+                  <button
+                    onClick={closeHelp}
+                    aria-label="סגירת חלונית העזרה"
+                    className="w-11 h-11 rounded-full bg-ws-surface2 hover:bg-ws-surface2/80 text-ws-soft font-bold flex items-center justify-center text-sm transition-colors shrink-0"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <button
-                  onClick={closeHelp}
-                  aria-label="סגירת חלונית העזרה"
-                  className="w-11 h-11 rounded-full bg-ws-surface2 hover:bg-ws-surface2/80 text-ws-soft font-bold flex items-center justify-center text-sm transition-colors shrink-0"
-                >
-                  ✕
-                </button>
+                <h2 className="font-display font-black text-[clamp(0.875rem,2.4vh,1.25rem)] text-ws-ink leading-tight">
+                  <span className="me-1" aria-hidden="true">💡</span>
+                  {shownCard?.questionHe || 'שאלה מנחה לחשיבה'}
+                </h2>
               </div>
-              <h2 className="font-display font-black text-lg xl:text-xl text-ws-ink leading-tight mb-3">
-                {shownCard?.questionHe || 'שאלה מנחה לחשיבה'}
-              </h2>
 
               {/* 3 Closed Dynamic Options for Socratic Mentoring */}
               <SocraticPenaltyLockOptions onClose={closeHelp} />
@@ -297,8 +305,10 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="mt-4 flex flex-col gap-2.5">
-      <p className="font-extrabold text-xs text-ws-soft">בחרו את הדרך הנכונה להתקדם:</p>
+    <div className="mt-[clamp(0.25rem,1.2vh,1rem)] flex flex-col gap-[clamp(0.25rem,0.9vh,0.625rem)] shrink-0">
+      {/* While the answer buttons are locked the prompt's line goes to the
+          hint; it comes back with the buttons. */}
+      {!locked && <p className="font-extrabold text-xs text-ws-soft">בחרו את הדרך הנכונה להתקדם:</p>}
       {options.map((opt) => {
         const isChosen = selectedOpt === opt.id;
         const isWrongChosen = isChosen && !opt.correct;
@@ -310,7 +320,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
             key={opt.id}
             disabled={locked}
             onClick={() => handleSelect(opt)}
-            className={`p-3 rounded-2xl border-2 text-right font-medium text-xs sm:text-sm transition-all flex items-start gap-2 ${
+            className={`px-3 py-[clamp(0.3125rem,1.3vh,0.75rem)] rounded-2xl border-2 text-right font-medium text-[clamp(0.75rem,2vh,0.875rem)] leading-snug transition-all flex items-start gap-2 ${
               isCorrectChosen
                 ? 'border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100'
                 : isWrongChosen
@@ -327,27 +337,34 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
         );
       })}
 
-      {locked && (
-        // שעון חול עדין ומשפט אחד, בלי מספרים. `role="status"` מכריז על
-        // המשפט פעם אחת, כשהנעילה מתחילה.
-        <div role="status" data-testid="socratic-lock-indicator"
-          className="flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-bold">
-          <span aria-hidden="true" className="text-base">⏳</span>
-          <span>רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.</span>
-        </div>
-      )}
-
-      {feedbackHint && (
+      {/* After a wrong choice the hint and the lock share one box: two boxes
+          pushed the close button below a 585px-high window (28.9.2026). */}
+      {feedbackHint ? (
         <div
           role="status"
           aria-live="assertive"
-          className={`rounded-2xl p-3 text-xs sm:text-sm font-semibold ${
+          className={`rounded-2xl px-3 py-[clamp(0.25rem,1vh,0.75rem)] text-[clamp(0.75rem,2vh,0.875rem)] leading-snug font-semibold ${
           selectedOpt && options.find(o => o.id === selectedOpt)?.correct
             ? 'bg-emerald-50 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800'
             : 'bg-rose-50 text-rose-950 dark:bg-rose-950/50 dark:text-rose-200 border border-rose-300 dark:border-rose-800'
         }`}
         >
-          💡 {feedbackHint}
+          <div>💡 {feedbackHint}</div>
+          {locked && (
+            // שעון חול עדין ומשפט אחד, בלי מספרים (מודול 12 §ב; ע1.5).
+            <div data-testid="socratic-lock-indicator" className="mt-1 flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200">
+              <span aria-hidden="true">⏳</span>
+              <span>רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.</span>
+            </div>
+          )}
+        </div>
+      ) : locked && (
+        // שעון חול עדין ומשפט אחד, בלי מספרים. `role="status"` מכריז על
+        // המשפט פעם אחת, כשהנעילה מתחילה.
+        <div role="status" data-testid="socratic-lock-indicator"
+          className="flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl px-3 py-[clamp(0.25rem,1vh,0.75rem)] text-amber-900 dark:text-amber-200 text-[clamp(0.75rem,2vh,0.875rem)] leading-snug font-bold">
+          <span aria-hidden="true" className="text-base">⏳</span>
+          <span>רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.</span>
         </div>
       )}
 
@@ -356,7 +373,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
           for the whole penalty. The answer buttons stay locked; this does not. */}
       <button
         onClick={onClose}
-        className="mt-2 w-full h-11 rounded-full font-display font-extrabold text-sm transition-all bg-ws-accent text-white hover:brightness-105 shadow-md"
+        className="mt-[clamp(0.125rem,0.8vh,0.5rem)] w-full h-11 shrink-0 rounded-full font-display font-extrabold text-sm transition-all bg-ws-accent text-white hover:brightness-105 shadow-md"
       >
         {locked ? 'סגירה' : 'הבנתי, סגירת החלונית'}
       </button>

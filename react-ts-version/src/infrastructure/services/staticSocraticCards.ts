@@ -170,6 +170,92 @@ export function revealsSecret(texts: string[], secrets: number[]): number | null
   return null;
 }
 
+/**
+ * Block counts written in words, as the cards and the instructions write
+ * them: "3 אלפים ו-4 מאות", "4 מאות, 10 עשרות ו-6 יחידות", "מאה אחת ו-6 עשרות".
+ * Each maximal run is one group. Used on the AI card: a group worth a secret
+ * number gives it away as surely as its digits, and on a representation task
+ * a group is an option's representation.
+ */
+const PART = /(\d[\d,]*)\s+(יחידות|עשרות|מאות|אלפים)|(יחידה אחת|עשרת אחת|מאה אחת|אלף אחד)/g;
+const PART_PLACE: Record<string, Place> = {
+  'יחידות': 'units', 'עשרות': 'tens', 'מאות': 'hundreds', 'אלפים': 'thousands',
+  'יחידה אחת': 'units', 'עשרת אחת': 'tens', 'מאה אחת': 'hundreds', 'אלף אחד': 'thousands',
+};
+const JOIN = /^(\s*,\s*|\s+ו-?|\s*,\s*ו-?|\s+ועוד\s+)$/;
+type Part = { place: Place; n: number };
+function countRunsIn(text: string): Part[][] {
+  const runs: Part[][] = [];
+  let current: Part[] | null = null;
+  let lastEnd = -1;
+  const plain = stripDigitGroupSeparators(text);
+  for (const m of plain.matchAll(PART)) {
+    const part = { place: PART_PLACE[m[2] ?? m[3]], n: m[1] ? Number(m[1].replace(/,/g, '')) : 1 };
+    const joined = current !== null && JOIN.test(plain.slice(lastEnd, m.index)) && !current.some((q) => q.place === part.place);
+    if (!joined || !current) {
+      current = [];
+      runs.push(current);
+    }
+    current.push(part);
+    lastEnd = m.index! + m[0].length;
+  }
+  return runs;
+}
+const partsCounts = (parts: Part[]): Counts => Object.fromEntries(parts.map((q) => [q.place, q.n])) as Counts;
+export function countGroupsIn(text: string): Counts[] {
+  return countRunsIn(text).map(partsCounts);
+}
+export const countsValue = (c: Counts) => LOW_TO_HIGH.reduce((sum, p) => sum + (c[p] ?? 0) * DIVISOR[p], 0);
+
+/**
+ * Does any text write a secret number as blocks — a whole run or any stretch
+ * of it ("מאה אחת ועוד 6 עשרות" gives away 60)?
+ */
+export function revealsSecretInCounts(texts: string[], secrets: number[]): number | null {
+  for (const t of texts) {
+    for (const run of countRunsIn(t)) {
+      for (let i = 0; i < run.length; i++) {
+        for (let j = i; j < run.length; j++) {
+          const v = countsValue(partsCounts(run.slice(i, j + 1)));
+          if (secrets.includes(v)) return v;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * On a representation task the instruction names the blocks: an AI card that
+ * marks them wrong, or marks other blocks right, contradicts the screen
+ * (owner, 28.9.2026, שהB.1: no path may mark the instruction's own
+ * representation wrong). Only an option that IS a choice of blocks is read —
+ * "נשתמש ב-34 מאות", "נבנה את המספר ב-3 אלפים ו-4 מאות" — not a step
+ * ("נפרוט מאה אחת ל-10 עשרות") or an action on the blocks ("נכתוב 3 מאות ו-4
+ * עשרות בלי לבנות אותן").
+ */
+const REPRESENTATION_CHOICE = /^(נשתמש|משתמשים|נבנה|בונים|נייצג|מייצגים)(\s+אותו|\s+את(\s+המספר)?(\s+[\d,]+)?)?\s+ב-?(?=\d|יחידה|עשרת|מאה|אלף)/;
+function chosenCounts(text: string): Counts | null {
+  const t = text.trim();
+  if (!REPRESENTATION_CHOICE.test(t)) return null;
+  const rest = stripDigitGroupSeparators(t.replace(REPRESENTATION_CHOICE, '')).replace(/[.!]\s*$/, '');
+  const groups = countRunsIn(rest);
+  // The whole rest of the option must be one run of blocks and nothing else.
+  if (groups.length !== 1 || rest.replace(PART, '').replace(/[\s,]+|ו-?/g, '') !== '') return null;
+  return partsCounts(groups[0]);
+}
+export function contradictsRequiredRepresentation(task: any, choices: { textHe: string; isCorrect?: boolean }[]): boolean {
+  if (task?.type !== 'representation' || !task.requiredCounts) return false;
+  const required: Counts = task.requiredCounts;
+  for (const c of choices) {
+    const chosen = chosenCounts(c.textHe);
+    if (!chosen) continue;
+    if (!c.isCorrect && sameCounts(chosen, required)) return true;
+    if (c.isCorrect && !sameCounts(chosen, required)) return true;
+  }
+  return false;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Cards
 // ─────────────────────────────────────────────────────────────
@@ -312,7 +398,10 @@ function subtractionCard(a: number, b: number, blocks: boolean, counts?: BoardCo
         const { zeros, m } = source(c, (p) => counts[p] ?? 0);
         if (m) return borrowCard(ex, c, counts[c] ?? 0, digit(b, c), zeros, m, true);
       }
-      return card(`${OPEN}בתרגיל ${ex}, בכל טור יש מספיק לבנים. מה עושים עכשיו?`, 'procedural', 'tour-place-value-board', [
+      // A column still short with nothing to its left to decompose (5,432
+      // built as 54 hundreds: 0 thousands, 2 to take): "every column has
+      // enough" would be false. The check before taking away is true.
+      if (!c) return card(`${OPEN}בתרגיל ${ex}, בכל טור יש מספיק לבנים. מה עושים עכשיו?`, 'procedural', 'tour-place-value-board', [
         [`מוציאים לפח האשפה ${takeAway}`, 'נכון מאוד! אחר כך כותבים בשורת התוצאה את מה שנשאר בבית המספרים.'],
         ['פורטים עוד לבנה', 'רמז: פורטים רק כשאין בטור מספיק לבנים.'],
         ['מוסיפים לבנים', 'רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים.'],
@@ -325,8 +414,12 @@ function subtractionCard(a: number, b: number, blocks: boolean, counts?: BoardCo
         ['רק את המספר השני', 'רמז: בונים את המספר שמחסרים ממנו: המספר הראשון.'],
       ]);
     }
+    // The board holds a − b: after taking away, or — rarely — on the way to
+    // building a (78 − 25 with 5 tens and 3 units while still building 78).
+    // The question says "if", so it is true in both and does not tell the child
+    // the board holds the result.
     if (value === a - b) {
-      return card(`${OPEN}בתרגיל ${ex}, מה עושים אחרי שמוציאים את כל מה שמחסרים?`, 'procedural', 'tour-place-value-board', [
+      return card(`${OPEN}בתרגיל ${ex}, אם כבר הוצאתם לפח את כל מה שמחסרים, מה עושים עכשיו?`, 'procedural', 'tour-place-value-board', [
         ['כותבים בכל תיבה בשורת התוצאה את מספר הלבנים שבטור שלה', 'נכון מאוד! התחילו בטור היחידות.'],
         ['מוציאים עוד לבנים', 'רמז: מוציאים רק את מה שמחסרים.'],
         ['מוסיפים לבנים', 'רמז: בחיסור לא מוסיפים לבנים.'],

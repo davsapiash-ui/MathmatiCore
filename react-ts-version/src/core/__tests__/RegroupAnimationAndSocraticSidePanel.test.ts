@@ -318,6 +318,24 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     unmount();
   });
 
+  // Screen fit (owner, 28.9.2026: no scroll at any size): after a wrong
+  // choice the hint and the lock line share one box, so the close button
+  // stays in a 585px-high window.
+  it('after a wrong choice the hint and the silent lock are one box', () => {
+    ws().openSocraticCard('hesitation_45s');
+    const { unmount } = render(React.createElement(SocraticSidePanel, null));
+    const card = screen.getByTestId('socratic-card');
+    const answers = (within(card).getAllByRole('button') as HTMLButtonElement[]).filter((b) => b.className.includes('text-right'));
+    act(() => { fireEvent.click(answers[1]); });
+    const indicator = screen.getByTestId('socratic-lock-indicator');
+    expect(indicator.textContent).toBe('⏳רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.');
+    const box = indicator.parentElement!;
+    expect(box.getAttribute('role')).toBe('status');
+    expect(box.textContent).toMatch(/^💡 \S.*⏳רגע לחשיבה/);
+    expect(within(card).getAllByRole('status')).toHaveLength(1);
+    unmount();
+  });
+
   it('Escape closes the panel and no focus trap is installed', () => {
     ws().openSocraticCard('hesitation_45s');
     const { unmount } = render(React.createElement(SocraticSidePanel, null));

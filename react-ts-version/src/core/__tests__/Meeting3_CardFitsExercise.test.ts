@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SocraticEngine, inferIsSubtraction } from '@/infrastructure/services/SocraticEngine';
+import { countGroupsIn, contradictsRequiredRepresentation, revealsSecretInCounts } from '@/infrastructure/services/staticSocraticCards';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 
@@ -126,9 +127,43 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
   });
 });
 
+describe('reading block counts in a card (the AI guards use it)', () => {
+  it('one group per run of blocks, whatever joins them', () => {
+    expect(countGroupsIn('נשתמש ב-4 מאות, 10 עשרות ו-6 יחידות')).toEqual([{ hundreds: 4, tens: 10, units: 6 }]);
+    expect(countGroupsIn('נשתמש ב-3 אלפים ו-4 מאות')).toEqual([{ thousands: 3, hundreds: 4 }]);
+    expect(countGroupsIn('מאה אחת ועשרת אחת')).toEqual([{ hundreds: 1, tens: 1 }]);
+    expect(countGroupsIn('נשתמש ב-3,400 יחידות')).toEqual([{ units: 3400 }]);
+    expect(countGroupsIn('בטור היחידות יש 3 יחידות, וצריך לחסר 8 יחידות')).toEqual([{ units: 3 }, { units: 8 }]);
+  });
+});
+
+describe('the AI guard reads only an option that is a choice of blocks (second review, 28.9.2026)', () => {
+  const opts = (right: string, wrong: string) => [{ textHe: right, isCorrect: true }, { textHe: wrong, isCorrect: false }];
+  it('rejects a card that marks the instruction\'s blocks wrong, or other blocks right', () => {
+    expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('נשתמש ב-34 מאות', 'נשתמש ב-3 אלפים ו-4 מאות'))).toBe(true);
+    expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('נבנה את המספר ב-3,400 יחידות', 'ננחש'))).toBe(true);
+    expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('נשתמש ב-3 אלפים ו-4 מאות', 'נשתמש ב-34 מאות'))).toBe(false);
+  });
+  it('keeps a card whose options are steps or actions, not a choice of blocks', () => {
+    const t347 = { id: 's1_target_347', type: 'representation', numberA: 347, requiredCounts: { hundreds: 3, tens: 3, units: 17 } };
+    expect(contradictsRequiredRepresentation(t347, opts('מקבלים 10 יחידות, שנוספות לטור היחידות בבית המספרים', 'בית המספרים נשאר בלי שינוי'))).toBe(false);
+    expect(contradictsRequiredRepresentation(byId('s3_r_t2'), opts('נפרוט מאה אחת ל-10 עשרות', 'נמחק לבנים'))).toBe(false);
+    expect(contradictsRequiredRepresentation(byId('s3_r_t1'), opts('נשים 3 מאות בטור המאות ו-4 עשרות בטור העשרות', 'נכתוב 3 מאות ו-4 עשרות בלי לבנות אותן'))).toBe(false);
+    expect(contradictsRequiredRepresentation(byId('s3_g_t6'), opts('נפרוט לבנת אלף אחת ל-10 מאות', 'ננחש'))).toBe(false);
+  });
+  it('the blocks-leak check is for the number a task asks for, not a sum on the board', () => {
+    expect(revealsSecretInCounts(['יש מאה אחת ועוד 6 עשרות'], [60])).toBe(60);
+    expect(revealsSecretInCounts(['יש 3 מאות ו-4 עשרות'], [60])).toBeNull();
+  });
+});
+
 describe('s3_r_t7 ("160 is 100 and how much more?") is not a subtraction', () => {
   const t = byId('s3_r_t7');
-  const states = { empty: EMPTY, zeroTens: { ...EMPTY, hundreds: 1 }, built: { ...EMPTY, hundreds: 1, tens: 6 } };
+  const states = {
+    empty: EMPTY, zeroTens: { ...EMPTY, hundreds: 1 }, built: { ...EMPTY, hundreds: 1, tens: 6 },
+    // Crowded boards that are still 160, or on the way (independent review, 28.9.2026).
+    sixteenTens: { ...EMPTY, tens: 16 }, tenUnits: { ...EMPTY, hundreds: 1, tens: 5, units: 10 }, twelveHundreds: { ...EMPTY, hundreds: 12 },
+  };
 
   it('is not inferred as a subtraction', () => {
     expect(inferIsSubtraction(t, t.targetNode)).toBe(false);

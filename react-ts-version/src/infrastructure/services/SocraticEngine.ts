@@ -4,7 +4,8 @@ import type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOptio
 import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
 import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
-import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators } from "./staticSocraticCards";
+import { researchErrorCategory } from "./socraticResearchCategory";
+import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -622,6 +623,10 @@ export class SocraticEngine {
     if (currentTask?.id === 's1_sandbox_controlled' || currentTask?.type === 'session1_intro') {
       return null;
     }
+    // "160 is 100 and how much more?" — 16 tens or 10 units on the board are
+    // a way of building 160, not a column to group; the missing-part card
+    // speaks in every board state (owner, 28.9.2026, שהB.1).
+    if (currentTask?.type === 'missing_element') return null;
 
     // 1. Overcrowding Check (>= 10 blocks in a column). Three states where ten
     // or more in a column is the goal, not a mess: a representation whose
@@ -1073,11 +1078,18 @@ export class SocraticEngine {
       // the screen hides (a skeleton's operand, a number the task asks for)
       // must not come back in the card; and in meeting 8 there are no blocks,
       // no trash and no number house to point at (PRD Module 13 §א).
-      const hiddenLeak = revealsSecret(aiTexts, secretNumbersOf(currentTask).filter((n) => n !== 10 && n !== 100 && n !== 1000));
+      const aiSecrets = secretNumbersOf(currentTask).filter((n) => n !== 10 && n !== 100 && n !== 1000);
+      // ...and, where the child finds a number rather than a result, also
+      // written as blocks: "6 עשרות" is s3_r_t7's missing 60. Not in an
+      // addition or a subtraction, where the board — both numbers built,
+      // not yet grouped — is worth the result and naming it is the coaching.
+      const hiddenLeak = revealsSecret(aiTexts, aiSecrets) ??
+        (arithmetic ? null : revealsSecretInCounts(aiTexts, aiSecrets));
       const violation =
         // A skeleton exercise shows its result; the digits it hides are the secret.
         socraticTextViolation(aiTexts, Array.isArray(currentTask?.revealedResultDigits) ? null : operands) ??
         (hiddenLeak !== null ? 'hidden number leaked' : null) ??
+        (contradictsRequiredRepresentation(currentTask, choices) ? 'marks the instruction\'s representation wrong' : null) ??
         absentAidViolation(aiTexts, sessionNumber);
       if (violation) {
         console.warn('[Gemini Proxy] Response rejected by content rule:', violation);
@@ -1308,10 +1320,14 @@ export class SocraticEngine {
     currentTask?: any,
     counts?: { units: number; tens: number; hundreds: number; thousands: number }
   ): SocraticHintResponse {
-    return SocraticEngine.enforceIronRule(
+    const card = SocraticEngine.enforceIronRule(
       SocraticEngine.resolveStaticHint(currentTask, counts),
       currentTask
     );
+    // What the child reads follows the exercise; the category the opening
+    // records (SOCRATIC_CARD_SHOWN, Module 18) stays what main recorded for
+    // the same exercise and board — research data (socraticResearchCategory.ts).
+    return { ...card, error_category: researchErrorCategory(currentTask, counts) };
   }
 
   private static resolveStaticHint(

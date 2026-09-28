@@ -236,6 +236,41 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
     }
   });
 
+  it('the missing part written as blocks is thrown away: "6 עשרות" is 60 (s3_r_t7)', async () => {
+    const t = rows.find((r) => r.task.id === 's3_r_t7')!.task;
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(answer('במספר 160 יש מאה אחת ועוד 6 עשרות. מה כותבים?'));
+    expect(await ask(t, 3)).toBeNull();
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(answer('איך נגלה מה יש במספר 160 חוץ ממאה אחת?'));
+    expect(await ask(t, 3)).not.toBeNull();
+    // An addition whose board holds both numbers, not yet grouped, is worth
+    // the result; describing it is the coaching, not a leak.
+    const add = rows.find((r) => r.task.id === 's4_r_t3')!.task; // 247 + 135
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(answer('בבית המספרים יש 3 מאות, 7 עשרות ו-12 יחידות. מה עושים?'));
+    expect(await ask(add, 4)).not.toBeNull();
+    const s7 = rows.find((r) => r.task.id === 's7_g_t5')!.task; // asks for 3,800
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(answer('בבית המספרים יש 3 אלפים ו-8 מאות. איזה מספר זה?'));
+    expect(await ask(s7, 7)).toBeNull();
+  });
+
+  it('an AI card that marks the instruction\'s own representation wrong is thrown away (שהB.1)', async () => {
+    const t = rows.find((r) => r.task.id === 's3_g_t1')!.task; // 3,400 in the usual way: 3 אלפים ו-4 מאות
+    const card = (right: string, wrong: string) => ({
+      data: {
+        error_category: 'conceptual',
+        guiding_question: 'באילו לבנים ההנחיה מבקשת לבנות את המספר 3,400?',
+        options: [
+          { id: 'opt_1', option_text: right, feedback_text: 'נכון', is_correct: true },
+          { id: 'opt_2', option_text: wrong, feedback_text: 'רמז: לא', is_correct: false },
+          { id: 'opt_3', option_text: 'נכתוב את המספר בלי לבנות', feedback_text: 'רמז: לא', is_correct: false },
+        ],
+      },
+    });
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(card('נשתמש ב-34 מאות', 'נשתמש ב-3 אלפים ו-4 מאות'));
+    expect(await ask(t, 3)).toBeNull();
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(card('נשתמש ב-3 אלפים ו-4 מאות', 'נשתמש ב-34 מאות'));
+    expect(await ask(t, 3)).not.toBeNull();
+  });
+
   it('the client check itself: socraticTextViolation and revealsSecret read through separators', () => {
     const ops = { a: 1245, b: 328, isSubtraction: false };
     for (const t of ['נקבל 1,573', 'נקבל 1 573', "נקבל 1'573", 'נקבל 1\u00A0573']) expect(socraticTextViolation([t], ops), t).toBe('final answer leaked');
@@ -328,7 +363,14 @@ describe('with blocks on the screen, the card follows the board', () => {
     expect(both.choices[0].textHe).toBe('רק את המספר הראשון, 4,000');
     // Everything taken away: the result row.
     const done = SocraticEngine.getSynchronousTaskHint(t, { thousands: 3, hundreds: 3, tens: 1, units: 4 });
-    expect(done.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 5,432 − 2,118, מה עושים אחרי שמוציאים את כל מה שמחסרים?');
+    expect(done.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 5,432 − 2,118, אם כבר הוצאתם לפח את כל מה שמחסרים, מה עושים עכשיו?');
+  });
+
+  it('independent review, 28.9.2026: a short column with nothing to its left is not "every column has enough"', () => {
+    const t = rows.find((r) => r.task.id === 's5_g_t1')!.task; // 5,432 − 2,118
+    const card = SocraticEngine.getSynchronousTaskHint(t, { thousands: 0, hundreds: 54, tens: 2, units: 12 });
+    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: בתרגיל 5,432 − 2,118, מה בודקים לפני שמוציאים לבנים מטור?');
+    expect(JSON.stringify(card)).not.toMatch(/בכל טור יש מספיק/);
   });
 
   it('an addition whose blocks are all on the board, grouped, asks for the result row', () => {
