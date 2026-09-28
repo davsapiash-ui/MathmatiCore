@@ -21,7 +21,7 @@ import { probeExerciseText } from '@/features/workspace/tasks/probeExerciseText'
 /**
  * Meeting 2, "תחנה 2: יוצאים למסע" — the owner's decisions of 27.9.2026 and the
  * report rows fixed on 28.9.2026 (report spec-vs-software-2026-09-28, rows 2.13,
- * 2.15, 2.17, 2.18, 2.21, 2.23 and ע2.1–ע2.4, ע2.7).
+ * 2.15, 2.17, 2.18, 2.21, 2.23 and ע2.1–ע2.3, ע2.7).
  */
 
 const SRC = resolve(__dirname, '../..');
@@ -219,7 +219,10 @@ describe('(c) task 5 shows 25 unit blocks, a still picture, for every learner (r
       const { container } = await renderCard();
       const pic = screen.getByRole('img', { name: '25 לבני יחידה' });
       // a column, four across — not a square of fives
-      expect((pic.firstElementChild as HTMLElement).style.width).toBe(`${4 * 20 + 3 * 6}px`);
+      // (the size follows the window's height: 14px blocks at 600px → the board's 20px at 950px)
+      const grid = pic.firstElementChild as HTMLElement;
+      expect(grid.dataset.perRow).toBe('4');
+      expect(grid.style.width).toContain('4 * clamp(14px');
       expect(pic.querySelectorAll('[data-testid="unit-block-still"]').length).toBe(25);
       expect(pic.querySelectorAll('button, [role="button"], [tabindex], [draggable="true"]').length).toBe(0);
       expect(container.textContent).not.toContain('קבץ 10');
@@ -291,7 +294,7 @@ describe('(e) row 2.23: each round-number exercise once, no LaTeX or code on scr
   });
 });
 
-describe('the Hebrew of meeting 2 (ע2.3, ע2.4)', () => {
+describe('the Hebrew of meeting 2 (ע2.3)', () => {
   it('ע2.3: the bee screen', async () => {
     const { BeeFlightWaitingScreen } = await import('@/presentation/components/student/BeeFlightWaitingScreen');
     const { container } = render(<BeeFlightWaitingScreen />);
@@ -301,10 +304,6 @@ describe('the Hebrew of meeting 2 (ע2.3, ע2.4)', () => {
     expect(container.textContent).not.toMatch(/המורה בודק |ומיד נמשיך/);
   });
 
-  it('ע2.4: "התנתקות", not the singular imperative "התנתק"', () => {
-    const btn = read('presentation/components/ui/LogoutButton.tsx');
-    expect(btn).toContain('"התנתקות"');
-    expect(btn).toContain('aria-label="התנתקות מהמערכת"');
-    expect(btn).not.toMatch(/"התנתק"|"מתנתק\.\.\."|התנתק מהמערכת/);
-  });
+  // ע2.4 (the logout button) and ע2.5 ("תלמיד 12") are PR #125's: it names the
+  // button "יציאה" and the badge "מספר 12" from one source, core/toolbarNames.ts.
 });

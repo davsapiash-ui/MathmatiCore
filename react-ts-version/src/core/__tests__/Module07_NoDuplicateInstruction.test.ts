@@ -20,7 +20,9 @@ const missing = readFileSync(resolve(__dirname, '../../features/workspace/tasks/
 
 describe('Module 7 — one instruction on screen, once', () => {
   it('TaskCard is the single place the instruction is written and spoken', () => {
-    expect(taskCard).toContain('<p className="text-xl text-ws-ink/85 font-medium leading-relaxed flex-1 whitespace-pre-line">{instruction}</p>');
+    // (the class list also carries meeting 2's fluid size, 28.9.2026)
+    expect(taskCard).toMatch(/<p className=[^>]*text-ws-ink\/85 font-medium[^>]*whitespace-pre-line[^>]*>\{instruction\}<\/p>/);
+    expect(taskCard.split('>{instruction}</p>').length - 1).toBe(1);
     expect(taskCard).toContain('<UdlSpeechButton text={instruction} />');
   });
 

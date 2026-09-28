@@ -62,8 +62,15 @@ export function TaskCard() {
 
   const taskKey = `${sessionNumber}-${qTask?.id ?? standardTask?.id ?? ''}-${subtask ? 'sub' : qflow.subphase}-${standardTaskIdx}`;
 
+  // Meeting 2 has no board: the card is the whole screen, centred, and must fit
+  // any window without scrolling or clipping (owner, 28.9.2026: "רספונסיבי ככל
+  // שניתן לכל גודל מסך"). Its paddings, gaps and heading follow the window's
+  // height — the small size in a window 600px tall, the large one at 950px, in
+  // proportion in between — with no step at any screen size.
+  const m2 = sessionNumber === 2;
+
   return (
-    <AccessibleCard id="tour-task-card" className="flex-1 min-w-0 p-8 overflow-y-auto relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95">
+    <AccessibleCard id="tour-task-card" className={`flex-1 min-w-0 ${m2 ? 'min-h-0 p-[clamp(12px,calc(5.7143vh-22.29px),32px)]' : 'p-8'} overflow-y-auto relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95`}>
       {/* Soft decorative corner glow — warmth without noise */}
       <div
         aria-hidden="true"
@@ -72,20 +79,20 @@ export function TaskCard() {
       />
       <motion.div key={taskKey} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="relative">
         {qflow.phase !== 'correction' && (
-          <span className="inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-1.5 mb-3 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
+          <span className={`inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-1.5 ${m2 ? 'mb-[clamp(4px,calc(2.2857vh-9.71px),12px)]' : 'mb-3'} shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]`}>
             <span aria-hidden="true">✦</span> תחנה {sessionNumber}
           </span>
         )}
-        <h1 className="font-display font-black text-[2.15rem] text-ws-ink mb-4 leading-[1.15]">
+        <h1 className={`font-display font-black text-ws-ink leading-[1.15] ${m2 ? 'text-[length:clamp(24px,calc(2.8571vh+6.86px),34px)] mb-[clamp(6px,calc(2.8571vh-11.14px),16px)]' : 'text-[2.15rem] mb-4'}`}>
           {positionLabel}
         </h1>
 
         {instruction && (
           <div
-            className="flex items-start gap-3 mb-6 rounded-2xl p-4 pr-5 border-r-4"
+            className={`flex items-start gap-3 rounded-2xl border-r-4 ${m2 ? 'mb-[clamp(6px,calc(5.1429vh-24.86px),24px)] px-4 pr-5 py-[clamp(6px,calc(2.8571vh-11.14px),16px)]' : 'mb-6 p-4 pr-5'}`}
             style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.55)', borderColor: 'hsl(var(--ws-blue) / 0.55)' }}
           >
-            <p className="text-xl text-ws-ink/85 font-medium leading-relaxed flex-1 whitespace-pre-line">{instruction}</p>
+            <p className={`text-ws-ink/85 font-medium leading-relaxed flex-1 whitespace-pre-line ${m2 ? 'text-[length:clamp(16px,calc(1.1429vh+9.14px),20px)]' : 'text-xl'}`}>{instruction}</p>
             <UdlSpeechButton text={instruction} />
           </div>
         )}
@@ -146,7 +153,7 @@ export function TaskCard() {
                 animate={{ opacity: 1, scale: 1, rotateX: 0 }}
                 exit={{ opacity: 0, scale: 0.9, rotateX: -20 }}
                 transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                className="bg-amber-50 dark:bg-amber-900/20 border-4 border-amber-300 rounded-[2rem] p-6 shadow-xl"
+                className="bg-amber-50 dark:bg-amber-900/20 border-4 border-amber-300 rounded-[2rem] p-[clamp(12px,calc(3.4286vh-8.57px),24px)] shadow-xl"
               >
                 <BackwardDiagnosisView task={qTask} qflow={qflow} isASD={isASD} />
               </motion.div>

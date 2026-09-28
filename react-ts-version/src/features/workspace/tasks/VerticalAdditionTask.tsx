@@ -72,6 +72,7 @@ export function VerticalAdditionTask({
   const enhancedSupport = useEnhancedSupport();
   const placeCues = sessionNumber !== 2 || enhancedSupport;
   const PLACE_TINT = placeCues ? BOARD_PLACE_TINT : NEUTRAL_TINT;
+  const PAPER_TOP = sessionNumber === 2 ? CELL * 0.5 : CELL * 0.75;
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const [shake, setShake] = useState(false);
@@ -182,7 +183,9 @@ export function VerticalAdditionTask({
   );
 
   return (
-    <div className="self-center w-full max-w-md flex flex-col items-center gap-4 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-6 relative">
+    // Meeting 2's card is the whole screen: the sheet's paddings follow the
+    // window's height there (600px → 950px), so it fits without scrolling.
+    <div className={`self-center w-full max-w-md flex flex-col items-center bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] relative ${sessionNumber === 2 ? 'gap-[clamp(4px,calc(3.4286vh-16.57px),16px)] p-[clamp(8px,calc(4.5714vh-19.43px),24px)]' : 'gap-4 p-6'}`}>
       {/* Notebook paper: background squares EXACTLY the size of a grid column */}
       <div
         dir="ltr"
@@ -192,12 +195,14 @@ export function VerticalAdditionTask({
         style={{
           gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)`,
           gridTemplateRows: `${CELL}px ${CELL}px ${CELL}px ${CELL}px`,
-          padding: `${CELL * 0.75}px ${CELL}px`,
+          // Meeting 2: less paper over the memory circles and under the answer
+          // row, so the sheet fits a short window.
+          padding: sessionNumber === 2 ? `${PAPER_TOP}px ${CELL}px ${CELL * 0.4}px` : `${PAPER_TOP}px ${CELL}px`,
           backgroundColor: 'var(--ws-surface)',
           backgroundImage:
             'linear-gradient(rgba(96,130,190,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(96,130,190,0.15) 1px, transparent 1px)',
           backgroundSize: `${CELL}px ${CELL}px`,
-          backgroundPosition: `0 ${CELL * 0.75}px`,
+          backgroundPosition: `0 ${PAPER_TOP}px`,
         }}
       >
         {/* Row 0 — Carry/Borrow inputs (Memory circles ALWAYS active for working memory relief) */}
@@ -367,11 +372,13 @@ export function VerticalAdditionTask({
         })}
       </div>
 
-      {/* Place labels under the paper, aligned to the answer columns */}
+      {/* Place labels under the paper, aligned to the answer columns (none
+          without the cues: meeting 2 without the profile). */}
+      {placeCues && (
       <div dir="ltr" className="grid" style={{ gridTemplateColumns: `${CELL}px repeat(${cols}, ${CELL}px)` }}>
         <div aria-hidden="true" />
         {colPlaces.map((place, j) =>
-          !placeCues || j < firstAnswerCol ? (
+          j < firstAnswerCol ? (
             <div key={`l${j}`} aria-hidden="true" />
           ) : (
             <div
@@ -384,6 +391,7 @@ export function VerticalAdditionTask({
           )
         )}
       </div>
+      )}
     </div>
   );
 }
