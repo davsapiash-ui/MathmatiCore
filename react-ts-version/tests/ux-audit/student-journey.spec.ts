@@ -544,6 +544,15 @@ const LOBBY_AND_LOGIN: Array<{ opts: ContextOptions; steps: Step[] }> = [
     ],
   },
   {
+    // The diagnostic was never finished: no path exists to approve. PR #139 gives
+    // this learner a quiet "המורה תפתח את הפעילות בקרוב" screen in meetings 3–8.
+    opts: { mode: 'default', path: 'green_path', approved: false, meeting2Done: false },
+    steps: [
+      { id: 'm3-no-path-waiting', meeting: 3, note: 'meeting 3 opened for a learner who never finished the diagnostic', run: noop },
+      { id: 'm8-no-path-waiting', meeting: 8, note: 'the same learner in meeting 8', run: noop },
+    ],
+  },
+  {
     opts: { mode: 'default', path: 'green_path', approved: true, auth: false },
     steps: [
       { id: 'login-roles', meeting: null, url: '/login', run: noop },

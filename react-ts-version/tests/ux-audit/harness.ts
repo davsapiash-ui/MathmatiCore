@@ -66,6 +66,8 @@ export interface ContextOptions {
   path: LearningPath;
   /** Gate approval for meeting 3 (Module 20). false = the bee-flight waiting screen. */
   approved: boolean;
+  /** false = the diagnostic was never finished: no path to approve, no meeting 3 (PR #139's quiet wait). Default true. */
+  meeting2Done?: boolean;
   /** false = no learner signed in (login / landing screens). */
   auth?: boolean;
   /** The class session at start; the default is meeting 1 open. gotoWorkspace() re-points it. */
@@ -301,18 +303,19 @@ export function isExpectedNoise(message: string): boolean {
 // ── context ────────────────────────────────────────────────────────────────
 
 export function studentRecord(opts: ContextOptions): Record<string, Json> {
+  const done = opts.meeting2Done !== false;
   return {
     studentId: STUDENT_UID,
     student_anonymous_id: STUDENT_NUMBER,
     classId: 'class_1',
     name: `תלמיד ${STUDENT_NUMBER}`,
-    completedMeeting2: true,
-    session_2_completed: true,
-    highestCompletedMeeting: 2,
-    teacher_gate_approved: opts.approved,
-    routeStatus: opts.approved ? 'APPROVED' : 'PENDING',
+    completedMeeting2: done,
+    session_2_completed: done,
+    highestCompletedMeeting: done ? 2 : 1,
+    teacher_gate_approved: done && opts.approved,
+    routeStatus: !done ? null : opts.approved ? 'APPROVED' : 'PENDING',
     routeRecommendation: null,
-    pedagogicalPath: opts.path,
+    pedagogicalPath: done && opts.approved ? opts.path : null,
     isASD: opts.mode === 'asd',
     support_profile_id: opts.mode === 'enhanced' ? 'enhanced_cognitive_support' : null,
     enhanced_support_profile: opts.mode === 'enhanced',
