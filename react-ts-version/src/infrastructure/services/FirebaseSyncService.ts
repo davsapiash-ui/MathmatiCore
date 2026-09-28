@@ -1,5 +1,6 @@
 import { ref, set, get, update, runTransaction, serverTimestamp, onValue, onDisconnect, push, type DataSnapshot } from 'firebase/database';
-import { database, firestore } from '@/infrastructure/firebase';
+import { database, firestore, serverNow } from '@/infrastructure/firebase';
+import { WORKSPACE_SAVED_AT_KEY } from '@/core/workspaceSnapshot';
 import { doc, getDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, getActiveTasks, resolveLearningPath } from '@/application/useWorkspaceStore';
@@ -584,12 +585,18 @@ export class FirebaseSyncService {
       if (payloadKey === this.lastSyncedPayloadKey) return;
       this.lastSyncedPayloadKey = payloadKey;
 
+      // One stamp on both copies — the local cache and the record — on the
+      // server's clock, never the device's. A reload compares the two by it
+      // (newerWorkspaceSnapshot): the server copy wins unless this device
+      // holds a strictly later state it has not sent yet.
+      const stampedPayload = { ...sanitizedPayload, [WORKSPACE_SAVED_AT_KEY]: serverNow() };
+
       // Save locally at once (a reload reads it), and send the database writes
       // of the latest state once per short window, so the main thread is never
       // behind a burst of writes ("הממשק מגיב מיידית בצד הלקוח").
-      if (normId) this.saveSessionProgressLocally(normId, sanitizedPayload);
+      if (normId) this.saveSessionProgressLocally(normId, stampedPayload);
       if (this.currentUserId && this.currentUserId !== normId) {
-        this.saveSessionProgressLocally(this.currentUserId, sanitizedPayload);
+        this.saveSessionProgressLocally(this.currentUserId, stampedPayload);
       }
 
       const standardTaskIdx = state.standardTaskIdx;
@@ -598,7 +605,7 @@ export class FirebaseSyncService {
       this.pendingRemoteSync = () => {
       studentKeys.forEach(key => {
         throttledRtdbUpdate(`users/students/${key}`, {
-          workspaceState: sanitizedPayload,
+          workspaceState: stampedPayload,
           lastActive: serverTimestamp(),
           currentTaskIdx: standardTaskIdx,
           activeStep: standardTaskIdx + 1,

@@ -52,6 +52,7 @@ import { toast } from 'sonner';
 import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
 import { TeacherWillOpenWaitingScreen } from '@/presentation/components/student/TeacherWillOpenWaitingScreen';
 import { ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
+import { newerWorkspaceSnapshot, isRestorableFor, workspaceSavedAt } from '@/core/workspaceSnapshot';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { SessionPausedOverlay } from '@/presentation/components/student/SessionPausedOverlay';
 import { SessionClosedOverlay } from '@/presentation/components/student/SessionClosedOverlay';
@@ -386,6 +387,9 @@ export function StudentWorkspacePage() {
     }
   });
 
+  // X55: set while the meeting shows this device's cached copy and the learner record has not arrived yet.
+  const restoredFromCacheRef = useRef<{ meeting: number; savedAt: number } | null>(null);
+
   // Problem-duration telemetry: pause elapsed timer during projector, paused, or closed overlays
   const overlayStartRef = useRef<number | null>(null);
   useEffect(() => {
@@ -639,7 +643,28 @@ export function StudentWorkspacePage() {
 
 
   useEffect(() => {
-    if (isInitialized) return;
+    if (isInitialized) {
+      // X55: the meeting opened on this device's cached copy before the
+      // learner record had loaded. The record is the authority: once it is
+      // here, a copy of this meeting on it that is later than the cached one
+      // (saved from another device, or after this cache was written) is
+      // restored over it. The sync subscription stays paused until the first
+      // record snapshot, so the cached copy was never pushed over it.
+      const fromCache = restoredFromCacheRef.current;
+      if (fromCache && firebaseLoaded) {
+        restoredFromCacheRef.current = null;
+        const server = myData?.workspaceState;
+        if (
+          fromCache.meeting === meeting &&
+          isRestorableFor(server, meeting) &&
+          workspaceSavedAt(server) > fromCache.savedAt &&
+          (!needsApprovedPath || savedBankPath(server as { activeBankPath?: unknown }) !== null)
+        ) {
+          restoreSession(server);
+        }
+      }
+      return;
+    }
     let cancelled = false;
 
     // Module 26 / owner, 28.9.2026: no approved path, no meeting. The learner
@@ -704,16 +729,16 @@ export function StudentWorkspacePage() {
           }
           const normId = username;
 
-          const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus);
-          if (canRestore && myData?.workspaceState) {
-            restoreSession(myData.workspaceState);
+          // X55: the record wins unless this device holds a strictly later state.
+          const saved = newerWorkspaceSnapshot(
+            myData?.workspaceState,
+            firebaseSyncService.getLocalSessionProgress(normId || username),
+            meeting
+          );
+          if (saved) {
+            restoreSession(saved);
           } else {
-            const localSaved = firebaseSyncService.getLocalSessionProgress(normId || username);
-            if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus)) {
-              restoreSession(localSaved);
-            } else {
-              initSession(meeting, isASDMode, 0);
-            }
+            initSession(meeting, isASDMode, 0);
           }
           markInitialized();
         } catch (err) {
@@ -725,16 +750,16 @@ export function StudentWorkspacePage() {
           setIsInitializing(false);
         }
       } else {
-        const canRestore = myData?.workspaceState?.sessionNumber === meeting && Boolean(myData?.workspaceState?.flowStatus);
-        if (canRestore && myData?.workspaceState) {
-          restoreSession(myData.workspaceState);
+        // X55: the record wins unless this device holds a strictly later state.
+        const saved = newerWorkspaceSnapshot(
+          myData?.workspaceState,
+          firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || ''),
+          meeting
+        );
+        if (saved) {
+          restoreSession(saved);
         } else {
-          const localSaved = firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || '');
-          if (localSaved && localSaved.sessionNumber === meeting && Boolean(localSaved.flowStatus)) {
-            restoreSession(localSaved);
-          } else {
-            initSession(meeting, isASDMode, 0);
-          }
+          initSession(meeting, isASDMode, 0);
         }
         markInitialized();
       }
@@ -754,6 +779,9 @@ export function StudentWorkspacePage() {
         (!needsApprovedPath || savedBankPath(cached) !== null)
       ) {
         restoreSession(cached);
+        // X55: shown at once, but provisional — when the record arrives, a
+        // later copy of this meeting on it replaces this one (effect start).
+        restoredFromCacheRef.current = { meeting, savedAt: workspaceSavedAt(cached) };
         markInitialized();
       } else {
         // No local copy of this meeting: wait for the learner's Firebase

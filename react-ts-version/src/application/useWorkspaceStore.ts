@@ -195,6 +195,13 @@ export interface UndoFrame {
    * existed; undoing those leaves the conversions as they are.
    */
   conversionsByColumn?: ColumnConversions;
+  /**
+   * PRD Module 5 §ג: UNDO_EXECUTED omits column_index "unless the undone
+   * action was confined to a specific column". The column the action's own
+   * event carried; absent for an action with no column (the trash reset) and
+   * on frames saved before this existed.
+   */
+  columnIndex?: number;
 }
 
 /**
@@ -538,6 +545,7 @@ export function restoreUndoFrames(raw: unknown): UndoFrame[] {
       if (f.hasConversions || f.conversionsByColumn !== undefined) {
         frame.conversionsByColumn = normalizeColumnConversions(f.conversionsByColumn);
       }
+      if ([0, 1, 2, 3].includes(f.columnIndex)) frame.columnIndex = f.columnIndex;
       return frame;
     });
 }
@@ -1083,9 +1091,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     /** The typed input as it was BEFORE the action (PRD Module 11 §א: "קלט"). */
     input?: Pick<WorkspaceState, 'answerDigits' | 'carryDigits' | 'operandDigits'>,
     /** Conversion actions only: the per-column conversions BEFORE the action. */
-    conversions?: ColumnConversions
+    conversions?: ColumnConversions,
+    /** The column the action was confined to, if any (UndoFrame.columnIndex). */
+    columnIndex?: number
   ): UndoFrame[] {
     const frame: UndoFrame = { counts: { ...counts }, actionType };
+    if (columnIndex !== undefined) frame.columnIndex = columnIndex;
     if (input) {
       frame.answerDigits = { ...input.answerDigits };
       frame.carryDigits = { ...input.carryDigits };
@@ -2467,12 +2478,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const addedCount = isFromStore ? (s.blocksAddedCount + 1) : s.blocksAddedCount;
 
         const actionType: TelemetryEventType = (isGroup || isUngroup) ? 'REGROUPING_SUCCESS' : 'BLOCK_DRAG_COMPLETE';
+        // The same column the drop's own event carries below.
+        const undoColumn = isGroup || isUngroup
+          ? placeToColumnIndex(input.target.kind === 'column' ? input.target.place : (input.sourcePlace || 'units'))
+          : input.target.kind === 'column'
+            ? placeToColumnIndex(input.target.place)
+            : isDelete && input.sourcePlace ? placeToColumnIndex(input.sourcePlace) : undefined;
         const stack = createNextUndoStack(
           s.undoStack,
           s.counts,
           actionType,
           undefined,
-          isGroup || isUngroup ? s.conversionsByColumn : undefined
+          isGroup || isUngroup ? s.conversionsByColumn : undefined,
+          undoColumn
         );
         // Module 9 §א, per column: which column this drop converted.
         let conversionsByColumn = s.conversionsByColumn;
@@ -2581,7 +2599,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           flagConstraintError(place);
           return state;
         }
-        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'BLOCK_DRAG_COMPLETE');
+        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'BLOCK_DRAG_COMPLETE', undefined, undefined, placeToColumnIndex(place));
 
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
@@ -2672,7 +2690,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           flagConstraintError(place);
           return state;
         }
-        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'REGROUPING_SUCCESS', undefined, state.conversionsByColumn);
+        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'REGROUPING_SUCCESS', undefined, state.conversionsByColumn, placeToColumnIndex(place));
 
         const studentId = currentStudentUid();
         const task = getActiveTasks(state)[state.standardTaskIdx] || null;
@@ -2739,7 +2757,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           flagConstraintError(place);
           return state;
         }
-        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'REGROUPING_SUCCESS', undefined, state.conversionsByColumn);
+        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'REGROUPING_SUCCESS', undefined, state.conversionsByColumn, placeToColumnIndex(place));
 
         const studentId = currentStudentUid();
         const task = getActiveTasks(state)[state.standardTaskIdx] || null;
@@ -2817,6 +2835,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           student_id: studentId,
           exercise_id: taskId,
           event_type: 'UNDO_EXECUTED',
+          // PRD Module 5 §ג: carried only when the undone action was confined to a column.
+          ...(typeof snapshot.columnIndex === 'number' ? { column_index: snapshot.columnIndex } : {}),
           details: {
             undo_stack_depth_before: depthBefore,
             reverted_event_type: revertedType,
@@ -2937,7 +2957,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               answerDigits: { ...s.answerDigits, [place]: val },
               hasInteracted: true,
               // Typing is an action the learner can take back (Module 11 §א).
-              undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s)),
+              undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s), undefined, colIdx),
               // "שלוש פעולות ביטול רצופות" means consecutive: any other action ends the run.
               consecutiveUndoCount: 0,
               ...streak,
@@ -3020,7 +3040,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             return {
               carryDigits: { ...s.carryDigits, [place]: val },
               hasInteracted: true,
-              undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s)),
+              undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s), undefined, colIdx),
               consecutiveUndoCount: 0,
               hasDigitErrorInTask: isCorrect === false ? true : s.hasDigitErrorInTask,
               typedErrorCount: isCorrect === false ? s.typedErrorCount + 1 : s.typedErrorCount,
@@ -3120,7 +3140,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const s = get();
       const result = resolveDrop(s.counts, { source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } }, selectScaffoldLevel(s));
       if (result.ok) {
-        const undoStack = createNextUndoStack(s.undoStack, s.counts, 'REGROUPING_SUCCESS');
+        const undoStack = createNextUndoStack(s.undoStack, s.counts, 'REGROUPING_SUCCESS', undefined, undefined, placeToColumnIndex('units'));
         get().transitionTo('REGROUPING_ACTIVE');
         set({ counts: result.counts, undoStack, hasInteracted: true, hasUngrouped: true });
         if (result.ungroupEvent) {
@@ -3431,7 +3451,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         set({
           operandDigits: { ...s.operandDigits, [which]: { ...s.operandDigits[which], [place]: clean } },
           hasInteracted: true,
-          undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s)),
+          undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s), undefined, placeToColumnIndex(place)),
           consecutiveUndoCount: 0,
           ...streak,
           hasDigitErrorInTask: isCorrect ? s.hasDigitErrorInTask : true,

@@ -452,7 +452,6 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   if (!studentDigits) {
     throw new HttpsError("invalid-argument", "Missing studentId (1-12).");
   }
-  const studentId = studentDigits;
   const clampedStudentNum = Math.min(12, Math.max(1, parseInt(studentDigits, 10)));
 
   // PRD 23 §ב: the report reads the session_score_percent that already exists on
@@ -610,9 +609,20 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     throw new HttpsError("not-found", `אין פעולות מתועדות למפגש ${resolvedSessionNumber} של תלמיד ${clampedStudentNum}; אין מה לנתח.`);
   }
 
-  // Read student record if available
-  const studentDoc = await db.collection("students").doc(studentId).get();
-  const studentData = studentDoc.exists ? studentDoc.data() : null;
+  // PRD Module 19: the support profile is read where it is written. The
+  // teacher's switch (ClassManagement) and the learner's workspace both use
+  // the live learner record, users/students/{id} — studentVal above. This
+  // used to read Firestore students/{studentId}, a document the switch never
+  // writes (and under the bare number, not the learner's id), so every report
+  // said "default". The legacy boolean is honoured as the client does
+  // (core/supportProfile.ts hasEnhancedSupport).
+  const hasEnhancedProfile =
+    studentVal.support_profile_id === "enhanced_cognitive_support" || studentVal.enhanced_support_profile === true;
+  const supportProfileId: string = hasEnhancedProfile ? "enhanced_cognitive_support" : "default";
+  const supportProfileVersion: number =
+    typeof studentVal.support_profile_version === "number" && studentVal.support_profile_version > 0
+      ? studentVal.support_profile_version
+      : 1;
 
   const score: number | null = !scoredMeeting
     ? null
@@ -785,8 +795,8 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     routing_group: routingGroup,
     routing_label_he: routingLabelHe,
     recommendation_details_he: recommendationDetailsHe,
-    support_profile_id: studentData?.support_profile_id || "default",
-    support_profile_version: studentData?.support_profile_version || 1,
+    support_profile_id: supportProfileId,
+    support_profile_version: supportProfileVersion,
     exercise_narratives: exerciseNarratives,
     choice_exercise_narratives: choiceExerciseNarratives,
     research_measures: researchMeasures,
