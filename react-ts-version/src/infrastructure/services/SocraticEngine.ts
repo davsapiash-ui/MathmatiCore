@@ -410,9 +410,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-tens",
     questionHe: 'בואו נחשוב רגע יחד: אין מספיק יחידות כדי להחסיר. מה עושים?',
     choices: [
-      { id: "opt_1", textHe: 'פורטים עשרת אחת לעשר יחידות בודדות ומעבירים אותן לטור היחידות', isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על לבנת העשרת וצפו בעשרת המתפרקת ליחידות.' },
+      { id: "opt_1", textHe: 'פורטים עשרת אחת לעשר יחידות בודדות ומעבירים אותן לטור היחידות', isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על לבנת עשרת אחת כדי לפרוט אותה לעשר יחידות.' },
       { id: "opt_2", textHe: 'מחסירים את המספר הקטן מהמספר הגדול בטור היחידות', isCorrect: false, feedbackHe: 'רמז: בואו נשמור על סדר התרגיל ונחסיר את המחסר מהמחוסר.' },
-      { id: "opt_3", textHe: 'כותבים את התשובה בטור העשרות תחילה', isCorrect: false, feedbackHe: 'רמז: באלגוריתם הטורי מומלץ להתחיל מטור היחידות.' }
+      { id: "opt_3", textHe: 'כותבים את התשובה בטור העשרות תחילה', isCorrect: false, feedbackHe: 'רמז: בחיסור במאונך מתחילים בטור היחידות, בצד ימין.' }
     ],
     correctChoiceId: "opt_1"
   },
@@ -440,7 +440,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       { id: "opt_1", textHe: 'ניעזר בלבנים משמאל, נבדוק כמה עשרות יש לנו כעת בבית המספרים וכמה חסרות כדי להגיע לתוצאה הרשומה בתרגיל', isCorrect: true, feedbackHe: 'מדויק! בואו נבצע את הבדיקה בבית המספרים ונכתוב את הספרה החסרה.' },
       { id: "opt_2", textHe: 'ננחש מספר אקראי ונכתוב אותו בתיבת התשובה', isCorrect: false, feedbackHe: 'רמז: בואו נשתמש בבית המספרים כדי להוכיח את התשובה בבטחה.' },
-      { id: "opt_3", textHe: 'נעבור לפתור את הטור הבא תחילה', isCorrect: false, feedbackHe: 'רמז: באלגוריתם הטורי מומלץ להתקדם לפי הסדר כדי לנהל נכון את ההמרות בעיגולי הזיכרון.' }
+      { id: "opt_3", textHe: 'נעבור לפתור את הטור הבא תחילה', isCorrect: false, feedbackHe: 'רמז: פותרים לפי הסדר, טור אחר טור. מה שרושמים בעיגול הזיכרון משנה את החשבון בטור הבא.' }
     ],
     correctChoiceId: "opt_1"
   },
