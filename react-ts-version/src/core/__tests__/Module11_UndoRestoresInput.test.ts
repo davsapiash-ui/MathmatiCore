@@ -108,3 +108,42 @@ describe('undo restores what the learner typed (Module 11 §א)', () => {
     expect(useWorkspaceStore.getState().undoStack.length).toBe(10);
   });
 });
+
+describe('meeting 8: three undos while the hourglass turns do not restart it (owner 28.9.2026, X22)', () => {
+  it('the card still settles within 8 seconds of opening, as the card it was, with one event', async () => {
+    const { vi } = await import('vitest');
+    const { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS } = await import('@/infrastructure/services/SocraticEngine');
+    vi.useFakeTimers();
+    try {
+      useWorkspaceStore.getState().resetWorkspace();
+      useWorkspaceStore.getState().initSession(8, false);
+      const s = useWorkspaceStore.getState();
+      const idx = getActiveTasks(s).findIndex((t) => typeof t.numberA === 'number' && typeof t.numberB === 'number');
+      useWorkspaceStore.setState({ standardTaskIdx: Math.max(0, idx) });
+      // The engine never answers: only the 8-second deadline can settle the card.
+      vi.spyOn(SocraticEngine, 'getSocraticHint').mockImplementation(() => new Promise(() => undefined));
+
+      for (const [place, digit] of [['units', '1'], ['tens', '2'], ['hundreds', '3']] as const) {
+        useWorkspaceStore.getState().setAnswerDigit(place, digit);
+      }
+      useWorkspaceStore.getState().openSocraticCard('hesitation_45s');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(useWorkspaceStore.getState().socraticPending).toBe(true);
+      const reason = useWorkspaceStore.getState().socraticTriggerReason;
+
+      await vi.advanceTimersByTimeAsync(SOCRATIC_PROXY_TIMEOUT_MS - 1_000);
+      useWorkspaceStore.setState({ currentState: 'IDLE' } as any);
+      useWorkspaceStore.getState().undo();
+      useWorkspaceStore.getState().undo();
+      useWorkspaceStore.getState().undo();
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      expect(useWorkspaceStore.getState().socraticPending).toBe(false);
+      expect(useWorkspaceStore.getState().aiSocraticHint).not.toBeNull();
+      expect(useWorkspaceStore.getState().socraticTriggerReason).toBe(reason);
+    } finally {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+    }
+  });
+});

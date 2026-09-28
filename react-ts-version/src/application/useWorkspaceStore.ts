@@ -2715,10 +2715,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Module 12(c): 3 consecutive UNDO_EXECUTED actions within a single exercise trigger Socratic coach, ONLY in Session 8
         if (nextConsecutiveUndos >= 3 && s.sessionNumber === 8 && s.currentState !== 'SOCRATIC_ACTIVE' && !s.isSocraticCardLocked) {
           setTimeout(() => {
-            // A card already on the screen stays the one card. A card still
-            // under its hourglass takes this trigger (as it did before) and its
-            // request starts over: still one card and one event (X22).
-            if (get().helpState === 'socratic' && !get().socraticPending) return;
+            // A card already on the screen, or still under its hourglass, stays
+            // the one card: restarting its request would keep the hourglass up
+            // past the 8 seconds the owner allowed (X22).
+            if (get().helpState === 'socratic') return;
             set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE', socraticTriggerReason: 'consecutive_undos_3', aiSocraticHint: null, socraticPending: true });
             get().fetchSocraticHint();
           }, 0);
