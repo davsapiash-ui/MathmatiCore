@@ -583,8 +583,17 @@ async function runSteps(
   build: (c: AuditContext) => Promise<Step[]> | Step[],
   results: StateResult[]
 ): Promise<void> {
-  const c = await openContext(browser, viewport, opts);
+  let c = await openContext(browser, viewport, opts);
   const screenshotAll = viewport.id === PRIMARY_VIEWPORT || process.env.UX_AUDIT_SHOTS === 'all';
+  // A page that wedges (a dev-server stall, a navigation that never settles)
+  // used to stop the whole run; past this the context is thrown away and the
+  // next state starts in a fresh one.
+  const STEP_TIMEOUT_MS = 3 * 60_000;
+  const withTimeout = <T,>(work: () => Promise<T>, ms: number, what: string): Promise<T> =>
+    Promise.race([
+      work(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`watchdog: ${what} took more than ${ms / 1000}s`)), ms)),
+    ]);
   try {
     let steps: Step[];
     try {
@@ -616,28 +625,34 @@ async function runSteps(
       if (ONLY && !ONLY.test(step.id)) continue;
       const label = `${opts.mode}/${opts.path}/${step.id}`;
       try {
-        if (step.meeting !== null && step.meeting !== currentMeeting) {
-          await gotoWorkspace(c, step.meeting);
-          currentMeeting = step.meeting;
-          currentUrl = undefined;
-        } else if (step.meeting === null && (step.url !== currentUrl || step.id.startsWith('login'))) {
-          await gotoPath(c, step.url || '/');
-          currentUrl = step.url;
-          currentMeeting = undefined;
-        }
-        c.drainConsole();
-        await step.run(c);
-        results.push(
-          await capture({
-            viewport,
-            ctx: c,
-            meeting: step.meeting,
-            state: step.id,
-            note: step.note,
-            screenshotAll,
-            settleMs: step.settleMs,
-            expectedConsole: step.expectedConsole,
-          })
+        await withTimeout(
+          async () => {
+            if (step.meeting !== null && step.meeting !== currentMeeting) {
+              await gotoWorkspace(c, step.meeting);
+              currentMeeting = step.meeting;
+              currentUrl = undefined;
+            } else if (step.meeting === null && (step.url !== currentUrl || step.id.startsWith('login'))) {
+              await gotoPath(c, step.url || '/');
+              currentUrl = step.url;
+              currentMeeting = undefined;
+            }
+            c.drainConsole();
+            await step.run(c);
+            results.push(
+              await capture({
+                viewport,
+                ctx: c,
+                meeting: step.meeting,
+                state: step.id,
+                note: step.note,
+                screenshotAll,
+                settleMs: step.settleMs,
+                expectedConsole: step.expectedConsole,
+              })
+            );
+          },
+          STEP_TIMEOUT_MS,
+          label
         );
         if (step.resets) {
           currentMeeting = undefined;
@@ -646,6 +661,12 @@ async function runSteps(
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (message.startsWith('skip:')) continue;
+        let url = '';
+        try {
+          url = c.page.url();
+        } catch {
+          /* the page may be gone */
+        }
         results.push({
           viewport: viewport.id,
           tier: viewport.tier,
@@ -654,7 +675,7 @@ async function runSteps(
           meeting: step.meeting,
           state: step.id,
           note: step.note,
-          url: c.page.url(),
+          url,
           fonts: { heebo: false, rubik: false, assistant: false },
           findings: [],
           consoleErrors: c.drainConsole(),
@@ -665,10 +686,15 @@ async function runSteps(
         // A navigation error leaves the page in an unknown state: force a reload next step.
         currentMeeting = undefined;
         currentUrl = undefined;
+        if (message.startsWith('watchdog:')) {
+          // The context is wedged: drop it (bounded — closing can hang too) and go on in a new one.
+          await withTimeout(() => c.context.close(), 20_000, 'closing the wedged context').catch(() => undefined);
+          c = await openContext(browser, viewport, opts);
+        }
       }
     }
   } finally {
-    await c.context.close();
+    await withTimeout(() => c.context.close(), 20_000, 'closing the context').catch(() => undefined);
   }
 }
 
