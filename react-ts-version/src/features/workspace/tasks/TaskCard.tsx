@@ -78,6 +78,10 @@ export function TaskCard() {
         className="absolute top-0 left-0 w-56 h-56 pointer-events-none rounded-full opacity-70"
         style={{ background: 'radial-gradient(closest-side, hsl(var(--ws-blue-soft)), transparent)' }}
       />
+      {/* The feedback, over this column's heading only: not over the board,
+          the coaching card or the exercise (report row 1.15). Meetings 2 and 8
+          keep the page's floating one. */}
+      {sessionNumber !== 2 && sessionNumber !== 8 && <FeedbackToast placement="inline" />}
       <motion.div key={taskKey} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="relative flex flex-col flex-1 min-h-0" data-testid="task-column">
         {qflow.phase !== 'correction' && (
           <span className="self-start shrink-0 inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-1.5 short:py-1 mb-3 short:mb-2 tiny:mb-1.5 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
@@ -142,8 +146,6 @@ export function TaskCard() {
                 isSubtraction={standardTask.isSubtraction}
               />
             )}
-            {/* The feedback, under the exercise: in view, covering nothing (report row 1.15). */}
-            {sessionNumber !== 8 && <FeedbackToast placement="inline" />}
           </>
         )}
 

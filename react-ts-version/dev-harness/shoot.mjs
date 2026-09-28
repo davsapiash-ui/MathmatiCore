@@ -57,8 +57,16 @@ async function openMeeting(page) {
 for (const [w, h] of sizes) {
   for (const { m, p } of meetings) {
     await seed(m, p);
-    const { browser, page } = await openAs(undefined, { width: w, height: h });
-    await openMeeting(page);
+    let { browser, page } = await openAs(undefined, { width: w, height: h });
+    try {
+      await openMeeting(page);
+    } catch {
+      // A cold dev server can be slow on the first load: one more try.
+      await browser.close();
+      await seed(m, p);
+      ({ browser, page } = await openAs(undefined, { width: w, height: h }));
+      await openMeeting(page);
+    }
     const count = await page.evaluate((m) => {
       const s = window.__ws.getState();
       return m === 2 ? 7 : (s.dynamicTasks ?? null) ? s.dynamicTasks.length : 7;

@@ -38,7 +38,7 @@ function emulatorPlugin() {
         return out;
       }
       if (id.endsWith('/src/application/useWorkspaceStore.ts')) {
-        return code + '\n;(window as any).__ws = useWorkspaceStore;\n';
+        return code + '\n;(window as any).__ws = useWorkspaceStore;\n;(window as any).__tasks = () => getActiveTasks(useWorkspaceStore.getState());\n';
       }
       return null;
     },

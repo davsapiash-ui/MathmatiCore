@@ -94,9 +94,17 @@ describe('rows 1.30, 2.11, 3.18 — every toolbar button fits a 1024 px screen',
   });
 });
 
+describe('the column\'s digit sits beside its name, not over it (seen on screen at 1024 px, four columns)', () => {
+  it('in the header flow, not pinned to the corner', () => {
+    const col = src('features/workspace/board/PlaceColumn.tsx');
+    expect(col).toContain('className="relative flex items-center justify-center gap-2 py-2.5');
+    expect(col).not.toContain('absolute left-3 min-w-[22px]');
+  });
+});
+
 describe('row 1.15 — the feedback covers neither the board nor the coaching card', () => {
   for (const meeting of [1, 3, 4, 7] as const) {
-    it(`meeting ${meeting}: the feedback is a line in the task column, not a floating bubble`, () => {
+    it(`meeting ${meeting}: the feedback sits in the task card, over its heading, not floating over the page`, () => {
       vi.useFakeTimers();
       ws().initSession(meeting, false, meeting === 1 ? SESSION1_TASKS.findIndex((t) => t.id === 's1_t8') : 0);
       render(<TaskCard />);
@@ -106,7 +114,11 @@ describe('row 1.15 — the feedback covers neither the board nor the coaching ca
       const toast = screen.getByTestId('feedback-toast');
       expect(toast.getAttribute('data-placement')).toBe('inline');
       expect(toast.className).not.toContain('fixed');
-      expect(screen.getByTestId('task-column').contains(toast)).toBe(true);
+      expect(toast.className).toContain('absolute top-2');
+      const card = document.getElementById('tour-task-card')!;
+      expect(card.contains(toast)).toBe(true);
+      // it comes before the column, so it lies over the heading, not under the exercise
+      expect(toast.compareDocumentPosition(screen.getByTestId('task-column')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
   }
 

@@ -10,7 +10,7 @@ const BASE = 'http://127.0.0.1:9000';
 const H = { Authorization: 'Bearer owner', 'Content-Type': 'application/json' };
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-async function put(p, body) {
+export async function put(p, body) {
   const r = await fetch(`${BASE}/${p}.json?ns=${NS}`, { method: 'PUT', headers: H, body: JSON.stringify(body) });
   if (!r.ok) throw new Error(`${p}: ${r.status} ${await r.text()}`);
 }

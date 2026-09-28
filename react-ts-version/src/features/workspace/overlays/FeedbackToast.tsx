@@ -11,12 +11,14 @@ let lastCelebrated: unknown = null;
  * Display duration is owned by the store (nonce-guarded timers).
  *
  * Where it appears:
- *  - `inline` (meetings with the number house, 1 and 3–7): a calm line in the
- *    task column, under the exercise. It used to float over the middle of the
- *    screen, where for a few seconds it covered the units column's name and
- *    digit, the exercise title, and the open coaching card — מסמך 03 §3.1 asks
- *    for a side card "השומר על נראות מלאה של התרגיל בבית המספרים ללא חלונות
- *    קופצים" (report row 1.15). In the column it covers nothing.
+ *  - `inline` (meetings with the number house, 1 and 3–7): a compact note at
+ *    the top of the task column, over its heading ("תחנה N", "משימה N מתוך
+ *    7") only. It used to float over the middle of the screen, where for a few
+ *    seconds it covered the units column's name and digit, the exercise title,
+ *    and the open coaching card — מסמך 03 §3.1 asks for a side card "השומר על
+ *    נראות מלאה של התרגיל בבית המספרים ללא חלונות קופצים" (report row 1.15).
+ *    Under the exercise it fell below a 768 px screen; over the heading it
+ *    covers neither the board, nor the card, nor the exercise.
  *  - `floating` (meetings 2 and 8, the sheet alone in the middle): as before.
  */
 export function FeedbackToast({ placement = 'floating' }: { placement?: 'floating' | 'inline' }) {
@@ -45,30 +47,33 @@ export function FeedbackToast({ placement = 'floating' }: { placement?: 'floatin
           aria-live="assertive"
           data-testid="feedback-toast"
           data-placement={placement}
-          initial={placement === 'inline' ? { opacity: 0, y: 8 } : { y: -80, opacity: 0, scale: 0.95 }}
+          initial={placement === 'inline' ? { opacity: 0, y: -8 } : { y: -80, opacity: 0, scale: 0.95 }}
           animate={placement === 'inline' ? { opacity: 1, y: 0 } : { y: 0, opacity: 1, scale: 1 }}
           exit={placement === 'inline' ? { opacity: 0 } : { y: -80, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
           className={`${
             placement === 'inline'
-              ? 'shrink-0 mt-3 short:mt-2 w-full rounded-2xl px-4 py-3 short:py-2'
+              ? 'absolute top-2 inset-x-3 z-20 rounded-2xl px-4 py-1.5 gap-3 shadow-[0_12px_28px_-14px_hsl(var(--ws-shadow-warm)/0.45)]'
               : 'fixed top-24 left-1/2 -translate-x-1/2 z-50 min-w-[340px] max-w-[540px] rounded-3xl px-6 py-5 shadow-[0_24px_48px_-16px_hsl(var(--ws-shadow-warm)/0.45)]'
-          } flex items-start gap-4 bg-ws-surface border-2 ${
+          } flex items-start ${placement === 'inline' ? '' : 'gap-4'} bg-ws-surface border-2 ${
             feedback.neutral ? 'border-ws-ink/20' : feedback.correct ? 'border-ws-success/50' : 'border-ws-accent/50'
           }`}
           dir="rtl"
         >
-          <span
-            className={`shrink-0 ${placement === 'inline' ? 'w-10 h-10 text-xl' : 'w-12 h-12'} rounded-2xl flex items-center justify-center text-2xl ${
-              feedback.neutral ? 'bg-ws-surface2' : feedback.correct ? 'bg-green-50' : 'bg-ws-accentSoft'
-            }`}
-            aria-hidden="true"
-          >
-            {feedback.neutral ? '👍' : feedback.correct ? '🌟' : '🤔'}
-          </span>
-          <div className="pt-0.5">
-            <p className={`font-display font-extrabold ${placement === 'inline' ? 'text-lg' : 'text-xl'} text-ws-ink leading-snug`}>{feedback.title}</p>
-            {feedback.sub && <p className={`${placement === 'inline' ? 'text-sm' : 'text-base'} text-ws-soft mt-1 leading-relaxed`}>{feedback.sub}</p>}
+          {/* The compact note in the task column keeps only the title's own emoji. */}
+          {placement === 'floating' && (
+            <span
+              className={`shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${
+                feedback.neutral ? 'bg-ws-surface2' : feedback.correct ? 'bg-green-50' : 'bg-ws-accentSoft'
+              }`}
+              aria-hidden="true"
+            >
+              {feedback.neutral ? '👍' : feedback.correct ? '🌟' : '🤔'}
+            </span>
+          )}
+          <div className={placement === 'inline' ? '' : 'pt-0.5'}>
+            <p className={`font-display font-extrabold ${placement === 'inline' ? 'text-base' : 'text-xl'} text-ws-ink leading-snug`}>{feedback.title}</p>
+            {feedback.sub && <p className={`${placement === 'inline' ? 'text-sm leading-snug mt-0.5' : 'text-base mt-1 leading-relaxed'} text-ws-soft`}>{feedback.sub}</p>}
           </div>
         </motion.div>
       )}
