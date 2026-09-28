@@ -100,6 +100,8 @@ vi.mock('firebase-admin', async (importOriginal) => {
 
 import {
   backupAndResetSessionData,
+  exportResearchDataset,
+  isValidExportScope,
   isCountableReset,
   researchExportFileName,
   sanitizeReasonNote,
@@ -244,6 +246,28 @@ describe('X25 — only real resets mark a meeting as reset', () => {
     const src = readFileSync(resolve(__dirname, '../exportDriveReport.ts'), 'utf-8');
     const loop = src.slice(src.indexOf('for (const { data } of resetLogs) {'));
     expect(loop.slice(0, 600)).toContain('if (!isCountableReset(data)) continue;');
+  });
+});
+
+describe('the export scope is one meeting 1–8, or the whole process', () => {
+  it('accepts the whole process and meetings 1–8, as numbers or digit strings', () => {
+    for (const ok of [undefined, null, 'all', 1, 8, '3']) {
+      expect(isValidExportScope(ok), String(ok)).toBe(true);
+    }
+  });
+
+  it('refuses everything else', () => {
+    for (const bad of [0, 9, 99, -1, 3.5, '3.5', '', 'abc', '0', 'ALL', true, [3], { n: 3 }, NaN, Infinity]) {
+      expect(isValidExportScope(bad), String(bad)).toBe(false);
+    }
+  });
+
+  it('the callable refuses a bad meeting number with the Hebrew message, before reading anything', async () => {
+    for (const bad of [0, 9, 3.5, 'abc', [3]]) {
+      await expect((exportResearchDataset as any).run(teacherRequest({ session_number: bad })))
+        .rejects.toMatchObject({ code: 'invalid-argument', message: 'מספר המפגש אינו תקין. הייצוא בוטל.' });
+    }
+    expect(h.log).toEqual([]);
   });
 });
 

@@ -1573,6 +1573,17 @@ export function isCountableReset(entry: unknown): boolean {
 }
 
 /**
+ * The research export's `session_number`: absent, null or "all" for the whole
+ * process, otherwise an integer meeting 1–8 (a number, or a string of digits).
+ */
+export function isValidExportScope(raw: unknown): boolean {
+  if (raw === undefined || raw === null || raw === "all") return true;
+  if (typeof raw !== "number" && !(typeof raw === "string" && /^\d+$/.test(raw))) return false;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= 8;
+}
+
+/**
  * A research-export CSV file name: the file, the scope (one meeting or the
  * whole process) and the time — `פעולות_מפגש_3_2026-09-28_10-30.csv`,
  * `פעולות_כל_המפגשים_2026-09-28_10-30.csv`. The scope used to be only in the
@@ -1591,6 +1602,12 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
 
   const class_id = validateClassId(request.data?.class_id, "מזהה הכיתה אינו תקין. הייצוא בוטל.");
   const rawSession = request.data?.session_number;
+  // One meeting 1–8, or the whole process. `Number(x) || null` used to turn
+  // 0, "abc" or [] into a whole-process export and let 99 or 3.5 through
+  // into the Drive folder and the file names.
+  if (!isValidExportScope(rawSession)) {
+    throw new HttpsError("invalid-argument", "מספר המפגש אינו תקין. הייצוא בוטל.");
+  }
   const scopedSession: number | null =
     rawSession === undefined || rawSession === null || rawSession === "all" ? null : Number(rawSession) || null;
   const userEmail = request.auth.token.email || "";
