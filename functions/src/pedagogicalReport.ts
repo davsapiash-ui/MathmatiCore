@@ -37,6 +37,7 @@ import { GEMINI_SECRETS } from "./geminiConfig";
 import {
   buildFailedExercises,
   buildTelemetrySummary,
+  collectFailedExercises,
   generateReportAnalysis,
   resolveRecommendationTier,
 } from "./reportAnalysis";
@@ -105,17 +106,24 @@ export function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string
     let firstAttemptCorrect = true;
     let completed = false;
 
+    // Where the canvas representation sits in the paragraph: at the learner's
+    // first drag, in the order it actually happened (Module 23 §ב), and not
+    // hoisted to the front ahead of events that came before it.
+    let representationClauseAt = -1;
+
+    const columnsOf = (digits: { col: number | null }[]) =>
+      Array.from(new Set(digits.map((d) => colName(d.col)).filter(Boolean))) as string[];
+    const inColumns = (cols: string[]) => (cols.length > 0 ? ` בטור ה${cols.join(" ובטור ה")}` : "");
+
     const flushDigits = () => {
       if (pendingDigits.length === 0) return;
       const wrong = pendingDigits.filter((d) => d.wrong > 0);
-      const cols = Array.from(
-        new Set(pendingDigits.map((d) => colName(d.col)).filter(Boolean))
-      ) as string[];
-      const where = cols.length > 0 ? ` בטור ה${cols.join(" ובטור ה")}` : "";
-      if (wrong.length > 0) {
-        clauses.push(`הזין ספרות שגויות${where} (${wrong.length} פעמים)`);
+      if (wrong.length === 1) {
+        clauses.push(`הזין ספרה שגויה${inColumns(columnsOf(wrong))} (פעם אחת)`);
+      } else if (wrong.length > 1) {
+        clauses.push(`הזין ספרות שגויות${inColumns(columnsOf(wrong))} (${wrong.length} פעמים)`);
       } else {
-        clauses.push(`הזין את הספרות${where}`);
+        clauses.push(`הזין את הספרות${inColumns(columnsOf(pendingDigits))}`);
       }
       pendingDigits = [];
     };
@@ -125,7 +133,14 @@ export function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string
       switch (ev.event_type) {
         case "BLOCK_DRAG_COMPLETE": {
           const value = ev.details?.block_value;
-          if (typeof value === "number") representedColumns.push(value);
+          if (typeof value === "number") {
+            if (representationClauseAt === -1) {
+              flushDigits();
+              representationClauseAt = clauses.length;
+              clauses.push(""); // filled in below, once every block value is known
+            }
+            representedColumns.push(value);
+          }
           break;
         }
         case "REGROUPING_SUCCESS": {
@@ -177,20 +192,22 @@ export function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string
     }
     flushDigits();
 
-    // The canvas representation opens the paragraph, naming the actual block
-    // values dragged rather than a drag tally.
-    if (representedColumns.length > 0) {
+    // The canvas representation names the actual block values dragged rather
+    // than a drag tally, at the place the first drag happened.
+    if (representationClauseAt >= 0) {
       const distinct = Array.from(new Set(representedColumns)).sort((a, b) => b - a);
-      clauses.unshift(`ייצג את המספרים בבית המספרים באמצעות לבנים של ${distinct.join(", ")}`);
+      clauses[representationClauseAt] = `ייצג את המספרים בבית המספרים באמצעות לבנים של ${distinct.join(", ")}`;
     }
 
     const ending = completed
       ? firstAttemptCorrect
-        ? "והשלים את התרגיל בניסיון הראשון"
-        : "והשלים את התרגיל לאחר תיקון"
-      : "ולא השלים את התרגיל";
+        ? "השלים את התרגיל בניסיון הראשון"
+        : "השלים את התרגיל לאחר תיקון"
+      : "לא השלים את התרגיל";
 
-    const body = clauses.length > 0 ? clauses.join(", ") + ", " : "";
+    // The ending joins the clauses with "ו" — and stands alone when nothing
+    // came before it ("הלומד השלים", never "הלומד והשלים").
+    const body = clauses.length > 0 ? clauses.join(", ") + ", ו" : "";
     // מסמך 03: choice exercises appear "מסומנים כתרגילי בחירה, בנפרד משבעת
     // תרגילי החובה". They used to be numbered on after the compulsory ones
     // ("בתרגיל השמיני"), as if the meeting had eight compulsory exercises.
@@ -652,29 +669,9 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // never fails because of the engine.
   const recommendationTier = score === null ? null : resolveRecommendationTier(score);
 
-  // Exercises the learner actually erred on, and the columns those errors fell
-  // in, taken from the telemetry rather than assumed from the score.
-  const failedExerciseIds: string[] = [];
-  const regroupingColumnsByExercise: Record<string, number[]> = {};
-  for (const doc of telemetryDocs) {
-    const exId = String((doc as any).exercise_id || "");
-    if (!exId) continue;
-    const isWrongDigit =
-      (doc as any).event_type === "DIGIT_ENTERED" &&
-      (doc as any).details?.is_correct === false;
-    if (isWrongDigit && !failedExerciseIds.includes(exId)) failedExerciseIds.push(exId);
-    if (
-      (doc as any).event_type === "REGROUPING_SUCCESS" ||
-      (doc as any).event_type === "REGROUPING_TRIGGERED"
-    ) {
-      const col = (doc as any).column_index;
-      if (typeof col === "number") {
-        const cols = regroupingColumnsByExercise[exId] || [];
-        if (!cols.includes(col)) cols.push(col);
-        regroupingColumnsByExercise[exId] = cols;
-      }
-    }
-  }
+  // Exercises the learner actually erred on — wrong digits and failed board
+  // checks — and the columns their regroupings fell in.
+  const { failedExerciseIds, regroupingColumnsByExercise } = collectFailedExercises(telemetryDocs);
 
   // Module 26 keeps the canonical task banks in Firestore; read the bank that
   // matches this learner's approved path so the failed exercises carry their

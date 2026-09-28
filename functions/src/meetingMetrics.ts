@@ -32,7 +32,12 @@ export function sessionNumberFromId(sessionId: string): number | null {
   return n >= 1 && n <= 8 ? n : null;
 }
 
-export const DIAGNOSTIC_COMPULSORY_COUNT = 7;
+/**
+ * PRD Module 14 §ב: "מספר משימות החובה קבוע על שבע בכל אחד מהמפגשים 2 עד 8,
+ * לרבות מפגש 2 ומפגש 8". The score's denominator in every scored meeting.
+ */
+export const COMPULSORY_EXERCISES_PER_MEETING = 7;
+export const DIAGNOSTIC_COMPULSORY_COUNT = COMPULSORY_EXERCISES_PER_MEETING;
 
 /**
  * PRD Module 14 §ב: "מפגש 1 הוא ארגז חול חקירתי ואינו כולל משימות חובה
@@ -270,9 +275,9 @@ export interface FirstAttemptScore {
  * earlier DIGIT_ENTERED whose is_correct === false in the same exercise_id;
  * is_correct === null is ignored entirely. Score = correct ÷ compulsory × 100.
  *
- * `compulsoryTotal` is the meeting's number of compulsory exercises (7 for the
- * diagnostic meeting, the bank's count otherwise). `compulsoryIds` is which
- * exercises those are.
+ * `compulsoryTotal` is the meeting's number of compulsory exercises (7 in
+ * meetings 2–8, Module 14 §ב; see resolveCompulsoryTotal). `compulsoryIds` is
+ * which exercises those are.
  *
  * Two things used to go wrong here, and both produced a confident percentage
  * that was not a measurement.
@@ -426,14 +431,21 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
 }
 
 /**
- * How many compulsory exercises a meeting has for a given path, and which
- * ones they are, from the Module 26 catalog in Firestore; 7 for the
- * diagnostic meeting; null when the bank is not there.
+ * How many compulsory exercises a meeting has, and which ones they are for a
+ * given path.
  *
- * The ids matter as much as the count: the score's numerator must count the
- * same exercises its denominator does. Counting an optional early-finisher
- * task towards a compulsory-only denominator is what let a learner who failed
- * a third of the required work be reported at 100%.
+ * The count is the PRD's, not the catalog's: Module 14 §ב fixes it at seven in
+ * every meeting from 2 to 8, so the denominator is 7 there, and null in
+ * meeting 1, which has no compulsory exercises. It used to be the number of
+ * non-choice tasks in the published bank, so a bank published with six or
+ * eight tasks silently changed the formula (Module 23 §ב: "÷ 7").
+ *
+ * The ids still come from the Module 26 catalog in Firestore: the score's
+ * numerator must count the same exercises its denominator does. Counting an
+ * optional early-finisher task towards a compulsory-only denominator is what
+ * let a learner who failed a third of the required work be reported at 100%.
+ * When the bank is not there the ids are unknown, and the numerator falls
+ * back to every non-choice exercise (computeFirstAttemptScore), capped at 7.
  */
 export async function resolveCompulsoryTotal(
   db: admin.firestore.Firestore,
@@ -445,10 +457,10 @@ export async function resolveCompulsoryTotal(
   // Meeting 1 has no compulsory exercises (Module 14 §ב), so no denominator —
   // and no denominator is no score, on every path that asks.
   if (!isScoredMeeting(sessionNumber)) return null;
-  if (sessionNumber === 2) return DIAGNOSTIC_COMPULSORY_COUNT;
+  if (sessionNumber === 2) return COMPULSORY_EXERCISES_PER_MEETING;
   const key = `${sessionNumber}:${path}`;
   if (cache.has(key)) return cache.get(key) ?? null;
-  let total: number | null = null;
+  const total = COMPULSORY_EXERCISES_PER_MEETING;
   const bankIds = sessionNumber >= 3 && sessionNumber <= 8
     ? [`session_${sessionNumber}_${path}`, `session_${sessionNumber}`]
     : [`session_${sessionNumber}`];
@@ -459,14 +471,13 @@ export async function resolveCompulsoryTotal(
       if (Array.isArray(tasks) && tasks.length > 0) {
         const compulsory = tasks.filter((t: any) => t && t.isOptionalChoiceTask !== true);
         const chosen = compulsory.length > 0 ? compulsory : tasks;
-        total = chosen.length;
         if (idsOut) {
           idsOut.set(key, new Set(chosen.map((t: any) => String(t?.id ?? "")).filter(Boolean)));
         }
         break;
       }
     } catch {
-      /* catalog unavailable: fall through to null */
+      /* catalog unavailable: the count stands, the ids stay unknown */
     }
   }
   cache.set(key, total);
