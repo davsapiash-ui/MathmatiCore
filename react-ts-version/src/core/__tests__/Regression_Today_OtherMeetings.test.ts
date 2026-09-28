@@ -799,7 +799,20 @@ describe('performance: what one store change costs in the lesson, today vs befor
 
   it('store notifications per ordinary action, and which of them change the synced payload at all', async () => {
     startMeeting(4);
+    // Wait until earlier actions' async work has landed: in a loaded full run a
+    // late store update from an earlier action once fell inside the device-lock
+    // echo's 5 ms window and was counted against it (1 instead of 0).
+    const settle = async () => {
+      for (let i = 0; i < 50; i++) {
+        let n = 0;
+        const off = useWorkspaceStore.subscribe(() => { n++; });
+        await new Promise((r) => setTimeout(r, 20));
+        off();
+        if (n === 0) return;
+      }
+    };
     const count = async (fn: () => void) => {
+      await settle();
       let n = 0;
       let payloadChanges = 0;
       let last = JSON.stringify(svc.getSyncableWorkspaceState());

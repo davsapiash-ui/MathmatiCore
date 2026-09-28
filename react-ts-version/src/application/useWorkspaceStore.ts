@@ -1359,7 +1359,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           handleFailure(
             'empty_board',
             'בונים בבית המספרים 🧱',
-            'עדיין אין לבנים בבית המספרים. לחצו על לבנה בארגז הכלים או גררו אותה לטור, ובנו את המספרים שבתרגיל.',
+            'עוד אין לבנים בבית המספרים. לחצו על לבנה בארגז הכלים או גררו אותה לבית המספרים, ובנו את המספרים שבתרגיל.',
             3500
           );
           return;
@@ -1396,7 +1396,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       if (!hidden.correct) {
-        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בבית המספרים.', 2800);
+        // Meeting 8 has no blocks and no board (מסמך 03 §3.8), so its skeleton
+        // tasks (s8_r_t7, s8_g_t6, s8_g_t7) cannot point the child to them.
+        handleFailure(
+          'wrong_numeric',
+          'כִּמְעַט... 🧐',
+          s.sessionNumber === 8
+            ? 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב.'
+            : 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בבית המספרים.',
+          2800
+        );
         return;
       }
 
@@ -1503,7 +1512,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       if (task.requiresUngrouping && !s.hasUngrouped) {
-        handleFailure('conversion_skipped', 'בּוֹאוּ נִפְרֹט 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנה כדי לפרוט אותה.', 3500);
+        handleFailure('conversion_skipped', 'בּוֹאוּ נִפְרֹט 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
         return;
       }
       const typed = answerDigitsToNumber(s.answerDigits);

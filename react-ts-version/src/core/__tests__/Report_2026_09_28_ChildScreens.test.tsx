@@ -235,9 +235,19 @@ describe('one name per thing on the child\'s screen: "בית המספרים", "�
     expect(store).toContain("'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.'");
     expect(store).toContain("'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.'");
     expect(store).toContain("'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!'");
-    // niqqud stripped, so no spelling of "קוביות" slips through
-    const plain = store.replace(/[\u0591-\u05C7]/g, '');
-    expect(plain).not.toMatch(/תואם ללוח|שבלוח|קוביות|קביות|להקבץ|הניסוי|כפתור הקבץ|כדי לפרק אותה|לבני הדינס|קוביות הדינס/);
+    // Only what the child reads: the string literals, niqqud (U+0591–U+05C7)
+    // stripped first — "קֻבִּיּוֹת" slipped past a match on the pointed text.
+    const literals = [...store.matchAll(/'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g)]
+      .map((m) => (m[1] ?? m[2] ?? m[3] ?? '').replace(/[֑-ׇ]/g, ''))
+      .filter((t) => /[א-ת]/.test(t));
+    expect(literals.length).toBeGreaterThan(50);
+    for (const t of literals) {
+      expect(t).not.toMatch(/תואם ללוח|שבלוח|קוביות|קובייה|קביות|להקבץ|הניסוי|כפתור הקבץ|לפרק|לבני (ה)?דינס|הדינס/);
+    }
+    // the guard itself sees through niqqud
+    expect('קֻבִּיּוֹת'.replace(/[֑-ׇ]/g, '')).toMatch(/קביות|קוביות/);
+    expect(store).toContain("'עוד אין לבנים בבית המספרים. לחצו על לבנה בארגז הכלים או גררו אותה לבית המספרים, ובנו את המספרים שבתרגיל.'");
+    expect(store).toContain("'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.'");
     // a wrong board is refused without spelling out the blocks to build
     expect(store).not.toContain('בבית המספרים צריך להיות בדיוק');
   });
@@ -260,5 +270,20 @@ describe('row ע1.1 and ע3.2 — the child reads "תחנה", not "מפגש"', (
     expect(choice).toContain("'אפשר גם לסיים את התחנה עכשיו.'");
     const texts = choice.slice(choice.indexOf('const BRANCH_CHOICE_TEXT'), choice.indexOf('interface ReinforcementOrChallengeScreenProps'));
     expect(texts).not.toContain('המפגש');
+  });
+});
+
+describe('the undo button is named as the child sees it (review of PR #125, item 10)', () => {
+  it('no exercise says "לחקירה עצמאית"; the flexible tasks point to the ↺ button', () => {
+    const all = [
+      ...([3, 4, 5, 6, 7, 8] as const).flatMap((m) => [...getSessionTasks(m, 'green_path'), ...getSessionTasks(m, 'remediation_path')]),
+      ...Object.values(SESSION_BRANCH_TASKS).flatMap((byPath) => Object.values(byPath).flatMap((b) => [...b.reinforcement, ...b.challenge])),
+    ];
+    for (const t of all) expect(t.instructionHe, t.id).not.toContain('לחקירה עצמאית');
+    const s6 = getSessionTasks(6, 'green_path').find((t) => t.id === 's6_g_t7')!;
+    const s7 = getSessionTasks(7, 'remediation_path').find((t) => t.id === 's7_r_t7')!;
+    for (const t of [s6, s7]) expect(t.instructionHe, t.id).toMatch(/רוצים לחזור צעד\? לחצו על הכפתור עם החץ המעוגל ↺\.$/);
+    // the toolbar's undo button is that arrow
+    expect(src('features/workspace/WorkspaceTopbar.tsx')).toMatch(/aria-label="ביטול הפעולה האחרונה"[\s\S]{0,120}<RotateCcw/);
   });
 });
