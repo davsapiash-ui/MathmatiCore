@@ -1,6 +1,6 @@
 import { ref, set, get, update, runTransaction, serverTimestamp, onValue, onDisconnect, push, type DataSnapshot } from 'firebase/database';
 import { database, firestore, serverNow } from '@/infrastructure/firebase';
-import { WORKSPACE_SAVED_AT_KEY, workspaceSavedAt, isRestorableFor } from '@/core/workspaceSnapshot';
+import { WORKSPACE_SAVED_AT_KEY, workspaceSavedAt, isRestorableFor, keepsFreshStartWork } from '@/core/workspaceSnapshot';
 import { doc, getDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, getActiveTasks, resolveLearningPath, type WorkspaceInitialization } from '@/application/useWorkspaceStore';
@@ -426,12 +426,14 @@ export class FirebaseSyncService {
 
     // Load initial state from Firebase and keep it synced LIVE
     this.unsubscribeFirebase = onValue(studentRef, (snapshot: DataSnapshot) => {
-      // The first snapshot since startSync: the record may now get what this
-      // device saved without it (sendWorkKeptOnDevice). Not after a teacher's
-      // reset (forceReload), which that copy must not undo.
+      // The first snapshot since startSync: a meeting started or restored
+      // without the record now meets the record's copy
+      // (settleStartWithoutRecord). Not on a teacher's reset (forceReload),
+      // which the page reload carries out.
       const firstSnapshot = this.isInitialLoad;
       let recordCopy: unknown;
       let mayReceiveDeviceWork = false;
+      const teacherControls: Record<string, unknown> = {};
       try {
         if (snapshot.exists()) {
           const rawData = snapshot.val();
@@ -439,7 +441,9 @@ export class FirebaseSyncService {
           // NOTE: We deliberately do NOT restore workspaceState from Firebase here.
           // StudentWorkspacePage.initSession() is the single source of truth for
           // session state. Overwriting it from Firebase mid-session causes race conditions
-          // and could reset a live student's work.
+          // and could reset a live student's work. The one exception is the first
+          // snapshot after a meeting was started afresh without the record
+          // (settleStartWithoutRecord, Module 17).
           
           if (data.forceReload) {
             // Teacher initiated a deep reset. Reload the browser to clear local memory.
@@ -485,6 +489,8 @@ export class FirebaseSyncService {
           if (targetBoardLocked !== useWorkspaceStore.getState().isBoardLocked) {
             wsOverrides.isBoardLocked = targetBoardLocked;
           }
+          teacherControls.isBoardLocked = targetBoardLocked;
+          if (data.isASD !== undefined) teacherControls.isASD = Boolean(data.isASD);
           if (Object.keys(wsOverrides).length > 0) {
             useWorkspaceStore.setState(wsOverrides);
           }
@@ -550,7 +556,7 @@ export class FirebaseSyncService {
         this.isInitialLoad = false;
         if (firstSnapshot) {
           this.localBaseline = null;
-          if (mayReceiveDeviceWork) this.sendWorkKeptOnDevice(recordCopy);
+          if (mayReceiveDeviceWork) this.settleStartWithoutRecord(recordCopy, teacherControls);
         }
       }
     });
@@ -738,31 +744,52 @@ export class FirebaseSyncService {
   }
 
   /**
-   * Module 17, on the record's first snapshot after a start without it (a
-   * reload without a connection, or before the record loaded): if this
-   * device's copy of the meeting on screen is strictly later than the
+   * Module 17, on the record's first snapshot after the meeting was started
+   * or restored without it (a reload without a connection, or before the
+   * record loaded). The meeting on screen was chosen without the record's
+   * copy; now the two meet.
+   *
+   * Started afresh (no copy of the meeting on this device): the record's copy
+   * of the meeting is restored, unless what the learner did in the fresh
+   * start is newer, non-empty and not behind it (keepsFreshStartWork). The
+   * restore is a store change like any other, so both copies then get the
+   * record's state, stamped later than anything this device saved: the fresh
+   * start is never pushed over the record's progress, and the next reload
+   * cannot bring it back.
+   *
+   * Restored from this device's copy: when the record's copy is later than
+   * that one, it was written elsewhere after it, and the page restores it
+   * instead (StudentWorkspacePage, X55 — the same comparison). Writing this
+   * device's copy first would overwrite it.
+   *
+   * Otherwise, if this device's copy of the meeting is strictly later than the
    * record's, the record gets it now — the learner may not touch the board
    * again before the lesson ends, and the next change would be the first to
    * send it.
-   *
-   * Not when the record's copy is later than the copy this meeting was
-   * restored from: that one was written elsewhere after it, and the page
-   * restores it instead (StudentWorkspacePage, X55 — the same comparison).
-   * Writing this device's copy first would overwrite it.
    */
-  private sendWorkKeptOnDevice(recordCopy: unknown) {
+  private settleStartWithoutRecord(recordCopy: unknown, teacherControls: Record<string, unknown>) {
     try {
       const state = useWorkspaceStore.getState();
-      const marker = this.initializedForThisLearner(state);
-      if (!marker) return;
+      const start = this.initializedForThisLearner(state);
+      if (!start) return;
+      const record = recordCopy as Record<string, unknown> | null | undefined;
       const deviceCopy = this.newestDeviceCopy();
-      if (!isRestorableFor(deviceCopy, marker.meeting)) return;
-      const recordSavedAt = workspaceSavedAt(recordCopy as Record<string, unknown> | null);
-      if (recordSavedAt > marker.restoredSavedAt) return;
-      if (workspaceSavedAt(deviceCopy) <= recordSavedAt) return;
+      if (start.restoredSavedAt === null) {
+        if (isRestorableFor(record, start.meeting) && !keepsFreshStartWork(record, deviceCopy, start.meeting)) {
+          state.restoreSession(record);
+          // restoreSession clears the board lock and takes isASD from the copy;
+          // the teacher's values on the record stand.
+          useWorkspaceStore.setState(teacherControls);
+          return;
+        }
+      } else if (workspaceSavedAt(record) > start.restoredSavedAt) {
+        return;
+      }
+      if (!isRestorableFor(deviceCopy, start.meeting)) return;
+      if (workspaceSavedAt(deviceCopy) <= workspaceSavedAt(record)) return;
       this.syncWorkspaceState(state);
     } catch (e) {
-      console.error('[FirebaseSyncService] Could not send the work kept on this device:', e);
+      console.error('[FirebaseSyncService] Could not settle the meeting started without the learner record:', e);
     }
   }
 

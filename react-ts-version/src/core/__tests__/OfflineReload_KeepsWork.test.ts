@@ -60,7 +60,13 @@ import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { flushThrottledWrites, resetThrottledWrites } from '@/infrastructure/services/ThrottledRtdbWriter';
-import { newerWorkspaceSnapshot, workspaceSavedAt, WORKSPACE_SAVED_AT_KEY } from '@/core/workspaceSnapshot';
+import {
+  newerWorkspaceSnapshot,
+  workspaceSavedAt,
+  WORKSPACE_SAVED_AT_KEY,
+  keepsFreshStartWork,
+  meetingProgress,
+} from '@/core/workspaceSnapshot';
 import { EMPTY_COUNTS } from '@/core/placeValue';
 import { fetchServerClockOffset, serverNow } from '@/infrastructure/firebase';
 
@@ -383,5 +389,214 @@ describe('Module 17 — when the connection returns', () => {
     deliverRecord({ ...APPROVED, workspaceState: recordCopy });
     sendNow();
     expect(workspaceWritesSince(mark)).toHaveLength(0);
+  });
+});
+
+/* ── A fresh start without the record ─────────────────────────────────────── */
+
+const TWELVE_MIN = 12 * 60 * 1000;
+
+/**
+ * Online in meeting 2 (the diagnostic, which needs no approved path): the
+ * learner reaches task `taskIdx` and types a 5 there. Returns the record's copy.
+ */
+function workOnlineInMeeting2(taskIdx: number): Record<string, any> {
+  useAuthStore.setState({ user: { uid: STUDENT, student_id: 5 } as any, role: 'student', isAuthenticated: true });
+  useStore.setState({ students: {} as any, firebaseLoaded: false });
+  serverClockOffset(TEN_MIN);
+  svc.startSync(STUDENT, { uid: STUDENT });
+  deliverRecord({});
+  ws().initSession(2, false);
+  useWorkspaceStore.setState({ qflow: { ...ws().qflow, taskIdx } });
+  ws().setAnswerDigit('units', '5');
+  sendNow();
+  const writes = workspaceWritesSince(0);
+  const recordCopy = writes[writes.length - 1].value.workspaceState;
+  expect(recordCopy.qflow.taskIdx).toBe(taskIdx);
+  expect(recordCopy.answerDigits).toMatchObject({ units: '5' });
+  return recordCopy;
+}
+
+/**
+ * The learner reloads without a connection on a device that holds no copy of
+ * the meeting (another tablet, or its storage was cleared). Neither the device
+ * nor the record can say where the learner was, so the page starts the
+ * meeting afresh (StudentWorkspacePage, after FIREBASE_RESTORE_GRACE_MS).
+ */
+function freshStartOffline(meeting: 1 | 2) {
+  localStorage.clear();
+  reloadPage(0);
+  ws().initSession(meeting, false);
+  expect(ws().workspaceInitializedFor?.restoredSavedAt).toBeNull();
+}
+
+describe('Module 17 — a meeting started afresh without the record never overwrites its progress', () => {
+  it("offline fresh start, then reconnect: the record's progress comes back and the learner goes on from it", () => {
+    const recordCopy = workOnlineInMeeting2(3);
+    freshStartOffline(2);
+    expect(ws().qflow.taskIdx).toBe(0);
+    // The child types in task 1 of the fresh start, twelve minutes later:
+    // newer, and not empty, but behind the record's task 4.
+    clock.device += TWELVE_MIN;
+    ws().setAnswerDigit('units', '7');
+    const mark = rtdb.updates.length;
+
+    serverClockOffset(TEN_MIN);
+    deliverRecord({ workspaceState: recordCopy });
+
+    expect(ws().qflow.taskIdx, "the record's task is back on screen").toBe(3);
+    expect(ws().answerDigits).toMatchObject({ units: '5' });
+    sendNow();
+    const writes = workspaceWritesSince(mark);
+    expect(writes.length, "both copies are brought to the record's state").toBeGreaterThan(0);
+    for (const w of writes) expect(w.value.workspaceState.qflow.taskIdx, 'the fresh start is never written').toBe(3);
+    expect(deviceCopy()?.qflow.taskIdx).toBe(3);
+    expect(workspaceSavedAt(deviceCopy())).toBe(workspaceSavedAt(writes[writes.length - 1].value.workspaceState));
+
+    // The learner goes on from there, and a later reload keeps it.
+    ws().setAnswerDigit('tens', '4');
+    sendNow();
+    const last = workspaceWritesSince(mark).pop()!.value.workspaceState;
+    expect(last.qflow.taskIdx).toBe(3);
+    expect(last.answerDigits).toMatchObject({ units: '5', tens: '4' });
+    reloadPage(0);
+    pageRestoresDeviceCopy(2);
+    expect(ws().qflow.taskIdx).toBe(3);
+  });
+
+  it("an untouched fresh start never replaces the record's copy, even on the first task", () => {
+    const recordCopy = workOnlineInMeeting2(0);
+    freshStartOffline(2);
+    clock.device += TWELVE_MIN;
+    expect(deviceCopy(), 'the start itself is not saved').toBeNull();
+    const mark = rtdb.updates.length;
+
+    serverClockOffset(TEN_MIN);
+    deliverRecord({ workspaceState: recordCopy });
+    sendNow();
+    expect(ws().answerDigits).toMatchObject({ units: '5' });
+    for (const w of workspaceWritesSince(mark)) expect(w.value.workspaceState.answerDigits).toMatchObject({ units: '5' });
+  });
+
+  it('fresh-start work that is newer, not empty and got further is kept, and the record gets it', () => {
+    const recordCopy = workOnlineInMeeting2(1);
+    freshStartOffline(2);
+    clock.device += TWELVE_MIN;
+    useWorkspaceStore.setState({ qflow: { ...ws().qflow, taskIdx: 2 } });
+    ws().setAnswerDigit('units', '9');
+    const mark = rtdb.updates.length;
+
+    serverClockOffset(TEN_MIN);
+    deliverRecord({ workspaceState: recordCopy });
+    expect(ws().qflow.taskIdx).toBe(2);
+    expect(ws().answerDigits).toMatchObject({ units: '9' });
+    sendNow();
+    const writes = workspaceWritesSince(mark);
+    expect(writes.length).toBeGreaterThan(0);
+    expect(writes[writes.length - 1].value.workspaceState.qflow.taskIdx).toBe(2);
+    expect(workspaceSavedAt(writes[writes.length - 1].value.workspaceState)).toBeGreaterThan(workspaceSavedAt(recordCopy));
+  });
+
+  it("fresh-start work stamped before the record's copy (the device clock is behind) is not newer: the record wins", () => {
+    const recordCopy = workOnlineInMeeting2(1);
+    freshStartOffline(2);
+    // Two minutes later on a clock ten minutes behind: stamped before the record's copy.
+    clock.device += 2 * 60_000;
+    useWorkspaceStore.setState({ qflow: { ...ws().qflow, taskIdx: 2 } });
+    ws().setAnswerDigit('units', '9');
+    expect(workspaceSavedAt(deviceCopy())).toBeLessThan(workspaceSavedAt(recordCopy));
+    const mark = rtdb.updates.length;
+
+    serverClockOffset(TEN_MIN);
+    deliverRecord({ workspaceState: recordCopy });
+    expect(ws().qflow.taskIdx).toBe(1);
+    sendNow();
+    for (const w of workspaceWritesSince(mark)) expect(w.value.workspaceState.qflow.taskIdx).toBe(1);
+  });
+
+  it('with no copy of this meeting on the record, the fresh start goes on and the record gets it', () => {
+    // The record's copy is of meeting 1; the learner now starts meeting 2 afresh, offline.
+    useAuthStore.setState({ user: { uid: STUDENT, student_id: 5 } as any, role: 'student', isAuthenticated: true });
+    serverClockOffset(TEN_MIN);
+    svc.startSync(STUDENT, { uid: STUDENT });
+    deliverRecord({});
+    ws().initSession(1, false);
+    ws().setAnswerDigit('units', '1');
+    sendNow();
+    const meeting1Copy = workspaceWritesSince(0).pop()!.value.workspaceState;
+    expect(meeting1Copy.sessionNumber).toBe(1);
+
+    freshStartOffline(2);
+    clock.device += TWELVE_MIN;
+    ws().setAnswerDigit('units', '8');
+    const mark = rtdb.updates.length;
+    serverClockOffset(TEN_MIN);
+    deliverRecord({ workspaceState: meeting1Copy });
+    expect(ws().sessionNumber).toBe(2);
+    expect(ws().answerDigits).toMatchObject({ units: '8' });
+    sendNow();
+    const writes = workspaceWritesSince(mark);
+    expect(writes.length).toBeGreaterThan(0);
+    expect(writes[writes.length - 1].value.workspaceState.sessionNumber).toBe(2);
+  });
+
+  it("the teacher's board lock on the record stays on after the record's copy is restored", () => {
+    const recordCopy = workOnlineInMeeting2(3);
+    freshStartOffline(2);
+    serverClockOffset(TEN_MIN);
+    deliverRecord({ workspaceState: recordCopy, isBoardLocked: true });
+    expect(ws().qflow.taskIdx).toBe(3);
+    expect(ws().isBoardLocked).toBe(true);
+  });
+
+  it("a teacher's reset waiting on the record: nothing is restored or written", () => {
+    const recordCopy = workOnlineInMeeting2(3);
+    freshStartOffline(2);
+    const mark = rtdb.updates.length;
+    serverClockOffset(TEN_MIN);
+    deliverRecord({ workspaceState: recordCopy, forceReload: true });
+    sendNow();
+    expect(ws().qflow.taskIdx).toBe(0);
+    expect(workspaceWritesSince(mark)).toHaveLength(0);
+  });
+
+  it('a meeting started after the record arrived is not second-guessed by later snapshots', () => {
+    const recordCopy = workOnlineInMeeting2(3);
+    // Online, with the record loaded, the meeting starts over (a teacher's level-2 reset).
+    ws().initSession(2, false);
+    ws().setAnswerDigit('units', '2');
+    deliverRecord({ workspaceState: recordCopy });
+    expect(ws().qflow.taskIdx).toBe(0);
+    expect(ws().answerDigits).toMatchObject({ units: '2' });
+  });
+});
+
+describe('Module 17 — the rule for a fresh start, as stated', () => {
+  const copy = (fields: Record<string, unknown>) => ({ sessionNumber: 4, flowStatus: 'task', ...fields });
+
+  it('how far into the meeting a copy is', () => {
+    expect(meetingProgress(copy({ standardTaskIdx: 3 }))).toBe(3);
+    expect(meetingProgress(copy({ standardTaskIdx: 6, flowStatus: 'choice_branch' }))).toBeGreaterThan(6);
+    expect(meetingProgress(copy({ standardTaskIdx: 9 }))).toBeGreaterThan(meetingProgress(copy({ standardTaskIdx: 6, flowStatus: 'choice_branch' })));
+    expect(meetingProgress(copy({ flowStatus: 'sessionDone' }))).toBeGreaterThan(meetingProgress(copy({ standardTaskIdx: 12 })));
+    const m2 = (qflow: Record<string, unknown>) => ({ sessionNumber: 2, flowStatus: 'task', qflow });
+    expect(meetingProgress(m2({ phase: 'correction', correctionIdx: 0, subphase: 'subtask', taskIdx: 1 })))
+      .toBeGreaterThan(meetingProgress(m2({ phase: 'primary', taskIdx: 8 })));
+    expect(meetingProgress(m2({ phase: 'correction', correctionIdx: 0, subphase: 'retry', taskIdx: 1 })))
+      .toBeGreaterThan(meetingProgress(m2({ phase: 'correction', correctionIdx: 0, subphase: 'subtask', taskIdx: 1 })));
+  });
+
+  it('kept only when newer, not empty and not behind', () => {
+    const record = copy({ standardTaskIdx: 2, [WORKSPACE_SAVED_AT_KEY]: 1_000 });
+    const device = (fields: Record<string, unknown>) =>
+      copy({ [WORKSPACE_SAVED_AT_KEY]: 2_000, hasInteracted: true, standardTaskIdx: 2, ...fields });
+    expect(keepsFreshStartWork(record, device({}), 4)).toBe(true);
+    expect(keepsFreshStartWork(record, device({ [WORKSPACE_SAVED_AT_KEY]: 1_000 }), 4), 'a tie is not newer').toBe(false);
+    expect(keepsFreshStartWork(record, device({ standardTaskIdx: 1 }), 4), 'behind').toBe(false);
+    const onFirst = copy({ standardTaskIdx: 0, [WORKSPACE_SAVED_AT_KEY]: 1_000 });
+    expect(keepsFreshStartWork(onFirst, device({ standardTaskIdx: 0, hasInteracted: false }), 4), 'empty').toBe(false);
+    expect(keepsFreshStartWork(onFirst, device({ standardTaskIdx: 0 }), 4)).toBe(true);
+    expect(keepsFreshStartWork(record, null, 4), 'nothing done on the device').toBe(false);
+    expect(keepsFreshStartWork(copy({ sessionNumber: 3 }), device({}), 4), 'the record has no copy of this meeting').toBe(true);
   });
 });

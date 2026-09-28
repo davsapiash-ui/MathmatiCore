@@ -130,8 +130,8 @@ export interface WorkspaceInitialization {
   /** currentStudentUid() when the meeting was started or restored; '' for no learner. */
   learner: string;
   meeting: SessionNumber;
-  /** The stamp (WORKSPACE_SAVED_AT_KEY) of the saved copy it was restored from; 0 for a fresh start. */
-  restoredSavedAt: number;
+  /** The stamp (WORKSPACE_SAVED_AT_KEY) of the saved copy it was restored from (0: unstamped); null when started afresh. */
+  restoredSavedAt: number | null;
 }
 
 /**
@@ -2327,7 +2327,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         isAdditionHelperOpen: false,
         additionHelperOffered: false,
         // Module 17: from here on the store holds this learner's meeting.
-        workspaceInitializedFor: { learner: currentStudentUid(), meeting: sanitized, restoredSavedAt: 0 },
+        workspaceInitializedFor: { learner: currentStudentUid(), meeting: sanitized, restoredSavedAt: null },
       });
       applyPendingSupportProfile();
 

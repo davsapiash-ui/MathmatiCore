@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { useWorkspaceStore, getActiveTasks, activeExerciseId, getCurrentQTask } from '@/application/useWorkspaceStore';
 import { approvePath } from '@/test/approvedPath';
+import { isRestorableFor, newerWorkspaceSnapshot, WORKSPACE_SAVED_AT_KEY } from '@/core/workspaceSnapshot';
 
 /**
  * ביקורת דשבורד המורה, 20.9.2026 — הצד של הלומד שמזין את מה שהמורה רואה.
@@ -99,7 +100,13 @@ describe('the end of a meeting', () => {
     expect((page.match(/const saved = newerWorkspaceSnapshot\(\s*myData\?\.workspaceState,/g) || []).length).toBe(2);
     const snapshot = src('core/workspaceSnapshot.ts');
     expect(snapshot).toContain('snapshot!.sessionNumber === meeting && Boolean(snapshot!.flowStatus)');
-    expect(snapshot).not.toContain('sessionDone');
+    // A finished copy is restorable, and is chosen like any other
+    // (workspaceSnapshot.ts names 'sessionDone' only to rank a finished
+    // meeting past every exercise — Module 17, keepsFreshStartWork).
+    const finished = { sessionNumber: 4, flowStatus: 'sessionDone', [WORKSPACE_SAVED_AT_KEY]: 2 };
+    expect(isRestorableFor(finished, 4)).toBe(true);
+    expect(newerWorkspaceSnapshot(finished, { sessionNumber: 4, flowStatus: 'task', [WORKSPACE_SAVED_AT_KEY]: 1 }, 4)).toBe(finished);
+    expect(newerWorkspaceSnapshot(undefined, finished, 4)).toBe(finished);
   });
 
   it('no reflection is filed outside meeting 8: the old every-meeting board is gone (owner decision E2, 27.9.2026)', () => {
