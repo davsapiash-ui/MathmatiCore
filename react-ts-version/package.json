@@ -15,7 +15,8 @@
     "test:direct": "npx vitest run --config ./vite.config.ts --no-cache",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "ux-audit": "playwright test --config playwright.ux-audit.config.ts"
+    "ux-audit": "playwright test --config playwright.ux-audit.config.ts",
+    "ux-audit:compare": "node tests/ux-audit/compare.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
