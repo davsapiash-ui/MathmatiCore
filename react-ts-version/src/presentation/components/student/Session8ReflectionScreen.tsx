@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckSquare, Square, RotateCcw, CircleDot, HelpCircle, Award, ArrowLeft } from 'lucide-react';
+import { CheckSquare, Square, RotateCcw, CircleDot, HelpCircle, Award, ArrowLeft, Loader2 } from 'lucide-react';
 import type { SRLReflectionResult } from '@/core/srlReflection';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { encouragementSentenceHe, persistenceIndexPercent, splitEncouragement } from '@/core/persistenceEncouragement';
@@ -58,8 +58,13 @@ export const REFLECTION_TEXT_HE = {
   back: 'חזרה',
   // Inside the workspace the child reads "תחנה", not "מפגש" (register, deviation 24(ג)).
   finish: 'סיום התחנה',
-  // Shown only when the reflection could be neither saved nor queued: it says
-  // what to do — press the same button again, or call the teacher.
+  // The finish button while the reflection is being stored: the same form as
+  // "יוצאים…" on the exit button (core/toolbarNames.ts), so the child sees
+  // that something is happening.
+  saving: 'שומרים…',
+  // Shown only when the reflection could not even be stored in the offline
+  // queue on this device: it says what to do — press the same button again,
+  // or ask the teacher.
   notSaved: 'לא הצלחנו לשמור. לחצו שוב על "סיום התחנה". אם זה לא עוזר, בקשו עזרה מהמורה.',
 } as const;
 
@@ -119,6 +124,10 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
   const [effortLevel, setEffortLevel] = useState<EffortId | null>(null);
   const [selectedStrategies, setSelectedStrategies] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The state disables the button on the next render; the ref also stops a
+  // second click that lands before that render (a double click, a held key),
+  // whose handler still sees isSubmitting === false.
+  const submittingRef = useRef(false);
   const t = REFLECTION_TEXT_HE;
 
   const toggleStrategy = (id: string) => {
@@ -137,21 +146,28 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
   const { title: encouragementTitle, body: encouragementBody } = splitEncouragement(encouragement);
 
   const handleComplete = () => {
-    if (isSubmitting) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setIsSubmitting(true);
-    Promise.resolve(onComplete({
+    const release = () => {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    };
+    // The executor runs at once, so onComplete is called in this click; a
+    // synchronous throw becomes a rejection like an asynchronous one.
+    new Promise<boolean | void>((resolve) => resolve(onComplete({
       effortLevel,
       strategies: selectedStrategies,
       persistenceIndex: persistenceRatio,
       undoCount: U,
       errorCount: E,
       guessCount: G,
-    })).then(
+    }))).then(
       (done) => {
-        if (done === false) setIsSubmitting(false);
+        if (done === false) release();
       },
       // A save that threw is a save that failed: the button works again.
-      () => setIsSubmitting(false),
+      release,
     );
   };
 
@@ -319,14 +335,20 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
               </div>
 
 
+              {/* While the reflection is stored the button says so ("שומרים…"
+                  with a turning icon; the words stay when motion is reduced)
+                  and is busy for a screen reader. */}
               <button
                 type="button"
                 onClick={handleComplete}
                 disabled={isSubmitting}
-                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-base rounded-2xl shadow-lg shadow-emerald-600/25 transition-all cursor-pointer flex items-center justify-center gap-2 mt-2"
+                aria-busy={isSubmitting}
+                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-base rounded-2xl shadow-lg shadow-emerald-600/25 transition-all cursor-pointer flex items-center justify-center gap-2 mt-2 disabled:cursor-wait disabled:opacity-80 disabled:hover:bg-emerald-600"
               >
-                <Award className="w-5 h-5" />
-                <span>{t.finish}</span>
+                {isSubmitting
+                  ? <Loader2 aria-hidden="true" className="w-5 h-5 animate-spin" />
+                  : <Award aria-hidden="true" className="w-5 h-5" />}
+                <span>{isSubmitting ? t.saving : t.finish}</span>
               </button>
             </motion.div>
           )}

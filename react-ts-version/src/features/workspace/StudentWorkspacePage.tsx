@@ -846,7 +846,8 @@ export function StudentWorkspacePage() {
   }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, isASDMode, activeClassSession, isTeacherSessionActive]);
 
   // Meeting 8, 8.10 of the 28.9.2026 audit: a learner whose reflection is
-  // already saved is done (PRD Module 16 §ג, "כפתור סיום מפגש סופי"). The
+  // already saved — on the server, or waiting in the offline queue on this
+  // device — is done (PRD Module 16 §ג, "כפתור סיום מפגש סופי"). The
   // finished state is saved with the workspace, so this only acts
   // when that state did not land before a reload — the board is not shown again
   // over a reflection the rules will not let anyone overwrite.
@@ -1081,15 +1082,16 @@ export function StudentWorkspacePage() {
           // דרסה את routeStatus ל-'PENDING', כלומר ביטלה את החלטת השער.
           const outcome = await submitSRLReflection(currentStudentUid(), result);
           if (!outcome.ok) {
-            // Not saved and not queued either (Module 17 buffers every write
-            // that fails; this is what is left): the board stays on step 3
-            // with the same answers, the button works again, and the child is
-            // told what to do. Ending the meeting here would lose the
-            // reflection for good behind "העבודה נשמרה בבטחה".
+            // Not even stored in the offline queue on this device (Module 17
+            // holds everything else): the board stays on step 3 with the same
+            // answers, the button works again, and the child is told what to
+            // do. Ending the meeting here would lose the reflection for good
+            // behind "העבודה נשמרה בבטחה".
             toast.error(REFLECTION_TEXT_HE.notSaved, { duration: 15000 });
             return false;
           }
-          // Saved, already saved, or waiting in the offline queue to be sent:
+          // In the offline queue, which sends it and removes it only on the
+          // server's Ack: the reflection is safe, and the child is done —
           // "כפתור סיום מפגש סופי" (Module 16 §ג).
           // The learner stays here, on the quiet end screen. Sending them to the
           // lobby sent them straight back into meeting 8 — still open — and the
@@ -1123,7 +1125,7 @@ export function StudentWorkspacePage() {
   //
   // Meeting 8 reaches this screen from its reflection board, whose last step
   // already said "כל הכבוד": the heading only says which station is done. It is
-  // the last station, so there is no "next meeting" line.
+  // the last station, so there is no "next station" line.
   if (endScreen === 'sessionDone') {
     const withClosingSentence = hasClosingSentence(sessionNumber);
     const afterReflection = sessionNumber === 8;

@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, fireEvent, cleanup, screen, waitFor, act } from '@testing-library/react';
+import { render, fireEvent, cleanup, screen, act } from '@testing-library/react';
 
 /**
  * מודול 16 / מסמך 03 §3.8 — מסך הרפלקציה של מפגש 8, כפי שהילד רואה ושומע אותו.
@@ -167,9 +167,13 @@ describe('שלב 3 — משפט עידוד לפי מדד ההתמדה של מפ�
     const finish = screen.getByRole('button', { name: /סיום התחנה/ }) as HTMLButtonElement;
     fireEvent.click(finish);
     expect(finish.disabled).toBe(true);
-    await waitFor(() => expect(finish.disabled).toBe(false));
+    // The failed save settles inside act(), so React applies it before the checks.
+    await act(async () => {});
+    expect(finish.disabled).toBe(false);
     expect(screen.getByText(REFLECTION_TEXT_HE.stepLabel(3))).toBeTruthy();
-    fireEvent.click(finish);
+    await act(async () => {
+      fireEvent.click(finish);
+    });
     expect(onComplete).toHaveBeenCalledTimes(2);
   });
 
@@ -183,22 +187,51 @@ describe('שלב 3 — משפט עידוד לפי מדד ההתמדה של מפ�
     expect(finish.disabled).toBe(false);
   });
 
-  it('שמירה שהצליחה: הכפתור אינו נלחץ פעם שנייה', async () => {
-    const onComplete = vi.fn(() => Promise.resolve(true));
+  it('לחיצה כפולה: הרפלקציה נשלחת פעם אחת בלבד', async () => {
+    let settle: (done: boolean) => void = () => {};
+    const onComplete = vi.fn(() => new Promise<boolean>((resolve) => { settle = resolve; }));
     toStep3(onComplete);
     const finish = screen.getByRole('button', { name: /סיום התחנה/ }) as HTMLButtonElement;
-    // act() lets the save's promise settle and React apply every state update
-    // before the second click, so the second click meets the settled button.
+    // One act() scope: both clicks land before React renders the disabled
+    // button, so the second click's handler still sees isSubmitting === false.
+    await act(async () => {
+      fireEvent.click(finish);
+      fireEvent.click(finish);
+    });
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(finish.disabled).toBe(true);
+    // The save succeeds: the board is about to be replaced by the end screen,
+    // and a click meanwhile sends nothing.
+    await act(async () => {
+      settle(true);
+    });
     await act(async () => {
       fireEvent.click(finish);
     });
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(finish.disabled).toBe(true);
+  });
+
+  it('בזמן השמירה הכפתור מראה שמשהו קורה, ואחרי שמירה שנכשלה חוזר לשמו', async () => {
+    let settle: (done: boolean) => void = () => {};
+    const onComplete = vi.fn(() => new Promise<boolean>((resolve) => { settle = resolve; }));
+    toStep3(onComplete);
+    const finish = screen.getByRole('button', { name: /סיום התחנה/ }) as HTMLButtonElement;
+    expect(finish.getAttribute('aria-busy')).toBe('false');
+    fireEvent.click(finish);
+    // Busy for a screen reader, and on the screen in words and with a turning icon.
+    expect(finish.getAttribute('aria-busy')).toBe('true');
+    expect(screen.getByRole('button', { name: REFLECTION_TEXT_HE.saving })).toBe(finish);
+    expect(finish.textContent).not.toContain(REFLECTION_TEXT_HE.finish);
+    expect(finish.querySelector('.animate-spin')).not.toBeNull();
+    expect(finish.className).toContain('disabled:cursor-wait');
     await act(async () => {
-      fireEvent.click(finish);
+      settle(false);
     });
-    // The second click sends nothing.
-    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(finish.getAttribute('aria-busy')).toBe('false');
+    expect(finish.textContent).toContain(REFLECTION_TEXT_HE.finish);
+    expect(finish.querySelector('.animate-spin')).toBeNull();
+    expect(finish.disabled).toBe(false);
   });
 
   it('הנתונים שנשלחים בסיום לא השתנו', () => {
