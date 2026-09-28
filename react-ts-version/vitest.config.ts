@@ -16,5 +16,8 @@ export default defineConfig({
     // האמולטור רץ בנפרד: npm run test:rules (vitest.emulator.config.ts).
     exclude: ['src/__tests__/emulator/**'],
     cache: false,
+    // הבדיקות לעולם לא פונות לפרויקט החי: `.env.test` נותן להן פרויקט הדגמה,
+    // והקובץ הזה חוסם כל פנייה לשרתי Google ו-Firebase.
+    setupFiles: ['src/test/noProductionNetwork.ts'],
   },
 });
