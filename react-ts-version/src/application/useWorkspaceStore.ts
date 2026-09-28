@@ -42,7 +42,7 @@ import { announceRegroup } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
-import { getSessionTasks, SESSION1_TASKS, type SessionTask } from '@/data/sessionTasks';
+import { getSessionTasks, SESSION1_TASKS, type SessionTask, type LearningPath } from '@/data/sessionTasks';
 import { boardStaysOpen } from '@/core/boardVisibility';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
@@ -364,12 +364,35 @@ interface WorkspaceState {
    */
   activeBankPath: 'green_path' | 'remediation_path' | null;
   keyboardState: KeyboardState;
+  /**
+   * The Module 10 grid is on screen. Register decision ב: nothing closes it
+   * automatically — only the learner does — so an open grid stays open across
+   * an exercise change and a reload (it travels with the snapshot).
+   */
   isAdditionHelperOpen: boolean;
-  /** The Module 10 grid opened at least once this session, so the learner may bring it back (מסמך 03 §1.3 ב'). */
+  /**
+   * The Module 10 grid opened at least once this meeting, so the learner may
+   * bring it back (register deviation 18, מסמך 03 §1.3 ב'). Reset only when a
+   * meeting starts; saved with the snapshot.
+   */
   additionHelperOffered: boolean;
   helpRequested: boolean;
+  /**
+   * Module 19 §ב, Pending Adaptation: a support profile the teacher changed
+   * while an exercise was on screen. It waits here; the next task start
+   * (standard, branch, meeting start or restore) applies it.
+   */
   pendingSupportProfileId: string | null;
+  /** A change waits in pendingSupportProfileId (whose null is a real value: "profile off"). */
+  hasPendingSupportProfile: boolean;
+  /**
+   * The support profile in force for the exercise on screen — the only value
+   * the Module 9 keyboard lock, the Module 10 grid gate and the hesitation
+   * radar read.
+   */
   activeSupportProfileId: string | null;
+  /** activeSupportProfileId was set from the learner record at least once since the store was reset. */
+  supportProfileApplied: boolean;
   activeDeviceId: string | null;
   isSupersededByOtherDevice: boolean;
 
@@ -377,6 +400,12 @@ interface WorkspaceState {
   setActiveDeviceId: (id: string) => void;
   setSupersededByOtherDevice: (superseded: boolean) => void;
   setPendingSupportProfile: (profileId: string | null) => void;
+  /**
+   * The learner record's support profile, as the student listener read it.
+   * Applied at once while no exercise is in progress; otherwise staged for
+   * the next task start (Module 19 §ב).
+   */
+  receiveSupportProfile: (profileId: string | null) => void;
   setHelpRequested: (val: boolean) => void;
   toggleHelpRequested: () => void;
   /** 'learner' when the learner brings the grid back (מסמך 03 §1.3 ב'); default is the Module 10 hesitation stage. */
@@ -598,13 +627,17 @@ function resetTaskInteraction(_isASD = false) {
     consecutiveUndoCount: 0,
     undoTimestamps: [],
     isBoardLocked: false,
-    hasRequestedBasicHelp: false,
+    // Not here: hasRequestedBasicHelp. The call-teacher button follows the
+    // record's helpRequested (PRD 29 §ב, "מיתוג דו-כיווני"; מסמך 03 §3.1,
+    // "ניתנת לביטול בכל עת"), so a call made in one exercise can be taken
+    // back in the next. Clearing it here lost the call at every exercise.
+    // Nor isAdditionHelperOpen / additionHelperOffered: the grid and its
+    // return tab belong to the meeting (register 18, decision ב) — initSession
+    // clears them when a meeting starts.
     helpRequestCount: 0,
     taskStartTime: Date.now(),
     keyboardState: 'UNLOCKED' as KeyboardState,
     hasDigitErrorInTask: false,
-    isAdditionHelperOpen: false,
-    additionHelperOffered: false,
   };
 }
 
@@ -669,10 +702,19 @@ export function activeExerciseId(s: WorkspaceState): string {
   return id || `ex_${s.sessionNumber}_01`;
 }
 
-/** The bank a saved branch choice ran on: the compulsory exercises plus that branch's tasks. */
-function restoredBranchTasks(sessionNumber: number, branch: 'reinforcement' | 'challenge' | null): SessionTask[] | null {
+/**
+ * The bank a saved branch choice ran on: the compulsory exercises plus that
+ * branch's tasks, both from the path the meeting was pinned to (Module 26: a
+ * restored branch used to be rebuilt from the green bank and stayed green for
+ * the rest of the meeting). No known path, no tasks.
+ */
+function restoredBranchTasks(
+  sessionNumber: number,
+  branch: 'reinforcement' | 'challenge' | null,
+  path: LearningPath | null
+): SessionTask[] | null {
   if (!branch || sessionNumber < 3 || sessionNumber > 7) return null;
-  const path = resolveLearningPath();
+  if (!path) return null;
   const extra = getSessionBranchTasks(sessionNumber as any, branch, path);
   if (extra.length === 0) return null;
   return [...(getSessionTasks(sessionNumber as any, path) ?? []), ...extra];
@@ -733,34 +775,79 @@ export function getActiveTasks(s: WorkspaceState): SessionTask[] {
   if (s.dynamicTasks) return s.dynamicTasks;
   // מודול 26 §ב: המאגר נקבע לפי המסלול שננעץ בתחילת התרגיל, לא לפי הערך
   // החי. שינוי מסלול באמצע תרגיל נכנס לתוקף רק בתרגיל הבא (ראו activeBankPath).
-  return getSessionTasks(s.sessionNumber as any, s.activeBankPath ?? resolveLearningPath()) ?? [];
+  const path = s.activeBankPath ?? resolveLearningPath();
+  // מודול 26: "Never load, prefetch, or fall back to an exercise from the
+  // non-matching bank under any circumstance." A meeting whose bank is split
+  // by path has no exercises until a path is known — never the green bank by
+  // default (owner, 28.9.2026: a learner without an approved path waits).
+  if (!path && isPathSplitMeeting(s.sessionNumber)) return [];
+  return getSessionTasks(s.sessionNumber as any, path ?? undefined) ?? [];
+}
+
+/** Meetings 3–8 load their exercises from a bank chosen by the learner's path (sessionTasks.ts). */
+export function isPathSplitMeeting(sessionNumber: number): boolean {
+  return sessionNumber >= 3 && sessionNumber <= 8;
+}
+
+function asLearningPath(raw: unknown): LearningPath | null {
+  return raw === 'remediation_path' || raw === 'green_path' ? raw : null;
 }
 
 /**
  * The learner's approved learning path (PRD Module 20/26): the teacher-selected
- * path on the student record; green_path until one is approved.
+ * path on the student record, or null while the record has not said which path
+ * was approved — before it loads, before the gate, or after an absolute reset.
+ * An unknown path is "no path", never green by default: a learner without one
+ * waits (owner, 28.9.2026: "ילד לא יתחיל שלב לפני שהוא עשה את השלבים הקודמים").
+ *
+ * A signed-in teacher or admin with no learner number is previewing the
+ * workspace, not learning in it: there is no learner path to mismatch, and the
+ * preview shows the green bank as it always did.
  */
-export function resolveLearningPath(): 'green_path' | 'remediation_path' {
-  const authUser = useAuthStore.getState().user;
-  const student = authUser?.uid ? useStore.getState().students[authUser.uid] : null;
-  const rawPath = (student as any)?.pedagogicalPath;
-  return rawPath === 'remediation_path' ? 'remediation_path' : 'green_path';
+export function resolveLearningPath(): LearningPath | null {
+  const auth = useAuthStore.getState();
+  const authUser = auth.user;
+  const students = useStore.getState().students;
+  const canonical = currentStudentUid();
+  const student = (canonical ? students[canonical] : null) ?? (authUser?.uid ? students[authUser.uid] : null);
+  const path = recordLearningPath(student as Record<string, unknown> | null);
+  if (path) return path;
+  if (!canonical && isStaffViewer(auth.role ?? authUser?.role)) return 'green_path';
+  return null;
+}
+
+/**
+ * The path a learner record carries: `pedagogicalPath`, the field the engine
+ * reads and the gate has mirrored since 2.9.2026 (#18). A learner approved
+ * before that carries only `teacher_selected_path`; it counts only together
+ * with the gate's approval (`teacher_gate_approved` or routeStatus APPROVED),
+ * so a stale value on an unapproved record never opens a bank.
+ */
+export function recordLearningPath(record: Record<string, unknown> | null | undefined): LearningPath | null {
+  if (!record) return null;
+  const path = asLearningPath(record.pedagogicalPath);
+  if (path) return path;
+  const approved = record.teacher_gate_approved === true || record.routeStatus === 'APPROVED';
+  return approved ? asLearningPath(record.teacher_selected_path) : null;
+}
+
+function isStaffViewer(role: unknown): boolean {
+  const roles = Array.isArray(role) ? role : [role];
+  return roles.some((r) => r === 'teacher' || r === 'admin');
 }
 
 /**
  * The path to pin for the coming exercise, or null when the learner record has
- * not yet said which path was approved.
- *
- * Pinning an unknown path would be worse than not pinning: the RTDB listener
- * hydrates a moment after the workspace mounts, so a remediation learner would
- * be frozen on the green bank for the whole first exercise. Until the record
- * carries an explicit decision, the live resolution keeps applying.
+ * not yet said which path was approved. Pinning nothing leaves getActiveTasks
+ * on the live resolution, which is itself "no path" until the record says one.
  */
-export function pinnableLearningPath(): 'green_path' | 'remediation_path' | null {
-  const authUser = useAuthStore.getState().user;
-  const student = authUser?.uid ? useStore.getState().students[authUser.uid] : null;
-  const rawPath = (student as any)?.pedagogicalPath;
-  return rawPath === 'remediation_path' || rawPath === 'green_path' ? rawPath : null;
+export function pinnableLearningPath(): LearningPath | null {
+  return resolveLearningPath();
+}
+
+/** A path saved with the workspace snapshot, or null. */
+export function savedBankPath(saved: { activeBankPath?: unknown } | null | undefined): LearningPath | null {
+  return asLearningPath(saved?.activeBankPath);
 }
 
 /* ── מסמך 03 exercise-shape helpers (skeletons, representations) ── */
@@ -1071,6 +1158,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     });
   }
 
+  /**
+   * Module 19 §ב: "שינוי פרופיל במהלך תרגיל פעיל נשמר כהתאמה ממתינה (Pending
+   * Adaptation) ומוחל אך ורק במעבר לתרגיל הבא". Every task start — standard,
+   * branch, meeting start and restore — passes through here, so the keyboard
+   * lock and the addition grid of the exercise on screen never change under
+   * the learner's hands.
+   */
+  function applyPendingSupportProfile() {
+    const s = get();
+    if (!s.hasPendingSupportProfile) return;
+    set({
+      activeSupportProfileId: s.pendingSupportProfileId,
+      pendingSupportProfileId: null,
+      hasPendingSupportProfile: false,
+      supportProfileApplied: true,
+    });
+  }
+
   /** A task that starts with blocks already on the board (SessionTask.initialCounts). */
   function applyInitialBoard(task: SessionTask | null | undefined) {
     if (task?.initialCounts) set({ counts: { ...EMPTY_COUNTS, ...task.initialCounts } });
@@ -1093,6 +1198,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       frictionTriggerSource: null,
     });
     applyPendingAdaptationAtBoundary();
+    applyPendingSupportProfile();
     if (get().sessionNumber !== 2) {
       const task = getActiveTasks(get()).find((t) => t.id === taskId);
       applyInitialBoard(task);
@@ -1680,7 +1786,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // startTask קוראת ל-applyPendingAdaptationAtBoundary שוב, וזו כבר
     // חוזרת ריקם.
     applyPendingAdaptationAtBoundary();
-    set({ activeBankPath: pinnableLearningPath() });
+    // A record that momentarily carries no path keeps the meeting on the path
+    // it was pinned to — never an unknown one, never green by default.
+    set({ activeBankPath: pinnableLearningPath() ?? get().activeBankPath });
     const s = get();
     const tasks = getActiveTasks(s);
     const nextIdx = s.standardTaskIdx + 1;
@@ -1741,11 +1849,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     if (nextIdx < tasks.length) {
-      // Module 19: Apply pending teacher support profile strictly at task boundary
-      if (s.pendingSupportProfileId) {
-        set({ activeSupportProfileId: s.pendingSupportProfileId, pendingSupportProfileId: null });
-      }
-
+      // Module 19: a pending support profile is applied by startTask below.
       set({ standardTaskIdx: nextIdx, awaitingNext: false });
       const studentId = currentStudentUid();
       if (studentId && !s.isSupersededByOtherDevice) {
@@ -1965,7 +2069,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     activeBankPath: null,
     helpRequested: false,
     pendingSupportProfileId: null,
+    hasPendingSupportProfile: false,
     activeSupportProfileId: null,
+    supportProfileApplied: false,
     activeDeviceId: null,
     isSupersededByOtherDevice: false,
 
@@ -1982,7 +2088,32 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setPendingSupportProfile: (profileId) => {
       // Module 19: Stores pending support profile without altering the active workspace/board/keyboard state
-      set({ pendingSupportProfileId: profileId });
+      set({ pendingSupportProfileId: profileId, hasPendingSupportProfile: true });
+    },
+
+    receiveSupportProfile: (profileId) => {
+      const s = get();
+      // An exercise is on screen once a profile was applied and the flow is
+      // on a task. Before that — the first read of the record, or on the
+      // choice and end screens — there is nothing to disturb: apply at once.
+      const exerciseInProgress = s.supportProfileApplied && s.flowStatus === 'task';
+      if (!exerciseInProgress) {
+        if (s.activeSupportProfileId === profileId && s.supportProfileApplied && !s.hasPendingSupportProfile) return;
+        set({
+          activeSupportProfileId: profileId,
+          pendingSupportProfileId: null,
+          hasPendingSupportProfile: false,
+          supportProfileApplied: true,
+        });
+        return;
+      }
+      if (profileId === s.activeSupportProfileId) {
+        // Switched back before the exercise ended: nothing is waiting any more.
+        if (s.hasPendingSupportProfile) set({ pendingSupportProfileId: null, hasPendingSupportProfile: false });
+        return;
+      }
+      if (s.hasPendingSupportProfile && s.pendingSupportProfileId === profileId) return;
+      set({ pendingSupportProfileId: profileId, hasPendingSupportProfile: true });
     },
 
     startSession: (meeting: number) => {
@@ -2058,7 +2189,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // A fresh meeting 2 or 8 starts on its opening screen.
         openingScreenSeen: false,
         ...resetTaskInteraction(isASD),
+        // The addition grid and its return tab belong to the meeting (register
+        // 18): a new meeting starts without them.
+        isAdditionHelperOpen: false,
+        additionHelperOffered: false,
       });
+      applyPendingSupportProfile();
 
       // getActiveTasks resolves the learner's approved path. getSessionTasks with
       // no path is the green bank, so every remediation learner's first event
@@ -2090,11 +2226,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     selectBranch: (branch: 'reinforcement' | 'challenge') => {
       const s = get();
       const currentTasks = getActiveTasks(s);
-      const branchTasks = getSessionBranchTasks(s.sessionNumber, branch, resolveLearningPath());
+      // Module 26: the branch comes from the bank the meeting is pinned to.
+      const path = s.activeBankPath ?? resolveLearningPath();
+      if (!path) return;
+      const branchTasks = getSessionBranchTasks(s.sessionNumber, branch, path);
       if (branchTasks.length === 0) return;
 
       set({
         selectedBranch: branch,
+        activeBankPath: path,
         dynamicTasks: [...currentTasks, ...branchTasks],
         standardTaskIdx: currentTasks.length,
         flowStatus: 'task',
@@ -2140,11 +2280,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       }
 
+      // Module 26: the meeting goes on in the bank it was pinned to. The pin
+      // was not saved, so a reload re-resolved it — and before the learner
+      // record arrived that was the green bank, for every learner.
+      const bankPath = savedBankPath(saved) ?? pinnableLearningPath();
+
       set({
         sessionNumber: sanitized,
         isASD: saved.isASD ?? false,
         sessionDurationMinutes: durationMin,
         sessionDeadlineTime: sessionDeadline,
+        activeBankPath: bankPath,
         selectedBranch: saved.selectedBranch ?? null,
         standardTaskIdx: saved.standardTaskIdx ?? 0,
         qflow: saved.qflow ?? initQFlow(),
@@ -2172,7 +2318,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // 27.9.2026 finishes the meeting in that order (SESSION1_ORDER_BEFORE_27_9).
         dynamicTasks: sanitized === 1
           ? restoredSession1Order(saved)
-          : restoredBranchTasks(sanitized, saved.selectedBranch ?? null),
+          : restoredBranchTasks(sanitized, saved.selectedBranch ?? null, bankPath),
         awaitingNext: false,
         boardOpen: true,
         isBoardLocked: false,
@@ -2215,7 +2361,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         undoStack: restoreUndoFrames(saved.undoStack),
         regroupTriggerTimestamps: {},
         currentState: 'PROBLEM_ACTIVE',
+        // Register 18 / decision ב: the return tab, and an open grid, survive a reload.
+        additionHelperOffered: saved.additionHelperOffered === true,
+        isAdditionHelperOpen: saved.isAdditionHelperOpen === true,
       });
+      // A reload is a task start too (Module 19 §ב).
+      applyPendingSupportProfile();
     },
 
     injectTask: (task, position) => {
@@ -3259,8 +3410,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const s = get();
       if (s.sessionNumber === 2 || s.sessionNumber === 8) return false;
       // PRD Module 9: the lock exists for enhanced_cognitive_support only; every other learner's row stays open.
-      const authUser = useAuthStore.getState().user;
-      const supportProfile = (authUser as any)?.support_profile_id ?? (s as any).support_profile_id;
+      const supportProfile = s.activeSupportProfileId;
       if (supportProfile !== 'enhanced_cognitive_support') return false;
       const task = getActiveTasks(s)[s.standardTaskIdx] || null;
       if (!task || task.type !== 'representation') return false;
@@ -3284,8 +3434,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       // PRD v7.0 Module 9: Lock columns requiring regrouping ONLY when support_profile_id === 'enhanced_cognitive_support'.
       // For every other learner the dynamic keyboard remains fully open at all times.
-      const authUser = useAuthStore.getState().user;
-      const supportProfile = (authUser as any)?.support_profile_id ?? (s as any).support_profile_id;
+      // Module 19 §ב: the profile applied at this exercise's start, never the live record.
+      const supportProfile = s.activeSupportProfileId;
       if (supportProfile !== 'enhanced_cognitive_support') {
         return false;
       }
@@ -3377,6 +3527,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         openingScreenSeen: false,
         lastInteractionTime: Date.now(),
         dynamicTasks: null,
+        // The next learner on this device starts with nothing of this one's:
+        // no pinned bank, and a support profile read afresh from their record.
+        activeBankPath: null,
+        pendingSupportProfileId: null,
+        hasPendingSupportProfile: false,
+        activeSupportProfileId: null,
+        supportProfileApplied: false,
         currentState: 'IDLE' as VRAWorkspaceState,
         activeColumnIndex: 0,
         isSocraticCardLocked: false,

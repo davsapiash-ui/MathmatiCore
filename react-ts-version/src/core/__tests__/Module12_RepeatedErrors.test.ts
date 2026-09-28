@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
+import { approvePath } from '@/test/approvedPath';
 
 /**
  * Owner ruling (16.9.2026), on the pedagogical advisor's recommendation:
@@ -19,6 +20,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 function startTask(sessionNumber: number) {
   useWorkspaceStore.getState().resetWorkspace();
   useAuthStore.setState({ user: { uid: 'student_user1', student_id: 1 } } as any);
+  approvePath(); // Module 26: the exercise comes from the learner's approved bank
   useWorkspaceStore.setState({ sessionNumber, standardTaskIdx: 0, flowStatus: 'task' } as any);
 }
 

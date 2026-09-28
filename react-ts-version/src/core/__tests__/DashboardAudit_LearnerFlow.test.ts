@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { useWorkspaceStore, getActiveTasks, activeExerciseId, getCurrentQTask } from '@/application/useWorkspaceStore';
+import { approvePath } from '@/test/approvedPath';
 
 /**
  * ביקורת דשבורד המורה, 20.9.2026 — הצד של הלומד שמזין את מה שהמורה רואה.
@@ -13,7 +14,10 @@ const store = src('application/useWorkspaceStore.ts');
 const page = src('features/workspace/StudentWorkspacePage.tsx');
 
 describe('memory circles: only column addition defines a target digit (Appendix A §3)', () => {
-  beforeEach(() => useWorkspaceStore.getState().resetWorkspace());
+  beforeEach(() => {
+    useWorkspaceStore.getState().resetWorkspace();
+    approvePath(); // Module 26: meetings 3–8 run on the learner's approved path
+  });
 
   it('subtraction: the learner\'s regrouping note is not a wrong digit', () => {
     useWorkspaceStore.getState().initSession(5, false);
@@ -49,7 +53,10 @@ describe('memory circles: only column addition defines a target digit (Appendix 
 });
 
 describe('every event names the exercise it belongs to', () => {
-  beforeEach(() => useWorkspaceStore.getState().resetWorkspace());
+  beforeEach(() => {
+    useWorkspaceStore.getState().resetWorkspace();
+    approvePath(); // Module 26: meetings 3–8 run on the learner's approved path
+  });
 
   it('meeting 2 runs on the Q-matrix flow: its events carry the diagnostic task, not "ex_2_01"', () => {
     useWorkspaceStore.getState().initSession(2, false);
@@ -99,7 +106,10 @@ describe('the end of a meeting', () => {
 });
 
 describe('what is saved is what the learner really reached', () => {
-  beforeEach(() => useWorkspaceStore.getState().resetWorkspace());
+  beforeEach(() => {
+    useWorkspaceStore.getState().resetWorkspace();
+    approvePath(); // Module 26: meetings 3–8 run on the learner's approved path
+  });
 
   it('the page publishes the store\'s own meeting, and only once the store is on this meeting', () => {
     const start = page.indexOf('// Sync workspace state and vector replays continuously to Firebase RTDB');

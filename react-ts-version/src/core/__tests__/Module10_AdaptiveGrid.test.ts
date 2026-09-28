@@ -46,8 +46,13 @@ describe('Module 10: מודול לוח חיבור אדפטיבי מבוקר (Can
     ).toBe(false);
   });
 
-  it('never opens the adaptive grid during the diagnostic (2) or reflection (8) sessions', () => {
-    for (const sessionNumber of [2, 8]) {
+  it('never opens the adaptive grid in meeting 1 (the sandbox), the diagnostic (2) or reflection (8) — register 18: only meetings 3–7', () => {
+    for (const sessionNumber of [3, 4, 5, 6, 7]) {
+      expect(
+        shouldOpenAdaptiveGrid({ supportProfileId: 'enhanced_cognitive_support', sessionNumber, isAdditionHelperOpen: false })
+      ).toBe(true);
+    }
+    for (const sessionNumber of [1, 2, 8]) {
       expect(
         shouldOpenAdaptiveGrid({
           supportProfileId: 'enhanced_cognitive_support',

@@ -11,7 +11,7 @@ describe('Module 09: מודול מקלדת דינמית וגשר VRA (Canonical 
   it('remains fully UNLOCKED for standard learners without enhanced_cognitive_support', () => {
     const store = useWorkspaceStore.getState();
     store.initSession(3, false);
-    useWorkspaceStore.setState({ support_profile_id: null } as any);
+    useWorkspaceStore.setState({ activeSupportProfileId: null } as any);
     useAuthStore.setState({ user: { uid: 'student_user1', role: 'STUDENT', support_profile_id: null } as any });
 
     // 47 + 28 -> Units require regrouping (7 + 8 = 15 >= 10)
@@ -24,7 +24,7 @@ describe('Module 09: מודול מקלדת דינמית וגשר VRA (Canonical 
     const store = useWorkspaceStore.getState();
     store.initSession(3, false);
     useWorkspaceStore.setState({
-      support_profile_id: 'enhanced_cognitive_support',
+      activeSupportProfileId: 'enhanced_cognitive_support',
       hasGrouped: false,
       carryDigits: {},
     } as any);
@@ -43,7 +43,7 @@ describe('Module 09: מודול מקלדת דינמית וגשר VRA (Canonical 
     const store = useWorkspaceStore.getState();
     store.initSession(2, false);
     useWorkspaceStore.setState({
-      support_profile_id: 'enhanced_cognitive_support',
+      activeSupportProfileId: 'enhanced_cognitive_support',
       hasGrouped: false,
       carryDigits: {},
     } as any);
@@ -56,7 +56,7 @@ describe('Module 09: מודול מקלדת דינמית וגשר VRA (Canonical 
     const store = useWorkspaceStore.getState();
     store.initSession(8, false);
     useWorkspaceStore.setState({
-      support_profile_id: 'enhanced_cognitive_support',
+      activeSupportProfileId: 'enhanced_cognitive_support',
       hasGrouped: false,
       carryDigits: {},
     } as any);

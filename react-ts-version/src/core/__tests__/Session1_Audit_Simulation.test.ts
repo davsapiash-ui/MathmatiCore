@@ -191,6 +191,8 @@ function goTo(idx: number) {
 function start(profile?: string, isASD = false) {
   login(profile);
   ws().resetWorkspace();
+  // The student listener's first read of the record (Module 19 §ב: applied at once, no exercise yet).
+  ws().receiveSupportProfile(profile ?? null);
   ws().initSession(1, isASD, 0);
 }
 
