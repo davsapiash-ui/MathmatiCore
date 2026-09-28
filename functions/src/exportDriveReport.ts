@@ -6,6 +6,7 @@ import { GoogleAuth } from "google-auth-library";
 import { computeToolMastery, truncatedRecordingMeetings, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
 import { recomputeAdminMetrics } from "./adminAggregator";
 import { containsPhoneNumber } from "./phonePattern";
+import { scrubPII } from "./geminiProxy";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
@@ -476,6 +477,56 @@ export const VALID_RESET_REASONS = [
 
 export type ResetReason = typeof VALID_RESET_REASONS[number];
 
+/**
+ * A class identifier, as sessionTrigger.ts accepts one. Both callables below
+ * store class_id in reset_audit_log, and the reset uses it in the backup's
+ * Storage path and Drive file name; it came straight off the request.
+ */
+export const CLASS_ID_PATTERN = /^[A-Za-z0-9_-]{1,40}$/;
+
+/** The teacher's free-text reset note is short prose, never a document. */
+export const REASON_NOTE_MAX_LENGTH = 500;
+
+/** class_id from a request: absent means the pilot class; anything else must match the pattern. */
+export function validateClassId(raw: unknown, refusal: string): string {
+  const value = raw === undefined || raw === null ? "class_1" : raw;
+  if (typeof value !== "string" || !CLASS_ID_PATTERN.test(value)) {
+    throw new HttpsError("invalid-argument", refusal);
+  }
+  return value;
+}
+
+/**
+ * PRD Module 23א §ו and Module 24: a teacher acts on her own assigned class
+ * only. The same check exportResearchDataset has always made: a token that
+ * names a class may act on that class and on no other.
+ */
+export function assertCallerClass(token: Record<string, unknown>, classId: string, refusal: string): void {
+  const callerClassId = token.class_id;
+  if (callerClassId && callerClassId !== classId) {
+    throw new HttpsError("permission-denied", refusal);
+  }
+}
+
+/**
+ * The reset note goes into the audit log, the backup file and the research
+ * export. The client checks it for names (ResetConfirmationModal); the server
+ * stored whatever arrived. Absent or blank is null; anything but a string is
+ * refused; the text is capped and passes the chat's PII scrubber (Zero-PII,
+ * Module 3).
+ */
+export function sanitizeReasonNote(raw: unknown): string | null {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "string") {
+    throw new HttpsError("invalid-argument", "הערת האיפוס חייבת להיות טקסט. לא נמחקו נתונים.");
+  }
+  // Capped before scrubbing, to bound the regex work, and again after: a
+  // redaction marker can be longer than what it replaced.
+  const trimmed = raw.trim().slice(0, REASON_NOTE_MAX_LENGTH * 2);
+  if (!trimmed) return null;
+  return scrubPII(trimmed).slice(0, REASON_NOTE_MAX_LENGTH);
+}
+
 export interface ResetAuditEntry {
   reset_id: string;
   reset_level: 'alerts' | 'single_student' | 'system';
@@ -521,11 +572,12 @@ export const RESET_TARGETS: readonly ResetTarget[] = ['student', 'class'];
  * 1. Build the reset scope (buildResetScope) and collect ALL of it — every
  *    RTDB node and every Firestore document, no page limits — into one
  *    structured snapshot (collectResetBackup).
- * 2. Upload the JSON snapshot to the shared Drive folder (Cloud Storage and
- *    Firestore as fallbacks).
- * 3. Only on confirmed successful write, delete that same scope
- *    (executeResetDeletion), counting what was deleted.
- * 4. Log an immutable audit entry into reset_audit_log with the real count.
+ * 2. Upload the JSON snapshot to the shared Drive folder, with Cloud Storage
+ *    as the one fallback (register gap יב).
+ * 3. Write the audit entry into reset_audit_log. If it cannot be written, the
+ *    reset is aborted: §ד forbids a reset without its record.
+ * 4. Only then delete that same scope (executeResetDeletion), and record the
+ *    real number deleted on the entry.
  * 5. If backup fails, abort deletion immediately with exact Hebrew error message.
  */
 // A system-level backup reads every learner record, every session and the
@@ -555,7 +607,9 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
-  const { reset_level, reason, reason_note = null, student_id, class_id = "class_1", reset_scope, session_number, reset_target } = request.data || {};
+  const { reset_level, reason, student_id, reset_scope, session_number, reset_target } = request.data || {};
+  const class_id = validateClassId(request.data?.class_id, "מזהה הכיתה אינו תקין. האיפוס בוטל ולא נמחקו נתונים.");
+  const reason_note = sanitizeReasonNote(request.data?.reason_note);
 
   if (!reset_level || !['alerts', 'single_student', 'system'].includes(reset_level)) {
     throw new HttpsError("invalid-argument", "Invalid reset_level. Must be 'alerts', 'single_student', or 'system'.");
@@ -603,6 +657,9 @@ async function runBackupAndReset(request: CallableRequest<any>) {
       "איפוס נתוני למידה מותר למורת הכיתה בלבד (מודול 23א)."
     );
   }
+  // Module 23א §ו: "for the class assigned to her only". exportResearchDataset
+  // checked this; the reset, the one callable here that deletes, did not.
+  assertCallerClass(token, class_id, "אפשר לאפס רק את הכיתה המשויכת לחשבון המחובר. לא נמחקו נתונים.");
 
   const performedBy = request.auth.uid;
   const rtdb = admin.database();
@@ -611,6 +668,32 @@ async function runBackupAndReset(request: CallableRequest<any>) {
 
   // Level 1: Alerts only (no destructive workspace/session deletion, but mandatory audit log)
   if (reset_level === 'alerts') {
+    // Module 23א §ד: no reset of any kind without its record. The entry is
+    // written first; if it cannot be written, nothing is cleared.
+    const auditEntry: ResetAuditEntry = {
+      reset_id: resetId,
+      reset_level: 'alerts',
+      performed_by_teacher_id: performedBy,
+      performed_at: Date.now(),
+      class_id,
+      affected_student_ids: /\d/.test(String(student_id ?? ''))
+        ? [parseInt(String(student_id).replace(/\D/g, ''), 10)]
+        : [...ALL_STUDENT_IDS],
+      backup_file_url: null,
+      backup_status: 'not_required',
+      reset_reason: reason,
+      reason_note,
+      records_deleted_count: 0,
+    };
+    try {
+      await db.collection("reset_audit_log").doc(resetId).set({
+        ...auditEntry,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (auditErr) {
+      logger.error("Failed to write the alerts-reset audit entry; nothing was cleared:", auditErr);
+      throw new HttpsError("failed-precondition", "רישום האיפוס ביומן הביקורת נכשל, ולכן האיפוס בוטל. ההתראות לא אופסו.");
+    }
     try {
       await rtdb.ref("radar_alerts").remove().catch(() => {});
       // Clear the per-student alert flags too — the alerts feed alone isn't
@@ -632,25 +715,6 @@ async function runBackupAndReset(request: CallableRequest<any>) {
           rtdb.ref(`users/students/${alias}`).update(alertClearPayload).catch(() => {})
         )
       );
-      const auditEntry: ResetAuditEntry = {
-        reset_id: resetId,
-        reset_level: 'alerts',
-        performed_by_teacher_id: performedBy,
-        performed_at: Date.now(),
-        class_id,
-        affected_student_ids: /\d/.test(String(student_id ?? ''))
-          ? [parseInt(String(student_id).replace(/\D/g, ''), 10)]
-          : [...ALL_STUDENT_IDS],
-        backup_file_url: null,
-        backup_status: 'not_required',
-        reset_reason: reason,
-        reason_note,
-        records_deleted_count: 0,
-      };
-      await db.collection("reset_audit_log").doc(resetId).set({
-        ...auditEntry,
-        created_at: admin.firestore.FieldValue.serverTimestamp(),
-      });
       return { status: "SUCCESS", message: "התראות אופסו בהצלחה ותועדו בלוג." };
     } catch (e: any) {
       logger.error("Error resetting alerts:", e);
@@ -739,7 +803,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   }
 
   // Step 2: Write backup file to Google Drive, falling back to this project's
-  // own Cloud Storage bucket, and only as a last resort to a Firestore doc.
+  // own Cloud Storage bucket (register gap יב). No other channel.
   const backupFileName = `Backup_${isClassTarget ? 'class_active_session' : reset_level}_${class_id}_${backup.snapshot_time}.json`;
   const backupBuffer = Buffer.from(JSON.stringify(backup), "utf-8");
   logger.info(
@@ -759,9 +823,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   // environment. This project's own Cloud Storage bucket needs no such setup
   // — it's reached with the same Admin SDK credentials already used
   // elsewhere in this codebase (see pedagogicalReport.ts) — and has no
-  // meaningful size ceiling, unlike the 1MiB-per-document Firestore fallback
-  // below, which used to silently swallow a full system snapshot and abort
-  // every reset behind the backup-before-delete gate.
+  // meaningful size ceiling.
   if (!driveResult.success) {
     logger.warn("Drive upload unavailable, writing backup to Cloud Storage:", driveResult.error);
     try {
@@ -778,33 +840,13 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     }
   }
 
-  // Fallback 2: only reached if both Drive and this project's own Storage
-  // bucket failed. Kept as a last resort, not a primary path. A full class
-  // snapshot is usually above Firestore's 1MiB document limit, in which case
-  // this fails too and the reset is aborted below — as the PRD requires.
+  // There are two backup channels and no third. PRD Module 23א §ג names the
+  // shared Drive; register gap יב (23.9.2026) adds Cloud Storage when Drive
+  // fails. A Firestore `system_backups` document used to follow as a third
+  // channel that neither document names; it is gone. When Drive and Storage
+  // both fail, the reset is aborted here and nothing is deleted.
   if (!driveResult.success) {
-    logger.warn("Cloud Storage unavailable, writing backup to Firestore system_backups:", driveResult.error);
-    try {
-      await db.collection("system_backups").doc(resetId).set({
-        reset_id: resetId,
-        reset_level,
-        class_id,
-        performed_by_teacher_id: performedBy,
-        created_at: admin.firestore.FieldValue.serverTimestamp(),
-        backup_data: backup,
-      });
-      driveResult = {
-        success: true,
-        fileId: resetId,
-        webViewLink: `firestore://system_backups/${resetId}`,
-      };
-    } catch (fsBackupErr) {
-      logger.error("Firestore backup fallback error:", fsBackupErr);
-    }
-  }
-
-  if (!driveResult.success) {
-    logger.error("All backup channels failed during reset:", driveResult.error);
+    logger.error("All backup channels failed during reset (Drive, Cloud Storage):", driveResult.error);
     // Strict requirement: Fail deletion if backup write fails
     const failedEntry: ResetAuditEntry = {
       reset_id: resetId,
@@ -828,8 +870,42 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     throw new HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
   }
 
-  // Step 3: delete ONLY after the backup write was confirmed — the very same
-  // scope that was just backed up, and every record of it (no page limits).
+  // Step 3: the audit entry, BEFORE anything is deleted (Module 23א §ד: "חל
+  // איסור מוחלט על ביצוע איפוס כלשהו ללא רישום"). It used to be written after
+  // the deletion, with its failure only reported — data gone, no record. Now a
+  // failed write aborts the reset while the backup is safe and nothing is gone.
+  // The count starts at 0 and is set to the real number after the deletion.
+  const auditRef = db.collection("reset_audit_log").doc(resetId);
+  const auditEntry: ResetAuditEntry = {
+    reset_id: resetId,
+    reset_level,
+    performed_by_teacher_id: performedBy,
+    performed_at: Date.now(),
+    class_id,
+    affected_student_ids: affectedStudentIds,
+    backup_file_url: driveResult.webViewLink || null,
+    backup_status: 'success',
+    reset_reason: reason,
+    reason_note,
+    records_deleted_count: 0,
+    ...level2Audit,
+  };
+  try {
+    await auditRef.set({
+      ...auditEntry,
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (auditErr) {
+    logger.error(`Reset ${resetId}: the audit entry could not be written; the reset is aborted before any deletion:`, auditErr);
+    throw new HttpsError(
+      "failed-precondition",
+      "הגיבוי נשמר, אך רישום האיפוס ביומן הביקורת נכשל, ולכן האיפוס בוטל ולא נמחקו נתונים."
+    );
+  }
+
+  // Step 4: delete ONLY after the backup write and the audit entry were
+  // confirmed — the very same scope that was just backed up, and every record
+  // of it (no page limits).
   const deletion = await executeResetDeletion(rtdb, db, scope);
 
   if (reset_level === 'system') {
@@ -843,29 +919,12 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     await recomputeAdminMetrics(db).catch((e) => deletion.failures.push(`store_cache/admin_metrics: ${e?.message || e}`));
   }
 
-  // Step 4: Write immutable canonical ResetAuditEntry record to reset_audit_log,
-  // with the real number of records deleted.
-  const auditEntry: ResetAuditEntry = {
-    reset_id: resetId,
-    reset_level,
-    performed_by_teacher_id: performedBy,
-    performed_at: Date.now(),
-    class_id,
-    affected_student_ids: affectedStudentIds,
-    backup_file_url: driveResult.webViewLink || null,
-    backup_status: 'success',
-    reset_reason: reason,
-    reason_note,
+  // Step 5: the real number of records deleted, on the entry written above.
+  await auditRef.update({
     records_deleted_count: deletion.total,
-    ...level2Audit,
-  };
-
-  await db.collection("reset_audit_log").doc(resetId).set({
-    ...auditEntry,
-    created_at: admin.firestore.FieldValue.serverTimestamp(),
   }).catch((auditErr) => {
-    // The data is gone and the trail is not written: that is not a clean reset.
-    logger.error("Failed to write reset audit entry:", auditErr);
+    // The entry exists; only its count is stale. Say so rather than report a clean reset.
+    logger.error("Failed to record the deleted count on the reset audit entry:", auditErr);
     deletion.failures.push(`reset_audit_log: ${auditErr?.message || auditErr}`);
   });
 
@@ -1503,13 +1562,52 @@ async function getOrCreateDriveFolder(
  */
 const EXPORT_RUNTIME = { timeoutSeconds: 540, memory: "1GiB" as const };
 
+/**
+ * Register gap יג: `was_reset` marks a meeting that was reset. A reset_audit_log
+ * entry counts only when it is a level-2 or level-3 reset whose backup was
+ * written (and so whose deletion could run).
+ */
+export function isCountableReset(entry: unknown): boolean {
+  const e = entry && typeof entry === "object" ? (entry as Record<string, unknown>) : {};
+  return (e.reset_level === "single_student" || e.reset_level === "system") && e.backup_status === "success";
+}
+
+/**
+ * The research export's `session_number`: absent, null or "all" for the whole
+ * process, otherwise an integer meeting 1–8 (a number, or a string of digits).
+ */
+export function isValidExportScope(raw: unknown): boolean {
+  if (raw === undefined || raw === null || raw === "all") return true;
+  if (typeof raw !== "number" && !(typeof raw === "string" && /^\d+$/.test(raw))) return false;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= 8;
+}
+
+/**
+ * A research-export CSV file name: the file, the scope (one meeting or the
+ * whole process) and the time — `פעולות_מפגש_3_2026-09-28_10-30.csv`,
+ * `פעולות_כל_המפגשים_2026-09-28_10-30.csv`. The scope used to be only in the
+ * Drive folder, so a downloaded file (or one parked in Storage) did not say
+ * which meeting it held.
+ */
+export function researchExportFileName(fileLabel: string, scopedSession: number | null, stamp: string): string {
+  const scopePart = scopedSession === null ? "כל_המפגשים" : `מפגש_${scopedSession}`;
+  return `${fileLabel}_${scopePart}_${stamp}.csv`;
+}
+
 export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
-  const { class_id = "class_1" } = request.data || {};
+  const class_id = validateClassId(request.data?.class_id, "מזהה הכיתה אינו תקין. הייצוא בוטל.");
   const rawSession = request.data?.session_number;
+  // One meeting 1–8, or the whole process. `Number(x) || null` used to turn
+  // 0, "abc" or [] into a whole-process export and let 99 or 3.5 through
+  // into the Drive folder and the file names.
+  if (!isValidExportScope(rawSession)) {
+    throw new HttpsError("invalid-argument", "מספר המפגש אינו תקין. הייצוא בוטל.");
+  }
   const scopedSession: number | null =
     rawSession === undefined || rawSession === null || rawSession === "all" ? null : Number(rawSession) || null;
   const userEmail = request.auth.token.email || "";
@@ -1672,6 +1770,11 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     // על כל אחת מ-96 שורות המפגש.
     const resetsByLearnerMeeting = new Map<string, number[]>();
     for (const { data } of resetLogs) {
+      // Only a reset that happened: level 2 or 3, with its backup written.
+      // The same log holds alerts resets (no learning data touched), resets
+      // aborted because the backup failed (nothing deleted) and export
+      // records — none of them restarted a meeting, and all were flagged.
+      if (!isCountableReset(data)) continue;
       const at = Number((data as any).performed_at);
       if (!Number.isFinite(at)) continue;
       const meeting = Number((data as any).session_number);
@@ -1856,7 +1959,7 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     // קבצים שהדרייב דחה והמתינו באחסון (החלטת בעל המוצר, 23.9.2026).
     const parked: Array<{ name: string; url: string | null; path: string }> = [];
     for (const f of files) {
-      const res = await uploadBufferToDrive(Buffer.from(f.csv, "utf-8"), `${f.name}_${stamp}.csv`, "text/csv", targetFolderId);
+      const res = await uploadBufferToDrive(Buffer.from(f.csv, "utf-8"), researchExportFileName(f.name, scopedSession, stamp), "text/csv", targetFolderId);
       uploads[f.name] = res.success ? res.webViewLink : `failed: ${res.error}`;
       if (res.success) uploadedIds.push(res.fileId);
       else if (res.fallbackStoragePath) {
