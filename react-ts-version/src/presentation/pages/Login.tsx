@@ -205,12 +205,14 @@ export function Login() {
 
     try {
       const authenticatedUser = await executeGoogleSSO(targetRole);
+      // The verified role (token claims, else the whitelist), not the door.
+      const role = authenticatedUser.role;
 
       setUser(
         {
           uid: authenticatedUser.uid,
           email: authenticatedUser.email,
-          role: targetRole,
+          role,
           displayName: authenticatedUser.displayName,
           // The route guards (App.tsx) trust this stamp; without it every
           // admin-added teacher was bounced back to /login right after a
@@ -218,12 +220,12 @@ export function Login() {
           // knows the two hard-coded pilot accounts.
           whitelistVerified: authenticatedUser.whitelistVerified === true,
         },
-        targetRole
+        role
       );
 
-      login(targetRole, authenticatedUser.uid);
+      login(role, authenticatedUser.uid);
       setIsLoggingIn(false);
-      navigate(targetRole === "teacher" ? "/dashboard" : "/admin", { replace: true });
+      navigate(role === "teacher" ? "/dashboard" : "/admin", { replace: true });
     } catch (err: any) {
       console.error(`${targetRole} Google SSO Error:`, err);
       setIsLoggingIn(false);
