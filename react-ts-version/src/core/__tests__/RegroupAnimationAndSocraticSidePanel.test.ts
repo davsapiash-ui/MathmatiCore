@@ -233,6 +233,19 @@ describe('The board draws the move without hiding the truth for long', () => {
   });
 });
 
+/**
+ * The card opens under an hourglass until the engine answers or fails, then
+ * shows one card that stays (owner, 28.9.2026; X22). Here the engine is not
+ * reachable, so the static card settles as soon as the call fails.
+ */
+async function openSettledCard() {
+  ws().openSocraticCard('hesitation_45s');
+  await act(async () => {
+    await vi.waitFor(() => expect(ws().socraticPending).toBe(false));
+  });
+  expect(ws().aiSocraticHint).not.toBeNull();
+}
+
 describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §א)', () => {
   beforeEach(() => {
     mockLocalStorage.clear();
@@ -269,8 +282,8 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     unmount();
   });
 
-  it('keeps the card\'s behaviour: read-aloud, close, and the 30-second lock on the answer buttons only', () => {
-    ws().openSocraticCard('hesitation_45s');
+  it('keeps the card\'s behaviour: read-aloud, close, and the 30-second lock on the answer buttons only', async () => {
+    await openSettledCard();
     const { unmount } = render(React.createElement(SocraticSidePanel, null));
 
     const panel = screen.getByTestId('socratic-side-panel');
@@ -285,8 +298,8 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     unmount();
   });
 
-  it('answer buttons are disabled during the lock while the close button is not', () => {
-    ws().openSocraticCard('hesitation_45s');
+  it('answer buttons are disabled during the lock while the close button is not', async () => {
+    await openSettledCard();
     act(() => { ws().triggerSocraticPenaltyLockout('רמז'); });
     const { unmount } = render(React.createElement(SocraticSidePanel, null));
     const card = screen.getByTestId('socratic-card');
@@ -303,8 +316,8 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
   // שעון חול עדין)". Audit row 1.14 (28.9.2026): the card counted the seconds
   // down on a bold line and on the close button. Now: an hourglass and one
   // sentence, and no number anywhere on the card while it is locked.
-  it('the lock is silent: an hourglass and one sentence, no seconds', () => {
-    ws().openSocraticCard('hesitation_45s');
+  it('the lock is silent: an hourglass and one sentence, no seconds', async () => {
+    await openSettledCard();
     act(() => { ws().triggerSocraticPenaltyLockout('רמז: בדקו שוב.'); });
     const { unmount } = render(React.createElement(SocraticSidePanel, null));
     const indicator = screen.getByTestId('socratic-lock-indicator');
@@ -321,8 +334,8 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
   // Screen fit (owner, 28.9.2026: no scroll at any size): after a wrong
   // choice the hint and the lock line share one box, so the close button
   // stays in a 585px-high window.
-  it('after a wrong choice the hint and the silent lock are one box', () => {
-    ws().openSocraticCard('hesitation_45s');
+  it('after a wrong choice the hint and the silent lock are one box', async () => {
+    await openSettledCard();
     const { unmount } = render(React.createElement(SocraticSidePanel, null));
     const card = screen.getByTestId('socratic-card');
     const answers = (within(card).getAllByRole('button') as HTMLButtonElement[]).filter((b) => b.className.includes('text-right'));

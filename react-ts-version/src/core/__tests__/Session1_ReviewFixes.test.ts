@@ -88,7 +88,10 @@ describe('a coaching card belongs to the exercise that opened it', () => {
   it('an AI answer that arrives after the card closed, or after the exercise changed, is dropped', () => {
     const engine = src('application/useWorkspaceStore.ts');
     expect(engine).toContain("const stillTheSameCard = now.helpState === 'socratic' && selectStandardTask(now)?.id === currentTask?.id;");
-    expect(engine).toContain('if (!stillTheSameCard) return;');
+    // The card settles once: an older request, a closed card or a new exercise
+    // gets nothing (X22; behaviour in SocraticCard_OneFinalCard.test.tsx).
+    expect(engine).toContain('if (request !== socraticRequestSeq) return;');
+    expect(engine).toMatch(/if \(!stillTheSameCard\) \{\s*set\(\{ socraticPending: false \}\);\s*return;/);
   });
 
   it('four presses of "התקדם" on an empty answer open no card (register 17: an empty answer is not a wrong answer)', () => {

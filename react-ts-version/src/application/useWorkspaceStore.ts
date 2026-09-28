@@ -47,7 +47,7 @@ import { boardStaysOpen } from '@/core/boardVisibility';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
-import { SocraticEngine, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
+import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
 import { ref, update } from 'firebase/database';
 import { database, serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
@@ -101,15 +101,19 @@ export function placeToColumnIndex(place: Place | string): number {
 
 const UNDO_STACK_CAP = 10;
 
-const DEFAULT_SOCRATIC_HINT: SocraticHintResponse = {
-  questionHe: 'מה הפעולה המתמטית שצריך לבצע בבית המספרים?',
-  choices: [
-    { id: 'opt_1', textHe: 'לבדוק את מספר הלבנים בכל טור בבית המספרים ולחשב מחדש' },
-    { id: 'opt_2', textHe: 'לפרוט עשרת אחת ל-10 יחידות' },
-    { id: 'opt_3', textHe: 'לקבץ 10 יחידות לעשרת אחת' }
-  ],
-  correctChoiceId: 'opt_1'
-};
+/**
+ * One coaching-card request at a time. Each opening takes a new number; a
+ * reply, a deadline or a failure of an older request finds the number moved
+ * on and does nothing, so a card closed during the hourglass, or a task left
+ * behind, never gets a card or a SOCRATIC_CARD_SHOWN later (X22).
+ */
+let socraticRequestSeq = 0;
+let socraticDeadline: ReturnType<typeof setTimeout> | null = null;
+function cancelSocraticRequest(): void {
+  socraticRequestSeq++;
+  if (socraticDeadline) clearTimeout(socraticDeadline);
+  socraticDeadline = null;
+}
 
 export type SessionNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
@@ -325,6 +329,12 @@ interface WorkspaceState {
   /** Skeleton exercises (מסמך 03): digits the learner types into hidden operand cells. */
   operandDigits: { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> };
   aiSocraticHint: SocraticHintResponse | null;
+  /**
+   * The coaching card is open and waiting for the engine (at most
+   * SOCRATIC_PROXY_TIMEOUT_MS): the card shows an hourglass and no text. When
+   * it settles, exactly one card appears and stays (owner, 28.9.2026; X22).
+   */
+  socraticPending: boolean;
   socraticPenaltyLockoutUntil: number | null;
   socraticDistractorHint: string | null;
   typedErrorCount: number;
@@ -940,6 +950,31 @@ export function effectiveAnswerDigits(
 }
 
 /**
+ * An exercise that is already solved has nothing left to coach: a learner who
+ * typed the right result and paused before pressing "התקדם" was getting a card
+ * about a regrouping the exercise never needed. Checked when the card opens
+ * and again when it settles after the hourglass — a child who answered while
+ * it turned gets no card (X22).
+ */
+function exerciseSolvedForCard(
+  s: Pick<WorkspaceState, 'answerDigits' | 'operandDigits' | 'isASD'>,
+  task: SessionTask | null | undefined,
+  reason: SocraticTriggerReason | null,
+  place: Place | null | undefined
+): boolean {
+  if (!task || (task.type !== 'addition_simple' && task.type !== 'vertical_addition')) return false;
+  const { a, b, target } = effectiveArithmetic(task, s.isASD);
+  const typed = answerDigitsToNumber(effectiveAnswerDigits(s, task, target));
+  const hidden = hiddenDigitsStatus(s, task, a, b);
+  // A skeleton shows every result digit, so a WRONG hidden digit is not a
+  // solved exercise: the "four errors" card of the missing-digit boxes
+  // (owner's decision 28.9.2026, שהB.2) needs the digits to be right.
+  // Every other trigger keeps the check it had.
+  const streakCard = reason === 'consecutive_errors_4' && place != null;
+  return typed === target && (streakCard ? hidden.correct : hidden.complete);
+}
+
+/**
  * מסמך 03: a column "requires a conversion" when the vertical algorithm cannot
  * be completed there without one — a carry in addition, a decomposition in
  * subtraction. Shared by the keyboard lock (Module 9) and by the third coaching
@@ -1257,9 +1292,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       taskStartTime: Date.now(),
       helpState: 'closed',
       aiSocraticHint: null,
+      socraticPending: false,
       socraticDistractorHint: null,
       frictionTriggerSource: null,
     });
+    cancelSocraticRequest();
     applyPendingAdaptationAtBoundary();
     applyPendingSupportProfile();
     if (get().sessionNumber !== 2) {
@@ -2127,6 +2164,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     boardCheckFailures: 0,
     boardCheckFailuresTaskId: null,
     aiSocraticHint: null,
+    socraticPending: false,
     socraticDistractorHint: null,
     typedErrorCount: 0,
     hasDigitErrorInTask: false,
@@ -2848,7 +2886,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Module 12(c): 3 consecutive UNDO_EXECUTED actions within a single exercise trigger Socratic coach, ONLY in Session 8
         if (nextConsecutiveUndos >= 3 && s.sessionNumber === 8 && s.currentState !== 'SOCRATIC_ACTIVE' && !s.isSocraticCardLocked) {
           setTimeout(() => {
-            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE', socraticTriggerReason: 'consecutive_undos_3' });
+            // A card already on the screen, or still under its hourglass, stays
+            // the one card: restarting its request would keep the hourglass up
+            // past the 8 seconds the owner allowed (X22).
+            if (get().helpState === 'socratic') return;
+            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE', socraticTriggerReason: 'consecutive_undos_3', aiSocraticHint: null, socraticPending: true });
             get().fetchSocraticHint();
           }, 0);
         }
@@ -3162,11 +3204,56 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       else proceedStandard();
     },
 
+    /**
+     * PRD Module 13 and the owner's decision (28.9.2026; X19, X22): "עד
+     * שהבינה עונה (לכל היותר 8 שניות) יופיע בכרטיס שעון חול, ואחר כך יופיע
+     * כרטיס אחד שלא מתחלף. יישמר סוג הטעות שהבינה זיהתה, או 'ריק' אם הוצג
+     * כרטיס קבוע."
+     *
+     * The card opens pending (an hourglass). It settles once: with the
+     * engine's card if it answered within SOCRATIC_PROXY_TIMEOUT_MS, or with
+     * the static card at once on a timeout, a failure or no network. A reply
+     * after that is ignored. The static card carries error_category null: the
+     * classification is the engine's (register: "the static card carried a
+     * fixed error_category"). SOCRATIC_CARD_SHOWN is emitted by the panel
+     * when the settled card appears, once.
+     */
     fetchSocraticHint: async () => {
       const s = get();
       const currentTask = getActiveTasks(s)[s.standardTaskIdx];
       const targetNode = currentTask?.targetNode || 'q_matrix_general';
-      
+
+      cancelSocraticRequest();
+      const request = socraticRequestSeq;
+      const staticCard: SocraticHintResponse = {
+        ...SocraticEngine.getSynchronousTaskHint(currentTask, s.counts),
+        error_category: null,
+      };
+      set({ aiSocraticHint: null, socraticPending: true });
+
+      const settle = (hint: SocraticHintResponse) => {
+        if (request !== socraticRequestSeq) return; // cancelled, superseded or already settled
+        cancelSocraticRequest();
+        const now = get();
+        const stillTheSameCard = now.helpState === 'socratic' && selectStandardTask(now)?.id === currentTask?.id;
+        if (!stillTheSameCard) {
+          set({ socraticPending: false });
+          return;
+        }
+        // The child answered while the hourglass turned: no card, no event.
+        if (exerciseSolvedForCard(now, selectStandardTask(now), now.socraticTriggerReason, now.socraticCardPlace)) {
+          get().closeHelp();
+          return;
+        }
+        set({ aiSocraticHint: hint, socraticPending: false });
+      };
+
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        settle(staticCard);
+        return;
+      }
+      socraticDeadline = setTimeout(() => settle(staticCard), SOCRATIC_PROXY_TIMEOUT_MS);
+
       try {
         const traceData = {
           undo_clicks: s.undoCount,
@@ -3211,19 +3298,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           monitoring
         );
         
-        const now = get();
-        const stillTheSameCard = now.helpState === 'socratic' && selectStandardTask(now)?.id === currentTask?.id;
-        if (!stillTheSameCard) return;
-        if (hint) {
-          set({ aiSocraticHint: hint });
-        } else if (!get().aiSocraticHint) {
-          set({ aiSocraticHint: DEFAULT_SOCRATIC_HINT });
-        }
+        // The engine's own fallback is the same static card with a null
+        // error_category; a card with a category is the engine's verdict.
+        settle(hint && hint.error_category ? hint : staticCard);
       } catch (error) {
         console.error("LLM Socratic Hint failed. Falling back to static hints.", error);
-        if (!get().aiSocraticHint) {
-          set({ aiSocraticHint: DEFAULT_SOCRATIC_HINT });
-        }
+        settle(staticCard);
       }
     },
 
@@ -3288,7 +3368,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     closeHelp: () => {
+      // A card closed during the hourglass gets no card and no event later.
+      cancelSocraticRequest();
       set((s) => ({
+        socraticPending: false,
         helpState: 'closed',
         // A card closed without a correct answer hands the keyboard back to
         // the Module 9 lock it came from; SOCRATIC_ONLY with no card open is a
@@ -3345,22 +3428,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (get().getSocraticPenaltyRemaining() > 0) return;
         if (get().isSocraticCardLocked) get().unlockSocraticCard();
       }
-      const currentTask = selectStandardTask(s);
-      // An exercise that is already solved has nothing left to coach: a learner
-      // who typed the right result and paused before pressing "התקדם" was
-      // getting a card about a regrouping the exercise never needed.
-      if (currentTask && (currentTask.type === 'addition_simple' || currentTask.type === 'vertical_addition')) {
-        const { a, b, target } = effectiveArithmetic(currentTask, s.isASD);
-        const typed = answerDigitsToNumber(effectiveAnswerDigits(s, currentTask, target));
-        const hidden = hiddenDigitsStatus(s, currentTask, a, b);
-        // A skeleton shows every result digit, so a WRONG hidden digit is not a
-        // solved exercise: the "four errors" card of the missing-digit boxes
-        // (owner's decision 28.9.2026, שהB.2) needs the digits to be right.
-        // Every other trigger keeps the check it had.
-        const streakCard = reason === 'consecutive_errors_4' && place !== undefined;
-        if (typed === target && (streakCard ? hidden.correct : hidden.complete)) return;
-      }
-      const initialHint = SocraticEngine.getSynchronousTaskHint(currentTask, s.counts);
+      if (exerciseSolvedForCard(s, selectStandardTask(s), reason, place)) return;
+      // No card text yet: the card shows an hourglass until the engine answers
+      // or its time runs out, then one card that does not change (X22). The
+      // static card used to show first and be replaced mid-answer.
       set((st) => ({
         // Module 12: the card is non-blocking — the board, undo and the
         // keyboard stay live while it is open. Only a keyboard that Module 9
@@ -3376,7 +3447,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         socraticCardPlace: place ?? null,
         // The "four errors" streak returns to 0 once its card is shown (שהB.2).
         ...(reason === 'consecutive_errors_4' && place ? { digitErrorStreak: 0, digitErrorStreakPlace: null } : {}),
-        aiSocraticHint: initialHint || st.aiSocraticHint,
+        aiSocraticHint: null,
+        socraticPending: true,
       }));
       get().fetchSocraticHint();
     },
@@ -3597,6 +3669,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     boardCheckFailures: 0,
     boardCheckFailuresTaskId: null,
         aiSocraticHint: null,
+        socraticPending: false,
         socraticDistractorHint: null,
         typedErrorCount: 0,
         socraticDistractorErrors: 0,

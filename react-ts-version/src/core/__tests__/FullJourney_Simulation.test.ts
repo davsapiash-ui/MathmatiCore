@@ -386,6 +386,12 @@ describe('מפגש 8 — בלי לבנים, ועם טריגר שלושת הבי�
     useWorkspaceStore.getState().setAnswerDigit('units', '1');
     useWorkspaceStore.getState().setAnswerDigit('tens', '2');
     useWorkspaceStore.getState().setAnswerDigit('hundreds', '3');
+    // The wrong digits open their own card (a conversion not performed) on the
+    // next tick; the child closes it before the undos. A card on the screen is
+    // the one card and never changes (owner, 28.9.2026; X22), so without
+    // closing it the undos would rightly open nothing.
+    await new Promise((r) => setTimeout(r, 0));
+    useWorkspaceStore.getState().closeHelp();
 
     useWorkspaceStore.getState().undo();
     useWorkspaceStore.getState().undo();
