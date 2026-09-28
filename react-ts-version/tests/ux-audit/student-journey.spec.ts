@@ -174,6 +174,21 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
         await ws(cc.page, 'st.openSocraticCard("hesitation_45s");');
       },
     });
+    if (n === 3) {
+      // PR #142: the card waits up to 8 seconds for the AI's hint (an hourglass,
+      // no text — that is what `m3-coaching-open` measures, since the fake
+      // backend never answers), then shows one static card that never changes.
+      steps.push({
+        id: 'm3-coaching-settled',
+        meeting: 3,
+        note: 'the coaching card once the wait for the AI is over',
+        settleMs: 9500,
+        run: async (cc) => {
+          await ws(cc.page, INIT, { meeting: 3, isASD, idx: 0 });
+          await ws(cc.page, 'st.openSocraticCard("hesitation_45s");');
+        },
+      });
+    }
     if (n === 3 || scope === 'full') {
       steps.push({
         id: `m${n}-board-full`,
