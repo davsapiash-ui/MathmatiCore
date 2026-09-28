@@ -9,6 +9,7 @@ import {
   withGeminiTimeout,
 } from "./geminiConfig";
 import { recordAiCall, type AiOutcome } from "./aiMonitoring";
+import { redactPhoneNumbers } from "./phonePattern";
 import {
   SOCRATIC_RESPONSE_SCHEMA,
   SOCRATIC_SYSTEM_INSTRUCTION,
@@ -41,6 +42,7 @@ export function scrubPII(text: string): string {
   // Scrub Emails
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   scrubbed = scrubbed.replace(emailRegex, "[REDACTED_EMAIL]");
+  scrubbed = redactPhoneNumbers(scrubbed); // every common Israeli layout (phonePattern.ts)
 
   // Scrub Israeli IDs (9 digits, with or without hyphens/spaces) and basic phone numbers
   const idRegex = /\b\d{1,3}[-\s]?\d{3}[-\s]?\d{3}\b/g;
