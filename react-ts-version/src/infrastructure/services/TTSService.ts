@@ -18,6 +18,8 @@
  *       default (English) voice reading Hebrew.
  */
 
+import { speakMissingDigits } from '@/core/missingDigitSpeech';
+
 export class TTSService {
   private static instance: TTSService;
 
@@ -239,8 +241,12 @@ export class TTSService {
 
   private cleanTextForSpeech(text: string): string {
     if (!text) return '';
+    // A number with a missing-digit box ("3▢6") is said digit by digit, each box
+    // as "ספרה חסרה" — the words of the exercise's screen-reader label. The box
+    // stays on the screen; only speech changes.
+    let cleaned = speakMissingDigits(text);
     // Strip markdown formatting (*, _, #, `, ~)
-    let cleaned = text.replace(/[*_#`~]/g, '');
+    cleaned = cleaned.replace(/[*_#`~]/g, '');
     // Strip emojis
     cleaned = cleaned.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/gu, '');
     // Strip arrows (← ↺ …): they name a button's icon on the screen, and some
