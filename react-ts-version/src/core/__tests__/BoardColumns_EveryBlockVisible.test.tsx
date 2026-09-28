@@ -32,10 +32,24 @@ import { SESSION_BRANCH_TASKS } from '@/data/sessionBranchTasks';
 /**
  * The space each column's blocks get (px), measured on the screen on 28.9.2026
  * with the real frontend at each laptop size, board open, meetings 1 and 3.
- * The smallest of them is what the layout must fit 50 blocks into.
+ * Every one of them must hold 50 blocks of every kind.
  */
 const MEASURED_BLOCK_AREAS: { viewport: string; w: number; h: number }[] = [
-  // filled from the on-screen measurement (see PR description)
+  // Meeting 3 (four columns), with "קבץ 10" at the top of every column.
+  { viewport: '1024x768', w: 88, h: 270 },
+  { viewport: '1280x720', w: 120, h: 238 },
+  { viewport: '1366x768', w: 131, h: 286 },
+  { viewport: '1536x864', w: 152, h: 378 },
+  // The same with the coaching card open beside the board — the narrowest board.
+  { viewport: '1024x768 + card', w: 60, h: 144 },
+  { viewport: '1280x720 + card', w: 93, h: 222 },
+  { viewport: '1366x768 + card', w: 105, h: 270 },
+  { viewport: '1536x864 + card', w: 120, h: 382 },
+  // Meeting 1 (three columns).
+  { viewport: '1024x768 m1', w: 127, h: 348 },
+  { viewport: '1280x720 m1', w: 170, h: 300 },
+  { viewport: '1366x768 m1', w: 184, h: 348 },
+  { viewport: '1536x864 m1', w: 212, h: 440 },
 ];
 
 const every = (): SessionTask[] => {
@@ -173,6 +187,11 @@ describe('the column renders every block, at the fitted size', () => {
     const first = blocks[0] as HTMLElement;
     expect(Number(first.dataset.blockW)).toBe(f.block.w);
     expect(Number(first.dataset.blockH)).toBe(f.block.h);
+    // The cell is exactly the computed size: no line box adds height under the
+    // block (measured on screen: 26px cells where 15px were computed).
+    expect(first.style.display).toBe('flex');
+    expect(first.style.height).toBe(`${f.block.h}px`);
+    expect(first.style.padding).toBe(`${f.pad}px`);
     // Nothing in the column scrolls or clips a block away.
     const zone = container.querySelector('#column-hundreds-dropzone') as HTMLElement;
     expect(zone.className).not.toMatch(/overflow-y-auto|no-scrollbar/);
@@ -184,5 +203,13 @@ describe('the column renders every block, at the fitted size', () => {
     (container.querySelector('#column-hundreds-0') as HTMLElement).click();
     expect(useWorkspaceStore.getState().counts.hundreds).toBe(44);
     expect(useWorkspaceStore.getState().counts.tens).toBe(10);
+  });
+
+  it('the digit sits beside the column name, not pinned over it', () => {
+    useWorkspaceStore.setState({ counts: { units: 0, tens: 0, hundreds: 45, thousands: 0 } } as any);
+    const { container } = render(<DndContext><PlaceColumn place="hundreds" /></DndContext>);
+    const badge = Array.from(container.querySelectorAll('span[aria-hidden="true"]')).find((e) => e.textContent === '45') as HTMLElement;
+    expect(badge).toBeTruthy();
+    expect(badge.className).not.toMatch(/\babsolute\b/);
   });
 });

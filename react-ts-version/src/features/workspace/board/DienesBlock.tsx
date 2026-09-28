@@ -250,7 +250,9 @@ export function DienesBlock({
       role="button"
       tabIndex={0}
       aria-label={visual.labelHe}
-      style={cell ? { touchAction: 'none', padding: `${cell.pad}px`, boxSizing: 'content-box' } : { touchAction: 'none' }}
+      // In a column the cell is exactly block + padding: flex, so no line box
+      // adds height under the block and the computed layout is the real one.
+      style={cell ? { touchAction: 'none', padding: `${cell.pad}px`, boxSizing: 'content-box', display: 'flex', width: `${cell.w}px`, height: `${cell.h}px`, lineHeight: 0 } : { touchAction: 'none' }}
       data-block-w={cell?.w}
       data-block-h={cell?.h}
       className={`touch-none cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-ws-accent rounded-[3px] hover:brightness-110 ${hitPadding} ${isDragging ? 'opacity-30' : ''}`}

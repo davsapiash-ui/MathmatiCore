@@ -109,16 +109,19 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
       aria-label={`טור ${PLACE_NAMES_HE[place]}`}
     >
       <div
-        className="relative flex items-center justify-center py-2.5 font-display font-extrabold text-lg border-b-[3px] rounded-t-[14px] shrink-0 transition-colors"
+        className="relative flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 px-1 py-2.5 font-display font-extrabold text-lg border-b-[3px] rounded-t-[14px] shrink-0 transition-colors"
         style={{ color: colors.header, backgroundColor: isOver ? colors.tint : colors.headerBg, borderColor: colors.header }}
       >
         <span>{PLACE_NAMES_HE[place]}</span>
+        {/* The digit sits beside the column's name, never over it: pinned to the
+            corner it covered "יחידות" and "מאות" in a narrow column (1024×768
+            with the coaching card open); there it now wraps under the name. */}
         {/* מסמך 03 §3.1: לוח בית המספרים "מציג את הספרה אפס בכל הטורים", והאפס
             שבטור ריק מודגש "בצבע העמודה" (305: אפס בטור העשרות). הספרה 0 הוסתרה
             עד 24.9.2026, ושלב 305 של מפגש 1 הצביע על ספרה שאינה על המסך. */}
         <span
           aria-hidden="true"
-          className="absolute left-3 min-w-[22px] h-[22px] px-1 rounded-full text-xs font-black text-white inline-flex items-center justify-center transition-all opacity-100 scale-100"
+          className="min-w-[22px] h-[22px] px-1 rounded-full text-xs font-black text-white inline-flex items-center justify-center transition-all opacity-100 scale-100"
           style={{ backgroundColor: colors.header }}
         >
           {shownCount}
