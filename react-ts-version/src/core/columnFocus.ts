@@ -1,41 +1,119 @@
 /**
- * Which column of בית המספרים is "במוקד החישוב הנוכחי" — the one column the
- * dimming leaves lit (PRD Module 7 §א: "עמעום טורים לא פעילים (brightness: 0.6)
- * ... בטורים שאינם במוקד החישוב הנוכחי").
+ * Which columns of בית המספרים are dimmed — PRD Module 7 §א: "עמעום טורים לא
+ * פעילים (brightness: 0.6) ... בטורים שאינם במוקד החישוב הנוכחי".
  *
- * The PRD defines the focus only through that sentence. Where the exercise is
- * worked column by column — the vertical exercises of meetings 1 and 3–7,
- * skeleton exercises included — the column in focus is the one whose box the
- * child is writing in: a result-row box or a memory circle (`focusedPlace`, set
- * by VerticalAdditionTask). Until the child stands in one of them there is no
- * column in focus, and nothing is dimmed.
+ * The PRD does not say what "מוקד החישוב" is. The owner decided it on
+ * 28.9.2026 (register, gap יט):
  *
- * Representation exercises ("ייצגו את המספר 4,500 באמצעות מאות בלבד") and the
- * two-representations exercises are not worked column by column: the child
- * builds in whichever columns the representation needs and then writes the whole
- * number. The PRD does not say which column is in focus there, and the owner has
- * not decided; so no column is singled out and none is dimmed (register, open
- * gap יח, 28.9.2026). RepresentationTask still sets `focusedPlace` (other
- * features read it); it is ignored here. Until that date the units column stayed
- * lit and every other column was dimmed in every exercise of meetings 3–7, and in
- * a representation exercise the box the child stood in lit its own column — in
- * "45 מאות" the hundreds column the child was building in was dimmed unless the
- * child stood in the hundreds box.
+ * - Representation exercises (type 'representation': meetings 1, 3, 7 and the
+ *   choice banks). While no result-row box is focused, nothing is dimmed. In
+ *   the box of place p, column p and every lower place stay lit and only the
+ *   higher places are dimmed; in the highest box of the result row nothing is
+ *   dimmed.
+ * - flexible_decomp and missing_element: never dimmed.
+ * - Vertical exercises (vertical_addition, addition_simple, skeletons). A
+ *   focused result box, hidden-operand box or memory circle of place p lights
+ *   column p and dims the others. In meetings 3–7, with nothing focused, the
+ *   lit column is the lowest place whose box is still empty (result box, or in
+ *   a skeleton also a hidden-operand box) — units when the exercise opens,
+ *   moving left as soon as that box holds any digit, right or wrong; when every
+ *   box is filled nothing is dimmed. In meeting 1 a column is dimmed only while
+ *   a box is focused.
+ *
+ * Display only. Nothing here is written anywhere: `focusedPlace` and
+ * `activeColumnIndex` keep exactly the values they had, because the research
+ * telemetry reads them. The memory circle's focus lives in its own view store
+ * (useBoardFocusStore) for that reason — writing it to `focusedPlace` would
+ * change what the telemetry records.
+ *
+ * Only brightness 0.6: the column is never made see-through, and clicks and
+ * drags stay active in every column (register, gap יד).
  */
 
-import type { Place } from './placeValue';
-
-/** Task types whose result row is worked one column at a time. */
-const COLUMN_BY_COLUMN_TASKS: ReadonlySet<string> = new Set(['vertical_addition', 'addition_simple']);
-
-export function calculationFocusPlace(taskType: string | null | undefined, focusedPlace: Place | null): Place | null {
-  if (!taskType || !COLUMN_BY_COLUMN_TASKS.has(taskType)) return null;
-  return focusedPlace;
-}
+import { PLACE_ORDER, type Place } from './placeValue';
 
 /** PRD Module 7 §א: a column outside the focus is dimmed to brightness 0.6. */
 export const DIMMED_COLUMN_FILTER = 'brightness(0.6)';
 
-export function isColumnDimmed(place: Place, focus: Place | null): boolean {
-  return focus !== null && focus !== place;
+const NONE: ReadonlySet<Place> = new Set();
+
+/** The boxes a vertical exercise shows, by place (as VerticalAdditionTask draws them). */
+export interface VerticalBoxes {
+  /** Result-row boxes the child types in (revealed skeleton digits excluded). */
+  result: Place[];
+  /** Hidden operand digits the child types (skeleton exercises). */
+  operandA: Place[];
+  operandB: Place[];
+}
+
+const placesOf = (n: number): Place[] => PLACE_ORDER.slice(0, String(Math.abs(n)).length);
+
+export function verticalBoxes(
+  a: number,
+  b: number,
+  target: number,
+  hidden: { a?: Place[]; b?: Place[] } = {},
+  revealedResult: Place[] = []
+): VerticalBoxes {
+  return {
+    result: placesOf(target).filter((p) => !revealedResult.includes(p)),
+    operandA: placesOf(a).filter((p) => hidden.a?.includes(p)),
+    operandB: placesOf(b).filter((p) => hidden.b?.includes(p)),
+  };
+}
+
+export interface ColumnFocusInput {
+  sessionNumber: number;
+  taskType: string | null | undefined;
+  /** Result-row or hidden-operand box the child stands in (store `focusedPlace`, read only). */
+  focusedPlace: Place | null;
+  /** Memory circle the child stands in (view state only). */
+  focusedMemoryCircle: Place | null;
+  /** Representation exercise: the number whose result row is shown. */
+  representationValue?: number;
+  /** Vertical exercise: its boxes, and what is typed in them. */
+  vertical?: VerticalBoxes;
+  answerDigits?: Partial<Record<Place, string>>;
+  operandDigits?: { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> };
+}
+
+const VERTICAL_TASKS: ReadonlySet<string> = new Set(['vertical_addition', 'addition_simple']);
+
+const filled = (v: string | undefined) => v !== undefined && v !== '';
+
+/** Meetings 3–7, nothing focused: the lowest place with an empty box, or null when all are filled. */
+export function lowestEmptyPlace(
+  boxes: VerticalBoxes,
+  answerDigits: Partial<Record<Place, string>> = {},
+  operandDigits: { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> } = { a: {}, b: {} }
+): Place | null {
+  for (const p of PLACE_ORDER) {
+    if (boxes.result.includes(p) && !filled(answerDigits[p])) return p;
+    if (boxes.operandA.includes(p) && !filled(operandDigits.a[p])) return p;
+    if (boxes.operandB.includes(p) && !filled(operandDigits.b[p])) return p;
+  }
+  return null;
+}
+
+const allBut = (lit: Place): ReadonlySet<Place> => new Set(PLACE_ORDER.filter((p) => p !== lit));
+
+export function dimmedColumns(input: ColumnFocusInput): ReadonlySet<Place> {
+  const { taskType, sessionNumber } = input;
+
+  if (taskType === 'representation') {
+    const p = input.focusedPlace;
+    if (!p) return NONE;
+    const row = placesOf(input.representationValue ?? 0);
+    const idx = PLACE_ORDER.indexOf(p);
+    if (idx >= row.length - 1) return NONE; // the highest box of the result row
+    return new Set(PLACE_ORDER.slice(idx + 1));
+  }
+
+  if (!taskType || !VERTICAL_TASKS.has(taskType)) return NONE;
+
+  const focused = input.focusedPlace ?? input.focusedMemoryCircle;
+  if (focused) return allBut(focused);
+  if (sessionNumber < 3 || sessionNumber > 7 || !input.vertical) return NONE;
+  const lit = lowestEmptyPlace(input.vertical, input.answerDigits, input.operandDigits);
+  return lit ? allBut(lit) : NONE;
 }

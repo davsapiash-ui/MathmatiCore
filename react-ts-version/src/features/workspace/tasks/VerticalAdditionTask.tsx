@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 
 /**
  * תרגיל חיבור/חיסור במאונך — דף מחברת אמיתי:
@@ -53,6 +54,9 @@ export function VerticalAdditionTask({
   const carryDigits = useWorkspaceStore((s) => s.carryDigits);
   const setCarryDigit = useWorkspaceStore((s) => s.setCarryDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
+  // The memory circle lights its column (core/columnFocus.ts) through a view
+  // store only; it never sets focusedPlace, which the telemetry reads.
+  const setFocusedMemoryCircle = useBoardFocusStore((s) => s.setFocusedMemoryCircle);
   const keyboardState = useWorkspaceStore((s) => s.keyboardState);
   const isStoreColumnLocked = useWorkspaceStore((s) => s.isColumnInputLocked);
   const recordBlockedKeystroke = useWorkspaceStore((s) => s.recordBlockedKeystroke);
@@ -60,6 +64,9 @@ export function VerticalAdditionTask({
 
   const [shake, setShake] = useState(false);
   const [_lockedClicks, setLockedClicks] = useState(0);
+
+  // A circle that unmounts while focused (next exercise) fires no blur.
+  useEffect(() => () => setFocusedMemoryCircle(null), [numberA, numberB, setFocusedMemoryCircle]);
 
   useEffect(() => {
     if (keyboardState === 'UNLOCKED') {
@@ -198,6 +205,8 @@ export function VerticalAdditionTask({
                 aria-label={`חלונית המרה ל${PLACE_LABEL_HE[place]}`}
                 className="rounded-full border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent shadow-sm"
                 style={{ width: CELL * 0.6, height: CELL * 0.6, fontSize: CELL * 0.35 }}
+                onFocus={() => setFocusedMemoryCircle(place)}
+                onBlur={() => setFocusedMemoryCircle(null)}
                 onChange={(e) => {
                   const v = e.target.value.replace(/[^0-9]/g, '').slice(-2);
                   setCarryDigit(place, v);

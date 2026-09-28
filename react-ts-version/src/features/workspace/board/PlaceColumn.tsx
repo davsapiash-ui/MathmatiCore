@@ -3,8 +3,9 @@ import { useDroppable } from '@dnd-kit/core';
 import { motion, useAnimationControls } from 'framer-motion';
 import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { fitBlockGrid, type Size } from '@/core/blockLayout';
-import { calculationFocusPlace, isColumnDimmed, DIMMED_COLUMN_FILTER } from '@/core/columnFocus';
-import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
+import { dimmedColumns, verticalBoxes, DIMMED_COLUMN_FILTER } from '@/core/columnFocus';
+import { useWorkspaceStore, getActiveTasks, effectiveArithmetic } from '@/application/useWorkspaceStore';
+import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { DienesBlock } from './DienesBlock';
 import { COLUMN_CELLS } from './columnCells';
 import { useVisibleRegroup, arrivingBlockCount } from './RegroupAnimationLayer';
@@ -45,7 +46,12 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
   const groupColumnClick = useWorkspaceStore((s) => s.groupColumnClick);
   const splitBlockClick = useWorkspaceStore((s) => s.splitBlockClick);
   const removeBlockClick = useWorkspaceStore((s) => s.removeBlockClick);
-  const taskType = useWorkspaceStore((s) => getActiveTasks(s)[s.standardTaskIdx]?.type ?? null);
+  const task = useWorkspaceStore((s) => getActiveTasks(s)[s.standardTaskIdx] ?? null);
+  const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
+  const isASD = useWorkspaceStore((s) => s.isASD);
+  const answerDigits = useWorkspaceStore((s) => s.answerDigits);
+  const operandDigits = useWorkspaceStore((s) => s.operandDigits);
+  const focusedMemoryCircle = useBoardFocusStore((s) => s.focusedMemoryCircle);
 
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${place}`,
@@ -74,8 +80,22 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
   const isError = errorPlace === place;
 
   // PRD Module 7 §א: columns outside the current calculation focus are dimmed
-  // to brightness 0.6 (core/columnFocus.ts says which column that is).
-  const isDimmed = isColumnDimmed(place, calculationFocusPlace(taskType, focusedPlace));
+  // to brightness 0.6 (core/columnFocus.ts: the owner's rules of 28.9.2026).
+  let vertical;
+  if (task && (task.type === 'vertical_addition' || task.type === 'addition_simple')) {
+    const { a, b, target } = effectiveArithmetic(task, isASD);
+    vertical = verticalBoxes(a, b, target, task.hiddenDigits, task.revealedResultDigits);
+  }
+  const isDimmed = dimmedColumns({
+    sessionNumber,
+    taskType: task?.type,
+    focusedPlace,
+    focusedMemoryCircle,
+    representationValue: task?.numberA,
+    vertical,
+    answerDigits,
+    operandDigits,
+  }).has(place);
 
   // Every block the digit counts is on the screen (core/blockLayout.ts).
   const blocksRef = useRef<HTMLDivElement | null>(null);

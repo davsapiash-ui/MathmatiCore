@@ -13,6 +13,9 @@
  * fit; when they do not, the whole column's blocks shrink together, just enough
  * for all of them to fit in the space the column has. A column holds at most
  * MAX_VISIBLE_BLOCKS (50) blocks, and the layout is computed for that count too.
+ * The owner approved this on 28.9.2026 (register, gap כ): every block the digit
+ * counts is shown, shrinking only as much as needed, with click and drag working
+ * at every size — even below the 44×44 touch target of DESIGN_SYSTEM_RULES §1.2.
  *
  * Pure: no React, no DOM. PlaceColumn measures the space and renders the result.
  */
