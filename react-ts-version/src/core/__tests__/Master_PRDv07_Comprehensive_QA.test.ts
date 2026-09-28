@@ -88,7 +88,7 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
       expect(chatSanitized).not.toContain('054-9876543');
     });
 
-    it('enforces clean synchronous logout and wipes IndexedDB and store contexts', async () => {
+    it('enforces clean synchronous logout and resets store contexts (unsent IndexedDB items are kept — Module 17 §ג step 4)', async () => {
       useAuthStore.getState().setUser({ student_id: 5, role: 'student' }, 'student');
       useWorkspaceStore.setState({ counts: { units: 5, tens: 2, hundreds: 0, thousands: 0 } });
       useChatStore.setState({ unreadCount: 3 });
@@ -154,7 +154,10 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
         });
       }
 
-      // Verify status is online by default
+      // Online = the browser has a network AND the server answers (Module 17 §ג step 1;
+      // RTDB .info/connected). No database runs under the tests, so it reports
+      // unreachable; with the connection reported, the queue is online.
+      indexedDBQueue.setServerReachable(true);
       expect(indexedDBQueue.getOnlineStatus()).toBe(true);
       await indexedDBQueue.clearAll();
     });
