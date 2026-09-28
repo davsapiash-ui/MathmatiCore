@@ -2,9 +2,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
-import { useWorkspaceStore, selectScaffoldLevel } from '@/application/useWorkspaceStore';
-import { PlaceColumn } from './PlaceColumn';
 import { ValueDisplay } from './ValueDisplay';
+import { showsBuiltSum } from '@/core/boardVisibility';
+import { useWorkspaceStore, selectScaffoldLevel, selectBoardOpen } from '@/application/useWorkspaceStore';
+import { PlaceColumn } from './PlaceColumn';
 import { BlockPalette } from './BlockPalette';
 import { RegroupAnimationLayer } from './RegroupAnimationLayer';
 
@@ -17,12 +18,10 @@ export const TRAY_FULL_WIDTH_PX = 720;
  * 50% of the workspace when open; collapsible via the topbar toggle.
  */
 export function PlaceValueBoard({
-  hideValueDisplay,
   fullWidth = false,
   activeDragPlace = null,
   shareRow = false,
 }: {
-  hideValueDisplay?: boolean;
   fullWidth?: boolean;
   activeDragPlace?: Place | null;
   /** The Socratic side panel is open beside the board: the board and the
@@ -30,7 +29,8 @@ export function PlaceValueBoard({
    *  board keeping a fixed half and squeezing the sheet. */
   shareRow?: boolean;
 }) {
-  const boardOpen = useWorkspaceStore((s) => s.boardOpen);
+  // Station 1 keeps the board open whatever the store says (selectBoardOpen).
+  const boardOpen = useWorkspaceStore(selectBoardOpen);
   const scaffoldLevel = useWorkspaceStore(selectScaffoldLevel);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const isBoardLocked = useWorkspaceStore((s) => s.isBoardLocked);
@@ -147,7 +147,11 @@ export function PlaceValueBoard({
               <RegroupAnimationLayer containerRef={columnsRef} />
             </div>
 
-            {!hideValueDisplay && <ValueDisplay />}
+            {/* The running sum ("בניתי את X") is in no document, and the owner
+                removed it in meetings 3, 4 and 7 (28.9.2026). Meeting 1 never
+                showed it. Meetings 5 and 6 keep it until the owner decides
+                (register, decision ו) — the owner's decision named 3, 4 and 7. */}
+            {showsBuiltSum(sessionNumber) && <ValueDisplay />}
           </div>
 
           <div className="transition-opacity">

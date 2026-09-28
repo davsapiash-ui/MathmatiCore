@@ -40,7 +40,8 @@ import { indexedDBQueue } from '@/infrastructure/services/IndexedDBQueue';
 import { useStore } from '@/application/useStore';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
-import { AdaptiveAdditionGrid } from './board/AdaptiveAdditionGrid';
+import { AdaptiveAdditionGrid, ADDITION_GRID_HE } from './board/AdaptiveAdditionGrid';
+import { useLeftClearOfSidePanel } from './board/useLeftClearOfSidePanel';
 import { Grid3x3 } from 'lucide-react';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
@@ -100,6 +101,8 @@ export function StudentWorkspacePage() {
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
   const isSocraticPanelOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
+  // The grid's re-open tab keeps clear of the coaching card too (report row 1.28).
+  const gridTabLeft = useLeftClearOfSidePanel();
   const user = useAuthStore((s) => s.user);
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
 
@@ -1149,7 +1152,7 @@ export function StudentWorkspacePage() {
               <span>✓</span>
             </div>
             {!afterReflection && (
-              <p className="text-xs text-ws-soft">כשהמורה תפתח את המפגש הבא, נמשיך יחד.</p>
+              <p className="text-xs text-ws-soft">כשהמורה תפתח את התחנה הבאה, נמשיך יחד.</p>
             )}
           </div>
         </div>
@@ -1231,15 +1234,15 @@ export function StudentWorkspacePage() {
         <WorkspaceTopbar isDragging={activeDrag !== null} />
 
         {/* Main 50/50 workspace (or centered in Session 2 & 8) */}
-        <main className={`flex flex-row flex-1 overflow-hidden p-5 gap-5 max-w-[1600px] mx-auto w-full box-border ${(sessionNumber === 2 || sessionNumber === 8) ? 'justify-center items-center' : ''}`}>
+        <main className={`flex flex-row flex-1 overflow-hidden p-fl-10-20 gap-fl-10-20 max-w-[1600px] mx-auto w-full box-border ${(sessionNumber === 2 || sessionNumber === 8) ? 'justify-center items-center' : ''}`}>
           {/* Task card */}
-          <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${(sessionNumber === 2 || sessionNumber === 8) ? 'max-w-3xl flex-none h-auto' : ''}`}>
+          <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${(sessionNumber === 2 || sessionNumber === 8) ? 'max-w-3xl flex-none h-auto max-h-full' : ''}`}>
             <TaskCard />
           </div>
 
           {/* Place-value board (hidden/unmounted in Session 2 and Session 8) */}
           {sessionNumber !== 2 && sessionNumber !== 8 && (
-            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} hideValueDisplay={sessionNumber === 1} shareRow={isSocraticPanelOpen} />
+            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} shareRow={isSocraticPanelOpen} />
           )}
 
           {/* מסמך 03 / 04 §א: the Socratic card is a side panel that slides out
@@ -1249,7 +1252,8 @@ export function StudentWorkspacePage() {
           <SocraticSidePanel />
         </main>
 
-        <FeedbackToast />
+        {/* Meetings with the number house show the feedback in the task column (TaskCard). */}
+        {(sessionNumber === 2 || sessionNumber === 8) && <FeedbackToast />}
         <HelpOverlays />
         <StudentChatOverlay />
 
@@ -1276,12 +1280,13 @@ export function StudentWorkspacePage() {
           <button
             type="button"
             onClick={() => openAdditionHelper('learner')}
-            className="fixed bottom-6 left-6 z-40 h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-lg active:scale-95 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-700/60 dark:text-amber-200"
-            aria-label="הצגה חוזרת של לוח החיבור"
-            title="החזרת לוח החיבור למסך"
+            style={{ left: gridTabLeft }}
+            className="fixed bottom-6 z-40 h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-lg active:scale-95 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-700/60 dark:text-amber-200"
+            aria-label={`הצגה חוזרת של ${ADDITION_GRID_HE}`}
+            title={`החזרת ${ADDITION_GRID_HE} למסך`}
           >
             <Grid3x3 className="w-4 h-4" aria-hidden="true" />
-            <span>לוח חיבור</span>
+            <span>{ADDITION_GRID_HE}</span>
           </button>
         )}
       </div>

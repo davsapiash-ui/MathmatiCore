@@ -18,8 +18,10 @@ import { resolve } from 'path';
  * and stays there after a reload or a new sign-in; the saved reflection is
  * never written again.
  *
- * Module 17: a reflection write that fails is buffered in the offline queue,
- * never discarded, and it is the same document either way (Module 16 §ב).
+ * Module 17: the reflection goes to the server by one path, the offline queue
+ * (queueSRLReflection). Once the queue holds it, it is safe and the learner
+ * can finish; the queue removes it only on the server's Ack. The document is
+ * exactly the research record of Module 16 §ב.
  */
 
 const firestoreMock = vi.hoisted(() => ({
@@ -44,10 +46,24 @@ vi.mock('firebase/database', async (importOriginal) => {
   return { ...actual, update: databaseMock.update };
 });
 
+// The real queueSRLReflection, watched: every call is recorded, then passed on.
+const queueWatch = vi.hoisted(() => ({ queueSRLReflection: vi.fn() }));
+
+vi.mock('@/infrastructure/services/IndexedDBQueue', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/infrastructure/services/IndexedDBQueue')>();
+  return {
+    ...actual,
+    queueSRLReflection: (docId: string, reflection: Record<string, unknown>) => {
+      queueWatch.queueSRLReflection(docId, reflection);
+      return actual.queueSRLReflection(docId, reflection);
+    },
+  };
+});
+
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
-import { submitSRLReflection, hasSavedSRLReflection, SRL_DIRECT_WRITE_BUDGET_MS, SRL_SERVER_CHECK_BUDGET_MS } from '../srlReflection';
+import { submitSRLReflection, hasSavedSRLReflection, SRL_SERVER_CHECK_BUDGET_MS } from '../srlReflection';
 import { indexedDBQueue, type QueuedAction } from '@/infrastructure/services/IndexedDBQueue';
 
 const STUDENT = 'student_user12';
@@ -109,14 +125,21 @@ describe('8.10 — the finished reflection board leads to the quiet end screen',
     expect(page).toMatch(/sessionNumber !== 8 \|\| flowStatus !== 'reflection'\) return;[\s\S]{0,200}hasSavedSRLReflection\(currentStudentUid\(\)\)[\s\S]{0,120}finishReflection\(\)/);
   });
 
-  it('meeting 8’s end screen does not promise a next meeting and does not praise twice', () => {
+  it('meeting 8’s end screen does not promise a next station and does not praise twice', () => {
     const page = src('features/workspace/StudentWorkspacePage.tsx');
     expect(page).toContain('const afterReflection = sessionNumber === 8;');
     expect(page).toContain('{withClosingSentence || afterReflection ? (');
-    // Only the structure: the rest of the sentence is another PR's wording (#125).
-    expect(page).toMatch(/\{!afterReflection && \(\s*<p className="text-xs text-ws-soft">כשהמורה תפתח את/);
+    // Meetings 1–7 keep #125's line; meeting 8, the last station, has none.
+    expect(page).toMatch(/\{!afterReflection && \(\s*<p className="text-xs text-ws-soft">כשהמורה תפתח את התחנה הבאה, נמשיך יחד\.<\/p>\s*\)\}/);
+    expect(page.match(/כשהמורה תפתח את התחנה הבאה, נמשיך יחד\./g)).toHaveLength(1);
   });
 });
+
+/** Module 16 §ב, as isValidSRLReflectionDoc (firestore.rules) allows it: these ten fields, nothing else. */
+const STORED_FIELDS = [
+  'student_id', 'session_id', 'session_number', 'effort_level', 'selected_strategies',
+  'persistence_index', 'undo_count', 'error_count', 'guess_count', 'submitted_at',
+];
 
 const STORED = {
   student_id: 12,
@@ -130,11 +153,21 @@ const STORED = {
   guess_count: 0,
 };
 
-describe('8.10 — the saved reflection is never overwritten, and never lost', () => {
-  beforeEach(() => {
+/** Firestore writes made to the reflection collection (telemetry from other tests may flush meanwhile). */
+const reflectionWrites = () =>
+  firestoreMock.setDoc.mock.calls.filter(([target]) => String((target as { path?: string } | undefined)?.path).startsWith('srl_reflections/'));
+
+describe('Module 16/17 — the reflection is saved by one path, the offline queue', () => {
+  beforeEach(async () => {
+    // Nothing queued by the store tests above is flushed into these.
+    await indexedDBQueue.clearAll();
     firestoreMock.setDoc.mockReset();
     firestoreMock.getDocFromServer.mockReset();
+    databaseMock.update.mockClear();
+    queueWatch.queueSRLReflection.mockReset();
     vi.spyOn(indexedDBQueue, 'getAll').mockResolvedValue([]);
+    // The REFLECTION_SUBMITTED event goes to the same queue; here it is not stored.
+    vi.spyOn(indexedDBQueue, 'enqueue').mockResolvedValue();
   });
   afterEach(() => {
     databaseMock.update.mockImplementation(() => Promise.resolve());
@@ -142,55 +175,51 @@ describe('8.10 — the saved reflection is never overwritten, and never lost', (
     vi.useRealTimers();
   });
 
-  it('a second save refused by the rules counts as saved, not as a failure', async () => {
+  it('the save goes through queueSRLReflection: the learner’s document, exactly the Module 16 fields, nothing written directly', async () => {
     const enqueue = vi.spyOn(indexedDBQueue, 'enqueueFirestoreDoc').mockResolvedValue();
-    firestoreMock.setDoc.mockRejectedValueOnce(Object.assign(new Error('denied'), { code: 'permission-denied' }));
-    firestoreMock.getDocFromServer.mockResolvedValueOnce({ exists: () => true });
-    await expect(submitSRLReflection(STUDENT, RESULT)).resolves.toEqual({ ok: true, alreadySaved: true });
-    expect(firestoreMock.setDoc).toHaveBeenCalledTimes(1);
-    expect(enqueue).not.toHaveBeenCalled();
-  });
+    await expect(submitSRLReflection(STUDENT, RESULT)).resolves.toEqual({ ok: true });
 
-  it('a refused save with nothing saved goes to the offline queue: the same document, create-only', async () => {
-    const enqueue = vi.spyOn(indexedDBQueue, 'enqueueFirestoreDoc').mockResolvedValue();
-    firestoreMock.setDoc.mockRejectedValueOnce(new Error('unavailable'));
-    firestoreMock.getDocFromServer.mockRejectedValueOnce(new Error('offline'));
-    await expect(submitSRLReflection(STUDENT, RESULT)).resolves.toEqual({ ok: true, queued: true });
-    const direct = firestoreMock.setDoc.mock.calls[0][1];
-    const [collection, docId, queued, key, options] = enqueue.mock.calls[0];
-    expect([collection, docId, key, options]).toEqual(['srl_reflections', 'session_08_student_12', 'srl_session_08_student_12', { createOnly: true }]);
-    // Module 16 §ב: exactly the stored fields, identical on both routes.
-    expect(queued).toBe(direct);
-    expect(queued).toEqual({ ...STORED, submitted_at: expect.any(Number) });
-  });
+    expect(queueWatch.queueSRLReflection).toHaveBeenCalledTimes(1);
+    const [docId, record] = queueWatch.queueSRLReflection.mock.calls[0];
+    expect(docId).toBe('session_08_student_12');
+    expect(record).toEqual({ ...STORED, submitted_at: expect.any(Number) });
+    expect(Object.keys(record).sort()).toEqual([...STORED_FIELDS].sort());
 
-  it('offline, where every write and read hangs, the reflection is queued and the learner can finish', async () => {
-    vi.useFakeTimers();
-    const enqueue = vi.spyOn(indexedDBQueue, 'enqueueFirestoreDoc').mockResolvedValue();
-    const never = () => new Promise<never>(() => {});
-    firestoreMock.setDoc.mockReturnValueOnce(never());
-    firestoreMock.getDocFromServer.mockReturnValueOnce(never());
-    // The RTDB live mirror resolves only when the server takes it.
-    databaseMock.update.mockImplementation(never);
-    const pending = submitSRLReflection(STUDENT, RESULT);
-    await vi.advanceTimersByTimeAsync(SRL_DIRECT_WRITE_BUDGET_MS + SRL_SERVER_CHECK_BUDGET_MS);
-    await expect(pending).resolves.toEqual({ ok: true, queued: true });
+    // queueSRLReflection hands the queue that same object, untouched; the
+    // idempotency key lives on the queue item, not in the document.
     expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(enqueue).toHaveBeenCalledWith('srl_reflections', 'session_08_student_12', record, 'srl_reflection_session_08_student_12');
+    expect(enqueue.mock.calls[0][2]).toBe(record);
+
+    // One path: no direct write, and the outcome is never read off the server.
+    expect(reflectionWrites()).toEqual([]);
+    expect(firestoreMock.getDocFromServer).not.toHaveBeenCalled();
   });
 
-  it('a refusal by the rules with nothing saved is not queued: the child is told what to do', async () => {
-    const enqueue = vi.spyOn(indexedDBQueue, 'enqueueFirestoreDoc').mockResolvedValue();
-    firestoreMock.setDoc.mockRejectedValueOnce(Object.assign(new Error('denied'), { code: 'permission-denied' }));
-    firestoreMock.getDocFromServer.mockRejectedValueOnce(Object.assign(new Error('denied'), { code: 'permission-denied' }));
-    await expect(submitSRLReflection(STUDENT, RESULT)).resolves.toEqual({ ok: false, reason: 'write_failed' });
-    expect(enqueue).not.toHaveBeenCalled();
+  it('queued is safe: the learner can finish while the network hangs', async () => {
+    vi.spyOn(indexedDBQueue, 'enqueueFirestoreDoc').mockResolvedValue();
+    const never = () => new Promise<never>(() => {});
+    firestoreMock.setDoc.mockImplementation(never);
+    firestoreMock.getDocFromServer.mockImplementation(never);
+    // The RTDB live mirror resolves only when the server takes it; it is not awaited.
+    databaseMock.update.mockImplementation(never);
+    await expect(submitSRLReflection(STUDENT, RESULT)).resolves.toEqual({ ok: true });
+    expect(databaseMock.update).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ reflection_completed: true }));
   });
 
-  it('only when it cannot be queued either is it reported as a failure', async () => {
+  it('only a reflection the queue could not store is a failure: the board stays', async () => {
     vi.spyOn(indexedDBQueue, 'enqueueFirestoreDoc').mockRejectedValue(new Error('no storage'));
-    firestoreMock.setDoc.mockRejectedValueOnce(new Error('unavailable'));
-    firestoreMock.getDocFromServer.mockRejectedValueOnce(new Error('offline'));
     await expect(submitSRLReflection(STUDENT, RESULT)).resolves.toEqual({ ok: false, reason: 'write_failed' });
+    // Nothing reports it saved: no live mirror, no event, no second route.
+    expect(databaseMock.update).not.toHaveBeenCalled();
+    expect(indexedDBQueue.enqueue).not.toHaveBeenCalled();
+    expect(reflectionWrites()).toEqual([]);
+  });
+
+  it('an identity that is not a pilot learner queues nothing', async () => {
+    const enqueue = vi.spyOn(indexedDBQueue, 'enqueueFirestoreDoc').mockResolvedValue();
+    await expect(submitSRLReflection('teacher', RESULT)).resolves.toEqual({ ok: false, reason: 'unknown_student' });
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it('reads the learner’s own document from the server, and any failure reads as "not saved"', async () => {
@@ -204,46 +233,22 @@ describe('8.10 — the saved reflection is never overwritten, and never lost', (
     await expect(hasSavedSRLReflection('teacher')).resolves.toBe(false);
   });
 
+  it('a server read that hangs counts as "not saved" once its budget runs out', async () => {
+    vi.useFakeTimers();
+    firestoreMock.getDocFromServer.mockReturnValueOnce(new Promise<never>(() => {}));
+    const pending = hasSavedSRLReflection(STUDENT);
+    await vi.advanceTimersByTimeAsync(SRL_SERVER_CHECK_BUDGET_MS);
+    await expect(pending).resolves.toBe(false);
+  });
+
   it('a reflection waiting in the offline queue counts as saved, so a reload does not show the board again', async () => {
     firestoreMock.getDocFromServer.mockRejectedValueOnce(new Error('offline'));
+    // The item as queueSRLReflection stores it.
     vi.spyOn(indexedDBQueue, 'getAll').mockResolvedValue([
-      { firestoreDoc: { collection: 'srl_reflections', docId: 'session_08_student_12', createOnly: true }, payload: {}, timestamp: 1 } as QueuedAction,
+      { firestoreDoc: { collection: 'srl_reflections', docId: 'session_08_student_12' }, payload: {}, timestamp: 1, idempotency_key: 'srl_reflection_session_08_student_12' } as QueuedAction,
     ]);
     await expect(hasSavedSRLReflection(STUDENT)).resolves.toBe(true);
     firestoreMock.getDocFromServer.mockRejectedValueOnce(new Error('offline'));
     await expect(hasSavedSRLReflection('student_user3')).resolves.toBe(false);
-  });
-});
-
-describe('Module 17 — the queue delivers a create-only document whole, once', () => {
-  const item = (): QueuedAction => ({
-    firestoreDoc: { collection: 'srl_reflections', docId: 'session_08_student_12', createOnly: true },
-    payload: { ...STORED, submitted_at: 1 },
-    timestamp: 1,
-  });
-  const deliver = (i: QueuedAction) => (indexedDBQueue as unknown as { deliver(i: QueuedAction): Promise<boolean> }).deliver(i);
-
-  beforeEach(() => {
-    firestoreMock.setDoc.mockReset();
-    firestoreMock.getDocFromServer.mockReset();
-  });
-
-  it('writes the stored payload as is, without merge', async () => {
-    firestoreMock.setDoc.mockResolvedValueOnce(undefined);
-    await expect(deliver(item())).resolves.toBe(true);
-    expect(firestoreMock.setDoc.mock.calls[0][1]).toEqual({ ...STORED, submitted_at: 1 });
-    expect(firestoreMock.setDoc.mock.calls[0]).toHaveLength(2);
-  });
-
-  it('a refusal because the document is already on the server is the Ack', async () => {
-    firestoreMock.setDoc.mockRejectedValueOnce(new Error('permission-denied'));
-    firestoreMock.getDocFromServer.mockResolvedValueOnce({ exists: () => true });
-    await expect(deliver(item())).resolves.toBe(true);
-  });
-
-  it('any other failure keeps the item in the queue', async () => {
-    firestoreMock.setDoc.mockRejectedValueOnce(new Error('unavailable'));
-    firestoreMock.getDocFromServer.mockRejectedValueOnce(new Error('offline'));
-    await expect(deliver(item())).rejects.toThrow('unavailable');
   });
 });

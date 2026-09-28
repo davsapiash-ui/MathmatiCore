@@ -499,7 +499,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       setIsClassSessionActive(false);
       setClassSessionStatus('closed');
       setSessionStartTime(null);
-      toast.info('המפגש נסגר. כל התלמידים רואים עכשיו "המורה סגרה את המפגש".');
+      toast.info('המפגש נסגר. כל התלמידים רואים עכשיו "המורה סגרה את התחנה".');
     } catch (err) {
       console.error('Error ending class session:', err);
       toast.error('שגיאה בסגירת המפגש מול השרת.');
