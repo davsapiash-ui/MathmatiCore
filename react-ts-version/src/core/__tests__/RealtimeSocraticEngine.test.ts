@@ -26,11 +26,11 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     
     const correctOpt = hint?.choices.find(c => c.id === hint?.correctChoiceId);
     expect(correctOpt).toBeDefined();
-    expect(correctOpt?.textHe).toContain('אלף אחד מטור האלפים כדי לפרוט');
+    expect(correctOpt?.textHe).toContain('פורטים אלף אחד לעשר מאות'); // the exercise card reads the board (28.9.2026)
     expect(correctOpt?.isCorrect).toBe(true);
 
     const distractorOpt = hint?.choices.find(c => c.id === 'opt_2');
-    expect(distractorOpt?.textHe).toContain('נחסיר הפוך');
+    expect(distractorOpt?.textHe).toContain('מחסרים הפוך');
     expect(distractorOpt?.isCorrect).toBe(false);
   });
 
@@ -88,7 +88,7 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
       const t = { id: 'task7', isSubtraction: true, numberA: 405, numberB: 132 };
       const hint = SocraticEngine.analyzeLiveBoardState(t, 'subtraction_regrouping', { units: 5, tens: 0, hundreds: 4, thousands: 0 });
       expect(hint?.suggested_highlight).toBe('tour-column-hundreds');
-      expect(hint?.questionHe).toContain('0 עשרות');
+      expect(hint?.questionHe).toContain('בטור העשרות אין אף עשרת');
       expect(hint?.questionHe).toContain('3 עשרות');
     });
 
@@ -115,8 +115,8 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     expect(hint).toBeDefined();
     expect(hint?.suggested_highlight).toBe('tour-column-units');
     expect(hint?.questionHe).toContain('14 לבנים');
-    expect(hint?.choices[0].textHe).toContain('נאסוף 10 יחידות מטור היחידות ונמיר אותן לעשרת אחת בטור העשרות');
-    expect(hint?.choices[1].textHe).toContain('נמחק 10 יחידות');
+    expect(hint?.choices[0].textHe).toContain('אוספים 10 יחידות מטור היחידות וממירים אותן לעשרת אחת בטור העשרות');
+    expect(hint?.choices[1].textHe).toContain('מוחקים 10 יחידות');
   });
 
   it('4. Dynamically detects overcrowding in tens (>= 10)', async () => {
@@ -134,24 +134,19 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     expect(hint).toBeDefined();
     expect(hint?.suggested_highlight).toBe('tour-column-tens');
     expect(hint?.questionHe).toContain('13 עשרות');
-    expect(hint?.choices[0].textHe).toContain('נאסוף 10 עשרות ונקבץ אותן למאה אחת בטור המאות');
+    expect(hint?.choices[0].textHe).toContain('אוספים 10 עשרות ומקבצים אותן למאה אחת בטור המאות');
   });
 
-  it('5. Dynamically detects zero placeholder missing in tens', async () => {
-    const task = {
-      id: 's6_t3',
-      numberA: 4005,
-      targetNode: 'zero_placeholder'
-    };
-
+  // The "zero placeholder" live card ("אין לבנים בטור העשרות ... נרשום 0 בטור
+  // העשרות") was removed on 28.9.2026: it fired on every meeting-6 exercise
+  // with an empty tens column, whatever the exercise's tens really were, and
+  // told the child to write in the number house.
+  it('5. An empty tens column is not read as "write 0 in the tens"', async () => {
+    const task = { id: 's6_t3', numberA: 4005, targetNode: 'zero_placeholder' };
     const counts = { units: 5, tens: 0, hundreds: 0, thousands: 4 };
-
+    expect(SocraticEngine.analyzeLiveBoardState(task, 'zero_placeholder', counts)).toBeNull();
     const hint = await SocraticEngine.getSocraticHint(task, 'zero_placeholder', counts);
-
-    expect(hint).toBeDefined();
-    expect(hint?.suggested_highlight).toBe('tour-column-tens');
-    expect(hint?.questionHe).toContain('אין לבנים בטור העשרות');
-    expect(hint?.choices[0].textHe).toContain('נרשום 0 בטור העשרות כדי לשמור על ערך המקום');
+    expect(hint?.questionHe ?? '').not.toContain('נרשום בבית המספרים');
   });
 
   it('6. Falls back to static task hint when no active live board anomaly exists', async () => {
@@ -167,6 +162,6 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     const hint = await SocraticEngine.getSocraticHint(task, 'flexible_regrouping', counts);
 
     expect(hint).toBeDefined();
-    expect(hint?.questionHe).toContain('מה קורה כאשר אנו מפרקים עשרת אחת לטור היחידות');
+    expect(hint?.questionHe).toContain('מה קורה בבית המספרים כשפורטים עשרת אחת');
   });
 });

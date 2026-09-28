@@ -102,7 +102,7 @@ export function placeToColumnIndex(place: Place | string): number {
 const UNDO_STACK_CAP = 10;
 
 const DEFAULT_SOCRATIC_HINT: SocraticHintResponse = {
-  questionHe: 'מה הפעולה המתמטית שנרצה לבצע בבית המספרים?',
+  questionHe: 'מה הפעולה המתמטית שצריך לבצע בבית המספרים?',
   choices: [
     { id: 'opt_1', textHe: 'לבדוק את מספר הלבנים בכל טור בבית המספרים ולחשב מחדש' },
     { id: 'opt_2', textHe: 'לפרוט עשרת אחת ל-10 יחידות' },

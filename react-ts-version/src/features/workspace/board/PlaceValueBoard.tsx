@@ -15,10 +15,14 @@ export const TRAY_FULL_WIDTH_PX = 720;
  * Column order in RTL: units rightmost → thousands leftmost (standard Hebrew notation).
  * 50% of the workspace when open; collapsible via the topbar toggle.
  */
+/** Below this window width, with the side panel open, the sheet takes a little more of the row than the board. */
+const TIGHT_ROW_PX = 1180;
+
 export function PlaceValueBoard({
   fullWidth = false,
   activeDragPlace = null,
   shareRow = false,
+  additionGridOpen = false,
 }: {
   fullWidth?: boolean;
   activeDragPlace?: Place | null;
@@ -26,6 +30,10 @@ export function PlaceValueBoard({
    *  exercise sheet share what is left of the row equally, instead of the
    *  board keeping a fixed half and squeezing the sheet. */
   shareRow?: boolean;
+  /** The enhanced profile's addition grid is on the screen. It floats over
+   *  the board's width (useClearOfSidePanel), so while it is open the board
+   *  keeps its 1.25 share, or the grid itself would scroll sideways. */
+  additionGridOpen?: boolean;
 }) {
   // Station 1 keeps the board open whatever the store says (selectBoardOpen).
   const boardOpen = useWorkspaceStore(selectBoardOpen);
@@ -41,6 +49,16 @@ export function PlaceValueBoard({
   // assumed: the tray goes compact whenever the board is too narrow for it,
   // with the side panel open or not.
   const [narrow, setNarrow] = useState(false);
+  // Below 1180px (an iPad in landscape) the side panel leaves too little
+  // for 1.25 : 1 — the sheet's vertical exercise fell below its fold
+  // (1024×694, 39px; owner, 28.9.2026: no scroll at any size). There the
+  // sheet takes a little more than the board (1 : 0.85).
+  const [tightRow, setTightRow] = useState(() => typeof window !== 'undefined' && window.innerWidth < TIGHT_ROW_PX);
+  useEffect(() => {
+    const onResize = () => setTightRow(window.innerWidth < TIGHT_ROW_PX);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const sectionRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const el = sectionRef.current;
@@ -104,7 +122,7 @@ export function PlaceValueBoard({
             // With the side panel open the board takes a little more than the
             // sheet (1.25 : 1), so its columns and the whole tray, trash
             // included, stay usable on a 1280–1366px laptop.
-            flex: fullWidth ? '1 1 100%' : shareRow ? '1.25 1 0%' : '0 0 50%'
+            flex: fullWidth ? '1 1 100%' : shareRow ? (tightRow && !additionGridOpen ? '0.85 1 0%' : '1.25 1 0%') : '0 0 50%'
           }}
           exit={{ opacity: 0, width: 0, flex: '0 0 0%' }}
           transition={{ duration: 0.25, ease: 'easeInOut' }}
