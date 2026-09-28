@@ -43,9 +43,9 @@ const STAYS_OPEN_NOTE_MS = 10_000;
 
 /** מודול 17 §ד: what the cloud says in each sync state (read aloud and on hover). */
 const CLOUD_STATUS_LABEL: Record<QueueSyncState, string> = {
-  synced: 'מחובר. העבודה שלכם נשמרה.',
-  pending: 'מחובר. העבודה שלכם נשמרת ותישלח בעוד רגע.',
-  offline: 'אין כרגע חיבור לרשת. העבודה שלכם נשמרת כאן ותיסנכרן לבד כשהחיבור יחזור.',
+  synced: 'יש חיבור לרשת. העבודה שלכם נשמרה.',
+  pending: 'יש חיבור לרשת. העבודה שלכם נשמרת ותישלח בעוד רגע.',
+  offline: 'אין כרגע חיבור לרשת. העבודה שלכם נשמרת כאן ותישלח מעצמה כשהחיבור יחזור.',
 };
 
 export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {

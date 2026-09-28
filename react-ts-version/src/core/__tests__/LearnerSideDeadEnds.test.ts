@@ -133,7 +133,7 @@ describe('"התקדם" בלי בחירה מסביר, לא שותק', () => {
 
   it('missing_element ללא תשובה מציג משוב', () => {
     const block = store.slice(store.indexOf("if (task.type === 'missing_element')"), store.indexOf("if (task.type === 'missing_element')") + 600);
-    expect(block).toContain('נָא לְהַקְלִיד תְּשׁוּבָה');
+    expect(block).toContain('הַקְלָדַת תְּשׁוּבָה ✏️');
     expect(block).not.toMatch(/Number\.isNaN\(answer\)\) return;/);
   });
 });

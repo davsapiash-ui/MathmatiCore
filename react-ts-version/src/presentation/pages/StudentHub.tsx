@@ -43,7 +43,7 @@ const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
     id: 1,
     // מסמך 04 §1: "ארגז החול" for the first meeting; מסמך 03 §3.1 step 1.
     title: stationTitleHe(1),
-    desc: 'שחקו עם הלבנים ועם הלוח והכירו את הכלים. כאן אין תשובות נכונות או שגויות.',
+    desc: 'שחקו עם הלבנים ועם בית המספרים, והכירו את הכלים. כאן אין תשובות נכונות או שגויות.',
     icon: '🧱',
   },
   2: {
@@ -277,7 +277,7 @@ export function StudentHub() {
         {!activeClassSession.isLoaded ? (
           <div className="w-full max-w-[480px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-sm flex flex-col items-center gap-4">
             <div className="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-xs font-bold text-slate-500">מתחבר למפגש הכיתתי...</p>
+            <p className="text-xs font-bold text-slate-500">מתחברים לכיתה...</p>
           </div>
         ) : !isTeacherSessionActive ? (
           <motion.div

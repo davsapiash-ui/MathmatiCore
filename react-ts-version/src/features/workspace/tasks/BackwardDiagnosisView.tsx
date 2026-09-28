@@ -89,9 +89,9 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
             onClick={demoUngroup}
             className="h-11 px-6 rounded-full font-display font-bold text-white bg-ws-accent shadow-md hover:brightness-105 active:scale-95 transition-all"
           >
-            הדגם פריטה: עשרת ← 10 יחידות
+            הדגמת פריטה: עשרת ← 10 יחידות
           </button>
-          <p className="text-sm text-ws-soft">אחרי ההדגמה, בנו את המספר בדרך חדשה ולחצו "הוספת ייצוג".</p>
+          <p className="text-sm text-ws-soft">אחרי ההדגמה, בנו את המספר בדרך חדשה ולחצו על "הוספת ייצוג".</p>
 
           {q3Reps.length > 0 && (
             <div className="flex flex-wrap gap-2 justify-center" aria-live="polite">
