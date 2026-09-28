@@ -107,6 +107,12 @@ export interface QueuedAction {
   retry_count?: number;
   /** How many times delivery failed in a transient-looking way (unavailable, internal, unauthenticated…). */
   transient_count?: number;
+  /** What the last failure was: the network (no answer), another transient-looking error, or a refusal. */
+  last_failure_kind?: FailureKind;
+  /** When the item was last parked by the transient threshold (see nextReviveAt). */
+  parked_at?: number;
+  /** How many times the revive timer has given this item another probe (see nextReviveAt). */
+  revive_count?: number;
   last_error?: string;
 }
 
@@ -139,19 +145,43 @@ export function isParked(item: QueuedAction): boolean {
     || (item.transient_count ?? 0) >= MAX_TRANSIENT_BEFORE_PARKING;
 }
 
+export type FailureKind = 'network' | 'transient' | 'refusal';
+
 /**
  * Parked by the transient threshold only — not by real refusals. These are
- * revived without a reload: on the browser 'online' event, after any
- * successful delivery in a later pass, and every TRANSIENT_REVIVE_MS while
- * one is parked. A tab left open through an outage must not keep a child on
- * "ממתין לאישור" until someone reloads it. Refusal-parked items
- * (retry_count ≥ 5) are revived on page load only, as before.
+ * revived without a reload, so a tab left open through an outage does not
+ * keep a child on "ממתין לאישור" until someone reloads it:
+ *  - on the browser 'online' event, and after a successful delivery in a
+ *    later pass — only an item whose last failure was the NETWORK. A success
+ *    proves the server answers; an item that failed with `internal` while
+ *    it answered is not retried just because something else went through;
+ *  - by the revive timer, per item, with exponential backoff (nextReviveAt).
+ * A revive is ONE probe (transient_count = threshold − 1): if it fails, the
+ * item is parked again at once and the pass moves on past it. Giving it 20
+ * more attempts made an always-failing item at the head re-block the queue
+ * for ~8 minutes on every cycle (review R1).
+ * Refusal-parked items (retry_count ≥ 5) are revived on page load only, as before.
  */
 export function isTransientParked(item: QueuedAction): boolean {
   return (item.retry_count ?? 0) < MAX_RETRIES_BEFORE_PARKING
     && (item.transient_count ?? 0) >= MAX_TRANSIENT_BEFORE_PARKING;
 }
-const TRANSIENT_REVIVE_MS = 2 * 60 * 1000;
+const REVIVE_BACKOFF_BASE_MS = 2 * 60 * 1000;
+const REVIVE_BACKOFF_CAP_MS = 60 * 60 * 1000;
+
+/** When the revive timer next probes a transient-parked item: 2, 4, 8, 16, 32 minutes after it was parked, then 60. */
+export function nextReviveAt(item: QueuedAction): number {
+  const wait = Math.min(REVIVE_BACKOFF_BASE_MS * 2 ** (item.revive_count ?? 0), REVIVE_BACKOFF_CAP_MS);
+  return (item.parked_at ?? 0) + wait;
+}
+
+/** The fields that give a transient-parked item one probe. `timer`: counts toward its backoff. */
+function probeFields(item: QueuedAction, timer: boolean): Partial<QueuedAction> {
+  return {
+    transient_count: MAX_TRANSIENT_BEFORE_PARKING - 1,
+    ...(timer ? { revive_count: (item.revive_count ?? 0) + 1 } : {}),
+  };
+}
 /** השהיה מדורגת בין ניסיונות ריקון, עד תקרה. */
 const RETRY_BACKOFF_MS = [2000, 4000, 8000, 16000, 30000];
 /**
@@ -315,16 +345,22 @@ export function rtdbDeliveryOf(item: QueuedAction): RtdbDelivery {
   return { mode: 'child' };
 }
 
+type FailureCounts = Pick<QueuedAction, 'retry_count' | 'transient_count' | 'last_error' | 'last_failure_kind' | 'parked_at'>;
+
 /** The item's counters after one more failure (see isParked). */
-function failureCounts(item: QueuedAction, err: unknown): { retry_count: number; transient_count: number; last_error: string } {
+function failureCounts(item: QueuedAction, err: unknown): FailureCounts {
+  const last_error = errorMessageOf(err).slice(0, 300);
   if (isMarkedUnreached(err)) {
-    return { retry_count: item.retry_count ?? 0, transient_count: item.transient_count ?? 0, last_error: errorMessageOf(err).slice(0, 300) };
+    return { retry_count: item.retry_count ?? 0, transient_count: item.transient_count ?? 0, last_error, last_failure_kind: 'network' };
   }
   const transient = isTransientFailure(err);
+  const transient_count = (item.transient_count ?? 0) + (transient ? 1 : 0);
   return {
     retry_count: (item.retry_count ?? 0) + (transient ? 0 : 1),
-    transient_count: (item.transient_count ?? 0) + (transient ? 1 : 0),
-    last_error: errorMessageOf(err).slice(0, 300),
+    transient_count,
+    last_error,
+    last_failure_kind: !transient ? 'refusal' : isUnreachable(err) ? 'network' : 'transient',
+    ...(transient && transient_count >= MAX_TRANSIENT_BEFORE_PARKING ? { parked_at: Date.now() } : {}),
   };
 }
 
@@ -361,6 +397,9 @@ export class IndexedDBQueue {
   private transientReviveTimer: ReturnType<typeof setTimeout> | null = null;
   /** Whether the last recount saw an item parked by the transient threshold. */
   private hasTransientParked = false;
+  /** The earliest nextReviveAt among transient-parked items, from the last recount. */
+  private nextTransientReviveAt: number | null = null;
+  private transientReviveTimerAt: number | null = null;
   /** The browser came back online: the next pass first revives transient-parked items. */
   private reviveTransientOnNextPass = false;
   private backgroundFlushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -453,7 +492,9 @@ export class IndexedDBQueue {
     // counted every waiting item twice.
     const items = this.db ? await this.getAll() : [];
     const all = [...items, ...this.memoryFallback];
-    this.hasTransientParked = all.some(isTransientParked);
+    const parked = all.filter(isTransientParked);
+    this.hasTransientParked = parked.length > 0;
+    this.nextTransientReviveAt = parked.length ? Math.min(...parked.map(nextReviveAt)) : null;
     this.setPendingCount(all.filter((i) => this.belongsToCurrentOwner(i)).length);
   }
 
@@ -557,7 +598,7 @@ export class IndexedDBQueue {
 
     window.addEventListener('online', () => {
       this.browserOnline = true;
-      // Items parked by transient failures get another chance in the next pass.
+      // Items the network parked get a probe in the next pass (isTransientParked).
       this.reviveTransientOnNextPass = true;
       this.onBackOnline();
     });
@@ -768,14 +809,21 @@ export class IndexedDBQueue {
   }
 
   /**
-   * Gives every item parked by the transient threshold a fresh set of
-   * attempts (see isTransientParked). `except`: items parked in the pass that
-   * is ending — they get their next chance in a later one. Returns how many.
+   * Gives transient-parked items one probe each (see isTransientParked):
+   *  - 'network': those whose last failure was the network (the 'online'
+   *    event, a successful delivery);
+   *  - 'due': those whose nextReviveAt has come (the revive timer).
+   * `except`: items parked in the pass that is ending — they get their next
+   * chance in a later one. Returns how many.
    */
-  private async reviveTransientParked(except: Set<unknown> = new Set()): Promise<number> {
+  private async reviveTransientParked(which: 'network' | 'due', except: Set<unknown> = new Set()): Promise<number> {
+    const now = Date.now();
+    const eligible = (item: QueuedAction) =>
+      isTransientParked(item) &&
+      (which === 'network' ? item.last_failure_kind === 'network' : nextReviveAt(item) <= now);
     let revived = 0;
     for (const item of this.memoryFallback) {
-      if (isTransientParked(item) && !except.has(item)) { item.transient_count = 0; revived++; }
+      if (eligible(item) && !except.has(item)) { Object.assign(item, probeFields(item, which === 'due')); revived++; }
     }
     if (!this.db) return revived;
     const targetStore = this.db.objectStoreNames.contains(STORE_NAME) ? STORE_NAME : LEGACY_STORE_NAME;
@@ -786,8 +834,9 @@ export class IndexedDBQueue {
         req.onsuccess = (e) => {
           const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
           if (!cursor) return;
-          if (isTransientParked(cursor.value ?? {}) && !except.has(cursor.primaryKey)) {
-            cursor.update({ ...cursor.value, transient_count: 0 });
+          const value = (cursor.value ?? {}) as QueuedAction;
+          if (eligible(value) && !except.has(cursor.primaryKey)) {
+            cursor.update({ ...value, ...probeFields(value, which === 'due') });
             revived++;
           }
           cursor.continue();
@@ -801,16 +850,21 @@ export class IndexedDBQueue {
     return revived;
   }
 
-  /** While something is parked by the transient threshold, revive it every TRANSIENT_REVIVE_MS. */
+  /** While something is parked by the transient threshold, wake up when the first of them is due (nextReviveAt). */
   private scheduleTransientRevive() {
-    if (!this.hasTransientParked || this.transientReviveTimer) return;
+    const at = this.nextTransientReviveAt;
+    if (at === null) return;
+    if (this.transientReviveTimer && this.transientReviveTimerAt !== null && this.transientReviveTimerAt <= at) return;
+    if (this.transientReviveTimer) clearTimeout(this.transientReviveTimer);
+    this.transientReviveTimerAt = at;
     this.transientReviveTimer = setTimeout(() => {
       this.transientReviveTimer = null;
-      this.reviveTransientParked()
+      this.transientReviveTimerAt = null;
+      this.reviveTransientParked('due')
         .catch(() => 0)
         .then(() => this.flushQueue())
         .catch(console.error);
-    }, TRANSIENT_REVIVE_MS);
+    }, Math.max(0, at - Date.now()));
   }
 
   /** Gives every parked item a fresh set of attempts; called once per page load. */
@@ -911,7 +965,7 @@ export class IndexedDBQueue {
       }
       if (this.reviveTransientOnNextPass) {
         this.reviveTransientOnNextPass = false;
-        if (this.hasTransientParked) await this.reviveTransientParked().catch(() => 0);
+        if (this.hasTransientParked) await this.reviveTransientParked('network').catch(() => 0);
       }
 
       let failures = 0;
@@ -1042,12 +1096,13 @@ export class IndexedDBQueue {
   }
 
   /**
-   * A delivery succeeded, so the server answers: what was parked by the
-   * transient threshold in an EARLIER pass gets another chance now.
+   * A delivery succeeded, so the server answers: what the NETWORK parked in an
+   * earlier pass gets a probe now. An item that failed while the server
+   * answered (`internal`…) waits for its own timer (nextReviveAt).
    */
   private async afterPass(parkedNow: Set<unknown>): Promise<void> {
     if (!this.hasTransientParked) return; // from the recount that ended the previous pass
-    const revived = await this.reviveTransientParked(parkedNow).catch(() => 0);
+    const revived = await this.reviveTransientParked('network', parkedNow).catch(() => 0);
     if (revived > 0) this.flushAgainAfterCurrent = true;
   }
 
@@ -1179,7 +1234,7 @@ export class IndexedDBQueue {
   private recordFailure(
     storeName: string,
     item: QueuedAction,
-    counts: { retry_count: number; transient_count: number; last_error: string }
+    counts: FailureCounts
   ): Promise<void> {
     if (item.id === undefined || !this.db) return Promise.resolve();
     return new Promise((resolve) => {

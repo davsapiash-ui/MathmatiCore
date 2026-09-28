@@ -115,7 +115,7 @@ const stored = async () => (await queue.getAll()).map((i) => i.idempotency_key);
 
 describe('Module 17 — the real queue on IndexedDB', () => {
   beforeAll(async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     vi.stubGlobal('IDBKeyRange', fakeKeyRange);
     vi.stubGlobal('window', fakeWindow);
     queueModule = await import('@/infrastructure/services/IndexedDBQueue');
@@ -523,11 +523,17 @@ describe('Module 17 — the real queue on IndexedDB', () => {
     const offlineRead = () => Object.assign(new Error('Failed to get document because the client is offline.'), { code: 'unavailable' });
     const internal = () => Object.assign(new Error('INTERNAL'), { code: 'functions/internal' });
 
-    /** Parks the teacher's message by 20 internal failures; the queue is left signed in as the teacher. */
-    const parkMessage = async () => {
+    const networkDown = () => Object.assign(new Error('UNAVAILABLE'), { code: 'functions/unavailable' });
+
+    /**
+     * Parks the teacher's message by 20 transient failures (`internal` unless
+     * told otherwise); the queue is left signed in as the teacher, and the
+     * function then works again.
+     */
+    const parkMessage = async (failure: () => Error = internal) => {
       signInTeacher();
       await vi.advanceTimersByTimeAsync(0);
-      callable.mockImplementation(async () => { throw internal(); });
+      callable.mockImplementation(async () => { throw failure(); });
       await queue.enqueueCallable('sendTeacherAdminMessage', { message_body: 'x', client_message_id: 'tam_p' }, 'tam_p');
       for (let i = 0; i < 40; i++) {
         const [head] = await queue.getAll();
@@ -566,8 +572,9 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       expect(queue.getSyncState()).toBe('synced');
     });
 
-    it('(b) the browser "online" event revives an item parked by transient failures', async () => {
-      await parkMessage();
+    it('(b) the browser "online" event revives an item the NETWORK parked', async () => {
+      await parkMessage(networkDown);
+      expect((await queue.getAll())[0].last_failure_kind).toBe('network');
       fakeWindow.dispatchEvent(new Event('online'));
       await vi.advanceTimersByTimeAsync(0);
       await vi.waitFor(async () => expect(await stored()).toEqual([]));
@@ -575,21 +582,72 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       signIn(3);
     });
 
-    it('(b) a successful delivery in a later pass revives it', async () => {
-      await parkMessage();
+    it('(b) a successful delivery in a later pass revives an item the NETWORK parked', async () => {
+      await parkMessage(networkDown);
       await queue.enqueueRtdbMerge('users/students/student_user3', { teacher_gate_approved: true }, 'gate_mirror_3_9');
-      await queue.flushQueue(); // the mirror is delivered → the parked message gets another chance
+      await queue.flushQueue(); // the mirror is delivered → the parked message gets a probe
       expect(rtdb.update).toHaveBeenCalledTimes(1);
       await vi.advanceTimersByTimeAsync(2000);
       await vi.waitFor(async () => expect(await stored()).toEqual([]));
       signIn(3);
     });
 
-    it('(b) while something is parked by transient failures, it is revived every 2 minutes', async () => {
-      await parkMessage();
-      // No event, no other delivery: only the periodic revival can send it.
-      await vi.advanceTimersByTimeAsync(121_000);
+    it('R1 — an item that failed with internal is NOT retried because something else went through', async () => {
+      await parkMessage(); // parked by internal, while the server answered
+      callable.mockImplementation(async () => { throw internal(); });
+      const calls = callable.mock.calls.length;
+      await queue.enqueueRtdbMerge('users/students/student_user3', { teacher_gate_approved: true }, 'gate_mirror_3_8');
+      await queue.flushQueue();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(rtdb.update).toHaveBeenCalledTimes(1);
+      expect(callable.mock.calls.length).toBe(calls); // not revived by the mirror's success
+      const [item] = await queue.getAll();
+      expect([item.idempotency_key, item.transient_count, item.last_failure_kind]).toEqual(['tam_p', 20, 'transient']);
+      signIn(3);
+    });
+
+    it('(b) the revive timer gives an item parked by internal one probe after 2 minutes', async () => {
+      await parkMessage(); // the function works again from here on
+      // No event, no other delivery: only the timer can send it.
+      await vi.advanceTimersByTimeAsync(119_000);
+      expect(await stored()).toEqual(['tam_p']);
+      await vi.advanceTimersByTimeAsync(2_000);
       await vi.waitFor(async () => expect(await stored()).toEqual([]));
+      signIn(3);
+    });
+
+    it('R1 — an always-internal callable at the head: after the first cycle, gate mirrors behind it go through in seconds', async () => {
+      // The review: a teacher dashboard, a teacher→admin message whose function
+      // always throws internal, gate mirrors queued behind it every 5 minutes
+      // for 2 hours. Before: every mirror delayed up to ~8 min, over and over,
+      // and the broken function called ~125 times an hour.
+      signInTeacher();
+      await vi.advanceTimersByTimeAsync(0);
+      callable.mockImplementation(async () => { throw internal(); });
+      await queue.enqueueCallable('sendTeacherAdminMessage', { message_body: 'x', client_message_id: 'tam_broken' }, 'tam_broken');
+
+      const mirrorDelivered = (n: number) =>
+        rtdb.update.mock.calls.some((c) => (c[1] as { mirror_n?: number })?.mirror_n === n);
+      const slow: number[] = [];
+      let callsAfterFirstCycle = 0;
+      for (let n = 0; n < 24; n++) { // 24 × 5 min = 2 hours
+        await queue.enqueueRtdbMerge('users/students/student_user3', { mirror_n: n }, `gate_mirror_3_r${n}`);
+        if (n === 3) callsAfterFirstCycle = callable.mock.calls.length; // 15 min in: the first cycle is over
+        await vi.advanceTimersByTimeAsync(3_000);
+        if (n >= 3 && !mirrorDelivered(n)) slow.push(n);
+        await vi.advanceTimersByTimeAsync(5 * 60 * 1000 - 3_000);
+      }
+
+      expect(slow).toEqual([]); // every mirror after the first cycle within 3 seconds
+      expect(callsAfterFirstCycle).toBeGreaterThanOrEqual(20);
+      // Probes on the backoff schedule — 2, 4, 8, 16, 32, then 60 minutes after
+      // each parking — not 20 more attempts per cycle.
+      const probes = callable.mock.calls.length - callsAfterFirstCycle;
+      expect(probes).toBeGreaterThanOrEqual(3);
+      expect(probes).toBeLessThanOrEqual(6);
+      const [item] = await queue.getAll();
+      expect(item.idempotency_key).toBe('tam_broken'); // kept, never deleted
+      expect(item.revive_count).toBeGreaterThanOrEqual(3);
       signIn(3);
     });
 
