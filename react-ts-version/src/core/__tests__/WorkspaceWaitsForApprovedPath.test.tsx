@@ -48,6 +48,9 @@ vi.mock('@/infrastructure/services/FirebaseSyncService', () => ({
     clearLocalSessionProgress: () => {},
     syncHighestCompletedMeeting: () => Promise.resolve(),
     syncQMatrix: () => Promise.resolve(),
+    // The page's board write asks the sync whether it may write (Module 17);
+    // as before that rule, it may.
+    mayWriteWorkspaceToRecord: () => true,
   },
   emitTelemetry: () => Promise.resolve(),
   resolveLearningPath: () => null,
