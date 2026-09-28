@@ -197,10 +197,12 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
       steps.push({
         id: 'm3-friction',
         meeting: 3,
-        note: 'the 3-second "let us think" overlay after a mistake',
-        // Measured while the overlay is up: on a fast machine the beat is over
-        // sooner and the default settle caught the coaching panel sliding in.
-        settleMs: 300,
+        note: 'after a mistake: the "let us think" beat, then the coaching card',
+        // The beat is 300ms (useWorkspaceStore: "a 300ms 'let's think' beat, then
+        // the Socratic card") and the panel slides in over the next 250ms; any
+        // shorter settle measured the slide. What the child is left with is the
+        // card, measured once it is fully in.
+        settleMs: 1500,
         run: async (cc) => {
           await ws(cc.page, INIT, { meeting: 3, isASD, idx: 0 });
           await ws(cc.page, SET, { helpState: 'friction', frictionTriggerSource: 'mistake' });
