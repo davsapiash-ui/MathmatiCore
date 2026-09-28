@@ -27,6 +27,19 @@ export interface RtdbDelivery {
   mode: RtdbWriteMode;
   /** See QueuedAction.skipFieldsIfGateApproved. */
   skipFieldsIfGateApproved?: string[];
+  /** See QueuedAction.skipFieldsIfEvaluated. */
+  skipFieldsIfEvaluated?: EvaluatedGuard;
+}
+
+/**
+ * Fields the server computes (sessionTrigger.ts) and mirrors to RTDB. A late
+ * re-send must not overwrite them: when the Firestore document already carries
+ * evaluated_at, these fields are left out of the RTDB write.
+ */
+export interface EvaluatedGuard {
+  collection: string;
+  docId: string;
+  fields: string[];
 }
 
 export type RtdbSyncHandler = (refPath: string, payload: any, delivery: RtdbDelivery) => Promise<void>;
@@ -51,6 +64,8 @@ export interface QueuedAction {
    * replayed late, over an approval, they would lock the child out again.
    */
   skipFieldsIfGateApproved?: string[];
+  /** See EvaluatedGuard. */
+  skipFieldsIfEvaluated?: EvaluatedGuard;
   /**
    * Module 22 §ה: a teacher→admin message written while offline is queued here
    * and sent through the named Cloud Function when the connection returns, so
@@ -63,14 +78,18 @@ export interface QueuedAction {
    * מסמך Firestore שנכתב דרך התור (סיום מפגש 2, למשל) — ב-merge, כך
    * שחזרה על הכתיבה אינה מכפילה.
    *
-   * deliveredWhen: when the server refuses the write, the document is read,
-   * and if it already carries these values the item counts as delivered
-   * (see IndexedDBQueue.alreadyOnServer).
+   * deliveredWhen: the document is read BEFORE the write; if it already
+   * carries these values the item counts as delivered and nothing is written.
+   * The meeting-2 session document uses { is_completed: true }: once it is on
+   * the server the trigger has scored it, and a late re-send with merge:true
+   * would overwrite the server's score with the client's (sessionTrigger.ts
+   * does not run again for a document that was already completed).
    */
   firestoreDoc?: { collection: string; docId: string; deliveredWhen?: Record<string, unknown> };
   /**
-   * Whose item this is: `student:{N}` or `staff:{uid}`, taken from the identity
-   * signed in when it was queued. Signing out no longer deletes what was not
+   * Whose item this is: `student:{N}` or `{role}:{hash}` (useAuthStore
+   * queueOwnerOf), taken from the identity signed in when it was queued, or
+   * inferred from the item (inferOwner). Signing out no longer deletes what was not
    * delivered (Module 17 §ג step 4), so the device can hold one learner's items
    * while another is signed in. Those cannot be delivered with the other
    * learner's claims; they wait for their own owner instead of being refused.
@@ -84,8 +103,10 @@ export interface QueuedAction {
   student_id?: number;
   exercise_id?: string;
   operation_type?: TelemetryEventType;
-  /** How many times the server REFUSED this item. Network failures do not count. */
+  /** How many times the server REFUSED this item (permission-denied, invalid-argument…). */
   retry_count?: number;
+  /** How many times delivery failed in a transient-looking way (unavailable, internal, unauthenticated…). */
+  transient_count?: number;
   last_error?: string;
 }
 
@@ -104,12 +125,19 @@ const MAX_QUEUE_CAPACITY = 50_000;
 const MAX_MEMORY_FALLBACK = 5_000;
 
 /**
- * אחרי כמה סירובי שרת פריט מוגדר "תקוע" ומדולג עד טעינת הדף הבאה.
- * הוא לעולם אינו נמחק בלי אישור שרת (מודול 17 §ג שלב 4) — רק מפסיק
- * לחסום את התור מאחוריו. כשל רשת אינו סירוב ואינו נספר כאן: פריט שלא
- * הגיע לשרת עוצר את התור עד שיגיע (FIFO קשוח, מודול 29 §ג).
+ * אחרי כמה כישלונות פריט מוגדר "תקוע" ומדולג עד טעינת הדף הבאה. הוא לעולם
+ * אינו נמחק בלי אישור שרת (מודול 17 §ג שלב 4) — רק מפסיק לחסום את התור
+ * מאחוריו. כל כישלון עוצר את מעבר הריקון (FIFO קשוח, מודול 29 §ג) ונספר:
+ * סירוב שרת 5 פעמים, כשל שנראה חולף 20 פעמים. בלי תקרה לכשל "חולף",
+ * פונקציה שמחזירה internal בכל קריאה חסמה את התור לתמיד.
  */
 const MAX_RETRIES_BEFORE_PARKING = 5;
+const MAX_TRANSIENT_BEFORE_PARKING = 20;
+
+export function isParked(item: QueuedAction): boolean {
+  return (item.retry_count ?? 0) >= MAX_RETRIES_BEFORE_PARKING
+    || (item.transient_count ?? 0) >= MAX_TRANSIENT_BEFORE_PARKING;
+}
 /** השהיה מדורגת בין ניסיונות ריקון, עד תקרה. */
 const RETRY_BACKOFF_MS = [2000, 4000, 8000, 16000, 30000];
 /**
@@ -159,10 +187,9 @@ export function isPermissionDenied(err: unknown): boolean {
 }
 
 /**
- * A network-level failure: the item may well be fine, the server just was not
- * reached. Anything else — a refusal (permission-denied, invalid-argument…) or
- * an error the queue cannot classify — counts toward parking, so one bad item
- * cannot hold the queue for ever.
+ * A failure that looks transient: the item may well be fine. It counts toward
+ * the higher parking threshold (MAX_TRANSIENT_BEFORE_PARKING); a refusal or an
+ * error the queue cannot classify counts toward the lower one.
  */
 export function isTransientFailure(err: unknown): boolean {
   if (isPermissionDenied(err)) return false;
@@ -173,10 +200,14 @@ export function isTransientFailure(err: unknown): boolean {
 
 /**
  * מודול 17 §ד: "אופליין = אייקון ענן אפור… אונליין מסונכרן = ענן ירוק".
- *  - 'offline' — no network, or the server is not reachable (RTDB `.info/connected`);
- *  - 'pending' — connected, but the queue still holds work that has not
- *    reached the server — including an item enqueued a moment ago;
- *  - 'synced'  — connected, and nothing of this identity is waiting.
+ *  - 'offline' — the browser has no network;
+ *  - 'pending' — the queue holds work of this identity that has not been
+ *    acknowledged — including an item enqueued a moment ago;
+ *  - 'synced'  — nothing of this identity is waiting.
+ * Module 17 §ג step 1 ("אימות נגישות לשרת") is the Ack itself: an item leaves
+ * the count only when the server acknowledged it, so green is reachable only
+ * through a server that answered. There is no separate connection probe — an
+ * RTDB websocket blocked by a school network must not stop Firestore telemetry.
  */
 export type QueueSyncState = 'offline' | 'pending' | 'synced';
 
@@ -184,6 +215,38 @@ type Attempt = 'delivered' | 'no-route';
 
 /** The gate fields a late meeting-2 completion must not write over an approval. */
 export const GATE_PENDING_FIELDS = ['teacher_gate_approved', 'routeStatus'];
+/** The fields sessionTrigger.ts computes and mirrors to RTDB (see EvaluatedGuard). */
+export const SERVER_SCORED_FIELDS = ['session_score_percent', 'matrix_recommended_path'];
+
+/** Owner of an item nobody can attribute to a learner: any staff identity may send it. */
+export const ANY_STAFF_OWNER = 'staff:*';
+
+function learnerOwner(n: unknown): string | null {
+  const num = typeof n === 'number' ? n : Number(String(n ?? '').trim());
+  return Number.isInteger(num) && num >= 1 && num <= 12 ? `student:${num}` : null;
+}
+
+/**
+ * The owner of an item stored without one — by an older version, or with
+ * nobody signed in. A learner's item names the learner: telemetry carries
+ * student_id, an RTDB path carries student_user{N}, a session or reflection
+ * document id ends in _student_{N}. Anything else (a teacher's queued message,
+ * for one) is sent only while a staff identity is signed in.
+ */
+export function inferOwner(item: QueuedAction): string {
+  if (item.owner) return item.owner;
+  const fromTelemetry = learnerOwner(item.student_id ?? (item.payload?.event_type ? item.payload?.student_id : undefined));
+  if (fromTelemetry) return fromTelemetry;
+  const path = item.refPath ?? '';
+  const m = /^(?:users\/students|telemetry_events)\/(?:student_user|student_|user)?(\d{1,2})(?:\/|$)/.exec(path);
+  if (m) return learnerOwner(m[1]) ?? ANY_STAFF_OWNER;
+  if (item.firestoreDoc) {
+    const d = /_student_(\d{1,2})$/.exec(item.firestoreDoc.docId);
+    const fromDoc = learnerOwner(d?.[1]) ?? learnerOwner(item.payload?.student_id);
+    if (fromDoc) return fromDoc;
+  }
+  return ANY_STAFF_OWNER;
+}
 
 /**
  * How a queued RTDB item is delivered. Items stored before rtdbMode existed
@@ -193,12 +256,51 @@ export const GATE_PENDING_FIELDS = ['teacher_gate_approved', 'routeStatus'];
  */
 export function rtdbDeliveryOf(item: QueuedAction): RtdbDelivery {
   if (item.rtdbMode) {
-    return { mode: item.rtdbMode, ...(item.skipFieldsIfGateApproved ? { skipFieldsIfGateApproved: item.skipFieldsIfGateApproved } : {}) };
+    return {
+      mode: item.rtdbMode,
+      ...(item.skipFieldsIfGateApproved ? { skipFieldsIfGateApproved: item.skipFieldsIfGateApproved } : {}),
+      ...(item.skipFieldsIfEvaluated ? { skipFieldsIfEvaluated: item.skipFieldsIfEvaluated } : {}),
+    };
   }
   const key = String(item.idempotency_key ?? item.payload?.idempotency_key ?? '');
-  if (key.startsWith('s2_done_rtdb_')) return { mode: 'merge', skipFieldsIfGateApproved: GATE_PENDING_FIELDS };
+  if (key.startsWith('s2_done_rtdb_')) {
+    const num = key.replace(/\D/g, '') || '1';
+    return {
+      mode: 'merge',
+      skipFieldsIfGateApproved: GATE_PENDING_FIELDS,
+      skipFieldsIfEvaluated: { collection: 'sessions', docId: `session_02_student_${num}`, fields: SERVER_SCORED_FIELDS },
+    };
+  }
   if (key.startsWith('gate_mirror_') || /\/sessionState$/.test(item.refPath ?? '')) return { mode: 'merge' };
   return { mode: 'child' };
+}
+
+/** The item's counters after one more failure (see isParked). */
+function failureCounts(item: QueuedAction, err: unknown): { retry_count: number; transient_count: number; last_error: string } {
+  const transient = isTransientFailure(err);
+  return {
+    retry_count: (item.retry_count ?? 0) + (transient ? 0 : 1),
+    transient_count: (item.transient_count ?? 0) + (transient ? 1 : 0),
+    last_error: errorMessageOf(err).slice(0, 300),
+  };
+}
+
+/**
+ * The values that mean a Firestore item is already delivered. Session-2
+ * completion documents stored by an older version carry none; they are
+ * recognised by their key and get the same check as new ones.
+ */
+function deliveredWhenOf(item: QueuedAction): Record<string, unknown> | undefined {
+  if (item.firestoreDoc?.deliveredWhen) return item.firestoreDoc.deliveredWhen;
+  if (item.firestoreDoc?.collection === 'sessions' && String(item.idempotency_key ?? '').startsWith('s2_done_doc_')) {
+    return { is_completed: true };
+  }
+  return undefined;
+}
+
+function matches(data: unknown, expected: Record<string, unknown>): boolean {
+  const d = (data ?? {}) as Record<string, unknown>;
+  return Object.entries(expected).every(([k, v]) => d[k] === v);
 }
 
 export class IndexedDBQueue {
@@ -207,11 +309,6 @@ export class IndexedDBQueue {
   private memoryFallback: QueuedAction[] = [];
   // navigator.onLine is undefined outside a browser; only an explicit false is offline.
   private browserOnline = typeof navigator === 'undefined' || navigator.onLine !== false;
-  /**
-   * Module 17 §ג step 1: "אימות נגישות לשרת". Reported by the sync service
-   * from RTDB `.info/connected`; unknown (true) until something reports it.
-   */
-  private serverReachable = true;
   private isFlushing = false;
   private syncCallback: RtdbSyncHandler | null = null;
   private ownerResolver: (() => string | null) | null = null;
@@ -233,7 +330,7 @@ export class IndexedDBQueue {
   }
 
   private get isOnline(): boolean {
-    return this.browserOnline && this.serverReachable;
+    return this.browserOnline;
   }
 
   /** כמה אירועים ממתינים כרגע לסנכרון — למען החיווי השקט של מודול 17 §ד. */
@@ -259,7 +356,7 @@ export class IndexedDBQueue {
     this.emitSyncState();
   }
 
-  /** מודול 17 §ד: מצב הענן — ירוק רק כשהתור רוקן בפועל והשרת נגיש (ראו QueueSyncState). */
+  /** מודול 17 §ד: מצב הענן — ירוק רק כשהשרת אישר כל מה שבתור (ראו QueueSyncState). */
   public getSyncState(): QueueSyncState {
     if (!this.isOnline) return 'offline';
     return this.pendingCount > 0 ? 'pending' : 'synced';
@@ -290,13 +387,17 @@ export class IndexedDBQueue {
   }
 
   /**
-   * Whether the identity signed in now can deliver this item. An item with no
-   * owner (queued before owners existed, or with nobody signed in) is tried by
-   * whoever is signed in, as before.
+   * Whether this identity can deliver the item. Nobody signed in delivers
+   * nothing: the claims that authorise a write are gone, and every attempt
+   * would be refused and park the item. Without a registered resolver (a
+   * test of the queue alone) every item is deliverable.
    */
   private belongsToCurrentOwner(item: QueuedAction, owner: string | null = this.currentOwner()): boolean {
-    if (!item.owner || !this.ownerResolver) return true;
-    return item.owner === owner;
+    if (!this.ownerResolver) return true;
+    if (!owner) return false;
+    const itemOwner = inferOwner(item);
+    if (itemOwner === ANY_STAFF_OWNER) return !owner.startsWith('student:');
+    return itemOwner === owner;
   }
 
   private async refreshPendingCount(): Promise<void> {
@@ -416,23 +517,6 @@ export class IndexedDBQueue {
     });
   }
 
-  /**
-   * Module 17 §ג step 1 — "אימות נגישות לשרת". The browser's online flag says
-   * only that a network exists; the sync service reports whether the server
-   * answers (RTDB `.info/connected`). Both must hold for the queue to send and
-   * for the cloud to turn green.
-   */
-  public setServerReachable(reachable: boolean) {
-    if (this.serverReachable === reachable) return;
-    const wasOnline = this.isOnline;
-    this.serverReachable = reachable;
-    if (!wasOnline && this.isOnline) {
-      this.onBackOnline();
-    } else {
-      this.emitSyncState();
-    }
-  }
-
   public registerSyncHandler(handler: RtdbSyncHandler) {
     this.syncCallback = handler;
   }
@@ -525,12 +609,13 @@ export class IndexedDBQueue {
     refPath: string,
     fields: Record<string, unknown>,
     idempotencyKey: string,
-    options: { skipFieldsIfGateApproved?: string[] } = {}
+    options: { skipFieldsIfGateApproved?: string[]; skipFieldsIfEvaluated?: EvaluatedGuard } = {}
   ): Promise<void> {
     await this.store({
       refPath,
       rtdbMode: 'merge',
       ...(options.skipFieldsIfGateApproved?.length ? { skipFieldsIfGateApproved: options.skipFieldsIfGateApproved } : {}),
+      ...(options.skipFieldsIfEvaluated ? { skipFieldsIfEvaluated: options.skipFieldsIfEvaluated } : {}),
       payload: { ...fields },
       timestamp: Date.now(),
       idempotency_key: idempotencyKey,
@@ -580,7 +665,7 @@ export class IndexedDBQueue {
    * for the moment before the background flush sends it.
    */
   private async store(item: QueuedAction): Promise<void> {
-    if (item.owner === undefined) item.owner = this.currentOwner();
+    if (!item.owner) item.owner = this.currentOwner() ?? inferOwner(item);
     await this.persist(item);
     if (this.belongsToCurrentOwner(item)) this.setPendingCount(this.pendingCount + 1);
     this.scheduleBackgroundFlush();
@@ -642,8 +727,8 @@ export class IndexedDBQueue {
         req.onsuccess = (e) => {
           const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
           if (!cursor) return;
-          if ((cursor.value?.retry_count ?? 0) >= MAX_RETRIES_BEFORE_PARKING) {
-            cursor.update({ ...cursor.value, retry_count: 0 });
+          if (isParked(cursor.value ?? {})) {
+            cursor.update({ ...cursor.value, retry_count: 0, transient_count: 0 });
           }
           cursor.continue();
         };
@@ -694,16 +779,20 @@ export class IndexedDBQueue {
 
   /**
    * Module 17: 5-step recovery & synchronization protocol
-   * 1. Detect online connectivity & verify server reachability (browser flag + RTDB .info/connected).
+   * 1. Detect online connectivity (browser flag); the server's Ack is the proof it is reachable.
    * 2. Read FIFO items in bounded batches.
    * 3. Send each to its destination (telemetry_logs with document ID = `idempotency_key`, …).
    * 4. Atomic delete from IndexedDB strictly upon server acknowledgment.
    * 5. Server enforces idempotent execution via `idempotency_key`.
    *
    * Strict FIFO (Module 29 §ג): the pass ends at the first item that did not
-   * reach the server; nothing behind it is sent before it. Only an item the
-   * server has refused MAX_RETRIES_BEFORE_PARKING times is parked and passed
-   * over, so one poison item cannot hold the queue for ever.
+   * reach the server; nothing behind it is sent before it. Only an item that
+   * has failed often enough to be parked (isParked: 5 refusals or 20
+   * transient-looking failures) is passed over, so one poison item cannot
+   * hold the queue for ever. It is kept, and revived on the next page load.
+   *
+   * Nothing is sent while nobody is signed in: without claims every write
+   * would be refused, and the refusals would park the items.
    *
    * asOwner: send as this identity rather than whoever is signed in when the
    * pass starts — sign-out clears the auth store before its flush runs.
@@ -711,6 +800,7 @@ export class IndexedDBQueue {
   public async flushQueue(asOwner?: string | null): Promise<void> {
     if (this.isFlushing || !this.isOnline) return;
     const owner = asOwner !== undefined ? asOwner : this.currentOwner();
+    if (this.ownerResolver && !owner) return;
     this.isFlushing = true;
     let finished: () => void = () => {};
     this.currentFlush = new Promise<void>((resolve) => { finished = resolve; });
@@ -726,18 +816,16 @@ export class IndexedDBQueue {
       // Step 1 & 2: Process memory fallback items if any
       if (this.memoryFallback.length > 0) {
         for (const item of [...this.memoryFallback]) {
-          if ((item.retry_count ?? 0) >= MAX_RETRIES_BEFORE_PARKING) continue;
+          if (isParked(item)) continue;
           if (!this.belongsToCurrentOwner(item, owner)) continue;
           try {
             if ((await this.attempt(item)) === 'no-route') { stopped = true; break; }
             this.memoryFallback = this.memoryFallback.filter((i) => i !== item);
           } catch (err) {
             failures++;
-            const refused = !isTransientFailure(err);
-            if (refused) item.retry_count = (item.retry_count ?? 0) + 1;
-            item.last_error = errorMessageOf(err).slice(0, 300);
+            Object.assign(item, failureCounts(item, err));
             console.error('[IndexedDBQueue] Sync failed for memory item:', item.idempotency_key, err);
-            if (refused && (item.retry_count ?? 0) >= MAX_RETRIES_BEFORE_PARKING) continue;
+            if (isParked(item)) continue; // parked just now: the queue behind it may move on
             stopped = true;
             break;
           }
@@ -791,9 +879,9 @@ export class IndexedDBQueue {
         for (const item of batchItems) {
           if (item.id !== undefined) lastSeenKey = item.id;
 
-          // A repeatedly refused item is parked, never discarded: Module 17 §ג
+          // A repeatedly failing item is parked, never discarded: Module 17 §ג
           // allows removal only on a server Ack.
-          if ((item.retry_count ?? 0) >= MAX_RETRIES_BEFORE_PARKING) continue;
+          if (isParked(item)) continue;
           // Another identity's item: it waits for its owner's next sign-in.
           if (!this.belongsToCurrentOwner(item, owner)) continue;
 
@@ -809,15 +897,14 @@ export class IndexedDBQueue {
             }
           } catch (err) {
             failures++;
-            const refused = !isTransientFailure(err);
-            const nextCount = (item.retry_count ?? 0) + (refused ? 1 : 0);
+            const counts = failureCounts(item, err);
             console.error(
-              `[IndexedDBQueue] Sync failed for item ${item.idempotency_key} (${refused ? `refusal ${nextCount}` : 'not reached'}):`,
+              `[IndexedDBQueue] Sync failed for item ${item.idempotency_key} (refusals ${counts.retry_count}, transient ${counts.transient_count}):`,
               err
             );
-            await this.recordFailure(targetStore, item, nextCount, err);
+            await this.recordFailure(targetStore, item, counts);
             // Parked just now: the queue behind it may move on.
-            if (refused && nextCount >= MAX_RETRIES_BEFORE_PARKING) continue;
+            if (isParked({ ...item, ...counts })) continue;
             // Strict FIFO: the pass ends here, and the retry starts from this item.
             hasMore = false;
             break;
@@ -877,12 +964,21 @@ export class IndexedDBQueue {
       return true;
     }
     if (item.firestoreDoc) {
-      await setDoc(doc(firestore, item.firestoreDoc.collection, item.firestoreDoc.docId), item.payload, { merge: true });
+      const ref = doc(firestore, item.firestoreDoc.collection, item.firestoreDoc.docId);
+      // Read before writing: a document that already carries these values IS
+      // this write, delivered — and re-sending it with merge:true would
+      // overwrite what the server computed since (Module 23 §ב score).
+      const deliveredWhen = deliveredWhenOf(item);
+      if (deliveredWhen) {
+        const snap = await getDoc(ref);
+        if (snap.exists() && matches(snap.data(), deliveredWhen)) return true;
+      }
+      await setDoc(ref, item.payload, { merge: true });
       return true;
     }
     if (item.refPath) {
       if (!this.syncCallback) return false;
-      const { mode, skipFieldsIfGateApproved } = rtdbDeliveryOf(item);
+      const { mode, skipFieldsIfGateApproved, skipFieldsIfEvaluated } = rtdbDeliveryOf(item);
       // A child write needs its key in the payload; items stored by the legacy
       // enqueue(refPath, payload) form may carry it on the item only.
       const payload = mode === 'child' && item.payload && typeof item.payload === 'object' && !item.payload.idempotency_key && item.idempotency_key
@@ -891,6 +987,7 @@ export class IndexedDBQueue {
       await this.syncCallback(item.refPath, payload, {
         mode,
         ...(skipFieldsIfGateApproved ? { skipFieldsIfGateApproved } : {}),
+        ...(skipFieldsIfEvaluated ? { skipFieldsIfEvaluated } : {}),
       });
       return true;
     }
@@ -915,7 +1012,8 @@ export class IndexedDBQueue {
   private async alreadyOnServer(item: QueuedAction): Promise<boolean> {
     let target: { collection: string; docId: string; deliveredWhen?: Record<string, unknown> } | null = null;
     if (item.firestoreDoc) {
-      target = item.firestoreDoc;
+      const deliveredWhen = deliveredWhenOf(item);
+      target = { ...item.firestoreDoc, ...(deliveredWhen ? { deliveredWhen } : {}) };
     } else if (!item.callable && !item.refPath && item.payload?.event_type && item.idempotency_key) {
       target = { collection: 'telemetry_logs', docId: item.idempotency_key };
     }
@@ -927,8 +1025,7 @@ export class IndexedDBQueue {
       const snap = await getDoc(doc(firestore, target.collection, target.docId));
       if (!snap.exists()) return false;
       if (createOnly && !target.deliveredWhen) return true;
-      const data = (snap.data() ?? {}) as Record<string, unknown>;
-      return Object.entries(target.deliveredWhen ?? {}).every(([k, v]) => data[k] === v);
+      return matches(snap.data(), target.deliveredWhen ?? {});
     } catch {
       return false;
     }
@@ -955,8 +1052,7 @@ export class IndexedDBQueue {
   private recordFailure(
     storeName: string,
     item: QueuedAction,
-    nextCount: number,
-    err: unknown
+    counts: { retry_count: number; transient_count: number; last_error: string }
   ): Promise<void> {
     if (item.id === undefined || !this.db) return Promise.resolve();
     return new Promise((resolve) => {
@@ -966,11 +1062,7 @@ export class IndexedDBQueue {
         const req = store.get(item.id!);
         req.onsuccess = () => {
           if (req.result === undefined) return; // delivered elsewhere — do not bring it back
-          store.put({
-            ...req.result,
-            retry_count: nextCount,
-            last_error: errorMessageOf(err).slice(0, 300),
-          });
+          store.put({ ...req.result, ...counts });
         };
         tx.oncomplete = () => resolve();
         tx.onerror = () => resolve();

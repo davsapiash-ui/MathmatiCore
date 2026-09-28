@@ -101,6 +101,13 @@ const signIn = (n: number) =>
     isAuthenticated: true,
     isStudentAuthenticated: true,
   });
+const signInTeacher = () =>
+  auth.useAuthStore.setState({
+    user: { uid: 'teacher_t1', role: 'teacher' },
+    role: 'teacher',
+    isAuthenticated: true,
+    isStudentAuthenticated: false,
+  });
 const signOutState = () =>
   auth.useAuthStore.setState({ user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false });
 
@@ -127,7 +134,6 @@ describe('Module 17 — the real queue on IndexedDB', () => {
 
   beforeEach(async () => {
     fakeWindow.dispatchEvent(new Event('online'));
-    queue.setServerReachable(true);
     signIn(3);
     await vi.advanceTimersByTimeAsync(0);
     await queue.clearAll();
@@ -191,6 +197,47 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       await vi.advanceTimersByTimeAsync(5000);
 
       expect(await stored()).toEqual(['e_refused']);
+    });
+
+    it('nothing is sent while nobody is signed in, and nothing is parked for it', async () => {
+      signOutState();
+      await vi.advanceTimersByTimeAsync(0);
+      await queue.enqueue(event('e_nobody'));
+      await queue.flushQueue();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(fs.setDoc).not.toHaveBeenCalled();
+      const [item] = await queue.getAll();
+      expect(item.owner).toBe('student:3'); // inferred from the event's student_id
+      expect([item.retry_count, item.transient_count ?? 0]).toEqual([0, 0]);
+
+      signIn(3);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(firestoreWrites()).toEqual(['e_nobody']);
+    });
+
+    it('items stored without an owner: a learner item goes to that learner, anything else only to staff', async () => {
+      const data = fakeIDB.store(DB_NAME, STORE);
+      data.records.set(800, { id: 800, payload: event('e_legacy_7', 7), idempotency_key: 'e_legacy_7', student_id: 7, timestamp: 1, retry_count: 0 });
+      data.records.set(801, { id: 801, refPath: 'users/students/student_user7/telemetry_sessions/s/chunks', payload: { data: '[]', idempotency_key: 'c_legacy_7' }, idempotency_key: 'c_legacy_7', timestamp: 2, retry_count: 0 });
+      data.records.set(802, { id: 802, callable: 'sendTeacherAdminMessage', payload: { client_message_id: 'tam_legacy' }, idempotency_key: 'tam_legacy', timestamp: 3, retry_count: 0 });
+      data.nextKey = 803;
+
+      await queue.flushQueue(); // learner 3 is signed in
+      expect(fs.setDoc).not.toHaveBeenCalled();
+      expect(chunkWrites()).toEqual([]);
+      expect(callable).not.toHaveBeenCalled();
+
+      signIn(7);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(firestoreWrites()).toEqual(['e_legacy_7']);
+      expect(chunkWrites()).toHaveLength(1);
+      expect(callable).not.toHaveBeenCalled();
+
+      signInTeacher();
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(callable).toHaveBeenCalledWith('sendTeacherAdminMessage', { client_message_id: 'tam_legacy' });
+      expect(await stored()).toEqual([]);
+      signIn(3);
     });
 
     it('no sign-out path in the app clears the queue', () => {
@@ -291,6 +338,57 @@ describe('Module 17 — the real queue on IndexedDB', () => {
     });
   });
 
+  describe('A late re-send of the meeting-2 completion never overwrites the server\'s score', () => {
+    // Emulator finding: the trigger scored 29% / remediation_path, the queued
+    // setDoc(merge:true) then wrote 71% / green_path, and the trigger did not
+    // run again. The RTDB replay did the same to the mirrored score and path.
+    const scored = { is_completed: true, session_score_percent: 29, matrix_recommended_path: 'remediation_path', evaluated_at: 1234, teacher_gate_approved: false };
+
+    it('session document already completed on the server → counts as delivered, nothing written', async () => {
+      fs.getDoc.mockImplementation(async (ref: { coll: string }) => ({ exists: () => ref.coll === 'sessions', data: () => scored }));
+      await sync.firebaseSyncService.syncSession2Completion('student_user3', 71, 'green_path');
+      await queue.flushQueue();
+
+      expect(fs.setDoc).not.toHaveBeenCalled();
+      expect(fs.getDoc).toHaveBeenCalledWith({ coll: 'sessions', id: 'session_02_student_3' });
+      expect(await stored()).toEqual([]);
+    });
+
+    it('the RTDB replay leaves out the score and path once the server has evaluated', async () => {
+      fs.getDoc.mockImplementation(async () => ({ exists: () => true, data: () => scored }));
+      await sync.firebaseSyncService.syncSession2Completion('student_user3', 71, 'green_path');
+      await queue.flushQueue();
+
+      const fields = rtdb.update.mock.calls[0][1];
+      expect(fields).not.toHaveProperty('session_score_percent');
+      expect(fields).not.toHaveProperty('matrix_recommended_path');
+      expect(fields).toMatchObject({ session_02_completed: true });
+    });
+
+    it('first delivery: a session document not yet completed (created by the deadline function) is written', async () => {
+      fs.getDoc.mockImplementation(async () => ({ exists: () => true, data: () => ({ is_completed: false, session_score_percent: null }) }));
+      await sync.firebaseSyncService.syncSession2Completion('student_user3', 71, 'green_path');
+      await queue.flushQueue();
+
+      expect(rtdb.update.mock.calls[0][1]).toMatchObject({ session_score_percent: 71, matrix_recommended_path: 'green_path' });
+      expect(fs.setDoc.mock.calls.map((c) => (c[0] as { coll: string }).coll)).toEqual(['sessions']);
+      expect(fs.setDoc.mock.calls[0][1]).toMatchObject({ is_completed: true, session_score_percent: 71 });
+    });
+
+    it('items stored by the previous version get the same checks', async () => {
+      fs.getDoc.mockImplementation(async () => ({ exists: () => true, data: () => scored }));
+      const data = fakeIDB.store(DB_NAME, STORE);
+      data.records.set(700, { id: 700, refPath: 'users/students/student_user3', payload: { session_02_completed: true, session_score_percent: 71, matrix_recommended_path: 'green_path', idempotency_key: 's2_done_rtdb_student_user3' }, idempotency_key: 's2_done_rtdb_student_user3', timestamp: 1, retry_count: 0 });
+      data.records.set(701, { id: 701, firestoreDoc: { collection: 'sessions', docId: 'session_02_student_3' }, payload: { is_completed: true, session_score_percent: 71 }, idempotency_key: 's2_done_doc_session_02_student_3', timestamp: 2, retry_count: 0 });
+      data.nextKey = 702;
+      await queue.flushQueue();
+
+      expect(rtdb.update.mock.calls[0][1]).toEqual({ session_02_completed: true });
+      expect(fs.setDoc).not.toHaveBeenCalled();
+      expect(await stored()).toEqual([]);
+    });
+  });
+
   describe('X8 — a redelivered write that is already on the server counts as delivered', () => {
     it('telemetry_logs: refused retry + the document exists → Ack, deleted', async () => {
       fs.setDoc.mockImplementation(async () => { throw denied(); });
@@ -322,17 +420,6 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       expect(item.retry_count).toBe(1);
     });
 
-    it('sessions: only a document already completed AND approved counts as delivered', async () => {
-      fs.setDoc.mockImplementation(async () => { throw denied(); });
-      fs.getDoc.mockImplementation(async () => ({ exists: () => true, data: () => ({ is_completed: true, teacher_gate_approved: false }) }));
-      await queue.enqueueFirestoreDoc('sessions', 'session_02_student_3', { is_completed: true }, 's2_doc', { deliveredWhen: { is_completed: true, teacher_gate_approved: true } });
-      await queue.flushQueue();
-      expect(await stored()).toEqual(['s2_doc']);
-
-      fs.getDoc.mockImplementation(async () => ({ exists: () => true, data: () => ({ is_completed: true, teacher_gate_approved: true }) }));
-      await queue.flushQueue();
-      expect(await stored()).toEqual([]);
-    });
 
     it('a failure recorded after another tab delivered the item does not bring it back', async () => {
       let fail: (e: Error) => void = () => {};
@@ -385,6 +472,28 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       const left = await queue.getAll();
       expect(left.map((i) => [i.idempotency_key, i.retry_count])).toEqual([['poison', 5]]);
     });
+
+    it('a callable that always fails with internal is parked after 20 failures; the gate mirror behind it is sent', async () => {
+      // Measured before: 123 retries an hour, and the mirror behind it never left.
+      signInTeacher();
+      callable.mockImplementation(async () => { throw Object.assign(new Error('INTERNAL'), { code: 'functions/internal' }); });
+      await queue.enqueueCallable('sendTeacherAdminMessage', { message_body: 'x', client_message_id: 'tam_1' }, 'tam_1');
+      await queue.enqueueRtdbMerge('users/students/student_user3', { teacher_gate_approved: true, routeStatus: 'APPROVED' }, 'gate_mirror_3_1');
+
+      await vi.advanceTimersByTimeAsync(0); // the sign-in's own flush
+      for (let i = 0; i < 40; i++) {
+        const [head] = await queue.getAll();
+        if ((head.transient_count ?? 0) >= 19) break;
+        expect(rtdb.update).not.toHaveBeenCalled(); // strict FIFO: each failure ends the pass
+        await queue.flushQueue();
+      }
+      expect(rtdb.update).not.toHaveBeenCalled();
+      await queue.flushQueue(); // 20th failure: parked, and the pass moves on
+      expect(rtdb.update).toHaveBeenCalledWith({ path: 'users/students/student_user3' }, { teacher_gate_approved: true, routeStatus: 'APPROVED' });
+      const left = await queue.getAll();
+      expect(left.map((i) => [i.idempotency_key, i.retry_count, i.transient_count])).toEqual([['tam_1', 0, 20]]);
+      signIn(3);
+    });
   });
 
   describe('X10 — the cloud is not green while something waits', () => {
@@ -408,19 +517,16 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       expect(queue.getSyncState()).toBe('synced');
     });
 
-    it('green needs the server, not only the browser flag (RTDB .info/connected)', async () => {
-      // Registered by the sync service when it was created.
-      const listener = lastConnectedListener();
-      listener({ val: () => false });
-      expect(queue.getSyncState()).toBe('offline');
+    it('green only through a server Ack; no RTDB connection probe gates the queue', async () => {
+      // A school network that blocks the RTDB websocket but lets Firestore
+      // through must not stop telemetry: the Ack is the reachability proof.
+      expect(rtdb.onValue.mock.calls.some((c) => (c[0] as { path: string }).path === '.info/connected')).toBe(false);
+      fs.setDoc.mockImplementationOnce(async () => { throw unreachable(); });
       await queue.enqueue(event('g1'));
       await queue.flushQueue();
-      expect(fs.setDoc).not.toHaveBeenCalled();
-
-      listener({ val: () => true });
-      await vi.advanceTimersByTimeAsync(0);
-      await vi.waitFor(() => expect(firestoreWrites()).toEqual(['g1']));
-      await vi.waitFor(() => expect(queue.getSyncState()).toBe('synced'));
+      expect(queue.getSyncState()).toBe('pending'); // tried, not acknowledged: not green
+      await queue.flushQueue();
+      expect(queue.getSyncState()).toBe('synced');
     });
   });
 
@@ -450,10 +556,3 @@ describe('Module 17 — the real queue on IndexedDB', () => {
     expect(Object.keys(useStore.getState().students)).toHaveLength(12);
   });
 });
-
-/** The `.info/connected` callback the sync service registered. */
-function lastConnectedListener(): (snap: { val: () => unknown }) => void {
-  const call = [...rtdb.onValue.mock.calls].reverse().find((c) => (c[0] as { path: string }).path === '.info/connected');
-  if (!call) throw new Error('.info/connected listener was not registered');
-  return call[1] as (snap: { val: () => unknown }) => void;
-}

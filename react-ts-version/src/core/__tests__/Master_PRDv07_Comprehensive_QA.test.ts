@@ -154,10 +154,7 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
         });
       }
 
-      // Online = the browser has a network AND the server answers (Module 17 §ג step 1;
-      // RTDB .info/connected). No database runs under the tests, so it reports
-      // unreachable; with the connection reported, the queue is online.
-      indexedDBQueue.setServerReachable(true);
+      // Verify status is online by default
       expect(indexedDBQueue.getOnlineStatus()).toBe(true);
       await indexedDBQueue.clearAll();
     });

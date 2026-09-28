@@ -126,6 +126,6 @@ describe('a parked item gets another chance on the next page load', () => {
     const firstFlush = queue.indexOf('this.flushQueue()', revive);
     expect(revive).toBeGreaterThan(open);
     expect(firstFlush).toBeGreaterThan(revive);
-    expect(queue).toContain('cursor.update({ ...cursor.value, retry_count: 0 });');
+    expect(queue).toContain('cursor.update({ ...cursor.value, retry_count: 0, transient_count: 0 });');
   });
 });

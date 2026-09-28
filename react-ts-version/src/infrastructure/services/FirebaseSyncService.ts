@@ -1,6 +1,6 @@
 import { ref, set, get, update, runTransaction, serverTimestamp, onValue, onDisconnect, push, type DataSnapshot } from 'firebase/database';
 import { database, firestore } from '@/infrastructure/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, getActiveTasks, resolveLearningPath } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
@@ -11,7 +11,7 @@ export const REMOTE_SYNC_WINDOW_MS = 500;
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME } from '@/core/pilotInstitution';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
-import { indexedDBQueue, GATE_PENDING_FIELDS, type RtdbDelivery } from './IndexedDBQueue';
+import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, type RtdbDelivery } from './IndexedDBQueue';
 import type { SessionDocument, PedagogicalPath } from '@/types';
 import {
   type TelemetryPayload,
@@ -237,6 +237,10 @@ export function enforceMaxPayloadBytes(data: Record<string, any>): Record<string
  * teacher (Module 20), those fields are left out, so a late replay of the
  * meeting-2 completion cannot lock the child out again. Only the two gate
  * fields are read, not the learner's whole record.
+ * skipFieldsIfEvaluated: when the server has already scored the meeting
+ * (evaluated_at on the Firestore session document), the score and path it
+ * mirrored to RTDB are left out — a late replay must not put the client's
+ * number back over the server's (Module 23 §ב).
  */
 export async function deliverQueuedRtdbWrite(refPath: string, payload: any, delivery?: RtdbDelivery): Promise<void> {
   if (delivery?.mode !== 'merge') {
@@ -254,6 +258,13 @@ export async function deliverQueuedRtdbWrite(refPath: string, payload: any, deli
     ]);
     const approved = approvedSnap?.val?.() === true || routeSnap?.val?.() === 'APPROVED';
     if (approved) for (const field of guarded) delete fields[field];
+  }
+  const scored = delivery.skipFieldsIfEvaluated;
+  if (scored && scored.fields.some((f) => f in fields)) {
+    // A read that fails throws: the item is retried, never written blind.
+    const snap = await getDoc(doc(firestore, scored.collection, scored.docId));
+    const evaluatedAt = snap.exists() ? (snap.data() as Record<string, unknown>)?.evaluated_at : undefined;
+    if (evaluatedAt !== undefined && evaluatedAt !== null) for (const field of scored.fields) delete fields[field];
   }
   if (Object.keys(fields).length === 0) return;
   await update(ref(database, refPath), fields);
@@ -283,17 +294,6 @@ export class FirebaseSyncService {
     this.setupNetworkListeners();
     // Module 17: RTDB delivery path for queued items (see RtdbWriteMode).
     indexedDBQueue.registerSyncHandler((refPath, payload, delivery) => deliverQueuedRtdbWrite(refPath, payload, delivery));
-    // Module 17 §ג step 1: "אימות נגישות לשרת". The queue sends, and the cloud
-    // turns green, only while the server answers — not merely while the
-    // browser says a network exists.
-    try {
-      onValue(ref(database, '.info/connected'), (snap) => {
-        const connected = typeof snap?.val === 'function' ? snap.val() : undefined;
-        if (typeof connected === 'boolean') indexedDBQueue.setServerReachable(connected);
-      });
-    } catch (err) {
-      console.warn('[FirebaseSyncService] connection state listener unavailable:', err);
-    }
     // Delay initialization to avoid circular dependency with stores
     setTimeout(() => this.init(), 0);
   }
@@ -1289,6 +1289,11 @@ export class FirebaseSyncService {
     // so the two gate fields are left out when the record is already approved
     // (GATE_PENDING_FIELDS). The approval itself cannot overtake this item:
     // the teacher approves on the session document, queued right behind it.
+    // Likewise the score and path: once the server has evaluated the
+    // meeting (evaluated_at), it mirrors its own values here, and a replay
+    // leaves this item's out (SERVER_SCORED_FIELDS). sessionTrigger.ts does
+    // not mirror on every path (not with no telemetry, for one), so the
+    // fields cannot simply be dropped from the first write.
     const rtdbPath = `users/students/${studentId}`;
     const rtdbPayload = {
       session_02_completed: true,
@@ -1299,19 +1304,25 @@ export class FirebaseSyncService {
       updatedAt: now
     };
     await indexedDBQueue
-      .enqueueRtdbMerge(rtdbPath, rtdbPayload, `s2_done_rtdb_${studentId}`, { skipFieldsIfGateApproved: GATE_PENDING_FIELDS })
+      .enqueueRtdbMerge(rtdbPath, rtdbPayload, `s2_done_rtdb_${studentId}`, {
+        skipFieldsIfGateApproved: GATE_PENDING_FIELDS,
+        skipFieldsIfEvaluated: { collection: 'sessions', docId, fields: SERVER_SCORED_FIELDS },
+      })
       .catch((e) => console.error('[FirebaseSyncService] Session 2 completion (RTDB) could not be queued:', e));
 
     // 2. Firestore `sessions/${docId}` — the SessionDocument the server scores
     // (Module 23 §ב) and the gate approves on (Module 20). Not held back until
     // the RTDB item is acknowledged: it is simply the next item in the queue.
-    // Merged, so it never erases an approval — and firestore.rules refuse a
-    // learner write over one; a document already completed AND approved is
-    // this write, delivered (deliveredWhen), not a refusal to retry.
+    // The document is read before the write: one already completed is this
+    // write, delivered (deliveredWhen), and nothing is written. The trigger
+    // scores a document once, when it first becomes completed; a late
+    // re-send with merge:true used to overwrite the server's score and path
+    // with the client's (seen on the emulator: 29% remediation_path → 71%
+    // green_path), and the trigger did not run again.
     if (firestore && (typeof (firestore as any).type === 'string' || (firestore as any)._delegate || (firestore as any).app)) {
       await indexedDBQueue
         .enqueueFirestoreDoc('sessions', docId, sessionDoc as unknown as Record<string, unknown>, `s2_done_doc_${docId}`, {
-          deliveredWhen: { is_completed: true, teacher_gate_approved: true },
+          deliveredWhen: { is_completed: true },
         })
         .catch((e) => console.error('[FirebaseSyncService] Session 2 completion (Firestore) could not be queued:', e));
     }
