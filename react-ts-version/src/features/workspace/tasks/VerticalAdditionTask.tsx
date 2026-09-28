@@ -66,7 +66,8 @@ export function VerticalAdditionTask({
   const [_lockedClicks, setLockedClicks] = useState(0);
 
   // A circle that unmounts while focused (next exercise) fires no blur.
-  useEffect(() => () => setFocusedMemoryCircle(null), [numberA, numberB, setFocusedMemoryCircle]);
+  // (TaskCard remounts the sheet for every exercise.)
+  useEffect(() => () => setFocusedMemoryCircle(null), [setFocusedMemoryCircle]);
 
   useEffect(() => {
     if (keyboardState === 'UNLOCKED') {

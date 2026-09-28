@@ -42,16 +42,32 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
   const count = useWorkspaceStore((s) => s.counts?.[place] ?? 0);
   const errorPlace = useWorkspaceStore((s) => s.errorPlace);
   const errorNonce = useWorkspaceStore((s) => s.errorNonce);
-  const focusedPlace = useWorkspaceStore((s) => s.focusedPlace);
   const groupColumnClick = useWorkspaceStore((s) => s.groupColumnClick);
   const splitBlockClick = useWorkspaceStore((s) => s.splitBlockClick);
   const removeBlockClick = useWorkspaceStore((s) => s.removeBlockClick);
-  const task = useWorkspaceStore((s) => getActiveTasks(s)[s.standardTaskIdx] ?? null);
-  const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
-  const isASD = useWorkspaceStore((s) => s.isASD);
-  const answerDigits = useWorkspaceStore((s) => s.answerDigits);
-  const operandDigits = useWorkspaceStore((s) => s.operandDigits);
   const focusedMemoryCircle = useBoardFocusStore((s) => s.focusedMemoryCircle);
+  // PRD Module 7 §א: columns outside the current calculation focus are dimmed
+  // to brightness 0.6 (core/columnFocus.ts: the owner's rules of 28.9.2026).
+  // One boolean per column, so typing a digit re-renders only a column whose
+  // dimming changes. Read only: nothing here writes to the store.
+  const isDimmed = useWorkspaceStore((s) => {
+    const task = getActiveTasks(s)[s.standardTaskIdx];
+    let vertical;
+    if (task && (task.type === 'vertical_addition' || task.type === 'addition_simple')) {
+      const { a, b, target } = effectiveArithmetic(task, s.isASD);
+      vertical = verticalBoxes(a, b, target, task.hiddenDigits, task.revealedResultDigits);
+    }
+    return dimmedColumns({
+      sessionNumber: s.sessionNumber,
+      taskType: task?.type,
+      focusedPlace: s.focusedPlace,
+      focusedMemoryCircle,
+      representationValue: task?.numberA,
+      vertical,
+      answerDigits: s.answerDigits,
+      operandDigits: s.operandDigits,
+    }).has(place);
+  });
 
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${place}`,
@@ -78,24 +94,6 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
   // bricks (VRA: the concrete and the symbolic change together).
   const shownCount = count - (regroup && regroup.to === place ? arrivingBlockCount(regroup, place) : 0);
   const isError = errorPlace === place;
-
-  // PRD Module 7 §א: columns outside the current calculation focus are dimmed
-  // to brightness 0.6 (core/columnFocus.ts: the owner's rules of 28.9.2026).
-  let vertical;
-  if (task && (task.type === 'vertical_addition' || task.type === 'addition_simple')) {
-    const { a, b, target } = effectiveArithmetic(task, isASD);
-    vertical = verticalBoxes(a, b, target, task.hiddenDigits, task.revealedResultDigits);
-  }
-  const isDimmed = dimmedColumns({
-    sessionNumber,
-    taskType: task?.type,
-    focusedPlace,
-    focusedMemoryCircle,
-    representationValue: task?.numberA,
-    vertical,
-    answerDigits,
-    operandDigits,
-  }).has(place);
 
   // Every block the digit counts is on the screen (core/blockLayout.ts).
   const blocksRef = useRef<HTMLDivElement | null>(null);

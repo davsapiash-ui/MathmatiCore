@@ -69,8 +69,10 @@ describe('vertical exercises', () => {
     sorted(dimmedColumns({ ...base, sessionNumber: 4, taskType: 'vertical_addition', vertical: boxes, answerDigits: {}, ...over }));
 
   it('a focused result box, hidden-operand box or memory circle of place p lights p and dims the others', () => {
-    for (const sessionNumber of [1, 4, 7]) {
+    for (const sessionNumber of [1, 3, 4, 5, 6, 7]) {
       expect(vert({ sessionNumber, focusedPlace: 'tens' })).toEqual(['units', 'hundreds', 'thousands']);
+    }
+    for (const sessionNumber of [3, 4, 5, 6, 7]) {
       expect(vert({ sessionNumber, focusedMemoryCircle: 'hundreds' })).toEqual(['units', 'tens', 'thousands']);
     }
     expect(vert({ taskType: 'addition_simple', focusedPlace: 'units' })).toEqual(['tens', 'hundreds', 'thousands']);
@@ -103,6 +105,8 @@ describe('vertical exercises', () => {
     expect(vert({ sessionNumber: 1 })).toEqual([]);
     expect(vert({ sessionNumber: 1, answerDigits: { units: '3' } })).toEqual([]);
     expect(vert({ sessionNumber: 1, focusedPlace: 'hundreds' })).toEqual(['units', 'tens', 'thousands']);
+    // As on main, the memory circle dims nothing in meeting 1.
+    expect(vert({ sessionNumber: 1, focusedMemoryCircle: 'thousands' })).toEqual([]);
   });
 
   it('skeleton: the lowest empty box, result or hidden operand', () => {
@@ -119,10 +123,6 @@ describe('vertical exercises', () => {
     const mixed = verticalBoxes(442, 128, 314, { a: ['units'] }, []);
     expect(lowestEmptyPlace(mixed, { units: '4' }, { a: {}, b: {} })).toBe('units');
     expect(lowestEmptyPlace(mixed, { units: '4' }, { a: { units: '2' }, b: {} })).toBe('tens');
-  });
-
-  it('meeting 8 is not in 3–7: nothing dimmed without focus', () => {
-    expect(vert({ sessionNumber: 8 })).toEqual([]);
   });
 
   it('the dimming is brightness 0.6, as the PRD says', () => {
@@ -231,7 +231,7 @@ describe('on the board', () => {
     const tens = container.querySelector('#column-tens') as HTMLElement;
     expect(tens.style.filter).toBe('brightness(0.6)');
     // Only the brightness the PRD names; the column is not also made see-through.
-    expect(tens.style.opacity).not.toBe('0.6');
+    expect(tens.style.opacity).toBe('');
     expect(tens.className).not.toContain('opacity-60');
     act(() => useWorkspaceStore.setState({ answerDigits: { units: '8' } } as any));
     expect(dimmed(container)).toEqual(['units', 'hundreds', 'thousands']);

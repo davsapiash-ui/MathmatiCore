@@ -18,7 +18,7 @@
  *   a skeleton also a hidden-operand box) — units when the exercise opens,
  *   moving left as soon as that box holds any digit, right or wrong; when every
  *   box is filled nothing is dimmed. In meeting 1 a column is dimmed only while
- *   a box is focused.
+ *   a result or hidden-operand box is focused, as on main.
  *
  * Display only. Nothing here is written anywhere: `focusedPlace` and
  * `activeColumnIndex` keep exactly the values they had, because the research
@@ -111,7 +111,10 @@ export function dimmedColumns(input: ColumnFocusInput): ReadonlySet<Place> {
 
   if (!taskType || !VERTICAL_TASKS.has(taskType)) return NONE;
 
-  const focused = input.focusedPlace ?? input.focusedMemoryCircle;
+  // Meeting 1, as on main: only a result or hidden-operand box dims; the memory
+  // circle never did (and the sheet has a thousands circle while the meeting-1
+  // board has no thousands column, which would dim every column on screen).
+  const focused = input.focusedPlace ?? (sessionNumber === 1 ? null : input.focusedMemoryCircle);
   if (focused) return allBut(focused);
   if (sessionNumber < 3 || sessionNumber > 7 || !input.vertical) return NONE;
   const lit = lowestEmptyPlace(input.vertical, input.answerDigits, input.operandDigits);
