@@ -56,6 +56,9 @@ export function arrivingBlockCount(regroup: RegroupAnimation | null, place: Plac
 interface Point { x: number; y: number }
 
 interface Geometry {
+  /** Rendered block size per place right now — columns shrink their blocks to
+   *  fit (core/blockLayout.ts), and the ghost is drawn at the same size. */
+  sizes: Record<Place, { w: number; h: number }>;
   /** Centre of the spot the move starts from (bottom of the source column). */
   source: Point;
   /** Top-left of each block the move lands on, in arrival order. */
@@ -72,19 +75,34 @@ function centreBottomOf(el: Element | null, box: DOMRect, lift: number): Point |
   return { x: r.left - box.left + r.width / 2, y: r.bottom - box.top - lift };
 }
 
+/** A column's rendered block size, read from its first block (DienesBlock sets
+ *  data-block-w/h); the drawn size when the column is empty. */
+function renderedBlockSize(container: HTMLElement, place: Place): { w: number; h: number } {
+  const el = container.querySelector<HTMLElement>(`#column-${place}-0`);
+  const w = Number(el?.dataset.blockW);
+  const h = Number(el?.dataset.blockH);
+  return w > 0 && h > 0 ? { w, h } : BLOCK_SIZES[place];
+}
+
 function measure(container: HTMLElement, regroup: RegroupAnimation): Geometry | null {
   const box = container.getBoundingClientRect();
+  const sizes = {
+    units: renderedBlockSize(container, 'units'),
+    tens: renderedBlockSize(container, 'tens'),
+    hundreds: renderedBlockSize(container, 'hundreds'),
+    thousands: renderedBlockSize(container, 'thousands'),
+  };
   const fromZone = container.querySelector(`#column-${regroup.from}-dropzone`);
   const toZone = container.querySelector(`#column-${regroup.to}-dropzone`);
   const low: Place = regroup.kind === 'group' ? regroup.from : regroup.to;
-  const lowSize = BLOCK_SIZES[low];
+  const lowSize = sizes[low];
 
   const source = centreBottomOf(fromZone, box, 40);
   if (!source) return null;
 
   // Where the real blocks now sit — the ghost lands exactly on them.
   const arriving = regroup.kind === 'group' ? 1 : 10;
-  const toSize = BLOCK_SIZES[regroup.to];
+  const toSize = sizes[regroup.to];
   const targets: Point[] = [];
   for (let k = arriving; k >= 1; k--) {
     const idx = regroup.toCount - k;
@@ -119,12 +137,11 @@ function measure(container: HTMLElement, regroup: RegroupAnimation): Geometry | 
     }
   }
 
-  return { source, targets, cluster };
+  return { sizes, source, targets, cluster };
 }
 
-function Ghost({ place }: { place: Place }) {
+function Ghost({ place, size }: { place: Place; size: { w: number; h: number } }) {
   const Svg = BLOCK_SVGS[place];
-  const size = BLOCK_SIZES[place];
   return (
     <div style={{ width: size.w, height: size.h }} className="pointer-events-none select-none">
       <Svg />
@@ -158,14 +175,14 @@ export function RegroupAnimationLayer({ containerRef }: { containerRef: RefObjec
 
   useLayoutEffect(() => {
     if (!regroup || !ready || !layer) return;
-    const { source, targets, cluster } = ready;
+    const { sizes, source, targets, cluster } = ready;
     const merge = SEC(REGROUP_MERGE_MS);
     const total = SEC(REGROUP_ANIMATION_MS);
     const mergeShare = REGROUP_MERGE_MS / REGROUP_ANIMATION_MS;
     const high: Place = regroup.kind === 'group' ? regroup.to : regroup.from;
     const low: Place = regroup.kind === 'group' ? regroup.from : regroup.to;
-    const highSize = BLOCK_SIZES[high];
-    const lowSize = BLOCK_SIZES[low];
+    const highSize = sizes[high];
+    const lowSize = sizes[low];
     const highAtSource = { x: source.x - highSize.w / 2, y: source.y - highSize.h / 2 };
     const lowAtSource = { x: source.x - lowSize.w / 2, y: source.y - lowSize.h / 2 };
     const controls: AnimationPlaybackControls[] = [];
@@ -200,11 +217,11 @@ export function RegroupAnimationLayer({ containerRef }: { containerRef: RefObjec
   }, [regroup, ready, layer]);
 
   if (!regroup || !ready) return null;
-  const { source, targets, cluster } = ready;
+  const { sizes, source, targets, cluster } = ready;
   const high: Place = regroup.kind === 'group' ? regroup.to : regroup.from;
   const low: Place = regroup.kind === 'group' ? regroup.from : regroup.to;
-  const highSize = BLOCK_SIZES[high];
-  const lowSize = BLOCK_SIZES[low];
+  const highSize = sizes[high];
+  const lowSize = sizes[low];
   const highAtSource = { x: source.x - highSize.w / 2, y: source.y - highSize.h / 2 };
   const lowAtSource = { x: source.x - lowSize.w / 2, y: source.y - lowSize.h / 2 };
 
@@ -220,15 +237,15 @@ export function RegroupAnimationLayer({ containerRef }: { containerRef: RefObjec
       {regroup.kind === 'group' ? (
         <>
           {cluster.map((p, i) => (
-            <div key={`low-${i}`} data-ghost="low" style={ghostStyle(p, 1, 1)}><Ghost place={low} /></div>
+            <div key={`low-${i}`} data-ghost="low" style={ghostStyle(p, 1, 1)}><Ghost place={low} size={lowSize} /></div>
           ))}
-          <div data-ghost="high" style={ghostStyle(highAtSource, 0, 0.85)}><Ghost place={high} /></div>
+          <div data-ghost="high" style={ghostStyle(highAtSource, 0, 0.85)}><Ghost place={high} size={highSize} /></div>
         </>
       ) : (
         <>
-          <div data-ghost="high" style={ghostStyle(highAtSource, 1, 1)}><Ghost place={high} /></div>
+          <div data-ghost="high" style={ghostStyle(highAtSource, 1, 1)}><Ghost place={high} size={highSize} /></div>
           {targets.map((_, i) => (
-            <div key={`low-${i}`} data-ghost="low" style={ghostStyle(lowAtSource, 0, 0.7)}><Ghost place={low} /></div>
+            <div key={`low-${i}`} data-ghost="low" style={ghostStyle(lowAtSource, 0, 0.7)}><Ghost place={low} size={lowSize} /></div>
           ))}
         </>
       )}
