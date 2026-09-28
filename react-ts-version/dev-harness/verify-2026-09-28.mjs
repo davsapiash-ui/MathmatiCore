@@ -91,12 +91,13 @@ for (const [w, h] of sizes) {
     await drop(page, 'hundreds', 3); await drop(page, 'tens', 4); await drop(page, 'units', 7);
     await typeRow(page, { hundreds: '3', tens: '4', units: '7' });
     await page.waitForTimeout(500);
-    const marks1 = await page.locator('[data-testid="session1-checklist"] span.text-2xl, [data-testid="session1-checklist"] span[class*="text-2xl"]').allInnerTexts();
+    // the tick marks themselves, whatever classes size them
+    const marks1 = await page.evaluate(() => [...document.querySelectorAll('[data-testid="session1-checklist"] span')].map((e) => e.textContent.trim()).filter((t) => t === '✅' || t === '⏳'));
     check(`${tag} A2 347 typed before decomposing: third line not ticked`, JSON.stringify(marks1) === JSON.stringify(['✅', '⏳', '⏳']), JSON.stringify(marks1) + ` (task idx ${idx})`);
     await page.screenshot({ path: `${out}/A2-347-typed-before-decomposition-${tag}.png` });
     await page.evaluate(() => window.__ws.getState().splitBlockClick('tens'));
     await page.waitForTimeout(700);
-    const marks2 = await page.locator('[data-testid="session1-checklist"] span[class*="text-2xl"]').allInnerTexts();
+    const marks2 = await page.evaluate(() => [...document.querySelectorAll('[data-testid="session1-checklist"] span')].map((e) => e.textContent.trim()).filter((t) => t === '✅' || t === '⏳'));
     check(`${tag} A2 after decomposing: all three ticked`, JSON.stringify(marks2) === JSON.stringify(['✅', '✅', '✅']), JSON.stringify(marks2));
     const sentence = (await page.locator('[data-testid="proceed-sentence"]').innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
     check(`${tag} A5 proceed sentence names the button`, sentence === 'לחצו על הכפתור ממשיכים ← בסרגל העליון כדי לעבור לשלב הבא!', sentence);
