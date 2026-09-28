@@ -138,7 +138,7 @@ describe('Module 13: monitored facts and the triad prompt', () => {
       workspace_state: { ones_count: 12, tens_count: 3, hundreds_count: 0, thousands_count: 0, memory_circles: {} },
     });
     expect(facts.suggested_category).toBe('conceptual');
-    expect(facts.suggested_focus_he).toContain('קיבוץ');
+    expect(facts.suggested_focus_he).toContain('הקבצה');
   });
 
   it('weaves all three pillars into the prompt and never writes the final answer into it', () => {
@@ -151,8 +151,8 @@ describe('Module 13: monitored facts and the triad prompt', () => {
     expect(prompt).toContain('425 − 162');
     expect(prompt).toContain('טור העשרות');
     // Pillar 2
-    expect(prompt).toContain('4 מאות בלוח');
-    expect(prompt).toContain('2 עשרות בלוח');
+    expect(prompt).toContain('4 מאות בבית המספרים');
+    expect(prompt).toContain('2 עשרות בבית המספרים');
     expect(prompt).toContain('חסרות 4 עשרות');
     // Pillar 3
     expect(prompt).toContain('השהיה של 45 שניות');
@@ -165,7 +165,7 @@ describe('Module 13: monitored facts and the triad prompt', () => {
     // The system instruction carries the triad and the curriculum terminology
     expect(SOCRATIC_SYSTEM_INSTRUCTION).toContain('HOLISTIC PEDAGOGICAL TRIAD');
     expect(SOCRATIC_SYSTEM_INSTRUCTION).toContain('פריטה');
-    expect(SOCRATIC_SYSTEM_INSTRUCTION).toContain('קיבוץ');
+    expect(SOCRATIC_SYSTEM_INSTRUCTION).toContain('הקבצה');
     expect(SOCRATIC_SYSTEM_INSTRUCTION).toContain('עיגולי הזיכרון');
   });
 
