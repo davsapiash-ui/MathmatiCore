@@ -7,6 +7,7 @@ import { Settings, Shield, Users, Layers, GraduationCap, Bell, UserCircle, LifeB
 import { useAuthStore } from "@/application/useAuthStore";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
+import { ensureStaffRoleClaims } from "@/infrastructure/services/staffRoleClaims";
 
 /**
  * Unread teacher→admin messages. Module 22 stores this channel in Firestore
@@ -40,6 +41,14 @@ const NAV_BUTTON = "h-auto overflow-visible p-0";
 export function AdminLayout() {
   const { user } = useAuthStore();
   const unreadCount = useUnreadAdminMessages();
+
+  // The console runs on the admin's claims only: PRD Module 24 §ב blocks the
+  // admin from individual learner data, and the rules can enforce that only
+  // when this sign-in does not also carry the teacher's claim (register, gap
+  // יא). An account stamped as the teacher earlier is re-stamped here.
+  useEffect(() => {
+    ensureStaffRoleClaims("admin").catch((e) => console.warn("[AdminLayout] role sync notice:", e));
+  }, []);
 
   return (
     <SidebarProvider>
@@ -77,9 +86,6 @@ export function AdminLayout() {
           </NavLink>
           <NavLink to="/admin/chat" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             צ'אט
-          </NavLink>
-          <NavLink to="/admin/teacher-view" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
-            תצוגת מורה
           </NavLink>
           <NavLink to="/admin/settings" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             הגדרות (UDL)
@@ -151,15 +157,6 @@ export function AdminLayout() {
                     <NavLink id="tour-admin-chat" to="/admin/chat" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
                       <Users className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">ערוץ פניות מורים</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink to="/admin/teacher-view" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
-                      <Layers className="w-5 h-5 ml-3 opacity-90" /> 
-                      <span className="text-sm lg:text-base tracking-wide">תצוגת מורה</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

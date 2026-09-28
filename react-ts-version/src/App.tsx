@@ -65,6 +65,15 @@ if (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'test') {
 import { useIdleTimeout } from "@/application/useIdleTimeout";
 
 /**
+ * PRD Module 24 §ב: "מנהלי מערכת חסומים מגישה לנתוני טלמטריה פרטניים או
+ * למסמכי תלמידים אישיים". The teacher dashboard, the learner reports, the
+ * learner's screen and the projector are the teacher's; an admin sign-in has
+ * the console only (register, gap יא — the owner picks the role at each
+ * sign-in). The admin's "תצוגת מורה" page is gone for the same reason.
+ */
+const TEACHER_ONLY = ["teacher"];
+
+/**
  * Mount-gate on the Firebase session: children mount only after sign-in completes.
  */
 function FirebaseGate({ children }: { children: React.ReactNode }) {
@@ -229,14 +238,14 @@ function App() {
         {/* App Shell wraps authenticated routes */}
         <Route element={<AppShell />}>
           <Route path="/hub" element={
-            <AuthGuard allowedRoles={["student", "teacher", "admin"]}>
+            <AuthGuard allowedRoles={["student", "teacher"]}>
               <StudentHub />
             </AuthGuard>
           } />
 
           {/* Master PRD v5.0 Route Aliases */}
           <Route path="/student/lobby" element={
-            <AuthGuard allowedRoles={["student", "teacher", "admin"]}>
+            <AuthGuard allowedRoles={["student", "teacher"]}>
               <StudentHub />
             </AuthGuard>
           } />
@@ -244,7 +253,7 @@ function App() {
 
         {/* Teacher Dashboard: standalone full-screen workstation with single scroll and dedicated sidebar */}
         <Route path="/dashboard" element={
-          <AuthGuard allowedRoles={["teacher", "admin"]}>
+          <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
               <TeacherDashboard />
             </FirebaseGate>
@@ -252,7 +261,7 @@ function App() {
         } />
 
         <Route path="/teacher/dashboard" element={
-          <AuthGuard allowedRoles={["teacher", "admin"]}>
+          <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
               <TeacherDashboard />
             </FirebaseGate>
@@ -261,7 +270,7 @@ function App() {
 
         {/* PRD Section 4.3 Navigation Redundancy for student reports */}
         <Route path="/reports/student/:id" element={
-          <AuthGuard allowedRoles={["teacher", "admin"]}>
+          <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
               <TeacherDashboard />
             </FirebaseGate>
@@ -269,7 +278,7 @@ function App() {
         } />
 
         <Route path="/dashboard/student/:id/view" element={
-          <AuthGuard allowedRoles={["teacher", "admin"]}>
+          <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
               <TeacherDashboard />
             </FirebaseGate>
@@ -278,7 +287,7 @@ function App() {
 
         {/* Student workspace: standalone fullscreen experience */}
         <Route path="/workspace" element={
-          <AuthGuard allowedRoles={["student", "teacher", "admin"]}>
+          <AuthGuard allowedRoles={["student", "teacher"]}>
             <FirebaseGate>
               <StudentWorkspacePage />
             </FirebaseGate>
@@ -287,7 +296,7 @@ function App() {
 
         {/* Projector Sandbox for Teacher (no recording, clean slate) */}
         <Route path="/projector" element={
-          <AuthGuard allowedRoles={["teacher", "admin"]}>
+          <AuthGuard allowedRoles={TEACHER_ONLY}>
             <ProjectorSandboxPage />
           </AuthGuard>
         } />
@@ -317,7 +326,6 @@ function App() {
           <Route path="security" element={<AdminSecurityView />} />
           <Route path="settings" element={<AdminSettingsView />} />
           <Route path="chat" element={<AdminChatView />} />
-          <Route path="teacher-view" element={<TeacherDashboard hideSidebar={true} />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

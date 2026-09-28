@@ -116,7 +116,7 @@ export function ProjectorSandboxPage() {
     initSession(targetSession, false);
   };
 
-  if (user?.role !== 'teacher' && user?.role !== 'admin') {
+  if (user?.role !== 'teacher') {
     return <Navigate to="/" replace />;
   }
 
