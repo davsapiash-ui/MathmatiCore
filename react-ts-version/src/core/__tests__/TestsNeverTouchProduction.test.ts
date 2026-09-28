@@ -1,22 +1,30 @@
 /**
- * The test suite never reaches the live Firebase project.
+ * The test suite never reaches the live Firebase project, and nothing leaves the
+ * machine.
  *
  * Measured on 28.9.2026, before this guard: every `npm test` run, on every CI push
  * and every merge, sent about 71 anonymous sign-ups to the production project and
  * about 125 calls to the production Gemini proxy. Anonymous sign-ups share a per-IP
  * quota, the same one that locked the class out on 15.9.2026. See
  * src/test/noProductionNetwork.ts.
+ *
+ * This file does not import the guard module statically: the guard must be active
+ * because the config's setupFiles loaded it, not because this test did.
  */
 import { describe, it, expect } from 'vitest';
-import { auth, database, functions, authReady } from '@/infrastructure/firebase';
-import { isBlockedHost } from '@/test/noProductionNetwork';
+import { auth, database, firestore, functions, authReady } from '@/infrastructure/firebase';
 
 describe('tests never reach the live Firebase project', () => {
   it('the Firebase app under test is a demo project, not mathimaticore', () => {
     expect(import.meta.env.VITE_FIREBASE_PROJECT_ID).toBe('demo-mathmaticore');
     expect(auth.app.options.projectId).toBe('demo-mathmaticore');
     expect(functions.app.options.projectId).toBe('demo-mathmaticore');
-    expect(database.app.options.databaseURL).not.toContain('mathimaticore-default-rtdb');
+  });
+
+  it('the Realtime Database and Firestore are pointed at the local machine', () => {
+    expect(database.app.options.databaseURL).toMatch(/^http:\/\/127\.0\.0\.1:/);
+    const firestoreHost = (firestore as unknown as { _getSettings(): { host: string } })._getSettings().host;
+    expect(firestoreHost).toBe('127.0.0.1:8080');
   });
 
   it('a fetch to a Google or Firebase host is refused before it leaves the machine', async () => {
@@ -28,7 +36,8 @@ describe('tests never reach the live Firebase project', () => {
     ).rejects.toThrow(/tests never call/);
   });
 
-  it('the guard covers every production host and leaves the local emulators alone', () => {
+  it('the guard covers every production host and leaves the local emulators alone', async () => {
+    const { isBlockedHost } = await import('@/test/noProductionNetwork');
     for (const host of [
       'identitytoolkit.googleapis.com',
       'securetoken.googleapis.com',

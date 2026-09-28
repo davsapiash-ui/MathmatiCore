@@ -8,13 +8,24 @@
  * Anonymous sign-ups share a per-IP quota, and that quota is what locked the class
  * out on 15.9.2026 (register: "כניסת התלמידים נחסמה בלייב").
  *
- * Two layers:
- *  1. `vite.config.ts` and `vitest.emulator.config.ts` give the tests a `demo-`
- *     project config, so the SDK is never pointed at production data.
- *  2. This setup file refuses every fetch to a Google or Firebase host, so nothing
- *     leaves the machine even when a module builds its own URL. The emulators on
- *     127.0.0.1 are not affected.
+ * Three layers, each loaded before any test file imports the app:
+ *  1. `.env.test` (read by Vite in test mode only) gives the app a `demo-` project
+ *     config, and its Realtime Database URL is 127.0.0.1.
+ *  2. Firestore does not use fetch (it speaks gRPC), so it is pointed at
+ *     127.0.0.1:8080 here, through the defaults every Firebase SDK reads at
+ *     getFirestore(). With no emulator running, the connection is refused locally.
+ *  3. Every fetch to a Google or Firebase host is refused (Auth, Cloud Functions,
+ *     and anything that builds its own URL).
+ * Together nothing leaves the machine. The emulators on 127.0.0.1 used by
+ * `npm run test:rules` are not affected.
  */
+
+type FirebaseDefaults = { emulatorHosts?: Record<string, string> } & Record<string, unknown>;
+const holder = globalThis as unknown as { __FIREBASE_DEFAULTS__?: FirebaseDefaults };
+holder.__FIREBASE_DEFAULTS__ = {
+  ...holder.__FIREBASE_DEFAULTS__,
+  emulatorHosts: { ...holder.__FIREBASE_DEFAULTS__?.emulatorHosts, firestore: '127.0.0.1:8080' },
+};
 
 const BLOCKED_HOST =
   /(^|\.)(googleapis\.com|cloudfunctions\.net|firebaseio\.com|firebasedatabase\.app|firebaseapp\.com|web\.app|run\.app)$/i;
