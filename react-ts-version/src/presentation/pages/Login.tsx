@@ -451,7 +451,7 @@ export function Login() {
                       </motion.div>
                       <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 text-center flex items-center justify-center gap-2 mt-1">
                         <span>כתבו את קוד הגישה שקיבלתם מהמורה</span>
-                        <UdlSpeechButton text="בחרו את המספר שלכם בכיתה, כתבו את קוד הגישה שקיבלתם מהמורה, ולחצו כניסה." />
+                        <UdlSpeechButton text="בחרו את המספר שלכם בכיתה, כתבו את קוד הגישה שקיבלתם מהמורה, ולחצו על כניסה." />
                       </span>
                     </div>
 

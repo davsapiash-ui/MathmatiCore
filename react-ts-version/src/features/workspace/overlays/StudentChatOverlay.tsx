@@ -82,7 +82,7 @@ export function StudentChatOverlay() {
     try {
       const validation = validateChatInputForPII(textToSend);
       if (!validation.valid) {
-        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים (PII). יש להשתמש במספרי תרגילים בלבד.');
+        toast.warning(validation.errorHe || 'ההודעה מכילה פרטים מזהים. השתמשו במספרי תרגילים בלבד.');
         return;
       }
 
@@ -97,7 +97,7 @@ export function StudentChatOverlay() {
       setText('');
     } catch (err) {
       console.error('[StudentChat] PII check error:', err);
-      toast.error('שגיאה בבדיקת אבטחה.');
+      toast.error('ההודעה לא נשלחה. נסו שוב.');
     }
   };
 
@@ -192,7 +192,7 @@ export function StudentChatOverlay() {
           <div className="text-center text-ws-soft text-sm my-auto flex flex-col items-center gap-2">
             <HelpCircle className="w-8 h-8 opacity-40 text-ws-accent" />
             <p>אין הודעות קודמות.</p>
-            <p className="text-xs">כתבו הודעה למורה או לחצו על קריאה למורה.</p>
+            <p className="text-xs">כתבו הודעה למורה, או לחצו על "קרא למורה".</p>
           </div>
         ) : (
           myMessages.map(m => {

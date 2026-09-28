@@ -45,7 +45,7 @@ export function MissingElementTask({
           maxLength={6}
           value={probeAnswer}
           onChange={(e) => setProbeAnswer(e.target.value.replace(/[^0-9]/g, ''))}
-          aria-label="הזינו את המספר החסר"
+          aria-label="כתבו את החלק החסר"
           className="w-28 h-20 rounded-2xl border-4 border-ws-accent text-center font-mono font-black text-4xl bg-ws-surface focus:outline-none focus:ring-4 focus:ring-ws-accent/30 focus:border-ws-accent shadow-inner text-ws-ink"
         />
         <span className="font-mono font-black text-5xl text-ws-ink">
