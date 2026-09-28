@@ -319,6 +319,15 @@ export interface ColumnFact {
 }
 
 export interface SocraticFacts {
+  /** The meeting, read from session_id ("session_8_student_12" → 8), or null. */
+  meeting: number | null;
+  /**
+   * PRD Module 14 §ב: in meetings 2 and 8 no blocks, no trash and no number
+   * house are on the screen. The prompt then describes the memory circles and
+   * the result row only, and a card that names an absent aid is refused
+   * (Module 13 §א: no aids that do not exist in the interface).
+   */
+  blocks_on_screen: boolean;
   operation: SocraticOperation | null;
   number_a: number | null;
   number_b: number | null;
@@ -392,17 +401,26 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   let suggested_focus_he = "";
   const trigger = ps?.trigger_reason ?? null;
   const overcrowded = columns.find((c) => c.board_overcrowded);
-  const emptyBoard = board_value === 0;
+  const meetingMatch = /^session_(\d+)_/.exec(req.session_id);
+  const meeting = meetingMatch ? Number(meetingMatch[1]) : null;
+  const blocks_on_screen = meeting !== 2 && meeting !== 8;
+  // Without blocks the counts are always 0: that is not an empty board to build on.
+  const emptyBoard = blocks_on_screen && board_value === 0;
 
-  if (ec && emptyBoard) {
+  if (!blocks_on_screen && ec && active && active.needs_conversion && !active.completed) {
+    suggested_category = "procedural";
+    suggested_focus_he = ec.operation === "subtraction"
+      ? `ב${COLUMN_NAME_HE[active.column]} צריך לחסר ${active.digit_b} מ-${active.digit_a} — נדרשת פריטה מהטור השכן, ורישום השינוי בעיגול הזיכרון.`
+      : `ב${COLUMN_NAME_HE[active.column]} החיבור ${active.digit_a} + ${active.digit_b}${(memory[active.column] ?? 0) > 0 ? ` + ${memory[active.column]} מעיגול הזיכרון` : ""} עובר את 9 — נדרשת המרה, ורישום שלה בעיגול הזיכרון שמעל הטור הבא.`;
+  } else if (ec && emptyBoard) {
     suggested_category = "procedural";
     suggested_focus_he = ec.operation === "subtraction"
       ? `בית המספרים ריק. הצעד הראשון בחיסור הוא לבנות רק את המספר הגדול (${ec.number_a}) בלבנים.`
       : `בית המספרים ריק. הצעד הראשון הוא לבנות את שני המספרים (${ec.number_a} ו-${ec.number_b}) בלבנים.`;
-  } else if (overcrowded) {
+  } else if (blocks_on_screen && overcrowded) {
     suggested_category = "conceptual";
     suggested_focus_he = `ב${COLUMN_NAME_HE[overcrowded.column]} יש ${overcrowded.blocks_on_board} ${BLOCK_NOUN_HE[overcrowded.column]} — יותר מ-9, ולכן נדרש קיבוץ של 10 ללבנה אחת בטור הבא.`;
-  } else if (ec && active && ec.operation === "subtraction" && active.needs_conversion && active.board_deficit > 0) {
+  } else if (blocks_on_screen && ec && active && ec.operation === "subtraction" && active.needs_conversion && active.board_deficit > 0) {
     suggested_category = "procedural";
     suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} צריך להחסיר ${active.digit_b} אבל בלוח יש רק ${active.blocks_on_board} ${BLOCK_NOUN_HE[active.column]} — נדרשת פריטה מהטור השכן הגדול יותר.`;
   } else if (ec && active && ec.operation === "addition" && active.needs_conversion && !active.completed) {
@@ -413,7 +431,9 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     suggested_focus_he = `הטור הפעיל (${COLUMN_NAME_HE[active.column]}) אינו דורש המרה, והלומד טעה בהקלדה ארבע פעמים — כנראה טעות בעובדת החשבון הבסיסית של הטור.`;
   } else if (trigger === "conversion_not_performed") {
     suggested_category = "procedural";
-    suggested_focus_he = "הלומד ניסה להקליד תוצאה בטור שדורש קיבוץ או פריטה לפני שביצע את ההמרה בלבנים.";
+    suggested_focus_he = blocks_on_screen
+      ? "הלומד ניסה להקליד תוצאה בטור שדורש קיבוץ או פריטה לפני שביצע את ההמרה בלבנים."
+      : "הלומד ניסה להקליד תוצאה בטור שדורש המרה או פריטה לפני שרשם אותה בעיגול הזיכרון.";
   } else if (trigger === "repeated_errors") {
     suggested_category = "calculation";
     suggested_focus_he = "הלומד הגיש תשובה שגויה פעמיים ברצף באותו תרגיל — יש לכוון אותו לטור שבו התוצאה אינה נכונה, בלי לומר את הספרה.";
@@ -426,6 +446,8 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   }
 
   return {
+    meeting,
+    blocks_on_screen,
     operation: ec?.operation ?? null,
     number_a: ec?.number_a ?? null,
     number_b: ec?.number_b ?? null,
@@ -504,11 +526,24 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   }
 
   lines.push("");
-  lines.push("=== עמוד 2: המצב הייצוגי בבית המספרים (לבנים) ===");
-  lines.push(`ערך כולל בלוח: ${facts.board_value}.`);
-  for (const c of [...facts.columns].reverse()) lines.push(fmtColumnFact(c, facts));
-  if (req.workspace_state.is_regrouped_in_canvas !== undefined) {
-    lines.push(req.workspace_state.is_regrouped_in_canvas ? "בוצעה כבר פריטה/הקבצה בלבנים." : "טרם בוצעה פריטה/הקבצה בלבנים.");
+  if (facts.blocks_on_screen) {
+    lines.push("=== עמוד 2: המצב הייצוגי בבית המספרים (לבנים) ===");
+    lines.push(`ערך כולל בלוח: ${facts.board_value}.`);
+    for (const c of [...facts.columns].reverse()) lines.push(fmtColumnFact(c, facts));
+    if (req.workspace_state.is_regrouped_in_canvas !== undefined) {
+      lines.push(req.workspace_state.is_regrouped_in_canvas ? "בוצעה כבר פריטה/הקבצה בלבנים." : "טרם בוצעה פריטה/הקבצה בלבנים.");
+    }
+  } else {
+    // PRD Module 14 §ב: meeting 8 shows no blocks, no trash and no number house.
+    lines.push(`=== עמוד 2: במפגש ${facts.meeting} אין לבנים על המסך ===`);
+    lines.push("על המסך יש רק התרגיל במאונך, עיגולי הזיכרון שמעל הטורים ושורת התוצאה. אין לבנים, אין פח אשפה ואין בית מספרים.");
+    lines.push("אסור להזכיר לבנים, פח אשפה, מחסן, כפתור הקבץ או בית המספרים. כוונו לעיגולי הזיכרון ולשורת התוצאה בלבד.");
+    if (facts.operation) {
+      for (const c of [...facts.columns].reverse()) {
+        const sub = facts.operation === "subtraction" ? `${c.digit_a} − ${c.digit_b}` : `${c.digit_a} + ${c.digit_b}`;
+        lines.push(`  - ${COLUMN_NAME_HE[c.column]}: תת-תרגיל ${sub}${c.needs_conversion ? (facts.operation === "subtraction" ? " | דורש פריטה" : " | דורש המרה") : ""} | ${c.completed ? "הטור כבר נפתר נכון" : c.column === facts.active_column ? "<< הטור הפעיל" : "טרם נפתר"}`);
+      }
+    }
   }
 
   lines.push("");
@@ -536,7 +571,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   lines.push("Return ONLY this JSON object:");
   lines.push(`{
   "error_category": "calculation" | "procedural" | "conceptual",
-  "guiding_question": "<שאלה מנחה אחת בעברית, המזכירה את התרגיל, את הטור הפעיל ואת מצב הלבנים>",
+  "guiding_question": "<שאלה מנחה אחת בעברית, המזכירה את התרגיל, את הטור הפעיל ${facts.blocks_on_screen ? "ואת מצב הלבנים" : "ואת עיגולי הזיכרון"}>",
   "options": [
     { "id": "opt_1", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false },
     { "id": "opt_2", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false },
@@ -617,6 +652,31 @@ export function leaksFinalAnswer(texts: string[], facts: Pick<SocraticFacts, "fi
   return texts.some((t) => containsNumberToken(t, ans));
 }
 
+/**
+ * Aids that meetings 2 and 8 do not put on the screen (PRD Module 14 §ב).
+ * Whole words only: "לבנות" (to build) and "לפחות" (at least) are not aids.
+ * Mirrored on the client (SocraticEngine.absentAidViolation).
+ */
+const HE_WORD = (w: string) => new RegExp(`(^|[^א-ת])[ובלמהש]{0,2}(${w})(?![א-ת])`);
+export const ABSENT_AIDS_NO_BOARD: RegExp[] = [
+  HE_WORD("לבנה|לבנים|לבנת|לבני"),
+  HE_WORD("פח"),
+  HE_WORD("מחסן"),
+  HE_WORD("לוח"),
+  /בית המספרים/,
+  /הקבץ/,
+];
+
+export function findAbsentAid(texts: string[], blocksOnScreen: boolean): string | null {
+  if (blocksOnScreen) return null;
+  for (const raw of texts) {
+    // מסמך 03's own meeting-8 question names the blocks to say they are gone.
+    const t = raw.replace(/אין לכם לבני דינס על המסך/g, "");
+    for (const re of ABSENT_AIDS_NO_BOARD) if (re.test(t)) return re.source;
+  }
+  return null;
+}
+
 export function findForbiddenTerm(texts: string[]): string | null {
   for (const t of texts) {
     for (const term of FORBIDDEN_TERMS_HE) {
@@ -686,6 +746,7 @@ export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | n
   const forbidden = findForbiddenTerm(texts);
   if (forbidden) return { ok: false, reason: `forbidden terminology: ${forbidden}` };
   if (facts && leaksFinalAnswer(texts, facts)) return { ok: false, reason: "final answer leaked" };
+  if (facts && findAbsentAid(texts, facts.blocks_on_screen !== false)) return { ok: false, reason: "names an aid that is not on the screen" };
 
   const ids: SocraticOption["id"][] = ["opt_1", "opt_2", "opt_3"];
   return {

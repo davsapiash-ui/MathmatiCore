@@ -4,6 +4,7 @@ import type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOptio
 import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
 import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
+import { exerciseCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -152,9 +153,40 @@ export function socraticTextViolation(
   return null;
 }
 
+/**
+ * Words for aids that meeting 8 does not put on the screen (PRD Module 14 §ב:
+ * no blocks and no board in meetings 2 and 8). A card that names them points
+ * the child at something that is not there (Module 13 §א). Mirrored on the
+ * server (functions/src/socraticContract.ts).
+ */
+const WORD = (w: string) => new RegExp(`(^|[^א-ת])[ובלמהש]{0,2}(${w})(?![א-ת])`);
+export const ABSENT_AIDS_MEETING_8_HE: RegExp[] = [
+  WORD('לבנה|לבנים|לבנת|לבני'), // not "לבנות" (to build)
+  WORD('פח'), // not "לפחות"
+  WORD('מחסן'),
+  WORD('לוח'), // not "לוחצים"
+  /בית המספרים/,
+  /הקבץ/,
+];
+
+export function absentAidViolation(texts: string[], sessionNumber?: number | null): string | null {
+  if (sessionNumber !== 8) return null;
+  for (const raw of texts) {
+    // מסמך 03's own meeting-8 question names the blocks to say they are gone.
+    const t = raw.replace(/אין לכם לבני דינס על המסך/g, '');
+    for (const re of ABSENT_AIDS_MEETING_8_HE) if (re.test(t)) return `aid not on screen: ${re.source}`;
+  }
+  return null;
+}
+
 /** Same operation inference analyzeLiveBoardState uses, so the AI and the static engine never disagree on the sign. */
 export function inferIsSubtraction(task: any, targetNode?: string): boolean {
   if (!task) return targetNode === 'subtraction_regrouping';
+  // A bank exercise says what it is. Guessing from the instruction read
+  // "חסרות שתי ספרות" (missing digits) and "החלק החסר" as a subtraction and
+  // coached "build the first number, take the second away" on additions.
+  if (typeof task.isSubtraction === 'boolean') return task.isSubtraction;
+  if (['vertical_addition', 'addition_simple', 'representation', 'flexible_decomp', 'missing_element', 'small_change', 'session1_intro'].includes(task.type)) return false;
   return Boolean(task.isSubtraction) ||
     task.requiresUngrouping === true ||
     targetNode === 'subtraction_regrouping' ||
@@ -240,7 +272,10 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
   },
 
   // Step 6, the target task (347 → 3 hundreds, 3 tens, 17 units): the card מסמך 03 §3.1 writes for meeting 1, word for word,
-  // except that the pieces are "לבנים" (owner, 27.9.2026; register ט). The document still says "הקוביות" until it is synced.
+  // except that the pieces are "לבנים" (owner, 27.9.2026; register ט), and the two hints of the wrong options.
+  // The task asks "which number do the blocks show after the decomposition?"; the document's hints answered it
+  // ("שומרת על ערך הכמות הכולל", "הכמות המתמטית נשמרת תמיד"). Now they point at the quantity without saying
+  // what happens to it (owner's instruction, 28.9.2026: change only the wording, so it no longer gives the answer).
   's1_target_347': {
     pedagogical_intent: "conceptual",
     tts_text: "בואו נחשוב רגע יחד: מה קורה כאשר אנו מפרקים עשרת אחת לטור היחידות?",
@@ -248,8 +283,8 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: "בואו נחשוב רגע יחד: מה קורה כאשר אנו מפרקים עשרת אחת לטור היחידות?",
     choices: [
       { id: "opt_1", textHe: "אנו מקבלים 10 יחידות בודדות הנוספות לטור היחידות על הלוח", isCorrect: true, feedbackHe: "נכון מאוד! בואו נלחץ על לבנת עשרת ונצפה ביחידות המתווספות ללוח." },
-      { id: "opt_2", textHe: "אנו משאירים את הלוח ללא שינוי", isCorrect: false, feedbackHe: "רמז: פעולת הפריטה משנה את ייצוג הלבנים אך שומרת על ערך הכמות הכולל." },
-      { id: "opt_3", textHe: "אנו מוחקים את העשרת מהלוח", isCorrect: false, feedbackHe: "רמז: מומלץ לשמור על הלבנים, הכמות המתמטית נשמרת תמיד." }
+      { id: "opt_2", textHe: "אנו משאירים את הלוח ללא שינוי", isCorrect: false, feedbackHe: "רמז: הפריטה משנה את הלבנים בבית המספרים. בדקו מה קורה לכמות." },
+      { id: "opt_3", textHe: "אנו מוחקים את העשרת מהלוח", isCorrect: false, feedbackHe: "רמז: בפריטה לא מוחקים לבנים. בדקו מה קורה לעשרת." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -281,7 +316,7 @@ const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       { id: "opt_1", textHe: "מקבצים 10 עשרות למאה אחת בטור המאות", isCorrect: true, feedbackHe: "נכון מאוד! לחצו על כפתור הקבץ 10 שבראש טור העשרות." },
       { id: "opt_2", textHe: "מוחקים 10 עשרות לפח בלי להוסיף מאה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר. מקבצים למאה." },
-      { id: "opt_3", textHe: "נרשום 10 בתוך משבצת העשרות", isCorrect: false, feedbackHe: "רמז: בכל משבצת בשורת התוצאה מותרת ספרה אחת בלבד (0 עד 9)." }
+      { id: "opt_3", textHe: "נרשום 10 בתיבת העשרות", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד, מ-0 עד 9." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -677,9 +712,9 @@ export class SocraticEngine {
           },
           { 
             id: "opt_3", 
-            textHe: "נרשום מספר דו-ספרתי במשבצת העשרות", 
+            textHe: "נרשום מספר דו-ספרתי בתיבת העשרות", 
             isCorrect: false, 
-            feedbackHe: "רמז: בכל משבצת בשורת התוצאה מותרת רק ספרה אחת (0 עד 9)." 
+            feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד, מ-0 עד 9." 
           }
         ],
         correctChoiceId: "opt_1"
@@ -717,10 +752,9 @@ export class SocraticEngine {
     }
 
     // 2. Subtraction Deficit Checks
-    const isSubtraction = currentTask?.isSubtraction || 
-                          (typeof currentTask?.instructionHe === 'string' && (currentTask.instructionHe.includes('חסר') || currentTask.instructionHe.includes('הפחת'))) ||
-                          (typeof currentTask?.exercise === 'string' && currentTask.exercise.includes('-')) ||
-                          targetNode === 'subtraction_regrouping';
+    // A skeleton whose first number is hidden is not solved by building that
+    // number — and naming it would give the hidden digits away.
+    const isSubtraction = inferIsSubtraction(currentTask, targetNode) && !currentTask?.hiddenDigits?.a?.length;
 
     let subtrahend = currentTask?.numberB;
     let minuend: number | undefined = typeof currentTask?.numberA === 'number' ? currentTask.numberA : undefined;
@@ -747,13 +781,13 @@ export class SocraticEngine {
       if (boardValue === 0) {
         return {
           pedagogical_intent: "procedural",
-          tts_text: `בחיסור בונים בבית המספרים רק את המספר הראשון${minuend !== undefined ? ` (${minuend})` : ''}, ואחר כך מוציאים ממנו.`,
+          tts_text: `בחיסור בונים בבית המספרים רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''}, ואחר כך מוציאים ממנו.`,
           suggested_highlight: "tour-palette",
           questionHe: `בית המספרים עדיין ריק. בחיסור, מה בונים קודם?`,
           choices: [
             {
               id: "opt_1",
-              textHe: `נבנה רק את המספר הראשון${minuend !== undefined ? ` (${minuend})` : ''} מהמחסן, ואחר כך נוציא ממנו ${subtrahend} לפח האשפה`,
+              textHe: `נבנה רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''} מהמחסן, ואחר כך נוציא ממנו ${formatNumberHe(subtrahend)} לפח האשפה`,
               isCorrect: true,
               feedbackHe: "נכון! גררו לבנים מהמחסן עד שהלוח מראה את המספר הראשון, ורק אז הוציאו ממנו."
             },
@@ -882,39 +916,11 @@ export class SocraticEngine {
       }
     }
 
-    // 3. Zero Placeholder Awareness
-    if (targetNode === 'zero_placeholder') {
-      const numStr = String(currentTask?.numberA || '');
-      if (numStr.includes('0') && counts.tens === 0) {
-        return {
-          pedagogical_intent: "conceptual",
-          tts_text: "כאשר אין לבנים בטור העשרות, נרשום 0 כדי לשמור על ערך המקום.",
-          suggested_highlight: "tour-column-tens",
-          questionHe: "כאשר אין לבנים בטור העשרות, איזה מספר נרשום בבית המספרים?",
-          choices: [
-            { 
-              id: "opt_1", 
-              textHe: "נרשום 0 בטור העשרות כדי לשמור על ערך המקום של שאר הספרות", 
-              isCorrect: true, 
-              feedbackHe: "מדויק! ה-0 שומר שהמאות לא יזוזו ימינה ויהפכו לעשרות." 
-            },
-            { 
-              id: "opt_2", 
-              textHe: "נשאיר את הטור ריק לחלוטין ללא ספרה", 
-              isCorrect: false, 
-              feedbackHe: "רמז: אם נשאיר ריק, הספרות יתחברו והמספר כולו ישתנה!" 
-            },
-            { 
-              id: "opt_3", 
-              textHe: "נרשום 1 בטור העשרות", 
-              isCorrect: false, 
-              feedbackHe: "רמז: אין לבנים בטור זה, ולכן הערך שלו הוא 0." 
-            }
-          ],
-          correctChoiceId: "opt_1"
-        };
-      }
-    }
+    // (A "zero placeholder" card used to follow: "when the tens column has no
+    // blocks, write 0 in the tens". It fired on every meeting-6 exercise with an
+    // empty board — 602 − 145, whose tens result is 5 — and on 6,0▢▢ − 2,847,
+    // where it told the child a hidden digit. Removed; the exercise card
+    // (staticSocraticCards.ts) speaks of the zero the exercise really has.)
 
     return null;
   }
@@ -1073,10 +1079,17 @@ export class SocraticEngine {
         return null;
       }
 
-      const violation = socraticTextViolation(
-        [guidingQuestion, ...choices.flatMap((c: { textHe: string; feedbackHe?: string }) => [c.textHe, c.feedbackHe ?? ''])],
-        operands
-      );
+      const aiTexts = [guidingQuestion, ...choices.flatMap((c: { textHe: string; feedbackHe?: string }) => [c.textHe, c.feedbackHe ?? ''])];
+      // The model receives the whole exercise, hidden digits included. What
+      // the screen hides (a skeleton's operand, a number the task asks for)
+      // must not come back in the card; and in meeting 8 there are no blocks,
+      // no trash and no number house to point at (PRD Module 13 §א).
+      const hiddenLeak = revealsSecret(aiTexts, secretNumbersOf(currentTask).filter((n) => n !== 10 && n !== 100 && n !== 1000));
+      const violation =
+        // A skeleton exercise shows its result; the digits it hides are the secret.
+        socraticTextViolation(aiTexts, Array.isArray(currentTask?.revealedResultDigits) ? null : operands) ??
+        (hiddenLeak !== null ? 'hidden number leaked' : null) ??
+        absentAidViolation(aiTexts, sessionNumber);
       if (violation) {
         console.warn('[Gemini Proxy] Response rejected by content rule:', violation);
         return null;
@@ -1284,20 +1297,22 @@ export class SocraticEngine {
    * התשובה לילד.
    */
   private static enforceIronRule(card: SocraticHintResponse, currentTask?: any): SocraticHintResponse {
-    const a = Number(currentTask?.numberA);
-    const b = Number(currentTask?.numberB);
-    const operands = Number.isFinite(a) && Number.isFinite(b)
-      ? { a, b, isSubtraction: inferIsSubtraction(currentTask) }
-      : null;
-
-    const violation = socraticTextViolation(
-      [card.questionHe, ...card.choices.flatMap((c) => [c.textHe, c.feedbackHe ?? ''])],
-      operands
-    );
+    const texts = [card.questionHe, ...card.choices.flatMap((c) => [c.textHe, c.feedbackHe ?? ''])];
+    // What the child must find is never shown: the result, the hidden digits of
+    // a skeleton, a number the task asks for (staticSocraticCards.secretNumbersOf).
+    // 10, 100 and 1,000 are the names of the regroupings themselves.
+    const secrets = secretNumbersOf(currentTask).filter((n) => n !== 10 && n !== 100 && n !== 1000);
+    const leaked = revealsSecret(texts, secrets);
+    const violation =
+      socraticTextViolation(texts, null) ??
+      (leaked !== null ? 'final answer leaked' : null) ??
+      absentAidViolation(texts, meetingOfTaskId(currentTask?.id));
     if (!violation) return card;
 
     console.warn('[SocraticEngine] Static card rejected by the Module 13 iron rule:', violation, currentTask?.id);
-    return GENERAL_FALLBACK;
+    // Meeting 8 has no blocks on the screen: its fallback is מסמך 03's own
+    // meeting-8 card, which speaks of the exercise and the memory circles only.
+    return blocksOnScreen(meetingOfTaskId(currentTask?.id)) ? GENERAL_FALLBACK : TASK_HINTS['s8_card'];
   }
 
   public static getSynchronousTaskHint(
@@ -1319,9 +1334,15 @@ export class SocraticEngine {
     const taskType: string | undefined = currentTask?.type;
     const targetNode: string = currentTask?.targetNode || (currentTask?.requiresGrouping ? 'regrouping_fluency' : currentTask?.requiresUngrouping ? 'subtraction_regrouping' : 'basic_addition_fluency');
 
-    // 1. Live Board Evaluation (overcrowding >=10 in any column or subtraction deficit)
-    const liveHint = SocraticEngine.analyzeLiveBoardState(currentTask, targetNode, currentCounts);
-    if (liveHint) return liveHint;
+    // 1. Live Board Evaluation (overcrowding >=10 in any column or subtraction
+    //    deficit) — only where there is a board. In meeting 8 no blocks are on
+    //    the screen and the counts are always 0: reading them produced "the
+    //    number house is empty, build the first number" (PRD Module 14 §ב;
+    //    Module 13 §א: no aids that are not on the screen).
+    if (blocksOnScreen(meetingOfTaskId(taskId))) {
+      const liveHint = SocraticEngine.analyzeLiveBoardState(currentTask, targetNode, currentCounts);
+      if (liveHint) return liveHint;
+    }
 
     // 2. Direct lookup in TASK_HINTS with exact ID or normalized ID (e.g. s3_g_t1 -> s3_t1)
     const normalizedId = normalizeTaskIdForHints(taskId);
@@ -1330,55 +1351,12 @@ export class SocraticEngine {
 
     if (taskType === 'session1_intro') return TASK_HINTS['s1_sandbox_controlled'];
 
-    // 3. Mathematical operand-specific calculation
-    const numA = currentTask?.numberA;
-    const numB = currentTask?.numberB;
-    const isSub = currentTask?.isSubtraction || (currentTask?.type === 'vertical_addition' && currentTask?.isSubtraction);
-
-    if (numA !== undefined && numB !== undefined && !isSub) {
-      const unitsSum = (numA % 10) + (numB % 10);
-      const tensSum = Math.floor((numA % 100) / 10) + Math.floor((numB % 100) / 10);
-
-      if (tensSum >= 10 || currentTask?.requiresGrouping) {
-        return {
-          pedagogical_intent: "procedural",
-          error_category: "procedural",
-          questionHe: `בתרגיל ${numA} + ${numB}, בטור העשרות הצטברו יותר מ-9 עשרות. מה הצעד הבא שנבצע?`,
-          choices: [
-            { id: "opt_1", textHe: "נקבץ 10 עשרות למאה אחת בטור המאות (ונשאיר את שאר העשרות בטור העשרות)", isCorrect: true, feedbackHe: "נכון מאוד! 10 עשרות שוות בדיוק למאה אחת בטור המאות." },
-            { id: "opt_2", textHe: "נמחק 10 עשרות לפח מבלי להוסיף מאה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר הכולל!" },
-            { id: "opt_3", textHe: "נרשום מספר דו-ספרתי במשבצת העשרות", isCorrect: false, feedbackHe: "רמז: בכל משבצת בשורת התוצאה מותרת ספרה אחת בלבד (0 עד 9)." }
-          ],
-          correctChoiceId: "opt_1"
-        };
-      } else if (unitsSum >= 10) {
-        return {
-          pedagogical_intent: "procedural",
-          error_category: "procedural",
-          questionHe: `בתרגיל ${numA} + ${numB}, בטור היחידות הצטברו ${unitsSum} יחידות (יותר מ-9). מה עלינו לעשות?`,
-          choices: [
-            { id: "opt_1", textHe: "נקבץ 10 יחידות לעשרת אחת בטור העשרות", isCorrect: true, feedbackHe: "מדויק! 10 יחידות מומרות לעשרת אחת." },
-            { id: "opt_2", textHe: "נמחק 10 יחידות לפח האשפה", isCorrect: false, feedbackHe: "רמז: יש להמיר לעשרת כדי לשמור על הכמות הכוללת." },
-            { id: "opt_3", textHe: "נרשום את שתי הספרות במשבצת היחידות", isCorrect: false, feedbackHe: "רמז: בכל משבצת מותרת רק ספרה אחת." }
-          ],
-          correctChoiceId: "opt_1"
-        };
-      }
-    }
-
-    if (numA !== undefined && numB !== undefined && isSub) {
-      return {
-        pedagogical_intent: "procedural",
-        error_category: "procedural",
-        questionHe: `בחיסור ${numA} − ${numB}, כיצד נבצע את החיסור בבית המספרים?`,
-        choices: [
-          { id: "opt_1", textHe: `בונים את ${numA} בלוח ומוציאים מתוכו את חלקי המספר ${numB}`, isCorrect: true, feedbackHe: "נכון מאוד! בחיסור בונים רק את המספר הגדול וגורעים ממנו." },
-          { id: "opt_2", textHe: `בונים גם את ${numA} וגם את ${numB} בלוח`, isCorrect: false, feedbackHe: "רמז: בחיסור אין צורך לבנות את שני המספרים." },
-          { id: "opt_3", textHe: "מחסירים מלמטה למעלה ללא פריטה", isCorrect: false, feedbackHe: "רמז: בחיסור אנו גורעים רק מהכמות הקיימת." }
-        ],
-        correctChoiceId: "opt_1"
-      };
-    }
+    // 3. The card computed from the exercise on the screen: its own numbers
+    //    (hidden digits stay hidden), the column where it really converts, and
+    //    in meeting 8 the memory circles instead of blocks (register, approved
+    //    deviation 2; owner, 28.9.2026 — staticSocraticCards.ts).
+    const computed = exerciseCard(currentTask);
+    if (computed) return computed;
 
     // 4. The מסמך 03 session card, grounded in this exercise. It comes AFTER the
     //    operand-specific computation above: PRD Module 13's holistic-triad rule

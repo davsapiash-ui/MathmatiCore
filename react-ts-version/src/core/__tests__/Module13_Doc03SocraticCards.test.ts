@@ -3,8 +3,8 @@ import {
   SocraticEngine,
   sessionCardKeysForTaskId,
   socraticTextViolation,
-  inferIsSubtraction,
 } from '@/infrastructure/services/SocraticEngine';
+import { secretNumbersOf, revealsSecret } from '@/infrastructure/services/staticSocraticCards';
 import { SESSIONS_BY_PATH, type SessionTask } from '@/data/sessionTasks';
 
 /**
@@ -24,12 +24,20 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
     expect(sessionCardKeysForTaskId('s1_t8')).toEqual([]);
   });
 
-  it('session 3 serves the path-specific card: tens for remediation, hundreds for green', async () => {
-    const rem = (await SocraticEngine.getSocraticHint({ id: 's3_r_t3', type: 'representation', numberA: 450 } as any, 'flexible_regrouping', EMPTY))!;
+  // Until 28.9.2026 every meeting-3 exercise got the one card of מסמך 03 — on
+  // the 4,500 exercise a card about 3,400 (audit row 3.14). The card is now the
+  // document's question with the exercise's own numbers (owner, 28.9.2026;
+  // register, approved deviation 2): SocraticStaticCards_ExerciseOnScreen.test.ts.
+  it('session 3 asks the document\'s question about the number on the screen', async () => {
+    const tasks = [...SESSIONS_BY_PATH[3].remediation_path, ...SESSIONS_BY_PATH[3].green_path];
+    const rem = (await SocraticEngine.getSocraticHint(tasks.find((t) => t.id === 's3_r_t3') as any, 'flexible_regrouping', EMPTY))!;
     expect(rem.questionHe).toContain('ערך המיקום');
-    expect(rem.choices[0].textHe).toBe('נשתמש ב-34 עשרות');
-    const green = (await SocraticEngine.getSocraticHint({ id: 's3_g_t3', type: 'representation', numberA: 4500 } as any, 'flexible_regrouping', EMPTY))!;
-    expect(green.choices[0].textHe).toBe('נשתמש ב-34 מאות');
+    expect(rem.questionHe).toContain('450');
+    expect(rem.choices[0].textHe).toBe('נשתמש ב-45 עשרות');
+    const green = (await SocraticEngine.getSocraticHint(tasks.find((t) => t.id === 's3_g_t3') as any, 'flexible_regrouping', EMPTY))!;
+    expect(green.questionHe).toContain('4,500');
+    expect(green.choices[0].textHe).toBe('נשתמש ב-45 מאות');
+    expect(JSON.stringify(green)).not.toMatch(/3,?400|34 מאות/);
   });
 
   it('every other session serves the document card, correct option first, with feedback on each option', async () => {
@@ -81,16 +89,11 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
       const hint = await SocraticEngine.getSocraticHint(task as any, (task as any).targetNode ?? 'procedural_fluency', EMPTY);
       if (!hint) continue;
 
-      const a = Number((task as any).numberA);
-      const b = Number((task as any).numberB);
-      const operands = Number.isFinite(a) && Number.isFinite(b)
-        ? { a, b, isSubtraction: inferIsSubtraction(task) }
-        : null;
-
-      const violation = socraticTextViolation(
-        [hint.questionHe, ...hint.choices.flatMap((c) => [c.textHe, c.feedbackHe ?? ''])],
-        operands
-      );
+      // The result of a skeleton exercise is on the screen; what must not be
+      // shown is what the child finds (secretNumbersOf).
+      const texts = [hint.questionHe, ...hint.choices.flatMap((c) => [c.textHe, c.feedbackHe ?? ''])];
+      const leaked = revealsSecret(texts, secretNumbersOf(task).filter((n) => ![10, 100, 1000].includes(n)));
+      const violation = socraticTextViolation(texts, null) ?? (leaked !== null ? `leaked ${leaked}` : null);
       if (violation) leaks.push(`מפגש ${session} / ${path} / ${(task as any).id}: ${violation}`);
     }
 

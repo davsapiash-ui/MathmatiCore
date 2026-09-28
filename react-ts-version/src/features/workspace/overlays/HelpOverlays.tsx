@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useWorkspaceStore, getActiveTasks, placeToColumnIndex } from '@/application/useWorkspaceStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { SUPPORT_CONTENT, getDynamicSocraticHint } from '@/data/sessionTasks';
-import type { SocraticChoice } from '@/infrastructure/services/SocraticEngine';
+import { SocraticEngine, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
@@ -237,41 +237,29 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
   const triggerSocraticPenaltyLockout = useWorkspaceStore((s) => s.triggerSocraticPenaltyLockout);
   const getSocraticPenaltyRemaining = useWorkspaceStore((s) => s.getSocraticPenaltyRemaining);
 
-  const [lockSeconds, setLockSeconds] = useState(() => getSocraticPenaltyRemaining());
+  // PRD Module 12 §ב: "נעילה שקטה של לחצני המענה ... (pointer-events: none
+  // בתוספת אינדיקטור שעון חול עדין)". The card only needs to know WHETHER the
+  // buttons are locked; the seconds are never shown (they used to count down
+  // on the card and on the close button, every second).
+  const [locked, setLocked] = useState(() => getSocraticPenaltyRemaining() > 0);
   const [selectedOpt, setSelectedOpt] = useState<string | null>(null);
   const [feedbackHint, setFeedbackHint] = useState<string | null>(null);
 
   useEffect(() => {
-    const updateTimer = () => {
-      const remaining = getSocraticPenaltyRemaining();
-      setLockSeconds(remaining);
-    };
-    updateTimer();
-    const interval = setInterval(updateTimer, 500);
+    const updateLock = () => setLocked(getSocraticPenaltyRemaining() > 0);
+    updateLock();
+    const interval = setInterval(updateLock, 500);
     return () => clearInterval(interval);
   }, [socraticPenaltyLockoutUntil, getSocraticPenaltyRemaining]);
 
   const wsState = useWorkspaceStore.getState();
   const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
-  const isSubtraction = Boolean(currentTask?.isSubtraction || (typeof (currentTask as any)?.exercise === 'string' && (currentTask as any).exercise.includes('-')));
 
-  const defaultChoices: SocraticChoice[] = isSubtraction
-    ? [
-        { id: 'A', textHe: 'נפרוט לבנה מהטור הגבוה השכן (מאה לעשרות / עשרת ליחידות) כדי שנוכל לחסר.', isCorrect: true, feedbackHe: 'תשובה נכונה! לחצו על הלבנה בבית המספרים כדי לפרוט אותה.' },
-        { id: 'B', textHe: 'נחסר את המספר הקטן מהגדול גם אם הוא למטה, ללא פריטה.', isCorrect: false, feedbackHe: 'רמז: בחיסור חובה לחסר את המספר התחתון מהעליון. אם חסר — יש לפרוט!' },
-        { id: 'C', textHe: 'נוסיף לבנים חדשות מהמחסן אל המספר הראשון.', isCorrect: false, feedbackHe: 'רמז: בחיסור בונים רק את המספר הראשון ומוציאים מתוכו לבנים לפח.' },
-      ]
-    : (currentTask?.id === 's1_t8' || (currentTask?.numberA && currentTask?.numberB && Math.floor((currentTask.numberA % 100) / 10) + Math.floor((currentTask.numberB % 100) / 10) >= 10))
-    ? [
-        { id: 'A', textHe: 'נקבץ 10 עשרות לטור המאות (מאה אחת) ונשאיר את שאר העשרות בטור העשרות.', isCorrect: true, feedbackHe: 'תשובה נכונה! קבצו 10 עשרות למאה אחת בטור המאות.' },
-        { id: 'B', textHe: 'נמחק 10 עשרות בפח האשפה מבלי להוסיף מאה.', isCorrect: false, feedbackHe: 'רמז: מחיקת לבנים משנה את ערך המספר הכולל. יש להמיר למאה!' },
-        { id: 'C', textHe: 'נרשום מספר דו-ספרתי בתוך משבצת העשרות.', isCorrect: false, feedbackHe: 'רמז: בכל משבצת בשורת התוצאה מותרת ספרה אחת בלבד (0 עד 9).' },
-      ]
-    : [
-        { id: 'A', textHe: 'נבדוק את הטורים מימין לשמאל: אם יש 10 לבנים בטור, נקבץ אותן לטור הבא.', isCorrect: true, feedbackHe: 'תשובה נכונה! כעת בצעו את הפעולה בבית המספרים.' },
-        { id: 'B', textHe: 'נמחק לבנים לפח מבלי לבצע קיבוץ או המרה.', isCorrect: false, feedbackHe: 'רמז: מחיקת לבנים משנה את ערך המספר הכולל! אפשר להשתמש בביטול ↩️.' },
-        { id: 'C', textHe: 'נרשום מספר דו-ספרתי בתוך משבצת יחידה.', isCorrect: false, feedbackHe: 'רמז: בכל משבצת מותרת ספרה אחת בלבד (0 עד 9).' },
-      ];
+  // A card restored without its content gets the static card of the exercise
+  // on the screen — the same one the store serves (SocraticEngine) — not a
+  // generic one that could speak of the tens in a units exercise, or of blocks
+  // in meeting 8.
+  const defaultChoices: SocraticChoice[] = SocraticEngine.getSynchronousTaskHint(currentTask ?? undefined, wsState.counts).choices;
 
   const rawChoices: SocraticChoice[] = (aiSocraticHint?.choices && aiSocraticHint.choices.length > 0)
     ? aiSocraticHint.choices
@@ -281,9 +269,11 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
     const isCorrect = c.isCorrect !== undefined
       ? c.isCorrect
       : (aiSocraticHint?.correctChoiceId ? c.id === aiSocraticHint.correctChoiceId : idx === 0);
+    // Meeting 8 has no number house on the screen (PRD Module 14 §ב).
+    const noBoard = wsState.sessionNumber === 8;
     const hint = c.feedbackHe || c.hint || (isCorrect
-      ? 'תשובה נכונה! כעת בצעו את הפעולה בבית המספרים.'
-      : 'רמז: חשבו שוב כיצד לשמר את הכמות בבית המספרים. אפשר להשתמש בביטול ↩️.');
+      ? (noBoard ? 'תשובה נכונה! כעת כתבו בשורת התוצאה, טור אחר טור.' : 'תשובה נכונה! כעת בצעו את הפעולה בבית המספרים.')
+      : (noBoard ? 'רמז: חשבו שוב, טור אחר טור. אפשר להשתמש בביטול ↩️.' : 'רמז: חשבו שוב כיצד לשמר את הכמות בבית המספרים. אפשר להשתמש בביטול ↩️.'));
     return {
       id: c.id,
       text: c.textHe,
@@ -293,7 +283,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
   });
 
   const handleSelect = (opt: typeof options[0]) => {
-    if (lockSeconds > 0) return;
+    if (locked) return;
     setSelectedOpt(opt.id);
     setFeedbackHint(opt.hint);
 
@@ -337,12 +327,12 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
         const isChosen = selectedOpt === opt.id;
         const isWrongChosen = isChosen && !opt.correct;
         const isCorrectChosen = isChosen && opt.correct;
-        const isOtherDisabled = lockSeconds > 0 && !isChosen;
+        const isOtherDisabled = locked && !isChosen;
 
         return (
           <button
             key={opt.id}
-            disabled={lockSeconds > 0}
+            disabled={locked}
             onClick={() => handleSelect(opt)}
             className={`p-3 rounded-2xl border-2 text-right font-medium text-xs sm:text-sm transition-all flex items-start gap-2 ${
               isCorrectChosen
@@ -361,19 +351,13 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
         );
       })}
 
-      {lockSeconds > 0 && (
-        // הנעילה של 30 השניות הופיעה על המסך בלי שום הכרזה: ילד שנעזר
-        // בהקראה בחר אפשרות שגויה, הכפתורים הפסיקו להגיב, ושום דבר לא אמר
-        // לו למה. `aria-live` אחד על הכותרת, לא על השנייה המתעדכנת.
-        <div role="status"
-          className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3 text-center text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-bold space-y-1">
-          <div className="flex items-center justify-center gap-1.5 text-base font-black">
-            <span aria-hidden="true">⏳</span>
-            <span aria-live="polite">רגע לחשיבה — החלונית נעולה: {lockSeconds} שניות</span>
-          </div>
-          <p className="text-xs text-amber-800/90 dark:text-amber-300/90 font-medium">
-            בית המספרים וכפתור הביטול (↩️) פתוחים ופעילים. נסו לחקור את הלבנים עד שהחלונית תיפתח מחדש.
-          </p>
+      {locked && (
+        // שעון חול עדין ומשפט אחד, בלי מספרים. `role="status"` מכריז על
+        // המשפט פעם אחת, כשהנעילה מתחילה.
+        <div role="status" data-testid="socratic-lock-indicator"
+          className="flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-bold">
+          <span aria-hidden="true" className="text-base">⏳</span>
+          <span>רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.</span>
         </div>
       )}
 
@@ -398,7 +382,7 @@ function SocraticPenaltyLockOptions({ onClose }: { onClose: () => void }) {
         onClick={onClose}
         className="mt-2 w-full h-11 rounded-full font-display font-extrabold text-sm transition-all bg-ws-accent text-white hover:brightness-105 shadow-md"
       >
-        {lockSeconds > 0 ? `סגירה לעת עתה (המענה ייפתח בעוד ${lockSeconds}ש')` : 'הבנתי, סגירת החלונית'}
+        {locked ? 'סגירה' : 'הבנתי, סגירת החלונית'}
       </button>
     </div>
   );

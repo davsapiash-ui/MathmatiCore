@@ -137,21 +137,16 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     expect(hint?.choices[0].textHe).toContain('נאסוף 10 עשרות ונקבץ אותן למאה אחת בטור המאות');
   });
 
-  it('5. Dynamically detects zero placeholder missing in tens', async () => {
-    const task = {
-      id: 's6_t3',
-      numberA: 4005,
-      targetNode: 'zero_placeholder'
-    };
-
+  // The "zero placeholder" live card ("אין לבנים בטור העשרות ... נרשום 0 בטור
+  // העשרות") was removed on 28.9.2026: it fired on every meeting-6 exercise
+  // with an empty tens column, whatever the exercise's tens really were, and
+  // told the child to write in the number house.
+  it('5. An empty tens column is not read as "write 0 in the tens"', async () => {
+    const task = { id: 's6_t3', numberA: 4005, targetNode: 'zero_placeholder' };
     const counts = { units: 5, tens: 0, hundreds: 0, thousands: 4 };
-
+    expect(SocraticEngine.analyzeLiveBoardState(task, 'zero_placeholder', counts)).toBeNull();
     const hint = await SocraticEngine.getSocraticHint(task, 'zero_placeholder', counts);
-
-    expect(hint).toBeDefined();
-    expect(hint?.suggested_highlight).toBe('tour-column-tens');
-    expect(hint?.questionHe).toContain('אין לבנים בטור העשרות');
-    expect(hint?.choices[0].textHe).toContain('נרשום 0 בטור העשרות כדי לשמור על ערך המקום');
+    expect(hint?.questionHe ?? '').not.toContain('נרשום בבית המספרים');
   });
 
   it('6. Falls back to static task hint when no active live board anomaly exists', async () => {
