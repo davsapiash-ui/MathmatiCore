@@ -462,8 +462,20 @@ export async function gotoWorkspace(c: AuditContext, meeting: number): Promise<v
   try {
     await ready(25_000);
   } catch {
-    // A one-off hang on the loader (seen once in ~1500 navigations): one reload,
-    // then the real error if it persists.
+    // A hang on the loader (about one navigation in a few hundred, always on
+    // meeting 3, which waits for the database's clock): the Firebase client
+    // has given up on WebSockets for this origin and fallen back to
+    // long-polling, which is blocked. Forget that, then one reload; the real
+    // error if it persists.
+    await c.page.evaluate(() => {
+      try {
+        Object.keys(localStorage)
+          .filter((k) => k.includes('previous_websocket_failure'))
+          .forEach((k) => localStorage.removeItem(k));
+      } catch {
+        /* ignore */
+      }
+    });
     await c.page.reload({ waitUntil: 'domcontentloaded' });
     await ready(45_000);
   }
