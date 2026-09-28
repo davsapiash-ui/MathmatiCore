@@ -1598,7 +1598,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       if (s.selectedChoiceId !== task.correctAnswer) {
-        handleFailure('wrong_choice', 'בּוֹאוּ נַחְשֹׁב שׁוּב 🤔', 'האם הוספנו או הורדנו לבנים כלשהן מבית המספרים?', 2800);
+        handleFailure('wrong_choice', 'חִשְׁבוּ שׁוּב 🤔', 'האם הוספתם לבנים לבית המספרים או הורדתם ממנו לבנים?', 2800);
         return;
       }
       handleSuccess('נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
@@ -1643,7 +1643,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           if (boardVal !== target && !discovered.includes(boardVal)) {
             handleFailure(
               'wrong_blocks',
-              'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍',
+              'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍',
               'הלבנים שבבית המספרים אינן מראות את תוצאת התרגיל ואינן מראות את המספר שגיליתם. בדקו שוב.',
               3500
             );
@@ -1652,7 +1652,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         } else if (boardVal !== target) {
           handleFailure(
             'wrong_blocks',
-            'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍',
+            'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍',
             'הלבנים שבבית המספרים אינן מתאימות לתוצאת התרגיל. בדקו שוב.',
             3500
           );
@@ -1665,7 +1665,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           const crowded = s.counts.units >= 10 ? 'היחידות' : s.counts.tens >= 10 ? 'העשרות' : 'המאות';
           handleFailure(
             'overcrowded_columns',
-            'בּוֹאוּ נְקַבֵּץ 🧱',
+            'קַבְּצוּ 🧱',
             `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "קבץ 10" שבראש הטור.`,
             4000
           );
@@ -1712,7 +1712,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const ansVal = answerDigitsToNumber(typedDigits);
       if (ansVal !== target) {
         if (s.sessionNumber === 8) {
-          handleFailure('wrong_numeric', 'נסו שוב 🤔', 'התשובה שהזנתם אינה נכונה. בדקו שוב!', 2800);
+          handleFailure('wrong_numeric', 'נסו שוב 🤔', 'התשובה שכתבתם אינה נכונה. בדקו שוב!', 2800);
         } else {
           handleFailure(
             'wrong_numeric',
@@ -1736,14 +1736,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           // carried into the next exercise.
           handleSuccess(
             'שימו לב לעיגולי הזיכרון 💡',
-            'פתרתם נכון! בתרגילי המרה ופריטה כדאי לרשום את ההמרה בעיגולי הזיכרון שבראש הטורים.',
+            'פתרתם נכון! בפעם הבאה, רשמו כל המרה וכל פריטה בעיגולי הזיכרון שבראש הטורים.',
             3000
           );
           return;
         }
       }
 
-      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמְּסִפָּרִים.', 2500);
+      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמִּסְפָּרִים.', 2500);
       return;
     }
 
@@ -1765,11 +1765,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (task.type === 'missing_element') {
       const answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
       if (answer === null || Number.isNaN(answer)) {
-        showFeedback({ correct: false, title: 'נָא לְהַקְלִיד תְּשׁוּבָה', sub: `כתבו את החלק החסר בתיבה, ואז לחצו על "${PROCEED_HE}".` }, 1800);
+        showFeedback({ correct: false, title: 'הַקְלָדַת תְּשׁוּבָה ✏️', sub: `כתבו את החלק החסר בתיבה, ואז לחצו על "${PROCEED_HE}".` }, 1800);
         return;
       }
       if (answer !== task.correctAnswer) {
-        handleFailure('wrong_answer', 'נסו שוב 🤔', 'המספר שהזנתם אינו נכון.', 2500);
+        handleFailure('wrong_answer', 'נסו שוב 🤔', 'המספר שכתבתם אינו נכון.', 2500);
         return;
       }
       handleSuccess('כָּל הַכָּבוֹד! 🌟', 'תשובה נכונה.', 2500);
@@ -1781,7 +1781,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!countsEqual(s.counts, required)) {
         handleFailure(
           'wrong_representation',
-          'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍',
+          'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍',
           // One sentence for every representation exercise. It used to spell out
           // the blocks to build, as the box by the result row did; with the box
           // gone (owner, 28.9.2026) that gave the answer away on a wrong press
@@ -1793,11 +1793,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
       // Meeting 1: the exercise is the conversion itself, not only its result.
       if (task.requiresGrouping && !s.hasGrouped) {
-        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבני יחידה בכל פעם, בעזרת הכפתור "קבץ 10" שבראש הטור.', 3500);
+        handleFailure('conversion_skipped', 'קַבְּצוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבני יחידה בכל פעם, בעזרת הכפתור "קבץ 10" שבראש הטור.', 3500);
         return;
       }
       if (task.requiresUngrouping && !s.hasUngrouped) {
-        handleFailure('conversion_skipped', 'בּוֹאוּ נִפְרֹט 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
+        handleFailure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
         return;
       }
       const typed = answerDigitsToNumber(s.answerDigits);
@@ -1815,7 +1815,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     if (task.type === 'flexible_decomp') {
       if (task.requireEvenTens && s.q3Reps.some((r) => r.tens % 2 !== 0)) {
-        handleFailure('odd_tens', 'בּוֹאוּ נִבְדֹּק אֶת הָעֲשָׂרוֹת 🤔', 'בכל דרך מספר העשרות צריך להיות זוגי. נסו שוב!', 2800);
+        handleFailure('odd_tens', 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', 'בכל דרך מספר העשרות צריך להיות זוגי. נסו שוב!', 2800);
         set({ q3Reps: [] });
         return;
       }
@@ -1834,7 +1834,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return;
     }
 
-    handleSuccess('כָּל הַכָּבוֹד! 🌟', 'המשיכו לשלב הבא.', 2500);
+    handleSuccess('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2500);
   }
 
   function advanceStandard() {
@@ -2004,7 +2004,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     if (answer === null || Number.isNaN(answer)) {
-      showFeedback({ correct: false, title: 'נָא לְהַקְלִיד תְּשׁוּבָה', sub: 'הַקְלִידוּ אֶת הַתְּשׁוּבָה בַּתֵּיבוֹת' }, 1500);
+      showFeedback({ correct: false, title: 'הַקְלָדַת תְּשׁוּבָה ✏️', sub: 'כִּתְבוּ אֶת הַתְּשׁוּבָה.' }, 1500);
       return;
     }
 
@@ -3098,7 +3098,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         lessonTaskId = isRepresentationTask(task) ? task.id : null;
         if (task?.requireEvenTens && s.counts.tens % 2 !== 0) {
           if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
-          showFeedback({ correct: false, title: 'בּוֹאוּ נִבְדֹּק אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. נסו לפרוט עשרת אחת ליחידות, או לקבץ 10 יחידות לעשרת.' }, 3200);
+          showFeedback({ correct: false, title: 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. נסו לפרוט עשרת אחת ליחידות, או לקבץ 10 יחידות לעשרת.' }, 3200);
           return;
         }
       }
@@ -3107,9 +3107,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
         const hint =
           s.sessionNumber === 2
-            ? 'כמות הלבנים בלוח אינה תואמת למבוקש. איך נוכל לשנות זאת כדי להגיע לכמות המדויקת?'
+            ? 'הלבנים בבית המספרים עוד לא מראות את המספר שבהנחיה. מה תוכלו לשנות?'
             : 'הלבנים בבית המספרים עוד לא מראות את המספר שבהנחיה. נסו שוב!';
-        showFeedback({ correct: false, title: 'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍', sub: hint }, 3200);
+        showFeedback({ correct: false, title: 'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍', sub: hint }, 3200);
         return;
       }
       
@@ -3117,7 +3117,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // kept between the two (below), pressing the button twice must not count.
       if (s.q3Reps.length === 1 && countsEqual(s.counts, s.q3Reps[0])) {
         if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
-        showFeedback({ correct: false, title: 'זוֹ אוֹתָהּ דֶּרֶךְ 🤔', sub: 'הַרְאוּ אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ שׁוֹנָה: פִּרְטוּ אוֹ הַקְבִּיצוּ, וְאָז הוֹסִיפוּ.' }, 3200);
+        showFeedback({ correct: false, title: 'זוֹ אוֹתָהּ דֶּרֶךְ 🤔', sub: 'הַרְאוּ אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ שׁוֹנָה: פִּרְטוּ אוֹ קַבְּצוּ, וְאָז לַחֲצוּ עַל "הוֹסָפַת יִצּוּג".' }, 3200);
         return;
       }
 

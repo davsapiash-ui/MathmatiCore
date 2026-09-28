@@ -994,10 +994,10 @@ export function StudentWorkspacePage() {
             📱
           </div>
           <h2 className="font-display font-black text-xl text-slate-900 dark:text-white">
-            המשכת במכשיר אחר
+            המשכתם במכשיר אחר
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            הפעילות שלכם פתוחה כעת במכשיר אחר. מסך זה נעול באופן שקט כדי למנוע כפילויות ולשמור על הנתונים שלכם.
+            הפעילות שלכם פתוחה עכשיו במכשיר אחר. המסך הזה נעול כדי לשמור על העבודה שלכם.
           </p>
         </div>
       </div>
@@ -1166,7 +1166,7 @@ export function StudentWorkspacePage() {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body">
         <div className="animate-spin text-4xl mb-4">⏳</div>
-        <h2 className="text-xl font-bold">טוען את המשימות המותאמות שלכם...</h2>
+        <h2 className="text-xl font-bold">טוענים את המשימות שלכם...</h2>
       </div>
     );
   }
