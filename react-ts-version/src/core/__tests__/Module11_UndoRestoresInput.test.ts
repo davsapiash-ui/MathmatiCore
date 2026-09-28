@@ -54,6 +54,11 @@ describe('undo restores what the learner typed (Module 11 §א)', () => {
       useWorkspaceStore.getState().setAnswerDigit(place, digit);
     }
     expect(useWorkspaceStore.getState().undoStack.length).toBe(3);
+    // The wrong digits open their own card (a conversion not performed) on the
+    // next tick; the child closes it before the undos. A card on the screen is
+    // the one card and never changes (owner, 28.9.2026; X22).
+    await new Promise((r) => setTimeout(r, 0));
+    useWorkspaceStore.getState().closeHelp();
 
     useWorkspaceStore.getState().undo();
     useWorkspaceStore.getState().undo();

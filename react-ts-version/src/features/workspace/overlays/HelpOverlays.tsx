@@ -94,19 +94,24 @@ export function SocraticSidePanel() {
   const cardRef = useDismissableOverlay<HTMLElement>(helpState === 'socratic', closeHelp, { trapFocus: false, autoFocus: false });
 
   const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
+  // Until the engine answers (at most 8 seconds) the card shows an hourglass,
+  // then one card that does not change (owner, 28.9.2026; X22).
+  const socraticPending = useWorkspaceStore((s) => s.socraticPending);
 
   // PRD Appendix A §3: SOCRATIC_CARD_SHOWN is emitted once per opening of the
   // card, from the component that actually renders it. It used to live in a
   // drawer nothing mounted, so the radar, the session report and the AI
-  // analysis all counted zero cards. Emission waits for the first hint so the
-  // error_category (Module 18 distribution) is real, not always null.
+  // analysis all counted zero cards. It is emitted when the one card appears,
+  // never for the hourglass. error_category is the engine's classification,
+  // or null when the static card is shown (PRD Module 13; owner, 28.9.2026;
+  // X19): the store sets it that way when the card settles.
   const cardShownRef = useRef(false);
   useEffect(() => {
     if (helpState !== 'socratic') {
       cardShownRef.current = false;
       return;
     }
-    if (cardShownRef.current || !aiSocraticHint) return;
+    if (cardShownRef.current || socraticPending || !aiSocraticHint) return;
     cardShownRef.current = true;
 
     const ws = useWorkspaceStore.getState();
@@ -132,14 +137,14 @@ export function SocraticSidePanel() {
         error_category: aiSocraticHint.error_category ?? null,
       },
     }).catch(console.error);
-  }, [helpState, aiSocraticHint]);
+  }, [helpState, aiSocraticHint, socraticPending]);
 
   // A card open without content (restored from a saved session before the
   // store refilled it) shows the static card of the exercise on the screen —
   // the same one the store serves. It used to show a generic "נקודה למחשבה"
   // with a ten-rod picture and board lines, also in meeting 8, where there
   // are no blocks (PRD Module 13 §א).
-  const fallbackCard = helpState === 'socratic' && !aiSocraticHint
+  const fallbackCard = helpState === 'socratic' && !socraticPending && !aiSocraticHint
     ? (() => {
         const s = useWorkspaceStore.getState();
         return SocraticEngine.getSynchronousTaskHint(getActiveTasks(s)[s.standardTaskIdx] ?? undefined, s.counts);
@@ -155,7 +160,7 @@ export function SocraticSidePanel() {
   // without options gets those of the static card of the exercise on the
   // screen — the same one the store serves — not a generic one that could
   // speak of the tens in a units exercise, or of blocks in meeting 8.
-  const shownChoices: SocraticChoice[] = helpState === 'socratic'
+  const shownChoices: SocraticChoice[] = helpState === 'socratic' && !socraticPending
     ? (() => {
         const s = useWorkspaceStore.getState();
         const task = getActiveTasks(s)[s.standardTaskIdx] ?? undefined;
@@ -195,8 +200,29 @@ export function SocraticSidePanel() {
               className="pointer-events-auto h-full min-h-0 flex flex-col w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto"
               role="region"
               aria-label="כרטיס החניכה"
+              aria-busy={socraticPending}
               data-testid="socratic-card"
             >
+              {socraticPending ? (
+                /* Until the engine answers (at most 8 seconds): the card's
+                   hourglass (the same ⏳ as the card's silent lock, Module 12
+                   §ב) and no text, then one card that stays (owner,
+                   28.9.2026; X22). The ✕ stays: closing now means no card. */
+                <div className="h-full flex flex-col" data-testid="socratic-card-pending">
+                  <div className="flow-root shrink-0">
+                    <button
+                      onClick={closeHelp}
+                      aria-label="סגירת חלונית העזרה"
+                      className="float-left w-11 h-11 rounded-full bg-ws-surface2 hover:bg-ws-surface2/80 text-ws-soft font-bold flex items-center justify-center text-sm transition-colors shrink-0"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="flex-1 flex items-center justify-center">
+                    <span aria-hidden="true" className="text-5xl motion-safe:animate-pulse">⏳</span>
+                  </div>
+                </div>
+              ) : (<>
               {/* The read-aloud and ✕ buttons float at the top-left corner and
                   the question flows beside them, instead of a row of their
                   own above it: on a 585–700px-high window that row pushed the
@@ -229,6 +255,7 @@ export function SocraticSidePanel() {
 
               {/* 3 Closed Dynamic Options for Socratic Mentoring */}
               <SocraticPenaltyLockOptions choices={shownChoices} onClose={closeHelp} />
+              </>)}
             </aside>
         </motion.div>
       )}

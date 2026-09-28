@@ -15,6 +15,12 @@ import MAIN from './fixtures/main-socratic-error-categories.json';
  * choice path, in the board states below.
  *
  * The one approved change (שהB.1): s3_r_t7, null → 'conceptual'.
+ *
+ * Since the owner's decision of 28.9.2026 (X19) this value is no longer what
+ * SOCRATIC_CARD_SHOWN records: a static card is recorded with error_category
+ * null, and only the engine's classification is stored
+ * (SocraticCard_OneFinalCard.test.tsx). The static card's own value is kept
+ * as it was.
  */
 const P = ['units', 'tens', 'hundreds', 'thousands'] as const;
 const std = (n: number) => Object.fromEntries(P.map((p, i) => [p, Math.floor(n / 10 ** i) % 10])) as any;

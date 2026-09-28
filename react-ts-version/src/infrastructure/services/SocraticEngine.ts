@@ -1342,9 +1342,11 @@ export class SocraticEngine {
       SocraticEngine.resolveStaticHint(currentTask, counts),
       currentTask
     );
-    // What the child reads follows the exercise; the category the opening
-    // records (SOCRATIC_CARD_SHOWN, Module 18) stays what main recorded for
-    // the same exercise and board — research data (socraticResearchCategory.ts).
+    // What the child reads follows the exercise; the category stays what main
+    // computed for the same exercise and board (socraticResearchCategory.ts).
+    // It is no longer recorded: when the static card is what the child sees,
+    // SOCRATIC_CARD_SHOWN carries error_category null — the classification is
+    // the engine's (owner, 28.9.2026; X19; useWorkspaceStore.fetchSocraticHint).
     return { ...card, error_category: researchErrorCategory(currentTask, counts) };
   }
 

@@ -407,6 +407,10 @@ describe('undo after a reload through the database (Module 11), meetings 3–8',
     ws().setAnswerDigit('units', '1');
     ws().setAnswerDigit('tens', '2');
     ws().setAnswerDigit('hundreds', '3');
+    // The wrong digits open their own card on the next tick; the child closes
+    // it. A card on the screen never changes (owner, 28.9.2026; X22).
+    await new Promise((r) => setTimeout(r, 0));
+    ws().closeHelp();
     const saved = throughDatabase(svc.getSyncableWorkspaceState());
     ws().resetWorkspace();
     ws().restoreSession(saved);
