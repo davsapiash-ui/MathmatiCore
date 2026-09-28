@@ -555,6 +555,8 @@ export interface CaptureOptions {
   screenshotAll: boolean;
   /** Wait before measuring; default 650ms. */
   settleMs?: number;
+  /** Console errors this state is expected to log (a crash the step itself causes). */
+  expectedConsole?: RegExp;
 }
 
 export async function capture(o: CaptureOptions): Promise<StateResult> {
@@ -563,10 +565,10 @@ export async function capture(o: CaptureOptions): Promise<StateResult> {
   await settle(page, o.settleMs);
   const m = await measure(page);
   const consoleErrors = o.ctx.drainConsole();
-  const realErrors = consoleErrors.filter((e) => !isExpectedNoise(e));
+  const realErrors = consoleErrors.filter((e) => !isExpectedNoise(e) && !(o.expectedConsole && o.expectedConsole.test(e)));
   const findings = [...m.findings];
   for (const e of realErrors) {
-    findings.push({ type: 'offscreen', severity: 'high', selector: 'console', text: e.slice(0, 200) });
+    findings.push({ type: 'console-error', severity: 'high', selector: 'console', text: e.slice(0, 200) });
   }
   const hasHigh = findings.some((f) => f.severity === 'high');
   let screenshot: string | undefined;
@@ -637,7 +639,7 @@ export function resetReport(): void {
   fs.mkdirSync(OUT_DIR, { recursive: true });
 }
 
-const HIGH = new Set(['page-scroll-y', 'page-scroll-x', 'needs-scroll', 'clipped', 'offscreen']);
+const HIGH = new Set(['page-scroll-y', 'page-scroll-x', 'needs-scroll', 'clipped', 'offscreen', 'console-error']);
 
 export function worst(findings: Finding[]): Finding | null {
   const order: Finding['severity'][] = ['high', 'medium', 'low'];

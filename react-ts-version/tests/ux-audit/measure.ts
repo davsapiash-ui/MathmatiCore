@@ -26,7 +26,9 @@ export interface Finding {
     | 'occluded'
     | 'small-target'
     | 'tiny-text'
-    | 'no-rtl';
+    | 'no-rtl'
+    /** Added by the harness, not by the page: an unexpected console error or uncaught exception. */
+    | 'console-error';
   severity: 'high' | 'medium' | 'low';
   /** Pixels of overflow / the offending size. */
   px?: number;

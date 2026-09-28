@@ -45,7 +45,7 @@ const SCOPE = ((process.env.UX_AUDIT_SCOPE as Scope) || 'full') as Scope;
 /** `UX_AUDIT_ONLY=<regex>` measures only the states whose id matches — to re-check one screen after a fix. */
 const ONLY = process.env.UX_AUDIT_ONLY ? new RegExp(process.env.UX_AUDIT_ONLY) : null;
 const PRIMARY_VIEWPORT = 'laptop-1366';
-const HIGH = new Set(['page-scroll-y', 'page-scroll-x', 'needs-scroll', 'clipped', 'offscreen']);
+const HIGH = new Set(['page-scroll-y', 'page-scroll-x', 'needs-scroll', 'clipped', 'offscreen', 'console-error']);
 
 interface Step {
   id: string;
@@ -58,6 +58,8 @@ interface Step {
   settleMs?: number;
   /** The step leaves the page reloaded or stuck: the next step navigates afresh. */
   resets?: boolean;
+  /** Console errors this state is expected to log (a crash the step itself causes). */
+  expectedConsole?: RegExp;
 }
 
 const noop = async () => {};
@@ -471,6 +473,8 @@ function enhancedSteps(): Step[] {
  */
 const CRASH = 'try { api.setState({ counts: null }); } catch (e) { /* the render throws; the boundary catches */ }';
 const QUIET_RELOADS_KEY = 'mc_quiet_recovery_reloads';
+/** The crash's own log lines: React's report and the boundary's console.error. */
+const CRASH_CONSOLE = /ErrorBoundary caught|The above error occurred|Cannot read propert|counts|null is not an object|undefined is not an object|Minified React error|Error: Uncaught/i;
 
 function crashSteps(): Step[] {
   return [
@@ -480,6 +484,7 @@ function crashSteps(): Step[] {
       note: 'the first crash: the quiet screen, before its automatic reload',
       settleMs: 350,
       resets: true,
+      expectedConsole: CRASH_CONSOLE,
       run: async (cc) => {
         await gotoWorkspace(cc, 3);
         await ws(cc.page, INIT, { meeting: 3, isASD: false, idx: 0 });
@@ -492,6 +497,7 @@ function crashSteps(): Step[] {
       meeting: 3,
       note: 'the third crash within a minute: the one "נסו שוב" button, no automatic reload',
       resets: true,
+      expectedConsole: CRASH_CONSOLE,
       run: async (cc) => {
         await gotoWorkspace(cc, 3);
         await ws(cc.page, INIT, { meeting: 3, isASD: false, idx: 0 });
@@ -621,7 +627,18 @@ async function runSteps(
         }
         c.drainConsole();
         await step.run(c);
-        results.push(await capture({ viewport, ctx: c, meeting: step.meeting, state: step.id, note: step.note, screenshotAll, settleMs: step.settleMs }));
+        results.push(
+          await capture({
+            viewport,
+            ctx: c,
+            meeting: step.meeting,
+            state: step.id,
+            note: step.note,
+            screenshotAll,
+            settleMs: step.settleMs,
+            expectedConsole: step.expectedConsole,
+          })
+        );
         if (step.resets) {
           currentMeeting = undefined;
           currentUrl = undefined;
