@@ -5,7 +5,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
-const BEE_FLIGHT_MESSAGE_HE = 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים, נמשיך יחד.';
+const BEE_FLIGHT_MESSAGE_HE = 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.';
 
 interface BeeFlightWaitingScreenProps {
   onApproved?: () => void;

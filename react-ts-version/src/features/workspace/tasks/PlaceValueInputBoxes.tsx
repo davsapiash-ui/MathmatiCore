@@ -9,9 +9,10 @@ type BoxPlace = 'hundreds' | 'tens' | 'units';
 const PLACE_LABEL_HE: Record<BoxPlace, string> = { hundreds: 'מאות', tens: 'עשרות', units: 'יחידות' };
 
 /**
- * One square of the exercise sheet: the shared cell of the vertical exercises
- * (`--ws-cell`) where it is defined, and the same fluid size otherwise — by the
- * window's height and width, with no step at any screen size.
+ * One square of the exercise sheet, by the window's height and width with no
+ * step at any screen size. `--ws-cell` is the vertical exercises' shared cell,
+ * which PR #125 defines (index.css); until then the fallback, which is the same
+ * value, applies.
  */
 const CELL = 'var(--ws-cell,clamp(40px,min(7.4vh,5vw),64px))';
 

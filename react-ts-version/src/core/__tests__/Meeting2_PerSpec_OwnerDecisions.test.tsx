@@ -298,7 +298,7 @@ describe('the Hebrew of meeting 2 (ע2.3)', () => {
   it('ע2.3: the bee screen', async () => {
     const { BeeFlightWaitingScreen } = await import('@/presentation/components/student/BeeFlightWaitingScreen');
     const { container } = render(<BeeFlightWaitingScreen />);
-    const msg = 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים, נמשיך יחד.';
+    const msg = 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.';
     expect(container.textContent).toContain(msg);
     expect(screen.getByTestId('speech').getAttribute('data-text')).toBe(msg);
     expect(container.textContent).not.toMatch(/המורה בודק |ומיד נמשיך/);
