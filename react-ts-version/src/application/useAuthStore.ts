@@ -229,6 +229,9 @@ const clearStoredAuth = () => {
       'mc_auth_time',
       'mc_session_data',
       'mc_workspace_state',
+      // X13: the coaching card's 30-second lock is stored per device, not per
+      // learner — left behind, it locked the next learner's card buttons.
+      'mc_socratic_penalty_until',
     ];
     keysToRemove.forEach((k) => {
       try { localStorage.removeItem(k); } catch {}

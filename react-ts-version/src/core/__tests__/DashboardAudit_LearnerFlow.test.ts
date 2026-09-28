@@ -94,7 +94,12 @@ describe('the end of a meeting', () => {
 
   it('a finished meeting is restored as finished, not restarted at exercise 1 (PRD 14 §ג)', () => {
     expect(page).not.toContain("flowStatus !== 'sessionDone'");
-    expect((page.match(/const canRestore = myData\?\.workspaceState\?\.sessionNumber === meeting && Boolean\(myData\?\.workspaceState\?\.flowStatus\);/g) || []).length).toBe(2);
+    // Both initialisation paths restore any saved copy of this meeting — the
+    // newer of the record and the device cache (X55) — whatever its flow.
+    expect((page.match(/const saved = newerWorkspaceSnapshot\(\s*myData\?\.workspaceState,/g) || []).length).toBe(2);
+    const snapshot = src('core/workspaceSnapshot.ts');
+    expect(snapshot).toContain('snapshot!.sessionNumber === meeting && Boolean(snapshot!.flowStatus)');
+    expect(snapshot).not.toContain('sessionDone');
   });
 
   it('no reflection is filed outside meeting 8: the old every-meeting board is gone (owner decision E2, 27.9.2026)', () => {
