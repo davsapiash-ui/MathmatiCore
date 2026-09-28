@@ -4,6 +4,7 @@ import { httpsCallable } from "firebase/functions";
 import { ref, get, set } from "firebase/database";
 import { doc, getDoc, collection, query, where, getDocs, setDoc, deleteDoc } from "firebase/firestore";
 import { extractTeacherId, teacherRecordKey } from "./FirebaseSyncService";
+import { claimsMatchRole } from "./staffRoleClaims";
 
 function isFirestoreAvailable(): boolean {
   if (!firestore) return false;
@@ -47,7 +48,16 @@ export async function removeAuthorizedTeacherFirestore(email: string): Promise<v
  * Strictly enforces an Exact Match query. Domain wildcards or auto-approval for edu-haifa.org.il are strictly prohibited.
  */
 export async function isWhitelistedTeacherEmailAsync(email?: string | null): Promise<boolean> {
-  if (!email) return false;
+  return (await whitelistedStaffRoleAsync(email)) !== null;
+}
+
+/**
+ * The staff role the whitelist grants an address: "admin" (who may sign in as
+ * either role — the owner's dual account, register gap יא), "teacher", or null
+ * when the address is not on the list.
+ */
+export async function whitelistedStaffRoleAsync(email?: string | null): Promise<"teacher" | "admin" | null> {
+  if (!email) return null;
   const normalized = email.toLowerCase().trim();
 
   // The two pilot addresses used to short-circuit this check. They are in
@@ -58,13 +68,18 @@ export async function isWhitelistedTeacherEmailAsync(email?: string | null): Pro
   // Development/Test simulated accounts
   if (import.meta.env.DEV || import.meta.env.MODE === "test") {
     if (normalized === "teacher.demo@edu-haifa.org.il" || normalized === "admin.demo@edu-haifa.org.il" || normalized.endsWith("@local.dev")) {
-      return true;
+      return normalized === "teacher.demo@edu-haifa.org.il" ? "teacher" : "admin";
     }
   }
 
   if (!isFirestoreAvailable()) {
-    return false;
+    return null;
   }
+
+  // The same reading syncUserRoles makes: a listed address is the teacher's
+  // unless its document says admin.
+  const roleOf = (data: Record<string, unknown> | undefined): "teacher" | "admin" =>
+    data?.role === "admin" ? "admin" : "teacher";
 
   // Authoritative Exact Match check against Firestore authorizedTeachers collection
   try {
@@ -73,7 +88,7 @@ export async function isWhitelistedTeacherEmailAsync(email?: string | null): Pro
     if (docSnap.exists()) {
       const data = docSnap.data();
       if (data?.role === "teacher" || data?.role === "admin" || !data?.role) {
-        return true;
+        return roleOf(data);
       }
     }
 
@@ -82,7 +97,7 @@ export async function isWhitelistedTeacherEmailAsync(email?: string | null): Pro
     const q = query(teachersCol, where("email", "==", normalized));
     const querySnap = await getDocs(q);
     if (!querySnap.empty) {
-      return true;
+      return roleOf(querySnap.docs[0]?.data());
     }
   } catch (err) {
     console.warn("Firestore authorizedTeachers exact match check error:", err);
@@ -93,7 +108,7 @@ export async function isWhitelistedTeacherEmailAsync(email?: string | null): Pro
   // every page load creates) and let anyone who wrote a record there pass this
   // check. It is now staff-only (database.rules.json), and authorizedTeachers is
   // the single source, as the admin security screen states.
-  return false;
+  return null;
 }
 
 export function isWhitelistedTeacherEmail(email?: string | null): boolean {
@@ -183,15 +198,19 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
   const user = result.user;
   const email = (user.email || "").toLowerCase().trim();
 
-  const isAuthorized = await isWhitelistedTeacherEmailAsync(email);
+  const listedRole = email ? await whitelistedStaffRoleAsync(email) : null;
+  const isAuthorized = listedRole !== null;
   if (!email || !isAuthorized) {
     await auth.signOut();
-    throw new Error(`גישה נדחתה: כתובת הדוא"ל (${email || "לא זוהתה"}) אינה מוגדרת כמורה במערכת. רק מורים שהוקמו במערכת על ידי מנהל רשאים להיכנס.`);
+    // Module 1 §ג: a refusal names no reason and repeats no address.
+    throw new Error(STAFF_SIGNIN_REFUSED_HE);
   }
 
   // Stamp verified teacher/admin custom claims on the token via Cloud Function.
   // The claims are those of the role chosen for this sign-in only (register,
   // gap יא; PRD Module 24 §ב): an admin sign-in does not carry the teacher's.
+  // The server decides them from the whitelist; the door only asks.
+  let claims: Record<string, unknown> | null = null;
   try {
     const syncCallable = httpsCallable(functions, "syncUserRoles");
     await syncCallable({ role: targetRole });
@@ -199,21 +218,50 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
   } catch (syncErr) {
     console.warn("syncUserRoles error during Google SSO:", syncErr);
   }
+  try {
+    claims = ((await user.getIdTokenResult()).claims ?? null) as Record<string, unknown> | null;
+  } catch {
+    claims = null;
+  }
+
+  // The session's role is the verified one, not the door that was clicked: a
+  // teacher-only address that came in through the admin door is the teacher.
+  const role = verifiedStaffRole(claims, listedRole, targetRole);
 
   const teacherId = extractTeacherId(email, user.uid);
-  const uid = targetRole === "teacher" ? `teacher_${teacherId}` : `admin_${teacherId}`;
+  const uid = role === "teacher" ? `teacher_${teacherId}` : `admin_${teacherId}`;
 
-  if (targetRole === "teacher") {
+  if (role === "teacher") {
     await ensureTeacherRecord(email);
   }
 
   return {
     uid,
     email,
-    displayName: user.displayName || `${targetRole === "teacher" ? "מורה" : "מנהל מערכת"} (${email})`,
-    role: targetRole,
+    displayName: user.displayName || `${role === "teacher" ? "מורה" : "מנהל מערכת"} (${email})`,
+    role,
     whitelistVerified: true
   };
+}
+
+/** The one refusal a staff sign-in shows: no reason, no address. */
+export const STAFF_SIGNIN_REFUSED_HE = "הכניסה נדחתה. לבירור יש לפנות למנהל המערכת.";
+
+/**
+ * The role of a staff session. The token's claims decide (syncUserRoles
+ * stamps them from the whitelist). A token without a single staff role — the
+ * stamping failed, or legacy dual claims — falls back to the whitelist: an
+ * admin address may take the role it asked for (the owner's dual account,
+ * register gap יא); any other listed address is the teacher.
+ */
+export function verifiedStaffRole(
+  claims: Record<string, unknown> | null | undefined,
+  listedRole: "teacher" | "admin",
+  requestedRole: "teacher" | "admin"
+): "teacher" | "admin" {
+  if (claims && claimsMatchRole(claims, "teacher")) return "teacher";
+  if (claims && claimsMatchRole(claims, "admin")) return "admin";
+  return listedRole === "admin" ? requestedRole : "teacher";
 }
 
 /**
@@ -223,7 +271,7 @@ export async function authenticateWhitelistedEmail(email: string, targetRole: "t
   const normalized = email.toLowerCase().trim();
   const isAuthorized = (await isWhitelistedTeacherEmailAsync(normalized)) || isWhitelistedTeacherEmail(normalized);
   if (!isAuthorized) {
-    throw new Error(`גישה נדחתה: כתובת הדוא"ל (${normalized}) אינה מורשית במערכת. רק מורים שהוקמו במערכת רשאים להיכנס.`);
+    throw new Error(STAFF_SIGNIN_REFUSED_HE);
   }
 
   const teacherId = extractTeacherId(normalized, `auth_${normalized.replace(/[^a-zA-Z0-9]/g, "_")}`);

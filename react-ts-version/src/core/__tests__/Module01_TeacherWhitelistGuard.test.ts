@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { isWhitelistedTeacherEmail } from '@/infrastructure/services/AuthService';
+import { isWhitelistedTeacherEmail, STAFF_SIGNIN_REFUSED_HE, verifiedStaffRole } from '@/infrastructure/services/AuthService';
 
 /**
  * PRD Module 1 §ג — teacher authorisation is fail-closed and whitelist-based.
@@ -29,7 +29,8 @@ describe('Module 1: teacher whitelist guard', () => {
     // Google SSO and the direct whitelisted-email path.
     expect((auth.match(/whitelistVerified: true/g) || []).length).toBe(2);
     // …and both do so only after the authoritative async check.
-    expect(auth).toContain('const isAuthorized = await isWhitelistedTeacherEmailAsync(email);');
+    expect(auth).toContain('const listedRole = email ? await whitelistedStaffRoleAsync(email) : null;');
+    expect(auth).toContain('const isAuthorized = listedRole !== null;');
     expect(auth).toContain('(await isWhitelistedTeacherEmailAsync(normalized)) || isWhitelistedTeacherEmail(normalized)');
   });
 
@@ -65,6 +66,34 @@ describe('Module 1: teacher whitelist guard', () => {
     );
     expect(check).toContain('"authorizedTeachers"');
     expect(check).not.toMatch(/ref\(database,\s*['"`]users\/teachers/);
+  });
+
+  it('the session role is the verified one, not the door that was clicked (X38)', () => {
+    const teacherClaims = { role: 'teacher', teacher: true, admin: false };
+    const adminClaims = { role: 'admin', admin: true, teacher: false };
+    // A teacher-only address that came in through the admin door is the teacher.
+    expect(verifiedStaffRole(teacherClaims, 'teacher', 'admin')).toBe('teacher');
+    // The token decides whichever door was clicked.
+    expect(verifiedStaffRole(adminClaims, 'admin', 'teacher')).toBe('admin');
+    // No single staff role on the token (stamping failed, or legacy dual claims):
+    // the whitelist decides. Only an admin address may take the role it asked for.
+    expect(verifiedStaffRole(null, 'teacher', 'admin')).toBe('teacher');
+    expect(verifiedStaffRole({ role: 'admin', admin: true, teacher: true }, 'teacher', 'admin')).toBe('teacher');
+    expect(verifiedStaffRole(null, 'admin', 'teacher')).toBe('teacher');
+    expect(verifiedStaffRole(null, 'admin', 'admin')).toBe('admin');
+    // Login routes and stores the verified role.
+    const login = readFileSync(resolve(__dirname, '../../presentation/pages/Login.tsx'), 'utf-8');
+    const sso = login.slice(login.indexOf('const handleGoogleSSO'), login.indexOf('} catch (err: any) {', login.indexOf('const handleGoogleSSO')));
+    expect(sso).toContain('const role = authenticatedUser.role;');
+    expect(sso).toContain('login(role, authenticatedUser.uid);');
+    expect(sso).toContain('navigate(role === "teacher" ? "/dashboard" : "/admin"');
+    expect(sso).not.toMatch(/login\(targetRole|navigate\(targetRole/);
+  });
+
+  it('a refused Google user sees a generic refusal: no reason, no address (X46)', () => {
+    expect(STAFF_SIGNIN_REFUSED_HE).toBe('הכניסה נדחתה. לבירור יש לפנות למנהל המערכת.');
+    expect(auth).not.toContain('כתובת הדוא"ל (');
+    expect(auth).not.toMatch(/throw new Error\(`[^`]*\$\{(email|normalized)/);
   });
 
   it('a session without the stamp and outside the fallback is still logged out (fail-closed)', () => {

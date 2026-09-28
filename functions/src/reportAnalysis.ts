@@ -1,6 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { GEMINI_MODEL_ID, getGeminiClient } from "./geminiConfig";
-import { SANDBOX_MEETING_PURPOSE_HE, exercisePathType, type ExercisePathType } from "./meetingMetrics";
+import { SANDBOX_MEETING_PURPOSE_HE, exercisePathType, isExerciseEvent, type ExercisePathType } from "./meetingMetrics";
 
 /**
  * PRD Module 23 — layer two of the pedagogical report: the verbal analysis.
@@ -76,6 +76,8 @@ export interface ReportTelemetryEvent {
   exercise_id: string;
   column_index: number | null;
   details: Record<string, unknown>;
+  /** Present when this entry stands for that many identical consecutive events. */
+  count?: number;
 }
 
 export interface GeminiReportRequest {
@@ -195,38 +197,125 @@ export function buildFailedExercises(
 }
 
 /**
+ * The exercises the learner erred on, and the columns each one's regroupings
+ * fell in, taken from the telemetry rather than assumed from the score.
+ *
+ * An exercise counts as erred on when either
+ *   - a DIGIT_ENTERED in it carries is_correct === false, or
+ *   - its PROBLEM_COMPLETE carries error_count > 0.
+ * The second covers the representation exercises: they have no typed result,
+ * and their errors are failed board checks, which the client counts into
+ * error_count (Module 23 §ב, measure 3). Reading wrong digits only left those
+ * exercises out of the engine's input entirely.
+ */
+export function collectFailedExercises(telemetryDocs: Record<string, any>[]): {
+  failedExerciseIds: string[];
+  regroupingColumnsByExercise: Record<string, number[]>;
+} {
+  const failedExerciseIds: string[] = [];
+  const regroupingColumnsByExercise: Record<string, number[]> = {};
+  for (const doc of telemetryDocs) {
+    const exId = String(doc?.exercise_id || "");
+    if (!exId || !isExerciseEvent(doc)) continue;
+    const isWrongDigit =
+      doc.event_type === "DIGIT_ENTERED" && doc.details?.is_correct === false;
+    const errorCount = doc.details?.error_count;
+    const isFailedCompletion =
+      doc.event_type === "PROBLEM_COMPLETE" && typeof errorCount === "number" && errorCount > 0;
+    if ((isWrongDigit || isFailedCompletion) && !failedExerciseIds.includes(exId)) {
+      failedExerciseIds.push(exId);
+    }
+    if (doc.event_type === "REGROUPING_SUCCESS" || doc.event_type === "REGROUPING_TRIGGERED") {
+      const col = doc.column_index;
+      if (typeof col === "number") {
+        const cols = regroupingColumnsByExercise[exId] || [];
+        if (!cols.includes(col)) cols.push(col);
+        regroupingColumnsByExercise[exId] = cols;
+      }
+    }
+  }
+  return { failedExerciseIds, regroupingColumnsByExercise };
+}
+
+/**
+ * The detail fields the engine receives. Every one is a number, a boolean, or
+ * a value from a fixed enum (Appendix A §3) — never free text, so nothing a
+ * learner typed or a name can ride along (Zero-PII, Module 3).
+ */
+const TELEMETRY_DETAIL_KEYS = [
+  "is_correct",
+  "digit_value",
+  "deleted_digit_value",
+  "block_value",
+  "source_column_index",
+  "hesitation_seconds",
+  "regrouping_type",
+  "duration_ms",
+  "trigger_reason",
+  "error_category",
+  "option_id",
+  "reverted_event_type",
+  "undo_stack_depth_before",
+  "reflection_step",
+  "effort_score",
+  "persistence_index",
+  "total_duration_ms",
+  "undo_count",
+  "error_count",
+  "action",
+  "source",
+  "conversion_required",
+  "help_count",
+  "blocks_removed",
+] as const;
+
+/**
  * Reduces raw telemetry documents to the whitelisted event shape the engine
  * receives. Same reasoning as buildFailedExercises: an explicit projection, not
  * a scrub of arbitrary content.
+ *
+ * Module 23 §ב: the engine receives "מלוא נתוני הטלמטריה של הלומד באותו
+ * מפגש". This used to send the first 120 events only, so in a meeting of a
+ * few hundred events the analysis never saw the later exercises — the ones
+ * where a learner who struggles usually struggles most.
+ *
+ * Every event of the meeting is sent. What keeps the input small is
+ * compaction, not truncation: consecutive events that are identical in every
+ * field the engine receives (six drags of a ten into the same column, say)
+ * become one entry with `count`. Nothing is dropped — the sum of the counts is
+ * the number of events — and the order is kept. The model's context window
+ * (about a million tokens for gemini-2.5-flash) is far beyond a meeting; the
+ * real constraint is the 10-second analysis timeout, which grows with input
+ * size, and that is what the compaction serves.
  */
-export function buildTelemetrySummary(
-  telemetryDocs: Record<string, any>[],
-  limit = 120
-): ReportTelemetryEvent[] {
-  return telemetryDocs.slice(0, limit).map((doc) => {
+export function buildTelemetrySummary(telemetryDocs: Record<string, any>[]): ReportTelemetryEvent[] {
+  const out: ReportTelemetryEvent[] = [];
+  let lastKey = "";
+  for (const doc of telemetryDocs) {
     const raw = (doc && typeof doc.details === "object" && doc.details) || {};
     const details: Record<string, unknown> = {};
-    // Only the numeric/boolean measurements the analysis reasons about.
-    for (const key of [
-      "is_correct",
-      "digit_value",
-      "deleted_digit_value",
-      "block_value",
-      "hesitation_seconds",
-      "regrouping_type",
-      "error_category",
-      "duration_ms",
-    ]) {
-      if (raw[key] !== undefined && raw[key] !== null) details[key] = raw[key];
+    for (const key of TELEMETRY_DETAIL_KEYS) {
+      const value = raw[key];
+      if (typeof value === "number" || typeof value === "boolean" || typeof value === "string") {
+        details[key] = value;
+      }
     }
-    return {
+    const event: ReportTelemetryEvent = {
       event_type: String(doc?.event_type || "UNKNOWN"),
       exercise_id: String(doc?.exercise_id || ""),
-      column_index:
-        typeof doc?.column_index === "number" ? doc.column_index : null,
+      column_index: typeof doc?.column_index === "number" ? doc.column_index : null,
       details,
     };
-  });
+    const key = JSON.stringify(event);
+    const previous = out[out.length - 1];
+    if (previous && key === lastKey) {
+      previous.count = (previous.count ?? 1) + 1;
+      continue;
+    }
+    out.push(event);
+    lastKey = key;
+  }
+  return out;
 }
 
 /**
@@ -321,7 +410,7 @@ ${toolsLine}
 תרגילים שבהם נרשמו שגיאות (תבניות מלאות):
 ${JSON.stringify(req.failed_exercises, null, 2)}
 
-רצף אירועי הטלמטריה במפגש:
+רצף כל אירועי הטלמטריה במפגש, לפי סדר התרחשותם (רשומה שיש בה count מייצגת count אירועים זהים רצופים):
 ${JSON.stringify(req.telemetry_summary)}
 
 ${closing}`;

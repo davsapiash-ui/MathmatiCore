@@ -145,6 +145,21 @@ function reportResetFailureAfterBackupStage(err: any, code: string, serverMessag
   }
 }
 
+/**
+ * What the teacher reads when a reset was refused or its backup failed. The
+ * server's own refusals (an HttpsError, code "functions/…") are written in
+ * Hebrew and already say what happened and that nothing was deleted: shown as
+ * they are. Wrapped, the server's "הגיבוי נכשל. האיפוס בוטל…" read "הגיבוי
+ * נכשל: הגיבוי נכשל…", and a refusal that says the backup WAS saved read
+ * "הגיבוי נכשל: הגיבוי נשמר…". Anything else keeps the wrapper.
+ */
+export function resetFailureMessageHe(code: string, serverMessage: string): string {
+  if (code.startsWith('functions/') && /[א-ת]/.test(serverMessage)) return serverMessage;
+  return serverMessage
+    ? `הגיבוי נכשל: ${serverMessage}. האיפוס בוטל ולא נמחקו נתונים.`
+    : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.';
+}
+
 function patchStudentAfterSessionReset(existing: StudentData, sessionNum: number): StudentData {
   return {
     ...existing,
@@ -705,7 +720,7 @@ export const useStore = create<AppState>()(
           }
           reportResetFailureAfterBackupStage(err, code, serverMessage);
           console.error('[Module 23א] Backup failed — class session reset aborted, no data deleted:', err);
-          toast.error(serverMessage ? `הגיבוי נכשל: ${serverMessage}. האיפוס בוטל ולא נמחקו נתונים.` : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          toast.error(resetFailureMessageHe(code, serverMessage));
           throw new Error('BACKUP_FAILED_RESET_ABORTED');
         }
 
@@ -769,7 +784,7 @@ export const useStore = create<AppState>()(
           }
           reportResetFailureAfterBackupStage(err, code, serverMessage);
           console.error('[Module 23א] Backup failed — reset aborted, no data deleted:', err);
-          toast.error(serverMessage ? `הגיבוי נכשל: ${serverMessage}. האיפוס בוטל ולא נמחקו נתונים.` : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          toast.error(resetFailureMessageHe(code, serverMessage));
           throw new Error('BACKUP_FAILED_RESET_ABORTED');
         }
 
@@ -948,7 +963,7 @@ export const useStore = create<AppState>()(
           }
           reportResetFailureAfterBackupStage(err, code, serverMessage);
           console.error('[Module 23א] Backup failed — system reset aborted, no data deleted:', err);
-          toast.error(serverMessage ? `הגיבוי נכשל: ${serverMessage}. האיפוס בוטל ולא נמחקו נתונים.` : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.');
+          toast.error(resetFailureMessageHe(code, serverMessage));
           throw new Error('BACKUP_FAILED_RESET_ABORTED');
         }
 
