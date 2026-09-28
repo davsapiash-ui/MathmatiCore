@@ -30,8 +30,10 @@ import {
   getEffectiveNumber,
   getExpectedBlocks,
   initQFlow,
+  isQFlowComplete,
   isSubtaskActive,
   recordResult,
+  settlePendingQResults,
   type QFlowEvent,
   type QMatrixFlowState,
 } from '@/core/qmatrixFlow';
@@ -1101,10 +1103,30 @@ export function selectCanProceed(s: WorkspaceState): boolean {
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /** Show feedback and auto-hide after ms (nonce-guarded against stale hides). */
+  /**
+   * Which meeting a deferred step belongs to. initSession, restoreSession and
+   * resetWorkspace each start a new one, so a step still waiting behind a
+   * toast never lands in the meeting that came after it: meeting 1's "done"
+   * timer used to end meeting 2 when the teacher opened it within 2.5 seconds,
+   * and resetWorkspace put the nonce back to 0, so the next learner's first
+   * toast could release the previous learner's pending step.
+   */
+  let flowEpoch = 0;
+
+  /** Runs `then` after `ms`, unless a new meeting started in between. */
+  function afterInThisMeeting(ms: number, then: () => void) {
+    const epoch = flowEpoch;
+    setTimeout(() => {
+      if (epoch === flowEpoch) then();
+    }, ms);
+  }
+
   function showFeedback(feedback: FeedbackState, ms: number, then?: () => void) {
     const nonce = get().feedbackNonce + 1;
+    const epoch = flowEpoch;
     set({ feedback, feedbackNonce: nonce });
     setTimeout(() => {
+      if (epoch !== flowEpoch) return;
       if (get().feedbackNonce === nonce) {
         set({ feedback: null });
         then?.();
@@ -1345,9 +1367,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         break;
       // The correction round has no hints and no right/wrong feedback (owner's
       // decision, 25.9.2026): it is still part of the diagnostic.
+      //
+      // The step starts with its toast, not after it. The flow had already
+      // moved to it, so for 1.8 seconds the new step sat on the screen with
+      // the previous step's answer in its boxes — and a reload in that window
+      // kept the old answer there for good (a retry graded on the simpler
+      // exercise's number). The toast now only holds "התקדם" back.
       case 'start_correction':
+        startTask(event.taskId);
+        set({ awaitingNext: true });
         showFeedback({ correct: true, neutral: true, title: 'מְשִׂימָה נוֹסֶפֶת 📝' }, 1800, () => {
-          startTask(event.taskId);
           set({ awaitingNext: false });
         });
         break;
@@ -1364,8 +1393,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         );
         break;
       case 'start_retry':
+        startTask(event.taskId);
+        set({ awaitingNext: true });
         showFeedback({ correct: true, neutral: true, title: 'מְנַסִּים שׁוּב! 🔄', sub: 'הִנֵּה הַמְּשִׂימָה הַמְּקוֹרִית. נַסּוּ לִפְתֹּר אוֹתָהּ כָּעֵת:' }, 1800, () => {
-          startTask(event.taskId);
           set({ awaitingNext: false });
         });
         break;
@@ -1385,101 +1415,126 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         );
         break;
       case 'all_complete':
-        showFeedback({ correct: true, title: 'סִיַּמְתֶּם! 🎉', sub: 'כָּל הַכָּבוֹד עַל הָעֲבוֹדָה הַטּוֹבָה!' }, 2200, () => {
-          // מודול 16 §א: לוח הרפלקציה הוא "בסיום מפגש 8" — שם בלבד. מודול 14
-          // §ב0 ומודול 20: מפגש 2 מסתיים במסך המתנה שקט עד שהמורה מאשרת את
-          // המסלול. הקוד הציג כאן את לוח הרפלקציה המלא, כולל אחוז מדד ההתמדה —
-          // לילד, ברגע שבו מוכרע לאיזה מסלול הוא הולך.
-          set({ flowStatus: 'sessionDone', awaitingNext: false, currentState: 'COMPLETE' });
-          const studentId = useAuthStore.getState().user?.uid;
-          if (studentId) {
-            const store = useStore.getState();
-            store.markMeeting2Complete(studentId);
-            const student = store.students[studentId];
-            if (student) {
-              const r = get().qflow.results;
-              // מודול 20: ערך ריק פירושו "הלומד לא ניגש למשימה" בלבד.
-              // לומד שניגש ונכשל בלי שסווג לו צומת שגיאה נרשם כ-Q_FAIL_TAG,
-              // אחרת כישלון היה נראה למורה בדוח האבחון בדיוק כמו משימה
-              // שהילד מעולם לא הגיע אליה.
-              const getTag = (taskResult: any) => {
-                if (!taskResult) return null;
-                if (taskResult.tag) return taskResult.tag;
-                if (taskResult.correct) return 'success';
-                return Q_FAIL_TAG;
-              };
-              
-              const realQMatrix = {
-                task1_read_write_zero: getTag(r['task1_read_write_zero']),
-                task2_digit_value: getTag(r['task2_digit_value']),
-                task3_subtraction_regrouping: getTag(r['task3_subtraction_regrouping']),
-                task4_decompose_number: getTag(r['task4_decompose_number']),
-                task5_units_to_tens: getTag(r['task5_units_to_tens']),
-                task6_vertical_addition: getTag(r['task6_vertical_addition']),
-                task7_subtraction_zero_tens: getTag(r['task7_subtraction_zero_tens']),
-              };
-              store.updateQMatrix(studentId, realQMatrix);
-              syncQMatrixEvaluation(studentId, realQMatrix).catch(console.error);
-              
-              const mastery = computeCognitiveMastery(realQMatrix);
-              store.updateConceptMastery(studentId, mastery);
-
-              const hesitations = get().hesitationCount;
-              const undos = get().undoCount;
-              const efficiency = Math.max(0, 100 - (undos * 5) - (hesitations * 10));
-              const persistence = get().getPersistenceIndex();
-
-              const realTraceData = { 
-                hesitation_events: hesitations, 
-                undo_clicks: undos,
-                efficiency_score: efficiency,
-                persistence_score: persistence
-              };
-              store.updateTraceData(studentId, realTraceData);
-              const route = CurriculumRouter.evaluateRoute({
-                ...student,
-                qMatrixResults: { ...student.qMatrixResults, ...realQMatrix },
-                conceptMastery: mastery,
-                traceData: realTraceData,
-              });
-              store.setRouteRecommendation(studentId, route);
-
-              // Phase 3: Exact PRD Module 20 & Appendix A §4 Session 2 Scoring & Path Recommendation
-              const compulsoryKeys = [
-                'task1_read_write_zero',
-                'task2_digit_value',
-                'task3_subtraction_regrouping',
-                'task4_decompose_number',
-                'task5_units_to_tens',
-                'task6_vertical_addition',
-                'task7_subtraction_zero_tens',
-              ];
-              // Module 23: "correct on first attempt" means PROBLEM_COMPLETE was not preceded by any DIGIT_ENTERED with is_correct === false.
-              // Events with is_correct === null are ignored entirely.
-              const compulsory_correct_first_attempt = compulsoryKeys.filter(k => {
-                const res = r[k] || (k === 'task1_read_write_zero' ? r['task1_zero_placeholder'] :
-                  k === 'task3_subtraction_regrouping' ? r['task6_subtraction_regrouping'] :
-                  k === 'task4_decompose_number' ? r['task3_flexible_regrouping'] :
-                  k === 'task5_units_to_tens' ? r['task5_small_change'] :
-                  k === 'task6_vertical_addition' ? r['task4_basic_addition_fluency'] :
-                  k === 'task7_subtraction_zero_tens' ? r['task7_missing_subtrahend'] : undefined);
-                return res?.correct === true && res?.had_digit_error !== true;
-              }).length;
-              const session_score_percent = Math.round((compulsory_correct_first_attempt / 7) * 100);
-              const matrix_recommended_path = session_score_percent >= 50 ? 'green_path' : 'remediation_path';
-
-              // The pilot's one class (Module 25 §ב.1) — the same id the learner's
-              // signed claim carries. This used to take activeClass.school_id, so
-              // every SessionDocument said class_id "school_bikorot" and the class
-              // report and the research export, which filtered on "class_1", found none.
-              const classId = 'class_1';
-              firebaseSyncService.syncSession2Completion(studentId, session_score_percent, matrix_recommended_path, classId).catch(console.error);
-            }
-          }
-        });
+        showFeedback({ correct: true, title: 'סִיַּמְתֶּם! 🎉', sub: 'כָּל הַכָּבוֹד עַל הָעֲבוֹדָה הַטּוֹבָה!' }, 2200, finishMeeting2);
         break;
     }
     void s;
+  }
+
+  /**
+   * A meeting-2 snapshot saved inside a toast: the answer was recorded, the
+   * move it was waiting for was not. The move is made now, with a clean step
+   * (startTask), so the answered step never comes back to be answered again —
+   * and a diagnostic whose last answer is in finishes on its end screen.
+   */
+  function settleRestoredDiagnostic() {
+    const { state, moved } = settlePendingQResults(get().qflow);
+    if (moved) set({ qflow: state });
+    if (isQFlowComplete(state)) {
+      finishMeeting2();
+      return;
+    }
+    if (moved) startTask(getCurrentQTask(state)?.id ?? '');
+  }
+
+  /**
+   * The end of meeting 2: the quiet end screen, and the diagnostic recorded
+   * (Q-matrix, score, recommended path). It runs after the toast, and again
+   * from restoreSession when a reload or a sign-out cut the toast short —
+   * that used to leave the child on an empty card with "התקדם" off and the
+   * diagnostic never recorded (Module 14 §ד, Module 20 §ב).
+   */
+  function finishMeeting2() {
+    // מודול 16 §א: לוח הרפלקציה הוא "בסיום מפגש 8" — שם בלבד. מודול 14
+    // §ב0 ומודול 20: מפגש 2 מסתיים במסך המתנה שקט עד שהמורה מאשרת את
+    // המסלול. הקוד הציג כאן את לוח הרפלקציה המלא, כולל אחוז מדד ההתמדה —
+    // לילד, ברגע שבו מוכרע לאיזה מסלול הוא הולך.
+    set({ flowStatus: 'sessionDone', awaitingNext: false, currentState: 'COMPLETE' });
+    const studentId = useAuthStore.getState().user?.uid;
+    if (studentId) {
+      const store = useStore.getState();
+      store.markMeeting2Complete(studentId);
+      const student = store.students[studentId];
+      if (student) {
+        const r = get().qflow.results;
+        // מודול 20: ערך ריק פירושו "הלומד לא ניגש למשימה" בלבד.
+        // לומד שניגש ונכשל בלי שסווג לו צומת שגיאה נרשם כ-Q_FAIL_TAG,
+        // אחרת כישלון היה נראה למורה בדוח האבחון בדיוק כמו משימה
+        // שהילד מעולם לא הגיע אליה.
+        const getTag = (taskResult: any) => {
+          if (!taskResult) return null;
+          if (taskResult.tag) return taskResult.tag;
+          if (taskResult.correct) return 'success';
+          return Q_FAIL_TAG;
+        };
+        
+        const realQMatrix = {
+          task1_read_write_zero: getTag(r['task1_read_write_zero']),
+          task2_digit_value: getTag(r['task2_digit_value']),
+          task3_subtraction_regrouping: getTag(r['task3_subtraction_regrouping']),
+          task4_decompose_number: getTag(r['task4_decompose_number']),
+          task5_units_to_tens: getTag(r['task5_units_to_tens']),
+          task6_vertical_addition: getTag(r['task6_vertical_addition']),
+          task7_subtraction_zero_tens: getTag(r['task7_subtraction_zero_tens']),
+        };
+        store.updateQMatrix(studentId, realQMatrix);
+        syncQMatrixEvaluation(studentId, realQMatrix).catch(console.error);
+        
+        const mastery = computeCognitiveMastery(realQMatrix);
+        store.updateConceptMastery(studentId, mastery);
+
+        const hesitations = get().hesitationCount;
+        const undos = get().undoCount;
+        const efficiency = Math.max(0, 100 - (undos * 5) - (hesitations * 10));
+        const persistence = get().getPersistenceIndex();
+
+        const realTraceData = { 
+          hesitation_events: hesitations, 
+          undo_clicks: undos,
+          efficiency_score: efficiency,
+          persistence_score: persistence
+        };
+        store.updateTraceData(studentId, realTraceData);
+        const route = CurriculumRouter.evaluateRoute({
+          ...student,
+          qMatrixResults: { ...student.qMatrixResults, ...realQMatrix },
+          conceptMastery: mastery,
+          traceData: realTraceData,
+        });
+        store.setRouteRecommendation(studentId, route);
+
+        // Phase 3: Exact PRD Module 20 & Appendix A §4 Session 2 Scoring & Path Recommendation
+        const compulsoryKeys = [
+          'task1_read_write_zero',
+          'task2_digit_value',
+          'task3_subtraction_regrouping',
+          'task4_decompose_number',
+          'task5_units_to_tens',
+          'task6_vertical_addition',
+          'task7_subtraction_zero_tens',
+        ];
+        // Module 23: "correct on first attempt" means PROBLEM_COMPLETE was not preceded by any DIGIT_ENTERED with is_correct === false.
+        // Events with is_correct === null are ignored entirely.
+        const compulsory_correct_first_attempt = compulsoryKeys.filter(k => {
+          const res = r[k] || (k === 'task1_read_write_zero' ? r['task1_zero_placeholder'] :
+            k === 'task3_subtraction_regrouping' ? r['task6_subtraction_regrouping'] :
+            k === 'task4_decompose_number' ? r['task3_flexible_regrouping'] :
+            k === 'task5_units_to_tens' ? r['task5_small_change'] :
+            k === 'task6_vertical_addition' ? r['task4_basic_addition_fluency'] :
+            k === 'task7_subtraction_zero_tens' ? r['task7_missing_subtrahend'] : undefined);
+          return res?.correct === true && res?.had_digit_error !== true;
+        }).length;
+        const session_score_percent = Math.round((compulsory_correct_first_attempt / 7) * 100);
+        const matrix_recommended_path = session_score_percent >= 50 ? 'green_path' : 'remediation_path';
+
+        // The pilot's one class (Module 25 §ב.1) — the same id the learner's
+        // signed claim carries. This used to take activeClass.school_id, so
+        // every SessionDocument said class_id "school_bikorot" and the class
+        // report and the research export, which filtered on "class_1", found none.
+        const classId = 'class_1';
+        firebaseSyncService.syncSession2Completion(studentId, session_score_percent, matrix_recommended_path, classId).catch(console.error);
+      }
+    }
   }
 
   /**
@@ -1951,7 +2006,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // The end used to be the toast’s callback, which runs only if no newer
       // toast appeared: the help button’s toast in those 2.5 seconds left
       // "התקדם" off and the meeting unfinished until a reload (PRD Module 14).
-      setTimeout(() => set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false }), 2500);
+      afterInThisMeeting(2500, () => set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false }));
       return;
     }
 
@@ -2009,7 +2064,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // The end used to be the toast’s callback, which runs only if no newer
     // toast appeared: the help button’s toast in those 2.5 seconds left
     // "התקדם" off and the meeting unfinished until a reload (PRD Module 14).
-    setTimeout(() => set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false }), 2500);
+    afterInThisMeeting(2500, () => set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false }));
   }
 
   /** Session-2 proceed (vanilla handleQTaskProceed, app.js 1112–1162). */
@@ -2240,6 +2295,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     initSession: (meeting, isASD, startingTaskIdx, existingDeadline) => {
+      flowEpoch++;
       const sanitized = sanitizeSessionNumber(meeting);
       // PRD v7.1 Module 26: promote pending curriculum-catalog updates only at
       // session initialization — a live exercise is never disturbed.
@@ -2376,6 +2432,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     restoreSession: (saved) => {
       if (!saved) return;
+      flowEpoch++;
       const storedDeadline = getStoredSocraticLockDeadline();
       const sanitized = sanitizeSessionNumber(saved.sessionNumber);
       // PRD Module 14 §ב — the same table initSession uses: meeting 1 is 20
@@ -2487,6 +2544,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       });
       // A reload is a task start too (Module 19 §ב).
       applyPendingSupportProfile();
+      if (sanitized === 2 && get().flowStatus === 'task') settleRestoredDiagnostic();
     },
 
     injectTask: (task, position) => {
@@ -3631,6 +3689,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
     resetWorkspace: () => {
+      flowEpoch++;
       set({
         sessionNumber: 1,
         isASD: false,

@@ -91,7 +91,11 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
 
   const activeTaskCount = useWorkspaceStore((s) => getActiveTasks(s).length);
   const totalTasks = sessionNumber === 2 ? TASKS.length : activeTaskCount;
-  const currentIdx = sessionNumber === 2 ? Math.min(qflow.taskIdx, TASKS.length - 1) : standardTaskIdx;
+  // The correction round comes after all seven tasks: every dot stays done.
+  // It used to jump back to the failed task, as if the tasks after it were undone.
+  const currentIdx = sessionNumber === 2
+    ? (qflow.phase === 'correction' ? TASKS.length : Math.min(qflow.taskIdx, TASKS.length - 1))
+    : standardTaskIdx;
 
   return (
     <nav className="relative h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-flw-12-20 gap-flw-8-16 z-20 ws-topbar">
