@@ -173,6 +173,16 @@ describe('שלב 3 — משפט עידוד לפי מדד ההתמדה של מפ�
     expect(onComplete).toHaveBeenCalledTimes(2);
   });
 
+  it('שמירה שנזרקה: הכפתור פעיל שוב', async () => {
+    const onComplete = vi.fn(() => Promise.reject(new Error('boom')));
+    toStep3(onComplete);
+    const finish = screen.getByRole('button', { name: /סיום התחנה/ }) as HTMLButtonElement;
+    await act(async () => {
+      fireEvent.click(finish);
+    });
+    expect(finish.disabled).toBe(false);
+  });
+
   it('שמירה שהצליחה: הכפתור אינו נלחץ פעם שנייה', async () => {
     const onComplete = vi.fn(() => Promise.resolve(true));
     toStep3(onComplete);

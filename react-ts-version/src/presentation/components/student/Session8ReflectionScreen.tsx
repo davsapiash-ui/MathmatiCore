@@ -60,7 +60,7 @@ export const REFLECTION_TEXT_HE = {
   finish: 'סיום התחנה',
   // Shown only when the reflection could be neither saved nor queued: it says
   // what to do — press the same button again, or call the teacher.
-  notSaved: 'לא הצלחנו לשמור. לחצו שוב על "סיום התחנה". אם זה לא עוזר, קראו למורה.',
+  notSaved: 'לא הצלחנו לשמור. לחצו שוב על "סיום התחנה". אם זה לא עוזר, בקשו עזרה מהמורה.',
 } as const;
 
 /** שלוש רמות המאמץ: סמל חזותי בלבד על המסך; השם (מסמך 03) להקראה ולקורא מסך. */
@@ -146,9 +146,13 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
       undoCount: U,
       errorCount: E,
       guessCount: G,
-    })).then((done) => {
-      if (done === false) setIsSubmitting(false);
-    });
+    })).then(
+      (done) => {
+        if (done === false) setIsSubmitting(false);
+      },
+      // A save that threw is a save that failed: the button works again.
+      () => setIsSubmitting(false),
+    );
   };
 
   return (
