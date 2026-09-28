@@ -774,13 +774,19 @@ export class FirebaseSyncService {
   public async syncTraceData(rawStudentId: string, traceDataUpdates: Partial<TraceData>) {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
-    const traceRef = ref(database, `users/students/${studentId}/traceData`);
-    await update(traceRef, traceDataUpdates).catch((err) => {
+    // PRD 18: at most one write per second to the learner record. traceData is
+    // logged on every digit and block action, so it joins the same throttled
+    // window as every other lesson-time write (as `traceData/<field>` keys).
+    const fields: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(traceDataUpdates)) fields[`traceData/${k}`] = v;
+    if (Object.keys(fields).length === 0) return;
+    // Not awaited: the window resolves up to a second later, and no caller
+    // needs to wait for it (the live telemetry update does the same).
+    throttledRtdbUpdate(`users/students/${studentId}`, fields).catch((err) => {
       console.error(`[FirebaseSyncService] Failed to sync trace data for ${studentId}:`, err);
-      throw err;
     });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}/traceData`), traceDataUpdates).catch((err) => {
+      throttledRtdbUpdate(`users/students/${rawStudentId}`, fields).catch((err) => {
         console.warn(`[FirebaseSyncService] Legacy trace data mirror notice for ${rawStudentId}:`, err);
       });
     }
