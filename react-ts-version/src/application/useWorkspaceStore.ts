@@ -2582,7 +2582,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }).catch(console.error);
         } else if (input.target.kind === 'column') {
           const targetColIdx = placeToColumnIndex(input.target.place);
-          const sourceColIdx = input.sourcePlace ? placeToColumnIndex(input.sourcePlace) : null;
+          // A palette block left no column: its source is null (types/telemetry.ts).
+          // It used to carry its own place, so a unit added to the units column
+          // logged the same column twice — the shape of a drop into the trash —
+          // and the report counted every block taken from the palette as a use
+          // of the trash (owner, 28.9.2026: "אי מצב שהשתמשתי בפח 85 פעם").
+          const sourceColIdx = input.source === 'column' ? placeToColumnIndex(input.sourcePlace) : null;
           const blockVal = input.target.place === 'thousands' ? 1000 : input.target.place === 'hundreds' ? 100 : input.target.place === 'tens' ? 10 : 1;
           emitTelemetry({
             session_id: sessionId,
