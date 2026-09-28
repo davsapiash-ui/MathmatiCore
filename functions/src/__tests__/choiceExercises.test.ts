@@ -97,8 +97,8 @@ describe('the individual report', () => {
     expect(compulsory[6]).toMatch(/^בתרגיל השביעי \(s4_g_t7\)/);
     expect(compulsory.join(' ')).not.toMatch(/השמיני|התשיעי|reinforce|challenge/);
     expect(choice).toEqual([
-      `${CHOICE_PATH_LABEL_HE.consolidation} (s4_g_reinforce_1): הלומד והשלים את התרגיל בניסיון הראשון.`,
-      expect.stringMatching(/^תרגיל בחירה — נתיב האתגר והעומק \(s4_g_challenge_1\): הלומד הזין ספרות שגויות.*והשלים את התרגיל לאחר תיקון\.$/),
+      `${CHOICE_PATH_LABEL_HE.consolidation} (s4_g_reinforce_1): הלומד השלים את התרגיל בניסיון הראשון.`,
+      `${CHOICE_PATH_LABEL_HE.challenge} (s4_g_challenge_1): הלומד הזין ספרה שגויה (פעם אחת), והשלים את התרגיל לאחר תיקון.`,
     ]);
   });
 
