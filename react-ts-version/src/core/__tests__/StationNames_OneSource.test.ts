@@ -286,7 +286,7 @@ describe('the child reads "בית המספרים" and "לבנים"', () => {
 
   it('the board button and the lock notice name the board', () => {
     const topbar = code('features/workspace/WorkspaceTopbar.tsx');
-    expect(topbar).toContain('{boardOpen ? "הסתרת בית המספרים" : "הצגת בית המספרים"}');
+    expect(topbar).toContain("staysOpen ? BOARD_OPEN_HE : boardOpen ? 'הסתרת בית המספרים' : 'הצגת בית המספרים'");
     expect(code('features/workspace/board/PlaceValueBoard.tsx')).toContain('בית המספרים נעול זמנית על ידי המורה');
   });
 

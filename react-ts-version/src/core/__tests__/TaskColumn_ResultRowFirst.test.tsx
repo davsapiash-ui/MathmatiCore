@@ -64,21 +64,29 @@ describe('meeting 1, the target task', () => {
     render(<TaskCard />);
     const texts = screen.getAllByTestId('speech').map((e) => e.getAttribute('data-text'));
     expect(texts).toContain(SESSION1_TASKS[at('s1_target_347')].instructionHe);
-    expect(texts.some((t) => t?.startsWith('בנו את המספר 347 בלבני דינס.'))).toBe(true);
+    expect(texts.some((t) => t?.startsWith('בנו את המספר 347 בלבנים.'))).toBe(true);
   });
 });
 
-describe('other representation exercises: the "בנו בלוח בדיוק" box is extra content, after the row', () => {
-  it('meeting 7', () => {
-    const idx = getSessionTasks(7, 'green_path').findIndex((t) => t.type === 'representation' && !t.hideRequiredCounts);
-    expect(idx).toBeGreaterThanOrEqual(0);
-    ws().initSession(7, false, idx);
-    render(<TaskCard />);
-    const row = screen.getByTestId('result-row');
-    const box = [...screen.getByTestId('task-column').querySelectorAll('p')].find((p) => p.textContent === 'בנו בלוח בדיוק:')!;
-    expect(box).toBeTruthy();
-    expect(follows(row, box)).toBe(true);
-  });
+describe('other representation exercises: no "בנו בלוח בדיוק / בלוח כרגע" box (owner, 28.9.2026)', () => {
+  for (const meeting of [3, 4, 7] as const) {
+    for (const path of ['green_path', 'remediation_path'] as const) {
+      it(`meeting ${meeting}, ${path}: every representation exercise has its result row and no box`, () => {
+        const tasks = getSessionTasks(meeting, path);
+        tasks.forEach((t, idx) => {
+          if (t.type !== 'representation') return;
+          cleanup();
+          ws().initSession(meeting, false, idx);
+          render(<TaskCard />);
+          expect(screen.getByTestId('result-row')).toBeTruthy();
+          const text = screen.getByTestId('task-column').textContent ?? '';
+          expect(text, t.id).not.toContain('בנו בלוח בדיוק');
+          expect(text, t.id).not.toContain('בלוח כרגע');
+          expect(text, t.id).not.toContain('הלוח תואם');
+        });
+      });
+    }
+  }
 });
 
 describe('the layout that keeps the row in view (source)', () => {

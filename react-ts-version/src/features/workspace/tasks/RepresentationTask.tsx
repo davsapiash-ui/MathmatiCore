@@ -1,6 +1,6 @@
 import { useRef } from 'react';
-import { useWorkspaceStore, requiredCountsOf } from '@/application/useWorkspaceStore';
-import { PLACE_ORDER, PLACE_NAMES_HE, countsEqual, describeCountsHe, type Place } from '@/core/placeValue';
+import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { PLACE_ORDER, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import type { SessionTask } from '@/data/sessionTasks';
 import { session1Checklist, session1DoneNoteHe } from '@/core/session1Checklist';
 import { Session1ChecklistCard } from './Session1ChecklistCard';
@@ -28,13 +28,11 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
   const isRepresentationInputLocked = useWorkspaceStore((s) => s.isRepresentationInputLocked);
   const hasUngrouped = useWorkspaceStore((s) => s.hasUngrouped);
   // Meeting 1's target task (מסמך 03 §3.1 step 6) is a guided step: its
-  // instruction as a checklist, the rule "התקדם" follows.
+  // instruction as a checklist, the rule the proceed button follows.
   const checklist = session1Checklist(task.id, { counts, answerDigits, hasUngrouped, blocksAddedCount: 0, undoCount: 0, hasClearedBoard: false });
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const value = task.numberA ?? 0;
-  const required = requiredCountsOf(task);
-  const boardMatches = countsEqual(counts, required);
   const locked = isRepresentationInputLocked();
 
   // Result row: one square per digit of the number, high place on the left.
@@ -85,23 +83,9 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
         ))}
       </div>
 
-      {/* Meeting 1 (hideRequiredCounts): no box at all. The board to build is
-          what the learner finds, the place-value board already shows every
-          column, and the step's checklist says what is done. Elsewhere the box
-          is extra content, so it comes after the result row. */}
-      {!task.hideRequiredCounts && (
-        <div
-          className="shrink-0 rounded-2xl px-6 py-4 short:py-2.5 border text-center max-w-md"
-          style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.45)', borderColor: 'hsl(var(--ws-blue) / 0.45)' }}
-          aria-live="polite"
-        >
-          <p className="text-sm font-bold text-ws-soft mb-1">בנו בלוח בדיוק:</p>
-          <p className="text-xl short:text-lg font-black text-ws-ink">{describeCountsHe(required)}</p>
-          <p className={`mt-2 short:mt-1 text-sm font-bold ${boardMatches ? 'text-ws-success' : 'text-ws-soft'}`}>
-            {boardMatches ? '✓ הלוח תואם — כתבו את המספר בשורת התוצאה' : `בלוח כרגע: ${describeCountsHe(counts)}`}
-          </p>
-        </div>
-      )}
+      {/* No box listing the blocks to build and the blocks now on the board
+          (owner, 28.9.2026): it is in no document. The instruction names what
+          to build, and the number house shows every column. */}
 
       {/* Meeting 1's target task: the checklist after the result row. It is
           the one part of the column that scrolls when the screen is short. */}

@@ -37,12 +37,12 @@ export function SessionClosedOverlay() {
         </motion.div>
         <div className="flex flex-col gap-2">
           <h2 className="font-display font-black text-2xl text-slate-800 dark:text-slate-100">
-            המורה סגרה את המפגש
+            המורה סגרה את התחנה
           </h2>
           <p className="text-base text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-            העבודה שלכם נשמרה בבטחה. כשהמורה תפתח מפגש חדש, הפעילות תתחדש כאן מיד.
+            העבודה שלכם נשמרה בבטחה. כשהמורה תפתח תחנה חדשה, הפעילות תתחדש כאן מיד.
           </p>
-          <UdlSpeechButton text="המורה סגרה את המפגש. העבודה שלכם נשמרה בבטחה. כשהמורה תפתח מפגש חדש, הפעילות תתחדש כאן מיד." className="self-center" />
+          <UdlSpeechButton text="המורה סגרה את התחנה. העבודה שלכם נשמרה בבטחה. כשהמורה תפתח תחנה חדשה, הפעילות תתחדש כאן מיד." className="self-center" />
         </div>
         <div className="flex items-center gap-2 pt-1" aria-hidden="true">
           {[0, 1, 2].map((i) => (

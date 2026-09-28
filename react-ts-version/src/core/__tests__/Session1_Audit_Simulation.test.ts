@@ -325,11 +325,12 @@ describe('2. typical mistakes: is there always a way forward?', () => {
     tap('hundreds', 3); tap('tens', 3); tap('units', 17);
     typeNumber(347);
     const done = () => session1Checklist('s1_target_347', ws() as any)!.map((i) => i.done);
-    expect(done()).toEqual([true, false, true]);
+    // The third line waits for the decomposition line (owner, 28.9.2026).
+    expect(done()).toEqual([true, false, false]);
     // The child does what the pending item says: decompose a ten.
     split('tens');
     expect(ws().counts).toEqual(counts({ hundreds: 3, tens: 2, units: 27 }));
-    expect(done()).toEqual([true, false, true]); // still ⏳ — the board is no longer 3/3/17
+    expect(done()).toEqual([true, false, false]); // still ⏳ — the board is no longer 3/3/17
     // Way out: group the units back (the button is showing: 27 ≥ 10).
     group('units');
     expect(done()).toEqual([true, true, true]);

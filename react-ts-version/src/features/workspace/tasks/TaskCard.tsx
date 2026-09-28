@@ -15,6 +15,7 @@ import { SmallChangeTask } from './SmallChangeTask';
 import { BackwardDiagnosisView } from './BackwardDiagnosisView';
 
 import { PlaceValueInputBoxes } from './PlaceValueInputBoxes';
+import { FeedbackToast } from '../overlays/FeedbackToast';
 
 /**
  * כרטיס המשימה — כותרת, הוראה (עם הקראה), וגוף דינמי לפי סוג המשימה והשלב.
@@ -141,6 +142,8 @@ export function TaskCard() {
                 isSubtraction={standardTask.isSubtraction}
               />
             )}
+            {/* The feedback, under the exercise: in view, covering nothing (report row 1.15). */}
+            {sessionNumber !== 8 && <FeedbackToast placement="inline" />}
           </>
         )}
 

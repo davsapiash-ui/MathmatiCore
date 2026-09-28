@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
  */
 export function ProgressDots({ total, current }: { total: number; current: number }) {
   return (
-    <div className="flex gap-2.5 items-center" aria-hidden="true">
+    <div className="flex gap-1.5 xl:gap-2.5 items-center" aria-hidden="true">
       {Array.from({ length: total }).map((_, i) => {
         const done = i < current;
         const active = i === current;

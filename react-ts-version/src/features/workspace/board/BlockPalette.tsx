@@ -130,7 +130,7 @@ export function BlockPalette({ scaffoldLevel, compact = false }: { scaffoldLevel
             ארגז כלים
           </span>
           <span className="text-[10px] font-bold text-slate-400 leading-none">
-            לבני דינס
+            לבנים
           </span>
         </div>
       </div>

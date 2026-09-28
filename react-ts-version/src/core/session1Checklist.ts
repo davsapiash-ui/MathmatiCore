@@ -58,7 +58,7 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
     case 's1_build_305': {
       const is305 = boardValue(s.counts) === 305;
       const standard = countsEqual(s.counts, { ...EMPTY_COUNTS, hundreds: 3, units: 5 });
-      const items: Session1ChecklistItem[] = [{ label: 'נסו לבנות את המספר 305 בלבני דינס', done: is305 }];
+      const items: Session1ChecklistItem[] = [{ label: 'נסו לבנות את המספר 305 בלבנים', done: is305 }];
       if (is305 && !standard) items.push({ label: 'רוקנו את טור העשרות, כדי שבבית המספרים תופיע בו הספרה אפס', done: false });
       return items;
     }
@@ -72,10 +72,14 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
     // line is the owner's wording of 27.9.2026 (register decision י).
     case 's1_target_347': {
       const is347 = boardValue(s.counts) === 347;
+      const decomposed = s.hasUngrouped && countsEqual(s.counts, { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 });
       return [
-        { label: 'בנו את המספר 347 בלבני דינס', done: is347 },
-        { label: 'פרטו עשרת אחת לעשר יחידות', done: s.hasUngrouped && countsEqual(s.counts, { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 }) },
-        { label: 'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה', done: typedNumber(s.answerDigits) === 347 },
+        { label: 'בנו את המספר 347 בלבנים', done: is347 },
+        { label: 'פרטו עשרת אחת לעשר יחידות', done: decomposed },
+        // The line asks for the number "לאחר הפריטה": 347 typed before the
+        // decomposition is not that answer yet, so it is ticked only once the
+        // decomposition line is (owner, 28.9.2026).
+        { label: 'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה', done: decomposed && typedNumber(s.answerDigits) === 347 },
       ];
     }
     default:

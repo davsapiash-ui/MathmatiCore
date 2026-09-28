@@ -1,20 +1,24 @@
 import { motion } from 'framer-motion';
 import type { Session1ChecklistItem } from '@/core/session1Checklist';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { PROCEED_HE, PROCEED_SENTENCE_HE, proceedSentenceHe } from '@/core/toolbarNames';
 
 /**
  * מפגש 1 — the checklist of a guided step (מסמך 03 §3.1): what the step asks,
- * ticked off as the learner acts. "התקדם" lights up when every item is done
+ * ticked off as the learner acts. The proceed button lights up when every item is done
  * (the store applies the same rule, core/session1Checklist.ts).
  *
  * `doneNote` (session1DoneNoteHe) is said first once every item is done — the
  * target task's "נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 347." (owner,
  * 27.9.2026). It carries the praise itself, so it takes the place of
  * "✨ מצוין!": one praise, then what to press.
+ *
+ * The sentence on the screen and the one read aloud are built from the same
+ * halves and the button's own name (core/toolbarNames), so they cannot drift.
  */
 export function Session1ChecklistCard({ items, doneNote = null }: { items: Session1ChecklistItem[]; doneNote?: string | null }) {
   const allDone = items.every((i) => i.done);
-  const proceedHe = 'לחצו על כפתור התקדם בסרגל העליון כדי לעבור לשלב הבא!';
+  const proceedHe = proceedSentenceHe();
   return (
     <div className="flex flex-col gap-4 short:gap-2.5 bg-ws-surface p-6 short:p-4 tiny:p-3 rounded-2xl border border-ws-surface2 shadow-sm" data-testid="session1-checklist">
       <div className="flex items-center justify-between gap-3 mb-1 short:mb-0">
@@ -65,13 +69,17 @@ export function Session1ChecklistCard({ items, doneNote = null }: { items: Sessi
           {doneNote && (
             <div className="flex items-center justify-center gap-2 mb-2">
               <span className="text-emerald-800 font-black text-base">{doneNote}</span>
-              {/* PRD Module 24: the sentence is read aloud on the child's click only. */}
-              <UdlSpeechButton text={`${doneNote} ${proceedHe}`} className="shrink-0" />
             </div>
           )}
-          <span className="text-emerald-800 font-black block text-base">
-            {doneNote ? '' : '✨ מצוין! '}לחצו על כפתור <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-lg">התקדם ←</span> בסרגל העליון כדי לעבור לשלב הבא!
-          </span>
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-emerald-800 font-black block text-base" data-testid="proceed-sentence">
+              {doneNote ? '' : '✨ מצוין! '}{PROCEED_SENTENCE_HE.before}{' '}
+              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-lg" data-testid="proceed-chip">{PROCEED_HE} <span aria-hidden="true">←</span></span>{' '}
+              {PROCEED_SENTENCE_HE.after}
+            </span>
+            {/* PRD Module 24: what the box says is read aloud on the child's click only. */}
+            <UdlSpeechButton text={doneNote ? `${doneNote} ${proceedHe}` : `מצוין! ${proceedHe}`} className="shrink-0" />
+          </div>
         </motion.div>
       )}
     </div>

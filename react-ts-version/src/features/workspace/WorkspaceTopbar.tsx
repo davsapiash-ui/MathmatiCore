@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { currentStudentNumber, currentStudentUid } from '@/application/useAuthStore';
 import { useWorkspaceStore, selectCanProceed, getActiveTasks, selectBoardOpen } from '@/application/useWorkspaceStore';
-import { BOARD_STAYS_OPEN_HE, boardStaysOpen } from '@/core/boardVisibility';
+import { BOARD_OPEN_HE, BOARD_STAYS_OPEN_HE, boardStaysOpen } from '@/core/boardVisibility';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
@@ -10,6 +10,7 @@ import { RotateCcw, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff, Hand
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { Logo } from '@/presentation/components/ui/Logo';
 import { indexedDBQueue, type QueueSyncState } from '@/infrastructure/services/IndexedDBQueue';
+import { PROCEED_ARIA_HE, PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames';
 
 /**
  * הסרגל העליון של מרחב הפעילות.
@@ -22,6 +23,11 @@ import { indexedDBQueue, type QueueSyncState } from '@/infrastructure/services/I
  *    board toggle and the chat button stay exactly as they were.
  *  - "כפתור חזור ללובי ממוקם תמיד בפינה השמאלית העליונה" — the lobby button is
  *    the last element, alone in the left corner (RTL end).
+ *  - Every button is fully on the screen at 1024 px wide (a tablet, מסמך 03),
+ *    in every meeting (owner, 28.9.2026). Below 1280 px the bar tightens: the
+ *    logo keeps its badge only, the learner's badge keeps its number, and
+ *    "יציאה" keeps its icon (its name stays in aria-label and title). The row
+ *    no longer scrolls sideways — a hidden scroll is how "התקדם" disappeared.
  * No time indicator anywhere (visible timers are forbidden).
  * Undo is exactly 48x48px per PRD Module 11.
  */
@@ -29,10 +35,10 @@ interface WorkspaceTopbarProps {
   isDragging?: boolean;
 }
 
-/** מודול 17 §ד: what the cloud says in each sync state (read aloud and on hover). */
 /** How long the station-1 note under the board button stays (long enough to hear it read aloud). */
 const STAYS_OPEN_NOTE_MS = 10_000;
 
+/** מודול 17 §ד: what the cloud says in each sync state (read aloud and on hover). */
 const CLOUD_STATUS_LABEL: Record<QueueSyncState, string> = {
   synced: 'מחובר. העבודה שלכם נשמרה.',
   pending: 'מחובר. העבודה שלכם נשמרת ותישלח בעוד רגע.',
@@ -69,6 +75,9 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   useEffect(() => {
     if (!staysOpen) setStaysOpenNote(null);
   }, [staysOpen]);
+  // Station 1 names what the board is — open — since pressing cannot hide it
+  // (owner, 28.9.2026). Elsewhere the button names what a press does.
+  const boardButtonHe = staysOpen ? BOARD_OPEN_HE : boardOpen ? 'הסתרת בית המספרים' : 'הצגת בית המספרים';
   const undo = useWorkspaceStore((s) => s.undo);
   const proceed = useWorkspaceStore((s) => s.proceed);
   const toggleBoard = useWorkspaceStore((s) => s.toggleBoard);
@@ -82,21 +91,22 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const currentIdx = sessionNumber === 2 ? Math.min(qflow.taskIdx, TASKS.length - 1) : standardTaskIdx;
 
   return (
-    <nav className="relative h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-5 gap-4 z-20">
+    <nav className="relative h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-3 xl:px-5 gap-2 xl:gap-4 z-20">
       {/* Brand + Student Identity + Silent Cloud Status Icon */}
-      <div className="flex items-center gap-3 shrink-0">
-        <Logo size="md" subtitle="מרחב חקר אישי" />
+      <div className="flex items-center gap-2 xl:gap-3 shrink-0">
+        <span className="hidden xl:inline-flex"><Logo size="md" subtitle="מרחב חקר אישי" /></span>
+        <span className="inline-flex xl:hidden"><Logo size="md" showText={false} /></span>
 
         {/* מודול 1 ו-6: תג זהות אנונימי. המספר נגזר מ-student_id שאומת
             בכניסה — לא מניקוי ספרות ממזהה ה-Auth, שהיה מציג "תלמיד 1"
             לכל לומד שמזההו לא נפתר. */}
         {studentNumber !== null && (
-          <div className="flex items-center gap-2 bg-ws-accentSoft border border-ws-accent/25 px-3 py-1.5 rounded-xl shadow-xs">
-            <div className="w-6 h-6 rounded-lg bg-ws-accent text-white flex items-center justify-center font-black text-xs">
+          <div className="flex items-center gap-2 bg-ws-accentSoft border border-ws-accent/25 px-2 xl:px-3 py-1.5 rounded-xl shadow-xs" title={studentBadgeHe(studentNumber)} data-testid="student-badge">
+            <div aria-hidden="true" className="w-6 h-6 rounded-lg bg-ws-accent text-white flex items-center justify-center font-black text-xs">
               {studentNumber}
             </div>
-            <span className="text-xs font-black text-ws-ink">
-              תלמיד {studentNumber}
+            <span className="sr-only xl:not-sr-only text-xs font-black text-ws-ink whitespace-nowrap">
+              {studentBadgeHe(studentNumber)}
             </span>
           </div>
         )}
@@ -125,12 +135,12 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
       </div>
 
       {/* Progress */}
-      <div className="mx-auto bg-ws-bg rounded-full px-4 py-2 border border-ws-surface2" role="progressbar" aria-label="התקדמות במשימות">
+      <div className="mx-auto min-w-0 bg-ws-bg rounded-full px-3 xl:px-4 py-2 border border-ws-surface2" role="progressbar" aria-label="התקדמות במשימות">
         <ProgressDots total={totalTasks} current={currentIdx} />
       </div>
 
       {/* Actions */}
-      <div id="tour-action-buttons" className="flex items-center gap-2 sm:gap-3 shrink-0 bg-ws-surface/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm max-w-full overflow-x-auto no-scrollbar">
+      <div id="tour-action-buttons" className="flex items-center gap-1.5 xl:gap-3 shrink-0 bg-ws-surface/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm">
         {/* Undo Button (Module 11: 48x48px exact).
             It used to be hidden in meeting 8, where the blocks are gone and
             typing is all there is. PRD Module 12 §א makes meeting 8 the ONE
@@ -174,7 +184,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           <button
             type="button"
             onClick={staysOpen ? showStaysOpenNote : toggleBoard}
-            className={`h-12 px-4 rounded-2xl text-sm font-bold transition-all flex items-center gap-1.5 border shadow-sm ${
+            className={`h-12 px-3 xl:px-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border shadow-sm ${
               staysOpen
                 ? 'bg-indigo-50/60 border-indigo-200/70 text-indigo-700/60 dark:bg-indigo-950/30 dark:border-indigo-800/60 dark:text-indigo-300/60 cursor-help'
                 : boardOpen
@@ -183,12 +193,13 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
             }`}
             aria-disabled={staysOpen ? true : undefined}
             aria-describedby={staysOpen && staysOpenNote !== null ? 'board-stays-open-note' : undefined}
-            aria-label={boardOpen ? "הסתרת בית המספרים" : "הצגת בית המספרים"}
-            title={staysOpen ? BOARD_STAYS_OPEN_HE : boardOpen ? "הסתרת בית המספרים" : "הצגת בית המספרים"}
+            aria-label={boardButtonHe}
+            title={staysOpen ? BOARD_STAYS_OPEN_HE : boardButtonHe}
             data-testid="board-toggle"
           >
-            {boardOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            <span className="hidden sm:inline">{boardOpen ? "הסתרת בית המספרים" : "הצגת בית המספרים"}</span>
+            {/* The eye shows what the board IS: open (and in station 1, always open). */}
+            {staysOpen || !boardOpen ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            <span className="hidden sm:inline">{boardButtonHe}</span>
           </button>
         )}
 
@@ -197,7 +208,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           id="chat-toggle-button"
           onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
           disabled={!globalChatEnabled}
-          className={`h-12 px-4 rounded-2xl text-sm font-bold active:scale-95 transition-all flex items-center gap-1.5 relative border shadow-sm ${
+          className={`h-12 px-3 xl:px-4 rounded-2xl text-sm font-bold whitespace-nowrap active:scale-95 transition-all flex items-center gap-1.5 relative border shadow-sm ${
             !globalChatEnabled
               ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
               : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 cursor-pointer'
@@ -220,16 +231,17 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         <button
           onClick={proceed}
           disabled={!canProceed}
-          className="h-12 px-6 rounded-2xl text-base font-display font-extrabold text-white bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
-          aria-label="מעבר למשימה הבאה"
-          title="מעבר למשימה הבאה"
+          className="h-12 px-4 xl:px-6 rounded-2xl text-base font-display font-extrabold text-white whitespace-nowrap bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
+          aria-label={PROCEED_ARIA_HE}
+          title={PROCEED_ARIA_HE}
+          data-testid="proceed-button"
         >
-          <span>התקדם</span>
+          <span>{PROCEED_HE}</span>
           <ArrowLeft className="w-5 h-5" />
         </button>
 
         {/* Module 1: Clean Synchronous Logout */}
-        <LogoutButton className="h-12 px-3 rounded-2xl text-xs sm:text-sm font-bold text-ws-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 border border-transparent hover:border-red-200" />
+        <LogoutButton labelClassName="sr-only xl:not-sr-only" className="h-12 px-3 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap text-ws-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 border border-transparent hover:border-red-200" />
       </div>
 
       {/* Station 1: why the board button does nothing — a quiet note under the

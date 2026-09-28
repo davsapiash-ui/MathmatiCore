@@ -4,7 +4,6 @@ import { useDroppable } from '@dnd-kit/core';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { useWorkspaceStore, selectScaffoldLevel, selectBoardOpen } from '@/application/useWorkspaceStore';
 import { PlaceColumn } from './PlaceColumn';
-import { ValueDisplay } from './ValueDisplay';
 import { BlockPalette } from './BlockPalette';
 import { RegroupAnimationLayer } from './RegroupAnimationLayer';
 
@@ -17,12 +16,10 @@ export const TRAY_FULL_WIDTH_PX = 720;
  * 50% of the workspace when open; collapsible via the topbar toggle.
  */
 export function PlaceValueBoard({
-  hideValueDisplay,
   fullWidth = false,
   activeDragPlace = null,
   shareRow = false,
 }: {
-  hideValueDisplay?: boolean;
   fullWidth?: boolean;
   activeDragPlace?: Place | null;
   /** The Socratic side panel is open beside the board: the board and the
@@ -148,7 +145,9 @@ export function PlaceValueBoard({
               <RegroupAnimationLayer containerRef={columnsRef} />
             </div>
 
-            {!hideValueDisplay && <ValueDisplay />}
+            {/* No running sum ("בניתי את X") under the columns (owner, 28.9.2026):
+                it is in no document; the digit at the head of each column is the
+                board's own reading (מסמך 04 §3). */}
           </div>
 
           <div className="transition-opacity">

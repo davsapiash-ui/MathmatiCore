@@ -6,6 +6,7 @@
  * All math rules live in core/placeValue.ts; all flow rules in core/qmatrixFlow.ts.
  */
 
+import { PROCEED_HE } from '@/core/toolbarNames';
 import { create } from 'zustand';
 import {
   EMPTY_COUNTS,
@@ -1396,7 +1397,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
       if (!hidden.correct) {
-        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בלוח.', 2800);
+        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בבית המספרים.', 2800);
         return;
       }
 
@@ -1409,7 +1410,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         handleFailure(
           'missing_answer',
           'הַקְלָדַת תְּשׁוּבָה ✏️',
-          'הִנַּחְתֶּם אֶת הַקֻּבִּיּוֹת בְּבֵית הַמְּסִפָּרִים בְּצוּרָה מְעֻלָּה! כָּעֵת, הַקְלִידוּ אֶת הַתְּשׁוּבָה בְּתֵיבַת הַמַּעֲנֶה כְּדֵי לְהַמְשִׁיךְ.',
+          'כתבו את התשובה בשורת התוצאה כדי להמשיך.',
           3500
         );
         return;
@@ -1423,7 +1424,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           handleFailure(
             'wrong_numeric',
             'כִּמְעַט... 🧐',
-            'הַתְּשׁוּבָה שֶׁכְּתַבְתֶּם אֵינָהּ תּוֹאֶמֶת לְסַךְ הַקֻּבִּיּוֹת בְּבֵית הַמְּסִפָּרִים. בִּדְקוּ שׁוּב!',
+            'התשובה שכתבתם לא מתאימה ללבנים בבית המספרים. בדקו שוב!',
             2800
           );
         }
@@ -1457,7 +1458,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!s.selectedChoiceId) {
         // "התקדם" is enabled by any board touch in meetings 3-5, so a press
         // with no option chosen used to do nothing at all — no message.
-        showFeedback({ correct: false, title: 'בַּחֲרוּ תְּשׁוּבָה', sub: 'סַמְּנוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת, וְאָז לַחֲצוּ "הִתְקַדֵּם".' }, 1800);
+        showFeedback({ correct: false, title: 'בַּחֲרוּ תְּשׁוּבָה', sub: `סמנו אחת מהאפשרויות, ואז לחצו על "${PROCEED_HE}".` }, 1800);
         return;
       }
       if (s.selectedChoiceId !== task.correctAnswer) {
@@ -1471,7 +1472,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (task.type === 'missing_element') {
       const answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
       if (answer === null || Number.isNaN(answer)) {
-        showFeedback({ correct: false, title: 'נָא לְהַקְלִיד תְּשׁוּבָה', sub: 'כִּתְבוּ אֶת הַחֵלֶק הֶחָסֵר בַּתֵּיבָה, וְאָז לַחֲצוּ "הִתְקַדֵּם".' }, 1800);
+        showFeedback({ correct: false, title: 'נָא לְהַקְלִיד תְּשׁוּבָה', sub: `כתבו את החלק החסר בתיבה, ואז לחצו על "${PROCEED_HE}".` }, 1800);
         return;
       }
       if (answer !== task.correctAnswer) {
@@ -1489,31 +1490,31 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           'wrong_representation',
           'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍',
           task.hideRequiredCounts
-            ? 'הלוח עדיין אינו מציג את מה שההנחיה מבקשת. קראו אותה שוב ובדקו את הלוח.'
-            : `הלוח צריך להציג בדיוק: ${describeCountsHe(required)}. כרגע יש בו: ${describeCountsHe(s.counts)}.`,
+            ? 'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.'
+            : `בבית המספרים צריך להיות בדיוק: ${describeCountsHe(required)}. עכשיו יש בו: ${describeCountsHe(s.counts)}.`,
           3500
         );
         return;
       }
       // Meeting 1: the exercise is the conversion itself, not only its result.
       if (task.requiresGrouping && !s.hasGrouped) {
-        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלוח נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבני יחידה בכל פעם, בעזרת כפתור הקבץ 10 שבראש הטור.', 3500);
+        handleFailure('conversion_skipped', 'בּוֹאוּ נְקַבֵּץ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבני יחידה בכל פעם, בעזרת כפתור הקבץ 10 שבראש הטור.', 3500);
         return;
       }
       if (task.requiresUngrouping && !s.hasUngrouped) {
-        handleFailure('conversion_skipped', 'בּוֹאוּ נִפְרֹט 🧱', 'הלוח נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנה כדי לפרק אותה.', 3500);
+        handleFailure('conversion_skipped', 'בּוֹאוּ נִפְרֹט 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנה כדי לפרק אותה.', 3500);
         return;
       }
       const typed = answerDigitsToNumber(s.answerDigits);
       if (typed === null) {
-        handleFailure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'הלוח מסודר בדיוק כנדרש! כעת כתבו את המספר בשורת התוצאה.', 3000);
+        handleFailure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את המספר בשורת התוצאה.', 3000);
         return;
       }
       if (typed !== (task.numberA ?? 0)) {
-        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'המספר שכתבתם אינו תואם לכמות שבלוח. בדקו שוב!', 2800);
+        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!', 2800);
         return;
       }
-      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'ייצגתם את המספר בדיוק כפי שנדרש, והמספר שכתבתם תואם ללוח.', 2500);
+      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
       return;
     }
 
@@ -2749,7 +2750,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         lessonTaskId = isRepresentationTask(task) ? task.id : null;
         if (task?.requireEvenTens && s.counts.tens % 2 !== 0) {
           if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
-          showFeedback({ correct: false, title: 'בּוֹאוּ נִבְדֹּק אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. נסו לפרוט או להקבץ עשרת אחת.' }, 3200);
+          showFeedback({ correct: false, title: 'בּוֹאוּ נִבְדֹּק אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. נסו לפרוט עשרת אחת ליחידות, או לקבץ 10 יחידות לעשרת.' }, 3200);
           return;
         }
       }
@@ -2759,7 +2760,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const hint =
           s.sessionNumber === 2
             ? 'כמות הלבנים בלוח אינה תואמת למבוקש. איך נוכל לשנות זאת כדי להגיע לכמות המדויקת?'
-            : 'הסכום הנוכחי אינו תואם לערך היעד של הניסוי. נסו שוב!';
+            : 'הלבנים בבית המספרים עוד לא מראות את המספר שבהנחיה. נסו שוב!';
         showFeedback({ correct: false, title: 'בּוֹאוּ נְדַיֵּק אֶת הַמִּבְנֶה 🔍', sub: hint }, 3200);
         return;
       }

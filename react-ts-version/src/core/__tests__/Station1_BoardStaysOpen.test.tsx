@@ -12,14 +12,16 @@ vi.mock('@/presentation/design-system/UdlSpeechButton', () => ({
 
 import { WorkspaceTopbar } from '@/features/workspace/WorkspaceTopbar';
 import { useWorkspaceStore, selectBoardOpen } from '@/application/useWorkspaceStore';
-import { BOARD_STAYS_OPEN_HE, boardStaysOpen } from '@/core/boardVisibility';
+import { BOARD_OPEN_HE, BOARD_STAYS_OPEN_HE, boardStaysOpen } from '@/core/boardVisibility';
 
 /**
  * Owner decision, 27.9.2026 (register decision יא): in station 1 the number
- * house is not hidden. The top-bar button "הסתרת בית המספרים" stays visible
- * but does nothing there — aria-disabled, not disabled, so hovering and
- * pressing still reach it — and says why, in the owner's words. Every other
- * meeting with a board keeps the button as it was.
+ * house is not hidden. The top-bar button stays visible but cannot hide it
+ * there — aria-disabled, not disabled, so hovering and pressing still reach it
+ * — and says why, in the owner's words. Owner, 28.9.2026: in station 1 the
+ * button is labelled and announced "בית המספרים פתוח", with an open eye; it
+ * never says "הסתרה" there. Every other meeting with a board keeps the button
+ * as it was.
  */
 
 const ws = () => useWorkspaceStore.getState();
@@ -52,7 +54,13 @@ describe('station 1: the board stays open', () => {
     expect(b.getAttribute('aria-disabled')).toBe('true');
     expect(b.hasAttribute('disabled')).toBe(false);
     expect(b.getAttribute('title')).toBe(BOARD_STAYS_OPEN_HE);
-    expect(b.textContent).toContain('הסתרת בית המספרים');
+    expect(BOARD_OPEN_HE).toBe('בית המספרים פתוח');
+    expect(b.textContent).toBe(BOARD_OPEN_HE);
+    expect(b.getAttribute('aria-label')).toBe(BOARD_OPEN_HE);
+    expect(b.textContent).not.toContain('הסתרת');
+    // the open eye (lucide "eye"), not the crossed-out one
+    expect(b.querySelector('svg.lucide-eye')).not.toBeNull();
+    expect(b.querySelector('svg.lucide-eye-off')).toBeNull();
   });
 
   it('a press leaves the board open and shows the calm note, with its read-aloud button', () => {
@@ -70,6 +78,8 @@ describe('station 1: the board stays open', () => {
     fireEvent.click(button());
     fireEvent.click(button());
     expect(selectBoardOpen(ws())).toBe(true);
+    // the label never turns into "הצגת…" or "הסתרת…"
+    expect(button().textContent).toBe(BOARD_OPEN_HE);
   });
 
   it('the note passes by itself', () => {
@@ -111,6 +121,8 @@ describe('other meetings keep today\'s button', () => {
       const b = button();
       expect(b.hasAttribute('aria-disabled')).toBe(false);
       expect(b.getAttribute('title')).toBe('הסתרת בית המספרים');
+      expect(b.getAttribute('aria-label')).toBe('הסתרת בית המספרים');
+      expect(b.querySelector('svg.lucide-eye-off')).not.toBeNull();
       fireEvent.click(b);
       expect(selectBoardOpen(ws())).toBe(false);
       expect(button().getAttribute('title')).toBe('הצגת בית המספרים');

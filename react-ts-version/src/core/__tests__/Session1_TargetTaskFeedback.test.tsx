@@ -12,12 +12,21 @@ vi.mock('@/presentation/design-system/UdlSpeechButton', () => ({
 import { Session1ChecklistCard } from '@/features/workspace/tasks/Session1ChecklistCard';
 import { session1Checklist, session1DoneNoteHe } from '@/core/session1Checklist';
 import { EMPTY_COUNTS } from '@/core/placeValue';
+import { PROCEED_HE, proceedSentenceHe } from '@/core/toolbarNames';
 
 /**
  * Register decision י (owner, 27.9.2026): once the target task is done, the
  * card says first "נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 347." and then,
- * as before, "לחצו על כפתור התקדם…". The other steps keep their words.
+ * as before, the sentence that names the proceed button. The other steps
+ * keep their words.
+ *
+ * Owner, 28.9.2026: the proceed button is "ממשיכים" (core/toolbarNames), and
+ * the sentence on the screen and the one read aloud are built from the same
+ * source as the button, so they cannot drift.
  */
+
+/** What the box shows, with the button copy's arrow (drawn, not read) removed. */
+const shown = (el: Element) => (el.textContent ?? '').replace(/\s*←\s*/g, ' ').replace(/\s+/g, ' ').trim();
 
 afterEach(cleanup);
 
@@ -38,12 +47,16 @@ describe('the target task, done', () => {
     const text = box.textContent ?? '';
     const note = 'נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 347.';
     expect(text.indexOf(note)).toBe(0);
-    expect(text.indexOf('לחצו על כפתור')).toBeGreaterThan(note.length - 1);
+    expect(text.indexOf('לחצו על הכפתור')).toBeGreaterThan(note.length - 1);
     expect(text).toContain('בסרגל העליון כדי לעבור לשלב הבא!');
     expect(text).not.toContain('מצוין');
     // the sentence has its read-aloud button (PRD Module 24), in the same words
     const speech = [...box.querySelectorAll('[data-testid="speech"]')].map((e) => e.getAttribute('data-text'));
-    expect(speech).toEqual([`${note} לחצו על כפתור התקדם בסרגל העליון כדי לעבור לשלב הבא!`]);
+    expect(speech).toEqual([`${note} לחצו על הכפתור ממשיכים בסרגל העליון כדי לעבור לשלב הבא!`]);
+    // screen and speech are the same sentence, naming the button by its own name
+    expect(shown(screen.getByTestId('proceed-sentence'))).toBe(proceedSentenceHe());
+    expect(screen.getByTestId('proceed-chip').textContent).toContain(PROCEED_HE);
+    expect(PROCEED_HE).toBe('ממשיכים');
   });
 
   it('says nothing of it before every item is done', () => {
@@ -55,11 +68,14 @@ describe('the target task, done', () => {
 });
 
 describe('the other steps keep their words', () => {
-  it('"✨ מצוין! לחצו על כפתור התקדם…" and no extra sentence', () => {
+  it('"✨ מצוין! לחצו על הכפתור ממשיכים…", read aloud too, and no extra sentence', () => {
     const items = session1Checklist('s1_decompose_hundred', { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: true, undoCount: 0, hasClearedBoard: false })!;
     render(<Session1ChecklistCard items={items} doneNote={session1DoneNoteHe('s1_decompose_hundred')} />);
     const text = screen.getByTestId('session1-done').textContent ?? '';
-    expect(text.startsWith('✨ מצוין! לחצו על כפתור')).toBe(true);
+    expect(text.startsWith('✨ מצוין! לחצו על הכפתור ממשיכים')).toBe(true);
     expect(text).not.toContain('נכון!');
+    expect(shown(screen.getByTestId('proceed-sentence'))).toBe(`✨ מצוין! ${proceedSentenceHe()}`);
+    const speech = [...screen.getByTestId('session1-done').querySelectorAll('[data-testid="speech"]')].map((e) => e.getAttribute('data-text'));
+    expect(speech).toEqual([`מצוין! ${proceedSentenceHe()}`]);
   });
 });

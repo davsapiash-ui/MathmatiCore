@@ -47,12 +47,43 @@ const DOC03 = REGISTERED_SUBSTITUTIONS.reduce(
  * "the texts waiting for the Drive sync are texts the software shows".
  */
 const PENDING_DOC03_SYNC_27_9: ReadonlySet<string> = new Set([
-  'משימת היעד: בנו את המספר 347 בלבני דינס ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.',
+  'משימת היעד: בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.',
   'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה',
 ]);
-/** The line is in the repository copy of מסמך 03 — or is one of the two texts waiting for its Drive sync. */
+/**
+ * TEMPORARY — pending Drive sync (28.9.2026).
+ *
+ * One name per thing on the child's screen (owner, 28.9.2026): "לבנים", not
+ * "לבני דינס"; "בית המספרים", not "הלוח". Each pair is [what the screen says
+ * now, the words of the repository copy of מסמך 03 it replaces]. The owner's
+ * script updates מסמך 03 in Drive; until the repository copy is synced, a
+ * line counts as the document's if the copy holds the old words the pair
+ * names. After the sync, remove this constant and its branch in
+ * `inDoc03OrPending`; nothing else.
+ */
+const PENDING_DOC03_SYNC_28_9: ReadonlyArray<readonly [string, string]> = [
+  ['נסו לבנות את המספר 305 בלבנים ושימו לב לתפקיד של הספרה אפס בבית המספרים הריק מעשרות.', 'נסו לבנות את המספר 305 בלבני דינס ושימו לב לתפקיד של הספרה אפס בבית המספרים הריק מעשרות.'],
+  ['נסו לבנות את המספר 305 בלבנים', 'נסו לבנות את המספר 305 בלבני דינס'],
+  ['אחר כך לחצו על פח האשפה כדי לנקות את בית המספרים.', 'אחר כך לחצו על פח האשפה כדי לנקות את הלוח.'],
+  ['בנו את המספר 347 בלבנים', 'בנו את המספר 347 בלבני דינס'],
+  [
+    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בבית המספרים או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
+    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בלוח או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
+  ],
+  [
+    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בבית המספרים או גררו אותה לטור העשרות. כתבו את התשובה בשורת התוצאה.',
+    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בלוח או גררו אותה לטור העשרות. כתבו את התשובה בשורת התוצאה.',
+  ],
+];
+/** The line is in the repository copy of מסמך 03 — or is one of the texts waiting for its Drive sync. */
 const inDoc03OrPending = (line: string, where: string) => {
   if (PENDING_DOC03_SYNC_27_9.has(line)) return;
+  const pending28 = PENDING_DOC03_SYNC_28_9.find(([now]) => now === line);
+  if (pending28) {
+    // the copy holds either the old words (not synced yet) or the new ones (synced)
+    expect([DOC03.includes(pending28[1]), DOC03.includes(line)], where).toContain(true);
+    return;
+  }
   expect(DOC03, where).toContain(line);
 };
 const task = (id: string) => SESSION1_TASKS.find((t) => t.id === id)!;
@@ -107,7 +138,7 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
   const lines = (t: SessionTask) => t.instructionHe.split('\n');
   for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash']) {
     it(id, () => {
-      for (const line of lines(task(id))) expect(DOC03, line).toContain(line);
+      for (const line of lines(task(id))) inDoc03OrPending(line, line);
     });
   }
 
@@ -120,11 +151,11 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
 
   it('the target task says the owner\'s words exactly (register decision י, 27.9.2026)', () => {
     expect(task('s1_target_347').instructionHe).toBe(
-      'משימת היעד: בנו את המספר 347 בלבני דינס ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.'
+      'משימת היעד: בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.'
     );
     const labels = session1Checklist('s1_target_347', { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false })!.map((i) => i.label);
     expect(labels).toEqual([
-      'בנו את המספר 347 בלבני דינס',
+      'בנו את המספר 347 בלבנים',
       'פרטו עשרת אחת לעשר יחידות',
       'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה',
     ]);
@@ -141,7 +172,7 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
 
   it('step 6 names the document\'s number and actions', () => {
     const t = task('s1_target_347');
-    expect(t.instructionHe.startsWith('משימת היעד: בנו את המספר 347 בלבני דינס ופרטו עשרת אחת לעשר יחידות')).toBe(true);
+    expect(t.instructionHe.startsWith('משימת היעד: בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות')).toBe(true);
     expect(t.requiredCounts).toEqual({ hundreds: 3, tens: 3, units: 17 });
     expect(t.requiresUngrouping).toBe(true);
     // the new representation is what the child finds — the card does not list it in advance
@@ -179,7 +210,9 @@ describe('what completes each introduction step', () => {
     const at = (s: Partial<typeof base> & { answerDigits?: Record<string, string> }) =>
       session1Checklist('s1_target_347', { ...base, ...s } as any)!.map((i) => i.done);
     expect(at({ counts: { ...EMPTY_COUNTS, units: 7 } })).toEqual([false, false, false]);
-    expect(at({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 4, units: 7 }, answerDigits: { hundreds: '3', tens: '4', units: '7' } })).toEqual([true, false, true]);
+    // 347 typed before the decomposition is not "the number after the
+    // decomposition": the third line waits for the second (owner, 28.9.2026).
+    expect(at({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 4, units: 7 }, answerDigits: { hundreds: '3', tens: '4', units: '7' } })).toEqual([true, false, false]);
     expect(at({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 }, hasUngrouped: true })).toEqual([true, true, false]);
     expect(at({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 }, hasUngrouped: true, answerDigits: { hundreds: '3', tens: '4', units: '7' } })).toEqual([true, true, true]);
   });
@@ -205,8 +238,8 @@ describe('what completes each introduction step', () => {
     // The corrective second item is an action, not a phrase (owner, 25.9.2026:
     // on-screen texts say what the child actually has to do); it ends on the
     // document's own words.
-    expect(other305[0].label).toBe('נסו לבנות את המספר 305 בלבני דינס');
-    expect(DOC03).toContain(other305[0].label);
+    expect(other305[0].label).toBe('נסו לבנות את המספר 305 בלבנים');
+    inDoc03OrPending(other305[0].label, other305[0].label);
     expect(other305[1].label).toMatch(/^רוקנו את טור העשרות/);
   });
 

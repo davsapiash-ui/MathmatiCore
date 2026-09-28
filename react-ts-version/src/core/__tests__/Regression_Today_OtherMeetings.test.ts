@@ -477,7 +477,7 @@ describe('live coaching card (SocraticEngine.analyzeLiveBoardState), meetings 3�
   });
 });
 
-/* ── 5. meeting 3 and 7 representation tasks still show and check their box ─ */
+/* ── 5. meeting 3 and 7 representation tasks: no box (owner, 28.9.2026), still checked ─ */
 
 describe('representation tasks outside meeting 1 (RepresentationTask.tsx, proceed)', () => {
   // Server rendering reads zustand's getInitialState() (useSyncExternalStore's
@@ -494,7 +494,7 @@ describe('representation tasks outside meeting 1 (RepresentationTask.tsx, procee
     }
   };
 
-  it('meeting 3 and 7 tasks render "בנו בלוח בדיוק" and "בלוח כרגע"; the board matching turns it into "✓ הלוח תואם"', () => {
+  it('meeting 3 and 7 tasks show neither "בנו בלוח בדיוק" nor "בלוח כרגע", with the board empty or matching', () => {
     const reps = [
       ...getSessionTasks(3, 'green_path'),
       ...getSessionTasks(3, 'remediation_path'),
@@ -505,10 +505,10 @@ describe('representation tasks outside meeting 1 (RepresentationTask.tsx, procee
     signIn();
     for (const t of reps) {
       const empty = html(t);
-      expect(empty, t.id).toContain('בנו בלוח בדיוק:');
-      expect(empty, t.id).toContain('בלוח כרגע:');
+      expect(empty, t.id).not.toContain('בנו בלוח בדיוק');
+      expect(empty, t.id).not.toContain('בלוח כרגע');
       expect(empty, t.id).not.toContain('משימות החקר שלך'); // no meeting 1 checklist
-      expect(html(t, t.requiredCounts), t.id).toContain('✓ הלוח תואם');
+      expect(html(t, t.requiredCounts), t.id).not.toContain('הלוח תואם');
     }
     // …and meeting 1's target task is the one without it
     expect(html(SESSION1_TASKS.find((t) => t.id === 's1_target_347')!)).not.toContain('בנו בלוח בדיוק:');
@@ -521,7 +521,7 @@ describe('representation tasks outside meeting 1 (RepresentationTask.tsx, procee
     typeResult(340);
     expect(selectCanProceed(ws())).toBe(true);
     ws().proceed();
-    expect(ws().feedback?.sub).toContain('הלוח צריך להציג בדיוק: 3 מאות ו-4 עשרות');
+    expect(ws().feedback?.sub).toContain('בבית המספרים צריך להיות בדיוק: 3 מאות ו-4 עשרות');
     expect(ws().standardTaskIdx).toBe(0);
     drop('tens');
     ws().proceed();
