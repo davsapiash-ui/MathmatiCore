@@ -5,7 +5,7 @@ import { useAuthStore, stampStudentWindowClosed, touchStudentActivity } from '@/
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { ref, onValue, update, onDisconnect } from 'firebase/database';
+import { ref, onValue, update, onDisconnect, serverTimestamp } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { Sparkles } from 'lucide-react';
@@ -171,7 +171,7 @@ export function StudentHub() {
     update(studentPresenceRef, {
       isOnline: true,
       onlineStatus: 'active',
-      lastPing: Date.now(),
+      lastPing: serverTimestamp(),
       lastActivityTimestamp: Date.now(),
       hasJoinedSession: true,
       lastAction: 'בלובי / ממתין לשיעור',
@@ -202,7 +202,7 @@ export function StudentHub() {
       update(studentPresenceRef, {
         isOnline: true,
         onlineStatus: 'active',
-        lastPing: Date.now(),
+        lastPing: serverTimestamp(),
         lastActivityTimestamp: Date.now(),
       }).catch(() => {});
     }, 4000);

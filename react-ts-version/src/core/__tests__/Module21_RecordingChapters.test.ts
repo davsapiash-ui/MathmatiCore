@@ -26,21 +26,25 @@ import {
 const read = (p: string) => readFileSync(resolve(__dirname, p), 'utf-8');
 
 describe('Module 21 — recorder contract (learner side)', () => {
+  const recorder = read('../../features/workspace/screenRecorder.ts');
   const workspace = read('../../features/workspace/StudentWorkspacePage.tsx');
 
   it('writes exercise_id into every chunk metadata record', () => {
-    expect(workspace).toMatch(/exercise_id:\s*currentExerciseId\(\)/);
+    expect(recorder).toMatch(/exercise_id:\s*currentExerciseId\(\)/);
+    expect(workspace).toMatch(/currentExerciseId:\s*\(\) => activeExerciseId\(useWorkspaceStore\.getState\(\)\)/);
   });
 
   it('caps a learner recording at 50MB per meeting and flags recording_truncated', () => {
-    expect(workspace).toMatch(/RECORDING_BYTE_CAP\s*=\s*50\s*\*\s*1024\s*\*\s*1024/);
-    expect(workspace).toMatch(/recordedBytes \+ payloadBytes > RECORDING_BYTE_CAP/);
-    expect(workspace).toMatch(/recording_truncated:\s*true/);
+    expect(recorder).toMatch(/RECORDING_BYTE_CAP\s*=\s*50\s*\*\s*1024\s*\*\s*1024/);
+    expect(recorder).toMatch(/recordedBytes \+ payloadBytes > RECORDING_BYTE_CAP/);
+    expect(recorder).toMatch(/recording_truncated:\s*true/);
   });
 
-  it('never drops a chunk whose write failed — it is queued for retry', () => {
-    expect(workspace).toMatch(/indexedDBQueue\.enqueue\(chunksPath, \{ idempotency_key: chunkKey, data: payload \}\)/);
-    expect(workspace).toMatch(/indexedDBQueue\.enqueue\(metadataPath, \{ idempotency_key: chunkKey, \.\.\.metaPayload \}\)/);
+  it('never drops a chunk — every chunk and its metadata go into the device queue first', () => {
+    expect(recorder).toMatch(/queueRecordingChunk\(chunksPath, chunkKey, payload\)/);
+    expect(recorder).toMatch(/queueRecordingChunkMetadata\(metadataPath, chunkKey, meta\)/);
+    // No direct SDK write of a chunk: offline it neither fails nor survives a reload.
+    expect(recorder).not.toMatch(/\bset\(/);
   });
 });
 

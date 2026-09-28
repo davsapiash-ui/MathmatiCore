@@ -19,8 +19,8 @@ import { useWorkspaceStore, getActiveTasks, activeExerciseId, type SessionNumber
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { submitSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
-import { database, authReady, fetchServerClockOffset } from '@/infrastructure/firebase';
-import { ref, push, onValue, set, update, get, onDisconnect } from 'firebase/database';
+import { database, fetchServerClockOffset } from '@/infrastructure/firebase';
+import { ref, onValue, update, onDisconnect, serverTimestamp } from 'firebase/database';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
@@ -36,7 +36,8 @@ import { hasClosingSentence } from '@/core/persistenceEncouragement';
 import { StationOpening } from './StationOpening';
 import { hasOpeningScreen } from '@/core/stationOpening';
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
-import { indexedDBQueue } from '@/infrastructure/services/IndexedDBQueue';
+import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
+import { shouldRecordScreen, startScreenRecorder } from './screenRecorder';
 import { useStore } from '@/application/useStore';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
@@ -56,18 +57,16 @@ import { SessionClosedOverlay } from '@/presentation/components/student/SessionC
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
 
 /**
- * Evaluates whether the local device is superseded by another remote device based on direct ownership in DB.
- * Returns isSuperseded=true if the remote device ID exists and does not match the local device ID.
- * Fail-safe: if remote device is present in DB and local device ID is missing or mismatched, locks the device.
- */
-/** Module 21: 50MB of replay recording per learner per meeting, then a silent stop. */
-const RECORDING_BYTE_CAP = 50 * 1024 * 1024;
-/**
  * How long the workspace waits for the learner's Firebase record before it
  * starts a meeting from scratch when no local copy of that meeting exists.
  */
 export const FIREBASE_RESTORE_GRACE_MS = 6000;
 
+/**
+ * Evaluates whether the local device is superseded by another remote device based on direct ownership in DB.
+ * Returns isSuperseded=true if the remote device ID exists and does not match the local device ID.
+ * Fail-safe: if remote device is present in DB and local device ID is missing or mismatched, locks the device.
+ */
 export function evaluateDeviceOwnership(remoteDevId?: string | null, myDevId?: string | null): { isSuperseded: boolean } {
   if (remoteDevId && remoteDevId !== myDevId) {
     return { isSuperseded: true };
@@ -308,160 +307,33 @@ export function StudentWorkspacePage() {
       'workspaceState/sessionNumber': sessionNumber,
       'workspaceState/flowStatus': flowStatus,
       lastActivityTimestamp: Date.now(),
-      lastPing: Date.now(),
+      lastPing: serverTimestamp(),
       lastAction: `פעילות בלוח במפגש ${meeting}`,
     };
 
-    update(ref(database, `users/students/${uid}`), wsPayload).catch(() => {});
+    // PRD 18: "Throttle client writes to maximum once per 1000ms". This ran on
+    // every board change — five writes in half a second while a child dragged
+    // blocks. The shared writer sends at most one per second per path, the
+    // latest state last, merged with the store's own writes to this record.
+    throttledRtdbUpdate(`users/students/${uid}`, wsPayload).catch(() => {});
   }, [normUid, counts, answerDigits, carryDigits, undoCount, hesitationCount, meeting, sessionNumber, flowStatus]);
 
-  // --- RRWeb Telemetry Recording (Authentic High-Definition Screen Capture) ---
+  // --- Module 21 screen recording: see the recorder effect below initialisation ---
   const classStartedAt = activeClassSession?.startedAt ?? null;
   const classSessionNumber = activeClassSession?.sessionNumber ?? null;
-  useEffect(() => {
-    let stopRecording: (() => void) | undefined;
-    let eventsQueue: any[] = [];
-    let flushInterval: any;
-    let cancelled = false;
+  // WP6: another device took this learner's session over (the soft device lock below).
+  const isSupersededByOtherDevice = useWorkspaceStore((s) => s.isSupersededByOtherDevice);
 
+  // The meeting the learner is in, on the learner's record: a single-learner
+  // reset with no meeting open restarts this one (register deviation 10).
+  useEffect(() => {
     const uid = normUid;
     if (!uid) return;
-
-    // Use active class session timestamp or fallback to current student session start
-    const sessionTs = classStartedAt || Date.now();
-    const effectiveSessionNum = classSessionNumber || meeting || 1;
-    const sessionId = `session_${sessionTs}`;
-
-    // Save session metadata under student profile
-    const sessionMeta = { 
-      latestTelemetrySessionId: sessionId, 
-      activeSessionNumber: effectiveSessionNum,
-      lastActive: Date.now() 
-    };
-    update(ref(database, `users/students/${uid}`), sessionMeta).catch(console.error);
-
-    // Module 21 caps a learner's recording at 50MB per meeting: on reaching it the
-    // recording stops silently, recording_truncated is flagged, and learning goes
-    // on untouched on the learner's side.
-    // The counter belongs to the recording, not to this mount: a refresh
-    // mid-meeting continues the same `session_{startedAt}` recording, so it
-    // continues the same count — otherwise every refresh handed the learner
-    // a fresh 50MB and the cap was never really a cap. It is kept on the
-    // recording’s own node (the student domain holds nothing in browser
-    // storage), read once here and advanced with every chunk.
-    const recordingPath = `users/students/${uid}/telemetry_sessions/${sessionId}`;
-    let recordedBytes = 0;
-    let truncated = false;
-    const bytesReady = get(ref(database, `${recordingPath}/recorded_bytes`))
-      .then((snap) => {
-        recordedBytes = Number(snap.val()) || 0;
-        truncated = recordedBytes >= RECORDING_BYTE_CAP;
-      })
-      .catch(() => { /* unknown — count from here */ });
-
-    /** The exercise the learner is on right now, which chapters the replay timeline. */
-    const currentExerciseId = (): string => {
-      const ws = useWorkspaceStore.getState();
-      // Same derivation the telemetry writers already use, so a chunk's
-      // exercise_id lines up exactly with the decision-table rows beside it.
-      return activeExerciseId(ws);
-    };
-
-    const flushTelemetry = () => {
-      if (truncated || eventsQueue.length === 0) return;
-
-      const batch = [...eventsQueue];
-      eventsQueue = [];
-
-      const payload = JSON.stringify(batch);
-      const payloadBytes = new Blob([payload]).size;
-
-      if (recordedBytes + payloadBytes > RECORDING_BYTE_CAP) {
-        truncated = true;
-        if (stopRecording) stopRecording();
-        if (flushInterval) clearInterval(flushInterval);
-        update(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}`), {
-          recording_truncated: true,
-        }).catch(console.error);
-        return;
-      }
-
-      const newChunkRef = push(ref(database, `users/students/${uid}/telemetry_sessions/${sessionId}/chunks`));
-      const chunkKey = newChunkRef.key;
-      if (!chunkKey) return;
-
-      recordedBytes += payloadBytes;
-      update(ref(database, recordingPath), { recorded_bytes: recordedBytes }).catch(() => { /* the next flush writes it again */ });
-      const chunksPath = `users/students/${uid}/telemetry_sessions/${sessionId}/chunks`;
-      const metadataPath = `users/students/${uid}/telemetry_sessions/${sessionId}/metadata`;
-      const metaPayload = {
-        startTime: batch[0].timestamp,
-        endTime: batch[batch.length - 1].timestamp,
-        sessionNumber: effectiveSessionNum,
-        exercise_id: currentExerciseId(),
-      };
-
-      // Module 21: a chunk whose write fails is queued (Module 17) and re-sent
-      // under the same key when the connection returns — never dropped. The
-      // queued form is { data } and the replay reader accepts both shapes.
-      set(newChunkRef, payload).catch((err) => {
-        console.warn('[Recording] chunk write failed, queued for retry:', err);
-        indexedDBQueue.enqueue(chunksPath, { idempotency_key: chunkKey, data: payload }).catch(console.error);
-      });
-      update(ref(database, metadataPath), { [chunkKey]: metaPayload }).catch((err) => {
-        console.warn('[Recording] chunk metadata write failed, queued for retry:', err);
-        indexedDBQueue.enqueue(metadataPath, { idempotency_key: chunkKey, ...metaPayload }).catch(console.error);
-      });
-    };
-
-    // Load rrweb asynchronously
-    (async () => {
-      const [rrweb] = await Promise.all([import('rrweb')]);
-      if (cancelled) return;
-
-      const authOk = await authReady;
-      if (!authOk || cancelled) return;
-      await bytesReady;
-      if (cancelled || truncated) return;
-
-      const rrwebAny = rrweb as any;
-      const recordFn = rrweb.record || (rrwebAny.default && rrwebAny.default.record) || rrwebAny;
-      if (typeof recordFn !== 'function') {
-        console.error('rrweb.record is not a function:', rrweb);
-        return;
-      }
-
-      stopRecording = recordFn({
-        emit(event: any) {
-          eventsQueue.push(event);
-        },
-        sampling: {
-          mousemove: 50,
-          mouseInteraction: true,
-          scroll: 150,
-          input: 'last',
-        },
-        recordCanvas: true,
-        collectFonts: true,
-        inlineStylesheet: true,
-      });
-
-      flushInterval = setInterval(flushTelemetry, 2000);
-      window.addEventListener('beforeunload', flushTelemetry);
-    })();
-
-    return () => {
-      cancelled = true;
-      if (stopRecording) stopRecording();
-      if (flushInterval) clearInterval(flushInterval);
-      window.removeEventListener('beforeunload', flushTelemetry);
-      flushTelemetry();
-    };
-    // Values, not the session object: the object used to be rebuilt on every
-    // 15-second refresh, and each rebuild restarted rrweb with a full-DOM
-    // snapshot, which is why a replay looked like it started over on every
-    // chunk and why the 50MB cap never accumulated.
-  }, [user?.uid, normUid, isTeacherSessionActive, classStartedAt, classSessionNumber, meeting]);
+    update(ref(database, `users/students/${uid}`), {
+      activeSessionNumber: classSessionNumber || meeting || 1,
+      lastActive: Date.now(),
+    }).catch(console.error);
+  }, [normUid, classSessionNumber, meeting]);
 
   const [isInitializing, setIsInitializing] = useState(true);
   const [pendingApproval, setPendingApproval] = useState(false);
@@ -652,7 +524,7 @@ export function StudentWorkspacePage() {
     
     const presencePayload = {
       isOnline: true,
-      lastPing: Date.now(),
+      lastPing: serverTimestamp(),
       lastActivityTimestamp: Date.now(),
       hasJoinedSession: true,
       sessionJoined: true,
@@ -697,7 +569,7 @@ export function StudentWorkspacePage() {
       update(studentPresenceRef, {
         isOnline: true,
         onlineStatus: 'active',
-        lastPing: Date.now(),
+        lastPing: serverTimestamp(),
         lastActivityTimestamp: Date.now(),
         hasJoinedSession: true,
         lastAction: `פעיל/ה במפגש ${meeting}`,
@@ -845,6 +717,37 @@ export function StudentWorkspacePage() {
     };
   }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, isASDMode, activeClassSession, isTeacherSessionActive]);
 
+  // --- Module 21: screen recording (rrweb) ---
+  // It runs only for this meeting's own recording: once the class session's
+  // server start stamp is known (the recording id), once the store holds this
+  // meeting (every chunk's exercise_id), and never on a device another device
+  // took over. Before, it started on mount — under a stray `session_{Date.now()}`
+  // with a fresh 50MB, with the previous meeting's exercise ids, and on a
+  // superseded device.
+  const recordScreen = shouldRecordScreen({
+    uid: normUid,
+    classStartedAt,
+    meeting,
+    storeSessionNumber: sessionNumber,
+    initialized: isInitialized,
+    superseded: isSupersededByOtherDevice,
+  });
+  useEffect(() => {
+    if (!recordScreen || !normUid || classStartedAt === null) return;
+    return startScreenRecorder({
+      uid: normUid,
+      meeting,
+      classStartedAt,
+      // Same derivation the telemetry writers use, so a chunk's exercise_id
+      // lines up exactly with the decision-table rows beside it.
+      currentExerciseId: () => activeExerciseId(useWorkspaceStore.getState()),
+    });
+    // Values, not the session object: the object used to be rebuilt on every
+    // 15-second refresh, and each rebuild restarted rrweb with a full-DOM
+    // snapshot, which is why a replay looked like it started over on every
+    // chunk.
+  }, [recordScreen, normUid, classStartedAt, meeting]);
+
   // The learner's own RTDB listener re-runs initialisation when the gate
   // opens; there is no separate task list to poll for any more (tasks come
   // from the session banks per learning path, never from a per-learner node).
@@ -968,8 +871,8 @@ export function StudentWorkspacePage() {
     }
   };
 
-  // WP6 / Chaos Scenario 2: Soft Device Lock (נעילת מכשיר רכה — active_device_id)
-  const isSupersededByOtherDevice = useWorkspaceStore((s) => s.isSupersededByOtherDevice);
+  // WP6 / Chaos Scenario 2: Soft Device Lock (נעילת מכשיר רכה — active_device_id);
+  // isSupersededByOtherDevice is read above, beside the recorder that also needs it.
 
   useEffect(() => {
     if (activeClassSession.isLoaded && activeClassSession.active && activeClassSession.sessionNumber) {

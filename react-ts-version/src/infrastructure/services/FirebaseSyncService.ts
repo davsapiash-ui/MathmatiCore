@@ -383,7 +383,7 @@ export class FirebaseSyncService {
     } catch {}
     update(studentRef, {
       onlineStatus: 'active',
-      lastPing: Date.now(),
+      lastPing: serverTimestamp(),
       lastActivityTimestamp: Date.now(),
       hasJoinedSession: true,
     }).catch(() => {});
@@ -1096,7 +1096,7 @@ export class FirebaseSyncService {
 
     // 5. Unified RTDB live-state snapshot update (Module 4 & Module 18)
     const rtdbLiveUpdate: Record<string, any> = {
-      lastPing: Date.now(),
+      lastPing: serverTimestamp(),
       lastActivityTimestamp: Date.now(),
       onlineStatus: 'active',
     };
