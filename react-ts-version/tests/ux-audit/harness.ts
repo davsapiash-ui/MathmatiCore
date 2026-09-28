@@ -66,6 +66,8 @@ export interface ContextOptions {
   path: LearningPath;
   /** Gate approval for meeting 3 (Module 20). false = the bee-flight waiting screen. */
   approved: boolean;
+  /** false = the diagnostic was never finished: no path to approve, no meeting 3 (PR #139's quiet wait). Default true. */
+  meeting2Done?: boolean;
   /** false = no learner signed in (login / landing screens). */
   auth?: boolean;
   /** The class session at start; the default is meeting 1 open. gotoWorkspace() re-points it. */
@@ -301,18 +303,19 @@ export function isExpectedNoise(message: string): boolean {
 // ── context ────────────────────────────────────────────────────────────────
 
 export function studentRecord(opts: ContextOptions): Record<string, Json> {
+  const done = opts.meeting2Done !== false;
   return {
     studentId: STUDENT_UID,
     student_anonymous_id: STUDENT_NUMBER,
     classId: 'class_1',
     name: `תלמיד ${STUDENT_NUMBER}`,
-    completedMeeting2: true,
-    session_2_completed: true,
-    highestCompletedMeeting: 2,
-    teacher_gate_approved: opts.approved,
-    routeStatus: opts.approved ? 'APPROVED' : 'PENDING',
+    completedMeeting2: done,
+    session_2_completed: done,
+    highestCompletedMeeting: done ? 2 : 1,
+    teacher_gate_approved: done && opts.approved,
+    routeStatus: !done ? null : opts.approved ? 'APPROVED' : 'PENDING',
     routeRecommendation: null,
-    pedagogicalPath: opts.path,
+    pedagogicalPath: done && opts.approved ? opts.path : null,
     isASD: opts.mode === 'asd',
     support_profile_id: opts.mode === 'enhanced' ? 'enhanced_cognitive_support' : null,
     enhanced_support_profile: opts.mode === 'enhanced',
@@ -553,18 +556,22 @@ export interface CaptureOptions {
   note?: string;
   /** Always keep a screenshot for this viewport (the primary one). */
   screenshotAll: boolean;
+  /** Wait before measuring; default 650ms. */
+  settleMs?: number;
+  /** Console errors this state is expected to log (a crash the step itself causes). */
+  expectedConsole?: RegExp;
 }
 
 export async function capture(o: CaptureOptions): Promise<StateResult> {
   const { page, opts } = o.ctx;
   o.ctx.setState(o.state);
-  await settle(page);
+  await settle(page, o.settleMs);
   const m = await measure(page);
   const consoleErrors = o.ctx.drainConsole();
-  const realErrors = consoleErrors.filter((e) => !isExpectedNoise(e));
+  const realErrors = consoleErrors.filter((e) => !isExpectedNoise(e) && !(o.expectedConsole && o.expectedConsole.test(e)));
   const findings = [...m.findings];
   for (const e of realErrors) {
-    findings.push({ type: 'offscreen', severity: 'high', selector: 'console', text: e.slice(0, 200) });
+    findings.push({ type: 'console-error', severity: 'high', selector: 'console', text: e.slice(0, 200) });
   }
   const hasHigh = findings.some((f) => f.severity === 'high');
   let screenshot: string | undefined;
@@ -635,7 +642,7 @@ export function resetReport(): void {
   fs.mkdirSync(OUT_DIR, { recursive: true });
 }
 
-const HIGH = new Set(['page-scroll-y', 'page-scroll-x', 'needs-scroll', 'clipped', 'offscreen']);
+const HIGH = new Set(['page-scroll-y', 'page-scroll-x', 'needs-scroll', 'clipped', 'offscreen', 'console-error']);
 
 export function worst(findings: Finding[]): Finding | null {
   const order: Finding['severity'][] = ['high', 'medium', 'low'];

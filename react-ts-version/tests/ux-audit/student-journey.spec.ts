@@ -42,8 +42,10 @@ import { selectedViewports, type Viewport } from './viewports';
 
 type Scope = 'full' | 'core' | 'smoke';
 const SCOPE = ((process.env.UX_AUDIT_SCOPE as Scope) || 'full') as Scope;
+/** `UX_AUDIT_ONLY=<regex>` measures only the states whose id matches — to re-check one screen after a fix. */
+const ONLY = process.env.UX_AUDIT_ONLY ? new RegExp(process.env.UX_AUDIT_ONLY) : null;
 const PRIMARY_VIEWPORT = 'laptop-1366';
-const HIGH = new Set(['page-scroll-y', 'page-scroll-x', 'needs-scroll', 'clipped', 'offscreen']);
+const HIGH = new Set(['page-scroll-y', 'page-scroll-x', 'needs-scroll', 'clipped', 'offscreen', 'console-error']);
 
 interface Step {
   id: string;
@@ -52,6 +54,12 @@ interface Step {
   url?: string;
   note?: string;
   run: (c: AuditContext) => Promise<void>;
+  /** Wait before measuring (default 650ms); shorter for a screen that goes away by itself. */
+  settleMs?: number;
+  /** The step leaves the page reloaded or stuck: the next step navigates afresh. */
+  resets?: boolean;
+  /** Console errors this state is expected to log (a crash the step itself causes). */
+  expectedConsole?: RegExp;
 }
 
 const noop = async () => {};
@@ -166,6 +174,21 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
         await ws(cc.page, 'st.openSocraticCard("hesitation_45s");');
       },
     });
+    if (n === 3) {
+      // PR #142: the card waits up to 8 seconds for the AI's hint (an hourglass,
+      // no text — that is what `m3-coaching-open` measures, since the fake
+      // backend never answers), then shows one static card that never changes.
+      steps.push({
+        id: 'm3-coaching-settled',
+        meeting: 3,
+        note: 'the coaching card once the wait for the AI is over',
+        settleMs: 9500,
+        run: async (cc) => {
+          await ws(cc.page, INIT, { meeting: 3, isASD, idx: 0 });
+          await ws(cc.page, 'st.openSocraticCard("hesitation_45s");');
+        },
+      });
+    }
     if (n === 3 || scope === 'full') {
       steps.push({
         id: `m${n}-board-full`,
@@ -189,7 +212,12 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
       steps.push({
         id: 'm3-friction',
         meeting: 3,
-        note: 'the 3-second "let us think" overlay after a mistake',
+        note: 'after a mistake: the "let us think" beat, then the coaching card',
+        // The beat is 300ms (useWorkspaceStore: "a 300ms 'let's think' beat, then
+        // the Socratic card") and the panel slides in over the next 250ms; any
+        // shorter settle measured the slide. What the child is left with is the
+        // card, measured once it is fully in.
+        settleMs: 1500,
         run: async (cc) => {
           await ws(cc.page, INIT, { meeting: 3, isASD, idx: 0 });
           await ws(cc.page, SET, { helpState: 'friction', frictionTriggerSource: 'mistake' });
@@ -352,6 +380,17 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
       await cc.page.locator('.fixed.inset-0 button:not([disabled])').last().click();
     },
   });
+  // After the reflection is stored the learner stays on the quiet end screen of
+  // station 8 (PR #126; PRD Module 16 §ג). Older code has no finishReflection
+  // and shows the generic end card for the same flow status.
+  steps.push({
+    id: 'm8-finished',
+    meeting: 8,
+    note: 'the end screen of station 8, after the reflection was stored',
+    run: async (cc) => {
+      await ws(cc.page, 'if (typeof st.finishReflection === "function") st.finishReflection(); else api.setState({ flowStatus: "sessionDone", awaitingNext: false });');
+    },
+  });
 
   return steps;
 }
@@ -445,6 +484,50 @@ function enhancedSteps(): Step[] {
   return steps;
 }
 
+/**
+ * A render crash in the child's workspace (PRD Module 1 §ב: a severe fault
+ * returns the child to a quiet working state, no error text). The app-wide
+ * ErrorBoundary (main.tsx) replaces the whole page, so the crash screens are
+ * measured like any other. The crash itself is a store value no component can
+ * render (counts = null), thrown inside React's render — the boundary's own path.
+ */
+const CRASH = 'try { api.setState({ counts: null }); } catch (e) { /* the render throws; the boundary catches */ }';
+const QUIET_RELOADS_KEY = 'mc_quiet_recovery_reloads';
+/** The crash's own log lines: React's report and the boundary's console.error. */
+const CRASH_CONSOLE = /ErrorBoundary caught|The above error occurred|Cannot read propert|counts|null is not an object|undefined is not an object|Minified React error|Error: Uncaught/i;
+
+function crashSteps(): Step[] {
+  return [
+    {
+      id: 'crash-first',
+      meeting: 3,
+      note: 'the first crash: the quiet screen, before its automatic reload',
+      settleMs: 350,
+      resets: true,
+      expectedConsole: CRASH_CONSOLE,
+      run: async (cc) => {
+        await gotoWorkspace(cc, 3);
+        await ws(cc.page, INIT, { meeting: 3, isASD: false, idx: 0 });
+        await cc.page.evaluate((key) => localStorage.removeItem(key), QUIET_RELOADS_KEY);
+        await ws(cc.page, CRASH);
+      },
+    },
+    {
+      id: 'crash-repeated',
+      meeting: 3,
+      note: 'the third crash within a minute: the one "נסו שוב" button, no automatic reload',
+      resets: true,
+      expectedConsole: CRASH_CONSOLE,
+      run: async (cc) => {
+        await gotoWorkspace(cc, 3);
+        await ws(cc.page, INIT, { meeting: 3, isASD: false, idx: 0 });
+        await cc.page.evaluate((key) => localStorage.setItem(key, JSON.stringify([Date.now() - 4000, Date.now() - 2000])), QUIET_RELOADS_KEY);
+        await ws(cc.page, CRASH);
+      },
+    },
+  ];
+}
+
 /** Screens outside the workspace, and the meeting-3 gate. */
 const LOBBY_AND_LOGIN: Array<{ opts: ContextOptions; steps: Step[] }> = [
   {
@@ -475,6 +558,15 @@ const LOBBY_AND_LOGIN: Array<{ opts: ContextOptions; steps: Step[] }> = [
     opts: { mode: 'default', path: 'green_path', approved: false },
     steps: [
       { id: 'm3-gate-waiting', meeting: 3, note: 'meeting 3 before the teacher approves the gate', run: noop },
+    ],
+  },
+  {
+    // The diagnostic was never finished: no path exists to approve. PR #139 gives
+    // this learner a quiet "המורה תפתח את הפעילות בקרוב" screen in meetings 3–8.
+    opts: { mode: 'default', path: 'green_path', approved: false, meeting2Done: false },
+    steps: [
+      { id: 'm3-no-path-waiting', meeting: 3, note: 'meeting 3 opened for a learner who never finished the diagnostic', run: noop },
+      { id: 'm8-no-path-waiting', meeting: 8, note: 'the same learner in meeting 8', run: noop },
     ],
   },
   {
@@ -520,8 +612,17 @@ async function runSteps(
   build: (c: AuditContext) => Promise<Step[]> | Step[],
   results: StateResult[]
 ): Promise<void> {
-  const c = await openContext(browser, viewport, opts);
+  let c = await openContext(browser, viewport, opts);
   const screenshotAll = viewport.id === PRIMARY_VIEWPORT || process.env.UX_AUDIT_SHOTS === 'all';
+  // A page that wedges (a dev-server stall, a navigation that never settles)
+  // used to stop the whole run; past this the context is thrown away and the
+  // next state starts in a fresh one.
+  const STEP_TIMEOUT_MS = 3 * 60_000;
+  const withTimeout = <T,>(work: () => Promise<T>, ms: number, what: string): Promise<T> =>
+    Promise.race([
+      work(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`watchdog: ${what} took more than ${ms / 1000}s`)), ms)),
+    ]);
   try {
     let steps: Step[];
     try {
@@ -550,23 +651,51 @@ async function runSteps(
     let currentMeeting: number | null | undefined;
     let currentUrl: string | undefined;
     for (const step of steps) {
+      if (ONLY && !ONLY.test(step.id)) continue;
       const label = `${opts.mode}/${opts.path}/${step.id}`;
       try {
-        if (step.meeting !== null && step.meeting !== currentMeeting) {
-          await gotoWorkspace(c, step.meeting);
-          currentMeeting = step.meeting;
-          currentUrl = undefined;
-        } else if (step.meeting === null && (step.url !== currentUrl || step.id.startsWith('login'))) {
-          await gotoPath(c, step.url || '/');
-          currentUrl = step.url;
+        await withTimeout(
+          async () => {
+            if (step.meeting !== null && step.meeting !== currentMeeting) {
+              await gotoWorkspace(c, step.meeting);
+              currentMeeting = step.meeting;
+              currentUrl = undefined;
+            } else if (step.meeting === null && (step.url !== currentUrl || step.id.startsWith('login'))) {
+              await gotoPath(c, step.url || '/');
+              currentUrl = step.url;
+              currentMeeting = undefined;
+            }
+            c.drainConsole();
+            await step.run(c);
+            results.push(
+              await capture({
+                viewport,
+                ctx: c,
+                meeting: step.meeting,
+                state: step.id,
+                note: step.note,
+                screenshotAll,
+                settleMs: step.settleMs,
+                expectedConsole: step.expectedConsole,
+              })
+            );
+          },
+          STEP_TIMEOUT_MS,
+          label
+        );
+        if (step.resets) {
           currentMeeting = undefined;
+          currentUrl = undefined;
         }
-        c.drainConsole();
-        await step.run(c);
-        results.push(await capture({ viewport, ctx: c, meeting: step.meeting, state: step.id, note: step.note, screenshotAll }));
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (message.startsWith('skip:')) continue;
+        let url = '';
+        try {
+          url = c.page.url();
+        } catch {
+          /* the page may be gone */
+        }
         results.push({
           viewport: viewport.id,
           tier: viewport.tier,
@@ -575,7 +704,7 @@ async function runSteps(
           meeting: step.meeting,
           state: step.id,
           note: step.note,
-          url: c.page.url(),
+          url,
           fonts: { heebo: false, rubik: false, assistant: false },
           findings: [],
           consoleErrors: c.drainConsole(),
@@ -586,10 +715,15 @@ async function runSteps(
         // A navigation error leaves the page in an unknown state: force a reload next step.
         currentMeeting = undefined;
         currentUrl = undefined;
+        if (message.startsWith('watchdog:')) {
+          // The context is wedged: drop it (bounded — closing can hang too) and go on in a new one.
+          await withTimeout(() => c.context.close(), 20_000, 'closing the wedged context').catch(() => undefined);
+          c = await openContext(browser, viewport, opts);
+        }
       }
     }
   } finally {
-    await c.context.close();
+    await withTimeout(() => c.context.close(), 20_000, 'closing the context').catch(() => undefined);
   }
 }
 
@@ -621,6 +755,7 @@ for (const viewport of selectedViewports()) {
     for (const group of LOBBY_AND_LOGIN) {
       await runSteps(browser, viewport, group.opts, () => group.steps, results);
     }
+    await runSteps(browser, viewport, { mode: 'default', path: 'green_path', approved: true }, () => crashSteps(), results);
 
     const report = checkpoint();
     const failing = results.filter((r) => r.findings.some((f) => HIGH.has(f.type)));

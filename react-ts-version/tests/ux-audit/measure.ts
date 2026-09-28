@@ -26,7 +26,9 @@ export interface Finding {
     | 'occluded'
     | 'small-target'
     | 'tiny-text'
-    | 'no-rtl';
+    | 'no-rtl'
+    /** Added by the harness, not by the page: an unexpected console error or uncaught exception. */
+    | 'console-error';
   severity: 'high' | 'medium' | 'low';
   /** Pixels of overflow / the offending size. */
   px?: number;
@@ -219,9 +221,24 @@ export function measurePage(): Measurement {
       }
     }
 
-    // Interactive: too small?
+    // Interactive: too small? An absolutely positioned ::before with a negative
+    // inset is an invisible hit area (the read-aloud button): it counts.
     if (el.matches(INTERACTIVE)) {
-      const small = Math.min(r.width, r.height);
+      let w = r.width;
+      let h = r.height;
+      try {
+        const b = getComputedStyle(el, '::before');
+        if (b.content !== 'none' && b.position === 'absolute') {
+          const [t, ri, bo, le] = [b.top, b.right, b.bottom, b.left].map((v) => parseFloat(v));
+          if ([t, ri, bo, le].every((v) => Number.isFinite(v))) {
+            w = r.width - le - ri;
+            h = r.height - t - bo;
+          }
+        }
+      } catch {
+        /* no pseudo-element */
+      }
+      const small = Math.min(w, h);
       if (small < 44 && !el.matches('input[type="text"], input[inputmode="numeric"]')) {
         add({ type: 'small-target', severity: 'low', px: Math.round(small), selector: me, text }, `small|${me}`);
       }

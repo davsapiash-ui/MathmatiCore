@@ -17,7 +17,7 @@ if (!baseFile || !candFile) {
   console.error('usage: compare.mjs <base report.json> <candidate report.json> [out.md]');
   process.exit(2);
 }
-const HIGH = new Set(['page-scroll-y', 'page-scroll-x', 'needs-scroll', 'clipped', 'offscreen']);
+const HIGH = new Set(['page-scroll-y', 'page-scroll-x', 'needs-scroll', 'clipped', 'offscreen', 'console-error']);
 const base = JSON.parse(fs.readFileSync(baseFile, 'utf8'));
 const cand = JSON.parse(fs.readFileSync(candFile, 'utf8'));
 
