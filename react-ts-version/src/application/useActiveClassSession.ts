@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { ref, onValue, get } from 'firebase/database';
 import { onAuthStateChanged } from 'firebase/auth';
-import { database, auth, authReady, serverNow, fetchServerClockOffset } from '@/infrastructure/firebase';
-import { getClassSessionStatus, isClassSessionLive, type ActiveClassSessionRecord, type ClassSessionStatus } from '@/core/classSession';
+import { database, auth, authReady, fetchServerClockOffset, isServerClockKnown } from '@/infrastructure/firebase';
+import { getClassSessionStatus, isClassSessionLive, readSessionStartedAt, type ActiveClassSessionRecord, type ClassSessionStatus } from '@/core/classSession';
 
 export interface ActiveClassSession {
   /** The meeting is open (active or paused). */
@@ -54,15 +54,22 @@ export function useActiveClassSession() {
 
     const applySessionState = () => {
       if (!isSubscribed) return;
-      const val = lastValRef.current;
-      if (val && isClassSessionLive(val)) {
+      const raw = lastValRef.current;
+      // Until the database has reported the server clock, serverNow() is this
+      // device's own clock: a tablet whose clock runs fast would see a running
+      // meeting as past its 45 minutes. No time limit is decided before then —
+      // the record is read without its stamps — and the clock's arrival
+      // re-evaluates (fetchServerClockOffset below).
+      const val = raw && !isServerClockKnown() ? { ...raw, startedAt: null, teacherDisconnectedAt: null } : raw;
+      if (raw && val && isClassSessionLive(val)) {
         commit({
           active: true,
           status: getClassSessionStatus(val),
           sessionNumber: Number(val.sessionNumber || 1),
-          // The stamp is the teacher’s; without one, a fixed fallback so
-          // the value does not drift on every re-check.
-          startedAt: Number(val.startedAt || 0) || null,
+          // The server's start stamp (Module 14 §ב). Without one — or while
+          // the write's server-timestamp placeholder has not resolved — a
+          // fixed null, so the value does not drift on every re-check.
+          startedAt: readSessionStartedAt(raw),
           teacherId: val.teacherId,
           isLoaded: true,
         });

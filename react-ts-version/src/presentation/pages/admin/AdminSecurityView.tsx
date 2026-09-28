@@ -129,7 +129,7 @@ export function AdminSecurityView() {
                   תלמידים
                 </span>
                 <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
-                  {STUDENT_IDLE_TIMEOUT_MINUTES} דקות חוסר פעילות או סגירת חלון
+                  {STUDENT_IDLE_TIMEOUT_MINUTES} דקות מסגירת החלון
                 </span>
               </div>
             </div>

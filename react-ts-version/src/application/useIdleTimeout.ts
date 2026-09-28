@@ -69,7 +69,13 @@ export function useIdleTimeout() {
     // Start initial inactivity timeout
     resetTimeout();
 
-    // 2. Window close & background visibility handling for 5-minute disconnect
+    // 2. A learner's window that really closed: 5 minutes, then a new sign-in.
+    // Only a genuine close counts (pagehide / beforeunload). A hidden page is
+    // not a closed window: a tablet's screen lock, a laptop lid, the OS going
+    // to sleep, or the child looking at the projector while the teacher
+    // explains all hide the page, and none of them may sign the learner out —
+    // register: "הטיימר הוסר עבור לומדים; חותם הנוכחות נשאר ... וחלון שנסגר
+    // באמת עדיין מטופל"; PRD Module 14 §ב1 forbids disconnecting the learner.
     const handleWindowUnload = () => {
       if (isStudent) {
         stampStudentWindowClosed();
@@ -77,20 +83,16 @@ export function useIdleTimeout() {
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        if (isStudent) {
-          stampStudentWindowClosed();
-        }
-      } else if (document.visibilityState === 'visible') {
-        if (isStudent) {
-          if (isTokenExpired()) {
-            handleLogout('החיבור נותק לאחר 5 דקות מסגירת החלון / שהייה ברקע.');
-            return;
-          }
-          touchStudentActivity();
-          resetTimeout();
-        }
+      if (document.visibilityState !== 'visible' || !isStudent) return;
+      // Back on screen. A page restored from the back-forward cache did go
+      // through pagehide, so its close stamp is honoured; a page that was only
+      // hidden or asleep has none, and simply carries on.
+      if (isTokenExpired()) {
+        handleLogout('החיבור נותק לאחר 5 דקות מסגירת החלון.');
+        return;
       }
+      touchStudentActivity();
+      resetTimeout();
     };
 
     window.addEventListener('beforeunload', handleWindowUnload);
@@ -100,7 +102,7 @@ export function useIdleTimeout() {
     // 3. Periodic Expiry Check (every 10s for student, every 60s for others)
     const checkExpiry = () => {
       if (isTokenExpired()) {
-        handleLogout(isStudent ? 'החיבור נותק לאחר 5 דקות מסגירת החלון / חוסר פעילות.' : 'פג תוקף אסימון ההתחברות (8 שעות). אנא בצע כניסה מחודשת.');
+        handleLogout(isStudent ? 'החיבור נותק לאחר 5 דקות מסגירת החלון.' : 'פג תוקף אסימון ההתחברות (8 שעות). אנא בצע כניסה מחודשת.');
       } else if (isStudent) {
         touchStudentActivity();
       }

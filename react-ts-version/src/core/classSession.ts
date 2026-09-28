@@ -46,10 +46,26 @@ export const TEACHER_DISCONNECT_GRACE_MS = 15 * 60 * 1000;
  */
 export const SESSION_HARD_CAP_MS = 45 * 60 * 1000;
 
+/**
+ * The meeting's start on the server clock, or null while there is none.
+ *
+ * PRD Module 14 §ב: "השרת הוא מקור האמת היחיד והמוחלט עבור זמן המפגש". The
+ * teacher's client writes `startedAt: serverTimestamp()`, so the stamp is the
+ * server's, never the teacher laptop's own clock (a laptop 46 minutes slow made
+ * the meeting closed at the moment it was opened; a fast one stretched the 45
+ * minutes). Until the server value arrives a reader may hold the write's
+ * placeholder (`{ '.sv': 'timestamp' }`) — that is "no start stamp yet": the
+ * meeting is open and nothing closes it early.
+ */
+export function readSessionStartedAt(val: ActiveClassSessionRecord | null | undefined): number | null {
+  const startedAt = val?.startedAt;
+  return typeof startedAt === 'number' && Number.isFinite(startedAt) && startedAt > 0 ? startedAt : null;
+}
+
 /** When the meeting closes by itself, or null when it has no start stamp. */
 export function getSessionAutoCloseAt(val: ActiveClassSessionRecord | null | undefined): number | null {
-  const startedAt = typeof val?.startedAt === 'number' ? val.startedAt : null;
-  return startedAt && startedAt > 0 ? startedAt + SESSION_HARD_CAP_MS : null;
+  const startedAt = readSessionStartedAt(val);
+  return startedAt !== null ? startedAt + SESSION_HARD_CAP_MS : null;
 }
 
 /**
@@ -64,7 +80,8 @@ export interface ActiveClassSessionRecord {
   active?: boolean;
   status?: ClassSessionStatus;
   sessionNumber?: number | null;
-  startedAt?: number | null;
+  /** Server time; the write's placeholder object until the server value arrives (readSessionStartedAt). */
+  startedAt?: number | null | Record<string, unknown>;
   pausedAt?: number | null;
   teacherId?: string;
   teacherDisconnectedAt?: number | null;
