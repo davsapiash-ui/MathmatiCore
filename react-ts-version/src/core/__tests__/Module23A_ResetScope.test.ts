@@ -92,13 +92,19 @@ describe('Module 23א — one scope for backup and deletion', () => {
     expect(body).not.toContain('enhanced_support_profile');
   });
 
-  it('the meeting to restart is the requested one, else the open class meeting, else the learner\'s, else 1', () => {
+  it('the meeting to restart is the requested one, else the open class meeting, else the learner\'s, else a refusal', () => {
+    // Register deviation 10: "אם אין מפגש פתוח, המפגש שהלומד נמצא בו". The live
+    // workspace writes activeSessionNumber; activeSessionId is the older field.
+    // With neither, the server refuses instead of restarting meeting 1.
     const start = fn.indexOf('export async function resolveActiveSessionNumber');
-    const body = fn.slice(start, start + 1500);
+    const body = fn.slice(start, fn.indexOf('export async function resolveClassSessionNumber', start));
     expect(body.indexOf('valid(requested)')).toBeGreaterThan(-1);
     expect(body.indexOf('active_class_session/sessionNumber')).toBeGreaterThan(body.indexOf('valid(requested)'));
-    expect(body.indexOf('/activeSessionId')).toBeGreaterThan(body.indexOf('active_class_session/sessionNumber'));
-    expect(body).toMatch(/return 1;\s*\}/);
+    expect(body.indexOf('["activeSessionNumber", "activeSessionId"]')).toBeGreaterThan(body.indexOf('active_class_session/sessionNumber'));
+    expect(body).toMatch(/return null;\s*\}/);
+    expect(body).not.toMatch(/return 1;/);
+    expect(fn).toMatch(/if \(isOneLearner && singleScope === 'active_session' && activeSessionNumber === null\) \{\s*throw new HttpsError\(\s*"failed-precondition"/);
+    expect(fn.indexOf("isOneLearner && singleScope === 'active_session' && activeSessionNumber === null")).toBeLessThan(fn.indexOf('backup = await collectResetBackup('));
   });
 
   it('a system reset recomputes the admin cache the deleted data fed (Module 24 store_cache)', () => {

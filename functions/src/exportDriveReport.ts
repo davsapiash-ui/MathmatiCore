@@ -5,6 +5,7 @@ import * as admin from "firebase-admin";
 import { GoogleAuth } from "google-auth-library";
 import { computeToolMastery, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
 import { recomputeAdminMetrics } from "./adminAggregator";
+import { containsPhoneNumber } from "./phonePattern";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
@@ -693,6 +694,16 @@ async function runBackupAndReset(request: CallableRequest<any>) {
       "אין מפגש פתוח לכיתה. איפוס המפגש לכל הכיתה אפשרי רק כשמפגש פתוח. לא נמחקו נתונים."
     );
   }
+  // Register deviation 10: with no open meeting, the meeting the learner is in.
+  // When the learner's record names none either, there is no meeting to
+  // restart — refuse before anything is collected, written or deleted, instead
+  // of restarting meeting 1.
+  if (isOneLearner && singleScope === 'active_session' && activeSessionNumber === null) {
+    throw new HttpsError(
+      "failed-precondition",
+      "אין מפגש פתוח, וברשומת הלומד לא רשום באיזה מפגש הוא נמצא. איפוס המפגש הנוכחי אפשרי רק כשידוע איזה מפגש לאפס. לא נמחקו נתונים."
+    );
+  }
   const resetTarget: ResetTarget = isClassTarget ? 'class' : 'student';
   const level2Audit = reset_level === 'single_student'
     ? { reset_scope: singleScope, session_number: activeSessionNumber, reset_target: resetTarget }
@@ -891,16 +902,19 @@ async function runBackupAndReset(request: CallableRequest<any>) {
 }
 
 /**
- * The meeting a level-2 'active_session' reset restarts: the number the client
- * sent (the teacher's dashboard knows the open meeting), else the class's
- * open meeting (Module 14 active_class_session), else the meeting the learner
- * record points at, else meeting 1.
+ * The meeting a level-2 'active_session' reset restarts (register deviation
+ * 10): the number the client sent (the teacher's dashboard knows the open
+ * meeting), else the class's open meeting (Module 14 active_class_session),
+ * else the meeting the learner is in — `activeSessionNumber`, which the
+ * learner's workspace writes on entering a meeting, then `activeSessionId`,
+ * which only older records and earlier resets carry. Null when none of them
+ * names a meeting 1–8; the caller refuses rather than restart meeting 1.
  */
 export async function resolveActiveSessionNumber(
   rtdb: admin.database.Database,
   rawNum: string,
   requested: unknown
-): Promise<number> {
+): Promise<number | null> {
   const valid = (n: unknown): number | null => {
     const v = Number(n);
     return Number.isInteger(v) && v >= 1 && v <= 8 ? v : null;
@@ -912,14 +926,18 @@ export async function resolveActiveSessionNumber(
     const fromClass = valid(classSnap.val());
     if (fromClass) return fromClass;
   } catch { /* fall through */ }
-  for (const alias of studentAliases(rawNum)) {
-    try {
-      const learnerSnap = await rtdb.ref(`users/students/${alias}/activeSessionId`).get();
-      const fromLearner = valid(learnerSnap.val());
-      if (fromLearner) return fromLearner;
-    } catch { /* try the next alias */ }
+  // The live field first, under every alias, and only then the old one: a
+  // stale activeSessionId must not outrank the meeting the learner is in.
+  for (const field of ["activeSessionNumber", "activeSessionId"]) {
+    for (const alias of studentAliases(rawNum)) {
+      try {
+        const learnerSnap = await rtdb.ref(`users/students/${alias}/${field}`).get();
+        const fromLearner = valid(learnerSnap.val());
+        if (fromLearner) return fromLearner;
+      } catch { /* try the next alias */ }
+    }
   }
-  return 1;
+  return null;
 }
 
 /**
@@ -1005,8 +1023,16 @@ interface ResetScope {
  * The learner-record fields that belong to one meeting (PRD 23א §ב.2: "מצב
  * מרחב העבודה ואת התקדמות המפגש הפעיל"). Everything else on the record —
  * earlier meetings, support profile, recordings, chat — stays.
+ *
+ * `clearReflection` is set by the single-learner reset of meeting 8 only
+ * (register deviation 10: "במפגש 8 גם הרפלקציה"). The whole-class restart
+ * keeps reflections (deviation 20) and does not set it.
  */
-export function buildActiveSessionResetValues(sessionNumber: number, current: Record<string, unknown> | null): Record<string, unknown> {
+export function buildActiveSessionResetValues(
+  sessionNumber: number,
+  current: Record<string, unknown> | null,
+  options: { clearReflection?: boolean } = {}
+): Record<string, unknown> {
   const highest = Number(current?.highestCompletedMeeting) || 0;
   const completedNum = Number(current?.session_completed) || 0;
   const values: Record<string, unknown> = {
@@ -1016,7 +1042,10 @@ export function buildActiveSessionResetValues(sessionNumber: number, current: Re
     [`session_${sessionNumber}_completed`]: false,
     highestCompletedMeeting: Math.min(highest, sessionNumber - 1),
     session_completed: completedNum >= sessionNumber ? sessionNumber - 1 : completedNum,
+    // Both spellings of "the meeting the learner is in": the live workspace
+    // writes activeSessionNumber, older records carry activeSessionId.
     activeSessionId: sessionNumber,
+    activeSessionNumber: sessionNumber,
     isBoardLocked: false,
     helpRequested: false,
     handRaised: false,
@@ -1052,6 +1081,17 @@ export function buildActiveSessionResetValues(sessionNumber: number, current: Re
   if (sessionNumber === 8) {
     // Meeting 8 is the reflection board (Module 16).
     Object.assign(values, { reflections: null });
+    if (options.clearReflection) {
+      // The live mirror srlReflection.ts writes next to the srl_reflections
+      // document. That document is deleted with the reset (buildResetScope);
+      // left behind, the dashboard kept showing the old reflection as done.
+      Object.assign(values, {
+        reflection_step: null,
+        reflection_completed: null,
+        persistence_index: null,
+        reflection_updated_at: null,
+      });
+    }
   }
   return values;
 }
@@ -1061,7 +1101,11 @@ export function buildActiveSessionResetValues(sessionNumber: number, current: Re
  * learner's whole record is backed up, but only the fields of the active
  * meeting are reset (buildActiveSessionResetValues) and only that meeting's
  * Firestore session documents are deleted. Earlier meetings, recordings, chat,
- * telemetry, reports and reflections stay.
+ * telemetry and reports stay. Meeting 8 is the reflection board (register
+ * deviation 10: "במפגש 8 גם הרפלקציה"): its srl_reflections document is
+ * deleted too, after the backup, and the record's reflection mirror is
+ * cleared — the rules make that document create-only, so a kept one refused
+ * the learner's new reflection. Reflections of any other meeting stay.
  *
  * Level 2, 'full_student' (teacher's choice): the learner's RTDB record
  * (workspace state, meeting progress, Q-matrix, recordings), their chat, and
@@ -1105,6 +1149,7 @@ export function buildResetScope(
     const aliases = studentAliases(rawNum);
     const studentValues = Array.from(new Set<string | number>([rawNum, parseInt(rawNum, 10), ...aliases]));
     const sessionNumber = activeSessionNumber ?? 1;
+    const clearsReflection = sessionNumber === 8;
     return {
       rtdbPaths: [],
       rtdbBackupOnlyPaths: [
@@ -1112,12 +1157,20 @@ export function buildResetScope(
         ...aliases.map((a) => `chat_messages/${a}`),
       ],
       // Values are computed against the live record at deletion time (see executeResetDeletion).
-      fieldResets: aliases.map((a) => ({ path: `users/students/${a}`, values: { __activeSessionNumber: sessionNumber } })),
-      firestore: LEARNING_COLLECTIONS.map((collection) => ({
-        collection,
-        ...(collection === "sessions" ? { studentNumbers: [parseInt(rawNum, 10)], sessionNumber } : { studentValues }),
-        backupOnly: collection !== "sessions",
+      fieldResets: aliases.map((a) => ({
+        path: `users/students/${a}`,
+        values: { __activeSessionNumber: sessionNumber, ...(clearsReflection ? { __clearReflection: true } : {}) },
       })),
+      firestore: LEARNING_COLLECTIONS.map((collection) => {
+        const reflectionOfMeeting = clearsReflection && collection === "srl_reflections";
+        return {
+          collection,
+          ...(collection === "sessions" ? { studentNumbers: [parseInt(rawNum, 10)], sessionNumber } : { studentValues }),
+          // Deleted by meeting: only the learner's session_08_… reflection goes.
+          ...(reflectionOfMeeting ? { sessionNumber } : {}),
+          backupOnly: collection !== "sessions" && !reflectionOfMeeting,
+        };
+      }),
     };
   }
   if (level === 'single_student') {
@@ -1340,7 +1393,7 @@ export async function executeResetDeletion(
       if (!snap.exists()) { counts.realtime_database[reset.path] = 0; continue; }
       const sessionNumber = Number(reset.values.__activeSessionNumber);
       const values = Number.isInteger(sessionNumber)
-        ? buildActiveSessionResetValues(sessionNumber, snap.val())
+        ? buildActiveSessionResetValues(sessionNumber, snap.val(), { clearReflection: reset.values.__clearReflection === true })
         : reset.values;
       await rtdb.ref(reset.path).update(values);
       // One record: the learner's meeting state, reset in place.
@@ -1775,10 +1828,12 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
 
     // Requirement 3: PII Detection check across all CSV outputs
     const allContent = files.map((f) => f.csv).join("\n");
-    const piiRegex = /(?:\b05\d-?\d{7}\b|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\b\d{9}\b)/g;
+    const piiRegex = /(?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\b\d{9}\b)/g;
     // The caller's own address used to be excused from this check — and then
     // exported. Nothing in these files may be an address, the caller's included.
-    if (piiRegex.test(allContent)) {
+    // Phones use the shared pattern (phonePattern.ts): the old 05X-XXXXXXX rule
+    // let "050 123 4567", "+972501234567" and every other common layout through.
+    if (piiRegex.test(allContent) || containsPhoneNumber(allContent)) {
       logger.warn("Research dataset export rejected: PII pattern detected.");
       throw new HttpsError("failed-precondition", "ייצוא נתוני המחקר נדחה: זוהו פרטים מזהים.");
     }
