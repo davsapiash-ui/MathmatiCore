@@ -13,6 +13,7 @@ import { defineConfig } from '@playwright/test';
 const PORT = Number(process.env.UX_AUDIT_PORT || 5174);
 
 export default defineConfig({
+  globalSetup: './tests/ux-audit/global-setup.ts',
   testDir: './tests/ux-audit',
   fullyParallel: false,
   workers: 1,

@@ -191,10 +191,21 @@ export class FakeRtdb {
     })();
     this.sessionCounter += 1;
     // The server speaks first: the handshake carries the server clock the client
-    // uses for `.info/serverTimeOffset` (so serverNow() ≈ Date.now()).
-    this.send(ws, { t: 'c', d: { t: 'h', d: { ts: Date.now(), v: '5', h: host, s: `ux-audit-${this.sessionCounter}` } } });
+    // uses for `.info/serverTimeOffset` (so serverNow() ≈ Date.now()). The client
+    // sends nothing until it has one, so if the first frame raced the socket's
+    // opening it is sent again — a repeated handshake is ignored once connected.
+    const handshake = () =>
+      this.send(ws, { t: 'c', d: { t: 'h', d: { ts: Date.now(), v: '5', h: host, s: `ux-audit-${this.sessionCounter}` } } });
+    let heard = false;
+    handshake();
+    for (const delay of [400, 1500, 4000]) {
+      setTimeout(() => {
+        if (!heard) handshake();
+      }, delay);
+    }
 
     ws.onMessage((raw) => {
+      heard = true;
       if (typeof raw !== 'string') return;
       const text = raw.trim();
       if (!text || text === '0') return; // keep-alive
@@ -436,17 +447,26 @@ export async function gotoWorkspace(c: AuditContext, meeting: number): Promise<v
   c.rtdb.set(`users/students/${STUDENT_UID}`, studentRecord(c.opts));
   c.rtdb.set('active_class_session', liveSession(meeting) as unknown as Json);
   c.rtdb.set('system_control/projector_mode', { active: false, projector_mode: false, projector_mode_updated_at: Date.now() });
+  const ready = (timeout: number) =>
+    c.page.waitForFunction(
+      (texts) => {
+        const w = window as unknown as { __wsStore?: unknown };
+        if (!w.__wsStore) return false;
+        const body = document.body.innerText || '';
+        return !texts.some((t) => body.includes(t));
+      },
+      LOADING_TEXTS,
+      { timeout }
+    );
   await c.page.goto(`/workspace?meeting=${meeting}`, { waitUntil: 'domcontentloaded' });
-  await c.page.waitForFunction(
-    (texts) => {
-      const w = window as unknown as { __wsStore?: unknown };
-      if (!w.__wsStore) return false;
-      const body = document.body.innerText || '';
-      return !texts.some((t) => body.includes(t));
-    },
-    LOADING_TEXTS,
-    { timeout: 60_000 }
-  );
+  try {
+    await ready(25_000);
+  } catch {
+    // A one-off hang on the loader (seen once in ~1500 navigations): one reload,
+    // then the real error if it persists.
+    await c.page.reload({ waitUntil: 'domcontentloaded' });
+    await ready(45_000);
+  }
   await c.page.evaluate(() => document.fonts.ready.then(() => undefined));
 }
 

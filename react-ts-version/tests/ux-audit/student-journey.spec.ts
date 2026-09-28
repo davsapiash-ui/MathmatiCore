@@ -1,4 +1,5 @@
 import { test, expect, type Browser } from '@playwright/test';
+import * as fs from 'node:fs';
 import {
   activeTaskCount,
   capture,
@@ -7,7 +8,8 @@ import {
   gotoWorkspace,
   liveSession,
   openContext,
-  resetReport,
+  REPORT_JSON,
+  REPORT_MD,
   saveResults,
   settle,
   STUDENT_UID,
@@ -488,9 +490,16 @@ const LOBBY_AND_LOGIN: Array<{ opts: ContextOptions; steps: Step[] }> = [
 async function countTasks(c: AuditContext, meeting: number, isASD: boolean): Promise<number> {
   await gotoWorkspace(c, meeting);
   await ws(c.page, INIT, { meeting, isASD, idx: 0, skipOpening: true });
-  await settle(c.page, 300);
-  const n = await activeTaskCount(c.page);
-  if (n === 0) throw new Error(`meeting ${meeting}: no progress dots — the bank is empty or the topbar changed`);
+  // The top bar renders a beat after the store initialises; poll rather than guess.
+  let n = 0;
+  for (let i = 0; i < 20 && n === 0; i++) {
+    await settle(c.page, 250);
+    n = await activeTaskCount(c.page);
+  }
+  if (n === 0) {
+    const text = await c.page.evaluate(() => (document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 160));
+    throw new Error(`meeting ${meeting}: no progress dots — the bank is empty or the topbar changed; the screen says: "${text}"`);
+  }
   return n;
 }
 
@@ -504,7 +513,30 @@ async function runSteps(
   const c = await openContext(browser, viewport, opts);
   const screenshotAll = viewport.id === PRIMARY_VIEWPORT || process.env.UX_AUDIT_SHOTS === 'all';
   try {
-    const steps = await build(c);
+    let steps: Step[];
+    try {
+      steps = await build(c);
+    } catch (err) {
+      // Building the catalogue navigates (to count the exercises); a failure
+      // there is recorded like any other, and the remaining groups still run.
+      const message = err instanceof Error ? err.message : String(err);
+      results.push({
+        viewport: viewport.id,
+        tier: viewport.tier,
+        mode: opts.mode,
+        path: opts.path,
+        meeting: null,
+        state: '_setup',
+        url: c.page.url(),
+        fonts: { heebo: false, rubik: false, assistant: false },
+        findings: [],
+        consoleErrors: c.drainConsole(),
+        error: message.split('\n')[0].slice(0, 300),
+      });
+      // eslint-disable-next-line no-console
+      console.log(`  ✗ ${viewport.id} ${opts.mode}/${opts.path} setup: ${message.split('\n')[0].slice(0, 300)}`);
+      return;
+    }
     let currentMeeting: number | null | undefined;
     let currentUrl: string | undefined;
     for (const step of steps) {
@@ -555,9 +587,8 @@ async function runSteps(
 
 // One worker (config) keeps the viewports sequential; NOT `serial` mode, which
 // would skip every remaining viewport the moment one of them fails the gate.
-test.beforeAll(() => {
-  if (process.env.UX_AUDIT_KEEP !== '1') resetReport();
-});
+// The report is reset once per run, in global-setup.ts — a restarted worker
+// must not wipe the viewports already measured.
 
 for (const viewport of selectedViewports()) {
   test(`student journey fits ${viewport.id} (${viewport.width}×${viewport.height}, tier ${viewport.tier})`, async ({ browser, baseURL }) => {
@@ -584,18 +615,28 @@ for (const viewport of selectedViewports()) {
     const report = checkpoint();
     const failing = results.filter((r) => r.findings.some((f) => HIGH.has(f.type)));
     const unreachable = results.filter((r) => r.error);
+    // The measuring tests never fail: Playwright restarts its worker after a
+    // failed test, and the next viewport paid for that with a cold browser.
+    // The verdict is the last test below, on the whole report.
     // eslint-disable-next-line no-console
     console.log(
       `${viewport.id}: ${results.length} states, ${failing.length} with scroll/clipping/offscreen, ${unreachable.length} unreachable → ${report.results.length} in report`
     );
-
-    expect.soft(unreachable, `states the audit could not reach on ${viewport.id}`).toEqual([]);
-    if (viewport.tier === 'A') {
-      const summary = failing.map((r) => {
-        const w = r.findings.find((f) => HIGH.has(f.type));
-        return `${r.mode}/${r.path === 'remediation_path' ? 'rem' : 'green'}/${r.state}: ${w?.type}${w?.px ? ` ${w.px}px` : ''} (${w?.selector})`;
-      });
-      expect.soft(summary, `0-scroll rule on ${viewport.id}`).toEqual([]);
-    }
   });
 }
+
+test('the 0-scroll gate holds on every tier-A viewport', () => {
+  const file = REPORT_JSON;
+  const report = JSON.parse(fs.readFileSync(file, 'utf8')) as { results: StateResult[] };
+  const unreachable = report.results.filter((r) => r.error).map((r) => `${r.viewport} ${r.mode}/${r.state}: ${r.error}`);
+  const failing = report.results
+    .filter((r) => r.tier === 'A' && r.findings.some((f) => HIGH.has(f.type)))
+    .map((r) => {
+      const w = r.findings.filter((f) => HIGH.has(f.type)).sort((a, b) => (b.px || 0) - (a.px || 0))[0];
+      return `${r.viewport} ${r.mode}/${r.path === 'remediation_path' ? 'rem' : 'green'}/${r.state}: ${w.type}${w.px ? ` ${w.px}px` : ''} (${w.selector})`;
+    });
+  // eslint-disable-next-line no-console
+  console.log(`gate: ${report.results.length} measurements, ${failing.length} tier-A failures, ${unreachable.length} unreachable — ${REPORT_MD}`);
+  expect.soft(unreachable, 'states the audit could not reach').toEqual([]);
+  expect(failing, "owner's rule: no page scroll, no inner scroll, nothing clipped or off-screen, on every tier-A viewport").toEqual([]);
+});
