@@ -7,6 +7,7 @@ vi.mock('@/presentation/design-system/UdlSpeechButton', () => ({
 }));
 
 import { PLACE_ORDER, PLACE_NAMES_HE, digitAt, type Place } from '@/core/placeValue';
+import { speakMissingDigits } from '@/core/missingDigitSpeech';
 import { VerticalAdditionTask } from '@/features/workspace/tasks/VerticalAdditionTask';
 import { TaskCard } from '@/features/workspace/tasks/TaskCard';
 import { useWorkspaceStore, effectiveArithmetic } from '@/application/useWorkspaceStore';
@@ -130,13 +131,30 @@ describe('a skeleton exercise: the label says "ספרה חסרה" and never the 
     }
   });
 
-  it('in its meeting, through the task card', () => {
+  it('in its meeting, through the task card — and the instruction on the screen keeps its boxes', () => {
     const idx = SessionTasks.getSessionTasks(7, 'green_path').findIndex((t) => t.id === 's7_g_t2');
     expect(idx).toBeGreaterThanOrEqual(0);
     useWorkspaceStore.getState().initSession(7, false, idx);
-    render(<TaskCard />);
+    const { container } = render(<TaskCard />);
     const group = screen.getByRole('group', { name: /^תרגיל במאונך/ });
     expect(group.getAttribute('aria-label')).toBe('תרגיל במאונך: 2, ספרה חסרה, 3, ספרה חסרה ועוד 1554');
+    // Only speech says "ספרה חסרה": the screen, and the text handed to the
+    // read-aloud button, still show 2,▢3▢ (TTSService converts it as it speaks).
+    const instruction = byId('s7_g_t2').instructionHe;
+    expect(instruction).toContain('2,▢3▢ + 1,554');
+    expect(container.textContent).toContain('2,▢3▢ + 1,554');
+    expect(screen.getAllByTestId('speech').map((s) => s.getAttribute('data-text'))).toContain(instruction);
+  });
+
+  it('the read-aloud of each skeleton instruction says the hidden operand exactly as the label does', () => {
+    for (const t of skeletons) {
+      cleanup();
+      const { label } = sheet(t);
+      const operandA = label.match(new RegExp(`^תרגיל במאונך: (.+) ${operator(t)} `))![1];
+      expect(operandA, t.id).toContain(MISSING);
+      expect(t.instructionHe, t.id).toContain('▢');
+      expect(speakMissingDigits(t.instructionHe), t.id).toContain(`${operandA} ${t.isSubtraction ? '−' : '+'} `);
+    }
   });
 });
 
