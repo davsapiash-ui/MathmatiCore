@@ -109,8 +109,10 @@ describe('Module 21 §ב — the chat is not in the screen recording', () => {
   });
 
   it('the StudentWorkspacePage recorder uses rrweb defaults for blocking and does not mask inputs', () => {
-    const page = readFileSync(resolve(__dirname, '../../StudentWorkspacePage.tsx'), 'utf-8');
-    const call = page.slice(page.indexOf('stopRecording = recordFn({'), page.indexOf('flushInterval = setInterval(flushTelemetry'));
+    // The recorder StudentWorkspacePage starts (features/workspace/screenRecorder.ts).
+    const page = readFileSync(resolve(__dirname, '../../screenRecorder.ts'), 'utf-8');
+    const call = page.slice(page.indexOf('stopRecorder = recordFn({'), page.indexOf('flushInterval = setInterval(flush,'));
+    expect(call.length).toBeGreaterThan(0);
     expect(call).toContain("input: 'last'");
     expect(call).toContain('recordCanvas: true');
     // A different blockClass would silently stop protecting the chat.

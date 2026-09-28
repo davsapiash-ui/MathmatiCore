@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
-import { auth, database, functions } from "@/infrastructure/firebase";
+import { auth, functions } from "@/infrastructure/firebase";
 import { httpsCallable } from "firebase/functions";
-import { ref, update } from "firebase/database";
+import { rtdbUpdateNow } from "@/infrastructure/services/ThrottledRtdbWriter";
 import { useStore } from "@/application/useStore";
 import { useWorkspaceStore } from "@/application/useWorkspaceStore";
 import { useAdminStore } from "@/application/useAdminStore";
@@ -319,9 +319,10 @@ export function unifiedLogout() {
     const isSuperseded = useWorkspaceStore.getState().isSupersededByOtherDevice;
     if (!isSuperseded) {
       try {
-        update(ref(database, `users/students/${normId}`), { isOnline: false, lastPing: 0 }).catch(() => {});
+        // Sent now, merged with anything still pending on the record (PRD 18 throttle).
+        rtdbUpdateNow(`users/students/${normId}`, { isOnline: false, lastPing: 0 }).catch(() => {});
         if (normId !== currentUser.uid) {
-          update(ref(database, `users/students/${currentUser.uid}`), { isOnline: false, lastPing: 0 }).catch(() => {});
+          rtdbUpdateNow(`users/students/${currentUser.uid}`, { isOnline: false, lastPing: 0 }).catch(() => {});
         }
       } catch (e) {
         console.warn("Presence logout reset error:", e);
