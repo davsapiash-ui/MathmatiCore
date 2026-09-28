@@ -49,6 +49,7 @@ import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceSto
 import { useAuthStore } from '@/application/useAuthStore';
 import { SocraticSidePanel } from '@/features/workspace/overlays/HelpOverlays';
 import { tts } from '@/infrastructure/services/TTSService';
+import { approvePath } from '@/test/approvedPath';
 
 const EMPTY = { units: 0, tens: 0, hundreds: 0, thousands: 0 };
 const SOME = { units: 3, tens: 2, hundreds: 1, thousands: 0 };
@@ -153,6 +154,7 @@ describe('the order of the options (owner, 28.9.2026)', () => {
 function openCardAs(studentNumber: number, meeting: 4 | 6, taskIdx: number) {
   useWorkspaceStore.getState().resetWorkspace();
   useAuthStore.setState({ user: { uid: `student_user${studentNumber}`, student_id: studentNumber, role: 'student' } } as any);
+  approvePath();
   useWorkspaceStore.getState().initSession(meeting, false, taskIdx);
   const s = useWorkspaceStore.getState();
   const task = getActiveTasks(s)[s.standardTaskIdx];
