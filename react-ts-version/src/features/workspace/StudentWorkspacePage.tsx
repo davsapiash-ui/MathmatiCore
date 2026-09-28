@@ -295,6 +295,15 @@ export function StudentWorkspacePage() {
     // below then put the learner on the old exercise index, board and digits —
     // or on "השלמתם את משימות החובה" of a meeting they had not started.
     if (sessionNumber !== meeting) return;
+    // Module 17: the board goes to the record by the rule the sync itself
+    // writes by — only the learner's own meeting, started or restored for them
+    // (never the store's defaults, never a meeting a teacher's reset
+    // discarded), and only once the record has been read. These fields used to
+    // be written before that: the defaults of meeting 1 on page load, and a
+    // fresh start made without the record, which the database queued offline
+    // and layered onto the record's copy on reconnect — the very copy the
+    // reconnect then judges and restores.
+    if (!firebaseSyncService.mayWriteWorkspaceToRecord(uid, meeting)) return;
 
     const totalBlocks = (counts.units || 0) + (counts.tens || 0) + (counts.hundreds || 0) + (counts.thousands || 0);
     const hasInteracted = totalBlocks > 0 || Object.values(answerDigits || {}).some(Boolean);

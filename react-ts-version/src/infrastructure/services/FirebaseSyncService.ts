@@ -609,6 +609,20 @@ export class FirebaseSyncService {
     return marker.meeting === state.sessionNumber ? marker : null;
   }
 
+  /**
+   * The rule this sync writes the workspace to the learner record by, for
+   * any other writer of workspace fields (StudentWorkspacePage's board
+   * fields): this learner's record has been read (its first snapshot), and
+   * the store holds this learner's own meeting — started or restored for
+   * them, on this meeting, and not one a teacher's reset discarded.
+   */
+  public mayWriteWorkspaceToRecord(learnerUid: string, meeting: number): boolean {
+    if (this.isInitialLoad || !this.currentUserId || !learnerUid) return false;
+    if (normalizeStudentId(learnerUid) !== normalizeStudentId(this.currentUserId)) return false;
+    const own = this.initializedForThisLearner(useWorkspaceStore.getState());
+    return own !== null && own !== this.discardedStart && own.meeting === meeting;
+  }
+
   private adoptLocalBaseline(state: WorkspaceStoreState) {
     if (!this.isInitialLoad) return;
     const marker = this.initializedForThisLearner(state);
