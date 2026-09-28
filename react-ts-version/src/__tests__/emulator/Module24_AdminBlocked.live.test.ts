@@ -76,6 +76,7 @@ beforeEach(async () => {
     await rtdbSet(ref(db, 'reflections/session_08_student_12'), { timestamp: 1 });
     await rtdbSet(ref(db, 'chat_messages/student_user12/m1'), { text: 'שלום' });
     await rtdbSet(ref(db, 'active_class_session'), { active: false, status: 'closed', sessionNumber: 2 });
+    await rtdbSet(ref(db, 'system_control/projector_mode'), { active: false, projector_mode: false, projector_mode_updated_at: 0 });
     await rtdbSet(ref(db, 'audit_logs/l1'), { timestamp: 1, user_id: 'admin' });
 
     const st = ctx.storage();
@@ -114,7 +115,7 @@ describe('מודול 24 §ב — כניסת מנהל אינה קוראת נתו�
   });
 });
 
-describe('מודול 20 ומודול 14 — כניסת מנהל אינה מאשרת בשער ואינה מפעילה מפגש', () => {
+describe('מודולים 20, 14 ו-15 — כניסת מנהל אינה מאשרת בשער, אינה מפעילה מפגש ואינה משדרת למקרן', () => {
   it('אינה מאשרת את השער ב-RTDB', async () => {
     await assertFails(rtdbUpdate(ref(adminSignIn().database(), 'users/students/student_user12'), {
       teacher_gate_approved: true, routeStatus: 'APPROVED', teacher_selected_path: 'green_path',
@@ -132,6 +133,14 @@ describe('מודול 20 ומודול 14 — כניסת מנהל אינה מאש�
     await assertFails(rtdbSet(acs, { active: true, status: 'active', sessionNumber: 3, startedAt: 1, teacherId: 'owner_uid' }));
     await assertFails(rtdbUpdate(acs, { status: 'paused' }));
     await assertFails(rtdbSet(acs, { active: false, status: 'closed', sessionNumber: 3 }));
+  });
+
+  it('אינה מפעילה, מכבה או מוחקת את שידור המקרן', async () => {
+    const projector = ref(adminSignIn().database(), 'system_control/projector_mode');
+    await assertFails(rtdbSet(projector, { active: true, projector_mode: true, projector_mode_updated_at: 1 }));
+    await assertFails(rtdbSet(projector, { active: false, projector_mode: false, projector_mode_updated_at: 1 }));
+    await assertFails(rtdbSet(projector, null));
+    await assertFails(rtdbSet(ref(adminSignIn().database(), 'system_control'), { globalStudentLimit: 12 }));
   });
 });
 
@@ -200,12 +209,16 @@ describe('הקונסולה של המנהל עובדת', () => {
 
 describe('המורה עובדת כרגיל, גם כשבעל המוצר נכנס כמורה', () => {
   for (const [name, who] of [['מורה', teacher], ['בעל המוצר כמורה', ownerAsTeacher]] as const) {
-    it(`${name}: קוראת את הלומדים, פותחת מפגש ומאשרת בשער`, async () => {
+    it(`${name}: קוראת את הלומדים, פותחת מפגש, משדרת למקרן ומאשרת בשער`, async () => {
       const db = who().database();
       await assertSucceeds(rtdbGet(ref(db, 'users/students')));
       await assertSucceeds(rtdbGet(ref(db, 'radar_alerts')));
       await assertSucceeds(rtdbGet(ref(db, 'chat_messages/student_user12')));
       await assertSucceeds(rtdbSet(ref(db, 'active_class_session'), { active: true, status: 'active', sessionNumber: 3, startedAt: 1, teacherId: 'teacher' }));
+      const projector = ref(db, 'system_control/projector_mode');
+      await assertSucceeds(rtdbSet(projector, { active: true, projector_mode: true, projector_mode_updated_at: 1 }));
+      await assertSucceeds(rtdbSet(projector, { active: false, projector_mode: false, projector_mode_updated_at: 2 }));
+      await assertSucceeds(rtdbSet(projector, null));
       await assertSucceeds(rtdbUpdate(ref(db, 'users/students/student_user12'), {
         teacher_gate_approved: true, routeStatus: 'APPROVED', pedagogicalPath: 'green_path',
       }));

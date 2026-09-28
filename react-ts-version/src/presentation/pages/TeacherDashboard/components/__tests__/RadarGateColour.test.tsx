@@ -99,7 +99,8 @@ describe('מ.5 — שער האישור אינו צובע את המשבצת', () 
     expect(within(offline).getAllByText('יצא מהחלון').length).toBeGreaterThan(0);
     const row = within(offline).getByTestId('gate-row-student-1');
     expect(row.textContent).toContain(TEACHER_GATE_HE);
-    expect(row.textContent).toContain('המסלול הירוק');
+    // The path is the diagnosis's recommendation, not the current path.
+    expect(row.textContent).toContain(`${TEACHER_GATE_HE} · המלצה: המסלול הירוק`);
     expect(within(tile(6)).queryByTestId('gate-row-student-6')).toBeNull();
     // The card tag still shows on the red tile of a learner at the gate, and the
     // blue tile says why it is blue (the gate tag used to hide that it had no tag).

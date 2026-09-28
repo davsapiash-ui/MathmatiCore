@@ -101,9 +101,12 @@
     },
     "system_control": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
+      "globalStudentLimit": {
+        ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
+      },
       "projector_mode": {
-        ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)"
+        ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true)",
+        ".validate": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true)"
       }
     },
     "active_class_session": {

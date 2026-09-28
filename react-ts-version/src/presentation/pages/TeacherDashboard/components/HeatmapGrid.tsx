@@ -768,7 +768,9 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   >
                     <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1" title={`ממתין ב${TEACHER_GATE_HE} למפגש 3`}>
                       <DoorOpen className="w-3 h-3 shrink-0" />
-                      {TEACHER_GATE_HE} · {radarPathLabelHe(student.recommendedPath)}
+                      <span className="min-w-0">
+                        {TEACHER_GATE_HE} · המלצה: <span className="whitespace-nowrap">{radarPathLabelHe(student.recommendedPath)}</span>
+                      </span>
                     </span>
                     <div className="flex items-center gap-1">
                       <button

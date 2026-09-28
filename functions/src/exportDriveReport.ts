@@ -584,11 +584,8 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   // system-admin identity is blocked (class-isolation principle).
   //
   // The check is on the TEACHER claim, not on the presence of an admin claim.
-  // syncUserRoles stamps the owner's dual identity as
-  // { role: 'admin', admin: true, teacher: true }, and the old test
-  // (`role === 'admin'` → deny) rejected that identity even when it was
-  // acting as the teacher of class_1 — so every level-2/3 reset the owner
-  // ran failed, and the client reported it as a backup failure.
+  // An admin sign-in carries no teacher claim (roleClaims.ts); the owner
+  // signed in as the teacher carries the teacher's claims and may reset.
   const token = request.auth.token as Record<string, unknown>;
   const isTeacherIdentity =
     token.teacher === true ||
