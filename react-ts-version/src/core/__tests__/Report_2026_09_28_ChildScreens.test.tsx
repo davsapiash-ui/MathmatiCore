@@ -82,10 +82,14 @@ describe('rows 1.30, 2.11, 3.18 — every toolbar button fits a 1024 px screen',
     expect(row).toContain('shrink-0');
   });
 
-  it('below 1280 px the bar tightens (logo badge only, smaller dots) but every button keeps its words', () => {
+  it('the bar is fluid by width, with no step; the logo follows the bar\'s own width; every button keeps its words', () => {
     const bar = src('features/workspace/WorkspaceTopbar.tsx');
-    expect(bar).toContain('<span className="hidden xl:inline-flex"><Logo size="md" subtitle="מרחב חקר אישי" /></span>');
-    expect(bar).toContain('<span className="inline-flex xl:hidden"><Logo size="md" showText={false} /></span>');
+    expect(bar).not.toMatch(/\b(xl|lg):(px|gap|hidden|inline)/);
+    expect(bar).toContain('<span className="ws-topbar-wide"><Logo size="md" subtitle="מרחב חקר אישי" /></span>');
+    expect(bar).toContain('<span className="ws-topbar-narrow"><Logo size="md" showText={false} /></span>');
+    expect(src('index.css')).toMatch(/\.ws-topbar \{\s*container-type: inline-size;/);
+    expect(src('index.css')).toContain('@container (min-width: 1240px)');
+    expect(src('features/workspace/ProgressDots.tsx')).not.toContain('xl:');
     expect(bar).not.toContain('sr-only xl:not-sr-only');
     ws().initSession(4, false, 0);
     topbar();
@@ -237,7 +241,9 @@ describe('one name per thing on the child\'s screen: "בית המספרים", "�
     expect(store).toContain("'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!'");
     // Only what the child reads: the string literals, niqqud (U+0591–U+05C7)
     // stripped first — "קֻבִּיּוֹת" slipped past a match on the pointed text.
-    const literals = [...store.matchAll(/'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g)]
+    // comments out first: an apostrophe in an English comment would pair with the wrong quote
+    const code = store.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
+    const literals = [...code.matchAll(/'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g)]
       .map((m) => (m[1] ?? m[2] ?? m[3] ?? '').replace(/[֑-ׇ]/g, ''))
       .filter((t) => /[א-ת]/.test(t));
     expect(literals.length).toBeGreaterThan(50);
@@ -282,7 +288,10 @@ describe('the undo button is named as the child sees it (review of PR #125, item
     for (const t of all) expect(t.instructionHe, t.id).not.toContain('לחקירה עצמאית');
     const s6 = getSessionTasks(6, 'green_path').find((t) => t.id === 's6_g_t7')!;
     const s7 = getSessionTasks(7, 'remediation_path').find((t) => t.id === 's7_r_t7')!;
-    for (const t of [s6, s7]) expect(t.instructionHe, t.id).toMatch(/רוצים לחזור צעד\? לחצו על הכפתור עם החץ המעוגל ↺\.$/);
+    // the name station 1 teaches ("לחצו על כפתור ביטול פעולה…"), and the arrow it shows
+    for (const t of [s6, s7]) expect(t.instructionHe, t.id).toMatch(/רוצים לחזור צעד אחד אחורה\? לחצו על כפתור ביטול פעולה ↺\.$/);
+    // the arrow is not read aloud
+    expect(src('infrastructure/services/TTSService.ts')).toContain("cleaned.replace(/[\\u2190-\\u21FF]/g, '')");
     // the toolbar's undo button is that arrow
     expect(src('features/workspace/WorkspaceTopbar.tsx')).toMatch(/aria-label="ביטול הפעולה האחרונה"[\s\S]{0,120}<RotateCcw/);
   });

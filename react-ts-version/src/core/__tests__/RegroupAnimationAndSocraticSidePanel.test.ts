@@ -254,7 +254,7 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     const { unmount } = render(
       React.createElement(DndContext, null, React.createElement(PlaceValueBoard, { shareRow: true }))
     );
-    const tray = screen.getByRole('toolbar', { name: /ארגז הכלים/ });
+    const tray = screen.getByRole('toolbar', { name: /ארגז כלים/ });
     expect(tray.getAttribute('data-compact')).toBe('true');
     expect(tray.className).toContain('flex-wrap');
     expect(tray.className).not.toContain('overflow-x-auto');

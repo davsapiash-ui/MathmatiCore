@@ -1,3 +1,30 @@
+/**
+ * A size that grows with the window instead of jumping at a breakpoint:
+ * `min` px at `lo`, `max` px at `hi`, in proportion in between, clamped outside.
+ */
+const fluid = (unit, lo, hi) => (min, max) => {
+  const slope = (max - min) / (hi - lo);
+  const base = min - slope * lo;
+  const sign = base < 0 ? '-' : '+';
+  return `clamp(${min}px, calc(${+(slope * 100).toFixed(4)}${unit} ${sign} ${+Math.abs(base).toFixed(2)}px), ${max}px)`;
+};
+/** By the window's height: 600px (a laptop browser with tabs and bookmarks) to 950px. */
+const fluidH = fluid('vh', 600, 950);
+/** By the window's width: 1024px (a tablet) to 1440px. */
+const fluidW = fluid('vw', 1024, 1440);
+
+const pairs = (list, f, prefix) => Object.fromEntries(list.map(([a, b]) => [`${prefix}-${a}-${b}`, f(a, b)]));
+const FLUID_SPACING = {
+  ...pairs([
+    [0, 4], [0, 8], [0, 16], [2, 16], [2, 24], [4, 6], [4, 12], [4, 16], [4, 24], [5, 16], [6, 12], [6, 16], [6, 20], [6, 24], [8, 16], [8, 20], [8, 24],
+    [10, 16], [10, 20], [10, 24], [10, 32], [12, 16], [12, 32], [14, 20], [28, 40], [56, 80],
+  ], fluidH, 'fl'),
+  ...pairs([[4, 10], [6, 12], [8, 12], [8, 16], [10, 12], [12, 16], [12, 20], [16, 20], [16, 24]], fluidW, 'flw'),
+};
+const FLUID_FONT = {
+  ...pairs([[16, 20], [16, 24], [22, 34], [28, 36], [30, 36], [32, 60], [34, 60], [44, 60]], fluidH, 'fl'),
+};
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
@@ -86,15 +113,12 @@ export default {
       transitionDuration: {
         '2500': '2500ms',
       },
-      // Short laptop screens (owner, 27.9.2026): the exercise column tightens
-      // so the result row is in view without scrolling. `short` covers a
-      // 1366×768 or 1280×720 screen, `tiny` the same screens inside a browser
-      // window with its tabs and address bar. Being screens, they come after
-      // sm/md/lg in the CSS, so `short:` can override `md:`.
-      screens: {
-        short: { raw: '(max-height: 820px)' },
-        tiny: { raw: '(max-height: 680px)' },
-      },
+      // Fluid sizes (owner, 28.9.2026: "רספונסיבי ככל שניתן לכל גודל מסך").
+      // No steps by screen size: `p-fl-14-32` is 14px in a window 600px tall,
+      // 32px in one 950px tall, and in between in proportion (see fluidH).
+      // `px-flw-12-20` does the same by width, 1024px to 1440px (fluidW).
+      spacing: FLUID_SPACING,
+      fontSize: FLUID_FONT,
     },
   },
   plugins: [require("tailwindcss-animate")],

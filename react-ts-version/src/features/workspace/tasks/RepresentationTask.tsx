@@ -39,9 +39,9 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
   const places: Place[] = PLACE_ORDER.slice(0, String(value).length).reverse();
 
   return (
-    <div className="flex flex-col items-center gap-5 short:gap-2.5 tiny:gap-2 mt-4 short:mt-0 flex-1 min-h-0">
-      <div className="shrink-0 bg-ws-accentSoft rounded-3xl px-10 py-6 short:px-8 short:py-3 tiny:py-2 border border-ws-accent/30 text-center">
-        <span className="font-display font-black text-6xl short:text-5xl tiny:text-4xl text-ws-accent tabular-nums">{value.toLocaleString('he-IL')}</span>
+    <div className="flex flex-col items-center gap-fl-6-20 mt-fl-0-16 flex-1 min-h-0">
+      <div className="shrink-0 bg-ws-accentSoft rounded-3xl px-fl-28-40 py-fl-4-24 border border-ws-accent/30 text-center">
+        <span className="font-display font-black text-fl-32-60 leading-none text-ws-accent tabular-nums">{value.toLocaleString('he-IL')}</span>
       </div>
 
       {/* Result row (שורת התוצאה) — right under the number, before anything
@@ -60,7 +60,7 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
               readOnly={locked}
               aria-disabled={locked}
               aria-label={`ספרת ה${PLACE_NAMES_HE[place]} בשורת התוצאה`}
-              className={`rounded-lg short:rounded-xl border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent ${
+              className={`rounded-xl border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent ${
                 locked ? 'cursor-not-allowed opacity-75' : ''
               }`}
               style={{ width: `calc(${CELL} - 12px)`, height: `calc(${CELL} - 12px)`, fontSize: `calc(${CELL} * 0.48)`, borderColor: PLACE_TINT[place] }}

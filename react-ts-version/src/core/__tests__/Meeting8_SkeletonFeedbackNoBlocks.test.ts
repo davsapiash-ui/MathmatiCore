@@ -33,7 +33,8 @@ describe('meeting 8 skeleton tasks: the feedback names nothing that is not on th
     useWorkspaceStore.getState().proceed();
     const fb = useWorkspaceStore.getState().feedback;
     expect(fb, id).not.toBeNull();
-    expect(fb!.sub).toBe('הספרה החסרה שכתבתם אינה נכונה. בדקו שוב.');
+    // one digit missing in s8_r_t7, two in s8_g_t6, three in s8_g_t7
+    expect(fb!.sub).toBe(hidden.length > 1 ? 'אחת הספרות החסרות שכתבתם אינה נכונה. בדקו שוב.' : 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב.');
     expect(fb!.sub).not.toMatch(/לבנ|בית המספרים/);
   });
 });

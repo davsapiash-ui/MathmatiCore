@@ -243,6 +243,9 @@ export class TTSService {
     let cleaned = text.replace(/[*_#`~]/g, '');
     // Strip emojis
     cleaned = cleaned.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/gu, '');
+    // Strip arrows (← ↺ …): they name a button's icon on the screen, and some
+    // voices would read the symbol's name aloud.
+    cleaned = cleaned.replace(/[\u2190-\u21FF]/g, '');
     // Normalize numbered lists like "1. " and "2. " into natural speech pauses
     cleaned = cleaned.replace(/(?:^|\n)\s*1\.\s*/g, ' שלב ראשון: ');
     cleaned = cleaned.replace(/(?:^|\n)\s*2\.\s*/g, ' שלב שני: ');

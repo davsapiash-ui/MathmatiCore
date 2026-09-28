@@ -92,10 +92,26 @@ describe('other representation exercises: no "בנו בלוח בדיוק / בל�
 describe('the layout that keeps the row in view (source)', () => {
   const src = (p: string) => readFileSync(resolve(__dirname, '../../', p), 'utf-8');
 
-  it('short-screen variants exist and come after the width breakpoints', () => {
+  it('sizes are fluid by the window, with no step at any screen size (owner, 28.9.2026)', async () => {
     const tw = readFileSync(resolve(__dirname, '../../../tailwind.config.js'), 'utf-8');
-    expect(tw).toContain("short: { raw: '(max-height: 820px)' }");
-    expect(tw).toContain("tiny: { raw: '(max-height: 680px)' }");
+    expect(tw).not.toMatch(/short: \{ raw|tiny: \{ raw/);
+    // @ts-expect-error the tailwind config is plain JavaScript, without types
+    const { default: config } = await import('../../../tailwind.config.js');
+    const spacing = (config as any).theme.extend.spacing as Record<string, string>;
+    // 12px in a 600px-tall window, 32px in a 950px-tall one, in proportion between
+    expect(spacing['fl-12-32']).toBe('clamp(12px, calc(5.7143vh - 22.29px), 32px)');
+    const at = (v: string, h: number) => {
+      const [, min, k, sign, b, max] = v.match(/clamp\((\d+)px, calc\(([\d.]+)vh ([+-]) ([\d.]+)px\), (\d+)px\)/)!.map(Number.parseFloat as any) as any;
+      return Math.min(max, Math.max(min, (k * h) / 100 + (v.includes(' - ') ? -b : b)));
+    };
+    expect(at(spacing['fl-12-32'], 600)).toBeCloseTo(12, 1);
+    expect(at(spacing['fl-12-32'], 775)).toBeCloseTo(22, 1);
+    expect(at(spacing['fl-12-32'], 950)).toBeCloseTo(32, 1);
+    // no child screen of the exercise column uses a height step
+    for (const f of ['TaskCard', 'IntroTask', 'FlexibleDecompTask', 'MissingElementTask', 'VerticalAdditionTask', 'RepresentationTask', 'PlaceValueInputBoxes', 'Session1ChecklistCard']) {
+      expect(src(`features/workspace/tasks/${f}.tsx`), f).not.toMatch(/\b(short|tiny):/);
+    }
+    expect(src('features/workspace/StudentWorkspacePage.tsx')).not.toMatch(/\b(short|tiny):/);
   });
 
   it('the notebook square scales with the screen, and the sheet and the result row use it', () => {

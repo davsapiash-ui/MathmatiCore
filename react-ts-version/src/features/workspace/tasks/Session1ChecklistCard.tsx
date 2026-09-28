@@ -20,18 +20,18 @@ export function Session1ChecklistCard({ items, doneNote = null }: { items: Sessi
   const allDone = items.every((i) => i.done);
   const proceedHe = proceedSentenceHe();
   return (
-    <div className="flex flex-col gap-4 short:gap-2.5 bg-ws-surface p-6 short:p-4 tiny:p-3 rounded-2xl border border-ws-surface2 shadow-sm" data-testid="session1-checklist">
-      <div className="flex items-center justify-between gap-3 mb-1 short:mb-0">
+    <div className="flex flex-col gap-fl-6-16 bg-ws-surface p-fl-8-24 rounded-2xl border border-ws-surface2 shadow-sm" data-testid="session1-checklist">
+      <div className="flex items-center justify-between gap-3 mb-fl-0-4">
         <h3 className="text-lg font-bold text-ws-ink">📋 מה עושים בשלב הזה:</h3>
         {/* PRD Module 24: every instruction on screen has its read-aloud button. */}
         <UdlSpeechButton text={items.map((i) => i.label).join('. ')} />
       </div>
 
-      <div className="flex flex-col gap-3 short:gap-2">
+      <div className="flex flex-col gap-fl-4-12">
         {items.map((item) => (
-          <div key={item.label} className="flex items-center justify-between p-4 short:p-2.5 rounded-xl bg-ws-bg border border-ws-surface2 transition-all">
+          <div key={item.label} className="flex items-center justify-between px-fl-8-16 py-fl-5-16 rounded-xl bg-ws-bg border border-ws-surface2 transition-all">
             <div className="flex items-center gap-3">
-              <span className={`text-2xl short:text-xl transition-transform ${item.done ? 'scale-110 text-green-500' : 'text-slate-400'}`}>
+              <span className={`text-fl-16-24 transition-transform ${item.done ? 'scale-110 text-green-500' : 'text-slate-400'}`}>
                 {item.done ? '✅' : '⏳'}
               </span>
               <span className={`text-base font-semibold ${item.done ? 'text-ws-soft line-through' : 'text-ws-ink'}`}>
@@ -61,7 +61,7 @@ export function Session1ChecklistCard({ items, doneNote = null }: { items: Sessi
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mt-2 short:mt-0 p-4 short:p-3 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl text-center shadow-sm"
+          className="mt-fl-0-8 p-fl-10-16 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl text-center shadow-sm"
           role="status"
           aria-live="polite"
           data-testid="session1-done"

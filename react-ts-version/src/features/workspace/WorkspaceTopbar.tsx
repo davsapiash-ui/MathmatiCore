@@ -24,9 +24,12 @@ import { PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames';
  *  - "כפתור חזור ללובי ממוקם תמיד בפינה השמאלית העליונה" — the lobby button is
  *    the last element, alone in the left corner (RTL end).
  *  - Every button is fully on the screen at 1024 px wide (a tablet, מסמך 03),
- *    in every meeting (owner, 28.9.2026). Below 1280 px the bar tightens: the
- *    logo keeps its badge only and the progress dots are smaller; every
- *    button keeps its words ("יציאה", "מספר 12"). The row no longer scrolls
+ *    in every meeting (owner, 28.9.2026). The spacing, the button paddings,
+ *    their words and the progress dots grow and shrink with the window's
+ *    width (`flw-*` in tailwind.config.js), with no step; every button keeps
+ *    its words ("יציאה", "מספר 12") at every width. The one change of shape —
+ *    the logo with or without its words — follows the bar's own width (a
+ *    container query, `.ws-topbar` in index.css). The row never scrolls
  *    sideways — a hidden scroll is how "התקדם" disappeared.
  * No time indicator anywhere (visible timers are forbidden).
  * Undo is exactly 48x48px per PRD Module 11.
@@ -91,17 +94,17 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const currentIdx = sessionNumber === 2 ? Math.min(qflow.taskIdx, TASKS.length - 1) : standardTaskIdx;
 
   return (
-    <nav className="relative h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-3 xl:px-5 gap-2 xl:gap-4 z-20">
+    <nav className="relative h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-flw-12-20 gap-flw-8-16 z-20 ws-topbar">
       {/* Brand + Student Identity + Silent Cloud Status Icon */}
-      <div className="flex items-center gap-2 xl:gap-3 shrink-0">
-        <span className="hidden xl:inline-flex"><Logo size="md" subtitle="מרחב חקר אישי" /></span>
-        <span className="inline-flex xl:hidden"><Logo size="md" showText={false} /></span>
+      <div className="flex items-center gap-flw-8-12 shrink-0">
+        <span className="ws-topbar-wide"><Logo size="md" subtitle="מרחב חקר אישי" /></span>
+        <span className="ws-topbar-narrow"><Logo size="md" showText={false} /></span>
 
         {/* מודול 1 ו-6: תג זהות אנונימי. המספר נגזר מ-student_id שאומת
             בכניסה — לא מניקוי ספרות ממזהה ה-Auth, שהיה מציג "תלמיד 1"
             לכל לומד שמזההו לא נפתר. */}
         {studentNumber !== null && (
-          <div className="flex items-center gap-2 bg-ws-accentSoft border border-ws-accent/25 px-2 xl:px-3 py-1.5 rounded-xl shadow-xs" title={studentBadgeHe(studentNumber)} data-testid="student-badge">
+          <div className="flex items-center gap-2 bg-ws-accentSoft border border-ws-accent/25 px-flw-8-12 py-1.5 rounded-xl shadow-xs" title={studentBadgeHe(studentNumber)} data-testid="student-badge">
             {/* The number once: "מספר 12", not a "12" chip beside it. */}
             <span className="text-xs font-black text-ws-ink whitespace-nowrap">
               {studentBadgeHe(studentNumber)}
@@ -133,12 +136,12 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
       </div>
 
       {/* Progress */}
-      <div className="mx-auto min-w-0 bg-ws-bg rounded-full px-3 xl:px-4 py-2 border border-ws-surface2" role="progressbar" aria-label="התקדמות במשימות">
+      <div className="mx-auto min-w-0 bg-ws-bg rounded-full px-flw-12-16 py-2 border border-ws-surface2" role="progressbar" aria-label="התקדמות במשימות">
         <ProgressDots total={totalTasks} current={currentIdx} />
       </div>
 
       {/* Actions */}
-      <div id="tour-action-buttons" className="flex items-center gap-1.5 xl:gap-3 shrink-0 bg-ws-surface/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm">
+      <div id="tour-action-buttons" className="flex items-center gap-flw-6-12 shrink-0 bg-ws-surface/50 p-1.5 rounded-full border border-ws-surface2 shadow-sm">
         {/* Undo Button (Module 11: 48x48px exact).
             It used to be hidden in meeting 8, where the blocks are gone and
             typing is all there is. PRD Module 12 §א makes meeting 8 the ONE
@@ -182,7 +185,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           <button
             type="button"
             onClick={staysOpen ? showStaysOpenNote : toggleBoard}
-            className={`h-12 px-3 xl:px-4 rounded-2xl text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border shadow-sm ${
+            className={`h-12 px-flw-12-16 rounded-2xl text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border shadow-sm ${
               staysOpen
                 ? 'bg-indigo-50/60 border-indigo-200/70 text-indigo-700/60 dark:bg-indigo-950/30 dark:border-indigo-800/60 dark:text-indigo-300/60 cursor-help'
                 : boardOpen
@@ -206,7 +209,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           id="chat-toggle-button"
           onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
           disabled={!globalChatEnabled}
-          className={`h-12 px-3 xl:px-4 rounded-2xl text-sm font-bold whitespace-nowrap active:scale-95 transition-all flex items-center gap-1.5 relative border shadow-sm ${
+          className={`h-12 px-flw-12-16 rounded-2xl text-sm font-bold whitespace-nowrap active:scale-95 transition-all flex items-center gap-1.5 relative border shadow-sm ${
             !globalChatEnabled
               ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
               : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 cursor-pointer'
@@ -229,7 +232,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         <button
           onClick={proceed}
           disabled={!canProceed}
-          className="h-12 px-4 xl:px-6 rounded-2xl text-base font-display font-extrabold text-white whitespace-nowrap bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
+          className="h-12 px-flw-16-24 rounded-2xl text-base font-display font-extrabold text-white whitespace-nowrap bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
           // Announced by the name it shows (label in name), the name every
           // sentence uses; it was "מעבר למשימה הבאה", also in meeting 1, whose
           // steps are not "משימות".
@@ -241,7 +244,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         </button>
 
         {/* Module 1: Clean Synchronous Logout */}
-        <LogoutButton className="h-12 px-2 xl:px-3 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap text-ws-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 border border-transparent hover:border-red-200" />
+        <LogoutButton className="h-12 px-flw-8-12 rounded-2xl text-sm font-bold whitespace-nowrap text-ws-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 border border-transparent hover:border-red-200" />
       </div>
 
       {/* Station 1: why the board button does nothing — a quiet note under the

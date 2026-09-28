@@ -1398,12 +1398,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!hidden.correct) {
         // Meeting 8 has no blocks and no board (מסמך 03 §3.8), so its skeleton
         // tasks (s8_r_t7, s8_g_t6, s8_g_t7) cannot point the child to them.
+        // With two or three digits missing, the sentence does not say which one.
+        const hiddenCount = (task.hiddenDigits?.a?.length ?? 0) + (task.hiddenDigits?.b?.length ?? 0);
+        const which = hiddenCount > 1 ? 'אחת הספרות החסרות שכתבתם אינה נכונה.' : 'הספרה החסרה שכתבתם אינה נכונה.';
         handleFailure(
           'wrong_numeric',
           'כִּמְעַט... 🧐',
-          s.sessionNumber === 8
-            ? 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב.'
-            : 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בבית המספרים.',
+          s.sessionNumber === 8 ? `${which} בדקו שוב.` : `${which} בדקו שוב בעזרת הלבנים בבית המספרים.`,
           2800
         );
         return;

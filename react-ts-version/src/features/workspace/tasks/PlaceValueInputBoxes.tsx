@@ -46,23 +46,23 @@ export function PlaceValueInputBoxes({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center gap-6 py-6 short:gap-4 short:py-3 tiny:gap-3 tiny:py-1" dir="rtl">
+    <div className="flex flex-col items-center justify-center gap-fl-10-24 py-fl-2-24" dir="rtl">
       {givenText && (
-        <div className="bg-ws-accentSoft/60 border border-ws-accent/30 rounded-3xl px-8 py-5 short:py-3 text-center shadow-sm">
-          <span className="font-display font-black text-3xl md:text-4xl short:text-3xl text-ws-ink">
+        <div className="bg-ws-accentSoft/60 border border-ws-accent/30 rounded-3xl px-8 py-fl-10-20 text-center shadow-sm">
+          <span className="font-display font-black text-fl-30-36 text-ws-ink">
             {givenText}
           </span>
         </div>
       )}
 
       {highlightNumber && (
-        <div className="bg-white dark:bg-slate-800 border-2 border-indigo-200 dark:border-indigo-800 rounded-3xl px-10 py-6 short:py-3 text-center shadow-md flex items-center justify-center gap-2">
+        <div className="bg-white dark:bg-slate-800 border-2 border-indigo-200 dark:border-indigo-800 rounded-3xl px-10 py-fl-10-24 text-center shadow-md flex items-center justify-center gap-2">
           {highlightNumber.split('').map((char, idx) => {
             const isHighlighted = idx === highlightIndex;
             return (
               <span
                 key={idx}
-                className={`font-display font-black text-5xl md:text-6xl short:text-5xl tabular-nums transition-all ${
+                className={`font-display font-black text-fl-44-60 leading-none tabular-nums transition-all ${
                   isHighlighted
                     ? 'text-indigo-600 dark:text-indigo-400 underline decoration-indigo-500 decoration-4 underline-offset-8 scale-110'
                     : 'text-slate-700 dark:text-slate-200'
@@ -114,7 +114,7 @@ export function PlaceValueInputBoxes({
                 value={answerDigits.hundreds ?? ''}
                 aria-labelledby="pv-label-hundreds"
                 onChange={(e) => handleDigitChange('hundreds', e.target.value, tensRef)}
-                className="w-16 h-16 md:w-20 md:h-20 short:w-16 short:h-16 text-center font-display font-black text-3xl md:text-4xl short:text-3xl text-amber-900 dark:text-amber-100 bg-amber-50/70 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 rounded-2xl outline-none shadow-sm transition-all"
+                className="w-fl-56-80 h-fl-56-80 text-center font-display font-black text-fl-30-36 text-amber-900 dark:text-amber-100 bg-amber-50/70 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 rounded-2xl outline-none shadow-sm transition-all"
               />
             </div>
           )}
@@ -131,7 +131,7 @@ export function PlaceValueInputBoxes({
               value={answerDigits.tens ?? ''}
               aria-labelledby="pv-label-tens"
               onChange={(e) => handleDigitChange('tens', e.target.value, unitsRef)}
-              className="w-16 h-16 md:w-20 md:h-20 short:w-16 short:h-16 text-center font-display font-black text-3xl md:text-4xl short:text-3xl text-blue-900 dark:text-blue-100 bg-blue-50/70 dark:bg-blue-950/40 border-2 border-blue-300 dark:border-blue-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-2xl outline-none shadow-sm transition-all"
+              className="w-fl-56-80 h-fl-56-80 text-center font-display font-black text-fl-30-36 text-blue-900 dark:text-blue-100 bg-blue-50/70 dark:bg-blue-950/40 border-2 border-blue-300 dark:border-blue-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-2xl outline-none shadow-sm transition-all"
             />
           </div>
 
@@ -147,7 +147,7 @@ export function PlaceValueInputBoxes({
               value={answerDigits.units ?? ''}
               aria-labelledby="pv-label-units"
               onChange={(e) => handleDigitChange('units', e.target.value)}
-              className="w-16 h-16 md:w-20 md:h-20 short:w-16 short:h-16 text-center font-display font-black text-3xl md:text-4xl short:text-3xl text-emerald-900 dark:text-emerald-100 bg-emerald-50/70 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-700 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 rounded-2xl outline-none shadow-sm transition-all"
+              className="w-fl-56-80 h-fl-56-80 text-center font-display font-black text-fl-30-36 text-emerald-900 dark:text-emerald-100 bg-emerald-50/70 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-700 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 rounded-2xl outline-none shadow-sm transition-all"
             />
           </div>
         </div>
