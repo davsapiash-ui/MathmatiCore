@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { GRID_FADE_IN_SECONDS } from '@/core/hesitationStages';
 import { X, Sparkles } from 'lucide-react';
-import { useLeftClearOfSidePanel } from './useLeftClearOfSidePanel';
+import { useClearOfSidePanel } from './useLeftClearOfSidePanel';
 
 /** The grid's one name on the child's screen (register decision ט: one name per component). */
 export const ADDITION_GRID_HE = 'לוח החיבור';
@@ -69,7 +69,7 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: A
   // is still transparent it must not catch the learner's clicks.
   const [visible, setVisible] = useState(false);
   // Never over the coaching card (report row 1.28).
-  const left = useLeftClearOfSidePanel();
+  const { left, maxWidth } = useClearOfSidePanel();
 
   return (
     <motion.div
@@ -81,7 +81,7 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: A
       onAnimationComplete={() => setVisible(true)}
       dir="rtl"
       className={`${visible ? 'pointer-events-auto' : 'pointer-events-none'} fixed bottom-6 z-50 bg-white dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-700/60 rounded-3xl p-5 shadow-2xl max-w-md w-full select-none ${className}`}
-      style={{ left }}
+      style={{ left, maxWidth }}
       role="dialog"
       aria-label={ADDITION_GRID_HE}
       data-testid="adaptive-addition-grid"

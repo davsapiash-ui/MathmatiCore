@@ -167,8 +167,8 @@ describe('row 1.28 — the addition grid keeps clear of the coaching card', () =
 
   it('the grid and its re-open tab are both placed by it, and the grid has one name', () => {
     const grid = src('features/workspace/board/AdaptiveAdditionGrid.tsx');
-    expect(grid).toContain('const left = useLeftClearOfSidePanel();');
-    expect(grid).toContain('style={{ left }}');
+    expect(grid).toContain('const { left, maxWidth } = useClearOfSidePanel();');
+    expect(grid).toContain('style={{ left, maxWidth }}');
     expect(grid).not.toContain('left-6');
     expect(grid).not.toMatch(/לוח עזר|תמיכה אדפטיבית/);
     expect(src('features/workspace/StudentWorkspacePage.tsx')).not.toMatch(/<span>לוח חיבור<\/span>/);

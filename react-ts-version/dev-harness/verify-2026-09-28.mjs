@@ -156,6 +156,10 @@ for (const [w, h] of sizes) {
     const card = await rect(page, '[data-testid="socratic-side-panel"]');
     check(`${tag} 1.28 grid on screen`, Boolean(grid), JSON.stringify(grid));
     check(`${tag} 1.28 grid does not cover the card`, grid && card && !overlap(grid, card), JSON.stringify({ grid, card }));
+    const sheet = await rect(page, '#tour-task-card');
+    check(`${tag} 1.28 grid does not cover the task column`, grid && sheet && !overlap(grid, sheet), JSON.stringify({ grid, sheet }));
+    const row = await page.evaluate(() => [...document.querySelectorAll('input[aria-label$="בתשובה"]')].map((i) => i.getBoundingClientRect().bottom));
+    check(`${tag} 1.28 result row in view with the card open`, row.length > 0 && row.every((b) => b <= h), JSON.stringify(row));
     const title = await page.locator('[data-testid="adaptive-addition-grid"] h3').innerText().catch(() => '');
     check(`${tag} ע1.6 grid title "לוח החיבור"`, title.trim() === 'לוח החיבור', title);
     await page.screenshot({ path: `${out}/1.28-grid-beside-card-m4-${tag}.png` });
