@@ -162,7 +162,7 @@ describe('שלב 3 — משפט עידוד לפי מדד ההתמדה של מפ�
   it('הנתונים שנשלחים בסיום לא השתנו', () => {
     const onComplete = vi.fn();
     toStep3(onComplete);
-    fireEvent.click(screen.getByRole('button', { name: /סיום המפגש/ }));
+    fireEvent.click(screen.getByRole('button', { name: /סיום התחנה/ }));
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onComplete).toHaveBeenCalledWith({
       effortLevel: 'HARD',

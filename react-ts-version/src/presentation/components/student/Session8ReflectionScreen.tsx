@@ -54,7 +54,8 @@ export const REFLECTION_TEXT_HE = {
   strategyInstruction: 'אפשר לסמן יותר מתשובה אחת.',
   next: 'המשיכו',
   back: 'חזרה',
-  finish: 'סיום המפגש',
+  // Inside the workspace the child reads "תחנה", not "מפגש" (register, deviation 24(ג)).
+  finish: 'סיום התחנה',
 } as const;
 
 /** שלוש רמות המאמץ: סמל חזותי בלבד על המסך; השם (מסמך 03) להקראה ולקורא מסך. */
