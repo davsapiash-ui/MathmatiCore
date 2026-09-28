@@ -199,10 +199,12 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
     throw new Error(`גישה נדחתה: כתובת הדוא"ל (${email || "לא זוהתה"}) אינה מוגדרת כמורה במערכת. רק מורים שהוקמו במערכת על ידי מנהל רשאים להיכנס.`);
   }
 
-  // Stamp verified teacher/admin custom claims on the token via Cloud Function
+  // Stamp verified teacher/admin custom claims on the token via Cloud Function.
+  // The claims are those of the role chosen for this sign-in only (register,
+  // gap יא; PRD Module 24 §ב): an admin sign-in does not carry the teacher's.
   try {
     const syncCallable = httpsCallable(functions, "syncUserRoles");
-    await syncCallable();
+    await syncCallable({ role: targetRole });
     await user.getIdToken(true);
   } catch (syncErr) {
     console.warn("syncUserRoles error during Google SSO:", syncErr);

@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { claimsForSignIn, parseRequestedRole } from "./roleClaims";
 
 const UNIFIED_ADMIN_UID = "admin_unified_identity";
 
@@ -48,8 +49,6 @@ export const syncUserRoles = onCall(
     const firestore = admin.firestore();
     let isAuthorizedTeacher = false;
     let isAuthorizedAdmin = false;
-    let claims: Record<string, unknown> = {};
-    let roles: string[] = [];
     let resolvedUid = request.auth.uid;
 
     // Check the documented pilot fallback addresses
@@ -79,62 +78,29 @@ export const syncUserRoles = onCall(
       }
     }
 
-    if (isAuthorizedAdmin) {
-      // Dual role authorization for admin
-      roles = ["TEACHER", "ADMIN"];
-      claims = {
-        admin: true,
-        teacher: true,
-        role: "admin",
-        roles
-      };
+    // The role this sign-in chose on the login screen (register, gap יא).
+    const requestedRole = parseRequestedRole(request.data);
+    const claims = claimsForSignIn({ isAuthorizedAdmin, isAuthorizedTeacher }, requestedRole);
+    if (isAuthorizedAdmin && claims.role === "admin") {
       resolvedUid = UNIFIED_ADMIN_UID;
+    }
 
-      // Ensure doc exists in authorizedTeachers collection
+    if (isAuthorizedAdmin || isAuthorizedTeacher) {
+      // Ensure doc exists in authorizedTeachers collection. It keeps the
+      // address's authorisation (admin or teacher), not the role of this
+      // sign-in: the owner signing in as the teacher stays an admin address.
+      //
+      // No name. The product owner's decision, recorded in the deviations
+      // register: a teacher's only stored identity is the whitelisted e-mail.
       try {
-        // No name. The product owner's decision, recorded in the deviations
-        // register: a teacher's only stored identity is the whitelisted
-        // e-mail. This line re-created the field on every admin sign-in, in
-        // the one collection every authenticated user can read.
         await firestore.collection("authorizedTeachers").doc(normalizedEmail).set({
           email: normalizedEmail,
-          role: "admin",
+          role: isAuthorizedAdmin ? "admin" : "teacher",
           updatedAt: Date.now()
         }, { merge: true });
       } catch (e) {
         logger.warn("Auto-provision authorizedTeachers error:", e);
       }
-    } else if (isAuthorizedTeacher) {
-      // Strict requirement: prevent teacher from ever obtaining admin claims
-      roles = ["TEACHER"];
-      claims = {
-        teacher: true,
-        admin: false,
-        role: "teacher",
-        class_id: "class_1",
-        roles
-      };
-
-      // Ensure doc exists in authorizedTeachers collection
-      try {
-        await firestore.collection("authorizedTeachers").doc(normalizedEmail).set({
-          email: normalizedEmail,
-          role: "teacher",
-          updatedAt: Date.now()
-        }, { merge: true });
-      } catch (e) {
-        logger.warn("Auto-provision authorizedTeachers error:", e);
-      }
-    } else {
-      // Non-whitelisted users do not receive teacher/admin privileges
-      roles = ["GUEST"];
-      claims = {
-        student: false,
-        admin: false,
-        teacher: false,
-        role: "guest",
-        roles
-      };
     }
 
     try {
