@@ -84,6 +84,9 @@ import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
 import { EMPTY_COUNTS, MAX_VISIBLE_BLOCKS, type Place, type PlaceCounts } from '@/core/placeValue';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+// PRD 18: the sync's writes go out through the learner record's throttled
+// writer; a test's flush sends its pending window too.
+import { flushThrottledWrites } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { RepresentationTask } from '@/features/workspace/tasks/RepresentationTask';
 // Loaded by path, not by a static import: the app's type-check (tsc -b) covers
 // src/ only and CI builds without the functions' packages.
@@ -893,7 +896,7 @@ describe('performance: what one store change costs in the lesson, today vs befor
       const reps = chunks >= 1_500 ? 12 : 40;
       startLiveSync(chunks, 'today');
       sample(6); // warm-up
-      svc.flushRemoteSync();
+      svc.flushRemoteSync(); flushThrottledWrites();
       const w0 = rtdb.updates.length;
       const today = sample(reps);
       results[`chunks_${chunks}`] = today as any;
@@ -901,13 +904,13 @@ describe('performance: what one store change costs in the lesson, today vs befor
       // The database writes are coalesced: none inside the actions themselves
       // (a window may close mid-sample), one carrying the latest state after it.
       expect(today.syncWritesPerAction).toBeLessThanOrEqual(0.2);
-      svc.flushRemoteSync();
+      svc.flushRemoteSync(); flushThrottledWrites();
       const afterActions = workspaceWrites(w0).length;
       expect(afterActions).toBeGreaterThanOrEqual(1);
       expect(afterActions).toBeLessThanOrEqual(2);
       // A focus change leaves the payload as it was: nothing is written for it.
       const j = jsonPassesOfOneIrrelevantChange();
-      svc.flushRemoteSync();
+      svc.flushRemoteSync(); flushThrottledWrites();
       expect(j.syncWrites).toBe(0);
       expect(workspaceWrites(w0).length).toBe(afterActions);
     }, 120_000);
@@ -916,13 +919,13 @@ describe('performance: what one store change costs in the lesson, today vs befor
   it('with a teacher-queued adaptation pending, the listeners no longer feed the sync back', () => {
     startLiveSync(300, 'today', true);
     sample(4);
-    svc.flushRemoteSync();
+    svc.flushRemoteSync(); flushThrottledWrites();
     const w0 = rtdb.updates.length;
     const s = sample(12);
     results.pendingAdaptation_chunks_300 = s;
     expect(s.runaway).toBe(false);
     expect(s.syncWritesPerAction).toBeLessThanOrEqual(0.2);
-    svc.flushRemoteSync();
+    svc.flushRemoteSync(); flushThrottledWrites();
     expect(workspaceWrites(w0).length).toBeLessThanOrEqual(2);
   }, 120_000);
 

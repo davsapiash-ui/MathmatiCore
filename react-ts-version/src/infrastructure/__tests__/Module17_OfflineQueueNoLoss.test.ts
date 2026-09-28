@@ -94,6 +94,15 @@ let queueModule: typeof import('@/infrastructure/services/IndexedDBQueue');
 let auth: typeof import('@/application/useAuthStore');
 let sync: typeof import('@/infrastructure/services/FirebaseSyncService');
 
+/**
+ * RTDB update() calls that are queue deliveries. The learner's presence write
+ * (sign-in and sign-out, through the throttled writer of the learner record)
+ * goes through the same SDK call, and is not what these tests count.
+ */
+const PRESENCE_FIELDS = new Set(['isOnline', 'onlineStatus', 'lastPing', 'lastActivityTimestamp', 'hasJoinedSession']);
+const deliveries = () =>
+  rtdb.update.mock.calls.filter((c) => !Object.keys((c[1] ?? {}) as Record<string, unknown>).every((k) => PRESENCE_FIELDS.has(k)));
+
 const signIn = (n: number) =>
   auth.useAuthStore.setState({
     user: { uid: `student_user${n}`, student_id: n, role: 'student' },
@@ -137,6 +146,8 @@ describe('Module 17 — the real queue on IndexedDB', () => {
     signIn(3);
     await vi.advanceTimersByTimeAsync(0);
     await queue.clearAll();
+    // No presence write of a previous test may land inside this one.
+    (await import('@/infrastructure/services/ThrottledRtdbWriter')).resetThrottledWrites();
     for (const m of [rtdb.set, rtdb.update, rtdb.get, fs.setDoc, fs.getDoc, callable]) m.mockReset();
     rtdb.set.mockImplementation(async () => {});
     rtdb.update.mockImplementation(async () => {});
@@ -301,7 +312,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       await vi.advanceTimersByTimeAsync(0);
       await queue.flushQueue(); // the teacher: the gate mirror
 
-      expect(rtdb.update.mock.calls).toEqual([
+      expect(deliveries()).toEqual([
         [{ path: 'users/students/student_user3/sessionState' }, { status: 'active' }],
         [{ path: 'users/students/student_user3' }, { teacher_gate_approved: true, routeStatus: 'APPROVED' }],
       ]);
@@ -328,7 +339,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       await queue.enqueue(event('e_last_task'));
       await sync.firebaseSyncService.syncSession2Completion('student_user3', 71, 'green_path');
       // Nothing written straight to the SDKs — both are on the device first.
-      expect(rtdb.update).not.toHaveBeenCalled();
+      expect(deliveries()).toEqual([]);
       expect(fs.setDoc).not.toHaveBeenCalled();
       expect(await stored()).toEqual(['e_last_task', 's2_done_rtdb_student_user3', 's2_done_doc_session_02_student_3']);
 
@@ -507,10 +518,10 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       for (let i = 0; i < 40; i++) {
         const [head] = await queue.getAll();
         if ((head.transient_count ?? 0) >= 19) break;
-        expect(rtdb.update).not.toHaveBeenCalled(); // strict FIFO: each failure ends the pass
+        expect(deliveries()).toEqual([]); // strict FIFO: each failure ends the pass
         await queue.flushQueue();
       }
-      expect(rtdb.update).not.toHaveBeenCalled();
+      expect(deliveries()).toEqual([]);
       await queue.flushQueue(); // 20th failure: parked, and the pass moves on
       expect(rtdb.update).toHaveBeenCalledWith({ path: 'users/students/student_user3' }, { teacher_gate_approved: true, routeStatus: 'APPROVED' });
       const left = await queue.getAll();
@@ -559,14 +570,14 @@ describe('Module 17 — the real queue on IndexedDB', () => {
         ['s2_done_rtdb_student_user3', 0, 0],
         ['s2_done_doc_session_02_student_3', 0, 0],
       ]);
-      expect(rtdb.update).not.toHaveBeenCalled();
+      expect(deliveries()).toEqual([]);
       expect(fs.setDoc).not.toHaveBeenCalled();
 
       // The network comes back. No reload, no online/offline event.
       rtdb.get.mockImplementation(async () => ({ val: () => null }));
       fs.getDoc.mockImplementation(async () => ({ exists: () => false, data: () => undefined }));
       await vi.advanceTimersByTimeAsync(31_000); // the next backoff retry
-      expect(rtdb.update).toHaveBeenCalledTimes(1);
+      expect(deliveries()).toHaveLength(1);
       expect(fs.setDoc.mock.calls.map((c) => (c[0] as { id: string }).id)).toEqual(['session_02_student_3']);
       expect(await stored()).toEqual([]);
       expect(queue.getSyncState()).toBe('synced');
@@ -586,7 +597,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       await parkMessage(networkDown);
       await queue.enqueueRtdbMerge('users/students/student_user3', { teacher_gate_approved: true }, 'gate_mirror_3_9');
       await queue.flushQueue(); // the mirror is delivered → the parked message gets a probe
-      expect(rtdb.update).toHaveBeenCalledTimes(1);
+      expect(deliveries()).toHaveLength(1);
       await vi.advanceTimersByTimeAsync(2000);
       await vi.waitFor(async () => expect(await stored()).toEqual([]));
       signIn(3);
@@ -599,7 +610,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       await queue.enqueueRtdbMerge('users/students/student_user3', { teacher_gate_approved: true }, 'gate_mirror_3_8');
       await queue.flushQueue();
       await vi.advanceTimersByTimeAsync(5000);
-      expect(rtdb.update).toHaveBeenCalledTimes(1);
+      expect(deliveries()).toHaveLength(1);
       expect(callable.mock.calls.length).toBe(calls); // not revived by the mirror's success
       const [item] = await queue.getAll();
       expect([item.idempotency_key, item.transient_count, item.last_failure_kind]).toEqual(['tam_p', 20, 'transient']);

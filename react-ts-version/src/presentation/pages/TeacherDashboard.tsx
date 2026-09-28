@@ -43,6 +43,7 @@ import { ClusteringWidgets, isStudentBelow } from "./TeacherDashboard/components
 import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/components/TeacherApprovalGate";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { getSessionDurationMinutes } from "@/core/classSession";
+import { isHeartbeatFresh, readLastPing } from "@/core/presence";
 import {
   CONCEPT_LABELS_HE,
   DIAGNOSTIC_DOMAINS,
@@ -661,8 +662,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             studentId: normUid,
             classId: row.classId ?? existingLocal?.classId ?? 'live',
             name: cleanName,
-            isOnline: Boolean(row.isOnline === true && row.onlineStatus !== 'offline' && (row.lastPing ? Math.abs(Date.now() - row.lastPing) <= 12000 : false)),
-            lastPing: row.lastPing || 0,
+            // Server stamp against the server clock (Module 18 §ג, core/presence.ts).
+            isOnline: Boolean(row.isOnline === true && row.onlineStatus !== 'offline' && isHeartbeatFresh(row.lastPing)),
+            lastPing: readLastPing(row.lastPing),
             lastActivityTimestamp: row.lastActivityTimestamp || 0,
             lastAction: row.isOnline === true ? (row.lastAction || 'פעיל') : 'לא מחובר',
             hasJoinedSession: row.hasJoinedSession === true || row.sessionJoined === true,

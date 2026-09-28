@@ -9,6 +9,7 @@ import { invalidateLearnerEventsCache } from '@/infrastructure/services/LearnerJ
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import type { MasteryProfile } from '@/core/QMatrix';
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
+import { isHeartbeatFresh } from '@/core/presence';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import type { ResetReason, SingleStudentResetScope } from '@/types';
 import { meetingShortLabelHe } from '@/core/stationNames';
@@ -265,7 +266,8 @@ export const initStoreSubscriptions = (): (() => void) => {
             isASD: row.isASD !== undefined ? row.isASD : prev.isASD,
             physicalOverride: Boolean(row.physicalOverride ?? prev.physicalOverride ?? false),
             physicalOverrideActive: Boolean(row.physicalOverrideActive ?? prev.physicalOverrideActive ?? false),
-            isOnline: Boolean(row.isOnline === true && row.lastPing && (Date.now() - row.lastPing <= 15000)),
+            // Server stamp against the server clock (Module 18 §ג, core/presence.ts).
+            isOnline: Boolean(row.isOnline === true && isHeartbeatFresh(row.lastPing)),
             qMatrixResults: {
               ...(prev.qMatrixResults || {}),
               ...(row.qMatrixResults || {})

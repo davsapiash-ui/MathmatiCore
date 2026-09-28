@@ -805,3 +805,29 @@ export function persistenceHe(p: PersistenceIndex | null): string {
   if (!p) return "לא נמדד";
   return `${p.percent}% (ביטולים ${p.undos}, ספרות שגויות ${p.wrong_digits}, בחירות שגויות בכרטיס ${p.wrong_options})`;
 }
+
+/**
+ * Module 21: "ההקלטה מוגבלת ל-50MB לכל לומד לכל מפגש… נרשם דגל
+ * recording_truncated: true". The learner's client keeps the budget per
+ * meeting and flags it there (users/students/{id}/recorded_bytes/meeting_{N}/
+ * truncated), so a meeting whose budget ran out is flagged even when the
+ * recording that hit the cap holds no chunk of its own. Older recordings carry
+ * the flag only on the recording node (telemetry_sessions/{id}/recording_truncated);
+ * readers check both.
+ */
+export function meetingRecordingTruncated(learnerNode: Record<string, any> | null | undefined, meeting: number): boolean {
+  const budget = learnerNode?.recorded_bytes?.[`meeting_${meeting}`];
+  return Boolean(budget && typeof budget === "object" && budget.truncated === true);
+}
+
+/** The meetings whose recording budget is flagged as truncated on this learner's record. */
+export function truncatedRecordingMeetings(learnerNode: Record<string, any> | null | undefined): number[] {
+  const budgets = learnerNode?.recorded_bytes;
+  if (!budgets || typeof budgets !== "object") return [];
+  const out: number[] = [];
+  for (const key of Object.keys(budgets)) {
+    const m = /^meeting_(\d)$/.exec(key);
+    if (m && meetingRecordingTruncated(learnerNode, Number(m[1]))) out.push(Number(m[1]));
+  }
+  return out.sort((a, b) => a - b);
+}
