@@ -157,13 +157,25 @@ describe('(a) place-value headings and colours by support profile (row 2.21)', (
       const boxes = within(screen.getByTestId('pv-result-row')).getAllByRole('textbox') as HTMLInputElement[];
       for (const b of boxes) {
         const place = b.dataset.place as 'hundreds' | 'tens' | 'units';
-        expect(borderOf(b)).toBe(PLACE_COLORS[place].border);
+        // the same shade as the vertical exercises' boxes and the board column headers
+        expect(borderOf(b)).toBe(PLACE_COLORS[place].header);
         const label = document.getElementById(`pv-label-${place}`)!;
         expect(label.textContent).toBe({ hundreds: 'מאות', tens: 'עשרות', units: 'יחידות' }[place]);
         expect(label.style.color).toBe(PLACE_COLORS[place].header);
       }
     });
   }
+
+  it('follows the teacher\'s toggle live, without a reload', async () => {
+    const { act } = await import('@testing-library/react');
+    atTask('task1_read_write_zero');
+    const { container } = await renderCard();
+    expect(container.querySelectorAll('[id^="pv-label-"]').length).toBe(0);
+    act(() => setProfile(true));
+    expect(container.querySelectorAll('[id^="pv-label-"]').length).toBe(3);
+    act(() => setProfile(false));
+    expect(container.querySelectorAll('[id^="pv-label-"]').length).toBe(0);
+  });
 
   it('task 2: the single box is neutral for every learner', async () => {
     for (const enhanced of [false, true]) {
@@ -206,6 +218,8 @@ describe('(c) task 5 shows 25 unit blocks, a still picture, for every learner (r
       atTask('task5_units_to_tens', phase, subphase);
       const { container } = await renderCard();
       const pic = screen.getByRole('img', { name: '25 לבני יחידה' });
+      // a column, four across — not a square of fives
+      expect((pic.firstElementChild as HTMLElement).style.width).toBe(`${4 * 20 + 3 * 6}px`);
       expect(pic.querySelectorAll('[data-testid="unit-block-still"]').length).toBe(25);
       expect(pic.querySelectorAll('button, [role="button"], [tabindex], [draggable="true"]').length).toBe(0);
       expect(container.textContent).not.toContain('קבץ 10');

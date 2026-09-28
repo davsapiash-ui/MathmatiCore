@@ -74,7 +74,8 @@ export function BeeFlightWaitingScreen({ onApproved }: BeeFlightWaitingScreenPro
           <span className="bee-flight inline-block text-5xl will-change-transform">🐝</span>
         </div>
         {/* PRD Module 20 §ב gives the message; the words on screen follow the
-            report's row ע2.3 (owner, 28.9.2026): the teacher is feminine as on
+            report's row ע2.3 (register deviation 25 — the owner asked for the
+            row to be fixed; the wording awaits his approval): the teacher is feminine as on
             every other screen of the child, the address has its comma, and
             nothing promises an immediate continuation — the wait can last
             until the next lesson. */}

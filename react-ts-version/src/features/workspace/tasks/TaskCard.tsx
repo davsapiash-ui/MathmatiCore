@@ -190,7 +190,7 @@ export function TaskCard() {
                 {qTask.type === 'conversion' && (
                   <PlaceValueInputBoxes
                     mode="two_digits"
-                    givenText={qTask.givenHe}
+                    givenText={qTask.pictureUnitBlocks === undefined ? qTask.givenHe : undefined}
                     labels={{ tens: 'עשרות', units: 'יחידות' }}
                   >
                     {qTask.pictureUnitBlocks !== undefined && (

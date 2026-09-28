@@ -18,13 +18,6 @@ interface PlaceValueInputBoxesProps {
   highlightNumber?: string;
   highlightIndex?: number;
   labels?: { hundreds?: string; tens?: string; units?: string };
-  /**
-   * Place-value headings and colours over the boxes (owner, 27.9.2026): only for
-   * a learner with the enhanced cognitive support profile. Everyone else sees
-   * the boxes in one neutral colour, without headings. Read from the learner's
-   * profile unless given.
-   */
-  placeCues?: boolean;
   /** Shown between the given text and the boxes (task 5: the picture of the blocks). */
   children?: React.ReactNode;
 }
@@ -35,11 +28,12 @@ export function PlaceValueInputBoxes({
   highlightNumber,
   highlightIndex,
   labels = { hundreds: 'מאות', tens: 'עשרות', units: 'יחידות' },
-  placeCues: placeCuesProp,
   children,
 }: PlaceValueInputBoxesProps) {
-  const enhancedSupport = useEnhancedSupport();
-  const placeCues = placeCuesProp ?? enhancedSupport;
+  // Place-value headings and colours over the boxes (owner, 27.9.2026): only for
+  // a learner with the enhanced cognitive support profile; everyone else sees
+  // the boxes in one neutral colour, without headings.
+  const placeCues = useEnhancedSupport();
   const answerDigits = useWorkspaceStore((s) => s.answerDigits);
   const setAnswerDigit = useWorkspaceStore((s) => s.setAnswerDigit);
   const probeAnswer = useWorkspaceStore((s) => s.probeAnswer);
@@ -179,7 +173,7 @@ export function PlaceValueInputBoxes({
                   className={`w-16 h-16 md:w-20 md:h-20 ${NEUTRAL_BOX_CLASS}`}
                   style={
                     placeCues
-                      ? { borderColor: colors.border, backgroundColor: colors.tint, color: colors.header }
+                      ? { borderColor: colors.header, backgroundColor: colors.tint, color: colors.header }
                       : { borderColor: NEUTRAL_BOX_BORDER }
                   }
                 />

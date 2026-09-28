@@ -21,6 +21,8 @@ const [W, H] = (args.size ?? '1366x768').split('x').map(Number);
 const out = args.out ?? 'dev-harness/shots/after';
 const answers = args.answers ?? 'wrong';
 const base = args.base ?? 'http://localhost:5199';
+/** Stop after this primary task (1–7): a quick look at one screen. */
+const stopAfter = Number(args['stop-after'] ?? 0);
 const RTDB = 'http://127.0.0.1:9000';
 const NS = 'demo-mathmaticore-default-rtdb';
 const tag = `${profile}-${answers}-${W}x${H}`;
@@ -154,13 +156,21 @@ async function proceed() {
 for (let i = 0; i < 7; i += 1) {
   await page.waitForTimeout(700);
   report.steps.push({ step: `primary ${i + 1}`, before: await facts(), shot: await shot(`task${i + 1}`) });
+  if (stopAfter && i + 1 === stopAfter) {
+    // --idle N: sit N seconds without touching anything (Module 12: no coaching card in meeting 2)
+    if (args.idle) {
+      await page.waitForTimeout(Number(args.idle) * 1000);
+      report.steps.push({ step: `idle ${args.idle}s`, before: await facts(), dialogs: await page.locator('[role="dialog"], [role="alertdialog"]').count(), shot: await shot(`idle${args.idle}`) });
+    }
+    break;
+  }
   await typeInto(i === 1 ? PRIMARY[i] : PRIMARY[i]);
   await page.waitForTimeout(200);
   report.steps.push({ step: `primary ${i + 1} filled`, after: await facts(), shot: await shot(`task${i + 1}-filled`) });
   await proceed();
 }
 // Correction round: take every screen until the bee screen.
-for (let k = 0; k < 12; k += 1) {
+for (let k = 0; k < (stopAfter ? 0 : 12); k += 1) {
   // Wait for the next screen: the bee screen, or a task with an empty answer box.
   let next = 'none';
   for (let t = 0; t < 40 && next === 'none'; t += 1) {
@@ -185,9 +195,11 @@ for (let k = 0; k < 12; k += 1) {
   report.steps.push({ step: `correction ${k + 1} filled`, shot: await shot(`retry${k + 1}-filled`) });
   await proceed();
 }
-await page.getByText('סיימתם את התחנה השנייה').waitFor({ timeout: 20000 }).catch(() => {});
-await page.waitForTimeout(1000);
-report.steps.push({ step: 'end', shot: await shot('end') });
+if (!stopAfter) {
+  await page.getByText('סיימתם את התחנה השנייה').waitFor({ timeout: 20000 }).catch(() => {});
+  await page.waitForTimeout(1000);
+  report.steps.push({ step: 'end', shot: await shot('end') });
+}
 report.errors = log;
 fs.writeFileSync(path.join(out, `${tag}.json`), JSON.stringify(report, null, 2));
 await browser.close();
