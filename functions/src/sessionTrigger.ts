@@ -2,6 +2,7 @@ import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { readCallerRoles } from "./callerIdentity";
 import {
   computeFirstAttemptScore,
   isScoredMeeting,
@@ -126,15 +127,15 @@ export const createSessionWithServerDeadline = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "class_id is not a valid class identifier.");
   }
 
-  // A session document may be stamped only by staff, or by the learner it
-  // belongs to (auth.token.student_id 1-12). Without this, any signed-in
-  // identity could create/overwrite any learner's session deadline.
+  // A session document may be stamped only by the teacher, or by the learner
+  // it belongs to (auth.token.student_id 1-12). Without this, any signed-in
+  // identity could create/overwrite any learner's session deadline. A session
+  // document is a learner's personal document, so an admin sign-in is not
+  // staff here (PRD Module 24 §ב).
   const token = request.auth.token as Record<string, unknown>;
-  const roles: string[] = Array.isArray(token.roles) ? (token.roles as string[]) : token.role ? [String(token.role)] : [];
-  const lowered = roles.map((r) => r.toLowerCase());
-  const isStaff = lowered.includes("teacher") || lowered.includes("admin") || token.teacher === true || token.admin === true;
+  const isTeacher = readCallerRoles(token).isTeacher;
   const ownStudent = String(token.student_id ?? "") === String(student_id);
-  if (!isStaff && !ownStudent) {
+  if (!isTeacher && !ownStudent) {
     throw new HttpsError("permission-denied", "Not authorized for this learner's session.");
   }
 

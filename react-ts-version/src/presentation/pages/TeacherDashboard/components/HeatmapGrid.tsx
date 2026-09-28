@@ -104,7 +104,6 @@ export function describeRadarCell(
   const parts: string[] = [`תלמיד ${student.studentNumber}`];
 
   if (student.helpRequested) parts.push('קורא לעזרה');
-  else if (student.isWaitingAtGate) parts.push(`סיים אבחון וממתין ב${TEACHER_GATE_HE}`);
   else if (student.isSocraticActive) parts.push(CARD_OPEN_HE);
   else if (!student.isOnline) parts.push(student.lastAction === 'יצא מהחלון' ? 'יצא מהחלון' : 'לא מחובר');
   else if (!isSessionActive) parts.push('מחובר וממתין בלובי');
@@ -113,6 +112,10 @@ export function describeRadarCell(
   } else if (student.activeBranch === 'challenge') parts.push('עובד על משימות אתגר');
   else if (student.activeBranch === 'reinforcement') parts.push('עובד על משימות ביסוס');
   else parts.push('פעיל ותקין');
+
+  // PRD Module 18 §ב gives the tile's colour to activity, connection and help
+  // alone; the gate is Module 20's, so it is said after the state, not instead.
+  if (student.isWaitingAtGate) parts.push(`סיים אבחון וממתין ב${TEACHER_GATE_HE}`);
 
   const glyph = getCognitiveGlyph(student.errorCategory);
   if (glyph) parts.push(glyph.title);
@@ -638,20 +641,27 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     setSelectedStudent(student);
                   }
                 }}
+                data-radar-color={resolveRadarColor({
+                  helpRequested: student.helpRequested,
+                  socraticActive: student.isSocraticActive,
+                  isOnline: Boolean(student.isOnline),
+                  hesitationSeconds: student.hesitationSeconds,
+                  hesitationThresholdSeconds: getHesitationThresholdSeconds(),
+                })}
                 className={`p-4 rounded-2xl border text-right transition-colors duration-500 ease-in-out flex flex-col justify-between min-h-[125px] relative overflow-hidden shadow-sm hover:shadow-md cursor-pointer ${
-                  // PRD v7.1 Module 18: BLUE > RED > GREY > YELLOW > GREEN.
-                  // Gate-waiting keeps its custom banner style below the BLUE help call.
-                  student.helpRequested
-                    ? RADAR_CELL_CLASSES.BLUE
-                    : student.isWaitingAtGate
-                    ? 'bg-amber-500/25 border-2 border-amber-500 text-amber-950 dark:text-amber-100 shadow-amber-500/10'
-                    : RADAR_CELL_CLASSES[resolveRadarColor({
-                        helpRequested: student.helpRequested,
-                        socraticActive: student.isSocraticActive,
-                        isOnline: Boolean(student.isOnline),
-                        hesitationSeconds: student.hesitationSeconds,
-                        hesitationThresholdSeconds: getHesitationThresholdSeconds(),
-                      })]
+                  // PRD Module 18 §ב: BLUE > RED > GREY > YELLOW > GREEN, and "the
+                  // background colours remain driven strictly by activity timing,
+                  // connection state, and help requests". Waiting at the teacher's
+                  // gate (Module 20) is none of those, so it never colours the
+                  // tile; it is shown in the gate table above and in its own row
+                  // below (report 28.9.2026, מ.5).
+                  RADAR_CELL_CLASSES[resolveRadarColor({
+                    helpRequested: student.helpRequested,
+                    socraticActive: student.isSocraticActive,
+                    isOnline: Boolean(student.isOnline),
+                    hesitationSeconds: student.hesitationSeconds,
+                    hesitationThresholdSeconds: getHesitationThresholdSeconds(),
+                  })]
                 }`}
               >
                 {/* Top Badge Row */}
@@ -676,11 +686,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     })()}
                   </div>
                   
-                  {/* Status Icon - Deterministic Precedence: GATE > SOCRATIC > OFFLINE > HESITATION > ONLINE/ACTIVE */}
-                  {student.isWaitingAtGate ? (
-                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={`ממתין ב${TEACHER_GATE_HE} למפגש 3`}>
-                      <DoorOpen className="w-3 h-3" />
-                      {TEACHER_GATE_HE}
+                  {/* Status tag — help, card and connection in the colour's order (Module 18); the gate has its own row below */}
+                  {student.helpRequested ? (
+                    <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="קריאה לעזרה">
+                      קריאה לעזרה
                     </span>
                   ) : student.isSocraticActive ? (
                     <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={CARD_OPEN_HE}>
@@ -745,33 +754,45 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       <span>ביטולים: {student.errorCount}</span>
                     </div>
 
-                    {/* In-Card Quick Gate Approval Buttons */}
-                    {student.isWaitingAtGate && (
-                      <div className="mt-2 pt-2 border-t border-amber-300/80 dark:border-amber-700/80 flex items-center justify-between gap-1 z-10" onClick={e => e.stopPropagation()}>
-                        <span className="text-[10px] font-bold text-amber-900 dark:text-amber-200">{radarPathLabelHe(student.recommendedPath)}</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleApproveGate(student.id, 'ירוק')}
-                            disabled={Boolean(approvingStudentId)}
-                            className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
-                            title={ROUTE_APPROVE_HE.green_path}
-                          >
-                            {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
-                            <span>ירוק</span>
-                          </button>
-                          <button
-                            onClick={() => handleApproveGate(student.id, 'צמצום פערים')}
-                            disabled={Boolean(approvingStudentId)}
-                            className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
-                            title={ROUTE_APPROVE_HE.remediation_path}
-                          >
-                            {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
-                            <span>צמצום פערי קדם</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </>
+                )}
+
+                {/* Module 20 on the tile: a row of its own, in the tile's own
+                    colours — never the background (Module 18 §ב; report 28.9.2026,
+                    מ.5). Shown whether or not the learner is connected. */}
+                {student.isWaitingAtGate && (
+                  <div
+                    data-testid={`gate-row-student-${student.studentNumber}`}
+                    className="mt-2 pt-2 border-t border-slate-300/80 dark:border-slate-600/80 flex flex-col gap-1 z-10"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1" title={`ממתין ב${TEACHER_GATE_HE} למפגש 3`}>
+                      <DoorOpen className="w-3 h-3 shrink-0" />
+                      <span className="min-w-0">
+                        {TEACHER_GATE_HE} · המלצה: <span className="whitespace-nowrap">{radarPathLabelHe(student.recommendedPath)}</span>
+                      </span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleApproveGate(student.id, 'ירוק')}
+                        disabled={Boolean(approvingStudentId)}
+                        className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                        title={ROUTE_APPROVE_HE.green_path}
+                      >
+                        {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
+                        <span>ירוק</span>
+                      </button>
+                      <button
+                        onClick={() => handleApproveGate(student.id, 'צמצום פערים')}
+                        disabled={Boolean(approvingStudentId)}
+                        className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                        title={ROUTE_APPROVE_HE.remediation_path}
+                      >
+                        {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
+                        <span>צמצום פערי קדם</span>
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             );

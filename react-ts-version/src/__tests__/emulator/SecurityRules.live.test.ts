@@ -24,7 +24,7 @@ import { ref, get as rtdbGet, set as rtdbSet, update as rtdbUpdate } from 'fireb
 const root = resolve(__dirname, '../../../..');
 let env: RulesTestEnvironment;
 
-const TEACHER_EMAIL = 'pilot.teacher@edu-haifa.org.il';
+const TEACHER_EMAIL = 'teacher@example.com';
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
@@ -49,7 +49,7 @@ beforeEach(async () => {
   await env.withSecurityRulesDisabled(async (ctx) => {
     const fs = ctx.firestore();
     await setDoc(doc(fs, 'authorizedTeachers', TEACHER_EMAIL), { email: TEACHER_EMAIL, role: 'teacher' });
-    await setDoc(doc(fs, 'authorizedTeachers', 'other.teacher@edu-haifa.org.il'), { email: 'other.teacher@edu-haifa.org.il', role: 'teacher' });
+    await setDoc(doc(fs, 'authorizedTeachers', 'other.teacher@example.com'), { email: 'other.teacher@example.com', role: 'teacher' });
     await setDoc(doc(fs, 'classes', 'class_1'), {
       class_id: 'class_1', school_id: 'school_bikorot', class_name: 'המבקרים',
       class_type: 'pilot', active_session_id: 1, projector_mode: false,
@@ -69,7 +69,7 @@ beforeEach(async () => {
 const learner12 = () => env.authenticatedContext('student_user12', { student_id: 12 });
 const learner7 = () => env.authenticatedContext('student_user7', { student_id: 7 });
 const teacher = () => env.authenticatedContext('teacher_uid', { role: 'teacher', email: TEACHER_EMAIL });
-const admin = () => env.authenticatedContext('admin_uid', { role: 'admin', email: 'owner@edu-haifa.org.il' });
+const admin = () => env.authenticatedContext('admin_uid', { role: 'admin', email: 'admin@example.com' });
 
 /* ── מודול 27 §ב.4 — מה שילד יכול לקרוא ───────────────────────────────── */
 
@@ -197,8 +197,8 @@ describe('מודול 24 §ב — המנהל חסום מנתוני לומד יח�
   });
 
   it('כן מנהל את המערכת: רשימת המורות וכיול הרדאר', async () => {
-    await assertSucceeds(setDoc(doc(admin().firestore(), 'authorizedTeachers', 'new.teacher@edu-haifa.org.il'), {
-      email: 'new.teacher@edu-haifa.org.il', role: 'teacher',
+    await assertSucceeds(setDoc(doc(admin().firestore(), 'authorizedTeachers', 'new.teacher@example.com'), {
+      email: 'new.teacher@example.com', role: 'teacher',
     }));
     await assertSucceeds(setDoc(doc(admin().firestore(), 'system_control', 'trace_calibration'), {
       hesitation_threshold_seconds: 60, updated_at: Date.now(),
@@ -216,7 +216,7 @@ describe('הרשימה הלבנה — בדיקת הכניסה ממשיכה לע�
 
   it('ואינה קוראת את המסמך של מורה אחרת', async () => {
     const preClaim = env.authenticatedContext('fresh_google_uid', { email: TEACHER_EMAIL });
-    await assertFails(getDoc(doc(preClaim.firestore(), 'authorizedTeachers', 'other.teacher@edu-haifa.org.il')));
+    await assertFails(getDoc(doc(preClaim.firestore(), 'authorizedTeachers', 'other.teacher@example.com')));
   });
 
   it('אסימון בלי דוא"ל כלל (הדרכון האנונימי של הילד) אינו קורא דבר מהרשימה', async () => {

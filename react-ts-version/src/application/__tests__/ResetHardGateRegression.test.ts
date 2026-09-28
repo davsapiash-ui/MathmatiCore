@@ -71,6 +71,20 @@ describe('Module 23א: backup-before-delete hard gate (regression for Antigravit
       expect(mockRemove).not.toHaveBeenCalled();
     });
 
+    it('a server refusal before the backup is reported as a refusal, not as a failed backup', async () => {
+      // No open meeting and the learner's record names none: the server
+      // refuses before collecting anything (register, deviation 10).
+      const refusal = Object.assign(new Error('אין מפגש פתוח, ולא ידוע באיזה מפגש הלומד נמצא. לא נמחקו נתונים.'), { code: 'functions/failed-precondition' });
+      mockCallable.mockRejectedValueOnce(refusal);
+
+      await expect(
+        useStore.getState().resetStudentData('student_1', 'technical_fault')
+      ).rejects.toThrow('RESET_REFUSED');
+
+      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockRemove).not.toHaveBeenCalled();
+    });
+
     it('defaults to the active meeting only (PRD 23א §ב.2) and leaves the learner record to the server', async () => {
       mockCallable.mockResolvedValueOnce({ data: { status: 'SUCCESS' } });
 
