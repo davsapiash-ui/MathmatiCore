@@ -15,6 +15,9 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/__tests__/**/*.test.{ts,tsx}"],
     cache: false,
+    // `npm run test:direct` reads this file, not vitest.config.ts: the same guard
+    // keeps it away from the live project (src/test/noProductionNetwork.ts).
+    setupFiles: ["src/test/noProductionNetwork.ts"],
   },
   build: {
     chunkSizeWarningLimit: 2000,
