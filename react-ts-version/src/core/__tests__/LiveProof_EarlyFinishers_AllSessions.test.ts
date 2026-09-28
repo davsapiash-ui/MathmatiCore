@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/application/useWorkspaceStore';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
+import { useAuthStore } from '@/application/useAuthStore';
+import { useStore } from '@/application/useStore';
 
 /**
  * PRD v7.2 Module 14 §ג + מסמך 03 "מדיניות סיום מוקדם": the choice screen
@@ -14,6 +16,9 @@ describe('LIVE PROOF: Early Finisher & Branching Policy, sessions 3 to 7', () =>
       it(`Session ${sessionNum} / ${path}: mandatory completion -> choice_branch -> branch task injection`, () => {
         const store = useWorkspaceStore.getState();
         store.resetWorkspace();
+        // The learner's approved path (Module 26: no path, no bank).
+        useAuthStore.setState({ user: { uid: 'student_user3', student_id: 3 } as any, role: 'student', isAuthenticated: true });
+        useStore.setState({ students: { student_user3: { pedagogicalPath: path } as any } as any });
         store.initSession(sessionNum, false);
 
         const initialTasks = getActiveTasks(useWorkspaceStore.getState());
@@ -43,6 +48,7 @@ describe('LIVE PROOF: Early Finisher & Branching Policy, sessions 3 to 7', () =>
         const injected = after.dynamicTasks?.[initialTasks.length];
         expect(injected?.isOptionalChoiceTask).toBe(true);
         expect(injected?.branchType).toBe('challenge');
+        expect(challengeTasks.map((t) => t.id)).toContain(injected?.id);
       });
     }
   }

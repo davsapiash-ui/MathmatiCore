@@ -78,7 +78,7 @@ export interface SessionState {
   student_id: string;
   session_number: number; // 1-8
   status: 'active' | 'locked' | 'completed';
-  current_path: 'green_path' | 'remediation_path';
+  current_path: 'green_path' | 'remediation_path' | null;
   hesitation_seconds?: number;
   error_count?: number;
   physical_override?: boolean;
@@ -288,6 +288,13 @@ export class FirebaseSyncService {
   private lastPublishedCardOpen: boolean | null = null;
   private unsubscribeFirebase: (() => void) | null = null;
   private currentUserId: string | null = null;
+  /**
+   * The record's helpRequested as last seen; undefined until the first
+   * snapshot. The call-teacher button follows the record only when this value
+   * changes, so a snapshot that arrives while the learner's own press is still
+   * inside the write throttle does not undo the press.
+   */
+  private lastRemoteHelpRequested: boolean | undefined = undefined;
   private isInitialLoad = false;
   private unsubscribeSchools: (() => void) | null = null;
   private unsubscribeClasses: (() => void) | null = null;
@@ -394,6 +401,7 @@ export class FirebaseSyncService {
     
     this.isInitialLoad = true;
     this.lastSyncedPayloadKey = null;
+    this.lastRemoteHelpRequested = undefined;
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
       window.removeEventListener('pagehide', this.flushRemoteSyncOnPageHide);
       window.addEventListener('pagehide', this.flushRemoteSyncOnPageHide);
@@ -426,12 +434,24 @@ export class FirebaseSyncService {
           if (data.isASD !== undefined && data.isASD !== useWorkspaceStore.getState().isASD) {
             wsOverrides.isASD = Boolean(data.isASD);
           }
-          // PRD v7.1 Modules 9/19: propagate the authoritative support profile so the
-          // keyboard lock and adaptive addition grid react live to the teacher toggle.
-          if (data.support_profile_id !== undefined || data.enhanced_support_profile !== undefined) {
-            const resolvedProfile = hasEnhancedSupport(data) ? ENHANCED_SUPPORT_PROFILE_ID : null;
-            if (resolvedProfile !== (useWorkspaceStore.getState() as any).support_profile_id) {
-              wsOverrides.support_profile_id = resolvedProfile;
+          // PRD Modules 9/19: the authoritative support profile. Module 19 §ב:
+          // "שינוי פרופיל במהלך תרגיל פעיל נשמר כהתאמה ממתינה (Pending
+          // Adaptation) ומוחל אך ורק במעבר לתרגיל הבא" — it used to be copied
+          // straight into the store, so the keyboard lock and the addition grid
+          // switched on or off in the exercise on screen. The store applies it
+          // at once only while no exercise is in progress. The snapshot is the
+          // whole record, so a record with neither field has no profile.
+          useWorkspaceStore.getState().receiveSupportProfile(hasEnhancedSupport(data) ? ENHANCED_SUPPORT_PROFILE_ID : null);
+          // PRD 29 §ב ("helpRequested המאפשר מיתוג דו-כיווני לקריאת עזרה"):
+          // the call-teacher button follows the record. A call survives an
+          // exercise change and a reload, and once the teacher marks it
+          // handled the next press calls again instead of taking back a call
+          // that is no longer there.
+          const remoteHelpRequested = data.helpRequested === true;
+          if (remoteHelpRequested !== this.lastRemoteHelpRequested) {
+            this.lastRemoteHelpRequested = remoteHelpRequested;
+            if (useWorkspaceStore.getState().hasRequestedBasicHelp !== remoteHelpRequested) {
+              wsOverrides.hasRequestedBasicHelp = remoteHelpRequested;
             }
           }
           const targetBoardLocked = data.isBoardLocked !== undefined
@@ -465,7 +485,11 @@ export class FirebaseSyncService {
             ...(data.additionBoardEnabled !== undefined || data.forceAdditionHelper !== undefined ? { additionBoardEnabled: additionEnabled } : {}),
             ...(data.forceAdditionHelper !== undefined && { forceAdditionHelper: data.forceAdditionHelper }),
             ...(data.scaffoldLevel !== undefined && { scaffoldLevel: data.scaffoldLevel }),
-            ...(data.pedagogicalPath !== undefined && { pedagogicalPath: data.pedagogicalPath }),
+            // The snapshot is the whole record: a path the server reset to null
+            // is gone, not kept from before (Module 26 — no path, no bank).
+            pedagogicalPath: data.pedagogicalPath ?? undefined,
+            // A learner approved before 2.9.2026 carries only the gate's own field (recordLearningPath).
+            teacher_selected_path: data.teacher_selected_path ?? undefined,
             ...(data.teacher_gate_approved !== undefined && { teacher_gate_approved: data.teacher_gate_approved }),
             ...(targetBoardLocked !== undefined && { isBoardLocked: targetBoardLocked }),
             ...((data.support_profile_id !== undefined || data.enhanced_support_profile !== undefined) && {
@@ -590,7 +614,8 @@ export class FirebaseSyncService {
         // student record. A local hesitation/undo heuristic used to be written
         // here instead, so the dashboard could show a path that contradicted
         // the approved one.
-        const currentPath: 'green_path' | 'remediation_path' = resolveLearningPath();
+        // The bank the meeting runs on; null (no path yet) clears the field.
+        const currentPath = state.activeBankPath ?? resolveLearningPath();
         const sessionStatus: 'active' | 'locked' | 'completed' = flowStatus === 'sessionDone' 
           ? 'completed' 
           : keyboardState === 'LOCKED' ? 'locked' : 'active';
@@ -682,6 +707,14 @@ export class FirebaseSyncService {
       // The chosen branch travels with the index that points into it (restoreSession
       // rebuilds the branch tasks from it), and the radar's "אתגר / ביסוס" badge reads it.
       selectedBranch: state.selectedBranch ?? null,
+      // Module 26: the bank the meeting is pinned to. Without it a reload
+      // re-resolved the path, and before the learner record arrived that was
+      // the green bank for every learner.
+      activeBankPath: state.activeBankPath ?? null,
+      // Register 18 / decision ב: the grid's return tab, and an open grid,
+      // belong to the meeting and survive a reload.
+      additionHelperOffered: Boolean(state.additionHelperOffered),
+      isAdditionHelperOpen: Boolean(state.isAdditionHelperOpen),
       helpRequested: Boolean(state.helpRequested),
       // PRD Module 11: the last actions stay undoable after a reload too
       // (capped at UNDO_STACK_CAP frames; restoreSession already reads it).

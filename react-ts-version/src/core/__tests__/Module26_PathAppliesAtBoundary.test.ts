@@ -72,7 +72,7 @@ describe('המאגר ננעץ לכל אורך התרגיל', () => {
 describe('הנעיצה מתחדשת בגבול ההחלה הבטוח בלבד', () => {
   it('advanceStandard נועצת מחדש לפני שהיא קוראת את המאגר של התרגיל הבא', () => {
     const fn = store.slice(store.indexOf('function advanceStandard() {'));
-    const repin = fn.indexOf('set({ activeBankPath: pinnableLearningPath() });');
+    const repin = fn.indexOf('set({ activeBankPath: pinnableLearningPath() ?? get().activeBankPath });');
     const readBank = fn.indexOf('const tasks = getActiveTasks(s);');
     expect(repin).toBeGreaterThan(-1);
     expect(repin).toBeLessThan(readBank);
@@ -81,13 +81,13 @@ describe('הנעיצה מתחדשת בגבול ההחלה הבטוח בלבד', 
   it('ההחלה הממתינה של מודול 19 קודמת לנעיצה, אחרת שינוי שהומתן היה נכנס תרגיל אחד מאוחר מדי', () => {
     const fn = store.slice(store.indexOf('function advanceStandard() {'));
     expect(fn.indexOf('applyPendingAdaptationAtBoundary();')).toBeLessThan(
-      fn.indexOf('set({ activeBankPath: pinnableLearningPath() });')
+      fn.indexOf('set({ activeBankPath: pinnableLearningPath() ?? get().activeBankPath });')
     );
   });
 
   it('בחירת המאגר עצמה עוברת דרך הערך הננעץ', () => {
     expect(store).toContain(
-      'return getSessionTasks(s.sessionNumber as any, s.activeBankPath ?? resolveLearningPath()) ?? [];'
+      'const path = s.activeBankPath ?? resolveLearningPath();'
     );
   });
 });

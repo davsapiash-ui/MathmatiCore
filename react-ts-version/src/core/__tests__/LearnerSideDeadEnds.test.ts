@@ -7,6 +7,7 @@ import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceSto
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import { approvePath } from '@/test/approvedPath';
 
 /**
  * מבואות סתומים בצד הלומד — מקומות שבהם ילד בן 8 לחץ ולא קרה כלום, או שהמערכת
@@ -29,6 +30,7 @@ const src = (p: string) => readFileSync(resolve(__dirname, '../../', p), 'utf-8'
 describe('ייצוג שני — הלוח נשאר, ואותה בנייה אינה נספרת פעמיים', () => {
   beforeEach(() => {
     useWorkspaceStore.getState().resetWorkspace();
+    approvePath();
     useWorkspaceStore.getState().initSession(3, false);
   });
 

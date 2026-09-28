@@ -98,6 +98,7 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
 import { resetThrottledWrites, RTDB_WRITE_THROTTLE_MS } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { HeatmapGrid } from '@/presentation/pages/TeacherDashboard/components/HeatmapGrid';
 import { isHeartbeatFresh, PRESENCE_FRESH_WINDOW_MS } from '@/core/presence';
+import { approvePath } from '@/test/approvedPath';
 
 const UID = 'student_user12';
 const STUDENT = `users/students/${UID}`;
@@ -156,8 +157,14 @@ beforeEach(() => {
   rrweb.started = 0;
   rrweb.stopped = 0;
   resetThrottledWrites();
+  // Meetings 3–8 open only on the path the gate approved (Module 26, owner
+  // 28.9.2026): the learner's record carries it, as the gate writes it.
+  fake.db.set(STUDENT, { teacher_gate_approved: true, routeStatus: 'APPROVED', pedagogicalPath: 'green_path' });
+  // The seed is the gate's write, not the learner's: it does not count as a client write.
+  fake.db.writes = [];
   // Signing in starts the real sync service for this learner (its record listener).
   signIn();
+  approvePath();
   // The learner's store still holds the previous meeting (meeting 1), exactly
   // as it does when the lobby sends the child on to the next meeting.
   ws().resetWorkspace();

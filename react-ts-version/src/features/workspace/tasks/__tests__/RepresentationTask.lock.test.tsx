@@ -28,6 +28,7 @@ beforeEach(() => {
   useWorkspaceStore.getState().resetWorkspace();
   useAuthStore.setState({ user: { uid: 'student_user1', student_id: 1, support_profile_id: 'enhanced_cognitive_support' } } as any);
   useWorkspaceStore.setState({
+    activeSupportProfileId: 'enhanced_cognitive_support', // Module 19 §ב: the applied profile
     sessionNumber: 3, dynamicTasks: [task], standardTaskIdx: 0, flowStatus: 'task',
     counts: { ...EMPTY_COUNTS, tens: 8, units: 5 },
   } as any);

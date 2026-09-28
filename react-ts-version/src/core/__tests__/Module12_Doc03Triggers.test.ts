@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useWorkspaceStore, columnRequiresConversion } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
+import { approvePath } from '@/test/approvedPath';
 
 /**
  * מסמך 03 §3.3–3.8 names three triggers for the coaching card:
@@ -18,6 +19,7 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 function startTask(sessionNumber: number) {
   useWorkspaceStore.getState().resetWorkspace();
   useAuthStore.setState({ user: { uid: 'student_user1', student_id: 1 } } as any);
+  approvePath(); // Module 26: the exercise comes from the learner's approved bank
   useWorkspaceStore.setState({ sessionNumber, standardTaskIdx: 0, flowStatus: 'task' } as any);
 }
 
