@@ -94,8 +94,38 @@ describe('Module 24: store_cache/admin_metrics', () => {
       byMeeting: groupTelemetryByMeeting([ev(1, 1, 's1_refresh_1', 'PROBLEM_COMPLETE', {}, 1)]),
       highestCompletedByLearner: new Map([[1, 1]]),
     });
-    expect(m.session_breakdown['1']).toMatchObject({ created: 1, completed: 1, average_score_percent: 0 });
+    // Not scored is "no score", never a score of 0.
+    expect(m.session_breakdown['1']).toMatchObject({ created: 1, completed: 1, average_score_percent: null });
+    expect(m.average_mastery_percent).toBeNull();
+  });
+
+  it('a meeting learners started but none completed has no score (null), not 0', () => {
+    const m = build({ highestCompletedByLearner: new Map([[1, 2], [2, 2]]) });
+    expect(m.session_breakdown['3']).toMatchObject({ created: 2, completed: 0, average_score_percent: null });
+  });
+
+  it('a completed meeting whose compulsory exercises cannot be resolved has no score (null)', () => {
+    const m = build({ compulsory: new Map() });
+    expect(m.session_breakdown['3']).toMatchObject({ completed: 1, average_score_percent: null });
+  });
+
+  it('a learner who got nothing right on the first try keeps a real 0', () => {
+    const m = build({
+      byMeeting: groupTelemetryByMeeting([
+        ev(3, 1, 's3_g_t1', 'DIGIT_ENTERED', { is_correct: false }, 1),
+        ev(3, 1, 's3_g_t1', 'PROBLEM_COMPLETE', {}, 2),
+        ev(3, 1, 's3_g_t2', 'DIGIT_ENTERED', { is_correct: false }, 3),
+        ev(3, 1, 's3_g_t2', 'PROBLEM_COMPLETE', {}, 4),
+      ]),
+      highestCompletedByLearner: new Map([[1, 3]]),
+    });
+    expect(m.session_breakdown['3']).toMatchObject({ completed: 1, average_score_percent: 0 });
     expect(m.average_mastery_percent).toBe(0);
+  });
+
+  it('events read in random document order are scored in the order they happened', () => {
+    const m = build({ byMeeting: groupTelemetryByMeeting([...telemetry].reverse()) });
+    expect(m.session_breakdown['3']).toMatchObject({ average_score_percent: 50 });
   });
 
   it('holds aggregates only: no learner number, and the cache is replaced, not merged', () => {

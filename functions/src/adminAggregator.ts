@@ -155,8 +155,8 @@ export interface MeetingBreakdown {
   /** Learners who completed it. */
   completed: number;
   completion_rate_percent: number;
-  /** Mean score of the learners who completed it and have a score; 0 when none. */
-  average_score_percent: number;
+  /** Mean score of the learners who completed it and have a score; null when none has one yet (a real 0 stays 0). */
+  average_score_percent: number | null;
   exercises_completed: number;
   digits_entered: number;
   wrong_digits: number;
@@ -264,7 +264,7 @@ export function buildAdminMetrics(input: {
         }
       }
     }
-    row.average_score_percent = scored > 0 ? Math.round(scoreSum / scored) : 0;
+    row.average_score_percent = scored > 0 ? Math.round(scoreSum / scored) : null;
     breakdown[String(m)] = row;
 
     totals.created += row.created;
@@ -283,7 +283,7 @@ export function buildAdminMetrics(input: {
   return {
     total_sessions_created: totals.created,
     total_sessions_completed: totals.completed,
-    average_mastery_percent: totals.scored > 0 ? Math.round(totals.scoreSum / totals.scored) : 0,
+    average_mastery_percent: totals.scored > 0 ? Math.round(totals.scoreSum / totals.scored) : null,
     completion_rate_percent: pct(totals.completed, totals.created),
     total_exercises_completed: totals.exercises_completed,
     global_error_metrics: {

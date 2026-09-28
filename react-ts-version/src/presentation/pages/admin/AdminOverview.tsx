@@ -37,7 +37,8 @@ type SessionBreakdown = Record<string, {
   created: number;
   completed: number;
   completion_rate_percent: number;
-  average_score_percent: number;
+  /** null until a learner who completed the meeting has a score. */
+  average_score_percent: number | null;
 }>;
 
 export function AdminOverview() {
@@ -250,7 +251,8 @@ export function AdminOverview() {
         childName: stationNameHe(session),
         hasData: Boolean(row),
         completionRate: row ? `${Math.round(row.completion_rate_percent)}%` : null,
-        averageScore: row ? `${Math.round(row.average_score_percent)}%` : null,
+        // No score yet (null) is not a score of 0: the card shows its empty state.
+        averageScore: row && typeof row.average_score_percent === "number" ? `${Math.round(row.average_score_percent)}%` : null,
       };
     });
   }, [sessionBreakdown]);
@@ -425,7 +427,9 @@ export function AdminOverview() {
               {stat.hasData ? (
                 <div className="text-[11px] text-slate-500 space-y-0.5">
                   <div>שיעור השלמה: <span className="font-bold text-slate-800 dark:text-slate-200">{stat.completionRate}</span></div>
-                  <div>ציון ממוצע: <span className="font-bold text-indigo-600 dark:text-indigo-400">{stat.averageScore}</span></div>
+                  <div>ציון ממוצע: {stat.averageScore !== null
+                    ? <span className="font-bold text-indigo-600 dark:text-indigo-400">{stat.averageScore}</span>
+                    : <span className="text-slate-400 italic">אין נתונים עדיין</span>}</div>
                 </div>
               ) : (
                 <div className="text-[11px] text-slate-400 italic">אין נתונים עדיין</div>
