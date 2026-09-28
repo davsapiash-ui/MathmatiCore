@@ -27,7 +27,7 @@ import { PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames';
  *    in every meeting (owner, 28.9.2026). The spacing, the button paddings,
  *    their words and the progress dots grow and shrink with the window's
  *    width (`flw-*` in tailwind.config.js), with no step; every button keeps
- *    its words ("יציאה", "מספר 12") at every width. The one change of shape —
+ *    its words ("יציאה", "מספר תלמיד: 12") at every width. The one change of shape —
  *    the logo with or without its words — follows the bar's own width (a
  *    container query, `.ws-topbar` in index.css). The row never scrolls
  *    sideways — a hidden scroll is how "התקדם" disappeared.
@@ -105,7 +105,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
             לכל לומד שמזההו לא נפתר. */}
         {studentNumber !== null && (
           <div className="flex items-center gap-2 bg-ws-accentSoft border border-ws-accent/25 px-flw-8-12 py-1.5 rounded-xl shadow-xs" title={studentBadgeHe(studentNumber)} data-testid="student-badge">
-            {/* The number once: "מספר 12", not a "12" chip beside it. */}
+            {/* The number once: "מספר תלמיד: 12", not a "12" chip beside it. */}
             <span className="text-xs font-black text-ws-ink whitespace-nowrap">
               {studentBadgeHe(studentNumber)}
             </span>

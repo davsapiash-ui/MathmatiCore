@@ -176,6 +176,13 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLeve
       if (!res) return { ok: false, reason: 'constraint', place: targetPlace };
       return { ok: true, counts: res.counts, regroupEvents: [], ungroupEvent: res.event };
     }
+    // A block dropped on a column of a higher value (a unit on the tens) is
+    // rejected, in every meeting (owner, 28.9.2026): moving it to its own
+    // column in silence hid a place-value error from the teacher, logged it as
+    // a ten in the tens column, and counted it in meeting 1's "5 לבנים". Only a
+    // block released OUTSIDE the columns goes to its own column (doc 03 §3.1,
+    // Drag & Drop Forgiveness) — the page routes those before they reach here.
+    if (tgtIdx > srcIdx) return { ok: false, reason: 'constraint', place: targetPlace };
     // Any other drop of a palette block onto the board routes safely to its own column
     const { counts: next, events } = addBlock(counts, input.sourcePlace, autoGroup);
     return { ok: true, counts: next, regroupEvents: events };

@@ -25,6 +25,14 @@ export class FakeRealtimeDatabase {
   /** Server clock minus this device's clock, in ms (what `.info/serverTimeOffset` reports). */
   serverOffsetMs = 0;
   connected = true;
+  /**
+   * The real SDK answers a new listener on data after a round trip to the
+   * server, not inside onValue(): the code after onValue() — and `.info`
+   * listeners, which are local — have already run when the first snapshot
+   * arrives. Off by default (every test so far was written against the
+   * synchronous answer); a test that depends on that order turns it on.
+   */
+  deferFirstSnapshot = false;
   /** Every update() and set() the app made, in order, with the device time it was made at. */
   writes: Array<{ op: 'update' | 'set'; path: string; value: any; at: number }> = [];
   private listeners = new Set<Listener>();
@@ -36,6 +44,7 @@ export class FakeRealtimeDatabase {
     this.writes = [];
     this.serverOffsetMs = 0;
     this.connected = true;
+    this.deferFirstSnapshot = false;
     this.pushCount = 0;
   }
 
@@ -108,7 +117,11 @@ export class FakeRealtimeDatabase {
   onValue(path: string, cb: (snap: FakeSnapshot) => void): () => void {
     const l = { path, cb };
     this.listeners.add(l);
-    cb(this.snapshot(path));
+    if (this.deferFirstSnapshot && !norm(path).startsWith('.info')) {
+      setTimeout(() => { if (this.listeners.has(l)) cb(this.snapshot(path)); }, 0);
+    } else {
+      cb(this.snapshot(path));
+    }
     return () => { this.listeners.delete(l); };
   }
 
