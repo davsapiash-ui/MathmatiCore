@@ -15,6 +15,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
  * (application/meetingDeadline.ts).
  */
 
+// The database's report of the server clock (.info/serverTimeOffset), sent by the test.
+const serverClock = vi.hoisted(() => ({ report: null as null | ((snap: { val: () => number }) => void) }));
+
 vi.mock('firebase/database', async (importOriginal) => {
   const actual = await importOriginal<typeof import('firebase/database')>();
   const noop = async () => undefined;
@@ -26,7 +29,10 @@ vi.mock('firebase/database', async (importOriginal) => {
     remove: vi.fn(noop),
     get: vi.fn(async () => ({ exists: () => false, val: () => null })),
     push: vi.fn(() => ({ key: 'k', _path: 'k' })),
-    onValue: vi.fn(() => () => undefined),
+    onValue: vi.fn((r: { _path?: string }, cb: (snap: { val: () => number }) => void) => {
+      if (r?._path === '.info/serverTimeOffset') serverClock.report = cb;
+      return () => undefined;
+    }),
     onDisconnect: vi.fn(() => ({ set: noop, cancel: noop })),
     runTransaction: vi.fn(noop),
     serverTimestamp: vi.fn(() => 0),
@@ -48,8 +54,9 @@ Object.defineProperty(window, 'sessionStorage', { value: mockLocalStorage, writa
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useAuthStore, unifiedLogout } from '@/application/useAuthStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
-import { meetingDeadlineKey, legacyMeetingDeadlineKey } from '@/application/meetingDeadline';
-import { WORKSPACE_SAVED_AT_KEY } from '@/core/workspaceSnapshot';
+import { fetchServerClockOffset, serverNow } from '@/infrastructure/firebase';
+import { meetingDeadlineKey, legacyMeetingDeadlineKey, legacyDeclinedKey } from '@/application/meetingDeadline';
+import { WORKSPACE_SAVED_AT_KEY, workspaceSavedAt } from '@/core/workspaceSnapshot';
 import { approvePath } from '@/test/approvedPath';
 
 const MIN = 60 * 1000;
@@ -80,6 +87,19 @@ function progressOnThisDevice(n: number, meeting: number, savedAt: number) {
   });
 }
 
+/** The server clock is `offsetMs` ahead of this tablet's (negative: behind), as the database reports it. */
+function serverClockAhead(offsetMs: number) {
+  void fetchServerClockOffset(); // attaches the listener the first time
+  expect(serverClock.report).toBeTypeOf('function');
+  serverClock.report!({ val: () => offsetMs });
+  expect(serverNow() - Date.now()).toBe(offsetMs);
+}
+
+/** The Module 17 sync, live: every change to the workspace saves the learner's progress again. */
+function liveSync() {
+  (firebaseSyncService as any).isInitialLoad = false;
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   at(T0);
@@ -89,6 +109,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  serverClock.report?.({ val: () => 0 });
   vi.useRealTimers();
 });
 
@@ -182,6 +203,45 @@ describe('Module 14 §ב: the meeting time limit belongs to the learner, not to 
     ws().initSession(1, false);
     expect(ws().sessionDeadlineTime).toBe(T0 + 20 * MIN);
     expect(Object.keys(mockStorage).filter((k) => k.startsWith('mathmaticore_session_1_deadline_'))).toEqual([]);
+  });
+
+  it('a reload judges the learner\'s deadline on the server clock, not the tablet\'s', () => {
+    signIn(3);
+    ws().initSession(4, false);
+    expect(ws().sessionDeadlineTime).toBe(T0 + 15 * MIN);
+
+    // The tablet is 2 minutes slow: it reads 14 minutes in, the server 16. The time is up.
+    serverClockAhead(2 * MIN);
+    at(T0 + 14 * MIN);
+    reload(4);
+    expect(ws().sessionDeadlineTime).toBeNull();
+
+    // The tablet is 2 minutes fast: it reads 16 minutes in, the server 14. The time is still running.
+    serverClockAhead(-2 * MIN);
+    at(T0 + 16 * MIN);
+    reload(4);
+    expect(ws().sessionDeadlineTime).toBe(T0 + 15 * MIN);
+  });
+
+  it('meeting 8 is 25 minutes, kept per learner like every other meeting', () => {
+    signIn(3);
+    ws().initSession(8, false);
+    expect(ws().sessionDurationMinutes).toBe(25);
+    expect(ws().sessionDeadlineTime).toBe(T0 + 25 * MIN);
+    unifiedLogout();
+
+    at(T0 + 4 * MIN);
+    signIn(7);
+    ws().initSession(8, false);
+    expect(ws().sessionDeadlineTime).toBe(T0 + 29 * MIN);
+    unifiedLogout();
+
+    at(T0 + 20 * MIN);
+    signIn(3);
+    reload(8);
+    expect(ws().sessionDeadlineTime).toBe(T0 + 25 * MIN);
+    expect(stored(meetingDeadlineKey(8, 'student_user3'))).toBe(String(T0 + 25 * MIN));
+    expect(stored(meetingDeadlineKey(8, 'student_user7'))).toBe(String(T0 + 29 * MIN));
   });
 });
 
@@ -289,5 +349,75 @@ describe('the device-wide deadline the previous version left behind', () => {
     reload(4);
     expect(ws().sessionDeadlineTime).toBeNull();
     expect(stored(meetingDeadlineKey(4, 'student_user3'))).toBeNull();
+  });
+
+  it('once declined for a learner and meeting, it is never adopted later — not even after their progress is saved again', () => {
+    // Learner 7's meeting 4 progress on this tablet dates from before learner 3 set the value.
+    progressOnThisDevice(7, 4, T0 - 2 * MIN);
+    signIn(7);
+    reload(4);
+    expect(ws().sessionDeadlineTime).toBeNull();
+    expect(stored(meetingDeadlineKey(4, 'student_user7'))).toBeNull(); // a restore starts no deadline
+
+    // Learner 7 works: the sync saves their progress again, stamped now — after the value was set.
+    liveSync();
+    at(NOW + 1 * MIN);
+    useWorkspaceStore.setState({ standardTaskIdx: 3 });
+    const resaved = firebaseSyncService.getLocalSessionProgress('student_user7');
+    expect(resaved?.sessionNumber).toBe(4);
+    expect(workspaceSavedAt(resaved)).toBeGreaterThanOrEqual(LEGACY - 15 * MIN);
+
+    // The next reload still does not give them learner 3's deadline, nor does opening the meeting.
+    at(NOW + 2 * MIN);
+    reload(4);
+    expect(ws().sessionDeadlineTime).toBeNull();
+    ws().initSession(4, false);
+    expect(ws().sessionDeadlineTime).toBe(NOW + 17 * MIN);
+    unifiedLogout();
+
+    // Learner 3, who was on it, still keeps it.
+    progressOnThisDevice(3, 4, T0 + 4 * MIN);
+    signIn(3);
+    reload(4);
+    expect(ws().sessionDeadlineTime).toBe(LEGACY);
+  });
+
+  it('its declined marks go when it runs out', () => {
+    signIn(7);
+    reload(4);
+    unifiedLogout();
+    signIn(9);
+    ws().initSession(4, false);
+    expect(stored(legacyDeclinedKey(4, 'student_user7'))).toBe(String(LEGACY));
+    expect(stored(legacyDeclinedKey(4, 'student_user9'))).toBe(String(LEGACY));
+
+    at(LEGACY);
+    ws().initSession(1, false);
+    expect(stored(legacyMeetingDeadlineKey(4))).toBeNull();
+    expect(Object.keys(mockStorage).filter((k) => k.includes('legacy_declined'))).toEqual([]);
+  });
+});
+
+describe('the device-wide deadline of meeting 8 is judged on 25 minutes, not 15', () => {
+  const LEGACY_8 = T0 + 25 * MIN; // set at T0 by the first learner to open meeting 8 here
+  const NOW = T0 + 5 * MIN;       // 20 minutes left: more than any 15-minute meeting can have
+
+  beforeEach(() => {
+    mockStorage[legacyMeetingDeadlineKey(8)] = String(LEGACY_8);
+    at(NOW);
+  });
+
+  it('is kept by a learner who was on it since the start', () => {
+    progressOnThisDevice(3, 8, T0 + 2 * MIN);
+    signIn(3);
+    reload(8);
+    expect(ws().sessionDeadlineTime).toBe(LEGACY_8);
+  });
+
+  it('is not given to a learner who was not on it: they start their own 25 minutes', () => {
+    signIn(7);
+    ws().initSession(8, false);
+    expect(ws().sessionDeadlineTime).toBe(NOW + 25 * MIN);
+    expect(stored(legacyMeetingDeadlineKey(8))).toBe(String(LEGACY_8));
   });
 });

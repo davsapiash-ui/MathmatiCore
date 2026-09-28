@@ -29,9 +29,19 @@
  * Adopting it keeps exactly what that learner had before the change: not a
  * fresh, longer limit (which Module 14 §ב forbids the client), and not a limit
  * newly imposed from someone else. Any other learner ignores it and starts
- * their own. The legacy value is left in place while it runs, because another
- * learner who was on it may still come back to this device, and is removed
- * once it has run out (or cannot be a real deadline).
+ * their own.
+ *
+ * The question is decided once per learner and meeting, on the first read
+ * after the change, and the answer is kept: adopted becomes the learner's own
+ * copy, declined leaves a declined mark. It is never asked again. The saved
+ * progress it is judged by is stamped again on every change the learner makes
+ * (Module 17 sync), so a learner declined on one reload would otherwise
+ * "qualify" on the next, just by working, and pick up another learner's
+ * deadline.
+ *
+ * The legacy value is left in place while it runs, because another learner
+ * who was on it may still come back to this device. It is removed, with every
+ * declined mark for it, once it has run out (or cannot be a real deadline).
  */
 import { getSessionDurationMinutes } from '@/core/classSession';
 import { isRestorableFor, workspaceSavedAt } from '@/core/workspaceSnapshot';
@@ -39,6 +49,9 @@ import { isRestorableFor, workspaceSavedAt } from '@/core/workspaceSnapshot';
 type SavedProgress = { sessionNumber?: unknown; flowStatus?: unknown; [key: string]: unknown } | null | undefined;
 
 const MEETINGS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+
+/** Every learner id there is: each child always signs in with the same number, 1–12. */
+const LEARNER_UIDS = Array.from({ length: 12 }, (_, i) => `student_user${i + 1}`);
 
 const durationMs = (meeting: number) => getSessionDurationMinutes(meeting) * 60 * 1000;
 
@@ -50,6 +63,11 @@ export function meetingDeadlineKey(meeting: number, learnerUid: string): string 
 /** The device-wide key used before 28.9.2026, whoever the learner was. Read for migration only; never written. */
 export function legacyMeetingDeadlineKey(meeting: number): string {
   return `mathmaticore_session_${meeting}_deadline`;
+}
+
+/** Marks that this learner was not given the legacy value of the meeting. Holds the value declined. */
+export function legacyDeclinedKey(meeting: number, learnerUid: string): string {
+  return `mathmaticore_session_${meeting}_deadline_legacy_declined_${learnerUid}`;
 }
 
 function storage(): Storage | null {
@@ -118,7 +136,7 @@ export function readStoredMeetingDeadline(q: StoredMeetingDeadlineQuery): number
   }
 }
 
-/** Removes legacy values that have run out or cannot be a real deadline. */
+/** Removes legacy values that have run out or cannot be a real deadline, and the declined marks with them. */
 function retireFinishedLegacyDeadlines(store: Storage, now: number): void {
   for (const m of MEETINGS) {
     const key = legacyMeetingDeadlineKey(m);
@@ -126,7 +144,10 @@ function retireFinishedLegacyDeadlines(store: Storage, now: number): void {
     if (value === null) continue;
     // Further out than a fresh deadline of that meeting can be: written on a
     // clock that was off. Adopting it would extend someone's time.
-    if (value === 'invalid' || value <= now || value > now + durationMs(m)) store.removeItem(key);
+    if (value === 'invalid' || value <= now || value > now + durationMs(m)) {
+      store.removeItem(key);
+      for (const uid of LEARNER_UIDS) store.removeItem(legacyDeclinedKey(m, uid));
+    }
   }
 }
 
@@ -135,11 +156,22 @@ function adoptLegacyDeadline(store: Storage, q: StoredMeetingDeadlineQuery): num
   // Anything unusable was already removed above.
   if (typeof legacy !== 'number') return null;
 
-  const progress = q.ownProgress();
-  if (!isRestorableFor(progress, q.meeting)) return null;
-  const setAt = legacy - durationMs(q.meeting);
-  if (workspaceSavedAt(progress) < setAt) return null;
+  // Decided once: a learner declined before is never given it later.
+  const declinedKey = legacyDeclinedKey(q.meeting, q.learnerUid);
+  if (store.getItem(declinedKey) !== null) return null;
 
-  storeMeetingDeadline(q.meeting, q.learnerUid, legacy);
-  return legacy;
+  if (wasRunningOnIt(legacy, q)) {
+    storeMeetingDeadline(q.meeting, q.learnerUid, legacy);
+    return legacy;
+  }
+  store.setItem(declinedKey, legacy.toString());
+  return null;
+}
+
+/** The learner's own progress in this meeting on this device was saved after the legacy value was set. */
+function wasRunningOnIt(legacy: number, q: StoredMeetingDeadlineQuery): boolean {
+  const progress = q.ownProgress();
+  if (!isRestorableFor(progress, q.meeting)) return false;
+  const setAt = legacy - durationMs(q.meeting);
+  return workspaceSavedAt(progress) >= setAt;
 }
