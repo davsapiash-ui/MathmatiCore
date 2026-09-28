@@ -6,6 +6,8 @@ import { BLOCK_SIZES } from './DienesBlock';
  * Each block's cell at its drawn size: the block plus the padding that makes up
  * its click-and-drag area. A unit cube is 20px, so it gets 12px around it — a
  * 44×44px target (DESIGN_SYSTEM_RULES §1.2), as it had before cells existed.
+ * In a crowded column the padding gives way before the block does
+ * (core/blockLayout.ts).
  */
 export const COLUMN_CELLS: Record<Place, CellSpec> = {
   units: { block: BLOCK_SIZES.units, pad: 12 },
