@@ -54,6 +54,8 @@ export interface QMatrixTask {
   validRepresentations?: { hundreds?: number; tens?: number; units?: number; thousands?: number }[];
   asdValidRepresentations?: { hundreds?: number; tens?: number; units?: number; thousands?: number }[];
   givenHe?: string;
+  /** Meeting 2, task 5: how many unit blocks the still picture shows (the question itself). */
+  pictureUnitBlocks?: number;
   questionHe?: string;
   flexibilityTrapChoice?: string;
   backwardDiagnosis?: BackwardDiagnosis;
@@ -64,7 +66,7 @@ export interface QMatrixTask {
  * 1. קריאה וכתיבה של מספר תלת-ספרתי ("שש מאות וחמש" -> 605)
  * 2. זיהוי וייצוג ערך ספרה (ערך הספרה 4 במספר 742 -> 40)
  * 3. חיסור חד-שלבי עם פריטה בתחום המאה (42 - 15 = 27)
- * 4. פירוק מספר תלת-ספרתי לרכיביו ("חמש מאות ששים ושלוש" -> 5 מאות, 6 עשרות, 3 יחידות = 563)
+ * 4. פירוק מספר תלת-ספרתי לרכיביו ("חמש מאות שישים ושלוש" -> 5 מאות, 6 עשרות, 3 יחידות = 563)
  * 5. המרה עצמאית בין עזרים וירטואליים (25 לבני יחידה -> 2 עשרות, 5 יחידות = 25)
  * 6. חיבור במאונך עם המרה מעל מאה (124 + 85 = 209)
  * 7. חיסור במאונך עם פריטה דרך אפס בטור העשרות (405 - 132 = 273)
@@ -74,13 +76,13 @@ export const TASKS: QMatrixTask[] = [
     id: "task1_read_write_zero",
     type: "place_value_zero",
     titleHe: "קריאה וכתיבה של מספר תלת-ספרתי",
-    instructionHe: "קראו וכתבו מספרים בתיבות. הפעם פתרו לבד, ללא עזרים.",
+    instructionHe: "קראו את המספר וכתבו אותו בשורת התוצאה. הפעם פתרו לבד.",
     givenHe: "שש מאות וחמש",
     correctAnswer: 605,
     expectedBlocks: { hundreds: 6, tens: 0, units: 5 },
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
-      probeInstructionHe: "כתבו במספרים: שש מאות וחמש.",
+      probeInstructionHe: "כתבו בספרות: שש מאות וחמש.",
       probeAnswer: 605,
     },
   },
@@ -88,7 +90,7 @@ export const TASKS: QMatrixTask[] = [
     id: "task2_digit_value",
     type: "digit_value",
     titleHe: "זיהוי וייצוג ערך ספרה",
-    instructionHe: "זהו את ערך הספרה המסומנת וכתבו אותה בתיבה המתאימה!",
+    instructionHe: "מה הערך של הספרה המסומנת? כתבו אותו בתיבה.",
     givenHe: "742",
     number: 742,
     highlightedDigit: "4",
@@ -121,13 +123,13 @@ export const TASKS: QMatrixTask[] = [
     id: "task4_decompose_number",
     type: "number_breakdown",
     titleHe: "פירוק מספר תלת-ספרתי לרכיביו",
-    instructionHe: "כתבו בתיבות כמה מאות עשרות ויחידות יש במספר שעל המסך.",
-    givenHe: "חמש מאות ששים ושלוש",
+    instructionHe: "כתבו בשורת התוצאה כמה מאות, עשרות ויחידות יש במספר שעל המסך.",
+    givenHe: "חמש מאות שישים ושלוש",
     correctAnswer: 563,
     expectedBlocks: { hundreds: 5, tens: 6, units: 3 },
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
-      probeInstructionHe: "כתבו במספרים: חמש מאות שישים ושלוש.",
+      probeInstructionHe: "כתבו בספרות: חמש מאות שישים ושלוש.",
       probeAnswer: 563,
     },
   },
@@ -135,13 +137,14 @@ export const TASKS: QMatrixTask[] = [
     id: "task5_units_to_tens",
     type: "conversion",
     titleHe: "המרה עצמאית בין עזרים וירטואליים",
-    instructionHe: "קבעו כמה עשרות וכמה יחידות תקבלו מהלבנים שעל המסך וכתבו את התשובה בשורת התוצאה.",
+    instructionHe: "אם תקבצו לעשרות את הלבנים שעל המסך, כמה עשרות וכמה יחידות יהיו? כתבו את התשובה בשורת התוצאה.",
     givenHe: "25 לבני יחידה",
+    pictureUnitBlocks: 25,
     correctAnswer: 25,
     expectedBlocks: { tens: 2, units: 5 },
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
-      probeInstructionHe: "קבעו כמה עשרות וכמה יחידות תקבלו מהלבנים, וכתבו את המספר.",
+      probeInstructionHe: "אם תקבצו לעשרות את הלבנים שעל המסך, כמה עשרות וכמה יחידות יהיו? כתבו את התשובה בשורת התוצאה.",
       probeAnswer: 25,
     },
   },
