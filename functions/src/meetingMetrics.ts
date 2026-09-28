@@ -36,8 +36,8 @@ export function sessionNumberFromId(sessionId: string): number | null {
  * PRD Module 14 §ב: "מספר משימות החובה קבוע על שבע בכל אחד מהמפגשים 2 עד 8,
  * לרבות מפגש 2 ומפגש 8". The score's denominator in every scored meeting.
  */
-export const COMPULSORY_EXERCISES_PER_MEETING = 7;
-export const DIAGNOSTIC_COMPULSORY_COUNT = COMPULSORY_EXERCISES_PER_MEETING;
+export const DIAGNOSTIC_COMPULSORY_COUNT = 7;
+export const COMPULSORY_EXERCISES_PER_MEETING = DIAGNOSTIC_COMPULSORY_COUNT;
 
 /**
  * PRD Module 14 §ב: "מפגש 1 הוא ארגז חול חקירתי ואינו כולל משימות חובה

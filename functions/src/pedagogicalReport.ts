@@ -118,12 +118,17 @@ export function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string
     const flushDigits = () => {
       if (pendingDigits.length === 0) return;
       const wrong = pendingDigits.filter((d) => d.wrong > 0);
+      // Every column digits were typed in during this run is named, as before;
+      // singular or plural follows the count of wrong digits only.
+      const where = inColumns(columnsOf(pendingDigits));
       if (wrong.length === 1) {
-        clauses.push(`הזין ספרה שגויה${inColumns(columnsOf(wrong))} (פעם אחת)`);
-      } else if (wrong.length > 1) {
-        clauses.push(`הזין ספרות שגויות${inColumns(columnsOf(wrong))} (${wrong.length} פעמים)`);
+        clauses.push(`הזין ספרה שגויה${where} (פעם אחת)`);
+      } else if (wrong.length === 2) {
+        clauses.push(`הזין ספרות שגויות${where} (פעמיים)`);
+      } else if (wrong.length > 2) {
+        clauses.push(`הזין ספרות שגויות${where} (${wrong.length} פעמים)`);
       } else {
-        clauses.push(`הזין את הספרות${inColumns(columnsOf(pendingDigits))}`);
+        clauses.push(`הזין את הספרות${where}`);
       }
       pendingDigits = [];
     };

@@ -53,6 +53,30 @@ describe('X30 — the AI analysis sees the whole meeting (Module 23 §ב)', () =
     ]);
   });
 
+  it('events that differ in one field only stay separate: is_correct, column_index, exercise_id', () => {
+    const digit = (ex: string, col: number, isCorrect: boolean) =>
+      ev(ex, 'DIGIT_ENTERED', { digit_value: 4, is_correct: isCorrect }, 0, col);
+    const pairs = [
+      [digit('s4_g_t1', 0, true), digit('s4_g_t1', 0, false)],
+      [digit('s4_g_t1', 0, true), digit('s4_g_t1', 1, true)],
+      [digit('s4_g_t1', 0, true), digit('s4_g_t2', 0, true)],
+    ];
+    for (const pair of pairs) {
+      const summary = buildTelemetrySummary(pair);
+      expect(summary).toHaveLength(2);
+      expect(summary.every((e) => e.count === undefined)).toBe(true);
+    }
+  });
+
+  it('carries the undo depth and the reflection fields', () => {
+    const summary = buildTelemetrySummary([
+      ev('s4_g_t1', 'UNDO_EXECUTED', { undo_stack_depth_before: 3, reverted_event_type: 'DIGIT_ENTERED' }),
+      ev('reflection', 'REFLECTION_SUBMITTED', { reflection_step: 2, effort_score: 'HIGH', persistence_index: 60, selected_strategies: null }),
+    ]);
+    expect(summary[0].details).toEqual({ undo_stack_depth_before: 3, reverted_event_type: 'DIGIT_ENTERED' });
+    expect(summary[1].details).toEqual({ reflection_step: 2, effort_score: 'HIGH', persistence_index: 60 });
+  });
+
   it('carries the completion counters, and never free text', () => {
     const [complete] = buildTelemetrySummary([
       ev('s4_g_t1', 'PROBLEM_COMPLETE', { total_duration_ms: 5000, undo_count: 1, error_count: 2, note: 'דני' }),
@@ -93,8 +117,15 @@ describe('X32 — the narrative follows the actual order, in correct Hebrew', ()
       ev('s4_g_t2', 'PROBLEM_COMPLETE', {}, 6),
     ]);
     expect(compulsory[0]).toBe('בתרגיל הראשון (s4_g_t1) הלומד הזין ספרה שגויה בטור האחדות (פעם אחת), והשלים את התרגיל לאחר תיקון.');
-    expect(compulsory[1]).toBe('בתרגיל השני (s4_g_t2) הלומד הזין ספרות שגויות בטור העשרות (2 פעמים), והשלים את התרגיל לאחר תיקון.');
-    expect(compulsory.join(' ')).not.toContain('(1 פעמים)');
+    // Every column typed in is named, the correct-digit column too.
+    expect(compulsory[1]).toBe('בתרגיל השני (s4_g_t2) הלומד הזין ספרות שגויות בטור העשרות ובטור האחדות (פעמיים), והשלים את התרגיל לאחר תיקון.');
+    expect(compulsory.join(' ')).not.toMatch(/\((1|2) פעמים\)/);
+  });
+
+  it('three wrong digits or more read "(N פעמים)"', () => {
+    const wrong = (t: number) => ev('s4_g_t1', 'DIGIT_ENTERED', { digit_value: t, is_correct: false }, t, 0);
+    const { compulsory } = generateExerciseNarrativeFromEvents([wrong(1), wrong(2), wrong(3), ev('s4_g_t1', 'PROBLEM_COMPLETE', {}, 4)]);
+    expect(compulsory[0]).toBe('בתרגיל הראשון (s4_g_t1) הלומד הזין ספרות שגויות בטור האחדות (3 פעמים), והשלים את התרגיל לאחר תיקון.');
   });
 
   it('the canvas representation sits where the first drag happened, not hoisted to the front', () => {
