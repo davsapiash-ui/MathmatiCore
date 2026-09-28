@@ -28,6 +28,8 @@ function start(opts: { session?: number; enhanced?: boolean; a: number; b: numbe
     },
   } as any);
   useWorkspaceStore.setState({
+    // Module 19 §ב: the lock reads the profile applied at the exercise's start.
+    activeSupportProfileId: opts.enhanced === false ? null : 'enhanced_cognitive_support',
     sessionNumber: (opts.session ?? 4) as any,
     standardTaskIdx: 0,
     flowStatus: 'task',

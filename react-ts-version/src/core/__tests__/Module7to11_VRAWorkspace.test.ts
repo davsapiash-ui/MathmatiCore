@@ -138,7 +138,7 @@ describe('Work Package 3 (WP3): Student Learning Space & VRA Engine Comprehensiv
   describe('4. Module 9: DynamicKeyboard & Conditional Regrouping Lock', () => {
     it('locks keyboard when dynamic exchange is required but not yet performed', () => {
       const store = useWorkspaceStore.getState();
-      useWorkspaceStore.setState({ support_profile_id: 'enhanced_cognitive_support' } as any);
+      useWorkspaceStore.setState({ activeSupportProfileId: 'enhanced_cognitive_support' } as any);
       // In addition 17 + 8: units need exchange (7+8=15 >= 10). Without grouping, column is locked.
       const isLocked = store.isColumnInputLocked('units', 17, 8, false);
       expect(isLocked).toBe(true);
@@ -147,7 +147,7 @@ describe('Work Package 3 (WP3): Student Learning Space & VRA Engine Comprehensiv
     it('unlocks keyboard after regrouping/grouping operation completes', () => {
       const store = useWorkspaceStore.getState();
       useWorkspaceStore.setState({
-        support_profile_id: 'enhanced_cognitive_support',
+        activeSupportProfileId: 'enhanced_cognitive_support',
         hasGrouped: true,
         conversionsByColumn: { composed: { units: true }, decomposed: {} },
       } as any);
@@ -158,7 +158,7 @@ describe('Work Package 3 (WP3): Student Learning Space & VRA Engine Comprehensiv
 
     it('locks keyboard in subtraction when ungrouping/exchange is required and not performed', () => {
       const store = useWorkspaceStore.getState();
-      useWorkspaceStore.setState({ support_profile_id: 'enhanced_cognitive_support' } as any);
+      useWorkspaceStore.setState({ activeSupportProfileId: 'enhanced_cognitive_support' } as any);
       // In subtraction 52 - 17: units need ungrouping (2 < 7).
       const isLocked = store.isColumnInputLocked('units', 52, 17, true);
       expect(isLocked).toBe(true);
