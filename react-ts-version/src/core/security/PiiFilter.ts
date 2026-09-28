@@ -4,8 +4,9 @@
  * Enforces strict anonymous student profiles (IDs 1-12) with zero persona names or PII leakage.
  */
 
-// Phone numbers: 9-11 digits, standard Israeli cellular & landline formats
-export const PII_PHONE_REGEX = /(?:\b05\d-?\d{7}\b|\b0[23489]-?\d{7}\b|\b0\d{1,2}-\d{7,8}\b|\b05\d{8}\b|\b\d{10,11}\b)/g;
+// Phone numbers: one rule for the whole client, the same as the server's
+// (phonePattern.ts) — every common Israeli layout, never arithmetic.
+import { containsPhoneNumber, redactPhoneNumbers } from './phonePattern';
 
 // Email addresses: standard RFC-compliant address format
 export const PII_EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
@@ -73,8 +74,7 @@ export function containsPII(text?: string | null): boolean {
     }
 
     // 3. Check Phones
-    PII_PHONE_REGEX.lastIndex = 0;
-    if (PII_PHONE_REGEX.test(text)) return true;
+    if (containsPhoneNumber(text)) return true;
 
     return false;
   } catch (err) {
@@ -101,7 +101,7 @@ export function sanitizePII(text?: string | null): string {
   });
 
   // 3. Sanitize Phones
-  sanitized = sanitized.replace(PII_PHONE_REGEX, '[PHONE_REDACTED]');
+  sanitized = redactPhoneNumbers(sanitized, '[PHONE_REDACTED]');
 
   // 4. Sanitize English name introductions
   const englishNameRegex = /\b(my name is|this is)\s+([A-Za-z]+)\b/gi;
@@ -203,8 +203,7 @@ export function validateChatInputForPII(text?: string | null): { valid: boolean;
   }
 
   // 3. Check Phone numbers
-  PII_PHONE_REGEX.lastIndex = 0;
-  if (PII_PHONE_REGEX.test(text)) {
+  if (containsPhoneNumber(text)) {
     return {
       valid: false,
       errorHe: 'ההודעה מכילה מספר טלפון. לשמירה על פרטיות, השתמשו במזהה האנונימי של התלמיד (1-12).'
