@@ -687,7 +687,11 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   </div>
                   
                   {/* Status tag — the same states as the tile's colour (Module 18); the gate has its own row below */}
-                  {student.isSocraticActive ? (
+                  {student.helpRequested ? (
+                    <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="קריאה לעזרה">
+                      קריאה לעזרה
+                    </span>
+                  ) : student.isSocraticActive ? (
                     <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={CARD_OPEN_HE}>
                       <ShieldAlert className="w-3 h-3" />
                       {CARD_OPEN_HE}

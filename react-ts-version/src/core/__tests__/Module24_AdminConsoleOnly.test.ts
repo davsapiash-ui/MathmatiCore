@@ -53,6 +53,15 @@ describe('נ.2 — מה שייך למורה אינו נפתח לכניסת מנ�
   });
 });
 
+describe('נ.2 — הצ\'אט בין המורה ללומדים אינו נפתח לכניסת מנהל', () => {
+  it('useChatStore אינו מאזין ל-chat_messages כשהתפקיד הוא מנהל (לקונסולה ערוץ משלה, מודול 22)', () => {
+    const chat = src('application/useChatStore.ts');
+    const at = chat.indexOf("if (role === 'admin') {");
+    expect(at).toBeGreaterThan(-1);
+    expect(at).toBeLessThan(chat.indexOf("ref(database, 'chat_messages')"));
+  });
+});
+
 describe('נ.2 — ה-claims של הכניסה הם של התפקיד שנבחר (פער יא)', () => {
   it('הכניסה מבקשת מהשרת את התפקיד שנבחר במסך ההזדהות', () => {
     expect(src('infrastructure/services/AuthService.ts')).toContain('await syncCallable({ role: targetRole });');

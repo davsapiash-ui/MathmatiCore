@@ -101,8 +101,11 @@ describe('מ.5 — שער האישור אינו צובע את המשבצת', () 
     expect(row.textContent).toContain(TEACHER_GATE_HE);
     expect(row.textContent).toContain('המסלול הירוק');
     expect(within(tile(6)).queryByTestId('gate-row-student-6')).toBeNull();
-    // The card tag still shows on the red tile of a learner at the gate.
+    // The card tag still shows on the red tile of a learner at the gate, and the
+    // blue tile says why it is blue (the gate tag used to hide that it had no tag).
     expect(within(tile(2)).getAllByText('כרטיס החניכה פתוח').length).toBeGreaterThan(0);
+    expect(within(tile(5)).getAllByText('קריאה לעזרה').length).toBeGreaterThan(0);
+    expect(within(tile(5)).queryByText('פעיל')).toBeNull();
   });
 
   it('טבלת השער של מודול 20 נשארה מעל הרדאר, עם המלצה ואישור לכל לומד', () => {

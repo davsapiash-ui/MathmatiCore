@@ -96,6 +96,18 @@ export const useChatStore = create<ChatState>()(
       const user = authState?.user;
       const role = authState?.role;
       if (!user) return; // Only sync if authenticated
+      // The teacher–learner chat is individual learner data (PRD Module 24 §ב);
+      // an admin sign-in has its own channel with the teachers (Module 22, the
+      // Firestore `messages` collection) and the rules refuse it this one.
+      if (role === 'admin') {
+        activeSyncedKey = null;
+        if (chatUnsubscribe) {
+          chatUnsubscribe();
+          chatUnsubscribe = null;
+        }
+        set({ messages: [] });
+        return;
+      }
       const userId = ((user.uid || (user as any).id || '') as string).trim();
       const isStudent = role === 'student' || (!isTeacherOrAdminId(userId) && userId.startsWith('student_'));
       const studentRoomId = normalizeStudentId(userId);
