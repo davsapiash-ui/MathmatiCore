@@ -138,9 +138,17 @@ describe('Module 1 §ג: an admin-registered teacher actually gets in', () => {
     expect(auth.includes('export async function removeAuthorizedTeacherFirestore')).toBe(true);
   });
 
-  it('the RTDB fallback whitelist check reads the field admin records actually carry (ssoEmail)', () => {
-    const auth = read('../../../../infrastructure/services/AuthService.ts');
-    expect(auth.includes('[t?.ssoEmail, t?.email].some(')).toBe(true);
+  it('the RTDB teacher list is no second whitelist: staff read it, only the admin writes it (28.9.2026)', () => {
+    // It used to be read by every signed-in identity, including the anonymous
+    // session of any visitor, and a self-written record there passed the login
+    // check. The admin-registered teacher gets in through authorizedTeachers
+    // (tested above); the real-engine proof is Module24_AdminBlocked.live.test.ts.
+    const rules = JSON.parse(read('../../../../../../database.rules.json'));
+    const teachers = rules.rules.users.teachers;
+    expect(teachers['.read']).not.toBe('auth != null');
+    expect(teachers['.read']).toContain("auth.token.teacher == true");
+    expect(teachers.$teacherId['.read']).toBeUndefined();
+    expect(teachers.$teacherId['.write']).not.toContain('auth.uid == $teacherId');
   });
 
   it('every path keys the teacher record the same way', () => {
