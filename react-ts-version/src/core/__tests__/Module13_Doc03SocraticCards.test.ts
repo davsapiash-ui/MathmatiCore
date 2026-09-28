@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   SocraticEngine,
   sessionCardKeysForTaskId,
+  TASK_HINTS,
   socraticTextViolation,
-  inferIsSubtraction,
 } from '@/infrastructure/services/SocraticEngine';
+import { secretNumbersOf, revealsSecret } from '@/infrastructure/services/staticSocraticCards';
 import { SESSIONS_BY_PATH, type SessionTask } from '@/data/sessionTasks';
 
 /**
@@ -16,20 +17,35 @@ import { SESSIONS_BY_PATH, type SessionTask } from '@/data/sessionTasks';
 const EMPTY = { units: 0, tens: 0, hundreds: 0, thousands: 0 };
 
 describe('Module 13: static Socratic cards come from מסמך 03', () => {
-  it('maps compulsory and early-finisher ids of sessions 3–8 to their session card', () => {
-    expect(sessionCardKeysForTaskId('s3_r_t2')).toEqual(['s3_r_card', 's3_card']);
-    expect(sessionCardKeysForTaskId('s3_g_reinforce_1')).toEqual(['s3_g_card', 's3_card']);
+  it('maps compulsory and early-finisher ids of sessions 4–8 to their session card', () => {
     expect(sessionCardKeysForTaskId('s7_r_challenge_1')).toEqual(['s7_r_card', 's7_card']);
     expect(sessionCardKeysForTaskId('s8_g_t7')).toEqual(['s8_g_card', 's8_card']);
     expect(sessionCardKeysForTaskId('s1_t8')).toEqual([]);
   });
 
-  it('session 3 serves the path-specific card: tens for remediation, hundreds for green', async () => {
-    const rem = (await SocraticEngine.getSocraticHint({ id: 's3_r_t3', type: 'representation', numberA: 450 } as any, 'flexible_regrouping', EMPTY))!;
-    expect(rem.questionHe).toContain('ערך המיקום');
-    expect(rem.choices[0].textHe).toBe('נשתמש ב-34 עשרות');
-    const green = (await SocraticEngine.getSocraticHint({ id: 's3_g_t3', type: 'representation', numberA: 4500 } as any, 'flexible_regrouping', EMPTY))!;
-    expect(green.choices[0].textHe).toBe('נשתמש ב-34 מאות');
+  // Until 28.9.2026 every meeting-3 exercise got the one card of מסמך 03 — on
+  // the 4,500 exercise a card about 3,400 (audit row 3.14), and on "3,400 in
+  // the usual way" a card that marked the usual way wrong (הB.11). Meeting 3
+  // has no session card any more (owner, 28.9.2026, שהB.1): the card asks
+  // which blocks the instruction asks for, with the task's own blocks as the
+  // correct option. Full rules: Meeting3_CardFitsExercise.test.ts.
+  it('session 3 has no session card: the card asks which blocks the instruction asks for', async () => {
+    expect(sessionCardKeysForTaskId('s3_r_t2').filter((k) => k in TASK_HINTS)).toEqual([]);
+    expect(sessionCardKeysForTaskId('s3_g_reinforce_1').filter((k) => k in TASK_HINTS)).toEqual([]);
+    const tasks = [...SESSIONS_BY_PATH[3].remediation_path, ...SESSIONS_BY_PATH[3].green_path];
+    const rem = (await SocraticEngine.getSocraticHint(tasks.find((t) => t.id === 's3_r_t3') as any, 'flexible_regrouping', EMPTY))!;
+    expect(rem.questionHe).toBe('נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר 450?');
+    expect(rem.choices[0].textHe).toBe('משתמשים ב-45 עשרות');
+    const green = (await SocraticEngine.getSocraticHint(tasks.find((t) => t.id === 's3_g_t3') as any, 'flexible_regrouping', EMPTY))!;
+    expect(green.questionHe).toBe('נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר 4,500?');
+    expect(green.choices[0].textHe).toBe('משתמשים ב-45 מאות');
+    expect(JSON.stringify(green)).not.toMatch(/3,?400|34 מאות/);
+  });
+
+  it('an unrecognised meeting-3 task gets the card that marks no representation wrong', () => {
+    const card = SocraticEngine.getSynchronousTaskHint({ id: 's3_g_t99', type: 'unknown' } as any, EMPTY);
+    expect(card.questionHe).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+    expect(JSON.stringify(card)).not.toMatch(/נשתמש ב|משתמשים ב/);
   });
 
   it('every other session serves the document card, correct option first, with feedback on each option', async () => {
@@ -37,8 +53,8 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
       4: 'מקבצים 10 יחידות לעשרת אחת',
       5: 'פורטים עשרת אחת לעשר יחידות',
       6: 'פרטו תחילה לבנת מאה אחת לעשר עשרות',
-      7: 'ניעזר בלבני הדינס',
-      8: 'נתבונן בתרגיל',
+      7: 'נעזרים בלבנים',
+      8: 'מתבוננים בתרגיל',
     };
     for (const [session, opening] of Object.entries(expected)) {
       for (const id of [`s${session}_r_t1`, `s${session}_g_t7`, ...(Number(session) <= 7 ? [`s${session}_g_challenge_1`] : [])]) {
@@ -81,16 +97,11 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
       const hint = await SocraticEngine.getSocraticHint(task as any, (task as any).targetNode ?? 'procedural_fluency', EMPTY);
       if (!hint) continue;
 
-      const a = Number((task as any).numberA);
-      const b = Number((task as any).numberB);
-      const operands = Number.isFinite(a) && Number.isFinite(b)
-        ? { a, b, isSubtraction: inferIsSubtraction(task) }
-        : null;
-
-      const violation = socraticTextViolation(
-        [hint.questionHe, ...hint.choices.flatMap((c) => [c.textHe, c.feedbackHe ?? ''])],
-        operands
-      );
+      // The result of a skeleton exercise is on the screen; what must not be
+      // shown is what the child finds (secretNumbersOf).
+      const texts = [hint.questionHe, ...hint.choices.flatMap((c) => [c.textHe, c.feedbackHe ?? ''])];
+      const leaked = revealsSecret(texts, secretNumbersOf(task).filter((n) => ![10, 100, 1000].includes(n)));
+      const violation = socraticTextViolation(texts, null) ?? (leaked !== null ? `leaked ${leaked}` : null);
       if (violation) leaks.push(`מפגש ${session} / ${path} / ${(task as any).id}: ${violation}`);
     }
 
