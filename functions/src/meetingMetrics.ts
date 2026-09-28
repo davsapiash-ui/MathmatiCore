@@ -504,14 +504,65 @@ const TELEMETRY_MAX_PAGES = 200; // 100,000 events — far beyond one learner's 
 export async function readMeetingTelemetry(
   db: admin.firestore.Firestore,
   studentNumber: number,
-  sessionNumber: number
+  sessionNumber: number,
+  options: { writtenAfterMs?: number | null } = {}
 ): Promise<Record<string, any>[]> {
   const snap = await db.collection("telemetry_logs").where("student_id", "==", studentNumber).get();
+  const after = options.writtenAfterMs;
   const docs = snap.docs
+    // The server's own write time, not the tablet's clock: a device clock that
+    // runs behind would otherwise drop the new run's events as "before".
+    .filter((d) => after == null || (d.createTime?.toMillis?.() ?? Infinity) > after)
     .map((d) => d.data())
     .filter((e) => sessionNumberFromId(String(e?.session_id || "")) === sessionNumber);
   docs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
   return docs;
+}
+
+/**
+ * When the learner's current run of this meeting began: the last reset that
+ * restarted this meeting for this learner, or null when there was none.
+ *
+ * A reset keeps the telemetry (register deviation 20, backup only), but PRD
+ * 23א §ב.2 "מחזיר לתחילת המפגש": the meeting's first attempts are the new
+ * run's. The score read every event the learner ever sent in the meeting, so a
+ * wrong digit before a reset removed that exercise from "נכון בניסיון ראשון"
+ * for good — a perfect replay scored 29% and was sent to remediation (owner,
+ * live, 28.9.2026: "עשיתי הכל מושלם למה אני צריך מסלול צמצום פערי קדם").
+ *
+ * A reset restarts the meeting when it was carried out (not a failed attempt)
+ * and covers the learner: the whole system, the whole learner, or this
+ * meeting ("active_session", for the learner or the class).
+ */
+export function lastResetOfMeeting(
+  entries: Record<string, any>[],
+  studentNumber: number,
+  sessionNumber: number
+): number | null {
+  let last: number | null = null;
+  for (const e of entries) {
+    if (e?.backup_status !== "success") continue;
+    if (!Array.isArray(e.affected_student_ids) || !e.affected_student_ids.includes(studentNumber)) continue;
+    const covers =
+      e.reset_level === "system" ||
+      (e.reset_level === "single_student" &&
+        (e.reset_scope === "full_student" ||
+          (e.reset_scope === "active_session" && Number(e.session_number) === sessionNumber)));
+    const at = Number(e.performed_at);
+    if (covers && Number.isFinite(at) && (last === null || at > last)) last = at;
+  }
+  return last;
+}
+
+export async function readLastResetOfMeeting(
+  db: admin.firestore.Firestore,
+  studentNumber: number,
+  sessionNumber: number
+): Promise<number | null> {
+  const snap = await db.collection("reset_audit_log")
+    .where("affected_student_ids", "array-contains", studentNumber)
+    .get();
+  return lastResetOfMeeting(snap.docs.map((d) => d.data()), studentNumber, sessionNumber);
 }
 
 export async function readAllTelemetryForSession(

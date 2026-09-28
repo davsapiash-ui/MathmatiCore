@@ -7,6 +7,7 @@ import {
   computeFirstAttemptScore,
   isScoredMeeting,
   readMeetingTelemetry,
+  readLastResetOfMeeting,
   resolveCompulsoryTotal,
   studentNumberFromSessionId,
 } from "./meetingMetrics";
@@ -57,7 +58,9 @@ export const onSessionCompleteTrigger = onDocumentWritten({
   // By learner and meeting, not by the document's session_id: the document is
   // `session_02_student_4` while its events carry `session_2_student_student_user4`,
   // so reading by that id matched nothing and would have scored every learner 0%.
-  const telemetry = await readMeetingTelemetry(db, studentNum, sessionNum);
+  // Only the run since the last reset of this meeting (meetingMetrics.lastResetOfMeeting).
+  const writtenAfterMs = await readLastResetOfMeeting(db, studentNum, sessionNum);
+  const telemetry = await readMeetingTelemetry(db, studentNum, sessionNum, { writtenAfterMs });
   if (telemetry.length === 0) {
     // Nothing to measure. Module 24 §ב forbids inventing one, and overwriting
     // the learner's own number with a 0% computed from no events would be
