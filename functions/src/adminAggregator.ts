@@ -142,6 +142,10 @@ export function groupTelemetryByMeeting(events: Record<string, any>[]): Map<numb
     if (!perLearner.has(n)) perLearner.set(n, []);
     perLearner.get(n)!.push(ev);
   }
+  // Documents come back in id order, which is random: the first-attempt rule
+  // needs the order the events happened (as classReport and meetingMetrics sort).
+  const at = (e: Record<string, any>) => Number(e?.client_timestamp) || 0;
+  for (const perLearner of out.values()) for (const evs of perLearner.values()) evs.sort((a, b) => at(a) - at(b));
   return out;
 }
 
