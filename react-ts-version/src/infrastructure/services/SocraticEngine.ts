@@ -282,17 +282,18 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // unchanged, in the words of the screen (28.9.2026): "פורטים" as the task says "פרטו" (not "מפרקים"), "בית המספרים" for
   // the board (not "הלוח"), no formal "אנו"; the pieces are "לבנים" (owner, 27.9.2026; register ט).
   // The task asks "which number do the blocks show after the decomposition?"; the document's hints answered it
-  // ("שומרת על ערך הכמות הכולל", "הכמות המתמטית נשמרת תמיד"). Now they point at the quantity without saying
-  // what happens to it (owner's instruction, 28.9.2026: change only the wording, so it no longer gives the answer).
+  // ("שומרת על ערך הכמות הכולל", "הכמות המתמטית נשמרת תמיד"). Now they send the child to the columns and the ten block
+  // without saying what happens to the number (owner's instruction, 28.9.2026: change only the wording, so it no longer
+  // gives the answer). "פורטים עשרת" takes no "לטור…": one decomposes a ten, into units (owner, 28.9.2026).
   's1_target_347': {
     pedagogical_intent: "conceptual",
-    tts_text: "בואו נחשוב רגע יחד: מה קורה כשפורטים עשרת אחת לטור היחידות?",
+    tts_text: "בואו נחשוב רגע יחד: מה קורה בבית המספרים כשפורטים עשרת אחת?",
     suggested_highlight: "tour-column-tens",
-    questionHe: "בואו נחשוב רגע יחד: מה קורה כשפורטים עשרת אחת לטור היחידות?",
+    questionHe: "בואו נחשוב רגע יחד: מה קורה בבית המספרים כשפורטים עשרת אחת?",
     choices: [
-      { id: "opt_1", textHe: "מקבלים 10 יחידות, שנוספות לטור היחידות בבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! לחצו על לבנת עשרת, וראו את היחידות שנוספות לטור היחידות." },
-      { id: "opt_2", textHe: "בית המספרים נשאר בלי שינוי", isCorrect: false, feedbackHe: "רמז: הפריטה משנה את הלבנים בבית המספרים. בדקו מה קורה לכמות." },
-      { id: "opt_3", textHe: "העשרת נמחקת מבית המספרים", isCorrect: false, feedbackHe: "רמז: בפריטה לא מוחקים לבנים. בדקו מה קורה לעשרת." }
+      { id: "opt_1", textHe: "מקבלים עשר יחידות שנוספות לטור היחידות", isCorrect: true, feedbackHe: "נכון מאוד! לחצו על לבנת עשרת, וראו את היחידות שנוספות לטור היחידות." },
+      { id: "opt_2", textHe: "בית המספרים נשאר בלי שינוי", isCorrect: false, feedbackHe: "רמז: הפריטה משנה את בית המספרים. בדקו מה קורה בטור העשרות ובטור היחידות." },
+      { id: "opt_3", textHe: "העשרת נמחקת מבית המספרים", isCorrect: false, feedbackHe: "רמז: בפריטה לא מוחקים לבנים. בדקו מה קורה ללבנת העשרת." }
     ],
     correctChoiceId: "opt_1"
   },

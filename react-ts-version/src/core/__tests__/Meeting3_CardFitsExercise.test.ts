@@ -146,7 +146,7 @@ describe('the AI guard reads only an option that is a choice of blocks (second r
   });
   it('keeps a card whose options are steps or actions, not a choice of blocks', () => {
     const t347 = { id: 's1_target_347', type: 'representation', numberA: 347, requiredCounts: { hundreds: 3, tens: 3, units: 17 } };
-    expect(contradictsRequiredRepresentation(t347, opts('מקבלים 10 יחידות, שנוספות לטור היחידות בבית המספרים', 'בית המספרים נשאר בלי שינוי'))).toBe(false);
+    expect(contradictsRequiredRepresentation(t347, opts('מקבלים עשר יחידות שנוספות לטור היחידות', 'בית המספרים נשאר בלי שינוי'))).toBe(false);
     expect(contradictsRequiredRepresentation(byId('s3_r_t2'), opts('נפרוט מאה אחת ל-10 עשרות', 'נמחק לבנים'))).toBe(false);
     expect(contradictsRequiredRepresentation(byId('s3_r_t1'), opts('נשים 3 מאות בטור המאות ו-4 עשרות בטור העשרות', 'נכתוב 3 מאות ו-4 עשרות בלי לבנות אותן'))).toBe(false);
     expect(contradictsRequiredRepresentation(byId('s3_g_t6'), opts('נפרוט לבנת אלף אחת ל-10 מאות', 'ננחש'))).toBe(false);

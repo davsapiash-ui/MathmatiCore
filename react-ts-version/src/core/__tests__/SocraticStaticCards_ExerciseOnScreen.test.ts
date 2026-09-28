@@ -165,11 +165,11 @@ describe('the two cards the audit saw', () => {
 describe('meeting 1 target task (347): the card does not answer the task\'s question', () => {
   it('the wrong-option hints no longer say that the quantity is kept', () => {
     const card = SocraticEngine.getSynchronousTaskHint({ id: 's1_target_347', type: 'representation', numberA: 347 }, EMPTY);
-    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: מה קורה כשפורטים עשרת אחת לטור היחידות?');
+    expect(card.questionHe).toBe('בואו נחשוב רגע יחד: מה קורה בבית המספרים כשפורטים עשרת אחת?');
     const hints = card.choices.filter((c) => !c.isCorrect).map((c) => c.feedbackHe);
     expect(hints).toEqual([
-      'רמז: הפריטה משנה את הלבנים בבית המספרים. בדקו מה קורה לכמות.',
-      'רמז: בפריטה לא מוחקים לבנים. בדקו מה קורה לעשרת.',
+      'רמז: הפריטה משנה את בית המספרים. בדקו מה קורה בטור העשרות ובטור היחידות.',
+      'רמז: בפריטה לא מוחקים לבנים. בדקו מה קורה ללבנת העשרת.',
     ]);
     expect(JSON.stringify(card)).not.toMatch(/שומרת על ערך הכמות|נשמרת|347/);
   });
@@ -177,7 +177,7 @@ describe('meeting 1 target task (347): the card does not answer the task\'s ques
   it('speaks the words of the screen: "פורטים", "בית המספרים", no formal "אנו" (28.9.2026)', () => {
     const card = SocraticEngine.getSynchronousTaskHint({ id: 's1_target_347', type: 'representation', numberA: 347 }, EMPTY);
     expect(card.choices.map((c) => c.textHe)).toEqual([
-      'מקבלים 10 יחידות, שנוספות לטור היחידות בבית המספרים',
+      'מקבלים עשר יחידות שנוספות לטור היחידות',
       'בית המספרים נשאר בלי שינוי',
       'העשרת נמחקת מבית המספרים',
     ]);
