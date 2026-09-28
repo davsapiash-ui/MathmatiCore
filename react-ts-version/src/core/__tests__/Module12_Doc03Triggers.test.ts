@@ -5,7 +5,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 /**
  * מסמך 03 §3.3–3.8 names three triggers for the coaching card:
  *   1. 45 seconds of hesitation in the active column (owned by the radar hook),
- *   2. four consecutive errors in the active column (since 28.9.2026: wrong digits, not deletions),
+ *   2. "ארבע מחיקות או הקלדות שגויות רצופות באותו טור" (since 28.9.2026: counted in one column),
  *   3. a required conversion the learner did not perform.
  * Only the first was wired. The deletion count existed but nothing read it, and
  * the third trigger did not exist at all — so a learner who kept answering a
@@ -24,9 +24,9 @@ function startTask(sessionNumber: number) {
 describe('Module 12: the three coaching triggers of מסמך 03', () => {
   beforeEach(() => startTask(4));
 
-  // Owner's decisions 28.9.2026 (שהB.2, שהB.3): trigger 2 counts wrong digits
-  // in one column when they are typed; deletions count nothing. Every clause
-  // is tested in Owner_28_9_CountingRules.test.ts.
+  // 28.9.2026 (מסמך 03, register deviation 2): trigger 2 counts, in one column,
+  // every wrong digit when it is typed and every deletion except the erasure of
+  // a wrong digit. Every clause is tested in Owner_28_9_CountingRules.test.ts.
   it('trigger 2 — four wrong digits in one column open the card and are reported as such', async () => {
     // The tens of 1,245 + 328 need no carry, so trigger 3 cannot fire here.
     const s = useWorkspaceStore.getState();

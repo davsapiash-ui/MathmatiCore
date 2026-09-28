@@ -1,7 +1,10 @@
 /**
  * The owner's decisions of 28.9.2026 (register: שהC.1 option א, שהC.2,
- * שהB.2, שהB.3, שהB.4). Each clause of each rule has a test here, driven
- * through the real store; telemetry is captured at emitTelemetry.
+ * שהB.2, שהB.4), and the "four errors" count as מסמך 03 writes it: "ארבע
+ * מחיקות או הקלדות שגויות רצופות באותו טור" (שהB.3 — deletions count nothing —
+ * departs from that wording and is not applied). Each clause of each rule has
+ * a test here, driven through the real store; telemetry is captured at
+ * emitTelemetry.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
@@ -20,6 +23,7 @@ vi.mock('@/infrastructure/services/FirebaseSyncService', async () => {
 import {
   useWorkspaceStore,
   nextDigitErrorStreak,
+  nextDigitErrorStreakOnDelete,
   socraticCardColumnIndex,
 } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
@@ -125,12 +129,12 @@ describe('Rule 1 — skeleton exercises of meetings 3–7 accept the result or t
   });
 
   it('order: the empty board comes first, even before a wrong digit', () => {
-    // "התקדם" stays disabled until every hidden box has a digit (selectCanProceed),
+    // "ממשיכים" stays disabled until every hidden box has a digit (selectCanProceed),
     // so the missing-digit step is not reachable from the button.
     ws().setOperandDigit('a', 'units', '5');
     proceed();
-    // The existing empty_board failure (compared without the niqqud's code-point order).
-    expect(ws().feedback?.title.normalize('NFD')).toBe('בְּנִיַּת הַמִּסְפָּר בַּבַּיִת 🧱'.normalize('NFD'));
+    // The existing empty_board failure.
+    expect(ws().feedback?.title).toBe('בונים בבית המספרים 🧱');
   });
 
   it('10 or more in a column is checked after the board: 3 hundreds and 14 units (= 314) is overcrowded', () => {
@@ -192,9 +196,9 @@ describe('Rule 2 — meeting 6 reinforcement asks the child to check each column
   });
 });
 
-/* ── RULES 4+5 — the "four errors" streak (שהB.2, שהB.3) ─────────────────── */
+/* ── RULE 4 — the "four errors" streak (שהB.2; מסמך 03 "ארבע מחיקות או הקלדות שגויות") ── */
 
-describe('Rules 4+5 — nextDigitErrorStreak, clause by clause', () => {
+describe('Rule 4 — nextDigitErrorStreak, clause by clause', () => {
   const at = (n: number, p: Place | null) => ({ digitErrorStreak: n, digitErrorStreakPlace: p });
   it('a wrong digit adds 1 in the same column', () => {
     expect(nextDigitErrorStreak(at(2, 'tens'), 'tens', false)).toEqual(at(3, 'tens'));
@@ -211,7 +215,25 @@ describe('Rules 4+5 — nextDigitErrorStreak, clause by clause', () => {
   });
 });
 
-describe('Rules 4+5 — the card, driven through the store (meeting 4, 1,245 + 328 = 1,573)', () => {
+describe('Rule 4 — nextDigitErrorStreakOnDelete, clause by clause', () => {
+  const at = (n: number, p: Place | null) => ({ digitErrorStreak: n, digitErrorStreakPlace: p });
+  it('erasing a wrong digit leaves the streak as it is (that attempt was counted when typed)', () => {
+    expect(nextDigitErrorStreakOnDelete(at(2, 'tens'), 'tens', false)).toEqual(at(2, 'tens'));
+    expect(nextDigitErrorStreakOnDelete(at(0, null), 'tens', false)).toEqual(at(0, null));
+  });
+  it('erasing a correct digit adds 1 in the same column', () => {
+    expect(nextDigitErrorStreakOnDelete(at(2, 'tens'), 'tens', true)).toEqual(at(3, 'tens'));
+  });
+  it('a deletion in another column restarts the streak there at 1', () => {
+    expect(nextDigitErrorStreakOnDelete(at(3, 'tens'), 'units', true)).toEqual(at(1, 'units'));
+    expect(nextDigitErrorStreakOnDelete(at(0, null), 'units', true)).toEqual(at(1, 'units'));
+  });
+  it('erasing a digit the exercise has no answer for counts as a deletion', () => {
+    expect(nextDigitErrorStreakOnDelete(at(1, 'units'), 'units', null)).toEqual(at(2, 'units'));
+  });
+});
+
+describe('Rule 4 — the card, driven through the store (meeting 4, 1,245 + 328 = 1,573)', () => {
   const t = () => byId('s4_g_t1');
   beforeEach(() => load(4, t()));
   const cardOpen = () => ws().helpState === 'socratic' && ws().socraticTriggerReason === 'consecutive_errors_4';
@@ -230,7 +252,7 @@ describe('Rules 4+5 — the card, driven through the store (meeting 4, 1,245 + 3
     expect(cardOpen()).toBe(true);
   });
 
-  it('a wrong digit into an empty box counts when typed; deleting it counts nothing', async () => {
+  it('a wrong digit into an empty box counts when typed; erasing it does not count it again', async () => {
     for (let i = 0; i < 3; i++) {
       ws().setAnswerDigit('tens', '6');
       ws().setAnswerDigit('tens', '');
@@ -241,14 +263,38 @@ describe('Rules 4+5 — the card, driven through the store (meeting 4, 1,245 + 3
     expect(cardOpen()).toBe(true);
   });
 
-  it('deleting correct digits never opens the card (שהB.3)', async () => {
+  it('erasing a correct digit counts as a deletion: correct, erase, then three wrong digits open the card', async () => {
+    ws().setAnswerDigit('tens', '7'); // correct: 0
+    ws().setAnswerDigit('tens', ''); // the deletion: 1
+    expect(ws().digitErrorStreak).toBe(1);
+    for (const d of ['9', '8']) ws().setAnswerDigit('tens', d);
+    await flush();
+    expect(cardOpen()).toBe(false);
+    ws().setAnswerDigit('tens', '6');
+    await flush();
+    expect(cardOpen()).toBe(true);
+  });
+
+  it('typing a correct digit and erasing it, again and again, never reaches four: the correct digit resets each time', async () => {
     for (let i = 0; i < 6; i++) {
       ws().setAnswerDigit('tens', '7');
       ws().setAnswerDigit('tens', '');
     }
     await flush();
-    expect(ws().digitErrorStreak).toBe(0);
+    expect(ws().digitErrorStreak).toBe(1);
     expect(ws().helpState).not.toBe('socratic');
+  });
+
+  it('erasing a whole correct answer, one column after another, does not open the card (הB.4: one column per streak)', async () => {
+    ws().setAnswerDigit('units', '3');
+    ws().setAnswerDigit('tens', '7');
+    ws().setAnswerDigit('hundreds', '5');
+    ws().setAnswerDigit('thousands', '1');
+    for (const p of ['units', 'tens', 'hundreds', 'thousands'] as const) ws().setAnswerDigit(p, '');
+    await flush();
+    expect(ws().digitErrorStreak).toBe(1);
+    expect(ws().digitErrorStreakPlace).toBe('thousands');
+    expect(cardOpen()).toBe(false);
   });
 
   it('four wrong digits in four different columns do not open it (one column per streak)', async () => {
@@ -358,7 +404,7 @@ describe('Rules 4+5 — the card, driven through the store (meeting 4, 1,245 + 3
   });
 });
 
-describe('Rules 4+5 — missing-digit boxes use the same streak (meetings 5–8)', () => {
+describe('Rule 4 — missing-digit boxes use the same streak (meetings 5–8)', () => {
   it('four wrong hidden digits in one column open the card for that column (s5_r_t7, 4▢2 − 128)', async () => {
     const t = byId('s5_r_t7');
     load(5, t);
@@ -382,7 +428,7 @@ describe('Rules 4+5 — missing-digit boxes use the same streak (meetings 5–8)
 
   // The banks have no exercise with both a hidden operand digit and an open
   // result-row box, so the two sources meet only through the shared rule.
-  it('hidden digits: wrong digits accumulate, a correct one resets, deleting counts nothing', () => {
+  it('hidden digits: wrong digits accumulate, erasing a wrong one adds nothing, a correct one resets, erasing it counts', () => {
     const t = byId('s7_r_t3'); // 3▢6 + 271 = 657, the tens hidden
     load(7, t);
     ws().setOperandDigit('a', 'tens', '1');
@@ -393,18 +439,19 @@ describe('Rules 4+5 — missing-digit boxes use the same streak (meetings 5–8)
     ws().setOperandDigit('a', 'tens', '8');
     expect(ws().digitErrorStreak).toBe(0);
     ws().setOperandDigit('a', 'tens', '');
-    expect(ws().digitErrorStreak).toBe(0);
+    expect(ws().digitErrorStreak).toBe(1);
+    expect(ws().digitErrorStreakPlace).toBe('tens');
   });
 });
 
-describe('Rules 4+5 — the report label is true for both sources', () => {
-  it('SOCRATIC_CARD_SHOWN consecutive_errors_4 reads "ארבע טעויות רצופות", not "deletions"', () => {
+describe('Rule 4 — the report label is the documents\' wording', () => {
+  it('SOCRATIC_CARD_SHOWN consecutive_errors_4 reads "ארבע מחיקות או הקלדות שגויות רצופות" (מסמכים 03, 04)', () => {
     const d = describeEvent({
       eventType: 'SOCRATIC_CARD_SHOWN',
       details: { trigger_reason: 'consecutive_errors_4' },
       columnIndex: 1,
     } as any);
-    expect(d.detail).toBe('ארבע טעויות רצופות');
+    expect(d.detail).toBe('ארבע מחיקות או הקלדות שגויות רצופות');
   });
 });
 

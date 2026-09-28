@@ -5,17 +5,19 @@ import { resolve } from 'path';
 import { useWorkspaceStore, getActiveTasks, selectCanProceed } from '@/application/useWorkspaceStore';
 import { SESSION1_TASKS, getHardcodedCatalogBanks, type SessionTask } from '@/data/sessionTasks';
 import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
-import { session1Checklist } from '@/core/session1Checklist';
+import { session1Checklist, session1DoneNoteHe } from '@/core/session1Checklist';
 import { EMPTY_COUNTS } from '@/core/placeValue';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 
 /**
  * מפגש 1 (owner, 24.9.2026 — register decision ו): the six introduction steps
- * of מסמך 03 §3.1, then four refresh exercises, each mirroring one diagnostic
- * task of meeting 2 with other numbers. The steps say on screen exactly what
- * the document says; the refresh exercises share every column feature of the
- * diagnostic task they refresh, and no number with meeting 2.
+ * of מסמך 03 §3.1 and four refresh exercises, each mirroring one diagnostic
+ * task of meeting 2 with other numbers. Since 27.9.2026 (register decision י)
+ * the grouping exercise comes before the target task (step 6). The steps say
+ * on screen exactly what the document says; the refresh exercises share every
+ * column feature of the diagnostic task they refresh, and no number with
+ * meeting 2. Tasks are reached by id (`at`), never by a hard-coded place.
  */
 
 /**
@@ -30,18 +32,85 @@ const DOC03 = REGISTERED_SUBSTITUTIONS.reduce(
   (text, [from, to]) => text.replace(from, to),
   readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מקור פדגוגי/03- אפיון מפורט לקראת פיתוח.md'), 'utf-8').replace(/\\!/g, '!')
 );
+/**
+ * TEMPORARY — pending Drive sync of the meeting-1 order (27.9.2026).
+ *
+ * Register decision י changed the target task's on-screen instruction and the
+ * third line of its checklist to the owner's wording. The owner puts the same
+ * wording (and the new order) into מסמך 03 in Drive; the repository copy is
+ * synced from Drive after this change. Until then these two texts cannot be
+ * found in the repository copy, so they are compared with the owner's decision
+ * instead. Once the copy is synced the allowance is a no-op.
+ *
+ * After the sync, remove: this constant, the helper `inDoc03OrPending` (use
+ * `expect(DOC03, …).toContain(…)` again at its two call sites), and the test
+ * "the texts waiting for the Drive sync are texts the software shows".
+ */
+const PENDING_DOC03_SYNC_27_9: ReadonlySet<string> = new Set([
+  'משימת היעד: בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.',
+  'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה',
+]);
+/**
+ * TEMPORARY — pending Drive sync (28.9.2026).
+ *
+ * One name per thing on the child's screen (owner, 28.9.2026): "לבנים", not
+ * "לבני דינס"; "בית המספרים", not "הלוח"; a sentence names the button by the
+ * words it shows, "קבץ 10" (not "כפתור הקבץ 10"). Each pair is [what the screen says
+ * now, the words of the repository copy of מסמך 03 it replaces]. The owner's
+ * script updates מסמך 03 in Drive; until the repository copy is synced, a
+ * line counts as the document's if the copy holds the old words the pair
+ * names. After the sync, remove this constant and its branch in
+ * `inDoc03OrPending`; nothing else.
+ */
+const PENDING_DOC03_SYNC_28_9: ReadonlyArray<readonly [string, string]> = [
+  ['נסו לבנות את המספר 305 בלבנים ושימו לב לתפקיד של הספרה אפס בבית המספרים הריק מעשרות.', 'נסו לבנות את המספר 305 בלבני דינס ושימו לב לתפקיד של הספרה אפס בבית המספרים הריק מעשרות.'],
+  ['נסו לבנות את המספר 305 בלבנים', 'נסו לבנות את המספר 305 בלבני דינס'],
+  ['אחר כך לחצו על פח האשפה כדי לנקות את בית המספרים.', 'אחר כך לחצו על פח האשפה כדי לנקות את הלוח.'],
+  ['בנו את המספר 347 בלבנים', 'בנו את המספר 347 בלבני דינס'],
+  [
+    'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת הכפתור "קבץ 10" שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.',
+    'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת כפתור הקבץ 10 שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.',
+  ],
+  [
+    'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבץ 10" שבראש הטור. כתבו את התשובה בשורת התוצאה.',
+    'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברות 10 לבנים בטור, לחצו על כפתור הקבץ 10 שבראש הטור. כתבו את התשובה בשורת התוצאה.',
+  ],
+  [
+    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בבית המספרים או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
+    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בלוח או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
+  ],
+  [
+    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בבית המספרים או גררו אותה לטור העשרות. כתבו את התשובה בשורת התוצאה.',
+    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בלוח או גררו אותה לטור העשרות. כתבו את התשובה בשורת התוצאה.',
+  ],
+];
+/** The line is in the repository copy of מסמך 03 — or is one of the texts waiting for its Drive sync. */
+const inDoc03OrPending = (line: string, where: string) => {
+  if (PENDING_DOC03_SYNC_27_9.has(line)) return;
+  const pending28 = PENDING_DOC03_SYNC_28_9.find(([now]) => now === line);
+  if (pending28) {
+    // the copy holds either the old words (not synced yet) or the new ones (synced)
+    expect([DOC03.includes(pending28[1]), DOC03.includes(line)], where).toContain(true);
+    return;
+  }
+  expect(DOC03, where).toContain(line);
+};
 const task = (id: string) => SESSION1_TASKS.find((t) => t.id === id)!;
 const diag = (id: string) => DIAGNOSTIC_TASKS.find((t) => t.id === id)!;
+/** A task's place in meeting 1. */
+const at = (id: string) => SESSION1_TASKS.findIndex((t) => t.id === id);
 
 describe('the order of meeting 1', () => {
-  it('six introduction steps of מסמך 03, then four refresh exercises', () => {
+  it('steps 1–5 of מסמך 03, the grouping exercise, the target task, then the other three refresh exercises (owner, 27.9.2026)', () => {
+    // Register decision י: easy to hard — grouping ends in the familiar
+    // standard form, the target task's decomposition in a non-standard one.
     expect(SESSION1_TASKS.map((t) => t.id)).toEqual([
       's1_sandbox_controlled', // steps 1–2
       's1_decompose_hundred', // step 3
       's1_build_305', // step 4
       's1_undo_trash', // step 5
-      's1_target_347', // step 6, the target task
       's1_r_group26', // refresh ← diagnostic task 5
+      's1_target_347', // step 6, the target task
       's1_t8', // refresh ← diagnostic task 6
       's1_r_sub61', // refresh ← diagnostic task 3
       's1_r_sub806', // refresh ← diagnostic task 7
@@ -78,20 +147,41 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
   const lines = (t: SessionTask) => t.instructionHe.split('\n');
   for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash']) {
     it(id, () => {
-      for (const line of lines(task(id))) expect(DOC03, line).toContain(line);
+      for (const line of lines(task(id))) inDoc03OrPending(line, line);
     });
   }
 
   it('the refresh exercises and the target task say on screen what מסמך 03 §3.1 says, word for word', () => {
     // The owner added them to the document on 24.9.2026 (register ו).
     for (const id of ['s1_target_347', 's1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806']) {
-      for (const line of lines(task(id))) expect(DOC03, `${id}: ${line}`).toContain(line);
+      for (const line of lines(task(id))) inDoc03OrPending(line, `${id}: ${line}`);
     }
+  });
+
+  it('the target task says the owner\'s words exactly (register decision י, 27.9.2026)', () => {
+    expect(task('s1_target_347').instructionHe).toBe(
+      'משימת היעד: בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.'
+    );
+    const labels = session1Checklist('s1_target_347', { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false })!.map((i) => i.label);
+    expect(labels).toEqual([
+      'בנו את המספר 347 בלבנים',
+      'פרטו עשרת אחת לעשר יחידות',
+      'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה',
+    ]);
+    expect(session1DoneNoteHe('s1_target_347')).toBe('נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 347.');
+    for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash', 's1_r_group26']) {
+      expect(session1DoneNoteHe(id)).toBeNull();
+    }
+  });
+
+  it('the texts waiting for the Drive sync are texts the software shows (TEMPORARY — remove with PENDING_DOC03_SYNC_27_9)', () => {
+    const labels = session1Checklist('s1_target_347', { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false })!.map((i) => i.label);
+    for (const text of PENDING_DOC03_SYNC_27_9) expect([task('s1_target_347').instructionHe, ...labels]).toContain(text);
   });
 
   it('step 6 names the document\'s number and actions', () => {
     const t = task('s1_target_347');
-    expect(t.instructionHe.startsWith('משימת היעד: בנו את המספר 347 בלבני דינס, פרטו עשרת אחת לעשר יחידות')).toBe(true);
+    expect(t.instructionHe.startsWith('משימת היעד: בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות')).toBe(true);
     expect(t.requiredCounts).toEqual({ hundreds: 3, tens: 3, units: 17 });
     expect(t.requiresUngrouping).toBe(true);
     // the new representation is what the child finds — the card does not list it in advance
@@ -129,7 +219,9 @@ describe('what completes each introduction step', () => {
     const at = (s: Partial<typeof base> & { answerDigits?: Record<string, string> }) =>
       session1Checklist('s1_target_347', { ...base, ...s } as any)!.map((i) => i.done);
     expect(at({ counts: { ...EMPTY_COUNTS, units: 7 } })).toEqual([false, false, false]);
-    expect(at({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 4, units: 7 }, answerDigits: { hundreds: '3', tens: '4', units: '7' } })).toEqual([true, false, true]);
+    // 347 typed before the decomposition is not "the number after the
+    // decomposition": the third line waits for the second (owner, 28.9.2026).
+    expect(at({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 4, units: 7 }, answerDigits: { hundreds: '3', tens: '4', units: '7' } })).toEqual([true, false, false]);
     expect(at({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 }, hasUngrouped: true })).toEqual([true, true, false]);
     expect(at({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 }, hasUngrouped: true, answerDigits: { hundreds: '3', tens: '4', units: '7' } })).toEqual([true, true, true]);
   });
@@ -149,14 +241,14 @@ describe('what completes each introduction step', () => {
   it('every checklist label is the document\'s own wording', () => {
     const state = { ...base, counts: { ...EMPTY_COUNTS } };
     for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash', 's1_target_347']) {
-      for (const item of session1Checklist(id, state)!) expect(DOC03, item.label).toContain(item.label);
+      for (const item of session1Checklist(id, state)!) inDoc03OrPending(item.label, item.label);
     }
     const other305 = session1Checklist('s1_build_305', { ...state, counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })!;
     // The corrective second item is an action, not a phrase (owner, 25.9.2026:
     // on-screen texts say what the child actually has to do); it ends on the
     // document's own words.
-    expect(other305[0].label).toBe('נסו לבנות את המספר 305 בלבני דינס');
-    expect(DOC03).toContain(other305[0].label);
+    expect(other305[0].label).toBe('נסו לבנות את המספר 305 בלבנים');
+    inDoc03OrPending(other305[0].label, other305[0].label);
     expect(other305[1].label).toMatch(/^רוקנו את טור העשרות/);
   });
 
@@ -202,9 +294,21 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.getState().clearBoard();
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
     useWorkspaceStore.getState().proceed();
-    expect(getActiveTasks(useWorkspaceStore.getState())[useWorkspaceStore.getState().standardTaskIdx].id).toBe('s1_target_347');
-    // …and the target task opens on an empty board again
-    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
+    // Since 27.9.2026 (register decision י) the grouping exercise comes next…
+    expect(getActiveTasks(useWorkspaceStore.getState())[useWorkspaceStore.getState().standardTaskIdx].id).toBe('s1_r_group26');
+    // …and it opens on its own 26 unit blocks
+    expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, units: 26 });
+  });
+
+  it('the target task comes after the grouping exercise and opens on an empty board', () => {
+    useWorkspaceStore.getState().initSession(1, false, at('s1_r_group26'));
+    useWorkspaceStore.getState().groupColumnClick('units');
+    useWorkspaceStore.getState().groupColumnClick('units');
+    useWorkspaceStore.setState({ answerDigits: { tens: '2', units: '6' } });
+    useWorkspaceStore.getState().proceed();
+    const s = useWorkspaceStore.getState();
+    expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_target_347');
+    expect(s.counts).toEqual({ ...EMPTY_COUNTS });
   });
 
   it('a reload in steps 1–2 keeps the blocks already dragged, and in step 5 keeps the undo history', () => {
@@ -244,7 +348,7 @@ describe('the store gate follows the checklist', () => {
       }
       return v;
     };
-    useWorkspaceStore.getState().initSession(1, false, 4);
+    useWorkspaceStore.getState().initSession(1, false, at('s1_target_347'));
     useWorkspaceStore.getState().setAnswerDigit('hundreds', '3');
     expect(useWorkspaceStore.getState().answerDigits.hundreds).toBe('3');
     const saved = viaDatabase(JSON.parse(JSON.stringify((firebaseSyncService as any).getSyncableWorkspaceState())));
@@ -268,7 +372,7 @@ describe('the store gate follows the checklist', () => {
   });
 
   it('a reload keeps what a step or a conversion was decided by', () => {
-    useWorkspaceStore.getState().initSession(1, false, 4);
+    useWorkspaceStore.getState().initSession(1, false, at('s1_target_347'));
     useWorkspaceStore.setState({
       counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 },
       hasUngrouped: true,
@@ -292,11 +396,11 @@ describe('the store gate follows the checklist', () => {
     // …so the child who decomposed and reloaded is not told to decompose again
     useWorkspaceStore.getState().proceed();
     const s = useWorkspaceStore.getState();
-    expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_r_group26');
+    expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_t8');
   });
 
   it('the target task: "התקדם" stays off until the ten is decomposed and the number written', () => {
-    useWorkspaceStore.getState().initSession(1, false, 4);
+    useWorkspaceStore.getState().initSession(1, false, at('s1_target_347'));
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 4, units: 7 }, answerDigits: { hundreds: '3', tens: '4', units: '7' } });
     expect(selectCanProceed(useWorkspaceStore.getState())).toBe(false);
     useWorkspaceStore.getState().splitBlockClick('tens');
@@ -314,33 +418,31 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.getState().undo();
     expect(useWorkspaceStore.getState().undoCount).toBe(1);
     useWorkspaceStore.getState().proceed();
-    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(3);
+    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_undo_trash'));
     useWorkspaceStore.getState().clearBoard();
     useWorkspaceStore.getState().proceed();
-    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(4);
+    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_undo_trash') + 1);
   });
 
   it('the grouping refresh opens with the 26 unit cubes already on the board, like task 5', () => {
-    // Reached from the target task, through the normal transition…
-    useWorkspaceStore.getState().initSession(1, false, 4);
+    // Reached from step 5 (undo and the trash), through the normal transition…
+    useWorkspaceStore.getState().initSession(1, false, at('s1_undo_trash'));
+    useWorkspaceStore.getState().applyDrop({ source: 'palette', sourcePlace: 'tens', target: { kind: 'column', place: 'tens' } });
+    useWorkspaceStore.getState().undo();
+    useWorkspaceStore.getState().clearBoard();
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
-    useWorkspaceStore.setState({
-      counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 },
-      hasUngrouped: true,
-      answerDigits: { hundreds: '3', tens: '4', units: '7' },
-    });
     useWorkspaceStore.getState().proceed();
     const s1 = useWorkspaceStore.getState();
     expect(getActiveTasks(s1)[s1.standardTaskIdx].id).toBe('s1_r_group26');
     expect(s1.counts).toEqual({ ...EMPTY_COUNTS, units: 26 });
     // …and when the meeting resumes straight into it.
     useWorkspaceStore.getState().resetWorkspace();
-    useWorkspaceStore.getState().initSession(1, false, 5);
+    useWorkspaceStore.getState().initSession(1, false, at('s1_r_group26'));
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, units: 26 });
   });
 
   it('a failed check on a hidden board does not name the board', () => {
-    useWorkspaceStore.getState().initSession(1, false, 5);
+    useWorkspaceStore.getState().initSession(1, false, at('s1_r_group26'));
     useWorkspaceStore.getState().proceed(); // 26 loose units, nothing grouped yet
     const sub = useWorkspaceStore.getState().feedback?.sub ?? '';
     expect(sub).not.toContain('2 עשרות');
@@ -348,18 +450,18 @@ describe('the store gate follows the checklist', () => {
   });
 
   it('the grouping refresh asks for the grouping itself, not only its result', () => {
-    useWorkspaceStore.getState().initSession(1, false, 5);
+    useWorkspaceStore.getState().initSession(1, false, at('s1_r_group26'));
     const s0 = useWorkspaceStore.getState();
     expect(getActiveTasks(s0)[s0.standardTaskIdx].id).toBe('s1_r_group26');
     // 2 tens and 6 units dragged in directly: the board is right, the grouping never happened.
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 2, units: 6 }, answerDigits: { tens: '2', units: '6' } });
     useWorkspaceStore.getState().proceed();
-    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(5);
-    expect(useWorkspaceStore.getState().feedback?.sub).toContain('כפתור הקבץ 10');
-    // Grouped from loose units: accepted.
+    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_r_group26'));
+    expect(useWorkspaceStore.getState().feedback?.sub).toContain('הכפתור "קבץ 10"');
+    // Grouped from loose units: accepted, and the target task comes next.
     useWorkspaceStore.setState({ hasGrouped: true });
     useWorkspaceStore.getState().proceed();
-    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(6);
+    expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_target_347'));
   });
 });
 

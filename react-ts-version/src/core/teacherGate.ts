@@ -110,7 +110,8 @@ export async function approveTeacherGate(
     // "try again" while a second click re-read the document and, with the
     // network still down, failed the same way. The message says what will
     // happen instead of what to do.
-    await indexedDBQueue.enqueue(canonicalPath, { ...mirror, idempotency_key: `gate_mirror_${num}_${now}` }).catch(() => {});
+    // A merge into the learner's record (update), not a child of it.
+    await indexedDBQueue.enqueueRtdbMerge(canonicalPath, { ...mirror }, `gate_mirror_${num}_${now}`).catch(() => {});
     return {
       ok: false,
       reason: 'write_failed',
