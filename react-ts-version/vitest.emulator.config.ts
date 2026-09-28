@@ -21,5 +21,8 @@ export default defineConfig({
     testTimeout: 30_000,
     hookTimeout: 60_000,
     fileParallelism: false,
+    // גם כאן: `.env.test` (פרויקט הדגמה) והקובץ הזה מרחיקים את קוד האפליקציה
+    // מהפרויקט החי. האמולטורים ב-127.0.0.1 אינם נחסמים.
+    setupFiles: ['src/test/noProductionNetwork.ts'],
   },
 });

@@ -51,7 +51,7 @@ describe('ייצוא המחקר — מה יוצא ומה נשאר', () => {
   });
 
   it('בדיקת ה-PII אינה מחריגה את הקורא', () => {
-    expect(fn).toContain('if (piiRegex.test(allContent))');
+    expect(fn).toContain('if (piiRegex.test(allContent) || containsPhoneNumber(allContent))');
     expect(fn).not.toContain('allContent.split(userEmail)');
   });
 
