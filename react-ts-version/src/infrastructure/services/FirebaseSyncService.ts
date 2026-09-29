@@ -974,6 +974,10 @@ export class FirebaseSyncService {
       wrongAnswerTaskId: state.wrongAnswerTaskId,
       boardCheckFailures: state.boardCheckFailures,
       boardCheckFailuresTaskId: state.boardCheckFailuresTaskId,
+      // Station 2: a wrong digit typed in the task on screen (PRD 23 §ב). Not
+      // saved, a reload forgot it, and the task was then recorded as solved
+      // on the first attempt.
+      hasDigitErrorInTask: state.hasDigitErrorInTask === true,
       // The chosen branch travels with the index that points into it (restoreSession
       // rebuilds the branch tasks from it), and the radar's "אתגר / ביסוס" badge reads it.
       selectedBranch: state.selectedBranch ?? null,
