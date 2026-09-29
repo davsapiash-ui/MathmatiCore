@@ -14,7 +14,7 @@ import { getCognitiveGlyph } from '@/presentation/pages/TeacherDashboard/compone
 
 /**
  * Owner decision, 27.9.2026: one wording for the teacher. The routes are
- * "המסלול הירוק" and "מסלול צמצום פערי קדם", the gate is "שער אישור המורה",
+ * "המסלול הירוק" and "מסלול צמצום פערי קדם", the gate is "שלב החלוקה למסלולים" (owner, 29.9.2026),
  * a learner's open card is "כרטיס החניכה פתוח", and the error categories are
  * "טעות חישוב", "טעות בשלבי הפתרון", "טעות בהבנת ערך המקום". No "צהוב", no
  * "מואץ", no "מאבק", no "שער מעבר" anywhere the teacher reads, and the
@@ -84,7 +84,7 @@ describe('the names, one wording', () => {
   it('the two routes, the approval buttons, the gate, the open card', () => {
     expect(ROUTE_NAME_HE).toEqual({ green_path: 'המסלול הירוק', remediation_path: 'מסלול צמצום פערי קדם' });
     expect(ROUTE_APPROVE_HE).toEqual({ green_path: 'אישור המסלול הירוק', remediation_path: 'אישור מסלול צמצום פערי קדם' });
-    expect(TEACHER_GATE_HE).toBe('שער אישור המורה');
+    expect(TEACHER_GATE_HE).toBe('שלב החלוקה למסלולים');
     expect(CARD_OPEN_HE).toBe('כרטיס החניכה פתוח');
     expect(routeNameHe('green_path')).toBe('המסלול הירוק');
     expect(routeNameHe('remediation_path')).toBe('מסלול צמצום פערי קדם');
@@ -131,7 +131,7 @@ describe('the names, one wording', () => {
 
 describe('what the teacher no longer reads', () => {
   it('no "צהוב", "מואץ", "מאבק" or "שער מעבר" in any teacher or admin screen or report', () => {
-    expect(hits(teacherTexts(), /צהוב|מואץ|מואצ|מאבק|שער מעבר|שער אישור מעבר/)).toEqual([]);
+    expect(hits(teacherTexts(), /צהוב|מואץ|מואצ|מאבק|שער מעבר|שער אישור מעבר|שער אישור המורה|שער אישור מורה|שער המורה|שער מורה/)).toEqual([]);
   });
 
   it('no old name of the open card, no "(PII)", no "בלייב", no "אדמיניסטרטיבית"', () => {

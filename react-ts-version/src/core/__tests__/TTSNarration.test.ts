@@ -702,7 +702,7 @@ describe('האפיון: הקראה בממשק הלומד בלבד', () => {
       'presentation/components/student/SessionPausedOverlay.tsx',
       'presentation/components/student/SessionClosedOverlay.tsx',
       'presentation/components/student/ProjectorWaitingScreen.tsx',
-      'presentation/components/student/BeeFlightWaitingScreen.tsx',
+      'presentation/components/student/Meeting2WaitingScreen.tsx',
       'presentation/components/student/Session8ReflectionScreen.tsx',
       'presentation/pages/Login.tsx',
     ];

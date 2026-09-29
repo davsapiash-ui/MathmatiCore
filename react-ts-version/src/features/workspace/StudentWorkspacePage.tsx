@@ -49,7 +49,7 @@ import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitationRadar';
 import { toast } from 'sonner';
-import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
+import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting2WaitingScreen';
 import { TeacherWillOpenWaitingScreen } from '@/presentation/components/student/TeacherWillOpenWaitingScreen';
 import { ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { newerWorkspaceSnapshot, isRestorableFor, workspaceSavedAt, startedWithoutRecord } from '@/core/workspaceSnapshot';
@@ -440,7 +440,7 @@ export function StudentWorkspacePage() {
   // teacher_selected_path (recordLearningPath).
   const learnerPath = recordLearningPath(myData as Record<string, unknown> | null);
   const hasApprovedPath = isGateApproved && learnerPath !== null;
-  // The bee screen says "סיימתם את התחנה השנייה בהצלחה": it is shown only to a
+  // The meeting-2 waiting screen says "סיימתם את התחנה השנייה בהצלחה": it is shown only to a
   // learner who did finish meeting 2 and is waiting for the gate. Anyone else
   // waiting here — no completed meeting 2, or no path — is told only "המורה
   // תפתח את הפעילות בקרוב." (PRD 14 §ב0), so the text matches what the child did.
@@ -450,7 +450,7 @@ export function StudentWorkspacePage() {
     (typeof myData?.highestCompletedMeeting === 'number' && myData.highestCompletedMeeting >= 2) ||
     myData?.routeStatus === 'PENDING_TEACHER_APPROVAL'
   );
-  const showBeeWaiting = completedMeeting2 && !isGateApproved;
+  const showMeeting2Waiting = completedMeeting2 && !isGateApproved;
   useEffect(() => {
     const isApproved = isGateApproved;
     // PRD 14 §ב0: "כדי שמפגש 3 ייפתח נדרשים שני התנאים במצטבר: אישור בשער
@@ -689,7 +689,7 @@ export function StudentWorkspacePage() {
     // PRD 14 §ג: a learner who has finished "ממתין במסך סיום שקט"; PRD 14 §ב0:
     // re-opening a completed meeting deletes nothing. A saved 'sessionDone' used to
     // be refused here, so the lobby's entry into the open meeting restarted it at
-    // exercise 1: after the diagnostic the bee-flight screen never appeared, and a
+    // exercise 1: after the diagnostic the meeting-2 waiting screen never appeared, and a
     // second pass before the approval overwrote the score, the recommended path
     // and the Q-matrix. Starting a meeting over is what the level-2 reset is for —
     // it clears the saved state, and only then is there nothing to restore.
@@ -1038,7 +1038,7 @@ export function StudentWorkspacePage() {
   // The meeting starts, and this screen goes, when the approval and the path
   // arrive (runInit above).
   if (pendingApproval && !isInitialized) {
-    return <>{showBeeWaiting ? <BeeFlightWaitingScreen /> : <TeacherWillOpenWaitingScreen />}{classStateOverlays}</>;
+    return <>{showMeeting2Waiting ? <Meeting2WaitingScreen /> : <TeacherWillOpenWaitingScreen />}{classStateOverlays}</>;
   }
 
   // Module 14: Post-Mandatory Tasks Choice Point (Reinforcement vs Challenge)
@@ -1114,7 +1114,7 @@ export function StudentWorkspacePage() {
   // the opening of meeting 3 are both hers. The screen listens for the
   // approval and returns the learner to the lobby the moment it lands.
   if (endScreen === 'sessionDone' && sessionNumber === 2 && !isGateApproved) {
-    return <><BeeFlightWaitingScreen onApproved={() => navigate('/hub')} />{classStateOverlays}</>;
+    return <><Meeting2WaitingScreen onApproved={() => navigate('/hub')} />{classStateOverlays}</>;
   }
 
   // Module 14: Session complete screen. In meetings 3–7 it carries the one
@@ -1188,8 +1188,8 @@ export function StudentWorkspacePage() {
   }
 
   if (pendingApproval) {
-    return showBeeWaiting
-      ? <BeeFlightWaitingScreen onApproved={() => setPendingApproval(false)} />
+    return showMeeting2Waiting
+      ? <Meeting2WaitingScreen onApproved={() => setPendingApproval(false)} />
       : <TeacherWillOpenWaitingScreen />;
   }
 
