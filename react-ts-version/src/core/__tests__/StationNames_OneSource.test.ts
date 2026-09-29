@@ -259,8 +259,10 @@ describe('the child reads "בית המספרים" and "לבנים"', () => {
     expect(palette).not.toMatch(/לחץ או גרור/);
   });
 
-  it('meeting 1 shows "26 לבני יחידה" (the registered substitution of מסמך 03)', () => {
-    expect(SESSION1_TASKS.find((t) => t.id === 's1_r_group26')?.instructionHe).toContain('בטור היחידות יש 26 לבני יחידה.');
+  it('meeting 1 says "לבני יחידה" and, since 29.9.2026, not how many (the child finds 26)', () => {
+    const text = SESSION1_TASKS.find((t) => t.id === 's1_r_group26')?.instructionHe;
+    expect(text).toContain('בטור היחידות יש לבני יחידה.');
+    expect(text).not.toMatch(/26/);
   });
 
   it('diagnostic task 5 shows "25 לבני יחידה"', () => {

@@ -162,7 +162,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_decompose_hundred',
     type: 'session1_intro',
     titleHe: 'פירוק והרכבה',
-    instructionHe: 'לחצו על לבנה כדי לפרק אותה לחלקים קטנים יותר ועקבו אחר השינוי בבית המספרים.',
+    instructionHe: 'לחצו על לבנה כדי לפרוט אותה ללבנים קטנות יותר, ועקבו אחר השינוי בבית המספרים.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
     initialCounts: { hundreds: 2, tens: 3 },
@@ -172,7 +172,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_build_305',
     type: 'session1_intro',
     titleHe: 'האפס כשומר מקום',
-    instructionHe: 'נסו לבנות את המספר 305 בלבנים ושימו לב לתפקיד של הספרה אפס בבית המספרים הריק מעשרות.',
+    instructionHe: 'נסו לבנות את המספר 305 בלבנים. כשתצליחו, הסתכלו בבית המספרים: איזו ספרה מופיעה ליד שם כל טור?',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },
@@ -181,7 +181,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_undo_trash',
     type: 'session1_intro',
     titleHe: 'ביטול פעולה וניקוי הלוח',
-    instructionHe: 'לחצו על כפתור ביטול פעולה כדי לחזור צעד אחד אחורה.\nאחר כך לחצו על פח האשפה כדי לנקות את בית המספרים.',
+    instructionHe: 'לחצו על כפתור ביטול פעולה ↺ כדי לחזור צעד אחד אחורה.\nאחר כך לחצו על פח האשפה כדי לנקות את בית המספרים.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
     // מסמך 03: undo "the last typing or dragging", then the trash "resets the
@@ -201,7 +201,7 @@ export const SESSION1_TASKS: SessionTask[] = [
   // unit cubes wait on the board, and are grouped twice into tens.
   s1(representation('s1_r_group26', 26, { tens: 2, units: 6 },
     'המרה עצמאית בין עזרים וירטואליים',
-    'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת הכפתור "קבץ 10" שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
+    'בטור היחידות יש לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת הכפתור "קבץ 10 לעשרת" שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
     { requiresGrouping: true, initialCounts: { units: 26 }, hideRequiredCounts: true }),
 
   // מסמך 03 §3.1 step 6 — the target task: 347 → 3 hundreds, 3 tens, 17 units.
@@ -221,7 +221,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     type: 'addition_simple',
     numberA: 713, numberB: 94, correctAnswer: 807,
     titleHe: 'חיבור במאונך עם המרה מעל מאה',
-    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבץ 10" שבראש הטור. כתבו את התשובה בשורת התוצאה.',
+    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר באחד הטורים מצטברות 10 לבנים, לחצו על הכפתור שמופיע בראש אותו טור. כתבו את התשובה בשורת התוצאה.',
     scaffoldLevel: 1,
     requiresGrouping: true,
     targetNode: 'regrouping_fluency',
@@ -230,14 +230,14 @@ export const SESSION1_TASKS: SessionTask[] = [
   // two, one borrow in the units, the tens need no borrow.
   s1(subtraction('s1_r_sub61', 61, 24,
     'חיסור חד-שלבי עם פריטה בתחום המאה',
-    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בבית המספרים או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
+    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה לטור הסמוך. כתבו את התשובה בשורת התוצאה.',
     { scaffoldLevel: 1 })),
   // ★ chosen (owner, 24.9.2026). Mirrors task 7 (405 − 132): a 0 in the tens
   // of the minuend, no borrow in the units, one borrow from the hundreds into
   // the tens.
   s1(subtraction('s1_r_sub806', 806, 351,
     'חיסור במאונך עם פריטה דרך אפס בטור העשרות',
-    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בבית המספרים או גררו אותה לטור העשרות. כתבו את התשובה בשורת התוצאה.',
+    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה לטור הסמוך. כתבו את התשובה בשורת התוצאה.',
     { scaffoldLevel: 1 })),
 ];
 

@@ -36,6 +36,10 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
     setTimeout(() => setShakingPlace((p) => (p === place ? null : p)), 500);
   };
   const hasUngrouped = useWorkspaceStore((s) => s.hasUngrouped);
+  // Station 1 (owner, 29.9.2026): the big number over the result row is the
+  // very number the row is checked against — 26, 347 — so the child could copy
+  // it instead of grouping, decomposing and reading the blocks. Not shown there.
+  const showNumberCard = useWorkspaceStore((s) => s.sessionNumber !== 1);
   // Meeting 1's target task (מסמך 03 §3.1 step 6) is a guided step: its
   // instruction as a checklist, the rule the proceed button follows.
   const checklist = session1Checklist(task.id, { counts, answerDigits, hasUngrouped, blocksAddedCount: 0, undoCount: 0, hasClearedBoard: false });
@@ -48,9 +52,11 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
 
   return (
     <div className="flex flex-col items-center gap-fl-6-20 mt-fl-0-16 flex-1 min-h-0">
-      <div className="shrink-0 bg-ws-accentSoft rounded-3xl px-fl-28-40 py-fl-4-24 border border-ws-accent/30 text-center">
-        <span className="font-display font-black text-fl-32-60 leading-none text-ws-accent tabular-nums">{value.toLocaleString('he-IL')}</span>
-      </div>
+      {showNumberCard && (
+        <div data-testid="representation-number" className="shrink-0 bg-ws-accentSoft rounded-3xl px-fl-28-40 py-fl-4-24 border border-ws-accent/30 text-center">
+          <span className="font-display font-black text-fl-32-60 leading-none text-ws-accent tabular-nums">{value.toLocaleString('he-IL')}</span>
+        </div>
+      )}
 
       {/* Result row (שורת התוצאה) — right under the number, before anything
           else, so it is in view without scrolling (owner, 27.9.2026). */}

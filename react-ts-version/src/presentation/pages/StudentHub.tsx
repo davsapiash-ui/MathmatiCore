@@ -42,7 +42,7 @@ const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
     id: 1,
     // מסמך 04 §1: "ארגז החול" for the first meeting; מסמך 03 §3.1 step 1.
     title: stationTitleHe(1),
-    desc: 'שחקו עם הלבנים ועם בית המספרים, והכירו את הכלים. כאן אין תשובות נכונות או שגויות.',
+    desc: 'שחקו עם הלבנים ועם בית המספרים, והכירו את הכלים. בתחנה הזאת אין ציון.',
     icon: '🧱',
   },
   2: {
