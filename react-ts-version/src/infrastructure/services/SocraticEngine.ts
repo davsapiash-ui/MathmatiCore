@@ -374,6 +374,21 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     correctChoiceId: "opt_1"
   },
 
+  // Refresh, mirrors diagnostic task 1 (owner, 29.9.2026): 703 said in words.
+  // Names none of its digits; the third option is the dropped zero (73).
+  's1_r_words703': {
+    pedagogical_intent: "conceptual",
+    tts_text: "איך כותבים בספרות מספר שכתוב במילים?",
+    suggested_highlight: "tour-place-value-board",
+    questionHe: "איך כותבים בספרות מספר שכתוב במילים?",
+    choices: [
+      { id: "opt_1", textHe: "כל טור מקבל תיבה משלו", isCorrect: true, feedbackHe: "נכון מאוד! בנו את המספר, וכתבו בכל תיבה כמה לבנים יש בטור שלה." },
+      { id: "opt_2", textHe: "כל חלק כמו שהוא, זה אחרי זה", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד." },
+      { id: "opt_3", textHe: "רק את החלקים שנאמרים במילים", isCorrect: false, feedbackHe: "רמז: גם טור שאין בו אף לבנה מקבל תיבה משלו." }
+    ],
+    correctChoiceId: "opt_1"
+  },
+
   // Refresh, mirrors diagnostic task 2 (owner, 29.9.2026): 368, the value of
   // the 6. Names neither 60 nor "עשרות": the child finds the place himself.
   's1_r_value368': {

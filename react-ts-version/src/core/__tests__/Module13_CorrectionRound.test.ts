@@ -74,6 +74,41 @@ describe('התשובה נבדקת מול התרגיל שמוצג בפועל', ()
   });
 });
 
+/**
+ * Owner, 29.9.2026: the simpler exercise of the correction round is the
+ * operation alone, in round numbers — no carry and no borrow in any column
+ * (120 + 80 still carried in the tens; 400 − 130 still borrowed into the zero
+ * tens). Task 6: 120 + 70 = 190; task 7: 400 − 100 = 300; task 3 stays 40 − 10.
+ */
+describe('the simpler exercises: no carry, no borrow (owner, 29.9.2026)', () => {
+  const probe = (id: string) => {
+    const d = TASKS.find((x) => x.id === id)!.backwardDiagnosis!;
+    return [d.probeA, d.probeB, d.probeAnswer];
+  };
+  const digitAt = (n: number, i: number) => Math.floor(n / 10 ** i) % 10;
+  const columns = (a: number, b: number) => Array.from({ length: String(Math.max(a, b)).length }, (_, i) => i);
+
+  it('task 6 is 120 + 70 = 190 and task 7 is 400 − 100 = 300 (was 120 + 80 = 200 and 400 − 130 = 270)', () => {
+    expect(probe('task6_vertical_addition')).toEqual([120, 70, 190]);
+    expect(probe('task7_subtraction_zero_tens')).toEqual([400, 100, 300]);
+    expect(probe('task3_subtraction_regrouping')).toEqual([40, 10, 30]);
+  });
+
+  it('no column of any simpler exercise carries or borrows', () => {
+    const withProbe = TASKS.filter((t) => t.backwardDiagnosis?.probeA !== undefined && t.backwardDiagnosis?.probeB !== undefined);
+    expect(withProbe.map((t) => t.id)).toEqual(['task3_subtraction_regrouping', 'task6_vertical_addition', 'task7_subtraction_zero_tens']);
+    for (const t of withProbe) {
+      const a = t.backwardDiagnosis!.probeA!;
+      const b = t.backwardDiagnosis!.probeB!;
+      for (const i of columns(a, b)) {
+        const where = `${t.id}: ${a} ${t.isSubtraction ? '−' : '+'} ${b}, column ${i}`;
+        if (t.isSubtraction) expect(digitAt(a, i), where).toBeGreaterThanOrEqual(digitAt(b, i));
+        else expect(digitAt(a, i) + digitAt(b, i), where).toBeLessThan(10);
+      }
+    }
+  });
+});
+
 describe('ההנחיה אינה מוסרת את התשובה', () => {
   it('אף הנחיית תיקון אינה מכילה את התשובה הסופית של המשימה', () => {
     // מודול 13, חוק ברזל 1: "איסור מוחלט לחשוף את התשובה המספרית הסופית".

@@ -141,6 +141,12 @@ const STEPS: Step[] = [
     board: counts({}),
   },
   {
+    id: 's1_r_words703',
+    half: () => { tap('hundreds', 7); },
+    finish: () => { tap('units', 3); typeNumber(703); },
+    board: counts({ hundreds: 7, units: 3 }),
+  },
+  {
     id: 's1_r_value368',
     half: () => { tap('hundreds', 3); tap('tens', 6); },
     finish: () => { tap('units', 8); typeNumber(60); },
@@ -272,6 +278,7 @@ describe('1. a full correct run, the way a child does it', () => {
       s1_build_305: counts({}),
       s1_undo_trash: counts({ hundreds: 3, units: 5 }),
       // New on 29.9.2026: the child builds the number from nothing.
+      s1_r_words703: counts({}),
       s1_r_value368: counts({}),
       s1_r_words482: counts({}),
       s1_target_347: counts({}),
@@ -281,7 +288,7 @@ describe('1. a full correct run, the way a child does it', () => {
       s1_r_sub806: counts({}),
     };
     expect(Object.keys(opening).sort()).toEqual(STEPS.map((s) => s.id).sort());
-    for (const id of ['s1_r_value368', 's1_r_words482']) {
+    for (const id of ['s1_r_words703', 's1_r_value368', 's1_r_words482']) {
       expect(SESSION1_TASKS.find((t) => t.id === id)?.initialCounts, id).toBeUndefined();
     }
     for (let i = 0; i < STEPS.length; i++) {
@@ -340,8 +347,8 @@ describe('2. typical mistakes: is there always a way forward?', () => {
     expect(ws().counts).toEqual(counts({ hundreds: 3, units: 5 }));
     expect(canProceed()).toBe(true);
     proceed();
-    // The next exercise (29.9.2026: 368, the value of a digit) opens on an empty board.
-    expect(taskId()).toBe('s1_r_value368');
+    // The next exercise (29.9.2026: 703, a number said in words) opens on an empty board.
+    expect(taskId()).toBe('s1_r_words703');
     expect(ws().counts).toEqual(counts({}));
   });
 
