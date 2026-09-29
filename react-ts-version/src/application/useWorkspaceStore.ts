@@ -851,6 +851,21 @@ export const SESSION1_ORDER_BEFORE_29_9: readonly string[] = [
   's1_r_sub806',
 ];
 
+/** Meeting 1 on 29.9.2026 before the refresh exercise for diagnostic task 1 (703) was added. */
+export const SESSION1_ORDER_29_9_MIDDAY: readonly string[] = [
+  's1_sandbox_controlled',
+  's1_decompose_hundred',
+  's1_build_305',
+  's1_undo_trash',
+  's1_r_value368',
+  's1_r_words482',
+  's1_r_group26',
+  's1_target_347',
+  's1_t8',
+  's1_r_sub61',
+  's1_r_sub806',
+];
+
 /**
  * The list a restored meeting 1 goes on with, or null for the meeting's bank
  * as usual. When the saved place and id disagree with the bank, the place was
@@ -873,7 +888,7 @@ function restoredSession1Order(saved: { standardTaskIdx?: number; activeTask?: {
   const withAdded = (ids: readonly string[]) => [...ids, ...codeIds.filter((id) => !ids.includes(id))];
   // Each known order as it was, and as it goes on once the exercises added
   // since are put at its end (a second reload on one of those lands here).
-  const knownOrders = [SESSION1_ORDER_BEFORE_27_9, SESSION1_ORDER_BEFORE_29_9, codeIds].flatMap((ids) => [ids, withAdded(ids)]);
+  const knownOrders = [SESSION1_ORDER_BEFORE_27_9, SESSION1_ORDER_BEFORE_29_9, SESSION1_ORDER_29_9_MIDDAY, codeIds].flatMap((ids) => [ids, withAdded(ids)]);
   const order = knownOrders.find((ids) => ids[idx] === savedId && ids.every((id) => byId.has(id)));
   if (!order) return null;
   // Exercises of the bank the order does not hold come at its end.

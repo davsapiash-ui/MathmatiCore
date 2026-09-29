@@ -142,6 +142,63 @@ describe('Meeting 1 refresh s1_r_value368 mirrors diagnostic task 2 (742, the 4 
   });
 });
 
+/**
+ * The refresh exercise for diagnostic task 1 (owner, 29.9.2026, added after
+ * 368 and 482): a three-digit number said in words, with a 0 in the tens and
+ * no other zero, written in digits. Column by column against 605.
+ */
+describe('Meeting 1 refresh s1_r_words703 mirrors diagnostic task 1 ("שש מאות וחמש" → 605)', () => {
+  const r = SESSION1_TASKS.find((t) => t.id === 's1_r_words703')!;
+  const d = DIAGNOSTIC_TASKS.find((t) => t.id === 'task1_read_write_zero')!;
+  const blocks = (n: number) => ({ hundreds: digitAt(n, 2), tens: digitAt(n, 1), units: digitAt(n, 0) });
+
+  it('computes: שבע מאות ושלוש is 703', () => {
+    expect(r.numberA).toBe(703);
+    expect(r.correctAnswer).toBe(703);
+    expect(r.instructionHe).toContain('שבע מאות ושלוש');
+    expect(d.givenHe).toBe('שש מאות וחמש');
+    expect(d.correctAnswer).toBe(605);
+  });
+
+  it('has the same column structure: three digits, a 0 in the tens and no other zero', () => {
+    const shape = (n: number) => ({
+      digits: digits(n),
+      zeroPlaces: placesOf(n).map((x, i) => (x === 0 ? i : -1)).filter((i) => i >= 0),
+    });
+    expect(shape(r.numberA!)).toEqual(shape(d.correctAnswer as number));
+    // spelled out, so a change to either side fails loudly
+    expect(shape(r.numberA!)).toEqual({ digits: 3, zeroPlaces: [1] });
+    // column by column: hundreds and units hold a digit, the tens is empty
+    expect(blocks(r.numberA!)).toEqual({ hundreds: 7, tens: 0, units: 3 });
+    expect(blocks(d.correctAnswer as number)).toEqual({ hundreds: 6, tens: 0, units: 5 });
+  });
+
+  it('the blocks are the number\'s own digits, and the tens column stays empty, as in task 1', () => {
+    const req = { hundreds: 0, tens: 0, units: 0, ...r.requiredCounts };
+    expect(req).toEqual(blocks(r.numberA!));
+    expect(d.expectedBlocks).toEqual(blocks(d.correctAnswer as number));
+  });
+
+  it('words to digits: no digit on the screen, the words name no tens, and the answer is the number itself', () => {
+    expect(d.givenHe).not.toMatch(/[0-9]/);
+    expect(r.instructionHe).not.toMatch(/[0-9]/);
+    // the 0 is the child's to find: neither text says "zero" or names a tens word
+    for (const text of [r.instructionHe, d.givenHe!]) expect(text).not.toMatch(/אפס|עשר|עשרים|שלושים|ארבעים|חמישים|שישים|שבעים|שמונים|תשעים/);
+    expect(r.hideRequiredCounts).toBe(true);
+    expect(r.instructionHe).toContain('בספרות');
+  });
+
+  it('shares no number with any diagnostic task, answer or backward probe', () => {
+    const seen = new Set<number>();
+    for (const t of DIAGNOSTIC_TASKS) {
+      for (const v of [t.number, t.numberA, t.numberB, t.correctAnswer]) if (typeof v === 'number') seen.add(v);
+      const bd = t.backwardDiagnosis;
+      for (const v of [bd?.probeA, bd?.probeB, bd?.probeAnswer]) if (typeof v === 'number') seen.add(v);
+    }
+    expect(seen.has(r.numberA!), `${r.numberA} appears in meeting 2`).toBe(false);
+  });
+});
+
 describe('Meeting 1 refresh s1_r_words482 mirrors diagnostic task 4 ("חמש מאות שישים ושלוש" → 563)', () => {
   const r = SESSION1_TASKS.find((t) => t.id === 's1_r_words482')!;
   const d = DIAGNOSTIC_TASKS.find((t) => t.id === 'task4_decompose_number')!;

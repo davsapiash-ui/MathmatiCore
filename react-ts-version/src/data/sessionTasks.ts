@@ -189,6 +189,13 @@ export const SESSION1_TASKS: SessionTask[] = [
     continuesBoard: true,
   },
   // ── Refresh exercises: each mirrors one diagnostic task (QMatrix.ts) ──
+  // ★ chosen (owner, 29.9.2026). Mirrors task 1 ("שש מאות וחמש" → 605): a
+  // three-digit number said in words with a 0 in the tens. Its digits appear
+  // nowhere on the screen; the empty tens column is the child's to find.
+  s1(representation('s1_r_words703', 703, { hundreds: 7, units: 3 },
+    'קריאה וכתיבה של מספר עם אפס',
+    'בנו בבית המספרים את המספר שבע מאות ושלוש, וכתבו אותו בספרות בשורת התוצאה.'),
+    { hideRequiredCounts: true }),
   // ★ chosen (owner, 29.9.2026). Mirrors task 2 (742, the 4 marked → 40): a
   // three-digit number, no zero, the digit asked about in the tens. The child
   // builds it and writes the value of the 6; the board shows it as 6 tens.

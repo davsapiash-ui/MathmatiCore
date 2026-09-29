@@ -129,15 +129,17 @@ const PENDING_DOC03_SYNC_29_9: ReadonlyArray<readonly [string, string]> = [
 /**
  * TEMPORARY — pending the owner's update of מסמך 03 in Drive (29.9.2026).
  *
- * Two refresh exercises were added to meeting 1 on 29.9.2026 (owner): 368, the
- * value of a digit (mirrors diagnostic task 2), and 482 said in words (mirrors
- * task 4). They are new, so the repository copy of מסמך 03 has no older words
+ * Three refresh exercises were added to meeting 1 on 29.9.2026 (owner): 368, the
+ * value of a digit (mirrors diagnostic task 2), 482 said in words (mirrors
+ * task 4) and, later the same day, 703 said in words (mirrors task 1, a 0 in
+ * the tens). They are new, so the repository copy of מסמך 03 has no older words
  * for them — their lines are listed here as they appear on screen. The owner
  * adds them to מסמך 03 in Drive; after the repository copy is synced, remove
  * this constant, its line in `inDoc03OrPending`, and the test "the new
  * exercises' lines waiting for the Drive sync are texts the software shows".
  */
 const PENDING_DOC03_NEW_29_9: ReadonlySet<string> = new Set([
+  'בנו בבית המספרים את המספר שבע מאות ושלוש, וכתבו אותו בספרות בשורת התוצאה.',
   'בנו בבית המספרים את המספר 368. מה הערך של הספרה 6 במספר הזה? כתבו אותו בשורת התוצאה.',
   'בנו בבית המספרים את המספר ארבע מאות שמונים ושתיים, וכתבו אותו בספרות בשורת התוצאה.',
 ]);
@@ -163,12 +165,14 @@ describe('the order of meeting 1', () => {
   it('steps 1–5 of מסמך 03, the value and words exercises, the grouping exercise, the target task, then the other three refresh exercises (owner, 27.9 and 29.9.2026)', () => {
     // Register decision י: easy to hard — grouping ends in the familiar
     // standard form, the target task's decomposition in a non-standard one.
-    // Owner, 29.9.2026: the value of a digit and a number in words come first.
+    // Owner, 29.9.2026: a number in words with a 0 (703), the value of a digit
+    // and a number in words come first.
     expect(SESSION1_TASKS.map((t) => t.id)).toEqual([
       's1_sandbox_controlled', // steps 1–2
       's1_decompose_hundred', // step 3
       's1_build_305', // step 4
       's1_undo_trash', // step 5
+      's1_r_words703', // refresh ← diagnostic task 1 (29.9.2026)
       's1_r_value368', // refresh ← diagnostic task 2 (29.9.2026)
       's1_r_words482', // refresh ← diagnostic task 4 (29.9.2026)
       's1_r_group26', // refresh ← diagnostic task 5
@@ -216,7 +220,7 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
   it('the refresh exercises and the target task say on screen what מסמך 03 §3.1 says, word for word', () => {
     // The owner added them to the document on 24.9.2026 (register ו); the
     // value and words exercises of 29.9.2026 wait in PENDING_DOC03_NEW_29_9.
-    for (const id of ['s1_r_value368', 's1_r_words482', 's1_target_347', 's1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806']) {
+    for (const id of ['s1_r_words703', 's1_r_value368', 's1_r_words482', 's1_target_347', 's1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806']) {
       for (const line of lines(task(id))) inDoc03OrPending(line, `${id}: ${line}`);
     }
   });
@@ -243,7 +247,7 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
   });
 
   it('the new exercises\' lines waiting for the Drive sync are texts the software shows (TEMPORARY — remove with PENDING_DOC03_NEW_29_9)', () => {
-    const shown = ['s1_r_value368', 's1_r_words482'].flatMap((id) => lines(task(id)));
+    const shown = ['s1_r_words703', 's1_r_value368', 's1_r_words482'].flatMap((id) => lines(task(id)));
     expect([...PENDING_DOC03_NEW_29_9].sort()).toEqual([...shown].sort());
   });
 
@@ -328,7 +332,7 @@ describe('what completes each introduction step', () => {
   });
 
   it('exercises have no checklist', () => {
-    for (const id of ['s1_r_value368', 's1_r_words482', 's1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806']) {
+    for (const id of ['s1_r_words703', 's1_r_value368', 's1_r_words482', 's1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806']) {
       expect(session1Checklist(id, base)).toBeNull();
     }
   });
@@ -369,9 +373,9 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.getState().clearBoard();
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
     useWorkspaceStore.getState().proceed();
-    // Since 29.9.2026 (owner) the value-of-a-digit exercise comes next…
-    expect(getActiveTasks(useWorkspaceStore.getState())[useWorkspaceStore.getState().standardTaskIdx].id).toBe('s1_r_value368');
-    // …and the child builds 368 from nothing: an empty board, no blocks of its own
+    // Since 29.9.2026 (owner) 703 in words comes next…
+    expect(getActiveTasks(useWorkspaceStore.getState())[useWorkspaceStore.getState().standardTaskIdx].id).toBe('s1_r_words703');
+    // …and the child builds 703 from nothing: an empty board, no blocks of its own
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
   });
 
@@ -381,7 +385,16 @@ describe('the store gate follows the checklist', () => {
       for (let i = 0; i < n; i++) store().applyDrop({ source: 'palette', sourcePlace: place, target: { kind: 'column', place } });
     };
     const current = () => getActiveTasks(store())[store().standardTaskIdx].id;
-    store().initSession(1, false, at('s1_r_value368'));
+    store().initSession(1, false, at('s1_r_words703'));
+    expect(store().counts).toEqual({ ...EMPTY_COUNTS });
+    tap('hundreds', 7); tap('units', 3);
+    // 73 (the 0 left out) is not 703
+    useWorkspaceStore.setState({ answerDigits: { tens: '7', units: '3' } });
+    store().proceed();
+    expect(current()).toBe('s1_r_words703');
+    useWorkspaceStore.setState({ answerDigits: { hundreds: '7', tens: '0', units: '3' } });
+    store().proceed();
+    expect(current()).toBe('s1_r_value368');
     expect(store().counts).toEqual({ ...EMPTY_COUNTS });
     tap('hundreds', 3); tap('tens', 6); tap('units', 8);
     // 368 is the number built, not the answer: the value of the 6 is 60

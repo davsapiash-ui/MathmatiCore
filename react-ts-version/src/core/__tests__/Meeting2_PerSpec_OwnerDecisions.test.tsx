@@ -293,8 +293,8 @@ describe('(e) row 2.23: each round-number exercise once, no LaTeX or code on scr
 
   it('the three exercises read as the child writes them', () => {
     expect(probeExerciseText(byId('task3_subtraction_regrouping'), 40, 10)).toBe('40 − 10 = ?');
-    expect(probeExerciseText(byId('task6_vertical_addition'), 120, 80)).toBe('120 + 80 = ?');
-    expect(probeExerciseText(byId('task7_subtraction_zero_tens'), 400, 130)).toBe('400 − 130 = ?');
+    expect(probeExerciseText(byId('task6_vertical_addition'), 120, 70)).toBe('120 + 70 = ?');
+    expect(probeExerciseText(byId('task7_subtraction_zero_tens'), 400, 100)).toBe('400 − 100 = ?');
     expect(read('features/workspace/tasks/BackwardDiagnosisView.tsx')).not.toMatch(/katex|InlineMath|'פלוס'/);
   });
 });

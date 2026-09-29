@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { useWorkspaceStore, getActiveTasks, SESSION1_ORDER_BEFORE_27_9, SESSION1_ORDER_BEFORE_29_9 } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, SESSION1_ORDER_BEFORE_27_9, SESSION1_ORDER_BEFORE_29_9, SESSION1_ORDER_29_9_MIDDAY } from '@/application/useWorkspaceStore';
 import { SESSION1_TASKS, type SessionTask } from '@/data/sessionTasks';
 import { EMPTY_COUNTS } from '@/core/placeValue';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
@@ -16,9 +16,11 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
  * started it.
  *
  * On 29.9.2026 (owner) two refresh exercises were added after step 5 (368, the
- * value of a digit; 482 in words). A learner whose place was counted in an
- * older, shorter order (SESSION1_ORDER_BEFORE_27_9 or SESSION1_ORDER_BEFORE_29_9)
- * goes on in that order, and the exercises added since come at its end.
+ * value of a digit; 482 in words), and later the same day a third before them
+ * (703 in words, a 0 in the tens). A learner whose place was counted in an
+ * older, shorter order (SESSION1_ORDER_BEFORE_27_9, SESSION1_ORDER_BEFORE_29_9
+ * or SESSION1_ORDER_29_9_MIDDAY) goes on in that order, and the exercises added
+ * since come at its end, in today's order.
  */
 
 const ws = () => useWorkspaceStore.getState();
@@ -26,8 +28,11 @@ const current = () => getActiveTasks(ws())[ws().standardTaskIdx]?.id;
 const byId = (id: string) => SESSION1_TASKS.find((t) => t.id === id)!;
 const OLD_BANK: SessionTask[] = SESSION1_ORDER_BEFORE_27_9.map(byId);
 const BANK_BEFORE_29_9: SessionTask[] = SESSION1_ORDER_BEFORE_29_9.map(byId);
-/** The exercises added on 29.9.2026, which an older order finishes with. */
-const ADDED_29_9 = ['s1_r_value368', 's1_r_words482'];
+const BANK_29_9_MIDDAY: SessionTask[] = SESSION1_ORDER_29_9_MIDDAY.map(byId);
+/** The exercises added on 29.9.2026, in today's order, which an order before 29.9 finishes with. */
+const ADDED_29_9 = ['s1_r_words703', 's1_r_value368', 's1_r_words482'];
+/** The exercise added later on 29.9.2026, which the midday order finishes with. */
+const ADDED_29_9_LATER = ['s1_r_words703'];
 const activeIds = () => getActiveTasks(ws()).map((t) => t.id);
 const snapshot = () => JSON.parse(JSON.stringify((firebaseSyncService as any).getSyncableWorkspaceState()));
 
@@ -39,6 +44,11 @@ function catalogServesOldOrder() {
 /** The published catalog serves meeting 1 in the order of 27.9–29.9.2026 (nine exercises). */
 function catalogServesOrderBefore29_9() {
   vi.spyOn(curriculumCatalog, 'getActiveBank').mockImplementation((n: number) => (n === 1 ? BANK_BEFORE_29_9 : null));
+}
+
+/** The published catalog serves meeting 1 in the order of midday 29.9.2026 (eleven exercises, no 703). */
+function catalogServesOrder29_9Midday() {
+  vi.spyOn(curriculumCatalog, 'getActiveBank').mockImplementation((n: number) => (n === 1 ? BANK_29_9_MIDDAY : null));
 }
 
 /** Solves whatever exercise is current (every exercise of meeting 1 by its id). */
@@ -92,11 +102,20 @@ describe('the order before 27.9.2026', () => {
 });
 
 describe('the order before 29.9.2026', () => {
-  it('is today\'s order without the two exercises added after step 5 — nothing else moved', () => {
+  it('is today\'s order without the three exercises added after step 5 — nothing else moved', () => {
     const now = SESSION1_TASKS.map((t) => t.id);
     expect(now.filter((id) => !ADDED_29_9.includes(id))).toEqual([...SESSION1_ORDER_BEFORE_29_9]);
-    expect(now.slice(4, 6)).toEqual(ADDED_29_9);
+    expect(now.slice(4, 7)).toEqual(ADDED_29_9);
     for (const id of ADDED_29_9) expect(SESSION1_ORDER_BEFORE_29_9).not.toContain(id);
+  });
+
+  it('the midday order of 29.9 is today\'s order without 703 — nothing else moved', () => {
+    const now = SESSION1_TASKS.map((t) => t.id);
+    expect(now.filter((id) => !ADDED_29_9_LATER.includes(id))).toEqual([...SESSION1_ORDER_29_9_MIDDAY]);
+    expect(now[4]).toBe('s1_r_words703');
+    expect(SESSION1_ORDER_29_9_MIDDAY).not.toContain('s1_r_words703');
+    // and the order before 29.9 is the midday order without 368 and 482
+    expect(SESSION1_ORDER_29_9_MIDDAY.filter((id) => !ADDED_29_9.includes(id))).toEqual([...SESSION1_ORDER_BEFORE_29_9]);
   });
 });
 
@@ -160,11 +179,9 @@ describe('a learner in the middle of meeting 1 when the new order arrives', () =
     expect(current()).toBe('s1_t8');
   });
 
-  // KNOWN GAP (29.9.2026), fails on purpose: a place counted in today's eleven
-  // exercises, restored on a device whose cached catalog still has nine, lands
-  // on the old bank's place (713 + 94) and skips the grouping and target tasks —
-  // restoredSession1Order only follows an order whose every exercise is in the
-  // bank. When this passes, drop `.fails`.
+  // A place counted in today's twelve exercises, restored on a device whose
+  // cached catalog still has nine: it must not land on the old bank's place
+  // (713 + 94) and skip the grouping and target tasks.
   it('a device whose cached catalog is still the old one, restoring a place counted in today\'s order', () => {
     ws().initSession(1, false, SESSION1_TASKS.findIndex((t) => t.id === 's1_r_group26'));
     const saved = snapshot();
@@ -177,7 +194,7 @@ describe('a learner in the middle of meeting 1 when the new order arrives', () =
 });
 
 describe('a learner in the middle of meeting 1 when the 29.9.2026 exercises arrive', () => {
-  it('standing on the target task in the order before 29.9: finishes that order, then 368 and 482 — nothing skipped, nothing repeated', () => {
+  it('standing on the target task in the order before 29.9: finishes that order, then 703, 368 and 482 — nothing skipped, nothing repeated', () => {
     catalogServesOrderBefore29_9();
     ws().initSession(1, false, SESSION1_ORDER_BEFORE_29_9.indexOf('s1_target_347'));
     expect(current()).toBe('s1_target_347');
@@ -214,25 +231,28 @@ describe('a learner in the middle of meeting 1 when the 29.9.2026 exercises arri
     ws().proceed();
   }
 
-  it('after the last exercise of the older order come the added ones, 368 then 482', () => {
+  it('after the last exercise of the older order come the added ones, 703, 368 then 482', () => {
     fromSub806ToTheAddedExercises();
-    expect(current()).toBe('s1_r_value368');
+    expect(current()).toBe('s1_r_words703');
     expect(activeIds().slice(ws().standardTaskIdx)).toEqual(ADDED_29_9);
   });
 
-  // KNOWN GAP (29.9.2026), fails on purpose: a reload on an added exercise
-  // (place 9, 368) matches no known order — the older orders have no place 9
-  // and today's has 61 − 24 there — so the learner lands on 61 − 24 again and
-  // never reaches 368 and 482. restoredSession1Order does not know an older
-  // order with the added exercises at its end. When this passes, drop `.fails`.
+  // A reload on an added exercise (place 9, 703; today's order has 713 + 94
+  // there) must follow the older order with the added exercises at its end —
+  // not land on 713 + 94 again and never reach 703, 368 and 482.
   it('a reload on an added exercise keeps the order it was counted in', () => {
     fromSub806ToTheAddedExercises();
     reloadFrom(snapshot());
-    expect(current()).toBe('s1_r_value368');
+    expect(current()).toBe('s1_r_words703');
     expect(activeIds().slice(ws().standardTaskIdx)).toEqual(ADDED_29_9);
+    // and once more, on 368 (place 10; today's order has 61 − 24 there)
+    solveCurrent();
+    reloadFrom(snapshot());
+    expect(current()).toBe('s1_r_value368');
+    expect(activeIds().slice(ws().standardTaskIdx)).toEqual(ADDED_29_9.slice(1));
   });
 
-  it('standing on step 5, the same place in both orders: goes on in today\'s order, straight to 368', () => {
+  it('standing on step 5, the same place in both orders: goes on in today\'s order, straight to 703', () => {
     catalogServesOrderBefore29_9();
     ws().initSession(1, false, SESSION1_ORDER_BEFORE_29_9.indexOf('s1_undo_trash'));
     const saved = snapshot();
@@ -240,7 +260,67 @@ describe('a learner in the middle of meeting 1 when the 29.9.2026 exercises arri
     reloadFrom(saved);
     expect(ws().dynamicTasks).toBeNull();
     expect(current()).toBe('s1_undo_trash');
-    expect(activeIds()[ws().standardTaskIdx + 1]).toBe('s1_r_value368');
+    expect(activeIds()[ws().standardTaskIdx + 1]).toBe('s1_r_words703');
+  });
+});
+
+describe('a learner in the middle of meeting 1 when 703 arrives (later on 29.9.2026)', () => {
+  it('standing on the target task in the midday order: finishes that order, then 703 at the end — nothing skipped, nothing repeated', () => {
+    catalogServesOrder29_9Midday();
+    ws().initSession(1, false, SESSION1_ORDER_29_9_MIDDAY.indexOf('s1_target_347'));
+    expect(current()).toBe('s1_target_347');
+    const saved = snapshot();
+
+    vi.restoreAllMocks(); // today's order reaches this device
+    expect(getActiveTasks({ ...ws(), dynamicTasks: null } as any).map((t) => t.id)).toEqual(SESSION1_TASKS.map((t) => t.id));
+    reloadFrom(saved);
+    // place 7 is the grouping exercise in today's order: the learner stays on the target task
+    expect(current()).toBe('s1_target_347');
+    expect(activeIds()).toEqual([...SESSION1_ORDER_29_9_MIDDAY, ...ADDED_29_9_LATER]);
+
+    const seen: string[] = [];
+    while (ws().standardTaskIdx < activeIds().length) {
+      const before = ws().standardTaskIdx;
+      seen.push(current()!);
+      solveCurrent();
+      expect(ws().standardTaskIdx, `stuck on ${seen[seen.length - 1]}`).toBeGreaterThan(before);
+    }
+    expect(seen).toEqual(['s1_target_347', 's1_t8', 's1_r_sub61', 's1_r_sub806', 's1_r_words703']);
+    // with what came before the reload: every exercise of today's meeting 1, each exactly once
+    const all = [...SESSION1_ORDER_29_9_MIDDAY.slice(0, SESSION1_ORDER_29_9_MIDDAY.indexOf('s1_target_347')), ...seen];
+    expect(all.sort()).toEqual(SESSION1_TASKS.map((t) => t.id).sort());
+  });
+
+  it('standing on 806 − 351 in the midday order: solves it, then 703; a reload on 703 keeps it', () => {
+    catalogServesOrder29_9Midday();
+    ws().initSession(1, false, SESSION1_ORDER_29_9_MIDDAY.indexOf('s1_r_sub806'));
+    const first = snapshot();
+    vi.restoreAllMocks();
+    reloadFrom(first);
+    expect(current()).toBe('s1_r_sub806');
+    useWorkspaceStore.setState({
+      counts: { ...EMPTY_COUNTS, hundreds: 4, tens: 5, units: 5 },
+      hasUngrouped: true,
+      answerDigits: { hundreds: '4', tens: '5', units: '5' },
+    });
+    ws().proceed();
+    expect(current()).toBe('s1_r_words703');
+    expect(activeIds().slice(ws().standardTaskIdx)).toEqual(ADDED_29_9_LATER);
+    // place 11: 806 − 351 in today's order — the reload must not send the learner back to it
+    reloadFrom(snapshot());
+    expect(current()).toBe('s1_r_words703');
+    expect(activeIds()).toEqual([...SESSION1_ORDER_29_9_MIDDAY, ...ADDED_29_9_LATER]);
+  });
+
+  it('standing on step 5, the same place in both orders: goes on in today\'s order, straight to 703', () => {
+    catalogServesOrder29_9Midday();
+    ws().initSession(1, false, SESSION1_ORDER_29_9_MIDDAY.indexOf('s1_undo_trash'));
+    const saved = snapshot();
+    vi.restoreAllMocks();
+    reloadFrom(saved);
+    expect(ws().dynamicTasks).toBeNull();
+    expect(current()).toBe('s1_undo_trash');
+    expect(activeIds()[ws().standardTaskIdx + 1]).toBe('s1_r_words703');
   });
 });
 
