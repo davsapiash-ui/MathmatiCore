@@ -6,6 +6,7 @@ import { fitBlockGrid, type Size } from '@/core/blockLayout';
 import { dimmedColumns, verticalBoxes, DIMMED_COLUMN_FILTER } from '@/core/columnFocus';
 import { useWorkspaceStore, getActiveTasks, effectiveArithmetic } from '@/application/useWorkspaceStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
+import { columnDigitsShown } from '@/core/columnDigits';
 import { DienesBlock } from './DienesBlock';
 import { COLUMN_CELLS } from './columnCells';
 import { useVisibleRegroup, arrivingBlockCount } from './RegroupAnimationLayer';
@@ -42,6 +43,11 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
   const splitBlockClick = useWorkspaceStore((s) => s.splitBlockClick);
   const removeBlockClick = useWorkspaceStore((s) => s.removeBlockClick);
   const focusedMemoryCircle = useBoardFocusStore((s) => s.focusedMemoryCircle);
+  // The digit beside the column's name only where watching it is the step
+  // (core/columnDigits.ts, owner 29.9.2026); elsewhere it would hand over the answer.
+  const digitShown = useWorkspaceStore((s) =>
+    columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)
+  );
   // PRD Module 7 §א: columns outside the current calculation focus are dimmed
   // to brightness 0.6 (core/columnFocus.ts: the owner's rules of 28.9.2026).
   // One boolean per column, so typing a digit re-renders only a column whose
@@ -135,19 +141,25 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
             עד 24.9.2026, ושלב 305 של מפגש 1 הצביע על ספרה שאינה על המסך.
             הספרה יושבת ליד שם הטור ולא בפינה: בפינה, ברוחב 1024 עם ארבעה
             טורים, היא כיסתה את תחילת השם ("0אלפים"). */}
-        <span
-          aria-hidden="true"
-          className="shrink-0 min-w-[22px] h-[22px] px-1 rounded-full text-xs font-black text-white inline-flex items-center justify-center transition-all opacity-100 scale-100"
-          style={{ backgroundColor: colors.header }}
-        >
-          {shownCount}
-        </span>
+        {digitShown && (
+          <span
+            aria-hidden="true"
+            data-testid={`column-digit-${place}`}
+            className="shrink-0 min-w-[22px] h-[22px] px-1 rounded-full text-xs font-black text-white inline-flex items-center justify-center transition-all opacity-100 scale-100"
+            style={{ backgroundColor: colors.header }}
+          >
+            {shownCount}
+          </span>
+        )}
         {/* אזור ההכרזה קרא עד כה את תוכן התגית בלבד — מספר ערום. לומד
             שנעזר בהקראה שמע "3", "4", "3" בלי לדעת על איזה טור מדובר.
-            כאן נאמר מה השתנה ובאיזה טור. */}
-        <span aria-live="polite" className="sr-only">
-          {`${PLACE_NAMES_HE[place]}: ${count}`}
-        </span>
+            כאן נאמר מה השתנה ובאיזה טור. Where the digit is hidden, the
+            announcement is too: said aloud, it would hand over the answer. */}
+        {digitShown && (
+          <span aria-live="polite" className="sr-only">
+            {`${PLACE_NAMES_HE[place]}: ${count}`}
+          </span>
+        )}
       </div>
 
       {/* Explicit Group Button */}
