@@ -256,10 +256,12 @@ export function enforceMaxPayloadBytes(data: Record<string, any>): Record<string
  * teacher (Module 20), those fields are left out, so a late replay of the
  * meeting-2 completion cannot lock the child out again. Only the two gate
  * fields are read, not the learner's whole record.
- * skipFieldsIfEvaluated: when the server has already scored the meeting
- * (evaluated_at on the Firestore session document), the score and path it
- * mirrored to RTDB are left out — a late replay must not put the client's
- * number back over the server's (Module 23 §ב).
+ * SERVER_SCORED_FIELDS (the score and the recommended path) are never
+ * written from here. Only sessionTrigger.ts computes and mirrors them (PRD
+ * Module 20: "בטריגר עצמאי על סיום המפגש"), and the rules refuse a learner
+ * write that sets or changes them (owner, 29.9.2026). A meeting-2 completion
+ * stored on a device by an earlier version still carries the client's
+ * number; it is left out, so the item is delivered instead of refused.
  */
 export async function deliverQueuedRtdbWrite(refPath: string, payload: any, delivery?: RtdbDelivery): Promise<void> {
   if (delivery?.mode !== 'merge') {
@@ -280,13 +282,7 @@ export async function deliverQueuedRtdbWrite(refPath: string, payload: any, deli
     const approved = approvedSnap?.val?.() === true || routeSnap?.val?.() === 'APPROVED';
     if (approved) for (const field of guarded) delete fields[field];
   }
-  const scored = delivery.skipFieldsIfEvaluated;
-  if (scored && scored.fields.some((f) => f in fields)) {
-    // A read that fails throws: the item is retried, never written blind.
-    const snap = await getDoc(doc(firestore, scored.collection, scored.docId)).catch((err) => { throw preReadFailure(err); });
-    const evaluatedAt = snap.exists() ? (snap.data() as Record<string, unknown>)?.evaluated_at : undefined;
-    if (evaluatedAt !== undefined && evaluatedAt !== null) for (const field of scored.fields) delete fields[field];
-  }
+  for (const field of SERVER_SCORED_FIELDS) delete fields[field];
   if (Object.keys(fields).length === 0) return;
   await update(ref(database, refPath), fields);
 }
@@ -1574,10 +1570,15 @@ export class FirebaseSyncService {
     }
   }
 
+  /**
+   * The learner's side of the meeting-2 completion. It carries no score and
+   * no recommended path: PRD Module 20 computes both "בטריגר עצמאי על סיום
+   * המפגש" (sessionTrigger.ts), and the rules refuse a learner write that sets
+   * or changes them (owner, 29.9.2026). The teacher's screens show "טרם
+   * נקבעה" until the trigger has written them.
+   */
   public async syncSession2Completion(
     rawStudentId: string,
-    sessionScorePercent: number,
-    recommendedPath: PedagogicalPath,
     classId: string = 'class_1'
   ) {
     const studentId = normalizeStudentId(rawStudentId);
@@ -1585,7 +1586,7 @@ export class FirebaseSyncService {
     const now = Date.now();
     const docId = `session_02_student_${studentNum}`;
 
-    const sessionDoc: SessionDocument = {
+    const sessionDoc: Omit<SessionDocument, 'session_score_percent' | 'matrix_recommended_path'> = {
       session_id: docId,
       class_id: classId,
       session_number: 2,
@@ -1593,12 +1594,10 @@ export class FirebaseSyncService {
       session_deadline_time: now + 1800000,
       active_exercise_id: 'task8_missing_addend',
       is_completed: true,
-      session_score_percent: sessionScorePercent,
       teacher_gate_approved: false,
       gate_approved_at: null,
       gate_approved_by: null,
       teacher_selected_path: null,
-      matrix_recommended_path: recommendedPath,
     };
 
     // Both writes go through the IndexedDB queue (Module 17 §ב: "IndexedDB
@@ -1616,16 +1615,11 @@ export class FirebaseSyncService {
     // so the two gate fields are left out when the record is already approved
     // (GATE_PENDING_FIELDS). The approval itself cannot overtake this item:
     // the teacher approves on the session document, queued right behind it.
-    // Likewise the score and path: once the server has evaluated the
-    // meeting (evaluated_at), it mirrors its own values here, and a replay
-    // leaves this item's out (SERVER_SCORED_FIELDS). sessionTrigger.ts does
-    // not mirror on every path (not with no telemetry, for one), so the
-    // fields cannot simply be dropped from the first write.
+    // The score and path are the server's: sessionTrigger.ts mirrors them
+    // here itself.
     const rtdbPath = `users/students/${studentId}`;
     const rtdbPayload = {
       session_02_completed: true,
-      session_score_percent: sessionScorePercent,
-      matrix_recommended_path: recommendedPath,
       teacher_gate_approved: false,
       routeStatus: 'PENDING_TEACHER_APPROVAL',
       updatedAt: now
@@ -1633,7 +1627,6 @@ export class FirebaseSyncService {
     await indexedDBQueue
       .enqueueRtdbMerge(rtdbPath, rtdbPayload, `s2_done_rtdb_${studentId}`, {
         skipFieldsIfGateApproved: GATE_PENDING_FIELDS,
-        skipFieldsIfEvaluated: { collection: 'sessions', docId, fields: SERVER_SCORED_FIELDS },
       })
       .catch((e) => console.error('[FirebaseSyncService] Session 2 completion (RTDB) could not be queued:', e));
 

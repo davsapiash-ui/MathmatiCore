@@ -1475,36 +1475,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     });
     store.setRouteRecommendation(studentId, route);
 
-    // Phase 3: Exact PRD Module 20 & Appendix A §4 Session 2 Scoring & Path Recommendation
-    const compulsoryKeys = [
-      'task1_read_write_zero',
-      'task2_digit_value',
-      'task3_subtraction_regrouping',
-      'task4_decompose_number',
-      'task5_units_to_tens',
-      'task6_vertical_addition',
-      'task7_subtraction_zero_tens',
-    ];
-    // Module 23: "correct on first attempt" means PROBLEM_COMPLETE was not preceded by any DIGIT_ENTERED with is_correct === false.
-    // Events with is_correct === null are ignored entirely.
-    const compulsory_correct_first_attempt = compulsoryKeys.filter(k => {
-      const res = r[k] || (k === 'task1_read_write_zero' ? r['task1_zero_placeholder'] :
-        k === 'task3_subtraction_regrouping' ? r['task6_subtraction_regrouping'] :
-        k === 'task4_decompose_number' ? r['task3_flexible_regrouping'] :
-        k === 'task5_units_to_tens' ? r['task5_small_change'] :
-        k === 'task6_vertical_addition' ? r['task4_basic_addition_fluency'] :
-        k === 'task7_subtraction_zero_tens' ? r['task7_missing_subtrahend'] : undefined);
-      return res?.correct === true && res?.had_digit_error !== true;
-    }).length;
-    const session_score_percent = Math.round((compulsory_correct_first_attempt / 7) * 100);
-    const matrix_recommended_path = session_score_percent >= 50 ? 'green_path' : 'remediation_path';
-
+    // PRD Module 20: session_score_percent and matrix_recommended_path are
+    // computed "בטריגר עצמאי על סיום המפגש" — sessionTrigger.ts, from the
+    // meeting's telemetry, first attempts only (Module 23 §ב). The learner's
+    // device used to compute and post its own number; the rules now refuse
+    // that (owner, 29.9.2026), so the completion carries neither.
+    //
     // The pilot's one class (Module 25 §ב.1) — the same id the learner's
     // signed claim carries. This used to take activeClass.school_id, so
     // every SessionDocument said class_id "school_bikorot" and the class
     // report and the research export, which filtered on "class_1", found none.
     const classId = 'class_1';
-    firebaseSyncService.syncSession2Completion(studentId, session_score_percent, matrix_recommended_path, classId).catch(console.error);
+    firebaseSyncService.syncSession2Completion(studentId, classId).catch(console.error);
   }
 
   /**

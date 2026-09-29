@@ -126,7 +126,7 @@ describe('1. a wrong digit put right is tagged for the teacher, not "success"', 
     expect(state.failedTasks).toEqual([]);
   });
 
-  it('through the store: the teacher gets the node, and the score leaves the task out', () => {
+  it('through the store: the teacher gets the node; the completion carries no score of its own', () => {
     for (const t of TASKS) {
       answer(t.correctAnswer!, { digitErrorFirst: t.id === 'task6_vertical_addition' });
       settle();
@@ -135,12 +135,12 @@ describe('1. a wrong digit put right is tagged for the teacher, not "success"', 
     expect(getQTaskStatus(written.task6_vertical_addition)).toBe('needs_support');
     expect(written.task1_read_write_zero).toBe('success');
     expect(completion).toHaveBeenCalledTimes(1);
-    expect(completion.mock.calls[0][1]).toBe(Math.round((6 / 7) * 100));
+    expect(completion.mock.calls[0].slice(1)).toEqual(['class_1']); // no score: the server computes it (Module 20)
   });
 });
 
 describe('3. completion at the seventh answer; the correction round never changes it', () => {
-  it('completed and scored when the seven tasks are answered, before the correction round', () => {
+  it('completed when the seven tasks are answered, before the correction round', () => {
     for (const t of TASKS) {
       answer(t.id === 'task1_read_write_zero' ? 999 : t.correctAnswer!);
       if (t.id !== TASKS[TASKS.length - 1].id) settle();
@@ -149,7 +149,7 @@ describe('3. completion at the seventh answer; the correction round never change
     expect(completion).not.toHaveBeenCalled();
     settle();
     expect(completion).toHaveBeenCalledTimes(1);
-    expect(completion.mock.calls[0][1]).toBe(Math.round((6 / 7) * 100));
+    expect(completion.mock.calls[0].slice(1)).toEqual(['class_1']); // no score: the server computes it (Module 20)
     expect(record.markMeeting2Complete).toHaveBeenCalledTimes(1);
     expect(record.setRouteRecommendation).toHaveBeenCalledTimes(1);
     // …and the child is in the correction round, not on the waiting screen.
@@ -188,7 +188,7 @@ describe('3. completion at the seventh answer; the correction round never change
       settle();
     }
     expect(completion).toHaveBeenCalledTimes(1);
-    expect(completion.mock.calls[0][1]).toBe(100);
+    expect(completion.mock.calls[0].slice(1)).toEqual(['class_1']); // no score: the server computes it (Module 20)
     expect(ws().flowStatus).toBe('sessionDone');
   });
 

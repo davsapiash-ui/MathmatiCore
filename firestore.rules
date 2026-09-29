@@ -195,12 +195,34 @@ service cloud.firestore {
       data.teacher_gate_approved is bool;
     }
 
-    // מודול 20: המסלול שהמורה בחרה וחותמות האישור הן החלטה שלה. לומד רשאי
-    // רק להשאיר אותן כפי שהן, או לרוקן אותן — לעולם לא לקבוע אותן.
-    function gateDecisionFieldsAreEmpty() {
-      return request.resource.data.get('teacher_selected_path', null) == null &&
-             request.resource.data.get('gate_approved_at', null) == null &&
-             request.resource.data.get('gate_approved_by', null) == null;
+    // מודול 20: המסלול שהמורה בחרה וחותמות האישור הן החלטה שלה, והציון
+    // וההמלצה מחושבים "בטריגר עצמאי על סיום המפגש" (sessionTrigger.ts, Admin
+    // SDK — החוקים אינם חלים עליו). לומד אינו קובע אותם, אינו משנה אותם ואינו
+    // מרוקן אותם. הכלל הקודם בדק רק את המצב שאחרי הכתיבה, ולכן לומד יכול היה
+    // למחוק אישור שכבר ניתן ולשנות ציון שהשרת כבר חישב (בעל המוצר, 29.9.2026).
+    // ערך חסר ו-null הם אותו דבר: createSessionWithServerDeadline יוצר את
+    // השדות כ-null, ומסמכים ישנים חסרים אותם.
+    function learnerCreateLeavesStaffFieldsEmpty() {
+      let d = request.resource.data;
+      return d.get('teacher_selected_path', null) == null &&
+             d.get('gate_approved_at', null) == null &&
+             d.get('gate_approved_by', null) == null &&
+             d.get('session_score_percent', null) == null &&
+             d.get('matrix_recommended_path', null) == null &&
+             d.get('evaluated_at', null) == null;
+    }
+
+    function sessionFieldUnchanged(field) {
+      return request.resource.data.get(field, null) == resource.data.get(field, null);
+    }
+
+    function learnerUpdateKeepsStaffFields() {
+      return sessionFieldUnchanged('teacher_selected_path') &&
+             sessionFieldUnchanged('gate_approved_at') &&
+             sessionFieldUnchanged('gate_approved_by') &&
+             sessionFieldUnchanged('session_score_percent') &&
+             sessionFieldUnchanged('matrix_recommended_path') &&
+             sessionFieldUnchanged('evaluated_at');
     }
 
     // --- Collections Routing ---
@@ -234,10 +256,10 @@ service cloud.firestore {
       allow read: if isTeacher() || isOwningSession(sessionId);
       allow create: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == false) &&
-                       (isTeacher() || gateDecisionFieldsAreEmpty());
+                       (isTeacher() || learnerCreateLeavesStaffFieldsEmpty());
       allow update: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == resource.data.teacher_gate_approved) &&
-                       (isTeacher() || gateDecisionFieldsAreEmpty());
+                       (isTeacher() || learnerUpdateKeepsStaffFields());
       allow delete: if false; // Module 23א §ו — see students
     }
 
