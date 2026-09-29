@@ -834,6 +834,22 @@ export const SESSION1_ORDER_BEFORE_27_9: readonly string[] = [
 ];
 
 /**
+ * Meeting 1 before the two refresh exercises of 29.9.2026 (owner: the value of
+ * a digit, and a number written in words — diagnostic tasks 2 and 4 had none).
+ */
+export const SESSION1_ORDER_BEFORE_29_9: readonly string[] = [
+  's1_sandbox_controlled',
+  's1_decompose_hundred',
+  's1_build_305',
+  's1_undo_trash',
+  's1_r_group26',
+  's1_target_347',
+  's1_t8',
+  's1_r_sub61',
+  's1_r_sub806',
+];
+
+/**
  * The list a restored meeting 1 goes on with, or null for the meeting's bank
  * as usual. When the saved place and id disagree with the bank, the place was
  * counted in another order of the same exercises: the one before 27.9.2026
@@ -848,12 +864,19 @@ function restoredSession1Order(saved: { standardTaskIdx?: number; activeTask?: {
   // The place and the id agree with the bank, or there is no id to compare
   // (a snapshot trimmed to its minimal core): nothing to translate.
   if (typeof savedId !== 'string' || bank[idx]?.id === savedId) return null;
-  const byId = new Map(bank.map((t) => [t.id, t]));
-  const knownOrders = [SESSION1_ORDER_BEFORE_27_9, SESSION1_TASKS.map((t) => t.id)];
-  const order = knownOrders.find(
-    (ids) => ids[idx] === savedId && ids.length === bank.length && ids.every((id) => byId.has(id))
-  );
-  return order ? order.map((id) => byId.get(id)!) : null;
+  // The exercises this device knows: the cached bank, and this code's own (a
+  // place counted in a newer order can reach a device whose cached catalog is older).
+  const byId = new Map([...SESSION1_TASKS, ...bank].map((t) => [t.id, t]));
+  const codeIds = SESSION1_TASKS.map((t) => t.id);
+  const withAdded = (ids: readonly string[]) => [...ids, ...codeIds.filter((id) => !ids.includes(id))];
+  // Each known order as it was, and as it goes on once the exercises added
+  // since are put at its end (a second reload on one of those lands here).
+  const knownOrders = [SESSION1_ORDER_BEFORE_27_9, SESSION1_ORDER_BEFORE_29_9, codeIds].flatMap((ids) => [ids, withAdded(ids)]);
+  const order = knownOrders.find((ids) => ids[idx] === savedId && ids.every((id) => byId.has(id)));
+  if (!order) return null;
+  // Exercises of the bank the order does not hold come at its end.
+  const rest = bank.filter((t) => !order.includes(t.id));
+  return [...order.map((id) => byId.get(id)!), ...rest];
 }
 
 export function getActiveTasks(s: WorkspaceState): SessionTask[] {
@@ -1873,7 +1896,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         handleFailure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את המספר בשורת התוצאה.', 3000);
         return;
       }
-      if (typed !== (task.numberA ?? 0)) {
+      // The result row takes the exercise's answer: the number built, or — the
+      // value of a digit (meeting 1, 368 → 60) — its own correctAnswer.
+      if (typed !== (typeof task.correctAnswer === 'number' ? task.correctAnswer : task.numberA ?? 0)) {
         handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!', 2800);
         return;
       }

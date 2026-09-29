@@ -46,13 +46,33 @@ for (const m of [3, 4, 5, 6, 7, 8] as const) for (const path of ['green_path', '
   tasks.push(...getSessionTasks(m, path));
   if (m <= 7) for (const b of ['reinforcement', 'challenge'] as const) tasks.push(...getSessionBranchTasks(m, b, path));
 }
-const main = MAIN as Record<string, Record<string, string | null>>;
+/**
+ * Exercises added after the fixture was taken, so main has no value for them.
+ * NOT from main: new on 29.9.2026 (owner) — meeting 1's two refresh exercises
+ * 368 (the value of a digit) and 482 (in words). The values are what the
+ * engine gives them on the day they were added (null in every state, as for
+ * the other representation exercises of meeting 1), locked here so a later
+ * change shows up the same way a change to main's values does.
+ */
+const NONE = { empty: null, some: null, u12: null, t16: null, h1: null, h1t6: null, h12: null, a: null, req: null };
+const ADDED_AFTER_MAIN: Record<string, Record<string, string | null>> = {
+  s1_r_value368: NONE,
+  s1_r_words482: NONE,
+};
+const main = { ...(MAIN as Record<string, Record<string, string | null>>), ...ADDED_AFTER_MAIN };
 const APPROVED: Record<string, string> = { s3_r_t7: 'conceptual' };
 
 describe('SOCRATIC_CARD_SHOWN.error_category is what main recorded (research data)', () => {
   it('the fixture covers every exercise', () => {
     expect(tasks.length).toBeGreaterThan(120);
     for (const t of tasks) expect(main[t.id], t.id).toBeTruthy();
+  });
+
+  it('the exercises added after main are really new: main never recorded them', () => {
+    for (const id of Object.keys(ADDED_AFTER_MAIN)) {
+      expect((MAIN as Record<string, unknown>)[id], id).toBeUndefined();
+      expect(tasks.some((t) => t.id === id), id).toBe(true);
+    }
   });
 
   it('every exercise, every board state: the card carries main\'s category, except the approved s3_r_t7', () => {
