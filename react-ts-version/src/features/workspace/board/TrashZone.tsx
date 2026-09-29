@@ -1,6 +1,27 @@
 import { useDroppable } from '@dnd-kit/core';
 import { motion } from 'framer-motion';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectStandardTask } from '@/application/useWorkspaceStore';
+import { session1Checklist } from '@/core/session1Checklist';
+
+/**
+ * Station 1 is where the child meets the tools (owner, 29.9.2026): when the
+ * text sends them to the trash, the trash is marked until they use it — in
+ * step 5 once the undo line is ticked, and in the station's subtraction
+ * exercises ("גררו לפח האשפה את הלבנים שאתם מחסירים") until the first block
+ * goes in.
+ */
+function useTrashHint(): boolean {
+  return useWorkspaceStore((s) => {
+    if (s.sessionNumber !== 1) return false;
+    const task = selectStandardTask(s);
+    if (!task) return false;
+    if (task.id === 's1_undo_trash') {
+      const items = session1Checklist(task.id, s);
+      return Boolean(items && items[0].done && !items[1].done);
+    }
+    return Boolean(task.isSubtraction) && !s.hasDeletedBlock;
+  });
+}
 
 /**
  * פח מחיקה ואיפוס — אזור השלכה ייעודי (Drop Zone) ואיפוס בלחיצה לפי סעיף 6 ב-PRD.
@@ -8,6 +29,7 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
  */
 export function TrashZone() {
   const { setNodeRef, isOver } = useDroppable({ id: 'trash', data: { kind: 'trash' } });
+  const hint = useTrashHint() && !isOver;
 
   const handleClick = () => {
     useWorkspaceStore.getState().clearBoard();
@@ -28,7 +50,10 @@ export function TrashZone() {
           }
         }}
         aria-label="פח אשפה — גררו לכאן לבנים למחיקה או לחצו לניקוי בית המספרים"
+        data-hint={hint ? 'true' : undefined}
         className={`relative flex flex-col items-center justify-center min-w-[84px] h-[80px] px-3.5 py-2 rounded-2xl transition-all duration-150 select-none cursor-pointer touch-none active:scale-95 ${
+          hint ? 'ws-hint-ring ' : ''
+        }${
           isOver
             ? 'bg-red-100/95 ring-4 ring-red-400/90 shadow-[0_0_20px_rgba(239,68,68,0.4)]'
             : 'hover:bg-red-50/70 bg-slate-50/60 border border-slate-200/80 hover:border-red-200'

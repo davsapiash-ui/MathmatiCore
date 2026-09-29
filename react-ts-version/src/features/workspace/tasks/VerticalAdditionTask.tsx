@@ -239,6 +239,11 @@ export function VerticalAdditionTask({
         {/* Row 0 — Carry/Borrow inputs (Memory circles ALWAYS active for working memory relief) */}
         <div aria-hidden="true" />
         {colPlaces.map((place, j) => {
+          // A circle only over a column the exercise uses — a digit of either
+          // number or of the answer. The sheet is at least four squares wide,
+          // and 61 − 24 had four circles over two columns (owner, 29.9.2026).
+          const columnUsed = digitsA[j] !== null || digitsB[j] !== null || j >= firstAnswerCol;
+          if (!columnUsed) return <div key={`carry${j}`} aria-hidden="true" />;
           return (
             <div key={`carry${j}`} className="flex items-end justify-center pb-1">
               <input
