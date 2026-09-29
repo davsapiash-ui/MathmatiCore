@@ -1729,10 +1729,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (hasOvercrowded) {
           // Names the column and the one action: the button "קבץ 10" at the head of the column (מסמך 02).
           const crowded = s.counts.units >= 10 ? 'היחידות' : s.counts.tens >= 10 ? 'העשרות' : 'המאות';
+          // The button says where the ten go (PlaceColumn: "קבץ 10 לעשרת / למאה / לאלף").
+          const groupButton = s.counts.units >= 10 ? 'קבץ 10 לעשרת' : s.counts.tens >= 10 ? 'קבץ 10 למאה' : 'קבץ 10 לאלף';
           handleFailure(
             'overcrowded_columns',
             'קַבְּצוּ 🧱',
-            `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "קבץ 10" שבראש הטור.`,
+            `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "${groupButton}" שבראש הטור.`,
             4000
           );
           return;
@@ -1859,7 +1861,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
       // Meeting 1: the exercise is the conversion itself, not only its result.
       if (task.requiresGrouping && !s.hasGrouped) {
-        handleFailure('conversion_skipped', 'קַבְּצוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבני יחידה בכל פעם, בעזרת הכפתור "קבץ 10" שבראש הטור.', 3500);
+        handleFailure('conversion_skipped', 'קַבְּצוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.', 3500);
         return;
       }
       if (task.requiresUngrouping && !s.hasUngrouped) {

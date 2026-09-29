@@ -45,6 +45,16 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
   const focusedMemoryCircle = useBoardFocusStore((s) => s.focusedMemoryCircle);
   // The digit beside the column's name only where watching it is the step
   // (core/columnDigits.ts, owner 29.9.2026); elsewhere it would hand over the answer.
+  // Ten or more here is the exercise's own goal — a representation whose board
+  // holds it (347 as 3, 3 and 17), a "two ways" task, a subtraction after a
+  // borrow (the same rule as the coaching cards, SocraticEngine): the button
+  // stays, but does not pulse, so it does not invite undoing the step just made.
+  const crowdingIsTheGoal = useWorkspaceStore((s) => {
+    const t = getActiveTasks(s)[s.standardTaskIdx];
+    if (!t) return false;
+    const req = (t.requiredCounts ?? {}) as Partial<Record<Place, number>>;
+    return t.isSubtraction === true || t.type === 'flexible_decomp' || (req[place] ?? 0) >= 10;
+  });
   const digitShown = useWorkspaceStore((s) =>
     columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)
   );
@@ -171,7 +181,10 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
         >
           <button
             onClick={() => groupColumnClick(place)}
-            className="w-full py-1 px-2 rounded-xl text-xs font-black text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer animate-pulse hover:animate-none"
+            data-pulse={crowdingIsTheGoal ? undefined : 'true'}
+            className={`w-full py-1 px-2 rounded-xl text-xs font-black text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              crowdingIsTheGoal ? '' : 'animate-pulse hover:animate-none'
+            }`}
             style={{ backgroundColor: colors.header }}
             title={`קבץ 10 לבנים ל${place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}`}
           >
