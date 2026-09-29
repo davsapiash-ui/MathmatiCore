@@ -239,7 +239,7 @@ export function ClassManagement({
               {TEACHER_GATE_HE} לפני {meetingShortLabelHe(3)}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              בסיום {meetingShortLabelHe(2)}, התלמידים ממתינים במסך "מעוף הדבורה". אישור המורה כאן משחרר את הנתיב מיידית (פחות משנייה אחת).
+              בסיום {meetingShortLabelHe(2)}, התלמידים ממתינים במסך ההמתנה. אישור המורה כאן משחרר את הנתיב מיידית (פחות משנייה אחת).
             </p>
           </div>
         </div>
@@ -277,7 +277,7 @@ export function ClassManagement({
                     </span>
                   ) : isDoneM2 ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 px-2.5 py-1 rounded-lg animate-pulse">
-                      ממתין ב{TEACHER_GATE_HE} (מעוף הדבורה)
+                      ממתין ב{TEACHER_GATE_HE}
                     </span>
                   ) : (
                     <span className="text-[11px] font-bold text-slate-500 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-md">
