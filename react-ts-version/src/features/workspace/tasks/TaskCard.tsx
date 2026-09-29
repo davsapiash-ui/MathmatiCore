@@ -208,7 +208,7 @@ export function TaskCard() {
                     labels={{ tens: 'עשרות', units: 'יחידות' }}
                   >
                     {qTask.pictureUnitBlocks !== undefined && (
-                      <UnitBlocksPicture count={qTask.pictureUnitBlocks} label={qTask.givenHe ?? ''} />
+                      <UnitBlocksPicture count={qTask.pictureUnitBlocks} />
                     )}
                   </PlaceValueInputBoxes>
                 )}

@@ -8,12 +8,15 @@ import { PLACE_COLORS } from '../placeColors';
  * scaffold: nothing here can be dragged, clicked or grouped, and there is no
  * "קבץ 10" button. The blocks are the board's own unit block (UnitSVG), in the
  * board's units-column frame — the virtual Dienes blocks of PRD Module 14 §ב
- * are not loaded (no dnd-kit, no store, no board). The picture and the caption
- * follow the window's height: the board's size in a window 950px tall, smaller
+ * are not loaded (no dnd-kit, no store, no board).
+ *
+ * No number with it (owner, 29.9.2026): the caption "25 לבני יחידה" beside the
+ * picture, and read as its name, handed the child both digits of the answer (2
+ * and 5) — מסמך 03 asks for the picture, and for the learner to find how many.
+ * The picture follows the window's height: the board's size in a window 950px tall, smaller
  * in a shorter one, with no step, so the card fits without scrolling.
  */
-/** `label` is the caption, "25 לבני יחידה", shown beside the picture and read as its name. */
-export function UnitBlocksPicture({ count, label }: { count: number; label: string }) {
+export function UnitBlocksPicture({ count }: { count: number }) {
   const { w } = BLOCK_SIZES.units;
   const colors = PLACE_COLORS.units;
   // Four across: a column, taller than it is wide. A 5 × 5 square would show
@@ -23,15 +26,10 @@ export function UnitBlocksPicture({ count, label }: { count: number; label: stri
   const block = `clamp(14px, calc(1.7143vh + 3.71px), ${w}px)`;
   const gap = `calc(${block} * 0.3)`;
   return (
-    // The caption sits beside the column, not above it, so the result row stays
-    // in view on a 1366 × 768 or 1024 × 768 laptop.
-    <div className="flex items-center justify-center gap-6">
-      <div className="bg-ws-accentSoft/60 border border-ws-accent/30 rounded-3xl px-8 py-[clamp(10px,calc(2.8571vh-7.14px),20px)] text-center shadow-sm" aria-hidden="true">
-        <span className="font-display font-black text-[length:clamp(30px,calc(1.7143vh+19.71px),36px)] text-ws-ink">{label}</span>
-      </div>
+    <div className="flex items-center justify-center">
       <div
         role="img"
-        aria-label={label}
+        aria-label="תמונה של לבני יחידה"
         data-testid="unit-blocks-picture"
         className="rounded-2xl border-2 border-solid p-[clamp(6px,calc(1.7143vh-4.29px),12px)] select-none"
         // The board writes this border as `${border}55`, which is not a valid colour

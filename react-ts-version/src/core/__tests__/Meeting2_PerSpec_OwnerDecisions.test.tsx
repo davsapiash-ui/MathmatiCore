@@ -218,7 +218,7 @@ describe('(c) task 5 shows 25 unit blocks, a still picture, for every learner (r
     it(`${phase}: 25 blocks, role="img", nothing to drag, click or group`, async () => {
       atTask('task5_units_to_tens', phase, subphase);
       const { container } = await renderCard();
-      const pic = screen.getByRole('img', { name: '25 לבני יחידה' });
+      const pic = screen.getByRole('img', { name: 'תמונה של לבני יחידה' });
       // a column, four across — not a square of fives
       // (the size follows the window's height: 14px blocks at 600px → the board's 20px at 950px)
       const grid = pic.firstElementChild as HTMLElement;
@@ -227,7 +227,9 @@ describe('(c) task 5 shows 25 unit blocks, a still picture, for every learner (r
       expect(pic.querySelectorAll('[data-testid="unit-block-still"]').length).toBe(25);
       expect(pic.querySelectorAll('button, [role="button"], [tabindex], [draggable="true"]').length).toBe(0);
       expect(container.textContent).not.toContain('קבץ 10');
-      expect(container.textContent).toContain('25 לבני יחידה');
+      // owner, 29.9.2026: no number beside the picture or in its name — the child counts
+      expect(container.textContent).not.toMatch(/25/);
+      expect(pic.getAttribute('aria-label')).not.toMatch(/d/);
     });
   }
 
