@@ -36,7 +36,9 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
 
   it('2. Dynamically detects the tens deficit of 425 - 162 once 425 is on the board', async () => {
     const task = {
-      id: 's1_t10',
+      // An exercise outside the meeting banks: meeting 1 asks for the column
+      // instead of naming it (owner, 29.9.2026; Session1_NoAnswerOnScreen).
+      id: 'fixture_sub425',
       exercise: '425 - 162',
       isSubtraction: true,
       numberA: 425,

@@ -607,9 +607,10 @@ describe('the live card never asks to undo the step the exercise asks for', () =
     expect(hint?.questionHe ?? '').not.toContain('הצטברו 14');
   });
 
-  it('26 loose units in the grouping refresh still get the grouping card', () => {
+  it('26 loose units in the grouping refresh still get the grouping card, without the count', () => {
     const hint = SocraticEngine.analyzeLiveBoardState(task('s1_r_group26'), 'flexible_regrouping', { ...EMPTY_COUNTS, units: 26 });
-    expect(hint?.questionHe).toContain('הצטברו 26');
+    expect(hint?.questionHe).toBe('באחד הטורים יש 10 לבנים או יותר. מה עושים?');
+    expect(hint?.questionHe).not.toContain('26');
   });
 
   it('a "two different representations" task holding 15 tens is left alone', () => {
@@ -628,16 +629,18 @@ describe('the live card never asks to undo the step the exercise asks for', () =
     // the subtraction cards ask how to know you are done — true just after the
     // borrow, halfway through, and at the end — and never give the answer
     for (const [id, answer] of [['s1_r_sub61', '37'], ['s1_r_sub806', '455']] as const) {
-      expect(block(id)).toContain('בסך הכול');
+      expect(block(id)).toContain('כשהוצאתם');
       expect(block(id)).not.toContain(answer);
     }
     // 713 + 94: a rule true before and after the grouping, without the tens digit of 807
-    expect(block('s1_t8')).toContain('מה עושים כשבטור העשרות יש 10 עשרות');
+    expect(block('s1_t8')).toContain('מה עושים כשבאחד הטורים יש 10 לבנים או יותר');
+    expect(block('s1_t8')).not.toContain('העשרות');
     expect(block('s1_t8')).not.toMatch(/(?<![0-9])0 עשרות|807/);
   });
 
-  it('an addition with 12 units still gets the grouping card', () => {
+  it('an addition with 12 units still gets the grouping card, without the count', () => {
     const hint = SocraticEngine.analyzeLiveBoardState(task('s1_t8'), 'regrouping_fluency', { ...EMPTY_COUNTS, hundreds: 7, units: 12 });
-    expect(hint?.questionHe).toContain('הצטברו 12');
+    expect(hint?.questionHe).toBe('באחד הטורים יש 10 לבנים או יותר. מה עושים?');
+    expect(hint?.questionHe).not.toContain('12');
   });
 });
