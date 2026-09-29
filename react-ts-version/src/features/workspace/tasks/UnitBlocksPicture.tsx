@@ -1,5 +1,6 @@
 import { BLOCK_SIZES, UnitSVG } from '../board/DienesBlock';
-import { PLACE_COLORS } from '../placeColors';
+import { NEUTRAL_BOX_BORDER, PLACE_COLORS } from '../placeColors';
+import { useEnhancedSupport } from './useEnhancedSupport';
 
 /**
  * Meeting 2, task 5 (מסמך 03 §3.2: "עשרים וחמש לבני יחידה בטור היחידות"; owner,
@@ -18,7 +19,9 @@ import { PLACE_COLORS } from '../placeColors';
  */
 export function UnitBlocksPicture({ count }: { count: number }) {
   const { w } = BLOCK_SIZES.units;
-  const colors = PLACE_COLORS.units;
+  // Meeting 2 without the enhanced support profile: no place colour (owner,
+  // 27.9.2026) — the frame was the units column's. With the profile it stays.
+  const border = useEnhancedSupport() ? PLACE_COLORS.units.border : NEUTRAL_BOX_BORDER;
   // Four across: a column, taller than it is wide. A 5 × 5 square would show
   // the blocks already arranged in fives, in a task about grouping by ten.
   const perRow = 4;
@@ -34,7 +37,7 @@ export function UnitBlocksPicture({ count }: { count: number }) {
         className="rounded-2xl border-2 border-solid p-[clamp(6px,calc(1.7143vh-4.29px),12px)] select-none"
         // The board writes this border as `${border}55`, which is not a valid colour
         // for a var(); color-mix gives the soft units-column border it means.
-        style={{ borderColor: `color-mix(in srgb, ${colors.border} 33%, transparent)`, backgroundColor: 'hsl(var(--ws-surface))', boxShadow: '0 4px 14px -6px rgba(0,0,0,0.06)' }}
+        style={{ borderColor: `color-mix(in srgb, ${border} 33%, transparent)`, backgroundColor: 'hsl(var(--ws-surface))', boxShadow: '0 4px 14px -6px rgba(0,0,0,0.06)' }}
       >
         <div
           aria-hidden="true"

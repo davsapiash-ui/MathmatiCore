@@ -33,6 +33,8 @@ export interface QMatrixTask {
   isSubtraction?: boolean;
   titleHe: string;
   instructionHe: string;
+  /** The instruction in the correction round, where it differs (task 1: "הפעם פתרו לבד" is said once, the first time). */
+  retryInstructionHe?: string;
   number?: number;
   highlightedDigit?: string;
   highlightIndex?: number;
@@ -77,6 +79,7 @@ export const TASKS: QMatrixTask[] = [
     type: "place_value_zero",
     titleHe: "קריאה וכתיבה של מספר תלת-ספרתי",
     instructionHe: "קראו את המספר וכתבו אותו בשורת התוצאה. הפעם פתרו לבד.",
+    retryInstructionHe: "קראו את המספר וכתבו אותו בשורת התוצאה.",
     givenHe: "שש מאות וחמש",
     correctAnswer: 605,
     expectedBlocks: { hundreds: 6, tens: 0, units: 5 },

@@ -146,6 +146,8 @@ export function VerticalAdditionTask({
   const digitsA = padDigits(aStr);
   const digitsB = padDigits(bStr);
   const firstAnswerCol = cols - answerLength;
+  /** The leftmost column that holds a digit (the memory circles start there). */
+  const firstUsedCol = Math.min(firstAnswerCol, cols - aStr.length, cols - bStr.length);
 
   /**
    * Evaluates if input for a specific column should be locked:
@@ -170,7 +172,7 @@ export function VerticalAdditionTask({
         role={isStriked && d ? 'text' : undefined}
         aria-label={
           isStriked && d
-            ? `הספרה ${d}${place ? ` בטור ה${PLACE_LABEL_HE[place]}` : ''} — נפרטה`
+            ? `הספרה ${d}${place && placeCues ? ` בטור ה${PLACE_LABEL_HE[place]}` : ''} — נפרטה`
             : undefined
         }
         className={`relative flex items-center justify-center font-mono font-black text-ws-ink leading-none ${
@@ -256,7 +258,9 @@ export function VerticalAdditionTask({
                 maxLength={2}
                 value={carryDigits[place] ?? ''}
                 readOnly={false}
-                aria-label={`חלונית המרה ל${PLACE_LABEL_HE[place]}`}
+                // Meeting 2 without the place cues: no column name read aloud
+                // either — the sighted child sees none (owner, 27.9 and 29.9.2026).
+                aria-label={placeCues ? `חלונית המרה ל${PLACE_LABEL_HE[place]}` : `עיגול זיכרון ${j - firstUsedCol + 1} מתוך ${cols - firstUsedCol}`}
                 data-hint={circlesHint ? 'true' : undefined}
                 className={`rounded-full border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent ${
                   circlesHint ? 'ws-hint-ring' : 'shadow-sm'
@@ -377,7 +381,7 @@ export function VerticalAdditionTask({
                 maxLength={1}
                 value={answerDigits[place] ?? ''}
                 readOnly={isLocked}
-                aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה`}
+                aria-label={placeCues ? `ספרת ה${PLACE_LABEL_HE[place]} בתשובה` : `ספרה ${ansIdx + 1} מתוך ${answerLength} בשורת התוצאה`}
                 aria-disabled={isLocked}
                 className={`rounded-xl border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent ${
                   isLocked ? 'cursor-not-allowed opacity-75' : ''
