@@ -25,6 +25,8 @@ import { CONCEPT_LABELS_HE, DIAGNOSTIC_DOMAINS, type CognitiveConcept } from '@/
  */
 
 const dashboard = readFileSync(resolve(__dirname, '../../../TeacherDashboard.tsx'), 'utf-8');
+// The gate list's evidence is built in gateEvidence.ts (shared with the approval drawer).
+const gateEvidence = readFileSync(resolve(__dirname, '../../gateEvidence.ts'), 'utf-8');
 
 afterEach(cleanup);
 
@@ -98,7 +100,7 @@ describe('הקבצה ופריטה are never merged into one number without their
 
   it('the per-task report list and the gate list name the task with (הקבצה)/(פריטה)', () => {
     expect(dashboard).toContain('{diagnosticTaskLabelHe(task)}');
-    expect(dashboard).toContain(').map(diagnosticTaskLabelHe);');
+    expect(gateEvidence).toContain(').map(diagnosticTaskLabelHe);');
     expect(dashboard).not.toMatch(/\{task\.titleHe\}/);
     expect(dashboard).not.toContain('.map((t) => t.titleHe)');
   });

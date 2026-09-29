@@ -5,43 +5,64 @@ import { type StudentData, useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { approveTeacherGate } from '@/core/teacherGate';
 import { recommendedPathOf } from '@/core/recommendedPath';
-import { 
-  X, 
-  Sparkles, 
-  CheckCircle2, 
-  Compass
+import type { PedagogicalPath } from '@/types';
+import {
+  X,
+  Sparkles,
+  CheckCircle2,
+  Compass,
+  ClipboardList
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 import { meetingShortLabelHe } from '@/core/stationNames';
+import { NO_RECOMMENDATION_HE, type GateStudentItem } from '../gateEvidence';
 
 interface Props {
   student: StudentData | null;
+  /**
+   * The learner's gate evidence — the same row the approvals table shows
+   * (gateEvidence.ts): the matrix recommendation, the meeting-2 score and the
+   * tasks that need support. PRD Module 20: the teacher decides by the matrix
+   * recommendation, so the drawer shows it before the choice.
+   */
+  evidence?: GateStudentItem | null;
   onClose: () => void;
   onApproveSuccess?: () => void;
 }
 
-function pathToPreselect(s: Record<string, unknown>): 'green_path' | 'remediation_path' {
-  if (s.pedagogicalPath === 'remediation_path' || s.pedagogicalPath === 'green_path') return s.pedagogicalPath;
-  return recommendedPathOf(s) ?? (s.currentPath === 'צמצום פערים' ? 'remediation_path' : 'green_path');
+/** The diagnostic's recommendation: the evidence row first, else the learner's own record. */
+function recommendationOf(student: Record<string, unknown>, evidence?: GateStudentItem | null): PedagogicalPath | null {
+  return evidence?.recommendedPath ?? recommendedPathOf(student);
 }
 
-export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }: Props) {
+/**
+ * What the drawer opens with: the path the gate already approved, else the
+ * diagnostic's recommendation, else nothing — the teacher then chooses
+ * herself (Module 20: the recommendation comes from the diagnostic, never from
+ * a default colour). This used to fall back to green for everyone.
+ */
+function pathToPreselect(s: Record<string, unknown>, evidence?: GateStudentItem | null): PedagogicalPath | null {
+  const approved = s.teacher_gate_approved === true || s.routeStatus === 'APPROVED' || evidence?.isApproved === true;
+  if (approved && (s.pedagogicalPath === 'remediation_path' || s.pedagogicalPath === 'green_path')) return s.pedagogicalPath;
+  return recommendationOf(s, evidence);
+}
+
+export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApproveSuccess }: Props) {
   const [isApproving, setIsApproving] = useState(false);
   const sAny = (student || {}) as any;
 
-  // Track selected pedagogical path
-  // An already-approved path first; otherwise the diagnostic's recommendation
-  // (core/recommendedPath.ts). This used to fall through to green for everyone
-  // whose routeRecommendation never reached the database — that is, everyone.
-  const defaultPath = pathToPreselect(sAny);
-  const [selectedPath, setSelectedPath] = useState<'green_path' | 'remediation_path'>(defaultPath);
+  const [selectedPath, setSelectedPath] = useState<PedagogicalPath | null>(() => pathToPreselect(sAny, evidence));
 
+  // Re-seed only when a different learner is opened, or when the learner's
+  // recommendation itself arrives — never over a choice the teacher made.
+  const recommendation = recommendationOf(sAny, evidence);
   useEffect(() => {
     if (student) {
-      setSelectedPath(pathToPreselect(student as any));
+      setSelectedPath(pathToPreselect(student as any, evidence));
     }
-  }, [student]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student?.studentId, recommendation]);
 
   // מסמך העיצוב §1.2: Escape סוגר, הפוקוס נלכד בתוך המגירה, ובסגירה חוזר
   // לאלמנט שממנו היא נפתחה.
@@ -50,8 +71,11 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
   if (!student) return null;
 
   const studentNum = student.studentId.replace(/\D/g, '') || student.studentId;
+  const scorePercent = evidence?.scorePercent ?? null;
+  const supportTasks = evidence?.errorNodes ?? [];
 
   const handleApprove = async () => {
+    if (!selectedPath) return;
     setIsApproving(true);
     try {
       // PRD v7.1 Module 20: the session-2 SessionDocument in Firestore is the sole
@@ -66,7 +90,8 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
       }
 
       useStore.getState().approveRoute(student.studentId);
-      toast.success(`✓ ${TEACHER_GATE_HE}: תלמיד ${studentNum} הועבר ל${ROUTE_NAME_HE[selectedPath === 'green_path' ? 'green_path' : 'remediation_path']}, ו${meetingShortLabelHe(3)} נפתח עבורו 🚀`);
+      // "ל" absorbs the definite article: "למסלול הירוק", never "להמסלול הירוק".
+      toast.success(`✓ ${TEACHER_GATE_HE}: תלמיד ${studentNum} הועבר ל${ROUTE_NAME_HE[selectedPath].replace(/^ה/, '')}, ו${meetingShortLabelHe(3)} נפתח עבורו 🚀`);
       if (onApproveSuccess) onApproveSuccess();
       onClose();
     } catch (err) {
@@ -80,23 +105,23 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
   return createPortal(
     <>
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 bg-slate-950/65 backdrop-blur-md z-[9998] transition-opacity animate-in fade-in"
         onClick={onClose}
       />
-      
+
       {/* Drawer */}
-      <div 
+      <div
         ref={drawerRef}
         role="dialog"
         aria-modal="true"
         aria-label={`אישור מסלול ל${meetingShortLabelHe(3)} — תלמיד ${studentNum}`}
-        className="fixed top-0 right-0 w-full sm:w-[620px] h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl z-[9999] flex flex-col transform transition-transform duration-300 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right" 
+        className="fixed top-0 right-0 w-full sm:w-[620px] h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl z-[9999] flex flex-col transform transition-transform duration-300 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right"
         dir="rtl"
       >
         {/* Mobile handle */}
         <div className="mx-auto my-2 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-700 sm:hidden shrink-0" />
-        
+
         {/* Header */}
         <div className="h-20 px-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-gradient-to-l from-indigo-50/70 via-purple-50/40 to-white dark:from-indigo-950/40 dark:via-purple-950/20 dark:to-slate-900 shrink-0">
           <div className="flex items-center gap-3">
@@ -118,7 +143,7 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
             </div>
           </div>
 
-          <button 
+          <button
             onClick={onClose}
             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
             title="סגרו את החלון"
@@ -130,18 +155,77 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
-          {/* STEP 1: CHOOSE PEDAGOGICAL PATH */}
+          {/* STEP 1: THE DIAGNOSTIC EVIDENCE (PRD Module 20: המלצת המטריקס) */}
+          <section className="space-y-3" aria-label="ממצאי האבחון">
+            <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <ClipboardList className="w-4 h-4 text-indigo-600" />
+              <span>1. ממצאי האבחון ב{meetingShortLabelHe(2)}:</span>
+            </h3>
+
+            <dl className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 divide-y divide-slate-200 dark:divide-slate-700 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                <dt className="font-bold text-slate-600 dark:text-slate-300">המלצת המטריקס</dt>
+                <dd data-testid="gate-drawer-recommendation">
+                  {recommendation === 'green_path' ? (
+                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      {ROUTE_NAME_HE.green_path}
+                    </span>
+                  ) : recommendation === 'remediation_path' ? (
+                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                      {ROUTE_NAME_HE.remediation_path}
+                    </span>
+                  ) : (
+                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                      {NO_RECOMMENDATION_HE}
+                    </span>
+                  )}
+                </dd>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                <dt className="font-bold text-slate-600 dark:text-slate-300">ציון האבחון</dt>
+                <dd data-testid="gate-drawer-score" className="font-extrabold text-slate-900 dark:text-slate-100">
+                  {scorePercent !== null ? `${Math.round(scorePercent)}% (7 משימות חובה)` : 'טרם חושב'}
+                </dd>
+              </div>
+              <div className="px-4 py-3 space-y-1.5">
+                <dt className="font-bold text-slate-600 dark:text-slate-300">מוקדי חיזוק</dt>
+                <dd data-testid="gate-drawer-support">
+                  {supportTasks.length > 0 ? (
+                    <ul className="flex flex-wrap gap-1.5">
+                      {supportTasks.map((task) => (
+                        <li key={task} className="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900 font-bold">
+                          {task}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="text-slate-500 dark:text-slate-400">לא נמצאו משימות הדורשות חיזוק.</span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          {/* STEP 2: CHOOSE PEDAGOGICAL PATH */}
           <div className="space-y-3">
             <label className="block text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 uppercase tracking-wide">
               <Compass className="w-4 h-4 text-indigo-600" />
-              <span>1. קביעת מסלול הלימוד ל{meetingShortLabelHe(3)} ואילך:</span>
+              <span>2. קביעת מסלול הלימוד ל{meetingShortLabelHe(3)} ואילך:</span>
             </label>
+
+            {selectedPath === null && (
+              <p data-testid="gate-drawer-choose-hint" className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2">
+                טרם נקבעה המלצה. יש לבחור מסלול כדי לאשר.
+              </p>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Green Path */}
-              <div
+              <button
+                type="button"
+                aria-pressed={selectedPath === 'green_path'}
                 onClick={() => setSelectedPath('green_path')}
-                className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
+                className={`text-right p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
                   selectedPath === 'green_path'
                     ? 'border-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/40 shadow-sm ring-2 ring-emerald-500/20'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
@@ -161,12 +245,14 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                   התקדמות שוטפת לעבר חיבור וחיסור במספרים תלת-ספרתיים מורכבים והעמקה קוגניטיבית.
                 </p>
-              </div>
+              </button>
 
-              {/* Yellow Path */}
-              <div
+              {/* Remediation Path */}
+              <button
+                type="button"
+                aria-pressed={selectedPath === 'remediation_path'}
                 onClick={() => setSelectedPath('remediation_path')}
-                className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
+                className={`text-right p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
                   selectedPath === 'remediation_path'
                     ? 'border-amber-600 bg-amber-50/60 dark:bg-amber-950/40 shadow-sm ring-2 ring-amber-500/20'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
@@ -186,7 +272,7 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                   הוראת עמיתים וסגירת פערי קדם במבנה עשרוני, המרות שקטות ושומר מקום (אפס).
                 </p>
-              </div>
+              </button>
             </div>
           </div>
 
@@ -203,8 +289,9 @@ export function TeacherGateApprovalDrawer({ student, onClose, onApproveSuccess }
 
           <button
             onClick={handleApprove}
-            disabled={isApproving}
-            className="px-7 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
+            disabled={isApproving || selectedPath === null}
+            title={selectedPath === null ? 'יש לבחור מסלול לפני האישור' : undefined}
+            className="px-7 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
           >
             <CheckCircle2 className="w-5 h-5 text-amber-300" />
             <span>{isApproving ? 'מאשר ומפעיל...' : `אשרו והפעילו את התוכנית ל${meetingShortLabelHe(3)}`}</span>
