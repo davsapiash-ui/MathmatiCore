@@ -84,10 +84,45 @@ const PENDING_DOC03_SYNC_28_9: ReadonlyArray<readonly [string, string]> = [
     'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בלוח או גררו אותה לטור העשרות. כתבו את התשובה בשורת התוצאה.',
   ],
 ];
+/**
+ * TEMPORARY — pending the owner's update of מסמך 03 in Drive (29.9.2026).
+ *
+ * Station 1 must not hand the child the answer or the place of the difficulty
+ * (owner, 29.9.2026: the column digits, the number 26, "שימו לב לטור העשרות",
+ * the column named before the child finds it); a sentence names a button by
+ * what it shows (↺; the grouping button is named by its place, "הכפתור שמופיע
+ * בראש אותו טור", since its words change with the column); "פורטים", not
+ * "מפרקים". Pairs as in PENDING_DOC03_SYNC_28_9: [screen now, the words of the
+ * repository copy of מסמך 03 it replaces]. The owner updates מסמך 03 in Drive;
+ * after the repository copy is synced, remove this constant and its branch.
+ */
+const PENDING_DOC03_SYNC_29_9: ReadonlyArray<readonly [string, string]> = [
+  ['לחצו על לבנה כדי לפרוט אותה ללבנים קטנות יותר, ועקבו אחר השינוי בבית המספרים.', 'לחצו על לבנה כדי לפרק אותה לחלקים קטנים יותר ועקבו אחר השינוי בבית המספרים.'],
+  ['לחצו על לבנה כדי לפרוט אותה ללבנים קטנות יותר', 'לחצו על לבנה כדי לפרק אותה לחלקים קטנים יותר'],
+  ['נסו לבנות את המספר 305 בלבנים. כשתצליחו, הסתכלו בבית המספרים: איזו ספרה מופיעה ליד שם כל טור?', 'נסו לבנות את המספר 305 בלבנים ושימו לב לתפקיד של הספרה אפס בבית המספרים הריק מעשרות.'],
+  ['לחצו על כפתור ביטול פעולה ↺ כדי לחזור צעד אחד אחורה.', 'לחצו על כפתור ביטול פעולה כדי לחזור צעד אחד אחורה.'],
+  ['לחצו על כפתור ביטול פעולה ↺', 'לחצו על כפתור ביטול פעולה'],
+  [
+    'בטור היחידות יש לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת הכפתור "קבץ 10 לעשרת" שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.',
+    'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת הכפתור "קבץ 10" שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.',
+  ],
+  [
+    'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר באחד הטורים מצטברות 10 לבנים, לחצו על הכפתור שמופיע בראש אותו טור. כתבו את התשובה בשורת התוצאה.',
+    'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבץ 10" שבראש הטור. כתבו את התשובה בשורת התוצאה.',
+  ],
+  [
+    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה לטור הסמוך. כתבו את התשובה בשורת התוצאה.',
+    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בבית המספרים או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
+  ],
+  [
+    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה לטור הסמוך. כתבו את התשובה בשורת התוצאה.',
+    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בבית המספרים או גררו אותה לטור העשרות. כתבו את התשובה בשורת התוצאה.',
+  ],
+];
 /** The line is in the repository copy of מסמך 03 — or is one of the texts waiting for its Drive sync. */
 const inDoc03OrPending = (line: string, where: string) => {
   if (PENDING_DOC03_SYNC_27_9.has(line)) return;
-  const pending28 = PENDING_DOC03_SYNC_28_9.find(([now]) => now === line);
+  const pending28 = PENDING_DOC03_SYNC_28_9.find(([now]) => now === line) ?? PENDING_DOC03_SYNC_29_9.find(([now]) => now === line);
   if (pending28) {
     // the copy holds either the old words (not synced yet) or the new ones (synced)
     expect([DOC03.includes(pending28[1]), DOC03.includes(line)], where).toContain(true);
@@ -229,7 +264,7 @@ describe('what completes each introduction step', () => {
   it('step 4: 305 built another way shows which part is left, instead of a silent ⏳', () => {
     const items = session1Checklist('s1_build_305', { ...base, counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })!;
     expect(items.map((i) => i.done)).toEqual([true, false]);
-    expect(items[1].label).toBe('רוקנו את טור העשרות, כדי שבבית המספרים תופיע בו הספרה אפס');
+    expect(items[1].label).toBe('בנו את 305 כך שבכל טור יהיו פחות מ-10 לבנים');
   });
 
   it('step 5: undo and pressing the trash, both', () => {
@@ -249,7 +284,7 @@ describe('what completes each introduction step', () => {
     // document's own words.
     expect(other305[0].label).toBe('נסו לבנות את המספר 305 בלבנים');
     inDoc03OrPending(other305[0].label, other305[0].label);
-    expect(other305[1].label).toMatch(/^רוקנו את טור העשרות/);
+    expect(other305[1].label).toBe('בנו את 305 כך שבכל טור יהיו פחות מ-10 לבנים');
   });
 
   it('exercises have no checklist', () => {
@@ -457,7 +492,7 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 2, units: 6 }, answerDigits: { tens: '2', units: '6' } });
     useWorkspaceStore.getState().proceed();
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_r_group26'));
-    expect(useWorkspaceStore.getState().feedback?.sub).toContain('הכפתור "קבץ 10"');
+    expect(useWorkspaceStore.getState().feedback?.sub).toContain('בעזרת הכפתור שבראש הטור');
     // Grouped from loose units: accepted, and the target task comes next.
     useWorkspaceStore.setState({ hasGrouped: true });
     useWorkspaceStore.getState().proceed();
@@ -500,7 +535,9 @@ describe('each refresh exercise mirrors its diagnostic task, column for column',
     expect(d.expectedBlocks).toEqual({ tens: 2, units: 5 });
     expect(r.numberA).toBe(26);
     expect(r.requiresGrouping).toBe(true);
-    expect(r.instructionHe).toContain('26 לבני יחידה');
+    // Owner, 29.9.2026: the number is not in the text — the child finds it (task 5 shows only the cubes).
+    expect(r.instructionHe).not.toMatch(/26/);
+    expect(r.instructionHe).toContain('יש לבני יחידה');
     // the cubes are on the board and the card does not say what they make
     expect(r.initialCounts).toEqual({ units: 26 });
     expect(r.hideRequiredCounts).toBe(true);
