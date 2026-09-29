@@ -30,6 +30,8 @@ export { exportAdminReportToDrive, backupAndResetSessionData, exportResearchData
 
 // Export WP6 Cloud Functions (Module 14, 20, 22, 24, 27)
 export { onSessionCompleteTrigger, createSessionWithServerDeadline } from "./sessionTrigger";
+// PRD 14 §ב1 + owner decision 29.9.2026: the teacher closing meeting 2 completes every learner who started it.
+export { onMeeting2ClosedByTeacher } from "./meeting2Close";
 export { generatePedagogicalReportPDF, getPedagogicalReportDownloadUrl } from "./pedagogicalReport";
 // Module 23, owner decision 6.9.2026 (register item 9): a class report for every meeting.
 export { generateClassMeetingReport } from "./classReport";

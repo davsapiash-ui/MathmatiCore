@@ -531,6 +531,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         sessionNumber: null,
         endedAt: Date.now(),
         teacherId: user?.uid || 'teacher',
+        // PRD 14 §ב1: is_completed follows the seven tasks "או לפי סגירה יזומה
+        // של המורה". This marker is what tells the server that this close is
+        // the teacher's (a reset writes the same record without it): closing
+        // meeting 2 completes every learner who started it and did not finish
+        // (functions/src/meeting2Close.ts; owner decision 29.9.2026).
+        closedBy: 'teacher',
       });
       setIsClassSessionActive(false);
       setClassSessionStatus('closed');

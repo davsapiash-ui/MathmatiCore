@@ -84,7 +84,8 @@ export const onSessionCompleteTrigger = onDocumentWritten({
   }
 
   const recommendedPath = computed.scorePercent >= 50 ? "green_path" : "remediation_path";
-  const submitted = Number(afterData.session_score_percent);
+  // null when nothing was submitted — a meeting 2 completed by the teacher's close (meeting2Close.ts).
+  const submitted = typeof afterData.session_score_percent === "number" ? afterData.session_score_percent : NaN;
   if (Number.isFinite(submitted) && submitted !== computed.scorePercent) {
     logger.warn(`Session ${event.params.sessionId}: client reported ${submitted}%, server computed ${computed.scorePercent}%. Server value stands.`);
   }
