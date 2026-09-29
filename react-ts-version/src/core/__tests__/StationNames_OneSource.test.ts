@@ -265,7 +265,7 @@ describe('the child reads "בית המספרים" and "לבנים"', () => {
     expect(text).not.toMatch(/26/);
   });
 
-  it('diagnostic task 5 shows "25 לבני יחידה"', () => {
+  it('diagnostic task 5 keeps "25 לבני יחידה" in its data, for the teacher (the child sees only the picture)', () => {
     const t5 = DIAGNOSTIC_TASKS.find((t) => t.id === 'task5_units_to_tens')!;
     expect(t5.givenHe).toBe('25 לבני יחידה');
     // owner, 27.9.2026: the grouping is named (הקבצה) and the blocks are on the screen
