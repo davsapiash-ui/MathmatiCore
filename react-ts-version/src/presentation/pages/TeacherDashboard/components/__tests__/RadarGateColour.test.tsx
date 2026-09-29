@@ -111,7 +111,7 @@ describe('מ.5 — שער האישור אינו צובע את המשבצת', () 
 
   it('טבלת השער של מודול 20 נשארה מעל הרדאר, עם המלצה ואישור לכל לומד', () => {
     render(<HeatmapGrid initialStudents={students} />);
-    expect(screen.getByText(`5 תלמידים סיימו את שלב האבחון וממתינים ב${TEACHER_GATE_HE} למפגש 3`)).toBeTruthy();
+    expect(screen.getByText(`5 תלמידים סיימו את שלב האבחון וממתינים ב${TEACHER_GATE_HE} לפני מפגש 3`)).toBeTruthy();
   });
 
   it('גם לקורא מסך: המצב קודם, השער אחריו', () => {

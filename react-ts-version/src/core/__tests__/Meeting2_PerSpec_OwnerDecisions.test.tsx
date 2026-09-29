@@ -296,9 +296,9 @@ describe('(e) row 2.23: each round-number exercise once, no LaTeX or code on scr
 });
 
 describe('the Hebrew of meeting 2 (ע2.3)', () => {
-  it('ע2.3: the bee screen', async () => {
-    const { BeeFlightWaitingScreen } = await import('@/presentation/components/student/BeeFlightWaitingScreen');
-    const { container } = render(<BeeFlightWaitingScreen />);
+  it('ע2.3: the meeting-2 waiting screen', async () => {
+    const { Meeting2WaitingScreen } = await import('@/presentation/components/student/Meeting2WaitingScreen');
+    const { container } = render(<Meeting2WaitingScreen />);
     const msg = 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.';
     expect(container.textContent).toContain(msg);
     expect(screen.getByTestId('speech').getAttribute('data-text')).toBe(msg);

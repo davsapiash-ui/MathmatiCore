@@ -116,7 +116,7 @@ export function describeRadarCell(
 
   // PRD Module 18 §ב gives the tile's colour to activity, connection and help
   // alone; the gate is Module 20's, so it is said after the state, not instead.
-  if (student.isWaitingAtGate) parts.push(`סיים אבחון וממתין ב${TEACHER_GATE_HE}`);
+  if (student.isWaitingAtGate) parts.push(`סיים אבחון וממתין ב${TEACHER_GATE_HE} לפני מפגש 3`);
 
   const glyph = getCognitiveGlyph(student.errorCategory);
   if (glyph) parts.push(glyph.title);
@@ -462,7 +462,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       useStore.getState().approveRoute(`student_${num}`);
       useStore.getState().approveRoute(num);
 
-      toast.success(`✓ ${radarPathLabelHe(path)} אושר עבור תלמיד ${num}! ${TEACHER_GATE_HE} למפגש 3 נפתח.`);
+      toast.success(`✓ ${radarPathLabelHe(path)} אושר עבור תלמיד ${num}! ${TEACHER_GATE_HE} הושלם עבורו, ומפגש 3 נפתח.`);
     } catch (err) {
       console.error('Failed to approve gate:', err);
       toast.error(`שגיאה ב${TEACHER_GATE_HE}`);
@@ -588,8 +588,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <span className="font-extrabold text-sm text-amber-950 dark:text-amber-100 flex items-center gap-2">
                 <DoorOpen className="w-4 h-4 text-amber-600" />
                 {pendingGateStudents.length === 1 
-                  ? `תלמיד ${pendingGateStudents[0].studentNumber} סיים את שלב האבחון וממתין ב${TEACHER_GATE_HE} למפגש 3`
-                  : `${pendingGateStudents.length} תלמידים סיימו את שלב האבחון וממתינים ב${TEACHER_GATE_HE} למפגש 3`}
+                  ? `תלמיד ${pendingGateStudents[0].studentNumber} סיים את שלב האבחון וממתין ב${TEACHER_GATE_HE} לפני מפגש 3`
+                  : `${pendingGateStudents.length} תלמידים סיימו את שלב האבחון וממתינים ב${TEACHER_GATE_HE} לפני מפגש 3`}
               </span>
             </div>
             <div className="flex items-center gap-2.5 flex-wrap">
@@ -769,7 +769,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     className="mt-2 pt-2 border-t border-slate-300/80 dark:border-slate-600/80 flex flex-col gap-1 z-10"
                     onClick={e => e.stopPropagation()}
                   >
-                    <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1" title={`ממתין ב${TEACHER_GATE_HE} למפגש 3`}>
+                    <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1" title={`ממתין ב${TEACHER_GATE_HE} לפני מפגש 3`}>
                       <DoorOpen className="w-3 h-3 shrink-0" />
                       <span className="min-w-0">
                         {TEACHER_GATE_HE} · המלצה: <span className="whitespace-nowrap">{radarPathLabelHe(student.recommendedPath)}</span>

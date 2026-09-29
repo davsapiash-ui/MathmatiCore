@@ -85,7 +85,7 @@ export function TeacherApprovalGate({
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-indigo-500 inline-block" />
             <h2 className="text-xl font-display font-black text-slate-900 dark:text-white">
-              {TEACHER_GATE_HE} ל{meetingShortLabelHe(3)} 🛡️
+              {TEACHER_GATE_HE} לפני {meetingShortLabelHe(3)} 🛡️
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -203,7 +203,7 @@ export function TeacherApprovalGate({
       {approvedStudents.length > 0 && (
         <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-500 flex items-center justify-between">
           <span>תלמידים שכבר אושרו ל{meetingShortLabelHe(3)}: {approvedStudents.length}</span>
-          <span className="font-bold text-emerald-600 dark:text-emerald-400">השער פתוח עבורם</span>
+          <span className="font-bold text-emerald-600 dark:text-emerald-400">{meetingShortLabelHe(3)} פתוח עבורם</span>
         </div>
       )}
     </div>

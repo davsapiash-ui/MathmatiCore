@@ -159,10 +159,10 @@ export function ClassManagement({
         toast.error(result.message);
         return;
       }
-      toast.success(`✓ שער המורה אושר עבור תלמיד ${student.studentNumber}`);
+      toast.success(`✓ ${TEACHER_GATE_HE}: המסלול של תלמיד ${student.studentNumber} אושר`);
     } catch (err) {
       console.error('Failed to approve teacher gate:', err);
-      toast.error('שגיאה באישור שער המורה');
+      toast.error(`שגיאה ב${TEACHER_GATE_HE}`);
     } finally {
       setUpdatingId(null);
     }
@@ -211,7 +211,7 @@ export function ClassManagement({
 
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white flex items-center gap-3">
               <Users className="w-9 h-9 text-indigo-200" />
-              ניהול כיתה, פרופילים ושער מורה
+              ניהול כיתה, פרופילים ו{TEACHER_GATE_HE}
             </h1>
             <p className="text-indigo-100 text-sm md:text-base font-medium max-w-2xl">
               הגדרת תמיכה שקטה לכל לומד, אישור מסלול המעבר ל{meetingShortLabelHe(3)}, ושמירה על כיתה של עד 12 לומדים.
@@ -236,7 +236,7 @@ export function ClassManagement({
           <div>
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
               <ShieldCheck className="w-6 h-6 text-indigo-600" />
-              {TEACHER_GATE_HE} ל{meetingShortLabelHe(3)}
+              {TEACHER_GATE_HE} לפני {meetingShortLabelHe(3)}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               בסיום {meetingShortLabelHe(2)}, התלמידים ממתינים במסך "מעוף הדבורה". אישור המורה כאן משחרר את הנתיב מיידית (פחות משנייה אחת).
@@ -277,7 +277,7 @@ export function ClassManagement({
                     </span>
                   ) : isDoneM2 ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 px-2.5 py-1 rounded-lg animate-pulse">
-                      ממתין בשער (מעוף הדבורה)
+                      ממתין ב{TEACHER_GATE_HE} (מעוף הדבורה)
                     </span>
                   ) : (
                     <span className="text-[11px] font-bold text-slate-500 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-md">

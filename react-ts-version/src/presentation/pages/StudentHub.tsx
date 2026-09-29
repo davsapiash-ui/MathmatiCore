@@ -9,7 +9,7 @@ import { database } from '@/infrastructure/firebase';
 import { acknowledgeTeacherReset } from '@/infrastructure/services/FirebaseSyncService';
 import { throttledRtdbUpdate, rtdbUpdateNow } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { Sparkles } from 'lucide-react';
-import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
+import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting2WaitingScreen';
 import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { useProjectorMode } from '@/application/useProjectorMode';
@@ -221,7 +221,7 @@ export function StudentHub() {
 
   const activeSession = SESSIONS_CONFIG[effectiveSessionId] || SESSIONS_CONFIG[1];
 
-  // Module 20: If student completed Session 2 and attempts Session 3 without teacher approval -> Bee Flight
+  // Module 20: If student completed Session 2 and attempts Session 3 without teacher approval -> the meeting-2 waiting screen
   const isAwaitingTeacherGate = hasCompletedSession2 && effectiveSessionId === 3 && !isTeacherGateApproved;
 
   // Deviation 10: When teacher opens/starts session, auto-navigate waiting student into workspace
@@ -237,7 +237,7 @@ export function StudentHub() {
   }
 
   if (isAwaitingTeacherGate) {
-    return <BeeFlightWaitingScreen onApproved={() => setIsTeacherGateApproved(true)} />;
+    return <Meeting2WaitingScreen onApproved={() => setIsTeacherGateApproved(true)} />;
   }
 
   return (
