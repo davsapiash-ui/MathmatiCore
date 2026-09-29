@@ -288,9 +288,9 @@ function meeting1CrowdedCard(): SocraticHintResponse {
     suggested_highlight: "tour-place-value-board",
     questionHe: MEETING1_CROWDED_QUESTION,
     choices: [
-      { id: "opt_1", textHe: "מקבצים 10 לבנים ללבנה אחת בטור שמשמאל", isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבץ 10" שבראש אותו הטור.' },
+      { id: "opt_1", textHe: "מקבצים 10 לבנים ללבנה אחת בטור שמשמאלו", isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור שמופיע בראש אותו טור.' },
       { id: "opt_2", textHe: "מוחקים 10 לבנים לפח בלי להוסיף לבנה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר. מקבצים במקום למחוק. אפשר להשתמש בכפתור ביטול פעולה ↺." },
-      { id: "opt_3", textHe: "מעבירים לבנה אחת בלבד לטור שמשמאל", isCorrect: false, feedbackHe: "רמז: לבנה אחת בטור שמשמאל שווה ל-10 לבנים בטור שלידו. אפשר להשתמש בכפתור ביטול פעולה ↺." }
+      { id: "opt_3", textHe: "מעבירים לבנה אחת בלבד לטור שמשמאלו", isCorrect: false, feedbackHe: "רמז: לבנה אחת שווה ל-10 לבנים של הטור שמימינה. אפשר להשתמש בכפתור ביטול פעולה ↺." }
     ],
     correctChoiceId: "opt_1"
   };
@@ -384,7 +384,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: "מה צריך להיות בטור היחידות בסוף התרגיל?",
     choices: [
       { id: "opt_1", textHe: "פחות מ-10 לבנים", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על הכפתור "קבץ 10 לעשרת" שבראש הטור.' },
-      { id: "opt_2", textHe: "כל 26 הלבנים", isCorrect: false, feedbackHe: "רמז: כשיש 10 יחידות או יותר בטור, מקבצים כל 10 יחידות לעשרת אחת." },
+      { id: "opt_2", textHe: "כל הלבנים שהיו בטור", isCorrect: false, feedbackHe: "רמז: כשיש 10 יחידות או יותר בטור, מקבצים כל 10 יחידות לעשרת אחת." },
       { id: "opt_3", textHe: "אף לבנה, הטור ריק", isCorrect: false, feedbackHe: "רמז: אחרי ההקבצה נשארות בטור היחידות רק הלבנים שלא נכנסו לעשרות." }
     ],
     correctChoiceId: "opt_1"
@@ -399,7 +399,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-place-value-board",
     questionHe: "בתרגיל 713 + 94: מה עושים כשבאחד הטורים יש 10 לבנים או יותר?",
     choices: [
-      { id: "opt_1", textHe: "מקבצים 10 לבנים ללבנה אחת בטור שמשמאל", isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבץ 10" שבראש אותו הטור.' },
+      { id: "opt_1", textHe: "מקבצים 10 לבנים ללבנה אחת בטור שמשמאלו", isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור שמופיע בראש אותו טור.' },
       { id: "opt_2", textHe: "מוחקים 10 לבנים לפח בלי להוסיף לבנה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר. מקבצים במקום למחוק." },
       { id: "opt_3", textHe: "רושמים 10 בתיבה אחת בשורת התוצאה", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד, מ-0 עד 9." }
     ],
