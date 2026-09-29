@@ -191,7 +191,9 @@ describe('(a) place-value headings and colours by support profile (row 2.21)', (
   it('vertical exercises of meeting 2: neutral and without place labels unless the profile is set', async () => {
     atTask('task6_vertical_addition');
     const { container } = await renderCard();
-    const answers = screen.getAllByLabelText(/^ספרת ה.* בתשובה$/) as HTMLInputElement[];
+    // without the profile the screen reader names no column either (owner, 29.9.2026)
+    const answers = screen.getAllByLabelText(/^ספרה \d מתוך \d בשורת התוצאה$/) as HTMLInputElement[];
+    expect(answers).toHaveLength(3);
     for (const a of answers) expect(borderOf(a)).toBe(NEUTRAL_BOX_BORDER);
     expect(container.textContent).not.toMatch(/מאות|עשרות|יחידות/);
 

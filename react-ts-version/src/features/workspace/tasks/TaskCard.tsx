@@ -52,7 +52,11 @@ export function TaskCard() {
           total: compulsory.length,
         }
   );
-  let instruction = subtask ? '' : qTask ? qTask.instructionHe : standardTask?.instructionHe ?? '';
+  let instruction = subtask
+    ? ''
+    : qTask
+      ? (qflow.phase === 'correction' && qTask.retryInstructionHe) || qTask.instructionHe
+      : standardTask?.instructionHe ?? '';
   
   if (instruction.includes('{{number}}')) {
     const effNum = qTask ? getEffectiveNumber(qTask, qflow, isASD) : (isASD && standardTask?.asdNumberA !== undefined ? standardTask.asdNumberA : standardTask?.numberA);
