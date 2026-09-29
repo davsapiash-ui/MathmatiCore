@@ -98,6 +98,10 @@ export function VerticalAdditionTask({
   const enhancedSupport = useEnhancedSupport();
   const placeCues = sessionNumber !== 2 || enhancedSupport;
   const PLACE_TINT = placeCues ? BOARD_PLACE_TINT : NEUTRAL_TINT;
+  // Station 1 (owner, 29.9.2026): the text names "עיגול הזיכרון", and the circles
+  // carry no words — they are marked until the child writes in one, as the
+  // undo button and the trash are (index.css .ws-hint-ring).
+  const circlesHint = sessionNumber === 1 && !Object.values(carryDigits).some((v) => Boolean(v));
   // Paper over the memory circles: half a square in meeting 2 (its card is the
   // whole screen and must fit a short window), three quarters elsewhere.
   const PAPER_TOP = sessionNumber === 2 ? cell(0.5) : cell(0.75);
@@ -253,7 +257,10 @@ export function VerticalAdditionTask({
                 value={carryDigits[place] ?? ''}
                 readOnly={false}
                 aria-label={`חלונית המרה ל${PLACE_LABEL_HE[place]}`}
-                className="rounded-full border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent shadow-sm"
+                data-hint={circlesHint ? 'true' : undefined}
+                className={`rounded-full border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent ${
+                  circlesHint ? 'ws-hint-ring' : 'shadow-sm'
+                }`}
                 style={{ width: cell(0.6), height: cell(0.6), fontSize: cell(0.35) }}
                 onFocus={() => setFocusedMemoryCircle(place)}
                 onBlur={() => setFocusedMemoryCircle(null)}

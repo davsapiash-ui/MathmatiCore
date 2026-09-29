@@ -11,7 +11,7 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
 /**
  * Technical audit of meeting 1 by simulation (25.9.2026).
  *
- * A child drives the real store through the nine tasks of SESSION1_TASKS with
+ * A child drives the real store through the eleven tasks of SESSION1_TASKS with
  * the gestures the UI offers: palette taps/drags (applyDrop from 'palette'),
  * a click on a block to decompose it (splitBlockClick), the "קבץ 10" button
  * (groupColumnClick), a column block dragged to the trash (applyDrop to
@@ -141,6 +141,18 @@ const STEPS: Step[] = [
     board: counts({}),
   },
   {
+    id: 's1_r_value368',
+    half: () => { tap('hundreds', 3); tap('tens', 6); },
+    finish: () => { tap('units', 8); typeNumber(60); },
+    board: counts({ hundreds: 3, tens: 6, units: 8 }),
+  },
+  {
+    id: 's1_r_words482',
+    half: () => { tap('hundreds', 4); tap('tens', 8); },
+    finish: () => { tap('units', 2); typeNumber(482); },
+    board: counts({ hundreds: 4, tens: 8, units: 2 }),
+  },
+  {
     id: 's1_r_group26',
     half: () => group('units'),
     finish: () => { group('units'); typeNumber(26); },
@@ -176,6 +188,9 @@ const STEPS: Step[] = [
 const at = (id: string) => STEPS.findIndex((s) => s.id === id);
 const TARGET = at('s1_target_347');
 const GROUP26 = at('s1_r_group26');
+const T8 = at('s1_t8');
+const SUB61 = at('s1_r_sub61');
+const SUB806 = at('s1_r_sub806');
 
 /** Reach task `idx` the natural way, from the start of the meeting. */
 function goTo(idx: number) {
@@ -219,7 +234,7 @@ describe('1. a full correct run, the way a child does it', () => {
     ['isASD learner', undefined, true],
     ['enhanced-support learner', ENHANCED, false],
   ] as const) {
-    it(`${label}: nine tasks, then the quiet end screen`, () => {
+    it(`${label}: eleven tasks, then the quiet end screen`, () => {
       start(profile, isASD);
       for (let i = 0; i < STEPS.length; i++) {
         const step = STEPS[i];
@@ -256,12 +271,19 @@ describe('1. a full correct run, the way a child does it', () => {
       s1_decompose_hundred: counts({ hundreds: 2, tens: 3 }),
       s1_build_305: counts({}),
       s1_undo_trash: counts({ hundreds: 3, units: 5 }),
+      // New on 29.9.2026: the child builds the number from nothing.
+      s1_r_value368: counts({}),
+      s1_r_words482: counts({}),
       s1_target_347: counts({}),
       s1_r_group26: counts({ units: 26 }),
       s1_t8: counts({}),
       s1_r_sub61: counts({}),
       s1_r_sub806: counts({}),
     };
+    expect(Object.keys(opening).sort()).toEqual(STEPS.map((s) => s.id).sort());
+    for (const id of ['s1_r_value368', 's1_r_words482']) {
+      expect(SESSION1_TASKS.find((t) => t.id === id)?.initialCounts, id).toBeUndefined();
+    }
     for (let i = 0; i < STEPS.length; i++) {
       expect(ws().counts, STEPS[i].id).toEqual(opening[STEPS[i].id]);
       STEPS[i].half();
@@ -318,8 +340,9 @@ describe('2. typical mistakes: is there always a way forward?', () => {
     expect(ws().counts).toEqual(counts({ hundreds: 3, units: 5 }));
     expect(canProceed()).toBe(true);
     proceed();
-    expect(taskId()).toBe('s1_r_group26');
-    expect(ws().counts).toEqual(counts({ units: 26 }));
+    // The next exercise (29.9.2026: 368, the value of a digit) opens on an empty board.
+    expect(taskId()).toBe('s1_r_value368');
+    expect(ws().counts).toEqual(counts({}));
   });
 
   it('347 dragged straight as 3H 3T 17U (no decomposition): recoverable, but "decompose a ten" alone does not tick', () => {
@@ -423,8 +446,8 @@ describe('2. typical mistakes: is there always a way forward?', () => {
   });
 
   it('713 + 94: a wrong tens digit before grouping opens trigger 3; after the X everything works; an ungrouped board is refused with a reason', () => {
-    goTo(6);
-    STEPS[6].half(); // 7H 10T 7U
+    goTo(T8);
+    STEPS[T8].half(); // 7H 10T 7U
     type('units', '7');
     type('tens', '1');
     vi.advanceTimersByTime(0);
@@ -435,17 +458,17 @@ describe('2. typical mistakes: is there always a way forward?', () => {
     expectClean('card closed by X');
     type('hundreds', '8');
     proceed();
-    expect(ws().standardTaskIdx).toBe(6); // 10 tens on the board
+    expect(ws().standardTaskIdx).toBe(T8); // 10 tens on the board
     group('tens');
     proceed();
     expect(taskId()).toBe('s1_r_sub61');
   });
 
   it('713 + 94: typing the answer before building → "build it"; the second wrong answer starts the friction beat (מסמך 03 §3.1), and after the card everything works', () => {
-    goTo(6);
+    goTo(T8);
     typeNumber(807);
     proceed();
-    expect(ws().standardTaskIdx).toBe(6);
+    expect(ws().standardTaskIdx).toBe(T8);
     expect(ws().helpState).toBe('closed'); // the first refusal: feedback only
     type('hundreds', '7'); // 707
     tap('hundreds', 7); tap('units', 7);
@@ -462,11 +485,11 @@ describe('2. typical mistakes: is there always a way forward?', () => {
   });
 
   it('61 − 24: both numbers built → refused; the trash and a rebuild pass', () => {
-    goTo(7);
+    goTo(SUB61);
     tap('tens', 6); tap('units', 1); tap('tens', 2); tap('units', 4);
     typeNumber(37);
     proceed();
-    expect(ws().standardTaskIdx).toBe(7);
+    expect(ws().standardTaskIdx).toBe(SUB61);
     toTrash('tens', 2); toTrash('units', 4);
     split('tens');
     toTrash('units', 4); toTrash('tens', 2);
@@ -475,7 +498,7 @@ describe('2. typical mistakes: is there always a way forward?', () => {
   });
 
   it('61 − 24: "smaller from larger" (3 in the units) before decomposing opens trigger 3', () => {
-    goTo(7);
+    goTo(SUB61);
     tap('tens', 6); tap('units', 1);
     type('units', '3');
     vi.advanceTimersByTime(0);
@@ -488,7 +511,7 @@ describe('2. typical mistakes: is there always a way forward?', () => {
   });
 
   it('806 − 351: a second hundred decomposed → overcrowded tens refused; the group button fixes it', () => {
-    goTo(8);
+    goTo(SUB806);
     tap('hundreds', 8); tap('units', 6);
     split('hundreds'); split('hundreds');
     toTrash('units', 1); toTrash('tens', 5); toTrash('hundreds', 3);
@@ -541,22 +564,22 @@ describe('3. a reload in the middle of every task', () => {
 
   it('a reload with the coaching card open resumes with it closed and everything usable', () => {
     start();
-    goTo(6);
-    STEPS[6].half();
+    goTo(T8);
+    STEPS[T8].half();
     type('tens', '1');
     vi.advanceTimersByTime(0);
     expect(ws().helpState).toBe('socratic');
     reload();
     expectClean('after reload');
-    STEPS[6].finish();
+    STEPS[T8].finish();
     proceed();
     expect(taskId()).toBe('s1_r_sub61');
   });
 
   it('a reload during the final celebration: "התקדם" is live again and ends the meeting', () => {
     start();
-    goTo(8);
-    STEPS[8].half(); STEPS[8].finish();
+    goTo(SUB806);
+    STEPS[SUB806].half(); STEPS[SUB806].finish();
     ws().proceed();
     vi.advanceTimersByTime(1000);
     reload();
@@ -590,13 +613,13 @@ describe('4. enhanced-support profile', () => {
   });
 
   it('713 + 94 built straight as 807: the tens cell stays locked (friction, documented)', () => {
-    goTo(6);
+    goTo(T8);
     tap('hundreds', 8); tap('units', 7);
     expect(type('units', '7')).toBe(true);
     expect(type('tens', '0')).toBe(false); // locked: no grouping happened
     expect(type('hundreds', '8')).toBe(true);
     proceed();
-    expect(ws().standardTaskIdx).toBe(6); // "87" ≠ 807
+    expect(ws().standardTaskIdx).toBe(T8); // "87" ≠ 807
     // Ways out: decompose a hundred and group it back, or write in the tens memory circle.
     split('hundreds'); group('tens');
     expect(type('tens', '0')).toBe(true);
@@ -605,7 +628,7 @@ describe('4. enhanced-support profile', () => {
   });
 
   it('61 − 24: the units cell opens with the decomposition', () => {
-    goTo(7);
+    goTo(SUB61);
     tap('tens', 6); tap('units', 1);
     expect(type('units', '7')).toBe(false);
     split('tens');
@@ -619,8 +642,8 @@ describe('5. timing', () => {
   beforeEach(() => start());
 
   it('a wrong card option locks new cards for 30 s, then the lock lifts by itself', () => {
-    goTo(6);
-    STEPS[6].half();
+    goTo(T8);
+    STEPS[T8].half();
     type('tens', '1');
     vi.advanceTimersByTime(0);
     ws().triggerSocraticPenaltyLockout('hint');
@@ -657,8 +680,8 @@ describe('5. timing', () => {
   });
 
     it('fixed: pressing the help button during the final celebration leaves the meeting unfinished forever', () => {
-    goTo(8);
-    STEPS[8].half(); STEPS[8].finish();
+    goTo(SUB806);
+    STEPS[SUB806].half(); STEPS[SUB806].finish();
     ws().proceed();
     vi.advanceTimersByTime(500);
     ws().requestSilentHelp(); // a new toast replaces the nonce the end-of-meeting callback waits for
@@ -669,8 +692,8 @@ describe('5. timing', () => {
   });
 
   it('a card closed by X and a new card opened by the next wrong digit: the new card stays (no stray close timer)', () => {
-    goTo(6);
-    STEPS[6].half();
+    goTo(T8);
+    STEPS[T8].half();
     type('tens', '1'); // card A
     vi.advanceTimersByTime(0);
     type('tens', '2');
@@ -721,7 +744,7 @@ describe('6. the coaching card and the next exercise', () => {
 
   it('fixed: that stale card swallows the next exercise\'s own trigger (713 + 94, wrong tens digit)', () => {
     cardInTarget347();
-    STEPS[6].half();
+    STEPS[T8].half();
     type('tens', '1');
     vi.advanceTimersByTime(0);
     expect(ws().socraticTriggerReason).toBe('conversion_not_performed');

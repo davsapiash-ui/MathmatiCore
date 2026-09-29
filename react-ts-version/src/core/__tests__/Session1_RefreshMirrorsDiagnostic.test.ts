@@ -92,3 +92,82 @@ describe('Meeting 1 refresh s1_t8 mirrors diagnostic task 6', () => {
     expect([t.numberA, t.numberB, t.correctAnswer]).toEqual([713, 94, 807]);
   });
 });
+
+/**
+ * Two more refresh exercises (owner, 29.9.2026), for the two diagnostic tasks
+ * meeting 1 did not refresh yet. Column by column, as for s1_t8 above.
+ */
+const digitAt = (n: number, i: number) => Math.floor(n / 10 ** i) % 10;
+const placesOf = (n: number) => Array.from({ length: digits(n) }, (_, i) => digitAt(n, i));
+/** The place (0 = units) whose digit, at its value, is `value` — or -1. */
+const placeOfValue = (n: number, value: number) => placesOf(n).findIndex((d, i) => d !== 0 && d * 10 ** i === value);
+
+describe('Meeting 1 refresh s1_r_value368 mirrors diagnostic task 2 (742, the 4 → 40)', () => {
+  const r = SESSION1_TASKS.find((t) => t.id === 's1_r_value368')!;
+  const d = DIAGNOSTIC_TASKS.find((t) => t.id === 'task2_digit_value')!;
+
+  it('computes: in 368 the 6 is worth 60', () => {
+    expect(r.numberA).toBe(368);
+    expect(r.correctAnswer).toBe(60);
+    expect(tensOf(368) * 10).toBe(60);
+    expect(d.number).toBe(742);
+    expect(d.correctAnswer).toBe(40);
+  });
+
+  it('has the same column structure: three digits, no zero, the digit asked about in the tens', () => {
+    const shape = (n: number, answer: number) => ({
+      digits: digits(n),
+      zeros: placesOf(n).filter((x) => x === 0).length,
+      askedPlace: placeOfValue(n, answer),
+      // the digit asked about appears once, so "the 6" names one column
+      askedDigitCount: placesOf(n).filter((x) => x === answer / 10 ** placeOfValue(n, answer)).length,
+    });
+    const rs = shape(r.numberA!, r.correctAnswer as number);
+    const ds = shape(d.number!, d.correctAnswer as number);
+    expect(rs).toEqual(ds);
+    // spelled out, so a change to either side fails loudly
+    expect(rs).toEqual({ digits: 3, zeros: 0, askedPlace: 1, askedDigitCount: 1 });
+    // the diagnostic marks the same place: the middle digit of three
+    expect(d.highlightIndex).toBe(1);
+    expect(d.highlightedDigit).toBe(String(digitAt(d.number!, 1)));
+  });
+
+  it('the child builds the number, and the answer is the digit\'s value — not the number', () => {
+    expect(r.requiredCounts).toEqual({ hundreds: 3, tens: 6, units: 8 });
+    expect(r.correctAnswer).not.toBe(r.numberA);
+    expect(r.hideRequiredCounts).toBe(true);
+    expect(r.instructionHe).toContain('368');
+    expect(r.instructionHe).toContain('הספרה 6');
+    expect(r.instructionHe).not.toMatch(/60|עשרות/);
+  });
+});
+
+describe('Meeting 1 refresh s1_r_words482 mirrors diagnostic task 4 ("חמש מאות שישים ושלוש" → 563)', () => {
+  const r = SESSION1_TASKS.find((t) => t.id === 's1_r_words482')!;
+  const d = DIAGNOSTIC_TASKS.find((t) => t.id === 'task4_decompose_number')!;
+
+  it('computes: ארבע מאות שמונים ושתיים is 482', () => {
+    expect(r.numberA).toBe(482);
+    expect(r.instructionHe).toContain('ארבע מאות שמונים ושתיים');
+    expect(d.givenHe).toBe('חמש מאות שישים ושלוש');
+    expect(d.correctAnswer).toBe(563);
+  });
+
+  it('has the same column structure: three digits, no zero, every place said in words', () => {
+    const shape = (n: number) => ({ digits: digits(n), zeros: placesOf(n).filter((x) => x === 0).length });
+    expect(shape(r.numberA!)).toEqual(shape(d.correctAnswer as number));
+    expect(shape(r.numberA!)).toEqual({ digits: 3, zeros: 0 });
+    // the blocks are the number's own digits, place by place, as in task 4
+    const blocks = (n: number) => ({ hundreds: digitAt(n, 2), tens: digitAt(n, 1), units: digitAt(n, 0) });
+    expect(r.requiredCounts).toEqual(blocks(r.numberA!));
+    expect(d.expectedBlocks).toEqual(blocks(d.correctAnswer as number));
+  });
+
+  it('words to digits: no digit on the screen, and the answer is the number itself', () => {
+    expect(d.givenHe).not.toMatch(/[0-9]/);
+    expect(r.instructionHe).not.toMatch(/[0-9]/);
+    expect(r.hideRequiredCounts).toBe(true);
+    expect(r.correctAnswer ?? r.numberA).toBe(482);
+    expect(r.instructionHe).toContain('בספרות');
+  });
+});

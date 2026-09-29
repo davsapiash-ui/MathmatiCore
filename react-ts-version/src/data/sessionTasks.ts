@@ -189,6 +189,22 @@ export const SESSION1_TASKS: SessionTask[] = [
     continuesBoard: true,
   },
   // ── Refresh exercises: each mirrors one diagnostic task (QMatrix.ts) ──
+  // ★ chosen (owner, 29.9.2026). Mirrors task 2 (742, the 4 marked → 40): a
+  // three-digit number, no zero, the digit asked about in the tens. The child
+  // builds it and writes the value of the 6; the board shows it as 6 tens.
+  s1({
+    ...representation('s1_r_value368', 368, { hundreds: 3, tens: 6, units: 8 },
+      'ערך הספרה לפי מקומה',
+      'בנו בבית המספרים את המספר 368. מה הערך של הספרה 6 במספר הזה? כתבו אותו בשורת התוצאה.'),
+    correctAnswer: 60,
+  }, { hideRequiredCounts: true }),
+  // ★ chosen (owner, 29.9.2026). Mirrors task 4 ("חמש מאות שישים ושלוש" → 563):
+  // a three-digit number with no zero, said in words. Its digits appear
+  // nowhere on the screen (no number card in station 1, no column digits).
+  s1(representation('s1_r_words482', 482, { hundreds: 4, tens: 8, units: 2 },
+    'כתיבת מספר בספרות',
+    'בנו בבית המספרים את המספר ארבע מאות שמונים ושתיים, וכתבו אותו בספרות בשורת התוצאה.'),
+    { hideRequiredCounts: true }),
   // Order (owner, 27.9.2026 — register decision י): the grouping exercise
   // comes before the target task, easy to hard. Grouping ends in the familiar
   // standard form (2 tens, 6 units); the target task's decomposition ends in a
@@ -221,7 +237,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     type: 'addition_simple',
     numberA: 713, numberB: 94, correctAnswer: 807,
     titleHe: 'חיבור במאונך עם המרה מעל מאה',
-    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר באחד הטורים מצטברות 10 לבנים, לחצו על הכפתור שמופיע בראש אותו טור. כתבו את התשובה בשורת התוצאה.',
+    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר באחד הטורים מצטברות 10 לבנים, לחצו על הכפתור שמופיע בראש אותו טור, ורשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה. כתבו את התשובה בשורת התוצאה.',
     scaffoldLevel: 1,
     requiresGrouping: true,
     targetNode: 'regrouping_fluency',
@@ -230,14 +246,14 @@ export const SESSION1_TASKS: SessionTask[] = [
   // two, one borrow in the units, the tens need no borrow.
   s1(subtraction('s1_r_sub61', 61, 24,
     'חיסור חד-שלבי עם פריטה בתחום המאה',
-    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה לטור הסמוך. כתבו את התשובה בשורת התוצאה.',
+    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה לטור הסמוך. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. כתבו את התשובה בשורת התוצאה.',
     { scaffoldLevel: 1 })),
   // ★ chosen (owner, 24.9.2026). Mirrors task 7 (405 − 132): a 0 in the tens
   // of the minuend, no borrow in the units, one borrow from the hundreds into
   // the tens.
   s1(subtraction('s1_r_sub806', 806, 351,
     'חיסור במאונך עם פריטה דרך אפס בטור העשרות',
-    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה לטור הסמוך. כתבו את התשובה בשורת התוצאה.',
+    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה לטור הסמוך. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. כתבו את התשובה בשורת התוצאה.',
     { scaffoldLevel: 1 })),
 ];
 

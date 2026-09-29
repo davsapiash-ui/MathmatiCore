@@ -374,6 +374,36 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     correctChoiceId: "opt_1"
   },
 
+  // Refresh, mirrors diagnostic task 2 (owner, 29.9.2026): 368, the value of
+  // the 6. Names neither 60 nor "עשרות": the child finds the place himself.
+  's1_r_value368': {
+    pedagogical_intent: "conceptual",
+    tts_text: "איך יודעים מה הערך של ספרה במספר?",
+    suggested_highlight: "tour-place-value-board",
+    questionHe: "איך יודעים מה הערך של ספרה במספר?",
+    choices: [
+      { id: "opt_1", textHe: "בודקים באיזה טור היא נמצאת", isCorrect: true, feedbackHe: "נכון מאוד! בדקו בבית המספרים כמה שווה כל לבנה בטור של הספרה." },
+      { id: "opt_2", textHe: "הערך שלה שווה תמיד לספרה", isCorrect: false, feedbackHe: "רמז: אותה ספרה שווה יותר ככל שהטור שלה נמצא יותר שמאלה." },
+      { id: "opt_3", textHe: "סופרים את כל הלבנים יחד", isCorrect: false, feedbackHe: "רמז: שואלים רק על ספרה אחת. בדקו את הטור שלה." }
+    ],
+    correctChoiceId: "opt_1"
+  },
+
+  // Refresh, mirrors diagnostic task 4 (owner, 29.9.2026): a number said in
+  // words, written in digits. Names none of its digits.
+  's1_r_words482': {
+    pedagogical_intent: "conceptual",
+    tts_text: "איך כותבים בספרות מספר שכתוב במילים?",
+    suggested_highlight: "tour-place-value-board",
+    questionHe: "איך כותבים בספרות מספר שכתוב במילים?",
+    choices: [
+      { id: "opt_1", textHe: "כל חלק בתיבה של הטור שלו", isCorrect: true, feedbackHe: "נכון מאוד! בנו כל חלק בטור שלו, וכתבו ספרה אחת בכל תיבה." },
+      { id: "opt_2", textHe: "כל חלק כמו שהוא, זה אחרי זה", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד." },
+      { id: "opt_3", textHe: "רק את החלק הראשון במספר", isCorrect: false, feedbackHe: "רמז: כל חלק במספר תופס תיבה משלו." }
+    ],
+    correctChoiceId: "opt_1"
+  },
+
   // Refresh, mirrors diagnostic task 5: 26 unit cubes grouped into tens. With
   // 10 or more units on the board the live card speaks; this one is true in
   // every other state and does not name the result.

@@ -45,7 +45,9 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
   const checklist = session1Checklist(task.id, { counts, answerDigits, hasUngrouped, blocksAddedCount: 0, undoCount: 0, hasClearedBoard: false });
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
-  const value = task.numberA ?? 0;
+  // The number the result row holds: the number built, or its own answer when
+  // the exercise asks for something else about it (368 → the value of the 6, 60).
+  const value = typeof task.correctAnswer === 'number' ? task.correctAnswer : task.numberA ?? 0;
 
   // Result row: one square per digit of the number, high place on the left.
   const places: Place[] = PLACE_ORDER.slice(0, String(value).length).reverse();
