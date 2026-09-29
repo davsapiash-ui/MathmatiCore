@@ -27,19 +27,6 @@ export interface RtdbDelivery {
   mode: RtdbWriteMode;
   /** See QueuedAction.skipFieldsIfGateApproved. */
   skipFieldsIfGateApproved?: string[];
-  /** See QueuedAction.skipFieldsIfEvaluated. */
-  skipFieldsIfEvaluated?: EvaluatedGuard;
-}
-
-/**
- * Fields the server computes (sessionTrigger.ts) and mirrors to RTDB. A late
- * re-send must not overwrite them: when the Firestore document already carries
- * evaluated_at, these fields are left out of the RTDB write.
- */
-export interface EvaluatedGuard {
-  collection: string;
-  docId: string;
-  fields: string[];
 }
 
 export type RtdbSyncHandler = (refPath: string, payload: any, delivery: RtdbDelivery) => Promise<void>;
@@ -64,8 +51,6 @@ export interface QueuedAction {
    * replayed late, over an approval, they would lock the child out again.
    */
   skipFieldsIfGateApproved?: string[];
-  /** See EvaluatedGuard. */
-  skipFieldsIfEvaluated?: EvaluatedGuard;
   /**
    * Module 22 §ה: a teacher→admin message written while offline is queued here
    * and sent through the named Cloud Function when the connection returns, so
@@ -282,8 +267,17 @@ type Attempt = 'delivered' | 'no-route';
 
 /** The gate fields a late meeting-2 completion must not write over an approval. */
 export const GATE_PENDING_FIELDS = ['teacher_gate_approved', 'routeStatus'];
-/** The fields sessionTrigger.ts computes and mirrors to RTDB (see EvaluatedGuard). */
+/**
+ * The fields only sessionTrigger.ts writes (PRD Module 20: "בטריגר עצמאי על
+ * סיום המפגש"), on the session document and in its RTDB mirror. No queued
+ * item writes them: the rules refuse a learner write that sets or changes
+ * them (owner, 29.9.2026), and a meeting-2 completion stored by an earlier
+ * version still carries the client's number — it is left out at delivery, so
+ * the item goes through instead of being refused.
+ */
 export const SERVER_SCORED_FIELDS = ['session_score_percent', 'matrix_recommended_path'];
+/** SERVER_SCORED_FIELDS plus the trigger's own stamp, on the session document. */
+const SERVER_SESSION_DOC_FIELDS = [...SERVER_SCORED_FIELDS, 'evaluated_at'];
 
 /** Owner of an item nobody can attribute to a learner: any staff identity may send it. */
 export const ANY_STAFF_OWNER = 'staff:*';
@@ -329,17 +323,11 @@ export function rtdbDeliveryOf(item: QueuedAction): RtdbDelivery {
     return {
       mode: item.rtdbMode,
       ...(item.skipFieldsIfGateApproved ? { skipFieldsIfGateApproved: item.skipFieldsIfGateApproved } : {}),
-      ...(item.skipFieldsIfEvaluated ? { skipFieldsIfEvaluated: item.skipFieldsIfEvaluated } : {}),
     };
   }
   const key = String(item.idempotency_key ?? item.payload?.idempotency_key ?? '');
   if (key.startsWith('s2_done_rtdb_')) {
-    const num = key.replace(/\D/g, '') || '1';
-    return {
-      mode: 'merge',
-      skipFieldsIfGateApproved: GATE_PENDING_FIELDS,
-      skipFieldsIfEvaluated: { collection: 'sessions', docId: `session_02_student_${num}`, fields: SERVER_SCORED_FIELDS },
-    };
+    return { mode: 'merge', skipFieldsIfGateApproved: GATE_PENDING_FIELDS };
   }
   if (key.startsWith('gate_mirror_') || /\/sessionState$/.test(item.refPath ?? '')) return { mode: 'merge' };
   return { mode: 'child' };
@@ -369,6 +357,15 @@ function failureCounts(item: QueuedAction, err: unknown): FailureCounts {
  * completion documents stored by an older version carry none; they are
  * recognised by their key and get the same check as new ones.
  */
+/** A session document's payload without the fields only the server writes (SERVER_SESSION_DOC_FIELDS). */
+function withoutServerFields(item: QueuedAction): Record<string, unknown> {
+  const payload = { ...((item.payload ?? {}) as Record<string, unknown>) };
+  if (item.firestoreDoc?.collection === 'sessions') {
+    for (const field of SERVER_SESSION_DOC_FIELDS) delete payload[field];
+  }
+  return payload;
+}
+
 function deliveredWhenOf(item: QueuedAction): Record<string, unknown> | undefined {
   if (item.firestoreDoc?.deliveredWhen) return item.firestoreDoc.deliveredWhen;
   if (item.firestoreDoc?.collection === 'sessions' && String(item.idempotency_key ?? '').startsWith('s2_done_doc_')) {
@@ -701,13 +698,12 @@ export class IndexedDBQueue {
     refPath: string,
     fields: Record<string, unknown>,
     idempotencyKey: string,
-    options: { skipFieldsIfGateApproved?: string[]; skipFieldsIfEvaluated?: EvaluatedGuard } = {}
+    options: { skipFieldsIfGateApproved?: string[] } = {}
   ): Promise<void> {
     await this.store({
       refPath,
       rtdbMode: 'merge',
       ...(options.skipFieldsIfGateApproved?.length ? { skipFieldsIfGateApproved: options.skipFieldsIfGateApproved } : {}),
-      ...(options.skipFieldsIfEvaluated ? { skipFieldsIfEvaluated: options.skipFieldsIfEvaluated } : {}),
       payload: { ...fields },
       timestamp: Date.now(),
       idempotency_key: idempotencyKey,
@@ -1155,12 +1151,12 @@ export class IndexedDBQueue {
         }
         if (snap.exists() && matches(snap.data(), deliveredWhen)) return true;
       }
-      await setDoc(ref, item.payload, { merge: true });
+      await setDoc(ref, withoutServerFields(item), { merge: true });
       return true;
     }
     if (item.refPath) {
       if (!this.syncCallback) return false;
-      const { mode, skipFieldsIfGateApproved, skipFieldsIfEvaluated } = rtdbDeliveryOf(item);
+      const { mode, skipFieldsIfGateApproved } = rtdbDeliveryOf(item);
       // A child write needs its key in the payload; items stored by the legacy
       // enqueue(refPath, payload) form may carry it on the item only.
       const payload = mode === 'child' && item.payload && typeof item.payload === 'object' && !item.payload.idempotency_key && item.idempotency_key
@@ -1169,7 +1165,6 @@ export class IndexedDBQueue {
       await this.syncCallback(item.refPath, payload, {
         mode,
         ...(skipFieldsIfGateApproved ? { skipFieldsIfGateApproved } : {}),
-        ...(skipFieldsIfEvaluated ? { skipFieldsIfEvaluated } : {}),
       });
       return true;
     }

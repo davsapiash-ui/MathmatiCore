@@ -59,10 +59,12 @@ export const onSessionCompleteTrigger = onDocumentWritten({
   // so reading by that id matched nothing and would have scored every learner 0%.
   const telemetry = await readMeetingTelemetry(db, studentNum, sessionNum);
   if (telemetry.length === 0) {
-    // Nothing to measure. Module 24 §ב forbids inventing one, and overwriting
-    // the learner's own number with a 0% computed from no events would be
-    // exactly that — so the document is left as it is.
-    logger.warn(`Session ${event.params.sessionId}: no telemetry for learner ${studentNum} meeting ${sessionNum}; score left as submitted.`);
+    // Nothing to measure. Module 24 §ב forbids inventing one, and a 0%
+    // computed from no events would be exactly that — so the document is left
+    // without a score, and the teacher sees it is missing. (The learner's
+    // client no longer posts a number of its own: the rules make the score and
+    // the path the server's, owner 29.9.2026.)
+    logger.warn(`Session ${event.params.sessionId}: no telemetry for learner ${studentNum} meeting ${sessionNum}; no score recorded.`);
     return;
   }
 
