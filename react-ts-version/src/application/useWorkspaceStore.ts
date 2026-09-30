@@ -237,7 +237,7 @@ export interface UndoFrame {
  * trigger are both PER COLUMN. A column's conversion is done when the blocks
  * performed it for that column:
  *  - addition — ten blocks of the column grouped into one block of the next
- *    ("הקבץ 10" on the column): `composed[place]`;
+ *    ("קבצו 10" on the column): `composed[place]`;
  *  - subtraction — a block of the next column decomposed into ten blocks of
  *    this column (a click on it, or a drag to the right): `decomposed[place]`.
  * Chained conversions are just several columns: 403 − 128 decomposes a hundred
@@ -1860,10 +1860,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10 || s.counts.hundreds >= 10;
         if (hasOvercrowded) {
-          // Names the column and the one action: the button "קבץ 10" at the head of the column (מסמך 02).
+          // Names the column and the one action: the button "קבצו 10" at the head of the column (מסמך 02).
           const crowded = s.counts.units >= 10 ? 'היחידות' : s.counts.tens >= 10 ? 'העשרות' : 'המאות';
-          // The button says where the ten go (PlaceColumn: "קבץ 10 לעשרת / למאה / לאלף").
-          const groupButton = s.counts.units >= 10 ? 'קבץ 10 לעשרת' : s.counts.tens >= 10 ? 'קבץ 10 למאה' : 'קבץ 10 לאלף';
+          // The button says where the ten go (PlaceColumn: "קבצו 10 לעשרת / למאה / לאלף").
+          const groupButton = s.counts.units >= 10 ? 'קבצו 10 לעשרת' : s.counts.tens >= 10 ? 'קבצו 10 למאה' : 'קבצו 10 לאלף';
           handleFailure(
             'overcrowded_columns',
             'קַבְּצוּ 🧱',

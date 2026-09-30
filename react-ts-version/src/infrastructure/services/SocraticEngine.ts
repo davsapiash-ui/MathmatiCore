@@ -172,7 +172,7 @@ export const ABSENT_AIDS_MEETING_8_HE: RegExp[] = [
   WORD('פח'), // not "לפחות"
   WORD('מחסן'),
   WORD('לוח'), // not "לוחצים"
-  WORD('קבץ'), // the button "קבץ 10 לעשרת"
+  WORD('קבץ|קבצו'), // the button "קבצו 10 לעשרת"
   WORD('דינס'),
   /קובי/,
   /בית המספרים/,
@@ -428,7 +428,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-units",
     questionHe: "מה צריך להיות בטור היחידות בסוף התרגיל?",
     choices: [
-      { id: "opt_1", textHe: "פחות מ-10 לבנים", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על הכפתור "קבץ 10 לעשרת" שבראש הטור.' },
+      { id: "opt_1", textHe: "פחות מ-10 לבנים", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על הכפתור "קבצו 10 לעשרת" שבראש הטור.' },
       { id: "opt_2", textHe: "כל הלבנים שהיו בטור", isCorrect: false, feedbackHe: "רמז: כשיש 10 יחידות או יותר בטור, מקבצים כל 10 יחידות לעשרת אחת." },
       { id: "opt_3", textHe: "אף לבנה, הטור ריק", isCorrect: false, feedbackHe: "רמז: אחרי ההקבצה נשארות בטור היחידות רק הלבנים שלא נכנסו לעשרות." }
     ],
@@ -500,7 +500,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-units",
     questionHe: 'נסו לחשוב: נצברו עשר יחידות בטור. מה עושים איתן?',
     choices: [
-      { id: "opt_1", textHe: 'מקבצים 10 יחידות לעשרת אחת ומעבירים אותה שמאלה לטור העשרות', isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבץ 10" וצפו בעשרת הנודדת שמאלה.' },
+      { id: "opt_1", textHe: 'מקבצים 10 יחידות לעשרת אחת ומעבירים אותה שמאלה לטור העשרות', isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבצו 10" וצפו בעשרת הנודדת שמאלה.' },
       { id: "opt_2", textHe: 'משאירים את כולן בטור היחידות', isCorrect: false, feedbackHe: 'רמז: טור היחידות קטן וצפוף. הוא יכול להכיל רק ספרה אחת בין 0 ל-9.' },
       { id: "opt_3", textHe: 'מוחקים את היחידות המיותרות', isCorrect: false, feedbackHe: 'רמז: מומלץ לשמור על הלבנים. הכמות המתמטית נשמרת תמיד.' }
     ],
@@ -776,7 +776,7 @@ export class SocraticEngine {
             id: "opt_1", 
             textHe: "אוספים 10 יחידות מטור היחידות וממירים אותן לעשרת אחת בטור העשרות", 
             isCorrect: true, 
-            feedbackHe: 'תשובה נכונה! לחצו על הכפתור "קבץ 10" שבראש טור היחידות.'
+            feedbackHe: 'תשובה נכונה! לחצו על הכפתור "קבצו 10" שבראש טור היחידות.'
           },
           { 
             id: "opt_2", 
@@ -806,7 +806,7 @@ export class SocraticEngine {
             id: "opt_1", 
             textHe: "אוספים 10 עשרות ומקבצים אותן למאה אחת בטור המאות", 
             isCorrect: true, 
-            feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבץ 10" שבראש טור העשרות כדי להמיר למאה אחת.'
+            feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבצו 10" שבראש טור העשרות כדי להמיר למאה אחת.'
           },
           { 
             id: "opt_2", 
@@ -836,7 +836,7 @@ export class SocraticEngine {
             id: "opt_1", 
             textHe: "אוספים 10 מאות ומקבצים אותן לאלף אחד בטור האלפים", 
             isCorrect: true, 
-            feedbackHe: 'מצוין! לחצו על הכפתור "קבץ 10" שבראש טור המאות כדי לקבץ אותן לאלף אחד.'
+            feedbackHe: 'מצוין! לחצו על הכפתור "קבצו 10" שבראש טור המאות כדי לקבץ אותן לאלף אחד.'
           },
           { 
             id: "opt_2", 

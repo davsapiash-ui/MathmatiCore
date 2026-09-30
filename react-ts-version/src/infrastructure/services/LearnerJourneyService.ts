@@ -434,7 +434,7 @@ export const AI_FALLBACK_TEXT = 'הניתוח הפדגוגי המפורט אינ
 export const TOOL_LABELS_HE: ReadonlyArray<[string, string]> = [
   ['drag', 'גרירת לבנים ללוח'],
   ['decompose', 'פירוק לבנה (פריטה)'],
-  ['compose', 'הקבצה בכפתור "הקבץ"'],
+  ['compose', 'הקבצה בכפתור "קבצו 10"'],
   ['type', 'הקלדת ספרות'],
   ['undo', 'ביטול פעולה'],
   ['trash', 'פח האשפה'],

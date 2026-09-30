@@ -186,10 +186,10 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
               crowdingIsTheGoal ? '' : 'animate-pulse hover:animate-none'
             }`}
             style={{ backgroundColor: colors.header }}
-            title={`קבץ 10 לבנים ל${place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}`}
+            title={`קבצו 10 לבנים ל${place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}`}
           >
             <span>✨</span>
-            <span>קבץ 10 ל{place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}</span>
+            <span>קבצו 10 ל{place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}</span>
           </button>
         </motion.div>
       )}

@@ -22,140 +22,9 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
  * meeting 2. Tasks are reached by id (`at`), never by a hard-coded place.
  */
 
-/**
- * Grammar fix (owner, 27.9.2026): "לבנים" is feminine, so the refresh exercise
- * 713 + 94 says "כאשר מצטברות 10 לבנים בטור". The owner makes the same change in
- * מסמך 03 in Drive; until the Drive sync of 27.9.2026 evening the repository
- * copy still says "מצטברים", so the comparison applies this one substitution.
- * It is a no-op after the sync — delete it then.
- */
-const REGISTERED_SUBSTITUTIONS: ReadonlyArray<[RegExp, string]> = []; // the repository copy now equals Drive (27.9.2026)
-const DOC03 = REGISTERED_SUBSTITUTIONS.reduce(
-  (text, [from, to]) => text.replace(from, to),
-  readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מקור פדגוגי/03- אפיון מפורט לקראת פיתוח.md'), 'utf-8').replace(/\\!/g, '!')
-);
-/**
- * TEMPORARY — pending Drive sync of the meeting-1 order (27.9.2026).
- *
- * Register decision י changed the target task's on-screen instruction and the
- * third line of its checklist to the owner's wording. The owner puts the same
- * wording (and the new order) into מסמך 03 in Drive; the repository copy is
- * synced from Drive after this change. Until then these two texts cannot be
- * found in the repository copy, so they are compared with the owner's decision
- * instead. Once the copy is synced the allowance is a no-op.
- *
- * After the sync, remove: this constant, the helper `inDoc03OrPending` (use
- * `expect(DOC03, …).toContain(…)` again at its two call sites), and the test
- * "the texts waiting for the Drive sync are texts the software shows".
- */
-const PENDING_DOC03_SYNC_27_9: ReadonlySet<string> = new Set([
-  'משימת היעד: בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.',
-  'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה',
-]);
-/**
- * TEMPORARY — pending Drive sync (28.9.2026).
- *
- * One name per thing on the child's screen (owner, 28.9.2026): "לבנים", not
- * "לבני דינס"; "בית המספרים", not "הלוח"; a sentence names the button by the
- * words it shows, "קבץ 10" (not "כפתור הקבץ 10"). Each pair is [what the screen says
- * now, the words of the repository copy of מסמך 03 it replaces]. The owner's
- * script updates מסמך 03 in Drive; until the repository copy is synced, a
- * line counts as the document's if the copy holds the old words the pair
- * names. After the sync, remove this constant and its branch in
- * `inDoc03OrPending`; nothing else.
- */
-const PENDING_DOC03_SYNC_28_9: ReadonlyArray<readonly [string, string]> = [
-  ['נסו לבנות את המספר 305 בלבנים ושימו לב לתפקיד של הספרה אפס בבית המספרים הריק מעשרות.', 'נסו לבנות את המספר 305 בלבני דינס ושימו לב לתפקיד של הספרה אפס בבית המספרים הריק מעשרות.'],
-  ['נסו לבנות את המספר 305 בלבנים', 'נסו לבנות את המספר 305 בלבני דינס'],
-  ['אחר כך לחצו על פח האשפה כדי לנקות את בית המספרים.', 'אחר כך לחצו על פח האשפה כדי לנקות את הלוח.'],
-  ['בנו את המספר 347 בלבנים', 'בנו את המספר 347 בלבני דינס'],
-  [
-    'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת הכפתור "קבץ 10" שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.',
-    'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת כפתור הקבץ 10 שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.',
-  ],
-  [
-    'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבץ 10" שבראש הטור. כתבו את התשובה בשורת התוצאה.',
-    'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברות 10 לבנים בטור, לחצו על כפתור הקבץ 10 שבראש הטור. כתבו את התשובה בשורת התוצאה.',
-  ],
-  [
-    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בבית המספרים או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
-    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בלוח או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
-  ],
-  [
-    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בבית המספרים או גררו אותה לטור העשרות. כתבו את התשובה בשורת התוצאה.',
-    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בלוח או גררו אותה לטור העשרות. כתבו את התשובה בשורת התוצאה.',
-  ],
-];
-/**
- * TEMPORARY — pending the owner's update of מסמך 03 in Drive (29.9.2026).
- *
- * Station 1 must not hand the child the answer or the place of the difficulty
- * (owner, 29.9.2026: the column digits, the number 26, "שימו לב לטור העשרות",
- * the column named before the child finds it); a sentence names a button by
- * what it shows (↺; the grouping button is named by its place, "הכפתור שמופיע
- * בראש אותו טור", since its words change with the column); "פורטים", not
- * "מפרקים". Pairs as in PENDING_DOC03_SYNC_28_9: [screen now, the words of the
- * repository copy of מסמך 03 it replaces]. The owner updates מסמך 03 in Drive;
- * after the repository copy is synced, remove this constant and its branch.
- *
- * Later the same day (owner, 29.9.2026) 713 + 94, 61 − 24 and 806 − 351 gained
- * a sentence on the memory circle ("עיגול הזיכרון"); the first element of their
- * pairs is that newer screen text, the second is still the words the
- * repository copy holds.
- */
-const PENDING_DOC03_SYNC_29_9: ReadonlyArray<readonly [string, string]> = [
-  ['לחצו על לבנה כדי לפרוט אותה ללבנים קטנות יותר, ועקבו אחר השינוי בבית המספרים.', 'לחצו על לבנה כדי לפרק אותה לחלקים קטנים יותר ועקבו אחר השינוי בבית המספרים.'],
-  ['לחצו על לבנה כדי לפרוט אותה ללבנים קטנות יותר', 'לחצו על לבנה כדי לפרק אותה לחלקים קטנים יותר'],
-  ['נסו לבנות את המספר 305 בלבנים. כשתצליחו, הסתכלו בבית המספרים: איזו ספרה מופיעה ליד שם כל טור?', 'נסו לבנות את המספר 305 בלבנים ושימו לב לתפקיד של הספרה אפס בבית המספרים הריק מעשרות.'],
-  ['לחצו על כפתור ביטול פעולה ↺ כדי לחזור צעד אחד אחורה.', 'לחצו על כפתור ביטול פעולה כדי לחזור צעד אחד אחורה.'],
-  ['לחצו על כפתור ביטול פעולה ↺', 'לחצו על כפתור ביטול פעולה'],
-  [
-    'בטור היחידות יש לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת הכפתור "קבץ 10 לעשרת" שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.',
-    'בטור היחידות יש 26 לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת הכפתור "קבץ 10" שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.',
-  ],
-  [
-    'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר באחד הטורים מצטברות 10 לבנים, לחצו על הכפתור שמופיע בראש אותו טור, ורשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה. כתבו את התשובה בשורת התוצאה.',
-    'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבץ 10" שבראש הטור. כתבו את התשובה בשורת התוצאה.',
-  ],
-  [
-    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה לטור הסמוך. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. כתבו את התשובה בשורת התוצאה.',
-    'בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. כדי לפרוט עשרת ליחידות, לחצו על לבנת העשרת בבית המספרים או גררו אותה לטור היחידות. כתבו את התשובה בשורת התוצאה.',
-  ],
-  [
-    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה לטור הסמוך. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. כתבו את התשובה בשורת התוצאה.',
-    'בנו 806 והחסירו 351: גררו לפח האשפה את הלבנים שאתם מחסירים. שימו לב לטור העשרות. כדי לפרוט מאה לעשרות, לחצו על לבנת המאה בבית המספרים או גררו אותה לטור העשרות. כתבו את התשובה בשורת התוצאה.',
-  ],
-];
-/**
- * TEMPORARY — pending the owner's update of מסמך 03 in Drive (29.9.2026).
- *
- * Three refresh exercises were added to meeting 1 on 29.9.2026 (owner): 368, the
- * value of a digit (mirrors diagnostic task 2), 482 said in words (mirrors
- * task 4) and, later the same day, 703 said in words (mirrors task 1, a 0 in
- * the tens). They are new, so the repository copy of מסמך 03 has no older words
- * for them — their lines are listed here as they appear on screen. The owner
- * adds them to מסמך 03 in Drive; after the repository copy is synced, remove
- * this constant, its line in `inDoc03OrPending`, and the test "the new
- * exercises' lines waiting for the Drive sync are texts the software shows".
- */
-const PENDING_DOC03_NEW_29_9: ReadonlySet<string> = new Set([
-  'בנו בבית המספרים את המספר שבע מאות ושלוש, וכתבו אותו בספרות בשורת התוצאה.',
-  'בנו בבית המספרים את המספר 368. מה הערך של הספרה 6 במספר הזה? כתבו אותו בשורת התוצאה.',
-  'בנו בבית המספרים את המספר ארבע מאות שמונים ושתיים, וכתבו אותו בספרות בשורת התוצאה.',
-]);
-/** The line is in the repository copy of מסמך 03 — or is one of the texts waiting for its Drive sync. */
-const inDoc03OrPending = (line: string, where: string) => {
-  if (PENDING_DOC03_SYNC_27_9.has(line)) return;
-  // a new line: the copy does not hold it yet (not synced), or holds it (synced)
-  if (PENDING_DOC03_NEW_29_9.has(line)) return;
-  const pending28 = PENDING_DOC03_SYNC_28_9.find(([now]) => now === line) ?? PENDING_DOC03_SYNC_29_9.find(([now]) => now === line);
-  if (pending28) {
-    // the copy holds either the old words (not synced yet) or the new ones (synced)
-    expect([DOC03.includes(pending28[1]), DOC03.includes(line)], where).toContain(true);
-    return;
-  }
-  expect(DOC03, where).toContain(line);
-};
+/** The repository copy of מסמך 03, synced from the owner's Drive document (30.9.2026). Markdown escapes are undone. */
+const DOC03 = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מקור פדגוגי/03- אפיון מפורט לקראת פיתוח.md'), 'utf-8').replace(/\\([.!()])/g, '$1');
+const inDoc03 = (line: string, where: string) => expect(DOC03, where).toContain(line);
 const task = (id: string) => SESSION1_TASKS.find((t) => t.id === id)!;
 const diag = (id: string) => DIAGNOSTIC_TASKS.find((t) => t.id === id)!;
 /** A task's place in meeting 1. */
@@ -213,15 +82,15 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
   const lines = (t: SessionTask) => t.instructionHe.split('\n');
   for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash']) {
     it(id, () => {
-      for (const line of lines(task(id))) inDoc03OrPending(line, line);
+      for (const line of lines(task(id))) inDoc03(line, line);
     });
   }
 
   it('the refresh exercises and the target task say on screen what מסמך 03 §3.1 says, word for word', () => {
     // The owner added them to the document on 24.9.2026 (register ו); the
-    // value and words exercises of 29.9.2026 wait in PENDING_DOC03_NEW_29_9.
+    // value and words exercises of 29.9.2026 are in it since the sync of 30.9.2026.
     for (const id of ['s1_r_words703', 's1_r_value368', 's1_r_words482', 's1_target_347', 's1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806']) {
-      for (const line of lines(task(id))) inDoc03OrPending(line, `${id}: ${line}`);
+      for (const line of lines(task(id))) inDoc03(line, `${id}: ${line}`);
     }
   });
 
@@ -241,18 +110,8 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
     }
   });
 
-  it('the texts waiting for the Drive sync are texts the software shows (TEMPORARY — remove with PENDING_DOC03_SYNC_27_9)', () => {
-    const labels = session1Checklist('s1_target_347', { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false })!.map((i) => i.label);
-    for (const text of PENDING_DOC03_SYNC_27_9) expect([task('s1_target_347').instructionHe, ...labels]).toContain(text);
-  });
-
-  it('the new exercises\' lines waiting for the Drive sync are texts the software shows (TEMPORARY — remove with PENDING_DOC03_NEW_29_9)', () => {
-    const shown = ['s1_r_words703', 's1_r_value368', 's1_r_words482'].flatMap((id) => lines(task(id)));
-    expect([...PENDING_DOC03_NEW_29_9].sort()).toEqual([...shown].sort());
-  });
-
   it('the three memory-circle sentences of 29.9.2026 are on screen', () => {
-    expect(task('s1_t8').instructionHe).toContain('ורשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה.');
+    expect(task('s1_t8').instructionHe).toContain('רשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה החדשה.');
     for (const id of ['s1_r_sub61', 's1_r_sub806']) {
       expect(task(id).instructionHe, id).toContain('אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.');
     }
@@ -320,14 +179,14 @@ describe('what completes each introduction step', () => {
   it('every checklist label is the document\'s own wording', () => {
     const state = { ...base, counts: { ...EMPTY_COUNTS } };
     for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash', 's1_target_347']) {
-      for (const item of session1Checklist(id, state)!) inDoc03OrPending(item.label, item.label);
+      for (const item of session1Checklist(id, state)!) inDoc03(item.label, item.label);
     }
     const other305 = session1Checklist('s1_build_305', { ...state, counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })!;
     // The corrective second item is an action, not a phrase (owner, 25.9.2026:
     // on-screen texts say what the child actually has to do); it ends on the
     // document's own words.
     expect(other305[0].label).toBe('נסו לבנות את המספר 305 בלבנים');
-    inDoc03OrPending(other305[0].label, other305[0].label);
+    inDoc03(other305[0].label, other305[0].label);
     expect(other305[1].label).toBe('בנו את 305 כך שבכל טור יהיו פחות מ-10 לבנים');
   });
 
@@ -433,7 +292,7 @@ describe('the store gate follows the checklist', () => {
     store().proceed();
     const sub = store().feedback?.sub ?? '';
     expect(sub).toBe('באחד הטורים יש 10 לבנים או יותר. לחצו על הכפתור שמופיע בראש אותו טור.');
-    expect(sub).not.toMatch(/העשרות|היחידות|המאות|קבץ 10/);
+    expect(sub).not.toMatch(/העשרות|היחידות|המאות|קבצו? 10/);
   });
 
   it('the target task comes after the grouping exercise and opens on an empty board', () => {

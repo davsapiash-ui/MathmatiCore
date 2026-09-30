@@ -292,7 +292,7 @@ const boardValue = (c: BoardCounts) => LOW_TO_HIGH.reduce((sum, p) => sum + (c[p
  * numbers are there and grouped (board value = a + b, nothing to group — the
  * live card speaks while a column holds 10 or more), or the exercise's first
  * conversion column. The second card's advice is true in every board state:
- * the "הקבץ 10" button only appears once a column holds 10 blocks.
+ * the "קבצו 10" button only appears once a column holds 10 blocks.
  */
 function additionCard(a: number, b: number, blocks: boolean, counts?: BoardCounts): SocraticHintResponse {
   const ex = `${formatNumberHe(a)} + ${formatNumberHe(b)}`;
@@ -316,7 +316,7 @@ function additionCard(a: number, b: number, blocks: boolean, counts?: BoardCount
   const question = `${OPEN}בתרגיל ${ex}, ב${COLUMN[c]} מצטברות 10 ${PLURAL[c]} או יותר. מה עושים איתן?`;
   if (blocks) {
     return card(question, 'procedural', HL(c), [
-      [`מקבצים 10 ${PLURAL[c]} ל${ONE[n]} ומעבירים ${it} שמאלה ל${COLUMN[n]}`, `נכון מאוד! כשיש ב${COLUMN[c]} 10 לבנים או יותר, לחצו על הכפתור "קבץ 10" שבראש הטור.`],
+      [`מקבצים 10 ${PLURAL[c]} ל${ONE[n]} ומעבירים ${it} שמאלה ל${COLUMN[n]}`, `נכון מאוד! כשיש ב${COLUMN[c]} 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור.`],
       [`משאירים את כולן ב${COLUMN[c]}`, 'רמז: בסוף החיבור יש בכל טור 9 לבנים לכל היותר. 10 לבנים הופכות ללבנה אחת בטור שמשמאל.'],
       [`מוחקים את ה${PLURAL[c]} המיותרות`, 'רמז: מחיקת לבנים משנה את המספר. שומרים על כל הלבנים.'],
     ]);

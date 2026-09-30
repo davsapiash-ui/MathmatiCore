@@ -228,7 +228,7 @@ describe('(c) task 5 shows 25 unit blocks, a still picture, for every learner (r
       expect(grid.style.width).toContain('4 * clamp(14px');
       expect(pic.querySelectorAll('[data-testid="unit-block-still"]').length).toBe(25);
       expect(pic.querySelectorAll('button, [role="button"], [tabindex], [draggable="true"]').length).toBe(0);
-      expect(container.textContent).not.toContain('קבץ 10');
+      expect(container.textContent).not.toMatch(/קבצו? 10/);
       // owner, 29.9.2026: no number beside the picture or in its name — the child counts
       expect(container.textContent).not.toMatch(/25/);
       expect(pic.getAttribute('aria-label')).not.toMatch(/d/);
