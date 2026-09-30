@@ -274,6 +274,8 @@ interface WorkspaceState {
   // canonical VRA state machine (Module 29 / Appendix A §5)
   currentState: VRAWorkspaceState;
   activeColumnIndex: number; // 0: Ones, 1: Tens, 2: Hundreds
+  /** The teacher's projector board (ProjectorSandboxPage): it demonstrates, so the column digits always show. */
+  projectorBoard: boolean;
   isSocraticCardLocked: boolean;
   socraticLockDeadline: number | null;
   hesitationTimerSeconds: number;
@@ -2278,6 +2280,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // canonical VRA state machine (Module 29 / Appendix A §5)
     currentState: 'IDLE' as VRAWorkspaceState,
     activeColumnIndex: 0,
+    projectorBoard: false,
     isSocraticCardLocked: Boolean(initialDeadline && initialDeadline > Date.now()),
     socraticLockDeadline: initialDeadline,
     socraticPenaltyLockoutUntil: initialDeadline,

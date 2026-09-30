@@ -51,6 +51,12 @@ export function ProjectorSandboxPage() {
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
   );
 
+  // The projector demonstrates: its column digits always show (core/columnDigits.ts hides them in stations 3–7).
+  useEffect(() => {
+    useWorkspaceStore.setState({ projectorBoard: true });
+    return () => useWorkspaceStore.setState({ projectorBoard: false });
+  }, []);
+
   // אתחול סשן נקי ללוח בהתאם לטווח הנבחר
   useEffect(() => {
     const targetSession = selectedRange === '1000' ? 1 : 3;

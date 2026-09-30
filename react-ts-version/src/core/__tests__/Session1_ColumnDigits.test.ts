@@ -33,7 +33,9 @@ describe('station 1: where the column digits show', () => {
     }
   });
 
-  it('stations 3–7 are unchanged until each is decided', () => {
-    for (const n of [3, 4, 5, 6, 7]) expect(columnDigitsShown(n, 'any', c({ units: 7 }))).toBe(true);
+  it('stations 3–7 hide the digit for the whole exercise (owner, 29–30.9.2026)', () => {
+    for (const n of [3, 4, 5, 6, 7]) expect(columnDigitsShown(n, 'any', c({ units: 7 }))).toBe(false);
+    // a board outside a student station (the teacher's projector) keeps them
+    expect(columnDigitsShown(0, null, c({ units: 7 }))).toBe(true);
   });
 });

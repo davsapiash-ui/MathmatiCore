@@ -481,9 +481,12 @@ function missingDigitsCard(task: any, blocks: boolean): SocraticHintResponse {
  */
 export function whichNumberIsBuiltCard(): SocraticHintResponse {
   return card(`${OPEN}איך יודעים איזה מספר בנוי בבית המספרים?`, 'conceptual', 'tour-place-value-board', [
-    ['מסתכלים על הספרה שליד שם כל טור', 'נכון מאוד! כתבו כל ספרה בשורת התוצאה, בתיבה של הטור שלה.'],
-    ['סופרים את כל הלבנים יחד', 'רמז: לבנת מאה שווה יותר מלבנת יחידה. סופרים כל טור לחוד.'],
-    ['מנחשים מספר', 'רמז: אין צורך לנחש. בית המספרים עוזר לכם לבדוק.'],
+    // Stations 3–7 hide the digit beside the column name (core/columnDigits.ts,
+    // owner 29–30.9.2026): the child counts the blocks of each column. Wrong
+    // options get a guiding question, not an explanation (owner, 30.9.2026).
+    ['סופרים את הלבנים בכל טור לחוד', 'נכון מאוד! כמה לבנים יש בכל טור?'],
+    ['סופרים את כל הלבנים יחד', 'רמז: האם לבנת מאה ולבנת יחידה שוות אותו דבר?'],
+    ['מנחשים מספר', 'רמז: מה אפשר לספור בבית המספרים כדי לבדוק?'],
   ]);
 }
 

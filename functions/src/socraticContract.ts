@@ -648,6 +648,12 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   lines.push("");
   if (facts.blocks_on_screen) {
     lines.push("=== עמוד 2: המצב הייצוגי בבית המספרים (לבנים) ===");
+    // Stations 3–7 hide the digit beside each column name (client core/columnDigits.ts,
+    // owner 29–30.9.2026): the learner counts the blocks. The card must not point at a
+    // digit the screen does not show, nor count the blocks for them.
+    if (facts.meeting !== null && facts.meeting >= 3 && facts.meeting <= 7) {
+      lines.push("על המסך אין ספרה ליד שם הטור: הלומד סופר בעצמו את הלבנים בכל טור. אל תפנה לספרה כזאת, ואל תכתוב ללומד כמה לבנים יש בטור.");
+    }
     lines.push(`ערך כולל בבית המספרים: ${facts.board_value}.`);
     for (const c of [...facts.columns].reverse()) lines.push(fmtColumnFact(c, facts));
     if (req.workspace_state.is_regrouped_in_canvas !== undefined) {

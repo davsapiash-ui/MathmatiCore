@@ -56,7 +56,7 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
     return t.isSubtraction === true || t.type === 'flexible_decomp' || (req[place] ?? 0) >= 10;
   });
   const digitShown = useWorkspaceStore((s) =>
-    columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)
+    s.projectorBoard || columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)
   );
   // PRD Module 7 §א: columns outside the current calculation focus are dimmed
   // to brightness 0.6 (core/columnFocus.ts: the owner's rules of 28.9.2026).
