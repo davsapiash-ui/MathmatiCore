@@ -63,8 +63,10 @@ const digitOf = (n: number, p: Place): string => {
  * with and the existing ladder handles: a digit one away from the right one (a
  * forgotten or extra carry or borrow, or one block counted wrong: 3,783
  * answered 3,773, 435 answered 445), and, in subtraction, the smaller digit
- * taken from the larger (53 − 18 answered 45). A 0 in a box to the left of the
- * answer (the thousands box over 917) is right.
+ * taken from the larger (53 − 18 answered 45). One away is plain, not around
+ * the clock: 9 is not next to 0 (907 written 97 left out a zero). In a box to
+ * the left of the answer (the thousands box over 917) a 0 is right, and only a
+ * 1 is a slip — the borrow that was never taken from it.
  */
 export function isPlaceError(
   typed: Partial<Record<Place, string>>,
@@ -86,8 +88,11 @@ export function isPlaceError(
     const d = wrote(p);
     if (d === '' || d === right[p]) return false;
     const dv = Number(d);
-    const rv = right[p] === '' ? 0 : Number(right[p]);
-    if ((dv - rv + 10) % 10 === 1 || (rv - dv + 10) % 10 === 1) return false;
+    if (right[p] === '') {
+      if (d === '1') return false;
+    } else if (Math.abs(dv - Number(right[p])) === 1) {
+      return false;
+    }
     if (exercise?.isSubtraction && dv === Math.abs(digitAt(exercise.a, p) - digitAt(exercise.b, p))) return false;
     return PLACES.some((q) => q !== p && right[q] !== '' && right[q] === d);
   });

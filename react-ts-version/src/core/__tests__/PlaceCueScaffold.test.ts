@@ -95,6 +95,12 @@ describe('a digit in the wrong place', () => {
     expect(isPlaceError({ thousands: '1', hundreds: '9', tens: '2', units: '7' }, 917, ex)).toBe(false); // 1,927
     expect(isPlaceError({ thousands: '1', hundreds: '1', tens: '2', units: '3' }, 917, ex)).toBe(false); // 1,123: smaller from larger
   });
+  it('9 is not next to 0, and in a box to the left of the answer only a 1 is a slip', () => {
+    const ex = { a: 2045, b: 1128, isSubtraction: true };
+    expect(isPlaceError({ thousands: '9', hundreds: '9', tens: '1', units: '7' }, 917, ex)).toBe(true);
+    expect(isPlaceError({ thousands: '1', hundreds: '9', tens: '1', units: '7' }, 917, ex)).toBe(false); // the borrow never taken
+    expect(isPlaceError({ tens: '9', units: '7' }, 907)).toBe(true); // a left-out zero
+  });
   it('the right answer is not an error, an empty box is not a digit, and a 0 left of the answer is right', () => {
     expect(isPlaceError({ thousands: '1', hundreds: '5', tens: '7', units: '3' }, 1573)).toBe(false);
     expect(isPlaceError({ hundreds: '9', tens: '1', units: '7' }, 917)).toBe(false);
@@ -169,6 +175,28 @@ describe('the scaffold in a station-4 exercise', () => {
     expect(useWorkspaceStore.getState().placeCuesShown).toBe(true);
   });
 
+  it('one help per press: the press that brings the cues does not open the coaching card; the next wrong answer does', () => {
+    const t = task();
+    const target = (t.numberA ?? 0) + (t.numberB ?? 0);
+    const places = ['thousands', 'hundreds', 'tens', 'units'] as const;
+    const pv = { thousands: 1000, hundreds: 100, tens: 10, units: 1 };
+    const digits = Object.fromEntries(places.map((p) => [p, target >= pv[p] || p === 'units' ? String(Math.floor(target / pv[p]) % 10) : ''])) as Record<string, string>;
+    useWorkspaceStore.setState({ counts: Object.fromEntries(places.map((p) => [p, Number(digits[p] || 0)])) } as any);
+    const slip = { ...digits, units: String((Number(digits.units) + 1) % 10) };
+    const swapped = { ...digits, tens: digits.units, units: digits.tens };
+    typeAnswer(slip);
+    useWorkspaceStore.getState().proceed(); // first wrong answer: no card, no cues
+    expect(useWorkspaceStore.getState().helpState).toBe('closed');
+    typeAnswer(swapped);
+    useWorkspaceStore.getState().proceed(); // second wrong answer: the cues, and no card on this press
+    expect(useWorkspaceStore.getState().placeCuesShown).toBe(true);
+    expect(useWorkspaceStore.getState().wrongAnswerStreak).toBe(2);
+    expect(useWorkspaceStore.getState().helpState).toBe('closed');
+    typeAnswer(slip);
+    useWorkspaceStore.getState().proceed(); // third wrong answer: the card
+    expect(useWorkspaceStore.getState().helpState).toBe('friction');
+  });
+
   it('the next exercise starts without it', () => {
     useWorkspaceStore.setState({ placeCuesShown: true } as any);
     useWorkspaceStore.getState().initSession(4, false, 1);
@@ -210,10 +238,25 @@ describe('2,045 − 1,128 = 917 in a four-box row (station 6)', () => {
     expect(useWorkspaceStore.getState().placeCuesShown).toBe(true);
   });
 
+  it('a lone 0 in the thousands box is no answer, not a wrong one (register 17)', () => {
+    goTo(6, 's6_g_t1', 'green_path');
+    expect(proceedWith({ thousands: '0' })).toBe(false);
+    expect(useWorkspaceStore.getState().wrongAnswerStreak).toBe(0);
+    expect(useWorkspaceStore.getState().feedback?.sub).toBe('כתבו את התשובה בשורת התוצאה כדי להמשיך.');
+  });
+
   it('917 in its own boxes is accepted, with the thousands box empty or 0', () => {
     goTo(6, 's6_g_t1', 'green_path');
     expect(proceedWith({ hundreds: '9', tens: '1', units: '7' })).toBe(true);
     goTo(6, 's6_g_t1', 'green_path');
     expect(proceedWith({ thousands: '0', hundreds: '9', tens: '1', units: '7' })).toBe(true);
+  });
+
+  it('a skeleton whose one open box is empty is no answer either: its revealed digits are the exercise’s', () => {
+    goTo(4, 's4_r_t7', 'remediation_path'); // 328 + 145 = 473, the tens box open
+    useWorkspaceStore.setState({ counts: { units: 3, tens: 7, hundreds: 4, thousands: 0 }, answerDigits: {}, feedback: null, awaitingNext: false } as any);
+    useWorkspaceStore.getState().proceed();
+    expect(useWorkspaceStore.getState().wrongAnswerStreak).toBe(0);
+    expect(useWorkspaceStore.getState().feedback?.sub).toBe('כתבו את התשובה בשורת התוצאה כדי להמשיך.');
   });
 });

@@ -302,6 +302,11 @@ export function buildTelemetrySummary(telemetryDocs: Record<string, any>[]): Rep
         details[key] = value;
       }
     }
+    // `profile` is PLACE_CUES_SHOWN's enum (register deviation 28) and nothing
+    // else: any other value, or the key on another event, does not reach the engine.
+    if (!(doc?.event_type === "PLACE_CUES_SHOWN" && (details.profile === "regular" || details.profile === "enhanced"))) {
+      delete details.profile;
+    }
     const event: ReportTelemetryEvent = {
       event_type: String(doc?.event_type || "UNKNOWN"),
       exercise_id: String(doc?.exercise_id || ""),

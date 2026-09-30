@@ -1678,7 +1678,7 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         undo_stack_depth_before: d.undo_stack_depth_before ?? "",
         reverted_event_type: d.reverted_event_type ?? "",
         // PLACE_CUES_SHOWN (register deviation 28): regular or enhanced — an enum value.
-        profile: d.profile ?? "",
+        profile: data.event_type === "PLACE_CUES_SHOWN" && (d.profile === "regular" || d.profile === "enhanced") ? d.profile : "",
         // details_json used to carry the whole untyped details object. Every
         // field the research needs is a typed column above; a free-text field
         // a client parked in details went straight into the dataset.

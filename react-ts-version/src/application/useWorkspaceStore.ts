@@ -16,6 +16,7 @@ import {
   splitBlockClick,
   groupBlocksManually,
   PLACE_ORDER,
+  PLACE_VALUES,
   type DropInput,
   type Place,
   type PlaceCounts,
@@ -46,7 +47,7 @@ import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
 import { getSessionTasks, SESSION1_TASKS, type SessionTask, type LearningPath } from '@/data/sessionTasks';
 import { boardStaysOpen } from '@/core/boardVisibility';
-import { isPlaceError } from '@/core/placeCues';
+import { isPlaceError, resultBoxCount } from '@/core/placeCues';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -1721,7 +1722,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const task = tasks[s.standardTaskIdx];
     if (!task) return;
 
-    const handleFailure = (detail: string, feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
+    const handleFailure = (
+      detail: string,
+      feedbackTitle: string,
+      feedbackSub: string,
+      feedbackMs: number,
+      opts: { holdCard?: boolean } = {}
+    ) => {
       // Register 17 / PRD Module 12 §ב: an empty answer or an unanswered
       // question is not a wrong answer — not for the card on the second wrong
       // answer, and not for the card on the fourth wrong attempt either.
@@ -1758,7 +1765,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (!incomplete) {
           const streak = (s.wrongAnswerTaskId === task.id ? s.wrongAnswerStreak : 0) + 1;
           set({ wrongAnswerStreak: streak, wrongAnswerTaskId: task.id });
-          if (streak >= 2) {
+          // `holdCard`: the press already brought another help (the result
+          // row's place cues) — the streak still counts, and the card opens on
+          // the next wrong answer.
+          if (streak >= 2 && !opts.holdCard) {
             set({ helpState: 'friction', frictionTriggerSource: 'mistake' });
           }
         }
@@ -1929,9 +1939,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
 
       const typedDigits = effectiveAnswerDigits(s, task, target);
-      const hasTypedDigits = Object.keys(typedDigits).some(
-        (k) => typedDigits[k as Place] !== undefined && typedDigits[k as Place] !== ''
+      // Register 17: an empty answer is not a wrong answer. Only the boxes the
+      // child types in count — a skeleton's revealed digits are the exercise's —
+      // and a 0 in a box to the left of the answer (the thousands box over 917,
+      // stations 3–7) is no answer either. A row with no box to type in (every
+      // result digit revealed, the missing digits in the numbers) is complete.
+      const openPlaces = PLACE_ORDER.slice(0, resultBoxCount(s.sessionNumber, opA, opB, target)).filter(
+        (p) => !task.revealedResultDigits?.includes(p)
       );
+      const hasTypedDigits =
+        openPlaces.length === 0 ||
+        openPlaces.some((p) => {
+          const d = s.answerDigits[p];
+          if (d === undefined || d === '') return false;
+          return !(d === '0' && p !== 'units' && Math.abs(target) < PLACE_VALUES[p]);
+        });
 
       if (!hasTypedDigits) {
         handleFailure(
@@ -1951,6 +1973,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           // Stations 3–7 (owner, 30.9.2026): a digit in the wrong place turns on
           // the result row's place cues until the end of the exercise; the line
           // that explains them stays in the task card (VerticalAdditionTask).
+          // One help per press (owner, 30.9.2026): the press that brings the
+          // cues does not also open the coaching card — the card waits for the
+          // next wrong answer.
+          let cuesJustShown = false;
           if (
             s.sessionNumber >= 3 &&
             s.sessionNumber <= 7 &&
@@ -1959,12 +1985,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           ) {
             set({ placeCuesShown: true });
             emitScaffoldEvent(get(), 'PLACE_CUES_SHOWN', { profile: s.activeSupportProfileId === 'enhanced_cognitive_support' ? 'enhanced' : 'regular' });
+            cuesJustShown = true;
           }
           handleFailure(
             'wrong_numeric',
             'כִּמְעַט... 🧐',
             'התשובה שכתבתם לא מתאימה ללבנים בבית המספרים. בדקו שוב!',
-            2800
+            2800,
+            { holdCard: cuesJustShown }
           );
         }
         return;
