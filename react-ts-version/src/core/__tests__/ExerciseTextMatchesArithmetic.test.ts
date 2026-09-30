@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SESSIONS_BY_PATH, type SessionTask, type LearningPath } from '@/data/sessionTasks';
 import { SESSION_BRANCH_TASKS } from '@/data/sessionBranchTasks';
-import { borrowCount, borrowColumns } from '@/data/taskBuilders';
+import { borrowCount } from '@/data/taskBuilders';
 import { PLACE_ORDER, digitAt, type Place } from '@/core/placeValue';
 
 /**
@@ -98,7 +98,7 @@ describe('הטקסט מבטיח את מספר ההמרות שהתרגיל באמ
 
     const offenders = guided
       .filter((t) => regroupCount(t) > 0)
-      .filter((t) => !/פרקו|פרטו|הקבצ|פריט|המרה|המרות/.test(text(t)))
+      .filter((t) => !/פרקו|פרטו|לפרוט|פרטתם|הקבצ|פריט|המרה|המרות/.test(text(t)))
       .map((t) => t.id);
     expect(offenders).toEqual([]);
   });
@@ -152,12 +152,10 @@ describe('שם הטור בכותרת תואם את הטור שבו יש חוסר
   });
 });
 
-describe('מפגש 5 — ההנחיה אומרת בדיוק אילו לבנים פורטים', () => {
-  // ההנחיה הקודמת אמרה בכל תרגיל "פרקו עשרת אחת ליחידות (או מאה לעשרות)",
-  // גם כשהתרגיל דורש פריטת אלף (8,762 − 4,932) או שתיים-שלוש פריטות
-  // (523 − 187; 7,214 − 3,568). מסמך 02: "פרקו עשרת אחת ליחידות בלחיצה עליה",
-  // "בדקו את הכמויות החדשות בלוח בית המספרים" — on screen "בבית המספרים"
-  // (the board has one name: owner, 27.9.2026, register ט).
+describe('מפגש 5 — ההנחיה אינה אומרת מראש אילו לבנים פורטים (בעל המוצר, 30.9.2026)', () => {
+  // Until 30.9.2026 the instruction named the blocks to break. Since then it
+  // carries the station-1 borrowing sentence and the child finds the column that
+  // lacks blocks; WHAT stays to prove no instruction brings the old wording back.
   const WHAT: Record<Place, string> = {
     units: 'עשרת אחת ליחידות',
     tens: 'מאה אחת לעשרות',
@@ -175,20 +173,12 @@ describe('מפגש 5 — ההנחיה אומרת בדיוק אילו לבנים 
     expect(session5).toHaveLength(18);
   });
 
-  it('כל פריטה שהחשבון דורש נאמרת, לפי הסדר מימין לשמאל, ואין אחרות', () => {
-    const offenders: string[] = [];
-    for (const t of session5) {
-      const need = borrowColumns(t.numberA!, t.numberB!).map((p) => WHAT[p]);
-      const said = Object.values(WHAT)
-        .filter(Boolean)
-        .map((w) => ({ w, at: (t.instructionHe ?? '').indexOf(w) }))
-        .filter((x) => x.at >= 0)
-        .sort((x, y) => x.at - y.at)
-        .map((x) => x.w);
-      if (JSON.stringify(said) !== JSON.stringify(need)) {
-        offenders.push(`${t.id}: צריך [${need.join(', ')}], כתוב [${said.join(', ')}]`);
-      }
-    }
+  // Owner, 30.9.2026: the instruction no longer says in advance where to borrow —
+  // the child finds the column that lacks blocks; the coaching card helps on need.
+  it('ההנחיה אינה אומרת מראש איפה פורטים (בעל המוצר, 30.9.2026)', () => {
+    const offenders = session5
+      .filter((t) => Object.values(WHAT).filter(Boolean).some((w) => (t.instructionHe ?? '').includes(w)))
+      .map((t) => t.id);
     expect(offenders).toEqual([]);
   });
 
@@ -196,11 +186,8 @@ describe('מפגש 5 — ההנחיה אומרת בדיוק אילו לבנים 
     expect(session5.filter((t) => /או מאה לעשרות/.test(t.instructionHe ?? '')).map((t) => t.id)).toEqual([]);
   });
 
-  it('כל תרגיל עם פריטה אומר "בדקו את הכמויות החדשות בבית המספרים" (הכרעת בעל המוצר)', () => {
-    const offenders = session5
-      .filter((t) => borrowColumns(t.numberA!, t.numberB!).length > 0)
-      .filter((t) => !(t.instructionHe ?? '').includes('בדקו את הכמויות החדשות בבית המספרים'))
-      .map((t) => t.id);
+  it('כל תרגיל אומר את משפט הפריטה של תחנה 1: "אם בטור אין מספיק לבנים…" (בעל המוצר, 30.9.2026)', () => {
+    const offenders = session5.filter((t) => !(t.instructionHe ?? '').includes('בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.')).map((t) => t.id);
     expect(offenders).toEqual([]);
   });
 
@@ -208,22 +195,13 @@ describe('מפגש 5 — ההנחיה אומרת בדיוק אילו לבנים 
   it('הנוסחים המלאים של התרגילים שהביקורת הצביעה עליהם', () => {
     const byId = (id: string) => session5.find((t) => t.id === id)!.instructionHe;
     expect(byId('s5_r_t2')).toBe(
-      'פתרו במאונך: 53 − 18. בנו את המחוסר בבית המספרים. פרטו עשרת אחת ליחידות בלחיצה עליה ובדקו את הכמויות החדשות בבית המספרים. החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.'
-    );
-    expect(byId('s5_r_t4')).toBe(
-      'פתרו במאונך: 345 − 182. בנו את המחוסר בבית המספרים. פרטו מאה אחת לעשרות בלחיצה עליה ובדקו את הכמויות החדשות בבית המספרים. החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.'
+      'פתרו במאונך: 53 − 18. בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.'
     );
     expect(byId('s5_g_t4')).toBe(
-      'פתרו במאונך: 8,762 − 4,932. בנו את המחוסר בבית המספרים. פרטו אלף אחד למאות בלחיצה עליו ובדקו את הכמויות החדשות בבית המספרים. החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.'
-    );
-    expect(byId('s5_r_challenge_1')).toBe(
-      'פתרו במאונך: 523 − 187. בנו את המחוסר בבית המספרים. פרטו עשרת אחת ליחידות, ואחר כך מאה אחת לעשרות, בלחיצה על כל לבנה, ובדקו את הכמויות החדשות בבית המספרים. החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.'
-    );
-    expect(byId('s5_g_challenge_1')).toBe(
-      'פתרו במאונך: 7,214 − 3,568. בנו את המחוסר בבית המספרים. פרטו עשרת אחת ליחידות, אחר כך מאה אחת לעשרות, ואחר כך אלף אחד למאות, בלחיצה על כל לבנה, ובדקו את הכמויות החדשות בבית המספרים. החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.'
+      'פתרו במאונך: 8,762 − 4,932. בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.'
     );
     expect(byId('s5_r_t1')).toBe(
-      'פתרו במאונך: 78 − 25. בנו את המחוסר בבית המספרים. החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.'
+      'פתרו במאונך: 78 − 25. בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.'
     );
   });
 });

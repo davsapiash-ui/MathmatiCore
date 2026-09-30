@@ -63,20 +63,20 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
   4: {
     remediation_path: {
       reinforcement: [
-        addition('s4_r_reinforce_1', 236, 41, 'ביסוס 1: חיבור ללא המרה', S4_ADD('236 + 41', false), R),
-        addition('s4_r_reinforce_2', 165, 27, 'ביסוס 2: המרה אחת בטור היחידות', S4_ADD('165 + 27', true), R),
+        addition('s4_r_reinforce_1', 236, 41, 'ביסוס 1: חיבור ללא המרה', S4_ADD('236 + 41'), R),
+        addition('s4_r_reinforce_2', 165, 27, 'ביסוס 2: המרה אחת בטור היחידות', S4_ADD('165 + 27'), R),
       ],
       challenge: [
-        addition('s4_r_challenge_1', 278, 156, 'אתגר: שתי המרות עוקבות', S4_ADD('278 + 156', true), C),
+        addition('s4_r_challenge_1', 278, 156, 'אתגר: שתי המרות עוקבות', S4_ADD('278 + 156'), C),
       ],
     },
     green_path: {
       reinforcement: [
-        addition('s4_g_reinforce_1', 2341, 125, 'ביסוס 1: חיבור ללא המרה', S4_ADD('2,341 + 125', false), R),
-        addition('s4_g_reinforce_2', 3528, 164, 'ביסוס 2: המרה אחת בטור היחידות', S4_ADD('3,528 + 164', true), R),
+        addition('s4_g_reinforce_1', 2341, 125, 'ביסוס 1: חיבור ללא המרה', S4_ADD('2,341 + 125'), R),
+        addition('s4_g_reinforce_2', 3528, 164, 'ביסוס 2: המרה אחת בטור היחידות', S4_ADD('3,528 + 164'), R),
       ],
       challenge: [
-        addition('s4_g_challenge_1', 4687, 2459, 'אתגר: שלוש המרות רצופות', S4_ADD('4,687 + 2,459', true), C),
+        addition('s4_g_challenge_1', 4687, 2459, 'אתגר: שלוש המרות רצופות', S4_ADD('4,687 + 2,459'), C),
       ],
     },
   },
@@ -160,7 +160,7 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       challenge: [
         skeleton('s7_g_challenge_1', 8003, 2587, true, { a: ['thousands', 'hundreds', 'tens', 'units'] },
           'אתגר: תרגיל שלד בתחום הרבבה עם ארבע ספרות חסרות',
-          'בתרגיל ▢,▢▢▢ − 2,587 = 5,416 חסרות ארבע ספרות של המחוסר. הפתרון דורש שרשרת פריטות עוקבות. גלו את הספרות בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
+          'בתרגיל ▢,▢▢▢ − 2,587 = 5,416 חסרות ארבע ספרות של המחוסר. גלו את הספרות בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
           { ...C, targetNode: 'relational_thinking' }),
       ],
     },

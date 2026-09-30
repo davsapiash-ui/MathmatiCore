@@ -1,5 +1,5 @@
 /**
- * The owner's decisions of 28.9.2026 (register: שהC.1 option א, שהC.2,
+ * The owner's decisions of 28.9.2026 (register: שהC.1 option א,
  * שהB.2, שהB.4), and the "four errors" count as מסמך 03 writes it: "ארבע
  * מחיקות או הקלדות שגויות רצופות באותו טור" (שהB.3 — deletions count nothing —
  * departs from that wording and is not applied). Each clause of each rule has
@@ -182,16 +182,27 @@ describe('Rule 1 — skeleton exercises of meetings 3–7 accept the result or t
   });
 });
 
-/* ── RULE 2 — meeting 6 reinforcement text (שהC.2) ───────────────────────── */
+/* ── RULE 2 — meetings 5–6 subtraction text (owner, 30.9.2026) ───────────────────────── */
 
-describe('Rule 2 — meeting 6 reinforcement asks the child to check each column', () => {
-  const NEW = 'בנו את המחוסר בבית המספרים. בדקו בכל טור אם יש בו מספיק לבנים כדי להחסיר.';
-  it('the four no-borrow reinforcement exercises carry the new sentence, and nothing else does', () => {
-    const withNew = allTasks().filter((t) => (t.instructionHe ?? '').includes(NEW)).map((t) => t.id);
-    expect([...new Set(withNew)].sort()).toEqual(['s6_g_reinforce_1', 's6_g_reinforce_2', 's6_r_reinforce_1', 's6_r_reinforce_2']);
-    expect(allTasks().some((t) => (t.instructionHe ?? '').includes('אין כאן צורך בפריטה'))).toBe(false);
+describe('Rule 2 — meetings 5–6 ask the child to check each column (owner 28.9.2026; wording 30.9.2026)', () => {
+  // 28.9.2026: the instruction does not decide for the child that nothing needs
+  // borrowing. 30.9.2026: it does not say where or how many times either — every
+  // subtraction of meetings 5–6 carries the station-1 sentence.
+  const NEW = 'בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.';
+  it('every subtraction of meetings 5–6 carries it; none says in advance how many times to borrow', () => {
+    const subs = allTasks().filter((t) => /^s[56]_/.test(t.id) && t.isSubtraction && !t.hiddenDigits && !t.revealedResultDigits?.length);
+    expect(subs.length).toBe(36);
+    expect(subs.filter((t) => !(t.instructionHe ?? '').includes(NEW)).map((t) => t.id)).toEqual([]);
+    expect(allTasks().some((t) => /אין כאן צורך בפריטה|כאן דרושה פריטה|הפריטה הכפולה בלבנים|הפריטה המשולשת בלבנים|פרטו פעמיים|פרטו שלוש פעמים|פרטו פעם אחת/.test(t.instructionHe ?? ''))).toBe(false);
   });
-  it('the rest of the instruction is unchanged', () => {
+  it('no instruction of stations 5–7 names the borrow in advance or states a fictional student\'s error', () => {
+    const offenders = allTasks()
+      .filter((t) => /^s[567]_/.test(t.id))
+      .filter((t) => /נדרשת המרה|עובר מעל|שרשרת פריטות|שכח|בדקו את הכמויות|פרקו עשרת אחת|פרטו עשרת אחת/.test(t.instructionHe ?? ''))
+      .map((t) => t.id);
+    expect(offenders).toEqual([]);
+  });
+  it('the reinforcement exercise reads in full', () => {
     expect(byId('s6_r_reinforce_1').instructionHe).toBe(
       `פתרו חיסור עם אפסים: 305 − 102. ${NEW} החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`
     );

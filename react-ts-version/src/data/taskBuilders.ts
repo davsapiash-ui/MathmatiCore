@@ -112,45 +112,32 @@ export function flexible(id: string, value: number, titleHe: string, instruction
   return withOpts(task, opts);
 }
 
-/* ── Shared instruction phrases (מסמך 02/03 on-screen wording) ── */
+/* ── Shared instruction phrases (on-screen wording; stations 5–6 subtraction: the owner’s wording of 30.9.2026) ── */
 
 export const S3_STANDARD = (n: string, desc: string) =>
   `גררו לבנים לייצוג המספר ${n} בדרך הרגילה: ${desc}. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!`;
 export const S3_NONSTANDARD = (what: string, n: string, desc: string) =>
   `פרקו ${what} ונסו לייצג את המספר ${n} בדרך החדשה: ${desc}. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!`;
-export const S4_ADD = (ex: string, regroup: boolean) =>
-  `פתרו במאונך: ${ex}. ייצגו את המספרים בעזרת לבנים.${regroup ? ' כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור. רשמו את ההמרה בעיגול הזיכרון.' : ''} רשמו את התוצאה בשורת התוצאה.`;
 /**
- * הנחיית מפגש 5 אומרת בדיוק אילו פריטות התרגיל דורש, טור אחר טור.
- *
- * הנוסח הקודם היה אחד לכל התרגילים: "פרקו עשרת אחת ליחידות (או מאה לעשרות)",
- * גם ב-8,762 − 4,932 (פריטת אלף למאות בלבד), ב-523 − 187 (שתי פריטות) וב-7,214
- * − 3,568 (שלוש). הבסיס נשאר הנוסח של מסמך 02 ("פרקו עשרת אחת ליחידות בלחיצה
- * עליה", "בדקו את הכמויות החדשות בלוח בית המספרים"); רק הלבנה שפורטים משתנה
- * לפי החשבון. הסדר הוא סדר העבודה במאונך — מימין לשמאל.
- *
- * בעל המוצר, 28.9.2026: בחיסור הפעולה נקראת "פריטה", ולכן "פרטו" ולא "פרקו"
- * (מסמך 02 כותב "פרקו"; רק הנוסח שעל המסך שונה), ו"בית המספרים" ולא "הלוח".
+ * Station 4 (owner, 30.9.2026): every exercise names the "קבצו 10" button — its
+ * absence told the child in advance that nothing needs grouping. "כאשר" governs
+ * both actions, so an exercise without grouping asks for nothing it lacks.
  */
-const S5_DECOMPOSE: Record<Place, string> = {
-  units: 'עשרת אחת ליחידות',
-  tens: 'מאה אחת לעשרות',
-  hundreds: 'אלף אחד למאות',
-  thousands: '',
-};
+export const S4_ADD = (ex: string) =>
+  `פתרו במאונך: ${ex}. ייצגו את המספרים בעזרת לבנים. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. רשמו את התוצאה בשורת התוצאה.`;
+/**
+ * Stations 5–6 (owner, 30.9.2026): the instruction no longer says in advance
+ * where or how many times to borrow — the child finds the column that lacks
+ * blocks, and the coaching card helps on need. The wording is the one the owner
+ * approved for station 1 (61 − 24, 806 − 351); it names click and drag, and
+ * the memory circles. (Until 30.9.2026 station 5 said "פרטו עשרת אחת ליחידות…"
+ * and station 6 "כאן דרושה פריטה כפולה: פרטו פעמיים…".)
+ */
+const BORROW_WHEN_NEEDED =
+  ' בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.';
 
-export function S5_SUB(ex: string, a: number, b: number): string {
-  const steps = borrowColumns(a, b).map((p) => S5_DECOMPOSE[p]);
-  let phrase = '';
-  if (steps.length === 1) {
-    const onIt = steps[0] === S5_DECOMPOSE.hundreds ? 'עליו' : 'עליה';
-    phrase = ` פרטו ${steps[0]} בלחיצה ${onIt} ובדקו את הכמויות החדשות בבית המספרים.`;
-  } else if (steps.length === 2) {
-    phrase = ` פרטו ${steps[0]}, ואחר כך ${steps[1]}, בלחיצה על כל לבנה, ובדקו את הכמויות החדשות בבית המספרים.`;
-  } else if (steps.length === 3) {
-    phrase = ` פרטו ${steps[0]}, אחר כך ${steps[1]}, ואחר כך ${steps[2]}, בלחיצה על כל לבנה, ובדקו את הכמויות החדשות בבית המספרים.`;
-  }
-  return `פתרו במאונך: ${ex}. בנו את המחוסר בבית המספרים.${phrase} החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
+export function S5_SUB(ex: string, _a?: number, _b?: number): string {
+  return `פתרו במאונך: ${ex}.${BORROW_WHEN_NEEDED} החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
 }
 
 /**
@@ -173,8 +160,8 @@ export function borrowColumns(a: number, b: number): Place[] {
 }
 
 /**
- * מספר הפריטות שהתרגיל דורש בפועל, טור אחר טור, כולל שרשור.
- * זה מה שקובע את נוסח ההנחיה: ההנחיה הקודמת אמרה "צפו בשינוי בפריטה הכפולה"
+ * מספר הפריטות שהתרגיל דורש בפועל, טור אחר טור, כולל שרשור (הבדיקות
+ * משוות אותו לכותרות התרגילים). עד 28.9.2026 ההנחיה אמרה "צפו בשינוי בפריטה הכפולה"
  * בכל 20 תרגילי מפגש 6 — גם בארבעה שאינם דורשים פריטה כלל (למשל 305 − 102),
  * בשלושה שדורשים פריטה אחת, ובשבעה שדורשים שלוש. ילד שקיבל את 305 − 102 הונחה
  * לפרוט פעמיים במקום שאין בו מה לפרוט.
@@ -183,18 +170,8 @@ export function borrowCount(a: number, b: number): number {
   return borrowColumns(a, b).length;
 }
 
-const S6_BORROW_PHRASE: Record<number, string> = {
-  // Owner's decision 28.9.2026 (register, שהC.2): the child checks each
-  // column; the instruction no longer decides for them that nothing needs
-  // decomposing. Used only by s6_r_reinforce_1/2 and s6_g_reinforce_1/2.
-  0: ' בנו את המחוסר בבית המספרים. בדקו בכל טור אם יש בו מספיק לבנים כדי להחסיר.',
-  1: ' פרטו פעם אחת ובדקו את הכמויות בבית המספרים.',
-  2: ' כאן דרושה פריטה כפולה: פרטו פעמיים, זו אחרי זו, ובדקו את הכמויות בבית המספרים.',
-  3: ' כאן דרושה פריטה משולשת: פרטו שלוש פעמים, זו אחרי זו, ובדקו את הכמויות בבית המספרים.',
-};
-
-export const S6_SUB = (ex: string, a: number, b: number) =>
-  `פתרו חיסור עם אפסים: ${ex}.${S6_BORROW_PHRASE[borrowCount(a, b)] ?? S6_BORROW_PHRASE[2]} החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
+export const S6_SUB = (ex: string, _a?: number, _b?: number) =>
+  `פתרו חיסור עם אפסים: ${ex}.${BORROW_WHEN_NEEDED} החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
 export const S8_ADD = (ex: string) => `${ex}. פתרו את תרגיל החיבור וכתבו את התשובה בשורת התוצאה!`;
 export const S8_SUB = (ex: string) => `${ex}. פתרו את תרגיל החיסור וכתבו את התשובה בשורת התוצאה!`;
 export const FLEX_HOWTO = 'בנו דרך אחת. לחצו על הכפתור "הוספת ייצוג". אחר כך בנו דרך שונה. רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול פעולה ↺.';

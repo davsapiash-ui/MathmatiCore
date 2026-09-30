@@ -337,12 +337,12 @@ export const SESSION3_TASKS: SessionTask[] = SESSION3_GREEN_TASKS;
  * ══════════════════════════════════════════════════════════════════════════ */
 
 export const SESSION4_REMEDIATION_TASKS: SessionTask[] = [
-  addition('s4_r_t1', 142, 23, 'ביסוס אלגוריתם ללא המרה בתחום האלף', S4_ADD('142 + 23', false)),
-  addition('s4_r_t2', 128, 35, 'המרה פשוטה ראשונה ביחידות בתחום האלף', S4_ADD('128 + 35', true)),
-  addition('s4_r_t3', 247, 135, 'המרה ביחידות עם נוכחות מאות', S4_ADD('247 + 135', true)),
-  addition('s4_r_t4', 456, 281, 'המרה בטור העשרות בתחום האלף', S4_ADD('456 + 281', true)),
-  addition('s4_r_t5', 354, 128, 'המרה פשוטה ביחידות המעבירה עשרת לטור העשרות', S4_ADD('354 + 128', true)),
-  addition('s4_r_t6', 507, 125, 'המרה ביחידות עם אפס בטור העשרות', S4_ADD('507 + 125', true)),
+  addition('s4_r_t1', 142, 23, 'ביסוס אלגוריתם ללא המרה בתחום האלף', S4_ADD('142 + 23')),
+  addition('s4_r_t2', 128, 35, 'המרה פשוטה ראשונה ביחידות בתחום האלף', S4_ADD('128 + 35')),
+  addition('s4_r_t3', 247, 135, 'המרה ביחידות עם נוכחות מאות', S4_ADD('247 + 135')),
+  addition('s4_r_t4', 456, 281, 'המרה בטור העשרות בתחום האלף', S4_ADD('456 + 281')),
+  addition('s4_r_t5', 354, 128, 'המרה פשוטה ביחידות המעבירה עשרת לטור העשרות', S4_ADD('354 + 128')),
+  addition('s4_r_t6', 507, 125, 'המרה ביחידות עם אפס בטור העשרות', S4_ADD('507 + 125')),
   // ★ chosen: מסמך 03 names the task ("ספרה חסרה בטור התוצאה") without numbers.
   missingResultDigit('s4_r_t7', 328, 145, false, 'tens',
     'משימת חקר וגילוי ספרה חסרה',
@@ -351,12 +351,12 @@ export const SESSION4_REMEDIATION_TASKS: SessionTask[] = [
 ];
 
 export const SESSION4_GREEN_TASKS: SessionTask[] = [
-  addition('s4_g_t1', 1245, 328, 'המרה פשוטה בטור היחידות בתחום הרבבה', S4_ADD('1,245 + 328', true)),
-  addition('s4_g_t2', 2356, 1427, 'המרה ביחידות עם נוכחות אלפים', S4_ADD('2,356 + 1,427', true)),
-  addition('s4_g_t3', 3456, 2183, 'המרה בטור העשרות בלבד', S4_ADD('3,456 + 2,183', true)),
-  addition('s4_g_t4', 4821, 1534, 'המרה בטור המאות בלבד', S4_ADD('4,821 + 1,534', true)),
-  addition('s4_g_t5', 5678, 2453, 'שרשרת המרות ביחידות, בעשרות ובמאות בתחום הרבבה', S4_ADD('5,678 + 2,453', true)),
-  addition('s4_g_t6', 7045, 1283, 'חישוב המרה עם אפס כשומר מקום', S4_ADD('7,045 + 1,283', true)),
+  addition('s4_g_t1', 1245, 328, 'המרה פשוטה בטור היחידות בתחום הרבבה', S4_ADD('1,245 + 328')),
+  addition('s4_g_t2', 2356, 1427, 'המרה ביחידות עם נוכחות אלפים', S4_ADD('2,356 + 1,427')),
+  addition('s4_g_t3', 3456, 2183, 'המרה בטור העשרות בלבד', S4_ADD('3,456 + 2,183')),
+  addition('s4_g_t4', 4821, 1534, 'המרה בטור המאות בלבד', S4_ADD('4,821 + 1,534')),
+  addition('s4_g_t5', 5678, 2453, 'שרשרת המרות ביחידות, בעשרות ובמאות בתחום הרבבה', S4_ADD('5,678 + 2,453')),
+  addition('s4_g_t6', 7045, 1283, 'חישוב המרה עם אפס כשומר מקום', S4_ADD('7,045 + 1,283')),
   // ★ chosen: מסמך 03 describes an inquiry comparing near exercises, without numbers.
   withOpts({
     id: 's4_g_t7', type: 'small_change',
@@ -440,7 +440,7 @@ export const SESSION6_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen (400 − 156 is the grade-ג example in מסמך 05, המטריקס).
   missingResultDigit('s6_r_t7', 400, 156, true, 'tens',
     'משימת חקר וספרה חסרה',
-    'בתרגיל 400 − 156 חסרה ספרת העשרות בשורת התוצאה. בצעו את הפריטה הכפולה בלבנים כדי לגלות אותה, וכתבו אותה בתיבה הריקה.',
+    'בתרגיל 400 − 156 חסרה ספרת העשרות בשורת התוצאה. בצעו את הפריטה בלבנים כדי לגלות אותה, וכתבו אותה בתיבה הריקה.',
     ZERO),
 ];
 
@@ -454,7 +454,7 @@ export const SESSION6_GREEN_TASKS: SessionTask[] = [
   // ★ chosen: מסמך 03 names the task ("השלמת ספרות חסרות בשורת המחוסר") without numbers.
   skeleton('s6_g_t7', 6005, 2847, true, { a: ['tens', 'units'] },
     'משימת חקר של השלמת ספרות חסרות בתחום הרבבה',
-    'בשורת המחוסר חסרות שתי ספרות: 6,0▢▢ − 2,847 = 3,158. גלו אותן בעזרת הפריטה המשולשת בלבנים וכתבו אותן בתיבות הריקות. רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול פעולה ↺.',
+    'בשורת המחוסר חסרות שתי ספרות: 6,0▢▢ − 2,847 = 3,158. גלו אותן בעזרת הפריטה בלבנים וכתבו אותן בתיבות הריקות. רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול פעולה ↺.',
     ZERO),
 ];
 
@@ -479,7 +479,7 @@ export const SESSION7_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen.
   skeleton('s7_r_t3', 386, 271, false, { a: ['tens'] },
     'ספרה חסרה בחיבור עם המרה',
-    'בתרגיל 3▢6 + 271 = 657 חסרה ספרת העשרות של המחובר הראשון. שימו לב: נדרשת המרה אחת לטור המאות. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
+    'בתרגיל 3▢6 + 271 = 657 חסרה ספרת העשרות של המחובר הראשון. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
     INQUIRY),
   // ★ chosen.
   skeleton('s7_r_t4', 542, 178, true, { a: ['tens', 'units'] },
@@ -489,7 +489,7 @@ export const SESSION7_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen: the imaginary learner's error is the one מסמך 03 describes (a forgotten memory-circle carry).
   addition('s7_r_t5', 247, 135,
     'ניתוח שגיאה של לומד דמיוני',
-    'תלמיד פתר 247 + 135. הוא קיבל 372 כי שכח לרשום את ההמרה בעיגול הזיכרון מעל טור העשרות. תקנו את התרגיל בעזרת הלבנים. בנו את המספרים וקבצו. רשמו את ההמרה בעיגול הזיכרון. כתבו את התוצאה הנכונה.',
+    'תלמיד פתר 247 + 135 וקיבל 372. מצאו את הטעות ותקנו אותה בעזרת הלבנים. כתבו את התוצאה הנכונה בשורת התוצאה.',
     INQUIRY),
   // ★ chosen: two-step add-then-remove reaching a defined target.
   representation('s7_r_t6', 510, { hundreds: 5, tens: 1 },
@@ -515,12 +515,13 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
   // ★ chosen.
   skeleton('s7_g_t3', 5006, 2847, true, { a: ['hundreds', 'tens', 'units'] },
     'שלוש ספרות חסרות בחיסור עם פריטה משולשת',
-    'בתרגיל 5,▢▢▢ − 2,847 = 2,159 חסרות שלוש ספרות של המחוסר. הפתרון עובר מעל האפסים שבטור העשרות ובטור המאות. גלו את הספרות בעזרת הפריטה בלבנים וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 5,▢▢▢ − 2,847 = 2,159 חסרות שלוש ספרות של המחוסר. גלו את הספרות בעזרת הפריטה בלבנים וכתבו אותן בתיבות הריקות.',
     INQUIRY),
-  // ★ chosen: the imaginary learner's error is the one מסמך 03 describes (a wrong double regrouping in the hundreds).
+  // ★ chosen: the imaginary learner's error is the one מסמך 03 describes: the carry from the hundreds into the
+  // thousands was forgotten (7,425 instead of 8,425). The screen no longer states it (owner, 30.9.2026).
   addition('s7_g_t4', 4857, 3568,
     'איתור ותיקון שגיאה בשרשרת המרות',
-    'תלמיד פתר 4,857 + 3,568 וקיבל 7,425. התרגיל דורש שלוש המרות רצופות, והוא שכח לרשום את ההמרה מטור המאות בעיגול הזיכרון מעל טור האלפים. תקנו את התרגיל בעזרת הלבנים בבית המספרים וכתבו את התוצאה הנכונה.',
+    'תלמיד פתר 4,857 + 3,568 וקיבל 7,425. מצאו את הטעות ותקנו אותה בעזרת הלבנים. כתבו את התוצאה הנכונה בשורת התוצאה.',
     INQUIRY),
   // ★ chosen: add one thousand, remove hundreds, reach a defined target.
   representation('s7_g_t5', 3800, { thousands: 3, hundreds: 8 },
@@ -580,7 +581,7 @@ export const SESSION8_GREEN_TASKS: SessionTask[] = [
   // ★ chosen: reuses 4,000 − 1,562 (session 6); three minuend digits hidden.
   skeleton('s8_g_t7', 4000, 1562, true, { a: ['hundreds', 'tens', 'units'] },
     'בעיית חקר של ספרות חסרות בחיסור',
-    'בתרגיל 4,▢▢▢ − 1,562 = 2,438 חסרות שלוש ספרות של המחוסר. הפתרון עובר מעל אפסים. גלו אותן וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 4,▢▢▢ − 1,562 = 2,438 חסרות שלוש ספרות של המחוסר. גלו אותן וכתבו אותן בתיבות הריקות.',
     { scaffoldLevel: 1, targetNode: 'relational_thinking' }),
 ];
 
