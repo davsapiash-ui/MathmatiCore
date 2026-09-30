@@ -65,9 +65,12 @@ describe('station 1 live cards', () => {
     }
   });
 
-  it('other meetings keep the count and the column', () => {
+  // Stations 3–7 hide the column digits too (owner, 30.9.2026): their card
+  // names the column, never its count.
+  it('other meetings name the column, not its count', () => {
     const card = SocraticEngine.analyzeLiveBoardState({ id: 's4_r_t1', numberA: 146, numberB: 235 }, 'regrouping_fluency', { ...EMPTY, hundreds: 3, tens: 7, units: 14 })!;
-    expect(card.questionHe).toContain('בטור היחידות הצטברו 14 לבנים');
+    expect(card.questionHe).toBe('נסו לחשוב: בטור היחידות יש 10 לבנים או יותר. מה עושים?');
+    expect(textsOf(card).join(' ')).not.toMatch(/14/);
   });
 
   it('61 − 24 with 61 on the board: the child finds the units column', () => {
@@ -111,8 +114,9 @@ describe('the AI card in meeting 1 never gives the result as blocks', () => {
       guiding_question: question,
       options: [
         { option_text: 'מקבצים 10 לבנים ללבנה אחת', feedback_text: 'נכון מאוד!', is_correct: true },
-        { option_text: 'מוחקים לבנים לפח', feedback_text: 'רמז: מחיקה משנה את המספר.', is_correct: false },
-        { option_text: 'כותבים 10 בתיבה אחת', feedback_text: 'רמז: ספרה אחת בכל תיבה.', is_correct: false },
+        // Guiding questions, as stations 3–8 require (owner, 30.9.2026).
+        { option_text: 'מוחקים לבנים לפח', feedback_text: 'רמז: אם תמחקו לבנים, האם המספר יישאר אותו מספר?', is_correct: false },
+        { option_text: 'כותבים 10 בתיבה אחת', feedback_text: 'רמז: כמה ספרות אפשר לכתוב בתיבה אחת?', is_correct: false },
       ],
     },
   });
@@ -136,8 +140,12 @@ describe('the AI card in meeting 1 never gives the result as blocks', () => {
     expect(await ask('s1_t8', 1)).toBeNull();
   });
 
-  it('other meetings: the board counts are the coaching, unchanged', async () => {
-    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard(leaking));
+  it('other meetings: the result as blocks is not refused as a result; a count the board holds now is (owner, 30.9.2026)', async () => {
+    // 8 hundreds is not what the board holds (7): accepted outside meeting 1.
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard('בתרגיל 713 + 94 יוצאות בסוף 8 מאות. מה עושים עכשיו?'));
     expect(await ask('s4_r_t9', 4)).not.toBeNull();
+    // "7 יחידות" is the units column as it is now: stations 3–7 hide the column digits, the child counts.
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard(leaking));
+    expect(await ask('s4_r_t9', 4)).toBeNull();
   });
 });

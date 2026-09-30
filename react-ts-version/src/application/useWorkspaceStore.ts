@@ -17,12 +17,14 @@ import {
   groupBlocksManually,
   PLACE_ORDER,
   PLACE_VALUES,
+  PLACE_NAMES_HE,
   type DropInput,
   type Place,
   type PlaceCounts,
   countsEqual,
   digitAt,
 } from '@/core/placeValue';
+import { BLOCK_NAME_HE } from '@/data/taskBuilders';
 import { session1Checklist, session1NextStep } from '@/core/session1Checklist';
 import {
   advance,
@@ -52,6 +54,7 @@ import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogSe
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
+import { STATIC_CARD_KINDS, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
 import { ref, update } from 'firebase/database';
 import { database, serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
@@ -250,6 +253,12 @@ export interface UndoFrame {
 export interface ColumnConversions {
   composed: Partial<Record<Place, boolean>>;
   decomposed: Partial<Record<Place, boolean>>;
+  /**
+   * How many times each column converted — s7_g_t1 groups ten hundreds twice
+   * (REPRESENTATION_LOCKS lists the column twice). Absent until the first
+   * conversion; a saved value without it counts a done column once.
+   */
+  times?: { composed?: Partial<Record<Place, number>>; decomposed?: Partial<Record<Place, number>> };
 }
 
 export function emptyColumnConversions(): ColumnConversions {
@@ -259,7 +268,10 @@ export function emptyColumnConversions(): ColumnConversions {
 /** A saved value back into shape; the database drops empty objects. */
 export function normalizeColumnConversions(raw: unknown): ColumnConversions {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, any>;
-  return { composed: { ...(r.composed ?? {}) }, decomposed: { ...(r.decomposed ?? {}) } };
+  const out: ColumnConversions = { composed: { ...(r.composed ?? {}) }, decomposed: { ...(r.decomposed ?? {}) } };
+  const t = r.times && typeof r.times === 'object' ? r.times : null;
+  if (t) out.times = { composed: { ...(t.composed ?? {}) }, decomposed: { ...(t.decomposed ?? {}) } };
+  return out;
 }
 
 /** Was the conversion this column needs performed with the blocks? */
@@ -267,9 +279,21 @@ export function conversionDoneInColumn(conv: ColumnConversions, place: Place, is
   return Boolean(isSubtraction ? conv.decomposed[place] : conv.composed[place]);
 }
 
+/** How many times the blocks performed this column's conversion. */
+export function conversionTimesInColumn(conv: ColumnConversions, place: Place, isSubtraction: boolean | undefined): number {
+  const kind = isSubtraction ? 'decomposed' : 'composed';
+  const times = conv.times?.[kind]?.[place];
+  return typeof times === 'number' ? times : conv[kind][place] ? 1 : 0;
+}
+
 /** The conversions after one board event (a grouping from `from`, or a decomposition into `to`). */
 function withColumnConversion(conv: ColumnConversions, kind: 'composed' | 'decomposed', place: Place): ColumnConversions {
-  return { ...conv, [kind]: { ...conv[kind], [place]: true } };
+  const times = conversionTimesInColumn(conv, place, kind === 'decomposed') + 1;
+  return {
+    ...conv,
+    [kind]: { ...conv[kind], [place]: true },
+    times: { ...conv.times, [kind]: { ...conv.times?.[kind], [place]: times } },
+  };
 }
 
 interface WorkspaceState {
@@ -280,6 +304,12 @@ interface WorkspaceState {
   projectorBoard: boolean;
   /** The result-row place cues shown as a scaffold after a digit in the wrong place (core/placeCues.ts, owner 30.9.2026); per exercise. */
   placeCuesShown: boolean;
+  /**
+   * The coaching cards of 30.9.2026 already shown in the exercise `taskId`
+   * (staticSocraticCards.StaticCardKind): a card that comes in levels is
+   * shown once, then the next level (C5 before the column's card; C4 once).
+   */
+  socraticCardKinds: { taskId: string | null; kinds: StaticCardKind[] };
   isSocraticCardLocked: boolean;
   socraticLockDeadline: number | null;
   hesitationTimerSeconds: number;
@@ -394,6 +424,13 @@ interface WorkspaceState {
    */
   boardCheckFailures: number;
   boardCheckFailuresTaskId: string | null;
+  /**
+   * The single answer box of a representation exercise with a kind (stations
+   * 3 and 7, owner 30.9.2026): its digits as they were at the last press of
+   * "התקדם" in this exercise, so a press records only the digits that changed
+   * (recordSubmittedAnswer). Null until the first press.
+   */
+  lastSubmittedAnswer: string | null;
 
   /** Teacher-approved AI-generated task list (Socratic Engine); overrides session tasks when set. */
   /** Dynamically injected tasks for the current session (Micro-Agility engine). Takes precedence if length > 0. */
@@ -494,6 +531,18 @@ interface WorkspaceState {
   setOperandDigit: (which: 'a' | 'b', place: Place, val: string) => void;
   /** representation tasks, enhanced profile only: the result row opens once the board shows the prescribed blocks. */
   isRepresentationColumnLocked: (place: Place) => boolean;
+  /**
+   * The single answer box of a representation exercise with a kind (stations
+   * 3 and 7): what the child types, kept as the digits of the result row,
+   * right-aligned ("340" → hundreds 3, tens 4, units 0). Typing is an action
+   * undo takes back (Module 11 §א); its digits are recorded when the child
+   * presses "התקדם" (Module 23 §ב), not keystroke by keystroke.
+   */
+  setRepresentationAnswer: (text: string) => void;
+  /** The single answer box, enhanced profile only: locked until the exercise's conversion is done with the blocks (REPRESENTATION_LOCKS). */
+  isRepresentationAnswerLocked: () => boolean;
+  /** Module 9: a digit key pressed on the locked single answer box. Logged (KEYBOARD_LOCK_BLOCKED), never acted on. */
+  recordBlockedAnswerKeystroke: () => void;
   checkTimeExceeded: () => void;
   /** "החזרת עזרים" — bidirectional scaffold fading per spec: temporarily restore faded aids. */
   restoreScaffolds: () => void;
@@ -652,6 +701,48 @@ export function socraticCardColumnIndex(
   return s.focusedPlace ? placeToColumnIndex(s.focusedPlace) : (s.activeColumnIndex || 0);
 }
 
+/**
+ * What the static card chooser needs beyond the board, for the exercise
+ * `taskId` — and, given the task, how far its break or grouping has gone.
+ */
+export function staticCardContextFor(
+  s: Pick<WorkspaceState, 'placeCuesShown' | 'socraticCardKinds'> & Partial<Pick<WorkspaceState, 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped' | 'counts'>>,
+  taskId: string | undefined,
+  task?: SessionTask | null
+): StaticCardContext {
+  const shown = s.socraticCardKinds;
+  const conversions = task && task.id === taskId
+    ? conversionContextFor({
+        conversionsByColumn: s.conversionsByColumn ?? emptyColumnConversions(),
+        counts: s.counts,
+        hasGrouped: s.hasGrouped === true,
+        hasUngrouped: s.hasUngrouped === true,
+      }, task)
+    : {};
+  return {
+    placeCuesShown: s.placeCuesShown === true,
+    shownKinds: shown && taskId && shown.taskId === taskId ? shown.kinds : [],
+    ...conversions,
+  };
+}
+
+function withCardKind(
+  shown: WorkspaceState['socraticCardKinds'] | undefined,
+  taskId: string,
+  kind: StaticCardKind
+): WorkspaceState['socraticCardKinds'] {
+  const kinds = shown && shown.taskId === taskId ? shown.kinds : [];
+  return { taskId, kinds: kinds.includes(kind) ? kinds : [...kinds, kind] };
+}
+
+/** A saved record back into shape: the database drops an empty list and a null id. */
+function restoredCardKinds(raw: unknown): WorkspaceState['socraticCardKinds'] {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as { taskId?: unknown; kinds?: unknown };
+  const list = Array.isArray(r.kinds) ? r.kinds : r.kinds && typeof r.kinds === 'object' ? Object.values(r.kinds) : [];
+  const kinds = list.filter((k): k is StaticCardKind => (STATIC_CARD_KINDS as readonly unknown[]).includes(k));
+  return { taskId: typeof r.taskId === 'string' ? r.taskId : null, kinds };
+}
+
 function resetTaskInteraction(_isASD = false) {
   return {
     counts: { ...EMPTY_COUNTS },
@@ -659,6 +750,7 @@ function resetTaskInteraction(_isASD = false) {
     regroupTriggerTimestamps: {} as Record<number, number>,
     hasInteracted: false,
     placeCuesShown: false,
+    socraticCardKinds: { taskId: null as string | null, kinds: [] as StaticCardKind[] },
     hasDeletedBlock: false,
     hasClearedBoard: false,
     blocksAddedCount: 0,
@@ -669,6 +761,7 @@ function resetTaskInteraction(_isASD = false) {
     answerDigits: {} as Partial<Record<Place, string>>,
     carryDigits: {} as Partial<Record<Place, string>>,
     probeAnswer: '',
+    lastSubmittedAnswer: null as string | null,
     q3Reps: [] as PlaceCounts[],
     operandDigits: { a: {}, b: {} } as { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> },
     socraticTriggerReason: null as SocraticTriggerReason | null,
@@ -719,6 +812,107 @@ export function answerDigitsToNumber(digits: Partial<Record<Place, string>>): nu
   if (!str) return null;
   const n = parseInt(str, 10);
   return Number.isNaN(n) ? null : n;
+}
+
+/**
+ * The single answer box (stations 3 and 7, owner 30.9.2026) holds a free
+ * number of up to four digits — every answer of the green path is below
+ * 10,000. It is kept as the result row's digits, right-aligned: "340" →
+ * hundreds 3, tens 4, units 0; anything but a digit is dropped.
+ */
+export function answerDigitsFromText(text: string): Partial<Record<Place, string>> {
+  const digits = text.replace(/[^0-9]/g, '').slice(0, PLACE_ORDER.length);
+  const out: Partial<Record<Place, string>> = {};
+  [...digits].reverse().forEach((d, i) => {
+    out[PLACE_ORDER[i]] = d;
+  });
+  return out;
+}
+
+/** …and back, as the box shows it: the digits from the highest place written. */
+export function answerTextFromDigits(digits: Partial<Record<Place, string>>): string {
+  return [...PLACE_ORDER].reverse().map((p) => digits[p] ?? '').join('');
+}
+
+/**
+ * The first conversion a representation exercise asks for that the blocks
+ * have not performed yet (REPRESENTATION_LOCKS: the receiving column of a
+ * decomposition, the source column of a composition), or null when every one
+ * is done — or the exercise lists none. A column listed twice (s7_g_t1 groups
+ * ten hundreds twice) waits for its second conversion. A save from before the
+ * count (no `times`) knows only that the column converted: when the board
+ * already shows the exercise's final blocks, the column counts as done, so no
+ * child is stuck after a reload.
+ */
+export function pendingRepresentationConversion(
+  s: Pick<WorkspaceState, 'conversionsByColumn'> & Partial<Pick<WorkspaceState, 'counts'>>,
+  task: (Pick<SessionTask, 'id'> & Partial<Pick<SessionTask, 'requiredCounts'>>) | null | undefined
+): Place | null {
+  const lock = task ? REPRESENTATION_LOCKS[task.id] : undefined;
+  if (!lock) return null;
+  const decomposition = lock.conversion === 'decomposition';
+  const conv = s.conversionsByColumn;
+  const kind = decomposition ? 'decomposed' : 'composed';
+  const finalBoard = Boolean(s.counts && task?.requiredCounts) &&
+    countsEqual({ ...EMPTY_COUNTS, ...s.counts }, { ...EMPTY_COUNTS, ...task!.requiredCounts });
+  return lock.columns.find((p, i) => {
+    const listed = lock.columns.filter((q) => q === p).length;
+    const olderSave = listed > 1 && typeof conv.times?.[kind]?.[p] !== 'number' && conversionDoneInColumn(conv, p, decomposition);
+    if (olderSave && finalBoard) return false;
+    const nth = lock.columns.slice(0, i + 1).filter((q) => q === p).length;
+    return conversionTimesInColumn(conv, p, decomposition) < nth;
+  }) ?? null;
+}
+
+/**
+ * A break or grouping exercise (station 3's compose_break, station 7's
+ * compose_group): whether its conversions are done, which one is next, and
+ * whether the next repeats a column already converted ("קבצו שוב"). The
+ * static card waits with C1/C7 until they are done (owner, 30.9.2026).
+ */
+function conversionContextFor(
+  s: Pick<WorkspaceState, 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped'> & Partial<Pick<WorkspaceState, 'counts'>>,
+  task: SessionTask | null | undefined
+): Pick<StaticCardContext, 'conversionDone' | 'pendingConversion' | 'conversionAgain'> {
+  const kind = task?.representationKind;
+  if (!task || (kind !== 'compose_break' && kind !== 'compose_group')) return {};
+  const lock = REPRESENTATION_LOCKS[task.id];
+  if (!lock) return { conversionDone: kind === 'compose_group' ? s.hasGrouped === true : s.hasUngrouped === true };
+  const pending = pendingRepresentationConversion(s, task);
+  return {
+    conversionDone: pending === null,
+    pendingConversion: pending,
+    conversionAgain: pending !== null && conversionTimesInColumn(s.conversionsByColumn, pending, lock.conversion === 'decomposition') > 0,
+  };
+}
+
+const placeAbove = (p: Place): Place | undefined => PLACE_ORDER[PLACE_ORDER.indexOf(p) + 1];
+
+/**
+ * Station 3's "do the break yourselves" (owner, 30.9.2026). It used to say
+ * "לחצו על לבנת עשרת" in every exercise, also where a hundred or a thousand is
+ * broken; it names the block above the column still waiting for its ten.
+ */
+export function breakItYourselvesHe(receiving: Place | null): string {
+  const above = receiving ? placeAbove(receiving) : undefined;
+  const click = above
+    ? `לחצו על לבנת ${BLOCK_NAME_HE[above]} כדי לפרוט אותה.`
+    : 'לחצו על הלבנה שההנחיה מבקשת לפרוט.';
+  return `הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. ${click}`;
+}
+
+/** Station 7's "do the grouping yourselves": the button of the column to group, in its own words (PlaceColumn). */
+export function groupItYourselvesHe(source: Place | null): string {
+  const above = source ? placeAbove(source) : undefined;
+  const click = source && above
+    ? `לחצו על הכפתור "קבצו 10 ל${BLOCK_NAME_HE[above]}" שבראש טור ה${PLACE_NAMES_HE[source]}.`
+    : 'קבצו 10 לבנים בעזרת הכפתור שבראש הטור.';
+  return `הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. ${click}`;
+}
+
+/** The block a decomposition exercise is built from (450 → the tens). */
+function decomposeBlockPlace(task: SessionTask): Place {
+  return PLACE_ORDER.find((p) => (task.requiredCounts?.[p] ?? 0) > 0) ?? 'units';
 }
 
 /**
@@ -1710,6 +1904,63 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     });
   }
 
+  /**
+   * The single answer box (stations 3 and 7, owner 30.9.2026) holds one
+   * number, not a digit per column, so its digits are recorded when the child
+   * presses "התקדם" — keystroke by keystroke, "340" typed from the left would
+   * pass through a 3 and then a 4 in the units, each one a wrong digit. Each
+   * digit is recorded in its column of the written number (units = 0) as a
+   * DIGIT_ENTERED whose is_correct compares it with the answer's digit there
+   * (Appendix A §3) — what the first-attempt score, the Persistence Index's E
+   * and measure 4 read (Module 23 §ב). The number is read with the leading
+   * zeros of the answer's places: "40" for 340 has 0 hundreds, a wrong digit,
+   * so a wrong number always records a wrong digit. A press records the
+   * digits that changed since the previous press — wrong ones first: the
+   * first digit after a coaching card tells whether that answer was right
+   * (measure 4) — and a press with a wrong answer records at least one wrong
+   * digit, even when nothing changed (the lowest wrong place), so every wrong
+   * press counts once and a digit left as it was is not counted again. A press
+   * with the same right answer records nothing. The last press survives a
+   * reload (the snapshot), so a reload does not record unchanged digits again.
+   */
+  function recordSubmittedAnswer(task: SessionTask) {
+    const s = get();
+    const text = answerTextFromDigits(s.answerDigits);
+    if (!text) return;
+    const width = Math.max(text.length, typeof task.correctAnswer === 'number' ? String(task.correctAnswer).length : 0);
+    const before = answerDigitsFromText((s.lastSubmittedAnswer ?? '').padStart(s.lastSubmittedAnswer === null ? 0 : width, '0'));
+    const now = answerDigitsFromText(text.padStart(width, '0'));
+    const judged = PLACE_ORDER.filter((p) => now[p] !== undefined).map((place) => {
+      const digit = parseInt(now[place] as string, 10);
+      const expected = computeExpectedDigitForColumn(task, place);
+      return { place, digit, isCorrect: expected === null ? null : digit === expected, changed: now[place] !== before[place] };
+    });
+    const wrongNow = judged.filter((d) => d.isCorrect === false);
+    const wrongChanged = wrongNow.filter((d) => d.changed);
+    const entered = [
+      ...(wrongChanged.length > 0 ? wrongChanged : wrongNow.slice(0, 1)),
+      ...judged.filter((d) => d.isCorrect !== false && d.changed),
+    ];
+    if (entered.length === 0) return;
+    const studentId = currentStudentUid();
+    for (const e of entered) {
+      emitTelemetry({
+        session_id: `session_${s.sessionNumber}_student_${studentId}`,
+        student_id: studentId,
+        exercise_id: task.id,
+        event_type: 'DIGIT_ENTERED',
+        column_index: placeToColumnIndex(e.place),
+        details: { digit_value: e.digit, is_correct: e.isCorrect },
+      }).catch(console.error);
+    }
+    const wrong = entered.filter((e) => e.isCorrect === false).length;
+    set({
+      lastSubmittedAnswer: text,
+      typedErrorCount: s.typedErrorCount + wrong,
+      hasDigitErrorInTask: wrong > 0 ? true : s.hasDigitErrorInTask,
+    });
+  }
+
   /** Opens the card for the "four errors" streak's column (see nextDigitErrorStreak). */
   function openCardForDigitErrorStreak(place: Place) {
     setTimeout(() => get().openSocraticCard('consecutive_errors_4', place), 0);
@@ -2051,6 +2302,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     if (task.type === 'representation') {
+      // Stations 3 and 7 (owner, 30.9.2026): the exercise's kind says what the
+      // single answer box holds. Its digits are recorded at this press,
+      // whatever the board shows (recordSubmittedAnswer).
+      const kind = task.representationKind;
+      if (kind) recordSubmittedAnswer(task);
       const required = requiredCountsOf(task);
       if (!countsEqual(s.counts, required)) {
         handleFailure(
@@ -2065,18 +2321,74 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         );
         return;
       }
-      // Meeting 1: the exercise is the conversion itself, not only its result.
-      if (task.requiresGrouping && !s.hasGrouped) {
-        handleFailure('conversion_skipped', 'קַבְּצוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.', 3500);
-        return;
-      }
-      if (task.requiresUngrouping && !s.hasUngrouped) {
-        handleFailure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
-        return;
+      if (kind) {
+        // The break (compose_break) or the grouping (compose_group) is the
+        // child's own, with the blocks, in every column REPRESENTATION_LOCKS
+        // names — s3_g_t4 breaks a thousand AND a hundred — and undo takes one
+        // back. The message names the block still to break, or the button of
+        // the column still to group. A kind with no entry falls back to
+        // "some break / some grouping was made".
+        const listed = Boolean(REPRESENTATION_LOCKS[task.id]);
+        const pending = pendingRepresentationConversion(s, task);
+        const skipped = listed
+          ? pending !== null
+          : kind === 'compose_group'
+            ? !s.hasGrouped
+            : kind === 'compose_break' && !s.hasUngrouped;
+        if (skipped && kind === 'compose_group') {
+          handleFailure('conversion_skipped', 'קַבְּצוּ 🧱', groupItYourselvesHe(pending), 3500);
+          return;
+        }
+        if (skipped && kind === 'compose_break') {
+          handleFailure('conversion_skipped', 'פִּרְטוּ 🧱', breakItYourselvesHe(pending), 3500);
+          return;
+        }
+      } else {
+        // Meeting 1: the exercise is the conversion itself, not only its result.
+        if (task.requiresGrouping && !s.hasGrouped) {
+          handleFailure('conversion_skipped', 'קַבְּצוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.', 3500);
+          return;
+        }
+        if (task.requiresUngrouping && !s.hasUngrouped) {
+          handleFailure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
+          return;
+        }
       }
       const typed = answerDigitsToNumber(s.answerDigits);
       if (typed === null) {
-        handleFailure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את המספר בשורת התוצאה.', 3000);
+        handleFailure(
+          'missing_answer',
+          'הַקְלָדַת תְּשׁוּבָה ✏️',
+          // A decomposition's answer is a number of blocks, not "the number".
+          kind === 'decompose'
+            ? 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את התשובה בשורת התוצאה.'
+            : 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את המספר בשורת התוצאה.',
+          3000
+        );
+        return;
+      }
+      if (kind) {
+        // What the child writes: the number the blocks show, or — decompose —
+        // how many blocks make it (450 → 45 tens), never "the value of a digit".
+        const block = kind === 'decompose' ? BLOCK_NAME_HE[decomposeBlockPlace(task)] : '';
+        if (typed !== task.correctAnswer) {
+          handleFailure(
+            'wrong_numeric',
+            'כִּמְעַט... 🧐',
+            kind === 'decompose'
+              ? `בדקו שוב: כמה לבני ${block} יש בבית המספרים?`
+              : 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!',
+            2800
+          );
+          return;
+        }
+        handleSuccess(
+          'כָּל הַכָּבוֹד! 🌟',
+          kind === 'decompose'
+            ? `בניתם את המספר מלבני ${block} בלבד, והתשובה שכתבתם נכונה.`
+            : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.',
+          2500
+        );
         return;
       }
       // The result row takes the exercise's answer: the number built, or — the
@@ -2384,6 +2696,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     hasInteracted: false,
     placeCuesShown: false,
+    socraticCardKinds: { taskId: null, kinds: [] },
     undoTimestamps: [],
     isBoardLocked: false,
     pendingAdaptation: null,
@@ -2402,6 +2715,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     answerDigits: {},
     carryDigits: {},
     probeAnswer: '',
+    lastSubmittedAnswer: null,
     q3Reps: [],
     operandDigits: { a: {}, b: {} },
     socraticTriggerReason: null,
@@ -2711,6 +3025,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // exercise, a reload included — and a restore to another exercise
         // brings that exercise's own value, never the one on screen.
         placeCuesShown: saved.placeCuesShown === true,
+        // The same for the coaching cards already shown (C4, C5): a reload
+        // does not bring back the first level.
+        socraticCardKinds: restoredCardKinds(saved.socraticCardKinds),
         isSocraticCardLocked: Boolean(storedDeadline && storedDeadline > Date.now()),
         socraticLockDeadline: storedDeadline,
         socraticDistractorHint: saved.socraticDistractorHint ?? null,
@@ -2718,6 +3035,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         answerDigits: saved.answerDigits ?? {},
         carryDigits: saved.carryDigits ?? {},
         probeAnswer: saved.probeAnswer ?? '',
+        // In the snapshot: after a reload, the next press of "התקדם" records
+        // only what changed since the last press (recordSubmittedAnswer).
+        lastSubmittedAnswer: typeof saved.lastSubmittedAnswer === 'string' ? saved.lastSubmittedAnswer : null,
         q3Reps: saved.q3Reps ?? [],
         operandDigits: saved.operandDigits ?? { a: {}, b: {} },
         // Now that the snapshot carries them, they are restored as saved —
@@ -3502,8 +3822,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       cancelSocraticRequest();
       const request = socraticRequestSeq;
+      // The place cues and the cards already shown in this exercise choose
+      // between the levels of a card (owner, 30.9.2026: C5 before the
+      // column's own card; C4 once after the cues).
+      const cardContext = staticCardContextFor(s, currentTask?.id, currentTask);
       const staticCard: SocraticHintResponse = {
-        ...SocraticEngine.getSynchronousTaskHint(currentTask, s.counts),
+        ...SocraticEngine.getSynchronousTaskHint(currentTask, s.counts, cardContext),
         error_category: null,
       };
       set({ aiSocraticHint: null, socraticPending: true });
@@ -3522,7 +3846,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           get().closeHelp();
           return;
         }
-        set({ aiSocraticHint: hint, socraticPending: false });
+        // A card of 30.9.2026 counts as shown also when the engine's card,
+        // anchored on it, is the one on the screen.
+        const kind = staticCard.cardKind;
+        set((st) => ({
+          aiSocraticHint: hint,
+          socraticPending: false,
+          ...(kind && currentTask?.id ? { socraticCardKinds: withCardKind(st.socraticCardKinds, currentTask.id, kind) } : {}),
+        }));
       };
 
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -3562,6 +3893,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           operands: eff ? { a: eff.a, b: eff.b, isSubtraction: Boolean(currentTask?.isSubtraction) } : null,
           activeColumnIndex: socraticCardColumnIndex(s),
           hasRegroupedInCanvas: Boolean(s.hasUngrouped || s.hasGrouped),
+          cardContext,
         };
 
         const hint = await SocraticEngine.getSocraticHint(
@@ -3843,6 +4175,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (supportProfile !== 'enhanced_cognitive_support') return false;
       const task = getActiveTasks(s)[s.standardTaskIdx] || null;
       if (!task || task.type !== 'representation') return false;
+      // Station 3 and station 7's groupings have one answer box and no
+      // columns: isRepresentationAnswerLocked.
+      if (task.representationKind) return false;
       // Owner's decision 28.9.2026 (register שהB.4): PRD Module 9 §א, not
       // מסמך 03 §3.3's whole row — only the exercise's conversion columns lock
       // (REPRESENTATION_LOCKS), each until the blocks perform that conversion
@@ -3850,10 +4185,63 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const lock = REPRESENTATION_LOCKS[task.id];
       if (!lock || !lock.columns.includes(place)) return false;
       if (conversionDoneInColumn(s.conversionsByColumn, place, lock.conversion === 'decomposition')) return false;
-      // Safety valve (register, pending the owner's confirmation): a board that
-      // already shows the required blocks opens the row, so a child who built
-      // them without converting is never stuck.
+      // Safety valve (register gap כ, approved by the owner on 28.9.2026): a
+      // board that already shows the required blocks opens the row, so a child
+      // who built them without converting is never stuck.
       return !countsEqual(s.counts, requiredCountsOf(task));
+    },
+
+    isRepresentationAnswerLocked: () => {
+      const s = get();
+      // Module 14: never in meetings 2 and 8. Module 9: enhanced_cognitive_support only.
+      if (s.sessionNumber === 2 || s.sessionNumber === 8) return false;
+      if (s.activeSupportProfileId !== 'enhanced_cognitive_support') return false;
+      const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+      if (!task || task.type !== 'representation' || !task.representationKind) return false;
+      // Owner, 30.9.2026: the whole box waits for every conversion the
+      // exercise lists — after the break, after the grouping. read_write and
+      // decompose list none, and are never locked. Undo takes a conversion
+      // back and the box locks again.
+      if (pendingRepresentationConversion(s, task) === null) return false;
+      // The same safety valve as the columns (register gap כ).
+      return !countsEqual(s.counts, requiredCountsOf(task));
+    },
+
+    recordBlockedAnswerKeystroke: () => {
+      const s = get();
+      const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+      const lock = task ? REPRESENTATION_LOCKS[task.id] : undefined;
+      if (!task || !lock) return;
+      // The column of the conversion the box still waits for (KEYBOARD_LOCK_BLOCKED is column-scoped).
+      const place = pendingRepresentationConversion(s, task) ?? lock.columns[0];
+      emitScaffoldEvent(s, 'KEYBOARD_LOCK_BLOCKED', { conversion_required: lock.conversion }, placeToColumnIndex(place));
+    },
+
+    setRepresentationAnswer: (text) => {
+      const s = get();
+      // Module 9: a locked box is genuinely non-writable, whatever calls this.
+      if (get().isRepresentationAnswerLocked()) return;
+      const answerDigits = answerDigitsFromText(text);
+      if (answerTextFromDigits(answerDigits) === answerTextFromDigits(s.answerDigits)) return;
+      set({
+        answerDigits,
+        hasInteracted: true,
+        // Typing is an action the learner can take back (Module 11 §א). The
+        // box is one number, so the frame names no column.
+        undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s)),
+        consecutiveUndoCount: 0,
+      });
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        const task = getActiveTasks(get())[get().standardTaskIdx] || null;
+        useStore.getState().logSemanticEvent(studentId, {
+          action: 'input_changed',
+          element: 'representation_answer',
+          context: text ? `Typed answer ${answerTextFromDigits(answerDigits)}` : 'Cleared answer',
+          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+          state_snapshot: `Answer: ${answerTextFromDigits(answerDigits)}, Board Value: ${selectBoardValue(get())}`,
+        });
+      }
     },
 
     isColumnInputLocked: (place, numberA, numberB, isSubtraction) => {
@@ -3924,6 +4312,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     additionHelperOffered: false,
         hasInteracted: false,
         placeCuesShown: false,
+        socraticCardKinds: { taskId: null, kinds: [] },
         undoTimestamps: [],
         isBoardLocked: false,
         pendingAdaptation: null,
@@ -3943,6 +4332,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         answerDigits: {},
         carryDigits: {},
         probeAnswer: '',
+        lastSubmittedAnswer: null,
         q3Reps: [],
         feedback: null,
         feedbackNonce: 0,

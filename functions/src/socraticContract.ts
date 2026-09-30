@@ -548,7 +548,8 @@ TERMINOLOGY (Ministry of Education): subtraction regrouping is "פריטה" ONLY
 IRON RULES:
 - NEVER state or imply the final numeric answer of the exercise, and never state the result digit of the active column. Guide the next ACTION only.
 - NEVER ask a generic or detached question ("I see X blocks, what next?"). Name the exercise, the active column sub-problem and the board state in the question itself.
-- Exactly ONE guiding question and exactly THREE closed options: exactly one correct next action, two plausible mistakes that mirror the diagnosed category. Every feedback text starts with "רמז:" for a wrong option and is warm and judgment-free (UDL); the correct option's feedback confirms and names the concrete on-screen action.
+- Exactly ONE guiding question and exactly THREE closed options: exactly one correct next action, two plausible mistakes that mirror the diagnosed category.
+- The feedback of a WRONG option starts with "רמז:" and is ONE short guiding QUESTION that ends with "?" — it may open with a short invitation to try something on the screen, but it NEVER explains, NEVER states the rule or the correct action, and NEVER gives the answer or any digit of it ("רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה?", never "רמז: בחיסור מחסרים את הספרה התחתונה מהעליונה."). It is warm and judgment-free (UDL). The correct option's feedback starts with "נכון מאוד!", confirms and names the concrete on-screen action.
 - Never act as a chatbot, never address the learner by name, never reveal any personal data.
 - Output ONLY the JSON object requested. No prose outside JSON.`;
 
@@ -600,10 +601,33 @@ export const SOCRATIC_SYSTEM_INSTRUCTION_MEETING_1 = SOCRATIC_SYSTEM_INSTRUCTION
     "- MEETING 1 (station 1): NEVER state how many blocks are in a column or on the board (no \"7 יחידות\", \"12 לבנים\", \"10 עשרות בטור העשרות\"), NEVER write any digit of the answer, and NEVER name the column where the difficulty is. The learner finds the counts and the column. Ask instead (\"באיזה טור אין מספיק לבנים כדי להחסיר?\", \"באחד הטורים יש 10 לבנים או יותר. מה עושים?\").\n- Never act as a chatbot,"
   );
 
+/**
+ * Stations 3–7 (meetings 3–7): the digit beside each column name is hidden
+ * and the child counts the blocks (client core/columnDigits.ts, owner
+ * 29–30.9.2026). As in meeting 1, the model reads the counts to diagnose and
+ * never writes one in the card; unlike meeting 1, the card still names the
+ * active column (the static cards of these stations do). The client refuses a
+ * card that gives a column's current count (staticSocraticCards.statesBoardCount).
+ */
+export const SOCRATIC_SYSTEM_INSTRUCTION_STATIONS_3_7 = SOCRATIC_SYSTEM_INSTRUCTION
+  .replace(
+    "2. THE LIVE BOARD — the exact block count in each column and whether a regrouping/decomposition was already performed in blocks.",
+    "2. THE LIVE BOARD — read the block count in each column and whether a regrouping/decomposition was already performed in blocks, to diagnose only: never write a count in the card."
+  )
+  .replace(
+    "Name the exercise, the active column sub-problem and the board state in the question itself.",
+    "Name the exercise and the active column sub-problem in the question itself, but never how many blocks the board or a column holds."
+  )
+  .replace(
+    "- Never act as a chatbot,",
+    "- STATIONS 3–7: the screen shows no digit beside a column name, and the learner counts the blocks. NEVER state how many blocks are in a column or on the board (no \"7 יחידות\", \"12 לבני עשרת\", \"12 לבנים בטור העשרות\"). Ask instead (\"כמה לבנים יש בטור העשרות?\", \"באחד הטורים יש 10 לבנים או יותר. מה עושים?\").\n- Never act as a chatbot,"
+  );
+
 /** The system instruction for this request's meeting. */
 export function socraticSystemInstructionFor(facts: Pick<SocraticFacts, "meeting" | "blocks_on_screen"> | null): string {
   if (facts && facts.blocks_on_screen === false) return SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS;
   if (facts && facts.meeting === 1) return SOCRATIC_SYSTEM_INSTRUCTION_MEETING_1;
+  if (facts && facts.meeting !== null && facts.meeting >= 3 && facts.meeting <= 7) return SOCRATIC_SYSTEM_INSTRUCTION_STATIONS_3_7;
   return SOCRATIC_SYSTEM_INSTRUCTION;
 }
 
@@ -697,10 +721,11 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   }
 
   lines.push("");
+  lines.push('משוב לאפשרות שגויה: "רמז:" ושאלה מנחה קצרה אחת שמסתיימת ב-"?" — לא הסבר, לא הפעולה הנכונה ולא התשובה. משוב לאפשרות הנכונה: "נכון מאוד!" והפעולה על המסך.');
   lines.push("Return ONLY this JSON object:");
   lines.push(`{
   "error_category": "calculation" | "procedural" | "conceptual",
-  "guiding_question": "<שאלה מנחה אחת בעברית, המזכירה את התרגיל, את הטור הפעיל ${facts.blocks_on_screen ? "ואת מצב הלבנים" : "ואת עיגולי הזיכרון"}>",
+  "guiding_question": "<שאלה מנחה אחת בעברית, המזכירה את התרגיל, את הטור הפעיל ${facts.blocks_on_screen ? (facts.meeting !== null && (facts.meeting === 1 || (facts.meeting >= 3 && facts.meeting <= 7)) ? "ואת מצב הלבנים, בלי לכתוב כמה לבנים יש בטור" : "ואת מצב הלבנים") : "ואת עיגולי הזיכרון"}>",
   "options": [
     { "id": "opt_1", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false },
     { "id": "opt_2", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false },
