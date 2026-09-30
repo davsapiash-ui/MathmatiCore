@@ -52,6 +52,7 @@ import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogSe
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
+import type { StaticCardContext, StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
 import { ref, update } from 'firebase/database';
 import { database, serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
@@ -280,6 +281,12 @@ interface WorkspaceState {
   projectorBoard: boolean;
   /** The result-row place cues shown as a scaffold after a digit in the wrong place (core/placeCues.ts, owner 30.9.2026); per exercise. */
   placeCuesShown: boolean;
+  /**
+   * The coaching cards of 30.9.2026 already shown in the exercise `taskId`
+   * (staticSocraticCards.StaticCardKind): a card that comes in levels is
+   * shown once, then the next level (C5 before the column's card; C4 once).
+   */
+  socraticCardKinds: { taskId: string | null; kinds: StaticCardKind[] };
   isSocraticCardLocked: boolean;
   socraticLockDeadline: number | null;
   hesitationTimerSeconds: number;
@@ -652,6 +659,27 @@ export function socraticCardColumnIndex(
   return s.focusedPlace ? placeToColumnIndex(s.focusedPlace) : (s.activeColumnIndex || 0);
 }
 
+/** What the static card chooser needs beyond the board, for the exercise `taskId`. */
+export function staticCardContextFor(
+  s: Pick<WorkspaceState, 'placeCuesShown' | 'socraticCardKinds'>,
+  taskId: string | undefined
+): StaticCardContext {
+  const shown = s.socraticCardKinds;
+  return {
+    placeCuesShown: s.placeCuesShown === true,
+    shownKinds: shown && taskId && shown.taskId === taskId ? shown.kinds : [],
+  };
+}
+
+function withCardKind(
+  shown: WorkspaceState['socraticCardKinds'] | undefined,
+  taskId: string,
+  kind: StaticCardKind
+): WorkspaceState['socraticCardKinds'] {
+  const kinds = shown && shown.taskId === taskId ? shown.kinds : [];
+  return { taskId, kinds: kinds.includes(kind) ? kinds : [...kinds, kind] };
+}
+
 function resetTaskInteraction(_isASD = false) {
   return {
     counts: { ...EMPTY_COUNTS },
@@ -659,6 +687,7 @@ function resetTaskInteraction(_isASD = false) {
     regroupTriggerTimestamps: {} as Record<number, number>,
     hasInteracted: false,
     placeCuesShown: false,
+    socraticCardKinds: { taskId: null as string | null, kinds: [] as StaticCardKind[] },
     hasDeletedBlock: false,
     hasClearedBoard: false,
     blocksAddedCount: 0,
@@ -2384,6 +2413,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     hasInteracted: false,
     placeCuesShown: false,
+    socraticCardKinds: { taskId: null, kinds: [] },
     undoTimestamps: [],
     isBoardLocked: false,
     pendingAdaptation: null,
@@ -3502,8 +3532,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       cancelSocraticRequest();
       const request = socraticRequestSeq;
+      // The place cues and the cards already shown in this exercise choose
+      // between the levels of a card (owner, 30.9.2026: C5 before the
+      // column's own card; C4 once after the cues).
+      const cardContext = staticCardContextFor(s, currentTask?.id);
       const staticCard: SocraticHintResponse = {
-        ...SocraticEngine.getSynchronousTaskHint(currentTask, s.counts),
+        ...SocraticEngine.getSynchronousTaskHint(currentTask, s.counts, cardContext),
         error_category: null,
       };
       set({ aiSocraticHint: null, socraticPending: true });
@@ -3522,7 +3556,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           get().closeHelp();
           return;
         }
-        set({ aiSocraticHint: hint, socraticPending: false });
+        // A card of 30.9.2026 counts as shown also when the engine's card,
+        // anchored on it, is the one on the screen.
+        const kind = staticCard.cardKind;
+        set((st) => ({
+          aiSocraticHint: hint,
+          socraticPending: false,
+          ...(kind && currentTask?.id ? { socraticCardKinds: withCardKind(st.socraticCardKinds, currentTask.id, kind) } : {}),
+        }));
       };
 
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -3562,6 +3603,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           operands: eff ? { a: eff.a, b: eff.b, isSubtraction: Boolean(currentTask?.isSubtraction) } : null,
           activeColumnIndex: socraticCardColumnIndex(s),
           hasRegroupedInCanvas: Boolean(s.hasUngrouped || s.hasGrouped),
+          cardContext,
         };
 
         const hint = await SocraticEngine.getSocraticHint(
@@ -3921,6 +3963,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     additionHelperOffered: false,
         hasInteracted: false,
         placeCuesShown: false,
+        socraticCardKinds: { taskId: null, kinds: [] },
         undoTimestamps: [],
         isBoardLocked: false,
         pendingAdaptation: null,

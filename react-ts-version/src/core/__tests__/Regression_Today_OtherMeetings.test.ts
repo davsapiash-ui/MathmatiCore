@@ -452,11 +452,16 @@ const isGroupCard = (h: { questionHe?: string; tts_text?: string } | null) =>
 describe('live coaching card (SocraticEngine.analyzeLiveBoardState), meetings 3–7', () => {
   const task = (meeting: 3 | 4 | 5 | 6 | 7, path: 'green_path' | 'remediation_path', id: string) =>
     getSessionTasks(meeting, path).find((t) => t.id === id)!;
+  // The cards after the exercise's first one (owner, 30.9.2026: the first
+  // card before a borrow asks what to check in every column — C5).
   const card = (t: SessionTask, counts: Partial<PlaceCounts>) =>
-    SocraticEngine.getSynchronousTaskHint(t, { ...EMPTY_COUNTS, ...counts });
+    SocraticEngine.getSynchronousTaskHint(t, { ...EMPTY_COUNTS, ...counts }, { shownKinds: ['borrow_check'] });
 
   it('meeting 5, 5,432 − 2,118: the deficit card before the borrow, never "group them back" after it', () => {
     const t = task(5, 'green_path', 's5_g_t1');
+    const first = SocraticEngine.getSynchronousTaskHint(t, { ...EMPTY_COUNTS, thousands: 5, hundreds: 4, tens: 3, units: 2 });
+    expect(first.questionHe).toBe('נסו לחשוב: לפני שמוציאים לבנים, מה בודקים בכל טור?');
+    expect(isGroupCard(first)).toBe(false);
     const before = card(t, { thousands: 5, hundreds: 4, tens: 3, units: 2 });
     expect(before.questionHe).toContain('בטור היחידות יש 2 יחידות, וצריך לחסר 8 יחידות');
     const afterBorrow = card(t, { thousands: 5, hundreds: 4, tens: 2, units: 12 });

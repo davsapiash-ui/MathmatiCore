@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useWorkspaceStore, getActiveTasks, socraticCardColumnIndex } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, socraticCardColumnIndex, staticCardContextFor } from '@/application/useWorkspaceStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { SocraticEngine, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { orderSocraticChoices } from '@/infrastructure/services/socraticOptionOrder';
@@ -147,7 +147,8 @@ export function SocraticSidePanel() {
   const fallbackCard = helpState === 'socratic' && !socraticPending && !aiSocraticHint
     ? (() => {
         const s = useWorkspaceStore.getState();
-        return SocraticEngine.getSynchronousTaskHint(getActiveTasks(s)[s.standardTaskIdx] ?? undefined, s.counts);
+        const task = getActiveTasks(s)[s.standardTaskIdx] ?? undefined;
+        return SocraticEngine.getSynchronousTaskHint(task, s.counts, staticCardContextFor(s, task?.id));
       })()
     : null;
   const shownCard = aiSocraticHint ?? fallbackCard;
@@ -166,7 +167,7 @@ export function SocraticSidePanel() {
         const task = getActiveTasks(s)[s.standardTaskIdx] ?? undefined;
         const source = aiSocraticHint?.choices && aiSocraticHint.choices.length > 0
           ? aiSocraticHint
-          : fallbackCard ?? SocraticEngine.getSynchronousTaskHint(task, s.counts);
+          : fallbackCard ?? SocraticEngine.getSynchronousTaskHint(task, s.counts, staticCardContextFor(s, task?.id));
         return orderSocraticChoices(source.choices, task?.id, source.questionHe, source.correctChoiceId);
       })()
     : [];

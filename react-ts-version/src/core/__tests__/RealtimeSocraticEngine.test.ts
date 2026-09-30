@@ -16,7 +16,11 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     // Live counts on the board: only 2 hundreds (deficit because 1800 needs 8 hundreds)
     const counts = { units: 0, tens: 4, hundreds: 2, thousands: 5 };
 
-    const hint = await SocraticEngine.getSocraticHint(task, 'subtraction_regrouping', counts);
+    // The exercise's first card asks what to check in every column (C5, owner
+    // 30.9.2026); the one after it names the column.
+    const first = await SocraticEngine.getSocraticHint(task, 'subtraction_regrouping', counts);
+    expect(first?.questionHe).toBe('נסו לחשוב: לפני שמוציאים לבנים, מה בודקים בכל טור?');
+    const hint = await SocraticEngine.getSocraticHint(task, 'subtraction_regrouping', counts, undefined, false, 0, [], { cardContext: { shownKinds: ['borrow_check'] } });
 
     expect(hint).toBeDefined();
     expect(hint?.suggested_highlight).toBe('tour-column-thousands');

@@ -32,6 +32,7 @@ import {
 } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
+import { tenBlocksHint } from '@/infrastructure/services/staticSocraticCards';
 
 /**
  * Owner decisions, 27.9.2026 (register, approved deviation 24): what the child
@@ -225,7 +226,10 @@ describe('5 — the coaching-card texts the owner rewrote', () => {
   });
 
   it('a column can hold more than nine blocks while the child works — only the written digit is at most 9', () => {
-    expect(engine).toContain('"רמז: בסוף התרגיל נשארות בכל טור לכל היותר 9 לבנים, כי 10 לבנים יוצרות לבנה אחת בטור השמאלי."');
+    // Since 30.9.2026 a wrong option's hint is a guiding question (owner): "10
+    // hundred blocks are worth which block?" in place of the rule stated outright.
+    expect(engine).toContain("feedbackHe: tenBlocksHint('hundreds')");
+    expect(tenBlocksHint('hundreds')).toBe('רמז: 10 לבני מאה שוות לאיזו לבנה?');
     expect(engine).not.toContain('כל טור יכול להכיל לכל היותר 9');
   });
 });

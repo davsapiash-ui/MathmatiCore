@@ -26,19 +26,20 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
   // Until 28.9.2026 every meeting-3 exercise got the one card of מסמך 03 — on
   // the 4,500 exercise a card about 3,400 (audit row 3.14), and on "3,400 in
   // the usual way" a card that marked the usual way wrong (הB.11). Meeting 3
-  // has no session card any more (owner, 28.9.2026, שהB.1): the card asks
-  // which blocks the instruction asks for, with the task's own blocks as the
-  // correct option. Full rules: Meeting3_CardFitsExercise.test.ts.
-  it('session 3 has no session card: the card asks which blocks the instruction asks for', async () => {
+  // has no session card any more (owner, 28.9.2026, שהB.1), and since the
+  // station-3 redesign (owner, 30.9.2026) each task gets the card of its kind:
+  // "build it from one kind of block" asks how many of them a block of the
+  // next column is worth (C2). Full rules: Meeting3_CardFitsExercise.test.ts.
+  it('session 3 has no session card: "build it from one kind of block" gets the card of its path', async () => {
     expect(sessionCardKeysForTaskId('s3_r_t2').filter((k) => k in TASK_HINTS)).toEqual([]);
     expect(sessionCardKeysForTaskId('s3_g_reinforce_1').filter((k) => k in TASK_HINTS)).toEqual([]);
     const tasks = [...SESSIONS_BY_PATH[3].remediation_path, ...SESSIONS_BY_PATH[3].green_path];
     const rem = (await SocraticEngine.getSocraticHint(tasks.find((t) => t.id === 's3_r_t3') as any, 'flexible_regrouping', EMPTY))!;
-    expect(rem.questionHe).toBe('נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר 450?');
-    expect(rem.choices[0].textHe).toBe('משתמשים ב-45 עשרות');
+    expect(rem.questionHe).toBe('נסו לחשוב: כמה לבני עשרת שוות ללבנת מאה אחת?');
+    expect(rem.choices[0].textHe).toBe('10 לבני עשרת');
     const green = (await SocraticEngine.getSocraticHint(tasks.find((t) => t.id === 's3_g_t3') as any, 'flexible_regrouping', EMPTY))!;
-    expect(green.questionHe).toBe('נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר 4,500?');
-    expect(green.choices[0].textHe).toBe('משתמשים ב-45 מאות');
+    expect(green.questionHe).toBe('נסו לחשוב: כמה לבני מאה שוות ללבנת אלף אחת?');
+    expect(green.choices[0].textHe).toBe('10 לבני מאה');
     expect(JSON.stringify(green)).not.toMatch(/3,?400|34 מאות/);
   });
 

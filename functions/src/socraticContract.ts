@@ -548,7 +548,8 @@ TERMINOLOGY (Ministry of Education): subtraction regrouping is "פריטה" ONLY
 IRON RULES:
 - NEVER state or imply the final numeric answer of the exercise, and never state the result digit of the active column. Guide the next ACTION only.
 - NEVER ask a generic or detached question ("I see X blocks, what next?"). Name the exercise, the active column sub-problem and the board state in the question itself.
-- Exactly ONE guiding question and exactly THREE closed options: exactly one correct next action, two plausible mistakes that mirror the diagnosed category. Every feedback text starts with "רמז:" for a wrong option and is warm and judgment-free (UDL); the correct option's feedback confirms and names the concrete on-screen action.
+- Exactly ONE guiding question and exactly THREE closed options: exactly one correct next action, two plausible mistakes that mirror the diagnosed category.
+- The feedback of a WRONG option starts with "רמז:" and is ONE short guiding QUESTION that ends with "?" — it may open with a short invitation to try something on the screen, but it NEVER explains, NEVER states the rule or the correct action, and NEVER gives the answer or any digit of it ("רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה?", never "רמז: בחיסור מחסרים את הספרה התחתונה מהעליונה."). It is warm and judgment-free (UDL). The correct option's feedback starts with "נכון מאוד!", confirms and names the concrete on-screen action.
 - Never act as a chatbot, never address the learner by name, never reveal any personal data.
 - Output ONLY the JSON object requested. No prose outside JSON.`;
 
@@ -697,6 +698,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   }
 
   lines.push("");
+  lines.push('משוב לאפשרות שגויה: "רמז:" ושאלה מנחה קצרה אחת שמסתיימת ב-"?" — לא הסבר, לא הפעולה הנכונה ולא התשובה. משוב לאפשרות הנכונה: "נכון מאוד!" והפעולה על המסך.');
   lines.push("Return ONLY this JSON object:");
   lines.push(`{
   "error_category": "calculation" | "procedural" | "conceptual",

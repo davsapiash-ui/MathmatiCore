@@ -278,7 +278,8 @@ describe('the child reads "בית המספרים" and "לבנים"', () => {
     expect(crowded.questionHe).toContain('14 לבנים');
     expect(crowded.choices.map((c) => c.textHe).join(' ')).toContain('מעבירים לבנה אחת בלבד');
     const deficit = SocraticEngine.analyzeLiveBoardState({ id: 'fixture_sub52', numberA: 52, numberB: 27, isSubtraction: true }, 'subtraction_regrouping', { ...EMPTY_COUNTS, tens: 5, units: 2 })!;
-    expect(deficit.choices[0].feedbackHe).toBe('מעולה! לחצו על לבנת העשרת בבית המספרים כדי לפרוט אותה ל-10 יחידות.');
+    // The right option's feedback opens with "נכון מאוד!" (owner, 30.9.2026).
+    expect(deficit.choices[0].feedbackHe).toBe('נכון מאוד! לחצו על לבנת העשרת בבית המספרים כדי לפרוט אותה ל-10 יחידות.');
     for (const card of [crowded, deficit]) {
       const all = [card.questionHe, card.tts_text ?? '', ...card.choices.flatMap((c) => [c.textHe, c.feedbackHe ?? ''])].join(' ');
       expect(all).not.toMatch(OLD_BOARD_OR_PIECE);

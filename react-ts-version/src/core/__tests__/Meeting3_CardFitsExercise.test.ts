@@ -53,19 +53,27 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
     expect(byId('s3_r_t7').type).toBe('missing_element');
   });
 
-  it('representation tasks: the question names the criterion — which blocks the instruction asks for', () => {
-    for (const t of reps) {
-      const card = SocraticEngine.getSynchronousTaskHint(t, EMPTY);
-      const N = (t.numberA as number).toLocaleString('en-US');
-      expect(card.questionHe, t.id).toBe(`נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר ${N}?`);
-    }
+  // Owner, 30.9.2026: station 3 is redesigned so the answer is not in the
+  // instruction, and every task gets the card of its kind (C1–C3). The card
+  // that lists blocks (below) stays for a representation task of no known kind.
+  it('each representation task gets the card of its kind (C1–C3, owner 30.9.2026)', () => {
+    const q = (id: string) => SocraticEngine.getSynchronousTaskHint(byId(id), EMPTY).questionHe;
+    for (const id of ['s3_r_t1', 's3_g_t1', 's3_r_reinforce_1', 's3_g_reinforce_1']) expect(q(id), id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+    for (const id of ['s3_r_t5', 's3_g_t5']) expect(q(id), id).toBe('נסו לחשוב: יש טור שאין בו לבנים. מה כותבים במספר בשביל הטור הזה?');
+    for (const id of ['s3_r_t2', 's3_r_t4', 's3_r_t6', 's3_g_t2', 's3_g_t4', 's3_g_t6']) expect(q(id), id).toBe('נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?');
+    for (const id of ['s3_r_t3', 's3_r_reinforce_2']) expect(q(id), id).toBe('נסו לחשוב: כמה לבני עשרת שוות ללבנת מאה אחת?');
+    for (const id of ['s3_g_t3', 's3_g_reinforce_2']) expect(q(id), id).toBe('נסו לחשוב: כמה לבני מאה שוות ללבנת אלף אחת?');
   });
 
-  it('rule (2) for every representation task: correct = requiredCounts; no wrong option = requiredCounts; a wrong option is ≠ N or says it is also N', () => {
-    for (const t of reps) {
+  /** The same task with an id this module does not know: the card that lists blocks. */
+  const unknownKind = (id: string) => ({ ...byId(id), id: `${id}_x` });
+
+  it('rule (2) for a representation task of no known kind: correct = requiredCounts; no wrong option = requiredCounts; a wrong option is ≠ N or says it is also N', () => {
+    for (const t of reps.map((r) => unknownKind(r.id))) {
       const N = t.numberA as number;
       const Nhe = N.toLocaleString('en-US');
       const card = SocraticEngine.getSynchronousTaskHint(t, EMPTY);
+      expect(card.questionHe, t.id).toBe(`נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר ${Nhe}?`);
       expect(card.choices, t.id).toHaveLength(3);
       const [correct, ...wrong] = card.choices;
       expect(correct.isCorrect, t.id).toBe(true);
@@ -85,31 +93,34 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
     }
   });
 
-  it('s3_g_t1 and s3_r_t1: the correct option is the usual way the instruction asks for', () => {
-    expect(SocraticEngine.getSynchronousTaskHint(byId('s3_g_t1'), EMPTY).choices.map((c) => [c.textHe, c.isCorrect])).toEqual([
+  it('a task of no known kind asking for the usual way: its blocks are the correct option', () => {
+    expect(SocraticEngine.getSynchronousTaskHint(unknownKind('s3_g_t1'), EMPTY).choices.map((c) => [c.textHe, c.isCorrect])).toEqual([
       ['משתמשים ב-3 אלפים ו-4 מאות', true],
       ['משתמשים ב-4 אלפים ו-3 מאות', false],
       ['משתמשים ב-3,400 יחידות', false],
     ]);
-    expect(SocraticEngine.getSynchronousTaskHint(byId('s3_r_t1'), EMPTY).choices.map((c) => [c.textHe, c.isCorrect])).toEqual([
+    expect(SocraticEngine.getSynchronousTaskHint(unknownKind('s3_r_t1'), EMPTY).choices.map((c) => [c.textHe, c.isCorrect])).toEqual([
       ['משתמשים ב-3 מאות ו-4 עשרות', true],
       ['משתמשים ב-4 מאות ו-3 עשרות', false],
       ['משתמשים ב-340 יחידות', false],
     ]);
   });
 
-  it('the fixed hints: the usual way in a non-standard task, and the units option', () => {
-    const t2 = SocraticEngine.getSynchronousTaskHint(byId('s3_g_t2'), EMPTY);
-    expect(t2.choices[1]).toMatchObject({ textHe: 'משתמשים ב-3 אלפים ו-4 מאות', feedbackHe: 'רמז: גם זה 3,400, בדרך הרגילה. ההנחיה מבקשת דרך אחרת. קראו אותה שוב.' });
-    expect(t2.choices[2]).toMatchObject({ textHe: 'משתמשים ב-3,400 יחידות', feedbackHe: 'רמז: גם זה 3,400, אבל ההנחיה מבקשת לבנות אותו בטורים אחרים.' });
+  it('the hints are guiding questions, and "בדרך הרגילה" is gone (owner, 30.9.2026)', () => {
+    const t2 = SocraticEngine.getSynchronousTaskHint(unknownKind('s3_g_t2'), EMPTY);
+    expect(t2.choices[1]).toMatchObject({ textHe: 'משתמשים ב-3 אלפים ו-4 מאות', feedbackHe: 'רמז: גם זה 3,400. באילו לבנים ההנחיה מבקשת לבנות אותו?' });
+    expect(t2.choices[2]).toMatchObject({ textHe: 'משתמשים ב-3,400 יחידות', feedbackHe: 'רמז: גם זה 3,400. האם ההנחיה מבקשת לבנות אותו רק מלבני יחידה?' });
+    for (const t of tasks) {
+      for (const u of [t, unknownKind(t.id)]) expect(JSON.stringify(SocraticEngine.getSynchronousTaskHint(u, EMPTY)), u.id).not.toContain('בדרך הרגילה');
+    }
   });
 
   it('a standard task whose instruction names an empty column: the digit moves into it (★ chosen)', () => {
-    expect(SocraticEngine.getSynchronousTaskHint(byId('s3_r_t5'), EMPTY).choices[1]).toMatchObject({
-      textHe: 'משתמשים ב-5 מאות ו-6 עשרות', isCorrect: false, feedbackHe: 'רמז: במספר 506 הספרה 6 היא ספרת היחידות, וטור העשרות נשאר ריק.',
+    expect(SocraticEngine.getSynchronousTaskHint(unknownKind('s3_r_t5'), EMPTY).choices[1]).toMatchObject({
+      textHe: 'משתמשים ב-5 מאות ו-6 עשרות', isCorrect: false, feedbackHe: 'רמז: באיזה טור נמצאת הספרה 6 במספר 506?',
     });
-    expect(SocraticEngine.getSynchronousTaskHint(byId('s3_g_t5'), EMPTY).choices[1]).toMatchObject({
-      textHe: 'משתמשים ב-6 אלפים ו-3 מאות', isCorrect: false, feedbackHe: 'רמז: במספר 6,030 הספרה 3 היא ספרת העשרות, וטור המאות נשאר ריק.',
+    expect(SocraticEngine.getSynchronousTaskHint(unknownKind('s3_g_t5'), EMPTY).choices[1]).toMatchObject({
+      textHe: 'משתמשים ב-6 אלפים ו-3 מאות', isCorrect: false, feedbackHe: 'רמז: באיזה טור נמצאת הספרה 3 במספר 6,030?',
     });
   });
 
