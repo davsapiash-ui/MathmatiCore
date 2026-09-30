@@ -1800,27 +1800,31 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    * The single answer box (stations 3 and 7, owner 30.9.2026) holds one
    * number, not a digit per column, so its digits are recorded when the child
    * presses "התקדם" — keystroke by keystroke, "340" typed from the left would
-   * pass through a 3 and then a 4 in the units, each one a wrong digit. A press
-   * records every digit that changed since the previous press, in its column of
-   * the written number (units = 0), as a DIGIT_ENTERED whose is_correct compares
-   * it with the answer's digit there (Appendix A §3) — what the first-attempt
-   * score, the Persistence Index's E and measure 4 read (Module 23 §ב). A press
-   * with the same answer records nothing. A wrong answer's wrong digits go
-   * first: the first digit after a coaching card tells whether that answer was
-   * right (measure 4).
+   * pass through a 3 and then a 4 in the units, each one a wrong digit. Each
+   * digit is recorded in its column of the written number (units = 0) as a
+   * DIGIT_ENTERED whose is_correct compares it with the answer's digit there
+   * (Appendix A §3) — what the first-attempt score, the Persistence Index's E
+   * and measure 4 read (Module 23 §ב). The number is read with the leading
+   * zeros of the answer's places: "40" for 340 has 0 hundreds, a wrong digit,
+   * so a wrong number always records a wrong digit. A press records every
+   * wrong digit of the answer, first — the first digit after a coaching card
+   * tells whether that answer was right (measure 4) — then every right digit
+   * that changed since the previous press. A press with the same answer
+   * records nothing.
    */
   function recordSubmittedAnswer(task: SessionTask) {
     const s = get();
     const text = answerTextFromDigits(s.answerDigits);
     if (!text || text === s.lastSubmittedAnswer) return;
-    const before = answerDigitsFromText(s.lastSubmittedAnswer ?? '');
-    const now = answerDigitsFromText(text);
-    const entered = PLACE_ORDER.filter((p) => now[p] !== undefined && now[p] !== before[p]).map((place) => {
+    const width = Math.max(text.length, typeof task.correctAnswer === 'number' ? String(task.correctAnswer).length : 0);
+    const before = answerDigitsFromText((s.lastSubmittedAnswer ?? '').padStart(s.lastSubmittedAnswer === null ? 0 : width, '0'));
+    const now = answerDigitsFromText(text.padStart(width, '0'));
+    const judged = PLACE_ORDER.filter((p) => now[p] !== undefined).map((place) => {
       const digit = parseInt(now[place] as string, 10);
       const expected = computeExpectedDigitForColumn(task, place);
-      return { place, digit, isCorrect: expected === null ? null : digit === expected };
+      return { place, digit, isCorrect: expected === null ? null : digit === expected, changed: now[place] !== before[place] };
     });
-    entered.sort((x, y) => Number(x.isCorrect !== false) - Number(y.isCorrect !== false));
+    const entered = [...judged.filter((d) => d.isCorrect === false), ...judged.filter((d) => d.isCorrect !== false && d.changed)];
     const studentId = currentStudentUid();
     for (const e of entered) {
       emitTelemetry({

@@ -545,6 +545,32 @@ describe('the one answer box: its digits are recorded when "התקדם" is press
     }
   });
 
+  it('a wrong number always records a wrong digit: "40" for 340 has 0 hundreds', () => {
+    load(byId('s3_r_t1'));
+    buildBlocks({ hundreds: 3, tens: 4 });
+    answer('40');
+    press();
+    expect(digitsEntered().map((e) => [e.column_index, e.details.digit_value, e.details.is_correct])).toEqual([
+      [2, 0, false], // the hundreds of 40: none, where 340 has 3
+      [0, 0, true],
+      [1, 4, true],
+    ]);
+    // Another wrong number: every wrong digit again, first; the unchanged right units are not repeated.
+    answer('50');
+    press();
+    expect(digitsEntered().slice(3).map((e) => [e.column_index, e.details.digit_value, e.details.is_correct])).toEqual([
+      [1, 5, false],
+      [2, 0, false],
+    ]);
+    answer('340');
+    press();
+    expect(digitsEntered().slice(5).map((e) => [e.column_index, e.details.digit_value, e.details.is_correct])).toEqual([
+      [1, 4, true],
+      [2, 3, true],
+    ]);
+    expect(done()).toBe(true);
+  });
+
   it('a digit beyond the answer is a wrong digit in its own place: 3400 for 340', () => {
     load(byId('s3_r_t1'));
     buildBlocks({ hundreds: 3, tens: 4 });
