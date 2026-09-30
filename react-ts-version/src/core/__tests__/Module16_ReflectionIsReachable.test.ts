@@ -63,7 +63,7 @@ describe('מפגש 2 — האבחון מסתיים בהמתנה לאישור ה�
   it('המסך שמחכה ללומד אחרי האבחון הוא מסך ההמתנה, כל עוד השער לא אושר', () => {
     const page = src('features/workspace/StudentWorkspacePage.tsx');
     expect(page).toContain("endScreen === 'sessionDone' && sessionNumber === 2 && !isGateApproved");
-    expect(page).toContain('<BeeFlightWaitingScreen');
+    expect(page).toContain('<Meeting2WaitingScreen');
   });
 
   it('המסך של מפגש 8 הוא זה שמרונדר כשמגיעים לרפלקציה — ורק במפגש 8', () => {

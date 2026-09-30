@@ -46,7 +46,20 @@ const isPermissionDenied = (err: unknown): boolean =>
 /** Shown instead of "no report yet" when the account cannot read reports at all (see firestore.rules, /reports). */
 const NO_REPORT_ACCESS_TEXT = 'אין לחשבון הזה הרשאה לקרוא דוחות. התנתקו והתחברו מחדש כמורה; אם זה חוזר, פנו למנהל המערכת.';
 
+/**
+ * One journey per learner. Everything below — the events, the recordings, the
+ * selected meeting and the AI report — belongs to one learner, and survived a
+ * switch to another: the new learner's screen showed the previous learner's
+ * decision table and report until the reads returned, and "הפיקו" sent the
+ * server the new learner's number with the previous learner's session id.
+ * Keyed by the learner, a switch starts from a clean state, and an answer that
+ * arrives for the previous learner lands nowhere.
+ */
 export function LearnerJourney({ studentId }: Props) {
+  return <LearnerJourneyOfOneLearner key={String(studentId).replace(/\D/g, '') || String(studentId)} studentId={studentId} />;
+}
+
+function LearnerJourneyOfOneLearner({ studentId }: Props) {
   // מזהה שאינו נפתר החזיר עד כה 1, ולכן המורה הייתה רואה את מסע הלמידה
   // המלא של תלמיד 1 — הקלטות מסך וכל הטלמטריה — תחת שם של ילד אחר.
   const studentNum = useMemo(() => {
@@ -504,7 +517,12 @@ export function LearnerJourney({ studentId }: Props) {
                 {report.researchMeasures.length > 0 && (
                   <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 text-ws-ink">
                     <div className="font-black mb-1">מדדי המחקר</div>
-                    <ul className="space-y-1">{report.researchMeasures.map((line, i) => <li key={i}>• {line}</li>)}</ul>
+                    <ul className="space-y-1.5">{report.researchMeasures.map((m) => (
+                      <li key={m.label}>
+                        <div><span className="font-bold">{m.label}:</span> {m.value}</div>
+                        <div className="text-ws-soft text-[11px]">{m.explanation}</div>
+                      </li>
+                    ))}</ul>
                   </div>
                 )}
                 {report.pdfFailureMessage && (

@@ -24,7 +24,8 @@ describe('the server recomputes the meeting score', () => {
 
   it('reads the events by learner and meeting, not by the document id', () => {
     // sessions/session_02_student_4 vs telemetry session_2_student_student_user4.
-    expect(body).toContain('readMeetingTelemetry(db, studentNum, sessionNum)');
+    // Only the run since the last reset of the meeting (scoreAfterReset.test.ts).
+    expect(body).toContain('readMeetingTelemetry(db, studentNum, sessionNum, { writtenAfterMs })');
     expect(body).not.toContain('readAllTelemetryForSession(');
   });
 

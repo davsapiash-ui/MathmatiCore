@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -57,6 +57,26 @@ describe('השלכה לפח היא אירוע טלמטריה תקני', () => {
     const before = useWorkspaceStore.getState().counts;
     useWorkspaceStore.getState().applyDrop({ source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'tens' } });
     expect(useWorkspaceStore.getState().counts).toEqual(before);
+  });
+
+  it('לבנה מארגז הכלים אינה נרשמת כהשלכה לפח: אין לה טור מקור (בעל המוצר, 28.9.2026: "אי מצב שהשתמשתי בפח 85 פעם")', async () => {
+    const mod = await import('@/infrastructure/services/FirebaseSyncService');
+    const sent: any[] = [];
+    const spy = vi.spyOn(mod, 'emitTelemetry').mockImplementation(async (e: any) => { sent.push(e); return undefined as any; });
+    try {
+      useWorkspaceStore.getState().applyDrop({ source: 'palette', sourcePlace: 'units', target: { kind: 'column', place: 'units' } });
+      useWorkspaceStore.getState().applyDrop({ source: 'column', sourcePlace: 'tens', target: { kind: 'trash' } });
+    } finally {
+      spy.mockRestore();
+    }
+    const drags = sent.filter((e) => e.event_type === 'BLOCK_DRAG_COMPLETE');
+    expect(drags).toHaveLength(2);
+    const [add, thrown] = drags;
+    // The server's reading (functions/src/meetingMetrics.ts computeToolMastery):
+    // equal column fields = the trash. The add must not have that shape.
+    expect(add.column_index).toBe(0);
+    expect(add.details.source_column_index).toBeNull();
+    expect(thrown.column_index).toBe(thrown.details.source_column_index);
   });
 
   it('ציר הזמן של המורה מתאר את ההשלכה כהשלכה', () => {

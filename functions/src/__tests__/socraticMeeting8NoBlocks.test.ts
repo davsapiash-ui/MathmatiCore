@@ -159,8 +159,9 @@ describe('what the model is told matches the screen', () => {
     expect(SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS).not.toContain('מקבצים');
   });
 
-  it('prefixes like "כשהלבנים" and the button "קבץ 10" are caught', () => {
+  it('prefixes like "כשהלבנים" and the button "קבצו 10" are caught', () => {
     expect(findAbsentAid(['וכשהלבנים בטור'], false)).not.toBeNull();
     expect(findAbsentAid(['לחצו על קבץ 10 לעשרת'], false)).not.toBeNull();
+    expect(findAbsentAid(['לחצו על קבצו 10 לעשרת'], false)).not.toBeNull();
   });
 });

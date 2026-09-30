@@ -147,6 +147,19 @@ export function flushThrottledWrites() {
   }
 }
 
+/**
+ * Takes these fields, and every path beneath them, out of what is still
+ * waiting to be sent on this path. A teacher's reset (Module 23א) uses it: a
+ * board state queued a moment before the reset must not land after it.
+ */
+export function dropPendingFields(path: string, fields: string[]) {
+  const entry = pendingWrites.get(path);
+  if (!entry) return;
+  for (const key of Object.keys(entry.payload)) {
+    if (fields.some((f) => key === f || key.startsWith(`${f}/`))) delete entry.payload[key];
+  }
+}
+
 /** Clear all pending throttled writes (useful for tests) */
 export function resetThrottledWrites() {
   for (const entry of pendingWrites.values()) {

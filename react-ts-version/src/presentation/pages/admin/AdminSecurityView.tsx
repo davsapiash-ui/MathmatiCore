@@ -148,7 +148,7 @@ export function AdminSecurityView() {
               </li>
               <li className="flex gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span>מורה מורשה לצפות בנתוני כיתתו המשויכת בלבד, לאשר מעבר שער ולעדכן פרופילי תמיכה (UDL) — ואינו מורשה לשנות הגדרות מערכת גלובליות.</span>
+                <span>מורה מורשה לצפות בנתוני כיתתו המשויכת בלבד, לאשר את החלוקה למסלולים ולעדכן פרופילי תמיכה (UDL) — ואינו מורשה לשנות הגדרות מערכת גלובליות.</span>
               </li>
               <li className="flex gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />

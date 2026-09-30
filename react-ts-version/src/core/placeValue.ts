@@ -82,7 +82,7 @@ export function splitBlockClick(counts: PlaceCounts, place: Place): { counts: Pl
   return ungroupBlock(counts, place);
 }
 
-/** הקבצה מפורשת בלחיצה על כפתור "הקבץ": 10 adjacent-low → 1 high (Units→Tens, Tens→Hundreds, Hundreds→Thousands). */
+/** הקבצה מפורשת בלחיצה על כפתור "קבצו 10": 10 adjacent-low → 1 high (Units→Tens, Tens→Hundreds, Hundreds→Thousands). */
 export function groupBlocksManually(counts: PlaceCounts, fromPlace: Place): { counts: PlaceCounts; event: RegroupEvent } | null {
   const fromIdx = PLACE_ORDER.indexOf(fromPlace);
   if (fromIdx < 0 || fromIdx >= PLACE_ORDER.length - 1) return null;
@@ -176,6 +176,13 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLeve
       if (!res) return { ok: false, reason: 'constraint', place: targetPlace };
       return { ok: true, counts: res.counts, regroupEvents: [], ungroupEvent: res.event };
     }
+    // A block dropped on a column of a higher value (a unit on the tens) is
+    // rejected, in every meeting (owner, 28.9.2026): moving it to its own
+    // column in silence hid a place-value error from the teacher, logged it as
+    // a ten in the tens column, and counted it in meeting 1's "5 לבנים". Only a
+    // block released OUTSIDE the columns goes to its own column (doc 03 §3.1,
+    // Drag & Drop Forgiveness) — the page routes those before they reach here.
+    if (tgtIdx > srcIdx) return { ok: false, reason: 'constraint', place: targetPlace };
     // Any other drop of a palette block onto the board routes safely to its own column
     const { counts: next, events } = addBlock(counts, input.sourcePlace, autoGroup);
     return { ok: true, counts: next, regroupEvents: events };
@@ -191,7 +198,7 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLeve
     return { ok: true, counts: res.counts, regroupEvents: [], ungroupEvent: res.event };
   }
 
-  // Non-adjacent or upward drag: rejected (regrouping must use the explicit "הקבץ" button per PRD).
+  // Non-adjacent or upward drag: rejected (regrouping must use the explicit "קבצו 10" button per PRD).
   return { ok: false, reason: 'constraint', place: targetPlace };
 }
 
@@ -220,7 +227,7 @@ export function describeCountsHe(counts: Partial<PlaceCounts>): string {
     .reverse()
     .filter((p) => (counts[p] || 0) > 0)
     .map((p) => (counts[p] === 1 ? SINGULAR_HE[p] : `${counts[p]} ${PLACE_NAMES_HE[p]}`));
-  if (parts.length === 0) return 'לוח ריק';
+  if (parts.length === 0) return 'בית המספרים ריק';
   if (parts.length === 1) return parts[0];
   return `${parts.slice(0, -1).join(', ')} ו-${parts[parts.length - 1]}`;
 }

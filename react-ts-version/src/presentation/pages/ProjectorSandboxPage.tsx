@@ -51,6 +51,12 @@ export function ProjectorSandboxPage() {
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
   );
 
+  // The projector demonstrates: its column digits always show (core/columnDigits.ts hides them in stations 3–7).
+  useEffect(() => {
+    useWorkspaceStore.setState({ projectorBoard: true });
+    return () => useWorkspaceStore.setState({ projectorBoard: false });
+  }, []);
+
   // אתחול סשן נקי ללוח בהתאם לטווח הנבחר
   useEffect(() => {
     const targetSession = selectedRange === '1000' ? 1 : 3;
@@ -251,10 +257,10 @@ export function ProjectorSandboxPage() {
           <button
             onClick={handleResetBoard}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-all shadow-2xs"
-            title="ניקוי כל הלבנים מהלוח"
+            title="ניקוי כל הלבנים מבית המספרים"
           >
             <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-            <span>נקו את הלוח</span>
+            <span>נקו את בית המספרים</span>
           </button>
 
           <button

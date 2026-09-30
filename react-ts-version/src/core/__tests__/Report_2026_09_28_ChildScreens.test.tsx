@@ -48,15 +48,17 @@ const topbar = () =>
   );
 
 describe('the toolbar speaks to the class in neutral words (owner, 28.9.2026)', () => {
-  it('"ממשיכים", "יציאה" and "מספר 12" — no masculine singular', () => {
+  it('"ממשיכים", "יציאה" and "מספר תלמיד: 12" — no masculine singular', () => {
     ws().initSession(3, false, 0);
     topbar();
     expect(PROCEED_HE).toBe('ממשיכים');
     expect(LOGOUT_HE).toBe('יציאה');
-    expect(studentBadgeHe(12)).toBe('מספר 12');
+    // Owner, 28.9.2026: "תלמיד:" before the number; only the number changes, 1–12.
+    expect(studentBadgeHe(12)).toBe('מספר תלמיד: 12');
+    expect(studentBadgeHe(1)).toBe('מספר תלמיד: 1');
     const nav = document.querySelector('nav')!;
     expect(screen.getByTestId('proceed-button').textContent).toBe('ממשיכים');
-    expect(screen.getByTestId('student-badge').textContent).toContain('מספר 12');
+    expect(screen.getByTestId('student-badge').textContent).toContain('מספר תלמיד: 12');
     expect(nav.textContent).toContain('יציאה');
     for (const old of ['התקדם', 'התנתק', 'תלמיד 12', 'מתנתק']) expect(nav.textContent).not.toContain(old);
     for (const el of nav.querySelectorAll('[aria-label],[title]')) {
@@ -99,7 +101,7 @@ describe('rows 1.30, 2.11, 3.18 — every toolbar button fits a 1024 px screen',
     expect(exit.textContent).toBe('יציאה');
     expect(exit.querySelector('span')!.className).not.toContain('sr-only');
     const badge = screen.getByTestId('student-badge').querySelector('span')!;
-    expect(badge.textContent?.trim()).toBe('מספר 12');
+    expect(badge.textContent?.trim()).toBe('מספר תלמיד: 12');
     expect(badge.className).not.toContain('sr-only');
   });
 
@@ -269,7 +271,7 @@ describe('one name per thing on the child\'s screen: "בית המספרים", "�
     }
     // the guard itself sees through niqqud
     expect('קֻבִּיּוֹת'.replace(/[֑-ׇ]/g, '')).toMatch(/קביות|קוביות/);
-    expect(store).toContain("'עוד אין לבנים בבית המספרים. לחצו על לבנה בארגז הכלים או גררו אותה לבית המספרים, ובנו את המספרים שבתרגיל.'");
+    expect(store).toContain("'עוד אין לבנים בבית המספרים. לחצו על אחת הלבנים שמתחת לבית המספרים, או גררו אותה אליו, ובנו את המספרים שבתרגיל.'");
     expect(store).toContain("'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.'");
     // a wrong board is refused without spelling out the blocks to build
     expect(store).not.toContain('בבית המספרים צריך להיות בדיוק');

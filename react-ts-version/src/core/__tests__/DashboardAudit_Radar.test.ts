@@ -70,7 +70,10 @@ describe('the recommended path has one source on every teacher screen (Module 20
     const cm = src('presentation/pages/TeacherDashboard/ClassManagement.tsx');
     const drawer = src('presentation/pages/TeacherDashboard/components/TeacherGateApprovalDrawer.tsx');
     const dash = src('presentation/pages/TeacherDashboard.tsx');
-    for (const file of [grid, cm, drawer, dash]) expect(file).toContain('recommendedPathOf(');
+    // The approvals table and the journey badge read it through gateEvidence.ts.
+    const evidence = src('presentation/pages/TeacherDashboard/gateEvidence.ts');
+    for (const file of [grid, cm, drawer, evidence]) expect(file).toContain('recommendedPathOf(');
+    expect(dash).toContain('gateEvidenceFor(sNum)?.recommendedPath');
     expect(grid).not.toContain("sessionState.current_path === 'green_path') ? 'ירוק'");
     expect(cm).not.toContain("recommendedPath: isYellow ? 'צמצום פערי קדם' : 'ירוק'");
     expect(dash).not.toContain('(traceData.hesitation_events || 0) > 2 ||');
@@ -115,7 +118,11 @@ describe('the lesson survives the teacher\'s connection', () => {
     expect(start).toBeGreaterThan(-1);
     expect(effect).toContain("onValue(ref(database, '.info/connected')");
     expect(effect).toContain('if (isConnected) armPresence();');
-    expect(effect).toContain('if (!snap.exists() || !isConnected) return;');
+    expect(effect).toContain('if (!rec || stamp === null || !isConnected) return;');
+    // Never cleared blindly at the moment of reconnecting: past the grace
+    // window the meeting stays closed (PRD 14 §ב0, register item 21) — the
+    // behaviour is covered in Module14_TeacherTransitions.test.tsx.
+    expect(effect).toContain('serverNow() - stamp > TEACHER_DISCONNECT_GRACE_MS');
     expect(effect).toContain('unsubConnected();');
     // The teacher is told her connection dropped and came back: it is invisible
     // to her otherwise, and it starts the window after which the lesson closes

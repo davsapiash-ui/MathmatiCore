@@ -77,6 +77,11 @@ vi.mock('firebase/database', () => ({
       cb(snapOf(fake.session));
       return () => fake.listeners.delete(cb);
     }
+    // A connected dashboard (an offline one takes another path: Module14_TeacherTransitions).
+    if (r?.path === '.info/connected') {
+      cb(snapOf(true));
+      return () => {};
+    }
     cb(snapOf(null));
     return () => {};
   }),

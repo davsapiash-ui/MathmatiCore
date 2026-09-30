@@ -44,12 +44,15 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
     Boolean(student?.isASD || sAny.isASD)
   );
 
+  // The dashboard hands in the live learner, a new object on every update of
+  // the class (each heartbeat). The form follows the STORED value only when it
+  // changes, or when another learner is opened, so a toggle not yet saved is
+  // not thrown away every few seconds.
+  const storedIsASD = Boolean(student?.isASD || sAny.isASD);
   useEffect(() => {
-    if (student) {
-      const s = student as any;
-      setIsASD(Boolean(student.isASD || s.isASD));
-    }
-  }, [student]);
+    if (student) setIsASD(storedIsASD);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student?.studentId, storedIsASD]);
 
   // מסמך העיצוב §1.2: Escape סוגר, הפוקוס נלכד בתוך המגירה, ובסגירה חוזר
   // לאלמנט שממנו היא נפתחה.
@@ -272,7 +275,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                 <div>
                   <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     <EyeOff className="w-4 h-4 text-purple-600" />
-                    שקט חזותי והתאמת קשב (ASD / Sensory Friendly)
+                    שקט חזותי והתאמת קשב
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     התאמת סביבת הלמידה לתלמידים עם רגישות חושית או הפרעות קשב וריכוז.
@@ -285,7 +288,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                       הפעלת מצב שקט חזותי (הפחתת גירויים)
                     </span>
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      מכבה אנימציות קופצות, אפקטי תנועה וצלילים מסיחי דעת, ומציג לוח נקי וסולידי עם ניגודיות גבוהה ונעימה לעין.
+                      מכבה אנימציות קופצות, אפקטי תנועה וצלילים מסיחי דעת, ומציג מסך נקי ושקט עם ניגודיות גבוהה ונעימה לעין.
                     </p>
                   </div>
                   <input
@@ -321,7 +324,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                     מסע הלמידה ושחזור מהלכים — תלמיד {studentNum}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
-                    התצוגה המלאה כוללת שחזור ויזואלי של לוח התלמיד, ציר החלטות מפורט ודוחות למידה לכל שמונת המפגשים בתצוגת מסך מפוצל.
+                    התצוגה המלאה כוללת שחזור ויזואלי של מסך התלמיד, ציר החלטות מפורט ודוחות למידה לכל שמונת המפגשים בתצוגת מסך מפוצל.
                   </p>
                 </div>
                 <div className="pt-2">

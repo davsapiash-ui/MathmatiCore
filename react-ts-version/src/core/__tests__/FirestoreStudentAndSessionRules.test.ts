@@ -57,16 +57,30 @@ describe('מסמך התלמיד', () => {
 });
 
 describe('מסמך המפגש', () => {
-  it('לומד אינו קובע את המסלול שהמורה בחרה או את חותמות האישור', () => {
-    const helper = section('function gateDecisionFieldsAreEmpty', '// --- Collections Routing ---');
-    for (const field of ['teacher_selected_path', 'gate_approved_at', 'gate_approved_by']) {
-      expect(helper).toContain(`request.resource.data.get('${field}', null) == null`);
-    }
+  // בעל המוצר, 29.9.2026: גם הציון, ההמלצה וחותמת החישוב של השרת — ולא רק
+  // החלטת המורה. ובעדכון: "כפי שהם", לא "ריקים" — הכלל הקודם בדק את המצב
+  // שאחרי הכתיבה, ולכן לומד יכול היה לרוקן אישור שכבר ניתן.
+  const staffOnly = [
+    'teacher_selected_path', 'gate_approved_at', 'gate_approved_by',
+    'session_score_percent', 'matrix_recommended_path', 'evaluated_at',
+  ];
+
+  it('לומד אינו קובע את החלטת המורה, את הציון או את ההמלצה ביצירה', () => {
+    const helper = section('function learnerCreateLeavesStaffFieldsEmpty', 'function sessionFieldUnchanged');
+    for (const field of staffOnly) expect(helper).toContain(`d.get('${field}', null) == null`);
+  });
+
+  it('ובעדכון — אינו משנה אותם ואינו מרוקן אותם', () => {
+    const helper = section('function sessionFieldUnchanged', '// --- Collections Routing ---');
+    expect(helper).toContain('request.resource.data.get(field, null) == resource.data.get(field, null)');
+    for (const field of staffOnly) expect(helper).toContain(`sessionFieldUnchanged('${field}')`);
+    expect(rules).not.toContain('gateDecisionFieldsAreEmpty');
   });
 
   it('הכלל חל גם ביצירה וגם בעדכון', () => {
     const routing = section('match /sessions/{sessionId}', 'match /telemetry_logs');
-    expect(routing.match(/gateDecisionFieldsAreEmpty\(\)/g)).toHaveLength(2);
+    expect(routing).toContain('(isTeacher() || learnerCreateLeavesStaffFieldsEmpty())');
+    expect(routing).toContain('(isTeacher() || learnerUpdateKeepsStaffFields())');
     // דגל האישור עצמו ממשיך להיות מוגן כפי שהיה.
     expect(routing).toContain('request.resource.data.teacher_gate_approved == false');
     expect(routing).toContain(
@@ -84,5 +98,16 @@ describe('מסמך המפגש', () => {
     expect(body).toContain('gate_approved_at: null');
     expect(body).toContain('gate_approved_by: null');
     expect(body).toContain('teacher_selected_path: null');
+  });
+
+  it('הלקוח אינו שולח ציון או המלצה — לא למסמך ולא לרשומה ב-RTDB', () => {
+    const sync = readFileSync(
+      resolve(__dirname, '../../infrastructure/services/FirebaseSyncService.ts'),
+      'utf-8'
+    );
+    const fn = sync.slice(sync.indexOf('public async syncSession2Completion('));
+    const body = fn.slice(0, fn.indexOf('public async fetchTeacherClassrooms'));
+    expect(body).not.toContain('session_score_percent:');
+    expect(body).not.toContain('matrix_recommended_path:');
   });
 });

@@ -37,7 +37,9 @@ describe('Module 12 — a mistake is met inside the exercise, never with an inje
     const handler = store.slice(store.indexOf("const incomplete = detail === 'missing_answer' || detail === 'no_choice';"));
     const block = handler.slice(0, handler.indexOf('showFeedback({ correct: false'));
     expect(block).toContain("const incomplete = detail === 'missing_answer' || detail === 'no_choice';");
-    expect(block).toContain('if (streak >= 2) {');
+    // One help per press (owner, 30.9.2026): the press that brings the result
+    // row's place cues holds the card to the next wrong answer (PlaceCueScaffold.test.ts).
+    expect(block).toContain('if (streak >= 2 && !opts.holdCard) {');
     expect(block).toContain("set({ helpState: 'friction', frictionTriggerSource: 'mistake' });");
     expect(block).not.toContain('injectTask(');
   });

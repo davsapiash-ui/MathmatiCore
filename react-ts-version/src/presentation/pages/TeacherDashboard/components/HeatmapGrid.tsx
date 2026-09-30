@@ -56,6 +56,9 @@ export interface AnonymousStudent {
   status: 'active' | 'locked' | 'completed';
   hesitationSeconds: number;
   errorCount: number;
+  /** Shown on the tile apart, so undos (self-correction) and mistakes are not one number called "ביטולים". */
+  undoCount?: number;
+  mistakeCount?: number;
   enhancedSupport: boolean;
   isStruggling: boolean;
   isSocraticActive: boolean;
@@ -82,6 +85,8 @@ const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_,
     status: 'active' as const,
     hesitationSeconds: 0,
     errorCount: 0,
+    undoCount: 0,
+    mistakeCount: 0,
     enhancedSupport: false,
     isStruggling: false,
     isSocraticActive: false,
@@ -116,13 +121,13 @@ export function describeRadarCell(
 
   // PRD Module 18 §ב gives the tile's colour to activity, connection and help
   // alone; the gate is Module 20's, so it is said after the state, not instead.
-  if (student.isWaitingAtGate) parts.push(`סיים אבחון וממתין ב${TEACHER_GATE_HE}`);
+  if (student.isWaitingAtGate) parts.push(`סיים אבחון וממתין ב${TEACHER_GATE_HE} לפני מפגש 3`);
 
   const glyph = getCognitiveGlyph(student.errorCategory);
   if (glyph) parts.push(glyph.title);
   if (student.enhancedSupport) parts.push('תמיכה מוגברת פעילה');
 
-  parts.push('להצגת הלוח והפרטים');
+  parts.push('להצגת מסך התלמיד והפרטים');
   return parts.join('. ');
 }
 
@@ -241,7 +246,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           const hesitationSeconds = isOnline && hesitatingSince !== null
             ? hesitationThreshold + Math.max(0, Math.round((now - hesitatingSince) / 1000))
             : 0;
-          const errorCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0) : 0;
+          const undoCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0) : 0;
+          const mistakeCount = isOnline ? sessionState.error_count || 0 : 0;
+          // The struggle signal keeps its rule (Module 18): the larger of the two.
+          const errorCount = Math.max(undoCount, mistakeCount);
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path';
           const enhancedSupport = hasEnhancedSupport(data) || Boolean(data.isASD || data.forceAdditionHelper || data.additionBoardEnabled);
 
@@ -304,6 +312,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             status,
             hesitationSeconds,
             errorCount,
+            undoCount,
+            mistakeCount,
             enhancedSupport,
             isStruggling,
             isSocraticActive,
@@ -344,7 +354,11 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       clearInterval(heartbeatTimer);
       if (throttleTimeout) clearTimeout(throttleTimeout);
     };
-  }, [isClassSessionActive]);
+    // The tiles read activeSessionNum too (a learner whose workspace has no
+    // meeting number shows the class's). Depending on isClassSessionActive
+    // alone kept the old number after a direct switch from one open meeting to
+    // another (3 → 5): the flag never changed, so the tiles said "מפגש 3".
+  }, [isClassSessionActive, activeSessionNum]);
 
   const getPedagogicalRecommendations = (student: AnonymousStudent) => {
     if (student.errorCount >= 3 || student.lastAction?.includes('ללא פריטה')) {
@@ -462,7 +476,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       useStore.getState().approveRoute(`student_${num}`);
       useStore.getState().approveRoute(num);
 
-      toast.success(`✓ ${radarPathLabelHe(path)} אושר עבור תלמיד ${num}! ${TEACHER_GATE_HE} למפגש 3 נפתח.`);
+      toast.success(`✓ ${radarPathLabelHe(path)} אושר עבור תלמיד ${num}! ${TEACHER_GATE_HE} הושלם עבורו, ומפגש 3 נפתח.`);
     } catch (err) {
       console.error('Failed to approve gate:', err);
       toast.error(`שגיאה ב${TEACHER_GATE_HE}`);
@@ -550,7 +564,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             </div>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת לצפייה בלוח, בהקלטות וב{TEACHER_GATE_HE}.
+            מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת לצפייה במסך התלמיד, בהקלטות וב{TEACHER_GATE_HE}.
           </p>
         </div>
 
@@ -588,8 +602,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <span className="font-extrabold text-sm text-amber-950 dark:text-amber-100 flex items-center gap-2">
                 <DoorOpen className="w-4 h-4 text-amber-600" />
                 {pendingGateStudents.length === 1 
-                  ? `תלמיד ${pendingGateStudents[0].studentNumber} סיים את שלב האבחון וממתין ב${TEACHER_GATE_HE} למפגש 3`
-                  : `${pendingGateStudents.length} תלמידים סיימו את שלב האבחון וממתינים ב${TEACHER_GATE_HE} למפגש 3`}
+                  ? `תלמיד ${pendingGateStudents[0].studentNumber} סיים את שלב האבחון וממתין ב${TEACHER_GATE_HE} לפני מפגש 3`
+                  : `${pendingGateStudents.length} תלמידים סיימו את שלב האבחון וממתינים ב${TEACHER_GATE_HE} לפני מפגש 3`}
               </span>
             </div>
             <div className="flex items-center gap-2.5 flex-wrap">
@@ -753,8 +767,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
                     {/* Real-Time Trace Metrics */}
                     <div className="text-[10px] text-slate-600 dark:text-slate-300 flex justify-between items-center pt-1 border-t border-slate-200/60 dark:border-slate-800 font-mono font-bold">
-                      <span>השהייה: {student.hesitationSeconds}ש'</span>
-                      <span>ביטולים: {student.errorCount}</span>
+                      {/* "היסוס", as in the radar's legend (Module 18). */}
+                      <span>היסוס: {student.hesitationSeconds} שנ׳</span>
+                      <span>ביטולים: {student.undoCount ?? 0}</span>
+                      <span>טעויות: {student.mistakeCount ?? 0}</span>
                     </div>
 
                   </>
@@ -769,7 +785,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     className="mt-2 pt-2 border-t border-slate-300/80 dark:border-slate-600/80 flex flex-col gap-1 z-10"
                     onClick={e => e.stopPropagation()}
                   >
-                    <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1" title={`ממתין ב${TEACHER_GATE_HE} למפגש 3`}>
+                    <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1" title={`ממתין ב${TEACHER_GATE_HE} לפני מפגש 3`}>
                       <DoorOpen className="w-3 h-3 shrink-0" />
                       <span className="min-w-0">
                         {TEACHER_GATE_HE} · המלצה: <span className="whitespace-nowrap">{radarPathLabelHe(student.recommendedPath)}</span>

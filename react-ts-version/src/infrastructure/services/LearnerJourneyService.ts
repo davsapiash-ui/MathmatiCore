@@ -25,6 +25,7 @@ import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
 import { CHOICE_PATH_LABEL_HE, choiceTask, exercisePathType } from '@/core/choiceExercises';
 import { meetingShortLabelHe } from '@/core/stationNames';
 import { ERROR_CATEGORY_HE } from '@/core/routeLabels';
+import { RESEARCH_MEASURES_HE, persistenceTextHe, selfCorrectionTextHe, type ResearchMeasureKey } from '@/core/researchMeasures';
 
 export interface RecordingChapter {
   exerciseId: string;
@@ -171,7 +172,9 @@ const EVENT_LABELS_HE: Record<string, string> = {
   ADAPTIVE_GRID_TOGGLED: 'לוח החיבור',
   KEYBOARD_LOCK_BLOCKED: 'הקלדה לפני המרה (מקלדת נעולה)',
   HELP_REQUESTED: 'קריאה שקטה למורה',
-  BOARD_CLEARED: 'ניקוי הלוח',
+  HELP_WITHDRAWN: 'ביטול הקריאה למורה',
+  BOARD_CLEARED: 'ניקוי בית המספרים',
+  PLACE_CUES_SHOWN: 'פיגום בשורת התוצאה',
 };
 
 export interface EventDescription {
@@ -202,11 +205,16 @@ export function describeEvent(e: JourneyEvent): EventDescription {
   let selfRegulation = false;
   let attention = false;
   switch (e.eventType) {
+    case 'PLACE_CUES_SHOWN':
+      // Register deviation 28: a digit was written in another column's box.
+      detail = d.profile === 'enhanced' ? 'ספרה בתיבה של טור אחר: הופיעו כותרות הטורים' : 'ספרה בתיבה של טור אחר: הופיעו צבעי הטורים וכותרותיהם';
+      attention = true;
+      break;
     case 'BOARD_CLEARED':
       // Meeting 1 step 5 records a press on an already empty board too.
       detail = Number(d.blocks_removed) > 0
-        ? `${d.blocks_removed} לבנים ירדו מהלוח בבת אחת`
-        : 'לחיצה על פח האשפה כשהלוח כבר היה ריק';
+        ? `${d.blocks_removed} לבני הדינס ירדו מבית המספרים בבת אחת`
+        : 'לחיצה על פח האשפה כשבית המספרים כבר היה ריק';
       break;
     case 'SESSION_START':
       detail = typeof d.session_number === 'number' ? meetingShortLabelHe(d.session_number) : '';
@@ -268,7 +276,7 @@ export function describeEvent(e: JourneyEvent): EventDescription {
       detail = `${typeof d.total_duration_ms === 'number' ? `${Math.round(d.total_duration_ms / 1000)} שנ׳` : ''}${typeof d.error_count === 'number' ? ` · ${d.error_count} שגיאות` : ''}${typeof d.undo_count === 'number' ? ` · ${d.undo_count} ביטולים` : ''}`.replace(/^ · /, '');
       break;
     case 'REFLECTION_SUBMITTED':
-      detail = `שלב ${d.reflection_step ?? ''}${d.effort_score ? ` · מאמץ ${String(d.effort_score)}` : ''}${typeof d.persistence_index === 'number' ? ` · התמדה ${d.persistence_index}%` : ''}`;
+      detail = `שלב ${d.reflection_step ?? ''}${d.effort_score ? ` · מאמץ ${String(d.effort_score)}` : ''}${typeof d.persistence_index === 'number' ? ` · תיקון עצמי ${d.persistence_index}%` : ''}`;
       break;
     default:
       detail = '';
@@ -432,9 +440,9 @@ export const AI_FALLBACK_TEXT = 'הניתוח הפדגוגי המפורט אינ
  * (functions/src/meetingMetrics.ts TOOLS / TOOL_LABEL_HE).
  */
 export const TOOL_LABELS_HE: ReadonlyArray<[string, string]> = [
-  ['drag', 'גרירת לבנים ללוח'],
+  ['drag', 'גרירת לבני הדינס לבית המספרים'],
   ['decompose', 'פירוק לבנה (פריטה)'],
-  ['compose', 'הקבצה בכפתור "הקבץ"'],
+  ['compose', 'הקבצה בכפתור "קבצו 10"'],
   ['type', 'הקלדת ספרות'],
   ['undo', 'ביטול פעולה'],
   ['trash', 'פח האשפה'],
@@ -482,7 +490,7 @@ export interface MeetingReport {
    * PRD 7.3, Module 23 §ב "מדדי המחקר": shown in the learner report. One ready
    * line per measure; empty for a report produced before the measures existed.
    */
-  researchMeasures: string[];
+  researchMeasures: ResearchMeasureLine[];
   /** Set when the server produced the report but could NOT render or store its PDF (Module 23 §ה). */
   pdfFailureMessage: string | null;
 }
@@ -494,15 +502,25 @@ const ratioLine = (v: unknown, a: string, b: string, unit = ''): string => {
   return `${Number(o[b]) || 0} מתוך ${Number(o[a]) || 0}${unit} (${o.percent}%)`;
 };
 
-function researchMeasureLines(m: unknown): string[] {
+/** One research measure in the learner report: its name, its values, and one sentence on what it says. */
+export interface ResearchMeasureLine {
+  label: string;
+  value: string;
+  explanation: string;
+}
+
+function researchMeasureLines(m: unknown): ResearchMeasureLine[] {
   if (!m || typeof m !== 'object') return [];
   const r = m as Record<string, any>;
-  const p = r.persistence && typeof r.persistence === 'object' ? r.persistence : null;
-  return [
-    `התמדה וויסות עצמי במפגש זה: ${p ? `${Number(p.percent) || 0}% (ביטולים ${Number(p.undos) || 0}, ספרות שגויות ${Number(p.wrong_digits) || 0}, בחירות שגויות בכרטיס ${Number(p.wrong_options) || 0})` : 'לא נמדד'}`,
-    `גמישות ייצוגית במפגש זה: ${ratioLine(r.flexibility, 'completed', 'first_try')} · מצטבר (מפגשים 3 ו-7): ${ratioLine(r.flexibility_cumulative, 'completed', 'first_try')}`,
-    `אפקטיביות התיווך במפגש זה: ${r.mediation ? ratioLine(r.mediation, 'cards', 'effective', ' כרטיסים') : 'לא נמדד'} · מצטבר (כל המפגשים): ${r.mediation_cumulative ? ratioLine(r.mediation_cumulative, 'cards', 'effective', ' כרטיסים') : 'לא נמדד'}`,
-  ];
+  // Owner, 30.9.2026: measure 2 in two parts. The stored key `persistence` is 2ב;
+  // `persistence_without_help` (2א) is absent on reports stored before it existed.
+  const values: Record<ResearchMeasureKey, string> = {
+    persistence: persistenceTextHe(r.persistence_without_help),
+    self_correction: selfCorrectionTextHe(r.persistence),
+    flexibility: `${ratioLine(r.flexibility, 'completed', 'first_try')} · מצטבר (מפגשים 3 ו-7): ${ratioLine(r.flexibility_cumulative, 'completed', 'first_try')}`,
+    mediation: `${r.mediation ? ratioLine(r.mediation, 'cards', 'effective', ' כרטיסים') : 'לא נמדד'} · מצטבר (כל המפגשים): ${r.mediation_cumulative ? ratioLine(r.mediation_cumulative, 'cards', 'effective', ' כרטיסים') : 'לא נמדד'}`,
+  };
+  return RESEARCH_MEASURES_HE.map((x) => ({ label: x.label, value: values[x.key], explanation: x.explanation }));
 }
 
 const strList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
