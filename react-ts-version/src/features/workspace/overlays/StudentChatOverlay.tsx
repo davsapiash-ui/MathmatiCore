@@ -11,6 +11,9 @@ import { ref, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
+/** The same ready message pressed again within this time is one press. */
+const READY_MESSAGE_REPEAT_MS = 2000;
+
 export function StudentChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -23,6 +26,7 @@ export function StudentChatOverlay() {
   const user = useAuthStore(s => s.user);
   const activeSession = useActiveClassSession();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastReadySentRef = useRef<{ text: string; at: number } | null>(null);
 
   const students = useStore(s => s.students);
   const classes = useAdminStore(s => s.classes);
@@ -79,13 +83,20 @@ export function StudentChatOverlay() {
   // button. The teacher still writes free text to the learner (her side has
   // its own PII filter), and the learner can hear it read aloud.
   const sendReadyMessage = (messageText: string) => {
-    if (!user?.uid) return;
+    // No learner number (a teacher previewing the workspace): nothing to send
+    // as — an empty id wrote to the root of chat_messages.
+    if (!user?.uid || !normUid) return;
+    // A double tap on a tablet sent the teacher the same message twice.
+    const now = Date.now();
+    const last = lastReadySentRef.current;
+    if (last && last.text === messageText && now - last.at < READY_MESSAGE_REPEAT_MS) return;
+    lastReadySentRef.current = { text: messageText, at: now };
     const studentNum = normUid.replace(/\D+/g, '') || '1';
     sendMessage(normUid, `תלמיד ${studentNum}`, targetTeacherId as string, messageText);
   };
 
   const handleCallTeacher = () => {
-    if (!user?.uid) return;
+    if (!user?.uid || !normUid) return;
     const studentNum = normUid.replace(/\D+/g, '') || '1';
 
     // PRD v7.1 Module 18: a help call must reach the Silent Radar (BLUE state),

@@ -6,7 +6,8 @@
  * screen recorder watches, so what a child types to the teacher — and every
  * bubble of the conversation — used to reach the recording chunks (RTDB, the
  * teacher's replay, the Drive reset backups), even when the PII filter refused
- * to send the message.
+ * to send the message. Since 1.10.2026 the learner has no free text at all
+ * (ready messages only); the block still keeps the teacher's bubbles out.
  *
  * This runs the real rrweb `record()` with the live options of
  * StudentWorkspacePage around the real StudentChatOverlay and a math input:
@@ -43,7 +44,8 @@ import { StudentChatOverlay } from '../StudentChatOverlay';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useChatStore } from '@/application/useChatStore';
 
-// What the child types and what the teacher wrote. Neither may reach the recording.
+// A typed secret for the control test (a plain, unblocked input), and what the
+// teacher wrote, which must not reach the recording.
 const TYPED_SECRET = 'אני גר ברחוב הזית 7 והטלפון 0501234567';
 const TEACHER_BUBBLE = 'תשובת המורה לילד ששמה נשאר מחוץ להקלטה';
 const LATE_BUBBLE = 'הודעה שהגיעה אחרי שההקלטה התחילה';
@@ -146,6 +148,9 @@ describe('Module 21 §ב — the chat is not in the screen recording', () => {
     expect(sendMessage.mock.calls[0][0]).toBe('student_user3');
     expect(sendMessage.mock.calls[0][1]).toBe('תלמיד 3');
     expect(sendMessage.mock.calls[0][3]).toBe('לא הבנתי את ההוראה');
+    // A double tap is one press.
+    fireEvent.click(button);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
   });
 
   it('chat text and bubbles are absent from the events; a math digit is present', async () => {

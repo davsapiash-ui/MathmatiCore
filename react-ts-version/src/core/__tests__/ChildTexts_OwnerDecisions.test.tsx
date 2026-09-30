@@ -312,8 +312,9 @@ describe('no educator word reaches the child (register ט)', () => {
 });
 
 describe('the child is addressed in the plural (gender-equal writing, 27.9.2026)', () => {
-  // The documents' own button names stay as they are: "התקדם" ("כפתור התקדם") and
-  // "קרא למורה" (לחצן "קרא למורה"). The grouping button is "קבצו 10" (owner, 30.9.2026).
+  // The grouping button is "קבצו 10" (owner, 30.9.2026). The chat's call button is
+  // "קראו למורה" (owner, 1.10.2026; doc 04 still says "קרא למורה" until the
+  // documents round).
   const files = [
     ...filesUnder('features/workspace'),
     ...filesUnder('presentation/components/student'),

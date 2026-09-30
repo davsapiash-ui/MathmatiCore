@@ -163,6 +163,8 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
               onBlur={() => setFocusedPlace(null)}
               onKeyDown={(e) => {
                 if (locked) {
+                  // Tab leaves a locked box: the lock stops writing, not moving.
+                  if (e.key === 'Tab') return;
                   // Rejected; the attempt itself is what the research needs (KEYBOARD_LOCK_BLOCKED).
                   if (/^[0-9]$/.test(e.key)) recordBlockedKeystroke(place);
                   e.preventDefault();
@@ -181,7 +183,13 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
                 // ושמונה" written as 806 is the diagnosis; a habit of typing from
                 // the units here would produce it without the misconception.
                 // Vertical exercises still go from the units (VerticalAdditionTask).
-                if (v && i < places.length - 1) inputsRef.current[i + 1]?.focus();
+                // A locked box (enhanced profile, before the blocks do the
+                // conversion) is skipped: moving into it would turn the next digit
+                // into a KEYBOARD_LOCK_BLOCKED the child never tried.
+                if (v) {
+                  const next = places.findIndex((p, j) => j > i && !isRepresentationColumnLocked(p));
+                  if (next !== -1) inputsRef.current[next]?.focus();
+                }
               }}
             />
             <span className="font-bold" style={{ fontSize: `calc(${CELL} * 0.22)`, color: PLACE_TINT[place] }}>

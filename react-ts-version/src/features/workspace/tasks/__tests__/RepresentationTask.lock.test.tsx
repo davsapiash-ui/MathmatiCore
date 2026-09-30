@@ -183,3 +183,24 @@ describe('writing a number goes as it is read, the highest place first (owner, 1
     expect(document.activeElement).toBe(t);
   });
 });
+
+describe('the cursor never lands in a locked box (enhanced profile, 1.10.2026)', () => {
+  it('s1_target_347: after the tens digit the cursor skips the locked units box, and Tab leaves it', () => {
+    const task = getSessionTasks(1, null as any).find((t) => t.id === 's1_target_347')!;
+    load(1, task, { hundreds: 3, tens: 4, units: 7 });
+    render(<RepresentationTask task={task} />);
+    const [h, t, u] = Array.from(screen.getByTestId('result-row').querySelectorAll('input')) as HTMLInputElement[];
+    expect(u.readOnly).toBe(true);
+    h.focus();
+    fireEvent.change(h, { target: { value: '3' } });
+    expect(document.activeElement).toBe(t);
+    fireEvent.change(t, { target: { value: '4' } });
+    expect(document.activeElement).toBe(t);
+    expect(sent.events.filter((e) => e.event_type === 'KEYBOARD_LOCK_BLOCKED')).toHaveLength(0);
+    // Tab is not swallowed by the locked box.
+    u.focus();
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    u.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(false);
+  });
+});
