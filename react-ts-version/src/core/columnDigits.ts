@@ -13,14 +13,17 @@ import type { PlaceCounts } from './placeValue';
  *   - station 1, building 305: hidden while building, shown once the board is
  *     305, so the child sees the 0 appear over the empty tens column;
  *   - everywhere else in station 1: hidden.
- * Stations 3–7 are decided one by one (owner, 29.9.2026); until each is done
- * its board keeps the digits.
+ * Stations 3–7 (owner, 29.9.2026; carried out 30.9.2026 after a station-by-station
+ * analysis): hidden for the whole exercise — the child counts the blocks and
+ * writes the digit themselves. The teacher's projector board keeps them
+ * (`projectorBoard` in the workspace store).
  */
 const STATION1_SHOWN = new Set(['s1_sandbox_controlled', 's1_decompose_hundred']);
 
 const boardValue = (c: PlaceCounts) => c.units + c.tens * 10 + c.hundreds * 100 + c.thousands * 1000;
 
 export function columnDigitsShown(sessionNumber: number, taskId: string | null | undefined, counts: PlaceCounts): boolean {
+  if (sessionNumber >= 3 && sessionNumber <= 7) return false;
   if (sessionNumber !== 1) return true;
   if (!taskId) return true;
   if (STATION1_SHOWN.has(taskId)) return true;
