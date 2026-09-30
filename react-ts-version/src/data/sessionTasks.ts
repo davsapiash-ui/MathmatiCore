@@ -361,12 +361,12 @@ export const SESSION3_TASKS: SessionTask[] = SESSION3_GREEN_TASKS;
  * ══════════════════════════════════════════════════════════════════════════ */
 
 export const SESSION4_REMEDIATION_TASKS: SessionTask[] = [
-  addition('s4_r_t1', 142, 23, 'ביסוס אלגוריתם ללא המרה בתחום האלף', S4_ADD('142 + 23', false)),
-  addition('s4_r_t2', 128, 35, 'המרה פשוטה ראשונה ביחידות בתחום האלף', S4_ADD('128 + 35', true)),
-  addition('s4_r_t3', 247, 135, 'המרה ביחידות עם נוכחות מאות', S4_ADD('247 + 135', true)),
-  addition('s4_r_t4', 456, 281, 'המרה בטור העשרות בתחום האלף', S4_ADD('456 + 281', true)),
-  addition('s4_r_t5', 354, 128, 'המרה פשוטה ביחידות המעבירה עשרת לטור העשרות', S4_ADD('354 + 128', true)),
-  addition('s4_r_t6', 507, 125, 'המרה ביחידות עם אפס בטור העשרות', S4_ADD('507 + 125', true)),
+  addition('s4_r_t1', 142, 23, 'ביסוס אלגוריתם ללא המרה בתחום האלף', S4_ADD('142 + 23')),
+  addition('s4_r_t2', 128, 35, 'המרה פשוטה ראשונה ביחידות בתחום האלף', S4_ADD('128 + 35')),
+  addition('s4_r_t3', 247, 135, 'המרה ביחידות עם נוכחות מאות', S4_ADD('247 + 135')),
+  addition('s4_r_t4', 456, 281, 'המרה בטור העשרות בתחום האלף', S4_ADD('456 + 281')),
+  addition('s4_r_t5', 354, 128, 'המרה פשוטה ביחידות המעבירה עשרת לטור העשרות', S4_ADD('354 + 128')),
+  addition('s4_r_t6', 507, 125, 'המרה ביחידות עם אפס בטור העשרות', S4_ADD('507 + 125')),
   // ★ chosen: מסמך 03 names the task ("ספרה חסרה בטור התוצאה") without numbers.
   missingResultDigit('s4_r_t7', 328, 145, false, 'tens',
     'משימת חקר וגילוי ספרה חסרה',
@@ -375,12 +375,12 @@ export const SESSION4_REMEDIATION_TASKS: SessionTask[] = [
 ];
 
 export const SESSION4_GREEN_TASKS: SessionTask[] = [
-  addition('s4_g_t1', 1245, 328, 'המרה פשוטה בטור היחידות בתחום הרבבה', S4_ADD('1,245 + 328', true)),
-  addition('s4_g_t2', 2356, 1427, 'המרה ביחידות עם נוכחות אלפים', S4_ADD('2,356 + 1,427', true)),
-  addition('s4_g_t3', 3456, 2183, 'המרה בטור העשרות בלבד', S4_ADD('3,456 + 2,183', true)),
-  addition('s4_g_t4', 4821, 1534, 'המרה בטור המאות בלבד', S4_ADD('4,821 + 1,534', true)),
-  addition('s4_g_t5', 5678, 2453, 'שרשרת המרות ביחידות, בעשרות ובמאות בתחום הרבבה', S4_ADD('5,678 + 2,453', true)),
-  addition('s4_g_t6', 7045, 1283, 'חישוב המרה עם אפס כשומר מקום', S4_ADD('7,045 + 1,283', true)),
+  addition('s4_g_t1', 1245, 328, 'המרה פשוטה בטור היחידות בתחום הרבבה', S4_ADD('1,245 + 328')),
+  addition('s4_g_t2', 2356, 1427, 'המרה ביחידות עם נוכחות אלפים', S4_ADD('2,356 + 1,427')),
+  addition('s4_g_t3', 3456, 2183, 'המרה בטור העשרות בלבד', S4_ADD('3,456 + 2,183')),
+  addition('s4_g_t4', 4821, 1534, 'המרה בטור המאות בלבד', S4_ADD('4,821 + 1,534')),
+  addition('s4_g_t5', 5678, 2453, 'שרשרת המרות ביחידות, בעשרות ובמאות בתחום הרבבה', S4_ADD('5,678 + 2,453')),
+  addition('s4_g_t6', 7045, 1283, 'חישוב המרה עם אפס כשומר מקום', S4_ADD('7,045 + 1,283')),
   // ★ chosen: מסמך 03 describes an inquiry comparing near exercises, without numbers.
   withOpts({
     id: 's4_g_t7', type: 'small_change',
@@ -543,7 +543,8 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
     'שלוש ספרות חסרות בחיסור עם פריטה משולשת',
     'בתרגיל 5,▢▢▢ − 2,847 = 2,159 חסרות שלוש ספרות של המחוסר. גלו את הספרות בעזרת הפריטה בלבנים וכתבו אותן בתיבות הריקות.',
     INQUIRY),
-  // ★ chosen: the imaginary learner's error is the one מסמך 03 describes (a wrong double regrouping in the hundreds).
+  // ★ chosen: the imaginary learner's error is the one מסמך 03 describes: the carry from the hundreds into the
+  // thousands was forgotten (7,425 instead of 8,425). The screen no longer states it (owner, 30.9.2026).
   addition('s7_g_t4', 4857, 3568,
     'איתור ותיקון שגיאה בשרשרת המרות',
     'תלמיד פתר 4,857 + 3,568 וקיבל 7,425. מצאו את הטעות ותקנו אותה בעזרת הלבנים. כתבו את התוצאה הנכונה בשורת התוצאה.',
@@ -606,7 +607,7 @@ export const SESSION8_GREEN_TASKS: SessionTask[] = [
   // ★ chosen: reuses 4,000 − 1,562 (session 6); three minuend digits hidden.
   skeleton('s8_g_t7', 4000, 1562, true, { a: ['hundreds', 'tens', 'units'] },
     'בעיית חקר של ספרות חסרות בחיסור',
-    'בתרגיל 4,▢▢▢ − 1,562 = 2,438 חסרות שלוש ספרות של המחוסר. הפתרון עובר מעל אפסים. גלו אותן וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 4,▢▢▢ − 1,562 = 2,438 חסרות שלוש ספרות של המחוסר. גלו אותן וכתבו אותן בתיבות הריקות.',
     { scaffoldLevel: 1, targetNode: 'relational_thinking' }),
 ];
 

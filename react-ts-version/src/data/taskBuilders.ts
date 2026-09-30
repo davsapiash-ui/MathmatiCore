@@ -263,8 +263,13 @@ export function flexible(id: string, value: number, titleHe: string, instruction
  * it. The owner replaced them on 30.9.2026 — see readWrite, composeBreak,
  * decompose. */
 
-export const S4_ADD = (ex: string, regroup: boolean) =>
-  `פתרו במאונך: ${ex}. ייצגו את המספרים בעזרת לבנים.${regroup ? ' כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור. רשמו את ההמרה בעיגול הזיכרון.' : ''} רשמו את התוצאה בשורת התוצאה.`;
+/**
+ * Station 4 (owner, 30.9.2026): every exercise names the "קבצו 10" button — its
+ * absence told the child in advance that nothing needs grouping. "כאשר" governs
+ * both actions, so an exercise without grouping asks for nothing it lacks.
+ */
+export const S4_ADD = (ex: string) =>
+  `פתרו במאונך: ${ex}. ייצגו את המספרים בעזרת לבנים. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. רשמו את התוצאה בשורת התוצאה.`;
 /**
  * Stations 5–6 (owner, 30.9.2026): the instruction no longer says in advance
  * where or how many times to borrow — the child finds the column that lacks

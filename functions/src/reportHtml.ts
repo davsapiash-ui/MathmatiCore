@@ -520,6 +520,7 @@ export function classReportHtml(report: Record<string, any>): string {
       (אחדות ${esc(a.wrong_digits_by_column.units)}, עשרות ${esc(a.wrong_digits_by_column.tens)}, מאות ${esc(a.wrong_digits_by_column.hundreds)}, אלפים ${esc(a.wrong_digits_by_column.thousands)})</p>
     <p>מחיקות: ${esc(a.deletions_total)} | ביטולים: ${esc(a.undos_total)} | היסוסים: ${esc(a.hesitations_total)} (${esc(a.hesitation_seconds_total)} שניות) | המרות (הקבצה/פריטה): ${esc(a.regroupings_total)}</p>
     <p>כרטיסי חניכה: ${esc(a.socratic_cards_total)}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}</p>
+    <p>לוח החיבור: נפתח ${esc(a.grid_openings_total)}, הוחזר על ידי הלומד ${esc(a.grid_reopenings_total)} | הקלדה לפני המרה (מקלדת נעולה): ${esc(a.keyboard_lock_blocks_total)} | קריאות שקטות למורה: ${esc(a.help_requests_total)} | פיגום בשורת התוצאה: ${esc(a.place_cue_scaffolds_total)}</p>
     <p>זמן פעילות ממוצע: ${esc(a.active_minutes_mean)} דקות | דקות הקלטה: ${esc(a.recording_minutes_total)} | רפלקציות: ${esc(a.reflections_submitted)} מתוך ${esc(a.learners_with_data)}</p>
 
     <h2>3. תרגילים: כמה לומדים פתרו בניסיון ראשון</h2>

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SESSIONS_BY_PATH, type SessionTask, type LearningPath } from '@/data/sessionTasks';
 import { SESSION_BRANCH_TASKS } from '@/data/sessionBranchTasks';
-import { borrowCount, borrowColumns } from '@/data/taskBuilders';
+import { borrowCount } from '@/data/taskBuilders';
 import { PLACE_ORDER, digitAt, type Place } from '@/core/placeValue';
 
 /**
@@ -98,7 +98,7 @@ describe('הטקסט מבטיח את מספר ההמרות שהתרגיל באמ
 
     const offenders = guided
       .filter((t) => regroupCount(t) > 0)
-      .filter((t) => !/פרקו|פרטו|הקבצ|פריט|המרה|המרות/.test(text(t)))
+      .filter((t) => !/פרקו|פרטו|לפרוט|פרטתם|הקבצ|פריט|המרה|המרות/.test(text(t)))
       .map((t) => t.id);
     expect(offenders).toEqual([]);
   });
@@ -152,12 +152,10 @@ describe('שם הטור בכותרת תואם את הטור שבו יש חוסר
   });
 });
 
-describe('מפגש 5 — ההנחיה אומרת בדיוק אילו לבנים פורטים', () => {
-  // ההנחיה הקודמת אמרה בכל תרגיל "פרקו עשרת אחת ליחידות (או מאה לעשרות)",
-  // גם כשהתרגיל דורש פריטת אלף (8,762 − 4,932) או שתיים-שלוש פריטות
-  // (523 − 187; 7,214 − 3,568). מסמך 02: "פרקו עשרת אחת ליחידות בלחיצה עליה",
-  // "בדקו את הכמויות החדשות בלוח בית המספרים" — on screen "בבית המספרים"
-  // (the board has one name: owner, 27.9.2026, register ט).
+describe('מפגש 5 — ההנחיה אינה אומרת מראש אילו לבנים פורטים (בעל המוצר, 30.9.2026)', () => {
+  // Until 30.9.2026 the instruction named the blocks to break. Since then it
+  // carries the station-1 borrowing sentence and the child finds the column that
+  // lacks blocks; WHAT stays to prove no instruction brings the old wording back.
   const WHAT: Record<Place, string> = {
     units: 'עשרת אחת ליחידות',
     tens: 'מאה אחת לעשרות',
