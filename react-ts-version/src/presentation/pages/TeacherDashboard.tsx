@@ -1986,7 +1986,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     <div className="flex-1 flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                                       <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">↩️</div>
-                                        <span className="font-semibold text-sm">פעולות בקרה וויסות עצמי (מחיקה/חזרה)</span>
+                                        <span className="font-semibold text-sm">פעולות בקרה וויסות עצמי (מחיקה וביטול פעולה)</span>
                                       </div>
                                       <span className="text-xl font-black text-red-600">{traceData.undo_clicks || 0}</span>
                                     </div>

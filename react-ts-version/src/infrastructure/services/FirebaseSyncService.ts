@@ -1423,7 +1423,7 @@ export class FirebaseSyncService {
 
     // Derive Hebrew lastAction label
     const eventLabels: Record<TelemetryEventType, string> = {
-      BOARD_CLEARED: 'ניקוי הלוח בפח האשפה',
+      BOARD_CLEARED: 'ניקוי בית המספרים בפח האשפה',
       SESSION_START: 'תחילת מפגש למידה',
       PROBLEM_LOAD: 'טעינת תרגיל במרחב העבודה',
       BLOCK_DRAG_COMPLETE: 'גרירת לבנה בבית המספרים',

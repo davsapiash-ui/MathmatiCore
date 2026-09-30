@@ -285,7 +285,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                       הפעלת מצב שקט חזותי (הפחתת גירויים)
                     </span>
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      מכבה אנימציות קופצות, אפקטי תנועה וצלילים מסיחי דעת, ומציג לוח נקי וסולידי עם ניגודיות גבוהה ונעימה לעין.
+                      מכבה אנימציות קופצות, אפקטי תנועה וצלילים מסיחי דעת, ומציג מסך נקי ושקט עם ניגודיות גבוהה ונעימה לעין.
                     </p>
                   </div>
                   <input
@@ -321,7 +321,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                     מסע הלמידה ושחזור מהלכים — תלמיד {studentNum}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
-                    התצוגה המלאה כוללת שחזור ויזואלי של לוח התלמיד, ציר החלטות מפורט ודוחות למידה לכל שמונת המפגשים בתצוגת מסך מפוצל.
+                    התצוגה המלאה כוללת שחזור ויזואלי של מסך התלמיד, ציר החלטות מפורט ודוחות למידה לכל שמונת המפגשים בתצוגת מסך מפוצל.
                   </p>
                 </div>
                 <div className="pt-2">

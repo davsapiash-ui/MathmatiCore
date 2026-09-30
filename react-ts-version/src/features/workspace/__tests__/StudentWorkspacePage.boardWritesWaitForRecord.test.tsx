@@ -251,7 +251,7 @@ describe('Module 17 — the page writes no board to the record before the record
     await advance(3_000);
     await settle();
     const after = link.updates.slice(before).filter((u) => u.path === STUDENT);
-    expect(after.some((u) => u.fields.lastAction === 'פעילות בלוח במפגש 2'), "the page's board write").toBe(true);
+    expect(after.some((u) => u.fields.lastAction === 'פעילות בבית המספרים במפגש 2'), "the page's board write").toBe(true);
     expect(fake.db.read(`${STUDENT}/workspaceState/answerDigits`)).toMatchObject({ units: '5', tens: '4' });
   });
 

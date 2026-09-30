@@ -220,7 +220,7 @@ export function describeCountsHe(counts: Partial<PlaceCounts>): string {
     .reverse()
     .filter((p) => (counts[p] || 0) > 0)
     .map((p) => (counts[p] === 1 ? SINGULAR_HE[p] : `${counts[p]} ${PLACE_NAMES_HE[p]}`));
-  if (parts.length === 0) return 'לוח ריק';
+  if (parts.length === 0) return 'בית המספרים ריק';
   if (parts.length === 1) return parts[0];
   return `${parts.slice(0, -1).join(', ')} ו-${parts[parts.length - 1]}`;
 }
