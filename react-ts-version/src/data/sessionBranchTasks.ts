@@ -11,7 +11,7 @@
  * baseline mastery metrics (PRD Module 14 §ג, מסמך 03 "לוגיקת ניתוח הנתונים").
  */
 
-import { addition, subtraction, skeleton, readWrite, decompose, flexible, S4_ADD, S5_SUB, S6_SUB, FLEX_HOWTO } from './taskBuilders';
+import { addition, subtraction, skeleton, readWrite, decompose, composeGroup, flexible, S4_ADD, S5_SUB, S6_SUB, FLEX_HOWTO } from './taskBuilders';
 import type { SessionTask, LearningPath } from './sessionTasks';
 
 export type BranchType = 'reinforcement' | 'challenge';
@@ -150,9 +150,13 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
           'ביסוס 1: שתי ספרות חסרות בחיבור עם המרה אחת',
           'בתרגיל 5,▢3▢ + 1,246 = 6,784 חסרות שתי ספרות של המחובר הראשון. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
           { ...R, targetNode: 'relational_thinking' }),
-        flexible('s7_g_reinforce_2', 2500,
-          'ביסוס 2: 25 מאות שוות ל-2 אלפים ו-5 מאות',
-          'הוכיחו בלבנים ש-25 מאות שוות בדיוק ל-2 אלפים ו-5 מאות. בנו 25 מאות ולחצו על הכפתור "הוספת ייצוג". אחר כך קבצו והוסיפו את הייצוג הרגיל.',
+        // Owner, 30.9.2026: a grouping composition, like s7_g_t1 — build the
+        // blocks, group ten hundreds, write the number. ★ owner's numbers: 14
+        // hundreds and 3 tens (1,430). מסמך 03 §3.7 has "25 מאות שוות לשני
+        // אלפים וחמש מאות" here, the same exercise as s7_g_t1; the "prove that"
+        // wording wrote the answer into the question.
+        composeGroup('s7_g_reinforce_2', { hundreds: 14, tens: 3 }, ['hundreds'],
+          'ביסוס 2: הקבצת 10 מאות לאלף אחד',
           { ...R, targetNode: 'relational_thinking' }),
       ],
       challenge: [

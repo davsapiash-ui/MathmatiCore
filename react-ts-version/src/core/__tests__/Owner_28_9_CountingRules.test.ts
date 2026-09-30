@@ -476,6 +476,7 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
   const START: Record<string, Partial<PlaceCounts>> = {
     s7_r_t1: { tens: 12, units: 5 },
     s7_g_t1: { hundreds: 25 },
+    s7_g_reinforce_2: { hundreds: 14, tens: 3 },
     s7_g_t6: { thousands: 1, hundreds: 16, tens: 13 },
   };
 
@@ -531,6 +532,17 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
     board({ tens: 12, units: 5 });
     expect(boxLocked()).toBe(true);
     ws().groupColumnClick('tens');
+    expect(boxLocked()).toBe(false);
+  });
+
+  it('station 7, s7_g_reinforce_2 (one answer box, like s7_g_t1): the grouping of ten hundreds opens it', () => {
+    load(7, byId('s7_g_reinforce_2'), ENH);
+    board({ hundreds: 14, tens: 3 });
+    expect(boxLocked()).toBe(true);
+    ws().recordBlockedAnswerKeystroke();
+    const blocked = sent.events.filter((e) => e.event_type === 'KEYBOARD_LOCK_BLOCKED');
+    expect(blocked.map((e) => [e.column_index, e.details.conversion_required])).toEqual([[2, 'composition']]);
+    ws().groupColumnClick('hundreds');
     expect(boxLocked()).toBe(false);
   });
 

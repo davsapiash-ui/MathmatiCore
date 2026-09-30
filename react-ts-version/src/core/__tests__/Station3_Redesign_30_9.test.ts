@@ -125,6 +125,11 @@ const APPROVED: Record<string, { kind: string; text: string; numberA: number; an
     kind: 'compose_group', numberA: 2500, answer: 2500, board: { thousands: 2, hundreds: 5 },
     text: 'בנו בבית המספרים 25 לבני מאה. קבצו 10 לבני מאה ללבנת אלף אחת. קבצו שוב 10 לבני מאה ללבנת אלף אחת. איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת התוצאה.',
   },
+  // The green path's second reinforcement of station 7 (owner, 30.9.2026), with its own numbers.
+  s7_g_reinforce_2: {
+    kind: 'compose_group', numberA: 1430, answer: 1430, board: { thousands: 1, hundreds: 4, tens: 3 },
+    text: 'בנו בבית המספרים 14 לבני מאה ו-3 לבני עשרת. קבצו 10 לבני מאה ללבנת אלף אחת. איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת התוצאה.',
+  },
 };
 
 describe('the approved exercises (owner, 30.9.2026)', () => {
@@ -186,12 +191,12 @@ describe('the approved exercises (owner, 30.9.2026)', () => {
     const built: Record<string, Partial<PlaceCounts>> = {
       s3_r_t2: { hundreds: 3, tens: 4 }, s3_r_t4: { tens: 8, units: 5 }, s3_r_t6: { hundreds: 5, units: 6 },
       s3_g_t2: { thousands: 3, hundreds: 4 }, s3_g_t4: { thousands: 5, hundreds: 2, tens: 3 }, s3_g_t6: { thousands: 6, tens: 3 },
-      s7_r_t1: { tens: 12, units: 5 }, s7_g_t1: { hundreds: 25 },
+      s7_r_t1: { tens: 12, units: 5 }, s7_g_t1: { hundreds: 25 }, s7_g_reinforce_2: { hundreds: 14, tens: 3 },
     };
     const steps: Record<string, Array<['break' | 'group', Place]>> = {
       s3_r_t2: [['break', 'hundreds']], s3_r_t4: [['break', 'tens']], s3_r_t6: [['break', 'hundreds']],
       s3_g_t2: [['break', 'thousands']], s3_g_t4: [['break', 'thousands'], ['break', 'hundreds']], s3_g_t6: [['break', 'thousands']],
-      s7_r_t1: [['group', 'tens']], s7_g_t1: [['group', 'hundreds'], ['group', 'hundreds']],
+      s7_r_t1: [['group', 'tens']], s7_g_t1: [['group', 'hundreds'], ['group', 'hundreds']], s7_g_reinforce_2: [['group', 'hundreds']],
     };
     for (const [id, start] of Object.entries(built)) {
       const c: Partial<PlaceCounts> = { ...start };
@@ -234,8 +239,8 @@ describe('no instruction of stations 3 and 7 holds its own answer', () => {
       expect(numbersIn(t.instructionHe), t.id).not.toContain(t.correctAnswer);
       checked.push(t.id);
     }
-    // 12 + 4 in station 3, s3_r_t7, and s7_r_t1, s7_g_t1, s7_r_t6, s7_g_t5, s7_g_t6.
-    expect(checked).toHaveLength(22);
+    // 12 + 4 in station 3, s3_r_t7, and s7_r_t1, s7_g_t1, s7_g_reinforce_2, s7_r_t6, s7_g_t5, s7_g_t6.
+    expect(checked).toHaveLength(23);
   });
 
   it('the representation exercises of both stations: nor the board to build, where the blocks are the answer', () => {
@@ -455,6 +460,24 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     expect(done()).toBe(true);
   });
 
+  it('s7_g_reinforce_2: 14 hundreds and 3 tens, one grouping, 1,430; the hand-built board names the hundreds\' button', () => {
+    load(byId('s7_g_reinforce_2'));
+    buildBlocks({ thousands: 1, hundreds: 4, tens: 3 });
+    answer('1430');
+    press();
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 לאלף" שבראש טור המאות.');
+    ws().clearBoard();
+    buildBlocks({ hundreds: 14, tens: 3 });
+    ws().groupColumnClick('hundreds');
+    answer('1340');
+    press();
+    expect(sub()).toBe(WRONG_NUMBER);
+    answer('1430');
+    press();
+    expect(sub()).toBe(SUCCESS);
+    expect(done()).toBe(true);
+  });
+
   it('s7_g_t1: 25 hundreds, grouped twice; the button of the hundreds is "קבצו 10 לאלף"', () => {
     expect(groupItYourselvesHe('hundreds')).toContain('לחצו על הכפתור "קבצו 10 לאלף" שבראש טור המאות.');
     load(byId('s7_g_t1'));
@@ -469,7 +492,7 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
   });
 });
 
-describe('station 1 keeps its own wording (s1_r_value368, s1_target_347)', () => {
+describe('station 1 keeps its own wording (s1_r_value368, s1_r_group26)', () => {
   it('368 → the value of the 6 (60): "the value of the digit", as before', () => {
     load(byId('s1_r_value368'), 1);
     buildBlocks({ hundreds: 3, tens: 6, units: 8 });

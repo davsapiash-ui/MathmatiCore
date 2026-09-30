@@ -12,14 +12,14 @@
  *   - the result row of digits (station 1; station 7's s7_g_t5, s7_g_t6): only
  *     the listed columns lock, each until its own conversion; every other
  *     column is open from the start;
- *   - the single answer box of station 3 and s7_r_t1 / s7_g_t1 (a
- *     `representationKind`, owner 30.9.2026): the whole box stays locked until
- *     EVERY listed conversion is done — after the break (compose_break), after
- *     the grouping (compose_group). read_write and decompose ask for no
- *     conversion: they are not listed and never lock. Before 30.9.2026 the
- *     "45 tens / 45 hundreds / 27 tens / 36 hundreds" exercises were listed;
- *     they are decompositions now, built from one kind of block however the
- *     child likes.
+ *   - the single answer box of station 3 and of s7_r_t1, s7_g_t1 and
+ *     s7_g_reinforce_2 (a `representationKind`, owner 30.9.2026): the whole
+ *     box stays locked until EVERY listed conversion is done — after the break
+ *     (compose_break), after the grouping (compose_group). read_write and
+ *     decompose ask for no conversion: they are not listed and never lock.
+ *     Before 30.9.2026 the "45 tens / 45 hundreds / 27 tens / 36 hundreds"
+ *     exercises were listed; they are decompositions now, built from one kind
+ *     of block however the child likes.
  * A keystroke into a locked answer is rejected and logged as
  * KEYBOARD_LOCK_BLOCKED with the column of the conversion still missing and
  * this entry's `conversion`.
@@ -45,6 +45,8 @@
  *   s7_r_t1           12 tens, 5 units → 1 hundred, 2 tens, 5 units: ten tens grouped into a hundred.
  *   s7_g_t1           25 hundreds → 2 thousands, 5 hundreds: ten hundreds grouped
  *                     into a thousand, twice (one column).
+ *   s7_g_reinforce_2  14 hundreds, 3 tens → 1 thousand, 4 hundreds, 3 tens: ten
+ *                     hundreds grouped into a thousand (owner, 30.9.2026).
  *   s7_g_t5           3,400 + 1,000 − 600: 4 hundreds cannot give 6, so a
  *                     thousand is decomposed into hundreds (3,800).
  *   s7_g_t6           1 thousand, 16 hundreds, 13 tens → 2,730: ten tens
@@ -73,6 +75,7 @@ export const REPRESENTATION_LOCKS: Record<string, RepresentationLock> = {
   s3_g_t6: { conversion: 'decomposition', columns: ['hundreds'] },
   s7_r_t1: { conversion: 'composition', columns: ['tens'] },
   s7_g_t1: { conversion: 'composition', columns: ['hundreds'] },
+  s7_g_reinforce_2: { conversion: 'composition', columns: ['hundreds'] },
   s7_g_t5: { conversion: 'decomposition', columns: ['hundreds'] },
   s7_g_t6: { conversion: 'composition', columns: ['tens', 'hundreds'] },
 };

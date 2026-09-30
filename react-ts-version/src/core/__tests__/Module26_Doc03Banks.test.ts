@@ -123,11 +123,17 @@ describe('מסמך 03: early-finisher (branch) numbers', () => {
     );
   }
 
-  it('session 7 green reinforcement includes the 25-hundreds proof; skeletons elsewhere', () => {
+  it('session 7 green reinforcement includes a grouping composition; skeletons elsewhere', () => {
+    // מסמך 03 §3.7 has the 25-hundreds proof here, the same exercise as
+    // s7_g_t1; the owner replaced it on 30.9.2026 with 14 hundreds and 3 tens,
+    // grouped into 1,430 (★ owner's numbers).
     const b = SESSION_BRANCH_TASKS[7];
-    expect(b.green_path.reinforcement.some((t) => t.type === 'flexible_decomp' && t.numberA === 2500)).toBe(true);
+    const grouping = b.green_path.reinforcement.find((t) => t.id === 's7_g_reinforce_2')!;
+    expect([grouping.type, grouping.representationKind, grouping.numberA, grouping.requiredCounts]).toEqual([
+      'representation', 'compose_group', 1430, { thousands: 1, hundreds: 4, tens: 3 },
+    ]);
     for (const t of branchFlat(7)) {
-      if (t.type !== 'flexible_decomp') expect(t.hiddenDigits).toBeDefined();
+      if (t.id !== 's7_g_reinforce_2') expect(t.hiddenDigits, t.id).toBeDefined();
     }
   });
 });

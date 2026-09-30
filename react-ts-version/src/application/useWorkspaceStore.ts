@@ -4039,8 +4039,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (supportProfile !== 'enhanced_cognitive_support') return false;
       const task = getActiveTasks(s)[s.standardTaskIdx] || null;
       if (!task || task.type !== 'representation') return false;
-      // Station 3 and s7_r_t1 / s7_g_t1 have one answer box and no columns:
-      // isRepresentationAnswerLocked.
+      // Station 3 and station 7's groupings have one answer box and no
+      // columns: isRepresentationAnswerLocked.
       if (task.representationKind) return false;
       // Owner's decision 28.9.2026 (register שהB.4): PRD Module 9 §א, not
       // מסמך 03 §3.3's whole row — only the exercise's conversion columns lock

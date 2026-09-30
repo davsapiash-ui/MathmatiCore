@@ -53,6 +53,12 @@ describe('the station-3 and station-7 instructions, read aloud', () => {
     expect(said('s3_g_t6')).toContain('בנו בבית המספרים שש לבני אלף ושלוש לבני עשרת.');
   });
 
+  it('the green reinforcement of station 7: 14 hundreds and 3 tens', () => {
+    expect(said('s7_g_reinforce_2')).toBe(
+      'בנו בבית המספרים ארבע-עשרה לבני מאה ושלוש לבני עשרת. קבצו עשר לבני מאה ללבנת אלף אחת. איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת התוצאה.'
+    );
+  });
+
   it('the groupings of station 7: 12, 10 and 25', () => {
     expect(said('s7_r_t1')).toBe(
       'בנו בבית המספרים שתים-עשרה לבני עשרת וחמש לבני יחידה. קבצו עשר לבני עשרת ללבנת מאה אחת. איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת התוצאה.'
