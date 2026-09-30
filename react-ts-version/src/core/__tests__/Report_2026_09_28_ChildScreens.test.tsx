@@ -271,7 +271,7 @@ describe('one name per thing on the child\'s screen: "בית המספרים", "�
     }
     // the guard itself sees through niqqud
     expect('קֻבִּיּוֹת'.replace(/[֑-ׇ]/g, '')).toMatch(/קביות|קוביות/);
-    expect(store).toContain("'עוד אין לבנים בבית המספרים. לחצו על לבנה בארגז הכלים או גררו אותה לבית המספרים, ובנו את המספרים שבתרגיל.'");
+    expect(store).toContain("'עוד אין לבנים בבית המספרים. לחצו על אחת הלבנים שמתחת לבית המספרים, או גררו אותה אליו, ובנו את המספרים שבתרגיל.'");
     expect(store).toContain("'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.'");
     // a wrong board is refused without spelling out the blocks to build
     expect(store).not.toContain('בבית המספרים צריך להיות בדיוק');

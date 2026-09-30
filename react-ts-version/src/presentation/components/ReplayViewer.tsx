@@ -262,7 +262,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
           </div>
           <p className="text-slate-800 dark:text-slate-200 font-bold text-xl">אין די נתוני הקלטה עבור מפגש זה</p>
           <p className="text-slate-500 text-sm leading-relaxed">
-            המערכת מקליטה את מסך התלמיד באופן אוטומטי במהלך העבודה. עם ביצוע פעולות על גבי הלוח, השחזור יוצג כאן במלואו.
+            המערכת מקליטה את מסך התלמיד באופן אוטומטי במהלך העבודה. עם ביצוע פעולות בבית המספרים, השחזור יוצג כאן במלואו.
           </p>
         </div>
       </div>
@@ -323,7 +323,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
           </div>
 
           <div className="text-xs text-slate-400 font-mono bg-slate-800/60 px-3 py-1.5 rounded-xl border border-slate-700/50" dir="ltr">
-            {events.length} frames
+            {events.length} פעולות
           </div>
         </div>
       </div>

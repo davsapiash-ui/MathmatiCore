@@ -118,10 +118,13 @@ describe('מסכי ההמתנה של הלומד', () => {
     }
   });
   it('לכל מסך המתנה יש הקראה', () => {
-    for (const p of [...screens, 'presentation/components/student/BeeFlightWaitingScreen.tsx']) {
+    for (const p of [...screens, 'presentation/components/student/Meeting2WaitingScreen.tsx']) {
       expect(src(p), p).toContain('<UdlSpeechButton text=');
     }
-    expect(src('presentation/components/student/BeeFlightWaitingScreen.tsx')).toContain("[data-quiet='true'] .bee-flight { animation: none; }");
+    // Owner, 29.9.2026: no bee anywhere in the learner's screens.
+    for (const p of [...screens, 'presentation/components/student/Meeting2WaitingScreen.tsx']) {
+      expect(src(p), p).not.toMatch(/🐝|bee-flight/);
+    }
   });
 });
 

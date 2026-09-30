@@ -36,16 +36,16 @@ afterEach(cleanup);
 describe('meeting 1, the target task', () => {
   beforeEach(() => ws().initSession(1, false, at('s1_target_347')));
 
-  it('instruction → 347 → result row → checklist, in the task column\'s DOM', () => {
+  it('instruction → result row → checklist, in the task column\'s DOM; no big 347 (owner, 29.9.2026)', () => {
     render(<TaskCard />);
     const column = screen.getByTestId('task-column');
     const instruction = [...column.querySelectorAll('p')].find((p) => p.textContent?.startsWith('משימת היעד:'))!;
-    const number = [...column.querySelectorAll('span')].find((s) => s.textContent === '347')!;
     const row = screen.getByTestId('result-row');
     const checklist = screen.getByTestId('session1-checklist');
-    expect(instruction && number && row && checklist).toBeTruthy();
-    expect(follows(instruction, number)).toBe(true);
-    expect(follows(number, row)).toBe(true);
+    expect(instruction && row && checklist).toBeTruthy();
+    // the number the row is checked against is not printed above it in station 1
+    expect(screen.queryByTestId('representation-number')).toBeNull();
+    expect(follows(instruction, row)).toBe(true);
     expect(follows(row, checklist)).toBe(true);
     // the result row is the task's own row of three boxes, hundreds on the left
     expect(row.getAttribute('aria-label')).toBe('שורת התוצאה');

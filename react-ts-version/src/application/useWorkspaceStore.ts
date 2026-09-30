@@ -16,12 +16,15 @@ import {
   splitBlockClick,
   groupBlocksManually,
   PLACE_ORDER,
+  PLACE_VALUES,
+  PLACE_NAMES_HE,
   type DropInput,
   type Place,
   type PlaceCounts,
   countsEqual,
   digitAt,
 } from '@/core/placeValue';
+import { BLOCK_NAME_HE } from '@/data/taskBuilders';
 import { session1Checklist, session1NextStep } from '@/core/session1Checklist';
 import {
   advance,
@@ -30,13 +33,15 @@ import {
   getEffectiveNumber,
   getExpectedBlocks,
   initQFlow,
+  hasProbeExercise,
   isSubtaskActive,
+  qMatrixValue,
   recordResult,
   type QFlowEvent,
   type QMatrixFlowState,
 } from '@/core/qmatrixFlow';
 import { stateReducer } from '@/machines/vraMachine';
-import { computeCognitiveMastery, Q_FAIL_TAG } from '@/core/QMatrix';
+import { computeCognitiveMastery, TASKS } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
 import { announceRegroup } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
@@ -44,10 +49,12 @@ import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
 import { getSessionTasks, SESSION1_TASKS, type SessionTask, type LearningPath } from '@/data/sessionTasks';
 import { boardStaysOpen } from '@/core/boardVisibility';
+import { isPlaceError, resultBoxCount } from '@/core/placeCues';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
+import { STATIC_CARD_KINDS, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
 import { ref, update } from 'firebase/database';
 import { database, serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
@@ -57,6 +64,7 @@ import { readStoredMeetingDeadline, storeMeetingDeadline } from '@/application/m
 import type { TelemetryEventType } from '@/types/telemetry';
 import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
 import type { VRAWorkspaceState } from '@/types';
+import { workspaceSavedAt, startedWithoutRecord } from '@/core/workspaceSnapshot';
 import {
   EMPTY_PERSISTENCE_COUNTS,
   addPersistenceEvent,
@@ -74,7 +82,7 @@ import {
  */
 function emitScaffoldEvent(
   s: WorkspaceState,
-  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED',
+  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED' | 'HELP_WITHDRAWN' | 'PLACE_CUES_SHOWN',
   details: Record<string, unknown>,
   columnIndex?: number
 ): void {
@@ -117,6 +125,25 @@ function cancelSocraticRequest(): void {
 }
 
 export type SessionNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
+/**
+ * Module 17: the learner and meeting the workspace was last started
+ * (initSession) or restored (restoreSession) for on this device. Until then
+ * the store holds defaults, and the sync saves nothing — neither on this
+ * device nor on the learner record — until this names the signed-in learner
+ * and the meeting in the store (FirebaseSyncService).
+ */
+export interface WorkspaceInitialization {
+  /** currentStudentUid() when the meeting was started or restored; '' for no learner. */
+  learner: string;
+  meeting: SessionNumber;
+  /**
+   * The stamp (WORKSPACE_SAVED_AT_KEY) of the saved copy it was restored from
+   * (0: unstamped); null when started afresh, or restored from a copy of a
+   * fresh start made without the record (WORKSPACE_STARTED_WITHOUT_RECORD_KEY).
+   */
+  restoredSavedAt: number | null;
+}
 
 /**
  * U, E and G of the meeting in progress (owner decision E1, 27.9.2026,
@@ -215,7 +242,7 @@ export interface UndoFrame {
  * trigger are both PER COLUMN. A column's conversion is done when the blocks
  * performed it for that column:
  *  - addition — ten blocks of the column grouped into one block of the next
- *    ("הקבץ 10" on the column): `composed[place]`;
+ *    ("קבצו 10" on the column): `composed[place]`;
  *  - subtraction — a block of the next column decomposed into ten blocks of
  *    this column (a click on it, or a drag to the right): `decomposed[place]`.
  * Chained conversions are just several columns: 403 − 128 decomposes a hundred
@@ -226,6 +253,12 @@ export interface UndoFrame {
 export interface ColumnConversions {
   composed: Partial<Record<Place, boolean>>;
   decomposed: Partial<Record<Place, boolean>>;
+  /**
+   * How many times each column converted — s7_g_t1 groups ten hundreds twice
+   * (REPRESENTATION_LOCKS lists the column twice). Absent until the first
+   * conversion; a saved value without it counts a done column once.
+   */
+  times?: { composed?: Partial<Record<Place, number>>; decomposed?: Partial<Record<Place, number>> };
 }
 
 export function emptyColumnConversions(): ColumnConversions {
@@ -235,7 +268,10 @@ export function emptyColumnConversions(): ColumnConversions {
 /** A saved value back into shape; the database drops empty objects. */
 export function normalizeColumnConversions(raw: unknown): ColumnConversions {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, any>;
-  return { composed: { ...(r.composed ?? {}) }, decomposed: { ...(r.decomposed ?? {}) } };
+  const out: ColumnConversions = { composed: { ...(r.composed ?? {}) }, decomposed: { ...(r.decomposed ?? {}) } };
+  const t = r.times && typeof r.times === 'object' ? r.times : null;
+  if (t) out.times = { composed: { ...(t.composed ?? {}) }, decomposed: { ...(t.decomposed ?? {}) } };
+  return out;
 }
 
 /** Was the conversion this column needs performed with the blocks? */
@@ -243,15 +279,37 @@ export function conversionDoneInColumn(conv: ColumnConversions, place: Place, is
   return Boolean(isSubtraction ? conv.decomposed[place] : conv.composed[place]);
 }
 
+/** How many times the blocks performed this column's conversion. */
+export function conversionTimesInColumn(conv: ColumnConversions, place: Place, isSubtraction: boolean | undefined): number {
+  const kind = isSubtraction ? 'decomposed' : 'composed';
+  const times = conv.times?.[kind]?.[place];
+  return typeof times === 'number' ? times : conv[kind][place] ? 1 : 0;
+}
+
 /** The conversions after one board event (a grouping from `from`, or a decomposition into `to`). */
 function withColumnConversion(conv: ColumnConversions, kind: 'composed' | 'decomposed', place: Place): ColumnConversions {
-  return { ...conv, [kind]: { ...conv[kind], [place]: true } };
+  const times = conversionTimesInColumn(conv, place, kind === 'decomposed') + 1;
+  return {
+    ...conv,
+    [kind]: { ...conv[kind], [place]: true },
+    times: { ...conv.times, [kind]: { ...conv.times?.[kind], [place]: times } },
+  };
 }
 
 interface WorkspaceState {
   // canonical VRA state machine (Module 29 / Appendix A §5)
   currentState: VRAWorkspaceState;
   activeColumnIndex: number; // 0: Ones, 1: Tens, 2: Hundreds
+  /** The teacher's projector board (ProjectorSandboxPage): it demonstrates, so the column digits always show. */
+  projectorBoard: boolean;
+  /** The result-row place cues shown as a scaffold after a digit in the wrong place (core/placeCues.ts, owner 30.9.2026); per exercise. */
+  placeCuesShown: boolean;
+  /**
+   * The coaching cards of 30.9.2026 already shown in the exercise `taskId`
+   * (staticSocraticCards.StaticCardKind): a card that comes in levels is
+   * shown once, then the next level (C5 before the column's card; C4 once).
+   */
+  socraticCardKinds: { taskId: string | null; kinds: StaticCardKind[] };
   isSocraticCardLocked: boolean;
   socraticLockDeadline: number | null;
   hesitationTimerSeconds: number;
@@ -366,6 +424,13 @@ interface WorkspaceState {
    */
   boardCheckFailures: number;
   boardCheckFailuresTaskId: string | null;
+  /**
+   * The single answer box of a representation exercise with a kind (stations
+   * 3 and 7, owner 30.9.2026): its digits as they were at the last press of
+   * "התקדם" in this exercise, so a press records only the digits that changed
+   * (recordSubmittedAnswer). Null until the first press.
+   */
+  lastSubmittedAnswer: string | null;
 
   /** Teacher-approved AI-generated task list (Socratic Engine); overrides session tasks when set. */
   /** Dynamically injected tasks for the current session (Micro-Agility engine). Takes precedence if length > 0. */
@@ -413,6 +478,8 @@ interface WorkspaceState {
   supportProfileApplied: boolean;
   activeDeviceId: string | null;
   isSupersededByOtherDevice: boolean;
+  /** Which learner and meeting the workspace was started or restored for; null until then and after resetWorkspace. */
+  workspaceInitializedFor: WorkspaceInitialization | null;
 
   // actions
   setActiveDeviceId: (id: string) => void;
@@ -464,6 +531,18 @@ interface WorkspaceState {
   setOperandDigit: (which: 'a' | 'b', place: Place, val: string) => void;
   /** representation tasks, enhanced profile only: the result row opens once the board shows the prescribed blocks. */
   isRepresentationColumnLocked: (place: Place) => boolean;
+  /**
+   * The single answer box of a representation exercise with a kind (stations
+   * 3 and 7): what the child types, kept as the digits of the result row,
+   * right-aligned ("340" → hundreds 3, tens 4, units 0). Typing is an action
+   * undo takes back (Module 11 §א); its digits are recorded when the child
+   * presses "התקדם" (Module 23 §ב), not keystroke by keystroke.
+   */
+  setRepresentationAnswer: (text: string) => void;
+  /** The single answer box, enhanced profile only: locked until the exercise's conversion is done with the blocks (REPRESENTATION_LOCKS). */
+  isRepresentationAnswerLocked: () => boolean;
+  /** Module 9: a digit key pressed on the locked single answer box. Logged (KEYBOARD_LOCK_BLOCKED), never acted on. */
+  recordBlockedAnswerKeystroke: () => void;
   checkTimeExceeded: () => void;
   /** "החזרת עזרים" — bidirectional scaffold fading per spec: temporarily restore faded aids. */
   restoreScaffolds: () => void;
@@ -622,12 +701,56 @@ export function socraticCardColumnIndex(
   return s.focusedPlace ? placeToColumnIndex(s.focusedPlace) : (s.activeColumnIndex || 0);
 }
 
+/**
+ * What the static card chooser needs beyond the board, for the exercise
+ * `taskId` — and, given the task, how far its break or grouping has gone.
+ */
+export function staticCardContextFor(
+  s: Pick<WorkspaceState, 'placeCuesShown' | 'socraticCardKinds'> & Partial<Pick<WorkspaceState, 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped' | 'counts'>>,
+  taskId: string | undefined,
+  task?: SessionTask | null
+): StaticCardContext {
+  const shown = s.socraticCardKinds;
+  const conversions = task && task.id === taskId
+    ? conversionContextFor({
+        conversionsByColumn: s.conversionsByColumn ?? emptyColumnConversions(),
+        counts: s.counts,
+        hasGrouped: s.hasGrouped === true,
+        hasUngrouped: s.hasUngrouped === true,
+      }, task)
+    : {};
+  return {
+    placeCuesShown: s.placeCuesShown === true,
+    shownKinds: shown && taskId && shown.taskId === taskId ? shown.kinds : [],
+    ...conversions,
+  };
+}
+
+function withCardKind(
+  shown: WorkspaceState['socraticCardKinds'] | undefined,
+  taskId: string,
+  kind: StaticCardKind
+): WorkspaceState['socraticCardKinds'] {
+  const kinds = shown && shown.taskId === taskId ? shown.kinds : [];
+  return { taskId, kinds: kinds.includes(kind) ? kinds : [...kinds, kind] };
+}
+
+/** A saved record back into shape: the database drops an empty list and a null id. */
+function restoredCardKinds(raw: unknown): WorkspaceState['socraticCardKinds'] {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as { taskId?: unknown; kinds?: unknown };
+  const list = Array.isArray(r.kinds) ? r.kinds : r.kinds && typeof r.kinds === 'object' ? Object.values(r.kinds) : [];
+  const kinds = list.filter((k): k is StaticCardKind => (STATIC_CARD_KINDS as readonly unknown[]).includes(k));
+  return { taskId: typeof r.taskId === 'string' ? r.taskId : null, kinds };
+}
+
 function resetTaskInteraction(_isASD = false) {
   return {
     counts: { ...EMPTY_COUNTS },
     undoStack: [] as UndoFrame[],
     regroupTriggerTimestamps: {} as Record<number, number>,
     hasInteracted: false,
+    placeCuesShown: false,
+    socraticCardKinds: { taskId: null as string | null, kinds: [] as StaticCardKind[] },
     hasDeletedBlock: false,
     hasClearedBoard: false,
     blocksAddedCount: 0,
@@ -638,6 +761,7 @@ function resetTaskInteraction(_isASD = false) {
     answerDigits: {} as Partial<Record<Place, string>>,
     carryDigits: {} as Partial<Record<Place, string>>,
     probeAnswer: '',
+    lastSubmittedAnswer: null as string | null,
     q3Reps: [] as PlaceCounts[],
     operandDigits: { a: {}, b: {} } as { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> },
     socraticTriggerReason: null as SocraticTriggerReason | null,
@@ -688,6 +812,130 @@ export function answerDigitsToNumber(digits: Partial<Record<Place, string>>): nu
   if (!str) return null;
   const n = parseInt(str, 10);
   return Number.isNaN(n) ? null : n;
+}
+
+/**
+ * The single answer box (stations 3 and 7, owner 30.9.2026) holds a free
+ * number of up to four digits — every answer of the green path is below
+ * 10,000. It is kept as the result row's digits, right-aligned: "340" →
+ * hundreds 3, tens 4, units 0; anything but a digit is dropped.
+ */
+export function answerDigitsFromText(text: string): Partial<Record<Place, string>> {
+  const digits = text.replace(/[^0-9]/g, '').slice(0, PLACE_ORDER.length);
+  const out: Partial<Record<Place, string>> = {};
+  [...digits].reverse().forEach((d, i) => {
+    out[PLACE_ORDER[i]] = d;
+  });
+  return out;
+}
+
+/** …and back, as the box shows it: the digits from the highest place written. */
+export function answerTextFromDigits(digits: Partial<Record<Place, string>>): string {
+  return [...PLACE_ORDER].reverse().map((p) => digits[p] ?? '').join('');
+}
+
+/**
+ * The first conversion a representation exercise asks for that the blocks
+ * have not performed yet (REPRESENTATION_LOCKS: the receiving column of a
+ * decomposition, the source column of a composition), or null when every one
+ * is done — or the exercise lists none. A column listed twice (s7_g_t1 groups
+ * ten hundreds twice) waits for its second conversion. A save from before the
+ * count (no `times`) knows only that the column converted: when the board
+ * already shows the exercise's final blocks, the column counts as done, so no
+ * child is stuck after a reload.
+ */
+export function pendingRepresentationConversion(
+  s: Pick<WorkspaceState, 'conversionsByColumn'> & Partial<Pick<WorkspaceState, 'counts'>>,
+  task: (Pick<SessionTask, 'id'> & Partial<Pick<SessionTask, 'requiredCounts'>>) | null | undefined
+): Place | null {
+  const lock = task ? REPRESENTATION_LOCKS[task.id] : undefined;
+  if (!lock) return null;
+  const decomposition = lock.conversion === 'decomposition';
+  const conv = s.conversionsByColumn;
+  const kind = decomposition ? 'decomposed' : 'composed';
+  const finalBoard = Boolean(s.counts && task?.requiredCounts) &&
+    countsEqual({ ...EMPTY_COUNTS, ...s.counts }, { ...EMPTY_COUNTS, ...task!.requiredCounts });
+  return lock.columns.find((p, i) => {
+    const listed = lock.columns.filter((q) => q === p).length;
+    const olderSave = listed > 1 && typeof conv.times?.[kind]?.[p] !== 'number' && conversionDoneInColumn(conv, p, decomposition);
+    if (olderSave && finalBoard) return false;
+    const nth = lock.columns.slice(0, i + 1).filter((q) => q === p).length;
+    return conversionTimesInColumn(conv, p, decomposition) < nth;
+  }) ?? null;
+}
+
+/**
+ * A break or grouping exercise (station 3's compose_break, station 7's
+ * compose_group): whether its conversions are done, which one is next, and
+ * whether the next repeats a column already converted ("קבצו שוב"). The
+ * static card waits with C1/C7 until they are done (owner, 30.9.2026).
+ */
+function conversionContextFor(
+  s: Pick<WorkspaceState, 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped'> & Partial<Pick<WorkspaceState, 'counts'>>,
+  task: SessionTask | null | undefined
+): Pick<StaticCardContext, 'conversionDone' | 'pendingConversion' | 'conversionAgain'> {
+  const kind = task?.representationKind;
+  if (!task || (kind !== 'compose_break' && kind !== 'compose_group')) return {};
+  const lock = REPRESENTATION_LOCKS[task.id];
+  if (!lock) return { conversionDone: kind === 'compose_group' ? s.hasGrouped === true : s.hasUngrouped === true };
+  const pending = pendingRepresentationConversion(s, task);
+  return {
+    conversionDone: pending === null,
+    pendingConversion: pending,
+    conversionAgain: pending !== null && conversionTimesInColumn(s.conversionsByColumn, pending, lock.conversion === 'decomposition') > 0,
+  };
+}
+
+const placeAbove = (p: Place): Place | undefined => PLACE_ORDER[PLACE_ORDER.indexOf(p) + 1];
+
+/**
+ * Station 3's "do the break yourselves" (owner, 30.9.2026). It used to say
+ * "לחצו על לבנת עשרת" in every exercise, also where a hundred or a thousand is
+ * broken; it names the block above the column still waiting for its ten.
+ */
+export function breakItYourselvesHe(receiving: Place | null): string {
+  const above = receiving ? placeAbove(receiving) : undefined;
+  const click = above
+    ? `לחצו על לבנת ${BLOCK_NAME_HE[above]} כדי לפרוט אותה.`
+    : 'לחצו על הלבנה שההנחיה מבקשת לפרוט.';
+  return `הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. ${click}`;
+}
+
+/** Station 7's "do the grouping yourselves": the button of the column to group, in its own words (PlaceColumn). */
+export function groupItYourselvesHe(source: Place | null): string {
+  const above = source ? placeAbove(source) : undefined;
+  const click = source && above
+    ? `לחצו על הכפתור "קבצו 10 ל${BLOCK_NAME_HE[above]}" שבראש טור ה${PLACE_NAMES_HE[source]}.`
+    : 'קבצו 10 לבנים בעזרת הכפתור שבראש הטור.';
+  return `הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. ${click}`;
+}
+
+/** The block a decomposition exercise is built from (450 → the tens). */
+function decomposeBlockPlace(task: SessionTask): Place {
+  return PLACE_ORDER.find((p) => (task.requiredCounts?.[p] ?? 0) > 0) ?? 'units';
+}
+
+/**
+ * The number the result row of a vertical exercise shows, read by place. A box
+ * left empty to the right of a digit makes it no number (NaN): in stations 3–7
+ * the row has a box for every place of the longest number (owner, 30.9.2026),
+ * and 9, 1, 7 in the thousands, hundreds and tens boxes over 917 is not 917 —
+ * joined, it was. Empty boxes on the left are leading zeros; null when nothing
+ * is typed.
+ */
+export function resultRowValue(digits: Partial<Record<Place, string>>): number | null {
+  let value: number | null = null;
+  for (const p of ['thousands', 'hundreds', 'tens', 'units'] as Place[]) {
+    const d = digits[p] ?? '';
+    if (d === '') {
+      if (value !== null) return NaN;
+      continue;
+    }
+    const n = parseInt(d, 10);
+    if (Number.isNaN(n)) return NaN;
+    value = (value ?? 0) * 10 + n;
+  }
+  return value;
 }
 
 /** Effective scaffold level of the current task (correction subtasks scaffold at 1). */
@@ -812,6 +1060,37 @@ export const SESSION1_ORDER_BEFORE_27_9: readonly string[] = [
 ];
 
 /**
+ * Meeting 1 before the two refresh exercises of 29.9.2026 (owner: the value of
+ * a digit, and a number written in words — diagnostic tasks 2 and 4 had none).
+ */
+export const SESSION1_ORDER_BEFORE_29_9: readonly string[] = [
+  's1_sandbox_controlled',
+  's1_decompose_hundred',
+  's1_build_305',
+  's1_undo_trash',
+  's1_r_group26',
+  's1_target_347',
+  's1_t8',
+  's1_r_sub61',
+  's1_r_sub806',
+];
+
+/** Meeting 1 on 29.9.2026 before the refresh exercise for diagnostic task 1 (703) was added. */
+export const SESSION1_ORDER_29_9_MIDDAY: readonly string[] = [
+  's1_sandbox_controlled',
+  's1_decompose_hundred',
+  's1_build_305',
+  's1_undo_trash',
+  's1_r_value368',
+  's1_r_words482',
+  's1_r_group26',
+  's1_target_347',
+  's1_t8',
+  's1_r_sub61',
+  's1_r_sub806',
+];
+
+/**
  * The list a restored meeting 1 goes on with, or null for the meeting's bank
  * as usual. When the saved place and id disagree with the bank, the place was
  * counted in another order of the same exercises: the one before 27.9.2026
@@ -826,12 +1105,19 @@ function restoredSession1Order(saved: { standardTaskIdx?: number; activeTask?: {
   // The place and the id agree with the bank, or there is no id to compare
   // (a snapshot trimmed to its minimal core): nothing to translate.
   if (typeof savedId !== 'string' || bank[idx]?.id === savedId) return null;
-  const byId = new Map(bank.map((t) => [t.id, t]));
-  const knownOrders = [SESSION1_ORDER_BEFORE_27_9, SESSION1_TASKS.map((t) => t.id)];
-  const order = knownOrders.find(
-    (ids) => ids[idx] === savedId && ids.length === bank.length && ids.every((id) => byId.has(id))
-  );
-  return order ? order.map((id) => byId.get(id)!) : null;
+  // The exercises this device knows: the cached bank, and this code's own (a
+  // place counted in a newer order can reach a device whose cached catalog is older).
+  const byId = new Map([...SESSION1_TASKS, ...bank].map((t) => [t.id, t]));
+  const codeIds = SESSION1_TASKS.map((t) => t.id);
+  const withAdded = (ids: readonly string[]) => [...ids, ...codeIds.filter((id) => !ids.includes(id))];
+  // Each known order as it was, and as it goes on once the exercises added
+  // since are put at its end (a second reload on one of those lands here).
+  const knownOrders = [SESSION1_ORDER_BEFORE_27_9, SESSION1_ORDER_BEFORE_29_9, SESSION1_ORDER_29_9_MIDDAY, codeIds].flatMap((ids) => [ids, withAdded(ids)]);
+  const order = knownOrders.find((ids) => ids[idx] === savedId && ids.every((id) => byId.has(id)));
+  if (!order) return null;
+  // Exercises of the bank the order does not hold come at its end.
+  const rest = bank.filter((t) => !order.includes(t.id));
+  return [...order.map((id) => byId.get(id)!), ...rest];
 }
 
 export function getActiveTasks(s: WorkspaceState): SessionTask[] {
@@ -971,7 +1257,7 @@ function exerciseSolvedForCard(
 ): boolean {
   if (!task || (task.type !== 'addition_simple' && task.type !== 'vertical_addition')) return false;
   const { a, b, target } = effectiveArithmetic(task, s.isASD);
-  const typed = answerDigitsToNumber(effectiveAnswerDigits(s, task, target));
+  const typed = resultRowValue(effectiveAnswerDigits(s, task, target));
   const hidden = hiddenDigitsStatus(s, task, a, b);
   // A skeleton shows every result digit, so a WRONG hidden digit is not a
   // solved exercise: the "four errors" card of the missing-digit boxes
@@ -1328,29 +1614,205 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
   }
 
+  /**
+   * The seven compulsory tasks as the Q-matrix holds them (Module 20). A task
+   * the learner did not reach is null; one solved on the first attempt is
+   * 'success'; any other is an error node, shown to the teacher as "דרוש חיזוק"
+   * (qMatrixValue).
+   */
+  function diagnosticQMatrix(r: QMatrixFlowState['results']) {
+    return {
+      task1_read_write_zero: qMatrixValue('task1_read_write_zero', r['task1_read_write_zero']),
+      task2_digit_value: qMatrixValue('task2_digit_value', r['task2_digit_value']),
+      task3_subtraction_regrouping: qMatrixValue('task3_subtraction_regrouping', r['task3_subtraction_regrouping']),
+      task4_decompose_number: qMatrixValue('task4_decompose_number', r['task4_decompose_number']),
+      task5_units_to_tens: qMatrixValue('task5_units_to_tens', r['task5_units_to_tens']),
+      task6_vertical_addition: qMatrixValue('task6_vertical_addition', r['task6_vertical_addition']),
+      task7_subtraction_zero_tens: qMatrixValue('task7_subtraction_zero_tens', r['task7_subtraction_zero_tens']),
+    };
+  }
+
+  /**
+   * PRD 14: "שדה is_completed נקבע אך ורק לפי השלמת שבע משימות החובה או לפי
+   * סגירה יזומה של המורה". Station 2 is complete — and scored — the moment its
+   * seven compulsory tasks are answered. This used to run only after the
+   * correction round, so a learner who had answered all seven and was still in
+   * that round (or closed the tab in it) was never completed, and the teacher
+   * had no score and no gate for them. The correction round still runs after
+   * this and adds its diagnostic tags (recordCorrectionRoundTags); it never
+   * changes the score, the path or the completion (register, decision ז).
+   */
+  function completeDiagnosticMeeting() {
+    const studentId = useAuthStore.getState().user?.uid;
+    if (!studentId) return;
+    const s = get();
+    const measured = {
+      results: s.qflow.results,
+      hesitations: s.hesitationCount,
+      undos: s.undoCount,
+      persistence: s.getPersistenceIndex(),
+    };
+    whenLearnerRecordLoaded(studentId, () => writeDiagnosticCompletion(studentId, measured));
+  }
+
+  /**
+   * The completion writes go through the learner's record in the app store.
+   * After a reload from this device's copy the record may not have arrived
+   * yet; the writes then wait for it instead of being dropped.
+   */
+  function whenLearnerRecordLoaded(studentId: string, run: () => void) {
+    if (useStore.getState().students[studentId]) {
+      run();
+      return;
+    }
+    const unsubscribe = useStore.subscribe((st) => {
+      // Another learner signed in on this device: this learner's writes are not theirs.
+      if (useAuthStore.getState().user?.uid !== studentId) {
+        unsubscribe();
+        return;
+      }
+      if (!st.students[studentId]) return;
+      unsubscribe();
+      run();
+    });
+  }
+
+  function writeDiagnosticCompletion(
+    studentId: string,
+    measured: { results: QMatrixFlowState['results']; hesitations: number; undos: number; persistence: number },
+  ) {
+    const store = useStore.getState();
+    store.markMeeting2Complete(studentId);
+    const student = store.students[studentId];
+    if (!student) return;
+    const r = measured.results;
+    // מודול 20: ערך ריק פירושו "הלומד לא ניגש למשימה" בלבד. לומד שניגש ונכשל
+    // בלי שסווג לו צומת שגיאה נרשם כ-Q_FAIL_TAG, אחרת כישלון היה נראה למורה
+    // בדוח האבחון בדיוק כמו משימה שהילד מעולם לא הגיע אליה.
+    const realQMatrix = diagnosticQMatrix(r);
+    store.updateQMatrix(studentId, realQMatrix);
+    syncQMatrixEvaluation(studentId, realQMatrix).catch(console.error);
+
+    const mastery = computeCognitiveMastery(realQMatrix);
+    store.updateConceptMastery(studentId, mastery);
+
+    const { hesitations, undos, persistence } = measured;
+    const efficiency = Math.max(0, 100 - (undos * 5) - (hesitations * 10));
+
+    const realTraceData = {
+      hesitation_events: hesitations,
+      undo_clicks: undos,
+      efficiency_score: efficiency,
+      persistence_score: persistence
+    };
+    store.updateTraceData(studentId, realTraceData);
+    const route = CurriculumRouter.evaluateRoute({
+      ...student,
+      qMatrixResults: { ...student.qMatrixResults, ...realQMatrix },
+      conceptMastery: mastery,
+      traceData: realTraceData,
+    });
+    store.setRouteRecommendation(studentId, route);
+
+    // PRD Module 20: session_score_percent and matrix_recommended_path are
+    // computed "בטריגר עצמאי על סיום המפגש" — sessionTrigger.ts, from the
+    // meeting's telemetry, first attempts only (Module 23 §ב). The learner's
+    // device used to compute and post its own number; the rules now refuse
+    // that (owner, 29.9.2026), so the completion carries neither.
+    //
+    // The pilot's one class (Module 25 §ב.1) — the same id the learner's
+    // signed claim carries. This used to take activeClass.school_id, so
+    // every SessionDocument said class_id "school_bikorot" and the class
+    // report and the research export, which filtered on "class_1", found none.
+    const classId = 'class_1';
+    firebaseSyncService.syncSession2Completion(studentId, classId).catch(console.error);
+  }
+
+  /**
+   * The end of the correction round: the diagnostic tags it gave the tasks
+   * that went through it, and nothing else. The score, the path, the route
+   * and the completion were settled when the seven tasks were answered
+   * (completeDiagnosticMeeting). The route is not recomputed: its write sets
+   * routeStatus 'PENDING', which would take back a gate the teacher may
+   * already have approved.
+   */
+  function recordCorrectionRoundTags() {
+    const studentId = useAuthStore.getState().user?.uid;
+    if (!studentId) return;
+    const { results, failedTasks } = get().qflow;
+    if (failedTasks.length === 0) return;
+    const tags: Record<string, string | null> = {};
+    for (const id of failedTasks) tags[id] = qMatrixValue(id, results[id]);
+    whenLearnerRecordLoaded(studentId, () => useStore.getState().updateQMatrix(studentId, tags as never));
+  }
+
+  /**
+   * From a primary-round task whose answer is recorded to what comes next:
+   * the next task, or — after the seventh — the completion of the meeting and
+   * then the correction round or the end.
+   */
+  function continueAfterPrimaryAnswer() {
+    const { state, event: next } = advance(get().qflow);
+    set({ qflow: state });
+    if (next) {
+      // In the primary round advance returns an event only when the round is over.
+      completeDiagnosticMeeting();
+      handleQFlowEvent(next);
+    } else {
+      startTask(getCurrentQTask(state)?.id ?? '');
+      set({ awaitingNext: false });
+    }
+  }
+
+  /**
+   * A reload in station 2 after an answer was recorded and before the flow
+   * moved on (the answer is saved at once; the step comes 1.5 seconds later,
+   * after the toast). The saved flow still points at the answered task, and
+   * the child used to be asked it again — a second answer then replaced the
+   * first attempt the diagnostic is scored on. The flow now moves on instead,
+   * as it would have.
+   */
+  function resumeDiagnosticAfterRestore() {
+    const s = get();
+    if (s.sessionNumber !== 2 || s.flowStatus !== 'task') return;
+    // Cancels a step still pending from before the restore: it would move the
+    // flow a second time.
+    set({ feedbackNonce: s.feedbackNonce + 1, feedback: null });
+    const task = getCurrentQTask(s.qflow);
+    if (s.qflow.phase === 'primary') {
+      if (!task) {
+        // Saved in the moment between the seventh answer (the meeting is
+        // already complete) and the end screen.
+        handleQFlowEvent({ type: 'all_complete' });
+      } else if (s.qflow.results[task.id]) {
+        set({ awaitingNext: true });
+        continueAfterPrimaryAnswer();
+      }
+    } else if (s.qflow.correctionIdx >= s.qflow.failedTasks.length) {
+      handleQFlowEvent({ type: 'all_complete' });
+    }
+  }
+
   /** Session-2 transition script (vanilla onQTaskComplete, app.js 813–873). */
   function handleQFlowEvent(event: QFlowEvent) {
-    const s = get();
     switch (event.type) {
       case 'primary_done':
-        showFeedback({ correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍', sub: 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' }, 1500, () => {
-          const { state, event: next } = advance(get().qflow);
-          set({ qflow: state });
-          if (next) handleQFlowEvent(next);
-          else {
-            startTask(getCurrentQTask(state)?.id ?? '');
-            set({ awaitingNext: false });
-          }
-        });
+        showFeedback({ correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍', sub: 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' }, 1500, continueAfterPrimaryAnswer);
         break;
       // The correction round has no hints and no right/wrong feedback (owner's
-      // decision, 25.9.2026): it is still part of the diagnostic.
-      case 'start_correction':
-        showFeedback({ correct: true, neutral: true, title: 'מְשִׂימָה נוֹסֶפֶת 📝' }, 1800, () => {
+      // decision, 25.9.2026): it is still part of the diagnostic. Its toasts
+      // name what is on the screen and say nothing about the first answer
+      // (owner, 29.9.2026): the task itself coming back is "מְשִׂימָה חוֹזֶרֶת";
+      // the simpler exercise before it (tasks 3, 6, 7) is another task.
+      case 'start_correction': {
+        const task = TASKS.find((t) => t.id === event.taskId);
+        const title = task && hasProbeExercise(task) ? 'מְשִׂימָה נוֹסֶפֶת 📝' : 'מְשִׂימָה חוֹזֶרֶת 📝';
+        showFeedback({ correct: true, neutral: true, title }, 1800, () => {
           startTask(event.taskId);
           set({ awaitingNext: false });
         });
         break;
+      }
       case 'subtask_done':
         showFeedback(
           { correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍' },
@@ -1364,7 +1826,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         );
         break;
       case 'start_retry':
-        showFeedback({ correct: true, neutral: true, title: 'מְנַסִּים שׁוּב! 🔄', sub: 'הִנֵּה הַמְּשִׂימָה הַמְּקוֹרִית. נַסּוּ לִפְתֹּר אוֹתָהּ כָּעֵת:' }, 1800, () => {
+        showFeedback({ correct: true, neutral: true, title: 'מְשִׂימָה חוֹזֶרֶת 📝' }, 1800, () => {
           startTask(event.taskId);
           set({ awaitingNext: false });
         });
@@ -1385,101 +1847,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         );
         break;
       case 'all_complete':
-        showFeedback({ correct: true, title: 'סִיַּמְתֶּם! 🎉', sub: 'כָּל הַכָּבוֹד עַל הָעֲבוֹדָה הַטּוֹבָה!' }, 2200, () => {
-          // מודול 16 §א: לוח הרפלקציה הוא "בסיום מפגש 8" — שם בלבד. מודול 14
-          // §ב0 ומודול 20: מפגש 2 מסתיים במסך המתנה שקט עד שהמורה מאשרת את
-          // המסלול. הקוד הציג כאן את לוח הרפלקציה המלא, כולל אחוז מדד ההתמדה —
-          // לילד, ברגע שבו מוכרע לאיזה מסלול הוא הולך.
-          set({ flowStatus: 'sessionDone', awaitingNext: false, currentState: 'COMPLETE' });
-          const studentId = useAuthStore.getState().user?.uid;
-          if (studentId) {
-            const store = useStore.getState();
-            store.markMeeting2Complete(studentId);
-            const student = store.students[studentId];
-            if (student) {
-              const r = get().qflow.results;
-              // מודול 20: ערך ריק פירושו "הלומד לא ניגש למשימה" בלבד.
-              // לומד שניגש ונכשל בלי שסווג לו צומת שגיאה נרשם כ-Q_FAIL_TAG,
-              // אחרת כישלון היה נראה למורה בדוח האבחון בדיוק כמו משימה
-              // שהילד מעולם לא הגיע אליה.
-              const getTag = (taskResult: any) => {
-                if (!taskResult) return null;
-                if (taskResult.tag) return taskResult.tag;
-                if (taskResult.correct) return 'success';
-                return Q_FAIL_TAG;
-              };
-              
-              const realQMatrix = {
-                task1_read_write_zero: getTag(r['task1_read_write_zero']),
-                task2_digit_value: getTag(r['task2_digit_value']),
-                task3_subtraction_regrouping: getTag(r['task3_subtraction_regrouping']),
-                task4_decompose_number: getTag(r['task4_decompose_number']),
-                task5_units_to_tens: getTag(r['task5_units_to_tens']),
-                task6_vertical_addition: getTag(r['task6_vertical_addition']),
-                task7_subtraction_zero_tens: getTag(r['task7_subtraction_zero_tens']),
-              };
-              store.updateQMatrix(studentId, realQMatrix);
-              syncQMatrixEvaluation(studentId, realQMatrix).catch(console.error);
-              
-              const mastery = computeCognitiveMastery(realQMatrix);
-              store.updateConceptMastery(studentId, mastery);
-
-              const hesitations = get().hesitationCount;
-              const undos = get().undoCount;
-              const efficiency = Math.max(0, 100 - (undos * 5) - (hesitations * 10));
-              const persistence = get().getPersistenceIndex();
-
-              const realTraceData = { 
-                hesitation_events: hesitations, 
-                undo_clicks: undos,
-                efficiency_score: efficiency,
-                persistence_score: persistence
-              };
-              store.updateTraceData(studentId, realTraceData);
-              const route = CurriculumRouter.evaluateRoute({
-                ...student,
-                qMatrixResults: { ...student.qMatrixResults, ...realQMatrix },
-                conceptMastery: mastery,
-                traceData: realTraceData,
-              });
-              store.setRouteRecommendation(studentId, route);
-
-              // Phase 3: Exact PRD Module 20 & Appendix A §4 Session 2 Scoring & Path Recommendation
-              const compulsoryKeys = [
-                'task1_read_write_zero',
-                'task2_digit_value',
-                'task3_subtraction_regrouping',
-                'task4_decompose_number',
-                'task5_units_to_tens',
-                'task6_vertical_addition',
-                'task7_subtraction_zero_tens',
-              ];
-              // Module 23: "correct on first attempt" means PROBLEM_COMPLETE was not preceded by any DIGIT_ENTERED with is_correct === false.
-              // Events with is_correct === null are ignored entirely.
-              const compulsory_correct_first_attempt = compulsoryKeys.filter(k => {
-                const res = r[k] || (k === 'task1_read_write_zero' ? r['task1_zero_placeholder'] :
-                  k === 'task3_subtraction_regrouping' ? r['task6_subtraction_regrouping'] :
-                  k === 'task4_decompose_number' ? r['task3_flexible_regrouping'] :
-                  k === 'task5_units_to_tens' ? r['task5_small_change'] :
-                  k === 'task6_vertical_addition' ? r['task4_basic_addition_fluency'] :
-                  k === 'task7_subtraction_zero_tens' ? r['task7_missing_subtrahend'] : undefined);
-                return res?.correct === true && res?.had_digit_error !== true;
-              }).length;
-              const session_score_percent = Math.round((compulsory_correct_first_attempt / 7) * 100);
-              const matrix_recommended_path = session_score_percent >= 50 ? 'green_path' : 'remediation_path';
-
-              // The pilot's one class (Module 25 §ב.1) — the same id the learner's
-              // signed claim carries. This used to take activeClass.school_id, so
-              // every SessionDocument said class_id "school_bikorot" and the class
-              // report and the research export, which filtered on "class_1", found none.
-              const classId = 'class_1';
-              firebaseSyncService.syncSession2Completion(studentId, session_score_percent, matrix_recommended_path, classId).catch(console.error);
-            }
-          }
-        });
+        // מודול 16 §א: לוח הרפלקציה הוא "בסיום מפגש 8" — שם בלבד. מודול 14
+        // §ב0 ומודול 20: מפגש 2 מסתיים במסך המתנה שקט עד שהמורה מאשרת את
+        // המסלול. הקוד הציג כאן את לוח הרפלקציה המלא, כולל אחוז מדד ההתמדה —
+        // לילד, ברגע שבו מוכרע לאיזה מסלול הוא הולך.
+        //
+        // No toast: it said "כל הכבוד על העבודה הטובה!" and the waiting screen
+        // opens with "כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה" — one praise,
+        // the waiting screen's (owner, 29.9.2026).
+        recordCorrectionRoundTags();
+        set({ flowStatus: 'sessionDone', awaitingNext: false, currentState: 'COMPLETE' });
         break;
     }
-    void s;
   }
 
   /**
@@ -1525,6 +1904,63 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     });
   }
 
+  /**
+   * The single answer box (stations 3 and 7, owner 30.9.2026) holds one
+   * number, not a digit per column, so its digits are recorded when the child
+   * presses "התקדם" — keystroke by keystroke, "340" typed from the left would
+   * pass through a 3 and then a 4 in the units, each one a wrong digit. Each
+   * digit is recorded in its column of the written number (units = 0) as a
+   * DIGIT_ENTERED whose is_correct compares it with the answer's digit there
+   * (Appendix A §3) — what the first-attempt score, the Persistence Index's E
+   * and measure 4 read (Module 23 §ב). The number is read with the leading
+   * zeros of the answer's places: "40" for 340 has 0 hundreds, a wrong digit,
+   * so a wrong number always records a wrong digit. A press records the
+   * digits that changed since the previous press — wrong ones first: the
+   * first digit after a coaching card tells whether that answer was right
+   * (measure 4) — and a press with a wrong answer records at least one wrong
+   * digit, even when nothing changed (the lowest wrong place), so every wrong
+   * press counts once and a digit left as it was is not counted again. A press
+   * with the same right answer records nothing. The last press survives a
+   * reload (the snapshot), so a reload does not record unchanged digits again.
+   */
+  function recordSubmittedAnswer(task: SessionTask) {
+    const s = get();
+    const text = answerTextFromDigits(s.answerDigits);
+    if (!text) return;
+    const width = Math.max(text.length, typeof task.correctAnswer === 'number' ? String(task.correctAnswer).length : 0);
+    const before = answerDigitsFromText((s.lastSubmittedAnswer ?? '').padStart(s.lastSubmittedAnswer === null ? 0 : width, '0'));
+    const now = answerDigitsFromText(text.padStart(width, '0'));
+    const judged = PLACE_ORDER.filter((p) => now[p] !== undefined).map((place) => {
+      const digit = parseInt(now[place] as string, 10);
+      const expected = computeExpectedDigitForColumn(task, place);
+      return { place, digit, isCorrect: expected === null ? null : digit === expected, changed: now[place] !== before[place] };
+    });
+    const wrongNow = judged.filter((d) => d.isCorrect === false);
+    const wrongChanged = wrongNow.filter((d) => d.changed);
+    const entered = [
+      ...(wrongChanged.length > 0 ? wrongChanged : wrongNow.slice(0, 1)),
+      ...judged.filter((d) => d.isCorrect !== false && d.changed),
+    ];
+    if (entered.length === 0) return;
+    const studentId = currentStudentUid();
+    for (const e of entered) {
+      emitTelemetry({
+        session_id: `session_${s.sessionNumber}_student_${studentId}`,
+        student_id: studentId,
+        exercise_id: task.id,
+        event_type: 'DIGIT_ENTERED',
+        column_index: placeToColumnIndex(e.place),
+        details: { digit_value: e.digit, is_correct: e.isCorrect },
+      }).catch(console.error);
+    }
+    const wrong = entered.filter((e) => e.isCorrect === false).length;
+    set({
+      lastSubmittedAnswer: text,
+      typedErrorCount: s.typedErrorCount + wrong,
+      hasDigitErrorInTask: wrong > 0 ? true : s.hasDigitErrorInTask,
+    });
+  }
+
   /** Opens the card for the "four errors" streak's column (see nextDigitErrorStreak). */
   function openCardForDigitErrorStreak(place: Place) {
     setTimeout(() => get().openSocraticCard('consecutive_errors_4', place), 0);
@@ -1537,7 +1973,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const task = tasks[s.standardTaskIdx];
     if (!task) return;
 
-    const handleFailure = (detail: string, feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
+    const handleFailure = (
+      detail: string,
+      feedbackTitle: string,
+      feedbackSub: string,
+      feedbackMs: number,
+      opts: { holdCard?: boolean } = {}
+    ) => {
       // Register 17 / PRD Module 12 §ב: an empty answer or an unanswered
       // question is not a wrong answer — not for the card on the second wrong
       // answer, and not for the card on the fourth wrong attempt either.
@@ -1574,7 +2016,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (!incomplete) {
           const streak = (s.wrongAnswerTaskId === task.id ? s.wrongAnswerStreak : 0) + 1;
           set({ wrongAnswerStreak: streak, wrongAnswerTaskId: task.id });
-          if (streak >= 2) {
+          // `holdCard`: the press already brought another help (the result
+          // row's place cues) — the streak still counts, and the card opens on
+          // the next wrong answer.
+          if (streak >= 2 && !opts.holdCard) {
             set({ helpState: 'friction', frictionTriggerSource: 'mistake' });
           }
         }
@@ -1658,7 +2103,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           handleFailure(
             'empty_board',
             'בונים בבית המספרים 🧱',
-            'עוד אין לבנים בבית המספרים. לחצו על לבנה בארגז הכלים או גררו אותה לבית המספרים, ובנו את המספרים שבתרגיל.',
+            'עוד אין לבנים בבית המספרים. לחצו על אחת הלבנים שמתחת לבית המספרים, או גררו אותה אליו, ובנו את המספרים שבתרגיל.',
             3500
           );
           return;
@@ -1680,7 +2125,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             return;
           }
           if (!hiddenCheck.correct) {
-            handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בלוח.', 2800);
+            handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בבית המספרים.', 2800);
             return;
           }
           const discovered = (task.hiddenDigits?.a?.length ? [hA] : []).concat(task.hiddenDigits?.b?.length ? [hB] : []);
@@ -1705,12 +2150,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10 || s.counts.hundreds >= 10;
         if (hasOvercrowded) {
-          // Names the column and the one action: the button "קבץ 10" at the head of the column (מסמך 02).
+          // Names the column and the one action: the button "קבצו 10" at the head of the column (מסמך 02).
           const crowded = s.counts.units >= 10 ? 'היחידות' : s.counts.tens >= 10 ? 'העשרות' : 'המאות';
+          // The button says where the ten go (PlaceColumn: "קבצו 10 לעשרת / למאה / לאלף").
+          const groupButton = s.counts.units >= 10 ? 'קבצו 10 לעשרת' : s.counts.tens >= 10 ? 'קבצו 10 למאה' : 'קבצו 10 לאלף';
           handleFailure(
             'overcrowded_columns',
             'קַבְּצוּ 🧱',
-            `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "קבץ 10" שבראש הטור.`,
+            // Meeting 1 names neither the column nor the button (owner, 29.9.2026):
+            // the child finds the crowded column — the words of the meeting-1 card.
+            s.sessionNumber === 1
+              ? 'באחד הטורים יש 10 לבנים או יותר. לחצו על הכפתור שמופיע בראש אותו טור.'
+              : `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "${groupButton}" שבראש הטור.`,
             4000
           );
           return;
@@ -1739,9 +2190,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
 
       const typedDigits = effectiveAnswerDigits(s, task, target);
-      const hasTypedDigits = Object.keys(typedDigits).some(
-        (k) => typedDigits[k as Place] !== undefined && typedDigits[k as Place] !== ''
+      // Register 17: an empty answer is not a wrong answer. Only the boxes the
+      // child types in count — a skeleton's revealed digits are the exercise's —
+      // and a 0 in a box to the left of the answer (the thousands box over 917,
+      // stations 3–7) is no answer either. A row with no box to type in (every
+      // result digit revealed, the missing digits in the numbers) is complete.
+      const openPlaces = PLACE_ORDER.slice(0, resultBoxCount(s.sessionNumber, opA, opB, target)).filter(
+        (p) => !task.revealedResultDigits?.includes(p)
       );
+      const hasTypedDigits =
+        openPlaces.length === 0 ||
+        openPlaces.some((p) => {
+          const d = s.answerDigits[p];
+          if (d === undefined || d === '') return false;
+          return !(d === '0' && p !== 'units' && Math.abs(target) < PLACE_VALUES[p]);
+        });
 
       if (!hasTypedDigits) {
         handleFailure(
@@ -1753,16 +2216,34 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
 
-      const ansVal = answerDigitsToNumber(typedDigits);
+      const ansVal = resultRowValue(typedDigits);
       if (ansVal !== target) {
         if (s.sessionNumber === 8) {
           handleFailure('wrong_numeric', 'נסו שוב 🤔', 'התשובה שכתבתם אינה נכונה. בדקו שוב!', 2800);
         } else {
+          // Stations 3–7 (owner, 30.9.2026): a digit in the wrong place turns on
+          // the result row's place cues until the end of the exercise; the line
+          // that explains them stays in the task card (VerticalAdditionTask).
+          // One help per press (owner, 30.9.2026): the press that brings the
+          // cues does not also open the coaching card — the card waits for the
+          // next wrong answer.
+          let cuesJustShown = false;
+          if (
+            s.sessionNumber >= 3 &&
+            s.sessionNumber <= 7 &&
+            !s.placeCuesShown &&
+            isPlaceError(typedDigits, target, { a: opA, b: opB, isSubtraction: task.isSubtraction })
+          ) {
+            set({ placeCuesShown: true });
+            emitScaffoldEvent(get(), 'PLACE_CUES_SHOWN', { profile: s.activeSupportProfileId === 'enhanced_cognitive_support' ? 'enhanced' : 'regular' });
+            cuesJustShown = true;
+          }
           handleFailure(
             'wrong_numeric',
             'כִּמְעַט... 🧐',
             'התשובה שכתבתם לא מתאימה ללבנים בבית המספרים. בדקו שוב!',
-            2800
+            2800,
+            { holdCard: cuesJustShown }
           );
         }
         return;
@@ -1821,6 +2302,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     if (task.type === 'representation') {
+      // Stations 3 and 7 (owner, 30.9.2026): the exercise's kind says what the
+      // single answer box holds. Its digits are recorded at this press,
+      // whatever the board shows (recordSubmittedAnswer).
+      const kind = task.representationKind;
+      if (kind) recordSubmittedAnswer(task);
       const required = requiredCountsOf(task);
       if (!countsEqual(s.counts, required)) {
         handleFailure(
@@ -1835,25 +2321,86 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         );
         return;
       }
-      // Meeting 1: the exercise is the conversion itself, not only its result.
-      if (task.requiresGrouping && !s.hasGrouped) {
-        handleFailure('conversion_skipped', 'קַבְּצוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבני יחידה בכל פעם, בעזרת הכפתור "קבץ 10" שבראש הטור.', 3500);
-        return;
-      }
-      if (task.requiresUngrouping && !s.hasUngrouped) {
-        handleFailure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
-        return;
+      if (kind) {
+        // The break (compose_break) or the grouping (compose_group) is the
+        // child's own, with the blocks, in every column REPRESENTATION_LOCKS
+        // names — s3_g_t4 breaks a thousand AND a hundred — and undo takes one
+        // back. The message names the block still to break, or the button of
+        // the column still to group. A kind with no entry falls back to
+        // "some break / some grouping was made".
+        const listed = Boolean(REPRESENTATION_LOCKS[task.id]);
+        const pending = pendingRepresentationConversion(s, task);
+        const skipped = listed
+          ? pending !== null
+          : kind === 'compose_group'
+            ? !s.hasGrouped
+            : kind === 'compose_break' && !s.hasUngrouped;
+        if (skipped && kind === 'compose_group') {
+          handleFailure('conversion_skipped', 'קַבְּצוּ 🧱', groupItYourselvesHe(pending), 3500);
+          return;
+        }
+        if (skipped && kind === 'compose_break') {
+          handleFailure('conversion_skipped', 'פִּרְטוּ 🧱', breakItYourselvesHe(pending), 3500);
+          return;
+        }
+      } else {
+        // Meeting 1: the exercise is the conversion itself, not only its result.
+        if (task.requiresGrouping && !s.hasGrouped) {
+          handleFailure('conversion_skipped', 'קַבְּצוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.', 3500);
+          return;
+        }
+        if (task.requiresUngrouping && !s.hasUngrouped) {
+          handleFailure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
+          return;
+        }
       }
       const typed = answerDigitsToNumber(s.answerDigits);
       if (typed === null) {
-        handleFailure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את המספר בשורת התוצאה.', 3000);
+        handleFailure(
+          'missing_answer',
+          'הַקְלָדַת תְּשׁוּבָה ✏️',
+          // A decomposition's answer is a number of blocks, not "the number".
+          kind === 'decompose'
+            ? 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את התשובה בשורת התוצאה.'
+            : 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את המספר בשורת התוצאה.',
+          3000
+        );
         return;
       }
-      if (typed !== (task.numberA ?? 0)) {
-        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!', 2800);
+      if (kind) {
+        // What the child writes: the number the blocks show, or — decompose —
+        // how many blocks make it (450 → 45 tens), never "the value of a digit".
+        const block = kind === 'decompose' ? BLOCK_NAME_HE[decomposeBlockPlace(task)] : '';
+        if (typed !== task.correctAnswer) {
+          handleFailure(
+            'wrong_numeric',
+            'כִּמְעַט... 🧐',
+            kind === 'decompose'
+              ? `בדקו שוב: כמה לבני ${block} יש בבית המספרים?`
+              : 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!',
+            2800
+          );
+          return;
+        }
+        handleSuccess(
+          'כָּל הַכָּבוֹד! 🌟',
+          kind === 'decompose'
+            ? `בניתם את המספר מלבני ${block} בלבד, והתשובה שכתבתם נכונה.`
+            : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.',
+          2500
+        );
         return;
       }
-      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
+      // The result row takes the exercise's answer: the number built, or — the
+      // value of a digit (meeting 1, 368 → 60) — its own correctAnswer.
+      // The value of a digit (368 → 60) is not the number the blocks show, so
+      // its messages speak of the value of the digit, not of the blocks.
+      const asksDigitValue = typeof task.correctAnswer === 'number' && task.correctAnswer !== task.numberA;
+      if (typed !== (typeof task.correctAnswer === 'number' ? task.correctAnswer : task.numberA ?? 0)) {
+        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', asksDigitValue ? 'זה עוד לא הערך של הספרה. הסתכלו בבית המספרים ובדקו שוב!' : 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!', 2800);
+        return;
+      }
+      handleSuccess('כָּל הַכָּבוֹד! 🌟', asksDigitValue ? 'מצאתם את הערך של הספרה במספר.' : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
       return;
     }
 
@@ -2017,6 +2564,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const s = get();
     const task = getCurrentQTask(s.qflow);
     if (!task || s.awaitingNext) return;
+    // The first attempt is recorded once. A primary-round task that already
+    // has its result moves on; judging it again replaced the answer the
+    // diagnostic is scored on (resumeDiagnosticAfterRestore does this on a reload).
+    if (s.qflow.phase === 'primary' && s.qflow.results[task.id]) {
+      set({ awaitingNext: true });
+      continueAfterPrimaryAnswer();
+      return;
+    }
     const subtask = isSubtaskActive(s.qflow);
 
     let answer: number | null = null;
@@ -2104,6 +2659,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // canonical VRA state machine (Module 29 / Appendix A §5)
     currentState: 'IDLE' as VRAWorkspaceState,
     activeColumnIndex: 0,
+    projectorBoard: false,
     isSocraticCardLocked: Boolean(initialDeadline && initialDeadline > Date.now()),
     socraticLockDeadline: initialDeadline,
     socraticPenaltyLockoutUntil: initialDeadline,
@@ -2139,6 +2695,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     additionHelperOffered: false,
 
     hasInteracted: false,
+    placeCuesShown: false,
+    socraticCardKinds: { taskId: null, kinds: [] },
     undoTimestamps: [],
     isBoardLocked: false,
     pendingAdaptation: null,
@@ -2157,6 +2715,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     answerDigits: {},
     carryDigits: {},
     probeAnswer: '',
+    lastSubmittedAnswer: null,
     q3Reps: [],
     operandDigits: { a: {}, b: {} },
     socraticTriggerReason: null,
@@ -2188,6 +2747,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     supportProfileApplied: false,
     activeDeviceId: null,
     isSupersededByOtherDevice: false,
+    workspaceInitializedFor: null,
 
     setActiveDeviceId: (id) => set({ activeDeviceId: id }),
     setSupersededByOtherDevice: (superseded) => {
@@ -2307,6 +2867,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // 18): a new meeting starts without them.
         isAdditionHelperOpen: false,
         additionHelperOffered: false,
+        // Module 17: from here on the store holds this learner's meeting.
+        workspaceInitializedFor: { learner: currentStudentUid(), meeting: sanitized, restoredSavedAt: null },
       });
       applyPendingSupportProfile();
 
@@ -2456,6 +3018,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         wrongAnswerTaskId: typeof saved.wrongAnswerTaskId === 'string' ? saved.wrongAnswerTaskId : null,
         boardCheckFailures: Number(saved.boardCheckFailures) || 0,
         boardCheckFailuresTaskId: typeof saved.boardCheckFailuresTaskId === 'string' ? saved.boardCheckFailuresTaskId : null,
+        // Station 2: a wrong digit already typed in the task on screen still
+        // counts against its first attempt after a reload (PRD 23 §ב).
+        hasDigitErrorInTask: saved.hasDigitErrorInTask === true,
+        // Stations 3–7: the result row's place cues stay to the end of the
+        // exercise, a reload included — and a restore to another exercise
+        // brings that exercise's own value, never the one on screen.
+        placeCuesShown: saved.placeCuesShown === true,
+        // The same for the coaching cards already shown (C4, C5): a reload
+        // does not bring back the first level.
+        socraticCardKinds: restoredCardKinds(saved.socraticCardKinds),
         isSocraticCardLocked: Boolean(storedDeadline && storedDeadline > Date.now()),
         socraticLockDeadline: storedDeadline,
         socraticDistractorHint: saved.socraticDistractorHint ?? null,
@@ -2463,6 +3035,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         answerDigits: saved.answerDigits ?? {},
         carryDigits: saved.carryDigits ?? {},
         probeAnswer: saved.probeAnswer ?? '',
+        // In the snapshot: after a reload, the next press of "התקדם" records
+        // only what changed since the last press (recordSubmittedAnswer).
+        lastSubmittedAnswer: typeof saved.lastSubmittedAnswer === 'string' ? saved.lastSubmittedAnswer : null,
         q3Reps: saved.q3Reps ?? [],
         operandDigits: saved.operandDigits ?? { a: {}, b: {} },
         // Now that the snapshot carries them, they are restored as saved —
@@ -2484,9 +3059,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Register 18 / decision ב: the return tab, and an open grid, survive a reload.
         additionHelperOffered: saved.additionHelperOffered === true,
         isAdditionHelperOpen: saved.isAdditionHelperOpen === true,
+        // Module 17: from here on the store holds this learner's meeting, as saved.
+        // A copy of a fresh start made without the record is still a fresh
+        // start: the record's first snapshot settles it by the fresh-start rule.
+        workspaceInitializedFor: {
+          learner: currentStudentUid(),
+          meeting: sanitized,
+          restoredSavedAt: startedWithoutRecord(saved) ? null : workspaceSavedAt(saved),
+        },
       });
       // A reload is a task start too (Module 19 §ב).
       applyPendingSupportProfile();
+      resumeDiagnosticAfterRestore();
     },
 
     injectTask: (task, position) => {
@@ -2586,7 +3170,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }).catch(console.error);
         } else if (input.target.kind === 'column') {
           const targetColIdx = placeToColumnIndex(input.target.place);
-          const sourceColIdx = input.sourcePlace ? placeToColumnIndex(input.sourcePlace) : null;
+          // A palette block left no column: its source is null (types/telemetry.ts).
+          // It used to carry its own place, so a unit added to the units column
+          // logged the same column twice — the shape of a drop into the trash —
+          // and the report counted every block taken from the palette as a use
+          // of the trash (owner, 28.9.2026: "אי מצב שהשתמשתי בפח 85 פעם").
+          const sourceColIdx = input.source === 'column' ? placeToColumnIndex(input.sourcePlace) : null;
           const blockVal = input.target.place === 'thousands' ? 1000 : input.target.place === 'hundreds' ? 100 : input.target.place === 'tens' ? 10 : 1;
           emitTelemetry({
             session_id: sessionId,
@@ -3245,8 +3834,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       cancelSocraticRequest();
       const request = socraticRequestSeq;
+      // The place cues and the cards already shown in this exercise choose
+      // between the levels of a card (owner, 30.9.2026: C5 before the
+      // column's own card; C4 once after the cues).
+      const cardContext = staticCardContextFor(s, currentTask?.id, currentTask);
       const staticCard: SocraticHintResponse = {
-        ...SocraticEngine.getSynchronousTaskHint(currentTask, s.counts),
+        ...SocraticEngine.getSynchronousTaskHint(currentTask, s.counts, cardContext),
         error_category: null,
       };
       set({ aiSocraticHint: null, socraticPending: true });
@@ -3265,7 +3858,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           get().closeHelp();
           return;
         }
-        set({ aiSocraticHint: hint, socraticPending: false });
+        // A card of 30.9.2026 counts as shown also when the engine's card,
+        // anchored on it, is the one on the screen.
+        const kind = staticCard.cardKind;
+        set((st) => ({
+          aiSocraticHint: hint,
+          socraticPending: false,
+          ...(kind && currentTask?.id ? { socraticCardKinds: withCardKind(st.socraticCardKinds, currentTask.id, kind) } : {}),
+        }));
       };
 
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -3305,6 +3905,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           operands: eff ? { a: eff.a, b: eff.b, isSubtraction: Boolean(currentTask?.isSubtraction) } : null,
           activeColumnIndex: socraticCardColumnIndex(s),
           hasRegroupedInCanvas: Boolean(s.hasUngrouped || s.hasGrouped),
+          cardContext,
         };
 
         const hint = await SocraticEngine.getSocraticHint(
@@ -3346,6 +3947,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           lastAction: 'ביטל את הקריאה למורה',
         }).catch(console.error);
         set({ hasRequestedBasicHelp: false });
+        // Owner, 30.9.2026: the take-back is research data. The call itself
+        // still counts as help in measure 2א — the teacher may already have come.
+        emitScaffoldEvent(get(), 'HELP_WITHDRAWN', { help_count: s.helpRequestCount || 0 });
         showSideFeedback({ correct: true, neutral: true, title: 'הקריאה בוטלה', sub: 'אפשר ללחוץ שוב בכל עת.' }, 2000);
         return;
       }
@@ -3583,6 +4187,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (supportProfile !== 'enhanced_cognitive_support') return false;
       const task = getActiveTasks(s)[s.standardTaskIdx] || null;
       if (!task || task.type !== 'representation') return false;
+      // Station 3 and station 7's groupings have one answer box and no
+      // columns: isRepresentationAnswerLocked.
+      if (task.representationKind) return false;
       // Owner's decision 28.9.2026 (register שהB.4): PRD Module 9 §א, not
       // מסמך 03 §3.3's whole row — only the exercise's conversion columns lock
       // (REPRESENTATION_LOCKS), each until the blocks perform that conversion
@@ -3590,10 +4197,63 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const lock = REPRESENTATION_LOCKS[task.id];
       if (!lock || !lock.columns.includes(place)) return false;
       if (conversionDoneInColumn(s.conversionsByColumn, place, lock.conversion === 'decomposition')) return false;
-      // Safety valve (register, pending the owner's confirmation): a board that
-      // already shows the required blocks opens the row, so a child who built
-      // them without converting is never stuck.
+      // Safety valve (register gap כ, approved by the owner on 28.9.2026): a
+      // board that already shows the required blocks opens the row, so a child
+      // who built them without converting is never stuck.
       return !countsEqual(s.counts, requiredCountsOf(task));
+    },
+
+    isRepresentationAnswerLocked: () => {
+      const s = get();
+      // Module 14: never in meetings 2 and 8. Module 9: enhanced_cognitive_support only.
+      if (s.sessionNumber === 2 || s.sessionNumber === 8) return false;
+      if (s.activeSupportProfileId !== 'enhanced_cognitive_support') return false;
+      const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+      if (!task || task.type !== 'representation' || !task.representationKind) return false;
+      // Owner, 30.9.2026: the whole box waits for every conversion the
+      // exercise lists — after the break, after the grouping. read_write and
+      // decompose list none, and are never locked. Undo takes a conversion
+      // back and the box locks again.
+      if (pendingRepresentationConversion(s, task) === null) return false;
+      // The same safety valve as the columns (register gap כ).
+      return !countsEqual(s.counts, requiredCountsOf(task));
+    },
+
+    recordBlockedAnswerKeystroke: () => {
+      const s = get();
+      const task = getActiveTasks(s)[s.standardTaskIdx] || null;
+      const lock = task ? REPRESENTATION_LOCKS[task.id] : undefined;
+      if (!task || !lock) return;
+      // The column of the conversion the box still waits for (KEYBOARD_LOCK_BLOCKED is column-scoped).
+      const place = pendingRepresentationConversion(s, task) ?? lock.columns[0];
+      emitScaffoldEvent(s, 'KEYBOARD_LOCK_BLOCKED', { conversion_required: lock.conversion }, placeToColumnIndex(place));
+    },
+
+    setRepresentationAnswer: (text) => {
+      const s = get();
+      // Module 9: a locked box is genuinely non-writable, whatever calls this.
+      if (get().isRepresentationAnswerLocked()) return;
+      const answerDigits = answerDigitsFromText(text);
+      if (answerTextFromDigits(answerDigits) === answerTextFromDigits(s.answerDigits)) return;
+      set({
+        answerDigits,
+        hasInteracted: true,
+        // Typing is an action the learner can take back (Module 11 §א). The
+        // box is one number, so the frame names no column.
+        undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s)),
+        consecutiveUndoCount: 0,
+      });
+      const studentId = useAuthStore.getState().user?.uid;
+      if (studentId) {
+        const task = getActiveTasks(get())[get().standardTaskIdx] || null;
+        useStore.getState().logSemanticEvent(studentId, {
+          action: 'input_changed',
+          element: 'representation_answer',
+          context: text ? `Typed answer ${answerTextFromDigits(answerDigits)}` : 'Cleared answer',
+          ...(task?.targetNode ? { q_matrix_node: task.targetNode } : {}),
+          state_snapshot: `Answer: ${answerTextFromDigits(answerDigits)}, Board Value: ${selectBoardValue(get())}`,
+        });
+      }
     },
 
     isColumnInputLocked: (place, numberA, numberB, isSubtraction) => {
@@ -3663,6 +4323,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         isAdditionHelperOpen: false,
     additionHelperOffered: false,
         hasInteracted: false,
+        placeCuesShown: false,
+        socraticCardKinds: { taskId: null, kinds: [] },
         undoTimestamps: [],
         isBoardLocked: false,
         pendingAdaptation: null,
@@ -3682,6 +4344,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         answerDigits: {},
         carryDigits: {},
         probeAnswer: '',
+        lastSubmittedAnswer: null,
         q3Reps: [],
         feedback: null,
         feedbackNonce: 0,
@@ -3707,6 +4370,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         hasPendingSupportProfile: false,
         activeSupportProfileId: null,
         supportProfileApplied: false,
+        // Defaults again: nothing here is a learner's meeting until the next start or restore.
+        workspaceInitializedFor: null,
         currentState: 'IDLE' as VRAWorkspaceState,
         activeColumnIndex: 0,
         isSocraticCardLocked: false,

@@ -5,6 +5,8 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { NEUTRAL_BOX_BORDER, PLACE_COLORS } from '../placeColors';
 import { useEnhancedSupport } from './useEnhancedSupport';
+import { resultRowCues, PLACE_CUE_LINE_HE } from '@/core/placeCues';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 /**
  * תרגיל חיבור/חיסור במאונך — דף מחברת אמיתי:
@@ -96,8 +98,19 @@ export function VerticalAdditionTask({
   // meeting, and a learner with the profile, keep the board's colours.
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const enhancedSupport = useEnhancedSupport();
-  const placeCues = sessionNumber !== 2 || enhancedSupport;
-  const PLACE_TINT = placeCues ? BOARD_PLACE_TINT : NEUTRAL_TINT;
+  // Stations 3–7 (owner, 30.9.2026): the cues are a scaffold after a digit in the
+  // wrong place — core/placeCues.ts. Spoken place names follow the labels shown:
+  // the enhanced profile has the colours from the start, but not the names.
+  const placeCuesShown = useWorkspaceStore((s) => s.placeCuesShown);
+  const cues = resultRowCues(sessionNumber, enhancedSupport, placeCuesShown);
+  const spokenPlaces = cues.labels;
+  const PLACE_TINT = cues.colours ? BOARD_PLACE_TINT : NEUTRAL_TINT;
+  const scaffoldStation = sessionNumber >= 3 && sessionNumber <= 7;
+  const cueLine = scaffoldStation && placeCuesShown ? PLACE_CUE_LINE_HE[enhancedSupport ? 'enhanced' : 'regular'] : null;
+  // Station 1 (owner, 29.9.2026): the text names "עיגול הזיכרון", and the circles
+  // carry no words — they are marked until the child writes in one, as the
+  // undo button and the trash are (index.css .ws-hint-ring).
+  const circlesHint = sessionNumber === 1 && !Object.values(carryDigits).some((v) => Boolean(v));
   // Paper over the memory circles: half a square in meeting 2 (its card is the
   // whole screen and must fit a short window), three quarters elsewhere.
   const PAPER_TOP = sessionNumber === 2 ? cell(0.5) : cell(0.75);
@@ -142,6 +155,8 @@ export function VerticalAdditionTask({
   const digitsA = padDigits(aStr);
   const digitsB = padDigits(bStr);
   const firstAnswerCol = cols - answerLength;
+  /** The leftmost column that holds a digit (the memory circles start there). */
+  const firstUsedCol = Math.min(firstAnswerCol, cols - aStr.length, cols - bStr.length);
 
   /**
    * Evaluates if input for a specific column should be locked:
@@ -166,7 +181,7 @@ export function VerticalAdditionTask({
         role={isStriked && d ? 'text' : undefined}
         aria-label={
           isStriked && d
-            ? `הספרה ${d}${place ? ` בטור ה${PLACE_LABEL_HE[place]}` : ''} — נפרטה`
+            ? `הספרה ${d}${place && spokenPlaces ? ` בטור ה${PLACE_LABEL_HE[place]}` : ''} — נפרטה`
             : undefined
         }
         className={`relative flex items-center justify-center font-mono font-black text-ws-ink leading-none ${
@@ -185,14 +200,18 @@ export function VerticalAdditionTask({
   const shakeStyle = shake ? { transform: 'translateX(4px)' } : {};
 
   /** A hidden operand digit: an input in the operand's own square (skeleton exercises). */
-  const operandInput = (which: 'a' | 'b', place: Place, key: string, extra?: React.CSSProperties) => (
+  const operandInput = (which: 'a' | 'b', place: Place, key: string, extra?: React.CSSProperties) => {
+    const str = which === 'a' ? aStr : bStr;
+    const number = which === 'a' ? 'מספר הראשון' : 'מספר השני';
+    const position = colPlaces.indexOf(place) - (cols - str.length) + 1;
+    return (
     <div key={key} className="flex items-center justify-center" style={extra}>
       <input
         type="text"
         inputMode="numeric"
         maxLength={1}
         value={operandDigits[which][place] ?? ''}
-        aria-label={`ספרת ה${PLACE_LABEL_HE[place]} החסרה ב${which === 'a' ? 'מספר הראשון' : 'מספר השני'}`}
+        aria-label={spokenPlaces ? `ספרת ה${PLACE_LABEL_HE[place]} החסרה ב${number}` : `הספרה החסרה ב${number}: ספרה ${position} מתוך ${str.length}`}
         className="rounded-xl border-2 border-dashed text-center font-mono font-black bg-ws-accentSoft/40 text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent"
         style={{ width: cellMinus(12), height: cellMinus(12), fontSize: cell(0.48), borderColor: PLACE_TINT[place] }}
         onFocus={() => setFocusedPlace(place)}
@@ -200,7 +219,8 @@ export function VerticalAdditionTask({
         onChange={(e) => setOperandDigit(which, place, e.target.value)}
       />
     </div>
-  );
+    );
+  };
 
   /** A result digit the exercise reveals: fixed, not typed (skeleton exercises). */
   const revealedCell = (d: string, place: Place, key: string) => (
@@ -208,7 +228,11 @@ export function VerticalAdditionTask({
       key={key}
       className="flex items-center justify-center rounded-xl border-2 font-mono font-black text-ws-ink/80 bg-ws-surface2/40"
       style={{ width: cellMinus(12), height: cellMinus(12), fontSize: cell(0.48), borderColor: PLACE_TINT[place], margin: 'auto' }}
-      aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה, נתונה: ${d}`}
+      aria-label={
+        spokenPlaces
+          ? `ספרת ה${PLACE_LABEL_HE[place]} בתשובה, נתונה: ${d}`
+          : `ספרה ${colPlaces.indexOf(place) - firstAnswerCol + 1} מתוך ${answerLength} בשורת התוצאה, נתונה: ${d}`
+      }
     >
       {d}
     </div>
@@ -216,6 +240,14 @@ export function VerticalAdditionTask({
 
   return (
     <div className="shrink-0 self-center w-full max-w-md flex flex-col items-center gap-fl-4-16 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-fl-8-24 relative">
+      {/* The scaffold line (owner, 30.9.2026): it stays until the end of the
+          exercise, with a read-aloud button — played only on the child's click. */}
+      {cueLine && (
+        <div data-testid="place-cue-line" className="w-full flex items-center gap-2 rounded-xl bg-ws-surface2/60 px-3 py-1" dir="rtl">
+          <p className="flex-1 text-sm font-bold text-ws-ink leading-snug">{cueLine}</p>
+          <UdlSpeechButton text={cueLine} className="shrink-0" />
+        </div>
+      )}
       {/* Notebook paper: background squares EXACTLY the size of a grid column */}
       <div
         dir="ltr"
@@ -239,6 +271,11 @@ export function VerticalAdditionTask({
         {/* Row 0 — Carry/Borrow inputs (Memory circles ALWAYS active for working memory relief) */}
         <div aria-hidden="true" />
         {colPlaces.map((place, j) => {
+          // A circle only over a column the exercise uses — a digit of either
+          // number or of the answer. The sheet is at least four squares wide,
+          // and 61 − 24 had four circles over two columns (owner, 29.9.2026).
+          const columnUsed = digitsA[j] !== null || digitsB[j] !== null || j >= firstAnswerCol;
+          if (!columnUsed) return <div key={`carry${j}`} aria-hidden="true" />;
           return (
             <div key={`carry${j}`} className="flex items-end justify-center pb-1">
               <input
@@ -247,8 +284,13 @@ export function VerticalAdditionTask({
                 maxLength={2}
                 value={carryDigits[place] ?? ''}
                 readOnly={false}
-                aria-label={`חלונית המרה ל${PLACE_LABEL_HE[place]}`}
-                className="rounded-full border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent shadow-sm"
+                // Meeting 2 without the place cues: no column name read aloud
+                // either — the sighted child sees none (owner, 27.9 and 29.9.2026).
+                aria-label={spokenPlaces ? `חלונית המרה ל${PLACE_LABEL_HE[place]}` : `עיגול זיכרון ${j - firstUsedCol + 1} מתוך ${cols - firstUsedCol}`}
+                data-hint={circlesHint ? 'true' : undefined}
+                className={`rounded-full border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent ${
+                  circlesHint ? 'ws-hint-ring' : 'shadow-sm'
+                }`}
                 style={{ width: cell(0.6), height: cell(0.6), fontSize: cell(0.35) }}
                 onFocus={() => setFocusedMemoryCircle(place)}
                 onBlur={() => setFocusedMemoryCircle(null)}
@@ -365,7 +407,7 @@ export function VerticalAdditionTask({
                 maxLength={1}
                 value={answerDigits[place] ?? ''}
                 readOnly={isLocked}
-                aria-label={`ספרת ה${PLACE_LABEL_HE[place]} בתשובה`}
+                aria-label={spokenPlaces ? `ספרת ה${PLACE_LABEL_HE[place]} בתשובה` : `ספרה ${ansIdx + 1} מתוך ${answerLength} בשורת התוצאה`}
                 aria-disabled={isLocked}
                 className={`rounded-xl border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent ${
                   isLocked ? 'cursor-not-allowed opacity-75' : ''
@@ -406,9 +448,15 @@ export function VerticalAdditionTask({
       </div>
 
       {/* Place labels under the paper, aligned to the answer columns (none
-          without the cues: meeting 2 without the profile). */}
-      {placeCues && (
-      <div dir="ltr" className="grid" style={{ gridTemplateColumns: `${CELL} repeat(${cols}, ${CELL})` }}>
+          without the cues: meeting 2 without the profile). In stations 3–7 the
+          row keeps its height while hidden, so the scaffold does not move the page. */}
+      {(cues.labels || scaffoldStation) && (
+      <div
+        dir="ltr"
+        className="grid"
+        aria-hidden={cues.labels ? undefined : true}
+        style={{ gridTemplateColumns: `${CELL} repeat(${cols}, ${CELL})`, visibility: cues.labels ? 'visible' : 'hidden' }}
+      >
         <div aria-hidden="true" />
         {colPlaces.map((place, j) =>
           j < firstAnswerCol ? (

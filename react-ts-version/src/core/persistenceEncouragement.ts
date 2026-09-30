@@ -1,6 +1,11 @@
 /**
  * The encouraging sentence a child reads at the end of a meeting, chosen by
- * that meeting's persistence index — and never the index itself.
+ * that meeting's self-correction index — and never the index itself.
+ *
+ * Owner, 30.9.2026: research measure 2 has two parts. The Module 16 §ב formula
+ * below is measure 2ב, "תיקון עצמי", and it still chooses the sentence. Measure
+ * 2א, "התמדה" (exercises with a mistake solved without the silent help call),
+ * is computed by the server only and never reaches the child.
  *
  * Owner decision, 27.9.2026 (register, approved deviation 24; decisions E1
  * and E2). The child never sees a number, a score, a ranking or a grade-like
@@ -14,7 +19,7 @@
  * teachers (meeting report, class report, research export).
  *
  * The counting is the server's own (functions/src/meetingMetrics.ts,
- * computePersistenceIndex): U counts UNDO_EXECUTED, E counts DIGIT_ENTERED
+ * computeSelfCorrectionIndex): U counts UNDO_EXECUTED, E counts DIGIT_ENTERED
  * whose details.is_correct is exactly false, G counts SOCRATIC_OPTION_SELECTED
  * whose details.is_correct is exactly false — all of ONE meeting.
  *
@@ -35,16 +40,21 @@ export interface PersistenceCounts {
 
 export const EMPTY_PERSISTENCE_COUNTS: Readonly<PersistenceCounts> = Object.freeze({ undos: 0, wrongDigits: 0, wrongOptions: 0 });
 
-/** The four sentences, word for word as the owner approved them (E1). */
+/**
+ * The four sentences, word for word as the owner approved them (E1; wording
+ * revised by the owner, 30.9.2026, after a language check: no figurative
+ * phrases for a child who reads literally, no unnamed "ראינו", and no
+ * "התמדתם" — a hard word at 8, and since 30.9 the name of measure 2א).
+ */
 export const ENCOURAGEMENT_SENTENCES_HE = {
   /** Rule 1: E + G ≤ 2 — almost no mistakes. */
-  fewMistakes: 'כל הכבוד! פתרתם את התרגילים בריכוז ובדיוק, כמו מתמטיקאים אמיתיים. המשיכו לחקור ולאתגר את עצמכם!',
+  fewMistakes: 'כל הכבוד! פתרתם את התרגילים בריכוז ובדיוק, כמו מתמטיקאים אמיתיים. המשיכו כך!',
   /** Rule 2: index ≥ 67. */
-  selfCorrecting: 'כל הכבוד! ראינו שחקרתם, ניסיתם ותיקנתם טעויות בעצמכם כמו מתמטיקאים אמיתיים! המשיכו להאמין בכוח שלכם!',
+  selfCorrecting: 'כל הכבוד! חקרתם, ניסיתם ותיקנתם בעצמכם טעויות, כמו מתמטיקאים אמיתיים. המשיכו כך!',
   /** Rule 3: 34 ≤ index ≤ 66. */
-  persevering: 'כל הכבוד! ראינו שהתאמצתם ולא ויתרתם. גם מתמטיקאים אמיתיים עוצרים לפעמים, בודקים ומתקנים. המשיכו כך!',
+  persevering: 'כל הכבוד! התאמצתם ולא ויתרתם. גם מתמטיקאים אמיתיים עוצרים לפעמים, בודקים ומתקנים. המשיכו כך!',
   /** Rule 4: index < 34. */
-  keepTrying: 'כל הכבוד שהתמדתם עד הסוף! כל טעות היא עוד צעד בדרך ללמידה. כשמשהו לא מסתדר, אפשר לעצור רגע, לבדוק ולנסות שוב. אנחנו מאמינים בכם!',
+  keepTrying: 'כל הכבוד שהמשכתם עד הסוף! מטעויות לומדים. כשמשהו לא מסתדר, אפשר לעצור רגע, לבדוק ולנסות שוב. אנחנו מאמינים בכם!',
 } as const;
 
 export type EncouragementKey = keyof typeof ENCOURAGEMENT_SENTENCES_HE;
@@ -81,7 +91,7 @@ export function encouragementSentenceHe(c: PersistenceCounts): string {
 
 /**
  * The sentence split for stage 3 of meeting 8's reflection board: its first
- * exclamation ("כל הכבוד!", "כל הכבוד שהתמדתם עד הסוף!") as the heading, the
+ * exclamation ("כל הכבוד!", "כל הכבוד שהמשכתם עד הסוף!") as the heading, the
  * rest under it. Together they are the sentence word for word. (Kept out of
  * the screen's file for the fast-refresh lint rule, only-export-components.)
  */

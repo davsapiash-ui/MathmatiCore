@@ -173,11 +173,20 @@ describe('the meeting 1 class report', () => {
     expect(html).not.toContain('על מנהל המערכת לפרסם');
   });
 
-  it('the research CSV keeps every existing column in place and appends the tools last', () => {
+  it('the research CSV keeps every existing column in place and appends the tools, the place-cue scaffold, then measure 2א', () => {
     const csv = buildClassCsv([row4], a.exercises);
     const header = csv.split('\n')[0];
     expect(header.startsWith('﻿"student_id","learning_path","score_percent"')).toBe(true);
-    expect(header.endsWith(TOOLS.map((t) => `"tool_${t}"`).join(','))).toBe(true);
+    // Register deviation 28 (30.9.2026) came after the tools, so it goes after them;
+    // measure 2א and the withdrawn help calls (owner, 30.9.2026) after that.
+    expect(header.endsWith([
+      ...TOOLS.map((t) => `"tool_${t}"`), '"place_cue_scaffolds"',
+      '"persistence_exercises_with_errors"', '"persistence_solved_without_help"', '"persistence_without_help_percent"',
+      '"help_withdrawals"',
+    ].join(','))).toBe(true);
+    // Measure 2ב renamed in place; no old column name is reused with a new meaning.
+    expect(header).toContain('"self_correction_undos","self_correction_wrong_digits","self_correction_wrong_options","self_correction_percent"');
+    expect(header).not.toContain('"persistence_percent"');
   });
 
   it('a scored meeting still prints the working groups', () => {
@@ -185,6 +194,10 @@ describe('the meeting 1 class report', () => {
     expect(scoredA.scored).toBe(true);
     const html = classReportHtml({ session_number: 4, title_he: 'דוח כיתה', aggregates: scoredA, learners: [row4] });
     expect(html).toContain('קבוצות עבודה לפי כלל האחוזים');
+    // The printed class report (Chromium) carries the class counters of the
+    // pdfkit fallback, the result-row scaffold (register 28) among them.
+    expect(html).toContain('פיגום בשורת התוצאה:');
+    expect(html).toContain('קריאות שקטות למורה:');
   });
 });
 

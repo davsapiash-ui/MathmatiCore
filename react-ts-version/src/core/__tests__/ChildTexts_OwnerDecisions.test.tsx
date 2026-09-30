@@ -32,6 +32,7 @@ import {
 } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
+import { tenBlocksHint } from '@/infrastructure/services/staticSocraticCards';
 
 /**
  * Owner decisions, 27.9.2026 (register, approved deviation 24): what the child
@@ -225,7 +226,10 @@ describe('5 — the coaching-card texts the owner rewrote', () => {
   });
 
   it('a column can hold more than nine blocks while the child works — only the written digit is at most 9', () => {
-    expect(engine).toContain('"רמז: בסוף התרגיל נשארות בכל טור לכל היותר 9 לבנים, כי 10 לבנים יוצרות לבנה אחת בטור השמאלי."');
+    // Since 30.9.2026 a wrong option's hint is a guiding question (owner): "10
+    // hundred blocks are worth which block?" in place of the rule stated outright.
+    expect(engine).toContain("feedbackHe: tenBlocksHint('hundreds')");
+    expect(tenBlocksHint('hundreds')).toBe('רמז: 10 לבני מאה שוות לאיזו לבנה?');
     expect(engine).not.toContain('כל טור יכול להכיל לכל היותר 9');
   });
 });
@@ -308,8 +312,8 @@ describe('no educator word reaches the child (register ט)', () => {
 });
 
 describe('the child is addressed in the plural (gender-equal writing, 27.9.2026)', () => {
-  // The documents' own button names stay as they are: "קבץ 10" ("כפתור הקבץ 10"),
-  // "התקדם" ("כפתור התקדם") and "קרא למורה" (לחצן "קרא למורה").
+  // The documents' own button names stay as they are: "התקדם" ("כפתור התקדם") and
+  // "קרא למורה" (לחצן "קרא למורה"). The grouping button is "קבצו 10" (owner, 30.9.2026).
   const files = [
     ...filesUnder('features/workspace'),
     ...filesUnder('presentation/components/student'),
@@ -318,7 +322,7 @@ describe('the child is addressed in the plural (gender-equal writing, 27.9.2026)
     'presentation/design-system/UdlSpeechButton.tsx',
     'application/useWorkspaceStore.ts',
   ];
-  const SINGULAR = /(^|[>"'`( ])(הקרא|בטל|סגור|כתוב|הצג|הסתר|המשך|בחר|גרור|הקלד|בדוק|נסה|פתח|הוסף|שמור|שלח|הזן|התחל|חזור)([ .,!:<"'`)?]|$)|(?<![א-ת])(שלך|עבורך|לך|אתה|זקוק)(?![א-ת])|אני צריך/;
+  const SINGULAR = /(^|[>"'`( ])(הקרא|קבץ|בטל|סגור|כתוב|הצג|הסתר|המשך|בחר|גרור|הקלד|בדוק|נסה|פתח|הוסף|שמור|שלח|הזן|התחל|חזור)([ .,!:<"'`)?]|$)|(?<![א-ת])(שלך|עבורך|לך|אתה|זקוק)(?![א-ת])|אני צריך/;
 
   it('no singular instruction, label, placeholder or "שלך" on a child screen', () => {
     const found: string[] = [];

@@ -243,10 +243,10 @@ describe('ספרה חסרה בהנחיה נאמרת כמו בתווית של ה�
   it('"3▢6" נאמר "3, ספרה חסרה, 6", ושאר ההנחיה נאמרת כמו קודם', async () => {
     const tts = await setupTts();
     tts.speak(
-      'בתרגיל 3▢6 + 271 = 657 חסרה ספרת העשרות של המחובר הראשון. שימו לב: נדרשת המרה אחת לטור המאות. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.'
+      'בתרגיל 3▢6 + 271 = 657 חסרה ספרת העשרות של המחובר הראשון. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.'
     );
     expect(spoken()).toBe(
-      'בתרגיל 3, ספרה חסרה, 6 + 271 = 657 חסרה ספרת העשרות של המחובר הראשון. שימו לב: נדרשת המרה אחת לטור המאות. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.'
+      'בתרגיל 3, ספרה חסרה, 6 ועוד 271 שווה 657 חסרה ספרת העשרות של המחובר הראשון. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.'
     );
     expect(spoken()).not.toContain('▢');
   });
@@ -254,7 +254,22 @@ describe('ספרה חסרה בהנחיה נאמרת כמו בתווית של ה�
   it('"6,0▢▢" נאמר "6, 0, ספרה חסרה, ספרה חסרה", ו-2,847 נשאר כמו שהוא', async () => {
     const tts = await setupTts();
     tts.speak('בשורת המחוסר חסרות שתי ספרות: 6,0▢▢ − 2,847 = 3,158.');
-    expect(spoken()).toBe('בשורת המחוסר חסרות שתי ספרות: 6, 0, ספרה חסרה, ספרה חסרה − 2,847 = 3,158.');
+    expect(spoken()).toBe('בשורת המחוסר חסרות שתי ספרות: 6, 0, ספרה חסרה, ספרה חסרה פחות 2,847 שווה 3,158.');
+  });
+
+  it('an exercise is said in words: "713 + 94" → "713 ועוד 94", "61 − 24" → "61 פחות 24" (station 1 review, 30.9.2026)', async () => {
+    const tts = await setupTts();
+    tts.speak('בתרגיל 713 + 94: מה עושים? בחיסור 61 − 24 = 37. המספרים 1-12 נשארים.');
+    expect(spoken()).toBe('בתרגיל 713 ועוד 94: מה עושים? בחיסור 61 פחות 24 שווה 37. המספרים 1-12 נשארים.');
+  });
+
+  it('a count of blocks is said in the feminine: "12 לבני עשרת" → "שתים-עשרה לבני עשרת" (owner, 30.9.2026; core/blockCountSpeech.ts)', async () => {
+    const tts = await setupTts();
+    tts.speak('בנו בבית המספרים 12 לבני עשרת ו-5 לבני יחידה. קבצו 10 לבני עשרת ללבנת מאה אחת.');
+    expect(spoken()).toBe('בנו בבית המספרים שתים-עשרה לבני עשרת וחמש לבני יחידה. קבצו עשר לבני עשרת ללבנת מאה אחת.');
+    synth.finishAll();
+    tts.speak('בנו בבית המספרים 5 לבני אלף, 2 לבני מאה ו-3 לבני עשרת.');
+    expect(spoken()).toBe('בנו בבית המספרים חמש לבני אלף, שתי לבני מאה ושלוש לבני עשרת.');
   });
 });
 
@@ -717,7 +732,7 @@ describe('האפיון: הקראה בממשק הלומד בלבד', () => {
       'presentation/components/student/SessionPausedOverlay.tsx',
       'presentation/components/student/SessionClosedOverlay.tsx',
       'presentation/components/student/ProjectorWaitingScreen.tsx',
-      'presentation/components/student/BeeFlightWaitingScreen.tsx',
+      'presentation/components/student/Meeting2WaitingScreen.tsx',
       'presentation/components/student/Session8ReflectionScreen.tsx',
       'presentation/pages/Login.tsx',
     ];

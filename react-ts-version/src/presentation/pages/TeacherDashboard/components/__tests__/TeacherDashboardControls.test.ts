@@ -12,6 +12,7 @@ const read = (p: string) => readFileSync(resolve(__dirname, p), 'utf-8');
 
 const dash = read('../../../TeacherDashboard.tsx');
 const gate = read('../TeacherApprovalGate.tsx');
+const gateEvidence = read('../../gateEvidence.ts');
 const gateCore = read('../../../../../core/teacherGate.ts');
 const sync = read('../../../../../infrastructure/services/FirebaseSyncService.ts');
 const drawer = read('../StudentLearningConditionsDrawer.tsx');
@@ -42,7 +43,8 @@ describe('Module 20: the approval gate cannot be bypassed or mis-routed', () => 
   });
 
   it('batch approval is built at click time from waiting learners and reports a real tally', () => {
-    expect(gate).toMatch(/waitingStudents\.forEach\(\(s\) => \{\s*pathMap\[s\.studentId\] = effectivePath\(s\);/);
+    // A learner with no recommendation and no choice is left out — never defaulted.
+    expect(gate).toMatch(/waitingStudents\.forEach\(\(s\) => \{\s*const path = effectivePath\(s\);\s*if \(path\) pathMap\[s\.studentId\] = path;/);
     expect(dash.includes('if (await handleApproveGateStudent(sId, path)) succeeded++;')).toBe(true);
     expect(dash.includes("toast.success('כל התלמידים הממתינים אושרו בהצלחה למפגש 3! 🚀')")).toBe(false);
   });
@@ -69,7 +71,8 @@ describe('Module 20: the approval gate cannot be bypassed or mis-routed', () => 
     // list was therefore always empty while this test stayed green. The
     // behaviour is now covered by the Q-Matrix status cases below.
     expect(dash.includes('qm[t.id] === false')).toBe(false);
-    expect(dash.includes('getFailedDiagnosticTasks(')).toBe(true);
+    expect(gateEvidence.includes('getFailedDiagnosticTasks(')).toBe(true);
+    expect(dash.includes('buildGateStudentItems(students, firestoreSession2Docs)')).toBe(true);
   });
 });
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { currentStudentNumber, currentStudentUid } from '@/application/useAuthStore';
-import { useWorkspaceStore, selectCanProceed, getActiveTasks, selectBoardOpen } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectCanProceed, getActiveTasks, selectBoardOpen, selectStandardTask } from '@/application/useWorkspaceStore';
+import { session1Checklist } from '@/core/session1Checklist';
 import { BOARD_OPEN_HE, BOARD_STAYS_OPEN_HE, boardStaysOpen } from '@/core/boardVisibility';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
@@ -62,6 +63,16 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const standardTaskIdx = useWorkspaceStore((s) => s.standardTaskIdx);
   const qflow = useWorkspaceStore((s) => s.qflow);
   const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0) && !isDragging;
+  // Station 1, step 5 (owner, 29.9.2026): "לחצו על כפתור ביטול פעולה" names a
+  // button that shows only an arrow, so it is marked until the step's first
+  // line is ticked — the same check that ticks it (core/session1Checklist.ts).
+  const undoHint = useWorkspaceStore((s) => {
+    if (s.sessionNumber !== 1) return false;
+    const task = selectStandardTask(s);
+    if (!task || task.id !== 's1_undo_trash') return false;
+    const items = session1Checklist(task.id, s);
+    return Boolean(items && !items[0].done);
+  });
   const canProceed = useWorkspaceStore(selectCanProceed);
   const boardOpen = useWorkspaceStore(selectBoardOpen);
   // Station 1: the board is not hidden; the button explains why (owner, 27.9.2026).
@@ -151,7 +162,10 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         <button
           onClick={undo}
           disabled={!canUndo}
-          className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+          data-hint={undoHint ? 'true' : undefined}
+          className={`w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
+            undoHint ? 'ws-hint-ring' : 'shadow-sm'
+          }`}
           aria-label="ביטול הפעולה האחרונה"
           title="ביטול הפעולה האחרונה"
         >

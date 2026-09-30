@@ -27,7 +27,7 @@ describe('the meeting ends even if the help button is pressed during the celebra
   afterEach(() => { vi.useRealTimers(); });
 
   it('PRD Module 14: nothing strands the learner — "התקדם" then help within 2.5 s still reaches the end screen', () => {
-    ws().initSession(1, false, 8); // the last exercise, 806 − 351
+    ws().initSession(1, false, at('s1_r_sub806')); // the last exercise, 806 − 351
     const s0 = ws();
     expect(getActiveTasks(s0)[s0.standardTaskIdx].id).toBe('s1_r_sub806');
     useWorkspaceStore.setState({
@@ -119,7 +119,8 @@ describe('the second wrong answer opens the card in meeting 1 too (מסמך 03 �
   afterEach(() => { vi.useRealTimers(); });
 
   it('713 + 94 with a wrong board twice: the friction beat, then the card', () => {
-    ws().initSession(1, false, 6);
+    ws().initSession(1, false, at('s1_t8'));
+    expect(getActiveTasks(ws())[ws().standardTaskIdx].id).toBe('s1_t8');
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, hundreds: 7, tens: 1, units: 3 }, answerDigits: { hundreds: '8', tens: '0', units: '7' } });
     ws().proceed();
     expect(ws().helpState).toBe('closed');

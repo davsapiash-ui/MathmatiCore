@@ -101,9 +101,9 @@ export const TOOLS = ["drag", "decompose", "compose", "type", "undo", "trash"] a
 export type Tool = typeof TOOLS[number];
 
 export const TOOL_LABEL_HE: Record<Tool, string> = {
-  drag: "גרירת לבנים ללוח",
+  drag: "גרירת לבני הדינס לבית המספרים",
   decompose: "פירוק לבנה (פריטה)",
-  compose: "הקבצה בכפתור \"הקבץ\"",
+  compose: "הקבצה בכפתור \"קבצו 10\"",
   type: "הקלדת ספרות",
   undo: "ביטול פעולה",
   trash: "פח האשפה",
@@ -129,7 +129,7 @@ export interface ToolMastery {
  * Which interface tools the learner actually operated, read from the events:
  *   drag      — BLOCK_DRAG_COMPLETE onto the board (not into the trash)
  *   decompose — REGROUPING_SUCCESS, regrouping_type "decomposition" (click or drag right)
- *   compose   — REGROUPING_SUCCESS, regrouping_type "composition" (the "הקבץ" button)
+ *   compose   — REGROUPING_SUCCESS, regrouping_type "composition" (the "קבצו 10" button)
  *   type      — DIGIT_ENTERED
  *   undo      — UNDO_EXECUTED
  *   trash     — a drag into the trash, or BOARD_CLEARED
@@ -356,6 +356,10 @@ export interface MeetingSummary {
   keyboard_lock_blocks: number;
   /** Silent calls to the teacher. */
   help_requests: number;
+  /** Silent calls the learner took back with a second press (owner, 30.9.2026). Research data only. */
+  help_withdrawals: number;
+  /** Register deviation 28: the result-row place-cue scaffold appeared (a digit in the wrong place). */
+  place_cue_scaffolds: number;
 }
 
 /** Counters of what happened in one meeting, straight from its events. */
@@ -384,6 +388,8 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
     grid_reopenings: 0,
     keyboard_lock_blocks: 0,
     help_requests: 0,
+    help_withdrawals: 0,
+    place_cue_scaffolds: 0,
   };
   for (const ev of events) {
     const t = typeof ev.client_timestamp === "number" ? ev.client_timestamp : null;
@@ -419,6 +425,8 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
         break;
       case "KEYBOARD_LOCK_BLOCKED": s.keyboard_lock_blocks++; break;
       case "HELP_REQUESTED": s.help_requests++; break;
+      case "HELP_WITHDRAWN": s.help_withdrawals++; break;
+      case "PLACE_CUES_SHOWN": s.place_cue_scaffolds++; break;
       default: break;
     }
   }
@@ -504,14 +512,65 @@ const TELEMETRY_MAX_PAGES = 200; // 100,000 events — far beyond one learner's 
 export async function readMeetingTelemetry(
   db: admin.firestore.Firestore,
   studentNumber: number,
-  sessionNumber: number
+  sessionNumber: number,
+  options: { writtenAfterMs?: number | null } = {}
 ): Promise<Record<string, any>[]> {
   const snap = await db.collection("telemetry_logs").where("student_id", "==", studentNumber).get();
+  const after = options.writtenAfterMs;
   const docs = snap.docs
+    // The server's own write time, not the tablet's clock: a device clock that
+    // runs behind would otherwise drop the new run's events as "before".
+    .filter((d) => after == null || (d.createTime?.toMillis?.() ?? Infinity) > after)
     .map((d) => d.data())
     .filter((e) => sessionNumberFromId(String(e?.session_id || "")) === sessionNumber);
   docs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
   return docs;
+}
+
+/**
+ * When the learner's current run of this meeting began: the last reset that
+ * restarted this meeting for this learner, or null when there was none.
+ *
+ * A reset keeps the telemetry (register deviation 20, backup only), but PRD
+ * 23א §ב.2 "מחזיר לתחילת המפגש": the meeting's first attempts are the new
+ * run's. The score read every event the learner ever sent in the meeting, so a
+ * wrong digit before a reset removed that exercise from "נכון בניסיון ראשון"
+ * for good — a perfect replay scored 29% and was sent to remediation (owner,
+ * live, 28.9.2026: "עשיתי הכל מושלם למה אני צריך מסלול צמצום פערי קדם").
+ *
+ * A reset restarts the meeting when it was carried out (not a failed attempt)
+ * and covers the learner: the whole system, the whole learner, or this
+ * meeting ("active_session", for the learner or the class).
+ */
+export function lastResetOfMeeting(
+  entries: Record<string, any>[],
+  studentNumber: number,
+  sessionNumber: number
+): number | null {
+  let last: number | null = null;
+  for (const e of entries) {
+    if (e?.backup_status !== "success") continue;
+    if (!Array.isArray(e.affected_student_ids) || !e.affected_student_ids.includes(studentNumber)) continue;
+    const covers =
+      e.reset_level === "system" ||
+      (e.reset_level === "single_student" &&
+        (e.reset_scope === "full_student" ||
+          (e.reset_scope === "active_session" && Number(e.session_number) === sessionNumber)));
+    const at = Number(e.performed_at);
+    if (covers && Number.isFinite(at) && (last === null || at > last)) last = at;
+  }
+  return last;
+}
+
+export async function readLastResetOfMeeting(
+  db: admin.firestore.Firestore,
+  studentNumber: number,
+  sessionNumber: number
+): Promise<number | null> {
+  const snap = await db.collection("reset_audit_log")
+    .where("affected_student_ids", "array-contains", studentNumber)
+    .get();
+  return lastResetOfMeeting(snap.docs.map((d) => d.data()), studentNumber, sessionNumber);
 }
 
 export async function readAllTelemetryForSession(
@@ -650,8 +709,8 @@ export function computeFadingGap(
 
 
 // ---------------------------------------------------------------------------
-// מדדי המחקר 3 ו-4 (PRD 7.3, Module 23 §ב "מדדי המחקר"). Measures 1 and 2 are
-// the first-attempt score above and the Persistence Index of Module 16.
+// מדדי המחקר 3 ו-4 (PRD 7.3, Module 23 §ב "מדדי המחקר"). Measure 1 is the
+// first-attempt score above; measure 2 (2א and 2ב) is below.
 // ---------------------------------------------------------------------------
 
 /**
@@ -778,11 +837,17 @@ export function mediationHe(m: MediationEffectiveness | null): string {
 // ---------------------------------------------------------------------------
 // מדד 2 — התמדה וויסות עצמי (PRD Module 16 §ב; Module 23 §ב "מדדי המחקר":
 // "המערכת מחשבת בצד השרת ארבעה מדדים לכל לומד ולכל מפגש… המדדים מוצגים
-// בדוח הלומד ובדוח הכיתה"). It was computed on the learner's device only, at
-// the reflection board, and appeared in neither report.
+// בדוח הלומד ובדוח הכיתה").
+//
+// Owner, 30.9.2026: measure 2 has two parts, after מסמך 01 ("להתמודד עם
+// אתגרים וקשיים, לבצע בקרה עצמית ולתקן טעויות"):
+//   2א, התמדה — of the exercises with at least one mistake, how many the
+//       learner solved without pressing the silent help call.
+//   2ב, תיקון עצמי — Module 16's U ÷ (U + E + G), unchanged. Its data key
+//       stays `persistence`, so every stored report still reads the same.
 // ---------------------------------------------------------------------------
 
-export interface PersistenceIndex {
+export interface SelfCorrectionIndex {
   /** U: UNDO_EXECUTED events. */
   undos: number;
   /** E: DIGIT_ENTERED with is_correct === false (null is not counted at all). */
@@ -793,7 +858,8 @@ export interface PersistenceIndex {
   percent: number;
 }
 
-export function computePersistenceIndex(events: Record<string, any>[]): PersistenceIndex {
+/** Measure 2ב: Module 16 §ב's formula, exactly as the learner's device computes it. */
+export function computeSelfCorrectionIndex(events: Record<string, any>[]): SelfCorrectionIndex {
   let undos = 0;
   let wrongDigits = 0;
   let wrongOptions = 0;
@@ -811,10 +877,78 @@ export function computePersistenceIndex(events: Record<string, any>[]): Persiste
   };
 }
 
-/** Measure 2 as text, with its three counts beside the percentage. */
+/** Measure 2ב as text, with its three counts beside the percentage. */
+export function selfCorrectionHe(p: SelfCorrectionIndex | null): string {
+  if (!p) return "לא נמדד";
+  return `${p.percent}% (ביטולים: ${p.undos}, ספרות שגויות: ${p.wrong_digits}, בחירות שגויות בכרטיס: ${p.wrong_options})`;
+}
+
+export interface PersistenceIndex {
+  /** Exercises the learner completed after at least one mistake (a wrong digit or a wrong card choice). */
+  exercises_with_errors: number;
+  /** Those among them with no press on the silent help call. */
+  solved_without_help: number;
+  /** solved_without_help ÷ exercises_with_errors × 100; null when no exercise had a mistake. */
+  percent: number | null;
+}
+
+/**
+ * Measure 2א (owner, 30.9.2026). A mistake is a DIGIT_ENTERED or a
+ * SOCRATIC_OPTION_SELECTED with is_correct === false. Help is a HELP_REQUESTED
+ * press in the exercise, even one the learner took back later (HELP_WITHDRAWN
+ * is research data, not part of the formula). A coaching card the system
+ * opened by itself is not help: the learner did not ask for it. Only
+ * completed exercises count — every exercise must be solved to move on, so an
+ * unfinished one is a meeting that ended, not a learner who gave up. A press
+ * after the exercise was solved (on its success screen, before "next") is not
+ * help with it.
+ */
+export function computePersistenceIndex(events: Record<string, any>[]): PersistenceIndex {
+  const withError = new Set<string>();
+  const withHelp = new Set<string>();
+  const completed = new Set<string>();
+  const sorted = [...events].sort((a, b) => (a?.client_timestamp || 0) - (b?.client_timestamp || 0));
+  for (const ev of sorted) {
+    const exId = String(ev?.exercise_id || "");
+    if (!exId || !isExerciseEvent(ev)) continue;
+    const type = ev?.event_type;
+    if ((type === "DIGIT_ENTERED" || type === "SOCRATIC_OPTION_SELECTED") && ev.details?.is_correct === false) withError.add(exId);
+    else if (type === "HELP_REQUESTED" && !completed.has(exId)) withHelp.add(exId);
+    else if (type === "PROBLEM_COMPLETE") completed.add(exId);
+  }
+  let exercises = 0;
+  let alone = 0;
+  for (const exId of withError) {
+    if (!completed.has(exId)) continue;
+    exercises++;
+    if (!withHelp.has(exId)) alone++;
+  }
+  return {
+    exercises_with_errors: exercises,
+    solved_without_help: alone,
+    percent: exercises === 0 ? null : Math.round((alone / exercises) * 100),
+  };
+}
+
+/**
+ * The research measures as the teacher reads them — one name and one sentence
+ * each, the same in every report (the session report, the class report, their
+ * PDFs and the class report panel on the dashboard). The panel keeps a copy in
+ * react-ts-version/src/infrastructure/services/ClassReportService.ts, pinned by
+ * a test there.
+ */
+export const RESEARCH_MEASURES_HE = [
+  { key: "persistence", label: "מדד 2א: התמדה", explanation: "מתוך התרגילים שהלומד טעה בהם והשלים אותם, בכמה מהם לא לחץ על \"קריאה לעזרה\"." },
+  { key: "self_correction", label: "מדד 2ב: תיקון עצמי", explanation: "מתוך כל הביטולים והטעויות, כמה היו ביטולים (לחיצה על כפתור ביטול הפעולה). כשלא היו ביטולים ולא טעויות, המדד הוא 100%." },
+  { key: "flexibility", label: "מדד 3: גמישות ייצוגית", explanation: "מתוך תרגילי בניית המספר שהלומד השלים, כמה מהם השלים בניסיון הראשון. נמדד במפגשים 3 ו-7." },
+  { key: "mediation", label: "מדד 4: אפקטיביות התיווך", explanation: "מתוך כרטיסי החניכה שהוצגו, אחרי כמה מהם התשובה הבאה של הלומד הייתה נכונה." },
+] as const;
+
+/** Measure 2א as text: "80% (בלי קריאה לעזרה ב-4 מתוך 5 תרגילים עם טעות)", or that no exercise had a mistake. */
 export function persistenceHe(p: PersistenceIndex | null): string {
   if (!p) return "לא נמדד";
-  return `${p.percent}% (ביטולים ${p.undos}, ספרות שגויות ${p.wrong_digits}, בחירות שגויות בכרטיס ${p.wrong_options})`;
+  if (p.percent === null) return "לא היו טעויות";
+  return `${p.percent}% (בלי קריאה לעזרה ב-${p.solved_without_help} מתוך ${p.exercises_with_errors} תרגילים עם טעות)`;
 }
 
 /**
