@@ -400,7 +400,7 @@ describe('Module 17: signing out keeps the meeting where the learner left it', (
 
   it('the auth store is cleared before the workspace is reset (source pin)', () => {
     const src = read('application/useAuthStore.ts');
-    const fn = src.slice(src.indexOf('export function unifiedLogout()'));
+    const fn = src.slice(src.indexOf('export function unifiedLogout('));
     const authCleared = fn.indexOf('useAuthStore.setState((state) =>');
     const workspaceReset = fn.indexOf('resetWorkspace?.()');
     expect(authCleared).toBeGreaterThan(-1);

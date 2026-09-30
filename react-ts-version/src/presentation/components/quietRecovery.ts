@@ -30,6 +30,13 @@ export const pageReload = {
   run: () => window.location.reload(),
 };
 
+/** The full-page move to the login screen, observable the same way. */
+export const loginPage = {
+  open: () => {
+    window.location.href = '/login';
+  },
+};
+
 /** Signed-in staff keep the technical view; everyone else — a child — gets the quiet one. */
 export function isSignedInStaff(): boolean {
   try {

@@ -1,7 +1,7 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { authReady, auth, database } from "@/infrastructure/firebase";
-import { ref, get } from "firebase/database";
+import { authReady, auth } from "@/infrastructure/firebase";
+import { readLiveMeetingNumber } from "@/application/useActiveClassSession";
 import { Login } from "@/presentation/pages/Login";
 import { isWhitelistedTeacherEmail } from "@/infrastructure/services/AuthService";
 import { LandingPage } from "@/presentation/pages/LandingPage";
@@ -126,7 +126,7 @@ function StaffClaimsGate({ role, children }: { role: StaffRole; children: React.
     const open = () => { if (!cancelled) setReady(true); };
     const timer = setTimeout(open, 8000);
     authReady
-      .then(() => ensureStaffRoleClaims(role))
+      .then(() => (cancelled ? undefined : ensureStaffRoleClaims(role)))
       .catch((e) => console.warn("[StaffClaimsGate] role sync notice:", e))
       .finally(() => { clearTimeout(timer); open(); });
     return () => { cancelled = true; clearTimeout(timer); };
@@ -218,15 +218,11 @@ function RoleRouter() {
       if (activeRole === "admin") navigate("/admin", { replace: true });
       else if (activeRole === "teacher") navigate("/dashboard", { replace: true });
       else if (activeRole === "student") {
-        get(ref(database, 'active_class_session')).then((sessionSnap) => {
-          if (sessionSnap.exists()) {
-            const sessionVal = sessionSnap.val();
-            const isLive = Boolean(sessionVal?.active) && sessionVal?.status !== 'closed';
-            const sessNum = Number(sessionVal?.sessionNumber);
-            if (isLive && sessNum >= 1 && sessNum <= 8) {
-              navigate(`/workspace?meeting=${sessNum}`, { replace: true });
-              return;
-            }
+        // Live by the lobby's own test, not the raw record (Module 14 §ב0).
+        readLiveMeetingNumber().then((meeting) => {
+          if (meeting !== null) {
+            navigate(`/workspace?meeting=${meeting}`, { replace: true });
+            return;
           }
           navigate("/hub", { replace: true });
         }).catch(() => {

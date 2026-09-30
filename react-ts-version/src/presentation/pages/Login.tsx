@@ -9,10 +9,10 @@ import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { tts } from "@/infrastructure/services/TTSService";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { Button } from "@/components/ui/button";
-import { auth, functions, database } from "@/infrastructure/firebase";
+import { auth, functions } from "@/infrastructure/firebase";
 import { signInAnonymously } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
-import { ref, get } from "firebase/database";
+import { readLiveMeetingNumber } from "@/application/useActiveClassSession";
 
 const ROLES = [
   { id: "student" as const, icon: "🎓", label: "תלמיד" },
@@ -170,17 +170,13 @@ export function Login() {
       login("student", studentUid);
       setIsLoggingIn(false);
 
-      // Deviation 10 & Session Resumption: Direct entry to teacher's active meeting
+      // Deviation 10 & Session Resumption: direct entry to the teacher's live
+      // meeting — live by the lobby's own test (readLiveMeetingNumber).
       try {
-        const sessionSnap = await get(ref(database, 'active_class_session'));
-        if (sessionSnap.exists()) {
-          const sessionVal = sessionSnap.val();
-          const isLive = Boolean(sessionVal?.active) && sessionVal?.status !== 'closed';
-          const sessNum = Number(sessionVal?.sessionNumber);
-          if (isLive && sessNum >= 1 && sessNum <= 8) {
-            navigate(`/workspace?meeting=${sessNum}`, { replace: true });
-            return;
-          }
+        const meeting = await readLiveMeetingNumber();
+        if (meeting !== null) {
+          navigate(`/workspace?meeting=${meeting}`, { replace: true });
+          return;
         }
       } catch (sessErr) {
         console.warn('Could not check active_class_session on student login:', sessErr);

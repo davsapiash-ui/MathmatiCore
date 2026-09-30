@@ -4,15 +4,45 @@ import {
   STUDENT_WINDOW_CLOSE_TIMEOUT_MS,
   touchStudentActivity,
   stampStudentWindowClosed,
+  STORAGE_KEY_STAFF_LAST_ACTIVE,
 } from './useAuthStore';
 import { useNavigate } from 'react-router-dom';
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes inactivity for staff
 
+/**
+ * The 30-minute staff limit is the browser's, not the tab's. A staff sign-out
+ * signs every tab of the browser out of Firebase (one Firebase user per
+ * profile), so a per-tab timer let an untouched projector window sign the
+ * teacher out of the dashboard she was working in. Each tab records activity
+ * here, and a tab whose timer runs out first checks whether another tab was
+ * used since. Writes are spaced out: the events below fire many times a second.
+ */
+const STAFF_ACTIVITY_WRITE_EVERY_MS = 5 * 1000;
+
+function readStaffLastActive(): number | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_STAFF_LAST_ACTIVE);
+    const value = raw ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStaffLastActive(now: number): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_STAFF_LAST_ACTIVE, String(now));
+  } catch {
+    // Storage unavailable: the tab's own timer still applies.
+  }
+}
+
 export function useIdleTimeout() {
   const { user, role, isAuthenticated, logout, isTokenExpired } = useAuthStore();
   const navigate = useNavigate();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const staffStampWrittenAtRef = useRef(0);
   const tokenCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const activeRole = role || (user?.role as string) || '';
@@ -40,11 +70,23 @@ export function useIdleTimeout() {
       touchStudentActivity();
       return;
     }
-    timeoutRef.current = setTimeout(() => {
-      if (isAuthenticated) {
-        handleLogout('התנתקת עקב חוסר פעילות.');
+    const now = Date.now();
+    if (now - staffStampWrittenAtRef.current >= STAFF_ACTIVITY_WRITE_EVERY_MS) {
+      staffStampWrittenAtRef.current = now;
+      writeStaffLastActive(now);
+    }
+    const expire = () => {
+      if (!isAuthenticated) return;
+      // Used in another tab since: wait out the rest of its 30 minutes.
+      const lastActive = readStaffLastActive();
+      const idleFor = lastActive === null ? Infinity : Date.now() - lastActive;
+      if (idleFor < currentIdleTimeout) {
+        timeoutRef.current = setTimeout(expire, currentIdleTimeout - idleFor);
+        return;
       }
-    }, currentIdleTimeout);
+      handleLogout('התנתקת עקב חוסר פעילות.');
+    };
+    timeoutRef.current = setTimeout(expire, currentIdleTimeout);
   }, [isAuthenticated, isStudent, currentIdleTimeout, handleLogout]);
 
   useEffect(() => {

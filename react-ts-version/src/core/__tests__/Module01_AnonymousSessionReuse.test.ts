@@ -22,8 +22,11 @@ const index = readFileSync(resolve(__dirname, '../../../../functions/src/index.t
 
 describe('Module 1 — anonymous session reuse', () => {
   it('a learner sign-out releases the claims instead of discarding the anonymous user', () => {
-    const block = authStore.slice(authStore.indexOf('const firebaseUser = auth &&'), authStore.indexOf('// The auth store is cleared FIRST'));
-    expect(block).toContain("if (firebaseUser?.isAnonymous) {");
+    // Every sign-out path releases the identity through this one function.
+    const start = authStore.indexOf('async function releaseFirebaseIdentity(');
+    expect(start).toBeGreaterThan(-1);
+    const block = authStore.slice(start, authStore.indexOf('export interface LogoutOptions'));
+    expect(block).toContain("if (firebaseUser.isAnonymous) {");
     expect(block).toContain("httpsCallable(functions, 'releaseStudentSession')");
     expect(block).toMatch(/\} else if \(auth && typeof auth\.signOut === 'function'\) \{/);
   });

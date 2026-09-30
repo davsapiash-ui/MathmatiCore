@@ -1,12 +1,12 @@
 import { create } from "zustand";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
-import { auth, functions } from "@/infrastructure/firebase";
+import { auth, authReady, functions } from "@/infrastructure/firebase";
 import { httpsCallable } from "firebase/functions";
 import { rtdbUpdateNow } from "@/infrastructure/services/ThrottledRtdbWriter";
 import { useStore } from "@/application/useStore";
 import { useWorkspaceStore } from "@/application/useWorkspaceStore";
 import { useAdminStore } from "@/application/useAdminStore";
-import { useChatStore, normalizeStudentId } from "@/application/useChatStore";
+import { useChatStore, normalizeStudentId, stopChatSync } from "@/application/useChatStore";
 import { containsPII } from "@/core/security/PiiFilter";
 import { indexedDBQueue } from "@/infrastructure/services/IndexedDBQueue";
 
@@ -51,7 +51,8 @@ interface AuthState {
   setUser: (user: AuthUser, role?: string) => void;
   selectRole: (chosenRole: string) => void;
   setClass: (classInfo: Partial<ClassSchema>) => void;
-  logout: () => void;
+  /** Resolves once the Firebase identity has been released too (see unifiedLogout). */
+  logout: () => Promise<void>;
   isTokenExpired: () => boolean;
 }
 
@@ -74,6 +75,8 @@ export const STORAGE_KEY_ROLE = 'mc_auth_role';
 export const STORAGE_KEY_TIMESTAMP = 'mc_auth_time';
 export const STORAGE_KEY_STUDENT_LAST_ACTIVE = 'mc_student_last_active';
 export const STORAGE_KEY_STUDENT_WINDOW_CLOSED = 'mc_student_window_closed';
+/** Last staff activity in ANY tab of this browser (useIdleTimeout's shared 30-minute limit). */
+export const STORAGE_KEY_STAFF_LAST_ACTIVE = 'mc_staff_last_active';
 
 export function touchStudentActivity() {
   try {
@@ -93,6 +96,16 @@ export function stampStudentWindowClosed() {
     }
   } catch {}
 }
+
+/**
+ * The role of a stored sign-in that expired while no page was open, noticed as
+ * this page loads (the 8-hour limit, a learner's closed window). Clearing the
+ * storage is not the whole sign-out: the Firebase identity is still on the
+ * device — for staff the Google session itself, which also made the login page
+ * refuse the next learner ("בדפדפן הזה מחובר איש צוות"). PRD Module 2 §ג: on
+ * expiry, "מחיקת אסמכתת ההזדהות". releaseIdentityDroppedAtLoad() finishes it.
+ */
+let droppedAtLoad: string | null = null;
 
 const getStoredAuth = () => {
   try {
@@ -132,6 +145,7 @@ const getStoredAuth = () => {
 
         if (lastClosed && now - lastClosed > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) {
           clearStoredAuth();
+          droppedAtLoad = rawRole;
           return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
         }
         // A window can close without pagehide: swiped away in a tablet's app
@@ -148,6 +162,7 @@ const getStoredAuth = () => {
         const lastActive = rawLastActive ? parseInt(rawLastActive, 10) : null;
         if (!restoredFromThisTab && lastActive && now - lastActive > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) {
           clearStoredAuth();
+          droppedAtLoad = rawRole;
           return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
         }
       }
@@ -155,6 +170,7 @@ const getStoredAuth = () => {
       // Check 8-hour token expiration
       if (now - authTime > JWT_EXPIRY_MS) {
         clearStoredAuth();
+        droppedAtLoad = rawRole;
         return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
       }
 
@@ -216,6 +232,7 @@ const clearStoredAuth = () => {
       STORAGE_KEY_TIMESTAMP,
       STORAGE_KEY_STUDENT_LAST_ACTIVE,
       STORAGE_KEY_STUDENT_WINDOW_CLOSED,
+      STORAGE_KEY_STAFF_LAST_ACTIVE,
       'mathmaticore_auth_user',
       'mathmaticore_auth_role',
       'mathmaticore_auth_time',
@@ -315,9 +332,64 @@ export function queueOwnerOf(
   return uid ? `${state.role ?? 'staff'}:${shortHash(uid)}` : null;
 }
 
-export function unifiedLogout() {
-  const currentUser = useAuthStore.getState().user;
-  if (currentUser?.uid) {
+type FirebaseIdentity = {
+  isAnonymous?: boolean;
+  email?: string | null;
+  getIdToken?: (force: boolean) => Promise<string>;
+};
+
+function currentFirebaseUser(): FirebaseIdentity | null {
+  return auth && 'currentUser' in auth ? (auth as { currentUser: FirebaseIdentity | null }).currentUser : null;
+}
+
+/**
+ * Releases the Firebase identity of a session that has ended.
+ *
+ * Module 1: a learner's Firebase user is anonymous. It stays on the device and
+ * is reused by the next sign-in — only the student claims are released on the
+ * server. Signing it out (as this used to) made every next sign-in create a new
+ * anonymous account, and twelve laptops behind one classroom IP then hit
+ * Firebase's TOO_MANY_ATTEMPTS_TRY_LATER: no learner could sign in at all.
+ * Teachers and admins sign in with Google and are signed out for real.
+ */
+async function releaseFirebaseIdentity(firebaseUser: FirebaseIdentity | null): Promise<void> {
+  if (!firebaseUser) return;
+  if (firebaseUser.isAnonymous) {
+    await httpsCallable(functions, 'releaseStudentSession')({})
+      .then(async () => {
+        // Refresh so the now-claimless token is what the next reader sees.
+        if (typeof firebaseUser.getIdToken === 'function') await firebaseUser.getIdToken(true);
+      })
+      .catch((e: { code?: string }) => console.warn('releaseStudentSession:', e?.code ?? e));
+  } else if (auth && typeof auth.signOut === 'function') {
+    await auth.signOut().catch((e) => console.warn("Firebase signOut error:", e));
+  }
+}
+
+export interface LogoutOptions {
+  /**
+   * Firebase already ended this session elsewhere (reconcileWithFirebaseUser):
+   * only this tab's part of the sign-out runs. Nothing is sent and the Firebase
+   * user — anonymous now, or someone else — is not touched.
+   */
+  thisTabOnly?: boolean;
+}
+
+/**
+ * Signs out: this tab's state at once, the Firebase identity once the offline
+ * queue has had its chance. The promise settles when the identity has been
+ * released, so a caller that leaves the page right after (ErrorBoundary)
+ * waits for it instead of unloading the page in the middle of the sign-out.
+ */
+export function unifiedLogout(options: LogoutOptions = {}): Promise<void> {
+  const { user: currentUser, role, isStudentAuthenticated } = useAuthStore.getState();
+  const wasLearner = isStudentAuthenticated || role === 'student';
+  // The presence reset is a learner's: users/students holds the twelve learners
+  // only. A teacher's sign-out used to write users/students/teacher_… here
+  // (normalizeStudentId keeps a staff id as it is), a fake thirteenth learner
+  // that then travelled into the research backups (Module 3: zero-PII, learners
+  // 1–12 only).
+  if (wasLearner && !options.thisTabOnly && currentUser?.uid) {
     const normId = normalizeStudentId(currentUser.uid);
     const isSuperseded = useWorkspaceStore.getState().isSupersededByOtherDevice;
     if (!isSuperseded) {
@@ -334,13 +406,7 @@ export function unifiedLogout() {
   }
 
   clearStoredAuth();
-  // Module 1: a learner's Firebase user is anonymous. It stays on the device and
-  // is reused by the next sign-in — only the student claims are released on the
-  // server. Signing it out (as this used to) made every next sign-in create a new
-  // anonymous account, and twelve laptops behind one classroom IP then hit
-  // Firebase's TOO_MANY_ATTEMPTS_TRY_LATER: no learner could sign in at all.
-  // Teachers and admins sign in with Google and are signed out for real.
-  const firebaseUser = auth && 'currentUser' in auth ? (auth as { currentUser: { isAnonymous?: boolean } | null }).currentUser : null;
+  const firebaseUser = currentFirebaseUser();
   // Module 17 §ג step 4: a queued item is deleted only after the server took it.
   // The queue is sent first, as the identity that is signing out and while the
   // claims that authorise the write still exist; only then is the identity
@@ -351,25 +417,19 @@ export function unifiedLogout() {
   // erased an offline meeting's telemetry, its recording chunks and a
   // teacher's queued messages. Manual sign-out, the 8-hour limit, the learner
   // inactivity expiry and role switches all come through here; none of them
-  // deletes unsent data.
-  indexedDBQueue
-    .flushWithin(LOGOUT_FLUSH_BUDGET_MS, queueOwnerOf(useAuthStore.getState()))
-    .finally(() => {
-      // Someone signed in again while the queue was being sent: the Firebase
-      // user now belongs to that session. Leave it alone.
-      if (useAuthStore.getState().isAuthenticated) return;
-      if (firebaseUser?.isAnonymous) {
-        httpsCallable(functions, 'releaseStudentSession')({})
-          .then(async () => {
-            // Refresh so the now-claimless token is what the next reader sees.
-            const u = firebaseUser as { getIdToken?: (force: boolean) => Promise<string> };
-            if (typeof u.getIdToken === 'function') await u.getIdToken(true);
-          })
-          .catch((e: { code?: string }) => console.warn('releaseStudentSession:', e?.code ?? e));
-      } else if (auth && typeof auth.signOut === 'function') {
-        auth.signOut().catch((e) => console.warn("Firebase signOut error:", e));
-      }
-    });
+  // deletes unsent data. A tab whose session Firebase already ended sends
+  // nothing: that identity is gone, and its items wait for its next sign-in.
+  const released: Promise<void> = options.thisTabOnly
+    ? Promise.resolve()
+    : indexedDBQueue
+        .flushWithin(LOGOUT_FLUSH_BUDGET_MS, queueOwnerOf(useAuthStore.getState()))
+        .catch(() => undefined)
+        .then(() => {
+          // Someone signed in again while the queue was being sent: the Firebase
+          // user now belongs to that session. Leave it alone.
+          if (useAuthStore.getState().isAuthenticated) return;
+          return releaseFirebaseIdentity(firebaseUser);
+        });
   // The auth store is cleared FIRST. FirebaseSyncService listens to it and
   // tears down its workspace → RTDB subscription synchronously on sign-out;
   // only then is the workspace reset. Resetting before that, as this used to,
@@ -377,8 +437,11 @@ export function unifiedLogout() {
   // live subscription over the learner's saved progress — in RTDB and in the
   // local cache — so the next sign-in restarted meeting 1 from the beginning.
   useAuthStore.setState((state) => {
-    const username = state.user?.name || state.user?.email || "Unknown";
-    AuditLogger.log("התנתקות", state.user?.uid || "unknown_uid", `משתמש התנתק: ${username}`);
+    // The tab that signed out already logged it; this one's identity is gone.
+    if (!options.thisTabOnly) {
+      const username = state.user?.name || state.user?.email || "Unknown";
+      AuditLogger.log("התנתקות", state.user?.uid || "unknown_uid", `משתמש התנתק: ${username}`);
+    }
     return {
       user: null,
       role: null,
@@ -392,7 +455,52 @@ export function unifiedLogout() {
   useStore.getState().logout();
   useWorkspaceStore.getState().resetWorkspace?.();
   useAdminStore.setState({ schools: [], teachers: [], classes: [], globalStudentLimit: 12 });
+  stopChatSync();
   useChatStore.setState({ messages: [], activeRoomId: null, unreadCount: 0 });
+  return released;
+}
+
+/**
+ * PRD Module 2 §ג: the route guards read "a Single Source of Truth via Zustand
+ * backed by Firebase Auth state", and an inconsistent user state forces a
+ * redirect. There is one Firebase user per browser profile, shared by every
+ * tab, while this store is per tab. A staff sign-out in one tab — the button,
+ * or the 30-minute idle limit in the projector window — signs every tab out of
+ * Firebase, and firebase.ts then signs each of them in anonymously. The other
+ * tabs used to go on saying "teacher": every listener refused, every write
+ * failed, and "נסו שוב" reloaded the same stale teacher from sessionStorage.
+ *
+ * So a staff tab whose Firebase user stops being its user ends its own session
+ * here: store, this tab's storage and every listener that follows the store.
+ * The route guard (App.tsx AuthGuard) then sends the tab to /login. The same
+ * check runs once as a page loads, so a stored staff session whose Firebase
+ * user is anonymous is not restored as staff. Learners are left alone: their
+ * anonymous user is shared on purpose (Module 1), and only claims move.
+ */
+let sawStaffFirebaseUser = false;
+
+export function reconcileWithFirebaseUser(firebaseUser: FirebaseIdentity | null): void {
+  const hadStaffUser = sawStaffFirebaseUser;
+  sawStaffFirebaseUser = Boolean(firebaseUser && !firebaseUser.isAnonymous);
+
+  const { isAuthenticated, isStudentAuthenticated, role, user } = useAuthStore.getState();
+  if (!isAuthenticated || isStudentAuthenticated || role === 'student') return;
+
+  let ended: boolean;
+  if (!firebaseUser) {
+    // Signed out, in this tab or another. A null that follows no staff user is
+    // Firebase still starting (the anonymous sign-in comes next and is judged
+    // then) or a device that cannot reach it — nothing to decide on.
+    ended = hadStaffUser;
+  } else if (firebaseUser.isAnonymous) {
+    ended = true;
+  } else {
+    // Another staff account signed in on this browser.
+    const stored = String(user?.email ?? '').toLowerCase().trim();
+    const actual = String(firebaseUser.email ?? '').toLowerCase().trim();
+    ended = Boolean(stored && actual && stored !== actual);
+  }
+  if (ended) void unifiedLogout({ thisTabOnly: true });
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -550,11 +658,44 @@ export const useAuthStore = create<AuthState>()(
       };
     }),
 
-    logout: () => {
-      unifiedLogout();
-    },
+    logout: () => unifiedLogout(),
   })
 );
+
+// Firebase Auth is the other half of the single source of truth (Module 2 §ג):
+// follow it, including the sign-outs of other tabs. The method form keeps a
+// stubbed auth (no real config, tests) harmless.
+try {
+  const firebaseAuth = auth as { onAuthStateChanged?: (cb: (u: FirebaseIdentity | null) => void) => unknown };
+  if (typeof firebaseAuth.onAuthStateChanged === 'function') {
+    firebaseAuth.onAuthStateChanged((u) => reconcileWithFirebaseUser(u));
+  }
+} catch (e) {
+  console.warn('[useAuthStore] Firebase auth listener unavailable:', e);
+}
+
+/**
+ * The second half of an expiry noticed at page load (droppedAtLoad): release
+ * the Firebase identity of the kind that expired, once Firebase has restored
+ * it. A stored learner record releases an anonymous user's claims; a stored
+ * staff record signs the Google session out. Neither touches the other kind,
+ * and nothing is touched if someone has signed in since.
+ */
+function releaseIdentityDroppedAtLoad(): void {
+  const role = droppedAtLoad;
+  droppedAtLoad = null;
+  if (!role) return;
+  Promise.resolve(authReady)
+    .then(() => {
+      if (useAuthStore.getState().isAuthenticated) return;
+      const firebaseUser = currentFirebaseUser();
+      if (!firebaseUser) return;
+      if ((role === 'student') !== Boolean(firebaseUser.isAnonymous)) return;
+      return releaseFirebaseIdentity(firebaseUser);
+    })
+    .catch(() => {});
+}
+releaseIdentityDroppedAtLoad();
 
 // Module 17: the offline queue sends only the items of whoever is signed in,
 // and recounts and sends that identity's backlog on every sign-in.

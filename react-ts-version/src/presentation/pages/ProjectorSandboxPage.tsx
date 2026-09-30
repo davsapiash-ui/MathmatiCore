@@ -105,15 +105,37 @@ export function ProjectorSandboxPage() {
     };
   }, [isBroadcasting, user?.uid]);
 
-  const handleReturnToDashboard = () => {
-    // שחרור מסכי התלמידים וחזרה לדשבורד
+  // שחרור מסכי התלמידים
+  const releaseLearnerScreens = () => {
     const projectorRef = ref(database, 'system_control/projector_mode');
     set(projectorRef, {
       projector_mode: false,
       projector_mode_updated_at: serverTimestamp(),
       updated_by_teacher_id: user?.uid || 'teacher',
     }).catch(console.error);
+  };
 
+  const handleReturnToDashboard = () => {
+    releaseLearnerScreens();
+    // The dashboard opens this page in a window of its own (window.open), and
+    // that window is the one on the classroom board. Navigating it loaded a
+    // second dashboard there, in front of the class, and the two dashboards
+    // each armed the teacher's presence and onDisconnect, so each one's reload
+    // or close raised a false "החיבור שלכם התנתק לרגע" in the other. The
+    // dashboard is still open: bring it forward and close this window. The
+    // server releases the class on disconnect (the onDisconnect above) should
+    // the write not leave first. Opened any other way, there is no dashboard
+    // behind it: go there.
+    const opener = typeof window !== 'undefined' ? (window.opener as Window | null) : null;
+    if (opener && !opener.closed) {
+      try {
+        opener.focus();
+      } catch {
+        // A browser may refuse the focus; closing still returns to the dashboard.
+      }
+      window.close();
+      return;
+    }
     navigate('/dashboard');
   };
 
@@ -251,8 +273,8 @@ export function ProjectorSandboxPage() {
 
           <button
             onClick={() => {
-              handleReturnToDashboard();
-              logout();
+              releaseLearnerScreens();
+              void logout();
             }}
             className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all"
             title="התנתקו מהמערכת"
