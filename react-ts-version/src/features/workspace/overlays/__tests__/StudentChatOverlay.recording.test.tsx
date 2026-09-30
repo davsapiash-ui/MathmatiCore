@@ -127,8 +127,25 @@ describe('Module 21 §ב — the chat is not in the screen recording', () => {
     const panel = container.querySelector('[role="dialog"]');
     expect(panel).not.toBeNull();
     expect(panel!.classList.contains('rr-block')).toBe(true);
-    // The input and the message list sit inside the blocked panel.
-    expect(panel!.querySelector('input[placeholder="כתבו הודעה למורה..."]')).not.toBeNull();
+    // The message list sits inside the blocked panel. The learner has no free
+    // text at all (owner, 1.10.2026: a learner never types a name) — only ready
+    // messages and the call button.
+    expect(panel!.querySelector('input, textarea, [contenteditable]')).toBeNull();
+    expect(panel!.textContent).toContain('אפשר עזרה בתרגיל?');
+    expect(panel!.textContent).toContain('קראו למורה');
+  });
+
+  it('a ready message is sent with one press, as the learner’s own message (owner, 1.10.2026)', () => {
+    const sendMessage = vi.fn();
+    useChatStore.setState({ sendMessage } as never);
+    const { container } = render(<StudentChatOverlay />);
+    act(() => { document.dispatchEvent(new Event('toggle-chat')); });
+    const button = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'לא הבנתי את ההוראה')!;
+    fireEvent.click(button);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendMessage.mock.calls[0][0]).toBe('student_user3');
+    expect(sendMessage.mock.calls[0][1]).toBe('תלמיד 3');
+    expect(sendMessage.mock.calls[0][3]).toBe('לא הבנתי את ההוראה');
   });
 
   it('chat text and bubbles are absent from the events; a math digit is present', async () => {
@@ -143,13 +160,6 @@ describe('Module 21 §ב — the chat is not in the screen recording', () => {
 
     stop = record({ emit: (e) => { events.push(e); }, ...liveRecordOptions() }) as () => void;
     await flush();
-
-    // The child types into the chat (a controlled React input: rrweb sees both
-    // the input event and React's value setter).
-    const chatInput = container.querySelector('input[placeholder="כתבו הודעה למורה..."]') as HTMLInputElement;
-    fireEvent.change(chatInput, { target: { value: TYPED_SECRET } });
-    await flush();
-    expect(chatInput.value).toBe(TYPED_SECRET);
 
     // A new message arrives while recording (a DOM mutation inside the panel).
     act(() => {
@@ -169,8 +179,6 @@ describe('Module 21 §ב — the chat is not in the screen recording', () => {
 
     const json = JSON.stringify(events);
     expect(events.length).toBeGreaterThan(1);
-    expect(json).not.toContain(TYPED_SECRET);
-    expect(json).not.toContain('0501234567');
     expect(json).not.toContain(TEACHER_BUBBLE);
     expect(json).not.toContain(LATE_BUBBLE);
     expect(json).not.toContain('צ\'אט עם המורה');
