@@ -720,6 +720,29 @@ export function answerDigitsToNumber(digits: Partial<Record<Place, string>>): nu
   return Number.isNaN(n) ? null : n;
 }
 
+/**
+ * The number the result row of a vertical exercise shows, read by place. A box
+ * left empty to the right of a digit makes it no number (NaN): in stations 3–7
+ * the row has a box for every place of the longest number (owner, 30.9.2026),
+ * and 9, 1, 7 in the thousands, hundreds and tens boxes over 917 is not 917 —
+ * joined, it was. Empty boxes on the left are leading zeros; null when nothing
+ * is typed.
+ */
+export function resultRowValue(digits: Partial<Record<Place, string>>): number | null {
+  let value: number | null = null;
+  for (const p of ['thousands', 'hundreds', 'tens', 'units'] as Place[]) {
+    const d = digits[p] ?? '';
+    if (d === '') {
+      if (value !== null) return NaN;
+      continue;
+    }
+    const n = parseInt(d, 10);
+    if (Number.isNaN(n)) return NaN;
+    value = (value ?? 0) * 10 + n;
+  }
+  return value;
+}
+
 /** Effective scaffold level of the current task (correction subtasks scaffold at 1). */
 function sanitizeSessionNumber(n: any): SessionNumber {
   const parsed = parseInt(n, 10);
@@ -1039,7 +1062,7 @@ function exerciseSolvedForCard(
 ): boolean {
   if (!task || (task.type !== 'addition_simple' && task.type !== 'vertical_addition')) return false;
   const { a, b, target } = effectiveArithmetic(task, s.isASD);
-  const typed = answerDigitsToNumber(effectiveAnswerDigits(s, task, target));
+  const typed = resultRowValue(effectiveAnswerDigits(s, task, target));
   const hidden = hiddenDigitsStatus(s, task, a, b);
   // A skeleton shows every result digit, so a WRONG hidden digit is not a
   // solved exercise: the "four errors" card of the missing-digit boxes
@@ -1920,7 +1943,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return;
       }
 
-      const ansVal = answerDigitsToNumber(typedDigits);
+      const ansVal = resultRowValue(typedDigits);
       if (ansVal !== target) {
         if (s.sessionNumber === 8) {
           handleFailure('wrong_numeric', 'נסו שוב 🤔', 'התשובה שכתבתם אינה נכונה. בדקו שוב!', 2800);
@@ -1928,7 +1951,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           // Stations 3–7 (owner, 30.9.2026): a digit in the wrong place turns on
           // the result row's place cues until the end of the exercise; the line
           // that explains them stays in the task card (VerticalAdditionTask).
-          if (s.sessionNumber >= 3 && s.sessionNumber <= 7 && !s.placeCuesShown && isPlaceError(typedDigits, target)) {
+          if (
+            s.sessionNumber >= 3 &&
+            s.sessionNumber <= 7 &&
+            !s.placeCuesShown &&
+            isPlaceError(typedDigits, target, { a: opA, b: opB, isSubtraction: task.isSubtraction })
+          ) {
             set({ placeCuesShown: true });
             emitScaffoldEvent(get(), 'PLACE_CUES_SHOWN', { profile: s.activeSupportProfileId === 'enhanced_cognitive_support' ? 'enhanced' : 'regular' });
           }
@@ -2651,6 +2679,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Station 2: a wrong digit already typed in the task on screen still
         // counts against its first attempt after a reload (PRD 23 §ב).
         hasDigitErrorInTask: saved.hasDigitErrorInTask === true,
+        // Stations 3–7: the result row's place cues stay to the end of the
+        // exercise, a reload included — and a restore to another exercise
+        // brings that exercise's own value, never the one on screen.
+        placeCuesShown: saved.placeCuesShown === true,
         isSocraticCardLocked: Boolean(storedDeadline && storedDeadline > Date.now()),
         socraticLockDeadline: storedDeadline,
         socraticDistractorHint: saved.socraticDistractorHint ?? null,

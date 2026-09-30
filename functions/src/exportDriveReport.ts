@@ -1677,6 +1677,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         error_category: d.error_category ?? "",
         undo_stack_depth_before: d.undo_stack_depth_before ?? "",
         reverted_event_type: d.reverted_event_type ?? "",
+        // PLACE_CUES_SHOWN (register deviation 28): regular or enhanced — an enum value.
+        profile: d.profile ?? "",
         // details_json used to carry the whole untyped details object. Every
         // field the research needs is a typed column above; a free-text field
         // a client parked in details went straight into the dataset.
@@ -1892,6 +1894,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         teacher_gate_approved: sessionDoc?.teacher_gate_approved ?? "",
         // Which interface tools the learner operated — the measurement meeting 1 exists for.
         ...Object.fromEntries(TOOLS.map((tool) => [`tool_${tool}`, tools.used[tool]])),
+        // Register deviation 28, appended last so every earlier column keeps its place.
+        place_cue_scaffolds: summary.place_cue_scaffolds ?? 0,
       });
     }
 

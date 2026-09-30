@@ -7,6 +7,7 @@ import { dimmedColumns, verticalBoxes, DIMMED_COLUMN_FILTER } from '@/core/colum
 import { useWorkspaceStore, getActiveTasks, effectiveArithmetic } from '@/application/useWorkspaceStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { columnDigitsShown } from '@/core/columnDigits';
+import { resultBoxCount } from '@/core/placeCues';
 import { DienesBlock } from './DienesBlock';
 import { COLUMN_CELLS } from './columnCells';
 import { useVisibleRegroup, arrivingBlockCount } from './RegroupAnimationLayer';
@@ -67,7 +68,7 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
     let vertical;
     if (task && (task.type === 'vertical_addition' || task.type === 'addition_simple')) {
       const { a, b, target } = effectiveArithmetic(task, s.isASD);
-      vertical = verticalBoxes(a, b, target, task.hiddenDigits, task.revealedResultDigits);
+      vertical = verticalBoxes(a, b, target, task.hiddenDigits, task.revealedResultDigits, resultBoxCount(s.sessionNumber, a, b, target));
     }
     return dimmedColumns({
       sessionNumber: s.sessionNumber,

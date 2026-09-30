@@ -20,7 +20,7 @@ export type TelemetryEventType =
   | 'KEYBOARD_LOCK_BLOCKED'
   | 'HELP_REQUESTED'
   | 'BOARD_CLEARED'
-  // Owner, 30.9.2026 (register deviation 27): the result row's place cues shown
+  // Owner, 30.9.2026 (register deviation 28): the result row's place cues shown
   // as a scaffold after a digit in the wrong place (stations 3–7).
   | 'PLACE_CUES_SHOWN';
 
@@ -120,7 +120,7 @@ export interface BoardClearedDetails {
   blocks_removed: number;
 }
 
-/** Register deviation 27: which profile saw the scaffold (regular: colours + labels; enhanced: labels). */
+/** Register deviation 28: which profile saw the scaffold (regular: colours + labels; enhanced: labels). */
 export interface PlaceCuesShownDetails {
   profile: 'regular' | 'enhanced';
 }

@@ -48,15 +48,23 @@ export interface VerticalBoxes {
 
 const placesOf = (n: number): Place[] => PLACE_ORDER.slice(0, String(Math.abs(n)).length);
 
+/**
+ * `resultLength`: how many boxes the result row has (core/placeCues.ts
+ * resultBoxCount) — in stations 3–7 a box for every place of the longest
+ * number, so the lit column stays on an empty thousands box over 917 and does
+ * not tell the child that no digit goes there. The answer's own length when
+ * not given.
+ */
 export function verticalBoxes(
   a: number,
   b: number,
   target: number,
   hidden: { a?: Place[]; b?: Place[] } = {},
-  revealedResult: Place[] = []
+  revealedResult: Place[] = [],
+  resultLength: number = String(Math.abs(target)).length
 ): VerticalBoxes {
   return {
-    result: placesOf(target).filter((p) => !revealedResult.includes(p)),
+    result: PLACE_ORDER.slice(0, resultLength).filter((p) => !revealedResult.includes(p)),
     operandA: placesOf(a).filter((p) => hidden.a?.includes(p)),
     operandB: placesOf(b).filter((p) => hidden.b?.includes(p)),
   };

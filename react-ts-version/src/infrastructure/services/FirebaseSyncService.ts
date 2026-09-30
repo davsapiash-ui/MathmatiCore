@@ -26,6 +26,7 @@ import {
   type TelemetryEventType,
   type TelemetryDetailsMap,
   type HesitationDetectedDetails,
+  type PlaceCuesShownDetails,
   type SocraticCardShownDetails,
   type SocraticOptionSelectedDetails,
   type UndoExecutedDetails,
@@ -974,6 +975,10 @@ export class FirebaseSyncService {
       // saved, a reload forgot it, and the task was then recorded as solved
       // on the first attempt.
       hasDigitErrorInTask: state.hasDigitErrorInTask === true,
+      // Stations 3–7: the result row's place-cue scaffold stays to the end of
+      // the exercise (register 28). Not saved, a reload took it away and the
+      // next place error logged a second PLACE_CUES_SHOWN for one exercise.
+      placeCuesShown: state.placeCuesShown === true,
       // The chosen branch travels with the index that points into it (restoreSession
       // rebuilds the branch tasks from it), and the radar's "אתגר / ביסוס" badge reads it.
       selectedBranch: state.selectedBranch ?? null,
@@ -1435,9 +1440,14 @@ export class FirebaseSyncService {
       ADAPTIVE_GRID_TOGGLED: 'לוח החיבור נפתח או נסגר',
       KEYBOARD_LOCK_BLOCKED: 'ניסיון הקלדה לפני המרה בלבנים',
       HELP_REQUESTED: 'קריאה שקטה למורה',
-      PLACE_CUES_SHOWN: 'ספרה בתיבה של טור אחר: הופיעו צבעי הטורים בשורת התוצאה',
+      PLACE_CUES_SHOWN: 'ספרה בתיבה של טור אחר: הופיעו צבעי הטורים וכותרותיהם',
     };
     rtdbLiveUpdate.lastAction = eventLabels[event.event_type] || event.event_type;
+    // The enhanced profile always has the colours; only the labels appear
+    // (register 28) — the words of the learner's timeline (LearnerJourneyService).
+    if (event.event_type === 'PLACE_CUES_SHOWN' && (event.details as PlaceCuesShownDetails | undefined)?.profile === 'enhanced') {
+      rtdbLiveUpdate.lastAction = 'ספרה בתיבה של טור אחר: הופיעו כותרות הטורים';
+    }
 
     // Special event-driven RTDB state mappings
     if (event.event_type === 'HESITATION_DETECTED') {

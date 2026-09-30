@@ -267,6 +267,8 @@ const TELEMETRY_DETAIL_KEYS = [
   "conversion_required",
   "help_count",
   "blocks_removed",
+  // PLACE_CUES_SHOWN (register deviation 28): regular | enhanced.
+  "profile",
 ] as const;
 
 /**
