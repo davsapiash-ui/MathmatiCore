@@ -411,6 +411,31 @@ describe('the store gate follows the checklist', () => {
     expect(current()).toBe('s1_r_group26');
   });
 
+  it('368: the messages speak of the value of the digit, not of the blocks (station 1 review, 30.9.2026)', () => {
+    const store = () => useWorkspaceStore.getState();
+    store().initSession(1, false, at('s1_r_value368'));
+    for (const [place, n] of [['hundreds', 3], ['tens', 6], ['units', 8]] as const) {
+      for (let i = 0; i < n; i++) store().applyDrop({ source: 'palette', sourcePlace: place, target: { kind: 'column', place } });
+    }
+    useWorkspaceStore.setState({ answerDigits: { tens: '6', units: '8' } });
+    store().proceed();
+    expect(store().feedback?.sub).toBe('זה עוד לא הערך של הספרה. הסתכלו בבית המספרים ובדקו שוב!');
+    useWorkspaceStore.setState({ answerDigits: { tens: '6', units: '0' } });
+    store().proceed();
+    expect(store().feedback?.sub).toBe('מצאתם את הערך של הספרה במספר.');
+    expect(store().feedback?.sub).not.toContain('מתאים ללבנים');
+  });
+
+  it('713 + 94: a crowded column is not named when the child presses ממשיכים (owner, 29.9.2026)', () => {
+    const store = () => useWorkspaceStore.getState();
+    store().initSession(1, false, at('s1_t8'));
+    useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, hundreds: 7, tens: 10, units: 7 }, answerDigits: { hundreds: '8', tens: '0', units: '7' } });
+    store().proceed();
+    const sub = store().feedback?.sub ?? '';
+    expect(sub).toBe('באחד הטורים יש 10 לבנים או יותר. לחצו על הכפתור שמופיע בראש אותו טור.');
+    expect(sub).not.toMatch(/העשרות|היחידות|המאות|קבץ 10/);
+  });
+
   it('the target task comes after the grouping exercise and opens on an empty board', () => {
     useWorkspaceStore.getState().initSession(1, false, at('s1_r_group26'));
     useWorkspaceStore.getState().groupColumnClick('units');

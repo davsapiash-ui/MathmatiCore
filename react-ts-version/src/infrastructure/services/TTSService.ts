@@ -252,6 +252,11 @@ export class TTSService {
     // Strip arrows (← ↺ …): they name a button's icon on the screen, and some
     // voices would read the symbol's name aloud.
     cleaned = cleaned.replace(/[\u2190-\u21FF]/g, '');
+    // An exercise written with signs ("713 + 94", "61 \u2212 24 = 37") is said in
+    // words, as a teacher reads it; a voice may say "\u05E4\u05DC\u05D5\u05E1" or skip the sign.
+    cleaned = cleaned.replace(/\s*\+\s*(?=\d)/g, ' \u05D5\u05E2\u05D5\u05D3 ');
+    cleaned = cleaned.replace(/\s*\u2212\s*(?=\d)/g, ' \u05E4\u05D7\u05D5\u05EA ');
+    cleaned = cleaned.replace(/\s*=\s*(?=\d)/g, ' \u05E9\u05D5\u05D5\u05D4 ');
     // Normalize numbered lists like "1. " and "2. " into natural speech pauses
     cleaned = cleaned.replace(/(?:^|\n)\s*1\.\s*/g, ' שלב ראשון: ');
     cleaned = cleaned.replace(/(?:^|\n)\s*2\.\s*/g, ' שלב שני: ');
