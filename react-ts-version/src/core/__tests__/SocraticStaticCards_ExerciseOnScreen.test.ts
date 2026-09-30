@@ -379,7 +379,7 @@ describe('with blocks on the screen, the card follows the board', () => {
     expect(done.questionHe).toBe('נסו לחשוב: בתרגיל 1,245 + 328, כל הלבנים כבר בבית המספרים. מה עושים עכשיו?');
     // Before that, the grouping advice holds in any state: the button shows only at 10.
     const building = SocraticEngine.getSynchronousTaskHint(t, { thousands: 1, hundreds: 2, tens: 4, units: 5 });
-    expect(building.choices[0].feedbackHe).toBe('נכון מאוד! כשיש בטור היחידות 10 לבנים או יותר, לחצו על הכפתור "קבץ 10" שבראש הטור.');
+    expect(building.choices[0].feedbackHe).toBe('נכון מאוד! כשיש בטור היחידות 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור.');
   });
 
   it('a block is feminine: "לחצו על לבנת אלף כדי לפרוט אותה"', () => {

@@ -103,7 +103,7 @@ export type Tool = typeof TOOLS[number];
 export const TOOL_LABEL_HE: Record<Tool, string> = {
   drag: "גרירת לבנים ללוח",
   decompose: "פירוק לבנה (פריטה)",
-  compose: "הקבצה בכפתור \"הקבץ\"",
+  compose: "הקבצה בכפתור \"קבצו 10\"",
   type: "הקלדת ספרות",
   undo: "ביטול פעולה",
   trash: "פח האשפה",
@@ -129,7 +129,7 @@ export interface ToolMastery {
  * Which interface tools the learner actually operated, read from the events:
  *   drag      — BLOCK_DRAG_COMPLETE onto the board (not into the trash)
  *   decompose — REGROUPING_SUCCESS, regrouping_type "decomposition" (click or drag right)
- *   compose   — REGROUPING_SUCCESS, regrouping_type "composition" (the "הקבץ" button)
+ *   compose   — REGROUPING_SUCCESS, regrouping_type "composition" (the "קבצו 10" button)
  *   type      — DIGIT_ENTERED
  *   undo      — UNDO_EXECUTED
  *   trash     — a drag into the trash, or BOARD_CLEARED

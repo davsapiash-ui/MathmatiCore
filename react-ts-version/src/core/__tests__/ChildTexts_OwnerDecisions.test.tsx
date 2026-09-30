@@ -308,8 +308,8 @@ describe('no educator word reaches the child (register ט)', () => {
 });
 
 describe('the child is addressed in the plural (gender-equal writing, 27.9.2026)', () => {
-  // The documents' own button names stay as they are: "קבץ 10" ("כפתור הקבץ 10"),
-  // "התקדם" ("כפתור התקדם") and "קרא למורה" (לחצן "קרא למורה").
+  // The documents' own button names stay as they are: "התקדם" ("כפתור התקדם") and
+  // "קרא למורה" (לחצן "קרא למורה"). The grouping button is "קבצו 10" (owner, 30.9.2026).
   const files = [
     ...filesUnder('features/workspace'),
     ...filesUnder('presentation/components/student'),
@@ -318,7 +318,7 @@ describe('the child is addressed in the plural (gender-equal writing, 27.9.2026)
     'presentation/design-system/UdlSpeechButton.tsx',
     'application/useWorkspaceStore.ts',
   ];
-  const SINGULAR = /(^|[>"'`( ])(הקרא|בטל|סגור|כתוב|הצג|הסתר|המשך|בחר|גרור|הקלד|בדוק|נסה|פתח|הוסף|שמור|שלח|הזן|התחל|חזור)([ .,!:<"'`)?]|$)|(?<![א-ת])(שלך|עבורך|לך|אתה|זקוק)(?![א-ת])|אני צריך/;
+  const SINGULAR = /(^|[>"'`( ])(הקרא|קבץ|בטל|סגור|כתוב|הצג|הסתר|המשך|בחר|גרור|הקלד|בדוק|נסה|פתח|הוסף|שמור|שלח|הזן|התחל|חזור)([ .,!:<"'`)?]|$)|(?<![א-ת])(שלך|עבורך|לך|אתה|זקוק)(?![א-ת])|אני צריך/;
 
   it('no singular instruction, label, placeholder or "שלך" on a child screen', () => {
     const found: string[] = [];
