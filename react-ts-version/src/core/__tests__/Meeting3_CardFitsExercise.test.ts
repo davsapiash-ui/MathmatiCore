@@ -117,10 +117,10 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
 
   it('a standard task whose instruction names an empty column: the digit moves into it (★ chosen)', () => {
     expect(SocraticEngine.getSynchronousTaskHint(unknownKind('s3_r_t5'), EMPTY).choices[1]).toMatchObject({
-      textHe: 'משתמשים ב-5 מאות ו-6 עשרות', isCorrect: false, feedbackHe: 'רמז: באיזה טור נמצאת הספרה 6 במספר 506?',
+      textHe: 'משתמשים ב-5 מאות ו-6 עשרות', isCorrect: false, feedbackHe: 'רמז: לאיזה טור שייכת הספרה 6 במספר 506?',
     });
     expect(SocraticEngine.getSynchronousTaskHint(unknownKind('s3_g_t5'), EMPTY).choices[1]).toMatchObject({
-      textHe: 'משתמשים ב-6 אלפים ו-3 מאות', isCorrect: false, feedbackHe: 'רמז: באיזה טור נמצאת הספרה 3 במספר 6,030?',
+      textHe: 'משתמשים ב-6 אלפים ו-3 מאות', isCorrect: false, feedbackHe: 'רמז: לאיזה טור שייכת הספרה 3 במספר 6,030?',
     });
   });
 

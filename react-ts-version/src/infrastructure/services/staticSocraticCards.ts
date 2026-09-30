@@ -154,7 +154,8 @@ export function secretNumbersOf(task: any): number[] {
   const a = task.numberA;
   const b = task.numberB;
   if (task.type === 'representation' || task.type === 'flexible_decomp') {
-    const out: number[] = typeof a === 'number' && !onScreen(task, formatNumberHe(a)) ? [a] : [];
+    // As a whole number: 45 is not on a screen that shows only 450.
+    const out: number[] = typeof a === 'number' && !numberOnScreen(task, a) ? [a] : [];
     // The number the child writes, when it is not the one built: "build 450
     // from tens only" is answered 45 (the station-3 redesign, 30.9.2026).
     const w = task.correctAnswer;
@@ -347,8 +348,8 @@ export const HINT = {
   topOrBottom: 'רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה?',
   startAdd: 'רמז: אם בטור היחידות יהיו 10 יחידות או יותר, מה יקרה בטור העשרות?',
   startSub: 'רמז: אם בטור היחידות לא יהיו מספיק יחידות כדי לחסר, מה יקרה בטור העשרות?',
-  addOrTakeOut: 'רמז: בחיסור, מוסיפים לבנים לבית המספרים או מוציאים ממנו?',
-  secondNumber: 'רמז: בחיסור, מוסיפים את המספר השני או מוציאים אותו?',
+  addOrTakeOut: 'רמז: האם בחיסור מוסיפים לבנים לבית המספרים או מוציאים ממנו?',
+  secondNumber: 'רמז: האם בחיסור מוסיפים את המספר השני או מוציאים אותו?',
 } as const;
 
 /** "רמז: 10 לבני יחידה שוות לאיזו לבנה?" — for 10 or more blocks left in one column. */
@@ -421,7 +422,7 @@ function additionCard(a: number, b: number, blocks: boolean, counts?: BoardCount
  */
 function borrowCard(ex: string, c: Place, have: number, need: number, zeros: Place[], m: Place, blocks: boolean): SocraticHintResponse {
   const n = next(c)!;
-  const writeZero = `רמז: אם תכתבו 0, האם חיסרתם את כל מה שצריך לחסר ב${COLUMN[c]}?`;
+  const writeZero = `רמז: האם יש ב${COLUMN[c]} מספיק ${PLURAL[c]} כדי לחסר?`;
   if (zeros.length > 0) {
     const below = LOW_TO_HIGH[LOW_TO_HIGH.indexOf(m) - 1];
     const where = zeros.length === 1 ? `ב${COLUMN[zeros[0]]} יש אפס` : `${zeros.map((z) => `ב${COLUMN[z]}`).join(' ו')} יש אפסים`;
@@ -617,7 +618,7 @@ function placeValueSlip(task: any, n: number, standard: Counts): [string, string
       const moved: Counts = { ...standard, [empty]: standard[from], [from]: 0 };
       return [
         `משתמשים ${withBe(countsPhrase(moved))}`,
-        `רמז: באיזה טור נמצאת הספרה ${standard[from]} במספר ${N}?`,
+        `רמז: לאיזה טור שייכת הספרה ${standard[from]} במספר ${N}?`,
       ];
     }
   }
@@ -626,7 +627,7 @@ function placeValueSlip(task: any, n: number, standard: Counts): [string, string
     const swapped: Counts = { ...standard, [p1]: standard[p2], [p2]: standard[p1] };
     return [
       `משתמשים ${withBe(countsPhrase(swapped))}`,
-      `רמז: באיזה טור נמצאת הספרה ${standard[p1]} במספר ${N}?`,
+      `רמז: לאיזה טור שייכת הספרה ${standard[p1]} במספר ${N}?`,
     ];
   }
   return null;
@@ -644,7 +645,7 @@ function representationCard(task: any): SocraticHintResponse {
   const N = formatNumberHe(n);
   const required: Counts = task.requiredCounts ?? {};
   const requiredPhrase = countsPhrase(required);
-  if (!onScreen(task, N) || !requiredPhrase || !onScreen(task, requiredPhrase)) {
+  if (!numberOnScreen(task, n) || !requiredPhrase || !onScreen(task, requiredPhrase)) {
     // The number (or the blocks) is what the child is asked to find: name neither.
     return whichNumberIsBuiltCard();
   }
@@ -671,7 +672,7 @@ function representationCard(task: any): SocraticHintResponse {
 /** Two different representations of one number. */
 function flexibleCard(task: any): SocraticHintResponse {
   const N = typeof task.numberA === 'number' ? formatNumberHe(task.numberA) : '';
-  const what = N && onScreen(task, N) ? `את המספר ${N}` : 'את אותה כמות';
+  const what = N && numberOnScreen(task, task.numberA) ? `את המספר ${N}` : 'את אותה כמות';
   return card(`${OPEN}איך מוצאים דרך נוספת לייצג ${what}?`, 'conceptual', 'tour-place-value-board', [
     ['פורטים לבנה אחת לעשר לבנים קטנות ממנה, או מקבצים עשר לבנים ללבנה אחת', 'נכון מאוד! כך הלבנים מסודרות אחרת, והכמות נשארת אותה כמות.'],
     ['מוסיפים לבנים חדשות', 'רמז: אם תוסיפו לבנים חדשות, האם הכמות תישאר אותה כמות?'],

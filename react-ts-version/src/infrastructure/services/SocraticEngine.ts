@@ -553,7 +553,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     choices: [
       { id: "opt_1", textHe: 'נעזרים בלבנים משמאל, בודקים כמה עשרות יש כעת בבית המספרים וכמה חסרות כדי להגיע לתוצאה הרשומה בתרגיל', isCorrect: true, feedbackHe: 'נכון מאוד! בדקו בבית המספרים וכתבו את הספרה החסרה.' },
       { id: "opt_2", textHe: 'מנחשים מספר אקראי וכותבים אותו בתיבת התשובה', isCorrect: false, feedbackHe: 'רמז: איך אפשר לבדוק בבית המספרים אם הספרה נכונה?' },
-      { id: "opt_3", textHe: 'עוברים קודם לטור הבא', isCorrect: false, feedbackHe: 'רמז: אם תדלגו על הטור הזה, איך תדעו מה לרשום בעיגול הזיכרון?' }
+      { id: "opt_3", textHe: 'עוברים קודם לטור הבא', isCorrect: false, feedbackHe: 'רמז: אם תעברו קודם לטור הבא, איך תדעו מה לרשום בעיגול הזיכרון?' }
     ],
     correctChoiceId: "opt_1"
   },
@@ -566,7 +566,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: 'נסו לחשוב: כיצד תפתרו את התרגיל כאשר אין לכם לבנים על המסך?',
     choices: [
       { id: "opt_1", textHe: 'מתבוננים בתרגיל ונעזרים בעיגולי הזיכרון בראש הטורים כדי לנהל את פעולת ההמרה או הפריטה בשלבים', isCorrect: true, feedbackHe: 'נכון מאוד! התקדמו טור אחר טור ורשמו את המעברים בעיגולי הזיכרון.' },
-      { id: "opt_2", textHe: 'מנחשים את התוצאה הסופית ומקלידים אותה מיד', isCorrect: false, feedbackHe: 'רמז: איך אפשר לבדוק את התוצאה בלי לנחש?' },
+      { id: "opt_2", textHe: 'מנחשים את התוצאה הסופית ומקלידים אותה מיד', isCorrect: false, feedbackHe: 'רמז: איך אפשר למצוא את התוצאה בלי לנחש?' },
       { id: "opt_3", textHe: 'מחכים שהתשובה הנכונה תופיע על המסך', isCorrect: false, feedbackHe: 'רמז: מאיזה טור אפשר להתחיל לפתור בעצמכם?' }
     ],
     correctChoiceId: "opt_1"

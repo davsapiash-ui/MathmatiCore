@@ -188,7 +188,30 @@ describe('every wrong-option hint of stations 3–8 is a short guiding question 
     ]);
     // …and the same card in station 5 asks.
     const s5 = SocraticEngine.analyzeLiveBoardState(byId('s5_g_t1'), 'subtraction_regrouping', EMPTY)!;
-    expect(wrongHints(s5)).toEqual(['רמז: בחיסור, מוסיפים את המספר השני או מוציאים אותו?', 'רמז: בלי לבנים בבית המספרים, איך תמצאו את התוצאה?']);
+    expect(wrongHints(s5)).toEqual(['רמז: האם בחיסור מוסיפים את המספר השני או מוציאים אותו?', 'רמז: בלי לבנים בבית המספרים, איך תמצאו את התוצאה?']);
+  });
+});
+
+describe('the converted hints ask; the column and the blocks follow the exercise', () => {
+  it('a borrow through zeros, without blocks (station 8, 4,000 − 1,562)', () => {
+    expect(wrongHints(q(byId('s8_g_t5')))).toEqual([
+      'רמז: כשפורטים אלף אחד, מה מקבלים: עשר מאות או עשר יחידות?',
+      'רמז: האם יש בטור היחידות מספיק יחידות כדי לחסר?',
+    ]);
+  });
+
+  it('the column\'s own card, with blocks (station 5, 5,432 − 2,118)', () => {
+    expect(wrongHints(q(byId('s5_g_t1'), digitsOf(5432), { shownKinds: ['borrow_check'] }))).toEqual([
+      'רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה?',
+      'רמז: אם תוסיפו לבנים חדשות, האם המספר יישאר אותו מספר?',
+    ]);
+  });
+
+  it('10 or more in a column (station 4, 1,245 + 328)', () => {
+    expect(wrongHints(q(byId('s4_g_t1'), digitsOf(1245)))).toEqual([
+      'רמז: 10 לבני יחידה שוות לאיזו לבנה?',
+      'רמז: אם תמחקו לבנים, האם המספר יישאר אותו מספר?',
+    ]);
   });
 });
 
@@ -198,6 +221,9 @@ describe('no card gives the answer away', () => {
     expect(secretNumbersOf(REDESIGN.find((t) => t.id === 's3_g_reinforce_2'))).toEqual([36]);
     expect(secretNumbersOf(REDESIGN.find((t) => t.id === 's3_r_t5'))).toEqual([506]);
     expect(secretNumbersOf(REDESIGN.find((t) => t.id === 's7_g_t1'))).toEqual([2500]);
+    // A number is on the screen only as a whole number, whichever field holds it.
+    expect(secretNumbersOf(rep('x_45', 'decompose', 45, 45, { tens: 45 }, 'בנו את המספר 450 רק מלבני עשרת.'))).toEqual([45]);
+    expect(secretNumbersOf(rep('x_450', 'decompose', 450, 450, { tens: 45 }, 'בנו את המספר 450 רק מלבני עשרת.'))).toEqual([]);
     for (const task of REDESIGN) {
       const secrets = secretNumbersOf(task).filter((n) => ![10, 100, 1000].includes(n));
       expect(secrets.length, task.id).toBeGreaterThan(0);
