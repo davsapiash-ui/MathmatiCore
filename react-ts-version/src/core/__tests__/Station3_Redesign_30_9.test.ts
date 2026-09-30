@@ -181,7 +181,7 @@ describe('the approved exercises (owner, 30.9.2026)', () => {
       expect(Boolean(REPRESENTATION_LOCKS[id]), id).toBe(a.kind === 'compose_break' || a.kind === 'compose_group');
     }
     expect(REPRESENTATION_LOCKS.s3_g_t4.columns).toEqual(['hundreds', 'tens']); // a thousand, then a hundred
-    expect(REPRESENTATION_LOCKS.s7_g_t1).toEqual({ conversion: 'composition', columns: ['hundreds'] });
+    expect(REPRESENTATION_LOCKS.s7_g_t1).toEqual({ conversion: 'composition', columns: ['hundreds', 'hundreds'] }); // twice in one column
   });
 
   it('the conversions the instruction names, done on the blocks it names, give exactly the board checked', () => {
@@ -539,7 +539,7 @@ describe('the one answer box: its digits are recorded when "התקדם" is press
     expect(sent.events.findIndex((e) => e.event_type === 'DIGIT_ENTERED')).toBeLessThan(complete);
   });
 
-  it('a wrong number is recorded as wrong digits, the wrong ones first; the same answer again records nothing', () => {
+  it('a wrong number is recorded as wrong digits, the wrong ones first; the same wrong answer again records one wrong digit', () => {
     load(byId('s3_r_t1'));
     buildBlocks({ hundreds: 3, tens: 4 });
     answer('304');
@@ -551,11 +551,11 @@ describe('the one answer box: its digits are recorded when "התקדם" is press
       [1, 0, false],
       [2, 3, true],
     ]);
-    press(); // the same answer
-    expect(digitsEntered()).toHaveLength(3);
+    press(); // the same wrong answer: one wrong digit, the lowest place — every wrong press counts once
+    expect(digitsEntered().slice(3).map((e) => [e.column_index, e.details.digit_value, e.details.is_correct])).toEqual([[0, 4, false]]);
     answer('340');
     press();
-    d = digitsEntered().slice(3);
+    d = digitsEntered().slice(4);
     // Only the digits that changed: the units and the tens.
     expect(d.map((e) => [e.column_index, e.details.digit_value, e.details.is_correct])).toEqual([
       [0, 0, true],
@@ -578,16 +578,16 @@ describe('the one answer box: its digits are recorded when "התקדם" is press
       [0, 0, true],
       [1, 4, true],
     ]);
-    // Another wrong number: every wrong digit again, first; the unchanged right units are not repeated.
+    // Another wrong number: only the wrong digit that changed; the unchanged
+    // wrong hundreds and right units are not recorded again.
     answer('50');
     press();
     expect(digitsEntered().slice(3).map((e) => [e.column_index, e.details.digit_value, e.details.is_correct])).toEqual([
       [1, 5, false],
-      [2, 0, false],
     ]);
     answer('340');
     press();
-    expect(digitsEntered().slice(5).map((e) => [e.column_index, e.details.digit_value, e.details.is_correct])).toEqual([
+    expect(digitsEntered().slice(4).map((e) => [e.column_index, e.details.digit_value, e.details.is_correct])).toEqual([
       [1, 4, true],
       [2, 3, true],
     ]);

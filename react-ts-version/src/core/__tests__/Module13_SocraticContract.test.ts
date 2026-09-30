@@ -55,7 +55,8 @@ const subtraction425_162: SocraticRequest = {
 
 const goodResponse = {
   error_category: 'procedural',
-  guiding_question: 'בתרגיל 425 פחות 162, בטור העשרות יש 2 עשרות וצריך להחסיר 6. מאיפה נביא עוד עשרות לבית המספרים?',
+  // No count of the board (stations 3–7, owner 30.9.2026): the client refuses "יש 2 עשרות" while the tens hold 2.
+  guiding_question: 'בתרגיל 425 פחות 162, בטור העשרות אין מספיק עשרות כדי לחסר 6. מאיפה נביא עוד עשרות לבית המספרים?',
   options: [
     { id: 'opt_1', option_text: 'נפרוט מאה אחת מטור המאות ל-10 עשרות', feedback_text: 'נכון מאוד! לחצו על לבנת המאה כדי לפרוט אותה.', is_correct: true },
     // A wrong option's hint is a guiding question (owner, 30.9.2026); the

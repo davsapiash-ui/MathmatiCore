@@ -140,8 +140,12 @@ describe('the AI card in meeting 1 never gives the result as blocks', () => {
     expect(await ask('s1_t8', 1)).toBeNull();
   });
 
-  it('other meetings: the board counts are the coaching, unchanged', async () => {
-    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard(leaking));
+  it('other meetings: the result as blocks is not refused as a result; a count the board holds now is (owner, 30.9.2026)', async () => {
+    // 8 hundreds is not what the board holds (7): accepted outside meeting 1.
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard('בתרגיל 713 + 94 יוצאות בסוף 8 מאות. מה עושים עכשיו?'));
     expect(await ask('s4_r_t9', 4)).not.toBeNull();
+    // "7 יחידות" is the units column as it is now: stations 3–7 hide the column digits, the child counts.
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard(leaking));
+    expect(await ask('s4_r_t9', 4)).toBeNull();
   });
 });

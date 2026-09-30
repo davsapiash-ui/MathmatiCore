@@ -253,6 +253,12 @@ export interface UndoFrame {
 export interface ColumnConversions {
   composed: Partial<Record<Place, boolean>>;
   decomposed: Partial<Record<Place, boolean>>;
+  /**
+   * How many times each column converted — s7_g_t1 groups ten hundreds twice
+   * (REPRESENTATION_LOCKS lists the column twice). Absent until the first
+   * conversion; a saved value without it counts a done column once.
+   */
+  times?: { composed?: Partial<Record<Place, number>>; decomposed?: Partial<Record<Place, number>> };
 }
 
 export function emptyColumnConversions(): ColumnConversions {
@@ -262,7 +268,10 @@ export function emptyColumnConversions(): ColumnConversions {
 /** A saved value back into shape; the database drops empty objects. */
 export function normalizeColumnConversions(raw: unknown): ColumnConversions {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, any>;
-  return { composed: { ...(r.composed ?? {}) }, decomposed: { ...(r.decomposed ?? {}) } };
+  const out: ColumnConversions = { composed: { ...(r.composed ?? {}) }, decomposed: { ...(r.decomposed ?? {}) } };
+  const t = r.times && typeof r.times === 'object' ? r.times : null;
+  if (t) out.times = { composed: { ...(t.composed ?? {}) }, decomposed: { ...(t.decomposed ?? {}) } };
+  return out;
 }
 
 /** Was the conversion this column needs performed with the blocks? */
@@ -270,9 +279,21 @@ export function conversionDoneInColumn(conv: ColumnConversions, place: Place, is
   return Boolean(isSubtraction ? conv.decomposed[place] : conv.composed[place]);
 }
 
+/** How many times the blocks performed this column's conversion. */
+export function conversionTimesInColumn(conv: ColumnConversions, place: Place, isSubtraction: boolean | undefined): number {
+  const kind = isSubtraction ? 'decomposed' : 'composed';
+  const times = conv.times?.[kind]?.[place];
+  return typeof times === 'number' ? times : conv[kind][place] ? 1 : 0;
+}
+
 /** The conversions after one board event (a grouping from `from`, or a decomposition into `to`). */
 function withColumnConversion(conv: ColumnConversions, kind: 'composed' | 'decomposed', place: Place): ColumnConversions {
-  return { ...conv, [kind]: { ...conv[kind], [place]: true } };
+  const times = conversionTimesInColumn(conv, place, kind === 'decomposed') + 1;
+  return {
+    ...conv,
+    [kind]: { ...conv[kind], [place]: true },
+    times: { ...conv.times, [kind]: { ...conv.times?.[kind], [place]: times } },
+  };
 }
 
 interface WorkspaceState {
@@ -680,15 +701,27 @@ export function socraticCardColumnIndex(
   return s.focusedPlace ? placeToColumnIndex(s.focusedPlace) : (s.activeColumnIndex || 0);
 }
 
-/** What the static card chooser needs beyond the board, for the exercise `taskId`. */
+/**
+ * What the static card chooser needs beyond the board, for the exercise
+ * `taskId` — and, given the task, how far its break or grouping has gone.
+ */
 export function staticCardContextFor(
-  s: Pick<WorkspaceState, 'placeCuesShown' | 'socraticCardKinds'>,
-  taskId: string | undefined
+  s: Pick<WorkspaceState, 'placeCuesShown' | 'socraticCardKinds'> & Partial<Pick<WorkspaceState, 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped'>>,
+  taskId: string | undefined,
+  task?: SessionTask | null
 ): StaticCardContext {
   const shown = s.socraticCardKinds;
+  const conversions = task && task.id === taskId
+    ? conversionContextFor({
+        conversionsByColumn: s.conversionsByColumn ?? emptyColumnConversions(),
+        hasGrouped: s.hasGrouped === true,
+        hasUngrouped: s.hasUngrouped === true,
+      }, task)
+    : {};
   return {
     placeCuesShown: s.placeCuesShown === true,
     shownKinds: shown && taskId && shown.taskId === taskId ? shown.kinds : [],
+    ...conversions,
   };
 }
 
@@ -804,7 +837,8 @@ export function answerTextFromDigits(digits: Partial<Record<Place, string>>): st
  * The first conversion a representation exercise asks for that the blocks
  * have not performed yet (REPRESENTATION_LOCKS: the receiving column of a
  * decomposition, the source column of a composition), or null when every one
- * is done — or the exercise lists none.
+ * is done — or the exercise lists none. A column listed twice (s7_g_t1 groups
+ * ten hundreds twice) waits for its second conversion.
  */
 export function pendingRepresentationConversion(
   s: Pick<WorkspaceState, 'conversionsByColumn'>,
@@ -812,7 +846,33 @@ export function pendingRepresentationConversion(
 ): Place | null {
   const lock = task ? REPRESENTATION_LOCKS[task.id] : undefined;
   if (!lock) return null;
-  return lock.columns.find((p) => !conversionDoneInColumn(s.conversionsByColumn, p, lock.conversion === 'decomposition')) ?? null;
+  const decomposition = lock.conversion === 'decomposition';
+  return lock.columns.find((p, i) => {
+    const nth = lock.columns.slice(0, i + 1).filter((q) => q === p).length;
+    return conversionTimesInColumn(s.conversionsByColumn, p, decomposition) < nth;
+  }) ?? null;
+}
+
+/**
+ * A break or grouping exercise (station 3's compose_break, station 7's
+ * compose_group): whether its conversions are done, which one is next, and
+ * whether the next repeats a column already converted ("קבצו שוב"). The
+ * static card waits with C1/C7 until they are done (owner, 30.9.2026).
+ */
+function conversionContextFor(
+  s: Pick<WorkspaceState, 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped'>,
+  task: SessionTask | null | undefined
+): Pick<StaticCardContext, 'conversionDone' | 'pendingConversion' | 'conversionAgain'> {
+  const kind = task?.representationKind;
+  if (!task || (kind !== 'compose_break' && kind !== 'compose_group')) return {};
+  const lock = REPRESENTATION_LOCKS[task.id];
+  if (!lock) return { conversionDone: kind === 'compose_group' ? s.hasGrouped === true : s.hasUngrouped === true };
+  const pending = pendingRepresentationConversion(s, task);
+  return {
+    conversionDone: pending === null,
+    pendingConversion: pending,
+    conversionAgain: pending !== null && conversionTimesInColumn(s.conversionsByColumn, pending, lock.conversion === 'decomposition') > 0,
+  };
 }
 
 const placeAbove = (p: Place): Place | undefined => PLACE_ORDER[PLACE_ORDER.indexOf(p) + 1];
@@ -1843,16 +1903,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    * (Appendix A §3) — what the first-attempt score, the Persistence Index's E
    * and measure 4 read (Module 23 §ב). The number is read with the leading
    * zeros of the answer's places: "40" for 340 has 0 hundreds, a wrong digit,
-   * so a wrong number always records a wrong digit. A press records every
-   * wrong digit of the answer, first — the first digit after a coaching card
-   * tells whether that answer was right (measure 4) — then every right digit
-   * that changed since the previous press. A press with the same answer
-   * records nothing.
+   * so a wrong number always records a wrong digit. A press records the
+   * digits that changed since the previous press — wrong ones first: the
+   * first digit after a coaching card tells whether that answer was right
+   * (measure 4) — and a press with a wrong answer records at least one wrong
+   * digit, even when nothing changed (the lowest wrong place), so every wrong
+   * press counts once and a digit left as it was is not counted again. A press
+   * with the same right answer records nothing. The last press survives a
+   * reload (the snapshot), so a reload does not record unchanged digits again.
    */
   function recordSubmittedAnswer(task: SessionTask) {
     const s = get();
     const text = answerTextFromDigits(s.answerDigits);
-    if (!text || text === s.lastSubmittedAnswer) return;
+    if (!text) return;
     const width = Math.max(text.length, typeof task.correctAnswer === 'number' ? String(task.correctAnswer).length : 0);
     const before = answerDigitsFromText((s.lastSubmittedAnswer ?? '').padStart(s.lastSubmittedAnswer === null ? 0 : width, '0'));
     const now = answerDigitsFromText(text.padStart(width, '0'));
@@ -1861,7 +1924,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const expected = computeExpectedDigitForColumn(task, place);
       return { place, digit, isCorrect: expected === null ? null : digit === expected, changed: now[place] !== before[place] };
     });
-    const entered = [...judged.filter((d) => d.isCorrect === false), ...judged.filter((d) => d.isCorrect !== false && d.changed)];
+    const wrongNow = judged.filter((d) => d.isCorrect === false);
+    const wrongChanged = wrongNow.filter((d) => d.changed);
+    const entered = [
+      ...(wrongChanged.length > 0 ? wrongChanged : wrongNow.slice(0, 1)),
+      ...judged.filter((d) => d.isCorrect !== false && d.changed),
+    ];
+    if (entered.length === 0) return;
     const studentId = currentStudentUid();
     for (const e of entered) {
       emitTelemetry({
@@ -2955,9 +3024,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         answerDigits: saved.answerDigits ?? {},
         carryDigits: saved.carryDigits ?? {},
         probeAnswer: saved.probeAnswer ?? '',
-        // Not in the snapshot: after a reload, the next press of "התקדם"
-        // records the single answer box's digits afresh.
-        lastSubmittedAnswer: null,
+        // In the snapshot: after a reload, the next press of "התקדם" records
+        // only what changed since the last press (recordSubmittedAnswer).
+        lastSubmittedAnswer: typeof saved.lastSubmittedAnswer === 'string' ? saved.lastSubmittedAnswer : null,
         q3Reps: saved.q3Reps ?? [],
         operandDigits: saved.operandDigits ?? { a: {}, b: {} },
         // Now that the snapshot carries them, they are restored as saved —
@@ -3745,7 +3814,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // The place cues and the cards already shown in this exercise choose
       // between the levels of a card (owner, 30.9.2026: C5 before the
       // column's own card; C4 once after the cues).
-      const cardContext = staticCardContextFor(s, currentTask?.id);
+      const cardContext = staticCardContextFor(s, currentTask?.id, currentTask);
       const staticCard: SocraticHintResponse = {
         ...SocraticEngine.getSynchronousTaskHint(currentTask, s.counts, cardContext),
         error_category: null,

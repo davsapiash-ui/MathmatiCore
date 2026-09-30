@@ -204,7 +204,7 @@ export const SESSION1_TASKS: SessionTask[] = [
   {
     id: 's1_undo_trash',
     type: 'session1_intro',
-    titleHe: 'ביטול פעולה וניקוי הלוח',
+    titleHe: 'ביטול פעולה וניקוי בית המספרים',
     instructionHe: 'לחצו על כפתור ביטול פעולה ↺ כדי לחזור צעד אחד אחורה.\nאחר כך לחצו על פח האשפה כדי לנקות את בית המספרים.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,

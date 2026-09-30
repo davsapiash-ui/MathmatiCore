@@ -202,12 +202,14 @@ export function revealsSecret(texts: string[], secrets: number[]): number | null
  * them: "3 אלפים ו-4 מאות", "4 מאות, 10 עשרות ו-6 יחידות", "מאה אחת ו-6 עשרות".
  * Each maximal run is one group. Used on the AI card: a group worth a secret
  * number gives it away as surely as its digits, and on a representation task
- * a group is an option's representation.
+ * a group is an option's representation. The block names of 30.9.2026 are
+ * read too: "3 לבני מאה ו-4 לבני עשרת", "לבנת מאה אחת".
  */
-const PART = /(\d[\d,]*)\s+(יחידות|עשרות|מאות|אלפים)|(יחידה אחת|עשרת אחת|מאה אחת|אלף אחד)/g;
+const PART = /(\d[\d,]*)\s+(?:(יחידות|עשרות|מאות|אלפים)|(?:לבני|לבנים)\s+(יחידה|עשרת|מאה|אלף))|(יחידה אחת|עשרת אחת|מאה אחת|אלף אחד)|לבנת\s+(יחידה|עשרת|מאה|אלף)\s+אחת/g;
 const PART_PLACE: Record<string, Place> = {
   'יחידות': 'units', 'עשרות': 'tens', 'מאות': 'hundreds', 'אלפים': 'thousands',
   'יחידה אחת': 'units', 'עשרת אחת': 'tens', 'מאה אחת': 'hundreds', 'אלף אחד': 'thousands',
+  'יחידה': 'units', 'עשרת': 'tens', 'מאה': 'hundreds', 'אלף': 'thousands',
 };
 const JOIN = /^(\s*,\s*|\s+ו-?|\s*,\s*ו-?|\s+ועוד\s+)$/;
 type Part = { place: Place; n: number };
@@ -217,7 +219,7 @@ function countRunsIn(text: string): Part[][] {
   let lastEnd = -1;
   const plain = stripDigitGroupSeparators(text);
   for (const m of plain.matchAll(PART)) {
-    const part = { place: PART_PLACE[m[2] ?? m[3]], n: m[1] ? Number(m[1].replace(/,/g, '')) : 1 };
+    const part = { place: PART_PLACE[m[2] ?? m[3] ?? m[4] ?? m[5]], n: m[1] ? Number(m[1].replace(/,/g, '')) : 1 };
     const joined = current !== null && JOIN.test(plain.slice(lastEnd, m.index)) && !current.some((q) => q.place === part.place);
     if (!joined || !current) {
       current = [];
@@ -252,17 +254,52 @@ export function revealsSecretInCounts(texts: string[], secrets: number[]): numbe
   return null;
 }
 
+const PLACE_OF_COLUMN: Record<string, Place> = { 'יחידות': 'units', 'עשרות': 'tens', 'מאות': 'hundreds', 'אלפים': 'thousands' };
+/** "12 לבנים בטור העשרות", "בטור העשרות יש 12 לבנים" — not "10 לבנים או יותר", a threshold. */
+const COUNT_IN_COLUMN = [
+  /(\d+)\s+לבנים\s+(?:ב|מ|ל)?טור\s+ה(יחידות|עשרות|מאות|אלפים)/g,
+  /(?:ב|מ|ל)?טור\s+ה(יחידות|עשרות|מאות|אלפים)\s+(?:יש\s+|נמצאות\s+|עכשיו\s+)*(\d+)\s+לבנים(?!\s+(?:או\s+יותר|ומעלה))/g,
+];
+
+/**
+ * Stations 1 and 3–7: the child counts the blocks of each column himself — the
+ * digit beside the column name is hidden (owner, 29–30.9.2026). Does a text
+ * give a column's CURRENT count ("7 יחידות", "12 לבני עשרת", "לבנת מאה אחת",
+ * "12 לבנים בטור העשרות")? Returns the column, or null. Not read: a column
+ * with no blocks, and the names of a regrouping itself — "10 יחידות",
+ * "עשרת אחת", "לבנת מאה אחת" ("מקבצים 10 יחידות לעשרת אחת" is the step, not
+ * a count). Used on the engine's card: the static card replaces it.
+ */
+export function statesBoardCount(texts: string[], counts: Partial<Record<Place, number>>): Place | null {
+  const holds = (p: Place, n: number) => n >= 2 && n !== 10 && (counts[p] ?? 0) === n;
+  for (const t of texts) {
+    const plain = stripDigitGroupSeparators(t);
+    for (const run of countRunsIn(plain)) {
+      for (const part of run) if (holds(part.place, part.n)) return part.place;
+    }
+    for (const m of plain.matchAll(COUNT_IN_COLUMN[0])) {
+      const p = PLACE_OF_COLUMN[m[2]];
+      if (holds(p, Number(m[1]))) return p;
+    }
+    for (const m of plain.matchAll(COUNT_IN_COLUMN[1])) {
+      const p = PLACE_OF_COLUMN[m[1]];
+      if (holds(p, Number(m[2]))) return p;
+    }
+  }
+  return null;
+}
+
 /**
  * On a representation task the instruction names the blocks: an AI card that
  * marks them wrong, or marks other blocks right, contradicts the screen
  * (owner, 28.9.2026, שהB.1: no path may mark the instruction's own
  * representation wrong). Only an option that IS a choice of blocks is read —
- * "משתמשים ב-34 מאות", "בונים את המספר ב-3 אלפים ו-4 מאות", and the same
- * in the first person, which the model may still write ("נשתמש…", "נבנה…") —
- * not a step ("פורטים מאה אחת ל-10 עשרות") or an action on the blocks
- * ("כותבים 3 מאות ו-4 עשרות בלי לבנות אותן").
+ * "משתמשים ב-34 מאות", "בונים את המספר ב-3 אלפים ו-4 מאות", "בונים 3 לבני
+ * מאה ו-4 לבני עשרת", and the same in the first person, which the model may
+ * still write ("נשתמש…", "נבנה…") — not a step ("פורטים מאה אחת ל-10
+ * עשרות") or an action on the blocks ("כותבים 3 מאות ו-4 עשרות בלי לבנות אותן").
  */
-const REPRESENTATION_CHOICE = /^(נשתמש|משתמשים|נבנה|בונים|נייצג|מייצגים)(\s+אותו|\s+את(\s+המספר)?(\s+[\d,]+)?)?\s+ב-?(?=\d|יחידה|עשרת|מאה|אלף)/;
+const REPRESENTATION_CHOICE = /^(נשתמש|משתמשים|נבנה|בונים|נייצג|מייצגים)(\s+אותו|\s+את(\s+המספר)?(\s+[\d,]+)?)?\s+(?:ב-?)?(?=\d|יחידה|עשרת|מאה|אלף|לבנת)/;
 function chosenCounts(text: string): Counts | null {
   const t = text.trim();
   if (!REPRESENTATION_CHOICE.test(t)) return null;
@@ -312,6 +349,18 @@ export interface StaticCardContext {
   placeCuesShown?: boolean;
   /** Cards already shown in this exercise. */
   shownKinds?: readonly StaticCardKind[];
+  /**
+   * A break or grouping exercise (compose_break, compose_group): are all the
+   * conversions its instruction names done with the blocks — both groupings
+   * of s7_g_t1? False: not yet; undefined: unknown (no store), read as done.
+   * From useWorkspaceStore (REPRESENTATION_LOCKS, conversionsByColumn,
+   * hasGrouped/hasUngrouped).
+   */
+  conversionDone?: boolean;
+  /** The column of the next conversion (REPRESENTATION_LOCKS: the receiving column of a break, the source column of a grouping), when known. */
+  pendingConversion?: Place | null;
+  /** The next conversion repeats one already done in the same column ("קבצו שוב", s7_g_t1). */
+  conversionAgain?: boolean;
 }
 
 const shownIn = (ctx: StaticCardContext, kind: StaticCardKind) => (ctx.shownKinds ?? []).includes(kind);
@@ -608,6 +657,9 @@ export function whichNumberIsBuiltCard(): SocraticHintResponse {
   ]);
 }
 
+/** Is this the card of whichNumberIsBuiltCard? */
+const isWhichNumberIsBuilt = (c: SocraticHintResponse) => c.questionHe === whichNumberIsBuiltCard().questionHe;
+
 /**
  * A place-value slip on a representation in the usual way (★ chosen by the
  * agent, 28.9.2026; owner's rule שהB.1): where the instruction names an empty
@@ -828,6 +880,55 @@ function composeGroupCard(task: any): SocraticHintResponse | null {
   ], 'compose_group');
 }
 
+/**
+ * Stations 3 and 7, a representation exercise on an empty board (★ chosen by
+ * the agent, 30.9.2026, in the style of the owner's cards): build first what
+ * the instruction names. No count and no number — the instruction on the
+ * screen says them.
+ */
+function buildFirstCard(): SocraticHintResponse {
+  return card(`${OPEN}בית המספרים עדיין ריק. מה עושים קודם?`, 'procedural', 'tour-place-value-board', [
+    ['בונים בבית המספרים את מה שההנחיה מבקשת', 'נכון מאוד! קראו את ההנחיה. בנו בבית המספרים את מה שהיא מבקשת.'],
+    ['כותבים מספר בשורת התוצאה', 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים?'],
+    ['מנחשים את התשובה', 'רמז: מה אפשר לבנות בבית המספרים במקום לנחש?'],
+  ]);
+}
+
+/**
+ * Stations 3 and 7, a break or grouping exercise whose conversion is not done
+ * yet (★ chosen by the agent, 30.9.2026, in the style of the owner's cards):
+ * the conversion the instruction names, in its words — C1 and C7 ask about
+ * the number after it, so they wait until it is done. No count, no answer.
+ */
+function conversionCard(task: any, kind: 'compose_break' | 'compose_group', ctx: StaticCardContext): SocraticHintResponse | null {
+  const write = (verb: string): [string, string] => [`כותבים את המספר בלי ${verb}`, 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים את המספר?'];
+  const n = numberWritten(task);
+  const after: Counts | undefined = task.requiredCounts;
+  if (kind === 'compose_break') {
+    const before = typeof n === 'number' ? standardCounts(n) : undefined;
+    const derived = after && before ? [...LOW_TO_HIGH].reverse().find((p) => (after[p] ?? 0) < (before[p] ?? 0)) : undefined;
+    const from = ctx.pendingConversion ? next(ctx.pendingConversion) : derived;
+    const into = from ? LOW_TO_HIGH[LOW_TO_HIGH.indexOf(from) - 1] : undefined;
+    if (!from || !into) return null;
+    return card(`${OPEN}ההנחיה מבקשת לפרוט ${BLOCK[from]} אחת לעשר ${BLOCKS[into]}. איך פורטים אותה?`, 'procedural', HL(from), [
+      [`לוחצים על ${BLOCK[from]}`, `נכון מאוד! לחצו על ${BLOCK[from]} כדי לפרוט אותה.`],
+      [`מוסיפים ${BLOCKS[into]} חדשות`, HINT.addBlocks],
+      write('לפרוט'),
+    ]);
+  }
+  const made = after ? [...LOW_TO_HIGH].reverse().find((p) => (after[p] ?? 0) > 0) : undefined;
+  const derived = made ? LOW_TO_HIGH[LOW_TO_HIGH.indexOf(made) - 1] : undefined;
+  const from = ctx.pendingConversion ?? derived;
+  const to = from ? next(from) : null;
+  if (!from || !to) return null;
+  const again = ctx.conversionAgain ? 'שוב ' : '';
+  return card(`${OPEN}ההנחיה מבקשת לקבץ ${again}10 ${BLOCKS[from]} ל${BLOCK[to]} אחת. איך מקבצים אותן?`, 'procedural', HL(from), [
+    ['לוחצים על הכפתור "קבצו 10" שבראש הטור', `נכון מאוד! לחצו על הכפתור "קבצו 10" שבראש ${COLUMN[from]}.`],
+    [`מוסיפים ${BLOCK[to]} חדשה`, 'רמז: אם תוסיפו לבנה חדשה, האם המספר יישאר אותו מספר?'],
+    write('לקבץ'),
+  ]);
+}
+
 function kindCard(task: any, kind: RepresentationKind): SocraticHintResponse | null {
   switch (kind) {
     case 'read_write': return readWriteCard(task);
@@ -872,19 +973,33 @@ function errorAnalysisCard(): SocraticHintResponse {
  */
 export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardContext = {}): SocraticHintResponse | null {
   if (!task) return null;
-  const blocks = blocksOnScreen(meetingOfTaskId(task.id));
+  const meeting = meetingOfTaskId(task.id);
+  const blocks = blocksOnScreen(meeting);
   const kind = representationKindOf(task);
-  // C1 and C7 open with "לפני הפריטה/ההקבצה בניתם מספר": only once the child
-  // has built something (owner, 30.9.2026). On an empty board the task gets
-  // the card of its type below.
   const built = counts ? boardValue(counts) > 0 : false;
-  const needsBuild = kind === 'compose_break' || kind === 'compose_group';
-  if (kind && (built || !needsBuild)) {
+  // Stations 3 and 7, a representation on an empty board: build first what the
+  // instruction names — not "which number is built", nor C1/C7's "before the
+  // break you built a number" (owner, 30.9.2026).
+  const emptyBoard = Boolean(counts) && !built && (meeting === 3 || meeting === 7) && task.type === 'representation';
+  const composing = kind === 'compose_break' || kind === 'compose_group';
+  if (emptyBoard && composing) return buildFirstCard();
+  // C1 and C7 ask about the number after the break / the grouping: only once
+  // every conversion the instruction names is done (s7_g_t1: both groupings).
+  // Before that, the conversion itself.
+  if (composing && built && ctx.conversionDone === false) {
+    const conv = conversionCard(task, kind, ctx);
+    if (conv) return conv;
+  }
+  if (kind && (built || !composing)) {
     const byKind = kindCard(task, kind);
-    if (byKind) return byKind;
+    if (byKind) return emptyBoard && isWhichNumberIsBuilt(byKind) ? buildFirstCard() : byKind;
     // A representation task of a known kind this module cannot read: the
     // card that marks no representation wrong (owner, 28.9.2026, שהB.1).
-    if (task.type === 'representation') return whichNumberIsBuiltCard();
+    if (task.type === 'representation') return emptyBoard ? buildFirstCard() : whichNumberIsBuiltCard();
+  }
+  if (emptyBoard) {
+    const byType = typeof task.numberA === 'number' ? representationCard(task) : null;
+    return !byType || isWhichNumberIsBuilt(byType) ? buildFirstCard() : byType;
   }
   switch (task.type) {
     case 'representation':
@@ -902,7 +1017,8 @@ export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardCon
       const b = task.numberB;
       if (typeof a !== 'number' || typeof b !== 'number') return null;
       if (blocks && ctx.placeCuesShown && !shownIn(ctx, 'place_cues')) return placeCuesCard();
-      if (blocks && isErrorAnalysis(task)) return errorAnalysisCard();
+      // C6 once per exercise: the next card is the exercise's own addition card.
+      if (blocks && isErrorAnalysis(task) && !shownIn(ctx, 'error_analysis')) return errorAnalysisCard();
       const skeleton = Boolean(task.hiddenDigits?.a?.length || task.hiddenDigits?.b?.length || task.revealedResultDigits);
       if (skeleton) return missingDigitsCard(task, blocks);
       return task.isSubtraction ? subtractionCard(a, b, blocks, counts, ctx) : additionCard(a, b, blocks, counts);

@@ -5,7 +5,7 @@ import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
 import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
 import { researchErrorCategory } from "./socraticResearchCategory";
-import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, HINT, tenBlocksHint, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
+import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, HINT, tenBlocksHint, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -1260,7 +1260,14 @@ export class SocraticEngine {
         // Stations 3–8 (owner, 30.9.2026): a wrong option's hint is "רמז:" and a
         // guiding question; an engine card that explains instead is refused
         // and the child gets the static card, whose hints are questions.
-        (sessionNumber >= 3 ? wrongHintViolation({ choices }) : null);
+        (sessionNumber >= 3 ? wrongHintViolation({ choices }) : null) ??
+        // Station 1 (the child finds the counts) and stations 3–7 (the digit
+        // beside each column name is hidden): the child counts the blocks. An
+        // engine card that gives a column's count as it is on the board now is
+        // refused, and the static card is shown (owner, 29–30.9.2026).
+        ((sessionNumber === 1 || (sessionNumber >= 3 && sessionNumber <= 7)) && statesBoardCount(aiTexts, counts) !== null
+          ? 'states a column\'s block count'
+          : null);
       if (violation) {
         console.warn('[Gemini Proxy] Response rejected by content rule:', violation);
         return null;

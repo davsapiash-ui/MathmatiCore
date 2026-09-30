@@ -44,7 +44,8 @@
  *   s3_g_t6           6 thousands, 3 tens → 5 thousands, 10 hundreds, 3 tens: a thousand into hundreds.
  *   s7_r_t1           12 tens, 5 units → 1 hundred, 2 tens, 5 units: ten tens grouped into a hundred.
  *   s7_g_t1           25 hundreds → 2 thousands, 5 hundreds: ten hundreds grouped
- *                     into a thousand, twice (one column).
+ *                     into a thousand, twice (one column, listed twice: the
+ *                     second grouping is the child's own too).
  *   s7_g_reinforce_2  14 hundreds, 3 tens → 1 thousand, 4 hundreds, 3 tens: ten
  *                     hundreds grouped into a thousand (owner, 30.9.2026).
  *   s7_g_t5           3,400 + 1,000 − 600: 4 hundreds cannot give 6, so a
@@ -74,7 +75,8 @@ export const REPRESENTATION_LOCKS: Record<string, RepresentationLock> = {
   s3_g_t4: { conversion: 'decomposition', columns: ['hundreds', 'tens'] },
   s3_g_t6: { conversion: 'decomposition', columns: ['hundreds'] },
   s7_r_t1: { conversion: 'composition', columns: ['tens'] },
-  s7_g_t1: { conversion: 'composition', columns: ['hundreds'] },
+  // Twice in one column: the box and proceed() wait for the second grouping.
+  s7_g_t1: { conversion: 'composition', columns: ['hundreds', 'hundreds'] },
   s7_g_reinforce_2: { conversion: 'composition', columns: ['hundreds'] },
   s7_g_t5: { conversion: 'decomposition', columns: ['hundreds'] },
   s7_g_t6: { conversion: 'composition', columns: ['tens', 'hundreds'] },

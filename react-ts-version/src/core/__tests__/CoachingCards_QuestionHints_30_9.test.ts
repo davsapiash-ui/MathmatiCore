@@ -344,10 +344,13 @@ describe('C3 — reading and writing a number with an empty column (station 3)',
     }
   });
 
-  it('a number with no empty column inside (340, 270, 3,400, 3,600): which number is built', () => {
+  it('a number with no empty column inside (340, 270, 3,400, 3,600): which number is built — once something is built', () => {
     for (const id of ['s3_r_t1', 's3_r_reinforce_1', 's3_g_t1', 's3_g_reinforce_1']) {
-      expect(q(REDESIGN.find((t) => t.id === id)).questionHe, id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
-      expect(q(byId(id)).questionHe, id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+      const built = { ...EMPTY, hundreds: 1 };
+      expect(q(REDESIGN.find((t) => t.id === id), built).questionHe, id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+      expect(q(byId(id), built).questionHe, id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+      // On an empty board: build first (owner, 30.9.2026).
+      expect(q(byId(id)).questionHe, id).toBe('נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?');
     }
   });
 });
@@ -490,7 +493,7 @@ describe('the task kind: the field of the redesign first, then the ids of today'
   });
 
   it('a kind whose blocks cannot be read gets the card that marks nothing wrong', () => {
-    expect(q({ id: 's3_r_t2', type: 'representation', numberA: 340 }).questionHe).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+    expect(q({ id: 's3_r_t2', type: 'representation', numberA: 340 }, { ...EMPTY, hundreds: 3, tens: 4 }).questionHe).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
   });
 });
 

@@ -148,7 +148,7 @@ export function SocraticSidePanel() {
     ? (() => {
         const s = useWorkspaceStore.getState();
         const task = getActiveTasks(s)[s.standardTaskIdx] ?? undefined;
-        return SocraticEngine.getSynchronousTaskHint(task, s.counts, staticCardContextFor(s, task?.id));
+        return SocraticEngine.getSynchronousTaskHint(task, s.counts, staticCardContextFor(s, task?.id, task));
       })()
     : null;
   const shownCard = aiSocraticHint ?? fallbackCard;
@@ -167,7 +167,7 @@ export function SocraticSidePanel() {
         const task = getActiveTasks(s)[s.standardTaskIdx] ?? undefined;
         const source = aiSocraticHint?.choices && aiSocraticHint.choices.length > 0
           ? aiSocraticHint
-          : fallbackCard ?? SocraticEngine.getSynchronousTaskHint(task, s.counts, staticCardContextFor(s, task?.id));
+          : fallbackCard ?? SocraticEngine.getSynchronousTaskHint(task, s.counts, staticCardContextFor(s, task?.id, task));
         return orderSocraticChoices(source.choices, task?.id, source.questionHe, source.correctChoiceId);
       })()
     : [];

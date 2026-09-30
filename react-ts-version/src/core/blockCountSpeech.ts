@@ -12,6 +12,9 @@
  * Only a whole number from 2 to 99 standing alone before the word is said this
  * way. A number with a thousands comma, a number joined to another word ("450
  * מלבני", "ללבנת") and 1 ("לבנת מאה אחת" is written in words) stay as written.
+ * A prefix letter joined by a hyphen is kept and glued to the words: "מ-10
+ * לבני עשרת" is "מעשר לבני עשרת", "ל-12 לבני" "לשתים-עשרה לבני", and after a
+ * "ו" too ("ומ-3" "ומשלוש").
  */
 
 const ONES = ['', 'אחת', 'שתיים', 'שלוש', 'ארבע', 'חמש', 'שש', 'שבע', 'שמונה', 'תשע'];
@@ -31,13 +34,14 @@ export function feminineCountHe(n: number): string | null {
 
 /**
  * A number of one or two digits, alone (after the start, a space or a
- * bracket), optionally with a joined "ו-", before the word לבני / לבנת / לבנים.
+ * bracket), optionally with a joined "ו-" or a prefix letter "מ-", "ל-", "ב-",
+ * "ש-", "כ-" (after an optional "ו"), before the word לבני / לבנת / לבנים.
  */
-const BLOCK_COUNT = /(^|[\s(])(ו-?)?(\d{1,2})(\s+)(?=(?:לבני|לבנת|לבנים)(?:$|[\s.,!?:;)]))/g;
+const BLOCK_COUNT = /(^|[\s(])(ו-?|ו?[מלבשכ]-)?(\d{1,2})(\s+)(?=(?:לבני|לבנת|לבנים)(?:$|[\s.,!?:;)]))/g;
 
 export function speakBlockCounts(text: string): string {
-  return text.replace(BLOCK_COUNT, (whole: string, lead: string, vav: string | undefined, digits: string, space: string) => {
+  return text.replace(BLOCK_COUNT, (whole: string, lead: string, prefix: string | undefined, digits: string, space: string) => {
     const words = feminineCountHe(Number(digits));
-    return words ? `${lead}${vav ? 'ו' : ''}${words}${space}` : whole;
+    return words ? `${lead}${(prefix ?? '').replace('-', '')}${words}${space}` : whole;
   });
 }

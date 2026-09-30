@@ -10,6 +10,7 @@ import {
   SOCRATIC_SYSTEM_INSTRUCTION,
   SOCRATIC_SYSTEM_INSTRUCTION_MEETING_1,
   SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS,
+  SOCRATIC_SYSTEM_INSTRUCTION_STATIONS_3_7,
 } from '../socraticContract';
 
 /**
@@ -49,7 +50,7 @@ const leakingCard = {
 describe('meeting 1: the model is told not to state counts, digits of the answer or the column', () => {
   it('meeting 1 gets its own instruction; meetings 2/8 and the others keep theirs', () => {
     expect(socraticSystemInstructionFor(deriveSocraticFacts(request('session_1_student_3', 's1_t8')))).toBe(SOCRATIC_SYSTEM_INSTRUCTION_MEETING_1);
-    expect(socraticSystemInstructionFor(deriveSocraticFacts(request('session_4_student_3', 's4_r_t1')))).toBe(SOCRATIC_SYSTEM_INSTRUCTION);
+    expect(socraticSystemInstructionFor(deriveSocraticFacts(request('session_4_student_3', 's4_r_t1')))).toBe(SOCRATIC_SYSTEM_INSTRUCTION_STATIONS_3_7);
     expect(socraticSystemInstructionFor(deriveSocraticFacts(request('session_8_student_3', 's8_g_t1')))).toBe(SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS);
     expect(socraticSystemInstructionFor(null)).toBe(SOCRATIC_SYSTEM_INSTRUCTION);
   });

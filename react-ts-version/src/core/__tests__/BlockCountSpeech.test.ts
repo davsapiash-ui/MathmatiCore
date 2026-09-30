@@ -92,11 +92,23 @@ describe('everything else is said as before', () => {
   });
 
   it('a number joined to another word, with a thousands comma, or of three digits stays as written', () => {
-    expect(speakBlockCounts('ב-2 לבני מאה')).toBe('ב-2 לבני מאה');
     expect(speakBlockCounts('3,400 לבני יחידה')).toBe('3,400 לבני יחידה');
     expect(speakBlockCounts('450 לבני יחידה')).toBe('450 לבני יחידה');
     expect(speakBlockCounts('1 לבנת מאה')).toBe('1 לבנת מאה');
     expect(speakBlockCounts('2 לבניםםם')).toBe('2 לבניםםם');
+  });
+
+  it('after a prefix letter joined by a hyphen, the count is feminine too and the letter is glued to it', () => {
+    expect(speakBlockCounts('בנו כל מאה מ-10 לבני עשרת.')).toBe('בנו כל מאה מעשר לבני עשרת.');
+    expect(speakBlockCounts('ב-2 לבני מאה')).toBe('בשתי לבני מאה');
+    expect(speakBlockCounts('ל-12 לבני עשרת')).toBe('לשתים-עשרה לבני עשרת');
+    expect(speakBlockCounts('ש-3 לבנים')).toBe('ששלוש לבנים');
+    expect(speakBlockCounts('כ-25 לבני יחידה')).toBe('כעשרים וחמש לבני יחידה');
+    expect(speakBlockCounts('ומ-3 לבני מאה')).toBe('ומשלוש לבני מאה');
+    // Not a prefix letter, or not a count of blocks: as written.
+    expect(speakBlockCounts('ת-2 לבני מאה')).toBe('ת-2 לבני מאה');
+    expect(speakBlockCounts('מ-450 לבני יחידה')).toBe('מ-450 לבני יחידה');
+    expect(speakBlockCounts('מ-10 עשרות')).toBe('מ-10 עשרות');
   });
 
   it('"לבנים" and "לבנת" too, at the start of a line and before punctuation', () => {

@@ -150,7 +150,7 @@ describe('Verification Suite: Module 12(c) and Module 13(a)', () => {
           ],
           final_intervention: {
             error_category: 'procedural',
-            guiding_question: 'בתרגיל חיסור 425 פחות 162, בעמודת העשרות יש 2 עשרות וצריך להחסיר 6. כיצד נקבל עוד עשרות בבית המספרים?',
+            guiding_question: 'בתרגיל חיסור 425 פחות 162, בעמודת העשרות אין מספיק עשרות כדי להחסיר 6. כיצד נקבל עוד עשרות בבית המספרים?',
             options: [
               { id: '1', text: 'נפרוט מאה אחת מטור המאות ל-10 עשרות', feedback: 'נכון מאוד!', is_correct: true },
               { id: '2', text: 'נחסיר הפוך 6 פחות 2', feedback: 'רמז: האם זה נכון?', is_correct: false },

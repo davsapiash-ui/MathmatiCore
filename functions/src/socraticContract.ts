@@ -601,10 +601,33 @@ export const SOCRATIC_SYSTEM_INSTRUCTION_MEETING_1 = SOCRATIC_SYSTEM_INSTRUCTION
     "- MEETING 1 (station 1): NEVER state how many blocks are in a column or on the board (no \"7 יחידות\", \"12 לבנים\", \"10 עשרות בטור העשרות\"), NEVER write any digit of the answer, and NEVER name the column where the difficulty is. The learner finds the counts and the column. Ask instead (\"באיזה טור אין מספיק לבנים כדי להחסיר?\", \"באחד הטורים יש 10 לבנים או יותר. מה עושים?\").\n- Never act as a chatbot,"
   );
 
+/**
+ * Stations 3–7 (meetings 3–7): the digit beside each column name is hidden
+ * and the child counts the blocks (client core/columnDigits.ts, owner
+ * 29–30.9.2026). As in meeting 1, the model reads the counts to diagnose and
+ * never writes one in the card; unlike meeting 1, the card still names the
+ * active column (the static cards of these stations do). The client refuses a
+ * card that gives a column's current count (staticSocraticCards.statesBoardCount).
+ */
+export const SOCRATIC_SYSTEM_INSTRUCTION_STATIONS_3_7 = SOCRATIC_SYSTEM_INSTRUCTION
+  .replace(
+    "2. THE LIVE BOARD — the exact block count in each column and whether a regrouping/decomposition was already performed in blocks.",
+    "2. THE LIVE BOARD — read the block count in each column and whether a regrouping/decomposition was already performed in blocks, to diagnose only: never write a count in the card."
+  )
+  .replace(
+    "Name the exercise, the active column sub-problem and the board state in the question itself.",
+    "Name the exercise and the active column sub-problem in the question itself, but never how many blocks the board or a column holds."
+  )
+  .replace(
+    "- Never act as a chatbot,",
+    "- STATIONS 3–7: the screen shows no digit beside a column name, and the learner counts the blocks. NEVER state how many blocks are in a column or on the board (no \"7 יחידות\", \"12 לבני עשרת\", \"12 לבנים בטור העשרות\"). Ask instead (\"כמה לבנים יש בטור העשרות?\", \"באחד הטורים יש 10 לבנים או יותר. מה עושים?\").\n- Never act as a chatbot,"
+  );
+
 /** The system instruction for this request's meeting. */
 export function socraticSystemInstructionFor(facts: Pick<SocraticFacts, "meeting" | "blocks_on_screen"> | null): string {
   if (facts && facts.blocks_on_screen === false) return SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS;
   if (facts && facts.meeting === 1) return SOCRATIC_SYSTEM_INSTRUCTION_MEETING_1;
+  if (facts && facts.meeting !== null && facts.meeting >= 3 && facts.meeting <= 7) return SOCRATIC_SYSTEM_INSTRUCTION_STATIONS_3_7;
   return SOCRATIC_SYSTEM_INSTRUCTION;
 }
 
@@ -702,7 +725,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   lines.push("Return ONLY this JSON object:");
   lines.push(`{
   "error_category": "calculation" | "procedural" | "conceptual",
-  "guiding_question": "<שאלה מנחה אחת בעברית, המזכירה את התרגיל, את הטור הפעיל ${facts.blocks_on_screen ? "ואת מצב הלבנים" : "ואת עיגולי הזיכרון"}>",
+  "guiding_question": "<שאלה מנחה אחת בעברית, המזכירה את התרגיל, את הטור הפעיל ${facts.blocks_on_screen ? (facts.meeting !== null && (facts.meeting === 1 || (facts.meeting >= 3 && facts.meeting <= 7)) ? "ואת מצב הלבנים, בלי לכתוב כמה לבנים יש בטור" : "ואת מצב הלבנים") : "ואת עיגולי הזיכרון"}>",
   "options": [
     { "id": "opt_1", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false },
     { "id": "opt_2", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false },

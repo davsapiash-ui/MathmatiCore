@@ -95,7 +95,11 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
     const q = (id: string) => SocraticEngine.getSynchronousTaskHint(byId(id), EMPTY).questionHe;
     // The board the task ends with: something is built.
     const built = (id: string) => SocraticEngine.getSynchronousTaskHint(byId(id), { ...EMPTY, ...byId(id).requiredCounts }).questionHe;
-    for (const id of ['s3_r_t1', 's3_g_t1', 's3_r_reinforce_1', 's3_g_reinforce_1']) expect(q(id), id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+    for (const id of ['s3_r_t1', 's3_g_t1', 's3_r_reinforce_1', 's3_g_reinforce_1']) {
+      expect(built(id), id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+      // An empty board: build first what the instruction names (owner, 30.9.2026).
+      expect(q(id), id).toBe('נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?');
+    }
     for (const id of ['s3_r_t5', 's3_g_t5']) expect(q(id), id).toBe('נסו לחשוב: יש טור שאין בו לבנים. מה כותבים במספר בשביל הטור הזה?');
     for (const id of ['s3_r_t2', 's3_r_t4', 's3_r_t6', 's3_g_t2', 's3_g_t4', 's3_g_t6']) {
       expect(built(id), id).toBe('נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?');
