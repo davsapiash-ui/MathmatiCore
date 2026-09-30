@@ -127,7 +127,7 @@ export function describeRadarCell(
   if (glyph) parts.push(glyph.title);
   if (student.enhancedSupport) parts.push('תמיכה מוגברת פעילה');
 
-  parts.push('להצגת הלוח והפרטים');
+  parts.push('להצגת מסך התלמיד והפרטים');
   return parts.join('. ');
 }
 
@@ -560,7 +560,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             </div>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת לצפייה בלוח, בהקלטות וב{TEACHER_GATE_HE}.
+            מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת לצפייה במסך התלמיד, בהקלטות וב{TEACHER_GATE_HE}.
           </p>
         </div>
 
