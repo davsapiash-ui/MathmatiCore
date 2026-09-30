@@ -1813,7 +1813,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           handleFailure(
             'empty_board',
             'בונים בבית המספרים 🧱',
-            'עוד אין לבנים בבית המספרים. לחצו על לבנה בארגז הכלים או גררו אותה לבית המספרים, ובנו את המספרים שבתרגיל.',
+            'עוד אין לבנים בבית המספרים. לחצו על אחת הלבנים שמתחת לבית המספרים, או גררו אותה אליו, ובנו את המספרים שבתרגיל.',
             3500
           );
           return;
@@ -1867,7 +1867,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           handleFailure(
             'overcrowded_columns',
             'קַבְּצוּ 🧱',
-            `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "${groupButton}" שבראש הטור.`,
+            // Meeting 1 names neither the column nor the button (owner, 29.9.2026):
+            // the child finds the crowded column — the words of the meeting-1 card.
+            s.sessionNumber === 1
+              ? 'באחד הטורים יש 10 לבנים או יותר. לחצו על הכפתור שמופיע בראש אותו טור.'
+              : `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "${groupButton}" שבראש הטור.`,
             4000
           );
           return;
@@ -2008,11 +2012,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
       // The result row takes the exercise's answer: the number built, or — the
       // value of a digit (meeting 1, 368 → 60) — its own correctAnswer.
+      // The value of a digit (368 → 60) is not the number the blocks show, so
+      // its messages speak of the value of the digit, not of the blocks.
+      const asksDigitValue = typeof task.correctAnswer === 'number' && task.correctAnswer !== task.numberA;
       if (typed !== (typeof task.correctAnswer === 'number' ? task.correctAnswer : task.numberA ?? 0)) {
-        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!', 2800);
+        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', asksDigitValue ? 'זה עוד לא הערך של הספרה. הסתכלו בבית המספרים ובדקו שוב!' : 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!', 2800);
         return;
       }
-      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
+      handleSuccess('כָּל הַכָּבוֹד! 🌟', asksDigitValue ? 'מצאתם את הערך של הספרה במספר.' : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
       return;
     }
 

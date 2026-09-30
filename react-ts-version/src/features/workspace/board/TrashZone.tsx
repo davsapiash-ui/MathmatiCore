@@ -59,12 +59,11 @@ export function TrashZone() {
             : 'hover:bg-red-50/70 bg-slate-50/60 border border-slate-200/80 hover:border-red-200'
         }`}
       >
-        {/* Subtle drop target floor ring */}
-        <div
-          className={`absolute top-[44px] w-12 h-2.5 rounded-full transition-all duration-150 -z-0 ${
-            isOver ? 'bg-red-300/80 blur-[1px]' : 'bg-slate-200/50 group-hover:bg-red-200/50'
-          }`}
-        />
+        {/* Drop target floor ring — only while a block is over the trash, so it
+            never lies across the can or its label at rest. */}
+        {isOver && (
+          <div className="absolute top-[44px] w-12 h-2.5 rounded-full -z-0 bg-red-300/80 blur-[1px]" />
+        )}
 
         <div className="h-10 w-10 flex items-center justify-center relative z-10">
           <svg
