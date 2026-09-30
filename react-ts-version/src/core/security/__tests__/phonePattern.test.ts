@@ -58,7 +58,8 @@ describe('every phone layout of the requirement is caught on the client', () => 
       expect(containsPhoneNumber(phone)).toBe(true);
       expect(redactPhoneNumbers(phone)).toBe('[PHONE_REDACTED]');
 
-      // The chat's send check (StudentChatOverlay → validateChatInputForPII).
+      // The teacher-side chat send check (TeacherDashboard, FloatingChatPanel →
+      // validateChatInputForPII). The learner's chat has no free text (1.10.2026).
       const check = validateChatInputForPII(sentence);
       expect(check.valid).toBe(false);
       expect(check.errorHe).toContain('מספר טלפון');
@@ -89,7 +90,7 @@ describe('arithmetic, decimals and dates are left alone', () => {
     });
   }
 
-  it('a child\'s question about an exercise is sent as written', () => {
+  it('a question about an exercise is sent as written (teacher and admin chat; the learner has ready messages only since 1.10.2026)', () => {
     const msg = 'המורה, בתרגיל 7,651 − 3,381 יצא לי 4,270 ובתרגיל 1,245 ועוד 328 יצא 1,573';
     expect(validateChatInputForPII(msg).valid).toBe(true);
     expect(sanitizeChatText(msg)).toBe(msg);
