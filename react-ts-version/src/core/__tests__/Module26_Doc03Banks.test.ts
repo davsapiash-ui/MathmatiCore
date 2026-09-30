@@ -95,11 +95,13 @@ describe('מסמך 03: compulsory numbers, session by session', () => {
   }
 
   it('session 7 — the numbers the document does give (12 עשרות ו-5 יחידות = 125; 150; 25 מאות = 2,500)', () => {
+    // Exercise 1 of both paths groups the given blocks and writes the number
+    // they make (owner, 30.9.2026): "הקבצה אקטיבית", as מסמך 03 §3.7 says.
     const r = SESSIONS_BY_PATH[7].remediation_path;
-    expect([r[0].type, r[0].numberA]).toEqual(['flexible_decomp', 125]);
+    expect([r[0].type, r[0].representationKind, r[0].numberA, r[0].requiredCounts]).toEqual(['representation', 'compose_group', 125, { hundreds: 1, tens: 2, units: 5 }]);
     expect([r[6].type, r[6].numberA, r[6].requireEvenTens]).toEqual(['flexible_decomp', 150, true]);
     const g = SESSIONS_BY_PATH[7].green_path;
-    expect([g[0].type, g[0].numberA]).toEqual(['flexible_decomp', 2500]);
+    expect([g[0].type, g[0].representationKind, g[0].numberA, g[0].requiredCounts]).toEqual(['representation', 'compose_group', 2500, { thousands: 2, hundreds: 5 }]);
   });
 });
 
@@ -121,11 +123,17 @@ describe('מסמך 03: early-finisher (branch) numbers', () => {
     );
   }
 
-  it('session 7 green reinforcement includes the 25-hundreds proof; skeletons elsewhere', () => {
+  it('session 7 green reinforcement includes a grouping composition; skeletons elsewhere', () => {
+    // מסמך 03 §3.7 has the 25-hundreds proof here, the same exercise as
+    // s7_g_t1; the owner replaced it on 30.9.2026 with 14 hundreds and 3 tens,
+    // grouped into 1,430 (★ owner's numbers).
     const b = SESSION_BRANCH_TASKS[7];
-    expect(b.green_path.reinforcement.some((t) => t.type === 'flexible_decomp' && t.numberA === 2500)).toBe(true);
+    const grouping = b.green_path.reinforcement.find((t) => t.id === 's7_g_reinforce_2')!;
+    expect([grouping.type, grouping.representationKind, grouping.numberA, grouping.requiredCounts]).toEqual([
+      'representation', 'compose_group', 1430, { thousands: 1, hundreds: 4, tens: 3 },
+    ]);
     for (const t of branchFlat(7)) {
-      if (t.type !== 'flexible_decomp') expect(t.hiddenDigits).toBeDefined();
+      if (t.id !== 's7_g_reinforce_2') expect(t.hiddenDigits, t.id).toBeDefined();
     }
   });
 });
@@ -256,12 +264,20 @@ describe('every exercise is arithmetically sound', () => {
     }
   });
 
-  it('representation exercises: the prescribed blocks are worth exactly the number to be written', () => {
+  it('representation exercises: the prescribed blocks are worth exactly the number built, and the answer is what the exercise asks', () => {
     for (const t of everyTask.filter((x) => x.type === 'representation')) {
       const counts = { ...EMPTY_COUNTS, ...t.requiredCounts };
       expect(getValue(counts), t.id).toBe(t.numberA);
-      expect(t.correctAnswer, t.id).toBe(t.numberA);
       expect(Object.values(t.requiredCounts!).some((n) => n > 0), t.id).toBe(true);
+      if (t.representationKind === 'decompose') {
+        // "בכמה לבני עשרת השתמשתם?" — the number of blocks of the one kind (450 → 45).
+        const used = PLACE_ORDER.filter((p) => counts[p] > 0);
+        expect(used, t.id).toHaveLength(1);
+        expect(t.correctAnswer, t.id).toBe(counts[used[0]]);
+        expect(counts[used[0]] * PLACE_VALUES[used[0]], t.id).toBe(t.numberA);
+      } else {
+        expect(t.correctAnswer, t.id).toBe(t.numberA);
+      }
     }
   });
 

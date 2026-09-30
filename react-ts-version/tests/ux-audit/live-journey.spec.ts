@@ -118,19 +118,13 @@ test('live scenario: teacher and learner together', async ({ browser }) => {
   // Exercise 1 of meeting 3 is a representation: build it, type it, continue.
   await step('solve-exercise-1', 'פתרון תרגיל 1 ולחיצה על "ממשיכים"', async () => {
     const info = { idx: await ws<number>(c.page, 'return st.standardTaskIdx;') };
-    // The representation's target is on screen ("3,400"); the board it asks for
-    // is the standard one (thousands, hundreds, tens, units of that number).
-    const target = Number((await c.page.locator('.tabular-nums').first().innerText()).replace(/[^0-9]/g, ''));
-    const th = Math.floor(target / 1000);
-    const h = Math.floor((target % 1000) / 100);
-    const tn = Math.floor((target % 100) / 10);
-    const u = target % 10;
-    await ws(c.page, 'api.setState({ counts: arg, hasInteracted: true });', { thousands: th, hundreds: h, tens: tn, units: u });
-    const places: Array<[string, number]> = [['אלפים', th], ['מאות', h], ['עשרות', tn], ['יחידות', u]];
-    for (const [name, d] of places) {
-      const box = c.page.getByLabel(new RegExp(`ספרת ה${name}`)).first();
-      if (await box.count()) await box.fill(String(d));
-    }
+    // The green path's exercise 1 (s3_g_t1, owner 30.9.2026): the number is
+    // said in words, and nothing on the screen shows it in digits — build its
+    // standard blocks and write it in the one answer box.
+    await expect(c.page.getByText('בנו בבית המספרים את המספר שלושת אלפים וארבע מאות.')).toBeVisible({ timeout: 15_000 });
+    const target = 3400;
+    await ws(c.page, 'api.setState({ counts: arg, hasInteracted: true });', { thousands: 3, hundreds: 4, tens: 0, units: 0 });
+    await c.page.getByTestId('representation-answer').fill(String(target));
     await c.page.getByTestId('proceed-button').click();
     await expect.poll(async () => (await ws<number>(c.page, 'return st.standardTaskIdx;')), { timeout: 15_000 }).toBe(info.idx + 1);
     return `המספר ${target} נבנה ונכתב; עברנו לתרגיל ${info.idx + 2}`;

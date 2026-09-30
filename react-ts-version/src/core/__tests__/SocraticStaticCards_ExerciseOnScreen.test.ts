@@ -138,13 +138,15 @@ describe('one name per thing, as the screen names it (owner, 27.9.2026, register
 describe('the two cards the audit saw', () => {
   const byId = (id: string) => rows.find((r) => r.task.id === id)!.task;
 
-  it('3.14 — "represent 4,500 with hundreds only" is about hundreds in a thousand, never 3,400', () => {
-    // Owner, 30.9.2026 (C2): the card of "build it from one kind of block"
-    // asks how many of them a block of the next column is worth.
+  it('3.14 — "build 4,500 from hundreds only": no card about 3,400, and none that gives away the 45 hundreds', () => {
+    // Since the owner's redesign of 30.9.2026 the exercise asks HOW MANY
+    // hundreds make 4,500 — the 45 the card used to name is the answer now.
+    // Its card (C2) asks how many hundred blocks one thousand block is worth.
     const card = SocraticEngine.getSynchronousTaskHint(byId('s3_g_t3'), EMPTY);
+    expect(byId('s3_g_t3').correctAnswer).toBe(45);
     expect(card.questionHe).toBe('נסו לחשוב: כמה לבני מאה שוות ללבנת אלף אחת?');
     expect(card.choices.map((c) => c.textHe)).toEqual(['10 לבני מאה', 'לבנת מאה אחת', '100 לבני מאה']);
-    expect(JSON.stringify(card)).not.toMatch(/3,?400|34/);
+    expect(JSON.stringify(card)).not.toMatch(/3,?400|34|45/);
   });
 
   it('8.5 — 1,245 + 328 in meeting 8: the units convert, and there are no blocks', () => {
@@ -263,7 +265,10 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
   });
 
   it('an AI card that marks the instruction\'s own representation wrong is thrown away (שהB.1)', async () => {
-    const t = rows.find((r) => r.task.id === 's3_g_t1')!.task; // 3,400 in the usual way: 3 אלפים ו-4 מאות
+    // An exercise whose instruction names both 3,400 and its blocks, as
+    // station 3's did until the owner's redesign of 30.9.2026.
+    const s3g1 = rows.find((r) => r.task.id === 's3_g_t1')!.task;
+    const t = { ...s3g1, representationKind: undefined, instructionHe: 'בנו את המספר 3,400 מ-3 אלפים ו-4 מאות. כתבו אותו בשורת התוצאה.' };
     const card = (right: string, wrong: string) => ({
       data: {
         error_category: 'conceptual',
@@ -279,6 +284,10 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
     expect(await ask(t, 3)).toBeNull();
     vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(card('נשתמש ב-3 אלפים ו-4 מאות', 'נשתמש ב-34 מאות'));
     expect(await ask(t, 3)).not.toBeNull();
+    // Station 3 itself: "בנו את המספר שלושת אלפים וארבע מאות. כתבו אותו
+    // בספרות" — the blocks ARE the answer there, and a card naming them is
+    // thrown away too.
+    expect(await ask(s3g1, 3)).toBeNull();
   });
 
   it('the client check itself: socraticTextViolation and revealsSecret read through separators', () => {

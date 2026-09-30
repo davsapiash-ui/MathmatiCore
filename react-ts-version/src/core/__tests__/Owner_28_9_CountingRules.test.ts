@@ -466,9 +466,21 @@ describe('Rule 4 — the report label is the documents\' wording', () => {
 describe('Rule 6 — only the conversion columns lock, for enhanced support only', () => {
   const ENH = 'enhanced_cognitive_support';
   const locked = (p: Place) => ws().isRepresentationColumnLocked(p);
+  const boxLocked = () => ws().isRepresentationAnswerLocked();
+  const PL: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
+  /**
+   * The board a representation exercise starts from, where it is not the
+   * standard form or the task's initialCounts: the blocks station 7's
+   * groupings name before the grouping, or the quantity s7_g_t6 gives.
+   */
+  const START: Record<string, Partial<PlaceCounts>> = {
+    s7_r_t1: { tens: 12, units: 5 },
+    s7_g_t1: { hundreds: 25 },
+    s7_g_reinforce_2: { hundreds: 14, tens: 3 },
+    s7_g_t6: { thousands: 1, hundreds: 16, tens: 13 },
+  };
 
   it('every declared lock names a representation exercise, and matches its numbers', () => {
-    const PL: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
     for (const [id, lock] of Object.entries(REPRESENTATION_LOCKS)) {
       const t = byId(id);
       expect(t.type).toBe('representation');
@@ -476,39 +488,73 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
       const init = { ...EMPTY_COUNTS, ...((t as any).initialCounts ?? {}) };
       const val = PL.reduce((s, p) => s + req[p] * UNIT[p], 0);
       expect(val).toBe(t.numberA);
-      const start = id === 's7_g_t6' ? { ...EMPTY_COUNTS, thousands: 1, hundreds: 16, tens: 13 } : init; // the given quantity
+      const start = { ...EMPTY_COUNTS, ...(START[id] ?? init) };
       for (const p of lock.columns) {
         if (lock.conversion === 'decomposition') {
           // The receiving column ends with ten or more blocks — except s7_g_t5,
           // where the decomposition happens mid-way (4 hundreds cannot give 6).
           if (id === 's7_g_t5') expect([p, 3400 + 1000 - 600]).toEqual(['hundreds', 3800]);
-          else expect(req[p]).toBeGreaterThanOrEqual(10);
+          else expect(req[p], `${id} ${p}`).toBeGreaterThanOrEqual(10);
         } else {
           // The source column starts with ten or more and ends below ten.
-          expect(start[p]).toBeGreaterThanOrEqual(10);
-          expect(req[p]).toBeLessThan(10);
+          expect(start[p], `${id} ${p}`).toBeGreaterThanOrEqual(10);
+          expect(req[p], `${id} ${p}`).toBeLessThan(10);
         }
       }
     }
-    for (const none of ['s3_r_t1', 's3_r_t5', 's3_g_t1', 's3_g_t5', 's3_r_reinforce_1', 's3_g_reinforce_1', 's7_r_t6']) {
-      expect(REPRESENTATION_LOCKS[none]).toBeUndefined();
+    // Station 3's read_write and decompose exercises ask for no conversion
+    // (owner, 30.9.2026): 45 tens are built from tens however the child likes.
+    for (const none of [
+      's3_r_t1', 's3_r_t3', 's3_r_t5', 's3_g_t1', 's3_g_t3', 's3_g_t5',
+      's3_r_reinforce_1', 's3_r_reinforce_2', 's3_g_reinforce_1', 's3_g_reinforce_2', 's7_r_t6',
+    ]) {
+      expect(REPRESENTATION_LOCKS[none], none).toBeUndefined();
     }
   });
 
-  it('meeting 3, 5,230 → 4 thousands, 11 hundreds, 13 tens: hundreds and tens lock; units and thousands are open', () => {
+  it('station 3, 5,230 (one answer box): locked until BOTH breaks, a thousand then a hundred, and again on undo', () => {
     load(3, byId('s3_g_t4'), ENH);
     board({ thousands: 5, hundreds: 2, tens: 3 });
-    expect([locked('hundreds'), locked('tens'), locked('units'), locked('thousands')]).toEqual([true, true, false, false]);
+    expect(boxLocked()).toBe(true);
+    // The box has no columns: the column lock stays out of it.
+    expect(PL.some(locked)).toBe(false);
+    ws().splitBlockClick('thousands'); // a thousand into ten hundreds
+    expect(boxLocked()).toBe(true);
+    ws().splitBlockClick('hundreds'); // a hundred into ten tens
+    expect(ws().counts).toEqual({ ...EMPTY_COUNTS, thousands: 4, hundreds: 11, tens: 13 });
+    expect(boxLocked()).toBe(false);
+    ws().undo();
+    expect(boxLocked()).toBe(true);
   });
 
-  it('a column opens when the blocks decompose into it, and locks again on undo', () => {
-    load(3, byId('s3_g_t4'), ENH);
-    board({ thousands: 5, hundreds: 2, tens: 3 });
-    ws().splitBlockClick('thousands'); // a thousand into ten hundreds
-    expect(locked('hundreds')).toBe(false);
-    expect(locked('tens')).toBe(true);
-    ws().undo();
+  it('station 7, s7_r_t1 (one answer box): the grouping of ten tens opens it', () => {
+    load(7, byId('s7_r_t1'), ENH);
+    board({ tens: 12, units: 5 });
+    expect(boxLocked()).toBe(true);
+    ws().groupColumnClick('tens');
+    expect(boxLocked()).toBe(false);
+  });
+
+  it('station 7, s7_g_reinforce_2 (one answer box, like s7_g_t1): the grouping of ten hundreds opens it', () => {
+    load(7, byId('s7_g_reinforce_2'), ENH);
+    board({ hundreds: 14, tens: 3 });
+    expect(boxLocked()).toBe(true);
+    ws().recordBlockedAnswerKeystroke();
+    const blocked = sent.events.filter((e) => e.event_type === 'KEYBOARD_LOCK_BLOCKED');
+    expect(blocked.map((e) => [e.column_index, e.details.conversion_required])).toEqual([[2, 'composition']]);
+    ws().groupColumnClick('hundreds');
+    expect(boxLocked()).toBe(false);
+  });
+
+  it('a column of the result row opens when the blocks convert it, and locks again on undo (s7_g_t6)', () => {
+    load(7, byId('s7_g_t6'), ENH);
+    board({ thousands: 1, hundreds: 16, tens: 13 });
+    expect([locked('tens'), locked('hundreds'), locked('units'), locked('thousands')]).toEqual([true, true, false, false]);
+    ws().groupColumnClick('tens'); // ten tens into a hundred
+    expect(locked('tens')).toBe(false);
     expect(locked('hundreds')).toBe(true);
+    ws().undo();
+    expect(locked('tens')).toBe(true);
   });
 
   it('a composition opens its source column (s1_r_group26: units grouped into tens)', () => {
@@ -520,21 +566,22 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
     expect(locked('units')).toBe(false);
   });
 
-  it('a grouping does not open a decomposition column (s3_g_t4: 12 hundreds grouped)', () => {
+  it('a grouping does not open a box that waits for a break (s3_g_t4: 12 hundreds grouped)', () => {
     load(3, byId('s3_g_t4'), ENH);
     board({ thousands: 5, hundreds: 12, tens: 3 });
     ws().groupColumnClick('hundreds');
     expect(ws().conversionsByColumn.composed.hundreds).toBe(true);
-    expect(locked('hundreds')).toBe(true);
+    expect(boxLocked()).toBe(true);
   });
 
   it('every representation exercise that needs a conversion has a lock (none can silently lose it)', () => {
-    const PL: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
     const standard = (n: number) => Object.fromEntries(PL.map((p) => [p, Math.floor(n / UNIT[p]) % 10]));
     const same = (a: any, b: any) => PL.every((p) => (a[p] ?? 0) === (b[p] ?? 0));
     const reps = [...new Map(allTasks().filter((t) => t.type === 'representation').map((t) => [t.id, t])).values()];
     const needs = reps
       .filter((t) => {
+        // Station 3 and station 7's groupings say it themselves (owner, 30.9.2026).
+        if (t.representationKind) return t.representationKind === 'compose_break' || t.representationKind === 'compose_group';
         const init = (t as any).initialCounts;
         return !same(t.requiredCounts, standard(t.numberA!)) || (init && !same(init, standard(t.numberA!)));
       })
@@ -543,26 +590,37 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
     expect([...needs, 's7_g_t5', 's7_g_t6'].sort()).toEqual(Object.keys(REPRESENTATION_LOCKS).sort());
   });
 
-  it('safety valve: a board equal to requiredCounts opens every column', () => {
-    load(3, byId('s3_r_t3'), ENH); // 45 tens, dragged directly
-    board({ tens: 45 });
-    expect(locked('tens')).toBe(false);
+  it('safety valve: a board equal to requiredCounts opens the box and every column', () => {
+    load(3, byId('s3_r_t2'), ENH); // 2 hundreds and 14 tens, built without a break
+    board({ hundreds: 2, tens: 14 });
+    expect(boxLocked()).toBe(false);
+    load(1, byId('s1_target_347'), ENH);
+    board({ hundreds: 3, tens: 3, units: 17 });
+    expect(locked('units')).toBe(false);
   });
 
-  it('an exercise with no conversion has no locked column (s3_g_t1)', () => {
-    load(3, byId('s3_g_t1'), ENH);
-    expect((['units', 'tens', 'hundreds', 'thousands'] as Place[]).some(locked)).toBe(false);
+  it('an exercise with no conversion locks nothing: read_write and decompose, whatever the board', () => {
+    for (const id of ['s3_g_t1', 's3_r_t3', 's3_g_t3', 's3_r_reinforce_2', 's3_g_reinforce_2']) {
+      load(3, byId(id), ENH);
+      expect(boxLocked(), id).toBe(false);
+      board({ hundreds: 4, tens: 5 });
+      expect(boxLocked(), id).toBe(false);
+      expect(PL.some(locked), id).toBe(false);
+    }
   });
 
   it('never for other learners, never in meetings 2 or 8', () => {
     load(3, byId('s3_g_t4'));
-    expect(locked('hundreds')).toBe(false);
+    expect(boxLocked()).toBe(false);
     load(3, byId('s3_g_t4'), ENH);
+    expect(boxLocked()).toBe(true);
     useWorkspaceStore.setState({ sessionNumber: 8 } as any);
-    expect(locked('hundreds')).toBe(false);
+    expect(boxLocked()).toBe(false);
     load(3, byId('s3_g_t4'), ENH);
     useWorkspaceStore.setState({ sessionNumber: 2 } as any);
-    expect(locked('hundreds')).toBe(false);
+    expect(boxLocked()).toBe(false);
+    load(7, byId('s7_g_t6'));
+    expect(locked('tens')).toBe(false);
   });
 
   it("KEYBOARD_LOCK_BLOCKED carries the column and the exercise's own conversion", () => {
@@ -572,10 +630,16 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
     expect(ev.column_index).toBe(1);
     expect(ev.details.conversion_required).toBe('composition');
     sent.events.length = 0;
-    load(3, byId('s3_g_t2'), ENH);
-    ws().recordBlockedKeystroke('hundreds');
-    const ev2 = sent.events.find((e) => e.event_type === 'KEYBOARD_LOCK_BLOCKED');
-    expect(ev2.column_index).toBe(2);
-    expect(ev2.details.conversion_required).toBe('decomposition');
+    // The one answer box: the column of the conversion it still waits for.
+    load(3, byId('s3_g_t4'), ENH);
+    board({ thousands: 5, hundreds: 2, tens: 3 });
+    ws().recordBlockedAnswerKeystroke();
+    ws().splitBlockClick('thousands');
+    ws().recordBlockedAnswerKeystroke();
+    const blocked = sent.events.filter((e) => e.event_type === 'KEYBOARD_LOCK_BLOCKED');
+    expect(blocked.map((e) => [e.column_index, e.details.conversion_required])).toEqual([
+      [2, 'decomposition'], // the hundreds wait for a thousand
+      [1, 'decomposition'], // then the tens wait for a hundred
+    ]);
   });
 });

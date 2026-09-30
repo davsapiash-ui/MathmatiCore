@@ -82,6 +82,7 @@ import { getSessionTasks, getHardcodedCatalogBanks, SESSION1_TASKS, type Session
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
 import { EMPTY_COUNTS, MAX_VISIBLE_BLOCKS, type Place, type PlaceCounts } from '@/core/placeValue';
+import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 // PRD 18: the sync's writes go out through the learner record's throttled
@@ -149,14 +150,33 @@ function solve(t: SessionTask) {
   switch (t.type) {
     case 'representation': {
       const req: PlaceCounts = { ...EMPTY_COUNTS, ...(t.requiredCounts ?? {}) };
-      for (const p of PLACES) drop(p, req[p]);
+      const lock = REPRESENTATION_LOCKS[t.id];
+      if (t.representationKind === 'compose_break' && lock) {
+        // Station 3 (owner, 30.9.2026): build the number's own blocks, then
+        // break, as the instruction says — the break is the child's own.
+        build(t.numberA!);
+        for (const receiving of lock.columns) ws().splitBlockClick(PLACES[PLACES.indexOf(receiving) + 1]);
+      } else if (t.representationKind === 'compose_group' && lock) {
+        // Station 7: the source column holds the next column's blocks too (12
+        // tens and 5 units; 25 hundreds), then "קבצו 10" until the board is right.
+        const source = lock.columns[0];
+        const above = PLACES[PLACES.indexOf(source) + 1];
+        const start: PlaceCounts = { ...req, [source]: req[source] + 10 * req[above], [above]: 0 };
+        for (const p of PLACES) drop(p, start[p]);
+        while (ws().counts[source] >= 10 && ws().counts[above] < req[above]) ws().groupColumnClick(source);
+      } else {
+        for (const p of PLACES) drop(p, req[p]);
+      }
       if (!PLACES.every((p) => ws().counts[p] === req[p])) {
         // The drops stopped at the column cap. Record it, and place the board
         // directly so the rest of the meeting can still be checked.
         unbuildable.push(t.id);
         useWorkspaceStore.setState({ counts: req, hasInteracted: true });
       }
-      typeResult(t.numberA!);
+      // Station 3 and station 7's groupings: one box, and the answer is what
+      // the exercise asks (for a decomposition, the number of blocks).
+      if (t.representationKind) ws().setRepresentationAnswer(String(t.correctAnswer));
+      else typeResult(t.numberA!);
       return;
     }
     case 'flexible_decomp': {
@@ -282,7 +302,8 @@ describe('meetings 3–8: the seven compulsory exercises still complete, in orde
       drop(place, 45); // from the palette…
       expect(MAX_VISIBLE_BLOCKS).toBeGreaterThanOrEqual(45);
       expect(ws().counts[place]).toBe(45);
-      typeResult(t.numberA!);
+      // "בכמה לבני עשרת השתמשתם?" — the answer is the number of blocks (owner, 30.9.2026).
+      ws().setRepresentationAnswer('45');
       ws().proceed();
       expect(ws().standardTaskIdx, `${t.id} completes`).toBe(3);
     }
@@ -301,10 +322,13 @@ describe('meetings 3–8: the seven compulsory exercises still complete, in orde
       expect(t.hideRequiredCounts, t.id).toBeUndefined();
       expect(t.initialCounts, t.id).toBeUndefined();
       expect(t.continuesBoard, t.id).toBeUndefined();
-      // the new "do the conversion yourself" gate is inside the representation branch only
+      // The "do the conversion yourself" gate: meeting 1's, and — since the
+      // owner's redesign of 30.9.2026 — station 3's breaks and station 7's
+      // two groupings, which ask for it in their instruction. No other
+      // representation exercise carries it.
       if (t.type === 'representation') {
-        expect(t.requiresGrouping, t.id).toBeUndefined();
-        expect(t.requiresUngrouping, t.id).toBeUndefined();
+        expect(Boolean(t.requiresGrouping), t.id).toBe(t.representationKind === 'compose_group');
+        expect(Boolean(t.requiresUngrouping), t.id).toBe(t.representationKind === 'compose_break');
       }
     }
   });
@@ -428,7 +452,7 @@ describe('undo after a reload through the database (Module 11), meetings 3–8',
     // Skeleton exercises (meetings 4–8): operandDigits is in the sync payload
     // now, alongside the undo frames, so a reload keeps the typed hidden digit.
     startMeeting(7, 'remediation_path');
-    solve(current()); // s7_r_t1 is flexible; move on to the skeleton s7_r_t2
+    solve(current()); // s7_r_t1 groups 12 tens and 5 units; move on to the skeleton s7_r_t2
     ws().proceed();
     expect(current().id).toBe('s7_r_t2'); // 31▢ + 254 = 568, hidden: a.units
     ws().setOperandDigit('a', 'units', '4');
