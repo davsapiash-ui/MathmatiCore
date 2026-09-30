@@ -186,6 +186,10 @@ describe('the meeting 1 class report', () => {
     expect(scoredA.scored).toBe(true);
     const html = classReportHtml({ session_number: 4, title_he: 'דוח כיתה', aggregates: scoredA, learners: [row4] });
     expect(html).toContain('קבוצות עבודה לפי כלל האחוזים');
+    // The printed class report (Chromium) carries the class counters of the
+    // pdfkit fallback, the result-row scaffold (register 28) among them.
+    expect(html).toContain('פיגום בשורת התוצאה:');
+    expect(html).toContain('קריאות שקטות למורה:');
   });
 });
 
