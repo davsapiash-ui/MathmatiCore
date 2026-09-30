@@ -1,4 +1,4 @@
-import type { Place } from './placeValue';
+import { digitAt, type Place } from './placeValue';
 
 /**
  * The result row of a vertical exercise: the colour of each box (the board's
@@ -13,6 +13,8 @@ import type { Place } from './placeValue';
  *    station 2); the LABELS are the scaffold, with the same trigger.
  * Station 2 (owner, 27.9.2026): only the enhanced profile sees colours and
  * labels. Stations 1 and 8 keep both, unchanged.
+ * Place names read aloud to a screen reader follow the labels: a name not
+ * shown is not spoken either.
  */
 export function resultRowCues(
   sessionNumber: number,
@@ -32,6 +34,18 @@ export const PLACE_CUE_LINE_HE = {
   enhanced: 'שימו לב לכותרות שמתחת לתיבות.',
 } as const;
 
+/**
+ * How many boxes the result row of a vertical exercise shows. Stations 3–7
+ * (owner, 30.9.2026): as many as the digits of the longest number of the
+ * exercise, so the row does not tell in advance that a place vanishes
+ * (2,045 − 1,128 = 917 still shows a thousands box). Every other station keeps
+ * the answer's own length (register, deviation 28).
+ */
+export function resultBoxCount(sessionNumber: number, a: number, b: number, target: number): number {
+  const len = (n: number) => String(Math.abs(n)).length;
+  return sessionNumber >= 3 && sessionNumber <= 7 ? Math.max(len(a), len(b), len(target)) : len(target);
+}
+
 const PLACES: Place[] = ['thousands', 'hundreds', 'tens', 'units'];
 const digitOf = (n: number, p: Place): string => {
   const v = { units: 1, tens: 10, hundreds: 100, thousands: 1000 }[p];
@@ -39,17 +53,47 @@ const digitOf = (n: number, p: Place): string => {
 };
 
 /**
- * A digit written in the wrong place: some box holds a wrong digit that is the
- * right digit of ANOTHER column of the answer (1,573 written 3,751, or the 7 of
- * the tens typed into the units box). A wrong count or a forgotten regrouping
- * is not this error — the colours would not help there.
+ * A digit written in the wrong place — the owner's examples (30.9.2026): 3,751
+ * for 1,573, or the 7 of the tens in the units box. Either
+ *  - the answer's own digits in other boxes (3,751 for 1,573; 917 written one
+ *    box to the left in a four-box row), or
+ *  - a wrong digit that is the right digit of ANOTHER column of the answer and
+ *    that no slip in its own column explains.
+ * Slips are regrouping and counting errors, which the colours would not help
+ * with and the existing ladder handles: a digit one away from the right one (a
+ * forgotten or extra carry or borrow, or one block counted wrong: 3,783
+ * answered 3,773, 435 answered 445), and, in subtraction, the smaller digit
+ * taken from the larger (53 − 18 answered 45). One away is plain, not around
+ * the clock: 9 is not next to 0 (907 written 97 left out a zero). In a box to
+ * the left of the answer (the thousands box over 917) a 0 is right, and only a
+ * 1 is a slip — the borrow that was never taken from it.
  */
-export function isPlaceError(typed: Partial<Record<Place, string>>, target: number): boolean {
-  const right: Partial<Record<Place, string>> = {};
+export function isPlaceError(
+  typed: Partial<Record<Place, string>>,
+  target: number,
+  exercise?: { a: number; b: number; isSubtraction?: boolean }
+): boolean {
+  const right: Record<Place, string> = { thousands: '', hundreds: '', tens: '', units: '' };
   for (const p of PLACES) right[p] = digitOf(Math.abs(target), p);
+  const wrote = (p: Place): string => {
+    const d = typed[p] ?? '';
+    return d === '0' && right[p] === '' ? '' : d;
+  };
+
+  const sorted = (ds: string[]) => ds.filter((d) => d !== '').sort().join('');
+  const rearranged = PLACES.some((p) => wrote(p) !== right[p]) && sorted(PLACES.map(wrote)) === sorted(PLACES.map((p) => right[p]));
+  if (rearranged) return true;
+
   return PLACES.some((p) => {
-    const d = typed[p];
-    if (d === undefined || d === '' || d === right[p]) return false;
+    const d = wrote(p);
+    if (d === '' || d === right[p]) return false;
+    const dv = Number(d);
+    if (right[p] === '') {
+      if (d === '1') return false;
+    } else if (Math.abs(dv - Number(right[p])) === 1) {
+      return false;
+    }
+    if (exercise?.isSubtraction && dv === Math.abs(digitAt(exercise.a, p) - digitAt(exercise.b, p))) return false;
     return PLACES.some((q) => q !== p && right[q] !== '' && right[q] === d);
   });
 }

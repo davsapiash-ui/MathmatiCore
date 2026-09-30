@@ -173,11 +173,12 @@ describe('the meeting 1 class report', () => {
     expect(html).not.toContain('על מנהל המערכת לפרסם');
   });
 
-  it('the research CSV keeps every existing column in place and appends the tools last', () => {
+  it('the research CSV keeps every existing column in place and appends the tools, then the place-cue scaffold', () => {
     const csv = buildClassCsv([row4], a.exercises);
     const header = csv.split('\n')[0];
     expect(header.startsWith('﻿"student_id","learning_path","score_percent"')).toBe(true);
-    expect(header.endsWith(TOOLS.map((t) => `"tool_${t}"`).join(','))).toBe(true);
+    // Register deviation 28 (30.9.2026) came after the tools, so it goes after them.
+    expect(header.endsWith([...TOOLS.map((t) => `"tool_${t}"`), '"place_cue_scaffolds"'].join(','))).toBe(true);
   });
 
   it('a scored meeting still prints the working groups', () => {

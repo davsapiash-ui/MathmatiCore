@@ -356,7 +356,7 @@ export interface MeetingSummary {
   keyboard_lock_blocks: number;
   /** Silent calls to the teacher. */
   help_requests: number;
-  /** Register deviation 27: the result-row place-cue scaffold appeared (a digit in the wrong place). */
+  /** Register deviation 28: the result-row place-cue scaffold appeared (a digit in the wrong place). */
   place_cue_scaffolds: number;
 }
 

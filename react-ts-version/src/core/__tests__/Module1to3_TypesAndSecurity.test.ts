@@ -116,7 +116,7 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
         // מודול 8 §א: ניקוי הלוח בפח הוא פעולת איפוס שהאפיון דורש לתעד
         // כאירוע תקני. אין לו ערך בנספח א׳ — החלטת בעל המוצר, 23.9.2026.
         'BOARD_CLEARED',
-        // Register deviation 27 (owner, 30.9.2026): the place-cue scaffold.
+        // Register deviation 28 (owner, 30.9.2026): the place-cue scaffold.
         'PLACE_CUES_SHOWN',
       ];
 

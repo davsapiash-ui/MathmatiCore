@@ -204,7 +204,7 @@ export function describeEvent(e: JourneyEvent): EventDescription {
   let attention = false;
   switch (e.eventType) {
     case 'PLACE_CUES_SHOWN':
-      // Register deviation 27: a digit was written in another column's box.
+      // Register deviation 28: a digit was written in another column's box.
       detail = d.profile === 'enhanced' ? 'ספרה בתיבה של טור אחר: הופיעו כותרות הטורים' : 'ספרה בתיבה של טור אחר: הופיעו צבעי הטורים וכותרותיהם';
       attention = true;
       break;

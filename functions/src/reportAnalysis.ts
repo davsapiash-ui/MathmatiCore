@@ -267,6 +267,8 @@ const TELEMETRY_DETAIL_KEYS = [
   "conversion_required",
   "help_count",
   "blocks_removed",
+  // PLACE_CUES_SHOWN (register deviation 28): regular | enhanced.
+  "profile",
 ] as const;
 
 /**
@@ -299,6 +301,11 @@ export function buildTelemetrySummary(telemetryDocs: Record<string, any>[]): Rep
       if (typeof value === "number" || typeof value === "boolean" || typeof value === "string") {
         details[key] = value;
       }
+    }
+    // `profile` is PLACE_CUES_SHOWN's enum (register deviation 28) and nothing
+    // else: any other value, or the key on another event, does not reach the engine.
+    if (!(doc?.event_type === "PLACE_CUES_SHOWN" && (details.profile === "regular" || details.profile === "enhanced"))) {
+      delete details.profile;
     }
     const event: ReportTelemetryEvent = {
       event_type: String(doc?.event_type || "UNKNOWN"),
