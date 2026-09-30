@@ -817,12 +817,12 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
 
       if (rows.some((r) => r.fading_gap)) {
         const v = (x: number | null, unit: string) => (x === null ? "—" : `${x}${unit}`);
-        heading("4א. פער הדעיכה: מפגש 8 בלי לבנים מול מפגשים 4–6 עם לבנים (אותם מספרים, אותו לומד)", "#7c2d12");
+        heading("4א. פער הדעיכה: מפגש 8 בלי לבני הדינס מול מפגשים 4–6 עם לבני הדינס (אותם מספרים, אותו לומד)", "#7c2d12");
         for (const r of rows) {
           const f = r.fading_gap;
           if (!f) continue;
           line(
-            `תלמיד ${r.student_id} | זוגות שנמדדו: ${f.pairs_measured} | נכון בניסיון ראשון: עם לבנים ${v(f.accuracy_with_blocks_percent, "%")}, בלי ${v(f.accuracy_without_blocks_percent, "%")} | זמן ממוצע לתרגיל: עם ${v(f.mean_seconds_with_blocks, " שנ׳")}, בלי ${v(f.mean_seconds_without_blocks, " שנ׳")} | מהר מדי (מתחת ל-${FADING_GUESS_SECONDS} שנ׳): ${f.guessed_exercises.join(", ") || "אין"}${f.unpaired_exercises.length > 0 ? ` | ללא זוג: ${f.unpaired_exercises.join(", ")}` : ""}`,
+            `תלמיד ${r.student_id} | זוגות שנמדדו: ${f.pairs_measured} | נכון בניסיון ראשון: עם לבני הדינס ${v(f.accuracy_with_blocks_percent, "%")}, בלי ${v(f.accuracy_without_blocks_percent, "%")} | זמן ממוצע לתרגיל: עם ${v(f.mean_seconds_with_blocks, " שנ׳")}, בלי ${v(f.mean_seconds_without_blocks, " שנ׳")} | מהר מדי (מתחת ל-${FADING_GUESS_SECONDS} שנ׳): ${f.guessed_exercises.join(", ") || "אין"}${f.unpaired_exercises.length > 0 ? ` | ללא זוג: ${f.unpaired_exercises.join(", ")}` : ""}`,
             9, "#0f172a"
           );
         }

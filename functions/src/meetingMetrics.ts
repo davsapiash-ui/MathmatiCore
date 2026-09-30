@@ -101,7 +101,7 @@ export const TOOLS = ["drag", "decompose", "compose", "type", "undo", "trash"] a
 export type Tool = typeof TOOLS[number];
 
 export const TOOL_LABEL_HE: Record<Tool, string> = {
-  drag: "גרירת לבנים ללוח",
+  drag: "גרירת לבני הדינס לבית המספרים",
   decompose: "פירוק לבנה (פריטה)",
   compose: "הקבצה בכפתור \"קבצו 10\"",
   type: "הקלדת ספרות",

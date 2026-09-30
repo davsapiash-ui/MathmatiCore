@@ -204,7 +204,7 @@ export function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string
     // than a drag tally, at the place the first drag happened.
     if (representationClauseAt >= 0) {
       const distinct = Array.from(new Set(representedColumns)).sort((a, b) => b - a);
-      clauses[representationClauseAt] = `ייצג את המספרים בבית המספרים באמצעות לבנים של ${distinct.join(", ")}`;
+      clauses[representationClauseAt] = `ייצג את המספרים בבית המספרים באמצעות לבני הדינס של ${distinct.join(", ")}`;
     }
 
     const ending = completed

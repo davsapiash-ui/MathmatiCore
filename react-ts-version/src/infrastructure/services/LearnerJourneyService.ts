@@ -213,7 +213,7 @@ export function describeEvent(e: JourneyEvent): EventDescription {
     case 'BOARD_CLEARED':
       // Meeting 1 step 5 records a press on an already empty board too.
       detail = Number(d.blocks_removed) > 0
-        ? `${d.blocks_removed} לבנים ירדו מהלוח בבת אחת`
+        ? `${d.blocks_removed} לבני הדינס ירדו מבית המספרים בבת אחת`
         : 'לחיצה על פח האשפה כשהלוח כבר היה ריק';
       break;
     case 'SESSION_START':
@@ -440,7 +440,7 @@ export const AI_FALLBACK_TEXT = 'הניתוח הפדגוגי המפורט אינ
  * (functions/src/meetingMetrics.ts TOOLS / TOOL_LABEL_HE).
  */
 export const TOOL_LABELS_HE: ReadonlyArray<[string, string]> = [
-  ['drag', 'גרירת לבנים ללוח'],
+  ['drag', 'גרירת לבני הדינס לבית המספרים'],
   ['decompose', 'פירוק לבנה (פריטה)'],
   ['compose', 'הקבצה בכפתור "קבצו 10"'],
   ['type', 'הקלדת ספרות'],

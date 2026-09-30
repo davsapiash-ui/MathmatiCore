@@ -64,7 +64,7 @@ describe('meeting 1 on the teacher dashboard', () => {
   it('the teacher timeline reads a press on an empty board as such, not as "0 לבנים ירדו"', () => {
     const ev = (blocks: number) => describeEvent({ eventType: 'BOARD_CLEARED', details: { blocks_removed: blocks } } as any).detail;
     expect(ev(0)).toBe('לחיצה על פח האשפה כשהלוח כבר היה ריק');
-    expect(ev(7)).toBe('7 לבנים ירדו מהלוח בבת אחת');
+    expect(ev(7)).toBe('7 לבני הדינס ירדו מבית המספרים בבת אחת');
   });
 
   it('the admin catalog calls meeting 1 refresh exercises, not compulsory tasks', () => {
