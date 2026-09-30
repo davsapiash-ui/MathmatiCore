@@ -19,7 +19,10 @@ export type TelemetryEventType =
   | 'ADAPTIVE_GRID_TOGGLED'
   | 'KEYBOARD_LOCK_BLOCKED'
   | 'HELP_REQUESTED'
-  | 'BOARD_CLEARED';
+  | 'BOARD_CLEARED'
+  // Owner, 30.9.2026 (register deviation 27): the result row's place cues shown
+  // as a scaffold after a digit in the wrong place (stations 3–7).
+  | 'PLACE_CUES_SHOWN';
 
 // --- Per-event-type details schemas (Master PRD v7.0 Appendix A §3) ---
 
@@ -117,6 +120,11 @@ export interface BoardClearedDetails {
   blocks_removed: number;
 }
 
+/** Register deviation 27: which profile saw the scaffold (regular: colours + labels; enhanced: labels). */
+export interface PlaceCuesShownDetails {
+  profile: 'regular' | 'enhanced';
+}
+
 export interface TelemetryDetailsMap {
   SESSION_START: SessionStartDetails;
   PROBLEM_LOAD: ProblemLoadDetails;
@@ -135,6 +143,7 @@ export interface TelemetryDetailsMap {
   KEYBOARD_LOCK_BLOCKED: KeyboardLockBlockedDetails;
   HELP_REQUESTED: HelpRequestedDetails;
   BOARD_CLEARED: BoardClearedDetails;
+  PLACE_CUES_SHOWN: PlaceCuesShownDetails;
 }
 
 // Column-scoped event types where column_index is MANDATORY
@@ -160,6 +169,8 @@ export const NON_COLUMN_EVENTS: readonly TelemetryEventType[] = [
   'HELP_REQUESTED',
   // ניקוי הלוח אינו שייך לטור אחד — הוא מוחק את כולם.
   'BOARD_CLEARED',
+  // The scaffold lights the whole result row, not one column.
+  'PLACE_CUES_SHOWN',
 ] as const;
 
 export interface TelemetryPayload<T extends TelemetryEventType = TelemetryEventType> {

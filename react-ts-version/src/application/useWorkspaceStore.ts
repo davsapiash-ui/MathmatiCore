@@ -46,6 +46,7 @@ import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
 import { getSessionTasks, SESSION1_TASKS, type SessionTask, type LearningPath } from '@/data/sessionTasks';
 import { boardStaysOpen } from '@/core/boardVisibility';
+import { isPlaceError } from '@/core/placeCues';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -77,7 +78,7 @@ import {
  */
 function emitScaffoldEvent(
   s: WorkspaceState,
-  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED',
+  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED' | 'PLACE_CUES_SHOWN',
   details: Record<string, unknown>,
   columnIndex?: number
 ): void {
@@ -276,6 +277,8 @@ interface WorkspaceState {
   activeColumnIndex: number; // 0: Ones, 1: Tens, 2: Hundreds
   /** The teacher's projector board (ProjectorSandboxPage): it demonstrates, so the column digits always show. */
   projectorBoard: boolean;
+  /** The result-row place cues shown as a scaffold after a digit in the wrong place (core/placeCues.ts, owner 30.9.2026); per exercise. */
+  placeCuesShown: boolean;
   isSocraticCardLocked: boolean;
   socraticLockDeadline: number | null;
   hesitationTimerSeconds: number;
@@ -654,6 +657,7 @@ function resetTaskInteraction(_isASD = false) {
     undoStack: [] as UndoFrame[],
     regroupTriggerTimestamps: {} as Record<number, number>,
     hasInteracted: false,
+    placeCuesShown: false,
     hasDeletedBlock: false,
     hasClearedBoard: false,
     blocksAddedCount: 0,
@@ -1921,6 +1925,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         if (s.sessionNumber === 8) {
           handleFailure('wrong_numeric', 'נסו שוב 🤔', 'התשובה שכתבתם אינה נכונה. בדקו שוב!', 2800);
         } else {
+          // Stations 3–7 (owner, 30.9.2026): a digit in the wrong place turns on
+          // the result row's place cues until the end of the exercise; the line
+          // that explains them stays in the task card (VerticalAdditionTask).
+          if (s.sessionNumber >= 3 && s.sessionNumber <= 7 && !s.placeCuesShown && isPlaceError(typedDigits, target)) {
+            set({ placeCuesShown: true });
+            emitScaffoldEvent(get(), 'PLACE_CUES_SHOWN', { profile: s.activeSupportProfileId === 'enhanced_cognitive_support' ? 'enhanced' : 'regular' });
+          }
           handleFailure(
             'wrong_numeric',
             'כִּמְעַט... 🧐',
@@ -2316,6 +2327,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     additionHelperOffered: false,
 
     hasInteracted: false,
+    placeCuesShown: false,
     undoTimestamps: [],
     isBoardLocked: false,
     pendingAdaptation: null,
@@ -3848,6 +3860,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         isAdditionHelperOpen: false,
     additionHelperOffered: false,
         hasInteracted: false,
+        placeCuesShown: false,
         undoTimestamps: [],
         isBoardLocked: false,
         pendingAdaptation: null,

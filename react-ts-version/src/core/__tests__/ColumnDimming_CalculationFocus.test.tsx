@@ -249,7 +249,9 @@ describe('on the board', () => {
 
   it('the memory circle lights its column without touching focusedPlace or activeColumnIndex', () => {
     goTo(4, 's4_g_t1');
-    useWorkspaceStore.setState({ activeColumnIndex: 0 } as any);
+    // With the place-cue scaffold on, the circle is named by its column
+    // (without it, meetings 3–7 name it by position — core/placeCues.ts).
+    useWorkspaceStore.setState({ activeColumnIndex: 0, placeCuesShown: true } as any);
     const before = { focusedPlace: useWorkspaceStore.getState().focusedPlace, activeColumnIndex: useWorkspaceStore.getState().activeColumnIndex };
     const sheet = render(<VerticalAdditionTask numberA={1245} numberB={328} answerLength={4} />);
     const circle = sheet.getByLabelText('חלונית המרה לעשרות');

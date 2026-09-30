@@ -125,7 +125,10 @@ export function TaskCard() {
                     numberA={a}
                     numberB={b}
                     isSubtraction={standardTask.isSubtraction}
-                    answerLength={String(Math.abs(target)).length}
+                    // Owner, 30.9.2026: as many boxes as the longest number of the
+                    // exercise, so the row does not tell in advance that a place
+                    // vanishes (2,045 − 1,128 = 917 still shows a thousands box).
+                    answerLength={Math.max(String(Math.abs(a)).length, String(Math.abs(b)).length, String(Math.abs(target)).length)}
                     hiddenA={standardTask.hiddenDigits?.a}
                     hiddenB={standardTask.hiddenDigits?.b}
                     revealedResult={revealedResult}

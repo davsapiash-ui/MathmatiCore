@@ -5,6 +5,8 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { NEUTRAL_BOX_BORDER, PLACE_COLORS } from '../placeColors';
 import { useEnhancedSupport } from './useEnhancedSupport';
+import { resultRowCues, PLACE_CUE_LINE_HE } from '@/core/placeCues';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 /**
  * תרגיל חיבור/חיסור במאונך — דף מחברת אמיתי:
@@ -96,8 +98,14 @@ export function VerticalAdditionTask({
   // meeting, and a learner with the profile, keep the board's colours.
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const enhancedSupport = useEnhancedSupport();
-  const placeCues = sessionNumber !== 2 || enhancedSupport;
-  const PLACE_TINT = placeCues ? BOARD_PLACE_TINT : NEUTRAL_TINT;
+  // Stations 3–7 (owner, 30.9.2026): the cues are a scaffold after a digit in the
+  // wrong place — core/placeCues.ts. Spoken place names follow what is shown.
+  const placeCuesShown = useWorkspaceStore((s) => s.placeCuesShown);
+  const cues = resultRowCues(sessionNumber, enhancedSupport, placeCuesShown);
+  const placeCues = cues.colours || cues.labels;
+  const PLACE_TINT = cues.colours ? BOARD_PLACE_TINT : NEUTRAL_TINT;
+  const scaffoldStation = sessionNumber >= 3 && sessionNumber <= 7;
+  const cueLine = scaffoldStation && placeCuesShown ? PLACE_CUE_LINE_HE[enhancedSupport ? 'enhanced' : 'regular'] : null;
   // Station 1 (owner, 29.9.2026): the text names "עיגול הזיכרון", and the circles
   // carry no words — they are marked until the child writes in one, as the
   // undo button and the trash are (index.css .ws-hint-ring).
@@ -222,6 +230,14 @@ export function VerticalAdditionTask({
 
   return (
     <div className="shrink-0 self-center w-full max-w-md flex flex-col items-center gap-fl-4-16 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-fl-8-24 relative">
+      {/* The scaffold line (owner, 30.9.2026): it stays until the end of the
+          exercise, with a read-aloud button — played only on the child's click. */}
+      {cueLine && (
+        <div data-testid="place-cue-line" className="w-full flex items-center gap-2 rounded-xl bg-ws-surface2/60 px-3 py-1" dir="rtl">
+          <p className="flex-1 text-sm font-bold text-ws-ink leading-snug">{cueLine}</p>
+          <UdlSpeechButton text={cueLine} className="shrink-0" />
+        </div>
+      )}
       {/* Notebook paper: background squares EXACTLY the size of a grid column */}
       <div
         dir="ltr"
@@ -422,9 +438,15 @@ export function VerticalAdditionTask({
       </div>
 
       {/* Place labels under the paper, aligned to the answer columns (none
-          without the cues: meeting 2 without the profile). */}
-      {placeCues && (
-      <div dir="ltr" className="grid" style={{ gridTemplateColumns: `${CELL} repeat(${cols}, ${CELL})` }}>
+          without the cues: meeting 2 without the profile). In stations 3–7 the
+          row keeps its height while hidden, so the scaffold does not move the page. */}
+      {(cues.labels || scaffoldStation) && (
+      <div
+        dir="ltr"
+        className="grid"
+        aria-hidden={cues.labels ? undefined : true}
+        style={{ gridTemplateColumns: `${CELL} repeat(${cols}, ${CELL})`, visibility: cues.labels ? 'visible' : 'hidden' }}
+      >
         <div aria-hidden="true" />
         {colPlaces.map((place, j) =>
           j < firstAnswerCol ? (

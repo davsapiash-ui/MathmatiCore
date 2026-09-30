@@ -206,12 +206,29 @@ describe('(a) place-value headings and colours by support profile (row 2.21)', (
     expect(again.container.textContent).toMatch(/מאות/);
   });
 
-  it('other meetings keep the board colours on the vertical exercise, whatever the profile', async () => {
+  it('meetings 1 and 8 keep the board colours on the vertical exercise, whatever the profile', async () => {
     const { VerticalAdditionTask } = await import('@/features/workspace/tasks/VerticalAdditionTask');
-    useWorkspaceStore.setState({ sessionNumber: 4 });
-    const { container } = render(<VerticalAdditionTask numberA={124} numberB={85} answerLength={3} />);
+    for (const n of [1, 8] as const) {
+      useWorkspaceStore.setState({ sessionNumber: n, placeCuesShown: false } as any);
+      const { container, unmount } = render(<VerticalAdditionTask numberA={124} numberB={85} answerLength={3} />);
+      expect(borderOf(screen.getByLabelText('ספרת היחידות בתשובה'))).toBe(PLACE_COLORS.units.header);
+      expect(container.textContent).toContain('יחידות');
+      unmount();
+    }
+  });
+
+  it('meetings 3–7 (owner, 30.9.2026): neutral until the scaffold, then the board colours and the place names', async () => {
+    const { VerticalAdditionTask } = await import('@/features/workspace/tasks/VerticalAdditionTask');
+    useWorkspaceStore.setState({ sessionNumber: 4, placeCuesShown: false } as any);
+    const first = render(<VerticalAdditionTask numberA={124} numberB={85} answerLength={3} />);
+    expect(borderOf(screen.getByLabelText('ספרה 3 מתוך 3 בשורת התוצאה'))).toBe(NEUTRAL_BOX_BORDER);
+    expect(first.queryByTestId('place-cue-line')).toBeNull();
+    first.unmount();
+    useWorkspaceStore.setState({ placeCuesShown: true } as any);
+    const after = render(<VerticalAdditionTask numberA={124} numberB={85} answerLength={3} />);
     expect(borderOf(screen.getByLabelText('ספרת היחידות בתשובה'))).toBe(PLACE_COLORS.units.header);
-    expect(container.textContent).toContain('יחידות');
+    expect(after.getByTestId('place-cue-line').textContent).toContain('שימו לב לצבעים בשורת התוצאה.');
+    useWorkspaceStore.setState({ placeCuesShown: false } as any);
   });
 });
 
