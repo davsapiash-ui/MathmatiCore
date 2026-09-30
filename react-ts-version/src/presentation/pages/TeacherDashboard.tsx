@@ -1494,7 +1494,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   קיבוץ תלמידים לפי מיומנויות ופערי למידה
                 </h1>
                 <p className="text-ws-soft mt-2 text-base md:text-lg">
-                  אבחון וחלוקה אוטומטית של הכיתה ב-6 מיומנויות ליבה במתמטיקה למתן תרגול דיפרנציאלי ומותאם אישית.
+                  חלוקה אוטומטית של הכיתה לפי שלושת תחומי האבחון: המבנה העשרוני והאפס, הקבצה ופריטה, וחישוב במאונך.
                 </p>
               </div>
               {/* המסך הזה נבנה על פרופיל השליטה, שנוצר בסיום מפגש האבחון.
@@ -2314,7 +2314,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className={`w-2 h-2 rounded-full ${isStudentOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
                               <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                {isStudentOnline ? 'מחובר/ת כעת' : 'מנותק/ת'}
+                                {isStudentOnline ? 'מחובר כעת' : 'לא מחובר'}
                               </span>
                             </div>
                           </div>

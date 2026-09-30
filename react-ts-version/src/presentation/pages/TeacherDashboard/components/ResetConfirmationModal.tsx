@@ -244,7 +244,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                   className="w-5 h-5 rounded text-amber-600 focus:ring-amber-500"
                 />
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  אני מאשר/ת לאפס לכל 12 הלומדים את {meetingLabel}.
+                  מאשרים את האיפוס של {meetingLabel} לכל 12 הלומדים.
                 </span>
               </label>
             )}
@@ -339,7 +339,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 className="w-5 h-5 rounded text-red-600 focus:ring-red-500"
               />
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                אני מאשר/ת באופן מפורש את ביצוע איפוס המערכת הכולל.
+                מאשרים במפורש את האיפוס הכולל של המערכת.
               </span>
             </label>
           </div>
