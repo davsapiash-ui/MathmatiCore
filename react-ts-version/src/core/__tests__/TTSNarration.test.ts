@@ -635,6 +635,21 @@ describe('שער השמע בכניסת הילד', () => {
     // כרומיום מתעלם מ-utterance של רווחים בלבד, והשמע היה נשאר נעול.
     expect(synth.all[0].text.trim().length).toBeGreaterThan(0);
     expect(tts.isAudioUnlocked()).toBe(true);
+    // שקט באמת (אפיון 24: "שחרור הרשאות שמע שקט"): יש קולות שמתעלמים מעוצמה
+    // אפס ואמרו "נקודה" בנגיעה הראשונה — ה-utterance נמשך מיד, ושום דבר לא נשאר בתור.
+    expect(synth.cancels).toBe(1);
+    expect(synth.queue).toHaveLength(0);
+  });
+
+  it('נגיעה ראשונה שהיא עצמה לחיצה על רמקול: ההקראה נשמעת, והשער לא בולע אותה', async () => {
+    const tts = await setupTts();
+    tts.armAudioGate();
+    window.dispatchEvent(new Event('pointerdown')); // השער: נמסר ונמשך מיד
+    tts.speak('גררו לבנים לטורים.'); // הלחיצה עצמה, באותו רגע
+    vi.advanceTimersByTime(500);
+
+    expect(synth.dropped).toHaveLength(0);
+    expect(synth.queue.map((u) => u.text).join(' ')).toContain('גררו לבנים לטורים');
   });
 
   it('פותח את השמע גם לילד שרענן את הדף ולא עבר שוב במסך הכניסה', async () => {

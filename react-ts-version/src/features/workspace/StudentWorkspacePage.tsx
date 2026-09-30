@@ -198,11 +198,48 @@ export function StudentWorkspacePage() {
     useWorkspaceStore.getState().setActiveDeviceId(myDevId);
     useWorkspaceStore.getState().setSupersededByOtherDevice(false);
 
+    // Every page load draws a new id, so until this device's claim has reached
+    // the server the record names an earlier load's device — this tab before a
+    // refresh, or yesterday's visit. That is not a takeover. The claim waits
+    // for the record's write window (PRD 18), and the lobby's "leaving" write
+    // has just used it; locking on the earlier id meanwhile locked the only
+    // device, and the lock's guard on the presence and board writes queued in
+    // the same window then dropped the claim with them: "המשכתם במכשיר אחר"
+    // with no other device, through every refresh (owner, live, 28.9.2026).
+    let active = true;
+    let claimLanded = false;
+    let remoteDevId: string | null = null;
+    const applyOwnership = () => {
+      if (!active) return;
+      // Direct ownership check: if the active device recorded in DB is not me, I am locked
+      if (evaluateDeviceOwnership(remoteDevId, myDevId).isSuperseded) {
+        if (!claimLanded) return;
+        isSupersededRef.current = true;
+        useWorkspaceStore.getState().setSupersededByOtherDevice(true);
+        try {
+          onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).cancel();
+          onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).cancel();
+        } catch {}
+      } else if (remoteDevId === myDevId) {
+        isSupersededRef.current = false;
+        useWorkspaceStore.getState().setSupersededByOtherDevice(false);
+        try {
+          onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
+          onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).set(0);
+        } catch {}
+      }
+    };
+
     // 1. Claim ownership of student session for this device
     throttledRtdbUpdate(`users/students/${normUid}`, {
       active_device_id: myDevId,
       device_claimed_at: myClaimTime,
-    }).catch(console.error);
+    })
+      .then(() => {
+        claimLanded = true;
+        applyOwnership();
+      })
+      .catch(console.error);
 
     // 2. Real-time listener: Detect if another device took over ownership in DB
     const studentNodeRef = ref(database, `users/students/${normUid}`);
@@ -210,26 +247,8 @@ export function StudentWorkspacePage() {
       studentNodeRef,
       (snap) => {
         if (snap.exists()) {
-          const val = snap.val();
-          const remoteDevId = val?.active_device_id;
-
-          // Direct ownership check: if the active device recorded in DB is not me, I am locked
-          const ownership = evaluateDeviceOwnership(remoteDevId, myDevId);
-          if (ownership.isSuperseded) {
-            isSupersededRef.current = true;
-            useWorkspaceStore.getState().setSupersededByOtherDevice(true);
-            try {
-              onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).cancel();
-              onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).cancel();
-            } catch {}
-          } else if (remoteDevId === myDevId) {
-            isSupersededRef.current = false;
-            useWorkspaceStore.getState().setSupersededByOtherDevice(false);
-            try {
-              onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
-              onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).set(0);
-            } catch {}
-          }
+          remoteDevId = snap.val()?.active_device_id ?? null;
+          applyOwnership();
         }
       },
       (err) => {
@@ -237,7 +256,10 @@ export function StudentWorkspacePage() {
       }
     );
 
-    return () => unsubDevice();
+    return () => {
+      active = false;
+      unsubDevice();
+    };
   }, [normUid]);
 
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);

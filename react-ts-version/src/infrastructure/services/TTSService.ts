@@ -91,6 +91,12 @@ export class TTSService {
       silentUtterance.volume = 0;
       silentUtterance.lang = 'he-IL';
       window.speechSynthesis.speak(silentUtterance);
+      // Handing it over is what unlocks; hearing it is not. Some voices ignore
+      // volume 0 and said "נקודה" at the child's first touch, with no speaker
+      // pressed (owner, live, 28.9.2026) — PRD 24: "שחרור הרשאות שמע שקט". So it
+      // is withdrawn at once. A read pressed right after waits for the queue to
+      // drain (whenQueueDrained), so the cancel cannot swallow it (F1).
+      window.speechSynthesis.cancel();
       this.audioUnlocked = true;
       // Warm the voice list here too, so the first real click finds it ready (F5).
       this.loadVoices();

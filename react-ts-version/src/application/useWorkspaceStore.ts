@@ -3086,11 +3086,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     applyDrop: (input) => {
+      // The shake is raised after this update, not inside it: set() inside the
+      // updater was overwritten by the state the updater returned, so a
+      // rejected drop never shook — the block just did not land.
+      let rejectedAt = null as Place | null;
       set((s) => {
         if (s.isBoardLocked) return s;
         const result = resolveDrop(s.counts, input, selectScaffoldLevel(s));
         if (!result.ok) {
-          if (result.reason === 'constraint') flagConstraintError(result.place);
+          if (result.reason === 'constraint') rejectedAt = result.place;
           const studentId = useAuthStore.getState().user?.uid;
           if (studentId) {
             const task = getActiveTasks(s)[s.standardTaskIdx] || null;
@@ -3229,14 +3233,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           ...((isGroup || isUngroup) && s.keyboardState === 'LOCKED' ? { keyboardState: 'UNLOCKED' as KeyboardState } : {})
         };
       });
+      if (rejectedAt) flagConstraintError(rejectedAt);
     },
 
     removeBlockClick: (place) => {
+      let rejected = false as boolean;
       set((state) => {
         if (state.isBoardLocked) return state;
         const next = removeBlock(state.counts, place);
         if (!next) {
-          flagConstraintError(place);
+          rejected = true;
           return state;
         }
         const undoStack = createNextUndoStack(state.undoStack, state.counts, 'BLOCK_DRAG_COMPLETE', undefined, undefined, placeToColumnIndex(place));
@@ -3257,10 +3263,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return { 
           counts: next, 
           undoStack,
-          hasInteracted: true, 
-          hasDeletedBlock: true, 
+          hasInteracted: true,
+          hasDeletedBlock: true,
         };
       });
+      if (rejected) flagConstraintError(place);
     },
 
     clearBoard: () => {
