@@ -40,9 +40,13 @@ vi.mock('firebase-admin', async (importOriginal) => {
       doc: (id: string) => docRef(name, id),
       where: (field: string, op: string, value: unknown) => ({
         get: async () => {
-          expect(op).toBe('==');
+          // '==' for the learner's documents; 'array-contains' for the reset log,
+          // read to score only the run since the meeting's last reset.
+          expect(['==', 'array-contains']).toContain(op);
+          const matches = (d: Record<string, any>) =>
+            op === 'array-contains' ? Array.isArray(d[field]) && d[field].includes(value) : d[field] === value;
           const docs = Object.entries(h.docs)
-            .filter(([p, d]) => p.startsWith(`${name}/`) && d[field] === value)
+            .filter(([p, d]) => p.startsWith(`${name}/`) && matches(d))
             .map(([p, d]) => ({ id: p.slice(name.length + 1), data: () => ({ ...d }) }));
           return { docs, empty: docs.length === 0, size: docs.length };
         },
