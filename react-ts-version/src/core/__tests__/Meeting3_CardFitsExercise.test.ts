@@ -58,9 +58,15 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
   // that lists blocks (below) stays for a representation task of no known kind.
   it('each representation task gets the card of its kind (C1–C3, owner 30.9.2026)', () => {
     const q = (id: string) => SocraticEngine.getSynchronousTaskHint(byId(id), EMPTY).questionHe;
+    // The board the task ends with: something is built.
+    const built = (id: string) => SocraticEngine.getSynchronousTaskHint(byId(id), { ...EMPTY, ...byId(id).requiredCounts }).questionHe;
     for (const id of ['s3_r_t1', 's3_g_t1', 's3_r_reinforce_1', 's3_g_reinforce_1']) expect(q(id), id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
     for (const id of ['s3_r_t5', 's3_g_t5']) expect(q(id), id).toBe('נסו לחשוב: יש טור שאין בו לבנים. מה כותבים במספר בשביל הטור הזה?');
-    for (const id of ['s3_r_t2', 's3_r_t4', 's3_r_t6', 's3_g_t2', 's3_g_t4', 's3_g_t6']) expect(q(id), id).toBe('נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?');
+    for (const id of ['s3_r_t2', 's3_r_t4', 's3_r_t6', 's3_g_t2', 's3_g_t4', 's3_g_t6']) {
+      expect(built(id), id).toBe('נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?');
+      // Nothing built yet: no card that says "you built a number" (owner, 30.9.2026).
+      expect(q(id), id).not.toContain('בניתם');
+    }
     for (const id of ['s3_r_t3', 's3_r_reinforce_2']) expect(q(id), id).toBe('נסו לחשוב: כמה לבני עשרת שוות ללבנת מאה אחת?');
     for (const id of ['s3_g_t3', 's3_g_reinforce_2']) expect(q(id), id).toBe('נסו לחשוב: כמה לבני מאה שוות ללבנת אלף אחת?');
   });

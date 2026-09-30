@@ -61,9 +61,10 @@ describe('the static card is about the exercise on the screen (3.14, 8.5)', () =
         for (const t of texts) {
           for (const m of t.match(/\d[\d,]*\d|\d{2,}/g) ?? []) {
             if (m === '10') continue;
-            // C2's distractor (owner-approved, 30.9.2026): "100 לבני עשרת" is the
-            // worth of a hundred mistaken for a count, not a number of an exercise.
-            if (m === '100' && /(^|[^0-9,])100 לבני /.test(t)) continue;
+            // A count of blocks in tens, not a number of an exercise (owner,
+            // 30.9.2026): C2's distractor "100 לבני עשרת" (the worth of a hundred
+            // taken for a count) and C7's "ל-20 לבני המאה" (two groupings of 10).
+            if (/0$/.test(m) && new RegExp(`(^|[^0-9,])${m} לבני `).test(t)) continue;
             if (!screen.includes(m)) bad.push(`${task.id}: "${m}" is not on the screen — ${t}`);
           }
         }
@@ -197,14 +198,16 @@ describe('meeting 1 target task (347): the card does not answer the task\'s ques
 describe('the AI card gets the same checks (the engine runs on the server)', () => {
   afterEach(() => { vi.restoreAllMocks(); });
 
+  // Wrong-option hints are guiding questions, as stations 3–8 require (owner,
+  // 30.9.2026); each test below changes one other thing.
   const answer = (question: string, correct = 'נבדוק טור אחר טור') => ({
     data: {
       error_category: 'procedural',
       guiding_question: question,
       options: [
         { id: 'opt_1', option_text: correct, feedback_text: 'נכון', is_correct: true },
-        { id: 'opt_2', option_text: 'ננחש', feedback_text: 'רמז: לא', is_correct: false },
-        { id: 'opt_3', option_text: 'נחכה', feedback_text: 'רמז: לא', is_correct: false },
+        { id: 'opt_2', option_text: 'ננחש', feedback_text: 'רמז: האם זה נכון?', is_correct: false },
+        { id: 'opt_3', option_text: 'נחכה', feedback_text: 'רמז: האם זה נכון?', is_correct: false },
       ],
     },
   });
@@ -267,8 +270,8 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
         guiding_question: 'באילו לבנים ההנחיה מבקשת לבנות את המספר 3,400?',
         options: [
           { id: 'opt_1', option_text: right, feedback_text: 'נכון', is_correct: true },
-          { id: 'opt_2', option_text: wrong, feedback_text: 'רמז: לא', is_correct: false },
-          { id: 'opt_3', option_text: 'נכתוב את המספר בלי לבנות', feedback_text: 'רמז: לא', is_correct: false },
+          { id: 'opt_2', option_text: wrong, feedback_text: 'רמז: מה כתוב בהנחיה?', is_correct: false },
+          { id: 'opt_3', option_text: 'נכתוב את המספר בלי לבנות', feedback_text: 'רמז: מה כתוב בהנחיה?', is_correct: false },
         ],
       },
     });
@@ -320,6 +323,7 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
 describe('with blocks on the screen, the card follows the board', () => {
   const PL = ['units', 'tens', 'hundreds', 'thousands'] as const;
   const ONE: Record<string, string> = { units: 'יחידה אחת', tens: 'עשרת אחת', hundreds: 'מאה אחת', thousands: 'אלף אחד' };
+  const COLUMN_HE: Record<string, string> = { units: 'טור היחידות', tens: 'טור העשרות', hundreds: 'טור המאות', thousands: 'טור האלפים' };
   const digit = (n: number, i: number) => Math.floor(n / 10 ** i) % 10;
 
   it('every subtraction of meetings 3–7: follow the card, one decomposition at a time, until every column has enough', () => {
@@ -346,7 +350,8 @@ describe('with blocks on the screen, the card follows the board', () => {
         const correct = card.choices.find((c) => c.isCorrect)!.textHe;
         expect(correct, `${task.id} ${JSON.stringify(counts)}`).toMatch(new RegExp(`^פורטים (תחילה )?${ONE[PL[m]]}`));
         if (m > lacking + 1) expect(card.questionHe, task.id).toMatch(/איך פורטים כש.* (אפס|אפסים)\?$/);
-        else expect(card.questionHe, task.id).toContain(`וצריך לחסר`);
+        // The column, and no count of its blocks: the child counts (owner, 30.9.2026).
+        else expect(card.questionHe, task.id).toContain(`ב${COLUMN_HE[PL[lacking]]} אין מספיק לבנים כדי לחסר`);
         // Do what the card says: break one block of column m.
         counts[PL[m]] -= 1;
         counts[PL[m - 1]] += 10;

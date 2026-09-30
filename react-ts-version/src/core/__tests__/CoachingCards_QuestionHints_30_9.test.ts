@@ -11,6 +11,7 @@ import {
   type StaticCardContext,
 } from '@/infrastructure/services/staticSocraticCards';
 import { useWorkspaceStore, getActiveTasks, staticCardContextFor } from '@/application/useWorkspaceStore';
+import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { approvePath } from '@/test/approvedPath';
@@ -287,7 +288,19 @@ describe('C1 — a number built, then a block broken (station 3)', () => {
   it('the bank tasks of today get it by their id', () => {
     for (const id of ['s3_r_t2', 's3_r_t4', 's3_r_t6', 's3_g_t2', 's3_g_t4', 's3_g_t6']) {
       expect(representationKindOf(byId(id)), id).toBe('compose_break');
-      expect(q(byId(id)).questionHe, id).toBe('נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?');
+      expect(q(byId(id), { ...EMPTY, ...byId(id).requiredCounts }).questionHe, id).toBe('נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?');
+    }
+  });
+
+  it('only once something is built: on an empty board no card says "בניתם" (owner, 30.9.2026)', () => {
+    for (const task of [...REDESIGN.filter((t) => t.representationKind === 'compose_break' || t.representationKind === 'compose_group'),
+      byId('s3_r_t2'), byId('s3_g_t4'), byId('s7_r_t1'), byId('s7_g_t1')]) {
+      const empty = q(task, EMPTY);
+      expect(empty.questionHe, task.id).not.toMatch(/בניתם|לפני הפריטה|לפני ההקבצה/);
+      expect(empty.cardKind, task.id).toBeUndefined();
+      expect(wrongHintViolation(empty), task.id).toBeNull();
+      // One block placed is enough.
+      expect(q(task, { ...EMPTY, hundreds: 1 }).questionHe, task.id).toMatch(/^נסו לחשוב: לפני (הפריטה|ההקבצה) בניתם מספר/);
     }
   });
 });
@@ -380,7 +393,8 @@ describe('C5 → the column\'s card, within one exercise (stations 5–6)', () =
       ['אם יש בטור 10 לבנים או יותר', 'רמז: מתי מקבצים 10 לבנים, בחיבור או בחיסור? ומה בודקים בחיסור?'],
     ]);
     const second = q(t, built, { shownKinds: ['borrow_check'] });
-    expect(second.questionHe).toBe('נסו לחשוב: בתרגיל 5,432 − 2,118, בטור היחידות יש 2 יחידות, וצריך לחסר 8 יחידות. מה עושים?');
+    // The column, and not its count (owner, 30.9.2026): the child counts the blocks.
+    expect(second.questionHe).toBe('נסו לחשוב: בתרגיל 5,432 − 2,118, בטור היחידות אין מספיק לבנים כדי לחסר 8 יחידות. מה עושים?');
     expect(second.cardKind).toBeUndefined();
   });
 
@@ -426,17 +440,37 @@ describe('C7 — blocks built one way, then grouped (station 7)', () => {
     }
   });
 
-  it('25 hundreds → 2,500: hundreds into a thousand', () => {
+  it('25 hundreds grouped twice → 2,500: the plural the owner chose (two thousand blocks, 20 hundred blocks)', () => {
     for (const task of [REDESIGN.find((t) => t.id === 's7_g_t1'), byId('s7_g_t1')]) {
       const c = q(task, { ...EMPTY, thousands: 2, hundreds: 5 });
-      expect(c.choices.map((o) => o.textHe)[2]).toBe('כן. עכשיו יש לבנת אלף, ולכן המספר גדל');
-      expect(wrongHints(c)).toEqual(['רמז: מה קרה ל-10 לבני המאה? מה קיבלתם במקומן?', 'רמז: מאיפה הגיעה לבנת האלף? האם הוספתם לבנה?']);
+      expect(c.choices.map((o) => o.textHe)[2]).toBe('כן. עכשיו יש לבני אלף, ולכן המספר גדל');
+      expect(wrongHints(c)).toEqual(['רמז: מה קרה ל-20 לבני המאה? מה קיבלתם במקומן?', 'רמז: מאיפה הגיעו לבני האלף? האם הוספתם לבנים?']);
+      // The 20 is the blocks grouped, not the answer: 2,500 is never shown, in digits or in blocks.
+      const secrets = secretNumbersOf(task);
+      expect(secrets).toContain(2500);
+      expect(revealsSecret(textsOf(c), secrets)).toBeNull();
+      expect(revealsSecretInCounts(textsOf(c), secrets)).toBeNull();
     }
+  });
+
+  it('14 hundreds and 3 tens, grouped once → 1,430 (s7_g_reinforce_2): the singular, with the green block names', () => {
+    const task = rep('s7_g_reinforce_2', 'compose_group', 1430, 1430, { thousands: 1, hundreds: 4, tens: 3 },
+      'בנו בבית המספרים 14 לבני מאה ו-3 לבני עשרת. קבצו 10 לבני מאה ללבנת אלף אחת. איזה מספר מייצגות הלבנים לאחר ההקבצה?');
+    const c = q(task, { ...EMPTY, thousands: 1, hundreds: 4, tens: 3 });
+    expect(c.questionHe).toBe('נסו לחשוב: לפני ההקבצה בניתם מספר. האם ההקבצה שינתה אותו?');
+    expect(c.choices.map((o) => [o.textHe, o.feedbackHe])).toEqual([
+      ['לא. הלבנים השתנו, אבל המספר נשאר אותו מספר', 'נכון מאוד! איזה מספר בניתם לפני ההקבצה?'],
+      ['כן. עכשיו יש פחות לבנים, ולכן המספר קטן', 'רמז: מה קרה ל-10 לבני המאה? מה קיבלתם במקומן?'],
+      ['כן. עכשיו יש לבנת אלף, ולכן המספר גדל', 'רמז: מאיפה הגיעה לבנת האלף? האם הוספתם לבנה?'],
+    ]);
+    expect(revealsSecret(textsOf(c), secretNumbersOf(task))).toBeNull();
+    // It is a grouping composition by its id too, until the task carries its kind.
+    expect(representationKindOf({ id: 's7_g_reinforce_2' })).toBe('compose_group');
   });
 
   it('while 10 or more blocks wait in a column, the grouping card speaks first', () => {
     const c = q(REDESIGN.find((t) => t.id === 's7_r_t1'), { ...EMPTY, tens: 12, units: 5 });
-    expect(c.questionHe).toContain('בטור העשרות הצטברו 12 עשרות');
+    expect(c.questionHe).toBe('נסו לחשוב: בטור העשרות יש 10 לבנים או יותר. מה עושים?');
   });
 });
 
@@ -489,7 +523,7 @@ describe('the store serves the levels in order (useWorkspaceStore)', () => {
     useWorkspaceStore.setState({ counts: digitsOf(5432) } as any);
     expect((await openCard()).questionHe).toBe('נסו לחשוב: לפני שמוציאים לבנים, מה בודקים בכל טור?');
     expect(ws().socraticCardKinds).toEqual({ taskId: 's5_g_t1', kinds: ['borrow_check'] });
-    expect((await openCard()).questionHe).toContain('בטור היחידות יש 2 יחידות, וצריך לחסר 8 יחידות');
+    expect((await openCard()).questionHe).toContain('בטור היחידות אין מספיק לבנים כדי לחסר 8 יחידות');
     expect(staticCardContextFor(ws(), 's5_g_t1').shownKinds).toEqual(['borrow_check']);
     // Another exercise: nothing shown there yet.
     expect(staticCardContextFor(ws(), 's5_g_t2').shownKinds).toEqual([]);
@@ -516,5 +550,129 @@ describe('the store serves the levels in order (useWorkspaceStore)', () => {
     expect(monitoring?.cardContext).toEqual({ placeCuesShown: false, shownKinds: [] });
     await openCard();
     expect(spy.mock.calls[1][7]?.cardContext).toEqual({ placeCuesShown: false, shownKinds: ['borrow_check'] });
+  });
+
+  /** What the database keeps: no nulls, no empty lists or objects. */
+  const likeTheDatabase = (value: unknown): any => {
+    const prune = (v: any): any => {
+      if (Array.isArray(v)) {
+        const out = v.map(prune).filter((x) => x !== undefined);
+        return out.length ? out : undefined;
+      }
+      if (v && typeof v === 'object') {
+        const out = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, prune(x)]).filter(([, x]) => x !== undefined));
+        return Object.keys(out).length ? out : undefined;
+      }
+      return v === null ? undefined : v;
+    };
+    return prune(JSON.parse(JSON.stringify(value)));
+  };
+
+  it('a reload keeps the cards already shown: C5 does not come back (owner, 30.9.2026)', async () => {
+    const svc = firebaseSyncService as any;
+    start(5, 's5_g_t1');
+    useWorkspaceStore.setState({ counts: digitsOf(5432) } as any);
+    await openCard(); // C5
+    const saved = likeTheDatabase(svc.getSyncableWorkspaceState());
+    expect(saved.socraticCardKinds).toEqual({ taskId: 's5_g_t1', kinds: ['borrow_check'] });
+    ws().resetWorkspace();
+    approvePath('green_path');
+    ws().restoreSession(saved);
+    expect(ws().socraticCardKinds).toEqual({ taskId: 's5_g_t1', kinds: ['borrow_check'] });
+    expect((await openCard()).questionHe).toContain('בטור היחידות אין מספיק לבנים כדי לחסר 8 יחידות');
+    // A snapshot of an exercise where nothing was shown (the database drops the empty list).
+    ws().initSession(5, false, ws().standardTaskIdx + 1);
+    const fresh = likeTheDatabase(svc.getSyncableWorkspaceState());
+    expect(fresh.socraticCardKinds).toBeUndefined();
+    ws().restoreSession(fresh);
+    expect(ws().socraticCardKinds).toEqual({ taskId: null, kinds: [] });
+  });
+});
+
+describe('the engine\'s card follows the same rule in stations 3–8 (owner, 30.9.2026)', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const aiCard = (hint: string) => ({
+    data: {
+      error_category: 'procedural',
+      guiding_question: 'בתרגיל 5,432 − 2,118, מה בודקים בטור היחידות?',
+      options: [
+        { id: 'opt_1', option_text: 'בודקים אם יש בטור מספיק לבנים כדי לחסר', feedback_text: 'נכון מאוד! בדקו את טור היחידות.', is_correct: true },
+        { id: 'opt_2', option_text: 'מחסרים הפוך', feedback_text: hint, is_correct: false },
+        { id: 'opt_3', option_text: 'מוסיפים לבנים חדשות', feedback_text: 'רמז: אם תוסיפו לבנים חדשות, האם המספר יישאר אותו מספר?', is_correct: false },
+      ],
+    },
+  });
+  const ask = (task: any, sessionNumber: number) =>
+    SocraticEngine.fetchGroundedGeminiSocraticQuery({
+      currentTask: task,
+      targetNode: 'subtraction_regrouping',
+      activeColumnName: 'יחידות',
+      counts: digitsOf(5432),
+      qMatrixAnchor: q(task, digitsOf(5432)),
+      monitoring: { sessionNumber },
+    });
+
+  it('a wrong option that explains, or has no hint, is refused: the child gets the static card', async () => {
+    const t = byId('s5_g_t1');
+    for (const hint of ['רמז: בחיסור מחסרים את הספרה התחתונה מהעליונה.', 'לא נכון', '']) {
+      vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard(hint));
+      expect(await ask(t, 5), hint).toBeNull();
+    }
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard('רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה?'));
+    expect(await ask(t, 5)).not.toBeNull();
+  });
+
+  it('station 1 keeps the cards it has (the rule is for stations 3–8)', async () => {
+    const t = { id: 's1_r_sub61', type: 'vertical_addition', isSubtraction: true, numberA: 5432, numberB: 2118 };
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard('רמז: בחיסור מחסרים את הספרה התחתונה מהעליונה.'));
+    expect(await ask(t, 1)).not.toBeNull();
+  });
+});
+
+describe('no card of stations 3–7 says how many blocks a column holds (owner, 30.9.2026)', () => {
+  // The digit beside each column is hidden there: the child counts. A card may
+  // name a column and a threshold ("10 לבנים או יותר"), or the exercise's zero.
+  const COUNT_STATEMENT = /בטור (היחידות|העשרות|המאות|האלפים) (יש|הצטברו|נשארו|אין אף)(?! 10 לבנים או יותר| אפס)/;
+  const stationTasks = bank.filter((t) => { const m = meetingOfTaskId(t.id); return m !== null && m >= 3 && m <= 7; });
+
+  it('in any board state, at any level', () => {
+    const bad: string[] = [];
+    for (const task of [...stationTasks, ...REDESIGN]) {
+      const states = [...statesOf(task), { units: 13, tens: 12, hundreds: 11, thousands: 1 }, { ...EMPTY, tens: 14, units: 3 }, { ...EMPTY, hundreds: 12 }];
+      for (const counts of states) {
+        for (const ctx of CONTEXTS) {
+          const card = q(task, counts, ctx);
+          const texts = [card.questionHe, card.tts_text ?? '', ...card.choices.flatMap((c) => [c.textHe, c.feedbackHe ?? ''])];
+          for (const t of texts) {
+            if (COUNT_STATEMENT.test(t)) bad.push(`${task.id} ${JSON.stringify(counts)}: ${t}`);
+            // A count of 11 or more is never a digit of the exercise, nor the 10
+            // of a regrouping ("10 לבנים או יותר"): it can only be the board's.
+            for (const p of PLACES) {
+              const k = counts[p];
+              if (k > 10 && new RegExp(`(^|[^0-9,])${k} (לבנים|יחידות|עשרות|מאות|אלפים)`).test(t)) bad.push(`${task.id} ${JSON.stringify(counts)}: ${t}`);
+            }
+          }
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('station 8 is unchanged: its card still reads the exercise\'s digits', () => {
+    expect(q(byId('s8_g_t4')).questionHe).toMatch(/בטור (היחידות|העשרות|המאות|האלפים) (יש|אין אף)/);
+  });
+});
+
+describe('the session cards of מסמך 03 offer actions in the impersonal present (owner, 30.9.2026)', () => {
+  it('s4_card … s8_card: every option opens with a present plural verb', () => {
+    for (const key of ['s4_card', 's5_card', 's6_card', 's7_card', 's8_card']) {
+      for (const c of TASK_HINTS[key].choices) expect(c.textHe.split(' ')[0], `${key}: ${c.textHe}`).toMatch(/ים$/);
+    }
+    expect(TASK_HINTS.s6_card.choices.map((c) => c.textHe)).toEqual([
+      'פורטים תחילה לבנת מאה אחת לעשר עשרות בטור העשרות',
+      'מתעלמים מהאפס וממשיכים לטור הבא',
+      'מוסיפים עשרת אחת לטור היחידות ללא פריטה',
+    ]);
   });
 });

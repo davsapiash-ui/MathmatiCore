@@ -536,10 +536,11 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     tts_text: 'נסו לחשוב: איך פורטים כשבטור העשרות יש אפס?',
     suggested_highlight: "tour-column-hundreds",
     questionHe: 'נסו לחשוב: איך פורטים כשבטור העשרות יש אפס?',
+    // Options in the impersonal present, like every card (owner, 30.9.2026).
     choices: [
-      { id: "opt_1", textHe: 'פרטו תחילה לבנת מאה אחת לעשר עשרות בטור העשרות', isCorrect: true, feedbackHe: 'נכון מאוד! כעת לחצו על לבנת המאה וצפו בעשרות הנוצרות בבית המספרים.' },
-      { id: "opt_2", textHe: 'התעלמו מהאפס והמשיכו לטור הבא', isCorrect: false, feedbackHe: 'רמז: כשפורטים מאה אחת, מה מקבלים: עשר עשרות או עשר יחידות?' },
-      { id: "opt_3", textHe: 'הוסיפו עשרת אחת לטור היחידות ללא פריטה', isCorrect: false, feedbackHe: HINT.addBlocks }
+      { id: "opt_1", textHe: 'פורטים תחילה לבנת מאה אחת לעשר עשרות בטור העשרות', isCorrect: true, feedbackHe: 'נכון מאוד! כעת לחצו על לבנת המאה וצפו בעשרות הנוצרות בבית המספרים.' },
+      { id: "opt_2", textHe: 'מתעלמים מהאפס וממשיכים לטור הבא', isCorrect: false, feedbackHe: 'רמז: כשפורטים מאה אחת, מה מקבלים: עשר עשרות או עשר יחידות?' },
+      { id: "opt_3", textHe: 'מוסיפים עשרת אחת לטור היחידות ללא פריטה', isCorrect: false, feedbackHe: HINT.addBlocks }
     ],
     correctChoiceId: "opt_1"
   },
@@ -776,12 +777,16 @@ export class SocraticEngine {
       (['units', 'tens', 'hundreds'] as const).some((p) => counts[p] >= 10 && !crowdingIsTheGoal(p))) {
       return meeting1CrowdedCard();
     }
+    // Stations 3–7 hide the digit beside each column name and the child
+    // counts the blocks, so the card names the column but not its count
+    // (owner, 30.9.2026). Station 1 has its own card above; station 8 has no
+    // board.
     if (counts.units >= 10 && !crowdingIsTheGoal('units')) {
       return {
         pedagogical_intent: "procedural",
-        tts_text: `בטור היחידות יש ${counts.units} לבנים. צריך לקבץ 10 מהן לעשרת אחת.`,
+        tts_text: 'נסו לחשוב: בטור היחידות יש 10 לבנים או יותר. מה עושים?',
         suggested_highlight: "tour-column-units",
-        questionHe: `בטור היחידות הצטברו ${counts.units} לבנים (יותר מ-9). מה הצעד הבא?`,
+        questionHe: 'נסו לחשוב: בטור היחידות יש 10 לבנים או יותר. מה עושים?',
         choices: [
           {
             id: "opt_1",
@@ -810,9 +815,9 @@ export class SocraticEngine {
     if (counts.tens >= 10 && !crowdingIsTheGoal('tens')) {
       return {
         pedagogical_intent: "procedural",
-        tts_text: `בטור העשרות יש ${counts.tens} עשרות. צריך לקבץ 10 מהן למאה אחת.`,
+        tts_text: 'נסו לחשוב: בטור העשרות יש 10 לבנים או יותר. מה עושים?',
         suggested_highlight: "tour-column-tens",
-        questionHe: `בטור העשרות הצטברו ${counts.tens} עשרות (יותר מ-9). מה עושים?`,
+        questionHe: 'נסו לחשוב: בטור העשרות יש 10 לבנים או יותר. מה עושים?',
         choices: [
           { 
             id: "opt_1", 
@@ -840,9 +845,9 @@ export class SocraticEngine {
     if (counts.hundreds >= 10 && !crowdingIsTheGoal('hundreds')) {
       return {
         pedagogical_intent: "procedural",
-        tts_text: `בטור המאות יש ${counts.hundreds} מאות. צריך לקבץ 10 מהן לאלף אחד.`,
+        tts_text: 'נסו לחשוב: בטור המאות יש 10 לבנים או יותר. מה עושים?',
         suggested_highlight: "tour-column-hundreds",
-        questionHe: `בטור המאות הצטברו ${counts.hundreds} מאות (יותר מ-9). מה הפעולה הנדרשת?`,
+        questionHe: 'נסו לחשוב: בטור המאות יש 10 לבנים או יותר. מה עושים?',
         choices: [
           {
             id: "opt_1",
@@ -1251,7 +1256,11 @@ export class SocraticEngine {
         socraticTextViolation(aiTexts, Array.isArray(currentTask?.revealedResultDigits) ? null : operands) ??
         (hiddenLeak !== null ? 'hidden number leaked' : null) ??
         (contradictsRequiredRepresentation(currentTask, choices) ? 'marks the instruction\'s representation wrong' : null) ??
-        absentAidViolation(aiTexts, sessionNumber);
+        absentAidViolation(aiTexts, sessionNumber) ??
+        // Stations 3–8 (owner, 30.9.2026): a wrong option's hint is "רמז:" and a
+        // guiding question; an engine card that explains instead is refused
+        // and the child gets the static card, whose hints are questions.
+        (sessionNumber >= 3 ? wrongHintViolation({ choices }) : null);
       if (violation) {
         console.warn('[Gemini Proxy] Response rejected by content rule:', violation);
         return null;

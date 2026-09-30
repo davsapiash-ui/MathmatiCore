@@ -446,8 +446,10 @@ describe('undo after a reload through the database (Module 11), meetings 3–8',
 
 /* ── 4. coaching in subtraction with a borrow (meetings 5–6) ────────────── */
 
+// The grouping card names the column and "10 לבנים או יותר", not the count
+// (stations 3–7 hide the column digits: owner, 30.9.2026).
 const isGroupCard = (h: { questionHe?: string; tts_text?: string } | null) =>
-  Boolean(h && /לקבץ|נקבץ/.test(`${h.questionHe ?? ''} ${h.tts_text ?? ''}`));
+  Boolean(h && /יש 10 לבנים או יותר|לקבץ|נקבץ/.test(`${h.questionHe ?? ''} ${h.tts_text ?? ''}`));
 
 describe('live coaching card (SocraticEngine.analyzeLiveBoardState), meetings 3–7', () => {
   const task = (meeting: 3 | 4 | 5 | 6 | 7, path: 'green_path' | 'remediation_path', id: string) =>
@@ -463,7 +465,7 @@ describe('live coaching card (SocraticEngine.analyzeLiveBoardState), meetings 3�
     expect(first.questionHe).toBe('נסו לחשוב: לפני שמוציאים לבנים, מה בודקים בכל טור?');
     expect(isGroupCard(first)).toBe(false);
     const before = card(t, { thousands: 5, hundreds: 4, tens: 3, units: 2 });
-    expect(before.questionHe).toContain('בטור היחידות יש 2 יחידות, וצריך לחסר 8 יחידות');
+    expect(before.questionHe).toContain('בטור היחידות אין מספיק לבנים כדי לחסר 8 יחידות');
     const afterBorrow = card(t, { thousands: 5, hundreds: 4, tens: 2, units: 12 });
     expect(isGroupCard(afterBorrow)).toBe(false);
     // The borrow is done: the card no longer asks for a second one (28.9.2026).
@@ -477,7 +479,7 @@ describe('live coaching card (SocraticEngine.analyzeLiveBoardState), meetings 3�
     const t = task(6, 'remediation_path', 's6_r_t4');
     const afterHundred = card(t, { hundreds: 2, tens: 10 });
     expect(isGroupCard(afterHundred)).toBe(false);
-    expect(afterHundred.questionHe).toContain('בטור היחידות אין אף יחידה, וצריך לחסר 2 יחידות'); // the next step: a ten into units
+    expect(afterHundred.questionHe).toContain('בטור היחידות אין מספיק לבנים כדי לחסר 2 יחידות'); // the next step: a ten into units
     const afterTen = card(t, { hundreds: 2, tens: 9, units: 10 });
     expect(isGroupCard(afterTen)).toBe(false);
   });

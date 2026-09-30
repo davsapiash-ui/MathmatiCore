@@ -52,7 +52,7 @@ import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogSe
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
-import type { StaticCardContext, StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
+import { STATIC_CARD_KINDS, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
 import { ref, update } from 'firebase/database';
 import { database, serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
@@ -678,6 +678,14 @@ function withCardKind(
 ): WorkspaceState['socraticCardKinds'] {
   const kinds = shown && shown.taskId === taskId ? shown.kinds : [];
   return { taskId, kinds: kinds.includes(kind) ? kinds : [...kinds, kind] };
+}
+
+/** A saved record back into shape: the database drops an empty list and a null id. */
+function restoredCardKinds(raw: unknown): WorkspaceState['socraticCardKinds'] {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as { taskId?: unknown; kinds?: unknown };
+  const list = Array.isArray(r.kinds) ? r.kinds : r.kinds && typeof r.kinds === 'object' ? Object.values(r.kinds) : [];
+  const kinds = list.filter((k): k is StaticCardKind => (STATIC_CARD_KINDS as readonly unknown[]).includes(k));
+  return { taskId: typeof r.taskId === 'string' ? r.taskId : null, kinds };
 }
 
 function resetTaskInteraction(_isASD = false) {
@@ -2741,6 +2749,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // exercise, a reload included — and a restore to another exercise
         // brings that exercise's own value, never the one on screen.
         placeCuesShown: saved.placeCuesShown === true,
+        // The same for the coaching cards already shown (C4, C5): a reload
+        // does not bring back the first level.
+        socraticCardKinds: restoredCardKinds(saved.socraticCardKinds),
         isSocraticCardLocked: Boolean(storedDeadline && storedDeadline > Date.now()),
         socraticLockDeadline: storedDeadline,
         socraticDistractorHint: saved.socraticDistractorHint ?? null,

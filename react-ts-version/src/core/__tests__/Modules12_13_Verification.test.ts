@@ -112,8 +112,9 @@ describe('Verification Suite: Module 12(c) and Module 13(a)', () => {
             guiding_question: 'מה הצעד הבא לאחר קיבוץ 10 יחידות?',
             options: [
               { id: '1', text: 'להוסיף עשרת לטור העשרות', feedback: 'נכון מאוד!', is_correct: true },
-              { id: '2', text: 'למחוק את טור המאות', feedback: 'לא נכון', is_correct: false },
-              { id: '3', text: 'להשאיר את 10 היחידות בטור', feedback: 'לא נכון', is_correct: false }
+              // A wrong option's hint is a guiding question (owner, 30.9.2026).
+              { id: '2', text: 'למחוק את טור המאות', feedback: 'רמז: האם זה נכון?', is_correct: false },
+              { id: '3', text: 'להשאיר את 10 היחידות בטור', feedback: 'רמז: האם זה נכון?', is_correct: false }
             ]
           }
         })
@@ -152,8 +153,8 @@ describe('Verification Suite: Module 12(c) and Module 13(a)', () => {
             guiding_question: 'בתרגיל חיסור 425 פחות 162, בעמודת העשרות יש 2 עשרות וצריך להחסיר 6. כיצד נקבל עוד עשרות בבית המספרים?',
             options: [
               { id: '1', text: 'נפרוט מאה אחת מטור המאות ל-10 עשרות', feedback: 'נכון מאוד!', is_correct: true },
-              { id: '2', text: 'נחסיר הפוך 6 פחות 2', feedback: 'לא נכון', is_correct: false },
-              { id: '3', text: 'נמחק את טור המאות לפח', feedback: 'לא נכון', is_correct: false }
+              { id: '2', text: 'נחסיר הפוך 6 פחות 2', feedback: 'רמז: האם זה נכון?', is_correct: false },
+              { id: '3', text: 'נמחק את טור המאות לפח', feedback: 'רמז: האם זה נכון?', is_correct: false }
             ]
           }
         })

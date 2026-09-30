@@ -979,6 +979,10 @@ export class FirebaseSyncService {
       // the exercise (register 28). Not saved, a reload took it away and the
       // next place error logged a second PLACE_CUES_SHOWN for one exercise.
       placeCuesShown: state.placeCuesShown === true,
+      // The coaching cards that come in levels, already shown in this exercise
+      // (C5 before the column's card, C4 once): not saved, a reload showed the
+      // first level again (owner, 30.9.2026). Carries its exercise id.
+      socraticCardKinds: state.socraticCardKinds ?? null,
       // The chosen branch travels with the index that points into it (restoreSession
       // rebuilds the branch tasks from it), and the radar's "אתגר / ביסוס" badge reads it.
       selectedBranch: state.selectedBranch ?? null,

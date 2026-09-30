@@ -295,14 +295,16 @@ const OPEN = 'נסו לחשוב: ';
  * card's kind once the card is shown, so a card that comes in levels is shown
  * once per exercise (useWorkspaceStore.socraticCardKinds).
  */
-export type StaticCardKind =
-  | 'compose_break' // C1
-  | 'decompose' // C2
-  | 'read_write_zero' // C3
-  | 'place_cues' // C4
-  | 'borrow_check' // C5
-  | 'error_analysis' // C6
-  | 'compose_group'; // C7
+export const STATIC_CARD_KINDS = [
+  'compose_break', // C1
+  'decompose', // C2
+  'read_write_zero', // C3
+  'place_cues', // C4
+  'borrow_check', // C5
+  'error_analysis', // C6
+  'compose_group', // C7
+] as const;
+export type StaticCardKind = typeof STATIC_CARD_KINDS[number];
 
 /** What the card chooser knows about the exercise so far, beyond the board. */
 export interface StaticCardContext {
@@ -416,9 +418,11 @@ function additionCard(a: number, b: number, blocks: boolean, counts?: BoardCount
 }
 
 /**
- * The decomposition card: column `c` has `have` and must give `need`; the
- * blocks come from `m`, across the empty columns `zeros` (מסמך 03 §3.6 when
- * there are any, §3.5 otherwise).
+ * The decomposition card: column `c` of the exercise has the digit `have` on
+ * top and must give `need`; the blocks come from `m`, across the empty columns
+ * `zeros` (מסמך 03 §3.6 when there are any, §3.5 otherwise). With blocks on
+ * the screen (stations 3–7) the card names no column's block count: the
+ * column digits are hidden there, and the child counts (owner, 30.9.2026).
  */
 function borrowCard(ex: string, c: Place, have: number, need: number, zeros: Place[], m: Place, blocks: boolean): SocraticHintResponse {
   const n = next(c)!;
@@ -438,7 +442,10 @@ function borrowCard(ex: string, c: Place, have: number, need: number, zeros: Pla
     ]);
   }
   const haveText = have === 0 ? `ב${COLUMN[c]} אין ${NONE[c]}` : `ב${COLUMN[c]} יש ${count(have, c)}`;
-  return card(`${OPEN}בתרגיל ${ex}, ${haveText}, וצריך לחסר ${count(need, c)}. מה עושים?`, 'procedural', HL(n), [
+  const question = blocks
+    ? `${OPEN}בתרגיל ${ex}, ב${COLUMN[c]} אין מספיק לבנים כדי לחסר ${count(need, c)}. מה עושים?`
+    : `${OPEN}בתרגיל ${ex}, ${haveText}, וצריך לחסר ${count(need, c)}. מה עושים?`;
+  return card(question, 'procedural', HL(n), [
     blocks
       ? [`פורטים ${ONE[n]} ל${TEN_OF[c]} ומעבירים אותן ל${COLUMN[c]}`, `נכון מאוד! לחצו על ${BLOCK[n]} כדי לפרוט אותה.`]
       : [`פורטים ${ONE[n]} ל${TEN_OF[c]}, ורושמים בעיגול הזיכרון שמעל ${COLUMN[n]} כמה ${PLURAL[n]} נשארו`, `נכון מאוד! עכשיו יש מספיק ${PLURAL[c]} כדי לחסר.`],
@@ -503,7 +510,8 @@ function subtractionCard(a: number, b: number, blocks: boolean, counts: BoardCou
       const c = LOW_TO_HIGH.find((p) => (counts[p] ?? 0) < digit(b, p));
       if (c) {
         const { zeros, m } = source(c, (p) => counts[p] ?? 0);
-        if (m) return checkFirst ? borrowCheckCard() : borrowCard(ex, c, counts[c] ?? 0, digit(b, c), zeros, m, true);
+        // The exercise's own digit, never the board's count (the child counts).
+        if (m) return checkFirst ? borrowCheckCard() : borrowCard(ex, c, digit(a, c), digit(b, c), zeros, m, true);
       }
       // A column still short with nothing to its left to decompose (5,432
       // built as 54 hundreds: 0 thousands, 2 to take): "every column has
@@ -723,7 +731,7 @@ const KIND_BY_ID: Record<string, RepresentationKind> = {
   s3_r_t2: 'compose_break', s3_r_t4: 'compose_break', s3_r_t6: 'compose_break',
   s3_g_t2: 'compose_break', s3_g_t4: 'compose_break', s3_g_t6: 'compose_break',
   s3_r_t3: 'decompose', s3_g_t3: 'decompose', s3_r_reinforce_2: 'decompose', s3_g_reinforce_2: 'decompose',
-  s7_r_t1: 'compose_group', s7_g_t1: 'compose_group',
+  s7_r_t1: 'compose_group', s7_g_t1: 'compose_group', s7_g_reinforce_2: 'compose_group',
 };
 const KINDS: RepresentationKind[] = ['read_write', 'compose_break', 'decompose', 'compose_group'];
 
@@ -797,19 +805,26 @@ function readWriteCard(task: any): SocraticHintResponse {
 
 /**
  * C7 — station 7, blocks built in one way and then grouped ("12 tens and 5
- * units", group 10 tens → 125; "25 hundreds", group twice → 2,500). The
- * grouping makes the highest column of the number from the one below it.
+ * units", group 10 tens → 125; "14 hundreds and 3 tens", group 10 hundreds →
+ * 1,430; "25 hundreds", group twice → 2,500). The grouping makes the highest
+ * column of the number from the one below it, one block per grouping. One
+ * grouping: the owner's singular wording. More (2,500 makes two thousand
+ * blocks from 20 hundred blocks): the plural wording he chose (30.9.2026).
  */
 function composeGroupCard(task: any): SocraticHintResponse | null {
   const n = numberWritten(task);
   const after: Counts | undefined = task.requiredCounts ?? (typeof n === 'number' ? standardCounts(n) : undefined);
   const made = after ? [...LOW_TO_HIGH].reverse().find((p) => (after[p] ?? 0) > 0) : undefined;
   const from = made ? LOW_TO_HIGH[LOW_TO_HIGH.indexOf(made) - 1] : undefined;
-  if (!made || !from) return null;
+  if (!after || !made || !from) return null;
+  const groupings = after[made] ?? 1;
+  const madeOption: [string, string] = groupings > 1
+    ? [`כן. עכשיו יש ${BLOCKS[made]}, ולכן המספר גדל`, `רמז: מאיפה הגיעו ${BLOCKS_THE[made]}? האם הוספתם לבנים?`]
+    : [`כן. עכשיו יש ${BLOCK[made]}, ולכן המספר גדל`, `רמז: מאיפה הגיעה ${BLOCK_THE[made]}? האם הוספתם לבנה?`];
   return card(`${OPEN}לפני ההקבצה בניתם מספר. האם ההקבצה שינתה אותו?`, 'conceptual', 'tour-place-value-board', [
     ['לא. הלבנים השתנו, אבל המספר נשאר אותו מספר', 'נכון מאוד! איזה מספר בניתם לפני ההקבצה?'],
-    ['כן. עכשיו יש פחות לבנים, ולכן המספר קטן', `רמז: מה קרה ל-10 ${BLOCKS_THE[from]}? מה קיבלתם במקומן?`],
-    [`כן. עכשיו יש ${BLOCK[made]}, ולכן המספר גדל`, `רמז: מאיפה הגיעה ${BLOCK_THE[made]}? האם הוספתם לבנה?`],
+    ['כן. עכשיו יש פחות לבנים, ולכן המספר קטן', `רמז: מה קרה ל-${10 * groupings} ${BLOCKS_THE[from]}? מה קיבלתם במקומן?`],
+    madeOption,
   ], 'compose_group');
 }
 
@@ -859,7 +874,12 @@ export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardCon
   if (!task) return null;
   const blocks = blocksOnScreen(meetingOfTaskId(task.id));
   const kind = representationKindOf(task);
-  if (kind) {
+  // C1 and C7 open with "לפני הפריטה/ההקבצה בניתם מספר": only once the child
+  // has built something (owner, 30.9.2026). On an empty board the task gets
+  // the card of its type below.
+  const built = counts ? boardValue(counts) > 0 : false;
+  const needsBuild = kind === 'compose_break' || kind === 'compose_group';
+  if (kind && (built || !needsBuild)) {
     const byKind = kindCard(task, kind);
     if (byKind) return byKind;
     // A representation task of a known kind this module cannot read: the

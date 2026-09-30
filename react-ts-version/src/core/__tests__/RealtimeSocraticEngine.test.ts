@@ -24,8 +24,10 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
 
     expect(hint).toBeDefined();
     expect(hint?.suggested_highlight).toBe('tour-column-thousands');
-    expect(hint?.questionHe).toContain('2 מאות');
-    expect(hint?.questionHe).toContain('8 מאות');
+    // The column and what it must give, never how many blocks it holds: the
+    // digits beside the columns are hidden and the child counts (owner, 30.9.2026).
+    expect(hint?.questionHe).toContain('בטור המאות אין מספיק לבנים כדי לחסר 8 מאות');
+    expect(hint?.questionHe).not.toContain('2 מאות');
     expect(hint?.choices).toHaveLength(3);
     
     const correctOpt = hint?.choices.find(c => c.id === hint?.correctChoiceId);
@@ -120,7 +122,9 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
 
     expect(hint).toBeDefined();
     expect(hint?.suggested_highlight).toBe('tour-column-units');
-    expect(hint?.questionHe).toContain('14 לבנים');
+    // The column, not its count (owner, 30.9.2026): the child counts.
+    expect(hint?.questionHe).toBe('נסו לחשוב: בטור היחידות יש 10 לבנים או יותר. מה עושים?');
+    expect(hint?.questionHe).not.toContain('14');
     expect(hint?.choices[0].textHe).toContain('אוספים 10 יחידות מטור היחידות וממירים אותן לעשרת אחת בטור העשרות');
     expect(hint?.choices[1].textHe).toContain('מוחקים 10 יחידות');
   });
@@ -139,7 +143,8 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
 
     expect(hint).toBeDefined();
     expect(hint?.suggested_highlight).toBe('tour-column-tens');
-    expect(hint?.questionHe).toContain('13 עשרות');
+    expect(hint?.questionHe).toBe('נסו לחשוב: בטור העשרות יש 10 לבנים או יותר. מה עושים?');
+    expect(hint?.questionHe).not.toContain('13');
     expect(hint?.choices[0].textHe).toContain('אוספים 10 עשרות ומקבצים אותן למאה אחת בטור המאות');
   });
 

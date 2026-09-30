@@ -302,8 +302,13 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
     };
   });
 
+  // After the right answer the card stays open with its feedback until the
+  // child presses "הבנתי" (owner, 30.9.2026; it used to close after 1.2 s, too
+  // fast to read). The answer is given: the options take no second press.
+  const answered = options.some((o) => o.id === selectedOpt && o.correct);
+
   const handleSelect = (opt: typeof options[0]) => {
-    if (locked) return;
+    if (locked || answered) return;
     setSelectedOpt(opt.id);
     setFeedbackHint(opt.hint);
 
@@ -331,12 +336,6 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
       if (state.keyboardState === 'SOCRATIC_ONLY') {
         state.unlockKeyboard();
       }
-      // PRD Module 12: Smooth auto-dismiss after affirmative feedback display
-      setTimeout(() => {
-        if (useWorkspaceStore.getState().helpState === 'socratic') {
-          useWorkspaceStore.getState().closeHelp();
-        }
-      }, 1200);
     }
   };
 
@@ -344,17 +343,17 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
     <div className="mt-[clamp(0.25rem,1.2vh,1rem)] flex flex-col gap-[clamp(0.25rem,0.9vh,0.625rem)] shrink-0">
       {/* While the answer buttons are locked the prompt's line goes to the
           hint; it comes back with the buttons. */}
-      {!locked && <p className="font-extrabold text-xs text-ws-soft">בחרו את הדרך הנכונה להתקדם:</p>}
+      {!locked && !answered && <p className="font-extrabold text-xs text-ws-soft">בחרו את הדרך הנכונה להתקדם:</p>}
       {options.map((opt) => {
         const isChosen = selectedOpt === opt.id;
         const isWrongChosen = isChosen && !opt.correct;
         const isCorrectChosen = isChosen && opt.correct;
-        const isOtherDisabled = locked && !isChosen;
+        const isOtherDisabled = (locked || answered) && !isChosen;
 
         return (
           <button
             key={opt.id}
-            disabled={locked}
+            disabled={locked || answered}
             onClick={() => handleSelect(opt)}
             className={`px-3 py-[clamp(0.3125rem,1.3vh,0.75rem)] rounded-2xl border-2 text-right font-medium text-[clamp(0.75rem,2vh,0.875rem)] leading-snug transition-all flex items-start gap-2 ${
               isCorrectChosen

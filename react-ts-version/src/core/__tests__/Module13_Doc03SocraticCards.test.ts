@@ -53,7 +53,8 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
     const expected: Record<number, string> = {
       4: 'מקבצים 10 יחידות לעשרת אחת',
       5: 'פורטים עשרת אחת לעשר יחידות',
-      6: 'פרטו תחילה לבנת מאה אחת לעשר עשרות',
+      // Options in the impersonal present, like every card (owner, 30.9.2026).
+      6: 'פורטים תחילה לבנת מאה אחת לעשר עשרות',
       7: 'נעזרים בלבנים',
       8: 'מתבוננים בתרגיל',
     };

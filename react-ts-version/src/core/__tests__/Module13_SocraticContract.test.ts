@@ -58,8 +58,10 @@ const goodResponse = {
   guiding_question: 'בתרגיל 425 פחות 162, בטור העשרות יש 2 עשרות וצריך להחסיר 6. מאיפה נביא עוד עשרות לבית המספרים?',
   options: [
     { id: 'opt_1', option_text: 'נפרוט מאה אחת מטור המאות ל-10 עשרות', feedback_text: 'נכון מאוד! לחצו על לבנת המאה כדי לפרוט אותה.', is_correct: true },
-    { id: 'opt_2', option_text: 'נחסיר הפוך: 6 פחות 2', feedback_text: 'רמז: בחיסור גורעים רק מהכמות הקיימת.', is_correct: false },
-    { id: 'opt_3', option_text: 'נמחק עשרות לפח האשפה', feedback_text: 'רמז: מחיקה משנה את ערך המספר.', is_correct: false },
+    // A wrong option's hint is a guiding question (owner, 30.9.2026); the
+    // client refuses an engine card whose hint explains instead.
+    { id: 'opt_2', option_text: 'נחסיר הפוך: 6 פחות 2', feedback_text: 'רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה?', is_correct: false },
+    { id: 'opt_3', option_text: 'נמחק עשרות לפח האשפה', feedback_text: 'רמז: אם תמחקו לבנים, האם המספר יישאר אותו מספר?', is_correct: false },
   ],
 };
 
