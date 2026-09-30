@@ -1,5 +1,5 @@
 /**
- * The owner's decisions of 28.9.2026 (register: שהC.1 option א, שהC.2,
+ * The owner's decisions of 28.9.2026 (register: שהC.1 option א,
  * שהB.2, שהB.4), and the "four errors" count as מסמך 03 writes it: "ארבע
  * מחיקות או הקלדות שגויות רצופות באותו טור" (שהB.3 — deletions count nothing —
  * departs from that wording and is not applied). Each clause of each rule has
@@ -182,7 +182,7 @@ describe('Rule 1 — skeleton exercises of meetings 3–7 accept the result or t
   });
 });
 
-/* ── RULE 2 — meeting 6 reinforcement text (שהC.2) ───────────────────────── */
+/* ── RULE 2 — meetings 5–6 subtraction text (owner, 30.9.2026) ───────────────────────── */
 
 describe('Rule 2 — meetings 5–6 ask the child to check each column (owner 28.9.2026; wording 30.9.2026)', () => {
   // 28.9.2026: the instruction does not decide for the child that nothing needs
