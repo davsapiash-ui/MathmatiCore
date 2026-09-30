@@ -292,7 +292,7 @@ describe('the store gate follows the checklist', () => {
     store().proceed();
     const sub = store().feedback?.sub ?? '';
     expect(sub).toBe('באחד הטורים יש 10 לבנים או יותר. לחצו על הכפתור שמופיע בראש אותו טור.');
-    expect(sub).not.toMatch(/העשרות|היחידות|המאות|קבץ 10/);
+    expect(sub).not.toMatch(/העשרות|היחידות|המאות|קבצו? 10/);
   });
 
   it('the target task comes after the grouping exercise and opens on an empty board', () => {

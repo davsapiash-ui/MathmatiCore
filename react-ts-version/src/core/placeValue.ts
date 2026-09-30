@@ -82,7 +82,7 @@ export function splitBlockClick(counts: PlaceCounts, place: Place): { counts: Pl
   return ungroupBlock(counts, place);
 }
 
-/** הקבצה מפורשת בלחיצה על כפתור "הקבץ": 10 adjacent-low → 1 high (Units→Tens, Tens→Hundreds, Hundreds→Thousands). */
+/** הקבצה מפורשת בלחיצה על כפתור "קבצו 10": 10 adjacent-low → 1 high (Units→Tens, Tens→Hundreds, Hundreds→Thousands). */
 export function groupBlocksManually(counts: PlaceCounts, fromPlace: Place): { counts: PlaceCounts; event: RegroupEvent } | null {
   const fromIdx = PLACE_ORDER.indexOf(fromPlace);
   if (fromIdx < 0 || fromIdx >= PLACE_ORDER.length - 1) return null;
@@ -191,7 +191,7 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLeve
     return { ok: true, counts: res.counts, regroupEvents: [], ungroupEvent: res.event };
   }
 
-  // Non-adjacent or upward drag: rejected (regrouping must use the explicit "הקבץ" button per PRD).
+  // Non-adjacent or upward drag: rejected (regrouping must use the explicit "קבצו 10" button per PRD).
   return { ok: false, reason: 'constraint', place: targetPlace };
 }
 

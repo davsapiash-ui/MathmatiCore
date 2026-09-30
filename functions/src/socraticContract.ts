@@ -657,7 +657,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
     // PRD Module 14 §ב: meeting 8 shows no blocks, no trash and no number house.
     lines.push(`=== עמוד 2: במפגש ${facts.meeting} אין לבנים על המסך ===`);
     lines.push("על המסך יש רק התרגיל במאונך, עיגולי הזיכרון שמעל הטורים ושורת התוצאה. אין לבנים, אין פח אשפה ואין בית מספרים.");
-    lines.push("אסור להזכיר לבנים, פח אשפה, מחסן, כפתור הקבץ או בית המספרים. כוונו לעיגולי הזיכרון ולשורת התוצאה בלבד.");
+    lines.push("אסור להזכיר לבנים, פח אשפה, מחסן, הכפתור \"קבצו 10\" או בית המספרים. כוונו לעיגולי הזיכרון ולשורת התוצאה בלבד.");
     if (facts.operation) {
       for (const c of [...facts.columns].reverse()) {
         const sub = facts.operation === "subtraction" ? `${c.shown_a} − ${c.shown_b}` : `${c.shown_a} + ${c.shown_b}`;
@@ -841,7 +841,7 @@ export const ABSENT_AIDS_NO_BOARD: RegExp[] = [
   HE_WORD("פח"),
   HE_WORD("מחסן"),
   HE_WORD("לוח"),
-  HE_WORD("קבץ"),
+  HE_WORD("קבץ|קבצו"),
   HE_WORD("דינס"),
   /קובי/,
   /בית המספרים/,

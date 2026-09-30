@@ -237,7 +237,7 @@ export interface UndoFrame {
  * trigger are both PER COLUMN. A column's conversion is done when the blocks
  * performed it for that column:
  *  - addition — ten blocks of the column grouped into one block of the next
- *    ("הקבץ 10" on the column): `composed[place]`;
+ *    ("קבצו 10" on the column): `composed[place]`;
  *  - subtraction — a block of the next column decomposed into ten blocks of
  *    this column (a click on it, or a drag to the right): `decomposed[place]`.
  * Chained conversions are just several columns: 403 − 128 decomposes a hundred

@@ -7,7 +7,7 @@ import { useEnhancedSupport } from './useEnhancedSupport';
  * 27.9.2026): a still picture of the unit blocks in a units column, for every
  * learner and in the correction round too. It is the question itself, not a
  * scaffold: nothing here can be dragged, clicked or grouped, and there is no
- * "קבץ 10" button. The blocks are the board's own unit block (UnitSVG), in the
+ * "קבצו 10" button. The blocks are the board's own unit block (UnitSVG), in the
  * board's units-column frame — the virtual Dienes blocks of PRD Module 14 §ב
  * are not loaded (no dnd-kit, no store, no board).
  *
