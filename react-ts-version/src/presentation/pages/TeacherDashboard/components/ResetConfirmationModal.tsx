@@ -188,7 +188,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של כל 12 התלמידים אל Google Drive לפני כל מחיקה.</li>
                 <li>יימחקו כל נתוני מרחב העבודה, הטלמטריה, הודעות הצ'אט והסשנים של כלל הכיתה.</li>
                 <li>כל 12 הלומדים יוחזרו למצב התחלה נקי.</li>
-                <li>יירשם תיעוד בלתי-מחיק ביומן הביקורת reset_audit_log.</li>
+                <li>יירשם תיעוד בלתי-מחיק ביומן האיפוסים.</li>
               </>
             )}
             {isClassTarget && (
@@ -197,7 +197,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <li>יימחקו מצב מרחב העבודה וההתקדמות של כל 12 הלומדים {inMeetingLabel}.</li>
                 <li>כל הלומדים יוחזרו לתחילת המפגש. מפגשים קודמים, הקלטות והודעות צ'אט נשמרים.</li>
                 <li>המפגש של הכיתה נשאר פתוח, והשעון שלו ממשיך מהרגע שהופעל.</li>
-                <li>יירשם תיעוד בלתי-מחיק ביומן הביקורת reset_audit_log.</li>
+                <li>יירשם תיעוד בלתי-מחיק ביומן האיפוסים.</li>
               </>
             )}
             {isLevel2 && !isClassTarget && !isFullStudent && (
@@ -206,7 +206,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <li>יימחקו מצב מרחב העבודה וההתקדמות של לומד זה בלבד {inMeetingLabel}.</li>
                 <li>הלומד יוחזר לתחילת המפגש. מפגשים קודמים, הקלטות והודעות צ'אט נשמרים.</li>
                 {!activeSessionNumber && <li>אין מפגש פתוח כרגע: יאופס המפגש שהלומד נמצא בו.</li>}
-                <li>יירשם תיעוד בלתי-מחיק ביומן הביקורת reset_audit_log.</li>
+                <li>יירשם תיעוד בלתי-מחיק ביומן האיפוסים.</li>
               </>
             )}
             {isFullStudent && (
@@ -214,14 +214,14 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של נתוני {targetStudentName || targetStudentId} אל Google Drive.</li>
                 <li className="text-red-700 dark:text-red-300 font-semibold">יימחקו כל ההתקדמות בכל 8 המפגשים, תוצאות האבחון, ההקלטות והודעות הצ'אט של לומד זה.</li>
                 <li>הלומד יחזור למצב התחלה נקי, כאילו לא נכנס למערכת מעולם.</li>
-                <li>יירשם תיעוד בלתי-מחיק ביומן הביקורת reset_audit_log.</li>
+                <li>יירשם תיעוד בלתי-מחיק ביומן האיפוסים.</li>
               </>
             )}
             {!isLevel2 && !isLevel3 && (
               <>
                 <li>ינוקה מצב הרדאר הפדגוגי ו-12 המשבצות יוחזרו לברירת מחדל.</li>
                 <li>לא יימחקו נתוני למידה או טלמטריה.</li>
-                <li>יירשם תיעוד ביומן הביקורת reset_audit_log.</li>
+                <li>יירשם תיעוד ביומן האיפוסים.</li>
               </>
             )}
           </ul>
@@ -244,7 +244,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                   className="w-5 h-5 rounded text-amber-600 focus:ring-amber-500"
                 />
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  אני מאשר/ת לאפס לכל 12 הלומדים את {meetingLabel}.
+                  מאשרים את האיפוס של {meetingLabel} לכל 12 הלומדים.
                 </span>
               </label>
             )}
@@ -339,7 +339,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 className="w-5 h-5 rounded text-red-600 focus:ring-red-500"
               />
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                אני מאשר/ת באופן מפורש את ביצוע איפוס המערכת הכולל.
+                מאשרים במפורש את האיפוס הכולל של המערכת.
               </span>
             </label>
           </div>

@@ -1193,7 +1193,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               aria-selected={activeTab === "diagnostic_reports"}
               className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all ${activeTab === "diagnostic_reports" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
-              דו"חות אבחון אישיים
+              דוחות אבחון אישיים
             </button>
             <button
               onClick={() => handleTabChange("approvals")}
@@ -1285,7 +1285,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               aria-selected={activeTab === "diagnostic_reports"}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "diagnostic_reports" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            דו"חות אבחון אישיים
+            דוחות אבחון אישיים
           </button>
           <button
             onClick={() => handleTabChange("approvals")}
@@ -1494,7 +1494,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   קיבוץ תלמידים לפי מיומנויות ופערי למידה
                 </h1>
                 <p className="text-ws-soft mt-2 text-base md:text-lg">
-                  אבחון וחלוקה אוטומטית של הכיתה ב-6 מיומנויות ליבה במתמטיקה למתן תרגול דיפרנציאלי ומותאם אישית.
+                  חלוקה אוטומטית של הכיתה לפי שלושת תחומי האבחון: המבנה העשרוני והאפס, הקבצה ופריטה, וחישוב במאונך.
                 </p>
               </div>
               {/* המסך הזה נבנה על פרופיל השליטה, שנוצר בסיום מפגש האבחון.
@@ -1723,7 +1723,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-10">
               <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                דו"חות אבחון אישיים
+                דוחות אבחון אישיים
               </h1>
               <p className="text-ws-soft mt-3 text-lg">
                 תצוגה פדגוגית המשלבת שחזור מהלכים, נתוני רדאר, מיפוי מיומנויות והמלצות להוראה מותאמת אישית.
@@ -2314,7 +2314,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className={`w-2 h-2 rounded-full ${isStudentOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
                               <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                {isStudentOnline ? 'מחובר/ת כעת' : 'מנותק/ת'}
+                                {isStudentOnline ? 'מחובר כעת' : 'לא מחובר'}
                               </span>
                             </div>
                           </div>

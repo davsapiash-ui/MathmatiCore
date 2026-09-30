@@ -3,7 +3,7 @@ import { requireAdmin, requireTeacherForIndividualData } from "./callerIdentity"
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { GoogleAuth } from "google-auth-library";
-import { computeToolMastery, truncatedRecordingMeetings, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
+import { computeToolMastery, truncatedRecordingMeetings, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, computeSelfCorrectionIndex, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
 import { recomputeAdminMetrics } from "./adminAggregator";
 import { containsPhoneNumber } from "./phonePattern";
 import { scrubPII } from "./geminiProxy";
@@ -1815,6 +1815,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       const compulsory = await resolveCompulsoryTotal(db, m, path, compulsoryCache, compulsoryIdsByBank);
       // With the ids: optional early-finisher tasks do not count towards the score (PRD 23 §ב).
       const score = computeFirstAttemptScore(events, compulsory, compulsoryIdsByBank.get(`${m}:${path}`) ?? null);
+      // Measure 2 in two parts (owner, 30.9.2026): 2ב self-correction, 2א persistence.
+      const selfCorrection = computeSelfCorrectionIndex(events);
       const persistence = computePersistenceIndex(events);
       const summary = summarizeMeeting(events);
       const tools = computeToolMastery(events);
@@ -1866,10 +1868,11 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         fading_seconds_without_blocks: fading?.mean_seconds_without_blocks ?? "",
         fading_guessed: fading?.guessed_exercises.join("|") ?? "",
         fading_unpaired: fading?.unpaired_exercises.join("|") ?? "",
-        persistence_undos: persistence.undos,
-        persistence_wrong_digits: persistence.wrong_digits,
-        persistence_wrong_options: persistence.wrong_options,
-        persistence_percent: persistence.percent,
+        // Measure 2ב, renamed in place: no column moves, and no old name now means something else.
+        self_correction_undos: selfCorrection.undos,
+        self_correction_wrong_digits: selfCorrection.wrong_digits,
+        self_correction_wrong_options: selfCorrection.wrong_options,
+        self_correction_percent: selfCorrection.percent,
         flexibility_completed: flexibility?.completed ?? "",
         flexibility_first_try: flexibility?.first_try ?? "",
         flexibility_percent: flexibility?.percent ?? "",
@@ -1896,6 +1899,11 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         ...Object.fromEntries(TOOLS.map((tool) => [`tool_${tool}`, tools.used[tool]])),
         // Register deviation 28, appended last so every earlier column keeps its place.
         place_cue_scaffolds: summary.place_cue_scaffolds ?? 0,
+        // Measure 2א and the withdrawn help calls (owner, 30.9.2026), appended last.
+        persistence_exercises_with_errors: persistence.exercises_with_errors,
+        persistence_solved_without_help: persistence.solved_without_help,
+        persistence_without_help_percent: persistence.percent ?? "",
+        help_withdrawals: summary.help_withdrawals ?? 0,
       });
     }
 

@@ -272,7 +272,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                 <div>
                   <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     <EyeOff className="w-4 h-4 text-purple-600" />
-                    שקט חזותי והתאמת קשב (ASD / Sensory Friendly)
+                    שקט חזותי והתאמת קשב
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     התאמת סביבת הלמידה לתלמידים עם רגישות חושית או הפרעות קשב וריכוז.

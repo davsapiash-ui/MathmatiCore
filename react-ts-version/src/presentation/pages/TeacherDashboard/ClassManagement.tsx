@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, Sparkles, ChevronRight, Zap, CheckCircle2, Sliders, ShieldCheck, RotateCcw } from 'lucide-react';
 import { useStore, type StudentData } from '@/application/useStore';
-import { HeatmapGrid } from './components/HeatmapGrid';
 import { ResetConfirmationModal } from './components/ResetConfirmationModal';
 import { ref, onValue, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
@@ -46,7 +45,6 @@ const INITIAL_GATE_STUDENTS: StudentGateState[] = Array.from({ length: 12 }, (_,
  * 4. אכיפת מגבלת 12 תלמידים פעילים לכיתת המבקרים תחת בית ספר ביקורת.
  */
 export function ClassManagement({ 
-  onDrillDown,
   activeSessionNumber = null,
 }: { 
   allStudents: StudentData[]; 
@@ -373,7 +371,7 @@ export function ClassManagement({
                     ? 'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-100'
                     : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
                 }`}>
-                  {student.enhancedSupport ? 'תמיכה מוגברת' : 'מסלול רגיל'}
+                  {student.enhancedSupport ? 'תמיכה מוגברת' : 'תמיכה רגילה'}
                 </span>
               </div>
 
@@ -394,8 +392,7 @@ export function ClassManagement({
         </div>
       </section>
 
-      {/* Heatmap Grid Component */}
-      <HeatmapGrid onDrillDown={onDrillDown} />
+      {/* The radar lives in its own tab only (owner, 30.9.2026): a second copy here doubled its listeners and its reset buttons. */}
 
       {/* PRD v7.1 Module 23א §ה: level 2+ resets must never be single-click. */}
       <ResetConfirmationModal

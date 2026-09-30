@@ -92,7 +92,7 @@ const TRIGGER_HE: Record<SocraticTriggerReason, string> = {
   hesitation_45s: "השהיה של 45 שניות ומעלה ללא פעולה בטור הפעיל",
   consecutive_errors_4: "ארבע שגיאות רצופות בהקלדה",
   consecutive_undos_3: "שלוש לחיצות ביטול רצופות",
-  conversion_not_performed: "הקלדה בטור שדורש הקבצה או פריטה לפני שבוצעה ההמרה בלבנים",
+  conversion_not_performed: "הקלדה בטור שדורש הקבצה או פריטה לפני שבוצעה ההמרה בלבני הדינס",
   repeated_errors: "תשובה שגויה שנייה ברצף באותו תרגיל",
 };
 
@@ -490,7 +490,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   } else if (trigger === "conversion_not_performed") {
     suggested_category = "procedural";
     suggested_focus_he = blocks_on_screen
-      ? "הלומד ניסה להקליד תוצאה בטור שדורש הקבצה או פריטה לפני שביצע את ההמרה בלבנים."
+      ? "הלומד ניסה להקליד תוצאה בטור שדורש הקבצה או פריטה לפני שביצע את ההמרה בלבני הדינס."
       : "הלומד ניסה להקליד תוצאה בטור שדורש המרה או פריטה לפני שרשם אותה בעיגול הזיכרון.";
   } else if (trigger === "repeated_errors") {
     suggested_category = "calculation";

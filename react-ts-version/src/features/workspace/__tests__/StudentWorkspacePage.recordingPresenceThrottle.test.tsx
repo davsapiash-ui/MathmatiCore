@@ -345,7 +345,7 @@ describe('Module 18 §ג — presence is decided on the server clock', () => {
         onlineStatus: 'active',
         lastPing: T - 3_000,
         hasJoinedSession: true,
-        lastAction: 'פעיל/ה במפגש 4',
+        lastAction: 'פעיל במפגש 4',
         workspaceState: { sessionNumber: 4, flowStatus: 'task' },
       });
       // The teacher's laptop clock is skewed; the database reported the offset.

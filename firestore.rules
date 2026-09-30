@@ -134,7 +134,10 @@ service cloud.firestore {
         'BOARD_CLEARED',
         // Register deviation 28 (owner, 30.9.2026): the place-cue scaffold of
         // the result row — the whole row, not one column.
-        'PLACE_CUES_SHOWN'
+        'PLACE_CUES_SHOWN',
+        // Owner, 30.9.2026: the learner took the silent help call back.
+        // Research data only; it belongs to no column.
+        'HELP_WITHDRAWN'
       ];
     }
 

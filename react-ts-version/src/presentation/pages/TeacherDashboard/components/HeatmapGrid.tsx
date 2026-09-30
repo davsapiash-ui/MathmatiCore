@@ -56,6 +56,9 @@ export interface AnonymousStudent {
   status: 'active' | 'locked' | 'completed';
   hesitationSeconds: number;
   errorCount: number;
+  /** Shown on the tile apart, so undos (self-correction) and mistakes are not one number called "ביטולים". */
+  undoCount?: number;
+  mistakeCount?: number;
   enhancedSupport: boolean;
   isStruggling: boolean;
   isSocraticActive: boolean;
@@ -82,6 +85,8 @@ const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_,
     status: 'active' as const,
     hesitationSeconds: 0,
     errorCount: 0,
+    undoCount: 0,
+    mistakeCount: 0,
     enhancedSupport: false,
     isStruggling: false,
     isSocraticActive: false,
@@ -241,7 +246,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           const hesitationSeconds = isOnline && hesitatingSince !== null
             ? hesitationThreshold + Math.max(0, Math.round((now - hesitatingSince) / 1000))
             : 0;
-          const errorCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0, sessionState.error_count || 0) : 0;
+          const undoCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0) : 0;
+          const mistakeCount = isOnline ? sessionState.error_count || 0 : 0;
+          // The struggle signal keeps its rule (Module 18): the larger of the two.
+          const errorCount = Math.max(undoCount, mistakeCount);
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path';
           const enhancedSupport = hasEnhancedSupport(data) || Boolean(data.isASD || data.forceAdditionHelper || data.additionBoardEnabled);
 
@@ -304,6 +312,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             status,
             hesitationSeconds,
             errorCount,
+            undoCount,
+            mistakeCount,
             enhancedSupport,
             isStruggling,
             isSocraticActive,
@@ -753,8 +763,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
                     {/* Real-Time Trace Metrics */}
                     <div className="text-[10px] text-slate-600 dark:text-slate-300 flex justify-between items-center pt-1 border-t border-slate-200/60 dark:border-slate-800 font-mono font-bold">
-                      <span>השהייה: {student.hesitationSeconds}ש'</span>
-                      <span>ביטולים: {student.errorCount}</span>
+                      {/* "היסוס", as in the radar's legend (Module 18). */}
+                      <span>היסוס: {student.hesitationSeconds} שנ׳</span>
+                      <span>ביטולים: {student.undoCount ?? 0}</span>
+                      <span>טעויות: {student.mistakeCount ?? 0}</span>
                     </div>
 
                   </>

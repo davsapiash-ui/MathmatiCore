@@ -79,7 +79,7 @@ import {
  */
 function emitScaffoldEvent(
   s: WorkspaceState,
-  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED' | 'PLACE_CUES_SHOWN',
+  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED' | 'HELP_WITHDRAWN' | 'PLACE_CUES_SHOWN',
   details: Record<string, unknown>,
   columnIndex?: number
 ): void {
@@ -3603,6 +3603,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           lastAction: 'ביטל את הקריאה למורה',
         }).catch(console.error);
         set({ hasRequestedBasicHelp: false });
+        // Owner, 30.9.2026: the take-back is research data. The call itself
+        // still counts as help in measure 2א — the teacher may already have come.
+        emitScaffoldEvent(get(), 'HELP_WITHDRAWN', { help_count: s.helpRequestCount || 0 });
         showSideFeedback({ correct: true, neutral: true, title: 'הקריאה בוטלה', sub: 'אפשר ללחוץ שוב בכל עת.' }, 2000);
         return;
       }

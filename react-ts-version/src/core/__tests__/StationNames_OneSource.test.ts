@@ -331,7 +331,8 @@ describe('the teacher and the admin read the same names', () => {
 
   it('the learner report names the board and the pieces the same way', () => {
     const report = stripComments(read(resolve(REPO, 'functions/src/pedagogicalReport.ts')));
-    expect(report).toContain('ייצג את המספרים בבית המספרים באמצעות לבנים של');
+    // Owner, 30.9.2026: the teacher reads "לבני הדינס"; the child keeps "לבנים" (register, decision ט).
+    expect(report).toContain('ייצג את המספרים בבית המספרים באמצעות לבני הדינס של');
     for (const f of ['pedagogicalReport.ts', 'classReport.ts', 'reportHtml.ts', 'reportAnalysis.ts', 'meetingMetrics.ts']) {
       const text = stripComments(read(resolve(REPO, 'functions/src', f)));
       expect(text, f).not.toMatch(OLD_BOARD_OR_PIECE);

@@ -95,7 +95,7 @@ export function buildGateStudentItem(
     isCompleted,
     isApproved,
     scoreSummary: scorePercent !== null
-      ? `ציון דיאגנוסטי: ${Math.round(scorePercent)}% (7 משימות חובה)`
+      ? `ציון האבחון: ${Math.round(scorePercent)}% (7 משימות חובה)`
       : 'סיום ראשוני — ממתין לחישוב מדדים',
     errorNodes: failed.length > 0 ? failed : undefined,
   };

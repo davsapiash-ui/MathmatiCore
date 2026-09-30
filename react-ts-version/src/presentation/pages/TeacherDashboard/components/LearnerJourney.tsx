@@ -504,7 +504,12 @@ export function LearnerJourney({ studentId }: Props) {
                 {report.researchMeasures.length > 0 && (
                   <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 text-ws-ink">
                     <div className="font-black mb-1">מדדי המחקר</div>
-                    <ul className="space-y-1">{report.researchMeasures.map((line, i) => <li key={i}>• {line}</li>)}</ul>
+                    <ul className="space-y-1.5">{report.researchMeasures.map((m) => (
+                      <li key={m.label}>
+                        <div><span className="font-bold">{m.label}:</span> {m.value}</div>
+                        <div className="text-ws-soft text-[11px]">{m.explanation}</div>
+                      </li>
+                    ))}</ul>
                   </div>
                 )}
                 {report.pdfFailureMessage && (
