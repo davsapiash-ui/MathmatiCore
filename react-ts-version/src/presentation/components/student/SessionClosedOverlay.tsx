@@ -33,7 +33,7 @@ export function SessionClosedOverlay() {
           className="w-24 h-24 rounded-3xl bg-indigo-50 dark:bg-indigo-950/40 border-2 border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center text-5xl shadow-inner"
           aria-hidden="true"
         >
-          🐝✨
+          ✨
         </motion.div>
         <div className="flex flex-col gap-2">
           <h2 className="font-display font-black text-2xl text-slate-800 dark:text-slate-100">

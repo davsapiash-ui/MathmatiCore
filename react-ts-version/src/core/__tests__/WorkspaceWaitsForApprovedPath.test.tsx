@@ -48,6 +48,9 @@ vi.mock('@/infrastructure/services/FirebaseSyncService', () => ({
     clearLocalSessionProgress: () => {},
     syncHighestCompletedMeeting: () => Promise.resolve(),
     syncQMatrix: () => Promise.resolve(),
+    // The page's board write asks the sync whether it may write (Module 17);
+    // as before that rule, it may.
+    mayWriteWorkspaceToRecord: () => true,
   },
   emitTelemetry: () => Promise.resolve(),
   resolveLearningPath: () => null,
@@ -58,8 +61,8 @@ vi.mock('@/infrastructure/services/SocraticEngine', () => ({ SocraticEngine: { p
 vi.mock('rrweb', () => ({ record: () => () => {} }));
 
 // The screens around the workspace: each says which one is on screen.
-vi.mock('@/presentation/components/student/BeeFlightWaitingScreen', () => ({
-  BeeFlightWaitingScreen: () => <div data-testid="bee-screen" />,
+vi.mock('@/presentation/components/student/Meeting2WaitingScreen', () => ({
+  Meeting2WaitingScreen: () => <div data-testid="meeting2-waiting-screen" />,
 }));
 vi.mock('@/presentation/design-system/UdlSpeechButton', () => ({
   UdlSpeechButton: ({ text }: { text: string }) => <button type="button" data-testid="speech" data-text={text} />,
@@ -122,10 +125,10 @@ function open(meeting: number) {
   );
 }
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
-const bee = () => screen.queryByTestId('bee-screen');
+const m2wait = () => screen.queryByTestId('meeting2-waiting-screen');
 const quiet = () => screen.queryByTestId('teacher-will-open-screen');
 /** Either waiting screen: which one is the subject of its own tests below. */
-const waiting = () => bee() ?? quiet();
+const waiting = () => m2wait() ?? quiet();
 const card = () => screen.queryByTestId('task-card');
 
 beforeEach(() => {
@@ -210,11 +213,11 @@ describe('meetings 3–7 start only on an approved path', () => {
     expect(card()?.textContent).toBe(getSessionTasks(4, 'remediation_path')[2].id);
   });
 
-  it('meeting 2 finished and awaiting the gate: the bee screen, and not the other one', async () => {
+  it('meeting 2 finished and awaiting the gate: the meeting-2 waiting screen, and not the other one', async () => {
     record({ completedMeeting2: true, highestCompletedMeeting: 2, routeStatus: 'PENDING_TEACHER_APPROVAL', teacher_gate_approved: false });
     open(3);
     await flush();
-    expect(bee()).not.toBeNull();
+    expect(m2wait()).not.toBeNull();
     expect(quiet()).toBeNull();
   });
 
@@ -223,11 +226,11 @@ describe('meetings 3–7 start only on an approved path', () => {
     ['after an absolute reset (nothing completed, no path)', { highestCompletedMeeting: 0, completedMeeting2: false, teacher_gate_approved: false, routeStatus: null }],
     ['meeting 2 done and approved, but no path on the record', { teacher_gate_approved: true, routeStatus: 'APPROVED' }],
   ] as const) {
-    it(`${why}: exactly "המורה תפתח את הפעילות בקרוב." and its read-aloud button — never the bee screen`, async () => {
+    it(`${why}: exactly "המורה תפתח את הפעילות בקרוב." and its read-aloud button — never the meeting-2 waiting screen`, async () => {
       record(fields as Record<string, unknown>);
       open(4);
       await flush();
-      expect(bee()).toBeNull();
+      expect(m2wait()).toBeNull();
       const screenEl = quiet();
       expect(screenEl).not.toBeNull();
       expect(screenEl!.textContent).toBe('המורה תפתח את הפעילות בקרוב.');

@@ -26,20 +26,23 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
   // Until 28.9.2026 every meeting-3 exercise got the one card of מסמך 03 — on
   // the 4,500 exercise a card about 3,400 (audit row 3.14), and on "3,400 in
   // the usual way" a card that marked the usual way wrong (הB.11). Meeting 3
-  // has no session card any more (owner, 28.9.2026, שהB.1): the card asks
-  // which blocks the instruction asks for, with the task's own blocks as the
-  // correct option. Full rules: Meeting3_CardFitsExercise.test.ts.
-  it('session 3 has no session card: the card asks which blocks the instruction asks for', async () => {
+  // has no session card any more (owner, 28.9.2026, שהB.1). Since the owner's
+  // redesign of 30.9.2026 the 450 and 4,500 exercises ask how many tens
+  // (hundreds) make the number: the 45 blocks are the answer, and no card may
+  // name them. Their card asks how many of those blocks one block of the next
+  // column is worth (C2). Full rules: Meeting3_CardFitsExercise.test.ts.
+  it('session 3 has no session card, and the 450 / 4,500 cards never name the 45 blocks', async () => {
     expect(sessionCardKeysForTaskId('s3_r_t2').filter((k) => k in TASK_HINTS)).toEqual([]);
     expect(sessionCardKeysForTaskId('s3_g_reinforce_1').filter((k) => k in TASK_HINTS)).toEqual([]);
     const tasks = [...SESSIONS_BY_PATH[3].remediation_path, ...SESSIONS_BY_PATH[3].green_path];
     const rem = (await SocraticEngine.getSocraticHint(tasks.find((t) => t.id === 's3_r_t3') as any, 'flexible_regrouping', EMPTY))!;
-    expect(rem.questionHe).toBe('נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר 450?');
-    expect(rem.choices[0].textHe).toBe('משתמשים ב-45 עשרות');
+    expect(rem.questionHe).toBe('נסו לחשוב: כמה לבני עשרת שוות ללבנת מאה אחת?');
+    expect(rem.choices[0].textHe).toBe('10 לבני עשרת');
+    expect(JSON.stringify(rem)).not.toMatch(/45/);
     const green = (await SocraticEngine.getSocraticHint(tasks.find((t) => t.id === 's3_g_t3') as any, 'flexible_regrouping', EMPTY))!;
-    expect(green.questionHe).toBe('נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר 4,500?');
-    expect(green.choices[0].textHe).toBe('משתמשים ב-45 מאות');
-    expect(JSON.stringify(green)).not.toMatch(/3,?400|34 מאות/);
+    expect(green.questionHe).toBe('נסו לחשוב: כמה לבני מאה שוות ללבנת אלף אחת?');
+    expect(green.choices[0].textHe).toBe('10 לבני מאה');
+    expect(JSON.stringify(green)).not.toMatch(/3,?400|34 מאות|45/);
   });
 
   it('an unrecognised meeting-3 task gets the card that marks no representation wrong', () => {
@@ -52,7 +55,8 @@ describe('Module 13: static Socratic cards come from מסמך 03', () => {
     const expected: Record<number, string> = {
       4: 'מקבצים 10 יחידות לעשרת אחת',
       5: 'פורטים עשרת אחת לעשר יחידות',
-      6: 'פרטו תחילה לבנת מאה אחת לעשר עשרות',
+      // Options in the impersonal present, like every card (owner, 30.9.2026).
+      6: 'פורטים תחילה לבנת מאה אחת לעשר עשרות',
       7: 'נעזרים בלבנים',
       8: 'מתבוננים בתרגיל',
     };

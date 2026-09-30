@@ -174,7 +174,7 @@ describe('The board draws the move without hiding the truth for long', () => {
     startMeeting(3, { units: 12 });
     const { container, unmount } = renderBoard();
 
-    const groupButton = screen.getByRole('button', { name: /קבץ 10 לעשרת/ });
+    const groupButton = screen.getByRole('button', { name: /קבצו 10 לעשרת/ });
     act(() => { fireEvent.click(groupButton); });
 
     expect(ws().counts.units).toBe(2);

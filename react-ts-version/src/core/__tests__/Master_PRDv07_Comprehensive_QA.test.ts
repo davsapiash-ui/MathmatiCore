@@ -265,8 +265,9 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
             guiding_question: 'מה הצעד הבא בחיבור היחידות?',
             options: [
               { id: '1', text: 'לחבר את היחידות תחילה', feedback: 'נכון מאוד!', is_correct: true },
-              { id: '2', text: 'להתחיל מהמאות', feedback: 'יש להתחיל מהיחידות', is_correct: false },
-              { id: '3', text: 'למחוק את הספרות', feedback: 'נסה שוב', is_correct: false },
+              // A wrong option's hint is a guiding question (owner, 30.9.2026).
+              { id: '2', text: 'להתחיל מהמאות', feedback: 'רמז: מאיזה טור מתחילים?', is_correct: false },
+              { id: '3', text: 'למחוק את הספרות', feedback: 'רמז: האם מחיקה עוזרת לחבר?', is_correct: false },
             ],
           },
         }),

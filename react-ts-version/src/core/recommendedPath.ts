@@ -5,8 +5,9 @@ import type { PedagogicalPath } from '@/types';
  * record — the ONE place every teacher screen takes it from.
  *
  * PRD Module 20 §ב: score ≥ 50 → green_path, otherwise remediation_path. The
- * learner's client writes both `matrix_recommended_path` and
- * `session_score_percent` onto the record when meeting 2 is completed.
+ * server's trigger (sessionTrigger.ts) writes both `matrix_recommended_path`
+ * and `session_score_percent` onto the record when meeting 2 is completed;
+ * the rules refuse them from the learner's client (owner, 29.9.2026).
  *
  * Before this helper the radar, the class-management card and the approval
  * drawer each read `routeRecommendation` / `sessionState.current_path` instead.
