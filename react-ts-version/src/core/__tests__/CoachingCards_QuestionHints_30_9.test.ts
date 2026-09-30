@@ -466,6 +466,11 @@ describe('C7 — blocks built one way, then grouped (station 7)', () => {
     expect(revealsSecret(textsOf(c), secretNumbersOf(task))).toBeNull();
     // It is a grouping composition by its id too, until the task carries its kind.
     expect(representationKindOf({ id: 's7_g_reinforce_2' })).toBe('compose_group');
+    // The bank's own exercise, as the station-7 redesign writes it.
+    const own = byId('s7_g_reinforce_2');
+    if ((own as any).representationKind === 'compose_group') {
+      expect(q(own, { ...EMPTY, ...own.requiredCounts }).choices.map((o) => [o.textHe, o.feedbackHe])).toEqual(c.choices.map((o) => [o.textHe, o.feedbackHe]));
+    }
   });
 
   it('while 10 or more blocks wait in a column, the grouping card speaks first', () => {
