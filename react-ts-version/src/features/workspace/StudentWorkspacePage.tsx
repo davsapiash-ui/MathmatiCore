@@ -571,7 +571,7 @@ export function StudentWorkspacePage() {
       lastActivityTimestamp: Date.now(),
       hasJoinedSession: true,
       sessionJoined: true,
-      lastAction: `פעיל/ה במפגש ${meeting}`,
+      lastAction: `פעיל במפגש ${meeting}`,
       // No workspaceState keys here. This payload is re-sent on every (re)connect,
       // and it used to stamp flowStatus 'task' and this URL's meeting number over
       // whatever the learner had really reached ('sessionDone', 'choice_branch').
@@ -615,7 +615,7 @@ export function StudentWorkspacePage() {
         lastPing: serverTimestamp(),
         lastActivityTimestamp: Date.now(),
         hasJoinedSession: true,
-        lastAction: `פעיל/ה במפגש ${meeting}`,
+        lastAction: `פעיל במפגש ${meeting}`,
       }, { guard: canWrite }).catch(() => {});
     }, 4000);
 

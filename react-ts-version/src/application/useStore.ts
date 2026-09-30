@@ -808,7 +808,7 @@ export const useStore = create<AppState>()(
               },
             };
           });
-          toast.success(`${defaultName} הוחזר/ה לתחילת ${sessionLabel}. שאר המפגשים נשמרו.`);
+          toast.success(`${defaultName} הוחזר לתחילת ${sessionLabel}. שאר המפגשים נשמרו.`);
           return;
         }
 
