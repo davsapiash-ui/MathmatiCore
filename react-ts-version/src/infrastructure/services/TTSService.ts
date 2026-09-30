@@ -19,6 +19,7 @@
  */
 
 import { speakMissingDigits } from '@/core/missingDigitSpeech';
+import { speakBlockCounts } from '@/core/blockCountSpeech';
 
 export class TTSService {
   private static instance: TTSService;
@@ -245,6 +246,9 @@ export class TTSService {
     // as "ספרה חסרה" — the words of the exercise's screen-reader label. The box
     // stays on the screen; only speech changes.
     let cleaned = speakMissingDigits(text);
+    // A count of blocks is said in the feminine, as לבנה is: "2 לבני מאה" →
+    // "שתי לבני מאה", "12 לבני עשרת" → "שתים-עשרה לבני עשרת" (owner, 30.9.2026).
+    cleaned = speakBlockCounts(cleaned);
     // Strip markdown formatting (*, _, #, `, ~)
     cleaned = cleaned.replace(/[*_#`~]/g, '');
     // Strip emojis
