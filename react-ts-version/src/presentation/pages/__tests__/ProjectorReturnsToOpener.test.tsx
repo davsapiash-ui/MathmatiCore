@@ -10,7 +10,7 @@
  * closes the projector window; only a window with no opener navigates.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.mock('firebase/database', async (importOriginal) => ({
@@ -87,5 +87,35 @@ describe('projector → "חזרה לדשבורד המורה"', () => {
 
     expect(close).not.toHaveBeenCalled();
     expect(screen.getByText('SECOND_DASHBOARD')).toBeTruthy();
+  });
+});
+
+describe('projector → "ביטול הפעולה האחרונה" (meeting 1 opening, owner 1.10.2026)', () => {
+  beforeEach(() => {
+    useAuthStore.setState({
+      user: { uid: 'teacher_1', role: 'teacher' } as never,
+      role: 'teacher',
+      isAuthenticated: true,
+      isStudentAuthenticated: false,
+    });
+  });
+  afterEach(() => cleanup());
+
+  it('takes back the last block, and the clear button no longer shares its arrow', async () => {
+    const { useWorkspaceStore } = await import('@/application/useWorkspaceStore');
+    renderProjector();
+    const undoButton = screen.getByTitle('ביטול הפעולה האחרונה') as HTMLButtonElement;
+    expect(undoButton.disabled).toBe(true);
+
+    act(() => useWorkspaceStore.getState().applyDrop({ source: 'palette', sourcePlace: 'hundreds', target: { kind: 'column', place: 'hundreds' } } as never));
+    expect(useWorkspaceStore.getState().counts.hundreds).toBe(1);
+    expect(undoButton.disabled).toBe(false);
+
+    fireEvent.click(undoButton);
+    expect(useWorkspaceStore.getState().counts.hundreds).toBe(0);
+
+    const clearButton = screen.getByTitle('ניקוי כל הלבנים מבית המספרים');
+    expect(clearButton.querySelector('.lucide-rotate-ccw')).toBeNull();
+    expect(undoButton.querySelector('.lucide-rotate-ccw')).not.toBeNull();
   });
 });

@@ -176,7 +176,12 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
                 }
                 const v = e.target.value.replace(/[^0-9]/g, '').slice(-1);
                 setAnswerDigit(place, v);
-                if (v && i > 0) inputsRef.current[i - 1]?.focus();
+                // Writing a number goes as it is read, the highest place first
+                // (owner, 1.10.2026) — like meeting 2's boxes, where "שש מאות
+                // ושמונה" written as 806 is the diagnosis; a habit of typing from
+                // the units here would produce it without the misconception.
+                // Vertical exercises still go from the units (VerticalAdditionTask).
+                if (v && i < places.length - 1) inputsRef.current[i + 1]?.focus();
               }}
             />
             <span className="font-bold" style={{ fontSize: `calc(${CELL} * 0.22)`, color: PLACE_TINT[place] }}>
