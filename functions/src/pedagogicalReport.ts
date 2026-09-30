@@ -305,7 +305,9 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
       } else {
         rtlText(doc, `מפגש: ${report.session_number}`, 260, cardY, { width: 110 });
         rtlText(doc, `ציון שליטה: ${report.score_percent}%`, 70, cardY, { width: 170 });
-        rtlText(doc, `מסלול מומלץ: ${report.matrix_recommended_path === 'green_path' ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}`, 55, cardY + 25, { width: 490 });
+        // Meeting 2 only: no path in meetings 3–8, and never a colour by default.
+        const path = report.matrix_recommended_path === 'green_path' || report.matrix_recommended_path === 'remediation_path' ? ROUTE_NAME_HE[report.matrix_recommended_path as 'green_path' | 'remediation_path'] : null;
+        if (path) rtlText(doc, `מסלול מומלץ: ${path}`, 55, cardY + 25, { width: 490 });
       }
       doc.x = 40;
       doc.y = cardY + 60;
@@ -804,7 +806,11 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     score_source: scoreSource,
     first_attempt: sessionData.first_attempt || null,
     telemetry_event_count: telemetryDocs.length,
-    matrix_recommended_path: score === null
+    // A path is the meeting-2 diagnostic's recommendation for the gate (PRD 20 §ב).
+    // Meetings 3–8 are routed by their score bands (routing_label_he, PRD 23);
+    // printing "מסלול מומלץ" from their own score told the teacher a learner who
+    // had not finished meeting 3 belonged in remediation.
+    matrix_recommended_path: score === null || resolvedSessionNumber !== 2
       ? null
       : sessionData.matrix_recommended_path || (score >= 50 ? "green_path" : "remediation_path"),
     teacher_selected_path: sessionData.teacher_selected_path || null,
@@ -827,7 +833,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     exercise_titles: exerciseTitles,
     summary_text_he: score === null
       ? `דוח היכרות וריענון למפגש ${resolvedSessionNumber}, ללא ציון. כלים שעוד לא הופעלו: ${toolMastery && toolMastery.not_used.length > 0 ? toolMastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") : "אין"}.`
-      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%. מסלול מומלץ: ${score >= 50 ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}.`
+      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%.${resolvedSessionNumber === 2 ? ` מסלול מומלץ: ${score >= 50 ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}.` : ""}`
   };
 
   // Render authoritative server-side PDF binary & Upload to Cloud Storage

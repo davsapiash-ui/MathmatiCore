@@ -260,9 +260,12 @@ function sandboxReportHtml(report: Record<string, any>): string {
 export function pedagogicalReportHtml(report: Record<string, any>): string {
   if (report.meeting_kind === "sandbox_refresh") return sandboxReportHtml(report);
   const title = report.title_he || "MathematiCore - דוח פדגוגי מסכם";
+  // Meeting 2 only (the diagnostic's gate recommendation); never a colour by default.
   const pathLabel = report.matrix_recommended_path === "green_path"
     ? ROUTE_NAME_HE.green_path
-    : ROUTE_NAME_HE.remediation_path;
+    : report.matrix_recommended_path === "remediation_path"
+    ? ROUTE_NAME_HE.remediation_path
+    : null;
   const narratives = asStringArray(report.exercise_narratives);
   const choiceNarratives = asStringArray(report.choice_exercise_narratives);
   const gaps = asStringArray(report.knowledge_gaps);
@@ -286,7 +289,7 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
       <div><b>לומד:</b> ${esc(report.anonymous_student_label)}</div>
       <div><b>מפגש:</b> ${esc(report.session_number)}</div>
       <div><b>ציון שליטה:</b> ${esc(report.score_percent)}%</div>
-      <div class="wide"><b>מסלול מומלץ:</b> ${esc(pathLabel)}</div>
+      ${pathLabel ? `<div class="wide"><b>מסלול מומלץ:</b> ${esc(pathLabel)}</div>` : ""}
     </div>
 
     <h2 class="green">1. המלצת ניתוב פדגוגי</h2>
