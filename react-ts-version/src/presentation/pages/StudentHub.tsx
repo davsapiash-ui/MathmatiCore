@@ -2,15 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity } from '@/application/useAuthStore';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
-import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import { acknowledgeTeacherReset } from '@/infrastructure/services/FirebaseSyncService';
 import { throttledRtdbUpdate, rtdbUpdateNow } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { Sparkles } from 'lucide-react';
-import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
+import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting2WaitingScreen';
 import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { useProjectorMode } from '@/application/useProjectorMode';
@@ -43,7 +42,7 @@ const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
     id: 1,
     // מסמך 04 §1: "ארגז החול" for the first meeting; מסמך 03 §3.1 step 1.
     title: stationTitleHe(1),
-    desc: 'שחקו עם הלבנים ועם בית המספרים, והכירו את הכלים. כאן אין תשובות נכונות או שגויות.',
+    desc: 'שחקו עם הלבנים ועם בית המספרים, והכירו את הכלים. בתחנה הזאת אין ציון.',
     icon: '🧱',
   },
   2: {
@@ -127,10 +126,7 @@ export function StudentHub() {
         if (snap.exists()) {
           const val = snap.val();
           if (val?.forceReload === true) {
-            rtdbUpdateNow(`users/students/${normUid}`, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
-            useWorkspaceStore.getState().resetWorkspace?.();
-            firebaseSyncService.clearLocalSessionProgress(normUid);
-            if (uid) firebaseSyncService.clearLocalSessionProgress(uid);
+            acknowledgeTeacherReset(normUid, uid, true);
             setHasCompletedSession2(false);
             setIsTeacherGateApproved(false);
             setLiveRouteStatus(null);
@@ -225,7 +221,7 @@ export function StudentHub() {
 
   const activeSession = SESSIONS_CONFIG[effectiveSessionId] || SESSIONS_CONFIG[1];
 
-  // Module 20: If student completed Session 2 and attempts Session 3 without teacher approval -> Bee Flight
+  // Module 20: If student completed Session 2 and attempts Session 3 without teacher approval -> the meeting-2 waiting screen
   const isAwaitingTeacherGate = hasCompletedSession2 && effectiveSessionId === 3 && !isTeacherGateApproved;
 
   // Deviation 10: When teacher opens/starts session, auto-navigate waiting student into workspace
@@ -241,7 +237,7 @@ export function StudentHub() {
   }
 
   if (isAwaitingTeacherGate) {
-    return <BeeFlightWaitingScreen onApproved={() => setIsTeacherGateApproved(true)} />;
+    return <Meeting2WaitingScreen onApproved={() => setIsTeacherGateApproved(true)} />;
   }
 
   return (

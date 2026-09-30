@@ -11,7 +11,7 @@
  * baseline mastery metrics (PRD Module 14 §ג, מסמך 03 "לוגיקת ניתוח הנתונים").
  */
 
-import { addition, subtraction, skeleton, representation, flexible, S4_ADD, S5_SUB, S6_SUB, FLEX_HOWTO } from './taskBuilders';
+import { addition, subtraction, skeleton, readWrite, decompose, composeGroup, flexible, S4_ADD, S5_SUB, S6_SUB, FLEX_HOWTO } from './taskBuilders';
 import type { SessionTask, LearningPath } from './sessionTasks';
 
 export type BranchType = 'reinforcement' | 'challenge';
@@ -26,15 +26,15 @@ const C = { branchType: 'challenge' as const };
 
 export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, BranchBank>> = {
   // ── מפגש 3: ערך המקום וגמישות ייצוגית ──
+  // The reinforcement exercises follow the compulsory ones' redesign (owner,
+  // 30.9.2026; sessionTasks.ts): the number in words, then the number of blocks.
   3: {
     remediation_path: {
       reinforcement: [
-        representation('s3_r_reinforce_1', 270, { hundreds: 2, tens: 7 },
-          'ביסוס 1: ייצוג 270 בדרך הרגילה',
-          'גררו לבנים לייצוג המספר 270 בדרך הרגילה: 2 מאות ו-7 עשרות. כתבו את המספר בשורת התוצאה!', R),
-        representation('s3_r_reinforce_2', 270, { tens: 27 },
-          'ביסוס 2: 270 בעשרות בלבד',
-          'ייצגו את המספר 270 באמצעות 27 עשרות בלבד, וכתבו את המספר בשורת התוצאה!', R),
+        readWrite('s3_r_reinforce_1', 270, 'מאתיים ושבעים',
+          'ביסוס 1: ייצוג סטנדרטי של 270', R),
+        decompose('s3_r_reinforce_2', 270, 'tens',
+          'ביסוס 2: 270 בעשרות בלבד', R),
       ],
       challenge: [
         flexible('s3_r_challenge_1', 320,
@@ -44,12 +44,10 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
     },
     green_path: {
       reinforcement: [
-        representation('s3_g_reinforce_1', 3600, { thousands: 3, hundreds: 6 },
-          'ביסוס 1: ייצוג 3,600 בדרך הרגילה',
-          'גררו לבנים לייצוג המספר 3,600 בדרך הרגילה: 3 אלפים ו-6 מאות. כתבו את המספר בשורת התוצאה!', R),
-        representation('s3_g_reinforce_2', 3600, { hundreds: 36 },
-          'ביסוס 2: 3,600 במאות בלבד',
-          'ייצגו את המספר 3,600 באמצעות 36 מאות בלבד, וכתבו את המספר בשורת התוצאה!', R),
+        readWrite('s3_g_reinforce_1', 3600, 'שלושת אלפים ושש מאות',
+          'ביסוס 1: ייצוג סטנדרטי של 3,600', R),
+        decompose('s3_g_reinforce_2', 3600, 'hundreds',
+          'ביסוס 2: 3,600 במאות בלבד', R),
       ],
       challenge: [
         flexible('s3_g_challenge_1', 4200,
@@ -63,20 +61,20 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
   4: {
     remediation_path: {
       reinforcement: [
-        addition('s4_r_reinforce_1', 236, 41, 'ביסוס 1: חיבור ללא המרה', S4_ADD('236 + 41', false), R),
-        addition('s4_r_reinforce_2', 165, 27, 'ביסוס 2: המרה אחת בטור היחידות', S4_ADD('165 + 27', true), R),
+        addition('s4_r_reinforce_1', 236, 41, 'ביסוס 1: חיבור ללא המרה', S4_ADD('236 + 41'), R),
+        addition('s4_r_reinforce_2', 165, 27, 'ביסוס 2: המרה אחת בטור היחידות', S4_ADD('165 + 27'), R),
       ],
       challenge: [
-        addition('s4_r_challenge_1', 278, 156, 'אתגר: שתי המרות עוקבות', S4_ADD('278 + 156', true), C),
+        addition('s4_r_challenge_1', 278, 156, 'אתגר: שתי המרות עוקבות', S4_ADD('278 + 156'), C),
       ],
     },
     green_path: {
       reinforcement: [
-        addition('s4_g_reinforce_1', 2341, 125, 'ביסוס 1: חיבור ללא המרה', S4_ADD('2,341 + 125', false), R),
-        addition('s4_g_reinforce_2', 3528, 164, 'ביסוס 2: המרה אחת בטור היחידות', S4_ADD('3,528 + 164', true), R),
+        addition('s4_g_reinforce_1', 2341, 125, 'ביסוס 1: חיבור ללא המרה', S4_ADD('2,341 + 125'), R),
+        addition('s4_g_reinforce_2', 3528, 164, 'ביסוס 2: המרה אחת בטור היחידות', S4_ADD('3,528 + 164'), R),
       ],
       challenge: [
-        addition('s4_g_challenge_1', 4687, 2459, 'אתגר: שלוש המרות רצופות', S4_ADD('4,687 + 2,459', true), C),
+        addition('s4_g_challenge_1', 4687, 2459, 'אתגר: שלוש המרות רצופות', S4_ADD('4,687 + 2,459'), C),
       ],
     },
   },
@@ -152,15 +150,19 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
           'ביסוס 1: שתי ספרות חסרות בחיבור עם המרה אחת',
           'בתרגיל 5,▢3▢ + 1,246 = 6,784 חסרות שתי ספרות של המחובר הראשון. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
           { ...R, targetNode: 'relational_thinking' }),
-        flexible('s7_g_reinforce_2', 2500,
-          'ביסוס 2: 25 מאות שוות ל-2 אלפים ו-5 מאות',
-          'הוכיחו בלבנים ש-25 מאות שוות בדיוק ל-2 אלפים ו-5 מאות. בנו 25 מאות ולחצו על הכפתור "הוספת ייצוג". אחר כך קבצו והוסיפו את הייצוג הרגיל.',
+        // Owner, 30.9.2026: a grouping composition, like s7_g_t1 — build the
+        // blocks, group ten hundreds, write the number. ★ owner's numbers: 14
+        // hundreds and 3 tens (1,430). מסמך 03 §3.7 has "25 מאות שוות לשני
+        // אלפים וחמש מאות" here, the same exercise as s7_g_t1; the "prove that"
+        // wording wrote the answer into the question.
+        composeGroup('s7_g_reinforce_2', { hundreds: 14, tens: 3 }, ['hundreds'],
+          'ביסוס 2: הקבצת 10 מאות לאלף אחד',
           { ...R, targetNode: 'relational_thinking' }),
       ],
       challenge: [
         skeleton('s7_g_challenge_1', 8003, 2587, true, { a: ['thousands', 'hundreds', 'tens', 'units'] },
           'אתגר: תרגיל שלד בתחום הרבבה עם ארבע ספרות חסרות',
-          'בתרגיל ▢,▢▢▢ − 2,587 = 5,416 חסרות ארבע ספרות של המחוסר. הפתרון דורש שרשרת פריטות עוקבות. גלו את הספרות בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
+          'בתרגיל ▢,▢▢▢ − 2,587 = 5,416 חסרות ארבע ספרות של המחוסר. גלו את הספרות בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
           { ...C, targetNode: 'relational_thinking' }),
       ],
     },

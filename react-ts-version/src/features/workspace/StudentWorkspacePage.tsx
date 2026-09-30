@@ -20,7 +20,7 @@ import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentSt
 import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { database, fetchServerClockOffset } from '@/infrastructure/firebase';
-import { ref, onValue, update, onDisconnect, serverTimestamp } from 'firebase/database';
+import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
@@ -35,7 +35,7 @@ import { ClosingSentence } from './ClosingSentence';
 import { hasClosingSentence } from '@/core/persistenceEncouragement';
 import { StationOpening } from './StationOpening';
 import { hasOpeningScreen } from '@/core/stationOpening';
-import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
+import { firebaseSyncService, emitTelemetry, acknowledgeTeacherReset } from '@/infrastructure/services/FirebaseSyncService';
 import { throttledRtdbUpdate, rtdbUpdateNow } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { shouldRecordScreen, startScreenRecorder } from './screenRecorder';
 import { useStore } from '@/application/useStore';
@@ -49,10 +49,10 @@ import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitationRadar';
 import { toast } from 'sonner';
-import { BeeFlightWaitingScreen } from '@/presentation/components/student/BeeFlightWaitingScreen';
+import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting2WaitingScreen';
 import { TeacherWillOpenWaitingScreen } from '@/presentation/components/student/TeacherWillOpenWaitingScreen';
 import { ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
-import { newerWorkspaceSnapshot, isRestorableFor, workspaceSavedAt } from '@/core/workspaceSnapshot';
+import { newerWorkspaceSnapshot, isRestorableFor, workspaceSavedAt, startedWithoutRecord } from '@/core/workspaceSnapshot';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { SessionPausedOverlay } from '@/presentation/components/student/SessionPausedOverlay';
 import { SessionClosedOverlay } from '@/presentation/components/student/SessionClosedOverlay';
@@ -295,6 +295,15 @@ export function StudentWorkspacePage() {
     // below then put the learner on the old exercise index, board and digits —
     // or on "השלמתם את משימות החובה" of a meeting they had not started.
     if (sessionNumber !== meeting) return;
+    // Module 17: the board goes to the record by the rule the sync itself
+    // writes by — only the learner's own meeting, started or restored for them
+    // (never the store's defaults, never a meeting a teacher's reset
+    // discarded), and only once the record has been read. These fields used to
+    // be written before that: the defaults of meeting 1 on page load, and a
+    // fresh start made without the record, which the database queued offline
+    // and layered onto the record's copy on reconnect — the very copy the
+    // reconnect then judges and restores.
+    if (!firebaseSyncService.mayWriteWorkspaceToRecord(uid, meeting)) return;
 
     const totalBlocks = (counts.units || 0) + (counts.tens || 0) + (counts.hundreds || 0) + (counts.thousands || 0);
     const hasInteracted = totalBlocks > 0 || Object.values(answerDigits || {}).some(Boolean);
@@ -310,7 +319,7 @@ export function StudentWorkspacePage() {
       'workspaceState/flowStatus': flowStatus,
       lastActivityTimestamp: Date.now(),
       lastPing: serverTimestamp(),
-      lastAction: `פעילות בלוח במפגש ${meeting}`,
+      lastAction: `פעילות בבית המספרים במפגש ${meeting}`,
     };
 
     // PRD 18: "Throttle client writes to maximum once per 1000ms". This ran on
@@ -431,7 +440,7 @@ export function StudentWorkspacePage() {
   // teacher_selected_path (recordLearningPath).
   const learnerPath = recordLearningPath(myData as Record<string, unknown> | null);
   const hasApprovedPath = isGateApproved && learnerPath !== null;
-  // The bee screen says "סיימתם את התחנה השנייה בהצלחה": it is shown only to a
+  // The meeting-2 waiting screen says "סיימתם את התחנה השנייה בהצלחה": it is shown only to a
   // learner who did finish meeting 2 and is waiting for the gate. Anyone else
   // waiting here — no completed meeting 2, or no path — is told only "המורה
   // תפתח את הפעילות בקרוב." (PRD 14 §ב0), so the text matches what the child did.
@@ -441,7 +450,7 @@ export function StudentWorkspacePage() {
     (typeof myData?.highestCompletedMeeting === 'number' && myData.highestCompletedMeeting >= 2) ||
     myData?.routeStatus === 'PENDING_TEACHER_APPROVAL'
   );
-  const showBeeWaiting = completedMeeting2 && !isGateApproved;
+  const showMeeting2Waiting = completedMeeting2 && !isGateApproved;
   useEffect(() => {
     const isApproved = isGateApproved;
     // PRD 14 §ב0: "כדי שמפגש 3 ייפתח נדרשים שני התנאים במצטבר: אישור בשער
@@ -541,14 +550,7 @@ export function StudentWorkspacePage() {
       if (snap.exists()) {
         const val = snap.val();
         if (val?.forceReload === true) {
-          if (canWriteWorkspaceData(normUid, isSupersededRef.current)) {
-            rtdbUpdateNow(`users/students/${normUid}`, { forceReload: null, isOnline: false, lastPing: 0 }).catch(() => {});
-          } else {
-            update(studentRef, { forceReload: null }).catch(() => {});
-          }
-          useWorkspaceStore.getState().resetWorkspace?.();
-          firebaseSyncService.clearLocalSessionProgress(normUid);
-          if (user?.uid) firebaseSyncService.clearLocalSessionProgress(user.uid);
+          acknowledgeTeacherReset(normUid, user?.uid, canWriteWorkspaceData(normUid, isSupersededRef.current));
           window.location.href = '/hub';
         }
       }
@@ -569,7 +571,7 @@ export function StudentWorkspacePage() {
       lastActivityTimestamp: Date.now(),
       hasJoinedSession: true,
       sessionJoined: true,
-      lastAction: `פעיל/ה במפגש ${meeting}`,
+      lastAction: `פעיל במפגש ${meeting}`,
       // No workspaceState keys here. This payload is re-sent on every (re)connect,
       // and it used to stamp flowStatus 'task' and this URL's meeting number over
       // whatever the learner had really reached ('sessionDone', 'choice_branch').
@@ -613,7 +615,7 @@ export function StudentWorkspacePage() {
         lastPing: serverTimestamp(),
         lastActivityTimestamp: Date.now(),
         hasJoinedSession: true,
-        lastAction: `פעיל/ה במפגש ${meeting}`,
+        lastAction: `פעיל במפגש ${meeting}`,
       }, { guard: canWrite }).catch(() => {});
     }, 4000);
 
@@ -687,7 +689,7 @@ export function StudentWorkspacePage() {
     // PRD 14 §ג: a learner who has finished "ממתין במסך סיום שקט"; PRD 14 §ב0:
     // re-opening a completed meeting deletes nothing. A saved 'sessionDone' used to
     // be refused here, so the lobby's entry into the open meeting restarted it at
-    // exercise 1: after the diagnostic the bee-flight screen never appeared, and a
+    // exercise 1: after the diagnostic the meeting-2 waiting screen never appeared, and a
     // second pass before the approval overwrote the score, the recommended path
     // and the Q-matrix. Starting a meeting over is what the level-2 reset is for —
     // it clears the saved state, and only then is there nothing to restore.
@@ -781,7 +783,11 @@ export function StudentWorkspacePage() {
         restoreSession(cached);
         // X55: shown at once, but provisional — when the record arrives, a
         // later copy of this meeting on it replaces this one (effect start).
-        restoredFromCacheRef.current = { meeting, savedAt: workspaceSavedAt(cached) };
+        // A copy of a fresh start made without the record is settled by the
+        // sync instead, by the fresh-start rule (Module 17, keepsFreshStartWork).
+        if (!startedWithoutRecord(cached)) {
+          restoredFromCacheRef.current = { meeting, savedAt: workspaceSavedAt(cached) };
+        }
         markInitialized();
       } else {
         // No local copy of this meeting: wait for the learner's Firebase
@@ -1032,7 +1038,7 @@ export function StudentWorkspacePage() {
   // The meeting starts, and this screen goes, when the approval and the path
   // arrive (runInit above).
   if (pendingApproval && !isInitialized) {
-    return <>{showBeeWaiting ? <BeeFlightWaitingScreen /> : <TeacherWillOpenWaitingScreen />}{classStateOverlays}</>;
+    return <>{showMeeting2Waiting ? <Meeting2WaitingScreen /> : <TeacherWillOpenWaitingScreen />}{classStateOverlays}</>;
   }
 
   // Module 14: Post-Mandatory Tasks Choice Point (Reinforcement vs Challenge)
@@ -1108,7 +1114,7 @@ export function StudentWorkspacePage() {
   // the opening of meeting 3 are both hers. The screen listens for the
   // approval and returns the learner to the lobby the moment it lands.
   if (endScreen === 'sessionDone' && sessionNumber === 2 && !isGateApproved) {
-    return <><BeeFlightWaitingScreen onApproved={() => navigate('/hub')} />{classStateOverlays}</>;
+    return <><Meeting2WaitingScreen onApproved={() => navigate('/hub')} />{classStateOverlays}</>;
   }
 
   // Module 14: Session complete screen. In meetings 3–7 it carries the one
@@ -1182,8 +1188,8 @@ export function StudentWorkspacePage() {
   }
 
   if (pendingApproval) {
-    return showBeeWaiting
-      ? <BeeFlightWaitingScreen onApproved={() => setPendingApproval(false)} />
+    return showMeeting2Waiting
+      ? <Meeting2WaitingScreen onApproved={() => setPendingApproval(false)} />
       : <TeacherWillOpenWaitingScreen />;
   }
 

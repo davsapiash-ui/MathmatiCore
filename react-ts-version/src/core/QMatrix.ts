@@ -33,6 +33,8 @@ export interface QMatrixTask {
   isSubtraction?: boolean;
   titleHe: string;
   instructionHe: string;
+  /** The instruction in the correction round, where it differs (task 1: "הפעם פתרו לבד" is said once, the first time). */
+  retryInstructionHe?: string;
   number?: number;
   highlightedDigit?: string;
   highlightIndex?: number;
@@ -77,6 +79,7 @@ export const TASKS: QMatrixTask[] = [
     type: "place_value_zero",
     titleHe: "קריאה וכתיבה של מספר תלת-ספרתי",
     instructionHe: "קראו את המספר וכתבו אותו בשורת התוצאה. הפעם פתרו לבד.",
+    retryInstructionHe: "קראו את המספר וכתבו אותו בשורת התוצאה.",
     givenHe: "שש מאות וחמש",
     correctAnswer: 605,
     expectedBlocks: { hundreds: 6, tens: 0, units: 5 },
@@ -159,9 +162,11 @@ export const TASKS: QMatrixTask[] = [
     correctAnswer: 209,
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
+      // Owner, 29.9.2026: the simpler exercise has no carry at all (120 + 80
+      // still carried in the tens), as 40 − 10 has no borrow for task 3.
       probeA: 120,
-      probeB: 80,
-      probeAnswer: 200,
+      probeB: 70,
+      probeAnswer: 190,
       probeInstructionHe: "פתרו את התרגיל וכתבו את התשובה.",
     },
   },
@@ -176,9 +181,11 @@ export const TASKS: QMatrixTask[] = [
     correctAnswer: 273,
     backwardDiagnosis: {
       triggerOn: "wrong_answer",
+      // Owner, 29.9.2026: no borrow at all (400 − 130 kept the borrow into
+      // the zero tens) — round numbers, the operation alone.
       probeA: 400,
-      probeB: 130,
-      probeAnswer: 270,
+      probeB: 100,
+      probeAnswer: 300,
       probeInstructionHe: "פתרו את התרגיל וכתבו את התשובה.",
     },
   },

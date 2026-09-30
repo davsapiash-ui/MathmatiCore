@@ -5,17 +5,18 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
-const BEE_FLIGHT_MESSAGE_HE = 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.';
+const MEETING2_WAITING_MESSAGE_HE = 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.';
 
-interface BeeFlightWaitingScreenProps {
+interface Meeting2WaitingScreenProps {
   onApproved?: () => void;
 }
 
 /**
- * מסך המתנה לאישור שער פדגוגי (Teacher Approval Gate Waiting Screen)
+ * מסך ההמתנה בסיום מפגש 2, עד שהמורה מאשרת את המסלול (מודול 20).
  * מסך נקי, סולידי ומכבד. מאזין בזמן אמת לשדה teacher_gate_approved.
+ * בלי דבורה: בעל המוצר, 29.9.2026 — "אני לא רוצה שתהיה שום דבורה באייקונים".
  */
-export function BeeFlightWaitingScreen({ onApproved }: BeeFlightWaitingScreenProps) {
+export function Meeting2WaitingScreen({ onApproved }: Meeting2WaitingScreenProps) {
   const user = useAuthStore((s) => s.user);
   const rawUid = user?.uid || '';
   const studentId = normalizeStudentId(rawUid);
@@ -40,7 +41,7 @@ export function BeeFlightWaitingScreen({ onApproved }: BeeFlightWaitingScreenPro
         }
       },
       (err) => {
-        console.warn('[BeeFlightWaitingScreen] listener notice:', err);
+        console.warn('[Meeting2WaitingScreen] listener notice:', err);
       }
     );
     return () => unsub();
@@ -51,28 +52,7 @@ export function BeeFlightWaitingScreen({ onApproved }: BeeFlightWaitingScreenPro
       dir="rtl"
       className="relative min-h-[calc(100vh-72px)] flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 select-none overflow-hidden"
     >
-      {/* §ב: a calm bee animation. One bee drifting slowly along a gentle
-          figure-eight — low amplitude, slow, no flashing — so the wait reads as
-          serene rather than busy (ASD support). Motion is removed entirely for
-          learners who prefer reduced motion. */}
-      <style>{`
-        @keyframes bee-drift {
-          0%   { transform: translate(-28px, 0px) rotate(-6deg); }
-          25%  { transform: translate(0px, -10px) rotate(0deg); }
-          50%  { transform: translate(28px, 0px) rotate(6deg); }
-          75%  { transform: translate(0px, 10px) rotate(0deg); }
-          100% { transform: translate(-28px, 0px) rotate(-6deg); }
-        }
-        .bee-flight { animation: bee-drift 9s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) {
-          .bee-flight { animation: none; }
-        }
-        [data-quiet='true'] .bee-flight { animation: none; }
-      `}</style>
       <div className="relative z-10 w-full max-w-md bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center gap-6 text-center">
-        <div aria-hidden="true" className="h-20 flex items-center justify-center">
-          <span className="bee-flight inline-block text-5xl will-change-transform">🐝</span>
-        </div>
         {/* PRD Module 20 §ב gives the message; the words on screen are
             reworded under the owner's delegation of on-screen wording
             (28.9.2026; register deviation 25, not a line-by-line approval):
@@ -80,12 +60,12 @@ export function BeeFlightWaitingScreen({ onApproved }: BeeFlightWaitingScreenPro
             address has its comma, and nothing promises an immediate
             continuation — the wait can last until the next lesson. */}
         <p className="text-base text-slate-700 dark:text-slate-200 font-semibold leading-relaxed">
-          {BEE_FLIGHT_MESSAGE_HE}
+          {MEETING2_WAITING_MESSAGE_HE}
         </p>
-        <UdlSpeechButton text={BEE_FLIGHT_MESSAGE_HE} />
+        <UdlSpeechButton text={MEETING2_WAITING_MESSAGE_HE} />
       </div>
     </div>
   );
 }
 
-export default BeeFlightWaitingScreen;
+export default Meeting2WaitingScreen;

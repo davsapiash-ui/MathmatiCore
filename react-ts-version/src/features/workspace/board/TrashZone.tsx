@@ -1,6 +1,27 @@
 import { useDroppable } from '@dnd-kit/core';
 import { motion } from 'framer-motion';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectStandardTask } from '@/application/useWorkspaceStore';
+import { session1Checklist } from '@/core/session1Checklist';
+
+/**
+ * Station 1 is where the child meets the tools (owner, 29.9.2026): when the
+ * text sends them to the trash, the trash is marked until they use it — in
+ * step 5 once the undo line is ticked, and in the station's subtraction
+ * exercises ("גררו לפח האשפה את הלבנים שאתם מחסירים") until the first block
+ * goes in.
+ */
+function useTrashHint(): boolean {
+  return useWorkspaceStore((s) => {
+    if (s.sessionNumber !== 1) return false;
+    const task = selectStandardTask(s);
+    if (!task) return false;
+    if (task.id === 's1_undo_trash') {
+      const items = session1Checklist(task.id, s);
+      return Boolean(items && items[0].done && !items[1].done);
+    }
+    return Boolean(task.isSubtraction) && !s.hasDeletedBlock;
+  });
+}
 
 /**
  * פח מחיקה ואיפוס — אזור השלכה ייעודי (Drop Zone) ואיפוס בלחיצה לפי סעיף 6 ב-PRD.
@@ -8,6 +29,7 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
  */
 export function TrashZone() {
   const { setNodeRef, isOver } = useDroppable({ id: 'trash', data: { kind: 'trash' } });
+  const hint = useTrashHint() && !isOver;
 
   const handleClick = () => {
     useWorkspaceStore.getState().clearBoard();
@@ -28,18 +50,20 @@ export function TrashZone() {
           }
         }}
         aria-label="פח אשפה — גררו לכאן לבנים למחיקה או לחצו לניקוי בית המספרים"
+        data-hint={hint ? 'true' : undefined}
         className={`relative flex flex-col items-center justify-center min-w-[84px] h-[80px] px-3.5 py-2 rounded-2xl transition-all duration-150 select-none cursor-pointer touch-none active:scale-95 ${
+          hint ? 'ws-hint-ring ' : ''
+        }${
           isOver
             ? 'bg-red-100/95 ring-4 ring-red-400/90 shadow-[0_0_20px_rgba(239,68,68,0.4)]'
             : 'hover:bg-red-50/70 bg-slate-50/60 border border-slate-200/80 hover:border-red-200'
         }`}
       >
-        {/* Subtle drop target floor ring */}
-        <div
-          className={`absolute bottom-3 w-12 h-2.5 rounded-full transition-all duration-150 -z-0 ${
-            isOver ? 'bg-red-300/80 blur-[1px]' : 'bg-slate-200/50 group-hover:bg-red-200/50'
-          }`}
-        />
+        {/* Drop target floor ring — only while a block is over the trash, so it
+            never lies across the can or its label at rest. */}
+        {isOver && (
+          <div className="absolute top-[44px] w-12 h-2.5 rounded-full -z-0 bg-red-300/80 blur-[1px]" />
+        )}
 
         <div className="h-10 w-10 flex items-center justify-center relative z-10">
           <svg
@@ -134,7 +158,7 @@ export function TrashZone() {
         </div>
 
         <span
-          className={`text-[10px] font-bold tracking-tight transition-colors duration-200 mt-0.5 ${
+          className={`relative z-10 text-[10px] font-bold tracking-tight transition-colors duration-200 mt-0.5 ${
             isOver ? 'text-red-600 font-black' : 'text-slate-400 group-hover:text-red-500'
           }`}
         >

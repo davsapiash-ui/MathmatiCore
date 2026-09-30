@@ -46,13 +46,53 @@ for (const m of [3, 4, 5, 6, 7, 8] as const) for (const path of ['green_path', '
   tasks.push(...getSessionTasks(m, path));
   if (m <= 7) for (const b of ['reinforcement', 'challenge'] as const) tasks.push(...getSessionBranchTasks(m, b, path));
 }
-const main = MAIN as Record<string, Record<string, string | null>>;
+/**
+ * Exercises added after the fixture was taken, so main has no value for them.
+ * NOT from main: new on 29.9.2026 (owner) — meeting 1's three refresh exercises
+ * 368 (the value of a digit), 482 (in words) and 703 (in words, a 0 in the
+ * tens; added later the same day). The values are what the
+ * engine gives them on the day they were added (null in every state, as for
+ * the other representation exercises of meeting 1), locked here so a later
+ * change shows up the same way a change to main's values does.
+ */
+const NONE = { empty: null, some: null, u12: null, t16: null, h1: null, h1t6: null, h12: null, a: null, req: null };
+const ADDED_AFTER_MAIN: Record<string, Record<string, string | null>> = {
+  s1_r_value368: NONE,
+  s1_r_words482: NONE,
+  s1_r_words703: NONE,
+};
+/**
+ * Exercises the owner redesigned after the fixture was taken (30.9.2026): the
+ * first exercise of station 7, both paths, and the green path's second
+ * reinforcement were "prove that 12 tens and 5 units are 1 hundred, 2 tens and
+ * 5 units" (25 hundreds are 2 thousands and 5 hundreds) with two saved
+ * representations; each is now a representation exercise — build the blocks,
+ * group ten, write the number (sessionTasks.ts, sessionBranchTasks.ts; the
+ * reinforcement with its own numbers, 1,430). Main's values belong to the old
+ * exercises; these are what the engine gives the new ones on the day of the
+ * redesign — null on the three boards with ten or more blocks in a column
+ * (u12, t16, h12), 'procedural' everywhere else — locked the same way.
+ */
+const S7_GROUPING = { empty: 'procedural', some: 'procedural', u12: null, t16: null, h1: 'procedural', h1t6: 'procedural', h12: null, a: 'procedural', req: 'procedural' };
+const REDESIGNED_AFTER_MAIN: Record<string, Record<string, string | null>> = {
+  s7_r_t1: S7_GROUPING,
+  s7_g_t1: S7_GROUPING,
+  s7_g_reinforce_2: S7_GROUPING,
+};
+const main = { ...(MAIN as Record<string, Record<string, string | null>>), ...ADDED_AFTER_MAIN, ...REDESIGNED_AFTER_MAIN };
 const APPROVED: Record<string, string> = { s3_r_t7: 'conceptual' };
 
 describe('SOCRATIC_CARD_SHOWN.error_category is what main recorded (research data)', () => {
   it('the fixture covers every exercise', () => {
     expect(tasks.length).toBeGreaterThan(120);
     for (const t of tasks) expect(main[t.id], t.id).toBeTruthy();
+  });
+
+  it('the exercises added after main are really new: main never recorded them', () => {
+    for (const id of Object.keys(ADDED_AFTER_MAIN)) {
+      expect((MAIN as Record<string, unknown>)[id], id).toBeUndefined();
+      expect(tasks.some((t) => t.id === id), id).toBe(true);
+    }
   });
 
   it('every exercise, every board state: the card carries main\'s category, except the approved s3_r_t7', () => {

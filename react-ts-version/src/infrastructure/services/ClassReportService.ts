@@ -23,8 +23,13 @@ export const TIER_LABELS_HE: Record<RecommendationTier, string> = {
 };
 
 /** Research measures of one learner in one meeting (PRD 7.3, Module 23 §ב), as the server computed them. */
+export { RESEARCH_MEASURES_HE } from '@/core/researchMeasures';
+
 export interface ClassLearnerMeasures {
-  persistence: { undos: number; wrongDigits: number; wrongOptions: number; percent: number } | null;
+  /** Measure 2א (owner, 30.9.2026). null on reports stored before it existed. */
+  persistenceWithoutHelp: { exercisesWithErrors: number; solvedWithoutHelp: number; percent: number | null } | null;
+  /** Measure 2ב, self-correction — the server's data key is still `persistence`. */
+  selfCorrection: { undos: number; wrongDigits: number; wrongOptions: number; percent: number } | null;
   flexibility: { completed: number; firstTry: number; percent: number | null } | null;
   flexibilityCumulative: { completed: number; firstTry: number; percent: number | null } | null;
   mediation: { cards: number; effective: number; percent: number | null } | null;
@@ -134,12 +139,16 @@ const ratioFromData = (v: unknown, a: string, b: string): { completed: number; f
 };
 function measuresFromData(d: Record<string, any>): ClassLearnerMeasures {
   const p = d.persistence && typeof d.persistence === 'object' ? d.persistence : null;
+  const h = d.persistence_without_help && typeof d.persistence_without_help === 'object' ? d.persistence_without_help : null;
   const mediation = (v: unknown) => {
     const r = ratioFromData(v, 'cards', 'effective');
     return r ? { cards: r.completed, effective: r.firstTry, percent: r.percent } : null;
   };
   return {
-    persistence: p ? { undos: num(p.undos), wrongDigits: num(p.wrong_digits), wrongOptions: num(p.wrong_options), percent: num(p.percent) } : null,
+    persistenceWithoutHelp: h
+      ? { exercisesWithErrors: num(h.exercises_with_errors), solvedWithoutHelp: num(h.solved_without_help), percent: numOrNull(h.percent) }
+      : null,
+    selfCorrection: p ? { undos: num(p.undos), wrongDigits: num(p.wrong_digits), wrongOptions: num(p.wrong_options), percent: num(p.percent) } : null,
     flexibility: ratioFromData(d.flexibility, 'completed', 'first_try'),
     flexibilityCumulative: ratioFromData(d.flexibility_cumulative, 'completed', 'first_try'),
     mediation: mediation(d.mediation),
