@@ -152,3 +152,34 @@ describe('station 7, s7_g_t6: a box per digit, per column', () => {
     expect(tens.readOnly).toBe(false);
   });
 });
+
+describe('writing a number goes as it is read, the highest place first (owner, 1.10.2026)', () => {
+  // Meeting 2 diagnoses "שש מאות ושמונה" written as 806; a typing habit from
+  // the units in station 1 would produce it without the misconception.
+  it('station 1, s1_r_words703: after each digit the cursor moves to the next lower place', () => {
+    const task = getSessionTasks(1, null as any).find((t) => t.id === 's1_r_words703')!;
+    load(1, task, { hundreds: 7, units: 3 }, null);
+    render(<RepresentationTask task={task} />);
+    const [h, t, u] = Array.from(screen.getByTestId('result-row').querySelectorAll('input')) as HTMLInputElement[];
+    expect(h.getAttribute('aria-label')).toContain('מאות');
+    h.focus();
+    fireEvent.change(h, { target: { value: '7' } });
+    expect(document.activeElement).toBe(t);
+    fireEvent.change(t, { target: { value: '0' } });
+    expect(document.activeElement).toBe(u);
+    fireEvent.change(u, { target: { value: '3' } });
+    expect(document.activeElement).toBe(u);
+    const d = useWorkspaceStore.getState().answerDigits;
+    expect([d.hundreds, d.tens, d.units]).toEqual(['7', '0', '3']);
+  });
+
+  it('station 7, s7_r_t6: the same order', () => {
+    const task = getSessionTasks(7, 'remediation_path').find((t) => t.id === 's7_r_t6')!;
+    load(7, task, { hundreds: 5, tens: 1 }, null);
+    render(<RepresentationTask task={task} />);
+    const [h, t] = Array.from(screen.getByTestId('result-row').querySelectorAll('input')) as HTMLInputElement[];
+    h.focus();
+    fireEvent.change(h, { target: { value: '5' } });
+    expect(document.activeElement).toBe(t);
+  });
+});

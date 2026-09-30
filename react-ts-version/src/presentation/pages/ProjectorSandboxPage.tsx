@@ -21,6 +21,7 @@ import {
   ArrowRight, 
   Tv, 
   RotateCcw, 
+  Eraser, 
   LogOut 
 } from 'lucide-react';
 import { ref, set, onDisconnect, serverTimestamp } from 'firebase/database';
@@ -36,6 +37,8 @@ export function ProjectorSandboxPage() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
+  const undo = useWorkspaceStore((s) => s.undo);
+  const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0);
   const initSession = useWorkspaceStore((s) => s.initSession);
   
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
@@ -254,12 +257,26 @@ export function ProjectorSandboxPage() {
 
         {/* שמאל: כפתורי פעולה למורה (נקה לוח, חזרה לדשבורד, יציאה) */}
         <div className="flex items-center gap-2.5">
+          {/* Meeting 1's opening (owner, 1.10.2026): the teacher shows the class
+              the undo button — "רשת הביטחון" of doc 03 §3.1 — with the arrow the
+              learners see on their own toolbar (WorkspaceTopbar). The clear
+              button used that same arrow, so it now has an eraser. */}
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-all shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed"
+            title="ביטול הפעולה האחרונה"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+            <span>ביטול הפעולה האחרונה</span>
+          </button>
+
           <button
             onClick={handleResetBoard}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-all shadow-2xs"
             title="ניקוי כל הלבנים מבית המספרים"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+            <Eraser className="w-3.5 h-3.5 text-slate-500" />
             <span>נקו את בית המספרים</span>
           </button>
 
