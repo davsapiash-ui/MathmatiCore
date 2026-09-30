@@ -27,10 +27,12 @@ import {
   skeleton,
   missingResultDigit,
   representation,
+  readWrite,
+  composeBreak,
+  decompose,
+  composeGroup,
   flexible,
   withOpts,
-  S3_STANDARD,
-  S3_NONSTANDARD,
   S4_ADD,
   S5_SUB,
   S6_SUB,
@@ -61,6 +63,21 @@ export interface TaskChoice {
   textHe: string;
   correct?: boolean;
 }
+
+/**
+ * What a representation exercise of station 3 (and station 7's two grouping
+ * exercises) asks the child to write — owner's redesign, 30.9.2026. Until then
+ * the instruction said which blocks to build AND the number they make, and the
+ * number to write was the one the child was given: nothing was tested.
+ *   read_write     the number said in words ("שלוש מאות וארבעים"); build it, write it in digits.
+ *   compose_break  build the blocks named, break one (or two) of them, write the number the blocks show.
+ *   decompose      build the number from one kind of block only; write HOW MANY blocks (450 → 45).
+ *   compose_group  build the blocks named, group ten of them, write the number the blocks show.
+ * A task with a kind has one free answer box (RepresentationTask); the
+ * conversion of compose_break / compose_group is the child's own, with the
+ * blocks, in the columns REPRESENTATION_LOCKS names.
+ */
+export type RepresentationKind = 'read_write' | 'compose_break' | 'decompose' | 'compose_group';
 
 export interface SessionTask {
   id: string;
@@ -105,6 +122,13 @@ export interface SessionTask {
   /* ── מסמך 03 exercise shapes ── */
   /** representation: the exact board the learner must build (places not listed must be empty). */
   requiredCounts?: Partial<PlaceCounts>;
+  /**
+   * representation, stations 3 and 7 (owner, 30.9.2026): what the exercise asks
+   * the child to write, and so what its single answer box is checked against.
+   * `numberA` stays the number built; `correctAnswer` is what the child writes
+   * (for `decompose`, the number of blocks: 450 → 45).
+   */
+  representationKind?: RepresentationKind;
   /** Skeleton exercise: operand digits hidden from the learner, to be discovered and typed. */
   hiddenDigits?: { a?: Place[]; b?: Place[] };
   /** Skeleton exercise: result digits shown up-front; the learner supplies only the missing ones. */
@@ -270,28 +294,33 @@ export const SESSION2_TASKS: QMatrixTask[] = QMATRIX_TASKS;
 
 /* ══════════════════════════════════════════════════════════════════════════
  * מפגש 3 — ערך המקום וגמישות ייצוגית (פירוק והרכבה) — מסמך 03 §3.3
+ *
+ * The owner's redesign of 30.9.2026. The numbers, boards and titles are מסמך
+ * 03's; what changed is what the child is asked. Until then every instruction
+ * named the blocks to build AND the number ("represent 340 the usual way: 3
+ * hundreds and 4 tens", "…with 45 hundreds"), the big number card over the
+ * result row showed it, and the number checked was the number given —
+ * nothing was tested. Now each exercise is one of four kinds
+ * (RepresentationKind, taskBuilders.ts): read a number said in words and
+ * write it in digits; build blocks, break one and write the number they still
+ * make; build a number from one kind of block and write how many blocks. The
+ * child's answer goes in one free box.
  * ══════════════════════════════════════════════════════════════════════════ */
 
 export const SESSION3_REMEDIATION_TASKS: SessionTask[] = [
-  representation('s3_r_t1', 340, { hundreds: 3, tens: 4 },
-    'ביסוס ייצוג סטנדרטי בתחום האלף',
-    S3_STANDARD('340', '3 מאות ו-4 עשרות')),
-  representation('s3_r_t2', 340, { hundreds: 2, tens: 14 },
-    'פירוק חד שלבי מונחה',
-    S3_NONSTANDARD('מאה אחת לעשר עשרות', '340', '2 מאות ו-14 עשרות')),
-  representation('s3_r_t3', 450, { tens: 45 },
-    'מעבר לייצוג לא סטנדרטי מלא',
-    'ייצגו את המספר 450 באמצעות עשרות בלבד: 45 עשרות. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!'),
-  representation('s3_r_t4', 85, { tens: 7, units: 15 },
-    'פירוק עשרות ליחידות בתחום המאה',
-    S3_NONSTANDARD('עשרת אחת לעשר יחידות', '85', '7 עשרות ו-15 יחידות')),
-  representation('s3_r_t5', 506, { hundreds: 5, units: 6 },
+  readWrite('s3_r_t1', 340, 'שלוש מאות וארבעים',
+    'ביסוס ייצוג סטנדרטי בתחום האלף'),
+  composeBreak('s3_r_t2', { hundreds: 3, tens: 4 }, ['hundreds'],
+    'פירוק חד שלבי מונחה'),
+  decompose('s3_r_t3', 450, 'tens',
+    'מעבר לייצוג לא סטנדרטי מלא'),
+  composeBreak('s3_r_t4', { tens: 8, units: 5 }, ['tens'],
+    'פירוק עשרות ליחידות בתחום המאה'),
+  readWrite('s3_r_t5', 506, 'חמש מאות ושש',
     'ייצוג מספר עם אפס שומר מקום',
-    'גררו לבנים לייצוג המספר 506 בדרך הרגילה: 5 מאות ו-6 יחידות. שימו לב: טור העשרות נשאר ריק. כתבו את המספר בשורת התוצאה!',
     { targetNode: 'decimal_structure' }),
-  representation('s3_r_t6', 506, { hundreds: 4, tens: 10, units: 6 },
+  composeBreak('s3_r_t6', { hundreds: 5, units: 6 }, ['hundreds'],
     'פירוק מספר עם אפס בטור העשרות',
-    S3_NONSTANDARD('מאה אחת לעשר עשרות', '506', '4 מאות, 10 עשרות ו-6 יחידות'),
     { targetNode: 'decimal_structure' }),
   withOpts({
     id: 's3_r_t7', type: 'missing_element', numberA: 100, numberB: 160, correctAnswer: 60,
@@ -302,25 +331,20 @@ export const SESSION3_REMEDIATION_TASKS: SessionTask[] = [
 ];
 
 export const SESSION3_GREEN_TASKS: SessionTask[] = [
-  representation('s3_g_t1', 3400, { thousands: 3, hundreds: 4 },
-    'ביסוס ייצוג סטנדרטי בתחום הרבבה',
-    S3_STANDARD('3,400', '3 אלפים ו-4 מאות')),
-  representation('s3_g_t2', 3400, { thousands: 2, hundreds: 14 },
-    'פירוק אלפים למאות',
-    S3_NONSTANDARD('לבנת אלף אחת לעשר מאות', '3,400', '2 אלפים ו-14 מאות')),
-  representation('s3_g_t3', 4500, { hundreds: 45 },
-    'מעבר לייצוג לא סטנדרטי מלא',
-    'ייצגו את המספר 4,500 באמצעות מאות בלבד: 45 מאות. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!'),
-  representation('s3_g_t4', 5230, { thousands: 4, hundreds: 11, tens: 13 },
-    'פירוק מעורב רב שלבי',
-    S3_NONSTANDARD('אלף אחד למאות ומאה אחת לעשרות', '5,230', '4 אלפים, 11 מאות ו-13 עשרות')),
-  representation('s3_g_t5', 6030, { thousands: 6, tens: 3 },
+  readWrite('s3_g_t1', 3400, 'שלושת אלפים וארבע מאות',
+    'ביסוס ייצוג סטנדרטי בתחום הרבבה'),
+  composeBreak('s3_g_t2', { thousands: 3, hundreds: 4 }, ['thousands'],
+    'פירוק אלפים למאות'),
+  decompose('s3_g_t3', 4500, 'hundreds',
+    'מעבר לייצוג לא סטנדרטי מלא'),
+  // Two breaks: a thousand into hundreds, then a hundred into tens.
+  composeBreak('s3_g_t4', { thousands: 5, hundreds: 2, tens: 3 }, ['thousands', 'hundreds'],
+    'פירוק מעורב רב שלבי'),
+  readWrite('s3_g_t5', 6030, 'ששת אלפים ושלושים',
     'ייצוג מספר עם אפס בטור המאות',
-    'גררו לבנים לייצוג המספר 6,030 בדרך הרגילה: 6 אלפים ו-3 עשרות. שימו לב: טור המאות נשאר ריק. כתבו את המספר בשורת התוצאה!',
     { targetNode: 'decimal_structure' }),
-  representation('s3_g_t6', 6030, { thousands: 5, hundreds: 10, tens: 3 },
+  composeBreak('s3_g_t6', { thousands: 6, tens: 3 }, ['thousands'],
     'פירוק אלפים דרך טור מאות ריק',
-    S3_NONSTANDARD('לבנת אלף אחת לעשר מאות', '6,030', '5 אלפים, 10 מאות ו-3 עשרות'),
     { targetNode: 'decimal_structure' }),
   flexible('s3_g_t7', 2100,
     'משימת חקר של גמישות ייצוגית',
@@ -467,9 +491,11 @@ export const SESSION6_TASKS: SessionTask[] = SESSION6_GREEN_TASKS;
 const INQUIRY: BuildOpts = { targetNode: 'relational_thinking' };
 
 export const SESSION7_REMEDIATION_TASKS: SessionTask[] = [
-  flexible('s7_r_t1', 125,
+  // Owner, 30.9.2026: a grouping composition. The "prove that 12 tens and 5
+  // units equal 1 hundred, 2 tens and 5 units" wording wrote the answer into
+  // the question; the child now groups and writes the number the blocks make.
+  composeGroup('s7_r_t1', { tens: 12, units: 5 }, ['tens'],
     'משימת הוכחת ערך מקום',
-    'הוכיחו בלבנים ש-12 עשרות ו-5 יחידות שוות בדיוק למאה אחת, 2 עשרות ו-5 יחידות. בנו 12 עשרות ו-5 יחידות ולחצו על הכפתור "הוספת ייצוג". לאחר מכן קבצו 10 עשרות למאה אחת והוסיפו את הייצוג השני.',
     INQUIRY),
   // ★ chosen: מסמך 03 describes the skeleton without numbers.
   skeleton('s7_r_t2', 314, 254, false, { a: ['units'] },
@@ -503,9 +529,9 @@ export const SESSION7_REMEDIATION_TASKS: SessionTask[] = [
 ];
 
 export const SESSION7_GREEN_TASKS: SessionTask[] = [
-  flexible('s7_g_t1', 2500,
+  // Owner, 30.9.2026: a grouping composition, twice in the hundreds (see s7_r_t1).
+  composeGroup('s7_g_t1', { hundreds: 25 }, ['hundreds', 'hundreds'],
     'משימת הוכחת שימור כמות מורכבת בתחום הרבבה',
-    'הוכיחו בלבנים ש-25 מאות שוות בדיוק ל-2 אלפים ו-5 מאות. בנו 25 מאות ולחצו על הכפתור "הוספת ייצוג". לאחר מכן קבצו 10 מאות לאלף אחד. קבצו שוב 10 מאות לאלף אחד והוסיפו את הייצוג הרגיל.',
     INQUIRY),
   // ★ chosen: מסמך 03 describes the skeleton without numbers.
   skeleton('s7_g_t2', 2637, 1554, false, { a: ['hundreds', 'units'] },

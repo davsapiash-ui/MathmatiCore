@@ -1,35 +1,58 @@
 /**
- * Module 9 §א in the representation exercises (owner's decision 28.9.2026,
- * register שהB.4): for a learner with enhanced_cognitive_support the result
- * row locks only in the columns the exercise's conversion goes through —
- * the RECEIVING column of a decomposition, the SOURCE column of a
- * composition — and each opens when the blocks perform that conversion there
- * (safety valve: the whole board equals requiredCounts). Every other column,
- * and every exercise not listed, is open from the start.
+ * The conversion each representation exercise asks the child to make with the
+ * blocks — the RECEIVING column of a decomposition (a hundred broken into ten
+ * tens: the tens), the SOURCE column of a composition (ten tens grouped into a
+ * hundred: the tens), as `conversionsByColumn` records them. Two rules read it.
  *
- * ★ chosen: the PRD names no columns for these exercises. Each entry was
- * derived from the exercise's numbers and requiredCounts and passed through
- * the pedagogy gate (Rule 3) on 28.9.2026:
+ * Module 9 §א, enhanced_cognitive_support only (owner's decision 28.9.2026,
+ * register שהB.4): the answer is locked until the blocks perform the
+ * conversion (safety valve, register gap כ: a board that already equals
+ * requiredCounts opens it, so a child who built it without converting is
+ * never stuck). How much is locked depends on the answer the exercise has:
+ *   - the result row of digits (station 1; station 7's s7_g_t5, s7_g_t6): only
+ *     the listed columns lock, each until its own conversion; every other
+ *     column is open from the start;
+ *   - the single answer box of station 3 and s7_r_t1 / s7_g_t1 (a
+ *     `representationKind`, owner 30.9.2026): the whole box stays locked until
+ *     EVERY listed conversion is done — after the break (compose_break), after
+ *     the grouping (compose_group). read_write and decompose ask for no
+ *     conversion: they are not listed and never lock. Before 30.9.2026 the
+ *     "45 tens / 45 hundreds / 27 tens / 36 hundreds" exercises were listed;
+ *     they are decompositions now, built from one kind of block however the
+ *     child likes.
+ * A keystroke into a locked answer is rejected and logged as
+ * KEYBOARD_LOCK_BLOCKED with the column of the conversion still missing and
+ * this entry's `conversion`.
+ *
+ * The exercises with a `representationKind` (proceed(), useWorkspaceStore.ts):
+ * compose_break and compose_group are not solved until the blocks performed
+ * every listed conversion, for every learner — "הלבנים מסודרות נכון, אבל
+ * המשימה היא לפרוט בעצמכם", naming the block still to break or the column's
+ * "קבצו 10" button.
+ *
+ * ★ chosen: the PRD names no columns for these exercises. Each entry is derived
+ * from the exercise's numbers and requiredCounts and passed the pedagogy gate
+ * (Rule 3) — on 28.9.2026, and for station 3's redesign on 30.9.2026:
  *   s1_target_347     347 → 3 hundreds, 3 tens, 17 units: a ten into units.
  *   s1_r_group26      26 units → 2 tens, 6 units: units grouped into tens.
- *   s3_r_t2           340 → 2 hundreds, 14 tens: a hundred into tens.
- *   s3_r_t3           450 → 45 tens: hundreds into tens.
- *   s3_r_t4           85 → 7 tens, 15 units: a ten into units.
- *   s3_r_t6           506 → 4 hundreds, 10 tens, 6 units: a hundred into tens.
- *   s3_g_t2           3,400 → 2 thousands, 14 hundreds: a thousand into hundreds.
- *   s3_g_t3           4,500 → 45 hundreds: thousands into hundreds.
- *   s3_g_t4           5,230 → 4 thousands, 11 hundreds, 13 tens: a thousand
- *                     into hundreds, then a hundred into tens.
- *   s3_g_t6           6,030 → 5 thousands, 10 hundreds, 3 tens: a thousand into hundreds.
- *   s3_r_reinforce_2  270 → 27 tens: hundreds into tens.
- *   s3_g_reinforce_2  3,600 → 36 hundreds: thousands into hundreds.
+ *   s3_r_t2           3 hundreds, 4 tens → 2 hundreds, 14 tens: a hundred into tens.
+ *   s3_r_t4           8 tens, 5 units → 7 tens, 15 units: a ten into units.
+ *   s3_r_t6           5 hundreds, 6 units → 4 hundreds, 10 tens, 6 units: a hundred into tens.
+ *   s3_g_t2           3 thousands, 4 hundreds → 2 thousands, 14 hundreds: a thousand into hundreds.
+ *   s3_g_t4           5 thousands, 2 hundreds, 3 tens → 4 thousands, 11 hundreds,
+ *                     13 tens: a thousand into hundreds, then a hundred into tens.
+ *   s3_g_t6           6 thousands, 3 tens → 5 thousands, 10 hundreds, 3 tens: a thousand into hundreds.
+ *   s7_r_t1           12 tens, 5 units → 1 hundred, 2 tens, 5 units: ten tens grouped into a hundred.
+ *   s7_g_t1           25 hundreds → 2 thousands, 5 hundreds: ten hundreds grouped
+ *                     into a thousand, twice (one column).
  *   s7_g_t5           3,400 + 1,000 − 600: 4 hundreds cannot give 6, so a
  *                     thousand is decomposed into hundreds (3,800).
  *   s7_g_t6           1 thousand, 16 hundreds, 13 tens → 2,730: ten tens
  *                     grouped into a hundred, ten hundreds into a thousand.
- * No conversion (not listed): s3_r_t1, s3_r_t5, s3_g_t1, s3_g_t5 and the
- * reinforce_1 exercises (standard form), s7_r_t6 (340 + 200 − 30 = 510,
- * 4 tens give 3 without a decomposition).
+ * No conversion (not listed): station 3's read_write and decompose exercises
+ * (s3_r_t1, s3_r_t3, s3_r_t5, s3_g_t1, s3_g_t3, s3_g_t5 and the four
+ * reinforcements), s7_r_t6 (340 + 200 − 30 = 510, 4 tens give 3 without a
+ * decomposition).
  */
 import type { Place } from '@/core/placeValue';
 
@@ -43,15 +66,13 @@ export const REPRESENTATION_LOCKS: Record<string, RepresentationLock> = {
   s1_target_347: { conversion: 'decomposition', columns: ['units'] },
   s1_r_group26: { conversion: 'composition', columns: ['units'] },
   s3_r_t2: { conversion: 'decomposition', columns: ['tens'] },
-  s3_r_t3: { conversion: 'decomposition', columns: ['tens'] },
   s3_r_t4: { conversion: 'decomposition', columns: ['units'] },
   s3_r_t6: { conversion: 'decomposition', columns: ['tens'] },
   s3_g_t2: { conversion: 'decomposition', columns: ['hundreds'] },
-  s3_g_t3: { conversion: 'decomposition', columns: ['hundreds'] },
   s3_g_t4: { conversion: 'decomposition', columns: ['hundreds', 'tens'] },
   s3_g_t6: { conversion: 'decomposition', columns: ['hundreds'] },
-  s3_r_reinforce_2: { conversion: 'decomposition', columns: ['tens'] },
-  s3_g_reinforce_2: { conversion: 'decomposition', columns: ['hundreds'] },
+  s7_r_t1: { conversion: 'composition', columns: ['tens'] },
+  s7_g_t1: { conversion: 'composition', columns: ['hundreds'] },
   s7_g_t5: { conversion: 'decomposition', columns: ['hundreds'] },
   s7_g_t6: { conversion: 'composition', columns: ['tens', 'hundreds'] },
 };

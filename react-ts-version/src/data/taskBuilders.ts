@@ -7,7 +7,7 @@
  */
 
 import type { Place, PlaceCounts } from '@/core/placeValue';
-import type { SessionTask } from './sessionTasks';
+import type { SessionTask, RepresentationKind } from './sessionTasks';
 
 const LOW_TO_HIGH: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
 const PLACE_DIVISOR: Record<Place, number> = { units: 1, tens: 10, hundreds: 100, thousands: 1000 };
@@ -97,12 +97,156 @@ export function missingResultDigit(
   return { ...base, revealedResultDigits: resultPlaces(result).filter((p) => p !== missing) };
 }
 
-/** Build exactly this representation on the board, then write the number it shows. */
+/**
+ * Build exactly this representation on the board, then write the number it
+ * shows. Station 1 and station 7's other representation exercises; station 3
+ * uses the four builders below, which say what the child writes.
+ */
 export function representation(id: string, value: number, counts: Partial<PlaceCounts>, titleHe: string, instructionHe: string, opts: BuildOpts = {}): SessionTask {
   return withOpts(
     { id, type: 'representation', numberA: value, correctAnswer: value, requiredCounts: counts, titleHe, instructionHe, targetNode: 'flexible_regrouping' },
     opts
   );
+}
+
+/* ── Station 3 and station 7's grouping exercises (owner, 30.9.2026) ──
+ *
+ * The owner approved one sentence per kind of exercise. The instruction is
+ * built from the exercise's own numbers, so its words cannot drift from the
+ * board the exercise checks: the blocks named are the blocks built, each
+ * "פרטו" / "קבצו" is one conversion applied to them, and the board after the
+ * last one is `requiredCounts`. No instruction names the number the child
+ * writes (Module26_Doc03Banks / Station3_Redesign tests). Names: "לבנת מאה",
+ * plural "לבני מאה" — לבנה is feminine ("לבנת מאה אחת", "לעשר לבני עשרת"). */
+
+/** One block's name after "לבנת" / "לבני" (owner's naming rule). */
+export const BLOCK_NAME_HE: Record<Place, string> = { units: 'יחידה', tens: 'עשרת', hundreds: 'מאה', thousands: 'אלף' };
+
+const placeAbove = (p: Place): Place => LOW_TO_HIGH[LOW_TO_HIGH.indexOf(p) + 1];
+const placeBelow = (p: Place): Place => LOW_TO_HIGH[LOW_TO_HIGH.indexOf(p) - 1];
+
+/** "3 לבני מאה"; one block is "לבנת מאה אחת". */
+function blocksHe(n: number, place: Place): string {
+  return n === 1 ? `לבנת ${BLOCK_NAME_HE[place]} אחת` : `${n} לבני ${BLOCK_NAME_HE[place]}`;
+}
+
+/** The blocks of a board, high place first: "5 לבני אלף, 2 לבני מאה ו-3 לבני עשרת". */
+function boardHe(counts: Partial<PlaceCounts>): string {
+  const parts = [...LOW_TO_HIGH].reverse().filter((p) => (counts[p] ?? 0) > 0).map((p) => blocksHe(counts[p]!, p));
+  if (parts.length <= 1) return parts[0] ?? '';
+  const last = parts[parts.length - 1];
+  // "ו-3 לבני עשרת", but "ולבנת עשרת אחת": the hyphen joins the ו to a digit only.
+  return `${parts.slice(0, -1).join(', ')} ${/^\d/.test(last) ? 'ו-' : 'ו'}${last}`;
+}
+
+/** 4,500 — the thousands comma the instructions use. */
+const numberHe = (n: number) => n.toLocaleString('en-US');
+
+function valueOf(counts: Partial<PlaceCounts>): number {
+  return LOW_TO_HIGH.reduce((sum, p) => sum + (counts[p] ?? 0) * PLACE_DIVISOR[p], 0);
+}
+
+/** The standard form: one digit's worth of blocks per place (340 → 3 hundreds, 4 tens). */
+function standardCountsOf(value: number): Partial<PlaceCounts> {
+  const out: Partial<PlaceCounts> = {};
+  for (const p of LOW_TO_HIGH) if (digitOf(value, p) > 0) out[p] = digitOf(value, p);
+  return out;
+}
+
+/** Places with no blocks are left out, as every requiredCounts in the banks is written. */
+function withoutEmpty(counts: Partial<PlaceCounts>): Partial<PlaceCounts> {
+  const out: Partial<PlaceCounts> = {};
+  for (const p of [...LOW_TO_HIGH].reverse()) if ((counts[p] ?? 0) > 0) out[p] = counts[p];
+  return out;
+}
+
+function representationOfKind(
+  kind: RepresentationKind,
+  id: string,
+  value: number,
+  counts: Partial<PlaceCounts>,
+  answer: number,
+  titleHe: string,
+  instructionHe: string,
+  opts: BuildOpts
+): SessionTask {
+  return {
+    ...representation(id, value, withoutEmpty(counts), titleHe, instructionHe, opts),
+    correctAnswer: answer,
+    representationKind: kind,
+  };
+}
+
+/**
+ * read_write — "בנו בבית המספרים את המספר שלוש מאות וארבעים. כתבו אותו בספרות
+ * בשורת התוצאה." The number is said in words; the board is its standard form;
+ * the child writes it in digits.
+ */
+export function readWrite(id: string, value: number, wordsHe: string, titleHe: string, opts: BuildOpts = {}): SessionTask {
+  return representationOfKind('read_write', id, value, standardCountsOf(value), value, titleHe,
+    `בנו בבית המספרים את המספר ${wordsHe}. כתבו אותו בספרות בשורת התוצאה.`, opts);
+}
+
+/**
+ * decompose — "בנו בבית המספרים את המספר 450 מלבני עשרת בלבד. בכמה לבני עשרת
+ * השתמשתם? כתבו את התשובה בשורת התוצאה." The answer is the number of blocks
+ * (45), not the number built (450).
+ */
+export function decompose(id: string, value: number, place: Place, titleHe: string, opts: BuildOpts = {}): SessionTask {
+  const blocks = value / PLACE_DIVISOR[place];
+  const name = BLOCK_NAME_HE[place];
+  return representationOfKind('decompose', id, value, { [place]: blocks }, blocks, titleHe,
+    `בנו בבית המספרים את המספר ${numberHe(value)} מלבני ${name} בלבד. בכמה לבני ${name} השתמשתם? כתבו את התשובה בשורת התוצאה.`, opts);
+}
+
+/** One conversion's sentence; a second one says "אחר כך" (another column) or "שוב" (the same column). */
+function conversionHe(verb: 'פרטו' | 'קבצו', what: string, place: Place, previous: Place | undefined): string {
+  if (previous === undefined) return `${verb} ${what}.`;
+  return previous === place ? `${verb} שוב ${what}.` : `אחר כך ${verb} ${what}.`;
+}
+
+/**
+ * compose_break — "בנו בבית המספרים 3 לבני מאה ו-4 לבני עשרת. פרטו לבנת מאה
+ * אחת לעשר לבני עשרת. איזה מספר מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת
+ * התוצאה." `breaks` lists the block broken each time, in order; the child
+ * breaks it with the blocks (requiresUngrouping, REPRESENTATION_LOCKS).
+ */
+export function composeBreak(id: string, built: Partial<PlaceCounts>, breaks: Place[], titleHe: string, opts: BuildOpts = {}): SessionTask {
+  const after: Partial<PlaceCounts> = { ...built };
+  const steps = breaks.map((from, i) => {
+    const to = placeBelow(from);
+    after[from] = (after[from] ?? 0) - 1;
+    after[to] = (after[to] ?? 0) + 10;
+    return conversionHe('פרטו', `לבנת ${BLOCK_NAME_HE[from]} אחת לעשר לבני ${BLOCK_NAME_HE[to]}`, from, breaks[i - 1]);
+  });
+  const value = valueOf(built);
+  return {
+    ...representationOfKind('compose_break', id, value, after, value, titleHe,
+      `בנו בבית המספרים ${boardHe(built)}. ${steps.join(' ')} איזה מספר מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.`, opts),
+    requiresUngrouping: true,
+  };
+}
+
+/**
+ * compose_group — "בנו בבית המספרים 12 לבני עשרת ו-5 לבני יחידה. קבצו 10 לבני
+ * עשרת ללבנת מאה אחת. איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת
+ * התוצאה." `groups` lists the column grouped each time, in order; the child
+ * groups with the column's "קבצו 10" button (requiresGrouping, REPRESENTATION_LOCKS).
+ */
+export function composeGroup(id: string, built: Partial<PlaceCounts>, groups: Place[], titleHe: string, opts: BuildOpts = {}): SessionTask {
+  const after: Partial<PlaceCounts> = { ...built };
+  const steps = groups.map((from, i) => {
+    const to = placeAbove(from);
+    after[from] = (after[from] ?? 0) - 10;
+    after[to] = (after[to] ?? 0) + 1;
+    return conversionHe('קבצו', `10 לבני ${BLOCK_NAME_HE[from]} ללבנת ${BLOCK_NAME_HE[to]} אחת`, from, groups[i - 1]);
+  });
+  const value = valueOf(built);
+  return {
+    ...representationOfKind('compose_group', id, value, after, value, titleHe,
+      `בנו בבית המספרים ${boardHe(built)}. ${steps.join(' ')} איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת התוצאה.`, opts),
+    requiresGrouping: true,
+  };
 }
 
 /** Two different representations of the same number (existing flexible_decomp engine). */
@@ -112,12 +256,13 @@ export function flexible(id: string, value: number, titleHe: string, instruction
   return withOpts(task, opts);
 }
 
-/* ── Shared instruction phrases (מסמך 02/03 on-screen wording) ── */
+/* ── Shared instruction phrases (מסמך 02/03 on-screen wording) ──
+ * Station 3's two phrases (S3_STANDARD, "represent N the usual way: …", and
+ * S3_NONSTANDARD, "break … and represent N the new way: …") pasted the blocks
+ * AND the number into the instruction, so the child copied the answer from
+ * it. The owner replaced them on 30.9.2026 — see readWrite, composeBreak,
+ * decompose. */
 
-export const S3_STANDARD = (n: string, desc: string) =>
-  `גררו לבנים לייצוג המספר ${n} בדרך הרגילה: ${desc}. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!`;
-export const S3_NONSTANDARD = (what: string, n: string, desc: string) =>
-  `פרקו ${what} ונסו לייצג את המספר ${n} בדרך החדשה: ${desc}. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!`;
 export const S4_ADD = (ex: string, regroup: boolean) =>
   `פתרו במאונך: ${ex}. ייצגו את המספרים בעזרת לבנים.${regroup ? ' כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור. רשמו את ההמרה בעיגול הזיכרון.' : ''} רשמו את התוצאה בשורת התוצאה.`;
 /**
