@@ -118,7 +118,11 @@ describe('the lesson survives the teacher\'s connection', () => {
     expect(start).toBeGreaterThan(-1);
     expect(effect).toContain("onValue(ref(database, '.info/connected')");
     expect(effect).toContain('if (isConnected) armPresence();');
-    expect(effect).toContain('if (!snap.exists() || !isConnected) return;');
+    expect(effect).toContain('if (!rec || stamp === null || !isConnected) return;');
+    // Never cleared blindly at the moment of reconnecting: past the grace
+    // window the meeting stays closed (PRD 14 §ב0, register item 21) — the
+    // behaviour is covered in Module14_TeacherTransitions.test.tsx.
+    expect(effect).toContain('serverNow() - stamp > TEACHER_DISCONNECT_GRACE_MS');
     expect(effect).toContain('unsubConnected();');
     // The teacher is told her connection dropped and came back: it is invisible
     // to her otherwise, and it starts the window after which the lesson closes

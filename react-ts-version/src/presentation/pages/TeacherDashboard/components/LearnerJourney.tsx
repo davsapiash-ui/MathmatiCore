@@ -46,7 +46,20 @@ const isPermissionDenied = (err: unknown): boolean =>
 /** Shown instead of "no report yet" when the account cannot read reports at all (see firestore.rules, /reports). */
 const NO_REPORT_ACCESS_TEXT = 'אין לחשבון הזה הרשאה לקרוא דוחות. התנתקו והתחברו מחדש כמורה; אם זה חוזר, פנו למנהל המערכת.';
 
+/**
+ * One journey per learner. Everything below — the events, the recordings, the
+ * selected meeting and the AI report — belongs to one learner, and survived a
+ * switch to another: the new learner's screen showed the previous learner's
+ * decision table and report until the reads returned, and "הפיקו" sent the
+ * server the new learner's number with the previous learner's session id.
+ * Keyed by the learner, a switch starts from a clean state, and an answer that
+ * arrives for the previous learner lands nowhere.
+ */
 export function LearnerJourney({ studentId }: Props) {
+  return <LearnerJourneyOfOneLearner key={String(studentId).replace(/\D/g, '') || String(studentId)} studentId={studentId} />;
+}
+
+function LearnerJourneyOfOneLearner({ studentId }: Props) {
   // מזהה שאינו נפתר החזיר עד כה 1, ולכן המורה הייתה רואה את מסע הלמידה
   // המלא של תלמיד 1 — הקלטות מסך וכל הטלמטריה — תחת שם של ילד אחר.
   const studentNum = useMemo(() => {

@@ -24,6 +24,15 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+/**
+ * The open overlays, oldest first. A window opened from inside another one
+ * (the reset confirmation, from the learner drawer) sits on top of it, and
+ * only the top one answers Escape and Tab. Each registered its own window
+ * listener, so one Escape closed both, and the two focus traps pulled focus
+ * back and forth between them.
+ */
+const openOverlays: object[] = [];
+
 export function useDismissableOverlay<T extends HTMLElement>(
   isOpen: boolean,
   onClose: () => void,
@@ -43,6 +52,9 @@ export function useDismissableOverlay<T extends HTMLElement>(
     if (!isOpen) return;
 
     previouslyFocused.current = (document.activeElement as HTMLElement) ?? null;
+    const token = {};
+    openOverlays.push(token);
+    const isTop = () => openOverlays[openOverlays.length - 1] === token;
 
     const focusables = (): HTMLElement[] => {
       const root = containerRef.current;
@@ -62,6 +74,7 @@ export function useDismissableOverlay<T extends HTMLElement>(
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isTop()) return;
       if (e.key === 'Escape') {
         e.stopPropagation();
         onCloseRef.current();
@@ -87,6 +100,8 @@ export function useDismissableOverlay<T extends HTMLElement>(
 
     window.addEventListener('keydown', handleKeyDown, true);
     return () => {
+      const at = openOverlays.indexOf(token);
+      if (at >= 0) openOverlays.splice(at, 1);
       window.removeEventListener('keydown', handleKeyDown, true);
       if (focusFrame !== null) cancelAnimationFrame(focusFrame);
       // Restore focus only if this overlay actually holds it. A non-blocking

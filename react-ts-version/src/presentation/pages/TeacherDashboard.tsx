@@ -120,7 +120,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [selectedReplayStudentId, setSelectedReplayStudentId] = useState<string | null>(
     routeStudentId || null,
   );
-  const [drawerStudent, setDrawerStudent] = useState<StudentData | null>(null);
+  // The learner drawer holds the learner's id, not a copy of the learner: the
+  // copy froze at the moment it was opened, so after "סמנו כטופל" the help
+  // banner stayed, and a hand raised while it was open never appeared. The
+  // drawer's learner is read from the live list below (drawerStudent).
+  const [drawerStudentId, setDrawerStudentId] = useState<string | null>(null);
   const [gateStudent, setGateStudent] = useState<StudentData | null>(null);
   const [floatingChatStudent, setFloatingChatStudent] = useState<StudentData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -198,10 +202,61 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [isUpdatingSession, setIsUpdatingSession] = useState(false);
   const isUpdatingSessionRef = useRef(false);
   const [isStartingSession, setIsStartingSession] = useState(false);
+  // Re-reads the last live record into the dashboard (set by the listener below).
+  const reapplySessionStateRef = useRef<() => void>(() => {});
+
+  // Whether this page reaches the database now (`.info/connected`). A write to
+  // active_class_session made while it does not is applied locally at once —
+  // the listener already shows the meeting open, paused or closed — and sent
+  // when the connection returns; its promise does not settle before then. The
+  // controls awaited it, so with the Wi-Fi down the activation window spun with
+  // "ביטול" disabled, and pause / resume / close stayed disabled, until the
+  // network came back.
+  const rtdbConnectedRef = useRef(false);
+  const onOfflineRef = useRef(new Set<() => void>());
+  useEffect(() => {
+    return onValue(ref(database, '.info/connected'), (snap) => {
+      rtdbConnectedRef.current = snap.val() === true;
+      if (!rtdbConnectedRef.current) [...onOfflineRef.current].forEach((fn) => fn());
+    });
+  }, []);
+
+  /**
+   * Waits for a meeting-control write while the database is reachable.
+   * 'confirmed': the server took it. 'queued': the page is (or went) offline,
+   * so the write waits in the SDK and goes out when the connection returns —
+   * nothing cancels it. A refusal before that rejects; a refusal of a queued
+   * write arrives later, through onLateFailure.
+   */
+  const awaitSessionWrite = (
+    write: Promise<unknown>,
+    onLateFailure: (err: unknown) => void
+  ): Promise<'confirmed' | 'queued'> =>
+    new Promise((resolve, reject) => {
+      let settled = false;
+      const queued = () => {
+        if (settled) return;
+        settled = true;
+        onOfflineRef.current.delete(queued);
+        resolve('queued');
+      };
+      write.then(
+        () => {
+          onOfflineRef.current.delete(queued);
+          if (!settled) { settled = true; resolve('confirmed'); }
+        },
+        (err) => {
+          onOfflineRef.current.delete(queued);
+          if (!settled) { settled = true; reject(err); } else onLateFailure(err);
+        }
+      );
+      if (!rtdbConnectedRef.current) queued();
+      else onOfflineRef.current.add(queued);
+    });
 
   // Sync active class session with Firebase.
-  // A session with a teacherDisconnectedAt stamp older than 5 minutes counts as
-  // closed (core/classSession.ts); the interval re-evaluates the grace window
+  // A session with a teacherDisconnectedAt stamp older than the grace window
+  // counts as closed (core/classSession.ts); the interval re-evaluates the window
   // since its expiry produces no server event.
   useEffect(() => {
     const sessionRef = ref(database, 'active_class_session');
@@ -258,6 +313,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       setClassSessionStatus('closed');
       setSessionStartTime(null);
     };
+    reapplySessionStateRef.current = applySessionState;
 
     const unsub = onValue(
       sessionRef,
@@ -276,6 +332,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       .catch(() => {});
     return () => {
       mounted = false;
+      reapplySessionStateRef.current = () => {};
       unsub();
       clearInterval(graceTimer);
     };
@@ -312,15 +369,19 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   }, [isClassSessionActive, _sessionStartTime, selectedSessionNum]);
 
 
-  // Teacher Presence heartbeat + 5-minute session grace window.
+  // Teacher-disconnect grace window (core/classSession.ts, 15 minutes).
   // PRD v7.1 Module 14: an opened session must survive a momentary teacher
   // disconnect (refresh, network blip, laptop sleep). Instead of closing the
   // session on disconnect, the server stamps teacherDisconnectedAt; clients
-  // treat the session as closed only after 5 continuous offline minutes
-  // (see core/classSession.ts), and the stamp is cleared on every reconnect.
+  // treat the session as closed only after the grace window of continuous
+  // offline time, and a teacher who is back within it clears the stamp.
+  //
+  // This block used to also write a presence record to users/teachers/{uid}
+  // on every connect, every 5 seconds and on disconnect. The database rules
+  // let only an admin write there, so every one of those writes was refused —
+  // an unhandled rejection on each reconnect and a permission warning every 5
+  // seconds — and nothing in the app or the functions reads that presence.
   useEffect(() => {
-    const teacherId = user?.uid || 'teacher';
-    const teacherPresenceRef = ref(database, `users/teachers/${teacherId}`);
     const activeSessionRef = ref(database, 'active_class_session');
     const disconnectStampRef = ref(database, 'active_class_session/teacherDisconnectedAt');
 
@@ -329,29 +390,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     // stamped the disconnect, the dashboard reconnected — and nothing cleared the
     // stamp or re-armed the hook. Five minutes later all twelve learners saw
     // "המורה סגרה את המפגש" though she had pressed nothing. It now runs on every
-    // (re)connect, which is what the comment above always said.
+    // (re)connect.
     let isConnected = false;
     const armPresence = () => {
-      // 1. Mark teacher online and clear any stale disconnect stamp
-      update(teacherPresenceRef, {
-        isOnline: true,
-        onlineStatus: 'active',
-        lastPing: Date.now(),
-        lastActive: Date.now(),
-      }).catch(() => {});
-      set(disconnectStampRef, null).catch(() => {});
-
-      // 2. onDisconnect hooks: release presence and stamp the disconnect time.
-      //    Cancel any legacy whole-session close hook an older client left armed.
+      // Cancel any legacy whole-session close hook an older client left armed,
+      // then stamp the disconnect time. A refused hook must not surface as an
+      // unhandled rejection; the grace window then simply is not armed.
       try {
-        onDisconnect(teacherPresenceRef).update({
-          isOnline: false,
-          onlineStatus: 'offline',
-          lastPing: 0,
-          lastActive: Date.now(),
-        });
-        onDisconnect(activeSessionRef).cancel();
-        onDisconnect(disconnectStampRef).set(serverTimestamp());
+        onDisconnect(activeSessionRef).cancel().catch(() => {});
+        onDisconnect(disconnectStampRef).set(serverTimestamp()).catch(() => {});
       } catch (e) {
         console.warn('[TeacherDashboard] onDisconnect registration notice:', e);
       }
@@ -360,38 +407,73 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       isConnected = snap.val() === true;
       if (isConnected) armPresence();
     });
-    // Closing a SECOND dashboard tab stamps the disconnect too, while this one is
-    // alive and never reconnects. A connected dashboard clears a stamp it sees.
+
+    // The stamp is decided on the record the server holds, which reaches this
+    // listener after the reconnect — never at the moment of reconnecting. The
+    // stamp used to be cleared right then, blindly: a laptop that woke after
+    // the grace window had expired, when the learners had long seen "המורה
+    // סגרה את התחנה", cleared it and reopened the meeting for all twelve by
+    // itself. PRD Module 14 §ב0: only the teacher opens a meeting (register
+    // item 21). Past the window the meeting stays closed, and the record says
+    // so in the shape the teacher's own close writes.
     //
-    // It also tells the teacher. Her connection dropping is invisible to her —
-    // the children carry on working and her screen looks normal — but it starts
-    // the window after which the lesson closes for all twelve of them. She
-    // should know it happened, and that nothing was lost.
-    const unsubStamp = onValue(disconnectStampRef, (snap) => {
-      if (!snap.exists() || !isConnected) return;
+    // Closing a SECOND dashboard tab stamps the disconnect too, while this one
+    // is alive and never reconnects. A connected dashboard clears a stamp it
+    // sees within the window, and tells the teacher. Her connection dropping is
+    // invisible to her — the children carry on working and her screen looks
+    // normal — but it starts the window after which the lesson closes for all
+    // twelve of them. She should know it happened, and that nothing was lost.
+    const unsubStamp = onValue(activeSessionRef, (snap) => {
+      const rec = snap.exists() ? (snap.val() as Record<string, unknown>) : null;
+      const stamp = typeof rec?.teacherDisconnectedAt === 'number' ? rec.teacherDisconnectedAt : null;
+      if (!rec || stamp === null || !isConnected) return;
+      const graceMinutes = Math.round(TEACHER_DISCONNECT_GRACE_MS / 60000);
+      if (rec.active === true && serverNow() - stamp > TEACHER_DISCONNECT_GRACE_MS) {
+        set(activeSessionRef, {
+          active: false,
+          status: 'closed',
+          sessionNumber: null,
+          endedAt: Date.now(),
+          endedBy: 'teacher_disconnect_grace',
+          teacherId: (rec.teacherId as string) || user?.uid || 'teacher',
+        }).catch((err) => console.warn('[TeacherDashboard] closing after the disconnect grace failed:', err));
+        toast.info(
+          `החיבור שלכם למערכת היה מנותק יותר מ-${graceMinutes} דקות, ולכן המפגש נסגר אצל התלמידים. כדי להמשיך, הפעילו את המפגש מחדש.`,
+          { duration: 10000, id: 'teacher-reconnected' }
+        );
+        return;
+      }
+      set(disconnectStampRef, null).catch(() => {});
       armPresence();
+      // A stamp on a closed meeting (the hook outlives a close) is only cleared.
+      if (rec.active !== true) return;
       toast.info(
-        `החיבור שלכם למערכת התנתק לרגע וחזר. המפגש נשאר פתוח והתלמידים המשיכו לעבוד. אם החיבור ייפול ליותר מ-${Math.round(TEACHER_DISCONNECT_GRACE_MS / 60000)} דקות, המפגש ייסגר אצלם.`,
+        `החיבור שלכם למערכת התנתק לרגע וחזר. המפגש נשאר פתוח והתלמידים המשיכו לעבוד. אם החיבור ייפול ליותר מ-${graceMinutes} דקות, המפגש ייסגר אצלם.`,
         { duration: 10000, id: 'teacher-reconnected' }
       );
     });
 
-    // 3. Keep heartbeat active every 5s
-    const pingInterval = setInterval(() => {
-      update(teacherPresenceRef, {
-        isOnline: true,
-        onlineStatus: 'active',
-        lastPing: Date.now(),
-        lastActive: Date.now(),
-      }).catch(() => {});
-    }, 5000);
-
     return () => {
-      clearInterval(pingInterval);
       unsubConnected();
       unsubStamp();
     };
   }, [user?.uid]);
+
+  // The activation window for meeting N, left open while N was opened from
+  // another dashboard tab (or device), closes without writing. Confirming it
+  // used to write the record again, restarting N's start stamp and with it the
+  // 45-minute limit (register item 8) for a meeting already under way.
+  useEffect(() => {
+    if (
+      pendingActivationSession !== null &&
+      !isStartingSession &&
+      isClassSessionActive &&
+      selectedSessionNum === pendingActivationSession
+    ) {
+      setPendingActivationSession(null);
+      toast.info(`מפגש ${pendingActivationSession} כבר פעיל כעת.`, { id: 'session-already-active' });
+    }
+  }, [pendingActivationSession, isStartingSession, isClassSessionActive, selectedSessionNum]);
 
   const handleStartClassSession = async (sessionNum: number) => {
     const now = Date.now();
@@ -417,18 +499,26 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       // a teacher laptop 46 minutes slow used to write a start that every
       // reader (on serverNow()) already saw as past the 45-minute cap
       // (register item 8), and a fast one stretched the meeting.
-      await set(ref(database, 'active_class_session'), {
-        active: true,
-        status: 'active',
-        sessionNumber: sessionNum,
-        startedAt: serverTimestamp(),
-        teacherId: user?.uid || 'teacher',
-      });
+      const outcome = await awaitSessionWrite(
+        set(ref(database, 'active_class_session'), {
+          active: true,
+          status: 'active',
+          sessionNumber: sessionNum,
+          startedAt: serverTimestamp(),
+          teacherId: user?.uid || 'teacher',
+        }),
+        (lateErr) => {
+          // Refused after the connection returned: the SDK has already put the
+          // previous record back on screen.
+          console.error('Error starting class session (queued write):', lateErr);
+          toast.error('פתיחת המפגש נדחתה על ידי השרת כשהחיבור חזר. נסו להפעיל שוב.');
+        }
+      );
 
-      // 5-minute grace: (re)arm only the disconnect stamp; never a whole-session
+      // The grace window: (re)arm only the disconnect stamp; never a whole-session
       // close hook. The set() above already cleared any stale stamp value.
       try {
-        onDisconnect(ref(database, 'active_class_session/teacherDisconnectedAt')).set(serverTimestamp());
+        onDisconnect(ref(database, 'active_class_session/teacherDisconnectedAt')).set(serverTimestamp()).catch(() => {});
       } catch (discErr) {
         console.warn('[TeacherDashboard] onDisconnect stamp notice:', discErr);
       }
@@ -494,13 +584,19 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       setPickedSessionNum(sessionNum);
       setClassSessionStatus('active');
       setIsClassSessionActive(true);
-      toast.success(`שיעור ${sessionNum} הופעל בהצלחה לכלל תלמידי הכיתה! 🚀`);
+      if (outcome === 'queued') {
+        toast.info('אין חיבור לאינטרנט. המפגש ייפתח כשהחיבור יחזור.', { id: 'session-write-offline' });
+      } else {
+        toast.success(`שיעור ${sessionNum} הופעל בהצלחה לכלל תלמידי הכיתה! 🚀`);
+      }
       return true;
     } catch (err: any) {
       console.error('Error starting class session:', err);
-      // Clean rollback of optimistic state
-      setIsClassSessionActive(false);
-      setSessionStartTime(null);
+      // A refused write is undone by the SDK, which puts the record that was
+      // there back on screen — a meeting the teacher opened earlier may still
+      // be open. Setting "no meeting" here hid its pause and close buttons for
+      // up to 30 seconds. The dashboard shows the live record instead.
+      reapplySessionStateRef.current();
 
       const errCode = String(err?.code || '');
       const errMsg = String(err?.message || '');
@@ -525,23 +621,33 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           console.warn('[TeacherDashboard] Role sync notice (non-fatal):', roleErr);
         }
       }
-      await set(ref(database, 'active_class_session'), {
-        active: false,
-        status: 'closed',
-        sessionNumber: null,
-        endedAt: Date.now(),
-        teacherId: user?.uid || 'teacher',
-        // PRD 14 §ב1: is_completed follows the seven tasks "או לפי סגירה יזומה
-        // של המורה". This marker is what tells the server that this close is
-        // the teacher's (a reset writes the same record without it): closing
-        // meeting 2 completes every learner who started it and did not finish
-        // (functions/src/meeting2Close.ts; owner decision 29.9.2026).
-        closedBy: 'teacher',
-      });
+      const outcome = await awaitSessionWrite(
+        set(ref(database, 'active_class_session'), {
+          active: false,
+          status: 'closed',
+          sessionNumber: null,
+          endedAt: Date.now(),
+          teacherId: user?.uid || 'teacher',
+          // PRD 14 §ב1: is_completed follows the seven tasks "או לפי סגירה יזומה
+          // של המורה". This marker is what tells the server that this close is
+          // the teacher's (a reset writes the same record without it): closing
+          // meeting 2 completes every learner who started it and did not finish
+          // (functions/src/meeting2Close.ts; owner decision 29.9.2026).
+          closedBy: 'teacher',
+        }),
+        (lateErr) => {
+          console.error('Error ending class session (queued write):', lateErr);
+          toast.error('שגיאה בסגירת המפגש מול השרת.');
+        }
+      );
       setIsClassSessionActive(false);
       setClassSessionStatus('closed');
       setSessionStartTime(null);
-      toast.info('המפגש נסגר. כל התלמידים רואים עכשיו "המורה סגרה את התחנה".');
+      if (outcome === 'queued') {
+        toast.info('אין חיבור לאינטרנט. המפגש ייסגר כשהחיבור יחזור.', { id: 'session-write-offline' });
+      } else {
+        toast.info('המפגש נסגר. כל התלמידים רואים עכשיו "המורה סגרה את התחנה".');
+      }
     } catch (err) {
       console.error('Error ending class session:', err);
       toast.error('שגיאה בסגירת המפגש מול השרת.');
@@ -558,9 +664,19 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     isUpdatingSessionRef.current = true;
     setIsUpdatingSession(true);
     try {
-      await update(ref(database, 'active_class_session'), { status: 'paused', pausedAt: Date.now() });
+      const outcome = await awaitSessionWrite(
+        update(ref(database, 'active_class_session'), { status: 'paused', pausedAt: Date.now() }),
+        (lateErr) => {
+          console.error('Error pausing class session (queued write):', lateErr);
+          toast.error('שגיאה בהשהיית המפגש מול השרת.');
+        }
+      );
       setClassSessionStatus('paused');
-      toast.info('המפגש הושהה. כל התלמידים רואים עכשיו "המורה עצרה את הפעילות לרגע".');
+      if (outcome === 'queued') {
+        toast.info('אין חיבור לאינטרנט. המפגש יושהה כשהחיבור יחזור.', { id: 'session-write-offline' });
+      } else {
+        toast.info('המפגש הושהה. כל התלמידים רואים עכשיו "המורה עצרה את הפעילות לרגע".');
+      }
     } catch (err) {
       console.error('Error pausing class session:', err);
       toast.error('שגיאה בהשהיית המפגש מול השרת.');
@@ -575,9 +691,19 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     isUpdatingSessionRef.current = true;
     setIsUpdatingSession(true);
     try {
-      await update(ref(database, 'active_class_session'), { status: 'active', pausedAt: null, resumedAt: Date.now() });
+      const outcome = await awaitSessionWrite(
+        update(ref(database, 'active_class_session'), { status: 'active', pausedAt: null, resumedAt: Date.now() }),
+        (lateErr) => {
+          console.error('Error resuming class session (queued write):', lateErr);
+          toast.error('שגיאה בהמשך המפגש מול השרת.');
+        }
+      );
       setClassSessionStatus('active');
-      toast.success('המפגש ממשיך. התלמידים חזרו לעבודה מאותה נקודה.');
+      if (outcome === 'queued') {
+        toast.info('אין חיבור לאינטרנט. המפגש ימשיך כשהחיבור יחזור.', { id: 'session-write-offline' });
+      } else {
+        toast.success('המפגש ממשיך. התלמידים חזרו לעבודה מאותה נקודה.');
+      }
     } catch (err) {
       console.error('Error resuming class session:', err);
       toast.error('שגיאה בהמשך המפגש מול השרת.');
@@ -761,6 +887,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }
     return list;
   }, [students]);
+
+  // The drawer's learner, live (see drawerStudentId).
+  const drawerStudent = useMemo(
+    () => (drawerStudentId ? allStudents.find((s) => s.studentId === drawerStudentId) ?? null : null),
+    [allStudents, drawerStudentId]
+  );
 
 
   // Module 14 §ב0: the picker must show all eight sessions AND the state of each.
@@ -1480,7 +1612,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               onDrillDown={(studentId) => {
                 const norm = normalizeStudentId(studentId);
                 const student = allStudents.find(s => s.studentId === studentId || normalizeStudentId(s.studentId) === norm);
-                if (student) setDrawerStudent(student);
+                if (student) setDrawerStudentId(normalizeStudentId(student.studentId));
               }}
             />
           </div>
@@ -1713,7 +1845,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               onDrillDown={(studentId) => {
                 const norm = normalizeStudentId(studentId);
                 const student = allStudents.find(s => s.studentId === studentId || normalizeStudentId(s.studentId) === norm);
-                if (student) setDrawerStudent(student);
+                if (student) setDrawerStudentId(normalizeStudentId(student.studentId));
               }}
             />
           </div>
@@ -1861,7 +1993,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                               <div className="flex items-center gap-2.5 flex-wrap">
                                 {/* Button 1: Learning conditions adjustment (Available across all sessions 1-8) */}
                                 <button
-                                  onClick={() => setDrawerStudent(s)}
+                                  onClick={() => setDrawerStudentId(normalizeStudentId(s.studentId))}
                                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700/70 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-600 shadow-sm transition-all active:scale-95 cursor-pointer"
                                   title="התאמת רמת פיגום, עזרים ושקט חזותי"
                                 >
@@ -2412,13 +2544,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           <StudentLearningConditionsDrawer
             student={drawerStudent}
             activeSessionNumber={isClassSessionActive ? selectedSessionNum : null}
-            onClose={() => setDrawerStudent(null)}
+            onClose={() => setDrawerStudentId(null)}
             onOpenChat={(st) => setFloatingChatStudent(st)}
             onOpenFullJourney={(sId) => {
               setSelectedStudentId(sId);
               setSelectedReplayStudentId(sId);
               setActiveTab("diagnostic_reports");
-              setDrawerStudent(null);
+              setDrawerStudentId(null);
             }}
           />
         )}
@@ -2453,6 +2585,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             }
           }}
           onConfirm={async (sessionNum) => {
+            // Already open (from another dashboard tab): a second write would
+            // restart its start stamp and with it the 45-minute limit.
+            if (isClassSessionActive && selectedSessionNum === sessionNum) {
+              setPendingActivationSession(null);
+              return;
+            }
             setIsStartingSession(true);
             try {
               const success = await handleStartClassSession(sessionNum);

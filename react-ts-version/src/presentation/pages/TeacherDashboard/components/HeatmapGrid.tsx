@@ -354,7 +354,11 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       clearInterval(heartbeatTimer);
       if (throttleTimeout) clearTimeout(throttleTimeout);
     };
-  }, [isClassSessionActive]);
+    // The tiles read activeSessionNum too (a learner whose workspace has no
+    // meeting number shows the class's). Depending on isClassSessionActive
+    // alone kept the old number after a direct switch from one open meeting to
+    // another (3 → 5): the flag never changed, so the tiles said "מפגש 3".
+  }, [isClassSessionActive, activeSessionNum]);
 
   const getPedagogicalRecommendations = (student: AnonymousStudent) => {
     if (student.errorCount >= 3 || student.lastAction?.includes('ללא פריטה')) {

@@ -136,13 +136,18 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   const meetingLabel = activeSessionNumber ? meetingLabelHe(activeSessionNumber) : 'המפגש הנוכחי';
   const inMeetingLabel = activeSessionNumber ? `ב${meetingLabelHe(activeSessionNumber)}` : 'במפגש הנוכחי';
 
+  // Above the learner drawer (its backdrop z-[9998], its panel z-[9999]),
+  // which opens this window from its "איפוס נתונים" button. At z-50 the window
+  // was drawn under the drawer's backdrop: the confirm click landed on the
+  // backdrop and closed everything. Which overlay answers Escape and Tab is
+  // decided by useDismissableOverlay (the one opened last).
   return createPortal(
     <div
       ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label="אישור איפוס נתונים"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in"
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in"
       dir="rtl"
     >
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl relative">
