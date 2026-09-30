@@ -20,9 +20,13 @@ import {
   computeFlexibilityIndex,
   computeMediationEffectiveness,
   computePersistenceIndex,
+  computeSelfCorrectionIndex,
   isExerciseEvent,
   persistenceHe,
+  RESEARCH_MEASURES_HE,
+  selfCorrectionHe,
   type PersistenceIndex,
+  type SelfCorrectionIndex,
   FLEXIBILITY_SESSIONS,
   flexibilityHe,
   mediationHe,
@@ -123,6 +127,8 @@ export interface ClassLearnerRow {
   grid_reopenings: number;
   keyboard_lock_blocks: number;
   help_requests: number;
+  /** Silent calls the learner took back (owner, 30.9.2026). Research data, not part of measure 2א. */
+  help_withdrawals: number;
   /** Register deviation 28: the result-row place-cue scaffold appeared (stations 3–7). */
   place_cue_scaffolds: number;
   reflection_submitted: boolean;
@@ -135,8 +141,13 @@ export interface ClassLearnerRow {
   tool_mastery: ToolMastery;
   /** Session 8 only (מסמך 03 §3.8): the learner without blocks vs the same learner with blocks in sessions 4–6. */
   fading_gap: FadingGap | null;
-  /** Research measure 2 (Module 16 §ב formula), this meeting's events. */
-  persistence: PersistenceIndex;
+  /**
+   * Research measure 2ב, self-correction (Module 16 §ב formula), this meeting's
+   * events. The key keeps its old name so stored reports read the same.
+   */
+  persistence: SelfCorrectionIndex;
+  /** Research measure 2א, persistence (owner, 30.9.2026). Absent on reports stored before it existed. */
+  persistence_without_help?: PersistenceIndex;
   /** Research measure 3 (PRD 7.3, Module 23 §ב): meetings 3 and 7 only; null elsewhere. */
   flexibility: FlexibilityIndex | null;
   /** ΣR ÷ ΣT over meetings 3 and 7; null when the learner's other meetings were not passed. */
@@ -199,6 +210,7 @@ export interface ClassAggregates {
   grid_reopenings_total: number;
   keyboard_lock_blocks_total: number;
   help_requests_total: number;
+  help_withdrawals_total: number;
   place_cue_scaffolds_total: number;
   reflections_submitted: number;
   exercises: ClassExerciseRow[];
@@ -300,6 +312,7 @@ export function buildLearnerRow(
     grid_reopenings: summary.grid_reopenings,
     keyboard_lock_blocks: summary.keyboard_lock_blocks,
     help_requests: summary.help_requests,
+    help_withdrawals: summary.help_withdrawals ?? 0,
     place_cue_scaffolds: summary.place_cue_scaffolds ?? 0,
     reflection_submitted: summary.reflection_submitted || reflectionsCount > 0,
     reflections_count: reflectionsCount,
@@ -308,7 +321,8 @@ export function buildLearnerRow(
     exercise_outcomes: outcomes,
     tool_mastery: computeToolMastery(sorted),
     fading_gap: earlierEvents ? computeFadingGap(sorted, earlierEvents) : null,
-    persistence: computePersistenceIndex(sorted),
+    persistence: computeSelfCorrectionIndex(sorted),
+    persistence_without_help: computePersistenceIndex(sorted),
     flexibility: research && FLEXIBILITY_SESSIONS.includes(research.sessionNumber) ? computeFlexibilityIndex(sorted) : null,
     flexibility_cumulative: research ? computeFlexibilityIndex(research.allEvents) : null,
     mediation: research && research.sessionNumber !== 2 ? computeMediationEffectiveness(sorted) : null,
@@ -320,14 +334,13 @@ export function buildLearnerRow(
   };
 }
 
-/** One learner's research measures 3–4, this meeting and cumulative, as one line. */
+/** One learner's research measures 2א–4, this meeting and cumulative, as one line. */
 export function researchMeasuresLineHe(r: ClassLearnerRow): string {
   return [
-    `התמדה: ${persistenceHe(r.persistence)}`,
-    `גמישות ייצוגית: ${flexibilityHe(r.flexibility)}`,
-    `מצטבר (מפגשים 3 ו-7): ${flexibilityHe(r.flexibility_cumulative)}`,
-    `אפקטיביות התיווך: ${mediationHe(r.mediation)}`,
-    `מצטבר (כל המפגשים): ${mediationHe(r.mediation_cumulative)}`,
+    `2א. התמדה: ${r.persistence_without_help ? persistenceHe(r.persistence_without_help) : "לא נמדד בדוח זה"}`,
+    `2ב. תיקון עצמי: ${selfCorrectionHe(r.persistence)}`,
+    `3. גמישות ייצוגית: ${flexibilityHe(r.flexibility)}, מצטבר (מפגשים 3 ו-7): ${flexibilityHe(r.flexibility_cumulative)}`,
+    `4. אפקטיביות התיווך: ${mediationHe(r.mediation)}, מצטבר (כל המפגשים): ${mediationHe(r.mediation_cumulative)}`,
   ].join(" | ");
 }
 
@@ -440,6 +453,7 @@ export function aggregateClass(
     grid_reopenings_total: sum((r) => r.grid_reopenings),
     keyboard_lock_blocks_total: sum((r) => r.keyboard_lock_blocks),
     help_requests_total: sum((r) => r.help_requests),
+    help_withdrawals_total: sum((r) => r.help_withdrawals ?? 0),
     place_cue_scaffolds_total: sum((r) => r.place_cue_scaffolds),
     reflections_submitted: rows.filter((r) => r.reflection_submitted).length,
     exercises,
@@ -622,7 +636,9 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
     "grid_openings", "grid_reopenings", "keyboard_lock_blocks", "help_requests",
     "fading_pairs", "fading_accuracy_with_blocks", "fading_accuracy_without_blocks",
     "fading_seconds_with_blocks", "fading_seconds_without_blocks", "fading_guessed", "fading_unpaired",
-    "persistence_undos", "persistence_wrong_digits", "persistence_wrong_options", "persistence_percent",
+    // Measure 2ב (owner, 30.9.2026): the Module 16 §ב formula is self-correction.
+    // Renamed in place, so no column moves and no old name now means something else.
+    "self_correction_undos", "self_correction_wrong_digits", "self_correction_wrong_options", "self_correction_percent",
     "flexibility_completed", "flexibility_first_try", "flexibility_percent",
     "flexibility_cumulative_completed", "flexibility_cumulative_first_try", "flexibility_cumulative_percent",
     "mediation_cards", "mediation_effective", "mediation_percent",
@@ -631,6 +647,9 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
     // Appended last, so every column a research script already reads keeps its place.
     ...TOOLS.map((tool) => `tool_${tool}`),
     "place_cue_scaffolds",
+    // Measure 2א and the withdrawn help calls (owner, 30.9.2026), appended last.
+    "persistence_exercises_with_errors", "persistence_solved_without_help", "persistence_without_help_percent",
+    "help_withdrawals",
   ];
   const lines = rows.map((r) =>
     [
@@ -653,6 +672,9 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
       ...exerciseIds.map((id) => r.exercise_outcomes[id] ?? "not_attempted"),
       ...TOOLS.map((tool) => r.tool_mastery?.used[tool] ?? ""),
       r.place_cue_scaffolds,
+      r.persistence_without_help?.exercises_with_errors ?? "", r.persistence_without_help?.solved_without_help ?? "",
+      r.persistence_without_help?.percent ?? "",
+      r.help_withdrawals ?? "",
     ].map(cell).join(",")
   );
   return "﻿" + [headers.map(cell).join(","), ...lines].join("\n");
@@ -755,7 +777,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       const triggers = Object.entries(a.socratic_triggers).map(([k, v]) => `${k}: ${v}`).join(", ");
       const categories = Object.entries(a.error_categories).map(([k, v]) => `${errorCategoryHe(k) ?? k}: ${v}`).join(", ");
       line(`כרטיסי חניכה: ${a.socratic_cards_total}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}`);
-      line(`לוח החיבור: נפתח ${a.grid_openings_total}, הוחזר על ידי הלומד ${a.grid_reopenings_total} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total} | קריאות שקטות למורה: ${a.help_requests_total} | פיגום בשורת התוצאה: ${a.place_cue_scaffolds_total}`);
+      line(`לוח החיבור: נפתח ${a.grid_openings_total}, הוחזר על ידי הלומד ${a.grid_reopenings_total} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total} | קריאות שקטות למורה: ${a.help_requests_total}${a.help_withdrawals_total ? ` (הלומדים ביטלו ${a.help_withdrawals_total} מהן)` : ""} | פיגום בשורת התוצאה: ${a.place_cue_scaffolds_total}`);
       line(`זמן פעילות ממוצע: ${a.active_minutes_mean} דקות | דקות הקלטה: ${a.recording_minutes_total} | רפלקציות: ${a.reflections_submitted} מתוך ${a.learners_with_data}`);
 
       heading("3. תרגילים: כמה לומדים פתרו בניסיון ראשון");
@@ -807,7 +829,8 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       }
 
       if (rows.length > 0) {
-        heading("4ב. מדדי המחקר: התמדה, גמישות ייצוגית ואפקטיביות התיווך");
+        heading("4ב. מדדי המחקר");
+        for (const m of RESEARCH_MEASURES_HE) line(`${m.label}. ${m.explanation}`, 9, "#64748b");
         const without = report.aggregates?.learners_without_mediation;
         if (Array.isArray(without)) line(`לא נדרשו לתיווך במפגש זה: ${without.length} מתוך 12 (נתונים קיימים ל-${rows.length} לומדים)`, 10, "#0f172a");
         for (const r of rows) line(`תלמיד ${r.student_id} | ${researchMeasuresLineHe(r)}`, 9, "#0f172a");

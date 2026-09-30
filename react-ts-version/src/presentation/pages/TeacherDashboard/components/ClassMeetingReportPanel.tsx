@@ -4,14 +4,17 @@ import { AI_FALLBACK_TEXT, REPORT_PROCESSING_TEXT, describeReportError, formatCl
 import {
   fetchClassReport,
   generateClassReport,
+  RESEARCH_MEASURES_HE,
   TIER_LABELS_HE,
   type ClassExerciseRow,
+  type ClassLearnerMeasures,
   type ClassMeetingReport,
   type RecommendationTier,
 } from '@/infrastructure/services/ClassReportService';
 import { CHOICE_EXERCISES_HEADING_HE, CHOICE_PATH_LABEL_HE } from '@/core/choiceExercises';
 import { meetingLabelHe } from '@/core/stationNames';
 import { ROUTE_NAME_HE } from '@/core/routeLabels';
+import { NOT_IN_THIS_REPORT_HE } from '@/core/researchMeasures';
 
 const SESSION_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const TIER_ORDER: RecommendationTier[] = ['below_50', 'between_50_75', 'above_75'];
@@ -85,6 +88,9 @@ const ratioText = (r: { completed: number; firstTry: number; percent: number | n
   !r || r.percent === null ? 'לא נמדד' : `${r.firstTry} מתוך ${r.completed} (${r.percent}%)`;
 const mediationText = (m: { cards: number; effective: number; percent: number | null } | null): string =>
   !m ? 'לא נמדד' : m.percent === null ? 'לא נדרש תיווך (0 כרטיסים)' : `${m.effective} מתוך ${m.cards} כרטיסים (${m.percent}%)`;
+/** Measure 2א, as the server's persistenceHe writes it. A report stored before 30.9.2026 has no value. */
+const persistenceText = (p: ClassLearnerMeasures['persistenceWithoutHelp']): string =>
+  !p ? NOT_IN_THIS_REPORT_HE : p.percent === null ? 'לא היו טעויות' : `${p.percent}% (בלי קריאה לעזרה ב-${p.solvedWithoutHelp} מתוך ${p.exercisesWithErrors} תרגילים עם טעות)`;
 
 export function ClassMeetingReportPanel() {
   const [selectedSession, setSelectedSession] = useState<number>(2);
@@ -353,7 +359,13 @@ export function ClassMeetingReportPanel() {
 
           {/* PRD 7.3, Module 23 §ב "מדדי המחקר": shown in the class report. They were in the PDF and the CSV only. */}
           <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 overflow-x-auto">
-            <div className="font-black text-ws-ink mb-1">מדדי המחקר: התמדה, גמישות ייצוגית ואפקטיביות התיווך</div>
+            <div className="font-black text-ws-ink mb-1">מדדי המחקר</div>
+            {/* One sentence per measure, so the teacher reads each column without a formula (owner, 30.9.2026). */}
+            <ul className="text-ws-soft mb-2 space-y-0.5">
+              {RESEARCH_MEASURES_HE.map((m) => (
+                <li key={m.key}><span className="font-bold text-ws-ink">{m.label}.</span> {m.explanation}</li>
+              ))}
+            </ul>
             {report.learnersWithoutMediation !== null && (
               <div className="text-ws-ink mb-1">
                 לא נדרשו לתיווך במפגש זה: {report.learnersWithoutMediation.length} מתוך 12, נתונים קיימים ל-{report.learnersWithData} לומדים
@@ -363,7 +375,7 @@ export function ClassMeetingReportPanel() {
             <table className="w-full text-[11px] whitespace-nowrap">
               <thead className="text-ws-soft">
                 <tr>
-                  <th className="text-right">תלמיד</th><th>התמדה וויסות עצמי</th><th>גמישות ייצוגית</th><th>גמישות, מצטבר (מפגשים 3 ו-7)</th><th>אפקטיביות התיווך</th><th>אפקטיביות התיווך, מצטבר</th>
+                  <th className="text-right">תלמיד</th><th>2א. התמדה</th><th>2ב. תיקון עצמי</th><th>3. גמישות ייצוגית</th><th>3. גמישות ייצוגית – מצטבר (מפגשים 3 ו-7)</th><th>4. אפקטיביות התיווך</th><th>4. אפקטיביות התיווך – מצטבר (כל המפגשים)</th>
                 </tr>
               </thead>
               <tbody className="text-ws-ink">
@@ -371,8 +383,11 @@ export function ClassMeetingReportPanel() {
                   <tr key={l.studentId} className="border-t border-ws-surface2">
                     <td className="text-right font-bold">תלמיד {l.studentId}</td>
                     <td className="text-center">
-                      {l.measures.persistence
-                        ? `${l.measures.persistence.percent}% (ביטולים ${l.measures.persistence.undos}, ספרות שגויות ${l.measures.persistence.wrongDigits}, בחירות שגויות ${l.measures.persistence.wrongOptions})`
+                      {persistenceText(l.measures.persistenceWithoutHelp)}
+                    </td>
+                    <td className="text-center">
+                      {l.measures.selfCorrection
+                        ? `${l.measures.selfCorrection.percent}% (ביטולים: ${l.measures.selfCorrection.undos}, ספרות שגויות: ${l.measures.selfCorrection.wrongDigits}, בחירות שגויות בכרטיס: ${l.measures.selfCorrection.wrongOptions})`
                         : 'לא נמדד'}
                     </td>
                     <td className="text-center">{ratioText(l.measures.flexibility)}</td>

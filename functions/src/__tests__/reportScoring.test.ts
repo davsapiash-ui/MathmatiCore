@@ -4,9 +4,11 @@ import { resolve } from 'path';
 import {
   computeFirstAttemptScore,
   computePersistenceIndex,
+  computeSelfCorrectionIndex,
   exerciseAttempts,
   isExerciseEvent,
   persistenceHe,
+  selfCorrectionHe,
   sessionDocumentIdCandidates,
   summarizeMeeting,
 } from '../meetingMetrics';
@@ -90,9 +92,9 @@ describe('SESSION_START and REFLECTION_SUBMITTED are not exercises', () => {
   });
 });
 
-describe('measure 2 — Persistence Index on the server (Module 16 §ב formula)', () => {
+describe('measure 2ב — self-correction on the server (Module 16 §ב formula, owner 30.9.2026)', () => {
   it('U ÷ (U + E + G) × 100; is_correct null is not counted at all', () => {
-    const p = computePersistenceIndex([
+    const p = computeSelfCorrectionIndex([
       ev('a', 'UNDO_EXECUTED', {}, 1), ev('a', 'UNDO_EXECUTED', {}, 2), ev('a', 'UNDO_EXECUTED', {}, 3),
       wrong('a', 4),
       ev('a', 'DIGIT_ENTERED', { digit_value: 2, is_correct: null }, 5),
@@ -101,17 +103,63 @@ describe('measure 2 — Persistence Index on the server (Module 16 §ב formula)
       ev('a', 'SOCRATIC_OPTION_SELECTED', { option_id: 'opt_2', is_correct: true }, 8),
     ]);
     expect(p).toEqual({ undos: 3, wrong_digits: 1, wrong_options: 1, percent: 60 });
-    expect(persistenceHe(p)).toBe('60% (ביטולים 3, ספרות שגויות 1, בחירות שגויות בכרטיס 1)');
+    expect(selfCorrectionHe(p)).toBe('60% (ביטולים: 3, ספרות שגויות: 1, בחירות שגויות בכרטיס: 1)');
   });
 
   it('U + E + G = 0 is 100', () => {
-    expect(computePersistenceIndex([done('a', 1)]).percent).toBe(100);
+    expect(computeSelfCorrectionIndex([done('a', 1)]).percent).toBe(100);
+  });
+
+  it('is on every class-report row under its old key, and in the learner report', () => {
+    expect(buildLearnerRow(3, earlyFinisher, 7, 'green_path', null, null, 0).persistence)
+      .toEqual({ undos: 0, wrong_digits: 3, wrong_options: 0, percent: 0 });
+    expect(readFileSync(resolve(__dirname, '../pedagogicalReport.ts'), 'utf-8')).toContain('persistence: computeSelfCorrectionIndex(telemetryDocs),');
+  });
+});
+
+describe('measure 2א — persistence: exercises with a mistake solved without the help call (owner, 30.9.2026)', () => {
+  const help = (exercise: string, t: number) => ev(exercise, 'HELP_REQUESTED', { help_count: 1 }, t);
+
+  it('counts completed exercises with a mistake, and those without a help press', () => {
+    // t3, t6, t7 had a wrong digit and were solved alone.
+    expect(computePersistenceIndex(earlyFinisher)).toEqual({ exercises_with_errors: 3, solved_without_help: 3, percent: 100 });
+    const withHelp = [...earlyFinisher, help('s4_g_t6', 7.5)];
+    const p = computePersistenceIndex(withHelp);
+    expect(p).toEqual({ exercises_with_errors: 3, solved_without_help: 2, percent: 67 });
+    expect(persistenceHe(p)).toBe('67% (בלי קריאה לעזרה ב-2 מתוך 3 תרגילים עם טעות)');
+  });
+
+  it('a wrong card choice is a mistake too', () => {
+    const events = [ev('x', 'SOCRATIC_OPTION_SELECTED', { option_id: 'opt_1', is_correct: false }, 1), done('x', 2)];
+    expect(computePersistenceIndex(events)).toEqual({ exercises_with_errors: 1, solved_without_help: 1, percent: 100 });
+  });
+
+  it('a card the system opened is not help; a call the learner took back still is', () => {
+    const card = [wrong('x', 1), ev('x', 'SOCRATIC_CARD_SHOWN', { trigger_reason: 'repeated_errors' }, 2), done('x', 3)];
+    expect(computePersistenceIndex(card).percent).toBe(100);
+    const withdrawn = [wrong('x', 1), help('x', 2), ev('x', 'HELP_WITHDRAWN', { help_count: 1 }, 3), done('x', 4)];
+    expect(computePersistenceIndex(withdrawn).percent).toBe(0);
+  });
+
+  it('a press after the exercise was solved is not help with it', () => {
+    expect(computePersistenceIndex([wrong('x', 1), done('x', 2), help('x', 3)]).percent).toBe(100);
+  });
+
+  it('an unfinished exercise does not count; a help press in an exercise without a mistake does not either', () => {
+    const events = [wrong('x', 1), help('y', 2), done('y', 3)];
+    expect(computePersistenceIndex(events)).toEqual({ exercises_with_errors: 0, solved_without_help: 0, percent: null });
+    expect(persistenceHe(computePersistenceIndex(events))).toBe('לא היו טעויות');
+  });
+
+  it('the withdrawn call is counted for the research data', () => {
+    expect(summarizeMeeting([help('x', 1), ev('x', 'HELP_WITHDRAWN', { help_count: 1 }, 2)]))
+      .toMatchObject({ help_requests: 1, help_withdrawals: 1 });
   });
 
   it('is on every class-report row and in the learner report', () => {
-    expect(buildLearnerRow(3, earlyFinisher, 7, 'green_path', null, null, 0).persistence)
-      .toEqual({ undos: 0, wrong_digits: 3, wrong_options: 0, percent: 0 });
-    expect(readFileSync(resolve(__dirname, '../pedagogicalReport.ts'), 'utf-8')).toContain('persistence: computePersistenceIndex(telemetryDocs),');
+    expect(buildLearnerRow(3, earlyFinisher, 7, 'green_path', null, null, 0).persistence_without_help)
+      .toEqual({ exercises_with_errors: 3, solved_without_help: 3, percent: 100 });
+    expect(readFileSync(resolve(__dirname, '../pedagogicalReport.ts'), 'utf-8')).toContain('persistence_without_help: computePersistenceIndex(telemetryDocs),');
   });
 });
 
@@ -145,6 +193,7 @@ describe('a score that was not measured is said so', () => {
     expect(html).not.toContain('null');
     expect(html).toContain('ללא ציון:');
     expect(html).toContain('לפרסם את תוכנית הלימודים');
-    expect(html).toContain('התמדה וויסות עצמי');
+    expect(html).toContain('מדד 2א: התמדה');
+    expect(html).toContain('מדד 2ב: תיקון עצמי');
   });
 });

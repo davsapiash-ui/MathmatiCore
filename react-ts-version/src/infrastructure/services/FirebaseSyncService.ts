@@ -1440,6 +1440,7 @@ export class FirebaseSyncService {
       ADAPTIVE_GRID_TOGGLED: 'לוח החיבור נפתח או נסגר',
       KEYBOARD_LOCK_BLOCKED: 'ניסיון הקלדה לפני המרה בלבנים',
       HELP_REQUESTED: 'קריאה שקטה למורה',
+      HELP_WITHDRAWN: 'ביטל את הקריאה למורה',
       PLACE_CUES_SHOWN: 'ספרה בתיבה של טור אחר: הופיעו צבעי הטורים וכותרותיהם',
     };
     rtdbLiveUpdate.lastAction = eventLabels[event.event_type] || event.event_type;
