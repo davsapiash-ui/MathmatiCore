@@ -40,7 +40,8 @@ import { TeacherGateApprovalDrawer } from "./TeacherDashboard/components/Teacher
 import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPanel";
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { ClusteringWidgets, isStudentBelow } from "./TeacherDashboard/components/ClusteringWidgets";
-import { TeacherApprovalGate, type GateStudentItem } from "./TeacherDashboard/components/TeacherApprovalGate";
+import { TeacherApprovalGate } from "./TeacherDashboard/components/TeacherApprovalGate";
+import { buildGateStudentItem, buildGateStudentItems, gateLearnerNumber, NO_RECOMMENDATION_HE, type GateStudentItem } from "./TeacherDashboard/gateEvidence";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { getSessionDurationMinutes } from "@/core/classSession";
 import { isHeartbeatFresh, readLastPing } from "@/core/presence";
@@ -51,18 +52,16 @@ import {
   TASKS as DIAGNOSTIC_TASKS,
   computeRegroupingDomain,
   diagnosticTaskLabelHe,
-  getFailedDiagnosticTasks,
   getQTaskStatus,
   readQTaskValue,
   type RegroupingKindScore,
 } from "@/core/QMatrix";
 import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
 import { approveTeacherGate } from "@/core/teacherGate";
-import { recommendedPathOf } from "@/core/recommendedPath";
 import { PILOT_CLASS_ID, PILOT_SCHOOL_ID } from "@/core/pilotInstitution";
 import { meetingLabelHe, meetingShortLabelHe } from "@/core/stationNames";
 import { MEETING_FORMAL_HE, meetingFullLabelHe } from "@/core/meetingFormalNames";
-import { ROUTE_NAME_HE, TEACHER_GATE_HE } from "@/core/routeLabels";
+import { ROUTE_NAME_HE, TEACHER_GATE_HE, routeNameHe } from "@/core/routeLabels";
 
 type TabType =
   | "heatmap"
@@ -532,6 +531,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         sessionNumber: null,
         endedAt: Date.now(),
         teacherId: user?.uid || 'teacher',
+        // PRD 14 §ב1: is_completed follows the seven tasks "או לפי סגירה יזומה
+        // של המורה". This marker is what tells the server that this close is
+        // the teacher's (a reset writes the same record without it): closing
+        // meeting 2 completes every learner who started it and did not finish
+        // (functions/src/meeting2Close.ts; owner decision 29.9.2026).
+        closedBy: 'teacher',
       });
       setIsClassSessionActive(false);
       setClassSessionStatus('closed');
@@ -820,66 +825,19 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   }, [allStudents]);
 
   // --- Module 20: Diagnostic Gate Students Computation (WP6 Formulas & Firestore Sync) ---
-  const gateStudentItems: GateStudentItem[] = useMemo(() => {
-    const items: GateStudentItem[] = [];
-    for (let i = 1; i <= 12; i++) {
-      const sId = `student_${i}`;
-      // students[] is keyed by normalizeStudentId (student_user{N}); student_{N}
-      // and bare {N} are only populated when something separately wrote those
-      // RTDB alias paths too, so the canonical key must be checked first.
-      const studentData = students[`student_user${i}`] || students[sId] || students[String(i)];
-      const session2Doc = firestoreSession2Docs[sId] || firestoreSession2Docs[String(i)];
+  // gateEvidence.ts: the one reading of the matrix recommendation, the meeting-2
+  // score and the tasks that need support — the table, the drawer and the
+  // learner journey's badge all take it from there.
+  const gateStudentItems: GateStudentItem[] = useMemo(
+    () => buildGateStudentItems(students, firestoreSession2Docs),
+    [students, firestoreSession2Docs]
+  );
 
-      const isCompleted = Boolean(
-        session2Doc?.is_completed ||
-        studentData?.completedMeeting2 ||
-        studentData?.session_2_completed ||
-        (studentData?.highestCompletedMeeting && studentData.highestCompletedMeeting >= 2) ||
-        studentData?.routeStatus === 'PENDING_TEACHER_APPROVAL'
-      );
-
-      if (!isCompleted) continue;
-
-      const isApproved = Boolean(
-        session2Doc?.teacher_gate_approved ||
-        studentData?.teacher_gate_approved ||
-        studentData?.routeStatus === 'APPROVED'
-      );
-
-      // Score percent strictly from Firestore Session Document (NO synthetic default)
-      const hasRealScore = typeof session2Doc?.session_score_percent === 'number';
-      const scorePercent = hasRealScore ? session2Doc.session_score_percent : null;
-
-      // WP6 Canonical Threshold Formula: >= 50% -> green_path, < 50% -> remediation_path
-      const recommendedPath: PedagogicalPath =
-        session2Doc?.matrix_recommended_path ||
-        (scorePercent !== null && scorePercent >= 50 ? 'green_path' : 'remediation_path');
-
-      items.push({
-        studentId: sId,
-        anonymousLabel: `תלמיד ${i}`,
-        session2Doc,
-        recommendedPath,
-        isApproved,
-        scoreSummary: scorePercent !== null
-          ? `ציון דיאגנוסטי: ${Math.round(scorePercent)}% (7 משימות חובה)`
-          : 'סיום ראשוני — ממתין לחישוב מדדים',
-        // Real failed diagnostic tasks from the learner's own Q-Matrix results.
-        // The values the learner's flow writes are strings ('success', or the
-        // name of a diagnostic error node) or null — never the boolean `false`
-        // this used to compare against, which is why the list was always empty
-        // and the teacher approved a path with no evidence behind it.
-        // getFailedDiagnosticTasks is the one shared reading of that value.
-        errorNodes: (() => {
-          const failed = getFailedDiagnosticTasks(
-            studentData?.qMatrixResults as Record<string, unknown> | undefined
-          ).map(diagnosticTaskLabelHe);
-          return failed.length > 0 ? failed : undefined;
-        })(),
-      });
-    }
-    return items;
-  }, [students, firestoreSession2Docs]);
+  /** The same evidence for one learner, whether or not meeting 2 is finished. */
+  const gateEvidenceFor = (studentId: string | null | undefined): GateStudentItem | null => {
+    const n = gateLearnerNumber(studentId);
+    return n === null ? null : buildGateStudentItem(n, students, firestoreSession2Docs);
+  };
 
   const pendingApprovalsBadgeCount = gateStudentItems.filter((g) => !g.isApproved).length;
 
@@ -1235,7 +1193,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               aria-selected={activeTab === "diagnostic_reports"}
               className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all ${activeTab === "diagnostic_reports" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
             >
-              דו"חות אבחון אישיים
+              דוחות אבחון אישיים
             </button>
             <button
               onClick={() => handleTabChange("approvals")}
@@ -1327,7 +1285,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               aria-selected={activeTab === "diagnostic_reports"}
             className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "diagnostic_reports" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            דו"חות אבחון אישיים
+            דוחות אבחון אישיים
           </button>
           <button
             onClick={() => handleTabChange("approvals")}
@@ -1536,7 +1494,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   קיבוץ תלמידים לפי מיומנויות ופערי למידה
                 </h1>
                 <p className="text-ws-soft mt-2 text-base md:text-lg">
-                  אבחון וחלוקה אוטומטית של הכיתה ב-6 מיומנויות ליבה במתמטיקה למתן תרגול דיפרנציאלי ומותאם אישית.
+                  חלוקה אוטומטית של הכיתה לפי שלושת תחומי האבחון: המבנה העשרוני והאפס, הקבצה ופריטה, וחישוב במאונך.
                 </p>
               </div>
               {/* המסך הזה נבנה על פרופיל השליטה, שנוצר בסיום מפגש האבחון.
@@ -1765,7 +1723,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-10">
               <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                דו"חות אבחון אישיים
+                דוחות אבחון אישיים
               </h1>
               <p className="text-ws-soft mt-3 text-lg">
                 תצוגה פדגוגית המשלבת שחזור מהלכים, נתוני רדאר, מיפוי מיומנויות והמלצות להוראה מותאמת אישית.
@@ -1858,9 +1816,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         const hasStarted = hasCompletedDiagnosticM2 || highestDone >= 1;
                         // The badge below says "מסלול מומלץ". It used to be decided by live
                         // hesitation / undo counters of whatever meeting the learner is in,
-                        // and could contradict the gate tab. core/recommendedPath.ts.
-                        const isStruggling = recommendedPathOf(s) === 'remediation_path';
+                        // and could contradict the gate tab. It now comes from the same gate
+                        // evidence as the gate tab and the drawer (gateEvidence.ts), and says
+                        // "טרם נקבעה" when the diagnostic has no recommendation yet.
                         const sNum = (s.studentId || effectiveReplayStudentId).replace(/\D/g, '') || s.studentId;
+                        const journeyRecommendation = gateEvidenceFor(sNum)?.recommendedPath ?? null;
 
                         return (
                           <div className="animate-in fade-in zoom-in-95 duration-300">
@@ -1886,15 +1846,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                 <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
                                   !hasCompletedDiagnosticM2
                                     ? 'bg-slate-100 text-slate-700 border-slate-200'
-                                    : isStruggling
+                                    : journeyRecommendation === 'remediation_path'
                                     ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : journeyRecommendation === 'green_path'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-slate-100 text-slate-700 border-slate-200'
                                 }`}>
                                   {!hasCompletedDiagnosticM2
                                     ? (hasStarted ? 'מפגש 1 הושלם — ממתין לאבחון במפגש 2' : 'טרם התחיל — אין נתונים')
-                                    : isStruggling
-                                    ? `מסלול מומלץ: ${ROUTE_NAME_HE.remediation_path}`
-                                    : `מסלול מומלץ: ${ROUTE_NAME_HE.green_path}`}
+                                    : `מסלול מומלץ: ${routeNameHe(journeyRecommendation) ?? NO_RECOMMENDATION_HE}`}
                                 </span>
                               </div>
 
@@ -2026,7 +1986,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                     <div className="flex-1 flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                                       <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">↩️</div>
-                                        <span className="font-semibold text-sm">פעולות בקרה וויסות עצמי (מחיקה/חזרה)</span>
+                                        <span className="font-semibold text-sm">פעולות בקרה וויסות עצמי (מחיקה וביטול פעולה)</span>
                                       </div>
                                       <span className="text-xl font-black text-red-600">{traceData.undo_clicks || 0}</span>
                                     </div>
@@ -2354,7 +2314,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className={`w-2 h-2 rounded-full ${isStudentOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
                               <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                {isStudentOnline ? 'מחובר/ת כעת' : 'מנותק/ת'}
+                                {isStudentOnline ? 'מחובר כעת' : 'לא מחובר'}
                               </span>
                             </div>
                           </div>
@@ -2466,6 +2426,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         {gateStudent && (
           <TeacherGateApprovalDrawer
             student={gateStudent}
+            evidence={gateEvidenceFor(gateStudent.studentId)}
             onClose={() => setGateStudent(null)}
             onApproveSuccess={() => {
               // Approval handled inside with toast and state updates

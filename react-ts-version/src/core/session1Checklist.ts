@@ -50,7 +50,7 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
       }];
     // Step 3: decompose a block (the board opens on 230).
     case 's1_decompose_hundred':
-      return [{ label: 'לחצו על לבנה כדי לפרק אותה לחלקים קטנים יותר', done: s.hasUngrouped }];
+      return [{ label: 'לחצו על לבנה כדי לפרוט אותה ללבנים קטנות יותר', done: s.hasUngrouped }];
     // Step 4: 305 — three hundreds and five units, "בלוח בית המספרים הריק
     // מעשרות". One item; a second appears only for a child who built 305
     // another way (2 hundreds, 10 tens, 5 units), so they see what is left
@@ -59,13 +59,13 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
       const is305 = boardValue(s.counts) === 305;
       const standard = countsEqual(s.counts, { ...EMPTY_COUNTS, hundreds: 3, units: 5 });
       const items: Session1ChecklistItem[] = [{ label: 'נסו לבנות את המספר 305 בלבנים', done: is305 }];
-      if (is305 && !standard) items.push({ label: 'רוקנו את טור העשרות, כדי שבבית המספרים תופיע בו הספרה אפס', done: false });
+      if (is305 && !standard) items.push({ label: 'בנו את 305 כך שבכל טור יהיו פחות מ-10 לבנים', done: false });
       return items;
     }
     // Step 5: undo, then the trash.
     case 's1_undo_trash':
       return [
-        { label: 'לחצו על כפתור ביטול פעולה', done: s.undoCount >= 1 },
+        { label: 'לחצו על כפתור ביטול פעולה ↺', done: s.undoCount >= 1 },
         { label: 'לחצו על פח האשפה', done: s.hasClearedBoard },
       ];
     // Step 6, the target task: the instruction, clause by clause. The third

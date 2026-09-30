@@ -64,8 +64,9 @@ describe('X55 — the newer copy wins, and the server copy on a tie', () => {
   });
 
   it('both copies are written with the same server-clock stamp', () => {
+    // The stamp itself (server clock, never backwards on a device) is checked
+    // by driving the service: OfflineReload_KeepsWork.test.ts.
     const sync = src('src/infrastructure/services/FirebaseSyncService.ts');
-    expect(sync).toMatch(/const stampedPayload = \{ \.\.\.sanitizedPayload, \[WORKSPACE_SAVED_AT_KEY\]: serverNow\(\) \}/);
     expect(sync).toMatch(/saveSessionProgressLocally\(normId, stampedPayload\)/);
     expect(sync).toMatch(/workspaceState: stampedPayload/);
   });

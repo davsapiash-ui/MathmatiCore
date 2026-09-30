@@ -61,6 +61,10 @@ describe('the static card is about the exercise on the screen (3.14, 8.5)', () =
         for (const t of texts) {
           for (const m of t.match(/\d[\d,]*\d|\d{2,}/g) ?? []) {
             if (m === '10') continue;
+            // A count of blocks in tens, not a number of an exercise (owner,
+            // 30.9.2026): C2's distractor "100 לבני עשרת" (the worth of a hundred
+            // taken for a count) and C7's "ל-20 לבני המאה" (two groupings of 10).
+            if (/0$/.test(m) && new RegExp(`(^|[^0-9,])${m} לבני `).test(t)) continue;
             if (!screen.includes(m)) bad.push(`${task.id}: "${m}" is not on the screen — ${t}`);
           }
         }
@@ -84,6 +88,8 @@ describe('the static card is about the exercise on the screen (3.14, 8.5)', () =
     for (const { task } of rows) {
       const t = task as any;
       if (t.type !== 'vertical_addition' || t.hiddenDigits || t.revealedResultDigits) continue;
+      // Station 7's error analysis has its own card (C6, owner 30.9.2026).
+      if (/תלמיד פתר/.test(t.instructionHe)) continue;
       const q = SocraticEngine.getSynchronousTaskHint(task, EMPTY).questionHe;
       if (!t.isSubtraction) {
         const first = carryColumns(t.numberA, t.numberB)[0];
@@ -132,11 +138,15 @@ describe('one name per thing, as the screen names it (owner, 27.9.2026, register
 describe('the two cards the audit saw', () => {
   const byId = (id: string) => rows.find((r) => r.task.id === id)!.task;
 
-  it('3.14 — "represent 4,500 with hundreds only" is about 4,500 and 45 hundreds', () => {
+  it('3.14 — "build 4,500 from hundreds only": no card about 3,400, and none that gives away the 45 hundreds', () => {
+    // Since the owner's redesign of 30.9.2026 the exercise asks HOW MANY
+    // hundreds make 4,500 — the 45 the card used to name is the answer now.
+    // Its card (C2) asks how many hundred blocks one thousand block is worth.
     const card = SocraticEngine.getSynchronousTaskHint(byId('s3_g_t3'), EMPTY);
-    expect(card.questionHe).toBe('נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר 4,500?');
-    expect(card.choices.map((c) => c.textHe)).toEqual(['משתמשים ב-45 מאות', 'משתמשים ב-4 אלפים ו-5 מאות', 'משתמשים ב-4,500 יחידות']);
-    expect(JSON.stringify(card)).not.toMatch(/3,?400|34/);
+    expect(byId('s3_g_t3').correctAnswer).toBe(45);
+    expect(card.questionHe).toBe('נסו לחשוב: כמה לבני מאה שוות ללבנת אלף אחת?');
+    expect(card.choices.map((c) => c.textHe)).toEqual(['10 לבני מאה', 'לבנת מאה אחת', '100 לבני מאה']);
+    expect(JSON.stringify(card)).not.toMatch(/3,?400|34|45/);
   });
 
   it('8.5 — 1,245 + 328 in meeting 8: the units convert, and there are no blocks', () => {
@@ -190,14 +200,16 @@ describe('meeting 1 target task (347): the card does not answer the task\'s ques
 describe('the AI card gets the same checks (the engine runs on the server)', () => {
   afterEach(() => { vi.restoreAllMocks(); });
 
+  // Wrong-option hints are guiding questions, as stations 3–8 require (owner,
+  // 30.9.2026); each test below changes one other thing.
   const answer = (question: string, correct = 'נבדוק טור אחר טור') => ({
     data: {
       error_category: 'procedural',
       guiding_question: question,
       options: [
         { id: 'opt_1', option_text: correct, feedback_text: 'נכון', is_correct: true },
-        { id: 'opt_2', option_text: 'ננחש', feedback_text: 'רמז: לא', is_correct: false },
-        { id: 'opt_3', option_text: 'נחכה', feedback_text: 'רמז: לא', is_correct: false },
+        { id: 'opt_2', option_text: 'ננחש', feedback_text: 'רמז: האם זה נכון?', is_correct: false },
+        { id: 'opt_3', option_text: 'נחכה', feedback_text: 'רמז: האם זה נכון?', is_correct: false },
       ],
     },
   });
@@ -253,15 +265,18 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
   });
 
   it('an AI card that marks the instruction\'s own representation wrong is thrown away (שהB.1)', async () => {
-    const t = rows.find((r) => r.task.id === 's3_g_t1')!.task; // 3,400 in the usual way: 3 אלפים ו-4 מאות
+    // An exercise whose instruction names both 3,400 and its blocks, as
+    // station 3's did until the owner's redesign of 30.9.2026.
+    const s3g1 = rows.find((r) => r.task.id === 's3_g_t1')!.task;
+    const t = { ...s3g1, representationKind: undefined, instructionHe: 'בנו את המספר 3,400 מ-3 אלפים ו-4 מאות. כתבו אותו בשורת התוצאה.' };
     const card = (right: string, wrong: string) => ({
       data: {
         error_category: 'conceptual',
         guiding_question: 'באילו לבנים ההנחיה מבקשת לבנות את המספר 3,400?',
         options: [
           { id: 'opt_1', option_text: right, feedback_text: 'נכון', is_correct: true },
-          { id: 'opt_2', option_text: wrong, feedback_text: 'רמז: לא', is_correct: false },
-          { id: 'opt_3', option_text: 'נכתוב את המספר בלי לבנות', feedback_text: 'רמז: לא', is_correct: false },
+          { id: 'opt_2', option_text: wrong, feedback_text: 'רמז: מה כתוב בהנחיה?', is_correct: false },
+          { id: 'opt_3', option_text: 'נכתוב את המספר בלי לבנות', feedback_text: 'רמז: מה כתוב בהנחיה?', is_correct: false },
         ],
       },
     });
@@ -269,6 +284,10 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
     expect(await ask(t, 3)).toBeNull();
     vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(card('נשתמש ב-3 אלפים ו-4 מאות', 'נשתמש ב-34 מאות'));
     expect(await ask(t, 3)).not.toBeNull();
+    // Station 3 itself: "בנו את המספר שלושת אלפים וארבע מאות. כתבו אותו
+    // בספרות" — the blocks ARE the answer there, and a card naming them is
+    // thrown away too.
+    expect(await ask(s3g1, 3)).toBeNull();
   });
 
   it('the client check itself: socraticTextViolation and revealsSecret read through separators', () => {
@@ -313,6 +332,7 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
 describe('with blocks on the screen, the card follows the board', () => {
   const PL = ['units', 'tens', 'hundreds', 'thousands'] as const;
   const ONE: Record<string, string> = { units: 'יחידה אחת', tens: 'עשרת אחת', hundreds: 'מאה אחת', thousands: 'אלף אחד' };
+  const COLUMN_HE: Record<string, string> = { units: 'טור היחידות', tens: 'טור העשרות', hundreds: 'טור המאות', thousands: 'טור האלפים' };
   const digit = (n: number, i: number) => Math.floor(n / 10 ** i) % 10;
 
   it('every subtraction of meetings 3–7: follow the card, one decomposition at a time, until every column has enough', () => {
@@ -322,8 +342,12 @@ describe('with blocks on the screen, the card follows the board', () => {
       const a = (task as any).numberA as number;
       const b = (task as any).numberB as number;
       const counts: Record<string, number> = { units: digit(a, 0), tens: digit(a, 1), hundreds: digit(a, 2), thousands: digit(a, 3) };
+      // The first card of the exercise asks what to check in every column (C5,
+      // owner 30.9.2026); the cards after it name the column.
+      const first = SocraticEngine.getSynchronousTaskHint(task, counts as any);
+      if (PL.some((p, i) => counts[p] < digit(b, i))) expect(first.questionHe, task.id).toBe('נסו לחשוב: לפני שמוציאים לבנים, מה בודקים בכל טור?');
       for (let step = 0; step < 12; step++) {
-        const card = SocraticEngine.getSynchronousTaskHint(task, counts as any);
+        const card = SocraticEngine.getSynchronousTaskHint(task, counts as any, { shownKinds: ['borrow_check'] });
         const lacking = PL.findIndex((p, i) => counts[p] < digit(b, i));
         if (lacking < 0) {
           expect(card.questionHe, task.id).toContain('בכל טור יש מספיק לבנים');
@@ -335,7 +359,8 @@ describe('with blocks on the screen, the card follows the board', () => {
         const correct = card.choices.find((c) => c.isCorrect)!.textHe;
         expect(correct, `${task.id} ${JSON.stringify(counts)}`).toMatch(new RegExp(`^פורטים (תחילה )?${ONE[PL[m]]}`));
         if (m > lacking + 1) expect(card.questionHe, task.id).toMatch(/איך פורטים כש.* (אפס|אפסים)\?$/);
-        else expect(card.questionHe, task.id).toContain(`וצריך לחסר`);
+        // The column, and no count of its blocks: the child counts (owner, 30.9.2026).
+        else expect(card.questionHe, task.id).toContain(`ב${COLUMN_HE[PL[lacking]]} אין מספיק לבנים כדי לחסר`);
         // Do what the card says: break one block of column m.
         counts[PL[m]] -= 1;
         counts[PL[m - 1]] += 10;
@@ -379,7 +404,7 @@ describe('with blocks on the screen, the card follows the board', () => {
     expect(done.questionHe).toBe('נסו לחשוב: בתרגיל 1,245 + 328, כל הלבנים כבר בבית המספרים. מה עושים עכשיו?');
     // Before that, the grouping advice holds in any state: the button shows only at 10.
     const building = SocraticEngine.getSynchronousTaskHint(t, { thousands: 1, hundreds: 2, tens: 4, units: 5 });
-    expect(building.choices[0].feedbackHe).toBe('נכון מאוד! כשיש בטור היחידות 10 לבנים או יותר, לחצו על הכפתור "קבץ 10" שבראש הטור.');
+    expect(building.choices[0].feedbackHe).toBe('נכון מאוד! כשיש בטור היחידות 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור.');
   });
 
   it('a block is feminine: "לחצו על לבנת אלף כדי לפרוט אותה"', () => {
@@ -395,7 +420,7 @@ describe('with blocks on the screen, the card follows the board', () => {
     const t = rows.find((r) => r.task.id === 's8_g_t5')!.task; // 4,000 − 1,562
     const all = textsOf(SocraticEngine.getSynchronousTaskHint(t, EMPTY)).join(' ');
     expect(all).not.toContain('פורטים אלף אחד, ואז יש מספיק');
-    expect(all).toContain('ואחר כך ממשיכים לפרוט טור אחר טור עד טור היחידות');
+    expect(all).toContain('אחר כך פורטים שוב, טור אחר טור, עד טור היחידות');
   });
 
   it('a skeleton with several empty boxes speaks of boxes, in the plural', () => {

@@ -85,6 +85,12 @@ export interface ActiveClassSessionRecord {
   pausedAt?: number | null;
   teacherId?: string;
   teacherDisconnectedAt?: number | null;
+  /**
+   * Set only by the teacher's "close meeting" button. The server completes the
+   * unfinished learners of meeting 2 on it (PRD 14 §ב1; functions/src/meeting2Close.ts);
+   * a reset writes the closed record without it.
+   */
+  closedBy?: 'teacher';
 }
 
 /**

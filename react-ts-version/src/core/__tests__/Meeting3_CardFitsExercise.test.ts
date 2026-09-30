@@ -6,7 +6,7 @@ import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 
 /**
  * Owner-approved 28.9.2026 (שהB.1, audit row הB.11): the meeting-3 static card
- * fits each exercise. On "3,400 בדרך הרגילה: 3 אלפים ו-4 מאות" the card used
+ * fits each exercise. On "3,400, the usual way: 3 אלפים ו-4 מאות" the card used
  * to mark "3 אלפים ו-4 מאות" wrong and "34 מאות" right.
  *
  * All 20 meeting-3 exercises, both tracks: 12 representation tasks t1–t6,
@@ -25,6 +25,41 @@ for (const path of ['green_path', 'remediation_path'] as const) {
 }
 const byId = (id: string) => tasks.find((t) => t.id === id)!;
 const reps = tasks.filter((t) => t.type === 'representation');
+
+/**
+ * Since the owner's redesign of 30.9.2026 (sessionTasks.ts) no station-3
+ * instruction names both its number and its blocks: that was the answer
+ * written into the question. The card rules of שהB.1 below are for a
+ * representation task whose instruction does name both, so they are checked
+ * on the same sixteen exercises written that way, as they were until then
+ * (`namesBoth`: the number, its blocks and — for 506 and 6,030 — the empty
+ * column). What station 3's own exercises get is at the end of this block.
+ */
+const PLURAL_HE = { units: 'יחידות', tens: 'עשרות', hundreds: 'מאות', thousands: 'אלפים' } as const;
+const COLUMN_HE = { units: 'טור היחידות', tens: 'טור העשרות', hundreds: 'טור המאות', thousands: 'טור האלפים' } as const;
+const HIGH_TO_LOW = ['thousands', 'hundreds', 'tens', 'units'] as const;
+function namesBoth(t: SessionTask): SessionTask {
+  const req = t.requiredCounts ?? {};
+  const parts = HIGH_TO_LOW.filter((p) => (req[p] ?? 0) > 0).map((p) => `${req[p]} ${PLURAL_HE[p]}`);
+  const blocks = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} ו-${parts[parts.length - 1]}` : parts[0];
+  const N = t.numberA as number;
+  const digits = HIGH_TO_LOW.map((p) => Math.floor(N / PLACES[p]) % 10);
+  const standard = HIGH_TO_LOW.every((p, i) => (req[p] ?? 0) === digits[i]);
+  const first = digits.findIndex((d) => d > 0);
+  const last = digits.length - 1 - [...digits].reverse().findIndex((d) => d > 0);
+  const empty = standard ? HIGH_TO_LOW.find((_, i) => i > first && i < last && digits[i] === 0) : undefined;
+  const { representationKind: _kind, requiresUngrouping: _u, requiresGrouping: _g, ...rest } = t;
+  return {
+    ...rest,
+    // Not station 3's own id: the card chooser would read the kind from it
+    // (staticSocraticCards.representationKindOf) and serve C1–C3.
+    id: `${t.id}_named`,
+    correctAnswer: N,
+    instructionHe: `בנו את המספר ${N.toLocaleString('en-US')} מ-${blocks}.${empty ? ` ${COLUMN_HE[empty]} נשאר ריק.` : ''} כתבו אותו בשורת התוצאה.`,
+  };
+}
+const namedBoth = reps.map(namesBoth);
+const namedBothId = (id: string) => namedBoth.find((t) => t.id === `${id}_named`)!;
 
 /** "משתמשים ב-4 אלפים, 11 מאות ו-13 עשרות" → { thousands: 4, hundreds: 11, tens: 13 }. */
 function parseCounts(text: string): Partial<Record<keyof typeof PLACES, number>> | null {
@@ -53,8 +88,33 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
     expect(byId('s3_r_t7').type).toBe('missing_element');
   });
 
+  // Owner, 30.9.2026: station 3's own exercises get the card of their kind
+  // (C1–C3). The card that lists blocks stays for a representation task of no
+  // known kind whose instruction names both (below).
+  it('each representation task gets the card of its kind (C1–C3, owner 30.9.2026)', () => {
+    const q = (id: string) => SocraticEngine.getSynchronousTaskHint(byId(id), EMPTY).questionHe;
+    // The board the task ends with: something is built.
+    const built = (id: string) => SocraticEngine.getSynchronousTaskHint(byId(id), { ...EMPTY, ...byId(id).requiredCounts }).questionHe;
+    for (const id of ['s3_r_t1', 's3_g_t1', 's3_r_reinforce_1', 's3_g_reinforce_1']) {
+      expect(built(id), id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+      // An empty board: build first what the instruction names (owner, 30.9.2026).
+      expect(q(id), id).toBe('נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?');
+    }
+    for (const id of ['s3_r_t5', 's3_g_t5']) {
+      expect(built(id), id).toBe('נסו לחשוב: יש טור שאין בו לבנים. מה כותבים במספר בשביל הטור הזה?');
+      expect(q(id), id).toBe('נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?');
+    }
+    for (const id of ['s3_r_t2', 's3_r_t4', 's3_r_t6', 's3_g_t2', 's3_g_t4', 's3_g_t6']) {
+      expect(built(id), id).toBe('נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?');
+      // Nothing built yet: no card that says "you built a number" (owner, 30.9.2026).
+      expect(q(id), id).not.toContain('בניתם');
+    }
+    for (const id of ['s3_r_t3', 's3_r_reinforce_2']) expect(q(id), id).toBe('נסו לחשוב: כמה לבני עשרת שוות ללבנת מאה אחת?');
+    for (const id of ['s3_g_t3', 's3_g_reinforce_2']) expect(q(id), id).toBe('נסו לחשוב: כמה לבני מאה שוות ללבנת אלף אחת?');
+  });
+
   it('representation tasks: the question names the criterion — which blocks the instruction asks for', () => {
-    for (const t of reps) {
+    for (const t of namedBoth) {
       const card = SocraticEngine.getSynchronousTaskHint(t, EMPTY);
       const N = (t.numberA as number).toLocaleString('en-US');
       expect(card.questionHe, t.id).toBe(`נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר ${N}?`);
@@ -62,10 +122,11 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
   });
 
   it('rule (2) for every representation task: correct = requiredCounts; no wrong option = requiredCounts; a wrong option is ≠ N or says it is also N', () => {
-    for (const t of reps) {
+    for (const t of namedBoth) {
       const N = t.numberA as number;
       const Nhe = N.toLocaleString('en-US');
       const card = SocraticEngine.getSynchronousTaskHint(t, EMPTY);
+      expect(card.questionHe, t.id).toBe(`נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר ${Nhe}?`);
       expect(card.choices, t.id).toHaveLength(3);
       const [correct, ...wrong] = card.choices;
       expect(correct.isCorrect, t.id).toBe(true);
@@ -86,31 +147,46 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
   });
 
   it('s3_g_t1 and s3_r_t1: the correct option is the usual way the instruction asks for', () => {
-    expect(SocraticEngine.getSynchronousTaskHint(byId('s3_g_t1'), EMPTY).choices.map((c) => [c.textHe, c.isCorrect])).toEqual([
+    expect(SocraticEngine.getSynchronousTaskHint(namedBothId('s3_g_t1'), EMPTY).choices.map((c) => [c.textHe, c.isCorrect])).toEqual([
       ['משתמשים ב-3 אלפים ו-4 מאות', true],
       ['משתמשים ב-4 אלפים ו-3 מאות', false],
       ['משתמשים ב-3,400 יחידות', false],
     ]);
-    expect(SocraticEngine.getSynchronousTaskHint(byId('s3_r_t1'), EMPTY).choices.map((c) => [c.textHe, c.isCorrect])).toEqual([
+    expect(SocraticEngine.getSynchronousTaskHint(namedBothId('s3_r_t1'), EMPTY).choices.map((c) => [c.textHe, c.isCorrect])).toEqual([
       ['משתמשים ב-3 מאות ו-4 עשרות', true],
       ['משתמשים ב-4 מאות ו-3 עשרות', false],
       ['משתמשים ב-340 יחידות', false],
     ]);
   });
 
-  it('the fixed hints: the usual way in a non-standard task, and the units option', () => {
-    const t2 = SocraticEngine.getSynchronousTaskHint(byId('s3_g_t2'), EMPTY);
-    expect(t2.choices[1]).toMatchObject({ textHe: 'משתמשים ב-3 אלפים ו-4 מאות', feedbackHe: 'רמז: גם זה 3,400, בדרך הרגילה. ההנחיה מבקשת דרך אחרת. קראו אותה שוב.' });
-    expect(t2.choices[2]).toMatchObject({ textHe: 'משתמשים ב-3,400 יחידות', feedbackHe: 'רמז: גם זה 3,400, אבל ההנחיה מבקשת לבנות אותו בטורים אחרים.' });
+  it('the fixed hints are guiding questions, and "בדרך הרגילה" is gone (owner, 30.9.2026)', () => {
+    const t2 = SocraticEngine.getSynchronousTaskHint(namedBothId('s3_g_t2'), EMPTY);
+    expect(t2.choices[1]).toMatchObject({ textHe: 'משתמשים ב-3 אלפים ו-4 מאות', feedbackHe: 'רמז: גם זה 3,400. באילו לבנים ההנחיה מבקשת לבנות אותו?' });
+    expect(t2.choices[2]).toMatchObject({ textHe: 'משתמשים ב-3,400 יחידות', feedbackHe: 'רמז: גם זה 3,400. האם ההנחיה מבקשת לבנות אותו רק מלבני יחידה?' });
+    for (const t of [...tasks, ...namedBoth]) expect(JSON.stringify(SocraticEngine.getSynchronousTaskHint(t, EMPTY)), t.id).not.toContain('בדרך הרגילה');
   });
 
   it('a standard task whose instruction names an empty column: the digit moves into it (★ chosen)', () => {
-    expect(SocraticEngine.getSynchronousTaskHint(byId('s3_r_t5'), EMPTY).choices[1]).toMatchObject({
-      textHe: 'משתמשים ב-5 מאות ו-6 עשרות', isCorrect: false, feedbackHe: 'רמז: במספר 506 הספרה 6 היא ספרת היחידות, וטור העשרות נשאר ריק.',
+    expect(SocraticEngine.getSynchronousTaskHint(namedBothId('s3_r_t5'), EMPTY).choices[1]).toMatchObject({
+      textHe: 'משתמשים ב-5 מאות ו-6 עשרות', isCorrect: false, feedbackHe: 'רמז: לאיזה טור שייכת הספרה 6 במספר 506?',
     });
-    expect(SocraticEngine.getSynchronousTaskHint(byId('s3_g_t5'), EMPTY).choices[1]).toMatchObject({
-      textHe: 'משתמשים ב-6 אלפים ו-3 מאות', isCorrect: false, feedbackHe: 'רמז: במספר 6,030 הספרה 3 היא ספרת העשרות, וטור המאות נשאר ריק.',
+    expect(SocraticEngine.getSynchronousTaskHint(namedBothId('s3_g_t5'), EMPTY).choices[1]).toMatchObject({
+      textHe: 'משתמשים ב-6 אלפים ו-3 מאות', isCorrect: false, feedbackHe: 'רמז: לאיזה טור שייכת הספרה 3 במספר 6,030?',
     });
+  });
+
+  it("station 3's own exercises (owner, 30.9.2026): the card gives away neither the number to write nor the blocks", () => {
+    for (const t of reps) {
+      expect(t.representationKind, t.id).toBeDefined();
+      for (const counts of [EMPTY, { ...EMPTY, ...t.requiredCounts }]) {
+        const card = SocraticEngine.getSynchronousTaskHint(t, counts);
+        const all = JSON.stringify(card);
+        // The answer: the number built, or — a decomposition — the number of blocks.
+        expect(all, t.id).not.toContain(String(t.correctAnswer));
+        expect(all, t.id).not.toContain((t.correctAnswer as number).toLocaleString('en-US'));
+        expect(all, t.id).not.toMatch(/משתמשים ב/);
+      }
+    }
   });
 
   it('the order of the options is unchanged: the correct option is first', () => {

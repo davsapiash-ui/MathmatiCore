@@ -21,7 +21,10 @@ import {
   flexibilityHe,
   mediationHe,
   persistenceHe,
+  RESEARCH_MEASURES_HE,
   SANDBOX_MEETING_PURPOSE_HE,
+  selfCorrectionHe,
+  type PersistenceIndex,
   TOOL_LABEL_HE,
   TOOLS,
   type ToolMastery,
@@ -157,13 +160,30 @@ const asStringArray = (value: unknown): string[] =>
 // Individual pedagogical report (one learner, one meeting).
 // ---------------------------------------------------------------------------
 
-/** Research measures 3–4 of one learner (PRD 7.3, Module 23 §ב). Absent on reports generated before they existed. */
+const MEASURE = Object.fromEntries(RESEARCH_MEASURES_HE.map((m) => [m.key, m])) as Record<(typeof RESEARCH_MEASURES_HE)[number]["key"], (typeof RESEARCH_MEASURES_HE)[number]>;
+
+/**
+ * Measure 2א did not exist before 30.9.2026: a report stored earlier has no
+ * value for it, which is not the same as "no exercise had a mistake".
+ */
+const persistenceCell = (p: PersistenceIndex | null | undefined): string => (p ? persistenceHe(p) : "לא נמדד בדוח זה");
+
+/**
+ * Research measures of one learner (PRD 7.3, Module 23 §ב; measure 2 in two
+ * parts, owner 30.9.2026), one row each: its name, this meeting, cumulative,
+ * and one sentence on what it says. Absent on reports generated before they existed.
+ */
 function researchMeasuresCard(m: Record<string, any> | null | undefined): string {
   if (!m) return "";
+  const row = (key: keyof typeof MEASURE, now: string, total: string) =>
+    `<tr><td class="label">${esc(MEASURE[key].label)}</td><td>${esc(now)}</td><td>${esc(total)}</td><td style="text-align:start">${esc(MEASURE[key].explanation)}</td></tr>`;
   return `<h2>4. מדדי המחקר</h2>
-    <p><b>התמדה וויסות עצמי במפגש זה:</b> ${esc(persistenceHe(m.persistence ?? null))}</p>
-    <p><b>גמישות ייצוגית במפגש זה:</b> ${esc(flexibilityHe(m.flexibility ?? null))} | <b>מצטבר (מפגשים 3 ו-7):</b> ${esc(flexibilityHe(m.flexibility_cumulative ?? null))}</p>
-    <p><b>אפקטיביות התיווך במפגש זה:</b> ${esc(mediationHe(m.mediation ?? null))} | <b>מצטבר (כל המפגשים):</b> ${esc(mediationHe(m.mediation_cumulative ?? null))}</p>`;
+    <table><thead><tr><th>מדד</th><th>במפגש זה</th><th>מצטבר</th><th>מה המדד אומר</th></tr></thead><tbody>
+      ${row("persistence", persistenceCell(m.persistence_without_help), "—")}
+      ${row("self_correction", selfCorrectionHe(m.persistence ?? null), "—")}
+      ${row("flexibility", flexibilityHe(m.flexibility ?? null), `${flexibilityHe(m.flexibility_cumulative ?? null)} (מפגשים 3 ו-7)`)}
+      ${row("mediation", mediationHe(m.mediation ?? null), `${mediationHe(m.mediation_cumulative ?? null)} (כל המפגשים)`)}
+    </tbody></table>`;
 }
 
 /** One learner's tools: how often each was operated, and "לא הופעל" where it never was. */
@@ -240,9 +260,12 @@ function sandboxReportHtml(report: Record<string, any>): string {
 export function pedagogicalReportHtml(report: Record<string, any>): string {
   if (report.meeting_kind === "sandbox_refresh") return sandboxReportHtml(report);
   const title = report.title_he || "MathematiCore - דוח פדגוגי מסכם";
+  // Meeting 2 only (the diagnostic's gate recommendation); never a colour by default.
   const pathLabel = report.matrix_recommended_path === "green_path"
     ? ROUTE_NAME_HE.green_path
-    : ROUTE_NAME_HE.remediation_path;
+    : report.matrix_recommended_path === "remediation_path"
+    ? ROUTE_NAME_HE.remediation_path
+    : null;
   const narratives = asStringArray(report.exercise_narratives);
   const choiceNarratives = asStringArray(report.choice_exercise_narratives);
   const gaps = asStringArray(report.knowledge_gaps);
@@ -266,7 +289,7 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
       <div><b>לומד:</b> ${esc(report.anonymous_student_label)}</div>
       <div><b>מפגש:</b> ${esc(report.session_number)}</div>
       <div><b>ציון שליטה:</b> ${esc(report.score_percent)}%</div>
-      <div class="wide"><b>מסלול מומלץ:</b> ${esc(pathLabel)}</div>
+      ${pathLabel ? `<div class="wide"><b>מסלול מומלץ:</b> ${esc(pathLabel)}</div>` : ""}
     </div>
 
     <h2 class="green">1. המלצת ניתוב פדגוגי</h2>
@@ -369,17 +392,20 @@ function researchMeasuresSection(rows: ClassLearnerRow[], a: ClassAggregates): s
   const without = Array.isArray(a.learners_without_mediation)
     ? `<p><b>לא נדרשו לתיווך במפגש זה:</b> ${esc(a.learners_without_mediation.length)} מתוך 12, נתונים קיימים ל-${esc(a.learners_with_data)} לומדים${a.learners_without_mediation.length > 0 ? ` (${esc(studentList(a.learners_without_mediation))})` : ""}</p>`
     : "";
-  const head = ["לומד", "התמדה וויסות עצמי", "גמישות ייצוגית", "גמישות, מצטבר (מפגשים 3 ו-7)", "אפקטיביות התיווך", "אפקטיביות התיווך, מצטבר"];
+  const head = ["לומד", "2א. התמדה", "2ב. תיקון עצמי", "3. גמישות ייצוגית", "3. גמישות ייצוגית – מצטבר (מפגשים 3 ו-7)", "4. אפקטיביות התיווך", "4. אפקטיביות התיווך – מצטבר (כל המפגשים)"];
+  const legend = `<ul class="muted">${RESEARCH_MEASURES_HE.map((m) => `<li><b>${esc(m.label)}.</b> ${esc(m.explanation)}</li>`).join("")}</ul>`;
   const body = rows.map((r) => `
     <tr>
       <td class="label">תלמיד ${esc(r.student_id)}</td>
-      <td>${esc(persistenceHe(r.persistence ?? null))}</td>
+      <td>${esc(persistenceCell(r.persistence_without_help))}</td>
+      <td>${esc(selfCorrectionHe(r.persistence ?? null))}</td>
       <td>${esc(flexibilityHe(r.flexibility))}</td>
       <td>${esc(flexibilityHe(r.flexibility_cumulative))}</td>
       <td>${esc(mediationHe(r.mediation))}</td>
       <td>${esc(mediationHe(r.mediation_cumulative))}</td>
     </tr>`).join("");
-  return `<h2>4ב. מדדי המחקר: התמדה, גמישות ייצוגית ואפקטיביות התיווך</h2>
+  return `<h2>4ב. מדדי המחקר</h2>
+    ${legend}
     ${without}
     <table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
 }
@@ -520,6 +546,7 @@ export function classReportHtml(report: Record<string, any>): string {
       (אחדות ${esc(a.wrong_digits_by_column.units)}, עשרות ${esc(a.wrong_digits_by_column.tens)}, מאות ${esc(a.wrong_digits_by_column.hundreds)}, אלפים ${esc(a.wrong_digits_by_column.thousands)})</p>
     <p>מחיקות: ${esc(a.deletions_total)} | ביטולים: ${esc(a.undos_total)} | היסוסים: ${esc(a.hesitations_total)} (${esc(a.hesitation_seconds_total)} שניות) | המרות (הקבצה/פריטה): ${esc(a.regroupings_total)}</p>
     <p>כרטיסי חניכה: ${esc(a.socratic_cards_total)}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}</p>
+    <p>לוח החיבור: נפתח ${esc(a.grid_openings_total)}, הוחזר על ידי הלומד ${esc(a.grid_reopenings_total)} | הקלדה לפני המרה (מקלדת נעולה): ${esc(a.keyboard_lock_blocks_total)} | קריאות שקטות למורה: ${esc(a.help_requests_total)} | פיגום בשורת התוצאה: ${esc(a.place_cue_scaffolds_total)}</p>
     <p>זמן פעילות ממוצע: ${esc(a.active_minutes_mean)} דקות | דקות הקלטה: ${esc(a.recording_minutes_total)} | רפלקציות: ${esc(a.reflections_submitted)} מתוך ${esc(a.learners_with_data)}</p>
 
     <h2>3. תרגילים: כמה לומדים פתרו בניסיון ראשון</h2>

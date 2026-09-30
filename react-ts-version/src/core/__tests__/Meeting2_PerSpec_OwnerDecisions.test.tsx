@@ -191,7 +191,9 @@ describe('(a) place-value headings and colours by support profile (row 2.21)', (
   it('vertical exercises of meeting 2: neutral and without place labels unless the profile is set', async () => {
     atTask('task6_vertical_addition');
     const { container } = await renderCard();
-    const answers = screen.getAllByLabelText(/^ספרת ה.* בתשובה$/) as HTMLInputElement[];
+    // without the profile the screen reader names no column either (owner, 29.9.2026)
+    const answers = screen.getAllByLabelText(/^ספרה \d מתוך \d בשורת התוצאה$/) as HTMLInputElement[];
+    expect(answers).toHaveLength(3);
     for (const a of answers) expect(borderOf(a)).toBe(NEUTRAL_BOX_BORDER);
     expect(container.textContent).not.toMatch(/מאות|עשרות|יחידות/);
 
@@ -204,12 +206,29 @@ describe('(a) place-value headings and colours by support profile (row 2.21)', (
     expect(again.container.textContent).toMatch(/מאות/);
   });
 
-  it('other meetings keep the board colours on the vertical exercise, whatever the profile', async () => {
+  it('meetings 1 and 8 keep the board colours on the vertical exercise, whatever the profile', async () => {
     const { VerticalAdditionTask } = await import('@/features/workspace/tasks/VerticalAdditionTask');
-    useWorkspaceStore.setState({ sessionNumber: 4 });
-    const { container } = render(<VerticalAdditionTask numberA={124} numberB={85} answerLength={3} />);
+    for (const n of [1, 8] as const) {
+      useWorkspaceStore.setState({ sessionNumber: n, placeCuesShown: false } as any);
+      const { container, unmount } = render(<VerticalAdditionTask numberA={124} numberB={85} answerLength={3} />);
+      expect(borderOf(screen.getByLabelText('ספרת היחידות בתשובה'))).toBe(PLACE_COLORS.units.header);
+      expect(container.textContent).toContain('יחידות');
+      unmount();
+    }
+  });
+
+  it('meetings 3–7 (owner, 30.9.2026): neutral until the scaffold, then the board colours and the place names', async () => {
+    const { VerticalAdditionTask } = await import('@/features/workspace/tasks/VerticalAdditionTask');
+    useWorkspaceStore.setState({ sessionNumber: 4, placeCuesShown: false } as any);
+    const first = render(<VerticalAdditionTask numberA={124} numberB={85} answerLength={3} />);
+    expect(borderOf(screen.getByLabelText('ספרה 3 מתוך 3 בשורת התוצאה'))).toBe(NEUTRAL_BOX_BORDER);
+    expect(first.queryByTestId('place-cue-line')).toBeNull();
+    first.unmount();
+    useWorkspaceStore.setState({ placeCuesShown: true } as any);
+    const after = render(<VerticalAdditionTask numberA={124} numberB={85} answerLength={3} />);
     expect(borderOf(screen.getByLabelText('ספרת היחידות בתשובה'))).toBe(PLACE_COLORS.units.header);
-    expect(container.textContent).toContain('יחידות');
+    expect(after.getByTestId('place-cue-line').textContent).toContain('שימו לב לצבעים בשורת התוצאה.');
+    useWorkspaceStore.setState({ placeCuesShown: false } as any);
   });
 });
 
@@ -218,7 +237,7 @@ describe('(c) task 5 shows 25 unit blocks, a still picture, for every learner (r
     it(`${phase}: 25 blocks, role="img", nothing to drag, click or group`, async () => {
       atTask('task5_units_to_tens', phase, subphase);
       const { container } = await renderCard();
-      const pic = screen.getByRole('img', { name: '25 לבני יחידה' });
+      const pic = screen.getByRole('img', { name: 'תמונה של לבני יחידה' });
       // a column, four across — not a square of fives
       // (the size follows the window's height: 14px blocks at 600px → the board's 20px at 950px)
       const grid = pic.firstElementChild as HTMLElement;
@@ -226,8 +245,10 @@ describe('(c) task 5 shows 25 unit blocks, a still picture, for every learner (r
       expect(grid.style.width).toContain('4 * clamp(14px');
       expect(pic.querySelectorAll('[data-testid="unit-block-still"]').length).toBe(25);
       expect(pic.querySelectorAll('button, [role="button"], [tabindex], [draggable="true"]').length).toBe(0);
-      expect(container.textContent).not.toContain('קבץ 10');
-      expect(container.textContent).toContain('25 לבני יחידה');
+      expect(container.textContent).not.toMatch(/קבצו? 10/);
+      // owner, 29.9.2026: no number beside the picture or in its name — the child counts
+      expect(container.textContent).not.toMatch(/25/);
+      expect(pic.getAttribute('aria-label')).not.toMatch(/d/);
     });
   }
 
@@ -289,16 +310,16 @@ describe('(e) row 2.23: each round-number exercise once, no LaTeX or code on scr
 
   it('the three exercises read as the child writes them', () => {
     expect(probeExerciseText(byId('task3_subtraction_regrouping'), 40, 10)).toBe('40 − 10 = ?');
-    expect(probeExerciseText(byId('task6_vertical_addition'), 120, 80)).toBe('120 + 80 = ?');
-    expect(probeExerciseText(byId('task7_subtraction_zero_tens'), 400, 130)).toBe('400 − 130 = ?');
+    expect(probeExerciseText(byId('task6_vertical_addition'), 120, 70)).toBe('120 + 70 = ?');
+    expect(probeExerciseText(byId('task7_subtraction_zero_tens'), 400, 100)).toBe('400 − 100 = ?');
     expect(read('features/workspace/tasks/BackwardDiagnosisView.tsx')).not.toMatch(/katex|InlineMath|'פלוס'/);
   });
 });
 
 describe('the Hebrew of meeting 2 (ע2.3)', () => {
-  it('ע2.3: the bee screen', async () => {
-    const { BeeFlightWaitingScreen } = await import('@/presentation/components/student/BeeFlightWaitingScreen');
-    const { container } = render(<BeeFlightWaitingScreen />);
+  it('ע2.3: the meeting-2 waiting screen', async () => {
+    const { Meeting2WaitingScreen } = await import('@/presentation/components/student/Meeting2WaitingScreen');
+    const { container } = render(<Meeting2WaitingScreen />);
     const msg = 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.';
     expect(container.textContent).toContain(msg);
     expect(screen.getByTestId('speech').getAttribute('data-text')).toBe(msg);

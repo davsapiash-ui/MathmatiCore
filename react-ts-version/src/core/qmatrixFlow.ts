@@ -6,7 +6,7 @@
  */
 
 import type { QMatrixTask, TaskPhase, CorrectionSubphase } from '@/core/QMatrix';
-import { TASKS } from '@/core/QMatrix';
+import { TASKS, Q_FAIL_TAG } from '@/core/QMatrix';
 
 export interface QTaskResult {
   correct: boolean;
@@ -70,6 +70,27 @@ function diagnosticTag(taskId: string, correct: boolean): string | undefined {
   if (taskId === 'task7_subtraction_zero_tens' || taskId === 'task7_missing_subtrahend') return correct ? 'computational_fluency_deficit' : 'algebraic_concept_deficit';
   if (taskId === 'task8_missing_addend') return correct ? 'inverse_operation_gap' : 'missing_addend_deficit';
   return undefined;
+}
+
+/**
+ * What station 2 writes to the Q-matrix for one task (Module 20): null when
+ * the learner did not reach it, 'success' when it was solved on the first
+ * attempt, otherwise an error node — which the teacher sees as "דרוש חיזוק".
+ *
+ * A task whose final answer is right but which had a wrong digit on the way
+ * (had_digit_error) was not solved on the first attempt (PRD 23 §ב): the score
+ * already leaves it out, and the register (decision ז) says every task failed
+ * on the first attempt carries a diagnostic tag even when it was put right.
+ * It used to be written as 'success', so the teacher saw it as mastered while
+ * the score counted it as not solved. It does not enter the correction round
+ * (owner, 29.9.2026): its node is the one a correct second attempt gets.
+ */
+export function qMatrixValue(taskId: string, result: QTaskResult | null | undefined): string | null {
+  if (!result) return null;
+  if (result.tag) return result.tag;
+  if (result.correct && result.had_digit_error === true) return diagnosticTag(taskId, true) ?? Q_FAIL_TAG;
+  if (result.correct) return 'success';
+  return Q_FAIL_TAG;
 }
 
 /** Record an evaluation result (vanilla handleTaskResult). Returns new state + the feedback event. */

@@ -26,7 +26,7 @@ export const ROUTE_APPROVE_HE: Readonly<Record<RoutePath, string>> = {
 };
 
 /** The gate between meeting 2 and meeting 3 (PRD Module 20). */
-export const TEACHER_GATE_HE = 'שער אישור המורה';
+export const TEACHER_GATE_HE = 'שלב החלוקה למסלולים';
 
 /** A learner whose coaching card is open right now (PRD Module 18 §ב, red). */
 export const CARD_OPEN_HE = 'כרטיס החניכה פתוח';

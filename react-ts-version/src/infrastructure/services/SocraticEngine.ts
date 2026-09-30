@@ -5,7 +5,7 @@ import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
 import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
 import { researchErrorCategory } from "./socraticResearchCategory";
-import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation } from "./staticSocraticCards";
+import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -40,6 +40,8 @@ export interface SocraticHintResponse {
   questionHe: string;
   choices: SocraticChoice[];
   correctChoiceId?: string;
+  /** A card of 30.9.2026 (staticSocraticCards.ts): the store records it once shown in the exercise. */
+  cardKind?: StaticCardKind;
 }
 
 export function normalizeTaskIdForHints(id?: string): string {
@@ -121,6 +123,12 @@ export interface SocraticMonitoringSnapshot {
   activeColumnIndex?: number;
   hasRegroupedInCanvas?: boolean;
   recentEvents?: TelemetryPayload<TelemetryEventType>[];
+  /**
+   * What the static card chooser knows beyond the board (the place cues, the
+   * cards already shown in this exercise), so the anchor the model gets is
+   * the card the child would see. Never sent to the server.
+   */
+  cardContext?: StaticCardContext;
 }
 
 const WIRE_COLUMNS: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
@@ -172,7 +180,7 @@ export const ABSENT_AIDS_MEETING_8_HE: RegExp[] = [
   WORD('פח'), // not "לפחות"
   WORD('מחסן'),
   WORD('לוח'), // not "לוחצים"
-  WORD('קבץ'), // the button "קבץ 10 לעשרת"
+  WORD('קבץ|קבצו'), // the button "קבצו 10 לעשרת"
   WORD('דינס'),
   /קובי/,
   /בית המספרים/,
@@ -273,6 +281,65 @@ const inUnitsHe = (n: number) => (n === 0 ? 'בטור היחידות אין אף
 const inTensHe = (n: number) => (n === 0 ? 'בטור העשרות אין אף עשרת' : `בטור העשרות יש ${tensHe(n)}`);
 const inHundredsHe = (n: number) => (n === 0 ? 'בטור המאות אין אף מאה' : `בטור המאות יש ${hundredsHe(n)}`);
 
+/**
+ * Station 1 (meeting 1): nothing on the screen or read aloud gives the child
+ * the answer, a block count he must find himself, or where the difficulty is
+ * (owner, 29.9.2026). The live cards of the other meetings name the column
+ * and its count; in meeting 1 they ask instead, and the highlight is the
+ * whole board rather than the column.
+ */
+const MEETING1_CROWDED_QUESTION = 'באחד הטורים יש 10 לבנים או יותר. מה עושים?';
+function meeting1CrowdedCard(): SocraticHintResponse {
+  return {
+    pedagogical_intent: "procedural",
+    tts_text: MEETING1_CROWDED_QUESTION,
+    suggested_highlight: "tour-place-value-board",
+    questionHe: MEETING1_CROWDED_QUESTION,
+    choices: [
+      { id: "opt_1", textHe: "מקבצים 10 לבנים ללבנה אחת בטור שמשמאלו", isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור שמופיע בראש אותו טור.' },
+      { id: "opt_2", textHe: "מוחקים 10 לבנים לפח בלי להוסיף לבנה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר. מקבצים במקום למחוק. אפשר להשתמש בכפתור ביטול פעולה ↺." },
+      { id: "opt_3", textHe: "מעבירים לבנה אחת בלבד לטור שמשמאלו", isCorrect: false, feedbackHe: "רמז: לבנה אחת שווה ל-10 לבנים של הטור שמימינה. אפשר להשתמש בכפתור ביטול פעולה ↺." }
+    ],
+    correctChoiceId: "opt_1"
+  };
+}
+
+/**
+ * Meeting 1's subtraction-shortage card: the child finds the column himself.
+ * `lacking` is every column whose blocks are fewer than the digit taken from
+ * it, lowest first; the first is the one to fix. With more than one, the
+ * question says where to start, so exactly one option is right.
+ */
+const DEFICIT_PLACES = ['units', 'tens', 'hundreds'] as const;
+type DeficitPlace = typeof DEFICIT_PLACES[number];
+const IN_COLUMN_HE: Record<DeficitPlace, string> = { units: 'בטור היחידות', tens: 'בטור העשרות', hundreds: 'בטור המאות' };
+function meeting1DeficitCard(lacking: DeficitPlace[]): SocraticHintResponse {
+  const question = lacking.length > 1
+    ? 'בודקים מטור היחידות שמאלה: באיזה טור אין מספיק לבנים כדי להחסיר?'
+    : 'באיזה טור אין מספיק לבנים כדי להחסיר?';
+  const choices = DEFICIT_PLACES.map((p, i) => {
+    const isCorrect = p === lacking[0];
+    return {
+      id: `opt_${i + 1}`,
+      textHe: IN_COLUMN_HE[p],
+      isCorrect,
+      feedbackHe: isCorrect
+        ? "נכון מאוד! לחצו על לבנה בטור שמשמאל לו כדי לפרוט אותה ל-10 לבנים."
+        : lacking.includes(p)
+          ? "רמז: מתחילים מטור היחידות. בדקו טור שנמצא מימין לו."
+          : "רמז: בטור הזה יש מספיק לבנים. בדקו בכל טור אם יש בו מספיק לבנים כדי להחסיר.",
+    };
+  });
+  return {
+    pedagogical_intent: "procedural",
+    tts_text: question,
+    suggested_highlight: "tour-place-value-board",
+    questionHe: question,
+    choices,
+    correctChoiceId: choices.find((c) => c.isCorrect)!.id,
+  };
+}
+
 export const TASK_HINTS: Record<string, SocraticHintResponse> = {
 
   // ── Session 1 — ארגז החול המונחה (מסמך 03 §3.1) ────────────────
@@ -315,6 +382,51 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     correctChoiceId: "opt_1"
   },
 
+  // Refresh, mirrors diagnostic task 1 (owner, 29.9.2026): 703 said in words.
+  // Names none of its digits; the third option is the dropped zero (73).
+  's1_r_words703': {
+    pedagogical_intent: "conceptual",
+    tts_text: "איך כותבים בספרות מספר שכתוב במילים?",
+    suggested_highlight: "tour-place-value-board",
+    questionHe: "איך כותבים בספרות מספר שכתוב במילים?",
+    choices: [
+      { id: "opt_1", textHe: "כל טור מקבל תיבה משלו", isCorrect: true, feedbackHe: "נכון מאוד! בנו את המספר, וכתבו בכל תיבה כמה לבנים יש בטור שלה." },
+      { id: "opt_2", textHe: "כל חלק כמו שהוא, זה אחרי זה", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד." },
+      { id: "opt_3", textHe: "רק את החלקים שנאמרים במילים", isCorrect: false, feedbackHe: "רמז: גם טור שאין בו אף לבנה מקבל תיבה משלו." }
+    ],
+    correctChoiceId: "opt_1"
+  },
+
+  // Refresh, mirrors diagnostic task 2 (owner, 29.9.2026): 368, the value of
+  // the 6. Names neither 60 nor "עשרות": the child finds the place himself.
+  's1_r_value368': {
+    pedagogical_intent: "conceptual",
+    tts_text: "איך יודעים מה הערך של ספרה במספר?",
+    suggested_highlight: "tour-place-value-board",
+    questionHe: "איך יודעים מה הערך של ספרה במספר?",
+    choices: [
+      { id: "opt_1", textHe: "בודקים באיזה טור היא נמצאת", isCorrect: true, feedbackHe: "נכון מאוד! בדקו בבית המספרים כמה שווה כל לבנה בטור של הספרה." },
+      { id: "opt_2", textHe: "הערך שלה שווה תמיד לספרה", isCorrect: false, feedbackHe: "רמז: אותה ספרה שווה יותר ככל שהטור שלה נמצא יותר שמאלה." },
+      { id: "opt_3", textHe: "סופרים את כל הלבנים יחד", isCorrect: false, feedbackHe: "רמז: שואלים רק על ספרה אחת. בדקו את הטור שלה." }
+    ],
+    correctChoiceId: "opt_1"
+  },
+
+  // Refresh, mirrors diagnostic task 4 (owner, 29.9.2026): a number said in
+  // words, written in digits. Names none of its digits.
+  's1_r_words482': {
+    pedagogical_intent: "conceptual",
+    tts_text: "איך כותבים בספרות מספר שכתוב במילים?",
+    suggested_highlight: "tour-place-value-board",
+    questionHe: "איך כותבים בספרות מספר שכתוב במילים?",
+    choices: [
+      { id: "opt_1", textHe: "כל חלק בתיבה של הטור שלו", isCorrect: true, feedbackHe: "נכון מאוד! בנו כל חלק בטור שלו, וכתבו ספרה אחת בכל תיבה." },
+      { id: "opt_2", textHe: "כל חלק כמו שהוא, זה אחרי זה", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד." },
+      { id: "opt_3", textHe: "רק את החלק הראשון במספר", isCorrect: false, feedbackHe: "רמז: כל חלק במספר תופס תיבה משלו." }
+    ],
+    correctChoiceId: "opt_1"
+  },
+
   // Refresh, mirrors diagnostic task 5: 26 unit cubes grouped into tens. With
   // 10 or more units on the board the live card speaks; this one is true in
   // every other state and does not name the result.
@@ -324,9 +436,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-units",
     questionHe: "מה צריך להיות בטור היחידות בסוף התרגיל?",
     choices: [
-      { id: "opt_1", textHe: "פחות מ-10 לבנים: כל 10 יחידות הפכו לעשרת אחת בטור העשרות", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על הכפתור "קבץ 10" שבראש הטור.' },
-      { id: "opt_2", textHe: "כל 26 הלבנים", isCorrect: false, feedbackHe: "רמז: כשיש 10 יחידות או יותר בטור, מקבצים כל 10 יחידות לעשרת אחת." },
-      { id: "opt_3", textHe: "אף לבנה", isCorrect: false, feedbackHe: "רמז: אחרי ההקבצה נשארות בטור היחידות רק הלבנים שלא נכנסו לעשרות." }
+      { id: "opt_1", textHe: "פחות מ-10 לבנים", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על הכפתור "קבצו 10 לעשרת" שבראש הטור.' },
+      { id: "opt_2", textHe: "כל הלבנים שהיו בטור", isCorrect: false, feedbackHe: "רמז: כשיש 10 יחידות או יותר בטור, מקבצים כל 10 יחידות לעשרת אחת." },
+      { id: "opt_3", textHe: "אף לבנה, הטור ריק", isCorrect: false, feedbackHe: "רמז: אחרי ההקבצה נשארות בטור היחידות רק הלבנים שלא נכנסו לעשרות." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -336,13 +448,13 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // true before and after the grouping, and does not give the tens digit away.
   's1_t8': {
     pedagogical_intent: "procedural",
-    tts_text: "בתרגיל 713 + 94: מה עושים כשבטור העשרות יש 10 עשרות?",
-    suggested_highlight: "tour-column-tens",
-    questionHe: "בתרגיל 713 + 94: מה עושים כשבטור העשרות יש 10 עשרות?",
+    tts_text: "בתרגיל 713 + 94: מה עושים כשבאחד הטורים יש 10 לבנים או יותר?",
+    suggested_highlight: "tour-place-value-board",
+    questionHe: "בתרגיל 713 + 94: מה עושים כשבאחד הטורים יש 10 לבנים או יותר?",
     choices: [
-      { id: "opt_1", textHe: "מקבצים 10 עשרות למאה אחת בטור המאות", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור העשרות 10 עשרות, לחצו על הכפתור "קבץ 10" שבראש הטור.' },
-      { id: "opt_2", textHe: "מוחקים 10 עשרות לפח בלי להוסיף מאה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר. מקבצים למאה." },
-      { id: "opt_3", textHe: "רושמים 10 בתיבת העשרות", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד, מ-0 עד 9." }
+      { id: "opt_1", textHe: "מקבצים 10 לבנים ללבנה אחת בטור שמשמאלו", isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור שמופיע בראש אותו טור.' },
+      { id: "opt_2", textHe: "מוחקים 10 לבנים לפח בלי להוסיף לבנה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר. מקבצים במקום למחוק." },
+      { id: "opt_3", textHe: "רושמים 10 בתיבה אחת בשורת התוצאה", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד, מ-0 עד 9." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -357,9 +469,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-place-value-board",
     questionHe: "בחיסור 61 − 24: איך יודעים שסיימתם להוציא מבית המספרים?",
     choices: [
-      { id: "opt_1", textHe: "כשהוצאתם בסך הכול 4 יחידות ו-2 עשרות. את מה שנשאר בבית המספרים כותבים בשורת התוצאה", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
-      { id: "opt_2", textHe: "כשפרטתם עוד עשרת", isCorrect: false, feedbackHe: "רמז: בתרגיל הזה פורטים עשרת אחת בלבד." },
-      { id: "opt_3", textHe: "כשהוספתם 24 לבנים לבית המספרים", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים." }
+      { id: "opt_1", textHe: "כשהוצאתם 24 מבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
+      { id: "opt_2", textHe: "כשפרטתם עוד עשרת אחת", isCorrect: false, feedbackHe: "רמז: פורטים רק כשאין בטור מספיק לבנים." },
+      { id: "opt_3", textHe: "כשהוספתם 24 לבית המספרים", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -373,9 +485,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-place-value-board",
     questionHe: "בחיסור 806 − 351: איך יודעים שסיימתם להוציא מבית המספרים?",
     choices: [
-      { id: "opt_1", textHe: "כשהוצאתם בסך הכול יחידה אחת, 5 עשרות ו-3 מאות. את מה שנשאר בבית המספרים כותבים בשורת התוצאה", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
-      { id: "opt_2", textHe: "כשפרטתם עוד מאה", isCorrect: false, feedbackHe: "רמז: בתרגיל הזה פורטים מאה אחת בלבד." },
-      { id: "opt_3", textHe: "כשהוספתם 351 לבנים לבית המספרים", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים." }
+      { id: "opt_1", textHe: "כשהוצאתם 351 מבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
+      { id: "opt_2", textHe: "כשפרטתם עוד מאה אחת", isCorrect: false, feedbackHe: "רמז: פורטים רק כשאין בטור מספיק לבנים." },
+      { id: "opt_3", textHe: "כשהוספתם 351 לבית המספרים", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים." }
     ],
     correctChoiceId: "opt_1"
   },
@@ -396,9 +508,10 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-units",
     questionHe: 'נסו לחשוב: נצברו עשר יחידות בטור. מה עושים איתן?',
     choices: [
-      { id: "opt_1", textHe: 'מקבצים 10 יחידות לעשרת אחת ומעבירים אותה שמאלה לטור העשרות', isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבץ 10" וצפו בעשרת הנודדת שמאלה.' },
-      { id: "opt_2", textHe: 'משאירים את כולן בטור היחידות', isCorrect: false, feedbackHe: 'רמז: טור היחידות קטן וצפוף. הוא יכול להכיל רק ספרה אחת בין 0 ל-9.' },
-      { id: "opt_3", textHe: 'מוחקים את היחידות המיותרות', isCorrect: false, feedbackHe: 'רמז: מומלץ לשמור על הלבנים. הכמות המתמטית נשמרת תמיד.' }
+      { id: "opt_1", textHe: 'מקבצים 10 יחידות לעשרת אחת ומעבירים אותה שמאלה לטור העשרות', isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבצו 10" וצפו בעשרת הנודדת שמאלה.' },
+      // Wrong options get a guiding question (owner, 30.9.2026).
+      { id: "opt_2", textHe: 'משאירים את כולן בטור היחידות', isCorrect: false, feedbackHe: tenBlocksHint('units') },
+      { id: "opt_3", textHe: 'מוחקים את היחידות המיותרות', isCorrect: false, feedbackHe: HINT.deleteBlocks }
     ],
     correctChoiceId: "opt_1"
   },
@@ -411,8 +524,8 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: 'נסו לחשוב: אין מספיק יחידות כדי להחסיר. מה עושים?',
     choices: [
       { id: "opt_1", textHe: 'פורטים עשרת אחת לעשר יחידות בודדות ומעבירים אותן לטור היחידות', isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על לבנת עשרת אחת כדי לפרוט אותה לעשר יחידות.' },
-      { id: "opt_2", textHe: 'מחסירים את המספר הקטן מהמספר הגדול בטור היחידות', isCorrect: false, feedbackHe: 'רמז: שמרו על סדר התרגיל והחסירו את המחסר מהמחוסר.' },
-      { id: "opt_3", textHe: 'כותבים את התשובה בטור העשרות תחילה', isCorrect: false, feedbackHe: 'רמז: בחיסור במאונך מתחילים בטור היחידות, בצד ימין.' }
+      { id: "opt_2", textHe: 'מחסירים את המספר הקטן מהמספר הגדול בטור היחידות', isCorrect: false, feedbackHe: HINT.topOrBottom },
+      { id: "opt_3", textHe: 'כותבים את התשובה בטור העשרות תחילה', isCorrect: false, feedbackHe: HINT.startSub }
     ],
     correctChoiceId: "opt_1"
   },
@@ -423,10 +536,11 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     tts_text: 'נסו לחשוב: איך פורטים כשבטור העשרות יש אפס?',
     suggested_highlight: "tour-column-hundreds",
     questionHe: 'נסו לחשוב: איך פורטים כשבטור העשרות יש אפס?',
+    // Options in the impersonal present, like every card (owner, 30.9.2026).
     choices: [
-      { id: "opt_1", textHe: 'פרטו תחילה לבנת מאה אחת לעשר עשרות בטור העשרות', isCorrect: true, feedbackHe: 'מצוין! כעת לחצו על לבנת המאה וצפו בעשרות הנוצרות בבית המספרים.' },
-      { id: "opt_2", textHe: 'התעלמו מהאפס והמשיכו לטור הבא', isCorrect: false, feedbackHe: 'רמז: ספרת האפס היא שומר מקום חשוב. התחשבו בה בחישוב.' },
-      { id: "opt_3", textHe: 'הוסיפו עשרת אחת לטור היחידות ללא פריטה', isCorrect: false, feedbackHe: 'רמז: שמרו תמיד על ערך המספר המקורי.' }
+      { id: "opt_1", textHe: 'פורטים תחילה לבנת מאה אחת לעשר עשרות בטור העשרות', isCorrect: true, feedbackHe: 'נכון מאוד! כעת לחצו על לבנת המאה וצפו בעשרות הנוצרות בבית המספרים.' },
+      { id: "opt_2", textHe: 'מתעלמים מהאפס וממשיכים לטור הבא', isCorrect: false, feedbackHe: 'רמז: כשפורטים מאה אחת, מה מקבלים: עשר עשרות או עשר יחידות?' },
+      { id: "opt_3", textHe: 'מוסיפים עשרת אחת לטור היחידות ללא פריטה', isCorrect: false, feedbackHe: HINT.addBlocks }
     ],
     correctChoiceId: "opt_1"
   },
@@ -438,9 +552,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-tens",
     questionHe: 'נסו לחשוב: איך מגלים כמה יחידות או עשרות חסרות כדי להגיע לתוצאה?',
     choices: [
-      { id: "opt_1", textHe: 'נעזרים בלבנים משמאל, בודקים כמה עשרות יש כעת בבית המספרים וכמה חסרות כדי להגיע לתוצאה הרשומה בתרגיל', isCorrect: true, feedbackHe: 'מדויק! בדקו בבית המספרים וכתבו את הספרה החסרה.' },
-      { id: "opt_2", textHe: 'מנחשים מספר אקראי וכותבים אותו בתיבת התשובה', isCorrect: false, feedbackHe: 'רמז: היעזרו בבית המספרים כדי לבדוק את התשובה.' },
-      { id: "opt_3", textHe: 'עוברים קודם לטור הבא', isCorrect: false, feedbackHe: 'רמז: פותרים לפי הסדר, טור אחר טור. מה שרושמים בעיגול הזיכרון משנה את החשבון בטור הבא.' }
+      { id: "opt_1", textHe: 'נעזרים בלבנים משמאל, בודקים כמה עשרות יש כעת בבית המספרים וכמה חסרות כדי להגיע לתוצאה הרשומה בתרגיל', isCorrect: true, feedbackHe: 'נכון מאוד! בדקו בבית המספרים וכתבו את הספרה החסרה.' },
+      { id: "opt_2", textHe: 'מנחשים מספר אקראי וכותבים אותו בתיבת התשובה', isCorrect: false, feedbackHe: 'רמז: איך אפשר לבדוק בבית המספרים אם הספרה נכונה?' },
+      { id: "opt_3", textHe: 'עוברים קודם לטור הבא', isCorrect: false, feedbackHe: 'רמז: אם תעברו קודם לטור הבא, איך תדעו מה לרשום בעיגול הזיכרון?' }
     ],
     correctChoiceId: "opt_1"
   },
@@ -452,9 +566,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-units",
     questionHe: 'נסו לחשוב: כיצד תפתרו את התרגיל כאשר אין לכם לבנים על המסך?',
     choices: [
-      { id: "opt_1", textHe: 'מתבוננים בתרגיל ונעזרים בעיגולי הזיכרון בראש הטורים כדי לנהל את פעולת ההמרה או הפריטה בשלבים', isCorrect: true, feedbackHe: 'מצוין! התקדמו טור אחר טור ורשמו את המעברים בעיגולי הזיכרון.' },
-      { id: "opt_2", textHe: 'מנחשים את התוצאה הסופית ומקלידים אותה מיד', isCorrect: false, feedbackHe: 'רמז: הימנעו מניחושים מהירים. פתרו את התרגיל בצורה מסודרת מימין לשמאל.' },
-      { id: "opt_3", textHe: 'מחכים שהתשובה הנכונה תופיע על המסך', isCorrect: false, feedbackHe: 'רמז: התשובה לא תופיע מעצמה. אתם יכולים לפתור בעצמכם, שלב אחר שלב.' }
+      { id: "opt_1", textHe: 'מתבוננים בתרגיל ונעזרים בעיגולי הזיכרון בראש הטורים כדי לנהל את פעולת ההמרה או הפריטה בשלבים', isCorrect: true, feedbackHe: 'נכון מאוד! התקדמו טור אחר טור ורשמו את המעברים בעיגולי הזיכרון.' },
+      { id: "opt_2", textHe: 'מנחשים את התוצאה הסופית ומקלידים אותה מיד', isCorrect: false, feedbackHe: 'רמז: איך אפשר למצוא את התוצאה בלי לנחש?' },
+      { id: "opt_3", textHe: 'מחכים שהתשובה הנכונה תופיע על המסך', isCorrect: false, feedbackHe: 'רמז: מאיזה טור אפשר להתחיל לפתור בעצמכם?' }
     ],
     correctChoiceId: "opt_1"
   }
@@ -568,10 +682,12 @@ const GENERAL_FALLBACK: SocraticHintResponse = {
   tts_text: "בדקו מה בנוי בבית המספרים ומה הצעד הבא הנדרש.",
   suggested_highlight: "tour-place-value-board",
   questionHe: "מה הצעד הבא שצריך לעשות בבית המספרים?",
+  // The card of stations 3–7 when a card is refused (enforceIronRule): its
+  // wrong options get a guiding question like every other (owner, 30.9.2026).
   choices: [
-    { id: "opt_1", textHe: "בודקים את בית המספרים — מספר הלבנים בכל טור ומה חסר" },
-    { id: "opt_2", textHe: "כותבים את התשובה מיד" },
-    { id: "opt_3", textHe: "מוחקים הכול ומתחילים מחדש" }
+    { id: "opt_1", textHe: "בודקים את בית המספרים — מספר הלבנים בכל טור ומה חסר", feedbackHe: "נכון מאוד! בדקו כמה לבנים יש בכל טור." },
+    { id: "opt_2", textHe: "כותבים את התשובה מיד", feedbackHe: "רמז: איך תדעו שהתשובה נכונה בלי לבדוק את בית המספרים?" },
+    { id: "opt_3", textHe: "מוחקים הכול ומתחילים מחדש", feedbackHe: "רמז: מה כבר בנוי בבית המספרים?" }
   ],
   correctChoiceId: "opt_1"
 };
@@ -656,30 +772,40 @@ export class SocraticEngine {
     const required = (currentTask?.requiredCounts ?? {}) as Partial<Record<'units' | 'tens' | 'hundreds', number>>;
     const crowdingIsTheGoal = (place: 'units' | 'tens' | 'hundreds') =>
       currentTask?.isSubtraction === true || currentTask?.type === 'flexible_decomp' || (required[place] ?? 0) >= 10;
+    // Meeting 1: the column and its count stay for the child to find (owner, 29.9.2026).
+    if (meetingOfTaskId(currentTask?.id) === 1 &&
+      (['units', 'tens', 'hundreds'] as const).some((p) => counts[p] >= 10 && !crowdingIsTheGoal(p))) {
+      return meeting1CrowdedCard();
+    }
+    // Stations 3–7 hide the digit beside each column name and the child
+    // counts the blocks, so the card names the column but not its count
+    // (owner, 30.9.2026). Station 1 has its own card above; station 8 has no
+    // board.
     if (counts.units >= 10 && !crowdingIsTheGoal('units')) {
       return {
         pedagogical_intent: "procedural",
-        tts_text: `בטור היחידות יש ${counts.units} לבנים. צריך לקבץ 10 מהן לעשרת אחת.`,
+        tts_text: 'נסו לחשוב: בטור היחידות יש 10 לבנים או יותר. מה עושים?',
         suggested_highlight: "tour-column-units",
-        questionHe: `בטור היחידות הצטברו ${counts.units} לבנים (יותר מ-9). מה הצעד הבא?`,
+        questionHe: 'נסו לחשוב: בטור היחידות יש 10 לבנים או יותר. מה עושים?',
         choices: [
-          { 
-            id: "opt_1", 
-            textHe: "אוספים 10 יחידות מטור היחידות וממירים אותן לעשרת אחת בטור העשרות", 
-            isCorrect: true, 
-            feedbackHe: 'תשובה נכונה! לחצו על הכפתור "קבץ 10" שבראש טור היחידות.'
+          {
+            id: "opt_1",
+            textHe: "אוספים 10 יחידות מטור היחידות וממירים אותן לעשרת אחת בטור העשרות",
+            isCorrect: true,
+            feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבצו 10" שבראש טור היחידות.'
           },
-          { 
-            id: "opt_2", 
-            textHe: "מוחקים 10 יחידות מטור היחידות לפח האשפה מבלי להוסיף עשרת", 
-            isCorrect: false, 
-            feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר! צריך לשמור על הכמות הכוללת בעזרת המרה. אפשר להשתמש בכפתור ביטול פעולה ↺."
+          // Wrong options get a guiding question (owner, 30.9.2026).
+          {
+            id: "opt_2",
+            textHe: "מוחקים 10 יחידות מטור היחידות לפח האשפה מבלי להוסיף עשרת",
+            isCorrect: false,
+            feedbackHe: HINT.deleteBlocks
           },
-          { 
-            id: "opt_3", 
-            textHe: "מעבירים לבנה אחת בלבד לטור העשרות", 
-            isCorrect: false, 
-            feedbackHe: "רמז: עשרת אחת שווה בדיוק ל-10 יחידות. לבנת יחידה אחת היא לא עשרת. אפשר להשתמש בכפתור ביטול פעולה ↺."
+          {
+            id: "opt_3",
+            textHe: "מעבירים לבנה אחת בלבד לטור העשרות",
+            isCorrect: false,
+            feedbackHe: "רמז: כמה לבני יחידה שוות ללבנת עשרת אחת?"
           }
         ],
         correctChoiceId: "opt_1"
@@ -689,27 +815,27 @@ export class SocraticEngine {
     if (counts.tens >= 10 && !crowdingIsTheGoal('tens')) {
       return {
         pedagogical_intent: "procedural",
-        tts_text: `בטור העשרות יש ${counts.tens} עשרות. צריך לקבץ 10 מהן למאה אחת.`,
+        tts_text: 'נסו לחשוב: בטור העשרות יש 10 לבנים או יותר. מה עושים?',
         suggested_highlight: "tour-column-tens",
-        questionHe: `בטור העשרות הצטברו ${counts.tens} עשרות (יותר מ-9). מה עושים?`,
+        questionHe: 'נסו לחשוב: בטור העשרות יש 10 לבנים או יותר. מה עושים?',
         choices: [
           { 
             id: "opt_1", 
             textHe: "אוספים 10 עשרות ומקבצים אותן למאה אחת בטור המאות", 
             isCorrect: true, 
-            feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבץ 10" שבראש טור העשרות כדי להמיר למאה אחת.'
+            feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבצו 10" שבראש טור העשרות כדי להמיר למאה אחת.'
           },
-          { 
-            id: "opt_2", 
-            textHe: "מוחקים עשרות מיותרות לפח האשפה", 
-            isCorrect: false, 
-            feedbackHe: "רמז: מחיקת לבנים בלי המרה מורידה מהערך הכולל של המספר. מקבצים במקום למחוק." 
+          {
+            id: "opt_2",
+            textHe: "מוחקים עשרות מיותרות לפח האשפה",
+            isCorrect: false,
+            feedbackHe: HINT.deleteBlocks
           },
-          { 
-            id: "opt_3", 
-            textHe: "רושמים מספר דו-ספרתי בתיבת העשרות", 
-            isCorrect: false, 
-            feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד, מ-0 עד 9." 
+          {
+            id: "opt_3",
+            textHe: "רושמים מספר דו-ספרתי בתיבת העשרות",
+            isCorrect: false,
+            feedbackHe: HINT.oneDigitPerBox
           }
         ],
         correctChoiceId: "opt_1"
@@ -719,27 +845,27 @@ export class SocraticEngine {
     if (counts.hundreds >= 10 && !crowdingIsTheGoal('hundreds')) {
       return {
         pedagogical_intent: "procedural",
-        tts_text: `בטור המאות יש ${counts.hundreds} מאות. צריך לקבץ 10 מהן לאלף אחד.`,
+        tts_text: 'נסו לחשוב: בטור המאות יש 10 לבנים או יותר. מה עושים?',
         suggested_highlight: "tour-column-hundreds",
-        questionHe: `בטור המאות הצטברו ${counts.hundreds} מאות (יותר מ-9). מה הפעולה הנדרשת?`,
+        questionHe: 'נסו לחשוב: בטור המאות יש 10 לבנים או יותר. מה עושים?',
         choices: [
-          { 
-            id: "opt_1", 
-            textHe: "אוספים 10 מאות ומקבצים אותן לאלף אחד בטור האלפים", 
-            isCorrect: true, 
-            feedbackHe: 'מצוין! לחצו על הכפתור "קבץ 10" שבראש טור המאות כדי לקבץ אותן לאלף אחד.'
+          {
+            id: "opt_1",
+            textHe: "אוספים 10 מאות ומקבצים אותן לאלף אחד בטור האלפים",
+            isCorrect: true,
+            feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבצו 10" שבראש טור המאות כדי לקבץ אותן לאלף אחד.'
           },
-          { 
-            id: "opt_2", 
-            textHe: "משאירים 10 מאות באותו הטור", 
-            isCorrect: false, 
-            feedbackHe: "רמז: בסוף התרגיל נשארות בכל טור לכל היותר 9 לבנים, כי 10 לבנים יוצרות לבנה אחת בטור השמאלי." 
+          {
+            id: "opt_2",
+            textHe: "משאירים 10 מאות באותו הטור",
+            isCorrect: false,
+            feedbackHe: tenBlocksHint('hundreds')
           },
-          { 
-            id: "opt_3", 
-            textHe: "מוחקים מאות לפח האשפה", 
-            isCorrect: false, 
-            feedbackHe: "רמז: שמרו על הכמות הכוללת בעזרת הקבצה לאלפים."
+          {
+            id: "opt_3",
+            textHe: "מוחקים מאות לפח האשפה",
+            isCorrect: false,
+            feedbackHe: HINT.deleteBlocks
           }
         ],
         correctChoiceId: "opt_1"
@@ -773,7 +899,10 @@ export class SocraticEngine {
 
       // Nothing on the canvas yet: the only sensible coaching is "build the first
       // number". A deficit read off an empty board ("יש לנו 0 עשרות") is nonsense.
+      // Stations 3–8 get the guiding questions of 30.9.2026; station 1 keeps
+      // the feedback the owner approved for it.
       if (boardValue === 0) {
+        const station1 = meetingOfTaskId(currentTask?.id) === 1;
         return {
           pedagogical_intent: "procedural",
           tts_text: `בחיסור בונים בבית המספרים רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''}, ואחר כך מוציאים ממנו.`,
@@ -784,19 +913,19 @@ export class SocraticEngine {
               id: "opt_1",
               textHe: `בונים רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''} בבית המספרים, ואחר כך מוציאים ממנו ${formatNumberHe(subtrahend)} לפח האשפה`,
               isCorrect: true,
-              feedbackHe: "נכון! גררו לבנים לבית המספרים עד שהוא מראה את המספר הראשון, ורק אז הוציאו ממנו."
+              feedbackHe: `${station1 ? 'נכון!' : 'נכון מאוד!'} גררו לבנים לבית המספרים עד שהוא מראה את המספר הראשון, ורק אז הוציאו ממנו.`
             },
             {
               id: "opt_2",
               textHe: "בונים את שני המספרים בבית המספרים ומחברים אותם",
               isCorrect: false,
-              feedbackHe: "רמז: בחיסור לא בונים את שני המספרים. בונים את הראשון ומוציאים ממנו את השני."
+              feedbackHe: station1 ? "רמז: בחיסור לא בונים את שני המספרים. בונים את הראשון ומוציאים ממנו את השני." : HINT.secondNumber
             },
             {
               id: "opt_3",
               textHe: "מקלידים את התוצאה בלי לבנות כלום",
               isCorrect: false,
-              feedbackHe: "רמז: קודם מייצגים את המספר בלבנים, ורק אחר כך כותבים את התוצאה."
+              feedbackHe: station1 ? "רמז: קודם מייצגים את המספר בלבנים, ורק אחר כך כותבים את התוצאה." : "רמז: בלי לבנים בבית המספרים, איך תמצאו את התוצאה?"
             }
           ],
           correctChoiceId: "opt_1"
@@ -826,6 +955,22 @@ export class SocraticEngine {
       const deficitMeeting = meetingOfTaskId(currentTask?.id);
       if ((deficitMeeting !== null && deficitMeeting !== 1) || (digitsKnown && boardValue !== minuend)) return null;
 
+      // Meeting 1: the same deficit, but the child finds the column; the
+      // card names no column and no count (owner, 29.9.2026).
+      if (deficitMeeting === 1) {
+        const digitB: Record<DeficitPlace, number> = { units: unitsB, tens: tensB, hundreds: hundredsB };
+        const first: DeficitPlace | null =
+          needUnits && unitsB > 0 && counts.units < unitsB ? 'units'
+          : needTens && tensB > 0 && counts.tens < tensB ? 'tens'
+          : needHundreds && hundredsB > 0 && counts.hundreds < hundredsB ? 'hundreds'
+          : null;
+        if (first) {
+          const lacking = DEFICIT_PLACES.filter((p) => p === first ||
+            (DEFICIT_PLACES.indexOf(p) > DEFICIT_PLACES.indexOf(first) && digitB[p] > 0 && counts[p] < digitB[p]));
+          return meeting1DeficitCard(lacking);
+        }
+      }
+
       // Check Units Deficit — real for this exercise, and not yet resolved on the board.
       if (needUnits && unitsB > 0 && counts.units < unitsB) {
         return {
@@ -838,19 +983,19 @@ export class SocraticEngine {
               id: "opt_1",
               textHe: "לוחצים על עשרת אחת מטור העשרות כדי לפרוט אותה ל-10 יחידות",
               isCorrect: true,
-              feedbackHe: "מעולה! לחצו על לבנת העשרת בבית המספרים כדי לפרוט אותה ל-10 יחידות."
+              feedbackHe: "נכון מאוד! לחצו על לבנת העשרת בבית המספרים כדי לפרוט אותה ל-10 יחידות."
             },
             {
               id: "opt_2",
               textHe: `מחסירים הפוך: ${unitsB} פחות ${counts.units}`,
               isCorrect: false,
-              feedbackHe: "רמז: בחיסור מוציאים רק מהכמות הקיימת. אי אפשר להחסיר הפוך מלמטה למעלה. אפשר להשתמש בכפתור ביטול פעולה ↺."
+              feedbackHe: HINT.topOrBottom
             },
-            { 
-              id: "opt_3", 
-              textHe: unitsB - counts.units === 1 ? 'מוסיפים לבנת יחידה אחת חדשה' : `מוסיפים ${unitsB - counts.units} לבני יחידה חדשות`, 
-              isCorrect: false, 
-              feedbackHe: "רמז: הוספת לבנים חדשות משנה את ערך המספר המקורי! פורטים מהטור השכן כדי לשמור על הכמות." 
+            {
+              id: "opt_3",
+              textHe: unitsB - counts.units === 1 ? 'מוסיפים לבנת יחידה אחת חדשה' : `מוסיפים ${unitsB - counts.units} לבני יחידה חדשות`,
+              isCorrect: false,
+              feedbackHe: HINT.addBlocks
             }
           ],
           correctChoiceId: "opt_1"
@@ -869,19 +1014,19 @@ export class SocraticEngine {
               id: "opt_1",
               textHe: "לוחצים על מאה אחת מטור המאות כדי לפרוט אותה ל-10 עשרות",
               isCorrect: true,
-              feedbackHe: "מצוין! לחצו על לבנת המאה בבית המספרים כדי לפרוט אותה ל-10 עשרות."
+              feedbackHe: "נכון מאוד! לחצו על לבנת המאה בבית המספרים כדי לפרוט אותה ל-10 עשרות."
             },
             {
               id: "opt_2",
               textHe: `מחסירים הפוך: ${tensB} פחות ${counts.tens}`,
               isCorrect: false,
-              feedbackHe: "רמז: בחיסור מוציאים מהכמות שיש בבית המספרים. אסור להחסיר הפוך. אפשר להשתמש בכפתור ביטול פעולה ↺."
+              feedbackHe: HINT.topOrBottom
             },
-            { 
-              id: "opt_3", 
+            {
+              id: "opt_3",
               textHe: "מוחקים לבנת מאה לפח האשפה",
               isCorrect: false,
-              feedbackHe: "רמז: מחיקת מאות ללא פריטה תקטין את המספר במקום לשמור על הכמות הכוללת."
+              feedbackHe: HINT.deleteBlocks
             }
           ],
           correctChoiceId: "opt_1"
@@ -898,21 +1043,21 @@ export class SocraticEngine {
           choices: [
             { 
               id: "opt_1", 
-              textHe: "לוחצים על אלף אחד מטור האלפים כדי לפרוט אותו ל-10 מאות", 
-              isCorrect: true, 
-              feedbackHe: "מדויק! לחצו על לבנת האלף בטור האלפים כדי לפרוט אותה ל-10 מאות." 
+              textHe: "לוחצים על אלף אחד מטור האלפים כדי לפרוט אותו ל-10 מאות",
+              isCorrect: true,
+              feedbackHe: "נכון מאוד! לחצו על לבנת האלף בטור האלפים כדי לפרוט אותה ל-10 מאות."
             },
-            { 
-              id: "opt_2", 
+            {
+              id: "opt_2",
               textHe: `מחסירים הפוך: ${hundredsB} פחות ${counts.hundreds}`,
               isCorrect: false,
-              feedbackHe: "רמז: בחיסור גורעים רק מהכמות הקיימת. נסו לחקור את הפריטה בעזרת כפתור ביטול פעולה ↺."
+              feedbackHe: HINT.topOrBottom
             },
             {
               id: "opt_3",
               textHe: "מוסיפים לבני מאה חדשות",
               isCorrect: false,
-              feedbackHe: "רמז: הוספת לבנים חדשות משנה את המספר. צריך לשמור על הכמות בעזרת פריטה מטור האלפים."
+              feedbackHe: HINT.addBlocks
             }
           ],
           correctChoiceId: "opt_1"
@@ -1101,14 +1246,34 @@ export class SocraticEngine {
       // written as blocks: "6 עשרות" is s3_r_t7's missing 60. Not in an
       // addition or a subtraction, where the board — both numbers built,
       // not yet grouped — is worth the result and naming it is the coaching.
+      // Except in meeting 1, where the child finds the counts himself and no
+      // card may give them (owner, 29.9.2026).
+      const countsAreTheCoaching = arithmetic && sessionNumber !== 1;
       const hiddenLeak = revealsSecret(aiTexts, aiSecrets) ??
-        (arithmetic ? null : revealsSecretInCounts(aiTexts, aiSecrets));
+        (countsAreTheCoaching ? null : revealsSecretInCounts(aiTexts, aiSecrets));
+      // What the exercise itself shows is not a count of the board: the active
+      // column's digits ("7 + 5") and every number of the instruction.
+      const shownNumbers = [
+        ...(operands ? [digitAt(operands.a, activeColumn), digitAt(operands.b, activeColumn)] : []),
+        ...numbersInInstruction(currentTask),
+      ];
       const violation =
         // A skeleton exercise shows its result; the digits it hides are the secret.
         socraticTextViolation(aiTexts, Array.isArray(currentTask?.revealedResultDigits) ? null : operands) ??
         (hiddenLeak !== null ? 'hidden number leaked' : null) ??
         (contradictsRequiredRepresentation(currentTask, choices) ? 'marks the instruction\'s representation wrong' : null) ??
-        absentAidViolation(aiTexts, sessionNumber);
+        absentAidViolation(aiTexts, sessionNumber) ??
+        // Stations 3–8 (owner, 30.9.2026): a wrong option's hint is "רמז:" and a
+        // guiding question; an engine card that explains instead is refused
+        // and the child gets the static card, whose hints are questions.
+        (sessionNumber >= 3 ? wrongHintViolation({ choices }) : null) ??
+        // Station 1 (the child finds the counts) and stations 3–7 (the digit
+        // beside each column name is hidden): the child counts the blocks. An
+        // engine card that gives a column's count as it is on the board now is
+        // refused, and the static card is shown (owner, 29–30.9.2026).
+        ((sessionNumber === 1 || (sessionNumber >= 3 && sessionNumber <= 7)) && statesBoardCount(aiTexts, counts, shownNumbers) !== null
+          ? 'states a column\'s block count'
+          : null);
       if (violation) {
         console.warn('[Gemini Proxy] Response rejected by content rule:', violation);
         return null;
@@ -1322,10 +1487,13 @@ export class SocraticEngine {
     // 10, 100 and 1,000 are the names of the regroupings themselves.
     const secrets = secretNumbersOf(currentTask).filter((n) => n !== 10 && n !== 100 && n !== 1000);
     const leaked = revealsSecret(texts, secrets);
+    const meeting = meetingOfTaskId(currentTask?.id);
     const violation =
       socraticTextViolation(texts, null) ??
       (leaked !== null ? 'final answer leaked' : null) ??
-      absentAidViolation(texts, meetingOfTaskId(currentTask?.id));
+      absentAidViolation(texts, meeting) ??
+      // Stations 3–8 (owner, 30.9.2026): a wrong option's hint is a guiding question.
+      (meeting !== null && meeting >= 3 ? wrongHintViolation(card) : null);
     if (!violation) return card;
 
     console.warn('[SocraticEngine] Static card rejected by the Module 13 iron rule:', violation, currentTask?.id);
@@ -1334,12 +1502,18 @@ export class SocraticEngine {
     return blocksOnScreen(meetingOfTaskId(currentTask?.id)) ? GENERAL_FALLBACK : TASK_HINTS['s8_card'];
   }
 
+  /**
+   * `context` is what the store knows beyond the board — the result row's
+   * place cues, and the cards already shown in this exercise
+   * (useWorkspaceStore.staticCardContextFor). Without it, nothing was shown.
+   */
   public static getSynchronousTaskHint(
     currentTask?: any,
-    counts?: { units: number; tens: number; hundreds: number; thousands: number }
+    counts?: { units: number; tens: number; hundreds: number; thousands: number },
+    context?: StaticCardContext
   ): SocraticHintResponse {
     const card = SocraticEngine.enforceIronRule(
-      SocraticEngine.resolveStaticHint(currentTask, counts),
+      SocraticEngine.resolveStaticHint(currentTask, counts, context),
       currentTask
     );
     // What the child reads follows the exercise; the category stays what main
@@ -1352,7 +1526,8 @@ export class SocraticEngine {
 
   private static resolveStaticHint(
     currentTask?: any,
-    counts?: { units: number; tens: number; hundreds: number; thousands: number }
+    counts?: { units: number; tens: number; hundreds: number; thousands: number },
+    context?: StaticCardContext
   ): SocraticHintResponse {
     const currentCounts = counts || { units: 0, tens: 0, hundreds: 0, thousands: 0 };
     const taskId: string | undefined = currentTask?.id;
@@ -1379,8 +1554,10 @@ export class SocraticEngine {
     // 3. The card computed from the exercise on the screen: its own numbers
     //    (hidden digits stay hidden), the column where it really converts, and
     //    in meeting 8 the memory circles instead of blocks (register, approved
-    //    deviation 2; owner, 28.9.2026 — staticSocraticCards.ts).
-    const computed = exerciseCard(currentTask, currentCounts);
+    //    deviation 2; owner, 28.9.2026 — staticSocraticCards.ts), and the
+    //    cards of 30.9.2026 that follow the place cues and the cards already
+    //    shown in the exercise.
+    const computed = exerciseCard(currentTask, currentCounts, context);
     if (computed) return computed;
     // A meeting-3 task this module does not recognise gets the card that marks
     // no representation wrong (owner, 28.9.2026, שהB.1).
@@ -1413,8 +1590,8 @@ export class SocraticEngine {
   ): Promise<SocraticHintResponse | null> {
     await ready();
 
-    // 1. Resolve synchronous baseline anchor
-    const baselineAnchor = SocraticEngine.getSynchronousTaskHint(currentTask, counts);
+    // 1. Resolve synchronous baseline anchor: the card the child would see.
+    const baselineAnchor = SocraticEngine.getSynchronousTaskHint(currentTask, counts, monitoring?.cardContext);
 
     // 2. Map active column index
     const colNames = ['יחידות', 'עשרות', 'מאות', 'אלפים'];
