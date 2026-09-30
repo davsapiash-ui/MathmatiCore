@@ -93,6 +93,12 @@ function standardCounts(n: number): Counts {
 
 const sameCounts = (a: Counts, b: Counts) => LOW_TO_HIGH.every((p) => (a[p] ?? 0) === (b[p] ?? 0));
 
+/** Every whole number the instruction shows ("1,245" is 1245). */
+export function numbersInInstruction(task: any): number[] {
+  const text = typeof task?.instructionHe === 'string' ? stripDigitGroupSeparators(task.instructionHe) : '';
+  return [...text.matchAll(/\d+/g)].map((m) => Number(m[0]));
+}
+
 /** Is this text (or its number) on the child's screen — i.e. in the instruction? */
 function onScreen(task: any, text: string): boolean {
   return typeof task?.instructionHe === 'string' && task.instructionHe.includes(text);
@@ -203,9 +209,9 @@ export function revealsSecret(texts: string[], secrets: number[]): number | null
  * Each maximal run is one group. Used on the AI card: a group worth a secret
  * number gives it away as surely as its digits, and on a representation task
  * a group is an option's representation. The block names of 30.9.2026 are
- * read too: "3 לבני מאה ו-4 לבני עשרת", "לבנת מאה אחת".
+ * read too: "3 לבני מאה ו-4 לבני עשרת", "לבנת מאה אחת", "5 לבני העשרת".
  */
-const PART = /(\d[\d,]*)\s+(?:(יחידות|עשרות|מאות|אלפים)|(?:לבני|לבנים)\s+(יחידה|עשרת|מאה|אלף))|(יחידה אחת|עשרת אחת|מאה אחת|אלף אחד)|לבנת\s+(יחידה|עשרת|מאה|אלף)\s+אחת/g;
+const PART = /(\d[\d,]*)\s+(?:(יחידות|עשרות|מאות|אלפים)|(?:לבני|לבנים)\s+(?:ה-?)?(יחידה|עשרת|מאה|אלף))|(יחידה אחת|עשרת אחת|מאה אחת|אלף אחד)|לבנת\s+(?:ה-?)?(יחידה|עשרת|מאה|אלף)\s+אחת/g;
 const PART_PLACE: Record<string, Place> = {
   'יחידות': 'units', 'עשרות': 'tens', 'מאות': 'hundreds', 'אלפים': 'thousands',
   'יחידה אחת': 'units', 'עשרת אחת': 'tens', 'מאה אחת': 'hundreds', 'אלף אחד': 'thousands',
@@ -268,10 +274,13 @@ const COUNT_IN_COLUMN = [
  * "12 לבנים בטור העשרות")? Returns the column, or null. Not read: a column
  * with no blocks, and the names of a regrouping itself — "10 יחידות",
  * "עשרת אחת", "לבנת מאה אחת" ("מקבצים 10 יחידות לעשרת אחת" is the step, not
- * a count). Used on the engine's card: the static card replaces it.
+ * a count), and a number the exercise itself shows — the `skip` list: the
+ * active column's digits and every number of the instruction ("בנו 12 לבני
+ * עשרת" says 12 whatever the board holds). Used on the engine's card: the
+ * static card replaces it.
  */
-export function statesBoardCount(texts: string[], counts: Partial<Record<Place, number>>): Place | null {
-  const holds = (p: Place, n: number) => n >= 2 && n !== 10 && (counts[p] ?? 0) === n;
+export function statesBoardCount(texts: string[], counts: Partial<Record<Place, number>>, skip: readonly number[] = []): Place | null {
+  const holds = (p: Place, n: number) => n >= 2 && n !== 10 && !skip.includes(n) && (counts[p] ?? 0) === n;
   for (const t of texts) {
     const plain = stripDigitGroupSeparators(t);
     for (const run of countRunsIn(plain)) {
@@ -899,19 +908,47 @@ function buildFirstCard(): SocraticHintResponse {
  * yet (★ chosen by the agent, 30.9.2026, in the style of the owner's cards):
  * the conversion the instruction names, in its words — C1 and C7 ask about
  * the number after it, so they wait until it is done. No count, no answer.
+ * The card follows what the board allows:
+ *  - the board already shows the blocks AFTER the conversion, built by hand:
+ *    build the instruction's blocks again, then convert them yourselves;
+ *  - the block to break is not on the board, or the column to group holds
+ *    fewer than 10 blocks (the "קבצו 10" button is not there yet): build all
+ *    the blocks the instruction names first;
+ *  - otherwise: how to break the block, or which button groups.
  */
-function conversionCard(task: any, kind: 'compose_break' | 'compose_group', ctx: StaticCardContext): SocraticHintResponse | null {
+function conversionCard(task: any, kind: 'compose_break' | 'compose_group', ctx: StaticCardContext, counts: BoardCounts): SocraticHintResponse | null {
   const write = (verb: string): [string, string] => [`כותבים את המספר בלי ${verb}`, 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים את המספר?'];
   const n = numberWritten(task);
   const after: Counts | undefined = task.requiredCounts;
+  const rebuilt = Boolean(after) && sameCounts(counts, after!);
+  const addOne = (to: Place): [string, string] => [`מוסיפים ${BLOCK[to]} חדשה`, 'רמז: אם תוסיפו לבנה חדשה, האם המספר יישאר אותו מספר?'];
+  /** Built by hand in its final form: build the instruction's blocks, then convert. */
+  const rebuildCard = (yourselves: string, pres: string, step: string, add: [string, string]) =>
+    card(`${OPEN}ההנחיה מבקשת ${yourselves} בעצמכם. מה עושים עכשיו?`, 'procedural', 'tour-place-value-board', [
+      [`בונים מחדש את הלבנים שבהנחיה, ואחר כך ${pres}`, `נכון מאוד! לחצו על פח האשפה כדי לנקות את בית המספרים. בנו את הלבנים שבהנחיה. אחר כך ${step}`],
+      ['כותבים את המספר, כי הלבנים כבר מסודרות', 'רמז: מה ההנחיה מבקשת שתעשו בעצמכם לפני שכותבים?'],
+      add,
+    ]);
+  /** Not everything is built yet: build the instruction's blocks first. */
+  const buildCard = (inf: string, pres: string, step: string, partial: [string, string], from: Place) =>
+    card(`${OPEN}מה עושים לפני ש${pres}?`, 'procedural', HL(from), [
+      ['בונים בבית המספרים את כל הלבנים שההנחיה מבקשת', `נכון מאוד! בנו את כל הלבנים שבהנחיה. אחר כך ${step}`],
+      partial,
+      write(inf),
+    ]);
   if (kind === 'compose_break') {
     const before = typeof n === 'number' ? standardCounts(n) : undefined;
     const derived = after && before ? [...LOW_TO_HIGH].reverse().find((p) => (after[p] ?? 0) < (before[p] ?? 0)) : undefined;
     const from = ctx.pendingConversion ? next(ctx.pendingConversion) : derived;
     const into = from ? LOW_TO_HIGH[LOW_TO_HIGH.indexOf(from) - 1] : undefined;
     if (!from || !into) return null;
+    const step = `לחצו על ${BLOCK[from]} כדי לפרוט אותה.`;
+    if (rebuilt) return rebuildCard('שתפרטו', 'פורטים', step, [`מוסיפים ${BLOCKS[into]} חדשות`, HINT.addBlocks]);
+    if ((counts[from] ?? 0) === 0) {
+      return buildCard('לפרוט', 'פורטים', step, ['פורטים לבנה אחרת שכבר נמצאת בבית המספרים', 'רמז: איזו לבנה ההנחיה מבקשת לפרוט?'], from);
+    }
     return card(`${OPEN}ההנחיה מבקשת לפרוט ${BLOCK[from]} אחת לעשר ${BLOCKS[into]}. איך פורטים אותה?`, 'procedural', HL(from), [
-      [`לוחצים על ${BLOCK[from]}`, `נכון מאוד! לחצו על ${BLOCK[from]} כדי לפרוט אותה.`],
+      [`לוחצים על ${BLOCK[from]}`, `נכון מאוד! ${step}`],
       [`מוסיפים ${BLOCKS[into]} חדשות`, HINT.addBlocks],
       write('לפרוט'),
     ]);
@@ -921,10 +958,15 @@ function conversionCard(task: any, kind: 'compose_break' | 'compose_group', ctx:
   const from = ctx.pendingConversion ?? derived;
   const to = from ? next(from) : null;
   if (!from || !to) return null;
+  const step = `לחצו על הכפתור "קבצו 10" שבראש ${COLUMN[from]}.`;
+  if (rebuilt) return rebuildCard('שתקבצו', 'מקבצים', step, addOne(to));
+  if ((counts[from] ?? 0) < 10) {
+    return buildCard('לקבץ', 'מקבצים', step, [`מקבצים את הלבנים שכבר נמצאות ב${COLUMN[from]}`, `רמז: כמה ${BLOCKS[from]} מקבצים ל${BLOCK[to]} אחת?`], from);
+  }
   const again = ctx.conversionAgain ? 'שוב ' : '';
   return card(`${OPEN}ההנחיה מבקשת לקבץ ${again}10 ${BLOCKS[from]} ל${BLOCK[to]} אחת. איך מקבצים אותן?`, 'procedural', HL(from), [
-    ['לוחצים על הכפתור "קבצו 10" שבראש הטור', `נכון מאוד! לחצו על הכפתור "קבצו 10" שבראש ${COLUMN[from]}.`],
-    [`מוסיפים ${BLOCK[to]} חדשה`, 'רמז: אם תוסיפו לבנה חדשה, האם המספר יישאר אותו מספר?'],
+    ['לוחצים על הכפתור "קבצו 10" שבראש הטור', `נכון מאוד! ${step}`],
+    addOne(to),
     write('לקבץ'),
   ]);
 }
@@ -982,12 +1024,13 @@ export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardCon
   // break you built a number" (owner, 30.9.2026).
   const emptyBoard = Boolean(counts) && !built && (meeting === 3 || meeting === 7) && task.type === 'representation';
   const composing = kind === 'compose_break' || kind === 'compose_group';
-  if (emptyBoard && composing) return buildFirstCard();
+  // C3 too: "יש טור שאין בו לבנים" says nothing on a board with no blocks at all.
+  if (emptyBoard && (composing || kind === 'read_write')) return buildFirstCard();
   // C1 and C7 ask about the number after the break / the grouping: only once
   // every conversion the instruction names is done (s7_g_t1: both groupings).
   // Before that, the conversion itself.
   if (composing && built && ctx.conversionDone === false) {
-    const conv = conversionCard(task, kind, ctx);
+    const conv = conversionCard(task, kind, ctx, counts!);
     if (conv) return conv;
   }
   if (kind && (built || !composing)) {

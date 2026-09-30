@@ -215,9 +215,14 @@ describe('3. C1 and C7 wait for the conversion; before it, the conversion the in
       s7_r_t1: 'נסו לחשוב: ההנחיה מבקשת לקבץ 10 לבני עשרת ללבנת מאה אחת. איך מקבצים אותן?',
       s7_g_reinforce_2: 'נסו לחשוב: ההנחיה מבקשת לקבץ 10 לבני מאה ללבנת אלף אחת. איך מקבצים אותן?',
     };
+    // The blocks the instruction builds, before the conversion.
+    const builtBefore: Record<string, Partial<Counts>> = {
+      s3_r_t4: { tens: 8, units: 5 }, s3_g_t2: { thousands: 3, hundreds: 4 }, s3_g_t4: { thousands: 5, hundreds: 2, tens: 3 },
+      s7_r_t1: { tens: 12, units: 5 }, s7_g_reinforce_2: { hundreds: 14, tens: 3 },
+    };
     for (const [id, question] of Object.entries(expected)) {
       const t = byId(id);
-      const c = exerciseCard(t, { ...EMPTY, units: 1 }, { conversionDone: false })!;
+      const c = exerciseCard(t, { ...EMPTY, ...builtBefore[id] }, { conversionDone: false })!;
       expect(c.questionHe, id).toBe(question);
       expect(wrongHintViolation(c), id).toBeNull();
       expect(t.instructionHe, id).toContain(question.replace('נסו לחשוב: ההנחיה מבקשת ל', '').replace(/\. איך .*$/, '').replace(/^פרוט/, 'פרטו').replace(/^קבץ/, 'קבצו'));
@@ -226,7 +231,7 @@ describe('3. C1 and C7 wait for the conversion; before it, the conversion the in
     const second = exerciseCard(byId('s3_g_t4'), { ...EMPTY, thousands: 4, hundreds: 12, tens: 3 }, { conversionDone: false, pendingConversion: 'tens' })!;
     expect(second.questionHe).toBe(BREAK_Q);
     // The button of the grouping, named as S4_ADD names it.
-    const g = exerciseCard(byId('s7_r_t1'), { ...EMPTY, tens: 9, units: 5 }, { conversionDone: false, pendingConversion: 'tens' })!;
+    const g = exerciseCard(byId('s7_r_t1'), { ...EMPTY, tens: 12, units: 5 }, { conversionDone: false, pendingConversion: 'tens' })!;
     expect(rows(g)).toEqual([
       ['לוחצים על הכפתור "קבצו 10" שבראש הטור', 'נכון מאוד! לחצו על הכפתור "קבצו 10" שבראש טור העשרות.', true],
       ['מוסיפים לבנת מאה חדשה', 'רמז: אם תוסיפו לבנה חדשה, האם המספר יישאר אותו מספר?', false],
@@ -237,7 +242,7 @@ describe('3. C1 and C7 wait for the conversion; before it, the conversion the in
   it('s7_g_t1, the second grouping: "לקבץ שוב", as the instruction says it', () => {
     const t = byId('s7_g_t1');
     expect(t.instructionHe).toContain('קבצו שוב 10 לבני מאה ללבנת אלף אחת');
-    const c = exerciseCard(t, { ...EMPTY, thousands: 1, hundreds: 5 }, { conversionDone: false, pendingConversion: 'hundreds', conversionAgain: true })!;
+    const c = exerciseCard(t, { ...EMPTY, thousands: 1, hundreds: 15 }, { conversionDone: false, pendingConversion: 'hundreds', conversionAgain: true })!;
     expect(c.questionHe).toBe('נסו לחשוב: ההנחיה מבקשת לקבץ שוב 10 לבני מאה ללבנת אלף אחת. איך מקבצים אותן?');
   });
 
@@ -297,9 +302,13 @@ describe('4. an empty board in stations 3 and 7: build first what the instructio
     }
   });
 
-  it('C2 and C3 keep speaking on an empty board; a built board is unchanged; station 4 is unchanged', () => {
+  it('C2 keeps speaking on an empty board, C3 does not; a built board is unchanged; station 4 is unchanged', () => {
     expect(q(byId('s3_r_t3'), EMPTY).questionHe).toBe('נסו לחשוב: כמה לבני עשרת שוות ללבנת מאה אחת?');
-    expect(q(byId('s3_r_t5'), EMPTY).questionHe).toBe('נסו לחשוב: יש טור שאין בו לבנים. מה כותבים במספר בשביל הטור הזה?');
+    // C3 ("יש טור שאין בו לבנים") says nothing to a board with no blocks at all (review, 30.9.2026).
+    for (const id of ['s3_r_t5', 's3_g_t5']) {
+      expect(q(byId(id), EMPTY).questionHe, id).toBe(BUILD_Q);
+      expect(q(byId(id), { ...EMPTY, ...byId(id).requiredCounts }).questionHe, id).toBe('נסו לחשוב: יש טור שאין בו לבנים. מה כותבים במספר בשביל הטור הזה?');
+    }
     expect(q(byId('s3_r_t1'), { ...EMPTY, hundreds: 3 }).questionHe).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
     expect(q(byId('s4_g_t1'), EMPTY).questionHe).not.toBe(BUILD_Q);
   });
@@ -416,5 +425,121 @@ describe('6. the single answer box: only what changed, at least one wrong digit 
     // A snapshot without it (older, or nothing pressed yet): the next press records every digit.
     ws().restoreSession({ ...saved, lastSubmittedAnswer: undefined });
     expect(ws().lastSubmittedAnswer).toBeNull();
+  });
+});
+
+/* ── Re-review of d315978e ── */
+
+const BUILD_BEFORE_GROUP = 'נסו לחשוב: מה עושים לפני שמקבצים?';
+const BUILD_BEFORE_BREAK = 'נסו לחשוב: מה עושים לפני שפורטים?';
+const REBUILD_GROUP = 'נסו לחשוב: ההנחיה מבקשת שתקבצו בעצמכם. מה עושים עכשיו?';
+
+describe('the conversion card follows what the board allows', () => {
+  it('s7_r_t1 with 5 tens: the "קבצו 10" button is not there yet — build all the instruction\'s blocks first', () => {
+    const t = byId('s7_r_t1');
+    const c = exerciseCard(t, { ...EMPTY, tens: 5 }, { conversionDone: false, pendingConversion: 'tens' })!;
+    expect(c.questionHe).toBe(BUILD_BEFORE_GROUP);
+    expect(rows(c)).toEqual([
+      ['בונים בבית המספרים את כל הלבנים שההנחיה מבקשת', 'נכון מאוד! בנו את כל הלבנים שבהנחיה. אחר כך לחצו על הכפתור "קבצו 10" שבראש טור העשרות.', true],
+      ['מקבצים את הלבנים שכבר נמצאות בטור העשרות', 'רמז: כמה לבני עשרת מקבצים ללבנת מאה אחת?', false],
+      ['כותבים את המספר בלי לקבץ', 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים את המספר?', false],
+    ]);
+    expect(wrongHintViolation(c)).toBeNull();
+    // Through the store.
+    load(t);
+    buildBlocks({ tens: 5 });
+    expect(served(t).questionHe).toBe(BUILD_BEFORE_GROUP);
+  });
+
+  it('s7_r_t1 with 1 hundred, 2 tens and 5 units built by hand: build the instruction\'s blocks again, then group', () => {
+    const t = byId('s7_r_t1');
+    load(t);
+    buildBlocks({ hundreds: 1, tens: 2, units: 5 });
+    const c = served(t);
+    expect(c.questionHe).toBe(REBUILD_GROUP);
+    expect(rows(c)).toEqual([
+      ['בונים מחדש את הלבנים שבהנחיה, ואחר כך מקבצים', 'נכון מאוד! לחצו על פח האשפה כדי לנקות את בית המספרים. בנו את הלבנים שבהנחיה. אחר כך לחצו על הכפתור "קבצו 10" שבראש טור העשרות.', true],
+      ['כותבים את המספר, כי הלבנים כבר מסודרות', 'רמז: מה ההנחיה מבקשת שתעשו בעצמכם לפני שכותבים?', false],
+      ['מוסיפים לבנת מאה חדשה', 'רמז: אם תוסיפו לבנה חדשה, האם המספר יישאר אותו מספר?', false],
+    ]);
+    expect(revealsSecretInCounts(textsOf(c), secretNumbersOf(t))).toBeNull();
+    expect(textsOf(c).join(' ')).not.toMatch(/125/);
+  });
+
+  it('s3_r_t2 with only tens: no hundred to break — build the instruction\'s blocks first', () => {
+    const t = byId('s3_r_t2');
+    load(t);
+    buildBlocks({ tens: 4 });
+    const c = served(t);
+    expect(c.questionHe).toBe(BUILD_BEFORE_BREAK);
+    expect(rows(c)).toEqual([
+      ['בונים בבית המספרים את כל הלבנים שההנחיה מבקשת', 'נכון מאוד! בנו את כל הלבנים שבהנחיה. אחר כך לחצו על לבנת מאה כדי לפרוט אותה.', true],
+      ['פורטים לבנה אחרת שכבר נמצאת בבית המספרים', 'רמז: איזו לבנה ההנחיה מבקשת לפרוט?', false],
+      ['כותבים את המספר בלי לפרוט', 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים את המספר?', false],
+    ]);
+    // The final board built by hand (2 hundreds, 14 tens): build again, then break.
+    load(t);
+    buildBlocks({ hundreds: 2, tens: 14 });
+    expect(served(t).questionHe).toBe('נסו לחשוב: ההנחיה מבקשת שתפרטו בעצמכם. מה עושים עכשיו?');
+    expect(served(t).choices[0].feedbackHe).toBe('נכון מאוד! לחצו על פח האשפה כדי לנקות את בית המספרים. בנו את הלבנים שבהנחיה. אחר כך לחצו על לבנת מאה כדי לפרוט אותה.');
+  });
+});
+
+describe('statesBoardCount: what the exercise itself shows is not refused', () => {
+  it('the active column\'s digits and the instruction\'s numbers are skipped; "N לבני ה-X" is read', () => {
+    expect(statesBoardCount(['בטור היחידות יש 5 יחידות'], { ...EMPTY, units: 5 }, [5, 8])).toBeNull();
+    expect(statesBoardCount(['בנו 12 לבני עשרת'], { ...EMPTY, tens: 12 }, [12, 5, 10])).toBeNull();
+    expect(statesBoardCount(['בטור העשרות יש 12 לבני העשרת'], { ...EMPTY, tens: 12 })).toBe('tens');
+    expect(statesBoardCount(['יש 7 לבני היחידה'], { ...EMPTY, units: 7 })).toBe('units');
+    expect(countGroupsIn('5 לבני העשרת ו-3 לבני היחידה')).toEqual([{ tens: 5, units: 3 }]);
+  });
+
+  afterEach(() => { vi.restoreAllMocks(); });
+  const aiCard = (question: string) => ({
+    data: {
+      error_category: 'procedural',
+      guiding_question: question,
+      options: [
+        { id: 'opt_1', option_text: 'לוחצים על הכפתור "קבצו 10" שבראש הטור', feedback_text: 'נכון מאוד! לחצו על הכפתור.', is_correct: true },
+        { id: 'opt_2', option_text: 'מוחקים לבנים', feedback_text: 'רמז: אם תמחקו לבנים, האם המספר יישאר אותו מספר?', is_correct: false },
+        { id: 'opt_3', option_text: 'כותבים את המספר בלי לקבץ', feedback_text: 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים את המספר?', is_correct: false },
+      ],
+    },
+  });
+  const ask = (task: any, counts: Counts, column = 'יחידות') =>
+    SocraticEngine.fetchGroundedGeminiSocraticQuery({
+      currentTask: task, targetNode: 'regrouping_fluency', activeColumnName: column, counts,
+      qMatrixAnchor: q(task, counts), monitoring: { sessionNumber: Number(task.id[1]) },
+    });
+
+  it('the engine: the instruction\'s "12 לבני עשרת" and the active column\'s digit are accepted', async () => {
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard('ההנחיה מבקשת לבנות 12 לבני עשרת. מה עושים עכשיו?'));
+    expect(await ask(byId('s7_r_t1'), { ...EMPTY, tens: 12, units: 5 }, 'עשרות')).not.toBeNull();
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard('בתרגיל 1,245 + 328, בטור היחידות מחברים 5 יחידות ועוד 8 יחידות. מה עושים?'));
+    expect(await ask(byId('s4_g_t1'), { ...EMPTY, units: 5, tens: 4 })).not.toBeNull();
+    // A count that is neither: still refused.
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard('בטור העשרות יש 7 לבני העשרת. מה עושים?'));
+    expect(await ask(byId('s7_r_t1'), { ...EMPTY, tens: 7, units: 5 }, 'עשרות')).toBeNull();
+  });
+});
+
+describe('an older save of s7_g_t1 (no count of groupings) does not leave the child stuck', () => {
+  it('the final board with the column marked converted counts both groupings as done', async () => {
+    const { normalizeColumnConversions } = await import('@/application/useWorkspaceStore');
+    const t = byId('s7_g_t1');
+    const older = normalizeColumnConversions({ composed: { hundreds: true } });
+    expect(pendingRepresentationConversion({ conversionsByColumn: older, counts: { ...EMPTY, thousands: 2, hundreds: 5 } }, t)).toBeNull();
+    expect(pendingRepresentationConversion({ conversionsByColumn: older, counts: { ...EMPTY, thousands: 1, hundreds: 15 } }, t)).toBe('hundreds');
+    // Not converted at all: still pending, whatever the board.
+    expect(pendingRepresentationConversion({ conversionsByColumn: normalizeColumnConversions({}), counts: { ...EMPTY, thousands: 2, hundreds: 5 } }, t)).toBe('hundreds');
+    // A new save knows the count: one grouping onto a hand-built thousand is one.
+    const counted = normalizeColumnConversions({ composed: { hundreds: true }, times: { composed: { hundreds: 1 } } });
+    expect(pendingRepresentationConversion({ conversionsByColumn: counted, counts: { ...EMPTY, thousands: 2, hundreds: 5 } }, t)).toBe('hundreds');
+    // Through the store, as a reload leaves it.
+    load(t);
+    useWorkspaceStore.setState({ conversionsByColumn: older, counts: { ...EMPTY, thousands: 2, hundreds: 5 } } as any);
+    ws().setRepresentationAnswer('2500');
+    ws().proceed();
+    expect(sent.events.some((e) => e.event_type === 'PROBLEM_COMPLETE')).toBe(true);
   });
 });

@@ -5,7 +5,7 @@ import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
 import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
 import { researchErrorCategory } from "./socraticResearchCategory";
-import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, HINT, tenBlocksHint, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
+import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -1251,6 +1251,12 @@ export class SocraticEngine {
       const countsAreTheCoaching = arithmetic && sessionNumber !== 1;
       const hiddenLeak = revealsSecret(aiTexts, aiSecrets) ??
         (countsAreTheCoaching ? null : revealsSecretInCounts(aiTexts, aiSecrets));
+      // What the exercise itself shows is not a count of the board: the active
+      // column's digits ("7 + 5") and every number of the instruction.
+      const shownNumbers = [
+        ...(operands ? [digitAt(operands.a, activeColumn), digitAt(operands.b, activeColumn)] : []),
+        ...numbersInInstruction(currentTask),
+      ];
       const violation =
         // A skeleton exercise shows its result; the digits it hides are the secret.
         socraticTextViolation(aiTexts, Array.isArray(currentTask?.revealedResultDigits) ? null : operands) ??
@@ -1265,7 +1271,7 @@ export class SocraticEngine {
         // beside each column name is hidden): the child counts the blocks. An
         // engine card that gives a column's count as it is on the board now is
         // refused, and the static card is shown (owner, 29–30.9.2026).
-        ((sessionNumber === 1 || (sessionNumber >= 3 && sessionNumber <= 7)) && statesBoardCount(aiTexts, counts) !== null
+        ((sessionNumber === 1 || (sessionNumber >= 3 && sessionNumber <= 7)) && statesBoardCount(aiTexts, counts, shownNumbers) !== null
           ? 'states a column\'s block count'
           : null);
       if (violation) {

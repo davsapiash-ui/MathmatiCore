@@ -334,7 +334,8 @@ describe('C2 — a number built from one kind of block (station 3)', () => {
 describe('C3 — reading and writing a number with an empty column (station 3)', () => {
   it('506 and 6,030: the zero keeps the place; the card speaks of the place in the number, not of a box', () => {
     for (const task of [REDESIGN.find((t) => t.id === 's3_r_t5'), REDESIGN.find((t) => t.id === 's3_g_t5'), byId('s3_r_t5'), byId('s3_g_t5')]) {
-      const c = q(task);
+      // Once something is built (an empty board gets the build-first card).
+      const c = q(task, { ...EMPTY, ...task.requiredCounts });
       expect(c.questionHe, task.id).toBe('נסו לחשוב: יש טור שאין בו לבנים. מה כותבים במספר בשביל הטור הזה?');
       expect(c.choices.map((o) => [o.textHe, o.feedbackHe])).toEqual([
         ['כותבים 0', 'נכון מאוד! האפס שומר את המקום של הטור הריק.'],

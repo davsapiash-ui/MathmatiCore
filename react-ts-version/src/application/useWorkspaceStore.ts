@@ -706,7 +706,7 @@ export function socraticCardColumnIndex(
  * `taskId` — and, given the task, how far its break or grouping has gone.
  */
 export function staticCardContextFor(
-  s: Pick<WorkspaceState, 'placeCuesShown' | 'socraticCardKinds'> & Partial<Pick<WorkspaceState, 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped'>>,
+  s: Pick<WorkspaceState, 'placeCuesShown' | 'socraticCardKinds'> & Partial<Pick<WorkspaceState, 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped' | 'counts'>>,
   taskId: string | undefined,
   task?: SessionTask | null
 ): StaticCardContext {
@@ -714,6 +714,7 @@ export function staticCardContextFor(
   const conversions = task && task.id === taskId
     ? conversionContextFor({
         conversionsByColumn: s.conversionsByColumn ?? emptyColumnConversions(),
+        counts: s.counts,
         hasGrouped: s.hasGrouped === true,
         hasUngrouped: s.hasUngrouped === true,
       }, task)
@@ -838,18 +839,28 @@ export function answerTextFromDigits(digits: Partial<Record<Place, string>>): st
  * have not performed yet (REPRESENTATION_LOCKS: the receiving column of a
  * decomposition, the source column of a composition), or null when every one
  * is done — or the exercise lists none. A column listed twice (s7_g_t1 groups
- * ten hundreds twice) waits for its second conversion.
+ * ten hundreds twice) waits for its second conversion. A save from before the
+ * count (no `times`) knows only that the column converted: when the board
+ * already shows the exercise's final blocks, the column counts as done, so no
+ * child is stuck after a reload.
  */
 export function pendingRepresentationConversion(
-  s: Pick<WorkspaceState, 'conversionsByColumn'>,
-  task: Pick<SessionTask, 'id'> | null | undefined
+  s: Pick<WorkspaceState, 'conversionsByColumn'> & Partial<Pick<WorkspaceState, 'counts'>>,
+  task: (Pick<SessionTask, 'id'> & Partial<Pick<SessionTask, 'requiredCounts'>>) | null | undefined
 ): Place | null {
   const lock = task ? REPRESENTATION_LOCKS[task.id] : undefined;
   if (!lock) return null;
   const decomposition = lock.conversion === 'decomposition';
+  const conv = s.conversionsByColumn;
+  const kind = decomposition ? 'decomposed' : 'composed';
+  const finalBoard = Boolean(s.counts && task?.requiredCounts) &&
+    countsEqual({ ...EMPTY_COUNTS, ...s.counts }, { ...EMPTY_COUNTS, ...task!.requiredCounts });
   return lock.columns.find((p, i) => {
+    const listed = lock.columns.filter((q) => q === p).length;
+    const olderSave = listed > 1 && typeof conv.times?.[kind]?.[p] !== 'number' && conversionDoneInColumn(conv, p, decomposition);
+    if (olderSave && finalBoard) return false;
     const nth = lock.columns.slice(0, i + 1).filter((q) => q === p).length;
-    return conversionTimesInColumn(s.conversionsByColumn, p, decomposition) < nth;
+    return conversionTimesInColumn(conv, p, decomposition) < nth;
   }) ?? null;
 }
 
@@ -860,7 +871,7 @@ export function pendingRepresentationConversion(
  * static card waits with C1/C7 until they are done (owner, 30.9.2026).
  */
 function conversionContextFor(
-  s: Pick<WorkspaceState, 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped'>,
+  s: Pick<WorkspaceState, 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped'> & Partial<Pick<WorkspaceState, 'counts'>>,
   task: SessionTask | null | undefined
 ): Pick<StaticCardContext, 'conversionDone' | 'pendingConversion' | 'conversionAgain'> {
   const kind = task?.representationKind;
