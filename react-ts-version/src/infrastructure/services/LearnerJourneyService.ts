@@ -172,6 +172,7 @@ const EVENT_LABELS_HE: Record<string, string> = {
   KEYBOARD_LOCK_BLOCKED: 'הקלדה לפני המרה (מקלדת נעולה)',
   HELP_REQUESTED: 'קריאה שקטה למורה',
   BOARD_CLEARED: 'ניקוי הלוח',
+  PLACE_CUES_SHOWN: 'פיגום בשורת התוצאה',
 };
 
 export interface EventDescription {
@@ -202,6 +203,11 @@ export function describeEvent(e: JourneyEvent): EventDescription {
   let selfRegulation = false;
   let attention = false;
   switch (e.eventType) {
+    case 'PLACE_CUES_SHOWN':
+      // Register deviation 28: a digit was written in another column's box.
+      detail = d.profile === 'enhanced' ? 'ספרה בתיבה של טור אחר: הופיעו כותרות הטורים' : 'ספרה בתיבה של טור אחר: הופיעו צבעי הטורים וכותרותיהם';
+      attention = true;
+      break;
     case 'BOARD_CLEARED':
       // Meeting 1 step 5 records a press on an already empty board too.
       detail = Number(d.blocks_removed) > 0

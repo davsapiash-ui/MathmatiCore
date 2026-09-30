@@ -356,6 +356,8 @@ export interface MeetingSummary {
   keyboard_lock_blocks: number;
   /** Silent calls to the teacher. */
   help_requests: number;
+  /** Register deviation 28: the result-row place-cue scaffold appeared (a digit in the wrong place). */
+  place_cue_scaffolds: number;
 }
 
 /** Counters of what happened in one meeting, straight from its events. */
@@ -384,6 +386,7 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
     grid_reopenings: 0,
     keyboard_lock_blocks: 0,
     help_requests: 0,
+    place_cue_scaffolds: 0,
   };
   for (const ev of events) {
     const t = typeof ev.client_timestamp === "number" ? ev.client_timestamp : null;
@@ -419,6 +422,7 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
         break;
       case "KEYBOARD_LOCK_BLOCKED": s.keyboard_lock_blocks++; break;
       case "HELP_REQUESTED": s.help_requests++; break;
+      case "PLACE_CUES_SHOWN": s.place_cue_scaffolds++; break;
       default: break;
     }
   }

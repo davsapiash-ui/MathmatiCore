@@ -123,6 +123,8 @@ export interface ClassLearnerRow {
   grid_reopenings: number;
   keyboard_lock_blocks: number;
   help_requests: number;
+  /** Register deviation 28: the result-row place-cue scaffold appeared (stations 3–7). */
+  place_cue_scaffolds: number;
   reflection_submitted: boolean;
   reflections_count: number;
   recording_minutes: number;
@@ -197,6 +199,7 @@ export interface ClassAggregates {
   grid_reopenings_total: number;
   keyboard_lock_blocks_total: number;
   help_requests_total: number;
+  place_cue_scaffolds_total: number;
   reflections_submitted: number;
   exercises: ClassExerciseRow[];
 }
@@ -297,6 +300,7 @@ export function buildLearnerRow(
     grid_reopenings: summary.grid_reopenings,
     keyboard_lock_blocks: summary.keyboard_lock_blocks,
     help_requests: summary.help_requests,
+    place_cue_scaffolds: summary.place_cue_scaffolds ?? 0,
     reflection_submitted: summary.reflection_submitted || reflectionsCount > 0,
     reflections_count: reflectionsCount,
     recording_minutes: recording?.minutes ?? 0,
@@ -436,6 +440,7 @@ export function aggregateClass(
     grid_reopenings_total: sum((r) => r.grid_reopenings),
     keyboard_lock_blocks_total: sum((r) => r.keyboard_lock_blocks),
     help_requests_total: sum((r) => r.help_requests),
+    place_cue_scaffolds_total: sum((r) => r.place_cue_scaffolds),
     reflections_submitted: rows.filter((r) => r.reflection_submitted).length,
     exercises,
   };
@@ -625,6 +630,7 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
     ...exerciseIds.map((id) => `outcome_${id}`),
     // Appended last, so every column a research script already reads keeps its place.
     ...TOOLS.map((tool) => `tool_${tool}`),
+    "place_cue_scaffolds",
   ];
   const lines = rows.map((r) =>
     [
@@ -646,6 +652,7 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
       r.mediation_cumulative?.cards ?? "", r.mediation_cumulative?.effective ?? "", r.mediation_cumulative?.percent ?? "",
       ...exerciseIds.map((id) => r.exercise_outcomes[id] ?? "not_attempted"),
       ...TOOLS.map((tool) => r.tool_mastery?.used[tool] ?? ""),
+      r.place_cue_scaffolds,
     ].map(cell).join(",")
   );
   return "﻿" + [headers.map(cell).join(","), ...lines].join("\n");
@@ -748,7 +755,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       const triggers = Object.entries(a.socratic_triggers).map(([k, v]) => `${k}: ${v}`).join(", ");
       const categories = Object.entries(a.error_categories).map(([k, v]) => `${errorCategoryHe(k) ?? k}: ${v}`).join(", ");
       line(`כרטיסי חניכה: ${a.socratic_cards_total}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}`);
-      line(`לוח החיבור: נפתח ${a.grid_openings_total}, הוחזר על ידי הלומד ${a.grid_reopenings_total} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total} | קריאות שקטות למורה: ${a.help_requests_total}`);
+      line(`לוח החיבור: נפתח ${a.grid_openings_total}, הוחזר על ידי הלומד ${a.grid_reopenings_total} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total} | קריאות שקטות למורה: ${a.help_requests_total} | פיגום בשורת התוצאה: ${a.place_cue_scaffolds_total}`);
       line(`זמן פעילות ממוצע: ${a.active_minutes_mean} דקות | דקות הקלטה: ${a.recording_minutes_total} | רפלקציות: ${a.reflections_submitted} מתוך ${a.learners_with_data}`);
 
       heading("3. תרגילים: כמה לומדים פתרו בניסיון ראשון");

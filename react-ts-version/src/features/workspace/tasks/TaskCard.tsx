@@ -11,6 +11,7 @@ import { MissingElementTask } from './MissingElementTask';
 import { FlexibleDecompTask } from './FlexibleDecompTask';
 import { RepresentationTask } from './RepresentationTask';
 import { digitAt, type Place } from '@/core/placeValue';
+import { resultBoxCount } from '@/core/placeCues';
 import { SmallChangeTask } from './SmallChangeTask';
 import { BackwardDiagnosisView } from './BackwardDiagnosisView';
 
@@ -125,7 +126,11 @@ export function TaskCard() {
                     numberA={a}
                     numberB={b}
                     isSubtraction={standardTask.isSubtraction}
-                    answerLength={String(Math.abs(target)).length}
+                    // Stations 3–7 (owner, 30.9.2026): as many boxes as the longest
+                    // number of the exercise, so the row does not tell in advance
+                    // that a place vanishes (2,045 − 1,128 = 917 still shows a
+                    // thousands box). The board's column focus counts the same boxes.
+                    answerLength={resultBoxCount(sessionNumber, a, b, target)}
                     hiddenA={standardTask.hiddenDigits?.a}
                     hiddenB={standardTask.hiddenDigits?.b}
                     revealedResult={revealedResult}
