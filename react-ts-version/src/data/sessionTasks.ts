@@ -517,7 +517,8 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
     'שלוש ספרות חסרות בחיסור עם פריטה משולשת',
     'בתרגיל 5,▢▢▢ − 2,847 = 2,159 חסרות שלוש ספרות של המחוסר. גלו את הספרות בעזרת הפריטה בלבנים וכתבו אותן בתיבות הריקות.',
     INQUIRY),
-  // ★ chosen: the imaginary learner's error is the one מסמך 03 describes (a wrong double regrouping in the hundreds).
+  // ★ chosen: the imaginary learner's error is the one מסמך 03 describes: the carry from the hundreds into the
+  // thousands was forgotten (7,425 instead of 8,425). The screen no longer states it (owner, 30.9.2026).
   addition('s7_g_t4', 4857, 3568,
     'איתור ותיקון שגיאה בשרשרת המרות',
     'תלמיד פתר 4,857 + 3,568 וקיבל 7,425. מצאו את הטעות ותקנו אותה בעזרת הלבנים. כתבו את התוצאה הנכונה בשורת התוצאה.',

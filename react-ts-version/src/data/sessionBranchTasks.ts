@@ -160,7 +160,7 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       challenge: [
         skeleton('s7_g_challenge_1', 8003, 2587, true, { a: ['thousands', 'hundreds', 'tens', 'units'] },
           'אתגר: תרגיל שלד בתחום הרבבה עם ארבע ספרות חסרות',
-          'בתרגיל ▢,▢▢▢ − 2,587 = 5,416 חסרות ארבע ספרות של המחוסר. הפתרון דורש שרשרת פריטות עוקבות. גלו את הספרות בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
+          'בתרגיל ▢,▢▢▢ − 2,587 = 5,416 חסרות ארבע ספרות של המחוסר. גלו את הספרות בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
           { ...C, targetNode: 'relational_thinking' }),
       ],
     },

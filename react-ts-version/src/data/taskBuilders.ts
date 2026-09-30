@@ -112,7 +112,7 @@ export function flexible(id: string, value: number, titleHe: string, instruction
   return withOpts(task, opts);
 }
 
-/* ── Shared instruction phrases (מסמך 02/03 on-screen wording) ── */
+/* ── Shared instruction phrases (on-screen wording; stations 5–6 subtraction: the owner’s wording of 30.9.2026) ── */
 
 export const S3_STANDARD = (n: string, desc: string) =>
   `גררו לבנים לייצוג המספר ${n} בדרך הרגילה: ${desc}. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!`;
