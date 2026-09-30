@@ -371,7 +371,7 @@ export function ClassManagement({
                     ? 'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-100'
                     : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
                 }`}>
-                  {student.enhancedSupport ? 'תמיכה מוגברת' : 'מסלול רגיל'}
+                  {student.enhancedSupport ? 'תמיכה מוגברת' : 'תמיכה רגילה'}
                 </span>
               </div>
 
