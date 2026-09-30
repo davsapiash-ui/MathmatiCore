@@ -125,6 +125,26 @@ describe('Workspace Drag-and-Drop & Trash Deletion Suite', () => {
     expect(selectCanProceed(useWorkspaceStore.getState())).toBe(true);
   });
 
+  it('a block dropped on a column of a higher value is rejected — it does not land, the column shakes, and meeting 1 does not count it (owner, 28.9.2026)', () => {
+    const counts = { units: 2, tens: 1, hundreds: 0, thousands: 0 };
+    for (const [block, column] of [['units', 'tens'], ['units', 'hundreds'], ['tens', 'hundreds'], ['hundreds', 'thousands']] as const) {
+      const res = resolveDrop(counts, { source: 'palette', sourcePlace: block, target: { kind: 'column', place: column } }, 0);
+      expect(res, `${block} on ${column}`).toEqual({ ok: false, reason: 'constraint', place: column });
+    }
+
+    const store = useWorkspaceStore.getState();
+    store.applyDrop({ source: 'palette', sourcePlace: 'units', target: { kind: 'column', place: 'tens' } });
+    const s = useWorkspaceStore.getState();
+    expect(s.counts).toEqual({ units: 0, tens: 0, hundreds: 0, thousands: 0 });
+    expect(s.blocksAddedCount).toBe(0);
+    expect(s.errorPlace).toBe('tens');
+
+    // Its own column still takes it, and that counts.
+    store.applyDrop({ source: 'palette', sourcePlace: 'units', target: { kind: 'column', place: 'units' } });
+    expect(useWorkspaceStore.getState().counts.units).toBe(1);
+    expect(useWorkspaceStore.getState().blocksAddedCount).toBe(1);
+  });
+
   it('suppresses overcrowding Socratic hint during s1_sandbox_controlled even when > 9 blocks are in a column', async () => {
     const { SocraticEngine } = await import('@/infrastructure/services/SocraticEngine');
     const task = {

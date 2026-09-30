@@ -337,7 +337,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
   describe('X6 — the meeting-2 completion goes through the queue, after the meeting\'s telemetry', () => {
     it('queued in FIFO order: telemetry, then the RTDB merge, then the session document', async () => {
       await queue.enqueue(event('e_last_task'));
-      await sync.firebaseSyncService.syncSession2Completion('student_user3', 71, 'green_path');
+      await sync.firebaseSyncService.syncSession2Completion('student_user3');
       // Nothing written straight to the SDKs — both are on the device first.
       expect(deliveries()).toEqual([]);
       expect(fs.setDoc).not.toHaveBeenCalled();
@@ -362,13 +362,13 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       rtdb.get.mockImplementation(async (ref: { path: string }) => ({
         val: () => (ref.path.endsWith('/teacher_gate_approved') ? true : ref.path.endsWith('/routeStatus') ? 'APPROVED' : null),
       }));
-      await sync.firebaseSyncService.syncSession2Completion('student_user3', 71, 'green_path');
+      await sync.firebaseSyncService.syncSession2Completion('student_user3');
       await queue.flushQueue();
 
       const fields = rtdb.update.mock.calls[0][1];
       expect(fields).not.toHaveProperty('teacher_gate_approved');
       expect(fields).not.toHaveProperty('routeStatus');
-      expect(fields).toMatchObject({ session_02_completed: true, session_score_percent: 71 });
+      expect(fields).toMatchObject({ session_02_completed: true });
     });
   });
 
@@ -380,7 +380,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
 
     it('session document already completed on the server → counts as delivered, nothing written', async () => {
       fs.getDoc.mockImplementation(async (ref: { coll: string }) => ({ exists: () => ref.coll === 'sessions', data: () => scored }));
-      await sync.firebaseSyncService.syncSession2Completion('student_user3', 71, 'green_path');
+      await sync.firebaseSyncService.syncSession2Completion('student_user3');
       await queue.flushQueue();
 
       expect(fs.setDoc).not.toHaveBeenCalled();
@@ -388,9 +388,8 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       expect(await stored()).toEqual([]);
     });
 
-    it('the RTDB replay leaves out the score and path once the server has evaluated', async () => {
-      fs.getDoc.mockImplementation(async () => ({ exists: () => true, data: () => scored }));
-      await sync.firebaseSyncService.syncSession2Completion('student_user3', 71, 'green_path');
+    it('the RTDB item carries no score and no path — only the server writes them (owner, 29.9.2026)', async () => {
+      await sync.firebaseSyncService.syncSession2Completion('student_user3');
       await queue.flushQueue();
 
       const fields = rtdb.update.mock.calls[0][1];
@@ -399,14 +398,30 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       expect(fields).toMatchObject({ session_02_completed: true });
     });
 
-    it('first delivery: a session document not yet completed (created by the deadline function) is written', async () => {
+    it('first delivery: a session document not yet completed (created by the deadline function) is written — without score, path or stamp', async () => {
       fs.getDoc.mockImplementation(async () => ({ exists: () => true, data: () => ({ is_completed: false, session_score_percent: null }) }));
-      await sync.firebaseSyncService.syncSession2Completion('student_user3', 71, 'green_path');
+      await sync.firebaseSyncService.syncSession2Completion('student_user3');
       await queue.flushQueue();
 
-      expect(rtdb.update.mock.calls[0][1]).toMatchObject({ session_score_percent: 71, matrix_recommended_path: 'green_path' });
       expect(fs.setDoc.mock.calls.map((c) => (c[0] as { coll: string }).coll)).toEqual(['sessions']);
-      expect(fs.setDoc.mock.calls[0][1]).toMatchObject({ is_completed: true, session_score_percent: 71 });
+      const written = fs.setDoc.mock.calls[0][1];
+      expect(written).toMatchObject({ is_completed: true, teacher_gate_approved: false });
+      for (const field of ['session_score_percent', 'matrix_recommended_path', 'evaluated_at']) {
+        expect(written).not.toHaveProperty(field);
+      }
+    });
+
+    it('items stored by the previous version, not yet delivered: the client\'s score and path are left out, so the rules accept them', async () => {
+      fs.getDoc.mockImplementation(async () => ({ exists: () => true, data: () => ({ is_completed: false, session_score_percent: null }) }));
+      const data = fakeIDB.store(DB_NAME, STORE);
+      data.records.set(700, { id: 700, refPath: 'users/students/student_user3', rtdbMode: 'merge', skipFieldsIfEvaluated: { collection: 'sessions', docId: 'session_02_student_3', fields: ['session_score_percent', 'matrix_recommended_path'] }, payload: { session_02_completed: true, session_score_percent: 71, matrix_recommended_path: 'green_path', teacher_gate_approved: false, routeStatus: 'PENDING_TEACHER_APPROVAL' }, idempotency_key: 's2_done_rtdb_student_user3', timestamp: 1, retry_count: 0 });
+      data.records.set(701, { id: 701, firestoreDoc: { collection: 'sessions', docId: 'session_02_student_3', deliveredWhen: { is_completed: true } }, payload: { is_completed: true, session_score_percent: 71, matrix_recommended_path: 'green_path', teacher_gate_approved: false }, idempotency_key: 's2_done_doc_session_02_student_3', timestamp: 2, retry_count: 0 });
+      data.nextKey = 702;
+      await queue.flushQueue();
+
+      expect(rtdb.update.mock.calls[0][1]).toEqual({ session_02_completed: true, teacher_gate_approved: false, routeStatus: 'PENDING_TEACHER_APPROVAL' });
+      expect(fs.setDoc.mock.calls[0][1]).toEqual({ is_completed: true, teacher_gate_approved: false });
+      expect(await stored()).toEqual([]);
     });
 
     it('items stored by the previous version get the same checks', async () => {
@@ -560,7 +575,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       // The browser still says "online"; every read fails at once, as offline.
       rtdb.get.mockImplementation(async () => { throw new Error('Client is offline.'); });
       fs.getDoc.mockImplementation(async () => { throw offlineRead(); });
-      await sync.firebaseSyncService.syncSession2Completion('student_user3', 71, 'green_path');
+      await sync.firebaseSyncService.syncSession2Completion('student_user3');
 
       // Well past 20 attempts (the old item was parked after ~18 minutes).
       for (let i = 0; i < 40; i++) await queue.flushQueue();

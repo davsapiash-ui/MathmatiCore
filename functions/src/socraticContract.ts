@@ -92,7 +92,7 @@ const TRIGGER_HE: Record<SocraticTriggerReason, string> = {
   hesitation_45s: "השהיה של 45 שניות ומעלה ללא פעולה בטור הפעיל",
   consecutive_errors_4: "ארבע שגיאות רצופות בהקלדה",
   consecutive_undos_3: "שלוש לחיצות ביטול רצופות",
-  conversion_not_performed: "הקלדה בטור שדורש הקבצה או פריטה לפני שבוצעה ההמרה בלבנים",
+  conversion_not_performed: "הקלדה בטור שדורש הקבצה או פריטה לפני שבוצעה ההמרה בלבני הדינס",
   repeated_errors: "תשובה שגויה שנייה ברצף באותו תרגיל",
 };
 
@@ -490,7 +490,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   } else if (trigger === "conversion_not_performed") {
     suggested_category = "procedural";
     suggested_focus_he = blocks_on_screen
-      ? "הלומד ניסה להקליד תוצאה בטור שדורש הקבצה או פריטה לפני שביצע את ההמרה בלבנים."
+      ? "הלומד ניסה להקליד תוצאה בטור שדורש הקבצה או פריטה לפני שביצע את ההמרה בלבני הדינס."
       : "הלומד ניסה להקליד תוצאה בטור שדורש המרה או פריטה לפני שרשם אותה בעיגול הזיכרון.";
   } else if (trigger === "repeated_errors") {
     suggested_category = "calculation";
@@ -548,7 +548,8 @@ TERMINOLOGY (Ministry of Education): subtraction regrouping is "פריטה" ONLY
 IRON RULES:
 - NEVER state or imply the final numeric answer of the exercise, and never state the result digit of the active column. Guide the next ACTION only.
 - NEVER ask a generic or detached question ("I see X blocks, what next?"). Name the exercise, the active column sub-problem and the board state in the question itself.
-- Exactly ONE guiding question and exactly THREE closed options: exactly one correct next action, two plausible mistakes that mirror the diagnosed category. Every feedback text starts with "רמז:" for a wrong option and is warm and judgment-free (UDL); the correct option's feedback confirms and names the concrete on-screen action.
+- Exactly ONE guiding question and exactly THREE closed options: exactly one correct next action, two plausible mistakes that mirror the diagnosed category.
+- The feedback of a WRONG option starts with "רמז:" and is ONE short guiding QUESTION that ends with "?" — it may open with a short invitation to try something on the screen, but it NEVER explains, NEVER states the rule or the correct action, and NEVER gives the answer or any digit of it ("רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה?", never "רמז: בחיסור מחסרים את הספרה התחתונה מהעליונה."). It is warm and judgment-free (UDL). The correct option's feedback starts with "נכון מאוד!", confirms and names the concrete on-screen action.
 - Never act as a chatbot, never address the learner by name, never reveal any personal data.
 - Output ONLY the JSON object requested. No prose outside JSON.`;
 
@@ -579,6 +580,56 @@ export const SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS = SOCRATIC_SYSTEM_INSTRUCTION
   .replace('addition regrouping is "המרה" / "הקבצה" ONLY, the verb "מקבצים" (never נשיאה)', 'addition regrouping is "המרה", written in the memory circle (never נשיאה)')
   // The options' example verbs: no grouping on this screen, the conversion is written in the memory circle.
   .replace('("מקבצים", "פורטים", "משתמשים")', '("ממירים", "פורטים", "רושמים")');
+
+/**
+ * Station 1 (meeting 1): nothing on the screen or read aloud may give the
+ * child the answer, a block count he must find himself, or where the
+ * difficulty is (owner, 29.9.2026). The model still reads the board to
+ * diagnose; it asks about it, it does not tell it.
+ */
+export const SOCRATIC_SYSTEM_INSTRUCTION_MEETING_1 = SOCRATIC_SYSTEM_INSTRUCTION
+  .replace(
+    "2. THE LIVE BOARD — the exact block count in each column and whether a regrouping/decomposition was already performed in blocks.",
+    "2. THE LIVE BOARD — read the block count in each column and whether a regrouping/decomposition was already performed in blocks, to diagnose only: never write a count in the card."
+  )
+  .replace(
+    "Name the exercise, the active column sub-problem and the board state in the question itself.",
+    "Name the exercise in the question itself, but never the column where the difficulty is and never how many blocks the board holds."
+  )
+  .replace(
+    "- Never act as a chatbot,",
+    "- MEETING 1 (station 1): NEVER state how many blocks are in a column or on the board (no \"7 יחידות\", \"12 לבנים\", \"10 עשרות בטור העשרות\"), NEVER write any digit of the answer, and NEVER name the column where the difficulty is. The learner finds the counts and the column. Ask instead (\"באיזה טור אין מספיק לבנים כדי להחסיר?\", \"באחד הטורים יש 10 לבנים או יותר. מה עושים?\").\n- Never act as a chatbot,"
+  );
+
+/**
+ * Stations 3–7 (meetings 3–7): the digit beside each column name is hidden
+ * and the child counts the blocks (client core/columnDigits.ts, owner
+ * 29–30.9.2026). As in meeting 1, the model reads the counts to diagnose and
+ * never writes one in the card; unlike meeting 1, the card still names the
+ * active column (the static cards of these stations do). The client refuses a
+ * card that gives a column's current count (staticSocraticCards.statesBoardCount).
+ */
+export const SOCRATIC_SYSTEM_INSTRUCTION_STATIONS_3_7 = SOCRATIC_SYSTEM_INSTRUCTION
+  .replace(
+    "2. THE LIVE BOARD — the exact block count in each column and whether a regrouping/decomposition was already performed in blocks.",
+    "2. THE LIVE BOARD — read the block count in each column and whether a regrouping/decomposition was already performed in blocks, to diagnose only: never write a count in the card."
+  )
+  .replace(
+    "Name the exercise, the active column sub-problem and the board state in the question itself.",
+    "Name the exercise and the active column sub-problem in the question itself, but never how many blocks the board or a column holds."
+  )
+  .replace(
+    "- Never act as a chatbot,",
+    "- STATIONS 3–7: the screen shows no digit beside a column name, and the learner counts the blocks. NEVER state how many blocks are in a column or on the board (no \"7 יחידות\", \"12 לבני עשרת\", \"12 לבנים בטור העשרות\"). Ask instead (\"כמה לבנים יש בטור העשרות?\", \"באחד הטורים יש 10 לבנים או יותר. מה עושים?\").\n- Never act as a chatbot,"
+  );
+
+/** The system instruction for this request's meeting. */
+export function socraticSystemInstructionFor(facts: Pick<SocraticFacts, "meeting" | "blocks_on_screen"> | null): string {
+  if (facts && facts.blocks_on_screen === false) return SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS;
+  if (facts && facts.meeting === 1) return SOCRATIC_SYSTEM_INSTRUCTION_MEETING_1;
+  if (facts && facts.meeting !== null && facts.meeting >= 3 && facts.meeting <= 7) return SOCRATIC_SYSTEM_INSTRUCTION_STATIONS_3_7;
+  return SOCRATIC_SYSTEM_INSTRUCTION;
+}
 
 function fmtColumnFact(c: ColumnFact, facts: SocraticFacts): string {
   const parts = [`${COLUMN_NAME_HE[c.column]}: ${countHe(c.blocks_on_board, c.column)} בבית המספרים`];
@@ -621,6 +672,12 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   lines.push("");
   if (facts.blocks_on_screen) {
     lines.push("=== עמוד 2: המצב הייצוגי בבית המספרים (לבנים) ===");
+    // Stations 3–7 hide the digit beside each column name (client core/columnDigits.ts,
+    // owner 29–30.9.2026): the learner counts the blocks. The card must not point at a
+    // digit the screen does not show, nor count the blocks for them.
+    if (facts.meeting !== null && facts.meeting >= 3 && facts.meeting <= 7) {
+      lines.push("על המסך אין ספרה ליד שם הטור: הלומד סופר בעצמו את הלבנים בכל טור. אל תפנה לספרה כזאת, ואל תכתוב ללומד כמה לבנים יש בטור.");
+    }
     lines.push(`ערך כולל בבית המספרים: ${facts.board_value}.`);
     for (const c of [...facts.columns].reverse()) lines.push(fmtColumnFact(c, facts));
     if (req.workspace_state.is_regrouped_in_canvas !== undefined) {
@@ -630,7 +687,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
     // PRD Module 14 §ב: meeting 8 shows no blocks, no trash and no number house.
     lines.push(`=== עמוד 2: במפגש ${facts.meeting} אין לבנים על המסך ===`);
     lines.push("על המסך יש רק התרגיל במאונך, עיגולי הזיכרון שמעל הטורים ושורת התוצאה. אין לבנים, אין פח אשפה ואין בית מספרים.");
-    lines.push("אסור להזכיר לבנים, פח אשפה, מחסן, כפתור הקבץ או בית המספרים. כוונו לעיגולי הזיכרון ולשורת התוצאה בלבד.");
+    lines.push("אסור להזכיר לבנים, פח אשפה, מחסן, הכפתור \"קבצו 10\" או בית המספרים. כוונו לעיגולי הזיכרון ולשורת התוצאה בלבד.");
     if (facts.operation) {
       for (const c of [...facts.columns].reverse()) {
         const sub = facts.operation === "subtraction" ? `${c.shown_a} − ${c.shown_b}` : `${c.shown_a} + ${c.shown_b}`;
@@ -664,10 +721,11 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   }
 
   lines.push("");
+  lines.push('משוב לאפשרות שגויה: "רמז:" ושאלה מנחה קצרה אחת שמסתיימת ב-"?" — לא הסבר, לא הפעולה הנכונה ולא התשובה. משוב לאפשרות הנכונה: "נכון מאוד!" והפעולה על המסך.');
   lines.push("Return ONLY this JSON object:");
   lines.push(`{
   "error_category": "calculation" | "procedural" | "conceptual",
-  "guiding_question": "<שאלה מנחה אחת בעברית, המזכירה את התרגיל, את הטור הפעיל ${facts.blocks_on_screen ? "ואת מצב הלבנים" : "ואת עיגולי הזיכרון"}>",
+  "guiding_question": "<שאלה מנחה אחת בעברית, המזכירה את התרגיל, את הטור הפעיל ${facts.blocks_on_screen ? (facts.meeting !== null && (facts.meeting === 1 || (facts.meeting >= 3 && facts.meeting <= 7)) ? "ואת מצב הלבנים, בלי לכתוב כמה לבנים יש בטור" : "ואת מצב הלבנים") : "ואת עיגולי הזיכרון"}>",
   "options": [
     { "id": "opt_1", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false },
     { "id": "opt_2", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false },
@@ -760,6 +818,50 @@ export function leaksFinalAnswer(texts: string[], facts: Pick<SocraticFacts, "fi
 }
 
 /**
+ * The final answer written as blocks — "8 מאות ו-7 יחידות" is 807 — as a
+ * whole run or any stretch of one. Mirrors the client's revealsSecretInCounts
+ * (staticSocraticCards.ts). Applied in meeting 1 only: elsewhere in an
+ * addition or a subtraction the board is worth the result and naming its
+ * counts is the coaching; in meeting 1 the child finds them (owner, 29.9.2026).
+ */
+const COUNT_PART = /(\d[\d,]*)\s+(יחידות|עשרות|מאות|אלפים)|(יחידה אחת|עשרת אחת|מאה אחת|אלף אחד)/g;
+const COUNT_PART_VALUE: Record<string, number> = {
+  "יחידות": 1, "עשרות": 10, "מאות": 100, "אלפים": 1000,
+  "יחידה אחת": 1, "עשרת אחת": 10, "מאה אחת": 100, "אלף אחד": 1000,
+};
+const COUNT_JOIN = /^(\s*,\s*|\s+ו-?|\s*,\s*ו-?|\s+ועוד\s+)$/;
+export function leaksAnswerInCounts(texts: string[], answer: number | null | undefined): boolean {
+  if (answer === null || answer === undefined) return false;
+  for (const raw of texts) {
+    const text = stripDigitGroupSeparators(raw);
+    const runs: { unit: number; value: number }[][] = [];
+    let current: { unit: number; value: number }[] | null = null;
+    let lastEnd = -1;
+    for (const m of text.matchAll(COUNT_PART)) {
+      const unit = COUNT_PART_VALUE[m[2] ?? m[3]];
+      const part = { unit, value: (m[1] ? Number(m[1].replace(/,/g, "")) : 1) * unit };
+      const joined = current !== null && COUNT_JOIN.test(text.slice(lastEnd, m.index)) && !current.some((q) => q.unit === unit);
+      if (!joined || !current) {
+        current = [];
+        runs.push(current);
+      }
+      current.push(part);
+      lastEnd = m.index! + m[0].length;
+    }
+    for (const run of runs) {
+      for (let i = 0; i < run.length; i++) {
+        let sum = 0;
+        for (let j = i; j < run.length; j++) {
+          sum += run[j].value;
+          if (sum === answer) return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * Aids that meetings 2 and 8 do not put on the screen (PRD Module 14 §ב).
  * Whole words only: "לבנות" (to build) and "לפחות" (at least) are not aids.
  * Mirrored on the client (SocraticEngine.absentAidViolation).
@@ -770,7 +872,7 @@ export const ABSENT_AIDS_NO_BOARD: RegExp[] = [
   HE_WORD("פח"),
   HE_WORD("מחסן"),
   HE_WORD("לוח"),
-  HE_WORD("קבץ"),
+  HE_WORD("קבץ|קבצו"),
   HE_WORD("דינס"),
   /קובי/,
   /בית המספרים/,
@@ -857,6 +959,9 @@ export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | n
   if (forbidden) return { ok: false, reason: `forbidden terminology: ${forbidden}` };
   // A skeleton shows its result on the screen; what it hides is checked below.
   if (facts && !(facts.hidden_operands ?? []).length && leaksFinalAnswer(texts, facts)) return { ok: false, reason: "final answer leaked" };
+  if (facts && facts.meeting === 1 && leaksAnswerInCounts(texts, facts.final_answer)) {
+    return { ok: false, reason: "final answer leaked as block counts" };
+  }
   if (facts && (facts.hidden_operands ?? []).some((n) => texts.some((t) => containsNumberToken(t, n) || t.includes(formatNumberHe(n))))) {
     return { ok: false, reason: "hidden digits leaked" };
   }

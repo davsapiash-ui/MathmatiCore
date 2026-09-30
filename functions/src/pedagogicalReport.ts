@@ -13,8 +13,11 @@ import {
   computeFlexibilityIndex,
   computeMediationEffectiveness,
   computePersistenceIndex,
+  computeSelfCorrectionIndex,
   isExerciseEvent,
   persistenceHe,
+  RESEARCH_MEASURES_HE,
+  selfCorrectionHe,
   resolveCompulsoryTotal,
   sessionDocumentIdCandidates,
   FLEXIBILITY_SESSIONS,
@@ -201,7 +204,7 @@ export function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string
     // than a drag tally, at the place the first drag happened.
     if (representationClauseAt >= 0) {
       const distinct = Array.from(new Set(representedColumns)).sort((a, b) => b - a);
-      clauses[representationClauseAt] = `ייצג את המספרים בבית המספרים באמצעות לבנים של ${distinct.join(", ")}`;
+      clauses[representationClauseAt] = `ייצג את המספרים בבית המספרים באמצעות לבני הדינס של ${distinct.join(", ")}`;
     }
 
     const ending = completed
@@ -302,7 +305,9 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
       } else {
         rtlText(doc, `מפגש: ${report.session_number}`, 260, cardY, { width: 110 });
         rtlText(doc, `ציון שליטה: ${report.score_percent}%`, 70, cardY, { width: 170 });
-        rtlText(doc, `מסלול מומלץ: ${report.matrix_recommended_path === 'green_path' ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}`, 55, cardY + 25, { width: 490 });
+        // Meeting 2 only: no path in meetings 3–8, and never a colour by default.
+        const path = report.matrix_recommended_path === 'green_path' || report.matrix_recommended_path === 'remediation_path' ? ROUTE_NAME_HE[report.matrix_recommended_path as 'green_path' | 'remediation_path'] : null;
+        if (path) rtlText(doc, `מסלול מומלץ: ${path}`, 55, cardY + 25, { width: 490 });
       }
       doc.x = 40;
       doc.y = cardY + 60;
@@ -417,9 +422,18 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
         rtlText(doc, sandbox ? "5. מדדי המחקר" : "4. מדדי המחקר");
         doc.moveDown(0.3);
         doc.fontSize(10).fillColor("#0f172a");
-        rtlText(doc, `התמדה וויסות עצמי במפגש זה: ${persistenceHe(measures.persistence ?? null)}`, { lineGap: 3 });
-        rtlText(doc, `גמישות ייצוגית במפגש זה: ${flexibilityHe(measures.flexibility ?? null)} | מצטבר (מפגשים 3 ו-7): ${flexibilityHe(measures.flexibility_cumulative ?? null)}`, { lineGap: 3 });
-        rtlText(doc, `אפקטיביות התיווך במפגש זה: ${mediationHe(measures.mediation ?? null)} | מצטבר (כל המפגשים): ${mediationHe(measures.mediation_cumulative ?? null)}`, { lineGap: 3 });
+        // One name, the values, and one sentence on what the measure says (owner, 30.9.2026).
+        const measureLine = (i: number, values: string) => {
+          const m = RESEARCH_MEASURES_HE[i];
+          doc.fontSize(10).fillColor("#0f172a");
+          rtlText(doc, `${m.label}: ${values}`, { lineGap: 1 });
+          doc.fontSize(8.5).fillColor("#64748b");
+          rtlText(doc, m.explanation, { lineGap: 4 });
+        };
+        measureLine(0, measures.persistence_without_help ? persistenceHe(measures.persistence_without_help) : "לא נמדד בדוח זה");
+        measureLine(1, selfCorrectionHe(measures.persistence ?? null));
+        measureLine(2, `${flexibilityHe(measures.flexibility ?? null)} | מצטבר (מפגשים 3 ו-7): ${flexibilityHe(measures.flexibility_cumulative ?? null)}`);
+        measureLine(3, `${mediationHe(measures.mediation ?? null)} | מצטבר (כל המפגשים): ${mediationHe(measures.mediation_cumulative ?? null)}`);
       }
       doc.moveDown(1.5);
 
@@ -764,7 +778,10 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     logger.warn("Research measures: the learner's other meetings could not be read", err);
   }
   const researchMeasures = {
-    persistence: computePersistenceIndex(telemetryDocs),
+    // Measure 2ב, self-correction; the key keeps its old name (owner, 30.9.2026).
+    persistence: computeSelfCorrectionIndex(telemetryDocs),
+    // Measure 2א, persistence (owner, 30.9.2026).
+    persistence_without_help: computePersistenceIndex(telemetryDocs),
     flexibility: FLEXIBILITY_SESSIONS.includes(resolvedSessionNumber) ? computeFlexibilityIndex(telemetryDocs) : null,
     flexibility_cumulative: allMeetingsEvents ? computeFlexibilityIndex(allMeetingsEvents) : null,
     mediation: resolvedSessionNumber !== 2 ? computeMediationEffectiveness(telemetryDocs) : null,
@@ -789,7 +806,11 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     score_source: scoreSource,
     first_attempt: sessionData.first_attempt || null,
     telemetry_event_count: telemetryDocs.length,
-    matrix_recommended_path: score === null
+    // A path is the meeting-2 diagnostic's recommendation for the gate (PRD 20 §ב).
+    // Meetings 3–8 are routed by their score bands (routing_label_he, PRD 23);
+    // printing "מסלול מומלץ" from their own score told the teacher a learner who
+    // had not finished meeting 3 belonged in remediation.
+    matrix_recommended_path: score === null || resolvedSessionNumber !== 2
       ? null
       : sessionData.matrix_recommended_path || (score >= 50 ? "green_path" : "remediation_path"),
     teacher_selected_path: sessionData.teacher_selected_path || null,
@@ -812,7 +833,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     exercise_titles: exerciseTitles,
     summary_text_he: score === null
       ? `דוח היכרות וריענון למפגש ${resolvedSessionNumber}, ללא ציון. כלים שעוד לא הופעלו: ${toolMastery && toolMastery.not_used.length > 0 ? toolMastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") : "אין"}.`
-      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%. מסלול מומלץ: ${score >= 50 ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}.`
+      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%.${resolvedSessionNumber === 2 ? ` מסלול מומלץ: ${score >= 50 ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}.` : ""}`
   };
 
   // Render authoritative server-side PDF binary & Upload to Cloud Storage

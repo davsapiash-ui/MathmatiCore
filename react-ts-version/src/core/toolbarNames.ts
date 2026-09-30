@@ -11,6 +11,9 @@
  *  - "יציאה": a word a third-grader knows, the name of the action (like
  *    "הקראה בקול" and "ביטול הפעולה האחרונה");
  *  - "מספר 12": the login screen calls it "המספר שלי בכיתה".
+ * Owner, 28.9.2026, later: the badge reads "מספר תלמיד: 12" — a label (the
+ * learner's number), not the child addressed in the masculine singular. Only
+ * the number changes, 1–12, with the learner who signed in.
  */
 export const PROCEED_HE = 'ממשיכים';
 
@@ -20,7 +23,7 @@ export const LOGGING_OUT_HE = 'יוצאים…';
 
 /** The learner's anonymous badge (PRD Module 1: an id 1–12, no name). */
 export function studentBadgeHe(studentNumber: number | string): string {
-  return `מספר ${studentNumber}`;
+  return `מספר תלמיד: ${studentNumber}`;
 }
 
 /**

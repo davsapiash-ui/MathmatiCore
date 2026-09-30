@@ -6,7 +6,7 @@
  */
 
 import type { QMatrixTask, TaskPhase, CorrectionSubphase } from '@/core/QMatrix';
-import { TASKS } from '@/core/QMatrix';
+import { TASKS, Q_FAIL_TAG } from '@/core/QMatrix';
 
 export interface QTaskResult {
   correct: boolean;
@@ -70,6 +70,27 @@ function diagnosticTag(taskId: string, correct: boolean): string | undefined {
   if (taskId === 'task7_subtraction_zero_tens' || taskId === 'task7_missing_subtrahend') return correct ? 'computational_fluency_deficit' : 'algebraic_concept_deficit';
   if (taskId === 'task8_missing_addend') return correct ? 'inverse_operation_gap' : 'missing_addend_deficit';
   return undefined;
+}
+
+/**
+ * What station 2 writes to the Q-matrix for one task (Module 20): null when
+ * the learner did not reach it, 'success' when it was solved on the first
+ * attempt, otherwise an error node — which the teacher sees as "דרוש חיזוק".
+ *
+ * A task whose final answer is right but which had a wrong digit on the way
+ * (had_digit_error) was not solved on the first attempt (PRD 23 §ב): the score
+ * already leaves it out, and the register (decision ז) says every task failed
+ * on the first attempt carries a diagnostic tag even when it was put right.
+ * It used to be written as 'success', so the teacher saw it as mastered while
+ * the score counted it as not solved. It does not enter the correction round
+ * (owner, 29.9.2026): its node is the one a correct second attempt gets.
+ */
+export function qMatrixValue(taskId: string, result: QTaskResult | null | undefined): string | null {
+  if (!result) return null;
+  if (result.tag) return result.tag;
+  if (result.correct && result.had_digit_error === true) return diagnosticTag(taskId, true) ?? Q_FAIL_TAG;
+  if (result.correct) return 'success';
+  return Q_FAIL_TAG;
 }
 
 /** Record an evaluation result (vanilla handleTaskResult). Returns new state + the feedback event. */
@@ -157,6 +178,58 @@ export function advance(state: QMatrixFlowState): { state: QMatrixFlowState; eve
     };
   }
   return { state: { ...state, correctionIdx: nextCorrectionIdx }, event: { type: 'all_complete' } };
+}
+
+/** Every step of the diagnostic has been answered: the meeting only has to end. */
+export function isQFlowComplete(state: QMatrixFlowState): boolean {
+  return state.phase === 'primary'
+    ? state.taskIdx >= TASKS.length
+    : state.correctionIdx >= (state.failedTasks?.length ?? 0);
+}
+
+/**
+ * A saved flow as the store needs it. The Realtime Database keeps no empty
+ * object or array, so a copy saved before the first answer comes back from
+ * the record without `results` and `failedTasks`.
+ */
+export function restoredQFlow(saved: Partial<QMatrixFlowState> | null | undefined): QMatrixFlowState {
+  const base = initQFlow();
+  if (!saved) return base;
+  return {
+    ...base,
+    ...saved,
+    results: saved.results ?? {},
+    failedTasks: Array.isArray(saved.failedTasks) ? saved.failedTasks : [],
+  };
+}
+
+/**
+ * The step on the screen already has its answer recorded, and only the move
+ * to the next step is still to come. The answer is recorded the moment the
+ * child presses "התקדם"; the move waits behind a 1.5-second toast, and a
+ * reload in that window used to bring back the answered step — a second
+ * try scored as the first.
+ */
+export function hasPendingQResult(state: QMatrixFlowState): boolean {
+  if (isQFlowComplete(state)) return false;
+  const task = getCurrentQTask(state);
+  if (!task) return false;
+  const result = state.results?.[task.id];
+  if (state.phase === 'primary') return result !== undefined;
+  if (state.subphase === 'subtask') return result?.subtaskCorrect !== undefined;
+  return result?.secondAttemptCorrect !== undefined;
+}
+
+/** Carries out the moves still waiting after answered steps (see hasPendingQResult). */
+export function settlePendingQResults(state: QMatrixFlowState): { state: QMatrixFlowState; moved: boolean } {
+  let next = state;
+  let moved = false;
+  // One move per answered step; the bound only guards against a corrupt snapshot.
+  for (let i = 0; i < TASKS.length * 3 && hasPendingQResult(next); i++) {
+    next = advance(next).state;
+    moved = true;
+  }
+  return { state: next, moved };
 }
 
 // ── Effective-value helpers (ASD + correction-subtask aware; vanilla 188–232) ──

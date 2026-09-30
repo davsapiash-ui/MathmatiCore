@@ -6,6 +6,8 @@ import { fitBlockGrid, type Size } from '@/core/blockLayout';
 import { dimmedColumns, verticalBoxes, DIMMED_COLUMN_FILTER } from '@/core/columnFocus';
 import { useWorkspaceStore, getActiveTasks, effectiveArithmetic } from '@/application/useWorkspaceStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
+import { columnDigitsShown } from '@/core/columnDigits';
+import { resultBoxCount } from '@/core/placeCues';
 import { DienesBlock } from './DienesBlock';
 import { COLUMN_CELLS } from './columnCells';
 import { useVisibleRegroup, arrivingBlockCount } from './RegroupAnimationLayer';
@@ -42,6 +44,21 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
   const splitBlockClick = useWorkspaceStore((s) => s.splitBlockClick);
   const removeBlockClick = useWorkspaceStore((s) => s.removeBlockClick);
   const focusedMemoryCircle = useBoardFocusStore((s) => s.focusedMemoryCircle);
+  // The digit beside the column's name only where watching it is the step
+  // (core/columnDigits.ts, owner 29.9.2026); elsewhere it would hand over the answer.
+  // Ten or more here is the exercise's own goal — a representation whose board
+  // holds it (347 as 3, 3 and 17), a "two ways" task, a subtraction after a
+  // borrow (the same rule as the coaching cards, SocraticEngine): the button
+  // stays, but does not pulse, so it does not invite undoing the step just made.
+  const crowdingIsTheGoal = useWorkspaceStore((s) => {
+    const t = getActiveTasks(s)[s.standardTaskIdx];
+    if (!t) return false;
+    const req = (t.requiredCounts ?? {}) as Partial<Record<Place, number>>;
+    return t.isSubtraction === true || t.type === 'flexible_decomp' || (req[place] ?? 0) >= 10;
+  });
+  const digitShown = useWorkspaceStore((s) =>
+    s.projectorBoard || columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)
+  );
   // PRD Module 7 §א: columns outside the current calculation focus are dimmed
   // to brightness 0.6 (core/columnFocus.ts: the owner's rules of 28.9.2026).
   // One boolean per column, so typing a digit re-renders only a column whose
@@ -51,7 +68,7 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
     let vertical;
     if (task && (task.type === 'vertical_addition' || task.type === 'addition_simple')) {
       const { a, b, target } = effectiveArithmetic(task, s.isASD);
-      vertical = verticalBoxes(a, b, target, task.hiddenDigits, task.revealedResultDigits);
+      vertical = verticalBoxes(a, b, target, task.hiddenDigits, task.revealedResultDigits, resultBoxCount(s.sessionNumber, a, b, target));
     }
     return dimmedColumns({
       sessionNumber: s.sessionNumber,
@@ -135,19 +152,25 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
             עד 24.9.2026, ושלב 305 של מפגש 1 הצביע על ספרה שאינה על המסך.
             הספרה יושבת ליד שם הטור ולא בפינה: בפינה, ברוחב 1024 עם ארבעה
             טורים, היא כיסתה את תחילת השם ("0אלפים"). */}
-        <span
-          aria-hidden="true"
-          className="shrink-0 min-w-[22px] h-[22px] px-1 rounded-full text-xs font-black text-white inline-flex items-center justify-center transition-all opacity-100 scale-100"
-          style={{ backgroundColor: colors.header }}
-        >
-          {shownCount}
-        </span>
+        {digitShown && (
+          <span
+            aria-hidden="true"
+            data-testid={`column-digit-${place}`}
+            className="shrink-0 min-w-[22px] h-[22px] px-1 rounded-full text-xs font-black text-white inline-flex items-center justify-center transition-all opacity-100 scale-100"
+            style={{ backgroundColor: colors.header }}
+          >
+            {shownCount}
+          </span>
+        )}
         {/* אזור ההכרזה קרא עד כה את תוכן התגית בלבד — מספר ערום. לומד
             שנעזר בהקראה שמע "3", "4", "3" בלי לדעת על איזה טור מדובר.
-            כאן נאמר מה השתנה ובאיזה טור. */}
-        <span aria-live="polite" className="sr-only">
-          {`${PLACE_NAMES_HE[place]}: ${count}`}
-        </span>
+            כאן נאמר מה השתנה ובאיזה טור. Where the digit is hidden, the
+            announcement is too: said aloud, it would hand over the answer. */}
+        {digitShown && (
+          <span aria-live="polite" className="sr-only">
+            {`${PLACE_NAMES_HE[place]}: ${count}`}
+          </span>
+        )}
       </div>
 
       {/* Explicit Group Button */}
@@ -159,12 +182,15 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
         >
           <button
             onClick={() => groupColumnClick(place)}
-            className="w-full py-1 px-2 rounded-xl text-xs font-black text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer animate-pulse hover:animate-none"
+            data-pulse={crowdingIsTheGoal ? undefined : 'true'}
+            className={`w-full py-1 px-2 rounded-xl text-xs font-black text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              crowdingIsTheGoal ? '' : 'animate-pulse hover:animate-none'
+            }`}
             style={{ backgroundColor: colors.header }}
-            title={`קבץ 10 לבנים ל${place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}`}
+            title={`קבצו 10 לבנים ל${place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}`}
           >
             <span>✨</span>
-            <span>קבץ 10 ל{place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}</span>
+            <span>קבצו 10 ל{place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}</span>
           </button>
         </motion.div>
       )}

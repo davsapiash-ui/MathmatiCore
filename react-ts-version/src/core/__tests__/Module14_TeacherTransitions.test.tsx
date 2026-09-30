@@ -139,6 +139,7 @@ import { TeacherDashboard } from '@/presentation/pages/TeacherDashboard';
 import { useAuthStore } from '@/application/useAuthStore';
 import { TEACHER_DISCONNECT_GRACE_MS } from '@/core/classSession';
 import { ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
+import { NO_RECOMMENDATION_HE } from '@/presentation/pages/TeacherDashboard/gateEvidence';
 
 const MIN = 60 * 1000;
 
@@ -376,12 +377,12 @@ describe('core/recommendedPath.ts: no score yet, no colour (live finding, 28.9.2
     const row = (await screen.findByText('תלמיד 7')).closest('tr')!;
     // It used to read מסלול צמצום פערי קדם here, preselected, for a learner
     // who had answered everything correctly.
-    expect(within(row).getByText('ההמלצה עוד מחושבת')).toBeTruthy();
+    expect(within(row).getByText(NO_RECOMMENDATION_HE)).toBeTruthy();
     const select = within(row).getByRole('combobox') as HTMLSelectElement;
     expect(select.value).toBe('');
     const approve = within(row).getByRole('button', { name: /אשרו את המסלול/ }) as HTMLButtonElement;
     expect(approve.disabled).toBe(true);
-    expect((screen.getByRole('button', { name: /אישור כל 1 התלמידים הממתינים/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: /אישור 0 התלמידים שנקבע להם מסלול/ }) as HTMLButtonElement).disabled).toBe(true);
 
     // The teacher chooses: now it can be approved.
     fireEvent.change(select, { target: { value: 'green_path' } });
@@ -392,10 +393,10 @@ describe('core/recommendedPath.ts: no score yet, no colour (live finding, 28.9.2
     justFinished();
     renderDashboard();
     await screen.findAllByRole('tab', {}, { timeout: 2000 });
-    fireEvent.click(tab('דו"חות אבחון אישיים'));
+    fireEvent.click(tab('דוחות אבחון אישיים'));
     fireEvent.click(await screen.findByRole('button', { name: 'תלמיד 7' }, { timeout: 2000 }));
 
-    const badge = await screen.findByText('מפגש 2 הושלם — ההמלצה עוד מחושבת');
+    const badge = await screen.findByText(`מסלול מומלץ: ${NO_RECOMMENDATION_HE}`);
     // It used to fall through to "מסלול מומלץ: המסלול הירוק", in green.
     expect(badge.className).not.toMatch(/emerald|amber/);
     expect(screen.queryByText(`מסלול מומלץ: ${ROUTE_NAME_HE.green_path}`)).toBeNull();

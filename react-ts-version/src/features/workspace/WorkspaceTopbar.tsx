@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { currentStudentNumber, currentStudentUid } from '@/application/useAuthStore';
-import { useWorkspaceStore, selectCanProceed, getActiveTasks, selectBoardOpen } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectCanProceed, getActiveTasks, selectBoardOpen, selectStandardTask } from '@/application/useWorkspaceStore';
+import { session1Checklist } from '@/core/session1Checklist';
 import { BOARD_OPEN_HE, BOARD_STAYS_OPEN_HE, boardStaysOpen } from '@/core/boardVisibility';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
@@ -27,7 +28,7 @@ import { PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames';
  *    in every meeting (owner, 28.9.2026). The spacing, the button paddings,
  *    their words and the progress dots grow and shrink with the window's
  *    width (`flw-*` in tailwind.config.js), with no step; every button keeps
- *    its words ("יציאה", "מספר 12") at every width. The one change of shape —
+ *    its words ("יציאה", "מספר תלמיד: 12") at every width. The one change of shape —
  *    the logo with or without its words — follows the bar's own width (a
  *    container query, `.ws-topbar` in index.css). The row never scrolls
  *    sideways — a hidden scroll is how "התקדם" disappeared.
@@ -62,6 +63,16 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const standardTaskIdx = useWorkspaceStore((s) => s.standardTaskIdx);
   const qflow = useWorkspaceStore((s) => s.qflow);
   const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0) && !isDragging;
+  // Station 1, step 5 (owner, 29.9.2026): "לחצו על כפתור ביטול פעולה" names a
+  // button that shows only an arrow, so it is marked until the step's first
+  // line is ticked — the same check that ticks it (core/session1Checklist.ts).
+  const undoHint = useWorkspaceStore((s) => {
+    if (s.sessionNumber !== 1) return false;
+    const task = selectStandardTask(s);
+    if (!task || task.id !== 's1_undo_trash') return false;
+    const items = session1Checklist(task.id, s);
+    return Boolean(items && !items[0].done);
+  });
   const canProceed = useWorkspaceStore(selectCanProceed);
   const boardOpen = useWorkspaceStore(selectBoardOpen);
   // Station 1: the board is not hidden; the button explains why (owner, 27.9.2026).
@@ -91,7 +102,11 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
 
   const activeTaskCount = useWorkspaceStore((s) => getActiveTasks(s).length);
   const totalTasks = sessionNumber === 2 ? TASKS.length : activeTaskCount;
-  const currentIdx = sessionNumber === 2 ? Math.min(qflow.taskIdx, TASKS.length - 1) : standardTaskIdx;
+  // The correction round comes after all seven tasks: every dot stays done.
+  // It used to jump back to the failed task, as if the tasks after it were undone.
+  const currentIdx = sessionNumber === 2
+    ? (qflow.phase === 'correction' ? TASKS.length : Math.min(qflow.taskIdx, TASKS.length - 1))
+    : standardTaskIdx;
 
   return (
     <nav className="relative h-[72px] shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-flw-12-20 gap-flw-8-16 z-20 ws-topbar">
@@ -105,7 +120,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
             לכל לומד שמזההו לא נפתר. */}
         {studentNumber !== null && (
           <div className="flex items-center gap-2 bg-ws-accentSoft border border-ws-accent/25 px-flw-8-12 py-1.5 rounded-xl shadow-xs" title={studentBadgeHe(studentNumber)} data-testid="student-badge">
-            {/* The number once: "מספר 12", not a "12" chip beside it. */}
+            {/* The number once: "מספר תלמיד: 12", not a "12" chip beside it. */}
             <span className="text-xs font-black text-ws-ink whitespace-nowrap">
               {studentBadgeHe(studentNumber)}
             </span>
@@ -151,7 +166,10 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         <button
           onClick={undo}
           disabled={!canUndo}
-          className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+          data-hint={undoHint ? 'true' : undefined}
+          className={`w-12 h-12 min-w-[48px] min-h-[48px] rounded-2xl text-sm font-bold text-ws-ink bg-ws-surface2 hover:bg-ws-surface2/80 active:scale-95 transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
+            undoHint ? 'ws-hint-ring' : 'shadow-sm'
+          }`}
           aria-label="ביטול הפעולה האחרונה"
           title="ביטול הפעולה האחרונה"
         >

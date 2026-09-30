@@ -1,27 +1,16 @@
 import React, { useState } from 'react';
 import { CheckCircle2, AlertCircle, Sparkles, UserCheck } from 'lucide-react';
-import type { SessionDocument } from '@/types';
+import type { PedagogicalPath } from '@/types';
 import { ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 import { meetingShortLabelHe } from '@/core/stationNames';
+import { NO_RECOMMENDATION_HE, type GateStudentItem } from '../gateEvidence';
 
-export interface GateStudentItem {
-  studentId: string;
-  anonymousLabel: string;
-  session2Doc?: Partial<SessionDocument>;
-  /**
-   * The diagnostic's recommendation (core/recommendedPath.ts), or null while it
-   * is not computed yet — never a colour by default.
-   */
-  recommendedPath: 'green_path' | 'remediation_path' | null;
-  isApproved: boolean;
-  scoreSummary?: string;
-  errorNodes?: string[];
-}
+export type { GateStudentItem };
 
 interface TeacherApprovalGateProps {
   students: GateStudentItem[];
-  onApproveStudent: (studentId: string, path: 'green_path' | 'remediation_path') => Promise<boolean | void>;
-  onApproveAll: (pathMap: Record<string, 'green_path' | 'remediation_path'>) => Promise<void>;
+  onApproveStudent: (studentId: string, path: PedagogicalPath) => Promise<boolean | void>;
+  onApproveAll: (pathMap: Record<string, PedagogicalPath>) => Promise<void>;
   isLoading?: boolean;
 }
 
@@ -43,24 +32,28 @@ export function TeacherApprovalGate({
   // on first render (the gate list arrives from an async Firestore listener) —
   // and `|| 'green_path'` then silently approved a struggling learner onto the
   // green (10,000-range) bank, the exact routing Module 26 forbids.
-  const [selectedPaths, setSelectedPaths] = useState<Record<string, 'green_path' | 'remediation_path'>>({});
+  const [selectedPaths, setSelectedPaths] = useState<Record<string, PedagogicalPath>>({});
 
-  // Null while the recommendation is still being computed and the teacher has
-  // not chosen: nothing is preselected and nothing can be approved.
-  const effectivePath = (s: GateStudentItem): 'green_path' | 'remediation_path' | null =>
+  // Null when the diagnostic has no recommendation and the teacher has not
+  // chosen yet: the learner is then not approved — not even by the batch button
+  // — until the teacher picks a path herself (Module 20: the recommendation
+  // comes from the diagnostic, never from a default).
+  const effectivePath = (s: GateStudentItem): PedagogicalPath | null =>
     selectedPaths[s.studentId] ?? s.recommendedPath;
 
   const waitingStudents = students.filter((s) => !s.isApproved);
   const approvedStudents = students.filter((s) => s.isApproved);
-  const anyWithoutPath = waitingStudents.some((s) => effectivePath(s) === null);
+  const readyStudents = waitingStudents.filter((s) => effectivePath(s) !== null);
+  const undecidedCount = waitingStudents.length - readyStudents.length;
 
-  const handlePathChange = (studentId: string, path: 'green_path' | 'remediation_path') => {
+  const handlePathChange = (studentId: string, path: PedagogicalPath) => {
     setSelectedPaths((prev) => ({ ...prev, [studentId]: path }));
   };
 
   const handleSingleApprove = async (studentId: string) => {
     const st = students.find((x) => x.studentId === studentId);
-    const path = st ? effectivePath(st) : null;
+    if (!st) return;
+    const path = effectivePath(st);
     if (!path) return;
     setApprovingId(studentId);
     try {
@@ -71,17 +64,17 @@ export function TeacherApprovalGate({
   };
 
   const handleBatchApprove = async () => {
-    if (anyWithoutPath) return;
     setApprovingId('ALL');
     try {
       // Built at click time from the learners actually waiting — never from a
-      // stale map, and never re-approving already-approved learners.
-      const pathMap: Record<string, 'green_path' | 'remediation_path' | null> = {};
+      // stale map, and never re-approving already-approved learners. A learner
+      // with no recommendation and no choice is left waiting.
+      const pathMap: Record<string, PedagogicalPath> = {};
       waitingStudents.forEach((s) => {
-        pathMap[s.studentId] = effectivePath(s);
+        const path = effectivePath(s);
+        if (path) pathMap[s.studentId] = path;
       });
-      // Every value is a path: anyWithoutPath was checked above.
-      await onApproveAll(pathMap as Record<string, 'green_path' | 'remediation_path'>);
+      await onApproveAll(pathMap);
     } finally {
       setApprovingId(null);
     }
@@ -95,7 +88,7 @@ export function TeacherApprovalGate({
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-indigo-500 inline-block" />
             <h2 className="text-xl font-display font-black text-slate-900 dark:text-white">
-              {TEACHER_GATE_HE} ל{meetingShortLabelHe(3)} 🛡️
+              {TEACHER_GATE_HE} לפני {meetingShortLabelHe(3)} 🛡️
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -104,16 +97,28 @@ export function TeacherApprovalGate({
         </div>
 
         {waitingStudents.length > 0 && (
-          <button
-            type="button"
-            onClick={handleBatchApprove}
-            disabled={isLoading || approvingId === 'ALL' || anyWithoutPath}
-            title={anyWithoutPath ? 'לחלק מהתלמידים ההמלצה עוד מחושבת. בחרו להם מסלול או המתינו להמלצה.' : undefined}
-            className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-indigo-600/25 active:scale-[0.97] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-          >
-            <UserCheck className="w-4 h-4" />
-            <span>אישור כל {waitingStudents.length} התלמידים הממתינים</span>
-          </button>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              type="button"
+              onClick={handleBatchApprove}
+              disabled={isLoading || approvingId === 'ALL' || readyStudents.length === 0}
+              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-indigo-600/25 active:scale-[0.97] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <UserCheck className="w-4 h-4" />
+              <span>
+                {undecidedCount === 0
+                  ? `אישור כל ${waitingStudents.length} התלמידים הממתינים`
+                  : `אישור ${readyStudents.length} התלמידים שנקבע להם מסלול`}
+              </span>
+            </button>
+            {undecidedCount > 0 && (
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                {undecidedCount === 1
+                  ? 'לתלמיד אחד טרם נקבעה המלצה. יש לבחור עבורו מסלול בטבלה.'
+                  : `ל-${undecidedCount} תלמידים טרם נקבעה המלצה. יש לבחור עבורם מסלול בטבלה.`}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -177,9 +182,8 @@ export function TeacherApprovalGate({
                             {ROUTE_NAME_HE.remediation_path}
                           </span>
                         ) : (
-                          // core/recommendedPath.ts: no score yet, so no colour.
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                            ההמלצה עוד מחושבת
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            {NO_RECOMMENDATION_HE}
                           </span>
                         )}
                       </td>
@@ -187,11 +191,13 @@ export function TeacherApprovalGate({
                       <td className="p-4">
                         <select
                           value={currentPath ?? ''}
-                          onChange={(e) => handlePathChange(st.studentId, e.target.value as any)}
-                          aria-label={`מסלול מאושר עבור ${st.anonymousLabel}`}
+                          onChange={(e) => handlePathChange(st.studentId, e.target.value as PedagogicalPath)}
+                          aria-label={`מסלול מאושר — ${st.anonymousLabel}`}
                           className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
                         >
-                          {currentPath === null && <option value="" disabled>בחרו מסלול</option>}
+                          {currentPath === null && (
+                            <option value="" disabled>בחרו מסלול</option>
+                          )}
                           <option value="green_path">{ROUTE_NAME_HE.green_path}</option>
                           <option value="remediation_path">{ROUTE_NAME_HE.remediation_path}</option>
                         </select>
@@ -202,8 +208,8 @@ export function TeacherApprovalGate({
                           type="button"
                           onClick={() => handleSingleApprove(st.studentId)}
                           disabled={isBusy || currentPath === null}
-                          title={currentPath === null ? 'ההמלצה עוד מחושבת. בחרו מסלול או המתינו להמלצה.' : undefined}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-50 active:scale-[0.97] inline-flex items-center gap-1.5"
+                          title={currentPath === null ? 'יש לבחור מסלול לפני האישור' : undefined}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97] inline-flex items-center gap-1.5"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>{isBusy ? 'מאשר...' : 'אשרו את המסלול'}</span>
@@ -222,7 +228,7 @@ export function TeacherApprovalGate({
       {approvedStudents.length > 0 && (
         <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-500 flex items-center justify-between">
           <span>תלמידים שכבר אושרו ל{meetingShortLabelHe(3)}: {approvedStudents.length}</span>
-          <span className="font-bold text-emerald-600 dark:text-emerald-400">השער פתוח עבורם</span>
+          <span className="font-bold text-emerald-600 dark:text-emerald-400">{meetingShortLabelHe(3)} פתוח עבורם</span>
         </div>
       )}
     </div>

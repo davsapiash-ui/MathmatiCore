@@ -7,7 +7,7 @@
  */
 
 import type { Place, PlaceCounts } from '@/core/placeValue';
-import type { SessionTask } from './sessionTasks';
+import type { SessionTask, RepresentationKind } from './sessionTasks';
 
 const LOW_TO_HIGH: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
 const PLACE_DIVISOR: Record<Place, number> = { units: 1, tens: 10, hundreds: 100, thousands: 1000 };
@@ -97,12 +97,156 @@ export function missingResultDigit(
   return { ...base, revealedResultDigits: resultPlaces(result).filter((p) => p !== missing) };
 }
 
-/** Build exactly this representation on the board, then write the number it shows. */
+/**
+ * Build exactly this representation on the board, then write the number it
+ * shows. Station 1 and station 7's other representation exercises; station 3
+ * uses the four builders below, which say what the child writes.
+ */
 export function representation(id: string, value: number, counts: Partial<PlaceCounts>, titleHe: string, instructionHe: string, opts: BuildOpts = {}): SessionTask {
   return withOpts(
     { id, type: 'representation', numberA: value, correctAnswer: value, requiredCounts: counts, titleHe, instructionHe, targetNode: 'flexible_regrouping' },
     opts
   );
+}
+
+/* ── Station 3 and station 7's grouping exercises (owner, 30.9.2026) ──
+ *
+ * The owner approved one sentence per kind of exercise. The instruction is
+ * built from the exercise's own numbers, so its words cannot drift from the
+ * board the exercise checks: the blocks named are the blocks built, each
+ * "פרטו" / "קבצו" is one conversion applied to them, and the board after the
+ * last one is `requiredCounts`. No instruction names the number the child
+ * writes (Module26_Doc03Banks / Station3_Redesign tests). Names: "לבנת מאה",
+ * plural "לבני מאה" — לבנה is feminine ("לבנת מאה אחת", "לעשר לבני עשרת"). */
+
+/** One block's name after "לבנת" / "לבני" (owner's naming rule). */
+export const BLOCK_NAME_HE: Record<Place, string> = { units: 'יחידה', tens: 'עשרת', hundreds: 'מאה', thousands: 'אלף' };
+
+const placeAbove = (p: Place): Place => LOW_TO_HIGH[LOW_TO_HIGH.indexOf(p) + 1];
+const placeBelow = (p: Place): Place => LOW_TO_HIGH[LOW_TO_HIGH.indexOf(p) - 1];
+
+/** "3 לבני מאה"; one block is "לבנת מאה אחת". */
+function blocksHe(n: number, place: Place): string {
+  return n === 1 ? `לבנת ${BLOCK_NAME_HE[place]} אחת` : `${n} לבני ${BLOCK_NAME_HE[place]}`;
+}
+
+/** The blocks of a board, high place first: "5 לבני אלף, 2 לבני מאה ו-3 לבני עשרת". */
+function boardHe(counts: Partial<PlaceCounts>): string {
+  const parts = [...LOW_TO_HIGH].reverse().filter((p) => (counts[p] ?? 0) > 0).map((p) => blocksHe(counts[p]!, p));
+  if (parts.length <= 1) return parts[0] ?? '';
+  const last = parts[parts.length - 1];
+  // "ו-3 לבני עשרת", but "ולבנת עשרת אחת": the hyphen joins the ו to a digit only.
+  return `${parts.slice(0, -1).join(', ')} ${/^\d/.test(last) ? 'ו-' : 'ו'}${last}`;
+}
+
+/** 4,500 — the thousands comma the instructions use. */
+const numberHe = (n: number) => n.toLocaleString('en-US');
+
+function valueOf(counts: Partial<PlaceCounts>): number {
+  return LOW_TO_HIGH.reduce((sum, p) => sum + (counts[p] ?? 0) * PLACE_DIVISOR[p], 0);
+}
+
+/** The standard form: one digit's worth of blocks per place (340 → 3 hundreds, 4 tens). */
+function standardCountsOf(value: number): Partial<PlaceCounts> {
+  const out: Partial<PlaceCounts> = {};
+  for (const p of LOW_TO_HIGH) if (digitOf(value, p) > 0) out[p] = digitOf(value, p);
+  return out;
+}
+
+/** Places with no blocks are left out, as every requiredCounts in the banks is written. */
+function withoutEmpty(counts: Partial<PlaceCounts>): Partial<PlaceCounts> {
+  const out: Partial<PlaceCounts> = {};
+  for (const p of [...LOW_TO_HIGH].reverse()) if ((counts[p] ?? 0) > 0) out[p] = counts[p];
+  return out;
+}
+
+function representationOfKind(
+  kind: RepresentationKind,
+  id: string,
+  value: number,
+  counts: Partial<PlaceCounts>,
+  answer: number,
+  titleHe: string,
+  instructionHe: string,
+  opts: BuildOpts
+): SessionTask {
+  return {
+    ...representation(id, value, withoutEmpty(counts), titleHe, instructionHe, opts),
+    correctAnswer: answer,
+    representationKind: kind,
+  };
+}
+
+/**
+ * read_write — "בנו בבית המספרים את המספר שלוש מאות וארבעים. כתבו אותו בספרות
+ * בשורת התוצאה." The number is said in words; the board is its standard form;
+ * the child writes it in digits.
+ */
+export function readWrite(id: string, value: number, wordsHe: string, titleHe: string, opts: BuildOpts = {}): SessionTask {
+  return representationOfKind('read_write', id, value, standardCountsOf(value), value, titleHe,
+    `בנו בבית המספרים את המספר ${wordsHe}. כתבו אותו בספרות בשורת התוצאה.`, opts);
+}
+
+/**
+ * decompose — "בנו בבית המספרים את המספר 450 מלבני עשרת בלבד. בכמה לבני עשרת
+ * השתמשתם? כתבו את התשובה בשורת התוצאה." The answer is the number of blocks
+ * (45), not the number built (450).
+ */
+export function decompose(id: string, value: number, place: Place, titleHe: string, opts: BuildOpts = {}): SessionTask {
+  const blocks = value / PLACE_DIVISOR[place];
+  const name = BLOCK_NAME_HE[place];
+  return representationOfKind('decompose', id, value, { [place]: blocks }, blocks, titleHe,
+    `בנו בבית המספרים את המספר ${numberHe(value)} מלבני ${name} בלבד. בכמה לבני ${name} השתמשתם? כתבו את התשובה בשורת התוצאה.`, opts);
+}
+
+/** One conversion's sentence; a second one says "אחר כך" (another column) or "שוב" (the same column). */
+function conversionHe(verb: 'פרטו' | 'קבצו', what: string, place: Place, previous: Place | undefined): string {
+  if (previous === undefined) return `${verb} ${what}.`;
+  return previous === place ? `${verb} שוב ${what}.` : `אחר כך ${verb} ${what}.`;
+}
+
+/**
+ * compose_break — "בנו בבית המספרים 3 לבני מאה ו-4 לבני עשרת. פרטו לבנת מאה
+ * אחת לעשר לבני עשרת. איזה מספר מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת
+ * התוצאה." `breaks` lists the block broken each time, in order; the child
+ * breaks it with the blocks (requiresUngrouping, REPRESENTATION_LOCKS).
+ */
+export function composeBreak(id: string, built: Partial<PlaceCounts>, breaks: Place[], titleHe: string, opts: BuildOpts = {}): SessionTask {
+  const after: Partial<PlaceCounts> = { ...built };
+  const steps = breaks.map((from, i) => {
+    const to = placeBelow(from);
+    after[from] = (after[from] ?? 0) - 1;
+    after[to] = (after[to] ?? 0) + 10;
+    return conversionHe('פרטו', `לבנת ${BLOCK_NAME_HE[from]} אחת לעשר לבני ${BLOCK_NAME_HE[to]}`, from, breaks[i - 1]);
+  });
+  const value = valueOf(built);
+  return {
+    ...representationOfKind('compose_break', id, value, after, value, titleHe,
+      `בנו בבית המספרים ${boardHe(built)}. ${steps.join(' ')} איזה מספר מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.`, opts),
+    requiresUngrouping: true,
+  };
+}
+
+/**
+ * compose_group — "בנו בבית המספרים 12 לבני עשרת ו-5 לבני יחידה. קבצו 10 לבני
+ * עשרת ללבנת מאה אחת. איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת
+ * התוצאה." `groups` lists the column grouped each time, in order; the child
+ * groups with the column's "קבצו 10" button (requiresGrouping, REPRESENTATION_LOCKS).
+ */
+export function composeGroup(id: string, built: Partial<PlaceCounts>, groups: Place[], titleHe: string, opts: BuildOpts = {}): SessionTask {
+  const after: Partial<PlaceCounts> = { ...built };
+  const steps = groups.map((from, i) => {
+    const to = placeAbove(from);
+    after[from] = (after[from] ?? 0) - 10;
+    after[to] = (after[to] ?? 0) + 1;
+    return conversionHe('קבצו', `10 לבני ${BLOCK_NAME_HE[from]} ללבנת ${BLOCK_NAME_HE[to]} אחת`, from, groups[i - 1]);
+  });
+  const value = valueOf(built);
+  return {
+    ...representationOfKind('compose_group', id, value, after, value, titleHe,
+      `בנו בבית המספרים ${boardHe(built)}. ${steps.join(' ')} איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת התוצאה.`, opts),
+    requiresGrouping: true,
+  };
 }
 
 /** Two different representations of the same number (existing flexible_decomp engine). */
@@ -112,45 +256,33 @@ export function flexible(id: string, value: number, titleHe: string, instruction
   return withOpts(task, opts);
 }
 
-/* ── Shared instruction phrases (מסמך 02/03 on-screen wording) ── */
+/* ── Shared instruction phrases (מסמך 02/03 on-screen wording) ──
+ * Station 3's two phrases (S3_STANDARD, "represent N the usual way: …", and
+ * S3_NONSTANDARD, "break … and represent N the new way: …") pasted the blocks
+ * AND the number into the instruction, so the child copied the answer from
+ * it. The owner replaced them on 30.9.2026 — see readWrite, composeBreak,
+ * decompose. */
 
-export const S3_STANDARD = (n: string, desc: string) =>
-  `גררו לבנים לייצוג המספר ${n} בדרך הרגילה: ${desc}. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!`;
-export const S3_NONSTANDARD = (what: string, n: string, desc: string) =>
-  `פרקו ${what} ונסו לייצג את המספר ${n} בדרך החדשה: ${desc}. בדקו התאמה לבית המספרים וכתבו את המספר בשורת התוצאה!`;
-export const S4_ADD = (ex: string, regroup: boolean) =>
-  `פתרו במאונך: ${ex}. ייצגו את המספרים בעזרת לבנים.${regroup ? ' כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבץ 10" שבראש הטור. רשמו את ההמרה בעיגול הזיכרון.' : ''} רשמו את התוצאה בשורת התוצאה.`;
 /**
- * הנחיית מפגש 5 אומרת בדיוק אילו פריטות התרגיל דורש, טור אחר טור.
- *
- * הנוסח הקודם היה אחד לכל התרגילים: "פרקו עשרת אחת ליחידות (או מאה לעשרות)",
- * גם ב-8,762 − 4,932 (פריטת אלף למאות בלבד), ב-523 − 187 (שתי פריטות) וב-7,214
- * − 3,568 (שלוש). הבסיס נשאר הנוסח של מסמך 02 ("פרקו עשרת אחת ליחידות בלחיצה
- * עליה", "בדקו את הכמויות החדשות בלוח בית המספרים"); רק הלבנה שפורטים משתנה
- * לפי החשבון. הסדר הוא סדר העבודה במאונך — מימין לשמאל.
- *
- * בעל המוצר, 28.9.2026: בחיסור הפעולה נקראת "פריטה", ולכן "פרטו" ולא "פרקו"
- * (מסמך 02 כותב "פרקו"; רק הנוסח שעל המסך שונה), ו"בית המספרים" ולא "הלוח".
+ * Station 4 (owner, 30.9.2026): every exercise names the "קבצו 10" button — its
+ * absence told the child in advance that nothing needs grouping. "כאשר" governs
+ * both actions, so an exercise without grouping asks for nothing it lacks.
  */
-const S5_DECOMPOSE: Record<Place, string> = {
-  units: 'עשרת אחת ליחידות',
-  tens: 'מאה אחת לעשרות',
-  hundreds: 'אלף אחד למאות',
-  thousands: '',
-};
+export const S4_ADD = (ex: string) =>
+  `פתרו במאונך: ${ex}. ייצגו את המספרים בעזרת לבנים. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. רשמו את התוצאה בשורת התוצאה.`;
+/**
+ * Stations 5–6 (owner, 30.9.2026): the instruction no longer says in advance
+ * where or how many times to borrow — the child finds the column that lacks
+ * blocks, and the coaching card helps on need. The wording is the one the owner
+ * approved for station 1 (61 − 24, 806 − 351); it names click and drag, and
+ * the memory circles. (Until 30.9.2026 station 5 said "פרטו עשרת אחת ליחידות…"
+ * and station 6 "כאן דרושה פריטה כפולה: פרטו פעמיים…".)
+ */
+const BORROW_WHEN_NEEDED =
+  ' בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.';
 
-export function S5_SUB(ex: string, a: number, b: number): string {
-  const steps = borrowColumns(a, b).map((p) => S5_DECOMPOSE[p]);
-  let phrase = '';
-  if (steps.length === 1) {
-    const onIt = steps[0] === S5_DECOMPOSE.hundreds ? 'עליו' : 'עליה';
-    phrase = ` פרטו ${steps[0]} בלחיצה ${onIt} ובדקו את הכמויות החדשות בבית המספרים.`;
-  } else if (steps.length === 2) {
-    phrase = ` פרטו ${steps[0]}, ואחר כך ${steps[1]}, בלחיצה על כל לבנה, ובדקו את הכמויות החדשות בבית המספרים.`;
-  } else if (steps.length === 3) {
-    phrase = ` פרטו ${steps[0]}, אחר כך ${steps[1]}, ואחר כך ${steps[2]}, בלחיצה על כל לבנה, ובדקו את הכמויות החדשות בבית המספרים.`;
-  }
-  return `פתרו במאונך: ${ex}. בנו את המחוסר בבית המספרים.${phrase} החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
+export function S5_SUB(ex: string, _a?: number, _b?: number): string {
+  return `פתרו במאונך: ${ex}.${BORROW_WHEN_NEEDED} החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
 }
 
 /**
@@ -173,8 +305,8 @@ export function borrowColumns(a: number, b: number): Place[] {
 }
 
 /**
- * מספר הפריטות שהתרגיל דורש בפועל, טור אחר טור, כולל שרשור.
- * זה מה שקובע את נוסח ההנחיה: ההנחיה הקודמת אמרה "צפו בשינוי בפריטה הכפולה"
+ * מספר הפריטות שהתרגיל דורש בפועל, טור אחר טור, כולל שרשור (הבדיקות
+ * משוות אותו לכותרות התרגילים). עד 28.9.2026 ההנחיה אמרה "צפו בשינוי בפריטה הכפולה"
  * בכל 20 תרגילי מפגש 6 — גם בארבעה שאינם דורשים פריטה כלל (למשל 305 − 102),
  * בשלושה שדורשים פריטה אחת, ובשבעה שדורשים שלוש. ילד שקיבל את 305 − 102 הונחה
  * לפרוט פעמיים במקום שאין בו מה לפרוט.
@@ -183,18 +315,8 @@ export function borrowCount(a: number, b: number): number {
   return borrowColumns(a, b).length;
 }
 
-const S6_BORROW_PHRASE: Record<number, string> = {
-  // Owner's decision 28.9.2026 (register, שהC.2): the child checks each
-  // column; the instruction no longer decides for them that nothing needs
-  // decomposing. Used only by s6_r_reinforce_1/2 and s6_g_reinforce_1/2.
-  0: ' בנו את המחוסר בבית המספרים. בדקו בכל טור אם יש בו מספיק לבנים כדי להחסיר.',
-  1: ' פרטו פעם אחת ובדקו את הכמויות בבית המספרים.',
-  2: ' כאן דרושה פריטה כפולה: פרטו פעמיים, זו אחרי זו, ובדקו את הכמויות בבית המספרים.',
-  3: ' כאן דרושה פריטה משולשת: פרטו שלוש פעמים, זו אחרי זו, ובדקו את הכמויות בבית המספרים.',
-};
-
-export const S6_SUB = (ex: string, a: number, b: number) =>
-  `פתרו חיסור עם אפסים: ${ex}.${S6_BORROW_PHRASE[borrowCount(a, b)] ?? S6_BORROW_PHRASE[2]} החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
+export const S6_SUB = (ex: string, _a?: number, _b?: number) =>
+  `פתרו חיסור עם אפסים: ${ex}.${BORROW_WHEN_NEEDED} החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
 export const S8_ADD = (ex: string) => `${ex}. פתרו את תרגיל החיבור וכתבו את התשובה בשורת התוצאה!`;
 export const S8_SUB = (ex: string) => `${ex}. פתרו את תרגיל החיסור וכתבו את התשובה בשורת התוצאה!`;
 export const FLEX_HOWTO = 'בנו דרך אחת. לחצו על הכפתור "הוספת ייצוג". אחר כך בנו דרך שונה. רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול פעולה ↺.';
