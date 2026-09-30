@@ -238,7 +238,7 @@ export function ProjectorSandboxPage() {
             title="ניקוי כל הלבנים מבית המספרים"
           >
             <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-            <span>נקו את הלוח</span>
+            <span>נקו את בית המספרים</span>
           </button>
 
           <button

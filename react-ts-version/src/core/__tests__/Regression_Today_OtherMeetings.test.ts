@@ -345,7 +345,7 @@ describe('meeting 2: the diagnostic', () => {
       const before = rtdb.updates.length;
       const stack = ws().undoStack;
       ws().clearBoard();
-      const written = rtdb.updates.slice(before).filter((u) => u.value?.lastAction === 'ניקוי הלוח בפח האשפה');
+      const written = rtdb.updates.slice(before).filter((u) => u.value?.lastAction === 'ניקוי בית המספרים בפח האשפה');
       expect(written, `meeting ${meeting}: no BOARD_CLEARED`).toEqual([]);
       expect(ws().undoStack).toBe(stack);
       expect(ws().counts).toEqual(EMPTY_COUNTS);

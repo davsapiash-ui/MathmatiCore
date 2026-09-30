@@ -77,7 +77,7 @@ const completed = () => sent.events.filter((e) => e.event_type === 'PROBLEM_COMP
 
 const NEW_BOARD_TEXT = 'הלבנים שבבית המספרים אינן מראות את תוצאת התרגיל ואינן מראות את המספר שגיליתם. בדקו שוב.';
 const OLD_BOARD_TEXT = 'הלבנים שבבית המספרים אינן מתאימות לתוצאת התרגיל. בדקו שוב.';
-const WRONG_DIGIT_TEXT = 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בלוח.';
+const WRONG_DIGIT_TEXT = 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בבית המספרים.';
 
 describe('Rule 1 — skeleton exercises of meetings 3–7 accept the result or the discovered number', () => {
   // s7_r_t2: 31▢ + 254 = 568, the units of the first addend hidden.

@@ -1874,7 +1874,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             return;
           }
           if (!hiddenCheck.correct) {
-            handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בלוח.', 2800);
+            handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בבית המספרים.', 2800);
             return;
           }
           const discovered = (task.hiddenDigits?.a?.length ? [hA] : []).concat(task.hiddenDigits?.b?.length ? [hB] : []);

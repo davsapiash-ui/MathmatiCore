@@ -173,7 +173,7 @@ const EVENT_LABELS_HE: Record<string, string> = {
   KEYBOARD_LOCK_BLOCKED: 'הקלדה לפני המרה (מקלדת נעולה)',
   HELP_REQUESTED: 'קריאה שקטה למורה',
   HELP_WITHDRAWN: 'ביטול הקריאה למורה',
-  BOARD_CLEARED: 'ניקוי הלוח',
+  BOARD_CLEARED: 'ניקוי בית המספרים',
   PLACE_CUES_SHOWN: 'פיגום בשורת התוצאה',
 };
 
@@ -214,7 +214,7 @@ export function describeEvent(e: JourneyEvent): EventDescription {
       // Meeting 1 step 5 records a press on an already empty board too.
       detail = Number(d.blocks_removed) > 0
         ? `${d.blocks_removed} לבני הדינס ירדו מבית המספרים בבת אחת`
-        : 'לחיצה על פח האשפה כשהלוח כבר היה ריק';
+        : 'לחיצה על פח האשפה כשבית המספרים כבר היה ריק';
       break;
     case 'SESSION_START':
       detail = typeof d.session_number === 'number' ? meetingShortLabelHe(d.session_number) : '';

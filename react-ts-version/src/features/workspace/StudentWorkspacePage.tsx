@@ -319,7 +319,7 @@ export function StudentWorkspacePage() {
       'workspaceState/flowStatus': flowStatus,
       lastActivityTimestamp: Date.now(),
       lastPing: serverTimestamp(),
-      lastAction: `פעילות בלוח במפגש ${meeting}`,
+      lastAction: `פעילות בבית המספרים במפגש ${meeting}`,
     };
 
     // PRD 18: "Throttle client writes to maximum once per 1000ms". This ran on
