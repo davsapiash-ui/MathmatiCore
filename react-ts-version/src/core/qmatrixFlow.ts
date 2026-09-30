@@ -180,6 +180,58 @@ export function advance(state: QMatrixFlowState): { state: QMatrixFlowState; eve
   return { state: { ...state, correctionIdx: nextCorrectionIdx }, event: { type: 'all_complete' } };
 }
 
+/** Every step of the diagnostic has been answered: the meeting only has to end. */
+export function isQFlowComplete(state: QMatrixFlowState): boolean {
+  return state.phase === 'primary'
+    ? state.taskIdx >= TASKS.length
+    : state.correctionIdx >= (state.failedTasks?.length ?? 0);
+}
+
+/**
+ * A saved flow as the store needs it. The Realtime Database keeps no empty
+ * object or array, so a copy saved before the first answer comes back from
+ * the record without `results` and `failedTasks`.
+ */
+export function restoredQFlow(saved: Partial<QMatrixFlowState> | null | undefined): QMatrixFlowState {
+  const base = initQFlow();
+  if (!saved) return base;
+  return {
+    ...base,
+    ...saved,
+    results: saved.results ?? {},
+    failedTasks: Array.isArray(saved.failedTasks) ? saved.failedTasks : [],
+  };
+}
+
+/**
+ * The step on the screen already has its answer recorded, and only the move
+ * to the next step is still to come. The answer is recorded the moment the
+ * child presses "התקדם"; the move waits behind a 1.5-second toast, and a
+ * reload in that window used to bring back the answered step — a second
+ * try scored as the first.
+ */
+export function hasPendingQResult(state: QMatrixFlowState): boolean {
+  if (isQFlowComplete(state)) return false;
+  const task = getCurrentQTask(state);
+  if (!task) return false;
+  const result = state.results?.[task.id];
+  if (state.phase === 'primary') return result !== undefined;
+  if (state.subphase === 'subtask') return result?.subtaskCorrect !== undefined;
+  return result?.secondAttemptCorrect !== undefined;
+}
+
+/** Carries out the moves still waiting after answered steps (see hasPendingQResult). */
+export function settlePendingQResults(state: QMatrixFlowState): { state: QMatrixFlowState; moved: boolean } {
+  let next = state;
+  let moved = false;
+  // One move per answered step; the bound only guards against a corrupt snapshot.
+  for (let i = 0; i < TASKS.length * 3 && hasPendingQResult(next); i++) {
+    next = advance(next).state;
+    moved = true;
+  }
+  return { state: next, moved };
+}
+
 // ── Effective-value helpers (ASD + correction-subtask aware; vanilla 188–232) ──
 
 export function isSubtaskActive(state: QMatrixFlowState): boolean {

@@ -37,6 +37,8 @@ import {
   isSubtaskActive,
   qMatrixValue,
   recordResult,
+  restoredQFlow,
+  settlePendingQResults,
   type QFlowEvent,
   type QMatrixFlowState,
 } from '@/core/qmatrixFlow';
@@ -1386,11 +1388,31 @@ export function selectCanProceed(s: WorkspaceState): boolean {
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
+  /**
+   * Which meeting a deferred step belongs to. initSession, restoreSession and
+   * resetWorkspace each start a new one, so a step still waiting behind a
+   * toast never lands in the meeting that came after it: meeting 1's "done"
+   * timer used to end meeting 2 when the teacher opened it within 2.5 seconds,
+   * and resetWorkspace put the nonce back to 0, so the next learner's first
+   * toast could release the previous learner's pending step.
+   */
+  let flowEpoch = 0;
+
+  /** Runs `then` after `ms`, unless a new meeting started in between. */
+  function afterInThisMeeting(ms: number, then: () => void) {
+    const epoch = flowEpoch;
+    setTimeout(() => {
+      if (epoch === flowEpoch) then();
+    }, ms);
+  }
+
   /** Show feedback and auto-hide after ms (nonce-guarded against stale hides). */
   function showFeedback(feedback: FeedbackState, ms: number, then?: () => void) {
     const nonce = get().feedbackNonce + 1;
+    const epoch = flowEpoch;
     set({ feedback, feedbackNonce: nonce });
     setTimeout(() => {
+      if (epoch !== flowEpoch) return;
       if (get().feedbackNonce === nonce) {
         set({ feedback: null });
         then?.();
@@ -1788,8 +1810,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         set({ awaitingNext: true });
         continueAfterPrimaryAnswer();
       }
-    } else if (s.qflow.correctionIdx >= s.qflow.failedTasks.length) {
-      handleQFlowEvent({ type: 'all_complete' });
+    } else {
+      // The correction round the same way: a simpler exercise or a retry whose
+      // answer is recorded moves on, with a clean step, instead of coming back.
+      const { state, moved } = settlePendingQResults(s.qflow);
+      if (moved) set({ qflow: state });
+      if (state.correctionIdx >= state.failedTasks.length) {
+        handleQFlowEvent({ type: 'all_complete' });
+      } else if (moved) {
+        startTask(getCurrentQTask(state)?.id ?? '');
+      }
     }
   }
 
@@ -1807,8 +1837,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       case 'start_correction': {
         const task = TASKS.find((t) => t.id === event.taskId);
         const title = task && hasProbeExercise(task) ? 'מְשִׂימָה נוֹסֶפֶת 📝' : 'מְשִׂימָה חוֹזֶרֶת 📝';
+        // The step starts with its toast, not after it: the flow had already
+        // moved to it, so for 1.8 seconds the new step sat on the screen with
+        // the previous step's answer in its boxes, and a reload in that window
+        // kept the old answer there for good. The toast only holds "התקדם" back.
+        startTask(event.taskId);
+        set({ awaitingNext: true });
         showFeedback({ correct: true, neutral: true, title }, 1800, () => {
-          startTask(event.taskId);
           set({ awaitingNext: false });
         });
         break;
@@ -1826,8 +1861,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         );
         break;
       case 'start_retry':
+        // Starts with its toast, as start_correction does.
+        startTask(event.taskId);
+        set({ awaitingNext: true });
         showFeedback({ correct: true, neutral: true, title: 'מְשִׂימָה חוֹזֶרֶת 📝' }, 1800, () => {
-          startTask(event.taskId);
           set({ awaitingNext: false });
         });
         break;
@@ -2498,7 +2535,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // The end used to be the toast’s callback, which runs only if no newer
       // toast appeared: the help button’s toast in those 2.5 seconds left
       // "התקדם" off and the meeting unfinished until a reload (PRD Module 14).
-      setTimeout(() => set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false }), 2500);
+      afterInThisMeeting(2500, () => set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false }));
       return;
     }
 
@@ -2556,7 +2593,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // The end used to be the toast’s callback, which runs only if no newer
     // toast appeared: the help button’s toast in those 2.5 seconds left
     // "התקדם" off and the meeting unfinished until a reload (PRD Module 14).
-    setTimeout(() => set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false }), 2500);
+    afterInThisMeeting(2500, () => set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone', awaitingNext: false }));
   }
 
   /** Session-2 proceed (vanilla handleQTaskProceed, app.js 1112–1162). */
@@ -2800,6 +2837,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     initSession: (meeting, isASD, startingTaskIdx, existingDeadline) => {
+      flowEpoch++;
       const sanitized = sanitizeSessionNumber(meeting);
       // PRD v7.1 Module 26: promote pending curriculum-catalog updates only at
       // session initialization — a live exercise is never disturbed.
@@ -2938,6 +2976,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     restoreSession: (saved) => {
       if (!saved) return;
+      flowEpoch++;
       const storedDeadline = getStoredSocraticLockDeadline();
       const sanitized = sanitizeSessionNumber(saved.sessionNumber);
       // PRD Module 14 §ב — the same table initSession uses: meeting 1 is 20
@@ -2975,7 +3014,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         activeBankPath: bankPath,
         selectedBranch: saved.selectedBranch ?? null,
         standardTaskIdx: saved.standardTaskIdx ?? 0,
-        qflow: saved.qflow ?? initQFlow(),
+        qflow: restoredQFlow(saved.qflow),
         // Only meeting 8 ends on the reflection board (Module 16 §א). A snapshot
         // saved by older code as 'reflection' in another meeting is a finished
         // meeting: it reopens on the quiet end screen, never on a board with
@@ -4298,6 +4337,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
     resetWorkspace: () => {
+      flowEpoch++;
       set({
         sessionNumber: 1,
         isASD: false,
