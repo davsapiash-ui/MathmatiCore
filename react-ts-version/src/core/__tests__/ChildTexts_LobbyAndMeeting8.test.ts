@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { REFLECTION_TEXT_HE } from '@/presentation/components/student/Session8ReflectionScreen';
+import { TEACHER_SENTENCES_HE } from '@/core/teacherGender';
 
 /**
  * The Hebrew rows of the spec-vs-software audit (28.9.2026) for meeting 8 and
@@ -25,8 +26,11 @@ describe('ע0.1 — the lobby’s waiting screen says only what PRD Module 14 §
 
   it('the PRD sentence and its read-aloud button stay', () => {
     expect(hub).toContain('היום עוד לא התחלנו');
-    expect(hub).toContain('המורה תפתח את הפעילות בקרוב.');
-    expect(hub).toContain('<UdlSpeechButton text="היום עוד לא התחלנו. המורה תפתח את הפעילות בקרוב." className="shrink-0" />');
+    // The PRD's sentence, in the teacher's gender (core/teacherGender.ts).
+    expect(TEACHER_SENTENCES_HE.willOpenActivity.female).toBe('המורה תפתח את הפעילות בקרוב.');
+    expect(hub).toContain("const willOpenActivity = teacherSentenceHe('willOpenActivity', teacherGender);");
+    expect(hub).toContain('{willOpenActivity}');
+    expect(hub).toContain('<UdlSpeechButton text={`היום עוד לא התחלנו. ${willOpenActivity}`} className="shrink-0" />');
   });
 });
 

@@ -42,6 +42,9 @@ import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPan
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { ClusteringWidgets, isStudentBelow } from "./TeacherDashboard/components/ClusteringWidgets";
 import { TeacherApprovalGate } from "./TeacherDashboard/components/TeacherApprovalGate";
+import { TeacherGenderSetting } from "./TeacherDashboard/components/TeacherGenderSetting";
+import { useTeacherGender, useTeacherGenderStore } from "@/application/useTeacherGender";
+import { teacherSentenceHe } from "@/core/teacherGender";
 import { buildGateStudentItem, buildGateStudentItems, gateLearnerNumber, NO_RECOMMENDATION_HE, type GateStudentItem } from "./TeacherDashboard/gateEvidence";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { buildSessionRows, sessionStateLabelHe } from "@/core/sessionPicker";
@@ -78,6 +81,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const { id: routeStudentId } = useParams<{ id: string }>();
   const { user } = useAuthStore();
   const { messages, sendMessage, markAsRead, markAllAsRead, initSync } = useChatStore();
+  // The pause and close toasts quote the children's screen, so they read the
+  // same choice the children's screens do (core/teacherGender.ts) — with or
+  // without the side menu that shows it.
+  useTeacherGender();
 
   useEffect(() => {
     initSync();
@@ -657,7 +664,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       if (outcome === 'queued') {
         toast.info('אין חיבור לאינטרנט. המפגש ייסגר כשהחיבור יחזור.', { id: 'session-write-offline' });
       } else {
-        toast.info('המפגש נסגר. כל התלמידים רואים עכשיו "המורה סגרה את התחנה".');
+        toast.info(`המפגש נסגר. כל התלמידים רואים עכשיו "${teacherSentenceHe('closedTitle', useTeacherGenderStore.getState().gender)}".`);
       }
     } catch (err) {
       console.error('Error ending class session:', err);
@@ -686,7 +693,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       if (outcome === 'queued') {
         toast.info('אין חיבור לאינטרנט. המפגש יושהה כשהחיבור יחזור.', { id: 'session-write-offline' });
       } else {
-        toast.info('המפגש הושהה. כל התלמידים רואים עכשיו "המורה עצרה את הפעילות לרגע".');
+        toast.info(`המפגש הושהה. כל התלמידים רואים עכשיו "${teacherSentenceHe('pausedTitle', useTeacherGenderStore.getState().gender)}".`);
       }
     } catch (err) {
       console.error('Error pausing class session:', err);
@@ -1508,7 +1515,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           </button>
         </nav>
         
-        <div className="p-4 border-t border-ws-surface2 bg-white/40 dark:bg-slate-800/40 mt-auto shrink-0">
+        <div className="p-4 border-t border-ws-surface2 bg-white/40 dark:bg-slate-800/40 mt-auto shrink-0 flex flex-col gap-3">
+          <TeacherGenderSetting />
           <LogoutButton className="w-full justify-start gap-3 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-colors rounded-xl px-4 py-3" />
         </div>
       </aside>

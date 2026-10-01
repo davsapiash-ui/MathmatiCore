@@ -33,7 +33,7 @@ try {
 
 const { initializeTestEnvironment, assertFails, assertSucceeds } = rulesTesting;
 const { doc, setDoc } = firestoreSdk;
-const { ref, update, set } = databaseSdk;
+const { ref, update, set, get } = databaseSdk;
 
 const env = await initializeTestEnvironment({
   projectId: 'demo-mathmaticore',
@@ -48,6 +48,12 @@ const env = await initializeTestEnvironment({
     port: 9000,
   },
 });
+
+// האמולטור שומר נתונים בין הרצות. באמולטור שכבר רץ עדיין נמצאים המסמכים
+// של ההרצה הקודמת, ולכן כתיבה ראשונה נדחית כאילו היא שנייה. מנקים רק את
+// הפרויקט של הסקריפט (demo-mathmaticore), לא פרויקטים אחרים באותו אמולטור.
+await env.clearFirestore();
+await env.clearDatabase();
 
 const learner = env.authenticatedContext('student_user3', { student_id: 3 });
 const teacher = env.authenticatedContext('teacher_1', { role: 'teacher' });
@@ -132,6 +138,24 @@ await check('שאר system_control נשאר סגור בפני המורה', () =>
   assertFails(set(ref(tdb, 'system_control/globalStudentLimit'), 99))
 );
 
+console.log('\nRTDB — לשון המורה במסכי התלמידים (בעל המוצר, 1.10.2026)');
+await check('המורה בוחרת לשון זכר או לשון נקבה', async () => {
+  await assertSucceeds(set(ref(tdb, 'system_control/teacher_gender'), 'male'));
+  await assertSucceeds(set(ref(tdb, 'system_control/teacher_gender'), 'female'));
+});
+await check('נשמר רק "female" או "male"', async () => {
+  await assertFails(set(ref(tdb, 'system_control/teacher_gender'), 'other'));
+  await assertFails(set(ref(tdb, 'system_control/teacher_gender'), { gender: 'male' }));
+});
+await check('לומד ומנהל אינם משנים אותה', async () => {
+  const adb = env.authenticatedContext('admin_1', { role: 'admin' }).database();
+  await assertFails(set(ref(ldb, 'system_control/teacher_gender'), 'male'));
+  await assertFails(set(ref(adb, 'system_control/teacher_gender'), 'male'));
+});
+await check('מכשיר הלומד קורא אותה', () =>
+  assertSucceeds(get(ref(ldb, 'system_control/teacher_gender')))
+);
+
 console.log('\nRTDB — רפלקציה');
 await check('מזהה רפלקציה דטרמיניסטי מתקבל', () =>
   assertSucceeds(
@@ -175,26 +199,33 @@ await check('המורה כן כותבת פרופיל תמיכה', () =>
   )
 );
 
+// בדיוק מה ש-FirebaseSyncService.syncSession2Completion שולח: בלי ציון, בלי
+// מסלול מומלץ ובלי זמני המפגש, כי רק השרת כותב אותם (בעל המוצר, 29.9.2026;
+// מודול 14 §ב). העותק הקודם כאן עוד שלח ציון 70 ו-green_path. החוקים דחו
+// אותו בצדק, ושתי בדיקות הדחייה שאחריו עברו בגלל הציון, לא בגלל השדה שהן
+// בודקות. FirestoreStudentAndSessionRules.test.ts משווה את השדות כאן לשדות
+// של הלקוח.
 const sessionDoc = {
   session_id: 'session_02_student_3',
   class_id: 'class_1',
   session_number: 2,
-  session_start_time: 1,
-  session_deadline_time: 2,
   active_exercise_id: 'task8_missing_addend',
   is_completed: true,
-  session_score_percent: 70,
   teacher_gate_approved: false,
   gate_approved_at: null,
   gate_approved_by: null,
   teacher_selected_path: null,
-  matrix_recommended_path: 'green_path',
 };
 
 console.log('\nFirestore — מסמך המפגש');
 await check('הלומד מסיים את מפגש 2 בדיוק כפי שהלקוח כותב', () =>
   assertSucceeds(setDoc(doc(lfs, 'sessions', 'session_02_student_3'), sessionDoc, { merge: true }))
 );
+await check('הלומד אינו כותב לעצמו ציון או מסלול מומלץ', async () => {
+  const own = doc(lfs, 'sessions', 'session_02_student_3');
+  await assertFails(setDoc(own, { ...sessionDoc, session_score_percent: 70 }, { merge: true }));
+  await assertFails(setDoc(own, { ...sessionDoc, matrix_recommended_path: 'green_path' }, { merge: true }));
+});
 await check('הלומד אינו קובע את המסלול שהמורה בחרה', () =>
   assertFails(
     setDoc(

@@ -1,5 +1,7 @@
 import { motion, useReducedMotionConfig } from 'framer-motion';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { useTeacherGenderStore } from '@/application/useTeacherGender';
+import { teacherSentenceHe } from '@/core/teacherGender';
 
 /**
  * Owner decision (6.9.2026, register item 7): when the teacher pauses the
@@ -15,6 +17,9 @@ export function SessionPausedOverlay() {
   const reduceMotion = useReducedMotionConfig();
   const loop = (frames: Record<string, number[]>, transition: Record<string, unknown>) =>
     reduceMotion ? {} : { animate: frames, transition };
+  const gender = useTeacherGenderStore((s) => s.gender);
+  const title = teacherSentenceHe('pausedTitle', gender);
+  const body = teacherSentenceHe('pausedBody', gender);
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -36,11 +41,11 @@ export function SessionPausedOverlay() {
           ⏸️
         </motion.div>
         <div className="flex flex-col gap-2">
-          <h2 className="font-display font-black text-2xl text-slate-800 dark:text-slate-100">המורה עצרה את הפעילות לרגע</h2>
+          <h2 className="font-display font-black text-2xl text-slate-800 dark:text-slate-100">{title}</h2>
           <p className="text-base text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-            חכו רגע. כשהמורה תמשיך, העבודה שלכם תחזור בדיוק מאיפה שעצרתם.
+            {body}
           </p>
-          <UdlSpeechButton text="המורה עצרה את הפעילות לרגע. חכו רגע. כשהמורה תמשיך, העבודה שלכם תחזור בדיוק מאיפה שעצרתם." className="self-center" />
+          <UdlSpeechButton text={`${title}. ${body}`} className="self-center" />
         </div>
         <div className="flex items-center gap-2 pt-1" aria-hidden="true">
           {[0, 1, 2].map((i) => (

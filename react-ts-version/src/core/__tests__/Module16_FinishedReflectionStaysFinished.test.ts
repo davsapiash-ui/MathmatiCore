@@ -129,9 +129,11 @@ describe('8.10 — the finished reflection board leads to the quiet end screen',
     const page = src('features/workspace/StudentWorkspacePage.tsx');
     expect(page).toContain('const afterReflection = sessionNumber === 8;');
     expect(page).toContain('{withClosingSentence || afterReflection ? (');
-    // Meetings 1–7 keep #125's line; meeting 8, the last station, has none.
-    expect(page).toMatch(/\{!afterReflection && \(\s*<p className="text-xs text-ws-soft">כשהמורה תפתח את התחנה הבאה, נמשיך יחד\.<\/p>\s*\)\}/);
-    expect(page.match(/כשהמורה תפתח את התחנה הבאה, נמשיך יחד\./g)).toHaveLength(1);
+    // Meetings 1–7 keep #125's line ("כשהמורה תפתח / יפתח את התחנה הבאה, נמשיך
+    // יחד.", in the teacher's gender — core/teacherGender.ts); meeting 8, the
+    // last station, has none.
+    expect(page).toMatch(/\{!afterReflection && \(\s*<p className="text-xs text-ws-soft">\{teacherSentenceHe\('nextStation', teacherGender\)\}<\/p>\s*\)\}/);
+    expect(page.match(/teacherSentenceHe\('nextStation'/g)).toHaveLength(1);
   });
 });
 

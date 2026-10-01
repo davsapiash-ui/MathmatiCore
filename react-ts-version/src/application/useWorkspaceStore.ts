@@ -47,6 +47,8 @@ import { computeCognitiveMastery, TASKS } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
 import { announceRegroup, REGROUP_ANIMATION_MS } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
+import { useTeacherGenderStore } from '@/application/useTeacherGender';
+import { teacherSentenceHe } from '@/core/teacherGender';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
 import { getSessionTasks, SESSION1_TASKS, type SessionTask, type LearningPath } from '@/data/sessionTasks';
@@ -4084,7 +4086,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // neutral acknowledgement, not a success (no confetti).
       // The same toast tells the learner how to take the call back — the button's
       // colour alone does not say it, and its tooltip needs a hover.
-      showSideFeedback({ correct: true, neutral: true, title: 'המורה יודעת 🤝', sub: 'הסימן נשלח בשקט. אפשר להמשיך לעבוד. לחיצה נוספת על הכפתור מבטלת את הקריאה.' }, 4000);
+      // The teacher in the teacher's own gender (core/teacherGender.ts).
+      const title = teacherSentenceHe('helpCallReceived', useTeacherGenderStore.getState().gender);
+      showSideFeedback({ correct: true, neutral: true, title, sub: 'הסימן נשלח בשקט. אפשר להמשיך לעבוד. לחיצה נוספת על הכפתור מבטלת את הקריאה.' }, 4000);
     },
 
     helpFrictionDone: () => {
