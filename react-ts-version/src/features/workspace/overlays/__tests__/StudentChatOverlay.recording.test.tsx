@@ -6,8 +6,7 @@
  * screen recorder watches, so what a child types to the teacher — and every
  * bubble of the conversation — used to reach the recording chunks (RTDB, the
  * teacher's replay, the Drive reset backups), even when the PII filter refused
- * to send the message. Since 1.10.2026 the learner has no free text at all
- * (ready messages only); the block still keeps the teacher's bubbles out.
+ * to send the message.
  *
  * This runs the real rrweb `record()` with the live options of
  * StudentWorkspacePage around the real StudentChatOverlay and a math input:
@@ -44,8 +43,7 @@ import { StudentChatOverlay } from '../StudentChatOverlay';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useChatStore } from '@/application/useChatStore';
 
-// A typed secret for the control test (a plain, unblocked input), and what the
-// teacher wrote, which must not reach the recording.
+// What the child types and what the teacher wrote. Neither may reach the recording.
 const TYPED_SECRET = 'אני גר ברחוב הזית 7 והטלפון 0501234567';
 const TEACHER_BUBBLE = 'תשובת המורה לילד ששמה נשאר מחוץ להקלטה';
 const LATE_BUBBLE = 'הודעה שהגיעה אחרי שההקלטה התחילה';
@@ -129,10 +127,9 @@ describe('Module 21 §ב — the chat is not in the screen recording', () => {
     const panel = container.querySelector('[role="dialog"]');
     expect(panel).not.toBeNull();
     expect(panel!.classList.contains('rr-block')).toBe(true);
-    // The message list sits inside the blocked panel. The learner has no free
-    // text at all (owner, 1.10.2026: a learner never types a name) — only ready
-    // messages and the call button.
-    expect(panel!.querySelector('input, textarea, [contenteditable]')).toBeNull();
+    // The input and the message list sit inside the blocked panel (owner,
+    // 1.10.2026 evening: free text both ways, plus the ready messages).
+    expect(panel!.querySelector('input[placeholder="כתבו הודעה למורה..."]')).not.toBeNull();
     expect(panel!.textContent).toContain('אפשר עזרה בתרגיל?');
     expect(panel!.textContent).toContain('קראו למורה');
   });
@@ -166,6 +163,13 @@ describe('Module 21 §ב — the chat is not in the screen recording', () => {
     stop = record({ emit: (e) => { events.push(e); }, ...liveRecordOptions() }) as () => void;
     await flush();
 
+    // The child types into the chat (a controlled React input: rrweb sees both
+    // the input event and React's value setter).
+    const chatInput = container.querySelector('input[placeholder="כתבו הודעה למורה..."]') as HTMLInputElement;
+    fireEvent.change(chatInput, { target: { value: TYPED_SECRET } });
+    await flush();
+    expect(chatInput.value).toBe(TYPED_SECRET);
+
     // A new message arrives while recording (a DOM mutation inside the panel).
     act(() => {
       useChatStore.setState((s) => ({
@@ -184,6 +188,8 @@ describe('Module 21 §ב — the chat is not in the screen recording', () => {
 
     const json = JSON.stringify(events);
     expect(events.length).toBeGreaterThan(1);
+    expect(json).not.toContain(TYPED_SECRET);
+    expect(json).not.toContain('0501234567');
     expect(json).not.toContain(TEACHER_BUBBLE);
     expect(json).not.toContain(LATE_BUBBLE);
     expect(json).not.toContain('צ\'אט עם המורה');

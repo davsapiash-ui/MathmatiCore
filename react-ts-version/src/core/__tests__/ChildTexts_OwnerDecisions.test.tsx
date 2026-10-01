@@ -313,8 +313,7 @@ describe('no educator word reaches the child (register ט)', () => {
 
 describe('the child is addressed in the plural (gender-equal writing, 27.9.2026)', () => {
   // The grouping button is "קבצו 10" (owner, 30.9.2026). The chat's call button is
-  // "קראו למורה" (owner, 1.10.2026; doc 04 still says "קרא למורה" until the
-  // documents round).
+  // "קראו למורה" (owner, 1.10.2026).
   const files = [
     ...filesUnder('features/workspace'),
     ...filesUnder('presentation/components/student'),
@@ -340,9 +339,9 @@ describe('the child is addressed in the plural (gender-equal writing, 27.9.2026)
     expect(code('presentation/design-system/UdlSpeechButton.tsx')).toContain('aria-label="הקראה בקול"');
     expect(code('features/workspace/WorkspaceTopbar.tsx')).toContain('aria-label="ביטול הפעולה האחרונה"');
     const chat = code('features/workspace/overlays/StudentChatOverlay.tsx');
-    // No free text for the learner (owner, 1.10.2026): ready messages only.
-    expect(chat).not.toMatch(/<input|<textarea/);
-    expect(chat).toContain('בחרו הודעה למורה, או לחצו על "קראו למורה".');
+    // Free text both ways (owner, 1.10.2026 evening), plus two ready messages.
+    expect(chat).toContain('placeholder="כתבו הודעה למורה..."');
+    expect(chat).toContain('כתבו הודעה למורה, או לחצו על "קראו למורה".');
     expect(chat).toContain('זקוקים לעזרה מיידית?');
     expect(chat).toContain('<span>קראו למורה 🔔</span>');
     expect(code('features/workspace/overlays/HelpOverlays.tsx')).toContain("'הבנתי, סגירת החלונית'");

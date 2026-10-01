@@ -1387,6 +1387,12 @@ export function selectCanProceed(s: WorkspaceState): boolean {
   return true;
 }
 
+/**
+ * How long a wrong choice in the Socratic card locks the card's answer buttons.
+ * Owner, 1.10.2026: 15 seconds (PRD Module 12 §ב and doc 03 said 30).
+ */
+export const SOCRATIC_LOCKOUT_MS = 15_000;
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /**
    * Which meeting a deferred step belongs to. initSession, restoreSession and
@@ -4080,11 +4086,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     openSocraticCard: (reason, place) => {
       const s = get();
       // PRD Module 12 & 14: the card is disabled outright in session 2, and never
-      // reopens over an open card or during the 30s wrong-answer lockout.
+      // reopens over an open card or during the wrong-answer lockout.
       if (s.sessionNumber === 2) return;
       if (s.currentState === 'SOCRATIC_ACTIVE' || s.helpState === 'socratic') return;
       // The lock is released by the countdown the OPEN card polls. Closing the
-      // card during the 30 seconds (its close button stays enabled, and typing a
+      // card during the lockout (its close button stays enabled, and typing a
       // digit closes it too) stopped the polling, the lock never ended, and no
       // card could open again until the page was reloaded.
       if (s.isSocraticCardLocked) {
@@ -4137,7 +4143,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ meetingPersistence: { ...tally, ...addPersistenceEvent(tally, event) } });
     },
     triggerSocraticPenaltyLockout: (hintText) => {
-      get().lockSocraticCard(30000);
+      get().lockSocraticCard(SOCRATIC_LOCKOUT_MS);
       set((s) => ({
         socraticDistractorHint: hintText || 'בחירה זו אינה מביאה לפתרון הנכון. חשבו מה הפעולה הנדרשת בבית המספרים ונסו שוב כשתום הנעילה.',
         socraticDistractorErrors: s.socraticDistractorErrors + 1,
@@ -4458,7 +4464,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       return popped;
     },
 
-    lockSocraticCard: (durationMs = 30000) => {
+    lockSocraticCard: (durationMs = SOCRATIC_LOCKOUT_MS) => {
       const deadline = Date.now() + durationMs;
       set({ isSocraticCardLocked: true, socraticLockDeadline: deadline, socraticPenaltyLockoutUntil: deadline });
       try {
