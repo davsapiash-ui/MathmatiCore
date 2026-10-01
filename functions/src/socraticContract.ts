@@ -868,7 +868,8 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     const lowerDone = ec && ec.operation === "subtraction"
       ? SOCRATIC_COLUMNS.slice(0, SOCRATIC_COLUMNS.indexOf(column)).every((c) => blocks[c] === digitAt(ec.number_a - ec.number_b, c))
       : false;
-    const columnsTurn = stage === "minuend" || (stage === "taking_away" && lowerDone);
+    const ownDone = ec && ec.operation === "subtraction" ? blocks[column] === digitAt(ec.number_a - ec.number_b, column) : false;
+    const columnsTurn = stage === "minuend" || (stage === "taking_away" && lowerDone && !ownDone);
     const board_deficit = ec && ec.operation === "subtraction" && columnsTurn && needsConv[column] && !conversionsDone.has(column)
       ? Math.max(0, digit_b - blocks[column])
       : 0;
@@ -1403,6 +1404,9 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
     lines.push(`סוג המשימה: ${TASK_KIND_HE[tc.kind]}.`);
     lines.push(`ההנחיה שעל המסך: «${tc.instruction_he}»`);
     lines.push("אין כאן תרגיל חיבור או חיסור במאונך, ואין טור פעיל.");
+    if (facts.secret_numbers.length) {
+      lines.push("אסור לכתוב את המספר שהלומד צריך למצוא — לא בספרות ולא כרשימת לבנים (גם לא רשימת הלבנים שבהנחיה, למשל \"3 לבני אלף ו-4 לבני מאה\"): שאלו על הלבנים בלי למנות אותן.");
+    }
   } else {
     lines.push(`תרגיל ${req.exercise_id} (ללא אופרנדים מספריים — משימת ייצוג/בנייה בבית המספרים). הטור הפעיל: ${COLUMN_NAME_HE[facts.active_column]}.`);
   }
@@ -1669,6 +1673,46 @@ const BOARD_PART_COLUMN: Record<string, SocraticColumn> = {
   "יחידה": "units", "עשרת": "tens", "מאה": "hundreds", "אלף": "thousands",
 };
 const COLUMN_OF_NAME: Record<string, SocraticColumn> = { "יחידות": "units", "עשרות": "tens", "מאות": "hundreds", "אלפים": "thousands" };
+const COLUMN_VALUE: Record<SocraticColumn, number> = { units: 1, tens: 10, hundreds: 100, thousands: 1000 };
+
+/**
+ * A number the child must find, written as blocks — "3 לבני אלף ו-4 לבני
+ * מאה" is 3,400 — as a whole run or any stretch of one. Mirrors the client's
+ * revealsSecretInCounts (staticSocraticCards.ts), which refuses such a card on
+ * a representation task; checked here too, so the model gets its retry
+ * instead of the child getting the static card.
+ */
+export function secretInBlockCounts(texts: string[], secrets: readonly number[]): number | null {
+  if (!secrets.length) return null;
+  for (const raw of texts) {
+    const text = stripDigitGroupSeparators(raw);
+    const runs: { column: SocraticColumn; value: number }[][] = [];
+    let current: { column: SocraticColumn; value: number }[] | null = null;
+    let lastEnd = -1;
+    for (const m of text.matchAll(BOARD_PART)) {
+      const column = BOARD_PART_COLUMN[m[2] ?? m[3] ?? m[4] ?? m[5]];
+      if (!column) continue;
+      const part = { column, value: (m[1] ? Number(m[1].replace(/,/g, "")) : 1) * COLUMN_VALUE[column] };
+      const joined = current !== null && COUNT_JOIN.test(text.slice(lastEnd, m.index)) && !current.some((q) => q.column === column);
+      if (!joined || !current) {
+        current = [];
+        runs.push(current);
+      }
+      current.push(part);
+      lastEnd = m.index! + m[0].length;
+    }
+    for (const run of runs) {
+      for (let i = 0; i < run.length; i++) {
+        let sum = 0;
+        for (let j = i; j < run.length; j++) {
+          sum += run[j].value;
+          if (secrets.includes(sum)) return sum;
+        }
+      }
+    }
+  }
+  return null;
+}
 const COUNT_IN_COLUMN_RES = [
   /(\d+)\s+לבנים\s+(?:ב|מ|ל)?טור\s+ה(יחידות|עשרות|מאות|אלפים)/g,
   /(?:ב|מ|ל)?טור\s+ה(יחידות|עשרות|מאות|אלפים)\s+(?:יש\s+|נמצאות\s+|עכשיו\s+)*(\d+)\s+לבנים(?!\s+(?:או\s+יותר|ומעלה))/g,
@@ -1830,8 +1874,15 @@ export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | n
     return { ok: false, reason: "counts: meeting 1 — the guiding question must not name a column; the child finds it" };
   }
   // What the child is asked to find on a representation task (s3_r_t3's 45, s7_r_t6's 510).
-  if (facts && (facts.secret_numbers ?? []).filter((n) => n !== 10 && n !== 100 && n !== 1000).some((n) => texts.some((t) => containsNumberToken(t, n)))) {
+  const secrets = (facts?.secret_numbers ?? []).filter((n) => n !== 10 && n !== 100 && n !== 1000);
+  if (secrets.some((n) => texts.some((t) => containsNumberToken(t, n)))) {
     return { ok: false, reason: "secret number leaked" };
+  }
+  // …and written as blocks, on a task that is not an addition or a subtraction
+  // (where the board, both numbers built, is worth the result and naming it is
+  // the coaching — the client draws the same line).
+  if (facts && !facts.operation && secretInBlockCounts(texts, secrets) !== null) {
+    return { ok: false, reason: "secret number leaked as block counts — even the instruction's own blocks give the number away; ask about the blocks without listing them" };
   }
 
   // The card's form and language (owner, 30.9 and 1.10.2026): checked here,

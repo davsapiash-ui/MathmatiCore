@@ -1,7 +1,7 @@
 import * as logger from "firebase-functions/logger";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { GEMINI_MODEL_ID, GEMINI_SECRETS, classifyGeminiError, generateGeminiText, getGeminiKeyStatus } from "./geminiConfig";
+import { GEMINI_MODEL_ID, GEMINI_SECRETS, SOCRATIC_PRIMARY_MODEL, classifyGeminiError, generateGeminiText, getGeminiKeyStatus } from "./geminiConfig";
 
 /**
  * Operational monitoring for every Gemini call the platform makes.
@@ -88,24 +88,23 @@ export function recordAiCall(rec: AiCallRecord): void {
     const inc = (n: number) => FieldValue.increment(n);
     const day = dayKey();
     const f = rec.feature;
-    // Firestore field paths: a model id's dots and dashes become underscores.
+    // A model id's dots and dashes become underscores in the map key.
     const model = rec.model_id.replace(/[^A-Za-z0-9_]/g, "_");
+    // Nested maps, not "totals.socratic.calls" keys: set(…, { merge: true })
+    // takes a dotted key as ONE field name, so every counter was written as a
+    // flat field the console never reads (it reads totals.socratic.calls as a
+    // path) and the console showed no calls at all (found 1.10.2026).
+    const counters = () => ({ calls: inc(1), [rec.outcome]: inc(1), latency_sum_ms: inc(rec.latency_ms) });
     const update: Record<string, unknown> = {
       updated_at: Date.now(),
       model_id: rec.model_id,
-      [`totals.${f}.calls`]: inc(1),
-      [`totals.${f}.${rec.outcome}`]: inc(1),
-      [`totals.${f}.latency_sum_ms`]: inc(rec.latency_ms),
-      [`daily.${day}.${f}.calls`]: inc(1),
-      [`daily.${day}.${f}.${rec.outcome}`]: inc(1),
-      [`daily.${day}.${f}.latency_sum_ms`]: inc(rec.latency_ms),
-      [`by_model.${model}.${f}.calls`]: inc(1),
-      [`by_model.${model}.${f}.${rec.outcome}`]: inc(1),
-      [`by_model.${model}.${f}.latency_sum_ms`]: inc(rec.latency_ms),
-      [`last_call.${f}`]: { at: Date.now(), outcome: rec.outcome, latency_ms: rec.latency_ms, model_id: rec.model_id },
+      totals: { [f]: counters() },
+      daily: { [day]: { [f]: counters() } },
+      by_model: { [model]: { [f]: counters() } },
+      last_call: { [f]: { at: Date.now(), outcome: rec.outcome, latency_ms: rec.latency_ms, model_id: rec.model_id } },
     };
     if (rec.outcome !== "ok") {
-      update[`last_failure.${f}`] = { at: Date.now(), outcome: rec.outcome, detail: rec.detail ?? null, model_id: rec.model_id };
+      update.last_failure = { [f]: { at: Date.now(), outcome: rec.outcome, detail: rec.detail ?? null, model_id: rec.model_id } };
     }
     db.collection("store_cache").doc(AI_MONITORING_DOC).set(update, { merge: true }).catch((err) => {
       // A rules or connectivity problem must not spam every call; log once and go quiet.
@@ -168,7 +167,9 @@ export async function runAiTestCall(): Promise<AiTestCallResult> {
       prompt: "ping",
       temperature: 0,
       json: true,
-      thinking: "minimal",
+      // The coaching card's own model and thinking (gemini-3.8-flash refuses "minimal").
+      model: SOCRATIC_PRIMARY_MODEL.id,
+      thinking: SOCRATIC_PRIMARY_MODEL.thinking,
       timeoutMs: AI_TEST_CALL_TIMEOUT_MS,
     });
     let ok = false;

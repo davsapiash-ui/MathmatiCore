@@ -43,6 +43,10 @@ export const FIRST_PERSON_PLURAL_VERBS = [
   "נזרוק", "נשאיר", "נעביר", "נגרור", "נפרק", "נוכל", "נצטרך",
   "נסדר", "נשווה", "נקבל", "נחליף", "נסיר", "נזכור", "ננסה", "נבין", "נדע", "נמשיך", "נחזור", "נדלג", "נלך",
   "אנו", "אנחנו", "נצליח",
+  // The past tense and the pronouns of the first person plural ("כמה פעמים פרטנו", "האם חיסרנו").
+  "פרטנו", "קיבצנו", "קבצנו", "בנינו", "עשינו", "הוספנו", "הוצאנו", "מחקנו", "כתבנו", "רשמנו", "גררנו", "לחצנו",
+  "ספרנו", "חיברנו", "חיסרנו", "קיבלנו", "מצאנו", "ראינו", "ביטלנו", "השתמשנו", "בדקנו", "המרנו", "זרקנו", "העברנו",
+  "שלנו", "לנו", "אותנו", "איתנו",
 ];
 
 export const LANGUAGE_RULES: LanguageRule[] = [
@@ -50,7 +54,7 @@ export const LANGUAGE_RULES: LanguageRule[] = [
   // nif'al verb takes no "את", so "נ…" + "את" is the first person plural.
   { id: "first_person_plural_object", re: /(^|[^א-ת])(?:כש|ש|ו|וכש)?נ(?!ותן|ותנת|ותנים|שאר|שארת|שארים|כנס|כנסת|כנסים|וסף|וספת|וספים)[א-ת]{2,4}\s+את(?![א-ת])/, fix: 'Never use the first person plural ("כשנקרא את…", "נבנה את…"): use the impersonal present ("כשקוראים את…") or the second person plural ("קראו את…").' },
   { id: "first_person_plural", re: HE_EXACT(FIRST_PERSON_PLURAL_VERBS.join("|")), fix: 'Never use the first person plural ("נבדוק", "נמחק", "בואו", "אנו"). Address the children in the second person plural imperative ("בדקו", "לחצו") and write the options in the impersonal present ("בודקים", "לוחצים").' },
-  { id: "not_a_form_kabetz", re: HE_EXACT("הקבצו|הקביצו|הקבץ|יקביצו|מקביצים"), fix: 'The verb is פיעל only: "קבצו" (imperative), "מקבצים" (option). "הקבצו" / "הקביצו" are not Hebrew forms.' },
+  { id: "not_a_form_kabetz", re: HE_WORD("הקבצו|הקביצו|יקביצו|מקביצים"), fix: 'The verb is פיעל only: "קבצו" (imperative), "מקבצים" (option). "הקבצו" / "הקביצו" are not Hebrew forms.' },
   // "לבנות" alone is also the verb "to build" ("לבנות את המספר"), so only the
   // forms that cannot be the verb are refused: with the article, or with an
   // adjective after it.

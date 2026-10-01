@@ -162,7 +162,7 @@ const TRY_AGAIN_CORRECTED: AiOutcome[] = ["schema_reject", "answer_leak", "forbi
  * the rejection reason appended when its card broke a rule. An auth failure
  * is never retried: the key is the same for both models.
  */
-async function generateWithRetry(prompt: string, facts: SocraticFacts | null): Promise<Attempt & { attempts: number; first_outcome?: AiOutcome }> {
+export async function generateWithRetry(prompt: string, facts: SocraticFacts | null): Promise<Attempt & { attempts: number; first_outcome?: AiOutcome }> {
   const started = Date.now();
   const first = await generateOnce(prompt, facts, SOCRATIC_AI_TIMEOUT_MS, SOCRATIC_PRIMARY_MODEL);
   if (first.ok) return { ...first, attempts: 1 };

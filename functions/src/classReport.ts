@@ -61,7 +61,7 @@ import {
 import { resolveRecommendationTier, type RecommendationTier } from "./reportAnalysis";
 import { GEMINI_MODEL_ID, GEMINI_SECRETS, classifyGeminiError, generateGeminiText } from "./geminiConfig";
 import { recordAiCall, type AiOutcome } from "./aiMonitoring";
-import { REPORT_TERMS_HE, REPORT_THINKING } from "./reportAnalysis";
+import { REPORT_RETRY_MIN_MS, REPORT_TERMS_HE, REPORT_THINKING, keepHebrewLines, reportTextViolation } from "./reportAnalysis";
 const PDFDocument = require("pdfkit");
 
 /**
@@ -608,8 +608,36 @@ ${closing}`;
       monitor("timeout");
       return null;
     }
-    const parsed = parseClassAnalysis(text);
-    monitor(parsed ? "ok" : "schema_reject", parsed ? undefined : "missing or empty arrays");
+    let parsed = parseClassAnalysis(text);
+    let violation = parsed ? reportTextViolation([...parsed.class_patterns, ...parsed.teaching_recommendations]) : null;
+    const remaining = CLASS_AI_ANALYSIS_TIMEOUT_MS - (Date.now() - started);
+    if (violation && remaining >= REPORT_RETRY_MIN_MS) {
+      let retryTimer: NodeJS.Timeout | undefined;
+      const retryTimeout = new Promise<null>((resolve) => {
+        retryTimer = setTimeout(() => resolve(null), remaining);
+      });
+      const retry = generateGeminiText({
+        systemInstruction,
+        prompt: `${userPrompt}\n\nהתשובה הקודמת נדחתה: ${violation}. החזר את ה-JSON שוב, בעברית בלבד.`,
+        temperature: 0.3,
+        json: true,
+        responseSchema: CLASS_RESPONSE_SCHEMA,
+        thinking: REPORT_THINKING,
+        timeoutMs: remaining,
+      }).then((r) => r.text).catch(() => null);
+      const retryText = await Promise.race([retry, retryTimeout]);
+      if (retryTimer) clearTimeout(retryTimer);
+      const second = retryText ? parseClassAnalysis(retryText) : null;
+      if (second) parsed = second;
+    }
+    if (parsed) {
+      const kept = keepHebrewLines({ class_patterns: parsed.class_patterns, teaching_recommendations: parsed.teaching_recommendations });
+      violation = kept.class_patterns.length + kept.teaching_recommendations.length < parsed.class_patterns.length + parsed.teaching_recommendations.length
+        ? "lines dropped: not Hebrew-only"
+        : null;
+      parsed = kept.class_patterns.length || kept.teaching_recommendations.length ? kept : null;
+    }
+    monitor(parsed ? "ok" : "schema_reject", parsed ? violation ?? undefined : "missing, empty or not Hebrew");
     return parsed;
   } catch (err) {
     logger.warn("[classReport] Gemini class analysis unavailable; report ships with layer 1 only.", { error: String((err as Error)?.message ?? err).slice(0, 300) });

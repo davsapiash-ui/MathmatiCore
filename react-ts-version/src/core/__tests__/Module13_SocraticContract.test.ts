@@ -301,7 +301,9 @@ describe('Module 13: proxy and credential hardening (pinned from source)', () =>
       expect(monitor).toContain(outcome);
     }
     expect(proxy).toContain('recordAiCall({ ...base, outcome: "ok", error_category: attempt.value.error_category');
-    expect(monitor).toContain('[`by_model.${model}.${f}.calls`]: inc(1)');
+    // Nested maps: set(…, { merge: true }) reads a dotted key as one flat field name.
+    expect(monitor).toContain('by_model: { [model]: { [f]: counters() } },');
+    expect(monitor).not.toContain('[`totals.${f}.calls`]');
     expect(monitor).toContain('import { FieldValue, getFirestore } from "firebase-admin/firestore";');
   });
 

@@ -120,6 +120,35 @@ export const AI_ANALYSIS_TIMEOUT_MS = 10000;
 /** How much the model thinks before it writes the analysis — set from measured runs (1.10.2026). */
 export const REPORT_THINKING: GeminiThinking = "low";
 
+/**
+ * Every report is written in Hebrew (owner, 1.10.2026). A line with Latin
+ * letters (an English sentence, an exercise id such as "s4_g_t1") or with a
+ * term the Ministry does not use is refused: the model gets one corrected
+ * retry when time allows, and a line that still breaks the rule is dropped.
+ * When nothing usable is left, the report carries the PRD's exact fallback
+ * sentence. Professional Hebrew for a teacher — the children's second person
+ * plural does not apply here.
+ */
+const REPORT_TERM_RE = /(^|[^א-ת])[ובלמהשכ]{0,3}(שארית|נשיאה|נושאים|הלוואה|לווים|ללוות|שבירה|לשבור|שוברים)(?![א-ת])/;
+export function reportTextViolation(items: string[]): string | null {
+  for (const t of items) {
+    if (/[A-Za-z]/.test(t)) return "the analysis must be in Hebrew only: no English words, no Latin letters and no exercise ids (name an exercise by its numbers)";
+    const term = REPORT_TERM_RE.exec(t);
+    if (term) return `"${term[2]}" is not the Ministry's term: write הקבצה or המרה in addition and פריטה in subtraction`;
+  }
+  return null;
+}
+
+/** The arrays without the lines that still break the Hebrew-only rule. */
+export function keepHebrewLines<T extends Record<string, string[]>>(arrays: T): T {
+  const out = {} as T;
+  for (const [k, v] of Object.entries(arrays)) (out as Record<string, string[]>)[k] = v.filter((t) => reportTextViolation([t]) === null);
+  return out;
+}
+
+/** A second try starts only if it can still finish inside the report's budget. */
+export const REPORT_RETRY_MIN_MS = 4000;
+
 /** Appendix A §7: the two arrays and nothing else. */
 const REPORT_RESPONSE_SCHEMA = {
   type: "OBJECT",
@@ -467,8 +496,36 @@ ${closing}`;
       return null;
     }
 
-    const parsed = parseAnalysisResponse(text, req.session_id);
-    monitor(parsed ? "ok" : "schema_reject", parsed ? undefined : "missing or empty arrays");
+    let parsed = parseAnalysisResponse(text, req.session_id);
+    let violation = parsed ? reportTextViolation([...parsed.knowledge_gaps, ...parsed.teaching_recommendations]) : null;
+    const remaining = AI_ANALYSIS_TIMEOUT_MS - (Date.now() - started);
+    if (violation && remaining >= REPORT_RETRY_MIN_MS) {
+      let retryTimer: NodeJS.Timeout | undefined;
+      const retryTimeout = new Promise<null>((resolve) => {
+        retryTimer = setTimeout(() => resolve(null), remaining);
+      });
+      const retry = generateGeminiText({
+        systemInstruction,
+        prompt: `${userPrompt}\n\nהתשובה הקודמת נדחתה: ${violation}. החזר את ה-JSON שוב, בעברית בלבד.`,
+        temperature: 0.3,
+        json: true,
+        responseSchema: REPORT_RESPONSE_SCHEMA,
+        thinking: REPORT_THINKING,
+        timeoutMs: remaining,
+      }).then((r) => r.text).catch(() => null);
+      const retryText = await Promise.race([retry, retryTimeout]);
+      if (retryTimer) clearTimeout(retryTimer);
+      const second = retryText ? parseAnalysisResponse(retryText, req.session_id) : null;
+      if (second) parsed = second;
+    }
+    if (parsed) {
+      const kept = keepHebrewLines({ knowledge_gaps: parsed.knowledge_gaps, teaching_recommendations: parsed.teaching_recommendations });
+      violation = kept.knowledge_gaps.length + kept.teaching_recommendations.length < parsed.knowledge_gaps.length + parsed.teaching_recommendations.length
+        ? "lines dropped: not Hebrew-only"
+        : null;
+      parsed = kept.knowledge_gaps.length || kept.teaching_recommendations.length ? kept : null;
+    }
+    monitor(parsed ? "ok" : "schema_reject", parsed ? violation ?? undefined : "missing, empty or not Hebrew");
     return parsed;
   } catch (err) {
     logger.warn("[reportAnalysis] Gemini analysis unavailable; report ships with layer 1 only.", {
