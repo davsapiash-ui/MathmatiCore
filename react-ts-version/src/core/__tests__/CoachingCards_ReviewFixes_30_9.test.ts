@@ -317,14 +317,19 @@ describe('4. an empty board in stations 3 and 7: build first what the instructio
 /* ── 5 ── */
 
 describe('5. C6 once per exercise; s7_g_t1 waits for both groupings', () => {
-  it('C6, then the exercise\'s own addition card', () => {
+  it('C6, then the column-by-column check (owner\'s D9, 1.10.2026), then the exercise\'s own addition card', () => {
     for (const id of ['s7_r_t5', 's7_g_t4']) {
       const t = byId(id);
-      const counts = digitsOf(t.numberA as number);
+      // A partial board (the first number alone gets "which number is missing" since 1.10.2026).
+      const counts = { ...EMPTY, tens: 1 };
       expect(exerciseCard(t, counts, {})!.cardKind, id).toBe('error_analysis');
-      const next = exerciseCard(t, counts, { shownKinds: ['error_analysis'] })!;
-      expect(next.cardKind, id).toBeUndefined();
-      expect(next.questionHe, id).toContain(`בתרגיל ${id === 's7_r_t5' ? '247 + 135' : '4,857 + 3,568'}`);
+      // D9: the second card checks the student's work column by column, and names no column.
+      const second = exerciseCard(t, counts, { shownKinds: ['error_analysis'] })!;
+      expect(second.cardKind, id).toBe('error_analysis_2');
+      expect(second.questionHe, id).toBe('נסו לחשוב: איך בודקים בכל טור אם התלמיד צדק?');
+      expect(second.questionHe, id).not.toMatch(/טור (היחידות|העשרות|המאות|האלפים)/);
+      const third = exerciseCard(t, counts, { shownKinds: ['error_analysis', 'error_analysis_2'] })!;
+      expect(third.questionHe, id).toContain(`בתרגיל ${id === 's7_r_t5' ? '247 + 135' : '4,857 + 3,568'}`);
     }
   });
 

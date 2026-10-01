@@ -163,7 +163,7 @@ describe('every wrong-option hint of stations 3–8 is a short guiding question 
     warn.mockRestore();
   });
 
-  it('a card whose wrong option is not a question is refused in stations 3–8, not in station 1', () => {
+  it('a card whose wrong option is not a question is refused in stations 1 and 3–8 (station 1 since D10, 1.10.2026)', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     // An id outside the banks falls back to a legacy card without hints.
     const s5 = q({ id: 's5_zz', type: 'unknown' });
@@ -171,31 +171,36 @@ describe('every wrong-option hint of stations 3–8 is a short guiding question 
     expect(wrongHintViolation(s5)).toBeNull();
     const s8 = q({ id: 's8_zz', type: 'unknown' });
     expect(s8.questionHe).toBe(TASK_HINTS.s8_card.questionHe);
+    // Owner's D10 (1.10.2026): the hint rule of 30.9 applies to station 1 too,
+    // so its legacy card without hints is refused as well.
     const s1 = q({ id: 's1_zz', type: 'unknown' });
-    expect(s1.questionHe).not.toBe('מה הצעד הבא שצריך לעשות בבית המספרים?');
+    expect(s1.questionHe).toBe('מה הצעד הבא שצריך לעשות בבית המספרים?');
+    expect(wrongHintViolation(s1)).toBeNull();
     warn.mockRestore();
     expect(wrongHintViolation({ choices: [{ id: 'a', textHe: 'x', isCorrect: true, feedbackHe: 'נכון מאוד!' }, { id: 'b', textHe: 'y', isCorrect: false, feedbackHe: 'רמז: מחיקה משנה את המספר.' }] })).not.toBeNull();
     expect(wrongHintViolation({ choices: [{ id: 'b', textHe: 'y', isCorrect: false, feedbackHe: 'האם המספר ישתנה?' }] })).not.toBeNull();
     expect(wrongHintViolation({ choices: [{ id: 'b', textHe: 'y', isCorrect: false, feedbackHe: 'רמז: האם המספר ישתנה?' }] })).toBeNull();
   });
 
-  it('station 1 keeps the cards the owner approved for it', () => {
+  it('station 1 gets the guiding questions of stations 3–8 (owner\'s D10, 1.10.2026)', () => {
+    // Until 1.10.2026 station 1 kept "נכון!" and two explanations here.
     const t = { id: 's1_r_sub61', type: 'vertical_addition', isSubtraction: true, numberA: 61, numberB: 24 };
     const empty = SocraticEngine.analyzeLiveBoardState(t, 'subtraction_regrouping', EMPTY)!;
     expect(empty.choices.map((c) => c.feedbackHe)).toEqual([
-      'נכון! גררו לבנים לבית המספרים עד שהוא מראה את המספר הראשון, ורק אז הוציאו ממנו.',
-      'רמז: בחיסור לא בונים את שני המספרים. בונים את הראשון ומוציאים ממנו את השני.',
-      'רמז: קודם מייצגים את המספר בלבנים, ורק אחר כך כותבים את התוצאה.',
+      'נכון מאוד! גררו לבנים לבית המספרים עד שהוא מראה את המספר הראשון, ורק אז הוציאו ממנו.',
+      'רמז: האם בחיסור מוסיפים את המספר השני או מוציאים אותו?',
+      'רמז: בלי לבנים בבית המספרים, איך תמצאו את התוצאה?',
     ]);
-    // …and the same card in station 5 asks.
+    // …the same card as in station 5.
     const s5 = SocraticEngine.analyzeLiveBoardState(byId('s5_g_t1'), 'subtraction_regrouping', EMPTY)!;
-    expect(wrongHints(s5)).toEqual(['רמז: האם בחיסור מוסיפים את המספר השני או מוציאים אותו?', 'רמז: בלי לבנים בבית המספרים, איך תמצאו את התוצאה?']);
+    expect(wrongHints(s5)).toEqual(wrongHints(empty));
   });
 });
 
 describe('the converted hints ask; the column and the blocks follow the exercise', () => {
-  it('a borrow through zeros, without blocks (station 8, 4,000 − 1,562)', () => {
-    expect(wrongHints(q(byId('s8_g_t5')))).toEqual([
+  it('a borrow through zeros, without blocks (station 8, 4,000 − 1,562) — the second card (D8)', () => {
+    // Owner's D8 (1.10.2026): the first card of a meeting-8 exercise is general; the second names the column.
+    expect(wrongHints(q(byId('s8_g_t5'), EMPTY, { shownKinds: ['s8_check'] }))).toEqual([
       'רמז: כשפורטים אלף אחד, מה מקבלים: עשר מאות או עשר יחידות?',
       'רמז: האם יש בטור היחידות מספיק יחידות כדי לחסר?',
     ]);
@@ -209,10 +214,13 @@ describe('the converted hints ask; the column and the blocks follow the exercise
   });
 
   it('10 or more in a column (station 4, 1,245 + 328)', () => {
-    expect(wrongHints(q(byId('s4_g_t1'), digitsOf(1245)))).toEqual([
+    expect(wrongHints(q(byId('s4_g_t1'), EMPTY))).toEqual([
       'רמז: 10 לבני יחידה שוות לאיזו לבנה?',
       'רמז: אם תמחקו לבנים, האם המספר יישאר אותו מספר?',
     ]);
+    // Only 1,245 on the board (1.10.2026, the analysts' row "partial board"):
+    // which number is not yet in the house, not the grouping.
+    expect(q(byId('s4_g_t1'), digitsOf(1245)).questionHe).toBe('נסו לחשוב: בתרגיל 1,245 + 328, איזה מספר עוד לא בבית המספרים?');
   });
 });
 
@@ -299,8 +307,9 @@ describe('C1 — a number built, then a block broken (station 3)', () => {
       expect(empty.questionHe, task.id).not.toMatch(/בניתם|לפני הפריטה|לפני ההקבצה/);
       expect(empty.cardKind, task.id).toBeUndefined();
       expect(wrongHintViolation(empty), task.id).toBeNull();
-      // One block placed is enough.
-      expect(q(task, { ...EMPTY, hundreds: 1 }).questionHe, task.id).toMatch(/^נסו לחשוב: לפני (הפריטה|ההקבצה) בניתם מספר/);
+      // One block placed is enough — a block worth less than the number (a
+      // hundred is more than 85: since 1.10.2026 that is the stray-blocks card).
+      expect(q(task, { ...EMPTY, tens: 1 }).questionHe, task.id).toMatch(/^נסו לחשוב: לפני (הפריטה|ההקבצה) בניתם מספר/);
     }
   });
 });
@@ -399,7 +408,11 @@ describe('C5 → the column\'s card, within one exercise (stations 5–6)', () =
     const second = q(t, built, { shownKinds: ['borrow_check'] });
     // The column, and not its count (owner, 30.9.2026): the child counts the blocks.
     expect(second.questionHe).toBe('נסו לחשוב: בתרגיל 5,432 − 2,118, בטור היחידות אין מספיק לבנים כדי לחסר 8 יחידות. מה עושים?');
-    expect(second.cardKind).toBeUndefined();
+    // Recorded too since 1.10.2026, so the third card is the click itself (frame 3).
+    expect(second.cardKind).toBe('borrow');
+    const third = q(t, built, { shownKinds: ['borrow_check', 'borrow'] });
+    expect(third.questionHe).toBe('נסו לחשוב: איך פורטים לבנת עשרת אחת לעשר לבני יחידה?');
+    expect(third.frameLevel).toBe(3);
   });
 
   it('through a zero too (station 6); never in station 8, where there are no blocks', () => {
@@ -533,7 +546,8 @@ describe('the store serves the levels in order (useWorkspaceStore)', () => {
     expect((await openCard()).questionHe).toBe('נסו לחשוב: לפני שמוציאים לבנים, מה בודקים בכל טור?');
     expect(ws().socraticCardKinds).toEqual({ taskId: 's5_g_t1', kinds: ['borrow_check'] });
     expect((await openCard()).questionHe).toContain('בטור היחידות אין מספיק לבנים כדי לחסר 8 יחידות');
-    expect(staticCardContextFor(ws(), 's5_g_t1').shownKinds).toEqual(['borrow_check']);
+    // The column's card is recorded too (1.10.2026): the next one is its third level.
+    expect(staticCardContextFor(ws(), 's5_g_t1').shownKinds).toEqual(['borrow_check', 'borrow']);
     // Another exercise: nothing shown there yet.
     expect(staticCardContextFor(ws(), 's5_g_t2').shownKinds).toEqual([]);
     ws().initSession(5, false, ws().standardTaskIdx + 1);
@@ -668,8 +682,9 @@ describe('no card of stations 3–7 says how many blocks a column holds (owner, 
     expect(bad).toEqual([]);
   });
 
-  it('station 8 is unchanged: its card still reads the exercise\'s digits', () => {
-    expect(q(byId('s8_g_t4')).questionHe).toMatch(/בטור (היחידות|העשרות|המאות|האלפים) (יש|אין אף)/);
+  it('station 8: its second card still reads the exercise\'s digits (the first is general, D8)', () => {
+    expect(q(byId('s8_g_t4')).questionHe).toBe('נסו לחשוב: לפני שכותבים ספרה בשורת התוצאה, מה בודקים בכל טור?');
+    expect(q(byId('s8_g_t4'), EMPTY, { shownKinds: ['s8_check'] }).questionHe).toMatch(/בטור (היחידות|העשרות|המאות|האלפים) (יש|אין אף)/);
   });
 });
 

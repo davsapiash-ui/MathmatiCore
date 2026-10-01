@@ -633,16 +633,18 @@ function addColumnCard(ex: string, p: Place, a: number, b: number, forgotten: bo
   const done = reaches10
     ? 'נכון מאוד! אם הסכום מגיע ל-10 או יותר, כתבו בתיבה רק את ספרת היחידות שלו.'
     : `נכון מאוד! כתבו את הסכום בתיבה של ${COLUMN[p]}.`;
+  // "Are tens added to units?" is true in another sense (40 + 5): the hint asks which digits the column holds (review, 1.10.2026).
+  const which = `רמז: אילו ספרות כתובות ב${COLUMN[p]}?`;
   const choices: [string, string][] = cin
     ? [
         [`את שתי הספרות של הטור, ועוד ${THE_ONE[p]} ש${passed(p)} מ${COLUMN[q!]}`, done],
         ['רק את שתי הספרות של הטור', `רמז: מה עבר ל${COLUMN[p]} מ${COLUMN[q!]}?`],
-        ['את כל הספרות של התרגיל', `רמז: האם מחברים ${PLURAL[p]} עם ${PLURAL[q!]}?`],
+        ['את כל הספרות של התרגיל', which],
       ]
     : [
         ['את שתי הספרות של הטור', done],
         ['את שתי הספרות של הטור, ועוד 1', q ? `רמז: האם עבר משהו ל${COLUMN[p]} מ${COLUMN[q]}?` : 'רמז: האם יש טור מימין לטור היחידות?'],
-        ['את כל הספרות של התרגיל', q ? `רמז: האם מחברים ${PLURAL[p]} עם ${PLURAL[q]}?` : 'רמז: האם מחברים יחידות עם עשרות?'],
+        ['את כל הספרות של התרגיל', which],
       ];
   return card(`${OPEN}בתרגיל ${ex}, מה מחברים ב${COLUMN[p]}?`, 'procedural', HL(p), choices, undefined,
     forgotten
@@ -653,8 +655,9 @@ function addColumnCard(ex: string, p: Place, a: number, b: number, forgotten: bo
 /** Blocks: column c is grouped; what is recorded in the memory circle above the next column. */
 function carryRecordCard(c: Place, n: Place): SocraticHintResponse {
   return card(`${OPEN}קיבצתם 10 ${PLURAL[c]} ל${ONE[n]}. מה רושמים בעיגול הזיכרון שמעל ${COLUMN[n]}?`, 'procedural', HL(n), [
-    [`1, כי ${ONE[n]} ${passed(n)} ל${COLUMN[n]}`, `נכון מאוד! כשתחברו את ${COLUMN[n]}, חברו גם את ה-1 שבעיגול הזיכרון.`],
-    [`10, כי מקבצים 10 ${PLURAL[c]}`, `רמז: כמה ${BLOCKS[n]} חדשות נוספו ל${COLUMN[n]}?`],
+    // "the digits of the column": with blocks, the ten already stands in the column (review, 1.10.2026).
+    [`1, כי ${ONE[n]} ${passed(n)} ל${COLUMN[n]}`, `נכון מאוד! כשתחברו את הספרות של ${COLUMN[n]}, חברו גם את ה-1 שבעיגול הזיכרון.`],
+    [`10, כי מקבצים 10 ${PLURAL[c]}`, `רמז: כמה ${BLOCKS[n]} עברו ל${COLUMN[n]}?`],
     ['לא רושמים כלום, כי הלבנים כבר בבית המספרים', `רמז: איך תזכרו לחבר את ${THE_ONE[n]} ש${passed(n)} ל${COLUMN[n]}?`],
   ], 'carry_2', frame('carry_record', 2, `אחרי ההקבצה רושמים 1 בעיגול הזיכרון שמעל ${COLUMN[n]}`));
 }
@@ -670,7 +673,7 @@ function carryWrittenCard(ex: string, c: Place, n: Place, blocks: boolean): Socr
     ], undefined, f);
   }
   return card(`${OPEN}בתרגיל ${ex}, כבר רשמתם 1 בעיגול הזיכרון שמעל ${COLUMN[n]}. מה כותבים בתיבה של ${COLUMN[c]}?`, 'procedural', HL(c), [
-    ['רק את ספרת היחידות של הסכום', `נכון מאוד! עשר ${PLURAL[c]} כבר רשומות כ-1 בעיגול הזיכרון.`],
+    ['רק את ספרת היחידות של הסכום', `נכון מאוד! ה-1 שבעיגול הזיכרון מייצג עשר ${PLURAL[c]}.`],
     ['את כל הסכום, בשתי ספרות', HINT.oneDigitPerBox],
     ['את ה-1 שבעיגול הזיכרון', 'רמז: לאיזה טור שייך ה-1 שבעיגול הזיכרון?'],
   ], undefined, f);
@@ -692,7 +695,7 @@ function oneNumberMissingCard(ex: string, a: number, b: number, value: number): 
   return card(`${OPEN}בתרגיל ${ex}, איזה מספר עוד לא בבית המספרים?`, 'procedural', 'tour-place-value-board', [
     [`המספר ${missing}`, `נכון מאוד! בנו את ${missing}: כל ספרה בטור שלה.`],
     [`המספר ${built}`, 'רמז: אילו לבנים כבר בניתם?'],
-    ['שני המספרים כבר שם', `רמז: האם בבית המספרים יש גם את הלבנים של ${missing}?`],
+    ['שני המספרים כבר שם', 'רמז: איזה מספר מראות הלבנים שבבית המספרים?'],
   ], undefined, frame('one_number_missing', 1, 'בבית המספרים בנוי רק אחד המספרים: בונים גם את השני'));
 }
 
@@ -888,9 +891,10 @@ export function checkBeforeTakingCard(ex: string): SocraticHintResponse {
 /** Subtraction with blocks: the blocks a column lacked were dragged from the tool box (board = a + 10, 100 or 1,000). */
 export function paletteBorrowCard(): SocraticHintResponse {
   return card(`${OPEN}בחיסור, כשבטור אין מספיק לבנים, מאיפה מקבלים עוד לבנים?`, 'procedural', 'tour-place-value-board', [
-    ['פורטים לבנה מהטור שמשמאל', 'נכון מאוד! לחצו על כפתור ביטול הפעולה כדי להוציא את הלבנים שהוספתם. אחר כך פרטו לבנה מהטור שמשמאל.'],
+    ['פורטים לבנה מהטור שמשמאל', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים שהוספתם ייצאו. אחר כך פרטו לבנה מהטור שמשמאל.'],
     ['מוסיפים לבנים מארגז הכלים', 'רמז: אם תוסיפו לבנים מארגז הכלים, האם המספר יישאר אותו מספר?'],
-    ['מוציאים מהטור רק את מה שיש בו', 'רמז: האם אז תחסרו את כל המספר השני?'],
+    // Not "תחסרו": read aloud it may be תֶּחְסְרוּ ("you will lack").
+    ['מוציאים מהטור רק את מה שיש בו', 'רמז: האם כך תוציאו את כל המספר השני?'],
   ], undefined, frame('borrow_from_box', 1, 'הלבנים שחסרו בטור הגיעו מארגז הכלים: בחיסור מקבלים עוד לבנים רק מפריטה של לבנה מהטור שמשמאל'));
 }
 
@@ -917,13 +921,14 @@ function extraBreakColumn(b: number, counts: BoardCounts): Place | null {
   return null;
 }
 
+/** "תחסרו" is avoided: read aloud it may be תֶּחְסְרוּ ("you will lack") (review, 1.10.2026). */
 function groupBackCard(p: Place): SocraticHintResponse {
   const n = next(p)!;
-  return card(`${OPEN}ב${COLUMN[p]} יש 10 לבנים או יותר, גם אחרי שתחסרו. מה עושים?`, 'procedural', HL(p), [
-    [`מקבצים 10 ${PLURAL[p]} בחזרה ל${ONE[n]}, בכפתור "קבצו 10 ל${WORTH[n]}"`, 'נכון מאוד! בחיסור פורטים רק כשאין בטור מספיק לבנים.'],
+  return card(`${OPEN}ב${COLUMN[p]} יש 10 לבנים או יותר, גם אחרי החיסור. מה עושים?`, 'procedural', HL(p), [
+    [`מקבצים 10 ${PLURAL[p]} ל${ONE[n]}, בכפתור "קבצו 10 ל${WORTH[n]}"`, 'נכון מאוד! בסוף החיסור, בכל טור צריכות להיות פחות מ-10 לבנים.'],
     ['כותבים בתיבה את כל מה שנשאר בטור', HINT.oneDigitPerBox],
-    ['מוציאים לפח עוד לבנים מהטור', 'רמז: אם תוציאו עוד לבנים, האם תחסרו יותר ממה שבתרגיל?'],
-  ], undefined, frame('extra_break_sub', 2, `נפרטה לבנה שלא הייתה צריכה: מקבצים בחזרה 10 ${PLURAL[p]}`));
+    ['מוציאים לפח עוד לבנים מהטור', 'רמז: אם תוציאו עוד לבנים, האם תוציאו יותר מהמספר השני?'],
+  ], undefined, frame('extra_break_sub', 2, `בטור יישארו 10 לבנים או יותר גם אחרי החיסור: מקבצים 10 ${PLURAL[p]} ל${ONE[n]}`));
 }
 
 /** No conversion needed, or nothing known yet (existing card). */
@@ -939,8 +944,9 @@ function subStartCard(ex: string): SocraticHintResponse {
 function subAfterBorrowCard(ex: string, p: Place): SocraticHintResponse {
   return card(`${OPEN}בתרגיל ${ex}, כבר רשמתם את הפריטה בעיגולי הזיכרון. ממה מחסרים עכשיו ב${COLUMN[p]}?`, 'procedural', HL(p), [
     [`מהמספר שבעיגול הזיכרון שמעל ${COLUMN[p]}`, 'נכון מאוד! כתבו בתיבה כמה נשאר אחרי שמחסרים ממנו את הספרה התחתונה.'],
-    ['מהספרה העליונה שבתרגיל', 'רמז: האם הספרה העליונה השתנתה אחרי הפריטה?'],
-    ['מהספרה התחתונה', HINT.topOrBottom],
+    // On the screen the top digit stays as it was: the hint points at the circle (review, 1.10.2026).
+    ['מהספרה העליונה שבתרגיל', `רמז: מה רשמתם בעיגול הזיכרון שמעל ${COLUMN[p]}?`],
+    ['מהספרה התחתונה', 'רמז: האם מחסרים מהספרה התחתונה, או מחסרים אותה?'],
   ], undefined, frame('subtract_after_borrow', 2, `אחרי הפריטה מחסרים ב${COLUMN[p]} מהמספר שבעיגול הזיכרון`));
 }
 
@@ -1032,8 +1038,12 @@ function subtractionCard(a: number, b: number, blocks: boolean, counts: BoardCou
     // The board holds a − b: after taking away, or — rarely — on the way to
     // building a (78 − 25 with 5 tens and 3 units while still building 78).
     // The question says "if", so it is true in both and does not tell the child
-    // the board holds the result.
-    if (value === a - b) return afterTakeAwayCard(ex, oneBox);
+    // the board holds the result. A column of 10 or more cannot be written in
+    // a box: group it first (1 hundred, 14 tens and 4 units is 244 too).
+    if (value === a - b) {
+      const full = LOW_TO_HIGH.find((p) => (counts[p] ?? 0) >= 10 && next(p));
+      return full ? groupBackCard(full) : afterTakeAwayCard(ex, oneBox);
+    }
     if (value < a - b && ctx.blocksRemoved === true) return overRemovalCard();
     return checkBeforeTakingCard(ex);
   }
@@ -1050,13 +1060,13 @@ function s8CheckCard(sub: boolean): SocraticHintResponse {
   const q = `${OPEN}לפני שכותבים ספרה בשורת התוצאה, מה בודקים בכל טור?`;
   if (sub) {
     return card(q, 'procedural', HL('units'), [
-      ['אם הספרה העליונה גדולה מהתחתונה או שווה לה', 'נכון מאוד! אם היא קטנה מהתחתונה, פרטו מהטור שמשמאל ורשמו את השינוי בעיגולי הזיכרון.'],
+      ['אם הספרה העליונה גדולה מהתחתונה או שווה לה', 'נכון מאוד! אם היא קטנה מהתחתונה, פרטו מהטור שמשמאל. רשמו את השינוי בעיגולי הזיכרון.'],
       ['איזו ספרה גדולה יותר, כדי לחסר את הקטנה מהגדולה', HINT.topOrBottom],
       ['אם יש בטור 0', 'רמז: אם ה-0 הוא הספרה התחתונה, האם צריך לפרוט?'],
     ], 's8_check', frame('check_each_column', 1, 'לפני שכותבים ספרה: בודקים בכל טור אם הספרה העליונה מספיקה כדי לחסר'));
   }
   return card(q, 'procedural', HL('units'), [
-    ['אם סכום הספרות בטור מגיע ל-10 או יותר', 'נכון מאוד! אם הוא מגיע ל-10 או יותר, רשמו 1 בעיגול הזיכרון שמעל הטור הבא.'],
+    ['אם סכום הספרות בטור מגיע ל-10 או יותר', 'נכון מאוד! אם הוא מגיע ל-10 או יותר, רשמו 1 בעיגול הזיכרון שמעל הטור שמשמאל.'],
     ['איזו ספרה בטור היא הגדולה', 'רמז: האם בחיבור כותבים את הספרה הגדולה?'],
     ['כמה ספרות יש בתרגיל כולו', 'רמז: האם מחברים את כל הספרות של התרגיל יחד?'],
   ], 's8_check', frame('check_each_column', 1, 'לפני שכותבים ספרה: בודקים בכל טור אם הסכום מגיע ל-10 או יותר'));
@@ -1118,40 +1128,50 @@ function skeletonShown(task: any): string {
  */
 function skeletonAddCard(task: any, known: number, blocks: boolean, plural: boolean): SocraticHintResponse {
   const K = formatNumberHe(known);
+  const total = formatNumberHe(task.numberA + task.numberB);
   const which = plural ? 'הספרות החסרות' : 'הספרה החסרה';
   const right = plural ? 'הספרות נכונות' : 'הספרה נכונה';
   return card(`${OPEN}בתרגיל ${skeletonShown(task)}, איך מגלים את ${which}?`, 'procedural', blocks ? 'tour-place-value-board' : HL('units'), [
     blocks
       ? [`בונים את ${K}, ובכל טור מוסיפים לבנים עד שמגיעים לספרה של התוצאה`, plural ? 'נכון מאוד! כתבו בתיבות הריקות כמה לבנים הוספתם בכל טור.' : 'נכון מאוד! כתבו בתיבה הריקה כמה לבנים הוספתם בטור שלה.']
-      : [`בודקים בכל טור כמה צריך להוסיף לספרה של ${K} כדי לקבל את הספרה של התוצאה`, plural ? 'נכון מאוד! כתבו את הספרות בתיבות הריקות. אם עוברים את 10, רשמו 1 בעיגול הזיכרון שמעל הטור הבא.' : 'נכון מאוד! אם עוברים את 10, רשמו 1 בעיגול הזיכרון שמעל הטור הבא.'],
-    [plural ? 'כותבים בכל תיבה ריקה את הספרה של התוצאה' : 'כותבים בתיבה הריקה את הספרה של התוצאה', `רמז: אם תוסיפו את הספרה הזאת לספרה של ${K}, האם תקבלו את הספרה של התוצאה?`],
+      : [`בודקים בכל טור כמה צריך להוסיף לספרה של ${K} כדי לקבל את הספרה של התוצאה`, plural ? 'נכון מאוד! כתבו את הספרות בתיבות הריקות. אם מגיעים ל-10 או יותר, רשמו 1 בעיגול הזיכרון שמעל הטור שמשמאל.' : 'נכון מאוד! אם מגיעים ל-10 או יותר, רשמו 1 בעיגול הזיכרון שמעל הטור שמשמאל.'],
+    // The check is the whole sum: where a ten passes, the column's digits alone do not add up (8 + 7 is 15, not 5).
+    [plural ? 'כותבים בכל תיבה ריקה את הספרה של התוצאה' : 'כותבים בתיבה הריקה את הספרה של התוצאה', plural ? `רמז: אם תכתבו בתיבות את הספרות האלה, האם החיבור ייתן ${total}?` : `רמז: אם תכתבו בתיבה את הספרה הזאת, האם החיבור ייתן ${total}?`],
     [plural ? 'מנחשים ספרות וכותבים אותן בתיבות' : 'מנחשים ספרה וכותבים אותה בתיבה', blocks ? `רמז: איך אפשר לבדוק בבית המספרים אם ${right}?` : `רמז: איך אפשר לבדוק בלי לנחש אם ${right}?`],
-  ], 'skeleton', frame('skeleton_missing_addend', 1, 'מהמספר הידוע: מוסיפים בכל טור עד הספרה של התוצאה, וכשעוברים את 10 רושמים 1 בעיגול הזיכרון'));
+  ], 'skeleton', frame('skeleton_missing_addend', 1, 'מהמספר הידוע: מוסיפים בכל טור עד הספרה של התוצאה, וכשמגיעים ל-10 או יותר רושמים 1 בעיגול הזיכרון'));
 }
 
-/** A hidden addend digit, the second card: its column, the exercise's own digits. */
-function skeletonAddColumnCard(hiddenOf: number, known: number, p: Place, blocks: boolean): SocraticHintResponse {
+/**
+ * A hidden addend digit, the second card: its column, the exercise's own
+ * digits. Where a ten passes, the target is 10 more than the result's digit
+ * ("from 7 up to 15"); the "smaller from larger" option is offered only where
+ * it is wrong (review, 1.10.2026: in 4▢6 + 281 = 737 it gives the answer).
+ * Null when the known digit is 0 and nothing comes in: the first card then.
+ */
+function skeletonAddColumnCard(hiddenOf: number, known: number, p: Place, blocks: boolean): SocraticHintResponse | null {
   const result = hiddenOf + known;
   const db = digit(known, p);
   const r = digit(result, p);
+  const h = digit(hiddenOf, p);
   const cin = carryInto(hiddenOf, known, p);
   const start = db + cin;
+  if (start === 0) return null;
   const base = cin ? `${db} ועוד 1` : `${db}`;
-  const pass = start + digit(hiddenOf, p) >= 10;
-  const added = blocks ? 'נכון מאוד! כתבו בתיבה הריקה כמה לבנים הוספתם.' : 'נכון מאוד! כתבו בתיבה הריקה כמה הוספתם.';
-  const choices: [string, string][] = [
-    pass
-      ? [`מוסיפים ל-${base} עד שעוברים את 10 ומגיעים ל-${r}, וסופרים כמה הוספתם`, blocks ? 'נכון מאוד! אחרי ההקבצה, רשמו 1 בעיגול הזיכרון שמעל הטור הבא.' : 'נכון מאוד! רשמו 1 בעיגול הזיכרון שמעל הטור הבא.']
-      : [`מוסיפים ל-${base} עד שמגיעים ל-${r}, וסופרים כמה הוספתם`, added],
+  const pass = start + h >= 10;
+  const target = pass ? 10 + r : r;
+  const write = blocks ? 'כתבו בתיבה הריקה כמה לבנים הוספתם' : 'כתבו בתיבה הריקה כמה הוספתם';
+  const smallFromLarge = Math.abs(r - start);
+  const third: [string, string] = pass && smallFromLarge !== h
+    ? ['מחסרים את הספרה הקטנה מהגדולה', `רמז: כמה זה ${start} ועוד ${smallFromLarge}?`]
+    : [`מוסיפים ${r} ל-${base}`, `רמז: כמה זה ${start} ועוד ${r}?`];
+  return card(`${OPEN}ב${COLUMN[p]}, כמה צריך להוסיף ל-${base} כדי לקבל ${r} בספרת התוצאה?`, 'procedural', HL(p), [
+    [`מוסיפים ל-${base} עד שמגיעים ל-${target}, וסופרים כמה הוספתם`, pass ? `נכון מאוד! ${write}. אחר כך רשמו 1 בעיגול הזיכרון שמעל הטור שמשמאל.` : `נכון מאוד! ${write}.`],
+    // 9 and a carried 1 make 10: then the result's digit IS the missing one.
     start % 10 === 0
       ? ['מנחשים ספרה וכותבים אותה בתיבה', 'רמז: איך אפשר לבדוק אם הספרה נכונה בלי לנחש?']
       : [`כותבים ${r}, כמו בספרת התוצאה`, 'רמז: האם הספרה של התוצאה היא גם הספרה החסרה?'],
-    pass
-      ? ['מחסרים את הספרה הקטנה מהגדולה', `רמז: אם תוסיפו ל-${base} את הספרה שמצאתם, האם תקבלו ${r}?`]
-      : [`מוסיפים ${r} ל-${base}`, `רמז: כמה זה ${start} ועוד ${r}?`],
-  ];
-  return card(`${OPEN}ב${COLUMN[p]}, כמה צריך להוסיף ל-${base} כדי לקבל ${r} בספרת התוצאה?`, 'procedural', HL(p), choices, 'skeleton_2',
-    frame('skeleton_missing_addend_column', 2, `ב${COLUMN[p]}: כמה מוסיפים לספרה הידועה כדי להגיע לספרת התוצאה, ומה קורה כשעוברים את 10`));
+    third,
+  ], 'skeleton_2', frame('skeleton_missing_addend_column', 2, `ב${COLUMN[p]}: כמה מוסיפים לספרה הידועה כדי להגיע לספרת התוצאה, ומה קורה כשמגיעים ל-10 או יותר`));
 }
 
 /** A hidden digit in the first number of a subtraction (owner, 1.10.2026): work backwards — what is left, and what was taken, back together. */
@@ -1159,10 +1179,10 @@ function skeletonSubCard(task: any, a: number, b: number, blocks: boolean, plura
   const R = formatNumberHe(a - b);
   const B = formatNumberHe(b);
   const right = plural ? 'הספרות נכונות' : 'הספרה נכונה';
-  const write = plural ? 'כתבו את הספרות שלו בתיבות הריקות.' : 'כתבו את הספרה החסרה בתיבה הריקה.';
+  const write = plural ? 'כתבו בתיבות הריקות את הספרות החסרות.' : 'כתבו בתיבה הריקה את הספרה החסרה.';
   return card(`${OPEN}בתרגיל ${skeletonShown(task)}, איך מגלים את ${plural ? 'הספרות החסרות' : 'הספרה החסרה'}?`, 'procedural', blocks ? 'tour-place-value-board' : HL('units'), [
     blocks
-      ? [`בונים את ${R}, ומחזירים לבית המספרים את ${B}`, `נכון מאוד! מה שתקבלו הוא המספר שממנו חיסרו. ${write}`]
+      ? [`בונים את ${R}, ומחזירים לבית המספרים את ${B}`, `נכון מאוד! כך מקבלים את המספר שממנו חיסרו. קבצו כל 10 לבנים בטור. אחר כך ${write}`]
       : [`מחברים את ${R} ואת ${B}`, `נכון מאוד! הסכום הוא המספר שממנו חיסרו. ${write}`],
     [`מחסרים את ${B} מ-${R}`, `רמז: האם ${R} הוא המספר שהיה בהתחלה, או מה שנשאר?`],
     [plural ? 'מנחשים ספרות וכותבים אותן בתיבות' : 'מנחשים ספרה וכותבים אותה בתיבה', blocks ? `רמז: איך אפשר לבדוק בבית המספרים אם ${right}?` : `רמז: איך אפשר לבדוק בלי לנחש אם ${right}?`],
@@ -1191,7 +1211,7 @@ function skeletonSubColumnCard(a: number, b: number, p: Place, plural: boolean):
     ['מחסרים את הספרה שחיסרו מהספרה של התוצאה', 'רמז: האם לפני החיסור היה בטור יותר או פחות ממה שנשאר?'],
     writeResultIsRight
       ? ['מנחשים ספרה וכותבים אותה בתיבה', 'רמז: איך אפשר לבדוק אם הספרה נכונה בלי לנחש?']
-      : ['כותבים את הספרה של התוצאה', 'רמז: האם בטור הזה לא חיסרו דבר?'],
+      : ['כותבים את הספרה של התוצאה', 'רמז: מה חיסרו בטור הזה?'],
   ], 'skeleton_2', frame('skeleton_hidden_minuend_column', 2, 'מה שנשאר בטור ועוד מה שחיסרו ממנו הוא מה שהיה בו לפני החיסור'));
 }
 
@@ -1222,7 +1242,8 @@ function skeletonCard(task: any, blocks: boolean, ctx: StaticCardContext): Socra
   };
   const f = ctx.focusColumn && hidden.includes(ctx.focusColumn) && columnTrigger(ctx) ? ctx.focusColumn : null;
   const p = f ?? hidden.find((x) => typed(x) !== digit(hiddenOf, x)) ?? hidden[0];
-  return sub ? skeletonSubColumnCard(a, b, p, plural) : skeletonAddColumnCard(hiddenOf, known, p, blocks);
+  if (sub) return skeletonSubColumnCard(a, b, p, plural);
+  return skeletonAddColumnCard(hiddenOf, known, p, blocks) ?? skeletonAddCard(task, known, blocks, plural);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1249,13 +1270,21 @@ export function whichNumberIsBuiltCard(): SocraticHintResponse {
 /** Is this the card of whichNumberIsBuiltCard? */
 const isWhichNumberIsBuilt = (c: SocraticHintResponse) => c.questionHe === whichNumberIsBuiltCard().questionHe;
 
-/** Every column below 10: one digit per column, 0 for an empty one (the second card after "which number is built", and after C7). */
-function writeDigitsCard(kind: StaticCardKind, situation: string): SocraticHintResponse {
+/**
+ * Every column below 10: one digit per column, 0 for an empty one after the
+ * first digit (the second card after "which number is built", and after C7).
+ * "Only the columns with blocks" is offered as a wrong option only where the
+ * number has a 0 after its first digit (340, 2,500): for 125 it would be right.
+ */
+function writeDigitsCard(kind: StaticCardKind, situation: string, n: number | undefined): SocraticHintResponse {
+  const zeroAfterFirst = typeof n === 'number' && places(n).slice(0, -1).some((p) => digit(n, p) === 0);
   return card(`${OPEN}אחרי שסופרים את הלבנים בכל טור, איך כותבים את המספר?`, 'conceptual', 'tour-place-value-board', [
-    ['כותבים ספרה אחת לכל טור, מהטור השמאלי שיש בו לבנים ועד טור היחידות', 'נכון מאוד! בשביל טור שאין בו לבנים כותבים 0.'],
-    ['כותבים רק את הטורים שיש בהם לבנים', 'רמז: מה כותבים בשביל טור שאין בו לבנים?'],
+    ['כותבים ספרה אחת לכל טור, מהטור השמאלי שיש בו לבנים ועד טור היחידות', 'נכון מאוד! אחרי הספרה הראשונה, בשביל כל טור ריק כותבים 0.'],
+    zeroAfterFirst
+      ? ['כותבים רק את הטורים שיש בהם לבנים', 'רמז: מה כותבים בשביל טור שאין בו לבנים?']
+      : ['כותבים קודם את הספרה של טור היחידות', 'רמז: באיזה טור נמצאת הספרה הראשונה של המספר?'],
     ['כותבים כמה לבנים יש בבית המספרים כולו', 'רמז: האם לבנת מאה ולבנת יחידה שוות אותו דבר?'],
-  ], kind, frame(situation, 1, 'כל טור נותן ספרה אחת במספר, וטור ריק נותן 0'));
+  ], kind, frame(situation, 1, 'כל טור נותן ספרה אחת במספר, וטור ריק אחרי הספרה הראשונה נותן 0'));
 }
 
 /**
@@ -1265,17 +1294,24 @@ function writeDigitsCard(kind: StaticCardKind, situation: string): SocraticHintR
  * longer shows what the instruction asks.
  */
 function regroupReadCard(kind: StaticCardKind, oneBox: boolean, big: Place = 'hundreds', small: Place = 'tens', meeting1 = false): SocraticHintResponse {
-  return card(`${OPEN}באחד הטורים יש 10 לבנים או יותר. איך יודעים איזה מספר הלבנים מייצגות?`, 'conceptual', 'tour-place-value-board', [
-    ['סופרים כל 10 לבנים כמו לבנה אחת של הטור שמשמאל', 'נכון מאוד! עשו את זה בראש, בלי ללחוץ על הכפתור "קבצו 10", וכתבו את המספר.'],
+  return card(`${OPEN}באחד הטורים יש 10 לבנים או יותר. איך יודעים איזה מספר מייצגות הלבנים?`, 'conceptual', 'tour-place-value-board', [
+    ['סופרים כל 10 לבנים כמו לבנה אחת של הטור שמשמאל', 'נכון מאוד! עשו את זה בראש, בלי ללחוץ על הכפתור "קבצו 10". אחר כך כתבו את המספר.'],
     ['סופרים את כל הלבנים יחד', sameWorthHint(big, small)],
-    ['כותבים את מספר הלבנים של כל טור, זה אחרי זה', oneBox && !meeting1 ? 'רמז: אם בטור יש 10 לבנים או יותר, כמה ספרות תכתבו בשבילו?' : HINT.oneDigitPerBox],
+    ['כותבים את מספר הלבנים של כל טור, זה אחרי זה', oneBox && !meeting1 ? 'רמז: כמה ספרות כותבים במספר בשביל כל טור?' : HINT.oneDigitPerBox],
   ], kind, frame('read_with_ten_or_more', 1, 'כל 10 לבנים בטור שוות ללבנה אחת של הטור שמשמאל: סופרים כך בראש, בלי לשנות את בית המספרים'));
 }
 
-/** The second card after "which number is built": by the board. */
-function whichNumberLevel2(counts?: BoardCounts): SocraticHintResponse {
+/** The second card after "which number is built": by the board, and by what was written. */
+function whichNumberLevel2(task: any, ctx: StaticCardContext, counts?: BoardCounts): SocraticHintResponse {
   if (counts && LOW_TO_HIGH.some((p) => (counts[p] ?? 0) >= 10)) return regroupReadCard('which_number_2', true);
-  return writeDigitsCard('which_number_2', 'write_digits');
+  const n = numberWritten(task);
+  const typed = typedNumber(ctx);
+  // 340 written 34: the zero at the end was dropped.
+  if (typeof n === 'number' && typed !== null && n % 10 === 0 && typed === Math.floor(n / 10)) {
+    const z = zeroPositionCard(task, ctx, 'which_number_2');
+    if (z) return z;
+  }
+  return writeDigitsCard('which_number_2', 'write_digits', n);
 }
 
 /**
@@ -1366,7 +1402,8 @@ function flexibleEvenTensCard(task: any): SocraticHintResponse {
   return card(`${OPEN}איך מייצגים את ${N ? `המספר ${N}` : 'הכמות'} כך שמספר לבני העשרת יהיה זוגי?`, 'conceptual', 'tour-place-value-board', [
     ['פורטים לבנת עשרת אחת לעשר לבני יחידה', 'נכון מאוד! אחרי כל פריטה, בדקו אם מספר לבני העשרת זוגי.'],
     ['מוסיפים לבנת עשרת חדשה', `רמז: אם תוסיפו לבנה חדשה, ${same}`],
-    [N ? `בונים את ${N} בלי לפרוט אף לבנה` : 'בונים בלי לפרוט אף לבנה', 'רמז: האם מספר לבני העשרת יהיה אז זוגי?'],
+    // As the number is written: 1 hundred and 5 tens (not "without breaking": 1 hundred, 4 tens and 10 units can come straight from the tool box).
+    [N ? `בונים את ${N} כמו שכותבים אותו` : 'בונים את המספר כמו שכותבים אותו', 'רמז: האם מספר לבני העשרת יהיה אז זוגי?'],
   ], 'flexible', frame('flexible_even_tens', 1, 'מספר לבני העשרת צריך להיות זוגי: פריטה של עשרת אחת לעשר יחידות משנה אותו'));
 }
 
@@ -1375,7 +1412,7 @@ function flexibleSecondCard(): SocraticHintResponse {
   return card(`${OPEN}איך שומרים דרך אחת ובונים דרך נוספת?`, 'procedural', 'tour-place-value-board', [
     ['לוחצים על הכפתור "הוספת ייצוג", ואז פורטים לבנה או מקבצים לבנים', 'נכון מאוד! כשהדרך השנייה מוכנה, לחצו שוב על "הוספת ייצוג".'],
     ['בונים שוב את אותן לבנים', 'רמז: האם אותן לבנים הן דרך אחרת?'],
-    ['מוסיפים לבנים חדשות', 'רמז: אם תוסיפו לבנים חדשות, האם הכמות תישאר אותה כמות?'],
+    ['מוסיפים לבנים חדשות', HINT.addBlocks],
   ], 'flexible_2', frame('second_representation', 3, 'שומרים דרך אחת בכפתור "הוספת ייצוג", ובונים דרך שונה בפריטה או בהקבצה'));
 }
 
@@ -1506,7 +1543,8 @@ const decomposeBlock = (task: any): Place | null => {
 function countInTensCard(only: Place): SocraticHintResponse {
   return card(`${OPEN}איך סופרים הרבה ${BLOCKS[only]} בלי להתבלבל?`, 'procedural', 'tour-place-value-board', [
     ['סופרים אותן בקבוצות של 10', 'נכון מאוד! כמה קבוצות של 10 יש, וכמה לבנים נשארו מחוץ לקבוצות?'],
-    ['סופרים לבנה אחרי לבנה, מהר', 'רמז: איך תדעו שלא ספרתם לבנה פעמיים?'],
+    // Not "one by one": counting one block after another is a fair way too (review, 1.10.2026).
+    ['סופרים כמה שורות של לבנים יש בטור', 'רמז: האם בכל שורה יש לבנה אחת בלבד?'],
     ['מנחשים לפי הגובה של הטור', 'רמז: מה אפשר לספור בבית המספרים במקום לנחש?'],
   ], 'decompose_2', frame('count_in_tens', 1, `סופרים את ${BLOCKS_THE[only]} בקבוצות של 10`));
 }
@@ -1537,10 +1575,25 @@ function readWriteCard(task: any): SocraticHintResponse {
   ], 'read_write_zero', frame('zero_keeps_place', 1, 'טור שאין בו לבנים מקבל 0 במספר'));
 }
 
-/** C3, the second card: where the 0 goes (names the empty column). */
-function zeroPositionCard(task: any): SocraticHintResponse | null {
+/**
+ * C3 (and "which number is built"), the second card: where the 0 goes — it
+ * names the empty column. The column inside the number (506, 6,030); or, when
+ * the number written dropped the zero at its end (603 for 6,030, 34 for 340),
+ * the units column (review, 1.10.2026).
+ */
+function zeroPositionCard(task: any, ctx: StaticCardContext, kind: StaticCardKind = 'read_write_zero_2'): SocraticHintResponse | null {
   const n = numberWritten(task);
-  const z = typeof n === 'number' ? emptyColumnInside(n) : null;
+  if (typeof n !== 'number') return null;
+  const typed = typedNumber(ctx);
+  const droppedEnd = typed !== null && n % 10 === 0 && n > 0 && typed === Math.floor(n / 10);
+  if (droppedEnd) {
+    return card(`${OPEN}בטור היחידות אין לבנים. איפה כותבים בשבילו 0 במספר?`, 'conceptual', HL('units'), [
+      ['בסוף המספר, אחרי ספרת העשרות', 'נכון מאוד! כך כל ספרה נמצאת במקום של הטור שלה.'],
+      ['לא כותבים 0, כי אין שם לבנים', 'רמז: אם לא תכתבו 0, כמה ספרות יהיו במספר?'],
+      ['בתחילת המספר', 'רמז: האם מספר מתחיל בספרה 0?'],
+    ], kind, frame('zero_position', 2, 'טור היחידות ריק: ה-0 שלו נכתב בסוף המספר'));
+  }
+  const z = emptyColumnInside(n);
   const left = z ? next(z) : null;
   const right = z ? prevPlace(z) : null;
   if (!z || !left || !right) return null;
@@ -1548,7 +1601,7 @@ function zeroPositionCard(task: any): SocraticHintResponse | null {
     [`בין ספרת ה${PLURAL[left]} לספרת ה${PLURAL[right]}`, 'נכון מאוד! כך כל ספרה נמצאת במקום של הטור שלה.'],
     ['לא כותבים 0, כי אין שם לבנים', 'רמז: אם לא תכתבו 0, כמה ספרות יהיו במספר?'],
     ['בתחילת המספר', 'רמז: האם מספר מתחיל בספרה 0?'],
-  ], 'read_write_zero_2', frame('zero_position', 2, `ה-0 של ${COLUMN[z]} נכתב במקום של הטור הזה, בין הספרות של הטורים שמשני צדדיו`));
+  ], kind, frame('zero_position', 2, `ה-0 של ${COLUMN[z]} נכתב במקום של הטור הזה, בין הספרות של הטורים שמשני צדדיו`));
 }
 
 /**
@@ -1661,7 +1714,7 @@ function conversionCard(task: any, kind: 'compose_break' | 'compose_group', ctx:
 /** A block broken that the instruction does not ask to break (station 3; meeting 1's 347). */
 function extraBreakCard(): SocraticHintResponse {
   return card(`${OPEN}פרטתם לבנה שההנחיה לא מבקשת לפרוט. מה עושים?`, 'procedural', 'tour-action-buttons', [
-    ['מבטלים את הפריטה הזאת בכפתור ביטול הפעולה', 'נכון מאוד! לחצו על כפתור ביטול הפעולה, ובדקו שבית המספרים מראה את מה שההנחיה מבקשת.'],
+    ['מבטלים את הפריטה הזאת בכפתור ביטול הפעולה', 'נכון מאוד! לחצו על כפתור ביטול הפעולה. אחר כך בדקו שבית המספרים מראה את מה שההנחיה מבקשת.'],
     ['כותבים את המספר בלי לתקן', 'רמז: האם בית המספרים מראה עכשיו את מה שההנחיה מבקשת?'],
     ['פורטים עוד לבנה', 'רמז: כמה פעמים כתוב בהנחיה "פרטו"?'],
   ], undefined, frame('extra_break', 1, 'נפרטה לבנה שההנחיה לא מבקשת: מבטלים אותה בכפתור ביטול הפעולה'));
@@ -1686,7 +1739,7 @@ export function strayBlocksCard(column?: Place | null, representation = false): 
     return card(`${OPEN}יש ב${COLUMN[column]} לבנים שהתרגיל לא צריך. מה עושים?`, 'procedural', HL(column), [
       [`בודקים כמה ${BLOCKS[column]} התרגיל צריך, ומוציאים לפח את המיותרות`, 'נכון מאוד! אפשר גם ללחוץ על כפתור ביטול הפעולה.'],
       n
-        ? [`מקבצים 10 ${BLOCKS[column]} ל${BLOCK[n]} אחת`, 'רמז: האם ההקבצה מוציאה מבית המספרים לבנים מיותרות?']
+        ? [`מקבצים 10 ${BLOCKS[column]} ל${BLOCK[n]} אחת`, 'רמז: האם ההקבצה משנה את המספר שבבית המספרים?']
         : ['משאירים אותן, כי הן לא מפריעות', 'רמז: האם המספר שבבית המספרים הוא המספר שהתרגיל צריך?'],
       ['משאירים אותן וכותבים את התוצאה', 'רמז: האם בית המספרים מראה עכשיו רק את מה שהתרגיל צריך?'],
     ], undefined, frame('stray_blocks', 2, `יש ב${COLUMN[column]} לבנים שהתרגיל לא צריך: בודקים כמה צריך ומוציאים את המיותרות`));
@@ -1695,7 +1748,7 @@ export function strayBlocksCard(column?: Place | null, representation = false): 
   return card(`${OPEN}איך בודקים אם יש בבית המספרים לבנים מיותרות?`, 'procedural', 'tour-place-value-board', [
     [`בודקים בכל טור כמה לבנים ${needs}`, 'נכון מאוד! הוציאו לפח האשפה את הלבנים המיותרות, או לחצו על כפתור ביטול הפעולה.'],
     ['סופרים את כל הלבנים יחד', 'רמז: האם לבנת מאה ולבנת יחידה שוות אותו דבר?'],
-    ['מקבצים 10 לבנים ללבנה אחת', 'רמז: האם הקבצה מוציאה לבנים מבית המספרים?'],
+    ['מקבצים 10 לבנים ללבנה אחת', 'רמז: האם הקבצה משנה את המספר שבבית המספרים?'],
   ], undefined, frame('stray_blocks', 1, 'יש בבית המספרים לבנים מיותרות: בודקים בכל טור כמה לבנים צריך ומוציאים את המיותרות'));
 }
 
@@ -1733,18 +1786,22 @@ function placeSlipOf(task: any, counts: BoardCounts): Place | null {
     ?? null;
 }
 
-function placeSlipCard(task: any, wrong: Place, ctx: StaticCardContext): SocraticHintResponse {
-  if (shownIn(ctx, 'place_slip') && (standardCounts(task.numberA)[wrong] ?? 0) === 0) {
+function placeSlipCard(task: any, wrong: Place, counts: BoardCounts, ctx: StaticCardContext): SocraticHintResponse {
+  const std = standardCounts(task.numberA);
+  // The column the misplaced part belongs to: where the number has that digit and the board nothing.
+  const home = LOW_TO_HIGH.find((p) => (std[p] ?? 0) === (counts[wrong] ?? 0) && (counts[p] ?? 0) === 0 && p !== wrong);
+  // The second card names the column (read_write only: a break exercise's instruction also names the blocks the break makes).
+  if (shownIn(ctx, 'place_slip') && representationKindOf(task) === 'read_write' && (std[wrong] ?? 0) === 0 && home) {
     return card(`${OPEN}האם ההנחיה מבקשת לבנים ב${COLUMN[wrong]}?`, 'conceptual', HL(wrong), [
-      ['לא, ולכן מוציאים אותן משם', 'נכון מאוד! בנו את הלבנים האלה בטור שההנחיה מבקשת.'],
-      ['כן, כי כבר בניתם שם', `רמז: האם במספר שבהנחיה יש ${PLURAL[wrong]}?`],
-      ['לא משנה באיזה טור בונים', sameWorthHint(wrong, prevPlace(wrong) ?? next(wrong)!)],
-    ], 'place_slip_2', frame('place_slip', 2, `במספר שבהנחיה אין ${PLURAL[wrong]}: הלבנים שב${COLUMN[wrong]} שייכות לטור אחר`));
+      ['לא, ולכן מוציאים אותן משם', `נכון מאוד! בנו את החלק הזה ב${COLUMN[home]}.`],
+      ['כן, כי כבר בניתם שם', `רמז: האם כתוב בהנחיה משהו על ${PLURAL[wrong]}?`],
+      ['לא משנה באיזה טור בונים', sameWorthHint(wrong, home)],
+    ], 'place_slip_2', frame('place_slip', 2, `במספר שבהנחיה אין ${PLURAL[wrong]}: הלבנים שב${COLUMN[wrong]} שייכות ל${COLUMN[home]}`));
   }
   const ps = [...places(task.numberA)].reverse().map((p) => `כמה ${PLURAL[p]}`);
   const list = ps.length > 1 ? `${ps.slice(0, -1).join(', ')} ו${ps[ps.length - 1]}` : ps[0];
   return card(`${OPEN}איך יודעים לאיזה טור שייך כל חלק של המספר?`, 'conceptual', 'tour-place-value-board', [
-    [`בודקים במספר שבהנחיה ${list} יש בו`, 'נכון מאוד! בנו כל חלק בטור שלו, והוציאו לפח לבנים שנמצאות בטור אחר.'],
+    [`בודקים ${list} יש במספר שבהנחיה`, 'נכון מאוד! הוציאו לפח את הלבנים שבטור הלא נכון. אחר כך בנו כל חלק בטור שלו.'],
     ['לפי הסדר שבו בונים', 'רמז: האם הסדר שבו בונים קובע לאיזה טור שייכת לבנה?'],
     ['כל חלק לטור הראשון שיש בו מקום', 'רמז: האם לבנת עשרת ולבנת יחידה שוות אותו דבר?'],
   ], 'place_slip', frame('place_slip', 1, 'חלק מהמספר בנוי בטור הלא נכון: בודקים לפי ההנחיה לאיזה טור שייך כל חלק'));
@@ -1756,9 +1813,10 @@ function placeSlipCard(task: any, wrong: Place, ctx: StaticCardContext): Socrati
  * the board, the child wrote 540 twice — "count the blocks in each column"
  * confirmed it. The card follows the steps (owner, 1.10.2026).
  */
-const STEPS_BY_ID: Record<string, { start: number; add: Counts; remove: Counts; addWords: string; removeWords: string }> = {
-  s7_r_t6: { start: 340, add: { hundreds: 2 }, remove: { tens: 3 }, addWords: '2 המאות', removeWords: '3 העשרות' },
-  s7_g_t5: { start: 3400, add: { thousands: 1 }, remove: { hundreds: 6 }, addWords: 'האלף', removeWords: '6 המאות' },
+/** The steps, and the amounts in words (read aloud, "2 המאות" may be said "שתיים"): */
+const STEPS_BY_ID: Record<string, { start: number; add: Counts; remove: Counts; addWords: string; removeWords: string; removeIndef: string }> = {
+  s7_r_t6: { start: 340, add: { hundreds: 2 }, remove: { tens: 3 }, addWords: 'שתי המאות', removeWords: 'שלוש העשרות', removeIndef: 'שלוש עשרות' },
+  s7_g_t5: { start: 3400, add: { thousands: 1 }, remove: { hundreds: 6 }, addWords: 'האלף', removeWords: 'שש המאות', removeIndef: 'שש מאות' },
 };
 export const stepsOf = (task: any) => (typeof task?.id === 'string' ? STEPS_BY_ID[task.id] ?? null : null);
 
@@ -1784,12 +1842,12 @@ function stepsCard(task: any, steps: NonNullable<ReturnType<typeof stepsOf>>, co
   if (v === T) return null;
   const add = blocksPhrase(steps.add);
   const rem = blocksPhrase(steps.remove);
-  const removeWords = rem.k === 1 ? ONE[rem.p] : `${rem.k} ${PLURAL[rem.p]}`;
+  const removeWords = steps.removeIndef;
   if (v === S + A && (counts[rem.p] ?? 0) < rem.k) {
     const n = next(rem.p)!;
     return card(`${OPEN}ההנחיה מבקשת להסיר ${removeWords}. מה עושים אם אין מספיק ${BLOCKS[rem.p]}?`, 'procedural', HL(n), [
       [`פורטים ${BLOCK[n]} אחת לעשר ${BLOCKS[rem.p]}`, `נכון מאוד! לחצו על ${BLOCK[n]} כדי לפרוט אותה. אחר כך הוציאו ${rem.text} לפח האשפה.`],
-      [`מוציאים את כל ${BLOCKS_THE[rem.p]} שיש`, `רמז: האם כך הסרתם ${removeWords}?`],
+      [`מוציאים את כל ${BLOCKS_THE[rem.p]} שיש`, `רמז: האם כך תסירו ${removeWords}?`],
       [`מוסיפים ${BLOCKS[rem.p]} מארגז הכלים`, HINT.addBlocks],
     ], 'steps', frame('steps_not_enough', 2, `אין מספיק ${BLOCKS[rem.p]} כדי להסיר: פורטים ${BLOCK[n]} לעשר ${BLOCKS[rem.p]}`));
   }
@@ -1809,8 +1867,8 @@ function stepsCard(task: any, steps: NonNullable<ReturnType<typeof stepsOf>>, co
       [`מוציאים ${otherKind(rem.p, rem.k)}`, 'רמז: אילו לבנים ההנחיה מבקשת להסיר?'],
     ], 'steps', frame('steps_remove', 2, `הפעולה שעוד לא נעשתה: להסיר ${rem.text}`));
   }
-  return card(`${OPEN}אילו פעולות מההנחיה כבר עשיתם?`, 'procedural', 'tour-task-card', [
-    ['בודקים כל פעולה בהנחיה לפי הסדר', 'נכון מאוד! עשו עכשיו את הפעולה הראשונה שעוד לא עשיתם.'],
+  return card(`${OPEN}מה עושים לפני שכותבים את המספר?`, 'procedural', 'tour-task-card', [
+    ['בודקים שעשיתם כל פעולה בהנחיה, לפי הסדר', 'נכון מאוד! עשו עכשיו את הפעולה הראשונה שעוד לא עשיתם.'],
     ['סופרים את הלבנים וכותבים את המספר', 'רמז: האם כבר עשיתם את כל הפעולות שבהנחיה?'],
     ['בונים שוב את המספר שבתחילת ההנחיה', 'רמז: האם המספר שבתחילת ההנחיה הוא המספר שכותבים?'],
   ], 'steps', frame('steps_progress', 1, 'בודקים אילו מהפעולות שבהנחיה כבר נעשו, ועל איזה סוג לבנים'));
@@ -1826,8 +1884,8 @@ function kindCard(task: any, kind: RepresentationKind, ctx: StaticCardContext, c
   switch (kind) {
     case 'read_write': {
       const c = readWriteCard(task);
-      if (c.cardKind === 'read_write_zero' && shownIn(ctx, 'read_write_zero')) return zeroPositionCard(task) ?? c;
-      if (isWhichNumberIsBuilt(c) && shownIn(ctx, 'which_number')) return whichNumberLevel2(counts);
+      if (c.cardKind === 'read_write_zero' && shownIn(ctx, 'read_write_zero')) return zeroPositionCard(task, ctx) ?? c;
+      if (isWhichNumberIsBuilt(c) && shownIn(ctx, 'which_number')) return whichNumberLevel2(task, ctx, counts);
       return c;
     }
     case 'compose_break': {
@@ -1846,7 +1904,7 @@ function kindCard(task: any, kind: RepresentationKind, ctx: StaticCardContext, c
     }
     case 'compose_group': {
       const c = composeGroupCard(task);
-      if (c && shownIn(ctx, 'compose_group')) return writeDigitsCard('compose_group_2', 'number_after_grouping_digits');
+      if (c && shownIn(ctx, 'compose_group')) return writeDigitsCard('compose_group_2', 'number_after_grouping_digits', numberWritten(task));
       return c;
     }
   }
@@ -1882,7 +1940,7 @@ function errorAnalysisCard(): SocraticHintResponse {
 /** C6, the second card (owner's D9, 1.10.2026): check the student's work column by column — the wrong column is not named. */
 function errorAnalysisSecondCard(): SocraticHintResponse {
   return card(`${OPEN}איך בודקים בכל טור אם התלמיד צדק?`, 'procedural', 'tour-task-card', [
-    ['מחברים את שתי הספרות של הטור ועוד מה שעבר אליו מהטור שמימין, ומשווים לספרה שלו', 'נכון מאוד! התחילו בטור היחידות, ובדקו טור אחר טור.'],
+    ['פותרים כל טור בעצמכם, ומשווים לספרה שהתלמיד כתב בטור הזה', 'נכון מאוד! התחילו בטור היחידות, ובדקו טור אחר טור.'],
     ['בודקים רק את הספרה הראשונה של התוצאה שלו', 'רמז: האם טעות יכולה להיות גם בטור אחר?'],
     ['מחברים רק את שתי הספרות של הטור', 'רמז: מה קורה לטור כשהטור שמימינו מגיע ל-10 או יותר?'],
   ], 'error_analysis_2', frame('check_student_columns', 1, 'בודקים את התוצאה של התלמיד טור אחר טור, כולל מה שעבר מהטור שמימין'));
@@ -1891,7 +1949,7 @@ function errorAnalysisSecondCard(): SocraticHintResponse {
 /** Stations 3–7: the number house hidden by the top-bar button — the first card shows it (owner, 1.10.2026). */
 export function showBoardCard(): SocraticHintResponse {
   return card(`${OPEN}בית המספרים מוסתר. איך רואים שוב את הלבנים?`, 'procedural', 'tour-action-buttons', [
-    ['לוחצים על הכפתור "הצגת בית המספרים" שבראש המסך', 'נכון מאוד! עכשיו אפשר לבנות ולבדוק בלבנים.'],
+    ['לוחצים על הכפתור "הצגת בית המספרים" שבסרגל העליון', 'נכון מאוד! לחצו עליו, והלבנים יחזרו למסך.'],
     ['כותבים את התשובה בלי לבנים', 'רמז: איך תבדקו את התשובה בלי לבנים?'],
     ['מתחילים את התרגיל מההתחלה', 'רמז: האם הלבנים שבניתם נמחקו, או שהן רק מוסתרות?'],
   ], 'show_board', frame('board_hidden', 3, 'בית המספרים מוסתר: מציגים אותו בכפתור שבראש המסך ועובדים בלבנים'));
@@ -1936,7 +1994,7 @@ export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardCon
   // "450 from tens only" — the number written instead of how many blocks.
   if (task.type === 'representation' && built && counts && blocks && meeting !== 1) {
     const slip = placeSlipOf(task, counts);
-    if (slip) return placeSlipCard(task, slip, ctx);
+    if (slip) return placeSlipCard(task, slip, counts, ctx);
     if (kind === 'compose_break' && extraBreakOn(task, counts)) return extraBreakCard();
     const n = typeof task.numberA === 'number' ? task.numberA : null;
     if (n !== null && boardValue(counts) > n && kind !== 'compose_group' && !steps) return strayBlocksCard(null, true);
@@ -1961,7 +2019,7 @@ export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardCon
     case 'representation': {
       if (typeof task.numberA !== 'number') return null;
       const c = representationCard(task);
-      return isWhichNumberIsBuilt(c) && shownIn(ctx, 'which_number') ? whichNumberLevel2(counts) : c;
+      return isWhichNumberIsBuilt(c) && shownIn(ctx, 'which_number') ? whichNumberLevel2(task, ctx, counts) : c;
     }
     case 'flexible_decomp': {
       if (shownIn(ctx, 'flexible')) return flexibleSecondCard();
@@ -2004,7 +2062,7 @@ export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardCon
 
 /** Meeting 1: 10 or more blocks in a column that has no grouping button (no thousands column there). */
 export function s1NoButtonCard(): SocraticHintResponse {
-  return card(`${OPEN}באחד הטורים יש 10 לבנים או יותר, ואין בראשו כפתור. מה עושים?`, 'procedural', 'tour-place-value-board', [
+  return card(`${OPEN}באחד הטורים יש 10 לבנים או יותר, ואין בראשו הכפתור "קבצו 10". מה עושים?`, 'procedural', 'tour-place-value-board', [
     ['בודקים בהנחיה איזה מספר בונים, ומוציאים את הלבנים המיותרות', 'נכון מאוד! אפשר גם ללחוץ על כפתור ביטול הפעולה כדי לחזור צעד אחד אחורה.'],
     ['מקבצים 10 לבנים ללבנה אחת בטור שמשמאלו', 'רמז: האם בבית המספרים יש טור משמאל לטור הזה?'],
     ['משאירים את כל הלבנים בטור', HINT.oneDigitPerBox],
@@ -2014,7 +2072,7 @@ export function s1NoButtonCard(): SocraticHintResponse {
 /** Meeting 1, the second "10 or more" card: the button, in the meeting's words (no column named). */
 export function s1GroupActionCard(): SocraticHintResponse {
   return card(`${OPEN}איך מקבצים 10 לבנים ללבנה אחת?`, 'procedural', 'tour-place-value-board', [
-    ['לוחצים על הכפתור "קבצו 10" שבראש הטור', 'נכון מאוד! הכפתור מופיע בראש כל טור שיש בו 10 לבנים או יותר.'],
+    ['לוחצים על הכפתור "קבצו 10" שבראש הטור', 'נכון מאוד! הכפתור מופיע בראש הטור כשיש בו 10 לבנים או יותר.'],
     ['גוררים לבנה חדשה מארגז הכלים', HINT.addBlock],
     ['גוררים 10 לבנים לפח האשפה', HINT.deleteBlocks],
   ], 's1_crowded_2', frame('group_action', 3, 'מקבצים 10 לבנים בכפתור "קבצו 10" שבראש הטור'));
@@ -2023,27 +2081,44 @@ export function s1GroupActionCard(): SocraticHintResponse {
 /** Meeting 1, the second "which column is short" card: where the block to break comes from. */
 export function s1DeficitSecondCard(): SocraticHintResponse {
   return card(`${OPEN}מאיפה לוקחים לבנה כדי לפרוט אותה?`, 'procedural', 'tour-place-value-board', [
-    ['מהטור שמשמאל לטור שאין בו מספיק לבנים', 'נכון מאוד! לחצו על לבנה בטור הזה, או גררו אותה אל הטור שמימינו.'],
+    ['מהטור שמשמאל לטור שאין בו מספיק לבנים', 'נכון מאוד! לחצו על לבנה בטור שמשמאל, או גררו אותה אל הטור שחסרות בו לבנים.'],
     ['מארגז הכלים', 'רמז: אם תוסיפו לבנה מארגז הכלים, האם המספר יישאר אותו מספר?'],
     ['מהטור שאין בו מספיק לבנים', 'רמז: כשפורטים לבנה, לאיזה טור עוברות הלבנים הקטנות?'],
   ], 's1_deficit_2', frame('borrow_source', 1, 'את הלבנה שפורטים לוקחים מהטור שמשמאל לטור שחסרות בו לבנים'));
 }
 
-/** Meeting 1's 347, after the break (3 hundreds, 3 tens, 17 units): did a block leave? No "347", no "נשאר / לא משתנה / נשמר". */
+/**
+ * Meeting 1's 347, after the break (3 hundreds, 3 tens, 17 units): what
+ * became of the ten. No "347", no "נשאר / לא משתנה / נשמר" (the analysts'
+ * phrase rule, for the owner). Not "did a block leave?": the ten block did
+ * leave, literally, and a literal reader answers yes (review, 1.10.2026).
+ */
 function s1AfterBreakCard(): SocraticHintResponse {
-  return card(`${OPEN}כשפרטתם את העשרת, האם יצאה לבנה מבית המספרים?`, 'conceptual', 'tour-place-value-board', [
-    ['לא. העשרת הפכה לעשר יחידות, וכולן בבית המספרים', 'נכון מאוד! עכשיו כתבו בשורת התוצאה איזה מספר מייצגות הלבנים.'],
-    ['כן. העשרת יצאה, ולכן המספר קטן', 'רמז: מה קרה ללבנת העשרת כשלחצתם עליה?'],
-    ['כן. נוספו עשר לבנים, ולכן המספר גדל', 'רמז: מאיפה הגיעו עשר היחידות החדשות?'],
-  ], 's1_after_break', frame('s1_after_break', 1, 'אחרי הפריטה אף לבנה לא יצאה מבית המספרים: מה שוות יחד כל הלבנים'));
+  return card(`${OPEN}מה קרה לעשרת שפרטתם?`, 'conceptual', 'tour-place-value-board', [
+    ['היא הפכה לעשר יחידות, וכולן בבית המספרים', 'נכון מאוד! עכשיו כתבו בשורת התוצאה איזה מספר מייצגות הלבנים.'],
+    ['היא יצאה מבית המספרים, ולכן המספר קטן', 'רמז: מאיפה הגיעו עשר היחידות החדשות?'],
+    ['נוספו עשר לבנים חדשות, ולכן המספר גדל', 'רמז: האם לבנת העשרת עדיין בבית המספרים?'],
+  ], 's1_after_break', frame('s1_after_break', 1, 'העשרת שפרטתם הפכה לעשר יחידות, וכולן בבית המספרים: מה שוות יחד כל הלבנים'));
 }
 
-/** Meeting 1: what goes in each box (713 + 94 grouped; 26 grouped). */
-function s1WriteBoxesCard(target: number): SocraticHintResponse {
+/**
+ * Meeting 1: what goes in each box. The wrong option that skips a column is
+ * offered only where the number has a 0 inside it (807): for 26 or 482 it
+ * would be right (review, 1.10.2026).
+ */
+function s1WriteBoxesCard(target: number, op: 'group' | 'add' | 'sub' | 'words'): SocraticHintResponse {
+  const zero = hasEmptyColumnInside(target);
+  const third: [string, string] = zero
+    ? ['רק בתיבות של טורים שיש בהם לבנים', HINT.emptyColumnBox]
+    : op === 'sub'
+      ? ['את מספר הלבנים שהיו בטור לפני שהוצאתם', 'רמז: האם כותבים את מה שהיה בטור, או את מה שנשאר?']
+      : op === 'words'
+        ? ['את המילים של המספר, מילה בכל תיבה', 'רמז: מה כותבים בתיבה: מילה או ספרה?']
+        : ['את מספר הלבנים שהיו בטור לפני ההקבצה', HINT.oneDigitPerBox];
   return card(`${OPEN}מה כותבים בכל תיבה בשורת התוצאה?`, 'procedural', 'tour-place-value-board', [
-    ['את מספר הלבנים שבטור של אותה תיבה', hasEmptyColumnInside(target) ? 'נכון מאוד! כתבו ספרה בכל תיבה, גם בתיבה של טור שאין בו לבנים.' : 'נכון מאוד! כתבו ספרה אחת בכל תיבה.'],
+    ['את מספר הלבנים שבטור של אותה תיבה', zero ? 'נכון מאוד! כתבו ספרה בכל תיבה, גם בתיבה של טור שאין בו לבנים.' : 'נכון מאוד! כתבו ספרה אחת בכל תיבה.'],
     ['את כל הלבנים יחד, בתיבה אחת', HINT.oneDigitPerBox],
-    ['רק בתיבות של טורים שיש בהם לבנים', HINT.emptyColumnBox],
+    third,
   ], undefined, frame('write_result_boxes', 1, 'בכל תיבה כותבים את מספר הלבנים שבטור שלה, גם 0'));
 }
 
@@ -2070,7 +2145,7 @@ function s1ValueSecondCard(task: any): SocraticHintResponse | null {
   // A column to the right of the digit's: how many digits follow it; to its left: which digit is built there.
   const hintFor = (x: Place) => LOW_TO_HIGH.indexOf(x) < LOW_TO_HIGH.indexOf(p)
     ? `רמז: כמה ספרות באות אחרי הספרה ${d} במספר ${N}?`
-    : `רמז: איזו ספרה של ${N} בנויה ב${COLUMN[x]}?`;
+    : `רמז: איזו ספרה של ${N} בניתם ב${COLUMN[x]}?`;
   return card(`${OPEN}באיזה טור בניתם את הספרה ${d} של המספר ${N}?`, 'conceptual', 'tour-place-value-board', [
     [`ב${COLUMN[p]}`, `נכון מאוד! כמה שוות ${d} ${BLOCKS[p]}?`],
     ...others.map((x): [string, string] => [`ב${COLUMN[x]}`, hintFor(x)]),
@@ -2103,13 +2178,13 @@ export function meeting1Card(task: any, counts: BoardCounts, ctx: StaticCardCont
     }
     if (task.requiresGrouping) {
       // 26 units grouped into tens: once grouped, what goes in each box.
-      if (required && sameCounts(counts, required)) return s1WriteBoxesCard(n);
+      if (required && sameCounts(counts, required)) return s1WriteBoxesCard(n, 'group');
       return level2 ? s1GroupActionCard() : null;
     }
     if (value > n) return strayBlocksCard(null, true);
     if (!level2) return null;
     if (typeof task.correctAnswer === 'number' && task.correctAnswer !== n) return s1ValueSecondCard(task);
-    if (value === n && LOW_TO_HIGH.every((p) => (counts[p] ?? 0) < 10)) return s1WriteBoxesCard(n);
+    if (value === n && LOW_TO_HIGH.every((p) => (counts[p] ?? 0) < 10)) return s1WriteBoxesCard(n, 'words');
     return s1WordsSecondCard();
   }
   const a = task.numberA;
@@ -2118,7 +2193,7 @@ export function meeting1Card(task: any, counts: BoardCounts, ctx: StaticCardCont
   if (!task.isSubtraction) {
     const ex = `${formatNumberHe(a)} + ${formatNumberHe(b)}`;
     if (value === 0) return buildFirstCard();
-    if (value === a + b && LOW_TO_HIGH.every((p) => (counts[p] ?? 0) < 10)) return s1WriteBoxesCard(a + b);
+    if (value === a + b && LOW_TO_HIGH.every((p) => (counts[p] ?? 0) < 10)) return s1WriteBoxesCard(a + b, 'add');
     if (a !== b && (value === a || value === b)) return oneNumberMissingCard(ex, a, b, value);
     return level2 ? addBuildCard(ex) : null;
   }
@@ -2126,7 +2201,7 @@ export function meeting1Card(task: any, counts: BoardCounts, ctx: StaticCardCont
   // their live cards (SocraticEngine.analyzeLiveBoardState).
   const ex = `${formatNumberHe(a)} − ${formatNumberHe(b)}`;
   if (value > a) return [10, 100, 1000].includes(value - a) ? paletteBorrowCard() : buildOnlyFirstCard(ex, a);
-  if (value === a - b) return level2 ? s1WriteBoxesCard(a - b) : null;
+  if (value === a - b) return level2 ? s1WriteBoxesCard(a - b, 'sub') : null;
   if (value === a) return level2 ? overRemovalCard() : null;
   if (value > a - b) return checkBeforeTakingCard(ex);
   if (value > 0) return ctx.blocksRemoved === true ? overRemovalCard() : checkBeforeTakingCard(ex);

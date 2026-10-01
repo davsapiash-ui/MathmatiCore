@@ -42,7 +42,8 @@ describe('station 1 static cards', () => {
     for (const id of ['s1_r_sub61', 's1_r_sub806']) {
       const all = textsOf(TASK_HINTS[id]).join(' ');
       expect(all, id).not.toContain('בלבד');
-      expect(all, id).toContain('רמז: פורטים רק כשאין בטור מספיק לבנים.');
+      // Owner's D10 (1.10.2026): the hint is a guiding question (was "רמז: פורטים רק כשאין בטור מספיק לבנים.").
+      expect(all, id).toContain('רמז: מתי פורטים לבנה: כשיש בטור מספיק לבנים, או כשאין?');
     }
   });
 });

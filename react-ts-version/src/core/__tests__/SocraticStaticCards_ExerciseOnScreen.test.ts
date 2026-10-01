@@ -90,7 +90,9 @@ describe('the static card is about the exercise on the screen (3.14, 8.5)', () =
       if (t.type !== 'vertical_addition' || t.hiddenDigits || t.revealedResultDigits) continue;
       // Station 7's error analysis has its own card (C6, owner 30.9.2026).
       if (/תלמיד פתר/.test(t.instructionHe)) continue;
-      const q = SocraticEngine.getSynchronousTaskHint(task, EMPTY).questionHe;
+      // Meeting 8: the column card is the second card; the first is general (owner's D8, 1.10.2026).
+      const ctx = /^s8_/.test(t.id) ? { shownKinds: ['s8_check' as const] } : undefined;
+      const q = SocraticEngine.getSynchronousTaskHint(task, EMPTY, ctx).questionHe;
       if (!t.isSubtraction) {
         const first = carryColumns(t.numberA, t.numberB)[0];
         if (first) expect(q, t.id).toContain(`בטור ${PLACE[first]} מצטברות 10`);
@@ -150,7 +152,9 @@ describe('the two cards the audit saw', () => {
   });
 
   it('8.5 — 1,245 + 328 in meeting 8: the units convert, and there are no blocks', () => {
-    const card = SocraticEngine.getSynchronousTaskHint(byId('s8_g_t1'), EMPTY);
+    // Owner's D8 (1.10.2026): the first card is general, the second names the column.
+    expect(SocraticEngine.getSynchronousTaskHint(byId('s8_g_t1'), EMPTY).questionHe).toBe('נסו לחשוב: לפני שכותבים ספרה בשורת התוצאה, מה בודקים בכל טור?');
+    const card = SocraticEngine.getSynchronousTaskHint(byId('s8_g_t1'), EMPTY, { shownKinds: ['s8_check'] });
     expect(card.questionHe).toBe('נסו לחשוב: בתרגיל 1,245 + 328, בטור היחידות מצטברות 10 יחידות או יותר. מה עושים איתן?');
     expect(card.choices[0].textHe).toBe('ממירים 10 יחידות לעשרת אחת, ורושמים אותה בעיגול הזיכרון שמעל טור העשרות');
     expect(JSON.stringify(card)).not.toMatch(/עשרות הצטברו|יותר מ-9 עשרות|לבנ|פח|1245/);
@@ -173,19 +177,23 @@ describe('the two cards the audit saw', () => {
 });
 
 describe('meeting 1 target task (347): the card does not answer the task\'s question', () => {
+  // 347 built and not yet broken (an empty board gets "build first" since 1.10.2026).
+  const BUILT_347 = { units: 7, tens: 4, hundreds: 3, thousands: 0 };
+
   it('the wrong-option hints no longer say that the quantity is kept', () => {
-    const card = SocraticEngine.getSynchronousTaskHint({ id: 's1_target_347', type: 'representation', numberA: 347 }, EMPTY);
+    const card = SocraticEngine.getSynchronousTaskHint({ id: 's1_target_347', type: 'representation', numberA: 347 }, BUILT_347);
     expect(card.questionHe).toBe('נסו לחשוב: מה קורה בבית המספרים כשפורטים עשרת אחת?');
     const hints = card.choices.filter((c) => !c.isCorrect).map((c) => c.feedbackHe);
+    // Owner's D10 (1.10.2026): guiding questions.
     expect(hints).toEqual([
-      'רמז: הפריטה משנה את בית המספרים. בדקו מה קורה בטור העשרות ובטור היחידות.',
-      'רמז: בפריטה לא מוחקים לבנים. בדקו מה קורה ללבנת העשרת.',
+      'רמז: מה קורה ללבנת העשרת כשלוחצים עליה?',
+      'רמז: מאיפה מגיעות היחידות החדשות שבטור היחידות?',
     ]);
     expect(JSON.stringify(card)).not.toMatch(/שומרת על ערך הכמות|נשמרת|347/);
   });
 
   it('speaks the words of the screen: "פורטים", "בית המספרים", no formal "אנו" (28.9.2026)', () => {
-    const card = SocraticEngine.getSynchronousTaskHint({ id: 's1_target_347', type: 'representation', numberA: 347 }, EMPTY);
+    const card = SocraticEngine.getSynchronousTaskHint({ id: 's1_target_347', type: 'representation', numberA: 347 }, BUILT_347);
     expect(card.choices.map((c) => c.textHe)).toEqual([
       'מקבלים עשר יחידות שנוספות לטור היחידות',
       'בית המספרים נשאר בלי שינוי',
@@ -393,8 +401,11 @@ describe('with blocks on the screen, the card follows the board', () => {
 
   it('independent review, 28.9.2026: a short column with nothing to its left is not "every column has enough"', () => {
     const t = rows.find((r) => r.task.id === 's5_g_t1')!.task; // 5,432 − 2,118
+    // 54 hundreds: even after the 1 hundred is taken, 10 or more stay in the
+    // column. Since 1.10.2026 the card says so — group 10 hundreds into a
+    // thousand (the thousands column needs them too).
     const card = SocraticEngine.getSynchronousTaskHint(t, { thousands: 0, hundreds: 54, tens: 2, units: 12 });
-    expect(card.questionHe).toBe('נסו לחשוב: בתרגיל 5,432 − 2,118, מה בודקים לפני שמוציאים לבנים מטור?');
+    expect(card.questionHe).toBe('נסו לחשוב: בטור המאות יש 10 לבנים או יותר, גם אחרי החיסור. מה עושים?');
     expect(JSON.stringify(card)).not.toMatch(/בכל טור יש מספיק/);
   });
 
@@ -403,7 +414,8 @@ describe('with blocks on the screen, the card follows the board', () => {
     const done = SocraticEngine.getSynchronousTaskHint(t, { thousands: 1, hundreds: 5, tens: 7, units: 3 });
     expect(done.questionHe).toBe('נסו לחשוב: בתרגיל 1,245 + 328, כל הלבנים כבר בבית המספרים. מה עושים עכשיו?');
     // Before that, the grouping advice holds in any state: the button shows only at 10.
-    const building = SocraticEngine.getSynchronousTaskHint(t, { thousands: 1, hundreds: 2, tens: 4, units: 5 });
+    // (1,245 alone on the board asks for the other number since 1.10.2026.)
+    const building = SocraticEngine.getSynchronousTaskHint(t, { thousands: 1, hundreds: 2, tens: 4, units: 0 });
     expect(building.choices[0].feedbackHe).toBe('נכון מאוד! כשיש בטור היחידות 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור.');
   });
 
@@ -418,7 +430,8 @@ describe('with blocks on the screen, the card follows the board', () => {
 
   it('meeting 8, through a zero: one decomposition does not yet give units', () => {
     const t = rows.find((r) => r.task.id === 's8_g_t5')!.task; // 4,000 − 1,562
-    const all = textsOf(SocraticEngine.getSynchronousTaskHint(t, EMPTY)).join(' ');
+    // The column card is meeting 8's second card (owner's D8, 1.10.2026).
+    const all = textsOf(SocraticEngine.getSynchronousTaskHint(t, EMPTY, { shownKinds: ['s8_check'] })).join(' ');
     expect(all).not.toContain('פורטים אלף אחד, ואז יש מספיק');
     expect(all).toContain('אחר כך פורטים שוב, טור אחר טור, עד טור היחידות');
   });

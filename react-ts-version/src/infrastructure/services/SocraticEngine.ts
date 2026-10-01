@@ -447,7 +447,7 @@ function meeting1DeficitCard(lacking: DeficitPlace[]): SocraticHintResponse {
         ? "נכון מאוד! לחצו על לבנה בטור שמשמאל לו כדי לפרוט אותה ל-10 לבנים."
         : lacking.includes(p)
           ? "רמז: מאיזה טור מתחילים לבדוק בחיסור?"
-          : "רמז: האם בטור הזה יש פחות לבנים מהספרה שמחסרים ממנו?",
+          : "רמז: האם בטור הזה יש פחות לבנים מהספרה של המספר השני?",
     };
   });
   return {
@@ -481,9 +481,10 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-place-value-board",
     questionHe: 'הסתכלו ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
     choices: [
-      { id: "1", textHe: "עושים את מה שכתוב בשורה שעוד לא בוצעה", isCorrect: true, feedbackHe: 'נכון מאוד! כשכל השורות בוצעו, לחצו על הכפתור "ממשיכים".' },
-      { id: "2", textHe: 'לוחצים על הכפתור "ממשיכים" ומדלגים על השלב', isCorrect: false, feedbackHe: 'רמז: מה כתוב ליד כל שורה ברשימה: "בוצע!" או "עוד לא"?' },
-      { id: "3", textHe: "מחכים, והשלב יסתיים מעצמו", isCorrect: false, feedbackHe: 'רמז: מה צריך לעשות כדי שליד השורה ייכתב "בוצע!"?' }
+      { id: "1", textHe: "עושים את מה שכתוב בשורה שעוד לא בוצעה", isCorrect: true, feedbackHe: 'נכון מאוד! כשתסיימו את כל מה שברשימה, לחצו על הכפתור "ממשיכים".' },
+      // The sandbox row shows a progress bar, the others "בוצע!" / "עוד לא": the hints name neither.
+      { id: "2", textHe: 'לוחצים על הכפתור "ממשיכים" ומדלגים על השלב', isCorrect: false, feedbackHe: 'רמז: מה מראה הרשימה ליד כל שורה?' },
+      { id: "3", textHe: "מחכים, והשלב יסתיים מעצמו", isCorrect: false, feedbackHe: 'רמז: מה כתוב בשורה שעוד לא בוצעה?' }
     ],
     correctChoiceId: "1",
     cardKind: 's1_card',
