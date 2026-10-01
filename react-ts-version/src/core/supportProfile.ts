@@ -4,8 +4,8 @@
  * The server-side source of truth is `support_profile_id` on the student
  * record (Appendix A §1). The teacher toggle writes it; the student
  * keyboard lock (Module 9) and adaptive addition grid (Module 10) read it.
- * Legacy boolean fields written by older clients are still honored on read
- * so live classrooms keep working during the transition.
+ * The legacy boolean `enhanced_support_profile` is still honored on read, for
+ * records written before support_profile_id existed; nothing writes it any more.
  */
 
 export const ENHANCED_SUPPORT_PROFILE_ID = 'enhanced_cognitive_support' as const;
@@ -23,7 +23,16 @@ export function hasEnhancedSupport(data: Record<string, unknown> | null | undefi
   return Boolean((data as { enhanced_support_profile?: unknown }).enhanced_support_profile);
 }
 
-/** Write-side: the exact payload the teacher toggle persists (Module 19 §B). */
+/**
+ * Write-side: the exact payload the teacher toggle persists (Module 19 §B):
+ * the four Appendix A fields, "do not introduce additional or renamed fields".
+ *
+ * The legacy boolean used to be written beside them as a "mirror". It is not
+ * in the contract, and every reader already resolves support_profile_id. The
+ * payload now removes it (null deletes the key in RTDB): left behind, a legacy
+ * `true` would keep the profile on after the teacher switched it off, since
+ * hasEnhancedSupport still honours it on records nobody has switched since.
+ */
 export function buildSupportProfilePayload(
   enabled: boolean,
   teacherId: string | null,
@@ -33,14 +42,13 @@ export function buildSupportProfilePayload(
   support_profile_version: number;
   support_profile_updated_at: number;
   support_profile_updated_by: string | null;
-  enhanced_support_profile: boolean;
+  enhanced_support_profile: null;
 } {
   return {
     support_profile_id: enabled ? ENHANCED_SUPPORT_PROFILE_ID : null,
     support_profile_version: (typeof previousVersion === 'number' ? previousVersion : 0) + 1,
     support_profile_updated_at: Date.now(),
     support_profile_updated_by: teacherId,
-    // Legacy mirror kept in sync so older readers keep working
-    enhanced_support_profile: enabled,
+    enhanced_support_profile: null,
   };
 }

@@ -666,9 +666,15 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       ? sessionData.session_score_percent
       : 0;
 
-  let routingGroup: string | null = 'Independent challenge track, whiteboard';
-  let routingLabelHe: string | null = 'מסלול אתגר עצמאי, לוח מחיק';
-  let recommendationDetailsHe: string | null = 'המלצה למסלול אתגר וחקר עצמאי תוך שימוש בלוח מחיק ומשימות הרחבה והעמקה.';
+  // PRD 7.3 Module 23 §ב, word for word: this layer "קובעת את סוג קבוצת
+  // העבודה הפיזית ואת עזרי ההמחשה הפיזיים המומלצים". The bracketed range
+  // notes of the PRD ("(כולל שני הקצוות)", "(לא כולל 75)") describe the
+  // thresholds below, not the recommendation, and are left out. The texts used
+  // to leave out counting sticks, number cards and the grade-3 challenge and
+  // depth tasks, which the AI layer is told about (reportAnalysis.ts).
+  let routingGroup: string | null = 'Independent work, grade-3 challenge and depth tasks, erasable board and number cards';
+  let routingLabelHe: string | null = 'עבודה עצמאית, לוח מחיק וכרטיסיות מספרים';
+  let recommendationDetailsHe: string | null = "המלצה לעבודה עצמאית עם משימות האתגר והעומק של כיתה ג' ושימוש בלוח מחיק פיזי וכרטיסיות מספרים.";
 
   if (score === null) {
     // No score, no working group (Module 23 layer 1 is decided by the score).
@@ -676,13 +682,13 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     routingLabelHe = null;
     recommendationDetailsHe = null;
   } else if (score < 50) {
-    routingGroup = 'Small homogeneous group, physical ten frames';
-    routingLabelHe = 'קבוצה הומוגנית קטנה, מסגרות עשר פיזיות';
-    recommendationDetailsHe = 'המלצה לעבודה בקבוצה קטנה הומוגנית עם תיווך צמוד ושימוש במסגרות עשר פיזיות לביסוס המבנה העשרוני.';
+    routingGroup = 'Small homogeneous group, physical ten frames and counting sticks';
+    routingLabelHe = 'קבוצה הומוגנית קטנה, תבניות עשר פיזיות ומקלות מנייה';
+    recommendationDetailsHe = 'המלצה לעבודה בקבוצה הומוגנית קטנה, תיווך פרונטלי צמוד של המורה ושימוש בתבניות עשר פיזיות ומקלות מנייה.';
   } else if (score <= 75) {
-    routingGroup = 'Heterogeneous peer discourse, abacus';
-    routingLabelHe = 'שיח עמיתים הטרוגני, חשבונייה';
-    recommendationDetailsHe = 'המלצה ללמידה שיתופית ושיח עמיתים הטרוגני בשילוב חשבונייה לחיזוק הגמישות בהמרות וחקר משותף.';
+    routingGroup = 'Heterogeneous group, peer discourse, physical abacus';
+    routingLabelHe = 'קבוצה הטרוגנית, שיח עמיתים וחשבונייה';
+    recommendationDetailsHe = 'המלצה לעבודה בקבוצה הטרוגנית, שיח עמיתים ופתרון בעיות משותף באמצעות חשבונייה פיזית.';
   }
 
   // Meeting 1: what the learner can operate, and how each refresh exercise ended.

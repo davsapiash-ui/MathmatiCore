@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { ref, onValue, set, update, onDisconnect, serverTimestamp } from "firebase/database";
 import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, readSessionStartedAt, TEACHER_DISCONNECT_GRACE_MS, type ClassSessionStatus } from "@/core/classSession";
 import { database, auth, functions, firestore, serverNow, fetchServerClockOffset, isServerClockKnown } from "@/infrastructure/firebase";
-import { doc, onSnapshot, collection, writeBatch } from "firebase/firestore";
+import { doc, onSnapshot, collection, writeBatch, deleteField } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
 import { httpsCallable } from "firebase/functions";
 import { ensureStaffRoleClaims } from "@/infrastructure/services/staffRoleClaims";
@@ -43,6 +43,7 @@ import { ClusteringWidgets, isStudentBelow } from "./TeacherDashboard/components
 import { TeacherApprovalGate } from "./TeacherDashboard/components/TeacherApprovalGate";
 import { buildGateStudentItem, buildGateStudentItems, gateLearnerNumber, NO_RECOMMENDATION_HE, type GateStudentItem } from "./TeacherDashboard/gateEvidence";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
+import { buildSessionRows, sessionStateLabelHe } from "@/core/sessionPicker";
 import { getSessionDurationMinutes } from "@/core/classSession";
 import { isHeartbeatFresh, readLastPing } from "@/core/presence";
 import {
@@ -537,7 +538,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             active_session_id: activeSessionId,
             updated_by_teacher_id: user?.uid || null,
             student_count: 12,
-            updated_at: now,
+            // Module 4 lists the class document's fields "strictly"; register
+            // deviation 14 adds four, and `updated_at` is not one of them. It
+            // was written here on every activation; the copy earlier
+            // activations left on the document is removed.
+            updated_at: deleteField(),
           },
           { merge: true }
         );
@@ -895,19 +900,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   );
 
 
-  // Module 14 §ב0: the picker must show all eight sessions AND the state of each.
-  // active = currently open; completed = every learner passed it; pending = otherwise.
-  const sessionRows: SessionRow[] = useMemo(() => {
-    return [1, 2, 3, 4, 5, 6, 7, 8].map((sessionNumber) => {
-      if (isClassSessionActive && selectedSessionNum === sessionNumber) {
-        return { sessionNumber, state: 'active' as const };
-      }
-      const everyoneCompleted =
-        allStudents.length > 0 &&
-        allStudents.every((s) => (Number(s.highestCompletedMeeting) || 0) >= sessionNumber);
-      return { sessionNumber, state: everyoneCompleted ? ('completed' as const) : ('pending' as const) };
-    });
-  }, [allStudents, isClassSessionActive, selectedSessionNum]);
+  // Module 14 §ב0: the picker must show all eight sessions AND the state of each
+  // (buildSessionRows: open now, finished by all, by some, or by none).
+  const sessionRows: SessionRow[] = useMemo(
+    () => buildSessionRows(
+      allStudents.map((s) => Number(s.highestCompletedMeeting) || 0),
+      isClassSessionActive ? selectedSessionNum : null,
+    ),
+    [allStudents, isClassSessionActive, selectedSessionNum]
+  );
 
   // שלושת התחומים של מסמך 03 (§"מפגש שתיים"): המבנה העשרוני והאפס, הקבצה
   // ופריטה, וחישוב במאונך. החלטת בעל המוצר 26.9.2026.
@@ -1047,6 +1048,19 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   ) => {
     setActiveTab(tab);
     setInputText("");
+    // The chat opens on a learner who wrote and is waiting. The learner chosen
+    // in the reports tab is selected here too, and the chat opened on that
+    // learner's conversation while another learner's message sat unread.
+    if (tab === "chat_students") {
+      const hasUnread = (id: string) => {
+        const normId = normalizeStudentId(id);
+        return messages.some((m) => normalizeStudentId(m.senderId) === normId && !m.read);
+      };
+      if (!selectedStudentId || !hasUnread(selectedStudentId)) {
+        const waiting = allStudents.find((s) => hasUnread(s.studentId));
+        if (waiting) setSelectedStudentId(waiting.studentId);
+      }
+    }
   };
 
   // For Admin Chat — Module 22 lives in Firestore `messages` (written only by
@@ -1149,8 +1163,23 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }
   }, [isAdminChatDrawerOpen, activeTab, selectedStudentId, messages, adminMessages, user, markAsRead]);
 
+  // PRD 7.3 Module 22 §ב.1: "הלקוח סורק בזמן אמת את תיבת הקלט. אם זוהו ...
+  // כפתור השליחה נחסם ומוצגת התראה עדינה". The scan used to run only on
+  // "send", and answered with a toast; the button stayed enabled meanwhile.
+  const adminInputPiiNotice = useMemo(() => {
+    if (!adminInputText.trim()) return null;
+    try {
+      const validation = validateChatInputForPII(adminInputText);
+      return validation.valid ? null : (validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
+    } catch (err) {
+      console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
+      return 'שגיאה בבדיקת הפרטים המזהים. שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.';
+    }
+  }, [adminInputText]);
+
   const handleSendAdmin = async () => {
     if (!adminInputText.trim() || !user || isSendingAdmin || isSendingAdminRef.current) return;
+    if (adminInputPiiNotice) return; // the notice is already on screen, under the box
     isSendingAdminRef.current = true;
     setIsSendingAdmin(true);
 
@@ -1535,9 +1564,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               onChange={(e) => setPickedSessionNum(parseInt(e.target.value, 10))}
               className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
             >
-              {sessionRows.map(({ sessionNumber, state }) => (
-                <option key={sessionNumber} value={sessionNumber}>
-                  {`${meetingShortLabelHe(sessionNumber)} — ${state === 'active' ? 'פעיל כעת' : state === 'completed' ? 'הושלם' : 'טרם נפתח'}`}
+              {sessionRows.map((row) => (
+                <option key={row.sessionNumber} value={row.sessionNumber}>
+                  {`${meetingShortLabelHe(row.sessionNumber)} — ${sessionStateLabelHe(row)}`}
                 </option>
               ))}
             </select>
@@ -2289,7 +2318,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </div>
 
             {/* Input Footer - ALWAYS VISIBLE AT BOTTOM (shrink-0) */}
-            <div className="p-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2.5 shrink-0 z-20">
+            <div className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 z-20">
+            {adminInputPiiNotice && (
+              <p id="admin-chat-pii-notice" role="status" className="px-4 pt-3 text-xs font-bold text-amber-800 dark:text-amber-300">
+                {adminInputPiiNotice}
+              </p>
+            )}
+            <div className="p-3.5 flex items-center gap-2.5">
               <input
                 type="text"
                 value={adminInputText}
@@ -2297,16 +2332,20 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                 onKeyDown={(e) => e.key === "Enter" && handleSendAdmin()}
                 placeholder="הקלידו הודעה למנהל המערכת..."
                 disabled={isSendingAdmin}
-                className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white disabled:opacity-60"
+                aria-invalid={adminInputPiiNotice ? true : undefined}
+                aria-describedby={adminInputPiiNotice ? "admin-chat-pii-notice" : undefined}
+                className={`flex-1 bg-slate-50 dark:bg-slate-800 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-white disabled:opacity-60 ${adminInputPiiNotice ? 'border-amber-400 focus:ring-amber-400' : 'border-slate-200 dark:border-slate-700 focus:ring-indigo-500'}`}
               />
 
               <button
                 onClick={handleSendAdmin}
-                disabled={!adminInputText.trim() || isSendingAdmin}
+                disabled={!adminInputText.trim() || isSendingAdmin || adminInputPiiNotice !== null}
+                aria-label="שליחת ההודעה"
                 className="rounded-full w-10 h-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0 cursor-pointer disabled:cursor-not-allowed"
               >
-                <Send className="w-4 h-4 -mr-0.5" />
+                <Send className="w-4 h-4 -mr-0.5" aria-hidden="true" />
               </button>
+            </div>
             </div>
             </div>
           </>
@@ -2430,10 +2469,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       >
                         &rarr; חזרה
                       </button>
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-md text-base shrink-0">
-                        {
-                          (filteredChatStudents.find((s) => s.studentId === selectedStudentId)?.name || selectedStudentId || 'U')[0]
-                        }
+                      {/* The learner's number, as in the list beside it. The first
+                          letter of "תלמיד N" put a "ת" here for every learner. */}
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-md text-base shrink-0" aria-hidden="true">
+                        {selectedStudentId.replace(/\D/g, '') || '?'}
                       </div>
                       {(() => {
                         const currentStudent = filteredChatStudents.find((s) => s.studentId === selectedStudentId);

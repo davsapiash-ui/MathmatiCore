@@ -5,6 +5,7 @@ import { CHOICE_EXERCISES_HEADING_HE, exercisePathType } from '@/core/choiceExer
 import {
   AI_FALLBACK_TEXT,
   REPORT_PROCESSING_TEXT,
+  chapterForSeek,
   describeReportError,
   describeEvent,
   exerciseTitle,
@@ -20,6 +21,7 @@ import {
   subscribeLearnerRecordings,
   type JourneyEvent,
   type MeetingReport,
+  type RecordingChapter,
   type RecordingSession,
 } from '@/infrastructure/services/LearnerJourneyService';
 import { STATION_NAMES_HE, meetingShortLabelHe } from '@/core/stationNames';
@@ -71,7 +73,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
   const [events, setEvents] = useState<JourneyEvent[]>([]);
   const [eventsState, setEventsState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [eventsError, setEventsError] = useState<string>('');
-  const [recordingError, setRecordingError] = useState<string>('');
+  const [recordingFailed, setRecordingFailed] = useState(false);
   const [selectedSession, setSelectedSession] = useState<number | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [seekRequest, setSeekRequest] = useState<{ t: number; nonce: number } | null>(null);
@@ -81,9 +83,13 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
   // Recordings: live from RTDB.
   useEffect(() => {
     if (studentNum === null) return;
-    setRecordingError('');
+    setRecordingFailed(false);
     return subscribeLearnerRecordings(studentNum, setRecordings, (err) => {
-      setRecordingError(err instanceof Error ? err.message : String(err));
+      // PRD 7.3 Module 21 §ה: a recording that fails to load gets the quiet
+      // message and the decision table. The SDK's own text ("permission_denied
+      // at /users/students/…") used to be put in a red box above them.
+      console.warn('[LearnerJourney] the recordings could not be read:', err);
+      setRecordingFailed(true);
     });
   }, [studentNum]);
 
@@ -148,9 +154,13 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
   // תרגיל סיננה עד עכשיו רק את טבלת ההחלטות; הנגן המשיך לרוץ על כל המפגש,
   // כך שהמורה שביקשה לראות תרגיל אחד קיבלה גם את כל מה שבא אחריו. הפרק
   // של אותו תרגיל מגדיר עכשיו גם את סוף ההפעלה (הקפיצה לתחילתו כבר קיימת).
+  //
+  // לתרגיל יכולים להיות כמה פרקים: סבב התיקונים של מפגש 2 מחזיר את הלומד
+  // למשימה שנכשלה. הפרק הראשון היה תמיד הגבול, ולכן קפיצה לניסיון השני
+  // נעצרה מיד בסוף הראשון. הגבול הוא עכשיו הפרק שאליו קפצה המורה.
   const selectedChapter = useMemo(
-    () => (selectedExercise ? chapters.find((c) => c.exerciseId === selectedExercise) ?? null : null),
-    [chapters, selectedExercise],
+    () => chapterForSeek(chapters, selectedExercise, seekRequest?.t),
+    [chapters, selectedExercise, seekRequest],
   );
 
   // Reverse link (Module 21): as the player advances, highlight the last event at or before the playhead.
@@ -167,6 +177,18 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
     if (typeof t !== 'number') return;
     setSeekRequest((prev) => ({ t, nonce: (prev?.nonce ?? 0) + 1 }));
   };
+
+  // A chapter — a chip under the player or its segment on the timeline: that
+  // exercise, from the start of that chapter (Module 21 §ב).
+  const selectChapter = (c: RecordingChapter | undefined) => {
+    if (!c) return;
+    setSelectedExercise(c.exerciseId);
+    requestSeek(c.start);
+  };
+  const timelineChapters = useMemo(
+    () => chapters.map((c) => ({ start: c.start, end: c.end, label: `${exerciseTitle(selectedSession, c.exerciseId)} — קפיצה לתחילת התרגיל` })),
+    [chapters, selectedSession],
+  );
 
   const selectSession = (n: number) => {
     setSelectedSession(n);
@@ -269,10 +291,9 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
         </button>
       </div>
 
-      {(eventsState === 'error' || recordingError) && (
+      {eventsState === 'error' && (
         <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-bold dark:bg-red-950/40 dark:border-red-800 dark:text-red-200">
-          {eventsState === 'error' && <div>לא ניתן לקרוא את הפעולות המתועדות: {eventsError}</div>}
-          {recordingError && <div>לא ניתן לקרוא את ההקלטות: {recordingError}</div>}
+          <div>לא ניתן לקרוא את הפעולות המתועדות: {eventsError}</div>
         </div>
       )}
 
@@ -534,9 +555,12 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
             )}
           </div>
 
-          {/* Split screen: table (right in RTL) + player (left) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-            <div className="bg-ws-surface border border-ws-surface2 rounded-2xl overflow-hidden">
+          {/* Split screen: table (right in RTL) + player (left). Side by side
+              from 1280px: at 1024 each half was ~350px, the table ran under the
+              player and its last columns were hidden. Each half may shrink
+              (min-w-0) and the table scrolls inside its own card. */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+            <div className="min-w-0 bg-ws-surface border border-ws-surface2 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-ws-surface2 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-black text-ws-ink">
                   <ListOrdered className="w-4 h-4 text-ws-accent" />
@@ -544,7 +568,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                 </div>
                 <span className="text-[11px] text-ws-soft">{visibleEvents.length} פעולות</span>
               </div>
-              <div className="max-h-[520px] overflow-y-auto">
+              <div className="max-h-[520px] overflow-auto">
                 <table className="w-full text-right text-xs">
                   <thead className="bg-ws-bg text-ws-soft font-black sticky top-0 border-b border-ws-surface2">
                     <tr>
@@ -590,7 +614,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
               </div>
             </div>
 
-            <div className="bg-slate-950 rounded-2xl border border-slate-800 p-3 text-white space-y-3">
+            <div className="min-w-0 bg-slate-950 rounded-2xl border border-slate-800 p-3 text-white space-y-3">
               <div className="flex items-center justify-between text-xs px-1">
                 {/* מסמך 03 §1.3 ז' / מסמך 04: "שחזור של מסך העבודה של הלומד…
                     ללא קול". Not a video: a reconstruction of the work screen
@@ -618,6 +642,8 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   seekNonce={seekRequest?.nonce}
                   onProgress={(absTs) => setPlayheadTs(absTs)}
                   onEnd={() => setPlayheadTs(null)}
+                  chapters={timelineChapters}
+                  onChapterSelect={(i) => selectChapter(chapters[i])}
                 />
               ) : (
                 <div className="h-[320px] flex items-center justify-center text-center px-6">
@@ -628,9 +654,12 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                         registers a deviation; the line below says what is true. */}
                     <p className="font-bold text-slate-200">וידאו השחזור בהכנה</p>
                     <p className="text-xs text-slate-400">
-                      {sessionEvents.length > 0
-                        ? 'למפגש זה אין הקלטת מסך שמורה. הפעולות המתועדות מוצגות בטבלה.'
-                        : 'למפגש זה עדיין אין הקלטה.'}
+                      {/* A recording that failed to load may well exist: no claim either way. */}
+                      {recordingFailed
+                        ? 'הפעולות המתועדות מוצגות בטבלה.'
+                        : sessionEvents.length > 0
+                          ? 'למפגש זה אין הקלטת מסך שמורה. הפעולות המתועדות מוצגות בטבלה.'
+                          : 'למפגש זה עדיין אין הקלטה.'}
                     </p>
                   </div>
                 </div>
@@ -643,7 +672,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                       <button
                         key={`${c.exerciseId}-${c.start}-${i}`}
                         type="button"
-                        onClick={() => { setSelectedExercise(c.exerciseId); requestSeek(c.start); }}
+                        onClick={() => selectChapter(c)}
                         title={`${exerciseTitle(selectedSession, c.exerciseId)} — קפיצה לתחילת התרגיל`}
                         className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border cursor-pointer ${active ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-indigo-500'}`}
                       >

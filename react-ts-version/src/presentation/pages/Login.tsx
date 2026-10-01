@@ -228,22 +228,22 @@ export function Login() {
       const code = err?.code || "";
       const msg = String(err?.message || "");
 
+      // The Google window itself, before any authentication: the person
+      // closed it, or the browser did not let it open. Nothing was refused.
       if (code === "auth/popup-closed-by-user" || msg.includes("popup-closed-by-user")) {
         setErrorMsg("חלון ההזדהות של Google נסגר. אנא לחצו שוב כדי להתחבר.");
       } else if (code === "auth/popup-blocked" || msg.includes("popup-blocked")) {
         setErrorMsg("הדפדפן חסם את חלון ההתחברות הקופץ. אנא אשר חלונות קופצים (Popups) בדפדפן ונסה שוב.");
-      } else if (code === "auth/unauthorized-domain" || msg.includes("unauthorized-domain")) {
-        setErrorMsg("הדומיין הנוכחי טרם הוגדר ב-Firebase Auth. פנה למנהל המערכת.");
       } else if (code === "auth/cancelled-popup-request" || msg.includes("cancelled-popup-request")) {
         setErrorMsg("");
-      } else if (code === "auth/network-request-failed" || msg.includes("network-request-failed")) {
-        setErrorMsg("שגיאת תקשורת ברשת. אנא בדקו את החיבור לאינטרנט ונסו שוב.");
       } else {
-        // Our own refusals are written in Hebrew and say what to do. Anything
-        // else is a Firebase internal ("auth/internal-error (auth/…)") that
-        // tells the teacher nothing.
-        const ours = /[\u05D0-\u05EA]/.test(msg);
-        setErrorMsg(ours ? msg : "ההתחברות נכשלה. נסו שוב; אם זה חוזר, פנו למנהל המערכת.");
+        // PRD Module 1 §ג: "חוסמת גישה מוחלטת להרשאות, ללא חשיפת סיבת השגיאה
+        // או מידע טכני" and "כל כשל אימות מוביל חזרה לדף הבית באופן שקט".
+        // A refusal, a failed server handshake, a network or configuration
+        // failure used to stay here with an explanation, some of it technical
+        // ("הדומיין הנוכחי טרם הוגדר ב-Firebase Auth"). The reason is in the
+        // console above; the screen says nothing and goes back home.
+        navigate("/", { replace: true });
       }
     }
   };

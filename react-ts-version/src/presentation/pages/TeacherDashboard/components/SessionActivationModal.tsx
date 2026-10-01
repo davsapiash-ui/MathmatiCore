@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { meetingLabelHe, meetingShortLabelHe } from '@/core/stationNames';
+import type { SessionRow } from '@/core/sessionPicker';
 
 /**
  * PRD v7.1 Module 14 §ב0 — Session Activation.
@@ -10,12 +11,7 @@ import { meetingLabelHe, meetingShortLabelHe } from '@/core/stationNames';
  * ClassDocument and on every student document in the class, atomically.
  */
 
-export type SessionState = 'active' | 'completed' | 'pending';
-
-export interface SessionRow {
-  sessionNumber: number;
-  state: SessionState;
-}
+export type { SessionState, SessionRow } from '@/core/sessionPicker';
 
 interface Props {
   isOpen: boolean;

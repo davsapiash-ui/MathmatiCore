@@ -20,6 +20,8 @@ interface StudentGateState {
   session2Completed: boolean;
   recommendedPath: 'ירוק' | 'צמצום פערי קדם' | 'טרם נקבעה';
   isApproved: boolean;
+  /** The path the teacher approved (teacher_selected_path), which may differ from the recommendation. */
+  approvedPath: 'ירוק' | 'צמצום פערי קדם' | null;
   enhancedSupport: boolean;
   supportProfileVersion: number;
 }
@@ -32,6 +34,7 @@ const INITIAL_GATE_STUDENTS: StudentGateState[] = Array.from({ length: 12 }, (_,
     session2Completed: false,
     recommendedPath: 'טרם נקבעה',
     isApproved: false,
+    approvedPath: null,
     enhancedSupport: false,
     supportProfileVersion: 0,
   };
@@ -88,6 +91,18 @@ export function ClassManagement({
             // core/recommendedPath.ts — the diagnostic's own result, never a default colour.
             const diagnosticPath = recommendedPathOf(data);
             const isApproved = data.teacher_gate_approved === true || data.routeStatus === 'APPROVED';
+            // Module 20 / Appendix A: teacher_selected_path and
+            // matrix_recommended_path are two fields. The card filled the
+            // recommended path's button once a learner was approved, so a
+            // teacher who approved the other path saw the one she had not
+            // chosen (and neither, with no recommendation). The approval's
+            // own field decides; pedagogicalPath is the copy older approvals
+            // carry (core/teacherGate.ts writes both).
+            const approvedRaw = data.teacher_selected_path ?? data.pedagogicalPath;
+            const approvedPath = !isApproved ? null
+              : approvedRaw === 'remediation_path' ? 'צמצום פערי קדם'
+              : approvedRaw === 'green_path' ? 'ירוק'
+              : null;
             const enhanced = hasEnhancedSupport(data);
 
             return {
@@ -96,6 +111,7 @@ export function ClassManagement({
               session2Completed: session2Done,
               recommendedPath: diagnosticPath === 'remediation_path' ? 'צמצום פערי קדם' : diagnosticPath === 'green_path' ? 'ירוק' : 'טרם נקבעה',
               isApproved,
+              approvedPath,
               enhancedSupport: enhanced,
               supportProfileVersion: typeof data.support_profile_version === 'number' ? data.support_profile_version : 0,
             };
@@ -303,8 +319,9 @@ export function ClassManagement({
                     <button
                       onClick={() => handleApproveGate(student, 'ירוק')}
                       disabled={updatingId === student.id}
+                      aria-pressed={student.approvedPath === 'ירוק'}
                       className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer active:scale-[0.97] ${
-                        isApproved && student.recommendedPath === 'ירוק'
+                        student.approvedPath === 'ירוק'
                           ? 'bg-emerald-600 text-white shadow-md'
                           : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200'
                       }`}
@@ -314,8 +331,9 @@ export function ClassManagement({
                     <button
                       onClick={() => handleApproveGate(student, 'צמצום פערי קדם')}
                       disabled={updatingId === student.id}
+                      aria-pressed={student.approvedPath === 'צמצום פערי קדם'}
                       className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer active:scale-[0.97] ${
-                        isApproved && student.recommendedPath === 'צמצום פערי קדם'
+                        student.approvedPath === 'צמצום פערי קדם'
                           ? 'bg-amber-600 text-white shadow-md'
                           : 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-200'
                       }`}
