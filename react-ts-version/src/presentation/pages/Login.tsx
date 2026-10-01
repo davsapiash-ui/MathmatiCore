@@ -26,6 +26,32 @@ const ROLES = [
 const PILOT_SCHOOLS = [{ id: PILOT_SCHOOL_ID, name: PILOT_SCHOOL_NAME }];
 const PILOT_CLASSES = [{ id: PILOT_CLASS_ID, name: PILOT_CLASS_NAME, schoolId: PILOT_SCHOOL_ID }];
 
+/**
+ * PRD Module 1 §א: "במקרה של פקיעת זמן, המערכת מאפסת את השדות למניעת מצב ביניים
+ * תקוע". The learner's handshake — the anonymous sign-in, the server check and
+ * the token refresh — had no bound of its own, so a server that did not answer
+ * left "רגע, בודקים..." on the screen for the SDK's 70 seconds. Long enough for
+ * a function that starts cold; past it the form rolls back and the child tries again.
+ */
+export const STUDENT_HANDSHAKE_TIMEOUT_MS = 10_000;
+
+/** Rejects when `promise` has not settled within `ms`. */
+function withinHandshakeTime<T>(promise: Promise<T>, ms: number = STUDENT_HANDSHAKE_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('student-handshake-timeout')), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 export function Login() {
   const { setUser } = useAuthStore();
   const { login } = useStore();
@@ -113,42 +139,46 @@ export function Login() {
       const studentUid = `student_user${studentIdNum}`;
       const className = classesForSelectedSchool.find((c) => c.id === selectedClass)?.name || "המבקרים";
 
-      // 1. Ensure Firebase Auth anonymous session exists
-      if (!auth.currentUser && typeof signInAnonymously === "function") {
-        try {
-          await signInAnonymously(auth);
-        } catch (authErr) {
-          console.warn("Anonymous sign-in fallback:", authErr);
+      // Module 1 §א: the whole handshake (steps 1–3) within
+      // STUDENT_HANDSHAKE_TIMEOUT_MS; past it, the catch below rolls back.
+      await withinHandshakeTime((async () => {
+        // 1. Ensure Firebase Auth anonymous session exists
+        if (!auth.currentUser && typeof signInAnonymously === "function") {
+          try {
+            await signInAnonymously(auth);
+          } catch (authErr) {
+            console.warn("Anonymous sign-in fallback:", authErr);
+          }
         }
-      }
 
-      // 2. Server handshake. Module 1 §א: isStudentAuthenticated is set "אך ורק
-      //    לאחר תהליך אימות הדדי מוצלח מול השרת", and a communications error
-      //    triggers an immediate rollback.
-      //
-      //    There used to be a client-side fallback here: on any failure other
-      //    than an explicit rejection, the browser compared the passcode against
-      //    a hard-coded literal and granted the session itself. That shipped the
-      //    pilot passcode inside the bundle, and — worse — the fallback was
-      //    reachable on demand, because simply preventing the call from
-      //    succeeding (offline, a blocked request, a cold start that times out)
-      //    selected it. A learner could be signed in as any of the twelve with
-      //    no server involvement and no custom claims ever stamped.
-      //
-      //    Any failure now falls through to the catch below, which performs the
-      //    rollback Module 1 §ב specifies: a 300ms shake, cleared field, no
-      //    blocking dialog and no error text.
-      const authStudentCallable = httpsCallable(functions, "authenticateStudentSession");
-      await authStudentCallable({
-        studentId: studentIdNum,
-        passcode: trimmedPasscode,
-        classId: selectedClass || "class_1",
-      });
+        // 2. Server handshake. Module 1 §א: isStudentAuthenticated is set "אך ורק
+        //    לאחר תהליך אימות הדדי מוצלח מול השרת", and a communications error
+        //    triggers an immediate rollback.
+        //
+        //    There used to be a client-side fallback here: on any failure other
+        //    than an explicit rejection, the browser compared the passcode against
+        //    a hard-coded literal and granted the session itself. That shipped the
+        //    pilot passcode inside the bundle, and — worse — the fallback was
+        //    reachable on demand, because simply preventing the call from
+        //    succeeding (offline, a blocked request, a cold start that times out)
+        //    selected it. A learner could be signed in as any of the twelve with
+        //    no server involvement and no custom claims ever stamped.
+        //
+        //    Any failure now falls through to the catch below, which performs the
+        //    rollback Module 1 §ב specifies: a 300ms shake, cleared field, no
+        //    blocking dialog and no error text.
+        const authStudentCallable = httpsCallable(functions, "authenticateStudentSession", { timeout: STUDENT_HANDSHAKE_TIMEOUT_MS });
+        await authStudentCallable({
+          studentId: studentIdNum,
+          passcode: trimmedPasscode,
+          classId: selectedClass || "class_1",
+        });
 
-      // 3. Force refresh the ID token so custom claims take immediate effect on the client
-      if (auth.currentUser) {
-        await auth.currentUser.getIdToken(true);
-      }
+        // 3. Force refresh the ID token so custom claims take immediate effect on the client
+        if (auth.currentUser) {
+          await auth.currentUser.getIdToken(true);
+        }
+      })());
 
       // Global auth state flag (Master PRD v5.0 Module 1)
       (window as any).isStudentAuthenticated = true;
