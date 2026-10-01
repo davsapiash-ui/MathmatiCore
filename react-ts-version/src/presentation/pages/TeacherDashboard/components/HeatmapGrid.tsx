@@ -588,7 +588,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600 shadow-sm" />
-            <span>מנותק</span>
+            <span>מנותק או ממתין למפגש</span>
           </div>
         </div>
       </section>
@@ -720,9 +720,9 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       {student.lastAction === 'יצא מהחלון' ? 'יצא מהחלון' : 'מנותק'}
                     </span>
                   ) : !isClassSessionActive ? (
-                    <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר בלובי">
+                    <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר וממתין בלובי">
                       <span className="w-2 h-2 rounded-full bg-white" />
-                      מחובר
+                      בלובי
                     </span>
                   ) : student.activeBranch === 'challenge' ? (
                     <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מבצע משימות אתגר (לומד מהיר)">

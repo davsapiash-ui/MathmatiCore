@@ -240,6 +240,17 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     // no teacher was ever deleted while the confirmation promised it.
     const removedTeachers = get().teachers.filter((t) => t.id && t.id !== pilotTeacherKey);
 
+    // First, while nothing else has changed: if it fails, a retry still
+    // finds these teachers in the store.
+    // "כל המורות שנוספו יימחקו (כולל הרשאות הכניסה שלהן)" — the whitelist entry
+    // is the login right (Module 1 §ג); removing it also revokes the account's
+    // claims on the server (revokeRemovedStaff).
+    await Promise.all(
+      removedTeachers
+        .filter((t) => t.ssoEmail && t.ssoEmail.toLowerCase().trim() !== pilotTeacherEmail)
+        .map((t) => removeAuthorizedTeacherFirestore(t.ssoEmail)),
+    );
+
     set({
       schools: [cleanSchool],
       teachers: [cleanTeacher],
@@ -259,14 +270,6 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     const teacherWipe: Record<string, Teacher | null> = { [pilotTeacherKey]: cleanTeacher };
     for (const teacher of removedTeachers) teacherWipe[teacher.id] = null;
     await update(ref(database, 'users/teachers'), teacherWipe);
-    // "כל המורות שנוספו יימחקו (כולל הרשאות הכניסה שלהן)" — the whitelist entry
-    // is the login right (Module 1 §ג); removing it also revokes the account's
-    // claims on the server (revokeRemovedStaff).
-    await Promise.all(
-      removedTeachers
-        .filter((t) => t.ssoEmail && t.ssoEmail.toLowerCase().trim() !== pilotTeacherEmail)
-        .map((t) => removeAuthorizedTeacherFirestore(t.ssoEmail)),
-    );
     await firebaseSet(ref(database, 'classes'), { class_1: cleanClass });
     await firebaseSet(ref(database, 'public_classes'), { class_1: cleanPublicClass });
     await firebaseSet(ref(database, 'system_control/globalStudentLimit'), 12);
