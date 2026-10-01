@@ -1,10 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 /** The last feedback that already fired confetti — a remount must not fire it again. */
 let lastCelebrated: unknown = null;
+
+/** Longest a message stays on screen past its own time while it is read aloud (a read that never reports its end). */
+export const FEEDBACK_READ_HOLD_MAX_MS = 30_000;
 
 /**
  * משוב נכון/שגוי. Success fires confetti (150 particles, spread 70).
@@ -20,11 +24,28 @@ let lastCelebrated: unknown = null;
  *    Under the exercise it fell below a 768 px screen; over the heading it
  *    covers neither the board, nor the card, nor the exercise.
  *  - `floating` (meetings 2 and 8, the sheet alone in the middle): as before.
+ *
+ * PRD Module 7 §א: every instruction on the learner's screen has its own
+ * read-aloud button — these messages too ("קבצו בעצמכם…", "כתבו את הספרה
+ * החסרה…"). A message goes by itself after a few seconds, so the one being read
+ * stays on screen until its read ends; a newer message replaces it.
  */
 export function FeedbackToast({ placement = 'floating' }: { placement?: 'floating' | 'inline' }) {
-  const feedback = useWorkspaceStore((s) => s.feedback);
+  const storeFeedback = useWorkspaceStore((s) => s.feedback);
   const feedbackNonce = useWorkspaceStore((s) => s.feedbackNonce);
   const isASD = useWorkspaceStore((s) => s.isASD);
+  /** The message the learner asked to hear, kept while it is read. */
+  const [beingRead, setBeingRead] = useState<typeof storeFeedback>(null);
+  useEffect(() => {
+    if (storeFeedback && storeFeedback !== beingRead) setBeingRead(null);
+  }, [storeFeedback, beingRead]);
+  useEffect(() => {
+    if (!beingRead) return;
+    const t = setTimeout(() => setBeingRead(null), FEEDBACK_READ_HOLD_MAX_MS);
+    return () => clearTimeout(t);
+  }, [beingRead]);
+  const feedback = storeFeedback ?? beingRead;
+  const speechText = feedback ? (feedback.sub ? `${feedback.title}. ${feedback.sub}` : feedback.title) : '';
 
   useEffect(() => {
     if (feedback?.correct && !feedback.neutral && !isASD && lastCelebrated !== feedback) {
@@ -75,6 +96,12 @@ export function FeedbackToast({ placement = 'floating' }: { placement?: 'floatin
             <p className={`font-display font-extrabold ${placement === 'inline' ? 'text-base' : 'text-xl'} text-ws-ink leading-snug`}>{feedback.title}</p>
             {feedback.sub && <p className={`${placement === 'inline' ? 'text-sm leading-snug mt-0.5' : 'text-base mt-1 leading-relaxed'} text-ws-soft`}>{feedback.sub}</p>}
           </div>
+          <UdlSpeechButton
+            key={speechText}
+            text={speechText}
+            className="shrink-0 self-center"
+            onPlayingChange={(playing) => setBeingRead((cur) => (playing ? feedback : cur === feedback ? null : cur))}
+          />
         </motion.div>
       )}
     </AnimatePresence>

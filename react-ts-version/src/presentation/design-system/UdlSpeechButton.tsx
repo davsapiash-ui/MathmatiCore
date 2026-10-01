@@ -7,12 +7,20 @@ interface UdlSpeechButtonProps {
   text: string;
   lang?: string;
   className?: string;
+  /** Told when this button's read starts and ends — a passing message stays on screen while it is read. */
+  onPlayingChange?: (playing: boolean) => void;
 }
 
-export function UdlSpeechButton({ text, lang = 'he-IL', className = '' }: UdlSpeechButtonProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
+export function UdlSpeechButton({ text, lang = 'he-IL', className = '', onPlayingChange }: UdlSpeechButtonProps) {
+  const [isPlaying, setIsPlayingState] = useState(false);
   /** Which read this button owns, so unmounting it cannot silence a different button. */
   const handleRef = useRef(0);
+  const onPlayingChangeRef = useRef(onPlayingChange);
+  onPlayingChangeRef.current = onPlayingChange;
+  const setIsPlaying = (playing: boolean) => {
+    setIsPlayingState(playing);
+    onPlayingChangeRef.current?.(playing);
+  };
 
   const handleSpeak = () => {
     if (isPlaying) {
