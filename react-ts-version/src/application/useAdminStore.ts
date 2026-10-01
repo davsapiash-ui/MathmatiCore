@@ -5,7 +5,7 @@ import { addAuthorizedTeacherFirestore, removeAuthorizedTeacherFirestore } from 
 import { teacherRecordKey } from "@/infrastructure/services/FirebaseSyncService";
 import { ref, onValue, update, type Unsubscribe } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
-import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME, ONE_INSTITUTION_MESSAGE } from "@/core/pilotInstitution";
+import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME, PILOT_CLASS_CAPACITY, ONE_INSTITUTION_MESSAGE } from "@/core/pilotInstitution";
 
 export interface School {
   id: string;
@@ -353,6 +353,9 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
 
     await update(ref(database), updates);
 
+    // Module 25 §ד: the class document in Firestore, with the class type the admin chose.
+    await firebaseSyncService.writeClassDocument(classType);
+
     // Whitelist in Firestore for Google SSO — this is what lets the teacher in,
     // so a failure here fails the wizard instead of being logged and forgotten.
     if (teacherEmail.includes('@')) {
@@ -458,13 +461,12 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       throw new Error(ONE_INSTITUTION_MESSAGE);
     }
     const tempId = PILOT_CLASS_ID;
-    const limit = get().globalStudentLimit;
     const newClass: ClassRoom = {
       id: tempId,
       schoolId,
       teacherId,
       name: PILOT_CLASS_NAME,
-      studentLimit: limit,
+      studentLimit: PILOT_CLASS_CAPACITY,
       createdAt: Date.now(),
       ...(classType ? { classType } : {}),
     };

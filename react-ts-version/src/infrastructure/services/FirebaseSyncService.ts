@@ -7,7 +7,7 @@ import {
   isRestorableFor,
   keepsFreshStartWork,
 } from '@/core/workspaceSnapshot';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, getActiveTasks, resolveLearningPath, type WorkspaceInitialization } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
@@ -16,10 +16,11 @@ import { normalizeStudentId } from '@/application/useChatStore';
 /** How long database writes of the workspace state are coalesced (ms). */
 export const REMOTE_SYNC_WINDOW_MS = 500;
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
-import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME } from '@/core/pilotInstitution';
+import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME, PILOT_CLASS_CAPACITY, DEFAULT_CLASS_TYPE } from '@/core/pilotInstitution';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
 import { throttledRtdbUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
 import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
+import { recordRecentTelemetry } from './recentTelemetry';
 import type { SessionDocument, PedagogicalPath } from '@/types';
 import {
   type TelemetryPayload,
@@ -1419,6 +1420,8 @@ export class FirebaseSyncService {
     // sentence is chosen by this meeting's U, E and G. They are counted here,
     // from the very events the server will count, so the two cannot disagree.
     useWorkspaceStore.getState().recordPersistenceEvent(payload);
+    // PRD Module 13 §א: the Socratic engine reads the learner's real recent steps.
+    recordRecentTelemetry(payload);
 
     // 4. Validate column_index rule (Module 5 §C)
     const validation = validateTelemetryColumnIndexRule(payload);
@@ -1611,12 +1614,14 @@ export class FirebaseSyncService {
     const now = Date.now();
     const docId = `session_02_student_${studentNum}`;
 
-    const sessionDoc: Omit<SessionDocument, 'session_score_percent' | 'matrix_recommended_path'> = {
+    // No session_start_time / session_deadline_time: Module 14 §ב makes the
+    // server "the only source of truth" for both, and "the Zustand store …
+    // is not authorised to set times". They used to be the device clock
+    // ±30 minutes — neither the server's times nor meeting 2's 25 minutes.
+    const sessionDoc: Omit<SessionDocument, 'session_score_percent' | 'matrix_recommended_path' | 'session_start_time' | 'session_deadline_time'> = {
       session_id: docId,
       class_id: classId,
       session_number: 2,
-      session_start_time: now - 1800000,
-      session_deadline_time: now + 1800000,
       active_exercise_id: 'task8_missing_addend',
       is_completed: true,
       teacher_gate_approved: false,
@@ -1922,13 +1927,12 @@ export class FirebaseSyncService {
   public async addClassRoom(schoolId: string, teacherId: string, _name: string, _preferredId?: string, classType?: string): Promise<ClassRoom> {
     const id = PILOT_CLASS_ID;
     const name = PILOT_CLASS_NAME;
-    const limit = useAdminStore.getState().globalStudentLimit;
     const newClass: ClassRoom = {
       id,
       schoolId,
       teacherId,
       name,
-      studentLimit: limit,
+      studentLimit: PILOT_CLASS_CAPACITY,
       createdAt: Date.now(),
       ...(classType ? { classType } : {}),
     };
@@ -1936,7 +1940,28 @@ export class FirebaseSyncService {
     updates[`classes/${id}`] = newClass;
     updates[`public_classes/${id}`] = { id, name, schoolId };
     await update(ref(database), updates);
+    await this.writeClassDocument(classType);
     return newClass;
+  }
+
+  /**
+   * Module 25 §ד: "הקמת מסמכי הכיתה והמורים ב-Firestore" — the setup creates
+   * the class document (Module 4 schema, register deviation 14), with the
+   * class type the admin chose. It used to appear only at the teacher's first
+   * meeting activation, and the wizard's class type reached no document.
+   * Awaited, like the teacher whitelist: a refused write fails the wizard
+   * instead of reporting a class that is not there.
+   */
+  public async writeClassDocument(classType?: string): Promise<void> {
+    if (!firestore || !(typeof (firestore as any).type === 'string' || (firestore as any)._delegate || (firestore as any).app)) return;
+    await setDoc(doc(firestore, 'classes', PILOT_CLASS_ID), {
+      class_id: PILOT_CLASS_ID,
+      school_id: PILOT_SCHOOL_ID,
+      class_name: PILOT_CLASS_NAME,
+      class_type: classType || DEFAULT_CLASS_TYPE,
+      student_count: PILOT_CLASS_CAPACITY,
+      created_at: Date.now(),
+    }, { merge: true });
   }
 
   public async deleteClassRoom(id: string) {

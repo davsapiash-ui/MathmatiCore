@@ -43,10 +43,10 @@ export function AdminLayout() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-slate-50 w-full font-sans text-slate-900 selection:bg-indigo-100 flex flex-col md:flex-row overflow-x-hidden" dir="rtl">
+      <div className="min-h-screen bg-slate-50 w-full font-sans text-slate-900 selection:bg-indigo-100 flex flex-col lg:flex-row overflow-x-hidden" dir="rtl">
         
-        {/* Mobile Header (Shown on screens < md) */}
-        <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        {/* Mobile Header (Shown on screens < lg: at a portrait tablet the sidebar left the console too narrow) */}
+        <header className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white">
               <Shield className="w-4 h-4" />
@@ -54,12 +54,25 @@ export function AdminLayout() {
             <Logo textClassName="font-bold text-lg text-slate-900" />
           </div>
           <div className="flex items-center gap-2">
+            {/* The unread-messages bell of the desktop top bar, kept on the narrow layout. */}
+            <NavLink
+              to="/admin/chat"
+              aria-label={unreadCount > 0 ? `${unreadCount} הודעות ממורים שלא נקראו` : "הודעות ממורים"}
+              className="relative inline-flex items-center justify-center w-11 h-11 text-slate-600 hover:bg-slate-100 rounded-full"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-black rounded-full border-2 border-white flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </NavLink>
             <LogoutButton className="px-3 py-1.5 text-xs rounded-xl" />
           </div>
         </header>
 
         {/* Mobile Navigation Tabs */}
-        <nav className="md:hidden flex overflow-x-auto p-2 bg-white border-b border-slate-200 gap-1 custom-scrollbar z-20">
+        <nav className="lg:hidden flex overflow-x-auto p-2 bg-white border-b border-slate-200 gap-1 custom-scrollbar z-20">
           <NavLink to="/admin" end className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             סקירה כללית
           </NavLink>
@@ -83,24 +96,28 @@ export function AdminLayout() {
           </NavLink>
         </nav>
 
-        {/* Desktop Sidebar (Hidden on mobile) */}
-        <Sidebar variant="sidebar" collapsible="none" className="hidden md:flex m-4 rounded-2xl border border-slate-200 bg-white shadow-sm w-64 lg:w-72 flex-shrink-0 z-20 h-[calc(100vh-2rem)] flex-col overflow-hidden sticky top-4">
-          <SidebarHeader className="p-6 border-b border-slate-100 bg-slate-50">
+        {/* Desktop Sidebar (Hidden on mobile). On a laptop screen (inner height
+            ≤ 820px) the last two links sat below the fold of a list whose
+            scrollbar ui/sidebar hides: the header is compacted, the links are
+            shorter, and the footer's user card and sign-out — both also in the
+            top bar — step aside. The list's scrollbar is shown in any case. */}
+        <Sidebar variant="sidebar" collapsible="none" className="hidden lg:flex m-4 rounded-2xl border border-slate-200 bg-white shadow-sm w-64 lg:w-72 flex-shrink-0 z-20 h-[calc(100vh-2rem)] flex-col overflow-hidden sticky top-4">
+          <SidebarHeader className="p-6 [@media(max-height:820px)]:p-4 border-b border-slate-100 bg-slate-50">
             <div className="flex items-center gap-3 mb-1">
               <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold shadow-sm">
                 <Shield className="w-5 h-5 flex-shrink-0 text-white" />
               </div>
               <Logo textClassName="text-slate-900 font-bold text-xl tracking-tight" />
             </div>
-            <p className="text-[11px] text-slate-500 mt-2 tracking-widest uppercase font-bold">ממשק ניהול מערכת</p>
+            <p className="text-[11px] text-slate-500 mt-2 tracking-widest uppercase font-bold [@media(max-height:820px)]:hidden">ממשק ניהול מערכת</p>
           </SidebarHeader>
 
-          <SidebarContent className="p-4 bg-white">
+          <SidebarContent className="p-4 bg-white ![scrollbar-width:thin]">
             <SidebarGroup>
               <SidebarMenu className="gap-1.5">
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-overview" to="/admin" end className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-overview" to="/admin" end className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <Settings className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">סקירה כללית</span>
                     </NavLink>
@@ -109,7 +126,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-schools" to="/admin/schools" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-schools" to="/admin/schools" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <GraduationCap className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">מוסדות ומורים</span>
                     </NavLink>
@@ -118,7 +135,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <Layers className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">תוכנית לימודים ופדגוגיה</span>
                     </NavLink>
@@ -127,7 +144,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-support" to="/admin/support" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-support" to="/admin/support" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <LifeBuoy className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">מוקד תמיכה ופניות</span>
                     </NavLink>
@@ -136,7 +153,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-security" to="/admin/security" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-security" to="/admin/security" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <Shield className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">אבטחה והרשאות</span>
                     </NavLink>
@@ -145,7 +162,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-chat" to="/admin/chat" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-chat" to="/admin/chat" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <Users className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">ערוץ פניות מורים</span>
                     </NavLink>
@@ -154,7 +171,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-settings" to="/admin/settings" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-settings" to="/admin/settings" className={({isActive}) => isActive ? "bg-indigo-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <Settings className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">נגישות ופדגוגיה מותאמת (UDL)</span>
                     </NavLink>
@@ -164,7 +181,7 @@ export function AdminLayout() {
             </SidebarGroup>
           </SidebarContent>
 
-          <div className="p-4 lg:p-6 border-t border-white/20 dark:border-white/5 mt-auto bg-white/20 dark:bg-black/10">
+          <div className="p-4 lg:p-6 border-t border-white/20 dark:border-white/5 mt-auto bg-white/20 dark:bg-black/10 [@media(max-height:820px)]:hidden">
             <div className="flex items-center gap-3 mb-3 p-2.5 rounded-2xl bg-white/50 dark:bg-slate-900/50 shadow-inner border border-white/40 dark:border-white/5">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-lg text-sm shrink-0">
                 {(user?.displayName as string)?.[0] || "A"}
@@ -183,7 +200,7 @@ export function AdminLayout() {
         {/* Main Fluid Content Area */}
         <main className="flex-1 p-3 md:p-6 min-w-0 overflow-y-auto custom-scrollbar">
           {/* Top Bar Header matching Teacher Topbar for UI consistency */}
-          <header className="hidden md:flex items-center justify-between p-4 px-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 rounded-2xl mb-4 shadow-sm z-10 sticky top-0 transition-all">
+          <header className="hidden lg:flex items-center justify-between p-4 px-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 rounded-2xl mb-4 shadow-sm z-10 sticky top-0 transition-all">
             {/* Title */}
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-purple-600 flex items-center justify-center text-white font-bold shadow-md">

@@ -276,8 +276,13 @@ export const GATE_PENDING_FIELDS = ['teacher_gate_approved', 'routeStatus'];
  * the item goes through instead of being refused.
  */
 export const SERVER_SCORED_FIELDS = ['session_score_percent', 'matrix_recommended_path'];
-/** SERVER_SCORED_FIELDS plus the trigger's own stamp, on the session document. */
-const SERVER_SESSION_DOC_FIELDS = [...SERVER_SCORED_FIELDS, 'evaluated_at'];
+/**
+ * SERVER_SCORED_FIELDS plus the trigger's own stamp, on the session document,
+ * and the meeting's times (Module 14 §ב: the server is their only source). A
+ * meeting-2 completion queued by an earlier version carries the device clock
+ * ±30 minutes there; it is left out at delivery.
+ */
+const SERVER_SESSION_DOC_FIELDS = [...SERVER_SCORED_FIELDS, 'evaluated_at', 'session_start_time', 'session_deadline_time'];
 
 /** Owner of an item nobody can attribute to a learner: any staff identity may send it. */
 export const ANY_STAFF_OWNER = 'staff:*';

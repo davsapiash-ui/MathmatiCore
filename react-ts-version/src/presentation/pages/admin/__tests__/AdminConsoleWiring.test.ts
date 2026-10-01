@@ -42,18 +42,18 @@ describe('Admin console — wiring that silently did nothing', () => {
     expect(view.includes('curriculum_catalog')).toBe(true);
   });
 
-  it('clamps the student limit to the ceiling the server rules enforce', () => {
-    // firestore.rules pins student_id to 1..12 and student_count <= 12, so a
-    // saved limit above 12 could never be honored.
+  it('shows the student limit as the fixed ceiling the server enforces, not as a control', () => {
+    // firestore.rules pins student_id to 1..12 and student_count <= 12, and
+    // authenticateStudentSession accepts learners 1–12. A limit saved below 12
+    // was enforced by nothing (finding 89, 1.10.2026): with 8 set, all twelve
+    // learners still signed in while the console said the limit was 8.
     const view = read('../AdminSchoolsView.tsx');
+    const pilot = read('../../../../core/pilotInstitution.ts');
 
-    expect(view.includes('MAX_STUDENTS_PER_CLASS = 12')).toBe(true);
-    // הניסוח יכול להיות תנאי חיובי או שמירת סף — מה שנבדק הוא שהתקרה
-    // נאכפת, ולא איך היא כתובה.
-    expect(view).toMatch(/num (?:<=|>) MAX_STUDENTS_PER_CLASS/);
-    expect(view.includes('!isNaN(num) && num > 0')).toBe(false);
-    // וגם: ההודעה למנהל נאמרת רק אחרי שהשרת אישר.
-    expect(view).toMatch(/await setGlobalStudentLimit\(num\);[\s\S]{0,120}toast\.success/);
+    expect(pilot.includes('export const PILOT_CLASS_CAPACITY = 12;')).toBe(true);
+    expect(view.includes('{PILOT_CLASS_CAPACITY} תלמידים')).toBe(true);
+    expect(view.includes('handleSaveLimit')).toBe(false);
+    expect(view.includes('type="number"')).toBe(false);
   });
 
   it('the settings screen no longer renders controls with no handler', () => {

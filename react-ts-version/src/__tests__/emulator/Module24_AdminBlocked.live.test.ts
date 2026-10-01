@@ -169,7 +169,18 @@ describe('מודול 24 §ב ו-23א §ו — כניסת מנהל אינה קו�
     const fs = adminSignIn().firestore();
     await assertFails(setDoc(doc(fs, 'radar_alerts', 'a_new'), { student_id: 12 }));
     await assertFails(setDoc(doc(fs, 'reset_audit_log', 'r_new'), { reset_level: 'alerts' }));
-    await assertSucceeds(setDoc(doc(teacher().firestore(), 'reset_audit_log', 'r_t'), { reset_level: 'alerts' }));
+    // Module 23א: the log is written by the reset's Cloud Function only (Admin
+    // SDK). A teacher's direct entry had no schema, could never be deleted, and
+    // was read back as a real reset (1.10.2026, finding 8).
+    await assertFails(setDoc(doc(teacher().firestore(), 'reset_audit_log', 'r_t'), { reset_level: 'alerts' }));
+  });
+
+  it('מטמון המדדים לקריאה בלבד — גם למנהל (מודול 24, "read-only cache store")', async () => {
+    const fs = adminSignIn().firestore();
+    await assertSucceeds(getDoc(doc(fs, 'store_cache', 'admin_metrics')));
+    await assertFails(setDoc(doc(fs, 'store_cache', 'admin_metrics'), { total_students: 99 }));
+    await assertFails(deleteDoc(doc(fs, 'store_cache', 'admin_metrics')));
+    await assertFails(setDoc(doc(teacher().firestore(), 'store_cache', 'admin_metrics'), { total_students: 99 }));
   });
 
   it('אינה קוראת דוח אישי או גיבוי איפוס בקבצים', async () => {
@@ -203,6 +214,14 @@ describe('הקונסולה של המנהל עובדת', () => {
     await assertSucceeds(getDoc(doc(fs, 'messages', 'm1')));
     await assertSucceeds(updateDoc(doc(fs, 'messages', 'm1'), { read: true }));
   });
+
+  it('אשף ההקמה יוצר את מסמך הכיתה ב-Firestore עם סוג הכיתה שנבחר (מודול 25 §ד)', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => { await deleteDoc(doc(ctx.firestore(), 'classes', 'class_1')); });
+    await assertSucceeds(setDoc(doc(adminSignIn().firestore(), 'classes', 'class_1'), {
+      class_id: 'class_1', school_id: 'school_bikorot', class_name: 'המבקרים',
+      class_type: 'קבוצת ביקורת פיילוט', student_count: 12, created_at: 1,
+    }, { merge: true }));
+  });
 });
 
 /* ── המורה — וגם בעל המוצר כשהוא נכנס כמורה — עושה את עבודתו ────────────── */
@@ -235,6 +254,21 @@ describe('המורה עובדת כרגיל, גם כשבעל המוצר נכנס 
     it(`${name}: אינה מקבלת את כלי המנהל`, async () => {
       await assertFails(setDoc(doc(who().firestore(), 'authorizedTeachers', 'x@example.com'), { email: 'x@example.com', role: 'teacher' }));
       await assertFails(rtdbSet(ref(who().database(), 'schools/school_bikorot'), { id: 'school_bikorot' }));
+      // Module 27 §ב.5: the class the admin set up (teacherId, schoolId,
+      // studentLimit) is not the teacher's to rewrite or delete (1.10.2026, finding 70).
+      await assertFails(rtdbSet(ref(who().database(), 'classes/class_1'), { id: 'class_1', name: 'המבקרים', teacherId: 'teacher_uid' }));
+      await assertFails(rtdbSet(ref(who().database(), 'classes/class_1'), null));
+    });
+
+    it(`${name}: יוצרת את מסמכי הלומדים ואת מסמך הכיתה בהפעלת מפגש`, async () => {
+      const fs = who().firestore();
+      await assertSucceeds(setDoc(doc(fs, 'students', 'student_user5'), {
+        student_id: 5, class_id: 'class_1', school_id: 'school_bikorot', created_at: 1, active_session_id: 'session_03',
+      }, { merge: true }));
+      await assertSucceeds(setDoc(doc(fs, 'classes', 'class_1'), {
+        class_id: 'class_1', school_id: 'school_bikorot', class_name: 'המבקרים', class_type: 'כיתת ביקורת',
+        teacher_id: 'teacher_uid', active_session_id: 'session_03', updated_by_teacher_id: 'teacher_uid', student_count: 12,
+      }, { merge: true }));
     });
   }
 });

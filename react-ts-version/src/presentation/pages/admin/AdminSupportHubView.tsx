@@ -44,13 +44,33 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 };
 
 /**
+ * Module 28 §ה: "במקרה של ניתוק רשת באדמין, המערכת מציגה את הפניות האחרונות
+ * שנשמרו במטמון ומחדשת את המאזין עם חידוש החיבור." Firestore runs on its
+ * memory cache, which drops a query's documents once no listener holds them:
+ * back on this screen offline, the cache had only the unread inquiries (the
+ * layout's badge query keeps those) and every handled one was gone. The last
+ * list the server confirmed is kept here for the page's lifetime, and a
+ * snapshot from the cache adds to it instead of replacing it. (A persistent
+ * cache for the whole app would change what every other screen reads first.)
+ */
+let lastConfirmedTickets: SupportTicket[] = [];
+
+/** The list to show: the server's list as is; from the cache, the last confirmed list updated by what the cache has. */
+export function mergeCachedTickets(previous: SupportTicket[], incoming: SupportTicket[], fromCache: boolean): SupportTicket[] {
+  if (!fromCache) return incoming;
+  const byId = new Map(previous.map((t) => [t.id, t]));
+  for (const t of incoming) byId.set(t.id, t);
+  return [...byId.values()].sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+}
+
+/**
  * מודול 28: מרכז תמיכה וקריאות שירות לאדמין (Admin Support Hub)
  * מוזן מאוסף Firestore /messages — ערוץ השיח מורה↔הנהלה (מודול 22) — עם
  * אנונימיזציה בשכבת התצוגה (Zero PII, תלמידים 1-12 בלבד).
  */
 export function AdminSupportHubView() {
   const { schools, teachers } = useAdminStore();
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>(lastConfirmedTickets);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
@@ -65,7 +85,9 @@ export function AdminSupportHubView() {
   // already server-side PII-scrubbed (Module 22 Tier 2).
   useEffect(() => {
     const messagesCol = collection(db, 'messages');
-    const unsub = onSnapshot(messagesCol, (snapshot) => {
+    // includeMetadataChanges: the moment the server confirms an unchanged list
+    // (fromCache turns false) is itself an event, so the cached view is replaced.
+    const unsub = onSnapshot(messagesCol, { includeMetadataChanges: true }, (snapshot) => {
       const teacherLabels = new Map(teachers.map((t, idx) => [t.id, `מורה ${idx + 1}`]));
 
       const inquiries: SupportTicket[] = snapshot.docs
@@ -91,7 +113,10 @@ export function AdminSupportHubView() {
           };
         });
 
-      setTickets(inquiries.sort((a, b) => (b.created_at || 0) - (a.created_at || 0)));
+      const fromCache = Boolean(snapshot.metadata?.fromCache);
+      const list = mergeCachedTickets(lastConfirmedTickets, inquiries.sort((a, b) => (b.created_at || 0) - (a.created_at || 0)), fromCache);
+      if (!fromCache) lastConfirmedTickets = list;
+      setTickets(list);
     }, (err) => {
       console.error('Firestore messages listener error:', err);
     });

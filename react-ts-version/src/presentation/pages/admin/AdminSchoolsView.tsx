@@ -17,31 +17,22 @@ import {
   Printer
 } from "lucide-react";
 import { useAdminStore } from "@/application/useAdminStore";
+import { PILOT_CLASS_CAPACITY } from "@/core/pilotInstitution";
 import { AdminWizardModal } from "./AdminWizardModal";
 import { toast } from "sonner";
 
-/**
- * The hard ceiling Module 25 §ב.2 puts in the server rules: firestore.rules
- * pins student_id to 1..12 and student_count to <= 12, and anonymous learner
- * identities are the fixed set 1-12. No client control can raise it.
- */
-const MAX_STUDENTS_PER_CLASS = 12;
-
 export function AdminSchoolsView() {
   const navigate = useNavigate();
-  const { 
-    schools, 
-    teachers, 
-    classes, 
-    globalStudentLimit, 
-    setGlobalStudentLimit,
+  const {
+    schools,
+    teachers,
+    classes,
     deleteSchool,
     deleteTeacher,
     deleteClassRoom,
     resetInstitutionsToOfficialPilot
   } = useAdminStore();
 
-  const [limitInput, setLimitInput] = useState(globalStudentLimit.toString());
   const [searchQuery, setSearchQuery] = useState("");
   const [isResetting, setIsResetting] = useState(false);
   
@@ -55,27 +46,11 @@ export function AdminSchoolsView() {
   const [wizardMode, setWizardMode] = useState<"full_setup" | "add_teacher" | "add_class">("full_setup");
   const [targetSchoolId, setTargetSchoolId] = useState<string | null>(null);
 
-  // Module 25 §ב.2 puts the real capacity ceiling in the server security rules:
-  // firestore.rules pins student_id to 1..12 and student_count to <= 12. This
-  // input used to accept any positive number, so an admin could "set" a limit of
-  // 20 and be told it was saved while the server kept rejecting anything past 12
-  // — the control promised a capacity the system will never grant. Clamping it to
-  // the range the server actually enforces keeps the two in agreement.
-  const handleSaveLimit = async () => {
-    const num = parseInt(limitInput, 10);
-    if (isNaN(num) || num < 1 || num > MAX_STUDENTS_PER_CLASS) {
-      toast.error(`אנא הזן מספר תלמידים תקין (בין 1 ל-${MAX_STUDENTS_PER_CLASS})`);
-      return;
-    }
-    try {
-      // ההודעה נאמרה קודם בלי קשר לתוצאה בשרת, ולכן מגבלה שנדחתה נראתה
-      // כאילו נשמרה בזמן שכיתות חדשות המשיכו להיפתח במגבלה הישנה.
-      await setGlobalStudentLimit(num);
-      toast.success(`מגבלת התלמידים העולמית עודכנה ל-${num} תלמידים!`);
-    } catch {
-      toast.error('עדכון המגבלה נדחה בשרת. ודא שאתה מחובר כמנהל מערכת.');
-    }
-  };
+  // Module 25 §ב.2: the capacity is a hard 12, enforced on the server (learner
+  // ids 1–12 in authenticateStudentSession and the rules). An "update the
+  // limit" control used to write system_control/globalStudentLimit and report
+  // success, but nothing enforced it: with 8 set, all twelve learners still
+  // signed in. The spec sets no smaller capacity, so the number is shown, not edited.
 
   // One click on a trash icon used to wipe a whole school — teachers, the
   // pilot class the twelve learners log in through, and their login rights —
@@ -163,13 +138,13 @@ export function AdminSchoolsView() {
   };
 
   return (
-    <div className="p-6 md:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
+    <div className="p-2 sm:p-4 xl:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
       <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 p-8 text-white shadow-xl border border-indigo-400/40">
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 border border-white/25 text-white text-xs font-semibold backdrop-blur-md">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
@@ -253,9 +228,9 @@ export function AdminSchoolsView() {
       </header>
 
       {/* Global Capacity Settings & Search Bar */}
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid xl:grid-cols-3 gap-6">
         {/* Capacity Settings Panel */}
-        <div className="md:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
               <Settings className="w-6 h-6" />
@@ -265,25 +240,14 @@ export function AdminSchoolsView() {
                 מכסת תלמידים מרבית לכיתה
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                מספר התלמידים המרבי המורשה להשתתפות בכל כיתת לימוד (עד 12 תלמידים)
+                מספר התלמידים המרבי המורשה להשתתפות בכל כיתת לימוד
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <input 
-              type="number" 
-              value={limitInput}
-              onChange={(e) => setLimitInput(e.target.value)}
-              className="w-24 text-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl p-3 font-extrabold text-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none" 
-            />
-            <UdlButton 
-              semanticColor="neutral" 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-3 rounded-xl shadow-md transition-all shrink-0" 
-              onClick={handleSaveLimit}
-            >
-              עדכון מכסה
-            </UdlButton>
+          <div className="flex flex-col items-start sm:items-end gap-0.5 shrink-0">
+            <span className="text-2xl font-black text-slate-900 dark:text-white whitespace-nowrap">{PILOT_CLASS_CAPACITY} תלמידים</span>
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">קבוע לפי תקן הפיילוט</span>
           </div>
         </div>
 
@@ -301,9 +265,9 @@ export function AdminSchoolsView() {
       </div>
 
       {/* Schools Cards Grid */}
-      <div className="grid lg:grid-cols-2 gap-8">
+      <div className="grid gap-8">
         {filteredSchools.length === 0 ? (
-          <div className="col-span-2 text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 space-y-4">
+          <div className="col-span-full text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 space-y-4">
             <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
               <Building className="w-8 h-8 opacity-60" />
             </div>
@@ -413,25 +377,25 @@ export function AdminSchoolsView() {
                         {schoolTeachers.map((teacher) => (
                           <div 
                             key={teacher.id}
-                            className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 p-3.5 rounded-2xl flex items-center justify-between text-sm group"
+                            className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 p-3.5 rounded-2xl flex items-center justify-between gap-3 text-sm group"
                           >
-                            <div className="space-y-0.5">
-                              <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                <span className="font-mono" dir="ltr">{teacher.ssoEmail}</span>
+                            <div className="space-y-0.5 min-w-0 flex-1">
+                              <div className="font-bold text-slate-900 dark:text-white flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="font-mono break-all min-w-0" dir="ltr">{teacher.ssoEmail}</span>
                                 {schoolClasses.some((c) => c.teacherId === teacher.id) ? (
-                                  <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
+                                  <span className="shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
                                     מורה מובילה
                                   </span>
                                 ) : (
-                                  <span className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-300 dark:border-slate-700">
+                                  <span className="shrink-0 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-300 dark:border-slate-700">
                                     מורה מורשית
                                   </span>
                                 )}
                               </div>
                               <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3">
-                                <span className="flex items-center gap-1 font-mono">
-                                  <KeyRound className="w-3 h-3 text-slate-400" />
-                                  דוא"ל SSO: <bdi dir="ltr">{teacher.ssoEmail}</bdi>
+                                <span className="flex items-center gap-1 font-mono min-w-0">
+                                  <KeyRound className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span className="break-all">דוא"ל SSO: <bdi dir="ltr">{teacher.ssoEmail}</bdi></span>
                                 </span>
                               </div>
                             </div>
@@ -439,7 +403,7 @@ export function AdminSchoolsView() {
                             <button 
                               onClick={() => handleDeleteTeacher(teacher)}
                               disabled={isDeletingId === teacher.id}
-                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-xl transition-all cursor-pointer"
+                              className="shrink-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-xl transition-all cursor-pointer"
                               title="מחק מורה"
                             >
                               {isDeletingId === teacher.id ? (
