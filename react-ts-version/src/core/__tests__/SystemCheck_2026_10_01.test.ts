@@ -50,3 +50,16 @@ describe('Radar: a help call from the chat can be taken back', () => {
     expect(takeBack).toContain('isStruggling: false');
   });
 });
+
+describe('Meeting 2 reopened after the learner moved on', () => {
+  it('waits instead of starting the diagnostic again', () => {
+    const page = src('features/workspace/StudentWorkspacePage.tsx');
+    const guard = page.indexOf("meeting === 2 &&\n          (myData?.completedMeeting2 === true ||");
+    const guardCrlf = page.indexOf("meeting === 2 &&\r\n          (myData?.completedMeeting2 === true ||");
+    const at = guard >= 0 ? guard : guardCrlf;
+    expect(at).toBeGreaterThan(-1);
+    const after = page.slice(at, at + 900);
+    expect(after.indexOf('waitForApprovedPath();')).toBeGreaterThan(-1);
+    expect(after.indexOf('waitForApprovedPath();')).toBeLessThan(after.indexOf('initSession(meeting'));
+  });
+});

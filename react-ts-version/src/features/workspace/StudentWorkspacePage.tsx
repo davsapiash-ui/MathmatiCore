@@ -782,6 +782,18 @@ export function StudentWorkspacePage() {
         );
         if (saved) {
           restoreSession(saved);
+        } else if (
+          meeting === 2 &&
+          (myData?.completedMeeting2 === true ||
+            (typeof myData?.highestCompletedMeeting === 'number' && myData.highestCompletedMeeting >= 2))
+        ) {
+          // The diagnostic is done and the learner has moved on, so there is no
+          // meeting-2 state to restore. Starting it again let a second run
+          // overwrite the Q-matrix the gate rests on (system check 1.10.2026).
+          // The learner waits instead; the level-2 reset clears these fields
+          // when the teacher really wants meeting 2 done again.
+          waitForApprovedPath();
+          return;
         } else {
           initSession(meeting, isASDMode, 0);
         }
