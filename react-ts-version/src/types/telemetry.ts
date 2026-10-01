@@ -25,7 +25,7 @@ export type TelemetryEventType =
   | 'PLACE_CUES_SHOWN'
   // Owner, 30.9.2026: the learner took the silent help call back (research data only).
   | 'HELP_WITHDRAWN'
-  // Owner, 1.10.2026: a request for help from the chat, with its exercise (research data only).
+  // Owner, 1.10.2026: a request for help from the chat, with its exercise; help in measure 2א.
   | 'CHAT_HELP_REQUESTED';
 
 // --- Per-event-type details schemas (Master PRD v7.0 Appendix A §3) ---
@@ -121,7 +121,7 @@ export interface HelpWithdrawnDetails {
 /**
  * A request for help from the chat (owner, 1.10.2026): "קראו למורה" or the
  * ready message "אפשר עזרה בתרגיל?". The exercise is the event's exercise_id.
- * Research data only — measure 2א counts the silent help button.
+ * Help in measure 2א, like the silent help button (owner, 1.10.2026).
  */
 export interface ChatHelpRequestedDetails {
   kind: 'call' | 'ready_message';

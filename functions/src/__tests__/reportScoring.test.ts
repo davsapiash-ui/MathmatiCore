@@ -137,6 +137,9 @@ describe('measure 2א — persistence: exercises with a mistake solved without t
   it('a card the system opened is not help; a call the learner took back still is', () => {
     const card = [wrong('x', 1), ev('x', 'SOCRATIC_CARD_SHOWN', { trigger_reason: 'repeated_errors' }, 2), done('x', 3)];
     expect(computePersistenceIndex(card).percent).toBe(100);
+    // Owner, 1.10.2026: a request for help from the chat is help too.
+    const chat = [wrong('c', 1), ev('c', 'CHAT_HELP_REQUESTED', { kind: 'call' }, 2), done('c', 3)];
+    expect(computePersistenceIndex(chat)).toEqual({ exercises_with_errors: 1, solved_without_help: 0, percent: 0 });
     const withdrawn = [wrong('x', 1), help('x', 2), ev('x', 'HELP_WITHDRAWN', { help_count: 1 }, 3), done('x', 4)];
     expect(computePersistenceIndex(withdrawn).percent).toBe(0);
   });

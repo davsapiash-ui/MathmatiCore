@@ -9,7 +9,7 @@
  * holds the same words, pinned by ClassReport_ResearchMeasures2.test.ts.
  */
 export const RESEARCH_MEASURES_HE = [
-  { key: 'persistence', label: 'מדד 2א: התמדה', explanation: 'מתוך התרגילים שהלומד טעה בהם והשלים אותם, בכמה מהם לא לחץ על "קריאה לעזרה".' },
+  { key: 'persistence', label: 'מדד 2א: התמדה', explanation: 'מתוך התרגילים שהלומד טעה בהם והשלים אותם, בכמה מהם לא ביקש עזרה: לא בלחצן העזרה השקט ולא בצ׳אט.' },
   { key: 'self_correction', label: 'מדד 2ב: תיקון עצמי', explanation: 'מתוך כל הביטולים והטעויות, כמה היו ביטולים (לחיצה על כפתור ביטול הפעולה). כשלא היו ביטולים ולא טעויות, המדד הוא 100%.' },
   { key: 'flexibility', label: 'מדד 3: גמישות ייצוגית', explanation: 'מתוך תרגילי בניית המספר שהלומד השלים, כמה מהם השלים בניסיון הראשון. נמדד במפגשים 3 ו-7.' },
   { key: 'mediation', label: 'מדד 4: אפקטיביות התיווך', explanation: 'מתוך כרטיסי החניכה שהוצגו, אחרי כמה מהם התשובה הבאה של הלומד הייתה נכונה.' },

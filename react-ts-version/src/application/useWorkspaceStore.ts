@@ -2807,8 +2807,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     // Owner, 1.10.2026: the research data shows the exercise in which the
     // learner asked for help from the chat ("קראו למורה" or the ready message
-    // "אפשר עזרה בתרגיל?"). Its own event, so measure 2א — defined by the
-    // silent help button — is unchanged.
+    // "אפשר עזרה בתרגיל?"). Its own event; measure 2א counts it as help, like
+    // the silent help button (owner, 1.10.2026).
     logChatHelpRequest: (kind) => {
       emitScaffoldEvent(get(), 'CHAT_HELP_REQUESTED', { kind });
     },

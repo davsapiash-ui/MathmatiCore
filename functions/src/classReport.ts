@@ -131,7 +131,7 @@ export interface ClassLearnerRow {
   help_withdrawals: number;
   /** Register deviation 28: the result-row place-cue scaffold appeared (stations 3–7). */
   place_cue_scaffolds: number;
-  /** Requests for help from the chat (owner, 1.10.2026). Research data, not part of measure 2א. */
+  /** Requests for help from the chat (owner, 1.10.2026). Also help in measure 2א. */
   chat_help_requests: number;
   reflection_submitted: boolean;
   reflections_count: number;

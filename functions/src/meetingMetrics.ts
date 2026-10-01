@@ -360,7 +360,7 @@ export interface MeetingSummary {
   help_withdrawals: number;
   /** Register deviation 28: the result-row place-cue scaffold appeared (a digit in the wrong place). */
   place_cue_scaffolds: number;
-  /** Requests for help from the chat (owner, 1.10.2026). Research data, not part of measure 2א. */
+  /** Requests for help from the chat (owner, 1.10.2026). Also help in measure 2א. */
   chat_help_requests: number;
 }
 
@@ -890,7 +890,7 @@ export function selfCorrectionHe(p: SelfCorrectionIndex | null): string {
 export interface PersistenceIndex {
   /** Exercises the learner completed after at least one mistake (a wrong digit or a wrong card choice). */
   exercises_with_errors: number;
-  /** Those among them with no press on the silent help call. */
+  /** Those among them with no request for help: the silent help button or the chat (owner, 1.10.2026). */
   solved_without_help: number;
   /** solved_without_help ÷ exercises_with_errors × 100; null when no exercise had a mistake. */
   percent: number | null;
@@ -900,7 +900,8 @@ export interface PersistenceIndex {
  * Measure 2א (owner, 30.9.2026). A mistake is a DIGIT_ENTERED or a
  * SOCRATIC_OPTION_SELECTED with is_correct === false. Help is a HELP_REQUESTED
  * press in the exercise, even one the learner took back later (HELP_WITHDRAWN
- * is research data, not part of the formula). A coaching card the system
+ * is research data, not part of the formula), or a request for help from the
+ * chat, CHAT_HELP_REQUESTED (owner, 1.10.2026: "זה אותה נקודה"). A coaching card the system
  * opened by itself is not help: the learner did not ask for it. Only
  * completed exercises count — every exercise must be solved to move on, so an
  * unfinished one is a meeting that ended, not a learner who gave up. A press
@@ -917,7 +918,7 @@ export function computePersistenceIndex(events: Record<string, any>[]): Persiste
     if (!exId || !isExerciseEvent(ev)) continue;
     const type = ev?.event_type;
     if ((type === "DIGIT_ENTERED" || type === "SOCRATIC_OPTION_SELECTED") && ev.details?.is_correct === false) withError.add(exId);
-    else if (type === "HELP_REQUESTED" && !completed.has(exId)) withHelp.add(exId);
+    else if ((type === "HELP_REQUESTED" || type === "CHAT_HELP_REQUESTED") && !completed.has(exId)) withHelp.add(exId);
     else if (type === "PROBLEM_COMPLETE") completed.add(exId);
   }
   let exercises = 0;
@@ -942,7 +943,7 @@ export function computePersistenceIndex(events: Record<string, any>[]): Persiste
  * a test there.
  */
 export const RESEARCH_MEASURES_HE = [
-  { key: "persistence", label: "מדד 2א: התמדה", explanation: "מתוך התרגילים שהלומד טעה בהם והשלים אותם, בכמה מהם לא לחץ על \"קריאה לעזרה\"." },
+  { key: "persistence", label: "מדד 2א: התמדה", explanation: "מתוך התרגילים שהלומד טעה בהם והשלים אותם, בכמה מהם לא ביקש עזרה: לא בלחצן העזרה השקט ולא בצ׳אט." },
   { key: "self_correction", label: "מדד 2ב: תיקון עצמי", explanation: "מתוך כל הביטולים והטעויות, כמה היו ביטולים (לחיצה על כפתור ביטול הפעולה). כשלא היו ביטולים ולא טעויות, המדד הוא 100%." },
   { key: "flexibility", label: "מדד 3: גמישות ייצוגית", explanation: "מתוך תרגילי בניית המספר שהלומד השלים, כמה מהם השלים בניסיון הראשון. נמדד במפגשים 3 ו-7." },
   { key: "mediation", label: "מדד 4: אפקטיביות התיווך", explanation: "מתוך כרטיסי החניכה שהוצגו, אחרי כמה מהם התשובה הבאה של הלומד הייתה נכונה." },
