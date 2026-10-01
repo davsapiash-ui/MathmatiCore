@@ -3999,6 +3999,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         AuditLogger.log('HELP_REQUESTED', studentId, 'Student took back the silent help call');
         throttledRtdbUpdate(`users/students/${studentId}`, {
           helpRequested: false,
+          // A call from the chat used to also raise these; the radar reads
+          // them as a help call too, so the take-back clears them as well.
+          handRaised: false,
+          isStruggling: false,
           lastAction: 'ביטל את הקריאה למורה',
         }).catch(console.error);
         set({ hasRequestedBasicHelp: false });

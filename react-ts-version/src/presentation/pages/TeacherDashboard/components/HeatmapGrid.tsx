@@ -664,6 +664,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   isOnline: Boolean(student.isOnline),
                   hesitationSeconds: student.hesitationSeconds,
                   hesitationThresholdSeconds: getHesitationThresholdSeconds(),
+                  sessionStarted: isClassSessionActive,
                 })}
                 className={`p-4 rounded-2xl border text-right transition-colors duration-500 ease-in-out flex flex-col justify-between min-h-[125px] relative overflow-hidden shadow-sm hover:shadow-md cursor-pointer ${
                   // PRD Module 18 §ב: BLUE > RED > GREY > YELLOW > GREEN, and "the
@@ -678,6 +679,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     isOnline: Boolean(student.isOnline),
                     hesitationSeconds: student.hesitationSeconds,
                     hesitationThresholdSeconds: getHesitationThresholdSeconds(),
+                    sessionStarted: isClassSessionActive,
                   })]
                 }`}
               >

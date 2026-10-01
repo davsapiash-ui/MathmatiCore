@@ -145,11 +145,12 @@ export function StudentChatOverlay() {
 
     // PRD v7.1 Module 18: a help call must reach the Silent Radar (BLUE state),
     // not just the chat thread — write helpRequested + a radar_alerts entry.
+    // Only helpRequested: it is the field the call button takes back. The
+    // extra handRaised/isStruggling flags written here kept the radar tile
+    // BLUE after the learner took the call back.
     const now = Date.now();
     update(ref(database, `users/students/${normUid}`), {
       helpRequested: true,
-      handRaised: true,
-      isStruggling: true,
       lastHelpTimestamp: now,
       lastAction: 'תלמיד קרא למורה מהצ׳אט! 🔔',
       last_alert: 'תלמיד קרא למורה מהצ׳אט!',

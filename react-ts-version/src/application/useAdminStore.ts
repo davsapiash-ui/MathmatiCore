@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 import { firebaseSyncService } from "@/infrastructure/services/FirebaseSyncService";
-import { addAuthorizedTeacherFirestore } from "@/infrastructure/services/AuthService";
+import { addAuthorizedTeacherFirestore, removeAuthorizedTeacherFirestore } from "@/infrastructure/services/AuthService";
 import { teacherRecordKey } from "@/infrastructure/services/FirebaseSyncService";
 import { ref, onValue, update, type Unsubscribe } from "firebase/database";
 import { database } from "@/infrastructure/firebase";
@@ -235,6 +235,11 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       schoolId: "school_bikorot",
     };
 
+    // Read before the store is replaced below: the wipe list was built from
+    // get().teachers after set() had already left only the pilot teacher, so
+    // no teacher was ever deleted while the confirmation promised it.
+    const removedTeachers = get().teachers.filter((t) => t.id && t.id !== pilotTeacherKey);
+
     set({
       schools: [cleanSchool],
       teachers: [cleanTeacher],
@@ -252,10 +257,16 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     // באיפוס מוסדות הפיילוט". עדכון רב-נתיבי נבדק מול כל ילד בנפרד, ולכן
     // עובר — ונשאר פעולה אחת שלמה.
     const teacherWipe: Record<string, Teacher | null> = { [pilotTeacherKey]: cleanTeacher };
-    for (const teacher of get().teachers) {
-      if (teacher.id && teacher.id !== pilotTeacherKey) teacherWipe[teacher.id] = null;
-    }
+    for (const teacher of removedTeachers) teacherWipe[teacher.id] = null;
     await update(ref(database, 'users/teachers'), teacherWipe);
+    // "כל המורות שנוספו יימחקו (כולל הרשאות הכניסה שלהן)" — the whitelist entry
+    // is the login right (Module 1 §ג); removing it also revokes the account's
+    // claims on the server (revokeRemovedStaff).
+    await Promise.all(
+      removedTeachers
+        .filter((t) => t.ssoEmail && t.ssoEmail.toLowerCase().trim() !== pilotTeacherEmail)
+        .map((t) => removeAuthorizedTeacherFirestore(t.ssoEmail)),
+    );
     await firebaseSet(ref(database, 'classes'), { class_1: cleanClass });
     await firebaseSet(ref(database, 'public_classes'), { class_1: cleanPublicClass });
     await firebaseSet(ref(database, 'system_control/globalStudentLimit'), 12);
