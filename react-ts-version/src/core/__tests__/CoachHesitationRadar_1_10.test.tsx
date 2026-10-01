@@ -136,8 +136,14 @@ describe('D2 — read-aloud, the addition grid and the chat are activity', () =>
     expect(ADDITION_GRID_SELECTOR).toBe('[data-testid="adaptive-addition-grid"]');
     expect(TEACHER_CHAT_SELECTOR).toBe('[role="dialog"][aria-label="הודעות עם המורה"]');
     // A key press in the chat is no activity by itself — the typing is.
-    const chatHost = control('<div role="dialog" aria-label="הודעות עם המורה"><input/></div>');
+    const chatHost = control('<div role="dialog" aria-label="הודעות עם המורה"><input/><button aria-label="סגירת חלון הצ\'אט">✕</button></div>');
     expect(isLearnerActivityEvent({ type: 'keydown', target: chatHost.querySelector('input') })).toBe(false);
+    // Closing the chat or the grid is no work either.
+    expect(isLearnerActivityEvent({ type: 'click', target: chatHost.querySelector('button') })).toBe(false);
+    const gridHost = control('<div data-testid="adaptive-addition-grid"><button aria-label="סגירת לוח החיבור">✕</button></div>');
+    expect(isLearnerActivityEvent({ type: 'click', target: gridHost.querySelector('button') })).toBe(false);
+    expect(src('features/workspace/board/AdaptiveAdditionGrid.tsx')).toContain('aria-label={`סגירת ${ADDITION_GRID_HE}`}');
+    expect(src('features/workspace/overlays/StudentChatOverlay.tsx')).toContain('aria-label="סגירת חלון הצ\'אט"');
   });
 });
 

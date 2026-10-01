@@ -28,18 +28,22 @@ interface UseCognitiveHesitationRadarProps {
  *  - typing or sending in the chat with the teacher (StudentChatOverlay).
  * They change nothing in the workspace store, so they are caught here, on the
  * page, by the controls' own names: a click on a read-aloud button or in the
- * grid; typing in the chat, or a press of one of its buttons.
+ * grid; typing in the chat, or a press of one of its buttons. Closing the
+ * grid or the chat (their "סגירת…" buttons) is not work.
  */
 export const READ_ALOUD_SELECTOR = 'button[aria-label="הקראה בקול"]';
 export const ADDITION_GRID_SELECTOR = '[data-testid="adaptive-addition-grid"]';
 export const TEACHER_CHAT_SELECTOR = '[role="dialog"][aria-label="הודעות עם המורה"]';
+const CLOSE_BUTTON_SELECTOR = 'button[aria-label^="סגירת"]';
 
 /** Whether a DOM event is one of the D2 activities above. */
 export function isLearnerActivityEvent(event: Pick<Event, 'type' | 'target'>): boolean {
   const target = event.target as Element | null;
   if (!target || typeof target.closest !== 'function') return false;
   if (event.type === 'click') {
-    if (target.closest(READ_ALOUD_SELECTOR) || target.closest(ADDITION_GRID_SELECTOR)) return true;
+    if (target.closest(READ_ALOUD_SELECTOR)) return true;
+    if (target.closest(CLOSE_BUTTON_SELECTOR)) return false;
+    if (target.closest(ADDITION_GRID_SELECTOR)) return true;
     return Boolean(target.closest(TEACHER_CHAT_SELECTOR) && target.closest('button'));
   }
   if (event.type === 'input') return Boolean(target.closest(TEACHER_CHAT_SELECTOR));
