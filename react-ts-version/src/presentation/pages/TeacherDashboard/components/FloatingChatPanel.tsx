@@ -75,7 +75,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   };
 
   return (
-    <div className={`fixed bottom-0 left-8 w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-t-2xl shadow-2xl z-50 flex flex-col transition-all duration-300 ${isMinimized ? 'h-12' : 'h-[440px]'}`} dir="rtl">
+    <div className={`fixed bottom-0 left-8 w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-t-2xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ${isMinimized ? 'h-12' : 'h-[440px]'}`} dir="rtl">
       {/* Header */}
       <div 
         className="h-12 px-4 bg-indigo-600 text-white rounded-t-2xl flex items-center justify-between cursor-pointer select-none"

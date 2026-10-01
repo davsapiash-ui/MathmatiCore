@@ -99,7 +99,9 @@ describe('the class report on the teacher page', () => {
     render(<ClassExerciseTables exercises={report.exercises} />);
     const choice = screen.getByTestId('choice-exercises');
     expect(within(choice).getByText(CHOICE_EXERCISES_HEADING_HE)).toBeTruthy();
-    expect(within(choice).getByText('s4_g_challenge_1')).toBeTruthy();
+    // The teacher reads the exercise's Hebrew title, not its id (system check 1.10.2026).
+    expect(within(choice).getByText(exerciseTitle(4, 's4_g_challenge_1'))).toBeTruthy();
+    expect(within(choice).queryByText('s4_g_challenge_1')).toBeNull();
     expect(within(choice).getByText(CHOICE_PATH_LABEL_HE.challenge)).toBeTruthy();
     expect(within(choice).getByText(CHOICE_PATH_LABEL_HE.consolidation)).toBeTruthy();
     expect(within(choice).queryByText('s4_g_t1')).toBeNull();

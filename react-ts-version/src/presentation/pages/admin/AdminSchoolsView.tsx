@@ -417,7 +417,7 @@ export function AdminSchoolsView() {
                           >
                             <div className="space-y-0.5">
                               <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                <span className="font-mono">{teacher.ssoEmail}</span>
+                                <span className="font-mono" dir="ltr">{teacher.ssoEmail}</span>
                                 {schoolClasses.some((c) => c.teacherId === teacher.id) ? (
                                   <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
                                     מורה מובילה
@@ -431,7 +431,7 @@ export function AdminSchoolsView() {
                               <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3">
                                 <span className="flex items-center gap-1 font-mono">
                                   <KeyRound className="w-3 h-3 text-slate-400" />
-                                  דוא"ל SSO: {teacher.ssoEmail}
+                                  דוא"ל SSO: <bdi dir="ltr">{teacher.ssoEmail}</bdi>
                                 </span>
                               </div>
                             </div>

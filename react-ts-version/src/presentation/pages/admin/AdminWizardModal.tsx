@@ -576,7 +576,7 @@ export function AdminWizardModal({
                           </div>
                           <div className="pt-3 flex justify-between">
                             <span className="text-slate-500">מורה אחראי (דוא"ל SSO מורשה):</span>
-                            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{teacherSsoEmail}</span>
+                            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400" dir="ltr">{teacherSsoEmail}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
                             <span className="text-slate-500">כיתה ראשונה:</span>

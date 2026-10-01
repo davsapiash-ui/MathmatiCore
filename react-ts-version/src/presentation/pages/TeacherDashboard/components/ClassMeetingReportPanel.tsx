@@ -13,6 +13,7 @@ import {
 } from '@/infrastructure/services/ClassReportService';
 import { CHOICE_EXERCISES_HEADING_HE, CHOICE_PATH_LABEL_HE } from '@/core/choiceExercises';
 import { meetingLabelHe } from '@/core/stationNames';
+import { exerciseTitle } from '@/infrastructure/services/LearnerJourneyService';
 import { ROUTE_NAME_HE } from '@/core/routeLabels';
 import { NOT_IN_THIS_REPORT_HE } from '@/core/researchMeasures';
 
@@ -20,7 +21,7 @@ const SESSION_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const TIER_ORDER: RecommendationTier[] = ['below_50', 'between_50_75', 'above_75'];
 const OUTCOME_HE = { first_try: 'ניסיון ראשון', after_correction: 'אחרי תיקון', incomplete: 'לא הושלם' } as const;
 
-function ExerciseRows({ rows, choice }: { rows: ClassExerciseRow[]; choice: boolean }) {
+function ExerciseRows({ rows, choice, sessionNumber }: { rows: ClassExerciseRow[]; choice: boolean; sessionNumber?: number }) {
   return (
     <table className="w-full text-[11px]">
       <thead className="text-ws-soft">
@@ -29,7 +30,7 @@ function ExerciseRows({ rows, choice }: { rows: ClassExerciseRow[]; choice: bool
       <tbody className="text-ws-ink">
         {rows.map((ex) => (
           <tr key={ex.exerciseId}>
-            <td className="text-right font-bold">{ex.exerciseId}</td>
+            <td className="text-right font-bold">{exerciseTitle(sessionNumber ?? null, ex.exerciseId) || ex.exerciseId}</td>
             {choice && <td className="text-right">{ex.pathType === 'compulsory' ? '' : CHOICE_PATH_LABEL_HE[ex.pathType]}</td>}
             <td className="text-center">{ex.attempted}</td>
             <td className="text-center">{ex.completed}</td>
@@ -48,19 +49,19 @@ function ExerciseRows({ rows, choice }: { rows: ClassExerciseRow[]; choice: bool
  * מסמך 03: the choice exercises appear "מסומנים כתרגילי בחירה, בנפרד משבעת
  * תרגילי החובה" — their own table, each row naming its path.
  */
-export function ClassExerciseTables({ exercises }: { exercises: ClassExerciseRow[] }) {
+export function ClassExerciseTables({ exercises, sessionNumber }: { exercises: ClassExerciseRow[]; sessionNumber?: number }) {
   const compulsory = exercises.filter((ex) => ex.pathType === 'compulsory');
   const choice = exercises.filter((ex) => ex.pathType !== 'compulsory');
   return (
     <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 overflow-x-auto space-y-3">
       <div>
         <div className="font-black text-ws-ink mb-1">התפלגות הצלחה בניסיון ראשון לפי תרגיל</div>
-        {compulsory.length > 0 ? <ExerciseRows rows={compulsory} choice={false} /> : <div className="text-ws-soft">לא נרשמו תרגילי חובה.</div>}
+        {compulsory.length > 0 ? <ExerciseRows rows={compulsory} choice={false} sessionNumber={sessionNumber} /> : <div className="text-ws-soft">לא נרשמו תרגילי חובה.</div>}
       </div>
       {choice.length > 0 && (
         <div data-testid="choice-exercises">
           <div className="font-black text-ws-ink mb-1">{CHOICE_EXERCISES_HEADING_HE}</div>
-          <ExerciseRows rows={choice} choice />
+          <ExerciseRows rows={choice} choice sessionNumber={sessionNumber} />
         </div>
       )}
     </div>
@@ -302,7 +303,7 @@ export function ClassMeetingReportPanel() {
               </div>
 
               {/* Exercises */}
-              {report.exercises.length > 0 && <ClassExerciseTables exercises={report.exercises} />}
+              {report.exercises.length > 0 && <ClassExerciseTables exercises={report.exercises} sessionNumber={selectedSession} />}
             </div>
 
             {/* Layer 2 */}
@@ -362,7 +363,7 @@ export function ClassMeetingReportPanel() {
                     <td className="text-center">{l.recordingMinutes}</td>
                     <td className="text-center">{l.reflectionSubmitted ? 'כן' : 'לא'}</td>
                     <td className="text-right text-ws-soft">
-                      {Object.entries(l.exerciseOutcomes).map(([id, o]) => `${id}: ${OUTCOME_HE[o]}`).join(' · ')}
+                      {Object.entries(l.exerciseOutcomes).map(([id, o]) => `${exerciseTitle(selectedSession, id) || id}: ${OUTCOME_HE[o]}`).join(' · ')}
                     </td>
                   </tr>
                 ))}
