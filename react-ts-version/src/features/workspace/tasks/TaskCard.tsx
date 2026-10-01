@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useWorkspaceStore, selectStandardTask, effectiveArithmetic, getActiveTasks } from '@/application/useWorkspaceStore';
-import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
+import { useWorkspaceStore, selectStandardTask, effectiveArithmetic } from '@/application/useWorkspaceStore';
+import { currentTaskLabelHe } from '@/application/taskLabel';
 import { taskPositionLabelHe } from '@/core/taskPositionLabel';
 import { getCurrentQTask, getEffectiveNumber, isSubtaskActive } from '@/core/qmatrixFlow';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
@@ -37,22 +37,8 @@ export function TaskCard() {
   // the titles are the teacher's professional names (owner, 27.9.2026).
   // Read, not subscribed: getActiveTasks builds a new list on every call, and
   // the card already re-renders whenever the exercise (standardTask) changes.
-  const compulsory = getActiveTasks(useWorkspaceStore.getState()).filter((t) => !t.isOptionalChoiceTask);
-  const positionLabel = taskPositionLabelHe(
-    qTask
-      ? {
-          sessionNumber,
-          isCorrection: qflow.phase === 'correction',
-          position: qflow.taskIdx + 1,
-          total: DIAGNOSTIC_TASKS.length,
-        }
-      : {
-          sessionNumber,
-          isChoice: Boolean(standardTask?.isOptionalChoiceTask),
-          position: standardTask ? compulsory.findIndex((t) => t.id === standardTask.id) + 1 || null : null,
-          total: compulsory.length,
-        }
-  );
+  // The chat's help messages name the exercise with the same label.
+  const positionLabel = currentTaskLabelHe(useWorkspaceStore.getState()) ?? taskPositionLabelHe({ sessionNumber, position: null, total: 0 });
   let instruction = subtask
     ? ''
     : qTask

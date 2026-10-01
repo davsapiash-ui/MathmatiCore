@@ -137,7 +137,9 @@ service cloud.firestore {
         'PLACE_CUES_SHOWN',
         // Owner, 30.9.2026: the learner took the silent help call back.
         // Research data only; it belongs to no column.
-        'HELP_WITHDRAWN'
+        'HELP_WITHDRAWN',
+        // Owner, 1.10.2026: a request for help from the chat, with its exercise.
+        'CHAT_HELP_REQUESTED'
       ];
     }
 

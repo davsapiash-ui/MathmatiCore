@@ -183,6 +183,8 @@ describe('the meeting 1 class report', () => {
       ...TOOLS.map((t) => `"tool_${t}"`), '"place_cue_scaffolds"',
       '"persistence_exercises_with_errors"', '"persistence_solved_without_help"', '"persistence_without_help_percent"',
       '"help_withdrawals"',
+      // Requests for help from the chat (owner, 1.10.2026), appended last.
+      '"chat_help_requests"',
     ].join(','))).toBe(true);
     // Measure 2ב renamed in place; no old column name is reused with a new meaning.
     expect(header).toContain('"self_correction_undos","self_correction_wrong_digits","self_correction_wrong_options","self_correction_percent"');

@@ -1448,6 +1448,7 @@ export class FirebaseSyncService {
       KEYBOARD_LOCK_BLOCKED: 'ניסיון הקלדה לפני המרה בלבני הדינס',
       HELP_REQUESTED: 'קריאה שקטה למורה',
       HELP_WITHDRAWN: 'ביטל את הקריאה למורה',
+      CHAT_HELP_REQUESTED: 'ביקש עזרה מהצ׳אט',
       PLACE_CUES_SHOWN: 'ספרה בתיבה של טור אחר: הופיעו צבעי הטורים וכותרותיהם',
     };
     rtdbLiveUpdate.lastAction = eventLabels[event.event_type] || event.event_type;

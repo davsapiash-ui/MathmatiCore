@@ -360,6 +360,8 @@ export interface MeetingSummary {
   help_withdrawals: number;
   /** Register deviation 28: the result-row place-cue scaffold appeared (a digit in the wrong place). */
   place_cue_scaffolds: number;
+  /** Requests for help from the chat (owner, 1.10.2026). Research data, not part of measure 2א. */
+  chat_help_requests: number;
 }
 
 /** Counters of what happened in one meeting, straight from its events. */
@@ -390,6 +392,7 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
     help_requests: 0,
     help_withdrawals: 0,
     place_cue_scaffolds: 0,
+    chat_help_requests: 0,
   };
   for (const ev of events) {
     const t = typeof ev.client_timestamp === "number" ? ev.client_timestamp : null;
@@ -427,6 +430,7 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
       case "HELP_REQUESTED": s.help_requests++; break;
       case "HELP_WITHDRAWN": s.help_withdrawals++; break;
       case "PLACE_CUES_SHOWN": s.place_cue_scaffolds++; break;
+      case "CHAT_HELP_REQUESTED": s.chat_help_requests++; break;
       default: break;
     }
   }
