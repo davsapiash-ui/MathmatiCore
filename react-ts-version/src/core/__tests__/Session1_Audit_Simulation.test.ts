@@ -720,12 +720,20 @@ describe('5. timing', () => {
 describe('6. the coaching card and the next exercise', () => {
   beforeEach(() => start());
 
-  /** 26 loose cubes, the answer typed first, "התקדם" four times → the card. */
+  /**
+   * 26 loose cubes, the answer typed first, "התקדם" four times → the card. It
+   * opens as 'repeated_errors' when the friction beat ends (register 17;
+   * HelpOverlays calls helpFrictionDone, which this store-only test does
+   * itself). The submission counter no longer opens a card of its own (fix
+   * round 2, finding 27).
+   */
   function cardInGroup26() {
     goTo(GROUP26);
     typeNumber(26);
     for (let i = 0; i < 4; i++) proceed();
+    ws().helpFrictionDone();
     expect(ws().helpState).toBe('socratic');
+    expect(ws().socraticTriggerReason).toBe('repeated_errors');
     group('units'); group('units');
     ws().proceed();
     vi.advanceTimersByTime(3000);
