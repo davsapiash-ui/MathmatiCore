@@ -97,7 +97,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
     // Below 1024 px (a portrait tablet — tier B; every tier-A screen is wider)
     // the bar takes a second row: in one row "ממשיכים" and "יציאה" fell off
     // the screen.
-    <nav className="relative h-[72px] max-lg:h-auto max-lg:flex-wrap max-lg:py-2 max-lg:gap-y-2 shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-flw-12-20 gap-flw-8-16 z-20 ws-topbar">
+    <nav className="relative h-[72px] max-lg:h-auto max-lg:flex-wrap max-lg:py-2 shrink-0 bg-ws-surface/90 backdrop-saturate-150 border-b border-ws-surface2 shadow-[0_4px_20px_-8px_hsl(var(--ws-shadow-warm)/0.25)] flex items-center justify-between px-flw-12-20 gap-flw-8-16 z-20 ws-topbar">
       {/* Brand + Student Identity + Silent Cloud Status Icon */}
       <div className="flex items-center gap-flw-8-12 shrink-0">
         <span className="ws-topbar-wide"><Logo size="md" subtitle="מרחב חקר אישי" /></span>
