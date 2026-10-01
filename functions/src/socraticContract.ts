@@ -216,6 +216,12 @@ export interface SocraticRequest {
   exercise_context?: SocraticExerciseContext;
   task_context?: SocraticTaskContext;
   card_frame?: SocraticCardFrame;
+  /**
+   * The learner's support settings (phase 2, 1.10.2026): the enhanced
+   * cognitive-support profile and the quiet mode. Two booleans — no name, no
+   * diagnosis — so the card is written shorter and more concrete.
+   */
+  learner_profile?: { enhanced?: boolean; quiet?: boolean };
   workspace_state: SocraticWorkspaceState;
   student_progress_state?: SocraticProgressState;
   recent_actions: SocraticRecentAction[];
@@ -483,6 +489,9 @@ export function validateSocraticRequest(raw: unknown): Validation<SocraticReques
       exercise_context,
       ...(task_context ? { task_context } : {}),
       ...(card_frame ? { card_frame } : {}),
+      ...(isPlainObject(raw.learner_profile)
+        ? { learner_profile: { enhanced: raw.learner_profile.enhanced === true, quiet: raw.learner_profile.quiet === true } }
+        : {}),
       workspace_state: {
         ...counts,
         memory_circles: cleanMemoryCircles(ws.memory_circles),
@@ -648,6 +657,8 @@ export interface SocraticFacts {
   earlier_card_kinds: string[];
   /** The card frame the client's static selection set, or null (an older client). */
   card_frame: SocraticCardFrame | null;
+  /** The enhanced profile or the quiet mode is on: shorter, more concrete wording. */
+  concise: boolean;
   /** Deterministic reading of the situation, offered to the model as the primary hypothesis. */
   suggested_category: SocraticErrorCategory;
   suggested_focus_he: string;
@@ -1135,6 +1146,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     earlier_cards: earlierCardsOf(actions),
     earlier_card_kinds: ps?.earlier_card_kinds ?? [],
     card_frame: req.card_frame ?? null,
+    concise: Boolean(req.learner_profile?.enhanced || req.learner_profile?.quiet),
     suggested_category,
     suggested_focus_he,
   };
@@ -1470,6 +1482,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   lines.push(`שגיאות רצופות: ${facts.consecutive_errors}.`);
   if (facts.wrong_carry_circles.length) lines.push(`רישום שגוי: בעיגול הזיכרון שמעל ${facts.wrong_carry_circles.map((c) => COLUMN_NAME_HE[c]).join(", ")} רשום מספר גדול מ-1. בחיבור עוברת לטור הבא עשרת אחת בלבד — אל תחבר אותו כהמרה.`);
   if (facts.hesitation_seconds) lines.push(`זמן בלי פעולה לפני הכרטיס: ${facts.hesitation_seconds} שניות.`);
+  if (facts.concise) lines.push("הלומד עובד בפרופיל תמיכה מוגבר או במצב שקט: כתבו קצר ומוחשי במיוחד — שאלה של עד 12 מילים, כל אפשרות עד 6 מילים, כל משוב משפט אחד, ורק פעולות שרואים על המסך.");
   if (facts.typing_pattern === "carry_forgotten") lines.push("דפוס בהקלדה: הספרה השגויה בטור הפעיל מתאימה לחיבור בלי העשרת שעברה מהטור שמימין — העשרת שבעיגול הזיכרון נשכחה.");
   if (facts.typing_pattern === "reversed_subtraction") lines.push("דפוס בהקלדה: הספרה השגויה בטור הפעיל היא חיסור הפוך (הספרה העליונה מהתחתונה) במקום פריטה.");
   if (facts.typing_pattern === "tens_digit_typed") lines.push("דפוס בהקלדה: בטור שעובר את 9 הוקלדה ספרת העשרות של הסכום.");
@@ -1863,9 +1876,13 @@ export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | n
     }
   }
   // The frame's level: a level-1 card names no column, in its question or in its right option.
+  // A "which column?" card (all three options are columns: the owner's meeting-1
+  // deficit card) lets the child CHOOSE the column — its right option may name it.
   if (facts?.card_frame?.level === 1) {
+    const namesColumn = (t: string) => /טור ה(יחידות|עשרות|מאות|אלפים)/.test(t);
     const right = options.find((o) => o.is_correct);
-    if ([question, right?.option_text ?? ""].some((t) => /טור ה(יחידות|עשרות|מאות|אלפים)/.test(t))) {
+    const columnChoice = options.every((o) => namesColumn(o.option_text));
+    if (namesColumn(question) || (!columnChoice && right && namesColumn(right.option_text))) {
       return { ok: false, reason: "frame: this is a level-1 card — the question and the right option must not name a column" };
     }
   }

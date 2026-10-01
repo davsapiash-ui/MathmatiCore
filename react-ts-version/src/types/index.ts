@@ -141,6 +141,8 @@ export interface GeminiSocraticRequest {
   task_context?: SocraticTaskContextWire;
   /** The card frame the static selection set: situation, level (1 general / 2 column / 3 action) and intent. */
   card_frame?: { situation: string; level: 1 | 2 | 3; intent_he?: string };
+  /** Phase 2 (1.10.2026): the enhanced support profile / quiet mode — two booleans, so the card is shorter and more concrete. */
+  learner_profile?: { enhanced?: boolean; quiet?: boolean };
   workspace_state: {
     ones_count: number;
     tens_count: number;

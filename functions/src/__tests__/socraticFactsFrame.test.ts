@@ -126,6 +126,29 @@ describe('the frame and the leaks', () => {
     expect(buildSocraticPrompt(req, f)).toContain('רמה 1 — כללית');
   });
 
+  it('a "which column?" card may let the child choose the column (the owner\'s meeting-1 deficit card)', () => {
+    const f = deriveSocraticFacts(arith({ session: 1, op: 'subtraction', a: 61, b: 24, counts: [1, 6, 0, 0], frame: { situation: 'meeting1_deficit', level: 1 } }));
+    const choice = {
+      error_category: 'procedural', guiding_question: 'באיזה טור אין מספיק לבנים כדי לחסר?',
+      options: [
+        { id: 'opt_1', option_text: 'בטור היחידות', feedback_text: 'נכון מאוד! לחצו על לבנה בטור שמשמאל לו.', is_correct: true },
+        { id: 'opt_2', option_text: 'בטור העשרות', feedback_text: 'רמז: האם בטור הזה יש מספיק לבנים?', is_correct: false },
+        { id: 'opt_3', option_text: 'בטור המאות', feedback_text: 'רמז: האם מחסרים מאות בתרגיל הזה?', is_correct: false },
+      ],
+    };
+    expect(validateSocraticResponse(choice, f).ok).toBe(true);
+  });
+
+  it('the enhanced profile or the quiet mode asks for shorter, concrete wording', () => {
+    const req = arith({ session: 4, op: 'addition', a: 128, b: 35, counts: [13, 5, 1, 0] });
+    const v = validateSocraticRequest({ ...req, learner_profile: { enhanced: true, quiet: false } });
+    if (!v.ok) throw new Error(v.reason);
+    const f = deriveSocraticFacts(v.value);
+    expect(f.concise).toBe(true);
+    expect(buildSocraticPrompt(v.value, f)).toContain('כתבו קצר ומוחשי במיוחד');
+    expect(deriveSocraticFacts(req).concise).toBe(false);
+  });
+
   it('meeting 1: the question names no column', () => {
     const f = deriveSocraticFacts(arith({ session: 1, op: 'addition', a: 713, b: 94, counts: [7, 10, 7, 0], col: 1 }));
     const r = validateSocraticResponse(card('בטור העשרות יש הרבה לבנים. מה עושים?', 'מקבצים 10 לבנים ללבנה אחת'), f);

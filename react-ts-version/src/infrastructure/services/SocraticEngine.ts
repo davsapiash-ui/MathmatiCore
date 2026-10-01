@@ -157,6 +157,8 @@ export interface SocraticMonitoringSnapshot {
   hasRegroupedInCanvas?: boolean;
   /** Columns whose conversion is done with the blocks (or written in a memory circle, meeting 8) — per column. */
   conversionsDone?: Place[];
+  /** The enhanced support profile and the quiet mode: the engine writes shorter, more concrete cards (measured 1.10.2026). */
+  learnerProfile?: { enhanced: boolean; quiet: boolean };
   recentEvents?: TelemetryPayload<TelemetryEventType>[];
   /**
    * What the static card chooser knows beyond the board (the place cues, the
@@ -1301,6 +1303,9 @@ export class SocraticEngine {
       const taskContext = socraticTaskContextFor(currentTask, monitoring.cardContext);
       if (taskContext) socraticRequest.task_context = taskContext;
       socraticRequest.card_frame = cardFrameOf(qMatrixAnchor, currentTask);
+      if (monitoring.learnerProfile && (monitoring.learnerProfile.enhanced || monitoring.learnerProfile.quiet)) {
+        socraticRequest.learner_profile = { enhanced: monitoring.learnerProfile.enhanced, quiet: monitoring.learnerProfile.quiet };
+      }
 
       // The static card is the pedagogical baseline the model must improve on,
       // never contradict — its level, terms and form, feedback included

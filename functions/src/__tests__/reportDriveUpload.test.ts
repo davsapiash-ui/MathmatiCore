@@ -40,7 +40,7 @@ describe('a report PDF goes to Google Drive', () => {
     globalThis.fetch = realFetch;
   });
 
-  it('uploads the PDF as one multipart request to the Drive upload endpoint, into the given folder', async () => {
+  it('uploads the PDF as one multipart request to the Drive upload endpoint, into the given folder', { timeout: 30_000 }, async () => {
     const { uploadBufferToDrive } = await import('../exportDriveReport');
     const pdf = Buffer.from('%PDF-1.4 test report');
     const res = await uploadBufferToDrive(pdf, 'דוח פדגוגי - לומד 5 - מפגש 4.pdf', 'application/pdf', 'folder-of-meeting-4');

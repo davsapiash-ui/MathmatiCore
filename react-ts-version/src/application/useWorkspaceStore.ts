@@ -4009,6 +4009,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             ? PLACE_ORDER.filter((p) => columnRequiresConversion(p, eff.a, eff.b, currentTask?.isSubtraction) &&
                 conversionRecordedInColumn(s, p, currentTask?.isSubtraction))
             : undefined,
+          // Phase 2 (1.10.2026): shorter, more concrete cards for the enhanced profile and the quiet mode.
+          learnerProfile: { enhanced: s.activeSupportProfileId === 'enhanced_cognitive_support', quiet: s.isASD === true },
           cardContext,
         };
 

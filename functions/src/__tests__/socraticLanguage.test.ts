@@ -49,6 +49,14 @@ describe('the language spec: each rule refuses the real errors and passes the ri
   });
 });
 
+describe('moving the new blocks to a column is not breaking into a column', () => {
+  it('the owner\'s s5 card passes; breaking a block into a column does not', () => {
+    expect(languageViolation(['פורטים עשרת אחת לעשר יחידות בודדות ומעבירים אותן לטור היחידות'])).toBeNull();
+    expect(languageViolation(['פורטים מאה אחת ל-10 עשרות בטור העשרות'])).toBeNull();
+    expect(languageViolation(['פרטו לבנה מטור העשרות לטור היחידות'])?.id).toBe('break_into_column');
+  });
+});
+
 describe('the card form (owner, 30.9.2026)', () => {
   const card = (q: string, fb: [string, string, string]) => ({
     guiding_question: q,
