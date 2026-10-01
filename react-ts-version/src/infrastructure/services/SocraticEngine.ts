@@ -182,7 +182,7 @@ export interface SocraticMonitoringSnapshot {
 const WIRE_COLUMNS: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
 
 /** Terminology PRD Module 13 forbids in anything a learner reads; mirrored from functions/src/socraticContract.ts. */
-const FORBIDDEN_TERMS_HE = [
+export const FORBIDDEN_TERMS_HE = [
   'שבירה', 'לשבור', 'שוברים', 'נשבור',
   'הלוואה', 'ללוות', 'לווים', 'נלווה', 'להלוות',
   'נשיאה', 'נושאים', 'לשאת',
