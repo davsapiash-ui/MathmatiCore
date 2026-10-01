@@ -11,6 +11,7 @@ dotenv.config();
 
 // Export the Role Synchronization module
 export { syncUserRoles } from "./syncUserRoles";
+export { revokeRemovedStaff } from "./revokeRemovedStaff";
 
 // Export the Gemini Proxy from the new module
 export { callGeminiSocraticProxy } from "./geminiProxy";

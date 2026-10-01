@@ -142,3 +142,13 @@ describe('זהות מורה — כתובת דוא"ל בלבד, בלי שם וב�
     }
   });
 });
+
+describe('Module 19: the learner cannot change their own support profile', () => {
+  it('locks support_profile_id and enhanced_support_profile in the learner branch of both learner nodes', () => {
+    for (const node of [rules.rules.users.students.$studentId, rules.rules.students.$studentId]) {
+      const write: string = node['.write'];
+      expect(write).toContain("newData.child('support_profile_id').val() == data.child('support_profile_id').val()");
+      expect(write).toContain("newData.child('enhanced_support_profile').val() == data.child('enhanced_support_profile').val()");
+    }
+  });
+});
