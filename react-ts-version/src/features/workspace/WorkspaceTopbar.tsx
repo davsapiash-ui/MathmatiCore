@@ -7,10 +7,10 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
-import { RotateCcw, MessageSquare, ArrowLeft, Cloud, CloudOff, Eye, EyeOff, HandHelping } from 'lucide-react';
+import { CloudSyncStatus } from './CloudSyncStatus';
+import { RotateCcw, MessageSquare, ArrowLeft, Eye, EyeOff, HandHelping } from 'lucide-react';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { Logo } from '@/presentation/components/ui/Logo';
-import { indexedDBQueue, type QueueSyncState } from '@/infrastructure/services/IndexedDBQueue';
 import { PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames';
 
 /**
@@ -42,22 +42,7 @@ interface WorkspaceTopbarProps {
 /** How long the station-1 note under the board button stays (long enough to hear it read aloud). */
 const STAYS_OPEN_NOTE_MS = 10_000;
 
-/** מודול 17 §ד: what the cloud says in each sync state (read aloud and on hover). */
-const CLOUD_STATUS_LABEL: Record<QueueSyncState, string> = {
-  synced: 'יש חיבור לרשת. העבודה שלכם נשמרה.',
-  pending: 'יש חיבור לרשת. העבודה שלכם נשמרת ותישלח בעוד רגע.',
-  offline: 'אין כרגע חיבור לרשת. העבודה שלכם נשמרת כאן ותישלח מעצמה כשהחיבור יחזור.',
-};
-
 export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
-  // מודול 17 §ד: "אונליין מסונכרן = ענן ירוק". The cloud followed the
-  // browser's online flag, so it turned green the moment the network came
-  // back, while what was saved offline still sat in the queue. It now follows
-  // the queue itself: green only once the queue has been delivered.
-  const [syncState, setSyncState] = useState<QueueSyncState>(() => indexedDBQueue.getSyncState());
-
-  useEffect(() => indexedDBQueue.onSyncStateChange(setSyncState), []);
-
   const studentNumber = currentStudentNumber();
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const standardTaskIdx = useWorkspaceStore((s) => s.standardTaskIdx);
@@ -129,25 +114,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
 
         {/* Module 17 §ד: Silent Cloud Status Icon — green only when synced,
             grey while offline or while the queue is still being delivered. */}
-        <div
-          className="flex items-center mr-1"
-          role="status"
-          data-sync-state={syncState}
-          aria-label={CLOUD_STATUS_LABEL[syncState]}
-          title={CLOUD_STATUS_LABEL[syncState]}
-        >
-          {syncState === 'synced' ? (
-            <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-              <span aria-hidden="true" className="w-2 h-2 rounded-full bg-emerald-500" />
-              <Cloud className="w-3.5 h-3.5" />
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full border border-slate-300 dark:border-slate-700">
-              <span aria-hidden="true" className="w-2 h-2 rounded-full bg-slate-400" />
-              {syncState === 'offline' ? <CloudOff className="w-3.5 h-3.5" /> : <Cloud className="w-3.5 h-3.5" />}
-            </span>
-          )}
-        </div>
+        <CloudSyncStatus />
       </div>
 
       {/* Progress */}

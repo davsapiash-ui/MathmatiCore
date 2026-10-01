@@ -84,9 +84,12 @@ describe('Module 17 §ד: the cloud is green only when the queue has been delive
 
   it('the top bar reads the queue, not the browser flag', () => {
     const topbar = readFileSync(resolve(__dirname, '../../features/workspace/WorkspaceTopbar.tsx'), 'utf-8');
-    expect(topbar).toContain('indexedDBQueue.onSyncStateChange');
-    expect(topbar).not.toContain('navigator.onLine');
-    expect(topbar).toMatch(/syncState === 'synced' \?/);
+    // One cloud for every student screen (CloudSyncStatus.tsx); the top bar shows it.
+    const cloud = readFileSync(resolve(__dirname, '../../features/workspace/CloudSyncStatus.tsx'), 'utf-8');
+    expect(topbar).toContain('<CloudSyncStatus />');
+    expect(cloud).toContain('indexedDBQueue.onSyncStateChange');
+    expect(cloud).not.toContain('navigator.onLine');
+    expect(cloud).toMatch(/syncState === 'synced' \?/);
   });
 });
 
