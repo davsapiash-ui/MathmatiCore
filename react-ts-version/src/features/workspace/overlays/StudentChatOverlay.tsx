@@ -5,8 +5,9 @@ import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { useAdminStore } from '@/application/useAdminStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
-import { Check, CheckCheck, HelpCircle } from 'lucide-react';
+import { Check, CheckCheck, Send, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
 import { ref, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
@@ -18,10 +19,11 @@ export function StudentChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
 
   // מסמך העיצוב §1.2: Escape סוגר. הפאנל אינו חוסם את הלוח, ולכן אינו
-  // לוכד פוקוס — אבל כן מקבל אותו בפתיחה, כי הלומד פתח אותו כדי לשלוח הודעה.
+  // לוכד פוקוס — אבל כן מקבל אותו בפתיחה, כי הלומד פתח אותו כדי לכתוב.
   const panelRef = useDismissableOverlay<HTMLDivElement>(isOpen, () => setIsOpen(false), {
     trapFocus: false,
   });
+  const [text, setText] = useState('');
   const { messages, sendMessage, markAsRead, initSync } = useChatStore();
   const user = useAuthStore(s => s.user);
   const activeSession = useActiveClassSession();
@@ -77,11 +79,32 @@ export function StudentChatOverlay() {
     isTeacherOrAdminId(m.receiverId)
   );
 
-  // Owner, 1.10.2026: a learner never types a name. The system has no names
-  // (learners are 1–12), so no filter can recognise one for certain — the
-  // learner's side has no free text at all, only ready messages and the call
-  // button. The teacher still writes free text to the learner (her side has
-  // its own PII filter), and the learner can hear it read aloud.
+  // Owner, 1.10.2026 (evening): the learner and the teacher chat in free text
+  // both ways. The learner knows not to write their name (the teacher says so
+  // in the meeting-1 demo); the client filter still refuses an e-mail address,
+  // an ID or a phone number, and the server anonymizer runs on every message
+  // (PRD Module 22, invariant 1). The two ready messages stay as one-press
+  // shortcuts.
+  const handleSend = () => {
+    const textToSend = text.trim();
+    // No learner number (a teacher previewing the workspace): nothing to send
+    // as — an empty id wrote to the root of chat_messages.
+    if (!textToSend || !user?.uid || !normUid) return;
+    try {
+      const validation = validateChatInputForPII(textToSend);
+      if (!validation.valid) {
+        toast.warning(validation.errorHe || 'ההודעה מכילה פרטים מזהים. השתמשו במספרי תרגילים בלבד.');
+        return;
+      }
+      const studentNum = normUid.replace(/\D+/g, '') || '1';
+      sendMessage(normUid, `תלמיד ${studentNum}`, targetTeacherId as string, anonymizeChatMessageBody(textToSend));
+      setText('');
+    } catch (err) {
+      console.error('[StudentChat] PII check error:', err);
+      toast.error('ההודעה לא נשלחה. נסו שוב.');
+    }
+  };
+
   const sendReadyMessage = (messageText: string) => {
     // No learner number (a teacher previewing the workspace): nothing to send
     // as — an empty id wrote to the root of chat_messages.
@@ -182,7 +205,7 @@ export function StudentChatOverlay() {
           <div className="text-center text-ws-soft text-sm my-auto flex flex-col items-center gap-2">
             <HelpCircle className="w-8 h-8 opacity-40 text-ws-accent" />
             <p>אין הודעות קודמות.</p>
-            <p className="text-xs">בחרו הודעה למורה, או לחצו על "קראו למורה".</p>
+            <p className="text-xs">כתבו הודעה למורה, או לחצו על "קראו למורה".</p>
           </div>
         ) : (
           myMessages.map(m => {
@@ -219,7 +242,7 @@ export function StudentChatOverlay() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Ready messages — the learner's only way to write (no free text). */}
+      {/* Ready messages — one-press shortcuts beside the free text below. */}
       <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border-t border-ws-surface2 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
         <button
           onClick={() => sendReadyMessage('אפשר עזרה בתרגיל הזה?')}
@@ -235,6 +258,28 @@ export function StudentChatOverlay() {
         </button>
       </div>
 
+      {/* Input Box */}
+      <div className="p-3.5 border-t border-ws-surface2 shrink-0 bg-ws-surface">
+        <div className="flex gap-2 items-center">
+          <input
+            type="text"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSend()}
+            placeholder="כתבו הודעה למורה..."
+            aria-label="הודעה למורה"
+            className="flex-1 border border-ws-surface2 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-ws-accent bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+          />
+          <button
+            onClick={() => handleSend()}
+            disabled={!text.trim()}
+            aria-label="שליחת ההודעה"
+            className="bg-ws-accent disabled:opacity-40 text-white rounded-full w-11 h-11 flex items-center justify-center hover:brightness-110 active:scale-95 transition-all font-bold cursor-pointer shrink-0 shadow-sm"
+          >
+            <Send className="w-4 h-4 -mr-0.5" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

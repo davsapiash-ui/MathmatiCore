@@ -403,7 +403,7 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
         </div>
       )}
 
-      {/* PRD Module 12 §ב locks "לחצני המענה בכרטיס בלבד" for 30 seconds. The
+      {/* PRD Module 12 §ב locks "לחצני המענה בכרטיס בלבד" (15 seconds, owner 1.10.2026). The
           close button was locked too, so the child could not dismiss the card
           for the whole penalty. The answer buttons stay locked; this does not. */}
       <button

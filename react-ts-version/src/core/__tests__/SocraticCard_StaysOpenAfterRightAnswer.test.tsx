@@ -100,7 +100,7 @@ describe('the coaching card after the right choice (owner, 30.9.2026)', () => {
     unmount();
   });
 
-  it('a wrong choice still locks the options for 30 seconds, and the close button still closes', async () => {
+  it('a wrong choice still locks the options for 15 seconds, and the close button still closes', async () => {
     const { unmount } = render(React.createElement(SocraticSidePanel, null));
     act(() => { ws().openSocraticCard('hesitation_45s'); });
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });

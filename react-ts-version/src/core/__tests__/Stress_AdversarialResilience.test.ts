@@ -280,7 +280,7 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
   // 3. SOCRATIC LOCKOUT TIMER FUZZING, TAB SWITCHING & DOM SIMULATION
   // ==========================================================================
   describe('3. Socratic Lockout Timer — Tab Switching, Edge Values & Storage Manipulation', () => {
-    it('should compute exact wall-clock remaining seconds and auto-expire after 60s elapsed', () => {
+    it('should compute exact wall-clock remaining seconds and auto-expire after 15s (owner, 1.10.2026)', () => {
       const now = 1700000000000;
       vi.spyOn(Date, 'now').mockReturnValue(now);
 
@@ -288,21 +288,21 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
       useWorkspaceStore.getState().triggerSocraticPenaltyLockout('רמז דיסטרקטור');
 
       const until = useWorkspaceStore.getState().socraticPenaltyLockoutUntil;
-      expect(until).toBe(now + 30000);
+      expect(until).toBe(now + 15000);
 
-      // Immediately remaining must be 30s
-      expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(30);
-
-      // Advance by 15s -> remaining must be 15s
-      vi.spyOn(Date, 'now').mockReturnValue(now + 15000);
+      // Immediately remaining must be 15s
       expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(15);
 
-      // Advance by 29.5s -> remaining must be 1s
-      vi.spyOn(Date, 'now').mockReturnValue(now + 29500);
+      // Advance by 7.5s -> remaining must be 8s
+      vi.spyOn(Date, 'now').mockReturnValue(now + 7500);
+      expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(8);
+
+      // Advance by 14.5s -> remaining must be 1s
+      vi.spyOn(Date, 'now').mockReturnValue(now + 14500);
       expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(1);
 
-      // Advance by 30s -> remaining must be 0 and lockout must be cleared
-      vi.spyOn(Date, 'now').mockReturnValue(now + 30000);
+      // Advance by 15s -> remaining must be 0 and lockout must be cleared
+      vi.spyOn(Date, 'now').mockReturnValue(now + 15000);
       expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(0);
       expect(useWorkspaceStore.getState().socraticPenaltyLockoutUntil).toBeNull();
     });
@@ -313,14 +313,14 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
 
       useWorkspaceStore.getState().triggerSocraticPenaltyLockout('בדיקת טאב');
 
-      // Simulate tab backgrounding for 20 seconds (browser throttles JavaScript timers)
-      // Tab returns to foreground at startTime + 20000
-      vi.spyOn(Date, 'now').mockReturnValue(startTime + 20000);
+      // Simulate tab backgrounding for 10 seconds (browser throttles JavaScript timers)
+      // Tab returns to foreground at startTime + 10000
+      vi.spyOn(Date, 'now').mockReturnValue(startTime + 10000);
       
-      // Wall-clock calculation must accurately report 10s remaining regardless of throttled timers
-      expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(10);
+      // Wall-clock calculation must accurately report 5s remaining regardless of throttled timers
+      expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(5);
 
-      // Tab backgrounded again for another 20 seconds (total 40s)
+      // Tab backgrounded again for another 10 seconds (total 20s)
       vi.spyOn(Date, 'now').mockReturnValue(startTime + 40000);
 
       // Wall-clock calculation must cleanly auto-unlock
@@ -333,7 +333,7 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
       vi.spyOn(Date, 'now').mockReturnValue(now);
 
       useWorkspaceStore.getState().triggerSocraticPenaltyLockout('רמז הגנה');
-      expect(useWorkspaceStore.getState().socraticPenaltyLockoutUntil).toBe(now + 30000);
+      expect(useWorkspaceStore.getState().socraticPenaltyLockoutUntil).toBe(now + 15000);
 
       // Malicious student attempts to delete or corrupt localStorage key via DevTools
       mockStorage['mathmaticore_socratic_penalty_until'] = '0';
@@ -341,8 +341,8 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
 
       // Active in-memory Zustand store remains locked and authoritative
       vi.spyOn(Date, 'now').mockReturnValue(now + 10000);
-      expect(useWorkspaceStore.getState().socraticPenaltyLockoutUntil).toBe(now + 30000);
-      expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(20);
+      expect(useWorkspaceStore.getState().socraticPenaltyLockoutUntil).toBe(now + 15000);
+      expect(useWorkspaceStore.getState().getSocraticPenaltyRemaining()).toBe(5);
     });
 
     it('should handle 500 rapid concurrent lockout triggers without crashing or producing NaN', () => {
@@ -354,9 +354,9 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
       }
 
       const state = useWorkspaceStore.getState();
-      expect(state.socraticPenaltyLockoutUntil).toBe(now + 30000);
+      expect(state.socraticPenaltyLockoutUntil).toBe(now + 15000);
       expect(state.socraticDistractorHint).toBe('Burst hint 499');
-      expect(state.getSocraticPenaltyRemaining()).toBe(30);
+      expect(state.getSocraticPenaltyRemaining()).toBe(15);
     });
   });
 
