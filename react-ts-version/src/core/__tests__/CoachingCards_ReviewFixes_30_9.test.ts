@@ -302,7 +302,7 @@ describe('4. an empty board in stations 3 and 7: build first what the instructio
     }
   });
 
-  it('C2 keeps speaking on an empty board, C3 does not; a built board is unchanged; station 4 is unchanged', () => {
+  it('C2 keeps speaking on an empty board, C3 does not; a built board is unchanged; station 4 builds first too', () => {
     expect(q(byId('s3_r_t3'), EMPTY).questionHe).toBe('נסו לחשוב: כמה לבני עשרת שוות ללבנת מאה אחת?');
     // C3 ("יש טור שאין בו לבנים") says nothing to a board with no blocks at all (review, 30.9.2026).
     for (const id of ['s3_r_t5', 's3_g_t5']) {
@@ -310,21 +310,31 @@ describe('4. an empty board in stations 3 and 7: build first what the instructio
       expect(q(byId(id), { ...EMPTY, ...byId(id).requiredCounts }).questionHe, id).toBe('נסו לחשוב: יש טור שאין בו לבנים. מה כותבים במספר בשביל הטור הזה?');
     }
     expect(q(byId('s3_r_t1'), { ...EMPTY, hundreds: 3 }).questionHe).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
-    expect(q(byId('s4_g_t1'), EMPTY).questionHe).not.toBe(BUILD_Q);
+    // Changed 1.10.2026 (owner, via the coordinator: every misleading cell gets
+    // a fitting card; analysts' matrix 4.2): the carry card spoke of 10 blocks
+    // in a column of an empty board. Station 4 builds first too; its second
+    // card names what is built.
+    expect(q(byId('s4_g_t1'), EMPTY).questionHe).toBe(BUILD_Q);
+    expect(q(byId('s4_g_t1'), EMPTY, { shownKinds: ['build_first'] }).questionHe).toBe('נסו לחשוב: מה בונים בבית המספרים בתרגיל 1,245 + 328?');
   });
 });
 
 /* ── 5 ── */
 
 describe('5. C6 once per exercise; s7_g_t1 waits for both groupings', () => {
-  it('C6, then the exercise\'s own addition card', () => {
+  it('C6, then the column-by-column check (owner\'s D9, 1.10.2026), then the exercise\'s own addition card', () => {
     for (const id of ['s7_r_t5', 's7_g_t4']) {
       const t = byId(id);
-      const counts = digitsOf(t.numberA as number);
+      // A partial board (the first number alone gets "which number is missing" since 1.10.2026).
+      const counts = { ...EMPTY, tens: 1 };
       expect(exerciseCard(t, counts, {})!.cardKind, id).toBe('error_analysis');
-      const next = exerciseCard(t, counts, { shownKinds: ['error_analysis'] })!;
-      expect(next.cardKind, id).toBeUndefined();
-      expect(next.questionHe, id).toContain(`בתרגיל ${id === 's7_r_t5' ? '247 + 135' : '4,857 + 3,568'}`);
+      // D9: the second card checks the student's work column by column, and names no column.
+      const second = exerciseCard(t, counts, { shownKinds: ['error_analysis'] })!;
+      expect(second.cardKind, id).toBe('error_analysis_2');
+      expect(second.questionHe, id).toBe('נסו לחשוב: איך בודקים בכל טור אם התלמיד צדק?');
+      expect(second.questionHe, id).not.toMatch(/טור (היחידות|העשרות|המאות|האלפים)/);
+      const third = exerciseCard(t, counts, { shownKinds: ['error_analysis', 'error_analysis_2'] })!;
+      expect(third.questionHe, id).toContain(`בתרגיל ${id === 's7_r_t5' ? '247 + 135' : '4,857 + 3,568'}`);
     }
   });
 
