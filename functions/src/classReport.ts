@@ -131,6 +131,8 @@ export interface ClassLearnerRow {
   help_withdrawals: number;
   /** Register deviation 28: the result-row place-cue scaffold appeared (stations 3–7). */
   place_cue_scaffolds: number;
+  /** Requests for help from the chat (owner, 1.10.2026). Also help in measure 2א. */
+  chat_help_requests: number;
   reflection_submitted: boolean;
   reflections_count: number;
   recording_minutes: number;
@@ -212,6 +214,7 @@ export interface ClassAggregates {
   help_requests_total: number;
   help_withdrawals_total: number;
   place_cue_scaffolds_total: number;
+  chat_help_requests_total: number;
   reflections_submitted: number;
   exercises: ClassExerciseRow[];
 }
@@ -314,6 +317,7 @@ export function buildLearnerRow(
     help_requests: summary.help_requests,
     help_withdrawals: summary.help_withdrawals ?? 0,
     place_cue_scaffolds: summary.place_cue_scaffolds ?? 0,
+    chat_help_requests: summary.chat_help_requests ?? 0,
     reflection_submitted: summary.reflection_submitted || reflectionsCount > 0,
     reflections_count: reflectionsCount,
     recording_minutes: recording?.minutes ?? 0,
@@ -455,6 +459,7 @@ export function aggregateClass(
     help_requests_total: sum((r) => r.help_requests),
     help_withdrawals_total: sum((r) => r.help_withdrawals ?? 0),
     place_cue_scaffolds_total: sum((r) => r.place_cue_scaffolds),
+    chat_help_requests_total: sum((r) => r.chat_help_requests ?? 0),
     reflections_submitted: rows.filter((r) => r.reflection_submitted).length,
     exercises,
   };
@@ -650,6 +655,8 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
     // Measure 2א and the withdrawn help calls (owner, 30.9.2026), appended last.
     "persistence_exercises_with_errors", "persistence_solved_without_help", "persistence_without_help_percent",
     "help_withdrawals",
+    // Requests for help from the chat (owner, 1.10.2026), appended last.
+    "chat_help_requests",
   ];
   const lines = rows.map((r) =>
     [
@@ -675,6 +682,7 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
       r.persistence_without_help?.exercises_with_errors ?? "", r.persistence_without_help?.solved_without_help ?? "",
       r.persistence_without_help?.percent ?? "",
       r.help_withdrawals ?? "",
+      r.chat_help_requests ?? "",
     ].map(cell).join(",")
   );
   return "﻿" + [headers.map(cell).join(","), ...lines].join("\n");
@@ -777,7 +785,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       const triggers = Object.entries(a.socratic_triggers).map(([k, v]) => `${k}: ${v}`).join(", ");
       const categories = Object.entries(a.error_categories).map(([k, v]) => `${errorCategoryHe(k) ?? k}: ${v}`).join(", ");
       line(`כרטיסי חניכה: ${a.socratic_cards_total}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}`);
-      line(`לוח החיבור: נפתח ${a.grid_openings_total}, הוחזר על ידי הלומד ${a.grid_reopenings_total} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total} | קריאות שקטות למורה: ${a.help_requests_total}${a.help_withdrawals_total ? ` (הלומדים ביטלו ${a.help_withdrawals_total} מהן)` : ""} | פיגום בשורת התוצאה: ${a.place_cue_scaffolds_total}`);
+      line(`לוח החיבור: נפתח ${a.grid_openings_total}, הוחזר על ידי הלומד ${a.grid_reopenings_total} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total} | קריאות שקטות למורה: ${a.help_requests_total}${a.help_withdrawals_total ? ` (הלומדים ביטלו ${a.help_withdrawals_total} מהן)` : ""} | בקשות עזרה מהצ׳אט: ${a.chat_help_requests_total} | פיגום בשורת התוצאה: ${a.place_cue_scaffolds_total}`);
       line(`זמן פעילות ממוצע: ${a.active_minutes_mean} דקות | דקות הקלטה: ${a.recording_minutes_total} | רפלקציות: ${a.reflections_submitted} מתוך ${a.learners_with_data}`);
 
       heading("3. תרגילים: כמה לומדים פתרו בניסיון ראשון");

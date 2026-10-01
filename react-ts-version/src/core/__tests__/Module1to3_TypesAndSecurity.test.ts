@@ -120,11 +120,13 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
         'PLACE_CUES_SHOWN',
         // Owner, 30.9.2026: the learner took the silent help call back.
         'HELP_WITHDRAWN',
+        // Owner, 1.10.2026: a request for help from the chat, with its exercise.
+        'CHAT_HELP_REQUESTED',
       ];
 
-      expect(expectedEvents).toHaveLength(19);
+      expect(expectedEvents).toHaveLength(20);
       expect(COLUMN_SCOPED_EVENTS).toHaveLength(8);
-      expect(NON_COLUMN_EVENTS).toHaveLength(10);
+      expect(NON_COLUMN_EVENTS).toHaveLength(11);
     });
 
     it('validates that DIGIT_ENTERED requires is_correct boolean and column_index (0, 1, 2)', () => {

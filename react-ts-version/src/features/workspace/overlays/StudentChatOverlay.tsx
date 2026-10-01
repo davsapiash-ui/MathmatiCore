@@ -11,6 +11,21 @@ import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/securi
 import { ref, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { currentTaskLabelHe } from '@/application/taskLabel';
+
+/** The ready message that asks for help: the teacher receives what the learner pressed. */
+export const READY_HELP_MESSAGE_HE = 'אפשר עזרה בתרגיל?';
+export const READY_UNCLEAR_MESSAGE_HE = 'לא הבנתי את ההוראה';
+export const CALL_TEACHER_MESSAGE_HE = 'המורה, אפשר לבוא לעזור לי? 🙋';
+
+/**
+ * Owner, 1.10.2026: a help message names the exercise the learner is on, in
+ * the words of the heading above it — "אפשר עזרה בתרגיל? (משימה 3 מתוך 7)".
+ */
+export function withExerciseHe(text: string, label: string | null): string {
+  return label ? `${text} (${label})` : text;
+}
 
 /** The same ready message pressed again within this time is one press. */
 const READY_MESSAGE_REPEAT_MS = 2000;
@@ -115,12 +130,18 @@ export function StudentChatOverlay() {
     if (last && last.text === messageText && now - last.at < READY_MESSAGE_REPEAT_MS) return;
     lastReadySentRef.current = { text: messageText, at: now };
     const studentNum = normUid.replace(/\D+/g, '') || '1';
-    sendMessage(normUid, `תלמיד ${studentNum}`, targetTeacherId as string, messageText);
+    const ws = useWorkspaceStore.getState();
+    const isHelp = messageText === READY_HELP_MESSAGE_HE;
+    const label = isHelp ? currentTaskLabelHe(ws) : null;
+    sendMessage(normUid, `תלמיד ${studentNum}`, targetTeacherId as string, withExerciseHe(messageText, label));
+    if (isHelp) ws.logChatHelpRequest('ready_message');
   };
 
   const handleCallTeacher = () => {
     if (!user?.uid || !normUid) return;
     const studentNum = normUid.replace(/\D+/g, '') || '1';
+    const ws = useWorkspaceStore.getState();
+    const label = currentTaskLabelHe(ws);
 
     // PRD v7.1 Module 18: a help call must reach the Silent Radar (BLUE state),
     // not just the chat thread — write helpRequested + a radar_alerts entry.
@@ -138,7 +159,7 @@ export function StudentChatOverlay() {
       rawStudentId: normUid,
       timestamp: now,
       type: 'HELP_CALL',
-      message: `תלמיד ${studentNum} קרא למורה מהצ׳אט`,
+      message: withExerciseHe(`תלמיד ${studentNum} קרא למורה מהצ׳אט`, label),
       severity: 'warning',
       persistent: true,
     }).catch(console.error);
@@ -147,8 +168,9 @@ export function StudentChatOverlay() {
       normUid,
       `תלמיד ${studentNum}`,
       targetTeacherId as string,
-      'המורה, אפשר לבוא לעזור לי? 🙋'
+      withExerciseHe(CALL_TEACHER_MESSAGE_HE, label)
     );
+    ws.logChatHelpRequest('call');
     toast.success('הקריאה נשלחה למורה בהצלחה! 🔔');
   };
 
@@ -245,16 +267,16 @@ export function StudentChatOverlay() {
       {/* Ready messages — one-press shortcuts beside the free text below. */}
       <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border-t border-ws-surface2 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
         <button
-          onClick={() => sendReadyMessage('אפשר עזרה בתרגיל הזה?')}
+          onClick={() => sendReadyMessage(READY_HELP_MESSAGE_HE)}
           className="text-[11px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-3.5 min-h-11 flex items-center whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
         >
-          אפשר עזרה בתרגיל?
+          {READY_HELP_MESSAGE_HE}
         </button>
         <button
-          onClick={() => sendReadyMessage('לא הבנתי את ההוראה')}
+          onClick={() => sendReadyMessage(READY_UNCLEAR_MESSAGE_HE)}
           className="text-[11px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-3.5 min-h-11 flex items-center whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
         >
-          לא הבנתי את ההוראה
+          {READY_UNCLEAR_MESSAGE_HE}
         </button>
       </div>
 

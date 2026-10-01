@@ -173,6 +173,7 @@ const EVENT_LABELS_HE: Record<string, string> = {
   KEYBOARD_LOCK_BLOCKED: 'הקלדה לפני המרה (מקלדת נעולה)',
   HELP_REQUESTED: 'קריאה שקטה למורה',
   HELP_WITHDRAWN: 'ביטול הקריאה למורה',
+  CHAT_HELP_REQUESTED: 'בקשת עזרה מהצ׳אט',
   BOARD_CLEARED: 'ניקוי בית המספרים',
   PLACE_CUES_SHOWN: 'פיגום בשורת התוצאה',
 };

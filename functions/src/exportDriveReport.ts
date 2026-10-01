@@ -1679,6 +1679,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         reverted_event_type: d.reverted_event_type ?? "",
         // PLACE_CUES_SHOWN (register deviation 28): regular or enhanced — an enum value.
         profile: data.event_type === "PLACE_CUES_SHOWN" && (d.profile === "regular" || d.profile === "enhanced") ? d.profile : "",
+        // CHAT_HELP_REQUESTED (owner, 1.10.2026): call | ready_message — an enum value.
+        // The exercise in which the learner asked is exercise_id above.
+        chat_help_kind: data.event_type === "CHAT_HELP_REQUESTED" && (d.kind === "call" || d.kind === "ready_message") ? d.kind : "",
         // details_json used to carry the whole untyped details object. Every
         // field the research needs is a typed column above; a free-text field
         // a client parked in details went straight into the dataset.
@@ -1904,6 +1907,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         persistence_solved_without_help: persistence.solved_without_help,
         persistence_without_help_percent: persistence.percent ?? "",
         help_withdrawals: summary.help_withdrawals ?? 0,
+        // Requests for help from the chat (owner, 1.10.2026), appended last.
+        chat_help_requests: summary.chat_help_requests ?? 0,
       });
     }
 

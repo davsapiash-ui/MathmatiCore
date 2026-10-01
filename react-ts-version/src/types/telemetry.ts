@@ -24,7 +24,9 @@ export type TelemetryEventType =
   // as a scaffold after a digit in the wrong place (stations 3–7).
   | 'PLACE_CUES_SHOWN'
   // Owner, 30.9.2026: the learner took the silent help call back (research data only).
-  | 'HELP_WITHDRAWN';
+  | 'HELP_WITHDRAWN'
+  // Owner, 1.10.2026: a request for help from the chat, with its exercise; help in measure 2א.
+  | 'CHAT_HELP_REQUESTED';
 
 // --- Per-event-type details schemas (Master PRD v7.0 Appendix A §3) ---
 
@@ -117,6 +119,15 @@ export interface HelpWithdrawnDetails {
 }
 
 /**
+ * A request for help from the chat (owner, 1.10.2026): "קראו למורה" or the
+ * ready message "אפשר עזרה בתרגיל?". The exercise is the event's exercise_id.
+ * Help in measure 2א, like the silent help button (owner, 1.10.2026).
+ */
+export interface ChatHelpRequestedDetails {
+  kind: 'call' | 'ready_message';
+}
+
+/**
  * מודול 8 §א: לחיצה על פח האשפה מנקה את כל הלוח. האירוע תקני ומסונכרן,
  * ומוחרג ממדדי השגיאות והשחיקה — בדיוק כמו ביטול פעולה.
  */
@@ -153,6 +164,7 @@ export interface TelemetryDetailsMap {
   KEYBOARD_LOCK_BLOCKED: KeyboardLockBlockedDetails;
   HELP_REQUESTED: HelpRequestedDetails;
   HELP_WITHDRAWN: HelpWithdrawnDetails;
+  CHAT_HELP_REQUESTED: ChatHelpRequestedDetails;
   BOARD_CLEARED: BoardClearedDetails;
   PLACE_CUES_SHOWN: PlaceCuesShownDetails;
 }
@@ -179,6 +191,7 @@ export const NON_COLUMN_EVENTS: readonly TelemetryEventType[] = [
   'ADAPTIVE_GRID_TOGGLED',
   'HELP_REQUESTED',
   'HELP_WITHDRAWN',
+  'CHAT_HELP_REQUESTED',
   // ניקוי הלוח אינו שייך לטור אחד — הוא מוחק את כולם.
   'BOARD_CLEARED',
   // The scaffold lights the whole result row, not one column.

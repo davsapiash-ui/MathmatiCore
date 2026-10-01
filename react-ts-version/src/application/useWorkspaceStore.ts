@@ -84,7 +84,7 @@ import {
  */
 function emitScaffoldEvent(
   s: WorkspaceState,
-  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED' | 'HELP_WITHDRAWN' | 'PLACE_CUES_SHOWN',
+  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED' | 'HELP_WITHDRAWN' | 'PLACE_CUES_SHOWN' | 'CHAT_HELP_REQUESTED',
   details: Record<string, unknown>,
   columnIndex?: number
 ): void {
@@ -298,7 +298,7 @@ function withColumnConversion(conv: ColumnConversions, kind: 'composed' | 'decom
   };
 }
 
-interface WorkspaceState {
+export interface WorkspaceState {
   // canonical VRA state machine (Module 29 / Appendix A §5)
   currentState: VRAWorkspaceState;
   activeColumnIndex: number; // 0: Ones, 1: Tens, 2: Hundreds
@@ -495,6 +495,8 @@ interface WorkspaceState {
   receiveSupportProfile: (profileId: string | null) => void;
   setHelpRequested: (val: boolean) => void;
   toggleHelpRequested: () => void;
+  /** Owner, 1.10.2026: a request for help from the chat, recorded with its exercise (research data). */
+  logChatHelpRequest: (kind: 'call' | 'ready_message') => void;
   /** 'learner' when the learner brings the grid back (מסמך 03 §1.3 ב'); default is the Module 10 hesitation stage. */
   openAdditionHelper: (source?: 'hesitation_30s' | 'learner') => void;
   /** Module 9: a digit key pressed on a locked result cell. Logged, never acted on. */
@@ -2802,6 +2804,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
     setHelpRequested: (val) => set({ helpRequested: val }),
     toggleHelpRequested: () => set((state) => ({ helpRequested: !state.helpRequested })),
+
+    // Owner, 1.10.2026: the research data shows the exercise in which the
+    // learner asked for help from the chat ("קראו למורה" or the ready message
+    // "אפשר עזרה בתרגיל?"). Its own event; measure 2א counts it as help, like
+    // the silent help button (owner, 1.10.2026).
+    logChatHelpRequest: (kind) => {
+      emitScaffoldEvent(get(), 'CHAT_HELP_REQUESTED', { kind });
+    },
 
     setPendingSupportProfile: (profileId) => {
       // Module 19: Stores pending support profile without altering the active workspace/board/keyboard state
