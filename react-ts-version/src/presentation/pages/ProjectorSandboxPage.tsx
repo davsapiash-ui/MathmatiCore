@@ -190,14 +190,11 @@ export function ProjectorSandboxPage() {
             <span className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
               <Tv className="w-5 h-5" />
             </span>
-            <div>
-              <h1 className="font-black text-base text-slate-800 dark:text-white leading-none">
-                מקרן כיתתי — לוח הקניה והדגמה
-              </h1>
-              <p className="text-[11px] font-medium text-slate-400 leading-tight mt-0.5">
-                מודול 15 • מצב סנדבוקס פתוח ללוח החכם
-              </p>
-            </div>
+            {/* The line under the title gave the spec's module number and an
+                English loan word ("סנדבוקס"), on the class's board. */}
+            <h1 className="font-black text-base text-slate-800 dark:text-white leading-tight">
+              מקרן כיתתי — לוח הקניה והדגמה
+            </h1>
           </div>
         </div>
 

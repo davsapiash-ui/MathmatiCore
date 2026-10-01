@@ -147,6 +147,10 @@ export function ClassMeetingReportPanel() {
     if (url) window.open(url, '_blank', 'noopener');
   };
 
+  const scoredLearnersWithoutScore = report
+    ? report.learnersWithoutScore.filter((id) => !report.learnersWithoutData.includes(id))
+    : [];
+
   return (
     <section className="bg-ws-surface border border-ws-surface2 rounded-2xl p-4 space-y-3" dir="rtl" data-testid="class-meeting-report">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -256,9 +260,12 @@ export function ClassMeetingReportPanel() {
             <Stat label="כרטיסי חניכה" value={String(report.socraticCardsTotal)} sub={`היסוסים ${report.hesitationsTotal} · ביטולים ${report.undosTotal} · מחיקות ${report.deletionsTotal}`} />
           </div>
 
-          {report.scored && report.learnersWithoutScore.length > 0 && (
+          {/* The catalog sentence is about learners who worked and still got no
+              score. A learner with no recorded work has no score for that
+              reason alone, and is listed apart ("תלמידים עם נתונים"). */}
+          {report.scored && scoredLearnersWithoutScore.length > 0 && (
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
-              ללא ציון: {report.learnersWithoutScore.map((id) => `תלמיד ${id}`).join(', ')}. מאגר תרגילי החובה של המפגש אינו זמין בשרת, ולכן אין ממה לחשב ציון. על מנהל המערכת ללחוץ "פרסום תוכנית הלימודים", ואז להפיק את הדוח מחדש.
+              ללא ציון: {scoredLearnersWithoutScore.map((id) => `תלמיד ${id}`).join(', ')}. מאגר תרגילי החובה של המפגש אינו זמין בשרת, ולכן אין ממה לחשב ציון. על מנהל המערכת ללחוץ "פרסום תוכנית הלימודים", ואז להפיק את הדוח מחדש.
             </div>
           )}
 

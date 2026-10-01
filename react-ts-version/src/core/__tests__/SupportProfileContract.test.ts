@@ -18,13 +18,16 @@ describe('Modules 9/10/19: support profile contract (PRD v7.1)', () => {
     expect(on.support_profile_version).toBe(4);
     expect(on.support_profile_updated_by).toBe('teacher_1');
     expect(on.support_profile_updated_at).toBeGreaterThan(0);
-    expect(on.enhanced_support_profile).toBe(true);
+    // Module 19: "do not introduce additional or renamed fields". The legacy
+    // alias is removed by every switch (null deletes it in RTDB), never written.
+    expect(on.enhanced_support_profile).toBeNull();
 
     const off = buildSupportProfilePayload(false, null);
     expect(off.support_profile_id).toBeNull();
     expect(off.support_profile_version).toBe(1);
     expect(off.support_profile_updated_by).toBeNull();
-    expect(off.enhanced_support_profile).toBe(false);
+    expect(off.enhanced_support_profile).toBeNull();
+    expect(Object.keys(on).sort()).toEqual(['enhanced_support_profile', 'support_profile_id', 'support_profile_updated_at', 'support_profile_updated_by', 'support_profile_version']);
   });
 
   it('read side resolves what the write side produced (round-trip)', () => {

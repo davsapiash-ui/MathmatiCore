@@ -1377,6 +1377,11 @@ export class FirebaseSyncService {
     column_index?: number;
     details: TelemetryDetailsMap[T];
   }): Promise<TelemetryPayload<T> | null> {
+    // The teacher's demonstration board (Module 15, ProjectorSandboxPage) runs
+    // on the learners' workspace store, so it raised their events too. It is
+    // no learner's work: nothing is recorded, and nothing is logged as dropped.
+    if (useWorkspaceStore.getState().projectorBoard) return null;
+
     // 1. Resolve the numeric student_id (strictly 1-12, per Module 5 and the
     //    Firestore rule that telemetry_logs.student_id must equal the
     //    authenticated learner). This must never guess: filing one learner's

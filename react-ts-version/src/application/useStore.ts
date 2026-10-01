@@ -841,7 +841,7 @@ export const useStore = create<AppState>()(
             qMatrixResults: null,
             traceData: null,
             reflections: null,
-            enhanced_support_profile: false,
+            enhanced_support_profile: null, // the legacy alias (core/supportProfile.ts) is removed, not written
             support_profile_id: null,
             physicalOverride: false,
             physicalOverrideActive: false,
@@ -997,7 +997,7 @@ export const useStore = create<AppState>()(
               qMatrixResults: null,
               traceData: null,
               reflections: null,
-              enhanced_support_profile: false,
+              enhanced_support_profile: null, // the legacy alias (core/supportProfile.ts) is removed, not written
             support_profile_id: null,
               physicalOverride: false,
               physicalOverrideActive: false,
