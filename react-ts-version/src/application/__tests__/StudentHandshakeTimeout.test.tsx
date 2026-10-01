@@ -73,7 +73,8 @@ describe('Module 1 §א — a handshake that does not answer rolls back', () => 
   });
 
   it('is bounded well below the SDK’s 70 seconds', () => {
-    expect(STUDENT_HANDSHAKE_TIMEOUT_MS).toBeLessThanOrEqual(15_000);
+    // Room for a cold start of the function, still well below 70 s.
+    expect(STUDENT_HANDSHAKE_TIMEOUT_MS).toBeLessThanOrEqual(25_000);
     expect(STUDENT_HANDSHAKE_TIMEOUT_MS).toBeGreaterThanOrEqual(5_000);
   });
 
@@ -100,6 +101,32 @@ describe('Module 1 §א — a handshake that does not answer rolls back', () => 
     expect(field.value, 'the field is cleared').toBe('');
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(screen.queryByText('LOBBY')).toBeNull();
+  });
+
+  it('a reply that lands after the rollback is taken back (no half sign-in)', async () => {
+    let answer: (v: unknown) => void = () => {};
+    const calls: unknown[] = [];
+    h.callable = (data: unknown) => {
+      calls.push(data);
+      return calls.length === 1 ? new Promise((r) => { answer = r; }) : Promise.resolve({ data: {} });
+    };
+    await fillStudentForm();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    fireEvent.click(screen.getByText('כניסה'));
+    await act(async () => {
+      vi.advanceTimersByTime(STUDENT_HANDSHAKE_TIMEOUT_MS + 500);
+    });
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    await act(async () => {
+      answer({ data: { success: true } });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    // The second call is releaseStudentSession, with no arguments.
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).toEqual({});
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
   it('an answer inside the time signs the learner in as before', async () => {

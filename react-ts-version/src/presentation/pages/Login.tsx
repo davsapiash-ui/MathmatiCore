@@ -33,7 +33,7 @@ const PILOT_CLASSES = [{ id: PILOT_CLASS_ID, name: PILOT_CLASS_NAME, schoolId: P
  * left "רגע, בודקים..." on the screen for the SDK's 70 seconds. Long enough for
  * a function that starts cold; past it the form rolls back and the child tries again.
  */
-export const STUDENT_HANDSHAKE_TIMEOUT_MS = 10_000;
+export const STUDENT_HANDSHAKE_TIMEOUT_MS = 20_000;
 
 /** Rejects when `promise` has not settled within `ms`. */
 function withinHandshakeTime<T>(promise: Promise<T>, ms: number = STUDENT_HANDSHAKE_TIMEOUT_MS): Promise<T> {
@@ -68,6 +68,8 @@ export function Login() {
   const [selectedStudentNum, setSelectedStudentNum] = useState<number>(1);
   const [studentPassword, setStudentPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  /** Which student sign-in try is current — a late reply of an older one is not. */
+  const handshakeAttemptRef = useRef(0);
   const [errorMsg, setErrorMsg] = useState("");
   const [isShaking, setIsShaking] = useState(false);
   const [lastActionTime, setLastActionTime] = useState(0);
@@ -134,6 +136,8 @@ export function Login() {
     setIsLoggingIn(true);
     setErrorMsg("");
 
+    let handshake: Promise<void> | null = null;
+    let handshakeAttempt = 0;
     try {
       const studentIdNum = selectedStudentNum;
       const studentUid = `student_user${studentIdNum}`;
@@ -141,7 +145,9 @@ export function Login() {
 
       // Module 1 §א: the whole handshake (steps 1–3) within
       // STUDENT_HANDSHAKE_TIMEOUT_MS; past it, the catch below rolls back.
-      await withinHandshakeTime((async () => {
+      // 20 s leaves room for a cold start of the function (us-central1).
+      const attempt = ++handshakeAttemptRef.current;
+      handshake = (async () => {
         // 1. Ensure Firebase Auth anonymous session exists
         if (!auth.currentUser && typeof signInAnonymously === "function") {
           try {
@@ -178,7 +184,9 @@ export function Login() {
         if (auth.currentUser) {
           await auth.currentUser.getIdToken(true);
         }
-      })());
+      })();
+      handshakeAttempt = attempt;
+      await withinHandshakeTime(handshake);
 
       // Global auth state flag (Master PRD v5.0 Module 1)
       (window as any).isStudentAuthenticated = true;
@@ -215,6 +223,19 @@ export function Login() {
       navigate("/hub", { replace: true });
     } catch (err: unknown) {
       console.error("Student Login Error (Invalid code or server rejection):", err);
+      // Module 1 §א: "כל עדכון מתבצע במלואו או לא מתבצע כלל". A handshake that
+      // succeeds after the rollback has stamped learner claims nobody is using;
+      // take them back — unless the child has already started another try.
+      if (handshake && err instanceof Error && err.message === "student-handshake-timeout") {
+        const lateAttempt = handshakeAttempt;
+        handshake
+          .then(() => {
+            if (handshakeAttemptRef.current === lateAttempt) {
+              return httpsCallable(functions, "releaseStudentSession")({});
+            }
+          })
+          .catch(() => {});
+      }
       setIsLoggingIn(false);
       triggerErrorWithShake();
     }
