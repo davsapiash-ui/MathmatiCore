@@ -421,6 +421,15 @@ export interface WorkspaceState {
   hasRequestedBasicHelp: boolean;
   hasInteracted: boolean;
   hasDeletedBlock: boolean;
+  /**
+   * Subtraction with blocks, in the exercise `taskId`: the board has held the
+   * first number at least once (`held`), and a block left the board after
+   * that (`started`: taking away has started). A board emptied to 0 starts
+   * over. Kept by nextTakeAwayTrack on every change of the board (final
+   * review, 2.10.2026: the undo history was read instead, and its cap made a
+   * child still building the first number "took out too much").
+   */
+  takeAwayTrack: TakeAwayTrack | null;
   /** The trash was pressed this task (clearBoard) — meeting 1 step 5. Dragging one block into it does not count. */
   hasClearedBoard: boolean;
   blocksAddedCount: number; // Added to enforce the 5 block rule in Sandbox
@@ -940,27 +949,42 @@ export type StaticCardStoreState = Pick<WorkspaceState, 'placeCuesShown' | 'socr
   Partial<Pick<WorkspaceState,
     | 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped' | 'counts'
     | 'sessionNumber' | 'isASD' | 'socraticTriggerReason' | 'socraticCardPlace'
-    | 'answerDigits' | 'carryDigits' | 'operandDigits' | 'boardOpen' | 'hasDeletedBlock' | 'undoStack'>>;
+    | 'answerDigits' | 'carryDigits' | 'operandDigits' | 'boardOpen' | 'hasDeletedBlock' | 'takeAwayTrack'>>;
+
+/** Subtraction with blocks, one exercise: the board held the first number (`held`); a block left it after that (`started`). */
+export interface TakeAwayTrack {
+  taskId: string;
+  held: boolean;
+  started: boolean;
+}
 
 /**
- * Subtraction with blocks: taking away has started — a block left the board
- * AFTER the board held the first number (the undo history, in order, then
- * the board now). A block the child threw away while still building the
- * first number (a hundred dragged by mistake into 53) is not taking away, and
- * an undone deletion is no longer in the history. When the history has
- * dropped its oldest frames (UNDO_STACK_CAP), a block that went to the trash
- * is all there is to go by.
+ * The take-away record after the board went from `before` to `after` in the
+ * exercise `taskId` whose first number is `a` (final review, 2.10.2026):
+ *  - a board emptied (the trash button, or every block thrown away) starts
+ *    over — it is not taking away;
+ *  - taking away starts when a block leaves the board after the board held
+ *    `a` — never while the child is still building it (806 − 351 built as 9
+ *    hundreds, one thrown away, then units added);
+ *  - the board holding `a` is recorded.
  */
-function takingAwayStarted(s: StaticCardStoreState, a: number): boolean {
-  if (s.hasDeletedBlock !== true) return false;
-  const stack = s.undoStack ?? [];
-  const values = [...stack.map((f) => getValue(f.counts)), getValue(s.counts ?? EMPTY_COUNTS)];
-  let held = false;
-  for (let i = 0; i < values.length; i++) {
-    if (held && values[i] < values[i - 1]) return true;
-    if (values[i] === a) held = true;
-  }
-  return stack.length >= UNDO_STACK_CAP;
+export function nextTakeAwayTrack(prev: TakeAwayTrack | null | undefined, taskId: string, a: number, before: number, after: number): TakeAwayTrack {
+  if (after === 0) return { taskId, held: false, started: false };
+  const t = prev && prev.taskId === taskId ? prev : { taskId, held: false, started: false };
+  return { taskId, held: t.held || after === a, started: t.started || (t.held && after < before) };
+}
+
+/** A saved take-away record back into shape (the database drops false and null alike). */
+function restoredTakeAwayTrack(raw: unknown): TakeAwayTrack | null {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
+  if (!r || typeof r.taskId !== 'string') return null;
+  return { taskId: r.taskId, held: r.held === true, started: r.started === true };
+}
+
+/** Subtraction with blocks: taking away has started in this exercise (takeAwayTrack). */
+function takingAwayStarted(s: StaticCardStoreState, taskId: string): boolean {
+  const t = s.takeAwayTrack;
+  return Boolean(t && t.taskId === taskId && t.started);
 }
 
 /**
@@ -1018,10 +1042,10 @@ export function staticCardContextFor(
   if (s.sessionNumber !== undefined && s.boardOpen !== undefined && s.sessionNumber >= 3 && s.sessionNumber <= 7) {
     out.boardHidden = !s.boardOpen && !boardStaysOpen(s.sessionNumber);
   }
-  if (s.hasDeletedBlock !== undefined) {
-    out.blocksRemoved = task.isSubtraction && typeof task.numberA === 'number'
-      ? takingAwayStarted(s, effectiveArithmetic(task, s.isASD === true).a)
-      : s.hasDeletedBlock === true;
+  if (task.isSubtraction && typeof task.numberA === 'number') {
+    if (s.takeAwayTrack !== undefined) out.blocksRemoved = takingAwayStarted(s, task.id);
+  } else if (s.hasDeletedBlock !== undefined) {
+    out.blocksRemoved = s.hasDeletedBlock === true;
   }
   // No previous card here (audit D18): the levels follow the kinds already
   // shown, and the card identity is the store's (socraticCardRefusal).
@@ -1045,6 +1069,32 @@ function restoredCardKinds(raw: unknown): WorkspaceState['socraticCardKinds'] {
   return { taskId: typeof r.taskId === 'string' ? r.taskId : null, kinds };
 }
 
+const TRIGGER_REASONS: readonly SocraticTriggerReason[] = ['hesitation_45s', 'repeated_errors', 'consecutive_errors_4', 'conversion_not_performed', 'consecutive_undos_3'];
+const PLACES: readonly Place[] = ['units', 'tens', 'hundreds', 'thousands'];
+
+/** A saved card history back into shape: the database drops empty lists, null fields and false booleans' absence alike. */
+function restoredCardHistory(raw: unknown): WorkspaceState['socraticCardHistory'] {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as { taskId?: unknown; cards?: unknown };
+  const list = Array.isArray(r.cards) ? r.cards : r.cards && typeof r.cards === 'object' ? Object.values(r.cards) : [];
+  const cards: SocraticCardRecord[] = [];
+  for (const item of list) {
+    const c = (item && typeof item === 'object' ? item : null) as Record<string, unknown> | null;
+    if (!c || !(TRIGGER_REASONS as readonly unknown[]).includes(c.reason) || typeof c.staticQuestionHe !== 'string') continue;
+    cards.push({
+      reason: c.reason as SocraticTriggerReason,
+      place: (PLACES as readonly unknown[]).includes(c.place) ? (c.place as Place) : null,
+      kind: (STATIC_CARD_KINDS as readonly unknown[]).includes(c.kind) ? (c.kind as StaticCardKind) : null,
+      family: typeof c.family === 'string' ? c.family : null,
+      staticQuestionHe: c.staticQuestionHe,
+      questionHe: typeof c.questionHe === 'string' ? c.questionHe : null,
+      shown: c.shown === true,
+      answeredCorrect: typeof c.answeredCorrect === 'boolean' ? c.answeredCorrect : null,
+      openedAt: typeof c.openedAt === 'number' ? c.openedAt : 0,
+    });
+  }
+  return { taskId: typeof r.taskId === 'string' ? r.taskId : null, cards };
+}
+
 function resetTaskInteraction(_isASD = false) {
   return {
     counts: { ...EMPTY_COUNTS },
@@ -1056,6 +1106,7 @@ function resetTaskInteraction(_isASD = false) {
     socraticCardHistory: { taskId: null as string | null, cards: [] as SocraticCardRecord[] },
     previousSocraticCard: null as (SocraticCardRecord & { taskId: string }) | null,
     hasDeletedBlock: false,
+    takeAwayTrack: null as TakeAwayTrack | null,
     hasClearedBoard: false,
     blocksAddedCount: 0,
     hasUngrouped: false,
@@ -2667,8 +2718,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   }
 
   /** Opens the card for the "four errors" streak's column (see nextDigitErrorStreak). */
-  function openCardForDigitErrorStreak(place: Place) {
-    setTimeout(() => get().openSocraticCard('consecutive_errors_4', place), 0);
+  function openCardForDigitErrorStreak(place: Place, conversionMissed = false) {
+    setTimeout(() => {
+      const refusal = socraticCardRefusal(get(), 'consecutive_errors_4', place);
+      if (refusal === null) {
+        get().openSocraticCard('consecutive_errors_4', place);
+        return;
+      }
+      // Refused — the same card again, the lockout, a solved exercise: the
+      // streak starts over, and a wrong digit before its column's conversion
+      // gets that card instead. The streak used to stay at 4 or more and keep
+      // the conversion card shut on every further wrong digit (final review,
+      // 2.10.2026). Under an open card the streak is kept for the next digit.
+      if (refusal === 'card_open') return;
+      set({ digitErrorStreak: 0, digitErrorStreakPlace: null });
+      if (conversionMissed) get().openSocraticCard('conversion_not_performed', place);
+    }, 0);
   }
 
   /**
@@ -3163,6 +3228,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     helpRequestCount: 0,
     taskStartTime: Date.now(),
     hasDeletedBlock: false,
+    takeAwayTrack: null as TakeAwayTrack | null,
     hasClearedBoard: false,
     blocksAddedCount: 0,
     digitErrorStreak: 0,
@@ -3503,8 +3569,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // The same for the coaching cards already shown (C4, C5): a reload
         // does not bring back the first level.
         socraticCardKinds: restoredCardKinds(saved.socraticCardKinds),
-        // The cards opened in the exercise are this page's own record.
-        socraticCardHistory: { taskId: null, cards: [] },
+        // The cards opened in the exercise, with the kinds above and for the
+        // same lifetime: a reload does not open again a card the child already
+        // answered right, nor a third time the same card (final review, 2.10.2026).
+        socraticCardHistory: restoredCardHistory(saved.socraticCardHistory),
         previousSocraticCard: null,
         isSocraticCardLocked: Boolean(storedDeadline && storedDeadline > Date.now()),
         socraticLockDeadline: storedDeadline,
@@ -3521,6 +3589,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Now that the snapshot carries them, they are restored as saved —
         // including meeting 1's first step, which used to start over.
         hasDeletedBlock: saved.hasDeletedBlock ?? false,
+        // Subtraction: a reload mid-take-away is still taking away.
+        takeAwayTrack: restoredTakeAwayTrack(saved.takeAwayTrack),
         blocksAddedCount: saved.blocksAddedCount ?? 0,
         // Meeting 1 decides by these: a child who grouped or decomposed and
         // then reloaded was told "do the conversion yourself" on a correct board.
@@ -4103,18 +4173,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             // card per keystroke. The conversion card used to open first and
             // the streak's card was then refused as "a card is open".
             const streak = nextDigitErrorStreak(s, place, isCorrect);
-            if (isCorrect === false && task && isVerticalTask(task) && streak.digitErrorStreak < 4) {
+            let conversionMissed = false;
+            if (isCorrect === false && task && isVerticalTask(task)) {
               const { a, b, target } = effectiveArithmetic(task, s.isASD);
-              if (
+              conversionMissed =
                 columnRequiresConversion(place, a, b, task.isSubtraction) &&
                 !conversionRecordedInColumn(s, place, task.isSubtraction) &&
-                !isPlaceError({ [place]: val }, target, { a, b, isSubtraction: task.isSubtraction })
-              ) {
-                setTimeout(() => get().openSocraticCard('conversion_not_performed', place), 0);
-              }
+                !isPlaceError({ [place]: val }, target, { a, b, isSubtraction: task.isSubtraction });
+            }
+            if (conversionMissed && streak.digitErrorStreak < 4) {
+              setTimeout(() => get().openSocraticCard('conversion_not_performed', place), 0);
             }
 
-            if (streak.digitErrorStreak >= 4) openCardForDigitErrorStreak(place);
+            if (streak.digitErrorStreak >= 4) openCardForDigitErrorStreak(place, conversionMissed);
 
             return {
               answerDigits: { ...s.answerDigits, [place]: val },
@@ -4416,12 +4487,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // static card of the exercise as it stands (1.10.2026).
         let shown = hint;
         let kind = staticCard.cardKind;
+        let rebuilt = false;
         if (cardStateSignature(now) !== openedOn) {
           shown = {
             ...SocraticEngine.getSynchronousTaskHint(nowTask ?? undefined, now.counts, staticCardContextFor(now, nowTask?.id, nowTask)),
             error_category: null,
           };
           kind = shown.cardKind;
+          rebuilt = true;
         }
         // A card of 30.9.2026 counts as shown also when the engine's card,
         // anchored on it, is the one on the screen.
@@ -4433,7 +4506,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             socraticPending: false,
             ...(kind && currentTask?.id ? { socraticCardKinds: withCardKind(st.socraticCardKinds, currentTask.id, kind) } : {}),
             ...(last
-              ? { socraticCardHistory: { ...st.socraticCardHistory, cards: [...cards.slice(0, -1), { ...last, shown: true, questionHe: shown.questionHe ?? null }] } }
+              ? {
+                  socraticCardHistory: {
+                    ...st.socraticCardHistory,
+                    cards: [...cards.slice(0, -1), {
+                      ...last,
+                      shown: true,
+                      questionHe: shown.questionHe ?? null,
+                      // A card rebuilt under the hourglass is recorded as the card shown (final review, 2.10.2026).
+                      ...(rebuilt ? { kind: shown.cardKind ?? null, family: cardFamilyOf(shown), staticQuestionHe: shown.questionHe } : {}),
+                    }],
+                  },
+                }
               : {}),
           };
         });
@@ -4965,6 +5049,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     helpRequestCount: 0,
         taskStartTime: Date.now(),
         hasDeletedBlock: false,
+        takeAwayTrack: null as TakeAwayTrack | null,
         hasClearedBoard: false,
         blocksAddedCount: 0,
         digitErrorStreak: 0,
@@ -5109,6 +5194,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ consecutiveErrorCount: 0 });
     },
   };
+});
+
+/*
+ * Subtraction with blocks: every change of the board, whatever made it (a
+ * drag, the trash, a click, undo, a restore), updates the take-away record of
+ * the exercise on the screen (nextTakeAwayTrack). A set that writes the record
+ * itself (a reset, a restore) is left as written.
+ */
+useWorkspaceStore.subscribe((s, prev) => {
+  if (s.counts === prev.counts || s.takeAwayTrack !== prev.takeAwayTrack) return;
+  const task = getActiveTasks(s)[s.standardTaskIdx];
+  if (!task || !task.isSubtraction || typeof task.numberA !== 'number' || typeof task.numberB !== 'number') return;
+  const { a } = effectiveArithmetic(task, s.isASD === true);
+  const next = nextTakeAwayTrack(s.takeAwayTrack, task.id, a, getValue(prev.counts), getValue(s.counts));
+  const was = s.takeAwayTrack;
+  if (was && was.taskId === next.taskId && was.held === next.held && was.started === next.started) return;
+  useWorkspaceStore.setState({ takeAwayTrack: next });
 });
 
 /* Re-exports used by components */

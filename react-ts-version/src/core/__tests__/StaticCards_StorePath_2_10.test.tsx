@@ -59,7 +59,9 @@ import {
   cardFocusPlace,
   emptyColumnConversions,
   MAX_IDENTICAL_SOCRATIC_CARDS,
+  nextTakeAwayTrack,
   type SocraticTriggerReason,
+  type TakeAwayTrack,
 } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
@@ -80,6 +82,7 @@ import { CARD_SITUATIONS, type CardSituation } from './fixtures/staticCardSituat
 
 type Counts = Record<Place, number>;
 const C = (th: number, h: number, t: number, u: number): Counts => ({ thousands: th, hundreds: h, tens: t, units: u });
+const countsWorth = (c: Partial<Counts>) => (c.thousands ?? 0) * 1000 + (c.hundreds ?? 0) * 100 + (c.tens ?? 0) * 10 + (c.units ?? 0);
 const digitsOf = (n: number): Counts => C(Math.floor(n / 1000) % 10, Math.floor(n / 100) % 10, Math.floor(n / 10) % 10, n % 10);
 const PLACE_OF_HL: Record<string, Place> = { 'tour-column-units': 'units', 'tour-column-tens': 'tens', 'tour-column-hundreds': 'hundreds', 'tour-column-thousands': 'thousands' };
 /** Existing questions without "נסו לחשוב:" (audit §4c; owner's texts of 29.9 — flagged for him, not changed). */
@@ -120,7 +123,19 @@ function stateOf(s: Partial<CardSituation> & { counts: Counts }, task: any, kind
   const history = s.history
     ?? (s.blocksRemoved && task.initialCounts ? [{ ...EMPTY_COUNTS, ...task.initialCounts }]
       : s.blocksRemoved && typeof task.numberA === 'number' ? [digitsOf(task.numberA)] : []);
+  // Subtraction: the store's take-away record, the board's history replayed
+  // through its own reducer (final review, 2.10.2026).
+  let takeAwayTrack: TakeAwayTrack | null = null;
+  if (task.isSubtraction && typeof task.numberA === 'number') {
+    let before = 0;
+    for (const c of [...history, s.counts]) {
+      const v = countsWorth(c);
+      takeAwayTrack = nextTakeAwayTrack(takeAwayTrack, task.id, task.numberA, before, v);
+      before = v;
+    }
+  }
   return {
+    takeAwayTrack,
     sessionNumber: meeting,
     isASD: false,
     placeCuesShown: s.placeCuesShown === true,
@@ -385,8 +400,15 @@ describe('4. through the real store: the fields the cards read reach them (audit
     ws().toggleBoard();
     const first = await cardFor('hesitation_45s');
     const second = await cardFor('hesitation_45s');
+    const third = await cardFor('repeated_errors');
     expect(first!.situation).toBe('board_hidden');
-    expect(second!.situation).toBe('show_board_button');
+    // Coordinator's decision (2.10.2026): showing the board is suggested once;
+    // then the column card worded without blocks — help for a child who works
+    // without the board, never a card about the blocks.
+    for (const c of [second!, third!]) {
+      expect(c.situation).toBe('borrow_column');
+      expect(textsOf(c).join(' ')).not.toMatch(/לבנ|בית המספרים|קבצו|פח האשפה/);
+    }
     ws().toggleBoard();
     expect((await cardFor('hesitation_45s'))!.situation).toBe('check_enough_to_subtract');
   });

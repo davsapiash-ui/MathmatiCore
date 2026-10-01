@@ -209,6 +209,68 @@ export function revealsSecret(texts: string[], secrets: number[]): number | null
   return null;
 }
 
+/** A digit as a card may write it: the digit, or a number word of it, in either gender. Mirrors the server (socraticContract.DIGIT_WORDS_HE). */
+const DIGIT_WORDS_HE: Record<number, string[]> = {
+  0: ['אפס'], 1: ['אחת', 'אחד'], 2: ['שתיים', 'שתי', 'שניים', 'שני'], 3: ['שלוש', 'שלושה', 'שלושת'],
+  4: ['ארבע', 'ארבעה', 'ארבעת'], 5: ['חמש', 'חמישה', 'חמשת'], 6: ['שש', 'שישה', 'ששת'],
+  7: ['שבע', 'שבעה', 'שבעת'], 8: ['שמונה', 'שמונת'], 9: ['תשע', 'תשעה', 'תשעת'],
+};
+
+/**
+ * A digit anywhere in a text, as a standalone token: "מוסיפים 8", "הספרה 8",
+ * "שמונה". Not inside a longer number ("18", "3▢6"), not a construct before a
+ * definite noun ("שני המספרים"), not "אחת / אחד" after a noun ("עשרת אחת"),
+ * and not the 1 of the memory circle (a carry is always 1). Mirrors the server
+ * (socraticContract.mentionsDigitAnywhere).
+ */
+export function mentionsDigitAnywhere(text: string, d: number): boolean {
+  const token = new RegExp(`(?<![\\d▢])${d}(?![\\d▢])|(?<![א-ת])(?:${DIGIT_WORDS_HE[d].join('|')})(?![א-ת])`, 'g');
+  for (const clause of stripDigitGroupSeparators(text).split(/[.?!;:\n]/)) {
+    if (d === 1 && /עיגול/.test(clause)) continue;
+    for (const t of clause.matchAll(token)) {
+      if (/^\d$/.test(t[0])) return true;
+      const before = clause.slice(0, t.index);
+      const after = clause.slice((t.index ?? 0) + t[0].length);
+      if (/^(?:שני|שתי|שלושת|ארבעת|חמשת|ששת|שבעת|שמונת|תשעת)$/.test(t[0]) && /^\s+ה[א-ת]/.test(after)) continue;
+      if (/^(?:אחת|אחד)$/.test(t[0]) && /[א-ת]\s+$/.test(before)) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * The single digits the screen hides — a skeleton's hidden operand digits, a
+ * missing result digit — that it shows nowhere else (the 8 of 3▢6 + 271 =
+ * 657). secretNumbersOf holds whole numbers only; a card that names such a
+ * digit anywhere gives it away (final review, 2.10.2026). Mirrors the
+ * server's digitSecretsOf / onScreen.
+ */
+export function hiddenDigitsOffScreen(task: any): number[] {
+  if (!task || typeof task.numberA !== 'number' || typeof task.numberB !== 'number') return [];
+  const a: number = task.numberA;
+  const b: number = task.numberB;
+  const result = task.isSubtraction ? a - b : a + b;
+  const hiddenA: Place[] = task.hiddenDigits?.a ?? [];
+  const hiddenB: Place[] = task.hiddenDigits?.b ?? [];
+  const revealed: Place[] | null = Array.isArray(task.revealedResultDigits) ? task.revealedResultDigits : null;
+  const hiddenResult = revealed ? places(result).filter((p) => !revealed.includes(p)) : [];
+  if (!hiddenA.length && !hiddenB.length && !hiddenResult.length) return [];
+  const shown = new Set<number>();
+  for (const p of places(a)) if (!hiddenA.includes(p)) shown.add(digit(a, p));
+  for (const p of places(b)) if (!hiddenB.includes(p)) shown.add(digit(b, p));
+  if (revealed) for (const p of places(result)) if (revealed.includes(p)) shown.add(digit(result, p));
+  for (const m of stripDigitGroupSeparators(typeof task.instructionHe === 'string' ? task.instructionHe : '').matchAll(/\d/g)) shown.add(Number(m[0]));
+  const hidden = [...hiddenA.map((p) => digit(a, p)), ...hiddenB.map((p) => digit(b, p)), ...hiddenResult.map((p) => digit(result, p))];
+  return [...new Set(hidden.filter((d) => !shown.has(d)))];
+}
+
+/** The first hidden digit (hiddenDigitsOffScreen) a text names, or null. */
+export function revealsHiddenDigit(texts: string[], task: any): number | null {
+  for (const d of hiddenDigitsOffScreen(task)) if (texts.some((t) => mentionsDigitAnywhere(t, d))) return d;
+  return null;
+}
+
 /**
  * Block counts written in words, as the cards and the instructions write
  * them: "3 אלפים ו-4 מאות", "4 מאות, 10 עשרות ו-6 יחידות", "מאה אחת ו-6 עשרות".
@@ -483,8 +545,9 @@ export interface StaticCardContext {
   boardHidden?: boolean;
   /**
    * Subtraction: taking away has started — a block left the board after it
-   * held the first number (the store's undo history; useWorkspaceStore
-   * takingAwayStarted). Elsewhere: a block went to the trash (hasDeletedBlock).
+   * held the first number in this exercise, and no clear to 0 since (the
+   * store's takeAwayTrack; useWorkspaceStore.nextTakeAwayTrack). Elsewhere: a
+   * block went to the trash (hasDeletedBlock).
    */
   blocksRemoved?: boolean;
 }
@@ -775,10 +838,11 @@ function extraBreakWhichCard(): SocraticHintResponse {
 function takeAwayHowCard(b: number): SocraticHintResponse {
   const B = formatNumberHe(b);
   return card(`${OPEN}איך מוציאים מבית המספרים את ${B}?`, 'procedural', 'tour-place-value-board', [
-    [`מכל טור גוררים לפח האשפה כמה לבנים שהספרה של ${B} באותו טור מראה`, 'נכון מאוד! התחילו בטור היחידות.'],
+    // "כמה לבנים שהספרה מראה" was loose; "בדיוק לפי הספרה" (final review, 2.10.2026).
+    [`מכל טור גוררים לפח האשפה לבנים בדיוק לפי הספרה של ${B} באותו טור`, 'נכון מאוד! התחילו בטור היחידות.'],
     ['לוחצים על פח האשפה', 'רמז: מה קורה לכל הלבנים כשלוחצים על פח האשפה?'],
     ['לוחצים על כל לבנה שמוציאים', 'רמז: מה קורה ללבנה כשלוחצים עליה?'],
-  ], 'take_away_how', frame('take_away_how', 3, `מוציאים את ${B}: מכל טור גוררים לפח האשפה את הספרה של ${B} באותו טור`));
+  ], 'take_away_how', frame('take_away_how', 3, `מוציאים את ${B}: מכל טור גוררים לפח האשפה לבנים בדיוק לפי הספרה של ${B} באותו טור`));
 }
 
 /** Subtraction with blocks, taking away under way: how much is still to go (frame 1). */
@@ -788,24 +852,25 @@ function takeAwayProgressCard(b: number): SocraticHintResponse {
     [`בודקים בכל טור כמה לבנים כבר יצאו ממנו, ומשווים לספרה של ${B} באותו טור`, 'נכון מאוד! בכל טור, הוציאו רק את מה שעוד צריך להוציא.'],
     ['מוציאים לבנים עד שהטור מתרוקן', 'רמז: כמה לבנים צריך להוציא מכל טור?'],
     ['סופרים כמה לבנים נשארו בבית המספרים', 'רמז: איך תדעו כמה הוצאתם מכל טור?'],
-  ], 'take_away_progress', frame('take_away_progress', 1, `בודקים בכל טור כמה כבר הוצא, ומשווים לספרה של ${B} באותו טור`));
+  // The intent goes to the engine: "כמה כבר הוצא" read as a singular imperative there (final review, 2.10.2026).
+  ], 'take_away_progress', frame('take_away_progress', 1, `בודקים בכל טור כמה לבנים כבר יצאו ממנו, ומשווים לספרה של ${B} באותו טור`));
 }
 
 /** Stations 5–6, too much taken from a column, the second card: that column (frame 2). */
 function tookTooManyColumnCard(ex: string, b: number, c: Place): SocraticHintResponse {
   const B = formatNumberHe(b);
   return card(`${OPEN}בתרגיל ${ex}, כמה לבנים צריך להוציא מ${COLUMN[c]}?`, 'procedural', HL(c), [
-    [`כמה שהספרה של ${B} ב${COLUMN[c]} מראה`, 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים שהוצאתם בטעות יחזרו.'],
+    [`כמספר שהספרה של ${B} ב${COLUMN[c]} מראה`, 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים שהוצאתם בטעות יחזרו.'],
     ['את כל הלבנים שבטור', 'רמז: האם מחסרים את כל מה שיש בטור?'],
     ['כמה שרוצים, העיקר שיישארו מעט לבנים', 'רמז: איזה מספר מחסרים בתרגיל?'],
-  ], 'took_too_many_next', frame('took_too_many_column', 2, `מ${COLUMN[c]} מוציאים בדיוק את הספרה של ${B} בטור הזה`));
+  ], 'took_too_many_next', frame('took_too_many_column', 2, `מ${COLUMN[c]} מוציאים לבנים בדיוק לפי הספרה של ${B} בטור הזה`));
 }
 
 /** Meeting 1, too much taken away, the second card: the undo button — no column named (frame 3). */
 function undoTakenCard(b: number): SocraticHintResponse {
   const B = formatNumberHe(b);
   return card(`${OPEN}איך מחזירים לבנים שהוצאתם בטעות?`, 'procedural', 'tour-action-buttons', [
-    ['לוחצים על כפתור ביטול הפעולה עד שהלבנים חוזרות', `נכון מאוד! אחר כך בדקו שמכל טור הוצאתם בדיוק כמה שהספרה של ${B} באותו טור מראה.`],
+    ['לוחצים על כפתור ביטול הפעולה עד שהלבנים חוזרות', `נכון מאוד! אחר כך בדקו שמכל טור הוצאתם לבנים בדיוק לפי הספרה של ${B} באותו טור.`],
     ['מוציאים עוד לבנים', 'רמז: האם עוד לבנים בפח האשפה יחזירו את מה שהוצאתם?'],
     ['כותבים את מה שנשאר בבית המספרים', `רמז: האם הוצאתם בדיוק את ${B}?`],
   ], 'took_too_many_next', frame('took_too_many_undo', 3, 'מחזירים את מה שהוצא בטעות בכפתור ביטול הפעולה, ובודקים כל טור'));
@@ -815,11 +880,12 @@ function undoTakenCard(b: number): SocraticHintResponse {
 function undoToFirstCard(ex: string, a: number, b: number): SocraticHintResponse {
   const A = formatNumberHe(a);
   const B = formatNumberHe(b);
-  return card(`${OPEN}בתרגיל ${ex}, איך משאירים בבית המספרים רק את ${A}?`, 'procedural', 'tour-action-buttons', [
-    [`לוחצים על כפתור ביטול הפעולה עד שבבית המספרים נשאר רק ${A}`, `נכון מאוד! אחר כך הוציאו את ${B} לפח האשפה.`],
+  // Not "undo until only 53 is left": blocks built before 53 was complete never leave by undo alone (final review, 2.10.2026).
+  return card(`${OPEN}בתרגיל ${ex}, איך משאירים בבית המספרים רק את ${A}?`, 'procedural', 'tour-place-value-board', [
+    [`בודקים כל טור לפי הספרה של ${A}, ומוציאים לפח האשפה את הלבנים המיותרות`, `נכון מאוד! אחר כך הוציאו את ${B} לפח האשפה.`],
     ['מוציאים לפח האשפה את כל הלבנים', `רמז: האם ${A} צריך להישאר בבית המספרים?`],
     ['כותבים את המספר שבבית המספרים', `רמז: האם בבית המספרים יש רק ${A}?`],
-  ], 'build_only_first_undo', frame('build_only_first_undo', 3, `בחיסור בונים רק את ${A}: מבטלים בכפתור ביטול הפעולה את הלבנים שנוספו לו`));
+  ], 'build_only_first_undo', frame('build_only_first_undo', 3, `בחיסור בונים רק את ${A}: בודקים כל טור לפי הספרה של ${A}, ומוציאים לפח האשפה את הלבנים המיותרות`));
 }
 
 /** What goes in the box of column c, when the board shows the result (frame 2): after grouping, or after taking away. */
@@ -920,9 +986,15 @@ function s1GroupYourselvesCard(): SocraticHintResponse {
 }
 
 /** A forgotten carry whose 1 is already in the memory circle, the second card: that 1 is added too (frame 2). */
-function circleAddCard(ex: string, p: Place): SocraticHintResponse {
-  return card(`${OPEN}בתרגיל ${ex}, רשמתם 1 בעיגול הזיכרון שמעל ${COLUMN[p]}. מה עושים איתו כשמחברים את ${COLUMN[p]}?`, 'procedural', HL(p), [
-    ['מחברים אותו לספרות של הטור', 'נכון מאוד! חברו את הספרות של הטור ואת ה-1 שבעיגול, וכתבו את התוצאה בתיבה.'],
+function circleAddCard(ex: string, p: Place, a: number, b: number): SocraticHintResponse {
+  // 5,678 + 2,453: the hundreds reach 11 and the tens 13 with the 1 — only the units digit goes in the box (final review, 2.10.2026).
+  const n = next(p);
+  const reaches10 = digit(a, p) + digit(b, p) + 1 >= 10;
+  const right = reaches10
+    ? `נכון מאוד! חברו את הספרות של הטור ואת ה-1 שבעיגול. אם הסכום מגיע ל-10 או יותר, כתבו בתיבה רק את ספרת היחידות שלו${n ? `, ורשמו 1 בעיגול הזיכרון שמעל ${COLUMN[n]}` : ''}.`
+    : 'נכון מאוד! חברו את הספרות של הטור ואת ה-1 שבעיגול, וכתבו את התוצאה בתיבה.';
+  return card(`${OPEN}בתרגיל ${ex}, רשמתם 1 בעיגול הזיכרון שמעל ${COLUMN[p]}. מה עושים איתו כשמחברים את הספרות של ${COLUMN[p]}?`, 'procedural', HL(p), [
+    ['מחברים אותו לספרות של הטור', right],
     ['לא מחברים אותו, כי הוא רק תזכורת', 'רמז: מה מייצג ה-1 שבעיגול הזיכרון?'],
     ['כותבים אותו בתיבה של הטור', HINT.oneDigitPerBox],
   ], 'carry_circle', frame('carry_circle_add', 2, `ה-1 שבעיגול הזיכרון שמעל ${COLUMN[p]} הוא ${ONE[p]} שעברה מהטור שמימין: מחברים גם אותו`));
@@ -1090,7 +1162,7 @@ function additionCard(a: number, b: number, blocks: boolean, counts: BoardCounts
       ['carry_forgotten', () => addColumnCard(ex, forgottenAt, a, b, true)],
       // The 1 already in the memory circle above the column: it is added too;
       // otherwise, how the ten that came is kept — the memory circle.
-      ['carry_circle', () => (ctx.memoryCircles?.[forgottenAt] === '1' ? circleAddCard(ex, forgottenAt) : carryCircleCard(ex, forgottenAt))],
+      ['carry_circle', () => (ctx.memoryCircles?.[forgottenAt] === '1' ? circleAddCard(ex, forgottenAt, a, b) : carryCircleCard(ex, forgottenAt))],
     ]);
   }
   // An empty board (analysts' matrix 4.2; audit D14): build first — the carry
@@ -1099,7 +1171,12 @@ function additionCard(a: number, b: number, blocks: boolean, counts: BoardCounts
   // column, or digits typed): that column's card comes first (audit D12).
   // Station 7's error analysis said "solve it with blocks" already (C6): what is built.
   const working = (columnTrigger(ctx) && f !== null) || Object.values(ctx.answerDigits ?? {}).some((d) => d !== undefined && d !== '');
-  if (blocks && counts && value === 0 && !working) {
+  // On an empty board no card speaks of blocks or the "קבצו 10" button (final
+  // review, 2.10.2026: s4_r_t2 with "2" typed got "…לחצו על הכפתור 'קבצו 10'"
+  // and no block on the board): the child working a column gets what is added
+  // there, worded without blocks; otherwise build first.
+  if (blocks && counts && value === 0) {
+    if (working && f) return ladder(ctx, 'column', [['add_column', () => addColumnCard(ex, f, a, b, false)], ['build_both', () => addBuildCard(ex)]]);
     if (errorAnalysis) return inFamily(addBuildCard(ex), 'build_first');
     return ladder(ctx, 'build_first', [['build_first', buildFirstCard], ['build_both', () => addBuildCard(ex)]]);
   }
@@ -1475,7 +1552,8 @@ function subtractionCard(a: number, b: number, blocks: boolean, counts: BoardCou
     // Too much taken away (audit D7): less than a − b, or a column below the
     // result's digit although it needs nothing more from its left — only once
     // taking away started (the store's undo history; useWorkspaceStore).
-    const over = ctx.blocksRemoved === true ? overTakenColumn(a, b, counts, ctx) : null;
+    // Only on a board worth at most the first number (final review, 2.10.2026).
+    const over = ctx.blocksRemoved === true && value <= a ? overTakenColumn(a, b, counts, ctx) : null;
     if (ctx.blocksRemoved === true && (value < a - b || over)) {
       return ladder(ctx, 'took_too_many', [
         ['took_too_many', overRemovalCard],
@@ -2458,6 +2536,24 @@ export function showBoardCard(): SocraticHintResponse {
 }
 
 /**
+ * Stations 3–7 with the number house hidden (allowed there, register יא),
+ * after the one card that suggests showing it again: the exercise's column
+ * card worded without blocks — the digits, the boxes and the memory circles,
+ * as in meeting 8 — so a child who works without the board still gets help
+ * (coordinator's decision, 2.10.2026, audit D15). Null for an exercise that is
+ * not a vertical addition or subtraction: it cannot be done without blocks.
+ */
+export function noBoardColumnCard(task: any, ctx: StaticCardContext = {}): SocraticHintResponse | null {
+  if (!task || typeof task.numberA !== 'number' || typeof task.numberB !== 'number') return null;
+  if (!(task.type === undefined || task.type === 'vertical_addition' || task.type === 'addition_simple')) return null;
+  if (task.hiddenDigits?.a?.length || task.hiddenDigits?.b?.length) return skeletonCard(task, false, ctx);
+  const oneBox = Array.isArray(task.revealedResultDigits);
+  return task.isSubtraction
+    ? subtractionCard(task.numberA, task.numberB, false, undefined, ctx, oneBox)
+    : additionCard(task.numberA, task.numberB, false, undefined, ctx, oneBox);
+}
+
+/**
  * The static card of a meeting 3–8 exercise, or null when the exercise has a
  * shape this module does not know (the caller then falls back further).
  * `ctx` is what the store knows beyond the board: the place cues, the cards
@@ -2828,7 +2924,7 @@ export function meeting1Card(task: any, counts: BoardCounts, ctx: StaticCardCont
   // now. The exercise's own card first ("איך יודעים שסיימתם").
   if (value === a) return level2 ? ladder(ctx, 'take_away', [['take_away_how', () => takeAwayHowCard(b)]]) : null;
   // Too much taken away (audit D7) — no column named in meeting 1.
-  const over = ctx.blocksRemoved === true ? overTakenColumn(a, b, counts, ctx) : null;
+  const over = ctx.blocksRemoved === true && value <= a ? overTakenColumn(a, b, counts, ctx) : null;
   if (ctx.blocksRemoved === true && (value < a - b || over)) {
     return ladder(ctx, 'took_too_many', [['took_too_many', overRemovalCard], ['took_too_many_next', () => undoTakenCard(b)]]);
   }

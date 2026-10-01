@@ -6,7 +6,7 @@ import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
 import { researchErrorCategory } from "./socraticResearchCategory";
 import { recentTelemetryFor, MAX_RECENT_FOR_ENGINE } from "./recentTelemetry";
-import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, framed, meeting1Card, s1NoButtonCard, s1GroupActionCard, s1DeficitSecondCard, s1WrongBreakCard, s1StartChangedCard, groupActionCard, strayAddition, strayBlocksCard, multiStepTarget, showBoardCard, boardHiddenCard, ladder as cardLadder, buildNumberCard, digitsInColumnsCard, addBuildCard, skeletonShown, inFamily, withKind, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
+import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, framed, meeting1Card, s1NoButtonCard, s1GroupActionCard, s1DeficitSecondCard, s1WrongBreakCard, s1StartChangedCard, groupActionCard, strayAddition, strayBlocksCard, multiStepTarget, showBoardCard, boardHiddenCard, noBoardColumnCard, revealsHiddenDigit, ladder as cardLadder, buildNumberCard, digitsInColumnsCard, addBuildCard, skeletonShown, inFamily, withKind, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -1546,7 +1546,10 @@ export class SocraticEngine {
       // Except in meeting 1, where the child finds the counts himself and no
       // card may give them (owner, 29.9.2026).
       const countsAreTheCoaching = arithmetic && sessionNumber !== 1;
+      // A hidden single digit the screen shows nowhere (the 8 of 3▢6 + 271 =
+      // 657) is a secret in any wording: "מוסיפים 8" (final review, 2.10.2026).
       const hiddenLeak = revealsSecret(aiTexts, aiSecrets) ??
+        revealsHiddenDigit(aiTexts, currentTask) ??
         (countsAreTheCoaching ? null : revealsSecretInCounts(aiTexts, aiSecrets));
       // What the exercise itself shows is not a count of the board: the active
       // column's digits ("7 + 5") and every number of the instruction.
@@ -1798,7 +1801,7 @@ export class SocraticEngine {
     // a skeleton, a number the task asks for (staticSocraticCards.secretNumbersOf).
     // 10, 100 and 1,000 are the names of the regroupings themselves.
     const secrets = secretNumbersOf(currentTask).filter((n) => n !== 10 && n !== 100 && n !== 1000);
-    const leaked = revealsSecret(texts, secrets);
+    const leaked = revealsSecret(texts, secrets) ?? revealsHiddenDigit(texts, currentTask);
     const meeting = meetingOfTaskId(currentTask?.id);
     const violation =
       socraticTextViolation(texts, null) ??
@@ -1863,10 +1866,18 @@ export class SocraticEngine {
       }), 'guessing'), 'guessing_loop');
     }
     //    Stations 3–7: the child hid the number house (top-bar button). A card
-    //    about blocks on a hidden board points at nothing (audit D15): while it
-    //    stays hidden, its own cards — the first general, the second names the
-    //    button — and never a card about the blocks.
+    //    about blocks on a hidden board points at nothing (audit D15). Showing
+    //    it again is a suggestion, not a requirement (register יא): the card
+    //    that suggests it comes once per exercise; after it a vertical exercise
+    //    gets its column card worded without blocks (coordinator's decision,
+    //    2.10.2026) — the child who works without the board still gets help.
+    //    An exercise that needs the blocks (a representation) gets the card
+    //    that names the button.
     if (meeting !== null && meeting >= 3 && meeting <= 7 && ctx.boardHidden === true) {
+      const suggested = (ctx.shownKinds ?? []).some((k) => k === 'board_hidden' || k === 'show_board');
+      if (!suggested) return inFamily(withKind(boardHiddenCard(), 'board_hidden'), 'board_hidden');
+      const withoutBlocks = noBoardColumnCard(currentTask, ctx);
+      if (withoutBlocks) return withoutBlocks;
       return cardLadder(ctx, 'board_hidden', [['board_hidden', boardHiddenCard], ['show_board', showBoardCard]]);
     }
 
