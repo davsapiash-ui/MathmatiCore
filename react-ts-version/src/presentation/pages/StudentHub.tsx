@@ -12,7 +12,9 @@ import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting
 import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { useProjectorMode } from '@/application/useProjectorMode';
+import { useTeacherGender } from '@/application/useTeacherGender';
 import { stationTitleHe } from '@/core/stationNames';
+import { teacherSentenceHe } from '@/core/teacherGender';
 
 interface ActiveSessionConfig {
   id: number;
@@ -119,6 +121,10 @@ export function StudentHub() {
   const activeClassSession = useActiveClassSession();
   // Module 15: real-time projector broadcast reaches the lobby too
   const isProjectorModeActive = useProjectorMode();
+  // The teacher's choice for every sentence about the teacher (core/teacherGender.ts).
+  const teacherGender = useTeacherGender();
+  const willOpenActivity = teacherSentenceHe('willOpenActivity', teacherGender);
+  const pausedTitle = teacherSentenceHe('pausedTitle', teacherGender);
   const isTeacherSessionActive = Boolean(activeClassSession && activeClassSession.active);
   const teacherSessionNum = isTeacherSessionActive ? Number(activeClassSession?.sessionNumber) || 1 : null;
 
@@ -299,10 +305,10 @@ export function StudentHub() {
                 {/* Module 7 (UDL): every on-screen instruction carries its own read-aloud
                     button, triggered only by the learner. The lobby was the one waiting
                     screen without it. */}
-                <UdlSpeechButton text="היום עוד לא התחלנו. המורה תפתח את הפעילות בקרוב." className="shrink-0" />
+                <UdlSpeechButton text={`היום עוד לא התחלנו. ${willOpenActivity}`} className="shrink-0" />
               </div>
               <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-sm">
-                המורה תפתח את הפעילות בקרוב.
+                {willOpenActivity}
               </p>
             </div>
 
@@ -345,8 +351,8 @@ export function StudentHub() {
             {activeClassSession.status === 'paused' && (
               <div className="w-full inline-flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl text-sm font-extrabold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
                 <span aria-hidden="true">⏸️</span>
-                <span>המורה עצרה את הפעילות לרגע. חכו…</span>
-                <UdlSpeechButton text="המורה עצרה את הפעילות לרגע. חכו." className="shrink-0" />
+                <span>{pausedTitle}. חכו…</span>
+                <UdlSpeechButton text={`${pausedTitle}. חכו.`} className="shrink-0" />
               </div>
             )}
           </motion.div>

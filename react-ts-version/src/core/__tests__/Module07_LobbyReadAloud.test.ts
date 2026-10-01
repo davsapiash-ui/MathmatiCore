@@ -20,12 +20,13 @@ describe('Module 7 — the lobby reads its own text aloud on request', () => {
   });
 
   it('covers all three states a learner can see in the lobby', () => {
-    // waiting for the teacher to open a meeting
-    expect(hub).toContain('<UdlSpeechButton text="היום עוד לא התחלנו. המורה תפתח את הפעילות בקרוב." className="shrink-0" />');
+    // waiting for the teacher to open a meeting (the sentence about the
+    // teacher is in the teacher's gender, core/teacherGender.ts)
+    expect(hub).toContain('<UdlSpeechButton text={`היום עוד לא התחלנו. ${willOpenActivity}`} className="shrink-0" />');
     // the active meeting card
     expect(hub).toContain('<UdlSpeechButton text={`${activeSession.title}. ${activeSession.desc}`} className="shrink-0" />');
     // the teacher paused the meeting
-    expect(hub).toContain('<UdlSpeechButton text="המורה עצרה את הפעילות לרגע. חכו." className="shrink-0" />');
+    expect(hub).toContain('<UdlSpeechButton text={`${pausedTitle}. חכו.`} className="shrink-0" />');
   });
 
   it('never speaks on its own — no autoplay anywhere in the lobby', () => {

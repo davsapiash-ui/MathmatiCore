@@ -320,6 +320,10 @@ describe('the Hebrew of meeting 2 (ע2.3)', () => {
   it('ע2.3: the meeting-2 waiting screen', async () => {
     const { Meeting2WaitingScreen } = await import('@/presentation/components/student/Meeting2WaitingScreen');
     const { container } = render(<Meeting2WaitingScreen />);
+    // The default, feminine form; with the teacher's choice set to the
+    // masculine it reads "המורה בודק … יסיים" (owner, 1.10.2026 —
+    // TeacherGender_ChildSentences.test.tsx). The gender always agrees within
+    // the sentence, and no form promises an immediate continuation.
     const msg = 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.';
     expect(container.textContent).toContain(msg);
     expect(screen.getByTestId('speech').getAttribute('data-text')).toBe(msg);

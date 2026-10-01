@@ -106,6 +106,10 @@
       "projector_mode": {
         ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true)",
         ".validate": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true)"
+      },
+      "teacher_gender": {
+        ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true)",
+        ".validate": "newData.isString() && (newData.val() == 'female' || newData.val() == 'male')"
       }
     },
     "active_class_session": {

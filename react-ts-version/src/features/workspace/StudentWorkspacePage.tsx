@@ -19,6 +19,8 @@ import { useWorkspaceStore, getActiveTasks, activeExerciseId, isPathSplitMeeting
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
+import { useTeacherGender } from '@/application/useTeacherGender';
+import { teacherSentenceHe } from '@/core/teacherGender';
 import { database, fetchServerClockOffset } from '@/infrastructure/firebase';
 import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { normalizeStudentId } from '@/application/useChatStore';
@@ -129,6 +131,9 @@ export function StudentWorkspacePage() {
   // --- Active Teacher Class Session Listener ---
   const activeClassSession = useActiveClassSession();
   const isTeacherSessionActive = activeClassSession?.active ?? false;
+  // The teacher's choice for every sentence about the teacher (core/teacherGender.ts);
+  // the waiting screens, the overlays and the help-call toast read it from here.
+  const teacherGender = useTeacherGender();
 
   const [isProjectorModeActive, setIsProjectorModeActive] = useState<boolean>(false);
   // מודול 1: מזהה הלומד נגזר מ-student_id שאומת בכניסה (1-12), ולא ממזהה
@@ -1217,7 +1222,7 @@ export function StudentWorkspacePage() {
               <span>✓</span>
             </div>
             {!afterReflection && (
-              <p className="text-xs text-ws-soft">כשהמורה תפתח את התחנה הבאה, נמשיך יחד.</p>
+              <p className="text-xs text-ws-soft">{teacherSentenceHe('nextStation', teacherGender)}</p>
             )}
           </div>
         </div>
