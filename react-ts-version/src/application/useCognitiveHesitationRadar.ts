@@ -164,6 +164,19 @@ export function useCognitiveHesitationRadar({
     }, getHesitationThresholdSeconds() * 1000);
   }, [isActive]); // ← onHesitationDetected intentionally removed from deps
 
+  // Module 18 §ב: YELLOW means hesitating now. The flag was written at second
+  // 45 and never cleared, and the radar did not read it: it multiplied a COUNT
+  // of hesitations instead, so one pause kept a tile yellow until the next
+  // exercise, and a pause in the last diagnostic task kept it yellow in every
+  // later meeting. The learner's next cognitive action clears the flag; so does
+  // opening the workspace, for a flag an older version left behind.
+  const clearHesitating = useCallback(() => {
+    const uid = currentStudentUid();
+    if (!uid) return;
+    throttledRtdbUpdate(`users/students/${uid}`, { hesitating: { hesitating: false, timestamp: Date.now() } }).catch(() => {});
+    hesitatingPublishedRef.current = false;
+  }, []);
+
   useEffect(() => {
     if (!isActive) {
       if (timeoutRef.current) {
@@ -175,6 +188,10 @@ export function useCognitiveHesitationRadar({
       if (radarTimeoutRef.current) {
         clearTimeout(radarTimeoutRef.current);
       }
+      // The pause is not hesitation: while the projector is on, the lesson is
+      // paused or closed, or the meeting is done, the child has nothing to
+      // work on. A tile left yellow kept counting "היסוס: N שנ׳" through it.
+      if (hesitatingPublishedRef.current) clearHesitating();
       return;
     }
 
@@ -210,18 +227,6 @@ export function useCognitiveHesitationRadar({
     const selectCognitiveState = (s: any) =>
       `${s.sessionNumber}:${s.standardTaskIdx}|${JSON.stringify(s.counts)}|${JSON.stringify(s.answerDigits)}|${JSON.stringify(s.carryDigits)}|${s.selectedChoiceId ?? ''}|${JSON.stringify(s.operandDigits ?? {})}|${s.probeAnswer ?? ''}`;
 
-    // Module 18 §ב: YELLOW means hesitating now. The flag was written at second
-    // 45 and never cleared, and the radar did not read it: it multiplied a COUNT
-    // of hesitations instead, so one pause kept a tile yellow until the next
-    // exercise, and a pause in the last diagnostic task kept it yellow in every
-    // later meeting. The learner's next cognitive action clears the flag; so does
-    // opening the workspace, for a flag an older version left behind.
-    const clearHesitating = () => {
-      const uid = currentStudentUid();
-      if (!uid) return;
-      throttledRtdbUpdate(`users/students/${uid}`, { hesitating: { hesitating: false, timestamp: Date.now() } }).catch(() => {});
-      hesitatingPublishedRef.current = false;
-    };
     clearHesitating();
 
     let lastSignature = selectCognitiveState(useWorkspaceStore.getState());
@@ -249,5 +254,5 @@ export function useCognitiveHesitationRadar({
       }
       unsubscribe();
     };
-  }, [isActive, resetTimeout]);
+  }, [isActive, resetTimeout, clearHesitating]);
 }
