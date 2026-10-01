@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useAuthStore, stampStudentWindowClosed, touchStudentActivity } from '@/application/useAuthStore';
+import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
-import { normalizeStudentId } from '@/application/useChatStore';
 import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { acknowledgeTeacherReset } from '@/infrastructure/services/FirebaseSyncService';
@@ -103,7 +102,13 @@ export function StudentHub() {
   const user = useAuthStore((s) => s.user);
 
   const uid = user?.uid || '';
-  const normUid = normalizeStudentId(uid);
+  // The learner's own record, users/students/student_user{N} (1–12), or ''.
+  // A teacher may open /hub too (App.tsx), and normalizeStudentId kept her
+  // 'teacher_…' id as it is: the presence below then wrote a thirteenth
+  // "learner" under users/students, which travelled into the research backups
+  // (Module 3: zero-PII, learners 1–12 only) — the write unifiedLogout already
+  // stopped. With no learner number nothing below reads or writes a record.
+  const normUid = currentStudentUid();
 
   const [activeSessionId, setActiveSessionId] = useState<number>(1);
   const [, setLiveRouteStatus] = useState<string | null>(null);
@@ -118,7 +123,7 @@ export function StudentHub() {
   const teacherSessionNum = isTeacherSessionActive ? Number(activeClassSession?.sessionNumber) || 1 : null;
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid || !normUid) return;
     const studentRef = ref(database, `users/students/${normUid}`);
     const unsub = onValue(
       studentRef,
