@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { ERROR_CATEGORY_HE, ROUTE_NAME_HE, errorCategoryHe } from '../teacherLabels';
+import { COLUMN_NAMES_HE, ERROR_CATEGORY_HE, ROUTE_NAME_HE, TRIGGER_REASON_HE, errorCategoryCountsHe, errorCategoryHe, triggerCountsHe, triggerReasonHe } from '../teacherLabels';
 
 /**
  * Owner decision, 27.9.2026: one wording for the two routes, on the teacher's
@@ -51,9 +51,44 @@ describe('the error categories in the reports are the screens’ names', () => {
 
   it('the class report, in both its forms, prints the names and not the raw keys', () => {
     const html = stripComments(read(resolve(__dirname, '../reportHtml.ts')));
-    expect(html).toContain('const categories = errorCategoryList(a.error_categories);');
-    expect(html).not.toContain('keyValueList(a.error_categories)');
+    expect(html).toContain('const categories = esc(errorCategoryCountsHe(a.error_categories));');
+    expect(html).not.toContain('keyValueList(');
     const pdf = stripComments(read(resolve(__dirname, '../classReport.ts')));
-    expect(pdf).toContain('map(([k, v]) => `${errorCategoryHe(k) ?? k}: ${v}`)');
+    expect(pdf).toContain('const categories = errorCategoryCountsHe(a.error_categories);');
+    // A key outside the three is not printed in English either.
+    expect(errorCategoryCountsHe({ conceptual: 12, other_kind: 1 })).toBe('טעות בהבנת ערך המקום: 12, סיווג אחר: 1');
+  });
+});
+
+describe('why a card opened: the timeline’s words in the reports (acceptance run, 2.10.2026)', () => {
+  it('the copy equals the frontend TRIGGER_REASON_HE, which the learner timeline reads', () => {
+    const fe = read(resolve(__dirname, '../../../react-ts-version/src/core/routeLabels.ts'));
+    const start = fe.indexOf('export const TRIGGER_REASON_HE = {');
+    expect(start).toBeGreaterThan(-1);
+    const block = fe.slice(start, fe.indexOf('} as const;', start));
+    const names = Object.fromEntries([...block.matchAll(/(\w+): '([^']+)'/g)].map((m) => [m[1], m[2]]));
+    expect(names).toEqual({ ...TRIGGER_REASON_HE });
+    const timeline = read(resolve(__dirname, '../../../react-ts-version/src/infrastructure/services/LearnerJourneyService.ts'));
+    expect(timeline).toContain('const reason: Record<string, string> = TRIGGER_REASON_HE;');
+  });
+
+  it('all five stored reasons have a name; the counts read in Hebrew', () => {
+    for (const k of ['hesitation_45s', 'consecutive_errors_4', 'conversion_not_performed', 'repeated_errors', 'consecutive_undos_3']) {
+      expect(triggerReasonHe(k), k).toMatch(/^[֐-׿0-9 ]+$/);
+    }
+    expect(triggerReasonHe('toString')).toBeNull();
+    expect(triggerCountsHe({ consecutive_errors_4: 1, conversion_not_performed: 3, hesitation_45s: 24 }))
+      .toBe('ארבע מחיקות או הקלדות שגויות רצופות: 1, לא בוצעה המרה נדרשת: 3, היסוס 45 שניות: 24');
+    expect(triggerCountsHe({ some_new_reason: 2 })).toBe('סיבה אחרת: 2');
+  });
+
+  it('the columns are named as on every screen: יחידות', () => {
+    expect([...COLUMN_NAMES_HE]).toEqual(['יחידות', 'עשרות', 'מאות', 'אלפים']);
+    const timeline = read(resolve(__dirname, '../../../react-ts-version/src/infrastructure/services/LearnerJourneyService.ts'));
+    expect(timeline).toContain("const COLUMN_NAMES_HE = ['יחידות', 'עשרות', 'מאות', 'אלפים'];");
+    // reportAnalysis.ts names the word only to forbid and replace it.
+    for (const f of ['pedagogicalReport.ts', 'classReport.ts', 'reportHtml.ts']) {
+      expect(stripComments(read(resolve(__dirname, '..', f))), f).not.toContain('אחדות');
+    }
   });
 });

@@ -6,7 +6,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
 import { meetingLabelHe } from "./stationNames";
-import { ROUTE_NAME_HE } from "./teacherLabels";
+import { COLUMN_NAMES_HE, ROUTE_NAME_HE } from "./teacherLabels";
 import {
   DIAGNOSTIC_COMPULSORY_COUNT,
   computeFirstAttemptScore,
@@ -53,11 +53,8 @@ import {
   pedagogicalReportHtml,
   reportFooterTemplate,
 } from "./reportHtml";
-const PDFDocument = require("pdfkit");
 
 export const EXACT_AI_FALLBACK_TEXT = EXACT_AI_FALLBACK_TEXT_HE;
-
-const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
 
 /**
  * Module 23 — the opening chapter of the report: the Exercise Narrative.
@@ -76,7 +73,11 @@ const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
  * the aggregate-only form the spec rules out, and it dropped deletions,
  * hesitations and Socratic cards entirely.
  */
-export function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string, any>[]): ExerciseNarratives {
+export function generateExerciseNarrativeFromEvents(
+  telemetryDocs: Record<string, any>[],
+  // The Hebrew titles the teacher's screens show; an exercise without one keeps its id.
+  titles: Record<string, string> = {}
+): ExerciseNarratives {
   const narratives: string[] = [];
   const choiceNarratives: string[] = [];
   const exerciseMap: Record<string, any[]> = {};
@@ -221,11 +222,11 @@ export function generateExerciseNarrativeFromEvents(telemetryDocs: Record<string
     // ("בתרגיל השמיני"), as if the meeting had eight compulsory exercises.
     const pathType = exercisePathType(exId);
     if (pathType !== "compulsory") {
-      choiceNarratives.push(`${CHOICE_PATH_LABEL_HE[pathType]} (${exId}): הלומד ${body}${ending}.`);
+      choiceNarratives.push(`${CHOICE_PATH_LABEL_HE[pathType]} (${titles[exId] ?? exId}): הלומד ${body}${ending}.`);
       continue;
     }
     const ordinal = ORDINALS_HE[exerciseIdx - 1] || `ה-${exerciseIdx}`;
-    narratives.push(`בתרגיל ${ordinal} (${exId}) הלומד ${body}${ending}.`);
+    narratives.push(`בתרגיל ${ordinal} (${titles[exId] ?? exId}) הלומד ${body}${ending}.`);
     exerciseIdx++;
   }
 
@@ -262,6 +263,8 @@ export function createPedagogicalReportPdfBuffer(report: Record<string, any>): P
 export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string, any>): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
+      // Loaded here, not at the top: every function instance loads index.js (cold start, 2.10.2026).
+      const PDFDocument = require("pdfkit");
       const doc = new PDFDocument({ size: "A4", margin: 40 });
       const chunks: Buffer[] = [];
 
@@ -287,7 +290,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
       rtlText(doc, report.title_he || "MathematiCore - דוח פדגוגי מסכם", { align: "center" });
       doc.moveDown(0.4);
       doc.fontSize(11).fillColor("#475569");
-      rtlText(doc, "הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה (Zero PII)", { align: "center" });
+      rtlText(doc, "הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה", { align: "center" });
       doc.moveDown(1);
 
       // Metadata summary card
@@ -351,7 +354,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
 
       // Chronological Exercise Narratives
       doc.fontSize(14).fillColor("#1e293b");
-      rtlText(doc, `${sandbox ? "3" : "2"}. סיפור התרגילים הכרונולוגי (Exercise Narratives)`);
+      rtlText(doc, `${sandbox ? "3" : "2"}. סיפור התרגילים הכרונולוגי`);
       doc.moveDown(0.4);
       if (report.exercise_narratives && Array.isArray(report.exercise_narratives)) {
         for (const narrative of report.exercise_narratives) {
@@ -546,9 +549,10 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       `הפעולות המתועדות במפגש ${sessionId} שייכות לתלמיד ${foreign.student_id}, לא לתלמיד ${clampedStudentNum}. הדוח לא הופק.`
     );
   }
-  const narrativesByPath = generateExerciseNarrativeFromEvents(telemetryDocs);
-  const exerciseNarratives = narrativesByPath.compulsory;
-  const choiceExerciseNarratives = narrativesByPath.choice;
+  // In the order the learner produced them. The narrative used to be written
+  // here (and sorted the events as it went); it is written below, once the
+  // catalog gives the exercises their Hebrew titles.
+  telemetryDocs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
 
   // The learner's live record: the approved path and gate state live there
   // for every meeting, whether or not a SessionDocument was written.
@@ -763,14 +767,17 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     ...(toolMastery ? { tools_not_used: toolMastery.not_used.map((t) => TOOL_LABEL_HE[t]) } : {}),
   });
 
-  // Meeting 1 names its refresh exercises by their titles, from the same bank.
-  const exerciseTitles: Record<string, string> | null = scoredMeeting
-    ? null
-    : Object.fromEntries(
-        catalogTasks
-          .filter((t) => t && typeof t.id === "string" && typeof t.titleHe === "string")
-          .map((t) => [t.id as string, t.titleHe as string])
-      );
+  // The exercises by their titles, from the same bank: the narrative of every
+  // meeting, and meeting 1's refresh table (stored for meeting 1 only, as before).
+  const titlesById: Record<string, string> = Object.fromEntries(
+    catalogTasks
+      .filter((t) => t && typeof t.id === "string" && typeof t.titleHe === "string")
+      .map((t) => [t.id as string, t.titleHe as string])
+  );
+  const exerciseTitles: Record<string, string> | null = scoredMeeting ? null : titlesById;
+  const narrativesByPath = generateExerciseNarrativeFromEvents(telemetryDocs, titlesById);
+  const exerciseNarratives = narrativesByPath.compulsory;
+  const choiceExerciseNarratives = narrativesByPath.choice;
 
   // Research measures 3–4 (PRD 7.3, Module 23 §ב). The cumulative values need
   // the same learner's other meetings; a failure to read them leaves the
