@@ -443,6 +443,32 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
 }
 
 /**
+ * The Hebrew title of every exercise in a meeting's published banks (both
+ * paths), as the teacher's screens show them — the reports used to print the
+ * ids ("s4_g_t1"). The choice banks are not published, so a choice exercise is
+ * not here and keeps its id.
+ */
+export async function readExerciseTitles(
+  db: admin.firestore.Firestore,
+  sessionNumber: number
+): Promise<Record<string, string>> {
+  const titles: Record<string, string> = {};
+  for (const bankId of [`session_${sessionNumber}`, `session_${sessionNumber}_green_path`, `session_${sessionNumber}_remediation_path`]) {
+    try {
+      const bankDoc = await db.collection("curriculum_catalog").doc(bankId).get();
+      const tasks = bankDoc.exists ? (bankDoc.data() || {}).tasks : null;
+      if (!Array.isArray(tasks)) continue;
+      for (const t of tasks) {
+        if (t && typeof t.id === "string" && typeof t.titleHe === "string" && t.titleHe.trim() && !titles[t.id]) titles[t.id] = t.titleHe;
+      }
+    } catch {
+      /* catalog unavailable: the exercise keeps its id */
+    }
+  }
+  return titles;
+}
+
+/**
  * How many compulsory exercises a meeting has, and which ones they are for a
  * given path.
  *

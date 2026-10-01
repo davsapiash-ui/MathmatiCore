@@ -86,7 +86,6 @@ export function recordAiCall(rec: AiCallRecord): void {
     // undefined inside the Functions emulator, so every counter write was
     // skipped there ("Cannot read properties of undefined (reading
     // 'increment')", audit of 1.10.2026) and the console showed no calls.
-    const db = getFirestore();
     const inc = (n: number) => FieldValue.increment(n);
     const day = dayKey();
     const f = rec.feature;
@@ -108,13 +107,46 @@ export function recordAiCall(rec: AiCallRecord): void {
     if (rec.outcome !== "ok" && rec.outcome !== "empty") {
       update.last_failure = { [f]: { at: Date.now(), outcome: rec.outcome, detail: rec.detail ?? null, model_id: rec.model_id } };
     }
-    db.collection("store_cache").doc(AI_MONITORING_DOC).set(update, { merge: true }).catch((err) => {
-      // A rules or connectivity problem must not spam every call; log once and go quiet.
-      firestoreDisabled = true;
-      logger.warn("[ai-monitor] counter write failed; disabling counters for this instance", { error: String(err) });
+    // After the answer has left: the first write of an instance builds the
+    // Firestore client and loads its gRPC stack, synchronously — 0.3–0.4 s on
+    // a warm disk, seconds on a cold one — and the card waited for it. In the
+    // acceptance run of 2.10.2026 the first card after the warm-up spent
+    // ~3.8 s outside the model; measured locally with a stubbed model, this
+    // write was all of the first call's extra time. setImmediate runs after
+    // the callable has sent its response (the promise chain returning from
+    // the handler sends it first).
+    setImmediate(() => {
+      try {
+        getFirestore().collection("store_cache").doc(AI_MONITORING_DOC).set(update, { merge: true }).catch((err) => {
+          // A rules or connectivity problem must not spam every call; log once and go quiet.
+          firestoreDisabled = true;
+          logger.warn("[ai-monitor] counter write failed; disabling counters for this instance", { error: String(err) });
+        });
+      } catch (err) {
+        logger.warn("[ai-monitor] counter write skipped", { error: String(err) });
+      }
     });
   } catch (err) {
     logger.warn("[ai-monitor] counter write skipped", { error: String(err) });
+  }
+}
+
+/**
+ * The teacher's warm-up ping (TeacherDashboard, on activating a meeting)
+ * builds the Firestore client and opens its channel with one read, so the
+ * first child's card finds it ready. Reads only; never throws; bounded.
+ */
+export async function warmAiMonitoring(timeoutMs = 3000): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([
+      getFirestore().collection("store_cache").doc(AI_MONITORING_DOC).get(),
+      new Promise((resolve) => { timer = setTimeout(resolve, timeoutMs); }),
+    ]);
+  } catch (err) {
+    logger.warn("[ai-monitor] warm-up read failed", { error: String(err) });
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 

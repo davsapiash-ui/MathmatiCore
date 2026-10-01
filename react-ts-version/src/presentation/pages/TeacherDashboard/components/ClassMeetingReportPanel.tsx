@@ -256,7 +256,7 @@ export function ClassMeetingReportPanel() {
             ) : (
               <Stat label="מפגש היכרות וריענון" value="ללא ציון" sub={`זמן פעילות ממוצע ${report.activeMinutesMean} דקות`} />
             )}
-            <Stat label="ספרות שגויות" value={String(report.wrongDigitsTotal)} sub={`אחדות ${report.wrongDigitsByColumn.units} · עשרות ${report.wrongDigitsByColumn.tens} · מאות ${report.wrongDigitsByColumn.hundreds}`} />
+            <Stat label="ספרות שגויות" value={String(report.wrongDigitsTotal)} sub={`יחידות ${report.wrongDigitsByColumn.units} · עשרות ${report.wrongDigitsByColumn.tens} · מאות ${report.wrongDigitsByColumn.hundreds}`} />
             <Stat label="כרטיסי חניכה" value={String(report.socraticCardsTotal)} sub={`היסוסים ${report.hesitationsTotal} · ביטולים ${report.undosTotal} · מחיקות ${report.deletionsTotal}`} />
           </div>
 

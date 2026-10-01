@@ -8,9 +8,10 @@ import {
   type GeminiModelChoice,
   classifyGeminiError,
   generateGeminiText,
+  getGeminiClient,
   getGeminiKeyStatus,
 } from "./geminiConfig";
-import { recordAiCall, type AiOutcome } from "./aiMonitoring";
+import { recordAiCall, warmAiMonitoring, type AiOutcome } from "./aiMonitoring";
 import { readCallerRoles } from "./callerIdentity";
 import { redactPhoneNumbers } from "./phonePattern";
 import {
@@ -251,10 +252,21 @@ export const callGeminiSocraticProxy = onCall(
     // A warm-up ping (the teacher activating a meeting, TeacherDashboard): it
     // only starts this function's instance so the first child's card does not
     // pay the cold start. No model call, no data written, staff only.
+    // It also builds what the first card would otherwise build on its own
+    // time: the Firestore client of the monitoring counters (one read) and
+    // the model's SDK client (acceptance run of 2.10.2026).
     if (data.warm === true) {
       if (!readCallerRoles(request.auth.token as Record<string, unknown>).isTeacher) {
         throw new HttpsError("permission-denied", "Warm-up is for staff only.");
       }
+      if (getGeminiKeyStatus().configured) {
+        try {
+          getGeminiClient();
+        } catch {
+          /* the first card reports a missing key on its own */
+        }
+      }
+      await warmAiMonitoring();
       return { warm: true };
     }
 

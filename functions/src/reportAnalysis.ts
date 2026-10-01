@@ -2,6 +2,7 @@ import * as logger from "firebase-functions/logger";
 import { GEMINI_MODEL_ID, classifyGeminiError, generateGeminiText, type GeminiThinking } from "./geminiConfig";
 import { recordAiCall, type AiOutcome } from "./aiMonitoring";
 import { SANDBOX_MEETING_PURPOSE_HE, exercisePathType, isExerciseEvent, type ExercisePathType } from "./meetingMetrics";
+import { COLUMN_NAMES_HE } from "./teacherLabels";
 
 /**
  * PRD Module 23 — layer two of the pedagogical report: the verbal analysis.
@@ -151,14 +152,49 @@ export function reportTextViolation(items: string[]): string | null {
     if (/[A-Za-z]/.test(t)) return "the analysis must be in Hebrew only: no English words, no Latin letters and no exercise ids (name an exercise by its numbers)";
     const term = REPORT_TERM_ALWAYS.exec(t) ?? REPORT_TERM_IN_CONTEXT.exec(t);
     if (term) return `"${term[2]}" is not the Ministry's term: write הקבצה or המרה in addition and פריטה in subtraction`;
+    const card = new RegExp(CARD_JARGON.source).exec(t) ?? new RegExp(CARD_JARGON_PLURAL.source).exec(t);
+    if (card) return `"${card[0].trim()}" is not the system's name: the card the learner gets is "כרטיס החניכה" (plural "כרטיסי החניכה"), a masculine noun`;
   }
   return null;
 }
 
-/** The arrays without the lines that still break the Hebrew-only rule. */
+/**
+ * The system's own names in the analysis (owner, 1.10.2026: one name per
+ * thing). The real analyses of 2.10.2026 wrote "אחדות" 8–13 times per report
+ * where every screen says "יחידות", and once "הכרטיסייה הסוקרטית" for the
+ * coaching card.
+ *
+ *  - "אחדות" → "יחידות", whole word, with its prefixes ("בטור האחדות" →
+ *    "בטור היחידות"). Both are feminine plural, so nothing around it changes.
+ *    Bare "אחדות" after a plural noun is the other word, "a few" ("פעמים
+ *    אחדות", "שניות אחדות"), and is left alone.
+ *  - "כרטיסייה סוקרטית" / "כרטיס סוקרטי" (and their plurals) → "כרטיס
+ *    החניכה" / "כרטיסי החניכה". The feminine form is also a violation above,
+ *    so the model gets one corrected try (agreement: "הכרטיסייה ... עזרה");
+ *    a line that still carries it is fixed here rather than dropped.
+ */
+const UNITS_WRONG = /(^|[^א-ת])([ובלמהשכ]{0,3})אחדות(?![א-ת])/g;
+const CARD_JARGON = /(^|[^א-ת])([ובלמש]{0,2})ה?(?:כרטיסייה|כרטיסיה|כרטיס)\s+ה?סוקרטי(?:ת)?(?![א-ת])/g;
+const CARD_JARGON_PLURAL = /(^|[^א-ת])([ובלמש]{0,2})ה?(?:כרטיסיות|כרטיסים)\s+ה?סוקרטי(?:ות|ים)(?![א-ת])/g;
+export function normalizeReportTerms(text: string): string {
+  return text
+    .replace(UNITS_WRONG, (whole, lead: string, prefix: string, offset: number, all: string) => {
+      if (!prefix) {
+        const before = all.slice(0, offset + lead.length).trimEnd();
+        if (/[א-ת](ים|ות)$/.test(before)) return whole; // "פעמים אחדות": a few
+      }
+      return `${lead}${prefix}יחידות`;
+    })
+    .replace(CARD_JARGON_PLURAL, (_w, lead: string, prefix: string) => `${lead}${prefix}כרטיסי החניכה`)
+    .replace(CARD_JARGON, (_w, lead: string, prefix: string) => `${lead}${prefix}כרטיס החניכה`);
+}
+
+/** The arrays in the system's terms, without the lines that still break the Hebrew-only rule. */
 export function keepHebrewLines<T extends Record<string, string[]>>(arrays: T): T {
   const out = {} as T;
-  for (const [k, v] of Object.entries(arrays)) (out as Record<string, string[]>)[k] = v.filter((t) => reportTextViolation([t]) === null);
+  for (const [k, v] of Object.entries(arrays)) {
+    (out as Record<string, string[]>)[k] = v.map(normalizeReportTerms).filter((t) => reportTextViolation([t]) === null);
+  }
   return out;
 }
 
@@ -206,14 +242,13 @@ const REPORT_RESPONSE_SCHEMA = {
   propertyOrdering: ["knowledge_gaps", "teaching_recommendations"],
 } as const;
 
-const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
 
 /**
  * The analysis is read by a teacher, in the Ministry's terms (1.10.2026: the
  * first real analyses called a carried ten "שארית" and a grouping "פריטה",
  * and named exercises by their ids).
  */
-export const REPORT_TERMS_HE = "מונחים: בחיבור — הקבצה או המרה, והעשרת שעוברת לטור הבא נרשמת בעיגול הזיכרון; בחיסור — פריטה. לעולם לא \"שארית\", \"נשיאה\", \"הלוואה\" או \"שבירה\". תרגיל מזכירים לפי המספרים שלו (למשל 1,245 + 328), לא לפי המזהה שלו.";
+export const REPORT_TERMS_HE = "מונחים: בחיבור — הקבצה או המרה, והעשרת שעוברת לטור הבא נרשמת בעיגול הזיכרון; בחיסור — פריטה. לעולם לא \"שארית\", \"נשיאה\", \"הלוואה\" או \"שבירה\". תרגיל מזכירים לפי המספרים שלו (למשל 1,245 + 328), לא לפי המזהה שלו. השמות שהמערכת משתמשת בהם: טור היחידות, טור העשרות, טור המאות וטור האלפים (לעולם לא \"אחדות\"); הכרטיס שהלומד מקבל נקרא תמיד \"כרטיס החניכה\", בלי תואר ובלי שם אחר; הלוח שבו הלומד בונה את המספרים הוא \"בית המספרים\", והלבנים הן \"לבני הדינס\".";
 
 /**
  * Builds the exercise templates for the exercises the learner actually erred

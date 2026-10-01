@@ -133,10 +133,13 @@ describe('the second try goes to the right model', () => {
 });
 
 describe('the monitoring counters are nested maps the console reads', () => {
-  it('totals, daily and by_model are maps, not dotted field names', () => {
+  it('totals, daily and by_model are maps, not dotted field names', async () => {
     resetAiMonitoringState();
     h.sets = [];
     recordAiCall({ feature: 'socratic', outcome: 'ok', latency_ms: 2300, model_id: 'gemini-3.8-flash' });
+    // Written after the answer has left (setImmediate), never before it.
+    expect(h.sets).toHaveLength(0);
+    await new Promise((r) => setImmediate(r));
     const v = h.sets[0];
     expect(Object.keys(v).some((k) => k.includes('.'))).toBe(false);
     expect(v.totals.socratic.calls).toEqual({ __inc: 1 });
@@ -191,10 +194,11 @@ describe('a report analysis is counted as what it is', () => {
     expect(reportAnalysisOutcome(false, true, '{"knowledge_gaps":["Latin"],"teaching_recommendations":[]}', keys).outcome).toBe('language_reject');
     expect(reportAnalysisOutcome(true, true, null, keys)).toEqual({ outcome: 'ok', detail: 'lines dropped: not Hebrew-only' });
   });
-  it('"empty" is not written as the last failure', () => {
+  it('"empty" is not written as the last failure', async () => {
     resetAiMonitoringState();
     h.sets = [];
     recordAiCall({ feature: 'report_analysis', outcome: 'empty', latency_ms: 3000, model_id: 'gemini-3.8-flash' });
+    await new Promise((r) => setImmediate(r));
     expect(h.sets[0].last_failure).toBeUndefined();
     expect(h.sets[0].totals.report_analysis.empty).toEqual({ __inc: 1 });
   });

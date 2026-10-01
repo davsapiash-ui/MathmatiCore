@@ -1,4 +1,4 @@
-import { ref, push, serverTimestamp } from "firebase/database";
+import { ref, push, set, serverTimestamp } from "firebase/database";
 import { database, authReady } from "@/infrastructure/firebase";
 import { sanitizePII } from "@/core/security/PiiFilter";
 import { isTeacherOrAdminId } from "@/core/staffIdentity";
@@ -81,9 +81,13 @@ class AuditLoggerService {
           details: sanitizedDetails || null,
         });
 
-        // Global radar alerts for the live Teacher Dashboard sidebar
-        const alertsRef = ref(database, 'radar_alerts');
-        await push(alertsRef, {
+        // Global radar alerts for the live Teacher Dashboard sidebar. The
+        // rules (database.rules.json, radar_alerts/$alertId) accept a
+        // learner's write only under a key that starts with the learner's own
+        // id; a bare push() key was refused on every event (acceptance run of
+        // 2.10.2026). The push id keeps the key unique and in time order.
+        const alertKey = `${normId}_${push(ref(database, 'radar_alerts')).key}`;
+        await set(ref(database, `radar_alerts/${alertKey}`), {
           type,
           studentId: normId,
           rawStudentId: normId,
