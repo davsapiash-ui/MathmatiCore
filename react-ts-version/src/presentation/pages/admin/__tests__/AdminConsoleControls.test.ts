@@ -75,6 +75,18 @@ describe('Admin layout', () => {
     expect(layout).toMatch(/<NavLink\s+to="\/admin\/chat"/);
   });
 
+  it('every sidebar link fits a laptop screen, and the list shows its scrollbar (1.10.2026)', () => {
+    // At 1366×633 and 1280×585 the last two links sat below the fold of a
+    // list whose scrollbar ui/sidebar hides (no-scrollbar).
+    expect(layout).toContain('<SidebarContent className="p-4 bg-white ![scrollbar-width:thin]">');
+    expect((layout.match(/\[@media\(max-height:820px\)\]:py-2\.5/g) || []).length).toBe(14);
+    // The footer's user card and sign-out step aside on a short screen — the
+    // top bar, shown with the sidebar from the same breakpoint, has both.
+    expect(layout).toMatch(/mt-auto bg-white\/20 dark:bg-black\/10 \[@media\(max-height:820px\)\]:hidden/);
+    expect(layout).toContain('<Sidebar variant="sidebar" collapsible="none" className="hidden lg:flex');
+    expect(layout).toContain('<header className="hidden lg:flex items-center justify-between');
+  });
+
   it('no longer claims a "Ghost Mode" in which admin actions are not recorded', () => {
     expect(layout.includes('Ghost Mode')).toBe(false);
     expect(layout.includes('מצב רפאים')).toBe(false);
@@ -83,6 +95,14 @@ describe('Admin layout', () => {
 
 describe('Admin chat', () => {
   const chat = read('../AdminChatView.tsx');
+
+  it('a message from a teacher no longer on the list has a conversation too, so it can be read and cleared', () => {
+    // It had none: the bell counted it for ever (bell 2, chat 1 — 1.10.2026).
+    expect(chat).toContain('!known.has(m.sender_id)');
+    expect(chat).toContain('"מורה שאינה ברשימה"');
+    // Never by the e-mail-derived key.
+    expect(chat).not.toMatch(/label: (m\.)?sender_id/);
+  });
 
   it('marks a teacher\'s incoming messages read when the conversation is opened', () => {
     expect(chat.includes('updateDoc(doc(db, "messages", m.id), { read: true })')).toBe(true);

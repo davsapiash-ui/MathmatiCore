@@ -470,7 +470,7 @@ describe('Module 13: the engine reaches station 3 and sees what the child did', 
         qMatrixAnchor: { questionHe: 'x', choices: [{ id: 'opt_1', textHe: 'y' }], correctChoiceId: 'opt_1' },
         monitoring: { studentId: 3, consecutiveErrors: 4, consecutiveUndos: 3, hesitationSeconds: 50 },
       });
-      const request = spy.mock.calls[0][0].socratic_request;
+      const request = spy.mock.calls[0][0].socratic_request!;
       spy.mockRestore();
       return request;
     };

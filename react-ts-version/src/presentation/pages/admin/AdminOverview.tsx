@@ -275,11 +275,11 @@ export function AdminOverview() {
   }, [sessionBreakdown]);
 
   return (
-    <div className="p-6 md:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
+    <div className="p-2 sm:p-4 xl:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
       <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 p-8 text-white shadow-2xl border border-indigo-400/40">
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 border border-white/25 text-white text-xs font-bold shadow-sm backdrop-blur-md">
               <Zap className="w-4 h-4 text-amber-300" />
@@ -335,7 +335,7 @@ export function AdminOverview() {
       </div>
 
       {/* Metrics Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-blue-500/50 transition-all">
           <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-blue-500 to-indigo-600" />
           <div className="flex justify-between items-start">
@@ -425,7 +425,7 @@ export function AdminOverview() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
           {pedagogicalSessionRows.map((stat) => (
             <div key={stat.session} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex flex-col gap-2">
               <div className="flex justify-between items-center">
@@ -469,7 +469,7 @@ export function AdminOverview() {
             סכומים מצרפיים של כל הכיתה, מחושבים בשרת
           </p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
           {[
             { label: 'תרגילים שנפתרו', value: exercisesCompleted },
             {
@@ -503,7 +503,7 @@ export function AdminOverview() {
           pilot's hard 12-student cap) — store_cache/admin_metrics carries no
           real historical time series to replace it with, so it's gone rather
           than kept fake (Module 24 §ב: never fabricate). */}
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className="grid xl:grid-cols-2 gap-8">
           <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl flex flex-col justify-between space-y-4">
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -623,12 +623,12 @@ export function AdminOverview() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-right border-collapse">
+          <table className="w-full text-right border-collapse table-fixed">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-4">זמן ביצוע</th>
-                <th className="py-3 px-4">פעולה</th>
-                <th className="py-3 px-4">משתמש מבצע</th>
+                <th className="py-3 px-4 w-[22%]">זמן ביצוע</th>
+                <th className="py-3 px-4 w-[24%]">פעולה</th>
+                <th className="py-3 px-4 w-[22%]">משתמש מבצע</th>
                 <th className="py-3 px-4">פרטים מלאים</th>
               </tr>
             </thead>
@@ -636,7 +636,7 @@ export function AdminOverview() {
               {filteredLogs.length > 0 ? (
                 filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs font-mono">
+                    <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 text-xs font-mono">
                       {log.timestamp ? new Date(log.timestamp).toLocaleString('he-IL') : 'לא ידוע'}
                     </td>
                     <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100">
@@ -644,10 +644,10 @@ export function AdminOverview() {
                         {log.action}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-slate-700 dark:text-slate-300 font-mono text-xs">
+                    <td className="py-3.5 px-4 text-slate-700 dark:text-slate-300 font-mono text-xs break-all">
                       {log.user_id}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 text-xs max-w-md truncate" title={log.details}>
+                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 text-xs truncate" title={log.details}>
                       {log.details || '-'}
                     </td>
                   </tr>
