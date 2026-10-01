@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/application/useAuthStore";
 import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME } from "@/core/pilotInstitution";
 import { useStore } from "@/application/useStore";
-import { executeGoogleSSO } from "@/infrastructure/services/AuthService";
+import { executeGoogleSSO, STAFF_HANDSHAKE_FAILED_CODE } from "@/infrastructure/services/AuthService";
 import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { tts } from "@/infrastructure/services/TTSService";
 import { Logo } from "@/presentation/components/ui/Logo";
@@ -236,6 +236,11 @@ export function Login() {
         setErrorMsg("הדפדפן חסם את חלון ההתחברות הקופץ. אנא אשר חלונות קופצים (Popups) בדפדפן ונסה שוב.");
       } else if (code === "auth/cancelled-popup-request" || msg.includes("cancelled-popup-request")) {
         setErrorMsg("");
+      } else if (code === STAFF_HANDSHAKE_FAILED_CODE || code === "auth/network-request-failed") {
+        // An authorised address whose sign-in did not complete (server or
+        // network). Module 1 §ג: "rollback to the idle state" — the sign-in
+        // screen stays, with no reason and nothing technical, only a retry.
+        setErrorMsg("לא הצלחנו להשלים את הכניסה. נסו שוב בעוד רגע.");
       } else {
         // PRD Module 1 §ג: "חוסמת גישה מוחלטת להרשאות, ללא חשיפת סיבת השגיאה
         // או מידע טכני" and "כל כשל אימות מוביל חזרה לדף הבית באופן שקט".

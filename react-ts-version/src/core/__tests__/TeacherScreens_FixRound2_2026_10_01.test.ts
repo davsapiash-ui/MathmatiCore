@@ -204,3 +204,14 @@ describe('Teacher screens — smaller defects of the screen audit', () => {
     expect(src('presentation/pages/TeacherDashboard/components/ResetConfirmationModal.tsx')).toContain('aria-label="סגירת החלון"');
   });
 });
+
+describe('Module 1 §ג — an authorised teacher whose sign-in check failed may retry', () => {
+  const login = src('presentation/pages/Login.tsx');
+  const sso = login.slice(login.indexOf('const handleGoogleSSO'), login.indexOf('const roleTitle'));
+  it('stays on the sign-in screen with a short retry line, nothing technical', () => {
+    const at = sso.indexOf('code === STAFF_HANDSHAKE_FAILED_CODE');
+    expect(at).toBeGreaterThan(-1);
+    expect(sso.slice(at, at + 600)).toContain('setErrorMsg("לא הצלחנו להשלים את הכניסה. נסו שוב בעוד רגע.");');
+    expect(src('infrastructure/services/AuthService.ts')).toContain('{ code: STAFF_HANDSHAKE_FAILED_CODE }');
+  });
+});

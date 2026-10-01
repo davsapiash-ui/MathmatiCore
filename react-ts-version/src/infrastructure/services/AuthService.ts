@@ -231,7 +231,11 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
   } catch (syncErr) {
     console.warn("syncUserRoles error during Google SSO:", syncErr);
     await auth.signOut().catch(() => {});
-    throw new Error(STAFF_SIGNIN_REFUSED_HE);
+    // The address passed the whitelist check above: an authorised teacher
+    // whose server check failed (network, cold start). Marked so the sign-in
+    // screen can offer a retry instead of the silent return meant for
+    // "המשתמש הלא מורשה" (Module 1 §ג).
+    throw Object.assign(new Error(STAFF_SIGNIN_REFUSED_HE), { code: STAFF_HANDSHAKE_FAILED_CODE });
   }
   try {
     claims = ((await user.getIdTokenResult()).claims ?? null) as Record<string, unknown> | null;
@@ -260,6 +264,9 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
 }
 
 /** The one refusal a staff sign-in shows: no reason, no address. */
+/** An authorised staff sign-in whose server handshake failed — worth a retry. */
+export const STAFF_HANDSHAKE_FAILED_CODE = "staff/handshake-failed";
+
 export const STAFF_SIGNIN_REFUSED_HE = "הכניסה נדחתה. לבירור יש לפנות למנהל המערכת.";
 
 /**
