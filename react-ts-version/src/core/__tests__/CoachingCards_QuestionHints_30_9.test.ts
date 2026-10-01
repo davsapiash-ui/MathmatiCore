@@ -356,11 +356,17 @@ describe('C3 — reading and writing a number with an empty column (station 3)',
     }
   });
 
-  it('a number with no empty column inside (340, 270, 3,400, 3,600): which number is built — once something is built', () => {
+  // Changed 2.10.2026 (audit D10): "which number is built" on a board that is
+  // not the number taught the child to read and write the wrong board. It
+  // speaks once the board shows the number; a board that does not (1 hundred
+  // for 340) is compared with the words of the number first.
+  it('a number with no empty column inside (340, 270, 3,400, 3,600): which number is built — once the number is built', () => {
     for (const id of ['s3_r_t1', 's3_r_reinforce_1', 's3_g_t1', 's3_g_reinforce_1']) {
-      const built = { ...EMPTY, hundreds: 1 };
-      expect(q(REDESIGN.find((t) => t.id === id), built).questionHe, id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
-      expect(q(byId(id), built).questionHe, id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+      const t = byId(id);
+      const built = { ...EMPTY, ...t.requiredCounts };
+      expect(q(REDESIGN.find((x) => x.id === id), built).questionHe, id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+      expect(q(t, built).questionHe, id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+      expect(q(t, { ...EMPTY, hundreds: 1 }).questionHe, id).toBe('נסו לחשוב: איך בודקים שבית המספרים מראה את המספר שבהנחיה?');
       // On an empty board: build first (owner, 30.9.2026).
       expect(q(byId(id)).questionHe, id).toBe('נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?');
     }
@@ -563,7 +569,11 @@ describe('the store serves the levels in order (useWorkspaceStore)', () => {
     const next = await openCard();
     expect(next.questionHe).not.toBe('נסו לחשוב: איך יודעים באיזו תיבה בשורת התוצאה כותבים כל ספרה?');
     expect(next.questionHe).toContain('בתרגיל 1,245 + 328');
-    expect(ws().socraticCardKinds.kinds).toEqual(['place_cues']);
+    // Since 2.10.2026 (audit D5) every card has a kind, so that its family has
+    // a next level: C4 first, then the exercise's own card (here: the second
+    // number is missing — 'one_number').
+    expect(next.cardKind).toBe('one_number');
+    expect(ws().socraticCardKinds.kinds).toEqual(['place_cues', 'one_number']);
   });
 
   it('the engine\'s anchor is the card the child would see', async () => {
@@ -572,9 +582,14 @@ describe('the store serves the levels in order (useWorkspaceStore)', () => {
     useWorkspaceStore.setState({ counts: digitsOf(5432) } as any);
     await openCard();
     const monitoring = spy.mock.calls[0][7];
-    expect(monitoring?.cardContext).toEqual({ placeCuesShown: false, shownKinds: [] });
+    // Since 2.10.2026 (audit D1) the context also carries the trigger, the
+    // column and the child's work — what the static card is chosen by; the
+    // anchor computed from it is the card the child sees.
+    expect(monitoring?.cardContext).toMatchObject({ placeCuesShown: false, shownKinds: [], trigger: 'hesitation_45s' });
+    const task = getActiveTasks(ws())[ws().standardTaskIdx];
+    expect(SocraticEngine.getSynchronousTaskHint(task, ws().counts, monitoring!.cardContext).questionHe).toBe(ws().aiSocraticHint!.questionHe);
     await openCard();
-    expect(spy.mock.calls[1][7]?.cardContext).toEqual({ placeCuesShown: false, shownKinds: ['borrow_check'] });
+    expect(spy.mock.calls[1][7]?.cardContext).toMatchObject({ placeCuesShown: false, shownKinds: ['borrow_check'] });
   });
 
   /** What the database keeps: no nulls, no empty lists or objects. */

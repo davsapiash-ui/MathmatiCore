@@ -201,7 +201,11 @@ describe('3. C1 and C7 wait for the conversion; before it, the conversion the in
       ['מוסיפים לבני עשרת חדשות', 'רמז: אם תוסיפו לבנים חדשות, האם המספר יישאר אותו מספר?', false],
       ['כותבים את המספר בלי לפרוט', 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים את המספר?', false],
     ]);
-    expect(c.cardKind).toBeUndefined();
+    // Since 2.10.2026 (audit D5) every card has a kind: its next level is
+    // what the click gives ("מה מופיע בבית המספרים כשלוחצים על לבנת מאה?").
+    expect(c.cardKind).toBe('break_as_asked');
+    expect(exerciseCard(t, { ...EMPTY, hundreds: 3, tens: 4 }, { conversionDone: false, pendingConversion: 'tens', shownKinds: ['break_as_asked'] })!.questionHe)
+      .toBe('נסו לחשוב: מה מופיע בבית המספרים כשלוחצים על לבנת מאה?');
     expect(wrongHintViolation(c)).toBeNull();
     expect(revealsSecretInCounts(textsOf(c), secretNumbersOf(t))).toBeNull();
     expect(textsOf(c).join(' ')).not.toMatch(/340/);
@@ -309,7 +313,10 @@ describe('4. an empty board in stations 3 and 7: build first what the instructio
       expect(q(byId(id), EMPTY).questionHe, id).toBe(BUILD_Q);
       expect(q(byId(id), { ...EMPTY, ...byId(id).requiredCounts }).questionHe, id).toBe('נסו לחשוב: יש טור שאין בו לבנים. מה כותבים במספר בשביל הטור הזה?');
     }
-    expect(q(byId('s3_r_t1'), { ...EMPTY, hundreds: 3 }).questionHe).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
+    // 2.10.2026 (audit D10): a board that is not yet the number is compared with
+    // its words first; "which number is built" speaks once it is.
+    expect(q(byId('s3_r_t1'), { ...EMPTY, hundreds: 3 }).questionHe).toBe('נסו לחשוב: איך בודקים שבית המספרים מראה את המספר שבהנחיה?');
+    expect(q(byId('s3_r_t1'), { ...EMPTY, hundreds: 3, tens: 4 }).questionHe).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
     // Changed 1.10.2026 (owner, via the coordinator: every misleading cell gets
     // a fitting card; analysts' matrix 4.2): the carry card spoke of 10 blocks
     // in a column of an empty board. Station 4 builds first too; its second

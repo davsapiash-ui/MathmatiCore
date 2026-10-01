@@ -445,20 +445,48 @@ describe('SOCRATIC_CARD_SHOWN carries the card\'s column, once, for every trigge
 });
 
 describe('item 4 — the same card does not come back again and again', () => {
-  it('the very same card (trigger, column, question) opens twice at most in an exercise', async () => {
+  // Updated 2.10.2026 (coordinator's decision on audit D2): a card is
+  // (trigger, column, situation family), not its question. Its levels follow
+  // one another — a new level is the same card going one step further — and
+  // the family's last level, the identical card, opens twice at most in all.
+  // On an empty board in station 4: "build first" (level 1), "what is built in
+  // 1,245 + 328" (level 2), level 2 again, then no more.
+  it('a card family (trigger, column, situation family) climbs its levels; its last card opens twice at most', async () => {
     load(4, T4());
-    for (let i = 0; i < MAX_IDENTICAL_SOCRATIC_CARDS; i++) {
+    const questions: string[] = [];
+    for (let i = 0; i < 3; i++) {
       ws().openSocraticCard('hesitation_45s');
       await flush();
-      expect(cardOpen()).toBe(true);
+      expect(cardOpen(), `opening ${i + 1}`).toBe(true);
+      questions.push(ws().aiSocraticHint!.questionHe);
       ws().closeHelp();
     }
+    expect(questions[1]).not.toBe(questions[0]); // the next level, not the first card again
+    expect(questions[2]).toBe(questions[1]); // the last level, a second time
+    expect(MAX_IDENTICAL_SOCRATIC_CARDS).toBe(2);
     ws().openSocraticCard('hesitation_45s');
     expect(cardOpen()).toBe(false);
     // Another column is another card.
     ws().setFocusedPlace('hundreds');
     ws().openSocraticCard('hesitation_45s');
     expect(cardOpen()).toBe(true);
+  });
+
+  it('the same keystroke that is the column\'s fourth error and a conversion not performed opens ONE card, the four-errors card', async () => {
+    load(4, T4());
+    for (const d of ['1', '2', '4']) {
+      ws().setAnswerDigit('units', d);
+      await flush();
+      if (cardOpen()) ws().closeHelp();
+      await vi.advanceTimersByTimeAsync(CONVERSION_CARD_COOLDOWN_MS);
+    }
+    ws().setAnswerDigit('units', '9');
+    await flush();
+    expect(cardOpen()).toBe(true);
+    expect(ws().socraticTriggerReason).toBe('consecutive_errors_4');
+    const last = ws().socraticCardHistory.cards.at(-1)!;
+    expect(last.reason).toBe('consecutive_errors_4');
+    expect(ws().socraticCardHistory.cards.filter((c) => c.openedAt === last.openedAt)).toHaveLength(1);
   });
 
   it('never again after its right option was chosen', async () => {

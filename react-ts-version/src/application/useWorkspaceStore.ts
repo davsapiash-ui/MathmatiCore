@@ -59,7 +59,7 @@ import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogSe
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
-import { STATIC_CARD_KINDS, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
+import { STATIC_CARD_KINDS, cardFamilyOf, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
 import { ref, update } from 'firebase/database';
 import { database, serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
@@ -209,9 +209,16 @@ export interface SocraticCardRecord {
   /** The static card's kind (staticSocraticCards.StaticCardKind), when it has one. */
   kind: StaticCardKind | null;
   /**
-   * The static card's question when the card opened — the card's identity.
-   * The engine's card may word it otherwise; the identity stays the static one,
-   * which is fixed for a given exercise, column and board.
+   * The static card's situation family (staticSocraticCards.cardFamilyOf) —
+   * with the trigger and the column, the card's identity (coordinator's
+   * decision, 2.10.2026): a new level of the same family is the next step of
+   * the same card, not a new card. Null on a record saved before it existed.
+   */
+  family: string | null;
+  /**
+   * The static card's question when the card opened — which LEVEL of its
+   * family it was. The engine's card may word it otherwise; this stays the
+   * static one, which is fixed for a given exercise, column and board.
    */
   staticQuestionHe: string;
   /** The question the child saw (the engine's card or the static one); null until the card settled. */
@@ -223,7 +230,12 @@ export interface SocraticCardRecord {
   openedAt: number;
 }
 
-/** How many times the very same card (trigger, column, question) may open in one exercise. */
+/**
+ * How many times the very same card may open in one exercise. A card is
+ * (trigger, column, situation family); its levels follow one another, and the
+ * family's last level — the identical card — opens twice at most in all, then
+ * no more (coordinator's decision, 2.10.2026).
+ */
 export const MAX_IDENTICAL_SOCRATIC_CARDS = 2;
 
 /**
@@ -923,17 +935,55 @@ export function cardFocusPlace(
   return null;
 }
 
+/** The store fields the static card chooser reads (staticCardContextFor). */
+export type StaticCardStoreState = Pick<WorkspaceState, 'placeCuesShown' | 'socraticCardKinds'> &
+  Partial<Pick<WorkspaceState,
+    | 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped' | 'counts'
+    | 'sessionNumber' | 'isASD' | 'socraticTriggerReason' | 'socraticCardPlace'
+    | 'answerDigits' | 'carryDigits' | 'operandDigits' | 'boardOpen' | 'hasDeletedBlock' | 'undoStack'
+    | 'previousSocraticCard'>>;
+
+/**
+ * Subtraction with blocks: taking away has started — a block left the board
+ * AFTER the board held the first number (the undo history, in order, then
+ * the board now). A block the child threw away while still building the
+ * first number (a hundred dragged by mistake into 53) is not taking away, and
+ * an undone deletion is no longer in the history. When the history has
+ * dropped its oldest frames (UNDO_STACK_CAP), a block that went to the trash
+ * is all there is to go by.
+ */
+function takingAwayStarted(s: StaticCardStoreState, a: number): boolean {
+  if (s.hasDeletedBlock !== true) return false;
+  const stack = s.undoStack ?? [];
+  const values = [...stack.map((f) => getValue(f.counts)), getValue(s.counts ?? EMPTY_COUNTS)];
+  let held = false;
+  for (let i = 0; i < values.length; i++) {
+    if (held && values[i] < values[i - 1]) return true;
+    if (values[i] === a) held = true;
+  }
+  return stack.length >= UNDO_STACK_CAP;
+}
+
 /**
  * What the static card chooser needs beyond the board, for the exercise
- * `taskId` — and, given the task, how far its break or grouping has gone.
+ * `taskId` (1.10.2026, audit D1 — every field the cards read, from the store):
+ * the cards already shown, how far a break or grouping has gone, the trigger
+ * and the column of the card, the digits typed (result row, memory circles,
+ * hidden operand digits), the conversions done per column, whether the
+ * number house is hidden, whether taking away has started, and the previous
+ * card. `opening` is the trigger and the column of a card that is opening
+ * now: socraticCardRefusal and openSocraticCard compute the card before the
+ * store records them (socraticTriggerReason, socraticCardPlace).
  */
 export function staticCardContextFor(
-  s: Pick<WorkspaceState, 'placeCuesShown' | 'socraticCardKinds'> & Partial<Pick<WorkspaceState, 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped' | 'counts'>>,
+  s: StaticCardStoreState,
   taskId: string | undefined,
-  task?: SessionTask | null
+  task?: SessionTask | null,
+  opening?: { reason: SocraticTriggerReason; place: Place | null }
 ): StaticCardContext {
   const shown = s.socraticCardKinds;
-  const conversions = task && task.id === taskId
+  const sameTask = Boolean(task && task.id === taskId);
+  const conversions = sameTask
     ? conversionContextFor({
         conversionsByColumn: s.conversionsByColumn ?? emptyColumnConversions(),
         counts: s.counts,
@@ -941,11 +991,45 @@ export function staticCardContextFor(
         hasUngrouped: s.hasUngrouped === true,
       }, task)
     : {};
-  return {
+  const out: StaticCardContext = {
     placeCuesShown: s.placeCuesShown === true,
     shownKinds: shown && taskId && shown.taskId === taskId ? shown.kinds : [],
     ...conversions,
   };
+  const trigger = opening?.reason ?? s.socraticTriggerReason ?? null;
+  if (trigger) out.trigger = trigger;
+  const focus = opening ? opening.place : s.socraticCardPlace ?? null;
+  if (focus) out.focusColumn = focus;
+  if (s.answerDigits) out.answerDigits = s.answerDigits;
+  if (s.carryDigits) out.memoryCircles = s.carryDigits;
+  if (s.operandDigits) out.operandDigits = s.operandDigits;
+  if (!sameTask || !task) return out;
+  // The conversions done per column — the same reading as the engine's
+  // request (fetchSocraticHint): the blocks, or meeting 8's memory circles.
+  if (typeof task.numberA === 'number' && typeof task.numberB === 'number' && s.sessionNumber !== undefined) {
+    const { a, b } = effectiveArithmetic(task, s.isASD === true);
+    const sub = task.isSubtraction;
+    out.conversionsDone = PLACE_ORDER.filter((p) => columnRequiresConversion(p, a, b, sub) &&
+      conversionRecordedInColumn({
+        sessionNumber: s.sessionNumber as SessionNumber,
+        carryDigits: s.carryDigits ?? {},
+        conversionsByColumn: s.conversionsByColumn ?? emptyColumnConversions(),
+      }, p, sub));
+  }
+  // Stations 3–7: the child hid the number house with the top-bar button.
+  if (s.sessionNumber !== undefined && s.boardOpen !== undefined && s.sessionNumber >= 3 && s.sessionNumber <= 7) {
+    out.boardHidden = !s.boardOpen && !boardStaysOpen(s.sessionNumber);
+  }
+  if (s.hasDeletedBlock !== undefined) {
+    out.blocksRemoved = task.isSubtraction && typeof task.numberA === 'number'
+      ? takingAwayStarted(s, effectiveArithmetic(task, s.isASD === true).a)
+      : s.hasDeletedBlock === true;
+  }
+  const prev = s.previousSocraticCard;
+  if (prev && prev.taskId === taskId) {
+    out.lastCard = { ...(prev.kind ? { kind: prev.kind } : {}), ...(prev.answeredCorrect !== null ? { answeredRight: prev.answeredCorrect } : {}) };
+  }
+  return out;
 }
 
 function withCardKind(
@@ -1099,7 +1183,11 @@ function conversionContextFor(
   task: SessionTask | null | undefined
 ): Pick<StaticCardContext, 'conversionDone' | 'pendingConversion' | 'conversionAgain'> {
   const kind = task?.representationKind;
-  if (!task || (kind !== 'compose_break' && kind !== 'compose_group')) return {};
+  // Meeting 1's 347 (break a ten) and 26 (group the units) have no kind but
+  // a lock (REPRESENTATION_LOCKS): the board can show their final blocks
+  // built by hand, with nothing broken or grouped (audit D16, 2.10.2026).
+  const meeting1Lock = Boolean(task && !kind && task.id.startsWith('s1_') && REPRESENTATION_LOCKS[task.id]);
+  if (!task || (kind !== 'compose_break' && kind !== 'compose_group' && !meeting1Lock)) return {};
   const lock = REPRESENTATION_LOCKS[task.id];
   if (!lock) return { conversionDone: kind === 'compose_group' ? s.hasGrouped === true : s.hasUngrouped === true };
   const pending = pendingRepresentationConversion(s, task);
@@ -2651,12 +2739,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const last = [...history].reverse().find((c) => c.reason === reason && c.place === cardPlace);
       if (last && Date.now() - last.openedAt < CONVERSION_CARD_COOLDOWN_MS) return 'cooldown';
     }
-    // The same card (trigger, column, question) does not come back again and
-    // again in one exercise: twice at most, and never after the child chose
-    // its right option.
-    const question = SocraticEngine.getSynchronousTaskHint(task ?? undefined, s.counts, staticCardContextFor(s, task?.id, task)).questionHe;
-    const same = history.filter((c) => c.shown && c.reason === reason && c.place === cardPlace && c.staticQuestionHe === question);
-    if (same.length >= MAX_IDENTICAL_SOCRATIC_CARDS || same.some((c) => c.answeredCorrect === true)) return 'repeat';
+    // The same card does not come back again and again in one exercise
+    // (coordinator's decision, 2.10.2026). A card is its trigger, its column
+    // and its situation family: the family's next level is the same card
+    // going one step further, and opens; once the child chose a right option
+    // in the family, it does not open again; and its last level — the very
+    // same card — opens twice at most in all.
+    const staticNow = SocraticEngine.getSynchronousTaskHint(task ?? undefined, s.counts, staticCardContextFor(s, task?.id, task, { reason, place: cardPlace }));
+    const family = cardFamilyOf(staticNow);
+    const same = history.filter((c) => c.shown && c.reason === reason && c.place === cardPlace && (c.family ?? c.staticQuestionHe) === family);
+    if (same.some((c) => c.answeredCorrect === true)) return 'repeat';
+    if (same.filter((c) => c.staticQuestionHe === staticNow.questionHe).length >= MAX_IDENTICAL_SOCRATIC_CARDS) return 'repeat';
     return null;
   }
 
@@ -4008,7 +4101,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             // answer (82 written from the left: the 8 in the units box) is a
             // digit in the wrong place, not a conversion left undone — the
             // place cues of the next "התקדם" answer it (core/placeCues.ts).
-            if (isCorrect === false && task && isVerticalTask(task)) {
+            // When this keystroke is also the column's fourth error in a row,
+            // the PRD trigger "four errors" opens the card, and the trigger
+            // recorded is its own (coordinator's decision, 2.10.2026): one
+            // card per keystroke. The conversion card used to open first and
+            // the streak's card was then refused as "a card is open".
+            const streak = nextDigitErrorStreak(s, place, isCorrect);
+            if (isCorrect === false && task && isVerticalTask(task) && streak.digitErrorStreak < 4) {
               const { a, b, target } = effectiveArithmetic(task, s.isASD);
               if (
                 columnRequiresConversion(place, a, b, task.isSubtraction) &&
@@ -4019,7 +4118,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               }
             }
 
-            const streak = nextDigitErrorStreak(s, place, isCorrect);
             if (streak.digitErrorStreak >= 4) openCardForDigitErrorStreak(place);
 
             return {
@@ -4543,14 +4641,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // The column of the card, for every trigger (cardFocusPlace).
       const cardPlace = place ?? cardFocusPlace(s, task, reason, useBoardFocusStore.getState().focusedMemoryCircle);
       // The card's identity (SocraticCardRecord): the static card for the
-      // exercise, column and board as they are now.
-      const staticNow = SocraticEngine.getSynchronousTaskHint(task ?? undefined, s.counts, staticCardContextFor(s, task?.id, task));
+      // trigger, the column, the exercise and the board as they are now — its
+      // situation family, and which level of it.
+      const staticNow = SocraticEngine.getSynchronousTaskHint(task ?? undefined, s.counts, staticCardContextFor(s, task?.id, task, { reason, place: cardPlace }));
       const history = s.socraticCardHistory.taskId === taskId ? s.socraticCardHistory.cards : [];
       const previous = [...history].reverse().find((c) => c.shown);
       const record: SocraticCardRecord = {
         reason,
         place: cardPlace,
         kind: staticNow.cardKind ?? null,
+        family: cardFamilyOf(staticNow),
         staticQuestionHe: staticNow.questionHe,
         questionHe: null,
         shown: false,

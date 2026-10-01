@@ -6,7 +6,7 @@ import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
 import { researchErrorCategory } from "./socraticResearchCategory";
 import { recentTelemetryFor, MAX_RECENT_FOR_ENGINE } from "./recentTelemetry";
-import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, framed, meeting1Card, s1NoButtonCard, s1GroupActionCard, s1DeficitSecondCard, s1WrongBreakCard, s1StartChangedCard, groupActionCard, strayAddition, strayBlocksCard, multiStepTarget, showBoardCard, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
+import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, framed, meeting1Card, s1NoButtonCard, s1GroupActionCard, s1DeficitSecondCard, s1WrongBreakCard, s1StartChangedCard, groupActionCard, strayAddition, strayBlocksCard, multiStepTarget, showBoardCard, boardHiddenCard, ladder as cardLadder, buildNumberCard, digitsInColumnsCard, addBuildCard, skeletonShown, inFamily, withKind, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -49,6 +49,12 @@ export interface SocraticHintResponse {
   frameLevel?: 1 | 2 | 3;
   /** What the child should come to notice, in a line, for the engine's frame. */
   intentHe?: string;
+  /**
+   * The situation family, when it is not the card kind's own
+   * (staticSocraticCards.cardFamilyOf): the levels of one card share it, and
+   * with the trigger and the column it is the card's identity in the store.
+   */
+  family?: string;
   /** "gemini" when the AI engine wrote the card (research data, SOCRATIC_CARD_SHOWN.card_source). */
   source?: 'gemini' | 'static';
   /** The model that wrote it (server meta.model_id). */
@@ -92,7 +98,12 @@ export function groundCardInExercise(card: SocraticHintResponse, currentTask?: a
   const a = currentTask?.numberA;
   const b = currentTask?.numberB;
   let context: string | null = null;
-  if (typeof a === 'number' && typeof b === 'number') {
+  if (typeof a === 'number' && typeof b === 'number' && (currentTask?.hiddenDigits?.a?.length || currentTask?.hiddenDigits?.b?.length)) {
+    // A skeleton exercise as the screen shows it, hidden digits as "▢"
+    // (audit D13): its operands named whole gave the hidden digits away, and
+    // the iron rule then served the card without its exercise.
+    context = `בתרגיל ${skeletonShown(currentTask)}`;
+  } else if (typeof a === 'number' && typeof b === 'number') {
     context = `בתרגיל ${a.toLocaleString('he-IL')} ${currentTask?.isSubtraction ? 'פחות' : 'ועוד'} ${b.toLocaleString('he-IL')}`;
   } else if (typeof a === 'number') {
     context = `בתרגיל על המספר ${a.toLocaleString('he-IL')}`;
@@ -483,24 +494,24 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // The sandbox entry is the one safety net that was there before.
 
   // Steps 1–5 (the sandbox entry serves every tool step). D10 (owner,
-  // 1.10.2026): the hint rule of 30.9 applies to station 1 too; the right
-  // option holds for every step, not only for free dragging.
+  // 1.10.2026), in its scope only (audit D17, 2.10.2026): the question and
+  // the options are the card's own, unchanged; the wrong options' feedback
+  // becomes "רמז:" and one guiding question, the right one opens "נכון מאוד!".
   's1_sandbox_controlled': {
     pedagogical_intent: "procedural",
     tts_text: 'הסתכלו ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
     suggested_highlight: "tour-place-value-board",
     questionHe: 'הסתכלו ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
     choices: [
-      { id: "1", textHe: "עושים את מה שכתוב בשורה שעוד לא בוצעה", isCorrect: true, feedbackHe: 'נכון מאוד! כשתסיימו את כל מה שברשימה, לחצו על הכפתור "ממשיכים".' },
-      // The sandbox row shows a progress bar, the others "בוצע!" / "עוד לא": the hints name neither.
-      { id: "2", textHe: 'לוחצים על הכפתור "ממשיכים" ומדלגים על השלב', isCorrect: false, feedbackHe: 'רמז: מה מראה הרשימה ליד כל שורה?' },
-      { id: "3", textHe: "מחכים, והשלב יסתיים מעצמו", isCorrect: false, feedbackHe: 'רמז: מה כתוב בשורה שעוד לא בוצעה?' }
+      { id: "1", textHe: "לגרור עוד לבנים לטורים ולצפות בספרות בבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! כל לבנה שגוררים משנה את הספרה בטור שלה." },
+      { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "רמז: האם בשלב הזה פותרים תרגיל, או מכירים את הכלים?" },
+      { id: "3", textHe: "לכתוב מספר בשורת התוצאה", isCorrect: false, feedbackHe: "רמז: מה עושים בשלב הזה: כותבים מספר, או מכירים את הכלים?" }
     ],
     correctChoiceId: "1",
     cardKind: 's1_card',
     situation: 's1_tool_step',
     frameLevel: 1,
-    intentHe: 'עושים את השורה ברשימה שעוד לא בוצעה, ורק אז ממשיכים',
+    intentHe: 'בשלב הזה מכירים את הכלים: גוררים לבנים ומסתכלים איך הספרות בבית המספרים משתנות',
   },
 
   // Step 6, the target task (347 → 3 hundreds, 3 tens, 17 units): the card מסמך 03 §3.1 writes for meeting 1, meaning
@@ -976,19 +987,30 @@ export class SocraticEngine {
     // nothing (1.10.2026). A subtraction with both numbers built (806 + 351:
     // 11 hundreds) gets "what do you build in subtraction" (meeting1Card).
     const bothBuilt = currentTask?.isSubtraction === true && a !== null && value > a;
-    if (meeting === 1 && counts.hundreds >= 10 && !bothBuilt) return s1NoButtonCard();
+    // Its second card (2.10.2026): how a number is built with each digit in
+    // its column — no column named (owner, 29.9.2026).
+    if (meeting === 1 && counts.hundreds >= 10 && !bothBuilt) {
+      return cardLadder(context, 'no_button', [['no_button', s1NoButtonCard], ['digits_in_columns', digitsInColumnsCard]]);
+    }
     // Meeting 1's 347 with a hundred (or a second ten) broken: undo the break,
     // not "group the 10 or more" (1.10.2026).
-    // Meeting 1's 26 worth another number now (blocks deleted or added): back
-    // to the blocks it started with, before "10 or more".
+    // Meeting 1's 26 worth another number now (blocks deleted or added): is it
+    // the same number? Then back to the blocks it started with, before "10 or more".
     if (meeting === 1) {
-      const wrongBreak = s1WrongBreakCard(currentTask, counts) ?? s1StartChangedCard(currentTask, counts);
+      const wrongBreak = s1WrongBreakCard(currentTask, counts, context) ?? s1StartChangedCard(currentTask, counts, context);
       if (wrongBreak) return wrongBreak;
     }
     // More blocks than the two numbers need (audit C13, C14): taking the extra
-    // ones out, not grouping them (1.10.2026).
+    // ones out, not grouping them (1.10.2026). The second card: what is built
+    // in this exercise — both numbers, each checked column by column.
     const stray = strayAddition(currentTask, counts);
-    if (stray) return meeting === 1 ? strayBlocksCard(null) : strayBlocksCard(stray.column);
+    if (stray) {
+      const ex = `${formatNumberHe(a!)} + ${formatNumberHe(b!)}`;
+      return cardLadder(context, 'stray', [
+        ['stray', () => (meeting === 1 ? strayBlocksCard(null) : strayBlocksCard(stray.column))],
+        ['build_both', () => addBuildCard(ex)],
+      ]);
+    }
 
     // 1. Overcrowding Check (>= 10 blocks in a column). Three states where ten
     // or more in a column is the goal, not a mess: a representation whose
@@ -1151,8 +1173,14 @@ export class SocraticEngine {
       // Nothing on the canvas yet: the only sensible coaching is "build the first
       // number". A deficit read off an empty board ("יש לנו 0 עשרות") is nonsense.
       // The guiding questions of 30.9.2026, in station 1 too (owner's D10, 1.10.2026).
+      // Its second card (2.10.2026): how the first number is built.
+      if (boardValue === 0 && minuend !== undefined && shown('sub_board_empty')) {
+        return cardLadder(context, 'sub_board_empty', [['build_number', () => buildNumberCard(minuend!, 'sub')]]);
+      }
       if (boardValue === 0) {
         return {
+          cardKind: 'sub_board_empty',
+          family: 'sub_board_empty',
           pedagogical_intent: "procedural",
           tts_text: `בחיסור בונים בבית המספרים רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''}, ואחר כך מוציאים ממנו.`,
           suggested_highlight: "tour-palette",
@@ -1825,19 +1853,21 @@ export class SocraticEngine {
     //    situation, the trigger and the level). Meeting 8's third trigger —
     //    three undos in a row, a guessing loop (PRD Module 12) — gets מסמך 03's
     //    own meeting-8 card, whose wrong options are guessing and waiting.
-    if (meeting === 8 && ctx.trigger === 'consecutive_undos_3') {
-      return framed(groundCardInExercise(TASK_HINTS['s8_card'], currentTask), {
+    //    The next card of the run is the column's own card (audit D13: it is
+    //    the general first card the owner asked for in meeting 8, D8).
+    if (meeting === 8 && ctx.trigger === 'consecutive_undos_3' && !(ctx.shownKinds ?? []).includes('guessing')) {
+      return inFamily(withKind(framed(groundCardInExercise(TASK_HINTS['s8_card'], currentTask), {
         situation: 'guessing_loop',
         frameLevel: 1,
         intentHe: 'שלוש פעולות ביטול ברצף: לא מנחשים, פותרים טור אחר טור בעזרת עיגולי הזיכרון',
-      });
+      }), 'guessing'), 'guessing_loop');
     }
-    //    Stations 3–7: the child hid the number house (top-bar button). The
-    //    first card shows it again; a card about blocks on a hidden board
-    //    points at nothing.
-    if (meeting !== null && meeting >= 3 && meeting <= 7 && ctx.boardHidden === true &&
-      !(ctx.shownKinds ?? []).includes('show_board')) {
-      return showBoardCard();
+    //    Stations 3–7: the child hid the number house (top-bar button). A card
+    //    about blocks on a hidden board points at nothing (audit D15): while it
+    //    stays hidden, its own cards — the first general, the second names the
+    //    button — and never a card about the blocks.
+    if (meeting !== null && meeting >= 3 && meeting <= 7 && ctx.boardHidden === true) {
+      return cardLadder(ctx, 'board_hidden', [['board_hidden', boardHiddenCard], ['show_board', showBoardCard]]);
     }
 
     // 1. Live Board Evaluation (overcrowding >=10 in any column or subtraction
