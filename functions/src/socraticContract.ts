@@ -96,8 +96,14 @@ const TRIGGER_HE: Record<SocraticTriggerReason, string> = {
   repeated_errors: "תשובה שגויה שנייה ברצף באותו תרגיל",
 };
 
-/** Hard cap on blocks per column the proxy will accept — anything larger is not a real board. */
-export const MAX_BLOCKS_PER_COLUMN = 40;
+/**
+ * Hard cap on blocks per column the proxy will accept — anything larger is not
+ * a real board. The same number as the board's own column limit (client
+ * core/placeValue.ts MAX_VISIBLE_BLOCKS): station 3 asks for 45 tens (s3_r_t3)
+ * and 45 hundreds (s3_g_t3), and a cap of 40 refused every such request, so
+ * the child always got the static card and the engine was never asked.
+ */
+export const MAX_BLOCKS_PER_COLUMN = 50;
 export const MAX_RECENT_ACTIONS = 30;
 export const MAX_OPERAND = 9999;
 
@@ -189,12 +195,18 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/**
+ * A memory circle holds up to two digits (register gap טו, closed 23.9.2026:
+ * "כי יש גם המרה שצריך לרשום" — 12 above the units after a decomposition).
+ * Keeping only 0–9 dropped that 12, and the prompt then said the circles were
+ * empty although the child had written the conversion down.
+ */
 function cleanMemoryCircles(raw: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   if (!isPlainObject(raw)) return out;
   for (const [k, v] of Object.entries(raw)) {
     const n = typeof v === "string" ? parseInt(v, 10) : v;
-    if (typeof k === "string" && k.length <= 16 && isInt(n, 0, 9)) out[k] = n;
+    if (typeof k === "string" && k.length <= 16 && isInt(n, 0, 99)) out[k] = n;
   }
   return out;
 }
@@ -420,6 +432,13 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   const active_column: SocraticColumn = ec?.active_column ?? SOCRATIC_COLUMNS[req.active_column_index] ?? "units";
   const completed = (ps?.completed_columns ?? []) as SocraticColumn[];
   const memory = { ...(ws.memory_circles ?? {}), ...(ps?.memory_circles_state ?? {}) };
+  // Without exercise_context the exercise is a representation, a "different
+  // ways" task or a missing part (client NON_ARITHMETIC_TYPES), and ten or more
+  // blocks in a column can be exactly what it asks for: 45 hundreds in s3_g_t3,
+  // 14 tens after a break. The client's static cards never call that a column
+  // to group (SocraticEngine.analyzeLiveBoardState, crowdingIsTheGoal; owner,
+  // 28.9.2026); the server cannot see the required board, so it does not either.
+  const crowdingMayBeTheGoal = !ec;
 
   const columns: ColumnFact[] = SOCRATIC_COLUMNS.map((column) => {
     const digit_a = ec ? digitAt(ec.number_a, column) : 0;
@@ -440,7 +459,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
       blocks_on_board: blocks[column],
       needs_conversion,
       board_deficit,
-      board_overcrowded: blocks[column] >= 10,
+      board_overcrowded: !crowdingMayBeTheGoal && blocks[column] >= 10,
       completed: completed.includes(column),
     };
   });

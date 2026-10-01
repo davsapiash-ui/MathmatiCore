@@ -20,6 +20,7 @@ import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME } 
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
 import { throttledRtdbUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
 import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
+import { recordRecentTelemetry } from './recentTelemetry';
 import type { SessionDocument, PedagogicalPath } from '@/types';
 import {
   type TelemetryPayload,
@@ -1414,6 +1415,8 @@ export class FirebaseSyncService {
     // sentence is chosen by this meeting's U, E and G. They are counted here,
     // from the very events the server will count, so the two cannot disagree.
     useWorkspaceStore.getState().recordPersistenceEvent(payload);
+    // PRD Module 13 §א: the Socratic engine reads the learner's real recent steps.
+    recordRecentTelemetry(payload);
 
     // 4. Validate column_index rule (Module 5 §C)
     const validation = validateTelemetryColumnIndexRule(payload);
@@ -1606,12 +1609,14 @@ export class FirebaseSyncService {
     const now = Date.now();
     const docId = `session_02_student_${studentNum}`;
 
-    const sessionDoc: Omit<SessionDocument, 'session_score_percent' | 'matrix_recommended_path'> = {
+    // No session_start_time / session_deadline_time: Module 14 §ב makes the
+    // server "the only source of truth" for both, and "the Zustand store …
+    // is not authorised to set times". They used to be the device clock
+    // ±30 minutes — neither the server's times nor meeting 2's 25 minutes.
+    const sessionDoc: Omit<SessionDocument, 'session_score_percent' | 'matrix_recommended_path' | 'session_start_time' | 'session_deadline_time'> = {
       session_id: docId,
       class_id: classId,
       session_number: 2,
-      session_start_time: now - 1800000,
-      session_deadline_time: now + 1800000,
       active_exercise_id: 'task8_missing_addend',
       is_completed: true,
       teacher_gate_approved: false,

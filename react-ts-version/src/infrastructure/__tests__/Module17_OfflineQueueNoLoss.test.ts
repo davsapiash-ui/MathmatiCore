@@ -406,7 +406,8 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       expect(fs.setDoc.mock.calls.map((c) => (c[0] as { coll: string }).coll)).toEqual(['sessions']);
       const written = fs.setDoc.mock.calls[0][1];
       expect(written).toMatchObject({ is_completed: true, teacher_gate_approved: false });
-      for (const field of ['session_score_percent', 'matrix_recommended_path', 'evaluated_at']) {
+      // Nor the meeting's times: the server is their only source (Module 14 §ב).
+      for (const field of ['session_score_percent', 'matrix_recommended_path', 'evaluated_at', 'session_start_time', 'session_deadline_time']) {
         expect(written).not.toHaveProperty(field);
       }
     });
@@ -415,7 +416,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       fs.getDoc.mockImplementation(async () => ({ exists: () => true, data: () => ({ is_completed: false, session_score_percent: null }) }));
       const data = fakeIDB.store(DB_NAME, STORE);
       data.records.set(700, { id: 700, refPath: 'users/students/student_user3', rtdbMode: 'merge', skipFieldsIfEvaluated: { collection: 'sessions', docId: 'session_02_student_3', fields: ['session_score_percent', 'matrix_recommended_path'] }, payload: { session_02_completed: true, session_score_percent: 71, matrix_recommended_path: 'green_path', teacher_gate_approved: false, routeStatus: 'PENDING_TEACHER_APPROVAL' }, idempotency_key: 's2_done_rtdb_student_user3', timestamp: 1, retry_count: 0 });
-      data.records.set(701, { id: 701, firestoreDoc: { collection: 'sessions', docId: 'session_02_student_3', deliveredWhen: { is_completed: true } }, payload: { is_completed: true, session_score_percent: 71, matrix_recommended_path: 'green_path', teacher_gate_approved: false }, idempotency_key: 's2_done_doc_session_02_student_3', timestamp: 2, retry_count: 0 });
+      data.records.set(701, { id: 701, firestoreDoc: { collection: 'sessions', docId: 'session_02_student_3', deliveredWhen: { is_completed: true } }, payload: { is_completed: true, session_score_percent: 71, matrix_recommended_path: 'green_path', teacher_gate_approved: false, session_start_time: 1000, session_deadline_time: 3601000 }, idempotency_key: 's2_done_doc_session_02_student_3', timestamp: 2, retry_count: 0 });
       data.nextKey = 702;
       await queue.flushQueue();
 

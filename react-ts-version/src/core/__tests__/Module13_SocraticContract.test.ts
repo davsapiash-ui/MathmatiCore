@@ -11,9 +11,13 @@ import {
   toLegacyIntervention,
   SOCRATIC_SYSTEM_INSTRUCTION,
   SOCRATIC_RESPONSE_SCHEMA,
+  MAX_BLOCKS_PER_COLUMN,
   type SocraticRequest,
 } from '../../../../functions/src/socraticContract';
-import { SocraticEngine, socraticTextViolation, completedColumnsFrom, inferIsSubtraction, SOCRATIC_PROXY_TIMEOUT_MS } from '@/infrastructure/services/SocraticEngine';
+import { SocraticEngine, socraticTextViolation, completedColumnsFrom, inferIsSubtraction, SOCRATIC_PROXY_TIMEOUT_MS, toWireMemoryCircles } from '@/infrastructure/services/SocraticEngine';
+import { recordRecentTelemetry, clearRecentTelemetry } from '@/infrastructure/services/recentTelemetry';
+import { MAX_VISIBLE_BLOCKS } from '@/core/placeValue';
+import type { TelemetryEventType, TelemetryPayload } from '@/types/telemetry';
 
 /**
  * PRD Module 13 — the Socratic engine's server contract.
@@ -383,5 +387,109 @@ describe('Module 13: client side of the contract', () => {
     expect(result?.choices[0].feedbackHe).toBe(goodResponse.options[0].feedback_text);
     expect(result?.correctChoiceId).toBe('opt_1');
     expect(result?.error_category).toBe('procedural');
+  });
+});
+
+/**
+ * Fix round 1.10.2026 (findings 29, 30/16, 31).
+ * 29 — the proxy refused a column of more than 40 blocks, but station 3 asks
+ *      for 45 tens (s3_r_t3) and 45 hundreds (s3_g_t3): the engine was never
+ *      asked there, and the child always got the static card.
+ * 30/16 — a two-digit memory circle (register gap טו) was dropped on both
+ *      sides, and the prompt said the circles were empty.
+ * 31 — recent_actions was rebuilt from counters with made-up digits.
+ */
+describe('Module 13: the engine reaches station 3 and sees what the child did', () => {
+  const s3g = (hundreds: number): unknown => ({
+    student_id: 5,
+    session_id: 'session_3_student_5',
+    exercise_id: 's3_g_t3',
+    active_column_index: 2,
+    workspace_state: { ones_count: 0, tens_count: 0, hundreds_count: hundreds, thousands_count: 0, memory_circles: {} },
+    student_progress_state: {
+      completed_columns: [], current_column_input: null, memory_circles_state: {},
+      trigger_reason: 'hesitation_45s', consecutive_errors_count: 0, recent_actions: [],
+    },
+    recent_actions: [],
+  });
+
+  it('the proxy accepts every board the screen can hold: its cap is the column limit (50)', () => {
+    expect(MAX_BLOCKS_PER_COLUMN).toBe(MAX_VISIBLE_BLOCKS);
+    expect(validateSocraticRequest(s3g(45)).ok).toBe(true);
+    expect(validateSocraticRequest(s3g(MAX_VISIBLE_BLOCKS)).ok).toBe(true);
+    expect(validateSocraticRequest(s3g(MAX_VISIBLE_BLOCKS + 1)).ok).toBe(false);
+  });
+
+  it('45 hundreds asked by the task are not called a column to group', () => {
+    const v = validateSocraticRequest(s3g(45));
+    if (!v.ok) throw new Error(v.reason);
+    const facts = deriveSocraticFacts(v.value);
+    expect(facts.columns.every((c) => !c.board_overcrowded)).toBe(true);
+    expect(facts.suggested_focus_he).not.toContain('הקבצה');
+    expect(buildSocraticPrompt(v.value, facts)).not.toContain('חובה לקבץ');
+  });
+
+  it('an addition with 12 units is still a column to group', () => {
+    const facts = deriveSocraticFacts({
+      ...subtraction425_162,
+      exercise_context: { ...subtraction425_162.exercise_context!, operation: 'addition', number_a: 27, number_b: 15, active_column: 'units', active_column_index: 0, target_sub_problem: '7 + 5' },
+      workspace_state: { ones_count: 12, tens_count: 3, hundreds_count: 0, thousands_count: 0, memory_circles: {} },
+    });
+    expect(facts.columns.find((c) => c.column === 'units')?.board_overcrowded).toBe(true);
+  });
+
+  it('a two-digit memory circle reaches the engine; three digits do not', () => {
+    expect(toWireMemoryCircles({ units: '12', tens: '4', hundreds: '123', thousands: '' })).toEqual({ units: 12, tens: 4 });
+    const v = validateSocraticRequest({
+      ...subtraction425_162,
+      active_column_index: 0,
+      exercise_context: { ...subtraction425_162.exercise_context!, number_a: 53, number_b: 18, active_column: 'units', active_column_index: 0, target_sub_problem: '3 - 8' },
+      workspace_state: { ...subtraction425_162.workspace_state, memory_circles: { units: 13, tens: 123 } },
+      student_progress_state: { ...subtraction425_162.student_progress_state!, memory_circles_state: { units: '13' } as unknown as Record<string, number> },
+    });
+    if (!v.ok) throw new Error(v.reason);
+    expect(v.value.workspace_state.memory_circles).toEqual({ units: 13 });
+    expect(v.value.student_progress_state?.memory_circles_state).toEqual({ units: 13 });
+    const prompt = buildSocraticPrompt(v.value, deriveSocraticFacts(v.value));
+    expect(prompt).toContain('"units":13');
+    expect(prompt).not.toContain('עיגולי הזיכרון: ריקים');
+  });
+
+  it('recent_actions are the learner\'s real events in this exercise — never made-up ones', async () => {
+    const { vi } = await import('vitest');
+    let n = 0;
+    const ev = (student_id: number, exercise_id: string, event_type: TelemetryEventType, details: Record<string, unknown>, column_index?: number) =>
+      ({ idempotency_key: `k${n++}`, client_timestamp: n, session_id: `session_4_student_user${student_id}`, student_id, exercise_id, event_type, ...(column_index !== undefined ? { column_index } : {}), details }) as unknown as TelemetryPayload<TelemetryEventType>;
+    const ask = async () => {
+      const spy = vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValueOnce({ data: goodResponse });
+      await SocraticEngine.fetchGroundedGeminiSocraticQuery({
+        currentTask: { id: 's4_t2', numberA: 425, numberB: 162, isSubtraction: true },
+        targetNode: 'subtraction_regrouping',
+        activeColumnName: 'עשרות',
+        counts: { units: 3, tens: 2, hundreds: 4, thousands: 0 },
+        qMatrixAnchor: { questionHe: 'x', choices: [{ id: 'opt_1', textHe: 'y' }], correctChoiceId: 'opt_1' },
+        monitoring: { studentId: 3, consecutiveErrors: 4, consecutiveUndos: 3, hesitationSeconds: 50 },
+      });
+      const request = spy.mock.calls[0][0].socratic_request;
+      spy.mockRestore();
+      return request;
+    };
+
+    clearRecentTelemetry();
+    recordRecentTelemetry(ev(3, 's4_t2', 'DIGIT_ENTERED', { digit_value: 9, is_correct: false }, 0)); // an earlier attempt
+    recordRecentTelemetry(ev(3, 's4_t2', 'PROBLEM_LOAD', { exercise_template_id: 's4_t2', path_type: 'compulsory' }));
+    recordRecentTelemetry(ev(3, 's4_t2', 'BLOCK_DRAG_COMPLETE', { block_value: 100, source_column_index: null }, 2));
+    recordRecentTelemetry(ev(7, 's4_t2', 'DIGIT_ENTERED', { digit_value: 1, is_correct: false }, 1)); // another learner
+    recordRecentTelemetry(ev(3, 's4_t1', 'DIGIT_ENTERED', { digit_value: 2, is_correct: true }, 0)); // another exercise
+    recordRecentTelemetry(ev(3, 's4_t2', 'DIGIT_ENTERED', { digit_value: 7, is_correct: false }, 1));
+
+    const request = await ask();
+    expect(request.recent_actions.map((a) => a.event_type)).toEqual(['PROBLEM_LOAD', 'BLOCK_DRAG_COMPLETE', 'DIGIT_ENTERED']);
+    expect(request.recent_actions[2].details).toEqual({ digit_value: 7, is_correct: false });
+    expect(request.student_progress_state?.recent_actions).toEqual(request.recent_actions);
+
+    // Nothing recorded: nothing invented from the counters.
+    clearRecentTelemetry();
+    expect((await ask()).recent_actions).toEqual([]);
   });
 });
