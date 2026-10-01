@@ -172,6 +172,14 @@ describe('which write is the teacher closing meeting 2', () => {
     expect(isTeacherCloseOfMeeting2({ ...open2, status: 'paused' }, teacherClose)).toBe(true);
   });
 
+  it('the teacher opening another meeting while meeting 2 is open or paused', () => {
+    const open3 = { active: true, status: 'active', sessionNumber: 3, teacherId: 't' };
+    expect(isTeacherCloseOfMeeting2(open2, open3)).toBe(true);
+    expect(isTeacherCloseOfMeeting2({ ...open2, status: 'paused' }, { ...open3, sessionNumber: 1 })).toBe(true);
+    // Resuming or re-opening meeting 2 itself is not a close.
+    expect(isTeacherCloseOfMeeting2({ ...open2, status: 'paused' }, open2)).toBe(false);
+  });
+
   it('not a reset (no teacher marker), not another meeting, not a write that leaves it open', () => {
     const resetClose = { active: false, status: 'closed', sessionNumber: null, endedAt: 1 };
     expect(isTeacherCloseOfMeeting2(open2, resetClose)).toBe(false);

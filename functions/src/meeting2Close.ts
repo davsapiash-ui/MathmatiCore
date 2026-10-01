@@ -59,13 +59,20 @@ type Rec = Record<string, unknown> | null | undefined;
  * reset writes the same closed record without the marker, and the 45-minute
  * cap and the teacher-disconnect window are read by the clients and write
  * nothing — none of them completes a learner (PRD 14 §ב1: never by time).
+ *
+ * Opening another meeting while meeting 2 is open closes meeting 2 too — the
+ * activation window tells the teacher so ("המפגש הפעיל כעת, מפגש 2, ייסגר").
+ * Only a teacher token may write the class record (database.rules.json), so
+ * the switch is the teacher's act. It used to complete no one, and the
+ * learners who had not finished never reached the gate.
  */
 export function isTeacherCloseOfMeeting2(before: Rec, after: Rec): boolean {
   if (!before || !after) return false;
   if (Number(before.sessionNumber) !== 2) return false;
   const wasOpen = before.active === true && before.status !== "closed";
   const isClosed = after.active !== true && after.status === "closed";
-  return wasOpen && isClosed && after.closedBy === TEACHER_CLOSE_MARKER;
+  const switchedAway = after.active === true && Number(after.sessionNumber) !== 2;
+  return wasOpen && ((isClosed && after.closedBy === TEACHER_CLOSE_MARKER) || switchedAway);
 }
 
 /**
