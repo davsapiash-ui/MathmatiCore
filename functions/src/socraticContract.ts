@@ -513,7 +513,7 @@ export function validateSocraticRequest(raw: unknown): Validation<SocraticReques
       recent_actions: cleanRecentActions(ps.recent_actions),
       ...(isInt(ps.hesitation_seconds, 0, 3600) ? { hesitation_seconds: ps.hesitation_seconds } : {}),
       ...(Array.isArray(ps.earlier_card_kinds)
-        ? { earlier_card_kinds: ps.earlier_card_kinds.filter((k): k is string => typeof k === "string" && /^[a-z_]{1,24}$/.test(k)).slice(0, 8) }
+        ? { earlier_card_kinds: ps.earlier_card_kinds.filter((k): k is string => typeof k === "string" && /^[a-z0-9_]{1,40}$/.test(k)).slice(0, 8) }
         : {}),
     };
   }
