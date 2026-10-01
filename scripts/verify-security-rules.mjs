@@ -33,7 +33,7 @@ try {
 
 const { initializeTestEnvironment, assertFails, assertSucceeds } = rulesTesting;
 const { doc, setDoc } = firestoreSdk;
-const { ref, update, set } = databaseSdk;
+const { ref, update, set, get } = databaseSdk;
 
 const env = await initializeTestEnvironment({
   projectId: 'demo-mathmaticore',
@@ -130,6 +130,24 @@ await check('לומד אינו משנה את מצב המקרן', () =>
 );
 await check('שאר system_control נשאר סגור בפני המורה', () =>
   assertFails(set(ref(tdb, 'system_control/globalStudentLimit'), 99))
+);
+
+console.log('\nRTDB — לשון המורה במסכי התלמידים (בעל המוצר, 1.10.2026)');
+await check('המורה בוחרת לשון זכר או לשון נקבה', async () => {
+  await assertSucceeds(set(ref(tdb, 'system_control/teacher_gender'), 'male'));
+  await assertSucceeds(set(ref(tdb, 'system_control/teacher_gender'), 'female'));
+});
+await check('נשמר רק "female" או "male"', async () => {
+  await assertFails(set(ref(tdb, 'system_control/teacher_gender'), 'other'));
+  await assertFails(set(ref(tdb, 'system_control/teacher_gender'), { gender: 'male' }));
+});
+await check('לומד ומנהל אינם משנים אותה', async () => {
+  const adb = env.authenticatedContext('admin_1', { role: 'admin' }).database();
+  await assertFails(set(ref(ldb, 'system_control/teacher_gender'), 'male'));
+  await assertFails(set(ref(adb, 'system_control/teacher_gender'), 'male'));
+});
+await check('מכשיר הלומד קורא אותה', () =>
+  assertSucceeds(get(ref(ldb, 'system_control/teacher_gender')))
 );
 
 console.log('\nRTDB — רפלקציה');

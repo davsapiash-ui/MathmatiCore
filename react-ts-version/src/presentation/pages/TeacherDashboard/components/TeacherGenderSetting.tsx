@@ -1,11 +1,10 @@
-import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTeacherGender, saveTeacherGender } from '@/application/useTeacherGender';
 import { teacherSentenceHe, type TeacherGender } from '@/core/teacherGender';
 
 const OPTIONS: ReadonlyArray<{ value: TeacherGender; label: string }> = [
-  { value: 'female', label: 'נקבה' },
-  { value: 'male', label: 'זכר' },
+  { value: 'female', label: 'לשון נקבה' },
+  { value: 'male', label: 'לשון זכר' },
 ];
 
 /**
@@ -14,22 +13,21 @@ const OPTIONS: ReadonlyArray<{ value: TeacherGender; label: string }> = [
  * (core/teacherGender.ts). The example under the choice is a real sentence
  * from the children's lobby, in the chosen form. The teacher's own screens
  * are not affected: they address the teacher in the plural.
+ *
+ * Native radio buttons: the arrow keys move between the two, as in any radio
+ * group. The choice shows at once — the database shows a write before the
+ * server confirms it — so nothing waits on the network, offline included; a
+ * refused write puts the old choice back and says so.
  */
 export function TeacherGenderSetting() {
   const gender = useTeacherGender();
-  const [isSaving, setIsSaving] = useState(false);
 
-  const choose = async (next: TeacherGender) => {
-    if (next === gender || isSaving) return;
-    setIsSaving(true);
-    try {
-      await saveTeacherGender(next);
-    } catch (err) {
+  const choose = (next: TeacherGender) => {
+    if (next === gender) return;
+    saveTeacherGender(next).catch((err) => {
       console.warn('[TeacherGenderSetting] save refused:', err);
       toast.error('השמירה נכשלה. נסו שוב.');
-    } finally {
-      setIsSaving(false);
-    }
+    });
   };
 
   return (
@@ -41,19 +39,23 @@ export function TeacherGenderSetting() {
         {OPTIONS.map((option) => {
           const checked = option.value === gender;
           return (
-            <button
-              key={option.value}
-              type="button"
-              role="radio"
-              aria-checked={checked}
-              disabled={isSaving}
-              onClick={() => choose(option.value)}
-              className={`min-h-11 rounded-xl text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 disabled:cursor-wait ${
-                checked ? 'bg-ws-accentSoft text-ws-accent shadow-sm' : 'bg-ws-bg text-ws-soft hover:text-ws-ink'
-              }`}
-            >
-              {option.label}
-            </button>
+            <label key={option.value} className="relative cursor-pointer">
+              <input
+                type="radio"
+                name="teacher-gender"
+                value={option.value}
+                checked={checked}
+                onChange={() => choose(option.value)}
+                className="peer sr-only"
+              />
+              <span
+                className={`flex min-h-11 items-center justify-center rounded-xl text-sm font-bold transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-ws-accent peer-focus-visible:ring-offset-2 ${
+                  checked ? 'bg-ws-accentSoft text-ws-accent shadow-sm' : 'bg-ws-bg text-ws-soft hover:text-ws-ink'
+                }`}
+              >
+                {option.label}
+              </span>
+            </label>
           );
         })}
       </div>

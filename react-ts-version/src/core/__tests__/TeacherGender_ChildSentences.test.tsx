@@ -21,6 +21,8 @@ const h = vi.hoisted(() => {
   return {
     snap,
     listeners: new Map<string, (s: ReturnType<typeof snap>) => void>(),
+    cancels: new Map<string, (err: Error) => void>(),
+    subscriptions: 0,
     writes: [] as Array<{ path: string; value: unknown }>,
     refuse: false,
   };
@@ -28,9 +30,11 @@ const h = vi.hoisted(() => {
 
 vi.mock('firebase/database', () => ({
   ref: (_db: unknown, path = '') => ({ path }),
-  onValue: (r: { path: string }, cb: (s: unknown) => void) => {
+  onValue: (r: { path: string }, cb: (s: unknown) => void, cancel?: (err: Error) => void) => {
+    h.subscriptions += 1;
     h.listeners.set(r.path, cb as never);
-    return () => { h.listeners.delete(r.path); };
+    if (cancel) h.cancels.set(r.path, cancel);
+    return () => { h.listeners.delete(r.path); h.cancels.delete(r.path); };
   },
   set: (r: { path: string }, value: unknown) => {
     if (h.refuse) return Promise.reject(new Error('PERMISSION_DENIED'));
@@ -75,6 +79,9 @@ const setGender = (gender: TeacherGender) => act(() => { useTeacherGenderStore.s
 
 beforeEach(() => {
   h.listeners.clear();
+  h.cancels.clear();
+  h.subscriptions = 0;
+  localStorage.clear();
   h.writes = [];
   h.refuse = false;
   useTeacherGenderStore.setState({ gender: DEFAULT_TEACHER_GENDER });
@@ -165,6 +172,16 @@ describe('the children’s screens follow the teacher’s choice, on the screen 
     expect(store).toContain("teacherSentenceHe('helpCallReceived', useTeacherGenderStore.getState().gender)");
   });
 
+  it('the teacher’s pause and close notices quote the children’s screen in the same form', () => {
+    const dashboard = src('presentation/pages/TeacherDashboard.tsx');
+    expect(dashboard).toContain("כל התלמידים רואים עכשיו \"${teacherSentenceHe('closedTitle', useTeacherGenderStore.getState().gender)}\"");
+    expect(dashboard).toContain("כל התלמידים רואים עכשיו \"${teacherSentenceHe('pausedTitle', useTeacherGenderStore.getState().gender)}\"");
+    expect(dashboard).not.toContain('"המורה סגרה את התחנה"');
+    expect(dashboard).not.toContain('"המורה עצרה את הפעילות לרגע"');
+    // The dashboard holds the value itself — the admin's embedded view has no side menu.
+    expect(dashboard).toMatch(/export function TeacherDashboard\([^)]*\) \{[\s\S]{0,600}\n  useTeacherGender\(\);/);
+  });
+
   it('no child screen keeps a sentence about the teacher outside the two-gender list', () => {
     const childFiles = [
       'presentation/pages/StudentHub.tsx',
@@ -207,23 +224,50 @@ describe('the value reaches every screen from the database', () => {
     unmount();
     expect(h.listeners.size).toBe(0);
   });
+
+  it('the device remembers the last value, so a masculine class does not open in the feminine', async () => {
+    const first = render(<Probe />);
+    act(() => h.listeners.get(TEACHER_GENDER_PATH)!(h.snap('male')));
+    expect(localStorage.getItem('mathmaticore_teacher_gender')).toBe('male');
+    first.unmount();
+
+    vi.resetModules(); // a fresh page load on the same device
+    const reloaded = await import('@/application/useTeacherGender');
+    expect(reloaded.useTeacherGenderStore.getState().gender).toBe('male');
+
+    localStorage.setItem('mathmaticore_teacher_gender', 'nonsense');
+    vi.resetModules();
+    const again = await import('@/application/useTeacherGender');
+    expect(again.useTeacherGenderStore.getState().gender).toBe('female');
+  });
+
+  it('a listener the database refused is started again by the next screen that needs it', () => {
+    const first = render(<Probe />);
+    expect(h.subscriptions).toBe(1);
+    act(() => h.cancels.get(TEACHER_GENDER_PATH)!(new Error('permission_denied')));
+    render(<Probe />);
+    expect(h.subscriptions).toBe(2);
+    first.unmount();
+  });
 });
 
 describe('the teacher marks it in the side menu', () => {
   it('two choices, the current one checked, and an example sentence in the chosen form', async () => {
     render(<TeacherGenderSetting />);
     const group = screen.getByRole('radiogroup', { name: 'המורה במסכי התלמידים' });
-    const female = screen.getByRole('radio', { name: 'נקבה' });
-    const male = screen.getByRole('radio', { name: 'זכר' });
+    // Native radio buttons: one name, so the arrow keys move between them.
+    const female = screen.getByRole('radio', { name: 'לשון נקבה' }) as HTMLInputElement;
+    const male = screen.getByRole('radio', { name: 'לשון זכר' }) as HTMLInputElement;
     expect(group).toBeTruthy();
-    expect(female.getAttribute('aria-checked')).toBe('true');
-    expect(male.getAttribute('aria-checked')).toBe('false');
+    expect(female.name).toBe(male.name);
+    expect(female.checked).toBe(true);
+    expect(male.checked).toBe(false);
     expect(screen.getByText('לדוגמה: "המורה תפתח את הפעילות בקרוב."')).toBeTruthy();
 
     await act(async () => { fireEvent.click(male); });
     expect(h.writes).toEqual([{ path: 'system_control/teacher_gender', value: 'male' }]);
-    expect(male.getAttribute('aria-checked')).toBe('true');
-    expect(female.getAttribute('aria-checked')).toBe('false');
+    expect(male.checked).toBe(true);
+    expect(female.checked).toBe(false);
     expect(screen.getByText('לדוגמה: "המורה יפתח את הפעילות בקרוב."')).toBeTruthy();
 
     // Pressing the checked choice again writes nothing.
@@ -231,12 +275,18 @@ describe('the teacher marks it in the side menu', () => {
     expect(h.writes).toHaveLength(1);
   });
 
+  it('nothing waits on the network: the choices stay open while a write is pending', async () => {
+    render(<TeacherGenderSetting />);
+    for (const radio of screen.getAllByRole('radio') as HTMLInputElement[]) expect(radio.disabled).toBe(false);
+    expect(src('presentation/pages/TeacherDashboard/components/TeacherGenderSetting.tsx')).not.toMatch(/disabled=|isSaving/);
+  });
+
   it('a refused write is shown to the teacher and the choice stays as it was', async () => {
     h.refuse = true;
     render(<TeacherGenderSetting />);
-    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: 'זכר' })); });
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: 'לשון זכר' })); });
     expect(toast.error).toHaveBeenCalledWith('השמירה נכשלה. נסו שוב.');
-    expect(screen.getByRole('radio', { name: 'נקבה' }).getAttribute('aria-checked')).toBe('true');
+    expect((screen.getByRole('radio', { name: 'לשון נקבה' }) as HTMLInputElement).checked).toBe(true);
   });
 
   it('it sits in the teacher’s side menu, above the sign-out', () => {
