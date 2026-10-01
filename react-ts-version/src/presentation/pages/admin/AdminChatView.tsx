@@ -170,7 +170,7 @@ export function AdminChatView() {
   return (
     <div className="flex h-full bg-slate-50/50 dark:bg-slate-900/50 overflow-hidden backdrop-blur-xl" dir="rtl">
       {/* Teachers List Sidebar */}
-      <div className={`${selectedTeacher ? 'hidden md:flex' : 'flex'} w-full md:w-88 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-l border-slate-200 dark:border-slate-800 flex-col transition-all shadow-lg z-10`}>
+      <div className={`${selectedTeacher ? 'hidden md:flex' : 'flex'} w-full md:w-80 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-l border-slate-200 dark:border-slate-800 flex-col transition-all shadow-lg z-10`}>
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 space-y-3">
           <div className="flex justify-between items-center">
             <h2 className="font-black text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -247,7 +247,7 @@ export function AdminChatView() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className={`font-black text-sm ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-800 dark:text-slate-100'}`}>
-                          {teacher.label}
+                          <bdi dir="auto">{teacher.label}</bdi>
                         </span>
                         {isUnanswered && (
                           <span className="text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200 px-1.5 py-0.5 rounded-md">
@@ -290,7 +290,7 @@ export function AdminChatView() {
               </button>
               <UserCircle2 className="w-10 h-10 text-slate-400" />
               <div>
-                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">{selectedTeacher.label}</h3>
+                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100"><bdi dir="auto">{selectedTeacher.label}</bdi></h3>
                 {selectedTeacher.subtitle && <p className="text-xs text-slate-500">{selectedTeacher.subtitle}</p>}
               </div>
             </div>
