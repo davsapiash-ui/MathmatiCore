@@ -110,4 +110,28 @@ describe('מסמך המפגש', () => {
     expect(body).not.toContain('session_score_percent:');
     expect(body).not.toContain('matrix_recommended_path:');
   });
+
+  // שתי בדיקות האמולטור מחזיקות עותק של מה שהלקוח כותב בסיום מפגש 2. אחרי
+  // 29.9 העותק בסקריפט עוד שלח ציון ומסלול מומלץ, והסקריפט נכשל על כתיבה
+  // שהלקוח כבר אינו שולח. כאן משווים את השדות של העותקים לשדות של הלקוח.
+  it('בדיקות האמולטור שולחות בסיום מפגש 2 בדיוק את השדות שהלקוח שולח', () => {
+    /** The keys of the object literal assigned in `declaration`, sorted. */
+    const keysOf = (source: string, declaration: string) => {
+      const start = source.indexOf(declaration);
+      expect(start).toBeGreaterThan(-1);
+      const open = source.indexOf('= {', start);
+      const close = source.indexOf('};', open);
+      expect(close).toBeGreaterThan(open);
+      return [...source.slice(open + 3, close).matchAll(/([A-Za-z_]\w*)\s*:/g)].map((m) => m[1]).sort();
+    };
+    const read = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8');
+
+    const sync = read('../../infrastructure/services/FirebaseSyncService.ts');
+    const client = sync.slice(sync.indexOf('public async syncSession2Completion('));
+    const clientKeys = keysOf(client, 'const sessionDoc');
+    expect(clientKeys).toContain('is_completed');
+
+    expect(keysOf(read('../../../../scripts/verify-security-rules.mjs'), 'const sessionDoc')).toEqual(clientKeys);
+    expect(keysOf(read('../../__tests__/emulator/GateScoreRules.live.test.ts'), 'const completionDoc')).toEqual(clientKeys);
+  });
 });
