@@ -49,6 +49,10 @@ export interface SocraticHintResponse {
   frameLevel?: 1 | 2 | 3;
   /** What the child should come to notice, in a line, for the engine's frame. */
   intentHe?: string;
+  /** "gemini" when the AI engine wrote the card (research data, SOCRATIC_CARD_SHOWN.card_source). */
+  source?: 'gemini' | 'static';
+  /** The model that wrote it (server meta.model_id). */
+  modelId?: string;
 }
 
 /**
@@ -58,13 +62,17 @@ export interface SocraticHintResponse {
  * exemplar (the anchor). A card whose question names no column is level 1 —
  * the engine's card may not name one either.
  */
-export function cardFrameOf(card: SocraticHintResponse): NonNullable<GeminiSocraticRequest['card_frame']> {
-  const namesColumn = /טור ה(יחידות|עשרות|מאות|אלפים)/.test(card.questionHe);
+const LEVEL_1_KINDS: readonly string[] = ['borrow_check', 'place_cues', 'error_analysis', 'read_write_zero'];
+export function cardFrameOf(card: SocraticHintResponse, task?: any): NonNullable<GeminiSocraticRequest['card_frame']> {
+  // Level 1 where the owner decided the child finds the column: meeting 1
+  // (29.9.2026), C3–C6 and the first card of a family (30.9.2026), and any
+  // card that says so itself. Elsewhere the engine may name the column.
+  const explicitLevel1 = meetingOfTaskId(task?.id) === 1 || LEVEL_1_KINDS.includes(String(card.cardKind ?? card.situation ?? ''));
   const situation = String(card.situation ?? card.cardKind ?? 'static').replace(/[^a-z0-9_]/g, '_').slice(0, 40) || 'static';
   const intent = card.intentHe ? card.intentHe.replace(/[^֐-׿0-9\s.,:;!?"'()\-–—−+=×/״׳%]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) : '';
   return {
     situation,
-    level: card.frameLevel ?? (namesColumn ? 2 : 1),
+    level: card.frameLevel ?? (explicitLevel1 ? 1 : 2),
     ...(intent && /[א-ת]/.test(intent) ? { intent_he: intent } : {}),
   };
 }
@@ -1292,7 +1300,7 @@ export class SocraticEngine {
       });
       const taskContext = socraticTaskContextFor(currentTask, monitoring.cardContext);
       if (taskContext) socraticRequest.task_context = taskContext;
-      socraticRequest.card_frame = cardFrameOf(qMatrixAnchor);
+      socraticRequest.card_frame = cardFrameOf(qMatrixAnchor, currentTask);
 
       // The static card is the pedagogical baseline the model must improve on,
       // never contradict — its level, terms and form, feedback included
@@ -1414,10 +1422,30 @@ export class SocraticEngine {
         questionHe: guidingQuestion,
         choices,
         correctChoiceId: correctOpt.id,
+        source: 'gemini',
+        ...(typeof parsed?.meta?.model_id === 'string' ? { modelId: String(parsed.meta.model_id).slice(0, 48) } : {}),
+        // The AI card was written inside the static card's frame: it keeps its situation and level.
+        situation: socraticRequest.card_frame?.situation,
+        frameLevel: socraticRequest.card_frame?.level,
       };
     } catch (err) {
       console.warn('[Gemini Socratic Engine] Cloud Function proxy query fallback triggered:', err);
       return null;
+    }
+  }
+
+  /**
+   * The teacher's warm-up when a meeting is activated (1.10.2026): one staff
+   * call that only starts the proxy's server instance — the server answers
+   * { warm: true } without calling the model and writes nothing. Fire and
+   * forget: nothing waits for it, and a failure is silent.
+   */
+  public static warmUp(): void {
+    try {
+      const fn = httpsCallable<{ warm: true }, { warm?: boolean }>(functions, "callGeminiSocraticProxy", { timeout: 20_000 });
+      fn({ warm: true }).catch(() => undefined);
+    } catch {
+      // no functions instance (tests, offline): nothing to warm
     }
   }
 

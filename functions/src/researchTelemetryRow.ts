@@ -48,6 +48,11 @@ export function researchDetailsColumns(eventType: unknown, raw: unknown): Record
     source_column_index: only(eventType, "BLOCK_DRAG_COMPLETE") ? intIn(d.source_column_index, 0, 3) : "",
     // REGROUPING_SUCCESS
     duration_ms: only(eventType, "REGROUPING_SUCCESS") ? num(d.duration_ms) : "",
+    // SOCRATIC_CARD_SHOWN (1.10.2026): who wrote the card — the AI engine or the static card — and which model.
+    card_source: only(eventType, "SOCRATIC_CARD_SHOWN") ? oneOf(d.card_source, ["ai", "static"] as const) : "",
+    card_model_id: only(eventType, "SOCRATIC_CARD_SHOWN") && typeof d.model_id === "string" && /^gemini-[a-z0-9.-]{1,40}$/.test(d.model_id) ? d.model_id : "",
+    card_situation: only(eventType, "SOCRATIC_CARD_SHOWN") && typeof d.card_situation === "string" && /^[a-z0-9_]{1,40}$/.test(d.card_situation) ? d.card_situation : "",
+    card_level: only(eventType, "SOCRATIC_CARD_SHOWN") ? intIn(d.card_level, 1, 3) : "",
     // SOCRATIC_OPTION_SELECTED (is_correct has its own column)
     option_id: only(eventType, "SOCRATIC_OPTION_SELECTED") ? oneOf(d.option_id, ["opt_1", "opt_2", "opt_3"] as const) : "",
     // PROBLEM_COMPLETE

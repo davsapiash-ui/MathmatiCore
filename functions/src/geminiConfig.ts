@@ -229,21 +229,26 @@ export async function generateGeminiText(call: GeminiTextCall): Promise<GeminiTe
   const ai = getGeminiClient();
   const started = Date.now();
   const controller = new AbortController();
+  // No httpOptions.timeout: the SDK sends it to the API as a server deadline,
+  // and the API refuses any deadline under 10 s (400 "Manually set deadline 5s
+  // is too short") — every card failed that way. The abort signal and the race
+  // below bound the call on our side instead.
   const config: GenerateContentConfig = {
     systemInstruction: call.systemInstruction,
     temperature: call.temperature,
-    httpOptions: { timeout: call.timeoutMs },
     abortSignal: controller.signal,
   };
   const thinkingConfig = thinkingConfigFor(call.thinking);
   if (thinkingConfig) config.thinkingConfig = thinkingConfig;
   if (call.json) config.responseMimeType = "application/json";
   if (call.responseSchema) config.responseSchema = call.responseSchema as GenerateContentConfig["responseSchema"];
+  const abortTimer = setTimeout(() => controller.abort(), call.timeoutMs + 50);
   try {
     const res = await withGeminiTimeout(
       ai.models.generateContent({ model: call.model ?? GEMINI_MODEL_ID, contents: call.prompt, config }),
       call.timeoutMs
     );
+    clearTimeout(abortTimer);
     const text = res.text;
     if (typeof text !== "string" || !text.trim()) {
       const reason = res.promptFeedback?.blockReason ?? res.candidates?.[0]?.finishReason ?? "empty";
@@ -251,6 +256,7 @@ export async function generateGeminiText(call: GeminiTextCall): Promise<GeminiTe
     }
     return { text, latency_ms: Date.now() - started };
   } catch (err) {
+    clearTimeout(abortTimer);
     controller.abort();
     if ((err as { name?: string })?.name === "AbortError") throw new GeminiTimeoutError(call.timeoutMs);
     throw err;

@@ -41,11 +41,14 @@ export const FIRST_PERSON_PLURAL_VERBS = [
   "בואו", "נבדוק", "נעשה", "נחשוב", "נבנה", "נפרוט", "נקבץ", "נחבר", "נחסר", "נחסיר", "נכתוב", "נרשום",
   "נעבור", "נתחיל", "נוסיף", "נוציא", "נמחק", "נלחץ", "נספור", "נסתכל", "נמיר", "נשתמש",
   "נזרוק", "נשאיר", "נעביר", "נגרור", "נפרק", "נוכל", "נצטרך",
-  "נסדר", "נשווה", "נקבל", "נחליף", "נסיר", "נזכור", "ננסה", "נבין", "נדע", "נמשיך", "נחזור",
+  "נסדר", "נשווה", "נקבל", "נחליף", "נסיר", "נזכור", "ננסה", "נבין", "נדע", "נמשיך", "נחזור", "נדלג", "נלך",
   "אנו", "אנחנו", "נצליח",
 ];
 
 export const LANGUAGE_RULES: LanguageRule[] = [
+  // A future-tense verb in נ… with a direct object ("כשנקרא את הספרות"): a
+  // nif'al verb takes no "את", so "נ…" + "את" is the first person plural.
+  { id: "first_person_plural_object", re: /(^|[^א-ת])(?:כש|ש|ו|וכש)?נ(?!ותן|ותנת|ותנים|שאר|שארת|שארים|כנס|כנסת|כנסים|וסף|וספת|וספים)[א-ת]{2,4}\s+את(?![א-ת])/, fix: 'Never use the first person plural ("כשנקרא את…", "נבנה את…"): use the impersonal present ("כשקוראים את…") or the second person plural ("קראו את…").' },
   { id: "first_person_plural", re: HE_EXACT(FIRST_PERSON_PLURAL_VERBS.join("|")), fix: 'Never use the first person plural ("נבדוק", "נמחק", "בואו", "אנו"). Address the children in the second person plural imperative ("בדקו", "לחצו") and write the options in the impersonal present ("בודקים", "לוחצים").' },
   { id: "not_a_form_kabetz", re: HE_EXACT("הקבצו|הקביצו|הקבץ|יקביצו|מקביצים"), fix: 'The verb is פיעל only: "קבצו" (imperative), "מקבצים" (option). "הקבצו" / "הקביצו" are not Hebrew forms.' },
   // "לבנות" alone is also the verb "to build" ("לבנות את המספר"), so only the
@@ -55,11 +58,12 @@ export const LANGUAGE_RULES: LanguageRule[] = [
   { id: "result_box_name", re: HE_WORD("משבצת|משבצות|המשבצת|המשבצות"), fix: 'A result box is "תיבה" in "שורת התוצאה", never "משבצת".' },
   { id: "action_not_on_screen_mark", re: HE_WORD("סמנו|מסמנים|לסמן|סימון|תסמנו"), fix: 'There is no way to mark blocks on the screen. Name only the screen\'s own actions: drag blocks, click a block to break it, the "קבצו 10" button, the trash ("פח האשפה"), the undo button ("כפתור ביטול הפעולה").' },
   { id: "name_not_on_screen", re: /מאגר הלבנים|מאגר לבנים|לבני דינס|לבני הדינס|דינס|(^|[^א-ת])[ובלמהשכ]{0,3}לוח(?![א-ת])|ארגז הלבנים/, fix: 'Use the screen\'s names only: "בית המספרים" for the board, "לבנים" for the blocks, "ארגז כלים" for where the blocks are dragged from.' },
-  { id: "parsing_verb", re: HE_EXACT("מפרקים|לפרק|פרקו|נפרק|מפרקות|פירקו|פירוק|הפירוק"), fix: 'Subtraction regrouping is "פריטה" only: "פורטים", "פרטו", never "מפרקים" / "פירוק".' },
-  { id: "break_into_column", re: /(פורטים|פרטו|לפרוט|פורטות|פרטתם)[^.?!,:]{0,40}?\sלטור/, fix: 'One breaks a block INTO smaller blocks, never "into a column": "פורטים עשרת אחת לעשר יחידות", "פורטים מאה אחת לעשר עשרות" — not "פורטים … לטור היחידות".' },
+  { id: "parsing_verb", re: HE_EXACT("מפרקים|לפרק|פרקו|נפרק|מפרקות|פירקו|פירוק|הפירוק|מתפרק|מתפרקת|מתפרקים|מתפרקות|התפרקה|התפרק|להתפרק"), fix: 'Subtraction regrouping is "פריטה" only: "פורטים", "פרטו", "נפרטת" — never "מפרקים", "פירוק" or "מתפרקת".' },
+  { id: "break_into_column", re: /(פורטים|פרטו|לפרוט|פורטות|פרטתם|נפרטת|נפרטה)[^.?!,:]{0,40}?\s(לטור|אל טור|אל הטור)/, fix: 'One breaks a block INTO smaller blocks, never "into a column": "פורטים עשרת אחת לעשר יחידות", "פורטים מאה אחת לעשר עשרות" — not "פורטים … לטור היחידות".' },
   { id: "gender_slash", re: /[א-ת]\/(ות|ים|ה|י|ן)(?![א-ת])|[א-ת]\.(נשים|ות)(?![א-ת])/, fix: "Gender-equal writing is the second person plural only, never slash or dot forms." },
   { id: "filler_or_formal", re: /למעשה|חשוב לציין|ראוי לציין|במידה ש|(^|[^א-ת])בכדי(?![א-ת])|יש לבצע|(^|[^א-ת])אנו(?![א-ת])/, fix: 'No filler and no formal register: "אם" not "במידה ש", "כדי" not "בכדי", a verb ("פרטו") not "יש לבצע פריטה".' },
-  { id: "icon_or_hidden_digit", re: /[↺▢]/, fix: 'Do not write the symbols "↺" or "▢": name the undo button "כפתור ביטול הפעולה", and never point at a hidden digit.' },
+  // "▢" stays allowed: it is how the screen writes a skeleton's hidden digit ("3▢6 + 271"), and the narration reads it as "ספרה חסרה".
+  { id: "icon_symbol", re: /[↺⟲⟳]/, fix: 'Do not write the symbol "↺": name the undo button "כפתור ביטול הפעולה".' },
 ];
 
 /** The card's form (owner, 30.9.2026). */
@@ -138,7 +142,7 @@ export function socraticLanguageSpec(blocks: boolean): string {
 - ${forms} — never "פירוק", "מפרקים", "שבירה", "הלוואה", "נשיאה".
 - Agreement: "עשרת", "מאה", "יחידה" are feminine ("עשרת אחת", "שתי עשרות", "עשר יחידות"); "אלף" is masculine ("אלף אחד"). ${agreement}One unit is "יחידה אחת" / "עשרת אחת", never "1 יחידה". The number comes before the noun; "10 היחידות", not "ה-10 יחידות"; a prefix before digits takes a hyphen ("ל-10").
 - Names: a result box is "תיבה" in "שורת התוצאה" (never "משבצת"); name only what the prompt's screen section lists.
-- Style: short sentences, one action each; the question last; no filler ("למעשה", "חשוב לציין"); a verb, not "יש לבצע פריטה"; "אם", not "במידה ש"; "כדי", not "בכדי"; no comma before a defining "ש". Numbers as the exercise writes them ("1,245"). Do not write the symbols "↺" or "▢".
+- Style: short sentences, one action each; the question last; no filler ("למעשה", "חשוב לציין"); a verb, not "יש לבצע פריטה"; "אם", not "במידה ש"; "כדי", not "בכדי"; no comma before a defining "ש". Numbers as the exercise writes them ("1,245"; a hidden digit as "▢"). Do not write the symbol "↺".
 DON'T / DO (real errors):
 ${examples}`;
 }

@@ -61,7 +61,7 @@ import {
 import { resolveRecommendationTier, type RecommendationTier } from "./reportAnalysis";
 import { GEMINI_MODEL_ID, GEMINI_SECRETS, classifyGeminiError, generateGeminiText } from "./geminiConfig";
 import { recordAiCall, type AiOutcome } from "./aiMonitoring";
-import { REPORT_THINKING } from "./reportAnalysis";
+import { REPORT_TERMS_HE, REPORT_THINKING } from "./reportAnalysis";
 const PDFDocument = require("pdfkit");
 
 /**
@@ -503,7 +503,8 @@ ${SANDBOX_MEETING_PURPOSE_HE}
 ב-class_patterns: נקודות לתשומת לב לקראת האבחון. ב-teaching_recommendations: מה המורה יכולה לעשות לפני האבחון (למשל הדגמה קצרה במליאה של כלי שרבים לא הפעילו).
 2 עד 5 פריטים בכל מערך. אם אין די ראיות, החזר מערכים ריקים.
 
-מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.
+${REPORT_TERMS_HE}`;
 }
 
 function buildClassSystemInstruction(): string {
@@ -527,7 +528,8 @@ function buildClassSystemInstruction(): string {
 }
 2 עד 5 פריטים בכל מערך. אם אין די ראיות, החזר מערכים ריקים.
 
-מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.
+${REPORT_TERMS_HE}`;
 }
 
 /** Runs layer 2 for the class. Returns null on any failure; never throws. */
@@ -599,9 +601,8 @@ ${closing}`;
       thinking: REPORT_THINKING,
       timeoutMs: CLASS_AI_ANALYSIS_TIMEOUT_MS,
     }).then((r) => r.text);
-    const text = await Promise.race([call, timeout]).finally(() => {
-      if (timer) clearTimeout(timer);
-    });
+    const text = await Promise.race([call, timeout]);
+    if (timer) clearTimeout(timer);
     if (text === null) {
       logger.warn("[classReport] Gemini class analysis timed out; report ships with layer 1 only.", { session_number: input.session_number });
       monitor("timeout");

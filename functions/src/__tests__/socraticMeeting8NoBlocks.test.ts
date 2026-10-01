@@ -40,8 +40,8 @@ const card = (question: string, correct: string) => ({
   guiding_question: question,
   options: [
     { id: 'opt_1', option_text: correct, feedback_text: 'נכון מאוד!', is_correct: true },
-    { id: 'opt_2', option_text: 'ננחש את התוצאה', feedback_text: 'רמז: הימנעו מניחושים.', is_correct: false },
-    { id: 'opt_3', option_text: 'נחכה', feedback_text: 'רמז: התשובה לא תופיע מעצמה.', is_correct: false },
+    { id: 'opt_2', option_text: 'מנחשים את התוצאה', feedback_text: 'רמז: איך אפשר למצוא את התוצאה בלי לנחש?', is_correct: false },
+    { id: 'opt_3', option_text: 'מחכים', feedback_text: 'רמז: מאיזה טור אפשר להתחיל לפתור?', is_correct: false },
   ],
 });
 
@@ -63,12 +63,12 @@ describe('meeting 8: the prompt and the check know there are no blocks', () => {
   });
 
   it('a card that sends the child to blocks or to the trash is refused in meeting 8 only', () => {
-    const blocky = card('בתרגיל 1,245 + 328, מה עושים?', 'נקבץ 10 לבנים בטור היחידות');
+    const blocky = card('בתרגיל 1,245 + 328, מה עושים?', 'מקבצים 10 לבנים בטור היחידות');
     const m8 = deriveSocraticFacts(request('session_8_student_12'));
     const m4 = deriveSocraticFacts(request('session_4_student_12'));
     expect(validateSocraticResponse(blocky, m8).ok).toBe(false);
     expect(validateSocraticResponse(blocky, m4).ok).toBe(true);
-    const circles = card('בתרגיל 1,245 + 328, מה עושים בטור היחידות?', 'נרשום 1 בעיגול הזיכרון שמעל טור העשרות');
+    const circles = card('בתרגיל 1,245 + 328, מה עושים בטור היחידות?', 'רושמים 1 בעיגול הזיכרון שמעל טור העשרות');
     expect(validateSocraticResponse(circles, m8).ok).toBe(true);
   });
 
@@ -119,14 +119,14 @@ describe('what the model is told matches the screen', () => {
 
   it('a card that names the hidden operand is refused', () => {
     const facts = deriveSocraticFacts(skeleton('session_7_student_12', { a: ['units'], b: [] }));
-    expect(validateSocraticResponse(card('בתרגיל 314 + 254, מה בטור היחידות?', 'נבדוק'), facts).ok).toBe(false);
-    expect(validateSocraticResponse(card('בתרגיל 31▢ + 254, מה חסר בטור היחידות?', 'נבדוק'), facts).ok).toBe(true);
+    expect(validateSocraticResponse(card('בתרגיל 314 + 254, מה בטור היחידות?', 'בודקים'), facts).ok).toBe(false);
+    expect(validateSocraticResponse(card('בתרגיל 31▢ + 254, מה חסר בטור היחידות?', 'בודקים'), facts).ok).toBe(true);
   });
 
   it('the skeleton\'s result is on the screen, so a card may name it; a hidden column is not marked "needs a conversion"', () => {
     const req = skeleton('session_7_student_12', { a: ['units'], b: [] });
     const facts = deriveSocraticFacts(req);
-    expect(validateSocraticResponse(card('בתרגיל 31▢ + 254 = 568, מה חסר בטור היחידות?', 'נבדוק'), facts).ok).toBe(true);
+    expect(validateSocraticResponse(card('בתרגיל 31▢ + 254 = 568, מה חסר בטור היחידות?', 'בודקים'), facts).ok).toBe(true);
     const units = buildSocraticPrompt(req, facts).split('\n').filter((l) => l.includes('טור היחידות') && l.includes('תת-תרגיל'));
     expect(units.join(' ')).not.toMatch(/דורש/);
     expect(facts.suggested_focus_he).not.toMatch(/נדרש/);

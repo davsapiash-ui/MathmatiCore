@@ -74,6 +74,19 @@ export interface HesitationDetectedDetails {
 export interface SocraticCardShownDetails {
   trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3' | 'conversion_not_performed' | 'repeated_errors';
   error_category: 'calculation' | 'procedural' | 'conceptual' | null;
+  /**
+   * 1.10.2026: whether the AI engine wrote the card or the static card was
+   * shown (timeout, failure, a refused card, no network), and which model
+   * wrote it. Until that day every card was static (the model id was
+   * retired); the research export must tell them apart from now on.
+   * Absent on events recorded before the field existed.
+   */
+  card_source?: 'ai' | 'static';
+  model_id?: string | null;
+  /** The situation the static selection recognised — the card's frame, shared by the AI card written inside it. */
+  card_situation?: string;
+  /** The frame's level: 1 general, 2 names the column, 3 names the action. */
+  card_level?: 1 | 2 | 3;
 }
 
 export interface SocraticOptionSelectedDetails {

@@ -35,9 +35,23 @@ describe('the server reading of a crowded column', () => {
     expect(facts.suggested_focus_he).not.toContain('נדרשת הקבצה של 10');
   });
 
-  it('an addition still is', () => {
+  it('an addition still is — when the blocks are the exercise\'s own (68 + 43: 8 + 3 units)', () => {
+    const v = validateSocraticRequest({
+      student_id: 5, session_id: 'session_4_student_5', exercise_id: 's4_x', active_column_index: 0,
+      workspace_state: { ones_count: 11, tens_count: 10, hundreds_count: 0, thousands_count: 0, memory_circles: {} },
+      recent_actions: [],
+      exercise_context: { operation: 'addition', number_a: 68, number_b: 43, session_id: 'session_4_student_5', session_topic: '', active_column: 'units', active_column_index: 0, target_sub_problem: '8 + 3' },
+    });
+    if (!v.ok) throw new Error(v.reason);
+    expect(deriveSocraticFacts(v.value).columns.find((c) => c.column === 'units')?.board_overcrowded).toBe(true);
+  });
+
+  it('an addition with more blocks than the exercise can use is not a column to group (61 + 24 with 11 units)', () => {
     const facts = deriveSocraticFacts(request('addition', 11, 5));
-    expect(facts.columns.find((c) => c.column === 'units')?.board_overcrowded).toBe(true);
+    const units = facts.columns.find((c) => c.column === 'units');
+    expect(units?.stray).toBe(true);
+    expect(units?.board_overcrowded).toBe(false);
+    expect(facts.suggested_focus_he).toContain('אסור להציע לקבץ את הלבנים המיותרות');
   });
 
   it('each recent action is read once', () => {

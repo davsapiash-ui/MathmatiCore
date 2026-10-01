@@ -638,6 +638,8 @@ export interface SocraticFacts {
   actions_summary: string[];
   /** What the learner typed in the result row, oldest first, with the client's verdict. */
   typed_digits: TypedDigit[];
+  /** addition: memory circles that hold more than the one ten a column can pass on (13 above the tens). */
+  wrong_carry_circles: SocraticColumn[];
   /** What the wrong digits say (no digit given): the carry forgotten, a subtraction reversed. */
   typing_pattern: "carry_forgotten" | "reversed_subtraction" | "tens_digit_typed" | null;
   /** Cards already opened in this exercise, oldest first. */
@@ -858,9 +860,16 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   const columns: ColumnFact[] = SOCRATIC_COLUMNS.map((column) => {
     const digit_a = ec ? digitAt(ec.number_a, column) : 0;
     const digit_b = ec ? digitAt(ec.number_b, column) : 0;
-    // A deficit is real only while the first number stands whole on the board:
-    // after taking away starts, "3 units and 8 to take" pushed a second borrow.
-    const board_deficit = ec && ec.operation === "subtraction" && stage === "minuend" && needsConv[column] && !conversionsDone.has(column)
+    // A deficit is real only for the column whose turn it is: while the first
+    // number stands whole on the board, or — taking away under way — once every
+    // column to its right already shows its result digit (425 − 162 with 4
+    // hundreds, 2 tens and 3 units: the units are done, the tens lack). After
+    // a column is taken, "5 units and 8 to take" pushed a second borrow (53 − 18).
+    const lowerDone = ec && ec.operation === "subtraction"
+      ? SOCRATIC_COLUMNS.slice(0, SOCRATIC_COLUMNS.indexOf(column)).every((c) => blocks[c] === digitAt(ec.number_a - ec.number_b, c))
+      : false;
+    const columnsTurn = stage === "minuend" || (stage === "taking_away" && lowerDone);
+    const board_deficit = ec && ec.operation === "subtraction" && columnsTurn && needsConv[column] && !conversionsDone.has(column)
       ? Math.max(0, digit_b - blocks[column])
       : 0;
     const max_needed = judgeAddition ? digit_a + digit_b + carryIn[column] : null;
@@ -893,7 +902,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   let active_column: SocraticColumn = ec?.active_column ?? SOCRATIC_COLUMNS[req.active_column_index] ?? "units";
   if (ec && trigger !== "consecutive_errors_4" && trigger !== "conversion_not_performed") {
     const places = SOCRATIC_COLUMNS.slice(0, Math.max(1, String(ec.operation === "subtraction" ? ec.number_a : ec.number_a + ec.number_b).length));
-    const shortCol = stage === "minuend" ? columns.find((c) => c.board_deficit > 0) : undefined;
+    const shortCol = stage === "minuend" || stage === "taking_away" ? columns.find((c) => c.board_deficit > 0) : undefined;
     if (shortCol) active_column = shortCol.column;
     else if (completed.includes(active_column)) active_column = places.find((c) => !completed.includes(c)) ?? active_column;
   }
@@ -924,6 +933,12 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   const actions = (req.recent_actions.length > 0 ? req.recent_actions : ps?.recent_actions ?? []).slice(-MAX_RECENT_ACTIONS);
   const recent_event_types = actions.map((a) => a.event_type);
   const typed_digits = typedDigitsOf(actions);
+
+  // In addition a memory circle holds the one ten the column on its right
+  // passes on: a "13" above the tens is a wrong record, never a carry to add.
+  const wrong_carry_circles = ec && ec.operation === "addition"
+    ? SOCRATIC_COLUMNS.filter((c) => (memory[c] ?? 0) > 1)
+    : [];
 
   // What the child's wrong digits say, without the right one: a column that
   // receives a carry typed as if it did not (forgot the ten in the memory
@@ -969,7 +984,10 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   const carryHe = ec && ec.operation === "addition" && active && active.carry_in > 0 ? " ועוד העשרת שעברה מהטור שמימין (רשומה בעיגול הזיכרון)" : "";
   const solvedHe = completed.length ? ` (${completed.map((c) => COLUMN_NAME_HE[c]).join(", ")} כבר נפתר)` : "";
 
-  if (trigger === "conversion_not_performed") {
+  if (wrong_carry_circles.length && ec) {
+    suggested_category = "conceptual";
+    suggested_focus_he = `בעיגול הזיכרון שמעל ${COLUMN_NAME_HE[wrong_carry_circles[0]]} רשום מספר גדול מ-1. בחיבור עוברת לטור הבא עשרת אחת בלבד, ולכן זה רישום שגוי — כוון לבדוק מה רושמים בעיגול הזיכרון, בלי לומר את הספרה.`;
+  } else if (trigger === "conversion_not_performed") {
     suggested_category = "procedural";
     suggested_focus_he = blocks_on_screen
       ? "הלומד ניסה להקליד תוצאה בטור שדורש הקבצה או פריטה לפני שביצע את ההמרה בלבנים."
@@ -1111,6 +1129,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     recent_event_types,
     actions_summary: summarizeActions(actions),
     typed_digits,
+    wrong_carry_circles,
     typing_pattern,
     earlier_cards: earlierCardsOf(actions),
     earlier_card_kinds: ps?.earlier_card_kinds ?? [],
@@ -1372,6 +1391,9 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
       lines.push(`על המסך התוצאה נתונה (${formatNumberHe(ec.operation === "subtraction" ? ec.number_a - ec.number_b : ec.number_a + ec.number_b)}), והספרות שמסומנות ▢ מוסתרות: הלומד מגלה אותן. אסור לכתוב ספרה מוסתרת או את המספר המלא.`);
     }
     if (ec.session_topic) lines.push(`נושא המפגש: ${ec.session_topic}`);
+    if (facts.hidden_result_digits.length) {
+      lines.push(`בשורת התוצאה חסרה ספרה ב${facts.hidden_result_digits.map((h) => COLUMN_NAME_HE[h.column]).join(" וב")}: הלומד מגלה אותה. אסור לכתוב אותה, גם לא כמספר לבנים בטור הזה.`);
+    }
     if (tc && tc.kind !== "addition" && tc.kind !== "subtraction") lines.push(`סוג המשימה: ${TASK_KIND_HE[tc.kind]}.`);
     if (tc) lines.push(`ההנחיה שעל המסך: «${tc.instruction_he}»`);
     const activeFact = facts.columns.find((c) => c.column === facts.active_column);
@@ -1442,6 +1464,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
     lines.push(`עיגולי הזיכרון: ${Object.keys(facts.memory_circles).length ? JSON.stringify(facts.memory_circles) : "ריקים"}.`);
   }
   lines.push(`שגיאות רצופות: ${facts.consecutive_errors}.`);
+  if (facts.wrong_carry_circles.length) lines.push(`רישום שגוי: בעיגול הזיכרון שמעל ${facts.wrong_carry_circles.map((c) => COLUMN_NAME_HE[c]).join(", ")} רשום מספר גדול מ-1. בחיבור עוברת לטור הבא עשרת אחת בלבד — אל תחבר אותו כהמרה.`);
   if (facts.hesitation_seconds) lines.push(`זמן בלי פעולה לפני הכרטיס: ${facts.hesitation_seconds} שניות.`);
   if (facts.typing_pattern === "carry_forgotten") lines.push("דפוס בהקלדה: הספרה השגויה בטור הפעיל מתאימה לחיבור בלי העשרת שעברה מהטור שמימין — העשרת שבעיגול הזיכרון נשכחה.");
   if (facts.typing_pattern === "reversed_subtraction") lines.push("דפוס בהקלדה: הספרה השגויה בטור הפעיל היא חיסור הפוך (הספרה העליונה מהתחתונה) במקום פריטה.");
@@ -1492,7 +1515,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   lines.push("Return ONLY this JSON object:");
   lines.push(`{
   "error_category": "calculation" | "procedural" | "conceptual",
-  "guiding_question": "<שאלה מנחה אחת בעברית, המזכירה ${facts.meeting === 1 ? "את התרגיל " : facts.operation ? "את התרגיל, את הטור הפעיל " : "את המשימה "}${facts.blocks_on_screen ? (facts.meeting !== null && (facts.meeting === 1 || (facts.meeting >= 3 && facts.meeting <= 7)) ? "ואת מצב הלבנים, בלי לכתוב כמה לבנים יש בטור" : "ואת מצב הלבנים") : "ואת עיגולי הזיכרון"}>",
+  "guiding_question": "<שאלה מנחה אחת בעברית, המזכירה ${facts.meeting === 1 || facts.card_frame?.level === 1 ? "את התרגיל, בלי לציין שם של טור, " : facts.operation ? "את התרגיל, את הטור הפעיל " : "את המשימה "}${facts.blocks_on_screen ? (facts.meeting !== null && (facts.meeting === 1 || (facts.meeting >= 3 && facts.meeting <= 7)) ? "ואת מצב הלבנים, בלי לכתוב כמה לבנים יש בטור" : "ואת מצב הלבנים") : "ואת עיגולי הזיכרון"}>",
   "options": [
     { "id": "opt_1", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false },
     { "id": "opt_2", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false },

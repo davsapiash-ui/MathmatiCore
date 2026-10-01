@@ -134,6 +134,13 @@ const REPORT_RESPONSE_SCHEMA = {
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
 
 /**
+ * The analysis is read by a teacher, in the Ministry's terms (1.10.2026: the
+ * first real analyses called a carried ten "שארית" and a grouping "פריטה",
+ * and named exercises by their ids).
+ */
+export const REPORT_TERMS_HE = "מונחים: בחיבור — הקבצה או המרה, והעשרת שעוברת לטור הבא נרשמת בעיגול הזיכרון; בחיסור — פריטה. לעולם לא \"שארית\", \"נשיאה\", \"הלוואה\" או \"שבירה\". תרגיל מזכירים לפי המספרים שלו (למשל 1,245 + 328), לא לפי המזהה שלו.";
+
+/**
  * Builds the exercise templates for the exercises the learner actually erred
  * on, preferring the canonical Module 26 catalog in Firestore and falling back
  * to what the telemetry itself proves when a bank is unavailable.
@@ -365,7 +372,8 @@ ${SANDBOX_MEETING_PURPOSE_HE}
 ב-knowledge_gaps: נקודות לתשומת לב לקראת האבחון. ב-teaching_recommendations: מה המורה יכולה לעשות עם הלומד לפני האבחון.
 2 עד 4 פריטים בכל מערך. אם אין די ראיות, החזר מערכים ריקים.
 
-מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.
+${REPORT_TERMS_HE}`;
 }
 
 function buildSystemInstruction(tier: RecommendationTier): string {
@@ -387,7 +395,8 @@ function buildSystemInstruction(tier: RecommendationTier): string {
 }
 2 עד 4 פריטים בכל מערך. אם אין די ראיות לפער כלשהו, החזר מערכים ריקים.
 
-מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.
+${REPORT_TERMS_HE}`;
 }
 
 /**
@@ -447,9 +456,8 @@ ${closing}`;
       timeoutMs: AI_ANALYSIS_TIMEOUT_MS,
     }).then((r) => r.text);
 
-    const text = await Promise.race([call, timeout]).finally(() => {
-      if (timer) clearTimeout(timer);
-    });
+    const text = await Promise.race([call, timeout]);
+    if (timer) clearTimeout(timer);
     if (text === null) {
       logger.warn("[reportAnalysis] Gemini analysis timed out; report ships with layer 1 only.", {
         session_id: req.session_id,
