@@ -17,7 +17,7 @@ import {
   BookOpen
 } from "lucide-react";
 import { useAdminStore } from "@/application/useAdminStore";
-import { PILOT_SCHOOL_NAME, ONE_INSTITUTION_MESSAGE } from "@/core/pilotInstitution";
+import { PILOT_SCHOOL_NAME, ONE_INSTITUTION_MESSAGE, PILOT_CLASS_CAPACITY, CLASS_FULL_MESSAGE } from "@/core/pilotInstitution";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 
 interface AdminWizardModalProps {
@@ -36,9 +36,8 @@ export function AdminWizardModal({
   const { 
     schools, 
     teachers, 
-    classes, 
-    globalStudentLimit, 
-    addTeacher, 
+    classes,
+    addTeacher,
     addClassRoom,
     provisionFullInstitution 
   } = useAdminStore();
@@ -124,11 +123,8 @@ export function AdminWizardModal({
   const validateStep3 = (_targetTeacherId: string) => {
     setClassError("");
     const limitNum = parseInt(studentLimit, 10);
-    if (isNaN(limitNum) || limitNum < 1 || limitNum > 12) {
-      // Module 25 §ה fixes this sentence verbatim as the rollback message shown
-      // when the class is at capacity, the same way §ג of Module 15 fixes the
-      // projector text and Module 23 fixes the AI fallback sentence.
-      setClassError("ההרשמה חסומה. כיתת המחקר הגיעה לתפוסה מלאה של 12 לומדים.");
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > PILOT_CLASS_CAPACITY) {
+      setClassError(CLASS_FULL_MESSAGE);
       return false;
     }
     // Module 25 §ב.1: the pilot has one class. A second one is refused.
@@ -528,22 +524,31 @@ export function AdminWizardModal({
                             מכסת תלמידים מרבית לכיתה זו (עד 12 תלמידים)
                           </label>
                           {mode === "add_class" ? (
-                            // A class added here always takes the global limit
-                            // (useAdminStore.addClassRoom) — an editable field
-                            // that the save ignored promised a capacity it never set.
+                            // A class added here always takes the pilot's fixed
+                            // capacity (useAdminStore.addClassRoom) — an editable
+                            // field that the save ignored promised a capacity it never set.
                             <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-3.5 text-sm font-bold flex items-center justify-between">
-                              <span>{globalStudentLimit} תלמידים</span>
-                              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">בהתאם למכסה המרבית שהוגדרה במסך המוסדות</span>
+                              <span>{PILOT_CLASS_CAPACITY} תלמידים</span>
+                              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
                             </div>
                           ) : (
-                            <input 
-                              type="number" 
-                              min="1" 
-                              max="12" 
+                            <input
+                              type="number"
+                              min="1"
+                              max="12"
                               value={studentLimit}
                               onChange={(e) => {
-                                const val = Math.min(12, Math.max(1, parseInt(e.target.value, 10) || 12));
-                                setStudentLimit(val.toString());
+                                // Module 25 §ה/§ז: a 13th learner is refused — the
+                                // wizard clears the field and says the class is full.
+                                // It used to turn 13 into 12 in silence.
+                                const val = parseInt(e.target.value, 10);
+                                if (val > PILOT_CLASS_CAPACITY) {
+                                  setStudentLimit("");
+                                  setClassError(CLASS_FULL_MESSAGE);
+                                  return;
+                                }
+                                setClassError("");
+                                setStudentLimit(e.target.value === "" ? "" : String(Math.max(1, val || 1)));
                               }}
                               className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-bold"
                             />

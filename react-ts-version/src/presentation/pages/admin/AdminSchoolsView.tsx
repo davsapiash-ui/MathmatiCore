@@ -17,31 +17,22 @@ import {
   Printer
 } from "lucide-react";
 import { useAdminStore } from "@/application/useAdminStore";
+import { PILOT_CLASS_CAPACITY } from "@/core/pilotInstitution";
 import { AdminWizardModal } from "./AdminWizardModal";
 import { toast } from "sonner";
 
-/**
- * The hard ceiling Module 25 §ב.2 puts in the server rules: firestore.rules
- * pins student_id to 1..12 and student_count to <= 12, and anonymous learner
- * identities are the fixed set 1-12. No client control can raise it.
- */
-const MAX_STUDENTS_PER_CLASS = 12;
-
 export function AdminSchoolsView() {
   const navigate = useNavigate();
-  const { 
-    schools, 
-    teachers, 
-    classes, 
-    globalStudentLimit, 
-    setGlobalStudentLimit,
+  const {
+    schools,
+    teachers,
+    classes,
     deleteSchool,
     deleteTeacher,
     deleteClassRoom,
     resetInstitutionsToOfficialPilot
   } = useAdminStore();
 
-  const [limitInput, setLimitInput] = useState(globalStudentLimit.toString());
   const [searchQuery, setSearchQuery] = useState("");
   const [isResetting, setIsResetting] = useState(false);
   
@@ -55,27 +46,11 @@ export function AdminSchoolsView() {
   const [wizardMode, setWizardMode] = useState<"full_setup" | "add_teacher" | "add_class">("full_setup");
   const [targetSchoolId, setTargetSchoolId] = useState<string | null>(null);
 
-  // Module 25 §ב.2 puts the real capacity ceiling in the server security rules:
-  // firestore.rules pins student_id to 1..12 and student_count to <= 12. This
-  // input used to accept any positive number, so an admin could "set" a limit of
-  // 20 and be told it was saved while the server kept rejecting anything past 12
-  // — the control promised a capacity the system will never grant. Clamping it to
-  // the range the server actually enforces keeps the two in agreement.
-  const handleSaveLimit = async () => {
-    const num = parseInt(limitInput, 10);
-    if (isNaN(num) || num < 1 || num > MAX_STUDENTS_PER_CLASS) {
-      toast.error(`אנא הזן מספר תלמידים תקין (בין 1 ל-${MAX_STUDENTS_PER_CLASS})`);
-      return;
-    }
-    try {
-      // ההודעה נאמרה קודם בלי קשר לתוצאה בשרת, ולכן מגבלה שנדחתה נראתה
-      // כאילו נשמרה בזמן שכיתות חדשות המשיכו להיפתח במגבלה הישנה.
-      await setGlobalStudentLimit(num);
-      toast.success(`מגבלת התלמידים העולמית עודכנה ל-${num} תלמידים!`);
-    } catch {
-      toast.error('עדכון המגבלה נדחה בשרת. ודא שאתה מחובר כמנהל מערכת.');
-    }
-  };
+  // Module 25 §ב.2: the capacity is a hard 12, enforced on the server (learner
+  // ids 1–12 in authenticateStudentSession and the rules). An "update the
+  // limit" control used to write system_control/globalStudentLimit and report
+  // success, but nothing enforced it: with 8 set, all twelve learners still
+  // signed in. The spec sets no smaller capacity, so the number is shown, not edited.
 
   // One click on a trash icon used to wipe a whole school — teachers, the
   // pilot class the twelve learners log in through, and their login rights —
@@ -265,25 +240,14 @@ export function AdminSchoolsView() {
                 מכסת תלמידים מרבית לכיתה
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                מספר התלמידים המרבי המורשה להשתתפות בכל כיתת לימוד (עד 12 תלמידים)
+                מספר התלמידים המרבי המורשה להשתתפות בכל כיתת לימוד
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <input 
-              type="number" 
-              value={limitInput}
-              onChange={(e) => setLimitInput(e.target.value)}
-              className="w-24 text-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl p-3 font-extrabold text-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none" 
-            />
-            <UdlButton 
-              semanticColor="neutral" 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-3 rounded-xl shadow-md transition-all shrink-0" 
-              onClick={handleSaveLimit}
-            >
-              עדכון מכסה
-            </UdlButton>
+            <span className="text-2xl font-black text-slate-900 dark:text-white">{PILOT_CLASS_CAPACITY} תלמידים</span>
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">קבוע לפי תקן הפיילוט</span>
           </div>
         </div>
 

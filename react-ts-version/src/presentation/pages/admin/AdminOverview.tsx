@@ -41,6 +41,17 @@ type SessionBreakdown = Record<string, {
   average_score_percent: number | null;
 }>;
 
+/** Module 24 §ב: the class-wide error measures in store_cache/admin_metrics (functions/src/adminAggregator.ts). */
+type GlobalErrorMetrics = {
+  digits_entered: number;
+  wrong_digits: number;
+  digit_error_rate_percent: number;
+  deletions: number;
+  undos: number;
+  hesitations: number;
+  socratic_cards: number;
+};
+
 export function AdminOverview() {
   const { schools, teachers, classes } = useAdminStore();
   const [auditLogs, setAuditLogs] = useState<AuditLogEvent[]>([]);
@@ -51,6 +62,10 @@ export function AdminOverview() {
   // Module 24 §ב/§ה: cache-sourced metrics and the quiet last-updated indicator
   const [cacheUpdatedAt, setCacheUpdatedAt] = useState<number | null>(null);
   const [sessionBreakdown, setSessionBreakdown] = useState<SessionBreakdown>({});
+  // Module 24 §ב: "סך תרגילים שנפתרו, מדדי שגיאות גלובליים" — computed by the
+  // aggregator into the same cache document, and never shown until now.
+  const [exercisesCompleted, setExercisesCompleted] = useState<number | null>(null);
+  const [errorMetrics, setErrorMetrics] = useState<GlobalErrorMetrics | null>(null);
 
   // Class-wide completion rate, derived from the cached per-session aggregates only.
   const completionRatePercent = useMemo(() => {
@@ -103,6 +118,8 @@ export function AdminOverview() {
         setTotalStudents(Number(data.total_students) || 0);
         setCacheUpdatedAt(Number(data.updated_at) || null);
         setSessionBreakdown((data.session_breakdown as SessionBreakdown) || {});
+        setExercisesCompleted(typeof data.total_exercises_completed === 'number' ? data.total_exercises_completed : null);
+        setErrorMetrics(data.global_error_metrics && typeof data.global_error_metrics === 'object' ? (data.global_error_metrics as GlobalErrorMetrics) : null);
       },
       (err) => {
         console.warn('[AdminOverview] store_cache listener notice:', err);
@@ -433,6 +450,47 @@ export function AdminOverview() {
                 </div>
               ) : (
                 <div className="text-[11px] text-slate-400 italic">אין נתונים עדיין</div>
+              )}
+            </div>
+          ))}
+        </div>
+      </AccessibleCard>
+
+      {/* Module 24 §ב: the other two cached aggregates — exercises solved and
+          the global error measures. Class-wide sums only, as computed by the
+          server; no learner is identifiable from them. */}
+      <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
+        <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+          <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Activity className="w-5 h-5 text-indigo-600" />
+            תרגילים ומדדי שגיאות (כל המפגשים)
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            סכומים מצרפיים של כל הכיתה, מחושבים בשרת
+          </p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {[
+            { label: 'תרגילים שנפתרו', value: exercisesCompleted },
+            {
+              label: 'ספרות שגויות',
+              value: errorMetrics ? errorMetrics.wrong_digits : null,
+              sub: errorMetrics ? `מתוך ${errorMetrics.digits_entered} ספרות שהוזנו (${Math.round(errorMetrics.digit_error_rate_percent)}%)` : null,
+            },
+            { label: 'מחיקות', value: errorMetrics ? errorMetrics.deletions : null },
+            { label: 'ביטולים', value: errorMetrics ? errorMetrics.undos : null },
+            { label: 'היסוסים', value: errorMetrics ? errorMetrics.hesitations : null },
+            { label: 'כרטיסי חניכה', value: errorMetrics ? errorMetrics.socratic_cards : null },
+          ].map((m) => (
+            <div key={m.label} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex flex-col gap-1 min-w-0">
+              <span className="font-extrabold text-xs text-slate-900 dark:text-white">{m.label}</span>
+              {typeof m.value === 'number' ? (
+                <>
+                  <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{m.value}</span>
+                  {m.sub && <span className="text-[11px] text-slate-500">{m.sub}</span>}
+                </>
+              ) : (
+                <span className="text-[11px] text-slate-400 italic">אין נתונים עדיין</span>
               )}
             </div>
           ))}

@@ -7,7 +7,7 @@ import {
   isRestorableFor,
   keepsFreshStartWork,
 } from '@/core/workspaceSnapshot';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, getActiveTasks, resolveLearningPath, type WorkspaceInitialization } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
@@ -16,7 +16,7 @@ import { normalizeStudentId } from '@/application/useChatStore';
 /** How long database writes of the workspace state are coalesced (ms). */
 export const REMOTE_SYNC_WINDOW_MS = 500;
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
-import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME } from '@/core/pilotInstitution';
+import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME, PILOT_CLASS_CAPACITY, DEFAULT_CLASS_TYPE } from '@/core/pilotInstitution';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
 import { throttledRtdbUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
 import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
@@ -1922,13 +1922,12 @@ export class FirebaseSyncService {
   public async addClassRoom(schoolId: string, teacherId: string, _name: string, _preferredId?: string, classType?: string): Promise<ClassRoom> {
     const id = PILOT_CLASS_ID;
     const name = PILOT_CLASS_NAME;
-    const limit = useAdminStore.getState().globalStudentLimit;
     const newClass: ClassRoom = {
       id,
       schoolId,
       teacherId,
       name,
-      studentLimit: limit,
+      studentLimit: PILOT_CLASS_CAPACITY,
       createdAt: Date.now(),
       ...(classType ? { classType } : {}),
     };
@@ -1936,7 +1935,28 @@ export class FirebaseSyncService {
     updates[`classes/${id}`] = newClass;
     updates[`public_classes/${id}`] = { id, name, schoolId };
     await update(ref(database), updates);
+    await this.writeClassDocument(classType);
     return newClass;
+  }
+
+  /**
+   * Module 25 §ד: "הקמת מסמכי הכיתה והמורים ב-Firestore" — the setup creates
+   * the class document (Module 4 schema, register deviation 14), with the
+   * class type the admin chose. It used to appear only at the teacher's first
+   * meeting activation, and the wizard's class type reached no document.
+   * Awaited, like the teacher whitelist: a refused write fails the wizard
+   * instead of reporting a class that is not there.
+   */
+  public async writeClassDocument(classType?: string): Promise<void> {
+    if (!firestore || !(typeof (firestore as any).type === 'string' || (firestore as any)._delegate || (firestore as any).app)) return;
+    await setDoc(doc(firestore, 'classes', PILOT_CLASS_ID), {
+      class_id: PILOT_CLASS_ID,
+      school_id: PILOT_SCHOOL_ID,
+      class_name: PILOT_CLASS_NAME,
+      class_type: classType || DEFAULT_CLASS_TYPE,
+      student_count: PILOT_CLASS_CAPACITY,
+      created_at: Date.now(),
+    }, { merge: true });
   }
 
   public async deleteClassRoom(id: string) {
