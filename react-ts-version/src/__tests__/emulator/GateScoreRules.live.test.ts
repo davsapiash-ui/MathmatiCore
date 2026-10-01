@@ -85,7 +85,7 @@ const learnerRec = () => ref(learner12().database(), REC);
 
 /** Exactly what FirebaseSyncService.syncSession2Completion queues for the session document. */
 const completionDoc = {
-  session_id: S2, class_id: 'class_1', session_number: 2, session_start_time: 1, session_deadline_time: 2,
+  session_id: S2, class_id: 'class_1', session_number: 2,
   active_exercise_id: 'task8_missing_addend', is_completed: true, teacher_gate_approved: false,
   gate_approved_at: null, gate_approved_by: null, teacher_selected_path: null,
 };
