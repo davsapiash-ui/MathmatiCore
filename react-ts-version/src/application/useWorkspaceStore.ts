@@ -885,13 +885,16 @@ export function cardFocusPlace(
   reason: SocraticTriggerReason,
   focusedMemoryCircle: Place | null = null
 ): Place | null {
-  if (!task) return null;
+  // The box the child stands in comes first, with or without a lesson task:
+  // meeting 2's diagnostic exercises have none, and their HESITATION_DETECTED
+  // still names the focused column.
   if (reason !== 'repeated_errors') {
     if (s.focusedPlace) return s.focusedPlace;
     // Meeting 8 records its conversions in the memory circles. Elsewhere the
     // circle stays out of what is recorded (register gap יט).
     if (focusedMemoryCircle && s.sessionNumber === 8) return focusedMemoryCircle;
   }
+  if (!task) return null;
   if (isVerticalTask(task)) {
     const columns = verticalColumnStatus(s, task);
     const first = (wanted: ColumnStatus[]) => columns.find((c) => wanted.includes(c.status))?.place ?? null;
@@ -4173,6 +4176,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       let target: number | undefined;
       // Measure 3: a refused representation in a lesson exercise is a failed board check.
       let lessonTaskId: string | null = null;
+      // Owner, 1.10.2026 (D6): station 3's "another way" exercises — a wrong
+      // press of "הוספת ייצוג" counts as a wrong press there only.
+      let wrongAddPressCounts = false;
       if (s.sessionNumber === 2) {
         const task = getCurrentQTask(s.qflow);
         target = task ? getEffectiveNumber(task, s.qflow, s.isASD) : undefined;
@@ -4180,10 +4186,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const task = getActiveTasks(s)[s.standardTaskIdx];
         target = task?.numberA;
         lessonTaskId = isRepresentationTask(task) ? task.id : null;
+        wrongAddPressCounts = lessonTaskId !== null && s.sessionNumber === 3;
         if (task?.requireEvenTens && s.counts.tens % 2 !== 0) {
           if (lessonTaskId) {
             recordBoardCheckFailure(lessonTaskId);
-            noteWrongPress(lessonTaskId);
+            if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
           }
           showFeedback({ correct: false, title: 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. נסו לפרוט עשרת אחת ליחידות, או לקבץ 10 יחידות לעשרת.' }, 3200);
           return;
@@ -4197,7 +4204,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (target !== undefined && value !== target) {
         if (lessonTaskId) {
           recordBoardCheckFailure(lessonTaskId);
-          noteWrongPress(lessonTaskId);
+          if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
         }
         const hint =
           s.sessionNumber === 2
@@ -4212,7 +4219,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (s.q3Reps.length === 1 && countsEqual(s.counts, s.q3Reps[0])) {
         if (lessonTaskId) {
           recordBoardCheckFailure(lessonTaskId);
-          noteWrongPress(lessonTaskId);
+          if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
         }
         showFeedback({ correct: false, title: 'זוֹ אוֹתָהּ דֶּרֶךְ 🤔', sub: 'הַרְאוּ אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ שׁוֹנָה: פִּרְטוּ אוֹ קַבְּצוּ, וְאָז לַחֲצוּ עַל "הוֹסָפַת יִצּוּג".' }, 3200);
         return;
@@ -4220,7 +4227,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       const q3Reps = [...s.q3Reps, { ...s.counts }];
       // A press that records a way breaks the run of wrong presses ("in a row").
-      set({ q3Reps, hasInteracted: true, ...(lessonTaskId ? { wrongAnswerStreak: 0, wrongAnswerTaskId: lessonTaskId } : {}) });
+      set({ q3Reps, hasInteracted: true, ...(wrongAddPressCounts && lessonTaskId ? { wrongAnswerStreak: 0, wrongAnswerTaskId: lessonTaskId } : {}) });
       // The board used to be wiped here, and the undo stack with it. Three
       // exercises tell the child: "build 12 tens and 5 units, press add, THEN
       // regroup 10 tens into a hundred and add the second representation".

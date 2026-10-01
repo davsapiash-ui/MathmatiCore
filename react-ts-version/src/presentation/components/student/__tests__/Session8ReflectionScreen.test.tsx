@@ -100,7 +100,7 @@ describe('שלב 2 — מה עזר לכם', () => {
     expect(visibleText(container)).toContain('מה עזר לכם הכי הרבה להצליח היום בפתרון התרגילים?');
     const boxes = screen.getAllByRole('checkbox').map((b) => (b.textContent ?? '').trim());
     expect(boxes).toEqual([
-      'כפתור ביטול פעולה שאיפשר לי לתקן טעויות בביטחון וברוגע',
+      'כפתור ביטול הפעולה שאיפשר לי לתקן טעויות בביטחון וברוגע',
       'עיגולי הזיכרון שעזרו לי לנהל את המעברים',
       'השאלות המנחות בכרטיס החניכה',
     ]);
@@ -122,7 +122,7 @@ describe('שלב 3 — משפט עידוד לפי מדד ההתמדה של מפ�
     const r = renderBoard(onComplete, metrics);
     fireEvent.click(screen.getByRole('button', { name: 'רמה שלוש: מאתגר' }));
     fireEvent.click(screen.getByRole('button', { name: /המשיכו/ }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /כפתור ביטול פעולה/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /כפתור ביטול הפעולה/ }));
     fireEvent.click(screen.getByRole('checkbox', { name: /כרטיס החניכה/ }));
     fireEvent.click(screen.getByRole('button', { name: /המשיכו/ }));
     return r;

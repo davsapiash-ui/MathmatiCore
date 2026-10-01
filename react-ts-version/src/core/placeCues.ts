@@ -67,6 +67,10 @@ const digitOf = (n: number, p: Place): string => {
  * the clock: 9 is not next to 0 (907 written 97 left out a zero). In a box to
  * the left of the answer (the thousands box over 917) a 0 is right, and only a
  * 1 is a slip — the borrow that was never taken from it.
+ * A subtraction column that needed a break and was answered without one is a
+ * slip too (register, deviation 28: "שאינה טעות ספירה או המרה"): the top digit
+ * copied down (63 − 27 answered with a 3 in the units box) or a 0 where the
+ * top digit was the smaller one.
  */
 export function isPlaceError(
   typed: Partial<Record<Place, string>>,
@@ -94,6 +98,20 @@ export function isPlaceError(
       return false;
     }
     if (exercise?.isSubtraction && dv === Math.abs(digitAt(exercise.a, p) - digitAt(exercise.b, p))) return false;
+    if (exercise?.isSubtraction && subtractionColumnNeedsBreak(exercise.a, exercise.b, p)) {
+      if (dv === digitAt(exercise.a, p) || dv === 0) return false;
+    }
     return PLACES.some((q) => q !== p && right[q] !== '' && right[q] === d);
   });
+}
+
+/** Whether `place` of a − b cannot be finished without a break (borrows from the right included). */
+function subtractionColumnNeedsBreak(a: number, b: number, place: Place): boolean {
+  let borrow = 0;
+  for (const p of ['units', 'tens', 'hundreds', 'thousands'] as Place[]) {
+    const needs = digitAt(a, p) - borrow < digitAt(b, p);
+    if (p === place) return needs;
+    borrow = needs ? 1 : 0;
+  }
+  return false;
 }

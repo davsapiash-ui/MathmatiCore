@@ -799,6 +799,35 @@ describe('D6 — station 3\'s "another way": a wrong "הוספת ייצוג" is 
     expect(cardOpen()).toBe(true);
     expect(ws().socraticTriggerReason).toBe('repeated_errors');
   });
+
+  it('only in station 3: in station 7 (s7_r_t7, 150 with even tens) wrong presses open no card', () => {
+    load(7, byId('s7_r_t7'));
+    board({ hundreds: 1, tens: 5 }); // odd tens: wrong
+    ws().addRepresentation();
+    ws().addRepresentation();
+    board({ hundreds: 1, tens: 4 }); // 140: not the number
+    ws().addRepresentation();
+    expect(ws().wrongAnswerStreak).toBe(0);
+    expect(ws().helpState).toBe('closed');
+  });
+});
+
+describe('the hesitation column with no lesson task (meeting 2)', () => {
+  it('names the box the child stands in', () => {
+    const s = { ...ws(), sessionNumber: 2 as const, focusedPlace: 'hundreds' as Place };
+    expect(cardFocusPlace(s, null, 'hesitation_45s')).toBe('hundreds');
+    expect(cardFocusPlace({ ...s, focusedPlace: null }, null, 'hesitation_45s')).toBeNull();
+  });
+});
+
+describe('a subtraction column answered without its break is not a digit in the wrong place', () => {
+  it('63 − 27: the 3 copied down into the units box opens the conversion card', async () => {
+    load(5, { ...T4(), id: 's5_test_63_27', numberA: 63, numberB: 27, isSubtraction: true, correctAnswer: 36 } as SessionTask);
+    boardOf(63);
+    ws().setAnswerDigit('units', '3');
+    await flush();
+    expect(ws().socraticTriggerReason).toBe('conversion_not_performed');
+  });
 });
 
 describe('D3 — while the call to the teacher is open, no hesitation card', () => {

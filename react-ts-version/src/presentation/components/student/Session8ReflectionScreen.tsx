@@ -77,7 +77,7 @@ export const EFFORT_LEVELS: ReadonlyArray<{ id: EffortId; bars: 1 | 2 | 3; spoke
 
 /** מזהי האסטרטגיות נשמרים כפי שהיו (core/srlReflection.ts ממפה אותם). */
 export const STRATEGY_OPTIONS = [
-  { id: 'undo', label: 'כפתור ביטול פעולה שאיפשר לי לתקן טעויות בביטחון וברוגע', icon: RotateCcw },
+  { id: 'undo', label: 'כפתור ביטול הפעולה שאיפשר לי לתקן טעויות בביטחון וברוגע', icon: RotateCcw },
   { id: 'memory', label: 'עיגולי הזיכרון שעזרו לי לנהל את המעברים', icon: CircleDot },
   { id: 'hints', label: 'השאלות המנחות בכרטיס החניכה', icon: HelpCircle },
 ] as const;
