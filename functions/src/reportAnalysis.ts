@@ -143,7 +143,8 @@ export const REPORT_THINKING: GeminiThinking = "low";
  *    accompany, "שלווה" is calm.
  */
 const REPORT_TERM_ALWAYS = /(^|[^א-ת])[ובלמהשכ]{0,3}(שארית|שאריות|נשיאה|נשיאת|הלוואה|הלוואת|הלוואות|שבירה|שבירת|לשבור|שוברים)(?![א-ת])/;
-const BORROWED_OR_CARRIED = "(?:את\\s+)?(?:ה-?)?(?:עשרת|מאה|אלף|יחידה|1|מ(?:ה)?טור|לטור)(?![\\dא-ת])";
+// "ללוות מהעשרות", "לווים מהמאות" — a place name after "מ" / "מה" too (final review, 2.10.2026).
+const BORROWED_OR_CARRIED = "(?:את\\s+)?(?:ה-?)?(?:עשרת|מאה|אלף|יחידה|1|מ(?:ה)?טור|לטור|מ(?:ה)?(?:יחידות|עשרות|מאות|אלפים|עשרת|מאה|אלף))(?![\\dא-ת])";
 const REPORT_TERM_IN_CONTEXT = new RegExp(`(^|[^א-ת])ו?(ללוות|לווים|לווה|לוותה|לוו|נושאים|נושא|נושאת|לשאת|נשא|נשאה|נשאו)\\s+${BORROWED_OR_CARRIED}`);
 export function reportTextViolation(items: string[]): string | null {
   for (const t of items) {
@@ -172,7 +173,8 @@ export function isEmptyAnalysis(text: string | null, keys: readonly [string, str
   if (!text) return false;
   try {
     const p = JSON.parse(text) as Record<string, unknown>;
-    return keys.every((k) => Array.isArray(p?.[k]) && (p[k] as unknown[]).every((x) => typeof x !== "string" || !x.trim()));
+    // An array of anything but strings is malformed (schema_reject), not empty (final review, 2.10.2026).
+    return keys.every((k) => Array.isArray(p?.[k]) && (p[k] as unknown[]).every((x) => typeof x === "string" && !x.trim()));
   } catch {
     return false;
   }

@@ -2106,22 +2106,57 @@ export interface DigitSecret {
   kind: "hidden" | "result";
   /** Digits the screen shows in this column — "7 עשרות" may be the second number's 7. */
   visible: number[];
+  /**
+   * The digit is somewhere on the screen: a shown digit of either number, of a
+   * shown result or of the instruction. A hidden digit that is NOT (the 8 of
+   * 3▢6 + 271 = 657) may not appear in the card at all, in any wording (final
+   * review, 2.10.2026: "מוסיפים 8" passed). Absent: treated as on the screen.
+   */
+  onScreen?: boolean;
+}
+
+type ScreenDigitFacts = Pick<SocraticFacts, "columns" | "hidden_result_digits" | "hidden_operands" | "final_answer"> &
+  Partial<Pick<SocraticFacts, "number_a" | "number_b" | "instruction_he" | "task_kind">>;
+
+/** Every digit the screen shows: both numbers without their hidden digits, a shown result, the instruction. */
+function screenDigitsOf(facts: ScreenDigitFacts): Set<number> {
+  const out = new Set<number>();
+  const lenOf = (n: number | null | undefined) => (n === null || n === undefined ? 0 : String(Math.abs(n)).length);
+  const lenA = lenOf(facts.number_a);
+  const lenB = lenOf(facts.number_b);
+  for (const c of facts.columns) {
+    const i = SOCRATIC_COLUMNS.indexOf(c.column);
+    if (i < lenA && c.shown_a !== "▢") out.add(c.digit_a);
+    if (i < lenB && c.shown_b !== "▢") out.add(c.digit_b);
+  }
+  const skeleton = (facts.hidden_operands ?? []).length > 0;
+  const hiddenResult = facts.hidden_result_digits ?? [];
+  // A skeleton shows its result; a missing-result-digit task shows the result's other digits.
+  if (facts.final_answer !== null && (skeleton || hiddenResult.length > 0 || facts.task_kind === "missing_result_digit")) {
+    const answer = facts.final_answer;
+    for (const c of SOCRATIC_COLUMNS.slice(0, lenOf(answer))) {
+      if (!hiddenResult.some((h) => h.column === c)) out.add(digitAt(answer, c));
+    }
+  }
+  for (const m of stripDigitGroupSeparators(facts.instruction_he ?? "").matchAll(/\d/g)) out.add(Number(m[0]));
+  return out;
 }
 
 /** The digits a card may never state for their column: hidden ones, and the result digit of every box not yet typed right. */
-export function digitSecretsOf(facts: Pick<SocraticFacts, "columns" | "hidden_result_digits" | "hidden_operands" | "final_answer" | "completed_columns" | "task_kind">): DigitSecret[] {
+export function digitSecretsOf(facts: Pick<SocraticFacts, "columns" | "hidden_result_digits" | "hidden_operands" | "final_answer" | "completed_columns" | "task_kind"> & Partial<Pick<SocraticFacts, "number_a" | "number_b" | "instruction_he">>): DigitSecret[] {
   const out: DigitSecret[] = [];
+  const onScreen = screenDigitsOf(facts);
   const skeleton = (facts.hidden_operands ?? []).length > 0;
   const resultLen = facts.final_answer !== null ? String(facts.final_answer).length : 0;
   for (const c of facts.columns) {
     const visible = [c.shown_a, c.shown_b].filter((s) => s !== "▢").map(Number);
     if (skeleton && facts.final_answer !== null) visible.push(digitAt(facts.final_answer, c.column));
-    if (c.shown_a === "▢") out.push({ column: c.column, digit: c.digit_a, kind: "hidden", visible });
-    if (c.shown_b === "▢") out.push({ column: c.column, digit: c.digit_b, kind: "hidden", visible });
+    if (c.shown_a === "▢") out.push({ column: c.column, digit: c.digit_a, kind: "hidden", visible, onScreen: onScreen.has(c.digit_a) });
+    if (c.shown_b === "▢") out.push({ column: c.column, digit: c.digit_b, kind: "hidden", visible, onScreen: onScreen.has(c.digit_b) });
   }
   for (const h of facts.hidden_result_digits ?? []) {
     const c = facts.columns.find((x) => x.column === h.column);
-    out.push({ column: h.column, digit: h.digit, kind: "hidden", visible: c ? [c.digit_a, c.digit_b] : [] });
+    out.push({ column: h.column, digit: h.digit, kind: "hidden", visible: c ? [c.digit_a, c.digit_b] : [], onScreen: onScreen.has(h.digit) });
   }
   // The iron rule (PRD Module 13): never the final answer — nor its digit in a
   // box the child has not typed right yet ("כותבים 2 בתיבה של טור היחידות" in
@@ -2146,6 +2181,8 @@ export function digitSecretsOf(facts: Pick<SocraticFacts, "columns" | "hidden_re
 export function statesColumnDigit(text: string, s: DigitSecret): boolean {
   const noun = BLOCK_NOUN_HE[s.column];
   const plain = stripDigitGroupSeparators(text);
+  // A hidden digit the screen shows nowhere: any standalone token of it gives it away.
+  if (s.kind === "hidden" && s.onScreen === false && mentionsDigitAnywhere(plain, s.digit)) return true;
   const D = digitToken(s.digit, WORD_ENDS_STATEMENT);
   const Dcount = digitToken(s.digit, "");
   const mentionsThis = new RegExp(`(?:^|[^א-ת])[בלמו]?(?:של\\s+)?ה?${noun}(?![א-ת])`);
@@ -2170,6 +2207,62 @@ export function statesColumnDigit(text: string, s: DigitSecret): boolean {
     if (write.test(clause) && !/עיגול/.test(clause) && (here || (!mentionsAnyColumn.test(clause) && /תיבה|שורת התוצאה|◻|▢/.test(clause)))) return true;
     // "8 בתיבה", "7 בשורת התוצאה" with this column named.
     if (here && new RegExp(`${D}\\s+ב(?:תיבה|שורת התוצאה)`).test(clause) && !/עיגול/.test(clause)) return true;
+    // "בטור היחידות יישארו 5 לבנים", "בתיבה של טור המאות יופיע 1": what the column will hold or show.
+    if (here && !/עיגול/.test(clause) && statesWithVerb(clause, s.digit)) return true;
+  }
+  return false;
+}
+
+/** The digit as a standalone token: the digit itself, or a number word of it in either gender. */
+function digitTokenAny(d: number): string {
+  return `(?:(?<![\\d▢])${d}(?![\\d▢])|(?<![א-ת])(?:${DIGIT_WORDS_HE[d].join("|")})(?![א-ת]))`;
+}
+
+/**
+ * The verbs that state what a column will hold or show ("יישארו", "יופיע",
+ * "תהיה") and, with the column named, what it holds ("נשארו"). Final review,
+ * 2.10.2026: "בטור היחידות יישארו 5 לבנים" (53 − 18) and "בתיבה של טור
+ * המאות יופיע 1" (85 + 17) passed.
+ */
+const STATE_VERB_RE = /(?<![א-ת])(?:ו|ש|כש)?(?:יישאר|יישארו|ישאר|ישארו|תישאר|תשאר|נשאר|נשארו|נשארה|יופיע|יופיעו|תופיע|יהיה|יהיו|תהיה|תהיינה)(?![א-ת])/g;
+/** A noun right before a number word makes it that noun's count ("עשרת אחת", "ספרה אחת"), not the digit. */
+const NOUN_BEFORE_NUMBER_WORD = /(?:יחידה|עשרת|מאה|אלף|ספרה|לבנה|פעם|תיבה)\s+$/;
+function statesWithVerb(clause: string, d: number): boolean {
+  for (const m of clause.matchAll(STATE_VERB_RE)) {
+    const end = m.index! + m[0].length;
+    const after = clause.slice(end, end + 40);
+    for (const t of after.matchAll(new RegExp(digitTokenAny(d), "g"))) {
+      const rest = after.slice(t.index! + t[0].length);
+      // An operation on the number ("יישארו 5 פחות 3") is the way, not the result.
+      if (/^\s*(?:\+|−|-\s*\d|ועוד|פחות)/.test(rest)) continue;
+      if (/^[א-ת]/.test(t[0]) && NOUN_BEFORE_NUMBER_WORD.test(clause.slice(0, end) + after.slice(0, t.index!))) continue;
+      return true;
+    }
+    // "5 לבנים יישארו בטור היחידות": the number just before the verb.
+    const before = /(\d+|[א-ת]+)\s+(?:לבנים\s+|לבני\s+[א-ת]+\s+)?$/.exec(clause.slice(Math.max(0, m.index! - 25), m.index!));
+    if (before && new RegExp(`^${digitTokenAny(d)}$`).test(before[1])) return true;
+  }
+  return false;
+}
+
+/**
+ * A digit anywhere in a text: the digit on its own ("מוסיפים 8", "הספרה 8")
+ * or a number word of it ("שמונה"). Not inside a longer number ("18", "3▢6"),
+ * not a construct before a definite noun ("שני המספרים", "שלושת הטורים"), not
+ * "אחת / אחד" after a noun ("עשרת אחת", "ספרה אחת"), and not the 1 of the
+ * memory circle ("רושמים 1 בעיגול הזיכרון": a carry is always 1).
+ */
+export function mentionsDigitAnywhere(text: string, d: number): boolean {
+  for (const clause of stripDigitGroupSeparators(text).split(/[.?!;:\n]/)) {
+    if (d === 1 && /עיגול/.test(clause)) continue;
+    for (const t of clause.matchAll(new RegExp(digitTokenAny(d), "g"))) {
+      if (/^\d$/.test(t[0])) return true;
+      const before = clause.slice(0, t.index!);
+      const after = clause.slice(t.index! + t[0].length);
+      if (/^(?:שני|שתי|שלושת|ארבעת|חמשת|ששת|שבעת|שמונת|תשעת)$/.test(t[0]) && /^\s+ה[א-ת]/.test(after)) continue;
+      if (/^(?:אחת|אחד)$/.test(t[0]) && /[א-ת]\s+$/.test(before)) continue;
+      return true;
+    }
   }
   return false;
 }
