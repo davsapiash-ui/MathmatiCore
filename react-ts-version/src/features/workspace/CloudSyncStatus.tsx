@@ -3,7 +3,7 @@ import { Cloud, CloudOff } from 'lucide-react';
 import { indexedDBQueue, type QueueSyncState } from '@/infrastructure/services/IndexedDBQueue';
 
 /** מודול 17 §ד: what the cloud says in each sync state (read aloud and on hover). */
-export const CLOUD_STATUS_LABEL: Record<QueueSyncState, string> = {
+const CLOUD_STATUS_LABEL: Record<QueueSyncState, string> = {
   synced: 'יש חיבור לרשת. העבודה שלכם נשמרה.',
   pending: 'יש חיבור לרשת. העבודה שלכם נשמרת ותישלח בעוד רגע.',
   offline: 'אין כרגע חיבור לרשת. העבודה שלכם נשמרת כאן ותישלח מעצמה כשהחיבור יחזור.',
