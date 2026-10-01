@@ -139,7 +139,22 @@ export interface DropInput {
 }
 
 export type DropResult =
-  | { ok: true; counts: PlaceCounts; regroupEvents: RegroupEvent[]; ungroupEvent?: UngroupEvent; removed?: Place }
+  | {
+      ok: true;
+      counts: PlaceCounts;
+      regroupEvents: RegroupEvent[];
+      /** A block of the board broke apart into ten of the column to its right (a decomposition the child performed). */
+      ungroupEvent?: UngroupEvent;
+      /**
+       * A NEW block from the palette, dropped on the column to the right of its
+       * own, landed as ten blocks of that column (1.10.2026). Allowed, and
+       * animated like a break — but no block of the board broke apart: it is
+       * ten blocks added, not a decomposition the child performed (no
+       * conversion, no keyboard unlock, no REGROUPING_SUCCESS).
+       */
+      paletteUngroup?: UngroupEvent;
+      removed?: Place;
+    }
   | { ok: false; reason: 'silent' }
   | { ok: false; reason: 'constraint'; place: Place };
 
@@ -170,11 +185,13 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLeve
       const { counts: next, events } = addBlock(counts, targetPlace, autoGroup);
       return { ok: true, counts: next, regroupEvents: events };
     }
-    // Adjacent lower: instant decomposition of a fresh palette block (+10 low).
+    // Adjacent lower: a fresh palette block lands as ten blocks of the lower
+    // column (+10 low). Nothing on the board was broken, so it is not an
+    // ungroupEvent (see DropResult.paletteUngroup).
     if (srcIdx - tgtIdx === 1) {
       const res = addUngroupedFromPalette(counts, input.sourcePlace);
       if (!res) return { ok: false, reason: 'constraint', place: targetPlace };
-      return { ok: true, counts: res.counts, regroupEvents: [], ungroupEvent: res.event };
+      return { ok: true, counts: res.counts, regroupEvents: [], paletteUngroup: res.event };
     }
     // A block dropped on a column of a higher value (a unit on the tens) is
     // rejected, in every meeting (owner, 28.9.2026): moving it to its own

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { useWorkspaceStore, getActiveTasks, selectCanProceed } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, selectCanProceed, CONVERSION_CARD_COOLDOWN_MS } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { SESSION1_TASKS } from '@/data/sessionTasks';
@@ -680,10 +680,24 @@ describe('5. timing', () => {
     goTo(TARGET);
     tap('hundreds', 3);
     ws().setKeyboardSocratic();
+    // The card settles (the hourglass is up to 8 seconds) before the child goes on.
+    vi.advanceTimersByTime(10_000);
+    expect(ws().helpState).toBe('socratic');
     tap('tens', 4); tap('units', 7); split('tens');
     typeNumber(347);
     vi.advanceTimersByTime(10_000);
     expect(ws().helpState).toBe('socratic');
+  });
+
+  it('an exercise solved while the hourglass still turns gets no card — representation exercises too (X22; 1.10.2026)', () => {
+    goTo(TARGET);
+    tap('hundreds', 3);
+    ws().setKeyboardSocratic();
+    tap('tens', 4); tap('units', 7); split('tens');
+    typeNumber(347);
+    vi.advanceTimersByTime(10_000);
+    expect(ws().helpState).toBe('closed');
+    expect(ws().currentState).not.toBe('SOCRATIC_ACTIVE');
   });
 
     it('fixed: pressing the help button during the final celebration leaves the meeting unfinished forever', () => {
@@ -706,7 +720,9 @@ describe('5. timing', () => {
     type('tens', '2');
     vi.advanceTimersByTime(1000);
     ws().closeHelp(); // the child closes A
-    vi.advanceTimersByTime(500);
+    // A wrong digit in the same unconverted column opens its card once a
+    // minute at most (CONVERSION_CARD_COOLDOWN_MS, 1.10.2026).
+    vi.advanceTimersByTime(CONVERSION_CARD_COOLDOWN_MS);
     type('tens', '5'); // another wrong tens digit → card B
     vi.advanceTimersByTime(0);
     expect(ws().helpState).toBe('socratic');

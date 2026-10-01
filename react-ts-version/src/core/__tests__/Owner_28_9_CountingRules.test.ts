@@ -363,7 +363,9 @@ describe('Rule 4 — the card, driven through the store (meeting 4, 1,245 + 328 
     await flush();
     expect(ws().helpState).toBe('socratic');
     expect(ws().digitErrorStreak).toBe(3);
-    expect(ws().socraticCardPlace).toBeNull();
+    // No box is focused: the pause is in the first unsolved column — the
+    // units box is still empty (cardFocusPlace, 1.10.2026).
+    expect(ws().socraticCardPlace).toBe('units');
   });
 
   it('a card opened for another reason keeps the focused box as its column', () => {
@@ -430,11 +432,24 @@ describe('Rule 4 — missing-digit boxes use the same streak (meetings 5–8)', 
     expect(ws().socraticCardPlace).toBe('tens');
   });
 
-  it('other triggers keep the old "already solved" guard in a skeleton with a filled-in wrong digit', async () => {
+  it('a skeleton whose hidden box holds a WRONG digit is not solved: the other triggers open the card too (1.10.2026)', async () => {
+    // It used to count as solved once every hidden box held a digit, right or
+    // wrong: the child saw "נסו לחשוב…" and then no card.
     load(7, byId('s7_r_t2')); // 31▢ + 254 = 568
+    boardOf(568);
     ws().setOperandDigit('a', 'units', '5');
     ws().openSocraticCard('hesitation_45s');
-    ws().openSocraticCard('consecutive_errors_4'); // the wrong-submission source: no column
+    await flush();
+    expect(ws().helpState).toBe('socratic');
+    expect(ws().socraticTriggerReason).toBe('hesitation_45s');
+    expect(ws().socraticCardPlace).toBe('units');
+  });
+
+  it('…and the right hidden digit over the right blocks is solved: no card', async () => {
+    load(7, byId('s7_r_t2'));
+    boardOf(568);
+    ws().setOperandDigit('a', 'units', '4');
+    ws().openSocraticCard('hesitation_45s');
     await flush();
     expect(ws().helpState).not.toBe('socratic');
   });

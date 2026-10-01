@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
-import { useWorkspaceStore, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -280,6 +280,11 @@ export function StudentWorkspacePage() {
     (!isTeacherOrAdmin && (activeClassSession.status === 'paused' || (activeClassSession.status === 'closed' && activeClassSession.isLoaded)));
   const isClassScreenUpRef = useRef(isClassScreenUp);
   isClassScreenUpRef.current = isClassScreenUp;
+  // The coaching card that settles under one of these screens is not seen:
+  // SOCRATIC_CARD_SHOWN waits until the screen is gone (HelpOverlays).
+  useEffect(() => {
+    useWorkspaceStore.getState().setClassScreenUp(isClassScreenUp);
+  }, [isClassScreenUp]);
 
   // הרדאר השקט — covert monitoring for the teacher dashboard; nothing student-visible.
 
@@ -692,7 +697,12 @@ export function StudentWorkspacePage() {
   // learner's hands.
   const hasEnhancedSupport = useWorkspaceStore((s) => s.activeSupportProfileId === ENHANCED_SUPPORT_PROFILE_ID);
   // Register 18: "רק לפרופיל תמיכה מוגבר, ורק במפגשים 3–7" — never meeting 1, 2 or 8.
-  const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber >= 3 && sessionNumber <= 7;
+  // Owner, 1.10.2026 (D7): and only in an addition exercise — not in station
+  // 3's representations, not in a subtraction. A grid the learner left open
+  // stays open (register decision ב: only the learner closes it); it is
+  // simply not shown, nor its return tab, while the exercise is not an addition.
+  const isAdditionOnScreen = useWorkspaceStore((s) => isAdditionExercise(selectStandardTask(s)));
+  const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber >= 3 && sessionNumber <= 7 && isAdditionOnScreen;
 
 
   useEffect(() => {

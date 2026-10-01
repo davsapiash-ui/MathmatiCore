@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useWorkspaceStore, getActiveTasks, socraticCardColumnIndex, staticCardContextFor } from '@/application/useWorkspaceStore';
+import {
+  useWorkspaceStore,
+  getActiveTasks,
+  socraticCardColumnIndex,
+  staticCardContextFor,
+  SOCRATIC_CORRECT_AUTO_CLOSE_MS,
+} from '@/application/useWorkspaceStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { SocraticEngine, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { orderSocraticChoices } from '@/infrastructure/services/socraticOptionOrder';
@@ -105,13 +111,16 @@ export function SocraticSidePanel() {
   // never for the hourglass. error_category is the engine's classification,
   // or null when the static card is shown (PRD Module 13; owner, 28.9.2026;
   // X19): the store sets it that way when the card settles.
+  // A card that settles under the teacher's projector, pause or close screen
+  // is not seen: the event waits until the screen is gone (1.10.2026).
+  const classScreenUp = useWorkspaceStore((s) => s.classScreenUp);
   const cardShownRef = useRef(false);
   useEffect(() => {
     if (helpState !== 'socratic') {
       cardShownRef.current = false;
       return;
     }
-    if (cardShownRef.current || socraticPending || !aiSocraticHint) return;
+    if (cardShownRef.current || socraticPending || !aiSocraticHint || classScreenUp) return;
     cardShownRef.current = true;
 
     const ws = useWorkspaceStore.getState();
@@ -137,7 +146,7 @@ export function SocraticSidePanel() {
         error_category: aiSocraticHint.error_category ?? null,
       },
     }).catch(console.error);
-  }, [helpState, aiSocraticHint, socraticPending]);
+  }, [helpState, aiSocraticHint, socraticPending, classScreenUp]);
 
   // A card open without content (restored from a saved session before the
   // store refilled it) shows the static card of the exercise on the screen —
@@ -293,7 +302,7 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
     const noBoard = wsState.sessionNumber === 8;
     const hint = c.feedbackHe || c.hint || (isCorrect
       ? (noBoard ? 'תשובה נכונה! כעת כתבו בשורת התוצאה, טור אחר טור.' : 'תשובה נכונה! כעת בצעו את הפעולה בבית המספרים.')
-      : (noBoard ? 'רמז: חשבו שוב, טור אחר טור. אפשר להשתמש בכפתור ביטול פעולה ↺.' : 'רמז: חשבו שוב כיצד לשמור על הכמות בבית המספרים. אפשר להשתמש בכפתור ביטול פעולה ↺.'));
+      : (noBoard ? 'רמז: חשבו שוב, טור אחר טור. אפשר להשתמש בכפתור ביטול הפעולה ↺.' : 'רמז: חשבו שוב כיצד לשמור על הכמות בבית המספרים. אפשר להשתמש בכפתור ביטול הפעולה ↺.'));
     return {
       id: c.id,
       text: c.textHe,
@@ -302,10 +311,26 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
     };
   });
 
-  // After the right answer the card stays open with its feedback until the
-  // child presses "הבנתי" (owner, 30.9.2026; it used to close after 1.2 s, too
-  // fast to read). The answer is given: the options take no second press.
+  // After the right answer the card keeps its feedback on the screen for
+  // SOCRATIC_CORRECT_AUTO_CLOSE_MS, then closes by itself (owner, 1.10.2026,
+  // D1); "הבנתי" closes it at once. On 30.9.2026 it stayed until "הבנתי" (it
+  // used to close after 1.2 s, too fast to read), and a card answered and
+  // left open blocked every later card of the exercise. The answer is given:
+  // the options take no second press.
   const answered = options.some((o) => o.id === selectedOpt && o.correct);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    if (!answered) return;
+    // Only this card: the timer never closes a card that opened after it.
+    const { taskId, cards } = useWorkspaceStore.getState().socraticCardHistory;
+    const t = window.setTimeout(() => {
+      const s = useWorkspaceStore.getState();
+      const sameCard = s.socraticCardHistory.taskId === taskId && s.socraticCardHistory.cards.length === cards.length;
+      if (s.helpState === 'socratic' && sameCard) onCloseRef.current();
+    }, SOCRATIC_CORRECT_AUTO_CLOSE_MS);
+    return () => window.clearTimeout(t);
+  }, [answered]);
 
   const handleSelect = (opt: typeof options[0]) => {
     if (locked || answered) return;
@@ -327,6 +352,8 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
         is_correct: Boolean(opt.correct),
       },
     }).catch(console.error);
+    // The next card's request says whether this card's chosen option was right.
+    wsState.recordSocraticAnswer(Boolean(opt.correct));
 
     if (!opt.correct) {
       // PRD Module 12: 30-second penalty lock on the card's answer buttons after a wrong distractor

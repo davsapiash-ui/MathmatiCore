@@ -425,6 +425,21 @@ export async function openContext(browser: Browser, viewport: Viewport, opts: Co
     { auth, record, uid: STUDENT_UID, num: STUDENT_NUMBER }
   );
 
+  // Silent by default: the audit presses read-aloud buttons on the way (the
+  // reflection board's first button is one), and on the owner's PC the
+  // browser spoke them aloud. Nothing here measures speech. Each read still
+  // "ends" at once, so a speaker button does not stay in its playing state.
+  // UX_AUDIT_SPEECH=1 lets the browser speak.
+  if (process.env.UX_AUDIT_SPEECH !== '1') {
+    await context.addInitScript(() => {
+      const synth = window.speechSynthesis as SpeechSynthesis | undefined;
+      if (!synth) return;
+      synth.speak = (utterance: SpeechSynthesisUtterance) => {
+        setTimeout(() => utterance.onend?.call(utterance, new Event('end') as SpeechSynthesisEvent), 0);
+      };
+    });
+  }
+
   const page = await context.newPage();
   let stateId = 'init';
   let buffer: string[] = [];

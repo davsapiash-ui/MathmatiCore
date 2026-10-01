@@ -65,7 +65,7 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
     // Step 5: undo, then the trash.
     case 's1_undo_trash':
       return [
-        { label: 'לחצו על כפתור ביטול פעולה ↺', done: s.undoCount >= 1 },
+        { label: 'לחצו על כפתור ביטול הפעולה ↺', done: s.undoCount >= 1 },
         { label: 'לחצו על פח האשפה', done: s.hasClearedBoard },
       ];
     // Step 6, the target task: the instruction, clause by clause. The third

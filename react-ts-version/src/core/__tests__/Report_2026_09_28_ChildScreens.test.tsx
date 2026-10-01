@@ -315,8 +315,8 @@ describe('the undo button is named as the child sees it (review of PR #125, item
     for (const t of all) expect(t.instructionHe, t.id).not.toContain('לחקירה עצמאית');
     const s6 = getSessionTasks(6, 'green_path').find((t) => t.id === 's6_g_t7')!;
     const s7 = getSessionTasks(7, 'remediation_path').find((t) => t.id === 's7_r_t7')!;
-    // the name station 1 teaches ("לחצו על כפתור ביטול פעולה…"), and the arrow it shows
-    for (const t of [s6, s7]) expect(t.instructionHe, t.id).toMatch(/רוצים לחזור צעד אחד אחורה\? לחצו על כפתור ביטול פעולה ↺\.$/);
+    // the name station 1 teaches ("לחצו על כפתור ביטול הפעולה…", owner 1.10.2026, D11c), and the arrow it shows
+    for (const t of [s6, s7]) expect(t.instructionHe, t.id).toMatch(/רוצים לחזור צעד אחד אחורה\? לחצו על כפתור ביטול הפעולה ↺\.$/);
     // the arrow is not read aloud
     expect(src('infrastructure/services/TTSService.ts')).toContain("cleaned.replace(/[\\u2190-\\u21FF]/g, '')");
     // the toolbar's undo button is that arrow

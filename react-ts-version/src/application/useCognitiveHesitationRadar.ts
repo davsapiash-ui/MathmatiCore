@@ -1,6 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { currentStudentUid } from './useAuthStore';
-import { useWorkspaceStore, activeExerciseId } from '@/application/useWorkspaceStore';
+import {
+  useWorkspaceStore,
+  activeExerciseId,
+  cardFocusPlace,
+  isAdditionExercise,
+  placeToColumnIndex,
+  selectStandardTask,
+} from '@/application/useWorkspaceStore';
+import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
@@ -10,6 +18,32 @@ import { GRID_STAGE_SECONDS, SOCRATIC_STAGE_SECONDS, shouldOpenAdaptiveGrid } fr
 interface UseCognitiveHesitationRadarProps {
   isActive: boolean;
   onHesitationDetected?: () => void;
+}
+
+/**
+ * Owner, 1.10.2026 (D2): besides the board, the digits and a choice, three
+ * things the child does are work, not hesitation, and restart the count:
+ *  - pressing a read-aloud button ("הקראה בקול" — UdlSpeechButton),
+ *  - working in the addition grid (AdaptiveAdditionGrid),
+ *  - typing or sending in the chat with the teacher (StudentChatOverlay).
+ * They change nothing in the workspace store, so they are caught here, on the
+ * page, by the controls' own names: a click on a read-aloud button or in the
+ * grid; typing in the chat, or a press of one of its buttons.
+ */
+export const READ_ALOUD_SELECTOR = 'button[aria-label="הקראה בקול"]';
+export const ADDITION_GRID_SELECTOR = '[data-testid="adaptive-addition-grid"]';
+export const TEACHER_CHAT_SELECTOR = '[role="dialog"][aria-label="הודעות עם המורה"]';
+
+/** Whether a DOM event is one of the D2 activities above. */
+export function isLearnerActivityEvent(event: Pick<Event, 'type' | 'target'>): boolean {
+  const target = event.target as Element | null;
+  if (!target || typeof target.closest !== 'function') return false;
+  if (event.type === 'click') {
+    if (target.closest(READ_ALOUD_SELECTOR) || target.closest(ADDITION_GRID_SELECTOR)) return true;
+    return Boolean(target.closest(TEACHER_CHAT_SELECTOR) && target.closest('button'));
+  }
+  if (event.type === 'input') return Boolean(target.closest(TEACHER_CHAT_SELECTOR));
+  return false;
 }
 
 /**
@@ -93,7 +127,10 @@ export function useCognitiveHesitationRadar({
           supportProfileId,
           sessionNumber: wsState.sessionNumber,
           isAdditionHelperOpen: wsState.isAdditionHelperOpen,
-        })
+        }) &&
+        // Owner, 1.10.2026 (D7): the grid opens only in an addition exercise —
+        // not in station 3's representations, not in a subtraction.
+        isAdditionExercise(selectStandardTask(wsState))
       ) {
         wsState.openAdditionHelper();
       }
@@ -115,8 +152,18 @@ export function useCognitiveHesitationRadar({
       );
       
       const wsState = useWorkspaceStore.getState();
-      const activePlace = wsState.focusedPlace || 'units';
-      const colIndex = activePlace === 'thousands' ? 3 : activePlace === 'hundreds' ? 2 : activePlace === 'tens' ? 1 : 0;
+      // The active column (PRD 12 §ב: "בטור החישוב הפעיל"): the box the child
+      // stands in, else the memory circle (meeting 8 records its conversions
+      // there), else the first unsolved column — the column the card that
+      // follows is about (cardFocusPlace). It used to be the units whenever no
+      // box was focused.
+      const activePlace = cardFocusPlace(
+        wsState,
+        selectStandardTask(wsState),
+        'hesitation_45s',
+        useBoardFocusStore.getState().focusedMemoryCircle
+      );
+      const colIndex = activePlace ? placeToColumnIndex(activePlace) : 0;
       const measuredSeconds = Math.max(
         SOCRATIC_STAGE_SECONDS,
         Math.round((Date.now() - lastActivityRef.current) / 1000)
@@ -239,6 +286,19 @@ export function useCognitiveHesitationRadar({
       }
     });
 
+    // D2 (owner, 1.10.2026): a read-aloud press, work in the addition grid,
+    // and typing or sending in the chat restart the count too
+    // (isLearnerActivityEvent). Capture phase: a control that stops the event
+    // still counts. Only those controls: a click anywhere else is still no
+    // action (Module 10 §ב — mouse movements do not reset the clock).
+    const onActivity = (event: Event) => {
+      if (!isLearnerActivityEvent(event)) return;
+      if (hesitatingPublishedRef.current) clearHesitating();
+      resetTimeout();
+    };
+    const activityEvents = ['click', 'input'] as const;
+    for (const type of activityEvents) document.addEventListener(type, onActivity, true);
+
     // Start initial timeout
     resetTimeout();
 
@@ -253,6 +313,7 @@ export function useCognitiveHesitationRadar({
         clearTimeout(radarTimeoutRef.current);
       }
       unsubscribe();
+      for (const type of activityEvents) document.removeEventListener(type, onActivity, true);
     };
   }, [isActive, resetTimeout, clearHesitating]);
 }

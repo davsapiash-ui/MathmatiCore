@@ -81,10 +81,13 @@ describe('every event names the exercise it belongs to', () => {
 
 describe('the end of a meeting', () => {
   it('a correct answer with empty memory circles is recorded as a solved exercise', () => {
-    const start = store.indexOf('if (!hasCarriesEntered) {');
-    const branch = store.slice(start, store.indexOf('return;', start));
-    expect(branch).toContain('handleSuccess(');
+    // The verdict is judged once (judgeStandardTask, 1.10.2026) and every
+    // success verdict goes through handleSuccess (PROBLEM_COMPLETE, Q-matrix).
+    const rest = store.slice(store.indexOf('if (!hasCarriesEntered) {'));
+    const branch = rest.slice(0, rest.search(/\r?\n {6}\}\r?\n/));
+    expect(branch).toContain('return success(');
     expect(branch).not.toContain('advanceStandard();');
+    expect(store).toMatch(/if \(verdict\.kind === 'success'\) \{\s*handleSuccess\(verdict\.title, verdict\.sub, verdict\.ms\);/);
   });
 
   it('the meeting is complete at 7 of 7, when the choice screen appears (PRD 14 §ב1)', () => {
