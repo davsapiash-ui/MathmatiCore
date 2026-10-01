@@ -481,10 +481,12 @@ export interface StaticCardContext {
   conversionsDone?: readonly Place[];
   /** Stations 3–7: the number house is hidden by the top-bar button (boardOpen is false). */
   boardHidden?: boolean;
-  /** A block went to the trash in this exercise (hasDeletedBlock): taking away has started. */
+  /**
+   * Subtraction: taking away has started — a block left the board after it
+   * held the first number (the store's undo history; useWorkspaceStore
+   * takingAwayStarted). Elsewhere: a block went to the trash (hasDeletedBlock).
+   */
   blocksRemoved?: boolean;
-  /** The previous card of the exercise, when the store keeps it. Read as a hint only. */
-  lastCard?: { kind?: string; answeredRight?: boolean } | null;
 }
 
 const shownIn = (ctx: StaticCardContext, kind: StaticCardKind) => (ctx.shownKinds ?? []).includes(kind);

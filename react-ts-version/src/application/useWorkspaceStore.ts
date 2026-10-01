@@ -940,8 +940,7 @@ export type StaticCardStoreState = Pick<WorkspaceState, 'placeCuesShown' | 'socr
   Partial<Pick<WorkspaceState,
     | 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped' | 'counts'
     | 'sessionNumber' | 'isASD' | 'socraticTriggerReason' | 'socraticCardPlace'
-    | 'answerDigits' | 'carryDigits' | 'operandDigits' | 'boardOpen' | 'hasDeletedBlock' | 'undoStack'
-    | 'previousSocraticCard'>>;
+    | 'answerDigits' | 'carryDigits' | 'operandDigits' | 'boardOpen' | 'hasDeletedBlock' | 'undoStack'>>;
 
 /**
  * Subtraction with blocks: taking away has started — a block left the board
@@ -966,12 +965,11 @@ function takingAwayStarted(s: StaticCardStoreState, a: number): boolean {
 
 /**
  * What the static card chooser needs beyond the board, for the exercise
- * `taskId` (1.10.2026, audit D1 — every field the cards read, from the store):
+ * `taskId` (2.10.2026, audit D1 — every field the cards read, from the store):
  * the cards already shown, how far a break or grouping has gone, the trigger
  * and the column of the card, the digits typed (result row, memory circles,
  * hidden operand digits), the conversions done per column, whether the
- * number house is hidden, whether taking away has started, and the previous
- * card. `opening` is the trigger and the column of a card that is opening
+ * number house is hidden, and whether taking away has started. `opening` is the trigger and the column of a card that is opening
  * now: socraticCardRefusal and openSocraticCard compute the card before the
  * store records them (socraticTriggerReason, socraticCardPlace).
  */
@@ -1025,10 +1023,8 @@ export function staticCardContextFor(
       ? takingAwayStarted(s, effectiveArithmetic(task, s.isASD === true).a)
       : s.hasDeletedBlock === true;
   }
-  const prev = s.previousSocraticCard;
-  if (prev && prev.taskId === taskId) {
-    out.lastCard = { ...(prev.kind ? { kind: prev.kind } : {}), ...(prev.answeredCorrect !== null ? { answeredRight: prev.answeredCorrect } : {}) };
-  }
+  // No previous card here (audit D18): the levels follow the kinds already
+  // shown, and the card identity is the store's (socraticCardRefusal).
   return out;
 }
 
