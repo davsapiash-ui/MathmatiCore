@@ -476,9 +476,12 @@ export const SESSION6_GREEN_TASKS: SessionTask[] = [
   subtraction('s6_g_t5', 6020, 1485, 'פריטה משולשת עם אפסים שאינם רציפים', S6_SUB('6,020 − 1,485', 6020, 1485), ZERO),
   subtraction('s6_g_t6', 7003, 2845, 'פריטה משולשת עם ספרת יחידות שאינה אפס', S6_SUB('7,003 − 2,845', 7003, 2845), ZERO),
   // ★ chosen: מסמך 03 names the task ("השלמת ספרות חסרות בשורת המחוסר") without numbers.
+  // Owner, 1.10.2026 (D12): a hidden minuend is found by adding back — the
+  // instruction no longer sends the child to "the break"; it says what the
+  // station's other skeletons say ("בעזרת הלבנים").
   skeleton('s6_g_t7', 6005, 2847, true, { a: ['tens', 'units'] },
     'משימת חקר של השלמת ספרות חסרות בתחום הרבבה',
-    'בשורת המחוסר חסרות שתי ספרות: 6,0▢▢ − 2,847 = 3,158. גלו אותן בעזרת הפריטה בלבנים וכתבו אותן בתיבות הריקות. רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול פעולה ↺.',
+    'בשורת המחוסר חסרות שתי ספרות: 6,0▢▢ − 2,847 = 3,158. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות. רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול הפעולה ↺.',
     ZERO),
 ];
 
@@ -507,10 +510,10 @@ export const SESSION7_REMEDIATION_TASKS: SessionTask[] = [
     'ספרה חסרה בחיבור עם המרה',
     'בתרגיל 3▢6 + 271 = 657 חסרה ספרת העשרות של המחובר הראשון. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
     INQUIRY),
-  // ★ chosen.
+  // ★ chosen. Owner, 1.10.2026 (D12): "בעזרת הלבנים", not "בעזרת הפריטה" (see s6_g_t7).
   skeleton('s7_r_t4', 542, 178, true, { a: ['tens', 'units'] },
     'שתי ספרות חסרות בחיסור עם פריטה',
-    'בתרגיל 5▢▢ − 178 = 364 חסרות ספרת היחידות וספרת העשרות של המחוסר. גלו אותן בעזרת הפריטה בלבנים וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 5▢▢ − 178 = 364 חסרות ספרת היחידות וספרת העשרות של המחוסר. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
     INQUIRY),
   // ★ chosen: the imaginary learner's error is the one מסמך 03 describes (a forgotten memory-circle carry).
   addition('s7_r_t5', 247, 135,
@@ -538,10 +541,10 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
     'שתי ספרות חסרות בחיבור עם המרה כפולה',
     'בתרגיל 2,▢3▢ + 1,554 = 4,191 חסרות שתי ספרות של המחובר הראשון, בטורים שונים. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
     INQUIRY),
-  // ★ chosen.
+  // ★ chosen. Owner, 1.10.2026 (D12): "בעזרת הלבנים", not "בעזרת הפריטה" (see s6_g_t7).
   skeleton('s7_g_t3', 5006, 2847, true, { a: ['hundreds', 'tens', 'units'] },
     'שלוש ספרות חסרות בחיסור עם פריטה משולשת',
-    'בתרגיל 5,▢▢▢ − 2,847 = 2,159 חסרות שלוש ספרות של המחוסר. גלו את הספרות בעזרת הפריטה בלבנים וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 5,▢▢▢ − 2,847 = 2,159 חסרות שלוש ספרות של המחוסר. גלו את הספרות בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
     INQUIRY),
   // ★ chosen: the imaginary learner's error is the one מסמך 03 describes: the carry from the hundreds into the
   // thousands was forgotten (7,425 instead of 8,425). The screen no longer states it (owner, 30.9.2026).

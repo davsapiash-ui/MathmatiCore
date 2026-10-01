@@ -96,8 +96,12 @@ describe('הטקסט מבטיח את מספר ההמרות שהתרגיל באמ
       ])
     ).filter((t) => t.type === 'vertical_addition');
 
+    // A hidden MINUEND is found by adding back (a grouping), not by the break
+    // the exercise's own subtraction needs: its instruction names no operation
+    // and leaves it to the child — "גלו אותן בעזרת הלבנים" (owner, 1.10.2026, D12).
+    const hiddenMinuend = (t: SessionTask) => Boolean(t.isSubtraction && t.hiddenDigits?.a?.length);
     const offenders = guided
-      .filter((t) => regroupCount(t) > 0)
+      .filter((t) => regroupCount(t) > 0 && !hiddenMinuend(t))
       .filter((t) => !/פרקו|פרטו|לפרוט|פרטתם|הקבצ|פריט|המרה|המרות/.test(text(t)))
       .map((t) => t.id);
     expect(offenders).toEqual([]);

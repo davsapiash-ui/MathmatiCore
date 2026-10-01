@@ -27,6 +27,14 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
  * "פתרון מוכן".
  */
 
+/**
+ * The beat's second line: what comes next, addressed to the children (owner,
+ * 1.10.2026, D11a). It said "מכין רמז מותאם אישית..." — masculine singular,
+ * a voice the screens do not use, and a "hint" the card is not: the card asks
+ * one question with three options.
+ */
+const FRICTION_NEXT_HE = 'עוד רגע תופיע שאלה שתעזור לכם.';
+
 export function HelpOverlays() {
   const helpState = useWorkspaceStore((s) => s.helpState);
   const helpFrictionDone = useWorkspaceStore((s) => s.helpFrictionDone);
@@ -40,7 +48,7 @@ export function HelpOverlays() {
 
   return (
     <>
-      {/* 3s friction overlay */}
+      {/* The 300 ms "נסו לחשוב…" beat before the card */}
       <AnimatePresence>
         {helpState === 'friction' && (
           <motion.div
@@ -64,7 +72,7 @@ export function HelpOverlays() {
               🤔
             </motion.span>
             <p className="font-display font-extrabold text-2xl text-white">נסו לחשוב…</p>
-            <p className="text-white/80 font-medium">מכין רמז מותאם אישית...</p>
+            <p className="text-white/80 font-medium">{FRICTION_NEXT_HE}</p>
           </motion.div>
         )}
       </AnimatePresence>

@@ -68,13 +68,15 @@ import {
 import { useAuthStore } from '@/application/useAuthStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
-import { SocraticSidePanel } from '@/features/workspace/overlays/HelpOverlays';
+import { SocraticSidePanel, HelpOverlays } from '@/features/workspace/overlays/HelpOverlays';
+import { session1Checklist } from '@/core/session1Checklist';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { EMPTY_COUNTS, type Place, type PlaceCounts } from '@/core/placeValue';
 
 const ws = () => useWorkspaceStore.getState();
 const flush = () => vi.advanceTimersByTimeAsync(0);
+const stripNiqqud = (t: string) => t.replace(/[֑-ׇ]/g, '');
 const ofType = (t: string) => emitted.filter((e) => e.event_type === t);
 const cardOpen = () => ws().helpState === 'socratic';
 
@@ -537,7 +539,13 @@ describe('item 5 — only inside an exercise in progress', () => {
     const verdict = judgeStandardTask(ws(), t);
     expect(verdict.kind).toBe('success');
     expect(verdict.sub).toBe(MEETING8_SOLVED_SUB_HE);
-    expect(verdict.sub).not.toContain('בֵּית');
+    expect(stripNiqqud(verdict.sub)).toBe('פתרתם נכון.');
+    // The other stations keep theirs.
+    load(4, T4());
+    boardOf(1573);
+    typeRow('1573');
+    ws().setCarryDigit('tens', '1');
+    expect(stripNiqqud(judgeStandardTask(ws(), T4()).sub)).toContain('בבית המספרים');
   });
 
   it('…nor onto the choice screen, nor through "סיום המפגש כעת"', async () => {
@@ -753,6 +761,33 @@ describe('D3 — while the call to the teacher is open, no hesitation card', () 
     ws().setAnswerDigit('units', '4');
     await flush();
     expect(ws().socraticTriggerReason).toBe('conversion_not_performed');
+  });
+});
+
+describe('the child texts of this round (D11a, D11c, D12)', () => {
+  it('the beat before the card says what comes next, addressed to the children', () => {
+    render(React.createElement(HelpOverlays, null));
+    load(4, T4());
+    act(() => { useWorkspaceStore.setState({ helpState: 'friction' }); });
+    expect(document.body.textContent).toContain('נסו לחשוב…');
+    expect(document.body.textContent).toContain('עוד רגע תופיע שאלה שתעזור לכם.');
+    expect(document.body.textContent).not.toContain('מכין רמז');
+  });
+
+  it('a hidden minuend is found "בעזרת הלבנים", not by "the break" (s6_g_t7, s7_r_t4, s7_g_t3)', () => {
+    for (const id of ['s6_g_t7', 's7_r_t4', 's7_g_t3']) {
+      const text = byId(id).instructionHe;
+      expect(text, id).toContain('בעזרת הלבנים וכתבו אותן בתיבות הריקות.');
+      expect(text, id).not.toContain('הפריטה');
+    }
+  });
+
+  it('the undo button has one name in every child text: "כפתור ביטול הפעולה"', () => {
+    const texts = allTasks().map((t) => t.instructionHe);
+    expect(texts.some((t) => t.includes('כפתור ביטול הפעולה'))).toBe(true);
+    for (const t of texts) expect(t).not.toMatch(/כפתור ביטול פעולה/);
+    expect(JSON.stringify(session1Checklist('s1_undo_trash', { counts: EMPTY_COUNTS, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false })))
+      .toContain('לחצו על כפתור ביטול הפעולה ↺');
   });
 });
 

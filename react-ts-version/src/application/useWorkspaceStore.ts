@@ -1935,7 +1935,7 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
  * Meeting 8's praise for a solved exercise (owner, 1.10.2026, D11b): the
  * station has no number house, so the praise speaks of the solution only.
  */
-export const MEETING8_SOLVED_SUB_HE = 'פְּתַרְתֶּם נָכוֹן!';
+export const MEETING8_SOLVED_SUB_HE = 'פְּתַרְתֶּם נָכוֹן.';
 
 /**
  * How long a wrong choice in the Socratic card locks the card's answer buttons.
