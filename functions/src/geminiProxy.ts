@@ -99,6 +99,15 @@ export const SOCRATIC_AI_TIMEOUT_MS = 4500;
 /** Total budget for both attempts; a retry only starts if it can finish inside this. */
 export const SOCRATIC_TOTAL_BUDGET_MS = 7500;
 const MIN_RETRY_WINDOW_MS = 2000;
+/**
+ * A corrected retry stays on the primary model only with this much budget
+ * left: it answered in about 2.3 s (p90 under 3 s) on the audit cases, the
+ * fallback in about 2.0 s. A rule rejection that comes late — after a slow
+ * first answer — leaves less, and the corrected card then goes to the faster
+ * fallback model rather than run into the learner's timeout (review of
+ * 1.10.2026).
+ */
+export const CORRECTED_RETRY_ON_PRIMARY_MIN_MS = 3500;
 /** A short card in the classroom's vocabulary: little room for invention. */
 const SOCRATIC_TEMPERATURE = 0.2;
 
@@ -158,9 +167,10 @@ const TRY_AGAIN_CORRECTED: AiOutcome[] = ["schema_reject", "answer_leak", "forbi
  * Runs the model once and, when there is still room inside the learner's
  * timeout, once more: on the fallback model when the first try was
  * overloaded (503), too slow, over quota or misconfigured (a retired model id
- * is exactly how every card failed until 1.10.2026); on the same model with
- * the rejection reason appended when its card broke a rule. An auth failure
- * is never retried: the key is the same for both models.
+ * is exactly how every card failed until 1.10.2026); with the rejection
+ * reason appended when its card broke a rule — on the same model, or on the
+ * faster fallback when less than CORRECTED_RETRY_ON_PRIMARY_MIN_MS is left.
+ * An auth failure is never retried: the key is the same for both models.
  */
 export async function generateWithRetry(prompt: string, facts: SocraticFacts | null): Promise<Attempt & { attempts: number; first_outcome?: AiOutcome }> {
   const started = Date.now();
@@ -172,7 +182,8 @@ export async function generateWithRetry(prompt: string, facts: SocraticFacts | n
 
   if (TRY_AGAIN_CORRECTED.includes(first.outcome)) {
     const correction = `${prompt}\n\nYOUR PREVIOUS ANSWER WAS REJECTED: ${first.detail}. Fix exactly that and return the JSON again.`;
-    const second = await generateOnce(correction, facts, remaining, SOCRATIC_PRIMARY_MODEL);
+    const model = remaining >= CORRECTED_RETRY_ON_PRIMARY_MIN_MS ? SOCRATIC_PRIMARY_MODEL : SOCRATIC_FALLBACK_MODEL;
+    const second = await generateOnce(correction, facts, remaining, model);
     return { ...second, attempts: 2, first_outcome: first.outcome };
   }
   if (TRY_THE_OTHER_MODEL.includes(first.outcome)) {

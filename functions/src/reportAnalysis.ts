@@ -129,11 +129,26 @@ export const REPORT_THINKING: GeminiThinking = "low";
  * sentence. Professional Hebrew for a teacher — the children's second person
  * plural does not apply here.
  */
-const REPORT_TERM_RE = /(^|[^א-ת])[ובלמהשכ]{0,3}(שארית|נשיאה|נושאים|הלוואה|לווים|ללוות|שבירה|לשבור|שוברים)(?![א-ת])/;
+/**
+ * The terms the Ministry does not use — as the TERMS, never a word that only
+ * looks like one (review of 1.10.2026: "מומלץ ללוות את הלומד" accompanies,
+ * "בנושאים של ערך המקום" are topics, "הסברים מלווים בהדגמה" are accompanied —
+ * all three were dropped from real reports).
+ *  - Words that are always the wrong term, with any prefix: שארית, נשיאה,
+ *    הלוואה, שבירה, לשבור, שוברים.
+ *  - Words that are also ordinary Hebrew ("ללוות" accompanies, "נושאים" are
+ *    topics): only as borrowing or carrying, that is, when what follows is a
+ *    block, a ten, a 1 or a column — "ללוות עשרת", "לווים מטור העשרות",
+ *    "נושאים את ה-1 לטור הבא". With "ו" as their only prefix: "מלווים"
+ *    accompany, "שלווה" is calm.
+ */
+const REPORT_TERM_ALWAYS = /(^|[^א-ת])[ובלמהשכ]{0,3}(שארית|שאריות|נשיאה|נשיאת|הלוואה|הלוואת|הלוואות|שבירה|שבירת|לשבור|שוברים)(?![א-ת])/;
+const BORROWED_OR_CARRIED = "(?:את\\s+)?(?:ה-?)?(?:עשרת|מאה|אלף|יחידה|1|מ(?:ה)?טור|לטור)(?![\\dא-ת])";
+const REPORT_TERM_IN_CONTEXT = new RegExp(`(^|[^א-ת])ו?(ללוות|לווים|לווה|לוותה|לוו|נושאים|נושא|נושאת|לשאת|נשא|נשאה|נשאו)\\s+${BORROWED_OR_CARRIED}`);
 export function reportTextViolation(items: string[]): string | null {
   for (const t of items) {
     if (/[A-Za-z]/.test(t)) return "the analysis must be in Hebrew only: no English words, no Latin letters and no exercise ids (name an exercise by its numbers)";
-    const term = REPORT_TERM_RE.exec(t);
+    const term = REPORT_TERM_ALWAYS.exec(t) ?? REPORT_TERM_IN_CONTEXT.exec(t);
     if (term) return `"${term[2]}" is not the Ministry's term: write הקבצה or המרה in addition and פריטה in subtraction`;
   }
   return null;
@@ -144,6 +159,35 @@ export function keepHebrewLines<T extends Record<string, string[]>>(arrays: T): 
   const out = {} as T;
   for (const [k, v] of Object.entries(arrays)) (out as Record<string, string[]>)[k] = v.filter((t) => reportTextViolation([t]) === null);
   return out;
+}
+
+/**
+ * The model answered in the right shape with nothing in it: both arrays
+ * present and without one written line. That is a learner with nothing to
+ * report, not a malformed answer — it is counted as "empty", never as
+ * "schema_reject" (review of 1.10.2026). The report still carries the PRD's
+ * fallback sentence.
+ */
+export function isEmptyAnalysis(text: string | null, keys: readonly [string, string]): boolean {
+  if (!text) return false;
+  try {
+    const p = JSON.parse(text) as Record<string, unknown>;
+    return keys.every((k) => Array.isArray(p?.[k]) && (p[k] as unknown[]).every((x) => typeof x !== "string" || !x.trim()));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The monitoring outcome of a report's analysis: "ok" with what is left, or
+ * why nothing is — every line broke the Hebrew-only rule (language_reject),
+ * the model had nothing to report (empty), or the answer was malformed.
+ */
+export function reportAnalysisOutcome(kept: boolean, linesDropped: boolean, lastText: string | null, keys: readonly [string, string]): { outcome: AiOutcome; detail?: string } {
+  if (kept) return { outcome: "ok", ...(linesDropped ? { detail: "lines dropped: not Hebrew-only" } : {}) };
+  if (linesDropped) return { outcome: "language_reject", detail: "every line broke the Hebrew-only rule" };
+  if (isEmptyAnalysis(lastText, keys)) return { outcome: "empty", detail: "the model found nothing to report" };
+  return { outcome: "schema_reject", detail: "missing or malformed arrays" };
 }
 
 /** A second try starts only if it can still finish inside the report's budget. */
@@ -497,7 +541,8 @@ ${closing}`;
     }
 
     let parsed = parseAnalysisResponse(text, req.session_id);
-    let violation = parsed ? reportTextViolation([...parsed.knowledge_gaps, ...parsed.teaching_recommendations]) : null;
+    let lastText: string | null = text;
+    const violation = parsed ? reportTextViolation([...parsed.knowledge_gaps, ...parsed.teaching_recommendations]) : null;
     const remaining = AI_ANALYSIS_TIMEOUT_MS - (Date.now() - started);
     if (violation && remaining >= REPORT_RETRY_MIN_MS) {
       let retryTimer: NodeJS.Timeout | undefined;
@@ -516,16 +561,19 @@ ${closing}`;
       const retryText = await Promise.race([retry, retryTimeout]);
       if (retryTimer) clearTimeout(retryTimer);
       const second = retryText ? parseAnalysisResponse(retryText, req.session_id) : null;
-      if (second) parsed = second;
+      if (second) {
+        parsed = second;
+        lastText = retryText;
+      }
     }
+    let linesDropped = false;
     if (parsed) {
       const kept = keepHebrewLines({ knowledge_gaps: parsed.knowledge_gaps, teaching_recommendations: parsed.teaching_recommendations });
-      violation = kept.knowledge_gaps.length + kept.teaching_recommendations.length < parsed.knowledge_gaps.length + parsed.teaching_recommendations.length
-        ? "lines dropped: not Hebrew-only"
-        : null;
+      linesDropped = kept.knowledge_gaps.length + kept.teaching_recommendations.length < parsed.knowledge_gaps.length + parsed.teaching_recommendations.length;
       parsed = kept.knowledge_gaps.length || kept.teaching_recommendations.length ? kept : null;
     }
-    monitor(parsed ? "ok" : "schema_reject", parsed ? violation ?? undefined : "missing, empty or not Hebrew");
+    const result = reportAnalysisOutcome(parsed !== null, linesDropped, lastText, ["knowledge_gaps", "teaching_recommendations"]);
+    monitor(result.outcome, result.detail);
     return parsed;
   } catch (err) {
     logger.warn("[reportAnalysis] Gemini analysis unavailable; report ships with layer 1 only.", {

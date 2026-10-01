@@ -20,6 +20,13 @@
 const HE_WORD = (w: string) => new RegExp(`(^|[^א-ת])[ובלמהשכ]{0,4}(${w})(?![א-ת])`);
 /** A Hebrew word on its own, no prefix allowed (a verb form). */
 const HE_EXACT = (w: string) => new RegExp(`(^|[^א-ת])(${w})(?![א-ת])`);
+/**
+ * A verb form on its own or after the prefixes a verb takes: "ו", "ש", "כש",
+ * "וכש" ("ונבדוק", "כשנגיע", "כשתבדוק"). The longer prefixes come first.
+ */
+const HE_VERB = (w: string, prefixes = "וכש|כש|ו|ש") => new RegExp(`(^|[^א-ת])(?:${prefixes})?(${w})(?![א-ת])`);
+/** Where a clause starts: the text's start, or after a sentence mark, a comma, a quote or a bracket. */
+const CLAUSE_START = '(?:^|[.!?:;,"“”(\\n])\\s*';
 
 export interface LanguageRule {
   /** Short id for the monitoring detail and the retry instruction. */
@@ -35,12 +42,13 @@ export interface LanguageRule {
  * the impersonal present (owner, 28.9.2026).
  */
 // Only forms that cannot be read another way: "נמצא" (is located), "נראה"
-// (seems), "נקרא" (is called), "נלמד", "נבחר" and "נשים" are left out — a
-// card may say "הטור שנמצא מימין" or "הטור נראה ריק".
+// (seems), "נקרא" (is called), "נלמד", "נבחר", "נשים" and "נבנה" (is built:
+// "איזה מספר נבנה בבית המספרים?") are left out — a card may say "הטור שנמצא
+// מימין" or "הטור נראה ריק". "נבנה את…" is still caught by the object rule.
 export const FIRST_PERSON_PLURAL_VERBS = [
-  "בואו", "נבדוק", "נעשה", "נחשוב", "נבנה", "נפרוט", "נקבץ", "נחבר", "נחסר", "נחסיר", "נכתוב", "נרשום",
+  "בואו", "נבדוק", "נעשה", "נחשוב", "נפרוט", "נקבץ", "נחבר", "נחסר", "נחסיר", "נכתוב", "נרשום",
   "נעבור", "נתחיל", "נוסיף", "נוציא", "נמחק", "נלחץ", "נספור", "נסתכל", "נמיר", "נשתמש",
-  "נזרוק", "נשאיר", "נעביר", "נגרור", "נפרק", "נוכל", "נצטרך",
+  "נזרוק", "נשאיר", "נעביר", "נגרור", "נפרק", "נוכל", "נצטרך", "נגיע", "נסיים", "נגמור", "נגלה",
   "נסדר", "נשווה", "נקבל", "נחליף", "נסיר", "נזכור", "ננסה", "נבין", "נדע", "נמשיך", "נחזור", "נדלג", "נלך",
   "אנו", "אנחנו", "נצליח",
   // The past tense and the pronouns of the first person plural ("כמה פעמים פרטנו", "האם חיסרנו").
@@ -48,12 +56,75 @@ export const FIRST_PERSON_PLURAL_VERBS = [
   "ספרנו", "חיברנו", "חיסרנו", "קיבלנו", "מצאנו", "ראינו", "ביטלנו", "השתמשנו", "בדקנו", "המרנו", "זרקנו", "העברנו",
   "שלנו", "לנו", "אותנו", "איתנו",
 ];
+/**
+ * The forms above that a prefix turns into another word: "שנעשה" (that was
+ * done) and "שנמחק" (that was deleted) are nif'al. Every other form is also
+ * caught after "ו", "ש", "כש" ("ונבדוק", "כשנגיע").
+ */
+const FIRST_PERSON_PLURAL_UNPREFIXED_ONLY = ["נעשה", "נמחק"];
+
+/**
+ * The second person SINGULAR, masculine or feminine (owner, 28.9.2026: the
+ * children are addressed in the second person plural only — "בדקו", "נסו",
+ * "לחצו", "שימו לב"). Only forms that cannot be read another way: "בנה",
+ * "מחק", "בחר", "הסתכל" are also the past tense ("התלמיד בחר"); "פרטי",
+ * "ספרי", "רשמי", "חברי", "השווי" are nouns or adjectives; "תעבור", "תחזור",
+ * "תוסיף", "תמחק", "תראה", "תחסר" are also the third person feminine ("העשרת
+ * תעבור לטור העשרות", "איך תראה התוצאה?"). "כתוב", "רשום", "חשוב" and "לחץ"
+ * are checked in context below ("מה כתוב בהנחיה?", "חשוב לבדוק").
+ */
+export const SECOND_PERSON_SINGULAR_FORMS = [
+  // Masculine imperative.
+  "שים", "נסה", "בדוק", "גרור", "קבץ", "פרוט", "הוסף", "הוצא", "ספור", "זכור", "התחל", "זרוק", "הקלד", "קח", "תן", "היזכר",
+  // Feminine imperative.
+  "שימי", "נסי", "לחצי", "בדקי", "כתבי", "גררי", "חשבי", "קבצי", "הוסיפי", "הוציאי", "מחקי", "הסתכלי", "בחרי",
+  "קראי", "התחילי", "המשיכי", "חזרי", "זרקי", "העבירי", "מצאי", "שאלי", "הקלידי",
+  // Future, masculine (only verbs a block or a number does not do) and feminine.
+  "תבדוק", "תנסה", "תלחץ", "תכתוב", "תגרור", "תחשוב", "תקבץ", "תפרוט", "תספור", "תסתכל", "תזכור", "תרשום",
+  "תבחר", "תשים", "תתחיל", "תמשיך", "תזרוק", "תעביר", "תוכל", "תצטרך", "תחבר", "תחסיר", "תגלה", "תדע", "תקליד",
+  "תבדקי", "תנסי", "תלחצי", "תכתבי", "תגררי", "תחשבי", "תבני", "תקבצי", "תפרטי", "תוסיפי", "תוציאי", "תמחקי",
+  "תספרי", "תסתכלי", "תזכרי", "תרשמי", "תבחרי", "תשימי", "תתחילי", "תמשיכי", "תחזרי", "תזרקי", "תעבירי",
+  "תמצאי", "תוכלי", "תצטרכי", "תחברי", "תחסירי", "תראי", "תגלי", "תדעי", "תקלידי",
+  // Pronouns of the second person singular.
+  "אתה", "שלך", "לך", "אותך", "עליך", "ממך", "איתך", "בשבילך",
+];
+/** The imperatives that are also a participle, an adjective or a noun — singular only in context. */
+const SECOND_PERSON_SINGULAR_IN_CONTEXT = new RegExp(
+  [
+    // "כתוב / רשום" opening a clause ("כתוב בתיבה…") or with an object ("כתוב את…") — not "מה כתוב בהנחיה?", "מה רשום בעיגול הזיכרון?".
+    `(?:${CLAUSE_START}|(?:^|[^א-ת])ו)(?:כתוב|רשום)(?![א-ת])(?!\\s+(?:ב(?:הנחיה|תרגיל|מסך|כרטיס)|ש))`,
+    "(?:^|[^א-ת])ו?(?:כתוב|רשום)\\s+את(?![א-ת])",
+    // "חשוב" asking to think ("חשוב רגע", "חשוב מה…") — not the adjective ("חשוב לבדוק").
+    `(?:${CLAUSE_START}|(?:^|[^א-ת])ו)חשוב(?=\\s*(?:על|מה|איך|כמה|רגע|היטב|טוב|שוב|באיזה|למה|מתי|[:?!,.]|$))`,
+    // "לחץ על…" — not the noun.
+    "(?:^|[^א-ת])ו?לחץ(?=\\s+(?:על|שוב|כאן|פעם))",
+  ].join("|")
+);
+
+const FIRST_PERSON_PLURAL_FIX = 'Never use the first person plural ("נבדוק", "נמחק", "בואו", "אנו", "כשנגיע"). Address the children in the second person plural imperative ("בדקו", "לחצו") and write the options in the impersonal present ("בודקים", "לוחצים").';
+const SECOND_PERSON_SINGULAR_FIX = 'Never address the child in the second person SINGULAR, masculine or feminine ("שים לב", "נסה", "בדוק", "לחץ על", "תבדוק", "בדקי", "שימי", "שלך"). Only the second person plural: "שימו לב", "נסו", "בדקו", "לחצו על", "שלכם".';
 
 export const LANGUAGE_RULES: LanguageRule[] = [
   // A future-tense verb in נ… with a direct object ("כשנקרא את הספרות"): a
-  // nif'al verb takes no "את", so "נ…" + "את" is the first person plural.
-  { id: "first_person_plural_object", re: /(^|[^א-ת])(?:כש|ש|ו|וכש)?נ(?!ותן|ותנת|ותנים|שאר|שארת|שארים|כנס|כנסת|כנסים|וסף|וספת|וספים)[א-ת]{2,4}\s+את(?![א-ת])/, fix: 'Never use the first person plural ("כשנקרא את…", "נבנה את…"): use the impersonal present ("כשקוראים את…") or the second person plural ("קראו את…").' },
-  { id: "first_person_plural", re: HE_EXACT(FIRST_PERSON_PLURAL_VERBS.join("|")), fix: 'Never use the first person plural ("נבדוק", "נמחק", "בואו", "אנו"). Address the children in the second person plural imperative ("בדקו", "לחצו") and write the options in the impersonal present ("בודקים", "לוחצים").' },
+  // nif'al verb takes no "את", so "נ…" + "את" is the first person plural. A
+  // word that ends in "ו" is the second person plural ("נסו את הכפתור").
+  { id: "first_person_plural_object", re: /(^|[^א-ת])(?:וכש|כש|ו|ש)?נ(?!ותן|ותנת|ותנים|שאר|שארת|שארים|כנס|כנסת|כנסים|וסף|וספת|וספים)[א-ת]{2,4}(?<!ו)\s+את(?![א-ת])/, fix: 'Never use the first person plural ("כשנקרא את…", "נבנה את…"): use the impersonal present ("כשקוראים את…") or the second person plural ("קראו את…").' },
+  { id: "first_person_plural", re: HE_EXACT(FIRST_PERSON_PLURAL_VERBS.join("|")), fix: FIRST_PERSON_PLURAL_FIX },
+  {
+    id: "first_person_plural_prefixed",
+    re: new RegExp(`(^|[^א-ת])(?:וכש|כש|ו|ש)(${FIRST_PERSON_PLURAL_VERBS.filter((v) => !FIRST_PERSON_PLURAL_UNPREFIXED_ONLY.includes(v) && v.startsWith("נ")).join("|")})(?![א-ת])`),
+    fix: FIRST_PERSON_PLURAL_FIX,
+  },
+  {
+    id: "second_person_singular",
+    // A future takes "ש" / "כש" ("כשתבדוק"); an imperative or a pronoun only "ו" ("ושים לב") — "ששים" is sixty.
+    re: new RegExp([
+      HE_VERB(SECOND_PERSON_SINGULAR_FORMS.filter((w) => w.startsWith("ת") && w.length > 2).join("|")).source,
+      HE_VERB(SECOND_PERSON_SINGULAR_FORMS.filter((w) => !(w.startsWith("ת") && w.length > 2)).join("|"), "ו").source,
+      SECOND_PERSON_SINGULAR_IN_CONTEXT.source,
+    ].join("|")),
+    fix: SECOND_PERSON_SINGULAR_FIX,
+  },
   { id: "not_a_form_kabetz", re: HE_WORD("הקבצו|הקביצו|יקביצו|מקביצים"), fix: 'The verb is פיעל only: "קבצו" (imperative), "מקבצים" (option). "הקבצו" / "הקביצו" are not Hebrew forms.' },
   // "לבנות" alone is also the verb "to build" ("לבנות את המספר"), so only the
   // forms that cannot be the verb are refused: with the article, or with an
@@ -67,7 +138,10 @@ export const LANGUAGE_RULES: LanguageRule[] = [
   // column after naming what the block is broken into is right (the owner's
   // s5 card: "פורטים עשרת אחת לעשר יחידות בודדות ומעבירים אותן לטור היחידות"),
   // so the span may not cross "ל-10 / לעשר" or a second verb.
-  { id: "break_into_column", re: /(פורטים|פרטו|לפרוט|פורטות|פרטתם|נפרטת|נפרטה)((?!ל-?10|לעשר|ומעביר|ומוסיפ|ועובר|וגורר|ומכניס|עד )[^.?!,:]){0,30}?\s(לטור|אל טור|אל הטור)/, fix: 'One breaks a block INTO smaller blocks, never "into a column": "פורטים עשרת אחת לעשר יחידות", "פורטים מאה אחת לעשר עשרות" — not "פורטים … לטור היחידות".' },
+  // A second verb joined by "ו" ("פרטו עשרת אחת וגררו את היחידות לטור
+  // היחידות") ends the span too: the column is then where the blocks are
+  // dragged, not what the block is broken into.
+  { id: "break_into_column", re: /(פורטים|פרטו|לפרוט|פורטות|פרטתם|נפרטת|נפרטה)((?!ל-?10|לעשר|ומעביר|ומוסיפ|ועובר|וגורר|ומכניס|עד |\sו[א-ת]{2,}(?:ו|ים|ות)(?![א-ת]))[^.?!,:]){0,30}?\s(לטור|אל טור|אל הטור)/, fix: 'One breaks a block INTO smaller blocks, never "into a column": "פורטים עשרת אחת לעשר יחידות", "פורטים מאה אחת לעשר עשרות" — not "פורטים … לטור היחידות".' },
   { id: "gender_slash", re: /[א-ת]\/(ות|ים|ה|י|ן)(?![א-ת])|[א-ת]\.(נשים|ות)(?![א-ת])/, fix: "Gender-equal writing is the second person plural only, never slash or dot forms." },
   { id: "filler_or_formal", re: /למעשה|חשוב לציין|ראוי לציין|במידה ש|(^|[^א-ת])בכדי(?![א-ת])|יש לבצע|(^|[^א-ת])אנו(?![א-ת])/, fix: 'No filler and no formal register: "אם" not "במידה ש", "כדי" not "בכדי", a verb ("פרטו") not "יש לבצע פריטה".' },
   // "▢" stays allowed: it is how the screen writes a skeleton's hidden digit ("3▢6 + 271"), and the narration reads it as "ספרה חסרה".
@@ -85,14 +159,29 @@ export interface CardFormCheck {
 }
 
 /**
- * The form every card must have: the guiding question ends with "?", the
- * correct option's feedback opens with "נכון מאוד!", every wrong option's
- * feedback opens with "רמז:" and is ONE guiding question ending with "?".
- * Returns a reason, or null.
+ * An opening that invites thinking ("חשבו רגע:", "בואו נחשוב:", "תחשבו:"):
+ * the owner's is "נסו לחשוב:" and only it (30.9.2026). The opening itself is
+ * optional — the register's own first card of station 5 has none ("לפני
+ * שמוציאים לבנים, מה בודקים בכל טור?") — so a card without one passes.
+ */
+const THINK_OPENING = /^([^:?.!]{1,24}):/;
+
+/**
+ * The form every card must have: the guiding question is a DIRECT question
+ * ending with "?" and, if it opens with an invitation to think, the opening
+ * is "נסו לחשוב:"; the correct option's feedback opens with "נכון מאוד!";
+ * every wrong option's feedback opens with "רמז:" and is ONE direct guiding
+ * question ending with "?". An indirect question ("בדקו אם…") ends with a
+ * period and belongs inside the correct option's feedback only. Returns a
+ * reason, or null.
  */
 export function cardFormViolation(card: CardFormCheck): string | null {
   const q = card.guiding_question.trim();
-  if (!q.endsWith("?")) return "form: the guiding question must end with \"?\"";
+  if (!q.endsWith("?")) return "form: the guiding question must be a direct question ending with \"?\"";
+  const opening = THINK_OPENING.exec(q);
+  if (opening && /חשב|חשוב/.test(opening[1]) && opening[1].trim() !== CARD_OPENING.slice(0, -1)) {
+    return `form: the only opening that invites thinking is "${CARD_OPENING}" (not "${opening[1].trim()}:")`;
+  }
   for (const o of card.options) {
     const f = o.feedback_text.trim();
     if (o.is_correct) {
@@ -139,16 +228,22 @@ export function socraticLanguageSpec(blocks: boolean): string {
 ✗ "כמה ספרות אפשר לרשום בכל משבצת בבית המספרים?" ✓ "כמה ספרות כותבים בכל תיבה בשורת התוצאה?"
 ✗ "והקביצו אותן" ✓ "קבצו אותן"
 ✗ "הלבנות העודפות" ✓ "הלבנים המיותרות"
-✗ "גררו לבנים ממאגר הלבנים" ✓ "גררו לבנים מארגז הכלים"`
+✗ "גררו לבנים ממאגר הלבנים" ✓ "גררו לבנים מארגז הכלים"
+✗ "שים לב לטור העשרות" ✓ "שימו לב לטור העשרות"
+✗ "בדקי כמה לבנים יש בטור" ✓ "בדקו כמה לבנים יש בטור"
+✗ "כשנגיע לטור המאות, ונבדוק" ✓ "כשמגיעים לטור המאות, בודקים"
+✓ "איזה מספר נבנה בבית המספרים?" ✓ "מה כתוב בהנחיה?" ✓ "נסו את הכפתור קבצו 10"`
     : `✗ "כשפורטים עשרת אחת לטור היחידות" ✓ "פורטים עשרת אחת לעשר יחידות, ורושמים בעיגול הזיכרון"
 ✗ "מה נעשה עכשיו?" ✓ "מה עושים עכשיו?"
-✗ "כמה ספרות אפשר לרשום בכל משבצת?" ✓ "כמה ספרות כותבים בכל תיבה בשורת התוצאה?"`;
+✗ "כמה ספרות אפשר לרשום בכל משבצת?" ✓ "כמה ספרות כותבים בכל תיבה בשורת התוצאה?"
+✗ "שים לב לעיגול הזיכרון" ✓ "שימו לב לעיגול הזיכרון"
+✗ "תבדוק מה רשום בעיגול הזיכרון" ✓ "בדקו מה רשום בעיגול הזיכרון"`;
   return `HEBREW — the owner's writing rules for every text a child reads (binding):
-- Address the children in the second person plural imperative, gender-neutral: ${imperatives}. Answer options are in the impersonal present: ${options}. NEVER the first person plural ("נבדוק", "נפרוט", "נמחק", "נזרוק", "בואו נ…", "מה נעשה") and never "אנו". Never slash or dot gender forms.
-- The guiding question may open with "נסו לחשוב:" (never "בואו נחשוב", never "חשבו רגע") and ends with "?". The feedback of a wrong option is "רמז:" and ONE guiding question ending with "?". The feedback of the correct option opens with "נכון מאוד!".
+- Address the children in the second person plural imperative, gender-neutral: ${imperatives}. Answer options are in the impersonal present: ${options}. NEVER the first person plural ("נבדוק", "נפרוט", "נמחק", "נזרוק", "בואו נ…", "מה נעשה", "ונבדוק", "כשנגיע") and never "אנו". NEVER the second person singular, masculine or feminine ("שים לב", "נסה", "בדוק", "לחץ על", "תבדוק", "בדקי", "שימי", "שלך"): "שימו לב", "נסו", "בדקו", "לחצו על", "שלכם". Never slash or dot gender forms.
+- The guiding question is ONE direct question ending with "?". It may open with "נסו לחשוב:" — the only opening of that kind (never "בואו נחשוב", never "חשבו רגע:"). The feedback of a wrong option is "רמז:" and ONE direct guiding question ending with "?". The feedback of the correct option opens with "נכון מאוד!". An indirect question inside a sentence takes "אם", not "האם", and no "?" ("בדקו אם צריך לרשום משהו בעיגול הזיכרון.") — it may appear only inside the correct option's feedback, never as the guiding question or as a hint.
 - Verb government: ${government} Subtraction is "מחסרים" / "לחסר" / "חסרו".
 - ${forms} — never "פירוק", "מפרקים", "שבירה", "הלוואה", "נשיאה".
-- Agreement: "עשרת", "מאה", "יחידה" are feminine ("עשרת אחת", "שתי עשרות", "עשר יחידות"); "אלף" is masculine ("אלף אחד"). ${agreement}One unit is "יחידה אחת" / "עשרת אחת", never "1 יחידה". The number comes before the noun; "10 היחידות", not "ה-10 יחידות"; a prefix before digits takes a hyphen ("ל-10").
+- Agreement: "עשרת", "מאה", "יחידה" are feminine ("עשרת אחת", "שתי עשרות", "עשר יחידות"); "אלף" is masculine ("אלף אחד"). What a grouping passes on is ONE block of the column that receives it: into the tens "עשרת אחת", into the hundreds "מאה אחת", into the thousands "אלף אחד" — never "עשרת" for every column. What a break gives is ten blocks of the column on its right: "פורטים עשרת אחת לעשר יחידות", "פורטים מאה אחת לעשר עשרות", "פורטים אלף אחד לעשר מאות". ${agreement}One unit is "יחידה אחת" / "עשרת אחת", never "1 יחידה". The number comes before the noun; "10 היחידות", not "ה-10 יחידות"; a prefix before digits takes a hyphen ("ל-10").
 - Names: a result box is "תיבה" in "שורת התוצאה" (never "משבצת"); name only what the prompt's screen section lists.
 - Style: short sentences, one action each; the question last; no filler ("למעשה", "חשוב לציין"); a verb, not "יש לבצע פריטה"; "אם", not "במידה ש"; "כדי", not "בכדי"; no comma before a defining "ש". Numbers as the exercise writes them ("1,245"; a hidden digit as "▢"). Do not write the symbol "↺".
 DON'T / DO (real errors):
