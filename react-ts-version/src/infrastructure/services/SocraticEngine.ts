@@ -6,7 +6,7 @@ import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
 import { researchErrorCategory } from "./socraticResearchCategory";
 import { recentTelemetryFor, MAX_RECENT_FOR_ENGINE } from "./recentTelemetry";
-import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
+import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -43,6 +43,38 @@ export interface SocraticHintResponse {
   correctChoiceId?: string;
   /** A card of 30.9.2026 (staticSocraticCards.ts): the store records it once shown in the exercise. */
   cardKind?: StaticCardKind;
+  /** The situation the static selection recognised — the engine's card frame (owner, 1.10.2026). */
+  situation?: string;
+  /** The card's level when it is not read from its question: 1 general, 2 names the column, 3 names the action. */
+  frameLevel?: 1 | 2 | 3;
+  /** What the child should come to notice, in a line, for the engine's frame. */
+  intentHe?: string;
+  /** "gemini" when the AI engine wrote the card (research data, SOCRATIC_CARD_SHOWN.card_source). */
+  source?: 'gemini' | 'static';
+  /** The model that wrote it (server meta.model_id). */
+  modelId?: string;
+}
+
+/**
+ * The card frame the engine writes inside (owner, 1.10.2026: "the static cards
+ * are the base and the boundaries for Gemini"): the static card the selection
+ * picked sets the situation, the intent and the level; the card itself is the
+ * exemplar (the anchor). A card whose question names no column is level 1 —
+ * the engine's card may not name one either.
+ */
+const LEVEL_1_KINDS: readonly string[] = ['borrow_check', 'place_cues', 'error_analysis', 'read_write_zero'];
+export function cardFrameOf(card: SocraticHintResponse, task?: any): NonNullable<GeminiSocraticRequest['card_frame']> {
+  // Level 1 where the owner decided the child finds the column: meeting 1
+  // (29.9.2026), C3–C6 and the first card of a family (30.9.2026), and any
+  // card that says so itself. Elsewhere the engine may name the column.
+  const explicitLevel1 = meetingOfTaskId(task?.id) === 1 || LEVEL_1_KINDS.includes(String(card.cardKind ?? card.situation ?? ''));
+  const situation = String(card.situation ?? card.cardKind ?? 'static').replace(/[^a-z0-9_]/g, '_').slice(0, 40) || 'static';
+  const intent = card.intentHe ? card.intentHe.replace(/[^֐-׿0-9\s.,:;!?"'()\-–—−+=×/״׳%]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) : '';
+  return {
+    situation,
+    level: card.frameLevel ?? (explicitLevel1 ? 1 : 2),
+    ...(intent && /[א-ת]/.test(intent) ? { intent_he: intent } : {}),
+  };
 }
 
 export function normalizeTaskIdForHints(id?: string): string {
@@ -123,6 +155,10 @@ export interface SocraticMonitoringSnapshot {
   operands?: { a: number; b: number; isSubtraction: boolean } | null;
   activeColumnIndex?: number;
   hasRegroupedInCanvas?: boolean;
+  /** Columns whose conversion is done with the blocks (or written in a memory circle, meeting 8) — per column. */
+  conversionsDone?: Place[];
+  /** The enhanced support profile and the quiet mode: the engine writes shorter, more concrete cards (measured 1.10.2026). */
+  learnerProfile?: { enhanced: boolean; quiet: boolean };
   recentEvents?: TelemetryPayload<TelemetryEventType>[];
   /**
    * What the static card chooser knows beyond the board (the place cues, the
@@ -199,7 +235,98 @@ export function absentAidViolation(texts: string[], sessionNumber?: number | nul
 }
 
 /** Exercises that are neither an addition nor a subtraction: no exercise_context goes to the model. */
-export const NON_ARITHMETIC_TYPES = ['representation', 'flexible_decomp', 'missing_element'];
+export const NON_ARITHMETIC_TYPES = ['representation', 'flexible_decomp', 'missing_element', 'small_change'];
+
+const PLACES_LOW_TO_HIGH: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
+
+/** Only what an instruction can contain reaches the server's whitelist (functions socraticContract.cleanInstruction). */
+function instructionForEngine(text: string): string {
+  return text
+    .replace(/[^֐-׿0-9\s.,:;!?"'()\-–—−+=×▢↺/״׳%]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 400);
+}
+
+const standardCountsOf = (n: number): Partial<Record<Place, number>> => {
+  const out: Partial<Record<Place, number>> = {};
+  for (const p of PLACES_LOW_TO_HIGH) if (digitAt(n, p) > 0) out[p] = digitAt(n, p);
+  return out;
+};
+
+/**
+ * The board a break / grouping exercise builds BEFORE its conversion: a break
+ * starts from the number's usual blocks (340 as 3 hundreds and 4 tens); a
+ * grouping from the blocks before it (125 as 12 tens and 5 units — the same
+ * reading as staticSocraticCards.composeGroupCard).
+ */
+function startCountsOf(task: any, kind: string): Partial<Record<Place, number>> | undefined {
+  const after: Partial<Record<Place, number>> | undefined = task?.requiredCounts;
+  if (!after || typeof task?.numberA !== 'number') return undefined;
+  if (kind === 'compose_break') return standardCountsOf(task.numberA);
+  if (kind === 'compose_group') {
+    const made = [...PLACES_LOW_TO_HIGH].reverse().find((p) => (after[p] ?? 0) > 0);
+    const from = made ? PLACES_LOW_TO_HIGH[PLACES_LOW_TO_HIGH.indexOf(made) - 1] : undefined;
+    if (!made || !from) return undefined;
+    const g = after[made] ?? 0;
+    return { ...after, [from]: (after[from] ?? 0) + 10 * g, [made]: 0 };
+  }
+  return undefined;
+}
+
+/**
+ * The task context of the request (1.10.2026; functions socraticContract
+ * SocraticTaskContext): the kind of exercise, the instruction the screen shows,
+ * and — for the leak check and the board comparison only — the board the
+ * instruction asks for and the numbers the child must find. Without it, a
+ * representation reached the model as its id and "the active column: units".
+ */
+export function socraticTaskContextFor(task: any, ctx?: StaticCardContext): GeminiSocraticRequest['task_context'] {
+  if (!task || task.type === 'session1_intro') return undefined;
+  const repKind = representationKindOf(task);
+  const hasOps = typeof task.numberA === 'number' && typeof task.numberB === 'number';
+  let kind: NonNullable<GeminiSocraticRequest['task_context']>['kind'];
+  if (task.type === 'representation') kind = repKind ?? 'representation';
+  else if (task.type === 'flexible_decomp') kind = 'flexible';
+  else if (task.type === 'missing_element') kind = 'missing_element';
+  else if (task.type === 'small_change') kind = 'small_change';
+  else if (!hasOps) return undefined;
+  else if (task.hiddenDigits?.a?.length || task.hiddenDigits?.b?.length) kind = 'skeleton';
+  else if (Array.isArray(task.revealedResultDigits)) kind = 'missing_result_digit';
+  else if (/תלמיד פתר .+ וקיבל/.test(String(task.instructionHe ?? ''))) kind = 'error_analysis';
+  else kind = inferIsSubtraction(task) ? 'subtraction' : 'addition';
+
+  const shownTexts = [task.instructionHe, task.givenHe, task.questionHe].filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
+  const instruction = instructionForEngine(shownTexts.join(' '));
+  if (!instruction || !/[א-ת]/.test(instruction)) return undefined;
+
+  // What the child must find, for the server's leak check only: the client's
+  // own list (secretNumbersOf), and on a choice task the numbers of the right
+  // option that the screen does not show elsewhere.
+  let secrets = secretNumbersOf(task).filter((n) => n !== 10 && n !== 100 && n !== 1000 && n <= 99999);
+  if (kind === 'small_change' && Array.isArray(task.choices)) {
+    const right = task.choices.find((c: any) => c?.correct === true || c?.id === task.correctAnswer);
+    const onScreen = new Set(numbersInInstruction({ instructionHe: shownTexts.join(' ') }));
+    if (right?.textHe) {
+      secrets = [...secrets, ...numbersInInstruction({ instructionHe: right.textHe }).filter((n: number) => !onScreen.has(n) && n > 9)];
+    }
+  }
+  const resultDigits: string[] | undefined = Array.isArray(task.revealedResultDigits) ? task.revealedResultDigits : undefined;
+  const hiddenResult = kind === 'missing_result_digit' && hasOps
+    ? PLACES_LOW_TO_HIGH.slice(0, String(task.isSubtraction ? task.numberA - task.numberB : task.numberA + task.numberB).length)
+        .filter((p) => !(resultDigits ?? []).includes(p))
+    : [];
+  const start = repKind ? startCountsOf(task, repKind) : undefined;
+  return {
+    kind,
+    instruction_he: instruction,
+    ...(task.requiredCounts ? { required_counts: { ...task.requiredCounts } } : {}),
+    ...(start ? { start_counts: start } : {}),
+    ...(typeof ctx?.conversionDone === 'boolean' ? { conversion_done: ctx.conversionDone } : {}),
+    ...(secrets.length ? { secret_numbers: [...new Set(secrets)].slice(0, 4) } : {}),
+    ...(hiddenResult.length ? { hidden_result_places: hiddenResult } : {}),
+  };
+}
 
 /** Same operation inference analyzeLiveBoardState uses, so the AI and the static engine never disagree on the sign. */
 export function inferIsSubtraction(task: any, targetNode?: string): boolean {
@@ -1159,6 +1286,7 @@ export class SocraticEngine {
           thousands_count: counts.thousands || 0,
           memory_circles: memoryCircles,
           is_regrouped_in_canvas: monitoring.hasRegroupedInCanvas,
+          ...(monitoring.conversionsDone ? { conversions_done: monitoring.conversionsDone } : {}),
         },
         studentProgressState: {
           completed_columns: completedColumns,
@@ -1167,11 +1295,21 @@ export class SocraticEngine {
           trigger_reason: triggerReason,
           consecutive_errors_count: monitoring.consecutiveErrors ?? 0,
           recent_actions: recentEvents,
+          ...(monitoring.hesitationSeconds ? { hesitation_seconds: Math.min(3600, Math.round(monitoring.hesitationSeconds)) } : {}),
+          ...(monitoring.cardContext?.shownKinds?.length ? { earlier_card_kinds: [...monitoring.cardContext.shownKinds] } : {}),
         },
         recentActions: recentEvents,
       });
+      const taskContext = socraticTaskContextFor(currentTask, monitoring.cardContext);
+      if (taskContext) socraticRequest.task_context = taskContext;
+      socraticRequest.card_frame = cardFrameOf(qMatrixAnchor, currentTask);
+      if (monitoring.learnerProfile && (monitoring.learnerProfile.enhanced || monitoring.learnerProfile.quiet)) {
+        socraticRequest.learner_profile = { enhanced: monitoring.learnerProfile.enhanced, quiet: monitoring.learnerProfile.quiet };
+      }
 
-      // The static card is the pedagogical baseline the model must improve on, never contradict.
+      // The static card is the pedagogical baseline the model must improve on,
+      // never contradict — its level, terms and form, feedback included
+      // (owner, 1.10.2026: the static cards set the engine's boundaries).
       const anchor = {
         questionHe: qMatrixAnchor.questionHe,
         pedagogical_intent: qMatrixAnchor.pedagogical_intent,
@@ -1179,6 +1317,7 @@ export class SocraticEngine {
           id: c.id,
           textHe: c.textHe,
           isCorrect: c.isCorrect ?? (qMatrixAnchor.correctChoiceId ? c.id === qMatrixAnchor.correctChoiceId : undefined),
+          ...(c.feedbackHe ? { feedbackHe: c.feedbackHe } : {}),
         })),
       };
 
@@ -1288,10 +1427,30 @@ export class SocraticEngine {
         questionHe: guidingQuestion,
         choices,
         correctChoiceId: correctOpt.id,
+        source: 'gemini',
+        ...(typeof parsed?.meta?.model_id === 'string' ? { modelId: String(parsed.meta.model_id).slice(0, 48) } : {}),
+        // The AI card was written inside the static card's frame: it keeps its situation and level.
+        situation: socraticRequest.card_frame?.situation,
+        frameLevel: socraticRequest.card_frame?.level,
       };
     } catch (err) {
       console.warn('[Gemini Socratic Engine] Cloud Function proxy query fallback triggered:', err);
       return null;
+    }
+  }
+
+  /**
+   * The teacher's warm-up when a meeting is activated (1.10.2026): one staff
+   * call that only starts the proxy's server instance — the server answers
+   * { warm: true } without calling the model and writes nothing. Fire and
+   * forget: nothing waits for it, and a failure is silent.
+   */
+  public static warmUp(): void {
+    try {
+      const fn = httpsCallable<{ warm: true }, { warm?: boolean }>(functions, "callGeminiSocraticProxy", { timeout: 20_000 });
+      fn({ warm: true }).catch(() => undefined);
+    } catch {
+      // no functions instance (tests, offline): nothing to warm
     }
   }
 
@@ -1358,15 +1517,9 @@ export class SocraticEngine {
       thousands_count?: number;
       memory_circles?: Record<string, number>;
       is_regrouped_in_canvas?: boolean;
+      conversions_done?: Place[];
     };
-    studentProgressState?: {
-      completed_columns: string[];
-      current_column_input: string | null;
-      memory_circles_state: Record<string, number>;
-      trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3' | 'conversion_not_performed' | 'repeated_errors';
-      consecutive_errors_count: number;
-      recent_actions: TelemetryPayload<TelemetryEventType>[];
-    };
+    studentProgressState?: GeminiSocraticRequest['student_progress_state'];
     recentActions?: TelemetryPayload<TelemetryEventType>[];
   }): GeminiSocraticRequest {
     const rawId = typeof params.studentId === 'number' 
@@ -1387,6 +1540,7 @@ export class SocraticEngine {
         thousands_count: params.workspaceState.thousands_count || 0,
         memory_circles: params.workspaceState.memory_circles || {},
         is_regrouped_in_canvas: params.workspaceState.is_regrouped_in_canvas,
+        ...(params.workspaceState.conversions_done ? { conversions_done: params.workspaceState.conversions_done } : {}),
       },
       student_progress_state: params.studentProgressState,
       recent_actions: params.recentActions || [],

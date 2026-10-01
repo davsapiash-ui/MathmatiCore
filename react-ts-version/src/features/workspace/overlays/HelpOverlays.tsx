@@ -9,7 +9,7 @@ import {
   SOCRATIC_CORRECT_AUTO_CLOSE_MS,
 } from '@/application/useWorkspaceStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
-import { SocraticEngine, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
+import { SocraticEngine, cardFrameOf, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { orderSocraticChoices } from '@/infrastructure/services/socraticOptionOrder';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
@@ -152,6 +152,12 @@ export function SocraticSidePanel() {
       details: {
         trigger_reason: triggerReason,
         error_category: aiSocraticHint.error_category ?? null,
+        // 1.10.2026: AI or static, which model, and the card's frame (situation, level) —
+        // the research export tells them apart.
+        card_source: aiSocraticHint.source === 'gemini' ? 'ai' : 'static',
+        model_id: aiSocraticHint.source === 'gemini' ? aiSocraticHint.modelId ?? null : null,
+        card_situation: cardFrameOf(aiSocraticHint, task).situation,
+        card_level: cardFrameOf(aiSocraticHint, task).level,
       },
     }).catch(console.error);
   }, [helpState, aiSocraticHint, socraticPending, classScreenUp]);

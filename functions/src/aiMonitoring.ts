@@ -1,7 +1,7 @@
 import * as logger from "firebase-functions/logger";
-import * as admin from "firebase-admin";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { GEMINI_SECRETS, getGeminiKeyStatus } from "./geminiConfig";
+import { GEMINI_MODEL_ID, GEMINI_SECRETS, SOCRATIC_PRIMARY_MODEL, classifyGeminiError, generateGeminiText, getGeminiKeyStatus } from "./geminiConfig";
 
 /**
  * Operational monitoring for every Gemini call the platform makes.
@@ -29,6 +29,10 @@ export type AiOutcome =
   | "schema_reject"
   | "answer_leak"
   | "forbidden_term"
+  /** The card broke a writing, screen or counting rule (socraticLanguage.ts). */
+  | "language_reject"
+  /** The card left its frame (a level-1 card that names a column). */
+  | "frame_reject"
   | "not_json"
   | "auth"
   | "quota"
@@ -76,23 +80,31 @@ export function recordAiCall(rec: AiCallRecord): void {
 
   if (firestoreDisabled) return;
   try {
-    const db = admin.firestore();
-    const inc = admin.firestore.FieldValue.increment;
+    // The modular import: the namespaced admin.firestore.FieldValue read back
+    // undefined inside the Functions emulator, so every counter write was
+    // skipped there ("Cannot read properties of undefined (reading
+    // 'increment')", audit of 1.10.2026) and the console showed no calls.
+    const db = getFirestore();
+    const inc = (n: number) => FieldValue.increment(n);
     const day = dayKey();
     const f = rec.feature;
+    // A model id's dots and dashes become underscores in the map key.
+    const model = rec.model_id.replace(/[^A-Za-z0-9_]/g, "_");
+    // Nested maps, not "totals.socratic.calls" keys: set(…, { merge: true })
+    // takes a dotted key as ONE field name, so every counter was written as a
+    // flat field the console never reads (it reads totals.socratic.calls as a
+    // path) and the console showed no calls at all (found 1.10.2026).
+    const counters = () => ({ calls: inc(1), [rec.outcome]: inc(1), latency_sum_ms: inc(rec.latency_ms) });
     const update: Record<string, unknown> = {
       updated_at: Date.now(),
       model_id: rec.model_id,
-      [`totals.${f}.calls`]: inc(1),
-      [`totals.${f}.${rec.outcome}`]: inc(1),
-      [`totals.${f}.latency_sum_ms`]: inc(rec.latency_ms),
-      [`daily.${day}.${f}.calls`]: inc(1),
-      [`daily.${day}.${f}.${rec.outcome}`]: inc(1),
-      [`daily.${day}.${f}.latency_sum_ms`]: inc(rec.latency_ms),
-      [`last_call.${f}`]: { at: Date.now(), outcome: rec.outcome, latency_ms: rec.latency_ms },
+      totals: { [f]: counters() },
+      daily: { [day]: { [f]: counters() } },
+      by_model: { [model]: { [f]: counters() } },
+      last_call: { [f]: { at: Date.now(), outcome: rec.outcome, latency_ms: rec.latency_ms, model_id: rec.model_id } },
     };
     if (rec.outcome !== "ok") {
-      update[`last_failure.${f}`] = { at: Date.now(), outcome: rec.outcome, detail: rec.detail ?? null };
+      update.last_failure = { [f]: { at: Date.now(), outcome: rec.outcome, detail: rec.detail ?? null, model_id: rec.model_id } };
     }
     db.collection("store_cache").doc(AI_MONITORING_DOC).set(update, { merge: true }).catch((err) => {
       // A rules or connectivity problem must not spam every call; log once and go quiet.
@@ -116,26 +128,112 @@ function callerIsStaff(token: Record<string, unknown> | undefined): boolean {
   return lowered.includes("admin") || lowered.includes("teacher") || token.admin === true || token.teacher === true;
 }
 
+/** One live test call at most this often, for the whole project (it costs a model call). */
+export const AI_TEST_CALL_MIN_INTERVAL_MS = 30_000;
+/** The test call waits as long as a learner's card may: the client's 8 s. */
+export const AI_TEST_CALL_TIMEOUT_MS = 8000;
+
+export interface AiTestCallResult {
+  at: number;
+  model_id: string;
+  ok: boolean;
+  latency_ms: number;
+  /** null when ok; else the classified code (timeout, misconfigured, auth, quota, network, safety, unknown). */
+  error_code: string | null;
+  /** A short, key-free excerpt of the error, for the owner to read. */
+  error_detail: string | null;
+}
+
+let lastTestInThisInstance: AiTestCallResult | null = null;
+
+/** The error text without anything that could be a key, and short. */
+function safeErrorDetail(err: unknown): string {
+  return String((err as { message?: unknown })?.message ?? err ?? "")
+    .replace(/AIza[0-9A-Za-z_-]{10,}/g, "[key]")
+    .replace(/key=[^&\s]+/gi, "key=[key]")
+    .slice(0, 240);
+}
+
+/**
+ * One real, tiny model call with the production key, model and SDK: the only
+ * way to know that the coach answers right now. The counters only say how it
+ * went for the learners who happened to ask.
+ */
+export async function runAiTestCall(): Promise<AiTestCallResult> {
+  const started = Date.now();
+  try {
+    const res = await generateGeminiText({
+      systemInstruction: 'Answer with the JSON object {"ok": true} and nothing else.',
+      prompt: "ping",
+      temperature: 0,
+      json: true,
+      // The coaching card's own model and thinking (gemini-3.8-flash refuses "minimal").
+      model: SOCRATIC_PRIMARY_MODEL.id,
+      thinking: SOCRATIC_PRIMARY_MODEL.thinking,
+      timeoutMs: AI_TEST_CALL_TIMEOUT_MS,
+    });
+    let ok = false;
+    try {
+      ok = (JSON.parse(res.text) as { ok?: unknown })?.ok === true;
+    } catch {
+      ok = false;
+    }
+    return { at: started, model_id: GEMINI_MODEL_ID, ok, latency_ms: res.latency_ms, error_code: ok ? null : "not_json", error_detail: ok ? null : "the model answered, but not with the expected JSON" };
+  } catch (err) {
+    return { at: started, model_id: GEMINI_MODEL_ID, ok: false, latency_ms: Date.now() - started, error_code: classifyGeminiError(err), error_detail: safeErrorDetail(err) };
+  }
+}
+
 /**
  * getAiServiceStatus — the admin console's view of the AI engine: whether the
- * key is bound (and where), whether it looks well-formed, which model is in
- * use, and the aggregate counters. Staff only; the key itself is never
- * returned, only its last four characters.
+ * key is bound (and where), which model is in use, and the aggregate counters
+ * per feature and per model. Staff only; the key itself is never returned,
+ * only its last four characters.
+ *
+ * With `{ test_call: true }` it also makes ONE real short model call and
+ * reports ok / latency / error, so the owner can check at any time that the
+ * coach answers. Rate-limited for the whole project: within
+ * AI_TEST_CALL_MIN_INTERVAL_MS of the last test the last result comes back
+ * (marked rate_limited) instead of a new call.
  */
-export const getAiServiceStatus = onCall(GEMINI_SECRETS, async (request) => {
+export const getAiServiceStatus = onCall({ ...GEMINI_SECRETS, timeoutSeconds: 30 }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
   if (!callerIsStaff(request.auth.token as Record<string, unknown>)) {
     throw new HttpsError("permission-denied", "Staff role required.");
   }
 
   const key = getGeminiKeyStatus();
+  const wantsTest = (request.data as { test_call?: unknown } | null)?.test_call === true;
 
   let counters: Record<string, unknown> | null = null;
   try {
-    const snap = await admin.firestore().collection("store_cache").doc(AI_MONITORING_DOC).get();
+    const snap = await getFirestore().collection("store_cache").doc(AI_MONITORING_DOC).get();
     counters = snap.exists ? (snap.data() as Record<string, unknown>) : null;
   } catch (err) {
     logger.warn("[ai-monitor] status read failed", { error: String(err) });
+  }
+
+  let test: (AiTestCallResult & { rate_limited?: boolean }) | null = null;
+  if (wantsTest) {
+    const stored = (counters?.last_test ?? null) as AiTestCallResult | null;
+    const last = [stored, lastTestInThisInstance].filter((t): t is AiTestCallResult => Boolean(t && typeof t.at === "number"))
+      .sort((a, b) => b.at - a.at)[0] ?? null;
+    if (last && Date.now() - last.at < AI_TEST_CALL_MIN_INTERVAL_MS) {
+      test = { ...last, rate_limited: true };
+    } else if (!key.configured) {
+      test = { at: Date.now(), model_id: GEMINI_MODEL_ID, ok: false, latency_ms: 0, error_code: "misconfigured", error_detail: key.problem };
+    } else {
+      // Claim the slot before the call, so two clicks a second apart make one call.
+      lastTestInThisInstance = { at: Date.now(), model_id: GEMINI_MODEL_ID, ok: false, latency_ms: 0, error_code: "in_progress", error_detail: null };
+      test = await runAiTestCall();
+      lastTestInThisInstance = test;
+      logger.info("[ai-monitor] live test call", { ok: test.ok, latency_ms: test.latency_ms, error_code: test.error_code, model_id: test.model_id });
+      try {
+        await getFirestore().collection("store_cache").doc(AI_MONITORING_DOC).set({ last_test: test }, { merge: true });
+      } catch (err) {
+        logger.warn("[ai-monitor] test result not stored", { error: String(err) });
+      }
+    }
   }
 
   return {
@@ -143,5 +241,6 @@ export const getAiServiceStatus = onCall(GEMINI_SECRETS, async (request) => {
     key,
     counters,
     today: dayKey(),
+    ...(test ? { test } : {}),
   };
 });

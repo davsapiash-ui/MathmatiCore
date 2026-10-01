@@ -18,9 +18,21 @@ interface FeatureCounters {
   [outcome: string]: number | undefined;
 }
 
+interface AiTestResult {
+  at: number;
+  model_id: string;
+  ok: boolean;
+  latency_ms: number;
+  error_code: string | null;
+  error_detail: string | null;
+  rate_limited?: boolean;
+}
+
 interface AiStatus {
   checked_at: number;
   today: string;
+  /** Present when the call asked for a live test (test_call: true). */
+  test?: AiTestResult;
   key: {
     configured: boolean;
     source: "secret_manager" | "environment" | "none";
@@ -34,6 +46,8 @@ interface AiStatus {
     totals?: Record<string, FeatureCounters>;
     daily?: Record<string, Record<string, FeatureCounters>>;
     last_failure?: Record<string, { at: number; outcome: string; detail: string | null }>;
+    by_model?: Record<string, Record<string, FeatureCounters>>;
+    last_test?: AiTestResult;
   } | null;
 }
 
@@ -49,13 +63,15 @@ const OUTCOME_HE: Record<string, string> = {
   schema_reject: "נדחו בסכימה",
   answer_leak: "נדחו — הדליפו תשובה",
   forbidden_term: "נדחו — מונח אסור",
+  language_reject: "נדחו — ניסוח, מונח או פעולה שאינם על המסך",
+  frame_reject: "נדחו — חרגו מרמת הכרטיס",
   not_json: "לא JSON",
   invalid_request: "בקשה לא תקינה",
   auth: "כשל אימות מפתח",
   quota: "מכסה",
   network: "רשת",
   safety: "חסימת בטיחות",
-  misconfigured: "מפתח חסר",
+  misconfigured: "הגדרה שגויה (מפתח או מודל)",
   unknown: "אחר",
 };
 
@@ -80,18 +96,23 @@ export function AiEngineStatusCard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const [testing, setTesting] = useState(false);
+  const load = useCallback(async (testCall = false) => {
+    if (testCall) setTesting(true);
+    else setLoading(true);
     setError(null);
     try {
-      const fn = httpsCallable<Record<string, never>, AiStatus>(functions, "getAiServiceStatus", { timeout: 15_000 });
-      const res = await fn({});
+      // A live test makes one real, short model call on the server (staff only,
+      // at most once per 30 seconds for the whole project).
+      const fn = httpsCallable<{ test_call?: boolean }, AiStatus>(functions, "getAiServiceStatus", { timeout: testCall ? 25_000 : 15_000 });
+      const res = await fn(testCall ? { test_call: true } : {});
       setStatus(res.data);
     } catch (err) {
       const code = (err as { code?: string })?.code ?? "";
       setError(code.includes("permission") ? "נדרש תפקיד צוות כדי לצפות במצב מנוע ה-AI." : "לא ניתן היה לקרוא את מצב מנוע ה-AI כרגע.");
     } finally {
       setLoading(false);
+      setTesting(false);
     }
   }, []);
 
@@ -114,7 +135,7 @@ export function AiEngineStatusCard() {
         </h2>
         <button
           type="button"
-          onClick={load}
+          onClick={() => load(false)}
           disabled={loading}
           aria-label="רענון מצב מנוע ה-AI"
           className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
@@ -175,6 +196,34 @@ export function AiEngineStatusCard() {
                 )}
               </div>
             ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950/60">
+            <button
+              type="button"
+              onClick={() => load(true)}
+              disabled={testing || loading}
+              className="px-3 py-1.5 rounded-xl text-sm font-bold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+            >
+              {testing ? "בודק…" : "בדיקה חיה"}
+            </button>
+            {(() => {
+              const t = status.test ?? status.counters?.last_test;
+              if (!t) return <span className="text-xs text-slate-500 dark:text-slate-400">קריאה אמיתית אחת למודל, כדי לבדוק שהמנוע עונה עכשיו.</span>;
+              return (
+                <span className={`text-sm ${t.ok ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}`}>
+                  {t.ok ? "המנוע ענה" : `המנוע לא ענה: ${OUTCOME_HE[t.error_code ?? ""] ?? t.error_code ?? ""}`}
+                  {" · "}
+                  <span className="tabular-nums">{(t.latency_ms / 1000).toFixed(1)} שנ׳</span>
+                  {" · "}
+                  <span className="font-mono text-xs" dir="ltr">{t.model_id}</span>
+                  {" · "}
+                  {new Date(t.at).toLocaleString("he-IL")}
+                  {t.rate_limited ? " (התוצאה האחרונה; אפשר לבדוק שוב בעוד חצי דקה)" : ""}
+                  {!t.ok && t.error_detail ? <span className="block text-[11px] font-mono" dir="ltr">{t.error_detail}</span> : null}
+                </span>
+              );
+            })()}
           </div>
 
           {lastFailure && (

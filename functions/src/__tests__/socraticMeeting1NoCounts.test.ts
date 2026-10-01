@@ -42,8 +42,8 @@ const leakingCard = {
   guiding_question: 'בתרגיל 713 + 94 יוצאות בסוף 8 מאות ו-7 יחידות. מה עושים עכשיו?',
   options: [
     { id: 'opt_1', option_text: 'מקבצים 10 לבנים ללבנה אחת', feedback_text: 'נכון מאוד!', is_correct: true },
-    { id: 'opt_2', option_text: 'מוחקים לבנים לפח', feedback_text: 'רמז: מחיקה משנה את המספר.', is_correct: false },
-    { id: 'opt_3', option_text: 'כותבים 10 בתיבה אחת', feedback_text: 'רמז: ספרה אחת בכל תיבה.', is_correct: false },
+    { id: 'opt_2', option_text: 'מוחקים לבנים לפח', feedback_text: 'רמז: מה קורה למספר כשמוחקים לבנים?', is_correct: false },
+    { id: 'opt_3', option_text: 'כותבים 10 בתיבה אחת', feedback_text: 'רמז: כמה ספרות כותבים בכל תיבה?', is_correct: false },
   ],
 };
 
@@ -83,10 +83,13 @@ describe('meeting 1: a card that gives the result as blocks is refused', () => {
     expect(leaksAnswerInCounts(['יש 8 מאות ו-7 יחידות'], null)).toBe(false);
   });
 
-  it('meeting 1 refuses it; meeting 4 accepts the same card', () => {
+  it('meeting 1 refuses it as the answer; meeting 4 refuses it only because "7 יחידות" is the board\'s own count', () => {
     const m1 = validateSocraticResponse(leakingCard, deriveSocraticFacts(request('session_1_student_3', 's1_t8')));
     expect(m1).toEqual({ ok: false, reason: 'final answer leaked as block counts' });
+    // Since 1.10.2026 the server mirrors the client's stations 3–7 count rule
+    // (owner, 30.9.2026): the board holds 7 units, so "7 יחידות" counts them for the child.
     const m4 = validateSocraticResponse(leakingCard, deriveSocraticFacts(request('session_4_student_3', 's4_r_t1')));
-    expect(m4.ok).toBe(true);
+    expect(m4.ok).toBe(false);
+    if (!m4.ok) expect(m4.reason).toMatch(/^counts:/);
   });
 });

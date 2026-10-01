@@ -59,7 +59,9 @@ import {
   reportFooterTemplate,
 } from "./reportHtml";
 import { resolveRecommendationTier, type RecommendationTier } from "./reportAnalysis";
-import { GEMINI_MODEL_ID, GEMINI_SECRETS, getGeminiClient } from "./geminiConfig";
+import { GEMINI_MODEL_ID, GEMINI_SECRETS, classifyGeminiError, generateGeminiText } from "./geminiConfig";
+import { recordAiCall, type AiOutcome } from "./aiMonitoring";
+import { REPORT_RETRY_MIN_MS, REPORT_TERMS_HE, REPORT_THINKING, keepHebrewLines, reportTextViolation } from "./reportAnalysis";
 const PDFDocument = require("pdfkit");
 
 /**
@@ -501,7 +503,8 @@ ${SANDBOX_MEETING_PURPOSE_HE}
 ב-class_patterns: נקודות לתשומת לב לקראת האבחון. ב-teaching_recommendations: מה המורה יכולה לעשות לפני האבחון (למשל הדגמה קצרה במליאה של כלי שרבים לא הפעילו).
 2 עד 5 פריטים בכל מערך. אם אין די ראיות, החזר מערכים ריקים.
 
-מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.
+${REPORT_TERMS_HE}`;
 }
 
 function buildClassSystemInstruction(): string {
@@ -525,7 +528,8 @@ function buildClassSystemInstruction(): string {
 }
 2 עד 5 פריטים בכל מערך. אם אין די ראיות, החזר מערכים ריקים.
 
-מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.
+${REPORT_TERMS_HE}`;
 }
 
 /** Runs layer 2 for the class. Returns null on any failure; never throws. */
@@ -537,13 +541,11 @@ export async function generateClassAnalysis(input: {
 }): Promise<ClassAnalysis | null> {
   if (input.learners.length === 0) return null;
   const scored = isScoredMeeting(input.session_number);
+  const started = Date.now();
+  const monitor = (outcome: AiOutcome, detail?: string) =>
+    recordAiCall({ feature: "class_report", outcome, latency_ms: Date.now() - started, model_id: GEMINI_MODEL_ID, session_id: `class_session_${input.session_number}`, detail });
   try {
-    const ai = getGeminiClient();
-    const model = ai.getGenerativeModel({
-      model: GEMINI_MODEL_ID,
-      generationConfig: { temperature: 0.3, responseMimeType: "application/json" },
-      systemInstruction: scored ? buildClassSystemInstruction() : buildSandboxClassSystemInstruction(),
-    });
+    const systemInstruction = scored ? buildClassSystemInstruction() : buildSandboxClassSystemInstruction();
     // An explicit projection, as in reportAnalysis.ts: only the measurements
     // the analysis reasons about reach the engine. In meeting 1 there is no
     // tier and no score to pass.
@@ -586,19 +588,74 @@ ${JSON.stringify(learners)}
 
 ${closing}`;
 
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), CLASS_AI_ANALYSIS_TIMEOUT_MS));
-    const call = model.generateContent(userPrompt).then((r: any) => r.response.text() as string);
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), CLASS_AI_ANALYSIS_TIMEOUT_MS);
+    });
+    const call = generateGeminiText({
+      systemInstruction,
+      prompt: userPrompt,
+      temperature: 0.3,
+      json: true,
+      responseSchema: CLASS_RESPONSE_SCHEMA,
+      thinking: REPORT_THINKING,
+      timeoutMs: CLASS_AI_ANALYSIS_TIMEOUT_MS,
+    }).then((r) => r.text);
     const text = await Promise.race([call, timeout]);
+    if (timer) clearTimeout(timer);
     if (text === null) {
       logger.warn("[classReport] Gemini class analysis timed out; report ships with layer 1 only.", { session_number: input.session_number });
+      monitor("timeout");
       return null;
     }
-    return parseClassAnalysis(text);
+    let parsed = parseClassAnalysis(text);
+    let violation = parsed ? reportTextViolation([...parsed.class_patterns, ...parsed.teaching_recommendations]) : null;
+    const remaining = CLASS_AI_ANALYSIS_TIMEOUT_MS - (Date.now() - started);
+    if (violation && remaining >= REPORT_RETRY_MIN_MS) {
+      let retryTimer: NodeJS.Timeout | undefined;
+      const retryTimeout = new Promise<null>((resolve) => {
+        retryTimer = setTimeout(() => resolve(null), remaining);
+      });
+      const retry = generateGeminiText({
+        systemInstruction,
+        prompt: `${userPrompt}\n\nהתשובה הקודמת נדחתה: ${violation}. החזר את ה-JSON שוב, בעברית בלבד.`,
+        temperature: 0.3,
+        json: true,
+        responseSchema: CLASS_RESPONSE_SCHEMA,
+        thinking: REPORT_THINKING,
+        timeoutMs: remaining,
+      }).then((r) => r.text).catch(() => null);
+      const retryText = await Promise.race([retry, retryTimeout]);
+      if (retryTimer) clearTimeout(retryTimer);
+      const second = retryText ? parseClassAnalysis(retryText) : null;
+      if (second) parsed = second;
+    }
+    if (parsed) {
+      const kept = keepHebrewLines({ class_patterns: parsed.class_patterns, teaching_recommendations: parsed.teaching_recommendations });
+      violation = kept.class_patterns.length + kept.teaching_recommendations.length < parsed.class_patterns.length + parsed.teaching_recommendations.length
+        ? "lines dropped: not Hebrew-only"
+        : null;
+      parsed = kept.class_patterns.length || kept.teaching_recommendations.length ? kept : null;
+    }
+    monitor(parsed ? "ok" : "schema_reject", parsed ? violation ?? undefined : "missing, empty or not Hebrew");
+    return parsed;
   } catch (err) {
-    logger.warn("[classReport] Gemini class analysis unavailable; report ships with layer 1 only.", { error: String(err) });
+    logger.warn("[classReport] Gemini class analysis unavailable; report ships with layer 1 only.", { error: String((err as Error)?.message ?? err).slice(0, 300) });
+    monitor(classifyGeminiError(err));
     return null;
   }
 }
+
+/** Appendix A §7's class counterpart: the two arrays and nothing else. */
+const CLASS_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    class_patterns: { type: "ARRAY", items: { type: "STRING" } },
+    teaching_recommendations: { type: "ARRAY", items: { type: "STRING" } },
+  },
+  required: ["class_patterns", "teaching_recommendations"],
+  propertyOrdering: ["class_patterns", "teaching_recommendations"],
+} as const;
 
 export function parseClassAnalysis(text: string): ClassAnalysis | null {
   let parsed: any;

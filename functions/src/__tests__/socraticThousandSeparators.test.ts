@@ -35,8 +35,8 @@ const card = (question: string) => ({
   guiding_question: question,
   options: [
     { id: 'opt_1', option_text: 'ממירים 10 יחידות לעשרת אחת', feedback_text: 'נכון מאוד!', is_correct: true },
-    { id: 'opt_2', option_text: 'ננחש את התוצאה', feedback_text: 'רמז: הימנעו מניחושים.', is_correct: false },
-    { id: 'opt_3', option_text: 'נחכה', feedback_text: 'רמז: התשובה לא תופיע מעצמה.', is_correct: false },
+    { id: 'opt_2', option_text: 'מנחשים את התוצאה', feedback_text: 'רמז: איך אפשר למצוא את התוצאה בלי לנחש?', is_correct: false },
+    { id: 'opt_3', option_text: 'מחכים', feedback_text: 'רמז: מאיזה טור אפשר להתחיל לפתור?', is_correct: false },
   ],
 });
 

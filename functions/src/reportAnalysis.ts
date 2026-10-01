@@ -1,5 +1,6 @@
 import * as logger from "firebase-functions/logger";
-import { GEMINI_MODEL_ID, getGeminiClient } from "./geminiConfig";
+import { GEMINI_MODEL_ID, classifyGeminiError, generateGeminiText, type GeminiThinking } from "./geminiConfig";
+import { recordAiCall, type AiOutcome } from "./aiMonitoring";
 import { SANDBOX_MEETING_PURPOSE_HE, exercisePathType, isExerciseEvent, type ExercisePathType } from "./meetingMetrics";
 
 /**
@@ -116,7 +117,57 @@ export interface GeminiReportResponse {
  */
 export const AI_ANALYSIS_TIMEOUT_MS = 10000;
 
+/** How much the model thinks before it writes the analysis — set from measured runs (1.10.2026). */
+export const REPORT_THINKING: GeminiThinking = "low";
+
+/**
+ * Every report is written in Hebrew (owner, 1.10.2026). A line with Latin
+ * letters (an English sentence, an exercise id such as "s4_g_t1") or with a
+ * term the Ministry does not use is refused: the model gets one corrected
+ * retry when time allows, and a line that still breaks the rule is dropped.
+ * When nothing usable is left, the report carries the PRD's exact fallback
+ * sentence. Professional Hebrew for a teacher — the children's second person
+ * plural does not apply here.
+ */
+const REPORT_TERM_RE = /(^|[^א-ת])[ובלמהשכ]{0,3}(שארית|נשיאה|נושאים|הלוואה|לווים|ללוות|שבירה|לשבור|שוברים)(?![א-ת])/;
+export function reportTextViolation(items: string[]): string | null {
+  for (const t of items) {
+    if (/[A-Za-z]/.test(t)) return "the analysis must be in Hebrew only: no English words, no Latin letters and no exercise ids (name an exercise by its numbers)";
+    const term = REPORT_TERM_RE.exec(t);
+    if (term) return `"${term[2]}" is not the Ministry's term: write הקבצה or המרה in addition and פריטה in subtraction`;
+  }
+  return null;
+}
+
+/** The arrays without the lines that still break the Hebrew-only rule. */
+export function keepHebrewLines<T extends Record<string, string[]>>(arrays: T): T {
+  const out = {} as T;
+  for (const [k, v] of Object.entries(arrays)) (out as Record<string, string[]>)[k] = v.filter((t) => reportTextViolation([t]) === null);
+  return out;
+}
+
+/** A second try starts only if it can still finish inside the report's budget. */
+export const REPORT_RETRY_MIN_MS = 4000;
+
+/** Appendix A §7: the two arrays and nothing else. */
+const REPORT_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    knowledge_gaps: { type: "ARRAY", items: { type: "STRING" } },
+    teaching_recommendations: { type: "ARRAY", items: { type: "STRING" } },
+  },
+  required: ["knowledge_gaps", "teaching_recommendations"],
+  propertyOrdering: ["knowledge_gaps", "teaching_recommendations"],
+} as const;
+
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
+
+/**
+ * The analysis is read by a teacher, in the Ministry's terms (1.10.2026: the
+ * first real analyses called a carried ten "שארית" and a grouping "פריטה",
+ * and named exercises by their ids).
+ */
+export const REPORT_TERMS_HE = "מונחים: בחיבור — הקבצה או המרה, והעשרת שעוברת לטור הבא נרשמת בעיגול הזיכרון; בחיסור — פריטה. לעולם לא \"שארית\", \"נשיאה\", \"הלוואה\" או \"שבירה\". תרגיל מזכירים לפי המספרים שלו (למשל 1,245 + 328), לא לפי המזהה שלו.";
 
 /**
  * Builds the exercise templates for the exercises the learner actually erred
@@ -350,7 +401,8 @@ ${SANDBOX_MEETING_PURPOSE_HE}
 ב-knowledge_gaps: נקודות לתשומת לב לקראת האבחון. ב-teaching_recommendations: מה המורה יכולה לעשות עם הלומד לפני האבחון.
 2 עד 4 פריטים בכל מערך. אם אין די ראיות, החזר מערכים ריקים.
 
-מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.
+${REPORT_TERMS_HE}`;
 }
 
 function buildSystemInstruction(tier: RecommendationTier): string {
@@ -372,7 +424,8 @@ function buildSystemInstruction(tier: RecommendationTier): string {
 }
 2 עד 4 פריטים בכל מערך. אם אין די ראיות לפער כלשהו, החזר מערכים ריקים.
 
-מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.
+${REPORT_TERMS_HE}`;
 }
 
 /**
@@ -389,18 +442,13 @@ export async function generateReportAnalysis(
     return null;
   }
 
+  const started = Date.now();
+  const monitor = (outcome: AiOutcome, detail?: string) =>
+    recordAiCall({ feature: "report_analysis", outcome, latency_ms: Date.now() - started, model_id: GEMINI_MODEL_ID, student_id: req.student_id, session_id: req.session_id, detail });
   try {
-    const ai = getGeminiClient();
-    const model = ai.getGenerativeModel({
-      model: GEMINI_MODEL_ID,
-      generationConfig: {
-        temperature: 0.3,
-        responseMimeType: "application/json",
-      },
-      systemInstruction: req.recommendation_tier === null
-        ? buildSandboxSystemInstruction()
-        : buildSystemInstruction(req.recommendation_tier),
-    });
+    const systemInstruction = req.recommendation_tier === null
+      ? buildSandboxSystemInstruction()
+      : buildSystemInstruction(req.recommendation_tier);
 
     const sandbox = req.recommendation_tier === null;
     const toolsLine = sandbox
@@ -422,28 +470,69 @@ ${JSON.stringify(req.telemetry_summary)}
 
 ${closing}`;
 
-    const timeout = new Promise<null>((resolve) =>
-      setTimeout(() => resolve(null), AI_ANALYSIS_TIMEOUT_MS)
-    );
-    const call = model
-      .generateContent(userPrompt)
-      .then((r: any) => r.response.text() as string);
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), AI_ANALYSIS_TIMEOUT_MS);
+    });
+    const call = generateGeminiText({
+      systemInstruction,
+      prompt: userPrompt,
+      temperature: 0.3,
+      json: true,
+      responseSchema: REPORT_RESPONSE_SCHEMA,
+      // A teacher's report is not in a hurry (owner): more thinking, better reading of the data.
+      thinking: REPORT_THINKING,
+      timeoutMs: AI_ANALYSIS_TIMEOUT_MS,
+    }).then((r) => r.text);
 
     const text = await Promise.race([call, timeout]);
+    if (timer) clearTimeout(timer);
     if (text === null) {
       logger.warn("[reportAnalysis] Gemini analysis timed out; report ships with layer 1 only.", {
         session_id: req.session_id,
         timeout_ms: AI_ANALYSIS_TIMEOUT_MS,
       });
+      monitor("timeout");
       return null;
     }
 
-    return parseAnalysisResponse(text, req.session_id);
+    let parsed = parseAnalysisResponse(text, req.session_id);
+    let violation = parsed ? reportTextViolation([...parsed.knowledge_gaps, ...parsed.teaching_recommendations]) : null;
+    const remaining = AI_ANALYSIS_TIMEOUT_MS - (Date.now() - started);
+    if (violation && remaining >= REPORT_RETRY_MIN_MS) {
+      let retryTimer: NodeJS.Timeout | undefined;
+      const retryTimeout = new Promise<null>((resolve) => {
+        retryTimer = setTimeout(() => resolve(null), remaining);
+      });
+      const retry = generateGeminiText({
+        systemInstruction,
+        prompt: `${userPrompt}\n\nהתשובה הקודמת נדחתה: ${violation}. החזר את ה-JSON שוב, בעברית בלבד.`,
+        temperature: 0.3,
+        json: true,
+        responseSchema: REPORT_RESPONSE_SCHEMA,
+        thinking: REPORT_THINKING,
+        timeoutMs: remaining,
+      }).then((r) => r.text).catch(() => null);
+      const retryText = await Promise.race([retry, retryTimeout]);
+      if (retryTimer) clearTimeout(retryTimer);
+      const second = retryText ? parseAnalysisResponse(retryText, req.session_id) : null;
+      if (second) parsed = second;
+    }
+    if (parsed) {
+      const kept = keepHebrewLines({ knowledge_gaps: parsed.knowledge_gaps, teaching_recommendations: parsed.teaching_recommendations });
+      violation = kept.knowledge_gaps.length + kept.teaching_recommendations.length < parsed.knowledge_gaps.length + parsed.teaching_recommendations.length
+        ? "lines dropped: not Hebrew-only"
+        : null;
+      parsed = kept.knowledge_gaps.length || kept.teaching_recommendations.length ? kept : null;
+    }
+    monitor(parsed ? "ok" : "schema_reject", parsed ? violation ?? undefined : "missing, empty or not Hebrew");
+    return parsed;
   } catch (err) {
     logger.warn("[reportAnalysis] Gemini analysis unavailable; report ships with layer 1 only.", {
       session_id: req.session_id,
-      error: String(err),
+      error: String((err as Error)?.message ?? err).slice(0, 300),
     });
+    monitor(classifyGeminiError(err));
     return null;
   }
 }
