@@ -438,7 +438,10 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   // 14 tens after a break. The client's static cards never call that a column
   // to group (SocraticEngine.analyzeLiveBoardState, crowdingIsTheGoal; owner,
   // 28.9.2026); the server cannot see the required board, so it does not either.
-  const crowdingMayBeTheGoal = !ec;
+  // A subtraction after a borrow is the same case (61 − 24 as 5 tens and 11
+  // units — the client's crowdingIsTheGoal says so too): "group them back"
+  // would undo the step; the deficit reading below covers subtraction.
+  const crowdingMayBeTheGoal = !ec || ec.operation === "subtraction";
 
   const columns: ColumnFact[] = SOCRATIC_COLUMNS.map((column) => {
     const digit_a = ec ? digitAt(ec.number_a, column) : 0;
@@ -466,10 +469,12 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
 
   const active = columns.find((c) => c.column === active_column) ?? null;
   const board_value = blocks.units + blocks.tens * 10 + blocks.hundreds * 100 + blocks.thousands * 1000;
-  const recent_event_types = [
-    ...(ps?.recent_actions ?? []),
-    ...req.recent_actions,
-  ].map((a) => a.event_type).slice(-MAX_RECENT_ACTIONS);
+  // The client sends the same list in both places; joining them showed every
+  // action twice (undos looked doubled). One list: the top-level one, else the
+  // progress-state copy.
+  const recent_event_types = (req.recent_actions.length > 0 ? req.recent_actions : ps?.recent_actions ?? [])
+    .map((a) => a.event_type)
+    .slice(-MAX_RECENT_ACTIONS);
 
   // Deterministic first reading of the difficulty, in PRD Module 13's three categories.
   let suggested_category: SocraticErrorCategory = "procedural";
