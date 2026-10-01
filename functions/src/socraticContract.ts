@@ -2178,17 +2178,19 @@ export function digitSecretsOf(facts: Pick<SocraticFacts, "columns" | "hidden_re
  * יחידות לעשרת אחת" (a grouping), "רושמים 1 בעיגול הזיכרון" (the carry), "7
  * עשרות" when the screen shows that 7 in the column, numbers of the exercise.
  */
-export function statesColumnDigit(text: string, s: DigitSecret): boolean {
+export function statesColumnDigit(text: string, s: DigitSecret, question?: string): boolean {
   const noun = BLOCK_NOUN_HE[s.column];
   const plain = stripDigitGroupSeparators(text);
-  // A hidden digit the screen shows nowhere: any standalone token of it gives it away.
-  if (s.kind === "hidden" && s.onScreen === false && mentionsDigitAnywhere(plain, s.digit)) return true;
+  // A hidden digit the screen shows nowhere: any standalone token of it gives it away —
+  // not a count of other things ("שתי ספרות"), nor the answer to a question counting them.
+  if (s.kind === "hidden" && s.onScreen === false && mentionsDigitAnywhere(plain, s.digit, question)) return true;
   const D = digitToken(s.digit, WORD_ENDS_STATEMENT);
   const Dcount = digitToken(s.digit, "");
   const mentionsThis = new RegExp(`(?:^|[^א-ת])[בלמו]?(?:של\\s+)?ה?${noun}(?![א-ת])`);
   const mentionsAnyColumn = /(?:^|[^א-ת])[בלמו]?(?:של\s+)?ה?(?:יחידות|עשרות|מאות|אלפים)(?![א-ת])/;
-  for (const clause of plain.split(/[.?!;:\n]/)) {
+  for (const [whole, clause] of plain.matchAll(/([^.?!;:\n]*)[.?!;:\n]?/g)) {
     if (!clause.trim()) continue;
+    const isQuestion = whole.endsWith("?");
     const here = mentionsThis.test(clause);
     // "8 עשרות", "שמונה עשרות", "8 לבני עשרת" — a hidden digit only, and not a digit the column shows.
     if (s.kind === "hidden" && !s.visible.includes(s.digit) &&
@@ -2208,7 +2210,7 @@ export function statesColumnDigit(text: string, s: DigitSecret): boolean {
     // "8 בתיבה", "7 בשורת התוצאה" with this column named.
     if (here && new RegExp(`${D}\\s+ב(?:תיבה|שורת התוצאה)`).test(clause) && !/עיגול/.test(clause)) return true;
     // "בטור היחידות יישארו 5 לבנים", "בתיבה של טור המאות יופיע 1": what the column will hold or show.
-    if (here && !/עיגול/.test(clause) && statesWithVerb(clause, s.digit)) return true;
+    if (here && !/עיגול/.test(clause) && statesWithVerb(clause, s.digit, isQuestion)) return true;
   }
   return false;
 }
@@ -2227,15 +2229,29 @@ function digitTokenAny(d: number): string {
 const STATE_VERB_RE = /(?<![א-ת])(?:ו|ש|כש)?(?:יישאר|יישארו|ישאר|ישארו|תישאר|תשאר|נשאר|נשארו|נשארה|יופיע|יופיעו|תופיע|יהיה|יהיו|תהיה|תהיינה)(?![א-ת])/g;
 /** A noun right before a number word makes it that noun's count ("עשרת אחת", "ספרה אחת"), not the digit. */
 const NOUN_BEFORE_NUMBER_WORD = /(?:יחידה|עשרת|מאה|אלף|ספרה|לבנה|פעם|תיבה)\s+$/;
-function statesWithVerb(clause: string, d: number): boolean {
+/**
+ * A number that an operation in the same clause acts on: "16 פחות 8", "אחרי
+ * שמוציאים 5", "אם מחברים 6, 4 ועוד 1", "מחברים 0 ו-5". It is the way to the
+ * result, not the result (verification, 2.10.2026: "כמה לבנים יישארו בטור
+ * היחידות אחרי שמוציאים 5?" in 480 − 155 was refused).
+ */
+const OPERAND_BEFORE = /(?:ועוד|פחות|[+−]|(?<![א-ת])(?:ו|ש|כש)?(?:מוציאים|מוסיפים|מחברים|מחסרים|מורידים|להוציא|להוסיף|לחבר|לחסר|הוציאו|הוסיפו|חברו|חסרו))(?:\s|,|ו-|ו(?=\d)|\d|ועוד|פחות|[+−]|את(?![א-ת])|ה-)*$/;
+/** A question that asks for the value ("כמה … יישארו", "מה יהיה …"), not "האם … יישארו 5?". */
+const WH_WORD = /(?:^|[^א-ת])(?:כמה|מה|איזה|איזו|אילו)(?![א-ת])/;
+function statesWithVerb(clause: string, d: number, isQuestion = false): boolean {
   for (const m of clause.matchAll(STATE_VERB_RE)) {
+    // "כמה לבנים יישארו …?", "מה יהיה בטור …?": the clause asks for the value; a number in it is not the answer.
+    if (isQuestion && WH_WORD.test(clause.slice(0, m.index!))) continue;
     const end = m.index! + m[0].length;
     const after = clause.slice(end, end + 40);
     for (const t of after.matchAll(new RegExp(digitTokenAny(d), "g"))) {
       const rest = after.slice(t.index! + t[0].length);
+      const upTo = clause.slice(0, end) + after.slice(0, t.index!);
       // An operation on the number ("יישארו 5 פחות 3") is the way, not the result.
       if (/^\s*(?:\+|−|-\s*\d|ועוד|פחות)/.test(rest)) continue;
-      if (/^[א-ת]/.test(t[0]) && NOUN_BEFORE_NUMBER_WORD.test(clause.slice(0, end) + after.slice(0, t.index!))) continue;
+      // …and so is the number an operation acts on ("יהיו 16 פחות 8", "אחרי שמוציאים 5").
+      if (OPERAND_BEFORE.test(upTo)) continue;
+      if (/^[א-ת]/.test(t[0]) && NOUN_BEFORE_NUMBER_WORD.test(upTo)) continue;
       return true;
     }
     // "5 לבנים יישארו בטור היחידות": the number just before the verb.
@@ -2245,22 +2261,59 @@ function statesWithVerb(clause: string, d: number): boolean {
   return false;
 }
 
+/** Things a card counts that are not a digit of the exercise: "שתי ספרות", "שני מספרים", "שתי דרכים". */
+const COUNTED_THINGS = "(?:ספרות|ספרה|תיבות|תיבה|דרכים|דרך|מספרים|מספר|טורים|טור|פעמים|פעם|שלבים|שלב|צעדים|צעד|שאלות|שאלה|שורות|שורה|כפתורים|כפתור|תרגילים|תרגיל|אפשרויות|עיגולים|עיגול|תשובות|תשובה|פעולות|פעולה)";
+const ANY_NUMBER_WORD = Object.values(DIGIT_WORDS_HE).flat().join("|");
+/**
+ * A question that counts something other than the hidden digit: "כמה תיבות
+ * ריקות יש?", "כמה מספרים יש בתרגיל?", "כמה עשרות עברו מטור היחידות?" (the
+ * carry). "כמה עשרות חסרות?" asks for the hidden digit itself — not this.
+ */
+const COUNT_QUESTION = new RegExp(
+  `(?:^|[^א-ת])כמה\\s+(?:${COUNTED_THINGS}|(?:יחידות|עשרות|מאות|אלפים|לבנים|לבני\\s+[א-ת]+)\\s+(?:[א-ת]+\\s+)?(?:עברו|עוברות|עוברים|הועברו|מעבירים|עבר|עברה|קיבצו|מקבצים|פורטים|פרטו|נוצרו|נוצרה))(?![א-ת])`
+);
+/** The word before "אחת / אחד" that makes it the value, not a noun's count: "היא אחת", "מוסיפים אחת", "ועוד אחת". */
+const VALUE_BEFORE_ONE = /(?:^|[^א-ת])(?:היא|הוא|זו|זה|זאת|הם|הן|ועוד|פחות|עוד|רק|בדיוק|[א-ת]+ים|[א-ת]{2,}ו)\s+$/;
+
 /**
  * A digit anywhere in a text: the digit on its own ("מוסיפים 8", "הספרה 8")
  * or a number word of it ("שמונה"). Not inside a longer number ("18", "3▢6"),
  * not a construct before a definite noun ("שני המספרים", "שלושת הטורים"), not
  * "אחת / אחד" after a noun ("עשרת אחת", "ספרה אחת"), and not the 1 of the
  * memory circle ("רושמים 1 בעיגול הזיכרון": a carry is always 1).
+ * Verification, 2.10.2026 — nor a count of other things: "שתי ספרות", "אחת
+ * מהן", "שלושה: שני מספרים ותוצאה", "ה-1 של 12", or a lone answer to a
+ * question that counts them ("כמה תיבות ריקות יש?" → "שתיים"). With no
+ * question given, a lone number is the digit.
  */
-export function mentionsDigitAnywhere(text: string, d: number): boolean {
-  for (const clause of stripDigitGroupSeparators(text).split(/[.?!;:\n]/)) {
+export function mentionsDigitAnywhere(text: string, d: number, question?: string): boolean {
+  const plain = stripDigitGroupSeparators(text);
+  const countQuestion = question !== undefined && COUNT_QUESTION.test(stripDigitGroupSeparators(question));
+  for (const cm of plain.matchAll(/([^.?!;:\n]*)([.?!;:\n]?)/g)) {
+    const clause = cm[1];
+    if (!clause.trim()) continue;
     if (d === 1 && /עיגול/.test(clause)) continue;
+    const next = plain.slice(cm.index! + cm[0].length);
     for (const t of clause.matchAll(new RegExp(digitTokenAny(d), "g"))) {
-      if (/^\d$/.test(t[0])) return true;
       const before = clause.slice(0, t.index!);
       const after = clause.slice(t.index! + t[0].length);
-      if (/^(?:שני|שתי|שלושת|ארבעת|חמשת|ששת|שבעת|שמונת|תשעת)$/.test(t[0]) && /^\s+ה[א-ת]/.test(after)) continue;
-      if (/^(?:אחת|אחד)$/.test(t[0]) && /[א-ת]\s+$/.test(before)) continue;
+      const word = /^[א-ת]/.test(t[0]);
+      if (word && /^(?:שני|שתי|שלושת|ארבעת|חמשת|ששת|שבעת|שמונת|תשעת)$/.test(t[0]) && /^\s+ה[א-ת]/.test(after)) continue;
+      if (word && /^(?:אחת|אחד)$/.test(t[0]) && /[א-ת]\s+$/.test(before) && !VALUE_BEFORE_ONE.test(before)) continue;
+      // "שתי ספרות", "2 תיבות", "שני מספרים": a count of things that are not the digit.
+      if (new RegExp(`^\\s+${COUNTED_THINGS}(?![א-ת])`).test(after)) continue;
+      // "אחת מהן", "שתיים מהם".
+      if (/^\s+(?:מהן|מהם|מביניהן|מביניהם)(?![א-ת])/.test(after)) continue;
+      // "ה-1 של 12": a digit of a number the card names.
+      if (!word && /ה-?$/.test(before)) {
+        const of = /^\s+(?:של|ב-?|מ-?)\s*(\d{2,})/.exec(after);
+        if (of && of[1].includes(String(d))) continue;
+      }
+      const lone = new RegExp(`^\\s*(?:(?:רק|בדיוק)\\s+)?$`).test(before) && !after.trim();
+      // "שלושה: שני מספרים ותוצאה": the number of things listed after it.
+      if (lone && cm[2] === ":" && new RegExp(`^\\s*(?:\\d+|${ANY_NUMBER_WORD})\\s+${COUNTED_THINGS}(?![א-ת])`).test(next)) continue;
+      // "שתיים" answering "כמה תיבות ריקות יש?". When the question asks for the digit itself, it is the leak.
+      if (lone && countQuestion) continue;
       return true;
     }
   }
@@ -2270,7 +2323,9 @@ export function mentionsDigitAnywhere(text: string, d: number): boolean {
 /** The first digit a card states for its column, or null. */
 export function revealedColumnDigit(texts: string[], facts: Parameters<typeof digitSecretsOf>[0]): DigitSecret | null {
   const secrets = digitSecretsOf(facts);
-  for (const s of secrets) if (texts.some((t) => statesColumnDigit(t, s))) return s;
+  // texts[0] is the guiding question: an option answering a question that counts
+  // other things ("כמה תיבות ריקות יש?" → "שתיים") is not the hidden digit.
+  for (const s of secrets) if (texts.some((t) => statesColumnDigit(t, s, texts[0]))) return s;
   return null;
 }
 
