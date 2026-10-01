@@ -92,7 +92,8 @@ export function FeedbackToast({ placement = 'floating' }: { placement?: 'floatin
               {feedback.neutral ? '👍' : feedback.correct ? '🌟' : '🤔'}
             </span>
           )}
-          <div className={placement === 'inline' ? '' : 'pt-0.5'}>
+          {/* The read-aloud button sits at the row's far end, as beside the instruction. */}
+          <div className={`flex-1 min-w-0 ${placement === 'inline' ? '' : 'pt-0.5'}`}>
             <p className={`font-display font-extrabold ${placement === 'inline' ? 'text-base' : 'text-xl'} text-ws-ink leading-snug`}>{feedback.title}</p>
             {feedback.sub && <p className={`${placement === 'inline' ? 'text-sm leading-snug mt-0.5' : 'text-base mt-1 leading-relaxed'} text-ws-soft`}>{feedback.sub}</p>}
           </div>
