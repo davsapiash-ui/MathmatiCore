@@ -6,7 +6,7 @@ import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
 import { researchErrorCategory } from "./socraticResearchCategory";
 import { recentTelemetryFor, MAX_RECENT_FOR_ENGINE } from "./recentTelemetry";
-import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, framed, meeting1Card, s1NoButtonCard, s1GroupActionCard, s1DeficitSecondCard, groupActionCard, strayAddition, strayBlocksCard, multiStepTarget, showBoardCard, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
+import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, framed, meeting1Card, s1NoButtonCard, s1GroupActionCard, s1DeficitSecondCard, s1WrongBreakCard, s1StartChangedCard, groupActionCard, strayAddition, strayBlocksCard, multiStepTarget, showBoardCard, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -447,7 +447,7 @@ function meeting1DeficitCard(lacking: DeficitPlace[]): SocraticHintResponse {
         ? "נכון מאוד! לחצו על לבנה בטור שמשמאל לו כדי לפרוט אותה ל-10 לבנים."
         : lacking.includes(p)
           ? "רמז: מאיזה טור מתחילים לבדוק בחיסור?"
-          : "רמז: האם בטור הזה יש פחות לבנים מהספרה של המספר השני?",
+          : "רמז: האם בטור הזה יש פחות לבנים ממה שצריך להוציא ממנו?",
     };
   });
   return {
@@ -510,7 +510,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
       // D10 (owner, 1.10.2026): a guiding question. The card serves the board
       // before the break; after it, meeting1Card speaks (staticSocraticCards.ts).
       { id: "opt_2", textHe: "בית המספרים נשאר בלי שינוי", isCorrect: false, feedbackHe: "רמז: מה קורה ללבנת העשרת כשלוחצים עליה?" },
-      { id: "opt_3", textHe: "העשרת נמחקת מבית המספרים", isCorrect: false, feedbackHe: "רמז: מאיפה מגיעות היחידות החדשות שבטור היחידות?" }
+      { id: "opt_3", textHe: "העשרת נמחקת מבית המספרים", isCorrect: false, feedbackHe: "רמז: מאיפה מגיעות עשר היחידות החדשות?" }
     ],
     correctChoiceId: "opt_1",
     cardKind: 's1_card',
@@ -958,10 +958,23 @@ export class SocraticEngine {
 
     const meeting = meetingOfTaskId(currentTask?.id);
     const shown = (k: StaticCardKind) => (context.shownKinds ?? []).includes(k);
+    const value = counts.units + counts.tens * 10 + counts.hundreds * 100 + counts.thousands * 1000;
+    const a = typeof currentTask?.numberA === 'number' ? currentTask.numberA : null;
+    const b = typeof currentTask?.numberB === 'number' ? currentTask.numberB : null;
     // Meeting 1 has no thousands column, so no "קבצו 10" button over the
     // hundreds: "click the button at the top of that column" pointed at
-    // nothing (1.10.2026).
-    if (meeting === 1 && counts.hundreds >= 10) return s1NoButtonCard();
+    // nothing (1.10.2026). A subtraction with both numbers built (806 + 351:
+    // 11 hundreds) gets "what do you build in subtraction" (meeting1Card).
+    const bothBuilt = currentTask?.isSubtraction === true && a !== null && value > a;
+    if (meeting === 1 && counts.hundreds >= 10 && !bothBuilt) return s1NoButtonCard();
+    // Meeting 1's 347 with a hundred (or a second ten) broken: undo the break,
+    // not "group the 10 or more" (1.10.2026).
+    // Meeting 1's 26 worth another number now (blocks deleted or added): back
+    // to the blocks it started with, before "10 or more".
+    if (meeting === 1) {
+      const wrongBreak = s1WrongBreakCard(currentTask, counts) ?? s1StartChangedCard(currentTask, counts);
+      if (wrongBreak) return wrongBreak;
+    }
     // More blocks than the two numbers need (audit C13, C14): taking the extra
     // ones out, not grouping them (1.10.2026).
     const stray = strayAddition(currentTask, counts);
@@ -979,9 +992,13 @@ export class SocraticEngine {
     // the number they end on (1.10.2026).
     const required = (currentTask?.requiredCounts ?? {}) as Partial<Record<'units' | 'tens' | 'hundreds', number>>;
     const stepsTarget = multiStepTarget(currentTask);
-    const value = counts.units + counts.tens * 10 + counts.hundreds * 100 + counts.thousands * 1000;
+    // Meeting 1's subtraction finished with a block broken too many (806 − 351
+    // ending with 15 units): the board is the result, and 10 or more in a
+    // column cannot be written in a box — group it (analysts' matrix S21).
+    // Stations 5–6 have their own card for it (staticSocraticCards).
+    const subtractionDone = meeting === 1 && currentTask?.isSubtraction === true && a !== null && b !== null && value === a - b;
     const crowdingIsTheGoal = (place: 'units' | 'tens' | 'hundreds') =>
-      currentTask?.isSubtraction === true || currentTask?.type === 'flexible_decomp' || (required[place] ?? 0) >= 10 ||
+      (currentTask?.isSubtraction === true && !subtractionDone) || currentTask?.type === 'flexible_decomp' || (required[place] ?? 0) >= 10 ||
       (stepsTarget !== null && value !== stepsTarget);
     // Meeting 1: the column and its count stay for the child to find (owner, 29.9.2026).
     if (meeting === 1 &&

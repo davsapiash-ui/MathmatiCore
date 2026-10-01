@@ -302,7 +302,7 @@ describe('4. an empty board in stations 3 and 7: build first what the instructio
     }
   });
 
-  it('C2 keeps speaking on an empty board, C3 does not; a built board is unchanged; station 4 is unchanged', () => {
+  it('C2 keeps speaking on an empty board, C3 does not; a built board is unchanged; station 4 builds first too', () => {
     expect(q(byId('s3_r_t3'), EMPTY).questionHe).toBe('נסו לחשוב: כמה לבני עשרת שוות ללבנת מאה אחת?');
     // C3 ("יש טור שאין בו לבנים") says nothing to a board with no blocks at all (review, 30.9.2026).
     for (const id of ['s3_r_t5', 's3_g_t5']) {
@@ -310,7 +310,12 @@ describe('4. an empty board in stations 3 and 7: build first what the instructio
       expect(q(byId(id), { ...EMPTY, ...byId(id).requiredCounts }).questionHe, id).toBe('נסו לחשוב: יש טור שאין בו לבנים. מה כותבים במספר בשביל הטור הזה?');
     }
     expect(q(byId('s3_r_t1'), { ...EMPTY, hundreds: 3 }).questionHe).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
-    expect(q(byId('s4_g_t1'), EMPTY).questionHe).not.toBe(BUILD_Q);
+    // Changed 1.10.2026 (owner, via the coordinator: every misleading cell gets
+    // a fitting card; analysts' matrix 4.2): the carry card spoke of 10 blocks
+    // in a column of an empty board. Station 4 builds first too; its second
+    // card names what is built.
+    expect(q(byId('s4_g_t1'), EMPTY).questionHe).toBe(BUILD_Q);
+    expect(q(byId('s4_g_t1'), EMPTY, { shownKinds: ['build_first'] }).questionHe).toBe('נסו לחשוב: מה בונים בבית המספרים בתרגיל 1,245 + 328?');
   });
 });
 

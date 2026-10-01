@@ -67,6 +67,7 @@ const CONTEXTS: StaticCardContext[] = [
   { trigger: 'hesitation_45s', memoryCircles: { tens: '1', hundreds: '9', units: '10' }, conversionsDone: ['units'] },
   { trigger: 'consecutive_undos_3' },
   { boardHidden: true },
+  { blocksRemoved: false, conversionDone: false, shownKinds: ['build_first', 'missing_part', 'place_slip'] },
 ];
 
 /** The situations the 1.10.2026 work added: their cards are held to the rule in full (one question per hint). */
@@ -78,6 +79,7 @@ const NEW_SITUATIONS = new Set([
   'check_student_columns', 'one_number_missing', 'build_both_numbers', 'carry_record', 'carry_column_write', 'add_column',
   'carry_forgotten', 'subtract_after_borrow', 'subtract_column', 'check_each_column', 'skeleton_missing_addend',
   'skeleton_missing_addend_column', 'skeleton_hidden_minuend', 'skeleton_hidden_minuend_column', 'extra_break_sub',
+  's1_restore_start', 'build_first_number', 'missing_part_value',
 ]);
 
 describe('every card the selection serves, in every state and context', () => {
@@ -289,7 +291,7 @@ describe('stations 3 and 7: the board against the instruction, and the second ca
     expect(l1.questionHe).toBe('נסו לחשוב: איך יודעים לאיזה טור שייך כל חלק של המספר?');
     const l2 = q(t, C({ hundreds: 5, tens: 6 }), { shownKinds: ['place_slip'] });
     expect(l2.questionHe).toBe('נסו לחשוב: האם ההנחיה מבקשת לבנים בטור העשרות?');
-    expect(right(l2).feedbackHe).toBe('נכון מאוד! בנו את החלק הזה בטור היחידות.');
+    expect(right(l2).feedbackHe).toBe('נכון מאוד! בנו בטור היחידות אותו מספר של לבנים.');
     expect(textsOf(l2).join(' ')).not.toMatch(/506/);
     // Before the break of s3_r_t6 (5 hundreds and 6 units): the slip first — breaking a block of a wrong board does not mend it.
     expect(q(byId('s3_r_t6'), C({ hundreds: 5, tens: 6 }), { conversionDone: false, pendingConversion: 'tens' }).situation).toBe('place_slip');
@@ -412,7 +414,7 @@ describe('stations 4–7, vertical exercises: the column the child is at', () =>
   it('a choice task gets no grouping card; a missing result digit gets the exercise\'s own card', () => {
     expect(q(byId('s4_g_t7'), C({ thousands: 3, hundreds: 4, tens: 5, units: 15 })).situation).toBe('small_change_compare');
     expect(q(byId('s5_g_t7'), C({ thousands: 7, hundreds: 6, tens: 15, units: 1 })).situation).toBe('small_change_compare');
-    expect(q(byId('s4_r_t7'), EMPTY).situation).toBe('carry_column');
+    expect(q(byId('s4_r_t7'), C({ units: 1 })).situation).toBe('carry_column');
     expect(right(q(byId('s4_r_t7'), C({ hundreds: 4, tens: 7, units: 3 }))).textHe).toBe('כותבים בתיבה הריקה את מספר הלבנים שבטור שלה');
     // 400 − 156 (מסמך 03 §3.6): C5, then the zero card.
     expect(q(byId('s6_r_t7'), digitsOf(400)).cardKind).toBe('borrow_check');
@@ -469,7 +471,7 @@ describe('skeletons: what to build, and the column (owner, 1.10.2026)', () => {
     expect(right(g3).textHe).toBe('בונים את 2,159, ומחזירים לבית המספרים את 2,847');
     expect(textsOf(g3).join(' ')).toContain('בתיבות הריקות');
     const r7 = q(byId('s5_r_t7'), EMPTY, { shownKinds: ['skeleton'] }); // 4▢2 − 128 = 314
-    expect(r7.questionHe).toBe('נסו לחשוב: טור היחידות היה צריך עשרת אחת. כמה עשרות היו בטור העשרות לפני שהיא עברה?');
+    expect(r7.questionHe).toBe('נסו לחשוב: טור היחידות היה צריך עשרת אחת. איך מגלים כמה עשרות היו בטור העשרות לפני שהיא עברה?');
     expect(textsOf(r7).join(' ')).not.toMatch(/442/);
     const s8 = q(byId('s8_g_t7'), EMPTY); // meeting 8, no blocks
     expect(right(s8).textHe).toBe('מחברים את 2,438 ואת 1,562');
@@ -541,5 +543,106 @@ describe('the store records the new kinds, and the next card of the exercise is 
     expect((await openCard()).situation).toBe('crowded_column');
     expect(ws().socraticCardKinds.kinds).toContain('crowded');
     expect((await openCard()).situation).toBe('group_action');
+  });
+});
+
+describe('the analysts\' remaining rows (1.10.2026, second pass)', () => {
+  it('an empty addition board builds first, in stations 1 and 4–7; the second card names what is built', () => {
+    for (const id of ['s4_g_t1', 's4_r_t7', 's1_t8']) {
+      expect(q(byId(id), EMPTY).situation, id).toBe('board_empty_build_first');
+      expect(q(byId(id), EMPTY).cardKind, id).toBe('build_first');
+      expect(q(byId(id), EMPTY, { shownKinds: ['build_first'] }).situation, id).toBe('build_both_numbers');
+    }
+    // Error analysis keeps C6 first; skeletons keep their own card.
+    expect(q(byId('s7_r_t5'), EMPTY).cardKind).toBe('error_analysis');
+    expect(q(byId('s7_r_t3'), EMPTY).situation).toBe('skeleton_missing_addend');
+  });
+
+  it('station 1: both numbers of 806 − 351 built (11 hundreds) — what is built in subtraction, not "no button"', () => {
+    expect(q(byId('s1_r_sub806'), C({ hundreds: 11, tens: 5, units: 7 })).situation).toBe('build_only_first');
+    // An addition with 10 or more hundreds keeps the no-button card.
+    expect(q(byId('s1_r_words703'), C({ hundreds: 12, units: 3 })).situation).toBe('s1_crowded_no_button');
+  });
+
+  it('station 1, 347: a hundred broken — undo the break, not "group the 10 or more"', () => {
+    const t = byId('s1_target_347');
+    for (const counts of [C({ hundreds: 2, tens: 14, units: 7 }), C({ hundreds: 2, tens: 13, units: 17 })]) {
+      const card = q(t, counts);
+      expect(card.situation, JSON.stringify(counts)).toBe('extra_break');
+      expect(textsOf(card).join(' ')).not.toMatch(/347|טור ה/);
+    }
+    // Built and not yet broken, and broken as asked: unchanged.
+    expect(q(t, C({ hundreds: 3, tens: 4, units: 7 })).cardKind).toBe('s1_card');
+    expect(q(t, C({ hundreds: 3, tens: 3, units: 17 })).situation).toBe('s1_after_break');
+  });
+
+  it('station 1: a subtraction finished with a block broken too many — group it (the meeting-1 card, no column named)', () => {
+    const c = q(byId('s1_r_sub806'), C({ hundreds: 4, tens: 4, units: 15 }));
+    expect(c.questionHe).toBe('באחד הטורים יש 10 לבנים או יותר. מה עושים?');
+    expect(q(byId('s1_r_sub806'), C({ hundreds: 4, tens: 4, units: 15 }), { shownKinds: ['s1_crowded'] }).situation).toBe('group_action');
+    // On the way (after a break, before taking away) 10 or more is still the goal.
+    expect(q(byId('s1_r_sub61'), C({ tens: 5, units: 11 })).situation).not.toBe('s1_crowded');
+  });
+
+  it('station 1, 26: blocks deleted, added, or the result built by hand — back to the blocks the exercise started with', () => {
+    const t = byId('s1_r_group26');
+    for (const [counts, ctx] of [[C({ units: 8 }), {}], [C({ units: 30 }), {}], [C({ tens: 2, units: 6 }), { conversionDone: false }], [EMPTY, {}]] as const) {
+      const card = q(t, counts, ctx);
+      expect(card.situation, JSON.stringify(counts)).toBe('s1_restore_start');
+      expect(card.questionHe).not.toMatch(/טור ה|\d/);
+    }
+    // Grouped with the button: what goes in each box.
+    expect(q(t, C({ tens: 2, units: 6 })).situation).toBe('write_result_boxes');
+    expect(q(t, C({ tens: 2, units: 6 }), { conversionDone: true }).situation).toBe('write_result_boxes');
+    // The 26 units it starts with: the "10 or more" card.
+    expect(q(t, C({ units: 26 })).questionHe).toBe('באחד הטורים יש 10 לבנים או יותר. מה עושים?');
+  });
+
+  it('station 1, 703 / 482 built otherwise: how many blocks in each column, then which column each part goes to', () => {
+    const t = byId('s1_r_words703');
+    const l1 = q(t, C({ hundreds: 7, tens: 3 }));
+    expect(l1.situation).toBe('build_from_words');
+    expect(l1.cardKind).toBe('s1_card');
+    const l2 = q(t, C({ hundreds: 7, tens: 3 }), { shownKinds: ['s1_card'] });
+    expect(l2.situation).toBe('place_slip');
+    expect(l2.questionHe).not.toMatch(/טור ה/);
+    expect(q(t, C({ hundreds: 7, tens: 3 }), { shownKinds: ['s1_card', 'place_slip'] }).situation).toBe('build_from_words');
+    // A miscount (702): no place slip — how many blocks in each column.
+    expect(q(t, C({ hundreds: 7, units: 2 }), { shownKinds: ['s1_card'] }).situation).toBe('build_from_words');
+    // Built right: the exercise's own card, then the boxes.
+    expect(q(t, C({ hundreds: 7, units: 3 })).cardKind).toBe('s1_card');
+    expect(q(byId('s1_r_words482'), C({ hundreds: 2, tens: 8, units: 4 })).situation).toBe('build_from_words');
+  });
+
+  it('subtraction, less than the first number and nothing taken away: which number is built', () => {
+    for (const [id, counts] of [['s5_r_t2', C({ tens: 5 })], ['s5_r_t2', C({ tens: 1, units: 8 })], ['s1_r_sub61', C({ tens: 2, units: 4 })], ['s6_g_t3', C({ thousands: 3 })]] as const) {
+      const card = q(byId(id), counts, { blocksRemoved: false });
+      expect(card.situation, `${id} ${JSON.stringify(counts)}`).toBe('build_first_number');
+    }
+    const c = q(byId('s5_r_t2'), C({ tens: 5 }), { blocksRemoved: false });
+    expect(c.questionHe).toBe('נסו לחשוב: בתרגיל 53 − 18, איזה מספר בונים בבית המספרים?');
+    expect(right(c).textHe).toBe('רק את המספר הראשון, 53');
+    // Taking away under way: the check before taking; too much: the comparison per column.
+    expect(q(byId('s5_r_t2'), C({ tens: 4, units: 3 }), { blocksRemoved: true }).situation).toBe('check_before_taking');
+    expect(q(byId('s5_r_t2'), C({ tens: 2, units: 3 }), { blocksRemoved: true }).situation).toBe('took_too_many');
+    // Without the store's field: as before.
+    expect(q(byId('s5_r_t2'), C({ tens: 5 })).situation).toBe('check_before_taking');
+  });
+
+  it('two ways of 2,100 with another number on the board: which number is built', () => {
+    const t = byId('s3_g_t7');
+    expect(q(t, C({ thousands: 2 })).situation).toBe('which_number_built');
+    expect(q(t, C({ thousands: 2, hundreds: 1 })).situation).toBe('flexible_second_way');
+    expect(q(t, C({ thousands: 1, hundreds: 11 })).situation).toBe('flexible_second_way');
+  });
+
+  it('160 = 100 + ?: 6 written for 60, or the second card — what the tens of the missing part are worth', () => {
+    const t = byId('s3_r_t7');
+    expect(q(t, C({ hundreds: 1, tens: 6 })).situation).toBe('missing_part');
+    expect(q(t, C({ hundreds: 1, tens: 6 })).cardKind).toBe('missing_part');
+    const typed6 = q(t, C({ hundreds: 1, tens: 6 }), { answerDigits: { units: '6' } });
+    expect(typed6.situation).toBe('missing_part_value');
+    expect(textsOf(typed6).join(' ')).not.toMatch(/(^|[^0-9])60(?![0-9])/);
+    expect(q(t, C({ hundreds: 1, tens: 6 }), { shownKinds: ['missing_part'] }).situation).toBe('missing_part_value');
   });
 });

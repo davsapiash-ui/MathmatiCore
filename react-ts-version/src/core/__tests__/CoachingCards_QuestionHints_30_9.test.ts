@@ -214,7 +214,8 @@ describe('the converted hints ask; the column and the blocks follow the exercise
   });
 
   it('10 or more in a column (station 4, 1,245 + 328)', () => {
-    expect(wrongHints(q(byId('s4_g_t1'), EMPTY))).toEqual([
+    // Both numbers built but the units (1.10.2026: an empty board builds first).
+    expect(wrongHints(q(byId('s4_g_t1'), { ...EMPTY, thousands: 1, hundreds: 5, tens: 6 }))).toEqual([
       'רמז: 10 לבני יחידה שוות לאיזו לבנה?',
       'רמז: אם תמחקו לבנים, האם המספר יישאר אותו מספר?',
     ]);
@@ -305,7 +306,8 @@ describe('C1 — a number built, then a block broken (station 3)', () => {
       byId('s3_r_t2'), byId('s3_g_t4'), byId('s7_r_t1'), byId('s7_g_t1')]) {
       const empty = q(task, EMPTY);
       expect(empty.questionHe, task.id).not.toMatch(/בניתם|לפני הפריטה|לפני ההקבצה/);
-      expect(empty.cardKind, task.id).toBeUndefined();
+      // Not C1 or C7 (1.10.2026: the build-first card is recorded, for its second level).
+      expect(empty.cardKind, task.id).toBe('build_first');
       expect(wrongHintViolation(empty), task.id).toBeNull();
       // One block placed is enough — a block worth less than the number (a
       // hundred is more than 85: since 1.10.2026 that is the stray-blocks card).

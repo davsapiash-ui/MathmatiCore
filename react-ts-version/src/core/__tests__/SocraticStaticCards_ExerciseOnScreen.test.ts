@@ -92,7 +92,9 @@ describe('the static card is about the exercise on the screen (3.14, 8.5)', () =
       if (/תלמיד פתר/.test(t.instructionHe)) continue;
       // Meeting 8: the column card is the second card; the first is general (owner's D8, 1.10.2026).
       const ctx = /^s8_/.test(t.id) ? { shownKinds: ['s8_check' as const] } : undefined;
-      const q = SocraticEngine.getSynchronousTaskHint(task, EMPTY, ctx).questionHe;
+      // A block on the board: an empty board builds first since 1.10.2026 (analysts' matrix 4.2).
+      const counts = /^s8_/.test(t.id) ? EMPTY : { ...EMPTY, units: 1 };
+      const q = SocraticEngine.getSynchronousTaskHint(task, counts, ctx).questionHe;
       if (!t.isSubtraction) {
         const first = carryColumns(t.numberA, t.numberB)[0];
         if (first) expect(q, t.id).toContain(`בטור ${PLACE[first]} מצטברות 10`);
@@ -161,7 +163,8 @@ describe('the two cards the audit saw', () => {
   });
 
   it('8.5 — the same exercise in meeting 4 names the units too, with the blocks that are on that screen', () => {
-    const card = SocraticEngine.getSynchronousTaskHint(byId('s4_g_t1'), EMPTY);
+    // One block on the board (1.10.2026: an empty board builds first).
+    const card = SocraticEngine.getSynchronousTaskHint(byId('s4_g_t1'), { ...EMPTY, units: 1 });
     expect(card.questionHe).toBe('נסו לחשוב: בתרגיל 1,245 + 328, בטור היחידות מצטברות 10 יחידות או יותר. מה עושים איתן?');
     expect(card.choices[0].textHe).toBe('מקבצים 10 יחידות לעשרת אחת ומעבירים אותה שמאלה לטור העשרות');
   });
@@ -187,7 +190,7 @@ describe('meeting 1 target task (347): the card does not answer the task\'s ques
     // Owner's D10 (1.10.2026): guiding questions.
     expect(hints).toEqual([
       'רמז: מה קורה ללבנת העשרת כשלוחצים עליה?',
-      'רמז: מאיפה מגיעות היחידות החדשות שבטור היחידות?',
+      'רמז: מאיפה מגיעות עשר היחידות החדשות?',
     ]);
     expect(JSON.stringify(card)).not.toMatch(/שומרת על ערך הכמות|נשמרת|347/);
   });
@@ -439,7 +442,8 @@ describe('with blocks on the screen, the card follows the board', () => {
   it('a skeleton with several empty boxes speaks of boxes, in the plural', () => {
     for (const { task } of rows.filter((r) => ((r.task as any).hiddenDigits?.a?.length ?? 0) > 1)) {
       const all = textsOf(SocraticEngine.getSynchronousTaskHint(task, EMPTY)).join(' ');
-      expect(all, task.id).toContain('בתיבות הריקות');
+      // 'בכל תיבה ריקה' (second review, 1.10.2026: four columns, two empty boxes) is the plural too.
+      expect(all, task.id).toMatch(/בתיבות הריקות|בכל תיבה ריקה/);
       expect(all, task.id).not.toContain('בתיבה הריקה');
     }
   });
