@@ -503,6 +503,65 @@ export function reconcileWithFirebaseUser(firebaseUser: FirebaseIdentity | null)
   if (ended) void unifiedLogout({ thisTabOnly: true });
 }
 
+type LearnerFirebaseIdentity = FirebaseIdentity & {
+  getIdTokenResult?: (force: boolean) => Promise<{ claims: Record<string, unknown> }>;
+};
+
+let learnerClaimsCheck: Promise<void> | null = null;
+/** When the claims were last found right — a write refused again soon after does not ask the server again. */
+let learnerClaimsOkAt = 0;
+/** How long a confirmed check stands. */
+export const LEARNER_CLAIMS_RECHECK_MS = 30_000;
+
+/**
+ * PRD Module 2 §א/§ג for a learner tab. The anonymous Firebase user is shared
+ * by every tab on the device and only its claims move: a sign-out in another
+ * tab releases them, a sign-in there stamps another learner's. A tab still
+ * holding learner N then has every write refused — and the refusal's event,
+ * 'firebase:auth_expired', had no listener, so the tab stayed on the exercise
+ * and nothing the child did was saved.
+ *
+ * On that event the server's claims are read fresh. When they no longer name
+ * this tab's learner, this tab's session ends here, the way a staff tab's does
+ * (reconcileWithFirebaseUser): this tab only — nothing sent, the Firebase user
+ * and its new claims left alone — and the route guard takes the tab to the
+ * sign-in. A refusal with the claims still right (a write the rules refuse for
+ * another reason), or no answer from the server, ends nothing.
+ */
+export function reconcileLearnerClaims(): Promise<void> {
+  const { isStudentAuthenticated, role } = useAuthStore.getState();
+  if (!isStudentAuthenticated && role !== 'student') return Promise.resolve();
+  if (learnerClaimsCheck) return learnerClaimsCheck;
+  if (Date.now() - learnerClaimsOkAt < LEARNER_CLAIMS_RECHECK_MS) return Promise.resolve();
+  const expected = currentStudentNumber();
+  const firebaseUser = currentFirebaseUser() as LearnerFirebaseIdentity | null;
+  if (!firebaseUser || expected === null) return Promise.resolve();
+
+  learnerClaimsCheck = (async () => {
+    let ended: boolean;
+    if (!firebaseUser.isAnonymous) {
+      // A staff account signed in on this browser: learner claims never go on it.
+      ended = true;
+    } else if (typeof firebaseUser.getIdTokenResult !== 'function') {
+      return;
+    } else {
+      const { claims } = await firebaseUser.getIdTokenResult(true);
+      ended = claims.role !== 'student' || Number(claims.student_id) !== expected;
+    }
+    if (!ended) {
+      learnerClaimsOkAt = Date.now();
+      return;
+    }
+    // Only the session this check was about: a new sign-in in this tab meanwhile is not touched.
+    if (currentStudentNumber() === expected) void unifiedLogout({ thisTabOnly: true });
+  })()
+    .catch(() => {})
+    .finally(() => {
+      learnerClaimsCheck = null;
+    });
+  return learnerClaimsCheck;
+}
+
 export const useAuthStore = create<AuthState>()(
   (set, get) => ({
     user: initial.user,
@@ -672,6 +731,12 @@ try {
   }
 } catch (e) {
   console.warn('[useAuthStore] Firebase auth listener unavailable:', e);
+}
+// A write refused for lack of permission (FirebaseSyncService.handlePermissionOrAuthError).
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('firebase:auth_expired', () => {
+    void reconcileLearnerClaims();
+  });
 }
 
 /**
