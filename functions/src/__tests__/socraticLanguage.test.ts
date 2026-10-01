@@ -21,7 +21,15 @@ const cases: Record<string, { bad: string[]; good: string[] }> = {
   },
   first_person_plural_object: {
     bad: ['כשנקרא את הספרות', 'נבנה את המספר 340'],
-    good: ['כשקוראים את הספרות', 'בונים את המספר', 'המספר נותן את התשובה'],
+    good: ['כשקוראים את הספרות', 'בונים את המספר', 'המספר נותן את התשובה', 'נסו את הכפתור קבצו 10'],
+  },
+  first_person_plural_prefixed: {
+    bad: ['כשנגיע לטור המאות', 'ונמשיך', 'שנוסיף עוד לבנה'],
+    good: ['כשמגיעים לטור המאות', 'מה שנעשה בטור הזה', 'איזה מספר נבנה בבית המספרים?'],
+  },
+  second_person_singular: {
+    bad: ['שים לב לטור העשרות', 'נסה שוב', 'לחץ על הכפתור', 'בדוק את הטור', 'תבדוק כמה לבנים יש', 'בדקי את הטור', 'כתוב את המספר', 'חשוב רגע', 'שימי לב', 'כשתבדוק את הטור'],
+    good: ['שימו לב לטור העשרות', 'נסו שוב', 'לחצו על הכפתור', 'מה כתוב בהנחיה?', 'מה רשום בעיגול הזיכרון?', 'חשוב לבדוק כל טור', 'העשרת תעבור לטור העשרות'],
   },
   not_a_form_kabetz: { bad: ['והקביצו אותן', 'הקבצו 10 יחידות'], good: ['קבצו 10 יחידות', 'מקבצים 10 יחידות לעשרת אחת'] },
   blocks_plural: { bad: ['הלבנות העודפות', 'גררו את הלבנות לפח', 'לבנות מיותרות'], good: ['הלבנים המיותרות', 'כדי לבנות את המספר', 'לבנות מאה אחת מעשר עשרות'] },
@@ -29,7 +37,7 @@ const cases: Record<string, { bad: string[]; good: string[] }> = {
   action_not_on_screen_mark: { bad: ['סמנו 10 לבני עשרת', 'מסמנים את הלבנים'], good: ['לחצו על הכפתור קבצו 10'] },
   name_not_on_screen: { bad: ['גררו לבנים ממאגר הלבנים', 'לבני הדינס', 'מה רואים על הלוח?'], good: ['גררו לבנים מארגז הכלים', 'לוחצים על הכפתור'] },
   parsing_verb: { bad: ['מפרקים עשרת', 'לאיזה טור היא מתפרקת', 'הפירוק של המאה'], good: ['פורטים עשרת אחת לעשר יחידות', 'הלבנה נפרטת לעשר לבנים'] },
-  break_into_column: { bad: ['כשפורטים עשרת אחת לטור היחידות', 'אחרי שפרטתם אלף אחד אל טור המאות'], good: ['פורטים עשרת אחת לעשר יחידות', 'פורטים מאה אחת ומעבירים את העשרות'] },
+  break_into_column: { bad: ['כשפורטים עשרת אחת לטור היחידות', 'אחרי שפרטתם אלף אחד אל טור המאות'], good: ['פורטים עשרת אחת לעשר יחידות', 'פורטים מאה אחת ומעבירים את העשרות', 'פרטו עשרת אחת וגררו את היחידות לטור היחידות'] },
   gender_slash: { bad: ['תלמידים/ות', 'בדקו/י'], good: ['בדקו'] },
   filler_or_formal: { bad: ['למעשה יש לבצע פריטה', 'במידה שאין מספיק', 'בכדי לחסר', 'אנו מחסרים'], good: ['אם אין מספיק לבנים, פרטו', 'כדי לחסר'] },
   icon_symbol: { bad: ['לחצו על ↺'], good: ['לחצו על כפתור ביטול הפעולה', 'בתרגיל 3▢6 + 271 = 657'] },
@@ -69,6 +77,10 @@ describe('the card form (owner, 30.9.2026)', () => {
   const ok: [string, string, string] = ['נכון מאוד! לחצו על הכפתור.', 'רמז: מה קורה למספר?', 'רמז: כמה ספרות כותבים בכל תיבה?'];
   it('passes the owner\'s form', () => expect(cardFormViolation(card('מה עושים?', ok))).toBeNull());
   it('the question ends with "?"', () => expect(cardFormViolation(card('מה עושים.', ok))).toMatch(/guiding question/));
+  it('the only thinking opening is "נסו לחשוב:"; none is required', () => {
+    expect(cardFormViolation(card('נסו לחשוב: מה עושים?', ok))).toBeNull();
+    expect(cardFormViolation(card('חשבו רגע: מה עושים?', ok))).toMatch(/נסו לחשוב/);
+  });
   it('the right option opens with "נכון מאוד!"', () => expect(cardFormViolation(card('מה עושים?', ['נכון! לחצו.', ok[1], ok[2]]))).toMatch(/נכון מאוד/));
   it('a wrong option opens with "רמז:"', () => expect(cardFormViolation(card('מה עושים?', [ok[0], 'מה קורה למספר?', ok[2]]))).toMatch(/רמז/));
   it('a wrong option is one guiding question', () => {
@@ -83,6 +95,15 @@ describe('the spec reaches the model, and the validator applies it', () => {
     expect(SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS).toContain(socraticLanguageSpec(false));
     expect(socraticLanguageSpec(false)).not.toMatch(/מקבצים|קבצו 10/);
     expect(socraticLanguageSpec(true)).toContain('✗ "סמנו 10 לבני עשרת" ✓ "לחצו על הכפתור קבצו 10"');
+    // The DON'T / DO pairs the prompt shows are the validator's own verdicts.
+    for (const blocks of [true, false]) {
+      for (const line of socraticLanguageSpec(blocks).split('\n').filter((l) => l.startsWith('✗') || l.startsWith('✓'))) {
+        for (const m of line.matchAll(/([✗✓]) "([^"]+)"/g)) {
+          if (m[1] === '✗') expect(languageViolation([m[2]]), `the spec's ✗ should be refused: ${m[2]}`).not.toBeNull();
+          else expect(languageViolation([m[2]]), `the spec's ✓ should pass: ${m[2]}`).toBeNull();
+        }
+      }
+    }
   });
 
   it('a card in the first person plural is refused with the rule\'s fix', () => {

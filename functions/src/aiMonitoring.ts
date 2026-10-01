@@ -33,6 +33,8 @@ export type AiOutcome =
   | "language_reject"
   /** The card left its frame (a level-1 card that names a column). */
   | "frame_reject"
+  /** A report's analysis came back well-formed with nothing to report: the fallback sentence ships, but nothing failed. */
+  | "empty"
   | "not_json"
   | "auth"
   | "quota"
@@ -75,7 +77,7 @@ let firestoreDisabled = false;
  * critical path.
  */
 export function recordAiCall(rec: AiCallRecord): void {
-  const level = rec.outcome === "ok" ? "info" : rec.outcome === "timeout" || rec.outcome === "schema_reject" ? "warn" : "error";
+  const level = rec.outcome === "ok" || rec.outcome === "empty" ? "info" : rec.outcome === "timeout" || rec.outcome === "schema_reject" ? "warn" : "error";
   logger[level]("[ai-monitor] gemini call", rec);
 
   if (firestoreDisabled) return;
@@ -103,7 +105,7 @@ export function recordAiCall(rec: AiCallRecord): void {
       by_model: { [model]: { [f]: counters() } },
       last_call: { [f]: { at: Date.now(), outcome: rec.outcome, latency_ms: rec.latency_ms, model_id: rec.model_id } },
     };
-    if (rec.outcome !== "ok") {
+    if (rec.outcome !== "ok" && rec.outcome !== "empty") {
       update.last_failure = { [f]: { at: Date.now(), outcome: rec.outcome, detail: rec.detail ?? null, model_id: rec.model_id } };
     }
     db.collection("store_cache").doc(AI_MONITORING_DOC).set(update, { merge: true }).catch((err) => {
@@ -213,13 +215,16 @@ export const getAiServiceStatus = onCall({ ...GEMINI_SECRETS, timeoutSeconds: 30
     logger.warn("[ai-monitor] status read failed", { error: String(err) });
   }
 
-  let test: (AiTestCallResult & { rate_limited?: boolean }) | null = null;
+  let test: (AiTestCallResult & { rate_limited?: boolean; in_progress?: boolean }) | null = null;
   if (wantsTest) {
     const stored = (counters?.last_test ?? null) as AiTestCallResult | null;
     const last = [stored, lastTestInThisInstance].filter((t): t is AiTestCallResult => Boolean(t && typeof t.at === "number"))
       .sort((a, b) => b.at - a.at)[0] ?? null;
     if (last && Date.now() - last.at < AI_TEST_CALL_MIN_INTERVAL_MS) {
-      test = { ...last, rate_limited: true };
+      // A click while the previous test still runs is not a failed test: the
+      // console says a test is already running (review of 1.10.2026: it showed
+      // "המנוע לא ענה: in_progress").
+      test = { ...last, rate_limited: true, ...(last.error_code === "in_progress" ? { in_progress: true } : {}) };
     } else if (!key.configured) {
       test = { at: Date.now(), model_id: GEMINI_MODEL_ID, ok: false, latency_ms: 0, error_code: "misconfigured", error_detail: key.problem };
     } else {

@@ -464,8 +464,8 @@ describe('Module 13: the engine reaches station 3 and sees what the child did', 
     expect(v.value.workspace_state.memory_circles).toEqual({ units: 13 });
     expect(v.value.student_progress_state?.memory_circles_state).toEqual({ units: 13 });
     const prompt = buildSocraticPrompt(v.value, deriveSocraticFacts(v.value));
-    expect(prompt).toContain('"units":13');
-    expect(prompt).not.toContain('עיגולי הזיכרון: ריקים');
+    expect(prompt).toContain('מעל טור היחידות: 13');
+    expect(prompt).not.toContain('עיגולי הזיכרון: כולם ריקים');
   });
 
   it('recent_actions are the learner\'s real events in this exercise — never made-up ones', async () => {

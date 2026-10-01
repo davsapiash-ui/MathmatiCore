@@ -33,9 +33,9 @@ vi.mock('firebase-admin/firestore', () => ({
 }));
 
 import { classifyGeminiError, GeminiTimeoutError, getGeminiKeyStatus, SOCRATIC_PRIMARY_MODEL, SOCRATIC_FALLBACK_MODEL } from '../geminiConfig';
-import { generateWithRetry } from '../geminiProxy';
-import { recordAiCall, resetAiMonitoringState } from '../aiMonitoring';
-import { reportTextViolation, keepHebrewLines } from '../reportAnalysis';
+import { generateWithRetry, CORRECTED_RETRY_ON_PRIMARY_MIN_MS } from '../geminiProxy';
+import { recordAiCall, resetAiMonitoringState, getAiServiceStatus } from '../aiMonitoring';
+import { reportTextViolation, keepHebrewLines, reportAnalysisOutcome, isEmptyAnalysis } from '../reportAnalysis';
 import { researchDetailsColumns } from '../researchTelemetryRow';
 import { validateSocraticRequest, deriveSocraticFacts } from '../socraticContract';
 
@@ -108,6 +108,22 @@ describe('the second try goes to the right model', () => {
     expect(h.calls[1].prompt).toContain('YOUR PREVIOUS ANSWER WAS REJECTED: language: first_person_plural');
   });
 
+  it('a late rule rejection (little budget left) → the corrected card goes to the faster fallback model', async () => {
+    let now = 1_000_000;
+    const spy = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    try {
+      h.answers.push(async () => { now += 4400; return { text: goodCard.replace('מה עושים?', 'מה נעשה?'), latency_ms: 4400 }; });
+      h.answers.push(async () => ({ text: goodCard, latency_ms: 1500 }));
+      const r = await generateWithRetry('prompt', facts());
+      expect(r.ok).toBe(true);
+      expect(h.calls.map((c) => c.model)).toEqual([SOCRATIC_PRIMARY_MODEL.id, SOCRATIC_FALLBACK_MODEL.id]);
+      expect(h.calls[1].prompt).toContain('YOUR PREVIOUS ANSWER WAS REJECTED');
+      expect(CORRECTED_RETRY_ON_PRIMARY_MIN_MS).toBeGreaterThan(7500 - 4400);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('an auth failure is not retried (the key is the same for both models)', async () => {
     h.answers.push(async () => { throw apiError(403, 'permission denied'); });
     const r = await generateWithRetry('prompt', facts());
@@ -138,6 +154,74 @@ describe('the reports are written in Hebrew only', () => {
     expect(reportTextViolation(['בתרגיל 1,245 + 328 נשכחה העשרת שעברה לטור העשרות.'])).toBeNull();
     expect(keepHebrewLines({ knowledge_gaps: ['שורה בעברית', 'Latin line'], teaching_recommendations: ['המלצה'] }))
       .toEqual({ knowledge_gaps: ['שורה בעברית'], teaching_recommendations: ['המלצה'] });
+  });
+
+  it('ordinary Hebrew that only looks like a forbidden term is kept (review of 1.10.2026)', () => {
+    for (const t of [
+      'מומלץ ללוות את הלומד בתרגול ההקבצה בטור העשרות.',
+      'הלומד התקשה בנושאים של ערך המקום.',
+      'הסברים מלווים בהדגמה בלבנים עזרו לו.',
+      'נושא אחד שחזר: המרה בטור המאות.',
+      'הלומד עבד בשלווה.',
+    ]) expect(reportTextViolation([t]), t).toBeNull();
+  });
+
+  it('the forbidden terms themselves are refused, with word boundaries and context', () => {
+    for (const t of [
+      'הלומד שכח את השארית מההמרה.',
+      'בחיסור הלומד ביצע הלוואה מטור העשרות.',
+      'יש לתרגל לווים עשרת מהטור השכן.',
+      'מומלץ ללוות עשרת מטור העשרות.',
+      'הלומד נושאים את ה-1 לטור הבא.',
+      'בעיה בנשיאה בטור העשרות.',
+      'שבירת עשרת ליחידות.',
+    ]) expect(reportTextViolation([t]), t).toMatch(/Ministry/);
+  });
+});
+
+describe('a report analysis is counted as what it is', () => {
+  const keys = ['knowledge_gaps', 'teaching_recommendations'] as const;
+  it('nothing to report is "empty", not "schema_reject"', () => {
+    expect(isEmptyAnalysis('{"knowledge_gaps":[],"teaching_recommendations":[]}', keys)).toBe(true);
+    expect(isEmptyAnalysis('{"knowledge_gaps":["  "],"teaching_recommendations":[]}', keys)).toBe(true);
+    expect(isEmptyAnalysis('{"knowledge_gaps":[]}', keys)).toBe(false);
+    expect(isEmptyAnalysis('not json', keys)).toBe(false);
+    expect(reportAnalysisOutcome(false, false, '{"knowledge_gaps":[],"teaching_recommendations":[]}', keys).outcome).toBe('empty');
+    expect(reportAnalysisOutcome(false, false, '{"knowledge_gaps":[]}', keys).outcome).toBe('schema_reject');
+    expect(reportAnalysisOutcome(false, true, '{"knowledge_gaps":["Latin"],"teaching_recommendations":[]}', keys).outcome).toBe('language_reject');
+    expect(reportAnalysisOutcome(true, true, null, keys)).toEqual({ outcome: 'ok', detail: 'lines dropped: not Hebrew-only' });
+  });
+  it('"empty" is not written as the last failure', () => {
+    resetAiMonitoringState();
+    h.sets = [];
+    recordAiCall({ feature: 'report_analysis', outcome: 'empty', latency_ms: 3000, model_id: 'gemini-3.8-flash' });
+    expect(h.sets[0].last_failure).toBeUndefined();
+    expect(h.sets[0].totals.report_analysis.empty).toEqual({ __inc: 1 });
+  });
+});
+
+describe('the admin live test: a click while a test runs is not a failed engine', () => {
+  it('the second click gets in_progress, not "the engine did not answer"', async () => {
+    h.calls = [];
+    h.answers = [];
+    const prev = process.env.GEMINI_API_KEY;
+    process.env.GEMINI_API_KEY = 'AQ.test-key-of-the-new-shape-1234567890';
+    let release: (v: { text: string; latency_ms: number }) => void = () => {};
+    h.answers.push(() => new Promise((resolve) => { release = resolve; }));
+    const staff = { auth: { uid: 'a', token: { role: 'admin' } }, data: { test_call: true } } as any;
+    try {
+      const first = (getAiServiceStatus as any).run(staff);
+      await new Promise((r) => setTimeout(r, 10));
+      const second = await (getAiServiceStatus as any).run(staff);
+      expect(second.test.in_progress).toBe(true);
+      expect(second.test.rate_limited).toBe(true);
+      release({ text: '{"ok": true}', latency_ms: 900 });
+      const done = await first;
+      expect(done.test.ok).toBe(true);
+      expect(done.test.in_progress).toBeUndefined();
+    } finally {
+      if (prev === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = prev;
+    }
   });
 });
 

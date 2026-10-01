@@ -26,6 +26,8 @@ interface AiTestResult {
   error_code: string | null;
   error_detail: string | null;
   rate_limited?: boolean;
+  /** The previous live test has not finished yet (the server's in-progress slot). */
+  in_progress?: boolean;
 }
 
 interface AiStatus {
@@ -65,6 +67,7 @@ const OUTCOME_HE: Record<string, string> = {
   forbidden_term: "נדחו — מונח אסור",
   language_reject: "נדחו — ניסוח, מונח או פעולה שאינם על המסך",
   frame_reject: "נדחו — חרגו מרמת הכרטיס",
+  empty: "ניתוח ריק — לא היה מה לדווח",
   not_json: "לא JSON",
   invalid_request: "בקשה לא תקינה",
   auth: "כשל אימות מפתח",
@@ -74,6 +77,9 @@ const OUTCOME_HE: Record<string, string> = {
   misconfigured: "הגדרה שגויה (מפתח או מודל)",
   unknown: "אחר",
 };
+
+/** Shown when "בדיקה חיה" is clicked while the previous live test still runs. */
+const AI_TEST_IN_PROGRESS_HE = "בדיקה קודמת עדיין רצה. נסו שוב בעוד רגע.";
 
 function pct(part: number, whole: number): string {
   if (!whole) return "—";
@@ -210,6 +216,10 @@ export function AiEngineStatusCard() {
             {(() => {
               const t = status.test ?? status.counters?.last_test;
               if (!t) return <span className="text-xs text-slate-500 dark:text-slate-400">קריאה אמיתית אחת למודל, כדי לבדוק שהמנוע עונה עכשיו.</span>;
+              // A click while the previous test still runs is not a failure of the engine.
+              if (t.in_progress || t.error_code === "in_progress") {
+                return <span role="status" className="text-sm text-slate-600 dark:text-slate-300">{AI_TEST_IN_PROGRESS_HE}</span>;
+              }
               return (
                 <span className={`text-sm ${t.ok ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}`}>
                   {t.ok ? "המנוע ענה" : `המנוע לא ענה: ${OUTCOME_HE[t.error_code ?? ""] ?? t.error_code ?? ""}`}

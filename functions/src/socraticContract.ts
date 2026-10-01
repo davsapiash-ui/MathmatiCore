@@ -69,6 +69,45 @@ function countHe(n: number, column: SocraticColumn): string {
   return n === 1 ? ONE_BLOCK_HE[column] : `${n} ${BLOCK_NOUN_HE[column]}`;
 }
 
+/** One block of a column with the article: "העשרת", "המאה", "האלף". */
+const THE_BLOCK_HE: Record<SocraticColumn, string> = {
+  units: "היחידה",
+  tens: "העשרת",
+  hundreds: "המאה",
+  thousands: "האלף",
+};
+
+/** What a break of one block of the column on the left gives this column: "עשר יחידות", "עשר עשרות", "עשר מאות". */
+const TEN_BLOCKS_HE: Record<SocraticColumn, string> = {
+  units: "עשר יחידות",
+  tens: "עשר עשרות",
+  hundreds: "עשר מאות",
+  thousands: "עשרה אלפים",
+};
+
+/** "אלף" is masculine; "יחידה", "עשרת", "מאה" are feminine. */
+const isMasculine = (c: SocraticColumn) => c === "thousands";
+
+const PREV_COLUMN: Record<SocraticColumn, SocraticColumn | null> = { units: null, tens: "units", hundreds: "tens", thousands: "hundreds" };
+
+/**
+ * What an addition's grouping passes INTO a column: one block of THAT column —
+ * "העשרת שעברה מטור היחידות", "המאה שעברה מטור העשרות", "האלף שעבר מטור
+ * המאות" (review of 1.10.2026: every column used to receive "העשרת").
+ */
+export function carryIntoHe(column: SocraticColumn): string {
+  const from = PREV_COLUMN[column];
+  return `${THE_BLOCK_HE[column]} ש${isMasculine(column) ? "עבר" : "עברה"}${from ? ` מ${COLUMN_NAME_HE[from]}` : ""}`;
+}
+
+const NEXT_COLUMN_OF: Record<SocraticColumn, SocraticColumn | null> = { units: "tens", tens: "hundreds", hundreds: "thousands", thousands: null };
+
+/** What a subtraction's break in `column` is: "פורטים מאה אחת לעשר עשרות" (the block of the column on its left). */
+export function breakIntoHe(column: SocraticColumn): string | null {
+  const from = NEXT_COLUMN_OF[column];
+  return from ? `פורטים ${ONE_BLOCK_HE[from]} ל${TEN_BLOCKS_HE[column]}` : null;
+}
+
 /** "חסרות 4 עשרות", "חסרה עשרת אחת", "חסרים 2 אלפים", "חסר אלף אחד". */
 function missingHe(n: number, column: SocraticColumn): string {
   const masculine = column === "thousands";
@@ -659,9 +698,54 @@ export interface SocraticFacts {
   card_frame: SocraticCardFrame | null;
   /** The enhanced profile or the quiet mode is on: shorter, more concrete wording. */
   concise: boolean;
+  /**
+   * addition: what passes into the active column and where it really is — in
+   * the memory circle above it, already on the board after the grouping, or
+   * nowhere yet ("" when the active column receives nothing). Named with the
+   * receiving column's own block: a hundred into the hundreds, a thousand into
+   * the thousands (review of 1.10.2026).
+   */
+  carry_state_he: string;
+  /**
+   * A two-step representation task ("בנו 340, הוסיפו 2 מאות, ואז הסירו 3
+   * עשרות"): the instruction's steps, the value after each, and which of them
+   * the board already reflects. null when the instruction has no such steps.
+   */
+  instruction_steps: InstructionSteps | null;
+  /**
+   * 10 or more blocks in a column is the intended intermediate state: a break
+   * done so that the pending step can take blocks away. A card that tells the
+   * child to group them back is refused while this holds.
+   */
+  crowding_intended: boolean;
   /** Deterministic reading of the situation, offered to the model as the primary hypothesis. */
   suggested_category: SocraticErrorCategory;
   suggested_focus_he: string;
+}
+
+/** One step of a representation instruction: build a number, add or remove blocks of one kind. */
+export interface InstructionStep {
+  kind: "build" | "add" | "remove";
+  /** add / remove: the column whose blocks are added or removed. */
+  column: SocraticColumn | null;
+  /** build: the number; add / remove: how many blocks. */
+  amount: number;
+  /** The board's value once this step is done. */
+  value_after: number;
+}
+
+export interface InstructionSteps {
+  steps: InstructionStep[];
+  /** How many steps the board reflects (0 … steps.length), or null when the board is on none of the instruction's ways. */
+  done: number | null;
+  /** The pending step is under way (some of the blocks added or removed). */
+  partial: boolean;
+  /** A remove step is pending and its column holds fewer blocks than it takes: a block of the column on its left must be broken first. */
+  needs_break: boolean;
+  /** The break for the pending remove step is done: its column holds 10 or more on purpose. */
+  break_done: boolean;
+  /** The column that holds 10 or more on purpose (break_done), or null. */
+  break_column: SocraticColumn | null;
 }
 
 function digitAt(n: number, column: SocraticColumn): number {
@@ -761,6 +845,103 @@ function earlierCardsOf(actions: SocraticRecentAction[]): EarlierCard[] {
 
 const sameCounts = (a: SocraticCounts, b: Record<SocraticColumn, number>) =>
   SOCRATIC_COLUMNS.every((c) => (a[c] ?? 0) === (b[c] ?? 0));
+
+const PLACE_VALUE: Record<SocraticColumn, number> = { units: 1, tens: 10, hundreds: 100, thousands: 1000 };
+const NOUN_COLUMN: Record<string, SocraticColumn> = {
+  "יחידות": "units", "עשרות": "tens", "מאות": "hundreds", "אלפים": "thousands",
+  "יחידה": "units", "עשרת": "tens", "מאה": "hundreds", "אלף": "thousands",
+};
+/** Number words an instruction may use for an amount of blocks ("שתי מאות", "שלושה אלפים"). */
+const AMOUNT_WORD: Record<string, number> = {
+  "שתי": 2, "שני": 2, "שלוש": 3, "שלושה": 3, "שלושת": 3, "ארבע": 4, "ארבעה": 4, "ארבעת": 4, "חמש": 5, "חמישה": 5, "חמשת": 5,
+  "שש": 6, "שישה": 6, "ששת": 6, "שבע": 7, "שבעה": 7, "שבעת": 7, "שמונה": 8, "שמונת": 8, "תשע": 9, "תשעה": 9, "תשעת": 9,
+};
+const STEP_RE = /(הוסיפו|הסירו|הוציאו)\s+(?:(\d+|שתי|שני|שלוש|שלושה|שלושת|ארבע|ארבעה|ארבעת|חמש|חמישה|חמשת|שש|שישה|ששת|שבע|שבעה|שבעת|שמונה|שמונת|תשע|תשעה|תשעת)\s+(יחידות|עשרות|מאות|אלפים)|(יחידה|עשרת|מאה)\s+אחת|(אלף)\s+אחד)/g;
+
+/**
+ * The steps of a representation instruction that builds a number and then
+ * adds and removes blocks — "בנו את המספר 340 בבית המספרים. הוסיפו 2 מאות,
+ * ואז הסירו 3 עשרות" (s7_r_t6), "בנו את המספר 3,400 … הוסיפו אלף אחד, ואז
+ * הסירו 6 מאות" (s7_g_t5). Read from the exercise bank's own text, so the
+ * values after each step are derived from the task, never guessed. null when
+ * the instruction has no add / remove step, or when its steps do not end on
+ * the board the task asks for.
+ */
+export function instructionStepsOf(instruction: string, required?: SocraticCounts): InstructionStep[] | null {
+  const text = stripDigitGroupSeparators(instruction);
+  const build = /בנו(?:\s+בבית המספרים)?\s+את המספר\s+(\d+)/.exec(text);
+  if (!build) return null;
+  const steps: InstructionStep[] = [{ kind: "build", column: null, amount: Number(build[1]), value_after: Number(build[1]) }];
+  for (const m of text.slice(build.index + build[0].length).matchAll(STEP_RE)) {
+    const column = NOUN_COLUMN[m[3] ?? m[4] ?? m[5]];
+    const amount = m[2] ? (/^\d+$/.test(m[2]) ? Number(m[2]) : AMOUNT_WORD[m[2]]) : 1;
+    if (!column || !amount) return null;
+    const before = steps[steps.length - 1].value_after;
+    const kind = m[1] === "הוסיפו" ? "add" : "remove";
+    const after = kind === "add" ? before + amount * PLACE_VALUE[column] : before - amount * PLACE_VALUE[column];
+    if (after < 0) return null;
+    steps.push({ kind, column, amount, value_after: after });
+  }
+  if (steps.length < 2) return null;
+  if (required) {
+    const want = SOCRATIC_COLUMNS.reduce((s, c) => s + (required[c] ?? 0) * PLACE_VALUE[c], 0);
+    if (want !== steps[steps.length - 1].value_after) return null;
+  }
+  return steps;
+}
+
+/** Where the board stands on the instruction's steps. */
+export function instructionStageOf(steps: InstructionStep[], blocks: Record<SocraticColumn, number>): InstructionSteps {
+  const v = SOCRATIC_COLUMNS.reduce((s, c) => s + blocks[c] * PLACE_VALUE[c], 0);
+  let done: number | null = null;
+  let partial = false;
+  if (v === 0) done = 0;
+  else {
+    for (let i = steps.length - 1; i >= 0 && done === null; i--) if (v === steps[i].value_after) done = i + 1;
+    for (let i = 1; i < steps.length && done === null; i++) {
+      const s = steps[i];
+      const before = steps[i - 1].value_after;
+      const unit = PLACE_VALUE[s.column!];
+      if (v > Math.min(before, s.value_after) && v < Math.max(before, s.value_after) && (v - before) % unit === 0) {
+        done = i;
+        partial = true;
+      }
+    }
+    if (done === null && v < steps[0].value_after) {
+      done = 0;
+      partial = true;
+    }
+  }
+  // A remove step needs a break when its column cannot give what it takes
+  // from the number as it stands before the step (3,400 + 1,000 has 4
+  // hundreds, 6 are removed): while it is pending, 10 or more in that column
+  // is the break done on purpose — never "group them back".
+  let needs_break = false;
+  let break_done = false;
+  let break_column: SocraticColumn | null = null;
+  if (done !== null && done < steps.length) {
+    for (let i = Math.max(1, done); i < steps.length; i++) {
+      const s = steps[i];
+      if (s.kind !== "remove" || !s.column) continue;
+      const before = steps[i - 1].value_after;
+      const standard = Math.floor(before / PLACE_VALUE[s.column]) % 10;
+      if (standard >= s.amount) continue;
+      const left = i === done && partial ? (v - s.value_after) / PLACE_VALUE[s.column] : s.amount;
+      if (blocks[s.column] >= 10 && blocks[s.column] >= left) {
+        break_done = true;
+        break_column = s.column;
+      } else if (i === done) needs_break = blocks[s.column] < left;
+    }
+  }
+  return { steps, done, partial, needs_break, break_done, break_column };
+}
+
+const STEP_VERB_HE: Record<InstructionStep["kind"], string> = { build: "בונים", add: "מוסיפים", remove: "מסירים" };
+/** "מסירים 6 מאות", "מוסיפים אלף אחד", "בונים את המספר 3,400". */
+function stepHe(s: InstructionStep): string {
+  if (s.kind === "build") return `בונים את המספר ${formatNumberHe(s.amount)}`;
+  return `${STEP_VERB_HE[s.kind]} ${countHe(s.amount, s.column!)}`;
+}
 
 /** Where the board stands against the exercise (arithmetic with blocks only). */
 export type BoardStage =
@@ -925,18 +1106,28 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   let board_vs_task: SocraticFacts["board_vs_task"] = null;
   let built_before_conversion = false;
   let board_matches_task = false;
+  // A two-step instruction (build, add, remove): the board is read against
+  // the step it has reached, not against the final board — after a correct
+  // first step the final board "lacks" blocks, and after the break of
+  // s7_g_t5 it "has too many" (review of 1.10.2026).
+  const stepsList = !ec && tc ? instructionStepsOf(tc.instruction_he, tc.required_counts) : null;
+  const instruction_steps = stepsList ? instructionStageOf(stepsList, blocks) : null;
+  const stepsPending = Boolean(instruction_steps && instruction_steps.done !== instruction_steps.steps.length);
   if (!ec && tc?.required_counts && blocks_on_screen) {
     built_before_conversion = Boolean(tc.start_counts && sameCounts(tc.start_counts, blocks) && !sameCounts(tc.required_counts, blocks));
     board_matches_task = sameCounts(tc.required_counts, blocks);
     const target = tc.conversion_done === false && tc.start_counts ? tc.start_counts : tc.required_counts;
-    board_vs_task = {};
-    for (const c of SOCRATIC_COLUMNS) {
-      const want = target[c] ?? 0;
-      const have = blocks[c];
-      if (want === 0 && have === 0) continue;
-      board_vs_task[c] = have === want ? "match" : have > want ? "more" : "less";
+    if (!stepsPending) {
+      board_vs_task = {};
+      for (const c of SOCRATIC_COLUMNS) {
+        const want = target[c] ?? 0;
+        const have = blocks[c];
+        if (want === 0 && have === 0) continue;
+        board_vs_task[c] = have === want ? "match" : have > want ? "more" : "less";
+      }
     }
   }
+  const crowding_intended = Boolean(blocks_on_screen && instruction_steps?.break_done);
 
   const active = columns.find((c) => c.column === active_column) ?? null;
   // The client sends the same list in both places; joining them showed every
@@ -993,20 +1184,58 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     : nextCol !== null && (memory[nextCol] ?? 0) > 0)));
   const sub = ec?.operation === "subtraction" ? "−" : "+";
   const subProblemHe = active ? `${active.shown_a} ${sub} ${active.shown_b}` : "";
-  const carryHe = ec && ec.operation === "addition" && active && active.carry_in > 0 ? " ועוד העשרת שעברה מהטור שמימין (רשומה בעיגול הזיכרון)" : "";
+  // What passes into the active column is one block of THAT column (a hundred
+  // into the hundreds), and the facts say where it really is: in the memory
+  // circle above the column, on the board after the grouping, or nowhere yet
+  // (review of 1.10.2026: "written in the memory circle" with the circle empty).
+  const carryInto = ec && ec.operation === "addition" && active && active.carry_in > 0 ? active.column : null;
+  const carryFrom = carryInto ? PREV_COLUMN[carryInto] : null;
+  const carryNounHe = carryInto ? (meeting1 ? `${THE_BLOCK_HE[carryInto]} ש${isMasculine(carryInto) ? "עבר" : "עברה"} מהטור שמימין` : carryIntoHe(carryInto)) : "";
+  const carryHe = carryInto ? ` ועוד ${carryNounHe}` : "";
+  let carry_state_he = "";
+  if (carryInto && carryFrom) {
+    const col = meeting1 ? "הטור" : COLUMN_NAME_HE[carryInto];
+    const fromHe = meeting1 ? "הטור שמימין" : COLUMN_NAME_HE[carryFrom];
+    const circle = memory[carryInto];
+    const m = isMasculine(carryInto);
+    if (circle === 1) {
+      carry_state_he = `${THE_BLOCK_HE[carryInto]} ש${m ? "עבר" : "עברה"} מ${fromHe} ${m ? "רשום" : "רשומה"} בעיגול הזיכרון שמעל ${col}.`;
+    } else if (circle !== undefined && circle > 1) {
+      carry_state_he = `בעיגול הזיכרון שמעל ${col} רשום ${circle}: רישום שגוי.`;
+    } else if (blocks_on_screen && conversionsDone.has(carryFrom)) {
+      carry_state_he = `עיגול הזיכרון שמעל ${col} ריק, אבל ההקבצה ב${fromHe} כבר בוצעה: ${THE_BLOCK_HE[carryInto]} ש${m ? "נוצר" : "נוצרה"} בה ${m ? "נמצא" : "נמצאת"} בבית המספרים, ב${col}.`;
+    } else if (blocks_on_screen) {
+      carry_state_he = `ההקבצה ב${fromHe} עוד לא בוצעה בלבנים, ועיגול הזיכרון שמעל ${col} ריק.`;
+    } else {
+      carry_state_he = `עיגול הזיכרון שמעל ${col} ריק: ההמרה של ${fromHe} לא נרשמה בו.`;
+    }
+  }
   const solvedHe = completed.length ? ` (${completed.map((c) => COLUMN_NAME_HE[c]).join(", ")} כבר נפתר)` : "";
 
   if (wrong_carry_circles.length && ec) {
     suggested_category = "conceptual";
-    suggested_focus_he = `בעיגול הזיכרון שמעל ${COLUMN_NAME_HE[wrong_carry_circles[0]]} רשום מספר גדול מ-1. בחיבור עוברת לטור הבא עשרת אחת בלבד, ולכן זה רישום שגוי — כוון לבדוק מה רושמים בעיגול הזיכרון, בלי לומר את הספרה.`;
+    const w = wrong_carry_circles[0];
+    const from = PREV_COLUMN[w];
+    suggested_focus_he = from
+      ? `בעיגול הזיכרון שמעל ${COLUMN_NAME_HE[w]} רשום ${memory[w]}. בחיבור ${isMasculine(w) ? "עובר" : "עוברת"} מ${COLUMN_NAME_HE[from]} ל${COLUMN_NAME_HE[w]} לכל היותר ${ONE_BLOCK_HE[w]}, ולכן זה רישום שגוי — כוון לבדוק מה רושמים בעיגול הזיכרון, בלי לומר את הספרה.`
+      : `בעיגול הזיכרון שמעל טור היחידות רשום ${memory[w]}, אבל בחיבור לא עוברת המרה אל טור היחידות — זה רישום שגוי. כוון לבדוק מה רושמים בעיגול הזיכרון ומעל איזה טור, בלי לומר את הספרה.`;
   } else if (trigger === "conversion_not_performed") {
     suggested_category = "procedural";
     suggested_focus_he = blocks_on_screen
       ? "הלומד ניסה להקליד תוצאה בטור שדורש הקבצה או פריטה לפני שביצע את ההמרה בלבנים."
       : "הלומד ניסה להקליד תוצאה בטור שדורש המרה או פריטה לפני שרשם אותה בעיגול הזיכרון.";
-  } else if (typing_pattern === "carry_forgotten" && active) {
+  } else if (typing_pattern === "carry_forgotten" && active && carryInto && carryFrom) {
     suggested_category = "procedural";
-    suggested_focus_he = `${inCol(active.column)} הספרה שהלומד הקליד מתאימה לחיבור בלי העשרת שעברה מהטור שמימין: הוא שכח את מה שרשום בעיגול הזיכרון.`;
+    const fromHe = meeting1 ? "הטור שמימין" : COLUMN_NAME_HE[carryFrom];
+    const circle = memory[carryInto];
+    const base = `${inCol(active.column)} הספרה שהלומד הקליד מתאימה לחיבור בלי ${carryNounHe}.`;
+    suggested_focus_he = circle === 1
+      ? `${base} ${carry_state_he} כוון להוסיף לחיבור את מה שרשום בעיגול הזיכרון, בלי לומר את הספרה.`
+      : blocks_on_screen && conversionsDone.has(carryFrom)
+        ? `${base} ${carry_state_he} כוון לבית המספרים: לספור את הלבנים בטור הזה ולשאול מה הגיע אליו מההקבצה ב${fromHe} — לא לעיגול הזיכרון הריק.`
+        : blocks_on_screen
+          ? `${base} ${carry_state_he} כוון אל ${fromHe}: מה עושים כשיש בו 10 לבנים או יותר.`
+          : `${base} ${carry_state_he} כוון לבדוק אם החיבור ב${fromHe} עובר את 9, ומה רושמים אז בעיגול הזיכרון שמעל הטור הזה — בלי לומר את הספרה.`;
   } else if (typing_pattern === "reversed_subtraction" && active) {
     suggested_category = "procedural";
     suggested_focus_he = `${inCol(active.column)} הספרה שהלומד הקליד היא חיסור הפוך — הספרה העליונה מהתחתונה — במקום פריטה.`;
@@ -1014,10 +1243,10 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     suggested_category = "calculation";
     suggested_focus_he = activeNeedsConversion
       ? `${inCol(active.column)} ההמרה כבר ${blocks_on_screen ? "בוצעה" : "רשומה בעיגול הזיכרון"}, והלומד טעה בהקלדה ארבע פעמים — הטעות בחישוב הטור עצמו${meeting1 ? "" : ` (${subProblemHe}${ec.operation === "subtraction" ? " אחרי הפריטה" : ""})`}.`
-      : `${meeting1 ? "הטור" : `הטור הפעיל (${COLUMN_NAME_HE[active.column]}, ${subProblemHe}${carryHe})`} אינו דורש המרה, והלומד טעה בהקלדה ארבע פעמים — כנראה טעות בעובדת החשבון של הטור.`;
+      : `${meeting1 ? "הטור" : `הטור הפעיל (${COLUMN_NAME_HE[active.column]}, ${subProblemHe}${carryHe})`} אינו דורש המרה, והלומד טעה בהקלדה ארבע פעמים — כנראה טעות בעובדת החשבון של הטור.${carry_state_he ? ` ${carry_state_he}` : ""}`;
   } else if (trigger === "consecutive_undos_3" && !blocks_on_screen && ec && active) {
     suggested_category = "conceptual";
-    suggested_focus_he = `הלומד ביטל שלוש פעולות ברצף ב${COLUMN_NAME_HE[active.column]} (תת-תרגיל ${subProblemHe}${carryHe})${solvedHe} — סימן לניחוש או לחוסר ביטחון. כוון לפתור את הטור הזה בעצמם, בלי לנחש, ובלי לומר את הספרה.`;
+    suggested_focus_he = `הלומד ביטל שלוש פעולות ברצף ב${COLUMN_NAME_HE[active.column]} (תת-תרגיל ${subProblemHe}${carryHe})${solvedHe} — סימן לניחוש או לחוסר ביטחון.${carry_state_he ? ` ${carry_state_he}` : ""} כוון לפתור את הטור הזה בעצמם, בלי לנחש, ובלי לומר את הספרה.`;
   } else if (!blocks_on_screen && ec && active && activeNeedsConversion && !active.completed) {
     suggested_category = "procedural";
     suggested_focus_he = conversionWritten
@@ -1025,11 +1254,11 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
         ? `ב${COLUMN_NAME_HE[active.column]} הפריטה כבר רשומה בעיגול הזיכרון. הצעד הבא: לחסר ${active.shown_b} מהמספר שבעיגול הזיכרון ולכתוב את התוצאה בתיבה של הטור — אל תשאל שוב על הפריטה.`
         : `ב${COLUMN_NAME_HE[active.column]} ההמרה כבר רשומה בעיגול הזיכרון שמעל הטור הבא. הצעד הבא: לכתוב בתיבה של הטור רק את ספרת היחידות של הסכום — אל תשאל שוב על ההמרה.`
       : ec.operation === "subtraction"
-        ? `ב${COLUMN_NAME_HE[active.column]} צריך לחסר ${active.shown_b} מ-${active.shown_a} — נדרשת פריטה מהטור השכן, ורישום השינוי בעיגול הזיכרון.`
-        : `ב${COLUMN_NAME_HE[active.column]} החיבור ${subProblemHe}${carryHe} עובר את 9 — נדרשת המרה, ורישום שלה בעיגול הזיכרון שמעל הטור הבא.`;
+        ? `ב${COLUMN_NAME_HE[active.column]} צריך לחסר ${active.shown_b} מ-${active.shown_a} — נדרשת פריטה (${breakIntoHe(active.column) ?? "מהטור השכן"}), ורישום השינוי בעיגולי הזיכרון.`
+        : `ב${COLUMN_NAME_HE[active.column]} החיבור ${subProblemHe}${carryHe} עובר את 9 — נדרשת המרה, ורישום שלה בעיגול הזיכרון שמעל הטור הבא.${carry_state_he ? ` ${carry_state_he}` : ""}`;
   } else if (!blocks_on_screen && ec && active && !active.completed) {
     suggested_category = trigger === "repeated_errors" ? "calculation" : "procedural";
-    suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} התרגיל הוא ${subProblemHe}${carryHe}${solvedHe}. כוון לחישוב בטור הזה, בלי לומר את הספרה.`;
+    suggested_focus_he = `ב${COLUMN_NAME_HE[active.column]} התרגיל הוא ${subProblemHe}${carryHe}${solvedHe}.${carry_state_he ? ` ${carry_state_he}` : ""} כוון לחישוב בטור הזה, בלי לומר את הספרה.`;
   } else if (ec && skeleton && blocks_on_screen && board_value === 0) {
     suggested_category = "procedural";
     suggested_focus_he = ec.operation === "subtraction" && ec.hidden_places?.a.length
@@ -1055,6 +1284,27 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   } else if (groupBack) {
     suggested_category = "procedural";
     suggested_focus_he = `כל מה שמחסרים כבר יצא, אבל ${inCol(groupBack.column)} יש 10 לבנים או יותר: נפרטה לבנה אחת יותר מהדרוש. כוון לקבץ אותן בחזרה בכפתור "קבצו 10" לפני שכותבים את התוצאה.`;
+  } else if (instruction_steps && stepsPending) {
+    // A two-step instruction, not finished: the next step of the instruction,
+    // never "the board lacks / has too many" against its final board.
+    suggested_category = "procedural";
+    const st = instruction_steps;
+    if (st.done === null) {
+      suggested_focus_he = `בית המספרים לא נמצא באף שלב של ההנחיה (${st.steps.map(stepHe).join(", ואז ")}). כוון לקרוא שוב את ההנחיה ולבדוק איזה צעד כבר נעשה ועל איזו לבנה — בלי לומר את המספר שיתקבל.`;
+    } else {
+      const next = st.steps[st.done];
+      const doneHe = st.done === 0
+        ? (st.partial ? "המספר הראשון שבהנחיה עוד לא בנוי בשלמותו" : "בית המספרים ריק")
+        : `בית המספרים מראה ${st.done === 1 ? "את הצעד הראשון של ההנחיה" : `את ${st.done} הצעדים הראשונים של ההנחיה`} (${st.steps.slice(0, st.done).map(stepHe).join(", ")})`;
+      const left = next.column ? NEXT_COLUMN[next.column] : null;
+      const breakHe = st.needs_break && next.column && left
+        ? ` — אבל ב${COLUMN_NAME_HE[next.column]} אין מספיק ${BLOCK_NOUN_HE[next.column]} כדי להסיר: קודם פורטים ${ONE_BLOCK_HE[left]} ל${TEN_BLOCKS_HE[next.column]} (המספר לא משתנה), ואחר כך מסירים`
+        : "";
+      const crowdedHe = st.break_done && st.break_column
+        ? ` הפריטה שההסרה צריכה כבר נעשתה: 10 לבנים או יותר ב${COLUMN_NAME_HE[st.break_column]} הם שלב בדרך, בכוונה. אסור להציע לקבץ אותן בחזרה.`
+        : "";
+      suggested_focus_he = `${doneHe}. הצעד ${st.partial ? "שבאמצע הביצוע" : "הבא"} בהנחיה: ${stepHe(next)}${breakHe}.${crowdedHe} כוון לצעד הזה בלבד, בלי לומר את המספר שיתקבל.`;
+    }
   } else if (board_vs_task && Object.values(board_vs_task).some((v) => v !== "match")) {
     suggested_category = "procedural";
     const more = SOCRATIC_COLUMNS.filter((c) => board_vs_task![c] === "more").map((c) => COLUMN_NAME_HE[c]);
@@ -1073,8 +1323,8 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   } else if (ec && active && ec.operation === "subtraction" && activeNeedsConversion && active.board_deficit > 0) {
     suggested_category = "procedural";
     suggested_focus_he = noCounts
-      ? `${inCol(active.column)} אין מספיק לבנים כדי לחסר ${meeting1 ? "" : active.shown_b + " "}— נדרשת פריטה של לבנה מהטור השכן הגדול יותר.`
-      : `ב${COLUMN_NAME_HE[active.column]} צריך לחסר ${active.shown_b} אבל בבית המספרים יש רק ${countHe(active.blocks_on_board, active.column)} — נדרשת פריטה מהטור השכן הגדול יותר.`;
+      ? `${inCol(active.column)} אין מספיק לבנים כדי לחסר ${meeting1 ? "" : active.shown_b + " "}— נדרשת פריטה ${meeting1 || !breakIntoHe(active.column) ? "של לבנה מהטור השכן הגדול יותר" : `(${breakIntoHe(active.column)})`}.`
+      : `ב${COLUMN_NAME_HE[active.column]} צריך לחסר ${active.shown_b} אבל בבית המספרים יש רק ${countHe(active.blocks_on_board, active.column)} — נדרשת פריטה (${breakIntoHe(active.column) ?? "מהטור השכן הגדול יותר"}).`;
   } else if (ec && ec.operation === "subtraction" && (stage === "taking_away" || stage === "minuend")) {
     suggested_category = trigger === "repeated_errors" || trigger === "consecutive_errors_4" ? "calculation" : "procedural";
     suggested_focus_he = stage === "minuend"
@@ -1144,6 +1394,9 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     wrong_carry_circles,
     typing_pattern,
     earlier_cards: earlierCardsOf(actions),
+    carry_state_he,
+    instruction_steps,
+    crowding_intended,
     earlier_card_kinds: ps?.earlier_card_kinds ?? [],
     card_frame: req.card_frame ?? null,
     concise: Boolean(req.learner_profile?.enhanced || req.learner_profile?.quiet),
@@ -1176,7 +1429,7 @@ THE SCREEN. The prompt's section "המסך" lists what is on THIS child's screen
 
 THE REFERENCE CARD. The prompt includes the static card this child would otherwise see, written and approved by the product owner. It sets the card's LEVEL, TERMS and FORM: keep its level (a first-level card that asks what to check stays a question about what to check — do not name the column or give the step it leaves the child to find); use its terms and the screen's actions only; keep its form. Tailor the question to THIS exercise and THIS child's actions, and never contradict the reference card.
 
-HEBREW. Natural, grammatically flawless Hebrew for children: short, warm, empowering sentences; exact gender/number agreement (4 מאות, 2 עשרות, 5 יחידות, 10 עשרות, עשרת אחת, מאה אחת, אלף אחד). Address the learner in the second person plural, gender-neutral, in every instruction and feedback ("בדקו", "פרטו", "לחצו"); gender-equal writing means the second person plural only, never split, dot or slash gender forms. Phrase the guiding question impersonally ("מה עושים?", "איך מגלים?") or in the second person plural. Write answer options that describe an action in the impersonal present plural ("מקבצים", "פורטים", "משתמשים"). NEVER use the first person plural ("נבדוק", "נפרוט", "מה נעשה", "בואו נ…"). An indirect question takes "אם", not "האם", and ends with a period ("בדקו אם צריך לרשום משהו בעיגול הזיכרון."); a prefix letter stays outside quotation marks (ל"שורת התוצאה", never "לשורת התוצאה" inside the quotes).
+HEBREW. Natural, grammatically flawless Hebrew for children: short, warm, empowering sentences; exact gender/number agreement (4 מאות, 2 עשרות, 5 יחידות, 10 עשרות, עשרת אחת, מאה אחת, אלף אחד). A grouping passes ONE block of the receiving column (into the hundreds "מאה אחת", into the thousands "אלף אחד"); a break gives ten blocks of the column on its right ("פורטים מאה אחת לעשר עשרות"). Address the learner in the second person plural, gender-neutral, in every instruction and feedback ("בדקו", "פרטו", "לחצו"); gender-equal writing means the second person plural only, never split, dot or slash gender forms. Phrase the guiding question impersonally ("מה עושים?", "איך מגלים?") or in the second person plural. Write answer options that describe an action in the impersonal present plural ("מקבצים", "פורטים", "משתמשים"). NEVER use the first person plural ("נבדוק", "נפרוט", "מה נעשה", "בואו נ…") and never the second person singular ("שים לב", "בדוק", "בדקי"). The guiding question and every hint are DIRECT questions that end with "?". An indirect question inside a sentence takes "אם", not "האם", and ends with a period, not "?" ("בדקו אם צריך לרשום משהו בעיגול הזיכרון.") — use it only inside the correct option's feedback; a prefix letter stays outside quotation marks (ל"שורת התוצאה", never "לשורת התוצאה" inside the quotes).
 TERMINOLOGY (Ministry of Education): subtraction regrouping is "פריטה" ONLY (never שבירה / הלוואה / לווים); addition regrouping is "המרה" / "הקבצה" ONLY, the verb "מקבצים" (never נשיאה); the workspace is "בית המספרים" with "טור היחידות / טור העשרות / טור המאות / טור האלפים"; tools are "עיגולי הזיכרון" and "פח האשפה". The blocks are "לבנים" ONLY ("לבנה" in the singular; never "קוביות", "קובייה", "בלוק" or "בלוקים"), and the board is "בית המספרים" ONLY (never "לוח הדינס", "לוח הלבנים" or "קנבס"). Never mention physical objects that do not exist on screen (מקלות, חרוזים, אצבעות, מטבעות, חשבונייה).
 ${LANGUAGE_SLOT}
 
@@ -1280,17 +1533,34 @@ export function socraticSystemInstructionFor(facts: Pick<SocraticFacts, "meeting
 // The screen: what a card may name (Module 13 §א: no aid that is not there)
 // ---------------------------------------------------------------------------
 
-const BOARD_CONTROLS_HE = [
-  '"בית המספרים": טור היחידות, טור העשרות, טור המאות וטור האלפים.',
+const BOARD_CONTROLS_TAIL_HE = [
   'גוררים לבנים מ"ארגז כלים" אל הטורים, וגם מטור לטור.',
   "לחיצה על לבנה פורטת אותה לעשר לבנים של הטור שמימין לה (אפשר גם לגרור אותה אל הטור שמימין לה).",
-  'כשבטור יש 10 לבנים או יותר, מופיע בראש הטור הכפתור "קבצו 10" (על הכפתור כתוב "קבצו 10 לעשרת", "קבצו 10 למאה" או "קבצו 10 לאלף").',
+];
+const BOARD_CONTROLS_END_HE = [
   'גוררים לבנים אל "פח האשפה" כדי להוציא אותן מבית המספרים.',
   '"כפתור ביטול הפעולה" מבטל את הפעולה האחרונה.',
 ];
+const BOARD_CONTROLS_ALL_HE = [
+  '"בית המספרים": טור היחידות, טור העשרות, טור המאות וטור האלפים.',
+  ...BOARD_CONTROLS_TAIL_HE,
+  'כשבטור יש 10 לבנים או יותר, מופיע בראש הטור הכפתור "קבצו 10" (על הכפתור כתוב "קבצו 10 לעשרת", "קבצו 10 למאה" או "קבצו 10 לאלף").',
+  ...BOARD_CONTROLS_END_HE,
+];
+/**
+ * Meeting 1 (station 1): three columns only — no thousands column, so no
+ * "קבצו 10" button on the hundreds (client Module08_GroupButtonNeedsLeftColumn).
+ */
+const BOARD_CONTROLS_MEETING_1_HE = [
+  '"בית המספרים": טור היחידות, טור העשרות וטור המאות בלבד. אין טור אלפים ואין לבנת אלף.',
+  ...BOARD_CONTROLS_TAIL_HE,
+  'כשבטור היחידות או בטור העשרות יש 10 לבנים או יותר, מופיע בראש הטור הכפתור "קבצו 10" (על הכפתור כתוב "קבצו 10 לעשרת" או "קבצו 10 למאה"). בטור המאות אין כפתור כזה.',
+  ...BOARD_CONTROLS_END_HE,
+];
 
 /** What is on this child's screen, in the screen's own names. */
-export function screenDescriptionHe(facts: Pick<SocraticFacts, "screen">): string[] {
+export function screenDescriptionHe(facts: Pick<SocraticFacts, "screen"> & Partial<Pick<SocraticFacts, "meeting">>): string[] {
+  const BOARD_CONTROLS_HE = facts.meeting === 1 ? BOARD_CONTROLS_MEETING_1_HE : BOARD_CONTROLS_ALL_HE;
   switch (facts.screen) {
     case "vertical_blocks":
       return [
@@ -1364,9 +1634,20 @@ function fmtColumnFact(c: ColumnFact, facts: SocraticFacts): string {
   const parts = [`${COLUMN_NAME_HE[c.column]}: ${countHe(c.blocks_on_board, c.column)} בבית המספרים`];
   if (facts.operation) {
     parts.push(facts.operation === "subtraction" ? `תת-תרגיל ${c.shown_a} − ${c.shown_b}` : `תת-תרגיל ${c.shown_a} + ${c.shown_b}`);
-    if (facts.memory_circles[c.column] !== undefined) parts.push(`עיגול זיכרון: ${facts.memory_circles[c.column]}`);
-    if (facts.operation === "addition" && c.carry_in) parts.push("מקבל עשרת מהטור שמימין");
-    if (c.needs_conversion) parts.push(c.conversion_done ? "ההמרה בטור הזה כבר בוצעה" : facts.operation === "subtraction" ? "דורש פריטה" : "דורש הקבצה");
+    const from = PREV_COLUMN[c.column];
+    // What a column receives or gives, with the block of the right column: a hundred into the hundreds, a ten broken into ten units.
+    if (facts.operation === "addition" && c.carry_in && from) parts.push(`מקבל ${ONE_BLOCK_HE[c.column]} מההמרה ב${COLUMN_NAME_HE[from]}`);
+    if (facts.operation === "subtraction" && c.carry_in && from) parts.push(`נותן ${ONE_BLOCK_HE[c.column]} לפריטה ב${COLUMN_NAME_HE[from]}`);
+    // The circle as it is: its number, or empty where something should be written above this column.
+    if (facts.memory_circles[c.column] !== undefined) parts.push(`עיגול הזיכרון שמעליו: ${facts.memory_circles[c.column]}`);
+    else if (c.carry_in || (facts.operation === "subtraction" && c.needs_conversion)) parts.push("עיגול הזיכרון שמעליו: ריק");
+    if (c.needs_conversion) {
+      parts.push(c.conversion_done
+        ? "ההמרה בטור הזה כבר בוצעה"
+        : facts.operation === "subtraction"
+          ? `דורש פריטה (${breakIntoHe(c.column) ?? "מהטור השכן"})`
+          : `דורש הקבצה (10 ${BLOCK_NOUN_HE[c.column]} ל${ONE_BLOCK_HE[NEXT_COLUMN[c.column] ?? c.column]})`);
+    }
     if (c.board_deficit > 0) parts.push(facts.meeting === 1 || (facts.meeting !== null && facts.meeting >= 3 && facts.meeting <= 7)
       ? "אין בטור מספיק לבנים כדי לחסר"
       : `${missingHe(c.board_deficit, c.column)} בבית המספרים לביצוע החיסור`);
@@ -1379,6 +1660,7 @@ function fmtColumnFact(c: ColumnFact, facts: SocraticFacts): string {
     parts.push(BOARD_VS_TASK_HE[vs]);
     if (c.blocks_on_board >= 10 && vs !== "more") parts.push("10 ומעלה זה מה שההנחיה מבקשת — לא מקבצים");
   }
+  if (facts.crowding_intended && c.blocks_on_board >= 10) parts.push("10 ומעלה בכוונה: הפריטה נעשתה כדי שאפשר יהיה להסיר — לא מקבצים בחזרה");
   parts.push(c.completed ? "הטור כבר נפתר נכון" : c.column === facts.active_column && facts.operation ? "<< הטור הפעיל" : facts.operation ? "טרם נפתר" : "");
   return "  - " + parts.filter(Boolean).join(" | ");
 }
@@ -1447,12 +1729,26 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
     }
     if (facts.built_before_conversion) lines.push("הלבנים בנויות כמו שההנחיה מבקשת בהתחלה, וההמרה שההנחיה מבקשת עוד לא נעשתה.");
     else if (facts.board_matches_task) lines.push("בית המספרים מראה בדיוק את מה שההנחיה מבקשת.");
+    // The conversion state is per column (fmtColumnFact: "ההמרה בטור הזה כבר
+    // בוצעה"); the exercise-wide "a break was done" next to it contradicted
+    // the column that still needs one (review of 1.10.2026), so it is gone.
+    // A representation task says whether ITS conversion — the one its
+    // instruction names — is done.
+    if (!facts.operation && tc && typeof tc.conversion_done === "boolean" && tc.start_counts) {
+      lines.push(tc.conversion_done ? "ההמרה שההנחיה מבקשת כבר נעשתה בלבנים." : "ההמרה שההנחיה מבקשת עוד לא נעשתה בלבנים.");
+    }
+    const st = facts.instruction_steps;
+    if (st) {
+      // The steps, without the value they end on: that is the number the child finds.
+      const mark = (i: number) => (st.done === null ? "" : i < st.done ? " ✓ נעשה" : i === st.done ? (st.partial ? " ← באמצע הביצוע" : " ← הצעד הבא") : "");
+      lines.push(`שלבי ההנחיה: ${st.steps.map((s, i) => `${i + 1}. ${stepHe(s)}${mark(i)}`).join("; ")}.`);
+      if (st.done === null) lines.push("בית המספרים לא נמצא באף שלב של ההנחיה.");
+      if (st.needs_break) lines.push("לצעד הבא אין מספיק לבנים בטור שממנו מסירים: קודם פורטים לבנה מהטור שמשמאלו (המספר לא משתנה), ואחר כך מסירים.");
+      if (st.break_done && st.break_column) lines.push(`הפריטה שהצעד צריך כבר נעשתה: 10 לבנים או יותר ב${COLUMN_NAME_HE[st.break_column]} הם שלב בדרך, בכוונה. אסור להציע לקבץ אותן בחזרה.`);
+    }
     for (const c of [...facts.columns].reverse()) {
       if (!facts.operation && c.blocks_on_board === 0 && !facts.board_vs_task?.[c.column]) continue;
       lines.push(fmtColumnFact(c, facts));
-    }
-    if (req.workspace_state.is_regrouped_in_canvas !== undefined) {
-      lines.push(req.workspace_state.is_regrouped_in_canvas ? "בוצעה כבר פריטה/הקבצה בלבנים." : "טרם בוצעה פריטה/הקבצה בלבנים.");
     }
   } else {
     // PRD Module 14 §ב: meeting 8 shows no blocks, no trash and no number house.
@@ -1462,8 +1758,19 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
     if (facts.operation) {
       for (const c of [...facts.columns].reverse()) {
         const sub = facts.operation === "subtraction" ? `${c.shown_a} − ${c.shown_b}` : `${c.shown_a} + ${c.shown_b}`;
-        const circle = facts.memory_circles[c.column] !== undefined ? ` | עיגול זיכרון: ${facts.memory_circles[c.column]}` : "";
-        lines.push(`  - ${COLUMN_NAME_HE[c.column]}: תת-תרגיל ${sub}${circle}${c.needs_conversion && c.shown_a !== "▢" && c.shown_b !== "▢" ? (facts.operation === "subtraction" ? " | דורש פריטה" : " | דורש המרה") : ""} | ${c.completed ? "הטור כבר נפתר נכון" : c.column === facts.active_column ? "<< הטור הפעיל" : "טרם נפתר"}`);
+        const from = PREV_COLUMN[c.column];
+        const flow = c.carry_in && from
+          ? facts.operation === "subtraction"
+            ? ` | נותן ${ONE_BLOCK_HE[c.column]} לפריטה ב${COLUMN_NAME_HE[from]}`
+            : ` | מקבל ${ONE_BLOCK_HE[c.column]} מההמרה ב${COLUMN_NAME_HE[from]}`
+          : "";
+        const circle = facts.memory_circles[c.column] !== undefined
+          ? ` | עיגול הזיכרון שמעליו: ${facts.memory_circles[c.column]}`
+          : c.carry_in || (facts.operation === "subtraction" && c.needs_conversion) ? " | עיגול הזיכרון שמעליו: ריק" : "";
+        const conv = c.needs_conversion && c.shown_a !== "▢" && c.shown_b !== "▢"
+          ? facts.operation === "subtraction" ? ` | דורש פריטה (${breakIntoHe(c.column) ?? "מהטור השכן"})` : " | דורש המרה"
+          : "";
+        lines.push(`  - ${COLUMN_NAME_HE[c.column]}: תת-תרגיל ${sub}${flow}${circle}${conv} | ${c.completed ? "הטור כבר נפתר נכון" : c.column === facts.active_column ? "<< הטור הפעיל" : "טרם נפתר"}`);
       }
     }
   }
@@ -1477,13 +1784,23 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   if (facts.operation) {
     lines.push(`טורים שכבר נפתרו נכון: ${facts.completed_columns.length ? facts.completed_columns.map((c) => COLUMN_NAME_HE[c]).join(", ") : "אף אחד עדיין"}.`);
     lines.push(`הקלט הנוכחי בטור הפעיל: ${facts.current_input === null || facts.current_input === "" ? "ריק" : facts.current_input}.`);
-    lines.push(`עיגולי הזיכרון: ${Object.keys(facts.memory_circles).length ? JSON.stringify(facts.memory_circles) : "ריקים"}.`);
+    // The circles as they are, in the screen's names: "מעל טור העשרות: 1".
+    const circles = SOCRATIC_COLUMNS.filter((c) => facts.memory_circles[c] !== undefined).reverse();
+    lines.push(`עיגולי הזיכרון: ${circles.length ? circles.map((c) => `מעל ${COLUMN_NAME_HE[c]}: ${facts.memory_circles[c]}`).join("; ") : "כולם ריקים"}.`);
+    if (facts.carry_state_he) lines.push(`ההמרה שנכנסת לטור הפעיל: ${facts.carry_state_he}`);
   }
   lines.push(`שגיאות רצופות: ${facts.consecutive_errors}.`);
-  if (facts.wrong_carry_circles.length) lines.push(`רישום שגוי: בעיגול הזיכרון שמעל ${facts.wrong_carry_circles.map((c) => COLUMN_NAME_HE[c]).join(", ")} רשום מספר גדול מ-1. בחיבור עוברת לטור הבא עשרת אחת בלבד — אל תחבר אותו כהמרה.`);
+  for (const w of facts.wrong_carry_circles) {
+    const from = PREV_COLUMN[w];
+    lines.push(from
+      ? `רישום שגוי: בעיגול הזיכרון שמעל ${COLUMN_NAME_HE[w]} רשום ${facts.memory_circles[w]}, אבל בחיבור ${isMasculine(w) ? "עובר" : "עוברת"} מ${COLUMN_NAME_HE[from]} ל${COLUMN_NAME_HE[w]} לכל היותר ${ONE_BLOCK_HE[w]} — אל תחבר את המספר הזה כהמרה.`
+      : `רישום שגוי: בעיגול הזיכרון שמעל טור היחידות רשום ${facts.memory_circles[w]}, אבל בחיבור לא עוברת המרה אל טור היחידות.`);
+  }
   if (facts.hesitation_seconds) lines.push(`זמן בלי פעולה לפני הכרטיס: ${facts.hesitation_seconds} שניות.`);
   if (facts.concise) lines.push("הלומד עובד בפרופיל תמיכה מוגבר או במצב שקט: כתבו קצר ומוחשי במיוחד — שאלה של עד 12 מילים, כל אפשרות עד 6 מילים, כל משוב משפט אחד, ורק פעולות שרואים על המסך.");
-  if (facts.typing_pattern === "carry_forgotten") lines.push("דפוס בהקלדה: הספרה השגויה בטור הפעיל מתאימה לחיבור בלי העשרת שעברה מהטור שמימין — העשרת שבעיגול הזיכרון נשכחה.");
+  if (facts.typing_pattern === "carry_forgotten") {
+    lines.push(`דפוס בהקלדה: הספרה השגויה בטור הפעיל מתאימה לחיבור בלי ${facts.meeting === 1 ? "הלבנה שעברה מהטור שמימין" : carryIntoHe(facts.active_column)}.${facts.carry_state_he ? ` ${facts.carry_state_he}` : ""}`);
+  }
   if (facts.typing_pattern === "reversed_subtraction") lines.push("דפוס בהקלדה: הספרה השגויה בטור הפעיל היא חיסור הפוך (הספרה העליונה מהתחתונה) במקום פריטה.");
   if (facts.typing_pattern === "tens_digit_typed") lines.push("דפוס בהקלדה: בטור שעובר את 9 הוקלדה ספרת העשרות של הסכום.");
   if (facts.typed_digits.length) {
@@ -1756,6 +2073,146 @@ function numbersIn(text: string): number[] {
   return [...stripDigitGroupSeparators(text).matchAll(/\d+/g)].map((m) => Number(m[0]));
 }
 
+// ---------------------------------------------------------------------------
+// A digit stated for its column (review of 1.10.2026)
+// ---------------------------------------------------------------------------
+
+/** A digit as a card may write it: the digit, or its Hebrew number word ("שמונה", "שבע"). */
+const DIGIT_WORDS_HE: Record<number, string[]> = {
+  0: ["אפס"], 1: ["אחת", "אחד"], 2: ["שתיים", "שתי", "שניים", "שני"], 3: ["שלוש", "שלושה", "שלושת"],
+  4: ["ארבע", "ארבעה", "ארבעת"], 5: ["חמש", "חמישה", "חמשת"], 6: ["שש", "שישה", "ששת"],
+  7: ["שבע", "שבעה", "שבעת"], 8: ["שמונה", "שמונת"], 9: ["תשע", "תשעה", "תשעת"],
+};
+/** The singular block noun of a column, as "לבני עשרת" writes it. */
+const BLOCK_SINGULAR_HE: Record<SocraticColumn, string> = { units: "יחידה", tens: "עשרת", hundreds: "מאה", thousands: "אלף" };
+
+/**
+ * The digit on its own: not inside a longer number ("10", "271", "3▢6"); as a
+ * word, only where it ends the statement ("…היא שמונה.", "כותבים שבע בתיבה")
+ * or counts blocks ("שמונה עשרות") — "שני המספרים" is not the digit 2.
+ */
+function digitToken(d: number, wordTail: string): string {
+  return `(?:(?<![\\d▢])${d}(?![\\d▢])|(?<![א-ת])(?:${DIGIT_WORDS_HE[d].join("|")})(?![א-ת])${wordTail})`;
+}
+const WORD_ENDS_STATEMENT = "(?=\\s*(?:[.?!,:;]|$|ב(?:תיבה|טור|שורת)|\\s+ב(?:תיבה|טור|שורת)))";
+const WRITE_VERB = "(?:כותבים|רושמים|כתבו|רשמו|לכתוב|לרשום|תכתבו|תרשמו|מקלידים|הקלידו|להקליד)";
+/** "▢" and a number that holds one ("3▢6"), as one token. */
+const MASKED_TOKEN = /[\d,]*▢[\d▢,]*/g;
+
+export interface DigitSecret {
+  column: SocraticColumn;
+  digit: number;
+  /** hidden: a skeleton's hidden digit or a hidden result digit; result: the expected digit of a result box not yet typed right. */
+  kind: "hidden" | "result";
+  /** Digits the screen shows in this column — "7 עשרות" may be the second number's 7. */
+  visible: number[];
+}
+
+/** The digits a card may never state for their column: hidden ones, and the result digit of every box not yet typed right. */
+export function digitSecretsOf(facts: Pick<SocraticFacts, "columns" | "hidden_result_digits" | "hidden_operands" | "final_answer" | "completed_columns" | "task_kind">): DigitSecret[] {
+  const out: DigitSecret[] = [];
+  const skeleton = (facts.hidden_operands ?? []).length > 0;
+  const resultLen = facts.final_answer !== null ? String(facts.final_answer).length : 0;
+  for (const c of facts.columns) {
+    const visible = [c.shown_a, c.shown_b].filter((s) => s !== "▢").map(Number);
+    if (skeleton && facts.final_answer !== null) visible.push(digitAt(facts.final_answer, c.column));
+    if (c.shown_a === "▢") out.push({ column: c.column, digit: c.digit_a, kind: "hidden", visible });
+    if (c.shown_b === "▢") out.push({ column: c.column, digit: c.digit_b, kind: "hidden", visible });
+  }
+  for (const h of facts.hidden_result_digits ?? []) {
+    const c = facts.columns.find((x) => x.column === h.column);
+    out.push({ column: h.column, digit: h.digit, kind: "hidden", visible: c ? [c.digit_a, c.digit_b] : [] });
+  }
+  // The iron rule (PRD Module 13): never the final answer — nor its digit in a
+  // box the child has not typed right yet ("כותבים 2 בתיבה של טור היחידות" in
+  // 85 + 17). A skeleton shows its result; a missing-digit task shows the others.
+  if (!skeleton && facts.final_answer !== null && facts.task_kind !== "missing_result_digit") {
+    for (const c of SOCRATIC_COLUMNS.slice(0, resultLen)) {
+      if ((facts.completed_columns ?? []).includes(c)) continue;
+      const col = facts.columns.find((x) => x.column === c);
+      out.push({ column: c, digit: digitAt(facts.final_answer, c), kind: "result", visible: col ? [col.digit_a, col.digit_b] : [] });
+    }
+  }
+  return out;
+}
+
+/**
+ * Does a text state this digit for this column? "ספרת העשרות החסרה היא 8",
+ * "הספרה החסרה בטור העשרות היא 8", "במקום ▢ כותבים 8", "חסרות שמונה עשרות",
+ * "בטור העשרות כותבים 7", "כותבים 2 בתיבה של טור היחידות". Not: "מקבצים 10
+ * יחידות לעשרת אחת" (a grouping), "רושמים 1 בעיגול הזיכרון" (the carry), "7
+ * עשרות" when the screen shows that 7 in the column, numbers of the exercise.
+ */
+export function statesColumnDigit(text: string, s: DigitSecret): boolean {
+  const noun = BLOCK_NOUN_HE[s.column];
+  const plain = stripDigitGroupSeparators(text);
+  const D = digitToken(s.digit, WORD_ENDS_STATEMENT);
+  const Dcount = digitToken(s.digit, "");
+  const mentionsThis = new RegExp(`(?:^|[^א-ת])[בלמו]?(?:של\\s+)?ה?${noun}(?![א-ת])`);
+  const mentionsAnyColumn = /(?:^|[^א-ת])[בלמו]?(?:של\s+)?ה?(?:יחידות|עשרות|מאות|אלפים)(?![א-ת])/;
+  for (const clause of plain.split(/[.?!;:\n]/)) {
+    if (!clause.trim()) continue;
+    const here = mentionsThis.test(clause);
+    // "8 עשרות", "שמונה עשרות", "8 לבני עשרת" — a hidden digit only, and not a digit the column shows.
+    if (s.kind === "hidden" && !s.visible.includes(s.digit) &&
+      new RegExp(`${Dcount}\\s+(?:לבני\\s+(?:ה-?)?${BLOCK_SINGULAR_HE[s.column]}|${noun})(?![א-ת])`).test(clause)) return true;
+    // "▢ = 8", "במקום ▢ כותבים 8" — the hidden box itself, with no operation in between.
+    if (s.kind === "hidden" && new RegExp(`◻(?:(?!ועוד|פחות|מחברים|מחסרים)[^+\\-−]){0,25}?${D}`).test(clause.replace(MASKED_TOKEN, "◻"))) return true;
+    // "ספרת העשרות … היא 8", "הספרה החסרה בטור העשרות היא 8", "בטור העשרות … = 7" — not the
+    // memory circle, and not a digit the screen shows ("הספרה העליונה היא 8" when the 8 is there).
+    const aboutShownDigit = s.visible.includes(s.digit) && /העליונה|התחתונה|הראשון|השני|במספר|של המספר/.test(clause);
+    if (here && !aboutShownDigit && !/עיגול/.test(clause) &&
+      new RegExp(`(?:היא|הוא|זו|זאת|=)\\s*${D}`).test(clause)) return true;
+    // "כותבים 8", "כתבו את הספרה 8" — for this column, or for a box when no other column is named; never the
+    // memory circle. "כותבים ספרה אחת בכל תיבה" is the rule of the box, not the digit 1.
+    const digitOnly = `(?<![\\d▢])${s.digit}(?![\\d▢])`;
+    const write = new RegExp(`${WRITE_VERB}\\s+(?:את\\s+)?(?:(?:ה)?ספרה\\s+(?:ה-?)?${digitOnly}|(?:ה-?)?${D})(?!\\s*(?:\\+|−|-))`);
+    if (write.test(clause) && !/עיגול/.test(clause) && (here || (!mentionsAnyColumn.test(clause) && /תיבה|שורת התוצאה|◻|▢/.test(clause)))) return true;
+    // "8 בתיבה", "7 בשורת התוצאה" with this column named.
+    if (here && new RegExp(`${D}\\s+ב(?:תיבה|שורת התוצאה)`).test(clause) && !/עיגול/.test(clause)) return true;
+  }
+  return false;
+}
+
+/** The first digit a card states for its column, or null. */
+export function revealedColumnDigit(texts: string[], facts: Parameters<typeof digitSecretsOf>[0]): DigitSecret | null {
+  const secrets = digitSecretsOf(facts);
+  for (const s of secrets) if (texts.some((t) => statesColumnDigit(t, s))) return s;
+  return null;
+}
+
+/**
+ * The columns an instruction itself names, or whose blocks its conversion
+ * names: s1_r_group26 says "בטור היחידות … קבצו כל 10 יחידות לעשרת אחת",
+ * s1_target_347 "פרטו עשרת אחת לעשר יחידות". A card may name those — they do
+ * not tell the child where the difficulty is (owner, 29.9.2026: the card
+ * never names the column WHERE THE DIFFICULTY IS; the child finds it).
+ */
+const CONVERSION_NOUNS = "(יחידות|יחידה|עשרות|עשרת|מאות|מאה|אלפים|אלף)";
+const INSTRUCTION_CONVERSION_RE = new RegExp(`(?:פרטו|לפרוט|פורטים|קבצו|לקבץ|מקבצים)\\s+(?:כל\\s+)?(?:\\d+\\s+|את\\s+)?(?:ה)?(?:לבנת\\s+|לבני\\s+)?${CONVERSION_NOUNS}(?:\\s+אחת|\\s+אחד)?\\s+ל-?(?:10\\s+|עשר\\s+|ה)?${CONVERSION_NOUNS}`, "g");
+export function instructionColumnsOf(instruction: string | null): Set<SocraticColumn> {
+  const out = new Set<SocraticColumn>();
+  if (!instruction) return out;
+  for (const m of instruction.matchAll(/טור ה(יחידות|עשרות|מאות|אלפים)/g)) out.add(NOUN_COLUMN[m[1]]);
+  for (const m of instruction.matchAll(INSTRUCTION_CONVERSION_RE)) {
+    if (NOUN_COLUMN[m[1]]) out.add(NOUN_COLUMN[m[1]]);
+    if (NOUN_COLUMN[m[2]]) out.add(NOUN_COLUMN[m[2]]);
+  }
+  return out;
+}
+
+/** The columns a text names to act on ("טור העשרות") that the instruction does not name itself. */
+function namesColumnNotInInstruction(text: string, allowed: Set<SocraticColumn>): boolean {
+  for (const m of text.matchAll(/טור ה(יחידות|עשרות|מאות|אלפים)/g)) if (!allowed.has(NOUN_COLUMN[m[1]])) return true;
+  return false;
+}
+
+/** Meeting 1 has three columns only: no thousands column, no "קבצו 10" on the hundreds. */
+const MEETING_1_ABSENT = /טור האלפים|לבנ(?:ת|י)\s+(?:ה)?אלף|קבצו 10 לאלף|(?:מקבצים|קבצו|לקבץ)\s+(?:כל\s+)?10\s+(?:ה)?מאות|מאות\s+לאלף|(?:^|[^א-ת])[לב]?אלף אחד/;
+
+/** A card that tells the child to group: refused while a break is the intended step. */
+const GROUP_VERB = /(?:^|[^א-ת])(?:ו|ש|כש)?(?:קבצו|מקבצים|לקבץ|הקבצה|ההקבצה|תקבצו)(?![א-ת])/;
+
 /**
  * Aids that meetings 2 and 8 do not put on the screen (PRD Module 14 §ב).
  * Whole words only: "לבנות" (to build) and "לפחות" (at least) are not aids.
@@ -1861,34 +2318,50 @@ export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | n
     return { ok: false, reason: "hidden digits leaked" };
   }
   if (facts && findAbsentAid(texts, facts.blocks_on_screen !== false)) return { ok: false, reason: "names an aid that is not on the screen" };
-  // A skeleton's hidden DIGIT, for its column ("ספרת העשרות החסרה היא 8", "8 עשרות").
+  // A digit stated for its column: a skeleton's hidden digit ("ספרת העשרות
+  // החסרה היא 8", "במקום ▢ כותבים 8", "חסרות שמונה עשרות"), a hidden result
+  // digit ("בטור העשרות כותבים 7"), and — the iron rule — the expected digit
+  // of a result box not yet typed right ("כותבים 2 בתיבה של טור היחידות").
   if (facts && facts.columns.length) {
-    for (const c of facts.columns) {
-      const hiddenHere: [string, number][] = [[c.shown_a, c.digit_a], [c.shown_b, c.digit_b]];
-      for (const h of facts.hidden_result_digits ?? []) if (h.column === c.column) hiddenHere.push(["▢", h.digit]);
-      for (const [shown, digit] of hiddenHere) {
-        if (shown !== "▢") continue;
-        const noun = BLOCK_NOUN_HE[c.column];
-        const one = ONE_BLOCK_HE[c.column];
-        const re = new RegExp(`(^|[^0-9])${digit}\\s+(לבני\\s+)?${noun}|ספרת ה${noun}[^.?!]{0,25}(^|[^0-9])${digit}(?![0-9])${digit === 1 ? `|${one}` : ""}`);
-        if (texts.some((t) => re.test(t))) return { ok: false, reason: "hidden digits leaked" };
-      }
+    const revealed = revealedColumnDigit(texts, facts);
+    if (revealed) {
+      return {
+        ok: false,
+        reason: revealed.kind === "hidden"
+          ? `hidden digits leaked: the card states the digit the child must find in ${COLUMN_NAME_HE[revealed.column]} — ask how to find it`
+          : `final answer leaked: the card states the result digit of ${COLUMN_NAME_HE[revealed.column]} — guide to the action, never the digit`,
+      };
     }
   }
-  // The frame's level: a level-1 card names no column, in its question or in its right option.
-  // A "which column?" card (all three options are columns: the owner's meeting-1
-  // deficit card) lets the child CHOOSE the column — its right option may name it.
+  // The frame's level: a level-1 card names no column for the child to act on,
+  // in its question or in its right option — except a column the instruction
+  // itself names (s1_r_group26's units, the units a break of s1_target_347
+  // fills). A "which column?" card (all three options are columns: the
+  // owner's meeting-1 deficit card) lets the child CHOOSE the column.
+  const allowedColumns = instructionColumnsOf(facts?.instruction_he ?? null);
   if (facts?.card_frame?.level === 1) {
-    const namesColumn = (t: string) => /טור ה(יחידות|עשרות|מאות|אלפים)/.test(t);
+    const namesColumn = (t: string) => namesColumnNotInInstruction(t, allowedColumns);
     const right = options.find((o) => o.is_correct);
-    const columnChoice = options.every((o) => namesColumn(o.option_text));
+    const columnChoice = options.every((o) => /טור ה(יחידות|עשרות|מאות|אלפים)/.test(o.option_text));
     if (namesColumn(question) || (!columnChoice && right && namesColumn(right.option_text))) {
-      return { ok: false, reason: "frame: this is a level-1 card — the question and the right option must not name a column" };
+      return { ok: false, reason: "frame: this is a level-1 card — the question and the right option must not name the column to act on; the child finds it" };
     }
   }
-  // Meeting 1: the child finds the column (owner, 29.9.2026) — the question names none.
-  if (facts && facts.meeting === 1 && /טור ה(יחידות|עשרות|מאות|אלפים)/.test(question)) {
-    return { ok: false, reason: "counts: meeting 1 — the guiding question must not name a column; the child finds it" };
+  // Meeting 1: the child finds the column (owner, 29.9.2026) — the question names none the instruction does not.
+  if (facts && facts.meeting === 1 && namesColumnNotInInstruction(question, allowedColumns)) {
+    return { ok: false, reason: "counts: meeting 1 — the guiding question must not name the column where the difficulty is; the child finds it" };
+  }
+  // Meeting 1 has no thousands column and no "קבצו 10" on the hundreds.
+  if (facts && facts.meeting === 1 && texts.some((t) => MEETING_1_ABSENT.test(t))) {
+    return { ok: false, reason: 'screen: meeting 1 has three columns only — no thousands column, no thousand block and no "קבצו 10" button on the hundreds' };
+  }
+  // A two-step instruction whose break is done on purpose (s7_g_t5: 3 thousands
+  // and 14 hundreds before removing 6 hundreds): never "group them back".
+  if (facts?.crowding_intended) {
+    const right = options.find((o) => o.is_correct);
+    if ([question, right?.option_text ?? "", right?.feedback_text ?? ""].some((t) => GROUP_VERB.test(t))) {
+      return { ok: false, reason: "frame: the 10 or more blocks are the break the next step needs — never tell the child to group them back; ask about the step the instruction asks for next" };
+    }
   }
   // What the child is asked to find on a representation task (s3_r_t3's 45, s7_r_t6's 510).
   const secrets = (facts?.secret_numbers ?? []).filter((n) => n !== 10 && n !== 100 && n !== 1000);
