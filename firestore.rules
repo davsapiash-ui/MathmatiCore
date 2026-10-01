@@ -236,11 +236,17 @@ service cloud.firestore {
     // --- Collections Routing ---
 
     // Students Collection: Strict Ownership & Teacher Class Guard (Direct read denied for Admin, allowed for Teacher and owning Student)
+    // Module 27 §ב.4: a learner writes only to telemetry_logs and workspace_states
+    // ("Block student role auth tokens from writing … students collections").
+    // Nothing on the learner's side writes here: the documents are created by
+    // the teacher's meeting activation (TeacherDashboard) and by the Admin SDK.
+    // A learner token could still create up to four documents for itself, with
+    // any student_id, and adminAggregator counts this collection as total_students.
     match /students/{studentId} {
       allow read: if (isTeacher() || isOwningStudent(studentId)) && !isAdmin();
-      allow create: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc() &&
+      allow create: if isTeacher() && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnCreate();
-      allow update: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc() &&
+      allow update: if isTeacher() && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnUpdate();
       // Module 23א §ו: deleting learning data is a reset, and the admin is
       // blocked from resets. Resets run in backupAndResetSessionData (Admin SDK).
@@ -249,9 +255,9 @@ service cloud.firestore {
 
     match /users/students/{studentId} {
       allow read: if (isTeacher() || isOwningStudent(studentId)) && !isAdmin();
-      allow create: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc() &&
+      allow create: if isTeacher() && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnCreate();
-      allow update: if (isTeacher() || isOwningStudent(studentId)) && isValidStudentDoc() &&
+      allow update: if isTeacher() && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnUpdate();
       // Module 23א §ו: deleting learning data is a reset, and the admin is
       // blocked from resets. Resets run in backupAndResetSessionData (Admin SDK).
@@ -361,9 +367,12 @@ service cloud.firestore {
     }
 
     // Admin Cached Store (Module 24: Store Cache)
+    // "a read-only cache store": only the server computes it (adminAggregator,
+    // aiMonitoring, the reset's recompute — all Admin SDK). No client writes it;
+    // an admin token could overwrite the figures the console shows as the server's.
     match /store_cache/{cacheId} {
       allow read: if isAdmin() || isTeacher();
-      allow write: if isAdmin();
+      allow write: if false;
     }
 
     // Workspace States & Radar Logs
@@ -391,8 +400,12 @@ service cloud.firestore {
     // Reset Audit Logs (Module 23א: Immutable Audit Log for All Data Resets & Dataset Exports)
     match /reset_audit_log/{logId} {
       allow read: if isTeacher() || isAdmin();
-      // Module 23א §ו: resets are the teacher's, so is their log.
-      allow create: if isTeacher();
+      // Module 23א: the reset flow writes its own entry, in the Cloud Function
+      // (backupAndResetSessionData, Admin SDK). No client writes here. A direct
+      // teacher create had no schema, could never be deleted, and was read back
+      // by the research export and by the first-attempt score (meetingMetrics
+      // lastResetOfMeeting) as if a real reset had happened.
+      allow create: if false;
       allow update, delete: if false; // Strict requirement: log is immutable and cannot be deleted
     }
 
