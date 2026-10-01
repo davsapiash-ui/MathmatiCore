@@ -158,7 +158,7 @@ export function TrashZone() {
         </div>
 
         <span
-          className={`relative z-10 text-[10px] font-bold tracking-tight transition-colors duration-200 mt-0.5 ${
+          className={`relative z-10 text-xs font-bold tracking-tight transition-colors duration-200 mt-0.5 ${
             isOver ? 'text-red-600 font-black' : 'text-slate-400 group-hover:text-red-500'
           }`}
         >

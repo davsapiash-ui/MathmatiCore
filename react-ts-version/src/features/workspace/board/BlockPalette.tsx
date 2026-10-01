@@ -84,7 +84,7 @@ function PaletteItemCard({
         <span className="text-[12px] font-black text-slate-700 dark:text-slate-200 leading-none" aria-hidden="true">
           {labelHe}
         </span>
-        <span className="text-[10px] font-bold text-slate-400 leading-none">
+        <span className="text-xs font-bold text-slate-400 leading-none">
           ({subHe})
         </span>
       </div>
@@ -129,7 +129,7 @@ export function BlockPalette({ scaffoldLevel, compact = false }: { scaffoldLevel
           <span className="text-xs font-black text-slate-800 tracking-wide leading-tight">
             ארגז כלים
           </span>
-          <span className="text-[10px] font-bold text-slate-400 leading-none">
+          <span className="text-xs font-bold text-slate-400 leading-none">
             לבנים
           </span>
         </div>

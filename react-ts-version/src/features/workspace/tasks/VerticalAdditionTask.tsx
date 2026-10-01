@@ -473,7 +473,7 @@ export function VerticalAdditionTask({
             <div
               key={`l${j}`}
               className="text-center font-bold"
-              style={{ width: CELL, fontSize: cell(0.22), color: PLACE_TINT[place] }}
+              style={{ width: CELL, fontSize: `max(12px, ${cell(0.22)})`, color: PLACE_TINT[place] }}
             >
               {PLACE_LABEL_HE[place]}
             </div>
