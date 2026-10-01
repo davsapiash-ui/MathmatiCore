@@ -51,7 +51,7 @@ describe('the client\'s copies of the server\'s lists', () => {
     expect(Object.keys(CLIENT_KINDS).map((k) => toServer(k as SocraticTaskKindWire)).sort()).toEqual(SOCRATIC_TASK_KINDS.map(toClient).sort());
   });
 
-  it('the card kinds the client reports as already shown reach the server — except the ones with a digit, which its filter drops (reported, 2.10.2026)', () => {
+  it('every card kind the client reports as already shown reaches the server (its filter dropped kinds with a digit until 2.10.2026)', () => {
     const kept: string[] = [];
     for (let i = 0; i < STATIC_CARD_KINDS.length; i += 8) {
       const v = validateSocraticRequest({
@@ -63,9 +63,6 @@ describe('the client\'s copies of the server\'s lists', () => {
       if (v.ok) kept.push(...deriveSocraticFacts(v.value).earlier_card_kinds);
     }
     const dropped = STATIC_CARD_KINDS.filter((k) => !kept.includes(k));
-    // The server keeps a kind only if it matches /^[a-z_]{1,24}$/: the kinds of
-    // 30.9 and 1.10 with a digit never reach it. Kinds added since have none.
-    expect(dropped.every((k) => /\d/.test(k))).toBe(true);
-    expect(dropped).toEqual(STATIC_CARD_KINDS.filter((k) => /\d/.test(k)));
+    expect(dropped).toEqual([]);
   });
 });
