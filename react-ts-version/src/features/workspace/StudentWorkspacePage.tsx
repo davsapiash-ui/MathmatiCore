@@ -427,8 +427,11 @@ export function StudentWorkspacePage() {
   // It restarts from zero when the chosen exercise opens. (Not part of
   // isOverlayActive: that one also shifts the task timer, and the chosen
   // exercise starts its own.)
+  // Nor on the meeting-8 reflection board: it has no column to hesitate in
+  // (PRD 18: '45 שניות רצופות ללא פעולה בטור הפעיל'), and the teacher's tile
+  // turned yellow while the learner was reflecting.
   useCognitiveHesitationRadar({
-    isActive: !isOverlayActive && flowStatus !== 'choice_branch' && !isTeacherOrAdmin,
+    isActive: !isOverlayActive && flowStatus !== 'choice_branch' && flowStatus !== 'reflection' && !isTeacherOrAdmin,
     onHesitationDetected: () => {
       const ws = useWorkspaceStore.getState();
       const currentTask = ws.sessionNumber === 2 ? null : getActiveTasks(ws)[ws.standardTaskIdx];
@@ -1359,8 +1362,11 @@ export function StudentWorkspacePage() {
       {/* Module 15 projector, teacher pause and teacher close (register 7):
           wait in place, board untouched underneath. המורה סגרה את המפגש.
           Outside the workspace, which is inert while they are up: their
-          read-aloud buttons must still work. */}
-      {classStateOverlays}
+          read-aloud buttons must still work. The quiet mode still reaches
+          them (a display: contents wrapper adds no box). */}
+      <div data-quiet={isASDMode ? 'true' : undefined} className="contents">
+        {classStateOverlays}
+      </div>
 
       <DragOverlay dropAnimation={null}>
         {activeDrag ? (
