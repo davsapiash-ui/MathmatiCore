@@ -294,6 +294,16 @@ export interface UndoFrame {
    * on frames saved before this existed.
    */
   columnIndex?: number;
+  /**
+   * Subtraction with blocks: the take-away record as it was BEFORE the action
+   * (WorkspaceState.takeAwayTrack). Undo brings it back with the board, so
+   * undoing past the first number takes "taking away has started" back too
+   * (verification, 2.10.2026: 53 − 18 built, a ten thrown away, then undo run
+   * back to 30 — "you took out too much, press undo"). Absent when there was
+   * no record yet, and on frames saved before this existed: undo then leaves
+   * no record.
+   */
+  takeAwayTrack?: TakeAwayTrack;
 }
 
 /**
@@ -743,6 +753,8 @@ export function restoreUndoFrames(raw: unknown): UndoFrame[] {
         frame.conversionsByColumn = normalizeColumnConversions(f.conversionsByColumn);
       }
       if ([0, 1, 2, 3].includes(f.columnIndex)) frame.columnIndex = f.columnIndex;
+      const track = restoredTakeAwayTrack(f.takeAwayTrack);
+      if (track) frame.takeAwayTrack = track;
       return frame;
     });
 }
@@ -964,14 +976,20 @@ export interface TakeAwayTrack {
  *  - a board emptied (the trash button, or every block thrown away) starts
  *    over — it is not taking away;
  *  - taking away starts when a block leaves the board after the board held
- *    `a` — never while the child is still building it (806 − 351 built as 9
- *    hundreds, one thrown away, then units added);
+ *    `a` and the board is then worth less than `a` — never while the child
+ *    is still building it (806 − 351 built as 9 hundreds, one thrown away,
+ *    then units added; 54 built for 53 and one unit thrown away);
+ *  - a board worth `a` or more again has not started taking away (blocks
+ *    put back, or a slip while building);
  *  - the board holding `a` is recorded.
+ * Undo does not come through here: it restores the record its frame kept
+ * (UndoFrame.takeAwayTrack), so undoing the building of `a` is not taking away.
  */
 export function nextTakeAwayTrack(prev: TakeAwayTrack | null | undefined, taskId: string, a: number, before: number, after: number): TakeAwayTrack {
   if (after === 0) return { taskId, held: false, started: false };
   const t = prev && prev.taskId === taskId ? prev : { taskId, held: false, started: false };
-  return { taskId, held: t.held || after === a, started: t.started || (t.held && after < before) };
+  const held = t.held || after === a;
+  return { taskId, held, started: held && after < a && (t.started || after < before) };
 }
 
 /** A saved take-away record back into shape (the database drops false and null alike). */
@@ -2147,6 +2165,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       frame.operandDigits = { a: { ...input.operandDigits.a }, b: { ...input.operandDigits.b } };
     }
     if (conversions) frame.conversionsByColumn = normalizeColumnConversions(conversions);
+    // The take-away record before the action: undo restores it with the board.
+    const track = get().takeAwayTrack;
+    if (track) frame.takeAwayTrack = { ...track };
     const stack = [...currentStack, frame];
     if (stack.length > UNDO_STACK_CAP) stack.shift();
     return stack;
@@ -4098,6 +4119,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           ...(snapshot.conversionsByColumn
             ? { conversionsByColumn: normalizeColumnConversions(snapshot.conversionsByColumn) }
             : {}),
+          // The take-away record goes back with the board (UndoFrame.takeAwayTrack):
+          // undoing the building of the first number is not taking away. Always a
+          // new value, so the board subscription leaves it as written.
+          takeAwayTrack: snapshot.takeAwayTrack ? { ...snapshot.takeAwayTrack } : null,
           undoStack: stack,
           undoCount: s.undoCount + 1,
           consecutiveUndoCount: nextConsecutiveUndos,
