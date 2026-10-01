@@ -572,12 +572,12 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                 <table className="w-full text-right text-xs">
                   <thead className="bg-ws-bg text-ws-soft font-black sticky top-0 border-b border-ws-surface2">
                     <tr>
-                      <th className="p-2.5">שעה</th>
-                      <th className="p-2.5">תרגיל</th>
-                      <th className="p-2.5">פעולה</th>
-                      <th className="p-2.5">פרטים</th>
-                      <th className="p-2.5 text-center" title="שניות מהפעולה הקודמת">השהיה</th>
-                      <th className="p-2.5 text-center" title="מחיקה או ביטול פעולה">בקרה</th>
+                      <th className="p-2">שעה</th>
+                      <th className="p-2">תרגיל</th>
+                      <th className="p-2">פעולה</th>
+                      <th className="p-2">פרטים</th>
+                      <th className="p-2 text-center" title="שניות מהפעולה הקודמת">השהיה</th>
+                      <th className="p-2 text-center" title="מחיקה או ביטול פעולה">בקרה</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-ws-surface2">
@@ -599,12 +599,12 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                             title={`לחיצה מקפיצה את ההקלטה לשעה ${formatClock(e.timestamp)}`}
                             className={`cursor-pointer transition-colors ${isHighlighted ? 'bg-ws-accentSoft border-r-4 border-ws-accent' : 'hover:bg-ws-bg'} ${desc.attention ? 'text-amber-900 dark:text-amber-200' : 'text-ws-ink'}`}
                           >
-                            <td className="p-2.5 font-mono text-[11px] text-ws-soft whitespace-nowrap" dir="ltr">{formatClock(e.timestamp)}</td>
-                            <td className="p-2.5 whitespace-nowrap">{exerciseIdx >= 0 ? exerciseIdx + 1 : '–'}</td>
-                            <td className="p-2.5 font-bold whitespace-nowrap">{desc.label}</td>
-                            <td className="p-2.5">{desc.detail}</td>
-                            <td className="p-2.5 text-center font-mono">{delaySec > 0 ? `${delaySec}` : '–'}</td>
-                            <td className="p-2.5 text-center">{desc.selfRegulation ? '✓' : ''}</td>
+                            <td className="p-2 font-mono text-[11px] text-ws-soft whitespace-nowrap" dir="ltr">{formatClock(e.timestamp)}</td>
+                            <td className="p-2 whitespace-nowrap">{exerciseIdx >= 0 ? exerciseIdx + 1 : '–'}</td>
+                            <td className="p-2 font-bold">{desc.label}</td>
+                            <td className="p-2">{desc.detail}</td>
+                            <td className="p-2 text-center font-mono">{delaySec > 0 ? `${delaySec}` : '–'}</td>
+                            <td className="p-2 text-center">{desc.selfRegulation ? '✓' : ''}</td>
                           </tr>
                         );
                       })
