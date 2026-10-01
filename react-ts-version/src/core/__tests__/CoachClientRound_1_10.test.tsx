@@ -396,6 +396,54 @@ describe('item 3 — the card\'s column, for every trigger (socraticCardPlace an
   });
 });
 
+describe('SOCRATIC_CARD_SHOWN carries the card\'s column, once, for every trigger', () => {
+  const shownAfter = async (open: () => void | Promise<void>) => {
+    render(React.createElement(SocraticSidePanel, null));
+    await act(async () => { await open(); await flush(); });
+    const shown = ofType('SOCRATIC_CARD_SHOWN');
+    expect(shown).toHaveLength(1);
+    return shown[0];
+  };
+
+  it('a second wrong "התקדם": the lowest wrong column (tens → 1)', async () => {
+    load(4, T4());
+    boardOf(1573);
+    typeRow('1583');
+    const ev = await shownAfter(async () => { await press(); await press(); });
+    expect(ev.details.trigger_reason).toBe('repeated_errors');
+    expect(ev.column_index).toBe(1);
+  });
+
+  it('four wrong digits in the hundreds (→ 2), though the cursor moved on', async () => {
+    load(4, byId('s4_g_t3'));
+    const ev = await shownAfter(async () => {
+      for (const d of ['1', '2', '4', '5']) ws().setAnswerDigit('hundreds', d);
+      ws().setFocusedPlace('thousands');
+    });
+    expect(ev.details.trigger_reason).toBe('consecutive_errors_4');
+    expect(ev.column_index).toBe(2);
+  });
+
+  it('a pause with no box focused: the first unsolved column (tens → 1)', async () => {
+    load(4, T4());
+    boardOf(1573);
+    ws().setAnswerDigit('units', '3');
+    const ev = await shownAfter(() => ws().openSocraticCard('hesitation_45s'));
+    expect(ev.details.trigger_reason).toBe('hesitation_45s');
+    expect(ev.column_index).toBe(1);
+  });
+
+  it('meeting 8\'s three undos: the column of the action undone last (tens → 1)', async () => {
+    load(8, byId('s8_g_t1'));
+    typeRow('1573');
+    ws().setFocusedPlace(null);
+    const ev = await shownAfter(() => { ws().undo(); ws().undo(); ws().undo(); });
+    expect(ev.details.trigger_reason).toBe('consecutive_undos_3');
+    expect(ev.column_index).toBe(1);
+    expect(ofType('UNDO_EXECUTED')).toHaveLength(3);
+  });
+});
+
 describe('item 4 — the same card does not come back again and again', () => {
   it('the very same card (trigger, column, question) opens twice at most in an exercise', async () => {
     load(4, T4());
