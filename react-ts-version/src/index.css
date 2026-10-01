@@ -527,6 +527,17 @@
   50% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(244, 63, 94, 0); }
 }
 
+/* Module 9: a keystroke into a locked result box shakes that box (inline
+   `animation: shake …` in the task components). The keyframes lived only in
+   presentation/styles/main.css, which nothing imports, so the box never moved. */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
 @keyframes fade-slide-up {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }

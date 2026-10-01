@@ -113,7 +113,10 @@ describe('מסכי ההמתנה של הלומד', () => {
   it('הנקודות הפועמות מכבדות מצב שקט', () => {
     for (const p of screens) {
       const s = src(p);
-      expect(s, p).toContain('useReducedMotion()');
+      // The hook that reads MotionConfig — the teacher's quiet marking arrives
+      // only there; useReducedMotion() reads the device setting alone.
+      expect(s, p).toContain('useReducedMotionConfig()');
+      expect(s, p).not.toContain('useReducedMotion()');
       expect(s, p).toContain('reduceMotion ? {} :');
     }
   });

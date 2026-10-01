@@ -36,7 +36,16 @@ function useContentSize(ref: React.RefObject<HTMLElement | null>): Size | null {
   return size;
 }
 
-export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDragPlace?: Place | null }) {
+export function PlaceColumn({
+  place,
+  activeDragPlace,
+  canGroup = place !== 'thousands',
+}: {
+  place: Place;
+  activeDragPlace?: Place | null;
+  /** The column to its left is on the board, so ten blocks here can be grouped into it. */
+  canGroup?: boolean;
+}) {
   const count = useWorkspaceStore((s) => s.counts?.[place] ?? 0);
   const errorPlace = useWorkspaceStore((s) => s.errorPlace);
   const errorNonce = useWorkspaceStore((s) => s.errorNonce);
@@ -174,7 +183,7 @@ export function PlaceColumn({ place, activeDragPlace }: { place: Place; activeDr
       </div>
 
       {/* Explicit Group Button */}
-      {count >= 10 && place !== 'thousands' && (
+      {count >= 10 && place !== 'thousands' && canGroup && (
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}

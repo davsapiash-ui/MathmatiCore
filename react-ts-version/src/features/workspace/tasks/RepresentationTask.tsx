@@ -163,8 +163,10 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
               onBlur={() => setFocusedPlace(null)}
               onKeyDown={(e) => {
                 if (locked) {
-                  // Tab leaves a locked box: the lock stops writing, not moving.
-                  if (e.key === 'Tab') return;
+                  // The lock stops writing, not moving: Tab, the arrows and the
+                  // other non-writing keys pass without a shake (as in the
+                  // vertical exercise).
+                  if (!(e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete')) return;
                   // Rejected; the attempt itself is what the research needs (KEYBOARD_LOCK_BLOCKED).
                   if (/^[0-9]$/.test(e.key)) recordBlockedKeystroke(place);
                   e.preventDefault();
@@ -192,7 +194,7 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
                 }
               }}
             />
-            <span className="font-bold" style={{ fontSize: `calc(${CELL} * 0.22)`, color: PLACE_TINT[place] }}>
+            <span className="font-bold" style={{ fontSize: `max(12px, calc(${CELL} * 0.22))`, color: PLACE_TINT[place] }}>
               {PLACE_NAMES_HE[place]}
             </span>
           </div>

@@ -116,7 +116,14 @@ export function VerticalAdditionTask({
   const PAPER_TOP = sessionNumber === 2 ? cell(0.5) : cell(0.75);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
-  const [shake, setShake] = useState(false);
+  // Module 9: a keystroke into a locked box shakes that box only — as in
+  // RepresentationTask. One flag for the whole row shook every result box,
+  // open ones included.
+  const [shakingPlace, setShakingPlace] = useState<Place | null>(null);
+  const shake = (place: Place) => {
+    setShakingPlace(place);
+    setTimeout(() => setShakingPlace((p) => (p === place ? null : p)), 500);
+  };
   const [_lockedClicks, setLockedClicks] = useState(0);
 
   // A circle that unmounts while focused (next exercise) fires no blur.
@@ -196,8 +203,6 @@ export function VerticalAdditionTask({
       </div>
     );
   };
-
-  const shakeStyle = shake ? { transform: 'translateX(4px)' } : {};
 
   /** A hidden operand digit: an input in the operand's own square (skeleton exercises). */
   const operandInput = (which: 'a' | 'b', place: Place, key: string, extra?: React.CSSProperties) => {
@@ -412,28 +417,31 @@ export function VerticalAdditionTask({
                 className={`rounded-xl border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent ${
                   isLocked ? 'cursor-not-allowed opacity-75' : ''
                 }`}
-                style={{ width: cellMinus(12), height: cellMinus(12), fontSize: cell(0.48), borderColor: PLACE_TINT[place], ...shakeStyle }}
-                onFocus={() => {
-                  if (isLocked) {
-                    setShake(true);
-                    setTimeout(() => setShake(false), 500);
-                  }
-                  setFocusedPlace(place);
+                style={{
+                  width: cellMinus(12),
+                  height: cellMinus(12),
+                  fontSize: cell(0.48),
+                  borderColor: PLACE_TINT[place],
+                  ...(shakingPlace === place ? { animation: 'shake 0.5s ease-in-out' } : {}),
                 }}
+                // Focus is not an attempt: arriving in a locked box — by a
+                // click, Tab, or the move after a digit — shakes nothing. The
+                // move after a digit shook the row before the child had tried
+                // anything there (Module 9: the shake answers a keystroke).
+                onFocus={() => setFocusedPlace(place)}
                 onBlur={() => setFocusedPlace(null)}
                 onKeyDown={(e) => {
-                  if (isLocked) {
+                  // Tab and the arrows still move on: only a key that would write is refused.
+                  if (isLocked && (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete')) {
                     // Module 9 lock: the key does nothing; the attempt itself is what the research needs.
                     if (/^[0-9]$/.test(e.key)) recordBlockedKeystroke(place);
                     e.preventDefault();
-                    setShake(true);
-                    setTimeout(() => setShake(false), 500);
+                    shake(place);
                   }
                 }}
                 onChange={(e) => {
                   if (isLocked) {
-                    setShake(true);
-                    setTimeout(() => setShake(false), 500);
+                    shake(place);
                     return;
                   }
                   const v = e.target.value.replace(/[^0-9]/g, '').slice(-1);
@@ -465,7 +473,7 @@ export function VerticalAdditionTask({
             <div
               key={`l${j}`}
               className="text-center font-bold"
-              style={{ width: CELL, fontSize: cell(0.22), color: PLACE_TINT[place] }}
+              style={{ width: CELL, fontSize: `max(12px, ${cell(0.22)})`, color: PLACE_TINT[place] }}
             >
               {PLACE_LABEL_HE[place]}
             </div>

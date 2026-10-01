@@ -155,7 +155,15 @@ export function PlaceValueBoard({
             {/* Place-value columns with permanent clear solid borders */}
             <div ref={columnsRef} dir="rtl" className="relative flex-1 flex flex-row gap-2 min-h-0 select-none" role="group" aria-label="טורי ערך המקום">
               {placesToRender.map((place) => (
-                <PlaceColumn key={place} place={place} activeDragPlace={activeDragPlace} />
+                <PlaceColumn
+                  key={place}
+                  place={place}
+                  activeDragPlace={activeDragPlace}
+                  // Module 8 §א: the ten merge "בטור הסמוך משמאל" — only where
+                  // that column is on the board. In stations 1–2 there is no
+                  // thousands column, and "קבצו 10 לאלף" made ten hundreds vanish.
+                  canGroup={placesToRender.includes(PLACE_ORDER[PLACE_ORDER.indexOf(place) + 1])}
+                />
               ))}
               {/* מסמך 03 §3.3–3.5: grouping merges and travels left, decomposition
                   breaks apart and travels right. Drawn over the columns, never in

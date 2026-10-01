@@ -29,7 +29,9 @@ export function Session1ChecklistCard({ items, doneNote = null }: { items: Sessi
 
       <div className="flex flex-col gap-fl-4-12">
         {items.map((item) => (
-          <div key={item.label} className="flex items-center justify-between px-fl-8-16 py-fl-5-16 rounded-xl bg-ws-bg border border-ws-surface2 transition-all">
+          // Below 1024 px (portrait tablet, tier B) the count may go under the
+          // words: beside them, a narrow column broke the line word by word.
+          <div key={item.label} className="flex items-center justify-between max-lg:flex-wrap max-lg:gap-y-2 px-fl-8-16 py-fl-5-16 rounded-xl bg-ws-bg border border-ws-surface2 transition-all">
             <div className="flex items-center gap-3">
               <span className={`text-fl-16-24 transition-transform ${item.done ? 'scale-110 text-green-500' : 'text-slate-400'}`}>
                 {item.done ? '✅' : '⏳'}

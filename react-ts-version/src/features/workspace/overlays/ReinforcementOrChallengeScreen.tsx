@@ -120,7 +120,7 @@ export function ReinforcementOrChallengeScreen({
         <button
           type="button"
           onClick={onSkipToFinish}
-          className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors pt-2 underline underline-offset-4 cursor-pointer"
+          className="min-h-11 px-4 inline-flex items-center text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors underline underline-offset-4 cursor-pointer"
         >
           {BRANCH_CHOICE_TEXT.finish}
         </button>

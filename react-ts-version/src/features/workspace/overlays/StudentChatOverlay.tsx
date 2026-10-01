@@ -30,6 +30,9 @@ export function withExerciseHe(text: string, label: string | null): string {
 /** The same ready message pressed again within this time is one press. */
 const READY_MESSAGE_REPEAT_MS = 2000;
 
+/** While the PII filter is down, how often it is tried again on a harmless probe. */
+export const PII_FILTER_RECHECK_MS = 5000;
+
 export function StudentChatOverlay() {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -39,6 +42,24 @@ export function StudentChatOverlay() {
     trapFocus: false,
   });
   const [text, setText] = useState('');
+  // PRD Module 3 §א: "במקרה של תקלה ברכיב הסינון, המערכת נועלת את הקלט ליתר
+  // ביטחון עד להתאוששות הלוגיקה". A failure used to stop that one send only;
+  // the box stayed open. Now the box and its send button are locked until the
+  // filter answers again. The ready messages and "קראו למורה" carry no text
+  // the learner typed, so a child can still ask for help.
+  const [piiFilterDown, setPiiFilterDown] = useState(false);
+  useEffect(() => {
+    if (!piiFilterDown) return;
+    const timer = setInterval(() => {
+      try {
+        validateChatInputForPII('בדיקה');
+        setPiiFilterDown(false);
+      } catch {
+        // still down: the box stays locked
+      }
+    }, PII_FILTER_RECHECK_MS);
+    return () => clearInterval(timer);
+  }, [piiFilterDown]);
   const { messages, sendMessage, markAsRead, initSync } = useChatStore();
   const user = useAuthStore(s => s.user);
   const activeSession = useActiveClassSession();
@@ -104,7 +125,7 @@ export function StudentChatOverlay() {
     const textToSend = text.trim();
     // No learner number (a teacher previewing the workspace): nothing to send
     // as — an empty id wrote to the root of chat_messages.
-    if (!textToSend || !user?.uid || !normUid) return;
+    if (!textToSend || !user?.uid || !normUid || piiFilterDown) return;
     try {
       const validation = validateChatInputForPII(textToSend);
       if (!validation.valid) {
@@ -116,7 +137,8 @@ export function StudentChatOverlay() {
       setText('');
     } catch (err) {
       console.error('[StudentChat] PII check error:', err);
-      toast.error('ההודעה לא נשלחה. נסו שוב.');
+      setPiiFilterDown(true);
+      toast.error('ההודעה לא נשלחה. נסו שוב בעוד רגע.');
     }
   };
 
@@ -289,13 +311,14 @@ export function StudentChatOverlay() {
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSend()}
+            disabled={piiFilterDown}
             placeholder="כתבו הודעה למורה..."
             aria-label="הודעה למורה"
             className="flex-1 border border-ws-surface2 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-ws-accent bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
           />
           <button
             onClick={() => handleSend()}
-            disabled={!text.trim()}
+            disabled={!text.trim() || piiFilterDown}
             aria-label="שליחת ההודעה"
             className="bg-ws-accent disabled:opacity-40 text-white rounded-full w-11 h-11 flex items-center justify-center hover:brightness-110 active:scale-95 transition-all font-bold cursor-pointer shrink-0 shadow-sm"
           >

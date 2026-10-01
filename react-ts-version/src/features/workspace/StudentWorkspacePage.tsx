@@ -27,6 +27,7 @@ import { PlaceValueBoard } from './board/PlaceValueBoard';
 
 import { DienesBlock } from './board/DienesBlock';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
+import { CornerCloudSyncStatus } from './CloudSyncStatus';
 import { TaskCard } from './tasks/TaskCard';
 import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays, SocraticSidePanel } from './overlays/HelpOverlays';
@@ -264,6 +265,17 @@ export function StudentWorkspacePage() {
 
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
 
+  // Module 15 §ב ("מצב צפייה חסום ואטום"), and the teacher's pause and close
+  // (register 7): while one of their screens is up, the workspace under it
+  // takes no input. The screen only covered it — Enter still checked and
+  // advanced the exercise behind it, Ctrl+Z undid, and a focused box took
+  // digits. Exactly the conditions classStateOverlays below shows a screen on.
+  const isClassScreenUp =
+    isProjectorModeActive ||
+    (!isTeacherOrAdmin && (activeClassSession.status === 'paused' || (activeClassSession.status === 'closed' && activeClassSession.isLoaded)));
+  const isClassScreenUpRef = useRef(isClassScreenUp);
+  isClassScreenUpRef.current = isClassScreenUp;
+
   // הרדאר השקט — covert monitoring for the teacher dashboard; nothing student-visible.
 
   // NOTE: this page writes no qMatrixResults and no traceData. Meeting 2's are
@@ -274,6 +286,7 @@ export function StudentWorkspacePage() {
   // Keyboard: Enter = proceed (outside inputs), Ctrl/Cmd+Z = undo (vanilla app.js 1412–1416).
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (isClassScreenUpRef.current) return;
       const tag = (e.target as HTMLElement)?.tagName;
       const inInput = tag === 'INPUT';
       // A focused button already acts on Enter; running proceed() here too
@@ -405,9 +418,17 @@ export function StudentWorkspacePage() {
     (hasOpeningScreen(sessionNumber) && flowStatus === 'task' && !openingScreenSeen) ||
     isTabHidden;
 
-  // Pedagogical Radar — active during real student problem solving, strictly PAUSED during overlays
-  useCognitiveHesitationRadar({ 
-    isActive: !isOverlayActive && !isTeacherOrAdmin,
+  // Pedagogical Radar — active during real student problem solving, strictly PAUSED during overlays.
+  // Not on the reinforcement-or-challenge screen either: no exercise is open
+  // there, and the clock kept running from the last digit of exercise 7, so a
+  // learner with the enhanced profile who took half a minute to choose got
+  // the addition grid open — and logged as a 30-second opening — before the
+  // first optional exercise began (PRD Module 10 §א: 0–30 s is the learner's own).
+  // It restarts from zero when the chosen exercise opens. (Not part of
+  // isOverlayActive: that one also shifts the task timer, and the chosen
+  // exercise starts its own.)
+  useCognitiveHesitationRadar({
+    isActive: !isOverlayActive && flowStatus !== 'choice_branch' && !isTeacherOrAdmin,
     onHesitationDetected: () => {
       const ws = useWorkspaceStore.getState();
       const currentTask = ws.sessionNumber === 2 ? null : getActiveTasks(ws)[ws.standardTaskIdx];
@@ -1072,7 +1093,7 @@ export function StudentWorkspacePage() {
   // The meeting starts, and this screen goes, when the approval and the path
   // arrive (runInit above).
   if (pendingApproval && !isInitialized) {
-    return <>{showMeeting2Waiting ? <Meeting2WaitingScreen /> : <TeacherWillOpenWaitingScreen />}{classStateOverlays}</>;
+    return <>{showMeeting2Waiting ? <><Meeting2WaitingScreen /><CornerCloudSyncStatus /></> : <TeacherWillOpenWaitingScreen />}{classStateOverlays}</>;
   }
 
   // Module 14: Post-Mandatory Tasks Choice Point (Reinforcement vs Challenge)
@@ -1138,6 +1159,7 @@ export function StudentWorkspacePage() {
           return true;
         }}
       />
+        <CornerCloudSyncStatus />
         {classStateOverlays}
       </>;
     }
@@ -1148,7 +1170,7 @@ export function StudentWorkspacePage() {
   // the opening of meeting 3 are both hers. The screen listens for the
   // approval and returns the learner to the lobby the moment it lands.
   if (endScreen === 'sessionDone' && sessionNumber === 2 && !isGateApproved) {
-    return <><Meeting2WaitingScreen onApproved={() => navigate('/hub')} />{classStateOverlays}</>;
+    return <><Meeting2WaitingScreen onApproved={() => navigate('/hub')} /><CornerCloudSyncStatus />{classStateOverlays}</>;
   }
 
   // Module 14: Session complete screen. In meetings 3–7 it carries the one
@@ -1196,6 +1218,7 @@ export function StudentWorkspacePage() {
             )}
           </div>
         </div>
+        <CornerCloudSyncStatus />
         {classStateOverlays}
       </div>
     );
@@ -1223,7 +1246,7 @@ export function StudentWorkspacePage() {
 
   if (pendingApproval) {
     return showMeeting2Waiting
-      ? <Meeting2WaitingScreen onApproved={() => setPendingApproval(false)} />
+      ? <><Meeting2WaitingScreen onApproved={() => setPendingApproval(false)} /><CornerCloudSyncStatus /></>
       : <TeacherWillOpenWaitingScreen />;
   }
 
@@ -1255,6 +1278,9 @@ export function StudentWorkspacePage() {
       // לגעת בתנועה שמלמדת (היד המנחה, חגיגת הסיום), שמסומנת
       // motion-essential.
       data-quiet={isASDMode ? 'true' : undefined}
+      // Module 15 §ב: under the projector, pause or close screen the workspace
+      // is kept as it is and takes no focus, typing or keyboard drag.
+      inert={isClassScreenUp || undefined}
       className="h-[100dvh] w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"
     >
       {/* Flat vector background shapes — playful world energy, zero visual noise.
@@ -1300,10 +1326,6 @@ export function StudentWorkspacePage() {
         <HelpOverlays />
         <StudentChatOverlay />
 
-        {/* Module 15 projector, teacher pause and teacher close (register 7):
-            wait in place, board untouched underneath. המורה סגרה את המפגש */}
-        {classStateOverlays}
-        
         {/* Module 10 + the matrix (register decision ב): the grid fades in over
             2.5s and hides itself 3s after a correct digit. AnimatePresence
             here lets the exit animation play after the store closes it. */}
@@ -1333,6 +1355,12 @@ export function StudentWorkspacePage() {
           </button>
         )}
       </div>
+
+      {/* Module 15 projector, teacher pause and teacher close (register 7):
+          wait in place, board untouched underneath. המורה סגרה את המפגש.
+          Outside the workspace, which is inert while they are up: their
+          read-aloud buttons must still work. */}
+      {classStateOverlays}
 
       <DragOverlay dropAnimation={null}>
         {activeDrag ? (
