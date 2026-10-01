@@ -252,7 +252,10 @@ export function describeEvent(e: JourneyEvent): EventDescription {
     case 'REGROUPING_TRIGGERED':
     case 'REGROUPING_SUCCESS':
       detail = `${d.regrouping_type === 'composition' ? 'הקבצה' : 'פריטה'}${col ? ` בטור ה${col}` : ''}`;
-      if (typeof d.duration_ms === 'number') detail += ` (${Math.round(d.duration_ms / 1000)} שנ׳)`;
+      // The client sends TRIGGERED and SUCCESS at the same instant, so every
+      // conversion read '(0 שנ׳)' — a time nobody measured. Shown only when
+      // there is one.
+      if (typeof d.duration_ms === 'number' && d.duration_ms > 0) detail += ` (${Math.round(d.duration_ms / 1000)} שנ׳)`;
       break;
     case 'DIGIT_ENTERED': {
       const correct = d.is_correct;

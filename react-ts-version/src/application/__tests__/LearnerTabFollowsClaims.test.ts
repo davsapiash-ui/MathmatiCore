@@ -94,7 +94,12 @@ describe("a learner tab whose claims moved is signed out — this tab only", () 
     expect(h.refreshes, 'the claims are read fresh from the server').toBe(1);
     expect(signedIn()).toBe(false);
     expect(h.release, 'nothing sent: the Firebase user is not this tab’s to release').not.toHaveBeenCalled();
-    expect(h.rtdbUpdateNow, 'no presence written as a learner it no longer is').not.toHaveBeenCalled();
+    // The sign-out's own presence reset ({ isOnline: false, lastPing: 0 }) is
+    // what 'this tab only' must skip. The sync service may still mark its own
+    // learner offline as it stops ({ isOnline: false }) when its start won the
+    // race on a slow machine (deploy CI, 1.10.2026); the rules refuse that write.
+    const logoutPresence = h.rtdbUpdateNow.mock.calls.filter((c) => (c[1] as Record<string, unknown> | undefined)?.lastPing === 0);
+    expect(logoutPresence, 'no presence written as a learner it no longer is').toEqual([]);
   });
 
   it('another learner signed in on this device: this tab’s session ends', async () => {

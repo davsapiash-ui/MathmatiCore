@@ -63,3 +63,22 @@ describe('Meeting 2 reopened after the learner moved on', () => {
     expect(after.indexOf('waitForApprovedPath();')).toBeLessThan(after.indexOf('initSession(meeting'));
   });
 });
+
+describe('Fix round 3', () => {
+  it('a conversion time nobody measured is not shown as "(0 שנ׳)"', () => {
+    const svc = src('infrastructure/services/LearnerJourneyService.ts');
+    expect(svc).toContain("typeof d.duration_ms === 'number' && d.duration_ms > 0");
+  });
+
+  it('the hesitation radar is off on the meeting-8 reflection board', () => {
+    const page = src('features/workspace/StudentWorkspacePage.tsx');
+    expect(page).toMatch(/isActive: !isOverlayActive && flowStatus !== 'choice_branch' && flowStatus !== 'reflection'/);
+  });
+
+  it('the class screens outside the inert workspace still get the quiet mode', () => {
+    const page = src('features/workspace/StudentWorkspacePage.tsx');
+    const at = page.indexOf('<div data-quiet={isASDMode ? \'true\' : undefined} className="contents">');
+    expect(at).toBeGreaterThan(-1);
+    expect(page.slice(at, at + 200)).toContain('{classStateOverlays}');
+  });
+});
