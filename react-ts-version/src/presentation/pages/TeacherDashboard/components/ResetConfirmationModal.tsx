@@ -45,7 +45,10 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   activeSessionNumber: activeSessionProp,
   onConfirm,
 }) => {
-  const [selectedReason, setSelectedReason] = useState<ResetReason>('restart_session');
+  // PRD 23א §ד: "בכל פעולת איפוס המורה נדרשת לבחור סיבה מתוך רשימה סגורה".
+  // The list used to open on "פתיחה מחודשת של המפגש לכלל הכיתה", and kept the
+  // last reason for the next reset, so one click logged a reason nobody chose.
+  const [selectedReason, setSelectedReason] = useState<ResetReason | ''>('');
   const [reasonNote, setReasonNote] = useState('');
   const [noteError, setNoteError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,6 +66,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
     if (isSubmitting) return;
     setStep(1);
     setDoubleConfirmed(false);
+    setSelectedReason('');
     setReasonNote('');
     setScope('active_session');
     setClassConfirmed(false);
@@ -84,6 +88,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   if (!isOpen) return null;
 
   const handleExecute = async () => {
+    if (!selectedReason) return;
     if (resetLevel === 'system' && step === 1) {
       setStep(2);
       return;
@@ -154,9 +159,10 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         <button
           onClick={handleClose}
           disabled={isSubmitting}
+          aria-label="סגירת החלון"
           className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
         <div className="flex items-center gap-3 mb-4">
@@ -291,14 +297,20 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
               </fieldset>
             )}
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label htmlFor="reset-reason" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 סיבת האיפוס (שדה חובה):
               </label>
               <select
+                id="reset-reason"
+                required
+                aria-required="true"
                 value={selectedReason}
-                onChange={(e) => setSelectedReason(e.target.value as ResetReason)}
+                onChange={(e) => setSelectedReason(e.target.value as ResetReason | '')}
                 className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500"
               >
+                <option value="" disabled>
+                  בחרו סיבה מהרשימה
+                </option>
                 {Object.entries(REASON_LABELS).map(([val, label]) => (
                   <option key={val} value={val}>
                     {label}
@@ -364,13 +376,13 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           <button
             type="button"
             onClick={handleExecute}
-            disabled={isSubmitting || (isLevel3 && step === 2 && !doubleConfirmed) || (isClassTarget && (!activeSessionNumber || !classConfirmed))}
-            className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer ${
+            disabled={isSubmitting || !selectedReason || (isLevel3 && step === 2 && !doubleConfirmed) || (isClassTarget && (!activeSessionNumber || !classConfirmed))}
+            className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed ${
               isLevel3
                 ? 'bg-red-600 hover:bg-red-700 disabled:opacity-50'
                 : isLevel2
                 ? 'bg-amber-600 hover:bg-amber-700 disabled:opacity-50'
-                : 'bg-indigo-600 hover:bg-indigo-700'
+                : 'bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50'
             }`}
           >
             {isSubmitting ? (

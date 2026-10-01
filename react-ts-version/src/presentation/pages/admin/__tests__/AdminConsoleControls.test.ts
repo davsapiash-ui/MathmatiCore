@@ -43,6 +43,21 @@ describe('Admin overview controls', () => {
     expect(view.includes('1002220159@edu-haifa.org.il')).toBe(false);
   });
 
+  it('shows all three cached aggregates of Module 24 §ב — exercises solved and the global error measures too', () => {
+    // The aggregator wrote total_exercises_completed and global_error_metrics
+    // to store_cache/admin_metrics, and the screen read neither (finding 58).
+    expect(view.includes('data.total_exercises_completed')).toBe(true);
+    expect(view.includes('data.global_error_metrics')).toBe(true);
+    for (const label of ['תרגילים שנפתרו', 'ספרות שגויות', 'מחיקות', 'ביטולים', 'היסוסים', 'כרטיסי חניכה']) {
+      expect(view.includes(`label: '${label}'`), label).toBe(true);
+    }
+    // Every field it shows is one the aggregator writes.
+    const aggregator = read('../../../../../../functions/src/adminAggregator.ts');
+    for (const field of ['total_exercises_completed', 'global_error_metrics', 'wrong_digits', 'digits_entered', 'digit_error_rate_percent', 'deletions', 'undos', 'hesitations', 'socratic_cards']) {
+      expect(aggregator.includes(field), field).toBe(true);
+    }
+  });
+
   it('the dead "30-day recording cleanup" button is gone, with an accurate note in its place', () => {
     expect(view.includes('handleDataCleanup')).toBe(false);
     expect(view.includes("ref(database, 'replays')")).toBe(false);
@@ -60,6 +75,18 @@ describe('Admin layout', () => {
     expect(layout).toMatch(/<NavLink\s+to="\/admin\/chat"/);
   });
 
+  it('every sidebar link fits a laptop screen, and the list shows its scrollbar (1.10.2026)', () => {
+    // At 1366×633 and 1280×585 the last two links sat below the fold of a
+    // list whose scrollbar ui/sidebar hides (no-scrollbar).
+    expect(layout).toContain('<SidebarContent className="p-4 bg-white ![scrollbar-width:thin]">');
+    expect((layout.match(/\[@media\(max-height:820px\)\]:py-2\.5/g) || []).length).toBe(14);
+    // The footer's user card and sign-out step aside on a short screen — the
+    // top bar, shown with the sidebar from the same breakpoint, has both.
+    expect(layout).toMatch(/mt-auto bg-white\/20 dark:bg-black\/10 \[@media\(max-height:820px\)\]:hidden/);
+    expect(layout).toContain('<Sidebar variant="sidebar" collapsible="none" className="hidden lg:flex');
+    expect(layout).toContain('<header className="hidden lg:flex items-center justify-between');
+  });
+
   it('no longer claims a "Ghost Mode" in which admin actions are not recorded', () => {
     expect(layout.includes('Ghost Mode')).toBe(false);
     expect(layout.includes('מצב רפאים')).toBe(false);
@@ -68,6 +95,14 @@ describe('Admin layout', () => {
 
 describe('Admin chat', () => {
   const chat = read('../AdminChatView.tsx');
+
+  it('a message from a teacher no longer on the list has a conversation too, so it can be read and cleared', () => {
+    // It had none: the bell counted it for ever (bell 2, chat 1 — 1.10.2026).
+    expect(chat).toContain('!known.has(m.sender_id)');
+    expect(chat).toContain('"מורה שאינה ברשימה"');
+    // Never by the e-mail-derived key.
+    expect(chat).not.toMatch(/label: (m\.)?sender_id/);
+  });
 
   it('marks a teacher\'s incoming messages read when the conversation is opened', () => {
     expect(chat.includes('updateDoc(doc(db, "messages", m.id), { read: true })')).toBe(true);
@@ -118,13 +153,34 @@ describe('Admin wizard — class creation', () => {
   const wizard = read('../AdminWizardModal.tsx');
   const store = read('../../../../application/useAdminStore.ts');
 
-  it('shows the global limit read-only where the save would ignore an edited one', () => {
-    expect(wizard.includes('{globalStudentLimit} תלמידים')).toBe(true);
+  it('shows the fixed capacity read-only where the save would ignore an edited one', () => {
+    expect(wizard.includes('{PILOT_CLASS_CAPACITY} תלמידים')).toBe(true);
+    expect(wizard.includes('globalStudentLimit')).toBe(false);
+  });
+
+  it('a 13th learner: the field is cleared and the full-capacity sentence of Module 25 §ה is shown (§ז)', () => {
+    // It used to clamp every value to 1–12 before it reached state, so 13
+    // became 12 in silence and the sentence could never appear.
+    expect(wizard.includes('Math.min(12, Math.max(1, parseInt(e.target.value, 10) || 12))')).toBe(false);
+    expect(wizard).toMatch(/if \(val > PILOT_CLASS_CAPACITY\) \{\s*setStudentLimit\(""\);\s*setClassError\(CLASS_FULL_MESSAGE\);/);
   });
 
   it('persists the chosen class type', () => {
     expect(wizard.includes('addClassRoom(selectedSchoolId, teacherId, PILOT_CLASS_NAME, classType)')).toBe(true);
     expect(store.includes('classType?: string;')).toBe(true);
     expect((store.match(/\.\.\.\(classType \? \{ classType \} : \{\}\)/g) || []).length).toBe(2);
+  });
+});
+
+describe('Admin schools — the class capacity (Module 25 §ב.2)', () => {
+  const view = read('../AdminSchoolsView.tsx');
+  const sync = read('../../../../infrastructure/services/FirebaseSyncService.ts');
+
+  it('is shown as the fixed 12, not offered as a control nothing enforced', () => {
+    expect(view.includes('עדכון מכסה')).toBe(false);
+    expect(view.includes('setGlobalStudentLimit')).toBe(false);
+    expect(view.includes('{PILOT_CLASS_CAPACITY} תלמידים')).toBe(true);
+    // A class is created with that capacity, whatever an old stored limit says.
+    expect(sync).toContain('studentLimit: PILOT_CLASS_CAPACITY,');
   });
 });

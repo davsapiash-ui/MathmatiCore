@@ -17,7 +17,7 @@ import {
   BookOpen
 } from "lucide-react";
 import { useAdminStore } from "@/application/useAdminStore";
-import { PILOT_SCHOOL_NAME, ONE_INSTITUTION_MESSAGE } from "@/core/pilotInstitution";
+import { PILOT_SCHOOL_NAME, ONE_INSTITUTION_MESSAGE, PILOT_CLASS_CAPACITY, CLASS_FULL_MESSAGE } from "@/core/pilotInstitution";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
 
 interface AdminWizardModalProps {
@@ -36,9 +36,8 @@ export function AdminWizardModal({
   const { 
     schools, 
     teachers, 
-    classes, 
-    globalStudentLimit, 
-    addTeacher, 
+    classes,
+    addTeacher,
     addClassRoom,
     provisionFullInstitution 
   } = useAdminStore();
@@ -124,11 +123,8 @@ export function AdminWizardModal({
   const validateStep3 = (_targetTeacherId: string) => {
     setClassError("");
     const limitNum = parseInt(studentLimit, 10);
-    if (isNaN(limitNum) || limitNum < 1 || limitNum > 12) {
-      // Module 25 §ה fixes this sentence verbatim as the rollback message shown
-      // when the class is at capacity, the same way §ג of Module 15 fixes the
-      // projector text and Module 23 fixes the AI fallback sentence.
-      setClassError("ההרשמה חסומה. כיתת המחקר הגיעה לתפוסה מלאה של 12 לומדים.");
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > PILOT_CLASS_CAPACITY) {
+      setClassError(CLASS_FULL_MESSAGE);
       return false;
     }
     // Module 25 §ב.1: the pilot has one class. A second one is refused.
@@ -276,10 +272,10 @@ export function AdminWizardModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", duration: 0.5, bounce: 0.1 }}
-            className="relative w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[90vh]"
+            className="relative w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[90vh] [@media(max-height:820px)]:max-h-[94vh]"
           >
             {/* Header */}
-            <div className="p-6 pb-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
+            <div className="p-6 pb-4 [@media(max-height:820px)]:p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
                   <Sparkles className="w-5 h-5" />
@@ -307,7 +303,7 @@ export function AdminWizardModal({
 
             {/* Stepper Progress Bar (Only in full setup) */}
             {mode === "full_setup" && !isDone && (
-              <div className="px-8 pt-6 pb-2 bg-slate-50/30 dark:bg-slate-900/30">
+              <div className="px-8 pt-6 [@media(max-height:820px)]:pt-3 pb-2 bg-slate-50/30 dark:bg-slate-900/30">
                 <div className="flex justify-between items-center relative">
                   {/* Connecting Line */}
                   <div className="absolute top-1/2 left-0 right-0 h-1 bg-slate-200 dark:bg-slate-800 -translate-y-1/2 z-0" />
@@ -351,7 +347,7 @@ export function AdminWizardModal({
             )}
 
             {/* Modal Body */}
-            <div className="p-6 sm:p-8 flex-1 overflow-y-auto">
+            <div className="p-6 sm:p-8 [@media(max-height:820px)]:!p-5 flex-1 overflow-y-auto">
               {isDone ? (
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -497,7 +493,7 @@ export function AdminWizardModal({
                         </div>
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
                             שם הכיתה
@@ -523,27 +519,36 @@ export function AdminWizardModal({
                           </select>
                         </div>
 
-                        <div>
+                        <div className="sm:col-span-2">
                           <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
                             מכסת תלמידים מרבית לכיתה זו (עד 12 תלמידים)
                           </label>
                           {mode === "add_class" ? (
-                            // A class added here always takes the global limit
-                            // (useAdminStore.addClassRoom) — an editable field
-                            // that the save ignored promised a capacity it never set.
+                            // A class added here always takes the pilot's fixed
+                            // capacity (useAdminStore.addClassRoom) — an editable
+                            // field that the save ignored promised a capacity it never set.
                             <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-3.5 text-sm font-bold flex items-center justify-between">
-                              <span>{globalStudentLimit} תלמידים</span>
-                              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">בהתאם למכסה המרבית שהוגדרה במסך המוסדות</span>
+                              <span>{PILOT_CLASS_CAPACITY} תלמידים</span>
+                              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
                             </div>
                           ) : (
-                            <input 
-                              type="number" 
-                              min="1" 
-                              max="12" 
+                            <input
+                              type="number"
+                              min="1"
+                              max="12"
                               value={studentLimit}
                               onChange={(e) => {
-                                const val = Math.min(12, Math.max(1, parseInt(e.target.value, 10) || 12));
-                                setStudentLimit(val.toString());
+                                // Module 25 §ה/§ז: a 13th learner is refused — the
+                                // wizard clears the field and says the class is full.
+                                // It used to turn 13 into 12 in silence.
+                                const val = parseInt(e.target.value, 10);
+                                if (val > PILOT_CLASS_CAPACITY) {
+                                  setStudentLimit("");
+                                  setClassError(CLASS_FULL_MESSAGE);
+                                  return;
+                                }
+                                setClassError("");
+                                setStudentLimit(e.target.value === "" ? "" : String(Math.max(1, val || 1)));
                               }}
                               className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-bold"
                             />
@@ -551,7 +556,7 @@ export function AdminWizardModal({
                         </div>
 
                         {classError && (
-                          <p className="text-xs text-rose-500 font-semibold flex items-center gap-1 mt-1">
+                          <p className="sm:col-span-2 text-xs text-rose-500 font-semibold flex items-center gap-1 mt-1">
                             <AlertCircle className="w-4 h-4" />
                             {classError}
                           </p>
@@ -596,7 +601,7 @@ export function AdminWizardModal({
 
             {/* Footer / Controls */}
             {!isDone && (
-              <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
+              <div className="p-6 [@media(max-height:820px)]:py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
                 {mode === "full_setup" && step > 1 ? (
                   <UdlButton 
                     semanticColor="neutral" 

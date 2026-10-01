@@ -121,7 +121,7 @@ describe('the teacher and the admin see the child’s station name next to each 
   it('the class controller: the open meeting in full, the picker in short form', () => {
     const dash = code('presentation/pages/TeacherDashboard.tsx');
     expect(dash).toMatch(/classSessionStatus === 'active' \|\| classSessionStatus === 'paused'\s*\?\s*meetingLabelHe\(selectedSessionNum\)/);
-    expect(dash).toContain("{`${meetingShortLabelHe(sessionNumber)} — ${state === 'active' ? 'פעיל כעת'");
+    expect(dash).toContain('{`${meetingShortLabelHe(row.sessionNumber)} — ${sessionStateLabelHe(row)}`}');
     expect(dash).not.toContain('פעיל בכיתה`');
   });
 

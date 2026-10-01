@@ -21,6 +21,13 @@ interface ReplayViewerProps {
    * הוא על ההפעלה, לא על הנתונים.
    */
   stopAtTime?: number;
+  /**
+   * מודול 21 §ב: "הנגן מציג ציר זמן רציף של המפגש כולו, המחולק חזותית לקטעים
+   * לפי exercise_id, בדומה לפרקים בנגן וידאו". קטע לכל פרק, על ציר הזמן עצמו;
+   * לחיצה עליו מגיעה ל-onChapterSelect עם מספר הפרק.
+   */
+  chapters?: { start: number; end: number; label: string }[];
+  onChapterSelect?: (index: number) => void;
 }
 
 function formatTime(ms: number): string {
@@ -31,27 +38,53 @@ function formatTime(ms: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress, stopAtTime }: ReplayViewerProps) {
+export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress, stopAtTime, chapters, onChapterSelect }: ReplayViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const replayerRef = useRef<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const progressTimerRef = useRef<any>(null);
+  // The teacher paused (or the chosen exercise ended): a new chunk keeps the
+  // player paused. The end of the recording itself is not a pause — a
+  // recording still being written carries on into what arrives.
+  const holdPausedRef = useRef(false);
 
   const firstTimestamp = events && events.length > 0 ? events[0].timestamp : 0;
   const lastTimestamp = events && events.length > 0 ? events[events.length - 1].timestamp : 0;
   const totalDurationMs = Math.max(0, lastTimestamp - firstTimestamp);
 
   const prevFingerprintRef = useRef<string>('');
+  const recordingStartRef = useRef<number | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+
+  // Torn down once, when the player leaves the page. This used to be the
+  // cleanup of the effect below, which React runs before every re-run — so
+  // each new chunk (and every write anywhere in the learner's recordings,
+  // about every 2 s) destroyed the player first, the "stable instance" check
+  // never held, and the resume point was always 0:00.
+  useEffect(() => () => {
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+      resizeObserverRef.current = null;
+    }
+    if (replayerRef.current) {
+      try { replayerRef.current.pause(); } catch {}
+      replayerRef.current = null;
+    }
+  }, []);
 
   // Initialize Replayer only when event content actually changes
   useEffect(() => {
     const container = containerRef.current;
     if (!events || events.length < 2 || !container) {
+      if (replayerRef.current) {
+        try { replayerRef.current.pause(); } catch { /* already gone */ }
+        replayerRef.current = null;
+      }
       if (container) container.innerHTML = "";
       prevFingerprintRef.current = '';
+      recordingStartRef.current = null;
       return;
     }
 
@@ -62,15 +95,22 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
 
     prevFingerprintRef.current = currentFingerprint;
     // A recording that is still being written grows under the teacher’s eyes.
-    // Rebuilding the player is unavoidable (rrweb takes its events once), but
-    // it used to restart from 0:00 every time a chunk landed; it now resumes
-    // from where the previous instance was.
+    // Rebuilding the player is unavoidable (rrweb takes its events once); it
+    // resumes from where the previous instance was, playing or paused as it
+    // was. Another recording (another meeting) starts from its beginning.
+    const sameRecording = replayerRef.current !== null && recordingStartRef.current === events[0]?.timestamp;
+    recordingStartRef.current = events[0]?.timestamp ?? null;
     let resumeFrom = 0;
+    let resumePaused = false;
     if (replayerRef.current) {
-      try { resumeFrom = Math.max(0, replayerRef.current.getCurrentTime() || 0); } catch { resumeFrom = 0; }
+      if (sameRecording) {
+        try { resumeFrom = Math.max(0, replayerRef.current.getCurrentTime() || 0); } catch { resumeFrom = 0; }
+        resumePaused = holdPausedRef.current;
+      }
       try { replayerRef.current.pause(); } catch { /* already gone */ }
       replayerRef.current = null;
     }
+    if (!sameRecording) holdPausedRef.current = false;
     container.innerHTML = "";
 
     try {
@@ -90,8 +130,13 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
       replayerRef.current = replayer;
 
       // Start playing — from where the previous instance was, if there was one.
-      replayer.play(resumeFrom);
-      setIsPlaying(true);
+      if (resumePaused) {
+        replayer.pause(resumeFrom);
+        setIsPlaying(false);
+      } else {
+        replayer.play(resumeFrom);
+        setIsPlaying(true);
+      }
       setCurrentTimeMs(resumeFrom);
 
       replayer.on('finish', () => {
@@ -144,20 +189,6 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
         container.appendChild(notice);
       }
     }
-
-    return () => {
-      if (resizeObserverRef.current) {
-        resizeObserverRef.current.disconnect();
-        resizeObserverRef.current = null;
-      }
-      if (replayerRef.current) {
-        try { replayerRef.current.pause(); } catch {}
-        replayerRef.current = null;
-      }
-      if (container) {
-        container.innerHTML = "";
-      }
-    };
   }, [events]);
 
   // Keep the latest onProgress in a ref so the polling interval below doesn't
@@ -182,6 +213,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
             const stopAt = stopAtRef.current;
             if (typeof stopAt === 'number' && firstTimestamp + current >= stopAt) {
               try { replayerRef.current.pause(); } catch {}
+              holdPausedRef.current = true;
               setIsPlaying(false);
               onProgressRef.current?.(stopAt);
               onEndRef.current?.();
@@ -203,12 +235,26 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
     };
   }, [isPlaying, firstTimestamp]);
 
-  // Handle external seek requests (e.g. clicking an event in the radar history)
+  // Handle external seek requests (e.g. clicking an event in the radar history).
+  // Each request is applied once. The effect also re-runs when `events`
+  // changes — so that a request made before the player existed is applied when
+  // it does — and it used to seek again then: every chunk the learner wrote
+  // threw the teacher back to the last row she had clicked and un-paused the
+  // player (Module 21 §ב: both directions of the table↔player link).
+  const appliedSeekRef = useRef<string | null>(null);
   useEffect(() => {
-    if (seekToTime && replayerRef.current && events.length > 0) {
+    if (!seekToTime) {
+      appliedSeekRef.current = null; // the parent withdrew its request (another meeting)
+      return;
+    }
+    if (replayerRef.current && events.length > 0) {
+      const request = `${seekNonce ?? ''}@${seekToTime}`;
+      if (appliedSeekRef.current === request) return;
+      appliedSeekRef.current = request;
       const offset = Math.max(0, Math.min(totalDurationMs, seekToTime - firstTimestamp));
       try {
         replayerRef.current.play(offset);
+        holdPausedRef.current = false;
         setIsPlaying(true);
         setCurrentTimeMs(offset);
       } catch (err) {
@@ -221,9 +267,11 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
     if (!replayerRef.current) return;
     if (isPlaying) {
       replayerRef.current.pause();
+      holdPausedRef.current = true;
       setIsPlaying(false);
     } else {
       replayerRef.current.play(currentTimeMs);
+      holdPausedRef.current = false;
       setIsPlaying(true);
     }
   };
@@ -231,6 +279,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
   const handleRestart = () => {
     if (!replayerRef.current) return;
     replayerRef.current.play(0);
+    holdPausedRef.current = false;
     setIsPlaying(true);
     setCurrentTimeMs(0);
   };
@@ -240,9 +289,25 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
     setCurrentTimeMs(targetOffset);
     if (replayerRef.current) {
       replayerRef.current.play(targetOffset);
+      holdPausedRef.current = false;
       setIsPlaying(true);
     }
   };
+
+  // Module 21 §ב: the exercise segments on the timeline, placed by time.
+  const playheadTs = firstTimestamp + currentTimeMs;
+  const segments = (chapters ?? []).map((c, index) => {
+    const startOffset = Math.max(0, Math.min(totalDurationMs, c.start - firstTimestamp));
+    const endOffset = Math.max(startOffset, Math.min(totalDurationMs, c.end - firstTimestamp));
+    const span = totalDurationMs || 1;
+    return {
+      index,
+      label: c.label,
+      leftPct: (startOffset / span) * 100,
+      widthPct: ((endOffset - startOffset) / span) * 100,
+      active: playheadTs >= c.start && playheadTs <= c.end,
+    };
+  });
 
   const changeSpeed = (speed: number) => {
     setPlaybackSpeed(speed);
@@ -273,8 +338,8 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
     <div className="flex flex-col w-full mx-auto bg-slate-900 text-white rounded-2xl shadow-xl overflow-hidden relative select-none" dir="rtl">
       {/* Top Controls Bar */}
       <div className="w-full bg-slate-900/90 border-b border-slate-800 p-4 flex flex-wrap items-center justify-between z-10 gap-4">
-        {/* Playback Actions */}
-        <div className="flex items-center gap-3">
+        {/* Playback Actions — they wrap rather than run out of a narrow player */}
+        <div className="flex flex-wrap items-center gap-3">
           <button 
             onClick={togglePlay}
             className="w-11 h-11 bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-xl flex items-center justify-center text-white transition-all shadow-md cursor-pointer"
@@ -310,7 +375,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
         </div>
 
         {/* Time & Frame Counter */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="text-sm font-mono font-bold bg-slate-800 px-3.5 py-1.5 rounded-xl border border-slate-700 text-indigo-200" dir="ltr">
             <span>{formatTime(currentTimeMs)}</span>
             <span className="text-slate-500 mx-1.5">/</span>
@@ -328,9 +393,31 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
         </div>
       </div>
 
-      {/* Timeline Scrubber */}
-      <div dir="ltr" className="w-full bg-slate-850 px-5 py-2.5 border-b border-slate-800 flex items-center gap-3">
-        <input 
+      {/* Timeline Scrubber, with the meeting's exercise segments on it (Module 21 §ב) */}
+      <div dir="ltr" className="w-full bg-slate-850 px-5 py-2.5 border-b border-slate-800 flex flex-col gap-1.5">
+        {segments.length > 0 && (
+          <div className="relative w-full h-3" role="group" aria-label="התרגילים במפגש על ציר הזמן">
+            {segments.map((s) => (
+              <button
+                key={`${s.index}-${s.leftPct}`}
+                type="button"
+                onClick={() => onChapterSelect?.(s.index)}
+                title={s.label}
+                aria-label={s.label}
+                aria-current={s.active ? 'true' : undefined}
+                style={{ left: `${s.leftPct}%`, width: `${s.widthPct}%`, minWidth: '4px' }}
+                className={`absolute top-0 h-full rounded-sm border border-slate-900 cursor-pointer transition-colors ${
+                  s.active
+                    ? 'bg-indigo-400'
+                    : s.index % 2 === 0
+                      ? 'bg-slate-600 hover:bg-indigo-500'
+                      : 'bg-slate-500 hover:bg-indigo-500'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+        <input
           type="range"
           min={0}
           max={totalDurationMs || 100}

@@ -17,7 +17,7 @@ import { exercisePathType, type ExercisePathType } from '@/core/choiceExercises'
 export type RecommendationTier = 'below_50' | 'between_50_75' | 'above_75';
 
 export const TIER_LABELS_HE: Record<RecommendationTier, string> = {
-  below_50: 'קבוצה הומוגנית קטנה, תבניות עשר פיזיות (מתחת ל-50%)',
+  below_50: 'קבוצה הומוגנית קטנה, תבניות עשר פיזיות ומקלות מנייה (מתחת ל-50%)',
   between_50_75: 'קבוצה הטרוגנית, שיח עמיתים וחשבונייה (50%–75%)',
   above_75: 'עבודה עצמאית, לוח מחיק וכרטיסיות מספרים (מעל 75%)',
 };

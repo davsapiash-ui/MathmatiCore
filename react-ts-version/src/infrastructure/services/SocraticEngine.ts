@@ -5,6 +5,7 @@ import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
 import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
 import { researchErrorCategory } from "./socraticResearchCategory";
+import { recentTelemetryFor, MAX_RECENT_FOR_ENGINE } from "./recentTelemetry";
 import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
@@ -229,37 +230,31 @@ export function completedColumnsFrom(
   });
 }
 
-function toWireMemoryCircles(raw?: Partial<Record<string, string | number>>): Record<string, number> {
+/** Up to two digits per circle (register gap טו: "12" above the units after a decomposition). */
+export function toWireMemoryCircles(raw?: Partial<Record<string, string | number>>): Record<string, number> {
   const out: Record<string, number> = {};
   if (!raw) return out;
   for (const [k, v] of Object.entries(raw)) {
     const n = typeof v === 'string' ? parseInt(v, 10) : v;
-    if (typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 9) out[k] = n;
+    if (typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 99) out[k] = n;
   }
   return out;
 }
 
-/** Minimal PRD-schema telemetry events synthesised from the store's counters when no buffer is available. */
-function synthesiseRecentEvents(
+/**
+ * The learner's real recent events in this exercise (PRD Module 13 §א,
+ * Appendix A §6 recent_actions). They used to be rebuilt from the store's
+ * counters — undos all "DIGIT_ENTERED", digits all 0 and wrong, every
+ * timestamp "now" — so the engine reasoned over steps the child never took.
+ * The trigger, the streak counts and the board still travel in their own fields.
+ */
+function recentEventsFor(
   m: SocraticMonitoringSnapshot,
-  sessionId: string,
   studentId: number,
   exerciseId: string
 ): TelemetryPayload<TelemetryEventType>[] {
-  if (m.recentEvents && m.recentEvents.length > 0) return m.recentEvents.slice(-30);
-  const col = m.activeColumnIndex ?? 0;
-  const now = Date.now();
-  const events: TelemetryPayload<TelemetryEventType>[] = [];
-  if ((m.hesitationSeconds ?? 0) >= 45) {
-    events.push({ session_id: sessionId, student_id: studentId, exercise_id: exerciseId, event_type: 'HESITATION_DETECTED', column_index: col, timestamp: now, details: { hesitation_seconds: m.hesitationSeconds } } as any);
-  }
-  for (let i = 0; i < Math.min(m.consecutiveUndos ?? 0, 5); i++) {
-    events.push({ session_id: sessionId, student_id: studentId, exercise_id: exerciseId, event_type: 'UNDO_EXECUTED', column_index: col, timestamp: now, details: { undo_stack_depth_before: i + 1, reverted_event_type: 'DIGIT_ENTERED' } } as any);
-  }
-  for (let i = 0; i < Math.min(m.consecutiveErrors ?? 0, 5); i++) {
-    events.push({ session_id: sessionId, student_id: studentId, exercise_id: exerciseId, event_type: 'DIGIT_ENTERED', column_index: col, timestamp: now, details: { digit_value: 0, is_correct: false } } as any);
-  }
-  return events;
+  if (m.recentEvents && m.recentEvents.length > 0) return m.recentEvents.slice(-MAX_RECENT_FOR_ENGINE);
+  return recentTelemetryFor(studentId, exerciseId);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1149,7 +1144,7 @@ export class SocraticEngine {
           : (monitoring.consecutiveUndos ?? 0) >= 3
           ? 'consecutive_undos_3'
           : 'hesitation_45s');
-      const recentEvents = synthesiseRecentEvents(monitoring, sessionId, studentId, exerciseId);
+      const recentEvents = recentEventsFor(monitoring, studentId, exerciseId);
 
       const socraticRequest = SocraticEngine.buildGeminiSocraticRequest({
         studentId,

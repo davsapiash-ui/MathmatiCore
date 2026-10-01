@@ -101,6 +101,7 @@ vi.mock('firebase/firestore', () => ({
     }
     return vi.fn();
   }),
+  deleteField: vi.fn(() => ({ __delete: true })),
   writeBatch: vi.fn(() => ({ set: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) })),
   getFirestore: vi.fn(),
 }));
@@ -439,5 +440,50 @@ describe('the learner drawer shows the learner as they are now', () => {
     // The learner raises a hand again while the drawer is open.
     act(() => h.db.update('users/students/student_user3', { helpRequested: true, helpCallCount: 2 }));
     await waitFor(() => expect(screen.getByText(/התלמיד ביקש עזרה \(2 קריאות תועדו\)/)).toBeTruthy(), { timeout: 2000 });
+  });
+});
+
+describe('PRD 14 §ב0 — the picker states what the learners finished (fix round 2, 1.10.2026)', () => {
+  it('a meeting some learners finished is not "טרם נפתח"', async () => {
+    h.db.tree.users = {
+      students: {
+        student_user1: { highestCompletedMeeting: 4 },
+        student_user2: { highestCompletedMeeting: 3 },
+      },
+    };
+    renderDashboard();
+    // allStudents fills after the dashboard's 300 ms debounce.
+    await new Promise((r) => setTimeout(r, 350));
+    const options = await waitFor(() => {
+      const list = screen.getAllByRole('option').map((o) => o.textContent || '');
+      expect(list.some((t) => t.includes('סיימו'))).toBe(true);
+      return list;
+    });
+    expect(options.some((t) => t.includes('טרם נפתח'))).toBe(false);
+    const meeting4 = options.find((t) => t.startsWith('מפגש 4'))!;
+    expect(meeting4).toMatch(/סיימו 1 מתוך \d+/);
+    expect(options.find((t) => t.startsWith('מפגש 5'))).toMatch(/טרם הושלם$/);
+  });
+});
+
+describe('PRD 22 §ב.1 — the admin channel scans the box as the teacher types', () => {
+  it('a phone number blocks "send" and says why, at once; removing it releases the button', async () => {
+    renderDashboard();
+    fireEvent.click((await screen.findAllByRole('button', { name: /צ'אט הנהלה/ }))[0]);
+    const drawer = await screen.findByRole('dialog', { name: 'ערוץ שיח ניהולי' });
+    const input = within(drawer).getByPlaceholderText('הקלידו הודעה למנהל המערכת...');
+    const send = within(drawer).getByRole('button', { name: 'שליחת ההודעה' }) as HTMLButtonElement;
+
+    fireEvent.change(input, { target: { value: 'תלמיד 4 צריך עזרה' } });
+    expect(send.disabled).toBe(false);
+
+    fireEvent.change(input, { target: { value: 'תלמיד 4, אמא שלו 050-1234567' } });
+    expect(send.disabled).toBe(true);
+    expect(within(drawer).getByRole('status').textContent).toContain('מספר טלפון');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+
+    fireEvent.change(input, { target: { value: 'תלמיד 4 צריך עזרה' } });
+    expect(send.disabled).toBe(false);
+    expect(within(drawer).queryByRole('status')).toBeNull();
   });
 });

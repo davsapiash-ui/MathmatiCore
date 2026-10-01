@@ -106,6 +106,7 @@ vi.mock('firebase/firestore', () => ({
     }
     return vi.fn();
   }),
+  deleteField: vi.fn(() => ({ __delete: true })),
   writeBatch: vi.fn(() => ({
     set: vi.fn(),
     commit: vi.fn().mockResolvedValue(undefined),

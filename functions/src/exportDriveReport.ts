@@ -7,6 +7,7 @@ import { computeToolMastery, truncatedRecordingMeetings, isScoredMeeting, TOOLS,
 import { recomputeAdminMetrics } from "./adminAggregator";
 import { containsPhoneNumber } from "./phonePattern";
 import { scrubPII } from "./geminiProxy";
+import { researchDetailsColumns } from "./researchTelemetryRow";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
@@ -1682,9 +1683,11 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         // CHAT_HELP_REQUESTED (owner, 1.10.2026): call | ready_message — an enum value.
         // The exercise in which the learner asked is exercise_id above.
         chat_help_kind: data.event_type === "CHAT_HELP_REQUESTED" && (d.kind === "call" || d.kind === "ready_message") ? d.kind : "",
-        // details_json used to carry the whole untyped details object. Every
-        // field the research needs is a typed column above; a free-text field
-        // a client parked in details went straight into the dataset.
+        // details_json used to carry the whole untyped details object; a
+        // free-text field a client parked in details went straight into the
+        // dataset. The other Appendix A §3 fields are typed columns too
+        // (researchTelemetryRow.ts) — numbers and closed lists only.
+        ...researchDetailsColumns(data.event_type, d),
       };
     });
 

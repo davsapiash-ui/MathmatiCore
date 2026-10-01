@@ -141,7 +141,10 @@ describe('טופס הכניסה של הילד', () => {
   });
   it('שגיאת SSO שאינה שלנו אינה מודפסת כמות שהיא', () => {
     expect(login).not.toContain('setErrorMsg(err?.message ||');
-    expect(login).toContain('ההתחברות נכשלה. נסו שוב');
+    // PRD מודול 1 §ג (סבב תיקונים 2, 1.10.2026): כשל אימות של איש צוות חוזר
+    // בשקט לדף הבית, בלי סיבה ובלי טקסט טכני — לא הודעה כללית במקומה.
+    expect(login).not.toContain('setErrorMsg(ours ? msg');
+    expect(login).toContain('navigate("/", { replace: true });');
   });
 });
 

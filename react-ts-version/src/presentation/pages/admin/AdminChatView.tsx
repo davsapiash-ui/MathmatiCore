@@ -58,7 +58,7 @@ export function AdminChatView() {
   // ("מורה מוסמך (dana_school_org_il)"), which was both unreadable and the
   // one thing that actually resembled personal data on this screen.
   const anonymousTeachers = useMemo(() => {
-    return teachers.map((t, idx) => {
+    const listed = teachers.map((t, idx) => {
       const id = t.id || `teacher_${String(idx + 1).padStart(2, "0")}`;
       const schoolName = schools.find((s) => s.id === t.schoolId)?.name;
       return {
@@ -68,7 +68,25 @@ export function AdminChatView() {
         schoolId: t.schoolId || "school_pilot_01",
       };
     });
-  }, [teachers, schools]);
+    // A message from a teacher who is no longer on the list (removed in the
+    // schools screen) had no conversation to open, so it stayed unread for
+    // ever: the bell counted it, and nothing here could clear it. Such senders
+    // get a conversation of their own — by a neutral label, never by the
+    // e-mail-derived key.
+    const known = new Set(listed.map((t) => t.id));
+    const unlisted = [...new Set(messages
+      .filter((m) => m.receiver_id === "admin" && m.sender_id && m.sender_id !== "admin" && !known.has(m.sender_id))
+      .map((m) => m.sender_id))];
+    return [
+      ...listed,
+      ...unlisted.map((id, idx) => ({
+        id,
+        label: unlisted.length > 1 ? `מורה שאינה ברשימה ${idx + 1}` : "מורה שאינה ברשימה",
+        subtitle: "לא נמצאה ברשימת המורים של המוסד",
+        schoolId: "",
+      })),
+    ];
+  }, [teachers, schools, messages]);
 
   // Opening a conversation reads it: mark that teacher's incoming messages as
   // read (the only field firestore.rules lets us change on a message). Without

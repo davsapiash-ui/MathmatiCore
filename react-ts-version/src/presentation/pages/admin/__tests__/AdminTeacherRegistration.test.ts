@@ -237,3 +237,55 @@ describe('useAdminStore teacher lifecycle (mocked Firebase)', () => {
     expect(firestoreMock.setDoc).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * Module 25 §ד: "הקמת מסמכי הכיתה והמורים ב-Firestore" (finding 63/90,
+ * 1.10.2026). The setup wrote the class to RTDB only; the Firestore class
+ * document first appeared at the teacher's first meeting activation, and the
+ * class type the admin chose reached no document.
+ */
+describe('the setup creates the Firestore class document with the chosen class type', () => {
+  beforeEach(() => {
+    firestoreMock.setDoc.mockClear();
+    useAdminStore.setState({ schools: [], teachers: [], classes: [], globalStudentLimit: 8 });
+  });
+
+  const classDocWrite = () => {
+    const call = (firestoreMock.setDoc.mock.calls as unknown as [{ col: string; id: string }, Record<string, unknown>, unknown][])
+      .find(([ref]) => ref.col === 'classes');
+    return call ? { ref: call[0], data: call[1], options: call[2] } : null;
+  };
+
+  it('the full setup wizard', async () => {
+    await useAdminStore.getState().provisionFullInstitution({
+      schoolName: 'x', teacherEmail: 'lead@school.org.il', className: 'x', classType: 'כיתת פיילוט סטנדרטית', studentLimit: 12,
+    });
+    const w = classDocWrite();
+    expect(w?.ref.id).toBe('class_1');
+    // Exactly the fields isValidClassDoc admits (Module 4 + register deviation 14), non-nullable ones set.
+    expect(w?.data).toEqual({
+      class_id: 'class_1', school_id: 'school_bikorot', class_name: 'המבקרים',
+      class_type: 'כיתת פיילוט סטנדרטית', student_count: 12, created_at: expect.any(Number),
+    });
+    expect(w?.options).toEqual({ merge: true });
+  });
+
+  it('"הקמת כיתה" — and the class takes the fixed capacity, not an old stored limit', async () => {
+    useAdminStore.setState({
+      schools: [{ id: 'school_bikorot', name: 'בית ספר ביקורת', createdAt: 1 }],
+      teachers: [{ id: 'lead_school_org_il', schoolId: 'school_bikorot', ssoEmail: 'lead@school.org.il', licenseActive: false, createdAt: 1 }],
+    });
+    await useAdminStore.getState().addClassRoom('school_bikorot', 'lead_school_org_il', 'המבקרים', 'כיתת תמיכה מוגברת (UDL)');
+    expect(classDocWrite()?.data).toMatchObject({ class_type: 'כיתת תמיכה מוגברת (UDL)', class_name: 'המבקרים' });
+    expect(useAdminStore.getState().classes[0].studentLimit).toBe(12);
+  });
+
+  it('a refused class document fails the setup instead of reporting a class that is not there', async () => {
+    firestoreMock.setDoc.mockImplementation(((ref: { col: string }) =>
+      ref.col === 'classes' ? Promise.reject(new Error('permission-denied')) : Promise.resolve()) as never);
+    await expect(useAdminStore.getState().provisionFullInstitution({
+      schoolName: 'x', teacherEmail: 'lead@school.org.il', className: 'x', classType: 'קבוצת ביקורת פיילוט',
+    })).rejects.toThrow('permission-denied');
+    firestoreMock.setDoc.mockImplementation((() => Promise.resolve()) as never);
+  });
+});

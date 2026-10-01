@@ -86,6 +86,16 @@ describe('מודול 27 — אסימון של ילד מול המנוע האמי�
     await assertFails(getDoc(doc(learner12().firestore(), 'classes', 'class_1')));
   });
 
+  it('אינו יוצר ואינו משנה מסמך תלמיד — גם לא את שלו (§ב.4, 1.10.2026)', async () => {
+    const fs = learner12().firestore();
+    const own = { student_id: 12, class_id: 'class_1', school_id: 'school_bikorot', created_at: 1 };
+    // Every id spelling isOwningStudent accepts.
+    for (const id of ['12', 'student_12', 'user12', 'student_user12']) {
+      await assertFails(setDoc(doc(fs, 'students', id), own));
+    }
+    await assertFails(setDoc(doc(fs, 'students', 'student_user12'), { ...own, student_id: 3, class_id: 'other' }, { merge: true }));
+  });
+
   it('אינו מונה את רשימת המורות — וגם לא קורא מסמך בודד ממנה', async () => {
     await assertFails(getDocs(collection(learner12().firestore(), 'authorizedTeachers')));
     await assertFails(getDoc(doc(learner12().firestore(), 'authorizedTeachers', TEACHER_EMAIL)));
@@ -152,6 +162,15 @@ describe('מודול 20/27 — המורה', () => {
   it('קוראת את מסמך הכיתה ואת מסמכי הלומדים', async () => {
     await assertSucceeds(getDoc(doc(teacher().firestore(), 'classes', 'class_1')));
     await assertSucceeds(getDoc(doc(teacher().firestore(), 'students', 'student_user12')));
+  });
+
+  it('יוצרת ומעדכנת את מסמכי הלומדים בהפעלת מפגש (TeacherDashboard)', async () => {
+    const fs = teacher().firestore();
+    for (const n of [1, 12]) {
+      await assertSucceeds(setDoc(doc(fs, 'students', `student_user${n}`), {
+        student_id: n, class_id: 'class_1', school_id: 'school_bikorot', created_at: Date.now(), active_session_id: 'session_03',
+      }, { merge: true }));
+    }
   });
 
   it('מאשרת את השער — ב-Firestore וגם במראה שב-RTDB', async () => {

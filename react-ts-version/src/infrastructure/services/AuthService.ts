@@ -216,6 +216,13 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
   // The claims are those of the role chosen for this sign-in only (register,
   // gap יא; PRD Module 24 §ב): an admin sign-in does not carry the teacher's.
   // The server decides them from the whitelist; the door only asks.
+  //
+  // PRD Module 1 §ג, strict instructions: "If the server request times out or
+  // fails during authentication, trigger an immediate rollback to the idle
+  // state ... the global authentication state is only updated upon successful
+  // handshake ... fail-closed". A failure used to be logged and the sign-in
+  // carried on from the client's own whitelist read: a teacher whose claims
+  // were never stamped landed in a dashboard the rules refuse to fill.
   let claims: Record<string, unknown> | null = null;
   try {
     const syncCallable = httpsCallable(functions, "syncUserRoles");
@@ -223,6 +230,12 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
     await user.getIdToken(true);
   } catch (syncErr) {
     console.warn("syncUserRoles error during Google SSO:", syncErr);
+    await auth.signOut().catch(() => {});
+    // The address passed the whitelist check above: an authorised teacher
+    // whose server check failed (network, cold start). Marked so the sign-in
+    // screen can offer a retry instead of the silent return meant for
+    // "המשתמש הלא מורשה" (Module 1 §ג).
+    throw Object.assign(new Error(STAFF_SIGNIN_REFUSED_HE), { code: STAFF_HANDSHAKE_FAILED_CODE });
   }
   try {
     claims = ((await user.getIdTokenResult()).claims ?? null) as Record<string, unknown> | null;
@@ -251,6 +264,9 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
 }
 
 /** The one refusal a staff sign-in shows: no reason, no address. */
+/** An authorised staff sign-in whose server handshake failed — worth a retry. */
+export const STAFF_HANDSHAKE_FAILED_CODE = "staff/handshake-failed";
+
 export const STAFF_SIGNIN_REFUSED_HE = "הכניסה נדחתה. לבירור יש לפנות למנהל המערכת.";
 
 /**
