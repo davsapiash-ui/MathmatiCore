@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotionConfig } from 'framer-motion';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 
@@ -12,7 +12,9 @@ import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 export function SessionClosedOverlay() {
   // מצב שקט: MotionConfig מכבה תנועות תמרה, אך לא לולאת שקיפות אינסופית —
   // הנקודות המשיכו לפעום מול ילד שהמורה סימנה כרגיש חושית. כאן הן עומדות.
-  const reduceMotion = useReducedMotion();
+  // useReducedMotionConfig ולא useReducedMotion: האחרון קורא רק את הגדרת
+  // המכשיר ומתעלם מ-MotionConfig, שדרכו בלבד מגיע הסימון של המורה.
+  const reduceMotion = useReducedMotionConfig();
   const loop = (frames: Record<string, number[]>, transition: Record<string, unknown>) =>
     reduceMotion ? {} : { animate: frames, transition };
   return (
