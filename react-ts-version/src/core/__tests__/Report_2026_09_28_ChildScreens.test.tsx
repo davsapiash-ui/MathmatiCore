@@ -20,6 +20,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { SESSION1_TASKS, getSessionTasks } from '@/data/sessionTasks';
 import { SESSION_BRANCH_TASKS } from '@/data/sessionBranchTasks';
 import { LOGOUT_HE, PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames';
+import { TEACHER_SENTENCES_HE } from '@/core/teacherGender';
 import { DEFAULT_LEFT_PX, useLeftClearOfSidePanel } from '@/features/workspace/board/useLeftClearOfSidePanel';
 import { PlaceValueBoard } from '@/features/workspace/board/PlaceValueBoard';
 
@@ -285,10 +286,17 @@ describe('one name per thing on the child\'s screen: "בית המספרים", "�
 
 describe('row ע1.1 and ע3.2 — the child reads "תחנה", not "מפגש"', () => {
   it('the end screen, the closed screen and the choice screen', () => {
-    expect(src('features/workspace/StudentWorkspacePage.tsx')).toContain('כשהמורה תפתח את התחנה הבאה, נמשיך יחד.');
+    // The sentences about the teacher live in core/teacherGender.ts, in both
+    // genders; both say "תחנה".
+    for (const gender of ['female', 'male'] as const) {
+      expect(TEACHER_SENTENCES_HE.nextStation[gender]).toContain('את התחנה הבאה, נמשיך יחד.');
+      expect(TEACHER_SENTENCES_HE.closedTitle[gender]).toMatch(/^המורה סגרה? את התחנה$/);
+      expect(TEACHER_SENTENCES_HE.closedBody[gender]).toMatch(/כשהמורה (תפתח|יפתח) תחנה חדשה/);
+    }
+    expect(src('features/workspace/StudentWorkspacePage.tsx')).toContain("teacherSentenceHe('nextStation', teacherGender)");
     const closed = src('presentation/components/student/SessionClosedOverlay.tsx');
-    expect(closed).toContain('המורה סגרה את התחנה');
-    expect(closed).toContain('כשהמורה תפתח תחנה חדשה');
+    expect(closed).toContain("teacherSentenceHe('closedTitle', gender)");
+    expect(closed).toContain("teacherSentenceHe('closedBody', gender)");
     const choice = src('features/workspace/overlays/ReinforcementOrChallengeScreen.tsx');
     expect(choice).toContain("badge: 'סיימתם את שבעת התרגילים של התחנה!'");
     expect(choice).toContain("finish: 'סיום התחנה עכשיו'");

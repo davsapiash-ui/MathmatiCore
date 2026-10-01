@@ -1,6 +1,8 @@
 import { motion, useReducedMotionConfig } from 'framer-motion';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
+import { useTeacherGenderStore } from '@/application/useTeacherGender';
+import { teacherSentenceHe } from '@/core/teacherGender';
 
 /**
  * החלטת בעל המוצר (6.9.2026, סטייה 10 ברשם הסטיות):
@@ -17,6 +19,9 @@ export function SessionClosedOverlay() {
   const reduceMotion = useReducedMotionConfig();
   const loop = (frames: Record<string, number[]>, transition: Record<string, unknown>) =>
     reduceMotion ? {} : { animate: frames, transition };
+  const gender = useTeacherGenderStore((s) => s.gender);
+  const title = teacherSentenceHe('closedTitle', gender);
+  const body = teacherSentenceHe('closedBody', gender);
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -39,12 +44,12 @@ export function SessionClosedOverlay() {
         </motion.div>
         <div className="flex flex-col gap-2">
           <h2 className="font-display font-black text-2xl text-slate-800 dark:text-slate-100">
-            המורה סגרה את התחנה
+            {title}
           </h2>
           <p className="text-base text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-            העבודה שלכם נשמרה בבטחה. כשהמורה תפתח תחנה חדשה, הפעילות תתחדש כאן מיד.
+            {body}
           </p>
-          <UdlSpeechButton text="המורה סגרה את התחנה. העבודה שלכם נשמרה בבטחה. כשהמורה תפתח תחנה חדשה, הפעילות תתחדש כאן מיד." className="self-center" />
+          <UdlSpeechButton text={`${title}. ${body}`} className="self-center" />
         </div>
         <div className="flex items-center gap-2 pt-1" aria-hidden="true">
           {[0, 1, 2].map((i) => (

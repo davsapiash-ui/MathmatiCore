@@ -41,6 +41,7 @@ import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPan
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { ClusteringWidgets, isStudentBelow } from "./TeacherDashboard/components/ClusteringWidgets";
 import { TeacherApprovalGate } from "./TeacherDashboard/components/TeacherApprovalGate";
+import { TeacherGenderSetting } from "./TeacherDashboard/components/TeacherGenderSetting";
 import { buildGateStudentItem, buildGateStudentItems, gateLearnerNumber, NO_RECOMMENDATION_HE, type GateStudentItem } from "./TeacherDashboard/gateEvidence";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { buildSessionRows, sessionStateLabelHe } from "@/core/sessionPicker";
@@ -1502,7 +1503,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           </button>
         </nav>
         
-        <div className="p-4 border-t border-ws-surface2 bg-white/40 dark:bg-slate-800/40 mt-auto shrink-0">
+        <div className="p-4 border-t border-ws-surface2 bg-white/40 dark:bg-slate-800/40 mt-auto shrink-0 flex flex-col gap-3">
+          <TeacherGenderSetting />
           <LogoutButton className="w-full justify-start gap-3 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-colors rounded-xl px-4 py-3" />
         </div>
       </aside>
