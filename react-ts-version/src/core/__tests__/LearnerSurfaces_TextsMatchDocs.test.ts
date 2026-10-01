@@ -81,7 +81,9 @@ describe('the lobby has no entry button — the learner is moved in (register ro
   });
 
   it('a paused meeting still shows the station card with the pause message (register item 7)', () => {
-    expect(hub).toMatch(/activeClassSession\.status === 'paused' && \([\s\S]*?המורה עצרה את הפעילות לרגע/);
+    // "המורה עצרה / עצר את הפעילות לרגע", in the teacher's gender (core/teacherGender.ts).
+    expect(hub).toContain("const pausedTitle = teacherSentenceHe('pausedTitle', teacherGender);");
+    expect(hub).toMatch(/activeClassSession\.status === 'paused' && \([\s\S]*?\{pausedTitle\}\. חכו…/);
     expect(hub).toContain('{activeSession.title}');
   });
 });

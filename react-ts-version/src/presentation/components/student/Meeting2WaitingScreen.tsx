@@ -3,9 +3,9 @@ import { ref, onValue } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { useAuthStore } from '@/application/useAuthStore';
 import { normalizeStudentId } from '@/application/useChatStore';
+import { useTeacherGenderStore } from '@/application/useTeacherGender';
+import { teacherSentenceHe } from '@/core/teacherGender';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
-
-const MEETING2_WAITING_MESSAGE_HE = 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.';
 
 interface Meeting2WaitingScreenProps {
   onApproved?: () => void;
@@ -21,6 +21,7 @@ export function Meeting2WaitingScreen({ onApproved }: Meeting2WaitingScreenProps
   const rawUid = user?.uid || '';
   const studentId = normalizeStudentId(rawUid);
   const [_isApproved, setIsApproved] = useState(false);
+  const message = teacherSentenceHe('meeting2Waiting', useTeacherGenderStore((s) => s.gender));
 
   useEffect(() => {
     if (!studentId) return;
@@ -56,13 +57,14 @@ export function Meeting2WaitingScreen({ onApproved }: Meeting2WaitingScreenProps
         {/* PRD Module 20 §ב gives the message; the words on screen are
             reworded under the owner's delegation of on-screen wording
             (28.9.2026; register deviation 25, not a line-by-line approval):
-            the teacher is feminine as on every other screen of the child, the
-            address has its comma, and nothing promises an immediate
-            continuation — the wait can last until the next lesson. */}
+            the teacher is in the teacher's own gender, as on every other
+            screen of the child (core/teacherGender.ts), the address has its
+            comma, and nothing promises an immediate continuation — the wait
+            can last until the next lesson. */}
         <p className="text-base text-slate-700 dark:text-slate-200 font-semibold leading-relaxed">
-          {MEETING2_WAITING_MESSAGE_HE}
+          {message}
         </p>
-        <UdlSpeechButton text={MEETING2_WAITING_MESSAGE_HE} />
+        <UdlSpeechButton text={message} />
       </div>
     </div>
   );
