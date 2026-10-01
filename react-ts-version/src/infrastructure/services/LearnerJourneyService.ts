@@ -256,8 +256,8 @@ export function describeEvent(e: JourneyEvent): EventDescription {
     case 'SOCRATIC_CARD_SHOWN': {
       const reason: Record<string, string> = {
         hesitation_45s: 'היסוס 45 שניות',
-        // מסמכים 03 ו-04 word for word. The same reason also marks four wrong
-        // submissions of the exercise in a row, which the words still cover.
+        // מסמכים 03 ו-04 word for word. Only the per-column digit streak
+        // (register deviation 2) opens a card with this reason.
         consecutive_errors_4: 'ארבע מחיקות או הקלדות שגויות רצופות',
         consecutive_undos_3: 'שלושה ביטולים רצופים',
         conversion_not_performed: 'לא בוצעה המרה נדרשת',

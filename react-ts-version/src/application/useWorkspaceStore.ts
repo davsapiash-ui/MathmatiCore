@@ -45,7 +45,7 @@ import {
 import { stateReducer } from '@/machines/vraMachine';
 import { computeCognitiveMastery, TASKS } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
-import { announceRegroup } from '@/application/useRegroupAnimationStore';
+import { announceRegroup, REGROUP_ANIMATION_MS } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
@@ -1471,6 +1471,25 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     return { answerDigits: s.answerDigits, carryDigits: s.carryDigits, operandDigits: s.operandDigits };
   }
 
+  /**
+   * Module 29 §ב: REGROUPING_ACTIVE is "אירוע המרה פעיל" — a grouping or a
+   * decomposition on the board. The counts change at once; the event lasts
+   * while its animation plays, and the machine returns to PROBLEM_ACTIVE when
+   * it lands. It used to stay REGROUPING_ACTIVE until the next exercise. An
+   * open coaching card stays the active state (the board is live under it,
+   * Module 12), so closing it still returns to PROBLEM_ACTIVE.
+   */
+  let regroupingTimer: ReturnType<typeof setTimeout> | null = null;
+  function enterRegroupingActive() {
+    if (get().currentState === 'SOCRATIC_ACTIVE') return;
+    get().transitionTo('REGROUPING_ACTIVE');
+    if (regroupingTimer) clearTimeout(regroupingTimer);
+    regroupingTimer = setTimeout(() => {
+      regroupingTimer = null;
+      if (get().currentState === 'REGROUPING_ACTIVE') get().transitionTo('PROBLEM_ACTIVE');
+    }, REGROUP_ANIMATION_MS);
+  }
+
   function computeExpectedDigitForColumn(
     task: any,
     place: Place,
@@ -2074,7 +2093,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     const handleSuccess = (feedbackTitle: string, feedbackSub: string, feedbackMs: number) => {
       get().resetConsecutiveErrors();
-      set({ awaitingNext: true, wrongAnswerStreak: 0, wrongAnswerTaskId: null });
+      // Module 29 §ב: COMPLETE — "התרגיל פותר בהצלחה, מעבר לתרגיל הבא או
+      // לשער האישור". The next exercise's start moves it to PROBLEM_ACTIVE.
+      set({ awaitingNext: true, wrongAnswerStreak: 0, wrongAnswerTaskId: null, currentState: 'COMPLETE' });
 
       const studentId = currentStudentUid();
       const durationMs = Math.max(0, Date.now() - (s.taskStartTime || Date.now()));
@@ -2691,7 +2712,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           },
         }).catch(console.error);
       }
-      set({ awaitingNext: true });
+      // Module 29 §ב: a solved task is COMPLETE until the next one starts.
+      set({ awaitingNext: true, ...(evalResult.correct ? { currentState: 'COMPLETE' as VRAWorkspaceState } : {}) });
       const { state, event } = recordResult(s.qflow, { ...evalResult, had_digit_error: s.hasDigitErrorInTask === true });
       set({ qflow: state });
       handleQFlowEvent(event);
@@ -3172,9 +3194,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const addedCount = isFromStore ? (s.blocksAddedCount + 1) : s.blocksAddedCount;
 
         const actionType: TelemetryEventType = (isGroup || isUngroup) ? 'REGROUPING_SUCCESS' : 'BLOCK_DRAG_COMPLETE';
+        // PRD Module 8 §א: the drag right and the click emit the same
+        // REGROUPING_SUCCESS, so a conversion names the column of the block
+        // that broke apart (or of the ten that merged), as the click does — not
+        // the column the block landed in. The report read a ten dragged onto
+        // the units as "פריטה מטור האחדות".
+        const conversionFrom = result.ungroupEvent?.from ?? result.regroupEvents?.[0]?.from;
         // The same column the drop's own event carries below.
-        const undoColumn = isGroup || isUngroup
-          ? placeToColumnIndex(input.target.kind === 'column' ? input.target.place : (input.sourcePlace || 'units'))
+        const undoColumn = conversionFrom
+          ? placeToColumnIndex(conversionFrom)
           : input.target.kind === 'column'
             ? placeToColumnIndex(input.target.place)
             : isDelete && input.sourcePlace ? placeToColumnIndex(input.sourcePlace) : undefined;
@@ -3198,9 +3226,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         const updatedTriggerTimestamps = { ...s.regroupTriggerTimestamps };
 
-        if (isGroup || isUngroup) {
-          get().transitionTo('REGROUPING_ACTIVE');
-          const regroupCol = placeToColumnIndex(input.target.kind === 'column' ? input.target.place : (input.sourcePlace || 'units'));
+        if (conversionFrom) {
+          enterRegroupingActive();
+          const regroupCol = placeToColumnIndex(conversionFrom);
           const regroupType = isUngroup ? 'decomposition' : 'composition';
           const triggerTime = s.regroupTriggerTimestamps?.[regroupCol];
           const durationMs = triggerTime ? Math.max(0, Date.now() - triggerTime) : 0;
@@ -3345,7 +3373,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           return { hasClearedBoard: true };
         }
 
-        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'BLOCK_DRAG_COMPLETE');
+        // Undoing it is reported as undoing a board clear (gap יז), not a block drag.
+        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'BOARD_CLEARED');
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
           useStore.getState().logSemanticEvent(studentId, {
@@ -3434,7 +3463,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           });
         }
 
-        get().transitionTo('REGROUPING_ACTIVE');
+        enterRegroupingActive();
         // מסמך 03 §3.5: the block breaks apart and travels right. View only.
         announceRegroup({ kind: 'split', from: place, to: res.event.to, toCount: res.counts[res.event.to] });
 
@@ -3501,7 +3530,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           });
         }
 
-        get().transitionTo('REGROUPING_ACTIVE');
+        enterRegroupingActive();
         // מסמך 03 §3.4: ten blocks merge into one and travel left. View only.
         announceRegroup({ kind: 'group', from: place, to: res.event.to, toCount: res.counts[res.event.to] });
 
@@ -3548,15 +3577,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const nextConsecutiveUndos = (s.consecutiveUndoCount || 0) + 1;
 
         // Module 12(c): 3 consecutive UNDO_EXECUTED actions within a single exercise trigger Socratic coach, ONLY in Session 8
-        if (nextConsecutiveUndos >= 3 && s.sessionNumber === 8 && s.currentState !== 'SOCRATIC_ACTIVE' && !s.isSocraticCardLocked) {
-          setTimeout(() => {
-            // A card already on the screen, or still under its hourglass, stays
-            // the one card: restarting its request would keep the hourglass up
-            // past the 8 seconds the owner allowed (X22).
-            if (get().helpState === 'socratic') return;
-            set({ helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE', socraticTriggerReason: 'consecutive_undos_3', aiSocraticHint: null, socraticPending: true });
-            get().fetchSocraticHint();
-          }, 0);
+        if (nextConsecutiveUndos >= 3 && s.sessionNumber === 8) {
+          // Through openSocraticCard, like every other trigger: it keeps a card
+          // already on the screen (or under its hourglass) the one card (X22),
+          // honours a running lockout, and releases a lockout that ended while
+          // the card was closed. This path read the lock flag itself, so after
+          // a child closed the card during its lockout three undos never opened
+          // it again until a reload.
+          setTimeout(() => get().openSocraticCard('consecutive_undos_3'), 0);
         }
 
         // Module 11: Undo does NOT trigger any penalty (no scoring penalty, no timeout lockout, no PASSIVE_DRIFTING)
@@ -3694,6 +3722,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           return {
             answerDigits: { ...s.answerDigits, [place]: val },
             hasInteracted: true,
+            // A deletion is an action of its own (Module 11 §א): undo brings the
+            // digit back. Without a frame, undo took back the typing before it
+            // instead — the deleted digit never returned.
+            undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_DELETED', inputSnapshot(s), undefined, colIdx),
+            consecutiveUndoCount: 0,
             ...streak,
           };
         }
@@ -3764,6 +3797,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               deleted_digit_value: isNaN(deletedVal as number) ? null : deletedVal,
             },
           }).catch(console.error);
+          // A deletion is an action undo can take back (Module 11 §א), as in the result row.
+          return {
+            carryDigits: { ...s.carryDigits, [place]: val },
+            hasInteracted: true,
+            undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_DELETED', inputSnapshot(s), undefined, colIdx),
+            consecutiveUndoCount: 0,
+          };
         }
 
         return { carryDigits: { ...s.carryDigits, [place]: val }, hasInteracted: true };
@@ -3846,8 +3886,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const s = get();
       const result = resolveDrop(s.counts, { source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } }, selectScaffoldLevel(s));
       if (result.ok) {
-        const undoStack = createNextUndoStack(s.undoStack, s.counts, 'REGROUPING_SUCCESS', undefined, undefined, placeToColumnIndex('units'));
-        get().transitionTo('REGROUPING_ACTIVE');
+        // A decomposition is named by the column of the ten that broke apart (Module 8 §א).
+        const undoStack = createNextUndoStack(s.undoStack, s.counts, 'REGROUPING_SUCCESS', undefined, undefined, placeToColumnIndex('tens'));
+        enterRegroupingActive();
         set({ counts: result.counts, undoStack, hasInteracted: true, hasUngrouped: true });
         if (result.ungroupEvent) {
           announceRegroup({ kind: 'split', from: result.ungroupEvent.from, to: result.ungroupEvent.to, toCount: result.counts[result.ungroupEvent.to] });
@@ -4234,6 +4275,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({
         operandDigits: { ...s.operandDigits, [which]: { ...s.operandDigits[which], [place]: '' } },
         hasInteracted: true,
+        // A deletion is an action undo can take back (Module 11 §א), as in the result row.
+        ...(wasSet && task
+          ? {
+              undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_DELETED', inputSnapshot(s), undefined, placeToColumnIndex(place)),
+              consecutiveUndoCount: 0,
+            }
+          : {}),
         ...(streak ?? {}),
       });
     },
@@ -4505,13 +4553,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ activeColumnIndex: colIndex });
     },
 
-    // Module 12: Trigger 2 — 4 consecutive errors triggers Socratic coach across ALL sessions
+    // Wrong submissions of this exercise: PROBLEM_COMPLETE's error_count and the
+    // coaching card's context. It opens no card. Module 12's "four errors"
+    // trigger is the per-column digit streak (register deviation 2, 28.9.2026:
+    // nextDigitErrorStreak), and a second wrong answer in a row opens the card
+    // as 'repeated_errors' (deviation 17). This counter also opened one on the
+    // 4th wrong press of the whole exercise, labelled consecutive_errors_4 —
+    // a child who typed no digit at all was reported, to the teacher, the
+    // research data and the AI, as four typing errors in one column.
     incrementConsecutiveErrors: () => {
       set((state) => {
         const nextErrors = state.consecutiveErrorCount + 1;
-        if (nextErrors >= 4) {
-          setTimeout(() => get().openSocraticCard('consecutive_errors_4'), 0);
-        }
         // Module 16 §ב derives the persistence index's E term exclusively from
         // DIGIT_ENTERED events with is_correct: false — that is already counted
         // at the two digit-entry sites (setAnswerDigit / setCarryDigit). This
