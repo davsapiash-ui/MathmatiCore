@@ -131,6 +131,16 @@ export interface GeminiSocraticRequest {
     /** Digits a skeleton exercise hides on the screen; the server never shows them to the model. */
     hidden_places?: { a: ('units' | 'tens' | 'hundreds' | 'thousands')[]; b: ('units' | 'tens' | 'hundreds' | 'thousands')[] };
   };
+  /**
+   * Extension of 1.10.2026 (functions/src/socraticContract.ts SocraticTaskContext):
+   * what kind of exercise is on the screen and its instruction, so the engine
+   * can name only what that screen has; the board the instruction asks for, for
+   * comparison only; the numbers the card must never show, for the leak check
+   * only. Validated on the server; never free text from the child.
+   */
+  task_context?: SocraticTaskContextWire;
+  /** The card frame the static selection set: situation, level (1 general / 2 column / 3 action) and intent. */
+  card_frame?: { situation: string; level: 1 | 2 | 3; intent_he?: string };
   workspace_state: {
     ones_count: number;
     tens_count: number;
@@ -138,6 +148,8 @@ export interface GeminiSocraticRequest {
     thousands_count: number;
     memory_circles: Record<string, number>;
     is_regrouped_in_canvas?: boolean;
+    /** Columns whose conversion is done with the blocks (or written, in meeting 8). */
+    conversions_done?: ('units' | 'tens' | 'hundreds' | 'thousands')[];
   };
   student_progress_state?: {
     completed_columns: string[];
@@ -146,8 +158,26 @@ export interface GeminiSocraticRequest {
     trigger_reason: 'hesitation_45s' | 'consecutive_errors_4' | 'consecutive_undos_3' | 'conversion_not_performed' | 'repeated_errors';
     consecutive_errors_count: number;
     recent_actions: TelemetryPayload<TelemetryEventType>[];
+    hesitation_seconds?: number;
+    /** The owner's static card kinds already shown in this exercise. */
+    earlier_card_kinds?: string[];
   };
   recent_actions: TelemetryPayload<TelemetryEventType>[];
+}
+
+export type SocraticTaskKindWire =
+  | 'addition' | 'subtraction' | 'skeleton' | 'missing_result_digit' | 'error_analysis'
+  | 'read_write' | 'compose_break' | 'decompose' | 'compose_group' | 'representation'
+  | 'flexible' | 'missing_element' | 'small_change';
+
+export interface SocraticTaskContextWire {
+  kind: SocraticTaskKindWire;
+  instruction_he: string;
+  required_counts?: Partial<Record<'units' | 'tens' | 'hundreds' | 'thousands', number>>;
+  start_counts?: Partial<Record<'units' | 'tens' | 'hundreds' | 'thousands', number>>;
+  conversion_done?: boolean;
+  secret_numbers?: number[];
+  hidden_result_places?: ('units' | 'tens' | 'hundreds' | 'thousands')[];
 }
 
 export interface GeminiSocraticOption {

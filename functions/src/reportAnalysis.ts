@@ -1,5 +1,6 @@
 import * as logger from "firebase-functions/logger";
-import { GEMINI_MODEL_ID, getGeminiClient } from "./geminiConfig";
+import { GEMINI_MODEL_ID, classifyGeminiError, generateGeminiText, type GeminiThinking } from "./geminiConfig";
+import { recordAiCall, type AiOutcome } from "./aiMonitoring";
 import { SANDBOX_MEETING_PURPOSE_HE, exercisePathType, isExerciseEvent, type ExercisePathType } from "./meetingMetrics";
 
 /**
@@ -115,6 +116,20 @@ export interface GeminiReportResponse {
  * a class.
  */
 export const AI_ANALYSIS_TIMEOUT_MS = 10000;
+
+/** How much the model thinks before it writes the analysis — set from measured runs (1.10.2026). */
+export const REPORT_THINKING: GeminiThinking = "low";
+
+/** Appendix A §7: the two arrays and nothing else. */
+const REPORT_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    knowledge_gaps: { type: "ARRAY", items: { type: "STRING" } },
+    teaching_recommendations: { type: "ARRAY", items: { type: "STRING" } },
+  },
+  required: ["knowledge_gaps", "teaching_recommendations"],
+  propertyOrdering: ["knowledge_gaps", "teaching_recommendations"],
+} as const;
 
 const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
 
@@ -389,18 +404,13 @@ export async function generateReportAnalysis(
     return null;
   }
 
+  const started = Date.now();
+  const monitor = (outcome: AiOutcome, detail?: string) =>
+    recordAiCall({ feature: "report_analysis", outcome, latency_ms: Date.now() - started, model_id: GEMINI_MODEL_ID, student_id: req.student_id, session_id: req.session_id, detail });
   try {
-    const ai = getGeminiClient();
-    const model = ai.getGenerativeModel({
-      model: GEMINI_MODEL_ID,
-      generationConfig: {
-        temperature: 0.3,
-        responseMimeType: "application/json",
-      },
-      systemInstruction: req.recommendation_tier === null
-        ? buildSandboxSystemInstruction()
-        : buildSystemInstruction(req.recommendation_tier),
-    });
+    const systemInstruction = req.recommendation_tier === null
+      ? buildSandboxSystemInstruction()
+      : buildSystemInstruction(req.recommendation_tier);
 
     const sandbox = req.recommendation_tier === null;
     const toolsLine = sandbox
@@ -422,28 +432,42 @@ ${JSON.stringify(req.telemetry_summary)}
 
 ${closing}`;
 
-    const timeout = new Promise<null>((resolve) =>
-      setTimeout(() => resolve(null), AI_ANALYSIS_TIMEOUT_MS)
-    );
-    const call = model
-      .generateContent(userPrompt)
-      .then((r: any) => r.response.text() as string);
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), AI_ANALYSIS_TIMEOUT_MS);
+    });
+    const call = generateGeminiText({
+      systemInstruction,
+      prompt: userPrompt,
+      temperature: 0.3,
+      json: true,
+      responseSchema: REPORT_RESPONSE_SCHEMA,
+      // A teacher's report is not in a hurry (owner): more thinking, better reading of the data.
+      thinking: REPORT_THINKING,
+      timeoutMs: AI_ANALYSIS_TIMEOUT_MS,
+    }).then((r) => r.text);
 
-    const text = await Promise.race([call, timeout]);
+    const text = await Promise.race([call, timeout]).finally(() => {
+      if (timer) clearTimeout(timer);
+    });
     if (text === null) {
       logger.warn("[reportAnalysis] Gemini analysis timed out; report ships with layer 1 only.", {
         session_id: req.session_id,
         timeout_ms: AI_ANALYSIS_TIMEOUT_MS,
       });
+      monitor("timeout");
       return null;
     }
 
-    return parseAnalysisResponse(text, req.session_id);
+    const parsed = parseAnalysisResponse(text, req.session_id);
+    monitor(parsed ? "ok" : "schema_reject", parsed ? undefined : "missing or empty arrays");
+    return parsed;
   } catch (err) {
     logger.warn("[reportAnalysis] Gemini analysis unavailable; report ships with layer 1 only.", {
       session_id: req.session_id,
-      error: String(err),
+      error: String((err as Error)?.message ?? err).slice(0, 300),
     });
+    monitor(classifyGeminiError(err));
     return null;
   }
 }

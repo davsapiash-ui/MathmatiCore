@@ -14,7 +14,7 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
+    "@google/genai": "^2.25.0",
     "@sparticuz/chromium": "149.0.0",
     "@types/pdfkit": "^0.17.6",
     "bidi-js": "^1.0.3",

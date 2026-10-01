@@ -3,10 +3,12 @@ import * as logger from "firebase-functions/logger";
 import {
   GEMINI_MODEL_ID,
   GEMINI_SECRETS,
+  SOCRATIC_FALLBACK_MODEL,
+  SOCRATIC_PRIMARY_MODEL,
+  type GeminiModelChoice,
   classifyGeminiError,
-  getGeminiClient,
+  generateGeminiText,
   getGeminiKeyStatus,
-  withGeminiTimeout,
 } from "./geminiConfig";
 import { recordAiCall, type AiOutcome } from "./aiMonitoring";
 import { readCallerRoles } from "./callerIdentity";
@@ -82,82 +84,102 @@ export function scrubPII(text: string): string {
 }
 
 /**
- * Server-side ceiling on one model call. The learner's client abandons the
- * proxy at 8s (SocraticEngine.SOCRATIC_PROXY_TIMEOUT_MS) and shows the static
- * card, so a slower answer helps nobody; keeping the server ceiling under that
- * lets a single retry still fit when the first attempt came back fast.
+ * Server-side ceilings. The learner's client abandons the proxy at 8 s
+ * (SocraticEngine.SOCRATIC_PROXY_TIMEOUT_MS, owner's decision of 28.9.2026)
+ * and shows the static card, so a slower answer helps nobody.
+ *
+ * Measured on the 33 audit cases (1.10.2026): the model answers in about
+ * 2.5 s (p90 under 3 s), and about one call in ten comes back 503 "high
+ * demand". So the first try is cut at 4.5 s, which leaves room inside the
+ * 7.5 s total for a second try — on the fallback model when the first one was
+ * overloaded, slow or gone, or on the same model with the rejection reason
+ * when its card broke a rule.
  */
-export const SOCRATIC_AI_TIMEOUT_MS = 6500;
+export const SOCRATIC_AI_TIMEOUT_MS = 4500;
 /** Total budget for both attempts; a retry only starts if it can finish inside this. */
 export const SOCRATIC_TOTAL_BUDGET_MS = 7500;
-const MIN_RETRY_WINDOW_MS = 2500;
+const MIN_RETRY_WINDOW_MS = 2000;
+/** A short card in the classroom's vocabulary: little room for invention. */
+const SOCRATIC_TEMPERATURE = 0.2;
 
 type Attempt =
-  | { ok: true; value: SocraticResponse; raw: string }
-  | { ok: false; outcome: AiOutcome; detail: string; raw?: string };
+  | { ok: true; value: SocraticResponse; raw: string; model_id: string }
+  | { ok: false; outcome: AiOutcome; detail: string; raw?: string; model_id: string };
 
-async function generateOnce(prompt: string, facts: SocraticFacts | null, timeoutMs: number): Promise<Attempt> {
-  const ai = getGeminiClient();
-  const model = ai.getGenerativeModel({
-    model: GEMINI_MODEL_ID,
-    generationConfig: {
-      temperature: 0.2,
-      responseMimeType: "application/json",
-      // Structured output: the SDK enum values are the same lowercase strings
-      // the plain-object schema uses, so the cast is only a nominal one.
-      responseSchema: SOCRATIC_RESPONSE_SCHEMA as unknown as NonNullable<
-        Parameters<typeof ai.getGenerativeModel>[0]["generationConfig"]
-      >["responseSchema"],
-    },
-    // Meetings 2 and 8 have no blocks on the screen (PRD Module 14 §ב);
-    // meeting 1 never states a count or the column (owner, 29.9.2026).
-    systemInstruction: socraticSystemInstructionFor(facts),
-  });
+/** A validator reason → the monitoring outcome. */
+function rejectionOutcome(reason: string): AiOutcome {
+  if (reason.startsWith("final answer") || reason.startsWith("hidden digits") || reason.startsWith("secret number")) return "answer_leak";
+  if (reason.startsWith("forbidden")) return "forbidden_term";
+  if (reason.startsWith("response is not JSON")) return "not_json";
+  if (reason.startsWith("frame:")) return "frame_reject";
+  if (reason.startsWith("form:") || reason.startsWith("language:") || reason.startsWith("screen:") || reason.startsWith("counts:") || reason.startsWith("names an aid")) {
+    return "language_reject";
+  }
+  return "schema_reject";
+}
 
+async function generateOnce(prompt: string, facts: SocraticFacts | null, timeoutMs: number, model: GeminiModelChoice): Promise<Attempt> {
   let raw: string;
   try {
-    const result = await withGeminiTimeout(model.generateContent(prompt), timeoutMs);
-    raw = result.response.text();
+    const result = await generateGeminiText({
+      // Meetings 2 and 8 have no blocks on the screen (PRD Module 14 §ב);
+      // meeting 1 never states a count or the column (owner, 29.9.2026).
+      systemInstruction: socraticSystemInstructionFor(facts),
+      prompt,
+      temperature: SOCRATIC_TEMPERATURE,
+      json: true,
+      // Structured output: the card's shape is enforced by the API as well as by the validator.
+      responseSchema: SOCRATIC_RESPONSE_SCHEMA,
+      thinking: model.thinking,
+      timeoutMs,
+      model: model.id,
+    });
+    raw = result.text;
   } catch (err) {
     const code = classifyGeminiError(err);
-    logger.warn("[socratic-proxy] model call failed", { code, error: String((err as Error)?.message ?? err) });
-    return { ok: false, outcome: code, detail: code };
+    logger.warn("[socratic-proxy] model call failed", { code, model_id: model.id, error: String((err as Error)?.message ?? err).slice(0, 300) });
+    return { ok: false, outcome: code, detail: code, model_id: model.id };
   }
 
   const validated = validateSocraticResponse(raw, facts);
-  if (validated.ok) return { ok: true, value: validated.value, raw };
+  if (validated.ok) return { ok: true, value: validated.value, raw, model_id: model.id };
 
   const reason = validated.reason;
-  const outcome: AiOutcome = reason.startsWith("final answer")
-    ? "answer_leak"
-    : reason.startsWith("forbidden")
-      ? "forbidden_term"
-      : reason.startsWith("response is not JSON")
-        ? "not_json"
-        : "schema_reject";
-  logger.warn("[socratic-proxy] response rejected", { reason, raw_length: raw.length });
-  return { ok: false, outcome, detail: reason, raw };
+  logger.warn("[socratic-proxy] response rejected", { reason, model_id: model.id, raw_length: raw.length });
+  return { ok: false, outcome: rejectionOutcome(reason), detail: reason, raw, model_id: model.id };
 }
 
+/** The first try failed in the transport or the model is gone: the second try goes to the other model. */
+const TRY_THE_OTHER_MODEL: AiOutcome[] = ["network", "timeout", "quota", "misconfigured", "unknown", "safety"];
+/** The first card broke a rule: the same model tries again, told exactly what to fix. */
+const TRY_AGAIN_CORRECTED: AiOutcome[] = ["schema_reject", "answer_leak", "forbidden_term", "not_json", "language_reject", "frame_reject"];
+
 /**
- * Runs the model once and, when the first answer was rejected by the validator
- * and there is still room inside the learner's timeout, once more with the
- * rejection reason appended so the model can correct itself. Transport
- * failures (timeout, auth, quota) are never retried: they will not get better
- * in two seconds and the static card is already waiting on the client.
+ * Runs the model once and, when there is still room inside the learner's
+ * timeout, once more: on the fallback model when the first try was
+ * overloaded (503), too slow, over quota or misconfigured (a retired model id
+ * is exactly how every card failed until 1.10.2026); on the same model with
+ * the rejection reason appended when its card broke a rule. An auth failure
+ * is never retried: the key is the same for both models.
  */
-async function generateWithRetry(prompt: string, facts: SocraticFacts | null): Promise<Attempt & { attempts: number }> {
+async function generateWithRetry(prompt: string, facts: SocraticFacts | null): Promise<Attempt & { attempts: number; first_outcome?: AiOutcome }> {
   const started = Date.now();
-  const first = await generateOnce(prompt, facts, SOCRATIC_AI_TIMEOUT_MS);
+  const first = await generateOnce(prompt, facts, SOCRATIC_AI_TIMEOUT_MS, SOCRATIC_PRIMARY_MODEL);
   if (first.ok) return { ...first, attempts: 1 };
 
-  const retryable = first.outcome === "schema_reject" || first.outcome === "answer_leak" || first.outcome === "forbidden_term" || first.outcome === "not_json";
   const remaining = SOCRATIC_TOTAL_BUDGET_MS - (Date.now() - started);
-  if (!retryable || remaining < MIN_RETRY_WINDOW_MS) return { ...first, attempts: 1 };
+  if (remaining < MIN_RETRY_WINDOW_MS) return { ...first, attempts: 1 };
 
-  const correction = `${prompt}\n\nYOUR PREVIOUS ANSWER WAS REJECTED: ${first.detail}. Fix exactly that and return the JSON again.`;
-  const second = await generateOnce(correction, facts, remaining);
-  return { ...second, attempts: 2 };
+  if (TRY_AGAIN_CORRECTED.includes(first.outcome)) {
+    const correction = `${prompt}\n\nYOUR PREVIOUS ANSWER WAS REJECTED: ${first.detail}. Fix exactly that and return the JSON again.`;
+    const second = await generateOnce(correction, facts, remaining, SOCRATIC_PRIMARY_MODEL);
+    return { ...second, attempts: 2, first_outcome: first.outcome };
+  }
+  if (TRY_THE_OTHER_MODEL.includes(first.outcome)) {
+    const second = await generateOnce(prompt, facts, remaining, SOCRATIC_FALLBACK_MODEL);
+    return { ...second, attempts: 2, first_outcome: first.outcome };
+  }
+  return { ...first, attempts: 1 };
 }
 
 function fallbackError(outcome: AiOutcome, message: string): HttpsError {
@@ -215,6 +237,16 @@ export const callGeminiSocraticProxy = onCall(
       );
     }
 
+    // A warm-up ping (the teacher activating a meeting, TeacherDashboard): it
+    // only starts this function's instance so the first child's card does not
+    // pay the cold start. No model call, no data written, staff only.
+    if (data.warm === true) {
+      if (!readCallerRoles(request.auth.token as Record<string, unknown>).isTeacher) {
+        throw new HttpsError("permission-denied", "Warm-up is for staff only.");
+      }
+      return { warm: true };
+    }
+
     // 3. Credential check up front, so a missing key is one clear log line
     //    and one clear monitoring row instead of an SDK stack trace per call.
     const keyStatus = getGeminiKeyStatus();
@@ -257,7 +289,8 @@ export const callGeminiSocraticProxy = onCall(
       const base = {
         feature: "socratic" as const,
         latency_ms: latency,
-        model_id: GEMINI_MODEL_ID,
+        // The model that gave this answer (or failed last): the fallback answers some calls.
+        model_id: attempt.model_id,
         student_id: req.student_id,
         session_id: req.session_id,
         exercise_id: req.exercise_id,
@@ -266,17 +299,17 @@ export const callGeminiSocraticProxy = onCall(
       };
 
       if (!attempt.ok) {
-        recordAiCall({ ...base, outcome: attempt.outcome, detail: attempt.detail });
+        recordAiCall({ ...base, outcome: attempt.outcome, detail: attempt.first_outcome ? `${attempt.first_outcome} → ${attempt.detail}` : attempt.detail });
         throw fallbackError(attempt.outcome, `Socratic engine unavailable (${attempt.outcome}).`);
       }
 
-      recordAiCall({ ...base, outcome: "ok", error_category: attempt.value.error_category });
+      recordAiCall({ ...base, outcome: "ok", error_category: attempt.value.error_category, ...(attempt.first_outcome ? { detail: `retried after ${attempt.first_outcome}` } : {}) });
       return {
         ...attempt.value,
         final_intervention: toLegacyIntervention(attempt.value),
         meta: {
           source: "gemini",
-          model_id: GEMINI_MODEL_ID,
+          model_id: attempt.model_id,
           latency_ms: latency,
           attempts: attempt.attempts,
           suggested_category: facts.suggested_category,
