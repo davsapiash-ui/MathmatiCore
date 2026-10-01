@@ -13,7 +13,8 @@ import {
   Users,
   RotateCcw,
   DoorOpen,
-  FileDown
+  FileDown,
+  BellRing
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/application/useStore';
@@ -129,6 +130,27 @@ export function describeRadarCell(
 
   parts.push('להצגת מסך התלמיד והפרטים');
   return parts.join('. ');
+}
+
+/**
+ * The research export's `files` (functions/src/exportDriveReport.ts): per file,
+ * its Drive link, "failed: …", or — when Drive refused it and it waits in Cloud
+ * Storage — the signed download link, or "נשמר באחסון: <path>" without one.
+ */
+export function classifyResearchExportFiles(files: unknown): {
+  failed: string[];
+  parked: { name: string; url: string | null }[];
+} {
+  const failed: string[] = [];
+  const parked: { name: string; url: string | null }[] = [];
+  if (!files || typeof files !== 'object') return { failed, parked };
+  for (const [name, raw] of Object.entries(files as Record<string, unknown>)) {
+    const value = String(raw ?? '');
+    if (value.startsWith('failed:')) failed.push(name);
+    else if (value.startsWith('https://drive.google.com/')) continue;
+    else parked.push({ name, url: /^https:\/\//.test(value) ? value : null });
+  }
+  return { failed, parked };
 }
 
 interface HeatmapGridProps {
@@ -251,7 +273,12 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           // The struggle signal keeps its rule (Module 18): the larger of the two.
           const errorCount = Math.max(undoCount, mistakeCount);
           const isYellowPath = data.routeRecommendation === 'YELLOW' || sessionState.current_path === 'remediation_path';
-          const enhancedSupport = hasEnhancedSupport(data) || Boolean(data.isASD || data.forceAdditionHelper || data.additionBoardEnabled);
+          // Module 19: the profile is support_profile_id, which the server holds.
+          // Quiet mode (isASD, register decision יב: "אינו הפרופיל") and the
+          // addition-grid flags were counted as the profile too, so the radar
+          // said "תמיכה מוגברת פעילה" of a learner whose screen, card and
+          // report all said there was none.
+          const enhancedSupport = hasEnhancedSupport(data);
 
           // PRD v7.1 Module 18: helpRequested (call-teacher) is its own BLUE signal,
           // separate from an active Socratic card (RED).
@@ -429,12 +456,31 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
         // Drive, and marks the others "failed: …" inside `files`. That list was
         // never read, so a teacher was told the export was saved while four of
         // its files were missing.
-        const failedFiles = res.data.files && typeof res.data.files === 'object'
-          ? Object.entries(res.data.files as Record<string, string>).filter(([, link]) => String(link).startsWith('failed:')).map(([name]) => name)
-          : [];
+        const { failed: failedFiles, parked } = classifyResearchExportFiles(res.data.files);
         if (failedFiles.length > 0) {
           toast.error(`הייצוא נשמר חלקית בדרייב. קבצים שלא נשמרו: ${failedFiles.join(', ')}. הריצו את הייצוא שוב.`, { duration: 12000 });
-        } else {
+        }
+        // Register gap יב: a file Drive refused waits in Cloud Storage with a
+        // week-long download link. It was reported as "saved in Drive", and
+        // the links the server returned were never shown.
+        if (parked.length > 0) {
+          toast.warning('קובצי ייצוא שלא הגיעו לדרייב נשמרו באחסון הגיבוי של המערכת. הקישורים להורדה תקפים לשבוע.', {
+            duration: Infinity,
+            closeButton: true,
+            description: (
+              <ul className="mt-1 space-y-0.5">
+                {parked.map((p) => (
+                  <li key={p.name}>
+                    {p.url
+                      ? <a href={p.url} target="_blank" rel="noopener noreferrer" className="underline font-bold">{p.name}</a>
+                      : <span>{p.name}: שמור באחסון, בלי קישור להורדה</span>}
+                  </li>
+                ))}
+              </ul>
+            ),
+          });
+        }
+        if (failedFiles.length === 0 && parked.length === 0) {
           toast.success(`ייצוא נתוני המחקר (כל המפגשים) נשמר בדרייב, תיקייה "02 נתוני מחקר". ${counts}`);
         }
       } else {
@@ -842,10 +888,12 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="relative z-10 w-full max-w-xl h-full bg-white dark:bg-slate-900 shadow-2xl p-6 md:p-8 overflow-y-auto flex flex-col justify-between border-r border-slate-200 dark:border-slate-800" 
+                // The content scrolls and the actions stay in view: on a laptop
+                // screen "מעבר לניתוח מעמיק" and "סגירה" were below the fold.
+                className="relative z-10 w-full max-w-xl h-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-r border-slate-200 dark:border-slate-800"
                 dir="rtl"
               >
-              <div>
+              <div className="flex-1 min-h-0 overflow-y-auto p-6 md:p-8 pb-4 md:pb-4">
                 <div className="flex justify-between items-center pb-4 mb-6 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-3.5">
                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black text-lg flex items-center justify-center shadow-lg shadow-indigo-500/25">
@@ -868,6 +916,16 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     ✕ סגירה
                   </button>
                 </div>
+
+                {/* The tile is blue for a help call (Module 18 §ב); the window
+                    opened from it said nothing of it. Read live, not from the
+                    copy taken when the tile was clicked. */}
+                {(students.find((s) => s.id === selectedStudent.id) ?? selectedStudent).helpRequested && (
+                  <div role="status" className="mb-6 p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 flex items-center gap-2 text-sm font-bold text-blue-900 dark:text-blue-200">
+                    <BellRing className="w-4 h-4 text-blue-600 shrink-0" aria-hidden="true" />
+                    <span>התלמיד ביקש עזרה</span>
+                  </div>
+                )}
 
                 {/* State Badges */}
                 <div className="grid grid-cols-2 gap-3 mb-6">
@@ -963,7 +1021,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex gap-3">
+              <div className="shrink-0 px-6 md:px-8 py-4 border-t border-slate-200 dark:border-slate-800 flex gap-3">
                 {onDrillDown && (
                   <button
                     onClick={() => {

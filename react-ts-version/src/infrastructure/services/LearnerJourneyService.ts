@@ -122,6 +122,26 @@ export function parseRecordingSessions(node: Record<string, any> | null | undefi
 }
 
 /**
+ * The chapter of the selected exercise that bounds playback (Module 21 §ב):
+ * the one the teacher jumped into — the chapter holding the seek time, else
+ * the one nearest to it — and the first one when she has not jumped yet. An
+ * exercise the learner came back to (meeting 2's correction round) has more
+ * than one chapter.
+ */
+export function chapterForSeek(
+  chapters: RecordingChapter[],
+  exerciseId: string | null,
+  seekTime: number | undefined,
+): RecordingChapter | null {
+  if (!exerciseId) return null;
+  const own = chapters.filter((c) => c.exerciseId === exerciseId);
+  if (own.length === 0) return null;
+  if (typeof seekTime !== 'number') return own[0];
+  const distance = (c: RecordingChapter) => (seekTime < c.start ? c.start - seekTime : seekTime > c.end ? seekTime - c.end : 0);
+  return own.reduce((best, c) => (distance(c) < distance(best) ? c : best));
+}
+
+/**
  * Chunks are stored as JSON strings of rrweb event arrays; a chunk that had to
  * be re-sent through the offline queue is stored as { data: "<json>" }.
  */
@@ -608,12 +628,14 @@ export async function generateMeetingReport(params: { studentNum: number; sessio
   // could not be rendered or stored. That status used to be ignored: the report
   // appeared on screen, and "פתח PDF" then opened the PDF of an EARLIER run (stale
   // numbers) or failed with an unrelated message.
+  // PRD 7.3 Module 23 §ה fixes the text for a PDF the server failed to render:
+  // "הדוח בעיבוד כעת, אנא נסו שוב בעוד מספר רגעים" (register, deviation 4).
   const pdfFailed = data.status === 'DEGRADED_JSON_ONLY' || downloadUrl === null;
   return reportFromData(
     data.report,
     params.sessionId,
     downloadUrl,
-    pdfFailed ? 'הדוח הופק ומוצג כאן, אך קובץ ה-PDF שלו לא נשמר הפעם. אפשר להפיק את הדוח שוב בעוד רגע.' : null
+    pdfFailed ? REPORT_PROCESSING_TEXT : null
   );
 }
 
