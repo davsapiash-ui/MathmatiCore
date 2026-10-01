@@ -1982,6 +1982,12 @@ export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardCon
   }
   // C3 too: "יש טור שאין בו לבנים" says nothing on a board with no blocks at all.
   if (emptyBoard && (composing || kind === 'read_write')) return buildFirstCard();
+  // A part of the number built in another column (1.10.2026): before any
+  // break — breaking a block of a wrong board does not mend it.
+  if (task.type === 'representation' && built && counts && blocks && meeting !== 1) {
+    const slip = placeSlipOf(task, counts);
+    if (slip) return placeSlipCard(task, slip, counts, ctx);
+  }
   // C1 and C7 ask about the number after the break / the grouping: only once
   // every conversion the instruction names is done (s7_g_t1: both groupings).
   // Before that, the conversion itself.
@@ -1989,12 +1995,10 @@ export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardCon
     const conv = conversionCard(task, kind, ctx, counts!);
     if (conv) return conv;
   }
-  // What the board shows against the instruction (1.10.2026): a part built in
-  // another column, a block broken too many, more blocks than asked for, or —
-  // "450 from tens only" — the number written instead of how many blocks.
+  // What the board shows against the instruction (1.10.2026): a block broken
+  // too many, more blocks than asked for, or — "450 from tens only" — the
+  // number written instead of how many blocks.
   if (task.type === 'representation' && built && counts && blocks && meeting !== 1) {
-    const slip = placeSlipOf(task, counts);
-    if (slip) return placeSlipCard(task, slip, counts, ctx);
     if (kind === 'compose_break' && extraBreakOn(task, counts)) return extraBreakCard();
     const n = typeof task.numberA === 'number' ? task.numberA : null;
     if (n !== null && boardValue(counts) > n && kind !== 'compose_group' && !steps) return strayBlocksCard(null, true);
