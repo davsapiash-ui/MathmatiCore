@@ -4,6 +4,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 
+const meeting = vi.hoisted(() => ({ open: true }));
+
 vi.mock('@/infrastructure/firebase', () => ({
   database: {},
   firestore: {},
@@ -15,8 +17,15 @@ vi.mock('@/infrastructure/firebase', () => ({
 }));
 vi.mock('firebase/database', () => ({
   ref: vi.fn((_db, path) => ({ path })),
-  // No live data: the grid keeps the learners it was given.
-  onValue: vi.fn(() => vi.fn()),
+  // No live learner data: the grid keeps the learners it was given. A meeting
+  // is open unless a test closes it (PRD 18: grey while no session started).
+  onValue: vi.fn((r: { path?: string }, cb: (snap: unknown) => void) => {
+    if (r?.path === 'active_class_session') {
+      const val = meeting.open ? { active: true, status: 'active', sessionNumber: 2, startedAt: Date.now() } : null;
+      cb({ exists: () => val !== null, val: () => val });
+    }
+    return vi.fn();
+  }),
   update: vi.fn().mockResolvedValue(undefined),
   query: vi.fn((r) => r),
   limitToLast: vi.fn((n) => n),
@@ -112,6 +121,17 @@ describe('מ.5 — שער האישור אינו צובע את המשבצת', () 
   it('טבלת השער של מודול 20 נשארה מעל הרדאר, עם המלצה ואישור לכל לומד', () => {
     render(<HeatmapGrid initialStudents={students} />);
     expect(screen.getByText(`5 תלמידים סיימו את שלב האבחון וממתינים ב${TEACHER_GATE_HE} לפני מפגש 3`)).toBeTruthy();
+  });
+
+  it('בלי מפגש פתוח, לומד מחובר אפור ולא ירוק (מודול 18: "או שטרם החל סשן")', () => {
+    meeting.open = false;
+    try {
+      render(<HeatmapGrid initialStudents={students} />);
+      expect(tile(6).getAttribute('data-radar-color')).toBe('GREY');
+      expect(tile(5).getAttribute('data-radar-color')).toBe('BLUE');
+    } finally {
+      meeting.open = true;
+    }
   });
 
   it('גם לקורא מסך: המצב קודם, השער אחריו', () => {

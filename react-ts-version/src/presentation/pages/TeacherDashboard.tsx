@@ -1487,7 +1487,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
         {/* Class Session Control Bar */}
         {/* Class Session Control Bar — Bright, Clean & Accessible */}
-        <div className="mb-6 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="mb-6 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col min-[1700px]:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm ${
               classSessionStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : classSessionStatus === 'paused' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
@@ -1526,7 +1526,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+          <div className="flex flex-wrap items-center gap-3 w-full min-[1700px]:w-auto justify-end">
             {/* Module 14 §ב0: the picker shows all eight sessions and their state at all
                 times. Opening another session replaces the active one directly — a
                 session stays active until the teacher opens a different one. */}

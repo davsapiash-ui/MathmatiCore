@@ -40,7 +40,13 @@ export async function addAuthorizedTeacherFirestore(email: string, role: "teache
 export async function removeAuthorizedTeacherFirestore(email: string): Promise<void> {
   const normalized = email.toLowerCase().trim();
   if (!normalized || !isFirestoreAvailable()) return;
-  await deleteDoc(doc(firestore, "authorizedTeachers", normalized));
+  const ref = doc(firestore, "authorizedTeachers", normalized);
+  // Removing a teacher never removes an admin: the owner's own address can
+  // also sit in the teacher list (dual account, register gap יא), and deleting
+  // its entry would strip the admin's claims (revokeRemovedStaff).
+  const existing = await getDoc(ref);
+  if (existing.exists() && existing.data()?.role === "admin") return;
+  await deleteDoc(ref);
 }
 
 /**

@@ -22,12 +22,17 @@ export interface RadarColorInput {
    * same threshold beside it.
    */
   hesitationThresholdSeconds?: number;
+  /**
+   * "או שטרם החל סשן": false while no meeting is open. Callers that only know
+   * the connection omit it and keep their behaviour.
+   */
+  sessionStarted?: boolean;
 }
 
 export function resolveRadarColor(input: RadarColorInput): RadarColor {
   if (input.helpRequested) return 'BLUE';
   if (input.socraticActive) return 'RED';
-  if (!input.isOnline) return 'GREY';
+  if (!input.isOnline || input.sessionStarted === false) return 'GREY';
   if (input.hesitationSeconds >= (input.hesitationThresholdSeconds ?? 45)) return 'YELLOW';
   return 'GREEN';
 }

@@ -1768,56 +1768,12 @@ export class FirebaseSyncService {
     }
   }
 
-  private async seedDefaultData() {
-    const timestamp = Date.now();
-    const initialSchool = { id: 'school_bikorot', name: 'ביקורת', createdAt: timestamp };
-    const initialTeacher = { 
-      id: 'teacher_mock_1', 
-      schoolId: 'school_bikorot', 
-      ssoEmail: 'teacher.demo@edu-haifa.org.il', 
-      licenseActive: false, // Security rules require licenseActive to be false upon creation
-      createdAt: timestamp 
-    };
-    const initialClass = { 
-      id: 'class_1', 
-      schoolId: 'school_bikorot', 
-      teacherId: 'teacher_mock_1', 
-      name: 'כיתה 1', 
-      studentLimit: 12, 
-      createdAt: timestamp 
-    };
-    const initialPublicClass = {
-      id: 'class_1',
-      name: 'כיתה 1',
-      schoolId: 'school_bikorot'
-    };
-
-    try {
-      const updates: Record<string, any> = {};
-      updates[`schools/school_bikorot`] = initialSchool;
-      updates[`users/teachers/teacher_mock_1`] = initialTeacher;
-      updates[`classes/class_1`] = initialClass;
-      updates[`public_classes/class_1`] = initialPublicClass;
-      updates[`system_control/globalStudentLimit`] = 12;
-      
-      await update(ref(database), updates);
-      console.info("Auto-seeding completed successfully.");
-    } catch (err) {
-      console.error("Auto-seeding failed:", err);
-    }
-  }
-
   private async startAdminSync() {
     this.stopAdminSync();
 
-    try {
-      const schoolsSnapshot = await get(ref(database, 'schools'));
-      if (!schoolsSnapshot.exists() || !schoolsSnapshot.val()) {
-        await this.seedDefaultData();
-      }
-    } catch (err) {
-      console.error("Error checking schools for seeding:", err);
-    }
+    // No seeding. A fresh system used to get a made-up school 'ביקורת', class
+    // 'כיתה 1' and teacher teacher.demo@… on the admin's first load, so the
+    // setup wizard (Module 25) never appeared. An empty system now shows it.
 
     const teachersRef = ref(database, 'users/teachers');
     this.unsubscribeTeachers = onValue(teachersRef, (snapshot) => {

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkspaceStore, selectStandardTask, effectiveArithmetic } from '@/application/useWorkspaceStore';
 import { currentTaskLabelHe } from '@/application/taskLabel';
@@ -29,6 +30,12 @@ export function TaskCard() {
   const qflow = useWorkspaceStore((s) => s.qflow);
   const standardTask = useWorkspaceStore(selectStandardTask);
   const standardTaskIdx = useWorkspaceStore((s) => s.standardTaskIdx);
+  // The coaching card takes a column of its own, so the task column narrows
+  // and the instruction wraps to more lines; in stations 5–6 the result row
+  // of the vertical exercise fell below the card (UX audit 1.10.2026: 8px at
+  // 1280×585, 38px at 1024×694). While the card is open the notebook squares
+  // are a little smaller (--ws-cell, index.css), so the result row stays in view.
+  const coachingOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
 
   const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;
   const subtask = sessionNumber === 2 && isSubtaskActive(qflow);
@@ -64,7 +71,7 @@ export function TaskCard() {
   // as a last resort, so nothing is ever out of reach. Meeting 2 has no board:
   // its card is the whole screen, centred, with the same sizes.
   return (
-    <AccessibleCard id="tour-task-card" className="flex-1 min-w-0 min-h-0 p-fl-12-32 overflow-y-auto relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95">
+    <AccessibleCard id="tour-task-card" className="flex-1 min-w-0 min-h-0 p-fl-12-32 overflow-y-auto relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95" style={coachingOpen ? ({ ['--ws-cell']: 'clamp(36px, min(6.2vh, 4.4vw), 64px)' } as CSSProperties) : undefined}>
       {/* Soft decorative corner glow — warmth without noise */}
       <div
         aria-hidden="true"
