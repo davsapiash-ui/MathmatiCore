@@ -7,6 +7,7 @@ import { recomputeAdminMetrics } from "./adminAggregator";
 import { containsPhoneNumber } from "./phonePattern";
 import { scrubPII } from "./geminiProxy";
 import { researchDetailsColumns } from "./researchTelemetryRow";
+import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
@@ -1070,7 +1071,12 @@ interface RtdbFieldReset {
 }
 
 interface ResetScope {
-  /** RTDB paths, removed whole. A learner's screen recordings live under users/students/<id>/telemetry_sessions and are covered there. */
+  /**
+   * RTDB paths, removed whole. A learner's screen recordings live in their own
+   * node, recordings/<id> (recordingsNode.ts), and every level covers it exactly
+   * as it covers the learner record: older recordings are still on the record
+   * itself, users/students/<id>/telemetry_sessions, and are covered there.
+   */
   rtdbPaths: string[];
   /** RTDB paths that are backed up whole but only partially reset (see fieldResets). */
   rtdbBackupOnlyPaths?: string[];
@@ -1193,7 +1199,7 @@ export function buildResetScope(
     const allAliases = ALL_STUDENT_IDS.flatMap((n) => studentAliases(String(n)));
     return {
       rtdbPaths: [],
-      rtdbBackupOnlyPaths: ["users/students", "chat_messages"],
+      rtdbBackupOnlyPaths: ["users/students", "chat_messages", RECORDINGS_ROOT],
       fieldResets: allAliases.map((a) => ({ path: `users/students/${a}`, values: { __activeSessionNumber: sessionNumber } })),
       // No student filter: twelve learners under four aliases each is past
       // Firestore's 30-value "in" ceiling, and the class is the whole collection.
@@ -1213,6 +1219,7 @@ export function buildResetScope(
       rtdbPaths: [],
       rtdbBackupOnlyPaths: [
         ...aliases.map((a) => `users/students/${a}`),
+        ...aliases.map((a) => `${RECORDINGS_ROOT}/${a}`),
         ...aliases.map((a) => `chat_messages/${a}`),
       ],
       // Values are computed against the live record at deletion time (see executeResetDeletion).
@@ -1238,6 +1245,7 @@ export function buildResetScope(
     return {
       rtdbPaths: [
         ...aliases.map((a) => `users/students/${a}`),
+        ...aliases.map((a) => `${RECORDINGS_ROOT}/${a}`),
         ...aliases.map((a) => `chat_messages/${a}`),
         // Leftover of the removed AI-plan subsystem; wiped so an old per-learner
         // task list can never resurface.
@@ -1253,6 +1261,7 @@ export function buildResetScope(
   return {
     rtdbPaths: [
       "users/students",
+      RECORDINGS_ROOT,
       "students",
       "chat_messages",
       "radar_alerts",
@@ -1709,7 +1718,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     }
 
     const studentsSnap = await rtdb.ref("users/students").get();
-    const studentsNode: Record<string, any> = studentsSnap.val() || {};
+    // Recordings live in their own node (recordingsNode.ts); older ones still on the record.
+    const studentsNode: Record<string, any> = withRecordings(studentsSnap.val(), (await rtdb.ref(RECORDINGS_ROOT).get()).val());
     const learnerPath = new Map<number, "green_path" | "remediation_path">();
     const recordingRows: Record<string, any>[] = [];
     const recordingMinutesByKey = new Map<string, { minutes: number; truncated: boolean }>();

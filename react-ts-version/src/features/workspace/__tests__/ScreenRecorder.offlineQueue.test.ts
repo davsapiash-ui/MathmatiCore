@@ -85,8 +85,8 @@ const fakeWindow = Object.assign(new EventTarget(), { indexedDB: fakeIDB });
 
 const UID = 'student_user3';
 const STARTED_AT = 1_790_000_000_000;
-const RECORDING = `users/students/${UID}/telemetry_sessions/session_${STARTED_AT}`;
-const BUDGET = `users/students/${UID}/recorded_bytes/meeting_4`;
+const RECORDING = `recordings/${UID}/telemetry_sessions/session_${STARTED_AT}`;
+const BUDGET = `recordings/${UID}/recorded_bytes/meeting_4`;
 
 let queueModule: typeof import('@/infrastructure/services/IndexedDBQueue');
 let recorder: typeof import('../screenRecorder');
@@ -219,7 +219,7 @@ describe('Module 21 — recording chunks go through the device queue first', () 
 
     // The teacher's replay reads what arrived: one recording of meeting 4, every event.
     const tree = databaseTree();
-    const node = tree.users.students[UID].telemetry_sessions;
+    const node = tree.recordings[UID].telemetry_sessions;
     const [session] = journey.parseRecordingSessions(node);
     expect(session).toMatchObject({ id: `session_${STARTED_AT}`, sessionNumber: 4, chunkCount: 3 });
     expect(session.chapters).toEqual([{ exerciseId: 's4_g_t1', start: 10_000, end: 14_002 }]);
@@ -228,7 +228,7 @@ describe('Module 21 — recording chunks go through the device queue first', () 
     ]);
     // The budget of this learner in this meeting counted every byte that was queued.
     const bytes = chunkWrites().reduce((n: number, c: any[]) => n + new TextEncoder().encode(c[1].data).length, 0);
-    const budget = tree.users.students[UID].recorded_bytes.meeting_4;
+    const budget = tree.recordings[UID].recorded_bytes.meeting_4;
     expect(Object.keys(budget.chunks)).toEqual(["k0001", "k0002", "k0003"]);
     expect(recorder.budgetBytesUsed(budget)).toBe(bytes);
     stop();

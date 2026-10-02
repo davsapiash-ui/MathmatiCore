@@ -40,6 +40,8 @@ export { hourlyAdminAggregator } from "./adminAggregator";
 export { sendTeacherAdminMessage } from "./teacherAdminChat";
 // Module 25 §ד, owner's decision 26.9.2026: printable login cards for the 12 learners.
 export { getStudentLoginCards } from "./studentLoginCards";
+// Module 21: screen recordings of earlier versions, moved off the learner record on the teacher's press.
+export { moveLegacyRecordings } from "./moveLegacyRecordings";
 
 /**
  * verifyTeacherSSO Cloud Function (PRD Section 4.1)

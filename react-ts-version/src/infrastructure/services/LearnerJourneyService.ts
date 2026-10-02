@@ -69,6 +69,43 @@ export function sessionNumberFromSessionId(sessionId: string | undefined | null)
   return n >= 1 && n <= 8 ? n : null;
 }
 
+const isPlainObject = (v: unknown): v is Record<string, any> => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * One telemetry_sessions node out of the two places recordings live: the
+ * learner's own recordings node (recordings/{uid}, where the recorder writes)
+ * and the learner record (users/students/{uid}), where versions before it
+ * wrote and where nothing has been moved yet (moveLegacyRecordings). A
+ * recording found in both — an opening that began on the old version and went
+ * on after the update — keeps every chunk and metadata entry of both; it is
+ * truncated when either says so.
+ */
+export function mergeRecordingNodes(
+  legacy: Record<string, any> | null | undefined,
+  current: Record<string, any> | null | undefined,
+): Record<string, any> | null {
+  const a = isPlainObject(legacy) ? legacy : null;
+  const b = isPlainObject(current) ? current : null;
+  if (!a) return b;
+  if (!b) return a;
+  const out: Record<string, any> = { ...a };
+  for (const [id, rec] of Object.entries(b)) {
+    const old = out[id];
+    if (!isPlainObject(old) || !isPlainObject(rec)) {
+      out[id] = rec ?? old;
+      continue;
+    }
+    const merged: Record<string, any> = { ...old };
+    for (const [k, v] of Object.entries(rec)) {
+      if (k === 'recording_truncated') merged[k] = old[k] === true || v === true;
+      else if (isPlainObject(old[k]) && isPlainObject(v)) merged[k] = { ...old[k], ...v };
+      else merged[k] = v ?? old[k];
+    }
+    out[id] = merged;
+  }
+  return out;
+}
+
 /**
  * Turns the learner's telemetry_sessions node into one RecordingSession per
  * recording, with chapters merged from adjacent chunks of the same exercise.
@@ -328,25 +365,41 @@ export function exerciseTitle(sessionNumber: number | null, exerciseId: string):
   return exerciseId;
 }
 
-/** Live subscription to the learner's recordings. Returns the unsubscribe. */
+/**
+ * Live subscription to the learner's recordings, in both places they live
+ * (see mergeRecordingNodes). Nothing is reported until both have answered, so
+ * the list never flashes a half. Returns the unsubscribe.
+ */
 export function subscribeLearnerRecordings(
   studentNum: number,
   onChange: (sessions: RecordingSession[]) => void,
   onError?: (err: unknown) => void,
 ): () => void {
-  let off: (() => void) | null = null;
+  const offs: Array<() => void> = [];
   let cancelled = false;
+  const UNSET = Symbol('unset');
+  let legacy: Record<string, any> | null | typeof UNSET = UNSET;
+  let current: Record<string, any> | null | typeof UNSET = UNSET;
+  const emit = () => {
+    if (legacy === UNSET || current === UNSET) return;
+    onChange(parseRecordingSessions(mergeRecordingNodes(legacy, current)));
+  };
   authReady.then(() => {
     if (cancelled) return;
-    off = onValue(
-      ref(database, `users/students/student_user${studentNum}/telemetry_sessions`),
-      (snap) => onChange(parseRecordingSessions(snap.exists() ? snap.val() : null)),
+    offs.push(onValue(
+      ref(database, `recordings/student_user${studentNum}/telemetry_sessions`),
+      (snap) => { current = snap.exists() ? snap.val() : null; emit(); },
       (err) => onError?.(err),
-    );
+    ));
+    offs.push(onValue(
+      ref(database, `users/students/student_user${studentNum}/telemetry_sessions`),
+      (snap) => { legacy = snap.exists() ? snap.val() : null; emit(); },
+      (err) => onError?.(err),
+    ));
   });
   return () => {
     cancelled = true;
-    if (off) off();
+    offs.forEach((off) => off());
   };
 }
 
