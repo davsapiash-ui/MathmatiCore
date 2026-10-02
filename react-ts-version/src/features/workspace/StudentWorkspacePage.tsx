@@ -55,7 +55,9 @@ import { toast } from 'sonner';
 import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting2WaitingScreen';
 import { TeacherWillOpenWaitingScreen } from '@/presentation/components/student/TeacherWillOpenWaitingScreen';
 import { ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
-import { newerWorkspaceSnapshot, isRestorableFor, workspaceSavedAt, startedWithoutRecord, isDiagnosticPrimaryRound } from '@/core/workspaceSnapshot';
+import { isRestorableFor, workspaceSavedAt, startedWithoutRecord, isDiagnosticPrimaryRound } from '@/core/workspaceSnapshot';
+import { resumeSnapshotFor, savedSnapshotOfMeeting } from '@/core/meetingCompletion';
+import { planMeetingEntry } from './meetingEntry';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { SessionPausedOverlay } from '@/presentation/components/student/SessionPausedOverlay';
 import { SessionClosedOverlay } from '@/presentation/components/student/SessionClosedOverlay';
@@ -66,6 +68,16 @@ import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChalle
  * starts a meeting from scratch when no local copy of that meeting exists.
  */
 export const FIREBASE_RESTORE_GRACE_MS = 6000;
+
+/**
+ * This device's saved copy of one meeting: one copy per learner per meeting
+ * (FirebaseSyncService.getLocalSessionProgress(uid, meeting)), so the copy of
+ * a meeting opened again for catch-up was not overwritten by a later one.
+ */
+function readDeviceCopy(uid: string, meeting: number): any | null {
+  const read: (uid: string, meeting?: number) => any = firebaseSyncService.getLocalSessionProgress.bind(firebaseSyncService);
+  return read(uid, meeting);
+}
 
 /**
  * Evaluates whether the local device is superseded by another remote device based on direct ownership in DB.
@@ -400,6 +412,9 @@ export function StudentWorkspacePage() {
   const [pendingApproval, setPendingApproval] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [networkError, setNetworkError] = useState(false);
+  // The meeting this learner entered was already finished (meetingEntry). Set
+  // at initialisation only: a learner at work is never moved to the end screen.
+  const [finishedOnEntry, setFinishedOnEntry] = useState<number | null>(null);
   const isAdditionHelperOpen = useWorkspaceStore((s) => s.isAdditionHelperOpen);
   const additionHelperOffered = useWorkspaceStore((s) => s.additionHelperOffered);
   const openAdditionHelper = useWorkspaceStore((s) => s.openAdditionHelper);
@@ -460,12 +475,18 @@ export function StudentWorkspacePage() {
     meeting === 2 && !isTeacherOrAdmin && completedMeeting2 && isGateApproved &&
     isDiagnosticPrimaryRound({ sessionNumber, flowStatus, qflow: { phase: qflowPhase } });
 
+  // A meeting opened again for catch-up (owner decision 2.10.2026) that this
+  // learner had already finished: the quiet end screen, and — as behind
+  // waitingAfterApproval — no hesitation is measured behind it.
+  const quietFinished = !isTeacherOrAdmin && finishedOnEntry === meeting;
+
   // Active overlay or background tab detection: when projector, teacher pause/close, gate lock, sessionDone, or tab is hidden
   const isOverlayActive = isProjectorModeActive || 
     activeClassSession.status === 'paused' || 
     activeClassSession.status === 'closed' || 
     pendingApproval || 
     waitingAfterApproval ||
+    quietFinished ||
     flowStatus === 'sessionDone' ||
     // The opening screen of station 2 or 8 is not work: no hesitation is measured on it.
     (hasOpeningScreen(sessionNumber) && flowStatus === 'task' && !openingScreenSeen) ||
@@ -554,6 +575,7 @@ export function StudentWorkspacePage() {
   // Reset initialization when meeting changes
   useEffect(() => {
     setIsInitialized(false);
+    setFinishedOnEntry(null);
   }, [meeting]);
 
   // Real-time additionBoardEnabled & teacher adaptations listener (bound to canonical normUid)
@@ -730,7 +752,9 @@ export function StudentWorkspacePage() {
       const fromCache = restoredFromCacheRef.current;
       if (fromCache && firebaseLoaded) {
         restoredFromCacheRef.current = null;
-        const server = myData?.workspaceState;
+        // This meeting's copy on the record — also after the class moved on
+        // and workspaceState holds a later meeting (catch-up, 2.10.2026).
+        const server = savedSnapshotOfMeeting(myData as Record<string, unknown> | null, meeting);
         if (
           fromCache.meeting === meeting &&
           isRestorableFor(server, meeting) &&
@@ -768,6 +792,20 @@ export function StudentWorkspacePage() {
     // second pass before the approval overwrote the score, the recommended path
     // and the Q-matrix. Starting a meeting over is what the level-2 reset is for —
     // it clears the saved state, and only then is there nothing to restore.
+    //
+    // Catch-up (owner decision 2.10.2026): a meeting opened again goes on from
+    // its own saved copy, and a learner who had finished it waits on the quiet
+    // end screen (meetingEntry). Decided here, once — never mid-work.
+    const enterMeeting = (uid: string) => {
+      const entry = planMeetingEntry(myData as Record<string, unknown> | null, readDeviceCopy(uid, meeting), meeting);
+      if (entry.kind === 'start') {
+        initSession(meeting, isASDMode, 0);
+        return;
+      }
+      restoreSession(entry.snapshot);
+      if (entry.kind === 'finished') setFinishedOnEntry(meeting);
+    };
+
     const runInit = async () => {
       if (needsApprovedPath && !hasApprovedPath) {
         waitForApprovedPath();
@@ -804,19 +842,7 @@ export function StudentWorkspacePage() {
             markInitialized();
             return;
           }
-          const normId = username;
-
-          // X55: the record wins unless this device holds a strictly later state.
-          const saved = newerWorkspaceSnapshot(
-            myData?.workspaceState,
-            firebaseSyncService.getLocalSessionProgress(normId || username),
-            meeting
-          );
-          if (saved) {
-            restoreSession(saved);
-          } else {
-            initSession(meeting, isASDMode, 0);
-          }
+          enterMeeting(username);
           markInitialized();
         } catch (err) {
           if (cancelled) return;
@@ -826,11 +852,15 @@ export function StudentWorkspacePage() {
           setIsInitialized(true);
           setIsInitializing(false);
         }
+      } else if (meeting !== 2) {
+        enterMeeting(normUid || user?.uid || '');
+        markInitialized();
       } else {
+        // Meeting 2 as before (#196/#207), from its own saved copy.
         // X55: the record wins unless this device holds a strictly later state.
-        const saved = newerWorkspaceSnapshot(
-          myData?.workspaceState,
-          firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || ''),
+        const saved = resumeSnapshotFor(
+          myData as Record<string, unknown> | null,
+          readDeviceCopy(normUid || user?.uid || '', meeting),
           meeting
         );
         if (saved) {
@@ -862,7 +892,7 @@ export function StudentWorkspacePage() {
       // In meetings 3–8 only a copy that carries the bank it was pinned to
       // (Module 26): an older copy without it waits for the record, which
       // says which path was approved — never the green bank by default.
-      const cached = firebaseSyncService.getLocalSessionProgress(normUid || user?.uid || '');
+      const cached = readDeviceCopy(normUid || user?.uid || '', meeting);
       if (
         cached && cached.sessionNumber === meeting && Boolean(cached.flowStatus) &&
         (!needsApprovedPath || savedBankPath(cached) !== null)
