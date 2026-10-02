@@ -67,6 +67,25 @@ export const RESET_REASON_HE = {
   other: 'אחר (פירוט בהערה)',
 } as const;
 
+/**
+ * One name for each reset, on its button and as the heading of its dialog
+ * (PRD 23א §ב). The level-3 button said "איפוס נתוני כיתה" and its dialog
+ * "איפוס מערכת כולל"; the class restart had two names as well.
+ */
+export const RESET_ACTION_HE = {
+  alerts: 'איפוס התראות',
+  classMeeting: 'איפוס המפגש לכיתה',
+  system: 'איפוס כל נתוני הכיתה',
+  /** One learner: the drawer's and class management's button. */
+  learner: 'איפוס נתונים',
+} as const;
+
+/** The one-learner reset button's tooltip: what the dialog lets the teacher choose. */
+export const LEARNER_RESET_TOOLTIP_HE = 'פותח חלון שבו בוחרים: לאפס רק את המפגש של התלמיד, או את כל הנתונים שלו';
+
+/** The audit-log line of every reset dialog that deletes (PRD 23א §ד: the entry is never deleted). */
+export const RESET_LOG_LINE_HE = 'האיפוס נרשם ביומן האיפוסים, ואי אפשר למחוק את הרישום.';
+
 /** A stored reset reason as a report or a timeline prints it; null outside the list. */
 export function resetReasonHe(reason: unknown): string | null {
   if (typeof reason !== 'string' || !Object.prototype.hasOwnProperty.call(RESET_REASON_HE, reason)) return null;

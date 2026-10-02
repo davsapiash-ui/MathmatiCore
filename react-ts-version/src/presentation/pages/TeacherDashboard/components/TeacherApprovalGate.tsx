@@ -189,7 +189,10 @@ export function TeacherApprovalGate({
 
         {waitingStudents.length === 0 ? (
           <div className="p-8 text-center text-slate-400 text-sm">
-            אין תלמידים הממתינים לאישור כרגע. כל התלמידים שאובחנו אושרו למפגש הבא! ✨
+            {/* After level 3 nobody has finished meeting 2: "all approved" was not true then. */}
+            {approvedStudents.length === 0
+              ? `עדיין אף תלמיד לא סיים את ${meetingShortLabelHe(2)}, ולכן אין תלמידים שממתינים לאישור.`
+              : 'אין תלמידים הממתינים לאישור כרגע. כל התלמידים שאובחנו אושרו למפגש הבא! ✨'}
           </div>
         ) : (
           <div className="overflow-x-auto">

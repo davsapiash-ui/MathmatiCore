@@ -84,7 +84,7 @@ describe('a single learner\'s reset names the meeting before the teacher confirm
   it('meeting 2: the diagnostic results, the recommendation and the approved path go too, and the learner waits', () => {
     lookup.current = { loading: false, target: { sessionNumber: 2, source: 'class', completed: true } };
     open();
-    expect(screen.getByText('במפגש 2 יימחקו גם תוצאות האבחון, ההמלצה והמסלול שאושר ב"שלב החלוקה למסלולים". עד שהתלמיד ישלים שוב את מפגש 2 ויאושר לו מסלול, הוא ימתין ולא ייכנס למפגשים הבאים.')).toBeTruthy();
+    expect(screen.getByText('במפגש 2 יימחקו גם ציון האבחון, ההמלצה והמסלול שאושר ב"שלב החלוקה למסלולים". אם התלמיד כבר התקדם למפגש 3 ואילך, הוא לא ימשיך משם: הוא ימתין עד שיעשה שוב את מפגש 2 ותאשרו לו מסלול מחדש.')).toBeTruthy();
     expect(screen.queryByText(/הרפלקציה/)).toBeNull();
   });
 

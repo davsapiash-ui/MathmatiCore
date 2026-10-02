@@ -7,12 +7,12 @@ import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/securi
 import { meetingLabelHe } from '@/core/stationNames';
 import { useResetMeetingTarget } from '@/application/useResetMeetingTarget';
 import { finishedMeetingRefusalHe } from '@/core/resetMeetingTarget';
+import { RESET_ACTION_HE, RESET_LOG_LINE_HE, RESET_REASON_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 
 /** "תלמיד 3" → "3", for a sentence that already says "תלמיד". */
 function learnerLabelOf(name: string | undefined): string {
   return String(name ?? '').replace(/\D/g, '') || String(name ?? '');
 }
-import { RESET_REASON_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 
 export interface ResetConfirmationModalProps {
   isOpen: boolean;
@@ -37,6 +37,18 @@ export interface ResetConfirmationModalProps {
 
 // One list with the journey and the reports (core/routeLabels.ts).
 const REASON_LABELS: Record<ResetReason, string> = RESET_REASON_HE;
+
+/**
+ * PRD 23א §ד keeps one closed list of five reasons. Each reset offers only the
+ * reasons that can be true of it: "פתיחה מחודשת של המפגש לכלל הכיתה" is the
+ * whole-class restart, and "התלמיד נתקע" is one learner. All five were offered
+ * everywhere, so the log could say a learner got stuck on a class-wide wipe.
+ */
+export function resetReasonsFor(level: 'alerts' | 'single_student' | 'system', target: ResetTarget = 'student'): ResetReason[] {
+  if (level === 'single_student' && target === 'class') return ['technical_fault', 'restart_session', 'test_run', 'other'];
+  if (level === 'single_student') return ['technical_fault', 'student_stuck', 'test_run', 'other'];
+  return ['technical_fault', 'test_run', 'other'];
+}
 
 export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   isOpen,
@@ -126,7 +138,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
     if (trimmedNote) {
       const check = validateChatInputForPII(trimmedNote);
       if (!check.valid) {
-        setNoteError(check.errorHe || 'ההערה מכילה פרטים מזהים. יש להשתמש במספר הלומד (1–12) בלבד.');
+        setNoteError(check.errorHe || 'ההערה מכילה פרטים מזהים. כתבו רק את מספר התלמיד (1–12).');
         return;
       }
     }
@@ -155,8 +167,9 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   // The meeting under the name the children see (owner, 27.9.2026, register
   // ט), wherever this window names it: the line under the heading, the list
   // of what is deleted, the tick and the "… בלבד" choice.
-  const meetingLabel = activeSessionNumber ? meetingLabelHe(activeSessionNumber) : 'המפגש הנוכחי';
-  const inMeetingLabel = activeSessionNumber ? `ב${meetingLabelHe(activeSessionNumber)}` : 'במפגש הנוכחי';
+  const meetingLabel = activeSessionNumber ? meetingLabelHe(activeSessionNumber) : '';
+  const learnerName = targetStudentName || targetStudentId;
+  const reasons = resetReasonsFor(resetLevel, resetTarget);
 
   // Above the learner drawer (its backdrop z-[9998], its panel z-[9999]),
   // which opens this window from its "איפוס נתונים" button. At z-50 the window
@@ -187,52 +200,69 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             {isLevel3 ? <ShieldAlert className="w-7 h-7" /> : <AlertTriangle className="w-7 h-7" />}
           </div>
           <div>
+            {/* One name per action: the heading is the button's own name (HeatmapGrid, the drawer). */}
             <h3 className="text-xl font-black text-slate-900 dark:text-white">
               {isLevel3
-                ? 'איפוס מערכת כולל (רמה 3)'
+                ? `${RESET_ACTION_HE.system} (רמה 3)`
                 : isClassTarget
-                ? 'איפוס המפגש הפתוח לכל הכיתה (רמה 2)'
+                ? `${RESET_ACTION_HE.classMeeting} (רמה 2)`
                 : isLevel2
-                ? `איפוס לומד יחיד (רמה 2): ${targetStudentName || targetStudentId}`
-                : 'איפוס התראות רדאר (רמה 1)'}
+                ? `איפוס של תלמיד אחד (רמה 2): ${learnerName}`
+                : `${RESET_ACTION_HE.alerts} (רמה 1)`}
             </h3>
             {isLevel2 && !isFullStudent && activeSessionNumber ? (
               // The one meeting this reset touches. A full reset of the learner
               // touches all eight, so no single meeting is named for it.
               <p className="text-sm font-bold text-amber-700 dark:text-amber-300 mt-0.5">{meetingLabelHe(activeSessionNumber)}</p>
             ) : null}
+            {/* Level 1 deletes no learning data and needs no backup (PRD 23א §ב.1); it used to claim one. */}
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              לפני האיפוס נשמר גיבוי מלא, והפעולה נרשמת ביומן הפעולות של הכיתה
+              {isLevel2 || isLevel3
+                ? 'לפני שנמחק משהו נשמר גיבוי, והפעולה נרשמת ביומן האיפוסים.'
+                : 'הפעולה נרשמת ביומן האיפוסים. לא נשמר גיבוי, כי לא נמחקים נתוני למידה.'}
             </p>
           </div>
         </div>
 
-        {/* Deletion details breakdown */}
+        {/* Deletion details breakdown (PRD 23א §ה: "מפרט במפורש מה עומד להימחק") */}
         <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 mb-4 border border-slate-200/60 dark:border-slate-700/60 text-sm">
           <p className="font-bold text-slate-800 dark:text-slate-200 mb-2">מה יקרה בעת ביצוע הפעולה?</p>
           <ul className="list-disc list-inside space-y-1 text-xs text-slate-600 dark:text-slate-300">
             {isLevel3 && (
               <>
-                <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של כל 12 התלמידים אל Google Drive לפני כל מחיקה.</li>
-                <li>יימחקו כל נתוני מרחב העבודה, הטלמטריה, הודעות הצ'אט והסשנים של כלל הכיתה.</li>
-                <li>כל 12 הלומדים יוחזרו למצב התחלה נקי.</li>
-                <li>יירשם תיעוד בלתי-מחיק ביומן האיפוסים.</li>
+                <li className="text-amber-700 dark:text-amber-300 font-semibold">לפני שנמחק משהו נשמר גיבוי של הנתונים של כל 12 התלמידים.</li>
+                <li className="text-red-700 dark:text-red-300 font-semibold">יימחקו כל נתוני הלמידה של הכיתה: ההתקדמות בכל המפגשים, ציוני האבחון והמסלולים שאושרו, ההקלטות, הודעות הצ'אט, הדוחות, הרפלקציות, הטלמטריה והתראות הרדאר.</li>
+                <li>יימחקו גם ההגדרות של כל התלמידים: פרופיל התמיכה המוגברת ומצב השקט החזותי.</li>
+                <li>המפגש הפתוח ייסגר, והשידור למסכי התלמידים ייעצר.</li>
+                <li>כל 12 התלמידים יתחילו מההתחלה.</li>
+                <li>{RESET_LOG_LINE_HE}</li>
               </>
             )}
             {isClassTarget && (
               <>
-                <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של כל 12 הלומדים אל Google Drive לפני האיפוס.</li>
-                <li>יימחקו מצב מרחב העבודה וההתקדמות של כל 12 הלומדים {inMeetingLabel}.</li>
-                <li>כל הלומדים יוחזרו לתחילת המפגש. מפגשים קודמים, הקלטות והודעות צ'אט נשמרים.</li>
+                <li className="text-amber-700 dark:text-amber-300 font-semibold">לפני האיפוס נשמר גיבוי של הנתונים של כל 12 התלמידים.</li>
+                {activeSessionNumber ? <li>יימחקו העבודה וההתקדמות של כל 12 התלמידים ב{meetingLabel}.</li> : null}
+                <li>כל התלמידים יחזרו לתחילת המפגש. העבודה במפגשים האחרים, ההקלטות והודעות הצ'אט נשמרות.</li>
+                <li>גם הקריאות לעזרה של התלמידים מתאפסות.</li>
+                {activeSessionNumber === 2 && (
+                  // Register deviation 10/20: the diagnostic's outputs are part of meeting 2's progress.
+                  <li className="text-red-700 dark:text-red-300 font-semibold">
+                    במפגש 2 יימחקו גם ציוני האבחון, ההמלצות והמסלולים שאושרו ב"{TEACHER_GATE_HE}" לכל התלמידים. מי שכבר התקדם למפגש 3 ואילך ימתין עד שיעשה שוב את מפגש 2 ותאשרו לו מסלול מחדש.
+                  </li>
+                )}
+                {activeSessionNumber === 8 && (
+                  // Register deviation 20: the whole-class restart keeps reflections.
+                  <li>במפגש 8 הרפלקציות שהתלמידים כבר שלחו נשמרות, ותלמיד ששלח רפלקציה לא ימלא אותה שוב.</li>
+                )}
                 <li>המפגש של הכיתה נשאר פתוח, והשעון שלו ממשיך מהרגע שהופעל.</li>
-                <li>יירשם תיעוד בלתי-מחיק ביומן האיפוסים.</li>
+                <li>{RESET_LOG_LINE_HE}</li>
               </>
             )}
             {isLevel2 && !isClassTarget && !isFullStudent && (
               <>
-                <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של נתוני {targetStudentName || targetStudentId} אל Google Drive.</li>
-                <li>יימחקו מצב מרחב העבודה וההתקדמות של לומד זה בלבד {inMeetingLabel}.</li>
-                <li>הלומד יוחזר לתחילת המפגש. מפגשים קודמים, הקלטות והודעות צ'אט נשמרים.</li>
+                <li className="text-amber-700 dark:text-amber-300 font-semibold">לפני האיפוס נשמר גיבוי של כל הנתונים של {learnerName}.</li>
+                {activeSessionNumber ? <li>יימחקו העבודה וההתקדמות של התלמיד ב{meetingLabel}.</li> : null}
+                <li>התלמיד יחזור לתחילת המפגש. העבודה במפגשים האחרים, ההקלטות והודעות הצ'אט נשמרות.</li>
                 {resetMeeting.loading ? (
                   <li>בודקים איזה מפגש יאופס…</li>
                 ) : !resetMeeting.target ? (
@@ -254,7 +284,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                     {resetMeeting.target.sessionNumber === 2 && (
                       // Register deviation 10: "במפגש 2 גם תוצאות המטריקס, ההמלצה והשער".
                       <li className="text-red-700 dark:text-red-300 font-semibold">
-                        במפגש 2 יימחקו גם תוצאות האבחון, ההמלצה והמסלול שאושר ב"{TEACHER_GATE_HE}". עד שהתלמיד ישלים שוב את מפגש 2 ויאושר לו מסלול, הוא ימתין ולא ייכנס למפגשים הבאים.
+                        במפגש 2 יימחקו גם ציון האבחון, ההמלצה והמסלול שאושר ב"{TEACHER_GATE_HE}". אם התלמיד כבר התקדם למפגש 3 ואילך, הוא לא ימשיך משם: הוא ימתין עד שיעשה שוב את מפגש 2 ותאשרו לו מסלול מחדש.
                       </li>
                     )}
                     {resetMeeting.target.sessionNumber === 8 && (
@@ -263,22 +293,25 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                     )}
                   </>
                 )}
-                <li>יירשם תיעוד בלתי-מחיק ביומן האיפוסים.</li>
+                <li>{RESET_LOG_LINE_HE}</li>
               </>
             )}
             {isFullStudent && (
               <>
-                <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של נתוני {targetStudentName || targetStudentId} אל Google Drive.</li>
-                <li className="text-red-700 dark:text-red-300 font-semibold">יימחקו כל ההתקדמות בכל 8 המפגשים, תוצאות האבחון, ההקלטות והודעות הצ'אט של לומד זה.</li>
-                <li>הלומד יחזור למצב התחלה נקי, כאילו לא נכנס למערכת מעולם.</li>
-                <li>יירשם תיעוד בלתי-מחיק ביומן האיפוסים.</li>
+                <li className="text-amber-700 dark:text-amber-300 font-semibold">לפני האיפוס נשמר גיבוי של כל הנתונים של {learnerName}.</li>
+                <li className="text-red-700 dark:text-red-300 font-semibold">יימחקו: ההתקדמות בכל 8 המפגשים, תוצאות האבחון וההמלצה, המסלול שאושר ב"{TEACHER_GATE_HE}", ההקלטות והודעות הצ'אט.</li>
+                {/* Owner, 2.10.2026: the teacher's settings stay (functions LEARNER_SETTINGS_FIELDS). */}
+                <li>יישמרו: ההגדרות שקבעתם לתלמיד (פרופיל התמיכה המוגברת ומצב השקט החזותי), נתוני הטלמטריה למחקר, הדוחות והרפלקציות.</li>
+                <li>התלמיד יתחיל מההתחלה. כדי להגיע למפגש 3 הוא יצטרך לעשות שוב את מפגש 2, ותצטרכו לאשר לו מסלול מחדש.</li>
+                <li>{RESET_LOG_LINE_HE}</li>
               </>
             )}
             {!isLevel2 && !isLevel3 && (
               <>
-                <li>ינוקה מצב הרדאר הפדגוגי ו-12 המשבצות יוחזרו לברירת מחדל.</li>
-                <li>לא יימחקו נתוני למידה או טלמטריה.</li>
-                <li>יירשם תיעוד ביומן האיפוסים.</li>
+                <li>יימחקו הקריאות לעזרה של כל התלמידים והיסטוריית ההתראות של השיעור.</li>
+                <li>המשבצות ברדאר יחזרו למצב רגיל. משבצת של תלמיד שפתוח אצלו עכשיו כרטיס חניכה, או שמהסס עכשיו, תישאר צבועה, כי זה המצב שלו ברגע זה.</li>
+                <li>נתוני הלמידה לא משתנים: ההתקדמות, הטלמטריה והמפגשים נשארים כמו שהם.</li>
+                <li>האיפוס נרשם ביומן האיפוסים.</li>
               </>
             )}
           </ul>
@@ -289,7 +322,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           <div className="space-y-4 mb-6">
             {isClassTarget && !activeSessionNumber && (
               <div role="alert" className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                אין מפגש פתוח לכיתה. איפוס המפגש לכל הכיתה אפשרי רק כשמפגש פתוח. לאיפוס של לומד אחד, פתחו את כרטיס הלומד.
+                אין מפגש פתוח לכיתה, ולכן אי אפשר לאפס את המפגש לכל הכיתה. לאיפוס של תלמיד אחד, לחצו על המשבצת שלו ברדאר, אחר כך על "מעבר לניתוח מעמיק" ואז על "איפוס נתונים".
               </div>
             )}
             {isClassTarget && activeSessionNumber && (
@@ -301,7 +334,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                   className="w-5 h-5 rounded text-amber-600 focus:ring-amber-500"
                 />
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  מאשרים את האיפוס של {meetingLabel} לכל 12 הלומדים.
+                  כן, לאפס את מפגש {activeSessionNumber} לכל 12 התלמידים.
                 </span>
               </label>
             )}
@@ -321,8 +354,11 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                       className="mt-0.5 w-4 h-4 text-amber-600 focus:ring-amber-500"
                     />
                     <span className="text-xs">
-                      <span className="block font-bold text-slate-800 dark:text-slate-200">המפגש הזה בלבד (ברירת המחדל): {meetingLabel}</span>
-                      <span className="block text-slate-500 dark:text-slate-400">הלומד מתחיל את המפגש הזה מההתחלה. כל שאר המפגשים נשמרים.</span>
+                      {/* No meeting to reset (none determined, or a finished one): no meeting named here either. */}
+                      <span className="block font-bold text-slate-800 dark:text-slate-200">
+                        {activeSessionNumber ? `המפגש הזה בלבד (ברירת המחדל): ${meetingLabel}` : 'המפגש הזה בלבד (ברירת המחדל)'}
+                      </span>
+                      <span className="block text-slate-500 dark:text-slate-400">התלמיד מתחיל את המפגש הזה מההתחלה. העבודה במפגשים האחרים נשמרת.</span>
                     </span>
                   </label>
                   <label className={`flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${scope === 'full_student' ? 'border-red-400 bg-red-50/60 dark:bg-red-950/30' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
@@ -335,8 +371,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                       className="mt-0.5 w-4 h-4 text-red-600 focus:ring-red-500"
                     />
                     <span className="text-xs">
-                      <span className="block font-bold text-slate-800 dark:text-slate-200">איפוס מוחלט של הלומד</span>
-                      <span className="block text-slate-500 dark:text-slate-400">כל 8 המפגשים, תוצאות האבחון וההקלטות נמחקים. הלומד מתחיל מאפס.</span>
+                      <span className="block font-bold text-slate-800 dark:text-slate-200">איפוס מוחלט של התלמיד</span>
+                      <span className="block text-slate-500 dark:text-slate-400">ההתקדמות בכל 8 המפגשים, תוצאות האבחון, המסלול, ההקלטות והצ'אט נמחקים. ההגדרות של התלמיד נשמרות.</span>
                     </span>
                   </label>
                 </div>
@@ -357,9 +393,9 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <option value="" disabled>
                   בחרו סיבה מהרשימה
                 </option>
-                {Object.entries(REASON_LABELS).map(([val, label]) => (
+                {reasons.map((val) => (
                   <option key={val} value={val}>
-                    {label}
+                    {REASON_LABELS[val]}
                   </option>
                 ))}
               </select>
@@ -373,7 +409,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 type="text"
                 value={reasonNote}
                 onChange={(e) => { setReasonNote(e.target.value); if (noteError) setNoteError(null); }}
-                placeholder="הסבר קצר על נסיבות האיפוס — בלי שמות, רק מספר לומד"
+                placeholder="הסבר קצר על נסיבות האיפוס, בלי שמות. אפשר לכתוב מספר תלמיד."
                 aria-invalid={noteError ? true : undefined}
                 className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500"
               />
@@ -388,9 +424,10 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         {step === 2 && isLevel3 && (
           <div className="space-y-4 mb-6 animate-in fade-in">
             <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 text-sm">
-              <p className="font-extrabold mb-1">⚠️ אישור כפול נדרש לאיפוס מערכת כולל</p>
+              <p className="font-extrabold mb-1">⚠️ נדרש אישור נוסף ל{RESET_ACTION_HE.system}</p>
+              {/* The backup is written only after this confirmation; this used to say it already existed. */}
               <p className="text-xs leading-relaxed">
-                פעולה זו תאפס את כל 12 הלומדים בכיתה. אנא אשרו שברצונכם להמשיך לאחר יצירת קובץ הגיבוי בדרייב.
+                כל נתוני הלמידה של 12 התלמידים יימחקו. אחרי האישור נשמר גיבוי, ורק אחריו הנתונים נמחקים.
               </p>
             </div>
 
@@ -402,7 +439,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 className="w-5 h-5 rounded text-red-600 focus:ring-red-500"
               />
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                מאשרים במפורש את האיפוס הכולל של המערכת.
+                כן, למחוק את כל נתוני הלמידה של הכיתה.
               </span>
             </label>
           </div>
@@ -434,7 +471,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             {isSubmitting ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>מבצע גיבוי ואיפוס...</span>
+                <span>{isLevel2 || isLevel3 ? 'שומרים גיבוי ומאפסים…' : 'מאפסים התראות…'}</span>
               </>
             ) : isLevel3 && step === 1 ? (
               <span>המשיכו לשלב אישור סופי</span>
