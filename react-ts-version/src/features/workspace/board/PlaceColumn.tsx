@@ -3,11 +3,11 @@ import { useDroppable } from '@dnd-kit/core';
 import { motion, useAnimationControls } from 'framer-motion';
 import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { fitBlockGrid, type Size } from '@/core/blockLayout';
-import { dimmedColumns, verticalBoxes, DIMMED_COLUMN_FILTER } from '@/core/columnFocus';
-import { useWorkspaceStore, getActiveTasks, effectiveArithmetic } from '@/application/useWorkspaceStore';
+import { DIMMED_COLUMN_FILTER } from '@/core/columnFocus';
+import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
+import { boardDimmedColumns } from '@/application/boardDimming';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { columnDigitsShown } from '@/core/columnDigits';
-import { resultBoxCount } from '@/core/placeCues';
 import { DienesBlock } from './DienesBlock';
 import { COLUMN_CELLS } from './columnCells';
 import { useVisibleRegroup, arrivingBlockCount } from './RegroupAnimationLayer';
@@ -69,27 +69,11 @@ export function PlaceColumn({
     s.projectorBoard || columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)
   );
   // PRD Module 7 §א: columns outside the current calculation focus are dimmed
-  // to brightness 0.6 (core/columnFocus.ts: the owner's rules of 28.9.2026).
-  // One boolean per column, so typing a digit re-renders only a column whose
-  // dimming changes. Read only: nothing here writes to the store.
-  const isDimmed = useWorkspaceStore((s) => {
-    const task = getActiveTasks(s)[s.standardTaskIdx];
-    let vertical;
-    if (task && (task.type === 'vertical_addition' || task.type === 'addition_simple')) {
-      const { a, b, target } = effectiveArithmetic(task, s.isASD);
-      vertical = verticalBoxes(a, b, target, task.hiddenDigits, task.revealedResultDigits, resultBoxCount(s.sessionNumber, a, b, target));
-    }
-    return dimmedColumns({
-      sessionNumber: s.sessionNumber,
-      taskType: task?.type,
-      focusedPlace: s.focusedPlace,
-      focusedMemoryCircle,
-      representationValue: task?.numberA,
-      vertical,
-      answerDigits: s.answerDigits,
-      operandDigits: s.operandDigits,
-    }).has(place);
-  });
+  // to brightness 0.6 (core/columnFocus.ts: gap יט, calibrated 2.10.2026 —
+  // never a column the child has to act in). One boolean per column, so
+  // typing a digit re-renders only a column whose dimming changes. Read only:
+  // nothing here writes to the store.
+  const isDimmed = useWorkspaceStore((s) => boardDimmedColumns(s, focusedMemoryCircle).has(place));
 
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${place}`,
