@@ -343,7 +343,7 @@ describe('9: a card rebuilt under the hourglass is recorded as the card shown', 
 });
 
 describe('10: the wording fixes', () => {
-  it('take away "בדיוק לפי הספרה"; too much from a column "כמספר שהספרה … מראה"; undo "לבנים בדיוק לפי"', async () => {
+  it('take away "בדיוק לפי הספרה"; too much from a column "ספרת … של"; undo "לבנים בדיוק לפי"', async () => {
     load(5, byId('s5_r_t2'));
     drag('tens', 5);
     drag('units', 3);
@@ -352,7 +352,7 @@ describe('10: the wording fixes', () => {
     await cardFor('hesitation_45s');
     const second = (await cardFor('hesitation_45s'))!;
     expect(second.situation).toBe('took_too_many_column');
-    expect(second.choices.find((c) => c.isCorrect)!.textHe).toBe('כמספר שהספרה של 18 בטור היחידות מראה');
+    expect(second.choices.find((c) => c.isCorrect)!.textHe).toBe('ספרת היחידות של 18');
     const all = textsOf(second).join(' ') + (second.intentHe ?? '');
     expect(all).not.toContain('כמה שהספרה');
   });

@@ -94,7 +94,7 @@ describe('the coaching card speaks in the second person plural (owner\'s lecture
       if (card) expect(card.questionHe, t.id).toMatch(/^נסו לחשוב: /);
     }
     const grounded = groundCardInExercise(TASK_HINTS.s5_card, { numberA: 61, numberB: 24, isSubtraction: true });
-    expect(grounded.questionHe).toBe('נסו לחשוב: בתרגיל 61 פחות 24, אין מספיק יחידות כדי להחסיר. מה עושים?');
+    expect(grounded.questionHe).toBe('נסו לחשוב: בתרגיל 61 פחות 24, אין מספיק יחידות כדי לחסר. מה עושים?');
     expect(code('features/workspace/overlays/HelpOverlays.tsx')).toContain('>נסו לחשוב…</p>');
   });
 });

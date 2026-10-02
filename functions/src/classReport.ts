@@ -38,6 +38,7 @@ import {
   computeExerciseOutcomes,
   computeToolMastery,
   CHOICE_PATH_LABEL_HE,
+  exerciseLabelHe,
   exercisePathType,
   type ExercisePathType,
   isScoredMeeting,
@@ -877,7 +878,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       if (a.exercises.length === 0) line("לא נרשמו תרגילים.");
       const titles: Record<string, string> = report.exercise_titles ?? {};
       const exerciseLine = (ex: ClassExerciseRow) =>
-        `${titles[ex.exercise_id] ?? ex.exercise_id}: פתחו ${ex.attempted}, סיימו ${ex.completed}, בניסיון ראשון ${ex.first_try} (${ex.first_try_percent}%) | ספרות שגויות ${ex.wrong_digits} | כרטיסים ${ex.socratic_cards} | היסוסים ${ex.hesitations}`;
+        `${exerciseLabelHe(titles, ex.exercise_id)}: פתחו ${ex.attempted}, סיימו ${ex.completed}, בניסיון ראשון ${ex.first_try} (${ex.first_try_percent}%) | ספרות שגויות ${ex.wrong_digits} | כרטיסים ${ex.socratic_cards} | היסוסים ${ex.hesitations}`;
       // מסמך 03: the choice exercises marked as such, apart from the compulsory ones.
       const choiceTypeOf = (ex: ClassExerciseRow) => ex.path_type ?? exercisePathType(ex.exercise_id);
       for (const ex of a.exercises.filter((e) => choiceTypeOf(e) === "compulsory")) line(exerciseLine(ex));
@@ -905,7 +906,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
             : `תלמיד ${r.student_id} | ${common} | ${r.tool_mastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") || "אין"}`,
           9, "#0f172a"
         );
-        const outcomes = Object.entries(r.exercise_outcomes).map(([id, o]) => `${titles[id] ?? id}: ${OUTCOME_HE[o]}`).join(", ");
+        const outcomes = Object.entries(r.exercise_outcomes).map(([id, o]) => `${exerciseLabelHe(titles, id)}: ${OUTCOME_HE[o]}`).join(", ");
         if (outcomes) line(outcomes, 8, "#64748b", 16);
       }
 

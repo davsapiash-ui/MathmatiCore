@@ -65,21 +65,21 @@ const OUTCOME_HE: Record<string, string> = {
   schema_reject: "נדחו בסכימה",
   answer_leak: "נדחו — הדליפו תשובה",
   forbidden_term: "נדחו — מונח אסור",
-  language_reject: "נדחו — ניסוח, מונח או פעולה שאינם על המסך",
+  language_reject: "נדחו — ניסוח או מבנה שגויים, או מונח או פעולה שלא מופיעים במסך",
   frame_reject: "נדחו — חרגו מרמת הכרטיס",
-  empty: "ניתוח ריק — לא היה מה לדווח",
+  empty: "הניתוח הסתיים בלי ממצאים",
   not_json: "לא JSON",
   invalid_request: "בקשה לא תקינה",
   auth: "כשל אימות מפתח",
   quota: "מכסה",
   network: "רשת",
   safety: "חסימת בטיחות",
-  misconfigured: "הגדרה שגויה (מפתח או מודל)",
+  misconfigured: "הגדרה שגויה (בדקו את מפתח ה-API ואת שם המודל)",
   unknown: "אחר",
 };
 
-/** Shown when "בדיקה חיה" is clicked while the previous live test still runs. */
-const AI_TEST_IN_PROGRESS_HE = "בדיקה קודמת עדיין רצה. נסו שוב בעוד רגע.";
+/** Shown when "בדיקת חיבור למודל" is clicked while the previous live test still runs. */
+const AI_TEST_IN_PROGRESS_HE = "הבדיקה הקודמת עוד לא הסתיימה. נסו שוב בעוד כמה שניות.";
 
 function pct(part: number, whole: number): string {
   if (!whole) return "—";
@@ -189,7 +189,7 @@ export function AiEngineStatusCard() {
                   {s?.avg !== null && s?.avg !== undefined && (
                     <>
                       <span className="mx-2 text-slate-300">·</span>
-                      זמן ממוצע: <span className="font-black tabular-nums">{(s.avg / 1000).toFixed(1)} שנ׳</span>
+                      זמן ממוצע: <span className="font-black tabular-nums">{(s.avg / 1000).toFixed(1)} שניות</span>
                     </>
                   )}
                 </p>
@@ -211,11 +211,11 @@ export function AiEngineStatusCard() {
               disabled={testing || loading}
               className="px-3 py-1.5 rounded-xl text-sm font-bold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
             >
-              {testing ? "בודק…" : "בדיקה חיה"}
+              {testing ? "בבדיקה…" : "בדיקת חיבור למודל"}
             </button>
             {(() => {
               const t = status.test ?? status.counters?.last_test;
-              if (!t) return <span className="text-xs text-slate-500 dark:text-slate-400">קריאה אמיתית אחת למודל, כדי לבדוק שהמנוע עונה עכשיו.</span>;
+              if (!t) return <span className="text-xs text-slate-500 dark:text-slate-400">הבדיקה שולחת למודל בקשה אמיתית אחת ומראה אם הוא עונה עכשיו.</span>;
               // A click while the previous test still runs is not a failure of the engine.
               if (t.in_progress || t.error_code === "in_progress") {
                 return <span role="status" className="text-sm text-slate-600 dark:text-slate-300">{AI_TEST_IN_PROGRESS_HE}</span>;
@@ -224,12 +224,12 @@ export function AiEngineStatusCard() {
                 <span className={`text-sm ${t.ok ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}`}>
                   {t.ok ? "המנוע ענה" : `המנוע לא ענה: ${OUTCOME_HE[t.error_code ?? ""] ?? t.error_code ?? ""}`}
                   {" · "}
-                  <span className="tabular-nums">{(t.latency_ms / 1000).toFixed(1)} שנ׳</span>
+                  <span className="tabular-nums">{(t.latency_ms / 1000).toFixed(1)} שניות</span>
                   {" · "}
                   <span className="font-mono text-xs" dir="ltr">{t.model_id}</span>
                   {" · "}
                   {new Date(t.at).toLocaleString("he-IL")}
-                  {t.rate_limited ? " (התוצאה האחרונה; אפשר לבדוק שוב בעוד חצי דקה)" : ""}
+                  {t.rate_limited ? " (תוצאת הבדיקה האחרונה. אפשר לבדוק שוב 30 שניות אחרי הבדיקה הקודמת)" : ""}
                   {!t.ok && t.error_detail ? <span className="block text-[11px] font-mono" dir="ltr">{t.error_detail}</span> : null}
                 </span>
               );
