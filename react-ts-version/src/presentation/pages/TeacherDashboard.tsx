@@ -1155,6 +1155,20 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     return chatMessages.sort((a, b) => a.timestamp - b.timestamp);
   }, [messages, user, selectedStudentId]);
 
+  // The newest message and the typing line are where the teacher works: open a
+  // conversation at its end, follow each new message, and put the cursor in the box.
+  const studentMessagesScrollRef = useRef<HTMLDivElement>(null);
+  const studentChatInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = studentMessagesScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [activeTab, selectedStudentId, studentMessages.length]);
+  useEffect(() => {
+    if (activeTab === "chat_students" && selectedStudentId) {
+      studentChatInputRef.current?.focus({ preventScroll: true });
+    }
+  }, [activeTab, selectedStudentId]);
+
   // Auto-select student with unread messages when opening Student Chat
   useEffect(() => {
     if (activeTab === "chat_students" && !selectedStudentId && allStudents.length > 0) {
@@ -1542,14 +1556,17 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 relative">
+      {/* On the student chat the page itself does not scroll: main takes exactly the
+          screen height and the conversation fills what the session bar leaves, so
+          the typing line is always in view. Only the message list scrolls. */}
+      <main className={`flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 relative ${activeTab === "chat_students" && !hideSidebar ? "md:h-screen md:flex md:flex-col" : ""}`}>
         {/* Subtle background glow effect */}
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
 
         {/* Class Session Control Bar */}
         {/* Class Session Control Bar — Bright, Clean & Accessible */}
-        <div className="mb-6 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col min-[1700px]:flex-row items-center justify-between gap-4">
+        <div className="mb-6 shrink-0 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col min-[1700px]:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm ${
               classSessionStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : classSessionStatus === 'paused' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
@@ -2393,7 +2410,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
         {/* STUDENTS CHAT */}
         {activeTab === "chat_students" && (
-          <div className="h-[calc(100vh-110px)] max-h-[calc(100vh-110px)] flex flex-col md:flex-row bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in duration-300">
+          <div className={`h-[calc(100dvh-110px)] ${hideSidebar ? "" : "md:h-auto md:flex-1 md:min-h-[320px]"} flex flex-col md:flex-row bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in duration-300`}>
             {/* Student List Sidebar */}
             <div
               className={`${selectedStudentId ? "hidden md:flex" : "flex"} w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 flex-col h-full bg-slate-50/50 dark:bg-slate-900/50 shrink-0`}
@@ -2535,7 +2552,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   </div>
 
                   {/* Messages Scroll Area */}
-                  <div className="flex-1 min-h-0 p-5 overflow-y-auto flex flex-col gap-4">
+                  <div ref={studentMessagesScrollRef} className="flex-1 min-h-0 p-5 overflow-y-auto flex flex-col gap-4">
                     {studentMessages.length === 0 ? (
                       <div className="m-auto text-center flex flex-col items-center justify-center text-slate-400 max-w-sm">
                         <div className="w-16 h-16 rounded-full bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center mb-3 text-indigo-500">
@@ -2586,6 +2603,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   {/* Input Footer - ALWAYS VISIBLE AT BOTTOM (shrink-0) */}
                   <div className="p-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2.5 shrink-0 z-20">
                     <input
+                      ref={studentChatInputRef}
                       type="text"
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
@@ -2597,9 +2615,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     <button
                       onClick={handleSendStudent}
                       disabled={!inputText.trim()}
+                      aria-label="שליחת ההודעה"
                       className="rounded-full w-10 h-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
                     >
-                      <Send className="w-4 h-4 -mr-0.5" />
+                      <Send className="w-4 h-4 -mr-0.5" aria-hidden="true" />
                     </button>
                   </div>
                 </>
