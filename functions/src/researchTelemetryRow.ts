@@ -15,7 +15,9 @@
  *
  * Every column takes a number, a boolean or a value from a closed list
  * (Appendix A §3 and register deviations 19, 28) — never a free string — so
- * the dataset stays as clean as it was without details_json.
+ * the dataset stays as clean as it was without details_json. The one
+ * exception is a coaching card's own text (cardText below): generated, not
+ * the learner's, and kept only in the card's alphabet.
  *
  * Import-free on purpose, like socraticContract.ts, so the client's tests can
  * pin it too.
@@ -30,6 +32,19 @@ const oneOf = <T extends string>(v: unknown, allowed: readonly T[]): T | "" =>
   typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : "";
 /** An exercise or template id: the shape the banks use (s3_g_t3, task8_missing_addend). */
 const idOf = (v: unknown): string => (typeof v === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : "");
+/**
+ * A coaching card's text (SOCRATIC_CARD_SHOWN, 2.10.2026) — the one string
+ * column that is not a closed list. It is generated text, the engine's or the
+ * owner's static card, never the learner's, and it is kept only as a card is
+ * written: Hebrew letters, digits and the card's punctuation, up to 400
+ * characters. A Latin letter, an "@" or anything else a name, an email or a
+ * link would need empties it.
+ */
+const cardText = (v: unknown): string => {
+  if (typeof v !== "string") return "";
+  const t = v.replace(/\s+/g, " ").trim();
+  return t.length <= 400 && /[א-ת]/.test(t) && /^[֐-׿0-9\s.,:;!?"'()\-–—−+=×▢/״׳%«»“”]+$/.test(t) ? t : "";
+};
 const only = (eventType: unknown, ...types: string[]) => typeof eventType === "string" && types.includes(eventType);
 
 const STRATEGIES = ["UNDO_BUTTON", "MEMORY_CIRCLES", "SOCRATIC_CARD"] as const;
@@ -53,6 +68,11 @@ export function researchDetailsColumns(eventType: unknown, raw: unknown): Record
     card_model_id: only(eventType, "SOCRATIC_CARD_SHOWN") && typeof d.model_id === "string" && /^gemini-[a-z0-9.-]{1,40}$/.test(d.model_id) ? d.model_id : "",
     card_situation: only(eventType, "SOCRATIC_CARD_SHOWN") && typeof d.card_situation === "string" && /^[a-z0-9_]{1,40}$/.test(d.card_situation) ? d.card_situation : "",
     card_level: only(eventType, "SOCRATIC_CARD_SHOWN") ? intIn(d.card_level, 1, 3) : "",
+    // SOCRATIC_CARD_SHOWN (2.10.2026): the card's text, for reviewing the pilot's real cards.
+    card_question_he: only(eventType, "SOCRATIC_CARD_SHOWN") ? cardText(d.card_question_he) : "",
+    card_options_he: only(eventType, "SOCRATIC_CARD_SHOWN") && Array.isArray(d.card_options_he) && d.card_options_he.length <= 3
+      ? d.card_options_he.map(cardText).join(" | ")
+      : "",
     // SOCRATIC_OPTION_SELECTED (is_correct has its own column)
     option_id: only(eventType, "SOCRATIC_OPTION_SELECTED") ? oneOf(d.option_id, ["opt_1", "opt_2", "opt_3"] as const) : "",
     // PROBLEM_COMPLETE

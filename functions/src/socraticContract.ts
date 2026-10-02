@@ -18,7 +18,7 @@
  *      terminology. Anything that fails falls back to the static hint.
  */
 
-import { cardFormViolation, languageViolation, socraticLanguageSpec } from "./socraticLanguage";
+import { cardFormViolation, cardStyleViolation, languageViolation, socraticLanguageSpec, socraticStyleSpec } from "./socraticLanguage";
 
 export type SocraticOperation = "addition" | "subtraction";
 export type SocraticColumn = "units" | "tens" | "hundreds" | "thousands";
@@ -700,6 +700,8 @@ export interface SocraticFacts {
   concise: boolean;
   /** The exercise's id (request.exercise_id) — rules that belong to one exercise read it (s1_target_347). */
   exercise_id?: string | null;
+  /** The exercise's title (exercise_context.session_topic): a card never repeats it (owner, 2.10.2026). */
+  title_he?: string | null;
   /**
    * addition: what passes into the active column and where it really is — in
    * the memory circle above it, already on the board after the grouping, or
@@ -1364,6 +1366,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     memory_circles_on_screen: Boolean(ec),
     task_kind: tc?.kind ?? (ec ? (skeleton ? "skeleton" : ec.operation) : null),
     instruction_he: tc?.instruction_he ?? null,
+    title_he: ec?.session_topic || null,
     hidden_operands: ec?.hidden_places ? [...(ec.hidden_places.a.length ? [ec.number_a] : []), ...(ec.hidden_places.b.length ? [ec.number_b] : [])] : [],
     secret_numbers: tc?.secret_numbers ?? [],
     hidden_result_digits: ec && tc?.hidden_result_places
@@ -1438,13 +1441,14 @@ ${LANGUAGE_SLOT}
 
 IRON RULES:
 - NEVER state or imply the final numeric answer of the exercise, and never state the result digit of the active column. Guide the next ACTION only.
-- NEVER ask a generic or detached question ("I see X blocks, what next?"). Name the exercise, the active column sub-problem and the board state in the question itself.
+- NEVER ask a generic or detached question ("I see X blocks, what next?"). Name the exercise, the active column sub-problem and the board state in the question itself — the exercise by its numbers, never by its title.
 - Exactly ONE guiding question and exactly THREE closed options: exactly one correct next action, two plausible mistakes that mirror the diagnosed category.
 - The feedback of a WRONG option starts with "רמז:" and is ONE short guiding QUESTION that ends with "?" — it may open with a short invitation to try something on the screen, but it NEVER explains, NEVER states the rule or the correct action, and NEVER gives the answer or any digit of it ("רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה?", never "רמז: בחיסור מחסרים את הספרה התחתונה מהעליונה."). It is warm and judgment-free (UDL). The correct option's feedback starts with "נכון מאוד!", confirms and names the concrete on-screen action.
 - Never act as a chatbot, never address the learner by name, never reveal any personal data.
 - Output ONLY the JSON object requested. No prose outside JSON.`;
 
-const withLanguage = (core: string, blocks: boolean) => core.replace(LANGUAGE_SLOT, socraticLanguageSpec(blocks));
+// The language rules, then the style: the limits, the decided cards as examples and the ✗ → ✓ faults (2.10.2026).
+const withLanguage = (core: string, blocks: boolean) => core.replace(LANGUAGE_SLOT, `${socraticLanguageSpec(blocks)}\n${socraticStyleSpec(blocks)}`);
 
 export const SOCRATIC_SYSTEM_INSTRUCTION = withLanguage(SOCRATIC_SYSTEM_CORE, true);
 
@@ -1468,8 +1472,8 @@ export const SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS = withLanguage(SOCRATIC_SYSTE
   )
   .replace(", building more or less than the exercise needs.", ".")
   .replace(
-    "Name the exercise, the active column sub-problem and the board state in the question itself.",
-    "Name the exercise and the active column sub-problem in the question itself."
+    "Name the exercise, the active column sub-problem and the board state in the question itself —",
+    "Name the exercise and the active column sub-problem in the question itself —"
   )
   .replace(
     'tools are "עיגולי הזיכרון" and "פח האשפה". The blocks are "לבנים" ONLY ("לבנה" in the singular; never "קוביות", "קובייה", "בלוק" or "בלוקים"), and the board is "בית המספרים" ONLY (never "לוח הדינס", "לוח הלבנים" or "קנבס").',
@@ -1493,8 +1497,8 @@ export const SOCRATIC_SYSTEM_INSTRUCTION_MEETING_1 = withLanguage(SOCRATIC_SYSTE
     "2. THE LIVE BOARD — read the block count in each column and whether a regrouping/decomposition was already performed in blocks, to diagnose only: never write a count in the card."
   )
   .replace(
-    "Name the exercise, the active column sub-problem and the board state in the question itself.",
-    "Name the exercise in the question itself, but never the column where the difficulty is and never how many blocks the board holds."
+    "Name the exercise, the active column sub-problem and the board state in the question itself —",
+    "Name the exercise in the question itself, but never the column where the difficulty is and never how many blocks the board holds —"
   )
   .replace(
     "- Never act as a chatbot,",
@@ -1516,8 +1520,8 @@ export const SOCRATIC_SYSTEM_INSTRUCTION_STATIONS_3_7 = withLanguage(SOCRATIC_SY
     "2. THE LIVE BOARD — read the block count in each column and whether a regrouping/decomposition was already performed in blocks, to diagnose only: never write a count in the card."
   )
   .replace(
-    "Name the exercise, the active column sub-problem and the board state in the question itself.",
-    "Name the exercise and the active column sub-problem in the question itself, but never how many blocks the board or a column holds."
+    "Name the exercise, the active column sub-problem and the board state in the question itself —",
+    "Name the exercise and the active column sub-problem in the question itself, but never how many blocks the board or a column holds —"
   )
   .replace(
     "- Never act as a chatbot,",
@@ -1852,11 +1856,11 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   lines.push("Return ONLY this JSON object:");
   lines.push(`{
   "error_category": "calculation" | "procedural" | "conceptual",
-  "guiding_question": "<שאלה מנחה אחת בעברית, המזכירה ${facts.meeting === 1 || facts.card_frame?.level === 1 ? "את התרגיל, בלי לציין שם של טור, " : facts.operation ? "את התרגיל, את הטור הפעיל " : "את המשימה "}${facts.blocks_on_screen ? (facts.meeting !== null && (facts.meeting === 1 || (facts.meeting >= 3 && facts.meeting <= 7)) ? "ואת מצב הלבנים, בלי לכתוב כמה לבנים יש בטור" : "ואת מצב הלבנים") : "ואת עיגולי הזיכרון"}>",
+  "guiding_question": "<שאלה מנחה אחת קצרה בעברית, עד 14 מילים אחרי «נסו לחשוב:», המזכירה ${facts.meeting === 1 || facts.card_frame?.level === 1 ? "את התרגיל, בלי לציין שם של טור, " : facts.operation ? "את התרגיל, את הטור הפעיל " : "את המספר שבהנחיה או את מה שבבית המספרים (לא את כותרת המשימה ולא את משפט ההנחיה) "}${facts.blocks_on_screen ? (facts.meeting !== null && (facts.meeting === 1 || (facts.meeting >= 3 && facts.meeting <= 7)) ? "ואת מצב הלבנים, בלי לכתוב כמה לבנים יש בטור" : "ואת מצב הלבנים") : "ואת עיגולי הזיכרון"}>",
   "options": [
-    { "id": "opt_1", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false },
-    { "id": "opt_2", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false },
-    { "id": "opt_3", "option_text": "<פעולה בעברית>", "feedback_text": "<משוב בעברית>", "is_correct": true|false }
+    { "id": "opt_1", "option_text": "<פעולה קצרה בעברית, עד 10 מילים>", "feedback_text": "<משוב בעברית, עד 16 מילים>", "is_correct": true|false },
+    { "id": "opt_2", "option_text": "<פעולה קצרה בעברית, עד 10 מילים>", "feedback_text": "<משוב בעברית, עד 16 מילים>", "is_correct": true|false },
+    { "id": "opt_3", "option_text": "<פעולה קצרה בעברית, עד 10 מילים>", "feedback_text": "<משוב בעברית, עד 16 מילים>", "is_correct": true|false }
   ]
 }`);
   return lines.join("\n");
@@ -2551,6 +2555,9 @@ export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | n
   if (form) return { ok: false, reason: form };
   const lang = languageViolation(texts);
   if (lang) return { ok: false, reason: `language: ${lang.id} — ${lang.fix}` };
+  // The style (owner, 2.10.2026): short, no title, no copied instruction, a comma after a fronted clause.
+  const style = cardStyleViolation({ guiding_question: question, options }, { instruction: facts?.instruction_he ?? null, title: facts?.title_he ?? null });
+  if (style) return { ok: false, reason: `style: ${style.id} — ${style.fix}` };
   if (facts && facts.memory_circles_on_screen === false && texts.some((t) => /עיגול(י)? (ה)?זיכרון/.test(t))) {
     return { ok: false, reason: 'screen: this task has no memory circles — do not mention "עיגול הזיכרון"' };
   }

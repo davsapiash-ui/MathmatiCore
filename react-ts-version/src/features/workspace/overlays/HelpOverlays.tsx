@@ -11,6 +11,7 @@ import {
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { SocraticEngine, cardFrameOf, type SocraticChoice } from '@/infrastructure/services/SocraticEngine';
 import { orderSocraticChoices } from '@/infrastructure/services/socraticOptionOrder';
+import { socraticCardTextDetails, socraticOptionKey } from '@/infrastructure/services/socraticCardText';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
@@ -158,6 +159,10 @@ export function SocraticSidePanel() {
         model_id: aiSocraticHint.source === 'gemini' ? aiSocraticHint.modelId ?? null : null,
         card_situation: cardFrameOf(aiSocraticHint, task).situation,
         card_level: cardFrameOf(aiSocraticHint, task).level,
+        // 2.10.2026: the card's own text — the question and the options in id
+        // order — so the pilot's real cards can be read and the engine tuned.
+        // Generated text, no PII; the chat's free text is never part of a card.
+        ...socraticCardTextDetails(aiSocraticHint),
       },
     }).catch(console.error);
   }, [helpState, aiSocraticHint, socraticPending, classScreenUp]);
@@ -355,7 +360,7 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
     const wsState = useWorkspaceStore.getState();
     const studentId = currentStudentUid();
     const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
-    const optionKey = (opt.id === 'opt_2' || opt.id === 'B' ? 'opt_2' : opt.id === 'opt_3' || opt.id === 'C' ? 'opt_3' : 'opt_1') as 'opt_1' | 'opt_2' | 'opt_3';
+    const optionKey = socraticOptionKey(opt.id);
 
     emitTelemetry({
       session_id: `session_${wsState.sessionNumber}_student_${studentId}`,

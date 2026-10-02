@@ -202,6 +202,191 @@ export function cardFormViolation(card: CardFormCheck): string | null {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Style: length, the opening's place, the title, the instruction, the comma
+// ---------------------------------------------------------------------------
+
+/**
+ * The words of a card text, as a child reads them: Hebrew words only — a
+ * number ("1,245", "▢", "+") is not counted, since the card names the
+ * exercise by its numbers — and without the card's fixed opening ("נסו
+ * לחשוב:", "רמז:", "נכון מאוד!").
+ */
+export function cardWordCount(text: string): number {
+  return text
+    .trim()
+    .replace(/^(?:נסו לחשוב:|רמז:|נכון מאוד!)/, "")
+    .split(/\s+/)
+    .filter((w) => /[א-ת]/.test(w)).length;
+}
+
+/**
+ * What the model is asked to write (owner, 2.10.2026: the live card of
+ * s1_target_347 was right but long). The PRD sets no number; these are the
+ * shape of the 130 child texts decided on 2.10.2026 (PR #206), whose median
+ * question is 7 words and median option 6.
+ */
+export const CARD_TARGET_WORDS = { question: 14, option: 10, feedback: 16 } as const;
+/**
+ * What the validator refuses: the longest text among the static cards the
+ * client can produce (every bank, board state, trigger and level —
+ * StaticCards_ServerValidator_2_10.test.ts), so no decided card is refused
+ * and a model card is never longer than the longest one the owner approved.
+ * Measured 2.10.2026: question 16, option 15, hint 14, correct feedback 27.
+ */
+export const CARD_MAX_WORDS = { question: 16, option: 15, hint: 16, correct_feedback: 27 } as const;
+/**
+ * The instruction may not be copied: a run of this many Hebrew words in a row
+ * taken from it. The longest run in a static card is 6 ("לחצו על הכפתור קבצו
+ * 10 שבראש הטור"); the live card's quote ran to 9.
+ */
+export const INSTRUCTION_QUOTE_MAX_RUN = 8;
+
+/**
+ * An exercise's title in the card ("במשימת היעד", "במשימת החקר", "משימת יעד
+ * מסכמת"): a construct "משימת" + a word is a title, and no static card says
+ * "משימה" at all. The card names the exercise by its numbers.
+ */
+const TASK_TITLE_RE = /(^|[^א-ת])[ובלמהשכ]{0,3}משימ(?:ת|ות)\s+[א-ת]/;
+
+/**
+ * A fronted clause ("כשמחברים…", "אם…", "אחרי ש…", "לפני ש…") runs into the
+ * question word with no comma: "כשמחברים את הספרות מה עושים?" → "כשמחברים את
+ * הספרות, מה עושים?". Read on the last segment of a question — after its last
+ * sentence mark, colon or comma — so a clause already closed by a comma, or a
+ * question word inside the clause ("כשבודקים כמה לבנים יש בטור, מה…"), passes.
+ */
+const FRONTED_CLAUSE_NO_COMMA = /^(?:(?:ו)?כש[א-ת]+|אם|אחרי\s+ש[א-ת]+|לפני\s+ש[א-ת]+)\s.*?(?<![א-ת])(?:מה|איך|כיצד|כמה|באיזה|באיזו|באילו|איזה|איזו|אילו|מאיזה|מאיזו|לאיזה|לאיזו|למה|מאיפה|איפה|האם|מתי)(?:\s|\?)/;
+
+function lastSegment(text: string): string {
+  const t = text.trim();
+  const cut = Math.max(...[".", "!", ":", ",", ";"].map((m) => t.lastIndexOf(m)));
+  return t.slice(cut + 1).trim();
+}
+
+function tokens(text: string): string[] {
+  return text.replace(/[.,:;!?"“”«»()׳״']/g, " ").split(/\s+/).filter(Boolean);
+}
+
+/** The longest run of Hebrew words the text copies, in order, from the instruction. */
+export function instructionQuoteRun(text: string, instruction: string): number {
+  const a = tokens(text);
+  const b = tokens(instruction);
+  let best = 0;
+  for (let i = 0; i < a.length; i++) {
+    for (let j = 0; j < b.length; j++) {
+      let k = 0;
+      let he = 0;
+      while (i + k < a.length && j + k < b.length && a[i + k] === b[j + k]) {
+        if (/[א-ת]/.test(a[i + k])) he++;
+        k++;
+      }
+      if (he > best) best = he;
+    }
+  }
+  return best;
+}
+
+export interface StyleContext {
+  /** The instruction on the screen (task_context.instruction_he). */
+  instruction?: string | null;
+  /** The exercise's title (exercise_context.session_topic). */
+  title?: string | null;
+}
+
+/**
+ * The card's style (owner, 2.10.2026: "the writing should be better"): short,
+ * the opening first, no title and no copied instruction, a comma after a
+ * fronted clause. Each rule passes every static card (the decided texts of
+ * 2.10.2026). Returns the first rule broken, or null.
+ */
+export function cardStyleViolation(card: CardFormCheck, ctx: StyleContext = {}): LanguageRule | null {
+  const q = card.guiding_question.trim();
+  const texts = [q, ...card.options.flatMap((o) => [o.option_text, o.feedback_text])];
+  const rule = (id: string, fix: string, re: RegExp = /$^/): LanguageRule => ({ id, re, fix });
+
+  if (texts.some((t, i) => (i === 0 ? t.indexOf(CARD_OPENING.slice(0, -1)) > 0 : t.includes(CARD_OPENING.slice(0, -1))))) {
+    return rule("opening_not_first", `"${CARD_OPENING}" comes only at the very start of the guiding question, never in its middle and never in an option or a feedback.`);
+  }
+  const title = (ctx.title ?? "").replace(/\s+/g, " ").trim();
+  if (texts.some((t) => TASK_TITLE_RE.test(t)) || (title.split(" ").filter((w) => /[א-ת]/.test(w)).length >= 2 && texts.some((t) => t.replace(/\s+/g, " ").includes(title)))) {
+    return rule("title_repeated", 'Never repeat the exercise\'s title ("משימת היעד", "משימת חקר", the topic): name the exercise by its numbers ("בתרגיל 61 − 24") or by what is on the board.');
+  }
+  if (ctx.instruction && texts.some((t) => instructionQuoteRun(t, ctx.instruction!) >= INSTRUCTION_QUOTE_MAX_RUN)) {
+    return rule("instruction_quoted", 'Never copy the instruction sentence: the child sees it on the screen. Point to it ("מה ההנחיה מבקשת?") or name one step of it in a few words.');
+  }
+  const questions = [q, ...card.options.filter((o) => !o.is_correct).map((o) => o.feedback_text)];
+  if (questions.some((t) => FRONTED_CLAUSE_NO_COMMA.test(lastSegment(t.trim().endsWith("?") ? t : "")))) {
+    return rule("comma_after_fronted_clause", 'Put a comma between a fronted clause and the question: "כשמחברים את הספרות של הטור, מה עושים?", "אם תוסיפו לבנים, האם המספר יישאר אותו מספר?".');
+  }
+  if (cardWordCount(q) > CARD_MAX_WORDS.question) {
+    return rule("length_question", `The guiding question is too long (${cardWordCount(q)} words): at most ${CARD_TARGET_WORDS.question} words after "${CARD_OPENING}" — one short fact, then the question.`);
+  }
+  const longOption = card.options.find((o) => cardWordCount(o.option_text) > CARD_MAX_WORDS.option);
+  if (longOption) {
+    return rule("length_option", `An option is too long (${cardWordCount(longOption.option_text)} words): at most ${CARD_TARGET_WORDS.option} words, one action.`);
+  }
+  const longHint = card.options.find((o) => !o.is_correct && cardWordCount(o.feedback_text) > CARD_MAX_WORDS.hint);
+  if (longHint) {
+    return rule("length_hint", `A hint is too long (${cardWordCount(longHint.feedback_text)} words): "${HINT_OPENING}" and one short question of at most 12 words.`);
+  }
+  const right = card.options.find((o) => o.is_correct);
+  if (right && cardWordCount(right.feedback_text) > CARD_MAX_WORDS.correct_feedback) {
+    return rule("length_feedback", `The correct option's feedback is too long (${cardWordCount(right.feedback_text)} words): "${CORRECT_FEEDBACK_OPENING}" and at most ${CARD_TARGET_WORDS.feedback} words.`);
+  }
+  return null;
+}
+
+/**
+ * The style part of the system instruction: the limits, the decided cards of
+ * 2.10.2026 as examples of the sound, and real style faults as ✗ → ✓ pairs.
+ * Without blocks (meetings 2 and 8) the examples name no block, no board and
+ * no button.
+ */
+export function socraticStyleSpec(blocks: boolean): string {
+  // Decided texts of 2.10.2026 (PR #206; staticSocraticCards.ts, SocraticEngine.ts), verbatim.
+  // Format: question | ✓ right option → its feedback | ✗ wrong option → its hint | ✗ wrong option.
+  const cards = blocks
+    ? [
+        'נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם? | ✓ בונים בבית המספרים את מה שההנחיה מבקשת → נכון מאוד! קראו את ההנחיה. בנו בבית המספרים את מה שהיא מבקשת. | ✗ כותבים מספר בשורת התוצאה → רמז: מה ההנחיה מבקשת לעשות לפני שכותבים? | ✗ מנחשים את התשובה',
+        'נסו לחשוב: בתרגיל 713 + 94, איזה מספר עוד לא בבית המספרים? | ✓ המספר 94 → נכון מאוד! בנו את 94, כל ספרה בטור שלה. | ✗ המספר 713 → רמז: אילו לבנים כבר בניתם? | ✗ שני המספרים כבר שם',
+        'נסו לחשוב: מה קורה בבית המספרים כשפורטים עשרת אחת? | ✓ מקבלים עשר יחידות שנוספות לטור היחידות → נכון מאוד! לחצו על לבנת עשרת, וראו את היחידות שנוספות לטור היחידות. | ✗ העשרת נמחקת מבית המספרים → רמז: מה מופיע בבית המספרים במקום העשרת? | ✗ בית המספרים נשאר בלי שינוי',
+        'נסו לחשוב: בתרגיל 61 − 24, מה בודקים לפני שמוציאים לבנים מטור? | ✓ אם יש בטור מספיק לבנים להוציא → נכון מאוד! אם אין מספיק, פורטים לבנה מהטור שמשמאל. | ✗ שום דבר, מוציאים מיד → רמז: מה יקרה אם בטור אין מספיק לבנים להוציא? | ✗ מוסיפים לבנים חדשות לטור',
+        'נסו לחשוב: בתרגיל 128 + 35, מה מחברים בטור העשרות? | ✓ את שתי הספרות של הטור, ועוד העשרת שעברה מטור היחידות → נכון מאוד! כתבו את הסכום בתיבה של טור העשרות. | ✗ רק את שתי הספרות של הטור → רמז: מה עבר לטור העשרות מטור היחידות? | ✗ את כל הספרות של התרגיל',
+        'נסו לחשוב: בטור העשרות אין לבנים. איפה כותבים בשבילו 0 במספר? | ✓ בין ספרת המאות לספרת היחידות → נכון מאוד! ה-0 שומר לכל ספרה את המקום שלה. | ✗ בתחילת המספר → רמז: האם מספר יכול להתחיל ב-0? | ✗ לא כותבים 0, כי אין שם לבנים',
+        'נסו לחשוב: מה כותבים בכל תיבה בשורת התוצאה? | ✓ את מספר הלבנים שבטור של אותה תיבה → נכון מאוד! כתבו ספרה בכל תיבה, גם בתיבה של טור שאין בו לבנים. | ✗ רק בתיבות של טורים שיש בהם לבנים → רמז: מה כותבים בתיבה של טור שאין בו אף לבנה? | ✗ את מספר כל הלבנים יחד, בתיבה אחת',
+        'נסו לחשוב: בתרגיל 78 − 25, מה מחסרים בטור העשרות? | ✓ את הספרה התחתונה מהספרה העליונה → נכון מאוד! כתבו את התוצאה בתיבה של טור העשרות. | ✗ את הספרה העליונה מהספרה התחתונה → רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה? | ✗ לא מחסרים, אלא מחברים את שתי הספרות',
+      ]
+    : [
+        'נסו לחשוב: לפני שכותבים ספרה בשורת התוצאה, מה בודקים בכל טור? | ✓ אם סכום הספרות בטור מגיע ל-10 או יותר → נכון מאוד! אם הוא מגיע ל-10 או יותר, רשמו 1 בעיגול הזיכרון שמעל הטור שמשמאל. | ✗ איזו ספרה בטור היא הגדולה → רמז: האם בחיבור כותבים את הספרה הגדולה? | ✗ כמה ספרות יש בתרגיל כולו',
+        'נסו לחשוב: בתרגיל 507 + 125, איך זוכרים שעשרת אחת עברה מטור היחידות לטור העשרות? | ✓ רושמים 1 בעיגול הזיכרון שמעל טור העשרות → נכון מאוד! כשתחברו את הספרות של טור העשרות, הוסיפו גם את ה-1 שבעיגול הזיכרון. | ✗ זוכרים בראש, בלי לרשום → רמז: איך תזכרו את העשרת הזאת כשתגיעו לטור העשרות? | ✗ כותבים אותה בתיבה של טור היחידות',
+        'נסו לחשוב: בתרגיל 78 − 25, מה מחסרים בטור העשרות? | ✓ את הספרה התחתונה מהספרה העליונה → נכון מאוד! כתבו את התוצאה בתיבה של טור העשרות. | ✗ את הספרה העליונה מהספרה התחתונה → רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה? | ✗ לא מחסרים, אלא מחברים את שתי הספרות',
+        'נסו לחשוב: איך יודעים באיזו תיבה בשורת התוצאה כותבים כל ספרה? | ✓ לכל טור יש תיבה משלו, מתחת לטור → נכון מאוד! כתבו כל ספרה בתיבה של הטור שלה. | ✗ כותבים כל ספרה בתיבה הפנויה הראשונה → רמז: לאיזה טור שייכת כל תיבה? | ✗ כותבים את הספרות לפי הסדר שבו מחשבים אותן',
+        'נסו לחשוב: איך בודקים בכל טור אם התלמיד צדק? | ✓ פותרים כל טור בעצמכם, ומשווים לספרה שהתלמיד כתב בטור הזה → נכון מאוד! התחילו בטור היחידות, ובדקו טור אחר טור. | ✗ בודקים רק את הספרה הראשונה של התוצאה שלו → רמז: האם טעות יכולה להיות גם בטור אחר? | ✗ מחברים רק את שתי הספרות של הטור',
+      ];
+  const faults = blocks
+    ? `✗ "נסו לחשוב: במשימת היעד עם המספר 347 בית המספרים עדיין ריק, מה עושים עכשיו?" ✓ "נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?" (the title repeated, a fronted phrase with no comma, too long)
+✗ "נסו לחשוב: במשימת החקר, איך מוצאים דרך נוספת לייצג את 2,100?" ✓ "נסו לחשוב: איך מוצאים דרך נוספת לייצג את 2,100?" (never the exercise's title)
+✗ "נסו לחשוב: ההנחיה אומרת בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות, אז מה עושים קודם?" ✓ "נסו לחשוב: מה ההנחיה מבקשת לבנות קודם?" (the child sees the instruction: never copy it)
+✗ "נסו לחשוב: בתרגיל 53 − 18, אחרי שבניתם את 53 ובדקתם את טור היחידות וראיתם שאין בו מספיק לבנים, מה צריך לעשות עכשיו כדי שתוכלו להמשיך?" ✓ "נסו לחשוב: בתרגיל 53 − 18, בטור היחידות אין מספיק לבנים. מה עושים?" (one short fact, then the question)
+✗ "נסו לחשוב: כשמחברים את הספרות של טור העשרות מה עושים עם ה-1 שבעיגול הזיכרון?" ✓ "נסו לחשוב: כשמחברים את הספרות של טור העשרות, מה עושים עם ה-1 שבעיגול הזיכרון?" (a comma after a fronted clause)
+✗ "רמז: אם תוסיפו לבנים חדשות מארגז הכלים לטור היחידות, האם המספר שבבית המספרים יישאר בדיוק אותו מספר שבניתם בהתחלה?" ✓ "רמז: אם תוסיפו לבנים חדשות, האם המספר יישאר אותו מספר?" (a hint is one short question)
+✗ "קוראים שוב את כל ההנחיה מההתחלה ועד הסוף, ואחר כך בונים בבית המספרים את כל מה שכתוב בה בדיוק" ✓ "בונים בבית המספרים את מה שההנחיה מבקשת" (an option is one short action)`
+    : `✗ "נסו לחשוב: במשימת החקר עם התרגיל 1,245 + 328 מה כותבים קודם?" ✓ "נסו לחשוב: בתרגיל 1,245 + 328, מאיזה טור מתחילים?" (never the exercise's title; a comma after the fronted phrase)
+✗ "נסו לחשוב: בתרגיל 4,000 − 1,562, אחרי שרשמתם את הפריטה בעיגולי הזיכרון ובדקתם את טור היחידות ואת טור העשרות, ממה צריך לחסר עכשיו כדי להמשיך?" ✓ "נסו לחשוב: בתרגיל 4,000 − 1,562, ממה מחסרים עכשיו בטור היחידות?" (one short fact, then the question)
+✗ "נסו לחשוב: כשמחברים את הספרות של טור העשרות מה עושים עם ה-1 שבעיגול הזיכרון?" ✓ "נסו לחשוב: כשמחברים את הספרות של טור העשרות, מה עושים עם ה-1 שבעיגול הזיכרון?" (a comma after a fronted clause)
+✗ "רמז: אם לא תרשמו שום דבר בעיגול הזיכרון שמעל טור העשרות, איך בדיוק תזכרו בהמשך לחבר גם את העשרת שעברה מטור היחידות?" ✓ "רמז: איך תזכרו את העשרת הזאת כשתגיעו לטור העשרות?" (a hint is one short question)
+✗ "בודקים בעיגולי הזיכרון ובשורת התוצאה את כל מה שכבר רשמתם, ורק אחר כך ממשיכים לפתור את הטור הבא בתרגיל" ✓ "רושמים 1 בעיגול הזיכרון שמעל טור העשרות" (an option is one short action)`;
+  return `STYLE — how a good card sounds (owner, 2.10.2026; binding):
+- Short. The guiding question: at most ${CARD_TARGET_WORDS.question} words after "${CARD_OPENING}" (numbers not counted) — one short fact about the board or the exercise if needed, then the question; most good cards have 6–10 words. Each option: at most ${CARD_TARGET_WORDS.option} words, one action, the three options alike in length and form. Each feedback: at most ${CARD_TARGET_WORDS.feedback} words; a hint is "${HINT_OPENING}" and one short question.
+- "${CARD_OPENING}" only at the very start of the question. Name the exercise by its numbers ("בתרגיל 61 − 24") — NEVER by its title or topic ("משימת היעד", "משימת חקר", the session topic). NEVER copy the instruction sentence: the child sees it; point to it ("מה ההנחיה מבקשת?").
+- A comma closes a fronted clause or phrase before the main clause or the question ("בתרגיל 713 + 94, איזה מספר…", "כשמחברים את הספרות, מה עושים?"). No chains of "ו…ו…ו".
+The decided cards of 2.10.2026 — copy their SOUND and LENGTH only, never their content (question | ✓ right option → feedback | ✗ wrong option → hint | ✗ wrong option):
+${cards.map((c) => `• ${c}`).join("\n")}
+STYLE DON'T / DO (real faults):
+${faults}`;
+}
+
 /** The first language rule the texts break, or null. */
 export function languageViolation(texts: string[]): LanguageRule | null {
   for (const t of texts) {

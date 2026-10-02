@@ -29,7 +29,7 @@ export type AiOutcome =
   | "schema_reject"
   | "answer_leak"
   | "forbidden_term"
-  /** The card broke a writing, screen or counting rule (socraticLanguage.ts). */
+  /** The card broke a writing, style, screen or counting rule (socraticLanguage.ts). */
   | "language_reject"
   /** The card left its frame (a level-1 card that names a column). */
   | "frame_reject"
