@@ -59,7 +59,7 @@ describe('D1 — the class report says why the cards opened in Hebrew', () => {
     expect(html).toContain('חיבור במאונך עם המרה');
     expect(html).not.toContain('s4_g_t1');
     const untitled = classReportHtml({ session_number: 4, aggregates: a, learners: [row] });
-    expect(untitled).toContain('תרגיל 1 בתחנה 4');
+    expect(untitled).toContain('תרגיל במפגש 4, מס׳ זיהוי 1');
     expect(untitled).not.toContain('s4_g_t1');
   });
 
@@ -94,7 +94,7 @@ describe('D2 — no English in the headings', () => {
     expect(compulsory[0]).toMatch(/^בתרגיל הראשון \(חיבור במאונך עם המרה\) הלומד הזין ספרה שגויה בטור היחידות/);
     expect(compulsory.join(' ')).not.toMatch(/s4_g_t|אחדות/);
     // Without a title (the catalog unavailable) a Hebrew label, never the id (coordinator, 2.10.2026).
-    expect(generateExerciseNarrativeFromEvents([...meeting]).compulsory[0]).toContain('(תרגיל 1 בתחנה 4)');
+    expect(generateExerciseNarrativeFromEvents([...meeting]).compulsory[0]).toContain('(תרגיל במפגש 4, מס׳ זיהוי 1)');
   });
 });
 

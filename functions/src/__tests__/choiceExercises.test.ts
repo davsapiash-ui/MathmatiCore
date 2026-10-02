@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import {
   CHOICE_PATH_LABEL_HE,
+  CHOICE_TITLES_HE,
   computeFirstAttemptScore,
   exercisePathType,
   isChoiceExercise,
@@ -68,6 +69,17 @@ describe('which exercise is a choice exercise', () => {
     expect(tasks.filter((t) => t.branch === 'C')).toHaveLength(10);
   });
 
+  it('the server\'s copy of the choice titles is the bank\'s, id by id (the teacher\'s screen shows the bank\'s)', () => {
+    const titles: Record<string, string> = {};
+    const found = Array.from(branchSource.matchAll(/'(s\d+_[gr]_(?:reinforce|challenge)_\d+)'/g), (m) => ({ id: m[1], at: m.index ?? 0 }));
+    found.forEach(({ id, at }, i) => {
+      const call = branchSource.slice(at, i + 1 < found.length ? found[i + 1].at : branchSource.length);
+      titles[id] = /'((?:ביסוס|אתגר)[^']*)'/.exec(call)?.[1] ?? '';
+    });
+    expect(Object.keys(titles)).toHaveLength(30);
+    expect(CHOICE_TITLES_HE).toEqual(titles);
+  });
+
   it('no compulsory exercise looks like one', () => {
     const ids = Array.from(compulsorySource.matchAll(/'(s\d+_[a-z0-9_]+)'/g), (m) => m[1]);
     expect(ids.length).toBeGreaterThan(40);
@@ -94,11 +106,11 @@ describe('the individual report', () => {
   it('numbers the compulsory exercises only, and lists the choice exercises apart, marked', () => {
     const { compulsory, choice } = generateExerciseNarrativeFromEvents(meeting);
     expect(compulsory).toHaveLength(7);
-    expect(compulsory[6]).toMatch(/^בתרגיל השביעי \(תרגיל 7 בתחנה 4\)/);
+    expect(compulsory[6]).toMatch(/^בתרגיל השביעי \(תרגיל במפגש 4, מס׳ זיהוי 7\)/);
     expect(compulsory.join(' ')).not.toMatch(/השמיני|התשיעי|reinforce|challenge/);
     expect(choice).toEqual([
-      `${CHOICE_PATH_LABEL_HE.consolidation} (משימת ביסוס 1 בתחנה 4): הלומד השלים את התרגיל בניסיון הראשון.`,
-      `${CHOICE_PATH_LABEL_HE.challenge} (משימת אתגר 1 בתחנה 4): הלומד הזין ספרה שגויה (פעם אחת), והשלים את התרגיל לאחר תיקון.`,
+      `${CHOICE_PATH_LABEL_HE.consolidation} (ביסוס 1: חיבור ללא המרה): הלומד השלים את התרגיל בניסיון הראשון.`,
+      `${CHOICE_PATH_LABEL_HE.challenge} (אתגר: שלוש המרות רצופות): הלומד הזין ספרה שגויה (פעם אחת), והשלים את התרגיל לאחר תיקון.`,
     ]);
   });
 

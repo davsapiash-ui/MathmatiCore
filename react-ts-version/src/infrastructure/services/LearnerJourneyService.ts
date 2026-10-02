@@ -325,11 +325,15 @@ export function exerciseTitle(sessionNumber: number | null, exerciseId: string):
       }
     }
   }
-  // A placeholder id ("ex_4_01") has no bank: a Hebrew label, never the id
-  // (coordinator, 2.10.2026; the server's exerciseLabelHe).
-  const placeholder = /^ex_(\d+)_/.exec(exerciseId);
-  if (placeholder) return `משימה בתחנה ${placeholder[1]}`;
-  return exerciseId;
+  // An id no bank knows ("ex_4_01"): a Hebrew label, never the id
+  // (coordinator, 2.10.2026; the server's exerciseLabelHe, same wording).
+  // The number in the id identifies it; it is not the exercise's place in the meeting.
+  const unknown = /^(?:ex|s)_?(\d+)_(.*)$/.exec(exerciseId);
+  if (unknown) {
+    const index = /(\d+)$/.exec(unknown[2]);
+    return index ? `תרגיל במפגש ${unknown[1]}, מס׳ זיהוי ${Number(index[1])}` : `תרגיל במפגש ${unknown[1]}`;
+  }
+  return 'תרגיל';
 }
 
 /** Live subscription to the learner's recordings. Returns the unsubscribe. */

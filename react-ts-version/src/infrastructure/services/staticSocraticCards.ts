@@ -925,8 +925,11 @@ function blocksBeforeConvertCard(kind: 'compose_break' | 'compose_group'): Socra
   return card(`${OPEN}אילו לבנים ההנחיה מבקשת לבנות לפני ${noun}?`, 'procedural', 'tour-task-card', [
     [`את הלבנים שכתובות בהנחיה לפני המילה "${verb}"`, `נכון מאוד! בנו בדיוק אותן, ורק אחר כך ${verb} בעצמכם.`],
     [`את הלבנים שיהיו בבית המספרים אחרי ${noun}`, 'רמז: מה ההנחיה מבקשת שתעשו בעצמכם?'],
-    // "Only the blocks grouped" is right in s7_g_t1 (25 hundreds, all grouped): the grouping card asks about one block of each kind.
-    brk ? ['רק את הלבנה שפורטים', 'רמז: האם ההנחיה מבקשת לבנות רק לבנה אחת?'] : ['לבנה אחת מכל סוג', 'רמז: האם ההנחיה מבקשת לבנות לבנה אחת מכל סוג?'],
+    // The grouping card's wrong idea: build only the 10 blocks the instruction
+    // groups. Wrong in every grouping exercise: s7_g_t1 builds 25 hundreds,
+    // s7_r_t1 12 tens and 5 units, s7_g_reinforce_2 14 hundreds and 3 tens
+    // (review, 2.10.2026; "the number the usual way" is option 2's board).
+    brk ? ['רק את הלבנה שפורטים', 'רמז: האם ההנחיה מבקשת לבנות רק לבנה אחת?'] : ['רק את 10 הלבנים שמקבצים', 'רמז: האם ההנחיה מבקשת לבנות רק 10 לבנים?'],
   ], 'blocks_before_convert', frame('blocks_before_convert', 1, `בונים קודם את הלבנים שכתובות בהנחיה, ורק אחר כך ${brk ? 'פורטים' : 'מקבצים'} בעצמכם`));
 }
 
@@ -2754,7 +2757,7 @@ function s1WriteBoxesCard(target: number, op: 'group' | 'add' | 'sub' | 'words')
         ? ['את המילים של המספר, מילה בכל תיבה', 'רמז: מה כותבים בתיבה: מילה או ספרה?']
         : ['את מספר הלבנים שהיו בטור לפני ההקבצה', 'רמז: מה כותבים: את מה שהיה בטור, או את מה שיש בו עכשיו?'];
   return card(`${OPEN}מה כותבים בכל תיבה בשורת התוצאה?`, 'procedural', 'tour-place-value-board', [
-    ['את מספר הלבנים בטור שמעל התיבה', zero ? 'נכון מאוד! כתבו ספרה בכל תיבה, גם בתיבה של טור שאין בו לבנים.' : 'נכון מאוד! ספרו את הלבנים בכל טור, וכתבו את מספרן בתיבה שמתחתיו.'],
+    ['את מספר הלבנים שבטור של אותה תיבה', zero ? 'נכון מאוד! כתבו ספרה בכל תיבה, גם בתיבה של טור שאין בו לבנים.' : 'נכון מאוד! ספרו את הלבנים בכל טור, וכתבו את מספרן בתיבה של אותו טור.'],
     ['את מספר כל הלבנים יחד, בתיבה אחת', HINT.oneDigitPerBox],
     third,
   ], 'write_boxes', frame('write_result_boxes', 1, 'בכל תיבה כותבים את מספר הלבנים שבטור שלה, גם 0'));

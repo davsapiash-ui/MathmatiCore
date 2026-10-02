@@ -504,7 +504,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: 'הסתכלו ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
     choices: [
       { id: "1", textHe: "לגרור עוד לבנים לטורים ולצפות בספרות בבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! גררו עוד לבנים, ושימו לב איך הספרות משתנות." },
-      { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "רמז: האם הרשימה מבקשת לקבץ לבנים בשלב הזה?" },
+      { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "רמז: מה כתוב בשורה שעוד לא סומנה ברשימה?" },
       { id: "3", textHe: "לכתוב מספר בשורת התוצאה", isCorrect: false, feedbackHe: "רמז: האם משהו ברשימה מבקש לכתוב מספר?" }
     ],
     correctChoiceId: "1",

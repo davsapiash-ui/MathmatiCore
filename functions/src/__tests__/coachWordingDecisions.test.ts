@@ -77,6 +77,31 @@ describe('s1_target_347: the number staying the same is the discovery itself', (
     expect(S1_TARGET_SAME_NUMBER.test('בית המספרים נשאר בלי שינוי')).toBe(false);
   });
 
+  it('refuses "the same number" in other words; "does not change" only about the number (review, 2.10.2026)', () => {
+    for (const fb of [
+      'נכון מאוד! המספר זהה.',
+      'נכון מאוד! המספר נשאר זהה, רק הלבנים אחרות.',
+      'נכון מאוד! הלבנים מייצגות את אותו מספר.',
+      'נכון מאוד! הלבנים מייצגות את אותו המספר.',
+      'נכון מאוד! המספר לא גדל ולא קטן.',
+      'נכון מאוד! המספר שבניתם לא השתנה.',
+      'נכון מאוד! ערך הלבנים לא משתנה.',
+    ]) {
+      const r = validateSocraticResponse(cardWith(Q, fb), after);
+      expect(r.ok, fb).toBe(false);
+      if (!r.ok) expect(r.reason).toMatch(/^secret number leaked: s1_target_347/);
+    }
+    for (const t of [
+      'נכון מאוד! טור המאות לא משתנה כשפורטים עשרת.',
+      'רמז: מה לא השתנה בבית המספרים?',
+      'רמז: אם תוסיפו לבנים חדשות, האם המספר יישאר אותו מספר?',
+    ]) {
+      expect(S1_TARGET_SAME_NUMBER.test(t), t).toBe(false);
+    }
+    const r = validateSocraticResponse(cardWith(Q, 'נכון מאוד! עכשיו כתבו בשורת התוצאה איזה מספר מייצגות הלבנים.', ['רמז: מה לא השתנה בבית המספרים?', 'רמז: האם הוספתם לבנים מארגז הכלים?']), after);
+    expect(r.ok, !r.ok ? r.reason : '').toBe(true);
+  });
+
   it('is a rule of that exercise only', () => {
     const r = validateSocraticResponse({
       error_category: 'conceptual', guiding_question: 'מה צריך להיות בטור היחידות בסוף התרגיל?',
@@ -105,11 +130,20 @@ describe('a report names an exercise without a catalog title in Hebrew, never by
   it('the title when there is one', () => {
     expect(exerciseLabelHe({ s4_g_t1: 'חיבור במאונך' }, 's4_g_t1')).toBe('חיבור במאונך');
   });
-  it('choice exercises, compulsory ones, placeholders', () => {
-    expect(exerciseLabelHe({}, 's4_r_reinforce_2')).toBe('משימת ביסוס 2 בתחנה 4');
-    expect(exerciseLabelHe(null, 's7_g_challenge_1')).toBe('משימת אתגר 1 בתחנה 7');
-    expect(exerciseLabelHe(undefined, 's5_g_t3')).toBe('תרגיל 3 בתחנה 5');
-    expect(exerciseLabelHe({}, 'ex_4_01')).toBe('משימה בתחנה 4');
-    expect(exerciseLabelHe({}, 'something')).toBe('משימה');
+  it('choice exercises by the title the teacher\'s screen shows, the rest by meeting and id number', () => {
+    expect(exerciseLabelHe({}, 's4_r_reinforce_2')).toBe('ביסוס 2: המרה אחת בטור היחידות');
+    expect(exerciseLabelHe(null, 's7_g_challenge_1')).toBe('אתגר: תרגיל שלד בתחום הרבבה עם ארבע ספרות חסרות');
+    expect(exerciseLabelHe({}, 's9_g_reinforce_2')).toBe('ביסוס 2 במפגש 9');
+    expect(exerciseLabelHe(undefined, 's5_g_t3')).toBe('תרגיל במפגש 5, מס׳ זיהוי 3');
+    // s1_t8 is not meeting 1's eighth exercise: the number is printed as an id number.
+    expect(exerciseLabelHe(undefined, 's1_t8')).toBe('תרגיל במפגש 1, מס׳ זיהוי 8');
+    expect(exerciseLabelHe({}, 'ex_4_01')).toBe('תרגיל במפגש 4, מס׳ זיהוי 1');
+    expect(exerciseLabelHe({}, 'ex_4_02')).not.toBe(exerciseLabelHe({}, 'ex_4_01'));
+    expect(exerciseLabelHe({}, 'something')).toBe('תרגיל');
+  });
+  it('reports say "מפגש", never "תחנה", and never a Latin letter', () => {
+    for (const id of ['s4_r_reinforce_2', 's9_g_challenge_1', 's5_g_t3', 's1_t8', 'ex_4_01', 's1_r_words703', 'something']) {
+      expect(exerciseLabelHe({}, id), id).not.toMatch(/תחנה|[A-Za-z]/);
+    }
   });
 });
