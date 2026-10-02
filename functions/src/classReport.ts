@@ -47,7 +47,13 @@ import {
   type ExerciseOutcome,
   type Tool,
   type ToolMastery,
+  resetsOfMeeting,
+  resolveMeetingPath,
+  splitMeetingRuns,
+  type MeetingRuns,
+  type WrittenEvent,
 } from "./meetingMetrics";
+import { buildPreResetRecord, classPreResetNotes, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, type PreResetRecord } from "./preResetRecord";
 import { EXACT_AI_FALLBACK_TEXT } from "./pedagogicalReport";
 import { rtlText } from "./hebrewPdf";
 import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htmlPdf";
@@ -163,6 +169,8 @@ export interface ClassLearnerRow {
   session_doc_recommended_path: string | null;
   teacher_selected_path: string | null;
   teacher_gate_approved: boolean;
+  /** Owner, 2.10.2026: where the learner went wrong before this meeting's last reset. Never scored. */
+  pre_reset?: PreResetRecord | null;
 }
 
 export interface ClassExerciseRow {
@@ -185,6 +193,8 @@ export interface ClassAggregates {
   tools_not_used: Record<Tool, number[]>;
   learners_with_data: number;
   learners_without_data: number[];
+  /** Reset in this meeting and not yet worked on again: no score until they do. Absent on older reports. */
+  learners_awaiting_rerun?: number[];
   /** Learners whose meeting has data but whose compulsory count is unknown: no score stated. */
   learners_without_score: number[];
   /** Measure 4, C = 0: learners with data in this meeting who needed no coaching card. Null in meeting 2. */
@@ -356,7 +366,9 @@ const pct = (value: number | null): string => (value === null ? "לא נמדד" 
 export function aggregateClass(
   rows: ClassLearnerRow[],
   eventsByLearner: Map<number, Record<string, any>[]>,
-  sessionNumber?: number
+  sessionNumber?: number,
+  /** Learners whose meeting was reset and who have not worked on it again (owner, 2.10.2026). */
+  awaitingRerun: number[] = []
 ): ClassAggregates {
   const scoredMeeting = sessionNumber === undefined || isScoredMeeting(sessionNumber);
   const toolsNotUsed = Object.fromEntries(
@@ -416,7 +428,9 @@ export function aggregateClass(
     scored: scoredMeeting,
     tools_not_used: toolsNotUsed,
     learners_with_data: rows.length,
-    learners_without_data: ALL_STUDENT_IDS.filter((id) => !withData.has(id)),
+    // A learner reset and not yet back is not "without data": the report lists them apart.
+    learners_without_data: ALL_STUDENT_IDS.filter((id) => !withData.has(id) && !awaitingRerun.includes(id)),
+    learners_awaiting_rerun: [...awaitingRerun].sort((x, y) => x - y),
     // In an unscored meeting no learner "lacks" a score — there is none to lack,
     // and listing all twelve would tell the teacher to republish the catalog.
     learners_without_score: scoredMeeting ? rows.filter((r) => r.score_percent === null).map((r) => r.student_id) : [],
@@ -916,6 +930,13 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
         for (const r of rows) line(`תלמיד ${r.student_id} | ${researchMeasuresLineHe(r)}`, 9, "#0f172a");
       }
 
+      const preResetNotes = classPreResetNotes(report);
+      if (preResetNotes.length > 0) {
+        heading(`4ג. ${PRE_RESET_HEADING_HE}`, "#7c2d12");
+        line(PRE_RESET_NOTE_HE, 9, "#64748b");
+        for (const note of preResetNotes) line(note, 9, "#0f172a");
+      }
+
       heading(scored ? "5. ניתוח הבינה: דפוסים כיתתיים והמלצות הוראה" : "5. ניתוח הבינה: לקראת האבחון", "#92400e");
       const patterns: string[] = Array.isArray(report.class_patterns) ? report.class_patterns : [];
       const teaching: string[] = Array.isArray(report.teaching_recommendations) ? report.teaching_recommendations : [];
@@ -973,28 +994,60 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   const rtdb = admin.database();
 
   // ── 1. Every telemetry event of this meeting, per learner ──────────────
-  const allTelemetry = await readAllDocs(db.collection("telemetry_logs"));
+  // Owner, 2.10.2026: "אני כן רוצה אבל שיהיה תיעוד איפה היו טעויות בלי הורדת
+  // ציונים". Each learner's meetings are cut at their last reset
+  // (meetingMetrics.splitMeetingRuns): everything this report measures counts
+  // the run since that reset; the earlier run becomes a short note, never a score.
+  const [allTelemetry, resetLog] = await Promise.all([
+    readAllDocs(db.collection("telemetry_logs")),
+    readAllDocs(db.collection("reset_audit_log")).catch(() => []),
+  ]);
+  const resetEntries = resetLog.map(({ data }) => data);
+  const written = new Map<string, WrittenEvent[]>();
+  for (const { data, writtenAtMs } of allTelemetry) {
+    const m = sessionNumberFromId(String(data.session_id || ""));
+    const n = studentNumber(data.student_id);
+    if (n === null || m === null) continue;
+    const key = `${n}:${m}`;
+    written.set(key, [...(written.get(key) ?? []), { data, writtenAtMs }]);
+  }
+  const runsByKey = new Map<string, MeetingRuns>();
+  for (const [key, events] of written) {
+    const [n, m] = key.split(":").map(Number);
+    runsByKey.set(key, splitMeetingRuns(events, resetsOfMeeting(resetEntries, n, m)));
+  }
+  const currentRun = (n: number, m: number) => runsByKey.get(`${n}:${m}`)?.current ?? [];
   const eventsByLearner = new Map<number, Record<string, any>[]>();
   // A session-8 report also needs each learner's sessions 4–6 (fading gap).
   const earlierByLearner = new Map<number, Record<string, any>[]>();
   // Research measures 3–4 also carry a cumulative value over the learner's other meetings.
   const allByLearner = new Map<number, Record<string, any>[]>();
+  // Reset in this meeting and not yet worked on again: no run to score.
+  const awaitingRerun: number[] = [];
   let telemetryEventCount = 0;
-  for (const { data } of allTelemetry) {
-    const m = sessionNumberFromId(String(data.session_id || ""));
-    const n = studentNumber(data.student_id);
-    if (n === null) continue;
-    if (m !== null) allByLearner.set(n, [...(allByLearner.get(n) ?? []), data]);
-    if (sessionNumber === 8 && m !== null && m >= 4 && m <= 6) {
-      earlierByLearner.set(n, [...(earlierByLearner.get(n) ?? []), data]);
-      continue;
+  for (const n of ALL_STUDENT_IDS) {
+    const all = [1, 2, 3, 4, 5, 6, 7, 8].flatMap((m) => currentRun(n, m));
+    if (all.length > 0) allByLearner.set(n, all);
+    if (sessionNumber === 8) {
+      const earlier = [4, 5, 6].flatMap((m) => currentRun(n, m));
+      if (earlier.length > 0) earlierByLearner.set(n, earlier);
     }
-    if (m !== sessionNumber) continue;
-    telemetryEventCount++;
-    eventsByLearner.set(n, [...(eventsByLearner.get(n) ?? []), data]);
+    const run = runsByKey.get(`${n}:${sessionNumber}`);
+    if (!run) continue;
+    if (run.current.length > 0) {
+      telemetryEventCount += run.current.length;
+      eventsByLearner.set(n, run.current);
+    } else if (run.beforeReset.length > 0) {
+      awaitingRerun.push(n);
+    }
   }
   if (eventsByLearner.size === 0) {
-    throw new HttpsError("not-found", `אין פעולות מתועדות למפגש ${sessionNumber} של אף תלמיד; אין מה לנתח.`);
+    throw new HttpsError(
+      "not-found",
+      awaitingRerun.length > 0
+        ? `מפגש ${sessionNumber} אופס, ואף תלמיד עוד לא עבד עליו מחדש; אין עדיין מה לנתח.`
+        : `אין פעולות מתועדות למפגש ${sessionNumber} של אף תלמיד; אין מה לנתח.`
+    );
   }
 
   // ── 2. The learners' live records: path, recordings ─────────────────────
@@ -1068,23 +1121,35 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   const compulsoryCache = new Map<string, number | null>();
   const compulsoryIdsByBank = new Map<string, ReadonlySet<string>>();
   const learners: ClassLearnerRow[] = [];
+  // The exercises by the titles the teacher's screens show, not by their ids.
+  const exerciseTitles = await readExerciseTitles(db, sessionNumber);
   for (const n of Array.from(eventsByLearner.keys()).sort((a, b) => a - b)) {
-    const pathOf = learnerPath.get(n) ?? "green_path";
+    const events = eventsByLearner.get(n) ?? [];
+    // Scored on the path the learner worked on in THIS meeting, not the current
+    // one: a learner moved to the other track afterwards scored 0% here.
+    const pathOf = await resolveMeetingPath(db, sessionNumber, events, learnerPath.get(n) ?? "green_path", compulsoryCache, compulsoryIdsByBank);
     const compulsory = await resolveCompulsoryTotal(db, sessionNumber, pathOf, compulsoryCache, compulsoryIdsByBank);
-    learners.push(buildLearnerRow(
-      n, eventsByLearner.get(n) ?? [], compulsory, pathOf,
-      sessionDocByLearner.get(n) ?? null, recordingByLearner.get(n) ?? null, reflectionsByLearner.get(n) ?? 0,
-      sessionNumber === 8 ? (earlierByLearner.get(n) ?? []) : null,
-      { sessionNumber, allEvents: allByLearner.get(n) ?? [] },
-      compulsoryIdsByBank.get(`${sessionNumber}:${pathOf}`) ?? null
-    ));
+    const run = runsByKey.get(`${n}:${sessionNumber}`);
+    learners.push({
+      ...buildLearnerRow(
+        n, events, compulsory, pathOf,
+        sessionDocByLearner.get(n) ?? null, recordingByLearner.get(n) ?? null, reflectionsByLearner.get(n) ?? 0,
+        sessionNumber === 8 ? (earlierByLearner.get(n) ?? []) : null,
+        { sessionNumber, allEvents: allByLearner.get(n) ?? [] },
+        compulsoryIdsByBank.get(`${sessionNumber}:${pathOf}`) ?? null
+      ),
+      pre_reset: run ? buildPreResetRecord(run, exerciseTitles) : null,
+    });
   }
-  const aggregates = aggregateClass(learners, eventsByLearner, sessionNumber);
+  // Reset and not yet worked on again: listed with their note, without a row or a score.
+  const awaitingRerunNotes = awaitingRerun.map((n) => {
+    const run = runsByKey.get(`${n}:${sessionNumber}`);
+    return { student_id: n, pre_reset: run ? buildPreResetRecord(run, exerciseTitles) : null };
+  });
+  const aggregates = aggregateClass(learners, eventsByLearner, sessionNumber, awaitingRerun);
 
   // ── 5. Layer 2 ──────────────────────────────────────────────────────────
   const analysis = await generateClassAnalysis({ class_id: classId, session_number: sessionNumber, aggregates, learners });
-  // The exercises by the titles the teacher's screens show, not by their ids.
-  const exerciseTitles = await readExerciseTitles(db, sessionNumber);
 
   const generatedAt = Date.now();
   const reportId = `${classId}_session_${sessionNumber}`;
@@ -1098,6 +1163,8 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
     learners,
     aggregates,
     exercise_titles: exerciseTitles,
+    // Reset in this meeting and not yet worked on again: their note, no row and no score.
+    awaiting_rerun: awaitingRerunNotes,
     class_patterns: analysis?.class_patterns ?? [],
     teaching_recommendations: analysis?.teaching_recommendations ?? [],
     ai_analysis_available: Boolean(analysis),

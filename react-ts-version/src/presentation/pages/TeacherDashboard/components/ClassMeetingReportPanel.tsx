@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FileDown, FileText, Loader2, Sparkles, Users, ChevronDown, ChevronUp } from 'lucide-react';
-import { AI_FALLBACK_TEXT, REPORT_PROCESSING_TEXT, describeReportError, formatClock, formatDate } from '@/infrastructure/services/LearnerJourneyService';
+import { AI_FALLBACK_TEXT, REPORT_PROCESSING_TEXT, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, describeReportError, formatClock, formatDate } from '@/infrastructure/services/LearnerJourneyService';
 import {
   fetchClassReport,
   generateClassReport,
@@ -377,6 +377,17 @@ export function ClassMeetingReportPanel() {
               </tbody>
             </table>
           </div>
+
+          {/* Owner, 2.10.2026: the mistakes before a reset, documented apart; the table above counts the new run. */}
+          {report.preResetNotes.length > 0 && (
+            <div className="p-3 rounded-xl bg-orange-50 border border-orange-200 text-orange-950 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-100" data-testid="class-pre-reset">
+              <div className="font-black mb-1">{PRE_RESET_HEADING_HE}</div>
+              <div className="text-[11px] opacity-80 mb-1">{PRE_RESET_NOTE_HE}</div>
+              <ul className="space-y-1">
+                {report.preResetNotes.map((note, i) => <li key={i}>• {note}</li>)}
+              </ul>
+            </div>
+          )}
 
           {/* PRD 7.3, Module 23 §ב "מדדי המחקר": shown in the class report. They were in the PDF and the CSV only. */}
           <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 overflow-x-auto">

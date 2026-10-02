@@ -91,7 +91,9 @@ describe('one pattern for both callers', () => {
     expect(gemini).toContain('import { redactPhoneNumbers } from "./phonePattern";');
     expect(gemini).toContain('scrubbed = redactPhoneNumbers(scrubbed);');
     expect(exporter).toContain('import { containsPhoneNumber } from "./phonePattern";');
-    expect(exporter).toContain('if (piiRegex.test(allContent) || containsPhoneNumber(allContent)) {');
+    // The gate lives in researchFilesContainPii since 2.10.2026 (audit M-export).
+    expect(exporter).toContain('return piiRegex.test(content) || containsPhoneNumber(content);');
+    expect(exporter).toContain('if (researchFilesContainPii(allContent)) {');
     // The old narrow phone pattern is gone from the gate.
     expect(exporter).not.toContain('05\\d-?\\d{7}');
   });

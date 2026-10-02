@@ -153,6 +153,35 @@ export function classifyResearchExportFiles(files: unknown): {
   return { failed, parked };
 }
 
+export const RESEARCH_EXPORT_RETRY_HE = 'ייצוא נתוני המחקר נכשל בגלל תקלה זמנית. נסו שוב בעוד כמה דקות.';
+
+/**
+ * What the teacher reads when the research export fails. Every failure used to
+ * read "נסו שוב מאוחר יותר" unless the message held the Latin word "PII" —
+ * which the server's Hebrew refusal never did — so a refusal no retry can fix
+ * (the PII gate, audit M-export) sent the teacher to try again, and again.
+ * Now: the PII refusal (details.reason "pii") and every other final refusal
+ * show the server's own Hebrew sentence; only a transient failure asks for a
+ * retry.
+ */
+export function describeResearchExportError(err: unknown): string {
+  const e = (err ?? {}) as { code?: unknown; message?: unknown; details?: unknown };
+  const code = String(e.code ?? '').replace(/^functions\//, '');
+  const message = typeof e.message === 'string' ? e.message : '';
+  const hebrew = /[א-ת]/.test(message);
+  const details = e.details && typeof e.details === 'object' ? (e.details as Record<string, unknown>) : {};
+  if (details.reason === 'pii') {
+    return hebrew ? message : 'ייצוא נתוני המחקר נעצר: בקבצים נמצא מידע שנראה מזהה. שום קובץ לא נשלח. פנו למנהל המערכת.';
+  }
+  const finalCodes = new Set(['failed-precondition', 'invalid-argument', 'permission-denied', 'unauthenticated', 'not-found']);
+  if (finalCodes.has(code)) {
+    return hebrew ? message : code === 'permission-denied' || code === 'unauthenticated'
+      ? 'אין לחשבון הזה הרשאה לייצא את נתוני המחקר.'
+      : 'ייצוא נתוני המחקר נדחה.';
+  }
+  return RESEARCH_EXPORT_RETRY_HE;
+}
+
 interface HeatmapGridProps {
   /** Called when teacher clicks Drill Down — parent opens the learner drawer */
   onDrillDown?: (studentId: string) => void;
@@ -488,7 +517,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       }
     } catch (err: any) {
       console.error('[Module 24] Research dataset export failed:', err);
-      toast.error(err?.message?.includes('PII') ? err.message : 'ייצוא נתוני המחקר נכשל. נסו שוב מאוחר יותר.');
+      toast.error(describeResearchExportError(err), { duration: 12000 });
     } finally {
       setIsExportingDataset(false);
     }

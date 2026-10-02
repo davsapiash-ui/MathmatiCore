@@ -75,3 +75,26 @@ export function errorCategoryCountsHe(map: Record<string, number> | null | undef
  */
 export const COLUMN_NAMES_HE = ["יחידות", "עשרות", "מאות", "אלפים"] as const;
 
+/**
+ * Why the teacher reset a meeting, as the reports print it (the "לפני האיפוס"
+ * section, owner 2.10.2026). The source of truth is RESET_REASON_HE in
+ * react-ts-version/src/core/routeLabels.ts, the closed list the reset dialog
+ * offers; `__tests__/teacherLabels.test.ts` keeps this copy equal. Only "other"
+ * is shorter here, as resetReasonHe there prints it: the dialog's
+ * "(פירוט בהערה)" asks for a note, and the note is not printed in a report.
+ */
+export const RESET_REASON_HE = {
+  technical_fault: "תקלה טכנית במכשיר או בתקשורת",
+  student_stuck: "הלומד נתקע וזקוק להתחלה מחדש",
+  restart_session: "פתיחה מחודשת של המפגש לכלל הכיתה",
+  test_run: "הרצת בדיקה / פיילוט מבוקר",
+  other: "אחר",
+} as const;
+
+/** The Hebrew reason for a stored reset_reason, or null for a value outside the list. */
+export function resetReasonHe(key: string | null | undefined): string | null {
+  return typeof key === "string" && Object.prototype.hasOwnProperty.call(RESET_REASON_HE, key)
+    ? RESET_REASON_HE[key as keyof typeof RESET_REASON_HE]
+    : null;
+}
+

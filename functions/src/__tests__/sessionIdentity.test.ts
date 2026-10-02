@@ -51,7 +51,9 @@ describe('ייצוא המחקר — מה יוצא ומה נשאר', () => {
   });
 
   it('בדיקת ה-PII אינה מחריגה את הקורא', () => {
-    expect(fn).toContain('if (piiRegex.test(allContent) || containsPhoneNumber(allContent))');
+    // The gate moved into researchFilesContainPii (audit M-export, 2.10.2026); it still scans every file.
+    expect(fn).toContain('if (researchFilesContainPii(allContent))');
+    expect(src).toContain('return piiRegex.test(content) || containsPhoneNumber(content);');
     expect(fn).not.toContain('allContent.split(userEmail)');
   });
 

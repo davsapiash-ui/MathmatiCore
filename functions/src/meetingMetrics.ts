@@ -246,15 +246,16 @@ const MAX_PAGES = 2000; // one million documents — a hard stop, never reached 
  */
 export async function readAllDocs(
   base: admin.firestore.Query
-): Promise<Array<{ id: string; data: Record<string, any> }>> {
-  const docs: Array<{ id: string; data: Record<string, any> }> = [];
+): Promise<Array<{ id: string; data: Record<string, any>; writtenAtMs: number | null }>> {
+  const docs: Array<{ id: string; data: Record<string, any>; writtenAtMs: number | null }> = [];
   const query = base.orderBy(admin.firestore.FieldPath.documentId()).limit(PAGE);
   let last: admin.firestore.QueryDocumentSnapshot | null = null;
   for (let page = 0; page < MAX_PAGES; page++) {
     const pageQuery: admin.firestore.Query = last ? query.startAfter(last) : query;
     const snap: admin.firestore.QuerySnapshot = await pageQuery.get();
     if (snap.empty) break;
-    for (const d of snap.docs) docs.push({ id: d.id, data: d.data() });
+    // The server's write time travels with the data: the reports cut a meeting at its last reset by it.
+    for (const d of snap.docs) docs.push({ id: d.id, data: d.data(), writtenAtMs: d.createTime?.toMillis?.() ?? null });
     last = snap.docs[snap.docs.length - 1];
     if (snap.size < PAGE) break;
   }
@@ -577,19 +578,175 @@ export function lastResetOfMeeting(
   studentNumber: number,
   sessionNumber: number
 ): number | null {
-  let last: number | null = null;
+  const resets = resetsOfMeeting(entries, studentNumber, sessionNumber);
+  return resets.length === 0 ? null : resets[resets.length - 1].at;
+}
+
+/** One reset that restarted a meeting for one learner (the rule of lastResetOfMeeting). */
+export interface MeetingReset {
+  /** performed_at: the server's time when the reset was carried out. */
+  at: number;
+  /** The teacher's reason from the closed list (exportDriveReport VALID_RESET_REASONS), or null. */
+  reason: string | null;
+  /** What was reset: the whole system, the whole learner, or this meeting. */
+  scope: "system" | "full_student" | "active_session";
+}
+
+/**
+ * Every reset that restarted this meeting for this learner, oldest first. The
+ * same rule as lastResetOfMeeting, which is the last of these.
+ */
+export function resetsOfMeeting(
+  entries: Record<string, any>[],
+  studentNumber: number,
+  sessionNumber: number
+): MeetingReset[] {
+  const out: MeetingReset[] = [];
   for (const e of entries) {
     if (e?.backup_status !== "success") continue;
     if (!Array.isArray(e.affected_student_ids) || !e.affected_student_ids.includes(studentNumber)) continue;
-    const covers =
-      e.reset_level === "system" ||
-      (e.reset_level === "single_student" &&
-        (e.reset_scope === "full_student" ||
-          (e.reset_scope === "active_session" && Number(e.session_number) === sessionNumber)));
+    const scope: MeetingReset["scope"] | null =
+      e.reset_level === "system"
+        ? "system"
+        : e.reset_level === "single_student" && e.reset_scope === "full_student"
+          ? "full_student"
+          : e.reset_level === "single_student" && e.reset_scope === "active_session" && Number(e.session_number) === sessionNumber
+            ? "active_session"
+            : null;
     const at = Number(e.performed_at);
-    if (covers && Number.isFinite(at) && (last === null || at > last)) last = at;
+    if (scope === null || !Number.isFinite(at)) continue;
+    out.push({ at, reason: typeof e.reset_reason === "string" ? e.reset_reason : null, scope });
   }
-  return last;
+  return out.sort((a, b) => a.at - b.at);
+}
+
+/**
+ * One meeting of one learner, cut at the last reset of that meeting.
+ *
+ * Owner, 2.10.2026: "אני כן רוצה אבל שיהיה תיעוד איפה היו טעויות בלי הורדת
+ * ציונים". The score, the working group and the exercise table of every report
+ * count `current` only — the run since the last reset, by the server's write
+ * time, as the meeting-2 gate score already did (PR #161). `beforeReset` is
+ * kept for the reports' "לפני האיפוס" section, which documents the earlier
+ * mistakes and never enters a score.
+ */
+export interface MeetingRuns {
+  resets: MeetingReset[];
+  /** Since the last reset (every event when there was none), in the order the learner produced them. */
+  current: Record<string, any>[];
+  /** Before the last reset; empty when there was none. */
+  beforeReset: Record<string, any>[];
+  /** Server write time of the meeting's earliest event, when known. */
+  firstWrittenAtMs: number | null;
+}
+
+/** A telemetry event with the server's own write time (null when unknown: counted in the current run). */
+export interface WrittenEvent {
+  data: Record<string, any>;
+  writtenAtMs: number | null;
+}
+
+const byClientTime = (a: Record<string, any>, b: Record<string, any>) => (a.client_timestamp || 0) - (b.client_timestamp || 0);
+
+export function splitMeetingRuns(events: WrittenEvent[], resets: MeetingReset[]): MeetingRuns {
+  const cut = resets.length === 0 ? null : resets[resets.length - 1].at;
+  const current: Record<string, any>[] = [];
+  const beforeReset: Record<string, any>[] = [];
+  let first: number | null = null;
+  for (const e of events) {
+    if (e.writtenAtMs !== null && (first === null || e.writtenAtMs < first)) first = e.writtenAtMs;
+    // The same test as readMeetingTelemetry's writtenAfterMs.
+    if (cut === null || e.writtenAtMs === null || e.writtenAtMs > cut) current.push(e.data);
+    else beforeReset.push(e.data);
+  }
+  current.sort(byClientTime);
+  beforeReset.sort(byClientTime);
+  return { resets, current, beforeReset, firstWrittenAtMs: first };
+}
+
+/**
+ * Every meeting of one learner, each cut at its own last reset: one read of the
+ * learner's telemetry and one of the reset log. Meetings with no event are absent.
+ */
+export async function readLearnerMeetingRuns(
+  db: admin.firestore.Firestore,
+  studentNumber: number
+): Promise<Map<number, MeetingRuns>> {
+  const [telemetry, resetLog] = await Promise.all([
+    db.collection("telemetry_logs").where("student_id", "==", studentNumber).get(),
+    db.collection("reset_audit_log").where("affected_student_ids", "array-contains", studentNumber).get(),
+  ]);
+  const entries = resetLog.docs.map((d) => d.data());
+  const byMeeting = new Map<number, WrittenEvent[]>();
+  for (const d of telemetry.docs) {
+    const data = d.data();
+    const m = sessionNumberFromId(String(data?.session_id || ""));
+    if (m === null) continue;
+    const list = byMeeting.get(m) ?? [];
+    list.push({ data, writtenAtMs: d.createTime?.toMillis?.() ?? null });
+    byMeeting.set(m, list);
+  }
+  const out = new Map<number, MeetingRuns>();
+  for (const [m, events] of byMeeting) out.set(m, splitMeetingRuns(events, resetsOfMeeting(entries, studentNumber, m)));
+  return out;
+}
+
+export type LearningPath = "green_path" | "remediation_path";
+
+/** The id spelling of the compulsory and choice banks of meetings 3–8: s4_g_t1, s4_r_reinforce_2. */
+const PATH_EXERCISE_ID = /^s\d+_([gr])_/;
+
+/**
+ * The path the learner actually worked on in one meeting, from the exercises
+ * they answered there: the path whose exercises they opened most. The bank ids
+ * of the published catalog are trusted first, the id spelling after them. Null
+ * when the events name no exercise of either path (or as many of each).
+ *
+ * The score used to take the learner's CURRENT path. The two paths have
+ * different exercise ids, so a learner moved to the other track after meeting
+ * 3 got 0% on every report of meeting 3 produced afterwards (audit reports-14).
+ */
+export function pathOfMeeting(
+  events: Record<string, any>[],
+  idsByPath: Partial<Record<LearningPath, ReadonlySet<string> | null | undefined>> = {}
+): LearningPath | null {
+  const seen: Record<LearningPath, Set<string>> = { green_path: new Set(), remediation_path: new Set() };
+  for (const ev of events) {
+    const exId = String(ev?.exercise_id || "");
+    if (!exId || !isExerciseEvent(ev)) continue;
+    if (idsByPath.green_path?.has(exId)) seen.green_path.add(exId);
+    else if (idsByPath.remediation_path?.has(exId)) seen.remediation_path.add(exId);
+    else {
+      const m = PATH_EXERCISE_ID.exec(exId);
+      if (m) seen[m[1] === "g" ? "green_path" : "remediation_path"].add(exId);
+    }
+  }
+  const g = seen.green_path.size;
+  const r = seen.remediation_path.size;
+  return g === r ? null : g > r ? "green_path" : "remediation_path";
+}
+
+/**
+ * The path a meeting is scored on: the one the learner worked on in it
+ * (pathOfMeeting), else `fallback` (the learner's current path). Meetings 1
+ * and 2 have no path of their own. Fills `idsOut` for both paths, as
+ * resolveCompulsoryTotal does.
+ */
+export async function resolveMeetingPath(
+  db: admin.firestore.Firestore,
+  sessionNumber: number,
+  events: Record<string, any>[],
+  fallback: LearningPath,
+  cache: Map<string, number | null> = new Map(),
+  idsOut: Map<string, ReadonlySet<string>> = new Map()
+): Promise<LearningPath> {
+  if (sessionNumber < 3 || sessionNumber > 8) return fallback;
+  await resolveCompulsoryTotal(db, sessionNumber, "green_path", cache, idsOut);
+  await resolveCompulsoryTotal(db, sessionNumber, "remediation_path", cache, idsOut);
+  return pathOfMeeting(events, {
+    green_path: idsOut.get(`${sessionNumber}:green_path`),
+    remediation_path: idsOut.get(`${sessionNumber}:remediation_path`),
+  }) ?? fallback;
 }
 
 export async function readLastResetOfMeeting(

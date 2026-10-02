@@ -57,7 +57,8 @@ describe('Module 24 — research export covers the whole process', () => {
   });
 
   it('keeps the PII gate, the class scope and the audit entry', () => {
-    expect(exportSection).toContain('ייצוא נתוני המחקר נדחה: זוהו פרטים מזהים.');
+    // Audit M-export (2.10.2026): the refusal says why and that a retry will not help, and carries details.reason.
+    expect(exportSection).toContain('throw new HttpsError("failed-precondition", RESEARCH_EXPORT_PII_REFUSAL_HE, { reason: "pii" });');
     expect(exportSection).toMatch(/callerClassId !== class_id/);
     expect(exportSection).toMatch(/reset_level: "export",/);
   });

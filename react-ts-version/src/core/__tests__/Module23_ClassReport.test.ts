@@ -25,9 +25,11 @@ describe('Module 23 — class report per meeting (server)', () => {
   });
 
   it('reads every event of the meeting for every learner, by the same functions as the individual report', () => {
-    expect(server).toMatch(/await readAllDocs\(db\.collection\("telemetry_logs"\)\)/);
+    expect(server).toMatch(/readAllDocs\(db\.collection\("telemetry_logs"\)\)/);
     expect(server).toMatch(/const m = sessionNumberFromId\(String\(data\.session_id \|\| ""\)\);/);
-    expect(server).toMatch(/if \(m !== sessionNumber\) continue;/);
+    // Owner, 2.10.2026: each learner's meeting is cut at its last reset, and the row counts the new run.
+    expect(server).toMatch(/splitMeetingRuns\(events, resetsOfMeeting\(resetEntries, n, m\)\)/);
+    expect(server).toMatch(/const run = runsByKey\.get\(`\$\{n\}:\$\{sessionNumber\}`\);/);
     // With the ids of the compulsory exercises: without them the numerator also
     // counted optional early-finisher tasks (dashboard audit, 20.9.2026).
     expect(server).toMatch(/const first = computeFirstAttemptScore\(sorted, compulsoryTotal, compulsoryIds\);/);

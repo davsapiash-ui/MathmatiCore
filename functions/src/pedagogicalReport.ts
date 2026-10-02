@@ -23,7 +23,9 @@ import {
   FLEXIBILITY_SESSIONS,
   flexibilityHe,
   mediationHe,
-  readMeetingTelemetry,
+  readLearnerMeetingRuns,
+  resolveMeetingPath,
+  type LearningPath,
   sessionNumberFromId,
   computeExerciseOutcomes,
   computeToolMastery,
@@ -37,6 +39,7 @@ import {
   type Tool,
 } from "./meetingMetrics";
 import { GEMINI_SECRETS } from "./geminiConfig";
+import { buildPreResetRecord, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE } from "./preResetRecord";
 import {
   buildFailedExercises,
   buildTelemetrySummary,
@@ -380,6 +383,23 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
       }
       doc.moveDown(1);
 
+      // Owner, 2.10.2026: before the meeting's last reset — documented, never scored.
+      const preResetLines: string[] = Array.isArray(report.pre_reset?.lines_he) ? report.pre_reset.lines_he : [];
+      if (preResetLines.length > 0) {
+        doc.fontSize(14).fillColor("#7c2d12");
+        rtlText(doc, PRE_RESET_HEADING_HE);
+        doc.moveDown(0.2);
+        doc.fontSize(9).fillColor("#64748b");
+        rtlText(doc, PRE_RESET_NOTE_HE, { lineGap: 3 });
+        doc.moveDown(0.3);
+        for (const line of preResetLines) {
+          doc.fontSize(10).fillColor("#334155");
+          rtlText(doc, `• ${line}`, { lineGap: 3 });
+          doc.moveDown(0.2);
+        }
+        doc.moveDown(1);
+      }
+
       // AI Insights (Module 23 layer 2) / Exact Fallback
       doc.fontSize(14).fillColor("#92400e");
       rtlText(doc, sandbox ? "4. לקראת האבחון" : "3. תובנות קוגניטיביות פדגוגיות");
@@ -531,7 +551,21 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // reading by the one string the caller happened to pass silently dropped
   // the rest: a narrative that ended after the first exercise, a score
   // computed on half a meeting. Same lesson as the score trigger (#93).
-  const telemetryDocs = await readMeetingTelemetry(db, clampedStudentNum, resolvedSessionNumber);
+  //
+  // Owner, 2.10.2026: "אני כן רוצה אבל שיהיה תיעוד איפה היו טעויות בלי הורדת
+  // ציונים". Every meeting is cut at its last reset (meetingMetrics.
+  // splitMeetingRuns, the rule of the meeting-2 gate score): the score, the
+  // working group, the narrative and the measures count the run since that
+  // reset; what came before it is documented apart (pre_reset) and scores nothing.
+  const learnerRuns = await readLearnerMeetingRuns(db, clampedStudentNum);
+  const meetingRuns = learnerRuns.get(resolvedSessionNumber) ?? null;
+  const telemetryDocs = meetingRuns ? meetingRuns.current : [];
+  if (telemetryDocs.length === 0 && meetingRuns && meetingRuns.beforeReset.length > 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      `מפגש ${resolvedSessionNumber} של תלמיד ${clampedStudentNum} אופס, והתלמיד עוד לא עבד עליו מחדש. אפשר להפיק את הדוח אחרי שיעבוד על המפגש שוב.`
+    );
+  }
 
   // The student number in the heading came from the caller and was never
   // checked against the events actually read. A stale or mistyped call
@@ -563,6 +597,13 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     )
   );
   const studentVal = aliasSnaps.find((snap) => snap.exists())?.val() || {};
+  const currentPath: LearningPath =
+    studentVal.teacher_selected_path === "remediation_path" || studentVal.pedagogicalPath === "remediation_path"
+      ? "remediation_path" : "green_path";
+  // Meetings 3–8: the path of the exercises the learner answered in this meeting (null elsewhere).
+  const meetingPath: LearningPath | null = resolvedSessionNumber >= 3 && resolvedSessionNumber <= 8
+    ? await resolveMeetingPath(db, resolvedSessionNumber, telemetryDocs, currentPath)
+    : null;
 
   // Module 14 §ב: meeting 1 "אינו מקבל ציון, ואינו מפעיל את נוסחת
   // session_score_percent". Its report is built without one — and without the
@@ -592,13 +633,15 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     // cannot disagree — and it returns WHICH exercises are compulsory. Without
     // the ids the numerator also counted optional early-finisher tasks: 4 of 7
     // compulsory plus 2 optional, all first try, was reported as 86%.
-    const scoringPath: "green_path" | "remediation_path" =
-      studentVal.teacher_selected_path === "remediation_path" || studentVal.pedagogicalPath === "remediation_path"
-        ? "remediation_path" : "green_path";
+    // The path the learner worked on IN THIS MEETING, not the current one: a
+    // learner moved to the other track after meeting 3 scored 0% on every
+    // later report of meeting 3, the other path's exercises having other ids.
     const compulsoryIdsByBank = new Map<string, ReadonlySet<string>>();
+    const compulsoryCache = new Map<string, number | null>();
+    const scoringPath = meetingPath ?? currentPath;
     const compulsoryTotal: number | null = resolvedSessionNumber === 2
       ? DIAGNOSTIC_COMPULSORY_COUNT
-      : await resolveCompulsoryTotal(db, resolvedSessionNumber, scoringPath, new Map(), compulsoryIdsByBank);
+      : await resolveCompulsoryTotal(db, resolvedSessionNumber, scoringPath, compulsoryCache, compulsoryIdsByBank);
     const first = computeFirstAttemptScore(
       telemetryDocs,
       compulsoryTotal,
@@ -716,13 +759,14 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // matches this learner's approved path so the failed exercises carry their
   // real operands and labels. Absent bank is not an error — buildFailedExercises
   // then describes only what the telemetry proves.
-  const analysisPath: "green_path" | "remediation_path" | null =
-    sessionData.teacher_selected_path === "green_path" ||
+  // Meetings 3–8: the bank of the path this meeting was worked on, so its exercises are found.
+  const analysisPath: "green_path" | "remediation_path" | null = meetingPath ??
+    (sessionData.teacher_selected_path === "green_path" ||
     sessionData.teacher_selected_path === "remediation_path"
       ? sessionData.teacher_selected_path
       : sessionData.matrix_recommended_path === "remediation_path"
       ? "remediation_path"
-      : null;
+      : null);
 
   let catalogTasks: Record<string, any>[] = [];
   try {
@@ -780,16 +824,15 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   const choiceExerciseNarratives = narrativesByPath.choice;
 
   // Research measures 3–4 (PRD 7.3, Module 23 §ב). The cumulative values need
-  // the same learner's other meetings; a failure to read them leaves the
-  // cumulative values unmeasured and never fails the report.
-  let allMeetingsEvents: Record<string, any>[] | null = null;
-  try {
-    const otherMeetings = [1, 2, 3, 4, 5, 6, 7, 8].filter((n) => n !== resolvedSessionNumber);
-    const lists = await Promise.all(otherMeetings.map((n) => readMeetingTelemetry(db, clampedStudentNum, n)));
-    allMeetingsEvents = [...telemetryDocs, ...lists.flat()];
-  } catch (err) {
-    logger.warn("Research measures: the learner's other meetings could not be read", err);
-  }
+  // the same learner's other meetings, read above with this one — each by its
+  // own run since its own last reset, as this one.
+  const otherMeetings = [1, 2, 3, 4, 5, 6, 7, 8].filter((n) => n !== resolvedSessionNumber);
+  const allMeetingsEvents: Record<string, any>[] = [
+    ...telemetryDocs,
+    ...otherMeetings.flatMap((n) => learnerRuns.get(n)?.current ?? []),
+  ];
+  // "לפני האיפוס": where the learner went wrong before this meeting's last reset. Never scored.
+  const preReset = meetingRuns ? buildPreResetRecord(meetingRuns, titlesById) : null;
   const researchMeasures = {
     // Measure 2ב, self-correction; the key keeps its old name (owner, 30.9.2026).
     persistence: computeSelfCorrectionIndex(telemetryDocs),
@@ -844,6 +887,10 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     tool_mastery: toolMastery,
     exercise_outcomes: exerciseOutcomes,
     exercise_titles: exerciseTitles,
+    // Meetings 3–8: the path this meeting was scored on — the one the learner worked on in it.
+    meeting_path: meetingPath,
+    // Owner, 2.10.2026: the mistakes before this meeting's last reset, documented apart and never scored.
+    pre_reset: preReset,
     summary_text_he: score === null
       ? `דוח היכרות וריענון למפגש ${resolvedSessionNumber}, ללא ציון. כלים שעוד לא הופעלו: ${toolMastery && toolMastery.not_used.length > 0 ? toolMastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") : "אין"}.`
       : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%.${resolvedSessionNumber === 2 ? ` מסלול מומלץ: ${score >= 50 ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}.` : ""}`
@@ -910,6 +957,8 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       exercise_narratives: exerciseNarratives,
       choice_exercise_narratives: choiceExerciseNarratives,
       research_measures: researchMeasures,
+      meeting_path: meetingPath,
+      pre_reset: preReset,
       knowledge_gaps: report.knowledge_gaps,
       teaching_recommendations: report.teaching_recommendations,
       ai_analysis_available: report.ai_analysis_available,
