@@ -101,6 +101,59 @@ export function buildGateStudentItem(
   };
 }
 
+/** A learner who started meeting 2 and has not finished it. */
+export interface UnfinishedMeeting2Item {
+  studentId: string;
+  anonymousLabel: string;
+  /** The diagnostic task (1–7) the learner was on when the meeting stopped. */
+  currentTask: number;
+}
+
+/**
+ * Learner `n` started meeting 2 and has not finished it: the learner's saved
+ * work on the record is meeting 2's (the copy the workspace restores from,
+ * core/workspaceSnapshot.ts isRestorableFor) and meeting 2 is not completed.
+ * A teacher's reset of the meeting clears that copy, so a learner reset and
+ * not started again is not listed.
+ *
+ * Owner decision, 2.10.2026: a meeting 2 that closed by time (the 45-minute
+ * cap, the teacher-disconnect window) completes no one and keeps everything,
+ * and the teacher may give these learners time to finish from where they are.
+ * Before this they were in no list at all: not at the gate, and stuck before
+ * meeting 3 with nothing telling the teacher why.
+ */
+export function buildUnfinishedMeeting2Item(
+  n: number,
+  students: Record<string, StudentData | undefined>,
+  session2Docs: Record<string, Partial<SessionDocument> | undefined>,
+): UnfinishedMeeting2Item | null {
+  if (buildGateStudentItem(n, students, session2Docs).isCompleted) return null;
+  const studentData = students[`student_user${n}`] || students[`student_${n}`] || students[String(n)];
+  const saved = (studentData?.workspaceState ?? null) as
+    | { sessionNumber?: unknown; flowStatus?: unknown; qflow?: { taskIdx?: unknown } }
+    | null;
+  if (!saved || saved.sessionNumber !== 2 || !saved.flowStatus) return null;
+  const idx = finiteNumber(saved.qflow?.taskIdx);
+  return {
+    studentId: `student_${n}`,
+    anonymousLabel: `תלמיד ${n}`,
+    currentTask: idx !== null && idx >= 0 && idx < 7 ? Math.floor(idx) + 1 : 1,
+  };
+}
+
+/** Every learner 1–12 who started meeting 2 and has not finished it. */
+export function buildUnfinishedMeeting2Items(
+  students: Record<string, StudentData | undefined>,
+  session2Docs: Record<string, Partial<SessionDocument> | undefined>,
+): UnfinishedMeeting2Item[] {
+  const items: UnfinishedMeeting2Item[] = [];
+  for (let i = 1; i <= 12; i++) {
+    const item = buildUnfinishedMeeting2Item(i, students, session2Docs);
+    if (item) items.push(item);
+  }
+  return items;
+}
+
 /** Every learner 1–12 who finished meeting 2 — the rows of the approvals table. */
 export function buildGateStudentItems(
   students: Record<string, StudentData | undefined>,

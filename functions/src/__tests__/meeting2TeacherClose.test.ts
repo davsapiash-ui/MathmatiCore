@@ -16,6 +16,7 @@ const h = vi.hoisted(() => ({
   docs: {} as Record<string, Record<string, any>>, // "collection/id" → data
   rtdb: {} as Record<string, any>,                   // "users/students/student_user4" → record
   firestoreWrites: [] as string[],
+  createTimes: {} as Record<string, number>,         // "collection/id" → the server's write time
 }));
 
 vi.mock('firebase-admin', async (importOriginal) => {
@@ -47,7 +48,11 @@ vi.mock('firebase-admin', async (importOriginal) => {
             op === 'array-contains' ? Array.isArray(d[field]) && d[field].includes(value) : d[field] === value;
           const docs = Object.entries(h.docs)
             .filter(([p, d]) => p.startsWith(`${name}/`) && matches(d))
-            .map(([p, d]) => ({ id: p.slice(name.length + 1), data: () => ({ ...d }) }));
+            .map(([p, d]) => ({
+              id: p.slice(name.length + 1),
+              data: () => ({ ...d }),
+              createTime: p in h.createTimes ? { toMillis: () => h.createTimes[p] } : undefined,
+            }));
           return { docs, empty: docs.length === 0, size: docs.length };
         },
       }),
@@ -101,16 +106,22 @@ import {
   diagnosticQMatrixAtClose,
   isTeacherCloseOfMeeting2,
   onMeeting2ClosedByTeacher,
+  onMeeting2CompletionRecorded,
   Q_FAIL_TAG,
   Q_NOT_ANSWERED_TAG,
+  rescoreCompletedMeeting2,
 } from '../meeting2Close';
+import { computeCognitiveMastery } from '../diagnosticMastery';
 import { onSessionCompleteTrigger } from '../sessionTrigger';
 import * as admin from 'firebase-admin';
 
 // ── Meeting-2 telemetry, as the learner's client sends it ───────────────────
 let seq = 0;
+/** When set, each new event is stamped with this server write time (then +1). */
+let writeClock: number | null = null;
 function addEvent(student: number, exercise_id: string, event_type: string, details: Record<string, unknown> = {}) {
   seq++;
+  if (writeClock !== null) h.createTimes[`telemetry_logs/ev_${seq}`] = writeClock++;
   h.docs[`telemetry_logs/ev_${seq}`] = {
     student_id: student,
     session_id: `session_2_student_student_user${student}`,
@@ -160,7 +171,9 @@ beforeEach(() => {
   h.docs = {};
   h.rtdb = {};
   h.firestoreWrites = [];
+  h.createTimes = {};
   seq = 0;
+  writeClock = null;
 });
 
 describe('which write is the teacher closing meeting 2', () => {
@@ -325,5 +338,175 @@ describe('the RTDB trigger', () => {
       data: { before: snap(open2), after: snap({ active: false, status: 'closed', sessionNumber: null, endedAt: 2, closedBy: 'teacher' }) },
     });
     expect(h.docs['sessions/session_02_student_6']).toMatchObject({ is_completed: true });
+  });
+
+  it('a close by time (the 45-minute cap, the teacher-disconnect window) completes no one and writes nothing', async () => {
+    // Owner decision 2.10.2026: everything is kept; the teacher may open meeting 2 again.
+    solved(6, TASKS[0]);
+    opened(6, TASKS[1]);
+    const open2 = { active: true, status: 'active', sessionNumber: 2 };
+    const snap = (v: unknown) => ({ val: () => v });
+    for (const endedBy of ['auto_45min', 'teacher_disconnect_grace']) {
+      await (onMeeting2ClosedByTeacher as any).run({
+        data: { before: snap(open2), after: snap({ active: false, status: 'closed', sessionNumber: null, endedAt: 1, endedBy, teacherId: 't' }) },
+      });
+    }
+    expect(h.docs['sessions/session_02_student_6']).toBeUndefined();
+    expect(h.rtdb['users/students/student_user6']).toBeUndefined();
+    expect(h.firestoreWrites).toEqual([]);
+  });
+});
+
+describe('the mastery profile of a learner the close completed (מיפוי מיומנויות כיתתי)', () => {
+  it('is written from the same seven values the teacher sees, by the client rule', async () => {
+    // Learner 4: tasks 1 and 3 first try, task 2 wrong and moved on, the meeting closed on task 4.
+    solved(4, TASKS[0]);
+    answeredWrong(4, TASKS[1]);
+    solved(4, TASKS[2]);
+    opened(4, TASKS[3]);
+    await completeUnfinishedMeeting2(admin.firestore(), admin.database());
+
+    const rec = h.rtdb['users/students/student_user4'];
+    expect(rec.conceptMastery).toEqual(computeCognitiveMastery(rec.qMatrixResults));
+    // decimal_structure: tasks 1, 2, 4, 7 → 1 of 4. regrouping: tasks 3, 5, 6, 7 → 1 of 4.
+    // procedural: tasks 3, 6, 7 → 1 of 3. Concepts no task measures stay 1.
+    expect(rec.conceptMastery).toEqual({
+      decimal_structure: 0.25,
+      number_magnitude: 1,
+      regrouping_fluency: 0.25,
+      procedural_fluency: 1 / 3,
+      relational_thinking: 1,
+      algebraic_reasoning: 1,
+    });
+  });
+
+  it('counts a value the learner already had, as the teacher sees it', async () => {
+    opened(9, TASKS[0]);
+    h.rtdb['users/students/student_user9'] = { qMatrixResults: { [TASKS[0]]: 'success' } };
+    await completeUnfinishedMeeting2(admin.firestore(), admin.database());
+    const rec = h.rtdb['users/students/student_user9'];
+    expect(rec.qMatrixResults[TASKS[0]]).toBe('success');
+    expect(rec.conceptMastery.decimal_structure).toBe(0.25);
+  });
+});
+
+describe('closing meeting 2 after a reset of the learner reads only the run since the reset', () => {
+  const T_RESET = 1_700_000_100_000;
+  const resetOf = (n: number) => {
+    h.docs[`reset_audit_log/r${n}`] = {
+      reset_level: 'single_student', reset_scope: 'active_session', session_number: 2,
+      affected_student_ids: [n], backup_status: 'success', performed_at: T_RESET,
+    };
+  };
+
+  it('reset and not started again: not completed, nothing written (no 0%, no erased focus areas)', async () => {
+    writeClock = T_RESET - 60_000;
+    solved(8, TASKS[0]);
+    answeredWrong(8, TASKS[1]);
+    opened(8, TASKS[2]);
+    resetOf(8);
+
+    const result = await completeUnfinishedMeeting2(admin.firestore(), admin.database());
+    expect(result.notStarted).toContain(8);
+    expect(result.completed).not.toContain(8);
+    expect(h.docs['sessions/session_02_student_8']).toBeUndefined();
+    expect(h.rtdb['users/students/student_user8']).toBeUndefined();
+  });
+
+  it('reset, then started again: the focus areas and the score come from the new run only', async () => {
+    writeClock = T_RESET - 60_000;
+    answeredWrong(8, TASKS[0]); // the erased run: task 1 wrong
+    resetOf(8);
+    writeClock = T_RESET + 60_000;
+    solved(8, TASKS[0]);        // the new run: tasks 1–4 first try, closed on task 5
+    solved(8, TASKS[1]);
+    solved(8, TASKS[2]);
+    solved(8, TASKS[3]);
+    opened(8, TASKS[4]);
+
+    const result = await completeUnfinishedMeeting2(admin.firestore(), admin.database());
+    expect(result.completed).toEqual([8]);
+    const rec = h.rtdb['users/students/student_user8'];
+    expect(rec.qMatrixResults[TASKS[0]]).toBe('success');
+    expect(rec.qMatrixResults[TASKS[4]]).toBe(Q_NOT_ANSWERED_TAG);
+
+    await fireScoreTrigger('session_02_student_8', null);
+    // 4 of 7 → 57%, green: the score agrees with the focus areas.
+    expect(h.docs['sessions/session_02_student_8']).toMatchObject({ session_score_percent: 57, matrix_recommended_path: 'green_path' });
+  });
+
+  it('reset, closed while not started, then finished: scored from the new run', async () => {
+    writeClock = T_RESET - 60_000;
+    for (const id of TASKS) answeredWrong(8, id);
+    resetOf(8);
+    await completeUnfinishedMeeting2(admin.firestore(), admin.database());
+    expect(h.docs['sessions/session_02_student_8']).toBeUndefined();
+
+    // The learner does the diagnostic again, all seven first try, and the client completes it.
+    writeClock = T_RESET + 60_000;
+    for (const id of TASKS) solved(8, id);
+    h.docs['sessions/session_02_student_8'] = { session_id: 'session_02_student_8', session_number: 2, is_completed: true, teacher_gate_approved: false };
+    await fireScoreTrigger('session_02_student_8', null);
+    expect(h.docs['sessions/session_02_student_8']).toMatchObject({ session_score_percent: 100, matrix_recommended_path: 'green_path' });
+  });
+});
+
+describe('a learner the close completed, who finishes meeting 2 later, is re-scored', () => {
+  async function closeOnTask4(n: number) {
+    solved(n, TASKS[0]);
+    solved(n, TASKS[1]);
+    solved(n, TASKS[2]);
+    opened(n, TASKS[3]);
+    await completeUnfinishedMeeting2(admin.firestore(), admin.database());
+    await fireScoreTrigger(`session_02_student_${n}`, null);
+    h.docs[`sessions/session_02_student_${n}`].evaluated_at = 1; // the trigger's server stamp
+    expect(h.docs[`sessions/session_02_student_${n}`].session_score_percent).toBe(43);
+  }
+
+  it('the rest of the run arrives: the score and the recommendation follow it, in Firestore and on the record', async () => {
+    await closeOnTask4(4);
+    for (const id of TASKS.slice(3)) solved(4, id);
+
+    expect(await rescoreCompletedMeeting2(admin.firestore(), admin.database(), 4)).toBe('rescored');
+    expect(h.docs['sessions/session_02_student_4']).toMatchObject({ session_score_percent: 100, matrix_recommended_path: 'green_path', is_completed: true });
+    expect(h.rtdb['users/students/student_user4']).toMatchObject({ session_score_percent: 100, matrix_recommended_path: 'green_path' });
+  });
+
+  it('nothing new: nothing written', async () => {
+    await closeOnTask4(4);
+    h.firestoreWrites = [];
+    expect(await rescoreCompletedMeeting2(admin.firestore(), admin.database(), 4)).toBe('unchanged');
+    expect(h.firestoreWrites).toEqual([]);
+  });
+
+  it('not completed, or completed and not scored yet: left to the score trigger', async () => {
+    expect(await rescoreCompletedMeeting2(admin.firestore(), admin.database(), 5)).toBe('not_completed');
+    opened(5, TASKS[0]);
+    await completeUnfinishedMeeting2(admin.firestore(), admin.database());
+    expect(await rescoreCompletedMeeting2(admin.firestore(), admin.database(), 5)).toBe('not_scored_yet');
+  });
+
+  it('a teacher approval and her chosen path are kept', async () => {
+    await closeOnTask4(4);
+    Object.assign(h.docs['sessions/session_02_student_4'], { teacher_gate_approved: true, teacher_selected_path: 'remediation_path' });
+    for (const id of TASKS.slice(3)) solved(4, id);
+    await rescoreCompletedMeeting2(admin.firestore(), admin.database(), 4);
+    expect(h.docs['sessions/session_02_student_4']).toMatchObject({
+      teacher_gate_approved: true, teacher_selected_path: 'remediation_path', matrix_recommended_path: 'green_path',
+    });
+  });
+
+  it('the trigger: the learner record\'s completion stamp, canonical key only', async () => {
+    await closeOnTask4(4);
+    for (const id of TASKS.slice(3)) solved(4, id);
+    const run = (studentKey: string, v: unknown) => (onMeeting2CompletionRecorded as any).run({
+      params: { studentKey },
+      data: { before: { val: () => null }, after: { val: () => v } },
+    });
+    await run('student_4', 5);
+    await run('student_user4', null);
+    expect(h.docs['sessions/session_02_student_4'].session_score_percent).toBe(43);
+    await run('student_user4', 5);
+    expect(h.docs['sessions/session_02_student_4'].session_score_percent).toBe(100);
   });
 });

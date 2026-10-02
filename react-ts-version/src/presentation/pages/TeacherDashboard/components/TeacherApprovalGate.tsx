@@ -3,15 +3,21 @@ import { CheckCircle2, AlertCircle, Sparkles, UserCheck } from 'lucide-react';
 import type { PedagogicalPath } from '@/types';
 import { ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 import { meetingShortLabelHe } from '@/core/stationNames';
-import { NO_RECOMMENDATION_HE, type GateStudentItem } from '../gateEvidence';
+import { NO_RECOMMENDATION_HE, type GateStudentItem, type UnfinishedMeeting2Item } from '../gateEvidence';
 
-export type { GateStudentItem };
+export type { GateStudentItem, UnfinishedMeeting2Item };
 
 interface TeacherApprovalGateProps {
   students: GateStudentItem[];
   onApproveStudent: (studentId: string, path: PedagogicalPath) => Promise<boolean | void>;
   onApproveAll: (pathMap: Record<string, PedagogicalPath>) => Promise<void>;
   isLoading?: boolean;
+  /** Learners who started meeting 2 and did not finish it (gateEvidence buildUnfinishedMeeting2Items). */
+  unfinished?: UnfinishedMeeting2Item[];
+  /** Meeting 2 is open (or paused) right now: the learners above are still working. */
+  isMeeting2Open?: boolean;
+  /** Opens meeting 2 again through the dashboard's activation window. */
+  onReopenMeeting2?: () => void;
 }
 
 /**
@@ -24,6 +30,9 @@ export function TeacherApprovalGate({
   onApproveStudent,
   onApproveAll,
   isLoading = false,
+  unfinished = [],
+  isMeeting2Open = false,
+  onReopenMeeting2,
 }: TeacherApprovalGateProps) {
   const [approvingId, setApprovingId] = useState<string | null>(null);
   // Manual path overrides only. The effective path for a learner is the
@@ -121,6 +130,51 @@ export function TeacherApprovalGate({
           </div>
         )}
       </div>
+
+      {/* Started meeting 2 and did not finish (owner decision 2.10.2026): a
+          close by time completes no one and keeps their work; the teacher can
+          open the meeting again so they finish from where they stopped. */}
+      {unfinished.length > 0 && (
+        <section
+          aria-labelledby="gate-unfinished-title"
+          className="bg-amber-50 dark:bg-amber-950/30 p-5 rounded-3xl border border-amber-200 dark:border-amber-900 flex flex-col gap-3"
+        >
+          <h3 id="gate-unfinished-title" className="font-extrabold text-sm text-amber-950 dark:text-amber-100">
+            התחילו את {meetingShortLabelHe(2)} ולא סיימו ({unfinished.length})
+          </h3>
+          <ul className="flex flex-wrap gap-2">
+            {unfinished.map((u) => (
+              <li
+                key={u.studentId}
+                className="px-3 py-1 rounded-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-xs font-bold text-slate-800 dark:text-slate-200"
+              >
+                {u.anonymousLabel} · עצר במשימה {u.currentTask} מתוך 7
+              </li>
+            ))}
+          </ul>
+          {isMeeting2Open ? (
+            <p className="text-xs text-amber-900 dark:text-amber-200">
+              {meetingShortLabelHe(2)} פתוח עכשיו, והם עדיין עובדים. כשתסגרו אותו בכפתור &quot;סגרו את המפגש&quot;, הם יעברו לטבלה שלמטה.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-amber-900 dark:text-amber-200">
+                המפגש נסגר לפני שהם סיימו, וכל מה שעשו נשמר. פתחו שוב את {meetingShortLabelHe(2)}, והם ימשיכו מהמשימה שבה עצרו. מי שכבר סיים לא יעשה את המפגש שוב.
+                כשתסגרו את המפגש בכפתור &quot;סגרו את המפגש&quot;, הם יעברו לטבלה שלמטה.
+              </p>
+              {onReopenMeeting2 && (
+                <button
+                  type="button"
+                  onClick={onReopenMeeting2}
+                  className="self-start px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl shadow-sm transition-all cursor-pointer active:scale-[0.97]"
+                >
+                  פתחו שוב את {meetingShortLabelHe(2)}
+                </button>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       {/* Waiting Students Table */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">

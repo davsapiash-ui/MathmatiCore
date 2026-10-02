@@ -45,7 +45,7 @@ import { TeacherApprovalGate } from "./TeacherDashboard/components/TeacherApprov
 import { TeacherGenderSetting } from "./TeacherDashboard/components/TeacherGenderSetting";
 import { useTeacherGender, useTeacherGenderStore } from "@/application/useTeacherGender";
 import { teacherSentenceHe } from "@/core/teacherGender";
-import { buildGateStudentItem, buildGateStudentItems, gateLearnerNumber, NO_RECOMMENDATION_HE, type GateStudentItem } from "./TeacherDashboard/gateEvidence";
+import { buildGateStudentItem, buildGateStudentItems, buildUnfinishedMeeting2Items, gateLearnerNumber, NO_RECOMMENDATION_HE, type GateStudentItem } from "./TeacherDashboard/gateEvidence";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { buildSessionRows, sessionStateLabelHe } from "@/core/sessionPicker";
 import { getSessionDurationMinutes } from "@/core/classSession";
@@ -308,6 +308,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       const startedAt = readSessionStartedAt(val);
       if (lastVal?.active === true && autoCloseAt !== null && serverNow() >= autoCloseAt && startedAt !== autoClosedStart) {
         autoClosedStart = startedAt;
+        // Read before the write: the SDK raises our own set() on this listener
+        // at once, and lastVal is then the closed record (sessionNumber null).
+        const closedMeeting = Number(lastVal.sessionNumber);
         set(sessionRef, {
           active: false,
           status: 'closed',
@@ -316,7 +319,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           endedBy: 'auto_45min',
           teacherId: (lastVal.teacherId as string) || 'teacher',
         }).catch(() => {});
-        toast.info('המפגש נסגר אוטומטית: עברו 45 דקות מההפעלה.');
+        // A meeting 2 closed by time completes no one (owner decision 2.10.2026):
+        // the teacher is told where the learners who did not finish are.
+        toast.info(
+          closedMeeting === 2
+            ? `המפגש נסגר אוטומטית: עברו 45 דקות מההפעלה. מי שלא סיים מופיע בלשונית "${TEACHER_GATE_HE}", ושם אפשר לפתוח לו את המפגש שוב.`
+            : 'המפגש נסגר אוטומטית: עברו 45 דקות מההפעלה.'
+        );
       }
       setIsClassSessionActive(false);
       setClassSessionStatus('closed');
@@ -985,7 +994,17 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     return n === null ? null : buildGateStudentItem(n, students, firestoreSession2Docs);
   };
 
-  const pendingApprovalsBadgeCount = gateStudentItems.filter((g) => !g.isApproved).length;
+  // Started meeting 2 and did not finish (owner decision 2.10.2026). While
+  // meeting 2 is open they are simply still working; once it is closed —
+  // by time too — they wait for the teacher, so the tab counts them.
+  const unfinishedMeeting2 = useMemo(
+    () => buildUnfinishedMeeting2Items(students, firestoreSession2Docs),
+    [students, firestoreSession2Docs]
+  );
+  const isMeeting2Open = isClassSessionActive && selectedSessionNum === 2;
+
+  const pendingApprovalsBadgeCount =
+    gateStudentItems.filter((g) => !g.isApproved).length + (isMeeting2Open ? 0 : unfinishedMeeting2.length);
 
   const handleApproveGateStudent = async (studentId: string, path: PedagogicalPath): Promise<boolean> => {
     setIsApprovingGate(true);
@@ -2232,6 +2251,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               onApproveStudent={handleApproveGateStudent}
               onApproveAll={handleBatchApproveAll}
               isLoading={isApprovingGate}
+              unfinished={unfinishedMeeting2}
+              isMeeting2Open={isMeeting2Open}
+              onReopenMeeting2={() => {
+                // The dashboard's own activation window (Module 14 §ב0).
+                setPickedSessionNum(2);
+                setPendingActivationSession(2);
+              }}
             />
 
           </div>
