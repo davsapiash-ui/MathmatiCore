@@ -231,7 +231,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             {isLevel3 && (
               <>
                 <li className="text-amber-700 dark:text-amber-300 font-semibold">לפני שנמחק משהו נשמר גיבוי של הנתונים של כל 12 התלמידים.</li>
-                <li className="text-red-700 dark:text-red-300 font-semibold">יימחקו כל נתוני הלמידה של הכיתה: ההתקדמות בכל המפגשים, ציוני האבחון והמסלולים שאושרו, ההקלטות, הודעות הצ'אט, הדוחות, הרפלקציות, הטלמטריה והתראות הרדאר.</li>
+                <li className="text-red-700 dark:text-red-300 font-semibold">יימחקו כל נתוני הלמידה של הכיתה: ההתקדמות בכל המפגשים, ציוני האבחון והמסלולים שאושרו, ההקלטות, הודעות הצ'אט, הדוחות, הרפלקציות, רישום הפעולות והתראות הרדאר.</li>
                 <li>יימחקו גם ההגדרות של כל התלמידים: פרופיל התמיכה המוגברת ומצב השקט החזותי.</li>
                 <li>המפגש הפתוח ייסגר, והשידור למסכי התלמידים ייעצר.</li>
                 <li>כל 12 התלמידים יתחילו מההתחלה.</li>
@@ -252,7 +252,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 )}
                 {activeSessionNumber === 8 && (
                   // Register deviation 20: the whole-class restart keeps reflections.
-                  <li>במפגש 8 הרפלקציות שהתלמידים כבר שלחו נשמרות, ותלמיד ששלח רפלקציה לא ימלא אותה שוב.</li>
+                  <li>במפגש 8 הרפלקציות שהתלמידים כבר שלחו נשמרות ונספרות בדוח הכיתה, ותלמיד ששלח רפלקציה לא ימלא אותה שוב.</li>
                 )}
                 <li>המפגש של הכיתה נשאר פתוח, והשעון שלו ממשיך מהרגע שהופעל.</li>
                 <li>{RESET_LOG_LINE_HE}</li>
@@ -301,7 +301,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <li className="text-amber-700 dark:text-amber-300 font-semibold">לפני האיפוס נשמר גיבוי של כל הנתונים של {learnerName}.</li>
                 <li className="text-red-700 dark:text-red-300 font-semibold">יימחקו: ההתקדמות בכל 8 המפגשים, תוצאות האבחון וההמלצה, המסלול שאושר ב"{TEACHER_GATE_HE}", ההקלטות והודעות הצ'אט.</li>
                 {/* Owner, 2.10.2026: the teacher's settings stay (functions LEARNER_SETTINGS_FIELDS). */}
-                <li>יישמרו: ההגדרות שקבעתם לתלמיד (פרופיל התמיכה המוגברת ומצב השקט החזותי), נתוני הטלמטריה למחקר, הדוחות והרפלקציות.</li>
+                <li>יישמרו: ההגדרות שקבעתם לתלמיד (פרופיל התמיכה המוגברת ומצב השקט החזותי), רישום הפעולות של התלמיד למחקר, הדוחות והרפלקציות.</li>
                 <li>התלמיד יתחיל מההתחלה. כדי להגיע למפגש 3 הוא יצטרך לעשות שוב את מפגש 2, ותצטרכו לאשר לו מסלול מחדש.</li>
                 <li>{RESET_LOG_LINE_HE}</li>
               </>
@@ -310,7 +310,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
               <>
                 <li>יימחקו הקריאות לעזרה של כל התלמידים והיסטוריית ההתראות של השיעור.</li>
                 <li>המשבצות ברדאר יחזרו למצב רגיל. משבצת של תלמיד שפתוח אצלו עכשיו כרטיס חניכה, או שמהסס עכשיו, תישאר צבועה, כי זה המצב שלו ברגע זה.</li>
-                <li>נתוני הלמידה לא משתנים: ההתקדמות, הטלמטריה והמפגשים נשארים כמו שהם.</li>
+                <li>נתוני הלמידה לא משתנים: ההתקדמות, רישום הפעולות והמפגשים נשארים כמו שהם.</li>
                 <li>האיפוס נרשם ביומן האיפוסים.</li>
               </>
             )}
@@ -334,7 +334,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                   className="w-5 h-5 rounded text-amber-600 focus:ring-amber-500"
                 />
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  כן, לאפס את מפגש {activeSessionNumber} לכל 12 התלמידים.
+                  כן, לאפס את {meetingLabel} לכל 12 התלמידים.
                 </span>
               </label>
             )}
