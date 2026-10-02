@@ -16,6 +16,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { ResetConfirmationModal } from './ResetConfirmationModal';
+import { LEARNER_RESET_TOOLTIP_HE, RESET_ACTION_HE } from '@/core/routeLabels';
 import { ref, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { toast } from 'sonner';
@@ -192,10 +193,12 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
               onClick={() => setIsResetModalOpen(true)}
               disabled={isResetting}
               className="px-2.5 py-1.5 rounded-xl border border-rose-200 hover:border-rose-300 bg-rose-50/70 hover:bg-rose-100 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-              title="איפוס מלא של נתוני התלמיד"
+              // The dialog offers both scopes, the meeting alone by default (PRD 23א §ב.2).
+              title={LEARNER_RESET_TOOLTIP_HE}
+              aria-label={`${RESET_ACTION_HE.learner} של תלמיד ${studentNum}`}
             >
               <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">איפוס נתונים</span>
+              <span className="hidden sm:inline">{RESET_ACTION_HE.learner}</span>
             </button>
 
             {onOpenChat && (

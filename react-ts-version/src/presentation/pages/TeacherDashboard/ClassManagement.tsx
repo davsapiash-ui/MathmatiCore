@@ -11,7 +11,7 @@ import { recommendedPathOf } from '@/core/recommendedPath';
 import { hasEnhancedSupport, buildSupportProfilePayload } from '@/core/supportProfile';
 import { toast } from 'sonner';
 import type { ResetReason, SingleStudentResetScope } from '@/types';
-import { ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
+import { LEARNER_RESET_TOOLTIP_HE, RESET_ACTION_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 import { meetingShortLabelHe } from '@/core/stationNames';
 
 interface StudentGateState {
@@ -344,7 +344,9 @@ export function ClassManagement({
                       onClick={() => setStudentToReset({ id: student.id, name: `תלמיד ${student.studentNumber}` })}
                       disabled={updatingId === student.id}
                       className="p-2 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all cursor-pointer active:scale-[0.97]"
-                      title="איפוס מלא של נתוני התלמיד"
+                      // The dialog offers both scopes, the meeting alone by default (PRD 23א §ב.2).
+                      title={LEARNER_RESET_TOOLTIP_HE}
+                      aria-label={`${RESET_ACTION_HE.learner} של תלמיד ${student.studentNumber}`}
                     >
                       <RotateCcw className={`w-3.5 h-3.5 ${updatingId === student.id ? 'animate-spin' : ''}`} />
                     </button>

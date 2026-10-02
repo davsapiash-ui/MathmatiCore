@@ -26,7 +26,7 @@ import { resolveRadarColor, RADAR_CELL_CLASSES } from '@/core/radarColor';
 import { isClassSessionLive } from '@/core/classSession';
 import { meetingLabelHe, meetingShortLabelHe, stationNameHe } from '@/core/stationNames';
 import { getHesitationThresholdSeconds, useHesitationThresholdSeconds } from '@/core/hesitationCalibration';
-import { CARD_OPEN_HE, ERROR_CATEGORY_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE, radarPathLabelHe } from '@/core/routeLabels';
+import { CARD_OPEN_HE, ERROR_CATEGORY_HE, RESET_ACTION_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE, radarPathLabelHe } from '@/core/routeLabels';
 import { hasLegacyRecordings } from '@/core/legacyRecordings';
 import { LegacyRecordingsButton } from './LegacyRecordingsButton';
 
@@ -631,10 +631,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 onClick={() => setIsAlertsResetModalOpen(true)}
                 disabled={isResettingAlerts}
                 className="px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 hover:border-amber-400 bg-amber-50/60 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
-                title="איפוס התראות הרדאר בלבד — אינו נוגע בנתוני למידה"
+                title="מוחק את הקריאות לעזרה ואת היסטוריית ההתראות. לא נוגע בנתוני הלמידה"
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isResettingAlerts ? 'animate-spin' : ''}`} />
-                <span>איפוס התראות</span>
+                <span>{RESET_ACTION_HE.alerts}</span>
               </button>
 
               {/* Module 23א level 2, whole class (register, deviation 20): the
@@ -648,21 +648,21 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 data-testid="class-session-reset-button"
                 className="px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 hover:border-amber-400 bg-amber-50/60 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-xs"
                 title={isClassSessionActive && activeSessionNum
-                  ? 'מחזיר את כל 12 הלומדים לתחילת המפגש הפתוח. מפגשים קודמים נשמרים'
+                  ? 'מחזיר את כל 12 התלמידים לתחילת המפגש הפתוח. העבודה במפגשים האחרים נשמרת'
                   : 'אין מפגש פתוח לכיתה. אפשר לאפס את המפגש לכל הכיתה רק כשמפגש פתוח.'}
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isResettingSession ? 'animate-spin' : ''}`} />
-                <span>איפוס המפגש לכיתה</span>
+                <span>{RESET_ACTION_HE.classMeeting}</span>
               </button>
 
               <button
                 onClick={handleResetAllClass}
                 disabled={isResettingClass}
                 className="px-3 py-2.5 min-h-11 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50/60 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
-                title="איפוס נתוני כל תלמידי הכיתה"
+                title="מוחק את כל נתוני הלמידה של 12 התלמידים, אחרי שנשמר גיבוי"
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isResettingClass ? 'animate-spin' : ''}`} />
-                <span>איפוס נתוני כיתה</span>
+                <span>{RESET_ACTION_HE.system}</span>
               </button>
             </div>
           </div>
@@ -1117,8 +1117,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           try {
             await useStore.getState().resetRadarAlerts(reason, reasonNote);
           } catch (err) {
+            // The store already told the teacher why, once (the server's reason when it gave one).
             console.error('Alerts reset error:', err);
-            toast.error('שגיאה באיפוס ההתראות');
             throw err; // keep the dialog open — the reset did NOT happen
           } finally {
             setIsResettingAlerts(false);
@@ -1158,8 +1158,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             // immutable audit log for the most destructive reset too.
             await useStore.getState().resetEntireSystemUsageData(reason, reasonNote);
           } catch (err) {
+            // The store already told the teacher why, once.
             console.error('Reset all error:', err);
-            toast.error('שגיאה באיפוס נתוני הכיתה');
             throw err; // keep the dialog open — the reset did NOT happen
           } finally {
             setIsResettingClass(false);

@@ -49,12 +49,12 @@ describe('the single-learner reset toast names the meeting the server reset', ()
   it('no open meeting: the server chose the learner\'s meeting 4', async () => {
     mockCallable.mockResolvedValueOnce({ data: { status: 'SUCCESS', resetScope: 'active_session', sessionNumber: 4 } });
     await useStore.getState().resetStudentData('student_user3', 'student_stuck', undefined, { scope: 'active_session', sessionNumber: 4 });
-    expect(mockToastSuccess).toHaveBeenCalledWith('תלמיד 3 הוחזר לתחילת מפגש 4 · חיבור במאונך עם הקבצה. שאר המפגשים נשמרו.');
+    expect(mockToastSuccess).toHaveBeenCalledWith('תלמיד 3 הוחזר לתחילת מפגש 4 · חיבור במאונך עם הקבצה. העבודה במפגשים האחרים נשמרה. הגיבוי נשמר באחסון הגיבוי של המערכת.');
   });
 
   it('the server\'s number wins over the one sent', async () => {
     mockCallable.mockResolvedValueOnce({ data: { status: 'SUCCESS', sessionNumber: 2 } });
     await useStore.getState().resetStudentData('student_user5', 'student_stuck', undefined, { scope: 'active_session', sessionNumber: null });
-    expect(mockToastSuccess).toHaveBeenCalledWith('תלמיד 5 הוחזר לתחילת מפגש 2 · יוצאים למסע. שאר המפגשים נשמרו.');
+    expect(mockToastSuccess).toHaveBeenCalledWith('תלמיד 5 הוחזר לתחילת מפגש 2 · יוצאים למסע. העבודה במפגשים האחרים נשמרה. ציון האבחון והמסלול שאושר נמחקו. הגיבוי נשמר באחסון הגיבוי של המערכת.');
   });
 });

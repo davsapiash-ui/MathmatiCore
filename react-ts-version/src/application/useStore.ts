@@ -160,6 +160,38 @@ export function resetFailureMessageHe(code: string, serverMessage: string): stri
     : 'הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.';
 }
 
+/**
+ * Where a reset's backup went (PRD 23א §ג): the shared Drive when the upload
+ * worked, else the system's own backup storage (register gap יב). The dialog
+ * used to promise Google Drive every time, and the toast said nothing.
+ */
+export function backupSavedHe(webViewLink: unknown): { text: string; driveLink: string | null } {
+  const link = typeof webViewLink === 'string' ? webViewLink : '';
+  return /^https:\/\/drive\.google\.com\//.test(link)
+    ? { text: 'הגיבוי נשמר ב-Google Drive.', driveLink: link }
+    : { text: 'הגיבוי נשמר באחסון הגיבוי של המערכת.', driveLink: null };
+}
+
+/** The success toast of a reset that deleted: what happened, then where the backup is. */
+function resetSuccessToast(message: string, data: unknown): void {
+  const backup = backupSavedHe((data as { webViewLink?: unknown } | null | undefined)?.webViewLink);
+  const text = `${message} ${backup.text}`;
+  if (backup.driveLink) {
+    const link = backup.driveLink;
+    toast.success(text, { duration: 10000, action: { label: 'פתיחת הגיבוי', onClick: () => window.open(link, '_blank', 'noopener,noreferrer') } });
+  } else {
+    toast.success(text);
+  }
+}
+
+/** What else a meeting's reset erased (register deviation 10), for the success toast. */
+function meetingResetExtraHe(sessionNumber: number | null, target: 'student' | 'class'): string {
+  if (sessionNumber === 2) return target === 'class' ? ' ציוני האבחון והמסלולים שאושרו נמחקו.' : ' ציון האבחון והמסלול שאושר נמחקו.';
+  // Register deviation 20: the whole-class restart keeps reflections.
+  if (sessionNumber === 8 && target === 'student') return ' הרפלקציה שלו נמחקה.';
+  return '';
+}
+
 function patchStudentAfterSessionReset(existing: StudentData, sessionNum: number): StudentData {
   return {
     ...existing,
@@ -705,9 +737,10 @@ export const useStore = create<AppState>()(
 
         // Same hard gate as every other reset (Module 23א §ג): the server backs
         // up first, and nothing is reset if the backup fails.
+        let classResult: { data?: unknown } | undefined;
         try {
           const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData', { timeout: RESET_CALLABLE_TIMEOUT_MS });
-          await backupResetCallable({
+          classResult = await backupResetCallable({
             reset_level: 'single_student',
             reset_target: 'class',
             reset_scope: 'active_session',
@@ -749,7 +782,7 @@ export const useStore = create<AppState>()(
           }
           return { students };
         });
-        toast.success(`${meetingShortLabelHe(sessionNumber)} אופס לכל הכיתה. 12 הלומדים חוזרים לתחילתו, ושאר המפגשים נשמרו.`);
+        resetSuccessToast(`${meetingShortLabelHe(sessionNumber)} אופס לכל הכיתה, ו-12 התלמידים חוזרים לתחילתו. העבודה במפגשים האחרים נשמרה.${meetingResetExtraHe(sessionNumber, 'class')}`, classResult?.data);
       },
 
       resetStudentData: async (studentId: string, reason: ResetReason, reasonNote?: string, options?: SingleStudentResetOptions) => {
@@ -769,6 +802,7 @@ export const useStore = create<AppState>()(
         // The meeting the server actually restarted (it decides, and refuses when
         // it differs from the one the dialog named).
         let resetSession: number | null = null;
+        let resetData: unknown = null;
         try {
           const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData', { timeout: RESET_CALLABLE_TIMEOUT_MS });
           const result = await backupResetCallable({
@@ -780,6 +814,7 @@ export const useStore = create<AppState>()(
             reset_scope: scope,
             session_number: requestedSession,
           });
+          resetData = result?.data ?? null;
           const returned = Number((result?.data as { sessionNumber?: unknown } | undefined)?.sessionNumber);
           resetSession = Number.isInteger(returned) && returned >= 1 && returned <= 8 ? returned : requestedSession;
         } catch (err: any) {
@@ -824,7 +859,7 @@ export const useStore = create<AppState>()(
               },
             };
           });
-          toast.success(`${defaultName} הוחזר לתחילת ${sessionLabel}. שאר המפגשים נשמרו.`);
+          resetSuccessToast(`${defaultName} הוחזר לתחילת ${sessionLabel}. העבודה במפגשים האחרים נשמרה.${meetingResetExtraHe(resetSession, 'student')}`, resetData);
           return;
         }
 
@@ -933,7 +968,7 @@ export const useStore = create<AppState>()(
         });
 
         useChatStore.getState().clearStudentMessages(normId);
-        toast.success(`נתוני ${defaultName} אופסו בהצלחה!`);
+        resetSuccessToast(`${defaultName} אופס כולו: ההתקדמות בכל המפגשים, תוצאות האבחון, המסלול, ההקלטות והצ'אט נמחקו. ההגדרות שלו נשמרו.`, resetData);
       },
 
       /**
@@ -956,7 +991,10 @@ export const useStore = create<AppState>()(
           });
         } catch (err: any) {
           console.error('[Module 23א] Alerts reset failed:', err);
-          toast.error('איפוס ההתראות נכשל.');
+          // The server's own reason when it gave one (it is written in Hebrew);
+          // the dashboard no longer adds a second, generic toast.
+          const serverMessage: string = typeof err?.message === 'string' ? err.message : '';
+          toast.error(/[א-ת]/.test(serverMessage) ? serverMessage : 'איפוס ההתראות נכשל. נסו שוב.');
           throw new Error('ALERTS_RESET_FAILED');
         }
 
@@ -969,9 +1007,10 @@ export const useStore = create<AppState>()(
         // PRD v7.1 Module 23א §ג + §ז: backup-before-delete is a HARD gate for a
         // system reset too. A failed backup must abort the deletion entirely —
         // no partial deletion is ever permitted.
+        let systemResult: { data?: unknown } | undefined;
         try {
           const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData', { timeout: RESET_CALLABLE_TIMEOUT_MS });
-          await backupResetCallable({
+          systemResult = await backupResetCallable({
             reset_level: 'system',
             reason,
             reason_note: reasonNote || '',
@@ -1104,7 +1143,7 @@ export const useStore = create<AppState>()(
 
         set({ students: cleanStudents });
         useChatStore.getState().clearAllMessages();
-        toast.success('כל נתוני כיתת הביקורת אופסו בהצלחה לאפס מוחלט!');
+        resetSuccessToast('כל נתוני הלמידה של הכיתה נמחקו, וכל 12 התלמידים מתחילים מההתחלה.', systemResult?.data);
       }
     })
 );

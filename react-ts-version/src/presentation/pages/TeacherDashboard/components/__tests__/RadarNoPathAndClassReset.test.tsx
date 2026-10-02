@@ -131,6 +131,6 @@ describe('C3 — the whole-class meeting reset needs an open meeting', () => {
     render(<HeatmapGrid initialStudents={students} />);
     const button = screen.getByTestId('class-session-reset-button') as HTMLButtonElement;
     expect(button.disabled).toBe(false);
-    expect(button.title).toBe('מחזיר את כל 12 הלומדים לתחילת המפגש הפתוח. מפגשים קודמים נשמרים');
+    expect(button.title).toBe('מחזיר את כל 12 התלמידים לתחילת המפגש הפתוח. העבודה במפגשים האחרים נשמרת');
   });
 });
