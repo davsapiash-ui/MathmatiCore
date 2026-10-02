@@ -12,6 +12,46 @@ import {
   studentNumberFromSessionId,
 } from "./meetingMetrics";
 
+export type MeetingScore =
+  | { outcome: "scored"; scorePercent: number; recommendedPath: "green_path" | "remediation_path" }
+  | { outcome: "no_telemetry" }
+  | { outcome: "no_denominator" };
+
+/**
+ * One learner's score in one meeting, from the meeting's telemetry (PRD 23 §ב:
+ * first-attempt correct ÷ compulsory), and the path it recommends (≥ 50% →
+ * green_path). Shared by the completion trigger below and the re-scoring of
+ * a meeting 2 the learner finished after the teacher's close (meeting2Close.ts).
+ */
+export async function computeMeetingScore(
+  db: admin.firestore.Firestore,
+  studentNum: number,
+  sessionNum: number,
+  path: "green_path" | "remediation_path"
+): Promise<MeetingScore> {
+  // By learner and meeting, not by the document's session_id: the document is
+  // `session_02_student_4` while its events carry `session_2_student_student_user4`,
+  // so reading by that id matched nothing and would have scored every learner 0%.
+  // Only the run since the last reset of this meeting (meetingMetrics.lastResetOfMeeting).
+  const writtenAfterMs = await readLastResetOfMeeting(db, studentNum, sessionNum);
+  const telemetry = await readMeetingTelemetry(db, studentNum, sessionNum, { writtenAfterMs });
+  if (telemetry.length === 0) return { outcome: "no_telemetry" };
+
+  const compulsoryIds = new Map<string, ReadonlySet<string>>();
+  const compulsoryTotal = await resolveCompulsoryTotal(db, sessionNum, path, new Map(), compulsoryIds);
+  const computed = computeFirstAttemptScore(
+    telemetry,
+    compulsoryTotal,
+    compulsoryIds.get(`${sessionNum}:${path}`) ?? null
+  );
+  if (computed.scorePercent === null) return { outcome: "no_denominator" };
+  return {
+    outcome: "scored",
+    scorePercent: computed.scorePercent,
+    recommendedPath: computed.scorePercent >= 50 ? "green_path" : "remediation_path",
+  };
+}
+
 /**
  * Module 14 / Module 20: onSessionCompleteTrigger
  * Background trigger on session completion calculating closed-form cognitive mastery score
@@ -55,13 +95,9 @@ export const onSessionCompleteTrigger = onDocumentWritten({
   }
 
   const db = admin.firestore();
-  // By learner and meeting, not by the document's session_id: the document is
-  // `session_02_student_4` while its events carry `session_2_student_student_user4`,
-  // so reading by that id matched nothing and would have scored every learner 0%.
-  // Only the run since the last reset of this meeting (meetingMetrics.lastResetOfMeeting).
-  const writtenAfterMs = await readLastResetOfMeeting(db, studentNum, sessionNum);
-  const telemetry = await readMeetingTelemetry(db, studentNum, sessionNum, { writtenAfterMs });
-  if (telemetry.length === 0) {
+  const path = afterData.teacher_selected_path === "remediation_path" ? "remediation_path" : "green_path";
+  const computed = await computeMeetingScore(db, studentNum, sessionNum, path);
+  if (computed.outcome === "no_telemetry") {
     // Nothing to measure. Module 24 §ב forbids inventing one, and a 0%
     // computed from no events would be exactly that — so the document is left
     // without a score, and the teacher sees it is missing. (The learner's
@@ -71,16 +107,7 @@ export const onSessionCompleteTrigger = onDocumentWritten({
     return;
   }
 
-  const path = afterData.teacher_selected_path === "remediation_path" ? "remediation_path" : "green_path";
-  const compulsoryIds = new Map<string, ReadonlySet<string>>();
-  const compulsoryTotal = await resolveCompulsoryTotal(db, sessionNum, path, new Map(), compulsoryIds);
-  const computed = computeFirstAttemptScore(
-    telemetry,
-    compulsoryTotal,
-    compulsoryIds.get(`${sessionNum}:${path}`) ?? null
-  );
-
-  if (computed.scorePercent === null) {
+  if (computed.outcome === "no_denominator") {
     // No denominator means no score. Recommending a path from a number we
     // could not compute is exactly the invented measurement Module 24 §ב
     // forbids; leave the field unset so the teacher sees it is missing.
@@ -88,16 +115,16 @@ export const onSessionCompleteTrigger = onDocumentWritten({
     return;
   }
 
-  const recommendedPath = computed.scorePercent >= 50 ? "green_path" : "remediation_path";
+  const { scorePercent, recommendedPath } = computed;
   // null when nothing was submitted — a meeting 2 completed by the teacher's close (meeting2Close.ts).
   const submitted = typeof afterData.session_score_percent === "number" ? afterData.session_score_percent : NaN;
-  if (Number.isFinite(submitted) && submitted !== computed.scorePercent) {
-    logger.warn(`Session ${event.params.sessionId}: client reported ${submitted}%, server computed ${computed.scorePercent}%. Server value stands.`);
+  if (Number.isFinite(submitted) && submitted !== scorePercent) {
+    logger.warn(`Session ${event.params.sessionId}: client reported ${submitted}%, server computed ${scorePercent}%. Server value stands.`);
   }
-  logger.info(`Evaluating Session ${event.params.sessionId} (Session ${sessionNum}): Score ${computed.scorePercent}% -> Recommended ${recommendedPath}`);
+  logger.info(`Evaluating Session ${event.params.sessionId} (Session ${sessionNum}): Score ${scorePercent}% -> Recommended ${recommendedPath}`);
 
   await event.data?.after?.ref.update({
-    session_score_percent: computed.scorePercent,
+    session_score_percent: scorePercent,
     matrix_recommended_path: recommendedPath,
     evaluated_at: admin.firestore.FieldValue.serverTimestamp(),
   });
@@ -107,7 +134,7 @@ export const onSessionCompleteTrigger = onDocumentWritten({
   // recommendation from there. Left unmirrored, the teacher would see the
   // client's number on four screens and the server's in the gate tab.
   await admin.database().ref(`users/students/student_user${studentNum}`).update({
-    session_score_percent: computed.scorePercent,
+    session_score_percent: scorePercent,
     matrix_recommended_path: recommendedPath,
   }).catch((err) => logger.warn(`Session ${event.params.sessionId}: RTDB mirror of the score failed:`, err));
 });

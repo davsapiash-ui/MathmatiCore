@@ -60,7 +60,10 @@ describe('meeting 1 is never scored (Module 14 §ב)', () => {
     const t = src('sessionTrigger.ts');
     const guard = t.indexOf('if (!isScoredMeeting(sessionNum))');
     expect(guard).toBeGreaterThan(-1);
-    expect(guard).toBeLessThan(t.indexOf('computeFirstAttemptScore('));
+    // The trigger scores through computeMeetingScore (shared with the meeting-2 re-score).
+    const scoring = t.indexOf('await computeMeetingScore(db, studentNum, sessionNum, path)');
+    expect(scoring).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(scoring);
     // Nor does a freshly created session document carry an invented 0%.
     expect(t).toContain('session_score_percent: null,');
     expect(t).not.toContain('session_score_percent: 0,');

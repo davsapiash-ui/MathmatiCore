@@ -32,14 +32,14 @@ describe('the server recomputes the meeting score', () => {
   it('never invents a score: no events, or no compulsory count, leaves the document alone', () => {
     const noEvents = body.indexOf('if (telemetry.length === 0)');
     const noDenominator = body.indexOf('if (computed.scorePercent === null)');
-    const write = body.indexOf('session_score_percent: computed.scorePercent,');
+    const write = body.indexOf('session_score_percent: scorePercent,');
     expect(noEvents).toBeGreaterThan(-1);
     expect(noEvents).toBeLessThan(write);
     expect(noDenominator).toBeLessThan(write);
   });
 
   it('the PRD 50% rule decides the path', () => {
-    expect(body).toContain("const recommendedPath = computed.scorePercent >= 50 ? \"green_path\" : \"remediation_path\";");
+    expect(body).toContain("recommendedPath: computed.scorePercent >= 50 ? \"green_path\" : \"remediation_path\",");
   });
 
   it('mirrors the result to the learner record, which is what the teacher screens read', () => {
