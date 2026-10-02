@@ -71,10 +71,14 @@ describe('the learner\'s screen', () => {
   const page = readFileSync(resolve(__dirname, '../../features/workspace/StudentWorkspacePage.tsx'), 'utf-8');
 
   it('an approved learner completed part-way waits instead of going back into the diagnostic', () => {
-    const guard = page.indexOf('meeting === 2 && !isTeacherOrAdmin && completedMeeting2 && isGateApproved &&');
-    expect(guard).toBeGreaterThan(-1);
-    expect(page.slice(guard, guard + 400)).toContain('isDiagnosticPrimaryRound({ sessionNumber, flowStatus, qflow: { phase: qflowPhase } })');
-    expect(page.slice(guard, guard + 500)).toContain('<TeacherWillOpenWaitingScreen />');
+    const def = page.indexOf('meeting === 2 && !isTeacherOrAdmin && completedMeeting2 && isGateApproved &&');
+    expect(def).toBeGreaterThan(-1);
+    expect(page.slice(def, def + 200)).toContain('isDiagnosticPrimaryRound({ sessionNumber, flowStatus, qflow: { phase: qflowPhase } })');
+    // One boolean for the screen and for the radar (Meeting2Reopen_ApprovedWaitNoHesitation.test.tsx).
+    const overlay = page.indexOf('const isOverlayActive =');
+    expect(page.slice(overlay, overlay + 400)).toContain('waitingAfterApproval ||');
+    const guard = page.indexOf('if (waitingAfterApproval) {');
+    expect(page.slice(guard, guard + 120)).toContain('<TeacherWillOpenWaitingScreen />');
     // Before any screen of the running meeting is drawn.
     expect(guard).toBeLessThan(page.indexOf("if (flowStatus === 'choice_branch')"));
   });

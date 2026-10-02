@@ -419,11 +419,53 @@ export function StudentWorkspacePage() {
     };
   }, []);
 
+  // Retrieve saved progress from Firebase (synced into useStore)
+  const students = useStore((s) => s.students);
+  const firebaseLoaded = useStore((s) => s.firebaseLoaded);
+  const myData = normUid ? (students[normUid] || (user?.uid ? students[user.uid] : null)) : null;
+  const isASDMode = myData?.isASD ?? false;
+
+  // --- PRD Section 4.5 & Module 20: Gate Locked / Pending Approval Guard ---
+  const isGateApproved = Boolean(myData?.teacher_gate_approved === true || myData?.routeStatus === 'APPROVED');
+  // Module 26: "Never load, prefetch, or fall back to an exercise from the
+  // non-matching bank under any circumstance." A learner in meetings 3–8 needs
+  // the gate's approval and the path it approved; until both are on the
+  // record the meeting is not started (a teacher previewing the workspace has
+  // no learner path and is not held).
+  const needsApprovedPath = isPathSplitMeeting(meeting) && !isTeacherOrAdmin;
+  // pedagogicalPath, or — for a learner approved before 2.9.2026 — the gate's
+  // teacher_selected_path (recordLearningPath).
+  const learnerPath = recordLearningPath(myData as Record<string, unknown> | null);
+  const hasApprovedPath = isGateApproved && learnerPath !== null;
+  // The meeting-2 waiting screen says "סיימתם את התחנה השנייה בהצלחה": it is shown only to a
+  // learner who did finish meeting 2 and is waiting for the gate. Anyone else
+  // waiting here — no completed meeting 2, or no path — is told only "המורה
+  // תפתח את הפעילות בקרוב." (PRD 14 §ב0), so the text matches what the child did.
+  const completedMeeting2 = Boolean(
+    myData?.completedMeeting2 ||
+    (myData as any)?.session_completed === 2 ||
+    (typeof myData?.highestCompletedMeeting === 'number' && myData.highestCompletedMeeting >= 2) ||
+    myData?.routeStatus === 'PENDING_TEACHER_APPROVAL'
+  );
+  const showMeeting2Waiting = completedMeeting2 && !isGateApproved;
+
+  // Meeting 2 opened again (owner decision 2.10.2026: to let the learners who
+  // did not finish, finish). A learner the teacher's close completed part-way
+  // and whose path the teacher has already approved does not go back into the
+  // diagnostic: the approval rests on what was there, and finishing would
+  // rewrite it. Same quiet wait as a finished learner (#196). Learners not yet
+  // approved go on from where they stopped and are re-scored. Not work either:
+  // no hesitation is measured behind this screen (isOverlayActive).
+  const waitingAfterApproval =
+    meeting === 2 && !isTeacherOrAdmin && completedMeeting2 && isGateApproved &&
+    isDiagnosticPrimaryRound({ sessionNumber, flowStatus, qflow: { phase: qflowPhase } });
+
   // Active overlay or background tab detection: when projector, teacher pause/close, gate lock, sessionDone, or tab is hidden
   const isOverlayActive = isProjectorModeActive || 
     activeClassSession.status === 'paused' || 
     activeClassSession.status === 'closed' || 
     pendingApproval || 
+    waitingAfterApproval ||
     flowStatus === 'sessionDone' ||
     // The opening screen of station 2 or 8 is not work: no hesitation is measured on it.
     (hasOpeningScreen(sessionNumber) && flowStatus === 'task' && !openingScreenSeen) ||
@@ -479,35 +521,6 @@ export function StudentWorkspacePage() {
     }
   }, [isOverlayActive]);
 
-  // Retrieve saved progress from Firebase (synced into useStore)
-  const students = useStore((s) => s.students);
-  const firebaseLoaded = useStore((s) => s.firebaseLoaded);
-  const myData = normUid ? (students[normUid] || (user?.uid ? students[user.uid] : null)) : null;
-  const isASDMode = myData?.isASD ?? false;
-
-  // --- PRD Section 4.5 & Module 20: Gate Locked / Pending Approval Guard ---
-  const isGateApproved = Boolean(myData?.teacher_gate_approved === true || myData?.routeStatus === 'APPROVED');
-  // Module 26: "Never load, prefetch, or fall back to an exercise from the
-  // non-matching bank under any circumstance." A learner in meetings 3–8 needs
-  // the gate's approval and the path it approved; until both are on the
-  // record the meeting is not started (a teacher previewing the workspace has
-  // no learner path and is not held).
-  const needsApprovedPath = isPathSplitMeeting(meeting) && !isTeacherOrAdmin;
-  // pedagogicalPath, or — for a learner approved before 2.9.2026 — the gate's
-  // teacher_selected_path (recordLearningPath).
-  const learnerPath = recordLearningPath(myData as Record<string, unknown> | null);
-  const hasApprovedPath = isGateApproved && learnerPath !== null;
-  // The meeting-2 waiting screen says "סיימתם את התחנה השנייה בהצלחה": it is shown only to a
-  // learner who did finish meeting 2 and is waiting for the gate. Anyone else
-  // waiting here — no completed meeting 2, or no path — is told only "המורה
-  // תפתח את הפעילות בקרוב." (PRD 14 §ב0), so the text matches what the child did.
-  const completedMeeting2 = Boolean(
-    myData?.completedMeeting2 ||
-    (myData as any)?.session_completed === 2 ||
-    (typeof myData?.highestCompletedMeeting === 'number' && myData.highestCompletedMeeting >= 2) ||
-    myData?.routeStatus === 'PENDING_TEACHER_APPROVAL'
-  );
-  const showMeeting2Waiting = completedMeeting2 && !isGateApproved;
   useEffect(() => {
     const isApproved = isGateApproved;
     // PRD 14 §ב0: "כדי שמפגש 3 ייפתח נדרשים שני התנאים במצטבר: אישור בשער
@@ -1106,24 +1119,16 @@ export function StudentWorkspacePage() {
     </>
   );
 
+  // An approved learner completed part-way by the teacher's close (waitingAfterApproval).
+  if (waitingAfterApproval) {
+    return <><TeacherWillOpenWaitingScreen />{classStateOverlays}</>;
+  }
+
   // A meeting that has not started because the learner waits for an approved
   // path (Module 26; owner, 28.9.2026) shows the waiting screen, not whatever
   // the previous meeting left in the store — its end screen or choice screen.
   // The meeting starts, and this screen goes, when the approval and the path
   // arrive (runInit above).
-  // Meeting 2 opened again (owner decision 2.10.2026: to let the learners who
-  // did not finish, finish). A learner the teacher's close completed part-way
-  // and whose path the teacher has already approved does not go back into the
-  // diagnostic: the approval rests on what was there, and finishing would
-  // rewrite it. Same quiet wait as a finished learner (#196). Learners not yet
-  // approved go on from where they stopped and are re-scored.
-  if (
-    meeting === 2 && !isTeacherOrAdmin && completedMeeting2 && isGateApproved &&
-    isDiagnosticPrimaryRound({ sessionNumber, flowStatus, qflow: { phase: qflowPhase } })
-  ) {
-    return <><TeacherWillOpenWaitingScreen />{classStateOverlays}</>;
-  }
-
   if (pendingApproval && !isInitialized) {
     return <>{showMeeting2Waiting ? <><Meeting2WaitingScreen /><CornerCloudSyncStatus /></> : <TeacherWillOpenWaitingScreen />}{classStateOverlays}</>;
   }

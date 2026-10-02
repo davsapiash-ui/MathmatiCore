@@ -145,6 +145,8 @@ export interface Meeting2CloseResult {
   alreadyCompleted: number[];
   /** Of alreadyCompleted: tasks answered since an earlier close, or a new score. */
   updated: number[];
+  /** Of alreadyCompleted: bringing them up to date failed (their completion stands). */
+  catchUpFailed: number[];
   /** No meeting-2 event since the meeting's last reset: not started, not completed. */
   notStarted: number[];
   failed: number[];
@@ -162,7 +164,18 @@ export async function completeUnfinishedMeeting2(
   rtdb: admin.database.Database,
   classId: string = PILOT_CLASS_ID
 ): Promise<Meeting2CloseResult> {
-  const result: Meeting2CloseResult = { completed: [], alreadyCompleted: [], updated: [], notStarted: [], failed: [] };
+  const result: Meeting2CloseResult = { completed: [], alreadyCompleted: [], updated: [], catchUpFailed: [], notStarted: [], failed: [] };
+
+  // Its own failure, logged as such: the learner is completed either way, and
+  // "FAILED" means a learner the close could not complete.
+  const catchUp = async (n: number) => {
+    try {
+      if (await catchUpCompletedMeeting2(db, rtdb, n)) result.updated.push(n);
+    } catch (err) {
+      logger.error(`Meeting 2 close: learner ${n} is completed, but bringing them up to date failed:`, err);
+      result.catchUpFailed.push(n);
+    }
+  };
 
   for (let n = 1; n <= 12; n++) {
     try {
@@ -173,7 +186,7 @@ export async function completeUnfinishedMeeting2(
       const snaps = await Promise.all(candidates.map((id) => db.collection("sessions").doc(id).get()));
       if (snaps.some((s) => s.exists && (s.data() || {}).is_completed === true)) {
         result.alreadyCompleted.push(n);
-        if (await catchUpCompletedMeeting2(db, rtdb, n)) result.updated.push(n);
+        await catchUp(n);
         continue;
       }
 
@@ -225,7 +238,7 @@ export async function completeUnfinishedMeeting2(
       });
       if (!completedNow) {
         result.alreadyCompleted.push(n);
-        if (await catchUpCompletedMeeting2(db, rtdb, n)) result.updated.push(n);
+        await catchUp(n);
         continue;
       }
 
@@ -291,6 +304,7 @@ export const onMeeting2ClosedByTeacher = onValueWritten({
   logger.info(
     `Meeting 2 closed by the teacher: completed [${result.completed.join(", ")}], ` +
     `already completed [${result.alreadyCompleted.join(", ")}] (brought up to date [${result.updated.join(", ")}]), not started [${result.notStarted.join(", ")}]` +
+    (result.catchUpFailed.length ? `, up-to-date FAILED [${result.catchUpFailed.join(", ")}]` : "") +
     (result.failed.length ? `, FAILED [${result.failed.join(", ")}]` : "")
   );
 });

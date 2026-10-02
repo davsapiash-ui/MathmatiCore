@@ -17,6 +17,7 @@ const h = vi.hoisted(() => ({
   rtdb: {} as Record<string, any>,                   // "users/students/student_user4" → record
   firestoreWrites: [] as string[],
   createTimes: {} as Record<string, number>,         // "collection/id" → the server's write time
+  failRecordRead: '',                                // a record whose read throws
 }));
 
 vi.mock('firebase-admin', async (importOriginal) => {
@@ -72,6 +73,7 @@ vi.mock('firebase-admin', async (importOriginal) => {
     const field = parts.slice(3).join('/');
     return {
       get: async () => {
+        if (h.failRecordRead && base === h.failRecordRead) throw new Error('record read refused');
         const rec = h.rtdb[base];
         const v = field ? rec?.[field] : rec;
         return { val: () => (v === undefined ? null : v), exists: () => v !== undefined };
@@ -172,6 +174,7 @@ beforeEach(() => {
   h.rtdb = {};
   h.firestoreWrites = [];
   h.createTimes = {};
+  h.failRecordRead = '';
   seq = 0;
   writeClock = null;
 });
@@ -550,6 +553,16 @@ describe('a learner an earlier close completed, who went on and is closed again 
     expect(result.updated).toEqual([]);
     expect(h.firestoreWrites).toEqual([]);
     expect(JSON.stringify(h.rtdb['users/students/student_user4'])).toBe(before);
+  });
+
+  it('a failure to bring the learner up to date is its own entry, not "could not be completed"', async () => {
+    await closeOnTask4(4);
+    solved(4, TASKS[3]);
+    h.failRecordRead = 'users/students/student_user4';
+    const result = await completeUnfinishedMeeting2(admin.firestore(), admin.database());
+    expect(result.alreadyCompleted).toEqual([4]);
+    expect(result.catchUpFailed).toEqual([4]);
+    expect(result.failed).toEqual([]);
   });
 
   it('an approved gate stays approved', async () => {
