@@ -134,7 +134,9 @@ beforeEach(() => {
   h.session = { active: true, status: 'active', sessionNumber: 1, startedAt: 1, isLoaded: true };
   useAuthStore.setState({ user: { uid: STUDENT, student_id: 5, role: 'student' } as any, role: 'student', isAuthenticated: true });
   useWorkspaceStore.getState().resetWorkspace();
-  useStore.setState({ students: { [STUDENT]: { highestCompletedMeeting: 1 } } as any, firebaseLoaded: true });
+  // A learner still in meeting 1. (highestCompletedMeeting: 1 would say meeting 1
+  // is finished: a meeting opened again then shows the quiet end screen — catch-up, 2.10.2026.)
+  useStore.setState({ students: { [STUDENT]: { highestCompletedMeeting: 0 } } as any, firebaseLoaded: true });
   proceed = vi.fn();
   undo = vi.fn();
 });
