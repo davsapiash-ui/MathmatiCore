@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/application/useStore';
+import { recordLearningPath } from '@/application/useWorkspaceStore';
 import { ResetConfirmationModal } from './ResetConfirmationModal';
 import { recommendedPathOf } from '@/core/recommendedPath';
 import { hasEnhancedSupport } from '@/core/supportProfile';
@@ -55,7 +56,8 @@ export interface AnonymousStudent {
   studentNumber: number; // 1-12
   displayName: string; // "תלמיד 1"
   sessionNumber: number; // 1-8
-  currentPath: 'ירוק' | 'צמצום פערים';
+  /** The path the gate approved; null while none is (never green by default). */
+  currentPath: 'ירוק' | 'צמצום פערים' | null;
   status: 'active' | 'locked' | 'completed';
   hesitationSeconds: number;
   errorCount: number;
@@ -84,7 +86,7 @@ const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_,
     studentNumber: studentNum,
     displayName: `תלמיד ${studentNum}`,
     sessionNumber: 1,
-    currentPath: 'ירוק',
+    currentPath: null,
     status: 'active' as const,
     hesitationSeconds: 0,
     errorCount: 0,
@@ -132,6 +134,18 @@ export function describeRadarCell(
 
   parts.push('להצגת מסך התלמיד והפרטים');
   return parts.join('. ');
+}
+
+/**
+ * The tile's "current path": the path the gate approved, read by the same rule
+ * the learner's own client opens its bank by (recordLearningPath). The tile
+ * used to say "המסלול הירוק" for every learner without the remediation flag —
+ * also after a meeting-2 reset, a full learner reset or a system reset, when
+ * there is no path at all (owner, 28.9.2026: never green by default).
+ */
+export function radarCurrentPathOf(record: Record<string, unknown> | null | undefined): 'ירוק' | 'צמצום פערים' | null {
+  const path = recordLearningPath(record);
+  return path === 'remediation_path' ? 'צמצום פערים' : path === 'green_path' ? 'ירוק' : null;
 }
 
 /**
@@ -369,7 +383,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             displayName: `תלמיד ${studentNum}`,
             sessionNumber,
             errorCategoryDistribution,
-            currentPath: isYellowPath ? 'צמצום פערים' : 'ירוק',
+            currentPath: radarCurrentPathOf(data),
             status,
             hesitationSeconds,
             errorCount,
@@ -464,7 +478,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       };
     }
     return {
-      category: `שיח פדגוגי מעמיק (${ROUTE_NAME_HE.green_path})`,
+      // The route's name only when the gate approved it (never green by default).
+      category: student.currentPath === 'ירוק' ? `שיח פדגוגי מעמיק (${ROUTE_NAME_HE.green_path})` : 'שיח פדגוגי מעמיק',
       questions: [
         'איזו אסטרטגיה בחרתם לפתרון הבעיה ומדוע היא יעילה בעיניכם?',
         'האם קיימת דרך נוספת להגיע לאותה התוצאה?',
@@ -625,11 +640,16 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               {/* Module 23א level 2, whole class (register, deviation 20): the
                   lesson that fell apart — restart the open meeting for all 12
                   learners at once. Earlier meetings stay; this is not level 3. */}
+              {/* Only while a meeting is open (deviation 20; the server refuses
+                  otherwise) — by the same liveness rule as the rest of the app. */}
               <button
                 onClick={() => setIsSessionResetModalOpen(true)}
-                disabled={isResettingSession}
-                className="px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 hover:border-amber-400 bg-amber-50/60 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
-                title="מחזיר את כל 12 הלומדים לתחילת המפגש הפתוח. מפגשים קודמים נשמרים"
+                disabled={isResettingSession || !isClassSessionActive || !activeSessionNum}
+                data-testid="class-session-reset-button"
+                className="px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 hover:border-amber-400 bg-amber-50/60 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-xs"
+                title={isClassSessionActive && activeSessionNum
+                  ? 'מחזיר את כל 12 הלומדים לתחילת המפגש הפתוח. מפגשים קודמים נשמרים'
+                  : 'אין מפגש פתוח לכיתה. אפשר לאפס את המפגש לכל הכיתה רק כשמפגש פתוח.'}
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isResettingSession ? 'animate-spin' : ''}`} />
                 <span>איפוס המפגש לכיתה</span>
@@ -844,9 +864,12 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     <div className="flex flex-col gap-1 my-1">
                       <div className="flex flex-wrap justify-between gap-1 text-[11px] font-bold">
                         <span title={meetingLabelHe(student.sessionNumber)}>{meetingShortLabelHe(student.sessionNumber)}</span>
-                        <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'}`}>
-                          {radarPathLabelHe(student.currentPath)}
-                        </span>
+                        {/* No approved path, no path tag. */}
+                        {student.currentPath && (
+                          <span data-testid={`tile-path-${student.studentNumber}`} className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'}`}>
+                            {radarPathLabelHe(student.currentPath)}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -968,8 +991,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                     <span className="text-xs text-slate-500 font-bold block mb-1">מסלול למידה נוכחי</span>
-                    <span className={`text-base font-extrabold ${selectedStudent.currentPath === 'צמצום פערים' ? 'text-amber-600' : 'text-emerald-600'}`}>
-                      {radarPathLabelHe(selectedStudent.currentPath)}
+                    <span data-testid="detail-current-path" className={`text-base font-extrabold ${selectedStudent.currentPath === 'צמצום פערים' ? 'text-amber-600' : selectedStudent.currentPath === 'ירוק' ? 'text-emerald-600' : 'text-slate-500 dark:text-slate-400'}`}>
+                      {selectedStudent.currentPath ? radarPathLabelHe(selectedStudent.currentPath) : 'עדיין לא נקבע'}
                     </span>
                   </div>
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">

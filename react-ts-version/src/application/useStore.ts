@@ -857,8 +857,9 @@ export const useStore = create<AppState>()(
             qMatrixResults: null,
             traceData: null,
             reflections: null,
-            enhanced_support_profile: null, // the legacy alias (core/supportProfile.ts) is removed, not written
-            support_profile_id: null,
+            // The support profile and quiet mode are the teacher's settings for
+            // the learner and survive a full learner reset (owner, 2.10.2026);
+            // the server keeps them on the record (LEARNER_SETTINGS_FIELDS).
             physicalOverride: false,
             physicalOverrideActive: false,
             forceAdditionHelper: false,
@@ -911,15 +912,25 @@ export const useStore = create<AppState>()(
           reflections: null,
         };
 
-        // Update local Zustand state
-        set((state) => ({
-          students: {
-            ...state.students,
-            [normId]: cleanStudent,
-            ...(studentId !== normId ? { [studentId]: cleanStudent } : {}),
-            [`student_${num}`]: cleanStudent,
-          }
-        }));
+        // Update local Zustand state. The teacher's settings for the learner
+        // are kept, as on the server — the RTDB listener sends no new value
+        // for them, so a clean copy without them hid them until a reload.
+        set((state) => {
+          const before = state.students[normId] || state.students[studentId];
+          const kept: StudentData = {
+            ...cleanStudent,
+            ...(before?.isASD !== undefined ? { isASD: before.isASD } : {}),
+            ...(before?.support_profile_id !== undefined ? { support_profile_id: before.support_profile_id } : {}),
+          };
+          return {
+            students: {
+              ...state.students,
+              [normId]: kept,
+              ...(studentId !== normId ? { [studentId]: kept } : {}),
+              [`student_${num}`]: kept,
+            }
+          };
+        });
 
         useChatStore.getState().clearStudentMessages(normId);
         toast.success(`נתוני ${defaultName} אופסו בהצלחה!`);
