@@ -277,6 +277,8 @@ export interface ResetAuditEntry {
   reset_reason: ResetReason;
   reason_note: string | null;
   records_deleted_count: number;
+  /** Learner records reset in place (a meeting restart), not deleted. */
+  records_reset_count?: number;
   /** Level 2 only: what the teacher chose to reset. */
   reset_scope?: SingleStudentResetScope;
   /** Level 2, 'active_session': the meeting that was restarted. */
