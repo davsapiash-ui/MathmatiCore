@@ -11,6 +11,7 @@ import { resolve } from 'path';
  */
 const server = readFileSync(resolve(__dirname, '../../../../functions/src/classReport.ts'), 'utf-8');
 const index = readFileSync(resolve(__dirname, '../../../../functions/src/index.ts'), 'utf-8');
+const metrics = readFileSync(resolve(__dirname, '../../../../functions/src/meetingMetrics.ts'), 'utf-8');
 const drive = readFileSync(resolve(__dirname, '../../../../functions/src/exportDriveReport.ts'), 'utf-8');
 const rules = readFileSync(resolve(__dirname, '../../../../firestore.rules'), 'utf-8');
 const service = readFileSync(resolve(__dirname, '../../infrastructure/services/ClassReportService.ts'), 'utf-8');
@@ -25,9 +26,13 @@ describe('Module 23 — class report per meeting (server)', () => {
   });
 
   it('reads every event of the meeting for every learner, by the same functions as the individual report', () => {
-    expect(server).toMatch(/await readAllDocs\(db\.collection\("telemetry_logs"\)\)/);
-    expect(server).toMatch(/const m = sessionNumberFromId\(String\(data\.session_id \|\| ""\)\);/);
-    expect(server).toMatch(/if \(m !== sessionNumber\) continue;/);
+    expect(server).toMatch(/readAllDocs\(db\.collection\("telemetry_logs"\)\)/);
+    // Grouped by learner and meeting (by session id) in meetingMetrics.meetingRunsByLearner.
+    expect(metrics).toMatch(/const m = sessionNumberFromId\(String\(data\?\.session_id \|\| ""\)\);/);
+    // Owner, 2.10.2026: each learner's meeting is cut at its last reset, and the row counts the new run.
+    expect(server).toContain('const runsByKey = meetingRunsByLearner(allTelemetry, resetEntries);');
+    expect(metrics).toMatch(/splitMeetingRuns\(events, resetsOfMeeting\(resetEntries, n, m\)\)/);
+    expect(server).toMatch(/const run = runsByKey\.get\(`\$\{n\}:\$\{sessionNumber\}`\);/);
     // With the ids of the compulsory exercises: without them the numerator also
     // counted optional early-finisher tasks (dashboard audit, 20.9.2026).
     expect(server).toMatch(/const first = computeFirstAttemptScore\(sorted, compulsoryTotal, compulsoryIds\);/);

@@ -10,6 +10,7 @@ import {
   describeEvent,
   exerciseTitle,
   fetchLearnerEvents,
+  fetchLearnerResets,
   fetchMeetingReport,
   fetchMeetingReportUrl,
   formatClock,
@@ -18,7 +19,13 @@ import {
   generateMeetingReport,
   groupEventsBySession,
   parseRecordingEvents,
+  answeredSince,
+  PRE_RESET_HEADING_HE,
+  PRE_RESET_NOTE_HE,
+  resetSeparatorHe,
+  resetsOfMeeting,
   subscribeLearnerRecordings,
+  withResetSeparators,
   type JourneyEvent,
   type MeetingReport,
   type RecordingChapter,
@@ -109,7 +116,28 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
     return () => { cancelled = true; };
   }, [studentNum, reloadNonce]);
 
+  // The reset log, for the separator rows: a meeting done twice is not one run. A failure only hides them.
+  const [resetEntries, setResetEntries] = useState<Record<string, any>[]>([]);
+  useEffect(() => {
+    if (studentNum === null) return;
+    let cancelled = false;
+    fetchLearnerResets(studentNum)
+      .then((list) => { if (!cancelled) setResetEntries(list); })
+      .catch((err) => console.warn('[LearnerJourney] the reset log could not be read:', err));
+    return () => { cancelled = true; };
+  }, [studentNum, reloadNonce]);
+
   const eventsBySession = useMemo(() => groupEventsBySession(events), [events]);
+  // Per meeting, the resets that cut it (an event of the meeting before them).
+  const cuttingResetsBySession = useMemo(() => {
+    const map = new Map<number, ReturnType<typeof resetsOfMeeting>>();
+    if (studentNum === null) return map;
+    for (const n of SESSION_NUMBERS) {
+      const rows = withResetSeparators(eventsBySession.get(n) ?? [], resetsOfMeeting(resetEntries, studentNum, n));
+      map.set(n, rows.flatMap((r) => (r.kind === 'reset' ? [r.reset] : [])));
+    }
+    return map;
+  }, [eventsBySession, resetEntries, studentNum]);
   const recordingsBySession = useMemo(() => {
     const map = new Map<number, RecordingSession[]>();
     for (const r of recordings) {
@@ -149,6 +177,12 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
     () => (selectedExercise ? sessionEvents.filter((e) => e.exerciseId === selectedExercise) : sessionEvents),
     [sessionEvents, selectedExercise],
   );
+  const sessionResets = useMemo(
+    () => (selectedSession === null || studentNum === null ? [] : resetsOfMeeting(resetEntries, studentNum, selectedSession)),
+    [resetEntries, studentNum, selectedSession],
+  );
+  const decisionRows = useMemo(() => withResetSeparators(visibleEvents, sessionResets), [visibleEvents, sessionResets]);
+  const lastCuttingReset = selectedSession === null ? null : (cuttingResetsBySession.get(selectedSession) ?? []).slice(-1)[0] ?? null;
 
   // מודול 21 §ב: "ההפעלה מתבצעת עבור התרגיל הספציפי שנבחר בלבד". בחירת
   // תרגיל סיננה עד עכשיו רק את טבלת ההחלטות; הנגן המשיך לרוץ על כל המפגש,
@@ -334,6 +368,11 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   {Number.isFinite(firstTs) && <div>{formatDate(firstTs)}</div>}
                   <div>{evs.length} פעולות</div>
                   <div>{recs.length > 0 ? `הקלטה ${formatDuration(recMs)}` : 'ללא הקלטה'}</div>
+                  {(cuttingResetsBySession.get(n)?.length ?? 0) > 0 && (
+                    <div className="font-bold text-amber-800 dark:text-amber-300">
+                      {cuttingResetsBySession.get(n)!.length === 1 ? 'אופס פעם אחת' : `אופס ${cuttingResetsBySession.get(n)!.length} פעמים`}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="mt-1.5 text-[11px] text-ws-soft">אין נתונים</div>
@@ -437,6 +476,16 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
               </p>
             )}
 
+            {/* A report kept from before the meeting's last reset (resets keep reports) describes the old run. */}
+            {report && lastCuttingReset && report.generatedAt !== null && report.generatedAt < lastCuttingReset.at && (
+              <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+                {/* "הפיקו מחדש" helps only once the learner has answered since the reset; before that the server refuses. */}
+                {answeredSince(sessionEvents, lastCuttingReset.at)
+                  ? 'הדוח הזה הופק לפני האיפוס של המפגש, ולכן הוא מתאר את העבודה הקודמת. לחצו "הפיקו מחדש" כדי לקבל דוח על העבודה שאחרי האיפוס.'
+                  : 'הדוח הזה הופק לפני האיפוס של המפגש, ולכן הוא מתאר את העבודה הקודמת. מאז האיפוס עוד לא נרשמה לתלמיד אף תשובה, ולכן אפשר להפיק דוח חדש רק אחרי שתירשם לו תשובה במפגש הזה.'}
+              </div>
+            )}
+
             {report && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs">
                 <div className="space-y-2">
@@ -508,6 +557,16 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                       <div className="font-black text-ws-ink mb-1">{CHOICE_EXERCISES_HEADING_HE}</div>
                       <ul className="space-y-1 text-ws-ink">
                         {report.choiceExerciseNarratives.map((n, i) => <li key={i}>• {n}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {/* Owner, 2.10.2026: the mistakes before the reset, documented apart; the score above counts the new run. */}
+                  {report.preReset && (
+                    <div className="p-3 rounded-xl bg-orange-50 border border-orange-200 text-orange-950 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-100" data-testid="pre-reset">
+                      <div className="font-black mb-1">{PRE_RESET_HEADING_HE}</div>
+                      <div className="text-[11px] opacity-80 mb-1">{PRE_RESET_NOTE_HE}</div>
+                      <ul className="space-y-1">
+                        {report.preReset.lines.map((line, i) => <li key={i}>• {line}</li>)}
                       </ul>
                     </div>
                   )}
@@ -586,7 +645,19 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                     ) : visibleEvents.length === 0 ? (
                       <tr><td colSpan={6} className="p-8 text-center text-ws-soft">אין פעולות מתועדות למפגש זה.</td></tr>
                     ) : (
-                      visibleEvents.map((e, idx) => {
+                      decisionRows.map((row) => {
+                        if (row.kind === 'reset') {
+                          // A meeting done twice: where the new run begins (audit learner_view).
+                          return (
+                            <tr key={`reset-${row.reset.at}`} data-testid="reset-separator" className="bg-amber-100 dark:bg-amber-950/60">
+                              <td colSpan={6} className="p-2 text-[11px] font-black text-amber-950 dark:text-amber-100 border-y-2 border-amber-400">
+                                {resetSeparatorHe(row.reset)}
+                              </td>
+                            </tr>
+                          );
+                        }
+                        const e = row.event;
+                        const idx = visibleEvents.indexOf(e);
                         const desc = describeEvent(e);
                         const prev = idx > 0 ? visibleEvents[idx - 1] : null;
                         const delaySec = prev ? Math.round((e.timestamp - prev.timestamp) / 1000) : 0;

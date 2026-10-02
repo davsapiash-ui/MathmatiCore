@@ -9,6 +9,9 @@ import {
   sessionNumberFromId,
   studentNumberFromSessionId,
   summarizeMeeting,
+  hasAnswerEvent,
+  meetingRunsByLearner,
+  resolveMeetingPath,
 } from "./meetingMetrics";
 
 /**
@@ -55,13 +58,20 @@ export async function recomputeAdminMetrics(db: admin.firestore.Firestore) {
   // 3–8 never had a completion to count.
   const learners = await readLearnerRecords();
 
-  const byMeeting = groupTelemetryByMeeting(telemetry.map((d) => d.data));
+  // As the reports count a meeting (owner, 2.10.2026): each learner's meeting
+  // from its last reset on, and scored on the path the learner worked on in it.
+  // The admin summary used to count every event and the current path, and so
+  // disagreed with every report after a reset or a track change.
+  const resetEntries = (await readAllDocs(db.collection("reset_audit_log"))).map(({ data }) => data);
+  const byMeeting = groupTelemetryByMeeting(currentRunEvents(telemetry, resetEntries));
   const compulsory = new Map<string, { total: number | null; ids: ReadonlySet<string> | null }>();
   const totalsCache = new Map<string, number | null>();
   const idsByBank = new Map<string, ReadonlySet<string>>();
+  const pathByLearnerMeeting = new Map<string, LearnerPath>();
   for (const [meeting, perLearner] of byMeeting) {
-    for (const n of perLearner.keys()) {
-      const path = learners.pathByLearner.get(n) ?? "green_path";
+    for (const [n, evs] of perLearner) {
+      const path = await resolveMeetingPath(db, meeting, evs, learners.pathByLearner.get(n) ?? "green_path", totalsCache, idsByBank);
+      pathByLearnerMeeting.set(`${n}:${meeting}`, path);
       const key = `${meeting}:${path}`;
       if (compulsory.has(key)) continue;
       const total = await resolveCompulsoryTotal(db, meeting, path, totalsCache, idsByBank);
@@ -74,6 +84,7 @@ export async function recomputeAdminMetrics(db: admin.firestore.Firestore) {
     sessionDocs,
     highestCompletedByLearner: learners.highestCompletedByLearner,
     pathByLearner: learners.pathByLearner,
+    pathByLearnerMeeting,
     compulsory,
   });
 
@@ -92,6 +103,14 @@ export async function recomputeAdminMetrics(db: admin.firestore.Firestore) {
 }
 
 type LearnerPath = "green_path" | "remediation_path";
+
+/** Every event of every learner's meetings that the reports count: each meeting from its last reset on. */
+export function currentRunEvents(
+  telemetry: Array<{ data: Record<string, any>; writtenAtMs: number | null }>,
+  resetEntries: Record<string, any>[]
+): Record<string, any>[] {
+  return Array.from(meetingRunsByLearner(telemetry, resetEntries).values()).flatMap((run) => run.current);
+}
 
 function learnerNumber(v: unknown): number | null {
   const n = parseInt(String(v ?? "").replace(/\D/g, ""), 10);
@@ -184,6 +203,8 @@ export function buildAdminMetrics(input: {
   sessionDocs: Array<{ id: string; data: Record<string, any> }>;
   highestCompletedByLearner: ReadonlyMap<number, number>;
   pathByLearner: ReadonlyMap<number, LearnerPath>;
+  /** `${learner}:${meeting}` → the path the learner worked on in that meeting (meetingMetrics.pathOfMeeting). */
+  pathByLearnerMeeting?: ReadonlyMap<string, LearnerPath>;
   compulsory: ReadonlyMap<string, { total: number | null; ids: ReadonlySet<string> | null }>;
 }) {
   const docsByMeeting = new Map<number, Map<number, Record<string, any>>>();
@@ -254,8 +275,10 @@ export function buildAdminMetrics(input: {
         const docScore = docs.get(n)?.session_score_percent;
         let score: number | null = typeof docScore === "number" ? docScore : null;
         const evs = events.get(n);
-        if (score === null && evs) {
-          const c = input.compulsory.get(`${m}:${input.pathByLearner.get(n) ?? "green_path"}`);
+        // Nothing answered (a meeting reset and not redone: only its screen-open events) is no score, not 0%.
+        if (score === null && evs && hasAnswerEvent(evs)) {
+          const path = input.pathByLearnerMeeting?.get(`${n}:${m}`) ?? input.pathByLearner.get(n) ?? "green_path";
+          const c = input.compulsory.get(`${m}:${path}`);
           if (c && c.total !== null) score = computeFirstAttemptScore(evs, c.total, c.ids).scorePercent;
         }
         if (score !== null) {

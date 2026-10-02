@@ -24,7 +24,7 @@ import { getSessionTasks } from '@/data/sessionTasks';
 import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
 import { CHOICE_PATH_LABEL_HE, choiceTask, exercisePathType } from '@/core/choiceExercises';
 import { meetingShortLabelHe } from '@/core/stationNames';
-import { ERROR_CATEGORY_HE, TRIGGER_REASON_HE } from '@/core/routeLabels';
+import { ERROR_CATEGORY_HE, TRIGGER_REASON_HE, resetReasonHe } from '@/core/routeLabels';
 import { RESEARCH_MEASURES_HE, persistenceTextHe, selfCorrectionTextHe, type ResearchMeasureKey } from '@/core/researchMeasures';
 
 export interface RecordingChapter {
@@ -56,6 +56,8 @@ export interface JourneyEvent {
   eventType: TelemetryEventType | string;
   columnIndex?: number;
   details: Record<string, unknown>;
+  /** When the event was written to Firestore (synced_at; the tablet's clock). Absent on older events. */
+  writtenAt?: number;
 }
 
 const COLUMN_NAMES_HE = ['יחידות', 'עשרות', 'מאות', 'אלפים'];
@@ -198,6 +200,112 @@ export function parseRecordingEvents(sessions: RecordingSession[]): any[] {
   }
   events.sort((a, b) => (a?.timestamp || 0) - (b?.timestamp || 0));
   return events;
+}
+
+/** A reset that restarted one meeting of the learner (the server's rule, functions/src/meetingMetrics.ts resetsOfMeeting). */
+export interface MeetingResetMark {
+  /** performed_at: the server's time of the reset. */
+  at: number;
+  reasonHe: string | null;
+  scope: 'system' | 'full_student' | 'active_session';
+}
+
+/**
+ * The resets of the reset log that restarted meeting `sessionNumber` for this
+ * learner, oldest first: carried out (backup written), covering the learner,
+ * and of the whole system, the whole learner, or this meeting.
+ */
+export function resetsOfMeeting(entries: Record<string, any>[], studentNum: number, sessionNumber: number): MeetingResetMark[] {
+  const out: MeetingResetMark[] = [];
+  for (const e of entries) {
+    if (e?.backup_status !== 'success') continue;
+    if (!Array.isArray(e.affected_student_ids) || !e.affected_student_ids.includes(studentNum)) continue;
+    const scope: MeetingResetMark['scope'] | null =
+      e.reset_level === 'system'
+        ? 'system'
+        : e.reset_level === 'single_student' && e.reset_scope === 'full_student'
+          ? 'full_student'
+          : e.reset_level === 'single_student' && e.reset_scope === 'active_session' && Number(e.session_number) === sessionNumber
+            ? 'active_session'
+            : null;
+    const at = Number(e.performed_at);
+    if (scope === null || !Number.isFinite(at)) continue;
+    out.push({ at, reasonHe: resetReasonHe(e.reset_reason), scope });
+  }
+  return out.sort((a, b) => a.at - b.at);
+}
+
+/** The reset log entries that name this learner (firestore.rules: the teacher reads reset_audit_log). */
+export async function fetchLearnerResets(studentNum: number): Promise<Record<string, any>[]> {
+  await authReady;
+  const snap = await getDocs(query(collection(firestore, 'reset_audit_log'), where('affected_student_ids', 'array-contains', studentNum)));
+  const out: Record<string, any>[] = [];
+  snap.forEach((d) => { out.push(d.data() as Record<string, any>); });
+  return out;
+}
+
+export type DecisionRow =
+  | { kind: 'event'; event: JourneyEvent }
+  | { kind: 'reset'; reset: MeetingResetMark };
+
+/**
+ * The decision table with a separator row where the meeting was reset, so a
+ * meeting done twice does not read as one run (audit learner_view: the two
+ * runs ran together, unmarked). A reset with no event of the list before it
+ * cut nothing here and is left out. The reset time is the server's and the
+ * events carry the tablet's clock, so the row sits at the closest point the two
+ * clocks allow; the score itself is cut on the server by the server's time.
+ */
+export function withResetSeparators(events: JourneyEvent[], resets: MeetingResetMark[]): DecisionRow[] {
+  const rows: DecisionRow[] = [];
+  const pending = [...resets].sort((a, b) => a.at - b.at);
+  for (const event of events) {
+    while (pending.length > 0 && pending[0].at < event.timestamp) {
+      const reset = pending.shift()!;
+      if (rows.some((r) => r.kind === 'event')) rows.push({ kind: 'reset', reset });
+    }
+    rows.push({ kind: 'event', event });
+  }
+  for (const reset of pending) if (rows.some((r) => r.kind === 'event')) rows.push({ kind: 'reset', reset });
+  return rows;
+}
+
+/**
+ * What was reset, in the reports' words (functions/src/preResetRecord.ts
+ * resetWhatHe): one wording for the same event on every screen.
+ */
+export function resetWhatHe(scope: MeetingResetMark['scope']): string {
+  return scope === 'active_session'
+    ? 'המפגש אופס'
+    : scope === 'full_student'
+      ? 'כל העבודה של התלמיד אופסה'
+      : 'המערכת אופסה';
+}
+
+/** The separator's text: "איפוס · 2.10.2026 14:05 · המפגש אופס. הסיבה: …". */
+export function resetSeparatorHe(r: MeetingResetMark): string {
+  return `איפוס · ${formatDate(r.at)} ${formatClock(r.at)} · ${resetWhatHe(r.scope)}.${r.reasonHe ? ` הסיבה: ${r.reasonHe}.` : ''} הדוח של המפגש נבנה רק מהעבודה שמכאן והלאה.`;
+}
+
+/**
+ * The answers of the server's rule (meetingMetrics ANSWER_EVENT_TYPES): a
+ * digit, a card choice, a completed exercise, a reflection. Opening the screen
+ * after a reset (SESSION_START, PROBLEM_LOAD) is not working on the meeting.
+ */
+export const ANSWER_EVENT_TYPES: ReadonlySet<string> = new Set(['DIGIT_ENTERED', 'SOCRATIC_OPTION_SELECTED', 'PROBLEM_COMPLETE', 'REFLECTION_SUBMITTED']);
+
+/**
+ * Whether the learner answered anything in the meeting after the reset at `at`.
+ *
+ * The server cuts a meeting by each event's write time, not by when the child
+ * acted: an answer buffered offline before the reset and written after it
+ * counts as the new run. The web SDK does not expose a document's server write
+ * time, so the closest basis on this side is `synced_at`, stamped as the event
+ * is written to Firestore (the tablet's clock); the action time is used only
+ * for an event written without it.
+ */
+export function answeredSince(events: JourneyEvent[], at: number): boolean {
+  return events.some((e) => (e.writtenAt ?? e.timestamp) > at && ANSWER_EVENT_TYPES.has(String(e.eventType)));
 }
 
 export function groupEventsBySession(events: JourneyEvent[]): Map<number, JourneyEvent[]> {
@@ -454,6 +562,7 @@ export async function fetchLearnerEvents(
       eventType: String(d.event_type),
       ...(typeof d.column_index === 'number' ? { columnIndex: d.column_index } : {}),
       details: d.details && typeof d.details === 'object' ? d.details : {},
+      ...(typeof d.synced_at === 'number' ? { writtenAt: d.synced_at } : {}),
     });
   });
   events.sort((a, b) => a.timestamp - b.timestamp);
@@ -492,9 +601,15 @@ export const REPORT_PROCESSING_TEXT = 'הדוח בעיבוד כעת, אנא נס
  * in a few moments", and the teacher tried again, and again. A refusal is
  * final and says why; only a transient failure is "processing".
  */
+/** The server's sentence when the reset log cannot be read (functions/src/preResetRecord.ts; a test keeps them equal). */
+export const RESET_LOG_UNAVAILABLE_HE = 'לא ניתן לקרוא כרגע את יומן האיפוסים, ולכן הדוח לא הופק. נסו שוב בעוד כמה דקות.';
+
 export function describeReportError(err: unknown): { final: boolean; message: string } {
   const code = String((err as { code?: string } | null)?.code ?? '').replace(/^functions\//, '');
   const raw = err instanceof Error ? err.message : String(err ?? '');
+  // The reset log could not be read (functions/src/preResetRecord.ts): transient,
+  // and it says why. Any other "unavailable" keeps the PRD's processing text.
+  if (code === 'unavailable' && raw === RESET_LOG_UNAVAILABLE_HE) return { final: false, message: raw };
   const finalCodes = new Set(['not-found', 'invalid-argument', 'permission-denied', 'failed-precondition', 'unauthenticated']);
   if (finalCodes.has(code)) {
     const hebrew = /[\u05D0-\u05EA]/.test(raw);
@@ -571,7 +686,19 @@ export interface MeetingReport {
   researchMeasures: ResearchMeasureLine[];
   /** Set when the server produced the report but could NOT render or store its PDF (Module 23 §ה). */
   pdfFailureMessage: string | null;
+  /**
+   * Owner, 2.10.2026: where the learner went wrong before the meeting's last
+   * reset — the resets, then one line per exercise, as the server wrote them.
+   * Documentation only: the score and the group above count the new run. Null
+   * when the meeting was not reset (and on reports stored before this existed).
+   */
+  preReset: { lines: string[] } | null;
 }
+
+/** The heading and the note of the report's "לפני האיפוס" part (functions/src/preResetRecord.ts). */
+export const PRE_RESET_HEADING_HE = 'לפני האיפוס';
+export const PRE_RESET_NOTE_HE =
+  'תיעוד בלבד: הטעויות שלפני האיפוס לא נכנסות לציון ולא משנות את קבוצת העבודה. כל שאר חלקי הדוח מחושבים רק מהעבודה שאחרי האיפוס.';
 
 const ratioLine = (v: unknown, a: string, b: string, unit = ''): string => {
   if (!v || typeof v !== 'object') return 'לא נמדד';
@@ -658,6 +785,7 @@ export function reportFromData(d: Record<string, any>, sessionId: string, downlo
     downloadUrl,
     researchMeasures: researchMeasureLines(d.research_measures),
     pdfFailureMessage,
+    preReset: strList(d.pre_reset?.lines_he).length > 0 ? { lines: strList(d.pre_reset.lines_he) } : null,
   };
 }
 

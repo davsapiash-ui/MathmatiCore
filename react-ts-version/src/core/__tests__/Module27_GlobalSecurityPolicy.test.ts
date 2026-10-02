@@ -101,7 +101,11 @@ describe('מודול 27 — מי כותב מה (סבב 1.10.2026)', () => {
     const b = block('reset_audit_log');
     expect(b).toContain('allow create: if false;');
     expect(b).not.toContain('allow create: if isTeacher();');
-    expect(sources.filter((s) => s.text.includes('reset_audit_log')).map((s) => s.file)).toEqual([]);
+    // No client writes there. The learner's journey reads it (the rules allow the teacher
+    // to), to mark where a meeting was reset (owner, 2.10.2026) — and nothing else does.
+    const touching = sources.filter((s) => s.text.includes('reset_audit_log'));
+    expect(touching.map((s) => s.file)).toEqual(['infrastructure/services/LearnerJourneyService.ts']);
+    for (const s of touching) expect(s.text).not.toMatch(/(setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
   });
 
   it('צומת הכיתות ב-RTDB נכתב בידי המנהל בלבד (§ב.5)', () => {

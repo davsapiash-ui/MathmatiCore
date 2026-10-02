@@ -123,6 +123,8 @@ export interface ClassMeetingReport {
   csvUrl: string | null;
   drivePdfUrl: string | null;
   driveCsvUrl: string | null;
+  /** Per learner whose meeting was reset, where they went wrong before it (owner, 2.10.2026). Empty when none was. */
+  preResetNotes: string[];
 }
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0);
@@ -203,6 +205,25 @@ function learnerFromData(d: Record<string, any>): ClassLearnerRow {
   };
 }
 
+/**
+ * "לפני האיפוס" (owner, 2.10.2026): one line per learner whose meeting was
+ * reset, as functions/src/preResetRecord.ts classPreResetNotes writes them —
+ * the learners with a row, then those who have not worked on the meeting again.
+ * Documentation only; the scores in the report count the new run.
+ */
+export function preResetNotesFromData(d: Record<string, any>): string[] {
+  const out: string[] = [];
+  for (const r of Array.isArray(d.learners) ? d.learners : []) {
+    const note = r?.pre_reset?.class_note_he;
+    if (typeof note === 'string' && note) out.push(`תלמיד ${num(r.student_id)}: ${note}`);
+  }
+  for (const w of Array.isArray(d.awaiting_rerun) ? d.awaiting_rerun : []) {
+    const note = typeof w?.pre_reset?.class_note_he === 'string' ? ` ${w.pre_reset.class_note_he}` : '';
+    out.push(`תלמיד ${num(w?.student_id)}: מאז האיפוס עוד לא נרשמה לו אף תשובה, ולכן אין לו ציון במפגש הזה.${note}`);
+  }
+  return out;
+}
+
 export function classReportFromData(d: Record<string, any>): ClassMeetingReport {
   const a = (d.aggregates && typeof d.aggregates === 'object' ? d.aggregates : {}) as Record<string, any>;
   const tiersRaw = (a.tiers && typeof a.tiers === 'object' ? a.tiers : {}) as Record<string, unknown>;
@@ -269,6 +290,7 @@ export function classReportFromData(d: Record<string, any>): ClassMeetingReport 
     csvUrl: url(d.csv_url),
     drivePdfUrl: url(d.drive_pdf_url),
     driveCsvUrl: url(d.drive_csv_url),
+    preResetNotes: preResetNotesFromData(d),
   };
 }
 

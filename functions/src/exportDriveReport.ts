@@ -2,7 +2,7 @@ import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/
 import { requireAdmin, requireTeacherForIndividualData } from "./callerIdentity";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { computeToolMastery, truncatedRecordingMeetings, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, computeSelfCorrectionIndex, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
+import { computeToolMastery, truncatedRecordingMeetings, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, computeSelfCorrectionIndex, FLEXIBILITY_SESSIONS, resolveMeetingPath, meetingRunsByLearner, isAwaitingRerun } from "./meetingMetrics";
 import { recomputeAdminMetrics } from "./adminAggregator";
 import { containsPhoneNumber } from "./phonePattern";
 import { scrubPII } from "./geminiProxy";
@@ -1607,6 +1607,75 @@ export function researchExportFileName(fileLabel: string, scopedSession: number 
   return `${fileLabel}_${scopePart}_${stamp}.csv`;
 }
 
+/**
+ * A Firestore Timestamp (or anything shaped like one, as it comes back from a
+ * document or a JSON copy of it), or a Date, as an ISO string; null otherwise.
+ */
+function timestampIso(val: unknown): string | null {
+  if (val instanceof Date) return Number.isFinite(val.getTime()) ? val.toISOString() : "";
+  if (!val || typeof val !== "object") return null;
+  const v = val as Record<string, unknown>;
+  if (typeof v.toDate === "function") {
+    const d = (v.toDate as () => Date)();
+    return d instanceof Date && Number.isFinite(d.getTime()) ? d.toISOString() : "";
+  }
+  const seconds = typeof v.seconds === "number" ? v.seconds : typeof v._seconds === "number" ? v._seconds : null;
+  const nanos = typeof v.nanoseconds === "number" ? v.nanoseconds : typeof v._nanoseconds === "number" ? v._nanoseconds : null;
+  if (seconds === null || nanos === null || Object.keys(v).length > 2) return null;
+  return new Date(seconds * 1000 + Math.round(nanos / 1e6)).toISOString();
+}
+
+/** A value made ready for a CSV cell: every timestamp, also inside an object or an array, as ISO text. */
+function csvValue(val: unknown): unknown {
+  const ts = timestampIso(val);
+  if (ts !== null) return ts;
+  if (Array.isArray(val)) return val.map(csvValue);
+  if (val && typeof val === "object") {
+    return Object.fromEntries(Object.entries(val as Record<string, unknown>).map(([k, v]) => [k, csvValue(v)]));
+  }
+  return val;
+}
+
+/**
+ * One research-export CSV file (BOM, every cell quoted).
+ *
+ * Every reset and every export writes `created_at` as a server timestamp. The
+ * reset-log file copied it as is, and the cell turned the object into
+ * {"_seconds":…,"_nanoseconds":282943000}; the PII gate below read the nine
+ * nanosecond digits as an ID number and refused the whole export. The first
+ * export worked, and from then on — after any reset or any earlier export —
+ * every one failed (audit M-export). A timestamp is a time: ISO text, in every
+ * file. The gate itself is unchanged, and still refuses a real nine-digit number.
+ */
+export function researchCsv(rows: Record<string, any>[], columns?: string[]): string {
+  if (!rows || rows.length === 0) return "﻿empty\n";
+  const headerSet = new Set<string>();
+  rows.forEach((r) => Object.keys(r).forEach((k) => headerSet.add(k)));
+  const headers = columns ?? Array.from(headerSet);
+  const cell = (raw: any) => {
+    const val = csvValue(raw);
+    const text = val === null || val === undefined ? "" : typeof val === "object" ? JSON.stringify(val) : String(val);
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+  const headerLine = headers.map(cell).join(",");
+  const bodyLines = rows.map((row) => headers.map((h) => cell(row[h])).join(","));
+  return "﻿" + [headerLine, ...bodyLines].join("\n");
+}
+
+/** The PII gate over the research files: an e-mail address, a standalone nine-digit number (an ID), or a phone number. */
+export function researchFilesContainPii(content: string): boolean {
+  const piiRegex = /(?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\b\d{9}\b)/;
+  return piiRegex.test(content) || containsPhoneNumber(content);
+}
+
+/**
+ * What the teacher reads when the gate refuses an export. The client shows it
+ * as is (details.reason === "pii"); a retry would meet the same data, so it
+ * does not ask for one.
+ */
+export const RESEARCH_EXPORT_PII_REFUSAL_HE =
+  "ייצוא נתוני המחקר נעצר: בקבצים נמצא מידע שנראה מזהה (כתובת מייל, מספר טלפון או מספר בן 9 ספרות). שום קובץ לא נשלח. ניסיון חוזר לא יעזור, כי הנתונים לא השתנו. פנו למנהל המערכת.";
+
 export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
@@ -1640,19 +1709,7 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
   const db = admin.firestore();
   const rtdb = admin.database();
 
-  const toCsv = (rows: Record<string, any>[], columns?: string[]): string => {
-    if (!rows || rows.length === 0) return "﻿empty\n";
-    const headerSet = new Set<string>();
-    rows.forEach((r) => Object.keys(r).forEach((k) => headerSet.add(k)));
-    const headers = columns ?? Array.from(headerSet);
-    const cell = (val: any) => {
-      const text = val === null || val === undefined ? "" : typeof val === "object" ? JSON.stringify(val) : String(val);
-      return `"${text.replace(/"/g, '""')}"`;
-    };
-    const headerLine = headers.map(cell).join(",");
-    const bodyLines = rows.map((row) => headers.map((h) => cell(row[h])).join(","));
-    return "﻿" + [headerLine, ...bodyLines].join("\n");
-  };
+  const toCsv = researchCsv;
   const iso = (t: unknown) => (typeof t === "number" && t > 0 ? new Date(t).toISOString() : "");
   const studentNumber = (v: unknown): number | null => {
     const n = parseInt(String(v ?? "").replace(/\D/g, ""), 10);
@@ -1824,12 +1881,52 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       return row;
     });
 
+    // Owner, 2.10.2026: "אני כן רוצה אבל שיהיה תיעוד איפה היו טעויות בלי הורדת
+    // ציונים". The reports and the gate score each meeting on the run since its
+    // last reset; these appended columns give the research file the same numbers,
+    // next to the unchanged all-events columns (register gap יג), so the two can
+    // be compared. With no reset they equal the all-events values; reset and not
+    // redone (nothing answered since) they are empty and reset_awaiting_rerun says so.
+    const runsAfterReset = meetingRunsByLearner(allTelemetry, resetLogs.map(({ data }) => data));
+    const afterRun = (n: number, m: number) => runsAfterReset.get(`${n}:${m}`) ?? null;
+    const afterResetColumns = async (n: number, m: number, fallbackPath: "green_path" | "remediation_path") => {
+      const run = afterRun(n, m);
+      const awaiting = isAwaitingRerun(run);
+      const events = awaiting ? [] : run?.current ?? [];
+      // Over the same meetings as flexibility/mediation_cumulative above (the export's scope),
+      // so a single-meeting export agrees with them when nothing was reset.
+      const inScope = scopedSession === null ? [1, 2, 3, 4, 5, 6, 7, 8] : [scopedSession];
+      const allAfter = inScope.flatMap((e) => (isAwaitingRerun(afterRun(n, e)) ? [] : afterRun(n, e)?.current ?? []));
+      const path = await resolveMeetingPath(db, m, events, fallbackPath, compulsoryCache, compulsoryIdsByBank);
+      const compulsory = await resolveCompulsoryTotal(db, m, path, compulsoryCache, compulsoryIdsByBank);
+      const score = awaiting || !isScoredMeeting(m) ? null : computeFirstAttemptScore(events, compulsory, compulsoryIdsByBank.get(`${m}:${path}`) ?? null);
+      const flexibility = !awaiting && FLEXIBILITY_SESSIONS.includes(m) ? computeFlexibilityIndex(events) : null;
+      const mediation = !awaiting && m !== 2 ? computeMediationEffectiveness(events) : null;
+      const blank = (v: unknown) => (awaiting || v === null || v === undefined ? "" : v);
+      return {
+        reset_awaiting_rerun: awaiting ? "כן" : "",
+        events_after_reset: awaiting ? "" : events.length,
+        score_after_reset_percent: blank(score?.scorePercent),
+        correct_first_attempt_after_reset: blank(score?.correctFirstAttempt),
+        persistence_without_help_percent_after_reset: blank(computePersistenceIndex(events).percent),
+        self_correction_percent_after_reset: blank(computeSelfCorrectionIndex(events).percent),
+        flexibility_percent_after_reset: blank(flexibility?.percent),
+        mediation_cards_after_reset: blank(mediation?.cards),
+        mediation_percent_after_reset: blank(mediation?.percent),
+        flexibility_cumulative_percent_after_reset: blank(computeFlexibilityIndex(allAfter).percent),
+        mediation_cumulative_percent_after_reset: blank(computeMediationEffectiveness(allAfter).percent),
+      };
+    };
+
     const meetingRows: Record<string, any>[] = [];
     for (const [k, events] of Array.from(byLearnerMeeting.entries()).sort()) {
       const [nStr, mStr] = k.split(":");
       const n = Number(nStr);
       const m = Number(mStr);
-      const path = learnerPath.get(n) ?? "green_path";
+      // The path the learner worked on in THIS meeting, not the current one: the
+      // two paths have different exercise ids, so a learner moved to the other
+      // track afterwards scored 0% on every earlier meeting (audit reports-14).
+      const path = await resolveMeetingPath(db, m, events, learnerPath.get(n) ?? "green_path", compulsoryCache, compulsoryIdsByBank);
       const compulsory = await resolveCompulsoryTotal(db, m, path, compulsoryCache, compulsoryIdsByBank);
       // With the ids: optional early-finisher tasks do not count towards the score (PRD 23 §ב).
       const score = computeFirstAttemptScore(events, compulsory, compulsoryIdsByBank.get(`${m}:${path}`) ?? null);
@@ -1851,6 +1948,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       const sessionDoc = sessionDocByKey.get(k);
       const rec = recordingMinutesByKey.get(k);
       const resetStamps = (resetsByLearnerMeeting.get(`${n}:${m}`) ?? []).sort((a, b) => a - b);
+      // The same row as the reports read it (owner, 2.10.2026): the run since
+      // this meeting's last reset. Every column above keeps all events (gap יג).
+      const afterValues = await afterResetColumns(n, m, path);
       meetingRows.push({
         student_id: n,
         session_number: m,
@@ -1924,6 +2024,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         help_withdrawals: summary.help_withdrawals ?? 0,
         // Requests for help from the chat (owner, 1.10.2026), appended last.
         chat_help_requests: summary.chat_help_requests ?? 0,
+        // The run since the last reset, as the reports and the gate score it (owner, 2.10.2026), appended last.
+        ...afterValues,
       });
     }
 
@@ -1969,14 +2071,16 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
 
     // Requirement 3: PII Detection check across all CSV outputs
     const allContent = files.map((f) => f.csv).join("\n");
-    const piiRegex = /(?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\b\d{9}\b)/g;
     // The caller's own address used to be excused from this check — and then
     // exported. Nothing in these files may be an address, the caller's included.
     // Phones use the shared pattern (phonePattern.ts): the old 05X-XXXXXXX rule
     // let "050 123 4567", "+972501234567" and every other common layout through.
-    if (piiRegex.test(allContent) || containsPhoneNumber(allContent)) {
-      logger.warn("Research dataset export rejected: PII pattern detected.");
-      throw new HttpsError("failed-precondition", "ייצוא נתוני המחקר נדחה: זוהו פרטים מזהים.");
+    if (researchFilesContainPii(allContent)) {
+      // Which file, never what matched: the log must not carry the identifier either.
+      const where = files.filter((f) => researchFilesContainPii(f.csv)).map((f) => f.name).join(", ");
+      logger.warn(`Research dataset export rejected: PII pattern detected in: ${where}.`);
+      // details.reason lets the teacher's screen say why, instead of "try again later".
+      throw new HttpsError("failed-precondition", RESEARCH_EXPORT_PII_REFUSAL_HE, { reason: "pii" });
     }
 
     const exportDate = new Date().toISOString().split("T")[0];

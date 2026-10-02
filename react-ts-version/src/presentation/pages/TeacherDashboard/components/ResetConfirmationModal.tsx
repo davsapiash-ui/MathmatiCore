@@ -5,6 +5,7 @@ import { AlertTriangle, ShieldAlert, RefreshCw, X, Check } from 'lucide-react';
 import type { ResetReason, ResetTarget, SingleStudentResetScope } from '@/types';
 import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
 import { meetingLabelHe } from '@/core/stationNames';
+import { RESET_REASON_HE } from '@/core/routeLabels';
 
 export interface ResetConfirmationModalProps {
   isOpen: boolean;
@@ -27,13 +28,8 @@ export interface ResetConfirmationModalProps {
   onConfirm: (reason: ResetReason, reasonNote?: string, options?: { scope: SingleStudentResetScope; sessionNumber: number | null }) => Promise<void>;
 }
 
-const REASON_LABELS: Record<ResetReason, string> = {
-  technical_fault: 'תקלה טכנית במכשיר או בתקשורת',
-  student_stuck: 'הלומד נתקע וזקוק להתחלה מחדש',
-  restart_session: 'פתיחה מחודשת של המפגש לכלל הכיתה',
-  test_run: 'הרצת בדיקה / פיילוט מבוקר',
-  other: 'אחר (פירוט בהערה)',
-};
+// One list with the journey and the reports (core/routeLabels.ts).
+const REASON_LABELS: Record<ResetReason, string> = RESET_REASON_HE;
 
 export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   isOpen,

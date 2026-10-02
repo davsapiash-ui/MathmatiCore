@@ -31,6 +31,7 @@ import {
   type ToolMastery,
 } from "./meetingMetrics";
 import type { RecommendationTier } from "./reportAnalysis";
+import { classPreResetNotes, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE } from "./preResetRecord";
 
 export const EXACT_AI_FALLBACK_TEXT_HE =
   "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";
@@ -100,6 +101,7 @@ const BASE_CSS = `
   h2 { margin: 16px 0 6px; font-size: 13pt; font-weight: 700; color: #1e293b; break-after: avoid; }
   h2.green { color: #166534; }
   h2.amber { color: #92400e; }
+  h2.pre-reset { color: #7c2d12; }
   h3 { margin: 8px 0 4px; font-size: 11pt; font-weight: 700; color: #92400e; break-after: avoid; }
   p { margin: 0 0 6px; }
   ul { margin: 0 0 6px; padding-inline-start: 18px; }
@@ -184,6 +186,19 @@ function researchMeasuresCard(m: Record<string, any> | null | undefined): string
     </tbody></table>`;
 }
 
+/**
+ * "לפני האיפוס" (owner, 2.10.2026): where the learner went wrong before the
+ * meeting's last reset. Its own section, after the narrative, never a score.
+ * Absent when the meeting was not reset (and on reports stored before it existed).
+ */
+function preResetSection(preReset: Record<string, any> | null | undefined): string {
+  const lines = asStringArray(preReset?.lines_he);
+  if (lines.length === 0) return "";
+  return `<h2 class="pre-reset">${esc(PRE_RESET_HEADING_HE)}</h2>
+    <p class="muted">${esc(PRE_RESET_NOTE_HE)}</p>
+    ${bulletList(lines, "")}`;
+}
+
 /** One learner's tools: how often each was operated, and "לא הופעל" where it never was. */
 function toolMasteryTable(m: ToolMastery | null | undefined): string {
   if (!m) return "";
@@ -246,6 +261,7 @@ function sandboxReportHtml(report: Record<string, any>): string {
 
     <h2>3. סיפור התרגילים הכרונולוגי</h2>
     ${narratives.length > 0 ? bulletList(narratives, "") : ""}
+    ${preResetSection(report.pre_reset)}
 
     <h2 class="amber">4. לקראת האבחון</h2>
     ${insights}
@@ -298,6 +314,7 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
     <h2>2. סיפור התרגילים הכרונולוגי</h2>
     ${narratives.length > 0 ? bulletList(narratives, "") : ""}
     ${choiceNarratives.length > 0 ? `<h3>${esc(CHOICE_EXERCISES_HEADING_HE)}</h3>${bulletList(choiceNarratives, "")}` : ""}
+    ${preResetSection(report.pre_reset)}
 
     <h2 class="amber">3. תובנות קוגניטיביות פדגוגיות</h2>
     ${insights}
@@ -470,6 +487,14 @@ export function classReportHtml(report: Record<string, any>): string {
     : `${compulsoryExercises.length > 0 ? exerciseTable(compulsoryExercises, false) : "<p>לא נרשמו תרגילי חובה.</p>"}
        ${choiceExercises.length > 0 ? `<h3>${esc(CHOICE_EXERCISES_HEADING_HE)}</h3>${exerciseTable(choiceExercises, true)}` : ""}`;
 
+  // Owner, 2.10.2026: per learner whose meeting was reset, where they went wrong before it. Never scored.
+  const preResetNotes = classPreResetNotes(report);
+  const preReset = preResetNotes.length === 0
+    ? ""
+    : `<h2 class="pre-reset">4ג. ${esc(PRE_RESET_HEADING_HE)}</h2>
+    <p class="muted">${esc(PRE_RESET_NOTE_HE)}</p>
+    ${bulletList(preResetNotes, "")}`;
+
   const scored = a.scored !== false;
   let analysis: string;
   if (patterns.length > 0 || teaching.length > 0) {
@@ -511,6 +536,7 @@ export function classReportHtml(report: Record<string, any>): string {
     ${outcomesTable(rows, exerciseIds, titles)}
 
     ${researchMeasuresSection(rows, a)}
+    ${preReset}
 
     <h2 class="amber">5. ניתוח הבינה: לקראת האבחון</h2>
     ${analysis}
@@ -552,6 +578,7 @@ export function classReportHtml(report: Record<string, any>): string {
     ${outcomesTable(rows, exerciseIds, titles)}
 
     ${researchMeasuresSection(rows, a)}
+    ${preReset}
 
     <h2 class="amber">5. ניתוח הבינה: דפוסים כיתתיים והמלצות הוראה</h2>
     ${analysis}

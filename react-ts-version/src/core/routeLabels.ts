@@ -53,6 +53,26 @@ export const TRIGGER_REASON_HE = {
   repeated_errors: 'תשובה שגויה שנייה ברצף באותו תרגיל',
 } as const;
 
+/**
+ * Why the teacher reset learning data (PRD 23א §ד: a closed list). The reset
+ * dialog offers these; the learner's journey and the server's reports
+ * (functions/src/teacherLabels.ts RESET_REASON_HE, held equal by a test) print
+ * them, without the "(פירוט בהערה)" that only asks for a note in the dialog.
+ */
+export const RESET_REASON_HE = {
+  technical_fault: 'תקלה טכנית במכשיר או בתקשורת',
+  student_stuck: 'התלמיד נתקע וזקוק להתחלה מחדש',
+  restart_session: 'פתיחה מחודשת של המפגש לכלל הכיתה',
+  test_run: 'הרצת בדיקה / פיילוט מבוקר',
+  other: 'אחר (פירוט בהערה)',
+} as const;
+
+/** A stored reset reason as a report or a timeline prints it; null outside the list. */
+export function resetReasonHe(reason: unknown): string | null {
+  if (typeof reason !== 'string' || !Object.prototype.hasOwnProperty.call(RESET_REASON_HE, reason)) return null;
+  return RESET_REASON_HE[reason as keyof typeof RESET_REASON_HE].replace(/ \(פירוט בהערה\)$/, '');
+}
+
 /** The route's name for a stored path value, or null for anything else. */
 export function routeNameHe(path: unknown): string | null {
   return path === 'green_path' || path === 'remediation_path' ? ROUTE_NAME_HE[path] : null;

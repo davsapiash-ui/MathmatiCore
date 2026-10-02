@@ -27,7 +27,9 @@ describe('Module 23 — report for every meeting (server)', () => {
     // session id — the events of one meeting can carry more than one, and
     // reading by the string the caller passed dropped the rest (same lesson
     // as the score trigger, #93).
-    expect(server).toContain('readMeetingTelemetry(db, clampedStudentNum, resolvedSessionNumber)');
+    // Owner, 2.10.2026: by learner, every meeting cut at its last reset; this meeting's new run is scored.
+    expect(server).toContain('learnerRuns = await readLearnerMeetingRuns(db, clampedStudentNum);');
+    expect(server).toContain('const telemetryDocs = meetingRuns ? meetingRuns.current : [];');
     expect(server).not.toContain('readAllTelemetryForSession(db, sessionId)');
   });
 

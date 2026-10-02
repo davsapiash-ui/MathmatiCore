@@ -1,7 +1,28 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { COLUMN_NAMES_HE, ERROR_CATEGORY_HE, ROUTE_NAME_HE, TRIGGER_REASON_HE, errorCategoryCountsHe, errorCategoryHe, triggerCountsHe, triggerReasonHe } from '../teacherLabels';
+import { COLUMN_NAMES_HE, ERROR_CATEGORY_HE, RESET_REASON_HE, ROUTE_NAME_HE, TRIGGER_REASON_HE, errorCategoryCountsHe, errorCategoryHe, resetReasonHe, triggerCountsHe, triggerReasonHe } from '../teacherLabels';
+import { VALID_RESET_REASONS } from '../exportDriveReport';
+
+describe('the reset reasons in the reports are the dialog’s list (owner, 2.10.2026: "לפני האיפוס")', () => {
+  const readFe = (p: string) => readFileSync(p, 'utf-8').replace(/\r\n/g, '\n');
+  it('the copy equals the frontend RESET_REASON_HE, "other" without the dialog’s request for a note', () => {
+    const fe = readFe(resolve(__dirname, '../../../react-ts-version/src/core/routeLabels.ts'));
+    const start = fe.indexOf('export const RESET_REASON_HE = {');
+    expect(start).toBeGreaterThan(-1);
+    const block = fe.slice(start, fe.indexOf('} as const;', start));
+    const names = Object.fromEntries([...block.matchAll(/(\w+): '([^']+)'/g)].map((m) => [m[1], m[2].replace(/ \(פירוט בהערה\)$/, '')]));
+    expect(names).toEqual({ ...RESET_REASON_HE });
+    expect(Object.keys(RESET_REASON_HE).sort()).toEqual([...VALID_RESET_REASONS].sort());
+  });
+
+  it('a stored reason reads as its name; anything else is null', () => {
+    expect(resetReasonHe('technical_fault')).toBe('תקלה טכנית במכשיר או בתקשורת');
+    expect(resetReasonHe('other')).toBe('אחר');
+    expect(resetReasonHe('toString')).toBeNull();
+    expect(resetReasonHe(null)).toBeNull();
+  });
+});
 
 /**
  * Owner decision, 27.9.2026: one wording for the two routes, on the teacher's
