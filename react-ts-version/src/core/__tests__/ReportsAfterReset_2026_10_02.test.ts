@@ -4,6 +4,7 @@ import { resolve } from 'path';
 import {
   PRE_RESET_HEADING_HE,
   PRE_RESET_NOTE_HE,
+  answeredSince,
   reportFromData,
   resetSeparatorHe,
   resetsOfMeeting,
@@ -65,8 +66,19 @@ describe('the journey marks where a meeting was reset', () => {
     const [reset] = resetsOfMeeting([entry()], 4, 3);
     const text = resetSeparatorHe(reset);
     expect(text).toMatch(/^איפוס · /);
-    expect(text).toContain('המפגש התחיל מחדש. הסיבה: תקלה טכנית במכשיר או בתקשורת.');
+    expect(text).toContain('המפגש אופס. הסיבה: תקלה טכנית במכשיר או בתקשורת.');
+    // One wording with the reports, and no "לומד" on the teacher's screens.
+    expect(resetSeparatorHe({ ...reset, scope: 'full_student' })).toContain('כל העבודה של התלמיד אופסה.');
+    expect(text).not.toMatch(/לומד/);
     expect(text).toContain('הדוח של המפגש נבנה רק מהעבודה שמכאן והלאה.');
+  });
+
+  it('the screen reopening after a reset is not working on the meeting; an answer is', () => {
+    const open = (id: string, t: number, type: string): JourneyEvent => ({ ...ev(id, t), eventType: type });
+    expect(answeredSince([open('s', T + 1000, 'SESSION_START'), open('p', T + 2000, 'PROBLEM_LOAD')], T)).toBe(false);
+    expect(answeredSince([open('d', T - 1000, 'DIGIT_ENTERED')], T)).toBe(false);
+    expect(answeredSince([open('d', T + 3000, 'DIGIT_ENTERED')], T)).toBe(true);
+    expect(answeredSince([open('c', T + 3000, 'PROBLEM_COMPLETE')], T)).toBe(true);
   });
 
   it('the journey renders the separator rows and the stale-report note', () => {
@@ -74,6 +86,9 @@ describe('the journey marks where a meeting was reset', () => {
     expect(journey).toContain('withResetSeparators(visibleEvents, sessionResets)');
     expect(journey).toContain('data-testid="reset-separator"');
     expect(journey).toContain('הדוח הזה הופק לפני האיפוס של המפגש');
+    // "הפיקו מחדש" is offered only once the learner answered since the reset; otherwise the server would refuse.
+    expect(journey).toContain('answeredSince(sessionEvents, lastCuttingReset.at)');
+    expect(journey).toContain('התלמיד עוד לא עבד על המפגש מחדש, ולכן אפשר להפיק דוח חדש רק אחרי שיעבוד עליו.');
     expect(journey).toContain('data-testid="pre-reset"');
   });
 });
@@ -95,14 +110,14 @@ describe('the report shows "לפני האיפוס" apart', () => {
     const data = {
       session_number: 3,
       learners: [
-        { student_id: 4, pre_reset: { class_note_he: 'אופס ב-2.10.2026 בשעה 13:13 (תקלה טכנית במכשיר או בתקשורת). לפני האיפוס: ביטול אחד, בתרגיל אחד.' } },
+        { student_id: 4, pre_reset: { class_note_he: 'המפגש אופס ב-2.10.2026 בשעה 13:13 (תקלה טכנית במכשיר או בתקשורת). לפני האיפוס: ביטול אחד, בתרגיל אחד.' } },
         { student_id: 5, pre_reset: null },
       ],
-      awaiting_rerun: [{ student_id: 6, pre_reset: { class_note_he: 'אופס ב-2.10.2026 בשעה 13:13.' } }],
+      awaiting_rerun: [{ student_id: 6, pre_reset: { class_note_he: 'המפגש אופס ב-2.10.2026 בשעה 13:13.' } }],
     };
     expect(preResetNotesFromData(data)).toEqual([
-      'תלמיד 4: אופס ב-2.10.2026 בשעה 13:13 (תקלה טכנית במכשיר או בתקשורת). לפני האיפוס: ביטול אחד, בתרגיל אחד.',
-      'תלמיד 6: עוד לא עבד על המפגש מחדש, ולכן אין לו ציון במפגש הזה. אופס ב-2.10.2026 בשעה 13:13.',
+      'תלמיד 4: המפגש אופס ב-2.10.2026 בשעה 13:13 (תקלה טכנית במכשיר או בתקשורת). לפני האיפוס: ביטול אחד, בתרגיל אחד.',
+      'תלמיד 6: עוד לא עבד על המפגש מחדש, ולכן אין לו ציון במפגש הזה. המפגש אופס ב-2.10.2026 בשעה 13:13.',
     ]);
     expect(classReportFromData(data).preResetNotes).toHaveLength(2);
     expect(classReportFromData({ session_number: 3, learners: [] }).preResetNotes).toEqual([]);
@@ -113,7 +128,8 @@ describe('the report shows "לפני האיפוס" apart', () => {
 
   it('the reason names: the dialog\'s list, "other" without its request for a note', () => {
     expect(resetReasonHe('other')).toBe('אחר');
-    expect(resetReasonHe('student_stuck')).toBe(RESET_REASON_HE.student_stuck);
+    expect(resetReasonHe('student_stuck')).toBe('התלמיד נתקע וזקוק להתחלה מחדש');
+    expect(RESET_REASON_HE.student_stuck).toBe('התלמיד נתקע וזקוק להתחלה מחדש');
     expect(resetReasonHe('nope')).toBeNull();
   });
 });

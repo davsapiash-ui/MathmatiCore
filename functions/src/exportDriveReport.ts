@@ -2,7 +2,7 @@ import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/
 import { requireAdmin, requireTeacherForIndividualData } from "./callerIdentity";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { computeToolMastery, truncatedRecordingMeetings, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, computeSelfCorrectionIndex, FLEXIBILITY_SESSIONS, resolveMeetingPath } from "./meetingMetrics";
+import { computeToolMastery, truncatedRecordingMeetings, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, computeSelfCorrectionIndex, FLEXIBILITY_SESSIONS, resolveMeetingPath, meetingRunsByLearner, isAwaitingRerun } from "./meetingMetrics";
 import { recomputeAdminMetrics } from "./adminAggregator";
 import { containsPhoneNumber } from "./phonePattern";
 import { scrubPII } from "./geminiProxy";
@@ -1881,6 +1881,40 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       return row;
     });
 
+    // Owner, 2.10.2026: "אני כן רוצה אבל שיהיה תיעוד איפה היו טעויות בלי הורדת
+    // ציונים". The reports and the gate score each meeting on the run since its
+    // last reset; these appended columns give the research file the same numbers,
+    // next to the unchanged all-events columns (register gap יג), so the two can
+    // be compared. With no reset they equal the all-events values; reset and not
+    // redone (nothing answered since) they are empty and reset_awaiting_rerun says so.
+    const runsAfterReset = meetingRunsByLearner(allTelemetry, resetLogs.map(({ data }) => data));
+    const afterRun = (n: number, m: number) => runsAfterReset.get(`${n}:${m}`) ?? null;
+    const afterResetColumns = async (n: number, m: number, fallbackPath: "green_path" | "remediation_path") => {
+      const run = afterRun(n, m);
+      const awaiting = isAwaitingRerun(run);
+      const events = awaiting ? [] : run?.current ?? [];
+      const allAfter = [1, 2, 3, 4, 5, 6, 7, 8].flatMap((e) => (isAwaitingRerun(afterRun(n, e)) ? [] : afterRun(n, e)?.current ?? []));
+      const path = await resolveMeetingPath(db, m, events, fallbackPath, compulsoryCache, compulsoryIdsByBank);
+      const compulsory = await resolveCompulsoryTotal(db, m, path, compulsoryCache, compulsoryIdsByBank);
+      const score = awaiting || !isScoredMeeting(m) ? null : computeFirstAttemptScore(events, compulsory, compulsoryIdsByBank.get(`${m}:${path}`) ?? null);
+      const flexibility = !awaiting && FLEXIBILITY_SESSIONS.includes(m) ? computeFlexibilityIndex(events) : null;
+      const mediation = !awaiting && m !== 2 ? computeMediationEffectiveness(events) : null;
+      const blank = (v: unknown) => (awaiting || v === null || v === undefined ? "" : v);
+      return {
+        reset_awaiting_rerun: awaiting ? "כן" : "",
+        events_after_reset: awaiting ? "" : events.length,
+        score_after_reset_percent: blank(score?.scorePercent),
+        correct_first_attempt_after_reset: blank(score?.correctFirstAttempt),
+        persistence_without_help_percent_after_reset: blank(computePersistenceIndex(events).percent),
+        self_correction_percent_after_reset: blank(computeSelfCorrectionIndex(events).percent),
+        flexibility_percent_after_reset: blank(flexibility?.percent),
+        mediation_cards_after_reset: blank(mediation?.cards),
+        mediation_percent_after_reset: blank(mediation?.percent),
+        flexibility_cumulative_percent_after_reset: blank(computeFlexibilityIndex(allAfter).percent),
+        mediation_cumulative_percent_after_reset: blank(computeMediationEffectiveness(allAfter).percent),
+      };
+    };
+
     const meetingRows: Record<string, any>[] = [];
     for (const [k, events] of Array.from(byLearnerMeeting.entries()).sort()) {
       const [nStr, mStr] = k.split(":");
@@ -1911,6 +1945,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       const sessionDoc = sessionDocByKey.get(k);
       const rec = recordingMinutesByKey.get(k);
       const resetStamps = (resetsByLearnerMeeting.get(`${n}:${m}`) ?? []).sort((a, b) => a - b);
+      // The same row as the reports read it (owner, 2.10.2026): the run since
+      // this meeting's last reset. Every column above keeps all events (gap יג).
+      const afterValues = await afterResetColumns(n, m, path);
       meetingRows.push({
         student_id: n,
         session_number: m,
@@ -1984,6 +2021,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         help_withdrawals: summary.help_withdrawals ?? 0,
         // Requests for help from the chat (owner, 1.10.2026), appended last.
         chat_help_requests: summary.chat_help_requests ?? 0,
+        // The run since the last reset, as the reports and the gate score it (owner, 2.10.2026), appended last.
+        ...afterValues,
       });
     }
 

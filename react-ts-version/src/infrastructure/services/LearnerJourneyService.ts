@@ -268,14 +268,33 @@ export function withResetSeparators(events: JourneyEvent[], resets: MeetingReset
   return rows;
 }
 
-/** The separator's text: "איפוס · 2.10.2026 14:05 · המפגש התחיל מחדש. הסיבה: …". */
-export function resetSeparatorHe(r: MeetingResetMark): string {
-  const what = r.scope === 'active_session'
-    ? 'המפגש התחיל מחדש'
-    : r.scope === 'full_student'
-      ? 'כל העבודה של הלומד אופסה'
+/**
+ * What was reset, in the reports' words (functions/src/preResetRecord.ts
+ * resetWhatHe): one wording for the same event on every screen.
+ */
+export function resetWhatHe(scope: MeetingResetMark['scope']): string {
+  return scope === 'active_session'
+    ? 'המפגש אופס'
+    : scope === 'full_student'
+      ? 'כל העבודה של התלמיד אופסה'
       : 'המערכת אופסה';
-  return `איפוס · ${formatDate(r.at)} ${formatClock(r.at)} · ${what}.${r.reasonHe ? ` הסיבה: ${r.reasonHe}.` : ''} הדוח של המפגש נבנה רק מהעבודה שמכאן והלאה.`;
+}
+
+/** The separator's text: "איפוס · 2.10.2026 14:05 · המפגש אופס. הסיבה: …". */
+export function resetSeparatorHe(r: MeetingResetMark): string {
+  return `איפוס · ${formatDate(r.at)} ${formatClock(r.at)} · ${resetWhatHe(r.scope)}.${r.reasonHe ? ` הסיבה: ${r.reasonHe}.` : ''} הדוח של המפגש נבנה רק מהעבודה שמכאן והלאה.`;
+}
+
+/**
+ * The answers of the server's rule (meetingMetrics ANSWER_EVENT_TYPES): a
+ * digit, a card choice, a completed exercise, a reflection. Opening the screen
+ * after a reset (SESSION_START, PROBLEM_LOAD) is not working on the meeting.
+ */
+export const ANSWER_EVENT_TYPES: ReadonlySet<string> = new Set(['DIGIT_ENTERED', 'SOCRATIC_OPTION_SELECTED', 'PROBLEM_COMPLETE', 'REFLECTION_SUBMITTED']);
+
+/** Whether the learner answered anything in the meeting after `at` (the tablet's clock against the server's). */
+export function answeredSince(events: JourneyEvent[], at: number): boolean {
+  return events.some((e) => e.timestamp > at && ANSWER_EVENT_TYPES.has(String(e.eventType)));
 }
 
 export function groupEventsBySession(events: JourneyEvent[]): Map<number, JourneyEvent[]> {
@@ -661,7 +680,7 @@ export interface MeetingReport {
 /** The heading and the note of the report's "לפני האיפוס" part (functions/src/preResetRecord.ts). */
 export const PRE_RESET_HEADING_HE = 'לפני האיפוס';
 export const PRE_RESET_NOTE_HE =
-  'תיעוד בלבד: הטעויות שלפני האיפוס לא נכנסות לציון ולא משנות את קבוצת הלמידה. כל שאר חלקי הדוח מחושבים רק מהעבודה שאחרי האיפוס.';
+  'תיעוד בלבד: הטעויות שלפני האיפוס לא נכנסות לציון ולא משנות את קבוצת העבודה. כל שאר חלקי הדוח מחושבים רק מהעבודה שאחרי האיפוס.';
 
 const ratioLine = (v: unknown, a: string, b: string, unit = ''): string => {
   if (!v || typeof v !== 'object') return 'לא נמדד';

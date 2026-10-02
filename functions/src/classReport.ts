@@ -49,13 +49,11 @@ import {
   type ExerciseOutcome,
   type Tool,
   type ToolMastery,
-  resetsOfMeeting,
+  isAwaitingRerun,
+  meetingRunsByLearner,
   resolveMeetingPath,
-  splitMeetingRuns,
-  type MeetingRuns,
-  type WrittenEvent,
 } from "./meetingMetrics";
-import { buildPreResetRecord, classPreResetNotes, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, type PreResetRecord } from "./preResetRecord";
+import { buildPreResetRecord, classPreResetNotes, nothingToAnalyseAfterResetHe, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE, type PreResetRecord } from "./preResetRecord";
 import { EXACT_AI_FALLBACK_TEXT } from "./pedagogicalReport";
 import { rtlText } from "./hebrewPdf";
 import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htmlPdf";
@@ -1000,24 +998,18 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   // ציונים". Each learner's meetings are cut at their last reset
   // (meetingMetrics.splitMeetingRuns): everything this report measures counts
   // the run since that reset; the earlier run becomes a short note, never a score.
-  const [allTelemetry, resetLog] = await Promise.all([
-    readAllDocs(db.collection("telemetry_logs")),
-    readAllDocs(db.collection("reset_audit_log")).catch(() => []),
-  ]);
-  const resetEntries = resetLog.map(({ data }) => data);
-  const written = new Map<string, WrittenEvent[]>();
-  for (const { data, writtenAtMs } of allTelemetry) {
-    const m = sessionNumberFromId(String(data.session_id || ""));
-    const n = studentNumber(data.student_id);
-    if (n === null || m === null) continue;
-    const key = `${n}:${m}`;
-    written.set(key, [...(written.get(key) ?? []), { data, writtenAtMs }]);
+  // The reset log decides which run is scored. Read without it, the report
+  // would silently count the whole history and disagree with the gate score,
+  // so a failure to read it stops the report and says so.
+  const allTelemetry = await readAllDocs(db.collection("telemetry_logs"));
+  let resetEntries: Record<string, any>[];
+  try {
+    resetEntries = (await readAllDocs(db.collection("reset_audit_log"))).map(({ data }) => data);
+  } catch (err) {
+    logger.error("[classReport] reset_audit_log could not be read; report not produced:", err);
+    throw new HttpsError("unavailable", RESET_LOG_UNAVAILABLE_HE);
   }
-  const runsByKey = new Map<string, MeetingRuns>();
-  for (const [key, events] of written) {
-    const [n, m] = key.split(":").map(Number);
-    runsByKey.set(key, splitMeetingRuns(events, resetsOfMeeting(resetEntries, n, m)));
-  }
+  const runsByKey = meetingRunsByLearner(allTelemetry, resetEntries);
   const currentRun = (n: number, m: number) => runsByKey.get(`${n}:${m}`)?.current ?? [];
   const eventsByLearner = new Map<number, Record<string, any>[]>();
   // A session-8 report also needs each learner's sessions 4–6 (fading gap).
@@ -1036,18 +1028,19 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
     }
     const run = runsByKey.get(`${n}:${sessionNumber}`);
     if (!run) continue;
-    if (run.current.length > 0) {
+    // Reset and nothing answered since: the screen-open events of the new run are not a run to score.
+    if (isAwaitingRerun(run)) {
+      awaitingRerun.push(n);
+    } else if (run.current.length > 0) {
       telemetryEventCount += run.current.length;
       eventsByLearner.set(n, run.current);
-    } else if (run.beforeReset.length > 0) {
-      awaitingRerun.push(n);
     }
   }
   if (eventsByLearner.size === 0) {
     throw new HttpsError(
       "not-found",
       awaitingRerun.length > 0
-        ? `מפגש ${sessionNumber} אופס, ואף תלמיד עוד לא עבד עליו מחדש; אין עדיין מה לנתח.`
+        ? nothingToAnalyseAfterResetHe(sessionNumber, awaitingRerun)
         : `אין פעולות מתועדות למפגש ${sessionNumber} של אף תלמיד; אין מה לנתח.`
     );
   }

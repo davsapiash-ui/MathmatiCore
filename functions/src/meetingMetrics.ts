@@ -756,6 +756,60 @@ export async function readLearnerMeetingRuns(
   return out;
 }
 
+/**
+ * The events by which a learner answers: a digit typed, a coaching-card
+ * choice, an exercise completed, a reflection sent. Opening the screen is not
+ * one — the client logs SESSION_START and PROBLEM_LOAD as soon as the meeting
+ * reopens after a reset, before the child has done anything.
+ */
+export const ANSWER_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "DIGIT_ENTERED",
+  "SOCRATIC_OPTION_SELECTED",
+  "PROBLEM_COMPLETE",
+  "REFLECTION_SUBMITTED",
+]);
+
+export function hasAnswerEvent(events: Record<string, any>[]): boolean {
+  return events.some((e) => ANSWER_EVENT_TYPES.has(String(e?.event_type ?? "")));
+}
+
+/**
+ * Reset, worked on before it, and not answered anything since: the meeting has
+ * not been redone yet. Scoring the screen-open events of the new run gave 0%
+ * and the lowest group to a child who had not started (review of PR #209).
+ */
+export function isAwaitingRerun(runs: MeetingRuns | null | undefined): boolean {
+  return Boolean(runs && runs.resets.length > 0 && runs.beforeReset.length > 0 && !hasAnswerEvent(runs.current));
+}
+
+/**
+ * Every learner × meeting of a telemetry read, each cut at its own last reset:
+ * key `${learner}:${meeting}`. For the readers that read the whole collection
+ * (the class report, the research export, the admin metrics).
+ */
+export function meetingRunsByLearner(
+  docs: Array<{ data: Record<string, any>; writtenAtMs: number | null }>,
+  resetEntries: Record<string, any>[]
+): Map<string, MeetingRuns> {
+  const written = new Map<string, WrittenEvent[]>();
+  for (const { data, writtenAtMs } of docs) {
+    const m = sessionNumberFromId(String(data?.session_id || ""));
+    const raw = parseInt(String(data?.student_id ?? "").replace(/\D/g, ""), 10);
+    const n = Number.isFinite(raw) && raw >= 1 && raw <= 12 ? raw : null;
+    if (n === null || m === null) continue;
+    const key = `${n}:${m}`;
+    const list = written.get(key) ?? [];
+    list.push({ data, writtenAtMs });
+    written.set(key, list);
+  }
+  const out = new Map<string, MeetingRuns>();
+  for (const [key, events] of written) {
+    const [n, m] = key.split(":").map(Number);
+    out.set(key, splitMeetingRuns(events, resetsOfMeeting(resetEntries, n, m)));
+  }
+  return out;
+}
+
 export type LearningPath = "green_path" | "remediation_path";
 
 /** The id spelling of the compulsory and choice banks of meetings 3–8: s4_g_t1, s4_r_reinforce_2. */

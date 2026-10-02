@@ -15,7 +15,7 @@ import { isExerciseEvent, type MeetingReset, type MeetingRuns } from "./meetingM
 export const PRE_RESET_HEADING_HE = "לפני האיפוס";
 
 export const PRE_RESET_NOTE_HE =
-  "תיעוד בלבד: הטעויות שלפני האיפוס לא נכנסות לציון ולא משנות את קבוצת הלמידה. כל שאר חלקי הדוח מחושבים רק מהעבודה שאחרי האיפוס.";
+  "תיעוד בלבד: הטעויות שלפני האיפוס לא נכנסות לציון ולא משנות את קבוצת העבודה. כל שאר חלקי הדוח מחושבים רק מהעבודה שאחרי האיפוס.";
 
 export const PRE_RESET_NO_MISTAKES_HE = "לפני האיפוס לא נרשמו טעויות, מחיקות או ביטולים.";
 
@@ -70,6 +70,27 @@ export function classPreResetNotes(report: Record<string, any>): string[] {
 
 export const AWAITING_RERUN_HE = "עוד לא עבד על המפגש מחדש, ולכן אין לו ציון במפגש הזה.";
 
+/** When the reset log cannot be read, no report: it would count the whole history (review of PR #209). */
+export const RESET_LOG_UNAVAILABLE_HE = "לא ניתן לקרוא כרגע את יומן האיפוסים, ולכן הדוח לא הופק. נסו שוב בעוד כמה דקות.";
+
+/** "תלמיד 4" / "תלמידים 4 ו-6" / "תלמידים 4, 6 ו-9". */
+function learnersHe(ids: number[]): string {
+  const sorted = [...ids].sort((a, b) => a - b);
+  if (sorted.length === 1) return `תלמיד ${sorted[0]}`;
+  return `תלמידים ${sorted.slice(0, -1).join(", ")} ו-${sorted[sorted.length - 1]}`;
+}
+
+/**
+ * The class report has nothing to analyse: the meeting was reset for some
+ * learners and they have not worked on it again, and the others have no
+ * events in it at all. Both facts, so the sentence is true for each learner.
+ */
+export function nothingToAnalyseAfterResetHe(sessionNumber: number, awaiting: number[]): string {
+  const who = awaiting.length === 1 ? "והוא עוד לא עבד עליו מחדש" : "והם עוד לא עבדו עליו מחדש";
+  const others = awaiting.length < 12 ? " לשאר התלמידים אין פעולות מתועדות במפגש הזה." : "";
+  return `אין עדיין מה לנתח במפגש ${sessionNumber}. המפגש אופס ל${learnersHe(awaiting)}, ${who}.${others}`;
+}
+
 /** "פעם אחת", "פעמיים", "3 פעמים" — as the exercise narrative counts. */
 function timesHe(n: number): string {
   return n === 1 ? "פעם אחת" : n === 2 ? "פעמיים" : `${n} פעמים`;
@@ -84,15 +105,22 @@ export function israelDateTimeHe(ms: number): { date: string; time: string } {
   };
 }
 
+/**
+ * What was reset, in one wording for every screen and report: "המפגש אופס"
+ * (the learner journey's separator row says the same).
+ */
+export function resetWhatHe(scope: MeetingReset["scope"]): string {
+  return scope === "active_session"
+    ? "המפגש אופס"
+    : scope === "full_student"
+      ? "כל העבודה של התלמיד אופסה"
+      : "המערכת אופסה";
+}
+
 export function resetLineHe(r: MeetingReset): string {
   const { date, time } = israelDateTimeHe(r.at);
-  const what = r.scope === "active_session"
-    ? "המפגש אופס"
-    : r.scope === "full_student"
-      ? "כל העבודה של הלומד אופסה"
-      : "המערכת אופסה";
   const reason = resetReasonHe(r.reason);
-  return `${what} ב-${date} בשעה ${time}.${reason ? ` הסיבה: ${reason}.` : ""}`;
+  return `${resetWhatHe(r.scope)} ב-${date} בשעה ${time}.${reason ? ` הסיבה: ${reason}.` : ""}`;
 }
 
 const column = (i: number) => (i >= 0 && i < 4 ? i : -1);
@@ -183,8 +211,8 @@ export function buildPreResetRecord(runs: MeetingRuns, titles: Record<string, st
   const { date, time } = israelDateTimeHe(last.at);
   const reason = resetReasonHe(last.reason);
   const when = shown.length === 1
-    ? `אופס ב-${date} בשעה ${time}${reason ? ` (${reason})` : ""}.`
-    : `אופס ${shown.length} פעמים. האיפוס האחרון: ${date} בשעה ${time}${reason ? ` (${reason})` : ""}.`;
+    ? `${resetWhatHe(last.scope)} ב-${date} בשעה ${time}${reason ? ` (${reason})` : ""}.`
+    : `המפגש אופס ${shown.length} פעמים. האיפוס האחרון: ${date} בשעה ${time}${reason ? ` (${reason})` : ""}.`;
   const wrongByColumn = [0, 1, 2, 3].map((i) => sum(exercises.map((e) => e.wrong_digits_by_column[i])));
   const wrong = sum(wrongByColumn) + sum(exercises.map((e) => e.wrong_digits_no_column));
   const cards = sum(exercises.map((e) => e.wrong_card_choices));

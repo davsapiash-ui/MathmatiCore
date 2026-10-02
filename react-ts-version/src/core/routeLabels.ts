@@ -61,7 +61,7 @@ export const TRIGGER_REASON_HE = {
  */
 export const RESET_REASON_HE = {
   technical_fault: 'תקלה טכנית במכשיר או בתקשורת',
-  student_stuck: 'הלומד נתקע וזקוק להתחלה מחדש',
+  student_stuck: 'התלמיד נתקע וזקוק להתחלה מחדש',
   restart_session: 'פתיחה מחודשת של המפגש לכלל הכיתה',
   test_run: 'הרצת בדיקה / פיילוט מבוקר',
   other: 'אחר (פירוט בהערה)',

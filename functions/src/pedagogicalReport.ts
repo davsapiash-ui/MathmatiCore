@@ -24,6 +24,8 @@ import {
   flexibilityHe,
   mediationHe,
   readLearnerMeetingRuns,
+  isAwaitingRerun,
+  type MeetingRuns,
   resolveMeetingPath,
   type LearningPath,
   sessionNumberFromId,
@@ -40,7 +42,7 @@ import {
   type Tool,
 } from "./meetingMetrics";
 import { GEMINI_SECRETS } from "./geminiConfig";
-import { buildPreResetRecord, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE } from "./preResetRecord";
+import { buildPreResetRecord, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE } from "./preResetRecord";
 import {
   buildFailedExercises,
   buildTelemetrySummary,
@@ -558,10 +560,20 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // splitMeetingRuns, the rule of the meeting-2 gate score): the score, the
   // working group, the narrative and the measures count the run since that
   // reset; what came before it is documented apart (pre_reset) and scores nothing.
-  const learnerRuns = await readLearnerMeetingRuns(db, clampedStudentNum);
+  let learnerRuns: Map<number, MeetingRuns>;
+  try {
+    learnerRuns = await readLearnerMeetingRuns(db, clampedStudentNum);
+  } catch (err) {
+    // Without the reset log the report would count the whole history: none at all, said plainly.
+    logger.error("[Module23] telemetry or reset_audit_log could not be read; report not produced:", err);
+    throw new HttpsError("unavailable", RESET_LOG_UNAVAILABLE_HE);
+  }
   const meetingRuns = learnerRuns.get(resolvedSessionNumber) ?? null;
   const telemetryDocs = meetingRuns ? meetingRuns.current : [];
-  if (telemetryDocs.length === 0 && meetingRuns && meetingRuns.beforeReset.length > 0) {
+  // Reset and nothing answered since. The client logs SESSION_START and
+  // PROBLEM_LOAD as soon as the meeting reopens, and those alone scored 0%
+  // and sent the child to remediation before they had started.
+  if (isAwaitingRerun(meetingRuns)) {
     throw new HttpsError(
       "failed-precondition",
       `מפגש ${resolvedSessionNumber} של תלמיד ${clampedStudentNum} אופס, והתלמיד עוד לא עבד עליו מחדש. אפשר להפיק את הדוח אחרי שיעבוד על המפגש שוב.`

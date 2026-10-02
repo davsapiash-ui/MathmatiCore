@@ -17,6 +17,8 @@ const h = vi.hoisted(() => ({
   collections: {} as Record<string, Array<{ id: string; data: Record<string, any>; writtenAt?: number }>>,
   rtdb: {} as Record<string, unknown>,
   sets: [] as Array<{ name: string; id: string; values: Record<string, any> }>,
+  files: [] as Array<{ path: string; text: string }>,
+  failResetLog: false,
 }));
 
 vi.mock('google-auth-library', () => ({
@@ -52,6 +54,7 @@ vi.mock('firebase-admin', async (importOriginal) => {
     limit: () => query(name, filters, paged),
     startAfter: () => ({ get: async () => ({ docs: [], empty: true, size: 0 }) }),
     get: async () => {
+      if (name === 'reset_audit_log' && h.failResetLog) throw new Error('reset log unavailable');
       const docs = (h.collections[name] ?? []).filter((d) => filters.every((f) => f(d))).map(snapOf);
       return { docs, empty: docs.length === 0, size: docs.length };
     },
@@ -86,7 +89,7 @@ vi.mock('firebase-admin', async (importOriginal) => {
   const storage = () => ({
     bucket: () => ({
       name: 'test-bucket',
-      file: () => ({ save: async () => {}, getSignedUrl: async () => ['https://signed.example/file'] }),
+      file: (path: string) => ({ save: async (buf: Buffer) => { h.files.push({ path, text: Buffer.from(buf).toString('utf8') }); }, getSignedUrl: async () => ['https://signed.example/file'] }),
     }),
   });
   const app = () => { throw new Error('no default app in tests'); };
@@ -96,7 +99,9 @@ vi.mock('firebase-admin', async (importOriginal) => {
 import { generatePedagogicalReportPDF } from '../pedagogicalReport';
 import { generateClassMeetingReport } from '../classReport';
 import { pathOfMeeting, splitMeetingRuns, resetsOfMeeting } from '../meetingMetrics';
-import { buildPreResetRecord, PRE_RESET_NOTE_HE } from '../preResetRecord';
+import { buildPreResetRecord, nothingToAnalyseAfterResetHe, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE } from '../preResetRecord';
+import { exportResearchDataset } from '../exportDriveReport';
+import { buildAdminMetrics, currentRunEvents, groupTelemetryByMeeting } from '../adminAggregator';
 import { pedagogicalReportHtml, classReportHtml } from '../reportHtml';
 
 const GREEN = ['s3_g_t1', 's3_g_t2', 's3_g_t3', 's3_g_t4', 's3_g_t5', 's3_g_t6', 's3_g_t7'];
@@ -134,7 +139,7 @@ const learner4FirstRun = [
 const resetOfMeeting3 = (student: number, at = T_RESET) => ({
   id: `reset_${student}_${at}`,
   data: {
-    reset_level: 'single_student', reset_scope: 'active_session', reset_target: 'student', session_number: 3,
+    reset_level: 'single_student', reset_scope: 'active_session', reset_target: 'student', session_number: 3, class_id: 'class_1',
     affected_student_ids: [student], backup_status: 'success', performed_at: at, reset_reason: 'technical_fault',
   },
 });
@@ -142,6 +147,8 @@ const resetOfMeeting3 = (student: number, at = T_RESET) => ({
 beforeEach(() => {
   seq = 0;
   h.sets.length = 0;
+  h.files.length = 0;
+  h.failResetLog = false;
   h.collections = {
     curriculum_catalog: [
       { id: 'session_3_green_path', data: { tasks: GREEN.map((id, i) => ({ id, titleHe: `ירוק ${i + 1}` })) } },
@@ -152,8 +159,11 @@ beforeEach(() => {
       ...perfectRun(4, GREEN, T_RESET + 60_000),
       // Learner 5: meeting 3 on the green path, perfect, then moved to remediation (no reset).
       ...perfectRun(5, GREEN, T_RESET - 100_000),
-      // Learner 6: a wrong digit, a reset, and has not worked on the meeting again.
+      // Learner 6: a wrong digit, a reset, and has not worked on the meeting again —
+      // the screen reopened (SESSION_START, PROBLEM_LOAD), nothing answered (review of PR #209).
       event(6, 's3_g_t1', 'DIGIT_ENTERED', T_RESET - 30_000, { column_index: 2, details: { digit_value: 1, is_correct: false } }),
+      event(6, 'ex_3_01', 'SESSION_START', T_RESET + 5_000, { details: { session_number: 3 } }),
+      event(6, 's3_g_t1', 'PROBLEM_LOAD', T_RESET + 6_000, { details: { path_type: 'compulsory' } }),
     ],
     reset_audit_log: [resetOfMeeting3(4), resetOfMeeting3(6)],
     sessions: [],
@@ -205,8 +215,19 @@ describe('the personal report after a reset', () => {
     expect(stored.score_percent).toBe(100);
   });
 
-  it('a meeting reset and not yet done again has no report, and says why', async () => {
+  it('a meeting reset and not yet done again has no report, and says why — also when the screen reopened', async () => {
+    // Learner 6 has SESSION_START and PROBLEM_LOAD after the reset and nothing answered: not 0% and remediation.
     await expect(personal(6)).rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringContaining('אופס') });
+  });
+
+  it('when the reset log cannot be read there is no report, said plainly (it would count the whole history)', async () => {
+    h.failResetLog = true;
+    try {
+      await expect(personal(4)).rejects.toMatchObject({ code: 'unavailable', message: RESET_LOG_UNAVAILABLE_HE });
+      await expect((generateClassMeetingReport as any).run(teacher({ sessionNumber: 3 }))).rejects.toMatchObject({ code: 'unavailable', message: RESET_LOG_UNAVAILABLE_HE });
+    } finally {
+      h.failResetLog = false;
+    }
   });
 
   it('a meeting that was never reset has no "לפני האיפוס" section', async () => {
@@ -242,7 +263,7 @@ describe('the class report after a reset and a track change', () => {
     expect(row(4).learning_path).toBe('green_path');
     expect(row(5).score_percent).toBe(100);
     expect(row(4).pre_reset.class_note_he).toBe(
-      'אופס ב-2.10.2026 בשעה 13:13 (תקלה טכנית במכשיר או בתקשורת). לפני האיפוס: 3 ספרות שגויות (1 בטור היחידות, 2 בטור העשרות), ביטול אחד, ב-2 תרגילים.'
+      'המפגש אופס ב-2.10.2026 בשעה 13:13 (תקלה טכנית במכשיר או בתקשורת). לפני האיפוס: 3 ספרות שגויות (1 בטור היחידות, 2 בטור העשרות), ביטול אחד, ב-2 תרגילים.'
     );
     expect(row(5).pre_reset).toBeNull();
     // Learner 6 was reset and has not worked again: no row, no 0%, listed apart.
@@ -252,7 +273,7 @@ describe('the class report after a reset and a track change', () => {
     expect(report.aggregates.tiers.above_75).toEqual([4, 5]);
     const html = classReportHtml(report);
     expect(html).toContain('4ג. לפני האיפוס');
-    expect(html).toContain('תלמיד 4: אופס ב-2.10.2026');
+    expect(html).toContain('תלמיד 4: המפגש אופס ב-2.10.2026');
     expect(html).toContain('תלמיד 6: עוד לא עבד על המפגש מחדש, ולכן אין לו ציון במפגש הזה.');
   });
 });
@@ -272,5 +293,68 @@ describe('the split itself', () => {
 
   it('nothing before the reset: no record', () => {
     expect(buildPreResetRecord(splitMeetingRuns([{ data: {}, writtenAtMs: T_RESET + 1 }], resetsOfMeeting([resetOfMeeting3(4).data], 4, 3)))).toBeNull();
+  });
+});
+
+describe('the class report when nobody has redone a reset meeting', () => {
+  it('says who was reset and that the others have no events, true for every learner', async () => {
+    h.collections.telemetry_logs = h.collections.telemetry_logs.filter((d) => d.data.student_id === 6);
+    await expect((generateClassMeetingReport as any).run(teacher({ sessionNumber: 3 }))).rejects.toMatchObject({
+      code: 'not-found',
+      message: 'אין עדיין מה לנתח במפגש 3. המפגש אופס לתלמיד 6, והוא עוד לא עבד עליו מחדש. לשאר התלמידים אין פעולות מתועדות במפגש הזה.',
+    });
+    expect(nothingToAnalyseAfterResetHe(4, [9, 2, 5])).toBe(
+      'אין עדיין מה לנתח במפגש 4. המפגש אופס לתלמידים 2, 5 ו-9, והם עוד לא עבדו עליו מחדש. לשאר התלמידים אין פעולות מתועדות במפגש הזה.'
+    );
+  });
+});
+
+describe('the research export adds the after-reset numbers and keeps the rest', () => {
+  it('all-events columns unchanged; score_after_reset_percent as the reports; awaiting marked', async () => {
+    const res = await (exportResearchDataset as any).run({
+      auth: { uid: 'teacher-uid', token: { role: 'teacher', roles: ['TEACHER'], teacher: true, class_id: 'class_1' } },
+      data: { class_id: 'class_1', session_number: 'all' },
+    });
+    expect(res.status).toBe('SUCCESS');
+    const file = h.files.find((f) => /\/\d+_מפגשים_/.test(f.path))!;
+    const [head, ...lines] = file.text.replace(/^﻿/, '').split('\n');
+    const split = (l: string) => l.split('","').map((c) => c.replace(/^"|"$/g, ''));
+    const cols = split(head);
+    const rowOf = (n: number) => {
+      const cells = lines.map(split).find((c) => c[0] === String(n) && c[1] === '3')!;
+      return Object.fromEntries(cols.map((c, i) => [c, cells[i]]));
+    };
+    // The existing columns keep every event (register gap יג): learner 4's wrong digits before the reset still cost t1 and t2.
+    expect(rowOf(4).first_attempt_score_percent).toBe('71');
+    expect(rowOf(4).was_reset).toBe('כן');
+    // The appended column is what the reports and the gate count.
+    expect(rowOf(4).score_after_reset_percent).toBe('100');
+    expect(rowOf(4).reset_awaiting_rerun).toBe('');
+    expect(rowOf(6).reset_awaiting_rerun).toBe('כן');
+    expect(rowOf(6).score_after_reset_percent).toBe('');
+    // Learner 5 was moved to remediation after meeting 3: the meeting's own path, and 100%.
+    expect(rowOf(5).learning_path).toBe('green_path');
+    expect(rowOf(5).first_attempt_score_percent).toBe('100');
+    expect(rowOf(5).score_after_reset_percent).toBe('100');
+    // Appended after every existing column.
+    expect(cols.indexOf('score_after_reset_percent')).toBeGreaterThan(cols.indexOf('chat_help_requests'));
+  });
+});
+
+describe('the admin metrics count a meeting as the reports do', () => {
+  it("the run since the reset, on the meeting's own path; nothing answered is no score", () => {
+    const docs = h.collections.telemetry_logs.map((d) => ({ data: d.data, writtenAtMs: d.writtenAt ?? null }));
+    const byMeeting = groupTelemetryByMeeting(currentRunEvents(docs, h.collections.reset_audit_log.map((r) => r.data)));
+    const metrics = buildAdminMetrics({
+      byMeeting,
+      sessionDocs: [],
+      highestCompletedByLearner: new Map([[4, 3], [5, 3], [6, 3]]),
+      pathByLearner: new Map([[4, 'remediation_path'], [5, 'remediation_path'], [6, 'remediation_path']]),
+      pathByLearnerMeeting: new Map([['4:3', 'green_path'], ['5:3', 'green_path']]),
+      compulsory: new Map([['3:green_path', { total: 7, ids: new Set(GREEN) }], ['3:remediation_path', { total: 7, ids: new Set(REMEDIATION) }]]),
+    });
+    // 4 and 5 at 100%; 6 (reset, nothing answered since) has no score rather than 0%.
+    expect(metrics.session_breakdown['3'].average_score_percent).toBe(100);
+    expect(metrics.session_breakdown['3'].wrong_digits).toBe(0);
   });
 });

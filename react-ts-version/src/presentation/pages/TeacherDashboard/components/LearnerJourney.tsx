@@ -19,6 +19,7 @@ import {
   generateMeetingReport,
   groupEventsBySession,
   parseRecordingEvents,
+  answeredSince,
   PRE_RESET_HEADING_HE,
   PRE_RESET_NOTE_HE,
   resetSeparatorHe,
@@ -478,7 +479,10 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
             {/* A report kept from before the meeting's last reset (resets keep reports) describes the old run. */}
             {report && lastCuttingReset && report.generatedAt !== null && report.generatedAt < lastCuttingReset.at && (
               <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
-                הדוח הזה הופק לפני האיפוס של המפגש, ולכן הוא מתאר את העבודה הקודמת. לחצו "הפיקו מחדש" כדי לקבל דוח על העבודה שאחרי האיפוס.
+                {/* "הפיקו מחדש" helps only once the learner has answered since the reset; before that the server refuses. */}
+                {answeredSince(sessionEvents, lastCuttingReset.at)
+                  ? 'הדוח הזה הופק לפני האיפוס של המפגש, ולכן הוא מתאר את העבודה הקודמת. לחצו "הפיקו מחדש" כדי לקבל דוח על העבודה שאחרי האיפוס.'
+                  : 'הדוח הזה הופק לפני האיפוס של המפגש, ולכן הוא מתאר את העבודה הקודמת. התלמיד עוד לא עבד על המפגש מחדש, ולכן אפשר להפיק דוח חדש רק אחרי שיעבוד עליו.'}
               </div>
             )}
 

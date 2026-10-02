@@ -28,7 +28,7 @@ describe('Module 23 — report for every meeting (server)', () => {
     // reading by the string the caller passed dropped the rest (same lesson
     // as the score trigger, #93).
     // Owner, 2.10.2026: by learner, every meeting cut at its last reset; this meeting's new run is scored.
-    expect(server).toContain('const learnerRuns = await readLearnerMeetingRuns(db, clampedStudentNum);');
+    expect(server).toContain('learnerRuns = await readLearnerMeetingRuns(db, clampedStudentNum);');
     expect(server).toContain('const telemetryDocs = meetingRuns ? meetingRuns.current : [];');
     expect(server).not.toContain('readAllTelemetryForSession(db, sessionId)');
   });
