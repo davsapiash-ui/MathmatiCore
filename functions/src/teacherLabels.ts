@@ -31,3 +31,47 @@ export function errorCategoryHe(key: string): string | null {
     ? ERROR_CATEGORY_HE[key as keyof typeof ERROR_CATEGORY_HE]
     : null;
 }
+
+/**
+ * Why a coaching card opened, as the teacher reads it. The source of truth is
+ * TRIGGER_REASON_HE in react-ts-version/src/core/routeLabels.ts (the learner's
+ * timeline reads it); `__tests__/teacherLabels.test.ts` keeps this copy equal.
+ * The stored trigger_reason values do not change; only what the reports print
+ * (acceptance run of 2.10.2026: the class report printed "hesitation_45s: 24").
+ */
+export const TRIGGER_REASON_HE = {
+  hesitation_45s: "היסוס 45 שניות",
+  consecutive_errors_4: "ארבע מחיקות או הקלדות שגויות רצופות",
+  consecutive_undos_3: "שלושה ביטולים רצופים",
+  conversion_not_performed: "לא בוצעה המרה נדרשת",
+  repeated_errors: "תשובה שגויה שנייה ברצף באותו תרגיל",
+} as const;
+
+/** The Hebrew reason for a stored trigger_reason, or null for a value outside the five. */
+export function triggerReasonHe(key: string): string | null {
+  return Object.prototype.hasOwnProperty.call(TRIGGER_REASON_HE, key)
+    ? TRIGGER_REASON_HE[key as keyof typeof TRIGGER_REASON_HE]
+    : null;
+}
+
+/**
+ * "trigger: count" pairs by their Hebrew names. A value outside the known set
+ * (a stored report from an older client) reads "סיבה אחרת" rather than an
+ * English identifier on the teacher's page.
+ */
+export function triggerCountsHe(map: Record<string, number> | null | undefined): string {
+  return Object.entries(map ?? {}).map(([k, v]) => `${triggerReasonHe(k) ?? "סיבה אחרת"}: ${v}`).join(", ");
+}
+
+/** The same for the error categories; a key outside the three reads "סיווג אחר". */
+export function errorCategoryCountsHe(map: Record<string, number> | null | undefined): string {
+  return Object.entries(map ?? {}).map(([k, v]) => `${errorCategoryHe(k) ?? "סיווג אחר"}: ${v}`).join(", ");
+}
+
+/**
+ * The four columns as every screen names them: "יחידות", not "אחדות" (owner,
+ * 1.10.2026: one name per thing; the learner's timeline already says
+ * "בטור היחידות"). Index 0 is the units.
+ */
+export const COLUMN_NAMES_HE = ["יחידות", "עשרות", "מאות", "אלפים"] as const;
+

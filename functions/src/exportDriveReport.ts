@@ -2,7 +2,6 @@ import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/
 import { requireAdmin, requireTeacherForIndividualData } from "./callerIdentity";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { GoogleAuth } from "google-auth-library";
 import { computeToolMastery, truncatedRecordingMeetings, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, computeSelfCorrectionIndex, FLEXIBILITY_SESSIONS } from "./meetingMetrics";
 import { recomputeAdminMetrics } from "./adminAggregator";
 import { containsPhoneNumber } from "./phonePattern";
@@ -138,6 +137,9 @@ ${startXrefOffset}
  */
 async function getDriveAccessToken(): Promise<string | null> {
   try {
+    // Loaded here, not at the top: every function instance loads index.js,
+    // and the coaching card's instance never talks to Drive (cold start, 2.10.2026).
+    const { GoogleAuth } = await import("google-auth-library");
     const auth = new GoogleAuth({
       scopes: [
         "https://www.googleapis.com/auth/drive",

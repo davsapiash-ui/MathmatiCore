@@ -38,6 +38,21 @@ export const ERROR_CATEGORY_HE = {
   conceptual: 'טעות בהבנת ערך המקום',
 } as const;
 
+/**
+ * Why a coaching card opened, as the teacher reads it (the learner's timeline
+ * and the reports). מסמכים 03 ו-04 word for word; only the per-column digit
+ * streak (register deviation 2) opens a card with consecutive_errors_4. The
+ * stored trigger_reason values do not change. The server's reports carry a
+ * copy (functions/src/teacherLabels.ts), held equal to this one by a test.
+ */
+export const TRIGGER_REASON_HE = {
+  hesitation_45s: 'היסוס 45 שניות',
+  consecutive_errors_4: 'ארבע מחיקות או הקלדות שגויות רצופות',
+  consecutive_undos_3: 'שלושה ביטולים רצופים',
+  conversion_not_performed: 'לא בוצעה המרה נדרשת',
+  repeated_errors: 'תשובה שגויה שנייה ברצף באותו תרגיל',
+} as const;
+
 /** The route's name for a stored path value, or null for anything else. */
 export function routeNameHe(path: unknown): string | null {
   return path === 'green_path' || path === 'remediation_path' ? ROUTE_NAME_HE[path] : null;

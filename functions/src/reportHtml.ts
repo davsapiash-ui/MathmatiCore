@@ -8,12 +8,12 @@
  * percentages and Latin exercise ids inside Hebrew.
  *
  * Every dynamic value passes through esc(); the reports carry only anonymous
- * learner numbers (Zero PII), and escaping keeps a stray "<" in an AI
+ * learner numbers, and escaping keeps a stray "<" in an AI
  * sentence from becoming markup.
  */
 import * as fs from "fs";
 import { fontPath } from "./htmlPdf";
-import { ROUTE_NAME_HE, errorCategoryHe } from "./teacherLabels";
+import { COLUMN_NAMES_HE, ROUTE_NAME_HE, errorCategoryCountsHe, triggerCountsHe } from "./teacherLabels";
 import type { ClassAggregates, ClassLearnerRow, ExerciseOutcome } from "./classReport";
 import {
   CHOICE_PATH_LABEL_HE,
@@ -232,7 +232,7 @@ function sandboxReportHtml(report: Record<string, any>): string {
 
   const body = `
     <h1>${esc(title)}</h1>
-    <p class="subtitle">הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה (Zero PII)</p>
+    <p class="subtitle">הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה</p>
 
     <div class="card">
       <div><b>לומד:</b> ${esc(report.anonymous_student_label)}</div>
@@ -247,7 +247,7 @@ function sandboxReportHtml(report: Record<string, any>): string {
     <h2>2. תרגילי הריענון</h2>
     ${refreshOutcomesList(report.exercise_outcomes, report.exercise_titles)}
 
-    <h2>3. סיפור התרגילים הכרונולוגי (Exercise Narratives)</h2>
+    <h2>3. סיפור התרגילים הכרונולוגי</h2>
     ${narratives.length > 0 ? bulletList(narratives, "") : ""}
 
     <h2 class="amber">4. לקראת האבחון</h2>
@@ -283,7 +283,7 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
 
   const body = `
     <h1>${esc(title)}</h1>
-    <p class="subtitle">הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה (Zero PII)</p>
+    <p class="subtitle">הערכה פדגוגית חסויה | מדיניות אפס מידע מזהה</p>
 
     <div class="card">
       <div><b>לומד:</b> ${esc(report.anonymous_student_label)}</div>
@@ -298,7 +298,7 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
       <p><b>פירוט פדגוגי:</b> ${esc(report.recommendation_details_he || report.routing_label_he)}</p>
     </div>
 
-    <h2>2. סיפור התרגילים הכרונולוגי (Exercise Narratives)</h2>
+    <h2>2. סיפור התרגילים הכרונולוגי</h2>
     ${narratives.length > 0 ? bulletList(narratives, "") : ""}
     ${choiceNarratives.length > 0 ? `<h3>${esc(CHOICE_EXERCISES_HEADING_HE)}</h3>${bulletList(choiceNarratives, "")}` : ""}
 
@@ -315,17 +315,14 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
 
 const studentList = (ids: number[]) => (ids.length > 0 ? ids.map((id) => `תלמיד ${id}`).join(", ") : "אין");
 
-/** "key: value" pairs of Latin trigger/category names, each pair kept together as one left-to-right unit. */
-function keyValueList(map: Record<string, number>): string {
-  return Object.entries(map).map(([k, v]) => ltr(`${k}: ${v}`)).join(", ");
-}
-
-/** The error categories by the names the teacher reads (PRD Module 18); a key outside the three stays as stored. */
-function errorCategoryList(map: Record<string, number>): string {
-  return Object.entries(map).map(([k, v]) => {
-    const name = errorCategoryHe(k);
-    return name ? esc(`${name}: ${v}`) : ltr(`${k}: ${v}`);
-  }).join(", ");
+/**
+ * An exercise by the Hebrew title the teacher's screens show. A choice
+ * exercise is not in the published catalog, so it has no title here and keeps
+ * its id, isolated so it never flips the Hebrew around it.
+ */
+function exerciseName(titles: Record<string, string> | null | undefined, id: string): string {
+  const title = titles?.[id];
+  return title ? esc(title) : ltr(id);
 }
 
 /** A percentage that may not have been measured. Never printed as a bare "%". */
@@ -334,7 +331,7 @@ const pctHe = (value: number | null | undefined): string => (typeof value === "n
 function learnersTable(rows: ClassLearnerRow[], scored = true): string {
   const head = [
     "לומד", ...(scored ? ["ציון", "נכון בניסיון ראשון"] : []), "תרגילים שנפתחו", "תרגילים שהושלמו", "ספרות שגויות",
-    "שגויות: אחדות", "שגויות: עשרות", "שגויות: מאות", "שגויות: אלפים",
+    ...COLUMN_NAMES_HE.map((c) => `שגויות: ${c}`),
     "מחיקות", "ביטולים", "היסוסים", "המרות", "כרטיסים", "דקות", "רפלקציה",
   ];
   const body = rows.map((r) => `
@@ -372,9 +369,9 @@ function choiceLabelOf(ex: { exercise_id: string; path_type?: string }): string 
   return t === "compulsory" ? "" : CHOICE_PATH_LABEL_HE[t];
 }
 
-function outcomesTable(rows: ClassLearnerRow[], exerciseIds: string[]): string {
+function outcomesTable(rows: ClassLearnerRow[], exerciseIds: string[], titles?: Record<string, string> | null): string {
   if (exerciseIds.length === 0) return "";
-  const head = `<tr><th>לומד</th>${exerciseIds.map((id) => `<th>${ltr(id)}${exercisePathType(id) === "compulsory" ? "" : "<br>(תרגיל בחירה)"}</th>`).join("")}</tr>`;
+  const head = `<tr><th>לומד</th>${exerciseIds.map((id) => `<th>${exerciseName(titles, id)}${exercisePathType(id) === "compulsory" ? "" : "<br>(תרגיל בחירה)"}</th>`).join("")}</tr>`;
   const body = rows.map((r) => {
     const cells = exerciseIds.map((id) => {
       const outcome = r.exercise_outcomes[id];
@@ -453,8 +450,10 @@ export function classReportHtml(report: Record<string, any>): string {
     ? `<p class="muted"><b>ללא ציון:</b> ${esc(studentList(a.learners_without_score))}. מאגר תרגילי החובה של המפגש אינו זמין; על מנהל המערכת לפרסם את תוכנית הלימודים.</p>`
     : "";
 
-  const triggers = keyValueList(a.socratic_triggers);
-  const categories = errorCategoryList(a.error_categories);
+  const titles: Record<string, string> | null = report.exercise_titles ?? null;
+  // Why the cards opened and the error categories, by the names the teacher's screens use.
+  const triggers = esc(triggerCountsHe(a.socratic_triggers));
+  const categories = esc(errorCategoryCountsHe(a.error_categories));
 
   // מסמך 03: the choice exercises marked as such, apart from the compulsory ones.
   const compulsoryExercises = a.exercises.filter((ex) => pathTypeOf(ex) === "compulsory");
@@ -463,7 +462,7 @@ export function classReportHtml(report: Record<string, any>): string {
         <thead><tr><th>תרגיל</th>${choice ? "<th>נתיב</th>" : ""}<th>פתחו</th><th>סיימו</th><th>בניסיון ראשון</th><th>אחוז בניסיון ראשון</th><th>ספרות שגויות</th><th>כרטיסים</th><th>היסוסים</th></tr></thead>
         <tbody>${list.map((ex) => `
           <tr>
-            <td class="label">${ltr(ex.exercise_id)}</td>
+            <td class="label">${exerciseName(titles, ex.exercise_id)}</td>
             ${choice ? `<td>${esc(choiceLabelOf(ex))}</td>` : ""}
             <td>${esc(ex.attempted)}</td><td>${esc(ex.completed)}</td><td>${esc(ex.first_try)}</td>
             <td>${esc(ex.first_try_percent)}%</td><td>${esc(ex.wrong_digits)}</td>
@@ -489,7 +488,7 @@ export function classReportHtml(report: Record<string, any>): string {
     // Meeting 1 (Module 14 §ב): no mean, no median, no working groups.
     const sandboxBody = `
     <h1>${esc(title)}</h1>
-    <p class="subtitle">דוח כיתתי חסוי | מדיניות אפס מידע מזהה (Zero PII) | לומדים מזוהים במספר בלבד</p>
+    <p class="subtitle">דוח כיתתי חסוי | מדיניות אפס מידע מזהה | לומדים מזוהים במספר בלבד</p>
 
     <div class="card">
       <div><b>מפגש:</b> 1 — היכרות וריענון</div>
@@ -504,7 +503,7 @@ export function classReportHtml(report: Record<string, any>): string {
 
     <h2>2. תמונת מצב כיתתית</h2>
     <p>פעולות מתועדות: ${esc(a.events_total)} | ספרות שהוזנו: ${esc(a.digits_entered_total)} | ספרות שגויות: ${esc(a.wrong_digits_total)}
-      (אחדות ${esc(a.wrong_digits_by_column.units)}, עשרות ${esc(a.wrong_digits_by_column.tens)}, מאות ${esc(a.wrong_digits_by_column.hundreds)}, אלפים ${esc(a.wrong_digits_by_column.thousands)})</p>
+      (${COLUMN_NAMES_HE[0]} ${esc(a.wrong_digits_by_column.units)}, עשרות ${esc(a.wrong_digits_by_column.tens)}, מאות ${esc(a.wrong_digits_by_column.hundreds)}, אלפים ${esc(a.wrong_digits_by_column.thousands)})</p>
     <p>מחיקות: ${esc(a.deletions_total)} | ביטולים: ${esc(a.undos_total)} | היסוסים: ${esc(a.hesitations_total)} (${esc(a.hesitation_seconds_total)} שניות) | המרות (הקבצה/פריטה): ${esc(a.regroupings_total)}</p>
     <p>כרטיסי חניכה: ${esc(a.socratic_cards_total)}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}</p>
 
@@ -513,7 +512,7 @@ export function classReportHtml(report: Record<string, any>): string {
 
     <h2>4. טבלת הלומדים</h2>
     ${learnersTable(rows, false)}
-    ${outcomesTable(rows, exerciseIds)}
+    ${outcomesTable(rows, exerciseIds, titles)}
 
     ${researchMeasuresSection(rows, a)}
 
@@ -525,7 +524,7 @@ export function classReportHtml(report: Record<string, any>): string {
 
   const body = `
     <h1>${esc(title)}</h1>
-    <p class="subtitle">דוח כיתתי חסוי | מדיניות אפס מידע מזהה (Zero PII) | לומדים מזוהים במספר בלבד</p>
+    <p class="subtitle">דוח כיתתי חסוי | מדיניות אפס מידע מזהה | לומדים מזוהים במספר בלבד</p>
 
     <div class="card">
       <div><b>מפגש:</b> ${esc(report.session_number)}</div>
@@ -543,7 +542,7 @@ export function classReportHtml(report: Record<string, any>): string {
 
     <h2>2. תמונת מצב כיתתית</h2>
     <p>פעולות מתועדות: ${esc(a.events_total)} | ספרות שהוזנו: ${esc(a.digits_entered_total)} | ספרות שגויות: ${esc(a.wrong_digits_total)}
-      (אחדות ${esc(a.wrong_digits_by_column.units)}, עשרות ${esc(a.wrong_digits_by_column.tens)}, מאות ${esc(a.wrong_digits_by_column.hundreds)}, אלפים ${esc(a.wrong_digits_by_column.thousands)})</p>
+      (${COLUMN_NAMES_HE[0]} ${esc(a.wrong_digits_by_column.units)}, עשרות ${esc(a.wrong_digits_by_column.tens)}, מאות ${esc(a.wrong_digits_by_column.hundreds)}, אלפים ${esc(a.wrong_digits_by_column.thousands)})</p>
     <p>מחיקות: ${esc(a.deletions_total)} | ביטולים: ${esc(a.undos_total)} | היסוסים: ${esc(a.hesitations_total)} (${esc(a.hesitation_seconds_total)} שניות) | המרות (הקבצה/פריטה): ${esc(a.regroupings_total)}</p>
     <p>כרטיסי חניכה: ${esc(a.socratic_cards_total)}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}</p>
     <p>לוח החיבור: נפתח ${esc(a.grid_openings_total)}, הוחזר על ידי הלומד ${esc(a.grid_reopenings_total)} | הקלדה לפני המרה (מקלדת נעולה): ${esc(a.keyboard_lock_blocks_total)} | קריאות שקטות למורה: ${esc(a.help_requests_total)} | פיגום בשורת התוצאה: ${esc(a.place_cue_scaffolds_total)}</p>
@@ -554,7 +553,7 @@ export function classReportHtml(report: Record<string, any>): string {
 
     <h2>4. טבלת הלומדים (כל מה שנמדד ליחיד)</h2>
     ${learnersTable(rows)}
-    ${outcomesTable(rows, exerciseIds)}
+    ${outcomesTable(rows, exerciseIds, titles)}
 
     ${researchMeasuresSection(rows, a)}
 

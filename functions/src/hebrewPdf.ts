@@ -21,8 +21,13 @@
  * one with lineBreak:false, so pdfkit never re-wraps a reordered line in the
  * middle. Verified by rendering the PDFs to images (7.9.2026).
  */
-const bidiFactory = require("bidi-js");
-const bidi = bidiFactory();
+// Built on first use, not at load: every function instance loads index.js,
+// and only the pdfkit report renderers need it (cold start, 2.10.2026).
+let bidiInstance: any = null;
+function bidiEngine(): any {
+  if (!bidiInstance) bidiInstance = require("bidi-js")();
+  return bidiInstance;
+}
 
 const STRONG_RTL = /[֐-׿؀-ۿݐ-ݿיִ-ﭏﹰ-﻿]/;
 const STRONG_LTR = /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/;
@@ -43,6 +48,7 @@ export function fontkitDirection(line: string): "rtl" | "ltr" {
 export function visualOrder(line: string): string {
   if (!line) return "";
   try {
+    const bidi = bidiEngine();
     const levels = bidi.getEmbeddingLevels(line, "rtl");
     const mirrored: Map<number, string> = bidi.getMirroredCharactersMap(line, levels);
     let logical = line;

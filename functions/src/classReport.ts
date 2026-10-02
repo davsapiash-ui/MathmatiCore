@@ -6,11 +6,12 @@ import * as path from "path";
 import * as fs from "fs";
 import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
 import { meetingLabelHe } from "./stationNames";
-import { ROUTE_NAME_HE, errorCategoryHe } from "./teacherLabels";
+import { COLUMN_NAMES_HE, ROUTE_NAME_HE, errorCategoryCountsHe, errorCategoryHe, triggerCountsHe, triggerReasonHe } from "./teacherLabels";
 import {
   computeFirstAttemptScore,
   meetingRecordingTruncated,
   readAllDocs,
+  readExerciseTitles,
   resolveCompulsoryTotal,
   sessionNumberFromId,
   studentNumberFromSessionId,
@@ -59,8 +60,9 @@ import {
   reportFooterTemplate,
 } from "./reportHtml";
 import { resolveRecommendationTier, type RecommendationTier } from "./reportAnalysis";
-import { GEMINI_MODEL_ID, GEMINI_SECRETS, getGeminiClient } from "./geminiConfig";
-const PDFDocument = require("pdfkit");
+import { GEMINI_MODEL_ID, GEMINI_SECRETS, classifyGeminiError, generateGeminiText } from "./geminiConfig";
+import { recordAiCall, type AiOutcome } from "./aiMonitoring";
+import { REPORT_RETRY_MIN_MS, REPORT_TERMS_HE, REPORT_THINKING, keepHebrewLines, reportAnalysisOutcome, reportTextViolation } from "./reportAnalysis";
 
 /**
  * Module 23 — the CLASS report of one meeting (owner decision, 6.9.2026,
@@ -90,7 +92,6 @@ export const CLASS_REPORT_RUNTIME = { ...GEMINI_SECRETS, ...CHROMIUM_PDF_RUNTIME
 export const CLASS_AI_ANALYSIS_TIMEOUT_MS = 20000;
 
 const ALL_STUDENT_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
 
 export type { ExerciseOutcome };
 
@@ -501,7 +502,8 @@ ${SANDBOX_MEETING_PURPOSE_HE}
 ב-class_patterns: נקודות לתשומת לב לקראת האבחון. ב-teaching_recommendations: מה המורה יכולה לעשות לפני האבחון (למשל הדגמה קצרה במליאה של כלי שרבים לא הפעילו).
 2 עד 5 פריטים בכל מערך. אם אין די ראיות, החזר מערכים ריקים.
 
-מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.
+${REPORT_TERMS_HE}`;
 }
 
 function buildClassSystemInstruction(): string {
@@ -525,7 +527,15 @@ function buildClassSystemInstruction(): string {
 }
 2 עד 5 פריטים בכל מערך. אם אין די ראיות, החזר מערכים ריקים.
 
-מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.
+${REPORT_TERMS_HE}`;
+}
+
+/** A count map with its stored keys replaced by their Hebrew names (counts of keys that share a name add up). */
+function hebrewKeys(map: Record<string, number> | null | undefined, name: (key: string) => string): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(map ?? {})) out[name(k)] = (out[name(k)] ?? 0) + v;
+  return out;
 }
 
 /** Runs layer 2 for the class. Returns null on any failure; never throws. */
@@ -537,13 +547,11 @@ export async function generateClassAnalysis(input: {
 }): Promise<ClassAnalysis | null> {
   if (input.learners.length === 0) return null;
   const scored = isScoredMeeting(input.session_number);
+  const started = Date.now();
+  const monitor = (outcome: AiOutcome, detail?: string) =>
+    recordAiCall({ feature: "class_report", outcome, latency_ms: Date.now() - started, model_id: GEMINI_MODEL_ID, session_id: `class_session_${input.session_number}`, detail });
   try {
-    const ai = getGeminiClient();
-    const model = ai.getGenerativeModel({
-      model: GEMINI_MODEL_ID,
-      generationConfig: { temperature: 0.3, responseMimeType: "application/json" },
-      systemInstruction: scored ? buildClassSystemInstruction() : buildSandboxClassSystemInstruction(),
-    });
+    const systemInstruction = scored ? buildClassSystemInstruction() : buildSandboxClassSystemInstruction();
     // An explicit projection, as in reportAnalysis.ts: only the measurements
     // the analysis reasons about reach the engine. In meeting 1 there is no
     // tier and no score to pass.
@@ -558,8 +566,9 @@ export async function generateClassAnalysis(input: {
       hesitations: r.hesitations,
       regroupings: r.regroupings,
       socratic_cards: r.socratic_cards,
-      socratic_triggers: r.socratic_triggers,
-      error_categories: r.error_categories,
+      // Hebrew names, not stored keys: the model writes what it reads (acceptance run, 2.10.2026).
+      socratic_triggers: hebrewKeys(r.socratic_triggers, (k) => triggerReasonHe(k) ?? "סיבה אחרת"),
+      error_categories: hebrewKeys(r.error_categories, (k) => errorCategoryHe(k) ?? "סיווג אחר"),
       exercise_outcomes: r.exercise_outcomes,
     }));
     const a = input.aggregates;
@@ -574,11 +583,11 @@ export async function generateClassAnalysis(input: {
 מפגש: ${input.session_number}
 לומדים עם נתונים: ${a.learners_with_data}
 ${framing}
-טעויות ספרה לפי טור: ${JSON.stringify(a.wrong_digits_by_column)}
+טעויות ספרה לפי טור: ${COLUMN_NAMES_HE[0]} ${a.wrong_digits_by_column.units}, ${COLUMN_NAMES_HE[1]} ${a.wrong_digits_by_column.tens}, ${COLUMN_NAMES_HE[2]} ${a.wrong_digits_by_column.hundreds}, ${COLUMN_NAMES_HE[3]} ${a.wrong_digits_by_column.thousands}
 תרגילים (כמה פתחו, כמה סיימו, כמה בניסיון ראשון, טעויות, כרטיסי חניכה, היסוסים):
 ${JSON.stringify(a.exercises)}
-טריגרים של כרטיסי חניכה: ${JSON.stringify(a.socratic_triggers)}
-סיווגי שגיאה: ${JSON.stringify(a.error_categories)}
+סיבות לפתיחת כרטיסי החניכה: ${triggerCountsHe(a.socratic_triggers) || "אין"}
+סיווגי שגיאה: ${errorCategoryCountsHe(a.error_categories) || "אין"}
 סה"כ: ביטולים ${a.undos_total}, מחיקות ${a.deletions_total}, היסוסים ${a.hesitations_total}, המרות ${a.regroupings_total}, רפלקציות ${a.reflections_submitted}
 
 שורות הלומדים (אנונימיות):
@@ -586,19 +595,78 @@ ${JSON.stringify(learners)}
 
 ${closing}`;
 
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), CLASS_AI_ANALYSIS_TIMEOUT_MS));
-    const call = model.generateContent(userPrompt).then((r: any) => r.response.text() as string);
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), CLASS_AI_ANALYSIS_TIMEOUT_MS);
+    });
+    const call = generateGeminiText({
+      systemInstruction,
+      prompt: userPrompt,
+      temperature: 0.3,
+      json: true,
+      responseSchema: CLASS_RESPONSE_SCHEMA,
+      thinking: REPORT_THINKING,
+      timeoutMs: CLASS_AI_ANALYSIS_TIMEOUT_MS,
+    }).then((r) => r.text);
     const text = await Promise.race([call, timeout]);
+    if (timer) clearTimeout(timer);
     if (text === null) {
       logger.warn("[classReport] Gemini class analysis timed out; report ships with layer 1 only.", { session_number: input.session_number });
+      monitor("timeout");
       return null;
     }
-    return parseClassAnalysis(text);
+    let parsed = parseClassAnalysis(text);
+    let lastText: string | null = text;
+    const violation = parsed ? reportTextViolation([...parsed.class_patterns, ...parsed.teaching_recommendations]) : null;
+    const remaining = CLASS_AI_ANALYSIS_TIMEOUT_MS - (Date.now() - started);
+    if (violation && remaining >= REPORT_RETRY_MIN_MS) {
+      let retryTimer: NodeJS.Timeout | undefined;
+      const retryTimeout = new Promise<null>((resolve) => {
+        retryTimer = setTimeout(() => resolve(null), remaining);
+      });
+      const retry = generateGeminiText({
+        systemInstruction,
+        prompt: `${userPrompt}\n\nהתשובה הקודמת נדחתה: ${violation}. החזר את ה-JSON שוב, בעברית בלבד.`,
+        temperature: 0.3,
+        json: true,
+        responseSchema: CLASS_RESPONSE_SCHEMA,
+        thinking: REPORT_THINKING,
+        timeoutMs: remaining,
+      }).then((r) => r.text).catch(() => null);
+      const retryText = await Promise.race([retry, retryTimeout]);
+      if (retryTimer) clearTimeout(retryTimer);
+      const second = retryText ? parseClassAnalysis(retryText) : null;
+      if (second) {
+        parsed = second;
+        lastText = retryText;
+      }
+    }
+    let linesDropped = false;
+    if (parsed) {
+      const kept = keepHebrewLines({ class_patterns: parsed.class_patterns, teaching_recommendations: parsed.teaching_recommendations });
+      linesDropped = kept.class_patterns.length + kept.teaching_recommendations.length < parsed.class_patterns.length + parsed.teaching_recommendations.length;
+      parsed = kept.class_patterns.length || kept.teaching_recommendations.length ? kept : null;
+    }
+    const result = reportAnalysisOutcome(parsed !== null, linesDropped, lastText, ["class_patterns", "teaching_recommendations"]);
+    monitor(result.outcome, result.detail);
+    return parsed;
   } catch (err) {
-    logger.warn("[classReport] Gemini class analysis unavailable; report ships with layer 1 only.", { error: String(err) });
+    logger.warn("[classReport] Gemini class analysis unavailable; report ships with layer 1 only.", { error: String((err as Error)?.message ?? err).slice(0, 300) });
+    monitor(classifyGeminiError(err));
     return null;
   }
 }
+
+/** Appendix A §7's class counterpart: the two arrays and nothing else. */
+const CLASS_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    class_patterns: { type: "ARRAY", items: { type: "STRING" } },
+    teaching_recommendations: { type: "ARRAY", items: { type: "STRING" } },
+  },
+  required: ["class_patterns", "teaching_recommendations"],
+  propertyOrdering: ["class_patterns", "teaching_recommendations"],
+} as const;
 
 export function parseClassAnalysis(text: string): ClassAnalysis | null {
   let parsed: any;
@@ -708,6 +776,9 @@ export function createClassReportPdfBuffer(report: Record<string, any>): Promise
 export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
+      // Loaded here, not at the top: every function instance loads index.js,
+      // and the coaching card's instance never prints a PDF (cold start, 2.10.2026).
+      const PDFDocument = require("pdfkit");
       const doc = new PDFDocument({ size: "A4", margin: 40 });
       const chunks: Buffer[] = [];
       doc.on("data", (chunk: any) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
@@ -743,7 +814,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       rtlText(doc, report.title_he, { align: "center" });
       doc.moveDown(0.4);
       doc.fontSize(11).fillColor("#475569");
-      rtlText(doc, "דוח כיתתי חסוי | מדיניות אפס מידע מזהה (Zero PII) | לומדים מזוהים במספר בלבד", { align: "center" });
+      rtlText(doc, "דוח כיתתי חסוי | מדיניות אפס מידע מזהה | לומדים מזוהים במספר בלבד", { align: "center" });
       doc.moveDown(1);
 
       doc.rect(40, doc.y, 515, 60).fillAndStroke("#f8fafc", "#cbd5e1");
@@ -780,18 +851,19 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       }
 
       heading("2. תמונת מצב כיתתית");
-      line(`פעולות מתועדות: ${a.events_total} | ספרות שהוזנו: ${a.digits_entered_total} | ספרות שגויות: ${a.wrong_digits_total} (אחדות ${a.wrong_digits_by_column.units}, עשרות ${a.wrong_digits_by_column.tens}, מאות ${a.wrong_digits_by_column.hundreds}, אלפים ${a.wrong_digits_by_column.thousands})`);
+      line(`פעולות מתועדות: ${a.events_total} | ספרות שהוזנו: ${a.digits_entered_total} | ספרות שגויות: ${a.wrong_digits_total} (${COLUMN_NAMES_HE[0]} ${a.wrong_digits_by_column.units}, עשרות ${a.wrong_digits_by_column.tens}, מאות ${a.wrong_digits_by_column.hundreds}, אלפים ${a.wrong_digits_by_column.thousands})`);
       line(`מחיקות: ${a.deletions_total} | ביטולים: ${a.undos_total} | היסוסים: ${a.hesitations_total} (${a.hesitation_seconds_total} שניות) | המרות (הקבצה/פריטה): ${a.regroupings_total}`);
-      const triggers = Object.entries(a.socratic_triggers).map(([k, v]) => `${k}: ${v}`).join(", ");
-      const categories = Object.entries(a.error_categories).map(([k, v]) => `${errorCategoryHe(k) ?? k}: ${v}`).join(", ");
+      const triggers = triggerCountsHe(a.socratic_triggers);
+      const categories = errorCategoryCountsHe(a.error_categories);
       line(`כרטיסי חניכה: ${a.socratic_cards_total}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}`);
       line(`לוח החיבור: נפתח ${a.grid_openings_total}, הוחזר על ידי הלומד ${a.grid_reopenings_total} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total} | קריאות שקטות למורה: ${a.help_requests_total}${a.help_withdrawals_total ? ` (הלומדים ביטלו ${a.help_withdrawals_total} מהן)` : ""} | בקשות עזרה מהצ׳אט: ${a.chat_help_requests_total} | פיגום בשורת התוצאה: ${a.place_cue_scaffolds_total}`);
       line(`זמן פעילות ממוצע: ${a.active_minutes_mean} דקות | דקות הקלטה: ${a.recording_minutes_total} | רפלקציות: ${a.reflections_submitted} מתוך ${a.learners_with_data}`);
 
       heading("3. תרגילים: כמה לומדים פתרו בניסיון ראשון");
       if (a.exercises.length === 0) line("לא נרשמו תרגילים.");
+      const titles: Record<string, string> = report.exercise_titles ?? {};
       const exerciseLine = (ex: ClassExerciseRow) =>
-        `${ex.exercise_id}: פתחו ${ex.attempted}, סיימו ${ex.completed}, בניסיון ראשון ${ex.first_try} (${ex.first_try_percent}%) | ספרות שגויות ${ex.wrong_digits} | כרטיסים ${ex.socratic_cards} | היסוסים ${ex.hesitations}`;
+        `${titles[ex.exercise_id] ?? ex.exercise_id}: פתחו ${ex.attempted}, סיימו ${ex.completed}, בניסיון ראשון ${ex.first_try} (${ex.first_try_percent}%) | ספרות שגויות ${ex.wrong_digits} | כרטיסים ${ex.socratic_cards} | היסוסים ${ex.hesitations}`;
       // מסמך 03: the choice exercises marked as such, apart from the compulsory ones.
       const choiceTypeOf = (ex: ClassExerciseRow) => ex.path_type ?? exercisePathType(ex.exercise_id);
       for (const ex of a.exercises.filter((e) => choiceTypeOf(e) === "compulsory")) line(exerciseLine(ex));
@@ -819,7 +891,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
             : `תלמיד ${r.student_id} | ${common} | ${r.tool_mastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") || "אין"}`,
           9, "#0f172a"
         );
-        const outcomes = Object.entries(r.exercise_outcomes).map(([id, o]) => `${id}: ${OUTCOME_HE[o]}`).join(", ");
+        const outcomes = Object.entries(r.exercise_outcomes).map(([id, o]) => `${titles[id] ?? id}: ${OUTCOME_HE[o]}`).join(", ");
         if (outcomes) line(outcomes, 8, "#64748b", 16);
       }
 
@@ -1011,6 +1083,8 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
 
   // ── 5. Layer 2 ──────────────────────────────────────────────────────────
   const analysis = await generateClassAnalysis({ class_id: classId, session_number: sessionNumber, aggregates, learners });
+  // The exercises by the titles the teacher's screens show, not by their ids.
+  const exerciseTitles = await readExerciseTitles(db, sessionNumber);
 
   const generatedAt = Date.now();
   const reportId = `${classId}_session_${sessionNumber}`;
@@ -1023,6 +1097,7 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
     telemetry_event_count: telemetryEventCount,
     learners,
     aggregates,
+    exercise_titles: exerciseTitles,
     class_patterns: analysis?.class_patterns ?? [],
     teaching_recommendations: analysis?.teaching_recommendations ?? [],
     ai_analysis_available: Boolean(analysis),

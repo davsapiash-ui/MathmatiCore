@@ -67,9 +67,9 @@ describe('שם אחד לכל רכיב: לבנים ובית המספרים', () =
     error_category: 'procedural',
     guiding_question: question,
     options: [
-      { option_text: 'נקבץ עשר יחידות לעשרת אחת', feedback_text: 'נכון! לחצו על כפתור הקבץ 10.', is_correct: true },
-      { option_text: 'נכתוב את כל היחידות בשורת התוצאה', feedback_text: 'רמז: בכל משבצת ספרה אחת.', is_correct: false },
-      { option_text: 'נמחק את כל הלבנים', feedback_text: 'רמז: המספר ישתנה.', is_correct: false },
+      { option_text: 'מקבצים עשר יחידות לעשרת אחת', feedback_text: 'נכון מאוד! לחצו על הכפתור "קבצו 10".', is_correct: true },
+      { option_text: 'כותבים את כל היחידות בשורת התוצאה', feedback_text: 'רמז: כמה ספרות כותבים בכל תיבה?', is_correct: false },
+      { option_text: 'מוחקים את כל הלבנים', feedback_text: 'רמז: מה קורה למספר כשמוחקים לבנים?', is_correct: false },
     ],
   });
 

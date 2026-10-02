@@ -24,7 +24,7 @@ import { getSessionTasks } from '@/data/sessionTasks';
 import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
 import { CHOICE_PATH_LABEL_HE, choiceTask, exercisePathType } from '@/core/choiceExercises';
 import { meetingShortLabelHe } from '@/core/stationNames';
-import { ERROR_CATEGORY_HE } from '@/core/routeLabels';
+import { ERROR_CATEGORY_HE, TRIGGER_REASON_HE } from '@/core/routeLabels';
 import { RESEARCH_MEASURES_HE, persistenceTextHe, selfCorrectionTextHe, type ResearchMeasureKey } from '@/core/researchMeasures';
 
 export interface RecordingChapter {
@@ -277,15 +277,8 @@ export function describeEvent(e: JourneyEvent): EventDescription {
       attention = true;
       break;
     case 'SOCRATIC_CARD_SHOWN': {
-      const reason: Record<string, string> = {
-        hesitation_45s: 'היסוס 45 שניות',
-        // מסמכים 03 ו-04 word for word. Only the per-column digit streak
-        // (register deviation 2) opens a card with this reason.
-        consecutive_errors_4: 'ארבע מחיקות או הקלדות שגויות רצופות',
-        consecutive_undos_3: 'שלושה ביטולים רצופים',
-        conversion_not_performed: 'לא בוצעה המרה נדרשת',
-        repeated_errors: 'תשובה שגויה שנייה ברצף באותו תרגיל',
-      };
+      // One wording with the reports (core/routeLabels.ts, copied to the server).
+      const reason: Record<string, string> = TRIGGER_REASON_HE;
       const cat: Record<string, string> = ERROR_CATEGORY_HE;
       detail = reason[String(d.trigger_reason)] ?? String(d.trigger_reason ?? '');
       if (d.error_category) detail += ` · ${cat[String(d.error_category)] ?? d.error_category}`;

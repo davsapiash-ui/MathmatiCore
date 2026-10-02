@@ -60,13 +60,13 @@ const subtraction425_162: SocraticRequest = {
 const goodResponse = {
   error_category: 'procedural',
   // No count of the board (stations 3–7, owner 30.9.2026): the client refuses "יש 2 עשרות" while the tens hold 2.
-  guiding_question: 'בתרגיל 425 פחות 162, בטור העשרות אין מספיק עשרות כדי לחסר 6. מאיפה נביא עוד עשרות לבית המספרים?',
+  guiding_question: 'בתרגיל 425 פחות 162, בטור העשרות אין מספיק עשרות כדי לחסר 6. מאיפה מביאים עוד עשרות לבית המספרים?',
   options: [
-    { id: 'opt_1', option_text: 'נפרוט מאה אחת מטור המאות ל-10 עשרות', feedback_text: 'נכון מאוד! לחצו על לבנת המאה כדי לפרוט אותה.', is_correct: true },
+    { id: 'opt_1', option_text: 'פורטים מאה אחת ל-10 עשרות', feedback_text: 'נכון מאוד! לחצו על לבנת המאה כדי לפרוט אותה.', is_correct: true },
     // A wrong option's hint is a guiding question (owner, 30.9.2026); the
     // client refuses an engine card whose hint explains instead.
-    { id: 'opt_2', option_text: 'נחסיר הפוך: 6 פחות 2', feedback_text: 'רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה?', is_correct: false },
-    { id: 'opt_3', option_text: 'נמחק עשרות לפח האשפה', feedback_text: 'רמז: אם תמחקו לבנים, האם המספר יישאר אותו מספר?', is_correct: false },
+    { id: 'opt_2', option_text: 'מחסרים הפוך: 6 פחות 2', feedback_text: 'רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה?', is_correct: false },
+    { id: 'opt_3', option_text: 'מוחקים עשרות לפח האשפה', feedback_text: 'רמז: אם תמחקו לבנים, האם המספר יישאר אותו מספר?', is_correct: false },
   ],
 };
 
@@ -160,11 +160,13 @@ describe('Module 13: monitored facts and the triad prompt', () => {
     // Pillar 2
     expect(prompt).toContain('4 מאות בבית המספרים');
     expect(prompt).toContain('2 עשרות בבית המספרים');
-    expect(prompt).toContain('חסרות 4 עשרות');
+    expect(prompt).toContain('אין בטור מספיק לבנים כדי לחסר');
+    expect(prompt).toContain('שלב: הלומד באמצע ההוצאה לפח');
     // Pillar 3
     expect(prompt).toContain('השהיה של 45 שניות');
     expect(prompt).toContain('טורים שכבר נפתרו נכון: טור היחידות');
-    expect(prompt).toContain('DIGIT_ENTERED');
+    expect(prompt).toContain('הקליד 3 (טור היחידות), נכון');
+    expect(prompt).toContain('מה הלומד הקליד (מהישן לחדש): טור היחידות: 3 (נכון)');
     // Static anchor rides along as the baseline
     expect(prompt).toContain('פורטים מאה אחת ל-10 עשרות');
     // Iron rule 1: the answer (263) is never handed to the model
@@ -254,14 +256,17 @@ describe('Module 13: proxy and credential hardening (pinned from source)', () =>
 
   it('binds the Secret Manager key to the proxy and the status endpoint', () => {
     expect(proxy).toContain('onCall(\n  { ...GEMINI_SECRETS, timeoutSeconds: 30 }');
-    expect(monitor).toContain('onCall(GEMINI_SECRETS, async (request)');
+    expect(monitor).toContain('onCall({ ...GEMINI_SECRETS, timeoutSeconds: 30 }, async (request)');
     expect(config).toContain('defineSecret("GEMINI_API_KEY")');
   });
 
   it('refuses placeholder keys and never returns more than a 4-character hint', () => {
     expect(config).toContain('your_api_key_here');
     expect(config).toContain('key_hint: key.slice(-4)');
-    expect(config).toContain('GOOGLE_API_KEY_RE');
+    // The "AIza + 35" shape check is gone: the bound key authenticates and did
+    // not match it, so it logged a false "malformed key" on every call (1.10.2026).
+    expect(config).not.toContain('GOOGLE_API_KEY_RE');
+    expect(config).not.toContain('credential looks malformed');
     // The status object exposes a hint and a source, never the credential itself.
     expect(config).toMatch(/export interface GeminiKeyStatus \{[^}]*key_hint: string \| null;[^}]*\}/s);
     expect(config).not.toMatch(/export interface GeminiKeyStatus \{[^}]*\braw\b[^}]*\}/s);
@@ -276,11 +281,15 @@ describe('Module 13: proxy and credential hardening (pinned from source)', () =>
   });
 
   it('bounds every model call under the client timeout and retries only validator rejections', () => {
-    expect(proxy).toContain('SOCRATIC_AI_TIMEOUT_MS = 6500');
+    // Measured 1.10.2026: ~2.5 s per answer, ~10% 503s — a 4.5 s first try leaves room for a second.
+    expect(proxy).toContain('SOCRATIC_AI_TIMEOUT_MS = 4500');
     expect(proxy).toContain('SOCRATIC_TOTAL_BUDGET_MS = 7500');
     expect(SOCRATIC_PROXY_TIMEOUT_MS).toBe(8000);
-    expect(proxy).toContain('withGeminiTimeout(model.generateContent(prompt), timeoutMs)');
-    expect(proxy).toContain('const retryable = first.outcome === "schema_reject"');
+    expect(config).toContain('withGeminiTimeout(\n      ai.models.generateContent(');
+    // The SDK's own timeout became an API deadline the API refuses under 10 s: never set.
+    expect(config).not.toMatch(/httpOptions: \{ timeout/);
+    expect(proxy).toContain('const TRY_AGAIN_CORRECTED: AiOutcome[] = ["schema_reject"');
+    expect(proxy).toContain('const TRY_THE_OTHER_MODEL: AiOutcome[] = ["network", "timeout", "quota", "misconfigured"');
     expect(proxy).toContain('YOUR PREVIOUS ANSWER WAS REJECTED');
   });
 
@@ -291,7 +300,11 @@ describe('Module 13: proxy and credential hardening (pinned from source)', () =>
     for (const outcome of ['"ok"', '"timeout"', '"schema_reject"', '"answer_leak"', '"forbidden_term"', '"misconfigured"', '"invalid_request"']) {
       expect(monitor).toContain(outcome);
     }
-    expect(proxy).toContain('recordAiCall({ ...base, outcome: "ok", error_category: attempt.value.error_category })');
+    expect(proxy).toContain('recordAiCall({ ...base, outcome: "ok", error_category: attempt.value.error_category');
+    // Nested maps: set(…, { merge: true }) reads a dotted key as one flat field name.
+    expect(monitor).toContain('by_model: { [model]: { [f]: counters() } },');
+    expect(monitor).not.toContain('[`totals.${f}.calls`]');
+    expect(monitor).toContain('import { FieldValue, getFirestore } from "firebase-admin/firestore";');
   });
 
   it('accepts one request shape only — the free-text path is gone', () => {
@@ -451,8 +464,8 @@ describe('Module 13: the engine reaches station 3 and sees what the child did', 
     expect(v.value.workspace_state.memory_circles).toEqual({ units: 13 });
     expect(v.value.student_progress_state?.memory_circles_state).toEqual({ units: 13 });
     const prompt = buildSocraticPrompt(v.value, deriveSocraticFacts(v.value));
-    expect(prompt).toContain('"units":13');
-    expect(prompt).not.toContain('עיגולי הזיכרון: ריקים');
+    expect(prompt).toContain('מעל טור היחידות: 13');
+    expect(prompt).not.toContain('עיגולי הזיכרון: כולם ריקים');
   });
 
   it('recent_actions are the learner\'s real events in this exercise — never made-up ones', async () => {

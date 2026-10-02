@@ -19,6 +19,7 @@ import { doc, onSnapshot, collection, writeBatch, deleteField } from "firebase/f
 import type { SessionDocument, PedagogicalPath } from "@/types";
 import { httpsCallable } from "firebase/functions";
 import { ensureStaffRoleClaims } from "@/infrastructure/services/staffRoleClaims";
+import { SocraticEngine } from "@/infrastructure/services/SocraticEngine";
 import { indexedDBQueue } from "@/infrastructure/services/IndexedDBQueue";
 import {
   BarChart,
@@ -500,6 +501,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           console.warn('[TeacherDashboard] Role sync notice (non-fatal):', roleErr);
         }
       }
+
+      // Wake the coaching card's server instance, so the first child's card
+      // does not pay its cold start on top of the model (1.10.2026). No model
+      // call, nothing written, never awaited: the activation does not wait.
+      SocraticEngine.warmUp();
 
       // 2. Primary Realtime Database Broadcast (Instant client sync for all 12 student pods <1000ms)
       // PRD Module 14 §ב: "השרת הוא מקור האמת היחיד והמוחלט עבור זמן המפגש".

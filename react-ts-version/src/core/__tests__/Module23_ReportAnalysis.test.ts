@@ -99,7 +99,9 @@ describe('Module 23: exercise narrative (server-authored, not AI)', () => {
   const report = fnSrc('pedagogicalReport.ts');
 
   it('names concrete columns rather than aggregate counters alone', () => {
-    expect(report).toContain('const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];');
+    // The columns by the names every screen uses (one name per thing, 2.10.2026: "יחידות", not "אחדות").
+    expect(report).toContain('import { COLUMN_NAMES_HE, ROUTE_NAME_HE } from "./teacherLabels";');
+    expect(fnSrc('teacherLabels.ts')).toContain('export const COLUMN_NAMES_HE = ["יחידות", "עשרות", "מאות", "אלפים"] as const;');
     expect(report).toContain('בטור ה${where}');
   });
 

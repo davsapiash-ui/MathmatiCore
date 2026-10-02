@@ -1,6 +1,8 @@
 import * as logger from "firebase-functions/logger";
-import { GEMINI_MODEL_ID, getGeminiClient } from "./geminiConfig";
+import { GEMINI_MODEL_ID, classifyGeminiError, generateGeminiText, type GeminiThinking } from "./geminiConfig";
+import { recordAiCall, type AiOutcome } from "./aiMonitoring";
 import { SANDBOX_MEETING_PURPOSE_HE, exercisePathType, isExerciseEvent, type ExercisePathType } from "./meetingMetrics";
+import { COLUMN_NAMES_HE } from "./teacherLabels";
 
 /**
  * PRD Module 23 — layer two of the pedagogical report: the verbal analysis.
@@ -116,7 +118,137 @@ export interface GeminiReportResponse {
  */
 export const AI_ANALYSIS_TIMEOUT_MS = 10000;
 
-const COLUMN_NAMES_HE = ["אחדות", "עשרות", "מאות", "אלפים"];
+/** How much the model thinks before it writes the analysis — set from measured runs (1.10.2026). */
+export const REPORT_THINKING: GeminiThinking = "low";
+
+/**
+ * Every report is written in Hebrew (owner, 1.10.2026). A line with Latin
+ * letters (an English sentence, an exercise id such as "s4_g_t1") or with a
+ * term the Ministry does not use is refused: the model gets one corrected
+ * retry when time allows, and a line that still breaks the rule is dropped.
+ * When nothing usable is left, the report carries the PRD's exact fallback
+ * sentence. Professional Hebrew for a teacher — the children's second person
+ * plural does not apply here.
+ */
+/**
+ * The terms the Ministry does not use — as the TERMS, never a word that only
+ * looks like one (review of 1.10.2026: "מומלץ ללוות את הלומד" accompanies,
+ * "בנושאים של ערך המקום" are topics, "הסברים מלווים בהדגמה" are accompanied —
+ * all three were dropped from real reports).
+ *  - Words that are always the wrong term, with any prefix: שארית, נשיאה,
+ *    הלוואה, שבירה, לשבור, שוברים.
+ *  - Words that are also ordinary Hebrew ("ללוות" accompanies, "נושאים" are
+ *    topics): only as borrowing or carrying, that is, when what follows is a
+ *    block, a ten, a 1 or a column — "ללוות עשרת", "לווים מטור העשרות",
+ *    "נושאים את ה-1 לטור הבא". With "ו" as their only prefix: "מלווים"
+ *    accompany, "שלווה" is calm.
+ */
+const REPORT_TERM_ALWAYS = /(^|[^א-ת])[ובלמהשכ]{0,3}(שארית|שאריות|נשיאה|נשיאת|הלוואה|הלוואת|הלוואות|שבירה|שבירת|לשבור|שוברים)(?![א-ת])/;
+// "ללוות מהעשרות", "לווים מהמאות" — a place name after "מ" / "מה" too (final review, 2.10.2026).
+const BORROWED_OR_CARRIED = "(?:את\\s+)?(?:ה-?)?(?:עשרת|מאה|אלף|יחידה|1|מ(?:ה)?טור|לטור|מ(?:ה)?(?:יחידות|עשרות|מאות|אלפים|עשרת|מאה|אלף))(?![\\dא-ת])";
+const REPORT_TERM_IN_CONTEXT = new RegExp(`(^|[^א-ת])ו?(ללוות|לווים|לווה|לוותה|לוו|נושאים|נושא|נושאת|לשאת|נשא|נשאה|נשאו)\\s+${BORROWED_OR_CARRIED}`);
+export function reportTextViolation(items: string[]): string | null {
+  for (const t of items) {
+    if (/[A-Za-z]/.test(t)) return "the analysis must be in Hebrew only: no English words, no Latin letters and no exercise ids (name an exercise by its numbers)";
+    const term = REPORT_TERM_ALWAYS.exec(t) ?? REPORT_TERM_IN_CONTEXT.exec(t);
+    if (term) return `"${term[2]}" is not the Ministry's term: write הקבצה or המרה in addition and פריטה in subtraction`;
+    const card = new RegExp(CARD_JARGON.source).exec(t) ?? new RegExp(CARD_JARGON_PLURAL.source).exec(t);
+    if (card) return `"${card[0].trim()}" is not the system's name: the card the learner gets is "כרטיס החניכה" (plural "כרטיסי החניכה"), a masculine noun`;
+  }
+  return null;
+}
+
+/**
+ * The system's own names in the analysis (owner, 1.10.2026: one name per
+ * thing). The real analyses of 2.10.2026 wrote "אחדות" 8–13 times per report
+ * where every screen says "יחידות", and once "הכרטיסייה הסוקרטית" for the
+ * coaching card.
+ *
+ *  - "אחדות" → "יחידות", whole word, with its prefixes ("בטור האחדות" →
+ *    "בטור היחידות"). Both are feminine plural, so nothing around it changes.
+ *    Bare "אחדות" after a plural noun is the other word, "a few" ("פעמים
+ *    אחדות", "שניות אחדות"), and is left alone.
+ *  - "כרטיסייה סוקרטית" / "כרטיס סוקרטי" (and their plurals) → "כרטיס
+ *    החניכה" / "כרטיסי החניכה". The feminine form is also a violation above,
+ *    so the model gets one corrected try (agreement: "הכרטיסייה ... עזרה");
+ *    a line that still carries it is fixed here rather than dropped.
+ */
+const UNITS_WRONG = /(^|[^א-ת])([ובלמהשכ]{0,3})אחדות(?![א-ת])/g;
+const CARD_JARGON = /(^|[^א-ת])([ובלמש]{0,2})ה?(?:כרטיסייה|כרטיסיה|כרטיס)\s+ה?סוקרטי(?:ת)?(?![א-ת])/g;
+const CARD_JARGON_PLURAL = /(^|[^א-ת])([ובלמש]{0,2})ה?(?:כרטיסיות|כרטיסים)\s+ה?סוקרטי(?:ות|ים)(?![א-ת])/g;
+export function normalizeReportTerms(text: string): string {
+  return text
+    .replace(UNITS_WRONG, (whole, lead: string, prefix: string, offset: number, all: string) => {
+      if (!prefix) {
+        const before = all.slice(0, offset + lead.length).trimEnd();
+        if (/[א-ת](ים|ות)$/.test(before)) return whole; // "פעמים אחדות": a few
+      }
+      return `${lead}${prefix}יחידות`;
+    })
+    .replace(CARD_JARGON_PLURAL, (_w, lead: string, prefix: string) => `${lead}${prefix}כרטיסי החניכה`)
+    .replace(CARD_JARGON, (_w, lead: string, prefix: string) => `${lead}${prefix}כרטיס החניכה`);
+}
+
+/** The arrays in the system's terms, without the lines that still break the Hebrew-only rule. */
+export function keepHebrewLines<T extends Record<string, string[]>>(arrays: T): T {
+  const out = {} as T;
+  for (const [k, v] of Object.entries(arrays)) {
+    (out as Record<string, string[]>)[k] = v.map(normalizeReportTerms).filter((t) => reportTextViolation([t]) === null);
+  }
+  return out;
+}
+
+/**
+ * The model answered in the right shape with nothing in it: both arrays
+ * present and without one written line. That is a learner with nothing to
+ * report, not a malformed answer — it is counted as "empty", never as
+ * "schema_reject" (review of 1.10.2026). The report still carries the PRD's
+ * fallback sentence.
+ */
+export function isEmptyAnalysis(text: string | null, keys: readonly [string, string]): boolean {
+  if (!text) return false;
+  try {
+    const p = JSON.parse(text) as Record<string, unknown>;
+    // An array of anything but strings is malformed (schema_reject), not empty (final review, 2.10.2026).
+    return keys.every((k) => Array.isArray(p?.[k]) && (p[k] as unknown[]).every((x) => typeof x === "string" && !x.trim()));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The monitoring outcome of a report's analysis: "ok" with what is left, or
+ * why nothing is — every line broke the Hebrew-only rule (language_reject),
+ * the model had nothing to report (empty), or the answer was malformed.
+ */
+export function reportAnalysisOutcome(kept: boolean, linesDropped: boolean, lastText: string | null, keys: readonly [string, string]): { outcome: AiOutcome; detail?: string } {
+  if (kept) return { outcome: "ok", ...(linesDropped ? { detail: "lines dropped: not Hebrew-only" } : {}) };
+  if (linesDropped) return { outcome: "language_reject", detail: "every line broke the Hebrew-only rule" };
+  if (isEmptyAnalysis(lastText, keys)) return { outcome: "empty", detail: "the model found nothing to report" };
+  return { outcome: "schema_reject", detail: "missing or malformed arrays" };
+}
+
+/** A second try starts only if it can still finish inside the report's budget. */
+export const REPORT_RETRY_MIN_MS = 4000;
+
+/** Appendix A §7: the two arrays and nothing else. */
+const REPORT_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    knowledge_gaps: { type: "ARRAY", items: { type: "STRING" } },
+    teaching_recommendations: { type: "ARRAY", items: { type: "STRING" } },
+  },
+  required: ["knowledge_gaps", "teaching_recommendations"],
+  propertyOrdering: ["knowledge_gaps", "teaching_recommendations"],
+} as const;
+
+
+/**
+ * The analysis is read by a teacher, in the Ministry's terms (1.10.2026: the
+ * first real analyses called a carried ten "שארית" and a grouping "פריטה",
+ * and named exercises by their ids).
+ */
+export const REPORT_TERMS_HE = "מונחים: בחיבור — הקבצה או המרה, והעשרת שעוברת לטור הבא נרשמת בעיגול הזיכרון; בחיסור — פריטה. לעולם לא \"שארית\", \"נשיאה\", \"הלוואה\" או \"שבירה\". תרגיל מזכירים לפי המספרים שלו (למשל 1,245 + 328), לא לפי המזהה שלו. השמות שהמערכת משתמשת בהם: טור היחידות, טור העשרות, טור המאות וטור האלפים (לעולם לא \"אחדות\"); הכרטיס שהלומד מקבל נקרא תמיד \"כרטיס החניכה\", בלי תואר ובלי שם אחר; הלוח שבו הלומד בונה את המספרים הוא \"בית המספרים\", והלבנים הן \"לבני הדינס\".";
 
 /**
  * Builds the exercise templates for the exercises the learner actually erred
@@ -350,7 +482,8 @@ ${SANDBOX_MEETING_PURPOSE_HE}
 ב-knowledge_gaps: נקודות לתשומת לב לקראת האבחון. ב-teaching_recommendations: מה המורה יכולה לעשות עם הלומד לפני האבחון.
 2 עד 4 פריטים בכל מערך. אם אין די ראיות, החזר מערכים ריקים.
 
-מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.
+${REPORT_TERMS_HE}`;
 }
 
 function buildSystemInstruction(tier: RecommendationTier): string {
@@ -372,7 +505,8 @@ function buildSystemInstruction(tier: RecommendationTier): string {
 }
 2 עד 4 פריטים בכל מערך. אם אין די ראיות לפער כלשהו, החזר מערכים ריקים.
 
-מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.`;
+מונחי הטורים: ${COLUMN_NAMES_HE.map((n, i) => `${i}=${n}`).join(", ")}.
+${REPORT_TERMS_HE}`;
 }
 
 /**
@@ -389,18 +523,13 @@ export async function generateReportAnalysis(
     return null;
   }
 
+  const started = Date.now();
+  const monitor = (outcome: AiOutcome, detail?: string) =>
+    recordAiCall({ feature: "report_analysis", outcome, latency_ms: Date.now() - started, model_id: GEMINI_MODEL_ID, student_id: req.student_id, session_id: req.session_id, detail });
   try {
-    const ai = getGeminiClient();
-    const model = ai.getGenerativeModel({
-      model: GEMINI_MODEL_ID,
-      generationConfig: {
-        temperature: 0.3,
-        responseMimeType: "application/json",
-      },
-      systemInstruction: req.recommendation_tier === null
-        ? buildSandboxSystemInstruction()
-        : buildSystemInstruction(req.recommendation_tier),
-    });
+    const systemInstruction = req.recommendation_tier === null
+      ? buildSandboxSystemInstruction()
+      : buildSystemInstruction(req.recommendation_tier);
 
     const sandbox = req.recommendation_tier === null;
     const toolsLine = sandbox
@@ -422,28 +551,73 @@ ${JSON.stringify(req.telemetry_summary)}
 
 ${closing}`;
 
-    const timeout = new Promise<null>((resolve) =>
-      setTimeout(() => resolve(null), AI_ANALYSIS_TIMEOUT_MS)
-    );
-    const call = model
-      .generateContent(userPrompt)
-      .then((r: any) => r.response.text() as string);
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), AI_ANALYSIS_TIMEOUT_MS);
+    });
+    const call = generateGeminiText({
+      systemInstruction,
+      prompt: userPrompt,
+      temperature: 0.3,
+      json: true,
+      responseSchema: REPORT_RESPONSE_SCHEMA,
+      // A teacher's report is not in a hurry (owner): more thinking, better reading of the data.
+      thinking: REPORT_THINKING,
+      timeoutMs: AI_ANALYSIS_TIMEOUT_MS,
+    }).then((r) => r.text);
 
     const text = await Promise.race([call, timeout]);
+    if (timer) clearTimeout(timer);
     if (text === null) {
       logger.warn("[reportAnalysis] Gemini analysis timed out; report ships with layer 1 only.", {
         session_id: req.session_id,
         timeout_ms: AI_ANALYSIS_TIMEOUT_MS,
       });
+      monitor("timeout");
       return null;
     }
 
-    return parseAnalysisResponse(text, req.session_id);
+    let parsed = parseAnalysisResponse(text, req.session_id);
+    let lastText: string | null = text;
+    const violation = parsed ? reportTextViolation([...parsed.knowledge_gaps, ...parsed.teaching_recommendations]) : null;
+    const remaining = AI_ANALYSIS_TIMEOUT_MS - (Date.now() - started);
+    if (violation && remaining >= REPORT_RETRY_MIN_MS) {
+      let retryTimer: NodeJS.Timeout | undefined;
+      const retryTimeout = new Promise<null>((resolve) => {
+        retryTimer = setTimeout(() => resolve(null), remaining);
+      });
+      const retry = generateGeminiText({
+        systemInstruction,
+        prompt: `${userPrompt}\n\nהתשובה הקודמת נדחתה: ${violation}. החזר את ה-JSON שוב, בעברית בלבד.`,
+        temperature: 0.3,
+        json: true,
+        responseSchema: REPORT_RESPONSE_SCHEMA,
+        thinking: REPORT_THINKING,
+        timeoutMs: remaining,
+      }).then((r) => r.text).catch(() => null);
+      const retryText = await Promise.race([retry, retryTimeout]);
+      if (retryTimer) clearTimeout(retryTimer);
+      const second = retryText ? parseAnalysisResponse(retryText, req.session_id) : null;
+      if (second) {
+        parsed = second;
+        lastText = retryText;
+      }
+    }
+    let linesDropped = false;
+    if (parsed) {
+      const kept = keepHebrewLines({ knowledge_gaps: parsed.knowledge_gaps, teaching_recommendations: parsed.teaching_recommendations });
+      linesDropped = kept.knowledge_gaps.length + kept.teaching_recommendations.length < parsed.knowledge_gaps.length + parsed.teaching_recommendations.length;
+      parsed = kept.knowledge_gaps.length || kept.teaching_recommendations.length ? kept : null;
+    }
+    const result = reportAnalysisOutcome(parsed !== null, linesDropped, lastText, ["knowledge_gaps", "teaching_recommendations"]);
+    monitor(result.outcome, result.detail);
+    return parsed;
   } catch (err) {
     logger.warn("[reportAnalysis] Gemini analysis unavailable; report ships with layer 1 only.", {
       session_id: req.session_id,
-      error: String(err),
+      error: String((err as Error)?.message ?? err).slice(0, 300),
     });
+    monitor(classifyGeminiError(err));
     return null;
   }
 }

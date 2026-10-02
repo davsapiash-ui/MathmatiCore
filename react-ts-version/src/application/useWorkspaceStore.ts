@@ -4003,6 +4003,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           operands: eff ? { a: eff.a, b: eff.b, isSubtraction: Boolean(currentTask?.isSubtraction) } : null,
           activeColumnIndex: socraticCardColumnIndex(s),
           hasRegroupedInCanvas: Boolean(s.hasUngrouped || s.hasGrouped),
+          // Per column, not exercise-wide (1.10.2026): a column whose conversion
+          // is done is not coached to convert again.
+          conversionsDone: eff
+            ? PLACE_ORDER.filter((p) => columnRequiresConversion(p, eff.a, eff.b, currentTask?.isSubtraction) &&
+                conversionRecordedInColumn(s, p, currentTask?.isSubtraction))
+            : undefined,
+          // Phase 2 (1.10.2026): shorter, more concrete cards for the enhanced profile and the quiet mode.
+          learnerProfile: { enhanced: s.activeSupportProfileId === 'enhanced_cognitive_support', quiet: s.isASD === true },
           cardContext,
         };
 
