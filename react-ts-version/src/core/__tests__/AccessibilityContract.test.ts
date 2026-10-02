@@ -93,6 +93,11 @@ describe('מסמך העיצוב §1.3 — מצב שקט חזותי', () => {
     const hook = read('src/hooks/useQuietMode.ts');
     expect(hook).toContain("root.setAttribute('data-quiet', 'true')");
     expect(read('src/App.tsx')).toContain('useQuietMode()');
+    // App renders the hook once per page load: the learner id must be a
+    // subscription, or a learner who signs in on that page is never quiet
+    // (2.10.2026). Behaviour: QuietMode_FollowsSignIn.test.tsx.
+    expect(hook).toContain('useAuthStore((s) => studentUidOf(s.user))');
+    expect(hook).not.toMatch(/=\s*currentStudentUid\(\)/);
   });
 });
 

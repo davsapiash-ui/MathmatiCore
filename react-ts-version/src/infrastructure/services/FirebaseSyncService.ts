@@ -990,6 +990,9 @@ export class FirebaseSyncService {
       socraticCardHistory: state.socraticCardHistory ?? null,
       // Subtraction: the board held the first number, and taking away started.
       takeAwayTrack: state.takeAwayTrack ?? null,
+      // Column dimming only (view): the skeleton's board has held the number
+      // its board work starts from — a reload mid-computation keeps the focus.
+      heldFromTrack: state.heldFromTrack ?? null,
       // Stations 3 and 7: the single answer box as it was at the last press of
       // "התקדם". Not saved, a reload recorded its unchanged digits again.
       lastSubmittedAnswer: typeof state.lastSubmittedAnswer === 'string' ? state.lastSubmittedAnswer : null,
