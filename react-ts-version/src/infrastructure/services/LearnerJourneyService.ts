@@ -25,6 +25,7 @@ import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
 import { CHOICE_PATH_LABEL_HE, choiceTask, exercisePathType } from '@/core/choiceExercises';
 import { meetingShortLabelHe } from '@/core/stationNames';
 import { ERROR_CATEGORY_HE, TRIGGER_REASON_HE, resetReasonHe } from '@/core/routeLabels';
+import { CATCHUP_COLLECTION, catchUpDocId, catchUpSummaryHe, summarizeCatchUpRecord, type CatchUpRecord } from '@/core/catchUp';
 import { RESEARCH_MEASURES_HE, persistenceTextHe, selfCorrectionTextHe, type ResearchMeasureKey } from '@/core/researchMeasures';
 
 export interface RecordingChapter {
@@ -241,6 +242,35 @@ export async function fetchLearnerResets(studentNum: number): Promise<Record<str
   const snap = await getDocs(query(collection(firestore, 'reset_audit_log'), where('affected_student_ids', 'array-contains', studentNum)));
   const out: Record<string, any>[] = [];
   snap.forEach((d) => { out.push(d.data() as Record<string, any>); });
+  return out;
+}
+
+/**
+ * Catch-up time (owner, 2.10.2026: "המורה יקח את אותם ילדים שלא סיימו למפגש
+ * נוסף \ זמן נוסף וזה יתועד מה הסיבה לכך"): the teacher's one line for this
+ * learner's meeting — the minutes of catch-up time and the reasons recorded —
+ * or null when nothing was recorded for it.
+ */
+export function catchUpLineHe(record: Partial<CatchUpRecord> | null | undefined): string | null {
+  return catchUpSummaryHe(summarizeCatchUpRecord(record));
+}
+
+/**
+ * The learner's catch-up line per meeting, read straight from
+ * catchup_records/{catchUpDocId(N, learner)}. A meeting with no record — or one
+ * that cannot be read — has no line; the journey never fails because of it.
+ */
+export async function fetchLearnerCatchUpLines(studentNum: number): Promise<Map<number, string>> {
+  await authReady;
+  const meetings = [1, 2, 3, 4, 5, 6, 7, 8];
+  const snaps = await Promise.all(meetings.map((n) =>
+    getDoc(doc(firestore, CATCHUP_COLLECTION, catchUpDocId(n, studentNum))).catch(() => null)));
+  const out = new Map<number, string>();
+  snaps.forEach((snap, i) => {
+    if (!snap || !snap.exists()) return;
+    const line = catchUpLineHe(snap.data() as Partial<CatchUpRecord>);
+    if (line) out.set(meetings[i], line);
+  });
   return out;
 }
 

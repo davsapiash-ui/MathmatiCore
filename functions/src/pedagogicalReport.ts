@@ -43,6 +43,7 @@ import {
   type Tool,
 } from "./meetingMetrics";
 import { GEMINI_SECRETS } from "./geminiConfig";
+import { CATCHUP_COLLECTION, catchUpDocId, catchUpSummaryHe, summarizeCatchUpRecord, type CatchUpRecord, type CatchUpSummary } from "./catchUp";
 import { buildPreResetRecord, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE } from "./preResetRecord";
 import {
   buildFailedExercises,
@@ -244,6 +245,16 @@ export function generateExerciseNarrativeFromEvents(
   return { compulsory: narratives, choice: choiceNarratives };
 }
 
+/** The report's catch-up field: the record's summary and the teacher's one line. */
+export type ReportCatchUp = CatchUpSummary & { line_he: string };
+
+/** Null when nothing was recorded for this learner's meeting. */
+export function reportCatchUpOf(record: Partial<CatchUpRecord> | null | undefined): ReportCatchUp | null {
+  const summary = summarizeCatchUpRecord(record);
+  const line = catchUpSummaryHe(summary);
+  return summary && line ? { ...summary, line_he: line } : null;
+}
+
 /** The narrative, split: the compulsory exercises, and the choice exercises marked and apart. */
 export interface ExerciseNarratives {
   compulsory: string[];
@@ -322,6 +333,12 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
       doc.x = 40;
       doc.y = cardY + 60;
       doc.moveDown(1);
+      // Catch-up time of this meeting (owner, 2.10.2026), as the Chromium template prints it.
+      if (typeof report.catch_up?.line_he === "string" && report.catch_up.line_he) {
+        doc.fontSize(10).fillColor("#0c4a6e");
+        rtlText(doc, report.catch_up.line_he, { lineGap: 3 });
+        doc.moveDown(0.8);
+      }
 
       if (sandbox) {
         doc.fontSize(9).fillColor("#64748b");
@@ -862,6 +879,18 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     mediation_cumulative: allMeetingsEvents ? computeMediationEffectiveness(allMeetingsEvents) : null,
   };
 
+  // Catch-up time (owner, 2.10.2026: "המורה יקח את אותם ילדים שלא סיימו למפגש
+  // נוסף \ זמן נוסף וזה יתועד מה הסיבה לכך"): the extra minutes this learner got
+  // in this meeting and the reasons the teacher recorded. Best-effort: a record
+  // that cannot be read leaves the line out and never fails the report.
+  let catchUp: ReportCatchUp | null = null;
+  try {
+    const catchUpSnap = await db.collection(CATCHUP_COLLECTION).doc(catchUpDocId(resolvedSessionNumber, clampedStudentNum)).get();
+    catchUp = catchUpSnap.exists ? reportCatchUpOf(catchUpSnap.data() as Partial<CatchUpRecord>) : null;
+  } catch (err) {
+    logger.warn("[Module23] catch-up record unavailable for the report.", { session_id: sessionId, error: String(err) });
+  }
+
   // Assemble pedagogical report data payload
   const report = {
     report_id: `rep_${sessionId}`,
@@ -909,6 +938,8 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     meeting_path: meetingPath,
     // Owner, 2.10.2026: the mistakes before this meeting's last reset, documented apart and never scored.
     pre_reset: preReset,
+    // Catch-up time of this meeting (owner, 2.10.2026); null when nothing was recorded.
+    catch_up: catchUp,
     summary_text_he: score === null
       ? `דוח היכרות וריענון למפגש ${resolvedSessionNumber}, ללא ציון. כלים שעוד לא הופעלו: ${toolMastery && toolMastery.not_used.length > 0 ? toolMastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") : "אין"}.`
       : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%.${resolvedSessionNumber === 2 ? ` מסלול מומלץ: ${score >= 50 ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}.` : ""}`
@@ -977,6 +1008,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       research_measures: researchMeasures,
       meeting_path: meetingPath,
       pre_reset: preReset,
+      catch_up: catchUp,
       knowledge_gaps: report.knowledge_gaps,
       teaching_recommendations: report.teaching_recommendations,
       ai_analysis_available: report.ai_analysis_available,

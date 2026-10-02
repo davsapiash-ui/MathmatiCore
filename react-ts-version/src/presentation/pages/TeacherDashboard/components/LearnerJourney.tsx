@@ -10,6 +10,7 @@ import {
   describeEvent,
   exerciseTitle,
   fetchLearnerEvents,
+  fetchLearnerCatchUpLines,
   fetchLearnerResets,
   fetchMeetingReport,
   fetchMeetingReportUrl,
@@ -124,6 +125,17 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
     fetchLearnerResets(studentNum)
       .then((list) => { if (!cancelled) setResetEntries(list); })
       .catch((err) => console.warn('[LearnerJourney] the reset log could not be read:', err));
+    return () => { cancelled = true; };
+  }, [studentNum, reloadNonce]);
+
+  // Catch-up time per meeting (owner, 2.10.2026): why the learner did not finish, and the extra minutes. A failure only hides it.
+  const [catchUpLines, setCatchUpLines] = useState<Map<number, string>>(new Map());
+  useEffect(() => {
+    if (studentNum === null) return;
+    let cancelled = false;
+    fetchLearnerCatchUpLines(studentNum)
+      .then((lines) => { if (!cancelled) setCatchUpLines(lines); })
+      .catch((err) => console.warn('[LearnerJourney] the catch-up records could not be read:', err));
     return () => { cancelled = true; };
   }, [studentNum, reloadNonce]);
 
@@ -420,6 +432,13 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {/* Catch-up time of this meeting: the reasons the teacher recorded and the extra minutes. */}
+          {catchUpLines.get(selectedSession) && (
+            <div role="status" data-testid="journey-catch-up-line" className="p-3 rounded-xl bg-sky-50 border border-sky-200 text-sky-950 text-xs font-bold dark:bg-sky-950/40 dark:border-sky-800 dark:text-sky-100">
+              {catchUpLines.get(selectedSession)}
             </div>
           )}
 
