@@ -429,7 +429,9 @@ describe('X60 — the grid and its return tab belong to the meeting (register 18
 
   it('the profile gate still decides whether they are shown (enhanced profile, not meetings 2 or 8)', () => {
     const page = src('features/workspace/StudentWorkspacePage.tsx');
-    expect(page).toContain('const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber >= 3 && sessionNumber <= 7;');
+    // …and only in an addition exercise (owner, 1.10.2026, D7).
+    expect(page).toContain('const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber >= 3 && sessionNumber <= 7 && isAdditionOnScreen;');
+    expect(page).toContain('const isAdditionOnScreen = useWorkspaceStore((s) => isAdditionExercise(selectStandardTask(s)));');
     expect(page).toMatch(/isAdditionBoardEnabled && \(\s*<AnimatePresence>/);
     expect(page).toContain('isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen && (');
   });

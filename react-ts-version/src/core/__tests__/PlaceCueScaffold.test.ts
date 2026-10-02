@@ -95,6 +95,14 @@ describe('a digit in the wrong place', () => {
     expect(isPlaceError({ thousands: '1', hundreds: '9', tens: '2', units: '7' }, 917, ex)).toBe(false); // 1,927
     expect(isPlaceError({ thousands: '1', hundreds: '1', tens: '2', units: '3' }, 917, ex)).toBe(false); // 1,123: smaller from larger
   });
+  it('a subtraction column answered without its break: the top digit copied down, or a 0', () => {
+    // 63 − 27 = 36: the 3 of 63 copied into the units box is not "the tens digit in the units box"
+    expect(isPlaceError({ tens: '3', units: '3' }, 36, { a: 63, b: 27, isSubtraction: true })).toBe(false);
+    // 512 − 108 = 404: "8 from 2 cannot be done, so 0" is not the 0 of the tens
+    expect(isPlaceError({ hundreds: '4', tens: '0', units: '0' }, 404, { a: 512, b: 108, isSubtraction: true })).toBe(false);
+    // a column that needed no break keeps the rule: 85 − 23 = 62, the 6 in the units box
+    expect(isPlaceError({ tens: '6', units: '6' }, 62, { a: 85, b: 23, isSubtraction: true })).toBe(true);
+  });
   it('9 is not next to 0, and in a box to the left of the answer only a 1 is a slip', () => {
     const ex = { a: 2045, b: 1128, isSubtraction: true };
     expect(isPlaceError({ thousands: '9', hundreds: '9', tens: '1', units: '7' }, 917, ex)).toBe(true);

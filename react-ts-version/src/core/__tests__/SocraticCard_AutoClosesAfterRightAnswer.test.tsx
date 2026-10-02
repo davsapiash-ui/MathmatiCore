@@ -8,8 +8,11 @@ import { render, screen, act, fireEvent } from '@testing-library/react';
 /**
  * Owner, 30.9.2026: after the right choice the coaching card no longer closes
  * by itself after 1.2 seconds — too fast to read its feedback, which may now
- * ask a question ("נכון מאוד! איזה מספר בניתם לפני הפריטה?"). It stays open
- * until the child presses "הבנתי"; every other way to close it is unchanged.
+ * ask a question ("נכון מאוד! איזה מספר בניתם לפני הפריטה?").
+ * Owner, 1.10.2026 (D1): it keeps the feedback for 4 seconds and then closes
+ * by itself — an answered card left open blocked every later card of the
+ * exercise. "הבנתי" still closes it at once; every other way to close it is
+ * unchanged.
  */
 
 vi.mock('firebase/database', async (importOriginal) => {
@@ -49,7 +52,7 @@ const mockLocalStorage = {
 Object.defineProperty(window, 'localStorage', { value: mockLocalStorage, writable: true, configurable: true });
 Object.defineProperty(window, 'sessionStorage', { value: mockLocalStorage, writable: true, configurable: true });
 
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, SOCRATIC_CORRECT_AUTO_CLOSE_MS } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { SocraticSidePanel } from '@/features/workspace/overlays/HelpOverlays';
@@ -57,7 +60,7 @@ import { SocraticSidePanel } from '@/features/workspace/overlays/HelpOverlays';
 const ws = () => useWorkspaceStore.getState();
 const picks = () => emitted.filter((e) => e.event_type === 'SOCRATIC_OPTION_SELECTED');
 
-describe('the coaching card after the right choice (owner, 30.9.2026)', () => {
+describe('the coaching card after the right choice (owner, 30.9.2026; 1.10.2026, D1)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     emitted.length = 0;
@@ -73,7 +76,7 @@ describe('the coaching card after the right choice (owner, 30.9.2026)', () => {
     vi.useRealTimers();
   });
 
-  it('stays open with its feedback, takes no second answer, and closes on "הבנתי"', async () => {
+  it('keeps its feedback, takes no second answer, and closes by itself after 4 seconds', async () => {
     const { unmount } = render(React.createElement(SocraticSidePanel, null));
     act(() => { ws().openSocraticCard('hesitation_45s'); });
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
@@ -82,7 +85,7 @@ describe('the coaching card after the right choice (owner, 30.9.2026)', () => {
     const wrong = card.choices.find((c) => !c.isCorrect)!;
 
     fireEvent.click(screen.getByText(correct.textHe));
-    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(SOCRATIC_CORRECT_AUTO_CLOSE_MS - 500); });
     expect(ws().helpState).toBe('socratic');
     expect(screen.getByText(correct.feedbackHe!, { exact: false })).toBeTruthy();
     expect(screen.queryByText('בחרו את הדרך הנכונה להתקדם:')).toBeNull();
@@ -94,9 +97,35 @@ describe('the coaching card after the right choice (owner, 30.9.2026)', () => {
     expect(ws().isSocraticCardLocked).toBe(false);
     expect(picks()).toHaveLength(1);
     expect(picks()[0].details.is_correct).toBe(true);
+    // The next card's request knows this one was answered right.
+    expect(ws().socraticCardHistory.cards.at(-1)?.answeredCorrect).toBe(true);
 
+    await act(async () => { await vi.advanceTimersByTimeAsync(600); });
+    expect(ws().helpState).toBe('closed');
+    expect(ws().currentState).not.toBe('SOCRATIC_ACTIVE');
+    unmount();
+  });
+
+  it('"הבנתי" still closes it at once', async () => {
+    const { unmount } = render(React.createElement(SocraticSidePanel, null));
+    act(() => { ws().openSocraticCard('hesitation_45s'); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    const correct = ws().aiSocraticHint!.choices.find((c) => c.isCorrect)!;
+    fireEvent.click(screen.getByText(correct.textHe));
     fireEvent.click(screen.getByText('הבנתי, סגירת החלונית'));
     expect(ws().helpState).toBe('closed');
+    unmount();
+  });
+
+  it('a wrong choice does not close the card by itself', async () => {
+    const { unmount } = render(React.createElement(SocraticSidePanel, null));
+    act(() => { ws().openSocraticCard('hesitation_45s'); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    const wrong = ws().aiSocraticHint!.choices.find((c) => !c.isCorrect)!;
+    fireEvent.click(screen.getByText(wrong.textHe));
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(ws().helpState).toBe('socratic');
+    expect(ws().socraticCardHistory.cards.at(-1)?.answeredCorrect).toBe(false);
     unmount();
   });
 

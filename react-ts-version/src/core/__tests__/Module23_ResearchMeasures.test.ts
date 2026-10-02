@@ -80,6 +80,9 @@ describe('the client counts every failed board check of a representation exercis
     // "הוספת ייצוג" refuses in three ways; each is a failed board check in a lesson exercise.
     const start = store.indexOf('addRepresentation: () => {');
     const body = store.slice(start, store.indexOf('demoUngroup: () =>', start));
-    expect((body.match(/if \(lessonTaskId\) recordBoardCheckFailure\(lessonTaskId\);/g) || []).length).toBe(3);
+    expect((body.match(/if \(lessonTaskId\) \{\s*recordBoardCheckFailure\(lessonTaskId\);/g) || []).length).toBe(3);
+    // …and in station 3 each is a wrong press toward the card (owner, 1.10.2026, D6).
+    expect((body.match(/recordBoardCheckFailure\(lessonTaskId\);\s*if \(wrongAddPressCounts\) noteWrongPress\(lessonTaskId\);/g) || []).length).toBe(3);
+    expect(body).toMatch(/wrongAddPressCounts = lessonTaskId !== null && s\.sessionNumber === 3;/);
   });
 });

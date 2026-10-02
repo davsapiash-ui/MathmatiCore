@@ -984,6 +984,12 @@ export class FirebaseSyncService {
       // (C5 before the column's card, C4 once): not saved, a reload showed the
       // first level again (owner, 30.9.2026). Carries its exercise id.
       socraticCardKinds: state.socraticCardKinds ?? null,
+      // …and the cards opened, with the same lifetime (final review,
+      // 2.10.2026): without them a reload restarted "twice at most" and "never
+      // after a right answer".
+      socraticCardHistory: state.socraticCardHistory ?? null,
+      // Subtraction: the board held the first number, and taking away started.
+      takeAwayTrack: state.takeAwayTrack ?? null,
       // Stations 3 and 7: the single answer box as it was at the last press of
       // "התקדם". Not saved, a reload recorded its unchanged digits again.
       lastSubmittedAnswer: typeof state.lastSubmittedAnswer === 'string' ? state.lastSubmittedAnswer : null,

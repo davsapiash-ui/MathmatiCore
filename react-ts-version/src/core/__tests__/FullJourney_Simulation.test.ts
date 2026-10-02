@@ -399,9 +399,12 @@ describe('מפגש 8 — בלי לבנים, ועם טריגר שלושת הבי�
 
     await new Promise((r) => setTimeout(r, 0));
     const s = useWorkspaceStore.getState();
-    expect(s.consecutiveUndoCount).toBeGreaterThanOrEqual(3);
     expect(s.socraticTriggerReason).toBe('consecutive_undos_3');
     expect(s.helpState).toBe('socratic');
+    // The run starts again once its card opens (1.10.2026): every further undo
+    // used to reopen it. The card is about the column of the action undone last.
+    expect(s.consecutiveUndoCount).toBe(0);
+    expect(s.socraticCardPlace).toBe('units');
   });
 
   it('הקלדה בין הביטולים מאפסת את הרצף — ולכן אין כרטיס', async () => {

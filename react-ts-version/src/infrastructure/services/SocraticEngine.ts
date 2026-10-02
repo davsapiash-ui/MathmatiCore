@@ -6,7 +6,7 @@ import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
 import { researchErrorCategory } from "./socraticResearchCategory";
 import { recentTelemetryFor, MAX_RECENT_FOR_ENGINE } from "./recentTelemetry";
-import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
+import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, framed, meeting1Card, s1NoButtonCard, s1GroupActionCard, s1DeficitSecondCard, s1WrongBreakCard, s1StartChangedCard, groupActionCard, strayAddition, strayBlocksCard, multiStepTarget, showBoardCard, boardHiddenCard, noBoardColumnCard, revealsHiddenDigit, ladder as cardLadder, buildNumberCard, digitsInColumnsCard, addBuildCard, skeletonShown, inFamily, withKind, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -49,6 +49,12 @@ export interface SocraticHintResponse {
   frameLevel?: 1 | 2 | 3;
   /** What the child should come to notice, in a line, for the engine's frame. */
   intentHe?: string;
+  /**
+   * The situation family, when it is not the card kind's own
+   * (staticSocraticCards.cardFamilyOf): the levels of one card share it, and
+   * with the trigger and the column it is the card's identity in the store.
+   */
+  family?: string;
   /** "gemini" when the AI engine wrote the card (research data, SOCRATIC_CARD_SHOWN.card_source). */
   source?: 'gemini' | 'static';
   /** The model that wrote it (server meta.model_id). */
@@ -92,7 +98,12 @@ export function groundCardInExercise(card: SocraticHintResponse, currentTask?: a
   const a = currentTask?.numberA;
   const b = currentTask?.numberB;
   let context: string | null = null;
-  if (typeof a === 'number' && typeof b === 'number') {
+  if (typeof a === 'number' && typeof b === 'number' && (currentTask?.hiddenDigits?.a?.length || currentTask?.hiddenDigits?.b?.length)) {
+    // A skeleton exercise as the screen shows it, hidden digits as "▢"
+    // (audit D13): its operands named whole gave the hidden digits away, and
+    // the iron rule then served the card without its exercise.
+    context = `בתרגיל ${skeletonShown(currentTask)}`;
+  } else if (typeof a === 'number' && typeof b === 'number') {
     context = `בתרגיל ${a.toLocaleString('he-IL')} ${currentTask?.isSubtraction ? 'פחות' : 'ועוד'} ${b.toLocaleString('he-IL')}`;
   } else if (typeof a === 'number') {
     context = `בתרגיל על המספר ${a.toLocaleString('he-IL')}`;
@@ -171,7 +182,7 @@ export interface SocraticMonitoringSnapshot {
 const WIRE_COLUMNS: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
 
 /** Terminology PRD Module 13 forbids in anything a learner reads; mirrored from functions/src/socraticContract.ts. */
-const FORBIDDEN_TERMS_HE = [
+export const FORBIDDEN_TERMS_HE = [
   'שבירה', 'לשבור', 'שוברים', 'נשבור',
   'הלוואה', 'ללוות', 'לווים', 'נלווה', 'להלוות',
   'נשיאה', 'נושאים', 'לשאת',
@@ -411,6 +422,9 @@ const inHundredsHe = (n: number) => (n === 0 ? 'בטור המאות אין אף 
  * whole board rather than the column.
  */
 const MEETING1_CROWDED_QUESTION = 'באחד הטורים יש 10 לבנים או יותר. מה עושים?';
+// Owner's D10 (1.10.2026): station 1's wrong options get "רמז:" and one
+// guiding question, like stations 3–8. The question and the options are the
+// owner's of 29.9.2026, unchanged.
 function meeting1CrowdedCard(): SocraticHintResponse {
   return {
     pedagogical_intent: "procedural",
@@ -419,10 +433,14 @@ function meeting1CrowdedCard(): SocraticHintResponse {
     questionHe: MEETING1_CROWDED_QUESTION,
     choices: [
       { id: "opt_1", textHe: "מקבצים 10 לבנים ללבנה אחת בטור שמשמאלו", isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור שמופיע בראש אותו טור.' },
-      { id: "opt_2", textHe: "מוחקים 10 לבנים לפח בלי להוסיף לבנה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר. מקבצים במקום למחוק. אפשר להשתמש בכפתור ביטול פעולה ↺." },
-      { id: "opt_3", textHe: "מעבירים לבנה אחת בלבד לטור שמשמאלו", isCorrect: false, feedbackHe: "רמז: לבנה אחת שווה ל-10 לבנים של הטור שמימינה. אפשר להשתמש בכפתור ביטול פעולה ↺." }
+      { id: "opt_2", textHe: "מוחקים 10 לבנים לפח בלי להוסיף לבנה", isCorrect: false, feedbackHe: HINT.deleteBlocks },
+      { id: "opt_3", textHe: "מעבירים לבנה אחת בלבד לטור שמשמאלו", isCorrect: false, feedbackHe: "רמז: כמה לבנים צריך כדי לקבל לבנה אחת בטור שמשמאל?" }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    cardKind: 's1_crowded',
+    situation: 's1_crowded',
+    frameLevel: 1,
+    intentHe: 'באחד הטורים יש 10 לבנים או יותר: מקבצים אותן ללבנה אחת של הטור שמשמאל, בלי לומר באיזה טור',
   };
 }
 
@@ -445,11 +463,12 @@ function meeting1DeficitCard(lacking: DeficitPlace[]): SocraticHintResponse {
       id: `opt_${i + 1}`,
       textHe: IN_COLUMN_HE[p],
       isCorrect,
+      // D10 (owner, 1.10.2026): a wrong option gets "רמז:" and one guiding question.
       feedbackHe: isCorrect
         ? "נכון מאוד! לחצו על לבנה בטור שמשמאל לו כדי לפרוט אותה ל-10 לבנים."
         : lacking.includes(p)
-          ? "רמז: מתחילים מטור היחידות. בדקו טור שנמצא מימין לו."
-          : "רמז: בטור הזה יש מספיק לבנים. בדקו בכל טור אם יש בו מספיק לבנים כדי להחסיר.",
+          ? "רמז: מאיזה טור מתחילים לבדוק בחיסור?"
+          : "רמז: האם בטור הזה יש פחות לבנים ממה שצריך להוציא ממנו?",
     };
   });
   return {
@@ -459,6 +478,10 @@ function meeting1DeficitCard(lacking: DeficitPlace[]): SocraticHintResponse {
     questionHe: question,
     choices,
     correctChoiceId: choices.find((c) => c.isCorrect)!.id,
+    cardKind: 's1_deficit',
+    situation: 's1_find_short_column',
+    frameLevel: 1,
+    intentHe: 'מוצאים בעצמכם את הטור שאין בו מספיק לבנים כדי לחסר, מטור היחידות שמאלה',
   };
 }
 
@@ -470,18 +493,25 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // the 45-second hesitation card is off for them (StudentWorkspacePage).
   // The sandbox entry is the one safety net that was there before.
 
-  // Steps 1–2: free dragging, the digits follow the blocks.
+  // Steps 1–5 (the sandbox entry serves every tool step). D10 (owner,
+  // 1.10.2026), in its scope only (audit D17, 2.10.2026): the question and
+  // the options are the card's own, unchanged; the wrong options' feedback
+  // becomes "רמז:" and one guiding question, the right one opens "נכון מאוד!".
   's1_sandbox_controlled': {
     pedagogical_intent: "procedural",
     tts_text: 'הסתכלו ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
     suggested_highlight: "tour-place-value-board",
     questionHe: 'הסתכלו ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
     choices: [
-      { id: "1", textHe: "לגרור עוד לבנים לטורים ולצפות בספרות בבית המספרים", isCorrect: true, feedbackHe: "בדיוק! כל לבנה שגוררים משנה את הספרה בטור שלה." },
-      { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "זה נכון מבחינה מתמטית, אבל כרגע מכירים את הכלים ולא פותרים תרגיל." },
-      { id: "3", textHe: "לכתוב מספר בשורת התוצאה", isCorrect: false, feedbackHe: "במשימה הזו לא כותבים. גוררים לבנים ומסתכלים על בית המספרים." }
+      { id: "1", textHe: "לגרור עוד לבנים לטורים ולצפות בספרות בבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! כל לבנה שגוררים משנה את הספרה בטור שלה." },
+      { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "רמז: האם בשלב הזה פותרים תרגיל, או מכירים את הכלים?" },
+      { id: "3", textHe: "לכתוב מספר בשורת התוצאה", isCorrect: false, feedbackHe: "רמז: מה עושים בשלב הזה: כותבים מספר, או מכירים את הכלים?" }
     ],
-    correctChoiceId: "1"
+    correctChoiceId: "1",
+    cardKind: 's1_card',
+    situation: 's1_tool_step',
+    frameLevel: 1,
+    intentHe: 'בשלב הזה מכירים את הכלים: גוררים לבנים ומסתכלים איך הספרות בבית המספרים משתנות',
   },
 
   // Step 6, the target task (347 → 3 hundreds, 3 tens, 17 units): the card מסמך 03 §3.1 writes for meeting 1, meaning
@@ -498,10 +528,16 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: "נסו לחשוב: מה קורה בבית המספרים כשפורטים עשרת אחת?",
     choices: [
       { id: "opt_1", textHe: "מקבלים עשר יחידות שנוספות לטור היחידות", isCorrect: true, feedbackHe: "נכון מאוד! לחצו על לבנת עשרת, וראו את היחידות שנוספות לטור היחידות." },
-      { id: "opt_2", textHe: "בית המספרים נשאר בלי שינוי", isCorrect: false, feedbackHe: "רמז: הפריטה משנה את בית המספרים. בדקו מה קורה בטור העשרות ובטור היחידות." },
-      { id: "opt_3", textHe: "העשרת נמחקת מבית המספרים", isCorrect: false, feedbackHe: "רמז: בפריטה לא מוחקים לבנים. בדקו מה קורה ללבנת העשרת." }
+      // D10 (owner, 1.10.2026): a guiding question. The card serves the board
+      // before the break; after it, meeting1Card speaks (staticSocraticCards.ts).
+      { id: "opt_2", textHe: "בית המספרים נשאר בלי שינוי", isCorrect: false, feedbackHe: "רמז: מה קורה ללבנת העשרת כשלוחצים עליה?" },
+      { id: "opt_3", textHe: "העשרת נמחקת מבית המספרים", isCorrect: false, feedbackHe: "רמז: מאיפה מגיעות עשר היחידות החדשות?" }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    cardKind: 's1_card',
+    situation: 's1_break_a_ten',
+    frameLevel: 1,
+    intentHe: 'כשפורטים עשרת אחת, היא הופכת לעשר יחידות שנוספות לטור היחידות',
   },
 
   // Refresh, mirrors diagnostic task 1 (owner, 29.9.2026): 703 said in words.
@@ -513,10 +549,15 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: "איך כותבים בספרות מספר שכתוב במילים?",
     choices: [
       { id: "opt_1", textHe: "כל טור מקבל תיבה משלו", isCorrect: true, feedbackHe: "נכון מאוד! בנו את המספר, וכתבו בכל תיבה כמה לבנים יש בטור שלה." },
-      { id: "opt_2", textHe: "כל חלק כמו שהוא, זה אחרי זה", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד." },
-      { id: "opt_3", textHe: "רק את החלקים שנאמרים במילים", isCorrect: false, feedbackHe: "רמז: גם טור שאין בו אף לבנה מקבל תיבה משלו." }
+      // D10 (owner, 1.10.2026): guiding questions.
+      { id: "opt_2", textHe: "כל חלק כמו שהוא, זה אחרי זה", isCorrect: false, feedbackHe: HINT.oneDigitPerBox },
+      { id: "opt_3", textHe: "רק את החלקים שנאמרים במילים", isCorrect: false, feedbackHe: HINT.emptyColumnBox }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    cardKind: 's1_card',
+    situation: 's1_number_in_words',
+    frameLevel: 1,
+    intentHe: 'כל טור מקבל תיבה וספרה משלו, גם טור שאין בו לבנים',
   },
 
   // Refresh, mirrors diagnostic task 2 (owner, 29.9.2026): 368, the value of
@@ -528,10 +569,15 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: "איך יודעים מה הערך של ספרה במספר?",
     choices: [
       { id: "opt_1", textHe: "בודקים באיזה טור היא נמצאת", isCorrect: true, feedbackHe: "נכון מאוד! בדקו בבית המספרים כמה שווה כל לבנה בטור של הספרה." },
-      { id: "opt_2", textHe: "הערך שלה שווה תמיד לספרה", isCorrect: false, feedbackHe: "רמז: אותה ספרה שווה יותר ככל שהטור שלה נמצא יותר שמאלה." },
-      { id: "opt_3", textHe: "סופרים את כל הלבנים יחד", isCorrect: false, feedbackHe: "רמז: שואלים רק על ספרה אחת. בדקו את הטור שלה." }
+      // D10 (owner, 1.10.2026): guiding questions; neither names the 6's column.
+      { id: "opt_2", textHe: "הערך שלה שווה תמיד לספרה", isCorrect: false, feedbackHe: "רמז: האם כל הלבנים בבית המספרים שוות אותו דבר?" },
+      { id: "opt_3", textHe: "סופרים את כל הלבנים יחד", isCorrect: false, feedbackHe: "רמז: באיזה טור בניתם את הספרה שעליה שואלים?" }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    cardKind: 's1_card',
+    situation: 's1_digit_value',
+    frameLevel: 1,
+    intentHe: 'ערך של ספרה תלוי בטור שבו היא בנויה',
   },
 
   // Refresh, mirrors diagnostic task 4 (owner, 29.9.2026): a number said in
@@ -543,10 +589,15 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: "איך כותבים בספרות מספר שכתוב במילים?",
     choices: [
       { id: "opt_1", textHe: "כל חלק בתיבה של הטור שלו", isCorrect: true, feedbackHe: "נכון מאוד! בנו כל חלק בטור שלו, וכתבו ספרה אחת בכל תיבה." },
-      { id: "opt_2", textHe: "כל חלק כמו שהוא, זה אחרי זה", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד." },
-      { id: "opt_3", textHe: "רק את החלק הראשון במספר", isCorrect: false, feedbackHe: "רמז: כל חלק במספר תופס תיבה משלו." }
+      // D10 (owner, 1.10.2026): guiding questions.
+      { id: "opt_2", textHe: "כל חלק כמו שהוא, זה אחרי זה", isCorrect: false, feedbackHe: HINT.oneDigitPerBox },
+      { id: "opt_3", textHe: "רק את החלק הראשון במספר", isCorrect: false, feedbackHe: "רמז: כמה חלקים יש במספר שבהנחיה?" }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    cardKind: 's1_card',
+    situation: 's1_number_in_words',
+    frameLevel: 1,
+    intentHe: 'כל חלק של המספר בתיבה של הטור שלו, ספרה אחת בכל תיבה',
   },
 
   // Refresh, mirrors diagnostic task 5: 26 unit cubes grouped into tens. With
@@ -559,10 +610,15 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: "מה צריך להיות בטור היחידות בסוף התרגיל?",
     choices: [
       { id: "opt_1", textHe: "פחות מ-10 לבנים", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על הכפתור "קבצו 10 לעשרת" שבראש הטור.' },
-      { id: "opt_2", textHe: "כל הלבנים שהיו בטור", isCorrect: false, feedbackHe: "רמז: כשיש 10 יחידות או יותר בטור, מקבצים כל 10 יחידות לעשרת אחת." },
-      { id: "opt_3", textHe: "אף לבנה, הטור ריק", isCorrect: false, feedbackHe: "רמז: אחרי ההקבצה נשארות בטור היחידות רק הלבנים שלא נכנסו לעשרות." }
+      // D10 (owner, 1.10.2026): guiding questions.
+      { id: "opt_2", textHe: "כל הלבנים שהיו בטור", isCorrect: false, feedbackHe: "רמז: מה עושים עם כל 10 יחידות שבטור?" },
+      { id: "opt_3", textHe: "אף לבנה, הטור ריק", isCorrect: false, feedbackHe: "רמז: אם בטור יש פחות מ-10 יחידות, האם אפשר לקבץ אותן?" }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    cardKind: 's1_card',
+    situation: 's1_group_units',
+    frameLevel: 1,
+    intentHe: 'מקבצים כל 10 יחידות לעשרת אחת, עד שבטור נשארות פחות מ-10',
   },
 
   // Refresh, mirrors diagnostic task 6: 713 + 94 (1 ten + 9 tens = exactly 10
@@ -575,10 +631,15 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: "בתרגיל 713 + 94: מה עושים כשבאחד הטורים יש 10 לבנים או יותר?",
     choices: [
       { id: "opt_1", textHe: "מקבצים 10 לבנים ללבנה אחת בטור שמשמאלו", isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור שמופיע בראש אותו טור.' },
-      { id: "opt_2", textHe: "מוחקים 10 לבנים לפח בלי להוסיף לבנה", isCorrect: false, feedbackHe: "רמז: מחיקת לבנים לפח משנה את ערך המספר. מקבצים במקום למחוק." },
-      { id: "opt_3", textHe: "רושמים 10 בתיבה אחת בשורת התוצאה", isCorrect: false, feedbackHe: "רמז: בכל תיבה בשורת התוצאה כותבים ספרה אחת בלבד, מ-0 עד 9." }
+      // D10 (owner, 1.10.2026): the guiding questions of stations 3–8.
+      { id: "opt_2", textHe: "מוחקים 10 לבנים לפח בלי להוסיף לבנה", isCorrect: false, feedbackHe: HINT.deleteBlocks },
+      { id: "opt_3", textHe: "רושמים 10 בתיבה אחת בשורת התוצאה", isCorrect: false, feedbackHe: HINT.oneDigitPerBox }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    cardKind: 's1_card',
+    situation: 's1_group_in_addition',
+    frameLevel: 1,
+    intentHe: 'בחיבור, כשבאחד הטורים יש 10 לבנים או יותר, מקבצים אותן ללבנה אחת של הטור שמשמאל',
   },
 
   // Refresh, mirrors diagnostic task 3: 61 − 24, one borrow in the units.
@@ -592,10 +653,15 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: "בחיסור 61 − 24: איך יודעים שסיימתם להוציא מבית המספרים?",
     choices: [
       { id: "opt_1", textHe: "כשהוצאתם 24 מבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
-      { id: "opt_2", textHe: "כשפרטתם עוד עשרת אחת", isCorrect: false, feedbackHe: "רמז: פורטים רק כשאין בטור מספיק לבנים." },
-      { id: "opt_3", textHe: "כשהוספתם 24 לבית המספרים", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים." }
+      // D10 (owner, 1.10.2026): guiding questions.
+      { id: "opt_2", textHe: "כשפרטתם עוד עשרת אחת", isCorrect: false, feedbackHe: "רמז: מתי פורטים לבנה: כשיש בטור מספיק לבנים, או כשאין?" },
+      { id: "opt_3", textHe: "כשהוספתם 24 לבית המספרים", isCorrect: false, feedbackHe: HINT.addOrTakeOut }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    cardKind: 's1_card',
+    situation: 's1_finished_taking_away',
+    frameLevel: 1,
+    intentHe: 'מסיימים להוציא כשהוצאתם את כל המספר השני, ואז כותבים את מה שנשאר',
   },
 
   // Refresh, mirrors diagnostic task 7: 806 − 351, a borrow into an empty tens
@@ -608,10 +674,15 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: "בחיסור 806 − 351: איך יודעים שסיימתם להוציא מבית המספרים?",
     choices: [
       { id: "opt_1", textHe: "כשהוצאתם 351 מבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
-      { id: "opt_2", textHe: "כשפרטתם עוד מאה אחת", isCorrect: false, feedbackHe: "רמז: פורטים רק כשאין בטור מספיק לבנים." },
-      { id: "opt_3", textHe: "כשהוספתם 351 לבית המספרים", isCorrect: false, feedbackHe: "רמז: בחיסור מוציאים מבית המספרים ולא מוסיפים." }
+      // D10 (owner, 1.10.2026): guiding questions.
+      { id: "opt_2", textHe: "כשפרטתם עוד מאה אחת", isCorrect: false, feedbackHe: "רמז: מתי פורטים לבנה: כשיש בטור מספיק לבנים, או כשאין?" },
+      { id: "opt_3", textHe: "כשהוספתם 351 לבית המספרים", isCorrect: false, feedbackHe: HINT.addOrTakeOut }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    cardKind: 's1_card',
+    situation: 's1_finished_taking_away',
+    frameLevel: 1,
+    intentHe: 'מסיימים להוציא כשהוצאתם את כל המספר השני, ואז כותבים את מה שנשאר',
   },
 
   // ── Sessions 3–8 — the Socratic cards written in מסמך 03 (one card per session,
@@ -635,7 +706,10 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
       { id: "opt_2", textHe: 'משאירים את כולן בטור היחידות', isCorrect: false, feedbackHe: tenBlocksHint('units') },
       { id: "opt_3", textHe: 'מוחקים את היחידות המיותרות', isCorrect: false, feedbackHe: HINT.deleteBlocks }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    situation: 'session_card',
+    frameLevel: 1,
+    intentHe: 'בטור שמצטברות בו 10 לבנים או יותר מקבצים אותן ללבנה אחת של הטור שמשמאל',
   },
   // מסמך 03 §3.5
   's5_card':   {
@@ -649,7 +723,10 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
       { id: "opt_2", textHe: 'מחסירים את המספר הקטן מהמספר הגדול בטור היחידות', isCorrect: false, feedbackHe: HINT.topOrBottom },
       { id: "opt_3", textHe: 'כותבים את התשובה בטור העשרות תחילה', isCorrect: false, feedbackHe: HINT.startSub }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    situation: 'session_card',
+    frameLevel: 1,
+    intentHe: 'כשאין מספיק לבנים כדי לחסר, פורטים לבנה מהטור שמשמאל',
   },
   // מסמך 03 §3.6
   's6_card':   {
@@ -664,7 +741,10 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
       { id: "opt_2", textHe: 'מתעלמים מהאפס וממשיכים לטור הבא', isCorrect: false, feedbackHe: 'רמז: כשפורטים מאה אחת, מה מקבלים: עשר עשרות או עשר יחידות?' },
       { id: "opt_3", textHe: 'מוסיפים עשרת אחת לטור היחידות ללא פריטה', isCorrect: false, feedbackHe: HINT.addBlocks }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    situation: 'session_card',
+    frameLevel: 1,
+    intentHe: 'כשבטור שמשמאל יש אפס, פורטים מהטור הקרוב שיש בו, טור אחר טור',
   },
   // מסמך 03 §3.7
   's7_card':   {
@@ -678,7 +758,10 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
       { id: "opt_2", textHe: 'מנחשים מספר אקראי וכותבים אותו בתיבת התשובה', isCorrect: false, feedbackHe: 'רמז: איך אפשר לבדוק בבית המספרים אם הספרה נכונה?' },
       { id: "opt_3", textHe: 'עוברים קודם לטור הבא', isCorrect: false, feedbackHe: 'רמז: אם תעברו קודם לטור הבא, איך תדעו מה לרשום בעיגול הזיכרון?' }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    situation: 'session_card',
+    frameLevel: 1,
+    intentHe: 'בודקים בכל טור כמה חסר כדי להגיע לספרה של התוצאה',
   },
   // מסמך 03 §3.8
   's8_card':   {
@@ -692,7 +775,10 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
       { id: "opt_2", textHe: 'מנחשים את התוצאה הסופית ומקלידים אותה מיד', isCorrect: false, feedbackHe: 'רמז: איך אפשר למצוא את התוצאה בלי לנחש?' },
       { id: "opt_3", textHe: 'מחכים שהתשובה הנכונה תופיע על המסך', isCorrect: false, feedbackHe: 'רמז: מאיזה טור אפשר להתחיל לפתור בעצמכם?' }
     ],
-    correctChoiceId: "opt_1"
+    correctChoiceId: "opt_1",
+    situation: 'guessing_loop',
+    frameLevel: 1,
+    intentHe: 'בלי לבנים: לא מנחשים, פותרים טור אחר טור ורושמים כל המרה ופריטה בעיגולי הזיכרון',
   }
 };
 
@@ -811,7 +897,10 @@ const GENERAL_FALLBACK: SocraticHintResponse = {
     { id: "opt_2", textHe: "כותבים את התשובה מיד", feedbackHe: "רמז: איך תדעו שהתשובה נכונה בלי לבדוק את בית המספרים?" },
     { id: "opt_3", textHe: "מוחקים הכול ומתחילים מחדש", feedbackHe: "רמז: מה כבר בנוי בבית המספרים?" }
   ],
-  correctChoiceId: "opt_1"
+  correctChoiceId: "opt_1",
+  situation: 'general_next_step',
+  frameLevel: 1,
+  intentHe: 'בודקים מה כבר בנוי בבית המספרים ומה הצעד הבא',
 };
 
 export class SocraticEngine {
@@ -871,7 +960,8 @@ export class SocraticEngine {
   public static analyzeLiveBoardState(
     currentTask: any,
     targetNode: string,
-    counts: { units: number; tens: number; hundreds: number; thousands: number }
+    counts: { units: number; tens: number; hundreds: number; thousands: number },
+    context: StaticCardContext = {}
   ): SocraticHintResponse | null {
     if (!counts) return null;
 
@@ -883,6 +973,44 @@ export class SocraticEngine {
     // a way of building 160, not a column to group; the missing-part card
     // speaks in every board state (owner, 28.9.2026, שהB.1).
     if (currentTask?.type === 'missing_element') return null;
+    // The choice tasks (s4_g_t7, s5_g_t7): the board is the child's scratch
+    // pad, and the card is about the two exercises (1.10.2026).
+    if (currentTask?.type === 'small_change') return null;
+
+    const meeting = meetingOfTaskId(currentTask?.id);
+    const shown = (k: StaticCardKind) => (context.shownKinds ?? []).includes(k);
+    const value = counts.units + counts.tens * 10 + counts.hundreds * 100 + counts.thousands * 1000;
+    const a = typeof currentTask?.numberA === 'number' ? currentTask.numberA : null;
+    const b = typeof currentTask?.numberB === 'number' ? currentTask.numberB : null;
+    // Meeting 1 has no thousands column, so no "קבצו 10" button over the
+    // hundreds: "click the button at the top of that column" pointed at
+    // nothing (1.10.2026). A subtraction with both numbers built (806 + 351:
+    // 11 hundreds) gets "what do you build in subtraction" (meeting1Card).
+    const bothBuilt = currentTask?.isSubtraction === true && a !== null && value > a;
+    // Its second card (2.10.2026): how a number is built with each digit in
+    // its column — no column named (owner, 29.9.2026).
+    if (meeting === 1 && counts.hundreds >= 10 && !bothBuilt) {
+      return cardLadder(context, 'no_button', [['no_button', s1NoButtonCard], ['digits_in_columns', digitsInColumnsCard]]);
+    }
+    // Meeting 1's 347 with a hundred (or a second ten) broken: undo the break,
+    // not "group the 10 or more" (1.10.2026).
+    // Meeting 1's 26 worth another number now (blocks deleted or added): is it
+    // the same number? Then back to the blocks it started with, before "10 or more".
+    if (meeting === 1) {
+      const wrongBreak = s1WrongBreakCard(currentTask, counts, context) ?? s1StartChangedCard(currentTask, counts, context);
+      if (wrongBreak) return wrongBreak;
+    }
+    // More blocks than the two numbers need (audit C13, C14): taking the extra
+    // ones out, not grouping them (1.10.2026). The second card: what is built
+    // in this exercise — both numbers, each checked column by column.
+    const stray = strayAddition(currentTask, counts);
+    if (stray) {
+      const ex = `${formatNumberHe(a!)} + ${formatNumberHe(b!)}`;
+      return cardLadder(context, 'stray', [
+        ['stray', () => (meeting === 1 ? strayBlocksCard(null) : strayBlocksCard(stray.column))],
+        ['build_both', () => addBuildCard(ex)],
+      ]);
+    }
 
     // 1. Overcrowding Check (>= 10 blocks in a column). Three states where ten
     // or more in a column is the goal, not a mess: a representation whose
@@ -890,21 +1018,42 @@ export class SocraticEngine {
     // 3, 3 and 17), a "two different representations" task (150 as 15 tens),
     // and a subtraction after a borrow (61 − 24 as 5 tens and 11 units).
     // "Group them back" would undo the very step the exercise asks for;
-    // subtraction gets its own deficit reading below.
+    // subtraction gets its own deficit reading below. Station 7's two-step
+    // exercises too, on the way (3,400 + 1,000 − 600 as 3 thousands and 14
+    // hundreds, before the 6 hundreds are removed) — until the board is worth
+    // the number they end on (1.10.2026).
     const required = (currentTask?.requiredCounts ?? {}) as Partial<Record<'units' | 'tens' | 'hundreds', number>>;
+    const stepsTarget = multiStepTarget(currentTask);
+    // Meeting 1's subtraction finished with a block broken too many (806 − 351
+    // ending with 15 units): the board is the result, and 10 or more in a
+    // column cannot be written in a box — group it (analysts' matrix S21).
+    // Stations 5–6 have their own card for it (staticSocraticCards).
+    const subtractionDone = meeting === 1 && currentTask?.isSubtraction === true && a !== null && b !== null && value === a - b;
     const crowdingIsTheGoal = (place: 'units' | 'tens' | 'hundreds') =>
-      currentTask?.isSubtraction === true || currentTask?.type === 'flexible_decomp' || (required[place] ?? 0) >= 10;
+      (currentTask?.isSubtraction === true && !subtractionDone) || currentTask?.type === 'flexible_decomp' || (required[place] ?? 0) >= 10 ||
+      (stepsTarget !== null && value !== stepsTarget);
     // Meeting 1: the column and its count stay for the child to find (owner, 29.9.2026).
-    if (meetingOfTaskId(currentTask?.id) === 1 &&
+    if (meeting === 1 &&
       (['units', 'tens', 'hundreds'] as const).some((p) => counts[p] >= 10 && !crowdingIsTheGoal(p))) {
-      return meeting1CrowdedCard();
+      return shown('s1_crowded') ? s1GroupActionCard() : meeting1CrowdedCard();
     }
+    // The second "10 or more" card of an exercise: the button itself (1.10.2026).
+    const vertical = currentTask?.type === 'vertical_addition' || currentTask?.type === 'addition_simple';
+    const crowded = (['units', 'tens', 'hundreds'] as const).find((p) => counts[p] >= 10 && !crowdingIsTheGoal(p));
+    if (crowded && shown('crowded')) return groupActionCard(crowded, vertical);
+    const crowdedFrame = (p: 'units' | 'tens' | 'hundreds', next: string) => ({
+      cardKind: 'crowded' as const,
+      situation: 'crowded_column',
+      frameLevel: 2 as const,
+      intentHe: `ב${p === 'units' ? 'טור היחידות' : p === 'tens' ? 'טור העשרות' : 'טור המאות'} יש 10 לבנים או יותר: מקבצים 10 מהן ל${next}`,
+    });
     // Stations 3–7 hide the digit beside each column name and the child
     // counts the blocks, so the card names the column but not its count
     // (owner, 30.9.2026). Station 1 has its own card above; station 8 has no
     // board.
     if (counts.units >= 10 && !crowdingIsTheGoal('units')) {
       return {
+        ...crowdedFrame('units', 'עשרת אחת'),
         pedagogical_intent: "procedural",
         tts_text: 'נסו לחשוב: בטור היחידות יש 10 לבנים או יותר. מה עושים?',
         suggested_highlight: "tour-column-units",
@@ -936,6 +1085,7 @@ export class SocraticEngine {
 
     if (counts.tens >= 10 && !crowdingIsTheGoal('tens')) {
       return {
+        ...crowdedFrame('tens', 'מאה אחת'),
         pedagogical_intent: "procedural",
         tts_text: 'נסו לחשוב: בטור העשרות יש 10 לבנים או יותר. מה עושים?',
         suggested_highlight: "tour-column-tens",
@@ -966,6 +1116,7 @@ export class SocraticEngine {
 
     if (counts.hundreds >= 10 && !crowdingIsTheGoal('hundreds')) {
       return {
+        ...crowdedFrame('hundreds', 'אלף אחד'),
         pedagogical_intent: "procedural",
         tts_text: 'נסו לחשוב: בטור המאות יש 10 לבנים או יותר. מה עושים?',
         suggested_highlight: "tour-column-hundreds",
@@ -1021,11 +1172,15 @@ export class SocraticEngine {
 
       // Nothing on the canvas yet: the only sensible coaching is "build the first
       // number". A deficit read off an empty board ("יש לנו 0 עשרות") is nonsense.
-      // Stations 3–8 get the guiding questions of 30.9.2026; station 1 keeps
-      // the feedback the owner approved for it.
+      // The guiding questions of 30.9.2026, in station 1 too (owner's D10, 1.10.2026).
+      // Its second card (2.10.2026): how the first number is built.
+      if (boardValue === 0 && minuend !== undefined && shown('sub_board_empty')) {
+        return cardLadder(context, 'sub_board_empty', [['build_number', () => buildNumberCard(minuend!, 'sub')]]);
+      }
       if (boardValue === 0) {
-        const station1 = meetingOfTaskId(currentTask?.id) === 1;
         return {
+          cardKind: 'sub_board_empty',
+          family: 'sub_board_empty',
           pedagogical_intent: "procedural",
           tts_text: `בחיסור בונים בבית המספרים רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''}, ואחר כך מוציאים ממנו.`,
           suggested_highlight: "tour-palette",
@@ -1035,22 +1190,25 @@ export class SocraticEngine {
               id: "opt_1",
               textHe: `בונים רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''} בבית המספרים, ואחר כך מוציאים ממנו ${formatNumberHe(subtrahend)} לפח האשפה`,
               isCorrect: true,
-              feedbackHe: `${station1 ? 'נכון!' : 'נכון מאוד!'} גררו לבנים לבית המספרים עד שהוא מראה את המספר הראשון, ורק אז הוציאו ממנו.`
+              feedbackHe: 'נכון מאוד! גררו לבנים לבית המספרים עד שהוא מראה את המספר הראשון, ורק אז הוציאו ממנו.'
             },
             {
               id: "opt_2",
               textHe: "בונים את שני המספרים בבית המספרים ומחברים אותם",
               isCorrect: false,
-              feedbackHe: station1 ? "רמז: בחיסור לא בונים את שני המספרים. בונים את הראשון ומוציאים ממנו את השני." : HINT.secondNumber
+              feedbackHe: HINT.secondNumber
             },
             {
               id: "opt_3",
               textHe: "מקלידים את התוצאה בלי לבנות כלום",
               isCorrect: false,
-              feedbackHe: station1 ? "רמז: קודם מייצגים את המספר בלבנים, ורק אחר כך כותבים את התוצאה." : "רמז: בלי לבנים בבית המספרים, איך תמצאו את התוצאה?"
+              feedbackHe: "רמז: בלי לבנים בבית המספרים, איך תמצאו את התוצאה?"
             }
           ],
-          correctChoiceId: "opt_1"
+          correctChoiceId: "opt_1",
+          situation: 'sub_board_empty',
+          frameLevel: 1,
+          intentHe: 'בחיסור בונים קודם רק את המספר הראשון, ואחר כך מוציאים ממנו את השני',
         };
       }
 
@@ -1087,6 +1245,8 @@ export class SocraticEngine {
           : needHundreds && hundredsB > 0 && counts.hundreds < hundredsB ? 'hundreds'
           : null;
         if (first) {
+          // The second card of the exercise: where the block to break comes from (1.10.2026).
+          if (shown('s1_deficit')) return s1DeficitSecondCard();
           const lacking = DEFICIT_PLACES.filter((p) => p === first ||
             (DEFICIT_PLACES.indexOf(p) > DEFICIT_PLACES.indexOf(first) && digitB[p] > 0 && counts[p] < digitB[p]));
           return meeting1DeficitCard(lacking);
@@ -1099,6 +1259,7 @@ export class SocraticEngine {
           pedagogical_intent: "procedural",
           tts_text: `${inUnitsHe(counts.units)}, וצריך להחסיר ${unitsB}. פרטו עשרת אחת ל-10 יחידות.`,
           suggested_highlight: "tour-column-tens",
+          situation: 'deficit_column', frameLevel: 2, intentHe: 'בטור היחידות אין מספיק כדי לחסר: פורטים עשרת אחת לעשר יחידות',
           questionHe: `${inUnitsHe(counts.units)}, וצריך להחסיר ${unitsHe(unitsB)}. מה הצעד הנכון לבצע?`,
           choices: [
             {
@@ -1130,6 +1291,7 @@ export class SocraticEngine {
           pedagogical_intent: "procedural",
           tts_text: `${inTensHe(counts.tens)}, וצריך להחסיר ${tensB}. פרטו מאה אחת ל-10 עשרות.`,
           suggested_highlight: "tour-column-hundreds",
+          situation: 'deficit_column', frameLevel: 2, intentHe: 'בטור העשרות אין מספיק כדי לחסר: פורטים מאה אחת לעשר עשרות',
           questionHe: `${inTensHe(counts.tens)}, וצריך להחסיר ${tensHe(tensB)}. מאיזה טור שכן אפשר לפרוט לבנה?`,
           choices: [
             {
@@ -1161,6 +1323,7 @@ export class SocraticEngine {
           pedagogical_intent: "procedural",
           tts_text: `${inHundredsHe(counts.hundreds)}, וצריך להחסיר ${hundredsB}. פרטו אלף אחד ל-10 מאות.`,
           suggested_highlight: "tour-column-thousands",
+          situation: 'deficit_column', frameLevel: 2, intentHe: 'בטור המאות אין מספיק כדי לחסר: פורטים אלף אחד לעשר מאות',
           questionHe: `${inHundredsHe(counts.hundreds)}, וצריך להחסיר ${hundredsHe(hundredsB)}. מה עושים?`,
           choices: [
             { 
@@ -1383,7 +1546,10 @@ export class SocraticEngine {
       // Except in meeting 1, where the child finds the counts himself and no
       // card may give them (owner, 29.9.2026).
       const countsAreTheCoaching = arithmetic && sessionNumber !== 1;
+      // A hidden single digit the screen shows nowhere (the 8 of 3▢6 + 271 =
+      // 657) is a secret in any wording: "מוסיפים 8" (final review, 2.10.2026).
       const hiddenLeak = revealsSecret(aiTexts, aiSecrets) ??
+        revealsHiddenDigit(aiTexts, currentTask) ??
         (countsAreTheCoaching ? null : revealsSecretInCounts(aiTexts, aiSecrets));
       // What the exercise itself shows is not a count of the board: the active
       // column's digits ("7 + 5") and every number of the instruction.
@@ -1635,14 +1801,15 @@ export class SocraticEngine {
     // a skeleton, a number the task asks for (staticSocraticCards.secretNumbersOf).
     // 10, 100 and 1,000 are the names of the regroupings themselves.
     const secrets = secretNumbersOf(currentTask).filter((n) => n !== 10 && n !== 100 && n !== 1000);
-    const leaked = revealsSecret(texts, secrets);
+    const leaked = revealsSecret(texts, secrets) ?? revealsHiddenDigit(texts, currentTask);
     const meeting = meetingOfTaskId(currentTask?.id);
     const violation =
       socraticTextViolation(texts, null) ??
       (leaked !== null ? 'final answer leaked' : null) ??
       absentAidViolation(texts, meeting) ??
-      // Stations 3–8 (owner, 30.9.2026): a wrong option's hint is a guiding question.
-      (meeting !== null && meeting >= 3 ? wrongHintViolation(card) : null);
+      // Stations 3–8 (owner, 30.9.2026) and station 1 (owner's D10,
+      // 1.10.2026): a wrong option's hint is a guiding question.
+      (meeting !== null && (meeting === 1 || meeting >= 3) ? wrongHintViolation(card) : null);
     if (!violation) return card;
 
     console.warn('[SocraticEngine] Static card rejected by the Module 13 iron rule:', violation, currentTask?.id);
@@ -1679,18 +1846,58 @@ export class SocraticEngine {
     context?: StaticCardContext
   ): SocraticHintResponse {
     const currentCounts = counts || { units: 0, tens: 0, hundreds: 0, thousands: 0 };
+    const ctx: StaticCardContext = context ?? {};
     const taskId: string | undefined = currentTask?.id;
     const taskType: string | undefined = currentTask?.type;
     const targetNode: string = currentTask?.targetNode || (currentTask?.requiresGrouping ? 'regrouping_fluency' : currentTask?.requiresUngrouping ? 'subtraction_regrouping' : 'basic_addition_fluency');
+    const meeting = meetingOfTaskId(taskId);
+
+    // 0. By trigger and by screen (owner, 1.10.2026: the card follows the
+    //    situation, the trigger and the level). Meeting 8's third trigger —
+    //    three undos in a row, a guessing loop (PRD Module 12) — gets מסמך 03's
+    //    own meeting-8 card, whose wrong options are guessing and waiting.
+    //    The next card of the run is the column's own card (audit D13: it is
+    //    the general first card the owner asked for in meeting 8, D8).
+    if (meeting === 8 && ctx.trigger === 'consecutive_undos_3' && !(ctx.shownKinds ?? []).includes('guessing')) {
+      return inFamily(withKind(framed(groundCardInExercise(TASK_HINTS['s8_card'], currentTask), {
+        situation: 'guessing_loop',
+        frameLevel: 1,
+        intentHe: 'שלוש פעולות ביטול ברצף: לא מנחשים, פותרים טור אחר טור בעזרת עיגולי הזיכרון',
+      }), 'guessing'), 'guessing_loop');
+    }
+    //    Stations 3–7: the child hid the number house (top-bar button). A card
+    //    about blocks on a hidden board points at nothing (audit D15). Showing
+    //    it again is a suggestion, not a requirement (register יא): the card
+    //    that suggests it comes once per exercise; after it a vertical exercise
+    //    gets its column card worded without blocks (coordinator's decision,
+    //    2.10.2026) — the child who works without the board still gets help.
+    //    An exercise that needs the blocks (a representation) gets the card
+    //    that names the button.
+    if (meeting !== null && meeting >= 3 && meeting <= 7 && ctx.boardHidden === true) {
+      const suggested = (ctx.shownKinds ?? []).some((k) => k === 'board_hidden' || k === 'show_board');
+      if (!suggested) return inFamily(withKind(boardHiddenCard(), 'board_hidden'), 'board_hidden');
+      const withoutBlocks = noBoardColumnCard(currentTask, ctx);
+      if (withoutBlocks) return withoutBlocks;
+      return cardLadder(ctx, 'board_hidden', [['board_hidden', boardHiddenCard], ['show_board', showBoardCard]]);
+    }
 
     // 1. Live Board Evaluation (overcrowding >=10 in any column or subtraction
     //    deficit) — only where there is a board. In meeting 8 no blocks are on
     //    the screen and the counts are always 0: reading them produced "the
     //    number house is empty, build the first number" (PRD Module 14 §ב;
     //    Module 13 §א: no aids that are not on the screen).
-    if (blocksOnScreen(meetingOfTaskId(taskId))) {
-      const liveHint = SocraticEngine.analyzeLiveBoardState(currentTask, targetNode, currentCounts);
+    if (blocksOnScreen(meeting)) {
+      const liveHint = SocraticEngine.analyzeLiveBoardState(currentTask, targetNode, currentCounts, ctx);
       if (liveHint) return liveHint;
+    }
+
+    // 1b. Meeting 1: the situations its own card does not fit — an empty
+    //     board, the ten already broken, a block broken too many, the blocks
+    //     all in place, taking away under way — and the second card of the
+    //     exercise (staticSocraticCards.meeting1Card, 1.10.2026).
+    if (meeting === 1) {
+      const m1 = meeting1Card(currentTask, currentCounts, ctx);
+      if (m1) return m1;
     }
 
     // 2. Direct lookup in TASK_HINTS with exact ID or normalized ID (e.g. s3_g_t1 -> s3_t1)

@@ -37,11 +37,17 @@ describe('Module 12 — a mistake is met inside the exercise, never with an inje
     const handler = store.slice(store.indexOf("const incomplete = detail === 'missing_answer' || detail === 'no_choice';"));
     const block = handler.slice(0, handler.indexOf('showFeedback({ correct: false'));
     expect(block).toContain("const incomplete = detail === 'missing_answer' || detail === 'no_choice';");
+    expect(block).toContain('if (!incomplete) noteWrongPress(task.id, { holdCard: opts.holdCard });');
+    expect(block).not.toContain('injectTask(');
+    // The wrong press itself (noteWrongPress, shared with "הוספת ייצוג", D6).
+    const press = store.slice(store.indexOf('function noteWrongPress('), store.indexOf('function socraticCardRefusal('));
     // One help per press (owner, 30.9.2026): the press that brings the result
     // row's place cues holds the card to the next wrong answer (PlaceCueScaffold.test.ts).
-    expect(block).toContain('if (streak >= 2 && !opts.holdCard) {');
-    expect(block).toContain("set({ helpState: 'friction', frictionTriggerSource: 'mistake' });");
-    expect(block).not.toContain('injectTask(');
+    expect(press).toContain('if (streak >= 2 && !opts.holdCard) {');
+    // The beat only when the card will open after it (1.10.2026).
+    expect(press).toContain("if (socraticCardRefusal(get(), 'repeated_errors') === null) {");
+    expect(press).toContain("set({ helpState: 'friction', frictionTriggerSource: 'mistake' });");
+    expect(press).not.toContain('injectTask(');
   });
 
   it('the dead "which help would you like?" palette is gone (owner, 14.9.2026)', () => {

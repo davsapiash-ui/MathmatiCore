@@ -47,6 +47,7 @@ import { computeCognitiveMastery, TASKS } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
 import { announceRegroup, REGROUP_ANIMATION_MS } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
+import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { useTeacherGenderStore } from '@/application/useTeacherGender';
 import { teacherSentenceHe } from '@/core/teacherGender';
 import { CurriculumRouter } from '@/core/CurriculumRouter';
@@ -58,7 +59,7 @@ import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogSe
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
-import { STATIC_CARD_KINDS, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
+import { STATIC_CARD_KINDS, cardFamilyOf, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
 import { ref, update } from 'firebase/database';
 import { database, serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
@@ -195,6 +196,61 @@ export type SocraticTriggerReason =
   | 'repeated_errors';
 export type KeyboardState = 'LOCKED' | 'UNLOCKED' | 'SOCRATIC_ONLY';
 
+/**
+ * One coaching card opened in the exercise on screen (1.10.2026). The cards
+ * of one exercise are kept so that the same trigger does not reopen the very
+ * same card again and again, and so that the next card's request can say what
+ * the child already saw and whether the option chosen there was right.
+ */
+export interface SocraticCardRecord {
+  reason: SocraticTriggerReason;
+  /** The column the card is about (socraticCardPlace when it opened); null in an exercise with no columns. */
+  place: Place | null;
+  /** The static card's kind (staticSocraticCards.StaticCardKind), when it has one. */
+  kind: StaticCardKind | null;
+  /**
+   * The static card's situation family (staticSocraticCards.cardFamilyOf) —
+   * with the trigger and the column, the card's identity (coordinator's
+   * decision, 2.10.2026): a new level of the same family is the next step of
+   * the same card, not a new card. Null on a record saved before it existed.
+   */
+  family: string | null;
+  /**
+   * The static card's question when the card opened — which LEVEL of its
+   * family it was. The engine's card may word it otherwise; this stays the
+   * static one, which is fixed for a given exercise, column and board.
+   */
+  staticQuestionHe: string;
+  /** The question the child saw (the engine's card or the static one); null until the card settled. */
+  questionHe: string | null;
+  /** The card settled and was on the screen (not closed during the hourglass). */
+  shown: boolean;
+  /** The option the child chose last was right (true) or wrong (false); null while none was chosen. */
+  answeredCorrect: boolean | null;
+  openedAt: number;
+}
+
+/**
+ * How many times the very same card may open in one exercise. A card is
+ * (trigger, column, situation family); its levels follow one another, and the
+ * family's last level — the identical card — opens twice at most in all, then
+ * no more (coordinator's decision, 2.10.2026).
+ */
+export const MAX_IDENTICAL_SOCRATIC_CARDS = 2;
+
+/**
+ * A wrong digit in a column whose conversion was not done opens the card once
+ * per column within this time: every further wrong digit there used to reopen
+ * it at once (1.10.2026). The "four errors" streak of the column still counts.
+ */
+export const CONVERSION_CARD_COOLDOWN_MS = 60_000;
+
+/**
+ * After the right option (owner, 1.10.2026, D1): "נכון מאוד!" stays on the
+ * card for this long, and then the card closes by itself.
+ */
+export const SOCRATIC_CORRECT_AUTO_CLOSE_MS = 4_000;
+
 export interface FeedbackState {
   correct: boolean;
   title: string;
@@ -238,6 +294,16 @@ export interface UndoFrame {
    * on frames saved before this existed.
    */
   columnIndex?: number;
+  /**
+   * Subtraction with blocks: the take-away record as it was BEFORE the action
+   * (WorkspaceState.takeAwayTrack). Undo brings it back with the board, so
+   * undoing past the first number takes "taking away has started" back too
+   * (verification, 2.10.2026: 53 − 18 built, a ten thrown away, then undo run
+   * back to 30 — "you took out too much, press undo"). Absent when there was
+   * no record yet, and on frames saved before this existed: undo then leaves
+   * no record.
+   */
+  takeAwayTrack?: TakeAwayTrack;
 }
 
 /**
@@ -365,6 +431,15 @@ export interface WorkspaceState {
   hasRequestedBasicHelp: boolean;
   hasInteracted: boolean;
   hasDeletedBlock: boolean;
+  /**
+   * Subtraction with blocks, in the exercise `taskId`: the board has held the
+   * first number at least once (`held`), and a block left the board after
+   * that (`started`: taking away has started). A board emptied to 0 starts
+   * over. Kept by nextTakeAwayTrack on every change of the board (final
+   * review, 2.10.2026: the undo history was read instead, and its cap made a
+   * child still building the first number "took out too much").
+   */
+  takeAwayTrack: TakeAwayTrack | null;
   /** The trash was pressed this task (clearBoard) — meeting 1 step 5. Dragging one block into it does not count. */
   hasClearedBoard: boolean;
   blocksAddedCount: number; // Added to enforce the 5 block rule in Sandbox
@@ -387,8 +462,30 @@ export interface WorkspaceState {
   q3Reps: PlaceCounts[];
   /** Which of מסמך 03's triggers opened the coaching card (null when it is closed). */
   socraticTriggerReason: SocraticTriggerReason | null;
-  /** The column a 'consecutive_errors_4' card belongs to — the streak's column, not where the cursor moved. */
+  /**
+   * The column the open coaching card is about, set for every trigger when the
+   * card opens (cardFocusPlace): the streak's column, the column just typed in,
+   * the lowest wrong (or empty) box after a wrong "התקדם", the focused box or
+   * the first unsolved column after a pause, the undone action's column. Null
+   * only in an exercise that has no columns (a choice question). The request
+   * for the engine's card and SOCRATIC_CARD_SHOWN.column_index read it.
+   */
   socraticCardPlace: Place | null;
+  /** The coaching cards opened in the exercise `taskId` (see SocraticCardRecord). */
+  socraticCardHistory: { taskId: string | null; cards: SocraticCardRecord[] };
+  /**
+   * The card shown before the one now opening, in the same exercise — its
+   * kind, its question, and whether the option the child chose there was
+   * right — for the request of the card now opening. Null when this is the
+   * exercise's first card.
+   */
+  previousSocraticCard: (SocraticCardRecord & { taskId: string }) | null;
+  /**
+   * The teacher's projector, pause or close screen covers the workspace
+   * (StudentWorkspacePage). A card that settles under it is not seen, so
+   * SOCRATIC_CARD_SHOWN waits until the screen is gone.
+   */
+  classScreenUp: boolean;
   /** Skeleton exercises (מסמך 03): digits the learner types into hidden operand cells. */
   operandDigits: { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> };
   aiSocraticHint: SocraticHintResponse | null;
@@ -580,8 +677,16 @@ export interface WorkspaceState {
   unlockKeyboard: () => void;
   lockKeyboard: () => void;
   setKeyboardSocratic: () => void;
-  /** מסמך 03: open the coaching card, recording which trigger did it. */
+  /**
+   * מסמך 03: open the coaching card, recording which trigger did it. `place`:
+   * the column the trigger itself belongs to; without it the card's column is
+   * worked out from the exercise (cardFocusPlace).
+   */
   openSocraticCard: (reason: SocraticTriggerReason, place?: Place) => void;
+  /** The child chose an option on the open card: right or wrong (SocraticCardRecord.answeredCorrect). */
+  recordSocraticAnswer: (isCorrect: boolean) => void;
+  /** StudentWorkspacePage: whether a class screen (projector, pause, close) covers the workspace. */
+  setClassScreenUp: (up: boolean) => void;
   triggerSocraticPenaltyLockout: (hintText?: string) => void;
   clearSocraticPenaltyLockout: () => void;
   getSocraticPenaltyRemaining: () => number;
@@ -648,6 +753,8 @@ export function restoreUndoFrames(raw: unknown): UndoFrame[] {
         frame.conversionsByColumn = normalizeColumnConversions(f.conversionsByColumn);
       }
       if ([0, 1, 2, 3].includes(f.columnIndex)) frame.columnIndex = f.columnIndex;
+      const track = restoredTakeAwayTrack(f.takeAwayTrack);
+      if (track) frame.takeAwayTrack = track;
       return frame;
     });
 }
@@ -696,28 +803,227 @@ export function nextDigitErrorStreakOnDelete(
 }
 
 /**
- * The column the open coaching card is about: a card opened by the "four
- * errors" streak belongs to the streak's column, even after the cursor
- * auto-advanced to the next box; any other card keeps the focused box.
+ * The column the open coaching card is about (SOCRATIC_CARD_SHOWN.column_index,
+ * the engine's active column): the column set when the card opened
+ * (socraticCardPlace, every trigger — the "four errors" card keeps the streak's
+ * column even after the cursor auto-advanced). An exercise with no columns
+ * falls back to the focused box, else 0 (the event needs a column).
  */
 export function socraticCardColumnIndex(
   s: Pick<WorkspaceState, 'socraticTriggerReason' | 'socraticCardPlace' | 'focusedPlace' | 'activeColumnIndex'>
 ): number {
-  if (s.socraticTriggerReason === 'consecutive_errors_4' && s.socraticCardPlace) return placeToColumnIndex(s.socraticCardPlace);
+  if (s.socraticCardPlace) return placeToColumnIndex(s.socraticCardPlace);
   return s.focusedPlace ? placeToColumnIndex(s.focusedPlace) : (s.activeColumnIndex || 0);
+}
+
+/** The board and every digit the child typed — what a coaching card is built on. */
+function cardStateSignature(s: Pick<WorkspaceState, 'counts' | 'answerDigits' | 'carryDigits' | 'operandDigits'>): string {
+  return JSON.stringify([s.counts, s.answerDigits, s.carryDigits, s.operandDigits]);
+}
+
+/** A vertical exercise (addition_simple / vertical_addition, skeletons included). */
+function isVerticalTask(task: SessionTask | null | undefined): boolean {
+  return task?.type === 'addition_simple' || task?.type === 'vertical_addition';
+}
+
+/**
+ * An addition exercise — the only kind the Module 10 grid belongs to (owner,
+ * 1.10.2026, D7): not a subtraction, not a station-3 representation.
+ */
+export function isAdditionExercise(task: Pick<SessionTask, 'type' | 'isSubtraction'> | null | undefined): boolean {
+  return (task?.type === 'addition_simple' || task?.type === 'vertical_addition') && !task.isSubtraction;
+}
+
+type ColumnStatus = 'wrong' | 'empty' | 'ok';
+
+/**
+ * Each column of a vertical exercise: a wrong digit in any of its boxes (the
+ * result row, a hidden operand digit), else an empty box, else done. A box to
+ * the left of the answer (the thousands box over 917, stations 3–7) holds no
+ * digit: empty or 0 is right there.
+ */
+function verticalColumnStatus(
+  s: Pick<WorkspaceState, 'sessionNumber' | 'isASD' | 'answerDigits' | 'operandDigits'>,
+  task: SessionTask
+): Array<{ place: Place; status: ColumnStatus }> {
+  const { a, b, target } = effectiveArithmetic(task, s.isASD);
+  const typed = effectiveAnswerDigits(s, task, target);
+  const resultPlaces = PLACE_ORDER.slice(0, resultBoxCount(s.sessionNumber, a, b, target));
+  return PLACE_ORDER.map((place) => {
+    const boxes: Array<{ typed: string; expected: number | null }> = [];
+    if (resultPlaces.includes(place) && !task.revealedResultDigits?.includes(place)) {
+      const beyond = place !== 'units' && Math.abs(target) < PLACE_VALUES[place];
+      boxes.push({ typed: typed[place] ?? '', expected: beyond ? null : digitAt(target, place) });
+    }
+    for (const which of ['a', 'b'] as const) {
+      if (task.hiddenDigits?.[which]?.includes(place)) {
+        boxes.push({ typed: s.operandDigits[which][place] ?? '', expected: digitAt(which === 'a' ? a : b, place) });
+      }
+    }
+    let status: ColumnStatus = 'ok';
+    for (const box of boxes) {
+      if (box.expected === null) {
+        if (box.typed !== '' && box.typed !== '0') status = 'wrong';
+        continue;
+      }
+      if (box.typed === '') {
+        if (status === 'ok') status = 'empty';
+      } else if (parseInt(box.typed, 10) !== box.expected) {
+        status = 'wrong';
+      }
+    }
+    return { place, status };
+  });
+}
+
+/**
+ * The column whose blocks do not show what the exercise's board check wants
+ * (the lowest): 10 or more blocks in a column, or a column whose blocks are
+ * not the result's digit. Null when the board passes, and in meeting 8 (no
+ * blocks on the screen).
+ */
+function verticalBoardPlace(s: Pick<WorkspaceState, 'sessionNumber' | 'isASD' | 'counts'>, task: SessionTask): Place | null {
+  if (s.sessionNumber === 8) return null;
+  const { a, b, target } = effectiveArithmetic(task, s.isASD);
+  const value = getValue(s.counts);
+  const discovered = (task.hiddenDigits?.a?.length ? [a] : []).concat(task.hiddenDigits?.b?.length ? [b] : []);
+  const shows = value === target || (s.sessionNumber >= 3 && s.sessionNumber <= 7 && discovered.includes(value)) ? value : target;
+  const crowded = PLACE_ORDER.find((p) => s.counts[p] >= 10);
+  if (value === shows && !crowded) return null;
+  return crowded ?? PLACE_ORDER.find((p) => s.counts[p] !== digitAt(shows, p)) ?? null;
+}
+
+/**
+ * The column a coaching card is about, for every trigger (1.10.2026). The
+ * request for the engine's card and SOCRATIC_CARD_SHOWN.column_index read it
+ * through socraticCardPlace.
+ *  - A pause, an undo run (and any trigger opened without its own column):
+ *    the box the child stands in, else — meeting 8, which records its
+ *    conversions there — the memory circle the child stands in, else the
+ *    first unsolved column from the units: a wrong or empty box, else the
+ *    column whose blocks the board check still wants.
+ *  - A second wrong "התקדם" ('repeated_errors'): the press took the focus
+ *    away, so the box says nothing — the lowest column with a WRONG digit,
+ *    else the lowest empty one, else the blocks' column.
+ *  - The "four errors" streak and a conversion not performed pass their own
+ *    column (the streak's, the one just typed in): the cursor has already
+ *    moved on to the next box by then.
+ * A representation exercise: the column of the conversion still to do, else
+ * the lowest column whose blocks differ from the instruction, else the lowest
+ * wrong or empty digit of the answer. Null when the exercise has no columns.
+ */
+export function cardFocusPlace(
+  s: Pick<WorkspaceState, 'sessionNumber' | 'isASD' | 'focusedPlace' | 'answerDigits' | 'operandDigits' | 'counts' | 'conversionsByColumn'>,
+  task: SessionTask | null | undefined,
+  reason: SocraticTriggerReason,
+  focusedMemoryCircle: Place | null = null
+): Place | null {
+  // The box the child stands in comes first, with or without a lesson task:
+  // meeting 2's diagnostic exercises have none, and their HESITATION_DETECTED
+  // still names the focused column.
+  if (reason !== 'repeated_errors') {
+    if (s.focusedPlace) return s.focusedPlace;
+    // Meeting 8 records its conversions in the memory circles. Elsewhere the
+    // circle stays out of what is recorded (register gap יט).
+    if (focusedMemoryCircle && s.sessionNumber === 8) return focusedMemoryCircle;
+  }
+  if (!task) return null;
+  if (isVerticalTask(task)) {
+    const columns = verticalColumnStatus(s, task);
+    const first = (wanted: ColumnStatus[]) => columns.find((c) => wanted.includes(c.status))?.place ?? null;
+    const typed = reason === 'repeated_errors' ? first(['wrong']) ?? first(['empty']) : first(['wrong', 'empty']);
+    return typed ?? verticalBoardPlace(s, task);
+  }
+  if (task.type === 'representation' || task.type === 'flexible_decomp') {
+    const pending = pendingRepresentationConversion(s, task);
+    if (pending) return pending;
+    if (task.requiredCounts) {
+      const required = requiredCountsOf(task);
+      const board = PLACE_ORDER.find((p) => (s.counts[p] ?? 0) !== required[p]);
+      if (board) return board;
+    }
+    if (task.type === 'representation' && typeof task.correctAnswer === 'number') {
+      const answer = task.correctAnswer;
+      const width = String(Math.abs(answer)).length;
+      const wrongOrEmpty = PLACE_ORDER.slice(0, width).find((p) => {
+        const d = s.answerDigits[p] ?? '';
+        return d === '' || parseInt(d, 10) !== digitAt(answer, p);
+      });
+      if (wrongOrEmpty) return wrongOrEmpty;
+    }
+    return null;
+  }
+  return null;
+}
+
+/** The store fields the static card chooser reads (staticCardContextFor). */
+export type StaticCardStoreState = Pick<WorkspaceState, 'placeCuesShown' | 'socraticCardKinds'> &
+  Partial<Pick<WorkspaceState,
+    | 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped' | 'counts'
+    | 'sessionNumber' | 'isASD' | 'socraticTriggerReason' | 'socraticCardPlace'
+    | 'answerDigits' | 'carryDigits' | 'operandDigits' | 'boardOpen' | 'hasDeletedBlock' | 'takeAwayTrack'>>;
+
+/** Subtraction with blocks, one exercise: the board held the first number (`held`); a block left it after that (`started`). */
+export interface TakeAwayTrack {
+  taskId: string;
+  held: boolean;
+  started: boolean;
+}
+
+/**
+ * The take-away record after the board went from `before` to `after` in the
+ * exercise `taskId` whose first number is `a` (final review, 2.10.2026):
+ *  - a board emptied (the trash button, or every block thrown away) starts
+ *    over — it is not taking away;
+ *  - taking away starts when a block leaves the board after the board held
+ *    `a` and the board is then worth less than `a` — never while the child
+ *    is still building it (806 − 351 built as 9 hundreds, one thrown away,
+ *    then units added; 54 built for 53 and one unit thrown away);
+ *  - a board worth `a` or more again has not started taking away (blocks
+ *    put back, or a slip while building);
+ *  - the board holding `a` is recorded.
+ * Undo does not come through here: it restores the record its frame kept
+ * (UndoFrame.takeAwayTrack), so undoing the building of `a` is not taking away.
+ */
+export function nextTakeAwayTrack(prev: TakeAwayTrack | null | undefined, taskId: string, a: number, before: number, after: number): TakeAwayTrack {
+  if (after === 0) return { taskId, held: false, started: false };
+  const t = prev && prev.taskId === taskId ? prev : { taskId, held: false, started: false };
+  const held = t.held || after === a;
+  return { taskId, held, started: held && after < a && (t.started || after < before) };
+}
+
+/** A saved take-away record back into shape (the database drops false and null alike). */
+function restoredTakeAwayTrack(raw: unknown): TakeAwayTrack | null {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
+  if (!r || typeof r.taskId !== 'string') return null;
+  return { taskId: r.taskId, held: r.held === true, started: r.started === true };
+}
+
+/** Subtraction with blocks: taking away has started in this exercise (takeAwayTrack). */
+function takingAwayStarted(s: StaticCardStoreState, taskId: string): boolean {
+  const t = s.takeAwayTrack;
+  return Boolean(t && t.taskId === taskId && t.started);
 }
 
 /**
  * What the static card chooser needs beyond the board, for the exercise
- * `taskId` — and, given the task, how far its break or grouping has gone.
+ * `taskId` (2.10.2026, audit D1 — every field the cards read, from the store):
+ * the cards already shown, how far a break or grouping has gone, the trigger
+ * and the column of the card, the digits typed (result row, memory circles,
+ * hidden operand digits), the conversions done per column, whether the
+ * number house is hidden, and whether taking away has started. `opening` is the trigger and the column of a card that is opening
+ * now: socraticCardRefusal and openSocraticCard compute the card before the
+ * store records them (socraticTriggerReason, socraticCardPlace).
  */
 export function staticCardContextFor(
-  s: Pick<WorkspaceState, 'placeCuesShown' | 'socraticCardKinds'> & Partial<Pick<WorkspaceState, 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped' | 'counts'>>,
+  s: StaticCardStoreState,
   taskId: string | undefined,
-  task?: SessionTask | null
+  task?: SessionTask | null,
+  opening?: { reason: SocraticTriggerReason; place: Place | null }
 ): StaticCardContext {
   const shown = s.socraticCardKinds;
-  const conversions = task && task.id === taskId
+  const sameTask = Boolean(task && task.id === taskId);
+  const conversions = sameTask
     ? conversionContextFor({
         conversionsByColumn: s.conversionsByColumn ?? emptyColumnConversions(),
         counts: s.counts,
@@ -725,11 +1031,43 @@ export function staticCardContextFor(
         hasUngrouped: s.hasUngrouped === true,
       }, task)
     : {};
-  return {
+  const out: StaticCardContext = {
     placeCuesShown: s.placeCuesShown === true,
     shownKinds: shown && taskId && shown.taskId === taskId ? shown.kinds : [],
     ...conversions,
   };
+  const trigger = opening?.reason ?? s.socraticTriggerReason ?? null;
+  if (trigger) out.trigger = trigger;
+  const focus = opening ? opening.place : s.socraticCardPlace ?? null;
+  if (focus) out.focusColumn = focus;
+  if (s.answerDigits) out.answerDigits = s.answerDigits;
+  if (s.carryDigits) out.memoryCircles = s.carryDigits;
+  if (s.operandDigits) out.operandDigits = s.operandDigits;
+  if (!sameTask || !task) return out;
+  // The conversions done per column — the same reading as the engine's
+  // request (fetchSocraticHint): the blocks, or meeting 8's memory circles.
+  if (typeof task.numberA === 'number' && typeof task.numberB === 'number' && s.sessionNumber !== undefined) {
+    const { a, b } = effectiveArithmetic(task, s.isASD === true);
+    const sub = task.isSubtraction;
+    out.conversionsDone = PLACE_ORDER.filter((p) => columnRequiresConversion(p, a, b, sub) &&
+      conversionRecordedInColumn({
+        sessionNumber: s.sessionNumber as SessionNumber,
+        carryDigits: s.carryDigits ?? {},
+        conversionsByColumn: s.conversionsByColumn ?? emptyColumnConversions(),
+      }, p, sub));
+  }
+  // Stations 3–7: the child hid the number house with the top-bar button.
+  if (s.sessionNumber !== undefined && s.boardOpen !== undefined && s.sessionNumber >= 3 && s.sessionNumber <= 7) {
+    out.boardHidden = !s.boardOpen && !boardStaysOpen(s.sessionNumber);
+  }
+  if (task.isSubtraction && typeof task.numberA === 'number') {
+    if (s.takeAwayTrack !== undefined) out.blocksRemoved = takingAwayStarted(s, task.id);
+  } else if (s.hasDeletedBlock !== undefined) {
+    out.blocksRemoved = s.hasDeletedBlock === true;
+  }
+  // No previous card here (audit D18): the levels follow the kinds already
+  // shown, and the card identity is the store's (socraticCardRefusal).
+  return out;
 }
 
 function withCardKind(
@@ -749,6 +1087,32 @@ function restoredCardKinds(raw: unknown): WorkspaceState['socraticCardKinds'] {
   return { taskId: typeof r.taskId === 'string' ? r.taskId : null, kinds };
 }
 
+const TRIGGER_REASONS: readonly SocraticTriggerReason[] = ['hesitation_45s', 'repeated_errors', 'consecutive_errors_4', 'conversion_not_performed', 'consecutive_undos_3'];
+const PLACES: readonly Place[] = ['units', 'tens', 'hundreds', 'thousands'];
+
+/** A saved card history back into shape: the database drops empty lists, null fields and false booleans' absence alike. */
+function restoredCardHistory(raw: unknown): WorkspaceState['socraticCardHistory'] {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as { taskId?: unknown; cards?: unknown };
+  const list = Array.isArray(r.cards) ? r.cards : r.cards && typeof r.cards === 'object' ? Object.values(r.cards) : [];
+  const cards: SocraticCardRecord[] = [];
+  for (const item of list) {
+    const c = (item && typeof item === 'object' ? item : null) as Record<string, unknown> | null;
+    if (!c || !(TRIGGER_REASONS as readonly unknown[]).includes(c.reason) || typeof c.staticQuestionHe !== 'string') continue;
+    cards.push({
+      reason: c.reason as SocraticTriggerReason,
+      place: (PLACES as readonly unknown[]).includes(c.place) ? (c.place as Place) : null,
+      kind: (STATIC_CARD_KINDS as readonly unknown[]).includes(c.kind) ? (c.kind as StaticCardKind) : null,
+      family: typeof c.family === 'string' ? c.family : null,
+      staticQuestionHe: c.staticQuestionHe,
+      questionHe: typeof c.questionHe === 'string' ? c.questionHe : null,
+      shown: c.shown === true,
+      answeredCorrect: typeof c.answeredCorrect === 'boolean' ? c.answeredCorrect : null,
+      openedAt: typeof c.openedAt === 'number' ? c.openedAt : 0,
+    });
+  }
+  return { taskId: typeof r.taskId === 'string' ? r.taskId : null, cards };
+}
+
 function resetTaskInteraction(_isASD = false) {
   return {
     counts: { ...EMPTY_COUNTS },
@@ -757,7 +1121,10 @@ function resetTaskInteraction(_isASD = false) {
     hasInteracted: false,
     placeCuesShown: false,
     socraticCardKinds: { taskId: null as string | null, kinds: [] as StaticCardKind[] },
+    socraticCardHistory: { taskId: null as string | null, cards: [] as SocraticCardRecord[] },
+    previousSocraticCard: null as (SocraticCardRecord & { taskId: string }) | null,
     hasDeletedBlock: false,
+    takeAwayTrack: null as TakeAwayTrack | null,
     hasClearedBoard: false,
     blocksAddedCount: 0,
     hasUngrouped: false,
@@ -881,7 +1248,11 @@ function conversionContextFor(
   task: SessionTask | null | undefined
 ): Pick<StaticCardContext, 'conversionDone' | 'pendingConversion' | 'conversionAgain'> {
   const kind = task?.representationKind;
-  if (!task || (kind !== 'compose_break' && kind !== 'compose_group')) return {};
+  // Meeting 1's 347 (break a ten) and 26 (group the units) have no kind but
+  // a lock (REPRESENTATION_LOCKS): the board can show their final blocks
+  // built by hand, with nothing broken or grouped (audit D16, 2.10.2026).
+  const meeting1Lock = Boolean(task && !kind && task.id.startsWith('s1_') && REPRESENTATION_LOCKS[task.id]);
+  if (!task || (kind !== 'compose_break' && kind !== 'compose_group' && !meeting1Lock)) return {};
   const lock = REPRESENTATION_LOCKS[task.id];
   if (!lock) return { conversionDone: kind === 'compose_group' ? s.hasGrouped === true : s.hasUngrouped === true };
   const pending = pendingRepresentationConversion(s, task);
@@ -1254,23 +1625,19 @@ export function effectiveAnswerDigits(
  * about a regrouping the exercise never needed. Checked when the card opens
  * and again when it settles after the hourglass — a child who answered while
  * it turned gets no card (X22).
+ *
+ * "Solved" is exactly what "התקדם" accepts (judgeStandardTask, 1.10.2026): a
+ * skeleton whose hidden boxes are all filled is not solved while a hidden
+ * digit is wrong, and in stations 3–7 a right answer over blocks that do not
+ * show it is not solved either — the card opens there, about the blocks (owner,
+ * D4). It used to be "the result row is right and every hidden box holds a
+ * digit": every card of a skeleton exercise was declined once its boxes were
+ * filled (the child saw "נסו לחשוב…" and then nothing), and a representation or
+ * choice exercise had no check at all — a card opened on a finished exercise.
  */
-function exerciseSolvedForCard(
-  s: Pick<WorkspaceState, 'answerDigits' | 'operandDigits' | 'isASD'>,
-  task: SessionTask | null | undefined,
-  reason: SocraticTriggerReason | null,
-  place: Place | null | undefined
-): boolean {
-  if (!task || (task.type !== 'addition_simple' && task.type !== 'vertical_addition')) return false;
-  const { a, b, target } = effectiveArithmetic(task, s.isASD);
-  const typed = resultRowValue(effectiveAnswerDigits(s, task, target));
-  const hidden = hiddenDigitsStatus(s, task, a, b);
-  // A skeleton shows every result digit, so a WRONG hidden digit is not a
-  // solved exercise: the "four errors" card of the missing-digit boxes
-  // (owner's decision 28.9.2026, שהB.2) needs the digits to be right.
-  // Every other trigger keeps the check it had.
-  const streakCard = reason === 'consecutive_errors_4' && place != null;
-  return typed === target && (streakCard ? hidden.correct : hidden.complete);
+function exerciseSolvedForCard(s: WorkspaceState, task: SessionTask | null | undefined): boolean {
+  if (!task || s.sessionNumber === 2) return false;
+  return judgeStandardTask(s, task).kind === 'success';
 }
 
 /**
@@ -1318,7 +1685,11 @@ export function conversionRecordedInColumn(
 ): boolean {
   if (s.sessionNumber === 8) {
     const next = PLACE_ORDER[PLACE_ORDER.indexOf(place) + 1];
-    return Boolean((next && s.carryDigits[next]) || (isSubtraction && s.carryDigits[place]));
+    // Addition carries one ten into the next column: one digit, 1–9. Two digits
+    // in that circle (12) are not a recorded carry (1.10.2026). Subtraction
+    // notes are the learner's own (the 4 above the tens, the 13 above the units).
+    if (!isSubtraction) return Boolean(next && /^[1-9]$/.test(s.carryDigits[next] ?? ''));
+    return Boolean((next && s.carryDigits[next]) || s.carryDigits[place]);
   }
   return conversionDoneInColumn(s.conversionsByColumn, place, isSubtraction);
 }
@@ -1392,6 +1763,337 @@ export function selectCanProceed(s: WorkspaceState): boolean {
 }
 
 /**
+ * What "התקדם" makes of the exercise on screen (meetings 1 and 3–8): solved,
+ * a failure (with its detail and message), or a notice that asks for an
+ * answer without counting a wrong one. One source for the press itself
+ * (proceedStandard) and for "is this exercise already solved?" — the coaching
+ * card never opens on an exercise the press would accept, and always may on
+ * one it would not (exerciseSolvedForCard, 1.10.2026). The checks, their
+ * order and their messages are the ones proceedStandard had.
+ */
+export type StandardVerdict =
+  | { kind: 'success'; title: string; sub: string; ms: number }
+  | {
+      kind: 'failure';
+      detail: string;
+      title: string;
+      sub: string;
+      ms: number;
+      /** Stations 3–7: a digit in the wrong place (core/placeCues.ts) — the press may turn the place cues on. */
+      placeError?: boolean;
+      /** flexible_decomp: the representations recorded so far are dropped. */
+      clearReps?: boolean;
+    }
+  | { kind: 'notice'; title: string; sub: string; ms: number };
+
+export function judgeStandardTask(s: WorkspaceState, task: SessionTask): StandardVerdict {
+  const success = (title: string, sub: string, ms: number): StandardVerdict => ({ kind: 'success', title, sub, ms });
+  const failure = (detail: string, title: string, sub: string, ms: number, extra: { placeError?: boolean; clearReps?: boolean } = {}): StandardVerdict =>
+    ({ kind: 'failure', detail, title, sub, ms, ...extra });
+  const notice = (title: string, sub: string, ms: number): StandardVerdict => ({ kind: 'notice', title, sub, ms });
+
+  if (task.type === 'session1_intro') {
+    // Meeting 1 tool steps (מסמך 03 §3.1): the checklist on the card is the rule.
+    if (session1Checklist(task.id, s)) {
+      const nextStep = session1NextStep(task.id, s);
+      if (nextStep) return failure('sandbox_incomplete', 'עוד צעד אחד 🛠️', `${nextStep}.`, 3500);
+      return success('כל הכבוד! 🌟', 'ממשיכים לשלב הבא.', 2000);
+    }
+    if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return success('מעולה! 🌟', 'ממשיכים הלאה.', 1500);
+    if (!s.selectedChoiceId) {
+      return failure('no_choice', 'עֲנוּ עַל שְׁאֵלַת הַחֲשִׁיבָה 🤔', 'בַּחֲרוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת כְּדֵי לְהַמְשִׁיךְ.', 2500);
+    }
+    if (s.selectedChoiceId !== task.correctAnswer) {
+      return failure('wrong_choice', 'חִשְׁבוּ שׁוּב 🤔', 'האם הוספתם לבנים לבית המספרים או הורדתם ממנו לבנים?', 2800);
+    }
+    return success('נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
+  }
+
+  if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
+    const { target } = effectiveArithmetic(task, s.isASD);
+    const boardVal = getValue(s.counts);
+    const isBoardEmpty = boardVal === 0 && target !== 0;
+
+    if (s.sessionNumber !== 8) {
+      if (isBoardEmpty) {
+        return failure(
+          'empty_board',
+          'בונים בבית המספרים 🧱',
+          'עוד אין לבנים בבית המספרים. לחצו על אחת הלבנים שמתחת לבית המספרים, או גררו אותה אליו, ובנו את המספרים שבתרגיל.',
+          3500
+        );
+      }
+
+      // Owner's decision 28.9.2026 (register, שהC.1 option א): in the
+      // skeleton exercises of meetings 3–7 the hidden digits are checked
+      // BEFORE the board, and the board may show either the exercise's result
+      // or the number the child discovered. The order is: empty board →
+      // hidden digits incomplete → hidden digits wrong → board → overcrowded.
+      // Ordinary exercises, missingResultDigit exercises and meeting 8 keep
+      // the order below unchanged.
+      const skeletonHidden = s.sessionNumber >= 3 && s.sessionNumber <= 7 && hasHiddenDigits(task);
+      if (skeletonHidden) {
+        const { a: hA, b: hB } = effectiveArithmetic(task, s.isASD);
+        const hiddenCheck = hiddenDigitsStatus(s, task, hA, hB);
+        if (!hiddenCheck.complete) {
+          return failure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'כתבו את הספרה החסרה בתיבה הריקה כדי להמשיך.', 3000);
+        }
+        if (!hiddenCheck.correct) {
+          return failure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בבית המספרים.', 2800);
+        }
+        const discovered = (task.hiddenDigits?.a?.length ? [hA] : []).concat(task.hiddenDigits?.b?.length ? [hB] : []);
+        if (boardVal !== target && !discovered.includes(boardVal)) {
+          return failure(
+            'wrong_blocks',
+            'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍',
+            'הלבנים שבבית המספרים אינן מראות את תוצאת התרגיל ואינן מראות את המספר שגיליתם. בדקו שוב.',
+            3500
+          );
+        }
+      } else if (boardVal !== target) {
+        return failure(
+          'wrong_blocks',
+          'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍',
+          'הלבנים שבבית המספרים אינן מתאימות לתוצאת התרגיל. בדקו שוב.',
+          3500
+        );
+      }
+
+      const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10 || s.counts.hundreds >= 10;
+      if (hasOvercrowded) {
+        // Names the column and the one action: the button "קבצו 10" at the head of the column (מסמך 02).
+        const crowded = s.counts.units >= 10 ? 'היחידות' : s.counts.tens >= 10 ? 'העשרות' : 'המאות';
+        // The button says where the ten go (PlaceColumn: "קבצו 10 לעשרת / למאה / לאלף").
+        const groupButton = s.counts.units >= 10 ? 'קבצו 10 לעשרת' : s.counts.tens >= 10 ? 'קבצו 10 למאה' : 'קבצו 10 לאלף';
+        return failure(
+          'overcrowded_columns',
+          'קַבְּצוּ 🧱',
+          // Meeting 1 names neither the column nor the button (owner, 29.9.2026):
+          // the child finds the crowded column — the words of the meeting-1 card.
+          s.sessionNumber === 1
+            ? 'באחד הטורים יש 10 לבנים או יותר. לחצו על הכפתור שמופיע בראש אותו טור.'
+            : `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "${groupButton}" שבראש הטור.`,
+          4000
+        );
+      }
+    }
+
+    const { a: opA, b: opB } = effectiveArithmetic(task, s.isASD);
+    const hidden = hiddenDigitsStatus(s, task, opA, opB);
+    if (!hidden.complete) {
+      return failure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'כתבו את הספרה החסרה בתיבה הריקה כדי להמשיך.', 3000);
+    }
+    if (!hidden.correct) {
+      // Meeting 8 has no blocks and no board (מסמך 03 §3.8), so its skeleton
+      // tasks (s8_r_t7, s8_g_t6, s8_g_t7) cannot point the child to them.
+      // With two or three digits missing, the sentence does not say which one.
+      const hiddenCount = (task.hiddenDigits?.a?.length ?? 0) + (task.hiddenDigits?.b?.length ?? 0);
+      const which = hiddenCount > 1 ? 'אחת הספרות החסרות שכתבתם אינה נכונה.' : 'הספרה החסרה שכתבתם אינה נכונה.';
+      return failure(
+        'wrong_numeric',
+        'כִּמְעַט... 🧐',
+        s.sessionNumber === 8 ? `${which} בדקו שוב.` : `${which} בדקו שוב בעזרת הלבנים בבית המספרים.`,
+        2800
+      );
+    }
+
+    const typedDigits = effectiveAnswerDigits(s, task, target);
+    // Register 17: an empty answer is not a wrong answer. Only the boxes the
+    // child types in count — a skeleton's revealed digits are the exercise's —
+    // and a 0 in a box to the left of the answer (the thousands box over 917,
+    // stations 3–7) is no answer either. A row with no box to type in (every
+    // result digit revealed, the missing digits in the numbers) is complete.
+    const openPlaces = PLACE_ORDER.slice(0, resultBoxCount(s.sessionNumber, opA, opB, target)).filter(
+      (p) => !task.revealedResultDigits?.includes(p)
+    );
+    const hasTypedDigits =
+      openPlaces.length === 0 ||
+      openPlaces.some((p) => {
+        const d = s.answerDigits[p];
+        if (d === undefined || d === '') return false;
+        return !(d === '0' && p !== 'units' && Math.abs(target) < PLACE_VALUES[p]);
+      });
+
+    if (!hasTypedDigits) {
+      return failure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'כתבו את התשובה בשורת התוצאה כדי להמשיך.', 3500);
+    }
+
+    const ansVal = resultRowValue(typedDigits);
+    if (ansVal !== target) {
+      if (s.sessionNumber === 8) {
+        return failure('wrong_numeric', 'נסו שוב 🤔', 'התשובה שכתבתם אינה נכונה. בדקו שוב!', 2800);
+      }
+      // Stations 3–7 (owner, 30.9.2026): a digit in the wrong place turns on
+      // the result row's place cues until the end of the exercise; the line
+      // that explains them stays in the task card (VerticalAdditionTask).
+      return failure(
+        'wrong_numeric',
+        'כִּמְעַט... 🧐',
+        'התשובה שכתבתם לא מתאימה ללבנים בבית המספרים. בדקו שוב!',
+        2800,
+        {
+          placeError:
+            s.sessionNumber >= 3 &&
+            s.sessionNumber <= 7 &&
+            isPlaceError(typedDigits, target, { a: opA, b: opB, isSubtraction: task.isSubtraction }),
+        }
+      );
+    }
+
+    // Memory circles are introduced in meeting 4 (מסמך 03 §3.4); meeting 1 does
+    // not mention them, so its refresh exercises get the plain success.
+    if (task.type === 'vertical_addition' && (task.requiresGrouping || task.requiresUngrouping) && s.sessionNumber !== 1) {
+      const hasCarriesEntered = Object.values(s.carryDigits).some((v) => v !== undefined && v !== '');
+      if (!hasCarriesEntered) {
+        // A correct answer with the memory circles left empty is still a
+        // solved exercise. This branch used to advance on its own and skip
+        // handleSuccess: no PROBLEM_COMPLETE (the report said "לא השלים את
+        // התרגיל" and scored it 0), no Q-matrix success, and the error streak
+        // carried into the next exercise.
+        return success(
+          'שימו לב לעיגולי הזיכרון 💡',
+          'פתרתם נכון! בפעם הבאה, רשמו כל המרה וכל פריטה בעיגולי הזיכרון שבראש הטורים.',
+          3000
+        );
+      }
+    }
+
+    // Meeting 8 has no number house (מסמך 03 §3.8, Module 14 §ב): its praise
+    // does not speak of one (owner, 1.10.2026, D11b).
+    return s.sessionNumber === 8
+      ? success('כָּל הַכָּבוֹד! 🌟', MEETING8_SOLVED_SUB_HE, 2500)
+      : success('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמִּסְפָּרִים.', 2500);
+  }
+
+  if (task.type === 'small_change') {
+    if (!s.selectedChoiceId) {
+      // "התקדם" is enabled by any board touch in meetings 3-5, so a press
+      // with no option chosen used to do nothing at all — no message.
+      return notice('בַּחֲרוּ תְּשׁוּבָה', `סמנו אחת מהאפשרויות, ואז לחצו על "${PROCEED_HE}".`, 1800);
+    }
+    if (s.selectedChoiceId !== task.correctAnswer) return failure('wrong_choice', 'נסו שוב 🤔', 'התשובה שבחרתם אינה נכונה.', 2500);
+    return success('כָּל הַכָּבוֹד! 🌟', 'תשובה נכונה.', 2500);
+  }
+
+  if (task.type === 'missing_element') {
+    const answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
+    if (answer === null || Number.isNaN(answer)) {
+      return notice('הַקְלָדַת תְּשׁוּבָה ✏️', `כתבו את החלק החסר בתיבה, ואז לחצו על "${PROCEED_HE}".`, 1800);
+    }
+    if (answer !== task.correctAnswer) return failure('wrong_answer', 'נסו שוב 🤔', 'המספר שכתבתם אינו נכון.', 2500);
+    return success('כָּל הַכָּבוֹד! 🌟', 'תשובה נכונה.', 2500);
+  }
+
+  if (task.type === 'representation') {
+    // Stations 3 and 7 (owner, 30.9.2026): the exercise's kind says what the
+    // single answer box holds.
+    const kind = task.representationKind;
+    const required = requiredCountsOf(task);
+    if (!countsEqual(s.counts, required)) {
+      return failure(
+        'wrong_representation',
+        'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍',
+        // One sentence for every representation exercise. It used to spell out
+        // the blocks to build, as the box by the result row did; with the box
+        // gone (owner, 28.9.2026) that gave the answer away on a wrong press
+        // ("איזה מספר קיבלתם?"), and it was too long for the feedback note.
+        'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.',
+        3500
+      );
+    }
+    if (kind) {
+      // The break (compose_break) or the grouping (compose_group) is the
+      // child's own, with the blocks, in every column REPRESENTATION_LOCKS
+      // names — s3_g_t4 breaks a thousand AND a hundred — and undo takes one
+      // back. The message names the block still to break, or the button of
+      // the column still to group. A kind with no entry falls back to
+      // "some break / some grouping was made".
+      const listed = Boolean(REPRESENTATION_LOCKS[task.id]);
+      const pending = pendingRepresentationConversion(s, task);
+      const skipped = listed
+        ? pending !== null
+        : kind === 'compose_group'
+          ? !s.hasGrouped
+          : kind === 'compose_break' && !s.hasUngrouped;
+      if (skipped && kind === 'compose_group') return failure('conversion_skipped', 'קַבְּצוּ 🧱', groupItYourselvesHe(pending), 3500);
+      if (skipped && kind === 'compose_break') return failure('conversion_skipped', 'פִּרְטוּ 🧱', breakItYourselvesHe(pending), 3500);
+    } else {
+      // Meeting 1: the exercise is the conversion itself, not only its result.
+      if (task.requiresGrouping && !s.hasGrouped) {
+        return failure('conversion_skipped', 'קַבְּצוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.', 3500);
+      }
+      if (task.requiresUngrouping && !s.hasUngrouped) {
+        return failure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
+      }
+    }
+    const typed = answerDigitsToNumber(s.answerDigits);
+    if (typed === null) {
+      return failure(
+        'missing_answer',
+        'הַקְלָדַת תְּשׁוּבָה ✏️',
+        // A decomposition's answer is a number of blocks, not "the number".
+        kind === 'decompose'
+          ? 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את התשובה בשורת התוצאה.'
+          : 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את המספר בשורת התוצאה.',
+        3000
+      );
+    }
+    if (kind) {
+      // What the child writes: the number the blocks show, or — decompose —
+      // how many blocks make it (450 → 45 tens), never "the value of a digit".
+      const block = kind === 'decompose' ? BLOCK_NAME_HE[decomposeBlockPlace(task)] : '';
+      if (typed !== task.correctAnswer) {
+        return failure(
+          'wrong_numeric',
+          'כִּמְעַט... 🧐',
+          kind === 'decompose'
+            ? `בדקו שוב: כמה לבני ${block} יש בבית המספרים?`
+            : 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!',
+          2800
+        );
+      }
+      return success(
+        'כָּל הַכָּבוֹד! 🌟',
+        kind === 'decompose'
+          ? `בניתם את המספר מלבני ${block} בלבד, והתשובה שכתבתם נכונה.`
+          : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.',
+        2500
+      );
+    }
+    // The result row takes the exercise's answer: the number built, or — the
+    // value of a digit (meeting 1, 368 → 60) — its own correctAnswer.
+    // The value of a digit (368 → 60) is not the number the blocks show, so
+    // its messages speak of the value of the digit, not of the blocks.
+    const asksDigitValue = typeof task.correctAnswer === 'number' && task.correctAnswer !== task.numberA;
+    if (typed !== (typeof task.correctAnswer === 'number' ? task.correctAnswer : task.numberA ?? 0)) {
+      return failure('wrong_numeric', 'כִּמְעַט... 🧐', asksDigitValue ? 'זה עוד לא הערך של הספרה. הסתכלו בבית המספרים ובדקו שוב!' : 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!', 2800);
+    }
+    return success('כָּל הַכָּבוֹד! 🌟', asksDigitValue ? 'מצאתם את הערך של הספרה במספר.' : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
+  }
+
+  if (task.type === 'flexible_decomp') {
+    if (task.requireEvenTens && s.q3Reps.some((r) => r.tens % 2 !== 0)) {
+      return failure('odd_tens', 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', 'בכל דרך מספר העשרות צריך להיות זוגי. נסו שוב!', 2800, { clearReps: true });
+    }
+    if (s.q3Reps.length < 2) return notice('נִדְרָשִׁים שְׁנֵי יִצּוּגִים שׁוֹנִים', 'הוֹסִיפוּ יִצּוּג שֵׁנִי!', 1800);
+    const [r1, r2] = s.q3Reps;
+    const isIdentical = (['units', 'tens', 'hundreds', 'thousands'] as Place[]).every((p) => r1[p] === r2[p]);
+    if (isIdentical) {
+      return failure('canonical_fixation', 'הַיִּצּוּגִים זֵהִים 🤔', 'נַסּוּ לִיצֹר אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ אַחֶרֶת (לְמָשָׁל עַל יְדֵי פְּרִיטַת עֲשֶׂרֶת).', 2800, { clearReps: true });
+    }
+    return success('כָּל הַכָּבוֹד! 🌟', 'הצלחתם להציג שני ייצוגים שונים.', 2500);
+  }
+
+  return success('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2500);
+}
+
+/**
+ * Meeting 8's praise for a solved exercise (owner, 1.10.2026, D11b): the
+ * station has no number house, so the praise speaks of the solution only.
+ */
+export const MEETING8_SOLVED_SUB_HE = 'פְּתַרְתֶּם נָכוֹן.';
+
+/**
  * How long a wrong choice in the Socratic card locks the card's answer buttons.
  * Owner, 1.10.2026: 15 seconds (PRD Module 12 §ב and doc 03 said 30).
  */
@@ -1463,6 +2165,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       frame.operandDigits = { a: { ...input.operandDigits.a }, b: { ...input.operandDigits.b } };
     }
     if (conversions) frame.conversionsByColumn = normalizeColumnConversions(conversions);
+    // The take-away record before the action: undo restores it with the board.
+    const track = get().takeAwayTrack;
+    if (track) frame.takeAwayTrack = { ...track };
     const stack = [...currentStack, frame];
     if (stack.length > UNDO_STACK_CAP) stack.shift();
     return stack;
@@ -1641,6 +2346,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       frictionTriggerSource: null,
     });
     cancelSocraticRequest();
+    // Owner, 1.10.2026 (D5): the 15-second lock after a wrong card answer
+    // belongs to the exercise it was earned in, and ends with it. It used to
+    // follow the child into the next exercise (it is kept per device).
+    if (get().isSocraticCardLocked || get().socraticLockDeadline !== null) get().unlockSocraticCard();
     applyPendingAdaptationAtBoundary();
     applyPendingSupportProfile();
     if (get().sessionNumber !== 2) {
@@ -1954,6 +2663,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // Fixing that sent every meeting to the quiet screen — meeting 8 with
     // them, and meeting 8 is the one meeting whose ending IS the reflection
     // board (Module 16 §א; Module 14 calls it "סיכום ורפלקציית SRL").
+    // A card left open does not come along (1.10.2026).
+    dropCoachingCard();
     set({ flowStatus: s.sessionNumber === 8 ? 'reflection' : 'sessionDone' });
   }
 
@@ -2028,8 +2739,119 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   }
 
   /** Opens the card for the "four errors" streak's column (see nextDigitErrorStreak). */
-  function openCardForDigitErrorStreak(place: Place) {
-    setTimeout(() => get().openSocraticCard('consecutive_errors_4', place), 0);
+  function openCardForDigitErrorStreak(place: Place, conversionMissed = false) {
+    setTimeout(() => {
+      const refusal = socraticCardRefusal(get(), 'consecutive_errors_4', place);
+      if (refusal === null) {
+        get().openSocraticCard('consecutive_errors_4', place);
+        return;
+      }
+      // Refused — the same card again, the lockout, a solved exercise: the
+      // streak starts over, and a wrong digit before its column's conversion
+      // gets that card instead. The streak used to stay at 4 or more and keep
+      // the conversion card shut on every further wrong digit (final review,
+      // 2.10.2026). Under an open card the streak is kept for the next digit.
+      if (refusal === 'card_open') return;
+      set({ digitErrorStreak: 0, digitErrorStreakPlace: null });
+      if (conversionMissed) get().openSocraticCard('conversion_not_performed', place);
+    }, 0);
+  }
+
+  /**
+   * A wrong press in the exercise `taskId` — a wrong "התקדם", or (station 3's
+   * "another way" exercises, owner 1.10.2026, D6) a wrong "הוספת ייצוג".
+   *
+   * PRD Module 12 & 14: the card never opens in the diagnostic. מסמך 03 §3.1
+   * names this trigger for meeting 1 too. Owner rulings 14.9.2026 and
+   * 16.9.2026: support stays inside the exercise, and it is contingent (Wood
+   * et al.; מסמך 03 §1.3 ד' "שגיאות חוזרות"). The first wrong answer gets the
+   * feedback line and the learner's own tools (Undo, memory circles, blocks).
+   * The coaching card opens on the second wrong answer in a row on the same
+   * exercise, through the 300 ms "נסו לחשוב…" beat.
+   *
+   * The beat shows only when the card will open after it (1.10.2026): with a
+   * card already open or under its hourglass, the press used to start a beat
+   * whose card was refused — and the beat's end left the machine in
+   * SOCRATIC_ACTIVE with no card, so no trigger opened a card again in that
+   * exercise. A card that would be refused (the lockout, the same card again,
+   * an exercise already solved) no longer flashes the beat either.
+   */
+  function noteWrongPress(taskId: string, opts: { holdCard?: boolean } = {}) {
+    const s = get();
+    if (s.sessionNumber === 2) return;
+    const streak = (s.wrongAnswerTaskId === taskId ? s.wrongAnswerStreak : 0) + 1;
+    set({ wrongAnswerStreak: streak, wrongAnswerTaskId: taskId });
+    // `holdCard`: the press already brought another help (the result row's
+    // place cues) — the streak still counts, and the card opens on the next
+    // wrong answer.
+    if (streak >= 2 && !opts.holdCard) {
+      if (socraticCardRefusal(get(), 'repeated_errors') === null) {
+        set({ helpState: 'friction', frictionTriggerSource: 'mistake' });
+      }
+    }
+  }
+
+  /**
+   * Why a coaching card for `reason` would not open now, or null when it
+   * would. One rule for every trigger, and for the "נסו לחשוב…" beat before
+   * the card of a second wrong answer.
+   */
+  function socraticCardRefusal(s: WorkspaceState, reason: SocraticTriggerReason, place?: Place): string | null {
+    // PRD Module 12 & 14: the card is disabled outright in session 2.
+    if (s.sessionNumber === 2) return 'diagnostic';
+    // Only on an exercise in progress: not on the choice screen, the
+    // reflection board, the end screen, nor in the moments after the last
+    // exercise was solved (1.10.2026).
+    if (s.flowStatus !== 'task' || s.awaitingNext) return 'no_exercise';
+    // One card at a time: never over a card on the screen or under its hourglass.
+    if (s.helpState === 'socratic') return 'card_open';
+    // The lock is released by the countdown the OPEN card polls. Closing the
+    // card during the lockout (its close button stays enabled, and typing a
+    // digit closes it too) stopped the polling; the remaining time is read
+    // here, and a lockout that ended is released.
+    if (s.isSocraticCardLocked && get().getSocraticPenaltyRemaining() > 0) return 'lockout';
+    // Owner, 1.10.2026 (D3): while the child's call to the teacher is open,
+    // the pause is waiting for the teacher, not hesitation.
+    if (reason === 'hesitation_45s' && s.hasRequestedBasicHelp) return 'teacher_called';
+    const task = selectStandardTask(s);
+    if (exerciseSolvedForCard(s, task)) return 'solved';
+    const cardPlace = place ?? cardFocusPlace(s, task, reason, useBoardFocusStore.getState().focusedMemoryCircle);
+    const history = s.socraticCardHistory.taskId === (task?.id ?? null) ? s.socraticCardHistory.cards : [];
+    if (reason === 'conversion_not_performed') {
+      const last = [...history].reverse().find((c) => c.reason === reason && c.place === cardPlace);
+      if (last && Date.now() - last.openedAt < CONVERSION_CARD_COOLDOWN_MS) return 'cooldown';
+    }
+    // The same card does not come back again and again in one exercise
+    // (coordinator's decision, 2.10.2026). A card is its trigger, its column
+    // and its situation family: the family's next level is the same card
+    // going one step further, and opens; once the child chose a right option
+    // in the family, it does not open again; and its last level — the very
+    // same card — opens twice at most in all.
+    const staticNow = SocraticEngine.getSynchronousTaskHint(task ?? undefined, s.counts, staticCardContextFor(s, task?.id, task, { reason, place: cardPlace }));
+    const family = cardFamilyOf(staticNow);
+    const same = history.filter((c) => c.shown && c.reason === reason && c.place === cardPlace && (c.family ?? c.staticQuestionHe) === family);
+    if (same.some((c) => c.answeredCorrect === true)) return 'repeat';
+    if (same.filter((c) => c.staticQuestionHe === staticNow.questionHe).length >= MAX_IDENTICAL_SOCRATIC_CARDS) return 'repeat';
+    return null;
+  }
+
+  /**
+   * The exercise ended under an open card (the choice screen, the reflection
+   * board, the end screen): the card belonged to it, and goes with it. The
+   * next exercise's start does the same (startTask).
+   */
+  function dropCoachingCard() {
+    cancelSocraticRequest();
+    const s = get();
+    if (s.helpState === 'closed' && !s.socraticPending && s.currentState !== 'SOCRATIC_ACTIVE') return;
+    set({
+      helpState: 'closed',
+      socraticPending: false,
+      aiSocraticHint: null,
+      frictionTriggerSource: null,
+      ...(s.keyboardState === 'SOCRATIC_ONLY' ? { keyboardState: 'LOCKED' as KeyboardState } : {}),
+      ...(s.currentState === 'SOCRATIC_ACTIVE' ? { currentState: 'PROBLEM_ACTIVE' as VRAWorkspaceState } : {}),
+    });
   }
 
   /** Sessions 1/3/4 proceed (vanilla handleSession1Proceed, app.js 999–1110). */
@@ -2070,26 +2892,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
       }
 
-      // PRD Module 12 & 14: the card never opens in the diagnostic. מסמך 03 §3.1
-      // names this trigger for meeting 1 too.
-      if (s.sessionNumber !== 2) {
-        // Owner rulings 14.9.2026 and 16.9.2026: support stays inside the exercise,
-        // and it is contingent (Wood et al.; מסמך 03 §1.3 ד' "שגיאות חוזרות").
-        // The first wrong answer gets the feedback line below and the learner's
-        // own tools (Undo, memory circles, blocks). The coaching card opens on the
-        // second wrong answer in a row on the same exercise. An empty answer or an
-        // unanswered question is not a wrong answer and never opens the card.
-        if (!incomplete) {
-          const streak = (s.wrongAnswerTaskId === task.id ? s.wrongAnswerStreak : 0) + 1;
-          set({ wrongAnswerStreak: streak, wrongAnswerTaskId: task.id });
-          // `holdCard`: the press already brought another help (the result
-          // row's place cues) — the streak still counts, and the card opens on
-          // the next wrong answer.
-          if (streak >= 2 && !opts.holdCard) {
-            set({ helpState: 'friction', frictionTriggerSource: 'mistake' });
-          }
-        }
-      }
+      // An empty answer or an unanswered question is not a wrong answer and
+      // never opens the card (noteWrongPress).
+      if (!incomplete) noteWrongPress(task.id, { holdCard: opts.holdCard });
       showFeedback({ correct: false, title: feedbackTitle, sub: feedbackSub }, feedbackMs);
     };
 
@@ -2135,365 +2940,31 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       advanceStandard();
     };
 
-    if (task.type === 'session1_intro') {
-      // Meeting 1 tool steps (מסמך 03 §3.1): the checklist on the card is the rule.
-      if (session1Checklist(task.id, s)) {
-        const nextStep = session1NextStep(task.id, s);
-        if (nextStep) {
-          handleFailure('sandbox_incomplete', 'עוד צעד אחד 🛠️', `${nextStep}.`, 3500);
-          return;
-        }
-        handleSuccess('כל הכבוד! 🌟', 'ממשיכים לשלב הבא.', 2000);
-        return;
-      }
-      if (task.correctAnswer === 'proceed_any' || !task.choices?.length) {
-        handleSuccess('מעולה! 🌟', 'ממשיכים הלאה.', 1500);
-        return;
-      }
-      if (!s.selectedChoiceId) {
-        handleFailure('no_choice', 'עֲנוּ עַל שְׁאֵלַת הַחֲשִׁיבָה 🤔', 'בַּחֲרוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת כְּדֵי לְהַמְשִׁיךְ.', 2500);
-        return;
-      }
-      if (s.selectedChoiceId !== task.correctAnswer) {
-        handleFailure('wrong_choice', 'חִשְׁבוּ שׁוּב 🤔', 'האם הוספתם לבנים לבית המספרים או הורדתם ממנו לבנים?', 2800);
-        return;
-      }
-      handleSuccess('נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
+    // Stations 3 and 7: the single answer box's digits are recorded at this
+    // press, whatever the board shows (recordSubmittedAnswer).
+    if (task.type === 'representation' && task.representationKind) recordSubmittedAnswer(task);
+    const verdict = judgeStandardTask(s, task);
+    if (verdict.kind === 'success') {
+      handleSuccess(verdict.title, verdict.sub, verdict.ms);
       return;
     }
-    if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
-      const { target } = effectiveArithmetic(task, s.isASD);
-      const boardVal = selectBoardValue(s);
-      const isBoardEmpty = boardVal === 0 && target !== 0;
-
-      if (s.sessionNumber !== 8) {
-        if (isBoardEmpty) {
-          handleFailure(
-            'empty_board',
-            'בונים בבית המספרים 🧱',
-            'עוד אין לבנים בבית המספרים. לחצו על אחת הלבנים שמתחת לבית המספרים, או גררו אותה אליו, ובנו את המספרים שבתרגיל.',
-            3500
-          );
-          return;
-        }
-
-        // Owner's decision 28.9.2026 (register, שהC.1 option א): in the
-        // skeleton exercises of meetings 3–7 the hidden digits are checked
-        // BEFORE the board, and the board may show either the exercise's result
-        // or the number the child discovered. The order is: empty board →
-        // hidden digits incomplete → hidden digits wrong → board → overcrowded.
-        // Ordinary exercises, missingResultDigit exercises and meeting 8 keep
-        // the order below unchanged.
-        const skeletonHidden = s.sessionNumber >= 3 && s.sessionNumber <= 7 && hasHiddenDigits(task);
-        if (skeletonHidden) {
-          const { a: hA, b: hB } = effectiveArithmetic(task, s.isASD);
-          const hiddenCheck = hiddenDigitsStatus(s, task, hA, hB);
-          if (!hiddenCheck.complete) {
-            handleFailure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'כתבו את הספרה החסרה בתיבה הריקה כדי להמשיך.', 3000);
-            return;
-          }
-          if (!hiddenCheck.correct) {
-            handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בבית המספרים.', 2800);
-            return;
-          }
-          const discovered = (task.hiddenDigits?.a?.length ? [hA] : []).concat(task.hiddenDigits?.b?.length ? [hB] : []);
-          if (boardVal !== target && !discovered.includes(boardVal)) {
-            handleFailure(
-              'wrong_blocks',
-              'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍',
-              'הלבנים שבבית המספרים אינן מראות את תוצאת התרגיל ואינן מראות את המספר שגיליתם. בדקו שוב.',
-              3500
-            );
-            return;
-          }
-        } else if (boardVal !== target) {
-          handleFailure(
-            'wrong_blocks',
-            'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍',
-            'הלבנים שבבית המספרים אינן מתאימות לתוצאת התרגיל. בדקו שוב.',
-            3500
-          );
-          return;
-        }
-
-        const hasOvercrowded = s.counts.units >= 10 || s.counts.tens >= 10 || s.counts.hundreds >= 10;
-        if (hasOvercrowded) {
-          // Names the column and the one action: the button "קבצו 10" at the head of the column (מסמך 02).
-          const crowded = s.counts.units >= 10 ? 'היחידות' : s.counts.tens >= 10 ? 'העשרות' : 'המאות';
-          // The button says where the ten go (PlaceColumn: "קבצו 10 לעשרת / למאה / לאלף").
-          const groupButton = s.counts.units >= 10 ? 'קבצו 10 לעשרת' : s.counts.tens >= 10 ? 'קבצו 10 למאה' : 'קבצו 10 לאלף';
-          handleFailure(
-            'overcrowded_columns',
-            'קַבְּצוּ 🧱',
-            // Meeting 1 names neither the column nor the button (owner, 29.9.2026):
-            // the child finds the crowded column — the words of the meeting-1 card.
-            s.sessionNumber === 1
-              ? 'באחד הטורים יש 10 לבנים או יותר. לחצו על הכפתור שמופיע בראש אותו טור.'
-              : `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "${groupButton}" שבראש הטור.`,
-            4000
-          );
-          return;
-        }
-      }
-
-      const { a: opA, b: opB } = effectiveArithmetic(task, s.isASD);
-      const hidden = hiddenDigitsStatus(s, task, opA, opB);
-      if (!hidden.complete) {
-        handleFailure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'כתבו את הספרה החסרה בתיבה הריקה כדי להמשיך.', 3000);
-        return;
-      }
-      if (!hidden.correct) {
-        // Meeting 8 has no blocks and no board (מסמך 03 §3.8), so its skeleton
-        // tasks (s8_r_t7, s8_g_t6, s8_g_t7) cannot point the child to them.
-        // With two or three digits missing, the sentence does not say which one.
-        const hiddenCount = (task.hiddenDigits?.a?.length ?? 0) + (task.hiddenDigits?.b?.length ?? 0);
-        const which = hiddenCount > 1 ? 'אחת הספרות החסרות שכתבתם אינה נכונה.' : 'הספרה החסרה שכתבתם אינה נכונה.';
-        handleFailure(
-          'wrong_numeric',
-          'כִּמְעַט... 🧐',
-          s.sessionNumber === 8 ? `${which} בדקו שוב.` : `${which} בדקו שוב בעזרת הלבנים בבית המספרים.`,
-          2800
-        );
-        return;
-      }
-
-      const typedDigits = effectiveAnswerDigits(s, task, target);
-      // Register 17: an empty answer is not a wrong answer. Only the boxes the
-      // child types in count — a skeleton's revealed digits are the exercise's —
-      // and a 0 in a box to the left of the answer (the thousands box over 917,
-      // stations 3–7) is no answer either. A row with no box to type in (every
-      // result digit revealed, the missing digits in the numbers) is complete.
-      const openPlaces = PLACE_ORDER.slice(0, resultBoxCount(s.sessionNumber, opA, opB, target)).filter(
-        (p) => !task.revealedResultDigits?.includes(p)
-      );
-      const hasTypedDigits =
-        openPlaces.length === 0 ||
-        openPlaces.some((p) => {
-          const d = s.answerDigits[p];
-          if (d === undefined || d === '') return false;
-          return !(d === '0' && p !== 'units' && Math.abs(target) < PLACE_VALUES[p]);
-        });
-
-      if (!hasTypedDigits) {
-        handleFailure(
-          'missing_answer',
-          'הַקְלָדַת תְּשׁוּבָה ✏️',
-          'כתבו את התשובה בשורת התוצאה כדי להמשיך.',
-          3500
-        );
-        return;
-      }
-
-      const ansVal = resultRowValue(typedDigits);
-      if (ansVal !== target) {
-        if (s.sessionNumber === 8) {
-          handleFailure('wrong_numeric', 'נסו שוב 🤔', 'התשובה שכתבתם אינה נכונה. בדקו שוב!', 2800);
-        } else {
-          // Stations 3–7 (owner, 30.9.2026): a digit in the wrong place turns on
-          // the result row's place cues until the end of the exercise; the line
-          // that explains them stays in the task card (VerticalAdditionTask).
-          // One help per press (owner, 30.9.2026): the press that brings the
-          // cues does not also open the coaching card — the card waits for the
-          // next wrong answer.
-          let cuesJustShown = false;
-          if (
-            s.sessionNumber >= 3 &&
-            s.sessionNumber <= 7 &&
-            !s.placeCuesShown &&
-            isPlaceError(typedDigits, target, { a: opA, b: opB, isSubtraction: task.isSubtraction })
-          ) {
-            set({ placeCuesShown: true });
-            emitScaffoldEvent(get(), 'PLACE_CUES_SHOWN', { profile: s.activeSupportProfileId === 'enhanced_cognitive_support' ? 'enhanced' : 'regular' });
-            cuesJustShown = true;
-          }
-          handleFailure(
-            'wrong_numeric',
-            'כִּמְעַט... 🧐',
-            'התשובה שכתבתם לא מתאימה ללבנים בבית המספרים. בדקו שוב!',
-            2800,
-            { holdCard: cuesJustShown }
-          );
-        }
-        return;
-      }
-
-      // Memory circles are introduced in meeting 4 (מסמך 03 §3.4); meeting 1 does
-      // not mention them, so its refresh exercises get the plain success.
-      if (task.type === 'vertical_addition' && (task.requiresGrouping || task.requiresUngrouping) && s.sessionNumber !== 1) {
-        const hasCarriesEntered = Object.values(s.carryDigits).some((v) => v !== undefined && v !== '');
-        if (!hasCarriesEntered) {
-          // A correct answer with the memory circles left empty is still a
-          // solved exercise. This branch used to advance on its own and skip
-          // handleSuccess: no PROBLEM_COMPLETE (the report said "לא השלים את
-          // התרגיל" and scored it 0), no Q-matrix success, and the error streak
-          // carried into the next exercise.
-          handleSuccess(
-            'שימו לב לעיגולי הזיכרון 💡',
-            'פתרתם נכון! בפעם הבאה, רשמו כל המרה וכל פריטה בעיגולי הזיכרון שבראש הטורים.',
-            3000
-          );
-          return;
-        }
-      }
-
-      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמִּסְפָּרִים.', 2500);
+    if (verdict.kind === 'notice') {
+      // Nothing to judge yet (no option chosen, an empty box): not a wrong answer.
+      showFeedback({ correct: false, title: verdict.title, sub: verdict.sub }, verdict.ms);
       return;
     }
-
-    if (task.type === 'small_change') {
-      if (!s.selectedChoiceId) {
-        // "התקדם" is enabled by any board touch in meetings 3-5, so a press
-        // with no option chosen used to do nothing at all — no message.
-        showFeedback({ correct: false, title: 'בַּחֲרוּ תְּשׁוּבָה', sub: `סמנו אחת מהאפשרויות, ואז לחצו על "${PROCEED_HE}".` }, 1800);
-        return;
-      }
-      if (s.selectedChoiceId !== task.correctAnswer) {
-        handleFailure('wrong_choice', 'נסו שוב 🤔', 'התשובה שבחרתם אינה נכונה.', 2500);
-        return;
-      }
-      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'תשובה נכונה.', 2500);
-      return;
+    // Stations 3–7 (owner, 30.9.2026): a digit in the wrong place turns on the
+    // result row's place cues until the end of the exercise. One help per
+    // press: the press that brings the cues does not also open the coaching
+    // card — the card waits for the next wrong answer.
+    let cuesJustShown = false;
+    if (verdict.placeError && !s.placeCuesShown) {
+      set({ placeCuesShown: true });
+      emitScaffoldEvent(get(), 'PLACE_CUES_SHOWN', { profile: s.activeSupportProfileId === 'enhanced_cognitive_support' ? 'enhanced' : 'regular' });
+      cuesJustShown = true;
     }
-
-    if (task.type === 'missing_element') {
-      const answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
-      if (answer === null || Number.isNaN(answer)) {
-        showFeedback({ correct: false, title: 'הַקְלָדַת תְּשׁוּבָה ✏️', sub: `כתבו את החלק החסר בתיבה, ואז לחצו על "${PROCEED_HE}".` }, 1800);
-        return;
-      }
-      if (answer !== task.correctAnswer) {
-        handleFailure('wrong_answer', 'נסו שוב 🤔', 'המספר שכתבתם אינו נכון.', 2500);
-        return;
-      }
-      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'תשובה נכונה.', 2500);
-      return;
-    }
-
-    if (task.type === 'representation') {
-      // Stations 3 and 7 (owner, 30.9.2026): the exercise's kind says what the
-      // single answer box holds. Its digits are recorded at this press,
-      // whatever the board shows (recordSubmittedAnswer).
-      const kind = task.representationKind;
-      if (kind) recordSubmittedAnswer(task);
-      const required = requiredCountsOf(task);
-      if (!countsEqual(s.counts, required)) {
-        handleFailure(
-          'wrong_representation',
-          'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍',
-          // One sentence for every representation exercise. It used to spell out
-          // the blocks to build, as the box by the result row did; with the box
-          // gone (owner, 28.9.2026) that gave the answer away on a wrong press
-          // ("איזה מספר קיבלתם?"), and it was too long for the feedback note.
-          'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.',
-          3500
-        );
-        return;
-      }
-      if (kind) {
-        // The break (compose_break) or the grouping (compose_group) is the
-        // child's own, with the blocks, in every column REPRESENTATION_LOCKS
-        // names — s3_g_t4 breaks a thousand AND a hundred — and undo takes one
-        // back. The message names the block still to break, or the button of
-        // the column still to group. A kind with no entry falls back to
-        // "some break / some grouping was made".
-        const listed = Boolean(REPRESENTATION_LOCKS[task.id]);
-        const pending = pendingRepresentationConversion(s, task);
-        const skipped = listed
-          ? pending !== null
-          : kind === 'compose_group'
-            ? !s.hasGrouped
-            : kind === 'compose_break' && !s.hasUngrouped;
-        if (skipped && kind === 'compose_group') {
-          handleFailure('conversion_skipped', 'קַבְּצוּ 🧱', groupItYourselvesHe(pending), 3500);
-          return;
-        }
-        if (skipped && kind === 'compose_break') {
-          handleFailure('conversion_skipped', 'פִּרְטוּ 🧱', breakItYourselvesHe(pending), 3500);
-          return;
-        }
-      } else {
-        // Meeting 1: the exercise is the conversion itself, not only its result.
-        if (task.requiresGrouping && !s.hasGrouped) {
-          handleFailure('conversion_skipped', 'קַבְּצוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.', 3500);
-          return;
-        }
-        if (task.requiresUngrouping && !s.hasUngrouped) {
-          handleFailure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
-          return;
-        }
-      }
-      const typed = answerDigitsToNumber(s.answerDigits);
-      if (typed === null) {
-        handleFailure(
-          'missing_answer',
-          'הַקְלָדַת תְּשׁוּבָה ✏️',
-          // A decomposition's answer is a number of blocks, not "the number".
-          kind === 'decompose'
-            ? 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את התשובה בשורת התוצאה.'
-            : 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את המספר בשורת התוצאה.',
-          3000
-        );
-        return;
-      }
-      if (kind) {
-        // What the child writes: the number the blocks show, or — decompose —
-        // how many blocks make it (450 → 45 tens), never "the value of a digit".
-        const block = kind === 'decompose' ? BLOCK_NAME_HE[decomposeBlockPlace(task)] : '';
-        if (typed !== task.correctAnswer) {
-          handleFailure(
-            'wrong_numeric',
-            'כִּמְעַט... 🧐',
-            kind === 'decompose'
-              ? `בדקו שוב: כמה לבני ${block} יש בבית המספרים?`
-              : 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!',
-            2800
-          );
-          return;
-        }
-        handleSuccess(
-          'כָּל הַכָּבוֹד! 🌟',
-          kind === 'decompose'
-            ? `בניתם את המספר מלבני ${block} בלבד, והתשובה שכתבתם נכונה.`
-            : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.',
-          2500
-        );
-        return;
-      }
-      // The result row takes the exercise's answer: the number built, or — the
-      // value of a digit (meeting 1, 368 → 60) — its own correctAnswer.
-      // The value of a digit (368 → 60) is not the number the blocks show, so
-      // its messages speak of the value of the digit, not of the blocks.
-      const asksDigitValue = typeof task.correctAnswer === 'number' && task.correctAnswer !== task.numberA;
-      if (typed !== (typeof task.correctAnswer === 'number' ? task.correctAnswer : task.numberA ?? 0)) {
-        handleFailure('wrong_numeric', 'כִּמְעַט... 🧐', asksDigitValue ? 'זה עוד לא הערך של הספרה. הסתכלו בבית המספרים ובדקו שוב!' : 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!', 2800);
-        return;
-      }
-      handleSuccess('כָּל הַכָּבוֹד! 🌟', asksDigitValue ? 'מצאתם את הערך של הספרה במספר.' : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
-      return;
-    }
-
-    if (task.type === 'flexible_decomp') {
-      if (task.requireEvenTens && s.q3Reps.some((r) => r.tens % 2 !== 0)) {
-        handleFailure('odd_tens', 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', 'בכל דרך מספר העשרות צריך להיות זוגי. נסו שוב!', 2800);
-        set({ q3Reps: [] });
-        return;
-      }
-      if (s.q3Reps.length < 2) {
-        showFeedback({ correct: false, title: 'נִדְרָשִׁים שְׁנֵי יִצּוּגִים שׁוֹנִים', sub: 'הוֹסִיפוּ יִצּוּג שֵׁנִי!' }, 1800);
-        return;
-      }
-      const [r1, r2] = s.q3Reps;
-      const isIdentical = (['units', 'tens', 'hundreds', 'thousands'] as Place[]).every((p) => r1[p] === r2[p]);
-      if (isIdentical) {
-        handleFailure('canonical_fixation', 'הַיִּצּוּגִים זֵהִים 🤔', 'נַסּוּ לִיצֹר אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ אַחֶרֶת (לְמָשָׁל עַל יְדֵי פְּרִיטַת עֲשֶׂרֶת).', 2800);
-        set({ q3Reps: [] });
-        return;
-      }
-      handleSuccess('כָּל הַכָּבוֹד! 🌟', 'הצלחתם להציג שני ייצוגים שונים.', 2500);
-      return;
-    }
-
-    handleSuccess('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2500);
+    handleFailure(verdict.detail, verdict.title, verdict.sub, verdict.ms, { holdCard: cuesJustShown });
+    if (verdict.clearReps) set({ q3Reps: [] });
   }
 
   function advanceStandard() {
@@ -2514,6 +2985,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const s = get();
     const tasks = getActiveTasks(s);
     const nextIdx = s.standardTaskIdx + 1;
+
+    // The exercise is over: a card left open on it does not follow the child
+    // onto the choice screen, the reflection board or the end screen (the
+    // next exercise's start closes it the same way).
+    if (nextIdx >= tasks.length) dropCoachingCard();
 
     // Module 14: Choice screen (Reinforcement vs Challenge) must only be triggered in Sessions 3–7
     if (nextIdx >= tasks.length && !s.selectedBranch) {
@@ -2773,6 +3249,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     helpRequestCount: 0,
     taskStartTime: Date.now(),
     hasDeletedBlock: false,
+    takeAwayTrack: null as TakeAwayTrack | null,
     hasClearedBoard: false,
     blocksAddedCount: 0,
     digitErrorStreak: 0,
@@ -2789,6 +3266,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     operandDigits: { a: {}, b: {} },
     socraticTriggerReason: null,
     socraticCardPlace: null,
+    socraticCardHistory: { taskId: null, cards: [] },
+    previousSocraticCard: null,
+    classScreenUp: false,
 
     feedback: null,
     feedbackNonce: 0,
@@ -2948,6 +3428,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Module 17: from here on the store holds this learner's meeting.
         workspaceInitializedFor: { learner: currentStudentUid(), meeting: sanitized, restoredSavedAt: null },
       });
+      // A new meeting starts a new exercise: the card's 15-second lock ends (D5).
+      cancelSocraticRequest();
+      if (get().isSocraticCardLocked || get().socraticLockDeadline !== null) get().unlockSocraticCard();
       applyPendingSupportProfile();
 
       // getActiveTasks resolves the learner's approved path. getSessionTasks with
@@ -3107,6 +3590,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // The same for the coaching cards already shown (C4, C5): a reload
         // does not bring back the first level.
         socraticCardKinds: restoredCardKinds(saved.socraticCardKinds),
+        // The cards opened in the exercise, with the kinds above and for the
+        // same lifetime: a reload does not open again a card the child already
+        // answered right, nor a third time the same card (final review, 2.10.2026).
+        socraticCardHistory: restoredCardHistory(saved.socraticCardHistory),
+        previousSocraticCard: null,
         isSocraticCardLocked: Boolean(storedDeadline && storedDeadline > Date.now()),
         socraticLockDeadline: storedDeadline,
         socraticDistractorHint: saved.socraticDistractorHint ?? null,
@@ -3122,6 +3610,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Now that the snapshot carries them, they are restored as saved —
         // including meeting 1's first step, which used to start over.
         hasDeletedBlock: saved.hasDeletedBlock ?? false,
+        // Subtraction: a reload mid-take-away is still taking away.
+        takeAwayTrack: restoredTakeAwayTrack(saved.takeAwayTrack),
         blocksAddedCount: saved.blocksAddedCount ?? 0,
         // Meeting 1 decides by these: a child who grouped or decomposed and
         // then reloaded was told "do the conversion yourself" on a correct board.
@@ -3261,7 +3751,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           // and the report counted every block taken from the palette as a use
           // of the trash (owner, 28.9.2026: "אי מצב שהשתמשתי בפח 85 פעם").
           const sourceColIdx = input.source === 'column' ? placeToColumnIndex(input.sourcePlace) : null;
-          const blockVal = input.target.place === 'thousands' ? 1000 : input.target.place === 'hundreds' ? 100 : input.target.place === 'tens' ? 10 : 1;
+          // A palette ten dropped on the units is a ten that landed as ten units
+          // (DropResult.paletteUngroup): the block is the ten.
+          const blockPlace = result.paletteUngroup ? input.sourcePlace : input.target.place;
+          const blockVal = PLACE_VALUES[blockPlace];
           emitTelemetry({
             session_id: sessionId,
             student_id: studentId,
@@ -3296,8 +3789,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         // מסמך 03 §3.3–3.5 / מודול 8 §א: the drag-right decomposition runs the
         // same animation as the click. View only — the counts above are final.
-        if (result.ungroupEvent) {
-          announceRegroup({ kind: 'split', from: result.ungroupEvent.from, to: result.ungroupEvent.to, toCount: result.counts[result.ungroupEvent.to] });
+        // A palette block that lands as ten lower blocks shows the same split
+        // (the drop stays allowed), without being recorded as a break.
+        const split = result.ungroupEvent ?? result.paletteUngroup;
+        if (split) {
+          announceRegroup({ kind: 'split', from: split.from, to: split.to, toCount: result.counts[split.to] });
         } else if (result.regroupEvents && result.regroupEvents.length > 0) {
           const ev = result.regroupEvents[0];
           announceRegroup({ kind: 'group', from: ev.from, to: ev.to, toCount: result.counts[ev.to] });
@@ -3552,6 +4048,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     undo: () => {
       set((s) => {
         if (s.isBoardLocked) return s;
+        // Only inside an exercise in progress (1.10.2026). On the reflection
+        // board, and in the moments after the last exercise, the undo stack
+        // still held that exercise's actions: Ctrl+Z rolled its digits back,
+        // sent UNDO_EXECUTED (U, measure 2ב) and, three times, opened a card
+        // nobody could see.
+        if (s.flowStatus !== 'task' || s.awaitingNext) return s;
         const stack = [...s.undoStack];
         const snapshot = stack.pop();
         if (!snapshot) return s;
@@ -3585,8 +4087,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           // honours a running lockout, and releases a lockout that ended while
           // the card was closed. This path read the lock flag itself, so after
           // a child closed the card during its lockout three undos never opened
-          // it again until a reload.
-          setTimeout(() => get().openSocraticCard('consecutive_undos_3'), 0);
+          // it again until a reload. The card is about the column of the
+          // action just undone (the undo takes the focus off the box); the
+          // run starts again from 0 once the card opens.
+          const undoneColumn = typeof snapshot.columnIndex === 'number' ? PLACE_ORDER[snapshot.columnIndex] : undefined;
+          setTimeout(() => get().openSocraticCard('consecutive_undos_3', undoneColumn), 0);
         }
 
         // Module 11: Undo does NOT trigger any penalty (no scoring penalty, no timeout lockout, no PASSIVE_DRIFTING)
@@ -3614,6 +4119,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           ...(snapshot.conversionsByColumn
             ? { conversionsByColumn: normalizeColumnConversions(snapshot.conversionsByColumn) }
             : {}),
+          // The take-away record goes back with the board (UndoFrame.takeAwayTrack):
+          // undoing the building of the first number is not taking away. Always a
+          // new value, so the board subscription leaves it as written.
+          takeAwayTrack: snapshot.takeAwayTrack ? { ...snapshot.takeAwayTrack } : null,
           undoStack: stack,
           undoCount: s.undoCount + 1,
           consecutiveUndoCount: nextConsecutiveUndos,
@@ -3676,18 +4185,32 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             // (מסמכים 01–04: "בטור המצריך המרה לפני שההמרה בוצעה בלבנים").
             // It used to ask whether any conversion was made in the exercise, so
             // after one grouping the card never opened in another carry column.
-            if (isCorrect === false && task) {
-              const { a, b } = effectiveArithmetic(task, s.isASD);
-              if (
+            // The card is about the column just typed in: the cursor has
+            // already moved to the next box (VerticalAdditionTask), so the
+            // focused box would name the wrong column.
+            // A wrong digit that is the right digit of ANOTHER column of the
+            // answer (82 written from the left: the 8 in the units box) is a
+            // digit in the wrong place, not a conversion left undone — the
+            // place cues of the next "התקדם" answer it (core/placeCues.ts).
+            // When this keystroke is also the column's fourth error in a row,
+            // the PRD trigger "four errors" opens the card, and the trigger
+            // recorded is its own (coordinator's decision, 2.10.2026): one
+            // card per keystroke. The conversion card used to open first and
+            // the streak's card was then refused as "a card is open".
+            const streak = nextDigitErrorStreak(s, place, isCorrect);
+            let conversionMissed = false;
+            if (isCorrect === false && task && isVerticalTask(task)) {
+              const { a, b, target } = effectiveArithmetic(task, s.isASD);
+              conversionMissed =
                 columnRequiresConversion(place, a, b, task.isSubtraction) &&
-                !conversionRecordedInColumn(s, place, task.isSubtraction)
-              ) {
-                setTimeout(() => get().openSocraticCard('conversion_not_performed'), 0);
-              }
+                !conversionRecordedInColumn(s, place, task.isSubtraction) &&
+                !isPlaceError({ [place]: val }, target, { a, b, isSubtraction: task.isSubtraction });
+            }
+            if (conversionMissed && streak.digitErrorStreak < 4) {
+              setTimeout(() => get().openSocraticCard('conversion_not_performed', place), 0);
             }
 
-            const streak = nextDigitErrorStreak(s, place, isCorrect);
-            if (streak.digitErrorStreak >= 4) openCardForDigitErrorStreak(place);
+            if (streak.digitErrorStreak >= 4) openCardForDigitErrorStreak(place, conversionMissed);
 
             return {
               answerDigits: { ...s.answerDigits, [place]: val },
@@ -3763,9 +4286,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         if (val !== '') {
           const numVal = parseInt(val, 10);
-          if (!isNaN(numVal) && numVal >= 0 && numVal <= 9) {
+          // A circle takes two digits (the 13 above the units after a break).
+          // The second keystroke used to be stored with no event and no undo
+          // frame, so a 12 in an addition circle was recorded as the right
+          // carry 1 (1.10.2026). Each keystroke is recorded: digit_value is the
+          // digit typed (0–9), is_correct judges what the circle now holds.
+          if (!isNaN(numVal) && /^[0-9]{1,2}$/.test(val)) {
+            const typedDigit = parseInt(val.slice(-1), 10);
             const expectedCarry = expectedDigitInActiveTask(s, place, true);
-            const isCorrect = expectedCarry !== null ? numVal === expectedCarry : null;
+            const isCorrect = expectedCarry !== null ? numVal === expectedCarry && val.length === 1 : null;
             emitTelemetry({
               session_id: sessionId,
               student_id: studentId,
@@ -3773,7 +4302,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               event_type: 'DIGIT_ENTERED',
               column_index: colIdx,
               details: {
-                digit_value: numVal,
+                digit_value: typedDigit,
                 is_correct: isCorrect,
               },
             }).catch(console.error);
@@ -3837,6 +4366,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       let target: number | undefined;
       // Measure 3: a refused representation in a lesson exercise is a failed board check.
       let lessonTaskId: string | null = null;
+      // Owner, 1.10.2026 (D6): station 3's "another way" exercises — a wrong
+      // press of "הוספת ייצוג" counts as a wrong press there only.
+      let wrongAddPressCounts = false;
       if (s.sessionNumber === 2) {
         const task = getCurrentQTask(s.qflow);
         target = task ? getEffectiveNumber(task, s.qflow, s.isASD) : undefined;
@@ -3844,15 +4376,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const task = getActiveTasks(s)[s.standardTaskIdx];
         target = task?.numberA;
         lessonTaskId = isRepresentationTask(task) ? task.id : null;
+        wrongAddPressCounts = lessonTaskId !== null && s.sessionNumber === 3;
         if (task?.requireEvenTens && s.counts.tens % 2 !== 0) {
-          if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
+          if (lessonTaskId) {
+            recordBoardCheckFailure(lessonTaskId);
+            if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
+          }
           showFeedback({ correct: false, title: 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. נסו לפרוט עשרת אחת ליחידות, או לקבץ 10 יחידות לעשרת.' }, 3200);
           return;
         }
       }
 
+      // Owner, 1.10.2026 (D6): in station 3's "another way" exercises a wrong
+      // press of "הוספת ייצוג" is a wrong press like a wrong "התקדם" — the
+      // second one in a row opens the coaching card (noteWrongPress). It used
+      // to count for nothing, and those exercises got a card only after a pause.
       if (target !== undefined && value !== target) {
-        if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
+        if (lessonTaskId) {
+          recordBoardCheckFailure(lessonTaskId);
+          if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
+        }
         const hint =
           s.sessionNumber === 2
             ? 'הלבנים בבית המספרים עוד לא מראות את המספר שבהנחיה. מה תוכלו לשנות?'
@@ -3864,13 +4407,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // The second representation has to be a different one. With the board
       // kept between the two (below), pressing the button twice must not count.
       if (s.q3Reps.length === 1 && countsEqual(s.counts, s.q3Reps[0])) {
-        if (lessonTaskId) recordBoardCheckFailure(lessonTaskId);
+        if (lessonTaskId) {
+          recordBoardCheckFailure(lessonTaskId);
+          if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
+        }
         showFeedback({ correct: false, title: 'זוֹ אוֹתָהּ דֶּרֶךְ 🤔', sub: 'הַרְאוּ אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ שׁוֹנָה: פִּרְטוּ אוֹ קַבְּצוּ, וְאָז לַחֲצוּ עַל "הוֹסָפַת יִצּוּג".' }, 3200);
         return;
       }
 
       const q3Reps = [...s.q3Reps, { ...s.counts }];
-      set({ q3Reps, hasInteracted: true });
+      // A press that records a way breaks the run of wrong presses ("in a row").
+      set({ q3Reps, hasInteracted: true, ...(wrongAddPressCounts && lessonTaskId ? { wrongAnswerStreak: 0, wrongAnswerTaskId: lessonTaskId } : {}) });
       // The board used to be wiped here, and the undo stack with it. Three
       // exercises tell the child: "build 12 tens and 5 units, press add, THEN
       // regroup 10 tens into a hundred and add the second representation".
@@ -3941,6 +4488,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         error_category: null,
       };
       set({ aiSocraticHint: null, socraticPending: true });
+      // What the card was asked about: the board and every digit typed.
+      const openedOn = cardStateSignature(s);
 
       const settle = (hint: SocraticHintResponse) => {
         if (request !== socraticRequestSeq) return; // cancelled, superseded or already settled
@@ -3951,19 +4500,52 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           set({ socraticPending: false });
           return;
         }
+        const nowTask = selectStandardTask(now);
         // The child answered while the hourglass turned: no card, no event.
-        if (exerciseSolvedForCard(now, selectStandardTask(now), now.socraticTriggerReason, now.socraticCardPlace)) {
+        if (exerciseSolvedForCard(now, nowTask)) {
           get().closeHelp();
           return;
         }
+        // The child kept working under the hourglass (up to 8 seconds): a card
+        // built on the board and digits of its opening could speak of blocks
+        // that are gone. It is built again from what is on the screen now — the
+        // static card of the exercise as it stands (1.10.2026).
+        let shown = hint;
+        let kind = staticCard.cardKind;
+        let rebuilt = false;
+        if (cardStateSignature(now) !== openedOn) {
+          shown = {
+            ...SocraticEngine.getSynchronousTaskHint(nowTask ?? undefined, now.counts, staticCardContextFor(now, nowTask?.id, nowTask)),
+            error_category: null,
+          };
+          kind = shown.cardKind;
+          rebuilt = true;
+        }
         // A card of 30.9.2026 counts as shown also when the engine's card,
         // anchored on it, is the one on the screen.
-        const kind = staticCard.cardKind;
-        set((st) => ({
-          aiSocraticHint: hint,
-          socraticPending: false,
-          ...(kind && currentTask?.id ? { socraticCardKinds: withCardKind(st.socraticCardKinds, currentTask.id, kind) } : {}),
-        }));
+        set((st) => {
+          const cards = st.socraticCardHistory.cards;
+          const last = cards[cards.length - 1];
+          return {
+            aiSocraticHint: shown,
+            socraticPending: false,
+            ...(kind && currentTask?.id ? { socraticCardKinds: withCardKind(st.socraticCardKinds, currentTask.id, kind) } : {}),
+            ...(last
+              ? {
+                  socraticCardHistory: {
+                    ...st.socraticCardHistory,
+                    cards: [...cards.slice(0, -1), {
+                      ...last,
+                      shown: true,
+                      questionHe: shown.questionHe ?? null,
+                      // A card rebuilt under the hourglass is recorded as the card shown (final review, 2.10.2026).
+                      ...(rebuilt ? { kind: shown.cardKind ?? null, family: cardFamilyOf(shown), staticQuestionHe: shown.questionHe } : {}),
+                    }],
+                  },
+                }
+              : {}),
+          };
+        });
       };
 
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -4094,13 +4676,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     helpFrictionDone: () => {
-      const s = get();
-      if (s.helpState === 'friction') {
-        get().openSocraticCard('repeated_errors');
-        // openSocraticCard declines during the 30s card lockout; the beat must
-        // still end, or its overlay would stay on screen.
-        if (get().helpState === 'friction') set({ helpState: 'closed' });
-      }
+      if (get().helpState !== 'friction') return;
+      get().openSocraticCard('repeated_errors');
+      // A card refused after the beat (it was decided before it, but 300 ms
+      // can change the exercise) ends through closeHelp, like every other
+      // closing: setting helpState alone left the machine in SOCRATIC_ACTIVE
+      // with no card, and every later trigger of the exercise was refused.
+      if (get().helpState !== 'socratic') get().closeHelp();
     },
 
     closeHelp: () => {
@@ -4109,6 +4691,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set((s) => ({
         socraticPending: false,
         helpState: 'closed',
+        frictionTriggerSource: null,
         // A card closed without a correct answer hands the keyboard back to
         // the Module 9 lock it came from; SOCRATIC_ONLY with no card open is a
         // dead end (vraMachine leaves it only on SOCRATIC_SUCCESS). A correct
@@ -4153,18 +4736,32 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     openSocraticCard: (reason, place) => {
       const s = get();
       // PRD Module 12 & 14: the card is disabled outright in session 2, and never
-      // reopens over an open card or during the wrong-answer lockout.
-      if (s.sessionNumber === 2) return;
-      if (s.currentState === 'SOCRATIC_ACTIVE' || s.helpState === 'socratic') return;
-      // The lock is released by the countdown the OPEN card polls. Closing the
-      // card during the lockout (its close button stays enabled, and typing a
-      // digit closes it too) stopped the polling, the lock never ended, and no
-      // card could open again until the page was reloaded.
-      if (s.isSocraticCardLocked) {
-        if (get().getSocraticPenaltyRemaining() > 0) return;
-        if (get().isSocraticCardLocked) get().unlockSocraticCard();
-      }
-      if (exerciseSolvedForCard(s, selectStandardTask(s), reason, place)) return;
+      // reopens over an open card or during the wrong-answer lockout — the
+      // whole rule is socraticCardRefusal. An open card is helpState
+      // 'socratic'; a SOCRATIC_ACTIVE left behind with no card no longer
+      // blocks every later trigger.
+      if (socraticCardRefusal(s, reason, place) !== null) return;
+      const task = selectStandardTask(s);
+      const taskId = task?.id ?? null;
+      // The column of the card, for every trigger (cardFocusPlace).
+      const cardPlace = place ?? cardFocusPlace(s, task, reason, useBoardFocusStore.getState().focusedMemoryCircle);
+      // The card's identity (SocraticCardRecord): the static card for the
+      // trigger, the column, the exercise and the board as they are now — its
+      // situation family, and which level of it.
+      const staticNow = SocraticEngine.getSynchronousTaskHint(task ?? undefined, s.counts, staticCardContextFor(s, task?.id, task, { reason, place: cardPlace }));
+      const history = s.socraticCardHistory.taskId === taskId ? s.socraticCardHistory.cards : [];
+      const previous = [...history].reverse().find((c) => c.shown);
+      const record: SocraticCardRecord = {
+        reason,
+        place: cardPlace,
+        kind: staticNow.cardKind ?? null,
+        family: cardFamilyOf(staticNow),
+        staticQuestionHe: staticNow.questionHe,
+        questionHe: null,
+        shown: false,
+        answeredCorrect: null,
+        openedAt: Date.now(),
+      };
       // No card text yet: the card shows an hourglass until the engine answers
       // or its time runs out, then one card that does not change (X22). The
       // static card used to show first and be replaced mid-answer.
@@ -4179,14 +4776,35 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         keyboardState: st.keyboardState === 'LOCKED' ? ('SOCRATIC_ONLY' as KeyboardState) : st.keyboardState,
         helpState: 'socratic',
         currentState: 'SOCRATIC_ACTIVE',
+        frictionTriggerSource: null,
         socraticTriggerReason: reason,
-        socraticCardPlace: place ?? null,
+        socraticCardPlace: cardPlace,
+        socraticCardHistory: { taskId, cards: [...history, record] },
+        previousSocraticCard: previous && taskId ? { ...previous, taskId } : null,
         // The "four errors" streak returns to 0 once its card is shown (שהB.2).
         ...(reason === 'consecutive_errors_4' && place ? { digitErrorStreak: 0, digitErrorStreakPlace: null } : {}),
+        // Meeting 8's undo run starts again once its card opens: every further
+        // undo used to reopen it (1.10.2026).
+        ...(reason === 'consecutive_undos_3' ? { consecutiveUndoCount: 0 } : {}),
         aiSocraticHint: null,
         socraticPending: true,
       }));
       get().fetchSocraticHint();
+    },
+
+    recordSocraticAnswer: (isCorrect) => {
+      set((st) => {
+        const cards = st.socraticCardHistory.cards;
+        if (cards.length === 0) return st;
+        const last = cards[cards.length - 1];
+        return {
+          socraticCardHistory: { ...st.socraticCardHistory, cards: [...cards.slice(0, -1), { ...last, answeredCorrect: isCorrect }] },
+        };
+      });
+    },
+
+    setClassScreenUp: (up) => {
+      if (get().classScreenUp !== up) set({ classScreenUp: up });
     },
     recordUserInteraction: () => set({ lastInteractionTime: Date.now(), hasInteracted: true, hesitationTimerSeconds: 0 }),
     incrementTypedErrorCount: () => {
@@ -4388,7 +5006,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return false;
       }
 
-      if (s.keyboardState === 'LOCKED' || s.keyboardState === 'SOCRATIC_ONLY') return true;
+      // A keyboard restored as LOCKED (a saved session, or the ASD default)
+      // used to lock EVERY column until a grouping or a right card answer —
+      // also the columns that need no conversion at all. The lock is per
+      // column (Module 9 §א: "ננעלת בטורים הדורשים המרה"), whatever the
+      // keyboard's state (1.10.2026).
 
       const aStr = String(numberA);
       const bStr = String(numberB);
@@ -4452,11 +5074,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     helpRequestCount: 0,
         taskStartTime: Date.now(),
         hasDeletedBlock: false,
+        takeAwayTrack: null as TakeAwayTrack | null,
         hasClearedBoard: false,
         blocksAddedCount: 0,
         digitErrorStreak: 0,
         digitErrorStreakPlace: null,
         socraticCardPlace: null,
+        socraticCardHistory: { taskId: null, cards: [] },
+        previousSocraticCard: null,
         hasUngrouped: false,
         hasGrouped: false,
         conversionsByColumn: emptyColumnConversions(),
@@ -4594,6 +5219,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ consecutiveErrorCount: 0 });
     },
   };
+});
+
+/*
+ * Subtraction with blocks: every change of the board, whatever made it (a
+ * drag, the trash, a click, undo, a restore), updates the take-away record of
+ * the exercise on the screen (nextTakeAwayTrack). A set that writes the record
+ * itself (a reset, a restore) is left as written.
+ */
+useWorkspaceStore.subscribe((s, prev) => {
+  if (s.counts === prev.counts || s.takeAwayTrack !== prev.takeAwayTrack) return;
+  const task = getActiveTasks(s)[s.standardTaskIdx];
+  if (!task || !task.isSubtraction || typeof task.numberA !== 'number' || typeof task.numberB !== 'number') return;
+  const { a } = effectiveArithmetic(task, s.isASD === true);
+  const next = nextTakeAwayTrack(s.takeAwayTrack, task.id, a, getValue(prev.counts), getValue(s.counts));
+  const was = s.takeAwayTrack;
+  if (was && was.taskId === next.taskId && was.held === next.held && was.started === next.started) return;
+  useWorkspaceStore.setState({ takeAwayTrack: next });
 });
 
 /* Re-exports used by components */

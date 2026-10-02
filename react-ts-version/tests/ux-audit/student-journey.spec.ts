@@ -441,15 +441,20 @@ async function asdSteps(c: AuditContext): Promise<Step[]> {
   return steps;
 }
 
-/** The enhanced cognitive-support profile: the adaptive addition grid (Module 10) and its return tab. */
+/**
+ * The enhanced cognitive-support profile: the adaptive addition grid (Module 10)
+ * and its return tab. The grid belongs to addition exercises only (owner,
+ * 1.10.2026, D7): station 4's first exercise, and station 7's addition
+ * skeleton (2,▢3▢ + 1,554, the sheet with hidden-digit boxes).
+ */
 function enhancedSteps(): Step[] {
   const steps: Step[] = [];
-  for (const n of [3, 5]) {
+  for (const [n, idx] of [[4, 0], [7, 1]] as const) {
     steps.push({
       id: `m${n}-grid-open`,
       meeting: n,
       run: async (cc) => {
-        await ws(cc.page, INIT, { meeting: n, isASD: false, idx: 0 });
+        await ws(cc.page, INIT, { meeting: n, isASD: false, idx });
         await ws(cc.page, 'st.openAdditionHelper("learner");');
       },
     });
@@ -458,25 +463,25 @@ function enhancedSteps(): Step[] {
       meeting: n,
       note: 'the grid faded; the "לוח חיבור" tab that brings it back',
       run: async (cc) => {
-        await ws(cc.page, INIT, { meeting: n, isASD: false, idx: 0 });
+        await ws(cc.page, INIT, { meeting: n, isASD: false, idx });
         await ws(cc.page, SET, { isAdditionHelperOpen: false, additionHelperOffered: true });
       },
     });
   }
   steps.push({
-    id: 'm3-grid-and-coaching',
-    meeting: 3,
+    id: 'm4-grid-and-coaching',
+    meeting: 4,
     run: async (cc) => {
-      await ws(cc.page, INIT, { meeting: 3, isASD: false, idx: 0 });
+      await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
       await ws(cc.page, 'st.openAdditionHelper("learner"); st.openSocraticCard("hesitation_45s");');
     },
   });
   steps.push({
-    id: 'm3-grid-tab-and-chat',
-    meeting: 3,
+    id: 'm4-grid-tab-and-chat',
+    meeting: 4,
     note: 'both live in the bottom-left corner',
     run: async (cc) => {
-      await ws(cc.page, INIT, { meeting: 3, isASD: false, idx: 0 });
+      await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
       await ws(cc.page, SET, { isAdditionHelperOpen: false, additionHelperOffered: true });
       await cc.page.evaluate(() => document.dispatchEvent(new CustomEvent('toggle-chat')));
     },
