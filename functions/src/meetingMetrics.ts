@@ -214,6 +214,71 @@ export function isChoiceExercise(exerciseId: string): boolean {
   return exercisePathType(exerciseId) !== "compulsory";
 }
 
+/**
+ * The titles of the choice exercises, as the teacher's screen shows them
+ * (react-ts-version/src/data/sessionBranchTasks.ts, `titleHe`; the screen
+ * prefixes the path label, LearnerJourneyService `exerciseTitle`). The banks
+ * are not published to the catalog, so the server keeps this copy; a test
+ * pins it against the bank, id by id.
+ */
+export const CHOICE_TITLES_HE: Readonly<Record<string, string>> = {
+  s3_r_reinforce_1: "ביסוס 1: ייצוג סטנדרטי של 270",
+  s3_r_reinforce_2: "ביסוס 2: 270 בעשרות בלבד",
+  s3_r_challenge_1: "אתגר: כל הדרכים לייצג את 320",
+  s3_g_reinforce_1: "ביסוס 1: ייצוג סטנדרטי של 3,600",
+  s3_g_reinforce_2: "ביסוס 2: 3,600 במאות בלבד",
+  s3_g_challenge_1: "אתגר: כל הדרכים לייצג את 4,200",
+  s4_r_reinforce_1: "ביסוס 1: חיבור ללא המרה",
+  s4_r_reinforce_2: "ביסוס 2: המרה אחת בטור היחידות",
+  s4_r_challenge_1: "אתגר: שתי המרות עוקבות",
+  s4_g_reinforce_1: "ביסוס 1: חיבור ללא המרה",
+  s4_g_reinforce_2: "ביסוס 2: המרה אחת בטור היחידות",
+  s4_g_challenge_1: "אתגר: שלוש המרות רצופות",
+  s5_r_reinforce_1: "ביסוס 1: חיסור ללא פריטה",
+  s5_r_reinforce_2: "ביסוס 2: פריטה אחת בטור היחידות",
+  s5_r_challenge_1: "אתגר: שתי פריטות עוקבות",
+  s5_g_reinforce_1: "ביסוס 1: חיסור ללא פריטה",
+  s5_g_reinforce_2: "ביסוס 2: פריטה אחת בטור היחידות",
+  s5_g_challenge_1: "אתגר: שלוש פריטות רצופות",
+  s6_r_reinforce_1: "ביסוס 1: קריאת האפס כשומר מקום, ללא פריטה",
+  s6_r_reinforce_2: "ביסוס 2: חיסור ללא פריטה",
+  s6_r_challenge_1: "אתגר: פריטה כפולה דרך שני אפסים עוקבים",
+  s6_g_reinforce_1: "ביסוס 1: חיסור ללא פריטה עם אפסים",
+  s6_g_reinforce_2: "ביסוס 2: חיסור ללא פריטה עם אפסים",
+  s6_g_challenge_1: "אתגר: פריטה משולשת רצופה דרך שלושה אפסים",
+  s7_r_reinforce_1: "ביסוס 1: ספרת יחידות חסרה בחיבור ללא המרה",
+  s7_r_reinforce_2: "ביסוס 2: ספרת עשרות חסרה בחיסור ללא פריטה",
+  s7_r_challenge_1: "אתגר: תרגיל שלד עם שלוש ספרות חסרות",
+  s7_g_reinforce_1: "ביסוס 1: שתי ספרות חסרות בחיבור עם המרה אחת",
+  s7_g_reinforce_2: "ביסוס 2: הקבצת 10 מאות לאלף אחד",
+  s7_g_challenge_1: "אתגר: תרגיל שלד בתחום הרבבה עם ארבע ספרות חסרות",
+};
+
+/**
+ * An exercise's name in a report: its catalog title; a choice exercise's
+ * title as the teacher's screen shows it (CHOICE_TITLES_HE); otherwise a
+ * Hebrew label, never the id (coordinator's decision, 2.10.2026: reports are
+ * Hebrew only). Reports name meetings, not stations ("במפגש N"). The number
+ * in an id is an identifier, not the exercise's place in the meeting (s1_t8 is
+ * not meeting 1's eighth exercise): it is printed as one, so two unnamed
+ * exercises of the same meeting stay apart.
+ */
+export function exerciseLabelHe(titles: Record<string, string> | null | undefined, exerciseId: string): string {
+  const title = titles?.[exerciseId];
+  if (typeof title === "string" && title.trim()) return title;
+  const id = String(exerciseId ?? "");
+  const known = CHOICE_TITLES_HE[id];
+  if (known) return known;
+  const choice = /^s(\d+)_(?:[gr]_)?(reinforce|challenge)_(\d+)$/.exec(id);
+  if (choice) return `${choice[2] === "challenge" ? "אתגר" : "ביסוס"} ${Number(choice[3])} במפגש ${choice[1]}`;
+  const meeting = /^(?:ex|s)_?(\d+)_(.*)$/.exec(id);
+  if (meeting) {
+    const index = /(\d+)$/.exec(meeting[2]);
+    return index ? `תרגיל במפגש ${meeting[1]}, מס׳ זיהוי ${Number(index[1])}` : `תרגיל במפגש ${meeting[1]}`;
+  }
+  return "תרגיל";
+}
+
 /** How a choice exercise is named in the teacher's reports (the path names of מסמך 03). */
 export const CHOICE_PATH_LABEL_HE: Record<Exclude<ExercisePathType, "compulsory">, string> = {
   consolidation: "תרגיל בחירה — נתיב החזרה והביסוס",

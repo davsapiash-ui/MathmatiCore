@@ -507,7 +507,7 @@ describe('4. through the real store: the fields the cards read reach them (audit
       'לקבץ 10 עשרות ולהמיר אותן למאה אחת',
       'לכתוב מספר בשורת התוצאה',
     ]);
-    expect(c.choices[0].feedbackHe).toBe('נכון מאוד! כל לבנה שגוררים משנה את הספרה בטור שלה.');
+    expect(c.choices[0].feedbackHe).toBe('נכון מאוד! גררו עוד לבנים, ושימו לב איך הספרות משתנות.');
     expect(wrongHintViolation(c)).toBeNull();
     expect(textsOf(c).join(' ')).not.toMatch(/בוצעה/);
   });

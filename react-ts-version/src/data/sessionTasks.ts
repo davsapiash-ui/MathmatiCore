@@ -414,7 +414,7 @@ export const SESSION5_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen: מסמך 03 names the task ("ספרה חסרה בטור המחוסר") without numbers.
   skeleton('s5_r_t7', 442, 128, true, { a: ['tens'] },
     'משימת חקר וגילוי ספרה חסרה',
-    'בשורת המחוסר חסרה ספרת העשרות: 4▢2 − 128 = 314. בצעו את הפריטה בלבנים כדי לגלות את הספרה המקורית, וכתבו אותה בתיבה הריקה.',
+    'בשורת המחוסר חסרה ספרת העשרות: 4▢2 − 128 = 314. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
     { targetNode: 'relational_thinking' }),
 ];
 
@@ -513,7 +513,7 @@ export const SESSION7_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen. Owner, 1.10.2026 (D12): "בעזרת הלבנים", not "בעזרת הפריטה" (see s6_g_t7).
   skeleton('s7_r_t4', 542, 178, true, { a: ['tens', 'units'] },
     'שתי ספרות חסרות בחיסור עם פריטה',
-    'בתרגיל 5▢▢ − 178 = 364 חסרות ספרת היחידות וספרת העשרות של המחוסר. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 5▢▢ − 178 = 364 חסרות ספרת העשרות וספרת היחידות של המחוסר. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
     INQUIRY),
   // ★ chosen: the imaginary learner's error is the one מסמך 03 describes (a forgotten memory-circle carry).
   addition('s7_r_t5', 247, 135,
@@ -657,7 +657,7 @@ export function getDynamicSocraticHint(
       const unitsB = task.numberB % 10;
       if (unitsA < unitsB && counts.units < unitsB) {
         const have = counts.units === 0 ? 'בבית המספרים אין יחידות בודדות' : `בבית המספרים יש רק ${unitsHe(counts.units)}`;
-        return `צריך להחסיר ${unitsHe(unitsB)}, אבל ${have}. מאיפה אפשר לקחת עשרת ולפרוט אותה כדי שיהיו מספיק יחידות?`;
+        return `צריך לחסר ${unitsHe(unitsB)}, אבל ${have}. מאיפה אפשר לקחת עשרת ולפרוט אותה כדי שיהיו מספיק יחידות?`;
       }
     }
   }
