@@ -18,16 +18,29 @@
  *   child builds, breaks or groups across columns and reads the whole board to
  *   write the number), flexible_decomp, missing_element, small_change and
  *   meeting 1's tool steps.
- * - Vertical exercise, while the child builds the numbers — addition: the
- *   board is not worth a + b; subtraction: the board has not yet held the
- *   first number (takeAwayTrack.held) — nothing is dimmed: every column is
- *   being built, whatever box the cursor is in.
+ * - What the child does with the blocks (boardOperation): the exercise itself;
+ *   a skeleton with a hidden operand, the inverse operation that finds it
+ *   (owner, 1.10.2026, D12: a hidden minuend is found by adding back) —
+ *   31▢ + 254 = 568 is worked as 568 − 254, and 5,▢▢▢ − 2,847 = 2,159 as
+ *   2,159 + 2,847.
+ * - Vertical exercise, while the child builds the numbers — nothing is
+ *   dimmed: every column is being built, whatever box or circle the cursor is
+ *   in. Building, against the board work: an addition, while the board is not
+ *   worth the two numbers together; a subtraction, until the board has held
+ *   the number it starts from — the first number (takeAwayTrack.held), or a
+ *   skeleton's result (heldFromTrack.held, view only). A child who never
+ *   builds that exact number gets no dimming at all: the rule errs toward not
+ *   dimming.
  * - Vertical exercise, computing: the focus column is the result box,
  *   hidden-operand box or memory circle the child stands in (meeting 1: a box
  *   only, as before); in meetings 3–7, with nothing focused, the lowest place
  *   whose box is still empty — units when computing starts, moving left as
  *   soon as the box holds any digit, right or wrong; every box filled →
  *   nothing dimmed. Lit with it:
+ *     · every place from the lowest box still empty up to the focus: a box
+ *       focused above an empty lower box depends on that column (53 − 18,
+ *       the cursor in the tens box before the units: the ten is broken in the
+ *       units' computation);
  *     · every lower place without a box of its own (a missing result digit,
  *       a skeleton): the child works it out on the board, and the digit in
  *       the focus column depends on it (328 + 145, the tens missing: the
@@ -38,13 +51,17 @@
  *       4,000 − 1,562: tens, hundreds and thousands with the units). The
  *       child clicks or drags a block there, and writes that column's new
  *       count in its memory circle. A grouping needs no other column: its
- *       "קבצו 10" button is on the focus column itself.
- * - Skeleton with a hidden operand: the board work is the inverse operation
- *   (owner, 1.10.2026, D12: a hidden minuend is found by adding back), which
- *   the sheet's boxes do not follow, and how far the child has built cannot
- *   be told from the board. So, as in meeting 1, a column is dimmed only while
- *   the child stands in a box or a memory circle, and the breaks lit are those
- *   of the inverse operation (31▢ + 254 = 568 is worked as 568 − 254).
+ *       "קבצו 10" button is on the focus column itself;
+ *     · in an addition, a lower column that still holds ten blocks or more:
+ *       its grouping carries into the focus column (a digit typed before the
+ *       blocks were grouped);
+ *     · a memory circle in such a chain lights the whole chain — the column
+ *       that lacks blocks and every column the break passes (4,000 − 1,562,
+ *       the cursor in the thousands circle: all four; 53 − 18, the tens
+ *       circle: the units too).
+ * - Skeleton with a hidden operand, nothing focused: nothing is dimmed — the
+ *   sheet's boxes do not follow the order of the inverse operation, so there
+ *   is no lowest box to stand for the column the child works in.
  *
  * Display only. Nothing here is written anywhere: `focusedPlace` and
  * `activeColumnIndex` keep exactly the values they had, because the research
@@ -106,8 +123,14 @@ export interface VerticalWork {
   hidden?: { a?: Place[]; b?: Place[] };
   /** What the blocks on the board are worth. */
   boardValue: number;
-  /** Subtraction: the board has held the first number in this exercise (takeAwayTrack.held). */
-  heldFirstNumber: boolean;
+  /** The blocks in each column (an addition: a lower column of ten or more is still to be grouped). */
+  counts?: Partial<Record<Place, number>>;
+  /**
+   * A subtraction on the board: the board has held the number it starts from
+   * (boardOperation's `from`) in this exercise — takeAwayTrack.held when that
+   * is the first number, heldFromTrack.held otherwise (heldFromNumber).
+   */
+  heldFrom: boolean;
 }
 
 export interface ColumnFocusInput {
@@ -152,11 +175,23 @@ const isSkeleton = (w: VerticalWork) => Boolean(w.hidden?.a?.length || w.hidden?
  * What the child does with the blocks: the exercise itself, or — a skeleton
  * with a hidden operand — the inverse operation that finds it.
  */
-export function boardOperation(w: VerticalWork): { from: number; other: number; subtract: boolean } {
+export function boardOperation(w: Pick<VerticalWork, 'a' | 'b' | 'isSubtraction' | 'hidden'>): { from: number; other: number; subtract: boolean } {
   const result = w.isSubtraction ? w.a - w.b : w.a + w.b;
   if (w.hidden?.a?.length) return { from: result, other: w.b, subtract: !w.isSubtraction }; // a = r − b, or a = r + b
   if (w.hidden?.b?.length) return w.isSubtraction ? { from: w.a, other: result, subtract: true } : { from: result, other: w.a, subtract: true };
   return { from: w.a, other: w.b, subtract: w.isSubtraction };
+}
+
+/**
+ * The number the board must hold before a subtraction on the board starts,
+ * when it is NOT the first number — a + ▢ = r and ▢ + b = r, worked as r − a
+ * and r − b. The store keeps whether the board has held it
+ * (useWorkspaceStore heldFromTrack, view only); the first number is
+ * takeAwayTrack's. null: no such number.
+ */
+export function heldFromNumber(w: Pick<VerticalWork, 'a' | 'b' | 'isSubtraction' | 'hidden'>): number | null {
+  const op = boardOperation(w);
+  return op.subtract && op.from !== w.a ? op.from : null;
 }
 
 /**
@@ -186,17 +221,27 @@ export function breakSources(from: number, take: number): Map<Place, Place[]> {
   return out;
 }
 
-/** Still building the numbers: the board does not hold what the computation starts from. */
-function stillBuilding(w: VerticalWork): boolean {
-  return w.isSubtraction ? !w.heldFirstNumber : w.boardValue !== w.a + w.b;
+/**
+ * Still building the numbers, against the board work: an addition while the
+ * board is not worth the two numbers together; a subtraction until the board
+ * has held the number it starts from.
+ */
+export function stillBuilding(w: VerticalWork): boolean {
+  const op = boardOperation(w);
+  return op.subtract ? !w.heldFrom : w.boardValue !== op.from + op.other;
 }
 
 /** The focus column, and what its computation needs lit with it. */
-function litColumns(focus: Place, input: ColumnFocusInput): Set<Place> {
+function litColumns(focus: Place, circle: Place | null, input: ColumnFocusInput): Set<Place> {
   const lit = new Set<Place>([focus]);
+  const at = PLACE_ORDER.indexOf(focus);
   const boxes = input.vertical;
   if (boxes) {
-    for (const q of PLACE_ORDER.slice(0, PLACE_ORDER.indexOf(focus))) {
+    // From the lowest box still empty up to the focus: the focus digit depends on them.
+    const low = lowestEmptyPlace(boxes, input.answerDigits, input.operandDigits);
+    if (low) PLACE_ORDER.slice(PLACE_ORDER.indexOf(low), at).forEach((q) => lit.add(q));
+    // Every lower place without a box: worked out on the board.
+    for (const q of PLACE_ORDER.slice(0, at)) {
       if (!boxes.result.includes(q) && !boxes.operandA.includes(q) && !boxes.operandB.includes(q)) lit.add(q);
     }
   }
@@ -204,7 +249,16 @@ function litColumns(focus: Place, input: ColumnFocusInput): Set<Place> {
     const op = boardOperation(input.work);
     if (op.subtract) {
       const sources = breakSources(op.from, op.other);
+      // A memory circle in a break chain: the whole chain.
+      if (circle) {
+        for (const [p, via] of sources) {
+          if (p === circle || via.includes(circle)) [p, ...via].forEach((q) => lit.add(q));
+        }
+      }
       for (const q of [...lit]) sources.get(q)?.forEach((p) => lit.add(p));
+    } else {
+      // A lower column still to be grouped carries into the focus.
+      for (const q of PLACE_ORDER.slice(0, at)) if ((input.work.counts?.[q] ?? 0) >= 10) lit.add(q);
     }
   }
   return lit;
@@ -215,18 +269,18 @@ export function dimmedColumns(input: ColumnFocusInput): ReadonlySet<Place> {
   // No calculation focus outside the vertical exercises: the whole board is the work.
   if (!taskType || !VERTICAL_TASKS.has(taskType)) return NONE;
 
-  const skeleton = work ? isSkeleton(work) : false;
-  if (work && !skeleton && stillBuilding(work)) return NONE;
+  if (work && stillBuilding(work)) return NONE;
 
   // Meeting 1, as before: only a result or hidden-operand box dims; the memory
   // circle never did (and the sheet has a thousands circle while the meeting-1
   // board has no thousands column, which would dim every column on screen).
-  let focus = input.focusedPlace ?? (sessionNumber === 1 ? null : input.focusedMemoryCircle);
+  const circle = input.focusedPlace || sessionNumber === 1 ? null : input.focusedMemoryCircle;
+  let focus = input.focusedPlace ?? circle;
   if (!focus) {
-    if (skeleton || sessionNumber < 3 || sessionNumber > 7 || !input.vertical) return NONE;
+    if ((work && isSkeleton(work)) || sessionNumber < 3 || sessionNumber > 7 || !input.vertical) return NONE;
     focus = lowestEmptyPlace(input.vertical, input.answerDigits, input.operandDigits);
     if (!focus) return NONE;
   }
-  const lit = litColumns(focus, input);
+  const lit = litColumns(focus, circle, input);
   return new Set(PLACE_ORDER.filter((p) => !lit.has(p)));
 }

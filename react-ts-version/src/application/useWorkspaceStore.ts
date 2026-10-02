@@ -55,6 +55,7 @@ import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
 import { getSessionTasks, SESSION1_TASKS, type SessionTask, type LearningPath } from '@/data/sessionTasks';
 import { boardStaysOpen } from '@/core/boardVisibility';
 import { isPlaceError, resultBoxCount } from '@/core/placeCues';
+import { heldFromNumber } from '@/core/columnFocus';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -304,6 +305,11 @@ export interface UndoFrame {
    * no record.
    */
   takeAwayTrack?: TakeAwayTrack;
+  /**
+   * Column dimming only: the held-from record as it was BEFORE the action
+   * (WorkspaceState.heldFromTrack), brought back with the board on undo.
+   */
+  heldFromTrack?: HeldFromTrack;
 }
 
 /**
@@ -440,6 +446,17 @@ export interface WorkspaceState {
    * child still building the first number "took out too much").
    */
   takeAwayTrack: TakeAwayTrack | null;
+  /**
+   * VIEW ONLY — the column dimming reads it (core/columnFocus.ts), nothing
+   * else: not the coaching cards (blocksRemoved stays takeAwayTrack's), no
+   * telemetry event; the workspace snapshot keeps it only so a reload keeps
+   * the dimming. A skeleton worked on the
+   * board as a subtraction from a number other than the first one (a + ▢ = r
+   * and ▢ + b = r are found as r − a, r − b): the board has held that number
+   * in the exercise `taskId`. Kept by nextHeldFromTrack on every change of the
+   * board, like takeAwayTrack's `held`; null elsewhere.
+   */
+  heldFromTrack: HeldFromTrack | null;
   /** The trash was pressed this task (clearBoard) — meeting 1 step 5. Dragging one block into it does not count. */
   hasClearedBoard: boolean;
   blocksAddedCount: number; // Added to enforce the 5 block rule in Sandbox
@@ -755,6 +772,8 @@ export function restoreUndoFrames(raw: unknown): UndoFrame[] {
       if ([0, 1, 2, 3].includes(f.columnIndex)) frame.columnIndex = f.columnIndex;
       const track = restoredTakeAwayTrack(f.takeAwayTrack);
       if (track) frame.takeAwayTrack = track;
+      const fromTrack = restoredHeldFromTrack(f.heldFromTrack);
+      if (fromTrack) frame.heldFromTrack = fromTrack;
       return frame;
     });
 }
@@ -999,6 +1018,30 @@ function restoredTakeAwayTrack(raw: unknown): TakeAwayTrack | null {
   return { taskId: r.taskId, held: r.held === true, started: r.started === true };
 }
 
+/** View only (WorkspaceState.heldFromTrack): the board has held the number the board work starts from. */
+export interface HeldFromTrack {
+  taskId: string;
+  held: boolean;
+}
+
+/**
+ * The held-from record after the board went to `after` in the exercise
+ * `taskId` whose board work starts from `from` — `held` exactly as
+ * nextTakeAwayTrack keeps it for the first number: a board emptied starts
+ * over, and the board worth `from` once is recorded.
+ */
+export function nextHeldFromTrack(prev: HeldFromTrack | null | undefined, taskId: string, from: number, after: number): HeldFromTrack {
+  if (after === 0) return { taskId, held: false };
+  return { taskId, held: (prev?.taskId === taskId && prev.held) || after === from };
+}
+
+/** A saved held-from record back into shape (the database drops false and null alike). */
+function restoredHeldFromTrack(raw: unknown): HeldFromTrack | null {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
+  if (!r || typeof r.taskId !== 'string') return null;
+  return { taskId: r.taskId, held: r.held === true };
+}
+
 /** Subtraction with blocks: taking away has started in this exercise (takeAwayTrack). */
 function takingAwayStarted(s: StaticCardStoreState, taskId: string): boolean {
   const t = s.takeAwayTrack;
@@ -1125,6 +1168,7 @@ function resetTaskInteraction(_isASD = false) {
     previousSocraticCard: null as (SocraticCardRecord & { taskId: string }) | null,
     hasDeletedBlock: false,
     takeAwayTrack: null as TakeAwayTrack | null,
+    heldFromTrack: null as HeldFromTrack | null,
     hasClearedBoard: false,
     blocksAddedCount: 0,
     hasUngrouped: false,
@@ -2168,6 +2212,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // The take-away record before the action: undo restores it with the board.
     const track = get().takeAwayTrack;
     if (track) frame.takeAwayTrack = { ...track };
+    const fromTrack = get().heldFromTrack;
+    if (fromTrack) frame.heldFromTrack = { ...fromTrack };
     const stack = [...currentStack, frame];
     if (stack.length > UNDO_STACK_CAP) stack.shift();
     return stack;
@@ -3250,6 +3296,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     taskStartTime: Date.now(),
     hasDeletedBlock: false,
     takeAwayTrack: null as TakeAwayTrack | null,
+    heldFromTrack: null as HeldFromTrack | null,
     hasClearedBoard: false,
     blocksAddedCount: 0,
     digitErrorStreak: 0,
@@ -3612,6 +3659,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         hasDeletedBlock: saved.hasDeletedBlock ?? false,
         // Subtraction: a reload mid-take-away is still taking away.
         takeAwayTrack: restoredTakeAwayTrack(saved.takeAwayTrack),
+        heldFromTrack: restoredHeldFromTrack(saved.heldFromTrack),
         blocksAddedCount: saved.blocksAddedCount ?? 0,
         // Meeting 1 decides by these: a child who grouped or decomposed and
         // then reloaded was told "do the conversion yourself" on a correct board.
@@ -4123,6 +4171,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           // undoing the building of the first number is not taking away. Always a
           // new value, so the board subscription leaves it as written.
           takeAwayTrack: snapshot.takeAwayTrack ? { ...snapshot.takeAwayTrack } : null,
+          heldFromTrack: snapshot.heldFromTrack ? { ...snapshot.heldFromTrack } : null,
           undoStack: stack,
           undoCount: s.undoCount + 1,
           consecutiveUndoCount: nextConsecutiveUndos,
@@ -5075,6 +5124,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         taskStartTime: Date.now(),
         hasDeletedBlock: false,
         takeAwayTrack: null as TakeAwayTrack | null,
+        heldFromTrack: null as HeldFromTrack | null,
         hasClearedBoard: false,
         blocksAddedCount: 0,
         digitErrorStreak: 0,
@@ -5236,6 +5286,25 @@ useWorkspaceStore.subscribe((s, prev) => {
   const was = s.takeAwayTrack;
   if (was && was.taskId === next.taskId && was.held === next.held && was.started === next.started) return;
   useWorkspaceStore.setState({ takeAwayTrack: next });
+});
+
+/*
+ * Column dimming only (WorkspaceState.heldFromTrack): a skeleton whose board
+ * work is a subtraction from a number other than the first one — every change
+ * of the board updates whether the board has held that number. A set that
+ * writes the record itself (a reset, a restore, undo) is left as written.
+ */
+useWorkspaceStore.subscribe((s, prev) => {
+  if (s.counts === prev.counts || s.heldFromTrack !== prev.heldFromTrack) return;
+  const task = getActiveTasks(s)[s.standardTaskIdx];
+  if (!task || !task.hiddenDigits || (task.type !== 'vertical_addition' && task.type !== 'addition_simple')) return;
+  const { a, b } = effectiveArithmetic(task, s.isASD === true);
+  const from = heldFromNumber({ a, b, isSubtraction: task.isSubtraction === true, hidden: task.hiddenDigits });
+  if (from === null) return;
+  const next = nextHeldFromTrack(s.heldFromTrack, task.id, from, getValue(s.counts));
+  const was = s.heldFromTrack;
+  if (was && was.taskId === next.taskId && was.held === next.held) return;
+  useWorkspaceStore.setState({ heldFromTrack: next });
 });
 
 /* Re-exports used by components */

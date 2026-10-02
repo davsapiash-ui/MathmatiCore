@@ -1,13 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { motion, useAnimationControls } from 'framer-motion';
-import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, getValue, type Place } from '@/core/placeValue';
+import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { fitBlockGrid, type Size } from '@/core/blockLayout';
-import { dimmedColumns, verticalBoxes, DIMMED_COLUMN_FILTER } from '@/core/columnFocus';
-import { useWorkspaceStore, getActiveTasks, effectiveArithmetic } from '@/application/useWorkspaceStore';
+import { DIMMED_COLUMN_FILTER } from '@/core/columnFocus';
+import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
+import { boardDimmedColumns } from '@/application/boardDimming';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { columnDigitsShown } from '@/core/columnDigits';
-import { resultBoxCount } from '@/core/placeCues';
 import { DienesBlock } from './DienesBlock';
 import { COLUMN_CELLS } from './columnCells';
 import { useVisibleRegroup, arrivingBlockCount } from './RegroupAnimationLayer';
@@ -73,33 +73,7 @@ export function PlaceColumn({
   // never a column the child has to act in). One boolean per column, so
   // typing a digit re-renders only a column whose dimming changes. Read only:
   // nothing here writes to the store.
-  const isDimmed = useWorkspaceStore((s) => {
-    const task = getActiveTasks(s)[s.standardTaskIdx];
-    let vertical;
-    let work;
-    if (task && (task.type === 'vertical_addition' || task.type === 'addition_simple')) {
-      const { a, b, target } = effectiveArithmetic(task, s.isASD);
-      vertical = verticalBoxes(a, b, target, task.hiddenDigits, task.revealedResultDigits, resultBoxCount(s.sessionNumber, a, b, target));
-      work = {
-        a,
-        b,
-        isSubtraction: task.isSubtraction === true,
-        hidden: task.hiddenDigits,
-        boardValue: getValue(s.counts),
-        heldFirstNumber: s.takeAwayTrack?.taskId === task.id && s.takeAwayTrack.held,
-      };
-    }
-    return dimmedColumns({
-      sessionNumber: s.sessionNumber,
-      taskType: task?.type,
-      focusedPlace: s.focusedPlace,
-      focusedMemoryCircle,
-      vertical,
-      work,
-      answerDigits: s.answerDigits,
-      operandDigits: s.operandDigits,
-    }).has(place);
-  });
+  const isDimmed = useWorkspaceStore((s) => boardDimmedColumns(s, focusedMemoryCircle).has(place));
 
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${place}`,

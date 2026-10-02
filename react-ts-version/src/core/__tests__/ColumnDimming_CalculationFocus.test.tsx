@@ -1,18 +1,43 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+
+vi.mock('firebase/database', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('firebase/database')>();
+  const noop = async () => undefined;
+  return {
+    ...actual,
+    ref: vi.fn((_db: unknown, path = '') => ({ _path: path })),
+    set: vi.fn(noop),
+    update: vi.fn(noop),
+    remove: vi.fn(noop),
+    get: vi.fn(async () => ({ exists: () => false, val: () => null })),
+    push: vi.fn(() => ({ key: 'k', _path: 'k' })),
+    onValue: vi.fn(() => () => undefined),
+    onDisconnect: vi.fn(() => ({ set: noop, cancel: noop })),
+    runTransaction: vi.fn(noop),
+    serverTimestamp: vi.fn(() => 0),
+  };
+});
+vi.mock('@/infrastructure/services/FirebaseSyncService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/infrastructure/services/FirebaseSyncService')>();
+  return { ...actual, emitTelemetry: vi.fn(async () => undefined) };
+});
+
 import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import {
-  dimmedColumns, verticalBoxes, lowestEmptyPlace, breakSources, boardOperation, DIMMED_COLUMN_FILTER,
-  type ColumnFocusInput, type VerticalWork,
+  dimmedColumns, verticalBoxes, lowestEmptyPlace, breakSources, boardOperation, heldFromNumber, DIMMED_COLUMN_FILTER,
+  type ColumnFocusInput, type VerticalWork, type VerticalBoxes,
 } from '@/core/columnFocus';
 import { resultBoxCount } from '@/core/placeCues';
-import { PLACE_ORDER, type Place } from '@/core/placeValue';
+import { EMPTY_COUNTS, PLACE_ORDER, type Place, type PlaceCounts } from '@/core/placeValue';
 import { PlaceColumn } from '@/features/workspace/board/PlaceColumn';
 import { VerticalAdditionTask } from '@/features/workspace/tasks/VerticalAdditionTask';
-import { useWorkspaceStore, getActiveTasks, effectiveArithmetic } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, effectiveArithmetic, nextHeldFromTrack } from '@/application/useWorkspaceStore';
+import { boardDimmedColumns } from '@/application/boardDimming';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { useAuthStore } from '@/application/useAuthStore';
+import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { approvePath } from '@/test/approvedPath';
 import * as SessionTasks from '@/data/sessionTasks';
 import * as BranchTasks from '@/data/sessionBranchTasks';
@@ -29,6 +54,7 @@ import type { SessionTask } from '@/data/sessionTasks';
 
 const sorted = (s: ReadonlySet<Place>) => PLACE_ORDER.filter((p) => s.has(p));
 const base: ColumnFocusInput = { sessionNumber: 3, taskType: null, focusedPlace: null, focusedMemoryCircle: null };
+const ws = () => useWorkspaceStore.getState();
 
 describe('exercises without a calculation focus: never dimmed', () => {
   // Representation (meetings 1, 3, 7, the choice banks), two ways, the missing
@@ -49,7 +75,7 @@ describe('exercises without a calculation focus: never dimmed', () => {
 
 describe('vertical exercises: never a column the child has to act in', () => {
   const work = (a: number, b: number, isSubtraction: boolean, over: Partial<VerticalWork> = {}): VerticalWork => ({
-    a, b, isSubtraction, boardValue: isSubtraction ? a : a + b, heldFirstNumber: isSubtraction, ...over,
+    a, b, isSubtraction, boardValue: isSubtraction ? a : a + b, heldFrom: isSubtraction, ...over,
   });
   const dim = (sessionNumber: number, a: number, b: number, isSubtraction: boolean, over: Partial<ColumnFocusInput> = {}, w: Partial<VerticalWork> = {}) => {
     const target = isSubtraction ? a - b : a + b;
@@ -64,21 +90,68 @@ describe('vertical exercises: never a column the child has to act in', () => {
     }));
   };
 
-  it('building the numbers: nothing is dimmed, whatever box the cursor is in', () => {
-    // 1,245 + 328: the board holds only 1,245 so far.
-    for (const focusedPlace of [null, ...PLACE_ORDER]) {
-      expect(dim(4, 1245, 328, false, { focusedPlace }, { boardValue: 1245 })).toEqual([]);
-      expect(dim(1, 713, 94, false, { focusedPlace }, { boardValue: 700 })).toEqual([]);
+  it('building the numbers: nothing is dimmed, whatever box or circle the cursor is in', () => {
+    for (const p of [null, ...PLACE_ORDER]) {
+      // 1,245 + 328: the board holds only 1,245 so far.
+      expect(dim(4, 1245, 328, false, { focusedPlace: p }, { boardValue: 1245 })).toEqual([]);
+      expect(dim(4, 1245, 328, false, { focusedMemoryCircle: p }, { boardValue: 1245 })).toEqual([]);
+      expect(dim(1, 713, 94, false, { focusedPlace: p }, { boardValue: 700 })).toEqual([]);
+      // 53 − 18: the board has not yet held 53.
+      expect(dim(5, 53, 18, true, { focusedPlace: p }, { boardValue: 50, heldFrom: false })).toEqual([]);
+      expect(dim(5, 53, 18, true, { focusedMemoryCircle: p }, { boardValue: 50, heldFrom: false })).toEqual([]);
+      expect(dim(1, 61, 24, true, { focusedPlace: p }, { boardValue: 0, heldFrom: false })).toEqual([]);
     }
-    // 53 − 18: the board has not yet held 53.
-    expect(dim(5, 53, 18, true, {}, { boardValue: 50, heldFirstNumber: false })).toEqual([]);
-    expect(dim(1, 61, 24, true, { focusedPlace: 'units' }, { boardValue: 0, heldFirstNumber: false })).toEqual([]);
+  });
+
+  it('skeletons are built against the board work, a box focused or not', () => {
+    // s7_g_t3: 5,▢▢▢ − 2,847 = 2,159, added back: 2,159 + 2,847 — building until the board is worth 5,006.
+    const add = verticalBoxes(5006, 2847, 2159, { a: ['hundreds', 'tens', 'units'] }, PLACE_ORDER);
+    const hiddenAdd = { a: ['hundreds', 'tens', 'units'] as Place[] };
+    for (const boardValue of [0, 2000, 2159, 4159, 4999]) {
+      for (const p of [null, ...PLACE_ORDER]) {
+        const w = work(5006, 2847, true, { hidden: hiddenAdd, boardValue, heldFrom: false });
+        expect(sorted(dimmedColumns({ ...base, sessionNumber: 7, taskType: 'vertical_addition', vertical: add, work: w, focusedPlace: p })), `${boardValue} ${p}`).toEqual([]);
+        expect(sorted(dimmedColumns({ ...base, sessionNumber: 7, taskType: 'vertical_addition', vertical: add, work: w, focusedMemoryCircle: p })), `${boardValue} ${p}`).toEqual([]);
+      }
+    }
+    const built = work(5006, 2847, true, { hidden: hiddenAdd, boardValue: 5006, heldFrom: false });
+    expect(sorted(dimmedColumns({ ...base, sessionNumber: 7, taskType: 'vertical_addition', vertical: add, work: built, focusedPlace: 'tens', operandDigits: { a: { units: '6' }, b: {} } }))).toEqual(['units', 'hundreds', 'thousands']);
+    // s7_g_t2: 2,▢3▢ + 1,554 = 4,191, worked as 4,191 − 1,554 — building until the board has held 4,191.
+    const sub = verticalBoxes(2637, 1554, 4191, { a: ['hundreds', 'units'] }, PLACE_ORDER);
+    const hiddenSub = { a: ['hundreds', 'units'] as Place[] };
+    expect(heldFromNumber({ a: 2637, b: 1554, isSubtraction: false, hidden: hiddenSub })).toBe(4191);
+    expect(heldFromNumber({ a: 5006, b: 2847, isSubtraction: true, hidden: hiddenAdd })).toBe(null); // an addition on the board
+    expect(heldFromNumber({ a: 53, b: 18, isSubtraction: true })).toBe(null); // the first number: takeAwayTrack
+    for (const p of [null, ...PLACE_ORDER]) {
+      const w = work(2637, 1554, false, { hidden: hiddenSub, boardValue: 4100, heldFrom: false });
+      expect(sorted(dimmedColumns({ ...base, sessionNumber: 7, taskType: 'vertical_addition', vertical: sub, work: w, focusedPlace: p }))).toEqual([]);
+    }
+    const held = work(2637, 1554, false, { hidden: hiddenSub, boardValue: 3000, heldFrom: true });
+    expect(sorted(dimmedColumns({ ...base, sessionNumber: 7, taskType: 'vertical_addition', vertical: sub, work: held, focusedPlace: 'units' }))).toEqual(['hundreds', 'thousands']);
   });
 
   it('computing an addition: the focus column alone — the "קבצו 10" button is on it', () => {
     expect(dim(4, 1245, 328, false)).toEqual(['tens', 'hundreds', 'thousands']);
     expect(dim(4, 1245, 328, false, { answerDigits: { units: '3' } })).toEqual(['units', 'hundreds', 'thousands']);
-    expect(dim(1, 713, 94, false, { focusedPlace: 'tens' })).toEqual(['units', 'hundreds', 'thousands']);
+    expect(dim(1, 713, 94, false, { focusedPlace: 'tens', answerDigits: { units: '7' } })).toEqual(['units', 'hundreds', 'thousands']);
+  });
+
+  it('a box focused above an empty lower box: every place from that box up to the focus stays lit', () => {
+    // 1,245 + 328, the cursor in the tens box before the units.
+    expect(dim(4, 1245, 328, false, { focusedPlace: 'tens' })).toEqual(['hundreds', 'thousands']);
+    expect(dim(4, 1245, 328, false, { focusedPlace: 'thousands', answerDigits: { units: '3' } })).toEqual(['units']);
+    // 53 − 18: the tens box before the units — the units, and the tens their break comes from.
+    expect(dim(5, 53, 18, true, { focusedPlace: 'tens' })).toEqual(['hundreds', 'thousands']);
+    expect(dim(5, 53, 18, true, { focusedPlace: 'tens', answerDigits: { units: '5' } })).toEqual(['units', 'hundreds', 'thousands']);
+    // Meeting 1, 61 − 24.
+    expect(dim(1, 61, 24, true, { focusedPlace: 'tens' })).toEqual(['hundreds', 'thousands']);
+    expect(dim(1, 61, 24, true, { focusedPlace: 'tens', answerDigits: { units: '7' } })).toEqual(['units', 'hundreds', 'thousands']);
+  });
+
+  it('an addition: a lower column still holding ten blocks or more stays lit (its grouping carries into the focus)', () => {
+    const typed = { answerDigits: { units: '3' } };
+    expect(dim(4, 1245, 328, false, { ...typed, focusedPlace: 'tens' }, { counts: { units: 13, tens: 6, hundreds: 5, thousands: 1 } })).toEqual(['hundreds', 'thousands']);
+    expect(dim(4, 1245, 328, false, { ...typed, focusedPlace: 'tens' }, { counts: { units: 3, tens: 7, hundreds: 5, thousands: 1 } })).toEqual(['units', 'hundreds', 'thousands']);
   });
 
   it('a column that lacks blocks: the column its break comes from stays lit', () => {
@@ -88,7 +161,8 @@ describe('vertical exercises: never a column the child has to act in', () => {
     expect(dim(5, 53, 18, true, { answerDigits: { units: '5' } })).toEqual(['units', 'hundreds', 'thousands']);
     // Meeting 1, 61 − 24 and 806 − 351, the child standing in the box.
     expect(dim(1, 61, 24, true, { focusedPlace: 'units' })).toEqual(['hundreds', 'thousands']);
-    expect(dim(1, 806, 351, true, { focusedPlace: 'tens' })).toEqual(['units', 'thousands']);
+    expect(dim(1, 806, 351, true, { focusedPlace: 'tens', answerDigits: { units: '5' } })).toEqual(['units', 'thousands']);
+    expect(dim(1, 806, 351, true, { focusedPlace: 'tens' })).toEqual(['thousands']); // the units box still empty
     expect(dim(1, 806, 351, true, { focusedPlace: 'units' })).toEqual(['tens', 'hundreds', 'thousands']);
   });
 
@@ -103,6 +177,22 @@ describe('vertical exercises: never a column the child has to act in', () => {
     expect(dim(6, 300, 142, true, { answerDigits: { units: '8' } })).toEqual(['units', 'hundreds', 'thousands']);
   });
 
+  it('a memory circle in a break chain lights the whole chain', () => {
+    // 4,000 − 1,562, the thousands circle: the units lack blocks, the break passes tens and hundreds.
+    for (const answerDigits of [{}, { units: '8' }, { units: '8', tens: '3' }, { units: '8', tens: '3', hundreds: '4' }]) {
+      expect(dim(6, 4000, 1562, true, { focusedMemoryCircle: 'thousands', answerDigits }), JSON.stringify(answerDigits)).toEqual([]);
+      expect(dim(6, 4000, 1562, true, { focusedMemoryCircle: 'hundreds', answerDigits }), JSON.stringify(answerDigits)).toEqual([]);
+    }
+    // The thousands result box, the lower digits written: the chain is done — the thousands alone.
+    expect(dim(6, 4000, 1562, true, { focusedPlace: 'thousands', answerDigits: { units: '8', tens: '3', hundreds: '4' } })).toEqual(['units', 'tens', 'hundreds']);
+    // 53 − 18, the tens circle: the units too, even after the units digit.
+    expect(dim(5, 53, 18, true, { focusedMemoryCircle: 'tens', answerDigits: { units: '5' } })).toEqual(['hundreds', 'thousands']);
+    // …but not the tens result box once the units are written.
+    expect(dim(5, 53, 18, true, { focusedPlace: 'tens', answerDigits: { units: '5' } })).toEqual(['units', 'hundreds', 'thousands']);
+    // 6,020 − 1,485, the hundreds circle: it only passes the tens' break — the tens, hundreds and thousands.
+    expect(dim(6, 6020, 1485, true, { focusedMemoryCircle: 'hundreds', answerDigits: { units: '5', tens: '3' } })).toEqual(['units']);
+  });
+
   it('a missing result digit: the lower columns the child works out on the board stay lit', () => {
     // s4_r_t7: 328 + 145, only the tens box — the units are grouped first.
     const s4 = verticalBoxes(328, 145, 473, {}, ['units', 'hundreds'], 3);
@@ -112,21 +202,19 @@ describe('vertical exercises: never a column the child has to act in', () => {
     expect(sorted(dimmedColumns({ ...base, sessionNumber: 6, taskType: 'vertical_addition', vertical: s6, work: work(400, 156, true) }))).toEqual(['thousands']);
   });
 
-  it('skeleton with a hidden operand: only while a box is focused, with the inverse operation’s breaks', () => {
+  it('skeleton with a hidden operand, computing: only while a box is focused, with the inverse operation’s breaks', () => {
     // s7_g_t2: 2,▢3▢ + 1,554 = 4,191 — worked as 4,191 − 1,554.
     const boxes = verticalBoxes(2637, 1554, 4191, { a: ['hundreds', 'units'] }, PLACE_ORDER);
-    const w = work(2637, 1554, false, { hidden: { a: ['hundreds', 'units'] }, boardValue: 0 });
+    const w = work(2637, 1554, false, { hidden: { a: ['hundreds', 'units'] }, boardValue: 4191, heldFrom: true });
     const sk = (over: Partial<ColumnFocusInput>) =>
       sorted(dimmedColumns({ ...base, sessionNumber: 7, taskType: 'vertical_addition', vertical: boxes, work: w, operandDigits: { a: {}, b: {} }, ...over }));
     expect(sk({})).toEqual([]);
     // Units: 1 < 4 — a ten of 4,191 is broken.
     expect(sk({ focusedPlace: 'units' })).toEqual(['hundreds', 'thousands']);
-    // Hundreds: the tens have no box (worked on the board); 1 < 5 — a thousand is broken.
-    expect(sk({ focusedPlace: 'hundreds' })).toEqual(['units']);
-    // s7_g_t3: 5,▢▢▢ − 2,847 = 2,159 — added back, 2,159 + 2,847: groupings only.
-    const add = verticalBoxes(5006, 2847, 2159, { a: ['hundreds', 'tens', 'units'] }, PLACE_ORDER);
-    const wAdd = work(5006, 2847, true, { hidden: { a: ['hundreds', 'tens', 'units'] }, heldFirstNumber: false, boardValue: 0 });
-    expect(sorted(dimmedColumns({ ...base, sessionNumber: 7, taskType: 'vertical_addition', vertical: add, work: wAdd, focusedPlace: 'tens' }))).toEqual(['units', 'hundreds', 'thousands']);
+    // Hundreds, the units box still empty: everything from the units up, and the thousand its break comes from.
+    expect(sk({ focusedPlace: 'hundreds' })).toEqual([]);
+    // Hundreds, the units written: the tens have no box (worked on the board); 1 < 5 — a thousand is broken.
+    expect(sk({ focusedPlace: 'hundreds', operandDigits: { a: { units: '7' }, b: {} } })).toEqual(['units']);
   });
 
   it('breakSources and boardOperation', () => {
@@ -143,16 +231,16 @@ describe('vertical exercises: never a column the child has to act in', () => {
 describe('vertical exercises: the focus column (computing, an addition without breaks)', () => {
   // 1,245 + 328 = 1,573: four result boxes; both numbers are on the board.
   const boxes = verticalBoxes(1245, 328, 1573);
-  const built: VerticalWork = { a: 1245, b: 328, isSubtraction: false, boardValue: 1573, heldFirstNumber: false };
+  const built: VerticalWork = { a: 1245, b: 328, isSubtraction: false, boardValue: 1573, heldFrom: false };
   const vert = (over: Partial<ColumnFocusInput>) =>
     sorted(dimmedColumns({ ...base, sessionNumber: 4, taskType: 'vertical_addition', vertical: boxes, work: built, answerDigits: {}, ...over }));
 
   it('a focused result box, hidden-operand box or memory circle of place p lights p and dims the others', () => {
     for (const sessionNumber of [1, 3, 4, 5, 6, 7]) {
-      expect(vert({ sessionNumber, focusedPlace: 'tens' })).toEqual(['units', 'hundreds', 'thousands']);
+      expect(vert({ sessionNumber, focusedPlace: 'tens', answerDigits: { units: '3' } })).toEqual(['units', 'hundreds', 'thousands']);
     }
     for (const sessionNumber of [3, 4, 5, 6, 7]) {
-      expect(vert({ sessionNumber, focusedMemoryCircle: 'hundreds' })).toEqual(['units', 'tens', 'thousands']);
+      expect(vert({ sessionNumber, focusedMemoryCircle: 'hundreds', answerDigits: { units: '3', tens: '7' } })).toEqual(['units', 'tens', 'thousands']);
     }
     expect(vert({ taskType: 'addition_simple', focusedPlace: 'units' })).toEqual(['tens', 'hundreds', 'thousands']);
   });
@@ -176,14 +264,19 @@ describe('vertical exercises: the focus column (computing, an addition without b
     expect(vert({ answerDigits: { units: '3', tens: '7', hundreds: '5', thousands: '1' } })).toEqual([]);
   });
 
-  it('a focused box wins over the lowest empty one', () => {
-    expect(vert({ answerDigits: {}, focusedPlace: 'thousands' })).toEqual(['units', 'tens', 'hundreds']);
+  it('a focused box above the lowest empty one lights the places between them', () => {
+    expect(vert({ answerDigits: {}, focusedPlace: 'thousands' })).toEqual([]);
+    expect(vert({ answerDigits: { units: '3' }, focusedPlace: 'thousands' })).toEqual(['units']);
+    expect(vert({ answerDigits: { units: '3', tens: '7' }, focusedPlace: 'thousands' })).toEqual(['units', 'tens']);
+    // Below the lowest empty box: the focus alone.
+    expect(vert({ answerDigits: { units: '3', tens: '7' }, focusedPlace: 'units' })).toEqual(['tens', 'hundreds', 'thousands']);
   });
 
   it('meeting 1: dimmed only while a box is focused', () => {
     expect(vert({ sessionNumber: 1 })).toEqual([]);
     expect(vert({ sessionNumber: 1, answerDigits: { units: '3' } })).toEqual([]);
-    expect(vert({ sessionNumber: 1, focusedPlace: 'hundreds' })).toEqual(['units', 'tens', 'thousands']);
+    expect(vert({ sessionNumber: 1, focusedPlace: 'hundreds' })).toEqual(['thousands']);
+    expect(vert({ sessionNumber: 1, focusedPlace: 'hundreds', answerDigits: { units: '3', tens: '7' } })).toEqual(['units', 'tens', 'thousands']);
     // As on main, the memory circle dims nothing in meeting 1.
     expect(vert({ sessionNumber: 1, focusedMemoryCircle: 'thousands' })).toEqual([]);
   });
@@ -209,9 +302,12 @@ describe('vertical exercises: the focus column (computing, an addition without b
   });
 });
 
-/** Every exercise in every bank (meetings 1, 3–7): no dimmed column where the child has to act. */
-describe('every bank exercise', () => {
-  const tasks: Array<{ t: SessionTask; session: number }> = [];
+/* ------------------------------------------------------------------------- */
+/* Every exercise in every bank (meetings 1, 3–7, main and branch).          */
+/* ------------------------------------------------------------------------- */
+
+const bankTasks: Array<{ t: SessionTask; session: number }> = [];
+{
   const ids = new Set<string>();
   const walk = (o: unknown): void => {
     if (Array.isArray(o)) o.forEach(walk);
@@ -221,95 +317,222 @@ describe('every bank exercise', () => {
         const session = Number(/^s(\d)_/.exec(t.id)?.[1]);
         if (!ids.has(t.id) && [1, 3, 4, 5, 6, 7].includes(session)) {
           ids.add(t.id);
-          tasks.push({ t, session });
+          bankTasks.push({ t, session });
         }
       } else Object.values(o).forEach(walk);
     }
   };
   walk(SessionTasks);
   walk(BranchTasks);
-  const vertical = (t: SessionTask) => t.type === 'vertical_addition' || t.type === 'addition_simple';
+}
+const isVertical = (t: SessionTask) => t.type === 'vertical_addition' || t.type === 'addition_simple';
 
+describe('every bank exercise', () => {
   it('found every kind', () => {
-    const kinds = new Set<string>(tasks.map(({ t }) => t.type));
+    const kinds = new Set<string>(bankTasks.map(({ t }) => t.type));
     for (const k of ['representation', 'flexible_decomp', 'missing_element', 'small_change', 'session1_intro', 'vertical_addition', 'addition_simple']) {
       expect(kinds.has(k), k).toBe(true);
     }
   });
 
   it('no calculation focus outside the vertical exercises', () => {
-    for (const { t, session } of tasks.filter(({ t }) => !vertical(t))) {
+    for (const { t, session } of bankTasks.filter(({ t }) => !isVertical(t))) {
       for (const p of [null, ...PLACE_ORDER]) {
         expect(sorted(dimmedColumns({ ...base, sessionNumber: session, taskType: t.type, focusedPlace: p, focusedMemoryCircle: p })), t.id).toEqual([]);
       }
     }
   });
+});
 
-  const setup = (t: SessionTask, session: number) => {
-    const { a, b, target } = effectiveArithmetic(t, false);
-    const boxes = verticalBoxes(a, b, target, t.hiddenDigits, t.revealedResultDigits, resultBoxCount(session, a, b, target));
-    const w: VerticalWork = { a, b, isSubtraction: t.isSubtraction === true, hidden: t.hiddenDigits, boardValue: 0, heldFirstNumber: false };
-    return { a, b, boxes, w };
+/**
+ * Every vertical exercise (meetings 1, 3–7, main and branch, the numbers as
+ * they are and the ASD numbers) × every stage, through the real store and the
+ * selector the board reads (boardDimmedColumns): the board built block column
+ * by block column in two orders, then computed column by column, with every
+ * box and memory circle focused and with nothing focused. What the child has
+ * to act in is worked out here on its own — not with breakSources or
+ * boardOperation:
+ *  - building: every column;
+ *  - computing, focus at place q: q, and every lower place not finished (no
+ *    box of its own, or its box still empty), each with its break chain in a
+ *    subtraction on the board;
+ *  - a memory circle at q: also every column whose break passes q, and that
+ *    break's whole chain (the circle records it, the column's digit written
+ *    or not).
+ * None of these may be dimmed — and the computing stage must still dim.
+ */
+describe('every vertical exercise × every stage, through the store', () => {
+  type Op = { from: number; other: number; subtract: boolean };
+  const digit = (n: number, i: number) => Math.floor(n / 10 ** i) % 10;
+  const countsOf = (n: number): PlaceCounts => ({ units: digit(n, 0), tens: digit(n, 1), hundreds: digit(n, 2), thousands: digit(n, 3) });
+  const worth = (c: PlaceCounts) => c.units + 10 * c.tens + 100 * c.hundreds + 1000 * c.thousands;
+  // The board work, written out again: a hidden first number is found by the inverse operation.
+  const opOf = (t: SessionTask, a: number, b: number): Op => {
+    const r = t.isSubtraction ? a - b : a + b;
+    if (t.hiddenDigits?.a?.length) return { from: r, other: b, subtract: !t.isSubtraction };
+    if (t.hiddenDigits?.b?.length) return t.isSubtraction ? { from: a, other: r, subtract: true } : { from: r, other: a, subtract: true };
+    return { from: a, other: b, subtract: t.isSubtraction === true };
+  };
+  /** The board as the child builds it: one column at a time, in the given order (states before the work starts). */
+  const buildingBoards = (op: Op, order: Place[]): PlaceCounts[] => {
+    const c: PlaceCounts = { ...EMPTY_COUNTS };
+    const out: PlaceCounts[] = [];
+    const add = (n: number) => order.forEach((p) => {
+      const d = digit(n, PLACE_ORDER.indexOf(p));
+      if (d) { c[p] += d; out.push({ ...c }); }
+    });
+    add(op.from);
+    if (!op.subtract) add(op.other);
+    out.pop(); // the last one is the board the work starts from
+    return out;
+  };
+  /** The board after each column is computed, and each column's break chain. */
+  const compute = (op: Op) => {
+    const c: PlaceCounts = op.subtract ? countsOf(op.from) : (() => {
+      const f = countsOf(op.from), o = countsOf(op.other);
+      return { units: f.units + o.units, tens: f.tens + o.tens, hundreds: f.hundreds + o.hundreds, thousands: f.thousands + o.thousands };
+    })();
+    const boards: PlaceCounts[] = [{ ...c }];
+    const chain: Partial<Record<Place, Place[]>> = {};
+    PLACE_ORDER.forEach((p, i) => {
+      if (op.subtract) {
+        const need = digit(op.other, i);
+        if (c[p] < need) {
+          let j = i + 1;
+          while (c[PLACE_ORDER[j]] === 0) j++;
+          chain[p] = PLACE_ORDER.slice(i + 1, j + 1);
+          for (let k = j; k > i; k--) { c[PLACE_ORDER[k]] -= 1; c[PLACE_ORDER[k - 1]] += 10; }
+        }
+        c[p] -= need;
+      } else if (c[p] >= 10 && i < 3) {
+        c[p] -= 10;
+        c[PLACE_ORDER[i + 1]] += 1;
+      }
+      boards.push({ ...c });
+    });
+    return { boards, chain };
   };
 
-  it('building the numbers: nothing dimmed, whatever box is focused (skeletons: while no box is focused)', () => {
-    for (const { t, session } of tasks.filter(({ t }) => vertical(t))) {
-      const { a, boxes, w } = setup(t, session);
-      const focuses = t.hiddenDigits ? [null] : [null, ...PLACE_ORDER];
-      for (const boardValue of [0, a]) {
-        for (const p of focuses) {
-          const dim = dimmedColumns({ ...base, sessionNumber: session, taskType: t.type, vertical: boxes, work: { ...w, boardValue }, focusedPlace: p });
-          expect(sorted(dim), `${t.id} ${boardValue} ${p}`).toEqual([]);
+  const variants: Array<{ t: SessionTask; session: number; isASD: boolean; label: string }> = [];
+  {
+    const vertical = bankTasks.filter(({ t }) => isVertical(t));
+    for (const v of vertical) for (const isASD of [false, true]) variants.push({ ...v, isASD, label: `${v.t.id}${isASD ? ' ASD' : ''}` });
+    // No bank exercise carries ASD numbers today (the catalog may): each plain
+    // exercise once more with the numbers of another of its kind as ASD numbers,
+    // so a selector or record that read numberA instead would show.
+    const plain = vertical.filter(({ t }) => !t.hiddenDigits && !t.revealedResultDigits);
+    plain.forEach(({ t, session }, i) => {
+      const other = plain.slice(i + 1).concat(plain.slice(0, i)).find(({ t: u }) => u.isSubtraction === t.isSubtraction && u.numberA !== t.numberA);
+      if (!other) return;
+      variants.push({ t: { ...t, asdNumberA: other.t.numberA, asdNumberB: other.t.numberB }, session, isASD: true, label: `${t.id} ASD=${other.t.id}` });
+    });
+  }
+
+  // The store as the other tests find it.
+  let before: ReturnType<typeof ws>;
+  beforeAll(() => { before = ws(); });
+  afterAll(() => useWorkspaceStore.setState(before, true));
+
+  const loadTask = (t: SessionTask, session: number, isASD: boolean) => {
+    useWorkspaceStore.setState({
+      sessionNumber: session, isASD, dynamicTasks: [t], standardTaskIdx: 0,
+      counts: { ...EMPTY_COUNTS }, focusedPlace: null, answerDigits: {}, operandDigits: { a: {}, b: {} },
+      takeAwayTrack: null, heldFromTrack: null,
+    } as any);
+  };
+
+  it('0 states where a column the child has to act in is dimmed; dimming present while computing', () => {
+    let states = 0;
+    let building = 0;
+    let computing = 0;
+    let computingDimmed = 0;
+    const violations: string[] = [];
+    const neverDims: string[] = [];
+    for (const { t, session, isASD, label } of variants) {
+      const { a, b, target } = effectiveArithmetic(t, isASD);
+      const boxes: VerticalBoxes = verticalBoxes(a, b, target, t.hiddenDigits, t.revealedResultDigits, resultBoxCount(session, a, b, target));
+      const boxed = (p: Place) => boxes.result.includes(p) || boxes.operandA.includes(p) || boxes.operandB.includes(p);
+      const op = opOf(t, a, b);
+      const skeleton = Boolean(t.hiddenDigits);
+      const boxFocuses = PLACE_ORDER.filter(boxed);
+      const circles: Place[] = session === 1 ? [] : PLACE_ORDER;
+      const focuses: Array<{ box: Place | null; circle: Place | null }> = [
+        { box: null, circle: null },
+        ...boxFocuses.map((p) => ({ box: p, circle: null })),
+        ...circles.map((p) => ({ box: null, circle: p })),
+      ];
+      const dimNow = (k: number, f: { box: Place | null; circle: Place | null }) => {
+        const answerDigits: Partial<Record<Place, string>> = {};
+        const operandDigits = { a: {} as Partial<Record<Place, string>>, b: {} as Partial<Record<Place, string>> };
+        PLACE_ORDER.slice(0, k).forEach((p) => {
+          if (boxes.result.includes(p)) answerDigits[p] = '0';
+          if (boxes.operandA.includes(p)) operandDigits.a[p] = '0';
+          if (boxes.operandB.includes(p)) operandDigits.b[p] = '0';
+        });
+        return boardDimmedColumns({ ...ws(), focusedPlace: f.box, answerDigits, operandDigits }, f.circle);
+      };
+
+      for (const order of [PLACE_ORDER, [...PLACE_ORDER].reverse()]) {
+        loadTask(t, session, isASD);
+        // Building: nothing dimmed, whatever is focused.
+        for (const c of buildingBoards(op, order)) {
+          useWorkspaceStore.setState({ counts: c });
+          for (const f of focuses) {
+            states++; building++;
+            const d = sorted(dimNow(0, f));
+            if (d.length) violations.push(`${label} building ${worth(c)} ${JSON.stringify(f)} → ${d}`);
+          }
         }
+        // Computing, column by column.
+        const { boards, chain } = compute(op);
+        let dimmedHere = false;
+        boards.forEach((c, k) => {
+          useWorkspaceStore.setState({ counts: c });
+          const done = (p: Place) => boxed(p) && PLACE_ORDER.indexOf(p) < k;
+          const involved = (p: Place): Place[] => (op.subtract ? [p, ...(chain[p] ?? [])] : [p]);
+          const forFocus = (q: Place) => {
+            const s = new Set<Place>();
+            for (const p of PLACE_ORDER.slice(0, PLACE_ORDER.indexOf(q) + 1)) if (p === q || !done(p)) involved(p).forEach((x) => s.add(x));
+            return s;
+          };
+          for (const f of focuses) {
+            states++; computing++;
+            let needed = new Set<Place>();
+            if (f.box) needed = forFocus(f.box);
+            else if (f.circle) {
+              needed = forFocus(f.circle);
+              // The circle records a break: the whole chain, its digit written or not.
+              for (const p of PLACE_ORDER) if (chain[p]?.includes(f.circle)) involved(p).forEach((x) => needed.add(x));
+            } else if (!skeleton && session >= 3) {
+              const low = PLACE_ORDER.find((p) => boxed(p) && !done(p));
+              if (low) needed = forFocus(low);
+            }
+            const d = dimNow(k, f);
+            if (d.size) { computingDimmed++; dimmedHere = true; }
+            const wrong = PLACE_ORDER.filter((p) => needed.has(p) && d.has(p));
+            if (wrong.length) violations.push(`${label} computing k=${k} ${JSON.stringify(f)} → dims ${wrong}`);
+          }
+        });
+        if (!dimmedHere) neverDims.push(label);
       }
     }
-  });
-
-  it('subtraction, computing: a column that lacks blocks never has the column it breaks from dimmed', () => {
-    for (const { t, session } of tasks.filter(({ t }) => vertical(t) && t.isSubtraction && !t.hiddenDigits)) {
-      const { a, b, boxes, w } = setup(t, session);
-      // The blocks, column by column, worked out here without breakSources.
-      const count: Record<Place, number> = { units: 0, tens: 0, hundreds: 0, thousands: 0 };
-      PLACE_ORDER.forEach((p, i) => (count[p] = Math.floor(a / 10 ** i) % 10));
-      const typed: Partial<Record<Place, string>> = {};
-      PLACE_ORDER.forEach((p, i) => {
-        const take = Math.floor(b / 10 ** i) % 10;
-        const lacking = count[p] < take;
-        if (lacking) {
-          let j = i + 1;
-          while (count[PLACE_ORDER[j]] === 0) j++;
-          for (let k = j; k > i; k--) { count[PLACE_ORDER[k]] -= 1; count[PLACE_ORDER[k - 1]] += 10; }
-        }
-        count[p] -= take;
-        if (!boxes.result.includes(p)) return; // a revealed digit: covered with the column above it
-        const dim = dimmedColumns({ ...base, sessionNumber: session, taskType: t.type, vertical: boxes, work: { ...w, boardValue: a, heldFirstNumber: true }, answerDigits: { ...typed }, focusedPlace: session === 1 ? p : null });
-        expect(dim.has(p), `${t.id} ${p}`).toBe(false);
-        if (lacking) expect(dim.has(PLACE_ORDER[i + 1]), `${t.id} ${p} breaks from ${PLACE_ORDER[i + 1]}`).toBe(false);
-        typed[p] = '0';
-      });
+    if (process.env.DIMMING_PROBE) {
+      console.log(JSON.stringify({ variants: variants.length, states, building, computing, computingDimmed, violations: violations.length, neverDims }, null, 1));
     }
+    expect(variants.length).toBeGreaterThan(100);
+    // Main and branch banks, every meeting with vertical exercises.
+    for (const id of ['s1_r_sub806', 's4_g_t1', 's5_r_t7', 's6_g_t3', 's7_g_t3', 's7_r_reinforce_1', 's7_g_challenge_1']) {
+      expect(variants.some(({ t }) => t.id === id), id).toBe(true);
+    }
+    expect(violations).toEqual([]);
+    expect(neverDims).toEqual([]);
+    expect(computingDimmed).toBeGreaterThan(computing / 3);
   });
 });
 
 /** Every vertical exercise in every bank: verticalBoxes names exactly the inputs VerticalAdditionTask draws. */
 describe('verticalBoxes matches the exercise sheet', () => {
-  const all: SessionTask[] = [];
-  const seen = new Set<string>();
-  const walk = (o: unknown): void => {
-    if (Array.isArray(o)) o.forEach(walk);
-    else if (o && typeof o === 'object') {
-      const t = o as SessionTask;
-      if (typeof t.id === 'string' && typeof t.type === 'string') {
-        if (!seen.has(t.id) && (t.type === 'vertical_addition' || t.type === 'addition_simple')) {
-          seen.add(t.id);
-          all.push(t);
-        }
-      } else Object.values(o).forEach(walk);
-    }
-  };
-  walk(SessionTasks);
-  walk(BranchTasks);
-
+  const all = bankTasks.map(({ t }) => t).filter(isVertical);
   const LABEL: Record<string, Place> = { יחידות: 'units', עשרות: 'tens', מאות: 'hundreds', אלפים: 'thousands' };
   const placesIn = (c: HTMLElement, re: RegExp): Place[] =>
     PLACE_ORDER.filter((p) =>
@@ -374,8 +597,9 @@ describe('on the board', () => {
     useWorkspaceStore.setState({ standardTaskIdx: idx } as any);
   };
 
-  // 1,245 + 328 built: both numbers' blocks, before any grouping.
+  // 1,245 + 328 built: both numbers' blocks, before any grouping; and after the units are grouped.
   const BUILT_1245_328 = { units: 13, tens: 6, hundreds: 5, thousands: 1 };
+  const UNITS_GROUPED = { units: 3, tens: 7, hundreds: 5, thousands: 1 };
 
   it('meeting 1, 347 (owner, 2.10.2026): the cursor in a result box dims nothing', () => {
     goTo(1, 's1_target_347');
@@ -409,7 +633,10 @@ describe('on the board', () => {
     // Only the brightness the PRD names; the column is not also made see-through.
     expect(tens.style.opacity).toBe('');
     expect(tens.className).not.toContain('opacity-60');
-    act(() => useWorkspaceStore.setState({ answerDigits: { units: '8' } } as any));
+    // The units digit typed before the units were grouped: the units stay lit.
+    act(() => useWorkspaceStore.setState({ answerDigits: { units: '3' } } as any));
+    expect(dimmed(container)).toEqual(['hundreds', 'thousands']);
+    act(() => useWorkspaceStore.setState({ counts: UNITS_GROUPED } as any));
     expect(dimmed(container)).toEqual(['units', 'hundreds', 'thousands']);
   });
 
@@ -420,10 +647,13 @@ describe('on the board', () => {
     expect(dimmed(container)).toEqual([]);
     act(() => useWorkspaceStore.setState({ counts: { units: 6, tens: 0, hundreds: 8, thousands: 0 } } as any));
     expect(useWorkspaceStore.getState().takeAwayTrack?.held).toBe(true);
-    expect(dimmed(container)).toEqual(['units', 'thousands']);
+    // The units box still empty: the units with the tens and the hundreds.
+    expect(dimmed(container)).toEqual(['thousands']);
     // Units taken away first (6 − 1): the units box dims the tens and the hundreds, which need nothing yet.
     act(() => useWorkspaceStore.setState({ counts: { units: 5, tens: 0, hundreds: 8, thousands: 0 }, focusedPlace: 'units' } as any));
     expect(dimmed(container)).toEqual(['tens', 'hundreds', 'thousands']);
+    act(() => useWorkspaceStore.setState({ answerDigits: { units: '5' }, focusedPlace: 'tens' } as any));
+    expect(dimmed(container)).toEqual(['units', 'thousands']);
   });
 
   it('meeting 5 green, 6,284 − 1,157, nothing focused: the units and the tens their break comes from', () => {
@@ -439,7 +669,7 @@ describe('on the board', () => {
 
   it('the memory circle lights its column without touching focusedPlace or activeColumnIndex', () => {
     goTo(4, 's4_g_t1');
-    useWorkspaceStore.setState({ counts: BUILT_1245_328 } as any);
+    useWorkspaceStore.setState({ counts: UNITS_GROUPED, answerDigits: { units: '3' } } as any);
     // With the place-cue scaffold on, the circle is named by its column
     // (without it, meetings 3–7 name it by position — core/placeCues.ts).
     useWorkspaceStore.setState({ activeColumnIndex: 0, placeCuesShown: true } as any);
@@ -450,6 +680,9 @@ describe('on the board', () => {
     expect(useBoardFocusStore.getState().focusedMemoryCircle).toBe('tens');
     const board = renderBoard();
     expect(dimmed(board.container)).toEqual(['units', 'hundreds', 'thousands']);
+    // The units box emptied again: the circle's column depends on it.
+    act(() => useWorkspaceStore.setState({ answerDigits: {} } as any));
+    expect(dimmed(board.container)).toEqual(['hundreds', 'thousands']);
     expect({ focusedPlace: useWorkspaceStore.getState().focusedPlace, activeColumnIndex: useWorkspaceStore.getState().activeColumnIndex }).toEqual(before);
     fireEvent.blur(circle);
     expect(useBoardFocusStore.getState().focusedMemoryCircle).toBe(null);
@@ -469,5 +702,187 @@ describe('on the board', () => {
       expect(col.style.pointerEvents).not.toBe('none');
       expect(col.className).not.toContain('pointer-events-none');
     }
+  });
+});
+
+/**
+ * Whether the board has held the number the work starts from — takeAwayTrack
+ * (the first number) and heldFromTrack (view only: a skeleton's result) —
+ * through the real store: drags, the trash, undo, the next exercise, a reload.
+ */
+describe('held, through the store', () => {
+  const byId = (id: string) => {
+    const t = bankTasks.find(({ t: x }) => x.id === id)?.t;
+    if (!t) throw new Error(`no task ${id}`);
+    return t;
+  };
+  const load = (meeting: number, task: SessionTask, isASD = false) => {
+    ws().resetWorkspace();
+    useAuthStore.setState({ user: { uid: 'student_user1', student_id: 1, role: 'student' } } as any);
+    useWorkspaceStore.setState({
+      sessionNumber: meeting, isASD, dynamicTasks: [task], standardTaskIdx: 0, flowStatus: 'task', awaitingNext: false,
+      openingScreenSeen: true, helpState: 'closed', currentState: 'PROBLEM_ACTIVE', operandDigits: { a: {}, b: {} },
+    } as any);
+    useBoardFocusStore.setState({ focusedMemoryCircle: null });
+  };
+  const drag = (p: Place, n = 1) => { for (let i = 0; i < n; i++) ws().applyDrop({ source: 'palette', sourcePlace: p, target: { kind: 'column', place: p } }); };
+  const trash = (p: Place, n = 1) => { for (let i = 0; i < n; i++) ws().removeBlockClick(p); };
+  const undo = (n = 1) => { for (let i = 0; i < n; i++) ws().undo(); };
+  const worthNow = () => { const c = ws().counts; return c.thousands * 1000 + c.hundreds * 100 + c.tens * 10 + c.units; };
+  const dims = (focusedPlace: Place | null, circle: Place | null = null) => sorted(boardDimmedColumns({ ...ws(), focusedPlace }, circle));
+  const likeTheDatabase = (value: unknown): any => {
+    const prune = (v: unknown): unknown => {
+      if (Array.isArray(v)) {
+        const out = v.map(prune).filter((x) => x !== undefined);
+        return out.length ? out : undefined;
+      }
+      if (v && typeof v === 'object') {
+        const out = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, prune(x)]).filter(([, x]) => x !== undefined));
+        return Object.keys(out).length ? out : undefined;
+      }
+      return v === null ? undefined : v;
+    };
+    return prune(JSON.parse(JSON.stringify(value)));
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('nextHeldFromTrack: held once the board is worth the number, until the board is emptied or the exercise changes', () => {
+    expect(nextHeldFromTrack(null, 't', 568, 500)).toEqual({ taskId: 't', held: false });
+    expect(nextHeldFromTrack({ taskId: 't', held: false }, 't', 568, 568)).toEqual({ taskId: 't', held: true });
+    expect(nextHeldFromTrack({ taskId: 't', held: true }, 't', 568, 314)).toEqual({ taskId: 't', held: true });
+    expect(nextHeldFromTrack({ taskId: 't', held: true }, 't', 568, 0)).toEqual({ taskId: 't', held: false });
+    expect(nextHeldFromTrack({ taskId: 't', held: true }, 'u', 568, 314)).toEqual({ taskId: 'u', held: false });
+    expect(nextHeldFromTrack(undefined, 't', 568, 568)).toEqual({ taskId: 't', held: true });
+  });
+
+  it('53 − 18: building, held, taking away, undo past the first number, the trash', () => {
+    load(5, byId('s5_r_t2'));
+    drag('tens', 5);
+    expect(dims('units')).toEqual([]); // building
+    drag('units', 3);
+    expect(ws().takeAwayTrack).toMatchObject({ held: true });
+    expect(dims('units')).toEqual(['hundreds', 'thousands']);
+    ws().splitBlockClick('tens');
+    trash('units', 8);
+    expect(dims('units')).toEqual(['hundreds', 'thousands']); // taking away: still held
+    undo(2);
+    expect(worthNow()).toBe(47);
+    expect(dims('units')).toEqual(['hundreds', 'thousands']); // undo below 53 while taking away keeps it
+    undo(8); // the cap: ten frames back
+    expect(ws().counts).toMatchObject({ tens: 5, units: 2 });
+    expect(ws().takeAwayTrack).toMatchObject({ held: false });
+    expect(dims('units')).toEqual([]); // back before 53 was built: building again
+    drag('units');
+    expect(dims('units')).toEqual(['hundreds', 'thousands']);
+    ws().clearBoard();
+    expect(ws().takeAwayTrack).toMatchObject({ held: false });
+    expect(dims('units')).toEqual([]);
+  });
+
+  it('a null or undefined record: building, nothing dimmed, nothing thrown', () => {
+    load(5, byId('s5_r_t2'));
+    drag('tens', 5);
+    drag('units', 3);
+    for (const takeAwayTrack of [null, undefined]) {
+      useWorkspaceStore.setState({ takeAwayTrack } as any);
+      expect(dims('units')).toEqual([]);
+      expect(dims(null, 'tens')).toEqual([]);
+    }
+    load(7, byId('s7_g_t2'));
+    useWorkspaceStore.setState({ counts: { thousands: 4, hundreds: 1, tens: 9, units: 1 } });
+    for (const heldFromTrack of [null, undefined]) {
+      useWorkspaceStore.setState({ heldFromTrack } as any);
+      expect(dims('units')).toEqual([]);
+    }
+  });
+
+  it('a skeleton, 2,▢3▢ + 1,554 = 4,191 (worked as 4,191 − 1,554): heldFromTrack, never takeAwayTrack', () => {
+    load(7, byId('s7_g_t2'));
+    drag('thousands', 4);
+    drag('hundreds', 1);
+    drag('tens', 9);
+    expect(dims('units')).toEqual([]); // 4,190: still building
+    drag('units', 1);
+    expect(ws().heldFromTrack).toEqual({ taskId: 's7_g_t2', held: true });
+    expect(ws().takeAwayTrack).toBe(null); // an addition exercise: the cards' record is not touched
+    expect(dims('units')).toEqual(['hundreds', 'thousands']);
+    ws().splitBlockClick('tens');
+    trash('units', 4);
+    expect(dims('units')).toEqual(['hundreds', 'thousands']);
+    undo(5);
+    expect(ws().heldFromTrack).toEqual({ taskId: 's7_g_t2', held: true }); // back at 4,191
+    undo();
+    expect(ws().heldFromTrack).toEqual({ taskId: 's7_g_t2', held: false }); // 4,190
+    expect(dims('units')).toEqual([]);
+    drag('units');
+    ws().clearBoard();
+    expect(ws().heldFromTrack).toEqual({ taskId: 's7_g_t2', held: false });
+  });
+
+  it('a subtraction skeleton, 5,▢▢▢ − 2,847 = 2,159 (added back): building until the board is worth 5,006', () => {
+    load(7, byId('s7_g_t3'));
+    drag('thousands', 2); drag('hundreds', 1); drag('tens', 5); drag('units', 9);
+    expect(dims('tens')).toEqual([]); // 2,159
+    drag('thousands', 2); drag('hundreds', 8); drag('tens', 4); drag('units', 6);
+    expect(dims('tens')).toEqual([]); // 5,005
+    drag('units');
+    expect(dims('tens')).toEqual(['hundreds', 'thousands']); // 5,006: the units box still empty
+    expect(ws().heldFromTrack).toBe(null);
+  });
+
+  it('the next exercise starts over; a reload keeps the record, and undo after it too', () => {
+    const svc = firebaseSyncService as any;
+    ws().resetWorkspace();
+    approvePath('green_path');
+    ws().initSession(7, false, 0);
+    const idx = getActiveTasks(ws()).findIndex((t) => t.id === 's7_g_t2');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    ws().initSession(7, false, idx);
+    useWorkspaceStore.setState({ flowStatus: 'task', awaitingNext: false, helpState: 'closed' } as any);
+    drag('thousands', 4); drag('hundreds', 1); drag('tens', 9); drag('units', 1);
+    ws().splitBlockClick('tens');
+    trash('units', 4);
+    expect(dims('units')).toEqual(['hundreds', 'thousands']);
+    const saved = likeTheDatabase(svc.getSyncableWorkspaceState());
+    expect(saved.heldFromTrack).toEqual({ taskId: 's7_g_t2', held: true });
+    ws().resetWorkspace();
+    approvePath('green_path');
+    ws().restoreSession(saved);
+    expect(ws().heldFromTrack).toEqual({ taskId: 's7_g_t2', held: true });
+    expect(dims('units')).toEqual(['hundreds', 'thousands']);
+    undo(6);
+    expect(ws().heldFromTrack).toEqual({ taskId: 's7_g_t2', held: false }); // the frame saved before 4,191
+    expect(dims('units')).toEqual([]);
+    // Held again, then the next exercise: nothing carried over.
+    drag('units');
+    expect(ws().heldFromTrack).toEqual({ taskId: 's7_g_t2', held: true });
+    ws().initSession(7, false, idx + 1);
+    expect(ws().heldFromTrack?.held ?? false).toBe(false);
+    expect(ws().takeAwayTrack?.held ?? false).toBe(false);
+    for (const p of PLACE_ORDER) expect(dims(p)).toEqual([]);
+  });
+
+  it('the ASD numbers: the record and the dimming follow them', () => {
+    // 53 − 18 with the ASD numbers of 61 − 24 (test numbers, not a bank exercise).
+    const t = { ...byId('s5_r_t2'), asdNumberA: 61, asdNumberB: 24 };
+    load(5, t, true);
+    drag('tens', 5);
+    drag('units', 3);
+    expect(ws().takeAwayTrack).toMatchObject({ held: false }); // 53 is not the ASD first number
+    expect(dims('units')).toEqual([]);
+    trash('tens', 5);
+    trash('units', 3);
+    drag('tens', 6);
+    drag('units', 1);
+    expect(ws().takeAwayTrack).toMatchObject({ held: true });
+    expect(dims('units')).toEqual(['hundreds', 'thousands']);
   });
 });
