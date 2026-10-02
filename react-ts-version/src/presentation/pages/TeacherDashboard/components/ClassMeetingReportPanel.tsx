@@ -6,6 +6,7 @@ import {
   generateClassReport,
   RESEARCH_MEASURES_HE,
   TIER_LABELS_HE,
+  type ClassCatchUp,
   type ClassExerciseRow,
   type ClassLearnerMeasures,
   type ClassMeetingReport,
@@ -16,6 +17,7 @@ import { meetingLabelHe } from '@/core/stationNames';
 import { exerciseTitle } from '@/infrastructure/services/LearnerJourneyService';
 import { ROUTE_NAME_HE } from '@/core/routeLabels';
 import { NOT_IN_THIS_REPORT_HE } from '@/core/researchMeasures';
+import { CATCHUP_REASON_HE, CATCHUP_REASON_KEYS } from '@/core/catchUp';
 
 const SESSION_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const TIER_ORDER: RecommendationTier[] = ['below_50', 'between_50_75', 'above_75'];
@@ -269,6 +271,8 @@ export function ClassMeetingReportPanel() {
             </div>
           )}
 
+          {report.catchUp && <ClassCatchUpBlock catchUp={report.catchUp} />}
+
           {/* Detailed Section (Collapsible - kept mounted to preserve subscriptions & state) */}
           <div className={isExpanded ? "space-y-3 pt-1" : "hidden"}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -442,6 +446,44 @@ export function ClassMeetingReportPanel() {
         </div>
       )}
     </section>
+  );
+}
+
+const learnersHe = (n: number): string => (n === 1 ? 'תלמיד אחד' : `${n} תלמידים`);
+const minutesTotalHe = (n: number): string => (n === 1 ? 'דקה אחת' : `${n} דקות`);
+
+/** "2 תלמידים קיבלו זמן השלמה, 9 דקות בסך הכול" — or that none has yet. */
+export function catchUpTotalsHe(c: ClassCatchUp): string {
+  if (c.learnersWithRounds === 0) return 'אף תלמיד עוד לא קיבל זמן השלמה';
+  const who = c.learnersWithRounds === 1 ? 'תלמיד אחד קיבל' : `${c.learnersWithRounds} תלמידים קיבלו`;
+  return `${who} זמן השלמה, ${minutesTotalHe(c.totalMinutes)} בסך הכול`;
+}
+
+/** "הסיבות שנרשמו: עבד בקצב איטי (2 תלמידים) · תקלה טכנית (תלמיד אחד)" — the closed list's order, recorded reasons only. */
+export function catchUpReasonsHe(c: ClassCatchUp): string | null {
+  const parts = CATCHUP_REASON_KEYS.filter((k) => c.reasonCounts[k] > 0).map((k) => `${CATCHUP_REASON_HE[k]} (${learnersHe(c.reasonCounts[k])})`);
+  return parts.length > 0 ? `הסיבות שנרשמו: ${parts.join(' · ')}` : null;
+}
+
+/**
+ * Catch-up time (owner, 2.10.2026): "וזה יתועד מה הסיבה לכך". Who did not
+ * finish the meeting, why, and the catch-up time they got — as the server
+ * stored it in the class report. Nothing when no reason was recorded.
+ */
+export function ClassCatchUpBlock({ catchUp }: { catchUp: ClassCatchUp }) {
+  if (catchUp.learners.length === 0) return null;
+  const reasons = catchUpReasonsHe(catchUp);
+  return (
+    <div className="p-3 rounded-xl bg-sky-50 border border-sky-200 text-sky-950 dark:bg-sky-950/40 dark:border-sky-800 dark:text-sky-100" data-testid="class-catch-up">
+      <div className="font-black mb-1">תלמידים שלא סיימו את המפגש</div>
+      <div className="font-bold">{catchUpTotalsHe(catchUp)}</div>
+      {reasons && <div className="mb-1">{reasons}</div>}
+      <ul className="space-y-1">
+        {catchUp.learners.map((l) => (
+          <li key={l.studentNumber}>• תלמיד {l.studentNumber}: {l.lineHe}</li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

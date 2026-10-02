@@ -188,6 +188,8 @@ describe('the meeting 1 class report', () => {
       '"help_withdrawals"',
       // Requests for help from the chat (owner, 1.10.2026), appended last.
       '"chat_help_requests"',
+      // Catch-up time (owner, 2.10.2026), appended last.
+      '"catchup_rounds"', '"catchup_minutes"', '"catchup_reason"', '"catchup_note"',
     ].join(','))).toBe(true);
     // Measure 2ב renamed in place; no old column name is reused with a new meaning.
     expect(header).toContain('"self_correction_undos","self_correction_wrong_digits","self_correction_wrong_options","self_correction_percent"');

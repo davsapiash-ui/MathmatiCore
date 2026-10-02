@@ -149,7 +149,37 @@ export interface ClassCatchUpSummary {
   total_minutes: number;
 }
 
-/** Part D2. Records keyed by learner number. */
-export function buildClassCatchUpSummary(_records: Record<number, Partial<CatchUpRecord> | null | undefined>): ClassCatchUpSummary {
-  throw new Error("not implemented: buildClassCatchUpSummary (part D2)");
+/**
+ * Part D2. Records keyed by learner number. A record without one valid round
+ * (summarizeCatchUpRecord returns null) is not a row. A learner's reasons are
+ * listed once each, in the order first recorded; the counts follow the same
+ * rule, so two rounds for the same reason count that learner once.
+ */
+export function buildClassCatchUpSummary(records: Record<number, Partial<CatchUpRecord> | null | undefined>): ClassCatchUpSummary {
+  const reason_counts = Object.fromEntries(CATCHUP_REASON_KEYS.map((k) => [k, 0])) as Record<CatchUpReasonKey, number>;
+  const learners: ClassCatchUpSummary["learners"] = [];
+  const numbers = Object.keys(records || {})
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && n > 0)
+    .sort((a, b) => a - b);
+  for (const n of numbers) {
+    const summary = summarizeCatchUpRecord(records[n]);
+    if (!summary) continue;
+    const reasons = Array.from(new Set(summary.reasons));
+    for (const r of reasons) reason_counts[r] += 1;
+    learners.push({
+      student_number: n,
+      rounds: summary.rounds,
+      minutes: summary.minutes,
+      reasons,
+      note: summary.notes.length > 0 ? summary.notes.join(" | ") : null,
+      line_he: catchUpSummaryHe(summary) ?? "",
+    });
+  }
+  return {
+    learners,
+    reason_counts,
+    learners_with_rounds: learners.filter((l) => l.rounds > 0).length,
+    total_minutes: learners.reduce((sum, l) => sum + l.minutes, 0),
+  };
 }
