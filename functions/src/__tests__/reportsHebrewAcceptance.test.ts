@@ -54,12 +54,13 @@ describe('D1 — the class report says why the cards opened in Hebrew', () => {
     expect(latin).toBeNull();
   });
 
-  it('the exercises by their titles; without a title the id stays (a choice exercise is not in the catalog)', () => {
+  it('the exercises by their titles; without a title a Hebrew label, never the id (coordinator, 2.10.2026)', () => {
     const html = classReportHtml({ session_number: 4, aggregates: a, learners: [row], exercise_titles: titles });
     expect(html).toContain('חיבור במאונך עם המרה');
     expect(html).not.toContain('s4_g_t1');
     const untitled = classReportHtml({ session_number: 4, aggregates: a, learners: [row] });
-    expect(untitled).toContain('<bdi dir="ltr">s4_g_t1</bdi>');
+    expect(untitled).toContain('תרגיל 1 בתחנה 4');
+    expect(untitled).not.toContain('s4_g_t1');
   });
 
   it('the columns: יחידות, never אחדות', () => {
@@ -92,8 +93,8 @@ describe('D2 — no English in the headings', () => {
     const { compulsory } = generateExerciseNarrativeFromEvents([...meeting], titles);
     expect(compulsory[0]).toMatch(/^בתרגיל הראשון \(חיבור במאונך עם המרה\) הלומד הזין ספרה שגויה בטור היחידות/);
     expect(compulsory.join(' ')).not.toMatch(/s4_g_t|אחדות/);
-    // Without a title (the choice banks are not published) the id stays.
-    expect(generateExerciseNarrativeFromEvents([...meeting]).compulsory[0]).toContain('(s4_g_t1)');
+    // Without a title (the catalog unavailable) a Hebrew label, never the id (coordinator, 2.10.2026).
+    expect(generateExerciseNarrativeFromEvents([...meeting]).compulsory[0]).toContain('(תרגיל 1 בתחנה 4)');
   });
 });
 

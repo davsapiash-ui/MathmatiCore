@@ -190,7 +190,7 @@ describe('meeting 1 target task (347): the card does not answer the task\'s ques
     // Owner's D10 (1.10.2026): guiding questions.
     expect(hints).toEqual([
       'רמז: מה קורה ללבנת העשרת כשלוחצים עליה?',
-      'רמז: מאיפה מגיעות עשר היחידות החדשות?',
+      'רמז: מה מופיע בבית המספרים במקום העשרת?',
     ]);
     expect(JSON.stringify(card)).not.toMatch(/שומרת על ערך הכמות|נשמרת|347/);
   });
@@ -399,7 +399,7 @@ describe('with blocks on the screen, the card follows the board', () => {
     expect(both.choices[0].textHe).toBe('רק את המספר הראשון, 4,000');
     // Everything taken away: the result row.
     const done = SocraticEngine.getSynchronousTaskHint(t, { thousands: 3, hundreds: 3, tens: 1, units: 4 });
-    expect(done.questionHe).toBe('נסו לחשוב: בתרגיל 5,432 − 2,118, אם כבר הוצאתם לפח את כל מה שמחסרים, מה עושים עכשיו?');
+    expect(done.questionHe).toBe('נסו לחשוב: בתרגיל 5,432 − 2,118, אם כבר הוצאתם לפח האשפה את כל מה שמחסרים, מה עושים עכשיו?');
   });
 
   it('independent review, 28.9.2026: a short column with nothing to its left is not "every column has enough"', () => {
@@ -408,7 +408,7 @@ describe('with blocks on the screen, the card follows the board', () => {
     // column. Since 1.10.2026 the card says so — group 10 hundreds into a
     // thousand (the thousands column needs them too).
     const card = SocraticEngine.getSynchronousTaskHint(t, { thousands: 0, hundreds: 54, tens: 2, units: 12 });
-    expect(card.questionHe).toBe('נסו לחשוב: בטור המאות יש 10 לבנים או יותר, גם אחרי החיסור. מה עושים?');
+    expect(card.questionHe).toBe('נסו לחשוב: בסוף החיסור יישארו בטור המאות 10 לבנים או יותר. מה עושים איתן?');
     expect(JSON.stringify(card)).not.toMatch(/בכל טור יש מספיק/);
   });
 

@@ -455,8 +455,8 @@ type DeficitPlace = typeof DEFICIT_PLACES[number];
 const IN_COLUMN_HE: Record<DeficitPlace, string> = { units: 'בטור היחידות', tens: 'בטור העשרות', hundreds: 'בטור המאות' };
 function meeting1DeficitCard(lacking: DeficitPlace[]): SocraticHintResponse {
   const question = lacking.length > 1
-    ? 'בודקים מטור היחידות שמאלה: באיזה טור אין מספיק לבנים כדי להחסיר?'
-    : 'באיזה טור אין מספיק לבנים כדי להחסיר?';
+    ? 'בודקים מטור היחידות שמאלה: באיזה טור אין מספיק לבנים כדי לחסר?'
+    : 'באיזה טור אין מספיק לבנים כדי לחסר?';
   const choices = DEFICIT_PLACES.map((p, i) => {
     const isCorrect = p === lacking[0];
     return {
@@ -503,9 +503,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-place-value-board",
     questionHe: 'הסתכלו ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
     choices: [
-      { id: "1", textHe: "לגרור עוד לבנים לטורים ולצפות בספרות בבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! כל לבנה שגוררים משנה את הספרה בטור שלה." },
-      { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "רמז: האם בשלב הזה פותרים תרגיל, או מכירים את הכלים?" },
-      { id: "3", textHe: "לכתוב מספר בשורת התוצאה", isCorrect: false, feedbackHe: "רמז: מה עושים בשלב הזה: כותבים מספר, או מכירים את הכלים?" }
+      { id: "1", textHe: "לגרור עוד לבנים לטורים ולצפות בספרות בבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! גררו עוד לבנים, ושימו לב איך הספרות משתנות." },
+      { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "רמז: האם הרשימה מבקשת לקבץ לבנים בשלב הזה?" },
+      { id: "3", textHe: "לכתוב מספר בשורת התוצאה", isCorrect: false, feedbackHe: "רמז: האם משהו ברשימה מבקש לכתוב מספר?" }
     ],
     correctChoiceId: "1",
     cardKind: 's1_card',
@@ -531,7 +531,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
       // D10 (owner, 1.10.2026): a guiding question. The card serves the board
       // before the break; after it, meeting1Card speaks (staticSocraticCards.ts).
       { id: "opt_2", textHe: "בית המספרים נשאר בלי שינוי", isCorrect: false, feedbackHe: "רמז: מה קורה ללבנת העשרת כשלוחצים עליה?" },
-      { id: "opt_3", textHe: "העשרת נמחקת מבית המספרים", isCorrect: false, feedbackHe: "רמז: מאיפה מגיעות עשר היחידות החדשות?" }
+      { id: "opt_3", textHe: "העשרת נמחקת מבית המספרים", isCorrect: false, feedbackHe: "רמז: מה מופיע בבית המספרים במקום העשרת?" }
     ],
     correctChoiceId: "opt_1",
     cardKind: 's1_card',
@@ -571,7 +571,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
       { id: "opt_1", textHe: "בודקים באיזה טור היא נמצאת", isCorrect: true, feedbackHe: "נכון מאוד! בדקו בבית המספרים כמה שווה כל לבנה בטור של הספרה." },
       // D10 (owner, 1.10.2026): guiding questions; neither names the 6's column.
       { id: "opt_2", textHe: "הערך שלה שווה תמיד לספרה", isCorrect: false, feedbackHe: "רמז: האם כל הלבנים בבית המספרים שוות אותו דבר?" },
-      { id: "opt_3", textHe: "סופרים את כל הלבנים יחד", isCorrect: false, feedbackHe: "רמז: באיזה טור בניתם את הספרה שעליה שואלים?" }
+      { id: "opt_3", textHe: "סופרים את כל הלבנים יחד", isCorrect: false, feedbackHe: "רמז: האם שואלים על כל המספר, או על ספרה אחת?" }
     ],
     correctChoiceId: "opt_1",
     cardKind: 's1_card',
@@ -715,12 +715,12 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   's5_card':   {
     pedagogical_intent: "procedural",
     error_category: "procedural",
-    tts_text: 'נסו לחשוב: אין מספיק יחידות כדי להחסיר. מה עושים?',
+    tts_text: 'נסו לחשוב: אין מספיק יחידות כדי לחסר. מה עושים?',
     suggested_highlight: "tour-column-tens",
-    questionHe: 'נסו לחשוב: אין מספיק יחידות כדי להחסיר. מה עושים?',
+    questionHe: 'נסו לחשוב: אין מספיק יחידות כדי לחסר. מה עושים?',
     choices: [
       { id: "opt_1", textHe: 'פורטים עשרת אחת לעשר יחידות בודדות ומעבירים אותן לטור היחידות', isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על לבנת עשרת אחת כדי לפרוט אותה לעשר יחידות.' },
-      { id: "opt_2", textHe: 'מחסירים את המספר הקטן מהמספר הגדול בטור היחידות', isCorrect: false, feedbackHe: HINT.topOrBottom },
+      { id: "opt_2", textHe: 'מחסרים את המספר הקטן מהמספר הגדול בטור היחידות', isCorrect: false, feedbackHe: HINT.topOrBottom },
       { id: "opt_3", textHe: 'כותבים את התשובה בטור העשרות תחילה', isCorrect: false, feedbackHe: HINT.startSub }
     ],
     correctChoiceId: "opt_1",
@@ -853,7 +853,7 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-place-value-board",
     questionHe: "איך פעולה הפוכה עוזרת לבדוק תשובה?",
     choices: [
-      { id: "opt_1", textHe: "מחסירים את אחד המחוברים מהסכום — אם מקבלים את השני, נכון" },
+      { id: "opt_1", textHe: "מחסרים את אחד המחוברים מהסכום — אם מקבלים את השני, נכון" },
       { id: "opt_2", textHe: "עושים שוב את אותה פעולה" },
       { id: "opt_3", textHe: "פעולה הפוכה לא קשורה לבדיקה" }
     ],
@@ -1190,7 +1190,7 @@ export class SocraticEngine {
               id: "opt_1",
               textHe: `בונים רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''} בבית המספרים, ואחר כך מוציאים ממנו ${formatNumberHe(subtrahend)} לפח האשפה`,
               isCorrect: true,
-              feedbackHe: 'נכון מאוד! גררו לבנים לבית המספרים עד שהוא מראה את המספר הראשון, ורק אז הוציאו ממנו.'
+              feedbackHe: 'נכון מאוד! בנו קודם את המספר הראשון, ורק אחר כך הוציאו ממנו את המספר השני.'
             },
             {
               id: "opt_2",
@@ -1257,10 +1257,10 @@ export class SocraticEngine {
       if (needUnits && unitsB > 0 && counts.units < unitsB) {
         return {
           pedagogical_intent: "procedural",
-          tts_text: `${inUnitsHe(counts.units)}, וצריך להחסיר ${unitsB}. פרטו עשרת אחת ל-10 יחידות.`,
+          tts_text: `${inUnitsHe(counts.units)}, וצריך לחסר ${unitsB}. פרטו עשרת אחת ל-10 יחידות.`,
           suggested_highlight: "tour-column-tens",
           situation: 'deficit_column', frameLevel: 2, intentHe: 'בטור היחידות אין מספיק כדי לחסר: פורטים עשרת אחת לעשר יחידות',
-          questionHe: `${inUnitsHe(counts.units)}, וצריך להחסיר ${unitsHe(unitsB)}. מה הצעד הנכון לבצע?`,
+          questionHe: `${inUnitsHe(counts.units)}, וצריך לחסר ${unitsHe(unitsB)}. מה הצעד הנכון לבצע?`,
           choices: [
             {
               id: "opt_1",
@@ -1270,7 +1270,7 @@ export class SocraticEngine {
             },
             {
               id: "opt_2",
-              textHe: `מחסירים הפוך: ${unitsB} פחות ${counts.units}`,
+              textHe: `מחסרים הפוך: ${unitsB} פחות ${counts.units}`,
               isCorrect: false,
               feedbackHe: HINT.topOrBottom
             },
@@ -1289,10 +1289,10 @@ export class SocraticEngine {
       if (needTens && tensB > 0 && counts.tens < tensB) {
         return {
           pedagogical_intent: "procedural",
-          tts_text: `${inTensHe(counts.tens)}, וצריך להחסיר ${tensB}. פרטו מאה אחת ל-10 עשרות.`,
+          tts_text: `${inTensHe(counts.tens)}, וצריך לחסר ${tensB}. פרטו מאה אחת ל-10 עשרות.`,
           suggested_highlight: "tour-column-hundreds",
           situation: 'deficit_column', frameLevel: 2, intentHe: 'בטור העשרות אין מספיק כדי לחסר: פורטים מאה אחת לעשר עשרות',
-          questionHe: `${inTensHe(counts.tens)}, וצריך להחסיר ${tensHe(tensB)}. מאיזה טור שכן אפשר לפרוט לבנה?`,
+          questionHe: `${inTensHe(counts.tens)}, וצריך לחסר ${tensHe(tensB)}. מאיזה טור שכן אפשר לפרוט לבנה?`,
           choices: [
             {
               id: "opt_1",
@@ -1302,7 +1302,7 @@ export class SocraticEngine {
             },
             {
               id: "opt_2",
-              textHe: `מחסירים הפוך: ${tensB} פחות ${counts.tens}`,
+              textHe: `מחסרים הפוך: ${tensB} פחות ${counts.tens}`,
               isCorrect: false,
               feedbackHe: HINT.topOrBottom
             },
@@ -1321,10 +1321,10 @@ export class SocraticEngine {
       if (needHundreds && hundredsB > 0 && counts.hundreds < hundredsB) {
         return {
           pedagogical_intent: "procedural",
-          tts_text: `${inHundredsHe(counts.hundreds)}, וצריך להחסיר ${hundredsB}. פרטו אלף אחד ל-10 מאות.`,
+          tts_text: `${inHundredsHe(counts.hundreds)}, וצריך לחסר ${hundredsB}. פרטו אלף אחד ל-10 מאות.`,
           suggested_highlight: "tour-column-thousands",
           situation: 'deficit_column', frameLevel: 2, intentHe: 'בטור המאות אין מספיק כדי לחסר: פורטים אלף אחד לעשר מאות',
-          questionHe: `${inHundredsHe(counts.hundreds)}, וצריך להחסיר ${hundredsHe(hundredsB)}. מה עושים?`,
+          questionHe: `${inHundredsHe(counts.hundreds)}, וצריך לחסר ${hundredsHe(hundredsB)}. מה עושים?`,
           choices: [
             { 
               id: "opt_1", 
@@ -1334,7 +1334,7 @@ export class SocraticEngine {
             },
             {
               id: "opt_2",
-              textHe: `מחסירים הפוך: ${hundredsB} פחות ${counts.hundreds}`,
+              textHe: `מחסרים הפוך: ${hundredsB} פחות ${counts.hundreds}`,
               isCorrect: false,
               feedbackHe: HINT.topOrBottom
             },

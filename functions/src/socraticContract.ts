@@ -698,6 +698,8 @@ export interface SocraticFacts {
   card_frame: SocraticCardFrame | null;
   /** The enhanced profile or the quiet mode is on: shorter, more concrete wording. */
   concise: boolean;
+  /** The exercise's id (request.exercise_id) — rules that belong to one exercise read it (s1_target_347). */
+  exercise_id?: string | null;
   /**
    * addition: what passes into the active column and where it really is — in
    * the memory circle above it, already on the board after the grouping, or
@@ -1400,6 +1402,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     earlier_card_kinds: ps?.earlier_card_kinds ?? [],
     card_frame: req.card_frame ?? null,
     concise: Boolean(req.learner_profile?.enhanced || req.learner_profile?.quiet),
+    exercise_id: req.exercise_id ?? null,
     suggested_category,
     suggested_focus_he,
   };
@@ -1495,7 +1498,7 @@ export const SOCRATIC_SYSTEM_INSTRUCTION_MEETING_1 = withLanguage(SOCRATIC_SYSTE
   )
   .replace(
     "- Never act as a chatbot,",
-    "- MEETING 1 (station 1): NEVER state how many blocks are in a column or on the board (no \"7 יחידות\", \"12 לבנים\", \"10 עשרות בטור העשרות\"), NEVER write any digit of the answer, and NEVER name the column where the difficulty is. The learner finds the counts and the column. Ask instead (\"באיזה טור אין מספיק לבנים כדי להחסיר?\", \"באחד הטורים יש 10 לבנים או יותר. מה עושים?\").\n- Never act as a chatbot,"
+    "- MEETING 1 (station 1): NEVER state how many blocks are in a column or on the board (no \"7 יחידות\", \"12 לבנים\", \"10 עשרות בטור העשרות\"), NEVER write any digit of the answer, and NEVER name the column where the difficulty is. The learner finds the counts and the column. Ask instead (\"באיזה טור אין מספיק לבנים כדי לחסר?\", \"באחד הטורים יש 10 לבנים או יותר. מה עושים?\").\n- Never act as a chatbot,"
   ), true);
 
 /**
@@ -2359,6 +2362,16 @@ function namesColumnNotInInstruction(text: string, allowed: Set<SocraticColumn>)
 const MEETING_1_ABSENT = /טור האלפים|לבנ(?:ת|י)\s+(?:ה)?אלף|קבצו 10 לאלף|(?:מקבצים|קבצו|לקבץ)\s+(?:כל\s+)?10\s+(?:ה)?מאות|מאות\s+לאלף|(?:^|[^א-ת])[לב]?אלף אחד/;
 
 /** A card that tells the child to group: refused while a break is the intended step. */
+/**
+ * s1_target_347 asks which number the blocks show after the break: that it is
+ * still the number built is what the child must find (coordinator's decision,
+ * 2.10.2026; the analysts' phrase rule of meeting 1). A card that says the
+ * number stays the same, or sends the child to write the number built at the
+ * start, gives it away. A question about adding or deleting blocks ("האם המספר
+ * יישאר אותו מספר?") is not refused: it asks, about another action.
+ */
+export const S1_TARGET_SAME_NUMBER = /(?:המספר|הכמות|הערך)\s+(?:עדיין\s+)?(?:נשאר|נשארת|נשמר|נשמרת|לא\s+(?:משתנה|השתנה|השתנתה|ישתנה|תשתנה))(?![א-ת])|(?:^|[^א-ת])לא\s+(?:משתנה|השתנה|השתנתה|ישתנה|תשתנה)(?![א-ת])|(?:^|[^א-ת])(?:ו|ש|כש)?(?:נשמר|נשמרת|נשמרים|נשמרות)(?![א-ת])|שבניתם\s+(?:ב)?(?:התחלה|תחילת)|אותו\s+מספר\s+(?:כמו\s+)?(?:ב)?(?:התחלה|תחילת)|אותו\s+מספר\s+(?:ש|כמו\s+ש)בניתם/;
+
 const GROUP_VERB = /(?:^|[^א-ת])(?:ו|ש|כש)?(?:קבצו|מקבצים|לקבץ|הקבצה|ההקבצה|תקבצו)(?![א-ת])/;
 
 /**
@@ -2510,6 +2523,10 @@ export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | n
     if ([question, right?.option_text ?? "", right?.feedback_text ?? ""].some((t) => GROUP_VERB.test(t))) {
       return { ok: false, reason: "frame: the 10 or more blocks are the break the next step needs — never tell the child to group them back; ask about the step the instruction asks for next" };
     }
+  }
+  // s1_target_347: "the number stays the same" is the discovery itself.
+  if (facts?.exercise_id === "s1_target_347" && texts.some((t) => S1_TARGET_SAME_NUMBER.test(t))) {
+    return { ok: false, reason: "secret number leaked: s1_target_347 asks which number the blocks show after the break — never say that the number stays the same, is kept or did not change, and never send the child to write the number built at the start; ask what happened to the broken block instead" };
   }
   // What the child is asked to find on a representation task (s3_r_t3's 45, s7_r_t6's 510).
   const secrets = (facts?.secret_numbers ?? []).filter((n) => n !== 10 && n !== 100 && n !== 1000);

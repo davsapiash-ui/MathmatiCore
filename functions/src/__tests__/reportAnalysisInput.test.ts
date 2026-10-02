@@ -116,16 +116,16 @@ describe('X32 — the narrative follows the actual order, in correct Hebrew', ()
       ev('s4_g_t2', 'DIGIT_ENTERED', { digit_value: 6, is_correct: true }, 5, 0),
       ev('s4_g_t2', 'PROBLEM_COMPLETE', {}, 6),
     ]);
-    expect(compulsory[0]).toBe('בתרגיל הראשון (s4_g_t1) הלומד הזין ספרה שגויה בטור היחידות (פעם אחת), והשלים את התרגיל לאחר תיקון.');
+    expect(compulsory[0]).toBe('בתרגיל הראשון (תרגיל 1 בתחנה 4) הלומד הזין ספרה שגויה בטור היחידות (פעם אחת), והשלים את התרגיל לאחר תיקון.');
     // Every column typed in is named, the correct-digit column too.
-    expect(compulsory[1]).toBe('בתרגיל השני (s4_g_t2) הלומד הזין ספרות שגויות בטור העשרות ובטור היחידות (פעמיים), והשלים את התרגיל לאחר תיקון.');
+    expect(compulsory[1]).toBe('בתרגיל השני (תרגיל 2 בתחנה 4) הלומד הזין ספרות שגויות בטור העשרות ובטור היחידות (פעמיים), והשלים את התרגיל לאחר תיקון.');
     expect(compulsory.join(' ')).not.toMatch(/\((1|2) פעמים\)/);
   });
 
   it('three wrong digits or more read "(N פעמים)"', () => {
     const wrong = (t: number) => ev('s4_g_t1', 'DIGIT_ENTERED', { digit_value: t, is_correct: false }, t, 0);
     const { compulsory } = generateExerciseNarrativeFromEvents([wrong(1), wrong(2), wrong(3), ev('s4_g_t1', 'PROBLEM_COMPLETE', {}, 4)]);
-    expect(compulsory[0]).toBe('בתרגיל הראשון (s4_g_t1) הלומד הזין ספרות שגויות בטור היחידות (3 פעמים), והשלים את התרגיל לאחר תיקון.');
+    expect(compulsory[0]).toBe('בתרגיל הראשון (תרגיל 1 בתחנה 4) הלומד הזין ספרות שגויות בטור היחידות (3 פעמים), והשלים את התרגיל לאחר תיקון.');
   });
 
   it('the canvas representation sits where the first drag happened, not hoisted to the front', () => {
@@ -138,13 +138,13 @@ describe('X32 — the narrative follows the actual order, in correct Hebrew', ()
       ev('s4_g_t1', 'PROBLEM_COMPLETE', {}, 6),
     ]);
     expect(compulsory[0]).toBe(
-      'בתרגיל הראשון (s4_g_t1) הלומד השתהה 52 שניות, קיבל כרטיס חניכה, ייצג את המספרים בבית המספרים באמצעות לבני הדינס של 10, 1, ביצע פריטה מטור העשרות, והשלים את התרגיל בניסיון הראשון.'
+      'בתרגיל הראשון (תרגיל 1 בתחנה 4) הלומד השתהה 52 שניות, קיבל כרטיס חניכה, ייצג את המספרים בבית המספרים באמצעות לבני הדינס של 10, 1, ביצע פריטה מטור העשרות, והשלים את התרגיל בניסיון הראשון.'
     );
   });
 
   it('an exercise with nothing but its completion reads "הלומד השלים", not "הלומד והשלים"', () => {
     const { compulsory } = generateExerciseNarrativeFromEvents([ev('s4_g_t1', 'PROBLEM_COMPLETE', {}, 1)]);
-    expect(compulsory[0]).toBe('בתרגיל הראשון (s4_g_t1) הלומד השלים את התרגיל בניסיון הראשון.');
+    expect(compulsory[0]).toBe('בתרגיל הראשון (תרגיל 1 בתחנה 4) הלומד השלים את התרגיל בניסיון הראשון.');
   });
 });
 

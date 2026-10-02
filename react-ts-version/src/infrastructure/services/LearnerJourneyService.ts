@@ -325,6 +325,10 @@ export function exerciseTitle(sessionNumber: number | null, exerciseId: string):
       }
     }
   }
+  // A placeholder id ("ex_4_01") has no bank: a Hebrew label, never the id
+  // (coordinator, 2.10.2026; the server's exerciseLabelHe).
+  const placeholder = /^ex_(\d+)_/.exec(exerciseId);
+  if (placeholder) return `משימה בתחנה ${placeholder[1]}`;
   return exerciseId;
 }
 

@@ -17,6 +17,7 @@ import { COLUMN_NAMES_HE, ROUTE_NAME_HE, errorCategoryCountsHe, triggerCountsHe 
 import type { ClassAggregates, ClassLearnerRow, ExerciseOutcome } from "./classReport";
 import {
   CHOICE_PATH_LABEL_HE,
+  exerciseLabelHe,
   exercisePathType,
   flexibilityHe,
   mediationHe,
@@ -62,9 +63,6 @@ export function esc(value: unknown): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
-
-/** A Latin identifier (exercise id, trigger name) isolated so it never flips the Hebrew around it. */
-const ltr = (value: unknown) => `<bdi dir="ltr">${esc(value)}</bdi>`;
 
 let fontCss: string | null = null;
 /** Heebo (variable weight) embedded as a data URI, so printing never depends on the network. */
@@ -201,8 +199,7 @@ function refreshOutcomesList(outcomes: Record<string, ExerciseOutcome> | null | 
   const entries = Object.entries(outcomes ?? {});
   if (entries.length === 0) return "<p>לא נרשמו תרגילים.</p>";
   const rows = entries.map(([id, outcome]) => {
-    const title = titles?.[id];
-    return `<tr><td class="label">${title ? esc(title) : ltr(id)}</td><td class="outcome-${outcome}">${esc(OUTCOME_HE[outcome])}</td></tr>`;
+    return `<tr><td class="label">${esc(exerciseLabelHe(titles, id))}</td><td class="outcome-${outcome}">${esc(OUTCOME_HE[outcome])}</td></tr>`;
   }).join("");
   return `<table><thead><tr><th>תרגיל</th><th>איך הסתיים</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
@@ -317,12 +314,11 @@ const studentList = (ids: number[]) => (ids.length > 0 ? ids.map((id) => `תלמ
 
 /**
  * An exercise by the Hebrew title the teacher's screens show. A choice
- * exercise is not in the published catalog, so it has no title here and keeps
- * its id, isolated so it never flips the Hebrew around it.
+ * exercise is not in the published catalog: it gets a Hebrew label, never its
+ * id (exerciseLabelHe).
  */
 function exerciseName(titles: Record<string, string> | null | undefined, id: string): string {
-  const title = titles?.[id];
-  return title ? esc(title) : ltr(id);
+  return esc(exerciseLabelHe(titles, id));
 }
 
 /** A percentage that may not have been measured. Never printed as a bare "%". */

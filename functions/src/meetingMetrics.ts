@@ -214,6 +214,26 @@ export function isChoiceExercise(exerciseId: string): boolean {
   return exercisePathType(exerciseId) !== "compulsory";
 }
 
+/**
+ * An exercise's name in a report: its catalog title, or — where the catalog
+ * gives none (the choice banks are not published; a placeholder "ex_N_01") —
+ * a Hebrew label, never the id (coordinator's decision, 2.10.2026: reports are
+ * Hebrew only). "ביסוס" and "אתגר" are the path names of מסמך 03.
+ */
+export function exerciseLabelHe(titles: Record<string, string> | null | undefined, exerciseId: string): string {
+  const title = titles?.[exerciseId];
+  if (typeof title === "string" && title.trim()) return title;
+  const id = String(exerciseId ?? "");
+  const choice = /^s(\d+)_(?:[gr]_)?(reinforce|challenge)_(\d+)$/.exec(id);
+  if (choice) return `${choice[2] === "challenge" ? "משימת אתגר" : "משימת ביסוס"} ${choice[3]} בתחנה ${choice[1]}`;
+  // A compulsory exercise whose title the catalog did not give (catalog unavailable): its number, so the seven stay apart.
+  const compulsory = /^s(\d+)_(?:[gr]_)?t(\d+)$/.exec(id);
+  if (compulsory) return `תרגיל ${compulsory[2]} בתחנה ${compulsory[1]}`;
+  const station = /^(?:ex|s)_?(\d+)_/.exec(id);
+  if (station) return `משימה בתחנה ${station[1]}`;
+  return "משימה";
+}
+
 /** How a choice exercise is named in the teacher's reports (the path names of מסמך 03). */
 export const CHOICE_PATH_LABEL_HE: Record<Exclude<ExercisePathType, "compulsory">, string> = {
   consolidation: "תרגיל בחירה — נתיב החזרה והביסוס",

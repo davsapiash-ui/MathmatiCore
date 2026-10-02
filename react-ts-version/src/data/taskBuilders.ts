@@ -319,4 +319,5 @@ export const S6_SUB = (ex: string, _a?: number, _b?: number) =>
   `פתרו חיסור עם אפסים: ${ex}.${BORROW_WHEN_NEEDED} החסירו את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
 export const S8_ADD = (ex: string) => `${ex}. פתרו את תרגיל החיבור וכתבו את התשובה בשורת התוצאה!`;
 export const S8_SUB = (ex: string) => `${ex}. פתרו את תרגיל החיסור וכתבו את התשובה בשורת התוצאה!`;
-export const FLEX_HOWTO = 'בנו דרך אחת. לחצו על הכפתור "הוספת ייצוג". אחר כך בנו דרך שונה. רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול הפעולה ↺.';
+// The button records one way per press, two in all (FlexibleDecompTask): the second way needs a second press.
+export const FLEX_HOWTO = 'בנו את המספר בדרך אחת. לחצו על הכפתור "הוספת ייצוג". אחר כך בנו אותו בדרך שונה, ולחצו שוב על "הוספת ייצוג". רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול הפעולה ↺.';

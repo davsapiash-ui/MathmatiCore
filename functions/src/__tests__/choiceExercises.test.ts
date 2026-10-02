@@ -94,11 +94,11 @@ describe('the individual report', () => {
   it('numbers the compulsory exercises only, and lists the choice exercises apart, marked', () => {
     const { compulsory, choice } = generateExerciseNarrativeFromEvents(meeting);
     expect(compulsory).toHaveLength(7);
-    expect(compulsory[6]).toMatch(/^בתרגיל השביעי \(s4_g_t7\)/);
+    expect(compulsory[6]).toMatch(/^בתרגיל השביעי \(תרגיל 7 בתחנה 4\)/);
     expect(compulsory.join(' ')).not.toMatch(/השמיני|התשיעי|reinforce|challenge/);
     expect(choice).toEqual([
-      `${CHOICE_PATH_LABEL_HE.consolidation} (s4_g_reinforce_1): הלומד השלים את התרגיל בניסיון הראשון.`,
-      `${CHOICE_PATH_LABEL_HE.challenge} (s4_g_challenge_1): הלומד הזין ספרה שגויה (פעם אחת), והשלים את התרגיל לאחר תיקון.`,
+      `${CHOICE_PATH_LABEL_HE.consolidation} (משימת ביסוס 1 בתחנה 4): הלומד השלים את התרגיל בניסיון הראשון.`,
+      `${CHOICE_PATH_LABEL_HE.challenge} (משימת אתגר 1 בתחנה 4): הלומד הזין ספרה שגויה (פעם אחת), והשלים את התרגיל לאחר תיקון.`,
     ]);
   });
 
