@@ -139,9 +139,12 @@ export function TeacherApprovalGate({
           aria-labelledby="gate-unfinished-title"
           className="bg-amber-50 dark:bg-amber-950/30 p-5 rounded-3xl border border-amber-200 dark:border-amber-900 flex flex-col gap-3"
         >
-          <h3 id="gate-unfinished-title" className="font-extrabold text-sm text-amber-950 dark:text-amber-100">
-            התחילו את {meetingShortLabelHe(2)} ולא סיימו ({unfinished.length})
-          </h3>
+          <div>
+            <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300">{meetingShortLabelHe(2)}</p>
+            <h3 id="gate-unfinished-title" className="font-extrabold text-sm text-amber-950 dark:text-amber-100">
+              תלמידים שהתחילו את המפגש ולא סיימו ({unfinished.length})
+            </h3>
+          </div>
           <ul className="flex flex-wrap gap-2">
             {unfinished.map((u) => (
               <li
@@ -154,12 +157,12 @@ export function TeacherApprovalGate({
           </ul>
           {isMeeting2Open ? (
             <p className="text-xs text-amber-900 dark:text-amber-200">
-              {meetingShortLabelHe(2)} פתוח עכשיו, והם עדיין עובדים. כשתסגרו אותו בכפתור &quot;סגרו את המפגש&quot;, הם יעברו לטבלה שלמטה.
+              המפגש פתוח עכשיו, והם עדיין עובדים. כשתסגרו אותו בכפתור &quot;סגרו את המפגש&quot;, הם יעברו לטבלה שלמטה.
             </p>
           ) : (
             <>
               <p className="text-xs text-amber-900 dark:text-amber-200">
-                המפגש נסגר לפני שהם סיימו, וכל מה שעשו נשמר. פתחו שוב את {meetingShortLabelHe(2)}, והם ימשיכו מהמשימה שבה עצרו. מי שכבר סיים לא יעשה את המפגש שוב.
+                המפגש נסגר לפני שהם סיימו, וכל מה שעשו נשמר. אם תפתחו אותו שוב לכיתה, הם ימשיכו מהמשימה שבה עצרו. מי שסיים את כל המשימות, או שכבר אישרתם לו מסלול, לא יעשה את המפגש שוב.
                 כשתסגרו את המפגש בכפתור &quot;סגרו את המפגש&quot;, הם יעברו לטבלה שלמטה.
               </p>
               {onReopenMeeting2 && (

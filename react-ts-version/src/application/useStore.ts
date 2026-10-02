@@ -619,6 +619,13 @@ export const useStore = create<AppState>()(
 
       setRouteRecommendation: (studentId, route) => set((state) => {
         const students = { ...state.students };
+        const current = students[studentId];
+        // An approved gate is the teacher's decision: a learner's later
+        // completion of meeting 2 (the meeting opened again) never takes it
+        // back to 'PENDING', here or on the record.
+        if (current && (current.routeStatus === 'APPROVED' || current.teacher_gate_approved === true)) {
+          return { students };
+        }
         if (students[studentId]) {
           students[studentId] = { 
             ...students[studentId], 

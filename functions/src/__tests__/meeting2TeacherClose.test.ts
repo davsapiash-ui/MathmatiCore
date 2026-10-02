@@ -510,3 +510,88 @@ describe('a learner the close completed, who finishes meeting 2 later, is re-sco
     expect(h.docs['sessions/session_02_student_4'].session_score_percent).toBe(100);
   });
 });
+
+describe('a learner an earlier close completed, who went on and is closed again before the seventh answer', () => {
+  async function closeOnTask4(n: number) {
+    solved(n, TASKS[0]);
+    solved(n, TASKS[1]);
+    solved(n, TASKS[2]);
+    opened(n, TASKS[3]);
+    await completeUnfinishedMeeting2(admin.firestore(), admin.database());
+    await fireScoreTrigger(`session_02_student_${n}`, null);
+    h.docs[`sessions/session_02_student_${n}`].evaluated_at = 1;
+  }
+
+  it('the tasks answered since get their values, the profile follows, and the score is re-scored', async () => {
+    await closeOnTask4(4);
+    // Meeting 2 opened again: tasks 4 and 5 solved, the meeting closed on task 6.
+    solved(4, TASKS[3]);
+    solved(4, TASKS[4]);
+    opened(4, TASKS[5]);
+
+    const result = await completeUnfinishedMeeting2(admin.firestore(), admin.database());
+    expect(result.alreadyCompleted).toEqual([4]);
+    expect(result.updated).toEqual([4]);
+    const rec = h.rtdb['users/students/student_user4'];
+    expect(rec.qMatrixResults).toMatchObject({
+      [TASKS[3]]: 'success', [TASKS[4]]: 'success', [TASKS[5]]: Q_NOT_ANSWERED_TAG, [TASKS[6]]: Q_NOT_ANSWERED_TAG,
+    });
+    expect(rec.conceptMastery).toEqual(computeCognitiveMastery(rec.qMatrixResults));
+    // 5 of 7 first try → 71%.
+    expect(h.docs['sessions/session_02_student_4']).toMatchObject({ is_completed: true, session_score_percent: 71, matrix_recommended_path: 'green_path' });
+    expect(rec).toMatchObject({ session_score_percent: 71 });
+  });
+
+  it('nothing answered since: nothing written', async () => {
+    await closeOnTask4(4);
+    h.firestoreWrites = [];
+    const before = JSON.stringify(h.rtdb['users/students/student_user4']);
+    const result = await completeUnfinishedMeeting2(admin.firestore(), admin.database());
+    expect(result.updated).toEqual([]);
+    expect(h.firestoreWrites).toEqual([]);
+    expect(JSON.stringify(h.rtdb['users/students/student_user4'])).toBe(before);
+  });
+
+  it('an approved gate stays approved', async () => {
+    await closeOnTask4(4);
+    Object.assign(h.rtdb['users/students/student_user4'], { routeStatus: 'APPROVED', teacher_gate_approved: true });
+    solved(4, TASKS[3]);
+    await completeUnfinishedMeeting2(admin.firestore(), admin.database());
+    expect(h.rtdb['users/students/student_user4']).toMatchObject({ routeStatus: 'APPROVED', teacher_gate_approved: true });
+  });
+});
+
+describe('a meeting 2 that already ended by time is not closed by the teacher', () => {
+  const AT = 1_800_000_000_000;
+  const MIN = 60_000;
+  const open2 = (over: Record<string, unknown> = {}) => ({ active: true, status: 'active', sessionNumber: 2, startedAt: AT - 10 * MIN, ...over });
+  const teacherClose = { active: false, status: 'closed', sessionNumber: null, closedBy: 'teacher' };
+  const open3 = { active: true, status: 'active', sessionNumber: 3 };
+
+  it('within the 45 minutes: the close and the switch count', () => {
+    expect(isTeacherCloseOfMeeting2(open2(), teacherClose, AT)).toBe(true);
+    expect(isTeacherCloseOfMeeting2(open2(), open3, AT)).toBe(true);
+  });
+
+  it('past the 45-minute cap, though no dashboard wrote the close: neither counts', () => {
+    const expired = open2({ startedAt: AT - 46 * MIN });
+    expect(isTeacherCloseOfMeeting2(expired, open3, AT)).toBe(false);
+    expect(isTeacherCloseOfMeeting2(expired, teacherClose, AT)).toBe(false);
+  });
+
+  it('past the teacher-disconnect window: neither counts', () => {
+    const gone = open2({ teacherDisconnectedAt: AT - 16 * MIN });
+    expect(isTeacherCloseOfMeeting2(gone, open3, AT)).toBe(false);
+    expect(isTeacherCloseOfMeeting2(open2({ teacherDisconnectedAt: AT - 5 * MIN }), open3, AT)).toBe(true);
+  });
+
+  it('the trigger judges by the write\'s own time', async () => {
+    opened(6, TASKS[0]);
+    const snap = (v: unknown) => ({ val: () => v });
+    const time = new Date(AT).toISOString();
+    await (onMeeting2ClosedByTeacher as any).run({ time, data: { before: snap(open2({ startedAt: AT - 50 * MIN })), after: snap(open3) } });
+    expect(h.docs['sessions/session_02_student_6']).toBeUndefined();
+    await (onMeeting2ClosedByTeacher as any).run({ time, data: { before: snap(open2()), after: snap(open3) } });
+    expect(h.docs['sessions/session_02_student_6']).toMatchObject({ is_completed: true });
+  });
+});

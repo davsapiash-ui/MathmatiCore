@@ -46,6 +46,19 @@ export function isRestorableFor(snapshot: Snapshot, meeting: number): boolean {
 }
 
 /**
+ * A meeting-2 state still in the primary round of the diagnostic: the seven
+ * tasks are not all answered (the seventh answer moves the learner to the
+ * correction round or to the end). A learner whose meeting 2 is nevertheless
+ * completed was completed by the teacher's close, part-way through.
+ */
+export function isDiagnosticPrimaryRound(snapshot: Snapshot): boolean {
+  if (!snapshot || snapshot.sessionNumber !== 2 || !snapshot.flowStatus) return false;
+  if (snapshot.flowStatus === 'sessionDone' || snapshot.flowStatus === 'reflection') return false;
+  const phase = (snapshot.qflow as { phase?: unknown } | undefined)?.phase;
+  return phase === undefined || phase === 'primary';
+}
+
+/**
  * The copy to restore this meeting from, or null when neither is one.
  * The server copy wins on a tie and whenever the local copy is not strictly
  * later by the stamp — except against a local copy of a fresh start made

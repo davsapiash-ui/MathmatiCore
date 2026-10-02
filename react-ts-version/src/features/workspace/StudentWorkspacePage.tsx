@@ -55,7 +55,7 @@ import { toast } from 'sonner';
 import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting2WaitingScreen';
 import { TeacherWillOpenWaitingScreen } from '@/presentation/components/student/TeacherWillOpenWaitingScreen';
 import { ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
-import { newerWorkspaceSnapshot, isRestorableFor, workspaceSavedAt, startedWithoutRecord } from '@/core/workspaceSnapshot';
+import { newerWorkspaceSnapshot, isRestorableFor, workspaceSavedAt, startedWithoutRecord, isDiagnosticPrimaryRound } from '@/core/workspaceSnapshot';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { SessionPausedOverlay } from '@/presentation/components/student/SessionPausedOverlay';
 import { SessionClosedOverlay } from '@/presentation/components/student/SessionClosedOverlay';
@@ -104,6 +104,7 @@ export function StudentWorkspacePage() {
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
+  const qflowPhase = useWorkspaceStore((s) => s.qflow?.phase);
   const isSocraticPanelOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
   // The grid's re-open tab keeps clear of the coaching card too (report row 1.28).
   const gridTabLeft = useLeftClearOfSidePanel();
@@ -1110,6 +1111,19 @@ export function StudentWorkspacePage() {
   // the previous meeting left in the store — its end screen or choice screen.
   // The meeting starts, and this screen goes, when the approval and the path
   // arrive (runInit above).
+  // Meeting 2 opened again (owner decision 2.10.2026: to let the learners who
+  // did not finish, finish). A learner the teacher's close completed part-way
+  // and whose path the teacher has already approved does not go back into the
+  // diagnostic: the approval rests on what was there, and finishing would
+  // rewrite it. Same quiet wait as a finished learner (#196). Learners not yet
+  // approved go on from where they stopped and are re-scored.
+  if (
+    meeting === 2 && !isTeacherOrAdmin && completedMeeting2 && isGateApproved &&
+    isDiagnosticPrimaryRound({ sessionNumber, flowStatus, qflow: { phase: qflowPhase } })
+  ) {
+    return <><TeacherWillOpenWaitingScreen />{classStateOverlays}</>;
+  }
+
   if (pendingApproval && !isInitialized) {
     return <>{showMeeting2Waiting ? <><Meeting2WaitingScreen /><CornerCloudSyncStatus /></> : <TeacherWillOpenWaitingScreen />}{classStateOverlays}</>;
   }

@@ -65,7 +65,9 @@ describe('the gate tab shows them, with the reopen action', () => {
   it('meeting 2 closed: the list, what was kept, and one button that opens meeting 2 again', () => {
     const onReopenMeeting2 = vi.fn();
     render(<TeacherApprovalGate {...base} isMeeting2Open={false} onReopenMeeting2={onReopenMeeting2} />);
-    expect(screen.getByRole('heading', { name: `התחילו את ${meetingShortLabelHe(2)} ולא סיימו (1)` })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'תלמידים שהתחילו את המפגש ולא סיימו (1)' })).toBeTruthy();
+    expect(screen.getByText(meetingShortLabelHe(2))).toBeTruthy();
+    expect(screen.getByText(/מי שסיים את כל המשימות, או שכבר אישרתם לו מסלול, לא יעשה את המפגש שוב/)).toBeTruthy();
     expect(screen.getByText('תלמיד 2 · עצר במשימה 4 מתוך 7')).toBeTruthy();
     expect(screen.getByText(/וכל מה שעשו נשמר/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: `פתחו שוב את ${meetingShortLabelHe(2)}` }));
@@ -74,7 +76,7 @@ describe('the gate tab shows them, with the reopen action', () => {
 
   it('meeting 2 open: they are still working, and there is nothing to reopen', () => {
     render(<TeacherApprovalGate {...base} isMeeting2Open onReopenMeeting2={vi.fn()} />);
-    expect(screen.getByText(/פתוח עכשיו, והם עדיין עובדים/)).toBeTruthy();
+    expect(screen.getByText(/המפגש פתוח עכשיו, והם עדיין עובדים/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /פתחו שוב/ })).toBeNull();
   });
 
@@ -94,7 +96,7 @@ describe('the dashboard', () => {
   });
 
   it('the 45-minute close of meeting 2 tells the teacher where they are', () => {
-    expect(dash).toContain('מי שלא סיים מופיע בלשונית "${TEACHER_GATE_HE}", ושם אפשר לפתוח לו את המפגש שוב.');
+    expect(dash).toContain('מי שלא סיים מופיע בלשונית "${TEACHER_GATE_HE}", ושם אפשר לפתוח שוב את המפגש לכיתה.');
     // Read before the close is written: the SDK raises our own set() on the
     // listener at once, and the record is then the closed one (seen live).
     const read = dash.indexOf('const closedMeeting = Number(lastVal.sessionNumber);');

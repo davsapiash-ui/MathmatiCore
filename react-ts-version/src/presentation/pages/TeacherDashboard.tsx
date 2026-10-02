@@ -323,7 +323,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         // the teacher is told where the learners who did not finish are.
         toast.info(
           closedMeeting === 2
-            ? `המפגש נסגר אוטומטית: עברו 45 דקות מההפעלה. מי שלא סיים מופיע בלשונית "${TEACHER_GATE_HE}", ושם אפשר לפתוח לו את המפגש שוב.`
+            ? `המפגש נסגר אוטומטית: עברו 45 דקות מההפעלה. מי שלא סיים מופיע בלשונית "${TEACHER_GATE_HE}", ושם אפשר לפתוח שוב את המפגש לכיתה.`
             : 'המפגש נסגר אוטומטית: עברו 45 דקות מההפעלה.'
         );
       }
