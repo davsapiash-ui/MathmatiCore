@@ -5,7 +5,8 @@ import { AlertTriangle, ShieldAlert, RefreshCw, X, Check } from 'lucide-react';
 import type { ResetReason, ResetTarget, SingleStudentResetScope } from '@/types';
 import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
 import { meetingLabelHe } from '@/core/stationNames';
-import { RESET_REASON_HE } from '@/core/routeLabels';
+import { useResetMeetingTarget } from '@/application/useResetMeetingTarget';
+import { RESET_REASON_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 
 export interface ResetConfirmationModalProps {
   isOpen: boolean;
@@ -55,8 +56,15 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   // Twelve learners lose the work of the open meeting: one explicit tick, so
   // the button next to "איפוס התראות" cannot do it on a stray click.
   const [classConfirmed, setClassConfirmed] = useState(false);
-  const activeSessionNumber = activeSessionProp && activeSessionProp >= 1 && activeSessionProp <= 8 ? activeSessionProp : null;
+  const classSessionNumber = activeSessionProp && activeSessionProp >= 1 && activeSessionProp <= 8 ? activeSessionProp : null;
   const isClassTarget = resetLevel === 'single_student' && resetTarget === 'class';
+  // PRD 23א §ה: the meeting is named before the teacher confirms. For one
+  // learner it is worked out by the server's own rule (core/resetMeetingTarget.ts):
+  // the class's open meeting, else the meeting the learner is in. The window
+  // used to say only "המפגש הנוכחי" when no meeting was open.
+  const isOneLearner = resetLevel === 'single_student' && !isClassTarget;
+  const resetMeeting = useResetMeetingTarget(isOpen && isOneLearner, targetStudentId, classSessionNumber);
+  const activeSessionNumber = isOneLearner ? resetMeeting.target?.sessionNumber ?? null : classSessionNumber;
 
   const handleClose = useCallback(() => {
     if (isSubmitting) return;
@@ -93,6 +101,9 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
       return;
     }
     if (isClassTarget && (!activeSessionNumber || !classConfirmed)) {
+      return;
+    }
+    if (isOneLearner && scope === 'active_session' && !activeSessionNumber) {
       return;
     }
 
@@ -212,7 +223,32 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <li className="text-amber-700 dark:text-amber-300 font-semibold">יבוצע גיבוי מלא של נתוני {targetStudentName || targetStudentId} אל Google Drive.</li>
                 <li>יימחקו מצב מרחב העבודה וההתקדמות של לומד זה בלבד {inMeetingLabel}.</li>
                 <li>הלומד יוחזר לתחילת המפגש. מפגשים קודמים, הקלטות והודעות צ'אט נשמרים.</li>
-                {!activeSessionNumber && <li>אין מפגש פתוח כרגע: יאופס המפגש שהלומד נמצא בו.</li>}
+                {resetMeeting.loading ? (
+                  <li>בודקים איזה מפגש יאופס…</li>
+                ) : !resetMeeting.target ? (
+                  <li className="text-red-700 dark:text-red-300 font-semibold">אין מפגש פתוח לכיתה, ולא ידוע באיזה מפגש התלמיד נמצא, ולכן אין מפגש לאפס.</li>
+                ) : (
+                  <>
+                    <li className="font-semibold text-slate-800 dark:text-slate-100">
+                      {resetMeeting.target.source === 'class'
+                        ? `יאופס מפגש ${resetMeeting.target.sessionNumber}, המפגש הפתוח לכיתה.`
+                        : `אין מפגש פתוח לכיתה, ולכן יאופס מפגש ${resetMeeting.target.sessionNumber}, המפגש שהתלמיד נמצא בו.`}
+                    </li>
+                    {resetMeeting.target.completed && (
+                      <li>התלמיד כבר סיים את מפגש {resetMeeting.target.sessionNumber}, והאיפוס יבטל גם את הסיום.</li>
+                    )}
+                    {resetMeeting.target.sessionNumber === 2 && (
+                      // Register deviation 10: "במפגש 2 גם תוצאות המטריקס, ההמלצה והשער".
+                      <li className="text-red-700 dark:text-red-300 font-semibold">
+                        במפגש 2 יימחקו גם תוצאות האבחון, ההמלצה והמסלול שאושר ב"{TEACHER_GATE_HE}". עד שהתלמיד ישלים שוב את מפגש 2 ויאושר לו מסלול, הוא ימתין ולא ייכנס למפגשים הבאים.
+                      </li>
+                    )}
+                    {resetMeeting.target.sessionNumber === 8 && (
+                      // Register deviation 10: "במפגש 8 גם הרפלקציה".
+                      <li>במפגש 8 תימחק גם הרפלקציה של התלמיד.</li>
+                    )}
+                  </>
+                )}
                 <li>יירשם תיעוד בלתי-מחיק ביומן האיפוסים.</li>
               </>
             )}
@@ -372,7 +408,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           <button
             type="button"
             onClick={handleExecute}
-            disabled={isSubmitting || !selectedReason || (isLevel3 && step === 2 && !doubleConfirmed) || (isClassTarget && (!activeSessionNumber || !classConfirmed))}
+            disabled={isSubmitting || !selectedReason || (isLevel3 && step === 2 && !doubleConfirmed) || (isClassTarget && (!activeSessionNumber || !classConfirmed)) || (isOneLearner && scope === 'active_session' && !activeSessionNumber)}
             className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed ${
               isLevel3
                 ? 'bg-red-600 hover:bg-red-700 disabled:opacity-50'

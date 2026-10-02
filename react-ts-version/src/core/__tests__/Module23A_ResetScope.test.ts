@@ -92,19 +92,23 @@ describe('Module 23א — one scope for backup and deletion', () => {
     expect(body).not.toContain('enhanced_support_profile');
   });
 
-  it('the meeting to restart is the requested one, else the open class meeting, else the learner\'s, else a refusal', () => {
+  it('the meeting to restart is the open class meeting, else the learner\'s, else a refusal — never the request\'s', () => {
     // Register deviation 10: "אם אין מפגש פתוח, המפגש שהלומד נמצא בו". The live
     // workspace writes activeSessionNumber; activeSessionId is the older field.
     // With neither, the server refuses instead of restarting meeting 1.
-    const start = fn.indexOf('export async function resolveActiveSessionNumber');
-    const body = fn.slice(start, fn.indexOf('export async function resolveClassSessionNumber', start));
-    expect(body.indexOf('valid(requested)')).toBeGreaterThan(-1);
-    expect(body.indexOf('active_class_session/sessionNumber')).toBeGreaterThan(body.indexOf('valid(requested)'));
-    expect(body.indexOf('["activeSessionNumber", "activeSessionId"]')).toBeGreaterThan(body.indexOf('active_class_session/sessionNumber'));
-    expect(body).toMatch(/return null;\s*\}/);
-    expect(body).not.toMatch(/return 1;/);
+    // Owner, 2.10.2026: the class meeting counts only while it is open now.
+    const target = readFileSync(resolve(__dirname, '../../../../functions/src/resetMeetingTarget.ts'), 'utf-8');
+    const rule = target.slice(target.indexOf('export function resetMeetingTarget'));
+    expect(rule.indexOf('liveClassMeeting(classRecord, atMs)')).toBeGreaterThan(-1);
+    expect(rule.indexOf('learnerMeeting(learnerRecords)')).toBeGreaterThan(rule.indexOf('liveClassMeeting(classRecord, atMs)'));
+    expect(target).not.toMatch(/return 1;/);
+    expect(fn).toContain('await resolveActiveSessionNumber(rtdb, rawNum)');
+    expect(fn).toContain('await resolveClassSessionNumber(rtdb)');
     expect(fn).toMatch(/if \(isOneLearner && singleScope === 'active_session' && activeSessionNumber === null\) \{\s*throw new HttpsError\(\s*"failed-precondition"/);
     expect(fn.indexOf("isOneLearner && singleScope === 'active_session' && activeSessionNumber === null")).toBeLessThan(fn.indexOf('backup = await collectResetBackup('));
+    // A request naming another meeting is refused before the backup.
+    expect(fn.indexOf('requestedSession !== activeSessionNumber')).toBeGreaterThan(-1);
+    expect(fn.indexOf('requestedSession !== activeSessionNumber')).toBeLessThan(fn.indexOf('backup = await collectResetBackup('));
   });
 
   it('a system reset recomputes the admin cache the deleted data fed (Module 24 store_cache)', () => {
@@ -167,10 +171,11 @@ describe('Module 23א — level 2 for the whole class (register, deviation 20)',
   });
 
   it('refuses when no meeting is open instead of guessing one for twelve learners', () => {
-    const start = fn.indexOf('export async function resolveClassSessionNumber');
-    const body = fn.slice(start, fn.indexOf('// ─── Reset scope, backup and deletion helpers', start));
-    expect(body.indexOf('valid(requested)')).toBeGreaterThan(-1);
-    expect(body.indexOf('active_class_session/sessionNumber')).toBeGreaterThan(body.indexOf('valid(requested)'));
+    const target = readFileSync(resolve(__dirname, '../../../../functions/src/resetMeetingTarget.ts'), 'utf-8');
+    const start = target.indexOf('export async function resolveClassSessionNumber');
+    const body = target.slice(start);
+    // The class's meeting only while it is open now (owner, 2.10.2026) — the request names none.
+    expect(body).toContain('return liveClassMeeting(await readClassRecord(rtdb), atMs);');
     // No fall-back to a learner record and no "meeting 1" default.
     expect(body).not.toContain('/activeSessionId');
     expect(body).not.toMatch(/return 1;/);

@@ -4,6 +4,7 @@ import * as admin from "firebase-admin";
 import { exerciseAttempts, readLastResetOfMeeting, readMeetingTelemetry, sessionDocumentIdCandidates } from "./meetingMetrics";
 import { computeCognitiveMastery } from "./diagnosticMastery";
 import { computeMeetingScore } from "./sessionTrigger";
+import { isClassSessionOpenAt } from "./classSessionLive";
 
 /**
  * PRD Module 14 §ב1: "שדה is_completed נקבע אך ורק לפי השלמת שבע משימות החובה
@@ -85,20 +86,13 @@ type Rec = Record<string, unknown> | null | undefined;
  * isClassSessionLive), and closing or leaving it is not the teacher closing a
  * running meeting: it ended by time, and completes no one.
  */
-export const SESSION_HARD_CAP_MS = 45 * 60 * 1000;
-export const TEACHER_DISCONNECT_GRACE_MS = 15 * 60 * 1000;
-
-function endedByTime(rec: Record<string, unknown>, atMs: number): boolean {
-  const startedAt = typeof rec.startedAt === "number" && rec.startedAt > 0 ? rec.startedAt : null;
-  if (startedAt !== null && atMs >= startedAt + SESSION_HARD_CAP_MS) return true;
-  const away = typeof rec.teacherDisconnectedAt === "number" && rec.teacherDisconnectedAt > 0 ? rec.teacherDisconnectedAt : null;
-  return away !== null && atMs - away > TEACHER_DISCONNECT_GRACE_MS;
-}
+// The rule itself lives in classSessionLive.ts, shared with the reset's choice of meeting.
+export { SESSION_HARD_CAP_MS, TEACHER_DISCONNECT_GRACE_MS } from "./classSessionLive";
 
 export function isTeacherCloseOfMeeting2(before: Rec, after: Rec, atMs: number = Date.now()): boolean {
   if (!before || !after) return false;
   if (Number(before.sessionNumber) !== 2) return false;
-  const wasOpen = before.active === true && before.status !== "closed" && !endedByTime(before, atMs);
+  const wasOpen = isClassSessionOpenAt(before, atMs);
   const isClosed = after.active !== true && after.status === "closed";
   const switchedAway = after.active === true && Number(after.sessionNumber) !== 2;
   return wasOpen && ((isClosed && after.closedBy === TEACHER_CLOSE_MARKER) || switchedAway);
