@@ -180,7 +180,8 @@ describe('Module 23א — level 2 for the whole class (register, deviation 20)',
   });
 
   it('backs up the whole class and resets only the meeting on each of the 12 records', () => {
-    expect(classScope).toContain('rtdbBackupOnlyPaths: ["users/students", "chat_messages"],');
+    // The recordings, in their own node since 2.10.2026, are backed up as they were on the records.
+    expect(classScope).toContain('rtdbBackupOnlyPaths: ["users/students", "chat_messages", RECORDINGS_ROOT],');
     expect(classScope).toContain('ALL_STUDENT_IDS.flatMap((n) => studentAliases(String(n)))');
     expect(classScope).toContain('values: { __activeSessionNumber: sessionNumber }');
     // Same rule as one learner: every collection is backed up, only the meeting's session documents go.

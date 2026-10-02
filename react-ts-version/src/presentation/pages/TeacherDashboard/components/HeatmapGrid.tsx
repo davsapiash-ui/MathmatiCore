@@ -26,6 +26,8 @@ import { isClassSessionLive } from '@/core/classSession';
 import { meetingLabelHe, meetingShortLabelHe, stationNameHe } from '@/core/stationNames';
 import { getHesitationThresholdSeconds, useHesitationThresholdSeconds } from '@/core/hesitationCalibration';
 import { CARD_OPEN_HE, ERROR_CATEGORY_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE, radarPathLabelHe } from '@/core/routeLabels';
+import { hasLegacyRecordings } from '@/core/legacyRecordings';
+import { LegacyRecordingsButton } from './LegacyRecordingsButton';
 
 // Radar status color resolution lives in core/radarColor.ts (resolveRadarColor)
 // — the full BLUE > RED > GREY > YELLOW > GREEN priority actually rendered
@@ -235,6 +237,9 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
     };
   }, []);
 
+  // Module 21: recordings of earlier versions still on the learner records (see LegacyRecordingsButton).
+  const [legacyRecordings, setLegacyRecordings] = useState(false);
+
   // Subscribe to live Firebase data and merge with 12 pilot student slots (sorted strictly by student ID 1..12)
   useEffect(() => {
     let throttleTimeout: NodeJS.Timeout | null = null;
@@ -391,6 +396,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       studentsRef,
       (snapshot) => {
         pendingData = snapshot.val() || {};
+        setLegacyRecordings(hasLegacyRecordings(pendingData));
         flushThrottledData();
       },
       (err) => {
@@ -601,6 +607,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 <FileDown className={`w-3.5 h-3.5 ${isExportingDataset ? 'animate-pulse' : ''}`} />
                 <span>{isExportingDataset ? 'מייצא...' : 'ייצוא נתוני מחקר'}</span>
               </button>
+
+              <LegacyRecordingsButton visible={legacyRecordings} />
 
               {/* Module 23א level 1 — Alerts Reset. Strictly separate from the
                   level-3 system reset; never merged into one action. */}

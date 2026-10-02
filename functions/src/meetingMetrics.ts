@@ -1207,11 +1207,13 @@ export function persistenceHe(p: PersistenceIndex | null): string {
 /**
  * Module 21: "ההקלטה מוגבלת ל-50MB לכל לומד לכל מפגש… נרשם דגל
  * recording_truncated: true". The learner's client keeps the budget per
- * meeting and flags it there (users/students/{id}/recorded_bytes/meeting_{N}/
- * truncated), so a meeting whose budget ran out is flagged even when the
- * recording that hit the cap holds no chunk of its own. Older recordings carry
- * the flag only on the recording node (telemetry_sessions/{id}/recording_truncated);
- * readers check both.
+ * meeting and flags it there (recordings/{id}/recorded_bytes/meeting_{N}/
+ * truncated; earlier versions wrote users/students/{id}/recorded_bytes — the
+ * callers pass the record merged with both, recordingsNode.withRecordings), so
+ * a meeting whose budget ran out is flagged even when the recording that hit
+ * the cap holds no chunk of its own. Older recordings carry the flag only on
+ * the recording node (telemetry_sessions/{id}/recording_truncated); readers
+ * check both.
  */
 export function meetingRecordingTruncated(learnerNode: Record<string, any> | null | undefined, meeting: number): boolean {
   const budget = learnerNode?.recorded_bytes?.[`meeting_${meeting}`];

@@ -1,7 +1,9 @@
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { exerciseAttempts, readMeetingTelemetry, sessionDocumentIdCandidates } from "./meetingMetrics";
+import { exerciseAttempts, readLastResetOfMeeting, readMeetingTelemetry, sessionDocumentIdCandidates } from "./meetingMetrics";
+import { computeCognitiveMastery } from "./diagnosticMastery";
+import { computeMeetingScore } from "./sessionTrigger";
 
 /**
  * PRD Module 14 §ב1: "שדה is_completed נקבע אך ורק לפי השלמת שבע משימות החובה
@@ -23,6 +25,15 @@ import { exerciseAttempts, readMeetingTelemetry, sessionDocumentIdCandidates } f
  * is_completed fires onSessionCompleteTrigger (sessionTrigger.ts), which scores
  * every completed meeting from its telemetry with the same formula, recommends
  * the path and mirrors both to the learner's record.
+ *
+ * Owner decision, 2.10.2026, on a meeting 2 closed by time (the 45-minute cap
+ * or the teacher-disconnect window): "שהכל ישמר וכך גם אמור להיות ומקסימום
+ * המורה תוכל לתת להם זמן לסיים מהמקום שהם נמצאים כי המערכת אמורה לשמור את
+ * התרגיל במפגש שהתלמיד סיים ומקסימום התרגיל בתחנה שהתלמיד לא סיים אותו הוא
+ * יצטרך להתחיל מחדש." Such a close completes nothing and deletes nothing.
+ * The teacher sees the learners who started and did not finish in "שלב
+ * החלוקה למסלולים" (react-ts-version gateEvidence.ts buildUnfinishedMeeting2Items)
+ * and can open meeting 2 again for them; they go on from where they were.
  */
 
 /** The seven diagnostic tasks, in the order the learner meets them (react-ts-version core/QMatrix.ts TASKS). */
@@ -56,20 +67,38 @@ type Rec = Record<string, unknown> | null | undefined;
 /**
  * The teacher closed meeting 2: the class record went from meeting 2 open (or
  * paused) to closed, and the close carries the teacher's marker. A system
- * reset writes the same closed record without the marker, and the 45-minute
- * cap and the teacher-disconnect window are read by the clients and write
- * nothing — none of them completes a learner (PRD 14 §ב1: never by time).
+ * reset writes the same closed record without the marker, and so do the
+ * 45-minute cap and the teacher-disconnect window (TeacherDashboard.tsx,
+ * endedBy 'auto_45min' / 'teacher_disconnect_grace') — none of them completes
+ * a learner (PRD 14 §ב1: never by time; owner decision 2.10.2026, above).
  *
  * Opening another meeting while meeting 2 is open closes meeting 2 too — the
  * activation window tells the teacher so ("המפגש הפעיל כעת, מפגש 2, ייסגר").
  * Only a teacher token may write the class record (database.rules.json), so
  * the switch is the teacher's act. It used to complete no one, and the
  * learners who had not finished never reached the gate.
+ *
+ * A meeting 2 already past its 45-minute cap, or past the teacher-disconnect
+ * window, at the moment of the write is not open, even when no dashboard was
+ * there to write its close (the record then still says active). Every client
+ * already reads it as closed (react-ts-version core/classSession.ts
+ * isClassSessionLive), and closing or leaving it is not the teacher closing a
+ * running meeting: it ended by time, and completes no one.
  */
-export function isTeacherCloseOfMeeting2(before: Rec, after: Rec): boolean {
+export const SESSION_HARD_CAP_MS = 45 * 60 * 1000;
+export const TEACHER_DISCONNECT_GRACE_MS = 15 * 60 * 1000;
+
+function endedByTime(rec: Record<string, unknown>, atMs: number): boolean {
+  const startedAt = typeof rec.startedAt === "number" && rec.startedAt > 0 ? rec.startedAt : null;
+  if (startedAt !== null && atMs >= startedAt + SESSION_HARD_CAP_MS) return true;
+  const away = typeof rec.teacherDisconnectedAt === "number" && rec.teacherDisconnectedAt > 0 ? rec.teacherDisconnectedAt : null;
+  return away !== null && atMs - away > TEACHER_DISCONNECT_GRACE_MS;
+}
+
+export function isTeacherCloseOfMeeting2(before: Rec, after: Rec, atMs: number = Date.now()): boolean {
   if (!before || !after) return false;
   if (Number(before.sessionNumber) !== 2) return false;
-  const wasOpen = before.active === true && before.status !== "closed";
+  const wasOpen = before.active === true && before.status !== "closed" && !endedByTime(before, atMs);
   const isClosed = after.active !== true && after.status === "closed";
   const switchedAway = after.active === true && Number(after.sessionNumber) !== 2;
   return wasOpen && ((isClosed && after.closedBy === TEACHER_CLOSE_MARKER) || switchedAway);
@@ -108,9 +137,17 @@ function isEmptyQValue(v: unknown): boolean {
 export interface Meeting2CloseResult {
   /** Completed by this close. */
   completed: number[];
-  /** Already completed (all seven answered): left exactly as they were. */
+  /**
+   * Already completed: by the seventh answer, or by an earlier close. Their
+   * completion stands; a learner an earlier close completed who went on after
+   * the meeting was opened again is brought up to date (catchUpCompletedMeeting2).
+   */
   alreadyCompleted: number[];
-  /** No meeting-2 event: never started, not completed. */
+  /** Of alreadyCompleted: tasks answered since an earlier close, or a new score. */
+  updated: number[];
+  /** Of alreadyCompleted: bringing them up to date failed (their completion stands). */
+  catchUpFailed: number[];
+  /** No meeting-2 event since the meeting's last reset: not started, not completed. */
   notStarted: number[];
   failed: number[];
 }
@@ -118,7 +155,8 @@ export interface Meeting2CloseResult {
 /**
  * Completes every learner 1–12 who started meeting 2 and has not completed it.
  * Everything a learner already has is kept: a completed session document is
- * not touched, a Q-matrix value already written is not replaced, and an
+ * not completed again, a Q-matrix value already written is not replaced
+ * (except 'not_answered' for a task answered since an earlier close), and an
  * approved gate is not put back to pending.
  */
 export async function completeUnfinishedMeeting2(
@@ -126,20 +164,39 @@ export async function completeUnfinishedMeeting2(
   rtdb: admin.database.Database,
   classId: string = PILOT_CLASS_ID
 ): Promise<Meeting2CloseResult> {
-  const result: Meeting2CloseResult = { completed: [], alreadyCompleted: [], notStarted: [], failed: [] };
+  const result: Meeting2CloseResult = { completed: [], alreadyCompleted: [], updated: [], catchUpFailed: [], notStarted: [], failed: [] };
+
+  // Its own failure, logged as such: the learner is completed either way, and
+  // "FAILED" means a learner the close could not complete.
+  const catchUp = async (n: number) => {
+    try {
+      if (await catchUpCompletedMeeting2(db, rtdb, n)) result.updated.push(n);
+    } catch (err) {
+      logger.error(`Meeting 2 close: learner ${n} is completed, but bringing them up to date failed:`, err);
+      result.catchUpFailed.push(n);
+    }
+  };
 
   for (let n = 1; n <= 12; n++) {
     try {
       // Every spelling of the learner's meeting-2 document: one already
-      // completed means the learner finished, and nothing is written.
+      // completed means the learner finished (or an earlier close completed
+      // them); the completion stands.
       const candidates = sessionDocumentIdCandidates(n, 2);
       const snaps = await Promise.all(candidates.map((id) => db.collection("sessions").doc(id).get()));
       if (snaps.some((s) => s.exists && (s.data() || {}).is_completed === true)) {
         result.alreadyCompleted.push(n);
+        await catchUp(n);
         continue;
       }
 
-      const events = await readMeetingTelemetry(db, n, 2);
+      // Only the run since the meeting's last reset, as the score trigger reads
+      // it (sessionTrigger.ts computeMeetingScore). A reset keeps the
+      // telemetry (register deviation 20), and reading all of it counted a
+      // learner reset and not yet started again as "started": completed with
+      // 0%, with focus areas from the erased run.
+      const writtenAfterMs = await readLastResetOfMeeting(db, n, 2);
+      const events = await readMeetingTelemetry(db, n, 2, { writtenAfterMs });
       if (events.length === 0) {
         result.notStarted.push(n);
         continue;
@@ -181,6 +238,7 @@ export async function completeUnfinishedMeeting2(
       });
       if (!completedNow) {
         result.alreadyCompleted.push(n);
+        await catchUp(n);
         continue;
       }
 
@@ -199,9 +257,20 @@ export async function completeUnfinishedMeeting2(
       };
       if (!approved) updates.routeStatus = "PENDING_TEACHER_APPROVAL";
       const q = diagnosticQMatrixAtClose(events);
+      const finalQ: Record<string, string | null> = {};
       for (const id of DIAGNOSTIC_TASK_IDS) {
-        if (isEmptyQValue(existingQ[id])) updates[`qMatrixResults/${id}`] = q[id];
+        if (isEmptyQValue(existingQ[id])) {
+          updates[`qMatrixResults/${id}`] = q[id];
+          finalQ[id] = q[id];
+        } else {
+          finalQ[id] = existingQ[id] as string;
+        }
       }
+      // The mastery profile the learner's client builds at the seventh answer
+      // (diagnosticMastery.ts), from the same seven values the teacher now
+      // sees. Without it the learner was missing from every group, the chart
+      // and the counter of "מיפוי מיומנויות כיתתי".
+      updates.conceptMastery = computeCognitiveMastery(finalQ);
       await rtdb.ref(recordPath).update(updates);
       await rtdb.ref(`${recordPath}/highestCompletedMeeting`).transaction((cur) => {
         const current = typeof cur === "number" && Number.isFinite(cur) ? cur : 0;
@@ -227,12 +296,133 @@ export const onMeeting2ClosedByTeacher = onValueWritten({
 }, async (event) => {
   const before = event.data.before.val() as Rec;
   const after = event.data.after.val() as Rec;
-  if (!isTeacherCloseOfMeeting2(before, after)) return;
+  // The write's own time on the server, not when this function happens to run.
+  const at = Date.parse(String(event.time ?? ""));
+  if (!isTeacherCloseOfMeeting2(before, after, Number.isFinite(at) ? at : Date.now())) return;
 
   const result = await completeUnfinishedMeeting2(admin.firestore(), admin.database());
   logger.info(
     `Meeting 2 closed by the teacher: completed [${result.completed.join(", ")}], ` +
-    `already completed [${result.alreadyCompleted.join(", ")}], not started [${result.notStarted.join(", ")}]` +
+    `already completed [${result.alreadyCompleted.join(", ")}] (brought up to date [${result.updated.join(", ")}]), not started [${result.notStarted.join(", ")}]` +
+    (result.catchUpFailed.length ? `, up-to-date FAILED [${result.catchUpFailed.join(", ")}]` : "") +
     (result.failed.length ? `, FAILED [${result.failed.join(", ")}]` : "")
   );
+});
+
+/**
+ * A learner an earlier close completed part-way, who went on when the
+ * teacher opened meeting 2 again and was closed again before the seventh
+ * answer. The learner's own completion never came (it comes only with the
+ * seventh answer), so nothing else updates what the gate shows: the tasks
+ * answered since were still 'not_answered' and the score was the first
+ * close's.
+ *
+ * From the run since the last reset: a task the record has as 'not_answered'
+ * that is answered now gets its value, the mastery profile follows the
+ * updated values, and the score is re-scored (rescoreCompletedMeeting2).
+ * Every other value is kept, so a learner who finished by the seventh answer
+ * is left exactly as they were. Returns whether anything changed.
+ */
+export async function catchUpCompletedMeeting2(
+  db: admin.firestore.Firestore,
+  rtdb: admin.database.Database,
+  n: number
+): Promise<boolean> {
+  const writtenAfterMs = await readLastResetOfMeeting(db, n, 2);
+  const events = await readMeetingTelemetry(db, n, 2, { writtenAfterMs });
+  if (events.length === 0) return false;
+
+  const recordPath = `users/students/student_user${n}`;
+  const record = ((await rtdb.ref(recordPath).get()).val() || {}) as Record<string, any>;
+  const existingQ = (record.qMatrixResults || {}) as Record<string, unknown>;
+  const q = diagnosticQMatrixAtClose(events);
+  const updates: Record<string, unknown> = {};
+  const finalQ: Record<string, string | null> = {};
+  for (const id of DIAGNOSTIC_TASK_IDS) {
+    const answeredSince = existingQ[id] === Q_NOT_ANSWERED_TAG && q[id] !== Q_NOT_ANSWERED_TAG;
+    if (answeredSince) updates[`qMatrixResults/${id}`] = q[id];
+    finalQ[id] = (answeredSince ? q[id] : existingQ[id]) as string | null;
+  }
+  const qChanged = Object.keys(updates).length > 0;
+  if (qChanged) {
+    updates.conceptMastery = computeCognitiveMastery(finalQ);
+    await rtdb.ref(recordPath).update(updates);
+  }
+  const rescore = await rescoreCompletedMeeting2(db, rtdb, n);
+  return qChanged || rescore === "rescored";
+}
+
+export type Meeting2Rescore = "not_completed" | "not_scored_yet" | "unchanged" | "rescored" | "no_score";
+
+/**
+ * A learner whom the teacher's close completed can still go on: when the
+ * teacher opens meeting 2 again, the learner's saved work is restored and the
+ * diagnostic continues from where it stopped (owner decision 2.10.2026). When
+ * the learner then finishes, the learner's completion of the session
+ * document finds it completed already and is not written again
+ * (FirebaseSyncService syncSession2Completion, deliveredWhen), so the score
+ * trigger, which scores a document once, never saw the new run: the gate kept
+ * the score and the path of the close.
+ *
+ * Re-scores meeting 2 from the run since its last reset (the same reading as
+ * the score trigger) once the document has been scored, and writes the score
+ * and the recommendation only when they changed. The teacher's approval and
+ * the path she chose are not touched; the recommendation stays a
+ * recommendation.
+ */
+export async function rescoreCompletedMeeting2(
+  db: admin.firestore.Firestore,
+  rtdb: admin.database.Database,
+  n: number
+): Promise<Meeting2Rescore> {
+  const candidates = sessionDocumentIdCandidates(n, 2);
+  const snaps = await Promise.all(candidates.map((id) => db.collection("sessions").doc(id).get()));
+  const done = snaps.find((s) => s.exists && (s.data() || {}).is_completed === true);
+  if (!done) return "not_completed";
+  const data = done.data() || {};
+  // Not scored yet: the score trigger is about to score it from the same run.
+  if (!data.evaluated_at) return "not_scored_yet";
+
+  const path = data.teacher_selected_path === "remediation_path" ? "remediation_path" : "green_path";
+  const computed = await computeMeetingScore(db, n, 2, path);
+  if (computed.outcome !== "scored") return "no_score";
+  const { scorePercent, recommendedPath } = computed;
+  if (data.session_score_percent === scorePercent && data.matrix_recommended_path === recommendedPath) return "unchanged";
+
+  await db.collection("sessions").doc(done.id).update({
+    session_score_percent: scorePercent,
+    matrix_recommended_path: recommendedPath,
+    evaluated_at: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  await rtdb.ref(`users/students/student_user${n}`).update({
+    session_score_percent: scorePercent,
+    matrix_recommended_path: recommendedPath,
+  });
+  logger.info(
+    `Meeting 2 of learner ${n} re-scored after a later finish: ` +
+    `${data.session_score_percent ?? "none"}% -> ${scorePercent}% (${recommendedPath}).`
+  );
+  return "rescored";
+}
+
+/**
+ * The learner's record stamps `updatedAt` only when meeting 2's completion is
+ * recorded on it: by the learner's client at the seventh answer (the queued
+ * item of syncSession2Completion, delivered after the meeting's telemetry —
+ * FIFO, Module 29 §ג) and by the close above. That stamp is the moment the
+ * whole run is on the server, so it is when a later finish is re-scored.
+ */
+export const onMeeting2CompletionRecorded = onValueWritten({
+  ref: "/users/students/{studentKey}/updatedAt",
+  region: "us-central1",
+}, async (event) => {
+  if (typeof event.data.after.val() !== "number") return;
+  const match = /^student_user(\d+)$/.exec(String(event.params.studentKey));
+  const n = match ? Number(match[1]) : NaN;
+  if (!Number.isInteger(n) || n < 1 || n > 12) return;
+  try {
+    await rescoreCompletedMeeting2(admin.firestore(), admin.database(), n);
+  } catch (err) {
+    logger.error(`Meeting 2 of learner ${n}: re-scoring after a later finish failed:`, err);
+  }
 });
