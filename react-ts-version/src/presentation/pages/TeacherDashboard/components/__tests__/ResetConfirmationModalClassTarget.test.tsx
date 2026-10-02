@@ -26,7 +26,7 @@ describe('ResetConfirmationModal — level 2, whole class', () => {
       <ResetConfirmationModal isOpen onClose={() => {}} resetLevel="single_student" resetTarget="class" activeSessionNumber={4} onConfirm={onConfirm} />
     );
 
-    expect(screen.getByText('איפוס המפגש הפתוח לכל הכיתה (רמה 2)')).toBeTruthy();
+    expect(screen.getByText('איפוס המפגש לכיתה (רמה 2)')).toBeTruthy();
     // The meeting under the name the children see (owner, 27.9.2026, register ט).
     expect(screen.getByText('מפגש 4 · אצל התלמידים: חיבור במאונך עם הקבצה')).toBeTruthy();
     expect(executeButton().disabled).toBe(true);
@@ -49,8 +49,8 @@ describe('ResetConfirmationModal — level 2, whole class', () => {
       <ResetConfirmationModal isOpen onClose={() => {}} resetLevel="single_student" resetTarget="class" activeSessionNumber={4} onConfirm={vi.fn()} />
     );
     expect(screen.queryByRole('radiogroup')).toBeNull();
-    expect(screen.queryByText('איפוס מוחלט של הלומד')).toBeNull();
-    expect(screen.getByText(/מפגשים קודמים, הקלטות והודעות צ'אט נשמרים/)).toBeTruthy();
+    expect(screen.queryByText('איפוס מוחלט של התלמיד')).toBeNull();
+    expect(screen.getByText(/העבודה במפגשים האחרים, ההקלטות והודעות הצ'אט נשמרות/)).toBeTruthy();
   });
 
   it('with no open meeting it explains why and cannot be executed', () => {
@@ -90,7 +90,7 @@ describe('ResetConfirmationModal — level 2, one learner (unchanged)', () => {
     render(
       <ResetConfirmationModal isOpen onClose={() => {}} resetLevel="single_student" targetStudentId="student_user3" targetStudentName="תלמיד 3" activeSessionNumber={4} onConfirm={onConfirm} />
     );
-    expect(screen.getByText('איפוס לומד יחיד (רמה 2): תלמיד 3')).toBeTruthy();
+    expect(screen.getByText('איפוס של תלמיד אחד (רמה 2): תלמיד 3')).toBeTruthy();
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(executeButton().disabled).toBe(true); // no reason chosen yet
     chooseReason('student_stuck');
@@ -108,12 +108,12 @@ describe('ResetConfirmationModal — level 2, one learner (unchanged)', () => {
     // Default scope: the line under the heading and the "… בלבד" choice both carry the station name.
     expect(screen.getByText(label)).toBeTruthy();
     expect(screen.getByRole('radio', { name: new RegExp(`המפגש הזה בלבד \\(ברירת המחדל\\): ${label}`) })).toBeTruthy();
-    expect(screen.getByText(`יימחקו מצב מרחב העבודה וההתקדמות של לומד זה בלבד ב${label}.`)).toBeTruthy();
+    expect(screen.getByText(`יימחקו העבודה וההתקדמות של התלמיד ב${label}.`)).toBeTruthy();
 
     // The full reset touches all eight meetings: no single meeting under the heading.
-    fireEvent.click(screen.getByRole('radio', { name: /איפוס מוחלט של הלומד/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /איפוס מוחלט של התלמיד/ }));
     expect(screen.queryByText(label)).toBeNull();
-    expect(screen.getByText(/יימחקו כל ההתקדמות בכל 8 המפגשים/)).toBeTruthy();
+    expect(screen.getByText(/יימחקו: ההתקדמות בכל 8 המפגשים/)).toBeTruthy();
   });
 
   it('still lets the teacher choose the full wipe of that learner', async () => {
@@ -121,10 +121,10 @@ describe('ResetConfirmationModal — level 2, one learner (unchanged)', () => {
     render(
       <ResetConfirmationModal isOpen onClose={() => {}} resetLevel="single_student" targetStudentId="student_user3" targetStudentName="תלמיד 3" activeSessionNumber={4} onConfirm={onConfirm} />
     );
-    fireEvent.click(screen.getByRole('radio', { name: /איפוס מוחלט של הלומד/ }));
-    chooseReason();
+    fireEvent.click(screen.getByRole('radio', { name: /איפוס מוחלט של התלמיד/ }));
+    chooseReason('student_stuck');
     await act(async () => { fireEvent.click(executeButton()); });
-    expect(onConfirm).toHaveBeenCalledWith('restart_session', undefined, { scope: 'full_student', sessionNumber: 4 });
+    expect(onConfirm).toHaveBeenCalledWith('student_stuck', undefined, { scope: 'full_student', sessionNumber: 4 });
   });
 });
 

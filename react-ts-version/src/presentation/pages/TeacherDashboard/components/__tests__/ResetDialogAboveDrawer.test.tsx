@@ -56,7 +56,7 @@ const student = { studentId: 'student_user4', name: 'תלמיד 4' } as never;
 
 function openResetFromDrawer(onClose = vi.fn()) {
   render(<StudentLearningConditionsDrawer student={student} onClose={onClose} activeSessionNumber={4} />);
-  fireEvent.click(screen.getByTitle('איפוס מלא של נתוני התלמיד'));
+  fireEvent.click(screen.getByRole('button', { name: 'איפוס נתונים של תלמיד 4' }));
   return {
     onClose,
     drawer: screen.getByRole('dialog', { name: /התאמת תנאי למידה — תלמיד 4/ }),

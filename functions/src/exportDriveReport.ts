@@ -9,6 +9,7 @@ import { scrubPII } from "./geminiProxy";
 import { researchDetailsColumns } from "./researchTelemetryRow";
 import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
 import { CATCHUP_COLLECTION, catchUpExportCells, type CatchUpRecord } from "./catchUp";
+import { finishedMeetingRefusalHe, resolveActiveSessionNumber, resolveClassSessionNumber, validMeetingNumber } from "./resetMeetingTarget";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
@@ -544,6 +545,11 @@ export interface ResetAuditEntry {
   reset_reason: ResetReason;
   reason_note: string | null;
   records_deleted_count: number;
+  /**
+   * Learner records reset field by field instead of deleted (a meeting
+   * restart). Not part of records_deleted_count, which counts deletions only.
+   */
+  records_reset_count?: number;
   /** Level 2 only: what the teacher chose to reset (PRD §ב.2 default is the active meeting). */
   reset_scope?: SingleStudentResetScope;
   /** Level 2 with reset_scope 'active_session': the meeting that was restarted. */
@@ -711,12 +717,16 @@ async function runBackupAndReset(request: CallableRequest<any>) {
         isSocraticActive: false,
         last_alert: null,
       };
-      const studentAliases: string[] = [];
-      for (let i = 1; i <= 12; i++) {
-        studentAliases.push(`student_user${i}`, `student_${i}`, `${i}`);
-      }
+      // Only records that exist: an update on a missing key creates it, and
+      // this used to leave an empty help-flags record under three aliases for
+      // every learner who had never signed in (live reset audit, 2.10.2026).
+      const learnersSnap = await rtdb.ref("users/students").get();
+      const learners: Record<string, unknown> = (learnersSnap.exists() ? learnersSnap.val() : null) || {};
+      const existingAliases = ALL_STUDENT_IDS
+        .flatMap((n) => studentAliases(String(n)))
+        .filter((alias) => learners[alias] !== undefined && learners[alias] !== null);
       await Promise.all(
-        studentAliases.map((alias) =>
+        existingAliases.map((alias) =>
           rtdb.ref(`users/students/${alias}`).update(alertClearPayload).catch(() => {})
         )
       );
@@ -743,17 +753,24 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   }
   const affectedStudentIds = isOneLearner ? [parseInt(rawNum, 10)] : [...ALL_STUDENT_IDS];
   // Level 2 defaults to the PRD's "restart the active meeting"; the teacher may
-  // ask for the whole learner instead. The meeting is the one the teacher has
-  // open (Module 14), unless the request names it.
+  // ask for the whole learner instead.
   const singleScope: SingleStudentResetScope = reset_level === 'single_student' ? (reset_scope || 'active_session') : 'full_student';
-  // A single learner falls back to the meeting their own record points at. A
-  // class has no such fallback — twelve learners may each be somewhere else —
-  // so the whole-class restart needs a meeting the teacher actually has open.
+  // The meeting is decided here, never taken from the request: the class's
+  // meeting only while it is open now, else the meeting the learner is in
+  // (resetMeetingTarget.ts). A class has no learner fallback — twelve learners
+  // may each be somewhere else — so the whole-class restart needs a meeting
+  // the teacher actually has open.
+  const learnerTarget = isOneLearner && singleScope === 'active_session'
+    ? await resolveActiveSessionNumber(rtdb, rawNum)
+    : null;
+  // No meeting open, and the learner already finished the last meeting they
+  // entered: they are between meetings, not in one (resetMeetingTarget.ts, step 4).
+  if (learnerTarget?.finished) {
+    throw new HttpsError("failed-precondition", `${finishedMeetingRefusalHe(rawNum, learnerTarget.sessionNumber)} לא נמחקו נתונים.`);
+  }
   const activeSessionNumber = isClassTarget
-    ? await resolveClassSessionNumber(rtdb, session_number)
-    : isOneLearner && singleScope === 'active_session'
-      ? await resolveActiveSessionNumber(rtdb, rawNum, session_number)
-      : null;
+    ? await resolveClassSessionNumber(rtdb)
+    : learnerTarget?.sessionNumber ?? null;
   if (isClassTarget && activeSessionNumber === null) {
     throw new HttpsError(
       "failed-precondition",
@@ -767,7 +784,20 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   if (isOneLearner && singleScope === 'active_session' && activeSessionNumber === null) {
     throw new HttpsError(
       "failed-precondition",
-      "אין מפגש פתוח, וברשומת הלומד לא רשום באיזה מפגש הוא נמצא. איפוס המפגש הנוכחי אפשרי רק כשידוע איזה מפגש לאפס. לא נמחקו נתונים."
+      "אין מפגש פתוח לכיתה, ולא ידוע באיזה מפגש התלמיד נמצא, ולכן אין מפגש לאפס. לא נמחקו נתונים."
+    );
+  }
+  // PRD 23א §ה: the dialog spelled out which meeting is deleted, and sent it.
+  // When the server's answer differs, the teacher confirmed something else —
+  // refuse, and let her look again. It differs when a meeting was opened or
+  // closed meanwhile, and also when the open meeting had already ended by time
+  // and the dashboard did not know it yet (before it has the server's clock it
+  // reads a never-closed record as open): the message covers both.
+  const requestedSession = validMeetingNumber(session_number);
+  if (activeSessionNumber !== null && requestedSession !== null && requestedSession !== activeSessionNumber) {
+    throw new HttpsError(
+      "failed-precondition",
+      `חלון האישור הציג את מפגש ${requestedSession}, אבל המפגש שיאופס עכשיו הוא מפגש ${activeSessionNumber}: בינתיים מפגש נפתח או נסגר לכיתה, או שהמפגש נסגר מעצמו כשנגמר הזמן שלו. סגרו את החלון ופתחו אותו שוב. לא נמחקו נתונים.`
     );
   }
   const resetTarget: ResetTarget = isClassTarget ? 'class' : 'student';
@@ -925,8 +955,11 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   }
 
   // Step 5: the real number of records deleted, on the entry written above.
+  // Learner records reset in place (a meeting restart) are not deleted, and are
+  // counted apart.
   await auditRef.update({
     records_deleted_count: deletion.total,
+    records_reset_count: deletion.reset_in_place,
   }).catch((auditErr) => {
     // The entry exists; only its count is stale. Say so rather than report a clean reset.
     logger.error("Failed to record the deleted count on the reset audit entry:", auditErr);
@@ -948,7 +981,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
 
   logger.info(
     `Successfully backed up and reset ${reset_level} data (ResetID: ${resetId}): ` +
-    `${deletion.total} records deleted (rtdb=${JSON.stringify(deletion.realtime_database)}, firestore=${JSON.stringify(deletion.firestore)})`
+    `${deletion.total} records deleted, ${deletion.reset_in_place} reset in place (rtdb=${JSON.stringify(deletion.realtime_database)}, firestore=${JSON.stringify(deletion.firestore)})`
   );
 
   return {
@@ -960,68 +993,6 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     deletedRecords: deletion.total,
     ...(reset_level === 'single_student' ? { resetScope: singleScope, sessionNumber: activeSessionNumber, resetTarget } : {}),
   };
-}
-
-/**
- * The meeting a level-2 'active_session' reset restarts (register deviation
- * 10): the number the client sent (the teacher's dashboard knows the open
- * meeting), else the class's open meeting (Module 14 active_class_session),
- * else the meeting the learner is in — `activeSessionNumber`, which the
- * learner's workspace writes on entering a meeting, then `activeSessionId`,
- * which only older records and earlier resets carry. Null when none of them
- * names a meeting 1–8; the caller refuses rather than restart meeting 1.
- */
-export async function resolveActiveSessionNumber(
-  rtdb: admin.database.Database,
-  rawNum: string,
-  requested: unknown
-): Promise<number | null> {
-  const valid = (n: unknown): number | null => {
-    const v = Number(n);
-    return Number.isInteger(v) && v >= 1 && v <= 8 ? v : null;
-  };
-  const fromRequest = valid(requested);
-  if (fromRequest) return fromRequest;
-  try {
-    const classSnap = await rtdb.ref("active_class_session/sessionNumber").get();
-    const fromClass = valid(classSnap.val());
-    if (fromClass) return fromClass;
-  } catch { /* fall through */ }
-  // The live field first, under every alias, and only then the old one: a
-  // stale activeSessionId must not outrank the meeting the learner is in.
-  for (const field of ["activeSessionNumber", "activeSessionId"]) {
-    for (const alias of studentAliases(rawNum)) {
-      try {
-        const learnerSnap = await rtdb.ref(`users/students/${alias}/${field}`).get();
-        const fromLearner = valid(learnerSnap.val());
-        if (fromLearner) return fromLearner;
-      } catch { /* try the next alias */ }
-    }
-  }
-  return null;
-}
-
-/**
- * The meeting a whole-class restart covers: the number the teacher's dashboard
- * sent, else the class's open meeting (Module 14). Null when neither exists —
- * the caller refuses rather than guess a meeting for twelve learners.
- */
-export async function resolveClassSessionNumber(
-  rtdb: admin.database.Database,
-  requested: unknown
-): Promise<number | null> {
-  const valid = (n: unknown): number | null => {
-    const v = Number(n);
-    return Number.isInteger(v) && v >= 1 && v <= 8 ? v : null;
-  };
-  const fromRequest = valid(requested);
-  if (fromRequest) return fromRequest;
-  try {
-    const classSnap = await rtdb.ref("active_class_session/sessionNumber").get();
-    return valid(classSnap.val());
-  } catch {
-    return null;
-  }
 }
 
 // ─── Reset scope, backup and deletion helpers (Module 23א) ───────────────────
@@ -1082,7 +1053,40 @@ interface ResetScope {
   /** RTDB paths that are backed up whole but only partially reset (see fieldResets). */
   rtdbBackupOnlyPaths?: string[];
   fieldResets?: RtdbFieldReset[];
+  /**
+   * Per path in rtdbPaths: the fields that survive its removal. The node is
+   * replaced by just those fields (when it has any) instead of removed.
+   */
+  rtdbKeepFields?: Record<string, readonly string[]>;
   firestore: FirestoreScopeEntry[];
+}
+
+/**
+ * What the teacher set for a learner, kept by the full learner reset (owner,
+ * 2.10.2026: "ברור שלשמור את הגדרות התלמיד אין צורך להקים לו את זה מחדש"):
+ * the support profile — the four Appendix A fields the class-management toggle
+ * writes (core/supportProfile.ts) and the legacy boolean its readers still
+ * honour — and quiet mode (isASD, the learning-conditions drawer). Level 3
+ * still deletes them with everything else.
+ */
+export const LEARNER_SETTINGS_FIELDS = [
+  "support_profile_id",
+  "support_profile_version",
+  "support_profile_updated_at",
+  "support_profile_updated_by",
+  "enhanced_support_profile",
+  "isASD",
+] as const;
+
+/** The learner settings present on a record, or null when it carries none. */
+export function pickKeptFields(record: unknown, fields: readonly string[]): Record<string, unknown> | null {
+  if (!record || typeof record !== "object") return null;
+  const kept: Record<string, unknown> = {};
+  for (const field of fields) {
+    const value = (record as Record<string, unknown>)[field];
+    if (value !== undefined && value !== null) kept[field] = value;
+  }
+  return Object.keys(kept).length > 0 ? kept : null;
 }
 
 /**
@@ -1182,7 +1186,8 @@ export function buildActiveSessionResetValues(
  * (workspace state, meeting progress, Q-matrix, recordings), their chat, and
  * all their Firestore session documents are deleted. Their telemetry, reports
  * and reflections are backed up with the rest but kept — even a full reset
- * does not erase the research evidence of a single learner.
+ * does not erase the research evidence of a single learner. The settings the
+ * teacher set for the learner (LEARNER_SETTINGS_FIELDS) stay on the record.
  *
  * Level 2, target 'class' (register deviation 20): the 'active_session' reset
  * above, for all 12 learners in one action. Every learner record, the chat and
@@ -1249,6 +1254,8 @@ export function buildResetScope(
     const aliases = studentAliases(rawNum);
     const studentValues = Array.from(new Set<string | number>([rawNum, parseInt(rawNum, 10), ...aliases]));
     return {
+      // The learner's settings stay on every alias the readers use (LEARNER_SETTINGS_FIELDS).
+      rtdbKeepFields: Object.fromEntries(aliases.map((a) => [`users/students/${a}`, LEARNER_SETTINGS_FIELDS])),
       rtdbPaths: [
         ...aliases.map((a) => `users/students/${a}`),
         ...aliases.map((a) => `${RECORDINGS_ROOT}/${a}`),
@@ -1472,7 +1479,10 @@ export async function collectResetBackup(
 export interface DeletionCounts {
   realtime_database: Record<string, number>;
   firestore: Record<string, number>;
+  /** Records actually deleted. */
   total: number;
+  /** Learner records reset field by field (a meeting restart), not deleted. */
+  reset_in_place: number;
   /** Scope items that could not be deleted, as "path: reason". */
   failures: string[];
 }
@@ -1486,15 +1496,20 @@ export async function executeResetDeletion(
   db: admin.firestore.Firestore,
   scope: ResetScope
 ): Promise<DeletionCounts> {
-  const counts: DeletionCounts = { realtime_database: {}, firestore: {}, total: 0, failures: [] };
+  const counts: DeletionCounts = { realtime_database: {}, firestore: {}, total: 0, reset_in_place: 0, failures: [] };
 
   for (const path of scope.rtdbPaths) {
     try {
       const snap = await rtdb.ref(path).get();
       const count = !snap.exists() ? 0 : snap.hasChildren() ? snap.numChildren() : 1;
-      if (count > 0) await rtdb.ref(path).remove();
-      counts.realtime_database[path] = count;
-      counts.total += count;
+      const keepFields = scope.rtdbKeepFields?.[path];
+      const kept = keepFields && count > 0 ? pickKeptFields(snap.val(), keepFields) : null;
+      // One write either way: the node becomes just its kept fields, or goes.
+      if (kept) await rtdb.ref(path).set(kept);
+      else if (count > 0) await rtdb.ref(path).remove();
+      const deleted = count - (kept ? Object.keys(kept).length : 0);
+      counts.realtime_database[path] = deleted;
+      counts.total += deleted;
     } catch (err: any) {
       counts.failures.push(`${path}: ${err?.message || String(err)}`);
     }
@@ -1503,15 +1518,15 @@ export async function executeResetDeletion(
   for (const reset of scope.fieldResets || []) {
     try {
       const snap = await rtdb.ref(reset.path).get();
-      if (!snap.exists()) { counts.realtime_database[reset.path] = 0; continue; }
+      if (!snap.exists()) continue;
       const sessionNumber = Number(reset.values.__activeSessionNumber);
       const values = Number.isInteger(sessionNumber)
         ? buildActiveSessionResetValues(sessionNumber, snap.val(), { clearReflection: reset.values.__clearReflection === true })
         : reset.values;
       await rtdb.ref(reset.path).update(values);
-      // One record: the learner's meeting state, reset in place.
-      counts.realtime_database[reset.path] = 1;
-      counts.total += 1;
+      // One record: the learner's meeting state, reset in place — not deleted,
+      // so not part of `total` (the audit entry's records_deleted_count).
+      counts.reset_in_place += 1;
     } catch (err: any) {
       counts.failures.push(`${reset.path}: ${err?.message || String(err)}`);
     }
