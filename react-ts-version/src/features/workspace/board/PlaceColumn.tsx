@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { motion, useAnimationControls } from 'framer-motion';
-import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
+import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, getValue, type Place } from '@/core/placeValue';
 import { fitBlockGrid, type Size } from '@/core/blockLayout';
 import { dimmedColumns, verticalBoxes, DIMMED_COLUMN_FILTER } from '@/core/columnFocus';
 import { useWorkspaceStore, getActiveTasks, effectiveArithmetic } from '@/application/useWorkspaceStore';
@@ -69,23 +69,33 @@ export function PlaceColumn({
     s.projectorBoard || columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)
   );
   // PRD Module 7 §א: columns outside the current calculation focus are dimmed
-  // to brightness 0.6 (core/columnFocus.ts: the owner's rules of 28.9.2026).
-  // One boolean per column, so typing a digit re-renders only a column whose
-  // dimming changes. Read only: nothing here writes to the store.
+  // to brightness 0.6 (core/columnFocus.ts: gap יט, calibrated 2.10.2026 —
+  // never a column the child has to act in). One boolean per column, so
+  // typing a digit re-renders only a column whose dimming changes. Read only:
+  // nothing here writes to the store.
   const isDimmed = useWorkspaceStore((s) => {
     const task = getActiveTasks(s)[s.standardTaskIdx];
     let vertical;
+    let work;
     if (task && (task.type === 'vertical_addition' || task.type === 'addition_simple')) {
       const { a, b, target } = effectiveArithmetic(task, s.isASD);
       vertical = verticalBoxes(a, b, target, task.hiddenDigits, task.revealedResultDigits, resultBoxCount(s.sessionNumber, a, b, target));
+      work = {
+        a,
+        b,
+        isSubtraction: task.isSubtraction === true,
+        hidden: task.hiddenDigits,
+        boardValue: getValue(s.counts),
+        heldFirstNumber: s.takeAwayTrack?.taskId === task.id && s.takeAwayTrack.held,
+      };
     }
     return dimmedColumns({
       sessionNumber: s.sessionNumber,
       taskType: task?.type,
       focusedPlace: s.focusedPlace,
       focusedMemoryCircle,
-      representationValue: task?.numberA,
       vertical,
+      work,
       answerDigits: s.answerDigits,
       operandDigits: s.operandDigits,
     }).has(place);
