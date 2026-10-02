@@ -297,7 +297,17 @@ function studentNumberOf(u: AuthUser | null | undefined): number | null {
  * מחרוזת ריקה חייבת להיבדק על ידי הקורא — אסור להמשיך עם מזהה מומצא.
  */
 export function currentStudentUid(): string {
-  const n = currentStudentNumber();
+  return studentUidOf(useAuthStore.getState().user);
+}
+
+/**
+ * The same canonical id for a given user, as a pure function. A component
+ * that must follow sign-in and sign-out selects it from the store —
+ * useAuthStore((s) => studentUidOf(s.user)) — because currentStudentUid()
+ * reads the store once and does not re-render anything when the learner changes.
+ */
+export function studentUidOf(u: AuthUser | null | undefined): string {
+  const n = studentNumberOf(u);
   return n === null ? '' : `student_user${n}`;
 }
 
