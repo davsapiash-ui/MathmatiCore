@@ -33,7 +33,7 @@ import {
   uploadBufferToDrive,
   validateClassId,
 } from "./exportDriveReport";
-import { RECORDINGS_ROOT, RECORDING_FIELDS } from "./recordingsNode";
+import { RECORDINGS_ROOT, RECORDING_FIELDS, RECORDING_OR_FLAGS } from "./recordingsNode";
 
 /**
  * How deep under telemetry_sessions / recorded_bytes an entry is copied whole:
@@ -48,9 +48,17 @@ const DRIVE_MAX_BYTES = 30 * 1024 * 1024;
 const isPlainObject = (v: unknown): v is Record<string, any> =>
   Boolean(v) && typeof v === "object" && !Array.isArray(v);
 
+/**
+ * A users/students key that names a learner. The SAME rule decides when the
+ * radar offers the move (react-ts-version/src/core/legacyRecordings.ts,
+ * LEARNER_RECORD_KEY): a key detected there but skipped here would keep the
+ * button on screen for ever.
+ */
+export const LEARNER_RECORD_KEY = /^(?:student_user|student_|user)?(\d{1,2})$/;
+
 /** "student_user8", "student_8", "user8", "8" → 8; anything else → null. */
 export function learnerNumberOfKey(key: string): number | null {
-  const m = /^(?:student_user|student_|user)?(\d{1,2})$/.exec(key);
+  const m = LEARNER_RECORD_KEY.exec(key);
   if (!m) return null;
   const n = parseInt(m[1], 10);
   return n >= 1 && n <= 12 ? n : null;
@@ -122,8 +130,14 @@ export function planLegacyRecordingsMove(studentsNode: unknown): LegacyRecording
 export interface MoveResult {
   moved_entries: number;
   students: number[];
-  /** Old-place entries whose copy did not read back equal: not removed. */
+  /** Old-place entries whose copy did not read back as written: not removed (a failed write; the next press retries). */
   mismatched: string[];
+  /**
+   * New-place entries that two sources gave different values (two aliases of
+   * one learner, or the old place and what the new version already wrote).
+   * Settled by resolveEntry; every losing value is in the backup file.
+   */
+  conflicts: number;
 }
 
 /** The minimal database surface the move needs (the Admin SDK's, or a fake in tests). */
@@ -151,33 +165,72 @@ async function writeInBatches(rtdb: RtdbLike, entries: Array<[string, unknown]>)
 }
 
 /**
- * Steps 3–5 of the file comment, for a plan already backed up: copy, verify,
- * then remove from the old place only what was verified.
+ * The one value a new-place entry gets when its sources disagree, the same
+ * rule every reader merges by (recordingsNode.mergeRecordingField):
+ *  - a truncated flag is true when any source, or the new place, says so;
+ *  - otherwise what the new version already wrote there stays;
+ *  - otherwise the canonical record (student_userN) wins over an alias, and
+ *    among aliases the first by path. Deterministic, so a second press
+ *    reaches the same answer and never leaves an entry behind for ever.
+ */
+export function resolveEntry(
+  toPath: string,
+  existing: unknown,
+  sources: Array<{ from: string; value: unknown }>
+): unknown {
+  const key = toPath.slice(toPath.lastIndexOf("/") + 1);
+  if (RECORDING_OR_FLAGS.has(key)) return existing === true || sources.some((s) => s.value === true);
+  if (existing !== null && existing !== undefined) return existing;
+  const rank = (from: string) => (/^users\/students\/student_user\d+\//.test(from) ? 0 : 1);
+  const ordered = [...sources].sort((a, b) => rank(a.from) - rank(b.from) || a.from.localeCompare(b.from));
+  return ordered[0].value;
+}
+
+/**
+ * Steps 3–5 of the file comment, for a plan already backed up: settle each
+ * new-place entry (resolveEntry), write it, read it back, then remove from the
+ * old place every source entry whose new-place entry reads back as settled.
  */
 export async function copyVerifyAndRemove(rtdb: RtdbLike, moves: LegacyRecordingsMove[]): Promise<MoveResult> {
-  const copies: Array<[string, unknown]> = [];
-  const pairs: Array<{ from: string; to: string; value: unknown }> = [];
+  const sourcesByTo = new Map<string, Array<{ from: string; value: unknown }>>();
   for (const move of moves) {
     const fromEntries = flattenEntries(move.value, move.from, ENTRY_DEPTH);
     for (const [fromPath, value] of Object.entries(fromEntries)) {
       const toPath = move.to + fromPath.slice(move.from.length);
-      copies.push([toPath, value]);
-      pairs.push({ from: fromPath, to: toPath, value });
+      sourcesByTo.set(toPath, [...(sourcesByTo.get(toPath) ?? []), { from: fromPath, value }]);
     }
   }
-  await writeInBatches(rtdb, copies);
+
+  const targets = Array.from(new Set(moves.map((m) => m.to)));
+  const targetOf = (to: string) => targets.find((t) => to === t || to.startsWith(`${t}/`))!;
+  const readTargets = async () => {
+    const out = new Map<string, unknown>();
+    for (const t of targets) out.set(t, (await rtdb.ref(t).get()).val());
+    return out;
+  };
+
+  // What the new version already wrote decides some entries (resolveEntry).
+  const before = await readTargets();
+  const resolved = new Map<string, unknown>();
+  let conflicts = 0;
+  for (const [to, sources] of sourcesByTo) {
+    const t = targetOf(to);
+    const existing = valueAt(before.get(t), to.slice(t.length));
+    const value = resolveEntry(to, existing, sources);
+    resolved.set(to, value);
+    const seen = [...sources.map((s) => s.value), ...(existing === null || existing === undefined ? [] : [existing])];
+    if (seen.some((v) => !deepEqual(v, seen[0]))) conflicts++;
+  }
+  await writeInBatches(rtdb, Array.from(resolved.entries()));
 
   // Read every target node back once and compare entry by entry.
-  const targets = Array.from(new Set(moves.map((m) => m.to)));
-  const readBack = new Map<string, unknown>();
-  for (const t of targets) readBack.set(t, (await rtdb.ref(t).get()).val());
+  const after = await readTargets();
   const verified: string[] = [];
   const mismatched: string[] = [];
-  for (const p of pairs) {
-    const target = targets.find((t) => p.to === t || p.to.startsWith(`${t}/`))!;
-    const copy = valueAt(readBack.get(target), p.to.slice(target.length));
-    if (deepEqual(copy, p.value)) verified.push(p.from);
-    else mismatched.push(p.from);
+  for (const [to, sources] of sourcesByTo) {
+    const t = targetOf(to);
+    const ok = deepEqual(valueAt(after.get(t), to.slice(t.length)), resolved.get(to));
+    for (const s of sources) (ok ? verified : mismatched).push(s.from);
   }
 
   await writeInBatches(rtdb, verified.map((path) => [path, null]));
@@ -185,6 +238,7 @@ export async function copyVerifyAndRemove(rtdb: RtdbLike, moves: LegacyRecording
     moved_entries: verified.length,
     students: Array.from(new Set(moves.map((m) => m.student))).sort((a, b) => a - b),
     mismatched,
+    conflicts,
   };
 }
 
@@ -246,7 +300,7 @@ export const moveLegacyRecordings = onCall(MOVE_RUNTIME, async (request) => {
   }
   logger.info(
     `moveLegacyRecordings: ${result.moved_entries} entries of learners ${result.students.join(",")} moved; ` +
-    `${result.mismatched.length} left in place; backup ${backupLink}`
+    `${result.mismatched.length} left in place; ${result.conflicts} conflicting entries settled; backup ${backupLink}`
   );
   if (result.mismatched.length > 0) {
     throw new HttpsError(
@@ -255,5 +309,5 @@ export const moveLegacyRecordings = onCall(MOVE_RUNTIME, async (request) => {
       { backup: backupLink, mismatched: result.mismatched.length }
     );
   }
-  return { status: "SUCCESS", moved_entries: result.moved_entries, students: result.students, backup: backupLink };
+  return { status: "SUCCESS", moved_entries: result.moved_entries, students: result.students, conflicts: result.conflicts, backup: backupLink };
 });

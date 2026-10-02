@@ -297,6 +297,39 @@ describe('Module 21 — recording chunks go through the device queue first', () 
     stop();
   });
 
+  it('a meeting recorded partly before the recordings node existed: the old-place budget counts too (50MB in all, not per place)', async () => {
+    const cap = recorder.RECORDING_BYTE_CAP;
+    const LEGACY = `users/students/${UID}/recorded_bytes/meeting_4`;
+    rtdb.get.mockImplementation(async (r: { path: string }) =>
+      r.path === LEGACY ? { val: () => ({ chunks: { before_update: cap - 60 } }), exists: () => true }
+        : r.path === BUDGET ? { val: () => ({ chunks: { after_update: 20 } }), exists: () => true }
+          : { val: () => null, exists: () => false });
+    const stop = await start();
+    expect(rtdb.get).toHaveBeenCalledWith({ path: LEGACY });
+    await recordChunk(80_000, 5); // more than the 40 bytes left in all
+    await settle(5); await vi.advanceTimersByTimeAsync(3_000); await settle(5);
+    await vi.waitFor(() => expect(rtdb.update).toHaveBeenCalledWith({ path: BUDGET }, { truncated: true }), { timeout: 10_000 });
+    expect(chunkWrites()).toEqual([]);
+    stop();
+  });
+
+  it('an old-place budget already flagged truncated stops the meeting from recording again', async () => {
+    const LEGACY = `users/students/${UID}/recorded_bytes/meeting_4`;
+    rtdb.get.mockImplementation(async (r: { path: string }) =>
+      r.path === LEGACY ? { val: () => ({ chunks: { a: 10 }, truncated: true }), exists: () => true } : { val: () => null, exists: () => false });
+    const stop = startSync();
+    await settle(5); await vi.advanceTimersByTimeAsync(3_000); await settle(100);
+    expect(rrweb.started).toBe(0);
+    stop();
+  });
+
+  it('merges the two budgets the way the move does: every chunk once, truncated if either says so', () => {
+    expect(recorder.mergeRecordingBudgets(null, null)).toBeNull();
+    expect(recorder.mergeRecordingBudgets({ chunks: { a: 5, b: 7 } }, { chunks: { b: 7, c: 1 }, truncated: true }))
+      .toEqual({ chunks: { a: 5, b: 7, c: 1 }, truncated: true });
+    expect(recorder.budgetBytesUsed(recorder.mergeRecordingBudgets({ chunks: { a: 5, b: 7 } }, { chunks: { b: 7, c: 1 } }))).toBe(13);
+  });
+
   it('a recording that already holds chunks is flagged too, for the replay', async () => {
     const cap = recorder.RECORDING_BYTE_CAP;
     // Room for one small chunk, not for a second, larger one.

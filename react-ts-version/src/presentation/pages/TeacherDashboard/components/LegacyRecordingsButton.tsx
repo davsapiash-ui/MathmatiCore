@@ -21,7 +21,11 @@ export function LegacyRecordingsButton({ visible }: { visible: boolean }) {
       const callable = httpsCallable(functions, 'moveLegacyRecordings', { timeout: 540_000 });
       const res: any = await callable({ class_id: 'class_1' });
       if (res?.data?.status === 'NOTHING_TO_MOVE') toast.info('אין הקלטות ישנות להעברה.');
-      else toast.success('ההקלטות הישנות הועברו. הגיבוי נשמר, ואפשר לצפות בהן כרגיל.');
+      else if (Number(res?.data?.conflicts) > 0) {
+        // Two aliases of one learner held different values for the same entry:
+        // one was kept by a fixed rule, and every value is in the backup.
+        toast.success('ההקלטות הישנות הועברו, ואפשר לצפות בהן כרגיל. בחלק מההקלטות היו שתי גרסאות שונות. נשמרה גרסה אחת, ושתיהן נמצאות בקובץ הגיבוי.');
+      } else toast.success('ההקלטות הישנות הועברו. הגיבוי נשמר, ואפשר לצפות בהן כרגיל.');
     } catch (err: any) {
       console.error('[Module 21] moving the old recordings failed:', err);
       // The server's own sentence says what was saved and what stayed.

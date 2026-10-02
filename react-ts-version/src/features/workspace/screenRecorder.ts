@@ -45,6 +45,26 @@ export const recordingsRootOf = (uid: string): string => `recordings/${uid}`;
 /** The node that holds this learner's recording budget for one meeting. */
 export const recordingBudgetPath = (uid: string, meeting: number): string => `${recordingsRootOf(uid)}/recorded_bytes/meeting_${meeting}`;
 
+/** Where versions before the recordings node kept the same budget — read until the teacher moves it. */
+export const legacyRecordingBudgetPath = (uid: string, meeting: number): string => `users/students/${uid}/recorded_bytes/meeting_${meeting}`;
+
+/**
+ * One meeting's budget out of the old place and the new one, merged as the
+ * move merges them (functions/src/recordingsNode.ts): every chunk size of both
+ * under its own key — a chunk counted in both is counted once — and truncated
+ * when either says so. A meeting recorded partly before the update and partly
+ * after it gets 50MB in all, not 50MB in each place.
+ */
+export function mergeRecordingBudgets(legacy: unknown, current: unknown): { chunks: Record<string, unknown>; truncated?: true } | null {
+  const obj = (v: unknown) => (v && typeof v === 'object' ? (v as { chunks?: unknown; truncated?: unknown }) : null);
+  const a = obj(legacy);
+  const b = obj(current);
+  if (!a && !b) return null;
+  const chunksOf = (v: typeof a) => (v?.chunks && typeof v.chunks === 'object' ? (v.chunks as Record<string, unknown>) : {});
+  const truncated = a?.truncated === true || b?.truncated === true;
+  return { chunks: { ...chunksOf(a), ...chunksOf(b) }, ...(truncated ? { truncated: true as const } : {}) };
+}
+
 /**
  * The bytes a meeting's budget has used: the sum of its chunks' sizes. Each
  * chunk's size is stored under the chunk's own key, so a re-delivered write
@@ -166,9 +186,13 @@ export function startScreenRecorder(opts: ScreenRecorderOptions): () => void {
   // The budget belongs to the learner and the meeting, not to this mount or to
   // one opening of the meeting: a refresh, or the teacher opening the same
   // meeting again, continues the same count.
-  const budgetReady = get(ref(database, budgetPath))
-    .then((snap) => {
-      const budget = snap.val();
+  // Both places until the teacher moves the old one (mergeRecordingBudgets).
+  const budgetReady = Promise.all([
+    get(ref(database, budgetPath)),
+    get(ref(database, legacyRecordingBudgetPath(uid, meeting))).catch(() => null),
+  ])
+    .then(([snap, legacySnap]) => {
+      const budget = mergeRecordingBudgets(legacySnap?.val() ?? null, snap.val());
       recordedBytes = budgetBytesUsed(budget);
       if (recordedBytes >= RECORDING_BYTE_CAP || (budget && budget.truncated === true)) {
         truncated = true;

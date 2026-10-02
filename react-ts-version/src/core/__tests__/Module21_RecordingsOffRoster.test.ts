@@ -40,7 +40,12 @@ describe('the recorder writes outside the roster the teacher listens to', () => 
     expect(recorder.recordingBudgetPath('student_user3', 4)).toBe('recordings/student_user3/recorded_bytes/meeting_4');
     const src = readFileSync(resolve(__dirname, '../../features/workspace/screenRecorder.ts'), 'utf-8');
     expect(src).toContain('const recordingPath = `${recordingsRootOf(uid)}/telemetry_sessions/${recordingId}`;');
-    expect(src).not.toMatch(/`users\/students\/\$\{uid\}\/(telemetry_sessions|recorded_bytes)/);
+    // The old place is named once: the budget the recorder READS until the move (never written).
+    const oldPlace = src.split('\n').filter((l) => /`users\/students\/\$\{uid\}\/(telemetry_sessions|recorded_bytes)/.test(l));
+    expect(oldPlace).toHaveLength(1);
+    expect(oldPlace[0]).toContain('export const legacyRecordingBudgetPath');
+    expect(src).not.toMatch(/enqueue\w*\(\s*legacyRecordingBudgetPath/);
+    expect(recorder.legacyRecordingBudgetPath('student_user3', 4)).toBe('users/students/student_user3/recorded_bytes/meeting_4');
   });
 
   it('a recording chunk left on a device with no owner is still owned by its learner', async () => {
@@ -101,6 +106,23 @@ describe('the teacher is offered the move only while old recordings exist', () =
     expect(hasLegacyRecordings({ '8': { recorded_bytes: { meeting_1: { chunks: { a: 3 } } } } })).toBe(true);
   });
 
+  it('offers the move only for keys the move can move — a teacher record or learner 13 would keep the button for ever', async () => {
+    const { hasLegacyRecordings, isLearnerRecordKey } = await import('@/core/legacyRecordings');
+    const rec = { telemetry_sessions: { s: { chunks: { a: { data: '[]' } } } } };
+    expect(hasLegacyRecordings({ teacher_1002220159: rec })).toBe(false);
+    expect(hasLegacyRecordings({ student_user13: rec, student_0: rec })).toBe(false);
+    expect(['student_user8', 'student_8', 'user8', '8', 'student_user12'].every(isLearnerRecordKey)).toBe(true);
+    expect(['student_user13', 'student_user0', 'teacher_1', 'student_user8x', ''].some(isLearnerRecordKey)).toBe(false);
+  });
+
+  it('detection and the move use the one rule (same pattern text on both sides)', async () => {
+    const { LEARNER_RECORD_KEY } = await import('@/core/legacyRecordings');
+    const server = readFileSync(resolve(__dirname, '../../../../functions/src/moveLegacyRecordings.ts'), 'utf-8');
+    expect(server).toContain(`export const LEARNER_RECORD_KEY = ${LEARNER_RECORD_KEY.toString()};`);
+    expect(server).toContain('const m = LEARNER_RECORD_KEY.exec(key);');
+    expect(server).toContain('return n >= 1 && n <= 12 ? n : null;');
+  });
+
   it('the radar header shows the button from the roster it already listens to', () => {
     const heat = readFileSync(resolve(__dirname, '../../presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx'), 'utf-8');
     expect(heat).toContain('setLegacyRecordings(hasLegacyRecordings(pendingData));');
@@ -108,6 +130,9 @@ describe('the teacher is offered the move only while old recordings exist', () =
     const button = readFileSync(resolve(__dirname, '../../presentation/pages/TeacherDashboard/components/LegacyRecordingsButton.tsx'), 'utf-8');
     expect(button).toContain("httpsCallable(functions, 'moveLegacyRecordings'");
     expect(button).toContain('if (!visible) return null;');
+    // Conflicting values between two aliases are settled on the server; the teacher is told so.
+    expect(button).toContain('Number(res?.data?.conflicts) > 0');
+    expect(button).toContain('נשמרה גרסה אחת, ושתיהן נמצאות בקובץ הגיבוי.');
   });
 });
 

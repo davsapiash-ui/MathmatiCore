@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { RECORDINGS_ROOT, mergeRecordingField, withRecordings } from "../recordingsNode";
 import { buildResetScope } from "../exportDriveReport";
-import { copyVerifyAndRemove, flattenEntries, learnerNumberOfKey, planLegacyRecordingsMove, type RtdbLike } from "../moveLegacyRecordings";
+import { LEARNER_RECORD_KEY, copyVerifyAndRemove, flattenEntries, learnerNumberOfKey, planLegacyRecordingsMove, resolveEntry, type RtdbLike } from "../moveLegacyRecordings";
 import { truncatedRecordingMeetings } from "../meetingMetrics";
 
 /**
@@ -192,6 +192,47 @@ describe("moving the old recordings (moveLegacyRecordings)", () => {
     await copyVerifyAndRemove(f.db, planLegacyRecordingsMove(f.read("users/students")));
     expect(f.read("users/students/student_user8/telemetry_sessions")).toBeNull();
     expect(f.read("recordings/student_user8/telemetry_sessions/session_2/chunks/late")).toEqual(chunk(5));
+  });
+
+  it("two aliases of one learner that disagree are settled by a fixed rule, and a second press finds nothing left", async () => {
+    const f = fakeRtdb({
+      users: {
+        students: {
+          student_8: { telemetry_sessions: { s: { chunks: { a: chunk(10) }, recording_truncated: true } }, recorded_bytes: { meeting_2: { chunks: { a: 1 } } } },
+          student_user8: { telemetry_sessions: { s: { chunks: { a: chunk(11) }, recording_truncated: false } }, recorded_bytes: { meeting_2: { chunks: { a: 2 }, truncated: false } } },
+        },
+      },
+      recordings: { student_user8: { recorded_bytes: { meeting_2: { truncated: true } } } },
+    });
+    const result = await copyVerifyAndRemove(f.db, planLegacyRecordingsMove(f.read("users/students")));
+    expect(result.mismatched).toEqual([]);
+    expect(result.conflicts).toBe(4);
+    // A truncated flag: true if any copy says so (including what the new place held).
+    expect(f.read("recordings/student_user8/telemetry_sessions/s/recording_truncated")).toBe(true);
+    expect(f.read("recordings/student_user8/recorded_bytes/meeting_2/truncated")).toBe(true);
+    // Any other entry: the canonical record wins over the alias.
+    expect(f.read("recordings/student_user8/telemetry_sessions/s/chunks/a")).toEqual(chunk(11));
+    expect(f.read("recordings/student_user8/recorded_bytes/meeting_2/chunks/a")).toBe(2);
+    // Nothing is left behind, so the radar button goes away.
+    expect(f.read("users/students/student_8")).toBeNull();
+    expect(f.read("users/students/student_user8")).toBeNull();
+    expect(planLegacyRecordingsMove(f.read("users/students"))).toEqual([]);
+  });
+
+  it("what the new version already wrote at the new place is kept; the old value is only in the backup", async () => {
+    expect(resolveEntry("recordings/student_user3/telemetry_sessions/s/chunks/k", { data: "new" }, [{ from: "users/students/student_user3/telemetry_sessions/s/chunks/k", value: { data: "old" } }])).toEqual({ data: "new" });
+    expect(resolveEntry("recordings/student_user3/telemetry_sessions/s/recording_truncated", true, [{ from: "x", value: false }])).toBe(true);
+    expect(resolveEntry("recordings/student_user3/telemetry_sessions/s/recording_truncated", undefined, [{ from: "x", value: false }])).toBe(false);
+    expect(resolveEntry("recordings/student_user3/recorded_bytes/meeting_1/chunks/k", undefined, [
+      { from: "users/students/user3/recorded_bytes/meeting_1/chunks/k", value: 9 },
+      { from: "users/students/3/recorded_bytes/meeting_1/chunks/k", value: 8 },
+    ])).toBe(8); // no canonical source: the first by path, every time
+  });
+
+  it("detection on the radar uses the very rule the move plans by", () => {
+    const client = readFileSync(resolve(__dirname, "../../../react-ts-version/src/core/legacyRecordings.ts"), "utf-8");
+    expect(client).toContain(`export const LEARNER_RECORD_KEY = ${LEARNER_RECORD_KEY.toString()};`);
+    expect(client).toContain("return n >= 1 && n <= 12;");
   });
 
   it("an entry whose copy does not read back equal is not removed from the old place", async () => {

@@ -26,7 +26,7 @@ export const RECORDING_FIELDS = ["telemetry_sessions", "recorded_bytes"] as cons
 export type RecordingField = typeof RECORDING_FIELDS[number];
 
 /** A flag that is true when either copy says so. */
-const OR_FLAGS = new Set(["recording_truncated", "truncated"]);
+export const RECORDING_OR_FLAGS: ReadonlySet<string> = new Set(["recording_truncated", "truncated"]);
 
 const isPlainObject = (v: unknown): v is Record<string, any> =>
   Boolean(v) && typeof v === "object" && !Array.isArray(v);
@@ -51,7 +51,7 @@ export function mergeRecordingField(legacy: unknown, current: unknown): Record<s
     }
     const merged: Record<string, any> = { ...old };
     for (const [k, v] of Object.entries(rec)) {
-      if (OR_FLAGS.has(k)) merged[k] = old[k] === true || v === true;
+      if (RECORDING_OR_FLAGS.has(k)) merged[k] = old[k] === true || v === true;
       else if (isPlainObject(old[k]) && isPlainObject(v)) merged[k] = { ...old[k], ...v };
       else merged[k] = v ?? old[k];
     }
