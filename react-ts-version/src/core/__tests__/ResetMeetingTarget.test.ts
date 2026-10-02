@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import {
+  finishedMeetingRefusalHe,
   learnerAliasesForReset,
   learnerCompletedMeeting,
   learnerMeeting,
@@ -65,9 +66,26 @@ describe('the whole rule, with what the dialog says about it', () => {
     expect(resolveResetMeeting(6, [{ activeSessionNumber: 4 }])).toEqual({ sessionNumber: 6, source: 'class', completed: false });
   });
 
-  it('no open meeting: the learner\'s, and whether it is finished', () => {
+  it('no open meeting: the meeting the learner is in the middle of', () => {
     expect(resolveResetMeeting(null, [{ activeSessionNumber: 4, highestCompletedMeeting: 3 }])).toEqual({ sessionNumber: 4, source: 'learner', completed: false });
-    expect(resolveResetMeeting(null, [{ activeSessionNumber: 3, completedMeeting3: true, highestCompletedMeeting: 3 }])).toEqual({ sessionNumber: 3, source: 'learner', completed: true });
+  });
+
+  it('no open meeting and the learner finished the last meeting entered: refused (A: meeting 4; B: meeting 2, at the gate or approved)', () => {
+    expect(resolveResetMeeting(null, [{ activeSessionNumber: 4, completedMeeting4: true, highestCompletedMeeting: 4 }]))
+      .toEqual({ sessionNumber: 4, source: 'learner', completed: true, finished: true });
+    expect(resolveResetMeeting(null, [{ activeSessionNumber: 2, session_02_completed: true }])?.finished).toBe(true);
+    expect(resolveResetMeeting(null, [{ activeSessionNumber: 2, completedMeeting2: true, teacher_gate_approved: true }])?.finished).toBe(true);
+  });
+
+  it('an open class meeting the learner finished is reset, and the window says the finish is undone', () => {
+    expect(resolveResetMeeting(4, [{ activeSessionNumber: 4, completedMeeting4: true }])).toEqual({ sessionNumber: 4, source: 'class', completed: true });
+  });
+
+  it('the refusal is the server\'s own sentence', () => {
+    const server = readFileSync(resolve(__dirname, '../../../../functions/src/resetMeetingTarget.ts'), 'utf-8');
+    const sentence = finishedMeetingRefusalHe(4, 2);
+    expect(sentence).toBe('תלמיד 4 סיים את מפגש 2, ועכשיו הוא לא באמצע מפגש. כדי לאפס מפגש שהסתיים, פתחו אותו לכיתה ואפסו אותו בזמן שהוא פתוח, או בחרו איפוס מוחלט של התלמיד.');
+    expect(server).toContain(sentence.replace('תלמיד 4', 'תלמיד ${learnerNumber}').replace('מפגש 2,', 'מפגש ${sessionNumber},'));
   });
 
   it('meeting 2 is finished by any of its completion keys', () => {

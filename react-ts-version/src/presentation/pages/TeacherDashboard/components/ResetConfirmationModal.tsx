@@ -6,6 +6,12 @@ import type { ResetReason, ResetTarget, SingleStudentResetScope } from '@/types'
 import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
 import { meetingLabelHe } from '@/core/stationNames';
 import { useResetMeetingTarget } from '@/application/useResetMeetingTarget';
+import { finishedMeetingRefusalHe } from '@/core/resetMeetingTarget';
+
+/** "תלמיד 3" → "3", for a sentence that already says "תלמיד". */
+function learnerLabelOf(name: string | undefined): string {
+  return String(name ?? '').replace(/\D/g, '') || String(name ?? '');
+}
 import { RESET_REASON_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 
 export interface ResetConfirmationModalProps {
@@ -64,7 +70,11 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   // used to say only "המפגש הנוכחי" when no meeting was open.
   const isOneLearner = resetLevel === 'single_student' && !isClassTarget;
   const resetMeeting = useResetMeetingTarget(isOpen && isOneLearner, targetStudentId, classSessionNumber);
-  const activeSessionNumber = isOneLearner ? resetMeeting.target?.sessionNumber ?? null : classSessionNumber;
+  // A finished meeting with none open is refused (core/resetMeetingTarget.ts, step 4): no meeting to reset.
+  const finishedTarget = isOneLearner && resetMeeting.target?.finished ? resetMeeting.target : null;
+  const activeSessionNumber = isOneLearner
+    ? (finishedTarget ? null : resetMeeting.target?.sessionNumber ?? null)
+    : classSessionNumber;
 
   const handleClose = useCallback(() => {
     if (isSubmitting) return;
@@ -227,6 +237,10 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                   <li>בודקים איזה מפגש יאופס…</li>
                 ) : !resetMeeting.target ? (
                   <li className="text-red-700 dark:text-red-300 font-semibold">אין מפגש פתוח לכיתה, ולא ידוע באיזה מפגש התלמיד נמצא, ולכן אין מפגש לאפס.</li>
+                ) : finishedTarget ? (
+                  <li className="text-red-700 dark:text-red-300 font-semibold">
+                    {finishedMeetingRefusalHe(String(targetStudentId ?? '').replace(/\D/g, '') || learnerLabelOf(targetStudentName), finishedTarget.sessionNumber)}
+                  </li>
                 ) : (
                   <>
                     <li className="font-semibold text-slate-800 dark:text-slate-100">

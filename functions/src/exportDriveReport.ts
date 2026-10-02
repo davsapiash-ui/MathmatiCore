@@ -8,7 +8,7 @@ import { containsPhoneNumber } from "./phonePattern";
 import { scrubPII } from "./geminiProxy";
 import { researchDetailsColumns } from "./researchTelemetryRow";
 import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
-import { resolveActiveSessionNumber, resolveClassSessionNumber, validMeetingNumber } from "./resetMeetingTarget";
+import { finishedMeetingRefusalHe, resolveActiveSessionNumber, resolveClassSessionNumber, validMeetingNumber } from "./resetMeetingTarget";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
@@ -750,11 +750,17 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   // (resetMeetingTarget.ts). A class has no learner fallback — twelve learners
   // may each be somewhere else — so the whole-class restart needs a meeting
   // the teacher actually has open.
+  const learnerTarget = isOneLearner && singleScope === 'active_session'
+    ? await resolveActiveSessionNumber(rtdb, rawNum)
+    : null;
+  // No meeting open, and the learner already finished the last meeting they
+  // entered: they are between meetings, not in one (resetMeetingTarget.ts, step 4).
+  if (learnerTarget?.finished) {
+    throw new HttpsError("failed-precondition", `${finishedMeetingRefusalHe(rawNum, learnerTarget.sessionNumber)} לא נמחקו נתונים.`);
+  }
   const activeSessionNumber = isClassTarget
     ? await resolveClassSessionNumber(rtdb)
-    : isOneLearner && singleScope === 'active_session'
-      ? (await resolveActiveSessionNumber(rtdb, rawNum))?.sessionNumber ?? null
-      : null;
+    : learnerTarget?.sessionNumber ?? null;
   if (isClassTarget && activeSessionNumber === null) {
     throw new HttpsError(
       "failed-precondition",
@@ -772,13 +778,16 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     );
   }
   // PRD 23א §ה: the dialog spelled out which meeting is deleted, and sent it.
-  // If the answer changed since (a meeting was opened or closed meanwhile),
-  // the teacher confirmed something else — refuse, and let her look again.
+  // When the server's answer differs, the teacher confirmed something else —
+  // refuse, and let her look again. It differs when a meeting was opened or
+  // closed meanwhile, and also when the open meeting had already ended by time
+  // and the dashboard did not know it yet (before it has the server's clock it
+  // reads a never-closed record as open): the message covers both.
   const requestedSession = validMeetingNumber(session_number);
   if (activeSessionNumber !== null && requestedSession !== null && requestedSession !== activeSessionNumber) {
     throw new HttpsError(
       "failed-precondition",
-      `המפגש שיאופס השתנה מאז שנפתח חלון האישור, ועכשיו זה מפגש ${activeSessionNumber}. סגרו את החלון ופתחו אותו שוב. לא נמחקו נתונים.`
+      `חלון האישור הציג את מפגש ${requestedSession}, אבל המפגש שיאופס עכשיו הוא מפגש ${activeSessionNumber}: בינתיים מפגש נפתח או נסגר לכיתה, או שהמפגש נסגר מעצמו כשנגמר הזמן שלו. סגרו את החלון ופתחו אותו שוב. לא נמחקו נתונים.`
     );
   }
   const resetTarget: ResetTarget = isClassTarget ? 'class' : 'student';

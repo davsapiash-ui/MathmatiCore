@@ -12,14 +12,21 @@ import { liveClassMeeting } from "./classSessionLive";
  *    a meeting ends by time, and a reset used to take that number: it restarted
  *    a meeting the learner had finished, wiping its completion (and in meeting 2
  *    the path in "שלב החלוקה למסלולים"), instead of the one the learner is in.
+ *    A meeting the class has open is reset even when this learner finished it:
+ *    that is how the teacher restarts a finished meeting on purpose.
  * 2. Otherwise the meeting the learner is in: `activeSessionNumber`, which the
  *    learner's workspace writes on entering a meeting (StudentWorkspacePage).
- *    A meeting the learner finished is accepted from this field — it was the
- *    last one the learner entered, so that is where the learner is.
  * 3. Then `activeSessionId`, which only older records and earlier resets carry
  *    — unless the learner has completed a later meeting: then it is stale, not
  *    where the learner is.
- * 4. None of them: null, and the caller refuses with nothing deleted.
+ * 4. With no meeting open, a meeting the learner already FINISHED is not "the
+ *    meeting the learner is in": the learner is between meetings — in the
+ *    lobby, or waiting in "שלב החלוקה למסלולים" after meeting 2. The field is
+ *    written when a workspace opens and never moves on at the finish, so it
+ *    still names the finished meeting; resetting it erased its completion, and
+ *    after meeting 2 the diagnostic, the recommendation and the approved path.
+ *    The reset is refused instead (`finished`), nothing deleted (owner, 2.10.2026).
+ * 5. None of them: null, and the caller refuses with nothing deleted.
  *
  * The teacher's dialog shows the meeting before the teacher confirms, worked
  * out by the same rule (react-ts-version core/resetMeetingTarget.ts), and sends
@@ -34,6 +41,8 @@ export type ResetMeetingSource = "class" | "learner";
 export interface ResetMeetingTarget {
   sessionNumber: number;
   source: ResetMeetingSource;
+  /** No meeting is open and the learner already finished this one: refuse (step 4). */
+  finished?: boolean;
 }
 
 /** A meeting number 1–8, or null. */
@@ -48,13 +57,9 @@ export function learnerAliases(rawNum: string): string[] {
 }
 
 /** The learner's fields this rule reads, under each alias, in alias order. */
-export interface LearnerMeetingFields {
-  activeSessionNumber?: unknown;
-  activeSessionId?: unknown;
-  highestCompletedMeeting?: unknown;
-}
+export type LearnerMeetingFields = Record<string, unknown>;
 
-/** Steps 2–4 above, on the learner's fields as read. */
+/** Steps 2–3 above, on the learner's fields as read. */
 export function learnerMeeting(records: LearnerMeetingFields[]): number | null {
   for (const rec of records) {
     const n = validMeetingNumber(rec?.activeSessionNumber);
@@ -68,12 +73,28 @@ export function learnerMeeting(records: LearnerMeetingFields[]): number | null {
   return null;
 }
 
+/** The completion keys of meeting `n` on a learner record (meeting 2 also as the client's session_02_completed). */
+export function completionFieldsOf(n: number): string[] {
+  return [`completedMeeting${n}`, `session_${n}_completed`, ...(n === 2 ? ["session_02_completed"] : [])];
+}
+
+/** Did the learner finish meeting `n`, on any alias? */
+export function learnerCompletedMeeting(records: LearnerMeetingFields[], n: number): boolean {
+  return records.some((rec) =>
+    completionFieldsOf(n).some((key) => rec?.[key] === true) ||
+    (Number(rec?.highestCompletedMeeting) || 0) >= n
+  );
+}
+
 /** The whole rule, on records already read. `classRecord` is `active_class_session`. */
 export function resetMeetingTarget(classRecord: Rec, learnerRecords: LearnerMeetingFields[], atMs: number): ResetMeetingTarget | null {
   const fromClass = liveClassMeeting(classRecord, atMs);
   if (fromClass !== null) return { sessionNumber: fromClass, source: "class" };
   const fromLearner = learnerMeeting(learnerRecords);
-  return fromLearner !== null ? { sessionNumber: fromLearner, source: "learner" } : null;
+  if (fromLearner === null) return null;
+  return learnerCompletedMeeting(learnerRecords, fromLearner)
+    ? { sessionNumber: fromLearner, source: "learner", finished: true }
+    : { sessionNumber: fromLearner, source: "learner" };
 }
 
 async function readClassRecord(rtdb: admin.database.Database): Promise<Rec> {
@@ -86,6 +107,18 @@ async function readClassRecord(rtdb: admin.database.Database): Promise<Rec> {
   }
 }
 
+async function readLearnerFields(rtdb: admin.database.Database, rawNum: string, fields: string[], into: LearnerMeetingFields[]): Promise<void> {
+  const aliases = learnerAliases(rawNum);
+  for (let i = 0; i < aliases.length; i++) {
+    into[i] = into[i] || {};
+    for (const field of fields) {
+      try {
+        into[i][field] = (await rtdb.ref(`users/students/${aliases[i]}/${field}`).get()).val();
+      } catch { /* the next field or alias */ }
+    }
+  }
+}
+
 /** The meeting one learner's "current meeting" reset restarts, or null when none can be determined. */
 export async function resolveActiveSessionNumber(
   rtdb: admin.database.Database,
@@ -95,15 +128,9 @@ export async function resolveActiveSessionNumber(
   const classRecord = await readClassRecord(rtdb);
   if (liveClassMeeting(classRecord, atMs) !== null) return resetMeetingTarget(classRecord, [], atMs);
   const records: LearnerMeetingFields[] = [];
-  for (const alias of learnerAliases(rawNum)) {
-    const rec: Record<string, unknown> = {};
-    for (const field of ["activeSessionNumber", "activeSessionId", "highestCompletedMeeting"]) {
-      try {
-        rec[field] = (await rtdb.ref(`users/students/${alias}/${field}`).get()).val();
-      } catch { /* the next field or alias */ }
-    }
-    records.push(rec);
-  }
+  await readLearnerFields(rtdb, rawNum, ["activeSessionNumber", "activeSessionId", "highestCompletedMeeting"], records);
+  const meeting = learnerMeeting(records);
+  if (meeting !== null) await readLearnerFields(rtdb, rawNum, completionFieldsOf(meeting), records);
   return resetMeetingTarget(classRecord, records, atMs);
 }
 
@@ -118,4 +145,9 @@ export async function resolveClassSessionNumber(
   atMs: number = Date.now()
 ): Promise<number | null> {
   return liveClassMeeting(await readClassRecord(rtdb), atMs);
+}
+
+/** The refusal of step 4, for the callable and (same words) the dialog. */
+export function finishedMeetingRefusalHe(learnerNumber: string | number, sessionNumber: number): string {
+  return `תלמיד ${learnerNumber} סיים את מפגש ${sessionNumber}, ועכשיו הוא לא באמצע מפגש. כדי לאפס מפגש שהסתיים, פתחו אותו לכיתה ואפסו אותו בזמן שהוא פתוח, או בחרו איפוס מוחלט של התלמיד.`;
 }

@@ -122,10 +122,22 @@ describe('which meeting a single learner\'s "current meeting" reset restarts', (
     expect(learnerMeeting([{ activeSessionNumber: 4, highestCompletedMeeting: 3 }])).toBe(4);
   });
 
-  it('the learner finished the last meeting entered and entered no other: that meeting is where the learner is', () => {
-    expect(learnerMeeting([{ activeSessionNumber: 3, highestCompletedMeeting: 3 }])).toBe(3);
-    // Also a meeting the teacher reopened, earlier than the learner's furthest.
-    expect(learnerMeeting([{ activeSessionNumber: 2, highestCompletedMeeting: 5 }])).toBe(2);
+  it('no meeting open and the learner finished the last meeting entered: refused, not reset (between meetings)', () => {
+    // (A) finished meeting 4, the teacher closed it: the field still names 4.
+    expect(resetMeetingTarget(null, [{ activeSessionNumber: 4, completedMeeting4: true, highestCompletedMeeting: 4 }], NOW))
+      .toEqual({ sessionNumber: 4, source: 'learner', finished: true });
+    // (B) finished meeting 2: waiting in "שלב החלוקה למסלולים", or already approved.
+    expect(resetMeetingTarget(null, [{ activeSessionNumber: 2, session_02_completed: true }], NOW)?.finished).toBe(true);
+    expect(resetMeetingTarget(null, [{ activeSessionNumber: 2, completedMeeting2: true, teacher_gate_approved: true, highestCompletedMeeting: 2 }], NOW)?.finished).toBe(true);
+    // A meeting reopened earlier than the learner's furthest, and closed again: finished too.
+    expect(resetMeetingTarget(null, [{ activeSessionNumber: 2, highestCompletedMeeting: 5 }], NOW)?.finished).toBe(true);
+    // In the middle of meeting 4: reset.
+    expect(resetMeetingTarget(null, [{ activeSessionNumber: 4, highestCompletedMeeting: 3 }], NOW)).toEqual({ sessionNumber: 4, source: 'learner' });
+  });
+
+  it('a meeting the class has open is reset even when this learner finished it (the teacher restarts it on purpose)', () => {
+    expect(resetMeetingTarget(open(4), [{ activeSessionNumber: 4, completedMeeting4: true, highestCompletedMeeting: 4 }], NOW))
+      .toEqual({ sessionNumber: 4, source: 'class' });
   });
 
   it('the old activeSessionId behind a meeting the learner completed later is stale, not where the learner is', () => {
@@ -183,7 +195,7 @@ describe('the callable refuses before any backup or deletion', () => {
     await expect(run({ student_id: '4', reset_scope: 'active_session', session_number: 3 }))
       .rejects.toMatchObject({
         code: 'failed-precondition',
-        message: 'המפגש שיאופס השתנה מאז שנפתח חלון האישור, ועכשיו זה מפגש 4. סגרו את החלון ופתחו אותו שוב. לא נמחקו נתונים.',
+        message: 'חלון האישור הציג את מפגש 3, אבל המפגש שיאופס עכשיו הוא מפגש 4: בינתיים מפגש נפתח או נסגר לכיתה, או שהמפגש נסגר מעצמו כשנגמר הזמן שלו. סגרו את החלון ופתחו אותו שוב. לא נמחקו נתונים.',
       });
     nothingDeleted();
   });
@@ -195,6 +207,44 @@ describe('the callable refuses before any backup or deletion', () => {
     };
     // Past the meeting check, the backup reads Firestore — the fake throws there.
     await expect(run({ student_id: '4', reset_scope: 'active_session', session_number: 4 }))
+      .rejects.not.toMatchObject({ code: 'failed-precondition' });
+    expect(h.firestoreTouched.length).toBeGreaterThan(0);
+  });
+
+  it('(A) the learner finished meeting 4 and the teacher closed it: refused, nothing deleted', async () => {
+    h.rtdbData = {
+      active_class_session: { active: false, status: 'closed', sessionNumber: null },
+      'users/students/student_user4/activeSessionNumber': 4,
+      'users/students/student_user4/highestCompletedMeeting': 4,
+      'users/students/student_user4/completedMeeting4': true,
+    };
+    await expect(run({ student_id: '4', reset_scope: 'active_session', session_number: 4 }))
+      .rejects.toMatchObject({
+        code: 'failed-precondition',
+        message: 'תלמיד 4 סיים את מפגש 4, ועכשיו הוא לא באמצע מפגש. כדי לאפס מפגש שהסתיים, פתחו אותו לכיתה ואפסו אותו בזמן שהוא פתוח, או בחרו איפוס מוחלט של התלמיד. לא נמחקו נתונים.',
+      });
+    nothingDeleted();
+  });
+
+  it('(B) the learner finished meeting 2 and waits in "שלב החלוקה למסלולים" (or is approved): refused, nothing deleted', async () => {
+    for (const extra of [{}, { 'users/students/student_user4/teacher_gate_approved': true }]) {
+      h.rtdbData = {
+        'users/students/student_user4/activeSessionNumber': 2,
+        'users/students/student_user4/session_02_completed': true,
+        ...extra,
+      };
+      await expect(run({ student_id: '4', reset_scope: 'active_session' }))
+        .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringContaining('תלמיד 4 סיים את מפגש 2, ועכשיו הוא לא באמצע מפגש.') });
+      nothingDeleted();
+    }
+  });
+
+  it('the full reset of that learner is still allowed', async () => {
+    h.rtdbData = {
+      'users/students/student_user4/activeSessionNumber': 4,
+      'users/students/student_user4/completedMeeting4': true,
+    };
+    await expect(run({ student_id: '4', reset_scope: 'full_student' }))
       .rejects.not.toMatchObject({ code: 'failed-precondition' });
     expect(h.firestoreTouched.length).toBeGreaterThan(0);
   });

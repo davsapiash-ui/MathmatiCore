@@ -9,11 +9,15 @@
  * the meeting the learner is in.
  *   1. The class's meeting — only while it is open now (isClassSessionLive).
  *   2. `activeSessionNumber`, which the learner's workspace writes on entering
- *      a meeting. A finished meeting counts: it is the last one the learner
- *      entered, so that is where the learner is.
+ *      a meeting.
  *   3. The older `activeSessionId` — unless the learner completed a later
  *      meeting, which makes it stale.
- *   4. Otherwise none: the reset is refused, nothing is deleted.
+ *   4. With no meeting open, a meeting the learner already finished is not the
+ *      meeting the learner is in — they are between meetings (the lobby, or
+ *      waiting in "שלב החלוקה למסלולים"): `finished`, and the meeting-only
+ *      reset is refused (owner, 2.10.2026). A meeting the class has open is
+ *      reset even when the learner finished it: that is the way to restart it.
+ *   5. Otherwise none: the reset is refused, nothing is deleted.
  */
 import { isClassSessionLive, type ActiveClassSessionRecord } from '@/core/classSession';
 
@@ -24,6 +28,13 @@ export interface ResetMeetingTarget {
   source: ResetMeetingSource;
   /** The learner already finished this meeting; the reset erases that too. */
   completed: boolean;
+  /** No meeting is open and the learner finished this one: the meeting-only reset is refused (step 4). */
+  finished?: boolean;
+}
+
+/** The refusal of step 4 — the server's words (functions/src/resetMeetingTarget.ts finishedMeetingRefusalHe). */
+export function finishedMeetingRefusalHe(learnerNumber: string | number, sessionNumber: number): string {
+  return `תלמיד ${learnerNumber} סיים את מפגש ${sessionNumber}, ועכשיו הוא לא באמצע מפגש. כדי לאפס מפגש שהסתיים, פתחו אותו לכיתה ואפסו אותו בזמן שהוא פתוח, או בחרו איפוס מוחלט של התלמיד.`;
 }
 
 export type LearnerRecordForReset = Record<string, unknown> | null | undefined;
@@ -79,9 +90,7 @@ export function resolveResetMeeting(liveClassSession: number | null, learnerReco
   const fromClass = validMeetingNumber(liveClassSession);
   const sessionNumber = fromClass ?? learnerMeeting(learnerRecords);
   if (sessionNumber === null) return null;
-  return {
-    sessionNumber,
-    source: fromClass !== null ? 'class' : 'learner',
-    completed: learnerCompletedMeeting(learnerRecords, sessionNumber),
-  };
+  const completed = learnerCompletedMeeting(learnerRecords, sessionNumber);
+  if (fromClass === null && completed) return { sessionNumber, source: 'learner', completed, finished: true };
+  return { sessionNumber, source: fromClass !== null ? 'class' : 'learner', completed };
 }

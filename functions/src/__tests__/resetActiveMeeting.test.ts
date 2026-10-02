@@ -173,7 +173,7 @@ describe('fix 1 — the server refuses before any backup or deletion', () => {
       .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringContaining('לא נמחקו נתונים') });
     // Only the meeting lookup: the class record and the learner's meeting fields.
     for (const path of h.rtdbReads) {
-      expect(path).toMatch(/^(active_class_session|users\/students\/[^/]+\/(activeSessionNumber|activeSessionId|highestCompletedMeeting))$/);
+      expect(path).toMatch(/^(active_class_session|users\/students\/[^/]+\/(activeSessionNumber|activeSessionId|highestCompletedMeeting|completedMeeting\d|session_\d+_completed|session_02_completed))$/);
     }
     expect(h.rtdbWrites).toEqual([]);
     expect(h.firestoreTouched).toEqual([]);

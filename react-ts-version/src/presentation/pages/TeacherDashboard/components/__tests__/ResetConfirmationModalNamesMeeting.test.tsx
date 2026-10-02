@@ -53,14 +53,36 @@ describe('a single learner\'s reset names the meeting before the teacher confirm
     expect(screen.getByText('יאופס מפגש 3, המפגש הפתוח לכיתה.')).toBeTruthy();
   });
 
-  it('a meeting the learner already finished: the window says the finish is undone', () => {
-    lookup.current = { loading: false, target: { sessionNumber: 3, source: 'learner', completed: true } };
+  it('a meeting the class has open and this learner finished: the window says the finish is undone', () => {
+    lookup.current = { loading: false, target: { sessionNumber: 3, source: 'class', completed: true } };
     open();
     expect(screen.getByText('התלמיד כבר סיים את מפגש 3, והאיפוס יבטל גם את הסיום.')).toBeTruthy();
   });
 
+  it('(A) no meeting open and the learner finished meeting 4: refused before confirming; the full reset stays', () => {
+    lookup.current = { loading: false, target: { sessionNumber: 4, source: 'learner', completed: true, finished: true } };
+    const onConfirm = open();
+    expect(screen.getByText('תלמיד 3 סיים את מפגש 4, ועכשיו הוא לא באמצע מפגש. כדי לאפס מפגש שהסתיים, פתחו אותו לכיתה ואפסו אותו בזמן שהוא פתוח, או בחרו איפוס מוחלט של התלמיד.')).toBeTruthy();
+    expect(screen.queryByText(/יאופס מפגש 4/)).toBeNull();
+    chooseReason();
+    expect(executeButton().disabled).toBe(true);
+    fireEvent.click(executeButton());
+    expect(onConfirm).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('radio', { name: /איפוס מוחלט/ }));
+    expect(executeButton().disabled).toBe(false);
+  });
+
+  it('(B) no meeting open and the learner finished meeting 2 (waiting for a path, or approved): refused', () => {
+    lookup.current = { loading: false, target: { sessionNumber: 2, source: 'learner', completed: true, finished: true } };
+    open();
+    expect(screen.getByText(/^תלמיד 3 סיים את מפגש 2, ועכשיו הוא לא באמצע מפגש\./)).toBeTruthy();
+    expect(screen.queryByText(/במפגש 2 יימחקו/)).toBeNull();
+    chooseReason();
+    expect(executeButton().disabled).toBe(true);
+  });
+
   it('meeting 2: the diagnostic results, the recommendation and the approved path go too, and the learner waits', () => {
-    lookup.current = { loading: false, target: { sessionNumber: 2, source: 'learner', completed: true } };
+    lookup.current = { loading: false, target: { sessionNumber: 2, source: 'class', completed: true } };
     open();
     expect(screen.getByText('במפגש 2 יימחקו גם תוצאות האבחון, ההמלצה והמסלול שאושר ב"שלב החלוקה למסלולים". עד שהתלמיד ישלים שוב את מפגש 2 ויאושר לו מסלול, הוא ימתין ולא ייכנס למפגשים הבאים.')).toBeTruthy();
     expect(screen.queryByText(/הרפלקציה/)).toBeNull();
