@@ -32,6 +32,7 @@ import {
 } from "./meetingMetrics";
 import type { RecommendationTier } from "./reportAnalysis";
 import { classPreResetNotes, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE } from "./preResetRecord";
+import { CATCHUP_REASON_HE, CATCHUP_REASON_KEYS, catchUpReasonHe, type CatchUpReasonKey, type ClassCatchUpSummary } from "./catchUp";
 
 export const EXACT_AI_FALLBACK_TEXT_HE =
   "הניתוח הפדגוגי המפורט אינו זמין כעת. ההמלצות שלהלן מבוססות על מדדי הביצוע.";
@@ -109,6 +110,7 @@ const BASE_CSS = `
   .green-text { color: #14532d; }
   .amber-text { color: #78350f; }
   .muted { color: #64748b; font-size: 9.5pt; }
+  .card .catch-up { color: #0c4a6e; font-weight: 600; }
   .routing { padding: 8px 12px; border-inline-start: 4px solid #16a34a; background: #f0fdf4; border-radius: 4px; }
   table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 8.5pt; break-inside: auto; }
   thead { display: table-header-group; }
@@ -199,6 +201,61 @@ function preResetSection(preReset: Record<string, any> | null | undefined): stri
     ${bulletList(lines, "")}`;
 }
 
+/**
+ * Catch-up time (owner, 2.10.2026: "המורה יקח את אותם ילדים שלא סיימו למפגש
+ * נוסף \ זמן נוסף וזה יתועד מה הסיבה לכך"): the personal report's one line —
+ * the extra minutes and the reasons recorded. Absent when nothing was recorded
+ * (and on reports stored before it existed).
+ */
+function catchUpCardLine(catchUp: Record<string, any> | null | undefined): string {
+  const line = typeof catchUp?.line_he === "string" ? catchUp.line_he.trim() : "";
+  return line ? `<div class="wide catch-up">${esc(line)}</div>` : "";
+}
+
+export const CATCH_UP_HEADING_HE = "זמן השלמה";
+export const CATCH_UP_NOTE_HE =
+  "תלמידים שלא סיימו את המפגש: הסיבה שנרשמה, וכמה דקות השלמה קיבלו. נספרות רק הדקות שבהן התלמיד עבד במערכת.";
+
+const learnersCountHe = (n: number) => (n === 1 ? "תלמיד אחד" : `${n} תלמידים`);
+const minutesCountHe = (n: number) => (n === 1 ? "דקה אחת" : `${n} דקות`);
+
+/**
+ * The class report's catch-up block: one row per learner (by number only) and
+ * how many learners each reason was recorded for. Empty when no learner has a
+ * record (and on class reports stored before it existed).
+ */
+export function classCatchUpSection(catchUp: ClassCatchUpSummary | null | undefined, heading: string): string {
+  const learners = Array.isArray(catchUp?.learners) ? catchUp!.learners : [];
+  if (learners.length === 0) return "";
+  const counts = (catchUp!.reason_counts ?? {}) as Partial<Record<CatchUpReasonKey, number>>;
+  const reasons = CATCHUP_REASON_KEYS
+    .filter((k) => (counts[k] ?? 0) > 0)
+    .map((k) => `<li><b>${esc(CATCHUP_REASON_HE[k])}:</b> ${esc(learnersCountHe(counts[k] ?? 0))}</li>`)
+    .join("");
+  const rows = learners.map((l) => {
+    const reasonsHe = Array.from(new Set(Array.isArray(l.reasons) ? l.reasons : []))
+      .map((r) => catchUpReasonHe(r))
+      .filter(Boolean)
+      .join(", ");
+    return `<tr>
+      <td class="label">תלמיד ${esc(l.student_number)}</td>
+      <td>${esc(l.rounds)}</td>
+      <td>${esc(l.minutes)}</td>
+      <td style="text-align:start">${esc(reasonsHe)}</td>
+      <td style="text-align:start">${l.note ? esc(l.note) : "—"}</td>
+    </tr>`;
+  }).join("");
+  const withRounds = Number(catchUp!.learners_with_rounds) || 0;
+  const total = withRounds > 0
+    ? `<p><b>קיבלו זמן השלמה:</b> ${esc(learnersCountHe(withRounds))}, ${esc(minutesCountHe(Number(catchUp!.total_minutes) || 0))} בסך הכול</p>`
+    : "";
+  return `<h2>${esc(heading)}</h2>
+    <p class="muted">${esc(CATCH_UP_NOTE_HE)}</p>
+    ${total}
+    ${reasons ? `<h3>סיבות שנרשמו:</h3><ul>${reasons}</ul>` : ""}
+    <table><thead><tr><th>תלמיד</th><th>סבבי השלמה</th><th>דקות השלמה</th><th>סיבה</th><th>הערה</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
 /** One learner's tools: how often each was operated, and "לא הופעל" where it never was. */
 function toolMasteryTable(m: ToolMastery | null | undefined): string {
   if (!m) return "";
@@ -250,6 +307,7 @@ function sandboxReportHtml(report: Record<string, any>): string {
       <div><b>לומד:</b> ${esc(report.anonymous_student_label)}</div>
       <div><b>מפגש:</b> 1 — היכרות וריענון</div>
       <div class="wide"><b>כלים שעוד לא הופעלו:</b> ${notUsed.length > 0 ? esc(notUsed.join(", ")) : "אין — כל הכלים הופעלו"}</div>
+      ${catchUpCardLine(report.catch_up)}
     </div>
     <p class="muted">${esc(SANDBOX_MEETING_PURPOSE_HE)}</p>
 
@@ -303,6 +361,7 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
       <div><b>מפגש:</b> ${esc(report.session_number)}</div>
       <div><b>ציון שליטה:</b> ${esc(report.score_percent)}%</div>
       ${pathLabel ? `<div class="wide"><b>מסלול מומלץ:</b> ${esc(pathLabel)}</div>` : ""}
+      ${catchUpCardLine(report.catch_up)}
     </div>
 
     <h2 class="green">1. המלצת ניתוב פדגוגי</h2>
@@ -495,6 +554,9 @@ export function classReportHtml(report: Record<string, any>): string {
     <p class="muted">${esc(PRE_RESET_NOTE_HE)}</p>
     ${bulletList(preResetNotes, "")}`;
 
+  // Owner, 2.10.2026: who did not finish the meeting, why, and the catch-up minutes they got.
+  const catchUp = classCatchUpSection(report.catch_up, `4ד. ${CATCH_UP_HEADING_HE}`);
+
   const scored = a.scored !== false;
   let analysis: string;
   if (patterns.length > 0 || teaching.length > 0) {
@@ -537,6 +599,7 @@ export function classReportHtml(report: Record<string, any>): string {
 
     ${researchMeasuresSection(rows, a)}
     ${preReset}
+    ${catchUp}
 
     <h2 class="amber">5. ניתוח הבינה: לקראת האבחון</h2>
     ${analysis}
@@ -579,6 +642,7 @@ export function classReportHtml(report: Record<string, any>): string {
 
     ${researchMeasuresSection(rows, a)}
     ${preReset}
+    ${catchUp}
 
     <h2 class="amber">5. ניתוח הבינה: דפוסים כיתתיים והמלצות הוראה</h2>
     ${analysis}
