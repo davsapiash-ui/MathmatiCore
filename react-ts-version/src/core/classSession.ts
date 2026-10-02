@@ -91,6 +91,52 @@ export interface ActiveClassSessionRecord {
    * a reset writes the closed record without it.
    */
   closedBy?: 'teacher';
+  /** Written with every close (the closing client's clock). */
+  endedAt?: number;
+  /** How a close came about when it was not the teacher's button: the 45-minute cap or the disconnect window. */
+  endedBy?: 'auto_45min' | 'teacher_disconnect_grace';
+  /**
+   * Catch-up time (owner decision 2.10.2026): every close — the teacher's
+   * button, the 45-minute cap, the disconnect window — also records which
+   * meeting just ended and when that run started (server time), so after a
+   * close by time the dashboard still knows whose reasons are missing. A
+   * reset's close carries neither.
+   */
+  lastSessionNumber?: number | null;
+  lastStartedAt?: number | null;
+}
+
+/** The closes that happen by time, with no teacher at the button: no reasons dialog at that moment. */
+export const TIME_CLOSE_KINDS = ['auto_45min', 'teacher_disconnect_grace'] as const;
+
+/** The meeting run a close ended, as the close recorded it. */
+export interface LastClosedRun {
+  meeting: number;
+  /** Server start of that run, or null when the close did not know it. */
+  startedAt: number | null;
+  /** The close came by time (TIME_CLOSE_KINDS), not by the teacher's button. */
+  byTime: boolean;
+}
+
+/** The two fields every close write carries (see lastSessionNumber). */
+export function lastRunFields(meeting: unknown, startedAt: unknown): { lastSessionNumber: number | null; lastStartedAt: number | null } {
+  const n = Number(meeting);
+  return {
+    lastSessionNumber: meeting !== null && meeting !== undefined && Number.isInteger(n) && n >= 1 && n <= 8 ? n : null,
+    lastStartedAt: typeof startedAt === 'number' && Number.isFinite(startedAt) && startedAt > 0 ? startedAt : null,
+  };
+}
+
+/** The run the last close ended, or null while a meeting is open or the close recorded none (a reset). */
+export function readLastClosedRun(val: ActiveClassSessionRecord | null | undefined): LastClosedRun | null {
+  if (!val || val.active === true) return null;
+  const { lastSessionNumber, lastStartedAt } = lastRunFields(val.lastSessionNumber, val.lastStartedAt);
+  if (lastSessionNumber === null) return null;
+  return {
+    meeting: lastSessionNumber,
+    startedAt: lastStartedAt,
+    byTime: (TIME_CLOSE_KINDS as readonly string[]).includes(String(val.endedBy ?? '')),
+  };
 }
 
 /**

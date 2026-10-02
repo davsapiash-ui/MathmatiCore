@@ -2,6 +2,7 @@ import type { PedagogicalPath, SessionDocument } from '@/types';
 import type { StudentData } from '@/application/useStore';
 import { recommendedPathOf } from '@/core/recommendedPath';
 import { diagnosticTaskLabelHe, getFailedDiagnosticTasks } from '@/core/QMatrix';
+import type { UnfinishedLearner } from '@/core/catchUp';
 
 /**
  * What the teacher sees about one learner at "שלב החלוקה למסלולים" (PRD Module 20):
@@ -152,6 +153,17 @@ export function buildUnfinishedMeeting2Items(
     if (item) items.push(item);
   }
   return items;
+}
+
+/**
+ * The same learners as the catch-up list carries them (core/catchUp.ts
+ * UnfinishedLearner): meeting 2 keeps its own "started and not finished"
+ * reading, and says "משימה", as this tab does.
+ */
+export function unfinishedMeeting2AsLearners(items: UnfinishedMeeting2Item[]): UnfinishedLearner[] {
+  return items
+    .map((u) => ({ studentNumber: gateLearnerNumber(u.studentId), stoppedAtHe: `משימה ${u.currentTask} מתוך 7` }))
+    .filter((u): u is UnfinishedLearner => u.studentNumber !== null);
 }
 
 /** Every learner 1–12 who finished meeting 2 — the rows of the approvals table. */
