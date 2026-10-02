@@ -53,9 +53,9 @@ import {
   buildActiveSessionResetValues,
   buildResetScope,
   executeResetDeletion,
-  resolveActiveSessionNumber,
   VALID_RESET_REASONS,
 } from '../exportDriveReport';
+import { resolveActiveSessionNumber } from '../resetMeetingTarget';
 
 /** A plain RTDB stand-in for the exported helpers. */
 function fakeRtdb(data: Record<string, unknown>) {
@@ -120,7 +120,7 @@ const VALID_REASON = VALID_RESET_REASONS[0];
 describe('fix 1 — which meeting a single learner\'s "current meeting" reset restarts', () => {
   it('no open meeting: the meeting the learner is in (activeSessionNumber, written by the live workspace)', async () => {
     const rtdb = fakeRtdb({ 'users/students/student_user4/activeSessionNumber': 5 });
-    expect(await resolveActiveSessionNumber(rtdb, '4', undefined)).toBe(5);
+    expect(await resolveActiveSessionNumber(rtdb, '4')).toEqual({ sessionNumber: 5, source: 'learner' });
   });
 
   it('the live field outranks a stale activeSessionId from an earlier reset', async () => {
@@ -128,30 +128,29 @@ describe('fix 1 — which meeting a single learner\'s "current meeting" reset re
       'users/students/student_user4/activeSessionNumber': 5,
       'users/students/student_user4/activeSessionId': 1,
     });
-    expect(await resolveActiveSessionNumber(rtdb, '4', undefined)).toBe(5);
+    expect((await resolveActiveSessionNumber(rtdb, '4'))?.sessionNumber).toBe(5);
   });
 
   it('an older record that carries only activeSessionId still resolves', async () => {
     const rtdb = fakeRtdb({ 'users/students/student_4/activeSessionId': 3 });
-    expect(await resolveActiveSessionNumber(rtdb, '4', undefined)).toBe(3);
+    expect((await resolveActiveSessionNumber(rtdb, '4'))?.sessionNumber).toBe(3);
   });
 
-  it('the requested meeting, then the open class meeting, still come first', async () => {
+  it('the open class meeting comes first', async () => {
     const rtdb = fakeRtdb({
-      'active_class_session/sessionNumber': 6,
+      active_class_session: { active: true, status: 'active', sessionNumber: 6 },
       'users/students/student_user4/activeSessionNumber': 5,
     });
-    expect(await resolveActiveSessionNumber(rtdb, '4', 7)).toBe(7);
-    expect(await resolveActiveSessionNumber(rtdb, '4', undefined)).toBe(6);
+    expect(await resolveActiveSessionNumber(rtdb, '4')).toEqual({ sessionNumber: 6, source: 'class' });
   });
 
   it('nothing names a meeting 1–8: null, not meeting 1', async () => {
-    expect(await resolveActiveSessionNumber(fakeRtdb({}), '4', undefined)).toBeNull();
+    expect(await resolveActiveSessionNumber(fakeRtdb({}), '4')).toBeNull();
     const junk = fakeRtdb({
       'users/students/student_user4/activeSessionNumber': 9,
       'users/students/student_user4/activeSessionId': 'x',
     });
-    expect(await resolveActiveSessionNumber(junk, '4', 0)).toBeNull();
+    expect(await resolveActiveSessionNumber(junk, '4')).toBeNull();
   });
 
   it('a reset writes both spellings of the learner\'s meeting', () => {
@@ -172,9 +171,9 @@ describe('fix 1 — the server refuses before any backup or deletion', () => {
   it('no open meeting and no meeting on the learner\'s record: failed-precondition, nothing read beyond the lookup', async () => {
     await expect((backupAndResetSessionData as any).run(teacherRequest({ reset_scope: 'active_session' })))
       .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringContaining('לא נמחקו נתונים') });
-    // Only the meeting lookup: the class meeting and the two learner fields.
+    // Only the meeting lookup: the class record and the learner's meeting fields.
     for (const path of h.rtdbReads) {
-      expect(path).toMatch(/^(active_class_session\/sessionNumber|users\/students\/[^/]+\/(activeSessionNumber|activeSessionId))$/);
+      expect(path).toMatch(/^(active_class_session|users\/students\/[^/]+\/(activeSessionNumber|activeSessionId|highestCompletedMeeting|completedMeeting\d|session_\d+_completed|session_02_completed))$/);
     }
     expect(h.rtdbWrites).toEqual([]);
     expect(h.firestoreTouched).toEqual([]);

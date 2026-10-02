@@ -155,7 +155,7 @@ describe('the teacher and the admin see the child’s station name next to each 
     expect(code('presentation/pages/TeacherDashboard/components/SessionActivationModal.tsx')).toContain('המפגש הפעיל כעת, {meetingShortLabelHe(currentlyActive.sessionNumber)}, ייסגר');
     const store = code('application/useStore.ts');
     expect(store).toContain('${meetingShortLabelHe(sessionNumber)} אופס לכל הכיתה.');
-    expect(store).toContain('const sessionLabel = requestedSession ? meetingShortLabelHe(requestedSession)');
+    expect(store).toContain('const sessionLabel = resetSession ? meetingShortLabelHe(resetSession)');
     expect(code('core/catalogFreshness.ts')).toContain('${meetingShortLabelHe(Number(match[1]))}${path}');
     expect(code('infrastructure/services/LearnerJourneyService.ts')).toContain('meetingShortLabelHe(d.session_number)');
     const modal = code('presentation/pages/TeacherDashboard/components/ResetConfirmationModal.tsx');

@@ -8,6 +8,7 @@ import { containsPhoneNumber } from "./phonePattern";
 import { scrubPII } from "./geminiProxy";
 import { researchDetailsColumns } from "./researchTelemetryRow";
 import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
+import { finishedMeetingRefusalHe, resolveActiveSessionNumber, resolveClassSessionNumber, validMeetingNumber } from "./resetMeetingTarget";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
@@ -742,17 +743,24 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   }
   const affectedStudentIds = isOneLearner ? [parseInt(rawNum, 10)] : [...ALL_STUDENT_IDS];
   // Level 2 defaults to the PRD's "restart the active meeting"; the teacher may
-  // ask for the whole learner instead. The meeting is the one the teacher has
-  // open (Module 14), unless the request names it.
+  // ask for the whole learner instead.
   const singleScope: SingleStudentResetScope = reset_level === 'single_student' ? (reset_scope || 'active_session') : 'full_student';
-  // A single learner falls back to the meeting their own record points at. A
-  // class has no such fallback — twelve learners may each be somewhere else —
-  // so the whole-class restart needs a meeting the teacher actually has open.
+  // The meeting is decided here, never taken from the request: the class's
+  // meeting only while it is open now, else the meeting the learner is in
+  // (resetMeetingTarget.ts). A class has no learner fallback — twelve learners
+  // may each be somewhere else — so the whole-class restart needs a meeting
+  // the teacher actually has open.
+  const learnerTarget = isOneLearner && singleScope === 'active_session'
+    ? await resolveActiveSessionNumber(rtdb, rawNum)
+    : null;
+  // No meeting open, and the learner already finished the last meeting they
+  // entered: they are between meetings, not in one (resetMeetingTarget.ts, step 4).
+  if (learnerTarget?.finished) {
+    throw new HttpsError("failed-precondition", `${finishedMeetingRefusalHe(rawNum, learnerTarget.sessionNumber)} לא נמחקו נתונים.`);
+  }
   const activeSessionNumber = isClassTarget
-    ? await resolveClassSessionNumber(rtdb, session_number)
-    : isOneLearner && singleScope === 'active_session'
-      ? await resolveActiveSessionNumber(rtdb, rawNum, session_number)
-      : null;
+    ? await resolveClassSessionNumber(rtdb)
+    : learnerTarget?.sessionNumber ?? null;
   if (isClassTarget && activeSessionNumber === null) {
     throw new HttpsError(
       "failed-precondition",
@@ -766,7 +774,20 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   if (isOneLearner && singleScope === 'active_session' && activeSessionNumber === null) {
     throw new HttpsError(
       "failed-precondition",
-      "אין מפגש פתוח, וברשומת הלומד לא רשום באיזה מפגש הוא נמצא. איפוס המפגש הנוכחי אפשרי רק כשידוע איזה מפגש לאפס. לא נמחקו נתונים."
+      "אין מפגש פתוח לכיתה, ולא ידוע באיזה מפגש התלמיד נמצא, ולכן אין מפגש לאפס. לא נמחקו נתונים."
+    );
+  }
+  // PRD 23א §ה: the dialog spelled out which meeting is deleted, and sent it.
+  // When the server's answer differs, the teacher confirmed something else —
+  // refuse, and let her look again. It differs when a meeting was opened or
+  // closed meanwhile, and also when the open meeting had already ended by time
+  // and the dashboard did not know it yet (before it has the server's clock it
+  // reads a never-closed record as open): the message covers both.
+  const requestedSession = validMeetingNumber(session_number);
+  if (activeSessionNumber !== null && requestedSession !== null && requestedSession !== activeSessionNumber) {
+    throw new HttpsError(
+      "failed-precondition",
+      `חלון האישור הציג את מפגש ${requestedSession}, אבל המפגש שיאופס עכשיו הוא מפגש ${activeSessionNumber}: בינתיים מפגש נפתח או נסגר לכיתה, או שהמפגש נסגר מעצמו כשנגמר הזמן שלו. סגרו את החלון ופתחו אותו שוב. לא נמחקו נתונים.`
     );
   }
   const resetTarget: ResetTarget = isClassTarget ? 'class' : 'student';
@@ -959,68 +980,6 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     deletedRecords: deletion.total,
     ...(reset_level === 'single_student' ? { resetScope: singleScope, sessionNumber: activeSessionNumber, resetTarget } : {}),
   };
-}
-
-/**
- * The meeting a level-2 'active_session' reset restarts (register deviation
- * 10): the number the client sent (the teacher's dashboard knows the open
- * meeting), else the class's open meeting (Module 14 active_class_session),
- * else the meeting the learner is in — `activeSessionNumber`, which the
- * learner's workspace writes on entering a meeting, then `activeSessionId`,
- * which only older records and earlier resets carry. Null when none of them
- * names a meeting 1–8; the caller refuses rather than restart meeting 1.
- */
-export async function resolveActiveSessionNumber(
-  rtdb: admin.database.Database,
-  rawNum: string,
-  requested: unknown
-): Promise<number | null> {
-  const valid = (n: unknown): number | null => {
-    const v = Number(n);
-    return Number.isInteger(v) && v >= 1 && v <= 8 ? v : null;
-  };
-  const fromRequest = valid(requested);
-  if (fromRequest) return fromRequest;
-  try {
-    const classSnap = await rtdb.ref("active_class_session/sessionNumber").get();
-    const fromClass = valid(classSnap.val());
-    if (fromClass) return fromClass;
-  } catch { /* fall through */ }
-  // The live field first, under every alias, and only then the old one: a
-  // stale activeSessionId must not outrank the meeting the learner is in.
-  for (const field of ["activeSessionNumber", "activeSessionId"]) {
-    for (const alias of studentAliases(rawNum)) {
-      try {
-        const learnerSnap = await rtdb.ref(`users/students/${alias}/${field}`).get();
-        const fromLearner = valid(learnerSnap.val());
-        if (fromLearner) return fromLearner;
-      } catch { /* try the next alias */ }
-    }
-  }
-  return null;
-}
-
-/**
- * The meeting a whole-class restart covers: the number the teacher's dashboard
- * sent, else the class's open meeting (Module 14). Null when neither exists —
- * the caller refuses rather than guess a meeting for twelve learners.
- */
-export async function resolveClassSessionNumber(
-  rtdb: admin.database.Database,
-  requested: unknown
-): Promise<number | null> {
-  const valid = (n: unknown): number | null => {
-    const v = Number(n);
-    return Number.isInteger(v) && v >= 1 && v <= 8 ? v : null;
-  };
-  const fromRequest = valid(requested);
-  if (fromRequest) return fromRequest;
-  try {
-    const classSnap = await rtdb.ref("active_class_session/sessionNumber").get();
-    return valid(classSnap.val());
-  } catch {
-    return null;
-  }
 }
 
 // ─── Reset scope, backup and deletion helpers (Module 23א) ───────────────────

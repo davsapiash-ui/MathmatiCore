@@ -175,7 +175,11 @@ function patchStudentAfterSessionReset(existing: StudentData, sessionNum: number
 
 export interface SingleStudentResetOptions {
   scope?: SingleStudentResetScope;
-  /** The meeting to restart (1–8) when scope is 'active_session'; the server falls back to the open class meeting. */
+  /**
+   * The meeting the dialog named (1–8) when scope is 'active_session'. The
+   * server works the meeting out itself and refuses when it differs
+   * (functions/src/resetMeetingTarget.ts).
+   */
   sessionNumber?: number | null;
 }
 
@@ -762,9 +766,12 @@ export const useStore = create<AppState>()(
         // PRD v7.1 Module 23א §ג: backup-before-delete is a HARD gate. Collect,
         // write the backup, await acknowledgment — and only then delete. If the
         // backup fails for any reason the deletion must not happen at all.
+        // The meeting the server actually restarted (it decides, and refuses when
+        // it differs from the one the dialog named).
+        let resetSession: number | null = null;
         try {
           const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData', { timeout: RESET_CALLABLE_TIMEOUT_MS });
-          await backupResetCallable({
+          const result = await backupResetCallable({
             reset_level: 'single_student',
             reason,
             reason_note: reasonNote || null,
@@ -773,6 +780,8 @@ export const useStore = create<AppState>()(
             reset_scope: scope,
             session_number: requestedSession,
           });
+          const returned = Number((result?.data as { sessionNumber?: unknown } | undefined)?.sessionNumber);
+          resetSession = Number.isInteger(returned) && returned >= 1 && returned <= 8 ? returned : requestedSession;
         } catch (err: any) {
           const code: string = typeof err?.code === 'string' ? err.code : '';
           const serverMessage: string = typeof err?.message === 'string' ? err.message : '';
@@ -802,11 +811,11 @@ export const useStore = create<AppState>()(
           for (const id of [normId, studentId, `student_${num}`, `user${num}`, num]) {
             firebaseSyncService.clearLocalSessionProgress(id);
           }
-          const sessionLabel = requestedSession ? meetingShortLabelHe(requestedSession) : 'המפגש הנוכחי';
+          const sessionLabel = resetSession ? meetingShortLabelHe(resetSession) : 'המפגש הנוכחי';
           set((state) => {
             const existing = state.students[normId] || state.students[studentId];
             if (!existing) return {};
-            const patched = patchStudentAfterSessionReset(existing, requestedSession ?? 0);
+            const patched = patchStudentAfterSessionReset(existing, resetSession ?? 0);
             return {
               students: {
                 ...state.students,
