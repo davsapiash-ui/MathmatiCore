@@ -307,7 +307,8 @@ export function inferOwner(item: QueuedAction): string {
   const fromTelemetry = learnerOwner(item.student_id ?? (item.payload?.event_type ? item.payload?.student_id : undefined));
   if (fromTelemetry) return fromTelemetry;
   const path = item.refPath ?? '';
-  const m = /^(?:users\/students|telemetry_events)\/(?:student_user|student_|user)?(\d{1,2})(?:\/|$)/.exec(path);
+  // recordings/{uid}: the learner's screen-recording chunks (screenRecorder.ts).
+  const m = /^(?:users\/students|telemetry_events|recordings)\/(?:student_user|student_|user)?(\d{1,2})(?:\/|$)/.exec(path);
   if (m) return learnerOwner(m[1]) ?? ANY_STAFF_OWNER;
   if (item.firestoreDoc) {
     const d = /_student_(\d{1,2})$/.exec(item.firestoreDoc.docId);

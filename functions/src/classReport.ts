@@ -6,6 +6,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
 import { meetingLabelHe } from "./stationNames";
+import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
 import { COLUMN_NAMES_HE, ROUTE_NAME_HE, errorCategoryCountsHe, errorCategoryHe, triggerCountsHe, triggerReasonHe } from "./teacherLabels";
 import {
   computeFirstAttemptScore,
@@ -1000,7 +1001,8 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
 
   // ── 2. The learners' live records: path, recordings ─────────────────────
   const studentsSnap = await rtdb.ref("users/students").get();
-  const studentsNode: Record<string, any> = studentsSnap.val() || {};
+  // Recordings live in their own node (recordingsNode.ts); older ones still on the record.
+  const studentsNode: Record<string, any> = withRecordings(studentsSnap.val(), (await rtdb.ref(RECORDINGS_ROOT).get()).val());
   const learnerPath = new Map<number, "green_path" | "remediation_path">();
   const recordingByLearner = new Map<number, { minutes: number; truncated: boolean }>();
   // users/students can hold a learner under several keys (student_user3,

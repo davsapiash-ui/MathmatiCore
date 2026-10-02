@@ -73,6 +73,7 @@ beforeEach(async () => {
     await rtdbSet(ref(db, 'radar_alerts/student_user12_1'), { studentId: 'student_user12' });
     await rtdbSet(ref(db, 'sessions/session_03_student_12'), { timestamp: 1 });
     await rtdbSet(ref(db, 'replays/student_user12'), { frames: 1 });
+    await rtdbSet(ref(db, 'recordings/student_user12/telemetry_sessions/session_1/chunks/c1'), { data: '[]' });
     await rtdbSet(ref(db, 'reflections/session_08_student_12'), { timestamp: 1 });
     await rtdbSet(ref(db, 'chat_messages/student_user12/m1'), { text: 'שלום' });
     await rtdbSet(ref(db, 'active_class_session'), { active: false, status: 'closed', sessionNumber: 2 });
@@ -102,7 +103,7 @@ const teacher = () => env.authenticatedContext('teacher_uid', {
 describe('מודול 24 §ב — כניסת מנהל אינה קוראת נתוני לומד (RTDB)', () => {
   for (const path of [
     'users/students', 'users/students/student_user12', 'students', 'students/student_user12',
-    'radar_alerts', 'sessions', 'sessions/session_03_student_12', 'replays', 'replays/student_user12',
+    'radar_alerts', 'sessions', 'sessions/session_03_student_12', 'replays', 'replays/student_user12', 'recordings', 'recordings/student_user12',
     'reflections', 'chat_messages', 'chat_messages/student_user12',
   ]) {
     it(`אינה קוראת ${path}`, async () => {

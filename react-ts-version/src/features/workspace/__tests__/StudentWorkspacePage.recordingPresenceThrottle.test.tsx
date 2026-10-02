@@ -140,7 +140,8 @@ const settle = async () => {
   }
 };
 
-const recordings = () => Object.keys(fake.db.read(`${STUDENT}/telemetry_sessions`) ?? {});
+const RECORDINGS = `recordings/${UID}`;
+const recordings = () => Object.keys(fake.db.read(`${RECORDINGS}/telemetry_sessions`) ?? {});
 
 beforeAll(() => {
   // The sync service's own start (scheduled with setTimeout(0) when it was
@@ -216,11 +217,11 @@ describe('Module 21 — the recording starts with the right meeting', () => {
 
     // One recording, under the meeting's own id, and its first chunk says meeting 4.
     expect(recordings()).toEqual([`session_${startedAt}`]);
-    const metadata = fake.db.read(`${STUDENT}/telemetry_sessions/session_${startedAt}/metadata`);
+    const metadata = fake.db.read(`${RECORDINGS}/telemetry_sessions/session_${startedAt}/metadata`);
     const [first] = Object.values(metadata) as any[];
     expect(first).toMatchObject({ sessionNumber: 4, exercise_id: exercise });
     // Its bytes count against this learner's meeting-4 budget.
-    expect(budgetBytesUsed(fake.db.read(`${STUDENT}/recorded_bytes/meeting_4`))).toBeGreaterThan(0);
+    expect(budgetBytesUsed(fake.db.read(`${RECORDINGS}/recorded_bytes/meeting_4`))).toBeGreaterThan(0);
   });
 
   it('stops on a device another device has taken over, and does not start again', async () => {

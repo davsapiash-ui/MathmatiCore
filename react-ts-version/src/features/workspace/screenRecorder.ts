@@ -7,13 +7,20 @@
  *
  * Where it is written (the teacher's replay, LearnerJourneyService, and the
  * class report read exactly these paths):
- *   users/students/{uid}/telemetry_sessions/session_{startedAt}/chunks/{key}
- *   users/students/{uid}/telemetry_sessions/session_{startedAt}/metadata/{key}
- *   users/students/{uid}/telemetry_sessions/session_{startedAt}/recording_truncated
+ *   recordings/{uid}/telemetry_sessions/session_{startedAt}/chunks/{key}
+ *   recordings/{uid}/telemetry_sessions/session_{startedAt}/metadata/{key}
+ *   recordings/{uid}/telemetry_sessions/session_{startedAt}/recording_truncated
  * and the 50MB budget of this learner in this meeting, where the per-meeting
  * reports (classReport, exportDriveReport) also find its flag:
- *   users/students/{uid}/recorded_bytes/meeting_{N}/chunks/{key}: bytes
- *   users/students/{uid}/recorded_bytes/meeting_{N}/truncated: true
+ *   recordings/{uid}/recorded_bytes/meeting_{N}/chunks/{key}: bytes
+ *   recordings/{uid}/recorded_bytes/meeting_{N}/truncated: true
+ *
+ * Not under users/students/{uid}: the teacher's radar, dashboard, store and
+ * class management listen to the whole users/students tree, so a chunk there
+ * (one every 2 s per learner) reached the teacher's computer, every recording
+ * of every meeting with it. Recordings made before this change still sit at
+ * users/students/{uid}/telemetry_sessions and recorded_bytes; the readers
+ * merge both places until the teacher moves them (moveLegacyRecordings).
  */
 import { ref, push, get } from 'firebase/database';
 import { database, authReady } from '@/infrastructure/firebase';
@@ -32,8 +39,31 @@ export const RECORDING_FLUSH_INTERVAL_MS = 2000;
 /** The recording of one class-session opening: its id is the server's start stamp. */
 export const recordingIdOf = (classStartedAt: number): string => `session_${classStartedAt}`;
 
+/** This learner's recordings and recording budgets — outside the roster the teacher's screens listen to. */
+export const recordingsRootOf = (uid: string): string => `recordings/${uid}`;
+
 /** The node that holds this learner's recording budget for one meeting. */
-export const recordingBudgetPath = (uid: string, meeting: number): string => `users/students/${uid}/recorded_bytes/meeting_${meeting}`;
+export const recordingBudgetPath = (uid: string, meeting: number): string => `${recordingsRootOf(uid)}/recorded_bytes/meeting_${meeting}`;
+
+/** Where versions before the recordings node kept the same budget — read until the teacher moves it. */
+export const legacyRecordingBudgetPath = (uid: string, meeting: number): string => `users/students/${uid}/recorded_bytes/meeting_${meeting}`;
+
+/**
+ * One meeting's budget out of the old place and the new one, merged as the
+ * move merges them (functions/src/recordingsNode.ts): every chunk size of both
+ * under its own key — a chunk counted in both is counted once — and truncated
+ * when either says so. A meeting recorded partly before the update and partly
+ * after it gets 50MB in all, not 50MB in each place.
+ */
+export function mergeRecordingBudgets(legacy: unknown, current: unknown): { chunks: Record<string, unknown>; truncated?: true } | null {
+  const obj = (v: unknown) => (v && typeof v === 'object' ? (v as { chunks?: unknown; truncated?: unknown }) : null);
+  const a = obj(legacy);
+  const b = obj(current);
+  if (!a && !b) return null;
+  const chunksOf = (v: typeof a) => (v?.chunks && typeof v.chunks === 'object' ? (v.chunks as Record<string, unknown>) : {});
+  const truncated = a?.truncated === true || b?.truncated === true;
+  return { chunks: { ...chunksOf(a), ...chunksOf(b) }, ...(truncated ? { truncated: true as const } : {}) };
+}
 
 /**
  * The bytes a meeting's budget has used: the sum of its chunks' sizes. Each
@@ -114,7 +144,7 @@ const byteLength = (s: string): number => new TextEncoder().encode(s).length;
 export function startScreenRecorder(opts: ScreenRecorderOptions): () => void {
   const { uid, meeting, classStartedAt, currentExerciseId } = opts;
   const recordingId = recordingIdOf(classStartedAt);
-  const recordingPath = `users/students/${uid}/telemetry_sessions/${recordingId}`;
+  const recordingPath = `${recordingsRootOf(uid)}/telemetry_sessions/${recordingId}`;
   const chunksPath = `${recordingPath}/chunks`;
   const metadataPath = `${recordingPath}/metadata`;
   const budgetPath = recordingBudgetPath(uid, meeting);
@@ -156,9 +186,13 @@ export function startScreenRecorder(opts: ScreenRecorderOptions): () => void {
   // The budget belongs to the learner and the meeting, not to this mount or to
   // one opening of the meeting: a refresh, or the teacher opening the same
   // meeting again, continues the same count.
-  const budgetReady = get(ref(database, budgetPath))
-    .then((snap) => {
-      const budget = snap.val();
+  // Both places until the teacher moves the old one (mergeRecordingBudgets).
+  const budgetReady = Promise.all([
+    get(ref(database, budgetPath)),
+    get(ref(database, legacyRecordingBudgetPath(uid, meeting))).catch(() => null),
+  ])
+    .then(([snap, legacySnap]) => {
+      const budget = mergeRecordingBudgets(legacySnap?.val() ?? null, snap.val());
       recordedBytes = budgetBytesUsed(budget);
       if (recordedBytes >= RECORDING_BYTE_CAP || (budget && budget.truncated === true)) {
         truncated = true;
