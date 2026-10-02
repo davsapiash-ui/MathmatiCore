@@ -75,8 +75,7 @@ export const FIREBASE_RESTORE_GRACE_MS = 6000;
  * a meeting opened again for catch-up was not overwritten by a later one.
  */
 function readDeviceCopy(uid: string, meeting: number): any | null {
-  const read: (uid: string, meeting?: number) => any = firebaseSyncService.getLocalSessionProgress.bind(firebaseSyncService);
-  return read(uid, meeting);
+  return firebaseSyncService.getLocalSessionProgress(uid, meeting);
 }
 
 /**
@@ -642,7 +641,7 @@ export function StudentWorkspacePage() {
       if (snap.exists()) {
         const val = snap.val();
         if (val?.forceReload === true) {
-          acknowledgeTeacherReset(normUid, user?.uid, canWriteWorkspaceData(normUid, isSupersededRef.current));
+          acknowledgeTeacherReset(normUid, user?.uid, canWriteWorkspaceData(normUid, isSupersededRef.current), val);
           window.location.href = '/hub';
         }
       }

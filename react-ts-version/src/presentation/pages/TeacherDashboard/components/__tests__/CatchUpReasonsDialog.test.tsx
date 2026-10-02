@@ -181,9 +181,9 @@ describe('CatchUpReasonsDialog', () => {
 
   it('meeting 2: says the close still completes the meeting and the reasons only document', () => {
     setup({ meeting: 2, isMeeting2: true });
-    expect(screen.getByText(/במפגש 2 הסגירה מסיימת את המפגש כרגיל/)).toBeTruthy();
+    expect(screen.getByText(/במפגש 2, "המשיכו בכל זאת" מסיים את המפגש כרגיל/)).toBeTruthy();
     cleanup();
     setup({ meeting: 4, isMeeting2: false });
-    expect(screen.queryByText(/במפגש 2 הסגירה מסיימת/)).toBeNull();
+    expect(screen.queryByText(/במפגש 2, "המשיכו בכל זאת" מסיים/)).toBeNull();
   });
 });

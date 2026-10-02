@@ -414,4 +414,16 @@ describe('meeting 2 keeps its own list; the dialog documents it', () => {
     await act(async () => { fireEvent.click(screen.getByText('stub-continue')); });
     await waitFor(() => expect(h.seq).toEqual(['record:continue', 'close:teacher']));
   });
+
+  it('"פתחו שוב" in meeting 2: a new run in place, never the teacher\'s close (which would complete the learners)', async () => {
+    openMeeting(2);
+    h.db.tree.users = { students: { student_user3: { workspaceState: { sessionNumber: 2, flowStatus: 'task', qflow: { phase: 'primary', taskIdx: 2 }, savedAt: 1 } } } };
+    renderDashboard();
+    await waitForLearners(/תלמיד אחד עוד לא סיים את מפגש 2/);
+    await clickClose();
+    await act(async () => { fireEvent.click(screen.getByText('stub-reopen')); });
+    await waitFor(() => expect(h.seq).toEqual(['record:reopen', 'open:2']));
+    expect(h.seq).not.toContain('close:teacher');
+    expect(h.db.read('active_class_session')).toMatchObject({ active: true, sessionNumber: 2 });
+  });
 });

@@ -75,8 +75,12 @@ describe('X55 — the newer copy wins, and the server copy on a tie', () => {
     const page = src('src/features/workspace/StudentWorkspacePage.tsx');
     expect(page).toMatch(/restoredFromCacheRef\.current = \{ meeting, savedAt: workspaceSavedAt\(cached\) \}/);
     expect(page).toMatch(/workspaceSavedAt\(server\) > fromCache\.savedAt/);
-    // Both initialisation paths choose by the stamp; neither prefers a copy blindly.
-    expect(page.match(/newerWorkspaceSnapshot\(/g)?.length).toBe(2);
+    // Both initialisation paths choose by the stamp (resumeSnapshotFor →
+    // newerWorkspaceSnapshot); neither prefers a copy blindly.
+    expect(page).toMatch(/const saved = resumeSnapshotFor\(/);
+    expect(page).toMatch(/planMeetingEntry\(/);
+    expect(src('src/features/workspace/meetingEntry.ts')).toContain('resumeSnapshotFor(record, deviceCopy, meeting)');
+    expect(src('src/core/meetingCompletion.ts')).toMatch(/newerWorkspaceSnapshot<[^>]*>\(savedSnapshotOfMeeting\(record, meeting\), local \?\? null, meeting\)/);
   });
 });
 

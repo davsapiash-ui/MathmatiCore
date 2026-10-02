@@ -20,7 +20,8 @@ const fn = readFileSync(resolve(__dirname, '../../../../functions/src/exportDriv
 
 describe('Module 23א — one scope for backup and deletion', () => {
   it('the backup reads the scope and the deletion deletes the same scope', () => {
-    expect(fn).toMatch(/const scope = buildResetScope\(reset_level, rawNum, singleScope, activeSessionNumber, resetTarget\);/);
+    // Catch-up time (2.10.2026): the scope also carries the catch-up records, like `sessions`.
+    expect(fn).toMatch(/const scope = withCatchUpRecords\(buildResetScope\(reset_level, rawNum, singleScope, activeSessionNumber, resetTarget\)\);/);
     expect(fn).toMatch(/backup = await collectResetBackup\(rtdb, db, scope,/);
     expect(fn).toMatch(/const deletion = await executeResetDeletion\(rtdb, db, scope\);/);
   });

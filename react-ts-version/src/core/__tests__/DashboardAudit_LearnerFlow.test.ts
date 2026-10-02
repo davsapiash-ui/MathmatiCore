@@ -99,8 +99,12 @@ describe('the end of a meeting', () => {
   it('a finished meeting is restored as finished, not restarted at exercise 1 (PRD 14 §ג)', () => {
     expect(page).not.toContain("flowStatus !== 'sessionDone'");
     // Both initialisation paths restore any saved copy of this meeting — the
-    // newer of the record and the device cache (X55) — whatever its flow.
-    expect((page.match(/const saved = newerWorkspaceSnapshot\(\s*myData\?\.workspaceState,/g) || []).length).toBe(2);
+    // newer of the record's copy of THIS meeting and the device cache (X55,
+    // resumeSnapshotFor; catch-up time 2.10.2026: also after the class moved
+    // on) — whatever its flow.
+    expect(page).toMatch(/planMeetingEntry\(myData as Record<string, unknown> \| null, readDeviceCopy\(uid, meeting\), meeting\)/);
+    expect(page).toMatch(/const saved = resumeSnapshotFor\(/);
+    expect(src('features/workspace/meetingEntry.ts')).toContain('const saved = resumeSnapshotFor(record, deviceCopy, meeting)');
     const snapshot = src('core/workspaceSnapshot.ts');
     expect(snapshot).toContain('snapshot!.sessionNumber === meeting && Boolean(snapshot!.flowStatus)');
     // A finished copy is restorable, and is chosen like any other

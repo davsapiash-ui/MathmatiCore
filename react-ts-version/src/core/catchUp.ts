@@ -92,7 +92,7 @@ export interface CatchUpRound {
   note: string | null;
   /** Where the learner stood when the reason was recorded (teacher's label, e.g. "תרגיל 4 מתוך 7"). No PII. */
   stopped_at: string | null;
-  /** The teacher's auth uid (as reset_audit_log's performed_by_teacher_id). */
+  /** The teacher's auth uid (never a name), as the reset audit entry records its teacher. */
   recorded_by: string;
   /** Server-clock ms (serverNow()) when the dialog was confirmed. */
   recorded_at: number;

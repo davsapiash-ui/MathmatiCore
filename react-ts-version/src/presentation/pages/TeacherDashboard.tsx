@@ -1193,7 +1193,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       }
       setCatchUpDialog(null);
       if (action === 'reopen') {
-        if (d.wasOpen && !(await handleEndClassSession())) return;
+        // Meeting 2: the teacher's close (closedBy 'teacher') completes every
+        // learner who started it (meeting2Close.ts) — the opposite of giving
+        // them time. A catch-up of meeting 2 therefore starts a new run in
+        // place, with no close in between; only "סגרו את המפגש" completes.
+        if (d.wasOpen && d.meeting !== 2 && !(await handleEndClassSession())) return;
         await openMeetingForClass(d.meeting);
         return;
       }

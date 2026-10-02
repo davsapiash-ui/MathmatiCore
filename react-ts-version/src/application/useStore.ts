@@ -880,6 +880,9 @@ export const useStore = create<AppState>()(
             highestCompletedMeeting: 0,
             session_completed: 0,
             workspaceState: null,
+            // Catch-up time: every meeting's saved copy and finished mark (core/meetingCompletion.ts).
+            workspaceByMeeting: null,
+            completedMeetings: null,
             sessionState: null,
             routeStatus: null,
             routeRecommendation: null,
@@ -1051,6 +1054,8 @@ export const useStore = create<AppState>()(
               highestCompletedMeeting: 0,
               session_completed: 0,
               workspaceState: null,
+              workspaceByMeeting: null,
+              completedMeetings: null,
               sessionState: null,
               routeStatus: null,
               routeRecommendation: null,

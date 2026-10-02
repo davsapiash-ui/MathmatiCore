@@ -137,7 +137,7 @@ export function StudentHub() {
         if (snap.exists()) {
           const val = snap.val();
           if (val?.forceReload === true) {
-            acknowledgeTeacherReset(normUid, uid, true);
+            acknowledgeTeacherReset(normUid, uid, true, val);
             setHasCompletedSession2(false);
             setIsTeacherGateApproved(false);
             setLiveRouteStatus(null);

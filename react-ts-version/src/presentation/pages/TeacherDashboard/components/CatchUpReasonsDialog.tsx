@@ -56,11 +56,12 @@ export const CATCHUP_DIALOG_HE = {
   notePlaceholder: 'הערה (לא חובה) — בלי שמות, רק מספר תלמיד',
   needAllReasons: 'כדי להמשיך, בחרו סיבה לכל תלמיד.',
   saving: 'שומרים את הסיבות…',
-  meeting2: 'במפגש 2 הסגירה מסיימת את המפגש כרגיל, גם לתלמידים שלא סיימו. הסיבות שתבחרו כאן נשמרות לתיעוד בלבד.',
+  meeting2: 'במפגש 2, "המשיכו בכל זאת" מסיים את המפגש כרגיל, גם למי שלא סיים. "פתחו שוב את המפגש להשלמה" נותן להם זמן להמשיך מהמקום שבו עצרו.',
 } as const;
 
 export function catchUpDialogTitleHe(trigger: 'close' | 'open_other', meeting: number, nextMeeting: number | null): string {
   if (trigger === 'close') return `לפני שסוגרים את מפגש ${meeting}`;
+  if (nextMeeting === meeting) return `לפני שפותחים שוב את מפגש ${meeting}`;
   return nextMeeting ? `לפני שפותחים את מפגש ${nextMeeting}` : 'לפני שפותחים מפגש אחר';
 }
 
@@ -72,12 +73,14 @@ export function catchUpDialogLeadHe(trigger: 'close' | 'open_other', meeting: nu
 
 function reopenHintHe(trigger: 'close' | 'open_other', meeting: number, nextMeeting: number | null): string {
   const body = `מפגש ${meeting} ייפתח שוב לכל הכיתה. מי שלא סיים ימשיך מהמקום שבו עצר, ומי שסיים יחכה בינתיים.`;
-  if (trigger === 'close') return body;
+  if (trigger === 'close' || nextMeeting === meeting) return body;
   return `${nextMeeting ? `מפגש ${nextMeeting}` : 'המפגש האחר'} לא ייפתח עכשיו. ${body}`;
 }
 
 function continueHintHe(trigger: 'close' | 'open_other', meeting: number, nextMeeting: number | null): string {
   if (trigger === 'close') return `מפגש ${meeting} ייסגר, והסיבות יישמרו.`;
+  // The same meeting again without a catch-up round: nothing measures the extra time.
+  if (nextMeeting === meeting) return `מפגש ${meeting} ייפתח שוב, והסיבות יישמרו. זמן ההשלמה לא יתועד.`;
   return `${nextMeeting ? `מפגש ${nextMeeting}` : 'המפגש האחר'} ייפתח, והסיבות יישמרו.`;
 }
 
