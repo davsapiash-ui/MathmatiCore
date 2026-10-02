@@ -8,6 +8,7 @@ import { containsPhoneNumber } from "./phonePattern";
 import { scrubPII } from "./geminiProxy";
 import { researchDetailsColumns } from "./researchTelemetryRow";
 import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
+import { CATCHUP_COLLECTION, catchUpExportCells, type CatchUpRecord } from "./catchUp";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
@@ -773,7 +774,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   const level2Audit = reset_level === 'single_student'
     ? { reset_scope: singleScope, session_number: activeSessionNumber, reset_target: resetTarget }
     : {};
-  const scope = buildResetScope(reset_level, rawNum, singleScope, activeSessionNumber, resetTarget);
+  const scope = withCatchUpRecords(buildResetScope(reset_level, rawNum, singleScope, activeSessionNumber, resetTarget));
 
   // Step 1: collect everything in scope into one structured snapshot.
   let backup: ResetBackupFile;
@@ -1118,6 +1119,11 @@ export function buildActiveSessionResetValues(
     isSocraticActive: false,
     forceReload: true,
     lastAction: `המפגש ${sessionNumber} אופס ע״י המורה`,
+    // Catch-up time (owner, 2.10.2026): the meeting's finished mark and its
+    // per-meeting saved workspace (core/meetingCompletion.ts). Left behind, a
+    // reset learner counted as finished and resumed the old board.
+    [`completedMeetings/m${sessionNumber}`]: null,
+    [`workspaceByMeeting/m${sessionNumber}`]: null,
   };
   if (sessionNumber === 2) {
     // The diagnostic meeting's own outputs (Modules 19–20) are part of its progress.
@@ -1277,6 +1283,45 @@ export function buildResetScope(
     ],
     firestore: LEARNING_COLLECTIONS.map((collection) => ({ collection })),
   };
+}
+
+/**
+ * Catch-up time (owner, 2.10.2026): "המורה יקח את אותם ילדים שלא סיימו למפגש
+ * נוסף \ זמן נוסף וזה יתועד מה הסיבה לכך". The record of a learner × meeting,
+ * catchup_records/{session_0N_student_K}, carries the session document's id,
+ * so every reset handles it exactly as `sessions`: backed up first, then
+ * deleted per learner and per meeting (meeting reset, class meeting reset),
+ * all of the learner's (full learner reset) or all of them (level 3).
+ * reset_audit_log is not touched.
+ */
+export function withCatchUpRecords(scope: ResetScope): ResetScope {
+  const catchUp = scope.firestore
+    .filter((entry) => entry.collection === "sessions")
+    .map((entry) => ({
+      ...entry,
+      collection: CATCHUP_COLLECTION,
+      ...(entry.studentNumbers ? { studentNumbers: [...entry.studentNumbers] } : {}),
+    }));
+  return { ...scope, firestore: [...scope.firestore, ...catchUp] };
+}
+
+/**
+ * The research export's catch-up records, keyed `${learner}:${meeting}` like
+ * the meetings file's rows. The learner and the meeting come from the fields,
+ * else from the document id (the session document's spelling).
+ */
+export function catchUpRecordsByLearnerMeeting(docs: Array<{ id: string; data: unknown }>): Map<string, Partial<CatchUpRecord>> {
+  const byKey = new Map<string, Partial<CatchUpRecord>>();
+  for (const { id, data } of docs) {
+    const record = (data && typeof data === "object" ? data : {}) as Partial<CatchUpRecord>;
+    const fieldLearner = Number(record.student_id);
+    const n = Number.isInteger(fieldLearner) && fieldLearner >= 1 && fieldLearner <= 12 ? fieldLearner : studentNumberFromSessionId(id);
+    const fieldMeeting = Number(record.session_number);
+    const m = Number.isInteger(fieldMeeting) && fieldMeeting >= 1 && fieldMeeting <= 8 ? fieldMeeting : sessionNumberFromId(id);
+    if (!n || !m) continue;
+    byKey.set(`${n}:${m}`, record);
+  }
+  return byKey;
 }
 
 export interface ResetBackupFile {
@@ -1919,6 +1964,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     };
 
     const meetingRows: Record<string, any>[] = [];
+    // Catch-up time (owner, 2.10.2026): read once, one record per learner × meeting.
+    const catchUpByKey = catchUpRecordsByLearnerMeeting(await readAllDocs(db.collection(CATCHUP_COLLECTION)));
     for (const [k, events] of Array.from(byLearnerMeeting.entries()).sort()) {
       const [nStr, mStr] = k.split(":");
       const n = Number(nStr);
@@ -2026,6 +2073,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         chat_help_requests: summary.chat_help_requests ?? 0,
         // The run since the last reset, as the reports and the gate score it (owner, 2.10.2026), appended last.
         ...afterValues,
+        // Catch-up time (owner, 2.10.2026): rounds, minutes, reasons, notes — appended last.
+        ...catchUpExportCells(catchUpByKey.get(k)),
       });
     }
 
