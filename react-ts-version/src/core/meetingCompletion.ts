@@ -106,3 +106,51 @@ export function hasStartedMeeting(record: LearnerRecord, meeting: number): boole
 export function resumeSnapshotFor(record: LearnerRecord, local: Snapshot | null | undefined, meeting: number): Snapshot | null {
   return newerWorkspaceSnapshot<Snapshot | null | undefined>(savedSnapshotOfMeeting(record, meeting), local ?? null, meeting) ?? null;
 }
+
+/** A meeting number the per-meeting maps are kept for (1–8). */
+export function isMeetingNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 8;
+}
+
+/** The record field (a path under users/students/{id}) of meeting N's saved copy. */
+export function workspaceByMeetingField(meeting: number): string {
+  return `${WORKSPACE_BY_MEETING_KEY}/${meetingKey(meeting)}`;
+}
+
+/** The record field (a path under users/students/{id}) of meeting N's finished mark. */
+export function completedMeetingField(meeting: number): string {
+  return `${COMPLETED_MEETINGS_KEY}/${meetingKey(meeting)}`;
+}
+
+/**
+ * Which meeting a teacher's reset (forceReload on the record) restarted, read
+ * from the record as the reset left it: a meeting number, 'all' for a full
+ * reset of the learner, or null when the record does not say.
+ *
+ *   Meeting reset (Module 23א §ב.2, of the learner or of the class;
+ *   buildActiveSessionResetValues on the server): lastAction
+ *   "המפגש N אופס ע״י המורה", activeSessionNumber = activeSessionId = N.
+ *   Full reset (resetStudentData, scope full_student): the node is deleted and
+ *   rewritten with lastAction "אופס ע״י המורה", highestCompletedMeeting 0 and
+ *   every completedMeetingK false.
+ *
+ * The device then drops its copy of that meeting only; 'all' and null drop
+ * every device copy — a reset must never come back from the device.
+ */
+export function resetMeetingOf(record: LearnerRecord): number | 'all' | null {
+  if (!record) return null;
+  const lastAction = typeof record.lastAction === 'string' ? record.lastAction : '';
+  const named = /^המפגש (\d+) אופס/.exec(lastAction);
+  if (named) {
+    const n = Number(named[1]);
+    return isMeetingNumber(n) ? n : null;
+  }
+  if (lastAction === 'אופס ע״י המורה' && record.highestCompletedMeeting === 0) return 'all';
+  const active = record.activeSessionNumber;
+  if (isMeetingNumber(active) && record.activeSessionId === active) {
+    // A full reset's record differs from a meeting-1 reset's by these two only.
+    if (record.highestCompletedMeeting === 0 && record.completedMeeting8 === false) return 'all';
+    return active;
+  }
+  return null;
+}
