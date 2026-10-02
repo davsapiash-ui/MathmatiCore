@@ -190,7 +190,9 @@ describe('C1 — the alerts reset touches only learner records that exist', () =
 
 describe('C4 — records_deleted_count counts deletions only', () => {
   it('a meeting restart of one learner: the alias records reset in place are counted apart', async () => {
-    h.rtdbData['users/students/student_user4'] = { activeSessionNumber: 3, highestCompletedMeeting: 3, workspaceState: {} };
+    // Meeting 3 is open for the class now, and learner 4 is in it (not finished).
+    h.rtdbData['active_class_session'] = { active: true, status: 'active', sessionNumber: 3, startedAt: Date.now() };
+    h.rtdbData['users/students/student_user4'] = { activeSessionNumber: 3, highestCompletedMeeting: 2, workspaceState: {} };
     h.rtdbData['users/students/student_4'] = { isASD: true };
     h.rtdbData['users/students/4'] = { lastPing: 1 };
     const result = await run({ reset_level: 'single_student', reset_scope: 'active_session', student_id: 4, session_number: 3 });
