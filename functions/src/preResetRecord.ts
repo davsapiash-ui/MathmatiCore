@@ -68,7 +68,7 @@ export function classPreResetNotes(report: Record<string, any>): string[] {
   return out;
 }
 
-export const AWAITING_RERUN_HE = "עוד לא עבד על המפגש מחדש, ולכן אין לו ציון במפגש הזה.";
+export const AWAITING_RERUN_HE = "מאז האיפוס עוד לא נרשמה לו אף תשובה, ולכן אין לו ציון במפגש הזה.";
 
 /** When the reset log cannot be read, no report: it would count the whole history (review of PR #209). */
 export const RESET_LOG_UNAVAILABLE_HE = "לא ניתן לקרוא כרגע את יומן האיפוסים, ולכן הדוח לא הופק. נסו שוב בעוד כמה דקות.";
@@ -86,7 +86,7 @@ function learnersHe(ids: number[]): string {
  * events in it at all. Both facts, so the sentence is true for each learner.
  */
 export function nothingToAnalyseAfterResetHe(sessionNumber: number, awaiting: number[]): string {
-  const who = awaiting.length === 1 ? "והוא עוד לא עבד עליו מחדש" : "והם עוד לא עבדו עליו מחדש";
+  const who = awaiting.length === 1 ? "ומאז עוד לא נרשמה לו אף תשובה" : "ומאז עוד לא נרשמה להם אף תשובה";
   const others = awaiting.length < 12 ? " לשאר התלמידים אין פעולות מתועדות במפגש הזה." : "";
   return `אין עדיין מה לנתח במפגש ${sessionNumber}. המפגש אופס ל${learnersHe(awaiting)}, ${who}.${others}`;
 }

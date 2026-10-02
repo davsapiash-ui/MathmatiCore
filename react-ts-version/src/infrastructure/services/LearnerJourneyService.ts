@@ -56,6 +56,8 @@ export interface JourneyEvent {
   eventType: TelemetryEventType | string;
   columnIndex?: number;
   details: Record<string, unknown>;
+  /** When the event was written to Firestore (synced_at; the tablet's clock). Absent on older events. */
+  writtenAt?: number;
 }
 
 const COLUMN_NAMES_HE = ['יחידות', 'עשרות', 'מאות', 'אלפים'];
@@ -292,9 +294,18 @@ export function resetSeparatorHe(r: MeetingResetMark): string {
  */
 export const ANSWER_EVENT_TYPES: ReadonlySet<string> = new Set(['DIGIT_ENTERED', 'SOCRATIC_OPTION_SELECTED', 'PROBLEM_COMPLETE', 'REFLECTION_SUBMITTED']);
 
-/** Whether the learner answered anything in the meeting after `at` (the tablet's clock against the server's). */
+/**
+ * Whether the learner answered anything in the meeting after the reset at `at`.
+ *
+ * The server cuts a meeting by each event's write time, not by when the child
+ * acted: an answer buffered offline before the reset and written after it
+ * counts as the new run. The web SDK does not expose a document's server write
+ * time, so the closest basis on this side is `synced_at`, stamped as the event
+ * is written to Firestore (the tablet's clock); the action time is used only
+ * for an event written without it.
+ */
 export function answeredSince(events: JourneyEvent[], at: number): boolean {
-  return events.some((e) => e.timestamp > at && ANSWER_EVENT_TYPES.has(String(e.eventType)));
+  return events.some((e) => (e.writtenAt ?? e.timestamp) > at && ANSWER_EVENT_TYPES.has(String(e.eventType)));
 }
 
 export function groupEventsBySession(events: JourneyEvent[]): Map<number, JourneyEvent[]> {
@@ -551,6 +562,7 @@ export async function fetchLearnerEvents(
       eventType: String(d.event_type),
       ...(typeof d.column_index === 'number' ? { columnIndex: d.column_index } : {}),
       details: d.details && typeof d.details === 'object' ? d.details : {},
+      ...(typeof d.synced_at === 'number' ? { writtenAt: d.synced_at } : {}),
     });
   });
   events.sort((a, b) => a.timestamp - b.timestamp);
@@ -589,9 +601,15 @@ export const REPORT_PROCESSING_TEXT = 'הדוח בעיבוד כעת, אנא נס
  * in a few moments", and the teacher tried again, and again. A refusal is
  * final and says why; only a transient failure is "processing".
  */
+/** The server's sentence when the reset log cannot be read (functions/src/preResetRecord.ts; a test keeps them equal). */
+export const RESET_LOG_UNAVAILABLE_HE = 'לא ניתן לקרוא כרגע את יומן האיפוסים, ולכן הדוח לא הופק. נסו שוב בעוד כמה דקות.';
+
 export function describeReportError(err: unknown): { final: boolean; message: string } {
   const code = String((err as { code?: string } | null)?.code ?? '').replace(/^functions\//, '');
   const raw = err instanceof Error ? err.message : String(err ?? '');
+  // The reset log could not be read (functions/src/preResetRecord.ts): transient,
+  // and it says why. Any other "unavailable" keeps the PRD's processing text.
+  if (code === 'unavailable' && raw === RESET_LOG_UNAVAILABLE_HE) return { final: false, message: raw };
   const finalCodes = new Set(['not-found', 'invalid-argument', 'permission-denied', 'failed-precondition', 'unauthenticated']);
   if (finalCodes.has(code)) {
     const hebrew = /[\u05D0-\u05EA]/.test(raw);

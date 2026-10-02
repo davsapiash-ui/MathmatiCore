@@ -219,7 +219,7 @@ export function preResetNotesFromData(d: Record<string, any>): string[] {
   }
   for (const w of Array.isArray(d.awaiting_rerun) ? d.awaiting_rerun : []) {
     const note = typeof w?.pre_reset?.class_note_he === 'string' ? ` ${w.pre_reset.class_note_he}` : '';
-    out.push(`תלמיד ${num(w?.student_id)}: עוד לא עבד על המפגש מחדש, ולכן אין לו ציון במפגש הזה.${note}`);
+    out.push(`תלמיד ${num(w?.student_id)}: מאז האיפוס עוד לא נרשמה לו אף תשובה, ולכן אין לו ציון במפגש הזה.${note}`);
   }
   return out;
 }

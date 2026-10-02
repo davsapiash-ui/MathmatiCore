@@ -25,6 +25,7 @@ import {
   mediationHe,
   readLearnerMeetingRuns,
   isAwaitingRerun,
+  ResetLogUnavailableError,
   type MeetingRuns,
   resolveMeetingPath,
   type LearningPath,
@@ -565,7 +566,9 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     learnerRuns = await readLearnerMeetingRuns(db, clampedStudentNum);
   } catch (err) {
     // Without the reset log the report would count the whole history: none at all, said plainly.
-    logger.error("[Module23] telemetry or reset_audit_log could not be read; report not produced:", err);
+    // Any other failure (the telemetry read) is not blamed on the reset log.
+    if (!(err instanceof ResetLogUnavailableError)) throw err;
+    logger.error("[Module23] reset_audit_log could not be read; report not produced:", err);
     throw new HttpsError("unavailable", RESET_LOG_UNAVAILABLE_HE);
   }
   const meetingRuns = learnerRuns.get(resolvedSessionNumber) ?? null;
@@ -576,7 +579,9 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   if (isAwaitingRerun(meetingRuns)) {
     throw new HttpsError(
       "failed-precondition",
-      `מפגש ${resolvedSessionNumber} של תלמיד ${clampedStudentNum} אופס, והתלמיד עוד לא עבד עליו מחדש. אפשר להפיק את הדוח אחרי שיעבוד על המפגש שוב.`
+      // "לא נרשמה תשובה" is true both when the child has not started and when the
+      // child pressed things that send no telemetry (a wrong board check, a choice).
+      `מפגש ${resolvedSessionNumber} של תלמיד ${clampedStudentNum} אופס, ומאז עוד לא נרשמה לו אף תשובה. אפשר להפיק את הדוח אחרי שתירשם לו תשובה במפגש הזה.`
     );
   }
 

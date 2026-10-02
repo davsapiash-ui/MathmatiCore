@@ -1893,7 +1893,10 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       const run = afterRun(n, m);
       const awaiting = isAwaitingRerun(run);
       const events = awaiting ? [] : run?.current ?? [];
-      const allAfter = [1, 2, 3, 4, 5, 6, 7, 8].flatMap((e) => (isAwaitingRerun(afterRun(n, e)) ? [] : afterRun(n, e)?.current ?? []));
+      // Over the same meetings as flexibility/mediation_cumulative above (the export's scope),
+      // so a single-meeting export agrees with them when nothing was reset.
+      const inScope = scopedSession === null ? [1, 2, 3, 4, 5, 6, 7, 8] : [scopedSession];
+      const allAfter = inScope.flatMap((e) => (isAwaitingRerun(afterRun(n, e)) ? [] : afterRun(n, e)?.current ?? []));
       const path = await resolveMeetingPath(db, m, events, fallbackPath, compulsoryCache, compulsoryIdsByBank);
       const compulsory = await resolveCompulsoryTotal(db, m, path, compulsoryCache, compulsoryIdsByBank);
       const score = awaiting || !isScoredMeeting(m) ? null : computeFirstAttemptScore(events, compulsory, compulsoryIdsByBank.get(`${m}:${path}`) ?? null);

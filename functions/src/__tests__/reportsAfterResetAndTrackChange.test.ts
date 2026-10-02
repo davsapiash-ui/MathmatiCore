@@ -19,6 +19,7 @@ const h = vi.hoisted(() => ({
   sets: [] as Array<{ name: string; id: string; values: Record<string, any> }>,
   files: [] as Array<{ path: string; text: string }>,
   failResetLog: false,
+  failTelemetry: false,
 }));
 
 vi.mock('google-auth-library', () => ({
@@ -55,6 +56,7 @@ vi.mock('firebase-admin', async (importOriginal) => {
     startAfter: () => ({ get: async () => ({ docs: [], empty: true, size: 0 }) }),
     get: async () => {
       if (name === 'reset_audit_log' && h.failResetLog) throw new Error('reset log unavailable');
+      if (name === 'telemetry_logs' && h.failTelemetry) throw new Error('telemetry unavailable');
       const docs = (h.collections[name] ?? []).filter((d) => filters.every((f) => f(d))).map(snapOf);
       return { docs, empty: docs.length === 0, size: docs.length };
     },
@@ -149,6 +151,7 @@ beforeEach(() => {
   h.sets.length = 0;
   h.files.length = 0;
   h.failResetLog = false;
+  h.failTelemetry = false;
   h.collections = {
     curriculum_catalog: [
       { id: 'session_3_green_path', data: { tasks: GREEN.map((id, i) => ({ id, titleHe: `ירוק ${i + 1}` })) } },
@@ -230,6 +233,17 @@ describe('the personal report after a reset', () => {
     }
   });
 
+  it('a telemetry read failure is not blamed on the reset log', async () => {
+    h.failTelemetry = true;
+    const err = await personal(4).catch((e: any) => e);
+    expect(err?.message).not.toBe(RESET_LOG_UNAVAILABLE_HE);
+    expect(err?.code).not.toBe('unavailable');
+  });
+
+  it('the refusal is true also when the child pressed things that send no answer', async () => {
+    await expect(personal(6)).rejects.toMatchObject({ message: 'מפגש 3 של תלמיד 6 אופס, ומאז עוד לא נרשמה לו אף תשובה. אפשר להפיק את הדוח אחרי שתירשם לו תשובה במפגש הזה.' });
+  });
+
   it('a meeting that was never reset has no "לפני האיפוס" section', async () => {
     const { report } = await personal(5);
     expect(report.pre_reset).toBeNull();
@@ -274,7 +288,7 @@ describe('the class report after a reset and a track change', () => {
     const html = classReportHtml(report);
     expect(html).toContain('4ג. לפני האיפוס');
     expect(html).toContain('תלמיד 4: המפגש אופס ב-2.10.2026');
-    expect(html).toContain('תלמיד 6: עוד לא עבד על המפגש מחדש, ולכן אין לו ציון במפגש הזה.');
+    expect(html).toContain('תלמיד 6: מאז האיפוס עוד לא נרשמה לו אף תשובה, ולכן אין לו ציון במפגש הזה.');
   });
 });
 
@@ -301,10 +315,10 @@ describe('the class report when nobody has redone a reset meeting', () => {
     h.collections.telemetry_logs = h.collections.telemetry_logs.filter((d) => d.data.student_id === 6);
     await expect((generateClassMeetingReport as any).run(teacher({ sessionNumber: 3 }))).rejects.toMatchObject({
       code: 'not-found',
-      message: 'אין עדיין מה לנתח במפגש 3. המפגש אופס לתלמיד 6, והוא עוד לא עבד עליו מחדש. לשאר התלמידים אין פעולות מתועדות במפגש הזה.',
+      message: 'אין עדיין מה לנתח במפגש 3. המפגש אופס לתלמיד 6, ומאז עוד לא נרשמה לו אף תשובה. לשאר התלמידים אין פעולות מתועדות במפגש הזה.',
     });
     expect(nothingToAnalyseAfterResetHe(4, [9, 2, 5])).toBe(
-      'אין עדיין מה לנתח במפגש 4. המפגש אופס לתלמידים 2, 5 ו-9, והם עוד לא עבדו עליו מחדש. לשאר התלמידים אין פעולות מתועדות במפגש הזה.'
+      'אין עדיין מה לנתח במפגש 4. המפגש אופס לתלמידים 2, 5 ו-9, ומאז עוד לא נרשמה להם אף תשובה. לשאר התלמידים אין פעולות מתועדות במפגש הזה.'
     );
   });
 });
@@ -338,6 +352,24 @@ describe('the research export adds the after-reset numbers and keeps the rest', 
     expect(rowOf(5).score_after_reset_percent).toBe('100');
     // Appended after every existing column.
     expect(cols.indexOf('score_after_reset_percent')).toBeGreaterThan(cols.indexOf('chat_help_requests'));
+  });
+
+  it('a single-meeting export: the after-reset cumulative values cover the same meetings as the old ones', async () => {
+    // Learner 5 also did a meeting-7 representation exercise after a mistake; a meeting-3 export leaves it out.
+    h.collections.telemetry_logs.push(event(5, 's7_g_t1', 'PROBLEM_COMPLETE', T_RESET + 500_000, { session_id: 'session_7_student_student_user5', details: { error_count: 1 } }));
+    await (exportResearchDataset as any).run({
+      auth: { uid: 'teacher-uid', token: { role: 'teacher', roles: ['TEACHER'], teacher: true, class_id: 'class_1' } },
+      data: { class_id: 'class_1', session_number: 3 },
+    });
+    const file = h.files.find((f) => /\/\d+_מפגשים_/.test(f.path))!;
+    const [head, ...lines] = file.text.replace(/^﻿/, '').split('\n');
+    const split = (l: string) => l.split('","').map((c) => c.replace(/^"|"$/g, ''));
+    const cols = split(head);
+    const cells = lines.map(split).find((c) => c[0] === '5' && c[1] === '3')!;
+    const row = Object.fromEntries(cols.map((c, i) => [c, cells[i]]));
+    expect(row.flexibility_cumulative_percent).toBe('100');
+    expect(row.flexibility_cumulative_percent_after_reset).toBe(row.flexibility_cumulative_percent);
+    expect(row.mediation_cumulative_percent_after_reset).toBe(row.mediation_cumulative_percent);
   });
 });
 

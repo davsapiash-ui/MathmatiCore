@@ -733,13 +733,23 @@ export function splitMeetingRuns(events: WrittenEvent[], resets: MeetingReset[])
  * Every meeting of one learner, each cut at its own last reset: one read of the
  * learner's telemetry and one of the reset log. Meetings with no event are absent.
  */
+/** The reset log could not be read: a reader must not fall back to counting the whole history. */
+export class ResetLogUnavailableError extends Error {
+  constructor(cause: unknown) {
+    super(`reset_audit_log could not be read: ${String((cause as Error)?.message ?? cause)}`);
+    this.name = "ResetLogUnavailableError";
+  }
+}
+
 export async function readLearnerMeetingRuns(
   db: admin.firestore.Firestore,
   studentNumber: number
 ): Promise<Map<number, MeetingRuns>> {
   const [telemetry, resetLog] = await Promise.all([
     db.collection("telemetry_logs").where("student_id", "==", studentNumber).get(),
-    db.collection("reset_audit_log").where("affected_student_ids", "array-contains", studentNumber).get(),
+    // A failure here is told apart from a telemetry failure (ResetLogUnavailableError).
+    db.collection("reset_audit_log").where("affected_student_ids", "array-contains", studentNumber).get()
+      .catch((err) => { throw new ResetLogUnavailableError(err); }),
   ]);
   const entries = resetLog.docs.map((d) => d.data());
   const byMeeting = new Map<number, WrittenEvent[]>();

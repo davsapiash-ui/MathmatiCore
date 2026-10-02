@@ -5,6 +5,9 @@ import {
   PRE_RESET_HEADING_HE,
   PRE_RESET_NOTE_HE,
   answeredSince,
+  describeReportError,
+  REPORT_PROCESSING_TEXT,
+  RESET_LOG_UNAVAILABLE_HE,
   reportFromData,
   resetSeparatorHe,
   resetsOfMeeting,
@@ -79,6 +82,17 @@ describe('the journey marks where a meeting was reset', () => {
     expect(answeredSince([open('d', T - 1000, 'DIGIT_ENTERED')], T)).toBe(false);
     expect(answeredSince([open('d', T + 3000, 'DIGIT_ENTERED')], T)).toBe(true);
     expect(answeredSince([open('c', T + 3000, 'PROBLEM_COMPLETE')], T)).toBe(true);
+    // The write time decides, as on the server: answered offline before the reset, written after it — the new run.
+    expect(answeredSince([{ ...open('o', T - 5000, 'DIGIT_ENTERED'), writtenAt: T + 1000 }], T)).toBe(true);
+    // Answered after the reset by a tablet clock running ahead, written before it — not the new run.
+    expect(answeredSince([{ ...open('k', T + 5000, 'DIGIT_ENTERED'), writtenAt: T - 1000 }], T)).toBe(false);
+  });
+
+  it('the reset-log failure reaches the teacher in its own words; any other unavailable keeps the PRD text', () => {
+    expect(describeReportError(Object.assign(new Error(RESET_LOG_UNAVAILABLE_HE), { code: 'functions/unavailable' }))).toEqual({ final: false, message: RESET_LOG_UNAVAILABLE_HE });
+    expect(describeReportError(Object.assign(new Error('boom'), { code: 'functions/unavailable' })).message).toBe(REPORT_PROCESSING_TEXT);
+    const server = readFileSync(resolve(__dirname, '../../../../functions/src/preResetRecord.ts'), 'utf-8');
+    expect(server).toContain('export const RESET_LOG_UNAVAILABLE_HE = "' + RESET_LOG_UNAVAILABLE_HE + '";');
   });
 
   it('the journey renders the separator rows and the stale-report note', () => {
@@ -88,7 +102,7 @@ describe('the journey marks where a meeting was reset', () => {
     expect(journey).toContain('הדוח הזה הופק לפני האיפוס של המפגש');
     // "הפיקו מחדש" is offered only once the learner answered since the reset; otherwise the server would refuse.
     expect(journey).toContain('answeredSince(sessionEvents, lastCuttingReset.at)');
-    expect(journey).toContain('התלמיד עוד לא עבד על המפגש מחדש, ולכן אפשר להפיק דוח חדש רק אחרי שיעבוד עליו.');
+    expect(journey).toContain('מאז האיפוס עוד לא נרשמה לתלמיד אף תשובה, ולכן אפשר להפיק דוח חדש רק אחרי שתירשם לו תשובה במפגש הזה.');
     expect(journey).toContain('data-testid="pre-reset"');
   });
 });
@@ -117,13 +131,13 @@ describe('the report shows "לפני האיפוס" apart', () => {
     };
     expect(preResetNotesFromData(data)).toEqual([
       'תלמיד 4: המפגש אופס ב-2.10.2026 בשעה 13:13 (תקלה טכנית במכשיר או בתקשורת). לפני האיפוס: ביטול אחד, בתרגיל אחד.',
-      'תלמיד 6: עוד לא עבד על המפגש מחדש, ולכן אין לו ציון במפגש הזה. המפגש אופס ב-2.10.2026 בשעה 13:13.',
+      'תלמיד 6: מאז האיפוס עוד לא נרשמה לו אף תשובה, ולכן אין לו ציון במפגש הזה. המפגש אופס ב-2.10.2026 בשעה 13:13.',
     ]);
     expect(classReportFromData(data).preResetNotes).toHaveLength(2);
     expect(classReportFromData({ session_number: 3, learners: [] }).preResetNotes).toEqual([]);
     // The panel's sentence for a learner not yet back is the server's.
     const server = readFileSync(resolve(__dirname, '../../../../functions/src/preResetRecord.ts'), 'utf-8');
-    expect(server).toContain('export const AWAITING_RERUN_HE = "עוד לא עבד על המפגש מחדש, ולכן אין לו ציון במפגש הזה.";');
+    expect(server).toContain('export const AWAITING_RERUN_HE = "מאז האיפוס עוד לא נרשמה לו אף תשובה, ולכן אין לו ציון במפגש הזה.";');
   });
 
   it('the reason names: the dialog\'s list, "other" without its request for a note', () => {
