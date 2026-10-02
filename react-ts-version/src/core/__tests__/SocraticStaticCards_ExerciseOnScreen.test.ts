@@ -436,7 +436,7 @@ describe('with blocks on the screen, the card follows the board', () => {
     // The column card is meeting 8's second card (owner's D8, 1.10.2026).
     const all = textsOf(SocraticEngine.getSynchronousTaskHint(t, EMPTY, { shownKinds: ['s8_check'] })).join(' ');
     expect(all).not.toContain('פורטים אלף אחד, ואז יש מספיק');
-    expect(all).toContain('אחר כך פורטים שוב, טור אחר טור, עד טור היחידות');
+    expect(all).toContain('אחר כך פרטו שוב, טור אחר טור, עד טור היחידות');
   });
 
   it('a skeleton with several empty boxes speaks of boxes, in the plural', () => {

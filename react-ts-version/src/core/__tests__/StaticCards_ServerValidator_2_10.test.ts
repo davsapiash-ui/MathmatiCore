@@ -27,6 +27,7 @@ import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { EMPTY_COUNTS, type Place } from '@/core/placeValue';
 import { validateSocraticRequest, deriveSocraticFacts, validateSocraticResponse } from '../../../../functions/src/socraticContract';
 import { CARD_SITUATIONS } from './fixtures/staticCardSituations_2_10';
+import { socraticStyleSpec } from '../../../../functions/src/socraticLanguage';
 
 const bank: SessionTask[] = [...SESSION1_TASKS];
 for (const m of [3, 4, 5, 6, 7, 8] as const) {
@@ -92,6 +93,7 @@ describe('every static card the client produces, through the server\'s validator
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const refused = new Map<string, string>();
     let checked = 0;
+    const shownTexts = new Set<string>();
     for (const { task, s, trigger, focus } of cases) {
       const kinds: string[] = [];
       for (let level = 1; level <= 3; level++) {
@@ -124,6 +126,7 @@ describe('every static card the client produces, through the server\'s validator
           options: card.choices.map((c) => ({ option_text: c.textHe, feedback_text: c.feedbackHe ?? '', is_correct: c.isCorrect ?? c.id === card.correctChoiceId })),
         }, deriveSocraticFacts(req.value));
         checked++;
+        for (const c of card.choices) shownTexts.add(`${card.questionHe} | ${c.textHe} | ${c.feedbackHe ?? ''}`);
         if (!res.ok) refused.set(`${card.situation} :: ${res.reason.split(' — ')[0]}`, `${task.id} ${JSON.stringify(s.counts)} ${trigger} L${level}: ${card.questionHe}`);
       }
     }
@@ -131,6 +134,17 @@ describe('every static card the client produces, through the server\'s validator
     warn.mockRestore();
     error.mockRestore();
     expect(checked).toBeGreaterThan(10000);
+    // The engine's style examples (socraticStyleSpec, 2.10.2026) are static cards, verbatim: question, options and feedback.
+    for (const [blocks, meeting1] of [[true, false], [true, true], [false, false]] as const) {
+      for (const line of socraticStyleSpec(blocks, meeting1).split('\n').filter((l) => l.startsWith('• '))) {
+        const [q, ...opts] = line.slice(2).replace(/^\([^)]*\) /, '').split(' | ');
+        for (const o of opts) {
+          const [text, fb] = o.slice(2).split(' → ');
+          const hit = fb !== undefined ? shownTexts.has(`${q} | ${text} | ${fb}`) : [...shownTexts].some((t) => t.startsWith(`${q} | ${text} | `));
+          expect(hit, `not a static card: ${q} | ${o}`).toBe(true);
+        }
+      }
+    }
     const unexpected = [...refused].filter(([k]) => !OWNER_ITEMS.includes(k)).map(([k, v]) => `${k} — e.g. ${v}`);
     expect(unexpected).toEqual([]);
   }, 120_000);

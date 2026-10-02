@@ -86,6 +86,9 @@ describe('s1_target_347: the number staying the same is the discovery itself', (
       'נכון מאוד! המספר לא גדל ולא קטן.',
       'נכון מאוד! המספר שבניתם לא השתנה.',
       'נכון מאוד! ערך הלבנים לא משתנה.',
+      // A real Gemini card in the bench, 2.10.2026 (C06): three words between the noun and the verb.
+      'נכון מאוד! הערך הכולל של הלבנים נשאר בדיוק אותו דבר.',
+      'נכון מאוד! הלבנים נשארו אותו מספר, רק בסידור אחר.',
     ]) {
       const r = validateSocraticResponse(cardWith(Q, fb), after);
       expect(r.ok, fb).toBe(false);

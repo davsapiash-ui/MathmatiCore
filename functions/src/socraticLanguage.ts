@@ -202,6 +202,256 @@ export function cardFormViolation(card: CardFormCheck): string | null {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Style: length, the opening's place, the title, the instruction, the comma
+// ---------------------------------------------------------------------------
+
+/**
+ * The words of a card text, as a child reads them: Hebrew words only — a
+ * number ("1,245", "▢", "+") is not counted, since the card names the
+ * exercise by its numbers — and without the card's fixed opening ("נסו
+ * לחשוב:", "רמז:", "נכון מאוד!").
+ */
+export function cardWordCount(text: string): number {
+  return text
+    .trim()
+    .replace(/^(?:נסו לחשוב:|רמז:|נכון מאוד!)/, "")
+    .split(/\s+/)
+    .filter((w) => /[א-ת]/.test(w)).length;
+}
+
+/**
+ * Runaway guards, not targets (owner, 2.10.2026: "שיפור אינו אומר בהכרח
+ * קיצור אלא שיפור הנוסח ועד כמה הוא נכון לשונית וברור"). A card is judged
+ * first on correctness and clarity, and it takes the words its facts need;
+ * these caps only stop a card that has lost its shape — a chain of clauses,
+ * a paragraph in an option. Numbers are not counted. Every static card the
+ * client can produce passes with a margin (StaticCards_ServerValidator_2_10
+ * .test.ts; the longest static texts, 2.10.2026: question 16, option 15,
+ * hint 14, correct feedback 27).
+ */
+export const CARD_MAX_WORDS = { question: 24, option: 16, hint: 24, correct_feedback: 30 } as const;
+/**
+ * The instruction may not be copied: a run of this many Hebrew words in a row
+ * taken from it. The longest run in a static card is 6 ("לחצו על הכפתור קבצו
+ * 10 שבראש הטור"); the live card's quote ran to 9.
+ */
+export const INSTRUCTION_QUOTE_MAX_RUN = 8;
+
+/**
+ * An exercise's title in the card ("במשימת היעד", "במשימת החקר", "משימת יעד
+ * מסכמת"): the construct "משימת" + a word is a title, and no static card says
+ * it. The plural "משימות" is not a title ("רמז: מה עשיתם במשימות הקודמות?").
+ * The card names the exercise by its numbers.
+ */
+const TASK_TITLE_RE = /(^|[^א-ת])[ובלמהשכ]{0,3}משימת\s+[א-ת]/;
+
+/**
+ * A fronted clause ("כשמחברים…", "אם…", "אחרי ש…", "לפני ש…") runs into the
+ * question word with no comma: "כשמחברים את הספרות מה עושים?" → "כשמחברים את
+ * הספרות, מה עושים?". Read per sentence — the question is cut only at
+ * ". ! ? : ;", never at a comma — and a sentence is flagged only when it
+ * STARTS with the fronted opener, holds a question word and no comma at all.
+ * So a clause at the end ("איזה טור בודקים, כשרוצים לדעת מאיפה פורטים?"), a
+ * question word inside a clause closed by a comma ("כשבודקים כמה לבנים יש
+ * בטור, מה עושים?") and the alternative "אם … או …" ("מה בודקים קודם: אם יש
+ * בטור מספיק לבנים או כמה לבנים יש בו?") all pass.
+ */
+const FRONTED_OPENER = /^(?:ו?כש[א-ת]+|אם|אחרי\s+ש[א-ת]+|לפני\s+ש[א-ת]+)\s/;
+const QUESTION_WORD = /(?<![א-ת])(?:מה|איך|כיצד|כמה|באיזה|באיזו|באילו|איזה|איזו|אילו|מאיזה|מאיזו|לאיזה|לאיזו|למה|מאיפה|איפה|האם|מתי)(?![א-ת])/;
+const ALTERNATIVE_OR = /(?<![א-ת])או(?![א-ת])/;
+
+export function frontedClauseWithoutComma(text: string): boolean {
+  const t = text.trim();
+  if (!t.endsWith("?")) return false;
+  return t
+    .split(/(?<=[.!?:;])/)
+    .map((x) => x.trim())
+    .some((seg) => {
+      const m = FRONTED_OPENER.exec(seg);
+      if (!m || seg.includes(",")) return false;
+      if (/^אם\s/.test(seg) && ALTERNATIVE_OR.test(seg)) return false;
+      return QUESTION_WORD.test(seg.slice(m[0].length));
+    });
+}
+
+function tokens(text: string): string[] {
+  return text.replace(/[.,:;!?"“”«»()׳״']/g, " ").split(/\s+/).filter(Boolean);
+}
+
+/** The longest run of Hebrew words the text copies, in order, from the instruction. */
+export function instructionQuoteRun(text: string, instruction: string): number {
+  const a = tokens(text);
+  const b = tokens(instruction);
+  let best = 0;
+  for (let i = 0; i < a.length; i++) {
+    for (let j = 0; j < b.length; j++) {
+      let k = 0;
+      let he = 0;
+      while (i + k < a.length && j + k < b.length && a[i + k] === b[j + k]) {
+        if (/[א-ת]/.test(a[i + k])) he++;
+        k++;
+      }
+      if (he > best) best = he;
+    }
+  }
+  return best;
+}
+
+export interface StyleContext {
+  /** The instruction on the screen (task_context.instruction_he). */
+  instruction?: string | null;
+  /** The exercise's title (exercise_context.session_topic). */
+  title?: string | null;
+}
+
+/**
+ * A phrase that sends the child to a wrong action or leaves out what it is
+ * about (owner, 2.10.2026, on "מאיפה מקבלים עוד לבנים כשחסרות לבנים בטור?":
+ * "זה לא נכון לשונית לכתוב ככה"). In subtraction nothing is received: new
+ * blocks from the tool box change the number, and a block of the column on
+ * the left is broken. "חסרות לבנים" does not say for what; the house phrase
+ * is "אין מספיק לבנים כדי לחסר". No static card says either.
+ */
+const MORE_BLOCKS_RECEIVED = /(?<![א-ת])(?:מקבלים|לקבל|תקבלו|מביאים|להביא|תביאו)\s+עוד\s+לבנ/;
+const BARE_SHORTAGE = /(?<![א-ת])(?:ו|כש|ש)?חסר(?:ות|ו)\s+(?:(?:בו|בטור|עוד)\s+)?לבנ/;
+
+/**
+ * The card's style (owner, 2.10.2026: "שיפור אינו אומר בהכרח קיצור אלא שיפור
+ * הנוסח ועד כמה הוא נכון לשונית וברור"): the opening first, no title and no
+ * copied instruction, a comma after a fronted clause, no misleading phrase,
+ * and a runaway guard on length. Each rule passes every static card. Returns
+ * the first rule broken, or null.
+ */
+export function cardStyleViolation(card: CardFormCheck, ctx: StyleContext = {}): LanguageRule | null {
+  const q = card.guiding_question.trim();
+  const texts = [q, ...card.options.flatMap((o) => [o.option_text, o.feedback_text])];
+  const rule = (id: string, fix: string, re: RegExp = /$^/): LanguageRule => ({ id, re, fix });
+
+  if (texts.some((t, i) => (i === 0 ? t.indexOf(CARD_OPENING.slice(0, -1)) > 0 : t.includes(CARD_OPENING.slice(0, -1))))) {
+    return rule("opening_not_first", `"${CARD_OPENING}" comes only at the very start of the guiding question, never in its middle and never in an option or a feedback.`);
+  }
+  const title = (ctx.title ?? "").replace(/\s+/g, " ").trim();
+  if (texts.some((t) => TASK_TITLE_RE.test(t)) || (title.split(" ").filter((w) => /[א-ת]/.test(w)).length >= 2 && texts.some((t) => t.replace(/\s+/g, " ").includes(title)))) {
+    return rule("title_repeated", 'Never repeat the exercise\'s title ("משימת היעד", "משימת חקר", the topic): name the exercise by its numbers ("בתרגיל 61 − 24") or by what is on the board.');
+  }
+  // The question, the options and the hints — not the "נכון מאוד!" feedback, which rightly names the instruction's action.
+  const quotable = [q, ...card.options.flatMap((o) => (o.is_correct ? [o.option_text] : [o.option_text, o.feedback_text]))];
+  if (ctx.instruction && quotable.some((t) => instructionQuoteRun(t, ctx.instruction!) >= INSTRUCTION_QUOTE_MAX_RUN)) {
+    return rule("instruction_quoted", 'Never copy the instruction sentence: the child sees it on the screen. Point to it ("מה ההנחיה מבקשת?") or name one step of it in a few words.');
+  }
+  const questions = [q, ...card.options.filter((o) => !o.is_correct).map((o) => o.feedback_text)];
+  if (questions.some(frontedClauseWithoutComma)) {
+    return rule("comma_after_fronted_clause", 'Put a comma between a fronted clause and the question: "כשמחברים את הספרות של הטור, מה עושים?", "אם תוסיפו לבנים, האם המספר יישאר אותו מספר?".');
+  }
+  if (texts.some((t) => MORE_BLOCKS_RECEIVED.test(t) || BARE_SHORTAGE.test(t))) {
+    return rule("misleading_phrase", 'Never "מקבלים עוד לבנים" and never a bare "חסרות לבנים": in subtraction nothing is received — new blocks change the number; a block of the column on the left is broken. Say what is short and for what, and what is done: "כשבטור אין מספיק לבנים כדי לחסר, מה עושים?" → "פורטים לבנה מהטור שמשמאל".');
+  }
+  // Length is a runaway guard only: the fix asks for a clearer sentence, never for dropping a fact.
+  const keep = "Keep every fact the question depends on (the exercise's numbers, the column when the level allows, what was already done) and every correct name; cut only repetition and chains of clauses.";
+  if (cardWordCount(q) > CARD_MAX_WORDS.question) {
+    return rule("length_question", `The guiding question runs on (${cardWordCount(q)} words, more than ${CARD_MAX_WORDS.question}): write one clear question — at most one fact sentence, then the question. ${keep}`);
+  }
+  const longOption = card.options.find((o) => cardWordCount(o.option_text) > CARD_MAX_WORDS.option);
+  if (longOption) {
+    return rule("length_option", `An option runs on (${cardWordCount(longOption.option_text)} words, more than ${CARD_MAX_WORDS.option}): an option is one action, said clearly. ${keep}`);
+  }
+  const longHint = card.options.find((o) => !o.is_correct && cardWordCount(o.feedback_text) > CARD_MAX_WORDS.hint);
+  if (longHint) {
+    return rule("length_hint", `A hint runs on (${cardWordCount(longHint.feedback_text)} words, more than ${CARD_MAX_WORDS.hint}): "${HINT_OPENING}" and one clear guiding question. ${keep}`);
+  }
+  const right = card.options.find((o) => o.is_correct);
+  if (right && cardWordCount(right.feedback_text) > CARD_MAX_WORDS.correct_feedback) {
+    return rule("length_feedback", `The correct option's feedback runs on (${cardWordCount(right.feedback_text)} words, more than ${CARD_MAX_WORDS.correct_feedback}): "${CORRECT_FEEDBACK_OPENING}" and the on-screen action, said clearly. ${keep}`);
+  }
+  return null;
+}
+
+/**
+ * The style part of the system instruction (owner, 2.10.2026: "שיפור אינו
+ * אומר בהכרח קיצור אלא שיפור הנוסח ועד כמה הוא נכון לשונית וברור"):
+ * correctness and clarity first, brevity only after; static cards as examples
+ * of the sound, each labelled with where it shows and its level; real faults
+ * as ✗ → ✓ pairs. Three screens:
+ *  - blocks (stations 3–7 and the default): cards of the block stations, the
+ *    level-2 ones named as such;
+ *  - meeting 1: no example names a column — meeting 1 never names the column
+ *    where the difficulty is (owner, 29.9.2026);
+ *  - no blocks (meetings 2 and 8): meeting 8's own cards, which name no block,
+ *    no board and no button.
+ * A pair whose reason opens "(meaning:" or "(clarity:" is read, not counted:
+ * no rule can see it, so the validator does not refuse its ✗.
+ */
+export function socraticStyleSpec(blocks: boolean, meeting1 = false): string {
+  // Static cards, verbatim (StaticCards_ServerValidator_2_10.test.ts checks each against the cards the client shows).
+  // Format: (where, level) question | ✓ right option → its feedback | ✗ wrong option → its hint | ✗ wrong option.
+  const BOARD_EMPTY = '(stations 1, 3, 4, 7 — level 1) נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם? | ✓ בונים בבית המספרים את מה שההנחיה מבקשת → נכון מאוד! קראו את ההנחיה. בנו בבית המספרים את מה שהיא מבקשת. | ✗ כותבים מספר בשורת התוצאה → רמז: מה ההנחיה מבקשת לעשות לפני שכותבים? | ✗ מנחשים את התשובה';
+  const ONE_MISSING = '(stations 1, 4, 7 — level 1) נסו לחשוב: בתרגיל 713 + 94, איזה מספר עוד לא בבית המספרים? | ✓ המספר 94 → נכון מאוד! בנו את 94, כל ספרה בטור שלה. | ✗ המספר 713 → רמז: אילו לבנים כבר בניתם? | ✗ שני המספרים כבר שם';
+  const BORROW_FROM_BOX = '(stations 1, 5, 6 — level 1; blocks were dragged from the tool box in a subtraction) נסו לחשוב: בחיסור, כשבטור אין מספיק לבנים כדי לחסר, מה עושים? | ✓ פורטים לבנה מהטור שמשמאל → נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים שהוספתם ייצאו מבית המספרים. אחר כך פרטו לבנה מהטור שמשמאל. | ✗ מוסיפים לבנים מארגז הכלים → רמז: אם תוסיפו לבנים מארגז הכלים, האם המספר יישאר אותו מספר? | ✗ מוציאים מהטור רק את מה שיש בו';
+  const CHECK_BEFORE = '(stations 1, 5, 6 — level 1) נסו לחשוב: בתרגיל 61 − 24, מה בודקים לפני שמוציאים לבנים מטור? | ✓ אם יש בטור מספיק לבנים להוציא → נכון מאוד! אם אין מספיק, פורטים לבנה מהטור שמשמאל. | ✗ שום דבר, מוציאים מיד → רמז: מה יקרה אם בטור אין מספיק לבנים להוציא? | ✗ מוסיפים לבנים חדשות לטור';
+  const WRITE_BOXES = '(station 1 — level 1) נסו לחשוב: מה כותבים בכל תיבה בשורת התוצאה? | ✓ את מספר הלבנים שבטור של אותה תיבה → נכון מאוד! כתבו ספרה בכל תיבה, גם בתיבה של טור שאין בו לבנים. | ✗ רק בתיבות של טורים שיש בהם לבנים → רמז: מה כותבים בתיבה של טור שאין בו אף לבנה? | ✗ את מספר כל הלבנים יחד, בתיבה אחת';
+  const DIGIT_BOX = '(stations 4–7 — level 1, the owner\'s card of 30.9) נסו לחשוב: איך יודעים באיזו תיבה בשורת התוצאה כותבים כל ספרה? | ✓ לכל טור יש תיבה משלו, מתחת לטור → נכון מאוד! כתבו כל ספרה בתיבה של הטור שלה. | ✗ כותבים כל ספרה בתיבה הפנויה הראשונה → רמז: לאיזה טור שייכת כל תיבה? | ✗ כותבים את הספרות לפי הסדר שבו מחשבים אותן';
+  const BORROW_COLUMN = '(stations 5–6 — level 2, names the column) נסו לחשוב: בתרגיל 53 − 18, בטור היחידות אין מספיק לבנים כדי לחסר 8 יחידות. מה עושים? | ✓ פורטים עשרת אחת לעשר יחידות ומעבירים אותן לטור היחידות → נכון מאוד! לחצו על לבנת עשרת כדי לפרוט אותה. | ✗ מחסרים הפוך: 8 פחות 3 → רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה? | ✗ מוסיפים לבנים חדשות לטור היחידות';
+  const ADD_COLUMN = '(station 4 — level 2, names the column) נסו לחשוב: בתרגיל 128 + 35, מה מחברים בטור העשרות? | ✓ את שתי הספרות של הטור, ועוד העשרת שעברה מטור היחידות → נכון מאוד! כתבו את הסכום בתיבה של טור העשרות. | ✗ רק את שתי הספרות של הטור → רמז: מה עבר לטור העשרות מטור היחידות? | ✗ את כל הספרות של התרגיל';
+  const S8_CHECK_ADD = '(meeting 8 — level 1) נסו לחשוב: לפני שכותבים ספרה בשורת התוצאה, מה בודקים בכל טור? | ✓ אם סכום הספרות בטור מגיע ל-10 או יותר → נכון מאוד! אם הוא מגיע ל-10 או יותר, רשמו 1 בעיגול הזיכרון שמעל הטור שמשמאל. | ✗ איזו ספרה בטור היא הגדולה → רמז: האם בחיבור כותבים את הספרה הגדולה? | ✗ כמה ספרות יש בתרגיל כולו';
+  const S8_CHECK_SUB = '(meeting 8 — level 1) נסו לחשוב: לפני שכותבים ספרה בשורת התוצאה, מה בודקים בכל טור? | ✓ אם הספרה העליונה גדולה מהתחתונה או שווה לה → נכון מאוד! אם היא קטנה מהתחתונה, פרטו מהטור שמשמאל. רשמו את השינוי בעיגולי הזיכרון. | ✗ איזו ספרה גדולה יותר, כדי לחסר את הקטנה מהגדולה → רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה? | ✗ אם יש בטור 0';
+  const S8_SUB_COLUMN = '(meeting 8 — level 2, names the column) נסו לחשוב: בתרגיל 78 − 25, מה מחסרים בטור העשרות? | ✓ את הספרה התחתונה מהספרה העליונה → נכון מאוד! כתבו את התוצאה בתיבה של טור העשרות. | ✗ את הספרה העליונה מהספרה התחתונה → רמז: מאיזו ספרה מחסרים: מהספרה העליונה או מהתחתונה? | ✗ לא מחסרים, אלא מחברים את שתי הספרות';
+  const S8_AFTER_BORROW = '(meeting 8 — level 2, names the column) נסו לחשוב: בתרגיל 4,000 − 1,562, כבר רשמתם את הפריטה בעיגולי הזיכרון. ממה מחסרים עכשיו בטור היחידות? | ✓ מהמספר שבעיגול הזיכרון שמעל טור היחידות → נכון מאוד! כתבו בתיבה כמה נשאר אחרי שמחסרים ממנו את הספרה התחתונה. | ✗ מהספרה העליונה שבתרגיל → רמז: מה רשמתם בעיגול הזיכרון שמעל טור היחידות? | ✗ מהספרה התחתונה';
+  const S8_CARRY = '(meeting 8 — level 2, names the column) נסו לחשוב: בתרגיל 5,678 + 2,453, מה מחברים בטור המאות? | ✓ את שתי הספרות של הטור, ועוד המאה שעברה מטור העשרות → נכון מאוד! אם הסכום מגיע ל-10 או יותר, כתבו בתיבה רק את ספרת היחידות שלו. | ✗ רק את שתי הספרות של הטור → רמז: מה עבר לטור המאות מטור העשרות? | ✗ את כל הספרות של התרגיל';
+  const cards = !blocks
+    ? [S8_CHECK_ADD, S8_CHECK_SUB, S8_SUB_COLUMN, S8_AFTER_BORROW, S8_CARRY]
+    : meeting1
+      ? [BOARD_EMPTY, ONE_MISSING, BORROW_FROM_BOX, CHECK_BEFORE, WRITE_BOXES]
+      : [BOARD_EMPTY, ONE_MISSING, BORROW_FROM_BOX, CHECK_BEFORE, DIGIT_BOX, BORROW_COLUMN, ADD_COLUMN];
+  const label = !blocks
+    ? "Meeting 8's static cards (this screen has no blocks; meeting 2 uses the same screen)"
+    : meeting1
+      ? "Static cards of the block stations that name no column (meeting 1 never names the column where the difficulty is)"
+      : "Static cards of the block stations; a level-2 card names the column, a level-1 card never does";
+
+  const shortage = blocks
+    ? meeting1
+      ? `✗ "מאיפה מקבלים עוד לבנים כשחסרות לבנים בטור?" ✓ "נסו לחשוב: בחיסור, כשבטור אין מספיק לבנים כדי לחסר, מה עושים?" (in subtraction nothing is "received": new blocks change the number, a block of the column on the left is broken; "חסרות" says nothing of what for; "לבנים" twice; the right option is "פורטים לבנה מהטור שמשמאל")`
+      : `✗ "מאיפה מקבלים עוד לבנים כשחסרות לבנים בטור?" ✓ "נסו לחשוב: בתרגיל 345 − 182, בטור העשרות אין מספיק לבנים כדי לחסר. מה עושים?" (level 2; in subtraction nothing is "received": new blocks change the number, a block of the column on the left is broken — the right option is "פורטים מאה אחת לעשר עשרות"; "חסרות" says nothing of what for; level 1 says "נסו לחשוב: בחיסור, כשבטור אין מספיק לבנים כדי לחסר, מה עושים?")`
+    : `✗ "נסו לחשוב: בתרגיל 345 − 182, מאיפה מקבלים עוד עשרות?" ✓ "נסו לחשוב: בתרגיל 345 − 182, בטור העשרות הספרה העליונה קטנה מהתחתונה. מה עושים?" (meaning: nothing is "received" — one hundred is broken into ten tens and the change is written in the memory circles; the right option is "פורטים מאה אחת לעשר עשרות, ורושמים את השינוי בעיגולי הזיכרון")`;
+  const faults = blocks
+    ? [
+        `✗ "נסו לחשוב: במשימת היעד עם המספר 347 בית המספרים עדיין ריק, מה עושים עכשיו?" ✓ "נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?" (the title repeated; a fronted phrase with no comma)`,
+        `✗ "נסו לחשוב: במשימת החקר, איך מוצאים דרך נוספת לייצג את 2,100?" ✓ "נסו לחשוב: איך מוצאים דרך נוספת לייצג את 2,100?" (never the exercise's title)`,
+        `✗ "נסו לחשוב: ההנחיה אומרת בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות, אז מה עושים קודם?" ✓ "נסו לחשוב: מה ההנחיה מבקשת לבנות קודם?" (the child sees the instruction: never copy it)`,
+        shortage,
+        `✗ "נסו לחשוב: באחד הטורים נשארו 10 לבנים. מה עושים?" ✓ "נסו לחשוב: באחד הטורים יש 10 לבנים או יותר. מה עושים?" (meaning: "נשארו" says something was taken away, and 11 or 14 blocks need grouping too)`,
+        `✗ "נסו לחשוב: בתרגיל 61 − 24, מה בודקים לפני שמוציאים לבנים?" ✓ "נסו לחשוב: בתרגיל 61 − 24, מה בודקים לפני שמוציאים לבנים מטור?" (meaning: the check is made in each column — a shorter question that drops "מטור" lost the fact the child needs)`,
+        ...(meeting1
+          ? []
+          : [`✗ "נסו לחשוב: בתרגיל 53 − 18, אחרי שבניתם את 53 ובדקתם את טור היחידות וראיתם שאין בו מספיק לבנים, מה צריך לעשות עכשיו כדי שתוכלו להמשיך?" ✓ "נסו לחשוב: בתרגיל 53 − 18, בטור היחידות אין מספיק לבנים כדי לחסר 8 יחידות. מה עושים?" (clarity: one fact sentence, then one clear question — every fact kept: the numbers, the column, what is short and for what)`]),
+        `✗ "נסו לחשוב: כשבאחד הטורים יש 10 לבנים או יותר מה עושים?" ✓ "נסו לחשוב: כשבאחד הטורים יש 10 לבנים או יותר, מה עושים?" (a comma after a fronted clause)`,
+        `✗ "רמז: אם תוסיפו לבנים חדשות מארגז הכלים לטור, האם המספר שבבית המספרים יישאר בדיוק אותו מספר שבניתם בהתחלה?" ✓ "רמז: אם תוסיפו לבנים חדשות, האם המספר שבניתם ישתנה?" (clarity: one clear question, without repeated words)`,
+        `✗ "קוראים שוב את כל ההנחיה מההתחלה ועד הסוף, ואחר כך בונים בבית המספרים את כל מה שכתוב בה בדיוק" ✓ "בונים בבית המספרים את מה שההנחיה מבקשת" (an option is one action)`,
+      ]
+    : [
+        `✗ "נסו לחשוב: במשימת החקר עם התרגיל 1,245 + 328 מה כותבים קודם?" ✓ "נסו לחשוב: בתרגיל 1,245 + 328, מאיזה טור מתחילים?" (never the exercise's title; a comma after the fronted phrase)`,
+        shortage,
+        `✗ "נסו לחשוב: בתרגיל 4,000 − 1,562, אחרי שרשמתם את הפריטה בעיגולי הזיכרון ובדקתם את טור היחידות ואת טור העשרות, ממה צריך לחסר עכשיו כדי להמשיך?" ✓ "נסו לחשוב: בתרגיל 4,000 − 1,562, רשמתם את הפריטה בעיגולי הזיכרון. ממה מחסרים עכשיו בטור היחידות?" (clarity: one fact sentence, then one clear question that names the column)`,
+        `✗ "נסו לחשוב: כשמחברים את הספרות של טור העשרות מה עושים עם ה-1 שבעיגול הזיכרון?" ✓ "נסו לחשוב: כשמחברים את הספרות של טור העשרות, מה עושים עם ה-1 שבעיגול הזיכרון?" (a comma after a fronted clause)`,
+        `✗ "רמז: אם לא תרשמו שום דבר בעיגול הזיכרון שמעל טור העשרות, איך בדיוק תזכרו בהמשך לחבר גם את העשרת שעברה מטור היחידות?" ✓ "רמז: אם לא תרשמו 1 בעיגול הזיכרון, איך תזכרו לחבר את העשרת שעברה מטור היחידות?" (clarity: one clear question, without filler)`,
+        `✗ "בודקים בעיגולי הזיכרון ובשורת התוצאה את כל מה שכבר רשמתם, ורק אחר כך ממשיכים לפתור את הטור הבא בתרגיל" ✓ "רושמים 1 בעיגול הזיכרון שמעל טור העשרות" (an option is one action)`,
+      ];
+  const agreement = blocks ? '"עשרת אחת", "לבנה אחת", "לבנים"' : '"עשרת אחת", "מאה אחת", "אלף אחד"';
+  const misleading = blocks
+    ? 'NEVER a phrase that suggests a wrong action: in subtraction nothing is "received" — "מקבלים עוד לבנים" invites new blocks from the tool box, which change the number; a block of the column on the left is broken ("פורטים"). Say what a shortage is for — "אין מספיק לבנים כדי לחסר", never a bare "חסרות לבנים" — and say "יש 10 לבנים או יותר", not "נשארו", where nothing was taken away.'
+    : 'NEVER a phrase that suggests a wrong action: in subtraction nothing is "received" — one unit of the column on the left is broken into ten ("פורטים מאה אחת לעשר עשרות") and the change is written in the memory circles. Say what is short and for what ("הספרה העליונה קטנה מהתחתונה").';
+  const named = blocks ? "the column when the card's level allows it" : "the column";
+  return `STYLE — how a good card reads (owner, 2.10.2026: "שיפור אינו אומר בהכרח קיצור אלא שיפור הנוסח ועד כמה הוא נכון לשונית וברור"; binding):
+- CORRECT AND CLEAR FIRST. One clear question. Correct agreement (${agreement}). A comma after a fronted clause or phrase ("בתרגיל 713 + 94, איזה מספר…", "כשמחברים את הספרות, מה עושים?") and "?" at the end. The screen's exact names. No "הזאת" or "שם" without a clear referent in the same card. Keep every fact the question depends on: the exercise's numbers, ${named}, what the child already did. ${misleading}
+- Brevity only after that: never drop a fact or a name to save words. Cut repetition, filler and chains of "ו…ו…ו"; at most one fact sentence before the question. Each option is one action, the three options alike in form; a hint is "${HINT_OPENING}" and one guiding question.
+- "${CARD_OPENING}" only at the very start of the question. Name the exercise by its numbers ("בתרגיל 61 − 24") — NEVER by its title or topic ("משימת היעד", "משימת חקר", the session topic). NEVER copy the instruction sentence into the question, an option or a hint: the child sees it; point to it ("מה ההנחיה מבקשת?").
+${label} — copy their SOUND only, never their content (where, level: question | ✓ right option → feedback | ✗ wrong option → hint | ✗ wrong option):
+${cards.map((c) => `• ${c}`).join("\n")}
+STYLE AND MEANING — DON'T / DO (real faults):
+${faults.join("\n")}`;
+}
+
 /** The first language rule the texts break, or null. */
 export function languageViolation(texts: string[]): LanguageRule | null {
   for (const t of texts) {

@@ -51,6 +51,31 @@ describe('research export — every typed details field has a column', () => {
     expect(researchDetailsColumns('REFLECTION_SUBMITTED', { selected_strategies: ['UNDO_BUTTON', 'אני דנה'] }).selected_strategies).toBe('UNDO_BUTTON');
   });
 
+  it('the coaching card\'s text (2.10.2026): kept in the card\'s alphabet only, on its own event only', () => {
+    const q = 'נסו לחשוב: בתרגיל 1,245 + 328, מה מחברים בטור העשרות?';
+    const options = ['את שתי הספרות של הטור, ועוד העשרת שעברה', 'רק את שתי הספרות', 'לוחצים על "קבצו 10"'];
+    expect(researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_question_he: q, card_options_he: options }))
+      .toMatchObject({ card_question_he: q, card_options_he: options.join(' | ') });
+    // A Latin letter, an email or a link empties the text; so does an over-long one.
+    const bad = researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_question_he: 'שלום dana@example.com', card_options_he: ['Dana', 'א'.repeat(401), 'ב'] });
+    expect(bad.card_question_he).toBe('');
+    expect(bad.card_options_he).toBe(' |  | ב');
+    expect(researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_options_he: ['א', 'ב', 'ג', 'ד'] }).card_options_he).toBe('');
+    expect(researchDetailsColumns('DIGIT_ENTERED', { card_question_he: q }).card_question_he).toBe('');
+  });
+
+  it('the card\'s text: direction marks are dropped, the card\'s own signs are kept, Latin and "@" still empty it', () => {
+    const marked = '⁧נסו לחשוב: בתרגיל‏ 345 − 182, בטור העשרות אין מספיק לבנים כדי לחסר. מה עושים?⁩';
+    expect(researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_question_he: marked }).card_question_he)
+      .toBe('נסו לחשוב: בתרגיל 345 − 182, בטור העשרות אין מספיק לבנים כדי לחסר. מה עושים?');
+    for (const t of ['סופרים: עשר, עשרים, שלושים…', 'אם 7 > 5 → פורטים [עשרת אחת]', 'הספרה < 10']) {
+      expect(researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_question_he: t }).card_question_he, t).toBe(t);
+    }
+    for (const t of ['‏שלום Dana', 'כתבו ל‎a@b', 'ראו www']) {
+      expect(researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_question_he: t }).card_question_he, t).toBe('');
+    }
+  });
+
   it('a field belongs to its own event only, and every row has the same columns', () => {
     const a = researchDetailsColumns('DIGIT_ENTERED', { digit_value: 4, is_correct: true, duration_ms: 5 });
     const b = researchDetailsColumns('BOARD_CLEARED', { units: 1 });

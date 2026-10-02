@@ -122,7 +122,7 @@ function rejectionOutcome(reason: string): AiOutcome {
   if (reason.startsWith("forbidden")) return "forbidden_term";
   if (reason.startsWith("response is not JSON")) return "not_json";
   if (reason.startsWith("frame:")) return "frame_reject";
-  if (reason.startsWith("form:") || reason.startsWith("language:") || reason.startsWith("screen:") || reason.startsWith("counts:") || reason.startsWith("names an aid")) {
+  if (reason.startsWith("form:") || reason.startsWith("language:") || reason.startsWith("style:") || reason.startsWith("screen:") || reason.startsWith("counts:") || reason.startsWith("names an aid")) {
     return "language_reject";
   }
   return "schema_reject";
