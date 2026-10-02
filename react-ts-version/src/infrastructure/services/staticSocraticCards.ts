@@ -740,7 +740,7 @@ function allInCard(ex: string, oneBox: boolean): SocraticHintResponse {
     oneBox
       ? ['כותבים בתיבה הריקה את מספר הלבנים שבטור שלה', 'נכון מאוד! ספרו את הלבנים בטור של התיבה הריקה.']
       : ['כותבים בכל תיבה בשורת התוצאה את מספר הלבנים שבטור שלה', 'נכון מאוד! התחילו בטור היחידות.'],
-    ['מוסיפים עוד לבנים', 'רמז: האם חסרות עוד לבנים בבית המספרים?'],
+    ['מוסיפים עוד לבנים', 'רמז: האם כבר בניתם בבית המספרים את שני המספרים?'],
     ['מקבצים את היחידות לעשרת אחת', 'רמז: האם יש בטור היחידות 10 לבנים או יותר?'],
   ], 'all_blocks_in', frame('all_blocks_in', 1, 'כל הלבנים בבית המספרים ומקובצות: כותבים בכל תיבה את מספר הלבנים שבטור שלה'));
 }
@@ -997,7 +997,7 @@ function circleAddCard(ex: string, p: Place, a: number, b: number): SocraticHint
   const right = reaches10
     ? `נכון מאוד! חברו את הספרות של הטור ואת ה-1 שבעיגול. אם הסכום מגיע ל-10 או יותר, כתבו בתיבה רק את ספרת היחידות שלו${n ? `, ורשמו 1 בעיגול הזיכרון שמעל ${COLUMN[n]}` : ''}.`
     : 'נכון מאוד! חברו את הספרות של הטור ואת ה-1 שבעיגול, וכתבו את התוצאה בתיבה.';
-  return card(`${OPEN}בתרגיל ${ex}, רשמתם 1 בעיגול הזיכרון שמעל ${COLUMN[p]}. מה עושים איתו כשמחברים את הספרות של ${COLUMN[p]}?`, 'procedural', HL(p), [
+  return card(`${OPEN}בתרגיל ${ex}, רשמתם 1 בעיגול הזיכרון שמעל ${COLUMN[p]}. מה עושים איתו כשמחברים את הספרות של הטור הזה?`, 'procedural', HL(p), [
     ['מחברים אותו לספרות של הטור', right],
     ['לא מחברים אותו, כי הוא רק תזכורת', 'רמז: מה מייצג ה-1 שבעיגול הזיכרון?'],
     ['כותבים אותו בתיבה של הטור', 'רמז: מה מחברים בטור הזה חוץ מה-1 שבעיגול הזיכרון?'],
@@ -1254,8 +1254,8 @@ function borrowCard(ex: string, c: Place, have: number, need: number, zeros: Pla
     const where = zeros.length === 1 ? `ב${COLUMN[zeros[0]]} יש אפס` : `${zeros.map((z) => `ב${COLUMN[z]}`).join(' ו')} יש אפסים`;
     return card(`${OPEN}בתרגיל ${ex}, איך פורטים כש${where}?`, 'conceptual', HL(m), [
       blocks
-        ? [`פורטים תחילה ${ONE[m]} ל${TEN_OF[below]} ב${COLUMN[below]}`, `נכון מאוד! לחצו על ${BLOCK[m]} כדי לפרוט אותה. אחר כך פורטים שוב, טור אחר טור, עד ${COLUMN[c]}.`]
-        : [`פורטים תחילה ${ONE[m]} ל${TEN_OF[below]}, ורושמים את השינוי בעיגולי הזיכרון`, `נכון מאוד! אחר כך פורטים שוב, טור אחר טור, עד ${COLUMN[c]}.`],
+        ? [`פורטים תחילה ${ONE[m]} ל${TEN_OF[below]} ב${COLUMN[below]}`, `נכון מאוד! לחצו על ${BLOCK[m]} כדי לפרוט אותה. אחר כך פרטו שוב, טור אחר טור, עד ${COLUMN[c]}.`]
+        : [`פורטים תחילה ${ONE[m]} ל${TEN_OF[below]}, ורושמים את השינוי בעיגולי הזיכרון`, `נכון מאוד! אחר כך פרטו שוב, טור אחר טור, עד ${COLUMN[c]}.`],
       // What a decomposition gives: the next column, never straight into the one that is short.
       [zeros.length === 1 ? 'מדלגים על האפס וממשיכים לטור הבא' : 'מדלגים על האפסים וממשיכים לטור הבא', `רמז: כשפורטים ${ONE[m]}, מה מקבלים: ${TEN_OF[below]} או ${TEN_OF[c]}?`],
       blocks
@@ -1315,7 +1315,7 @@ function source(c: Place, has: (p: Place) => number): { zeros: Place[]; m: Place
 /** Every column has enough: take away (existing card). */
 function takeAwayCard(ex: string, takeAway: string): SocraticHintResponse {
   return card(`${OPEN}בתרגיל ${ex}, בכל טור יש מספיק לבנים. מה עושים עכשיו?`, 'procedural', 'tour-place-value-board', [
-    [`מוציאים לפח האשפה ${takeAway}`, 'נכון מאוד! אחר כך כותבים בשורת התוצאה את מה שנשאר בבית המספרים.'],
+    [`מוציאים לפח האשפה ${takeAway}`, 'נכון מאוד! אחר כך כתבו בשורת התוצאה את מה שנשאר בבית המספרים.'],
     ['פורטים עוד לבנה', 'רמז: האם יש טור שאין בו מספיק לבנים?'],
     ['מוסיפים לבנים', HINT.addOrTakeOut],
   ], 'take_away', frame('take_away_now', 1, 'בכל טור יש מספיק: מוציאים לפח את מה שמחסרים'));
@@ -1324,7 +1324,7 @@ function takeAwayCard(ex: string, takeAway: string): SocraticHintResponse {
 /** More than the first number on the board (existing card). */
 export function buildOnlyFirstCard(ex: string, a: number): SocraticHintResponse {
   return card(`${OPEN}בתרגיל ${ex}, בבית המספרים יש יותר מ-${formatNumberHe(a)}. מה בונים בחיסור?`, 'procedural', 'tour-place-value-board', [
-    [`רק את המספר הראשון, ${formatNumberHe(a)}`, 'נכון מאוד! אחר כך מוציאים ממנו לפח את מה שמחסרים.'],
+    [`רק את המספר הראשון, ${formatNumberHe(a)}`, 'נכון מאוד! אחר כך הוציאו ממנו לפח האשפה את מה שמחסרים.'],
     ['את שני המספרים', HINT.secondNumber],
     ['רק את המספר השני', 'רמז: מאיזה מספר מחסרים?'],
   ], 'build_only_first', frame('build_only_first', 1, 'בחיסור בונים רק את המספר הראשון ומוציאים ממנו'));
@@ -1363,14 +1363,19 @@ export function checkBeforeTakingCard(ex: string): SocraticHintResponse {
   ], 'check_before_taking', frame('check_before_taking', 1, 'לפני שמוציאים מטור: בודקים אם יש בו מספיק לבנים, ואם אין פורטים מהטור שמשמאל'));
 }
 
-/** Subtraction with blocks: the blocks a column lacked were dragged from the tool box (board = a + 10, 100 or 1,000). */
+/**
+ * Subtraction with blocks: the blocks a column lacked were dragged from the tool box (board = a + 10, 100 or 1,000).
+ * Owner, 2.10.2026: the question once asked "מאיפה מקבלים עוד לבנים" — wrong in subtraction, where nothing is
+ * received (new blocks change the number; a block of the column on the left is broken), and "אין מספיק" said
+ * nothing of what for. The house phrase is "כשבטור אין מספיק לבנים כדי לחסר".
+ */
 export function paletteBorrowCard(): SocraticHintResponse {
-  return card(`${OPEN}בחיסור, כשבטור אין מספיק לבנים, מאיפה מקבלים עוד לבנים?`, 'procedural', 'tour-place-value-board', [
-    ['פורטים לבנה מהטור שמשמאל', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים שהוספתם ייצאו. אחר כך פרטו לבנה מהטור שמשמאל.'],
+  return card(`${OPEN}בחיסור, כשבטור אין מספיק לבנים כדי לחסר, מה עושים?`, 'procedural', 'tour-place-value-board', [
+    ['פורטים לבנה מהטור שמשמאל', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים שהוספתם ייצאו מבית המספרים. אחר כך פרטו לבנה מהטור שמשמאל.'],
     ['מוסיפים לבנים מארגז הכלים', 'רמז: אם תוסיפו לבנים מארגז הכלים, האם המספר יישאר אותו מספר?'],
     // Not "תחסרו": read aloud it may be תֶּחְסְרוּ ("you will lack").
     ['מוציאים מהטור רק את מה שיש בו', 'רמז: האם כך תוציאו את כל המספר השני?'],
-  ], 'borrow_from_box', frame('borrow_from_box', 1, 'הלבנים שחסרו בטור הגיעו מארגז הכלים: בחיסור מקבלים עוד לבנים רק מפריטה של לבנה מהטור שמשמאל'));
+  ], 'borrow_from_box', frame('borrow_from_box', 1, 'הלבנים שנוספו לטור הגיעו מארגז הכלים, והן משנות את המספר: כשבטור אין מספיק לבנים כדי לחסר, פורטים לבנה מהטור שמשמאל'));
 }
 
 /** Subtraction with blocks: more taken away than the number subtracted. */
@@ -1965,7 +1970,7 @@ function missingElementCard(task: any): SocraticHintResponse | null {
   const P = onScreen(task, partWords) ? partWords : formatNumberHe(part);
   const fromP = /^\d/.test(P) ? `מ-${P}` : `מ${P}`;
   return card(`${OPEN}איך מגלים מה יש במספר ${W} חוץ ${fromP}?`, 'conceptual', 'tour-place-value-board', [
-    [`בונים את ${W} בבית המספרים ובודקים מה יש בו חוץ ${fromP}`, 'נכון מאוד! את מה שנשאר כתבו בתיבת התשובה.'],
+    [`בונים את ${W} בבית המספרים ובודקים מה יש בו חוץ ${fromP}`, `נכון מאוד! כתבו בתיבת התשובה מה יש ${withBe(W)} חוץ ${fromP}.`],
     ['מחברים את שני המספרים', `רמז: האם ${W} הוא המספר כולו או רק חלק ממנו?`],
     [`כותבים ${W} בתיבת התשובה`, 'רמז: מה מחפשים: את המספר כולו או את החלק החסר?'],
   ], 'missing_part', frame('missing_part', 1, 'בונים את המספר כולו ובודקים מה יש בו חוץ מהחלק הנתון'));
@@ -2367,7 +2372,7 @@ function placeSlipCard(task: any, wrong: Place, counts: BoardCounts, ctx: Static
   if (shownIn(ctx, 'place_slip') && representationKindOf(task) === 'read_write' && (std[wrong] ?? 0) === 0 && home) {
     return card(`${OPEN}האם במילים של המספר שבהנחיה יש ${PLURAL[wrong]}?`, 'conceptual', HL(wrong), [
       [`לא, ולכן הלבנים שב${COLUMN[wrong]} לא במקומן`, `נכון מאוד! הוציאו אותן לפח האשפה, ובנו את אותה כמות לבנים ב${COLUMN[home]}.`],
-      ['כן, כי כבר בניתם שם', `רמז: האם כתוב בהנחיה משהו על ${PLURAL[wrong]}?`],
+      [`כן, כי כבר בניתם לבנים ב${COLUMN[wrong]}`, `רמז: האם כתוב בהנחיה משהו על ${PLURAL[wrong]}?`],
       ['לא משנה באיזה טור בונים', sameWorthHint(wrong, home)],
     ], 'place_slip_2', frame('place_slip', 2, `במספר שבהנחיה אין ${PLURAL[wrong]}: הלבנים שב${COLUMN[wrong]} שייכות ל${COLUMN[home]}`));
   }
@@ -2722,10 +2727,10 @@ export function s1GroupActionCard(): SocraticHintResponse {
 /** Meeting 1, the second "which column is short" card: where the block to break comes from. */
 export function s1DeficitSecondCard(): SocraticHintResponse {
   return card(`${OPEN}מאיפה לוקחים לבנה כדי לפרוט אותה?`, 'procedural', 'tour-place-value-board', [
-    ['מהטור שמשמאל לטור שאין בו מספיק לבנים', 'נכון מאוד! לחצו על לבנה בטור שמשמאל, או גררו אותה אל הטור שחסרות בו לבנים.'],
+    ['מהטור שמשמאל לטור שאין בו מספיק לבנים', 'נכון מאוד! לחצו על לבנה בטור שמשמאל, או גררו אותה אל הטור שאין בו מספיק לבנים כדי לחסר.'],
     ['מארגז הכלים', 'רמז: אם תוסיפו לבנה מארגז הכלים, האם המספר יישאר אותו מספר?'],
     ['מהטור שאין בו מספיק לבנים', 'רמז: כשפורטים לבנה, לאיזה טור עוברות הלבנים הקטנות?'],
-  ], 's1_deficit_2', frame('borrow_source', 1, 'את הלבנה שפורטים לוקחים מהטור שמשמאל לטור שחסרות בו לבנים'));
+  ], 's1_deficit_2', frame('borrow_source', 1, 'את הלבנה שפורטים לוקחים מהטור שמשמאל לטור שאין בו מספיק לבנים כדי לחסר'));
 }
 
 /**

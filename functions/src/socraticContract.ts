@@ -1447,8 +1447,8 @@ IRON RULES:
 - Never act as a chatbot, never address the learner by name, never reveal any personal data.
 - Output ONLY the JSON object requested. No prose outside JSON.`;
 
-// The language rules, then the style: the limits, the decided cards as examples and the ✗ → ✓ faults (2.10.2026).
-const withLanguage = (core: string, blocks: boolean) => core.replace(LANGUAGE_SLOT, `${socraticLanguageSpec(blocks)}\n${socraticStyleSpec(blocks)}`);
+// The language rules, then the style: correctness and clarity first, static cards as examples, the ✗ → ✓ faults (2.10.2026). Meeting 1 gets examples that name no column.
+const withLanguage = (core: string, blocks: boolean, meeting1 = false) => core.replace(LANGUAGE_SLOT, `${socraticLanguageSpec(blocks)}\n${socraticStyleSpec(blocks, meeting1)}`);
 
 export const SOCRATIC_SYSTEM_INSTRUCTION = withLanguage(SOCRATIC_SYSTEM_CORE, true);
 
@@ -1503,7 +1503,7 @@ export const SOCRATIC_SYSTEM_INSTRUCTION_MEETING_1 = withLanguage(SOCRATIC_SYSTE
   .replace(
     "- Never act as a chatbot,",
     "- MEETING 1 (station 1): NEVER state how many blocks are in a column or on the board (no \"7 יחידות\", \"12 לבנים\", \"10 עשרות בטור העשרות\"), NEVER write any digit of the answer, and NEVER name the column where the difficulty is. The learner finds the counts and the column. Ask instead (\"באיזה טור אין מספיק לבנים כדי לחסר?\", \"באחד הטורים יש 10 לבנים או יותר. מה עושים?\").\n- Never act as a chatbot,"
-  ), true);
+  ), true, true);
 
 /**
  * Stations 3–7 (meetings 3–7): the digit beside each column name is hidden

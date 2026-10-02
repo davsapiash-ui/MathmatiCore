@@ -64,6 +64,18 @@ describe('research export — every typed details field has a column', () => {
     expect(researchDetailsColumns('DIGIT_ENTERED', { card_question_he: q }).card_question_he).toBe('');
   });
 
+  it('the card\'s text: direction marks are dropped, the card\'s own signs are kept, Latin and "@" still empty it', () => {
+    const marked = '⁧נסו לחשוב: בתרגיל‏ 345 − 182, בטור העשרות אין מספיק לבנים כדי לחסר. מה עושים?⁩';
+    expect(researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_question_he: marked }).card_question_he)
+      .toBe('נסו לחשוב: בתרגיל 345 − 182, בטור העשרות אין מספיק לבנים כדי לחסר. מה עושים?');
+    for (const t of ['סופרים: עשר, עשרים, שלושים…', 'אם 7 > 5 → פורטים [עשרת אחת]', 'הספרה < 10']) {
+      expect(researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_question_he: t }).card_question_he, t).toBe(t);
+    }
+    for (const t of ['‏שלום Dana', 'כתבו ל‎a@b', 'ראו www']) {
+      expect(researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_question_he: t }).card_question_he, t).toBe('');
+    }
+  });
+
   it('a field belongs to its own event only, and every row has the same columns', () => {
     const a = researchDetailsColumns('DIGIT_ENTERED', { digit_value: 4, is_correct: true, duration_ms: 5 });
     const b = researchDetailsColumns('BOARD_CLEARED', { units: 1 });

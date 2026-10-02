@@ -134,10 +134,10 @@ describe('every static card the client produces, through the server\'s validator
     warn.mockRestore();
     error.mockRestore();
     expect(checked).toBeGreaterThan(10000);
-    // The engine's style examples (socraticStyleSpec, 2.10.2026) are decided cards, verbatim: question, options and feedback.
-    for (const blocks of [true, false]) {
-      for (const line of socraticStyleSpec(blocks).split('\n').filter((l) => l.startsWith('• '))) {
-        const [q, ...opts] = line.slice(2).split(' | ');
+    // The engine's style examples (socraticStyleSpec, 2.10.2026) are static cards, verbatim: question, options and feedback.
+    for (const [blocks, meeting1] of [[true, false], [true, true], [false, false]] as const) {
+      for (const line of socraticStyleSpec(blocks, meeting1).split('\n').filter((l) => l.startsWith('• '))) {
+        const [q, ...opts] = line.slice(2).replace(/^\([^)]*\) /, '').split(' | ');
         for (const o of opts) {
           const [text, fb] = o.slice(2).split(' → ');
           const hit = fb !== undefined ? shownTexts.has(`${q} | ${text} | ${fb}`) : [...shownTexts].some((t) => t.startsWith(`${q} | ${text} | `));

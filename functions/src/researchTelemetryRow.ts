@@ -37,13 +37,16 @@ const idOf = (v: unknown): string => (typeof v === "string" && /^[A-Za-z0-9_-]{1
  * column that is not a closed list. It is generated text, the engine's or the
  * owner's static card, never the learner's, and it is kept only as a card is
  * written: Hebrew letters, digits and the card's punctuation, up to 400
- * characters. A Latin letter, an "@" or anything else a name, an email or a
- * link would need empties it.
+ * characters. The direction marks a bidirectional card carries (LRM, RLM,
+ * ALM and the isolates U+2066–2069) are dropped first; "…", "<", ">", "→",
+ * "[" and "]" are the card's own. A Latin letter, an "@" or anything else a
+ * name, an email or a link would need empties it.
  */
+const DIRECTION_MARKS = /[‎‏؜‪-‮⁦-⁩]/g;
 const cardText = (v: unknown): string => {
   if (typeof v !== "string") return "";
-  const t = v.replace(/\s+/g, " ").trim();
-  return t.length <= 400 && /[א-ת]/.test(t) && /^[֐-׿0-9\s.,:;!?"'()\-–—−+=×▢/״׳%«»“”]+$/.test(t) ? t : "";
+  const t = v.replace(DIRECTION_MARKS, "").replace(/\s+/g, " ").trim();
+  return t.length <= 400 && /[א-ת]/.test(t) && /^[֐-׿0-9\s.,:;!?"'()\-–—−+=×▢/״׳%«»“”…<>→[\]]+$/.test(t) ? t : "";
 };
 const only = (eventType: unknown, ...types: string[]) => typeof eventType === "string" && types.includes(eventType);
 
