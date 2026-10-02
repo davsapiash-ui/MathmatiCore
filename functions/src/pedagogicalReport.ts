@@ -29,6 +29,7 @@ import {
   computeToolMastery,
   exercisePathType,
   CHOICE_PATH_LABEL_HE,
+  exerciseLabelHe,
   isScoredMeeting,
   SANDBOX_MEETING_PURPOSE_HE,
   TOOL_LABEL_HE,
@@ -222,11 +223,11 @@ export function generateExerciseNarrativeFromEvents(
     // ("בתרגיל השמיני"), as if the meeting had eight compulsory exercises.
     const pathType = exercisePathType(exId);
     if (pathType !== "compulsory") {
-      choiceNarratives.push(`${CHOICE_PATH_LABEL_HE[pathType]} (${titles[exId] ?? exId}): הלומד ${body}${ending}.`);
+      choiceNarratives.push(`${CHOICE_PATH_LABEL_HE[pathType]} (${exerciseLabelHe(titles, exId)}): הלומד ${body}${ending}.`);
       continue;
     }
     const ordinal = ORDINALS_HE[exerciseIdx - 1] || `ה-${exerciseIdx}`;
-    narratives.push(`בתרגיל ${ordinal} (${titles[exId] ?? exId}) הלומד ${body}${ending}.`);
+    narratives.push(`בתרגיל ${ordinal} (${exerciseLabelHe(titles, exId)}) הלומד ${body}${ending}.`);
     exerciseIdx++;
   }
 
@@ -337,7 +338,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
         if (outcomes.length === 0) rtlText(doc, "לא נרשמו תרגילים.");
         for (const [id, outcome] of outcomes) {
           doc.fontSize(10).fillColor("#334155");
-          rtlText(doc, `${titles[id] || id}: ${OUTCOME_HE[outcome]}`, { lineGap: 2 });
+          rtlText(doc, `${exerciseLabelHe(titles, id)}: ${OUTCOME_HE[outcome]}`, { lineGap: 2 });
         }
         doc.moveDown(1);
       } else {

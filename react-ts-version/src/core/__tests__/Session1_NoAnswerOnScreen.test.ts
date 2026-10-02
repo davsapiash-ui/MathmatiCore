@@ -76,7 +76,7 @@ describe('station 1 live cards', () => {
 
   it('61 − 24 with 61 on the board: the child finds the units column', () => {
     const card = SocraticEngine.analyzeLiveBoardState({ id: 's1_r_sub61', numberA: 61, numberB: 24, isSubtraction: true }, 'subtraction_regrouping', { ...EMPTY, tens: 6, units: 1 })!;
-    expect(card.questionHe).toBe('באיזה טור אין מספיק לבנים כדי להחסיר?');
+    expect(card.questionHe).toBe('באיזה טור אין מספיק לבנים כדי לחסר?');
     expect(card.tts_text).toBe(card.questionHe);
     expect(card.suggested_highlight).toBe('tour-place-value-board');
     expect(card.choices.map((c) => c.textHe)).toEqual(['בטור היחידות', 'בטור העשרות', 'בטור המאות']);
@@ -87,7 +87,7 @@ describe('station 1 live cards', () => {
 
   it('806 − 351 with 806 on the board: the child finds the tens column', () => {
     const card = SocraticEngine.analyzeLiveBoardState({ id: 's1_r_sub806', numberA: 806, numberB: 351, isSubtraction: true }, 'subtraction_regrouping', { ...EMPTY, hundreds: 8, units: 6 })!;
-    expect(card.questionHe).toBe('באיזה טור אין מספיק לבנים כדי להחסיר?');
+    expect(card.questionHe).toBe('באיזה טור אין מספיק לבנים כדי לחסר?');
     expect(card.correctChoiceId).toBe('opt_2');
     expect(card.choices.filter((c) => c.isCorrect).map((c) => c.id)).toEqual(['opt_2']);
     expect(textsOf(card).join(' ').replace(/10/g, '')).not.toMatch(/\d/);
@@ -96,7 +96,7 @@ describe('station 1 live cards', () => {
   it('two short columns: the question says where to start, so one option is right', () => {
     // 523 − 148: 3 < 8 units and 2 < 4 tens on the board
     const card = SocraticEngine.analyzeLiveBoardState({ id: 's1_fixture', numberA: 523, numberB: 148, isSubtraction: true }, 'subtraction_regrouping', { ...EMPTY, hundreds: 5, tens: 2, units: 3 })!;
-    expect(card.questionHe).toBe('בודקים מטור היחידות שמאלה: באיזה טור אין מספיק לבנים כדי להחסיר?');
+    expect(card.questionHe).toBe('בודקים מטור היחידות שמאלה: באיזה טור אין מספיק לבנים כדי לחסר?');
     expect(card.choices.filter((c) => c.isCorrect).map((c) => c.id)).toEqual(['opt_1']);
   });
 

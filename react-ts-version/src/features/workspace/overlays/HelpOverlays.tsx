@@ -315,8 +315,9 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
     // Meeting 8 has no number house on the screen (PRD Module 14 §ב).
     const noBoard = wsState.sessionNumber === 8;
     const hint = c.feedbackHe || c.hint || (isCorrect
-      ? (noBoard ? 'תשובה נכונה! כעת כתבו בשורת התוצאה, טור אחר טור.' : 'תשובה נכונה! כעת בצעו את הפעולה בבית המספרים.')
-      : (noBoard ? 'רמז: חשבו שוב, טור אחר טור. אפשר להשתמש בכפתור ביטול הפעולה ↺.' : 'רמז: חשבו שוב כיצד לשמור על הכמות בבית המספרים. אפשר להשתמש בכפתור ביטול הפעולה ↺.'));
+      ? (noBoard ? 'נכון מאוד! עכשיו כתבו את הספרות בשורת התוצאה, טור אחר טור.' : 'נכון מאוד! עכשיו עשו את הפעולה בבית המספרים.')
+      // A guiding question, like every wrong option's hint (owner, 30.9.2026; D10).
+      : (noBoard ? 'רמז: באיזה טור כדאי לבדוק שוב את החישוב?' : 'רמז: האם בית המספרים עדיין מראה את הכמות שצריך?'));
     return {
       id: c.id,
       text: c.textHe,

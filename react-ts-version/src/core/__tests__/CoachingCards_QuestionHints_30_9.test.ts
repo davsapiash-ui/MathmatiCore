@@ -187,7 +187,7 @@ describe('every wrong-option hint of stations 3–8 is a short guiding question 
     const t = { id: 's1_r_sub61', type: 'vertical_addition', isSubtraction: true, numberA: 61, numberB: 24 };
     const empty = SocraticEngine.analyzeLiveBoardState(t, 'subtraction_regrouping', EMPTY)!;
     expect(empty.choices.map((c) => c.feedbackHe)).toEqual([
-      'נכון מאוד! גררו לבנים לבית המספרים עד שהוא מראה את המספר הראשון, ורק אז הוציאו ממנו.',
+      'נכון מאוד! בנו קודם את המספר הראשון, ורק אחר כך הוציאו ממנו את המספר השני.',
       'רמז: האם בחיסור מוסיפים את המספר השני או מוציאים אותו?',
       'רמז: בלי לבנים בבית המספרים, איך תמצאו את התוצאה?',
     ]);

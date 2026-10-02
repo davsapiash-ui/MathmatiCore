@@ -102,7 +102,7 @@ describe('one name per thing, and "יחידה אחת"', () => {
     for (let need = 1; need <= 9; need++) {
       for (let have = 0; have < need; have++) {
         const text = getDynamicSocraticHint('regrouping_fluency', counts({ tens: 5, units: have }), { isSubtraction: true, numberA: 50, numberB: 10 + need }, {}, {});
-        expect(text, `need ${need}, have ${have}`).toContain('צריך להחסיר');
+        expect(text, `need ${need}, have ${have}`).toContain('צריך לחסר');
         expect(text, `need ${need}, have ${have}`).not.toMatch(/(^|\s)[01] יחידות/);
       }
     }

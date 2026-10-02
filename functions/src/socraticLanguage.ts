@@ -148,6 +148,8 @@ export const LANGUAGE_RULES: LanguageRule[] = [
   { id: "break_into_column", re: /(פורטים|פרטו|לפרוט|פורטות|פרטתם|נפרטת|נפרטה)((?!ל-?10|לעשר|ומעביר|ומוסיפ|ועובר|וגורר|ומכניס|עד |\sו[א-ת]{2,}(?:ו|ים|ות)(?![א-ת]))[^.?!,:]){0,30}?\s(לטור|אל טור|אל הטור)/, fix: 'One breaks a block INTO smaller blocks, never "into a column": "פורטים עשרת אחת לעשר יחידות", "פורטים מאה אחת לעשר עשרות" — not "פורטים … לטור היחידות".' },
   { id: "gender_slash", re: /[א-ת]\/(ות|ים|ה|י|ן)(?![א-ת])|[א-ת]\.(נשים|ות)(?![א-ת])/, fix: "Gender-equal writing is the second person plural only, never slash or dot forms." },
   { id: "filler_or_formal", re: /למעשה|חשוב לציין|ראוי לציין|במידה ש|(^|[^א-ת])בכדי(?![א-ת])|יש לבצע|(^|[^א-ת])אנו(?![א-ת])/, fix: 'No filler and no formal register: "אם" not "במידה ש", "כדי" not "בכדי", a verb ("פרטו") not "יש לבצע פריטה".' },
+  // Subtraction is pi'el (coordinator's decision, 2.10.2026): "מחסרים", "לחסר", "חיסרו" — not the hif'il.
+  { id: "subtraction_verb", re: HE_WORD("להחסיר|מחסירים|מחסירות|מחסיר|החסירו|תחסירו|החסרתם|החסירה"), fix: 'Subtraction is the pi\'el: "מחסרים", "לחסר", "חיסרו" — never "מחסירים", "להחסיר", "החסירו". Avoid the bare imperative "חסרו" (read aloud as "you lacked"): write the impersonal present ("מחסרים").' },
   // "▢" stays allowed: it is how the screen writes a skeleton's hidden digit ("3▢6 + 271"), and the narration reads it as "ספרה חסרה".
   { id: "icon_symbol", re: /[↺⟲⟳]/, fix: 'Do not write the symbol "↺": name the undo button "כפתור ביטול הפעולה".' },
 ];
@@ -214,7 +216,7 @@ export function languageViolation(texts: string[]): LanguageRule | null {
  * (meetings 2 and 8) the examples name no block, no board and no button.
  */
 export function socraticLanguageSpec(blocks: boolean): string {
-  const imperatives = blocks ? '"בנו", "בדקו", "לחצו", "קבצו", "פרטו", "כתבו", "נסו"' : '"בדקו", "חברו", "חסרו", "פרטו", "כתבו", "רשמו", "נסו"';
+  const imperatives = blocks ? '"בנו", "בדקו", "לחצו", "קבצו", "פרטו", "כתבו", "נסו"' : '"בדקו", "חברו", "פרטו", "כתבו", "רשמו", "נסו"';
   const options = blocks ? '"מקבצים", "פורטים", "מוחקים", "בודקים"' : '"ממירים", "פורטים", "רושמים", "בודקים"';
   const government = blocks
     ? 'one breaks a block INTO smaller ones — "פורטים עשרת אחת לעשר יחידות", "פורטים מאה אחת לעשר עשרות" (never "פורטים … לטור"); one groups "10 יחידות לעשרת אחת".'
@@ -245,7 +247,7 @@ export function socraticLanguageSpec(blocks: boolean): string {
   return `HEBREW — the owner's writing rules for every text a child reads (binding):
 - Address the children in the second person plural imperative, gender-neutral: ${imperatives}. Answer options are in the impersonal present: ${options}. NEVER the first person plural ("נבדוק", "נפרוט", "נמחק", "נזרוק", "בואו נ…", "מה נעשה", "ונבדוק", "כשנגיע") and never "אנו". NEVER the second person singular, masculine or feminine ("שים לב", "נסה", "בדוק", "לחץ על", "תבדוק", "בדקי", "שימי", "שלך"): "שימו לב", "נסו", "בדקו", "לחצו על", "שלכם". Never slash or dot gender forms.
 - The guiding question is ONE direct question ending with "?". It may open with "נסו לחשוב:" — the only opening of that kind (never "בואו נחשוב", never "חשבו רגע:"). The feedback of a wrong option is "רמז:" and ONE direct guiding question ending with "?". The feedback of the correct option opens with "נכון מאוד!". An indirect question inside a sentence takes "אם", not "האם", and no "?" ("בדקו אם צריך לרשום משהו בעיגול הזיכרון.") — it may appear only inside the correct option's feedback, never as the guiding question or as a hint.
-- Verb government: ${government} Subtraction is "מחסרים" / "לחסר" / "חסרו".
+- Verb government: ${government} Subtraction is the pi'el "מחסרים" / "לחסר" / "חיסרו" — never "מחסירים" / "להחסיר"; avoid the bare imperative "חסרו" (read aloud it sounds like "you lacked"): write "מחסרים" instead.
 - ${forms} — never "פירוק", "מפרקים", "שבירה", "הלוואה", "נשיאה".
 - Agreement: "עשרת", "מאה", "יחידה" are feminine ("עשרת אחת", "שתי עשרות", "עשר יחידות"); "אלף" is masculine ("אלף אחד"). What a grouping passes on is ONE block of the column that receives it: into the tens "עשרת אחת", into the hundreds "מאה אחת", into the thousands "אלף אחד" — never "עשרת" for every column. What a break gives is ten blocks of the column on its right: "פורטים עשרת אחת לעשר יחידות", "פורטים מאה אחת לעשר עשרות", "פורטים אלף אחד לעשר מאות". ${agreement}One unit is "יחידה אחת" / "עשרת אחת", never "1 יחידה". The number comes before the noun; "10 היחידות", not "ה-10 יחידות"; a prefix before digits takes a hyphen ("ל-10").
 - Names: a result box is "תיבה" in "שורת התוצאה" (never "משבצת"); name only what the prompt's screen section lists.
