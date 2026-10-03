@@ -175,7 +175,7 @@ describe('2: the 1 in the memory circle of a column that reaches 10 again (5,678
     expect(first.cardKind).toBe('carry_forgotten');
     const second = (await cardFor('consecutive_errors_4', 'hundreds'))!;
     expect(second.situation).toBe('carry_circle_add');
-    expect(second.questionHe).toContain('כשמחברים את הספרות של טור המאות?');
+    expect(second.questionHe).toContain('רשמתם 1 בעיגול הזיכרון שמעל טור המאות. מה עושים איתו כשמחברים את הספרות של הטור הזה?');
     const right = second.choices.find((c) => c.isCorrect)!.feedbackHe!;
     expect(right).toContain('כתבו בתיבה רק את ספרת היחידות שלו');
     expect(right).toContain('ורשמו 1 בעיגול הזיכרון שמעל טור האלפים');

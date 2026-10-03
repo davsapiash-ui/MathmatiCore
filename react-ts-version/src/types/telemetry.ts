@@ -87,6 +87,14 @@ export interface SocraticCardShownDetails {
   card_situation?: string;
   /** The frame's level: 1 general, 2 names the column, 3 names the action. */
   card_level?: 1 | 2 | 3;
+  /**
+   * 2.10.2026: the card's text as the child saw it — the guiding question and
+   * the three options in id order (opt_1, opt_2, opt_3) — so the pilot's real
+   * cards can be reviewed. Generated text (the engine's or the static card),
+   * never the learner's. Absent on events recorded before the field existed.
+   */
+  card_question_he?: string;
+  card_options_he?: string[];
 }
 
 export interface SocraticOptionSelectedDetails {
