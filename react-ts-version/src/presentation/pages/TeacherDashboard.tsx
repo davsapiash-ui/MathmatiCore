@@ -1178,7 +1178,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           meeting: d.meeting,
           action,
           entries,
-          teacherUid: (user?.uid as string) || 'teacher',
+          // The Firebase Auth uid: the rules require recorded_by == request.auth.uid.
+          // The app's user.uid is the display id "teacher_<id>", which the rules refuse.
+          teacherUid: auth.currentUser?.uid || '',
           // One round id for the whole confirmation (catchUpRoundId), on the server clock.
           recordedAt: serverNow(),
         });

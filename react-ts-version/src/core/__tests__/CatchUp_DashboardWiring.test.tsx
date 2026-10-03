@@ -59,7 +59,7 @@ vi.mock('@/infrastructure/firebase', () => ({
   db: { __firestore: true },
   auth: {
     currentUser: {
-      uid: 'teacher_test_01',
+      uid: 'auth_uid_google_01',
       getIdTokenResult: vi.fn().mockResolvedValue({ claims: { role: 'teacher' } }),
       getIdToken: vi.fn().mockResolvedValue('token_test'),
     },
@@ -243,7 +243,9 @@ describe('closing a meeting with learners who did not finish', () => {
     await act(async () => { fireEvent.click(screen.getByText('stub-continue')); });
 
     await waitFor(() => expect(h.seq).toEqual(['record:continue', 'close:teacher']));
-    expect(h.recordCalls[0]).toMatchObject({ meeting: 4, action: 'continue', teacherUid: 'teacher_test_01' });
+    expect(h.recordCalls[0]).toMatchObject({ meeting: 4, action: 'continue', teacherUid: 'auth_uid_google_01' });
+    // The Auth uid, not the app's display id: the rules require recorded_by == request.auth.uid.
+    expect(h.recordCalls[0].teacherUid).not.toBe('teacher_test_01');
     expect(h.recordCalls[0].entries).toEqual([{ studentNumber: 5, reason: 'slow_pace', note: null, stoppedAtHe: 'תרגיל 4 מתוך 7' }]);
     expect(h.recordCalls[0].recordedAt).toBeGreaterThanOrEqual(startedAt);
     expect(lastClassWrite()).toMatchObject({ active: false, status: 'closed', closedBy: 'teacher', lastSessionNumber: 4, lastStartedAt: startedAt });
