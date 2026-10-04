@@ -43,7 +43,7 @@ import {
   type QMatrixFlowState,
 } from '@/core/qmatrixFlow';
 import { stateReducer } from '@/machines/vraMachine';
-import { computeCognitiveMastery, TASKS } from '@/core/QMatrix';
+import { computeCognitiveMastery, hasOneDiagnosticAnswerBox, TASKS } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
 import { announceRegroup, REGROUP_ANIMATION_MS } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
@@ -1547,6 +1547,10 @@ export function activeExerciseId(s: WorkspaceState): string {
  *     "4" on the way to "40" is not a wrong answer.
  *  2. Every other task: each typed digit is judged against its column, and a
  *     wrong digit counts even if the child corrects it later (PRD 23).
+ * Owner, 4.10.2026: task 1 ("שש מאות וחמש") has one answer box for every
+ * learner and follows rule 1, like task 2 — three boxes prevented the two
+ * errors it is there to catch (65 left a visibly empty box, 6005 could not be
+ * typed). Rule 2 now covers tasks 3–7.
  *
  * In the correction round's simpler exercise the probe is the exercise, and
  * proceedQ grades against its answer, so the digits are judged against it too.
@@ -1556,7 +1560,7 @@ export function diagnosticDigitTask(
   isASD: boolean
 ): { numberA?: number; numberB?: number; isSubtraction?: boolean; correctAnswer?: number } | null {
   const task = getCurrentQTask(qflow);
-  if (!task || task.type === 'digit_value') return null;
+  if (!task || hasOneDiagnosticAnswerBox(task)) return null;
   if (isSubtaskActive(qflow)) {
     const d = task.backwardDiagnosis;
     const answer = isASD && d?.asdProbeAnswer !== undefined ? d.asdProbeAnswer : d?.probeAnswer;
@@ -3375,11 +3379,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         ? diag.asdProbeAnswer
         : diag?.probeAnswer;
       if (probeExpected !== undefined) expected = probeExpected;
-    } else if (task.type === 'digit_value') {
+    } else if (hasOneDiagnosticAnswerBox(task)) {
       // Owner's ruling 28.9.2026: task 2 is judged by the value in its one box
       // when "התקדם" is pressed. The box also writes its last two digits into
       // the tens and units, and the answer used to be read from those — so 140
-      // in the box was graded as 40.
+      // in the box was graded as 40. Task 1 has the same box (owner,
+      // 4.10.2026): 65 and 6005 are read as typed, and are wrong.
       answer = s.probeAnswer ? parseInt(s.probeAnswer, 10) : null;
     } else {
       answer = answerDigitsToNumber(s.answerDigits);
