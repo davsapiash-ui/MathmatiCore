@@ -25,7 +25,7 @@ import {
   digitAt,
 } from '@/core/placeValue';
 import { BLOCK_NAME_HE, NO_UNIT_BLOCKS_SUB_HE, NO_UNIT_BLOCKS_TITLE_HE } from '@/data/taskBuilders';
-import { session1Checklist, session1NextStep } from '@/core/session1Checklist';
+import { session1Checklist, session1DoneNoteHe, session1NextStep } from '@/core/session1Checklist';
 import {
   advance,
   getCurrentQTask,
@@ -67,7 +67,8 @@ import { normalizeStudentId } from '@/application/useChatStore';
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { readStoredMeetingDeadline, storeMeetingDeadline } from '@/application/meetingDeadline';
 import type { TelemetryEventType } from '@/types/telemetry';
-import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
+import { REPRESENTATION_LOCKS, buildsAnyWay, builtAnyWay } from '@/data/representationLocks';
+export { buildsAnyWay, builtAnyWay };
 import type { VRAWorkspaceState } from '@/types';
 import { workspaceSavedAt, startedWithoutRecord } from '@/core/workspaceSnapshot';
 import { mirrorReflectionStep } from '@/core/srlReflection';
@@ -579,11 +580,18 @@ export interface WorkspaceState {
    */
   isAdditionHelperOpen: boolean;
   /**
-   * The Module 10 grid opened at least once this meeting, so the learner may
-   * bring it back (register deviation 18, מסמך 03 §1.3 ב'). Reset only when a
-   * meeting starts; saved with the snapshot.
+   * The system offered the Module 10 grid at least once this meeting — it
+   * opened, or its 30 seconds came due while the coaching card was open — so
+   * the learner may open it from its tab (register deviation 18, מסמך 03 §1.3
+   * ב'). Reset only when a meeting starts; saved with the snapshot.
    */
   additionHelperOffered: boolean;
+  /**
+   * The grid was offered while the coaching card was open and has not been
+   * opened yet this meeting: its tab says "הצגת לוח החיבור", not "הצגה חוזרת".
+   * Not saved: after a reload the tab speaks of a return.
+   */
+  additionHelperOfferedUnopened: boolean;
   helpRequested: boolean;
   /**
    * Module 19 §ב, Pending Adaptation: a support profile the teacher changed
@@ -622,6 +630,12 @@ export interface WorkspaceState {
   logChatHelpRequest: (kind: 'call' | 'ready_message') => void;
   /** 'learner' when the learner brings the grid back (מסמך 03 §1.3 ב'); default is the Module 10 hesitation stage. */
   openAdditionHelper: (source?: 'hesitation_30s' | 'learner') => void;
+  /**
+   * The 30-second stage came due while the coaching card was open: the grid is
+   * offered — its tab appears beside the card — and not opened. No event: the
+   * grid did not appear (ADAPTIVE_GRID_TOGGLED is written when it opens).
+   */
+  offerAdditionHelper: () => void;
   /** Module 9: a digit key pressed on a locked result cell. Logged, never acted on. */
   recordBlockedKeystroke: (place: Place) => void;
   closeAdditionHelper: () => void;
@@ -981,7 +995,8 @@ export function cardFocusPlace(
   if (task.type === 'representation' || task.type === 'flexible_decomp') {
     const pending = pendingRepresentationConversion(s, task);
     if (pending) return pending;
-    if (task.requiredCounts) {
+    // A board worth the number is right where any build is (owner, 4.10.2026).
+    if (task.requiredCounts && !builtAnyWay(task, s.counts)) {
       const required = requiredCountsOf(task);
       const board = PLACE_ORDER.find((p) => (s.counts[p] ?? 0) !== required[p]);
       if (board) return board;
@@ -1989,9 +2004,9 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     if (session1Checklist(task.id, s)) {
       const nextStep = session1NextStep(task.id, s);
       if (nextStep) return failure('sandbox_incomplete', 'עוד צעד אחד 🛠️', `${nextStep}.`, 3500);
-      return success('כל הכבוד! 🌟', 'ממשיכים לשלב הבא.', 2000);
+      return success('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2000);
     }
-    if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return success('מעולה! 🌟', 'ממשיכים הלאה.', 1500);
+    if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return success('מְעֻלֶּה! 🌟', 'ממשיכים הלאה.', 1500);
     if (!s.selectedChoiceId) {
       return failure('no_choice', 'עֲנוּ עַל שְׁאֵלַת הַחֲשִׁיבָה 🤔', 'בַּחֲרוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת כְּדֵי לְהַמְשִׁיךְ.', 2500);
     }
@@ -2158,7 +2173,7 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     // does not speak of one (owner, 1.10.2026, D11b).
     return s.sessionNumber === 8
       ? success('כָּל הַכָּבוֹד! 🌟', MEETING8_SOLVED_SUB_HE, 2500)
-      : success('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמִּסְפָּרִים.', 2500);
+      : success('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים.', 2500);
   }
 
   if (task.type === 'small_change') {
@@ -2185,7 +2200,11 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     // single answer box holds.
     const kind = task.representationKind;
     const required = requiredCountsOf(task);
-    if (!countsEqual(s.counts, required)) {
+    // An exercise that only says "build the number X" (owner, 4.10.2026):
+    // any board worth X is right; one that names blocks or a conversion still
+    // needs its exact board.
+    const boardRight = buildsAnyWay(task) ? builtAnyWay(task, s.counts) : countsEqual(s.counts, required);
+    if (!boardRight) {
       // The blocks of the instruction's first sentence, the break or the
       // grouping not made yet: the step still missing is named (A4-F01). It
       // counts as a wrong press, as the sentence below does.
@@ -2227,10 +2246,14 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
       if (skipped && kind === 'compose_break') return failure('conversion_skipped', 'פִּרְטוּ 🧱', breakItYourselvesHe(pending), 3500);
     } else {
       // Meeting 1: the exercise is the conversion itself, not only its result.
-      if (task.requiresGrouping && !s.hasGrouped) {
+      // 26 and 347 are checked per column (REPRESENTATION_LOCKS): 26 groups the
+      // units twice, 347 breaks a ten, not a hundred (audit A2-F06).
+      const m1Listed = Boolean(REPRESENTATION_LOCKS[task.id]);
+      const m1Pending = m1Listed && pendingRepresentationConversion(s, task) !== null;
+      if (task.requiresGrouping && (m1Listed ? m1Pending : !s.hasGrouped)) {
         return failure('conversion_skipped', 'קַבְּצוּ 🧱', GROUP_YOURSELVES_HE, 3500);
       }
-      if (task.requiresUngrouping && !s.hasUngrouped) {
+      if (task.requiresUngrouping && (m1Listed ? m1Pending : !s.hasUngrouped)) {
         return failure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
       }
       // Station 7's 2,730 (owner, 4.10.2026): the board opens with the blocks
@@ -2288,6 +2311,9 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     if (typed !== (typeof task.correctAnswer === 'number' ? task.correctAnswer : task.numberA ?? 0)) {
       return failure('wrong_numeric', 'כִּמְעַט... 🧐', asksDigitValue ? 'זה עוד לא הערך של הספרה. הסתכלו בבית המספרים ובדקו שוב!' : 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!', 2800);
     }
+    // 347 is a guided step: the checklist already shows its done note, so its
+    // success is the tool steps' one (audit A2-F13).
+    if (session1DoneNoteHe(task.id) !== null) return success('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2000);
     return success('כָּל הַכָּבוֹד! 🌟', asksDigitValue ? 'מצאתם את הערך של הספרה במספר.' : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
   }
 
@@ -3472,6 +3498,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     focusedPlace: null,
     isAdditionHelperOpen: false,
     additionHelperOffered: false,
+    additionHelperOfferedUnopened: false,
 
     hasInteracted: false,
     placeCuesShown: false,
@@ -3663,6 +3690,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // 18): a new meeting starts without them.
         isAdditionHelperOpen: false,
         additionHelperOffered: false,
+        additionHelperOfferedUnopened: false,
         // Module 17: from here on the store holds this learner's meeting.
         workspaceInitializedFor: { learner: currentStudentUid(), meeting: sanitized, restoredSavedAt: null },
       });
@@ -3868,6 +3896,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         currentState: 'PROBLEM_ACTIVE',
         // Register 18 / decision ב: the return tab, and an open grid, survive a reload.
         additionHelperOffered: saved.additionHelperOffered === true,
+        additionHelperOfferedUnopened: false,
         isAdditionHelperOpen: saved.isAdditionHelperOpen === true,
         // Module 17: from here on the store holds this learner's meeting, as saved.
         // A copy of a fresh start made without the record is still a fresh
@@ -4995,8 +5024,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     lockKeyboard: () => set({ keyboardState: 'LOCKED' }),
     openAdditionHelper: (source = 'hesitation_30s') => {
       if (get().isAdditionHelperOpen) return;
-      set({ isAdditionHelperOpen: true, additionHelperOffered: true });
+      set({ isAdditionHelperOpen: true, additionHelperOffered: true, additionHelperOfferedUnopened: false });
       emitScaffoldEvent(get(), 'ADAPTIVE_GRID_TOGGLED', { action: 'opened', source });
+    },
+    offerAdditionHelper: () => {
+      const s = get();
+      if (s.isAdditionHelperOpen || s.additionHelperOffered) return;
+      set({ additionHelperOffered: true, additionHelperOfferedUnopened: true });
     },
     closeAdditionHelper: () => {
       if (!get().isAdditionHelperOpen) return;
@@ -5358,6 +5392,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         focusedPlace: null,
         isAdditionHelperOpen: false,
     additionHelperOffered: false,
+    additionHelperOfferedUnopened: false,
         hasInteracted: false,
         placeCuesShown: false,
         socraticCardKinds: { taskId: null, kinds: [] },

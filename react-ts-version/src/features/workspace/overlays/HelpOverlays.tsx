@@ -17,6 +17,8 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { MathText } from '../tasks/MathText';
 import { joinSpokenSentences } from '../tasks/spokenSentences';
 import { useStudentChatOpen } from '@/application/useStudentChatOpen';
+import { coachingCardKey, showCoachingCard, useIsAdditionGridOverCard } from '@/application/useAdditionGridOverCard';
+import { CARD_TAB_HE, CARD_TAB_LABEL_HE } from './StudentChatOverlay';
 
 /** The card's silent lock (PRD Module 12 §ב), said by the hint box's read-aloud button too. */
 const LOCK_SENTENCE_HE = 'רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.';
@@ -115,7 +117,16 @@ export function SocraticSidePanel() {
   // so nothing else on the screen moves. Only its read-aloud stops: the speech
   // buttons unmount while folded, and each stops its own read as it goes.
   const chatOpen = useStudentChatOpen((s) => s.open);
-  const folded = helpState === 'socratic' && chatOpen;
+  // Owner's decision, 4.10.2026: the same fold for the addition grid (enhanced
+  // profile). The grid and the card are never shown together; the one that is
+  // not shown is a tab in its own place (useAdditionGridOverCard.ts). While
+  // the card is shown, the grid's amber "לוח החיבור" tab is beside it, in the
+  // grid's slot. Pressing it shows the grid and folds the card — here the
+  // column narrows to the card's "כרטיס החניכה" tab, to make room for the
+  // grid. Pressing that tab, or closing the grid (X), brings the card back as
+  // it was. Not a help event, no telemetry.
+  const gridOverCard = useIsAdditionGridOverCard();
+  const folded = helpState === 'socratic' && (chatOpen || gridOverCard);
 
   // מסמך העיצוב §1.2: כל חלונית נסגרת ב-Escape, דרך ההוק המשותף — אחרת
   // מסך אחד מתנהג אחרת מכל השאר. הכרטיס הזה נשאר עד כה בלי Escape בכלל:
@@ -124,6 +135,20 @@ export function SocraticSidePanel() {
   // לנווט אל הלוח ואל כפתור הביטול בזמן שהוא פתוח (מודול 12 §ב).
   // Folded, Escape belongs to the chat: it closes the chat, and the card comes back.
   const cardRef = useDismissableOverlay<HTMLElement>(helpState === 'socratic' && !folded, closeHelp, { trapFocus: false, autoFocus: false });
+
+  // The card comes back from under the grid (its tab, the chat's tab, or the
+  // grid's X): the keyboard's focus comes to the card, instead of staying on
+  // a control that is gone. Only for the same card: a new card that arrives
+  // unfolded never takes the focus from the learner's typing.
+  const cardKey = useWorkspaceStore(coachingCardKey);
+  const wasOverRef = useRef<string | null>(null);
+  useEffect(() => {
+    const wasOverKey = wasOverRef.current;
+    wasOverRef.current = gridOverCard ? cardKey : null;
+    if (!gridOverCard && !folded && wasOverKey !== null && wasOverKey === cardKey) {
+      cardRef.current?.focus({ preventScroll: true });
+    }
+  }, [gridOverCard, folded, cardKey, cardRef]);
 
   const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
   // Until the engine answers (at most 8 seconds) the card shows an hourglass,
@@ -231,10 +256,27 @@ export function SocraticSidePanel() {
           animate={{ maxWidth: 400, opacity: 1 }}
           exit={{ maxWidth: 0, opacity: 0, pointerEvents: 'none' }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px]"
+          className={`socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden ${
+            gridOverCard ? 'w-16' : 'w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px]'
+          }`}
           dir="rtl"
           data-testid="socratic-side-panel"
         >
+            {/* The card folded for the addition grid: its tab, in the card's
+                own column (under the chat the tab is in the chat's header). */}
+            {gridOverCard && !chatOpen && (
+              <button
+                type="button"
+                onClick={showCoachingCard}
+                data-testid="socratic-card-tab"
+                aria-label={CARD_TAB_LABEL_HE}
+                title={CARD_TAB_LABEL_HE}
+                className="pointer-events-auto shrink-0 w-16 min-h-[72px] px-1 py-2 rounded-2xl text-sm font-bold leading-tight flex flex-col items-center justify-center gap-1 border-2 border-indigo-200 dark:border-indigo-800/80 bg-ws-surface text-ws-ink hover:bg-ws-accentSoft/40 active:scale-95 transition-all cursor-pointer shadow-sm"
+              >
+                <span aria-hidden="true">💡</span>
+                <span className="text-center">{CARD_TAB_HE}</span>
+              </button>
+            )}
             <aside
               ref={cardRef}
               /* Fixed inner width, so the text does not reflow while the panel
@@ -244,11 +286,13 @@ export function SocraticSidePanel() {
                  the close button fit in the panel down to a 585px-high window.
                  overflow-y-auto stays only as a last resort for a still
                  shorter screen. */
-              className={`h-full min-h-0 flex flex-col w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto ${
-                folded ? 'invisible pointer-events-none' : 'pointer-events-auto'
+              className={`h-full min-h-0 flex-col w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
+                gridOverCard ? 'hidden' : folded ? 'flex invisible pointer-events-none' : 'flex pointer-events-auto'
               }`}
               // Folded: hidden, unreachable by Tab and screen readers, still mounted.
               inert={folded || undefined}
+              // Focusable by the page only (the card's return from under the grid), not by Tab.
+              tabIndex={-1}
               data-folded={folded ? 'true' : undefined}
               role="region"
               aria-label="כרטיס החניכה"
@@ -299,8 +343,8 @@ export function SocraticSidePanel() {
                     ✕
                   </button>
                 </div>
+                <CardTitle />
                 <h2 className="font-display font-black text-[clamp(0.875rem,2.4vh,1.25rem)] text-ws-ink leading-tight">
-                  <span className="me-1" aria-hidden="true">💡</span>
                   <MathText text={shownCard?.questionHe || 'שאלה מנחה לחשיבה'} />
                 </h2>
               </div>
@@ -312,6 +356,26 @@ export function SocraticSidePanel() {
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/**
+ * The card's own name, at its top (owner's decision, 4.10.2026): the tab the
+ * card folds into is called "כרטיס החניכה", so the card itself says so — the
+ * tab names something the learner has seen. One quiet line beside the
+ * read-aloud and ✕ buttons, above the question, in the card's label style
+ * ("בחרו את הדרך הנכונה להתקדם:"), so it does not read as the question's
+ * first words. Not on the hourglass, which has no text (owner, 28.9.2026; X22).
+ */
+function CardTitle() {
+  return (
+    <p
+      className="font-extrabold text-xs text-ws-soft whitespace-nowrap mb-[clamp(0.125rem,0.5vh,0.375rem)]"
+      data-testid="socratic-card-title"
+    >
+      <span className="me-1" aria-hidden="true">💡</span>
+      {CARD_TAB_HE}
+    </p>
   );
 }
 
@@ -413,7 +477,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false }: { choi
     <div className="mt-[clamp(0.25rem,1.2vh,1rem)] flex flex-col gap-[clamp(0.25rem,0.9vh,0.625rem)] shrink-0">
       {/* While the answer buttons are locked the prompt's line goes to the
           hint; it comes back with the buttons. */}
-      {!locked && !answered && <p className="font-extrabold text-xs text-ws-soft">בחרו את הדרך הנכונה להתקדם:</p>}
+      {!locked && !answered && <p className="font-extrabold text-xs text-ws-soft">בחרו תשובה:</p>}
       {options.map((opt) => {
         const isChosen = selectedOpt === opt.id;
         const isWrongChosen = isChosen && !opt.correct;

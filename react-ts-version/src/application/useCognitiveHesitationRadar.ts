@@ -89,6 +89,8 @@ export function useCognitiveHesitationRadar({
   // Module 10's 30s grid stage runs on its own deadline so that reaching it
   // never consumes or delays the 45s Socratic stage below.
   const gridTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The 30-second grid stage came due while the coaching card was open. */
+  const gridDeferredRef = useRef(false);
   /** Module 18 §ב — the teacher radar stage, on the admin-calibrated threshold. */
   const radarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Store callback in a ref so changes to it don't reset the timer
@@ -117,7 +119,10 @@ export function useCognitiveHesitationRadar({
       clearTimeout(radarTimeoutRef.current);
     }
     lastActivityRef.current = Date.now();
-    
+    // A cognitive action restarts the count: a grid that was waiting for the
+    // coaching card to close is no longer due.
+    gridDeferredRef.current = false;
+
     if (!isActive) return;
 
     // Module 10 — stage 1 (30s): open the adaptive addition grid. The rule for
@@ -127,7 +132,7 @@ export function useCognitiveHesitationRadar({
       const wsState = useWorkspaceStore.getState();
       // Module 19 §ב: the profile applied at this exercise's start, never the live record.
       const supportProfileId = wsState.activeSupportProfileId;
-      if (
+      const due =
         shouldOpenAdaptiveGrid({
           supportProfileId,
           sessionNumber: wsState.sessionNumber,
@@ -135,10 +140,23 @@ export function useCognitiveHesitationRadar({
         }) &&
         // Owner, 1.10.2026 (D7): the grid opens only in an addition exercise —
         // not in station 3's representations, not in a subtraction.
-        isAdditionExercise(selectStandardTask(wsState))
-      ) {
-        wsState.openAdditionHelper();
+        isAdditionExercise(selectStandardTask(wsState));
+      if (!due) return;
+      // The grid and the coaching card are never shown together
+      // (StudentWorkspacePage), so while the card is open the grid is not
+      // opened over or behind it, and no ADAPTIVE_GRID_TOGGLED is written for
+      // a grid that did not appear. It is offered: its "לוח החיבור" tab
+      // appears beside the card, and the learner may press it. And it is
+      // deferred, not dropped: it opens when the card closes, unless a
+      // cognitive action came first or the learner opened it from the tab.
+      // The same during the 300 ms "נסו לחשוב…" beat before a card: the card
+      // is on its way, and a grid opened now would be hidden at once.
+      if (wsState.helpState !== 'closed') {
+        wsState.offerAdditionHelper();
+        gridDeferredRef.current = true;
+        return;
       }
+      wsState.openAdditionHelper();
     }, GRID_STAGE_SECONDS * 1000);
 
     timeoutRef.current = setTimeout(() => {
@@ -285,12 +303,44 @@ export function useCognitiveHesitationRadar({
     clearHesitating();
 
     let lastSignature = selectCognitiveState(useWorkspaceStore.getState());
+    let lastHelpState = useWorkspaceStore.getState().helpState;
+    let lastGridOpen = useWorkspaceStore.getState().isAdditionHelperOpen;
     const unsubscribe = useWorkspaceStore.subscribe((state: any) => {
       const next = selectCognitiveState(state);
       if (next !== lastSignature) {
         lastSignature = next;
         if (hesitatingPublishedRef.current) clearHesitating();
         resetTimeout();
+      }
+      // The coaching card closed: a grid that came due behind it opens now,
+      // on the same rule as at 30 seconds — and only into an exercise the
+      // learner is still working on. The card also closes when the exercise
+      // was just solved (the last one drops its card on the way to the next
+      // screen): the wait ends there, and nothing opens. (If this same change
+      // was a cognitive action, resetTimeout above has already cleared the wait.)
+      // The grid opened, by any way (the learner's press on its tab under the
+      // card): the wait is over. If the learner then closes it, it stays
+      // closed — the card's closing does not open it again.
+      if (state.isAdditionHelperOpen && !lastGridOpen) gridDeferredRef.current = false;
+      lastGridOpen = state.isAdditionHelperOpen;
+      // "Closed" from the card or from the beat before it: a card refused
+      // after the beat releases the wait too.
+      const cardClosed = lastHelpState !== 'closed' && state.helpState === 'closed';
+      lastHelpState = state.helpState;
+      if (cardClosed && gridDeferredRef.current) {
+        gridDeferredRef.current = false;
+        if (
+          state.flowStatus === 'task' &&
+          !state.awaitingNext &&
+          shouldOpenAdaptiveGrid({
+            supportProfileId: state.activeSupportProfileId,
+            sessionNumber: state.sessionNumber,
+            isAdditionHelperOpen: state.isAdditionHelperOpen,
+          }) &&
+          isAdditionExercise(selectStandardTask(state))
+        ) {
+          state.openAdditionHelper();
+        }
       }
     });
 

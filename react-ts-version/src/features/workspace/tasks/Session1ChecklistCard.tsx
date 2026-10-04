@@ -20,27 +20,29 @@ export function Session1ChecklistCard({ items, doneNote = null }: { items: Sessi
   const allDone = items.every((i) => i.done);
   const proceedHe = proceedSentenceHe();
   return (
-    <div className="flex flex-col gap-fl-6-16 bg-ws-surface p-fl-8-24 rounded-2xl border border-ws-surface2 shadow-sm" data-testid="session1-checklist">
+    <div className={`flex flex-col bg-ws-surface rounded-2xl border border-ws-surface2 shadow-sm ${allDone ? 'gap-1.5 px-fl-8-24 py-2' : 'gap-fl-6-16 p-fl-8-24'}`} data-testid="session1-checklist">
       <div className="flex items-center justify-between gap-3 mb-fl-0-4">
         <h3 className="text-lg font-bold text-ws-ink">📋 מה עושים בשלב הזה:</h3>
         {/* PRD Module 24: every instruction on screen has its read-aloud button. */}
         <UdlSpeechButton text={items.map((i) => i.label).join('. ')} />
       </div>
 
-      <div className="flex flex-col gap-fl-4-12">
+      {/* Every item done: one compact line per item, no "בוצע!" pills, so the
+          done box below fits without scrolling (audit A2-F04). */}
+      <div className={`flex flex-col ${allDone ? 'gap-1' : 'gap-fl-4-12'}`} data-testid="session1-checklist-items">
         {items.map((item) => (
           // Below 1024 px (portrait tablet, tier B) the count may go under the
           // words: beside them, a narrow column broke the line word by word.
-          <div key={item.label} className="flex items-center justify-between max-lg:flex-wrap max-lg:gap-y-2 px-fl-8-16 py-fl-5-16 rounded-xl bg-ws-bg border border-ws-surface2 transition-all">
+          <div key={item.label} className={`flex items-center justify-between max-lg:flex-wrap max-lg:gap-y-2 px-fl-8-16 rounded-xl bg-ws-bg border border-ws-surface2 transition-all ${allDone ? 'py-1' : 'py-fl-5-16'}`}>
             <div className="flex items-center gap-3">
-              <span className={`text-fl-16-24 transition-transform ${item.done ? 'scale-110 text-green-500' : 'text-slate-400'}`}>
+              <span className={`${allDone ? 'text-base' : 'text-fl-16-24'} transition-transform ${item.done ? 'scale-110 text-green-500' : 'text-slate-400'}`}>
                 {item.done ? '✅' : '⏳'}
               </span>
-              <span className={`text-base font-semibold ${item.done ? 'text-ws-soft line-through' : 'text-ws-ink'}`}>
+              <span className={`${allDone ? 'text-sm' : 'text-base'} font-semibold ${item.done ? 'text-ws-soft line-through' : 'text-ws-ink'}`}>
                 {item.label}
               </span>
             </div>
-            {item.progress ? (
+            {allDone ? null : item.progress ? (
               <div className="flex items-center gap-2">
                 <div className="w-20 bg-slate-200 h-2 rounded-full overflow-hidden">
                   <div
@@ -63,13 +65,13 @@ export function Session1ChecklistCard({ items, doneNote = null }: { items: Sessi
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mt-fl-0-8 p-fl-10-16 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl text-center shadow-sm"
+          className="px-fl-10-16 py-2 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl text-center shadow-sm"
           role="status"
           aria-live="polite"
           data-testid="session1-done"
         >
           {doneNote && (
-            <div className="flex items-center justify-center gap-2 mb-2">
+            <div className="flex items-center justify-center gap-2 mb-1">
               <span className="text-emerald-800 font-black text-base">{doneNote}</span>
             </div>
           )}

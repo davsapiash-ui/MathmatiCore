@@ -42,7 +42,7 @@ import {
 } from '@/application/useWorkspaceStore';
 import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 import { cardFamilyOf } from '@/infrastructure/services/staticSocraticCards';
-import { getSessionTasks } from '@/data/sessionTasks';
+import { getSessionTasks, SESSION1_TASKS } from '@/data/sessionTasks';
 import { EMPTY_COUNTS, type Place } from '@/core/placeValue';
 
 type Counts = Record<Place, number>;
@@ -155,18 +155,18 @@ describe('s7_g_t6 (2,730): the static cards against the board that opens with it
     expect(served.length).toBeGreaterThan(500);
   });
 
-  it('the twelve cards it can get, by situation', () => {
+  it('the cards it can get, by situation', () => {
     const situations = [...new Set(served.map((x) => String((x.card as any).situation)))].sort();
     expect(situations).toEqual([
-      'board_empty_build_first', 'board_hidden', 'build_first_how', 'crowded_column', 'group_action', 'show_board_button', 'which_number_built', 'write_digits',
+      'board_hidden', 'crowded_column', 'group_action', 'restore_given', 'restore_given_how', 'show_board_button', 'which_number_built', 'write_digits',
     ]);
   });
 
-  it('no card tells the learner to build, or says the learner built the number — but the two known cases below', () => {
+  it('no card tells the learner to build, or says the learner built the number', () => {
     // The two cards of a hidden board are every exercise's; one wrong-option
-    // hint of theirs says "הלבנים שבניתם". The two cards of an empty board:
-    // see the next test. Both reported to the owner (4.10.2026), not reworded.
-    const hiddenBoard = new Set(['board_hidden', 'show_board_button', 'board_empty_build_first', 'build_first_how']);
+    // hint of theirs says "הלבנים שבניתם" until the owner's rewording of it
+    // (cards round 2, C) merges from its own branch, claude/sj-g7c-card-wording.
+    const hiddenBoard = new Set(['board_hidden', 'show_board_button']);
     for (const x of served) {
       if (hiddenBoard.has(String((x.card as any).situation))) continue;
       for (const t of textsOf(x.card)) {
@@ -191,17 +191,69 @@ describe('s7_g_t6 (2,730): the static cards against the board that opens with it
     expect(at('tens grouped')[0]).toBe('נסו לחשוב: בטור המאות יש 10 לבנים או יותר. מה עושים?');
   });
 
-  it('KNOWN, for the owner: the board cleared by the child still gets "build what the instruction asks"', () => {
-    // The instruction of 4.10.2026 asks for nothing to be built. Meeting 1's
-    // cards for the 26 units ("מחזירים אותן בכפתור ביטול הפעולה, ואז מקבצים")
-    // name the button "קבצו 10 לעשרת", which is not this exercise's, and a
-    // family needs a second level (audit D5) — so a true card needs new
-    // wording, which is the owner's. Pinned so the day it is written this fails.
-    const cleared = served.filter((x) => x.what === 'the board cleared');
-    expect([...new Set(cleared.map((x) => x.card.questionHe))]).toEqual([
-      'נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?',
-      'נסו לחשוב: איך בונים בבית המספרים את מה שההנחיה מבקשת?',
-    ]);
+  // The owner's cards of 4.10.2026 (cards round 2, B1 and B2), word for word.
+  const B1 = {
+    q: 'נסו לחשוב: בית המספרים לא נראה עכשיו כמו בתחילת התרגיל. מה עושים?',
+    options: [
+      ['מחזירים את הלבנים שהיו בתחילת התרגיל', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שבית המספרים ייראה כמו בתחילת התרגיל. הכפתור אפור, ובית המספרים עדיין נראה אחרת? לחצו על פח האשפה, ואז גררו מארגז הכלים את הלבנים שבהנחיה, כל לבנה אל הטור שלה. אחר כך לחצו על הכפתור "קבצו 10" בכל טור שיש בו 10 לבנים או יותר.', true],
+      ['ממשיכים בתרגיל בלי להחזיר את הלבנים', 'רמז: אילו לבנים ההנחיה מתארת?', false],
+      ['כותבים מספר בשורת התוצאה', 'רמז: מה ההנחיה מבקשת לעשות עם הלבנים שהיו בתחילת התרגיל?', false],
+    ],
+    intent: 'הלבנים שהתרגיל נתן השתנו: מחזירים אותן בכפתור ביטול הפעולה, או בונים אותן שוב לפי ההנחיה, ורק אז מקבצים',
+  };
+  const B2 = {
+    q: 'נסו לחשוב: איך יודעים אילו לבנים היו בבית המספרים בתחילת התרגיל?',
+    options: [
+      ['קוראים בהנחיה אילו לבנים היו', 'נכון מאוד! לחצו על פח האשפה כדי לנקות את בית המספרים. אחר כך גררו מארגז הכלים את הלבנים שבהנחיה, כל לבנה אל הטור שלה. בסוף לחצו על הכפתור "קבצו 10" בכל טור שיש בו 10 לבנים או יותר.', true],
+      ['אי אפשר לדעת', 'רמז: מה כתוב במשפט הראשון של ההנחיה?', false],
+      ['מנחשים אילו לבנים היו', 'רמז: איפה על המסך כתוב אילו לבנים היו בבית המספרים?', false],
+    ],
+    intent: 'ההנחיה מונה את הלבנים שהיו בהתחלה: מנקים את בית המספרים, בונים אותן שוב מארגז הכלים ומקבצים',
+  };
+  const asPinned = (c: SocraticHintResponse) => ({
+    q: c.questionHe,
+    options: c.choices.map((o) => [o.textHe, o.feedbackHe, Boolean(o.isCorrect)]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+    intent: c.intentHe,
+  });
+  const sorted = (b: typeof B1) => ({ ...b, options: [...b.options].sort((x, y) => String(x[0]).localeCompare(String(y[0]))) });
+
+  const CHANGED = [
+    'the board cleared',
+    'a ten deleted from the opening board',
+    'a hundred deleted from the opening board',
+    'a ten added to the opening board',
+    'unit blocks added to the opening board',
+    'the final blocks arranged by hand, nothing grouped',
+    'tens grouped, the hundreds arranged by hand',
+  ];
+
+  it('the given blocks changed — cleared, deleted, added, or the final blocks arranged by hand: B1, then B2', () => {
+    for (const what of CHANGED) {
+      for (const trigger of TRIGGERS) {
+        const cards = served.filter((x) => x.what === what && x.trigger === trigger && x.focus === null).map((x) => x.card);
+        expect(cards.length, `${what} / ${trigger}`).toBe(3);
+        expect(asPinned(cards[0]), `${what} / ${trigger}`).toEqual(sorted(B1));
+        expect(asPinned(cards[1]), `${what} / ${trigger}`).toEqual(sorted(B2));
+        expect(cards[2].questionHe).toBe(B2.q);
+        expect([cards[0].cardKind, cards[1].cardKind]).toEqual(['restore_given', 'restore_given_how']);
+      }
+    }
+  });
+
+  it('…and only then: the given blocks as they were, regrouped, or grouped by the buttons get their own cards', () => {
+    const others = SITUATIONS.map((s) => s.what).filter((w) => !CHANGED.includes(w));
+    expect(others.length).toBeGreaterThan(8);
+    for (const x of served.filter((s) => others.includes(s.what))) {
+      expect(String((x.card as any).situation), x.what).not.toMatch(/^restore_given/);
+    }
+  });
+
+  it('no other exercise gets them: meeting 1\'s 26 units keep their own cards', () => {
+    const g26 = SESSION1_TASKS.find((t) => t.id === 's1_r_group26')!;
+    for (const counts of [C(0, 0, 0, 25), C(0, 0, 0, 0), C(0, 0, 2, 6)]) {
+      const card = SocraticEngine.getSynchronousTaskHint(g26, counts, { conversionDone: false } as any);
+      expect(String((card as any).situation)).not.toMatch(/^restore_given/);
+    }
   });
 
   if (process.env.G7_DUMP) {
@@ -218,4 +270,31 @@ describe('s7_g_t6 (2,730): the static cards against the board that opens with it
       fs.writeFileSync(process.env.G7_DUMP!, JSON.stringify([...byText.values()], null, 1));
     });
   }
+});
+
+describe('s7_g_t6 (2,730): what the coaching function is told', () => {
+  it('the opening blocks go as start_counts with start_given, and whether both groupings are done', async () => {
+    const { socraticTaskContextFor } = await import('@/infrastructure/services/SocraticEngine');
+    const ctxOf = (s: Situation) => staticCardContextFor(stateOf(s, [], null, null), TASK.id, TASK, { reason: 'hesitation_45s', place: null });
+    const at = (what: string) => SITUATIONS.find((s) => s.what === what)!;
+    expect(socraticTaskContextFor(TASK, ctxOf(SITUATIONS[0]))).toMatchObject({
+      kind: 'representation',
+      required_counts: { thousands: 2, hundreds: 7, tens: 3 },
+      start_counts: { thousands: 1, hundreds: 16, tens: 13 },
+      start_given: true,
+      conversion_done: false,
+    });
+    expect(socraticTaskContextFor(TASK, ctxOf(at('tens grouped')))!.conversion_done).toBe(false);
+    expect(socraticTaskContextFor(TASK, ctxOf(at('both grouped, nothing written')))!.conversion_done).toBe(true);
+    expect(socraticTaskContextFor(TASK, ctxOf(at('the final blocks arranged by hand, nothing grouped')))!.conversion_done).toBe(false);
+  });
+
+  it('meeting 1\'s 26 units are given blocks too; an exercise the child builds is not', async () => {
+    const { socraticTaskContextFor } = await import('@/infrastructure/services/SocraticEngine');
+    const g26 = SESSION1_TASKS.find((t) => t.id === 's1_r_group26')!;
+    expect(socraticTaskContextFor(g26)).toMatchObject({ start_counts: { units: 26 }, start_given: true });
+    const built = getSessionTasks(7, 'green_path').find((t) => t.id === 's7_g_t1')!;
+    expect(socraticTaskContextFor(built)!.start_given).toBeUndefined();
+    expect(socraticTaskContextFor(built)!.start_counts).toMatchObject({ hundreds: 25 });
+  });
 });

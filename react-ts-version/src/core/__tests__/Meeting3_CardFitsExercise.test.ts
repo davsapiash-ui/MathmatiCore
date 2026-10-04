@@ -220,10 +220,12 @@ describe('the AI guard reads only an option that is a choice of blocks (second r
   it('rejects a card that marks the instruction\'s blocks wrong, or other blocks right', () => {
     expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('נשתמש ב-34 מאות', 'נשתמש ב-3 אלפים ו-4 מאות'))).toBe(true);
     expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('נבנה את המספר ב-3,400 יחידות', 'ננחש'))).toBe(true);
-    expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('נשתמש ב-3 אלפים ו-4 מאות', 'נשתמש ב-34 מאות'))).toBe(false);
+    // Owner, 4.10.2026: 3,400 names no blocks, so 34 hundreds is a right build — never an option marked wrong.
+    expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('נשתמש ב-3 אלפים ו-4 מאות', 'נשתמש ב-34 מאות'))).toBe(true);
+    expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('נשתמש ב-3 אלפים ו-4 מאות', 'נשתמש ב-33 מאות'))).toBe(false);
     // The cards, and the model since 28.9.2026, write the options in the impersonal present.
     expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('משתמשים ב-34 מאות', 'משתמשים ב-3 אלפים ו-4 מאות'))).toBe(true);
-    expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('משתמשים ב-3 אלפים ו-4 מאות', 'משתמשים ב-34 מאות'))).toBe(false);
+    expect(contradictsRequiredRepresentation(byId('s3_g_t1'), opts('משתמשים ב-3 אלפים ו-4 מאות', 'משתמשים ב-34 מאות'))).toBe(true);
   });
   it('keeps a card whose options are steps or actions, not a choice of blocks', () => {
     const t347 = { id: 's1_target_347', type: 'representation', numberA: 347, requiredCounts: { hundreds: 3, tens: 3, units: 17 } };

@@ -284,20 +284,22 @@ describe('3 — a result digit missing: the instruction says what to do with the
   it('400 − 156 is the one instruction over 300 characters: its lines sit closer, every other instruction keeps its spacing', async () => {
     expect(bank.filter((t) => (t.instructionHe ?? '').length > 300).map((t) => t.id)).toEqual(['s6_r_t7']);
     const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
-    const classOf = (meeting: number, id: string) => {
+    const shown = (meeting: number, id: string) => {
       load(meeting, byId(id));
       render(<TaskCard />);
-      const cls = screen.getByTestId('task-instruction').className;
+      const box = screen.getByTestId('task-instruction');
+      const out = { cls: box.querySelector('p')!.className, lineHeight: box.style.getPropertyValue('--instruction-leading') };
       cleanup();
-      return cls;
+      return out;
     };
-    expect(classOf(6, 's6_r_t7')).toContain('leading-[1.4]');
+    expect(shown(6, 's6_r_t7').lineHeight).toBe('1.4');
     for (const [m, id] of [[6, 's6_r_t6'], [4, 's4_r_t7'], [8, 's8_g_t1']] as const) {
-      expect(classOf(m, id), id).toContain('leading-[1.55]');
-      expect(classOf(m, id), id).toContain('text-fl-16-20');
+      expect(shown(m, id).lineHeight, id).toBe('');
+      // 1.55 unless the box says otherwise.
+      expect(shown(m, id).cls, id).toContain('leading-[var(--instruction-leading,1.55)]');
     }
     // The size of the text is the same for the long one.
-    expect(classOf(6, 's6_r_t7')).toContain('text-fl-16-20');
+    expect(shown(6, 's6_r_t7').cls).toBe(shown(6, 's6_r_t6').cls);
   });
 
   it('both fit what the coaching function accepts as an instruction (400 characters)', () => {

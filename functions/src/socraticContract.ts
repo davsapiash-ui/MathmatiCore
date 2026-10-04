@@ -1341,6 +1341,10 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
       : start_given
         ? `הלבנים שהתרגיל נתן בהתחלה השתנו${meeting1 ? "" : `${more.length ? `: ב${more.join(" וב")} יש יותר לבנים ממה שהתרגיל נתן` : ""}${less.length ? `${more.length ? "," : ":"} ב${less.join(" וב")} יש פחות לבנים ממה שהתרגיל נתן` : ""}`}. כוון לבדוק אם זה עדיין אותו מספר, ולחזור ללבנים שהיו בהתחלה בכפתור ביטול הפעולה — לא לכתוב את מה שבבית המספרים עכשיו.`
         : `בית המספרים עוד לא מראה את מה שההנחיה מבקשת${meeting1 ? "" : `${more.length ? `: ב${more.join(" וב")} יש יותר לבנים ממה שצריך` : ""}${less.length ? `${more.length ? "," : ":"} ב${less.join(" וב")} יש פחות לבנים ממה שצריך` : ""}`}. כוון לקרוא שוב את ההנחיה ולבדוק מה עוד לא נעשה — לא לספור ולכתוב את מה שבנוי עכשיו.`;
+  } else if (start_given && board_matches_task && tc?.conversion_done === false) {
+    // The final blocks, arranged by hand: the grouping the exercise asks for was not made.
+    suggested_category = "procedural";
+    suggested_focus_he = "בבית המספרים הלבנים שבסוף התרגיל, אבל הן סודרו ביד, בלי הכפתור \"קבצו 10\". ההנחיה מבקשת לקבץ את הלבנים שהתרגיל נתן בהתחלה. כוון לחזור ללבנים שהיו בהתחלה (כפתור ביטול הפעולה) ולקבץ אותן בכפתור — לא לכתוב את המספר.";
   } else if (board_matches_task && trigger === "repeated_errors") {
     suggested_category = "conceptual";
     suggested_focus_he = "בית המספרים מראה בדיוק את מה שההנחיה מבקשת, אבל התשובה שנכתבה שגויה — כוון לקרוא את המספר מהלבנים: כמה שווה כל טור.";
@@ -1740,7 +1744,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   } else if (tc) {
     lines.push(`סוג המשימה: ${facts.start_given ? START_GIVEN_KIND_HE : TASK_KIND_HE[tc.kind]}.`);
     lines.push(`ההנחיה שעל המסך: «${tc.instruction_he}»`);
-    if (facts.start_given) lines.push("הלומד לא בנה את הלבנים ולא את המספר: אסור לכתוב \"בניתם\", \"בנו\" או \"המספר שבניתם\".");
+    if (facts.start_given) lines.push("הלומד לא בנה את הלבנים ולא את המספר: אסור לכתוב \"בניתם\" או \"המספר שבניתם\".");
     lines.push("אין כאן תרגיל חיבור או חיסור במאונך, ואין טור פעיל.");
     if (facts.secret_numbers.length) {
       lines.push("אסור לכתוב את המספר שהלומד צריך למצוא — לא בספרות ולא כרשימת לבנים (גם לא רשימת הלבנים שבהנחיה, למשל \"3 לבני אלף ו-4 לבני מאה\"): שאלו על הלבנים בלי למנות אותן.");
@@ -2487,8 +2491,8 @@ function normalizeOptions(raw: unknown): { option_text: string; feedback_text: s
  * `facts` is optional so the legacy free-text path can still validate
  * everything except the leak check.
  */
-/** "בניתם", "שבניתם", "בנו את …" — the child as the one who built the blocks. */
-export const BUILT_BY_CHILD_HE = /(?:^|[^א-ת])(?:ש|כש|ו)?(?:בניתם|בנו|תבנו)(?![א-ת])/;
+/** "בניתם", "שבניתם" — the child as the one who built the blocks the exercise gave. (An instruction to build them again, after they were lost, is allowed.) */
+export const BUILT_BY_CHILD_HE = /(?:^|[^א-ת])(?:ש|כש|ו)?בניתם(?![א-ת])/;
 
 export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | null): Validation<SocraticResponse> {
   let parsed: unknown = raw;

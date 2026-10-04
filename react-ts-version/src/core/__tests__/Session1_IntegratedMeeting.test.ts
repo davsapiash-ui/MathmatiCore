@@ -379,6 +379,8 @@ describe('the store gate follows the checklist', () => {
       counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 },
       hasUngrouped: true,
       hasGrouped: false,
+      // A ten broken into the units (A2-F06: the conversion is checked per column).
+      conversionsByColumn: { composed: {}, decomposed: { units: true } },
       hasClearedBoard: true,
       blocksAddedCount: 6,
       answerDigits: { hundreds: '3', tens: '4', units: '7' },
@@ -462,7 +464,8 @@ describe('the store gate follows the checklist', () => {
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_r_group26'));
     expect(useWorkspaceStore.getState().feedback?.sub).toContain('בעזרת הכפתור שבראש הטור');
     // Grouped from loose units: accepted, and the target task comes next.
-    useWorkspaceStore.setState({ hasGrouped: true });
+    // Grouped twice (A2-F06: 26 groups the units twice, checked per column).
+    useWorkspaceStore.setState({ hasGrouped: true, conversionsByColumn: { composed: { units: true }, decomposed: {}, times: { composed: { units: 2 } } } });
     useWorkspaceStore.getState().proceed();
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_target_347'));
   });
@@ -577,7 +580,7 @@ describe('the live card never asks to undo the step the exercise asks for', () =
 
   it('26 loose units in the grouping refresh still get the grouping card, without the count', () => {
     const hint = SocraticEngine.analyzeLiveBoardState(task('s1_r_group26'), 'flexible_regrouping', { ...EMPTY_COUNTS, units: 26 });
-    expect(hint?.questionHe).toBe('באחד הטורים יש 10 לבנים או יותר. מה עושים?');
+    expect(hint?.questionHe).toBe('נסו לחשוב: באחד הטורים יש 10 לבנים או יותר. מה עושים?');
     expect(hint?.questionHe).not.toContain('26');
   });
 
@@ -608,7 +611,7 @@ describe('the live card never asks to undo the step the exercise asks for', () =
 
   it('an addition with 12 units still gets the grouping card, without the count', () => {
     const hint = SocraticEngine.analyzeLiveBoardState(task('s1_t8'), 'regrouping_fluency', { ...EMPTY_COUNTS, hundreds: 7, units: 12 });
-    expect(hint?.questionHe).toBe('באחד הטורים יש 10 לבנים או יותר. מה עושים?');
+    expect(hint?.questionHe).toBe('נסו לחשוב: באחד הטורים יש 10 לבנים או יותר. מה עושים?');
     expect(hint?.questionHe).not.toContain('12');
   });
 });

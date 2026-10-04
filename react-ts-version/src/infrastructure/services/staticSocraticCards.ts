@@ -26,6 +26,7 @@
  */
 
 import type { Place } from '@/core/placeValue';
+import { buildsAnyWay, builtAnyWay, representationKindOfTask } from '@/data/representationLocks';
 import type { SocraticHintResponse } from './SocraticEngine';
 
 const LOW_TO_HIGH: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
@@ -389,10 +390,14 @@ function chosenCounts(text: string): Counts | null {
 export function contradictsRequiredRepresentation(task: any, choices: { textHe: string; isCorrect?: boolean }[]): boolean {
   if (task?.type !== 'representation' || !task.requiredCounts) return false;
   const required: Counts = task.requiredCounts;
+  // "Build the number X" with no word on how (owner, 4.10.2026): every build
+  // worth X is right (34 tens for 340), so none may be an option marked
+  // wrong. The right option stays the exercise's own board, as before.
+  const anyWay = buildsAnyWay(task);
   for (const c of choices) {
     const chosen = chosenCounts(c.textHe);
     if (!chosen) continue;
-    if (!c.isCorrect && sameCounts(chosen, required)) return true;
+    if (!c.isCorrect && (sameCounts(chosen, required) || (anyWay && builtAnyWay(task, chosen)))) return true;
     if (c.isCorrect && !sameCounts(chosen, required)) return true;
   }
   return false;
@@ -448,6 +453,8 @@ export const STATIC_CARD_KINDS = [
   'add_column', 'carry_written', 'sub_column', 'sub_after_borrow', 'carry_forgotten', 'carry_circle',
   'break_as_asked', 'break_result', 'group_as_asked', 'group_result',
   'compare_words', 'compare_words_column', 'board_hidden', 'guessing', 'count_not_number', 'column_count', 'group_yourselves',
+  // Owner, 4.10.2026 (cards round 2, B1/B2): the blocks an exercise gave changed (2,730).
+  'restore_given', 'restore_given_how',
 ] as const;
 export type StaticCardKind = typeof STATIC_CARD_KINDS[number];
 
@@ -461,6 +468,7 @@ const CARD_FAMILY: Record<StaticCardKind, string> = {
   error_analysis: 'error_analysis', error_analysis_2: 'error_analysis',
   compose_group: 'compose_group', compose_group_2: 'compose_group',
   which_number: 'which_number', which_number_2: 'which_number',
+  restore_given: 'restore_given', restore_given_how: 'restore_given',
   carry: 'carry', carry_2: 'carry', add_start: 'add_start',
   crowded: 'crowded', crowded_2: 'crowded',
   sub_start: 'sub_start',
@@ -2059,20 +2067,9 @@ function smallChangeCard(task: any): SocraticHintResponse {
 /** The station-3 task kinds (and the grouping proofs of station 7). */
 export type RepresentationKind = 'read_write' | 'compose_break' | 'decompose' | 'compose_group';
 
-/** Until every task carries `representationKind` (the station-3 redesign adds it). */
-const KIND_BY_ID: Record<string, RepresentationKind> = {
-  s3_r_t1: 'read_write', s3_r_t5: 'read_write', s3_g_t1: 'read_write', s3_g_t5: 'read_write',
-  s3_r_reinforce_1: 'read_write', s3_g_reinforce_1: 'read_write',
-  s3_r_t2: 'compose_break', s3_r_t4: 'compose_break', s3_r_t6: 'compose_break',
-  s3_g_t2: 'compose_break', s3_g_t4: 'compose_break', s3_g_t6: 'compose_break',
-  s3_r_t3: 'decompose', s3_g_t3: 'decompose', s3_r_reinforce_2: 'decompose', s3_g_reinforce_2: 'decompose',
-  s7_r_t1: 'compose_group', s7_g_t1: 'compose_group', s7_g_reinforce_2: 'compose_group',
-};
-const KINDS: RepresentationKind[] = ['read_write', 'compose_break', 'decompose', 'compose_group'];
-
+/** The task's own `representationKind`, or its id's (data/representationLocks.ts). */
 export function representationKindOf(task: any): RepresentationKind | null {
-  if (KINDS.includes(task?.representationKind)) return task.representationKind;
-  return typeof task?.id === 'string' ? KIND_BY_ID[task.id] ?? null : null;
+  return representationKindOfTask(task);
 }
 
 /** An empty column between two that hold blocks: 506, 6,030 — not 340. */
@@ -2522,6 +2519,12 @@ export function multiStepTarget(task: any): number | null {
 function kindCard(task: any, kind: RepresentationKind, ctx: StaticCardContext, counts?: BoardCounts): SocraticHintResponse | null {
   switch (kind) {
     case 'read_write': {
+      // 506 or 6,030 built another way, a column holding 10 or more (owner,
+      // 4.10.2026): "יש טור שאין בו לבנים" is not this board. Which number is
+      // built; then how 10 or more in a column are read.
+      if (counts && builtAnyWay(task, counts) && LOW_TO_HIGH.some((p) => (counts[p] ?? 0) >= 10)) {
+        return shownIn(ctx, 'which_number') ? whichNumberLevel2(task, ctx, counts) : whichNumberIsBuiltCard();
+      }
       const c = readWriteCard(task);
       if (c.cardKind === 'read_write_zero' && shownIn(ctx, 'read_write_zero')) return zeroPositionCard(task, ctx) ?? c;
       if (isWhichNumberIsBuilt(c) && shownIn(ctx, 'which_number')) return whichNumberLevel2(task, ctx, counts);
@@ -2640,6 +2643,13 @@ export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardCon
   // An empty board: build first what the instruction names; the second card,
   // how blocks get onto the board (2.10.2026).
   const buildFirst = () => ladder(ctx, 'build_first', [['build_first', buildFirstCard], ['build_first_how', buildHowCard]]);
+  // An exercise that opened with its blocks on the board (station 7's 2,730,
+  // owner 4.10.2026), and they are not what it gave — deleted, added, the board
+  // cleared, or the final blocks arranged by hand with nothing grouped: back
+  // to the blocks it started with (B1/B2, cards round 2), before "build first",
+  // the crowded column and "which number is built".
+  const givenChanged = givenBlocksChangedCard(task, counts, ctx);
+  if (givenChanged) return givenChanged;
   // C3 too: "יש טור שאין בו לבנים" says nothing on a board with no blocks at all.
   if (emptyBoard && (composing || kind === 'read_write')) return buildFirst();
   // A part of the number built in another column (1.10.2026): before any
@@ -2838,6 +2848,42 @@ export function s1WrongBreakCard(task: any, counts: BoardCounts, ctx: StaticCard
 }
 
 /**
+ * Station 7's 2,730 (owner, 4.10.2026): the exercise put 1 thousand, 16
+ * hundreds and 13 tens on the board, to be grouped twice. The board is no
+ * longer worth what it gave (blocks deleted or added, the board cleared), or
+ * it shows the final blocks with the groupings not made (arranged by hand):
+ * back to the given blocks — the undo button, or the trash and the toolbox
+ * with the instruction's own list (B1, B2: cards round 2, owner-approved).
+ * Not meeting 1's 26 units (s1StartChangedCard: its instruction hides the count).
+ */
+export function givenBlocksChangedCard(task: any, counts: BoardCounts | undefined, ctx: StaticCardContext = {}): SocraticHintResponse | null {
+  if (!task?.initialCounts || task.requiresGrouping || task.representationKind || typeof task.numberA !== 'number' || !counts) return null;
+  if (meetingOfTaskId(task.id) === 1) return null;
+  const value = boardValue(counts);
+  const finalByHand = task.requiredCounts && sameCounts(counts, task.requiredCounts) && ctx.conversionDone === false;
+  if (value === task.numberA && !finalByHand) return null;
+  return ladder(ctx, 'restore_given', [['restore_given', givenBlocksRestoreCard], ['restore_given_how', givenBlocksFromInstructionCard]]);
+}
+
+/** B1 (frame 1): the board does not look as it did at the start — the undo button, or the trash and the toolbox. */
+function givenBlocksRestoreCard(): SocraticHintResponse {
+  return card(`${OPEN}בית המספרים לא נראה עכשיו כמו בתחילת התרגיל. מה עושים?`, 'procedural', 'tour-action-buttons', [
+    ['מחזירים את הלבנים שהיו בתחילת התרגיל', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שבית המספרים ייראה כמו בתחילת התרגיל. הכפתור אפור, ובית המספרים עדיין נראה אחרת? לחצו על פח האשפה, ואז גררו מארגז הכלים את הלבנים שבהנחיה, כל לבנה אל הטור שלה. אחר כך לחצו על הכפתור "קבצו 10" בכל טור שיש בו 10 לבנים או יותר.'],
+    ['ממשיכים בתרגיל בלי להחזיר את הלבנים', 'רמז: אילו לבנים ההנחיה מתארת?'],
+    ['כותבים מספר בשורת התוצאה', 'רמז: מה ההנחיה מבקשת לעשות עם הלבנים שהיו בתחילת התרגיל?'],
+  ], 'restore_given', frame('restore_given', 1, 'הלבנים שהתרגיל נתן השתנו: מחזירים אותן בכפתור ביטול הפעולה, או בונים אותן שוב לפי ההנחיה, ורק אז מקבצים'));
+}
+
+/** B2 (frame 3): the instruction lists the given blocks — the trash, the toolbox, then the buttons. */
+function givenBlocksFromInstructionCard(): SocraticHintResponse {
+  return card(`${OPEN}איך יודעים אילו לבנים היו בבית המספרים בתחילת התרגיל?`, 'procedural', 'tour-task-card', [
+    ['קוראים בהנחיה אילו לבנים היו', 'נכון מאוד! לחצו על פח האשפה כדי לנקות את בית המספרים. אחר כך גררו מארגז הכלים את הלבנים שבהנחיה, כל לבנה אל הטור שלה. בסוף לחצו על הכפתור "קבצו 10" בכל טור שיש בו 10 לבנים או יותר.'],
+    ['אי אפשר לדעת', 'רמז: מה כתוב במשפט הראשון של ההנחיה?'],
+    ['מנחשים אילו לבנים היו', 'רמז: איפה על המסך כתוב אילו לבנים היו בבית המספרים?'],
+  ], 'restore_given_how', frame('restore_given_how', 3, 'ההנחיה מונה את הלבנים שהיו בהתחלה: מנקים את בית המספרים, בונים אותן שוב מארגז הכלים ומקבצים'));
+}
+
+/**
  * Meeting 1's 26 (the exercise starts with 26 unit blocks) worth another
  * number now — blocks deleted or added (analysts' matrix S14; audit D8): is
  * it still the same number? Then back to the blocks it started with (the
@@ -2952,6 +2998,15 @@ export function meeting1Card(task: any, counts: BoardCounts, ctx: StaticCardCont
       return inFamily(compareWordsCard(), 's1_card');
     }
     if (value > n) return stray(s1WordsSecondCard);
+    // 703 / 482 built another way, a column holding 10 or more (owner,
+    // 4.10.2026: any build is right): how that board is read, from the first
+    // card on. The exercise's own card says "write in each box how many
+    // blocks its column holds" — on 6 hundreds, 10 tens and 3 units that is
+    // 6, 10, 3. No other card fits this board, so the next one is this again.
+    const crowded = LOW_TO_HIGH.find((p) => (counts[p] ?? 0) >= 10);
+    if (words && value === n && crowded) {
+      return inFamily(regroupReadCard('s1_card', false, next(crowded) ?? 'hundreds', crowded, true), 's1_card');
+    }
     if (!level2) return null;
     if (typeof task.correctAnswer === 'number' && task.correctAnswer !== n) return s1ValueSecondCard(task);
     if (value === n && LOW_TO_HIGH.every((p) => (counts[p] ?? 0) < 10)) return writeBoxes(n, 'words');
