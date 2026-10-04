@@ -15,6 +15,7 @@ import {
   GRID_PICK_ROW_HE,
   GRID_PICK_COL_HE,
 } from '@/features/workspace/board/AdaptiveAdditionGrid';
+import { tts } from '@/infrastructure/services/TTSService';
 import { PlaceColumn } from '@/features/workspace/board/PlaceColumn';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
@@ -56,6 +57,17 @@ describe('A7-015 — the grid\'s instruction has a read-aloud button, read on th
     expect(screen.getByTestId('addition-grid-instruction').textContent).toContain(GRID_PICK_COL_HE);
     fireEvent.click(screen.getByRole('button', { name: 'הקראה בקול' }));
     expect(speak.mock.calls[0][0]).toBe(GRID_PICK_COL_HE);
+  });
+
+  it('a grid hidden behind the coaching card stops its own read-aloud', () => {
+    const stopIfCurrent = vi.spyOn(tts, 'stopIfCurrent');
+    const { rerender } = render(<AnimatePresence><AdaptiveAdditionGrid key="g" onClose={() => {}} /></AnimatePresence>);
+    fireEvent.click(screen.getByRole('button', { name: 'הקראה בקול' }));
+    rerender(<AnimatePresence><AdaptiveAdditionGrid key="g" onClose={() => {}} hidden /></AnimatePresence>);
+    expect(screen.queryByRole('button', { name: 'הקראה בקול' })).toBeNull();
+    // the handle speak() returned for this button's read
+    expect(stopIfCurrent).toHaveBeenCalledWith(1);
+    stopIfCurrent.mockRestore();
   });
 
   it('the texts: plural imperative, a full stop, "עכשיו" not "כעת"', () => {

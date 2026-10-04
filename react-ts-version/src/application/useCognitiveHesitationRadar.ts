@@ -89,6 +89,8 @@ export function useCognitiveHesitationRadar({
   // Module 10's 30s grid stage runs on its own deadline so that reaching it
   // never consumes or delays the 45s Socratic stage below.
   const gridTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The 30-second grid stage came due while the coaching card was open. */
+  const gridDeferredRef = useRef(false);
   /** Module 18 §ב — the teacher radar stage, on the admin-calibrated threshold. */
   const radarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Store callback in a ref so changes to it don't reset the timer
@@ -117,7 +119,10 @@ export function useCognitiveHesitationRadar({
       clearTimeout(radarTimeoutRef.current);
     }
     lastActivityRef.current = Date.now();
-    
+    // A cognitive action restarts the count: a grid that was waiting for the
+    // coaching card to close is no longer due.
+    gridDeferredRef.current = false;
+
     if (!isActive) return;
 
     // Module 10 — stage 1 (30s): open the adaptive addition grid. The rule for
@@ -127,12 +132,7 @@ export function useCognitiveHesitationRadar({
       const wsState = useWorkspaceStore.getState();
       // Module 19 §ב: the profile applied at this exercise's start, never the live record.
       const supportProfileId = wsState.activeSupportProfileId;
-      if (
-        // While the coaching card is open the grid is not shown (it shares
-        // the card's place in the row — StudentWorkspacePage), so it is not
-        // opened either: no state change and no ADAPTIVE_GRID_TOGGLED event
-        // for a grid that never appeared.
-        wsState.helpState !== 'socratic' &&
+      const due =
         shouldOpenAdaptiveGrid({
           supportProfileId,
           sessionNumber: wsState.sessionNumber,
@@ -140,10 +140,18 @@ export function useCognitiveHesitationRadar({
         }) &&
         // Owner, 1.10.2026 (D7): the grid opens only in an addition exercise —
         // not in station 3's representations, not in a subtraction.
-        isAdditionExercise(selectStandardTask(wsState))
-      ) {
-        wsState.openAdditionHelper();
+        isAdditionExercise(selectStandardTask(wsState));
+      if (!due) return;
+      // While the coaching card is open the grid is not shown (it shares the
+      // card's place in the row — StudentWorkspacePage), so it is not opened
+      // behind it: no state change and no ADAPTIVE_GRID_TOGGLED event for a
+      // grid that did not appear. It is deferred, not dropped: it opens when
+      // the card closes, unless a cognitive action came first.
+      if (wsState.helpState === 'socratic') {
+        gridDeferredRef.current = true;
+        return;
       }
+      wsState.openAdditionHelper();
     }, GRID_STAGE_SECONDS * 1000);
 
     timeoutRef.current = setTimeout(() => {
@@ -290,12 +298,31 @@ export function useCognitiveHesitationRadar({
     clearHesitating();
 
     let lastSignature = selectCognitiveState(useWorkspaceStore.getState());
+    let lastHelpState = useWorkspaceStore.getState().helpState;
     const unsubscribe = useWorkspaceStore.subscribe((state: any) => {
       const next = selectCognitiveState(state);
       if (next !== lastSignature) {
         lastSignature = next;
         if (hesitatingPublishedRef.current) clearHesitating();
         resetTimeout();
+      }
+      // The coaching card closed: a grid that came due behind it opens now,
+      // on the same rule as at 30 seconds. (If this same change was a
+      // cognitive action, resetTimeout above has already cleared the wait.)
+      const cardClosed = lastHelpState === 'socratic' && state.helpState !== 'socratic';
+      lastHelpState = state.helpState;
+      if (cardClosed && gridDeferredRef.current) {
+        gridDeferredRef.current = false;
+        if (
+          shouldOpenAdaptiveGrid({
+            supportProfileId: state.activeSupportProfileId,
+            sessionNumber: state.sessionNumber,
+            isAdditionHelperOpen: state.isAdditionHelperOpen,
+          }) &&
+          isAdditionExercise(selectStandardTask(state))
+        ) {
+          state.openAdditionHelper();
+        }
       }
     });
 

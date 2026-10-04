@@ -141,7 +141,10 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '', hid
           </div>
         ) : (
           <div className="mb-2 min-h-11 flex items-center gap-2" data-testid="addition-grid-instruction">
-            <UdlSpeechButton text={instruction} className="shrink-0" />
+            {/* Not rendered while the grid is hidden: unmounting the button
+                stops its own read-aloud, so nothing is read from a grid the
+                learner cannot see. */}
+            {!hidden && <UdlSpeechButton text={instruction} className="shrink-0" />}
             <p className="text-sm leading-snug text-slate-600 dark:text-slate-300 font-medium">{instruction}</p>
           </div>
         )}
