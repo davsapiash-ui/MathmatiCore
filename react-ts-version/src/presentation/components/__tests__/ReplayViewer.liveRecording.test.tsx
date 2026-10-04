@@ -20,8 +20,10 @@ class FakeReplayer {
   calls: Array<[string, number | undefined]> = [];
   private offset = 0;
   events: any[];
-  constructor(events: any[]) {
+  config: any;
+  constructor(events: any[], config?: any) {
     this.events = events;
+    this.config = config;
     instances.push(this);
   }
   play(t = 0) { this.offset = t; this.calls.push(['play', t]); }
@@ -30,7 +32,7 @@ class FakeReplayer {
   on() {}
   setConfig() {}
 }
-vi.mock('rrweb', () => ({ Replayer: vi.fn().mockImplementation((events: any[]) => new FakeReplayer(events)) }));
+vi.mock('rrweb', () => ({ Replayer: vi.fn().mockImplementation((events: any[], config?: any) => new FakeReplayer(events, config)) }));
 vi.mock('rrweb-player/dist/style.css', () => ({}));
 
 class NoopResizeObserver { observe() {} disconnect() {} }
@@ -120,5 +122,62 @@ describe('ReplayViewer — the timeline is split into the exercises (Module 21 �
     expect((segments[1] as HTMLElement).style.left).toBe('40%');
     act(() => { fireEvent.click(screen.getByRole('button', { name: 'תרגיל 2 — קפיצה לתחילת התרגיל' })); });
     expect(onChapterSelect).toHaveBeenCalledWith(1);
+  });
+});
+
+describe('ReplayViewer — teacher-dashboard audit, batch F', () => {
+  it('the replay does not take the keyboard focus from the teacher\'s page', () => {
+    render(<ReplayViewer events={ev(10)} />);
+    expect(instances[instances.length - 1].config.triggerFocus).toBe(false);
+  });
+
+  it('the recording-event count is not called "פעולות"', () => {
+    const { container } = render(<ReplayViewer events={ev(10)} />);
+    expect(container.textContent).toContain('10 אירועי הקלטה');
+    expect(container.textContent).not.toContain('פעולות');
+  });
+
+  it('events without a time are left out: the length is real, and the teacher is told', () => {
+    const { container } = render(<ReplayViewer events={[{ type: 99 }, ...ev(10)]} />);
+    expect(instances[instances.length - 1].events).toHaveLength(10);
+    expect(container.textContent).toContain('00:09');
+    expect((container.querySelector('input[type="range"]') as HTMLInputElement).max).toBe('9000');
+    expect(screen.getByRole('status').textContent).toBe('חלק מההקלטה פגום ואינו מוצג.');
+  });
+
+  it('a whole recording says nothing about broken parts', () => {
+    render(<ReplayViewer events={ev(10)} />);
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('a recording with no usable event says so instead of a dead player', () => {
+    const count = instances.length;
+    render(<ReplayViewer events={[{ type: 99 }, { type: 99 }, { type: 99 }]} />);
+    expect(instances.length).toBe(count);
+    expect(screen.getByRole('alert').textContent).toBe('ההקלטה של המפגש הזה פגומה, ואי אפשר להציג אותה.');
+  });
+
+  describe('a meeting that was opened twice', () => {
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+    const DAY = 86_400_000;
+
+    it('the time between the two openings is not played', () => {
+      render(<ReplayViewer events={[...ev(5), ...ev(5, 1_000_000 + DAY)]} />);
+      const a = instances[instances.length - 1];
+      a.play(4500); // just past the last event of the first opening
+      act(() => { vi.advanceTimersByTime(250); });
+      expect(a.calls[a.calls.length - 1]).toEqual(['play', DAY]);
+    });
+
+    it('a pause of the learner inside a lesson plays as it was', () => {
+      const events = [...ev(5), ...ev(5, 1_000_000 + 64_000)]; // one minute with nothing recorded
+      render(<ReplayViewer events={events} />);
+      const a = instances[instances.length - 1];
+      a.play(10_000);
+      const calls = a.calls.length;
+      act(() => { vi.advanceTimersByTime(1000); });
+      expect(a.calls.length).toBe(calls);
+    });
   });
 });
