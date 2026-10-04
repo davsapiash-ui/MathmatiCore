@@ -160,7 +160,7 @@ describe('row 1.28 (and audit A5-F07 / UX-001 / UX-002, 4.10.2026) — the addit
     expect(existsSync(resolve(__dirname, '../../features/workspace/board/useLeftClearOfSidePanel.ts'))).toBe(false);
     const page = src('features/workspace/StudentWorkspacePage.tsx');
     const row = page.slice(page.indexOf('<main'), page.indexOf('</main>'));
-    expect(row).toContain('<AdaptiveAdditionGrid key="adaptive-grid" hidden={isSocraticPanelOpen} />');
+    expect(row).toContain('<AdaptiveAdditionGrid key="adaptive-grid" hidden={!isAdditionGridShown} />');
     expect(row).toContain('<AdditionGridTab />');
     // the board shares the row with the grid's slot, as it does with the card
     expect(row).toContain('shareRow={isSocraticPanelOpen || isAdditionGridSlotShown}');
@@ -168,7 +168,7 @@ describe('row 1.28 (and audit A5-F07 / UX-001 / UX-002, 4.10.2026) — the addit
 
   it('while the coaching card is open, the grid and its tab wait (the card keeps its place)', () => {
     const page = src('features/workspace/StudentWorkspacePage.tsx');
-    expect(page).toContain('const isAdditionGridShown = isAdditionGridMounted && !isSocraticPanelOpen;');
+    expect(page).toContain('const isAdditionGridShown = isAdditionGridMounted && (!isSocraticPanelOpen || isAdditionGridOverCard);');
     expect(page).toContain('const isAdditionGridTabShown = isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen && !isSocraticPanelOpen;');
   });
 

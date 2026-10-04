@@ -17,6 +17,14 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { MathText } from '../tasks/MathText';
 import { joinSpokenSentences } from '../tasks/spokenSentences';
 import { useStudentChatOpen } from '@/application/useStudentChatOpen';
+import {
+  useAdditionGridOverCard,
+  showAdditionGridOverCard,
+  returnCardOverAdditionGrid,
+} from '@/application/useAdditionGridOverCard';
+import { GRID_RETURN_BUTTON_LOOK, GRID_RETURN_LABEL_HE, GRID_RETURN_NAME_HE } from '../board/additionGridReturn';
+import { CARD_TAB_HE, CARD_TAB_LABEL_HE } from './StudentChatOverlay';
+import { Grid3x3 } from 'lucide-react';
 
 /** The card's silent lock (PRD Module 12 §ב), said by the hint box's read-aloud button too. */
 const LOCK_SENTENCE_HE = 'רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.';
@@ -114,7 +122,16 @@ export function SocraticSidePanel() {
   // is not a help event, so it writes no telemetry. The column keeps its width,
   // so nothing else on the screen moves.
   const chatOpen = useStudentChatOpen((s) => s.open);
-  const folded = helpState === 'socratic' && chatOpen;
+  // Owner, 4.10.2026: the same fold for the addition grid (enhanced profile).
+  // The grid and the card share one place in the row, so an open grid waits
+  // out of sight while the card is open. A "לוח החיבור" button under the card
+  // shows that it is only minimised; pressing it shows the grid and folds the
+  // card — here the column narrows to the card's tab, to make room for the
+  // grid. Closing the grid (X) or pressing the tab brings the card back as it
+  // was. Not a help event, no telemetry (useAdditionGridOverCard.ts).
+  const gridWaiting = useAdditionGridOverCard((s) => s.waiting);
+  const gridOverCard = useAdditionGridOverCard((s) => s.waiting && s.over) && helpState === 'socratic';
+  const folded = helpState === 'socratic' && (chatOpen || gridOverCard);
 
   // מסמך העיצוב §1.2: כל חלונית נסגרת ב-Escape, דרך ההוק המשותף — אחרת
   // מסך אחד מתנהג אחרת מכל השאר. הכרטיס הזה נשאר עד כה בלי Escape בכלל:
@@ -230,10 +247,27 @@ export function SocraticSidePanel() {
           animate={{ maxWidth: 400, opacity: 1 }}
           exit={{ maxWidth: 0, opacity: 0, pointerEvents: 'none' }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px]"
+          className={`socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden flex flex-col gap-2 ${
+            gridOverCard ? 'w-16' : 'w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px]'
+          }`}
           dir="rtl"
           data-testid="socratic-side-panel"
         >
+            {/* The card folded for the addition grid: its tab, in the card's
+                own column (under the chat the tab is in the chat's header). */}
+            {gridOverCard && !chatOpen && (
+              <button
+                type="button"
+                onClick={returnCardOverAdditionGrid}
+                data-testid="socratic-card-tab"
+                aria-label={CARD_TAB_LABEL_HE}
+                title={CARD_TAB_LABEL_HE}
+                className="pointer-events-auto shrink-0 w-16 min-h-[72px] px-1 py-2 rounded-2xl text-sm font-bold leading-tight flex flex-col items-center justify-center gap-1 border-2 border-indigo-200 dark:border-indigo-800/80 bg-ws-surface text-ws-ink hover:bg-ws-accentSoft/40 active:scale-95 transition-all cursor-pointer shadow-sm"
+              >
+                <span aria-hidden="true">💡</span>
+                <span className="text-center">{CARD_TAB_HE}</span>
+              </button>
+            )}
             <aside
               ref={cardRef}
               /* Fixed inner width, so the text does not reflow while the panel
@@ -243,8 +277,8 @@ export function SocraticSidePanel() {
                  the close button fit in the panel down to a 585px-high window.
                  overflow-y-auto stays only as a last resort for a still
                  shorter screen. */
-              className={`h-full min-h-0 flex flex-col w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto ${
-                folded ? 'invisible pointer-events-none' : 'pointer-events-auto'
+              className={`flex-1 min-h-0 flex flex-col w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto ${
+                gridOverCard ? 'hidden' : folded ? 'invisible pointer-events-none' : 'pointer-events-auto'
               }`}
               // Folded: hidden, unreachable by Tab and screen readers, still mounted.
               inert={folded || undefined}
@@ -308,6 +342,22 @@ export function SocraticSidePanel() {
               <SocraticPenaltyLockOptions choices={shownChoices} onClose={closeHelp} />
               </>)}
             </aside>
+            {/* The learner's addition grid is open, and waiting behind this
+                card: the button shows it is only minimised (owner, 4.10.2026).
+                The same name and look as the grid's return tab. */}
+            {gridWaiting && !folded && (
+              <button
+                type="button"
+                onClick={showAdditionGridOverCard}
+                data-testid="addition-grid-under-card"
+                aria-label={GRID_RETURN_LABEL_HE}
+                title={GRID_RETURN_LABEL_HE}
+                className={`pointer-events-auto shrink-0 w-full min-h-11 px-3 flex items-center justify-center gap-1.5 ${GRID_RETURN_BUTTON_LOOK}`}
+              >
+                <Grid3x3 className="w-5 h-5" aria-hidden="true" />
+                <span>{GRID_RETURN_NAME_HE}</span>
+              </button>
+            )}
         </motion.div>
       )}
     </AnimatePresence>

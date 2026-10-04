@@ -4,6 +4,7 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { GRID_FADE_IN_SECONDS } from '@/core/hesitationStages';
 import { X, Sparkles, Grid3x3 } from 'lucide-react';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { GRID_RETURN_BUTTON_LOOK } from './additionGridReturn';
 
 /** The grid's one name on the child's screen (register decision ט: one name per component). */
 export const ADDITION_GRID_HE = 'לוח החיבור';
@@ -229,7 +230,7 @@ export function AdditionGridTab() {
       <button
         type="button"
         onClick={() => openAdditionHelper('learner')}
-        className="w-16 min-h-[72px] px-1 py-2 rounded-2xl text-sm font-bold leading-tight transition-all cursor-pointer flex flex-col items-center justify-center gap-1 border shadow-md active:scale-95 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-700/60 dark:text-amber-200"
+        className={`w-16 min-h-[72px] px-1 py-2 flex flex-col items-center justify-center gap-1 ${GRID_RETURN_BUTTON_LOOK}`}
         aria-label={`הצגה חוזרת של ${ADDITION_GRID_HE}`}
         title={`החזרת ${ADDITION_GRID_HE} למסך`}
       >

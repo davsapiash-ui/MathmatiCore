@@ -487,6 +487,16 @@ function enhancedSteps(): Step[] {
       await ws(cc.page, SET, { counts: { units: 13, tens: 10, hundreds: 10, thousands: 1 } });
     },
   });
+  steps.push({
+    id: 'm4-grid-over-folded-coaching',
+    meeting: 4,
+    note: 'the "לוח החיבור" button under the card was pressed: the grid is shown, the card is a tab',
+    run: async (cc) => {
+      await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
+      await ws(cc.page, 'st.openAdditionHelper("learner"); st.openSocraticCard("hesitation_45s");');
+      await cc.page.getByTestId('addition-grid-under-card').click();
+    },
+  });
   // Last: the chat stays open once it is toggled.
   steps.push({
     id: 'm4-grid-tab-and-chat',

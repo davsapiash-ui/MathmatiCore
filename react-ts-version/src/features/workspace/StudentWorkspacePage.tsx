@@ -45,6 +45,7 @@ import { useStore } from '@/application/useStore';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdaptiveAdditionGrid, AdditionGridTab } from './board/AdaptiveAdditionGrid';
+import { useAdditionGridOverCard } from '@/application/useAdditionGridOverCard';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -768,7 +769,17 @@ export function StudentWorkspacePage() {
   // fade-in, clickable at once. (When the exercise on the screen is not an
   // addition the grid is unmounted instead: owner, 1.10.2026, D7.)
   const isAdditionGridMounted = isAdditionBoardEnabled && isAdditionHelperOpen;
-  const isAdditionGridShown = isAdditionGridMounted && !isSocraticPanelOpen;
+  // Owner, 4.10.2026: the child must see that the grid is only minimised. A
+  // "לוח החיבור" button under the card (SocraticSidePanel) brings the grid
+  // back and folds the card into a tab; closing the grid or pressing the
+  // card's tab returns the card exactly as it was (useAdditionGridOverCard).
+  const isAdditionGridWaiting = isAdditionGridMounted && isSocraticPanelOpen;
+  const isAdditionGridOverCard = useAdditionGridOverCard((s) => s.over) && isAdditionGridWaiting;
+  useEffect(() => {
+    useAdditionGridOverCard.setState(isAdditionGridWaiting ? { waiting: true } : { waiting: false, over: false });
+  }, [isAdditionGridWaiting]);
+  useEffect(() => () => useAdditionGridOverCard.setState({ waiting: false, over: false }), []);
+  const isAdditionGridShown = isAdditionGridMounted && (!isSocraticPanelOpen || isAdditionGridOverCard);
   const isAdditionGridTabShown = isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen && !isSocraticPanelOpen;
   const isAdditionGridSlotShown = isAdditionGridShown || isAdditionGridTabShown;
 
@@ -1459,7 +1470,7 @@ export function StudentWorkspacePage() {
           {isAdditionBoardEnabled && (
             <AnimatePresence>
               {isAdditionGridMounted && (
-                <AdaptiveAdditionGrid key="adaptive-grid" hidden={isSocraticPanelOpen} />
+                <AdaptiveAdditionGrid key="adaptive-grid" hidden={!isAdditionGridShown} />
               )}
             </AnimatePresence>
           )}
