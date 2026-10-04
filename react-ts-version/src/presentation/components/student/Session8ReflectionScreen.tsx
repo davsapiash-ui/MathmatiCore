@@ -5,6 +5,7 @@ import type { SRLReflectionResult } from '@/core/srlReflection';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { encouragementSentenceHe, persistenceIndexPercent, splitEncouragement } from '@/core/persistenceEncouragement';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { PROCEED_HE } from '@/core/toolbarNames';
 
 interface Session8ReflectionScreenProps {
   /**
@@ -53,9 +54,12 @@ export const REFLECTION_TEXT_HE = {
   stepLabelSpoken: { 1: 'שלב ראשון מתוך שלושה.', 2: 'שלב שני מתוך שלושה.', 3: 'שלב שלישי מתוך שלושה.' } as const,
   effortQuestion: 'כמה מאמץ והשתדלות השקעתם היום בפתרון התרגילים?',
   effortInstruction: 'בחרו רמה אחת.',
-  strategyQuestion: 'מה עזר לכם הכי הרבה להצליח היום בפתרון התרגילים?',
+  // Owner, 4.10.2026: without "הכי הרבה" — it contradicted "אפשר לסמן יותר
+  // מתשובה אחת" under it.
+  strategyQuestion: 'מה עזר לכם להצליח היום בפתרון התרגילים?',
   strategyInstruction: 'אפשר לסמן יותר מתשובה אחת.',
-  next: 'המשיכו',
+  // The name of the toolbar's button, one name for one action (owner, 4.10.2026; until then "המשיכו").
+  next: PROCEED_HE,
   back: 'חזרה',
   // Inside the workspace the child reads "תחנה", not "מפגש" (register, deviation 24(ג)).
   finish: 'סיום התחנה',
@@ -80,11 +84,16 @@ export const EFFORT_LEVELS: ReadonlyArray<{ id: EffortId; bars: 1 | 2 | 3; spoke
   { id: 'HARD', bars: 3, spokenHe: 'רמה שלוש: מאתגר' },
 ];
 
-/** מזהי האסטרטגיות נשמרים כפי שהיו (core/srlReflection.ts ממפה אותם). */
+/**
+ * מזהי האסטרטגיות נשמרים כפי שהיו (core/srlReflection.ts ממפה אותם).
+ * החלטת בעל המוצר, 4.10.2026: שמות הכלים בלבד, כפי שהם נקראים במסכים — בלי
+ * משפט זיקה שמכניס לסימון אחד גם כלי וגם סיבה ("…שאיפשר לי לתקן טעויות
+ * בביטחון וברוגע").
+ */
 export const STRATEGY_OPTIONS = [
-  { id: 'undo', label: 'כפתור ביטול הפעולה שאיפשר לי לתקן טעויות בביטחון וברוגע', icon: RotateCcw },
-  { id: 'memory', label: 'עיגולי הזיכרון שעזרו לי לנהל את המעברים', icon: CircleDot },
-  { id: 'hints', label: 'השאלות המנחות בכרטיס החניכה', icon: HelpCircle },
+  { id: 'undo', label: 'כפתור ביטול הפעולה', icon: RotateCcw },
+  { id: 'memory', label: 'עיגולי הזיכרון', icon: CircleDot },
+  { id: 'hints', label: 'השאלות בכרטיס החניכה', icon: HelpCircle },
 ] as const;
 
 /**

@@ -34,8 +34,10 @@ import {
   flexible,
   withOpts,
   S4_ADD,
+  S4_MISSING_TENS,
   S5_SUB,
   S6_SUB,
+  S6_MISSING_TENS,
   S8_ADD,
   S8_SUB,
   FLEX_HOWTO,
@@ -135,6 +137,13 @@ export interface SessionTask {
   revealedResultDigits?: Place[];
   /** flexible_decomp: every recorded representation must hold an even number of tens. */
   requireEvenTens?: boolean;
+  /**
+   * flexible_decomp (owner, 4.10.2026): the number is built without unit
+   * blocks — 320, 2,100 and 4,200, whose instructions say "… ועשרות בלבד". A
+   * way with blocks in the units column is refused when it is added. Never
+   * 150 (s7_r_t7): every way with an even number of tens there has unit blocks.
+   */
+  noUnitBlocks?: boolean;
   /** Blocks already on the board when the task starts (meeting 1's grouping refresh, like diagnostic task 5's cubes on screen). */
   initialCounts?: Partial<PlaceCounts>;
   /** representation: the card does not list the board to build — finding it is the exercise. */
@@ -348,7 +357,8 @@ export const SESSION3_GREEN_TASKS: SessionTask[] = [
     { targetNode: 'decimal_structure' }),
   flexible('s3_g_t7', 2100,
     'משימת חקר של גמישות ייצוגית',
-    `מצאו דרכים שונות לייצג את המספר 2,100 באמצעות אלפים, מאות ועשרות. ${FLEX_HOWTO}`),
+    `מצאו דרכים שונות לייצג את המספר 2,100 באמצעות אלפים, מאות ועשרות בלבד. ${FLEX_HOWTO}`,
+    { noUnitBlocks: true }),
 ];
 
 export const SESSION3_TASKS: SessionTask[] = SESSION3_GREEN_TASKS;
@@ -370,7 +380,9 @@ export const SESSION4_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen: מסמך 03 names the task ("ספרה חסרה בטור התוצאה") without numbers.
   missingResultDigit('s4_r_t7', 328, 145, false, 'tens',
     'משימת חקר וגילוי ספרה חסרה',
-    'בתרגיל 328 + 145 חסרה ספרת העשרות בשורת התוצאה. בצעו את ההקבצה בלבנים כדי לגלות אותה, וכתבו אותה בתיבה הריקה.',
+    // Owner, 4.10.2026: the station's own sentences (S4_ADD's middle) say what
+    // to do with the blocks; until then "בצעו את ההקבצה בלבנים כדי לגלות אותה".
+    S4_MISSING_TENS('328 + 145'),
     { targetNode: 'relational_thinking' }),
 ];
 
@@ -464,7 +476,10 @@ export const SESSION6_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen (400 − 156 is the grade-ג example in מסמך 05, המטריקס).
   missingResultDigit('s6_r_t7', 400, 156, true, 'tens',
     'משימת חקר וספרה חסרה',
-    'בתרגיל 400 − 156 חסרה ספרת העשרות בשורת התוצאה. בצעו את הפריטה בלבנים כדי לגלות אותה, וכתבו אותה בתיבה הריקה.',
+    // Owner, 4.10.2026: build, break when needed, take away — the sentences of
+    // the station's other exercises; until then "בצעו את הפריטה בלבנים כדי
+    // לגלות אותה" named neither the building nor the taking away the check needs.
+    S6_MISSING_TENS('400 − 156'),
     ZERO),
 ];
 

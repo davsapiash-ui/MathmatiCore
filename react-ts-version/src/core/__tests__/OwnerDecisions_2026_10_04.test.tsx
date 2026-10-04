@@ -259,8 +259,9 @@ describe('4 — A5-F03 / A4-F07: two conversions, the plural of מסמך 03', ()
     expect(() => afterConversionsHe(3, 'הפריטה', 'הפריטות')).toThrow();
   });
 
-  it('400 − 156 is left as it is: stations 5–6 never say in advance how many breaks (owner, 30.9.2026) — for the owner', () => {
-    expect(byId('s6_r_t7').instructionHe).toBe('בתרגיל 400 − 156 חסרה ספרת העשרות בשורת התוצאה. בצעו את הפריטה בלבנים כדי לגלות אותה, וכתבו אותה בתיבה הריקה.');
+  it('400 − 156 never says in advance how many breaks (owner, 30.9.2026); its wording is the owner\'s of 4.10.2026 (OwnerWording_2026_10_04.test.tsx)', () => {
+    expect(byId('s6_r_t7').instructionHe).not.toMatch(/הפריטות|פעמיים|כפולה/);
+    expect(byId('s6_r_t7').instructionHe).toContain('אפשר לפרוט לבנה מהטור שמשמאלו');
   });
 
   it('the cards name the conversions as the instruction does', () => {
