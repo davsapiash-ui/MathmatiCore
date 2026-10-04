@@ -71,7 +71,7 @@ describe('the lobby card names the meeting as documents 02 and 03 do (register r
     expect(hub).toContain("desc: 'פרטו לבנת מאה אחת לעשר לבני עשרת. בדקו איזה מספר מייצגות הלבנים לאחר הפריטה.'");
     expect(hub).toContain("desc: 'כשמצטברות בטור עשר לבנים, קבצו אותן ללבנה אחת בטור שמשמאלו.'");
     expect(hub).toContain("desc: 'כשאין בטור מספיק לבנים, פרטו לבנה אחת מהטור שמשמאלו.'");
-    expect(hub).toContain("desc: 'גלו מה עושים כשצריך לפרוט לבנה מטור שיש בו אפס.'");
+    expect(hub).toContain("desc: 'גלו מה עושים כשצריך לפרוט, אבל בטור שמשמאל אין לבנים.'");
     for (const old of ['פרקו', 'נשאר אותו מספר', 'לבנה אחת גדולה', 'מהטור שמשמאל.', 'ויש אפס?']) {
       expect(hub, old).not.toContain(old);
     }

@@ -79,7 +79,7 @@ const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
     id: 6,
     // מסמכים 02/03: "אתגר האפס כשומר מקום ומעבר מעל אפסים (המרה כפולה)".
     title: stationTitleHe(6),
-    desc: 'גלו מה עושים כשצריך לפרוט לבנה מטור שיש בו אפס.',
+    desc: 'גלו מה עושים כשצריך לפרוט, אבל בטור שמשמאל אין לבנים.',
     icon: '🧬',
   },
   7: {
