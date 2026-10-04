@@ -91,7 +91,7 @@ const APPROVED: Record<string, { kind: string; text: string; numberA: number; an
   },
   s3_g_t4: {
     kind: 'compose_break', numberA: 5230, answer: 5230, board: { thousands: 4, hundreds: 11, tens: 13 },
-    text: 'בנו בבית המספרים 5 לבני אלף, 2 לבני מאה ו-3 לבני עשרת. פרטו לבנת אלף אחת לעשר לבני מאה. אחר כך פרטו לבנת מאה אחת לעשר לבני עשרת. איזה מספר מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.',
+    text: 'בנו בבית המספרים 5 לבני אלף, 2 לבני מאה ו-3 לבני עשרת. פרטו לבנת אלף אחת לעשר לבני מאה. אחר כך פרטו לבנת מאה אחת לעשר לבני עשרת. איזה מספר מייצגות הלבנים לאחר שתי הפריטות? כתבו אותו בשורת התוצאה.',
   },
   s3_g_t5: {
     kind: 'read_write', numberA: 6030, answer: 6030, board: { thousands: 6, tens: 3 },
@@ -123,7 +123,7 @@ const APPROVED: Record<string, { kind: string; text: string; numberA: number; an
   },
   s7_g_t1: {
     kind: 'compose_group', numberA: 2500, answer: 2500, board: { thousands: 2, hundreds: 5 },
-    text: 'בנו בבית המספרים 25 לבני מאה. קבצו 10 לבני מאה ללבנת אלף אחת. קבצו שוב 10 לבני מאה ללבנת אלף אחת. איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת התוצאה.',
+    text: 'בנו בבית המספרים 25 לבני מאה. קבצו 10 לבני מאה ללבנת אלף אחת. קבצו שוב 10 לבני מאה ללבנת אלף אחת. איזה מספר מייצגות הלבנים לאחר שתי ההקבצות? כתבו אותו בשורת התוצאה.',
   },
   // The green path's second reinforcement of station 7 (owner, 30.9.2026), with its own numbers.
   s7_g_reinforce_2: {
@@ -169,7 +169,11 @@ describe('the approved exercises (owner, 30.9.2026)', () => {
     };
     for (const [id, a] of Object.entries(APPROVED)) {
       expect(a.text.startsWith('בנו בבית המספרים '), id).toBe(true);
-      expect(a.text.endsWith(CLOSING[a.kind]), id).toBe(true);
+      // Two conversions close in the plural of מסמך 03 (owner, 4.10.2026): s3_g_t4, s7_g_t1.
+      const closing = id === 's3_g_t4' ? 'איזה מספר מייצגות הלבנים לאחר שתי הפריטות? כתבו אותו בשורת התוצאה.'
+        : id === 's7_g_t1' ? 'איזה מספר מייצגות הלבנים לאחר שתי ההקבצות? כתבו אותו בשורת התוצאה.'
+        : CLOSING[a.kind];
+      expect(a.text.endsWith(closing), id).toBe(true);
     }
   });
 

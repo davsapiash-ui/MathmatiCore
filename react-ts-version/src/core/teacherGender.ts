@@ -45,6 +45,15 @@ export const TEACHER_SENTENCES_HE = {
     female: 'העבודה שלכם נשמרה בבטחה. כשהמורה תפתח תחנה חדשה, הפעילות תתחדש כאן מיד.',
     male: 'העבודה שלכם נשמרה בבטחה. כשהמורה יפתח תחנה חדשה, הפעילות תתחדש כאן מיד.',
   },
+  /**
+   * The teacher closed meeting 2 before this child finished it (owner,
+   * 4.10.2026, A3-106): "הפעילות תתחדש כאן מיד" is not true for this child —
+   * the teacher sets a time to finish the station.
+   */
+  closedBodyMeeting2Unfinished: {
+    female: 'העבודה שלכם נשמרה בבטחה. המורה תקבע איתכם מתי תמשיכו.',
+    male: 'העבודה שלכם נשמרה בבטחה. המורה יקבע איתכם מתי תמשיכו.',
+  },
   /** Module 20 §ב: the wait at the end of meeting 2, until the path is approved. */
   meeting2Waiting: {
     female: 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.',

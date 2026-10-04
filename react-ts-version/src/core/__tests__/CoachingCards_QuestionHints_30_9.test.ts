@@ -297,7 +297,10 @@ describe('C1 — a number built, then a block broken (station 3)', () => {
   it('the bank tasks of today get it by their id', () => {
     for (const id of ['s3_r_t2', 's3_r_t4', 's3_r_t6', 's3_g_t2', 's3_g_t4', 's3_g_t6']) {
       expect(representationKindOf(byId(id)), id).toBe('compose_break');
-      expect(q(byId(id), { ...EMPTY, ...byId(id).requiredCounts }).questionHe, id).toBe('נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?');
+      // s3_g_t4 breaks twice: the plural, as its instruction (owner, 4.10.2026).
+      expect(q(byId(id), { ...EMPTY, ...byId(id).requiredCounts }).questionHe, id).toBe(id === 's3_g_t4'
+        ? 'נסו לחשוב: לפני הפריטות בניתם מספר. האם הפריטות שינו אותו?'
+        : 'נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?');
     }
   });
 
@@ -305,13 +308,13 @@ describe('C1 — a number built, then a block broken (station 3)', () => {
     for (const task of [...REDESIGN.filter((t) => t.representationKind === 'compose_break' || t.representationKind === 'compose_group'),
       byId('s3_r_t2'), byId('s3_g_t4'), byId('s7_r_t1'), byId('s7_g_t1')]) {
       const empty = q(task, EMPTY);
-      expect(empty.questionHe, task.id).not.toMatch(/בניתם|לפני הפריטה|לפני ההקבצה/);
+      expect(empty.questionHe, task.id).not.toMatch(/בניתם|לפני הפריט|לפני ההקבצ/);
       // Not C1 or C7 (1.10.2026: the build-first card is recorded, for its second level).
       expect(empty.cardKind, task.id).toBe('build_first');
       expect(wrongHintViolation(empty), task.id).toBeNull();
       // One block placed is enough — a block worth less than the number (a
       // hundred is more than 85: since 1.10.2026 that is the stray-blocks card).
-      expect(q(task, { ...EMPTY, tens: 1 }).questionHe, task.id).toMatch(/^נסו לחשוב: לפני (הפריטה|ההקבצה) בניתם מספר/);
+      expect(q(task, { ...EMPTY, tens: 1 }).questionHe, task.id).toMatch(/^נסו לחשוב: לפני (הפריטה|ההקבצה|הפריטות|ההקבצות) בניתם מספר/);
     }
   });
 });

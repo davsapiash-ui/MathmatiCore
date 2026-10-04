@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useStudentChatOpen } from '@/application/useStudentChatOpen';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { useChatStore, normalizeStudentId, isTeacherOrAdminId } from '@/application/useChatStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
@@ -39,7 +40,15 @@ const READY_MESSAGE_REPEAT_MS = 2000;
 export const PII_FILTER_RECHECK_MS = 5000;
 
 export function StudentChatOverlay() {
-  const [isOpen, setIsOpen] = useState(false);
+  // Shared with the coaching card, which folds while the chat is open (A7-002).
+  const isOpen = useStudentChatOpen((s) => s.open);
+  const setIsOpen = (next: boolean | ((prev: boolean) => boolean)) =>
+    useStudentChatOpen.setState((s) => ({ open: typeof next === 'function' ? next(s.open) : next }));
+  // Each workspace starts with the chat closed, and leaving it closes it.
+  useEffect(() => {
+    useStudentChatOpen.setState({ open: false });
+    return () => useStudentChatOpen.setState({ open: false });
+  }, []);
 
   // מסמך העיצוב §1.2: Escape סוגר. הפאנל אינו חוסם את הלוח, ולכן אינו
   // לוכד פוקוס — אבל כן מקבל אותו בפתיחה, כי הלומד פתח אותו כדי לכתוב.

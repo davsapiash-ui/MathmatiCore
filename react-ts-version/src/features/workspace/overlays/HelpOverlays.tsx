@@ -16,6 +16,7 @@ import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { MathText } from '../tasks/MathText';
 import { joinSpokenSentences } from '../tasks/spokenSentences';
+import { useStudentChatOpen, closeStudentChat } from '@/application/useStudentChatOpen';
 
 /** The card's silent lock (PRD Module 12 §ב), said by the hint box's read-aloud button too. */
 const LOCK_SENTENCE_HE = 'רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.';
@@ -40,6 +41,13 @@ const LOCK_SENTENCE_HE = 'רגע לחשיבה. אפשר לבחור תשובה ש
  * one question with three options.
  */
 const FRICTION_NEXT_HE = 'עוד רגע תופיע שאלה שתעזור לכם.';
+
+/**
+ * The folded card's tab (owner, 4.10.2026, A7-002): the card's name on the
+ * child's screens is "חלונית העזרה" (its ✕ says "סגירת חלונית העזרה").
+ */
+export const CARD_TAB_HE = 'חלונית העזרה';
+export const CARD_TAB_LABEL_HE = 'החזרת חלונית העזרה';
 
 export function HelpOverlays() {
   const helpState = useWorkspaceStore((s) => s.helpState);
@@ -105,13 +113,23 @@ export function HelpOverlays() {
 export function SocraticSidePanel() {
   const helpState = useWorkspaceStore((s) => s.helpState);
   const closeHelp = useWorkspaceStore((s) => s.closeHelp);
+  // Owner, 4.10.2026 (A7-002): the chat panel is fixed to the bottom-left
+  // corner, over this column. While it is open the card folds into a small tab
+  // beside it and comes back exactly as it was when the chat closes. Folding
+  // changes nothing in the store: the card stays mounted, hidden — its chosen
+  // option, its hint and a running 15-second lock go on as they were — and it
+  // is not a help event, so it writes no telemetry. The column keeps its width,
+  // so nothing else on the screen moves.
+  const chatOpen = useStudentChatOpen((s) => s.open);
+  const folded = helpState === 'socratic' && chatOpen;
 
   // מסמך העיצוב §1.2: כל חלונית נסגרת ב-Escape, דרך ההוק המשותף — אחרת
   // מסך אחד מתנהג אחרת מכל השאר. הכרטיס הזה נשאר עד כה בלי Escape בכלל:
   // ההתנהגות הייתה בנויה במגירה הישנה, שאיש לא הרכיב, ולכן הילד לא קיבל
   // אותה. `trapFocus: false` — הכרטיס אינו חוסם, והלומד חייב להמשיך
   // לנווט אל הלוח ואל כפתור הביטול בזמן שהוא פתוח (מודול 12 §ב).
-  const cardRef = useDismissableOverlay<HTMLElement>(helpState === 'socratic', closeHelp, { trapFocus: false, autoFocus: false });
+  // Folded, Escape belongs to the chat: it closes the chat, and the card comes back.
+  const cardRef = useDismissableOverlay<HTMLElement>(helpState === 'socratic' && !folded, closeHelp, { trapFocus: false, autoFocus: false });
 
   const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
   // Until the engine answers (at most 8 seconds) the card shows an hourglass,
@@ -134,7 +152,8 @@ export function SocraticSidePanel() {
       cardShownRef.current = false;
       return;
     }
-    if (cardShownRef.current || socraticPending || !aiSocraticHint || classScreenUp) return;
+    // A card that settles while folded under the chat is not seen yet either.
+    if (cardShownRef.current || socraticPending || !aiSocraticHint || classScreenUp || folded) return;
     cardShownRef.current = true;
 
     const ws = useWorkspaceStore.getState();
@@ -170,7 +189,7 @@ export function SocraticSidePanel() {
         ...socraticCardTextDetails(aiSocraticHint),
       },
     }).catch(console.error);
-  }, [helpState, aiSocraticHint, socraticPending, classScreenUp]);
+  }, [helpState, aiSocraticHint, socraticPending, classScreenUp, folded]);
 
   // A card open without content (restored from a saved session before the
   // store refilled it) shows the static card of the exercise on the screen —
@@ -206,6 +225,24 @@ export function SocraticSidePanel() {
     : [];
 
   return (
+    <>
+    {folded && (
+      /* The folded card: a tab just right of the chat panel (fixed bottom-6
+         left-6, w-80 / sm:w-96), so the chat covers nothing of it. A press
+         closes the chat, and the card comes back as it was. */
+      <button
+        type="button"
+        onClick={closeStudentChat}
+        data-testid="socratic-card-tab"
+        aria-label={CARD_TAB_LABEL_HE}
+        title={CARD_TAB_LABEL_HE}
+        dir="rtl"
+        className="fixed bottom-6 left-[360px] sm:left-[424px] z-50 h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border-2 shadow-lg active:scale-95 bg-ws-surface border-indigo-200 text-ws-ink hover:bg-ws-accentSoft/40 dark:border-indigo-800/80"
+      >
+        <span aria-hidden="true">💡</span>
+        <span>{CARD_TAB_HE}</span>
+      </button>
+    )}
     <AnimatePresence initial={false}>
       {helpState === 'socratic' && (
         /* In the workspace row, not over it: the panel takes its own width
@@ -231,7 +268,12 @@ export function SocraticSidePanel() {
                  the close button fit in the panel down to a 585px-high window.
                  overflow-y-auto stays only as a last resort for a still
                  shorter screen. */
-              className="pointer-events-auto h-full min-h-0 flex flex-col w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto"
+              className={`h-full min-h-0 flex flex-col w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto ${
+                folded ? 'invisible pointer-events-none' : 'pointer-events-auto'
+              }`}
+              // Folded: hidden, unreachable by Tab and screen readers, still mounted.
+              inert={folded || undefined}
+              data-folded={folded ? 'true' : undefined}
               role="region"
               aria-label="כרטיס החניכה"
               aria-busy={socraticPending}
@@ -294,6 +336,7 @@ export function SocraticSidePanel() {
         </motion.div>
       )}
     </AnimatePresence>
+    </>
   );
 }
 

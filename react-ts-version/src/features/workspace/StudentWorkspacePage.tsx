@@ -61,6 +61,7 @@ import { planMeetingEntry } from './meetingEntry';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { SessionPausedOverlay } from '@/presentation/components/student/SessionPausedOverlay';
 import { SessionClosedOverlay } from '@/presentation/components/student/SessionClosedOverlay';
+import { isMeeting2CloseUnfinished } from '@/core/meeting2CloseNotice';
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
@@ -1173,7 +1174,16 @@ export function StudentWorkspacePage() {
       </AnimatePresence>
       <AnimatePresence>
         {activeClassSession.status === 'closed' && !isTeacherOrAdmin && activeClassSession.isLoaded && (
-          <SessionClosedOverlay />
+          <SessionClosedOverlay
+            meeting2Unfinished={isMeeting2CloseUnfinished({
+              meeting,
+              isTeacherOrAdmin,
+              isGateApproved,
+              workspaceOnMeeting2: isInitialized && sessionNumber === 2,
+              flowStatus,
+              record: { completedMeeting2, qMatrixResults: myData?.qMatrixResults },
+            })}
+          />
         )}
       </AnimatePresence>
     </>
