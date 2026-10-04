@@ -410,8 +410,10 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
       expect(useChatStore.getState().messages.length).toBe(1);
       expect(useChatStore.getState().messages[0].text).toContain('תלמיד 3');
 
+      // "סמנו הכול כנקרא" is the teacher's button: her own message stays
+      // unread until the learner opens it.
       useChatStore.getState().markAllAsRead();
-      expect(useChatStore.getState().messages[0].read).toBe(true);
+      expect(useChatStore.getState().messages[0].read).toBe(false);
     });
   });
 });

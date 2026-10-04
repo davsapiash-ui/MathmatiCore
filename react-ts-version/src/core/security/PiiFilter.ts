@@ -107,8 +107,10 @@ export function sanitizePII(text?: string | null): string {
   const englishNameRegex = /\b(my name is|this is)\s+([A-Za-z]+)\b/gi;
   sanitized = sanitized.replace(englishNameRegex, '$1 [NAME_REDACTED]');
 
-  // 5. Sanitize Hebrew name introductions
-  const hebrewNameRegex = /(קוראים לי|שמי|השם שלי(?: הוא)?)\s+[א-ת]+(?:\s+[א-ת]+)?/g;
+  // 5. Sanitize Hebrew name introductions — never from the middle of a word
+  //    ("מכתב רשמי להורים", "בשמי ובשם הצוות"), the same rule as the server's
+  //    scrubPII (functions/src/geminiProxy.ts).
+  const hebrewNameRegex = /(?<![א-ת])(קוראים לי|שמי|השם שלי(?: הוא)?)\s+[א-ת]+(?:\s+[א-ת]+)?/g;
   sanitized = sanitized.replace(hebrewNameRegex, '$1 [NAME_REDACTED]');
 
   return sanitized;

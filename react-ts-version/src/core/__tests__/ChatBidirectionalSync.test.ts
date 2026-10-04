@@ -147,5 +147,19 @@ describe('Chat Bidirectional Synchronization & Room Segregation (Module 22 & 28)
       const messages = useChatStore.getState().messages;
       expect(messages.every(m => m.read === true)).toBe(true);
     });
+
+    it('markAllAsRead leaves the teacher\'s own unread messages unread', () => {
+      useChatStore.setState({
+        messages: [
+          { id: 'm1', senderId: 'student_user1', senderName: 'תלמיד 1', receiverId: 'teacher_1002220159', text: '1', timestamp: 1, read: false },
+          { id: 'm2', senderId: 'teacher_1002220159', senderName: 'מורה', receiverId: 'student_user1', text: '2', timestamp: 2, read: false },
+          { id: 'm3', senderId: 'AbCdEfGhIjKlMnOpQrStUvWxYz12', senderName: 'מורה', receiverId: 'student_user3', text: '3', timestamp: 3, read: false }
+        ]
+      });
+
+      useChatStore.getState().markAllAsRead();
+      const byId = Object.fromEntries(useChatStore.getState().messages.map(m => [m.id, m.read]));
+      expect(byId).toEqual({ m1: true, m2: false, m3: false });
+    });
   });
 });

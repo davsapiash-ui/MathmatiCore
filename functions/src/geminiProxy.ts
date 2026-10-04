@@ -27,6 +27,18 @@ import {
   type SocraticResponse,
 } from "./socraticContract";
 
+/** The check digit of an Israeli ID number (the client's isValidIsraeliID, PiiFilter.ts). */
+function hasIsraeliIdCheckDigit(text: string): boolean {
+  const digits = text.replace(/\D/g, "").padStart(9, "0");
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    let num = Number(digits[i]) * ((i % 2) + 1);
+    if (num > 9) num -= 9;
+    sum += num;
+  }
+  return sum % 10 === 0;
+}
+
 /**
  * Robust Regex Engine for PII Scrubbing
  * Active scrubbing of:
@@ -48,9 +60,16 @@ export function scrubPII(text: string): string {
   scrubbed = scrubbed.replace(emailRegex, "[REDACTED_EMAIL]");
   scrubbed = redactPhoneNumbers(scrubbed); // every common Israeli layout (phonePattern.ts)
 
-  // Scrub Israeli IDs (9 digits, with or without hyphens/spaces) and basic phone numbers
+  // Scrub Israeli IDs (9 digits, with or without hyphens/spaces) and basic phone numbers.
+  //
+  // A run of digits with nothing between them is always scrubbed. Groups that
+  // are separated by a space or a hyphen are also what a teacher writes about
+  // exercises ("100 200 300"), so those are scrubbed only when the digits pass
+  // the ID check digit.
   const idRegex = /\b\d{1,3}[-\s]?\d{3}[-\s]?\d{3}\b/g;
-  scrubbed = scrubbed.replace(idRegex, "[REDACTED_ID]");
+  scrubbed = scrubbed.replace(idRegex, (match) =>
+    /[-\s]/.test(match) && !hasIsraeliIdCheckDigit(match) ? match : "[REDACTED_ID]"
+  );
 
   // Scrub Name prefixes in English.
   //
