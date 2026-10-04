@@ -15,13 +15,13 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
  * רק שהם בחירה ולא חובה.
  */
 const BRANCH_CHOICE_TEXT = {
-  badge: 'סיימתם את שבעת התרגילים של התחנה!',
+  badge: 'סיימתם את שבע המשימות של התחנה!',
   heading: 'איך תרצו להמשיך?',
-  intro: 'התרגילים הבאים הם בחירה שלכם, לא חובה.',
+  intro: 'המשימות הבאות הן בחירה שלכם, לא חובה.',
   reinforcementTitle: 'מסלול ביסוס',
-  reinforcement: 'שני תרגילים נוספים, לחזרה על מה שתרגלתם היום.',
+  reinforcement: 'שתי משימות נוספות, לחזרה על הנושא של היום.',
   challengeTitle: 'מסלול אתגר',
-  challenge: 'תרגיל אתגר אחד, קשה יותר, בנושא של היום.',
+  challenge: 'משימת אתגר אחת, קשה יותר, בנושא של היום.',
   finish: 'סיום התחנה עכשיו',
 } as const;
 
