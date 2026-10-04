@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ref, onValue } from 'firebase/database';
 import { database, functions, serverNow } from '@/infrastructure/firebase';
-import { isHeartbeatFresh, readLastPing } from '@/core/presence';
+import { isHeartbeatFresh } from '@/core/presence';
 import { httpsCallable } from 'firebase/functions';
 import { useAuthStore } from '@/application/useAuthStore';
 import { approveTeacherGate } from '@/core/teacherGate';
@@ -14,7 +14,8 @@ import {
   RotateCcw,
   DoorOpen,
   FileDown,
-  BellRing
+  BellRing,
+  WifiOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/application/useStore';
@@ -23,12 +24,14 @@ import { ResetConfirmationModal } from './ResetConfirmationModal';
 import { recommendedPathOf } from '@/core/recommendedPath';
 import { hasEnhancedSupport } from '@/core/supportProfile';
 import { resolveRadarColor, RADAR_CELL_CLASSES } from '@/core/radarColor';
+import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { isClassSessionLive } from '@/core/classSession';
 import { meetingLabelHe, meetingShortLabelHe, stationNameHe } from '@/core/stationNames';
 import { getHesitationThresholdSeconds, useHesitationThresholdSeconds } from '@/core/hesitationCalibration';
 import { CARD_OPEN_HE, ERROR_CATEGORY_HE, RESET_ACTION_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE, radarPathLabelHe } from '@/core/routeLabels';
 import { hasLegacyRecordings } from '@/core/legacyRecordings';
 import { LegacyRecordingsButton } from './LegacyRecordingsButton';
+import { gateApprovedToastHe } from './TeacherGateApprovalDrawer';
 
 // Radar status color resolution lives in core/radarColor.ts (resolveRadarColor)
 // — the full BLUE > RED > GREY > YELLOW > GREEN priority actually rendered
@@ -107,6 +110,22 @@ const INITIAL_MOCK_STUDENTS: AnonymousStudent[] = Array.from({ length: 12 }, (_,
  * הוקראו כרצף תגיות בלי שם ובלי סדר. כאן נבנה משפט אחד שאומר על מי
  * מדובר ומה מצבו, באותו סדר עדיפויות שהתא מצייר.
  */
+/**
+ * PRD Module 18 §ב: GREY is also "a session not started". A learner who
+ * finished meeting 2 and waits for the gate while the class is in meeting 3 or
+ * later has not started it — the waiting screen holds them — yet the tile read
+ * green "פעיל". The gate itself still never colours the tile (it has its own
+ * row); this is only whether the learner's meeting has started.
+ */
+export function hasLearnerMeetingStarted(
+  student: Pick<AnonymousStudent, 'isWaitingAtGate'>,
+  isClassSessionActive: boolean,
+  activeSessionNumber: number | null
+): boolean {
+  if (!isClassSessionActive) return false;
+  return !(student.isWaitingAtGate && (activeSessionNumber ?? 0) >= 3);
+}
+
 export function describeRadarCell(
   student: AnonymousStudent,
   isSessionActive: boolean,
@@ -116,8 +135,8 @@ export function describeRadarCell(
 
   if (student.helpRequested) parts.push('קורא לעזרה');
   else if (student.isSocraticActive) parts.push(CARD_OPEN_HE);
-  else if (!student.isOnline) parts.push(student.lastAction === 'יצא מהחלון' ? 'יצא מהחלון' : 'לא מחובר');
-  else if (!isSessionActive) parts.push('מחובר וממתין בלובי');
+  else if (!student.isOnline) parts.push('לא מחובר');
+  else if (!isSessionActive) parts.push(student.isWaitingAtGate ? 'מחובר וממתין לאישור המסלול' : 'מחובר וממתין בלובי');
   else if (student.hesitationSeconds >= hesitationThresholdSeconds) {
     parts.push(`מהסס מעל ${hesitationThresholdSeconds} שניות`);
   } else if (student.activeBranch === 'challenge') parts.push('עובד על משימות אתגר');
@@ -132,7 +151,7 @@ export function describeRadarCell(
   if (glyph) parts.push(glyph.title);
   if (student.enhancedSupport) parts.push('תמיכה מוגברת פעילה');
 
-  parts.push('להצגת מסך התלמיד והפרטים');
+  parts.push('לחיצה פותחת את פרטי התלמיד');
   return parts.join('. ');
 }
 
@@ -168,6 +187,9 @@ export function classifyResearchExportFiles(files: unknown): {
   }
   return { failed, parked };
 }
+
+/** Shown above the radar while the teacher's own computer has no connection. */
+export const TEACHER_OFFLINE_RADAR_HE = 'המחשב שלכם לא מחובר לרשת. הרדאר מציג את המצב האחרון שהתקבל, ויתעדכן כשהחיבור יחזור.';
 
 export const RESEARCH_EXPORT_RETRY_HE = 'ייצוא נתוני המחקר נכשל בגלל תקלה זמנית. נסו שוב בעוד כמה דקות.';
 
@@ -251,6 +273,39 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
     };
   }, []);
 
+  // The teacher's own connection. With it down no heartbeat arrives, and the
+  // server clock moving on alone turned the whole class grey ("מנותק") within
+  // 12 seconds while the children worked. Now the radar says the teacher is
+  // offline, and the tiles are judged at the time of the last data received.
+  const [isTeacherOffline, setIsTeacherOffline] = useState(false);
+  const teacherOfflineRef = useRef(false);
+  const lastSnapshotClockRef = useRef<number | null>(null);
+  useEffect(() => {
+    // '.info/connected' is false until the first connection; that is not a drop.
+    let connectedOnce = false;
+    let rtdbConnected = true;
+    const apply = () => {
+      const browserOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      const offline = browserOffline || !rtdbConnected;
+      teacherOfflineRef.current = offline;
+      setIsTeacherOffline(offline);
+    };
+    const unsub = onValue(ref(database, '.info/connected'), (snap) => {
+      const connected = snap.val() === true;
+      if (connected) connectedOnce = true;
+      rtdbConnected = connected || !connectedOnce;
+      apply();
+    });
+    window.addEventListener('online', apply);
+    window.addEventListener('offline', apply);
+    apply();
+    return () => {
+      if (typeof unsub === 'function') unsub();
+      window.removeEventListener('online', apply);
+      window.removeEventListener('offline', apply);
+    };
+  }, []);
+
   // Module 21: recordings of earlier versions still on the learner records (see LegacyRecordingsButton).
   const [legacyRecordings, setLegacyRecordings] = useState(false);
 
@@ -265,7 +320,11 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
       setStudents((prev) => {
         const updated = [...prev];
-        const now = Date.now();
+        // One clock for every learner: the server's — frozen at the last data
+        // received while this computer is offline (see isTeacherOffline).
+        const serverClockNow = teacherOfflineRef.current && lastSnapshotClockRef.current !== null
+          ? lastSnapshotClockRef.current
+          : serverNow();
         
         for (let i = 0; i < 12; i++) {
           const studentNum = i + 1;
@@ -293,9 +352,6 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           // 2. Must have isOnline === true AND fresh heartbeat within 12 seconds (students ping every 4s)
           // lastPing is the server's stamp, so it is compared with the server
           // clock — never with this laptop's own (Module 18 §ג, core/presence.ts).
-          const serverClockNow = serverNow();
-          const lastPing = readLastPing(data.lastPing, serverClockNow);
-          const hasJoinedSession = Boolean(lastPing > 0 || data.hasJoinedSession || data.sessionJoined);
           const isExplicitlyOffline = data.isOnline === false || data.onlineStatus === 'offline';
           const isOnline = Boolean(!isExplicitlyOffline && data.isOnline === true && isHeartbeatFresh(data.lastPing, serverClockNow));
 
@@ -308,15 +364,20 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           // diagnostic task (traceData, never reset) kept it yellow in every later
           // meeting, and "השהייה: 90ש'" meant two events, not ninety seconds. The
           // learner's client raises the flag at the threshold and clears it on
-          // the next cognitive action.
+          // the next cognitive action. The stamp is on the server clock
+          // (useCognitiveHesitationRadar), so it is compared with the server
+          // clock: a tablet clock off by a minute used to add a minute here.
           const hesitatingSince =
             data.hesitating?.hesitating === true && typeof data.hesitating?.timestamp === 'number'
               ? data.hesitating.timestamp
               : null;
           const hesitationSeconds = isOnline && hesitatingSince !== null
-            ? hesitationThreshold + Math.max(0, Math.round((now - hesitatingSince) / 1000))
+            ? hesitationThreshold + Math.max(0, Math.round((serverClockNow - hesitatingSince) / 1000))
             : 0;
-          const undoCount = isOnline ? Math.max(wsState.undoCount || 0, data.traceData?.undo_clicks || 0) : 0;
+          // The live meeting's own count. traceData.undo_clicks is written once,
+          // at the end of the diagnostic, and is never reset: taking the larger
+          // of the two kept meeting 2's number on the tile in every later meeting.
+          const undoCount = isOnline ? wsState.undoCount || 0 : 0;
           const mistakeCount = isOnline ? sessionState.error_count || 0 : 0;
           // The struggle signal keeps its rule (Module 18): the larger of the two.
           const errorCount = Math.max(undoCount, mistakeCount);
@@ -338,11 +399,11 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           const rawSessionNum = wsState.sessionNumber || sessionState.session_number || activeBroadcastSession || (data.highestCompletedMeeting ? Math.min(8, data.highestCompletedMeeting + 1) : 1);
           const sessionNumber = Math.min(8, Math.max(1, Number(rawSessionNum) || 1));
 
+          // A closed window and a dropped network look the same from here, so an
+          // offline learner is "לא מחובר" — never "יצא מהחלון".
           let lastAction = 'לא מחובר';
           if (isOnline) {
             lastAction = data.lastAction || (isSocraticActive ? CARD_OPEN_HE : hesitationSeconds >= hesitationThreshold ? `היסוס מעל ${hesitationThreshold} שניות בטור הפעיל` : 'פעיל בלמידה');
-          } else {
-            lastAction = hasJoinedSession ? 'יצא מהחלון' : 'לא מחובר';
           }
 
           const isWaitingAtGate = Boolean(
@@ -410,6 +471,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       studentsRef,
       (snapshot) => {
         pendingData = snapshot.val() || {};
+        lastSnapshotClockRef.current = serverNow();
         setLegacyRecordings(hasLegacyRecordings(pendingData));
         flushThrottledData();
       },
@@ -572,7 +634,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       useStore.getState().approveRoute(`student_${num}`);
       useStore.getState().approveRoute(num);
 
-      toast.success(`✓ ${radarPathLabelHe(path)} אושר עבור תלמיד ${num}! ${TEACHER_GATE_HE} הושלם עבורו, ומפגש 3 נפתח.`);
+      toast.success(gateApprovedToastHe(num, isRemediation ? 'remediation_path' : 'green_path'));
     } catch (err) {
       console.error('Failed to approve gate:', err);
       toast.error(`שגיאה ב${TEACHER_GATE_HE}`);
@@ -591,6 +653,15 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   const handleResetAllClass = () => {
     setIsClassResetModalOpen(true);
   };
+
+  // The learner window reads the live list, not the copy taken when the tile
+  // was clicked: the meeting, the path, the classifications and the questions
+  // stayed as they were at the click until the window was reopened.
+  const liveSelectedStudent = selectedStudent
+    ? students.find((s) => s.id === selectedStudent.id) ?? selectedStudent
+    : null;
+  // מסמך העיצוב §1.2: Escape סוגר, והפוקוס נלכד בחלון וחוזר למשבצת בסגירה.
+  const detailDrawerRef = useDismissableOverlay<HTMLDivElement>(Boolean(selectedStudent), () => setSelectedStudent(null));
 
   // Pending Teacher Gate students
   const pendingGateStudents = useMemo(() => students.filter(s => s.isWaitingAtGate), [students]);
@@ -667,14 +738,15 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             </div>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת לצפייה במסך התלמיד, בהקלטות וב{TEACHER_GATE_HE}.
+            מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת כדי לראות את פרטי התלמיד: המסלול, המפגש, סיווגי הטעות ושאלות מנחות.
           </p>
         </div>
 
         {/* 5-Color Status Legend per PRD v7.1 Module 18 (BLUE > RED > GREY > YELLOW > GREEN) */}
         <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700">
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-blue-500 shadow-sm animate-radar-call" />
+            {/* The slow breath is for a live call only; it ran here all lesson long, with no call open. */}
+            <span data-testid="legend-help-dot" className={`w-3 h-3 rounded-full bg-blue-500 shadow-sm ${students.some((s) => s.helpRequested) ? 'animate-radar-call' : ''}`} />
             <span>קריאה לעזרה</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -695,6 +767,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           </div>
         </div>
       </section>
+
+      {isTeacherOffline && (
+        <div role="status" data-testid="radar-teacher-offline" className="bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 rounded-2xl p-4 flex items-center gap-2.5 text-sm font-bold text-slate-800 dark:text-slate-100">
+          <WifiOff className="w-4 h-4 shrink-0" aria-hidden="true" />
+          <span>{TEACHER_OFFLINE_RADAR_HE}</span>
+        </div>
+      )}
 
       {/* Progressive Disclosure: Contextual Teacher Gate Banner (Only when students are waiting) */}
       {pendingGateStudents.length > 0 && (
@@ -753,7 +832,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 role="button"
                 tabIndex={0}
                 key={student.id}
-                aria-label={describeRadarCell(student, isClassSessionActive, getHesitationThresholdSeconds())}
+                aria-label={describeRadarCell(student, hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum), getHesitationThresholdSeconds())}
                 onClick={() => setSelectedStudent(student)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -767,7 +846,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   isOnline: Boolean(student.isOnline),
                   hesitationSeconds: student.hesitationSeconds,
                   hesitationThresholdSeconds: getHesitationThresholdSeconds(),
-                  sessionStarted: isClassSessionActive,
+                  sessionStarted: hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum),
                 })}
                 className={`p-4 rounded-2xl border text-right transition-colors duration-500 ease-in-out flex flex-col justify-between min-h-[125px] relative overflow-hidden shadow-sm hover:shadow-md cursor-pointer ${
                   // PRD Module 18 §ב: BLUE > RED > GREY > YELLOW > GREEN, and "the
@@ -782,7 +861,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     isOnline: Boolean(student.isOnline),
                     hesitationSeconds: student.hesitationSeconds,
                     hesitationThresholdSeconds: getHesitationThresholdSeconds(),
-                    sessionStarted: isClassSessionActive,
+                    sessionStarted: hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum),
                   })]
                 }`}
               >
@@ -808,7 +887,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     })()}
                   </div>
                   
-                  {/* Status tag — help, card and connection in the colour's order (Module 18); the gate has its own row below */}
+                  {/* Status tag — help, card, connection and hesitation in the colour's order (Module 18): a yellow tile says "היסוס", also in a challenge or reinforcement branch; the gate has its own row below */}
                   {student.helpRequested ? (
                     <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="קריאה לעזרה">
                       קריאה לעזרה
@@ -819,13 +898,23 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       {CARD_OPEN_HE}
                     </span>
                   ) : !student.isOnline ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={student.lastAction === 'יצא מהחלון' ? 'יצא מהחלון' : 'לא מחובר'}>
-                      {student.lastAction === 'יצא מהחלון' ? 'יצא מהחלון' : 'מנותק'}
+                    <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="לא מחובר">
+                      מנותק
                     </span>
                   ) : !isClassSessionActive ? (
                     <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר וממתין בלובי">
                       <span className="w-2 h-2 rounded-full bg-white" />
                       בלובי
+                    </span>
+                  ) : !hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum) ? (
+                    <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר וממתין לאישור המסלול">
+                      <span className="w-2 h-2 rounded-full bg-white" />
+                      ממתין
+                    </span>
+                  ) : student.hesitationSeconds >= getHesitationThresholdSeconds() ? (
+                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={`היסוס > ${getHesitationThresholdSeconds()} שניות`}>
+                      <AlertTriangle className="w-3 h-3" />
+                      היסוס
                     </span>
                   ) : student.activeBranch === 'challenge' ? (
                     <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מבצע משימות אתגר (לומד מהיר)">
@@ -834,11 +923,6 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   ) : student.activeBranch === 'reinforcement' ? (
                     <span className="inline-flex items-center gap-1 bg-emerald-700 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מבצע משימות ביסוס">
                       🛡️ ביסוס
-                    </span>
-                  ) : student.hesitationSeconds >= getHesitationThresholdSeconds() ? (
-                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={`היסוס > ${getHesitationThresholdSeconds()} שניות`}>
-                      <AlertTriangle className="w-3 h-3" />
-                      היסוס
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="פעיל ותקין">
@@ -851,11 +935,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 {!student.isOnline ? (
                   <div className="flex flex-col justify-center items-center py-2 text-slate-400 dark:text-slate-500">
                     <span className="text-xs font-semibold">
-                      {!isClassSessionActive
-                        ? 'שיעור לא פעיל'
-                        : student.lastAction === 'יצא מהחלון'
-                        ? 'יצא מהחלון'
-                        : 'לא מחובר כעת'}
+                      {!isClassSessionActive ? 'אין מפגש פתוח' : 'לא מחובר כעת'}
                     </span>
                   </div>
                 ) : (
@@ -899,7 +979,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                         {TEACHER_GATE_HE} · המלצה: <span className="whitespace-nowrap">{radarPathLabelHe(student.recommendedPath)}</span>
                       </span>
                     </span>
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
                       <button
                         onClick={() => handleApproveGate(student.id, 'ירוק')}
                         disabled={Boolean(approvingStudentId)}
@@ -907,7 +987,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                         title={ROUTE_APPROVE_HE.green_path}
                       >
                         {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
-                        <span>ירוק</span>
+                        <span>{ROUTE_NAME_HE.green_path}</span>
                       </button>
                       <button
                         onClick={() => handleApproveGate(student.id, 'צמצום פערים')}
@@ -916,7 +996,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                         title={ROUTE_APPROVE_HE.remediation_path}
                       >
                         {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
-                        <span>צמצום פערי קדם</span>
+                        <span>{ROUTE_NAME_HE.remediation_path}</span>
                       </button>
                     </div>
                   </div>
@@ -930,7 +1010,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       {/* Drill-Down View / Student Detail Drawer */}
       {typeof document !== 'undefined' && createPortal(
         <AnimatePresence>
-          {selectedStudent && (
+          {selectedStudent && liveSelectedStudent && (
             <motion.div
               key="student-detail-drawer-container"
               initial={{ opacity: 0 }}
@@ -944,6 +1024,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               />
               <motion.div 
                 key="student-detail-drawer-panel"
+                ref={detailDrawerRef}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`פרטי תלמיד ${selectedStudent.studentNumber}`}
                 initial={{ x: '100%' }}
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
@@ -978,9 +1062,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 </div>
 
                 {/* The tile is blue for a help call (Module 18 §ב); the window
-                    opened from it said nothing of it. Read live, not from the
-                    copy taken when the tile was clicked. */}
-                {(students.find((s) => s.id === selectedStudent.id) ?? selectedStudent).helpRequested && (
+                    opened from it said nothing of it. */}
+                {liveSelectedStudent.helpRequested && (
                   <div role="status" className="mb-6 p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 flex items-center gap-2 text-sm font-bold text-blue-900 dark:text-blue-200">
                     <BellRing className="w-4 h-4 text-blue-600 shrink-0" aria-hidden="true" />
                     <span>התלמיד ביקש עזרה</span>
@@ -991,18 +1074,18 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                     <span className="text-xs text-slate-500 font-bold block mb-1">מסלול למידה נוכחי</span>
-                    <span data-testid="detail-current-path" className={`text-base font-extrabold ${selectedStudent.currentPath === 'צמצום פערים' ? 'text-amber-600' : selectedStudent.currentPath === 'ירוק' ? 'text-emerald-600' : 'text-slate-500 dark:text-slate-400'}`}>
-                      {selectedStudent.currentPath ? radarPathLabelHe(selectedStudent.currentPath) : 'עדיין לא נקבע'}
+                    <span data-testid="detail-current-path" className={`text-base font-extrabold ${liveSelectedStudent.currentPath === 'צמצום פערים' ? 'text-amber-600' : liveSelectedStudent.currentPath === 'ירוק' ? 'text-emerald-600' : 'text-slate-500 dark:text-slate-400'}`}>
+                      {liveSelectedStudent.currentPath ? radarPathLabelHe(liveSelectedStudent.currentPath) : 'עדיין לא נקבע'}
                     </span>
                   </div>
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                     <span className="text-xs text-slate-500 font-bold block mb-1">התקדמות ברצף המפגשים</span>
                     <span className="text-base font-extrabold text-indigo-600">
-                      מפגש {selectedStudent.sessionNumber} מתוך 8
+                      מפגש {liveSelectedStudent.sessionNumber} מתוך 8
                     </span>
-                    {stationNameHe(selectedStudent.sessionNumber) && (
+                    {stationNameHe(liveSelectedStudent.sessionNumber) && (
                       <span className="block text-xs font-bold text-slate-500 mt-1">
-                        אצל התלמידים: {stationNameHe(selectedStudent.sessionNumber)}
+                        אצל התלמידים: {stationNameHe(liveSelectedStudent.sessionNumber)}
                       </span>
                     )}
                   </div>
@@ -1011,7 +1094,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 {/* PRD v7.1 Module 18: classification distribution for the current session,
                     so the teacher can tell a calculation slip from a conceptual gap. */}
                 {(() => {
-                  const dist = selectedStudent.errorCategoryDistribution || { calculation: 0, procedural: 0, conceptual: 0 };
+                  const dist = liveSelectedStudent.errorCategoryDistribution || { calculation: 0, procedural: 0, conceptual: 0 };
                   const total = dist.calculation + dist.procedural + dist.conceptual;
                   const rows = [
                     { key: 'calculation', glyph: 'ח', label: ERROR_CATEGORY_HE.calculation, count: dist.calculation, bar: 'bg-sky-500' },
@@ -1022,7 +1105,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     <div className="mb-6 p-4 rounded-2xl bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
                       <div className="flex items-baseline justify-between mb-3">
                         <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">
-                          התפלגות סיווגי הטעות · {meetingShortLabelHe(selectedStudent.sessionNumber)}
+                          התפלגות סיווגי הטעות · {meetingShortLabelHe(liveSelectedStudent.sessionNumber)}
                         </span>
                         <span className="text-xs font-bold text-slate-400">{total} סיווגים</span>
                       </div>
@@ -1058,7 +1141,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
                 {/* Pedagogical Recommendations */}
                 {(() => {
-                  const rec = getPedagogicalRecommendations(selectedStudent);
+                  const rec = getPedagogicalRecommendations(liveSelectedStudent);
                   return (
                     <div className="p-5 rounded-2xl bg-indigo-50/70 dark:bg-slate-800/80 border border-indigo-100 dark:border-slate-700 mb-6">
                       <div className="flex items-center gap-2 mb-3">

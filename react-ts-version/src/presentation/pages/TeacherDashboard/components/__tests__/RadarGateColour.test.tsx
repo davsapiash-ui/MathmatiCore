@@ -67,7 +67,7 @@ const base = (n: number, over: Partial<AnonymousStudent>): AnonymousStudent => (
 
 const gate = { isWaitingAtGate: true, recommendedPath: 'ירוק' as const };
 const students: AnonymousStudent[] = [
-  base(1, { ...gate, isOnline: false, lastAction: 'יצא מהחלון' }), // GREY
+  base(1, { ...gate, isOnline: false, lastAction: 'לא מחובר' }), // GREY
   base(2, { ...gate, isSocraticActive: true }),                    // RED
   base(3, { ...gate, hesitationSeconds: 120 }),                    // YELLOW
   base(4, { ...gate }),                                            // GREEN
@@ -105,7 +105,7 @@ describe('מ.5 — שער האישור אינו צובע את המשבצת', () 
   it('תגית המצב היא של מודול 18, והשער בשורה משלו — גם כשהלומד מנותק', () => {
     render(<HeatmapGrid initialStudents={students} />);
     const offline = tile(1);
-    expect(within(offline).getAllByText('יצא מהחלון').length).toBeGreaterThan(0);
+    expect(within(offline).getAllByText('מנותק').length).toBeGreaterThan(0);
     const row = within(offline).getByTestId('gate-row-student-1');
     expect(row.textContent).toContain(TEACHER_GATE_HE);
     // The row labels the path as the diagnosis's recommendation.
@@ -136,8 +136,8 @@ describe('מ.5 — שער האישור אינו צובע את המשבצת', () 
 
   it('גם לקורא מסך: המצב קודם, השער אחריו', () => {
     const text = describeRadarCell(students[0], true, 45);
-    expect(text.indexOf('יצא מהחלון')).toBeGreaterThan(-1);
-    expect(text.indexOf(TEACHER_GATE_HE)).toBeGreaterThan(text.indexOf('יצא מהחלון'));
+    expect(text.indexOf('לא מחובר')).toBeGreaterThan(-1);
+    expect(text.indexOf(TEACHER_GATE_HE)).toBeGreaterThan(text.indexOf('לא מחובר'));
     const red = describeRadarCell(students[1], true, 45);
     expect(red.indexOf('כרטיס החניכה פתוח')).toBeLessThan(red.indexOf(TEACHER_GATE_HE));
   });

@@ -18,6 +18,22 @@ import { ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 import { meetingShortLabelHe } from '@/core/stationNames';
 import { NO_RECOMMENDATION_HE, type GateStudentItem } from '../gateEvidence';
 
+/**
+ * What the teacher reads after a gate approval, here and on the radar. It used
+ * to end "ומפגש 3 נפתח": the approval only releases the learner from the
+ * wait; a meeting opens when the teacher opens it. "ל" absorbs the definite
+ * article: "למסלול הירוק", never "להמסלול הירוק".
+ */
+export function gateApprovedToastHe(studentNumber: string | number, path: PedagogicalPath): string {
+  return `✓ ${TEACHER_GATE_HE}: תלמיד ${studentNumber} אושר ל${ROUTE_NAME_HE[path].replace(/^ה/, '')}.`;
+}
+
+/** The two route cards: the number range of each route's bank (PRD Module 26). */
+export const ROUTE_CARD_HE: Readonly<Record<PedagogicalPath, string>> = {
+  green_path: 'חיבור וחיסור במאונך בתחום הרבבה, במספרים עד 10,000.',
+  remediation_path: 'חיבור וחיסור במאונך בתחום המאה והאלף, במספרים עד 1,000, לצמצום פערי קדם.',
+};
+
 interface Props {
   student: StudentData | null;
   /**
@@ -43,9 +59,18 @@ function recommendationOf(student: Record<string, unknown>, evidence?: GateStude
  * a default colour). This used to fall back to green for everyone.
  */
 function pathToPreselect(s: Record<string, unknown>, evidence?: GateStudentItem | null): PedagogicalPath | null {
-  const approved = s.teacher_gate_approved === true || s.routeStatus === 'APPROVED' || evidence?.isApproved === true;
-  if (approved && (s.pedagogicalPath === 'remediation_path' || s.pedagogicalPath === 'green_path')) return s.pedagogicalPath;
-  return recommendationOf(s, evidence);
+  return approvedPathOf(s, evidence) ?? recommendationOf(s, evidence);
+}
+
+/** Whether the gate already approved this learner. */
+function isGateApproved(s: Record<string, unknown>, evidence?: GateStudentItem | null): boolean {
+  return s.teacher_gate_approved === true || s.routeStatus === 'APPROVED' || evidence?.isApproved === true;
+}
+
+/** The path the gate approved, or null while none is. */
+function approvedPathOf(s: Record<string, unknown>, evidence?: GateStudentItem | null): PedagogicalPath | null {
+  if (!isGateApproved(s, evidence)) return null;
+  return s.pedagogicalPath === 'remediation_path' || s.pedagogicalPath === 'green_path' ? s.pedagogicalPath : null;
 }
 
 export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApproveSuccess }: Props) {
@@ -73,6 +98,11 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
   const studentNum = student.studentId.replace(/\D/g, '') || student.studentId;
   const scorePercent = evidence?.scorePercent ?? null;
   const supportTasks = evidence?.errorNodes ?? [];
+  // An approved learner is not "ממתין להחלטתכם", and there is nothing to
+  // approve again: the drawer says so, and its button only changes the path.
+  const alreadyApproved = isGateApproved(sAny, evidence);
+  const approvedPath = approvedPathOf(sAny, evidence);
+  const nothingToSave = alreadyApproved && approvedPath !== null && selectedPath === approvedPath;
 
   const handleApprove = async () => {
     if (!selectedPath) return;
@@ -90,8 +120,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
       }
 
       useStore.getState().approveRoute(student.studentId);
-      // "ל" absorbs the definite article: "למסלול הירוק", never "להמסלול הירוק".
-      toast.success(`✓ ${TEACHER_GATE_HE}: תלמיד ${studentNum} הועבר ל${ROUTE_NAME_HE[selectedPath].replace(/^ה/, '')}, ו${meetingShortLabelHe(3)} נפתח עבורו 🚀`);
+      toast.success(gateApprovedToastHe(studentNum, selectedPath));
       if (onApproveSuccess) onApproveSuccess();
       onClose();
     } catch (err) {
@@ -133,12 +162,20 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                 <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
                   {TEACHER_GATE_HE} — תלמיד {studentNum}
                 </h2>
-                <span className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
-                  ממתין להחלטתכם
-                </span>
+                {alreadyApproved ? (
+                  <span data-testid="gate-drawer-state" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                    המסלול אושר
+                  </span>
+                ) : (
+                  <span data-testid="gate-drawer-state" className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                    ממתין להחלטתכם
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                אישור מסלול לימוד ותוכנית תרגילים לקראת {meetingShortLabelHe(3)}
+                {alreadyApproved
+                  ? (approvedPath ? `המסלול שאושר: ${ROUTE_NAME_HE[approvedPath]}` : 'המסלול של התלמיד כבר אושר')
+                  : `אישור מסלול לימוד ותוכנית תרגילים לקראת ${meetingShortLabelHe(3)}`}
               </p>
             </div>
           </div>
@@ -243,7 +280,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                   )}
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  התקדמות שוטפת לעבר חיבור וחיסור במספרים תלת-ספרתיים מורכבים והעמקה קוגניטיבית.
+                  {ROUTE_CARD_HE.green_path}
                 </p>
               </button>
 
@@ -270,7 +307,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                   )}
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  הוראת עמיתים וסגירת פערי קדם במבנה עשרוני, המרות שקטות ושומר מקום (אפס).
+                  {ROUTE_CARD_HE.remediation_path}
                 </p>
               </button>
             </div>
@@ -289,12 +326,16 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
 
           <button
             onClick={handleApprove}
-            disabled={isApproving || selectedPath === null}
-            title={selectedPath === null ? 'יש לבחור מסלול לפני האישור' : undefined}
+            disabled={isApproving || selectedPath === null || nothingToSave}
+            title={selectedPath === null ? 'יש לבחור מסלול לפני האישור' : nothingToSave ? 'כדי לשנות את המסלול, בחרו במסלול האחר' : undefined}
             className="px-7 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
           >
             <CheckCircle2 className="w-5 h-5 text-amber-300" />
-            <span>{isApproving ? 'מאשר ומפעיל...' : `אשרו והפעילו את התוכנית ל${meetingShortLabelHe(3)}`}</span>
+            <span>
+              {alreadyApproved
+                ? (isApproving ? 'מעדכן...' : nothingToSave ? 'המסלול כבר אושר' : 'שנו את המסלול')
+                : (isApproving ? 'מאשר ומפעיל...' : `אשרו והפעילו את התוכנית ל${meetingShortLabelHe(3)}`)}
+            </span>
           </button>
         </div>
       </div>

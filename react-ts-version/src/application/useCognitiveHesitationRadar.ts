@@ -13,6 +13,7 @@ import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { getHesitationThresholdSeconds, useHesitationThresholdSeconds } from '@/core/hesitationCalibration';
+import { serverNow } from '@/infrastructure/firebase';
 import { GRID_STAGE_SECONDS, SOCRATIC_STAGE_SECONDS, shouldOpenAdaptiveGrid } from '@/core/hesitationStages';
 
 interface UseCognitiveHesitationRadarProps {
@@ -207,9 +208,12 @@ export function useCognitiveHesitationRadar({
     radarTimeoutRef.current = setTimeout(() => {
       const uid = currentStudentUid();
       if (!uid) return;
+      // On the server clock, like the heartbeat (core/presence.ts): the teacher
+      // counts "היסוס: N שנ׳" from this stamp, and the tablet's own clock put
+      // its error into that number.
       throttledRtdbUpdate(`users/students/${uid}`, { hesitating: {
         hesitating: true,
-        timestamp: Date.now()
+        timestamp: serverNow()
       } }).catch(console.error);
       hesitatingPublishedRef.current = true;
     }, getHesitationThresholdSeconds() * 1000);
@@ -224,7 +228,7 @@ export function useCognitiveHesitationRadar({
   const clearHesitating = useCallback(() => {
     const uid = currentStudentUid();
     if (!uid) return;
-    throttledRtdbUpdate(`users/students/${uid}`, { hesitating: { hesitating: false, timestamp: Date.now() } }).catch(() => {});
+    throttledRtdbUpdate(`users/students/${uid}`, { hesitating: { hesitating: false, timestamp: serverNow() } }).catch(() => {});
     hesitatingPublishedRef.current = false;
   }, []);
 
