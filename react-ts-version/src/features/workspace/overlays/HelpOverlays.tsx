@@ -14,6 +14,11 @@ import { orderSocraticChoices } from '@/infrastructure/services/socraticOptionOr
 import { socraticCardTextDetails, socraticOptionKey } from '@/infrastructure/services/socraticCardText';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { MathText } from '../tasks/MathText';
+import { joinSpokenSentences } from '../tasks/spokenSentences';
+
+/** The card's silent lock (PRD Module 12 §ב), said by the hint box's read-aloud button too. */
+const LOCK_SENTENCE_HE = 'רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.';
 
 /**
  * PRD Module 12: the only in-task help is the Socratic coaching card —
@@ -260,12 +265,12 @@ export function SocraticSidePanel() {
               <div className="flow-root shrink-0 mb-[clamp(0.25rem,1vh,0.75rem)]">
                 <div className="float-left flex items-center gap-1 ms-2 mb-1">
                   <UdlSpeechButton
-                    text={[
+                    text={joinSpokenSentences([
                       shownCard?.questionHe || 'שאלה מנחה לחשיבה',
                       // הקראת השאלה בלי האפשרויות משאירה ילד שנעזר בהקראה
                       // מול שלוש אפשרויות שלא שמע. מודול 7 (UDL).
                       ...shownChoices.map((c) => c.textHe),
-                    ].join('. ')}
+                    ])}
                     className="shrink-0"
                   />
                   <button
@@ -278,7 +283,7 @@ export function SocraticSidePanel() {
                 </div>
                 <h2 className="font-display font-black text-[clamp(0.875rem,2.4vh,1.25rem)] text-ws-ink leading-tight">
                   <span className="me-1" aria-hidden="true">💡</span>
-                  {shownCard?.questionHe || 'שאלה מנחה לחשיבה'}
+                  <MathText text={shownCard?.questionHe || 'שאלה מנחה לחשיבה'} />
                 </h2>
               </div>
 
@@ -402,7 +407,9 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
             key={opt.id}
             disabled={locked || answered}
             onClick={() => handleSelect(opt)}
-            className={`px-3 py-[clamp(0.3125rem,1.3vh,0.75rem)] rounded-2xl border-2 text-right font-medium text-[clamp(0.75rem,2vh,0.875rem)] leading-snug transition-all flex items-start gap-2 ${
+            // At least 44px tall, the child's touch target (DESIGN_SYSTEM_RULES.md;
+            // UX audit 4.10.2026: 36–42px on 585–729px-high windows).
+            className={`min-h-11 px-3 py-[clamp(0.3125rem,1.3vh,0.75rem)] rounded-2xl border-2 text-right font-medium text-[clamp(0.75rem,2vh,0.875rem)] leading-snug transition-all flex items-center gap-2 ${
               isCorrectChosen
                 ? 'border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100'
                 : isWrongChosen
@@ -414,7 +421,7 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
           >
             {isWrongChosen && <span className="text-rose-600 font-black shrink-0" aria-hidden="true">❌</span>}
             {isCorrectChosen && <span className="text-emerald-600 font-black shrink-0" aria-hidden="true">✅</span>}
-            <span>{opt.text}</span>
+            <span><MathText text={opt.text} /></span>
           </button>
         );
       })}
@@ -431,7 +438,14 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
             : 'bg-rose-50 text-rose-950 dark:bg-rose-950/50 dark:text-rose-200 border border-rose-300 dark:border-rose-800'
         }`}
         >
-          <div>💡 {feedbackHint}</div>
+          {/* Read aloud like every instruction on the screen (PRD Module 7 §א),
+              floated so it adds no row: the hint and, while the answers are
+              locked, the lock sentence too. */}
+          <UdlSpeechButton
+            text={locked ? joinSpokenSentences([feedbackHint, LOCK_SENTENCE_HE]) : feedbackHint}
+            className="float-left ms-2 shrink-0"
+          />
+          <div>💡 <MathText text={feedbackHint} /></div>
           {locked && (
             // שעון חול עדין ומשפט אחד, בלי מספרים (מודול 12 §ב; ע1.5).
             <div data-testid="socratic-lock-indicator" className="mt-1 flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200">
@@ -447,6 +461,7 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
           className="flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl px-3 py-[clamp(0.25rem,1vh,0.75rem)] text-amber-900 dark:text-amber-200 text-[clamp(0.75rem,2vh,0.875rem)] leading-snug font-bold">
           <span aria-hidden="true" className="text-base">⏳</span>
           <span>רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.</span>
+          <UdlSpeechButton text={LOCK_SENTENCE_HE} className="shrink-0" />
         </div>
       )}
 

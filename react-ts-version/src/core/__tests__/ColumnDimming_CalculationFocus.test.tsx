@@ -675,7 +675,7 @@ describe('on the board', () => {
     useWorkspaceStore.setState({ activeColumnIndex: 0, placeCuesShown: true } as any);
     const before = { focusedPlace: useWorkspaceStore.getState().focusedPlace, activeColumnIndex: useWorkspaceStore.getState().activeColumnIndex };
     const sheet = render(<VerticalAdditionTask numberA={1245} numberB={328} answerLength={4} />);
-    const circle = sheet.getByLabelText('חלונית המרה לעשרות');
+    const circle = sheet.getByLabelText('עיגול הזיכרון של טור העשרות');
     fireEvent.focus(circle);
     expect(useBoardFocusStore.getState().focusedMemoryCircle).toBe('tens');
     const board = renderBoard();

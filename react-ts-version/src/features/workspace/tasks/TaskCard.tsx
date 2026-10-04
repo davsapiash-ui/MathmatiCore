@@ -19,6 +19,7 @@ import { BackwardDiagnosisView } from './BackwardDiagnosisView';
 import { PlaceValueInputBoxes } from './PlaceValueInputBoxes';
 import { UnitBlocksPicture } from './UnitBlocksPicture';
 import { FeedbackToast } from '../overlays/FeedbackToast';
+import { MathText } from './MathText';
 
 /**
  * כרטיס המשימה — כותרת, הוראה (עם הקראה), וגוף דינמי לפי סוג המשימה והשלב.
@@ -97,7 +98,7 @@ export function TaskCard() {
             className="shrink-0 flex items-start gap-3 mb-fl-6-24 rounded-2xl px-fl-12-16 pr-fl-14-20 py-fl-6-16 border-r-4"
             style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.55)', borderColor: 'hsl(var(--ws-blue) / 0.55)' }}
           >
-            <p className="text-fl-16-20 text-ws-ink/85 font-medium leading-[1.55] flex-1 whitespace-pre-line">{instruction}</p>
+            <p className="text-fl-16-20 text-ws-ink/85 font-medium leading-[1.55] flex-1 whitespace-pre-line"><MathText text={instruction} /></p>
             <UdlSpeechButton text={instruction} />
           </div>
         )}

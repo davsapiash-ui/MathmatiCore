@@ -90,6 +90,18 @@ describe('שם אחד לכל רכיב: לבנים ובית המספרים', () =
     }
   });
 
+  it('"דינס" and a bare "לוח" are refused; "לוח החיבור" and "לוחצים" are not (audit 4.10.2026, A7-018)', () => {
+    for (const bad of ['גררו לבני דינס לטור העשרות', 'כמה לבנים יש בלוח?', 'מה רואים על הלוח?', 'לוח: כמה עשרות יש?']) {
+      expect(findForbiddenTerm([bad]), bad).not.toBeNull();
+      const v = validateSocraticResponse(card(bad));
+      expect(v.ok, bad).toBe(false);
+      if (!v.ok) expect(v.reason, bad).toMatch(/^forbidden terminology/);
+    }
+    for (const good of ['איזה מספר בחרתם בלוח החיבור?', 'לוחצים על הכפתור "קבצו 10"', 'כמה לבנים יש בטור היחידות?']) {
+      expect(findForbiddenTerm([good]), good).toBeNull();
+    }
+  });
+
   it('the same card with "לבנים" and "בית המספרים" passes', () => {
     const good = 'בתרגיל 146 ועוד 235, כמה לבנים יש בטור היחידות בבית המספרים?';
     expect(findForbiddenTerm([good])).toBeNull();

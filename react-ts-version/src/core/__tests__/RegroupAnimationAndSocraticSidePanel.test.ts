@@ -350,6 +350,20 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     expect(box.getAttribute('role')).toBe('status');
     expect(box.textContent).toMatch(/^💡 \S.*⏳רגע לחשיבה/);
     expect(within(card).getAllByRole('status')).toHaveLength(1);
+    // PRD Module 7 §א: the hint is an instruction, so it has its own read-aloud
+    // button, which says the lock sentence too (audit 4.10.2026, A7-003).
+    expect(within(box).getByRole('button', { name: 'הקראה בקול' })).toBeDefined();
+    // Every answer is a 44px touch target (UX audit 4.10.2026, UX-006).
+    for (const b of answers) expect(b.className).toMatch(/\bmin-h-11\b/);
+    unmount();
+  });
+
+  it('the lock alone also has its read-aloud button (A7-003)', async () => {
+    await openSettledCard();
+    act(() => { ws().triggerSocraticPenaltyLockout('רמז'); });
+    const { unmount } = render(React.createElement(SocraticSidePanel, null));
+    const indicator = screen.getByTestId('socratic-lock-indicator');
+    expect(within(indicator).getByRole('button', { name: 'הקראה בקול' })).toBeDefined();
     unmount();
   });
 
