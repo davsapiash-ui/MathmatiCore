@@ -65,11 +65,6 @@ const OWNER_ITEMS = [
   'number_after_break :: form: a wrong option\'s feedback must be ONE question',
   'check_enough_to_subtract :: form: a wrong option\'s feedback must be ONE question',
   'number_after_grouping :: form: a wrong option\'s feedback must be ONE question',
-  // The owner's cards of 4.10.2026 for 2,730 (cards round 2, B1 and B2): the
-  // right option's feedback is longer than the engine's own cards may be
-  // (30 words) — it gives two ways back to the given blocks. Reported to him.
-  'restore_given :: style: length_feedback',
-  'restore_given_how :: style: length_feedback',
 ];
 
 describe('every static card the client produces, through the server\'s validator', () => {

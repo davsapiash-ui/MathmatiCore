@@ -558,9 +558,18 @@ export interface StaticCardContext {
    * block went to the trash (hasDeletedBlock).
    */
   blocksRemoved?: boolean;
+  /**
+   * An exercise that opens with the blocks to group (initialCounts: 2,730):
+   * the board is the opening board, or the opening board with exactly the
+   * groupings recorded so far — the final board included
+   * (useWorkspaceStore.givenBoardOnTheWay). False: the given blocks changed.
+   */
+  givenOnTheWay?: boolean;
+  /** Such an exercise: the oldest frame of the undo stack is the opening board, so undoing every step leads back to it. */
+  undoReachesStart?: boolean;
 }
 
-const shownIn = (ctx: StaticCardContext, kind: StaticCardKind) => (ctx.shownKinds ?? []).includes(kind);
+const shownIn =(ctx: StaticCardContext, kind: StaticCardKind) => (ctx.shownKinds ?? []).includes(kind);
 
 /**
  * The situation family of a card (coordinator's decision, 2.10.2026): its
@@ -2856,35 +2865,53 @@ export function s1WrongBreakCard(task: any, counts: BoardCounts, ctx: StaticCard
  * hundreds and 13 tens on the board, to be grouped twice. The board is no
  * longer worth what it gave (blocks deleted or added, the board cleared), or
  * it shows the final blocks with the groupings not made (arranged by hand):
- * back to the given blocks — the undo button, or the trash and the toolbox
- * with the instruction's own list (B1, B2: cards round 2, owner-approved).
+ * back to the given blocks. Two ways, one card each (cards round 3,
+ * owner-approved): B1 the undo button, B2 the trash and the toolbox with the
+ * instruction's own list.
+ * - Served on any board that is not on the way (ctx.givenOnTheWay: the
+ *   opening board, or it with exactly the groupings recorded so far — the
+ *   accepted final board included). Without the store, the board alone: worth
+ *   the given number and not the final blocks with a grouping pending.
+ * - B1 only while undoing every step leads back to the opening board (the
+ *   oldest undo frame is it: ctx.undoReachesStart); otherwise B2 at once.
+ *   Never back from B2 to B1.
+ * - B2 on an empty board: nothing to throw away, so its feedback skips the trash.
  * Not meeting 1's 26 units (s1StartChangedCard: its instruction hides the count).
  */
 export function givenBlocksChangedCard(task: any, counts: BoardCounts | undefined, ctx: StaticCardContext = {}): SocraticHintResponse | null {
   if (!task?.initialCounts || task.requiresGrouping || task.representationKind || typeof task.numberA !== 'number' || !counts) return null;
   if (meetingOfTaskId(task.id) === 1) return null;
-  const value = boardValue(counts);
-  const finalByHand = task.requiredCounts && sameCounts(counts, task.requiredCounts) && ctx.conversionDone === false;
-  if (value === task.numberA && !finalByHand) return null;
-  return ladder(ctx, 'restore_given', [['restore_given', givenBlocksRestoreCard], ['restore_given_how', givenBlocksFromInstructionCard]]);
+  const onTheWay = typeof ctx.givenOnTheWay === 'boolean'
+    ? ctx.givenOnTheWay
+    : boardValue(counts) === task.numberA &&
+      !(task.requiredCounts && sameCounts(counts, task.requiredCounts) && ctx.conversionDone === false);
+  if (onTheWay) return null;
+  const emptyBoard = boardValue(counts) === 0;
+  const b2 = () => givenBlocksFromInstructionCard(emptyBoard);
+  if (ctx.undoReachesStart === false || shownIn(ctx, 'restore_given_how')) {
+    return inFamily(withKind(b2(), 'restore_given_how'), 'restore_given');
+  }
+  return ladder(ctx, 'restore_given', [['restore_given', givenBlocksRestoreCard], ['restore_given_how', b2]]);
 }
 
-/** B1 (frame 1): the board does not look as it did at the start — the undo button, or the trash and the toolbox. */
+/** B1 (frame 1): the board does not look as it did at the start — undo, step by step, until the button is grey. */
 function givenBlocksRestoreCard(): SocraticHintResponse {
   return card(`${OPEN}בית המספרים לא נראה עכשיו כמו בתחילת התרגיל. מה עושים?`, 'procedural', 'tour-action-buttons', [
-    ['מחזירים את הלבנים שהיו בתחילת התרגיל', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שבית המספרים ייראה כמו בתחילת התרגיל. הכפתור אפור, ובית המספרים עדיין נראה אחרת? לחצו על פח האשפה, ואז גררו מארגז הכלים את הלבנים שבהנחיה, כל לבנה אל הטור שלה. אחר כך לחצו על הכפתור "קבצו 10" בכל טור שיש בו 10 לבנים או יותר.'],
+    ['מחזירים את הלבנים שהיו בתחילת התרגיל', 'נכון מאוד! לחצו שוב ושוב על כפתור ביטול הפעולה, עד שהוא יהיה אפור. אחר כך המשיכו לפי ההנחיה.'],
     ['ממשיכים בתרגיל בלי להחזיר את הלבנים', 'רמז: אילו לבנים ההנחיה מתארת?'],
     ['כותבים מספר בשורת התוצאה', 'רמז: מה ההנחיה מבקשת לעשות עם הלבנים שהיו בתחילת התרגיל?'],
-  ], 'restore_given', frame('restore_given', 1, 'הלבנים שהתרגיל נתן השתנו: מחזירים אותן בכפתור ביטול הפעולה, או בונים אותן שוב לפי ההנחיה, ורק אז מקבצים'));
+  ], 'restore_given', frame('restore_given', 1, 'הלבנים שהתרגיל נתן השתנו: מחזירים אותן בכפתור ביטול הפעולה, ורק אז מקבצים'));
 }
 
-/** B2 (frame 3): the instruction lists the given blocks — the trash, the toolbox, then the buttons. */
-function givenBlocksFromInstructionCard(): SocraticHintResponse {
-  return card(`${OPEN}איך יודעים אילו לבנים היו בבית המספרים בתחילת התרגיל?`, 'procedural', 'tour-task-card', [
-    ['קוראים בהנחיה אילו לבנים היו', 'נכון מאוד! לחצו על פח האשפה כדי לנקות את בית המספרים. אחר כך גררו מארגז הכלים את הלבנים שבהנחיה, כל לבנה אל הטור שלה. בסוף לחצו על הכפתור "קבצו 10" בכל טור שיש בו 10 לבנים או יותר.'],
+/** B2 (frame 3): the instruction lists the given blocks — the trash (not on an empty board), then the toolbox. */
+function givenBlocksFromInstructionCard(emptyBoard = false): SocraticHintResponse {
+  return card(`${OPEN}ההנחיה מבקשת לקבץ את הלבנים שהיו בתחילת התרגיל. איך יודעים אילו לבנים היו?`, 'procedural', 'tour-task-card', [
+    ['קוראים בהנחיה אילו לבנים היו', emptyBoard
+      ? 'נכון מאוד! הוסיפו מארגז הכלים לבית המספרים את הלבנים שההנחיה מתארת.'
+      : 'נכון מאוד! לחצו על פח האשפה. אחר כך הוסיפו מארגז הכלים לבית המספרים את הלבנים שההנחיה מתארת.'],
     ['אי אפשר לדעת', 'רמז: מה כתוב במשפט הראשון של ההנחיה?'],
     ['מנחשים אילו לבנים היו', 'רמז: איפה על המסך כתוב אילו לבנים היו בבית המספרים?'],
-  ], 'restore_given_how', frame('restore_given_how', 3, 'ההנחיה מונה את הלבנים שהיו בהתחלה: מנקים את בית המספרים, בונים אותן שוב מארגז הכלים ומקבצים'));
+  ], 'restore_given_how', frame('restore_given_how', 3, 'ההנחיה מונה את הלבנים שהיו בהתחלה: מנקים את בית המספרים, מוסיפים אותן שוב מארגז הכלים ומקבצים'));
 }
 
 /**

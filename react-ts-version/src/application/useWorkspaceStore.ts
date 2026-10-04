@@ -1020,7 +1020,7 @@ export type StaticCardStoreState = Pick<WorkspaceState, 'placeCuesShown' | 'socr
   Partial<Pick<WorkspaceState,
     | 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped' | 'counts'
     | 'sessionNumber' | 'isASD' | 'socraticTriggerReason' | 'socraticCardPlace'
-    | 'answerDigits' | 'carryDigits' | 'operandDigits' | 'boardOpen' | 'hasDeletedBlock' | 'takeAwayTrack'>>;
+    | 'answerDigits' | 'carryDigits' | 'operandDigits' | 'boardOpen' | 'hasDeletedBlock' | 'takeAwayTrack' | 'undoStack'>>;
 
 /** Subtraction with blocks, one exercise: the board held the first number (`held`); a block left it after that (`started`). */
 export interface TakeAwayTrack {
@@ -1147,6 +1147,18 @@ export function staticCardContextFor(
     if (s.takeAwayTrack !== undefined) out.blocksRemoved = takingAwayStarted(s, task.id);
   } else if (s.hasDeletedBlock !== undefined) {
     out.blocksRemoved = s.hasDeletedBlock === true;
+  }
+  // An exercise that opens with the blocks to group (owner, 4.10.2026, cards
+  // round 3): is the board on the way, and does the undo button lead all the
+  // way back to the opening board (the oldest frame of the undo stack)?
+  if (task.initialCounts && s.counts) {
+    const onTheWay = givenBoardOnTheWay(task, s.counts, s.conversionsByColumn ?? emptyColumnConversions());
+    if (onTheWay !== null) out.givenOnTheWay = onTheWay;
+    if (s.undoStack) {
+      const oldest = s.undoStack[0];
+      out.undoReachesStart = Boolean(oldest) &&
+        countsEqual({ ...EMPTY_COUNTS, ...oldest.counts }, { ...EMPTY_COUNTS, ...task.initialCounts });
+    }
   }
   // No previous card here (audit D18): the levels follow the kinds already
   // shown, and the card identity is the store's (socraticCardRefusal).
@@ -1367,6 +1379,38 @@ export function pendingRepresentationConversion(
     const nth = lock.columns.slice(0, i + 1).filter((q) => q === p).length;
     return conversionTimesInColumn(conv, p, decomposition) < nth;
   }) ?? null;
+}
+
+/**
+ * An exercise that opens with the blocks to group (SessionTask.initialCounts
+ * and a composition in REPRESENTATION_LOCKS: meeting 1's 26 units, station 7's
+ * 2,730): is the board on the way? True for the opening board (whatever the
+ * record of groupings says), and for the opening board with exactly the
+ * groupings recorded so far made on it — 2,730's 1/17/3 with the tens grouped,
+ * 2/6/13 with the hundreds grouped, and 2/7/3 with both (the final board).
+ * False for any other board: blocks deleted or added, the board cleared, a
+ * block broken, or blocks arranged by hand (owner, 4.10.2026, cards round 3).
+ * Null for an exercise that does not open with blocks to group.
+ */
+export function givenBoardOnTheWay(
+  task: Pick<SessionTask, 'id' | 'initialCounts'> | null | undefined,
+  counts: PlaceCounts,
+  conv: ColumnConversions
+): boolean | null {
+  const lock = task ? REPRESENTATION_LOCKS[task.id] : undefined;
+  if (!task?.initialCounts || lock?.conversion !== 'composition') return null;
+  const start: PlaceCounts = { ...EMPTY_COUNTS, ...task.initialCounts };
+  const board: PlaceCounts = { ...EMPTY_COUNTS, ...counts };
+  if (countsEqual(board, start)) return true;
+  const expected = { ...start };
+  for (const p of new Set(lock.columns)) {
+    const above = placeAbove(p);
+    if (!above) return false;
+    const done = Math.min(lock.columns.filter((q) => q === p).length, conversionTimesInColumn(conv, p, false));
+    expected[p] -= 10 * done;
+    expected[above] += done;
+  }
+  return countsEqual(board, expected);
 }
 
 /**
@@ -1994,8 +2038,17 @@ export function wrongHiddenDigitsHe(task: SessionTask, meeting: number): string 
   return meeting === 8 ? `${which} בדקו שוב.` : `${which} בדקו שוב בעזרת הלבנים בבית המספרים.`;
 }
 
-/** An exercise that opens with the blocks to group (meeting 1's 26, station 7's 2,730): the final blocks, built without grouping. */
+/** Meeting 1's 26 units: the final blocks, built without grouping. */
 const GROUP_YOURSELVES_HE = 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.';
+
+/** Station 7's 2,730 (owner, 4.10.2026, wording round 3, text 1): the number typed is right; a grouping is still to come. */
+export const GIVEN_ANSWER_RIGHT_GROUP_NOW_HE = 'התשובה שכתבתם נכונה. עכשיו בכל טור שיש בו 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור.';
+
+/** Blocks the exercise put on the board, grouped and the answer right (meeting 1's 26, station 7's 2,730; wording round 3, text 2). */
+export const GIVEN_GROUPED_SUCCESS_HE = 'קיבצתם את הלבנים, והתשובה שכתבתם נכונה.';
+
+/** Station 7's 2,730: the final blocks arranged by hand, a grouping not made (wording round 3, text 4). */
+export const GIVEN_ARRANGED_BY_HAND_HE = 'הלבנים מסודרות נכון, אבל ההנחיה מבקשת לקבץ בעזרת הכפתור "קבצו 10".';
 
 export function judgeStandardTask(s: WorkspaceState, task: SessionTask): StandardVerdict {
   const success = (title: string, sub: string, ms: number): StandardVerdict => ({ kind: 'success', title, sub, ms });
@@ -2221,6 +2274,22 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
             : failure('conversion_skipped', 'קַבְּצוּ 🧱', groupNowHe(pending), 3500);
         }
       }
+      // Station 7's 2,730 (owner, 4.10.2026, wording round 3, text 1): the
+      // number typed is right, but a grouping is still to come, on the opening
+      // board or on the way from it (givenBoardOnTheWay). "בית המספרים עוד לא
+      // מראה…" was false there. It counts as a wrong press, as every failed
+      // board check does (PRD Module 23 §ב, measure 3). Meeting 1's 26 keeps
+      // its own message (text 1b was not taken).
+      if (
+        task.initialCounts &&
+        !task.id.startsWith('s1_') &&
+        REPRESENTATION_LOCKS[task.id]?.conversion === 'composition' &&
+        pendingRepresentationConversion(s, task) !== null &&
+        answerDigitsToNumber(s.answerDigits) === task.correctAnswer &&
+        givenBoardOnTheWay(task, s.counts, s.conversionsByColumn) === true
+      ) {
+        return failure('conversion_skipped', 'קַבְּצוּ 🧱', GIVEN_ANSWER_RIGHT_GROUP_NOW_HE, 3500);
+      }
       return failure(
         'wrong_representation',
         'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍',
@@ -2262,15 +2331,16 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
       }
       // Station 7's 2,730 (owner, 4.10.2026): the board opens with the blocks
       // to group, and every grouping REPRESENTATION_LOCKS lists is the child's
-      // own — the final blocks built by hand, or with one grouping only, are
-      // not the exercise. The sentence is meeting 1's (the 26 units).
+      // own — the final blocks arranged by hand, or with one grouping only,
+      // are not the exercise. No column has 10 blocks on this board, so no
+      // button to press: its own title and sentence (wording round 3, text 4).
       if (
         !task.requiresGrouping &&
         task.initialCounts &&
         REPRESENTATION_LOCKS[task.id]?.conversion === 'composition' &&
         pendingRepresentationConversion(s, task) !== null
       ) {
-        return failure('conversion_skipped', 'קַבְּצוּ 🧱', GROUP_YOURSELVES_HE, 3500);
+        return failure('conversion_skipped', 'שִׂימוּ לֵב 🧱', GIVEN_ARRANGED_BY_HAND_HE, 3500);
       }
     }
     const typed = answerDigitsToNumber(s.answerDigits);
@@ -2318,6 +2388,9 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     // 347 is a guided step: the checklist already shows its done note, so its
     // success is the tool steps' one (audit A2-F13).
     if (session1DoneNoteHe(task.id) !== null) return success('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2000);
+    // Blocks the exercise put on the board (26, 2,730): the child grouped
+    // them and built nothing (owner, 4.10.2026, wording round 3, text 2).
+    if (task.initialCounts) return success('כָּל הַכָּבוֹד! 🌟', GIVEN_GROUPED_SUCCESS_HE, 2500);
     return success('כָּל הַכָּבוֹד! 🌟', asksDigitValue ? 'מצאתם את הערך של הספרה במספר.' : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
   }
 
@@ -4146,8 +4219,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           return { hasClearedBoard: true };
         }
 
+        // An exercise that opens with its blocks (initialCounts: 26, 2,730):
+        // the groupings went with the blocks. Grouping, emptying the board and
+        // arranging the final blocks by hand is not grouping them (owner,
+        // 4.10.2026, wording round 3, STOP 1). The frame keeps the record, so
+        // undoing the trash brings it back with the blocks.
+        const clearsGroupings = Boolean(getActiveTasks(state)[state.standardTaskIdx]?.initialCounts);
         // Undoing it is reported as undoing a board clear (gap יז), not a block drag.
-        const undoStack = createNextUndoStack(state.undoStack, state.counts, 'BOARD_CLEARED');
+        const undoStack = createNextUndoStack(
+          state.undoStack, state.counts, 'BOARD_CLEARED', undefined,
+          clearsGroupings ? state.conversionsByColumn : undefined
+        );
         const studentId = useAuthStore.getState().user?.uid;
         if (studentId) {
           useStore.getState().logSemanticEvent(studentId, {
@@ -4176,12 +4258,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           },
         }).catch(console.error);
 
-        return { 
+        return {
           counts: { ...EMPTY_COUNTS },
           undoStack,
           hasInteracted: true,
           hasDeletedBlock: true,
-          hasClearedBoard: true, 
+          hasClearedBoard: true,
+          ...(clearsGroupings ? { conversionsByColumn: emptyColumnConversions() } : {}),
         };
       });
     },
