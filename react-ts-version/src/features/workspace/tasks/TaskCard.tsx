@@ -25,6 +25,9 @@ import { MathText } from './MathText';
  * כרטיס המשימה — כותרת, הוראה (עם הקראה), וגוף דינמי לפי סוג המשימה והשלב.
  * UDL: ריבוי אמצעי ייצוג — טקסט + הקראה + ייצוג חזותי.
  */
+/** An instruction longer than this gets the closer line spacing (one exercise today: s6_r_t7). */
+const LONG_INSTRUCTION_CHARS = 300;
+
 export function TaskCard() {
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const isASD = useWorkspaceStore((s) => s.isASD);
@@ -98,7 +101,12 @@ export function TaskCard() {
             className="shrink-0 flex items-start gap-3 mb-fl-6-24 rounded-2xl px-fl-12-16 pr-fl-14-20 py-fl-6-16 border-r-4"
             style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.55)', borderColor: 'hsl(var(--ws-blue) / 0.55)' }}
           >
-            <p className="text-fl-16-20 text-ws-ink/85 font-medium leading-[1.55] flex-1 whitespace-pre-line"><MathText text={instruction} /></p>
+            {/* The longest instruction (400 − 156, station 6: over 300 characters)
+                wraps to nine lines in the task column of a 1024px tablet, and the
+                vertical exercise under it fell 12px short of the card (UX audit,
+                4.10.2026). Its lines sit a little closer; the size of the text
+                and every other instruction are unchanged. */}
+            <p className={`text-fl-16-20 text-ws-ink/85 font-medium ${instruction.length > LONG_INSTRUCTION_CHARS ? 'leading-[1.4]' : 'leading-[1.55]'} flex-1 whitespace-pre-line`} data-testid="task-instruction"><MathText text={instruction} /></p>
             <UdlSpeechButton text={instruction} />
           </div>
         )}

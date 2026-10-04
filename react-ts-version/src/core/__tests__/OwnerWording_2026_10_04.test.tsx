@@ -274,6 +274,25 @@ describe('3 — a result digit missing: the instruction says what to do with the
     expect(byId('s6_r_t6').instructionHe).toBe(S6_SUB('500 − 287'));
   });
 
+  it('400 − 156 is the one instruction over 300 characters: its lines sit closer, every other instruction keeps its spacing', async () => {
+    expect(bank.filter((t) => (t.instructionHe ?? '').length > 300).map((t) => t.id)).toEqual(['s6_r_t7']);
+    const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
+    const classOf = (meeting: number, id: string) => {
+      load(meeting, byId(id));
+      render(<TaskCard />);
+      const cls = screen.getByTestId('task-instruction').className;
+      cleanup();
+      return cls;
+    };
+    expect(classOf(6, 's6_r_t7')).toContain('leading-[1.4]');
+    for (const [m, id] of [[6, 's6_r_t6'], [4, 's4_r_t7'], [8, 's8_g_t1']] as const) {
+      expect(classOf(m, id), id).toContain('leading-[1.55]');
+      expect(classOf(m, id), id).toContain('text-fl-16-20');
+    }
+    // The size of the text is the same for the long one.
+    expect(classOf(6, 's6_r_t7')).toContain('text-fl-16-20');
+  });
+
   it('both fit what the coaching function accepts as an instruction (400 characters)', () => {
     for (const id of ['s6_r_t7', 's4_r_t7']) expect(byId(id).instructionHe.length, id).toBeLessThanOrEqual(400);
   });
