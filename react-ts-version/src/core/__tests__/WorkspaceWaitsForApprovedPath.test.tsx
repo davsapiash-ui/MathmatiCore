@@ -318,7 +318,7 @@ describe('register 18: the addition grid and its return tab only in meetings 3鈥
     expect(main.contains(tab())).toBe(true);
   });
 
-  it('while the coaching card is open the grid is hidden, not closed and not unmounted; it comes back exactly as it was', async () => {
+  it('while the coaching card is open the grid is hidden, not closed and not unmounted, and its tab is in its place; it comes back exactly as it was', async () => {
     await openWithEnhanced(4);
     const before = grid()!;
     expect(before).not.toBeNull();
@@ -330,11 +330,11 @@ describe('register 18: the addition grid and its return tab only in meetings 3鈥
     expect(before.textContent).toContain('7 + 5 = 12');
 
     act(() => { useWorkspaceStore.setState({ helpState: 'socratic' } as any); });
-    // the same element, out of sight (display: none), and no tab in its place
+    // the same element, out of sight (display: none), and its tab in the row
     expect(grid()).toBe(before);
     expect(before.className).toMatch(/(^|\s)hidden(\s|$)/);
     expect(before.getAttribute('data-hidden')).toBe('true');
-    expect(tab()).toBeNull();
+    expect(document.querySelector('main')!.contains(tab())).toBe(true);
     // register decision 讘: only the learner closes it
     expect(ws().isAdditionHelperOpen).toBe(true);
 
@@ -343,64 +343,23 @@ describe('register 18: the addition grid and its return tab only in meetings 3鈥
     expect(grid()).toBe(before);
     expect(before.className).not.toMatch(/(^|\s)hidden(\s|$)/);
     expect(before.getAttribute('data-hidden')).toBeNull();
+    expect(tab()).toBeNull();
     expect(before.textContent).toContain('7 + 5 = 12');
     expect(before.className).toContain('pointer-events-auto');
     expect(before.style.opacity).toBe('1');
   }, 10_000);
 
-  it('owner, 4.10.2026: the "诇讜讞 讛讞讬讘讜专" button under the card shows the hidden grid as it was; closing the grid ends the fold', async () => {
-    const { useAdditionGridOverCard, showAdditionGridOverCard } = await import('@/application/useAdditionGridOverCard');
-    await openWithEnhanced(4);
-    const g = grid()!;
-    await waitFor(() => expect(g.className).toContain('pointer-events-auto'), { timeout: 4000 });
-    fireEvent.click(within(g).getByText('7', { selector: 'tbody td:first-child' }));
-    // no card: nothing waits, and the button's action does nothing
-    expect(useAdditionGridOverCard.getState()).toEqual({ waiting: false, over: false });
-    act(() => { showAdditionGridOverCard(); });
-    expect(useAdditionGridOverCard.getState().over).toBe(false);
-
-    act(() => { useWorkspaceStore.setState({ helpState: 'socratic' } as any); });
-    expect(useAdditionGridOverCard.getState()).toEqual({ waiting: true, over: false });
-    expect(g.getAttribute('data-hidden')).toBe('true');
-
-    // the child presses the button under the card
-    act(() => { showAdditionGridOverCard(); });
-    expect(grid()).toBe(g);
-    expect(g.getAttribute('data-hidden')).toBeNull();
-    expect(within(g).getByText('7', { selector: 'tbody td:first-child' }).className).toContain('bg-amber-500');
-    expect(ws().helpState).toBe('socratic');
-
-    // the child closes the grid with its X: the fold ends (the card returns)
-    fireEvent.click(within(g).getByRole('button', { name: '住讙讬专转 诇讜讞 讛讞讬讘讜专' }));
-    expect(ws().isAdditionHelperOpen).toBe(false);
-    expect(useAdditionGridOverCard.getState()).toEqual({ waiting: false, over: false });
-    expect(ws().helpState).toBe('socratic');
-  }, 10_000);
-
-  it('the card closed while the grid is shown over it: the grid stays, and the fold is forgotten', async () => {
-    const { useAdditionGridOverCard, showAdditionGridOverCard } = await import('@/application/useAdditionGridOverCard');
-    await openWithEnhanced(4);
-    act(() => { useWorkspaceStore.setState({ helpState: 'socratic' } as any); });
-    act(() => { showAdditionGridOverCard(); });
-    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
-    expect(grid()!.getAttribute('data-hidden')).toBeNull();
-    expect(useAdditionGridOverCard.getState()).toEqual({ waiting: false, over: false });
-    // the next card finds the grid hidden again, not shown over it
-    act(() => { useWorkspaceStore.setState({ helpState: 'socratic' } as any); });
-    expect(grid()!.getAttribute('data-hidden')).toBe('true');
-  });
-
-  it('a grid that never opened is not in the DOM while the card is open', async () => {
+  it('a grid that was never offered is not in the DOM while the card is open, and has no tab', async () => {
     await openWithEnhanced(4);
     act(() => { useWorkspaceStore.setState({ isAdditionHelperOpen: false, additionHelperOffered: false, helpState: 'socratic' } as any); });
     await waitFor(() => expect(grid()).toBeNull());
     expect(tab()).toBeNull();
   });
 
-  it('a closed grid\'s tab also waits while the card is open', async () => {
+  it('a closed grid\'s tab stays in its place while the card is open', async () => {
     await openWithEnhanced(4);
     act(() => { useWorkspaceStore.setState({ isAdditionHelperOpen: false, helpState: 'socratic' } as any); });
-    expect(tab()).toBeNull();
+    expect(tab()).not.toBeNull();
     act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
     expect(tab()).not.toBeNull();
   });

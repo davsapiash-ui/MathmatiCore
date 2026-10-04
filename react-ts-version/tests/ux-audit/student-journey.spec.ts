@@ -469,12 +469,35 @@ function enhancedSteps(): Step[] {
       },
     });
   }
+  // The grid and the coaching card are never shown together (owner's
+  // decision, 4.10.2026): the one not shown is a tab in its own place.
   steps.push({
     id: 'm4-grid-and-coaching',
     meeting: 4,
+    note: 'the grid was open when the card arrived: the card, and the amber "לוח החיבור" tab beside it',
     run: async (cc) => {
       await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
       await ws(cc.page, 'st.openAdditionHelper("learner"); st.openSocraticCard("hesitation_45s");');
+    },
+  });
+  steps.push({
+    id: 'm4-grid-closed-and-coaching',
+    meeting: 4,
+    note: 'the grid was closed earlier: the card, and the amber tab still beside it',
+    run: async (cc) => {
+      await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
+      await ws(cc.page, SET, { isAdditionHelperOpen: false, additionHelperOffered: true });
+      await ws(cc.page, 'st.openSocraticCard("hesitation_45s");');
+    },
+  });
+  steps.push({
+    id: 'm4-coaching-longest-and-grid-tab',
+    meeting: 4,
+    note: 'the longest card (question, three options, a wrong answer\'s hint and the lock sentence) beside the amber tab',
+    run: async (cc) => {
+      await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
+      await ws(cc.page, 'st.openAdditionHelper("learner"); st.openSocraticCard("hesitation_45s");');
+      await clickWrongCardOption(cc);
     },
   });
   steps.push({
@@ -490,11 +513,11 @@ function enhancedSteps(): Step[] {
   steps.push({
     id: 'm4-grid-over-folded-coaching',
     meeting: 4,
-    note: 'the "לוח החיבור" button under the card was pressed: the grid is shown, the card is a tab',
+    note: 'the amber tab was pressed while the card was open: the grid is shown, the card is its "כרטיס החניכה" tab',
     run: async (cc) => {
       await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
       await ws(cc.page, 'st.openAdditionHelper("learner"); st.openSocraticCard("hesitation_45s");');
-      await cc.page.getByTestId('addition-grid-under-card').click();
+      await cc.page.getByTestId('addition-grid-tab').click();
     },
   });
   // Last: the chat stays open once it is toggled.
@@ -505,10 +528,57 @@ function enhancedSteps(): Step[] {
     run: async (cc) => {
       await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
       await ws(cc.page, SET, { isAdditionHelperOpen: false, additionHelperOffered: true });
-      await cc.page.evaluate(() => document.dispatchEvent(new CustomEvent('toggle-chat')));
+      await openChat(cc);
+    },
+  });
+  steps.push({
+    id: 'm4-coaching-grid-tab-and-chat',
+    meeting: 4,
+    note: 'the card and the amber tab, the chat over them: the card folds into the chat header\'s tab',
+    run: async (cc) => {
+      await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
+      await ws(cc.page, 'st.openAdditionHelper("learner"); st.openSocraticCard("hesitation_45s");');
+      await openChat(cc);
+    },
+  });
+  steps.push({
+    id: 'm4-grid-over-folded-coaching-and-chat',
+    meeting: 4,
+    note: 'the grid over the folded card, the chat over them: one "כרטיס החניכה" tab, in the chat header',
+    run: async (cc) => {
+      await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
+      await ws(cc.page, 'st.openAdditionHelper("learner"); st.openSocraticCard("hesitation_45s");');
+      // The chat an earlier step left open covers the amber tab: the tab first, then the chat.
+      await closeChat(cc);
+      await cc.page.getByTestId('addition-grid-tab').click();
+      await openChat(cc);
     },
   });
   return steps;
+}
+
+async function closeChat(cc: AuditContext): Promise<void> {
+  const chat = cc.page.getByRole('dialog', { name: 'הודעות עם המורה' });
+  if (!(await chat.count())) return;
+  await cc.page.evaluate(() => document.dispatchEvent(new CustomEvent('toggle-chat')));
+  await chat.waitFor({ state: 'detached', timeout: 3000 });
+}
+
+/** The chat, open — whether or not an earlier step left it open (the toggle would close it). */
+async function openChat(cc: AuditContext): Promise<void> {
+  const chat = cc.page.getByRole('dialog', { name: 'הודעות עם המורה' });
+  if (await chat.count()) return;
+  await cc.page.evaluate(() => document.dispatchEvent(new CustomEvent('toggle-chat')));
+  await chat.waitFor({ state: 'visible', timeout: 3000 });
+}
+
+/** A wrong option on the settled coaching card: its hint and the 15-second lock appear. */
+async function clickWrongCardOption(cc: AuditContext): Promise<void> {
+  const card = cc.page.getByTestId('socratic-card');
+  await card.locator('button:not([disabled])').first().waitFor({ state: 'visible', timeout: 10_000 });
+  const wrong = await ws<string>(cc.page, 'const h = st.aiSocraticHint; return h && h.choices.find(c => !c.isCorrect)?.textHe;');
+  if (!wrong) throw new Error('the coaching card has no wrong option to press');
+  await card.getByRole('button', { name: wrong }).click();
 }
 
 /**

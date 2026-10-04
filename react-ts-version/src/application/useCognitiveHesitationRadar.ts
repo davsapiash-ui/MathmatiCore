@@ -142,12 +142,15 @@ export function useCognitiveHesitationRadar({
         // not in station 3's representations, not in a subtraction.
         isAdditionExercise(selectStandardTask(wsState));
       if (!due) return;
-      // While the coaching card is open the grid is not shown (it shares the
-      // card's place in the row — StudentWorkspacePage), so it is not opened
-      // behind it: no state change and no ADAPTIVE_GRID_TOGGLED event for a
-      // grid that did not appear. It is deferred, not dropped: it opens when
-      // the card closes, unless a cognitive action came first.
+      // The grid and the coaching card are never shown together
+      // (StudentWorkspacePage), so while the card is open the grid is not
+      // opened over or behind it, and no ADAPTIVE_GRID_TOGGLED is written for
+      // a grid that did not appear. It is offered: its "לוח החיבור" tab
+      // appears beside the card, and the learner may press it. And it is
+      // deferred, not dropped: it opens when the card closes, unless a
+      // cognitive action came first or the learner opened it from the tab.
       if (wsState.helpState === 'socratic') {
+        wsState.offerAdditionHelper();
         gridDeferredRef.current = true;
         return;
       }
@@ -307,13 +310,18 @@ export function useCognitiveHesitationRadar({
         resetTimeout();
       }
       // The coaching card closed: a grid that came due behind it opens now,
-      // on the same rule as at 30 seconds. (If this same change was a
-      // cognitive action, resetTimeout above has already cleared the wait.)
+      // on the same rule as at 30 seconds — and only into an exercise the
+      // learner is still working on. The card also closes when the exercise
+      // was just solved (the last one drops its card on the way to the next
+      // screen): the wait ends there, and nothing opens. (If this same change
+      // was a cognitive action, resetTimeout above has already cleared the wait.)
       const cardClosed = lastHelpState === 'socratic' && state.helpState !== 'socratic';
       lastHelpState = state.helpState;
       if (cardClosed && gridDeferredRef.current) {
         gridDeferredRef.current = false;
         if (
+          state.flowStatus === 'task' &&
+          !state.awaitingNext &&
           shouldOpenAdaptiveGrid({
             supportProfileId: state.activeSupportProfileId,
             sessionNumber: state.sessionNumber,

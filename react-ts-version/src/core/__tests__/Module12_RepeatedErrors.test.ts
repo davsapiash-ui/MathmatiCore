@@ -89,10 +89,10 @@ describe('מסמך 03 §1.3 ב\' — bringing the Module 10 grid back', () => {
 
   it('the bring-back tab sits where the grid lives, under the same profile/session gate as the grid, never in the topbar (source pin)', () => {
     const page = readFileSync(resolve(__dirname, '../../features/workspace/StudentWorkspacePage.tsx'), 'utf-8');
-    expect(page).toContain('isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen');
+    expect(page).toContain('isAdditionBoardEnabled && additionHelperOffered && !isAdditionGridShown');
     expect(page).toContain('{isAdditionGridTabShown && <AdditionGridTab />}');
     const grid = readFileSync(resolve(__dirname, '../../features/workspace/board/AdaptiveAdditionGrid.tsx'), 'utf-8');
-    expect(grid).toContain('aria-label={`הצגה חוזרת של ${ADDITION_GRID_HE}`}');
+    expect(grid).toContain('GRID_TAB_RETURN_LABEL_HE = `הצגה חוזרת של ${ADDITION_GRID_HE}`');
     // the tab sits in the grid's own slot of the row, never over the tray or the
     // trash (audit UX-001), and waits while the coaching card is open (row 1.28)
     expect(grid).not.toMatch(/(?<![-\w])fixed(?![-\w])/);

@@ -579,11 +579,18 @@ export interface WorkspaceState {
    */
   isAdditionHelperOpen: boolean;
   /**
-   * The Module 10 grid opened at least once this meeting, so the learner may
-   * bring it back (register deviation 18, מסמך 03 §1.3 ב'). Reset only when a
-   * meeting starts; saved with the snapshot.
+   * The system offered the Module 10 grid at least once this meeting — it
+   * opened, or its 30 seconds came due while the coaching card was open — so
+   * the learner may open it from its tab (register deviation 18, מסמך 03 §1.3
+   * ב'). Reset only when a meeting starts; saved with the snapshot.
    */
   additionHelperOffered: boolean;
+  /**
+   * The grid was offered while the coaching card was open and has not been
+   * opened yet this meeting: its tab says "הצגת לוח החיבור", not "הצגה חוזרת".
+   * Not saved: after a reload the tab speaks of a return.
+   */
+  additionHelperOfferedUnopened: boolean;
   helpRequested: boolean;
   /**
    * Module 19 §ב, Pending Adaptation: a support profile the teacher changed
@@ -622,6 +629,12 @@ export interface WorkspaceState {
   logChatHelpRequest: (kind: 'call' | 'ready_message') => void;
   /** 'learner' when the learner brings the grid back (מסמך 03 §1.3 ב'); default is the Module 10 hesitation stage. */
   openAdditionHelper: (source?: 'hesitation_30s' | 'learner') => void;
+  /**
+   * The 30-second stage came due while the coaching card was open: the grid is
+   * offered — its tab appears beside the card — and not opened. No event: the
+   * grid did not appear (ADAPTIVE_GRID_TOGGLED is written when it opens).
+   */
+  offerAdditionHelper: () => void;
   /** Module 9: a digit key pressed on a locked result cell. Logged, never acted on. */
   recordBlockedKeystroke: (place: Place) => void;
   closeAdditionHelper: () => void;
@@ -3456,6 +3469,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     focusedPlace: null,
     isAdditionHelperOpen: false,
     additionHelperOffered: false,
+    additionHelperOfferedUnopened: false,
 
     hasInteracted: false,
     placeCuesShown: false,
@@ -3647,6 +3661,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // 18): a new meeting starts without them.
         isAdditionHelperOpen: false,
         additionHelperOffered: false,
+        additionHelperOfferedUnopened: false,
         // Module 17: from here on the store holds this learner's meeting.
         workspaceInitializedFor: { learner: currentStudentUid(), meeting: sanitized, restoredSavedAt: null },
       });
@@ -3852,6 +3867,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         currentState: 'PROBLEM_ACTIVE',
         // Register 18 / decision ב: the return tab, and an open grid, survive a reload.
         additionHelperOffered: saved.additionHelperOffered === true,
+        additionHelperOfferedUnopened: false,
         isAdditionHelperOpen: saved.isAdditionHelperOpen === true,
         // Module 17: from here on the store holds this learner's meeting, as saved.
         // A copy of a fresh start made without the record is still a fresh
@@ -4961,8 +4977,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     lockKeyboard: () => set({ keyboardState: 'LOCKED' }),
     openAdditionHelper: (source = 'hesitation_30s') => {
       if (get().isAdditionHelperOpen) return;
-      set({ isAdditionHelperOpen: true, additionHelperOffered: true });
+      set({ isAdditionHelperOpen: true, additionHelperOffered: true, additionHelperOfferedUnopened: false });
       emitScaffoldEvent(get(), 'ADAPTIVE_GRID_TOGGLED', { action: 'opened', source });
+    },
+    offerAdditionHelper: () => {
+      const s = get();
+      if (s.isAdditionHelperOpen || s.additionHelperOffered) return;
+      set({ additionHelperOffered: true, additionHelperOfferedUnopened: true });
     },
     closeAdditionHelper: () => {
       if (!get().isAdditionHelperOpen) return;
@@ -5324,6 +5345,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         focusedPlace: null,
         isAdditionHelperOpen: false,
     additionHelperOffered: false,
+    additionHelperOfferedUnopened: false,
         hasInteracted: false,
         placeCuesShown: false,
         socraticCardKinds: { taskId: null, kinds: [] },
