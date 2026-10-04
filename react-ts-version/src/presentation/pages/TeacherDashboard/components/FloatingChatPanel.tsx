@@ -5,6 +5,9 @@ import { useChatStore, normalizeStudentId, isTeacherOrAdminId } from '@/applicat
 import { toast } from 'sonner';
 import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
 
+/** While the PII filter is down, how often it is tried again (as in the learner's chat). */
+export const PII_FILTER_RECHECK_MS = 5000;
+
 interface Props {
   student: StudentData;
   onClose: () => void;
@@ -14,6 +17,22 @@ interface Props {
 export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [inputText, setInputText] = useState('');
+  // PRD Module 3 §א: "במקרה של תקלה ברכיב הסינון, המערכת נועלת את הקלט ליתר
+  // ביטחון עד להתאוששות הלוגיקה". A failure used to stop that one send only
+  // and leave the box open; the learner's chat already locks (StudentChatOverlay).
+  const [piiFilterDown, setPiiFilterDown] = useState(false);
+  useEffect(() => {
+    if (!piiFilterDown) return;
+    const timer = setInterval(() => {
+      try {
+        validateChatInputForPII('בדיקה');
+        setPiiFilterDown(false);
+      } catch {
+        // still down: the box stays locked
+      }
+    }, PII_FILTER_RECHECK_MS);
+    return () => clearInterval(timer);
+  }, [piiFilterDown]);
 
   const { messages, sendMessage, markAsRead, initSync, clearStudentMessages } = useChatStore();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -54,7 +73,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   };
 
   const handleSend = () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || piiFilterDown) return;
 
     // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
     try {
@@ -69,13 +88,17 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
       setInputText('');
     } catch (err) {
       console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
+      setPiiFilterDown(true);
       toast.error('שגיאה בבדיקת הפרטים המזהים. שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
       return; // Fail-Closed: Strictly blocks message transmission
     }
   };
 
+  // Above the learner drawer, whose chat button opens this panel. Both stood
+  // at z-[9999], and the drawer is portalled later into <body>, so on a narrow
+  // screen (the drawer is full-width there) the chat opened underneath it.
   return (
-    <div className={`fixed bottom-0 left-8 w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-t-2xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ${isMinimized ? 'h-12' : 'h-[440px]'}`} dir="rtl">
+    <div className={`fixed bottom-0 left-8 w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-t-2xl shadow-2xl z-[10000] flex flex-col transition-all duration-300 ${isMinimized ? 'h-12' : 'h-[440px]'}`} dir="rtl">
       {/* Header */}
       <div 
         className="h-12 px-4 bg-indigo-600 text-white rounded-t-2xl flex items-center justify-between cursor-pointer select-none"
@@ -97,7 +120,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
             type="button"
             onClick={(e) => { e.stopPropagation(); setIsMinimized((v) => !v); }}
             className="hover:text-white transition-colors"
-            title="מזער"
+            title={isMinimized ? 'הגדילו' : 'מזערו'}
           >
             <Minus className="w-4 h-4" />
           </button>
@@ -149,13 +172,16 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
               value={inputText}
               onChange={e => setInputText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder="כתבו הודעה לתלמיד..."
+              disabled={piiFilterDown}
+              placeholder={piiFilterDown ? 'הכתיבה נעולה עד שבדיקת הפרטים המזהים תחזור לפעול' : 'כתבו הודעה לתלמיד...'}
               className="flex-1 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
             />
             
             <button 
               onClick={handleSend}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-full transition-colors flex items-center justify-center w-9 h-9 shrink-0 shadow-md active:scale-95"
+              disabled={piiFilterDown}
+              aria-label="שליחת ההודעה"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-full transition-colors flex items-center justify-center w-9 h-9 shrink-0 shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Send className="w-4 h-4 -mr-0.5" />
             </button>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, ShieldAlert, RefreshCw, X, Check } from 'lucide-react';
@@ -8,6 +8,9 @@ import { meetingLabelHe } from '@/core/stationNames';
 import { useResetMeetingTarget } from '@/application/useResetMeetingTarget';
 import { finishedMeetingRefusalHe } from '@/core/resetMeetingTarget';
 import { RESET_ACTION_HE, RESET_LOG_LINE_HE, RESET_REASON_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
+
+/** While the PII filter is down, how often it is tried again (as in the learner's chat). */
+export const PII_FILTER_RECHECK_MS = 5000;
 
 /** "תלמיד 3" → "3", for a sentence that already says "תלמיד". */
 function learnerLabelOf(name: string | undefined): string {
@@ -66,6 +69,24 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   const [selectedReason, setSelectedReason] = useState<ResetReason | ''>('');
   const [reasonNote, setReasonNote] = useState('');
   const [noteError, setNoteError] = useState<string | null>(null);
+  // PRD Module 3 §א: "במקרה של תקלה ברכיב הסינון, המערכת נועלת את הקלט ליתר
+  // ביטחון עד להתאוששות הלוגיקה". The note is the only free text here. A
+  // filter failure used to escape handleExecute as an unhandled rejection
+  // with the field left open. Now the note is dropped and the field locked
+  // until the filter answers again; the reset itself needs only the reason.
+  const [piiFilterDown, setPiiFilterDown] = useState(false);
+  useEffect(() => {
+    if (!piiFilterDown) return;
+    const timer = setInterval(() => {
+      try {
+        validateChatInputForPII('בדיקה');
+        setPiiFilterDown(false);
+      } catch {
+        // still down: the field stays locked
+      }
+    }, PII_FILTER_RECHECK_MS);
+    return () => clearInterval(timer);
+  }, [piiFilterDown]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [doubleConfirmed, setDoubleConfirmed] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
@@ -94,6 +115,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
     setDoubleConfirmed(false);
     setSelectedReason('');
     setReasonNote('');
+    // The red line under the note stayed for the next reset, over an empty field.
+    setNoteError(null);
     setScope('active_session');
     setClassConfirmed(false);
     onClose();
@@ -134,11 +157,20 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
     // research export read. Every other free-text field a teacher types
     // passes the same check; this one did not, so "איפוס כי דניאל בכה" would
     // have put a child’s name in the one place nothing else ever does.
-    const trimmedNote = reasonNote.trim();
+    const trimmedNote = piiFilterDown ? '' : reasonNote.trim();
     if (trimmedNote) {
-      const check = validateChatInputForPII(trimmedNote);
-      if (!check.valid) {
-        setNoteError(check.errorHe || 'ההערה מכילה פרטים מזהים. כתבו רק את מספר התלמיד (1–12).');
+      try {
+        const check = validateChatInputForPII(trimmedNote);
+        if (!check.valid) {
+          setNoteError(check.errorHe || 'ההערה מכילה פרטים מזהים. כתבו רק את מספר התלמיד (1–12).');
+          return;
+        }
+      } catch (err) {
+        // Fail-closed: nothing is reset on this click, and the unchecked note is not kept.
+        console.error('[Module 3 Fail-Closed] PII check failed on the reset note:', err);
+        setReasonNote('');
+        setNoteError(null);
+        setPiiFilterDown(true);
         return;
       }
     }
@@ -411,8 +443,14 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 onChange={(e) => { setReasonNote(e.target.value); if (noteError) setNoteError(null); }}
                 placeholder="הסבר קצר על נסיבות האיפוס, בלי שמות. אפשר לכתוב מספר תלמיד."
                 aria-invalid={noteError ? true : undefined}
+                disabled={piiFilterDown}
                 className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500"
               />
+              {piiFilterDown && (
+                <p role="alert" className="mt-1.5 text-xs font-bold text-red-700 dark:text-red-300">
+                  בדיקת הפרטים המזהים לא פועלת כרגע, ולכן שדה ההערה נעול וההערה נמחקה. אפשר לבצע את האיפוס בלי הערה, עם הסיבה שנבחרה.
+                </p>
+              )}
               {noteError && (
                 <p role="alert" className="mt-1.5 text-xs font-bold text-red-700 dark:text-red-300">{noteError}</p>
               )}

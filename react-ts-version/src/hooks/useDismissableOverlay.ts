@@ -33,13 +33,36 @@ const FOCUSABLE = [
  */
 const openOverlays: object[] = [];
 
+/**
+ * The last few elements that held focus, newest last. The opener is often
+ * gone by the time the overlay closes, or even before it opens: the radar's
+ * learner window closes itself as "מעבר לניתוח מעמיק" opens the drawer, so
+ * focus is already on <body> when the drawer mounts, and closing it dropped
+ * the teacher at the top of the page. With the history, focus goes back to
+ * the nearest element still on the page — there, the learner's radar tile.
+ */
+const FOCUS_HISTORY_SIZE = 8;
+const focusHistory: HTMLElement[] = [];
+if (typeof document !== 'undefined') {
+  document.addEventListener('focusin', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement) || el === document.body) return;
+    const at = focusHistory.indexOf(el);
+    if (at >= 0) focusHistory.splice(at, 1);
+    focusHistory.push(el);
+    if (focusHistory.length > FOCUS_HISTORY_SIZE) focusHistory.shift();
+  });
+}
+
 export function useDismissableOverlay<T extends HTMLElement>(
   isOpen: boolean,
   onClose: () => void,
   options: { autoFocus?: boolean; trapFocus?: boolean } = {}
 ) {
   const containerRef = useRef<T | null>(null);
-  const previouslyFocused = useRef<HTMLElement | null>(null);
+  // Where focus may return on close, best first: the element focused when the
+  // overlay opened, then the ones focused before it.
+  const returnTargets = useRef<HTMLElement[]>([]);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -51,7 +74,11 @@ export function useDismissableOverlay<T extends HTMLElement>(
   useEffect(() => {
     if (!isOpen) return;
 
-    previouslyFocused.current = (document.activeElement as HTMLElement) ?? null;
+    const active = document.activeElement as HTMLElement | null;
+    returnTargets.current = [
+      ...(active && active !== document.body ? [active] : []),
+      ...focusHistory.filter((el) => el !== active).reverse(),
+    ];
     const token = {};
     openOverlays.push(token);
     const isTop = () => openOverlays[openOverlays.length - 1] === token;
@@ -108,7 +135,11 @@ export function useDismissableOverlay<T extends HTMLElement>(
       // panel that never took focus must not yank it away from wherever the
       // learner is working when it closes.
       const focusIsInside = containerRef.current?.contains(document.activeElement);
-      if (autoFocus || focusIsInside) previouslyFocused.current?.focus?.();
+      if (autoFocus || focusIsInside) {
+        const root = containerRef.current;
+        returnTargets.current.find((el) => el.isConnected && !root?.contains(el))?.focus?.();
+      }
+      returnTargets.current = [];
     };
   }, [isOpen, autoFocus, trapFocus]);
 
