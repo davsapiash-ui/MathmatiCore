@@ -1,15 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MonitorPlay, ListOrdered, AlertTriangle, RotateCcw, Sparkles, FileText, Loader2 } from 'lucide-react';
 import { ReplayViewer } from '@/presentation/components/ReplayViewer';
-import { CHOICE_EXERCISES_HEADING_HE, exercisePathType } from '@/core/choiceExercises';
+import { CHOICE_EXERCISES_HEADING_HE } from '@/core/choiceExercises';
 import {
   AI_FALLBACK_TEXT,
+  DRIVE_COPY_MISSING_HE,
+  EVENTS_READ_ERROR_HE,
+  OUTDATED_MEETING1_PDF_HE,
+  PDF_BLOCKED_HE,
   REPORT_PROCESSING_TEXT,
+  chapterForChip,
   chapterForSeek,
+  compulsoryNumbers,
+  daySeparatorHe,
   describeReportError,
   describeEvent,
   exerciseTitle,
-  fetchLearnerEvents,
+  latestMeetingWithData,
+  meetingExerciseIds,
+  scrollTopToShowRow,
+  subscribeLearnerEvents,
+  subscribeLearnerTruncatedMeetings,
+  withDaySeparators,
   fetchLearnerCatchUpLines,
   fetchLearnerResets,
   fetchMeetingReport,
@@ -82,7 +94,10 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
   const [eventsState, setEventsState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [eventsError, setEventsError] = useState<string>('');
   const [recordingFailed, setRecordingFailed] = useState(false);
+  const [truncatedMeetings, setTruncatedMeetings] = useState<number[]>([]);
   const [selectedSession, setSelectedSession] = useState<number | null>(null);
+  // Once the teacher picked a meeting herself, data arriving later does not move her.
+  const teacherPickedSession = useRef(false);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [seekRequest, setSeekRequest] = useState<{ t: number; nonce: number } | null>(null);
   const [playheadTs, setPlayheadTs] = useState<number | null>(null);
@@ -101,20 +116,28 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
     });
   }, [studentNum]);
 
-  // Events: one read of the learner's telemetry.
+  // Module 21: the per-meeting budget flag, for a recording cut without a flag of its own.
   useEffect(() => {
     if (studentNum === null) return;
-    let cancelled = false;
+    setTruncatedMeetings([]);
+    return subscribeLearnerTruncatedMeetings(studentNum, setTruncatedMeetings);
+  }, [studentNum]);
+
+  // Events: live from Firestore, so the table grows with the learner's work like the player does.
+  useEffect(() => {
+    if (studentNum === null) return;
     setEventsState('loading');
     setEventsError('');
-    fetchLearnerEvents(studentNum, { forceRefresh: reloadNonce > 0 })
-      .then((list) => { if (!cancelled) { setEvents(list); setEventsState('ready'); } })
-      .catch((err) => {
-        if (cancelled) return;
-        setEventsError(err instanceof Error ? err.message : String(err));
+    return subscribeLearnerEvents(
+      studentNum,
+      (list) => { setEvents(list); setEventsState('ready'); },
+      (err) => {
+        // The teacher reads one Hebrew sentence; the SDK's own text goes to the console.
+        console.warn('[LearnerJourney] the actions could not be read:', err);
+        setEventsError(EVENTS_READ_ERROR_HE);
         setEventsState('error');
-      });
-    return () => { cancelled = true; };
+      },
+    );
   }, [studentNum, reloadNonce]);
 
   // The reset log, for the separator rows: a meeting done twice is not one run. A failure only hides them.
@@ -159,11 +182,22 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
     return map;
   }, [recordings]);
 
-  // Default selection: the latest meeting that has anything.
+  // Default selection: the latest meeting that has anything. The recordings
+  // arrive before the actions; a choice made on the recordings alone opened an
+  // old meeting when the latest one (meeting 8's reflection) had no recording,
+  // so the choice follows the data until the teacher picks anything herself —
+  // a meeting, an exercise, a row or a chapter. A move clears what belonged to
+  // the meeting it leaves, as a tile click does: an exercise of meeting 7 kept
+  // under meeting 8 emptied the table and cut the player to no chapter.
   useEffect(() => {
-    if (selectedSession !== null) return;
-    const withData = SESSION_NUMBERS.filter((n) => (eventsBySession.get(n)?.length ?? 0) > 0 || (recordingsBySession.get(n)?.length ?? 0) > 0);
-    if (withData.length > 0) setSelectedSession(withData[withData.length - 1]);
+    if (teacherPickedSession.current) return;
+    const latest = latestMeetingWithData(eventsBySession.keys(), recordingsBySession.keys());
+    if (latest !== null && latest !== selectedSession) {
+      setSelectedSession(latest);
+      setSelectedExercise(null);
+      setSeekRequest(null);
+      setPlayheadTs(null);
+    }
   }, [eventsBySession, recordingsBySession, selectedSession]);
 
   const sessionEvents = useMemo(
@@ -176,14 +210,10 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
   );
   const rrwebEvents = useMemo(() => parseRecordingEvents(sessionRecordings), [sessionRecordings]);
   const chapters = useMemo(() => sessionRecordings.flatMap((r) => r.chapters), [sessionRecordings]);
-  const truncated = sessionRecordings.some((r) => r.truncated);
+  const truncated = sessionRecordings.some((r) => r.truncated) || (selectedSession !== null && truncatedMeetings.includes(selectedSession));
 
-  const exerciseIds = useMemo(() => {
-    const ids: string[] = [];
-    for (const e of sessionEvents) if (e.exerciseId && !ids.includes(e.exerciseId)) ids.push(e.exerciseId);
-    for (const c of chapters) if (c.exerciseId && !ids.includes(c.exerciseId)) ids.push(c.exerciseId);
-    return ids;
-  }, [sessionEvents, chapters]);
+  const exerciseIds = useMemo(() => meetingExerciseIds(sessionEvents, chapters), [sessionEvents, chapters]);
+  const exerciseNumbers = useMemo(() => compulsoryNumbers(exerciseIds), [exerciseIds]);
 
   const visibleEvents = useMemo(
     () => (selectedExercise ? sessionEvents.filter((e) => e.exerciseId === selectedExercise) : sessionEvents),
@@ -193,7 +223,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
     () => (selectedSession === null || studentNum === null ? [] : resetsOfMeeting(resetEntries, studentNum, selectedSession)),
     [resetEntries, studentNum, selectedSession],
   );
-  const decisionRows = useMemo(() => withResetSeparators(visibleEvents, sessionResets), [visibleEvents, sessionResets]);
+  const decisionRows = useMemo(() => withDaySeparators(withResetSeparators(visibleEvents, sessionResets)), [visibleEvents, sessionResets]);
   const lastCuttingReset = selectedSession === null ? null : (cuttingResetsBySession.get(selectedSession) ?? []).slice(-1)[0] ?? null;
 
   // מודול 21 §ב: "ההפעלה מתבצעת עבור התרגיל הספציפי שנבחר בלבד". בחירת
@@ -219,16 +249,39 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
     return idx;
   }, [visibleEvents, playheadTs]);
 
+  // The table scrolls inside its own box; past ~15 rows the highlighted row
+  // left the box and the teacher lost it. The box follows the row.
+  const tableBoxRef = useRef<HTMLDivElement>(null);
+  const highlightedRowRef = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    const box = tableBoxRef.current;
+    const row = highlightedRowRef.current;
+    if (!box || !row || highlightedIdx < 0) return;
+    const header = box.querySelector('thead');
+    const top = scrollTopToShowRow(
+      { scrollTop: box.scrollTop, height: box.clientHeight, headerHeight: header?.offsetHeight ?? 0 },
+      { top: row.offsetTop, height: row.offsetHeight },
+    );
+    if (top !== null) box.scrollTop = top;
+  }, [highlightedIdx]);
+
   const requestSeek = (t?: number) => {
     if (typeof t !== 'number') return;
+    teacherPickedSession.current = true;
     setSeekRequest((prev) => ({ t, nonce: (prev?.nonce ?? 0) + 1 }));
+  };
+
+  // An exercise chip ("הכול" is null): the teacher is working in this meeting now.
+  const chooseExercise = (id: string | null) => {
+    teacherPickedSession.current = true;
+    setSelectedExercise(id);
   };
 
   // A chapter — a chip under the player or its segment on the timeline: that
   // exercise, from the start of that chapter (Module 21 §ב).
   const selectChapter = (c: RecordingChapter | undefined) => {
     if (!c) return;
-    setSelectedExercise(c.exerciseId);
+    chooseExercise(c.exerciseId);
     requestSeek(c.start);
   };
   const timelineChapters = useMemo(
@@ -237,6 +290,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
   );
 
   const selectSession = (n: number) => {
+    teacherPickedSession.current = true;
     setSelectedSession(n);
     setSelectedExercise(null);
     setSeekRequest(null);
@@ -294,12 +348,24 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
       setReportState('error');
       return;
     }
+    // A report loaded from Firestore has no link yet, and it is fetched from
+    // the server first. A tab opened after that wait is outside the click, and
+    // the browser may block it without a word. The tab opens in the click
+    // itself, and gets its address when the link arrives.
+    const tab = window.open('', '_blank');
+    if (!tab) {
+      setReportError(PDF_BLOCKED_HE);
+      setReportState('error');
+      return;
+    }
+    tab.opener = null;
     try {
       setReportState('opening');
       const url = report.downloadUrl ?? (await fetchMeetingReportUrl(report.sessionId));
-      window.open(url, '_blank', 'noopener');
+      tab.location.href = url;
       setReportState('idle');
     } catch (err) {
+      tab.close();
       setReportError(describeReportError(err).message);
       setReportState('error');
     }
@@ -323,7 +389,10 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
         <div>
           <h3 className="text-lg font-black text-ws-ink">מסע הלמידה של תלמיד {studentNum}</h3>
           <p className="text-xs text-ws-soft">
-            נתונים זמינים עבור {sessionsWithData} מתוך 8 מפגשים · {events.length} פעולות מתועדות · {recordings.length} הקלטות
+            {/* While the actions cannot be read, "0 פעולות" would be a claim about the learner, not about the connection. */}
+            {eventsState === 'error'
+              ? `${recordings.length} הקלטות · הפעולות המתועדות לא נקראו`
+              : `נתונים זמינים עבור ${sessionsWithData} מתוך 8 מפגשים · ${events.length} פעולות מתועדות · ${recordings.length} הקלטות`}
           </p>
         </div>
         <button
@@ -338,8 +407,8 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
       </div>
 
       {eventsState === 'error' && (
-        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-bold dark:bg-red-950/40 dark:border-red-800 dark:text-red-200">
-          <div>לא ניתן לקרוא את הפעולות המתועדות: {eventsError}</div>
+        <div role="alert" className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-bold dark:bg-red-950/40 dark:border-red-800 dark:text-red-200">
+          <div>{eventsError || EVENTS_READ_ERROR_HE}</div>
         </div>
       )}
 
@@ -387,7 +456,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   )}
                 </div>
               ) : (
-                <div className="mt-1.5 text-[11px] text-ws-soft">אין נתונים</div>
+                <div className="mt-1.5 text-[11px] text-ws-soft">{eventsState === 'error' ? 'הפעולות לא נקראו' : 'אין נתונים'}</div>
               )}
             </button>
           );
@@ -396,7 +465,11 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
 
       {selectedSession === null ? (
         <div className="p-10 text-center text-ws-soft bg-ws-surface rounded-2xl border border-dashed border-ws-surface2 text-sm">
-          {eventsState === 'loading' ? 'טוען את הפעולות המתועדות…' : 'עדיין אין פעולות או הקלטות לתלמיד זה.'}
+          {eventsState === 'loading'
+            ? 'טוען את הפעולות המתועדות…'
+            : eventsState === 'error'
+              ? 'הפעולות המתועדות לא נקראו, ולכן אי אפשר לדעת כרגע מה יש לתלמיד זה.'
+              : 'עדיין אין פעולות או הקלטות לתלמיד זה.'}
         </div>
       ) : (
         <div className="space-y-4">
@@ -406,23 +479,23 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
               <span className="text-[11px] font-black text-ws-soft">תרגילים ב{meetingShortLabelHe(selectedSession)}:</span>
               <button
                 type="button"
-                onClick={() => setSelectedExercise(null)}
+                onClick={() => chooseExercise(null)}
                 className={`text-xs font-bold px-3 py-1.5 rounded-full border cursor-pointer ${selectedExercise === null ? 'bg-ws-accent text-white border-ws-accent' : 'bg-ws-surface text-ws-ink border-ws-surface2'}`}
               >
                 הכול
               </button>
               {exerciseIds.map((id) => {
-                const chapter = chapters.find((c) => c.exerciseId === id);
+                // The chapter of the current run: after a reset the earlier run's recording is still there.
+                const chapter = chapterForChip(chapters, id, lastCuttingReset?.at ?? null);
                 const active = selectedExercise === id;
                 // Only the compulsory exercises are numbered; a choice exercise is marked in its title.
-                const isChoice = exercisePathType(id) !== 'compulsory';
-                const number = isChoice ? null : exerciseIds.filter((x) => exercisePathType(x) === 'compulsory').indexOf(id) + 1;
+                const number = exerciseNumbers.get(id) ?? null;
                 return (
                   <button
                     key={id}
                     type="button"
                     onClick={() => {
-                      setSelectedExercise(id);
+                      chooseExercise(id);
                       if (chapter) requestSeek(chapter.start);
                     }}
                     title={exerciseTitle(selectedSession, id)}
@@ -453,7 +526,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {report && (
+                {report && !report.storedPdfOutdated && (
                   <button
                     type="button"
                     onClick={openReportPdf}
@@ -515,6 +588,12 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                         <div className="font-black mb-1">מפגש היכרות וריענון — ללא ציון</div>
                         <div className="text-ws-soft">מטרת המפגש: שטעות באבחון מחר תשקף פער ידע אמיתי, ולא אי-היכרות עם הממשק או שכחה.</div>
                       </div>
+                      {/* PRD Module 14: meeting 1 is not scored, and this report's stored PDF still prints a score. */}
+                      {report.storedPdfOutdated && (
+                        <div role="status" data-testid="outdated-meeting1-pdf" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100">
+                          {OUTDATED_MEETING1_PDF_HE}
+                        </div>
+                      )}
                       {report.sandbox.outdated ? (
                         <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100">
                           דוח זה הופק לפני שנוסף לו פירוט הכלים ותרגילי הריענון. לחצו "הפיקו מחדש" כדי לראות אותם.
@@ -629,6 +708,14 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                     {report.pdfFailureMessage}
                   </div>
                 )}
+                {/* The Drive copy (Module 23), as the class panel shows it: the link, or that there is none. */}
+                {!report.pdfFailureMessage && (
+                  <div className="text-[11px] text-ws-soft lg:col-span-2" data-testid="learner-report-drive">
+                    {report.driveUrl
+                      ? <a href={report.driveUrl} target="_blank" rel="noopener noreferrer" className="underline">עותק בדרייב</a>
+                      : DRIVE_COPY_MISSING_HE}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -646,7 +733,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                 </div>
                 <span className="text-[11px] text-ws-soft">{visibleEvents.length} פעולות</span>
               </div>
-              <div className="max-h-[520px] overflow-auto">
+              <div ref={tableBoxRef} className="max-h-[520px] overflow-auto">
                 <table className="w-full text-right text-xs">
                   <thead className="bg-ws-bg text-ws-soft font-black sticky top-0 border-b border-ws-surface2">
                     <tr>
@@ -661,10 +748,22 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   <tbody className="divide-y divide-ws-surface2">
                     {eventsState === 'loading' ? (
                       <tr><td colSpan={6} className="p-8 text-center text-ws-soft">טוען…</td></tr>
+                    ) : eventsState === 'error' && visibleEvents.length === 0 ? (
+                      <tr><td colSpan={6} className="p-8 text-center text-ws-soft">הפעולות המתועדות לא נקראו.</td></tr>
                     ) : visibleEvents.length === 0 ? (
                       <tr><td colSpan={6} className="p-8 text-center text-ws-soft">אין פעולות מתועדות למפגש זה.</td></tr>
                     ) : (
                       decisionRows.map((row) => {
+                        if (row.kind === 'day') {
+                          // A meeting worked on over more than one day: where each day begins.
+                          return (
+                            <tr key={`day-${row.at}`} data-testid="day-separator" className="bg-ws-bg">
+                              <td colSpan={6} className="p-2 text-[11px] font-black text-ws-soft border-y border-ws-surface2">
+                                {daySeparatorHe(row.at)}
+                              </td>
+                            </tr>
+                          );
+                        }
                         if (row.kind === 'reset') {
                           // A meeting done twice: where the new run begins (audit learner_view).
                           return (
@@ -681,16 +780,19 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                         const prev = idx > 0 ? visibleEvents[idx - 1] : null;
                         const delaySec = prev ? Math.round((e.timestamp - prev.timestamp) / 1000) : 0;
                         const isHighlighted = idx === highlightedIdx;
-                        const exerciseIdx = exerciseIds.indexOf(e.exerciseId);
+                        // The chip's number; a choice exercise has none, and entering the meeting is no exercise.
+                        const exerciseNumber = exerciseNumbers.get(e.exerciseId);
+                        const exerciseCell = exerciseNumber !== undefined ? String(exerciseNumber) : exerciseIds.includes(e.exerciseId) ? 'בחירה' : '–';
                         return (
                           <tr
                             key={e.id}
+                            ref={isHighlighted ? highlightedRowRef : undefined}
                             onClick={() => requestSeek(e.timestamp)}
                             title={`לחיצה מקפיצה את ההקלטה לשעה ${formatClock(e.timestamp)}`}
                             className={`cursor-pointer transition-colors ${isHighlighted ? 'bg-ws-accentSoft border-r-4 border-ws-accent' : 'hover:bg-ws-bg'} ${desc.attention ? 'text-amber-900 dark:text-amber-200' : 'text-ws-ink'}`}
                           >
                             <td className="p-2 font-mono text-[11px] text-ws-soft whitespace-nowrap" dir="ltr">{formatClock(e.timestamp)}</td>
-                            <td className="p-2 whitespace-nowrap">{exerciseIdx >= 0 ? exerciseIdx + 1 : '–'}</td>
+                            <td className="p-2 whitespace-nowrap" title={exerciseTitle(selectedSession, e.exerciseId)}>{exerciseCell}</td>
                             <td className="p-2 font-bold">{desc.label}</td>
                             <td className="p-2">{desc.detail}</td>
                             <td className="p-2 text-center font-mono">{delaySec > 0 ? `${delaySec}` : '–'}</td>

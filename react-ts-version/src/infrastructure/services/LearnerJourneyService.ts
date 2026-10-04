@@ -16,7 +16,7 @@
  * moment in the recording can be matched by timestamp.
  */
 import { ref, onValue } from 'firebase/database';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { database, firestore, functions, authReady } from '@/infrastructure/firebase';
 import type { TelemetryEventType } from '@/types/telemetry';
@@ -123,10 +123,11 @@ export function parseRecordingSessions(node: Record<string, any> | null | undefi
     const meta: { start: number; end: number; exerciseId: string; sessionNumber: number | null }[] = [];
     if (sess.metadata && typeof sess.metadata === 'object') {
       for (const m of Object.values(sess.metadata) as any[]) {
-        if (!m || typeof m.startTime !== 'number') continue;
+        // A chapter needs a real start; an end before the start (or none) is the start.
+        if (!m || typeof m.startTime !== 'number' || !Number.isFinite(m.startTime) || m.startTime <= 0) continue;
         meta.push({
           start: m.startTime,
-          end: typeof m.endTime === 'number' ? m.endTime : m.startTime,
+          end: typeof m.endTime === 'number' && Number.isFinite(m.endTime) && m.endTime >= m.startTime ? m.endTime : m.startTime,
           exerciseId: m.exercise_id ? String(m.exercise_id) : 'unknown',
           sessionNumber: typeof m.sessionNumber === 'number' ? m.sessionNumber : null,
         });
@@ -193,13 +194,18 @@ export function parseRecordingEvents(sessions: RecordingSession[]): any[] {
         const rawStr = typeof c === 'string' ? c : (c && typeof c === 'object' && typeof (c as any).data === 'string' ? (c as any).data : null);
         if (!rawStr) continue;
         const parsed = JSON.parse(rawStr);
-        if (Array.isArray(parsed)) events.push(...parsed);
+        if (!Array.isArray(parsed)) continue;
+        // An entry that is not an event, or has no time of its own, used to be
+        // sorted to time 0 and stretched the recording back to 1970.
+        for (const e of parsed) {
+          if (e && typeof e === 'object' && typeof e.timestamp === 'number' && Number.isFinite(e.timestamp) && e.timestamp > 0) events.push(e);
+        }
       } catch {
         // A corrupt chunk is skipped; the rest of the recording still plays.
       }
     }
   }
-  events.sort((a, b) => (a?.timestamp || 0) - (b?.timestamp || 0));
+  events.sort((a, b) => a.timestamp - b.timestamp);
   return events;
 }
 
@@ -274,9 +280,101 @@ export async function fetchLearnerCatchUpLines(studentNum: number): Promise<Map<
   return out;
 }
 
-export type DecisionRow =
+/** A row of the decision table before the date rows: an event, or where the meeting was reset. */
+export type RunRow =
   | { kind: 'event'; event: JourneyEvent }
   | { kind: 'reset'; reset: MeetingResetMark };
+
+export type DecisionRow = RunRow | { kind: 'day'; at: number };
+
+const dayKey = (ts: number): string => { const d = new Date(ts); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+
+/**
+ * A meeting the learner worked on over more than one day (opened twice, or
+ * done again after a reset): the rows carry only the hour, so the two days read
+ * as one. A date row is put where each day begins. A meeting done within one
+ * day gets none.
+ */
+export function withDaySeparators(rows: RunRow[]): DecisionRow[] {
+  const days = new Set(rows.flatMap((r) => (r.kind === 'event' ? [dayKey(r.event.timestamp)] : [])));
+  if (days.size < 2) return rows;
+  const out: DecisionRow[] = [];
+  let last: string | null = null;
+  for (const r of rows) {
+    if (r.kind === 'event') {
+      const key = dayKey(r.event.timestamp);
+      if (key !== last) { out.push({ kind: 'day', at: r.event.timestamp }); last = key; }
+    }
+    out.push(r);
+  }
+  return out;
+}
+
+/** The date row's text: "יום העבודה: 02/10/2026". */
+export function daySeparatorHe(at: number): string {
+  return `יום העבודה: ${formatDate(at)}`;
+}
+
+/**
+ * "ex_N_01" is the id the learner's client writes when no exercise is open:
+ * entering the meeting (SESSION_START), or a call for help before the first
+ * exercise loaded (HelpOverlays, useWorkspaceStore). It is no exercise.
+ */
+export const isNoExerciseId = (id: string): boolean => /^ex_\d+_01$/.test(id);
+
+/**
+ * The exercises of a meeting in the order the learner met them: from the
+ * events, then from the recording's chapters. The no-exercise id "ex_N_01"
+ * used to be the first chip and moved every exercise number up by one.
+ */
+export function meetingExerciseIds(events: JourneyEvent[], chapters: RecordingChapter[]): string[] {
+  const ids: string[] = [];
+  for (const id of [...events.map((e) => e.exerciseId), ...chapters.map((c) => c.exerciseId)]) {
+    if (id && !isNoExerciseId(id) && !ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
+/** The compulsory exercises numbered 1, 2, 3… in order; a choice exercise has no number (it is marked in its title). */
+export function compulsoryNumbers(exerciseIds: string[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const id of exerciseIds) if (exercisePathType(id) === 'compulsory') map.set(id, map.size + 1);
+  return map;
+}
+
+/**
+ * The chapter an exercise chip jumps to. A meeting that was reset holds the
+ * recording of the earlier run too; the chip used to jump to the first chapter
+ * of all, which is the run the reports no longer count. It jumps to the first
+ * chapter of the exercise in the current run, and to the first of all only when
+ * the current run has none.
+ */
+export function chapterForChip(chapters: RecordingChapter[], exerciseId: string, lastResetAt: number | null): RecordingChapter | undefined {
+  const own = chapters.filter((c) => c.exerciseId === exerciseId).sort((a, b) => a.start - b.start);
+  if (lastResetAt !== null) {
+    const current = own.find((c) => c.start >= lastResetAt);
+    if (current) return current;
+  }
+  return own[0];
+}
+
+/** The latest meeting that has an action or a recording; null when none has. */
+export function latestMeetingWithData(meetingsWithEvents: Iterable<number>, meetingsWithRecordings: Iterable<number>): number | null {
+  const all = [...meetingsWithEvents, ...meetingsWithRecordings].filter((n) => n >= 1 && n <= 8);
+  return all.length > 0 ? Math.max(...all) : null;
+}
+
+/**
+ * Where the decision table must scroll so the highlighted row is in view under
+ * its sticky header; null when the row is already fully visible.
+ */
+export function scrollTopToShowRow(box: { scrollTop: number; height: number; headerHeight: number }, row: { top: number; height: number }): number | null {
+  const visibleTop = box.scrollTop + box.headerHeight;
+  const visibleBottom = box.scrollTop + box.height;
+  if (row.top >= visibleTop && row.top + row.height <= visibleBottom) return null;
+  // The row a third of the way down: the rows that led to it stay in sight.
+  return Math.max(0, Math.round(row.top - box.headerHeight - (box.height - box.headerHeight) / 3));
+}
 
 /**
  * The decision table with a separator row where the meeting was reset, so a
@@ -286,8 +384,8 @@ export type DecisionRow =
  * events carry the tablet's clock, so the row sits at the closest point the two
  * clocks allow; the score itself is cut on the server by the server's time.
  */
-export function withResetSeparators(events: JourneyEvent[], resets: MeetingResetMark[]): DecisionRow[] {
-  const rows: DecisionRow[] = [];
+export function withResetSeparators(events: JourneyEvent[], resets: MeetingResetMark[]): RunRow[] {
+  const rows: RunRow[] = [];
   const pending = [...resets].sort((a, b) => a.at - b.at);
   for (const event of events) {
     while (pending.length > 0 && pending[0].at < event.timestamp) {
@@ -392,11 +490,14 @@ function blockName(value: unknown): string {
   }
 }
 
+/** PRD Module 16 §ג: "מאמץ קל, בינוני, רב". The stored values stay LOW / MEDIUM / HIGH. */
+export const EFFORT_HE: Readonly<Record<string, string>> = { LOW: 'קל', MEDIUM: 'בינוני', HIGH: 'רב' };
+
 /** Plain-Hebrew description of one telemetry event, from its own details only. */
 export function describeEvent(e: JourneyEvent): EventDescription {
   const d = e.details || {};
   const col = typeof e.columnIndex === 'number' ? COLUMN_NAMES_HE[e.columnIndex] : undefined;
-  const label = EVENT_LABELS_HE[e.eventType] ?? String(e.eventType);
+  let label = EVENT_LABELS_HE[e.eventType] ?? String(e.eventType);
   let detail = '';
   let selfRegulation = false;
   let attention = false;
@@ -418,7 +519,18 @@ export function describeEvent(e: JourneyEvent): EventDescription {
     case 'PROBLEM_LOAD':
       detail = d.path_type === 'challenge' ? 'נתיב אתגר' : d.path_type === 'consolidation' ? 'נתיב ביסוס' : 'תרגיל חובה';
       break;
+    case 'ADAPTIVE_GRID_TOGGLED':
+      // Register deviation 19: opened by the 30-second stage or brought back by the learner; closed by the learner.
+      detail = d.action === 'closed'
+        ? 'הלומד סגר את הלוח'
+        : d.action === 'opened'
+          ? (d.source === 'hesitation_30s' ? 'נפתח אחרי 30 שניות של היסוס' : d.source === 'learner' ? 'הלומד החזיר את הלוח' : 'נפתח')
+          : '';
+      break;
     case 'BLOCK_DRAG_COMPLETE':
+      // A block from the toolbox has no source column, whether it was dragged
+      // or tapped (the two are recorded alike): it was added, not necessarily dragged.
+      if (d.source_column_index === null) label = 'הוספת לבנה';
       // שני שדות הטור שווים רק בהשלכה לפח (מודול 8): גרירה לאותו טור שקטה.
       detail = typeof d.source_column_index === 'number' && d.source_column_index === e.columnIndex
         ? `${blockName(d.block_value)} הושלכה לפח האשפה${col ? ` מטור ה${col}` : ''}`
@@ -468,7 +580,7 @@ export function describeEvent(e: JourneyEvent): EventDescription {
       detail = `${typeof d.total_duration_ms === 'number' ? `${Math.round(d.total_duration_ms / 1000)} שנ׳` : ''}${typeof d.error_count === 'number' ? ` · ${d.error_count} שגיאות` : ''}${typeof d.undo_count === 'number' ? ` · ${d.undo_count} ביטולים` : ''}`.replace(/^ · /, '');
       break;
     case 'REFLECTION_SUBMITTED':
-      detail = `שלב ${d.reflection_step ?? ''}${d.effort_score ? ` · מאמץ ${String(d.effort_score)}` : ''}${typeof d.persistence_index === 'number' ? ` · תיקון עצמי ${d.persistence_index}%` : ''}`;
+      detail = `שלב ${d.reflection_step ?? ''}${d.effort_score ? ` · מאמץ ${EFFORT_HE[String(d.effort_score)] ?? 'לא ידוע'}` : ''}${typeof d.persistence_index === 'number' ? ` · תיקון עצמי ${d.persistence_index}%` : ''}`;
       break;
     default:
       detail = '';
@@ -549,6 +661,103 @@ export function subscribeLearnerRecordings(
   };
 }
 
+/** The meetings whose recording budget is flagged as cut (the server's truncatedRecordingMeetings, functions/src/meetingMetrics.ts). */
+export function truncatedMeetingsOf(budgets: Record<string, any> | null | undefined): number[] {
+  if (!isPlainObject(budgets)) return [];
+  const out: number[] = [];
+  for (const [key, budget] of Object.entries(budgets)) {
+    const m = /^meeting_(\d)$/.exec(key);
+    if (m && isPlainObject(budget) && budget.truncated === true) out.push(Number(m[1]));
+  }
+  return out.sort((a, b) => a - b);
+}
+
+/**
+ * Module 21: the 50MB cap is kept per meeting, and the recorder flags it on
+ * the meeting's budget (recorded_bytes/meeting_N/truncated) even when the
+ * recording that hit the cap has no flag of its own — a refresh, then a first
+ * chunk over the cap. Live, from both places the budget lives; a place that
+ * cannot be read adds nothing.
+ */
+export function subscribeLearnerTruncatedMeetings(studentNum: number, onChange: (meetings: number[]) => void): () => void {
+  const offs: Array<() => void> = [];
+  let cancelled = false;
+  let legacy: number[] = [];
+  let current: number[] = [];
+  const emit = () => onChange([...new Set([...legacy, ...current])].sort((a, b) => a - b));
+  authReady.then(() => {
+    if (cancelled) return;
+    offs.push(onValue(
+      ref(database, `recordings/student_user${studentNum}/recorded_bytes`),
+      (snap) => { current = truncatedMeetingsOf(snap.exists() ? snap.val() : null); emit(); },
+      () => {},
+    ));
+    offs.push(onValue(
+      ref(database, `users/students/student_user${studentNum}/recorded_bytes`),
+      (snap) => { legacy = truncatedMeetingsOf(snap.exists() ? snap.val() : null); emit(); },
+      () => {},
+    ));
+  });
+  return () => {
+    cancelled = true;
+    offs.forEach((off) => off());
+  };
+}
+
+/** What the teacher reads when the learner's actions cannot be read; the SDK's own English text goes to the console. */
+export const EVENTS_READ_ERROR_HE = 'לא ניתן לקרוא כרגע את הפעולות המתועדות של התלמיד. בדקו את החיבור לרשת ולחצו "רענון". אם זה חוזר, התנתקו והתחברו מחדש כמורה.';
+
+/** One telemetry_logs document as a table row's event; null for a document with no time or no type. */
+export function journeyEventFromDoc(id: string, d: Record<string, any> | null | undefined): JourneyEvent | null {
+  if (!d || typeof d.client_timestamp !== 'number' || !d.event_type) return null;
+  return {
+    id,
+    timestamp: d.client_timestamp,
+    sessionNumber: sessionNumberFromSessionId(d.session_id),
+    sessionId: String(d.session_id ?? ''),
+    exerciseId: String(d.exercise_id ?? ''),
+    eventType: String(d.event_type),
+    ...(typeof d.column_index === 'number' ? { columnIndex: d.column_index } : {}),
+    details: d.details && typeof d.details === 'object' ? d.details : {},
+    ...(typeof d.synced_at === 'number' ? { writtenAt: d.synced_at } : {}),
+  };
+}
+
+/**
+ * Live subscription to the learner's telemetry events, oldest first. The table
+ * used to be one read: with the learner at work the player grew and the table
+ * stood still until "רענון". After the first answer only the new documents are
+ * read. Returns the unsubscribe.
+ */
+export function subscribeLearnerEvents(
+  studentNum: number,
+  onChange: (events: JourneyEvent[]) => void,
+  onError?: (err: unknown) => void,
+): () => void {
+  let off: (() => void) | null = null;
+  let cancelled = false;
+  authReady.then(() => {
+    if (cancelled) return;
+    off = onSnapshot(
+      query(collection(firestore, 'telemetry_logs'), where('student_id', '==', studentNum)),
+      (snap) => {
+        const events: JourneyEvent[] = [];
+        snap.forEach((docSnap) => {
+          const e = journeyEventFromDoc(docSnap.id, docSnap.data() as Record<string, any>);
+          if (e) events.push(e);
+        });
+        events.sort((a, b) => a.timestamp - b.timestamp);
+        onChange(events);
+      },
+      (err) => onError?.(err),
+    );
+  }).catch((err) => onError?.(err));
+  return () => {
+    cancelled = true;
+    off?.();
+  };
+}
+
 /** All typed telemetry events of one learner, oldest first. */
 /**
  * מטמון קצר-טווח לפי מספר תלמיד.
@@ -581,19 +790,8 @@ export async function fetchLearnerEvents(
   const snap = await getDocs(query(collection(firestore, 'telemetry_logs'), where('student_id', '==', studentNum)));
   const events: JourneyEvent[] = [];
   snap.forEach((docSnap) => {
-    const d = docSnap.data() as any;
-    if (!d || typeof d.client_timestamp !== 'number' || !d.event_type) return;
-    events.push({
-      id: docSnap.id,
-      timestamp: d.client_timestamp,
-      sessionNumber: sessionNumberFromSessionId(d.session_id),
-      sessionId: String(d.session_id ?? ''),
-      exerciseId: String(d.exercise_id ?? ''),
-      eventType: String(d.event_type),
-      ...(typeof d.column_index === 'number' ? { columnIndex: d.column_index } : {}),
-      details: d.details && typeof d.details === 'object' ? d.details : {},
-      ...(typeof d.synced_at === 'number' ? { writtenAt: d.synced_at } : {}),
-    });
+    const e = journeyEventFromDoc(docSnap.id, docSnap.data() as Record<string, any>);
+    if (e) events.push(e);
   });
   events.sort((a, b) => a.timestamp - b.timestamp);
   learnerEventsCache.set(studentNum, { at: Date.now(), events });
@@ -723,7 +921,22 @@ export interface MeetingReport {
    * when the meeting was not reset (and on reports stored before this existed).
    */
   preReset: { lines: string[] } | null;
+  /** The copy of the PDF in the shared Drive folder; null when it was not saved there (the copy is best-effort). */
+  driveUrl: string | null;
+  /**
+   * A meeting-1 report stored from before meeting 1 stopped being scored: its
+   * stored PDF still prints a score (PRD Module 14: meeting 1 is not scored).
+   * The file is not offered; the teacher regenerates the report.
+   */
+  storedPdfOutdated: boolean;
 }
+
+/** Shown in place of "פתחו PDF" for such a report. */
+export const OUTDATED_MEETING1_PDF_HE = 'הדוח הזה הופק לפני שמפגש 1 הפסיק לקבל ציון, והקובץ השמור שלו עדיין מציג ציון. לחצו "הפיקו מחדש" כדי לקבל דוח וקובץ מעודכנים.';
+/** The learner report's Drive line when no copy was saved (the class panel's wording). */
+export const DRIVE_COPY_MISSING_HE = 'העותק בדרייב לא נשמר (הדוח עצמו שמור במערכת)';
+/** A PDF tab the browser refused to open. */
+export const PDF_BLOCKED_HE = 'הדפדפן חסם את פתיחת הקובץ. אשרו לאתר הזה לפתוח חלונות קופצים, ולחצו שוב על "פתחו PDF".';
 
 /** The heading and the note of the report's "לפני האיפוס" part (functions/src/preResetRecord.ts). */
 export const PRE_RESET_HEADING_HE = 'לפני האיפוס';
@@ -793,11 +1006,20 @@ function sandboxPartOf(d: Record<string, any>): SandboxReportPart {
   };
 }
 
-export function reportFromData(d: Record<string, any>, sessionId: string, downloadUrl: string | null, pdfFailureMessage: string | null = null): MeetingReport {
+export function reportFromData(
+  d: Record<string, any>,
+  sessionId: string,
+  downloadUrl: string | null,
+  pdfFailureMessage: string | null = null,
+  driveUrl: string | null = null,
+): MeetingReport {
   const sessionNumber = Number(d.session_number) || 0;
   // Meeting 1 is never scored — also on a report stored before this was enforced.
   const sandbox = d.meeting_kind === 'sandbox_refresh' || sessionNumber === 1;
   return {
+    driveUrl: driveUrl ?? (typeof d.drive_file_url === 'string' && d.drive_file_url ? d.drive_file_url : null),
+    // A link the server has just made belongs to a fresh PDF, whatever the document still says.
+    storedPdfOutdated: sandbox && downloadUrl === null && (d.meeting_kind !== 'sandbox_refresh' || typeof d.score_percent === 'number'),
     reportId: String(d.report_id ?? `rep_${sessionId}`),
     sessionId: String(d.session_id ?? sessionId),
     sessionNumber,
@@ -850,7 +1072,8 @@ export async function generateMeetingReport(params: { studentNum: number; sessio
     data.report,
     params.sessionId,
     downloadUrl,
-    pdfFailed ? REPORT_PROCESSING_TEXT : null
+    pdfFailed ? REPORT_PROCESSING_TEXT : null,
+    typeof data.driveMirrorUrl === 'string' && data.driveMirrorUrl ? data.driveMirrorUrl : null,
   );
 }
 

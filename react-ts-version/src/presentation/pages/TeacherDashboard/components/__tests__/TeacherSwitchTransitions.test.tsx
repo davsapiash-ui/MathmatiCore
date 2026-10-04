@@ -59,7 +59,12 @@ vi.mock('@/infrastructure/services/LearnerJourneyService', async (importOriginal
   return {
     ...real,
     subscribeLearnerRecordings: vi.fn(() => () => {}),
-    fetchLearnerEvents: vi.fn((studentNum: number) => reports.learnerEvents[studentNum] ?? new Promise(() => {})),
+    subscribeLearnerTruncatedMeetings: vi.fn(() => () => {}),
+    subscribeLearnerEvents: vi.fn((studentNum: number, onChange: (events: unknown[]) => void) => {
+      let cancelled = false;
+      reports.learnerEvents[studentNum]?.then((list) => { if (!cancelled) onChange(list); });
+      return () => { cancelled = true; };
+    }),
     fetchMeetingReport: vi.fn(() => Promise.resolve(null)),
     generateMeetingReport: vi.fn(async (p: { studentNum: number; sessionNumber: number; sessionId: string }) => {
       reports.generateMeeting.push(p);

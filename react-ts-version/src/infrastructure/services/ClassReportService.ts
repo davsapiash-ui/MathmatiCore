@@ -63,6 +63,36 @@ export interface ClassLearnerRow {
   reflectionSubmitted: boolean;
   recordingMinutes: number;
   exerciseOutcomes: Record<string, 'first_try' | 'after_correction' | 'incomplete'>;
+  /** Register deviation 19: meeting 8 without the blocks against meetings 4–6 with them. null outside meeting 8. */
+  fadingGap: FadingGap | null;
+}
+
+/** As the server's computeFadingGap stores it (functions/src/meetingMetrics.ts FadingGap). */
+export interface FadingGap {
+  pairsMeasured: number;
+  accuracyWithBlocksPercent: number | null;
+  accuracyWithoutBlocksPercent: number | null;
+  meanSecondsWithBlocks: number | null;
+  meanSecondsWithoutBlocks: number | null;
+  guessedExercises: string[];
+  unpairedExercises: string[];
+}
+
+/** The server's FADING_GUESS_SECONDS: an exercise solved faster than this without the blocks is "too fast". */
+export const FADING_GUESS_SECONDS = 15;
+
+/**
+ * The scaffold and help counters of the class (register deviation 19; the
+ * server's class PDF line). Zero on a report stored before a counter existed.
+ */
+export interface ClassScaffoldCounters {
+  gridOpenings: number;
+  gridReopenings: number;
+  keyboardLockBlocks: number;
+  helpRequests: number;
+  helpWithdrawals: number;
+  chatHelpRequests: number;
+  placeCueScaffolds: number;
 }
 
 export interface ClassExerciseRow {
@@ -114,6 +144,7 @@ export interface ClassMeetingReport {
   socraticCardsTotal: number;
   socraticTriggers: Record<string, number>;
   errorCategories: Record<string, number>;
+  scaffolds: ClassScaffoldCounters;
   reflectionsSubmitted: number;
   exercises: ClassExerciseRow[];
   learners: ClassLearnerRow[];
@@ -198,6 +229,20 @@ const counts = (v: unknown): Record<string, number> => {
 };
 const url = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 
+export function fadingGapFromData(v: unknown): FadingGap | null {
+  if (!v || typeof v !== 'object') return null;
+  const f = v as Record<string, unknown>;
+  return {
+    pairsMeasured: num(f.pairs_measured),
+    accuracyWithBlocksPercent: numOrNull(f.accuracy_with_blocks_percent),
+    accuracyWithoutBlocksPercent: numOrNull(f.accuracy_without_blocks_percent),
+    meanSecondsWithBlocks: numOrNull(f.mean_seconds_with_blocks),
+    meanSecondsWithoutBlocks: numOrNull(f.mean_seconds_without_blocks),
+    guessedExercises: strList(f.guessed_exercises),
+    unpairedExercises: strList(f.unpaired_exercises),
+  };
+}
+
 function learnerFromData(d: Record<string, any>): ClassLearnerRow {
   const outcomes: ClassLearnerRow['exerciseOutcomes'] = {};
   if (d.exercise_outcomes && typeof d.exercise_outcomes === 'object') {
@@ -234,6 +279,7 @@ function learnerFromData(d: Record<string, any>): ClassLearnerRow {
     reflectionSubmitted: d.reflection_submitted === true,
     recordingMinutes: num(d.recording_minutes),
     exerciseOutcomes: outcomes,
+    fadingGap: fadingGapFromData(d.fading_gap),
   };
 }
 
@@ -301,6 +347,15 @@ export function classReportFromData(d: Record<string, any>): ClassMeetingReport 
     socraticCardsTotal: num(a.socratic_cards_total),
     socraticTriggers: counts(a.socratic_triggers),
     errorCategories: counts(a.error_categories),
+    scaffolds: {
+      gridOpenings: num(a.grid_openings_total),
+      gridReopenings: num(a.grid_reopenings_total),
+      keyboardLockBlocks: num(a.keyboard_lock_blocks_total),
+      helpRequests: num(a.help_requests_total),
+      helpWithdrawals: num(a.help_withdrawals_total),
+      chatHelpRequests: num(a.chat_help_requests_total),
+      placeCueScaffolds: num(a.place_cue_scaffolds_total),
+    },
     reflectionsSubmitted: num(a.reflections_submitted),
     exercises: (Array.isArray(a.exercises) ? a.exercises : []).map((e: Record<string, any>) => ({
       exerciseId: String(e.exercise_id ?? ''),
