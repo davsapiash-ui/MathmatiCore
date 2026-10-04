@@ -15,12 +15,16 @@
  * PENDING_TEACHER_APPROVAL), and it marks each task the learner never answered
  * "not_answered" in qMatrixResults. So:
  *  - while this device holds the learner's meeting-2 workspace, the workspace
- *    says it: finished means its end screen ('sessionDone');
+ *    says it: unfinished means still in the primary round of the seven tasks
+ *    (isDiagnosticPrimaryRound). The correction round comes after the seventh
+ *    answer, so a learner in it has finished, as has one on the end screen;
  *  - otherwise (the learner is on a waiting screen, nothing restored), the
- *    record says it: completed with no task left "not_answered".
+ *    record says it: completed with no task left "not_answered". Until the
+ *    record has loaded nothing is known, and the generic text stays.
  * A learner the gate already approved does not go on with meeting 2 (#196):
  * the generic text is true for them.
  */
+import { isDiagnosticPrimaryRound } from './workspaceSnapshot';
 
 /** The server's tag for a task not answered when the teacher closed meeting 2 (functions/src/meeting2Close.ts). */
 export const Q_NOT_ANSWERED_TAG = 'not_answered';
@@ -34,6 +38,10 @@ export interface Meeting2CloseInput {
   workspaceOnMeeting2: boolean;
   /** The workspace's flowStatus. */
   flowStatus: string | null | undefined;
+  /** The workspace's qflow.phase ('primary' | 'correction'). */
+  qflowPhase?: string | null;
+  /** The learner's record has arrived from the database. */
+  recordLoaded: boolean;
   /** The learner's record. */
   record: { completedMeeting2?: unknown; qMatrixResults?: unknown } | null | undefined;
 }
@@ -41,8 +49,13 @@ export interface Meeting2CloseInput {
 export function isMeeting2CloseUnfinished(input: Meeting2CloseInput): boolean {
   if (input.meeting !== 2 || input.isTeacherOrAdmin || input.isGateApproved) return false;
   if (input.workspaceOnMeeting2) {
-    return input.flowStatus !== 'sessionDone' && input.flowStatus !== 'reflection';
+    return isDiagnosticPrimaryRound({
+      sessionNumber: 2,
+      flowStatus: input.flowStatus ?? undefined,
+      qflow: { phase: input.qflowPhase ?? undefined },
+    } as Parameters<typeof isDiagnosticPrimaryRound>[0]);
   }
+  if (!input.recordLoaded) return false;
   const record = input.record;
   if (!record || record.completedMeeting2 !== true) return true;
   const q = record.qMatrixResults;

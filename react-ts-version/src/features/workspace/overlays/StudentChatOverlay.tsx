@@ -35,10 +35,10 @@ export function withExerciseHe(text: string, label: string | null): string {
 
 /**
  * The folded coaching card's tab (owner, 4.10.2026, A7-002): the card's name
- * on the child's screens is "חלונית העזרה" (its ✕ says "סגירת חלונית העזרה").
+ * on the child's screens is "כרטיס החניכה" (meeting 8's reflection board, מסמך 03).
  */
-export const CARD_TAB_HE = 'חלונית העזרה';
-export const CARD_TAB_LABEL_HE = 'החזרת חלונית העזרה';
+export const CARD_TAB_HE = 'כרטיס החניכה';
+export const CARD_TAB_LABEL_HE = 'חזרה לכרטיס החניכה';
 
 /** The same ready message pressed again within this time is one press. */
 const READY_MESSAGE_REPEAT_MS = 2000;

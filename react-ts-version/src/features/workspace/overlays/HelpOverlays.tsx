@@ -112,7 +112,8 @@ export function SocraticSidePanel() {
   // changes nothing in the store: the card stays mounted, hidden — its chosen
   // option, its hint and a running 15-second lock go on as they were — and it
   // is not a help event, so it writes no telemetry. The column keeps its width,
-  // so nothing else on the screen moves.
+  // so nothing else on the screen moves. Only its read-aloud stops: the speech
+  // buttons unmount while folded, and each stops its own read as it goes.
   const chatOpen = useStudentChatOpen((s) => s.open);
   const folded = helpState === 'socratic' && chatOpen;
 
@@ -281,7 +282,7 @@ export function SocraticSidePanel() {
                   at any size). */}
               <div className="flow-root shrink-0 mb-[clamp(0.25rem,1vh,0.75rem)]">
                 <div className="float-left flex items-center gap-1 ms-2 mb-1">
-                  <UdlSpeechButton
+                  {!folded && <UdlSpeechButton
                     text={joinSpokenSentences([
                       shownCard?.questionHe || 'שאלה מנחה לחשיבה',
                       // הקראת השאלה בלי האפשרויות משאירה ילד שנעזר בהקראה
@@ -289,7 +290,7 @@ export function SocraticSidePanel() {
                       ...shownChoices.map((c) => c.textHe),
                     ])}
                     className="shrink-0"
-                  />
+                  />}
                   <button
                     onClick={closeHelp}
                     aria-label="סגירת חלונית העזרה"
@@ -305,7 +306,7 @@ export function SocraticSidePanel() {
               </div>
 
               {/* 3 Closed Dynamic Options for Socratic Mentoring */}
-              <SocraticPenaltyLockOptions choices={shownChoices} onClose={closeHelp} />
+              <SocraticPenaltyLockOptions choices={shownChoices} onClose={closeHelp} folded={folded} />
               </>)}
             </aside>
         </motion.div>
@@ -314,7 +315,7 @@ export function SocraticSidePanel() {
   );
 }
 
-function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticChoice[]; onClose: () => void }) {
+function SocraticPenaltyLockOptions({ choices, onClose, folded = false }: { choices: SocraticChoice[]; onClose: () => void; folded?: boolean }) {
   const socraticPenaltyLockoutUntil = useWorkspaceStore((s) => s.socraticPenaltyLockoutUntil);
   const triggerSocraticPenaltyLockout = useWorkspaceStore((s) => s.triggerSocraticPenaltyLockout);
   const getSocraticPenaltyRemaining = useWorkspaceStore((s) => s.getSocraticPenaltyRemaining);
@@ -458,10 +459,10 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
           {/* Read aloud like every instruction on the screen (PRD Module 7 §א),
               floated so it adds no row: the hint and, while the answers are
               locked, the lock sentence too. */}
-          <UdlSpeechButton
+          {!folded && <UdlSpeechButton
             text={locked ? joinSpokenSentences([feedbackHint, LOCK_SENTENCE_HE]) : feedbackHint}
             className="float-left ms-2 shrink-0"
-          />
+          />}
           <div>💡 <MathText text={feedbackHint} /></div>
           {locked && (
             // שעון חול עדין ומשפט אחד, בלי מספרים (מודול 12 §ב; ע1.5).
@@ -478,7 +479,7 @@ function SocraticPenaltyLockOptions({ choices, onClose }: { choices: SocraticCho
           className="flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl px-3 py-[clamp(0.25rem,1vh,0.75rem)] text-amber-900 dark:text-amber-200 text-[clamp(0.75rem,2vh,0.875rem)] leading-snug font-bold">
           <span aria-hidden="true" className="text-base">⏳</span>
           <span>רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.</span>
-          <UdlSpeechButton text={LOCK_SENTENCE_HE} className="shrink-0" />
+          {!folded && <UdlSpeechButton text={LOCK_SENTENCE_HE} className="shrink-0" />}
         </div>
       )}
 

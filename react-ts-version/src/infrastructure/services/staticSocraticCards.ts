@@ -918,18 +918,43 @@ function groupResultCard(from: Place, to: Place): SocraticHintResponse {
 }
 
 /**
+ * How many conversions a station-3/7 exercise asks for, from its numbers: the
+ * number written and the board it ends with (requiredCounts) — not from the
+ * instruction's words, which a published catalog may phrase otherwise.
+ *  - breaks, from the top column down: what the usual board of the number
+ *    held, plus the ten that came from a break above, less what is left
+ *    (5,230 → 4, 11, 13: one thousand broken, then one hundred);
+ *  - groupings: the blocks of the highest column of the final board, as
+ *    composeGroupCard counts them (2,500 from 25 hundreds: two thousands).
+ */
+export function conversionCountOf(brk: boolean, task: any): number {
+  const n = numberWritten(task);
+  if (typeof n !== 'number') return 1;
+  const after: Counts = task?.requiredCounts ?? standardCounts(n);
+  if (!brk) {
+    const made = [...LOW_TO_HIGH].reverse().find((p) => (after[p] ?? 0) > 0);
+    return Math.max(1, made ? after[made] ?? 1 : 1);
+  }
+  const before = standardCounts(n);
+  let total = 0;
+  let fromAbove = 0;
+  for (const p of [...LOW_TO_HIGH].reverse()) {
+    const broken = Math.max(0, (before[p] ?? 0) + 10 * fromAbove - (after[p] ?? 0));
+    total += broken;
+    fromAbove = broken;
+  }
+  return Math.max(1, total);
+}
+
+/**
  * The conversion a station-3/7 card names, as the exercise's instruction does:
  * "הפריטה" / "ההקבצה" for one, "הפריטות" / "ההקבצות" when it asks for
- * two or more (owner, 4.10.2026: s3_g_t4 and s7_g_t1, as מסמך 03). Counted
- * from the instruction's own verbs, one "פרטו" / "קבצו" per conversion
- * (taskBuilders composeBreak / composeGroup).
+ * two or more (owner, 4.10.2026: s3_g_t4 and s7_g_t1, as מסמך 03).
  */
 export function conversionNounHe(brk: boolean, task: any): string {
-  const verb = brk ? 'פרטו' : 'קבצו';
-  const text = typeof task?.instructionHe === 'string' ? task.instructionHe : '';
-  const count = text.split(/[^א-ת]+/).filter((w: string) => w === verb).length;
-  if (brk) return count > 1 ? 'הפריטות' : 'הפריטה';
-  return count > 1 ? 'ההקבצות' : 'ההקבצה';
+  const many = conversionCountOf(brk, task) > 1;
+  if (brk) return many ? 'הפריטות' : 'הפריטה';
+  return many ? 'ההקבצות' : 'ההקבצה';
 }
 
 /** A break or grouping to do yourselves, the second card: which blocks come before it (frame 1). */
