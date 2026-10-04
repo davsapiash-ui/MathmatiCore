@@ -14,6 +14,7 @@ import { database } from '@/infrastructure/firebase';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { currentTaskLabelHe } from '@/application/taskLabel';
+import { showCoachingCard } from '@/application/useAdditionGridOverCard';
 
 /** The ready message that asks for help: the teacher receives what the learner pressed. */
 export const READY_HELP_MESSAGE_HE = 'אפשר עזרה בתרגיל?';
@@ -251,11 +252,13 @@ export function StudentChatOverlay() {
         </div>
         {/* The coaching card, folded while the chat is open (owner, 4.10.2026,
             A7-002): its tab sits in this header, so it covers nothing on the
-            screen. A press closes the chat, and the card comes back as it was. */}
+            screen. A press closes the chat, and the card comes back as it was
+            — in that one press also when the card was folded for the addition
+            grid (useAdditionGridOverCard.ts): the grid folds into its tab. */}
         {cardFolded && (
           <button
             type="button"
-            onClick={() => setIsOpen(false)}
+            onClick={() => { showCoachingCard(); setIsOpen(false); }}
             data-testid="socratic-card-tab"
             aria-label={CARD_TAB_LABEL_HE}
             title={CARD_TAB_LABEL_HE}

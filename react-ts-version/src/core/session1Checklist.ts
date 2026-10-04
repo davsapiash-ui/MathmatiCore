@@ -10,6 +10,7 @@
  * העשרות, למשל המספר 305", "מונחים ללחוץ באופן אקטיבי על כפתור ביטול פעולה".
  */
 import { countsEqual, EMPTY_COUNTS, type Place, type PlaceCounts } from './placeValue';
+import { pendingRepresentationConversion, type ColumnConversions } from '@/application/useWorkspaceStore';
 
 export interface Session1ChecklistItem {
   label: string;
@@ -24,6 +25,11 @@ export interface Session1ChecklistState {
   undoCount: number;
   /** The trash was pressed (clearing the board) — dragging one block into it is not "resetting the workspace". */
   hasClearedBoard: boolean;
+  /**
+   * The conversions per column (step 6: the block broken must be a ten, not a
+   * hundred — REPRESENTATION_LOCKS, audit A2-F06). Without it, any break counts.
+   */
+  conversionsByColumn?: ColumnConversions;
   /** The result row (step 6 writes the number). */
   answerDigits?: Partial<Record<Place, string>>;
 }
@@ -72,7 +78,11 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
     // line is the owner's wording of 27.9.2026 (register decision י).
     case 's1_target_347': {
       const is347 = boardValue(s.counts) === 347;
-      const decomposed = s.hasUngrouped && countsEqual(s.counts, { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 });
+      const required = { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 };
+      const brokeATen = s.conversionsByColumn
+        ? pendingRepresentationConversion({ conversionsByColumn: s.conversionsByColumn, counts: s.counts }, { id: taskId, requiredCounts: required }) === null
+        : s.hasUngrouped;
+      const decomposed = brokeATen && countsEqual(s.counts, required);
       return [
         { label: 'בנו את המספר 347 בלבנים', done: is347 },
         { label: 'פרטו עשרת אחת לעשר יחידות', done: decomposed },

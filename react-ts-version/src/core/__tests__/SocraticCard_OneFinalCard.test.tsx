@@ -206,7 +206,10 @@ describe('the coaching card: an hourglass, then one card that stays (X19, X22)',
     expect(pending()).not.toBeNull();
 
     act(() => {
-      useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 2, units: 6 }, hasGrouped: true, answerDigits: { tens: '2', units: '6' } });
+      // Two groupings of the units, the child's own (audit A2-F06).
+      ws().groupColumnClick('units');
+      ws().groupColumnClick('units');
+      useWorkspaceStore.setState({ answerDigits: { tens: '2', units: '6' } });
       ws().proceed();
     });
     await tick(5_000);

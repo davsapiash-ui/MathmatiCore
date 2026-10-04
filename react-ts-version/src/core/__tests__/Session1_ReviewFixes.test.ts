@@ -76,7 +76,7 @@ describe('a coaching card belongs to the exercise that opened it', () => {
     ws().initSession(1, false, at('s1_r_group26')); // 26 cubes
     ws().setKeyboardSocratic(); // the 45-second card
     expect(ws().helpState).toBe('socratic');
-    useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 2, units: 6 }, hasGrouped: true, answerDigits: { tens: '2', units: '6' } });
+    useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 2, units: 6 }, hasGrouped: true, conversionsByColumn: { composed: { units: true }, decomposed: {}, times: { composed: { units: 2 } } }, answerDigits: { tens: '2', units: '6' } });
     ws().proceed();
     vi.advanceTimersByTime(5_000);
     const s = ws();
