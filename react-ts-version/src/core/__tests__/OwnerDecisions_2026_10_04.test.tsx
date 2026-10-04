@@ -56,7 +56,7 @@ import { isMeeting2CloseUnfinished, Q_NOT_ANSWERED_TAG } from '@/core/meeting2Cl
 import { TEACHER_SENTENCES_HE } from '@/core/teacherGender';
 import { getHardcodedCatalogBanks } from '@/data/sessionTasks';
 import { afterConversionsHe } from '@/data/taskBuilders';
-import { conversionNounHe, noBoardColumnCard } from '@/infrastructure/services/staticSocraticCards';
+import { conversionCountOf, conversionNounHe, noBoardColumnCard } from '@/infrastructure/services/staticSocraticCards';
 
 // jsdom has no scrollIntoView (the chat scrolls to its last message).
 if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => undefined;
@@ -90,7 +90,7 @@ describe('1 — A3-106: meeting 2 closed before the child finished', () => {
     expect(speechTexts()).toEqual(['המורה סגרה את התחנה. העבודה שלכם נשמרה בבטחה. כשהמורה תפתח תחנה חדשה, הפעילות תתחדש כאן מיד.']);
   });
 
-  const base = { meeting: 2, isTeacherOrAdmin: false, isGateApproved: false, workspaceOnMeeting2: true, flowStatus: 'task', record: null };
+  const base = { meeting: 2, isTeacherOrAdmin: false, isGateApproved: false, workspaceOnMeeting2: true, flowStatus: 'task', qflowPhase: 'primary', recordLoaded: true, record: null };
   it('only meeting 2, only a learner, only before the gate approves', () => {
     expect(isMeeting2CloseUnfinished(base)).toBe(true);
     for (const meeting of [1, 3, 4, 5, 6, 7, 8]) expect(isMeeting2CloseUnfinished({ ...base, meeting })).toBe(false);
@@ -100,6 +100,9 @@ describe('1 — A3-106: meeting 2 closed before the child finished', () => {
 
   it('the workspace on this device decides: its end screen is "finished"', () => {
     expect(isMeeting2CloseUnfinished({ ...base, flowStatus: 'sessionDone' })).toBe(false);
+    // The correction round comes after the seventh answer: finished, the generic text.
+    expect(isMeeting2CloseUnfinished({ ...base, qflowPhase: 'correction' })).toBe(false);
+    expect(isMeeting2CloseUnfinished({ ...base, qflowPhase: 'primary' })).toBe(true);
     // The server's close completes the unfinished learner, but this device still holds the task.
     expect(isMeeting2CloseUnfinished({ ...base, record: { completedMeeting2: true, qMatrixResults: { task7_subtraction_zero_tens: Q_NOT_ANSWERED_TAG } } })).toBe(true);
   });
@@ -108,6 +111,8 @@ describe('1 — A3-106: meeting 2 closed before the child finished', () => {
     const away = { ...base, workspaceOnMeeting2: false, flowStatus: null };
     expect(isMeeting2CloseUnfinished({ ...away, record: { completedMeeting2: true, qMatrixResults: { task1_read_write_zero: 'success', task7_subtraction_zero_tens: 'not_answered' } } })).toBe(true);
     expect(isMeeting2CloseUnfinished({ ...away, record: { completedMeeting2: true, qMatrixResults: { task1_read_write_zero: 'success', task7_subtraction_zero_tens: 'fail' } } })).toBe(false);
+    // The record has not arrived yet and no workspace is on the device: nothing is known, the generic text.
+    expect(isMeeting2CloseUnfinished({ ...away, recordLoaded: false, record: null })).toBe(false);
     // Closed by time: nothing completed.
     expect(isMeeting2CloseUnfinished({ ...away, record: { completedMeeting2: false } })).toBe(true);
   });
@@ -142,6 +147,8 @@ describe('2 — A7-002: the chat opened over the coaching card', () => {
     expect(aside.getAttribute('data-folded')).toBe('true');
     expect(aside.className).toContain('invisible');
     expect(aside.hasAttribute('inert')).toBe(true);
+    // Its read-aloud buttons are gone while folded (each stops its own read on unmount).
+    expect(aside.querySelectorAll('[data-testid="speech"]').length).toBe(0);
     // Escape belongs to the chat while the card is folded: the chat closes, the card stays and comes back.
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(ws().helpState).toBe('socratic');
@@ -167,6 +174,9 @@ describe('2 — A7-002: the chat opened over the coaching card', () => {
     expect(screen.queryByTestId('socratic-card-tab')).toBeNull();
     expect(aside.getAttribute('data-folded')).toBeNull();
     expect(aside.hasAttribute('inert')).toBe(false);
+    expect(aside.querySelectorAll('[data-testid="speech"]').length).toBeGreaterThan(0);
+    expect(CARD_TAB_HE).toBe('כרטיס החניכה');
+    expect(CARD_TAB_LABEL_HE).toBe('חזרה לכרטיס החניכה');
     expect(screen.getByText(wrong.textHe).closest('button')!.className).toContain('border-rose-500');
     expect(screen.getByTestId('socratic-lock-indicator')).toBeTruthy();
     expect(emitted.length).toBe(eventsBefore);
@@ -246,6 +256,7 @@ describe('4 — A5-F03 / A4-F07: two conversions, the plural of מסמך 03', ()
     for (const id of ['s7_r_t1']) expect(byId(id).instructionHe, id).toContain('לאחר ההקבצה?');
     expect(afterConversionsHe(1, 'הפריטה', 'הפריטות')).toBe('הפריטה');
     expect(afterConversionsHe(2, 'ההקבצה', 'ההקבצות')).toBe('שתי ההקבצות');
+    expect(() => afterConversionsHe(3, 'הפריטה', 'הפריטות')).toThrow();
   });
 
   it('400 − 156 is left as it is: stations 5–6 never say in advance how many breaks (owner, 30.9.2026) — for the owner', () => {
@@ -257,6 +268,14 @@ describe('4 — A5-F03 / A4-F07: two conversions, the plural of מסמך 03', ()
     expect(conversionNounHe(true, byId('s3_r_t2'))).toBe('הפריטה');
     expect(conversionNounHe(false, byId('s7_g_t1'))).toBe('ההקבצות');
     expect(conversionNounHe(false, byId('s7_r_t1'))).toBe('ההקבצה');
+    // Counted from the numbers, not the words: every compose exercise of the banks.
+    const compose = allTasks().filter((t: any) => t.representationKind === 'compose_break' || t.representationKind === 'compose_group');
+    expect(compose.length).toBe(8);
+    for (const task of compose) {
+      const brk = task.representationKind === 'compose_break';
+      const verbs = (task.instructionHe as string).split(/[^א-ת]+/).filter((w) => w === (brk ? 'פרטו' : 'קבצו')).length;
+      expect(conversionCountOf(brk, task), task.id).toBe(verbs);
+    }
   });
 
   it('no child text with two conversions says the singular', () => {

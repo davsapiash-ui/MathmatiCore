@@ -209,10 +209,13 @@ function conversionHe(verb: 'פרטו' | 'קבצו', what: string, place: Place,
  * The conversions the closing question names: one stays singular ("לאחר
  * הפריטה", approved 30.9.2026); two take the plural of מסמך 03 §3.3 ("לאחר
  * שתי הפריטות" for 5,230, "לאחר שתי ההקבצות" for 2,500 — owner, 4.10.2026).
+ * No exercise converts three times; one that did would need its own approved
+ * wording, so it is refused here rather than given an invented one.
  */
 export function afterConversionsHe(count: number, one: string, many: string): string {
   if (count <= 1) return one;
-  return count === 2 ? `שתי ${many}` : `כל ${many}`;
+  if (count > 2) throw new Error(`afterConversionsHe: no approved wording for ${count} conversions`);
+  return `שתי ${many}`;
 }
 
 /**

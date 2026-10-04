@@ -1201,6 +1201,8 @@ export function StudentWorkspacePage() {
               isGateApproved,
               workspaceOnMeeting2: isInitialized && sessionNumber === 2,
               flowStatus,
+              qflowPhase,
+              recordLoaded: firebaseLoaded,
               record: { completedMeeting2, qMatrixResults: myData?.qMatrixResults },
             })}
           />

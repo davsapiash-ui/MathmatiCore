@@ -273,6 +273,7 @@ describe('3. C1 and C7 wait for the conversion; before it, the conversion the in
     ws().groupColumnClick('hundreds');
     expect(ctxOf(t)).toMatchObject({ conversionDone: false, pendingConversion: 'hundreds', conversionAgain: true });
     // 15 hundreds: the live grouping card speaks, never C7.
+    expect(served(t).questionHe).not.toBe(C7_Q);
     expect(served(t).questionHe).not.toBe(C7_Q_TWO);
     ws().groupColumnClick('hundreds');
     expect(ctxOf(t)).toMatchObject({ conversionDone: true, pendingConversion: null });

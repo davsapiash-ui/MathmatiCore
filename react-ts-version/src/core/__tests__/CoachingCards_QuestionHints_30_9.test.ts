@@ -314,7 +314,11 @@ describe('C1 — a number built, then a block broken (station 3)', () => {
       expect(wrongHintViolation(empty), task.id).toBeNull();
       // One block placed is enough — a block worth less than the number (a
       // hundred is more than 85: since 1.10.2026 that is the stray-blocks card).
-      expect(q(task, { ...EMPTY, tens: 1 }).questionHe, task.id).toMatch(/^נסו לחשוב: לפני (הפריטה|ההקבצה|הפריטות|ההקבצות) בניתם מספר/);
+      // Singular for one conversion, plural for two (owner, 4.10.2026: s3_g_t4, s7_g_t1).
+      const brk = representationKindOf(task) === 'compose_break';
+      const two = task.id === 's3_g_t4' || task.id === 's7_g_t1';
+      const noun = brk ? (two ? 'הפריטות' : 'הפריטה') : (two ? 'ההקבצות' : 'ההקבצה');
+      expect(q(task, { ...EMPTY, tens: 1 }).questionHe, task.id).toBe(`נסו לחשוב: לפני ${noun} בניתם מספר. האם ${noun} ${two ? 'שינו' : 'שינתה'} אותו?`);
     }
   });
 });
