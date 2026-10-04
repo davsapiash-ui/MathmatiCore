@@ -29,7 +29,7 @@ describe('Module 10 — adaptive addition grid: slow fade-in, closed by the lear
   });
 
   it('the exit animation is owned by the page so the board fades out after the store closes it', () => {
-    expect(page).toMatch(/<AnimatePresence>\s*\{isAdditionGridShown && \(/);
+    expect(page).toMatch(/<AnimatePresence>\s*\{isAdditionGridMounted && \(/);
     expect(grid).not.toContain('<AnimatePresence>');
     expect(page).toMatch(/isAdditionBoardEnabled && \(\s*<AnimatePresence>/);
   });

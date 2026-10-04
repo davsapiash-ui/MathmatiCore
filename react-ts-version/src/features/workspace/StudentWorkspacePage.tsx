@@ -45,6 +45,7 @@ import { useStore } from '@/application/useStore';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdaptiveAdditionGrid, AdditionGridTab } from './board/AdaptiveAdditionGrid';
+import { useIsAdditionGridOverCard } from '@/application/useAdditionGridOverCard';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -756,17 +757,35 @@ export function StudentWorkspacePage() {
   // simply not shown, nor its return tab, while the exercise is not an addition.
   const isAdditionOnScreen = useWorkspaceStore((s) => isAdditionExercise(selectStandardTask(s)));
   const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber >= 3 && sessionNumber <= 7 && isAdditionOnScreen;
-  // The grid and its re-open tab have a slot of their own in the workspace
-  // row, beside the board (AdaptiveAdditionGrid.tsx). The coaching card is the
-  // next level of the same hierarchy (Module 10 §א: grid at 30s, Socratic
-  // intervention at 45s), and the row cannot hold the sheet, the board, the
-  // grid and the card together on a 1024px screen without squeezing the
-  // exercise out of view. So while the card is open the grid waits: it is not
-  // closed (register decision ב: only the learner closes it), only not shown,
-  // and it comes back as it was when the card closes — as it already waits
-  // while the exercise on the screen is not an addition (owner, 1.10.2026, D7).
-  const isAdditionGridShown = isAdditionBoardEnabled && isAdditionHelperOpen && !isSocraticPanelOpen;
-  const isAdditionGridTabShown = isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen && !isSocraticPanelOpen;
+  // The grid and its tab have a slot of their own in the workspace row, beside
+  // the board (AdaptiveAdditionGrid.tsx). The coaching card is the next level
+  // of the same hierarchy (Module 10 §א: grid at 30s, Socratic intervention at
+  // 45s), and the two are never shown together: two aids at once are too much
+  // for the learner they serve, and the row cannot hold the sheet, the board,
+  // the grid and the card on a 1024px screen without squeezing the exercise
+  // out of view. Owner's decision, 4.10.2026 — one mechanism, two named tabs,
+  // each in its own place, the same on every screen size:
+  //  - the grid's place is this slot; the card's place is its column at the
+  //    edge of the screen. The one that is not shown is a tab in its own
+  //    place, so a swap never moves a tab;
+  //  - while the card is open, the card is shown and the grid is its amber
+  //    "לוח החיבור" tab beside the card — whenever the grid was offered:
+  //    open when the card arrived, closed earlier, or offered at 30 seconds
+  //    under the card (useCognitiveHesitationRadar);
+  //  - pressing that tab shows the grid, and the card folds into its "כרטיס
+  //    החניכה" tab (SocraticSidePanel); that tab, or the grid's X, brings the
+  //    card back (useAdditionGridOverCard.ts).
+  // A grid that waits as a tab is not closed (מסמך 03 §1.3 ה', register
+  // decision ב: only the learner closes it) and not unmounted, only hidden
+  // (display: none), so it is back exactly as it was — the chosen row and
+  // column kept, no second fade-in, clickable at once. (When the exercise on
+  // the screen is not an addition the grid is unmounted instead, and has no
+  // tab: owner, 1.10.2026, D7.)
+  const isAdditionGridMounted = isAdditionBoardEnabled && isAdditionHelperOpen;
+  const isAdditionGridOverCard = useIsAdditionGridOverCard();
+  const isAdditionGridShown = isAdditionGridMounted && (!isSocraticPanelOpen || isAdditionGridOverCard);
+  // An open grid always has its tab while it is not shown, whatever the offer flag says.
+  const isAdditionGridTabShown = isAdditionBoardEnabled && (additionHelperOffered || isAdditionHelperOpen) && !isAdditionGridShown;
   const isAdditionGridSlotShown = isAdditionGridShown || isAdditionGridTabShown;
 
 
@@ -1457,8 +1476,8 @@ export function StudentWorkspacePage() {
               animation play after the store closes it. */}
           {isAdditionBoardEnabled && (
             <AnimatePresence>
-              {isAdditionGridShown && (
-                <AdaptiveAdditionGrid key="adaptive-grid" />
+              {isAdditionGridMounted && (
+                <AdaptiveAdditionGrid key="adaptive-grid" hidden={!isAdditionGridShown} overCard={isAdditionGridOverCard} />
               )}
             </AnimatePresence>
           )}
@@ -1466,7 +1485,9 @@ export function StudentWorkspacePage() {
               back an aid that faded. The tab sits where the grid itself appears,
               not in the topbar — מסמך 04 §3א keeps the topbar to "כפתורי ניווט
               בסיסיים ושקטים". isAdditionBoardEnabled already restricts this to
-              enhanced_cognitive_support learners in sessions 3–7. */}
+              enhanced_cognitive_support learners in sessions 3–7. It is here
+              also while the coaching card is open: the grid's place, beside
+              the card. */}
           {isAdditionGridTabShown && <AdditionGridTab />}
 
           {/* מסמך 03 / 04 §א: the Socratic card is a side panel that slides out

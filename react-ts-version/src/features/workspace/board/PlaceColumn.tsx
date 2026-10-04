@@ -17,6 +17,10 @@ import { PLACE_COLORS } from '../placeColors';
 /** Per-place functional colors — one code, shared with the answer boxes (placeColors.ts). */
 const COLUMN_COLORS = PLACE_COLORS;
 
+/** Below this width of the blocks' space (a column under ~110px), the
+ *  grouping button drops its ✨ and its side padding, so its words fit. */
+const NARROW_COLUMN_SPACE_PX = 92;
+
 /** Content-box size of an element, kept current. */
 function useContentSize(ref: React.RefObject<HTMLElement | null>): Size | null {
   const [size, setSize] = useState<Size | null>(null);
@@ -107,6 +111,8 @@ export function PlaceColumn({
   const blocksRef = useRef<HTMLDivElement | null>(null);
   const space = useContentSize(blocksRef);
   // Unmeasured (no layout engine, e.g. in unit tests): drawn size.
+  // The blocks' space is the column's inner width less its padding (p-2).
+  const narrow = space !== null && space.w < NARROW_COLUMN_SPACE_PX;
   const fit = fitBlockGrid(renderCount, COLUMN_CELLS[place], space ?? { w: Infinity, h: Infinity });
 
   // Constraint-error shake (vanilla .constraint-error, 400ms). errorNonce retriggers repeats.
@@ -173,7 +179,7 @@ export function PlaceColumn({
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="p-1.5 flex justify-center border-b border-ws-surface2/60 bg-ws-bg/40 shrink-0 pointer-events-auto"
+          className={`${narrow ? 'p-1' : 'p-1.5'} flex justify-center border-b border-ws-surface2/60 bg-ws-bg/40 shrink-0 pointer-events-auto`}
         >
           <button
             onClick={() => groupColumnClick(place)}
@@ -182,14 +188,18 @@ export function PlaceColumn({
             // target, like every child button (DESIGN_SYSTEM_RULES.md; audit
             // UX-005, meeting 1 task 8: it was 24px). The blocks below make
             // room by shrinking together (core/blockLayout.ts), never by clipping.
-            className={`w-full min-h-11 py-1 px-2 rounded-xl text-sm leading-tight font-black text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer ${
+            // In a narrow column (four columns beside the addition grid or the
+            // coaching card on a 1024px screen: 67px) the words wrap inside the
+            // button and the ✨ gives way, so the text never leaves the button.
+            data-narrow={narrow ? 'true' : undefined}
+            className={`w-full min-w-0 min-h-11 py-1 ${narrow ? 'px-0.5' : 'px-2'} rounded-xl text-sm leading-tight font-black text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer ${
               crowdingIsTheGoal ? '' : 'animate-pulse hover:animate-none'
             }`}
             style={{ backgroundColor: colors.header }}
             title={`קבצו 10 לבנים ל${place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}`}
           >
-            <span>✨</span>
-            <span>קבצו 10 ל{place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}</span>
+            {!narrow && <span aria-hidden="true">✨</span>}
+            <span className="min-w-0 text-center">קבצו 10 ל{place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}</span>
           </button>
         </motion.div>
       )}

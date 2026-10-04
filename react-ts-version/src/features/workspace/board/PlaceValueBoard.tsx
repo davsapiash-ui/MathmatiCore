@@ -22,18 +22,13 @@ export function PlaceValueBoard({
   fullWidth = false,
   activeDragPlace = null,
   shareRow = false,
-  additionGridOpen = false,
 }: {
   fullWidth?: boolean;
   activeDragPlace?: Place | null;
-  /** The Socratic side panel is open beside the board: the board and the
-   *  exercise sheet share what is left of the row equally, instead of the
-   *  board keeping a fixed half and squeezing the sheet. */
+  /** The Socratic side panel, or the addition grid's slot, is open beside the
+   *  board: the board and the exercise sheet share what is left of the row,
+   *  instead of the board keeping a fixed half and squeezing the sheet. */
   shareRow?: boolean;
-  /** The enhanced profile's addition grid is on the screen. It floats over
-   *  the board's width (useClearOfSidePanel), so while it is open the board
-   *  keeps its 1.25 share, or the grid itself would scroll sideways. */
-  additionGridOpen?: boolean;
 }) {
   // Station 1 keeps the board open whatever the store says (selectBoardOpen).
   const boardOpen = useWorkspaceStore(selectBoardOpen);
@@ -122,7 +117,7 @@ export function PlaceValueBoard({
             // With the side panel open the board takes a little more than the
             // sheet (1.25 : 1), so its columns and the whole tray, trash
             // included, stay usable on a 1280–1366px laptop.
-            flex: fullWidth ? '1 1 100%' : shareRow ? (tightRow && !additionGridOpen ? '0.85 1 0%' : '1.25 1 0%') : '0 0 50%'
+            flex: fullWidth ? '1 1 100%' : shareRow ? (tightRow ? '0.85 1 0%' : '1.25 1 0%') : '0 0 50%'
           }}
           exit={{ opacity: 0, width: 0, flex: '0 0 0%' }}
           transition={{ duration: 0.25, ease: 'easeInOut' }}

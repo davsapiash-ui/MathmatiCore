@@ -194,6 +194,179 @@ describe('D7 — the addition grid opens only in an addition exercise', () => {
     expect(ws().isAdditionHelperOpen).toBe(true);
   });
 
+  /**
+   * Counts the radar's calls to the store's openAdditionHelper, which still
+   * runs. The store logs one ADAPTIVE_GRID_TOGGLED {opened} per call that
+   * opens the grid (useWorkspaceStore.openAdditionHelper), so the number of
+   * calls is the number of "opened" events. (The store holds the real
+   * emitTelemetry in this file — the mock above reaches the hook only.)
+   */
+  const spyOnGridOpen = () => {
+    const real = ws().openAdditionHelper;
+    const calls = vi.fn((...args: Parameters<typeof real>) => real(...args));
+    useWorkspaceStore.setState({ openAdditionHelper: calls } as any);
+    return calls;
+  };
+
+  it('station 4, addition, the coaching card open: at 30 seconds the grid is offered (its tab), not opened, and nothing is logged', () => {
+    // The grid and the card are never shown together (StudentWorkspacePage),
+    // so the grid must not be "opened" over or behind the card: only its tab
+    // appears beside the card. No ADAPTIVE_GRID_TOGGLED for a grid not shown.
+    load(4, task(4, 's4_g_t1'), { ...enhanced, helpState: 'socratic' });
+    mountRadar();
+    const opens = spyOnGridOpen();
+    vi.advanceTimersByTime(31_000);
+    expect(ws().isAdditionHelperOpen).toBe(false);
+    expect(ws().additionHelperOffered).toBe(true);
+    expect(ws().additionHelperOfferedUnopened).toBe(true);
+    expect(opens).not.toHaveBeenCalled();
+  });
+
+  it('…a grid already offered earlier in the meeting stays "returning": the offer changes nothing', () => {
+    load(4, task(4, 's4_g_t1'), { ...enhanced, helpState: 'socratic', additionHelperOffered: true });
+    mountRadar();
+    const opens = spyOnGridOpen();
+    vi.advanceTimersByTime(31_000);
+    expect(ws().additionHelperOfferedUnopened).toBe(false);
+    expect(opens).not.toHaveBeenCalled();
+  });
+
+  /** 1,245 + 328 solved on the board and in the result row: the next "check" is right. */
+  const SOLVED_S4_T1 = {
+    counts: { thousands: 1, hundreds: 5, tens: 7, units: 3 },
+    answerDigits: { units: '3', tens: '7', hundreds: '5', thousands: '1' },
+    carryDigits: { tens: '1' },
+  };
+
+  it('…the card closes because the LAST exercise was solved (proceed → advanceStandard drops the card): nothing opens, and the wait is over', async () => {
+    const { act } = await import('@testing-library/react');
+    // the only exercise of the set, so it is also the last one
+    load(4, task(4, 's4_g_t1'), { ...enhanced, helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE' });
+    mountRadar();
+    const opens = spyOnGridOpen();
+    // the learner finishes the work, then sits 30 seconds under the open card
+    act(() => { useWorkspaceStore.setState(SOLVED_S4_T1 as any); });
+    vi.advanceTimersByTime(31_000);
+    expect(ws().additionHelperOffered).toBe(true);
+    expect(ws().helpState).toBe('socratic');
+
+    act(() => { ws().proceed(); });
+    // the real path: a right answer, the exercise waits for what comes next, its card dropped
+    expect(ws().awaitingNext || ws().flowStatus !== 'task').toBe(true);
+    expect(ws().helpState).toBe('closed');
+    expect(ws().isAdditionHelperOpen).toBe(false);
+    expect(opens).not.toHaveBeenCalled();
+    // the wait was cleared: a later card closing on a live exercise opens nothing
+    act(() => { useWorkspaceStore.setState({ awaitingNext: false, flowStatus: 'task', helpState: 'socratic' } as any); });
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    expect(opens).not.toHaveBeenCalled();
+  });
+
+  it('…30 seconds fall inside the 300 ms beat before a card ("נסו לחשוב…"): the grid is offered and deferred, not opened', async () => {
+    const { act } = await import('@testing-library/react');
+    load(4, task(4, 's4_g_t1'), enhanced);
+    mountRadar();
+    const opens = spyOnGridOpen();
+    vi.advanceTimersByTime(29_800);
+    // the second wrong check: the beat, then the card (noteWrongPress)
+    act(() => { useWorkspaceStore.setState({ helpState: 'friction' } as any); });
+    vi.advanceTimersByTime(250);
+    expect(ws().isAdditionHelperOpen).toBe(false);
+    expect(ws().additionHelperOffered).toBe(true);
+    expect(opens).not.toHaveBeenCalled();
+    act(() => { useWorkspaceStore.setState({ helpState: 'socratic' } as any); });
+    expect(opens).not.toHaveBeenCalled();
+    // the card closes on the live exercise: the grid opens, once
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    expect(opens).toHaveBeenCalledTimes(1);
+    expect(ws().isAdditionHelperOpen).toBe(true);
+  });
+
+  it('…and a card refused after the beat (friction → closed) releases the wait too', async () => {
+    const { act } = await import('@testing-library/react');
+    load(4, task(4, 's4_g_t1'), enhanced);
+    mountRadar();
+    const opens = spyOnGridOpen();
+    vi.advanceTimersByTime(29_800);
+    act(() => { useWorkspaceStore.setState({ helpState: 'friction' } as any); });
+    vi.advanceTimersByTime(250);
+    expect(opens).not.toHaveBeenCalled();
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    expect(opens).toHaveBeenCalledTimes(1);
+  });
+
+  it('…the learner opened the grid from its tab under the card, then closed it: the card\'s closing does not open it again', async () => {
+    const { act } = await import('@testing-library/react');
+    load(4, task(4, 's4_g_t1'), { ...enhanced, helpState: 'socratic' });
+    mountRadar();
+    const opens = spyOnGridOpen();
+    vi.advanceTimersByTime(31_000);
+    act(() => { ws().openAdditionHelper('learner'); });
+    act(() => { ws().closeAdditionHelper(); });
+    expect(opens).toHaveBeenCalledTimes(1);
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    expect(opens).toHaveBeenCalledTimes(1);
+    expect(ws().isAdditionHelperOpen).toBe(false);
+  });
+
+  it('…the learner opened the grid from its tab while the card was open: nothing more opens when the card closes', async () => {
+    const { act } = await import('@testing-library/react');
+    load(4, task(4, 's4_g_t1'), { ...enhanced, helpState: 'socratic' });
+    mountRadar();
+    const opens = spyOnGridOpen();
+    vi.advanceTimersByTime(31_000);
+    act(() => { ws().openAdditionHelper('learner'); });
+    expect(opens).toHaveBeenCalledTimes(1);
+    expect(opens).toHaveBeenLastCalledWith('learner');
+    expect(ws().additionHelperOfferedUnopened).toBe(false);
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    expect(opens).toHaveBeenCalledTimes(1);
+    expect(ws().isAdditionHelperOpen).toBe(true);
+  });
+
+  it('…deferred, not dropped: when the card closes, the grid opens, with exactly one "opened" event', async () => {
+    const { act } = await import('@testing-library/react');
+    load(4, task(4, 's4_g_t1'), { ...enhanced, helpState: 'socratic' });
+    mountRadar();
+    const opens = spyOnGridOpen();
+    vi.advanceTimersByTime(31_000);
+    expect(ws().isAdditionHelperOpen).toBe(false);
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    expect(ws().isAdditionHelperOpen).toBe(true);
+    expect(ws().additionHelperOffered).toBe(true);
+    expect(opens).toHaveBeenCalledTimes(1);
+    // the card opening and closing again does not open or log a second time
+    act(() => { useWorkspaceStore.setState({ helpState: 'socratic' } as any); });
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    expect(opens).toHaveBeenCalledTimes(1);
+  });
+
+  it('…and not at all if a cognitive action came in between', async () => {
+    const { act } = await import('@testing-library/react');
+    load(4, task(4, 's4_g_t1'), { ...enhanced, helpState: 'socratic' });
+    mountRadar();
+    const opens = spyOnGridOpen();
+    vi.advanceTimersByTime(31_000);
+    // the learner places a block while the card is open: the count restarts
+    act(() => { useWorkspaceStore.setState({ counts: { units: 1, tens: 0, hundreds: 0, thousands: 0 } } as any); });
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    expect(ws().isAdditionHelperOpen).toBe(false);
+    expect(opens).not.toHaveBeenCalled();
+  });
+
+  it('a card closed before 30 seconds defers nothing: the grid opens at 30 seconds as usual', async () => {
+    const { act } = await import('@testing-library/react');
+    load(4, task(4, 's4_g_t1'), { ...enhanced, helpState: 'socratic' });
+    mountRadar();
+    const opens = spyOnGridOpen();
+    vi.advanceTimersByTime(10_000);
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    expect(ws().isAdditionHelperOpen).toBe(false);
+    vi.advanceTimersByTime(21_000);
+    expect(ws().isAdditionHelperOpen).toBe(true);
+    expect(opens).toHaveBeenCalledTimes(1);
+  });
+
   it('station 5, subtraction: it does not', () => {
     load(5, task(5, 's5_g_t1'), enhanced);
     mountRadar();
