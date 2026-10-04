@@ -917,11 +917,52 @@ function groupResultCard(from: Place, to: Place): SocraticHintResponse {
   ], 'group_result', frame('group_result', 2, `הכפתור "קבצו 10" מקבץ 10 ${BLOCKS[from]} ל${BLOCK[to]} אחת`));
 }
 
+/**
+ * How many conversions a station-3/7 exercise asks for, from its numbers: the
+ * number written and the board it ends with (requiredCounts) — not from the
+ * instruction's words, which a published catalog may phrase otherwise.
+ *  - breaks, from the top column down: what the usual board of the number
+ *    held, plus the ten that came from a break above, less what is left
+ *    (5,230 → 4, 11, 13: one thousand broken, then one hundred);
+ *  - groupings: the blocks of the highest column of the final board, as
+ *    composeGroupCard counts them (2,500 from 25 hundreds: two thousands).
+ */
+export function conversionCountOf(brk: boolean, task: any): number {
+  const n = numberWritten(task);
+  if (typeof n !== 'number') return 1;
+  const after: Counts = task?.requiredCounts ?? standardCounts(n);
+  if (!brk) {
+    const made = [...LOW_TO_HIGH].reverse().find((p) => (after[p] ?? 0) > 0);
+    return Math.max(1, made ? after[made] ?? 1 : 1);
+  }
+  const before = standardCounts(n);
+  let total = 0;
+  let fromAbove = 0;
+  for (const p of [...LOW_TO_HIGH].reverse()) {
+    const broken = Math.max(0, (before[p] ?? 0) + 10 * fromAbove - (after[p] ?? 0));
+    total += broken;
+    fromAbove = broken;
+  }
+  return Math.max(1, total);
+}
+
+/**
+ * The conversion a station-3/7 card names, as the exercise's instruction does:
+ * "הפריטה" / "ההקבצה" for one, "הפריטות" / "ההקבצות" when it asks for
+ * two or more (owner, 4.10.2026: s3_g_t4 and s7_g_t1, as מסמך 03).
+ */
+export function conversionNounHe(brk: boolean, task: any): string {
+  const many = conversionCountOf(brk, task) > 1;
+  if (brk) return many ? 'הפריטות' : 'הפריטה';
+  return many ? 'ההקבצות' : 'ההקבצה';
+}
+
 /** A break or grouping to do yourselves, the second card: which blocks come before it (frame 1). */
-function blocksBeforeConvertCard(kind: 'compose_break' | 'compose_group'): SocraticHintResponse {
+function blocksBeforeConvertCard(kind: 'compose_break' | 'compose_group', task?: any): SocraticHintResponse {
   const brk = kind === 'compose_break';
   const verb = brk ? 'פרטו' : 'קבצו';
-  const noun = brk ? 'הפריטה' : 'ההקבצה';
+  // Plural when the exercise converts twice, as its instruction does (owner, 4.10.2026).
+  const noun = conversionNounHe(brk, task);
   return card(`${OPEN}אילו לבנים ההנחיה מבקשת לבנות לפני ${noun}?`, 'procedural', 'tour-task-card', [
     [`את הלבנים שכתובות בהנחיה לפני המילה "${verb}"`, `נכון מאוד! בנו בדיוק אותן, ורק אחר כך ${verb} בעצמכם.`],
     [`את הלבנים שיהיו בבית המספרים אחרי ${noun}`, 'רמז: מה ההנחיה מבקשת שתעשו בעצמכם?'],
@@ -1435,8 +1476,12 @@ function subStartCard(ex: string): SocraticHintResponse {
 }
 
 /** Meeting 8: a column whose decomposition is written in the memory circles. */
-function subAfterBorrowCard(ex: string, p: Place): SocraticHintResponse {
-  return card(`${OPEN}בתרגיל ${ex}, כבר רשמתם את הפריטה בעיגולי הזיכרון. ממה מחסרים עכשיו ב${COLUMN[p]}?`, 'procedural', HL(p), [
+function subAfterBorrowCard(ex: string, p: Place, a: number, b: number): SocraticHintResponse {
+  // The circle over the column records the break into it and, when it also
+  // gave a block to the right, that break too: two breaks are "הפריטות"
+  // (owner, 4.10.2026). 4,000 − 1,562 at the units: one; at the tens: two.
+  const breaks = (borrowColumns(a, b).includes(p) ? 1 : 0) + (gaveRight(a, b, p) ? 1 : 0);
+  return card(`${OPEN}בתרגיל ${ex}, כבר רשמתם את ${breaks > 1 ? 'הפריטות' : 'הפריטה'} בעיגולי הזיכרון. ממה מחסרים עכשיו ב${COLUMN[p]}?`, 'procedural', HL(p), [
     [`מהמספר שבעיגול הזיכרון שמעל ${COLUMN[p]}`, 'נכון מאוד! כתבו בתיבה כמה נשאר אחרי שמחסרים ממנו את הספרה התחתונה.'],
     // On the screen the top digit stays as it was: the hint points at the circle (review, 1.10.2026).
     ['מהספרה העליונה שבתרגיל', `רמז: מה רשמתם בעיגול הזיכרון שמעל ${COLUMN[p]}?`],
@@ -1471,8 +1516,8 @@ function subtractionColumnCard(ex: string, a: number, b: number, ctx: StaticCard
     const { zeros, m } = source(c, (x) => digit(a, x));
     return borrowCard(ex, c, digit(a, c), digit(b, c), zeros, m ?? next(c)!, false);
   };
-  if (borrows.includes(p)) return written(p) ? subAfterBorrowCard(ex, p) : decompose(p);
-  if (gaveRight(a, b, p)) return written(p) ? subAfterBorrowCard(ex, p) : decompose(prevPlace(p)!);
+  if (borrows.includes(p)) return written(p) ? subAfterBorrowCard(ex, p, a, b) : decompose(p);
+  if (gaveRight(a, b, p)) return written(p) ? subAfterBorrowCard(ex, p, a, b) : decompose(prevPlace(p)!);
   return subColumnCard(ex, p);
 }
 
@@ -2070,8 +2115,11 @@ function composeBreakCard(task: any): SocraticHintResponse | null {
   const b = breakOf(task);
   if (!b) return null;
   const { broken, into } = b;
-  return card(`${OPEN}לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?`, 'conceptual', 'tour-place-value-board', [
-    ['לא. הלבנים השתנו, אבל המספר נשאר אותו מספר', 'נכון מאוד! איזה מספר בניתם לפני הפריטה?'],
+  // s3_g_t4 breaks twice: "הפריטות", as its instruction (owner, 4.10.2026).
+  const noun = conversionNounHe(true, task);
+  const changed = noun === 'הפריטה' ? 'שינתה' : 'שינו';
+  return card(`${OPEN}לפני ${noun} בניתם מספר. האם ${noun} ${changed} אותו?`, 'conceptual', 'tour-place-value-board', [
+    ['לא. הלבנים השתנו, אבל המספר נשאר אותו מספר', `נכון מאוד! איזה מספר בניתם לפני ${noun}?`],
     ['כן. עכשיו יש יותר לבנים, ולכן המספר גדל', `רמז: מאיפה הגיעו ${BLOCKS_THE[into]} החדשות? האם הוספתם לבנים?`],
     [`כן. עכשיו יש פחות ${BLOCKS[broken]}, ולכן המספר קטן`, `רמז: מה קרה ל${BLOCK_THE[broken]}? מה קיבלתם במקומה?`],
   ], 'compose_break', frame('number_after_break', 1, 'הפריטה משנה את הלבנים ולא את המספר'));
@@ -2184,8 +2232,11 @@ function composeGroupCard(task: any): SocraticHintResponse | null {
   const madeOption: [string, string] = groupings > 1
     ? [`כן. עכשיו יש ${BLOCKS[made]}, ולכן המספר גדל`, `רמז: מאיפה הגיעו ${BLOCKS_THE[made]}? האם הוספתם לבנים?`]
     : [`כן. עכשיו יש ${BLOCK[made]}, ולכן המספר גדל`, `רמז: מאיפה הגיעה ${BLOCK_THE[made]}? האם הוספתם לבנה?`];
-  return card(`${OPEN}לפני ההקבצה בניתם מספר. האם ההקבצה שינתה אותו?`, 'conceptual', 'tour-place-value-board', [
-    ['לא. הלבנים השתנו, אבל המספר נשאר אותו מספר', 'נכון מאוד! איזה מספר בניתם לפני ההקבצה?'],
+  // s7_g_t1 groups twice: "ההקבצות", as its instruction (owner, 4.10.2026).
+  const noun = conversionNounHe(false, task);
+  const changed = noun === 'ההקבצה' ? 'שינתה' : 'שינו';
+  return card(`${OPEN}לפני ${noun} בניתם מספר. האם ${noun} ${changed} אותו?`, 'conceptual', 'tour-place-value-board', [
+    ['לא. הלבנים השתנו, אבל המספר נשאר אותו מספר', `נכון מאוד! איזה מספר בניתם לפני ${noun}?`],
     ['כן. עכשיו יש פחות לבנים, ולכן המספר קטן', `רמז: מה קרה ל-${10 * groupings} ${BLOCKS_THE[from]}? מה קיבלתם במקומן?`],
     madeOption,
   ], 'compose_group', frame('number_after_grouping', 1, 'ההקבצה משנה את הלבנים ולא את המספר'));
@@ -2242,7 +2293,7 @@ function conversionCard(task: any, kind: 'compose_break' | 'compose_group', ctx:
   // come before the conversion; not all built → how blocks get onto the
   // board; how to break or group → what the click or the button gives.
   const rebuildLadder = (c: () => SocraticHintResponse) =>
-    ladder(ctx, 'convert_yourselves', [['convert_yourselves', c], ['blocks_before_convert', () => blocksBeforeConvertCard(kind)]]);
+    ladder(ctx, 'convert_yourselves', [['convert_yourselves', c], ['blocks_before_convert', () => blocksBeforeConvertCard(kind, task)]]);
   const buildLadder = (c: () => SocraticHintResponse) =>
     ladder(ctx, 'build_before_convert', [['build_before_convert', c], ['build_first_how', buildHowCard]]);
   if (kind === 'compose_break') {
@@ -2380,7 +2431,7 @@ function placeSlipCard(task: any, wrong: Place, counts: BoardCounts, ctx: Static
   // before "פרטו" (its instruction names the blocks the break makes too, so
   // "does it ask for blocks in that column" has no clear answer).
   if (shownIn(ctx, 'place_slip') && representationKindOf(task) === 'compose_break') {
-    return inFamily(blocksBeforeConvertCard('compose_break'), 'place_slip');
+    return inFamily(blocksBeforeConvertCard('compose_break', task), 'place_slip');
   }
   const ps = [...places(task.numberA)].reverse().map((p) => `כמה ${PLURAL[p]}`);
   const list = ps.length > 1 ? `${ps.slice(0, -1).join(', ')} ו${ps[ps.length - 1]}` : ps[0];

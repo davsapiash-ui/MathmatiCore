@@ -42,6 +42,11 @@ interface WorkspaceTopbarProps {
 /** How long the station-1 note under the board button stays (long enough to hear it read aloud). */
 const STAYS_OPEN_NOTE_MS = 10_000;
 
+/** The disabled chat button's one sentence: its tooltip and its accessible name (owner, 4.10.2026). */
+export const CHAT_CLOSED_HE = "הצ'אט לא פתוח כרגע";
+/** How long the sentence stays after a tap on the disabled chat button (a tablet has no hover). */
+const CHAT_CLOSED_NOTE_MS = 4_000;
+
 export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const studentNumber = currentStudentNumber();
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
@@ -84,6 +89,16 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const hasRequestedHelp = useWorkspaceStore((s) => s.hasRequestedBasicHelp);
   const globalChatEnabled = useChatStore((s) => s.globalChatEnabled);
   const messages = useChatStore((s) => s.messages);
+  /** When the disabled chat button was last tapped, or null while no tap shows its sentence. */
+  const [chatClosedNote, setChatClosedNote] = useState<number | null>(null);
+  useEffect(() => {
+    if (chatClosedNote === null) return;
+    const t = setTimeout(() => setChatClosedNote(null), CHAT_CLOSED_NOTE_MS);
+    return () => clearTimeout(t);
+  }, [chatClosedNote]);
+  useEffect(() => {
+    if (globalChatEnabled) setChatClosedNote(null);
+  }, [globalChatEnabled]);
 
   const activeTaskCount = useWorkspaceStore((s) => getActiveTasks(s).length);
   const totalTasks = sessionNumber === 2 ? TASKS.length : activeTaskCount;
@@ -192,18 +207,31 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           </button>
         )}
 
-        {/* Chat Drawer Toggle */}
+        {/* Chat Drawer Toggle. When the teacher has closed the chat (owner,
+            4.10.2026, A1-059) the button looks disabled and does not open it,
+            and one sentence says why — on hover, on keyboard focus, and on a
+            tap, since a tablet has no hover. aria-disabled rather than the
+            disabled attribute, so the hover, the focus and the tap still reach
+            it; the same sentence is its accessible name. */}
+        <span className="relative group">
         <button
           id="chat-toggle-button"
-          onClick={() => document.dispatchEvent(new CustomEvent('toggle-chat'))}
-          disabled={!globalChatEnabled}
-          className={`h-12 px-flw-12-16 rounded-2xl text-sm font-bold whitespace-nowrap active:scale-95 transition-all flex items-center gap-1.5 relative border shadow-sm ${
+          type="button"
+          onClick={() => {
+            if (!globalChatEnabled) {
+              setChatClosedNote(Date.now());
+              return;
+            }
+            document.dispatchEvent(new CustomEvent('toggle-chat'));
+          }}
+          aria-disabled={!globalChatEnabled || undefined}
+          className={`h-12 px-flw-12-16 rounded-2xl text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 relative border shadow-sm ${
             !globalChatEnabled
               ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
-              : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 cursor-pointer'
+              : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 cursor-pointer active:scale-95'
           }`}
-          aria-label={globalChatEnabled ? "פתיחת צ'אט מול המורה" : "הצ'אט מושבת זמנית"}
-          title={globalChatEnabled ? "פתיחת צ'אט מול המורה" : "הצ'אט הושבת על ידי המורה"}
+          aria-label={globalChatEnabled ? "פתיחת צ'אט מול המורה" : CHAT_CLOSED_HE}
+          title={globalChatEnabled ? "פתיחת צ'אט מול המורה" : undefined}
         >
           <MessageSquare className="w-4 h-4" />
           <span className="hidden sm:inline">צ'אט מורה</span>
@@ -216,6 +244,21 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
             </>
           )}
         </button>
+        {!globalChatEnabled && (
+          // The button's own name says it already, so the tooltip is hidden
+          // from screen readers rather than read twice.
+          <span
+            role="tooltip"
+            aria-hidden="true"
+            data-testid="chat-closed-tooltip"
+            className={`pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 z-30 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-md transition-opacity dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 group-hover:opacity-100 group-focus-within:opacity-100 ${
+              chatClosedNote !== null ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            {CHAT_CLOSED_HE}
+          </span>
+        )}
+        </span>
 
         <button
           onClick={proceed}
