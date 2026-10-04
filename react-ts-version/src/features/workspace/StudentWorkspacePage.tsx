@@ -101,6 +101,19 @@ export function canWriteWorkspaceData(uid: string | null | undefined, isSupersed
 }
 
 /**
+ * The presence heartbeat's lastAction, which the radar tile shows (PRD Module
+ * 18). A learner held on the waiting screen because no path is approved for
+ * them (no meeting 2 done, or no gate decision) is not at work in the meeting:
+ * the heartbeat used to say "פעיל במפגש N" for them too, and the radar showed
+ * a learner with no path as active.
+ */
+export function presenceLastAction(meeting: number, waitingWithoutMeeting: boolean): string {
+  // A teacher's line (the radar tile), so it names the meeting, not the station.
+  const lastAction = waitingWithoutMeeting ? `ממתין לאישור המסלול לפני מפגש ${meeting}` : `פעיל במפגש ${meeting}`;
+  return lastAction;
+}
+
+/**
  * מרחב הפעילות של התלמיד — חוויית מסך מלא ממוקדת (100vh, ללא גלילה, ללא טיימרים).
  * פריסה לפי מקור האמת הוונילי: כרטיס משימה (ימין) / טבלת ערך המקום (שמאל), 50/50.
  */
@@ -650,24 +663,30 @@ export function StudentWorkspacePage() {
   }, [normUid]);
 
   // --- Module 18: Live Presence Heartbeat & Session Sync (5s interval, 60s server window) ---
+  // Read by the heartbeat when it sends, so a change does not restart the
+  // effect (its cleanup writes the learner offline).
+  const waitingWithoutMeetingRef = useRef(false);
+  waitingWithoutMeetingRef.current = pendingApproval && !isInitialized;
   useEffect(() => {
     if (!normUid) return;
     // Checked again when the throttled write is SENT: a device taken over in
     // the meantime writes nothing.
     const canWrite = () => canWriteWorkspaceData(normUid, isSupersededRef.current);
-    
-    const presencePayload = {
+
+    // Built when it is sent: lastAction follows whether the learner is at
+    // work or waiting (presenceLastAction), without restarting this effect.
+    const presencePayload = () => ({
       isOnline: true,
       lastPing: serverTimestamp(),
       lastActivityTimestamp: Date.now(),
       hasJoinedSession: true,
       sessionJoined: true,
-      lastAction: `פעיל במפגש ${meeting}`,
+      lastAction: presenceLastAction(meeting, waitingWithoutMeetingRef.current),
       // No workspaceState keys here. This payload is re-sent on every (re)connect,
       // and it used to stamp flowStatus 'task' and this URL's meeting number over
       // whatever the learner had really reached ('sessionDone', 'choice_branch').
       // The store's own sync owns workspaceState.
-    };
+    });
 
     // Re-arm presence and server-side onDisconnect hooks on every connection cycle (PRD Module 18)
     const connectedRef = ref(database, '.info/connected');
@@ -675,7 +694,7 @@ export function StudentWorkspacePage() {
       if (snap.val() === true) {
         if (!canWriteWorkspaceData(normUid, isSupersededRef.current)) return;
 
-        throttledRtdbUpdate(`users/students/${normUid}`, presencePayload, { guard: canWrite }).catch(() => {});
+        throttledRtdbUpdate(`users/students/${normUid}`, presencePayload(), { guard: canWrite }).catch(() => {});
         try {
           onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
           onDisconnect(ref(database, `users/students/${normUid}/onlineStatus`)).set('offline');
@@ -706,7 +725,7 @@ export function StudentWorkspacePage() {
         lastPing: serverTimestamp(),
         lastActivityTimestamp: Date.now(),
         hasJoinedSession: true,
-        lastAction: `פעיל במפגש ${meeting}`,
+        lastAction: presenceLastAction(meeting, waitingWithoutMeetingRef.current),
       }, { guard: canWrite }).catch(() => {});
     }, 4000);
 
@@ -719,7 +738,10 @@ export function StudentWorkspacePage() {
         rtdbUpdateNow(`users/students/${normUid}`, { isOnline: false, onlineStatus: 'offline', lastPing: 0, lastAction: 'לא מחובר' }).catch(() => {});
       }
     };
-  }, [normUid, meeting, isASDMode]);
+    // Not isASDMode: nothing here reads it, and with it in the list a teacher
+    // saving quiet mode restarted this effect — the cleanup wrote the learner
+    // offline, and the radar showed "יצא מהחלון" until the next heartbeat.
+  }, [normUid, meeting]);
 
   // PRD v7.1 Module 10: Load adaptive addition grid strictly and only when the
   // authoritative support profile is 'enhanced_cognitive_support' (shared
@@ -935,6 +957,7 @@ export function StudentWorkspacePage() {
   const recordScreen = shouldRecordScreen({
     uid: normUid,
     classStartedAt,
+    classSessionNumber,
     meeting,
     storeSessionNumber: sessionNumber,
     initialized: isInitialized,
@@ -1310,10 +1333,13 @@ export function StudentWorkspacePage() {
     );
   }
 
+  // With the class-state screens, like every other waiting screen above: a
+  // learner waiting here used to see nothing when the teacher paused, closed
+  // or projected.
   if (pendingApproval) {
     return showMeeting2Waiting
-      ? <><Meeting2WaitingScreen onApproved={() => setPendingApproval(false)} /><CornerCloudSyncStatus /></>
-      : <TeacherWillOpenWaitingScreen />;
+      ? <><Meeting2WaitingScreen onApproved={() => setPendingApproval(false)} /><CornerCloudSyncStatus />{classStateOverlays}</>
+      : <><TeacherWillOpenWaitingScreen />{classStateOverlays}</>;
   }
 
   // Stations 2 and 8, before their first task: one text, its read-aloud button

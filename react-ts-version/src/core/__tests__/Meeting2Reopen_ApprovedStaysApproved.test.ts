@@ -36,20 +36,15 @@ describe('an approved gate is never taken back by the learner\'s completion', ()
     vi.restoreAllMocks();
   });
 
-  it('approved: the route status stays APPROVED and nothing is sent', () => {
-    const sync = vi.spyOn(firebaseSyncService, 'syncRouteRecommendation').mockResolvedValue(undefined);
+  // The learner's device no longer writes a route recommendation at all
+  // (audit 4.10.2026, gate: the write was refused by the rules every time and
+  // the teacher's path comes from the server), so there is no learner write
+  // that could set routeStatus 'PENDING'.
+  it('the learner device has no route-recommendation writer', () => {
     useStore.setState({ students: { student_user4: learner({ routeStatus: 'APPROVED', teacher_gate_approved: true }) } });
-    useStore.getState().setRouteRecommendation('student_user4', 'green_path' as never);
+    expect((useStore.getState() as unknown as Record<string, unknown>).setRouteRecommendation).toBeUndefined();
+    expect((firebaseSyncService as unknown as Record<string, unknown>).syncRouteRecommendation).toBeUndefined();
     expect(useStore.getState().students.student_user4.routeStatus).toBe('APPROVED');
-    expect(sync).not.toHaveBeenCalled();
-  });
-
-  it('not approved: the recommendation is recorded as before', () => {
-    const sync = vi.spyOn(firebaseSyncService, 'syncRouteRecommendation').mockResolvedValue(undefined);
-    useStore.setState({ students: { student_user4: learner({}) } });
-    useStore.getState().setRouteRecommendation('student_user4', 'green_path' as never);
-    expect(useStore.getState().students.student_user4.routeStatus).toBe('PENDING');
-    expect(sync).toHaveBeenCalledTimes(1);
   });
 });
 

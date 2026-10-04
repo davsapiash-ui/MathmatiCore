@@ -178,12 +178,16 @@ describe('Module 23א: backup-before-delete hard gate (regression for Antigravit
       ).rejects.toThrow('BACKUP_FAILED_RESET_ABORTED');
       expect(mockToastError).toHaveBeenLastCalledWith('הגיבוי נכשל: network down. האיפוס בוטל ולא נמחקו נתונים.');
 
-      // An English server message (an HttpsError with no Hebrew) is wrapped too.
+      // "internal" with no Hebrew message is not a refusal: the connection
+      // dropped mid-call, or the server died mid-run (audit 4.10.2026, reset).
+      // Nobody knows whether it deleted, so it never says "nothing was deleted".
       mockCallable.mockRejectedValueOnce(Object.assign(new Error('INTERNAL'), { code: 'functions/internal' }));
       await expect(
         useStore.getState().resetEntireSystemUsageData('technical_fault')
-      ).rejects.toThrow('BACKUP_FAILED_RESET_ABORTED');
-      expect(mockToastError).toHaveBeenLastCalledWith('הגיבוי נכשל: INTERNAL. האיפוס בוטל ולא נמחקו נתונים.');
+      ).rejects.toThrow('RESET_OUTCOME_UNKNOWN');
+      const shown = String(mockToastError.mock.lastCall?.[0]);
+      expect(shown).toContain('לא התקבלה תשובה מהשרת');
+      expect(shown).not.toContain('לא נמחקו נתונים');
     });
 
     it('proceeds with the full class RTDB wipe once the backup callable succeeds', async () => {
