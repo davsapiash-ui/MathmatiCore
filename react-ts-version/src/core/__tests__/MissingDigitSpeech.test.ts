@@ -72,7 +72,7 @@ describe('everything else is said exactly as before', () => {
   it('s4_r_t7: a text with no box is unchanged', () => {
     const text = instructionOf('s4_r_t7');
     expect(text).toBe(
-      'בתרגיל 328 + 145 חסרה ספרת העשרות בשורת התוצאה. בצעו את ההקבצה בלבנים כדי לגלות אותה, וכתבו אותה בתיבה הריקה.'
+      'בתרגיל 328 + 145 חסרה ספרת העשרות בשורת התוצאה. ייצגו את המספרים בעזרת לבנים. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. כתבו את הספרה החסרה בתיבה הריקה.'
     );
     expect(speakMissingDigits(text)).toBe(text);
   });

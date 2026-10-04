@@ -24,7 +24,7 @@ import {
   countsEqual,
   digitAt,
 } from '@/core/placeValue';
-import { BLOCK_NAME_HE } from '@/data/taskBuilders';
+import { BLOCK_NAME_HE, NO_UNIT_BLOCKS_SUB_HE, NO_UNIT_BLOCKS_TITLE_HE } from '@/data/taskBuilders';
 import { session1Checklist, session1NextStep } from '@/core/session1Checklist';
 import {
   advance,
@@ -1974,6 +1974,9 @@ export function wrongHiddenDigitsHe(task: SessionTask, meeting: number): string 
   return meeting === 8 ? `${which} בדקו שוב.` : `${which} בדקו שוב בעזרת הלבנים בבית המספרים.`;
 }
 
+/** An exercise that opens with the blocks to group (meeting 1's 26, station 7's 2,730): the final blocks, built without grouping. */
+const GROUP_YOURSELVES_HE = 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.';
+
 export function judgeStandardTask(s: WorkspaceState, task: SessionTask): StandardVerdict {
   const success = (title: string, sub: string, ms: number): StandardVerdict => ({ kind: 'success', title, sub, ms });
   const failure = (detail: string, title: string, sub: string, ms: number, extra: { placeError?: boolean; clearReps?: boolean } = {}): StandardVerdict =>
@@ -2224,10 +2227,22 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     } else {
       // Meeting 1: the exercise is the conversion itself, not only its result.
       if (task.requiresGrouping && !s.hasGrouped) {
-        return failure('conversion_skipped', 'קַבְּצוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.', 3500);
+        return failure('conversion_skipped', 'קַבְּצוּ 🧱', GROUP_YOURSELVES_HE, 3500);
       }
       if (task.requiresUngrouping && !s.hasUngrouped) {
         return failure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
+      }
+      // Station 7's 2,730 (owner, 4.10.2026): the board opens with the blocks
+      // to group, and every grouping REPRESENTATION_LOCKS lists is the child's
+      // own — the final blocks built by hand, or with one grouping only, are
+      // not the exercise. The sentence is meeting 1's (the 26 units).
+      if (
+        !task.requiresGrouping &&
+        task.initialCounts &&
+        REPRESENTATION_LOCKS[task.id]?.conversion === 'composition' &&
+        pendingRepresentationConversion(s, task) !== null
+      ) {
+        return failure('conversion_skipped', 'קַבְּצוּ 🧱', GROUP_YOURSELVES_HE, 3500);
       }
     }
     const typed = answerDigitsToNumber(s.answerDigits);
@@ -4599,6 +4614,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Owner, 1.10.2026 (D6): station 3's "another way" exercises — a wrong
       // press of "הוספת ייצוג" counts as a wrong press there only.
       let wrongAddPressCounts = false;
+      // Owner, 4.10.2026: 320, 2,100 and 4,200 are built without unit blocks.
+      let noUnitBlocks = false;
       if (s.sessionNumber === 2) {
         const task = getCurrentQTask(s.qflow);
         target = task ? getEffectiveNumber(task, s.qflow, s.isASD) : undefined;
@@ -4607,6 +4624,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         target = task?.numberA;
         lessonTaskId = isRepresentationTask(task) ? task.id : null;
         wrongAddPressCounts = lessonTaskId !== null && s.sessionNumber === 3;
+        noUnitBlocks = task?.noUnitBlocks === true;
         if (task?.requireEvenTens && s.counts.tens % 2 !== 0) {
           if (lessonTaskId) {
             recordBoardCheckFailure(lessonTaskId);
@@ -4633,7 +4651,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         showFeedback({ correct: false, title: 'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍', sub: hint }, 3200);
         return;
       }
-      
+
+      // Owner, 4.10.2026: "… מאות ועשרות בלבד" (320, 2,100, 4,200) — a way
+      // with blocks in the units column is refused. The board shows the
+      // number here, so the units are 10, 20, 30…, and the column's "קבצו 10
+      // לעשרת" button is in view: the toast says the rule, then the action.
+      // The same toast, duration and counting as the even-tens refusal above;
+      // 150 (s7_r_t7) carries no such rule — each of its ways has unit blocks.
+      if (noUnitBlocks && s.counts.units > 0) {
+        if (lessonTaskId) {
+          recordBoardCheckFailure(lessonTaskId);
+          if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
+        }
+        showFeedback({ correct: false, title: NO_UNIT_BLOCKS_TITLE_HE, sub: NO_UNIT_BLOCKS_SUB_HE }, 3200);
+        return;
+      }
+
       // The second representation has to be a different one. With the board
       // kept between the two (below), pressing the button twice must not count.
       if (s.q3Reps.length === 1 && countsEqual(s.counts, s.q3Reps[0])) {
