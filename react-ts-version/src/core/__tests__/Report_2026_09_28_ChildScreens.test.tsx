@@ -21,7 +21,6 @@ import { SESSION1_TASKS, getSessionTasks } from '@/data/sessionTasks';
 import { SESSION_BRANCH_TASKS } from '@/data/sessionBranchTasks';
 import { LOGOUT_HE, PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames';
 import { TEACHER_SENTENCES_HE } from '@/core/teacherGender';
-import { DEFAULT_LEFT_PX, useLeftClearOfSidePanel } from '@/features/workspace/board/useLeftClearOfSidePanel';
 import { PlaceValueBoard } from '@/features/workspace/board/PlaceValueBoard';
 
 /**
@@ -150,35 +149,28 @@ describe('row 1.15 — the feedback covers neither the board nor the coaching ca
   });
 });
 
-describe('row 1.28 — the addition grid keeps clear of the coaching card', () => {
-  function Probe() {
-    const left = useLeftClearOfSidePanel();
-    return <div data-testid="probe" data-left={left} />;
-  }
-
-  it('in its corner while no card is open, just right of the card while it is', () => {
-    render(<Probe />);
-    expect(screen.getByTestId('probe').getAttribute('data-left')).toBe(String(DEFAULT_LEFT_PX));
-    const panel = document.createElement('div');
-    panel.setAttribute('data-testid', 'socratic-side-panel');
-    panel.getBoundingClientRect = () => ({ left: 20, right: 300, top: 0, bottom: 600, width: 280, height: 600, x: 20, y: 0, toJSON() {} }) as DOMRect;
-    document.body.appendChild(panel);
-    act(() => {
-      useWorkspaceStore.setState({ helpState: 'socratic' } as any);
-    });
-    expect(screen.getByTestId('probe').getAttribute('data-left')).toBe('316');
-    act(() => {
-      useWorkspaceStore.setState({ helpState: 'closed' } as any);
-    });
-    expect(screen.getByTestId('probe').getAttribute('data-left')).toBe(String(DEFAULT_LEFT_PX));
-    panel.remove();
+describe('row 1.28 (and audit A5-F07 / UX-001 / UX-002, 4.10.2026) — the addition grid never covers the card, the board, the tray or the trash', () => {
+  it('the grid and its tab are in the workspace row, not pinned over the screen', () => {
+    const grid = src('features/workspace/board/AdaptiveAdditionGrid.tsx');
+    expect(grid).not.toMatch(/(?<![-\w])fixed(?![-\w])/);
+    expect(grid).not.toMatch(/bottom-6|left-6/);
+    expect(existsSync(resolve(__dirname, '../../features/workspace/board/useLeftClearOfSidePanel.ts'))).toBe(false);
+    const page = src('features/workspace/StudentWorkspacePage.tsx');
+    const row = page.slice(page.indexOf('<main'), page.indexOf('</main>'));
+    expect(row).toContain('<AdaptiveAdditionGrid key="adaptive-grid" />');
+    expect(row).toContain('<AdditionGridTab />');
+    // the board shares the row with the grid's slot, as it does with the card
+    expect(row).toContain('shareRow={isSocraticPanelOpen || isAdditionGridSlotShown}');
   });
 
-  it('the grid and its re-open tab are both placed by it, and the grid has one name', () => {
+  it('while the coaching card is open, the grid and its tab wait (the card keeps its place)', () => {
+    const page = src('features/workspace/StudentWorkspacePage.tsx');
+    expect(page).toContain('const isAdditionGridShown = isAdditionBoardEnabled && isAdditionHelperOpen && !isSocraticPanelOpen;');
+    expect(page).toContain('const isAdditionGridTabShown = isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen && !isSocraticPanelOpen;');
+  });
+
+  it('the grid has one name', () => {
     const grid = src('features/workspace/board/AdaptiveAdditionGrid.tsx');
-    expect(grid).toContain('const { left, maxWidth } = useClearOfSidePanel();');
-    expect(grid).toContain('style={{ left, maxWidth }}');
-    expect(grid).not.toContain('left-6');
     expect(grid).not.toMatch(/לוח עזר|תמיכה אדפטיבית/);
     expect(src('features/workspace/StudentWorkspacePage.tsx')).not.toMatch(/<span>לוח חיבור<\/span>/);
   });

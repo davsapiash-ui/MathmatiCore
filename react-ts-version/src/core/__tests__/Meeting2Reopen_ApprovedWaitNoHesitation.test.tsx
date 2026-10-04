@@ -74,8 +74,7 @@ vi.mock('@/features/workspace/board/DienesBlock', () => ({ DienesBlock: () => nu
 vi.mock('@/features/workspace/overlays/FeedbackToast', () => ({ FeedbackToast: () => null }));
 vi.mock('@/features/workspace/overlays/HelpOverlays', () => ({ HelpOverlays: () => null, SocraticSidePanel: () => null }));
 vi.mock('@/features/workspace/overlays/StudentChatOverlay', () => ({ StudentChatOverlay: () => null }));
-vi.mock('@/features/workspace/board/AdaptiveAdditionGrid', () => ({ AdaptiveAdditionGrid: () => null, ADDITION_GRID_HE: 'לוח החיבור' }));
-vi.mock('@/features/workspace/board/useLeftClearOfSidePanel', () => ({ useLeftClearOfSidePanel: () => 24 }));
+vi.mock('@/features/workspace/board/AdaptiveAdditionGrid', () => ({ AdaptiveAdditionGrid: () => null, AdditionGridTab: () => null, ADDITION_GRID_HE: 'לוח החיבור' }));
 vi.mock('@/features/workspace/ClosingSentence', () => ({ ClosingSentence: () => null }));
 vi.mock('@/features/workspace/StationOpening', () => ({ StationOpening: () => null }));
 vi.mock('@/features/workspace/overlays/ReinforcementOrChallengeScreen', () => ({
