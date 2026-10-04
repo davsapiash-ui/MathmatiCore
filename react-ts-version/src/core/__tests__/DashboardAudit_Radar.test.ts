@@ -92,7 +92,7 @@ describe('RED and YELLOW are live states (Module 18 §ב)', () => {
     expect(grid).toContain('data.hesitating?.hesitating === true');
     expect(grid).not.toContain('hesitationEvents * hesitationThreshold');
     const hook = src('application/useCognitiveHesitationRadar.ts');
-    expect(hook).toContain('{ hesitating: false, timestamp: Date.now() }');
+    expect(hook).toContain('{ hesitating: false, timestamp: serverNow() }');
     expect(hook).toContain('if (hesitatingPublishedRef.current) clearHesitating();');
   });
 });

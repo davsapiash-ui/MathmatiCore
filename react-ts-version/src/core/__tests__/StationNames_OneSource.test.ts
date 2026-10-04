@@ -151,7 +151,7 @@ describe('the teacher and the admin see the child’s station name next to each 
       expect(journey, h).toContain(h);
     }
     expect(code('presentation/pages/TeacherDashboard.tsx')).toContain('מיפוי מיומנויות — {meetingShortLabelHe(diagnosticSelectedSession)}');
-    expect(code('presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx')).toContain('התפלגות סיווגי הטעות · {meetingShortLabelHe(selectedStudent.sessionNumber)}');
+    expect(code('presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx')).toContain('התפלגות סיווגי הטעות · {meetingShortLabelHe(liveSelectedStudent.sessionNumber)}');
     expect(code('presentation/pages/TeacherDashboard/components/SessionActivationModal.tsx')).toContain('המפגש הפעיל כעת, {meetingShortLabelHe(currentlyActive.sessionNumber)}, ייסגר');
     const store = code('application/useStore.ts');
     expect(store).toContain('${meetingShortLabelHe(sessionNumber)} אופס לכל הכיתה,');
@@ -183,7 +183,7 @@ describe('the teacher and the admin see the child’s station name next to each 
   it('the radar tiles and the learner detail', () => {
     const grid = code('presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx');
     expect(grid).toContain('{meetingShortLabelHe(student.sessionNumber)}');
-    expect(grid).toContain('אצל התלמידים: {stationNameHe(selectedStudent.sessionNumber)}');
+    expect(grid).toContain('אצל התלמידים: {stationNameHe(liveSelectedStudent.sessionNumber)}');
   });
 
   it('the learner journey: every meeting tile says what the children call it', () => {
