@@ -338,7 +338,7 @@ describe('finding 8 — level 1: the column to act on, not a column the instruct
   it('the instruction\'s own columns', () => {
     expect([...instructionColumnsOf(T347.instruction_he)].sort()).toEqual(['tens', 'units']);
     expect([...instructionColumnsOf(G26.instruction_he)].sort()).toEqual(['tens', 'units']);
-    expect([...instructionColumnsOf('בנו 61 והחסירו 24: גררו לפח האשפה את הלבנים שאתם מחסירים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו.')]).toEqual([]);
+    expect([...instructionColumnsOf('בנו 61 והוציאו ממנו 24: גררו לפח האשפה את הלבנים שאתם מחסרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו.')]).toEqual([]);
   });
 
   it('a faithful copy of the CURRENT s1_target_347 card passes (hints in the 30.9 question form)', () => {
