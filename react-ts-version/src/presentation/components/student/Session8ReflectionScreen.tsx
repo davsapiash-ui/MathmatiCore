@@ -4,13 +4,14 @@ import { CheckSquare, Square, RotateCcw, CircleDot, HelpCircle, Award, ArrowLeft
 import type { SRLReflectionResult } from '@/core/srlReflection';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { encouragementSentenceHe, persistenceIndexPercent, splitEncouragement } from '@/core/persistenceEncouragement';
+import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
 interface Session8ReflectionScreenProps {
   /**
    * מקבל את שלושת שלבי הרפלקציה במלואם. עד כה הועברה רק רמת המאמץ, תחת
    * השם focusArea, והיא נכתבה לשדה צבע המסלול — כך שכל השאר אבד.
-   * מחזיר false כשהשמירה לא הצליחה: הלוח נשאר בשלב 3 עם אותן תשובות, וכפתור
-   * הסיום פעיל שוב — הרפלקציה אינה נזרקת.
+   * מחזיר false כשהשמירה לא הצליחה: הלוח נשאר בשלב 3 עם אותן תשובות, כפתור
+   * הסיום פעיל שוב, ומתחתיו ההודעה notSaved עם כפתור הקראה — הרפלקציה אינה נזרקת.
    */
   onComplete: (result: SRLReflectionResult) => void | Promise<boolean | void>;
   metrics?: {
@@ -64,8 +65,12 @@ export const REFLECTION_TEXT_HE = {
   saving: 'שומרים…',
   // Shown only when the reflection could not even be stored in the offline
   // queue on this device: it says what to do — press the same button again,
-  // or ask the teacher.
-  notSaved: 'לא הצלחנו לשמור. לחצו שוב על "סיום התחנה". אם זה לא עוזר, בקשו עזרה מהמורה.',
+  // or ask the teacher. It stays in stage 3, under the button, with a
+  // read-aloud button (PRD Module 7: every instruction has one), not in a
+  // toast that disappears by itself.
+  notSaved: 'השמירה לא הצליחה. לחצו שוב על "סיום התחנה". אם זה לא עוזר, בקשו עזרה מהמורה.',
+  // The same, read aloud: without the quote marks.
+  notSavedSpoken: 'השמירה לא הצליחה. לחצו שוב על סיום התחנה. אם זה לא עוזר, בקשו עזרה מהמורה.',
 } as const;
 
 /** שלוש רמות המאמץ: סמל חזותי בלבד על המסך; השם (מסמך 03) להקראה ולקורא מסך. */
@@ -99,13 +104,15 @@ export function reflectionSpeech(step: 1 | 2 | 3, encouragement = ''): string {
 
 /** סרגל קווי: שלושה פסים בגובה עולה, ו-`filled` מהם צבועים. */
 function EffortBars({ filled }: { filled: 1 | 2 | 3 }) {
-  const heights = ['h-4', 'h-8', 'h-12'];
+  // Three bars of rising height (מסמך 04: "שלושה פסים בגובה עולה"). The first
+  // used to be as wide as it was high, and its rounding made it a dot.
+  const heights = ['h-6', 'h-9', 'h-12'];
   return (
     <span aria-hidden="true" className="flex items-end justify-center gap-1.5 h-12">
       {heights.map((h, i) => (
         <span
           key={h}
-          className={`w-4 rounded-md ${h} ${i < filled ? 'bg-indigo-500 dark:bg-indigo-400' : 'bg-slate-200 dark:bg-slate-700'}`}
+          className={`w-3 rounded-sm ${h} ${i < filled ? 'bg-indigo-500 dark:bg-indigo-400' : 'bg-slate-200 dark:bg-slate-700'}`}
         />
       ))}
     </span>
@@ -120,21 +127,23 @@ function EffortBars({ filled }: { filled: 1 | 2 | 3 }) {
  * ללא חלונות קופצים, אפס PII.
  */
 export function Session8ReflectionScreen({ onComplete, metrics }: Session8ReflectionScreenProps) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [effortLevel, setEffortLevel] = useState<EffortId | null>(null);
-  const [selectedStrategies, setSelectedStrategies] = useState<string[]>([]);
+  // The stage and the answers live in the workspace store (reflectionDraft),
+  // which is saved with the meeting: a reload returns to the same stage with
+  // the same answers (Module 16 §ב, Module 17).
+  const step = useWorkspaceStore((s) => s.reflectionDraft.step);
+  const effortLevel = useWorkspaceStore((s) => s.reflectionDraft.effortLevel) as EffortId | null;
+  const selectedStrategies = useWorkspaceStore((s) => s.reflectionDraft.strategies);
+  const setStep = useWorkspaceStore((s) => s.setReflectionStep);
+  const setEffortLevel = useWorkspaceStore((s) => s.setReflectionEffort);
+  const toggleStrategy = useWorkspaceStore((s) => s.toggleReflectionStrategy);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The last press of "סיום התחנה" could not store the reflection.
+  const [notSaved, setNotSaved] = useState(false);
   // The state disables the button on the next render; the ref also stops a
   // second click that lands before that render (a double click, a held key),
   // whose handler still sees isSubmitting === false.
   const submittingRef = useRef(false);
   const t = REFLECTION_TEXT_HE;
-
-  const toggleStrategy = (id: string) => {
-    setSelectedStrategies(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
 
   // Stage C: Persistence Metric Calculation: (U / (U + E + G)) * 100 (default 100% on zero denominator)
   const U = Math.max(0, metrics?.undoCount || 0);
@@ -149,9 +158,11 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
     if (submittingRef.current) return;
     submittingRef.current = true;
     setIsSubmitting(true);
+    setNotSaved(false);
     const release = () => {
       submittingRef.current = false;
       setIsSubmitting(false);
+      setNotSaved(true);
     };
     // The executor runs at once, so onComplete is called in this click; a
     // synchronous throw becomes a rejection like an asynchronous one.
@@ -350,6 +361,12 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                   : <Award aria-hidden="true" className="w-5 h-5" />}
                 <span>{isSubmitting ? t.saving : t.finish}</span>
               </button>
+              {notSaved && (
+                <div className="flex items-center justify-center gap-3 -mt-2">
+                  <p role="alert" className="text-sm font-bold text-slate-700 dark:text-slate-200">{t.notSaved}</p>
+                  <UdlSpeechButton text={t.notSavedSpoken} className="shrink-0" />
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

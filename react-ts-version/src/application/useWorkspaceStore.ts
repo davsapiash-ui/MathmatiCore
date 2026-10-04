@@ -70,6 +70,7 @@ import type { TelemetryEventType } from '@/types/telemetry';
 import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
 import type { VRAWorkspaceState } from '@/types';
 import { workspaceSavedAt, startedWithoutRecord } from '@/core/workspaceSnapshot';
+import { mirrorReflectionStep } from '@/core/srlReflection';
 import {
   EMPTY_PERSISTENCE_COUNTS,
   addPersistenceEvent,
@@ -476,6 +477,13 @@ export interface WorkspaceState {
   carryDigits: Partial<Record<Place, string>>;
   probeAnswer: string;
   q3Reps: PlaceCounts[];
+  /**
+   * Meeting 8's reflection board as the child left it: the stage on screen
+   * and the answers chosen so far (PRD Module 16 §ב, reflection_step 1–3).
+   * In the snapshot, so a reload returns to the same stage with the same
+   * answers. The srl_reflections document is still written once, at "סיום התחנה".
+   */
+  reflectionDraft: ReflectionDraft;
   /** Which of מסמך 03's triggers opened the coaching card (null when it is closed). */
   socraticTriggerReason: SocraticTriggerReason | null;
   /**
@@ -679,6 +687,12 @@ export interface WorkspaceState {
    * keeps meeting 8 open.
    */
   finishReflection: () => void;
+  /** Moves the reflection board to a stage, and mirrors reflection_step to the learner record (Module 16 §ב). */
+  setReflectionStep: (step: ReflectionStep) => void;
+  /** Stage 1 of the reflection board: the effort level chosen. */
+  setReflectionEffort: (level: ReflectionEffortId) => void;
+  /** Stage 2 of the reflection board: a strategy ticked or unticked. */
+  toggleReflectionStrategy: (id: string) => void;
   /**
    * מסמך 04 §2א/§5: the silent help button — "שליחת אות מצוקה חרישי למורה ללא
    * תיוג חברתי בכיתה". It signals the teacher and nothing else: no overlay, no
@@ -1145,6 +1159,34 @@ const TRIGGER_REASONS: readonly SocraticTriggerReason[] = ['hesitation_45s', 're
 const PLACES: readonly Place[] = ['units', 'tens', 'hundreds', 'thousands'];
 
 /** A saved card history back into shape: the database drops empty lists, null fields and false booleans' absence alike. */
+export type ReflectionStep = 1 | 2 | 3;
+export type ReflectionEffortId = 'EASY' | 'MEDIUM' | 'HARD';
+export interface ReflectionDraft {
+  step: ReflectionStep;
+  effortLevel: ReflectionEffortId | null;
+  strategies: string[];
+}
+
+export function freshReflectionDraft(): ReflectionDraft {
+  return { step: 1, effortLevel: null, strategies: [] };
+}
+
+/**
+ * The reflection board from a snapshot. The database drops null and an empty
+ * list, so a draft saved on stage 1 with nothing chosen comes back as
+ * { step: 1 } — and a snapshot from before the draft was saved, as nothing.
+ */
+export function restoredReflectionDraft(raw: unknown): ReflectionDraft {
+  if (!raw || typeof raw !== 'object') return freshReflectionDraft();
+  const r = raw as Record<string, unknown>;
+  const step: ReflectionStep = r.step === 2 || r.step === 3 ? r.step : 1;
+  const effortLevel = r.effortLevel === 'EASY' || r.effortLevel === 'MEDIUM' || r.effortLevel === 'HARD' ? r.effortLevel : null;
+  const list: unknown[] = Array.isArray(r.strategies) ? r.strategies : (r.strategies && typeof r.strategies === 'object' ? Object.values(r.strategies) : []);
+  const strategies = Array.from(new Set(list.filter((x): x is string => typeof x === 'string')));
+  // Stages 2 and 3 come after a level was chosen: without one the board starts at stage 1.
+  return { step: effortLevel ? step : 1, effortLevel, strategies };
+}
+
 function restoredCardHistory(raw: unknown): WorkspaceState['socraticCardHistory'] {
   const r = (raw && typeof raw === 'object' ? raw : {}) as { taskId?: unknown; cards?: unknown };
   const list = Array.isArray(r.cards) ? r.cards : r.cards && typeof r.cards === 'object' ? Object.values(r.cards) : [];
@@ -1248,6 +1290,26 @@ export function answerDigitsToNumber(digits: Partial<Record<Place, string>>): nu
  * 10,000. It is kept as the result row's digits, right-aligned: "340" →
  * hundreds 3, tens 4, units 0; anything but a digit is dropped.
  */
+/**
+ * A one-digit box after a keystroke: the digit just typed. The boxes have no
+ * maxLength, so a child who clicks a box with a wrong digit can write over it
+ * (they select their digit on focus, too). Whichever side of the old digit
+ * the caret was on, the old digit is dropped and the new one kept — taking
+ * the last character kept the old digit when the caret stood before it.
+ */
+export function digitJustTyped(value: string, previous: string): string {
+  const raw = value.replace(/[^0-9]/g, '');
+  const prev = previous.replace(/[^0-9]/g, '');
+  // An empty box keeps the first digit of what arrived (a paste of "123" → "1").
+  if (!prev) return raw.slice(0, 1);
+  let typed = raw;
+  if (raw.length > 1) {
+    if (raw.startsWith(prev)) typed = raw.slice(prev.length);
+    else if (raw.endsWith(prev)) typed = raw.slice(0, raw.length - prev.length);
+  }
+  return typed.slice(-1);
+}
+
 export function answerDigitsFromText(text: string): Partial<Record<Place, string>> {
   const digits = text.replace(/[^0-9]/g, '').slice(0, PLACE_ORDER.length);
   const out: Partial<Record<Place, string>> = {};
@@ -1326,20 +1388,65 @@ const placeAbove = (p: Place): Place | undefined => PLACE_ORDER[PLACE_ORDER.inde
  * broken; it names the block above the column still waiting for its ten.
  */
 export function breakItYourselvesHe(receiving: Place | null): string {
-  const above = receiving ? placeAbove(receiving) : undefined;
-  const click = above
-    ? `לחצו על לבנת ${BLOCK_NAME_HE[above]} כדי לפרוט אותה.`
-    : 'לחצו על הלבנה שההנחיה מבקשת לפרוט.';
-  return `הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. ${click}`;
+  return `הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. ${breakClickHe(receiving)}`;
 }
 
 /** Station 7's "do the grouping yourselves": the button of the column to group, in its own words (PlaceColumn). */
 export function groupItYourselvesHe(source: Place | null): string {
+  return `הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. ${groupClickHe(source)}`;
+}
+
+/**
+ * A break or grouping exercise whose board still shows the blocks the
+ * instruction's first sentence builds — the conversion not yet made (A4-F01).
+ * "בדקו כמה לבנים יש בכל טור" pointed the child at counts that were right; the
+ * step still missing is the break / the grouping. The board before the
+ * conversions is requiredCounts with every listed conversion undone
+ * (REPRESENTATION_LOCKS: the receiving column of a break, the source column of
+ * a grouping) — the same fact functions reads as built_before_conversion.
+ */
+export function boardBeforeConversion(task: SessionTask): PlaceCounts | null {
+  const lock = REPRESENTATION_LOCKS[task.id];
+  if (!lock || !task.requiredCounts) return null;
+  const board: PlaceCounts = { ...EMPTY_COUNTS, ...task.requiredCounts };
+  for (const p of lock.columns) {
+    const above = placeAbove(p);
+    if (!above) return null;
+    if (lock.conversion === 'decomposition') {
+      board[p] -= 10;
+      board[above] += 1;
+    } else {
+      board[p] += 10;
+      board[above] -= 1;
+    }
+  }
+  return PLACE_ORDER.every((p) => board[p] >= 0) ? board : null;
+}
+
+/** The click that makes the pending break, as breakItYourselvesHe names it. */
+function breakClickHe(receiving: Place | null): string {
+  const above = receiving ? placeAbove(receiving) : undefined;
+  return above
+    ? `לחצו על לבנת ${BLOCK_NAME_HE[above]} כדי לפרוט אותה.`
+    : 'לחצו על הלבנה שההנחיה מבקשת לפרוט.';
+}
+
+/** The button that makes the pending grouping, in its own words (PlaceColumn). */
+function groupClickHe(source: Place | null): string {
   const above = source ? placeAbove(source) : undefined;
-  const click = source && above
+  return source && above
     ? `לחצו על הכפתור "קבצו 10 ל${BLOCK_NAME_HE[above]}" שבראש טור ה${PLACE_NAMES_HE[source]}.`
     : 'קבצו 10 לבנים בעזרת הכפתור שבראש הטור.';
-  return `הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. ${click}`;
+}
+
+/** The board shows the blocks the instruction builds; the break is still to come. */
+export function breakNowHe(receiving: Place | null): string {
+  return `בניתם את הלבנים שבהנחיה. עכשיו ${breakClickHe(receiving)}`;
+}
+
+/** The board shows the blocks the instruction builds; the grouping is still to come. */
+export function groupNowHe(source: Place | null): string {
+  return `בניתם את הלבנים שבהנחיה. עכשיו ${groupClickHe(source)}`;
 }
 
 /** The block a decomposition exercise is built from (450 → the tens). */
@@ -1799,8 +1906,12 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     return s.q3Reps.length >= 2;
   }
   if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
-    const { a, b, target } = effectiveArithmetic(task, s.isASD);
-    const hasDigits = answerDigitsToNumber(effectiveAnswerDigits(s, task, target)) !== null;
+    const { a, b } = effectiveArithmetic(task, s.isASD);
+    // What the child typed, not the result digits the exercise reveals: with
+    // those (s4_r_t7, s6_r_t7) "התקדם" was open before any action, and each
+    // press counted as a wrong answer (register 17: an empty answer is not one).
+    // The verdict still reads the revealed digits (effectiveAnswerDigits).
+    const hasDigits = answerDigitsToNumber(s.answerDigits) !== null;
     const hasBoardBlocks = selectBoardValue(s) > 0;
     return (hasBoardBlocks || hasDigits || s.hasInteracted) && hiddenDigitsStatus(s, task, a, b).complete;
   }
@@ -1841,6 +1952,28 @@ export type StandardVerdict =
     }
   | { kind: 'notice'; title: string; sub: string; ms: number };
 
+/** How many digits a skeleton exercise hides in its numbers. */
+function hiddenDigitCount(task: SessionTask): number {
+  return (task.hiddenDigits?.a?.length ?? 0) + (task.hiddenDigits?.b?.length ?? 0);
+}
+
+/** A skeleton exercise's empty boxes: one digit or several, as the instruction says ("בתיבות הריקות"). */
+export function missingHiddenDigitsHe(task: SessionTask): string {
+  return hiddenDigitCount(task) > 1
+    ? 'כתבו את הספרות החסרות בתיבות הריקות כדי להמשיך.'
+    : 'כתבו את הספרה החסרה בתיבה הריקה כדי להמשיך.';
+}
+
+/**
+ * A skeleton exercise's digits, typed but not right. With several hidden
+ * digits the sentence stays true when two are wrong, and does not say which.
+ * Meeting 8 has no blocks to check with.
+ */
+export function wrongHiddenDigitsHe(task: SessionTask, meeting: number): string {
+  const which = hiddenDigitCount(task) > 1 ? 'לא כל הספרות שכתבתם נכונות.' : 'הספרה החסרה שכתבתם אינה נכונה.';
+  return meeting === 8 ? `${which} בדקו שוב.` : `${which} בדקו שוב בעזרת הלבנים בבית המספרים.`;
+}
+
 export function judgeStandardTask(s: WorkspaceState, task: SessionTask): StandardVerdict {
   const success = (title: string, sub: string, ms: number): StandardVerdict => ({ kind: 'success', title, sub, ms });
   const failure = (detail: string, title: string, sub: string, ms: number, extra: { placeError?: boolean; clearReps?: boolean } = {}): StandardVerdict =>
@@ -1874,7 +2007,11 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
         return failure(
           'empty_board',
           'בונים בבית המספרים 🧱',
-          'עוד אין לבנים בבית המספרים. לחצו על אחת הלבנים שמתחת לבית המספרים, או גררו אותה אליו, ובנו את המספרים שבתרגיל.',
+          // Subtraction builds only the first number (Module 7: "ייצוג
+          // המחוברים או המחוסר בלבד"; the instruction "בנו את המחוסר").
+          task.isSubtraction
+            ? 'עוד אין לבנים בבית המספרים. בנו את המספר הראשון שבתרגיל. לחצו על לבנה שמתחת לבית המספרים, או גררו אותה אליו.'
+            : 'עוד אין לבנים בבית המספרים. לחצו על אחת הלבנים שמתחת לבית המספרים, או גררו אותה אליו, ובנו את המספרים שבתרגיל.',
           3500
         );
       }
@@ -1891,10 +2028,10 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
         const { a: hA, b: hB } = effectiveArithmetic(task, s.isASD);
         const hiddenCheck = hiddenDigitsStatus(s, task, hA, hB);
         if (!hiddenCheck.complete) {
-          return failure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'כתבו את הספרה החסרה בתיבה הריקה כדי להמשיך.', 3000);
+          return failure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', missingHiddenDigitsHe(task), 3000);
         }
         if (!hiddenCheck.correct) {
-          return failure('wrong_numeric', 'כִּמְעַט... 🧐', 'הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בבית המספרים.', 2800);
+          return failure('wrong_numeric', 'כִּמְעַט... 🧐', wrongHiddenDigitsHe(task, s.sessionNumber), 2800);
         }
         const discovered = (task.hiddenDigits?.a?.length ? [hA] : []).concat(task.hiddenDigits?.b?.length ? [hB] : []);
         if (boardVal !== target && !discovered.includes(boardVal)) {
@@ -1936,20 +2073,12 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     const { a: opA, b: opB } = effectiveArithmetic(task, s.isASD);
     const hidden = hiddenDigitsStatus(s, task, opA, opB);
     if (!hidden.complete) {
-      return failure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', 'כתבו את הספרה החסרה בתיבה הריקה כדי להמשיך.', 3000);
+      return failure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', missingHiddenDigitsHe(task), 3000);
     }
     if (!hidden.correct) {
       // Meeting 8 has no blocks and no board (מסמך 03 §3.8), so its skeleton
       // tasks (s8_r_t7, s8_g_t6, s8_g_t7) cannot point the child to them.
-      // With two or three digits missing, the sentence does not say which one.
-      const hiddenCount = (task.hiddenDigits?.a?.length ?? 0) + (task.hiddenDigits?.b?.length ?? 0);
-      const which = hiddenCount > 1 ? 'אחת הספרות החסרות שכתבתם אינה נכונה.' : 'הספרה החסרה שכתבתם אינה נכונה.';
-      return failure(
-        'wrong_numeric',
-        'כִּמְעַט... 🧐',
-        s.sessionNumber === 8 ? `${which} בדקו שוב.` : `${which} בדקו שוב בעזרת הלבנים בבית המספרים.`,
-        2800
-      );
+      return failure('wrong_numeric', 'כִּמְעַט... 🧐', wrongHiddenDigitsHe(task, s.sessionNumber), 2800);
     }
 
     const typedDigits = effectiveAnswerDigits(s, task, target);
@@ -1999,15 +2128,23 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     // not mention them, so its refresh exercises get the plain success.
     if (task.type === 'vertical_addition' && (task.requiresGrouping || task.requiresUngrouping) && s.sessionNumber !== 1) {
       const hasCarriesEntered = Object.values(s.carryDigits).some((v) => v !== undefined && v !== '');
-      if (!hasCarriesEntered) {
+      // A skeleton exercise whose board shows the number the child discovered
+      // (decision יד, option א) made no conversion on the board: no reminder
+      // about recording one — the ordinary success below (A5-F10).
+      const boardShowsDiscovered = s.sessionNumber >= 3 && s.sessionNumber <= 7 && hasHiddenDigits(task) && boardVal !== target;
+      if (!hasCarriesEntered && !boardShowsDiscovered) {
         // A correct answer with the memory circles left empty is still a
         // solved exercise. This branch used to advance on its own and skip
         // handleSuccess: no PROBLEM_COMPLETE (the report said "לא השלים את
         // התרגיל" and scored it 0), no Q-matrix success, and the error streak
         // carried into the next exercise.
+        // By operation (register decision ט (2): addition "המרה", subtraction
+        // "פריטה"), in the words of each instruction (taskBuilders).
         return success(
           'שימו לב לעיגולי הזיכרון 💡',
-          'פתרתם נכון! בפעם הבאה, רשמו כל המרה וכל פריטה בעיגולי הזיכרון שבראש הטורים.',
+          task.isSubtraction
+            ? 'פתרתם נכון! בפעם הבאה, אחרי כל פריטה רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.'
+            : 'פתרתם נכון! בפעם הבאה, רשמו כל המרה בעיגולי הזיכרון שבראש הטורים.',
           3000
         );
       }
@@ -2045,6 +2182,18 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     const kind = task.representationKind;
     const required = requiredCountsOf(task);
     if (!countsEqual(s.counts, required)) {
+      // The blocks of the instruction's first sentence, the break or the
+      // grouping not made yet: the step still missing is named (A4-F01). It
+      // counts as a wrong press, as the sentence below does.
+      if (kind === 'compose_break' || kind === 'compose_group') {
+        const before = boardBeforeConversion(task);
+        const pending = pendingRepresentationConversion(s, task);
+        if (before && pending !== null && countsEqual(s.counts, before)) {
+          return kind === 'compose_break'
+            ? failure('conversion_skipped', 'פִּרְטוּ 🧱', breakNowHe(pending), 3500)
+            : failure('conversion_skipped', 'קַבְּצוּ 🧱', groupNowHe(pending), 3500);
+        }
+      }
       return failure(
         'wrong_representation',
         'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍',
@@ -2616,9 +2765,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /** Session-2 transition script (vanilla onQTaskComplete, app.js 813–873). */
   function handleQFlowEvent(event: QFlowEvent) {
     switch (event.type) {
-      case 'primary_done':
-        showFeedback({ correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍', sub: 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' }, 1500, continueAfterPrimaryAnswer);
+      case 'primary_done': {
+        // The title has no 👍: the floating toast shows its own (A3-113). After
+        // the last task no next task follows (the waiting screen, or the
+        // correction round with its own toast), so the sub is left out (A3-112).
+        // taskIdx is still the task just answered: advance() runs after the toast.
+        const nextTaskSub = get().qflow.taskIdx < TASKS.length - 1 ? 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' : undefined;
+        showFeedback({ correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה!', sub: nextTaskSub }, 1500, continueAfterPrimaryAnswer);
         break;
+      }
       // The correction round has no hints and no right/wrong feedback (owner's
       // decision, 25.9.2026): it is still part of the diagnostic. Its toasts
       // name what is on the screen and say nothing about the first answer
@@ -2640,7 +2795,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
       case 'subtask_done':
         showFeedback(
-          { correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍' },
+          { correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה!' },
           1500,
           () => {
             const { state, event: next } = advance(get().qflow);
@@ -2660,7 +2815,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         break;
       case 'retry_done':
         showFeedback(
-          { correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה! 👍' },
+          { correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה!' },
           1500,
           () => {
             const { state, event: next } = advance(get().qflow);
@@ -3208,7 +3363,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     if (answer === null || Number.isNaN(answer)) {
-      showFeedback({ correct: false, title: 'הַקְלָדַת תְּשׁוּבָה ✏️', sub: 'כִּתְבוּ אֶת הַתְּשׁוּבָה.' }, 1500);
+      // Neutral, like every meeting-2 toast: no wrong-answer border or 🤔
+      // (register, "מפגש 2 — אישור שקט"; register ז, no feedback that reveals correctness).
+      showFeedback({ correct: false, neutral: true, title: 'הַקְלָדַת תְּשׁוּבָה ✏️', sub: 'כִּתְבוּ אֶת הַתְּשׁוּבָה.' }, 1500);
       return;
     }
 
@@ -3325,6 +3482,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     probeAnswer: '',
     lastSubmittedAnswer: null,
     q3Reps: [],
+    reflectionDraft: freshReflectionDraft(),
     operandDigits: { a: {}, b: {} },
     socraticTriggerReason: null,
     socraticCardPlace: null,
@@ -3482,6 +3640,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         meetingPersistence: freshMeetingPersistence(sanitized),
         // A fresh meeting 2 or 8 starts on its opening screen.
         openingScreenSeen: false,
+        // …and meeting 8's reflection board on its first stage, with nothing chosen.
+        reflectionDraft: freshReflectionDraft(),
         ...resetTaskInteraction(isASD),
         // The addition grid and its return tab belong to the meeting (register
         // 18): a new meeting starts without them.
@@ -3667,7 +3827,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // In the snapshot: after a reload, the next press of "התקדם" records
         // only what changed since the last press (recordSubmittedAnswer).
         lastSubmittedAnswer: typeof saved.lastSubmittedAnswer === 'string' ? saved.lastSubmittedAnswer : null,
-        q3Reps: saved.q3Reps ?? [],
+        q3Reps: Array.isArray(saved.q3Reps) ? saved.q3Reps : [],
+        // Meeting 8: the reflection board's stage and the answers chosen so far.
+        reflectionDraft: restoredReflectionDraft(saved.reflectionDraft),
         operandDigits: saved.operandDigits ?? { a: {}, b: {} },
         // Now that the snapshot carries them, they are restored as saved —
         // including meeting 1's first step, which used to start over.
@@ -4450,7 +4612,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             recordBoardCheckFailure(lessonTaskId);
             if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
           }
-          showFeedback({ correct: false, title: 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. נסו לפרוט עשרת אחת ליחידות, או לקבץ 10 יחידות לעשרת.' }, 3200);
+          showFeedback({ correct: false, title: 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. פרטו עשרת אחת לעשר יחידות, או קבצו 10 יחידות לעשרת אחת.' }, 3200);
           return;
         }
       }
@@ -4520,6 +4682,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Meeting 8 is finished when its reflection is submitted (catch-up, 2.10.2026).
       markMeetingFinished(currentStudentUid(), 8, s.isSupersededByOtherDevice);
       set({ flowStatus: 'sessionDone', awaitingNext: false });
+    },
+    setReflectionStep: (step) => {
+      const s = get();
+      // Stages 2 and 3 come after a level was chosen (the button is disabled before).
+      if (step !== 1 && !s.reflectionDraft.effortLevel) return;
+      if (s.reflectionDraft.step === step) return;
+      set({ reflectionDraft: { ...s.reflectionDraft, step } });
+      // Module 16 §ב: "השרת מנהל: reflection_step (1, 2 או 3)" — every stage
+      // change, back included, reaches the learner record. reflection_completed
+      // is left alone: only "סיום התחנה" finishes the board.
+      if (s.sessionNumber === 8 && s.flowStatus === 'reflection') mirrorReflectionStep(currentStudentUid(), step);
+    },
+    setReflectionEffort: (level) => {
+      const s = get();
+      set({ reflectionDraft: { ...s.reflectionDraft, effortLevel: level } });
+    },
+    toggleReflectionStrategy: (id) => {
+      const s = get();
+      const prev = s.reflectionDraft.strategies;
+      const strategies = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      set({ reflectionDraft: { ...s.reflectionDraft, strategies } });
     },
     proceed: () => {
       const s = get();
@@ -4887,7 +5070,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (denom === 0) return 100;
       return Math.min(100, Math.max(0, Math.round((undoCount / denom) * 100)));
     },
-    markOpeningScreenSeen: () => set({ openingScreenSeen: true, lastInteractionTime: Date.now() }),
+    markOpeningScreenSeen: () => {
+      // "מתחילים" moves from the opening screen to task 1: the next-exercise
+      // boundary at which a profile the teacher turned on meanwhile is applied
+      // (PRD 19 §ב). The opening screen itself is not an exercise.
+      applyPendingSupportProfile();
+      set({ openingScreenSeen: true, lastInteractionTime: Date.now() });
+    },
     recordPersistenceEvent: (event) => {
       if (!persistenceEventKind(event)) return;
       const tally = get().meetingPersistence;
@@ -5163,6 +5352,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         probeAnswer: '',
         lastSubmittedAnswer: null,
         q3Reps: [],
+        reflectionDraft: freshReflectionDraft(),
         feedback: null,
         feedbackNonce: 0,
         helpState: 'closed',
