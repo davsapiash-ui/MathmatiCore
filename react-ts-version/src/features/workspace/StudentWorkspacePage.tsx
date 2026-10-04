@@ -762,10 +762,13 @@ export function StudentWorkspacePage() {
   // intervention at 45s), and the row cannot hold the sheet, the board, the
   // grid and the card together on a 1024px screen without squeezing the
   // exercise out of view. So while the card is open the grid waits: it is not
-  // closed (register decision ב: only the learner closes it), only not shown,
-  // and it comes back as it was when the card closes — as it already waits
-  // while the exercise on the screen is not an addition (owner, 1.10.2026, D7).
-  const isAdditionGridShown = isAdditionBoardEnabled && isAdditionHelperOpen && !isSocraticPanelOpen;
+  // closed (register decision ב: only the learner closes it) and not
+  // unmounted, only hidden (display: none), so when the card closes it is
+  // back exactly as it was — the chosen row and column kept, no second
+  // fade-in, clickable at once. (When the exercise on the screen is not an
+  // addition the grid is unmounted instead: owner, 1.10.2026, D7.)
+  const isAdditionGridMounted = isAdditionBoardEnabled && isAdditionHelperOpen;
+  const isAdditionGridShown = isAdditionGridMounted && !isSocraticPanelOpen;
   const isAdditionGridTabShown = isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen && !isSocraticPanelOpen;
   const isAdditionGridSlotShown = isAdditionGridShown || isAdditionGridTabShown;
 
@@ -1455,8 +1458,8 @@ export function StudentWorkspacePage() {
               animation play after the store closes it. */}
           {isAdditionBoardEnabled && (
             <AnimatePresence>
-              {isAdditionGridShown && (
-                <AdaptiveAdditionGrid key="adaptive-grid" />
+              {isAdditionGridMounted && (
+                <AdaptiveAdditionGrid key="adaptive-grid" hidden={isSocraticPanelOpen} />
               )}
             </AnimatePresence>
           )}

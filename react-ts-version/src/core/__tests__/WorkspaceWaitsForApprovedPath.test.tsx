@@ -15,7 +15,7 @@
  */
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, act, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, act, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 const cls = vi.hoisted(() => ({
@@ -82,11 +82,8 @@ vi.mock('@/features/workspace/board/DienesBlock', () => ({ DienesBlock: () => nu
 vi.mock('@/features/workspace/overlays/FeedbackToast', () => ({ FeedbackToast: () => null }));
 vi.mock('@/features/workspace/overlays/HelpOverlays', () => ({ HelpOverlays: () => null, SocraticSidePanel: () => null }));
 vi.mock('@/features/workspace/overlays/StudentChatOverlay', () => ({ StudentChatOverlay: () => null }));
-vi.mock('@/features/workspace/board/AdaptiveAdditionGrid', () => ({
-  AdaptiveAdditionGrid: () => <div data-testid="addition-grid" />,
-  AdditionGridTab: () => <button type="button" aria-label="הצגה חוזרת של לוח החיבור" />,
-  ADDITION_GRID_HE: 'לוח החיבור',
-}));
+// The addition grid and its tab are the real components (not mocked): the
+// tests below check what the grid keeps while the coaching card is open.
 vi.mock('@/features/workspace/ClosingSentence', () => ({ ClosingSentence: () => null }));
 vi.mock('@/features/workspace/StationOpening', () => ({ StationOpening: () => <div data-testid="station-opening" /> }));
 vi.mock('@/features/workspace/overlays/ReinforcementOrChallengeScreen', () => ({ ReinforcementOrChallengeScreen: () => null }));
@@ -282,7 +279,7 @@ describe('a learner approved before 2.9.2026 (#18): the gate wrote only teacher_
 
 describe('register 18: the addition grid and its return tab only in meetings 3–7', () => {
   const tab = () => screen.queryByRole('button', { name: 'הצגה חוזרת של לוח החיבור' });
-  const grid = () => screen.queryByTestId('addition-grid');
+  const grid = () => screen.queryByTestId('adaptive-addition-grid');
 
   async function openWithEnhanced(meeting: number) {
     record(approved('green_path'));
@@ -321,16 +318,41 @@ describe('register 18: the addition grid and its return tab only in meetings 3�
     expect(main.contains(tab())).toBe(true);
   });
 
-  it('while the coaching card is open the grid waits — not closed — and comes back when the card closes', async () => {
+  it('while the coaching card is open the grid is hidden, not closed and not unmounted; it comes back exactly as it was', async () => {
     await openWithEnhanced(4);
-    expect(grid()).not.toBeNull();
+    const before = grid()!;
+    expect(before).not.toBeNull();
+    // the 2-second fade-in ends: the grid takes clicks
+    await waitFor(() => expect(before.className).toContain('pointer-events-auto'), { timeout: 4000 });
+    // the learner chooses row 7 and column 5
+    fireEvent.click(within(before).getByText('7', { selector: 'tbody td:first-child' }));
+    fireEvent.click(within(before).getByText('5', { selector: 'thead th' }));
+    expect(before.textContent).toContain('7 + 5 = 12');
+
     act(() => { useWorkspaceStore.setState({ helpState: 'socratic' } as any); });
-    expect(grid()).toBeNull();
+    // the same element, out of sight (display: none), and no tab in its place
+    expect(grid()).toBe(before);
+    expect(before.className).toMatch(/(^|\s)hidden(\s|$)/);
+    expect(before.getAttribute('data-hidden')).toBe('true');
     expect(tab()).toBeNull();
     // register decision ב: only the learner closes it
     expect(ws().isAdditionHelperOpen).toBe(true);
+
     act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
-    await waitFor(() => expect(grid()).not.toBeNull());
+    // at once: the same element, shown, its choice kept, no second fade-in
+    expect(grid()).toBe(before);
+    expect(before.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+    expect(before.getAttribute('data-hidden')).toBeNull();
+    expect(before.textContent).toContain('7 + 5 = 12');
+    expect(before.className).toContain('pointer-events-auto');
+    expect(before.style.opacity).toBe('1');
+  }, 10_000);
+
+  it('a grid that never opened is not in the DOM while the card is open', async () => {
+    await openWithEnhanced(4);
+    act(() => { useWorkspaceStore.setState({ isAdditionHelperOpen: false, additionHelperOffered: false, helpState: 'socratic' } as any); });
+    await waitFor(() => expect(grid()).toBeNull());
+    expect(tab()).toBeNull();
   });
 
   it('a closed grid\'s tab also waits while the card is open', async () => {
