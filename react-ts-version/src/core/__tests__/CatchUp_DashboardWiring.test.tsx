@@ -24,7 +24,10 @@ const h = vi.hoisted(() => ({
   records: {} as Record<number, unknown>,
   recordCalls: [] as Array<any>,
   recordFails: false,
+  /** Learners whose reasons write never settles (offline: the SDK keeps it queued). */
+  recordHang: new Set<number>(),
   dialogProps: null as any,
+  auth: { currentUser: null as any },
 }));
 
 vi.mock('firebase/database', async () => {
@@ -57,13 +60,7 @@ vi.mock('@/infrastructure/firebase', () => ({
   firestore: { __firestore: true },
   functions: { __functions: true },
   db: { __firestore: true },
-  auth: {
-    currentUser: {
-      uid: 'auth_uid_google_01',
-      getIdTokenResult: vi.fn().mockResolvedValue({ claims: { role: 'teacher' } }),
-      getIdToken: vi.fn().mockResolvedValue('token_test'),
-    },
-  },
+  auth: h.auth,
   authReady: Promise.resolve(),
   serverNow: () => h.db.serverTime(),
   isServerClockKnown: () => true,
@@ -106,6 +103,7 @@ vi.mock('recharts', () => ({
 vi.mock('@/infrastructure/services/CatchUpService', () => ({
   recordCatchUpReasons: vi.fn(async (input: any) => {
     h.recordCalls.push(input);
+    if (input.entries.some((e: any) => h.recordHang.has(e.studentNumber))) return new Promise(() => {});
     if (h.recordFails) throw new Error('PERMISSION_DENIED');
     h.seq.push(`record:${input.action}`);
   }),
@@ -202,6 +200,12 @@ beforeEach(() => {
   h.records = {};
   h.recordCalls = [];
   h.recordFails = false;
+  h.recordHang = new Set();
+  h.auth.currentUser = {
+    uid: 'auth_uid_google_01',
+    getIdTokenResult: vi.fn().mockResolvedValue({ claims: { role: 'teacher' } }),
+    getIdToken: vi.fn().mockResolvedValue('token_test'),
+  };
   h.dialogProps = null;
   toasts.calls.length = 0;
   vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -264,7 +268,7 @@ describe('closing a meeting with learners who did not finish', () => {
     expect(h.db.read('active_class_session')).toMatchObject({ active: true, sessionNumber: 4 });
   });
 
-  it('a failed reasons write: an error toast, nothing closed, the dialog stays', async () => {
+  it('a refused reasons write never blocks the close: the meeting closes and one toast says the reasons were not saved', async () => {
     openMeeting(4);
     learnerStoppedAt(5, 4, 3);
     h.recordFails = true;
@@ -273,11 +277,67 @@ describe('closing a meeting with learners who did not finish', () => {
     await clickClose();
     await act(async () => { fireEvent.click(screen.getByText('stub-continue')); });
 
-    await waitFor(() => expect(toasts.calls.some((c) => c.kind === 'error' && c.text.includes('המפגש נשאר פתוח'))).toBe(true));
-    expect(h.seq).toEqual([]);
-    expect(h.db.read('active_class_session')?.active).toBe(true);
-    expect(reasonsDialog()).toBeTruthy();
+    await waitFor(() => expect(h.seq).toEqual(['close:teacher']));
+    expect(h.db.read('active_class_session')?.active).toBe(false);
+    await waitFor(() => expect(toasts.calls.filter((c) => c.kind === 'error').map((c) => c.text)).toEqual(['הסיבות לא נשמרו, אבל מפגש 4 נסגר.']));
+    expect(reasonsDialog()).toBeNull();
   });
+
+  it('offline (the reasons write never settles): the close goes ahead after a bounded wait', async () => {
+    openMeeting(4);
+    learnerStoppedAt(5, 4, 3);
+    h.recordHang = new Set([5]);
+    renderDashboard();
+    await waitForLearners(/עוד לא סיים את מפגש 4/);
+    await clickClose();
+    await act(async () => { fireEvent.click(screen.getByText('stub-continue')); });
+    expect(h.dialogProps.isSaving).toBe(true);
+
+    await waitFor(() => expect(h.seq).toEqual(['close:teacher']), { timeout: 8000 });
+    expect(lastClassWrite()).toMatchObject({ active: false, closedBy: 'teacher', lastSessionNumber: 4 });
+    expect(reasonsDialog()).toBeNull();
+    // Still queued, not refused: no toast.
+    expect(toasts.calls.filter((c) => c.kind === 'error')).toEqual([]);
+  }, 15_000);
+
+  it('no Auth user: nothing is written, the meeting still closes, and the toast says so', async () => {
+    openMeeting(4);
+    learnerStoppedAt(5, 4, 3);
+    h.auth.currentUser = null;
+    renderDashboard();
+    await waitForLearners(/עוד לא סיים את מפגש 4/);
+    await clickClose();
+    await act(async () => { fireEvent.click(screen.getByText('stub-continue')); });
+
+    await waitFor(() => expect(h.seq).toEqual(['close:teacher']));
+    expect(h.recordCalls).toEqual([]);
+    await waitFor(() => expect(toasts.calls.some((c) => c.kind === 'error' && c.text === 'הסיבות לא נשמרו, אבל מפגש 4 נסגר.')).toBe(true));
+  });
+
+  it('cancel while saving: the teacher is let out and nothing is closed; a retry reuses the round id and skips who was saved', async () => {
+    openMeeting(4);
+    learnerStoppedAt(5, 4, 3);
+    learnerStoppedAt(6, 4, 1);
+    h.recordHang = new Set([6]);
+    renderDashboard();
+    await waitForLearners(/2 תלמידים עוד לא סיימו את מפגש 4/);
+    await clickClose();
+    await act(async () => { fireEvent.click(screen.getByText('stub-reopen')); });
+    expect(h.dialogProps.isSaving).toBe(true);
+    await act(async () => { fireEvent.click(screen.getByText('stub-cancel')); });
+    expect(reasonsDialog()).toBeNull();
+    await new Promise((r) => setTimeout(r, 5_500));
+    expect(h.seq).toEqual(['record:reopen']);                    // learner 5 written; nothing closed or opened
+    expect(h.db.read('active_class_session')).toMatchObject({ active: true, sessionNumber: 4, startedAt });
+
+    // The teacher tries again: the same submission id, and learner 5 is not written twice.
+    h.recordHang = new Set();
+    await clickClose();
+    await act(async () => { fireEvent.click(screen.getByText('stub-reopen')); });
+    await waitFor(() => expect(h.seq).toEqual(['record:reopen', 'record:reopen', 'close:teacher', 'open:4']));
+    expect(h.recordCalls.map((c) => c.entries.map((e: any) => e.studentNumber))).toEqual([[5], [6], [6]]);
+    expect(new Set(h.recordCalls.map((c) => c.recordedAt)).size).toBe(1);
+  }, 20_000);
 
   it('cancel: nothing written, the meeting stays open', async () => {
     openMeeting(4);

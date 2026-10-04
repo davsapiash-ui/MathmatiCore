@@ -161,12 +161,34 @@ function roundsOf(data: Record<string, unknown>): Record<string, Partial<CatchUp
 const isPendingReopen = (r: Partial<CatchUpRound> | null | undefined) =>
   Boolean(r) && r!.action === "reopen" && (r!.opened_at === null || r!.opened_at === undefined);
 
+/** How long before a run's start a 'reopen' round may have been recorded and still belong to that run. */
+export const PENDING_REOPEN_WINDOW_MS = 5 * 60_000;
+/** The teacher's clock estimate (serverNow) may run a little ahead of the server's start stamp. */
+export const PENDING_REOPEN_SLACK_MS = 30_000;
+
+/**
+ * Pure. A pending 'reopen' round belongs to the run that started at
+ * `runStartedAt` only when the teacher recorded it just before that start: the
+ * dashboard records the reasons and then opens the meeting at once. A round
+ * whose reopen never happened (the reopen failed, or the teacher cancelled
+ * while the reasons were still being saved) stays pending and is never opened
+ * by an unrelated later start of the meeting; the reports then show its reason
+ * without catch-up minutes, which is what happened.
+ */
+export function pendingReopenBelongsToRun(r: Partial<CatchUpRound> | null | undefined, runStartedAt: number): boolean {
+  if (!isPendingReopen(r)) return false;
+  const at = r!.recorded_at;
+  if (typeof at !== "number" || !Number.isFinite(at)) return false;
+  return at >= runStartedAt - PENDING_REOPEN_WINDOW_MS && at <= runStartedAt + PENDING_REOPEN_SLACK_MS;
+}
+
 const isOpenRound = (r: Partial<CatchUpRound> | null | undefined) =>
   Boolean(r) && typeof r!.opened_at === "number" && (r!.closed_at === null || r!.closed_at === undefined);
 
 /**
- * Opens every pending 'reopen' round of the meeting at `openedAt`. Idempotent:
- * a round already opened is left as it is. Returns the learners whose rounds opened.
+ * Opens the pending 'reopen' rounds of the meeting recorded for this run
+ * (pendingReopenBelongsToRun) at `openedAt`. Idempotent: a round already
+ * opened is left as it is. Returns the learners whose rounds opened.
  */
 export async function openCatchUpRounds(
   db: admin.firestore.Firestore,
@@ -184,7 +206,7 @@ export async function openCatchUpRounds(
         if (!cur.exists) return false;
         const updates: Record<string, unknown> = {};
         for (const [rid, round] of Object.entries(roundsOf(cur.data() || {}))) {
-          if (isPendingReopen(round)) updates[`rounds.${rid}.opened_at`] = openedAt;
+          if (pendingReopenBelongsToRun(round, openedAt)) updates[`rounds.${rid}.opened_at`] = openedAt;
         }
         if (Object.keys(updates).length === 0) return false;
         tx.update(ref, updates);
@@ -215,18 +237,26 @@ async function telemetryWriteTimes(db: admin.firestore.Firestore, studentNumber:
  * Closes every open round of the meeting at `closedAt`, with the learner's
  * active minutes. Idempotent: a round already closed is left as it is.
  * Returns the learners whose rounds closed.
+ *
+ * `runStartedAt` (the start of the run that ended): a 'reopen' round recorded
+ * for that run that reached the server only after the run had started (the
+ * dashboard does not wait more than a few seconds for the reasons, so on a slow
+ * network they can arrive late) is opened at the run's start and closed here.
  */
 export async function closeCatchUpRounds(
   db: admin.firestore.Firestore,
   meeting: number,
   closedAt: number,
-  closedBy: CatchUpClosedBy
+  closedBy: CatchUpClosedBy,
+  runStartedAt: number | null = null
 ): Promise<number[]> {
   const snap = await db.collection(CATCHUP_COLLECTION).where("session_number", "==", meeting).get();
   const closed: number[] = [];
+  const lateForRun = (r: Partial<CatchUpRound>) =>
+    runStartedAt !== null && runStartedAt <= closedAt && pendingReopenBelongsToRun(r, runStartedAt);
   for (const d of snap.docs) {
     const data = d.data() || {};
-    if (!Object.values(roundsOf(data)).some(isOpenRound)) continue;
+    if (!Object.values(roundsOf(data)).some((r) => isOpenRound(r) || lateForRun(r))) continue;
     const n = studentOfDoc(d.id, data);
     const ref = db.collection(CATCHUP_COLLECTION).doc(d.id);
     try {
@@ -236,8 +266,10 @@ export async function closeCatchUpRounds(
         if (!cur.exists) return false;
         const updates: Record<string, unknown> = {};
         for (const [rid, round] of Object.entries(roundsOf(cur.data() || {}))) {
-          if (!isOpenRound(round)) continue;
-          const openedAt = round.opened_at as number;
+          const late = lateForRun(round);
+          if (!isOpenRound(round) && !late) continue;
+          const openedAt = late ? (runStartedAt as number) : (round.opened_at as number);
+          if (late) updates[`rounds.${rid}.opened_at`] = openedAt;
           // Opened after this end: a later run of the meeting. The reopen
           // writes close-then-open, but the two triggers may run in either
           // order; the old run's close must not close the new run's round.
@@ -275,7 +307,8 @@ export const onCatchUpSessionWrite = onValueWritten({
   if (!t.opened && !t.closed) return;
   const db = admin.firestore();
   if (t.closed) {
-    const closed = await closeCatchUpRounds(db, t.closed.meeting, t.closed.closedAt, t.closed.closedBy);
+    const runStart = typeof before?.startedAt === "number" && Number.isFinite(before.startedAt) ? before.startedAt : null;
+    const closed = await closeCatchUpRounds(db, t.closed.meeting, t.closed.closedAt, t.closed.closedBy, runStart);
     if (closed.length) {
       logger.info(`Catch-up: meeting ${t.closed.meeting} ended (${t.closed.closedBy}); rounds closed for [${closed.join(", ")}].`);
     }

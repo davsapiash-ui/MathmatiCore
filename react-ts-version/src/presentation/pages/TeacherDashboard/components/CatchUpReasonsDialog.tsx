@@ -106,8 +106,9 @@ function DialogBody({
   const [rows, setRows] = useState<Record<number, RowState>>({});
   const [sameForAll, setSameForAll] = useState<CatchUpReasonKey | ''>('');
 
+  // Cancel always works, also while the reasons are being saved: the teacher
+  // is never held in this window by a slow or missing network.
   const handleCancel = () => {
-    if (isSaving) return;
     onCancel();
   };
   const dialogRef = useDismissableOverlay<HTMLDivElement>(true, handleCancel);
@@ -176,7 +177,6 @@ function DialogBody({
         <button
           type="button"
           onClick={handleCancel}
-          disabled={isSaving}
           aria-label={CATCHUP_DIALOG_HE.closeWindow}
           className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500"
         >
@@ -310,7 +310,6 @@ function DialogBody({
             <button
               type="button"
               onClick={handleCancel}
-              disabled={isSaving}
               className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
             >
               {CATCHUP_DIALOG_HE.cancel}

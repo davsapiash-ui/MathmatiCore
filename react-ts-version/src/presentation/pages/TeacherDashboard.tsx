@@ -101,6 +101,13 @@ type TabType =
   | "approvals";
 
 
+/**
+ * How long a close/open from the catch-up dialog waits for the reasons to be
+ * saved before it goes ahead anyway (the write stays queued). Never longer: a
+ * meeting must stay closable on a slow or missing network.
+ */
+const CATCH_UP_SAVE_WAIT_MS = 5_000;
+
 export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolean }) {
   const { id: routeStudentId } = useParams<{ id: string }>();
   const { user } = useAuthStore();
@@ -1122,6 +1129,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     wasOpen: boolean;
   } | null>(null);
   const [isSavingCatchUp, setIsSavingCatchUp] = useState(false);
+  /** The teacher cancelled the dialog while its reasons were being saved: the action is not taken. */
+  const catchUpCancelledRef = useRef(false);
+  /**
+   * One submission of the dialog = one round id (recordedAt). When the chosen
+   * action then fails (the close or the open is refused) and the teacher tries
+   * again, the same id is reused and learners already written are skipped, so a
+   * retry never adds a second round — and never doubles the catch-up minutes.
+   */
+  const catchUpSubmissionRef = useRef<{ meeting: number; action: CatchUpAction; recordedAt: number; written: Set<number>; done: boolean } | null>(null);
 
   /** Opens a meeting for the class, with the activation window's busy state. */
   const openMeetingForClass = async (meeting: number): Promise<boolean> => {
@@ -1161,9 +1177,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   };
 
   /**
-   * The teacher's choice in the dialog. The reasons are written first and
-   * awaited; if that fails nothing else happens — the meeting stays as it is
-   * and the dialog stays open. Then:
+   * The teacher's choice in the dialog. The reasons are written first, but the
+   * close or open never depends on them: the wait is bounded
+   * (CATCH_UP_SAVE_WAIT_MS), and after a refusal, a timeout or a missing sign-in
+   * the chosen action still goes ahead — a meeting must always be closable,
+   * offline too, as it was before the dialog existed. A write still in flight
+   * stays queued by the Firestore SDK; if it is finally refused, one toast says
+   * so. Cancelling while saving stops the action. Then:
    *   reopen   — the meeting is closed (when open) and opened again for the
    *              class: a new run, whose start opens the catch-up rounds.
    *   continue — the close, or the other meeting, goes ahead as before.
@@ -1171,46 +1191,69 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const handleCatchUpChoice = async (action: CatchUpAction, entries: CatchUpReasonEntry[]) => {
     const d = catchUpDialog;
     if (!d || isSavingCatchUp) return;
+    catchUpCancelledRef.current = false;
     setIsSavingCatchUp(true);
     try {
-      try {
-        await recordCatchUpReasons({
-          meeting: d.meeting,
-          action,
-          entries,
-          // The Firebase Auth uid: the rules require recorded_by == request.auth.uid.
-          // The app's user.uid is the display id "teacher_<id>", which the rules refuse.
-          teacherUid: auth.currentUser?.uid || '',
-          // One round id for the whole confirmation (catchUpRoundId), on the server clock.
-          recordedAt: serverNow(),
-        });
-      } catch (err) {
-        console.error('[TeacherDashboard] recording catch-up reasons failed:', err);
-        toast.error(
-          d.trigger === 'close'
-            ? 'לא הצלחנו לשמור את הסיבות, ולכן המפגש נשאר פתוח. בדקו את החיבור לרשת ונסו שוב.'
-            : 'לא הצלחנו לשמור את הסיבות, ולכן לא נפתח מפגש אחר. בדקו את החיבור לרשת ונסו שוב.'
-        );
-        return;
+      const prev = catchUpSubmissionRef.current;
+      const sub = prev && !prev.done && prev.meeting === d.meeting && prev.action === action
+        ? prev
+        : { meeting: d.meeting, action, recordedAt: serverNow(), written: new Set<number>(), done: false };
+      catchUpSubmissionRef.current = sub;
+
+      const notSavedHe = catchUpNotSavedHe(d, action);
+      // The Firebase Auth uid: the rules require recorded_by == request.auth.uid.
+      // The app's user.uid is the display id "teacher_<id>", which the rules refuse.
+      const teacherUid = auth.currentUser?.uid || '';
+      const toWrite = entries.filter((e) => !sub.written.has(e.studentNumber));
+      let saved: 'saved' | 'refused' | 'slow' = 'saved';
+      if (!teacherUid) {
+        saved = 'refused';
+      } else if (toWrite.length > 0) {
+        const all = Promise.all(toWrite.map((entry) =>
+          recordCatchUpReasons({ meeting: d.meeting, action, entries: [entry], teacherUid, recordedAt: sub.recordedAt })
+            .then(() => { sub.written.add(entry.studentNumber); })));
+        saved = await Promise.race([
+          all.then(() => 'saved' as const, (err) => {
+            console.error('[TeacherDashboard] recording catch-up reasons failed:', err);
+            return 'refused' as const;
+          }),
+          new Promise<'slow'>((resolve) => setTimeout(() => resolve('slow'), CATCH_UP_SAVE_WAIT_MS)),
+        ]);
+        if (saved === 'slow') {
+          // Still queued (offline / slow network). Only a final refusal is reported.
+          all.catch((err) => {
+            console.error('[TeacherDashboard] recording catch-up reasons failed later:', err);
+            toast.error(notSavedHe);
+          });
+        }
       }
+      if (catchUpCancelledRef.current) return;
       setCatchUpDialog(null);
+
+      let ok: boolean;
       if (action === 'reopen') {
         // Meeting 2: the teacher's close (closedBy 'teacher') completes every
         // learner who started it (meeting2Close.ts) — the opposite of giving
         // them time. A catch-up of meeting 2 therefore starts a new run in
         // place, with no close in between; only "סגרו את המפגש" completes.
-        if (d.wasOpen && d.meeting !== 2 && !(await handleEndClassSession())) return;
-        await openMeetingForClass(d.meeting);
-        return;
+        ok = !(d.wasOpen && d.meeting !== 2 && !(await handleEndClassSession())) && (await openMeetingForClass(d.meeting));
+      } else if (d.trigger === 'close') {
+        ok = await handleEndClassSession();
+      } else {
+        ok = d.nextMeeting === null || (await openMeetingForClass(d.nextMeeting));
       }
-      if (d.trigger === 'close') {
-        await handleEndClassSession();
-      } else if (d.nextMeeting !== null) {
-        await openMeetingForClass(d.nextMeeting);
-      }
+      if (ok) sub.done = true;
+      if (saved === 'refused' && ok) toast.error(notSavedHe);
     } finally {
       setIsSavingCatchUp(false);
     }
+  };
+
+  /** "The reasons were not saved, but …" — what did happen, for the toast. */
+  const catchUpNotSavedHe = (d: NonNullable<typeof catchUpDialog>, action: CatchUpAction): string => {
+    if (action === 'reopen') return `הסיבות לא נשמרו, ולכן זמן ההשלמה לא יתועד. מפגש ${d.meeting} נפתח שוב.`;
+    if (d.trigger === 'close') return `הסיבות לא נשמרו, אבל מפגש ${d.meeting} נסגר.`;
+    return d.nextMeeting !== null ? `הסיבות לא נשמרו, אבל מפגש ${d.nextMeeting} נפתח.` : 'הסיבות לא נשמרו.';
   };
 
   const handleApproveGateStudent = async (studentId: string, path: PedagogicalPath): Promise<boolean> => {
@@ -2955,7 +2998,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             isSaving={isSavingCatchUp}
             onReopen={(entries) => { void handleCatchUpChoice('reopen', entries); }}
             onContinue={(entries) => { void handleCatchUpChoice('continue', entries); }}
-            onCancel={() => { if (!isSavingCatchUp) setCatchUpDialog(null); }}
+            onCancel={() => {
+              // Also while saving: the teacher is never held here; the chosen action is then not taken.
+              if (isSavingCatchUp) catchUpCancelledRef.current = true;
+              setCatchUpDialog(null);
+            }}
           />
         )}
 

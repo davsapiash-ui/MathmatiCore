@@ -129,7 +129,7 @@ describe('CatchUpReasonsDialog', () => {
     expect(continueBtn().disabled).toBe(false);
   });
 
-  it('disables both actions and cancel while saving', () => {
+  it('disables both actions while saving, but cancel still works (the teacher is never held here)', () => {
     const { props } = setup({ isSaving: true });
     choose(3, 'slow_pace');
     choose(9, 'slow_pace');
@@ -137,7 +137,11 @@ describe('CatchUpReasonsDialog', () => {
     expect(continueBtn().disabled).toBe(true);
     expect(screen.getByRole('status').textContent).toContain('שומרים את הסיבות');
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(props.onCancel).not.toHaveBeenCalled();
+    expect(props.onCancel).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'ביטול' }));
+    expect(props.onCancel).toHaveBeenCalledTimes(2);
+    expect(props.onReopen).not.toHaveBeenCalled();
+    expect(props.onContinue).not.toHaveBeenCalled();
   });
 
   it.each([

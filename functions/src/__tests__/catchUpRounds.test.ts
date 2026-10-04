@@ -78,6 +78,7 @@ import {
   computeActiveMinutes,
   onCatchUpSessionWrite,
   openCatchUpRounds,
+  pendingReopenBelongsToRun,
 } from '../catchUpRounds';
 import * as admin from 'firebase-admin';
 
@@ -317,6 +318,37 @@ describe('onCatchUpSessionWrite', () => {
     await fire(open(3, S), open(3, S, { status: 'paused' }), S + MIN);
     await fire(open(3, S, { status: 'paused' }), open(3, S), S + 2 * MIN);
     expect(h.updates).toEqual([]);
+  });
+
+  it('a reopen round left over from a reopen that never happened is not opened by an unrelated later start', async () => {
+    // Recorded 20 minutes before this start: the reopen it was for failed or was cancelled.
+    putRecord(3, 4, { r_old: round({ recorded_at: S - 20 * MIN }), r_new: round({ recorded_at: S - 2_000 }) });
+    await fire(closedRec({ closedBy: 'teacher' }), open(3, S), S);
+    expect(rec(3, 4).rounds.r_old.opened_at).toBeNull();
+    expect(rec(3, 4).rounds.r_new.opened_at).toBe(S);
+    // ...and the run's close does not pick it up either.
+    await fire(open(3, S), closedRec({ closedBy: 'teacher' }), S + 10 * MIN);
+    expect(rec(3, 4).rounds.r_old).toMatchObject({ opened_at: null, closed_at: null, active_minutes: null });
+    expect(rec(3, 4).rounds.r_new).toMatchObject({ closed_at: S + 10 * MIN, closed_by: 'teacher' });
+  });
+
+  it('reasons that reached the server after the run started are opened at its start and closed with its minutes', async () => {
+    // The open trigger ran before the round existed (slow network: the dashboard does not wait for the reasons).
+    await fire(closedRec({ closedBy: 'teacher' }), open(3, S), S);
+    putRecord(3, 4, { r_late: round({ recorded_at: S - 3_000 }) });
+    telemetry(4, 3, S + MIN);
+    telemetry(4, 3, S + 4 * MIN);
+    await fire(open(3, S), closedRec({ closedBy: 'teacher' }), S + 8 * MIN);
+    expect(rec(3, 4).rounds.r_late).toMatchObject({ opened_at: S, closed_at: S + 8 * MIN, closed_by: 'teacher', active_minutes: 2 });
+  });
+
+  it('pendingReopenBelongsToRun: only a reopen round recorded just before the start', () => {
+    expect(pendingReopenBelongsToRun(round({ recorded_at: S - 4 * MIN }), S)).toBe(true);
+    expect(pendingReopenBelongsToRun(round({ recorded_at: S + 10_000 }), S)).toBe(true);
+    expect(pendingReopenBelongsToRun(round({ recorded_at: S - 6 * MIN }), S)).toBe(false);
+    expect(pendingReopenBelongsToRun(round({ recorded_at: S + MIN }), S)).toBe(false);
+    expect(pendingReopenBelongsToRun(round({ action: 'continue', recorded_at: S - MIN }), S)).toBe(false);
+    expect(pendingReopenBelongsToRun(round({ opened_at: S - MIN, recorded_at: S - MIN }), S)).toBe(false);
   });
 
   it('open/close helpers report the learners they touched', async () => {
