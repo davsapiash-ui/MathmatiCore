@@ -62,6 +62,7 @@ import { ProjectorWaitingScreen } from '@/presentation/components/student/Projec
 import { SessionPausedOverlay } from '@/presentation/components/student/SessionPausedOverlay';
 import { SessionClosedOverlay } from '@/presentation/components/student/SessionClosedOverlay';
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
+import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 /**
  * How long the workspace waits for the learner's Firebase record before it
@@ -1131,9 +1132,15 @@ export function StudentWorkspacePage() {
     }
   }, [activeClassSession.isLoaded, activeClassSession.active, activeClassSession.sessionNumber, meeting, isTeacherOrAdmin, navigate]);
 
+  // The child is locked out here with no other cue: the screen's own words get a
+  // read-aloud button (PRD 7 §א; register, 15.9.2026 — every child state screen
+  // carries one), on the child's click only. The cloud stays in the corner
+  // (PRD 17 §ד): work may still wait in this device's queue. Its z-[60] is above
+  // the lock's z-50.
   if (isSupersededByOtherDevice) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-6 font-body text-center" dir="rtl">
+        <CornerCloudSyncStatus />
         <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center text-3xl shadow-inner">
             📱
@@ -1144,6 +1151,7 @@ export function StudentWorkspacePage() {
           <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
             הפעילות שלכם פתוחה עכשיו במכשיר אחר. המסך הזה נעול כדי לשמור על העבודה שלכם.
           </p>
+          <UdlSpeechButton text="המשכתם במכשיר אחר. הפעילות שלכם פתוחה עכשיו במכשיר אחר. המסך הזה נעול כדי לשמור על העבודה שלכם." />
         </div>
       </div>
     );
@@ -1275,22 +1283,39 @@ export function StudentWorkspacePage() {
   // Meeting 8 reaches this screen from its reflection board, whose last step
   // already said "כל הכבוד": the heading only says which station is done. It is
   // the last station, so there is no "next station" line.
+  //
+  // Read-aloud: meetings 3–7 carry the closing sentence's own button and nothing
+  // more (E2). Meetings 1, 2 and 8 had no button at all; there one button beside
+  // the heading reads the screen's lines (PRD 7 §א; register, 15.9.2026), on the
+  // child's click only. The ✓ is not spoken.
   if (endScreen === 'sessionDone') {
     const withClosingSentence = hasClosingSentence(sessionNumber);
     const afterReflection = sessionNumber === 8;
+    const endScreenSpeech = afterReflection
+      ? `סיימתם את תחנה ${sessionNumber}! העבודה נשמרה בבטחה.`
+      : `כל הכבוד, מתמטיקאים! סיימתם את תחנה ${sessionNumber}! העבודה נשמרה בבטחה. ${teacherSentenceHe('nextStation', teacherGender)}`;
+    const endScreenSpeechButton = withClosingSentence ? null : (
+      <UdlSpeechButton text={endScreenSpeech} className="shrink-0" />
+    );
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6 animate-in fade-in duration-300">
         <div className="bg-ws-surface p-10 rounded-3xl shadow-2xl max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
           <div className="text-6xl animate-bounce motion-essential">🎉✨</div>
           {withClosingSentence || afterReflection ? (
-            <h1 className="text-3xl font-display font-black text-ws-ink">
-              סיימתם את תחנה {sessionNumber}!
-            </h1>
+            <div className="flex items-center justify-center gap-3">
+              <h1 className="text-3xl font-display font-black text-ws-ink">
+                סיימתם את תחנה {sessionNumber}!
+              </h1>
+              {endScreenSpeechButton}
+            </div>
           ) : (
             <>
-              <h1 className="text-3xl font-display font-black text-ws-ink">
-                כל הכבוד, מתמטיקאים!
-              </h1>
+              <div className="flex items-center justify-center gap-3">
+                <h1 className="text-3xl font-display font-black text-ws-ink">
+                  כל הכבוד, מתמטיקאים!
+                </h1>
+                {endScreenSpeechButton}
+              </div>
               <p className="text-base text-ws-soft leading-relaxed">
                 סיימתם את תחנה {sessionNumber}!
               </p>

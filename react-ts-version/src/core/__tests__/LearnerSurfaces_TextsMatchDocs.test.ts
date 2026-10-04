@@ -61,8 +61,20 @@ describe('the lobby card names the meeting as documents 02 and 03 do (register r
   });
 
   it('meeting 8 says the blocks are gone, in a positive way; meeting 5 is subtraction', () => {
-    expect(hub).toContain("desc: 'עכשיו אפשר כבר גם בלי לבנים. בסוף ספרו מה עזר לכם.'");
+    // "סמנו": the reflection board has the child mark strategies; no ambiguous "ספרו", no filler "כבר גם".
+    expect(hub).toContain("desc: 'הפעם פתרו בלי לבנים. בסוף סמנו מה עזר לכם.'");
     expect(stationTitleHe(5)).toMatch(/^תחנה 5: [^']*חיסור/);
+  });
+
+  it('meetings 3–6 use the approved terms and never state the answer (register ט, row 23; audit 4.10.2026)', () => {
+    // 3: פרטו … ל־ with the blocks' child names; "the number stays the same" is the answer, so it is not said.
+    expect(hub).toContain("desc: 'פרטו לבנת מאה אחת לעשר לבני עשרת. בדקו איזה מספר מייצגות הלבנים לאחר הפריטה.'");
+    expect(hub).toContain("desc: 'כשמצטברות בטור עשר לבנים, קבצו אותן ללבנה אחת בטור שמשמאלו.'");
+    expect(hub).toContain("desc: 'כשאין בטור מספיק לבנים, פרטו לבנה אחת מהטור שמשמאלו.'");
+    expect(hub).toContain("desc: 'גלו מה עושים כשצריך לפרוט לבנה מטור שיש בו אפס.'");
+    for (const old of ['פרקו', 'נשאר אותו מספר', 'לבנה אחת גדולה', 'מהטור שמשמאל.', 'ויש אפס?']) {
+      expect(hub, old).not.toContain(old);
+    }
   });
 });
 
@@ -105,7 +117,9 @@ describe('the early-finisher choice screen tells the truth (מסמך 03 §3.3–
   const screen = code('features/workspace/overlays/ReinforcementOrChallengeScreen.tsx');
 
   it('one challenge exercise, two review exercises', () => {
-    expect(screen).toContain("reinforcement: 'שני תרגילים נוספים, לחזרה על מה שתרגלנו היום.'");
+    // Second person plural, never first person plural (audit A5-F04 / A4-F11, 4.10.2026).
+    expect(screen).toContain("reinforcement: 'שני תרגילים נוספים, לחזרה על מה שתרגלתם היום.'");
+    expect(screen).not.toContain('שתרגלנו');
     expect(screen).toContain("challenge: 'תרגיל אתגר אחד, קשה יותר, בנושא של היום.'");
   });
 

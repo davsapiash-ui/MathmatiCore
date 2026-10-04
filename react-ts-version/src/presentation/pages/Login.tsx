@@ -333,11 +333,9 @@ export function Login() {
           transition={{ duration: 0.4 }}
           className="cursor-default select-none shrink-0"
         >
-          <Logo
-            size="xl"
-            subtitle="סביבת למידה היברידית במודל VRA דיגיטלי"
-            asTitle
-          />
+          {/* No tagline: the child's first screen carries no educator words (register ט)
+              and stays quiet (מסמך 04: "מסך כניסה שקט"). */}
+          <Logo size="xl" asTitle />
         </motion.div>
 
         {/* Main Card */}
@@ -345,7 +343,7 @@ export function Login() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.08 }}
-          className="w-full max-w-[520px] bg-white dark:bg-slate-900 p-[clamp(1rem,3.5vh,2rem)] shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-800 rounded-3xl"
+          className="w-full max-w-[520px] bg-white dark:bg-slate-900 p-[clamp(1rem,3.5vh,2rem)] [@media(max-height:560px)]:p-3.5 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-800 rounded-3xl"
         >
           <AnimatePresence mode="wait" initial={false}>
             {!selectedRole ? (
@@ -361,7 +359,7 @@ export function Login() {
                   שלום! מי נכנס היום?
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 text-center">
-                  בחרו את שער הכניסה שלכם
+                  לחצו על הכפתור המתאים לכם.
                 </p>
 
                 <div className="flex gap-3 justify-center flex-col sm:flex-row">
@@ -393,7 +391,7 @@ export function Login() {
                 exit={{ opacity: 0, x: -16 }}
                 transition={{ duration: 0.2 }}
               >
-                <div className="flex items-center justify-between mb-[clamp(0.5rem,2vh,1rem)]">
+                <div className="flex items-center justify-between mb-[clamp(0.5rem,2vh,1rem)] [@media(max-height:560px)]:mb-1.5">
                   <h2 className="font-display font-extrabold text-xl text-slate-900 dark:text-white">
                     {roleTitle}
                   </h2>
@@ -422,10 +420,10 @@ export function Login() {
 
                 {/* Student Sequential Login Flow (Master PRD v5.0 Module 1) */}
                 {selectedRole === "student" && (
-                  <form onSubmit={handleStudentLogin} className="flex flex-col gap-[clamp(0.5rem,1.6vh,1rem)]">
+                  <form onSubmit={handleStudentLogin} className="flex flex-col gap-[clamp(0.5rem,1.6vh,1rem)] [@media(max-height:560px)]:gap-1.5">
                     {/* Step 1: School Selection Dropdown */}
                     <div className="flex flex-col gap-1 text-right">
-                      <label className="text-xs font-black text-slate-700 dark:text-slate-300">שם בית ספר</label>
+                      <label className="text-xs font-black text-slate-700 dark:text-slate-300">שם בית הספר</label>
                       <select
                         value={selectedSchool}
                         onChange={(e) => setSelectedSchool(e.target.value)}
@@ -479,7 +477,7 @@ export function Login() {
                     </div>
 
                     {/* Step 4: Clean Password Input via Physical Keyboard Only (300ms gentle shake on error) */}
-                    <div className="flex flex-col gap-1 text-right mt-1">
+                    <div className="flex flex-col gap-1 text-right mt-1 [@media(max-height:560px)]:mt-0">
                       <label className="text-xs font-black text-slate-700 dark:text-slate-300">
                         קוד גישה
                       </label>
@@ -498,13 +496,13 @@ export function Login() {
                             setErrorMsg("");
                           }}
                           placeholder="••••••••"
-                          className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3.5 text-center text-xl font-bold tracking-widest focus:border-[hsl(var(--ws-blue))] outline-none transition-all shadow-inner min-h-[48px] placeholder:text-slate-300 dark:placeholder:text-slate-700"
+                          className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3.5 [@media(max-height:560px)]:py-2 text-center text-xl font-bold tracking-widest focus:border-[hsl(var(--ws-blue))] outline-none transition-all shadow-inner min-h-[48px] placeholder:text-slate-300 dark:placeholder:text-slate-700"
                           autoComplete="off"
                         />
                       </motion.div>
-                      <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 text-center flex items-center justify-center gap-2 mt-1">
+                      <span className="text-sm font-bold text-slate-600 dark:text-slate-300 text-center flex items-center justify-center gap-2 mt-1 [@media(max-height:560px)]:mt-0">
                         <span>כתבו את קוד הגישה שקיבלתם מהמורה</span>
-                        <UdlSpeechButton text="בחרו את המספר שלכם בכיתה, כתבו את קוד הגישה שקיבלתם מהמורה, ולחצו על כניסה." />
+                        <UdlSpeechButton text="כתבו את קוד הגישה שקיבלתם מהמורה." />
                       </span>
                     </div>
 
@@ -513,7 +511,7 @@ export function Login() {
                       variant="udl"
                       size="lg"
                       disabled={isLoggingIn || !selectedStudentNum}
-                      className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-extrabold text-base transition-all shadow-md active:scale-95 bg-[hsl(var(--ws-blue))] text-white hover:brightness-105 disabled:opacity-50 mt-2 min-h-[48px] cursor-pointer"
+                      className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-extrabold text-base transition-all shadow-md active:scale-95 bg-[hsl(var(--ws-blue))] text-white hover:brightness-105 disabled:opacity-50 mt-2 [@media(max-height:560px)]:mt-0 min-h-[48px] cursor-pointer"
                     >
                       <span>{isLoggingIn ? "רגע, בודקים..." : "כניסה"}</span>
                     </Button>

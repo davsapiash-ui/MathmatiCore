@@ -469,7 +469,7 @@ export async function openContext(browser: Browser, viewport: Viewport, opts: Co
 // ── driving ────────────────────────────────────────────────────────────────
 
 /** Loading texts of the workspace; the screen is ready once none of them is visible. */
-const LOADING_TEXTS = ['טוען את המשימות', 'מתחבר…', 'טוען…', 'עוברים לתחנה'];
+const LOADING_TEXTS = ['טוען את המשימות', 'מתחברים…', 'טוען…', 'עוברים לתחנה'];
 
 /** Open meeting `meeting` as the teacher would (active_class_session) and enter it as the learner. */
 export async function gotoWorkspace(c: AuditContext, meeting: number): Promise<void> {
