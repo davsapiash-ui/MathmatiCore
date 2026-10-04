@@ -292,7 +292,7 @@ describe('the teacher marks it in the side menu', () => {
   it('it sits in the teacher’s side menu, above the sign-out', () => {
     const dashboard = src('presentation/pages/TeacherDashboard.tsx');
     const at = dashboard.indexOf('<TeacherGenderSetting />');
-    expect(at).toBeGreaterThan(dashboard.indexOf('{!hideSidebar && ('));
+    expect(at).toBeGreaterThan(dashboard.indexOf('<aside className='));
     expect(at).toBeLessThan(dashboard.indexOf('<LogoutButton', at));
     expect(dashboard.match(/<TeacherGenderSetting \/>/g)).toHaveLength(1);
   });

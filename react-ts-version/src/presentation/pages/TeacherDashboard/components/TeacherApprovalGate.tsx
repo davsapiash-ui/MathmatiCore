@@ -18,6 +18,8 @@ interface TeacherApprovalGateProps {
   isMeeting2Open?: boolean;
   /** Opens meeting 2 again through the dashboard's activation window. */
   onReopenMeeting2?: () => void;
+  /** Opens the learner's diagnostic report (the evidence behind the row). */
+  onOpenLearner?: (studentId: string) => void;
 }
 
 /**
@@ -33,6 +35,7 @@ export function TeacherApprovalGate({
   unfinished = [],
   isMeeting2Open = false,
   onReopenMeeting2,
+  onOpenLearner,
 }: TeacherApprovalGateProps) {
   const [approvingId, setApprovingId] = useState<string | null>(null);
   // Manual path overrides only. The effective path for a learner is the
@@ -214,7 +217,18 @@ export function TeacherApprovalGate({
                   return (
                     <tr key={st.studentId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
                       <td className="p-4 font-black text-slate-900 dark:text-white">
-                        {st.anonymousLabel}
+                        {onOpenLearner ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenLearner(st.studentId)}
+                            title="פתיחת דוח האבחון של התלמיד"
+                            className="font-black underline decoration-dotted underline-offset-4 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+                          >
+                            {st.anonymousLabel}
+                          </button>
+                        ) : (
+                          st.anonymousLabel
+                        )}
                       </td>
 
                       <td className="p-4">
@@ -288,7 +302,9 @@ export function TeacherApprovalGate({
       {approvedStudents.length > 0 && (
         <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-500 flex items-center justify-between">
           <span>תלמידים שכבר אושרו ל{meetingShortLabelHe(3)}: {approvedStudents.length}</span>
-          <span className="font-bold text-emerald-600 dark:text-emerald-400">{meetingShortLabelHe(3)} פתוח עבורם</span>
+          {/* The approval lets them in; the meeting itself opens only when the
+              teacher opens it for the class (PRD 14 §ב0). */}
+          <span className="font-bold text-emerald-600 dark:text-emerald-400">ייכנסו כשתפתחו את המפגש לכיתה</span>
         </div>
       )}
     </div>

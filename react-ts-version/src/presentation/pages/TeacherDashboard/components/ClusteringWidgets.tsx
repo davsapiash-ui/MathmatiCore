@@ -77,8 +77,10 @@ export function ClusteringWidgets({ students, onFilterChange, activeFilter }: Pr
   return (
     <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
       {widgets.map(widget => {
+        // A domain nobody struggles in shows 0 (מסמך 04: the number is shown
+        // "לכל אחד משלושת תחומי האבחון"). It used to vanish — and with it the
+        // only button that clears its own filter.
         const count = getStrugglingCount(widget.key);
-        if (count === 0) return null;
 
         const isActive = activeFilter === widget.key;
 
@@ -86,6 +88,7 @@ export function ClusteringWidgets({ students, onFilterChange, activeFilter }: Pr
           <button
             key={widget.key}
             onClick={() => onFilterChange(isActive ? null : widget.key)}
+            aria-pressed={isActive}
             className={`flex-shrink-0 relative overflow-hidden rounded-2xl border transition-all duration-300 text-right p-4 min-w-[200px]
               ${isActive
                 ? 'border-indigo-500 shadow-md bg-white dark:bg-slate-800'

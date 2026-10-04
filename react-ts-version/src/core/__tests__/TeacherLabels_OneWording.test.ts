@@ -112,7 +112,9 @@ describe('the names, one wording', () => {
     const dash = code('presentation/pages/TeacherDashboard.tsx');
     expect(dash.split('{TEACHER_GATE_HE}').length - 1).toBeGreaterThanOrEqual(4);
     expect(dash).toContain("'ניהול המפגש בזמן אמת'");
-    expect(dash).toContain('>המסך של המורה</span>');
+    // The dead admin top bar that carried '>המסך של המורה</span>' was removed
+    // (audit 2.10, M-dead-topbar); the side menu keeps the name as its label.
+    expect(dash).toContain('aria-label="המסך של המורה"');
     const heat = code('presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx');
     expect(heat).toContain('<span>{ROUTE_APPROVE_HE.green_path}</span>');
     expect(heat).toContain('<span>{ROUTE_APPROVE_HE.remediation_path}</span>');
