@@ -160,9 +160,11 @@ describe('Chat honesty', () => {
     expect(chatStore.includes('שליחת ההודעה נכשלה מול השרת')).toBe(true);
   });
 
-  it('clear-history toasts the real server outcome and the minimize button has a handler', () => {
+  it('the floating chat cannot delete the conversation (owner Q16, PRD 23א §א) and the minimize button has a handler', () => {
+    // The store's delete stays for the full learner reset, which backs up first.
     expect(chatStore.includes("return remove(ref(database, `chat_messages/${norm}`));")).toBe(true);
-    expect(floatChat.includes('Promise.resolve(clearStudentMessages(normStudentId))')).toBe(true);
+    expect(floatChat.includes('clearStudentMessages')).toBe(false);
+    expect(floatChat.includes('Trash2')).toBe(false);
     expect(floatChat).toMatch(/onClick=\{\(e\) => \{ e\.stopPropagation\(\); setIsMinimized\(\(v\) => !v\); \}\}/);
   });
 });

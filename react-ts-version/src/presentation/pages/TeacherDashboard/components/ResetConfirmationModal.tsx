@@ -275,7 +275,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <li className="text-amber-700 dark:text-amber-300 font-semibold">לפני האיפוס נשמר גיבוי של הנתונים של כל 12 התלמידים.</li>
                 {activeSessionNumber ? <li>יימחקו העבודה וההתקדמות של כל 12 התלמידים ב{meetingLabel}.</li> : null}
                 <li>כל התלמידים יחזרו לתחילת המפגש. העבודה במפגשים האחרים, ההקלטות והודעות הצ'אט נשמרות.</li>
-                <li>גם הקריאות לעזרה של התלמידים מתאפסות.</li>
+                {/* Register deviation 20, "מה לא משתנה": the radar alerts are not reset (that is level 1). */}
+                <li>{`הקריאות לעזרה של התלמידים נשארות ברדאר. כדי לנקות אותן לחצו על "${RESET_ACTION_HE.alerts}".`}</li>
                 {activeSessionNumber === 2 && (
                   // Register deviation 10/20: the diagnostic's outputs are part of meeting 2's progress.
                   <li className="text-red-700 dark:text-red-300 font-semibold">

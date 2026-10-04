@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { type StudentData } from '@/application/useStore';
-import { X, Send, Minus, CheckCheck, Trash2 } from 'lucide-react';
+import { X, Send, Minus, CheckCheck } from 'lucide-react';
 import { useChatStore, normalizeStudentId, isTeacherOrAdminId } from '@/application/useChatStore';
 import { toast } from 'sonner';
 import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
@@ -34,7 +34,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
     return () => clearInterval(timer);
   }, [piiFilterDown]);
 
-  const { messages, sendMessage, markAsRead, initSync, clearStudentMessages } = useChatStore();
+  const { messages, sendMessage, markAsRead, initSync } = useChatStore();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -61,16 +61,10 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
     }
   }, [studentMessages, isMinimized]);
 
-  const handleClearChat = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (window.confirm('האם למחוק את כל היסטוריית השיחה עם תלמיד זה?')) {
-      // Toast only once the server delete actually lands — the old version
-      // announced success while the RTDB remove could be silently denied.
-      Promise.resolve(clearStudentMessages(normStudentId))
-        .then(() => toast.success('היסטוריית הצ׳אט נמחקה בהצלחה'))
-        .catch(() => toast.error('מחיקת ההיסטוריה נדחתה בשרת.'));
-    }
-  };
+  // No delete button here (audit 4.10.2026). A trash icon added on 31.8 wiped
+  // the whole conversation for teacher and learner, with no backup and no
+  // audit entry. PRD 23א §א forbids an irreversible deletion of pilot data;
+  // chat history goes only with a reset, after its backup (23א §ג).
 
   const handleSend = () => {
     if (!inputText.trim() || piiFilterDown) return;
@@ -109,13 +103,6 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
           <span>תלמיד {normStudentId.replace(/\D/g, '') || normStudentId}</span>
         </div>
         <div className="flex gap-2 text-indigo-200">
-          <button 
-            onClick={handleClearChat}
-            className="hover:text-red-200 transition-colors p-0.5 rounded"
-            title="נקו את היסטוריית השיחה"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setIsMinimized((v) => !v); }}

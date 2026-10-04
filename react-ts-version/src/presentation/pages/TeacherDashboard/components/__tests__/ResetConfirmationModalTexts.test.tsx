@@ -102,7 +102,9 @@ describe('level 2 — the whole class', () => {
     expect(screen.getByText('איפוס המפגש לכיתה (רמה 2)')).toBeTruthy();
     expect(screen.getByText('כן, לאפס את מפגש 4 · אצל התלמידים: חיבור במאונך עם הקבצה לכל 12 התלמידים.')).toBeTruthy();
     expect(dialog().textContent).not.toMatch(/טלמטריה/);
-    expect(screen.getByText('גם הקריאות לעזרה של התלמידים מתאפסות.')).toBeTruthy();
+    // Register deviation 20: the help calls stay (the alerts are level 1).
+    expect(screen.getByText('הקריאות לעזרה של התלמידים נשארות ברדאר. כדי לנקות אותן לחצו על "איפוס התראות".')).toBeTruthy();
+    expect(dialog().textContent).not.toMatch(/הקריאות לעזרה של התלמידים מתאפסות/);
     expect(reasonOptions()).toEqual(['technical_fault', 'restart_session', 'test_run', 'other']);
     expect(dialog().textContent).not.toMatch(/לומד/);
   });

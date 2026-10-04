@@ -1157,11 +1157,17 @@ export function pickKeptFields(record: unknown, fields: readonly string[]): Reco
  * `clearReflection` is set by the single-learner reset of meeting 8 only
  * (register deviation 10: "במפגש 8 גם הרפלקציה"). The whole-class restart
  * keeps reflections (deviation 20) and does not set it.
+ *
+ * `keepHelpCalls` is set by the whole-class restart. Register deviation 20,
+ * "מה לא משתנה": "ההתראות ברדאר אינן מאופסות (זו רמה 1)". The learner's help
+ * call (helpRequested / handRaised / isStruggling) stays until the teacher
+ * clears it ("איפוס התראות") or the learner takes it back. isSocraticActive is
+ * not an alert but the card's live state, and the restart closes the card.
  */
 export function buildActiveSessionResetValues(
   sessionNumber: number,
   current: Record<string, unknown> | null,
-  options: { clearReflection?: boolean } = {}
+  options: { clearReflection?: boolean; keepHelpCalls?: boolean } = {}
 ): Record<string, unknown> {
   const highest = Number(current?.highestCompletedMeeting) || 0;
   const completedNum = Number(current?.session_completed) || 0;
@@ -1193,6 +1199,11 @@ export function buildActiveSessionResetValues(
     // showed the old run's counts and added the new ones on top.
     [`errorCategoryDistribution/session_${sessionNumber}`]: null,
   };
+  if (options.keepHelpCalls) {
+    delete values.helpRequested;
+    delete values.handRaised;
+    delete values.isStruggling;
+  }
   if (sessionNumber === 2) {
     // The diagnostic meeting's own outputs (Modules 19–20) are part of its progress.
     Object.assign(values, {
@@ -1275,7 +1286,7 @@ export function buildResetScope(
     return {
       rtdbPaths: [],
       rtdbBackupOnlyPaths: ["users/students", "chat_messages", RECORDINGS_ROOT],
-      fieldResets: allAliases.map((a) => ({ path: `users/students/${a}`, values: { __activeSessionNumber: sessionNumber } })),
+      fieldResets: allAliases.map((a) => ({ path: `users/students/${a}`, values: { __activeSessionNumber: sessionNumber, __keepHelpCalls: true } })),
       // No student filter: twelve learners under four aliases each is past
       // Firestore's 30-value "in" ceiling, and the class is the whole collection.
       firestore: LEARNING_COLLECTIONS.map((collection) => ({
@@ -1609,7 +1620,10 @@ export async function executeResetDeletion(
       if (!snap.exists()) continue;
       const sessionNumber = Number(reset.values.__activeSessionNumber);
       const values = Number.isInteger(sessionNumber)
-        ? buildActiveSessionResetValues(sessionNumber, snap.val(), { clearReflection: reset.values.__clearReflection === true })
+        ? buildActiveSessionResetValues(sessionNumber, snap.val(), {
+            clearReflection: reset.values.__clearReflection === true,
+            keepHelpCalls: reset.values.__keepHelpCalls === true,
+          })
         : reset.values;
       await rtdb.ref(reset.path).update(values);
       // One record: the learner's meeting state, reset in place — not deleted,
