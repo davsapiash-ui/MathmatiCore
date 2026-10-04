@@ -279,7 +279,8 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
     // An exercise whose instruction names both 3,400 and its blocks, as
     // station 3's did until the owner's redesign of 30.9.2026.
     const s3g1 = rows.find((r) => r.task.id === 's3_g_t1')!.task;
-    const t = { ...s3g1, representationKind: undefined, instructionHe: 'בנו את המספר 3,400 מ-3 אלפים ו-4 מאות. כתבו אותו בשורת התוצאה.' };
+    // Its own id: s3_g_t1 is a "build it any way" exercise by its id too (owner, 4.10.2026).
+    const t = { ...s3g1, id: 's3_g_t9', representationKind: undefined, instructionHe: 'בנו את המספר 3,400 מ-3 אלפים ו-4 מאות. כתבו אותו בשורת התוצאה.' };
     const card = (right: string, wrong: string) => ({
       data: {
         error_category: 'conceptual',

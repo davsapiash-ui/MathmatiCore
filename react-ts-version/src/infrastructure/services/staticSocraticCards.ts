@@ -26,7 +26,7 @@
  */
 
 import type { Place } from '@/core/placeValue';
-import { buildsAnyWay, builtAnyWay } from '@/data/representationLocks';
+import { buildsAnyWay, builtAnyWay, representationKindOfTask } from '@/data/representationLocks';
 import type { SocraticHintResponse } from './SocraticEngine';
 
 const LOW_TO_HIGH: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
@@ -2064,20 +2064,9 @@ function smallChangeCard(task: any): SocraticHintResponse {
 /** The station-3 task kinds (and the grouping proofs of station 7). */
 export type RepresentationKind = 'read_write' | 'compose_break' | 'decompose' | 'compose_group';
 
-/** Until every task carries `representationKind` (the station-3 redesign adds it). */
-const KIND_BY_ID: Record<string, RepresentationKind> = {
-  s3_r_t1: 'read_write', s3_r_t5: 'read_write', s3_g_t1: 'read_write', s3_g_t5: 'read_write',
-  s3_r_reinforce_1: 'read_write', s3_g_reinforce_1: 'read_write',
-  s3_r_t2: 'compose_break', s3_r_t4: 'compose_break', s3_r_t6: 'compose_break',
-  s3_g_t2: 'compose_break', s3_g_t4: 'compose_break', s3_g_t6: 'compose_break',
-  s3_r_t3: 'decompose', s3_g_t3: 'decompose', s3_r_reinforce_2: 'decompose', s3_g_reinforce_2: 'decompose',
-  s7_r_t1: 'compose_group', s7_g_t1: 'compose_group', s7_g_reinforce_2: 'compose_group',
-};
-const KINDS: RepresentationKind[] = ['read_write', 'compose_break', 'decompose', 'compose_group'];
-
+/** The task's own `representationKind`, or its id's (data/representationLocks.ts). */
 export function representationKindOf(task: any): RepresentationKind | null {
-  if (KINDS.includes(task?.representationKind)) return task.representationKind;
-  return typeof task?.id === 'string' ? KIND_BY_ID[task.id] ?? null : null;
+  return representationKindOfTask(task);
 }
 
 /** An empty column between two that hold blocks: 506, 6,030 — not 340. */
@@ -2963,17 +2952,18 @@ export function meeting1Card(task: any, counts: BoardCounts, ctx: StaticCardCont
       return inFamily(compareWordsCard(), 's1_card');
     }
     if (value > n) return stray(s1WordsSecondCard);
+    // 703 / 482 built another way, a column holding 10 or more (owner,
+    // 4.10.2026: any build is right): how that board is read, from the first
+    // card on. The exercise's own card says "write in each box how many
+    // blocks its column holds" — on 6 hundreds, 10 tens and 3 units that is
+    // 6, 10, 3. No other card fits this board, so the next one is this again.
+    const crowded = LOW_TO_HIGH.find((p) => (counts[p] ?? 0) >= 10);
+    if (words && value === n && crowded) {
+      return inFamily(regroupReadCard('s1_card', false, next(crowded) ?? 'hundreds', crowded, true), 's1_card');
+    }
     if (!level2) return null;
     if (typeof task.correctAnswer === 'number' && task.correctAnswer !== n) return s1ValueSecondCard(task);
     if (value === n && LOW_TO_HIGH.every((p) => (counts[p] ?? 0) < 10)) return writeBoxes(n, 'words');
-    // The number built another way, a column holding 10 or more (owner,
-    // 4.10.2026: any build is right): how that board is read — not "how many
-    // blocks go in each column", which asks for another build.
-    if (value === n) {
-      const small = LOW_TO_HIGH.find((p) => (counts[p] ?? 0) >= 10)!;
-      const big = next(small) ?? 'hundreds';
-      return inFamily(regroupReadCard('s1_card', false, big, small, true), 's1_card');
-    }
     return s1WordsSecondCard();
   }
   const a = task.numberA;

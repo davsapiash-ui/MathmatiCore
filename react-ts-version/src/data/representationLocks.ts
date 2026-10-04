@@ -85,6 +85,30 @@ export const REPRESENTATION_LOCKS: Record<string, RepresentationLock> = {
   s7_g_t6: { conversion: 'composition', columns: ['tens', 'hundreds'] },
 };
 
+export type RepresentationKindName = 'read_write' | 'compose_break' | 'decompose' | 'compose_group';
+
+/**
+ * The kind of a station 3 / station 7 representation by its id — for a task
+ * object that does not carry `representationKind` (a bank published to the
+ * catalog before the field existed).
+ */
+export const REPRESENTATION_KIND_BY_ID: Record<string, RepresentationKindName> = {
+  s3_r_t1: 'read_write', s3_r_t5: 'read_write', s3_g_t1: 'read_write', s3_g_t5: 'read_write',
+  s3_r_reinforce_1: 'read_write', s3_g_reinforce_1: 'read_write',
+  s3_r_t2: 'compose_break', s3_r_t4: 'compose_break', s3_r_t6: 'compose_break',
+  s3_g_t2: 'compose_break', s3_g_t4: 'compose_break', s3_g_t6: 'compose_break',
+  s3_r_t3: 'decompose', s3_g_t3: 'decompose', s3_r_reinforce_2: 'decompose', s3_g_reinforce_2: 'decompose',
+  s7_r_t1: 'compose_group', s7_g_t1: 'compose_group', s7_g_reinforce_2: 'compose_group',
+};
+const KIND_NAMES: readonly string[] = ['read_write', 'compose_break', 'decompose', 'compose_group'];
+
+/** The task's own `representationKind`, or — when it carries none — its id's. */
+export function representationKindOfTask(task: { id?: unknown; representationKind?: unknown } | null | undefined): RepresentationKindName | null {
+  const own = task?.representationKind;
+  if (typeof own === 'string' && KIND_NAMES.includes(own)) return own as RepresentationKindName;
+  return typeof task?.id === 'string' ? REPRESENTATION_KIND_BY_ID[task.id] ?? null : null;
+}
+
 /** What `buildsAnyWay` reads of an exercise (a SessionTask, or the engine's loose task). */
 export interface BuildTaskLike {
   id?: string;
@@ -104,7 +128,9 @@ export interface BuildTaskLike {
  */
 export function buildsAnyWay(task: BuildTaskLike | null | undefined): boolean {
   if (!task || task.type !== 'representation') return false;
-  if (task.representationKind) return task.representationKind === 'read_write';
+  const kind = representationKindOfTask(task);
+  if (kind) return kind === 'read_write';
+  if (task.representationKind) return false;
   return typeof task.id === 'string' && task.id.startsWith('s1_') && !task.requiresGrouping && !task.requiresUngrouping;
 }
 
