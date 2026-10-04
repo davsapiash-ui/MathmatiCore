@@ -17,14 +17,14 @@ import { DienesBlock } from '@/features/workspace/board/DienesBlock';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Logo } from '@/presentation/components/ui/Logo';
-import { 
-  ArrowRight, 
-  Tv, 
-  RotateCcw, 
-  Eraser, 
-  LogOut 
+import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
+import {
+  ArrowRight,
+  Tv,
+  RotateCcw,
+  Eraser
 } from 'lucide-react';
-import { ref, set, onDisconnect, serverTimestamp } from 'firebase/database';
+import { ref, set, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 
 /**
@@ -35,7 +35,6 @@ import { database } from '@/infrastructure/firebase';
 export function ProjectorSandboxPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
   const undo = useWorkspaceStore((s) => s.undo);
   const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0);
@@ -46,7 +45,13 @@ export function ProjectorSandboxPage() {
   // Opening this page used to start broadcasting immediately: preparing a demo
   // mid-lesson blanked all twelve screens before the teacher had arranged
   // anything. Broadcasting now starts when she says so.
+  //
+  // The badge used to show a local flag the button flipped: it stayed green
+  // after a write the server refused, and after the connection dropped and the
+  // server released the class. It now shows the flag as read back from the
+  // database, and says so when this window has lost its connection.
   const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [connectionLost, setConnectionLost] = useState(false);
   const [broadcastError, setBroadcastError] = useState(false);
 
   const sensors = useSensors(
@@ -81,15 +86,58 @@ export function ProjectorSandboxPage() {
       updated_by_teacher_id: user?.uid || 'teacher',
     };
 
+    // What the database holds is what the badge shows.
+    const unsubscribeMode = onValue(
+      projectorRef,
+      (snap) => {
+        const val = snap.val();
+        setIsBroadcasting(typeof val === 'object' && val !== null ? Boolean(val.projector_mode) : Boolean(val));
+      },
+      (err) => console.warn('[Projector] broadcast state listener notice:', err)
+    );
+
     // Closing the tab is the natural way to finish — and a React cleanup does
     // not run for that, nor for a laptop going to sleep or the network
     // dropping. Without this the flag stayed true in the database and all
     // twelve learners sat on a waiting screen that has no button on it, with a
     // refresh reproducing it. The server releases the class on disconnect.
-    onDisconnect(projectorRef).set(release).catch(() => {});
+    // A disconnect uses the instruction up, so it is given again on every
+    // connection, not once per page.
+    let wasConnected = false;
+    const unsubscribeConnected = onValue(ref(database, '.info/connected'), (snap) => {
+      if (snap.val() === true) {
+        wasConnected = true;
+        setConnectionLost(false);
+        onDisconnect(projectorRef).set(release).catch(() => {});
+      } else if (wasConnected) {
+        setConnectionLost(true);
+      }
+    });
 
-    set(projectorRef, {
-      projector_mode: isBroadcasting,
+    // The page opens with the class released.
+    set(projectorRef, release)
+      .then(() => setBroadcastError(false))
+      .catch((err) => {
+        console.error('[Projector] broadcast write rejected:', err);
+        setBroadcastError(true);
+      });
+
+    return () => {
+      unsubscribeMode();
+      unsubscribeConnected();
+      onDisconnect(projectorRef).cancel().catch(() => {});
+      set(projectorRef, release).catch(console.error);
+    };
+  }, [user?.uid]);
+
+  // One write per press. Turning the broadcast on used to go through the
+  // effect above: its cleanup wrote the release and its body wrote the
+  // broadcast right after it. Two writes the server stamped with the same
+  // millisecond left the learners on the release, because they drop an update
+  // that is not newer than the last one they saw.
+  const toggleBroadcast = () => {
+    set(ref(database, 'system_control/projector_mode'), {
+      projector_mode: !isBroadcasting,
       projector_mode_updated_at: serverTimestamp(),
       updated_by_teacher_id: user?.uid || 'teacher',
     })
@@ -101,12 +149,7 @@ export function ProjectorSandboxPage() {
         console.error('[Projector] broadcast write rejected:', err);
         setBroadcastError(true);
       });
-
-    return () => {
-      onDisconnect(projectorRef).cancel().catch(() => {});
-      set(projectorRef, release).catch(console.error);
-    };
-  }, [isBroadcasting, user?.uid]);
+  };
 
   // שחרור מסכי התלמידים
   const releaseLearnerScreens = () => {
@@ -161,19 +204,24 @@ export function ProjectorSandboxPage() {
 
   const handleDragEnd = (e: DragEndEvent) => {
     setActiveDrag(null);
-    const { active, over } = e;
-    const data = active.data.current as { place: Place; source: DragSource } | undefined;
-    
-    const targetPlace = over?.data.current?.place as Place | undefined;
-    
-    if (data) {
-      const dropInput: DropInput = {
-        source: data.source,
-        sourcePlace: data.place,
-        target: targetPlace ? { kind: 'column', place: targetPlace } : { kind: 'trash' },
-      };
-      applyDrop(dropInput);
+    const data = e.active.data.current as { place: Place; source: DragSource } | undefined;
+    const over = e.over?.data.current as { kind: 'column'; place: Place } | { kind: 'trash' } | { kind: 'board' } | undefined;
+    // The same rule as the learners' board (StudentWorkspacePage). Every drop
+    // that was not on a column used to count as the trash, so a block let go
+    // between two columns, or off the board, was deleted in front of the class.
+    // A drop on nothing leaves the block where it was.
+    if (!data || !over) return;
+
+    let target: DropInput['target'];
+    if (over.kind === 'trash') {
+      target = { kind: 'trash' };
+    } else if (over.kind === 'board') {
+      // Anywhere on בית המספרים: the block goes to its own column.
+      target = { kind: 'column', place: data.place };
+    } else {
+      target = { kind: 'column', place: over.place };
     }
+    applyDrop({ source: data.source, sourcePlace: data.place, target });
   };
 
   return (
@@ -226,21 +274,33 @@ export function ProjectorSandboxPage() {
           </div>
 
           {/* כפתור שידור חי לכיתה */}
-          <button
-            onClick={() => setIsBroadcasting(!isBroadcasting)}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-              isBroadcasting
-                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 shadow-xs'
-                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700'
-            }`}
-            title={isBroadcasting ? 'לחצו להשהיית השידור למסכי התלמידים' : 'לחצו להפעלת שידור ונעילת מסכי התלמידים'}
-          >
-            <span className={`w-2 h-2 rounded-full ${isBroadcasting ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-            <span>{isBroadcasting ? 'שידור פעיל (תלמידים בהמתנה)' : 'שידור מושהה (תלמידים פעילים)'}</span>
-          </button>
+          {connectionLost ? (
+            // A press here would wait in the browser and start a broadcast by
+            // itself when the connection returns.
+            <div
+              role="status"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600"
+            >
+              <span className="w-2 h-2 rounded-full bg-slate-400" />
+              <span>אין חיבור לשרת — השידור הופסק</span>
+            </div>
+          ) : (
+            <button
+              onClick={toggleBroadcast}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                isBroadcasting
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 shadow-xs'
+                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+              }`}
+              title={isBroadcasting ? 'לחצו להשהיית השידור למסכי התלמידים' : 'לחצו להפעלת שידור ונעילת מסכי התלמידים'}
+            >
+              <span className={`w-2 h-2 rounded-full ${isBroadcasting ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+              <span>{isBroadcasting ? 'שידור פעיל (תלמידים בהמתנה)' : 'שידור מושהה (תלמידים פעילים)'}</span>
+            </button>
+          )}
 
-          {/* The badge above states what the teacher asked for. This states
-              what the server accepted — they used to be assumed identical. */}
+          {/* A write the server refused. The badge above already shows what
+              the database holds; this says why it did not change. */}
           {broadcastError && (
             <div
               role="alert"
@@ -285,16 +345,12 @@ export function ProjectorSandboxPage() {
             <span>חזרה לדשבורד המורה</span>
           </button>
 
-          <button
-            onClick={() => {
-              releaseLearnerScreens();
-              void logout();
-            }}
-            className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all"
-            title="התנתקו מהמערכת"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          {/* The shared button, with its name ("יציאה"), as on every other
+              screen. The class is released first, while this window still
+              holds the teacher's permission to write it. */}
+          <div onClickCapture={releaseLearnerScreens}>
+            <LogoutButton className="min-h-9 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 rounded-xl px-3 py-2 text-xs font-bold transition-all border border-rose-200 dark:border-rose-800/60" />
+          </div>
         </div>
       </header>
 
