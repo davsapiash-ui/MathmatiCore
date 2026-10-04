@@ -26,12 +26,10 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
 const DOC03 = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/מקור פדגוגי/03- אפיון מפורט לקראת פיתוח.md'), 'utf-8').replace(/\\([.!()])/g, '$1');
 /**
  * Owner, 1.10.2026 (D11c): on screen the button is "כפתור ביטול הפעולה"
- * (construct state, ה on the last noun). מסמך 03 §3.1 step 5 still quotes the
- * screen as "כפתור ביטול פעולה" until the owner's next docs round; that one
- * name is compared in the document's spelling, every other word as it is.
+ * (construct state, ה on the last noun). Since the docs round of 4.10.2026
+ * מסמך 03 §3.1 quotes it the same way, so every word is compared as it is.
  */
-const inDoc03 = (line: string, where: string) =>
-  expect(DOC03, where).toContain(line.replace('כפתור ביטול הפעולה', 'כפתור ביטול פעולה'));
+const inDoc03 = (line: string, where: string) => expect(DOC03, where).toContain(line);
 const task = (id: string) => SESSION1_TASKS.find((t) => t.id === id)!;
 const diag = (id: string) => DIAGNOSTIC_TASKS.find((t) => t.id === id)!;
 /** A task's place in meeting 1. */
