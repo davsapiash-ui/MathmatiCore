@@ -33,7 +33,7 @@ import { CornerCloudSyncStatus } from './CloudSyncStatus';
 import { TaskCard } from './tasks/TaskCard';
 import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays, SocraticSidePanel } from './overlays/HelpOverlays';
-import { Session8ReflectionScreen, REFLECTION_TEXT_HE } from '@/presentation/components/student/Session8ReflectionScreen';
+import { Session8ReflectionScreen } from '@/presentation/components/student/Session8ReflectionScreen';
 import { ClosingSentence } from './ClosingSentence';
 import { hasClosingSentence } from '@/core/persistenceEncouragement';
 import { StationOpening } from './StationOpening';
@@ -49,7 +49,6 @@ import { AdaptiveAdditionGrid, AdditionGridTab } from './board/AdaptiveAdditionG
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitationRadar';
-import { toast } from 'sonner';
 import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting2WaitingScreen';
 import { TeacherWillOpenWaitingScreen } from '@/presentation/components/student/TeacherWillOpenWaitingScreen';
 import { ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
@@ -1250,10 +1249,10 @@ export function StudentWorkspacePage() {
           if (!outcome.ok) {
             // Not even stored in the offline queue on this device (Module 17
             // holds everything else): the board stays on step 3 with the same
-            // answers, the button works again, and the child is told what to
-            // do. Ending the meeting here would lose the reflection for good
-            // behind "העבודה נשמרה בבטחה".
-            toast.error(REFLECTION_TEXT_HE.notSaved, { duration: 15000 });
+            // answers, the button works again, and the board itself tells the
+            // child what to do, under the button, with a read-aloud button
+            // (REFLECTION_TEXT_HE.notSaved). Ending the meeting here would lose
+            // the reflection for good behind "העבודה נשמרה בבטחה".
             return false;
           }
           // In the offline queue, which sends it and removes it only on the

@@ -1142,6 +1142,14 @@ export class FirebaseSyncService {
       // Stations 3 and 7: the single answer box as it was at the last press of
       // "התקדם". Not saved, a reload recorded its unchanged digits again.
       lastSubmittedAnswer: typeof state.lastSubmittedAnswer === 'string' ? state.lastSubmittedAnswer : null,
+      // The representations already recorded in a two-ways exercise (stations
+      // 2, 3, 7). restoreSession read them, but they were never saved, so a
+      // reload set "הוספת ייצוג" back to (1/2).
+      q3Reps: state.q3Reps,
+      // Meeting 8's reflection board: the stage and the answers chosen so far
+      // (Module 16 §ב). Kept only on screen, so a reload started the board
+      // again at stage 1 with nothing chosen.
+      reflectionDraft: state.reflectionDraft,
       // The chosen branch travels with the index that points into it (restoreSession
       // rebuilds the branch tasks from it), and the radar's "אתגר / ביסוס" badge reads it.
       selectedBranch: state.selectedBranch ?? null,

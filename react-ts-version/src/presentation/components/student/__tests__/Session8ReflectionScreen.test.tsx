@@ -35,8 +35,13 @@ import {
   STRATEGY_OPTIONS,
 } from '../Session8ReflectionScreen';
 import { ENCOURAGEMENT_SENTENCES_HE, splitEncouragement } from '@/core/persistenceEncouragement';
+import { useWorkspaceStore, freshReflectionDraft } from '@/application/useWorkspaceStore';
 
-afterEach(cleanup);
+// The board keeps its stage and answers in the workspace store (A6-102): each test starts afresh.
+afterEach(() => {
+  cleanup();
+  useWorkspaceStore.setState({ reflectionDraft: freshReflectionDraft() });
+});
 
 const LATIN = /[A-Za-z]/;
 

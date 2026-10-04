@@ -136,10 +136,13 @@ describe('row 1.15 — the feedback covers neither the board nor the coaching ca
       const toast = screen.getByTestId('feedback-toast');
       expect(toast.getAttribute('data-placement')).toBe('inline');
       expect(toast.className).not.toContain('fixed');
-      expect(toast.className).toContain('absolute top-2');
+      // Out of the flow, just under the position label (UX-004; review of #238): the
+      // label stays visible and the result row is never pushed out of the card.
+      expect(toast.className).toContain('absolute inset-x-3');
+      expect(toast.style.top).not.toBe('');
       const card = document.getElementById('tour-task-card')!;
       expect(card.contains(toast)).toBe(true);
-      // it comes before the column, so it lies over the heading, not under the exercise
+      // it comes before the column in the DOM, not under the exercise
       expect(toast.compareDocumentPosition(screen.getByTestId('task-column')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
   }

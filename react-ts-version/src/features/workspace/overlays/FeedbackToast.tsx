@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -16,14 +16,17 @@ export const FEEDBACK_READ_HOLD_MAX_MS = 30_000;
  *
  * Where it appears:
  *  - `inline` (meetings with the number house, 1 and 3–7): a compact note at
- *    the top of the task column, over its heading ("תחנה N", "משימה N מתוך
- *    7") only. It used to float over the middle of the screen, where for a few
- *    seconds it covered the units column's name and digit, the exercise title,
- *    and the open coaching card — מסמך 03 §3.1 asks for a side card "השומר על
- *    נראות מלאה של התרגיל בבית המספרים ללא חלונות קופצים" (report row 1.15).
- *    Under the exercise it fell below a 768 px screen; over the heading it
- *    covers neither the board, nor the card, nor the exercise.
- *  - `floating` (meetings 2 and 8, the sheet alone in the middle): as before.
+ *    the top of the task column, just under its position label ("משימה N
+ *    מתוך 7"), over the instruction. It used to float over the middle of the screen, where
+ *    for a few seconds it covered the units column's name and digit, the
+ *    exercise title, and the open coaching card — מסמך 03 §3.1 asks for a side
+ *    card "השומר על נראות מלאה של התרגיל בבית המספרים ללא חלונות קופצים"
+ *    (report row 1.15). Under the exercise it fell below a 768 px screen; laid
+ *    over the heading it hid "משימה N מתוך 7" and the station chip (UX-004).
+ *    In the flow it pushed the result row out of the card on short windows.
+ *  - `floating` (meetings 2 and 8, the sheet alone in the middle): centred
+ *    by its own motion value — framer-motion's transform replaced Tailwind's
+ *    -translate-x-1/2, so its left edge sat at the centre (A3-117).
  *
  * PRD Module 7 §א: every instruction on the learner's screen has its own
  * read-aloud button — these messages too ("קבצו בעצמכם…", "כתבו את הספרה
@@ -45,6 +48,24 @@ export function FeedbackToast({ placement = 'floating' }: { placement?: 'floatin
     return () => clearTimeout(t);
   }, [beingRead]);
   const feedback = storeFeedback ?? beingRead;
+  // Inline: the note lies just under the position label ("משימה N מתוך 7"),
+  // out of the flow. In the flow it pushed the result row out of the card on
+  // short windows (s5_g_t1 at 1280×585); laid over the top of the card it hid
+  // the label and the station chip (UX-004). The card is the offset parent.
+  const inlineRef = useRef<HTMLDivElement | null>(null);
+  const [inlineTop, setInlineTop] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (placement !== 'inline' || !feedback) return;
+    const el = inlineRef.current;
+    const card = el?.parentElement;
+    const label = card?.querySelector('h1');
+    if (!el || !card || !label) {
+      setInlineTop(null);
+      return;
+    }
+    const top = label.getBoundingClientRect().bottom - card.getBoundingClientRect().top + card.scrollTop + 4;
+    setInlineTop(Math.round(top));
+  }, [placement, feedback]);
   const speechText = feedback ? (feedback.sub ? `${feedback.title}. ${feedback.sub}` : feedback.title) : '';
 
   useEffect(() => {
@@ -63,19 +84,21 @@ export function FeedbackToast({ placement = 'floating' }: { placement?: 'floatin
     <AnimatePresence>
       {feedback && (
         <motion.div
+          ref={placement === 'inline' ? inlineRef : undefined}
+          style={placement === 'inline' ? { top: inlineTop ?? 8 } : undefined}
           key={feedback.nonce || feedbackNonce || `${feedback.title}-${feedback.correct}`}
           role="status"
           aria-live="assertive"
           data-testid="feedback-toast"
           data-placement={placement}
-          initial={placement === 'inline' ? { opacity: 0, y: -8 } : { y: -80, opacity: 0, scale: 0.95 }}
-          animate={placement === 'inline' ? { opacity: 1, y: 0 } : { y: 0, opacity: 1, scale: 1 }}
-          exit={placement === 'inline' ? { opacity: 0 } : { y: -80, opacity: 0 }}
+          initial={placement === 'inline' ? { opacity: 0, y: -8 } : { x: '-50%', y: -80, opacity: 0, scale: 0.95 }}
+          animate={placement === 'inline' ? { opacity: 1, y: 0 } : { x: '-50%', y: 0, opacity: 1, scale: 1 }}
+          exit={placement === 'inline' ? { opacity: 0 } : { x: '-50%', y: -80, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
           className={`${
             placement === 'inline'
-              ? 'absolute top-2 inset-x-3 z-20 rounded-2xl px-4 py-1.5 gap-3 shadow-[0_12px_28px_-14px_hsl(var(--ws-shadow-warm)/0.45)]'
-              : 'fixed top-24 left-1/2 -translate-x-1/2 z-50 min-w-[340px] max-w-[540px] rounded-3xl px-6 py-5 shadow-[0_24px_48px_-16px_hsl(var(--ws-shadow-warm)/0.45)]'
+              ? 'absolute inset-x-3 z-20 rounded-2xl px-4 py-1.5 gap-3 shadow-[0_12px_28px_-14px_hsl(var(--ws-shadow-warm)/0.45)]'
+              : 'fixed top-24 left-1/2 z-50 min-w-[340px] max-w-[540px] rounded-3xl px-6 py-5 shadow-[0_24px_48px_-16px_hsl(var(--ws-shadow-warm)/0.45)]'
           } flex items-start ${placement === 'inline' ? '' : 'gap-4'} bg-ws-surface border-2 ${
             feedback.neutral ? 'border-ws-ink/20' : feedback.correct ? 'border-ws-success/50' : 'border-ws-accent/50'
           }`}
