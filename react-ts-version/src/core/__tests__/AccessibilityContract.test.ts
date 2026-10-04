@@ -39,7 +39,8 @@ describe('מסמך העיצוב §1.2 — ניווט מקלדת מלא', () => {
   it('ההוק המשותף מטפל ב-Escape, בלכידת פוקוס ובהחזרתו', () => {
     expect(hook).toContain("e.key === 'Escape'");
     expect(hook).toContain("e.key !== 'Tab'");
-    expect(hook).toContain('previouslyFocused.current?.focus?.()');
+    // Focus returns to the opener, or to the nearest earlier element still on the page.
+    expect(hook).toContain('returnTargets.current.find((el) => el.isConnected');
   });
 
   it.each(OVERLAYS)('%s נסגר דרך ההוק המשותף ולא במימוש משלו', (file) => {

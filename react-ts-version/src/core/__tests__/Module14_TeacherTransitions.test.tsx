@@ -438,8 +438,8 @@ describe('the learner drawer shows the learner as they are now', () => {
     await waitFor(() => expect(screen.queryByText(/התלמיד ביקש עזרה/)).toBeNull(), { timeout: 2000 });
 
     // The learner raises a hand again while the drawer is open.
-    act(() => h.db.update('users/students/student_user3', { helpRequested: true, helpCallCount: 2 }));
-    await waitFor(() => expect(screen.getByText(/התלמיד ביקש עזרה \(2 קריאות תועדו\)/)).toBeTruthy(), { timeout: 2000 });
+    act(() => h.db.update('users/students/student_user3', { helpRequested: true }));
+    await waitFor(() => expect(screen.getByText(/התלמיד ביקש עזרה/)).toBeTruthy(), { timeout: 2000 });
   });
 });
 

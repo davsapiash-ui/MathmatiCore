@@ -33,8 +33,9 @@ describe('Module 20: the approval gate cannot be bypassed or mis-routed', () => 
     expect(sync.includes('gateFlagsSupplied')).toBe(true);
     // The drawer passes the no-bypass intent explicitly and keeps the flag out
     // of its raw RTDB updates.
-    expect(drawer.includes('physicalOverride: false as const')).toBe(true);
-    expect(drawer.includes('physicalOverride: _noGateChange, ...rtdbPayload')).toBe(true);
+    // (Since 4.10.2026: one write through the sync service, with no gate field at all.)
+    expect(drawer.includes('syncPhysicalOverride(normId, { isASD, overrideUpdatedAt })')).toBe(true);
+    expect(drawer).not.toMatch(/physicalOverride\s*:/);
   });
 
   it('the approval path falls back to the LIVE recommendation, never to green', () => {

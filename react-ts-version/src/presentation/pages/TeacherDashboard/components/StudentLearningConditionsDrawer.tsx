@@ -62,39 +62,24 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
   if (!student) return null;
 
   const hasHelpRequest = sAny.helpRequested || sAny.handRaised || sAny.isStruggling;
-  const helpCount = sAny.helpCallCount || 0;
   const studentNum = student.studentId.replace(/\D/g, '') || student.studentId;
 
   const handleSaveSettings = async () => {
     setIsSaving(true);
     try {
+      // One write, to the learner's canonical record (student_user1–12). The
+      // save used to write three times — the record as the dashboard named
+      // it, the canonical one, and a bare-number twin ("4") nothing reads —
+      // with two flags nothing reads either (applyAtTaskBoundaryOnly,
+      // adaptationQueuedAt), and then a fourth time through the store.
+      // Module 20: no gate field is passed, so the save neither grants nor
+      // revokes a gate decision made elsewhere.
       const normId = normalizeStudentId(student.studentId);
-      const rawNum = student.studentId.replace(/\D/g, '');
-      const updatePayload = {
-        isASD,
-        applyAtTaskBoundaryOnly: true,
-        adaptationQueuedAt: Date.now(),
-        overrideUpdatedAt: Date.now(),
-        // Module 20: saving learning conditions must NEVER touch the gate.
-        // Passed explicitly so no downstream default can flip it to true.
-        physicalOverride: false as const,
-      };
+      const overrideUpdatedAt = Date.now();
+      await firebaseSyncService.syncPhysicalOverride(normId, { isASD, overrideUpdatedAt });
 
-      // 1. Sync to Firebase. The raw RTDB updates deliberately exclude
-      // physicalOverride so this save neither grants nor revokes a gate
-      // decision that was made elsewhere.
-      const { physicalOverride: _noGateChange, ...rtdbPayload } = updatePayload;
-      await firebaseSyncService.syncPhysicalOverride(student.studentId, updatePayload);
-      await update(ref(database, `users/students/${normId}`), rtdbPayload);
-      if (normId !== rawNum && rawNum) {
-        await update(ref(database, `users/students/${rawNum}`), rtdbPayload).catch(() => {});
-      }
-
-      // 2. Update local state
-      const store = useStore.getState();
-      if (store.applyPhysicalOverride) {
-        store.applyPhysicalOverride(student.studentId, updatePayload as any);
-      }
+      // Local state only; the listener on the record brings the same value.
+      useStore.getState().updateStudent(student.studentId, { isASD, overrideUpdatedAt });
 
       toast.success(`✓ תנאי הלמידה עבור תלמיד ${studentNum} עודכנו בהצלחה!`);
     } catch (err) {
@@ -183,7 +168,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                 </h2>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                בקרת עזרים, רמת פיגום והתאמות נגישות בזמן אמת
+                מצב שקט חזותי, שחזור מהלכים ואיפוס נתונים
               </p>
             </div>
           </div>
@@ -226,7 +211,8 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
           <div className="px-6 py-3 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900 flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-200">
               <BellRing className="w-4 h-4 text-amber-600 animate-bounce" />
-              <span>התלמיד ביקש עזרה ({helpCount} קריאות תועדו)</span>
+              {/* No count: nothing in the system writes one, so it always read "0 קריאות תועדו". */}
+              <span>התלמיד ביקש עזרה</span>
             </div>
             <button
               onClick={handleClearHelpRequest}
@@ -291,7 +277,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                       הפעלת מצב שקט חזותי (הפחתת גירויים)
                     </span>
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      מכבה אנימציות קופצות, אפקטי תנועה וצלילים מסיחי דעת, ומציג מסך נקי ושקט עם ניגודיות גבוהה ונעימה לעין.
+                      מפסיק הבהובים, קפיצות ופעימות במסכים של התלמיד ומצמצם את אפקטי התנועה, כדי שהמסך יהיה רגוע.
                     </p>
                   </div>
                   <input
@@ -355,7 +341,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
         {/* Footer with Save Action */}
         <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between shrink-0">
           <span className="text-xs text-slate-500 dark:text-slate-400">
-            * השינויים יוחלו על הלוח של התלמיד במעבר לתרגיל הבא
+            * השינוי מגיע למסכים של התלמיד מיד אחרי השמירה
           </span>
           <div className="flex gap-2">
             <button
