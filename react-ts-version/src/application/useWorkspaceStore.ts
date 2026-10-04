@@ -4219,12 +4219,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           return { hasClearedBoard: true };
         }
 
-        // An exercise that opens with its blocks (initialCounts: 26, 2,730):
-        // the groupings went with the blocks. Grouping, emptying the board and
-        // arranging the final blocks by hand is not grouping them (owner,
-        // 4.10.2026, wording round 3, STOP 1). The frame keeps the record, so
-        // undoing the trash brings it back with the blocks.
-        const clearsGroupings = Boolean(getActiveTasks(state)[state.standardTaskIdx]?.initialCounts);
+        // An exercise that opens with the blocks to group (initialCounts and a
+        // composition in REPRESENTATION_LOCKS: 26, 2,730): the groupings went
+        // with the blocks. Grouping, emptying the board and arranging the final
+        // blocks by hand is not grouping them (owner, 4.10.2026, wording round
+        // 3, STOP 1). The frame keeps the record, so undoing the trash brings
+        // it back with the blocks. Meeting 1's tool step that opens on 230
+        // (s1_decompose_hundred) lists no grouping, and is left as it was.
+        const clearedTask = getActiveTasks(state)[state.standardTaskIdx];
+        const clearsGroupings = Boolean(clearedTask?.initialCounts) &&
+          REPRESENTATION_LOCKS[clearedTask.id]?.conversion === 'composition';
         // Undoing it is reported as undoing a board clear (gap יז), not a block drag.
         const undoStack = createNextUndoStack(
           state.undoStack, state.counts, 'BOARD_CLEARED', undefined,

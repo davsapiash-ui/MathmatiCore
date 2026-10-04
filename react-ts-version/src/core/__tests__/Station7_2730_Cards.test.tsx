@@ -82,6 +82,11 @@ const SITUATIONS: Situation[] = [
   { what: 'a hundred broken into tens (1, 15, 23)', counts: C(1, 15, 23, 0), history: [START] },
   { what: 'the thousand broken into hundreds (0, 26, 13)', counts: C(0, 26, 13, 0), history: [START] },
   { what: 'a ten broken into units (1, 16, 12, 10)', counts: C(1, 16, 12, 10), history: [START] },
+  // The undo stack keeps 10 steps: after more of them its oldest frame is no longer the opening board.
+  { what: 'the final blocks arranged by hand, the opening board out of the undo stack', counts: C(2, 7, 3, 0), removed: true, history: [C(1, 7, 3, 0), C(2, 7, 3, 0)] },
+  { what: 'a ten deleted, the opening board out of the undo stack', counts: C(1, 16, 11, 0), removed: true, history: [C(1, 16, 12, 0)] },
+  { what: 'a ten deleted, nothing to undo (a save from before the undo stack)', counts: C(1, 16, 12, 0), removed: true },
+  { what: 'the board cleared, the opening board out of the undo stack', counts: C(0, 0, 0, 0), removed: true, history: [C(1, 16, 12, 0)] },
   { what: 'the board hidden, untouched', counts: START, boardHidden: true },
   { what: 'the board hidden, both grouped', counts: C(2, 7, 3, 0), composed: { tens: 1, hundreds: 1 }, history: [START, C(1, 17, 3, 0)], boardHidden: true },
 ];
@@ -187,25 +192,27 @@ describe('s7_g_t6 (2,730): the static cards against the board that opens with it
     expect(at('tens grouped')[0]).toBe('נסו לחשוב: בטור המאות יש 10 לבנים או יותר. מה עושים?');
   });
 
-  // The owner's cards of 4.10.2026 (cards round 2, B1 and B2), word for word.
+  // The owner's cards of 4.10.2026 (cards round 3, B1 and B2), word for word.
   const B1 = {
     q: 'נסו לחשוב: בית המספרים לא נראה עכשיו כמו בתחילת התרגיל. מה עושים?',
     options: [
-      ['מחזירים את הלבנים שהיו בתחילת התרגיל', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שבית המספרים ייראה כמו בתחילת התרגיל. הכפתור אפור, ובית המספרים עדיין נראה אחרת? לחצו על פח האשפה, ואז גררו מארגז הכלים את הלבנים שבהנחיה, כל לבנה אל הטור שלה. אחר כך לחצו על הכפתור "קבצו 10" בכל טור שיש בו 10 לבנים או יותר.', true],
+      ['מחזירים את הלבנים שהיו בתחילת התרגיל', 'נכון מאוד! לחצו שוב ושוב על כפתור ביטול הפעולה, עד שהוא יהיה אפור. אחר כך המשיכו לפי ההנחיה.', true],
       ['ממשיכים בתרגיל בלי להחזיר את הלבנים', 'רמז: אילו לבנים ההנחיה מתארת?', false],
       ['כותבים מספר בשורת התוצאה', 'רמז: מה ההנחיה מבקשת לעשות עם הלבנים שהיו בתחילת התרגיל?', false],
     ],
-    intent: 'הלבנים שהתרגיל נתן השתנו: מחזירים אותן בכפתור ביטול הפעולה, או בונים אותן שוב לפי ההנחיה, ורק אז מקבצים',
+    intent: 'הלבנים שהתרגיל נתן השתנו: מחזירים אותן בכפתור ביטול הפעולה, ורק אז מקבצים',
   };
-  const B2 = {
-    q: 'נסו לחשוב: איך יודעים אילו לבנים היו בבית המספרים בתחילת התרגיל?',
+  const b2 = (rightFeedback: string) => ({
+    q: 'נסו לחשוב: ההנחיה מבקשת לקבץ את הלבנים שהיו בתחילת התרגיל. איך יודעים אילו לבנים היו?',
     options: [
-      ['קוראים בהנחיה אילו לבנים היו', 'נכון מאוד! לחצו על פח האשפה כדי לנקות את בית המספרים. אחר כך גררו מארגז הכלים את הלבנים שבהנחיה, כל לבנה אל הטור שלה. בסוף לחצו על הכפתור "קבצו 10" בכל טור שיש בו 10 לבנים או יותר.', true],
+      ['קוראים בהנחיה אילו לבנים היו', rightFeedback, true],
       ['אי אפשר לדעת', 'רמז: מה כתוב במשפט הראשון של ההנחיה?', false],
       ['מנחשים אילו לבנים היו', 'רמז: איפה על המסך כתוב אילו לבנים היו בבית המספרים?', false],
     ],
-    intent: 'ההנחיה מונה את הלבנים שהיו בהתחלה: מנקים את בית המספרים, בונים אותן שוב מארגז הכלים ומקבצים',
-  };
+    intent: 'ההנחיה מונה את הלבנים שהיו בהתחלה: מנקים את בית המספרים, מוסיפים אותן שוב מארגז הכלים ומקבצים',
+  });
+  const B2 = b2('נכון מאוד! לחצו על פח האשפה. אחר כך הוסיפו מארגז הכלים לבית המספרים את הלבנים שההנחיה מתארת.');
+  const B2_EMPTY = b2('נכון מאוד! הוסיפו מארגז הכלים לבית המספרים את הלבנים שההנחיה מתארת.');
   const asPinned = (c: SocraticHintResponse) => ({
     q: c.questionHe,
     options: c.choices.map((o) => [o.textHe, o.feedbackHe, Boolean(o.isCorrect)]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
@@ -213,32 +220,100 @@ describe('s7_g_t6 (2,730): the static cards against the board that opens with it
   });
   const sorted = (b: typeof B1) => ({ ...b, options: [...b.options].sort((x, y) => String(x[0]).localeCompare(String(y[0]))) });
 
-  const CHANGED = [
-    'the board cleared',
+  /** The oldest undo step is the opening board: undoing every step leads back to it. */
+  const UNDO_LEADS_BACK = [
     'a ten deleted from the opening board',
     'a hundred deleted from the opening board',
     'a ten added to the opening board',
     'unit blocks added to the opening board',
     'the final blocks arranged by hand, nothing grouped',
     'tens grouped, the hundreds arranged by hand',
+    // Worth 2,730, built otherwise: a block was broken.
+    'a hundred broken into tens (1, 15, 23)',
+    'the thousand broken into hundreds (0, 26, 13)',
+    'a ten broken into units (1, 16, 12, 10)',
   ];
+  const UNDO_DOES_NOT = [
+    'the final blocks arranged by hand, the opening board out of the undo stack',
+    'a ten deleted, the opening board out of the undo stack',
+    'a ten deleted, nothing to undo (a save from before the undo stack)',
+  ];
+  const CHANGED = [...UNDO_LEADS_BACK, ...UNDO_DOES_NOT, 'the board cleared', 'the board cleared, the opening board out of the undo stack'];
+  const cardsAt = (what: string, trigger: string) => served.filter((x) => x.what === what && x.trigger === trigger && x.focus === null).map((x) => x.card);
 
-  it('the given blocks changed — cleared, deleted, added, or the final blocks arranged by hand: B1, then B2', () => {
-    for (const what of CHANGED) {
+  it('the given blocks changed and undo leads back to the opening board: B1 (undo), then B2 (trash and toolbox)', () => {
+    for (const what of UNDO_LEADS_BACK) {
       for (const trigger of TRIGGERS) {
-        const cards = served.filter((x) => x.what === what && x.trigger === trigger && x.focus === null).map((x) => x.card);
+        const cards = cardsAt(what, trigger);
         expect(cards.length, `${what} / ${trigger}`).toBe(3);
         expect(asPinned(cards[0]), `${what} / ${trigger}`).toEqual(sorted(B1));
         expect(asPinned(cards[1]), `${what} / ${trigger}`).toEqual(sorted(B2));
-        expect(cards[2].questionHe).toBe(B2.q);
-        expect([cards[0].cardKind, cards[1].cardKind]).toEqual(['restore_given', 'restore_given_how']);
+        expect(asPinned(cards[2]), `${what} / ${trigger}`).toEqual(sorted(B2));
+        expect(cards.map((c) => c.cardKind)).toEqual(['restore_given', 'restore_given_how', 'restore_given_how']);
       }
     }
   });
 
-  it('…and only then: the given blocks as they were, regrouped, or grouped by the buttons get their own cards', () => {
+  it('the oldest undo step is not the opening board (or there is none): B2 at once, never B1', () => {
+    for (const what of UNDO_DOES_NOT) {
+      for (const trigger of TRIGGERS) {
+        const cards = cardsAt(what, trigger);
+        expect(cards.length, `${what} / ${trigger}`).toBeGreaterThan(0);
+        for (const c of cards) {
+          expect(asPinned(c), `${what} / ${trigger}`).toEqual(sorted(B2));
+          expect(c.cardKind).toBe('restore_given_how');
+          expect(cardFamilyOf(c)).toBe('restore_given');
+        }
+      }
+    }
+  });
+
+  it('an empty board: B2 skips the trash — after B1 when one undo brings the blocks back, at once when it does not', () => {
+    for (const trigger of TRIGGERS) {
+      const afterTrash = cardsAt('the board cleared', trigger);
+      expect(afterTrash.length, trigger).toBe(3);
+      expect(asPinned(afterTrash[0]), trigger).toEqual(sorted(B1));
+      expect(asPinned(afterTrash[1]), trigger).toEqual(sorted(B2_EMPTY));
+      const noWayBack = cardsAt('the board cleared, the opening board out of the undo stack', trigger);
+      expect(noWayBack.length, trigger).toBeGreaterThan(0);
+      for (const c of noWayBack) expect(asPinned(c), trigger).toEqual(sorted(B2_EMPTY));
+    }
+  });
+
+  it('never back from B2 to B1: once B2 was shown, a board whose undo leads back still gets B2', () => {
+    const s = SITUATIONS.find((x) => x.what === 'a ten deleted from the opening board')!;
+    const ctx = staticCardContextFor(stateOf(s, ['restore_given_how'], null, null), TASK.id, TASK, { reason: 'hesitation_45s', place: null });
+    expect(ctx.undoReachesStart).toBe(true);
+    expect(asPinned(SocraticEngine.getSynchronousTaskHint(TASK, s.counts, ctx))).toEqual(sorted(B2));
+  });
+
+  it('what the store tells the cards: on the way or not, and whether undo leads back', () => {
+    const ctxOf = (what: string) => {
+      const s = SITUATIONS.find((x) => x.what === what)!;
+      const c = staticCardContextFor(stateOf(s, [], null, null), TASK.id, TASK, { reason: 'hesitation_45s', place: null });
+      return [c.givenOnTheWay, c.undoReachesStart];
+    };
+    expect(ctxOf('the opening board, untouched')).toEqual([true, false]);
+    expect(ctxOf('tens grouped')).toEqual([true, true]);
+    expect(ctxOf('hundreds grouped')).toEqual([true, true]);
+    expect(ctxOf('both grouped, nothing written')).toEqual([true, true]);
+    expect(ctxOf('the final blocks arranged by hand, nothing grouped')).toEqual([false, true]);
+    expect(ctxOf('tens grouped, the hundreds arranged by hand')).toEqual([false, true]);
+    expect(ctxOf('a hundred broken into tens (1, 15, 23)')).toEqual([false, true]);
+    expect(ctxOf('a ten deleted, the opening board out of the undo stack')).toEqual([false, false]);
+    expect(ctxOf('a ten deleted, nothing to undo (a save from before the undo stack)')).toEqual([false, false]);
+  });
+
+  it('the feedbacks hold the engine\'s 30-word limit, with room: 16 words at most', () => {
+    const words = (t: string) => t.replace(/^נכון מאוד!\s*/, '').split(/\s+/).filter((w) => /[א-ת]/.test(w)).length;
+    expect(words(String(B1.options[0][1]))).toBe(16);
+    expect(words(String(B2.options[0][1]))).toBe(15);
+    expect(words(String(B2_EMPTY.options[0][1]))).toBe(9);
+  });
+
+  it('…and only then: the opening board, and the board the buttons made of it, get their own cards', () => {
     const others = SITUATIONS.map((s) => s.what).filter((w) => !CHANGED.includes(w));
-    expect(others.length).toBeGreaterThan(8);
+    expect(others.length).toBe(10);
     for (const x of served.filter((s) => others.includes(s.what))) {
       expect(String((x.card as any).situation), x.what).not.toMatch(/^restore_given/);
     }

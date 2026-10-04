@@ -569,7 +569,7 @@ export interface StaticCardContext {
   undoReachesStart?: boolean;
 }
 
-const shownIn =(ctx: StaticCardContext, kind: StaticCardKind) => (ctx.shownKinds ?? []).includes(kind);
+const shownIn = (ctx: StaticCardContext, kind: StaticCardKind) => (ctx.shownKinds ?? []).includes(kind);
 
 /**
  * The situation family of a card (coordinator's decision, 2.10.2026): its

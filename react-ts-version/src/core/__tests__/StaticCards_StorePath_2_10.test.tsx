@@ -217,7 +217,12 @@ describe('2. every exercise of every bank, in board states, triggers and levels'
         if (trigger === 'consecutive_undos_3' && meetingOfTaskId(task.id) !== 8) continue;
         const cards = openings({ counts }, task, trigger);
         cards.forEach((card, i) => card && served.push({ task, counts, trigger, level: i + 1, card }));
-        if (cards[1] && cards[1].questionHe === cards[0]!.questionHe) noNextLevel.push(`${task.id} ${JSON.stringify(counts)} ${trigger}: ${cards[0]!.situation}`);
+        // 2,730's B2 is its family's last level, and is served at once when
+        // undo does not lead back to the opening board — as on these boards,
+        // set with no undo step (owner, 4.10.2026, cards round 3: "אחרת B2
+        // מוגש ישירות"). Station7_2730_Cards reads its B1 → B2 ladder.
+        const lastLevelAtOnce = cards[0]!.cardKind === 'restore_given_how';
+        if (!lastLevelAtOnce && cards[1] && cards[1].questionHe === cards[0]!.questionHe) noNextLevel.push(`${task.id} ${JSON.stringify(counts)} ${trigger}: ${cards[0]!.situation}`);
       }
     }
   }
