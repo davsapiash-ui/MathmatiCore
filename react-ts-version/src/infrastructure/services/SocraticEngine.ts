@@ -340,12 +340,20 @@ export function socraticTaskContextFor(task: any, ctx?: StaticCardContext): Gemi
     ? PLACES_LOW_TO_HIGH.slice(0, String(task.isSubtraction ? task.numberA - task.numberB : task.numberA + task.numberB).length)
         .filter((p) => !(resultDigits ?? []).includes(p))
     : [];
-  const start = repKind ? startCountsOf(task, repKind) : undefined;
+  // An exercise that opens with its blocks on the board (meeting 1's 26
+  // units; station 7's 2,730 since 4.10.2026): the opening board is the
+  // exercise's, not the child's work — the function reads the board against
+  // it, and never as something the child built.
+  const given = task.type === 'representation' && task.initialCounts && typeof task.initialCounts === 'object'
+    ? ({ ...task.initialCounts } as Partial<Record<Place, number>>)
+    : undefined;
+  const start = repKind ? startCountsOf(task, repKind) : given;
   return {
     kind,
     instruction_he: instruction,
     ...(task.requiredCounts ? { required_counts: { ...task.requiredCounts } } : {}),
     ...(start ? { start_counts: start } : {}),
+    ...(given ? { start_given: true } : {}),
     ...(typeof ctx?.conversionDone === 'boolean' ? { conversion_done: ctx.conversionDone } : {}),
     ...(secrets.length ? { secret_numbers: [...new Set(secrets)].slice(0, 4) } : {}),
     ...(hiddenResult.length ? { hidden_result_places: hiddenResult } : {}),

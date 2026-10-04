@@ -1368,7 +1368,8 @@ function conversionContextFor(
   // Meeting 1's 347 (break a ten) and 26 (group the units) have no kind but
   // a lock (REPRESENTATION_LOCKS): the board can show their final blocks
   // built by hand, with nothing broken or grouped (audit D16, 2.10.2026).
-  const meeting1Lock = Boolean(task && !kind && task.id.startsWith('s1_') && REPRESENTATION_LOCKS[task.id]);
+  // Station 7's 2,730 (owner, 4.10.2026) opens with its blocks too, and groups twice.
+  const meeting1Lock = Boolean(task && !kind && (task.id.startsWith('s1_') || task.initialCounts) && REPRESENTATION_LOCKS[task.id]);
   if (!task || (kind !== 'compose_break' && kind !== 'compose_group' && !meeting1Lock)) return {};
   const lock = REPRESENTATION_LOCKS[task.id];
   if (!lock) return { conversionDone: kind === 'compose_group' ? s.hasGrouped === true : s.hasUngrouped === true };

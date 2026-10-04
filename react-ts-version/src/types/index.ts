@@ -177,6 +177,8 @@ export interface SocraticTaskContextWire {
   instruction_he: string;
   required_counts?: Partial<Record<'units' | 'tens' | 'hundreds' | 'thousands', number>>;
   start_counts?: Partial<Record<'units' | 'tens' | 'hundreds' | 'thousands', number>>;
+  /** The exercise itself put start_counts on the board (meeting 1's 26 units, station 7's 2,730): the learner builds nothing. */
+  start_given?: boolean;
   conversion_done?: boolean;
   secret_numbers?: number[];
   hidden_result_places?: ('units' | 'tens' | 'hundreds' | 'thousands')[];
