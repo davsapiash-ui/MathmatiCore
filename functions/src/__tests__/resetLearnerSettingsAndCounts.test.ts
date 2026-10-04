@@ -146,7 +146,11 @@ describe('A — a full learner reset keeps the settings the teacher set', () => 
     expect(result.status).toBe('SUCCESS');
 
     const at = (path: string) => h.writes.filter((w) => w.path === path);
-    expect(at('users/students/student_user5')).toEqual([{ op: 'set', path: 'users/students/student_user5', values: SETTINGS }]);
+    // The settings, then the restart command for the learner's open screen (audit 4.10.2026) on the canonical record only.
+    expect(at('users/students/student_user5')).toEqual([
+      { op: 'set', path: 'users/students/student_user5', values: SETTINGS },
+      { op: 'update', path: 'users/students/student_user5', values: { forceReload: true, lastAction: 'אופס ע״י המורה', highestCompletedMeeting: 0 } },
+    ]);
     expect(at('users/students/student_5')).toEqual([{ op: 'set', path: 'users/students/student_5', values: { support_profile_id: 'enhanced_cognitive_support', support_profile_version: 3 } }]);
     expect(at('users/students/5')).toEqual([{ op: 'set', path: 'users/students/5', values: { isASD: true } }]);
     expect(at('users/students/user5')).toEqual([{ op: 'remove', path: 'users/students/user5' }]);

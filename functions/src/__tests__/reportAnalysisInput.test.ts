@@ -117,8 +117,9 @@ describe('X32 — the narrative follows the actual order, in correct Hebrew', ()
       ev('s4_g_t2', 'PROBLEM_COMPLETE', {}, 6),
     ]);
     expect(compulsory[0]).toBe('בתרגיל הראשון (תרגיל במפגש 4, מס׳ זיהוי 1) הלומד הזין ספרה שגויה בטור היחידות (פעם אחת), והשלים את התרגיל לאחר תיקון.');
-    // Every column typed in is named, the correct-digit column too.
-    expect(compulsory[1]).toBe('בתרגיל השני (תרגיל במפגש 4, מס׳ זיהוי 2) הלומד הזין ספרות שגויות בטור העשרות ובטור היחידות (פעמיים), והשלים את התרגיל לאחר תיקון.');
+    // Only the columns the wrong digits were typed in are named (audit 4.10.2026):
+    // the correct digit in the units column is not a mistake there.
+    expect(compulsory[1]).toBe('בתרגיל השני (תרגיל במפגש 4, מס׳ זיהוי 2) הלומד הזין ספרות שגויות בטור העשרות (פעמיים), והשלים את התרגיל לאחר תיקון.');
     expect(compulsory.join(' ')).not.toMatch(/\((1|2) פעמים\)/);
   });
 

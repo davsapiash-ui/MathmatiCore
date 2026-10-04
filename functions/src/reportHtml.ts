@@ -19,6 +19,7 @@ import {
   CHOICE_PATH_LABEL_HE,
   exerciseLabelHe,
   exercisePathType,
+  FADING_GUESS_SECONDS,
   flexibilityHe,
   mediationHe,
   persistenceHe,
@@ -174,12 +175,13 @@ const persistenceCell = (p: PersistenceIndex | null | undefined): string => (p ?
  * Research measures of one learner (PRD 7.3, Module 23 §ב; measure 2 in two
  * parts, owner 30.9.2026), one row each: its name, this meeting, cumulative,
  * and one sentence on what it says. Absent on reports generated before they existed.
+ * `sectionNumber` follows the report's own sections: meeting 1 has one more.
  */
-function researchMeasuresCard(m: Record<string, any> | null | undefined): string {
+function researchMeasuresCard(m: Record<string, any> | null | undefined, sectionNumber: number): string {
   if (!m) return "";
   const row = (key: keyof typeof MEASURE, now: string, total: string) =>
     `<tr><td class="label">${esc(MEASURE[key].label)}</td><td>${esc(now)}</td><td>${esc(total)}</td><td style="text-align:start">${esc(MEASURE[key].explanation)}</td></tr>`;
-  return `<h2>4. מדדי המחקר</h2>
+  return `<h2>${sectionNumber}. מדדי המחקר</h2>
     <table><thead><tr><th>מדד</th><th>במפגש זה</th><th>מצטבר</th><th>מה המדד אומר</th></tr></thead><tbody>
       ${row("persistence", persistenceCell(m.persistence_without_help), "—")}
       ${row("self_correction", selfCorrectionHe(m.persistence ?? null), "—")}
@@ -323,7 +325,7 @@ function sandboxReportHtml(report: Record<string, any>): string {
 
     <h2 class="amber">4. לקראת האבחון</h2>
     ${insights}
-    ${researchMeasuresCard(report.research_measures)}
+    ${researchMeasuresCard(report.research_measures, 5)}
   `;
   return layout(title, body);
 }
@@ -377,7 +379,7 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
 
     <h2 class="amber">3. תובנות קוגניטיביות פדגוגיות</h2>
     ${insights}
-    ${researchMeasuresCard(report.research_measures)}
+    ${researchMeasuresCard(report.research_measures, 4)}
   `;
   return layout(title, body);
 }
@@ -476,6 +478,40 @@ function researchMeasuresSection(rows: ClassLearnerRow[], a: ClassAggregates): s
   return `<h2>4ב. מדדי המחקר</h2>
     ${legend}
     ${without}
+    <table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+/**
+ * Meeting 8 (register deviation 19): each learner's fading gap — the same
+ * numbers without לבני הדינס against meetings 4–6 with them. Empty for every
+ * other meeting, where no row carries a gap.
+ */
+function fadingGapSection(rows: ClassLearnerRow[], titles: Record<string, string> | null): string {
+  const withGap = rows.filter((r) => r.fading_gap);
+  if (withGap.length === 0) return "";
+  const v = (x: number | null | undefined, unit: string) => (typeof x === "number" ? `${x}${unit}` : "—");
+  const names = (ids: string[] | null | undefined) =>
+    Array.isArray(ids) && ids.length > 0 ? ids.map((id) => exerciseLabelHe(titles, id)).join(", ") : "אין";
+  const head = [
+    "לומד", "זוגות שנמדדו",
+    "נכון בניסיון ראשון: עם לבני הדינס", "נכון בניסיון ראשון: בלי לבני הדינס",
+    "זמן ממוצע לתרגיל: עם לבני הדינס", "זמן ממוצע לתרגיל: בלי לבני הדינס",
+    `מהר מדי (מתחת ל-${FADING_GUESS_SECONDS} שניות)`, "ללא זוג",
+  ];
+  const body = withGap.map((r) => {
+    const f = r.fading_gap!;
+    return `<tr>
+      <td class="label">תלמיד ${esc(r.student_id)}</td>
+      <td>${esc(f.pairs_measured)}</td>
+      <td>${esc(v(f.accuracy_with_blocks_percent, "%"))}</td>
+      <td>${esc(v(f.accuracy_without_blocks_percent, "%"))}</td>
+      <td>${esc(v(f.mean_seconds_with_blocks, " שניות"))}</td>
+      <td>${esc(v(f.mean_seconds_without_blocks, " שניות"))}</td>
+      <td style="text-align:start">${esc(names(f.guessed_exercises))}</td>
+      <td style="text-align:start">${esc(names(f.unpaired_exercises))}</td>
+    </tr>`;
+  }).join("");
+  return `<h2 class="pre-reset">4א. פער הדעיכה: מפגש 8 בלי לבני הדינס מול מפגשים 4–6 עם לבני הדינס (אותם מספרים, אותו לומד)</h2>
     <table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
@@ -630,7 +666,7 @@ export function classReportHtml(report: Record<string, any>): string {
       (${COLUMN_NAMES_HE[0]} ${esc(a.wrong_digits_by_column.units)}, עשרות ${esc(a.wrong_digits_by_column.tens)}, מאות ${esc(a.wrong_digits_by_column.hundreds)}, אלפים ${esc(a.wrong_digits_by_column.thousands)})</p>
     <p>מחיקות: ${esc(a.deletions_total)} | ביטולים: ${esc(a.undos_total)} | היסוסים: ${esc(a.hesitations_total)} (${esc(a.hesitation_seconds_total)} שניות) | המרות (הקבצה/פריטה): ${esc(a.regroupings_total)}</p>
     <p>כרטיסי חניכה: ${esc(a.socratic_cards_total)}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}</p>
-    <p>לוח החיבור: נפתח ${esc(a.grid_openings_total)}, הוחזר על ידי הלומד ${esc(a.grid_reopenings_total)} | הקלדה לפני המרה (מקלדת נעולה): ${esc(a.keyboard_lock_blocks_total)} | קריאות שקטות למורה: ${esc(a.help_requests_total)} | פיגום בשורת התוצאה: ${esc(a.place_cue_scaffolds_total)}</p>
+    <p>לוח החיבור: נפתח ${esc(a.grid_openings_total)}, הוחזר על ידי הלומד ${esc(a.grid_reopenings_total)} | הקלדה לפני המרה (מקלדת נעולה): ${esc(a.keyboard_lock_blocks_total)} | קריאות שקטות למורה: ${esc(a.help_requests_total)}${a.help_withdrawals_total ? ` (הלומדים ביטלו ${esc(a.help_withdrawals_total)} מהן)` : ""} | בקשות עזרה מהצ׳אט: ${esc(a.chat_help_requests_total ?? 0)} | פיגום בשורת התוצאה: ${esc(a.place_cue_scaffolds_total)}</p>
     <p>זמן פעילות ממוצע: ${esc(a.active_minutes_mean)} דקות | דקות הקלטה: ${esc(a.recording_minutes_total)} | רפלקציות: ${esc(a.reflections_submitted)} מתוך ${esc(a.learners_with_data)}</p>
 
     <h2>3. תרגילים: כמה לומדים פתרו בניסיון ראשון</h2>
@@ -640,6 +676,7 @@ export function classReportHtml(report: Record<string, any>): string {
     ${learnersTable(rows)}
     ${outcomesTable(rows, exerciseIds, titles)}
 
+    ${fadingGapSection(rows, titles)}
     ${researchMeasuresSection(rows, a)}
     ${preReset}
     ${catchUp}

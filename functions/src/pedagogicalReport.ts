@@ -4,7 +4,7 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
-import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
+import { DRIVE_FOLDERS, israelFileStamp, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
 import { meetingLabelHe } from "./stationNames";
 import { COLUMN_NAMES_HE, ROUTE_NAME_HE } from "./teacherLabels";
 import {
@@ -130,9 +130,10 @@ export function generateExerciseNarrativeFromEvents(
     const flushDigits = () => {
       if (pendingDigits.length === 0) return;
       const wrong = pendingDigits.filter((d) => d.wrong > 0);
-      // Every column digits were typed in during this run is named, as before;
-      // singular or plural follows the count of wrong digits only.
-      const where = inColumns(columnsOf(pendingDigits));
+      // Wrong digits name only the columns they were typed in: one wrong digit
+      // in a run over four columns used to read as a mistake in all four. A
+      // run with no wrong digit names every column it covered.
+      const where = inColumns(columnsOf(wrong.length > 0 ? wrong : pendingDigits));
       if (wrong.length === 1) {
         clauses.push(`הזין ספרה שגויה${where} (פעם אחת)`);
       } else if (wrong.length === 2) {
@@ -1024,7 +1025,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     // Module 23 Drive mirror: archive a copy of the same PDF in the shared Drive folder.
     // Best-effort only — a Drive failure must never fail or degrade report generation.
     try {
-      const driveFileName = `דוח_תלמיד${clampedStudentNum}_מפגש${resolvedSessionNumber}_${new Date().toISOString().slice(0, 16).replace("T", "_").replace(":", "-")}.pdf`;
+      const driveFileName = `דוח_תלמיד${clampedStudentNum}_מפגש${resolvedSessionNumber}_${israelFileStamp()}.pdf`;
       const driveFolderId = await resolveDriveFolder([DRIVE_FOLDERS.learnerReports, `מפגש ${resolvedSessionNumber}`]);
       const driveResult = await uploadBufferToDrive(pdfBuffer, driveFileName, "application/pdf", driveFolderId);
       if (driveResult.success) {
