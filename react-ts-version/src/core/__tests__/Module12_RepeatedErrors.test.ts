@@ -89,10 +89,13 @@ describe('מסמך 03 §1.3 ב\' — bringing the Module 10 grid back', () => {
 
   it('the bring-back tab sits where the grid lives, under the same profile/session gate as the grid, never in the topbar (source pin)', () => {
     const page = readFileSync(resolve(__dirname, '../../features/workspace/StudentWorkspacePage.tsx'), 'utf-8');
-    expect(page).toContain('isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen && (');
-    expect(page).toContain('aria-label={`הצגה חוזרת של ${ADDITION_GRID_HE}`}');
-    // the tab keeps clear of the coaching card, like the grid (report row 1.28)
-    expect(page).toContain('style={{ left: gridTabLeft }}');
+    expect(page).toContain('isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen');
+    expect(page).toContain('{isAdditionGridTabShown && <AdditionGridTab />}');
+    const grid = readFileSync(resolve(__dirname, '../../features/workspace/board/AdaptiveAdditionGrid.tsx'), 'utf-8');
+    expect(grid).toContain('aria-label={`הצגה חוזרת של ${ADDITION_GRID_HE}`}');
+    // the tab sits in the grid's own slot of the row, never over the tray or the
+    // trash (audit UX-001), and waits while the coaching card is open (row 1.28)
+    expect(grid).not.toMatch(/(?<![-\w])fixed(?![-\w])/);
     // מסמך 04 §3א: the topbar holds basic navigation only.
     const topbar = readFileSync(resolve(__dirname, '../../features/workspace/WorkspaceTopbar.tsx'), 'utf-8');
     expect(topbar).not.toContain('additionHelperOffered');
