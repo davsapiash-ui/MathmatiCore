@@ -78,7 +78,8 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     it('empty board → "build the first number" card, never "יש לנו 0 עשרות"', () => {
       const hint = SocraticEngine.analyzeLiveBoardState(task, 'basic_addition_fluency', { units: 0, tens: 0, hundreds: 0, thousands: 0 });
       expect(hint).not.toBeNull();
-      expect(hint?.questionHe).toContain('בית המספרים עדיין ריק');
+      // Opens like every card (audit 4.10.2026, A5-F06).
+      expect(hint?.questionHe).toBe('נסו לחשוב: בית המספרים עדיין ריק. בחיסור, מה בונים קודם?');
       expect(hint?.questionHe).not.toContain('0 עשרות');
       expect(hint?.choices.find((c) => c.id === hint?.correctChoiceId)?.textHe).toContain('470');
       expect(hint?.choices.find((c) => c.id === hint?.correctChoiceId)?.textHe).toContain('250');
@@ -125,7 +126,7 @@ describe('Realtime Socratic Engine & Live Board State Analyzer', () => {
     // The column, not its count (owner, 30.9.2026): the child counts.
     expect(hint?.questionHe).toBe('נסו לחשוב: בטור היחידות יש 10 לבנים או יותר. מה עושים?');
     expect(hint?.questionHe).not.toContain('14');
-    expect(hint?.choices[0].textHe).toContain('אוספים 10 יחידות מטור היחידות וממירים אותן לעשרת אחת בטור העשרות');
+    expect(hint?.choices[0].textHe).toContain('אוספים 10 יחידות מטור היחידות ומקבצים אותן לעשרת אחת בטור העשרות');
     expect(hint?.choices[1].textHe).toContain('מוחקים 10 יחידות');
   });
 

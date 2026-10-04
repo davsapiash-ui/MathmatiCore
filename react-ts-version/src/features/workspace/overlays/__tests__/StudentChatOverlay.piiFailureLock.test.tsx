@@ -44,7 +44,7 @@ vi.mock('@/core/security/PiiFilter', async (importOriginal) => {
   };
 });
 
-import { StudentChatOverlay, PII_FILTER_RECHECK_MS, READY_HELP_MESSAGE_HE } from '../StudentChatOverlay';
+import { StudentChatOverlay, PII_FILTER_RECHECK_MS, READY_HELP_MESSAGE_HE, PII_REFUSAL_CHILD_HE } from '../StudentChatOverlay';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useChatStore } from '@/application/useChatStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -91,6 +91,25 @@ describe('Module 3 §א — a PII filter failure locks the text box until the fi
 
     fireEvent.click(ready);
     expect(sendMessage, 'a ready message carries no typed text').toHaveBeenCalledTimes(1);
+  });
+
+  it('a refused message gets one child\'s sentence, not the teacher screens\' text (audit 4.10.2026, A7-006)', async () => {
+    const { toast } = await import('sonner');
+    const { box, send } = open();
+    for (const typed of ['המייל שלי a@b.co', 'הטלפון 0501234567']) {
+      vi.mocked(toast.warning).mockClear();
+      fireEvent.change(box, { target: { value: typed } });
+      fireEvent.click(send);
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(toast.warning).toHaveBeenCalledWith(PII_REFUSAL_CHILD_HE);
+    }
+    expect(PII_REFUSAL_CHILD_HE).toBe("בהודעה יש מספר טלפון, מספר זהות או כתובת מייל. בצ'אט לא כותבים אותם. מחקו ושלחו שוב.");
+  });
+
+  it('the ready messages are at least 12px, the size of the card\'s text (UX audit 4.10.2026, UX-008)', () => {
+    const { ready } = open();
+    expect(ready.className).toMatch(/\btext-sm\b/);
+    expect(ready.className).not.toMatch(/text-\[11px\]/);
   });
 
   it('the lock lifts once the filter answers again, and the message can be sent', () => {

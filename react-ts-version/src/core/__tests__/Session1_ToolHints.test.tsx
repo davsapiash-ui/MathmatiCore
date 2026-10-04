@@ -115,16 +115,16 @@ describe('station 1 subtraction: the trash is marked until a block goes in', () 
 });
 
 describe('memory circles only over the columns the exercise uses', () => {
-  const circles = () => screen.queryAllByLabelText(/^חלונית המרה ל/).map((e) => e.getAttribute('aria-label'));
+  const circles = () => screen.queryAllByLabelText(/^עיגול הזיכרון של טור ה/).map((e) => e.getAttribute('aria-label'));
 
   it('61 − 24: tens and units only', () => {
     render(<VerticalAdditionTask numberA={61} numberB={24} isSubtraction answerLength={2} />);
-    expect(circles()).toEqual(['חלונית המרה לעשרות', 'חלונית המרה ליחידות']);
+    expect(circles()).toEqual(['עיגול הזיכרון של טור העשרות', 'עיגול הזיכרון של טור היחידות']);
   });
 
   it('713 + 94: hundreds, tens and units', () => {
     render(<VerticalAdditionTask numberA={713} numberB={94} answerLength={3} />);
-    expect(circles()).toEqual(['חלונית המרה למאות', 'חלונית המרה לעשרות', 'חלונית המרה ליחידות']);
+    expect(circles()).toEqual(['עיגול הזיכרון של טור המאות', 'עיגול הזיכרון של טור העשרות', 'עיגול הזיכרון של טור היחידות']);
   });
 
   it('an answer one digit longer keeps the circle over its new column', () => {

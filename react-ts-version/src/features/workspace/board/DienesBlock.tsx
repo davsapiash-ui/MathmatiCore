@@ -181,22 +181,22 @@ export const BLOCK_SVGS: Record<Place, React.FC> = {
 const BLOCK_VISUALS: Record<Place, { style?: React.CSSProperties; labelHe: string; Component: React.FC }> = {
   units: {
     style: { width: '20px', height: '20px', maxWidth: '100%' },
-    labelHe: 'יחידה — גררו לטור אחר או לפח האשפה',
+    labelHe: 'לבנת יחידה — גררו אותה לפח האשפה כדי למחוק אותה',
     Component: UnitSVG,
   },
   tens: {
     style: { width: '68px', height: '42px', maxWidth: '100%' },
-    labelHe: 'עשרת — לחצו לפריטה ל-10 יחידות או גררו לטור היחידות או לפח',
+    labelHe: 'לבנת עשרת — לחצו עליה כדי לפרוט אותה לעשר יחידות, או גררו אותה לטור היחידות או לפח האשפה',
     Component: TenSVG,
   },
   hundreds: {
     style: { width: '82px', height: '48px', maxWidth: '100%' },
-    labelHe: 'מאה — לחצו לפריטה ל-10 עשרות או גררו לטור העשרות או לפח',
+    labelHe: 'לבנת מאה — לחצו עליה כדי לפרוט אותה לעשר לבני עשרת, או גררו אותה לטור העשרות או לפח האשפה',
     Component: HundredSVG,
   },
   thousands: {
     style: { width: '82px', height: '82px', maxWidth: '100%' },
-    labelHe: 'אלף — לחצו לפריטה ל-10 מאות או גררו לטור המאות או לפח',
+    labelHe: 'לבנת אלף — לחצו עליה כדי לפרוט אותה לעשר לבני מאה, או גררו אותה לטור המאות או לפח האשפה',
     Component: ThousandSVG,
   },
 };

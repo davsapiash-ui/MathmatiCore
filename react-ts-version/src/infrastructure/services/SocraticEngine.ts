@@ -104,13 +104,16 @@ export function groundCardInExercise(card: SocraticHintResponse, currentTask?: a
     // the iron rule then served the card without its exercise.
     context = `בתרגיל ${skeletonShown(currentTask)}`;
   } else if (typeof a === 'number' && typeof b === 'number') {
-    context = `בתרגיל ${a.toLocaleString('he-IL')} ${currentTask?.isSubtraction ? 'פחות' : 'ועוד'} ${b.toLocaleString('he-IL')}`;
+    // With signs, as every computed card and the exercise sheet write it (one
+    // name per thing, audit 4.10.2026 A7-007); the read-aloud says them as
+    // "ועוד" / "פחות" (TTSService.cleanTextForSpeech).
+    context = `בתרגיל ${formatNumberHe(a)} ${currentTask?.isSubtraction ? '−' : '+'} ${formatNumberHe(b)}`;
   } else if (typeof a === 'number') {
     context = `בתרגיל על המספר ${a.toLocaleString('he-IL')}`;
   }
   if (!context) return card;
-  // "נסו לחשוב: בתרגיל 61 פחות 24, אין מספיק יחידות…", not two
-  // colons in a row ("בתרגיל 61 פחות 24: נסו לחשוב: …").
+  // "נסו לחשוב: בתרגיל 61 − 24, אין מספיק יחידות…", not two
+  // colons in a row ("בתרגיל 61 − 24: נסו לחשוב: …").
   const OPENING = 'נסו לחשוב: ';
   const grounded = (text: string) =>
     text.startsWith(OPENING) ? `${OPENING}${context}, ${text.slice(OPENING.length)}` : `${context}: ${text}`;
@@ -189,7 +192,16 @@ export const FORBIDDEN_TERMS_HE = [
   'אבקוס', 'חשבונייה', 'מקלות', 'חרוזים', 'אצבעות', 'מטבעות', 'גפרורים', 'קשיות',
   // One name per component (owner, 27.9.2026, register ט).
   'קובי', 'בלוק', 'לוח הדינס', 'לוח הלבנים', 'קנבס',
+  // The child reads "לבנים", never "לבני דינס" (register ט; audit 4.10.2026 A7-018).
+  'דינס',
 ];
+
+/**
+ * The board named "לוח" ("הלוח", "בלוח") instead of "בית המספרים" (register ט).
+ * A whole word only — "לוחצים" is not it — and "לוח החיבור", the addition
+ * grid's own name, is allowed. Mirrored from functions/src/socraticContract.ts.
+ */
+export const BARE_BOARD_WORD_HE = /(^|[^א-ת])[ובלמהשכ]{0,4}לוח(?![א-ת])(?!\s+החיבור)/;
 
 /**
  * Client-side copy of the server's two hard content rules (defence in depth —
@@ -203,6 +215,7 @@ export function socraticTextViolation(
 ): string | null {
   for (const t of texts) {
     for (const term of FORBIDDEN_TERMS_HE) if (t.includes(term)) return `forbidden term: ${term}`;
+    if (BARE_BOARD_WORD_HE.test(t)) return 'forbidden term: לוח';
   }
   if (operands) {
     const answer = operands.isSubtraction ? operands.a - operands.b : operands.a + operands.b;
@@ -1061,7 +1074,7 @@ export class SocraticEngine {
         choices: [
           {
             id: "opt_1",
-            textHe: "אוספים 10 יחידות מטור היחידות וממירים אותן לעשרת אחת בטור העשרות",
+            textHe: "אוספים 10 יחידות מטור היחידות ומקבצים אותן לעשרת אחת בטור העשרות",
             isCorrect: true,
             feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבצו 10" שבראש טור היחידות.'
           },
@@ -1184,7 +1197,7 @@ export class SocraticEngine {
           pedagogical_intent: "procedural",
           tts_text: `בחיסור בונים בבית המספרים רק את המספר הראשון${minuend !== undefined ? ` (${formatNumberHe(minuend)})` : ''}, ואחר כך מוציאים ממנו.`,
           suggested_highlight: "tour-palette",
-          questionHe: `בית המספרים עדיין ריק. בחיסור, מה בונים קודם?`,
+          questionHe: `נסו לחשוב: בית המספרים עדיין ריק. בחיסור, מה בונים קודם?`,
           choices: [
             {
               id: "opt_1",

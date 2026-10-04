@@ -1,5 +1,6 @@
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import type { TaskChoice } from '@/data/sessionTasks';
+import { MathText } from './MathText';
 
 /** רשימת בחירה סגורה — radiogroup עם אות מזהה, מצב נבחר ברור. */
 export function ChoiceList({ choices, promptHe }: { choices: TaskChoice[]; promptHe?: string }) {
@@ -30,7 +31,7 @@ export function ChoiceList({ choices, promptHe }: { choices: TaskChoice[]; promp
             >
               {choice.id}
             </span>
-            <span className="text-ws-ink pt-1.5 flex-1 leading-snug">{choice.textHe}</span>
+            <span className="text-ws-ink pt-1.5 flex-1 leading-snug"><MathText text={choice.textHe} /></span>
             {isSelected && (
               <span aria-hidden="true" className="shrink-0 text-ws-accent text-xl font-black pt-1">✓</span>
             )}

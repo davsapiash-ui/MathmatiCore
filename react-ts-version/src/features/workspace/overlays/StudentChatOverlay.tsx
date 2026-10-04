@@ -18,6 +18,11 @@ import { currentTaskLabelHe } from '@/application/taskLabel';
 export const READY_HELP_MESSAGE_HE = 'אפשר עזרה בתרגיל?';
 export const READY_UNCLEAR_MESSAGE_HE = 'לא הבנתי את ההוראה';
 export const CALL_TEACHER_MESSAGE_HE = 'המורה, אפשר לבוא לעזור לי? 🙋';
+/** What the child reads when the PII filter refuses a message (מסמך 04: such a message "נחסמת לפני השליחה"). */
+export const PII_REFUSAL_CHILD_HE = "בהודעה יש מספר טלפון, מספר זהות או כתובת מייל. בצ'אט לא כותבים אותם. מחקו ושלחו שוב.";
+/** The help banner and the empty chat's instruction, each with its read-aloud button (PRD Module 7 §א). */
+const CALL_BANNER_HE = 'צריכים עזרה עכשיו?';
+const EMPTY_CHAT_INSTRUCTION_HE = 'כתבו הודעה למורה, או לחצו על "קראו למורה".';
 
 /**
  * Owner, 1.10.2026: a help message names the exercise the learner is on, in
@@ -130,7 +135,11 @@ export function StudentChatOverlay() {
     try {
       const validation = validateChatInputForPII(textToSend);
       if (!validation.valid) {
-        toast.warning(validation.errorHe || 'ההודעה מכילה פרטים מזהים. השתמשו במספרי תרגילים בלבד.');
+        // One child's sentence for every refusal: PiiFilter's own texts are the
+        // teacher screens' ("…השתמשו במזהה האנונימי של התלמיד (1-12)"), an
+        // adult's words that ask a grade-3 child for something it cannot do
+        // (audit 4.10.2026, A7-006).
+        toast.warning(PII_REFUSAL_CHILD_HE);
         return;
       }
       const studentNum = normUid.replace(/\D+/g, '') || '1';
@@ -234,8 +243,9 @@ export function StudentChatOverlay() {
 
       {/* Call Teacher Action Banner */}
       <div className="bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900/50 p-2.5 px-4 flex items-center justify-between gap-2 shrink-0">
-        <span className="text-xs font-medium text-amber-900 dark:text-amber-200">
-          זקוקים לעזרה מיידית?
+        <span className="flex items-center gap-1.5 text-xs font-medium text-amber-900 dark:text-amber-200">
+          {CALL_BANNER_HE}
+          <UdlSpeechButton text={CALL_BANNER_HE} className="w-7 h-7 p-0 shrink-0" />
         </span>
         <button
           onClick={handleCallTeacher}
@@ -251,7 +261,10 @@ export function StudentChatOverlay() {
           <div className="text-center text-ws-soft text-sm my-auto flex flex-col items-center gap-2">
             <HelpCircle className="w-8 h-8 opacity-40 text-ws-accent" />
             <p>אין הודעות קודמות.</p>
-            <p className="text-xs">כתבו הודעה למורה, או לחצו על "קראו למורה".</p>
+            <p className="text-xs flex items-center gap-1.5">
+              {EMPTY_CHAT_INSTRUCTION_HE}
+              <UdlSpeechButton text={EMPTY_CHAT_INSTRUCTION_HE} className="w-7 h-7 p-0 shrink-0" />
+            </p>
           </div>
         ) : (
           myMessages.map(m => {
@@ -292,13 +305,13 @@ export function StudentChatOverlay() {
       <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border-t border-ws-surface2 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
         <button
           onClick={() => sendReadyMessage(READY_HELP_MESSAGE_HE)}
-          className="text-[11px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-3.5 min-h-11 flex items-center whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
+          className="text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-3.5 min-h-11 flex items-center whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
         >
           {READY_HELP_MESSAGE_HE}
         </button>
         <button
           onClick={() => sendReadyMessage(READY_UNCLEAR_MESSAGE_HE)}
-          className="text-[11px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-3.5 min-h-11 flex items-center whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
+          className="text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full px-3.5 min-h-11 flex items-center whitespace-nowrap hover:border-ws-accent transition-colors cursor-pointer"
         >
           {READY_UNCLEAR_MESSAGE_HE}
         </button>

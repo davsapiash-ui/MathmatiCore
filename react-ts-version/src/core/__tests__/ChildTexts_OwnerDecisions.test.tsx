@@ -342,7 +342,7 @@ describe('the child is addressed in the plural (gender-equal writing, 27.9.2026)
     // Free text both ways (owner, 1.10.2026 evening), plus two ready messages.
     expect(chat).toContain('placeholder="כתבו הודעה למורה..."');
     expect(chat).toContain('כתבו הודעה למורה, או לחצו על "קראו למורה".');
-    expect(chat).toContain('זקוקים לעזרה מיידית?');
+    expect(chat).toContain("const CALL_BANNER_HE = 'צריכים עזרה עכשיו?';");
     expect(chat).toContain('<span>קראו למורה 🔔</span>');
     expect(code('features/workspace/overlays/HelpOverlays.tsx')).toContain("'הבנתי, סגירת החלונית'");
   });
