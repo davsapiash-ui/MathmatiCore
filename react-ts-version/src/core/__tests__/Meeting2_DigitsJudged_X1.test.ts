@@ -10,6 +10,8 @@
  *     "התקדם" is pressed; the keystrokes on the way are not errors.
  *  2. Every other task: the PRD 23 formula — a wrong digit counts even after
  *     it is corrected.
+ * Owner, 4.10.2026: task 1 has the same one box as task 2 and follows rule 1;
+ * rule 2 now covers tasks 3–7.
  *
  * The events the store emits are scored with the PRD 23 §ב rule exactly as
  * the server applies it (functions/src/meetingMetrics.ts →
@@ -116,12 +118,12 @@ describe('Meeting 2 — a corrected wrong digit counts (owner, 28.9.2026, ruling
     expect(serverScore().correctFirstAttempt).toBe(0);
   });
 
-  it('task 1 (605): a wrong digit in one of the three boxes, then corrected, also counts', () => {
-    loadDiagnostic('task1_read_write_zero');
-    ws().setAnswerDigit('hundreds', '6');
-    ws().setAnswerDigit('tens', '5');
-    ws().setAnswerDigit('tens', '0');
-    ws().setAnswerDigit('units', '5');
+  it('task 4 (563): a wrong digit in one of the three boxes, then corrected, also counts', () => {
+    loadDiagnostic('task4_decompose_number');
+    ws().setAnswerDigit('hundreds', '5');
+    ws().setAnswerDigit('tens', '3');
+    ws().setAnswerDigit('tens', '6');
+    ws().setAnswerDigit('units', '3');
     expect(digitEvents().map((e) => e.details.is_correct)).toEqual([true, false, true, true]);
     ws().proceed();
     expect(completes()).toHaveLength(1);
@@ -190,7 +192,42 @@ describe('Meeting 2, task 2 — judged by the value in the box at "התקדם" (
   });
 });
 
+describe('Meeting 2, task 1 — one box, judged like task 2 (owner, 4.10.2026)', () => {
+  it('"6", "60" on the way to "605" are not errors: solved on the first attempt', () => {
+    loadDiagnostic('task1_read_write_zero');
+    typeInTask2Box('6');
+    typeInTask2Box('65'); // a slip the child corrects before the press
+    typeInTask2Box('6');
+    typeInTask2Box('60');
+    typeInTask2Box('605');
+    expect(digitEvents().every((e) => e.details.is_correct === null)).toBe(true);
+    expect(ws().hasDigitErrorInTask).toBe(false);
+    expect(ws().typedErrorCount).toBe(0);
+    ws().proceed();
+    expect(completes()).toHaveLength(1);
+    expect(ws().qflow.results.task1_read_write_zero).toMatchObject({ correct: true, had_digit_error: false });
+    expect(serverScore().correctFirstAttempt).toBe(1);
+  });
+
+  for (const typed of ['65', '6005']) {
+    it(`${typed} in the box at the press is wrong`, () => {
+      loadDiagnostic('task1_read_write_zero');
+      for (let i = 1; i <= typed.length; i++) typeInTask2Box(typed.slice(0, i));
+      expect(ws().probeAnswer).toBe(typed);
+      expect(ws().hasDigitErrorInTask).toBe(false);
+      ws().proceed();
+      expect(completes()).toHaveLength(0);
+      expect(ws().qflow.results.task1_read_write_zero).toMatchObject({ correct: false });
+      expect(serverScore().correctFirstAttempt).toBe(0);
+    });
+  }
+});
+
 describe('diagnosticDigitTask', () => {
+  it('task 1 has no per-digit target (owner, 4.10.2026)', () => {
+    expect(diagnosticDigitTask({ ...initQFlow(), taskIdx: taskIdx('task1_read_write_zero') }, false)).toBeNull();
+  });
+
   it('in the correction round’s simpler exercise, digits follow the probe (40 − 10 = 30), as proceedQ does', () => {
     const qflow: QMatrixFlowState = {
       ...initQFlow(),

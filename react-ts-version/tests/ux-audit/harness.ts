@@ -571,10 +571,15 @@ export async function markFreshEntry(page: Page): Promise<void> {
  * it as the learner — a fresh entry: no saved workspace on the record or on the
  * device. To check what a reload keeps, use `page.reload()` after this.
  */
-export async function gotoWorkspace(c: AuditContext, meeting: number): Promise<void> {
+export async function gotoWorkspace(
+  c: AuditContext,
+  meeting: number,
+  /** Learner-record fields for this entry only (e.g. meeting2Done: false for the diagnostic's own screens). */
+  record: Partial<ContextOptions> = {}
+): Promise<void> {
   // A fresh learner record for every meeting: no saved workspace, and the gate
   // approval exactly as the context declares it (a state may have revoked it).
-  c.rtdb.set(`users/students/${STUDENT_UID}`, studentRecord(c.opts));
+  c.rtdb.set(`users/students/${STUDENT_UID}`, studentRecord({ ...c.opts, ...record }));
   c.rtdb.set('active_class_session', liveSession(meeting) as unknown as Json);
   c.rtdb.set('system_control/projector_mode', { active: false, projector_mode: false, projector_mode_updated_at: Date.now() });
   const ready = (timeout: number) => workspaceReady(c.page, timeout);

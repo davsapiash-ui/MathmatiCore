@@ -82,10 +82,13 @@ describe('answer checking, scoring and the Q-matrix are unchanged', () => {
 });
 
 describe('(b) writing order: hundreds LEFT, units RIGHT, for every learner (rows 2.13, 2.18)', () => {
+  // Task 1 has had ONE free answer box for every learner since the owner's
+  // decision of 4.10.2026 (Meeting2_Task1_OneAnswerBox.test.tsx); task 4 keeps
+  // the three boxes, hundreds on the left.
   for (const enhanced of [false, true]) {
-    it(`task 1, ${enhanced ? 'with' : 'without'} the profile: typing 6, 0, 5 fills hundreds → tens → units and reads 605`, async () => {
+    it(`task 4, ${enhanced ? 'with' : 'without'} the profile: typing 5, 6, 3 fills hundreds → tens → units and reads 563`, async () => {
       setProfile(enhanced);
-      atTask('task1_read_write_zero');
+      atTask('task4_decompose_number');
       await renderCard();
       const row = screen.getByTestId('pv-result-row');
       expect(row.getAttribute('dir')).toBe('ltr');
@@ -93,9 +96,9 @@ describe('(b) writing order: hundreds LEFT, units RIGHT, for every learner (rows
       expect(boxes.map((b) => b.dataset.place)).toEqual(['hundreds', 'tens', 'units']);
       // the hundreds box has the focus when the task opens, and each digit moves it right
       expect(document.activeElement).toBe(boxes[0]);
-      for (const d of ['6', '0', '5']) fireEvent.change(document.activeElement as HTMLInputElement, { target: { value: d } });
-      expect(boxes.map((b) => b.value).join('')).toBe('605');
-      expect(useWorkspaceStore.getState().answerDigits).toMatchObject({ hundreds: '6', tens: '0', units: '5' });
+      for (const d of ['5', '6', '3']) fireEvent.change(document.activeElement as HTMLInputElement, { target: { value: d } });
+      expect(boxes.map((b) => b.value).join('')).toBe('563');
+      expect(useWorkspaceStore.getState().answerDigits).toMatchObject({ hundreds: '5', tens: '6', units: '3' });
     });
   }
 
@@ -137,7 +140,9 @@ describe('(a) place-value headings and colours by support profile (row 2.21)', (
     expect(read('features/workspace/tasks/PlaceValueInputBoxes.tsx')).not.toMatch(/amber|emerald|text-blue|border-blue/);
   });
 
-  for (const id of ['task1_read_write_zero', 'task4_decompose_number', 'task5_units_to_tens']) {
+  // Task 1: one neutral box for every learner (owner, 4.10.2026), tested in
+  // Meeting2_Task1_OneAnswerBox.test.tsx.
+  for (const id of ['task4_decompose_number', 'task5_units_to_tens']) {
     it(`${id}: without the profile — one neutral colour, no headings`, async () => {
       atTask(id);
       const { container } = await renderCard();
@@ -169,7 +174,7 @@ describe('(a) place-value headings and colours by support profile (row 2.21)', (
 
   it('follows the teacher\'s toggle live, without a reload', async () => {
     const { act } = await import('@testing-library/react');
-    atTask('task1_read_write_zero');
+    atTask('task4_decompose_number');
     const { container } = await renderCard();
     expect(container.querySelectorAll('[id^="pv-label-"]').length).toBe(0);
     act(() => setProfile(true));
