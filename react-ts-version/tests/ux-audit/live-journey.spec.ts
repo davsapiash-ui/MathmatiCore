@@ -159,11 +159,21 @@ test('live scenario: teacher and learner together', async ({ browser }) => {
 
   await step('teacher-closes', 'המורה סוגרת — הלומד רואה "המפגש נסגר"', async () => {
     await t.page.getByRole('button', { name: /סגרו את המפגש/ }).click();
-    const confirm = t.page.getByRole('button', { name: /סגירה|אישור|סגרו/ }).last();
-    if (await confirm.isVisible().catch(() => false)) await confirm.click().catch(() => undefined);
+    // Catch-up time (2.10.2026): the learner started meeting 3 and has not
+    // finished it, so the close asks the teacher for a reason first
+    // (CatchUpReasonsDialog). Nothing is closed until a reason is chosen.
+    const reasons = t.page.getByRole('dialog', { name: /לפני שסוגרים את מפגש 3/ });
+    await expect(reasons).toBeVisible({ timeout: 10_000 });
+    const continueBtn = reasons.getByRole('button', { name: 'המשיכו בכל זאת' });
+    await expect(continueBtn).toBeDisabled();
+    await reasons.getByLabel('סיבה לתלמיד 12').selectOption('technical_fault');
+    await continueBtn.click();
+    // Firestore is unreachable here, so the reasons are refused — the close
+    // must still go ahead (a meeting is always closable, offline too).
     await expect.poll(() => (c.rtdb.get('active_class_session') as { active?: boolean } | null)?.active, { timeout: 20_000 }).toBe(false);
+    await expect(reasons).toBeHidden({ timeout: 10_000 });
     await expect(c.page.getByText(/המורה סגרה את/)).toBeVisible({ timeout: 20_000 });
-    return 'active=false; מסך הסגירה מוצג ללומד';
+    return 'חלון הסיבות נפתח לתלמיד 12; סיבה נבחרה ו"המשיכו בכל זאת"; active=false; מסך הסגירה מוצג ללומד';
   });
 
   // Meeting 8 reflection, end to end: the learner finishes and it is saved.

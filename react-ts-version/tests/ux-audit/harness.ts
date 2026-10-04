@@ -21,6 +21,10 @@ import type { Viewport } from './viewports';
  *  - Screens are then driven through `window.__wsStore` (useWorkspaceStore's
  *    dev hook): the same actions the real UI calls — initSession, selectBranch,
  *    openSocraticCard, showFeedback, toggleBoard … — never a fake DOM.
+ *  - A reload behaves as on a real tablet: this device's copy of the workspace
+ *    (localStorage) survives it, and the store is not pre-filled. Only a fresh
+ *    entry — the context's first load, or gotoWorkspace() — starts clean.
+ *    A brand-new context on the same FakeRtdb is another tablet.
  *
  * Because it relies on the dev hooks, the audit runs against `vite` (dev), never
  * against a production build.
@@ -72,7 +76,24 @@ export interface ContextOptions {
   auth?: boolean;
   /** The class session at start; the default is meeting 1 open. gotoWorkspace() re-points it. */
   classSession?: ClassSessionRecord;
+  /**
+   * Put the seeded learner record on the dev store hook on a fresh entry, so
+   * the workspace does not wait for the database's first push. Default true.
+   * false when the database holds a saved workspace the page must find on its
+   * own — the seeded record has none, and would hide it (restore checks).
+   */
+  seedStore?: boolean;
+  /**
+   * Share an existing fake database instead of seeding a new one: a second
+   * context on it is another tablet of the same class (restore checks).
+   */
+  rtdb?: FakeRtdb;
 }
+
+/** sessionStorage flag: the next document load in this tab is a fresh entry (see openContext). */
+const FRESH_ENTRY_FLAG = '__ux_audit_fresh_entry';
+/** localStorage flag: this context has loaded a page before. */
+const CONTEXT_LOADED_FLAG = '__ux_audit_context_loaded';
 
 export interface StateResult {
   viewport: string;
@@ -114,6 +135,8 @@ export class FakeRtdb {
   private root: Json = {};
   private sockets = new Map<WebSocketRoute, Set<string>>();
   private sessionCounter = 0;
+  /** Paths whose writes are acknowledged but never reach the server (see hold()). */
+  private held: string[] = [];
 
   constructor(seed: Record<string, Json>) {
     for (const [p, v] of Object.entries(seed)) this.write(norm(p), v);
@@ -137,6 +160,20 @@ export class FakeRtdb {
     const clean = norm(p);
     this.write(clean, value);
     this.broadcast(clean);
+  }
+
+  /**
+   * Writes under these paths are acknowledged to the client but never kept —
+   * as if the tablet's write had not reached the server yet (a dropped
+   * connection). Restore checks use it to leave this device's copy as the
+   * only copy of the latest work. `hold([])` lets writes through again.
+   */
+  hold(paths: string[]): void {
+    this.held = paths.map(norm);
+  }
+
+  private isHeld(p: string): boolean {
+    return this.held.some((h) => p === h || p.startsWith(h + '/') || h.startsWith(p + '/'));
   }
 
   /** Server values the client sends as placeholders ({".sv":"timestamp"}) become real ones. */
@@ -236,9 +273,14 @@ export class FakeRtdb {
       const p = norm(b?.p);
       switch (a) {
         case 'q': {
+          // The real server sends the listen's data first and its "ok" after
+          // it. An "ok" first makes the SDK mark the location complete with no
+          // server data and raise a value event built only from the client's
+          // own local writes — a partial learner record (no workspaceState,
+          // no support profile) that production never shows.
           listened.add(p);
-          reply('');
           this.push(ws, p);
+          reply('');
           return;
         }
         case 'n':
@@ -249,7 +291,7 @@ export class FakeRtdb {
           reply(this.get(p));
           return;
         case 'p': {
-          if (!DISCARDED_WRITES.test(p)) {
+          if (!DISCARDED_WRITES.test(p) && !this.isHeld(p)) {
             this.write(p, (b?.d ?? null) as Json);
             this.broadcast(p);
           }
@@ -258,7 +300,9 @@ export class FakeRtdb {
         }
         case 'm': {
           if (!DISCARDED_WRITES.test(p) && b?.d && typeof b.d === 'object' && !Array.isArray(b.d)) {
-            for (const [k, v] of Object.entries(b.d as Record<string, Json>)) this.write(`${p}/${k}`, v);
+            for (const [k, v] of Object.entries(b.d as Record<string, Json>)) {
+              if (!this.isHeld(`${p}/${k}`)) this.write(`${p}/${k}`, v);
+            }
             this.broadcast(p);
           }
           reply('');
@@ -368,14 +412,24 @@ export async function openContext(browser: Browser, viewport: Viewport, opts: Co
     hasTouch: viewport.width < 1100,
   });
   await blockRemote(context);
-  const rtdb = new FakeRtdb(seedDatabase(opts));
+  const rtdb = opts.rtdb ?? new FakeRtdb(seedDatabase(opts));
   await rtdb.attach(context);
 
   const auth = opts.auth !== false;
+  const seedStore = auth && opts.seedStore !== false;
   const record = studentRecord(opts);
   await context.addInitScript(
-    ({ auth, record, uid, num }) => {
+    ({ auth, seedStore, record, uid, num, freshFlag, loadedFlag }) => {
       const now = Date.now();
+      // A fresh entry is the context's first page load, or a navigation the
+      // harness asked to start afresh (gotoWorkspace → markFreshEntry). A
+      // reload, or the app's own navigation, is NOT one: it keeps this
+      // device's copy of the workspace exactly as a real tablet does — wiping
+      // it on every load made every restore check pass or fail for the wrong
+      // reason.
+      const fresh = !localStorage.getItem(loadedFlag) || sessionStorage.getItem(freshFlag) === '1';
+      localStorage.setItem(loadedFlag, '1');
+      sessionStorage.removeItem(freshFlag);
       // The learner, exactly as Login.tsx stores them after a successful handshake.
       if (auth) {
         const user = {
@@ -401,17 +455,26 @@ export async function openContext(browser: Browser, viewport: Viewport, opts: Co
           ['mc_auth_user', 'mc_auth_role', 'mc_auth_time'].forEach((k) => store.removeItem(k));
         }
       }
-      // A fresh meeting every time: no cached progress, no old deadline, no tour,
-      // and no memory of a failed WebSocket (the SDK would fall back to long-polling).
+      // A fresh entry starts a fresh meeting: no cached progress, no old deadline.
+      if (fresh) {
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith('mathmaticore_session_') || k.startsWith('mathmaticore_deadline_notice_'))
+          .forEach((k) => localStorage.removeItem(k));
+      }
+      // Every load: no memory of a failed WebSocket. The SDK would fall back to
+      // long-polling, which this harness blocks (a real tablet's long-polling
+      // works), so keeping it would hang the page rather than make it truer.
       Object.keys(localStorage)
-        .filter((k) => k.startsWith('mathmaticore_session_') || k.startsWith('mathmaticore_deadline_notice_') || k.includes('previous_websocket_failure'))
+        .filter((k) => k.includes('previous_websocket_failure'))
         .forEach((k) => localStorage.removeItem(k));
       localStorage.setItem('mathmaticore_has_seen_tour', 'true');
       (window as unknown as Record<string, unknown>).__E2E_BYPASS_TOUR__ = true;
 
-      // The learner's record on the dev-only store hook as well, so the workspace
-      // does not wait for the (fake) database's first push.
-      if (auth) {
+      // On a fresh entry, the learner's record on the dev-only store hook as
+      // well, so the workspace does not wait for the (fake) database's first
+      // push. Never on a reload: the record seeded here has no workspaceState,
+      // and would stand in for the database's saved copy.
+      if (fresh && seedStore) {
         const timer = setInterval(() => {
           const s = (window as unknown as { useStore?: { setState: (fn: (p: { students: Record<string, unknown> }) => unknown) => void } }).useStore;
           if (s && typeof s.setState === 'function') {
@@ -422,7 +485,7 @@ export async function openContext(browser: Browser, viewport: Viewport, opts: Co
         setTimeout(() => clearInterval(timer), 20_000);
       }
     },
-    { auth, record, uid: STUDENT_UID, num: STUDENT_NUMBER }
+    { auth, seedStore, record, uid: STUDENT_UID, num: STUDENT_NUMBER, freshFlag: FRESH_ENTRY_FLAG, loadedFlag: CONTEXT_LOADED_FLAG }
   );
 
   // Silent by default: the audit presses read-aloud buttons on the way (the
@@ -471,24 +534,51 @@ export async function openContext(browser: Browser, viewport: Viewport, opts: Co
 /** Loading texts of the workspace; the screen is ready once none of them is visible. */
 const LOADING_TEXTS = ['טוען את המשימות', 'מתחברים…', 'טוען…', 'עוברים לתחנה'];
 
-/** Open meeting `meeting` as the teacher would (active_class_session) and enter it as the learner. */
+/** The workspace is up: its store hook exists and no loading text is on the screen. */
+export async function workspaceReady(page: Page, timeout = 25_000): Promise<void> {
+  await page.waitForFunction(
+    (texts) => {
+      const w = window as unknown as { __wsStore?: unknown };
+      if (!w.__wsStore) return false;
+      const body = document.body.innerText || '';
+      return !texts.some((t) => body.includes(t));
+    },
+    LOADING_TEXTS,
+    { timeout }
+  );
+}
+
+/**
+ * The next page load in this tab starts afresh: this device's workspace copies
+ * and meeting deadlines are wiped, and the seeded record goes on the store hook
+ * (openContext's init script). A no-op before the context's first load, which
+ * is a fresh entry anyway.
+ */
+export async function markFreshEntry(page: Page): Promise<void> {
+  await page
+    .evaluate((flag) => {
+      try {
+        sessionStorage.setItem(flag, '1');
+      } catch {
+        /* about:blank has no storage */
+      }
+    }, FRESH_ENTRY_FLAG)
+    .catch(() => undefined);
+}
+
+/**
+ * Open meeting `meeting` as the teacher would (active_class_session) and enter
+ * it as the learner — a fresh entry: no saved workspace on the record or on the
+ * device. To check what a reload keeps, use `page.reload()` after this.
+ */
 export async function gotoWorkspace(c: AuditContext, meeting: number): Promise<void> {
   // A fresh learner record for every meeting: no saved workspace, and the gate
   // approval exactly as the context declares it (a state may have revoked it).
   c.rtdb.set(`users/students/${STUDENT_UID}`, studentRecord(c.opts));
   c.rtdb.set('active_class_session', liveSession(meeting) as unknown as Json);
   c.rtdb.set('system_control/projector_mode', { active: false, projector_mode: false, projector_mode_updated_at: Date.now() });
-  const ready = (timeout: number) =>
-    c.page.waitForFunction(
-      (texts) => {
-        const w = window as unknown as { __wsStore?: unknown };
-        if (!w.__wsStore) return false;
-        const body = document.body.innerText || '';
-        return !texts.some((t) => body.includes(t));
-      },
-      LOADING_TEXTS,
-      { timeout }
-    );
+  const ready = (timeout: number) => workspaceReady(c.page, timeout);
+  await markFreshEntry(c.page);
   await c.page.goto(`/workspace?meeting=${meeting}`, { waitUntil: 'domcontentloaded' });
   try {
     await ready(25_000);
@@ -507,6 +597,8 @@ export async function gotoWorkspace(c: AuditContext, meeting: number): Promise<v
         /* ignore */
       }
     });
+    // Still the same fresh entry: the stalled page's copy is not a saved state.
+    await markFreshEntry(c.page);
     await c.page.reload({ waitUntil: 'domcontentloaded' });
     await ready(45_000);
   }
