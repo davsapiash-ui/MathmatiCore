@@ -557,11 +557,6 @@ export interface ResetAuditEntry {
   reset_reason: ResetReason;
   reason_note: string | null;
   records_deleted_count: number;
-  /**
-   * Learner records reset field by field instead of deleted (a meeting
-   * restart). Not part of records_deleted_count, which counts deletions only.
-   */
-  records_reset_count?: number;
   /** Level 2 only: what the teacher chose to reset (PRD §ב.2 default is the active meeting). */
   reset_scope?: SingleStudentResetScope;
   /** Level 2 with reset_scope 'active_session': the meeting that was restarted. */
@@ -979,11 +974,10 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   }
 
   // Step 5: the real number of records deleted, on the entry written above.
-  // Learner records reset in place (a meeting restart) are not deleted, and are
-  // counted apart.
+  // Learner records reset in place (a meeting restart) are not deleted and are
+  // not counted: the entry has only the fields of PRD 23א §ד (ResetAuditEntry).
   await auditRef.update({
     records_deleted_count: deletion.total,
-    records_reset_count: deletion.reset_in_place,
   }).catch((auditErr) => {
     // The entry exists; only its count is stale. Say so rather than report a clean reset.
     logger.error("Failed to record the deleted count on the reset audit entry:", auditErr);
