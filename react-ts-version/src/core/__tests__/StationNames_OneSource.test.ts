@@ -327,7 +327,8 @@ describe('the teacher and the admin read the same names', () => {
 
   it('the radar tab, the sidebar entry and the radar heading all say "הרדאר הפדגוגי השקט"', () => {
     const dash = code('presentation/pages/TeacherDashboard.tsx');
-    expect(dash.split('הרדאר הפדגוגי השקט').length - 1).toBeGreaterThanOrEqual(3);
+    // A third copy sat in the dead admin top bar, removed (audit 2.10, M-dead-topbar).
+    expect(dash.split('הרדאר הפדגוגי השקט').length - 1).toBeGreaterThanOrEqual(2);
     expect(code('presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx')).toContain('<span>הרדאר הפדגוגי השקט</span>');
   });
 

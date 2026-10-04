@@ -21,14 +21,24 @@ export interface SessionRow {
   learnerCount?: number;
 }
 
+/**
+ * What one learner finished: a per-meeting answer (completedMeetings/m{N},
+ * core/meetingCompletion.ts isMeetingFinished), or only the highest meeting
+ * finished. The highest alone counts a learner who missed meeting 3 and
+ * finished meeting 4 as having finished meeting 3 too.
+ */
+export type LearnerCompletion = number | ((sessionNumber: number) => boolean);
+
 /** Module 14 §ב0: the state of each of the eight meetings, from what the learners finished. */
 export function buildSessionRows(
-  highestCompletedByLearner: number[],
+  completionByLearner: LearnerCompletion[],
   activeSessionNumber: number | null,
 ): SessionRow[] {
   return [1, 2, 3, 4, 5, 6, 7, 8].map((sessionNumber) => {
-    const learnerCount = highestCompletedByLearner.length;
-    const completedCount = highestCompletedByLearner.filter((h) => (Number(h) || 0) >= sessionNumber).length;
+    const learnerCount = completionByLearner.length;
+    const completedCount = completionByLearner.filter((c) =>
+      typeof c === 'function' ? c(sessionNumber) : (Number(c) || 0) >= sessionNumber
+    ).length;
     const state: SessionState =
       activeSessionNumber === sessionNumber ? 'active'
       : learnerCount > 0 && completedCount === learnerCount ? 'completed'

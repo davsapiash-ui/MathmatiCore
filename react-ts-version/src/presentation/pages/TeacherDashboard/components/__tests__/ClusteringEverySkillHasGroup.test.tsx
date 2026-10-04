@@ -166,7 +166,7 @@ describe('no mixing: a learner who groups but cannot decompose is in the group',
 });
 
 describe('the filter itself', () => {
-  it('a learner low only in an unmeasured skill shows no widget at all', () => {
+  it('a learner low only in an unmeasured skill counts in no domain: every card reads 0', () => {
     render(
       <ClusteringWidgets
         students={[{ studentId: 'student_user4', name: 'תלמיד 4', conceptMastery: mastery({ number_magnitude: 0.1, algebraic_reasoning: 0.1 }) } as any]}
@@ -174,6 +174,9 @@ describe('the filter itself', () => {
         onFilterChange={vi.fn()}
       />
     );
-    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    // A domain with no struggling learner shows 0 rather than vanishing (audit 2.10, clustering-4).
+    const cards = screen.queryAllByRole('button');
+    expect(cards).toHaveLength(3);
+    for (const c of cards) expect(c.textContent).toMatch(/^0/);
   });
 });

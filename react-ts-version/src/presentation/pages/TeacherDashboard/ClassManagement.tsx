@@ -49,6 +49,7 @@ const INITIAL_GATE_STUDENTS: StudentGateState[] = Array.from({ length: 12 }, (_,
  */
 export function ClassManagement({ 
   activeSessionNumber = null,
+  onDrillDown,
 }: { 
   allStudents: StudentData[]; 
   onDrillDown?: (studentId: string) => void;
@@ -407,6 +408,19 @@ export function ClassManagement({
                 <Zap className="w-3.5 h-3.5" />
                 <span>{student.enhancedSupport ? 'בטלו תמיכה מוגברת' : 'הפעילו תמיכה מוגברת'}</span>
               </button>
+              {/* The tab is "ניהול כיתה ותנאי למידה": the learner's conditions
+                  window (quiet mode) opens from here too. */}
+              {onDrillDown && (
+                <button
+                  type="button"
+                  onClick={() => onDrillDown(`student_user${student.studentNumber}`)}
+                  aria-label={`התאמת תנאי למידה — תלמיד ${student.studentNumber}`}
+                  className="w-full py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700"
+                >
+                  <Sliders className="w-3.5 h-3.5" />
+                  <span>התאמת תנאי למידה</span>
+                </button>
+              )}
             </div>
           ))}
         </div>

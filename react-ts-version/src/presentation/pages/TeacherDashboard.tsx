@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { ref, onValue, set, update, onDisconnect, serverTimestamp } from "firebase/database";
 import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, lastRunFields, readLastClosedRun, readSessionStartedAt, TEACHER_DISCONNECT_GRACE_MS, type ClassSessionStatus, type LastClosedRun } from "@/core/classSession";
 import { buildUnfinishedLearners, needsReason } from "@/core/catchUpUnfinished";
-import { COMPLETED_MEETINGS_KEY, WORKSPACE_BY_MEETING_KEY } from "@/core/meetingCompletion";
+import { COMPLETED_MEETINGS_KEY, WORKSPACE_BY_MEETING_KEY, isMeetingFinished } from "@/core/meetingCompletion";
 import { workspaceSavedAt } from "@/core/workspaceSnapshot";
 import type { CatchUpAction, CatchUpReasonEntry, CatchUpRecord, UnfinishedLearner } from "@/core/catchUp";
 import { recordCatchUpReasons, subscribeCatchUpRecords } from "@/infrastructure/services/CatchUpService";
@@ -92,6 +92,18 @@ function mergeByMeeting(
   return Object.keys(out).length > 0 ? out : null;
 }
 
+/**
+ * The learner a report link names ("7", "student_7", "student_user7"), as the
+ * canonical id — or null when the link names no learner of the class.
+ * Learners are 1–12 only: "99" used to be clamped to learner 12 and "0" to
+ * learner 1, so a wrong link opened another child's report.
+ */
+function routeLearnerId(routeId: string | undefined): string | null {
+  const m = /^(?:student_user|student_|user)?(\d{1,2})$/.exec((routeId ?? '').trim().toLowerCase());
+  const n = m ? Number(m[1]) : NaN;
+  return n >= 1 && n <= 12 ? `student_user${n}` : null;
+}
+
 type TabType =
   | "heatmap"
   | "clustering"
@@ -108,8 +120,14 @@ type TabType =
  */
 const CATCH_UP_SAVE_WAIT_MS = 5_000;
 
-export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolean }) {
+/** The automatic close (45 minutes, or the disconnect window) was refused by the server. */
+const AUTO_CLOSE_NOT_SAVED_HE = 'הסגירה האוטומטית של המפגש לא נשמרה בשרת. אצל התלמידים המפגש כבר נסגר.';
+
+export function TeacherDashboard() {
   const { id: routeStudentId } = useParams<{ id: string }>();
+  const routeLearner = routeLearnerId(routeStudentId);
+  /** The link names a learner that is not in the class (not 1–12). */
+  const routeLearnerUnknown = Boolean(routeStudentId) && routeLearner === null;
   const { user } = useAuthStore();
   const { messages, sendMessage, markAsRead, markAllAsRead, initSync } = useChatStore();
   // The pause and close toasts quote the children's screen, so they read the
@@ -154,12 +172,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [adminInputText, setAdminInputText] = useState("");
   const [isSendingAdmin, setIsSendingAdmin] = useState(false);
   const isSendingAdminRef = useRef(false);
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
-    routeStudentId || null,
-  );
-  const [selectedReplayStudentId, setSelectedReplayStudentId] = useState<string | null>(
-    routeStudentId || null,
-  );
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(routeLearner);
+  const [selectedReplayStudentId, setSelectedReplayStudentId] = useState<string | null>(routeLearner);
   // The learner drawer holds the learner's id, not a copy of the learner: the
   // copy froze at the moment it was opened, so after "סמנו כטופל" the help
   // banner stayed, and a hand raised while it was open never appeared. The
@@ -173,17 +187,21 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   // wrong databaseURL) it fires nothing at all — and the spinner below has no
   // other way out. The teacher stood in front of the class watching it turn.
   const [loadTimedOut, setLoadTimedOut] = useState(false);
+  // The server refused the read (the signed-in account is not a teacher's):
+  // checking the internet does not help, signing in as the teacher does.
+  const [loadRefused, setLoadRefused] = useState(false);
   const [diagnosticSelectedSession, setDiagnosticSelectedSession] = useState<number>(2);
 
   // Update active tab and selected student based on route params (PRD 4.3 Navigation Redundancy)
   useEffect(() => {
     if (routeStudentId) {
-      setSelectedStudentId(routeStudentId);
-      setSelectedReplayStudentId(routeStudentId);
+      // An unknown learner selects no one: the reports tab says so.
+      setSelectedStudentId(routeLearner);
+      setSelectedReplayStudentId(routeLearner);
       setActiveTab("diagnostic_reports");
       // Clean up the URL so it doesn't stay if they close it, or leave it. The PRD just says we support it.
     }
-  }, [routeStudentId]);
+  }, [routeStudentId, routeLearner]);
 
   // --- Module 20: Firestore Live Session 2 Diagnostic Documents (WP6 Integration) ---
   const [firestoreSession2Docs, setFirestoreSession2Docs] = useState<Record<string, SessionDocument>>({});
@@ -238,6 +256,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const adminChatDrawerRef = useDismissableOverlay<HTMLDivElement>(
     isAdminChatDrawerOpen,
     () => setIsAdminChatDrawerOpen(false)
+  );
+  // מסמך העיצוב §1.2: also the "עברו X דקות" window closes on Escape.
+  const deadlineNoticeRef = useDismissableOverlay<HTMLDivElement>(
+    deadlineNotice !== null,
+    () => setDeadlineNotice(null)
   );
   const [isUpdatingSession, setIsUpdatingSession] = useState(false);
   const isUpdatingSessionRef = useRef(false);
@@ -362,7 +385,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           teacherId: (lastVal.teacherId as string) || 'teacher',
           // Catch-up time: which run ended, for the reasons asked later.
           ...lastRunFields(closedMeeting, startedAt),
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn('[TeacherDashboard] recording the 45-minute close failed:', err);
+          toast.error(AUTO_CLOSE_NOT_SAVED_HE, { id: 'auto-close-not-saved' });
+        });
         // A meeting 2 closed by time completes no one (owner decision 2.10.2026):
         // the teacher is told where the learners who did not finish are.
         toast.info(
@@ -454,6 +480,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     // "המורה סגרה את המפגש" though she had pressed nothing. It now runs on every
     // (re)connect.
     let isConnected = false;
+    // Whether THIS page lost its connection and got it back. A reload, and the
+    // closing of a second dashboard tab or of the projector window, stamp the
+    // disconnect too — and each raised "החיבור התנתק לרגע וחזר" on a page whose
+    // connection never dropped. The stamp is still cleared; only a page that
+    // dropped tells the teacher.
+    let droppedHere = false;
     const armPresence = () => {
       // Cancel any legacy whole-session close hook an older client left armed,
       // then stamp the disconnect time. A refused hook must not surface as an
@@ -466,7 +498,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       }
     };
     const unsubConnected = onValue(ref(database, '.info/connected'), (snap) => {
-      isConnected = snap.val() === true;
+      const connectedNow = snap.val() === true;
+      if (isConnected && !connectedNow) droppedHere = true;
+      isConnected = connectedNow;
       if (isConnected) armPresence();
     });
 
@@ -491,6 +525,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       if (!rec || stamp === null || !isConnected) return;
       const graceMinutes = Math.round(TEACHER_DISCONNECT_GRACE_MS / 60000);
       if (rec.active === true && serverNow() - stamp > TEACHER_DISCONNECT_GRACE_MS) {
+        // A meeting also past its 45-minute limit (left open yesterday) is
+        // closed by the time-limit path above: one write and one toast, not
+        // two closes with two contradicting reasons.
+        const capAt = getSessionAutoCloseAt(rec);
+        if (isServerClockKnown() && capAt !== null && serverNow() >= capAt) return;
+        droppedHere = false;
         set(activeSessionRef, {
           active: false,
           status: 'closed',
@@ -500,7 +540,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           teacherId: (rec.teacherId as string) || user?.uid || 'teacher',
           // Catch-up time: which run ended, for the reasons asked later.
           ...lastRunFields(rec.sessionNumber, readSessionStartedAt(rec)),
-        }).catch((err) => console.warn('[TeacherDashboard] closing after the disconnect grace failed:', err));
+        }).catch((err) => {
+          console.warn('[TeacherDashboard] closing after the disconnect grace failed:', err);
+          toast.error(AUTO_CLOSE_NOT_SAVED_HE, { id: 'auto-close-not-saved' });
+        });
         toast.info(
           `החיבור שלכם למערכת היה מנותק יותר מ-${graceMinutes} דקות, ולכן המפגש נסגר אצל התלמידים. כדי להמשיך, הפעילו את המפגש מחדש.`,
           { duration: 10000, id: 'teacher-reconnected' }
@@ -509,8 +552,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       }
       set(disconnectStampRef, null).catch(() => {});
       armPresence();
-      // A stamp on a closed meeting (the hook outlives a close) is only cleared.
-      if (rec.active !== true) return;
+      const dropped = droppedHere;
+      droppedHere = false;
+      // A stamp on a closed meeting (the hook outlives a close) is only cleared,
+      // and so is one this page's own connection did not cause.
+      if (rec.active !== true || !dropped) return;
       toast.info(
         `החיבור שלכם למערכת התנתק לרגע וחזר. המפגש נשאר פתוח והתלמידים המשיכו לעבוד. אם החיבור ייפול ליותר מ-${graceMinutes} דקות, המפגש ייסגר אצלם.`,
         { duration: 10000, id: 'teacher-reconnected' }
@@ -535,7 +581,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       selectedSessionNum === pendingActivationSession
     ) {
       setPendingActivationSession(null);
-      toast.info(`מפגש ${pendingActivationSession} כבר פעיל כעת.`, { id: 'session-already-active' });
+      toast.info(`${meetingShortLabelHe(pendingActivationSession)}: המפגש כבר פתוח עכשיו.`, { id: 'session-already-active' });
     }
   }, [pendingActivationSession, isStartingSession, isClassSessionActive, selectedSessionNum]);
 
@@ -660,7 +706,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       if (outcome === 'queued') {
         toast.info('אין חיבור לאינטרנט. המפגש ייפתח כשהחיבור יחזור.', { id: 'session-write-offline' });
       } else {
-        toast.success(`שיעור ${sessionNum} הופעל בהצלחה לכלל תלמידי הכיתה! 🚀`);
+        toast.success(`${meetingShortLabelHe(sessionNum)}: המפגש נפתח לכל תלמידי הכיתה.`);
       }
       return true;
     } catch (err: any) {
@@ -820,6 +866,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     const unsubscribe = onValue(studentsRef, (snapshot) => {
       clearTimeout(watchdog);
       setLoadTimedOut(false);
+      setLoadRefused(false);
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
@@ -964,6 +1011,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }, (error) => {
       console.error("Firebase permission denied or network error on users/students:", error);
       clearTimeout(watchdog);
+      const refusal = `${(error as { code?: string })?.code ?? ''} ${error?.message ?? ''}`;
+      setLoadRefused(/permission[_ -]?denied/i.test(refusal));
       setLoadTimedOut(true);
       setIsLoading(false);
     });
@@ -1001,8 +1050,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   // Module 14 §ב0: the picker must show all eight sessions AND the state of each
   // (buildSessionRows: open now, finished by all, by some, or by none).
   const sessionRows: SessionRow[] = useMemo(
+    // Per meeting (completedMeetings/m{N}, core/meetingCompletion.ts): a learner
+    // who missed meeting 3 and finished meeting 4 is not counted in meeting 3.
     () => buildSessionRows(
-      allStudents.map((s) => Number(s.highestCompletedMeeting) || 0),
+      allStudents.map((s) => (meeting: number) => isMeetingFinished(s as unknown as Record<string, unknown>, meeting)),
       isClassSessionActive ? selectedSessionNum : null,
     ),
     [allStudents, isClassSessionActive, selectedSessionNum]
@@ -1039,6 +1090,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     () => allStudents.filter((s) => Boolean(s.conceptMastery)).length,
     [allStudents]
   );
+
+  // An empty group table: nobody assessed yet, or nobody struggling there.
+  // Both used to read "אין נתונים להצגה".
+  const emptyGroupHe = studentsWithMastery === 0
+    ? 'אין עדיין נתונים: אף תלמיד לא סיים את מפגש 2.'
+    : 'אין תלמידים שמתקשים בתחום הזה.';
 
   const approveRoute = useStore((s) => s.approveRoute);
 
@@ -1284,7 +1341,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       approveRoute(`student_${normNum}`);
       approveRoute(normNum);
 
-      toast.success(`תלמיד ${normNum} אושר בהצלחה למפגש 3 (${ROUTE_NAME_HE[path === 'green_path' ? 'green_path' : 'remediation_path']})! 🛡️`);
+      toast.success(`תלמיד ${normNum} אושר ל${meetingShortLabelHe(3)} (${ROUTE_NAME_HE[path === 'green_path' ? 'green_path' : 'remediation_path']}).`);
       return true;
     } catch (err: any) {
       console.error('[TeacherDashboard] Gate approval write failed:', err);
@@ -1384,6 +1441,14 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     return () => unsub();
   }, [user?.uid, user?.email]);
 
+  // The drawer opens at its newest message and follows each new one, as the
+  // learner chat does.
+  const adminMessagesScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = adminMessagesScrollRef.current;
+    if (isAdminChatDrawerOpen && el) el.scrollTop = el.scrollHeight;
+  }, [isAdminChatDrawerOpen, adminMessages.length]);
+
   // For Student Chat
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
 
@@ -1445,7 +1510,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       if (unreadAdmin.length > 0) {
         const batch = writeBatch(firestore);
         unreadAdmin.forEach((m) => batch.update(doc(firestore, "messages", m.id), { read: true }));
-        batch.commit().catch((err) => console.warn("[Module 22] mark-read failed:", err));
+        batch.commit().catch((err) => {
+          console.warn("[Module 22] mark-read failed:", err);
+          toast.error('ההודעות מההנהלה לא סומנו כנקראו. סגרו את החלון ופתחו אותו שוב.', { id: 'admin-mark-read-failed' });
+        });
       }
     }
     
@@ -1543,8 +1611,23 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }
   };
 
+  // The same live scan for the learner chat (PRD Module 3 §א / 22 §ב.1): the
+  // notice sits under the box and the send stays blocked while it shows —
+  // also when the scan itself fails. It used to be a toast after "send".
+  const studentInputPiiNotice = useMemo(() => {
+    if (!inputText.trim()) return null;
+    try {
+      const validation = validateChatInputForPII(inputText);
+      return validation.valid ? null : (validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
+    } catch (err) {
+      console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
+      return 'שגיאה בבדיקת הפרטים המזהים. שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.';
+    }
+  }, [inputText]);
+
   const handleSendStudent = () => {
     if (!inputText.trim() || !user || !selectedStudentId) return;
+    if (studentInputPiiNotice) return; // the notice is already on screen, under the box
 
     // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
     try {
@@ -1603,13 +1686,20 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   return (
     <div
-      className={`flex flex-col ${hideSidebar ? 'w-full' : 'md:flex-row min-h-screen'} bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 overflow-x-hidden`}
+      // overflow-x-clip, not -hidden: "hidden" turns this element into the scroll
+      // container of the sticky side menu, and since it never scrolls itself
+      // the menu scrolled away with the page.
+      className="flex flex-col min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 overflow-x-clip"
       data-load-timed-out={loadTimedOut ? 'true' : undefined}
       dir="rtl"
     >
       {loadTimedOut && (
         <div role="alert" className="w-full bg-rose-50 border-b border-rose-200 text-rose-800 text-sm font-bold px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <span>לא התקבלה תשובה ממסד הנתונים. מה שמוצג כאן עלול להיות לא מעודכן — בדקו את החיבור לאינטרנט.</span>
+          <span>
+            {loadRefused
+              ? 'לחשבון שבו התחברתם אין הרשאה לנתוני הכיתה. התנתקו והתחברו שוב בחשבון המורה.'
+              : 'לא התקבלה תשובה ממסד הנתונים. מה שמוצג כאן עלול להיות לא מעודכן — בדקו את החיבור לאינטרנט.'}
+          </span>
           <button
             type="button"
             onClick={() => window.location.reload()}
@@ -1619,82 +1709,18 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           </button>
         </div>
       )}
-      {/* Top Sub-Navigation Bar when embedded inside Admin view */}
-      {hideSidebar && (
-        <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 rounded-2xl mb-6 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-extrabold text-sm tracking-tight text-slate-900">המסך של המורה</span>
-          </div>
-
-          <div role="tablist" aria-label="המסך של המורה" className="flex flex-wrap gap-1.5 overflow-x-auto custom-scrollbar py-1">
-            <button
-              onClick={() => handleTabChange("heatmap")}
-              role="tab"
-              aria-selected={activeTab === "heatmap"}
-              className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all ${activeTab === "heatmap" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
-            >
-              הרדאר הפדגוגי השקט
-            </button>
-            <button
-              onClick={() => handleTabChange("clustering")}
-              role="tab"
-              aria-selected={activeTab === "clustering"}
-              className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all ${activeTab === "clustering" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
-            >
-              מיפוי מיומנויות כיתתי
-            </button>
-            <button
-              onClick={() => handleTabChange("diagnostic_reports")}
-              role="tab"
-              aria-selected={activeTab === "diagnostic_reports"}
-              className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all ${activeTab === "diagnostic_reports" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
-            >
-              דוחות אבחון אישיים
-            </button>
-            <button
-              onClick={() => handleTabChange("approvals")}
-              role="tab"
-              aria-selected={activeTab === "approvals"}
-              className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all ${activeTab === "approvals" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
-            >
-              {TEACHER_GATE_HE}
-            </button>
-            <button
-              onClick={() => handleTabChange("chat_students")}
-              role="tab"
-              aria-selected={activeTab === "chat_students"}
-              className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "chat_students" ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
-            >
-              <span>צ'אט תלמידים</span>
-              {unreadStudentsCount > 0 && (
-                <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-md animate-pulse">
-                  {unreadStudentsCount}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setIsAdminChatDrawerOpen(true)}
-              className={`px-3 py-2.5 min-h-11 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${isAdminChatDrawerOpen ? "bg-indigo-600 text-white shadow-md" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
-            >
-              {/* Module 22 §ב: the consultation channel opens from an envelope icon */}
-              <Mail className="w-3.5 h-3.5" />
-              <span>צ'אט הנהלה</span>
-              {unreadAdminCount > 0 && (
-                <span className="bg-indigo-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-md animate-bounce">
-                  {unreadAdminCount}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Sidebar */}
-      {!hideSidebar && (
-        <aside className="w-full md:w-64 lg:w-72 bg-white dark:bg-slate-900 border-b md:border-b-0 md:border-l border-slate-200/80 dark:border-slate-800 flex flex-col shadow-md z-20 transition-all shrink-0 md:min-h-screen sticky top-0 md:h-screen overflow-y-auto custom-scrollbar">
+      {/* The banner above sits over the whole width; the side menu and the
+          page share the row below it. */}
+      <div className="flex flex-col md:flex-row flex-1 min-w-0">
+      {/* Sidebar — stays in place while the page scrolls (md and up), so the
+          tabs and the sign-out are always in reach. */}
+        <aside className="w-full md:w-64 lg:w-72 bg-white dark:bg-slate-900 border-b md:border-b-0 md:border-l border-slate-200/80 dark:border-slate-800 flex flex-col shadow-md z-20 transition-all shrink-0 md:sticky md:top-0 md:self-start md:h-screen overflow-y-auto custom-scrollbar">
         <div className="h-20 flex items-center px-6 border-b border-ws-surface2 bg-white/40 dark:bg-slate-800/40 shrink-0">
-          <Logo size="md" to="/dashboard" textClassName="font-display text-ws-ink" />
+          {/* The dashboard stays mounted across its own routes, so the link
+              alone left the teacher on the tab she was on. */}
+          <div onClick={() => handleTabChange("heatmap")}>
+            <Logo size="md" to="/dashboard" textClassName="font-display text-ws-ink" />
+          </div>
         </div>
         
         <div className="p-6 border-b border-ws-surface2">
@@ -1704,7 +1730,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           
           <div className="mt-4">
             <button
-              onClick={() => window.open('/projector', '_blank')}
+              // One named window: a second click brings the same projector
+              // window back instead of opening another, and each extra window
+              // released the children's screens when it opened or closed.
+              onClick={() => window.open('/projector', 'mathmaticore_projector')}
               className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 shadow-md font-bold text-sm"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
@@ -1803,13 +1832,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           <LogoutButton className="w-full justify-start gap-3 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-colors rounded-xl px-4 py-3" />
         </div>
       </aside>
-      )}
 
       {/* Main Content */}
       {/* On the student chat the page itself does not scroll: main takes exactly the
           screen height and the conversation fills what the session bar leaves, so
           the typing line is always in view. Only the message list scrolls. */}
-      <main className={`flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 relative ${activeTab === "chat_students" && !hideSidebar ? "md:h-screen md:flex md:flex-col" : ""}`}>
+      <main className={`flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 relative ${activeTab === "chat_students" ? "md:h-screen md:flex md:flex-col" : ""}`}>
         {/* Subtle background glow effect */}
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
@@ -1874,7 +1902,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             <button
               onClick={() => setPendingActivationSession(pickedSessionNum)}
               disabled={(isClassSessionActive && pickedSessionNum === selectedSessionNum) || isUpdatingSession || isStartingSession}
-              title={isClassSessionActive && pickedSessionNum === selectedSessionNum ? 'מפגש זה כבר פעיל כעת' : `פתיחת מפגש ${pickedSessionNum} לכלל הכיתה`}
+              title={isClassSessionActive && pickedSessionNum === selectedSessionNum ? `${meetingShortLabelHe(pickedSessionNum)} כבר פתוח עכשיו` : `פתיחת ${meetingShortLabelHe(pickedSessionNum)} לכל הכיתה`}
               className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
             >
               <span>▶️</span>
@@ -2110,8 +2138,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   </p>
                   <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
                     <DataGrid
+                      emptyMessage={emptyGroupHe}
                       columns={[
-                        { key: "name", header: "שם תלמיד" },
+                        { key: "name", header: "תלמיד" },
                         { key: "mastery", header: "רמת שליטה" },
                       ]}
                       data={decimalStructureGroup.map((s) => ({
@@ -2140,8 +2169,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   </p>
                   <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
                     <DataGrid
+                      emptyMessage={emptyGroupHe}
                       columns={[
-                        { key: "name", header: "שם תלמיד" },
+                        { key: "name", header: "תלמיד" },
                         { key: "mastery", header: "רמת שליטה" },
                         { key: "grouping", header: REGROUPING_KIND_LABELS_HE.grouping },
                         { key: "decomposition", header: REGROUPING_KIND_LABELS_HE.decomposition },
@@ -2174,8 +2204,9 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   </p>
                   <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
                     <DataGrid
+                      emptyMessage={emptyGroupHe}
                       columns={[
-                        { key: "name", header: "שם תלמיד" },
+                        { key: "name", header: "תלמיד" },
                         { key: "mastery", header: "רמת שליטה" },
                       ]}
                       data={proceduralFluencyGroup.map((s) => ({
@@ -2228,8 +2259,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               // כיתה ריקה מציגה את מצב הבחירה הריק שלמטה. ברירת מחדל ל'student_user1'
               // הייתה גורמת לכך שאם במקרה קיימת רשומה מקומית לתלמיד 1, הדוח שלו
               // היה נפתח בלי שאיש בחר בו.
-              const effectiveReplayStudentId = selectedReplayStudentId || allStudents[0]?.studentId || '';
-              const s = students[effectiveReplayStudentId] || allStudents.find(st => st.studentId === effectiveReplayStudentId || normalizeStudentId(st.studentId) === normalizeStudentId(effectiveReplayStudentId)) || allStudents[0];
+              // A link to a learner who is not in the class opens no report
+              // (routeLearnerUnknown) until the teacher picks one from the list.
+              const noLearnerFromLink = routeLearnerUnknown && !selectedReplayStudentId;
+              const effectiveReplayStudentId = noLearnerFromLink ? '' : selectedReplayStudentId || allStudents[0]?.studentId || '';
+              const s = noLearnerFromLink ? undefined : students[effectiveReplayStudentId] || allStudents.find(st => st.studentId === effectiveReplayStudentId || normalizeStudentId(st.studentId) === normalizeStudentId(effectiveReplayStudentId)) || allStudents[0];
 
               const qMatrix = s?.qMatrixResults || {};
               const traceData = s?.traceData || { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] };
@@ -2250,6 +2284,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               };
 
               return (
+                <>
+                {noLearnerFromLink && (
+                  <p role="alert" className="mb-4 rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-5 py-3 text-sm font-bold text-amber-950 dark:text-amber-100">
+                    הקישור לא מוביל לאף תלמיד בכיתה. מספרי התלמידים הם 1 עד 12. בחרו תלמיד מהרשימה.
+                  </p>
+                )}
                 <div className="flex flex-col lg:flex-row gap-6">
                   {/* Sidebar: Student List */}
                   <AccessibleCard className="w-full lg:w-64 shrink-0 p-4 bg-ws-surface/80 backdrop-blur-xl border border-ws-surface2 shadow-sm rounded-2xl h-fit max-h-[80vh] overflow-y-auto">
@@ -2351,7 +2391,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                                 <button
                                   onClick={() => setDrawerStudentId(normalizeStudentId(s.studentId))}
                                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700/70 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-600 shadow-sm transition-all active:scale-95 cursor-pointer"
-                                  title="התאמת רמת פיגום, עזרים ושקט חזותי"
+                                  title="שקט חזותי לתלמיד ושחזור מהלכים"
                                 >
                                   <Sliders className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                                   <span>התאמת תנאי למידה</span>
@@ -2532,6 +2572,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                     )}
                   </div>
                 </div>
+                </>
               );
             })()}
           </div>
@@ -2547,6 +2588,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               isLoading={isApprovingGate}
               unfinished={unfinishedMeeting2}
               isMeeting2Open={isMeeting2Open}
+              onOpenLearner={(studentId) => {
+                const id = normalizeStudentId(studentId);
+                setSelectedStudentId(id);
+                setSelectedReplayStudentId(id);
+                setActiveTab("diagnostic_reports");
+              }}
               onReopenMeeting2={() => {
                 // The dashboard's own activation window (Module 14 §ב0).
                 setPickedSessionNum(2);
@@ -2584,12 +2631,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   <h3 className="font-bold text-lg text-slate-900 dark:text-white">
                     הנהלה ותמיכה טכנית
                   </h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                      זמין כעת לפניות ותמיכה
-                    </span>
-                  </div>
+                  {/* No presence line: the channel is asynchronous (Module 22), and
+                      the fixed green dot showed with nobody on the other side. */}
                 </div>
               </div>
               <button
@@ -2602,7 +2645,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             </div>
 
             {/* Chat Messages View */}
-            <div className="flex-1 min-h-0 p-5 overflow-y-auto flex flex-col gap-4 bg-slate-50/50 dark:bg-slate-950/50">
+            <div ref={adminMessagesScrollRef} data-testid="admin-chat-messages" className="flex-1 min-h-0 p-5 overflow-y-auto flex flex-col gap-4 bg-slate-50/50 dark:bg-slate-950/50">
               {adminMessages.length === 0 ? (
                 <div className="m-auto text-center flex flex-col items-center justify-center text-slate-400 max-w-sm">
                   <div className="w-16 h-16 rounded-full bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center mb-3 text-indigo-500">
@@ -2687,7 +2730,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
         {/* STUDENTS CHAT */}
         {activeTab === "chat_students" && (
-          <div className={`h-[calc(100dvh-110px)] ${hideSidebar ? "" : "md:h-auto md:flex-1 md:min-h-[320px]"} flex flex-col md:flex-row bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in duration-300`}>
+          <div className={`h-[calc(100dvh-110px)] md:h-auto md:flex-1 md:min-h-[320px] flex flex-col md:flex-row bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in duration-300`}>
             {/* Student List Sidebar */}
             <div
               className={`${selectedStudentId ? "hidden md:flex" : "flex"} w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 flex-col h-full bg-slate-50/50 dark:bg-slate-900/50 shrink-0`}
@@ -2760,10 +2803,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                             }`}
                           >
                             {(student.studentId.replace(/\D/g, '') || '1')}
-                            {student.traceData?.hesitation_events > 0 && (
+                            {/* The radar's own signal — hesitating NOW. The old one was
+                                any hesitation ever counted, and stuck on meeting 2's number. */}
+                            {student.isOnline && (student as { hesitating?: { hesitating?: boolean } }).hesitating?.hesitating === true && (
                               <div
                                 className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 shadow-md"
-                                title="מתקשה"
+                                title="מהסס עכשיו"
                               >
                                 <ShieldAlert className="w-3 h-3 text-white" />
                               </div>
@@ -2774,7 +2819,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                               תלמיד {student.studentId.replace(/\D/g, '') || student.studentId}
                             </span>
                             <span className={`text-xs truncate ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
-                              {lastStudentMsg ? (lastStudentMsg.text || '📷 תמונה מצורפת') : 'לחצו לפתיחת שיחה'}
+                              {lastStudentMsg?.text || 'לחצו לפתיחת שיחה'}
                             </span>
                           </div>
                         </div>
@@ -2809,12 +2854,15 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                         {selectedStudentId.replace(/\D/g, '') || '?'}
                       </div>
                       {(() => {
-                        const currentStudent = filteredChatStudents.find((s) => s.studentId === selectedStudentId);
+                        // The full list: with a search typed, the open learner may be
+                        // filtered out, and the header then read "לא מחובר" and the raw id.
+                        const openId = normalizeStudentId(selectedStudentId);
+                        const currentStudent = allStudents.find((s) => normalizeStudentId(s.studentId) === openId);
                         const isStudentOnline = Boolean(currentStudent?.isOnline);
                         return (
                           <div>
                             <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                              {currentStudent?.name || selectedStudentId}
+                              {currentStudent?.name || `תלמיד ${selectedStudentId.replace(/\D/g, '') || '?'}`}
                             </h3>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className={`w-2 h-2 rounded-full ${isStudentOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
@@ -2878,7 +2926,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   </div>
 
                   {/* Input Footer - ALWAYS VISIBLE AT BOTTOM (shrink-0) */}
-                  <div className="p-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2.5 shrink-0 z-20">
+                  <div className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 z-20">
+                  {studentInputPiiNotice && (
+                    <p id="student-chat-pii-notice" role="status" className="px-4 pt-3 text-xs font-bold text-amber-800 dark:text-amber-300">
+                      {studentInputPiiNotice}
+                    </p>
+                  )}
+                  <div className="p-3.5 flex items-center gap-2.5">
                     <input
                       ref={studentChatInputRef}
                       type="text"
@@ -2886,17 +2940,20 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                       onChange={(e) => setInputText(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendStudent()}
                       placeholder="הקלידו הודעה לתלמיד..."
-                      className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-white"
+                      aria-invalid={studentInputPiiNotice ? true : undefined}
+                      aria-describedby={studentInputPiiNotice ? "student-chat-pii-notice" : undefined}
+                      className={`flex-1 bg-slate-50 dark:bg-slate-800 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-white ${studentInputPiiNotice ? 'border-amber-400 focus:ring-amber-400' : 'border-slate-200 dark:border-slate-700 focus:ring-indigo-500'}`}
                     />
 
                     <button
                       onClick={handleSendStudent}
-                      disabled={!inputText.trim()}
+                      disabled={!inputText.trim() || studentInputPiiNotice !== null}
                       aria-label="שליחת ההודעה"
                       className="rounded-full w-10 h-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
                     >
                       <Send className="w-4 h-4 -mr-0.5" aria-hidden="true" />
                     </button>
+                  </div>
                   </div>
                 </>
               ) : (
@@ -2942,7 +2999,10 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         )}
         {floatingChatStudent && (
           <FloatingChatPanel
-            student={floatingChatStudent}
+            // A panel per learner: text typed to one never stays for the next.
+            // The learner is read live, so the online dot follows the heartbeat.
+            key={normalizeStudentId(floatingChatStudent.studentId)}
+            student={allStudents.find((st) => normalizeStudentId(st.studentId) === normalizeStudentId(floatingChatStudent.studentId)) ?? floatingChatStudent}
             onClose={() => setFloatingChatStudent(null)}
             teacherId={(user?.uid as string) || TEACHER_ID}
           />
@@ -3010,7 +3070,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         {deadlineNotice !== null && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" dir="rtl">
             <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={() => setDeadlineNotice(null)} />
-            <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center space-y-4">
+            <div
+              ref={deadlineNoticeRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`עברו ${deadlineNotice.minutes} דקות`}
+              className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center space-y-4"
+            >
               {/* §ב1 specifies this popup's text exactly: "עברו X דקות" — nothing more. */}
               <p className="text-2xl font-black text-slate-900 dark:text-white">
                 עברו {deadlineNotice.minutes} דקות
@@ -3026,6 +3092,7 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
         )}
 
       </main>
+      </div>
     </div>
   );
 }
