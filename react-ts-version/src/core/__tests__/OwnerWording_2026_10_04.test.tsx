@@ -471,13 +471,18 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
     expect(done?.details.error_count).toBe(1);
   });
 
-  it('meeting 1\'s 26 keeps its message there (text 1b was not taken)', () => {
+  it('meeting 1\'s 26: 26 typed before both groupings — "the answer is right, now group", in its own words (text 1b)', () => {
+    const GROUP_NOW_S1 = { title: 'קַבְּצוּ 🧱', sub: 'התשובה שכתבתם נכונה. באחד הטורים יש 10 לבנים או יותר. לחצו שוב ושוב על הכפתור שמופיע בראש אותו טור, עד שהכפתור ייעלם.' };
     ws().initSession(1, false, SESSION1_TASKS.findIndex((t) => t.id === 's1_r_group26'));
     useWorkspaceStore.setState({ openingScreenSeen: true } as any);
     typeRow('26');
-    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'wrong_representation', ...NOT_YET });
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...GROUP_NOW_S1 });
     ws().groupColumnClick('units');
-    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'wrong_representation', ...NOT_YET });
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...GROUP_NOW_S1 });
+    // A wrong number is still a wrong board check with the usual sentence.
+    useWorkspaceStore.setState({ answerDigits: {} } as any);
+    typeRow('25');
+    expect(verdict()).not.toMatchObject(GROUP_NOW_S1);
   });
 
   // Wording round 3, text 2.

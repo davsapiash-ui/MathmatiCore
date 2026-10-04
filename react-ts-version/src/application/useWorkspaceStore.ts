@@ -2043,6 +2043,8 @@ const GROUP_YOURSELVES_HE = 'הלבנים מסודרות נכון, אבל המש
 
 /** Station 7's 2,730 (owner, 4.10.2026, wording round 3, text 1): the number typed is right; a grouping is still to come. */
 export const GIVEN_ANSWER_RIGHT_GROUP_NOW_HE = 'התשובה שכתבתם נכונה. עכשיו בכל טור שיש בו 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור.';
+/** Meeting 1's 26 (wording round 3, text 1b): no column and no button named; two presses. */
+export const GIVEN_ANSWER_RIGHT_GROUP_NOW_S1_HE = 'התשובה שכתבתם נכונה. באחד הטורים יש 10 לבנים או יותר. לחצו שוב ושוב על הכפתור שמופיע בראש אותו טור, עד שהכפתור ייעלם.';
 
 /** Blocks the exercise put on the board, grouped and the answer right (meeting 1's 26, station 7's 2,730; wording round 3, text 2). */
 export const GIVEN_GROUPED_SUCCESS_HE = 'קיבצתם את הלבנים, והתשובה שכתבתם נכונה.';
@@ -2278,17 +2280,18 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
       // number typed is right, but a grouping is still to come, on the opening
       // board or on the way from it (givenBoardOnTheWay). "בית המספרים עוד לא
       // מראה…" was false there. It counts as a wrong press, as every failed
-      // board check does (PRD Module 23 §ב, measure 3). Meeting 1's 26 keeps
-      // its own message (text 1b was not taken).
+      // board check does (PRD Module 23 §ב, measure 3). Meeting 1's 26 gets
+      // the same, in its own words (text 1b, owner 4.10.2026): it names no
+      // column and no button, and needs two presses.
       if (
         task.initialCounts &&
-        !task.id.startsWith('s1_') &&
         REPRESENTATION_LOCKS[task.id]?.conversion === 'composition' &&
         pendingRepresentationConversion(s, task) !== null &&
         answerDigitsToNumber(s.answerDigits) === task.correctAnswer &&
         givenBoardOnTheWay(task, s.counts, s.conversionsByColumn) === true
       ) {
-        return failure('conversion_skipped', 'קַבְּצוּ 🧱', GIVEN_ANSWER_RIGHT_GROUP_NOW_HE, 3500);
+        const sub = task.id.startsWith('s1_') ? GIVEN_ANSWER_RIGHT_GROUP_NOW_S1_HE : GIVEN_ANSWER_RIGHT_GROUP_NOW_HE;
+        return failure('conversion_skipped', 'קַבְּצוּ 🧱', sub, 3500);
       }
       return failure(
         'wrong_representation',
