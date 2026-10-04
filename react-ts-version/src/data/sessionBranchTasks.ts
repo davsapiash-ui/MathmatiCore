@@ -39,7 +39,7 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       challenge: [
         flexible('s3_r_challenge_1', 320,
           'אתגר: כל הדרכים לייצג את 320',
-          `מצאו דרכים שונות לייצג את המספר 320 באמצעות מאות ועשרות בלבד. ${FLEX_HOWTO}`, C),
+          `מצאו דרכים שונות לייצג את המספר 320 באמצעות מאות ועשרות בלבד. ${FLEX_HOWTO}`, { ...C, noUnitBlocks: true }),
       ],
     },
     green_path: {
@@ -52,7 +52,7 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       challenge: [
         flexible('s3_g_challenge_1', 4200,
           'אתגר: כל הדרכים לייצג את 4,200',
-          `מצאו דרכים שונות לייצג את המספר 4,200 באמצעות אלפים, מאות ועשרות. ${FLEX_HOWTO}`, C),
+          `מצאו דרכים שונות לייצג את המספר 4,200 באמצעות אלפים, מאות ועשרות בלבד. ${FLEX_HOWTO}`, { ...C, noUnitBlocks: true }),
       ],
     },
   },

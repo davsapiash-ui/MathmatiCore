@@ -263,9 +263,10 @@ export function composeGroup(id: string, built: Partial<PlaceCounts>, groups: Pl
 }
 
 /** Two different representations of the same number (existing flexible_decomp engine). */
-export function flexible(id: string, value: number, titleHe: string, instructionHe: string, opts: BuildOpts & { requireEvenTens?: boolean } = {}): SessionTask {
+export function flexible(id: string, value: number, titleHe: string, instructionHe: string, opts: BuildOpts & { requireEvenTens?: boolean; noUnitBlocks?: boolean } = {}): SessionTask {
   const task: SessionTask = { id, type: 'flexible_decomp', numberA: value, correctAnswer: value, requiresUngrouping: true, titleHe, instructionHe, targetNode: 'flexible_regrouping' };
   if (opts.requireEvenTens) task.requireEvenTens = true;
+  if (opts.noUnitBlocks) task.noUnitBlocks = true;
   return withOpts(task, opts);
 }
 
@@ -281,8 +282,19 @@ export function flexible(id: string, value: number, titleHe: string, instruction
  * absence told the child in advance that nothing needs grouping. "כאשר" governs
  * both actions, so an exercise without grouping asks for nothing it lacks.
  */
+const GROUP_WHEN_TEN =
+  ' ייצגו את המספרים בעזרת לבנים. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון.';
 export const S4_ADD = (ex: string) =>
-  `פתרו במאונך: ${ex}. ייצגו את המספרים בעזרת לבנים. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. רשמו את התוצאה בשורת התוצאה.`;
+  `פתרו במאונך: ${ex}.${GROUP_WHEN_TEN} רשמו את התוצאה בשורת התוצאה.`;
+/**
+ * A result digit missing (s4_r_t7, s6_r_t7 — owner, 4.10.2026): the exercise
+ * with the tens digit of its result missing, the station's own middle
+ * sentences (what to do with the blocks — until then the instruction said
+ * neither "build" nor "take away"), and the one box to fill.
+ */
+const TENS_DIGIT_MISSING = (ex: string) => `בתרגיל ${ex} חסרה ספרת העשרות בשורת התוצאה.`;
+const WRITE_MISSING_DIGIT = ' כתבו את הספרה החסרה בתיבה הריקה.';
+export const S4_MISSING_TENS = (ex: string) => `${TENS_DIGIT_MISSING(ex)}${GROUP_WHEN_TEN}${WRITE_MISSING_DIGIT}`;
 /**
  * Stations 5–6 (owner, 30.9.2026): the instruction no longer says in advance
  * where or how many times to borrow — the child finds the column that lacks
@@ -330,7 +342,23 @@ export function borrowCount(a: number, b: number): number {
 
 export const S6_SUB = (ex: string, _a?: number, _b?: number) =>
   `פתרו חיסור עם אפסים: ${ex}.${BORROW_WHEN_NEEDED} הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
-export const S8_ADD = (ex: string) => `${ex}. פתרו את תרגיל החיבור וכתבו את התשובה בשורת התוצאה!`;
-export const S8_SUB = (ex: string) => `${ex}. פתרו את תרגיל החיסור וכתבו את התשובה בשורת התוצאה!`;
+/** s6_r_t7 (400 − 156): stations 5–6's own middle sentences, then the take-away and the one box. */
+export const S6_MISSING_TENS = (ex: string) =>
+  `${TENS_DIGIT_MISSING(ex)}${BORROW_WHEN_NEEDED} הוציאו מבית המספרים את הכמות הנדרשת.${WRITE_MISSING_DIGIT}`;
+/**
+ * Station 8 (owner, 4.10.2026): the order of stations 4–6 — "פתרו …: the
+ * exercise." — then one action a sentence. Until then the exercise came first
+ * ("1,245 + 328. פתרו את תרגיל החיבור וכתבו…!"). Station 2 keeps its own words.
+ */
+export const S8_ADD = (ex: string) => `פתרו את תרגיל החיבור: ${ex}. כתבו את התשובה בשורת התוצאה.`;
+export const S8_SUB = (ex: string) => `פתרו את תרגיל החיסור: ${ex}. כתבו את התשובה בשורת התוצאה.`;
 // The button records one way per press, two in all (FlexibleDecompTask): the second way needs a second press.
 export const FLEX_HOWTO = 'בנו את המספר בדרך אחת. לחצו על הכפתור "הוספת ייצוג". אחר כך בנו אותו בדרך שונה, ולחצו שוב על "הוספת ייצוג". רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול הפעולה ↺.';
+/**
+ * 320, 2,100, 4,200 (owner, 4.10.2026): the toast for a way that has blocks
+ * in the units column — the rule, then the action that fixes it. It appears
+ * only when the board shows the number, so the units are 10, 20, 30… and the
+ * "קבצו 10 לעשרת" button is at the head of the column.
+ */
+export const NO_UNIT_BLOCKS_TITLE_HE = 'בִּדְקוּ אֶת טוּר הַיְחִידוֹת 🤔';
+export const NO_UNIT_BLOCKS_SUB_HE = 'בתרגיל הזה בונים את המספר בלי לבני יחידה. קבצו כל 10 לבני יחידה ללבנת עשרת אחת.';

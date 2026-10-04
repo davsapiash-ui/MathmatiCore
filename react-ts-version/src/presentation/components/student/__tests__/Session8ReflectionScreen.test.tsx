@@ -85,7 +85,7 @@ describe('שלב 1 — כמה מאמץ השקעתם', () => {
 
   it('אי אפשר להמשיך בלי לבחור רמה', () => {
     renderBoard();
-    const next = screen.getByRole('button', { name: /המשיכו/ });
+    const next = screen.getByRole('button', { name: /ממשיכים/ });
     expect((next as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'רמה שתיים: מתאים' }));
     expect((next as HTMLButtonElement).disabled).toBe(false);
@@ -96,18 +96,18 @@ describe('שלב 2 — מה עזר לכם', () => {
   function toStep2() {
     const r = renderBoard();
     fireEvent.click(screen.getByRole('button', { name: 'רמה שלוש: מאתגר' }));
-    fireEvent.click(screen.getByRole('button', { name: /המשיכו/ }));
+    fireEvent.click(screen.getByRole('button', { name: /ממשיכים/ }));
     return r;
   }
 
   it('השאלה ושלוש האפשרויות של מסמך 03, בסדר של המרשם', () => {
     const { container } = toStep2();
-    expect(visibleText(container)).toContain('מה עזר לכם הכי הרבה להצליח היום בפתרון התרגילים?');
+    expect(visibleText(container)).toContain('מה עזר לכם להצליח היום בפתרון התרגילים?');
     const boxes = screen.getAllByRole('checkbox').map((b) => (b.textContent ?? '').trim());
     expect(boxes).toEqual([
-      'כפתור ביטול הפעולה שאיפשר לי לתקן טעויות בביטחון וברוגע',
-      'עיגולי הזיכרון שעזרו לי לנהל את המעברים',
-      'השאלות המנחות בכרטיס החניכה',
+      'כפתור ביטול הפעולה',
+      'עיגולי הזיכרון',
+      'השאלות בכרטיס החניכה',
     ]);
     expect(STRATEGY_OPTIONS.map((o) => o.id)).toEqual(['undo', 'memory', 'hints']);
     expect(visibleText(container)).not.toContain('שארית');
@@ -126,10 +126,10 @@ describe('שלב 3 — משפט עידוד לפי מדד ההתמדה של מפ�
   function toStep3(onComplete = vi.fn(), metrics = { undoCount: 2, errorCount: 1, guessCount: 1 }) {
     const r = renderBoard(onComplete, metrics);
     fireEvent.click(screen.getByRole('button', { name: 'רמה שלוש: מאתגר' }));
-    fireEvent.click(screen.getByRole('button', { name: /המשיכו/ }));
+    fireEvent.click(screen.getByRole('button', { name: /ממשיכים/ }));
     fireEvent.click(screen.getByRole('checkbox', { name: /כפתור ביטול הפעולה/ }));
     fireEvent.click(screen.getByRole('checkbox', { name: /כרטיס החניכה/ }));
-    fireEvent.click(screen.getByRole('button', { name: /המשיכו/ }));
+    fireEvent.click(screen.getByRole('button', { name: /ממשיכים/ }));
     return r;
   }
 
@@ -265,9 +265,9 @@ describe('אין מילים באנגלית, בשום שלב', () => {
     };
     check();
     fireEvent.click(screen.getByRole('button', { name: 'רמה אחת: קל' }));
-    fireEvent.click(screen.getByRole('button', { name: /המשיכו/ }));
+    fireEvent.click(screen.getByRole('button', { name: /ממשיכים/ }));
     check();
-    fireEvent.click(screen.getByRole('button', { name: /המשיכו/ }));
+    fireEvent.click(screen.getByRole('button', { name: /ממשיכים/ }));
     check();
     expect(visibleText(container)).not.toMatch(/MathmatiCore|Undo|SRL/);
   });
