@@ -10,6 +10,7 @@
  * copy, and __tests__/catchUpParity.test.ts fails the moment the two differ.
  * Data shape: catchup_records/{session_0N_student_K} — see the frontend file.
  */
+import { scrubPII } from "./geminiProxy";
 
 export const CATCHUP_COLLECTION = "catchup_records";
 
@@ -82,7 +83,20 @@ function roundsOldestFirst(record: Partial<CatchUpRecord> | null | undefined): C
     .sort((a, b) => (Number(a.recorded_at) || 0) - (Number(b.recorded_at) || 0));
 }
 
-/** Same rule as the frontend summarizeCatchUpRecord. */
+/**
+ * The note as a report or the export may print it. The client checks it for
+ * PII before writing (validateCatchUpNote), but the teacher writes the record
+ * straight to Firestore and the rules accept any string up to the cap, so the
+ * server scrubs it again on the way out (Zero-PII, Module 3).
+ */
+export function sanitizeCatchUpNote(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  const trimmed = raw.trim().slice(0, CATCHUP_NOTE_MAX_LENGTH * 2);
+  if (!trimmed) return "";
+  return scrubPII(trimmed).slice(0, CATCHUP_NOTE_MAX_LENGTH);
+}
+
+/** Same rule as the frontend summarizeCatchUpRecord; the notes are scrubbed (sanitizeCatchUpNote). */
 export function summarizeCatchUpRecord(record: Partial<CatchUpRecord> | null | undefined): CatchUpSummary | null {
   const rounds = roundsOldestFirst(record);
   if (rounds.length === 0) return null;
@@ -92,7 +106,7 @@ export function summarizeCatchUpRecord(record: Partial<CatchUpRecord> | null | u
     minutes: opened.reduce((sum, r) => sum + (typeof r.active_minutes === "number" ? r.active_minutes : 0), 0),
     hasOpenRound: opened.some((r) => r.closed_at === null || r.closed_at === undefined),
     reasons: rounds.map((r) => r.reason),
-    notes: rounds.map((r) => (typeof r.note === "string" ? r.note.trim() : "")).filter(Boolean),
+    notes: rounds.map((r) => sanitizeCatchUpNote(r.note)).filter(Boolean),
   };
 }
 

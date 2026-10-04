@@ -15,8 +15,9 @@
  * the server (functions/src/catchUpRounds.ts) fills opened_at, closed_at,
  * closed_by and active_minutes. Learners can neither read nor write it
  * (firestore.rules). Zero PII: learner numbers only; the note passes the PII
- * check (validateCatchUpNote) on the client and sanitizeReasonNote's scrubber
- * on the server.
+ * check (validateCatchUpNote) on the client, and the server scrubs it again
+ * before any report or export prints it (sanitizeCatchUpNote in
+ * functions/src/catchUp.ts).
  *
  * Mirrored in functions/src/catchUp.ts; functions/src/__tests__/catchUpParity.test.ts
  * fails the moment the two lists differ.
