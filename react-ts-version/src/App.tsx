@@ -104,7 +104,7 @@ function FirebaseGate({ children }: { children: React.ReactNode }) {
   if (!ready) {
     return (
       <div dir="rtl" className="flex h-screen items-center justify-center bg-ws-bg text-ws-soft font-bold">
-        מתחבר…
+        מתחברים…
       </div>
     );
   }
@@ -133,7 +133,7 @@ function StaffClaimsGate({ role, children }: { role: StaffRole; children: React.
   if (!ready) {
     return (
       <div dir="rtl" className="flex h-screen items-center justify-center bg-ws-bg text-ws-soft font-bold">
-        מתחבר…
+        מתחברים…
       </div>
     );
   }

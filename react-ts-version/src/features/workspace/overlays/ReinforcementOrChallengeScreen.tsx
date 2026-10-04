@@ -15,13 +15,13 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
  * רק שהם בחירה ולא חובה.
  */
 const BRANCH_CHOICE_TEXT = {
-  badge: 'סיימתם את שבעת התרגילים של התחנה!',
+  badge: 'סיימתם את שבע המשימות של התחנה!',
   heading: 'איך תרצו להמשיך?',
-  intro: 'התרגילים הבאים הם בחירה שלכם, לא חובה.',
+  intro: 'המשימות הבאות הן בחירה שלכם, לא חובה.',
   reinforcementTitle: 'מסלול ביסוס',
-  reinforcement: 'שני תרגילים נוספים, לחזרה על מה שתרגלנו היום.',
+  reinforcement: 'שתי משימות נוספות, לחזרה על הנושא של היום.',
   challengeTitle: 'מסלול אתגר',
-  challenge: 'תרגיל אתגר אחד, קשה יותר, בנושא של היום.',
+  challenge: 'משימת אתגר אחת, קשה יותר, בנושא של היום.',
   finish: 'סיום התחנה עכשיו',
 } as const;
 
@@ -48,16 +48,20 @@ export function ReinforcementOrChallengeScreen({
   onSelectBranch,
   onSkipToFinish,
 }: ReinforcementOrChallengeScreenProps) {
+  // The screen is the page root of /workspace: no top bar above it, so it fills
+  // the viewport (100dvh), not 100vh minus an 80px bar that is not there. Its
+  // spacing follows the window height, so the card fits a short window (a laptop
+  // at 125% zoom) without scrolling and without shrinking any text (UX-013).
   return (
     <div
       dir="rtl"
-      className="min-h-[calc(100vh-80px)] w-full flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 select-none"
+      className="min-h-[100dvh] w-full flex flex-col items-center justify-center p-[clamp(0.75rem,3vh,1.5rem)] bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 select-none"
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center gap-6"
+        className="w-full max-w-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-[clamp(1.25rem,4vh,2rem)] shadow-2xl flex flex-col items-center text-center gap-[clamp(0.75rem,3vh,1.5rem)]"
       >
         {/* Badge */}
         <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">

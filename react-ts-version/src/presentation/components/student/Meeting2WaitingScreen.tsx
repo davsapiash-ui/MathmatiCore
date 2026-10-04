@@ -9,6 +9,13 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 interface Meeting2WaitingScreenProps {
   onApproved?: () => void;
+  /**
+   * True in the lobby, where the screen sits in AppShell's <main> under the top
+   * bar and fills it (min-h-full). The workspace renders it at the page root,
+   * with no AppShell, so there it fills the viewport. The lobby used to take
+   * 100vh minus a 72px bar that is 80px tall, and scrolled by 8px (audit A1-037).
+   */
+  inAppShell?: boolean;
 }
 
 /**
@@ -16,7 +23,7 @@ interface Meeting2WaitingScreenProps {
  * מסך נקי, סולידי ומכבד. מאזין בזמן אמת לשדה teacher_gate_approved.
  * בלי דבורה: בעל המוצר, 29.9.2026 — "אני לא רוצה שתהיה שום דבורה באייקונים".
  */
-export function Meeting2WaitingScreen({ onApproved }: Meeting2WaitingScreenProps) {
+export function Meeting2WaitingScreen({ onApproved, inAppShell = false }: Meeting2WaitingScreenProps) {
   const user = useAuthStore((s) => s.user);
   const rawUid = user?.uid || '';
   const studentId = normalizeStudentId(rawUid);
@@ -51,7 +58,7 @@ export function Meeting2WaitingScreen({ onApproved }: Meeting2WaitingScreenProps
   return (
     <div
       dir="rtl"
-      className="relative min-h-[calc(100vh-72px)] flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 select-none overflow-hidden"
+      className={`relative ${inAppShell ? 'min-h-full' : 'min-h-[100dvh]'} flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 select-none overflow-hidden`}
     >
       <div className="relative z-10 w-full max-w-md bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center gap-6 text-center">
         {/* PRD Module 20 §ב gives the message; the words on screen are

@@ -104,6 +104,7 @@ import { StudentWorkspacePage } from '@/features/workspace/StudentWorkspacePage'
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
+import { tts } from '@/infrastructure/services/TTSService';
 
 const STUDENT = 'student_user5';
 let projectorStamp = 0;
@@ -231,5 +232,60 @@ describe('Module 17 §ד — the cloud on the screens without a top bar', () => 
     act(() => useWorkspaceStore.setState({ sessionNumber: 2, flowStatus: 'sessionDone', awaitingNext: false } as any));
     expect(screen.getByTestId('meeting2-waiting-screen')).toBeTruthy();
     expect(screen.getByTestId('corner-cloud')).toBeTruthy();
+  });
+});
+
+/*
+ * Student-journey audit, 4.10.2026 (A1-069, A6-106, A1-070, A1-040): PRD 7 §א and
+ * the register (15.9.2026, "הלובי היה מסך הלומד היחיד בלי הקראה") give every
+ * child state screen a read-aloud button, on the child's click only.
+ */
+describe('read-aloud on the end screen and the other-device lock — click only', () => {
+  const spySpeak = () => vi.spyOn(tts, 'speak').mockReturnValue(1);
+  let speak: ReturnType<typeof spySpeak>;
+  beforeEach(() => {
+    speak = spySpeak();
+  });
+  afterEach(() => speak.mockRestore());
+  const speechButtons = () => screen.queryAllByRole('button', { name: 'הקראה בקול' });
+
+  it('meeting 1: one button reads the heading, the station line, the saved line and the next-station line', async () => {
+    await openMeeting1();
+    act(() => useWorkspaceStore.setState({ flowStatus: 'sessionDone', awaitingNext: false }));
+    expect(speechButtons()).toHaveLength(1);
+    expect(speak, 'never autoplay').not.toHaveBeenCalled();
+    fireEvent.click(speechButtons()[0]);
+    expect(speak).toHaveBeenCalledTimes(1);
+    const text = speak.mock.calls[0][0] as string;
+    expect(text).toMatch(/^כל הכבוד, מתמטיקאים! סיימתם את תחנה 1! העבודה נשמרה בבטחה\. כשהמורה (תפתח|יפתח) את התחנה הבאה, נמשיך יחד\.$/);
+    expect(text, 'the ✓ is not spoken').not.toContain('✓');
+  });
+
+  it('meeting 8: the button reads "סיימתם את תחנה 8! העבודה נשמרה בבטחה." and nothing about a next station', async () => {
+    await openMeeting1();
+    act(() => useWorkspaceStore.setState({ sessionNumber: 8, flowStatus: 'sessionDone', awaitingNext: false } as any));
+    expect(speechButtons()).toHaveLength(1);
+    expect(speak).not.toHaveBeenCalled();
+    fireEvent.click(speechButtons()[0]);
+    expect(speak.mock.calls[0][0]).toBe('סיימתם את תחנה 8! העבודה נשמרה בבטחה.');
+  });
+
+  it('meetings 3–7: no second button — the closing sentence carries the only one (E2)', async () => {
+    await openMeeting1();
+    act(() => useWorkspaceStore.setState({ sessionNumber: 4, flowStatus: 'sessionDone', awaitingNext: false } as any));
+    // ClosingSentence is stubbed in this file, so the page itself adds none.
+    expect(screen.getByText('סיימתם את תחנה 4!')).toBeTruthy();
+    expect(speechButtons()).toHaveLength(0);
+  });
+
+  it('the other-device lock reads exactly its own text, and shows the cloud', async () => {
+    await openMeeting1();
+    act(() => useWorkspaceStore.setState({ isSupersededByOtherDevice: true } as any));
+    expect(screen.getByText('המשכתם במכשיר אחר')).toBeTruthy();
+    expect(screen.getByTestId('corner-cloud')).toBeTruthy();
+    expect(speechButtons()).toHaveLength(1);
+    expect(speak).not.toHaveBeenCalled();
+    fireEvent.click(speechButtons()[0]);
+    expect(speak.mock.calls[0][0]).toBe('המשכתם במכשיר אחר. הפעילות שלכם פתוחה עכשיו במכשיר אחר. המסך הזה נעול כדי לשמור על העבודה שלכם.');
   });
 });

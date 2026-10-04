@@ -3,11 +3,11 @@ import { useLocation } from 'react-router-dom';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { Logo } from '@/presentation/components/ui/Logo';
 import { studentBadgeHe } from '@/core/toolbarNames';
+import { CloudSyncStatus } from '@/features/workspace/CloudSyncStatus';
 
 /** כותרת פשוטה שנגזרת מהנתיב הנוכחי — במקום פירורי לחם מזויפים. */
 function titleForPath(pathname: string): string {
   if (pathname.startsWith('/dashboard')) return 'דשבורד מורה';
-  if (pathname.startsWith('/hub')) return 'בית';
   if (pathname.startsWith('/admin')) return 'ניהול';
   return '';
 }
@@ -18,11 +18,14 @@ export function Topbar() {
   const title = titleForPath(pathname);
 
   return (
-    <header className="h-18 sm:h-20 bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between px-6 sm:px-8 z-10 sticky top-0 shadow-sm transition-colors duration-300">
+    <header className="h-20 bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between px-6 sm:px-8 z-10 sticky top-0 shadow-sm transition-colors duration-300">
       {/* Brand / Page Title */}
       <Logo size="md" subtitle={title} />
 
       <div className="flex items-center gap-3 sm:gap-4">
+        {/* PRD 17 §ד: the learner's cloud, grey offline, green when synced — on the lobby too. */}
+        {user?.role === 'student' && <CloudSyncStatus />}
+
         {/* User Profile */}
         <div className="flex items-center gap-2.5 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl py-1.5 px-3 border border-slate-200/50 dark:border-slate-700/50">
           <div className="flex flex-col items-end leading-tight">
@@ -34,7 +37,7 @@ export function Topbar() {
               {user?.role === 'student' ? studentBadgeHe(user?.student_id || '') : user?.role === 'teacher' ? 'מורה' : 'מנהל מערכת'}
             </span>
             {user?.role === 'student' && (
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
                 {user?.class_name || 'כיתת פיילוט'}
               </span>
             )}
