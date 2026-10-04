@@ -304,9 +304,12 @@ describe('4. an empty board in stations 3 and 7: build first what the instructio
   });
 
   it('where "which number is built" or C1/C7 would have spoken to an empty board', () => {
-    for (const id of ['s3_r_t1', 's3_g_t1', 's3_r_reinforce_1', 's3_r_t2', 's3_g_t4', 's7_r_t1', 's7_g_t1', 's7_g_reinforce_2', 's7_r_t6', 's7_g_t5', 's7_g_t6']) {
+    for (const id of ['s3_r_t1', 's3_g_t1', 's3_r_reinforce_1', 's3_r_t2', 's3_g_t4', 's7_r_t1', 's7_g_t1', 's7_g_reinforce_2', 's7_r_t6', 's7_g_t5']) {
       expect(q(byId(id), EMPTY).questionHe, id).toBe(BUILD_Q);
     }
+    // 2,730 opens with its blocks on the board (owner, 4.10.2026): an empty
+    // board there is a board the child cleared — back to the given blocks.
+    expect(q(byId('s7_g_t6'), EMPTY).questionHe).toBe('נסו לחשוב: בית המספרים לא נראה עכשיו כמו בתחילת התרגיל. מה עושים?');
   });
 
   it('C2 keeps speaking on an empty board, C3 does not; a built board is unchanged; station 4 builds first too', () => {
