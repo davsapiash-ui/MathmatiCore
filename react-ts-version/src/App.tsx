@@ -11,7 +11,6 @@ import { AppShell } from "@/presentation/components/layout/AppShell";
 import { useQuietMode } from '@/hooks/useQuietMode';
 import { MotionConfig } from 'framer-motion';
 import { Toaster } from "sonner";
-import { RoleSelectionModal } from "@/presentation/components/RoleSelectionModal";
 import { useAuthStore } from "@/application/useAuthStore";
 import { SocraticEngine } from "./infrastructure/services/SocraticEngine";
 import { useStore } from "@/application/useStore";
@@ -147,20 +146,15 @@ function StaffClaimsGate({ role, children }: { role: StaffRole; children: React.
  * Restricts anonymous student access to teacher/admin routes, immediately redirecting back to student hub.
  */
 function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; children: React.ReactNode }) {
-  const { user, role, isAuthenticated, logout, showRoleSelector } = useAuthStore();
-  
+  const { user, role, isAuthenticated, logout } = useAuthStore();
+
   // Enforce idle timeout and 8-hour token expiration for authenticated users
   useIdleTimeout();
-  
+
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Dual claims blocking modal
-  if (showRoleSelector) {
-    return <RoleSelectionModal />;
-  }
-  
   const activeRole = (typeof role === "string" ? role : (user.role as string)) || "teacher";
 
   // Whitelist enforcement for teachers & admins.
@@ -201,11 +195,11 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
 }
 
 function RoleRouter() {
-  const { user, role, isAuthenticated, logout, showRoleSelector } = useAuthStore();
+  const { user, role, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isAuthenticated && user && !showRoleSelector) {
+    if (isAuthenticated && user) {
       const activeRole = (typeof role === "string" ? role : (user.role as string)) || "teacher";
       if (activeRole === "teacher" || activeRole === "admin") {
         const email = ((user.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
@@ -230,11 +224,7 @@ function RoleRouter() {
         });
       }
     }
-  }, [isAuthenticated, user, role, showRoleSelector, navigate, logout]);
-
-  if (showRoleSelector) {
-    return <RoleSelectionModal />;
-  }
+  }, [isAuthenticated, user, role, navigate, logout]);
 
   return <Login />;
 }
@@ -296,14 +286,6 @@ function App() {
 
         {/* PRD Section 4.3 Navigation Redundancy for student reports */}
         <Route path="/reports/student/:id" element={
-          <AuthGuard allowedRoles={TEACHER_ONLY}>
-            <FirebaseGate>
-              <StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>
-            </FirebaseGate>
-          </AuthGuard>
-        } />
-
-        <Route path="/dashboard/student/:id/view" element={
           <AuthGuard allowedRoles={TEACHER_ONLY}>
             <FirebaseGate>
               <StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>

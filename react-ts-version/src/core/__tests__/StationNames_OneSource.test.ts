@@ -316,7 +316,6 @@ describe('the teacher and the admin read the same names', () => {
     ...filesUnder('presentation/pages/TeacherDashboard'),
     ...filesUnder('presentation/pages/admin'),
     'presentation/pages/LandingPage.tsx',
-    'presentation/components/RoleSelectionModal.tsx',
     'infrastructure/services/LearnerJourneyService.ts',
   ];
 

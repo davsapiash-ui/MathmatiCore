@@ -28,12 +28,16 @@ export function Topbar() {
           <div className="flex flex-col items-end leading-tight">
             <span className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
               {/* The child's badge is the number alone, in neutral words (owner, 28.9.2026);
-                  the stored displayName ("תלמיד N") is not shown to the child. */}
-              {user?.role === 'student' ? studentBadgeHe(user?.student_id || '') : ((user?.displayName as string) || 'משתמש')}
+                  the stored displayName ("תלמיד N") is not shown to the child.
+                  Staff are shown by role only: no teacher's name is kept or shown
+                  (register, "הסרת שמות מורים מהמערכת"). */}
+              {user?.role === 'student' ? studentBadgeHe(user?.student_id || '') : user?.role === 'teacher' ? 'מורה' : 'מנהל מערכת'}
             </span>
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-              {user?.role === 'student' ? (user?.class_name || 'כיתת פיילוט') : user?.role === 'teacher' ? 'מורה מוביל' : 'מנהל מערכת'}
-            </span>
+            {user?.role === 'student' && (
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                {user?.class_name || 'כיתת פיילוט'}
+              </span>
+            )}
           </div>
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-sm text-xs font-black">
             {user?.role === 'student' ? (user?.student_id || 'ת') : '👤'}

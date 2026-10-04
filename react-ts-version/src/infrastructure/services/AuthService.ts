@@ -54,13 +54,27 @@ export async function removeAuthorizedTeacherFirestore(email: string): Promise<v
  * Strictly enforces an Exact Match query. Domain wildcards or auto-approval for edu-haifa.org.il are strictly prohibited.
  */
 export async function isWhitelistedTeacherEmailAsync(email?: string | null): Promise<boolean> {
-  return (await whitelistedStaffRoleAsync(email)) !== null;
+  // A list that could not be read authorises nobody (fail-closed).
+  return (await whitelistedStaffRoleAsync(email).catch(() => null)) !== null;
+}
+
+/** The whitelist could not be read at all (offline, network failure): no answer, not a "no". */
+export const WHITELIST_UNREACHABLE_CODE = "staff/whitelist-unreachable";
+
+/** Firestore's codes for a read that never reached the server. A refusal by the rules is not one of them. */
+function isNetworkFailure(err: unknown): boolean {
+  const code = String((err as { code?: unknown } | null)?.code ?? "");
+  return code === "unavailable" || code === "deadline-exceeded";
 }
 
 /**
  * The staff role the whitelist grants an address: "admin" (who may sign in as
  * either role — the owner's dual account, register gap יא), "teacher", or null
  * when the address is not on the list.
+ *
+ * Throws (code WHITELIST_UNREACHABLE_CODE) when the list could not be read
+ * because of the network. That used to return null as well, so a listed
+ * teacher whose connection dropped at this moment was refused like a stranger.
  */
 export async function whitelistedStaffRoleAsync(email?: string | null): Promise<"teacher" | "admin" | null> {
   if (!email) return null;
@@ -107,6 +121,9 @@ export async function whitelistedStaffRoleAsync(email?: string | null): Promise<
     }
   } catch (err) {
     console.warn("Firestore authorizedTeachers exact match check error:", err);
+    if (isNetworkFailure(err)) {
+      throw Object.assign(new Error("authorizedTeachers unreachable"), { code: WHITELIST_UNREACHABLE_CODE });
+    }
   }
 
   // No second list. The RTDB users/teachers node used to be read here as a
@@ -177,7 +194,6 @@ async function ensureTeacherRecord(email: string): Promise<void> {
 export interface AuthenticatedUserPayload {
   uid: string;
   email: string;
-  displayName: string;
   role: "teacher" | "admin";
   /**
    * True when this session was authorised at login against the authoritative
@@ -204,7 +220,16 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
   const user = result.user;
   const email = (user.email || "").toLowerCase().trim();
 
-  const listedRole = email ? await whitelistedStaffRoleAsync(email) : null;
+  const listedRole = email
+    ? await whitelistedStaffRoleAsync(email).catch(async (listErr) => {
+        // The list gave no answer (network). Still fail-closed — nobody is
+        // signed in — but it is not a refusal: the sign-in screen offers a
+        // retry, as it does for a failed server handshake below.
+        console.warn("authorizedTeachers read failed during Google SSO:", listErr);
+        await auth.signOut().catch(() => {});
+        throw Object.assign(new Error(STAFF_SIGNIN_REFUSED_HE), { code: STAFF_HANDSHAKE_FAILED_CODE });
+      })
+    : null;
   const isAuthorized = listedRole !== null;
   if (!email || !isAuthorized) {
     await auth.signOut();
@@ -257,7 +282,8 @@ export async function executeGoogleSSO(targetRole: "teacher" | "admin"): Promise
   return {
     uid,
     email,
-    displayName: user.displayName || `${role === "teacher" ? "מורה" : "מנהל מערכת"} (${email})`,
+    // No display name: the Google account's name is never read, kept or shown
+    // (register, "הסרת שמות מורים מהמערכת" — the address is the only identity).
     role,
     whitelistVerified: true
   };
@@ -284,30 +310,4 @@ export function verifiedStaffRole(
   if (claims && claimsMatchRole(claims, "teacher")) return "teacher";
   if (claims && claimsMatchRole(claims, "admin")) return "admin";
   return listedRole === "admin" ? requestedRole : "teacher";
-}
-
-/**
- * Authenticates a whitelisted institutional email directly when Google OAuth provider is unconfigured or blocked.
- */
-export async function authenticateWhitelistedEmail(email: string, targetRole: "teacher" | "admin"): Promise<AuthenticatedUserPayload> {
-  const normalized = email.toLowerCase().trim();
-  const isAuthorized = (await isWhitelistedTeacherEmailAsync(normalized)) || isWhitelistedTeacherEmail(normalized);
-  if (!isAuthorized) {
-    throw new Error(STAFF_SIGNIN_REFUSED_HE);
-  }
-
-  const teacherId = extractTeacherId(normalized, `auth_${normalized.replace(/[^a-zA-Z0-9]/g, "_")}`);
-  const uid = targetRole === "teacher" ? `teacher_${teacherId}` : `admin_${teacherId}`;
-
-  if (targetRole === "teacher") {
-    await ensureTeacherRecord(normalized);
-  }
-
-  return {
-    uid,
-    email: normalized,
-    displayName: `${targetRole === "teacher" ? "מורה" : "מנהל מערכת"} (${normalized})`,
-    role: targetRole,
-    whitelistVerified: true
-  };
 }
