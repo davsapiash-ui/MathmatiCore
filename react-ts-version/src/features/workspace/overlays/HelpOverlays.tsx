@@ -413,7 +413,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false }: { choi
     <div className="mt-[clamp(0.25rem,1.2vh,1rem)] flex flex-col gap-[clamp(0.25rem,0.9vh,0.625rem)] shrink-0">
       {/* While the answer buttons are locked the prompt's line goes to the
           hint; it comes back with the buttons. */}
-      {!locked && !answered && <p className="font-extrabold text-xs text-ws-soft">בחרו את הדרך הנכונה להתקדם:</p>}
+      {!locked && !answered && <p className="font-extrabold text-xs text-ws-soft">בחרו תשובה:</p>}
       {options.map((opt) => {
         const isChosen = selectedOpt === opt.id;
         const isWrongChosen = isChosen && !opt.correct;

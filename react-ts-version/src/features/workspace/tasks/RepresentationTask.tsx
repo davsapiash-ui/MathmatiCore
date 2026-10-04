@@ -107,8 +107,8 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
   const isRepresentationColumnLocked = useWorkspaceStore((s) => s.isRepresentationColumnLocked);
   const recordBlockedKeystroke = useWorkspaceStore((s) => s.recordBlockedKeystroke);
-  // Subscribed so a conversion (or its undo) re-renders the lock at once.
-  useWorkspaceStore((s) => s.conversionsByColumn);
+  // Subscribed so a conversion (or its undo) re-renders the lock and the checklist at once.
+  const conversionsByColumn = useWorkspaceStore((s) => s.conversionsByColumn);
   // Module 9: a keystroke into a locked box shakes that box only.
   const [shakingPlace, setShakingPlace] = useState<Place | null>(null);
   const shake = (place: Place) => {
@@ -118,7 +118,7 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
   const hasUngrouped = useWorkspaceStore((s) => s.hasUngrouped);
   // Meeting 1's target task (מסמך 03 §3.1 step 6) is a guided step: its
   // instruction as a checklist, the rule the proceed button follows.
-  const checklist = session1Checklist(task.id, { counts, answerDigits, hasUngrouped, blocksAddedCount: 0, undoCount: 0, hasClearedBoard: false });
+  const checklist = session1Checklist(task.id, { counts, answerDigits, hasUngrouped, conversionsByColumn, blocksAddedCount: 0, undoCount: 0, hasClearedBoard: false });
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   // The number the result row holds: the number built, or its own answer when

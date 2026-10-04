@@ -100,6 +100,32 @@ function initTask(meeting: number, isASD: boolean, idx: number): Step['run'] {
   };
 }
 
+/** Meeting 1's target task (s1_target_347, place 9 of the meeting) at its order in SESSION1_TASKS. */
+const M1_TARGET_IDX = 8;
+
+/**
+ * Meeting 1's 347 finished: 347 built, a ten broken into the units, 347
+ * written — every checklist line ticked and the done box shown (audit A2-F04:
+ * the box overflowed at tablet-1024 and desktop-1920). Measured in every profile.
+ */
+function m1TargetDone(isASD: boolean): Step {
+  return {
+    id: 'm1-target-done',
+    meeting: 1,
+    note: '347 built, a ten broken, 347 written: the checklist done box',
+    run: async (cc) => {
+      await ws(cc.page, INIT, { meeting: 1, isASD, idx: M1_TARGET_IDX });
+      await ws(cc.page, SET, {
+        counts: { units: 17, tens: 3, hundreds: 3, thousands: 0 },
+        hasUngrouped: true,
+        conversionsByColumn: { composed: {}, decomposed: { units: true }, times: { decomposed: { units: 1 } } },
+        answerDigits: { hundreds: '3', tens: '4', units: '7' },
+        hasInteracted: true,
+      });
+    },
+  };
+}
+
 /** Everything a learner on the green path can see (default profile). */
 async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
   const steps: Step[] = [];
@@ -135,6 +161,7 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
         await ws(cc.page, 'st.openSocraticCard("hesitation_45s");');
       },
     });
+    steps.push(m1TargetDone(isASD));
     steps.push({ id: 'm1-session-done', meeting: 1, run: async (cc) => ws(cc.page, SET, { flowStatus: 'sessionDone', awaitingNext: false }) });
   }
 
@@ -431,6 +458,7 @@ async function asdSteps(c: AuditContext): Promise<Step[]> {
     const count = await countTasks(c, n, true);
     for (let k = 0; k < count; k++) steps.push({ id: `m${n}-task-${k + 1}`, meeting: n, run: initTask(n, true, k) });
   }
+  steps.push(m1TargetDone(true));
   steps.push({
     id: 'm3-coaching-open',
     meeting: 3,
@@ -449,7 +477,7 @@ async function asdSteps(c: AuditContext): Promise<Step[]> {
  * skeleton (2,▢3▢ + 1,554, the sheet with hidden-digit boxes).
  */
 function enhancedSteps(): Step[] {
-  const steps: Step[] = [];
+  const steps: Step[] = [m1TargetDone(false)];
   for (const [n, idx] of [[4, 0], [7, 1]] as const) {
     steps.push({
       id: `m${n}-grid-open`,

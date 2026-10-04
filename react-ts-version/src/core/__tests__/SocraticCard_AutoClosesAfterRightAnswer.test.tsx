@@ -88,7 +88,7 @@ describe('the coaching card after the right choice (owner, 30.9.2026; 1.10.2026,
     await act(async () => { await vi.advanceTimersByTimeAsync(SOCRATIC_CORRECT_AUTO_CLOSE_MS - 500); });
     expect(ws().helpState).toBe('socratic');
     expect(screen.getByText(correct.feedbackHe!, { exact: false })).toBeTruthy();
-    expect(screen.queryByText('בחרו את הדרך הנכונה להתקדם:')).toBeNull();
+    expect(screen.queryByText('בחרו תשובה:')).toBeNull();
 
     // The answer is given: the other options take no press — no lock, no second event.
     const wrongButton = screen.getByText(wrong.textHe).closest('button')!;

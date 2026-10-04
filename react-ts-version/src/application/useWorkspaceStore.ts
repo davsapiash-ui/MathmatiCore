@@ -25,7 +25,7 @@ import {
   digitAt,
 } from '@/core/placeValue';
 import { BLOCK_NAME_HE } from '@/data/taskBuilders';
-import { session1Checklist, session1NextStep } from '@/core/session1Checklist';
+import { session1Checklist, session1DoneNoteHe, session1NextStep } from '@/core/session1Checklist';
 import {
   advance,
   getCurrentQTask,
@@ -67,7 +67,8 @@ import { normalizeStudentId } from '@/application/useChatStore';
 import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { readStoredMeetingDeadline, storeMeetingDeadline } from '@/application/meetingDeadline';
 import type { TelemetryEventType } from '@/types/telemetry';
-import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
+import { REPRESENTATION_LOCKS, buildsAnyWay, builtAnyWay } from '@/data/representationLocks';
+export { buildsAnyWay, builtAnyWay };
 import type { VRAWorkspaceState } from '@/types';
 import { workspaceSavedAt, startedWithoutRecord } from '@/core/workspaceSnapshot';
 import { mirrorReflectionStep } from '@/core/srlReflection';
@@ -981,7 +982,8 @@ export function cardFocusPlace(
   if (task.type === 'representation' || task.type === 'flexible_decomp') {
     const pending = pendingRepresentationConversion(s, task);
     if (pending) return pending;
-    if (task.requiredCounts) {
+    // A board worth the number is right where any build is (owner, 4.10.2026).
+    if (task.requiredCounts && !builtAnyWay(task, s.counts)) {
       const required = requiredCountsOf(task);
       const board = PLACE_ORDER.find((p) => (s.counts[p] ?? 0) !== required[p]);
       if (board) return board;
@@ -1985,9 +1987,9 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     if (session1Checklist(task.id, s)) {
       const nextStep = session1NextStep(task.id, s);
       if (nextStep) return failure('sandbox_incomplete', 'עוד צעד אחד 🛠️', `${nextStep}.`, 3500);
-      return success('כל הכבוד! 🌟', 'ממשיכים לשלב הבא.', 2000);
+      return success('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2000);
     }
-    if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return success('מעולה! 🌟', 'ממשיכים הלאה.', 1500);
+    if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return success('מְעֻלֶּה! 🌟', 'ממשיכים הלאה.', 1500);
     if (!s.selectedChoiceId) {
       return failure('no_choice', 'עֲנוּ עַל שְׁאֵלַת הַחֲשִׁיבָה 🤔', 'בַּחֲרוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת כְּדֵי לְהַמְשִׁיךְ.', 2500);
     }
@@ -2154,7 +2156,7 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     // does not speak of one (owner, 1.10.2026, D11b).
     return s.sessionNumber === 8
       ? success('כָּל הַכָּבוֹד! 🌟', MEETING8_SOLVED_SUB_HE, 2500)
-      : success('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמִּסְפָּרִים.', 2500);
+      : success('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים.', 2500);
   }
 
   if (task.type === 'small_change') {
@@ -2181,7 +2183,11 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     // single answer box holds.
     const kind = task.representationKind;
     const required = requiredCountsOf(task);
-    if (!countsEqual(s.counts, required)) {
+    // An exercise that only says "build the number X" (owner, 4.10.2026):
+    // any board worth X is right; one that names blocks or a conversion still
+    // needs its exact board.
+    const boardRight = buildsAnyWay(task) ? builtAnyWay(task, s.counts) : countsEqual(s.counts, required);
+    if (!boardRight) {
       // The blocks of the instruction's first sentence, the break or the
       // grouping not made yet: the step still missing is named (A4-F01). It
       // counts as a wrong press, as the sentence below does.
@@ -2223,10 +2229,14 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
       if (skipped && kind === 'compose_break') return failure('conversion_skipped', 'פִּרְטוּ 🧱', breakItYourselvesHe(pending), 3500);
     } else {
       // Meeting 1: the exercise is the conversion itself, not only its result.
-      if (task.requiresGrouping && !s.hasGrouped) {
+      // 26 and 347 are checked per column (REPRESENTATION_LOCKS): 26 groups the
+      // units twice, 347 breaks a ten, not a hundred (audit A2-F06).
+      const m1Listed = Boolean(REPRESENTATION_LOCKS[task.id]);
+      const m1Pending = m1Listed && pendingRepresentationConversion(s, task) !== null;
+      if (task.requiresGrouping && (m1Listed ? m1Pending : !s.hasGrouped)) {
         return failure('conversion_skipped', 'קַבְּצוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.', 3500);
       }
-      if (task.requiresUngrouping && !s.hasUngrouped) {
+      if (task.requiresUngrouping && (m1Listed ? m1Pending : !s.hasUngrouped)) {
         return failure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
       }
     }
@@ -2272,6 +2282,9 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     if (typed !== (typeof task.correctAnswer === 'number' ? task.correctAnswer : task.numberA ?? 0)) {
       return failure('wrong_numeric', 'כִּמְעַט... 🧐', asksDigitValue ? 'זה עוד לא הערך של הספרה. הסתכלו בבית המספרים ובדקו שוב!' : 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!', 2800);
     }
+    // 347 is a guided step: the checklist already shows its done note, so its
+    // success is the tool steps' one (audit A2-F13).
+    if (session1DoneNoteHe(task.id) !== null) return success('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2000);
     return success('כָּל הַכָּבוֹד! 🌟', asksDigitValue ? 'מצאתם את הערך של הספרה במספר.' : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
   }
 

@@ -34,7 +34,8 @@
  * from the exercise's numbers and requiredCounts and passed the pedagogy gate
  * (Rule 3) — on 28.9.2026, and for station 3's redesign on 30.9.2026:
  *   s1_target_347     347 → 3 hundreds, 3 tens, 17 units: a ten into units.
- *   s1_r_group26      26 units → 2 tens, 6 units: units grouped into tens.
+ *   s1_r_group26      26 units → 2 tens, 6 units: units grouped into tens, twice
+ *                     (one column, listed twice, like s7_g_t1).
  *   s3_r_t2           3 hundreds, 4 tens → 2 hundreds, 14 tens: a hundred into tens.
  *   s3_r_t4           8 tens, 5 units → 7 tens, 15 units: a ten into units.
  *   s3_r_t6           5 hundreds, 6 units → 4 hundreds, 10 tens, 6 units: a hundred into tens.
@@ -57,7 +58,7 @@
  * reinforcements), s7_r_t6 (340 + 200 − 30 = 510, 4 tens give 3 without a
  * decomposition).
  */
-import type { Place } from '@/core/placeValue';
+import { PLACE_VALUES, type Place } from '@/core/placeValue';
 
 export interface RepresentationLock {
   /** What the conversion is — the KEYBOARD_LOCK_BLOCKED conversion_required. */
@@ -67,7 +68,9 @@ export interface RepresentationLock {
 
 export const REPRESENTATION_LOCKS: Record<string, RepresentationLock> = {
   s1_target_347: { conversion: 'decomposition', columns: ['units'] },
-  s1_r_group26: { conversion: 'composition', columns: ['units'] },
+  // Twice: 26 units are grouped into two tens, each grouping the child's own
+  // (register ו "הלומד מקבץ פעמיים לעשרת"; audit A2-F06).
+  s1_r_group26: { conversion: 'composition', columns: ['units', 'units'] },
   s3_r_t2: { conversion: 'decomposition', columns: ['tens'] },
   s3_r_t4: { conversion: 'decomposition', columns: ['units'] },
   s3_r_t6: { conversion: 'decomposition', columns: ['tens'] },
@@ -81,3 +84,37 @@ export const REPRESENTATION_LOCKS: Record<string, RepresentationLock> = {
   s7_g_t5: { conversion: 'decomposition', columns: ['hundreds'] },
   s7_g_t6: { conversion: 'composition', columns: ['tens', 'hundreds'] },
 };
+
+/** What `buildsAnyWay` reads of an exercise (a SessionTask, or the engine's loose task). */
+export interface BuildTaskLike {
+  id?: string;
+  type?: string;
+  representationKind?: string;
+  requiresGrouping?: boolean;
+  requiresUngrouping?: boolean;
+  numberA?: number;
+}
+
+/**
+ * A representation exercise that only says "build the number X", with no
+ * word on how (owner, 4.10.2026: "לא הייתה לו הנחיה איך לבנות … טעות זה
+ * לא"): station 3's read_write numbers and meeting 1's 703, 482 and 368. Any
+ * board worth X is right (34 tens for 340). Not an exercise that names its
+ * blocks or a conversion: compose_break / compose_group / decompose, 26, 347.
+ */
+export function buildsAnyWay(task: BuildTaskLike | null | undefined): boolean {
+  if (!task || task.type !== 'representation') return false;
+  if (task.representationKind) return task.representationKind === 'read_write';
+  return typeof task.id === 'string' && task.id.startsWith('s1_') && !task.requiresGrouping && !task.requiresUngrouping;
+}
+
+/**
+ * The board is an accepted build of such an exercise: worth the number,
+ * however its blocks are spread over the columns. Nothing may call this board
+ * wrong — no "10 or more" card, no pulsing "קבצו 10", no AI option.
+ */
+export function builtAnyWay(task: BuildTaskLike | null | undefined, counts: Partial<Record<Place, number>> | null | undefined): boolean {
+  if (!task || !counts || !buildsAnyWay(task) || typeof task.numberA !== 'number') return false;
+  const value = (Object.keys(PLACE_VALUES) as Place[]).reduce((sum, q) => sum + (counts[q] ?? 0) * PLACE_VALUES[q], 0);
+  return value > 0 && value === task.numberA;
+}

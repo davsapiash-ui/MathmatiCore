@@ -621,7 +621,7 @@ describe('item 5 — only inside an exercise in progress', () => {
     boardOf(1573);
     typeRow('1573');
     ws().setCarryDigit('tens', '1');
-    expect(stripNiqqud(judgeStandardTask(ws(), T4()).sub)).toContain('בבית המספרים');
+    expect(stripNiqqud(judgeStandardTask(ws(), T4()).sub)).toBe('פתרתם נכון, ובניתם נכון גם בלבנים.');
   });
 
   it('…nor onto the choice screen, nor through "סיום המפגש כעת"', async () => {
