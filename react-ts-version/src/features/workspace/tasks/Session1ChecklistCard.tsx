@@ -20,7 +20,7 @@ export function Session1ChecklistCard({ items, doneNote = null }: { items: Sessi
   const allDone = items.every((i) => i.done);
   const proceedHe = proceedSentenceHe();
   return (
-    <div className="flex flex-col gap-fl-6-16 bg-ws-surface p-fl-8-24 rounded-2xl border border-ws-surface2 shadow-sm" data-testid="session1-checklist">
+    <div className={`flex flex-col bg-ws-surface rounded-2xl border border-ws-surface2 shadow-sm ${allDone ? 'gap-1.5 px-fl-8-24 py-2' : 'gap-fl-6-16 p-fl-8-24'}`} data-testid="session1-checklist">
       <div className="flex items-center justify-between gap-3 mb-fl-0-4">
         <h3 className="text-lg font-bold text-ws-ink">📋 מה עושים בשלב הזה:</h3>
         {/* PRD Module 24: every instruction on screen has its read-aloud button. */}
@@ -65,13 +65,13 @@ export function Session1ChecklistCard({ items, doneNote = null }: { items: Sessi
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mt-fl-0-8 p-fl-10-16 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl text-center shadow-sm"
+          className="px-fl-10-16 py-2 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl text-center shadow-sm"
           role="status"
           aria-live="polite"
           data-testid="session1-done"
         >
           {doneNote && (
-            <div className="flex items-center justify-center gap-2 mb-2">
+            <div className="flex items-center justify-center gap-2 mb-1">
               <span className="text-emerald-800 font-black text-base">{doneNote}</span>
             </div>
           )}
