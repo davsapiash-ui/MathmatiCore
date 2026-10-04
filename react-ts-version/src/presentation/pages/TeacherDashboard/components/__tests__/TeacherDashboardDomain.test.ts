@@ -150,7 +150,9 @@ describe('Teacher Dashboard Domain Comprehensive Audit & Verification Suite', ()
 
       expect(useStore.getState().students['stu_1'].physicalOverride).toBe(true);
       expect(useStore.getState().students['stu_2'].physicalOverride).toBe(true);
-      expect(spySync).toHaveBeenCalledTimes(2);
+      // A local mirror only (audit 4.10.2026, support): the drawer saves the
+      // profile itself before calling it, and this used to send it again.
+      expect(spySync).not.toHaveBeenCalled();
 
       spySync.mockRestore();
     });

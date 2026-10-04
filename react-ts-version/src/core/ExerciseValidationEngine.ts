@@ -79,15 +79,16 @@ export function evaluateKeyboardState(
   return transitionKeyboardState(currentKeyboardState, effectiveEvent);
 }
 
-import { syncQMatrix, syncConceptMastery } from '../infrastructure/services/FirebaseSyncService';
+import { syncQMatrix } from '../infrastructure/services/FirebaseSyncService';
 
 /**
- * Pushes updated Q-Matrix diagnostic mastery values directly to Firebase upon task evaluation.
+ * Pushes the Q-Matrix task results to Firebase upon task evaluation — to
+ * qMatrixResults only. They used to be merged into conceptMastery as well, so
+ * the mastery profile held the seven task keys beside its concept numbers.
  */
 export async function syncQMatrixEvaluation(studentId: string, qMatrixData: Record<string, any>) {
   if (!studentId) return;
   await syncQMatrix(studentId, qMatrixData).catch(console.error);
-  await syncConceptMastery(studentId, qMatrixData).catch(console.error);
 }
 
 /**

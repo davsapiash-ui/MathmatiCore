@@ -86,6 +86,8 @@ export interface RecordingGate {
   uid: string | null | undefined;
   /** The class session's server start stamp; null until it is known. */
   classStartedAt: number | null;
+  /** The meeting the class session is open on; null until it is known. */
+  classSessionNumber: number | string | null;
   /** The meeting this page is for (the URL's meeting). */
   meeting: number;
   /** The meeting the workspace store holds. */
@@ -102,13 +104,20 @@ export interface RecordingGate {
  *    recording with a fresh 50MB of its own;
  *  - before initialisation, when the store still held the PREVIOUS meeting, so
  *    the first chunks of meeting 4 carried meeting 1's `s1_sandbox_controlled`;
- *  - on a device another device had taken over.
+ *  - on a device another device had taken over;
+ *  - under the NEW class session's recording id while the page still showed
+ *    the previous meeting: the teacher's switch brings a new startedAt at
+ *    once, and the page's meeting follows a render later, so the new
+ *    recording's first chunks carried the old meeting and its exercises, and
+ *    the whole recording was filed under the old meeting.
  */
 export function shouldRecordScreen(g: RecordingGate): boolean {
+  const classMeeting = g.classSessionNumber === null ? null : Number(g.classSessionNumber);
   return Boolean(
     g.uid &&
       typeof g.classStartedAt === 'number' &&
       g.classStartedAt > 0 &&
+      (classMeeting === null || Number.isNaN(classMeeting) || classMeeting === g.meeting) &&
       g.initialized &&
       g.storeSessionNumber === g.meeting &&
       !g.superseded

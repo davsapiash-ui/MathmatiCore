@@ -380,6 +380,7 @@ describe('Module 21 — when the recorder may run', () => {
   const ok = {
     uid: 'student_user3',
     classStartedAt: STARTED_AT,
+    classSessionNumber: 4,
     meeting: 4,
     storeSessionNumber: 4,
     initialized: true,
@@ -389,6 +390,16 @@ describe('Module 21 — when the recorder may run', () => {
   it('runs for this meeting, once its start stamp and the meeting are both known', async () => {
     const { shouldRecordScreen } = await import('../screenRecorder');
     expect(shouldRecordScreen(ok)).toBe(true);
+    // A class session that does not say its meeting (older shape) does not hold the recorder.
+    expect(shouldRecordScreen({ ...ok, classSessionNumber: null })).toBe(true);
+    expect(shouldRecordScreen({ ...ok, classSessionNumber: '4' })).toBe(true);
+  });
+
+  it('not under the new class session while the page still shows the previous meeting (the recording was filed under the old one)', async () => {
+    const { shouldRecordScreen } = await import('../screenRecorder');
+    // The teacher moved the class to meeting 5: new startedAt at once, the URL's meeting a render later.
+    expect(shouldRecordScreen({ ...ok, classSessionNumber: 5 })).toBe(false);
+    expect(shouldRecordScreen({ ...ok, classSessionNumber: '5' })).toBe(false);
   });
 
   it('not before the class session\'s server stamp — no stray session_{Date.now()} with a fresh 50MB', async () => {

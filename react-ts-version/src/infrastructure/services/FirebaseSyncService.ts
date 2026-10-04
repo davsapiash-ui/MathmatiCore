@@ -352,6 +352,23 @@ export async function deliverQueuedRtdbWrite(refPath: string, payload: any, deli
   await update(ref(database, refPath), fields);
 }
 
+/**
+ * sessionState.error_count, the radar tile's "טעויות": the wrong answers of the
+ * exercise on screen — wrong submissions and wrong typed digits, or the failed
+ * board checks of a representation exercise (the counts PROBLEM_COMPLETE
+ * carries). It used to be the undo count, so the tile showed the undos twice
+ * and a learner who erred without pressing undo showed "טעויות: 0"; an undo is
+ * self-correction, not a mistake.
+ */
+export function liveMistakeCount(state: {
+  consecutiveErrorCount?: number;
+  boardCheckFailures?: number;
+  boardCheckFailuresTaskId?: string | null;
+}): number {
+  const boardChecks = state.boardCheckFailuresTaskId ? state.boardCheckFailures || 0 : 0;
+  return Math.max(state.consecutiveErrorCount || 0, boardChecks);
+}
+
 export class FirebaseSyncService {
   private static instance: FirebaseSyncService;
   private unsubscribeWorkspace: (() => void) | null = null;
@@ -842,7 +859,7 @@ export class FirebaseSyncService {
           status: sessionStatus,
           current_path: currentPath,
           hesitation_seconds: (state.hesitationCount || 0) * 5,
-          error_count: state.undoCount || 0,
+          error_count: liveMistakeCount(state),
         };
         this.syncSessionState(this.currentUserId, sessionState).catch((err) => {
           console.warn('[FirebaseSyncService] syncSessionState notice:', err);
@@ -1771,16 +1788,6 @@ export class FirebaseSyncService {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('firebase:auth_expired', { detail: { error: errMsg } }));
       }
-    }
-  }
-
-  public async syncRouteRecommendation(studentId: string, route: string): Promise<void> {
-    if (!studentId) return;
-    const normId = normalizeStudentId(studentId);
-    const payload = { routeRecommendation: route, routeStatus: 'PENDING' };
-    await update(ref(database, `users/students/${studentId}`), payload).catch((err) => this.handlePermissionOrAuthError(err));
-    if (normId !== studentId) {
-      await update(ref(database, `users/students/${normId}`), payload).catch((err) => this.handlePermissionOrAuthError(err));
     }
   }
 

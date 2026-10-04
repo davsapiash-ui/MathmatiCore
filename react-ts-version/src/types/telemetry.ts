@@ -56,11 +56,18 @@ export interface RegroupingSuccessDetails {
 export interface DigitEnteredDetails {
   digit_value: number; // 0-9
   is_correct: boolean | null; // null when the exercise defines no target digit for that column
+  /** Set when the digit was typed in a carry (memory) circle; absent for the result and operand rows. */
+  input_target?: DigitInputTarget;
 }
 
 export interface DigitDeletedDetails {
   deleted_digit_value: number | null;
+  /** Set when the digit was deleted from a carry (memory) circle. */
+  input_target?: DigitInputTarget;
 }
+
+/** Where a digit event happened when it was not a row of the exercise (PRD Module 21: "הזנה בעיגולי זיכרון"). */
+export type DigitInputTarget = 'carry_circle';
 
 export interface UndoExecutedDetails {
   undo_stack_depth_before: number; // 1-10

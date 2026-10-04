@@ -125,11 +125,26 @@ export type LogEventPayload = SemanticEventLegacy | Omit<SemanticEvent, 'timesta
 
 /** The teacher-side mirror of a learner whose meeting N was restarted (the server did the real reset). */
 /**
+ * The call ended with no answer from the server, so nobody knows whether the
+ * reset ran: a timeout, an unreachable server, or the connection dropping
+ * mid-call. For the last one the Functions SDK reports the code "internal"
+ * with the English message "internal" — which used to be shown as "הגיבוי
+ * נכשל: internal. האיפוס בוטל ולא נמחקו נתונים." while the server went on
+ * deleting. The server's own "internal" refusal carries a Hebrew message and
+ * is not this case.
+ */
+export function isResetOutcomeUnknown(code: string, serverMessage: string): boolean {
+  if (code.endsWith('deadline-exceeded') || code.endsWith('unavailable')) return true;
+  return code.endsWith('internal') && !/[א-ת]/.test(serverMessage);
+}
+
+/**
  * Module 23א §ג/§ז. Two reset failures are NOT "the backup failed, nothing was
  * deleted", and used to be reported as exactly that:
  *  - the server saved the backup and deleted most of the scope, but one item
  *    failed (it says which, and that the reset can be run again);
- *  - the call timed out on the client while the server may still be deleting.
+ *  - the call ended on the client with no answer, while the server may still
+ *    be deleting (isResetOutcomeUnknown).
  * Throws for those two; returns for everything else, which the caller reports.
  */
 function reportResetFailureAfterBackupStage(err: any, code: string, serverMessage: string): void {
@@ -138,7 +153,7 @@ function reportResetFailureAfterBackupStage(err: any, code: string, serverMessag
     toast.error(serverMessage || 'הגיבוי נשמר, אך חלק מהנתונים לא נמחקו. ניתן להריץ את האיפוס שוב.', { duration: 12000 });
     throw new Error('RESET_DELETION_INCOMPLETE');
   }
-  if (code.endsWith('deadline-exceeded') || code.endsWith('unavailable')) {
+  if (isResetOutcomeUnknown(code, serverMessage)) {
     console.error('[Module 23א] Reset outcome unknown (no answer from the server):', err);
     toast.error('לא התקבלה תשובה מהשרת, וייתכן שהאיפוס עדיין מתבצע. רעננו את הדף בעוד דקה ובדקו את המצב לפני שמריצים שוב.', { duration: 12000 });
     throw new Error('RESET_OUTCOME_UNKNOWN');
@@ -244,7 +259,6 @@ interface AppState {
   updateLiveSessionMetrics: (studentId: string, metrics: any) => void;
 
   // Routing & Override Actions
-  setRouteRecommendation: (studentId: string, route: RoutePath) => void;
   approveRoute: (studentId: string) => void;
   applyPhysicalOverride: (
     studentId: string,
@@ -653,26 +667,6 @@ export const useStore = create<AppState>()(
         return { students };
       }),
 
-      setRouteRecommendation: (studentId, route) => set((state) => {
-        const students = { ...state.students };
-        const current = students[studentId];
-        // An approved gate is the teacher's decision: a learner's later
-        // completion of meeting 2 (the meeting opened again) never takes it
-        // back to 'PENDING', here or on the record.
-        if (current && (current.routeStatus === 'APPROVED' || current.teacher_gate_approved === true)) {
-          return { students };
-        }
-        if (students[studentId]) {
-          students[studentId] = { 
-            ...students[studentId], 
-            routeRecommendation: route,
-            routeStatus: 'PENDING'
-          };
-          firebaseSyncService.syncRouteRecommendation(studentId, route).catch(console.error);
-        }
-        return { students };
-      }),
-
       // Local optimistic mirror ONLY — this never writes to Firebase. The
       // authoritative gate write (Firestore SessionDocument + RTDB transport
       // mirror) belongs to core/teacherGate.ts, and every caller of this action
@@ -694,18 +688,25 @@ export const useStore = create<AppState>()(
         };
       }),
 
+      // Local mirror ONLY — this never writes to Firebase. Its one caller, the
+      // learning-conditions drawer, has already saved the profile
+      // (syncPhysicalOverride) and awaited it; this used to send the same
+      // write a second time. A field the caller does not supply keeps its
+      // value: the drawer passes no routeStatus, and the mirror used to lose
+      // the learner's gate status until the next snapshot.
       applyPhysicalOverride: (studentId, overrideData) => set((state) => {
         const student = state.students[studentId];
         if (!student) return state;
         const updatedStudent: StudentData = {
           ...student,
-          routeStatus: overrideData.routeStatus as RouteStatus,
-          difficultyRecommendation: overrideData.difficultyRecommendation,
+          ...(overrideData.routeStatus !== undefined && { routeStatus: overrideData.routeStatus as RouteStatus }),
+          ...(overrideData.difficultyRecommendation !== undefined && {
+            difficultyRecommendation: overrideData.difficultyRecommendation,
+          }),
           isASD: overrideData.isASD,
           physicalOverride: overrideData.physicalOverride,
           overrideUpdatedAt: overrideData.overrideUpdatedAt,
         };
-        firebaseSyncService.syncPhysicalOverride(studentId, overrideData).catch(console.error);
         return {
           students: {
             ...state.students,
@@ -910,11 +911,12 @@ export const useStore = create<AppState>()(
             handRaised: false,
             isStruggling: false,
           };
+          // The canonical record only (student_userN). The same payload used to
+          // be written under student_N, userN and N as well: an update creates
+          // the node it names, so every reset left alias records of learners
+          // that the teacher's screens then had to merge. The server removes
+          // the aliases that exist.
           await update(ref(database, `users/students/${normId}`), cleanPayload).catch(() => {});
-          await update(ref(database, `users/students/student_${num}`), cleanPayload).catch(() => {});
-          await update(ref(database, `users/students/user${num}`), cleanPayload).catch(() => {});
-          await update(ref(database, `users/students/${num}`), cleanPayload).catch(() => {});
-          await update(ref(database, `users/students/${studentId}`), cleanPayload).catch(() => {});
           await remove(ref(database, `chat_messages/${normId}`)).catch(() => {});
           firebaseSyncService.clearLocalSessionProgress(normId);
           firebaseSyncService.clearLocalSessionProgress(studentId);
@@ -1082,10 +1084,8 @@ export const useStore = create<AppState>()(
               handRaised: false,
               isStruggling: false,
             };
+            // The canonical record only: no alias records are created (see resetStudentData).
             await update(ref(database, `users/students/student_user${i}`), cleanPayload).catch(() => {});
-            await update(ref(database, `users/students/student_${i}`), cleanPayload).catch(() => {});
-            await update(ref(database, `users/students/user${i}`), cleanPayload).catch(() => {});
-            await update(ref(database, `users/students/${i}`), cleanPayload).catch(() => {});
             firebaseSyncService.clearLocalSessionProgress(`student_user${i}`);
             firebaseSyncService.clearLocalSessionProgress(`student_${i}`);
             firebaseSyncService.clearLocalSessionProgress(`user${i}`);

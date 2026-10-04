@@ -50,7 +50,6 @@ import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { useTeacherGenderStore } from '@/application/useTeacherGender';
 import { teacherSentenceHe } from '@/core/teacherGender';
-import { CurriculumRouter } from '@/core/CurriculumRouter';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
 import { getSessionTasks, SESSION1_TASKS, type SessionTask, type LearningPath } from '@/data/sessionTasks';
 import { boardStaysOpen } from '@/core/boardVisibility';
@@ -2524,13 +2523,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       persistence_score: persistence
     };
     store.updateTraceData(studentId, realTraceData);
-    const route = CurriculumRouter.evaluateRoute({
-      ...student,
-      qMatrixResults: { ...student.qMatrixResults, ...realQMatrix },
-      conceptMastery: mastery,
-      traceData: realTraceData,
-    });
-    store.setRouteRecommendation(studentId, route);
+    // No route is computed or written here. The device used to post its own
+    // routeRecommendation with routeStatus 'PENDING'; the database rules
+    // refused that write every time, and the path the teacher sees is the
+    // server's (below).
 
     // PRD Module 20: session_score_percent and matrix_recommended_path are
     // computed "בטריגר עצמאי על סיום המפגש" — sessionTrigger.ts, from the
@@ -2550,9 +2546,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    * The end of the correction round: the diagnostic tags it gave the tasks
    * that went through it, and nothing else. The score, the path, the route
    * and the completion were settled when the seven tasks were answered
-   * (completeDiagnosticMeeting). The route is not recomputed: its write sets
-   * routeStatus 'PENDING', which would take back a gate the teacher may
-   * already have approved.
+   * (completeDiagnosticMeeting).
    */
   function recordCorrectionRoundTags() {
     const studentId = useAuthStore.getState().user?.uid;
@@ -3056,7 +3050,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (nextIdx >= tasks.length && !s.selectedBranch) {
       if (s.sessionNumber >= 3 && s.sessionNumber <= 7) {
         set({ flowStatus: 'choice_branch', awaitingNext: false });
-        const studentId = useAuthStore.getState().user?.uid;
+        // The learner's canonical id, never an account's own uid (ids 1–12 only).
+        const studentId = currentStudentUid();
         if (studentId && !s.isSupersededByOtherDevice) {
           const normId = normalizeStudentId(studentId);
           // PRD 14 §ב1: the meeting is completed by the seven compulsory
@@ -3545,7 +3540,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         awaitingNext: false,
       });
 
-      const studentId = useAuthStore.getState().user?.uid;
+      const studentId = currentStudentUid();
       if (studentId && !s.isSupersededByOtherDevice) {
         const normId = normalizeStudentId(studentId);
         const branchLabel = branch === 'reinforcement' ? 'נתיב ביסוס 🛡️' : 'נתיב אתגר 🚀';
@@ -4373,6 +4368,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               details: {
                 digit_value: typedDigit,
                 is_correct: isCorrect,
+                // PRD Module 21: the decision table shows "הזנה בעיגולי זיכרון" —
+                // without this a circle's digit read like a result-row digit.
+                input_target: 'carry_circle',
               },
             }).catch(console.error);
 
@@ -4395,6 +4393,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             column_index: colIdx,
             details: {
               deleted_digit_value: isNaN(deletedVal as number) ? null : deletedVal,
+              input_target: 'carry_circle',
             },
           }).catch(console.error);
           // A deletion is an action undo can take back (Module 11 §א), as in the result row.
@@ -4690,11 +4689,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     /** PRD Module 12: after a mistake, a 300ms "let's think" beat, then the Socratic card. */
     requestSilentHelp: () => {
       const s = get();
-      const rawUser = useAuthStore.getState().user;
-      if (!rawUser?.uid || s.isSupersededByOtherDevice) return;
-
-      const clean = rawUser.uid.trim().toLowerCase();
-      const studentId = normalizeStudentId(clean) || (clean.startsWith('student_') ? clean : `student_${clean}`);
+      // Learners are the ids 1–12 only (Zero-PII). A staff account looking at
+      // the learner's screen has no learner record: the id used to be built
+      // from the account's own uid, and the call was written to
+      // users/students/student_<staff uid>.
+      const studentId = currentStudentUid();
+      if (!studentId || s.isSupersededByOtherDevice) return;
 
       // PRD 7.3 (useWorkspaceStore: "מיתוג דו-כיווני לקריאת עזרה") and מסמך 03
       // §3.1 ("בלחיצה הפיכה (ניתנת לביטול בכל עת)"): a second press takes the

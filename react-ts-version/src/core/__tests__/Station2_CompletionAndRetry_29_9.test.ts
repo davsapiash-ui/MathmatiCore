@@ -51,7 +51,6 @@ const record = {
   updateQMatrix: vi.fn(),
   updateConceptMastery: vi.fn(),
   updateTraceData: vi.fn(),
-  setRouteRecommendation: vi.fn(),
   markMeeting2Complete: vi.fn(),
 };
 const spyOnCompletion = () => vi.spyOn(firebaseSyncService, 'syncSession2Completion');
@@ -151,7 +150,6 @@ describe('3. completion at the seventh answer; the correction round never change
     expect(completion).toHaveBeenCalledTimes(1);
     expect(completion.mock.calls[0].slice(1)).toEqual(['class_1']); // no score: the server computes it (Module 20)
     expect(record.markMeeting2Complete).toHaveBeenCalledTimes(1);
-    expect(record.setRouteRecommendation).toHaveBeenCalledTimes(1);
     // …and the child is in the correction round, not on the waiting screen.
     expect(ws().qflow.phase).toBe('correction');
     expect(ws().flowStatus).toBe('task');
@@ -172,7 +170,6 @@ describe('3. completion at the seventh answer; the correction round never change
 
     expect(ws().flowStatus).toBe('sessionDone');
     expect(completion).toHaveBeenCalledTimes(1);
-    expect(record.setRouteRecommendation).toHaveBeenCalledTimes(1);
     expect(record.markMeeting2Complete).toHaveBeenCalledTimes(1);
     expect(record.updateQMatrix).toHaveBeenCalledTimes(1);
     const tags = record.updateQMatrix.mock.calls[0][1];
