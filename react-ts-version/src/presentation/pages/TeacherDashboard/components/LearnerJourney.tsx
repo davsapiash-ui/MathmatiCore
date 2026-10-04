@@ -185,11 +185,19 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
   // Default selection: the latest meeting that has anything. The recordings
   // arrive before the actions; a choice made on the recordings alone opened an
   // old meeting when the latest one (meeting 8's reflection) had no recording,
-  // so the choice follows the data until the teacher picks a meeting herself.
+  // so the choice follows the data until the teacher picks anything herself —
+  // a meeting, an exercise, a row or a chapter. A move clears what belonged to
+  // the meeting it leaves, as a tile click does: an exercise of meeting 7 kept
+  // under meeting 8 emptied the table and cut the player to no chapter.
   useEffect(() => {
     if (teacherPickedSession.current) return;
     const latest = latestMeetingWithData(eventsBySession.keys(), recordingsBySession.keys());
-    if (latest !== null && latest !== selectedSession) setSelectedSession(latest);
+    if (latest !== null && latest !== selectedSession) {
+      setSelectedSession(latest);
+      setSelectedExercise(null);
+      setSeekRequest(null);
+      setPlayheadTs(null);
+    }
   }, [eventsBySession, recordingsBySession, selectedSession]);
 
   const sessionEvents = useMemo(
@@ -259,14 +267,21 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
 
   const requestSeek = (t?: number) => {
     if (typeof t !== 'number') return;
+    teacherPickedSession.current = true;
     setSeekRequest((prev) => ({ t, nonce: (prev?.nonce ?? 0) + 1 }));
+  };
+
+  // An exercise chip ("הכול" is null): the teacher is working in this meeting now.
+  const chooseExercise = (id: string | null) => {
+    teacherPickedSession.current = true;
+    setSelectedExercise(id);
   };
 
   // A chapter — a chip under the player or its segment on the timeline: that
   // exercise, from the start of that chapter (Module 21 §ב).
   const selectChapter = (c: RecordingChapter | undefined) => {
     if (!c) return;
-    setSelectedExercise(c.exerciseId);
+    chooseExercise(c.exerciseId);
     requestSeek(c.start);
   };
   const timelineChapters = useMemo(
@@ -464,7 +479,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
               <span className="text-[11px] font-black text-ws-soft">תרגילים ב{meetingShortLabelHe(selectedSession)}:</span>
               <button
                 type="button"
-                onClick={() => setSelectedExercise(null)}
+                onClick={() => chooseExercise(null)}
                 className={`text-xs font-bold px-3 py-1.5 rounded-full border cursor-pointer ${selectedExercise === null ? 'bg-ws-accent text-white border-ws-accent' : 'bg-ws-surface text-ws-ink border-ws-surface2'}`}
               >
                 הכול
@@ -480,7 +495,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                     key={id}
                     type="button"
                     onClick={() => {
-                      setSelectedExercise(id);
+                      chooseExercise(id);
                       if (chapter) requestSeek(chapter.start);
                     }}
                     title={exerciseTitle(selectedSession, id)}

@@ -228,6 +228,35 @@ describe('the learner journey on screen', () => {
     expect(tile(3).getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('learner_view-7: an exercise chip picked before the actions arrive holds the meeting and its filter', async () => {
+    render(<LearnerJourney studentId="student_user3" />);
+    const tile = (n: number) => screen.getAllByRole('button').find((b) => b.hasAttribute('aria-pressed') && (b.getAttribute('title') ?? '').startsWith(`מפגש ${n} `))!;
+    const rec: RecordingSession = {
+      id: 'session_1', sessionNumber: 7, start: T0, end: T0 + 60_000, chunkCount: 1, truncated: false,
+      chapters: [{ exerciseId: 's7_g_t1', start: T0, end: T0 + 30_000 }], rawChunks: [],
+    };
+    await act(async () => { h.recordings!([rec]); });
+    expect(tile(7).getAttribute('aria-pressed')).toBe('true');
+    // The teacher picks the exercise while the actions are still on their way.
+    fireEvent.click(screen.getByRole('button', { name: /^1\. / }));
+    await act(async () => {
+      h.events!([
+        ev(1, { sessionNumber: 7, sessionId: 'session_7_student_user3', exerciseId: 's7_g_t1' }),
+        ev(2, { sessionNumber: 8, sessionId: 'session_8_student_user3', exerciseId: 's8_g_t1' }),
+      ]);
+    });
+    // The view used to jump to meeting 8 and keep meeting 7's exercise: an empty table.
+    expect(tile(7).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByText('אין פעולות מתועדות למפגש זה.')).toBeNull();
+    // The meeting-7 row of the chosen exercise is in the table.
+    expect(screen.getByText('3 בטור היחידות — נכון')).toBeTruthy();
+  });
+
+  it('learner_view-1: a help request before the first exercise (ex_N_01) is no chip either', () => {
+    const ids = meetingExerciseIds([ev(1, { eventType: 'HELP_REQUESTED', exerciseId: 'ex_4_01', details: {} }), ev(2)], []);
+    expect(ids).toEqual(['s4_g_t1']);
+  });
+
   it('learner_view-9: a failed read is one Hebrew sentence and no claim that the learner has nothing', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<LearnerJourney studentId="student_user3" />);

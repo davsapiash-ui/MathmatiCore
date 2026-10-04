@@ -316,21 +316,21 @@ export function daySeparatorHe(at: number): string {
 }
 
 /**
+ * "ex_N_01" is the id the learner's client writes when no exercise is open:
+ * entering the meeting (SESSION_START), or a call for help before the first
+ * exercise loaded (HelpOverlays, useWorkspaceStore). It is no exercise.
+ */
+export const isNoExerciseId = (id: string): boolean => /^ex_\d+_01$/.test(id);
+
+/**
  * The exercises of a meeting in the order the learner met them: from the
- * events, then from the recording's chapters. Entering the meeting is recorded
- * as SESSION_START under "ex_N_01", which is no exercise; it used to be the
- * first chip and moved every exercise number up by one.
+ * events, then from the recording's chapters. The no-exercise id "ex_N_01"
+ * used to be the first chip and moved every exercise number up by one.
  */
 export function meetingExerciseIds(events: JourneyEvent[], chapters: RecordingChapter[]): string[] {
   const ids: string[] = [];
-  for (const e of events) {
-    if (e.eventType === 'SESSION_START') continue;
-    if (e.exerciseId && !ids.includes(e.exerciseId)) ids.push(e.exerciseId);
-  }
-  const entryOnly = new Set(events.filter((e) => e.eventType === 'SESSION_START').map((e) => e.exerciseId));
-  for (const c of chapters) {
-    if (!c.exerciseId || ids.includes(c.exerciseId) || entryOnly.has(c.exerciseId)) continue;
-    ids.push(c.exerciseId);
+  for (const id of [...events.map((e) => e.exerciseId), ...chapters.map((c) => c.exerciseId)]) {
+    if (id && !isNoExerciseId(id) && !ids.includes(id)) ids.push(id);
   }
   return ids;
 }
