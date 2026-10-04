@@ -411,7 +411,7 @@ describe('2. typical mistakes: is there always a way forward?', () => {
     expect(taskId()).toBe('s1_target_347');
   });
 
-  it('26: the cubes replaced by 2 tens + 6 units from the palette → told to group; a ten dragged into the units, then grouped, passes', () => {
+  it('26: the cubes replaced by 2 tens + 6 units from the palette → told to group; both tens dragged into the units, then grouped twice, passes', () => {
     goTo(GROUP26);
     ws().clearBoard();
     tap('tens', 2); tap('units', 6);
@@ -420,6 +420,11 @@ describe('2. typical mistakes: is there always a way forward?', () => {
     expect(ws().standardTaskIdx).toBe(GROUP26);
     ws().applyDrop({ source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } });
     expect(ws().counts).toEqual(counts({ tens: 1, units: 16 }));
+    group('units');
+    // One grouping is not the exercise: 26 groups the units twice (register ו; audit A2-F06).
+    proceed();
+    expect(ws().standardTaskIdx).toBe(GROUP26);
+    ws().applyDrop({ source: 'column', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } });
     group('units');
     proceed();
     expect(taskId()).toBe('s1_target_347');

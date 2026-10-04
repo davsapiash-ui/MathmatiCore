@@ -27,20 +27,22 @@ export function Session1ChecklistCard({ items, doneNote = null }: { items: Sessi
         <UdlSpeechButton text={items.map((i) => i.label).join('. ')} />
       </div>
 
-      <div className="flex flex-col gap-fl-4-12">
+      {/* Every item done: one compact line per item, no "בוצע!" pills, so the
+          done box below fits without scrolling (audit A2-F04). */}
+      <div className={`flex flex-col ${allDone ? 'gap-1' : 'gap-fl-4-12'}`} data-testid="session1-checklist-items">
         {items.map((item) => (
           // Below 1024 px (portrait tablet, tier B) the count may go under the
           // words: beside them, a narrow column broke the line word by word.
-          <div key={item.label} className="flex items-center justify-between max-lg:flex-wrap max-lg:gap-y-2 px-fl-8-16 py-fl-5-16 rounded-xl bg-ws-bg border border-ws-surface2 transition-all">
+          <div key={item.label} className={`flex items-center justify-between max-lg:flex-wrap max-lg:gap-y-2 px-fl-8-16 rounded-xl bg-ws-bg border border-ws-surface2 transition-all ${allDone ? 'py-1' : 'py-fl-5-16'}`}>
             <div className="flex items-center gap-3">
-              <span className={`text-fl-16-24 transition-transform ${item.done ? 'scale-110 text-green-500' : 'text-slate-400'}`}>
+              <span className={`${allDone ? 'text-base' : 'text-fl-16-24'} transition-transform ${item.done ? 'scale-110 text-green-500' : 'text-slate-400'}`}>
                 {item.done ? '✅' : '⏳'}
               </span>
-              <span className={`text-base font-semibold ${item.done ? 'text-ws-soft line-through' : 'text-ws-ink'}`}>
+              <span className={`${allDone ? 'text-sm' : 'text-base'} font-semibold ${item.done ? 'text-ws-soft line-through' : 'text-ws-ink'}`}>
                 {item.label}
               </span>
             </div>
-            {item.progress ? (
+            {allDone ? null : item.progress ? (
               <div className="flex items-center gap-2">
                 <div className="w-20 bg-slate-200 h-2 rounded-full overflow-hidden">
                   <div

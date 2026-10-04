@@ -434,7 +434,7 @@ const inHundredsHe = (n: number) => (n === 0 ? 'בטור המאות אין אף 
  * and its count; in meeting 1 they ask instead, and the highlight is the
  * whole board rather than the column.
  */
-const MEETING1_CROWDED_QUESTION = 'באחד הטורים יש 10 לבנים או יותר. מה עושים?';
+const MEETING1_CROWDED_QUESTION = 'נסו לחשוב: באחד הטורים יש 10 לבנים או יותר. מה עושים?';
 // Owner's D10 (1.10.2026): station 1's wrong options get "רמז:" and one
 // guiding question, like stations 3–8. The question and the options are the
 // owner's of 29.9.2026, unchanged.
@@ -468,8 +468,10 @@ type DeficitPlace = typeof DEFICIT_PLACES[number];
 const IN_COLUMN_HE: Record<DeficitPlace, string> = { units: 'בטור היחידות', tens: 'בטור העשרות', hundreds: 'בטור המאות' };
 function meeting1DeficitCard(lacking: DeficitPlace[]): SocraticHintResponse {
   const question = lacking.length > 1
-    ? 'בודקים מטור היחידות שמאלה: באיזה טור אין מספיק לבנים כדי לחסר?'
-    : 'באיזה טור אין מספיק לבנים כדי לחסר?';
+    // "נסו לחשוב:" opens every coaching card (owner); a second colon after it
+    // becomes a full stop (audit A2-F15).
+    ? 'נסו לחשוב: בודקים מטור היחידות שמאלה. באיזה טור אין מספיק לבנים כדי לחסר?'
+    : 'נסו לחשוב: באיזה טור אין מספיק לבנים כדי לחסר?';
   const choices = DEFICIT_PLACES.map((p, i) => {
     const isCorrect = p === lacking[0];
     return {
@@ -557,9 +559,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // Names none of its digits; the third option is the dropped zero (73).
   's1_r_words703': {
     pedagogical_intent: "conceptual",
-    tts_text: "איך כותבים בספרות מספר שכתוב במילים?",
+    tts_text: "נסו לחשוב: איך כותבים בספרות מספר שכתוב במילים?",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "איך כותבים בספרות מספר שכתוב במילים?",
+    questionHe: "נסו לחשוב: איך כותבים בספרות מספר שכתוב במילים?",
     choices: [
       { id: "opt_1", textHe: "כל טור מקבל תיבה משלו", isCorrect: true, feedbackHe: "נכון מאוד! בנו את המספר, וכתבו בכל תיבה כמה לבנים יש בטור שלה." },
       // D10 (owner, 1.10.2026): guiding questions.
@@ -577,9 +579,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // the 6. Names neither 60 nor "עשרות": the child finds the place himself.
   's1_r_value368': {
     pedagogical_intent: "conceptual",
-    tts_text: "איך יודעים מה הערך של ספרה במספר?",
+    tts_text: "נסו לחשוב: איך יודעים מה הערך של ספרה במספר?",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "איך יודעים מה הערך של ספרה במספר?",
+    questionHe: "נסו לחשוב: איך יודעים מה הערך של ספרה במספר?",
     choices: [
       { id: "opt_1", textHe: "בודקים באיזה טור היא נמצאת", isCorrect: true, feedbackHe: "נכון מאוד! בדקו בבית המספרים כמה שווה כל לבנה בטור של הספרה." },
       // D10 (owner, 1.10.2026): guiding questions; neither names the 6's column.
@@ -597,9 +599,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // words, written in digits. Names none of its digits.
   's1_r_words482': {
     pedagogical_intent: "conceptual",
-    tts_text: "איך כותבים בספרות מספר שכתוב במילים?",
+    tts_text: "נסו לחשוב: איך כותבים בספרות מספר שכתוב במילים?",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "איך כותבים בספרות מספר שכתוב במילים?",
+    questionHe: "נסו לחשוב: איך כותבים בספרות מספר שכתוב במילים?",
     choices: [
       { id: "opt_1", textHe: "כל חלק בתיבה של הטור שלו", isCorrect: true, feedbackHe: "נכון מאוד! בנו כל חלק בטור שלו, וכתבו ספרה אחת בכל תיבה." },
       // D10 (owner, 1.10.2026): guiding questions.
@@ -618,9 +620,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // every other state and does not name the result.
   's1_r_group26': {
     pedagogical_intent: "conceptual",
-    tts_text: "מה צריך להיות בטור היחידות בסוף התרגיל?",
+    tts_text: "נסו לחשוב: מה צריך להיות בטור היחידות בסוף התרגיל?",
     suggested_highlight: "tour-column-units",
-    questionHe: "מה צריך להיות בטור היחידות בסוף התרגיל?",
+    questionHe: "נסו לחשוב: מה צריך להיות בטור היחידות בסוף התרגיל?",
     choices: [
       { id: "opt_1", textHe: "פחות מ-10 לבנים", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על הכפתור "קבצו 10 לעשרת" שבראש הטור.' },
       // D10 (owner, 1.10.2026): guiding questions.
@@ -639,9 +641,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // true before and after the grouping, and does not give the tens digit away.
   's1_t8': {
     pedagogical_intent: "procedural",
-    tts_text: "בתרגיל 713 + 94: מה עושים כשבאחד הטורים יש 10 לבנים או יותר?",
+    tts_text: "נסו לחשוב: בתרגיל 713 + 94, מה עושים כשבאחד הטורים יש 10 לבנים או יותר?",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "בתרגיל 713 + 94: מה עושים כשבאחד הטורים יש 10 לבנים או יותר?",
+    questionHe: "נסו לחשוב: בתרגיל 713 + 94, מה עושים כשבאחד הטורים יש 10 לבנים או יותר?",
     choices: [
       { id: "opt_1", textHe: "מקבצים 10 לבנים ללבנה אחת בטור שמשמאלו", isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור שמופיע בראש אותו טור.' },
       // D10 (owner, 1.10.2026): the guiding questions of stations 3–8.
@@ -661,9 +663,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // after it — and does not give the result.
   's1_r_sub61': {
     pedagogical_intent: "procedural",
-    tts_text: "בחיסור 61 − 24: איך יודעים שסיימתם להוציא מבית המספרים?",
+    tts_text: "נסו לחשוב: בחיסור 61 − 24, איך יודעים שסיימתם להוציא מבית המספרים?",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "בחיסור 61 − 24: איך יודעים שסיימתם להוציא מבית המספרים?",
+    questionHe: "נסו לחשוב: בחיסור 61 − 24, איך יודעים שסיימתם להוציא מבית המספרים?",
     choices: [
       { id: "opt_1", textHe: "כשהוצאתם 24 מבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
       // D10 (owner, 1.10.2026): guiding questions.
@@ -682,9 +684,9 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // every later point, and does not give the result.
   's1_r_sub806': {
     pedagogical_intent: "procedural",
-    tts_text: "בחיסור 806 − 351: איך יודעים שסיימתם להוציא מבית המספרים?",
+    tts_text: "נסו לחשוב: בחיסור 806 − 351, איך יודעים שסיימתם להוציא מבית המספרים?",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "בחיסור 806 − 351: איך יודעים שסיימתם להוציא מבית המספרים?",
+    questionHe: "נסו לחשוב: בחיסור 806 − 351, איך יודעים שסיימתם להוציא מבית המספרים?",
     choices: [
       { id: "opt_1", textHe: "כשהוצאתם 351 מבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
       // D10 (owner, 1.10.2026): guiding questions.

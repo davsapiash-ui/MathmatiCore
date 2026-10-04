@@ -34,7 +34,8 @@
  * from the exercise's numbers and requiredCounts and passed the pedagogy gate
  * (Rule 3) — on 28.9.2026, and for station 3's redesign on 30.9.2026:
  *   s1_target_347     347 → 3 hundreds, 3 tens, 17 units: a ten into units.
- *   s1_r_group26      26 units → 2 tens, 6 units: units grouped into tens.
+ *   s1_r_group26      26 units → 2 tens, 6 units: units grouped into tens, twice
+ *                     (one column, listed twice, like s7_g_t1).
  *   s3_r_t2           3 hundreds, 4 tens → 2 hundreds, 14 tens: a hundred into tens.
  *   s3_r_t4           8 tens, 5 units → 7 tens, 15 units: a ten into units.
  *   s3_r_t6           5 hundreds, 6 units → 4 hundreds, 10 tens, 6 units: a hundred into tens.
@@ -67,7 +68,9 @@ export interface RepresentationLock {
 
 export const REPRESENTATION_LOCKS: Record<string, RepresentationLock> = {
   s1_target_347: { conversion: 'decomposition', columns: ['units'] },
-  s1_r_group26: { conversion: 'composition', columns: ['units'] },
+  // Twice: 26 units are grouped into two tens, each grouping the child's own
+  // (register ו "הלומד מקבץ פעמיים לעשרת"; audit A2-F06).
+  s1_r_group26: { conversion: 'composition', columns: ['units', 'units'] },
   s3_r_t2: { conversion: 'decomposition', columns: ['tens'] },
   s3_r_t4: { conversion: 'decomposition', columns: ['units'] },
   s3_r_t6: { conversion: 'decomposition', columns: ['tens'] },
