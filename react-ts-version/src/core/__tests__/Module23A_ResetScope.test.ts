@@ -189,7 +189,8 @@ describe('Module 23א — level 2 for the whole class (register, deviation 20)',
     // The recordings, in their own node since 2.10.2026, are backed up as they were on the records.
     expect(classScope).toContain('rtdbBackupOnlyPaths: ["users/students", "chat_messages", RECORDINGS_ROOT],');
     expect(classScope).toContain('ALL_STUDENT_IDS.flatMap((n) => studentAliases(String(n)))');
-    expect(classScope).toContain('values: { __activeSessionNumber: sessionNumber }');
+    // Register deviation 20: the help calls on the radar are not reset (that is level 1).
+    expect(classScope).toContain('values: { __activeSessionNumber: sessionNumber, __keepHelpCalls: true }');
     // Same rule as one learner: every collection is backed up, only the meeting's session documents go.
     expect(classScope).toContain('backupOnly: collection !== "sessions",');
     expect(classScope).toContain('collection === "sessions" ? { sessionNumber } : {}');
