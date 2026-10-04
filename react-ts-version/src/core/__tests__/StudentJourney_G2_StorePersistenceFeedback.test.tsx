@@ -367,7 +367,8 @@ describe('A3-112 / A3-113 / A3-114: meeting 2 toasts', () => {
 
   it('task 1 answered: "התשובה התקבלה!" without 👍, "עוברים למשימה הבאה"; the last task: no next task promised', () => {
     meeting2At(0);
-    useWorkspaceStore.setState({ answerDigits: { hundreds: '6', tens: '0', units: '5' } } as any);
+    // Task 1's one answer box (owner, 4.10.2026).
+    useWorkspaceStore.setState({ probeAnswer: '605' } as any);
     ws().proceed();
     expect(ws().feedback?.title).toBe('הַתְּשׁוּבָה הִתְקַבְּלָה!');
     expect(ws().feedback?.sub).toBe('עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...');

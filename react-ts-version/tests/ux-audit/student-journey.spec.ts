@@ -46,6 +46,15 @@ const SCOPE = ((process.env.UX_AUDIT_SCOPE as Scope) || 'full') as Scope;
 /** `UX_AUDIT_ONLY=<regex>` measures only the states whose id matches — to re-check one screen after a fix. */
 const ONLY = process.env.UX_AUDIT_ONLY ? new RegExp(process.env.UX_AUDIT_ONLY) : null;
 const PRIMARY_VIEWPORT = 'laptop-1366';
+/**
+ * The diagnostic's own screens (opening, the seven tasks, the correction
+ * round) belong to a learner who has NOT finished meeting 2. The context's
+ * default record says "meeting 2 finished and approved", and with it these
+ * steps measured the waiting screen ("המורה תפתח את הפעילות בקרוב.") instead
+ * of the task.
+ */
+const M2_IN_PROGRESS = /^m2-(opening|task-\d|correction-)/;
+const WAITING_TEXT = /תפתח את הפעילות בקרוב|יפתח את הפעילות בקרוב/;
 const HIGH = new Set(['page-scroll-y', 'page-scroll-x', 'needs-scroll', 'clipped', 'offscreen', 'console-error']);
 
 interface Step {
@@ -478,6 +487,10 @@ async function asdSteps(c: AuditContext): Promise<Step[]> {
  */
 function enhancedSteps(): Step[] {
   const steps: Step[] = [m1TargetDone(false)];
+  // Meeting 2 with the enhanced profile: tasks 4 and 5 show headings and
+  // colours; task 1 is one plain box, as for every learner (owner, 4.10.2026).
+  for (const t of DIAGNOSTIC) steps.push({ id: `m2-task-${t.idx + 1}`, meeting: 2, run: async (cc) => ws(cc.page, Q_FLOW, qflow(t.idx, 'primary', 'subtask')) });
+  steps.push({ id: 'm2-correction-retry-1', meeting: 2, run: async (cc) => ws(cc.page, Q_FLOW, qflow(0, 'correction', 'retry')) });
   for (const [n, idx] of [[4, 0], [7, 1]] as const) {
     steps.push({
       id: `m${n}-grid-open`,
@@ -780,6 +793,7 @@ async function runSteps(
       return;
     }
     let currentMeeting: number | null | undefined;
+    let currentRecord: string | undefined;
     let currentUrl: string | undefined;
     for (const step of steps) {
       if (ONLY && !ONLY.test(step.id)) continue;
@@ -787,9 +801,12 @@ async function runSteps(
       try {
         await withTimeout(
           async () => {
-            if (step.meeting !== null && step.meeting !== currentMeeting) {
-              await gotoWorkspace(c, step.meeting);
+            const inProgress = step.meeting === 2 && M2_IN_PROGRESS.test(step.id);
+            const recordKey = inProgress ? 'm2-in-progress' : 'default';
+            if (step.meeting !== null && (step.meeting !== currentMeeting || recordKey !== currentRecord)) {
+              await gotoWorkspace(c, step.meeting, inProgress ? { meeting2Done: false } : {});
               currentMeeting = step.meeting;
+              currentRecord = recordKey;
               currentUrl = undefined;
             } else if (step.meeting === null && (step.url !== currentUrl || step.id.startsWith('login'))) {
               await gotoPath(c, step.url || '/');
@@ -798,6 +815,12 @@ async function runSteps(
             }
             c.drainConsole();
             await step.run(c);
+            if (inProgress && step.id !== 'm2-opening') {
+              // A task step that shows the waiting screen measured the wrong screen: fail it.
+              await c.page.waitForTimeout(400);
+              const body = await c.page.evaluate(() => document.body.innerText || '');
+              if (WAITING_TEXT.test(body)) throw new Error(`${step.id} shows the waiting screen, not the task`);
+            }
             results.push(
               await capture({
                 viewport,
@@ -845,6 +868,7 @@ async function runSteps(
         console.log(`  ✗ ${viewport.id} ${label}: ${message.split('\n')[0]}`);
         // A navigation error leaves the page in an unknown state: force a reload next step.
         currentMeeting = undefined;
+        currentRecord = undefined;
         currentUrl = undefined;
         if (message.startsWith('watchdog:')) {
           // The context is wedged: drop it (bounded — closing can hang too) and go on in a new one.
