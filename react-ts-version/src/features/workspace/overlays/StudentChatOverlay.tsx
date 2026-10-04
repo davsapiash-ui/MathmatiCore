@@ -118,9 +118,10 @@ export function StudentChatOverlay() {
   // Owner, 1.10.2026 (evening): the learner and the teacher chat in free text
   // both ways. The learner knows not to write their name (the teacher says so
   // in the meeting-1 demo); the client filter still refuses an e-mail address,
-  // an ID or a phone number, and the server anonymizer runs on every message
-  // (PRD Module 22, invariant 1). The two ready messages stay as one-press
-  // shortcuts.
+  // an ID or a phone number (PRD Module 22, invariant 1). That filter is the
+  // only one on this chat: the message goes straight to the Realtime Database,
+  // and no server code reads or cleans it. The two ready messages stay as
+  // one-press shortcuts.
   const handleSend = () => {
     const textToSend = text.trim();
     // No learner number (a teacher previewing the workspace): nothing to send

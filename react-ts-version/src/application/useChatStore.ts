@@ -19,6 +19,7 @@ interface ChatState {
   messages: ChatMessage[];
   activeRoomId: string | null;
   unreadCount: number;
+  /** Always true: the PRD has no chat on/off switch and nothing writes one. */
   globalChatEnabled: boolean;
   setActiveRoomId: (roomId: string | null) => void;
   sendMessage: (senderId: string, senderName: string, receiverId: string, text: string) => void;
@@ -85,10 +86,6 @@ export function sanitizeChatText(text?: string | null): string {
 
 let activeSyncedKey: string | null = null;
 let chatUnsubscribe: (() => void) | null = null;
-// The switch listener is detached like the chat one. It used to be attached
-// again on every new identity and never removed, so a shared tablet collected
-// one live listener per learner who signed in on it, each kept after sign-out.
-let chatEnabledUnsubscribe: (() => void) | null = null;
 
 /** Detaches every chat listener (sign-out, an admin sign-in). */
 export function stopChatSync(): void {
@@ -96,10 +93,6 @@ export function stopChatSync(): void {
   if (chatUnsubscribe) {
     chatUnsubscribe();
     chatUnsubscribe = null;
-  }
-  if (chatEnabledUnsubscribe) {
-    chatEnabledUnsubscribe();
-    chatEnabledUnsubscribe = null;
   }
 }
 
@@ -130,26 +123,6 @@ export const useChatStore = create<ChatState>()(
       const syncKey = `${isStudent ? 'student' : 'staff'}_${userId}_${studentRoomId}`;
       if (activeSyncedKey === syncKey && chatUnsubscribe) return;
       activeSyncedKey = syncKey;
-
-      // Sync globalChatEnabled control flag from Firebase Realtime DB
-      if (chatEnabledUnsubscribe) {
-        chatEnabledUnsubscribe();
-        chatEnabledUnsubscribe = null;
-      }
-      try {
-        chatEnabledUnsubscribe = onValue(
-          ref(database, 'system_control/globalChatEnabled'),
-          (snap) => {
-            const enabled = snap.exists() ? Boolean(snap.val()) : true;
-            set({ globalChatEnabled: enabled });
-          },
-          (err) => {
-            console.warn('[useChatStore] globalChatEnabled listener notice:', err);
-          }
-        );
-      } catch (err) {
-        console.warn("Global chat status sync non-blocking warning:", err);
-      }
 
       const chatRef = isStudent 
         ? ref(database, `chat_messages/${studentRoomId}`) 
@@ -281,7 +254,11 @@ export const useChatStore = create<ChatState>()(
 
     markAllAsRead: () => {
       const { messages } = get();
-      const unreadMsgs = messages.filter(m => !m.read);
+      // The teacher's button: only what the learners sent her. Her own
+      // messages stay unread until the learner opens them — marking them too
+      // showed "read by the learner" for a message the child never saw, and
+      // put out the child's new-message dot.
+      const unreadMsgs = messages.filter(m => !m.read && !isTeacherOrAdminId(m.senderId));
       if (unreadMsgs.length === 0) return;
 
       const roomUpdates: Record<string, Record<string, any>> = {};
@@ -298,7 +275,9 @@ export const useChatStore = create<ChatState>()(
       });
 
       set((state) => ({
-        messages: state.messages.map(m => ({ ...m, read: true })),
+        messages: state.messages.map(m =>
+          unreadMsgs.some(u => u.id === m.id) ? { ...m, read: true } : m
+        ),
         unreadCount: 0
       }));
     },
