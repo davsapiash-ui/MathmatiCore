@@ -11,7 +11,15 @@ import { teacherSentenceHe } from '@/core/teacherGender';
  * העבודה של התלמיד שמורה לחלוטין מתחת. כשהמורה תפתח מפגש חדש, הפעילות תתחדש מיד.
  * כפתור התנתקות נגיש מאפשר לתלמיד להתנתק בצורה מסודרת בסיום יום הלימודים.
  */
-export function SessionClosedOverlay() {
+export function SessionClosedOverlay({ meeting2Unfinished = false }: {
+  /**
+   * Meeting 2 closed before this child finished it (owner, 4.10.2026,
+   * A3-106): the teacher sets a time to go on, so the screen says that
+   * instead of "הפעילות תתחדש כאן מיד". Every other close keeps the generic
+   * text (register 7).
+   */
+  meeting2Unfinished?: boolean;
+} = {}) {
   // מצב שקט: MotionConfig מכבה תנועות תמרה, אך לא לולאת שקיפות אינסופית —
   // הנקודות המשיכו לפעום מול ילד שהמורה סימנה כרגיש חושית. כאן הן עומדות.
   // useReducedMotionConfig ולא useReducedMotion: האחרון קורא רק את הגדרת
@@ -21,7 +29,7 @@ export function SessionClosedOverlay() {
     reduceMotion ? {} : { animate: frames, transition };
   const gender = useTeacherGenderStore((s) => s.gender);
   const title = teacherSentenceHe('closedTitle', gender);
-  const body = teacherSentenceHe('closedBody', gender);
+  const body = teacherSentenceHe(meeting2Unfinished ? 'closedBodyMeeting2Unfinished' : 'closedBody', gender);
   return (
     <motion.div
       initial={{ opacity: 0 }}

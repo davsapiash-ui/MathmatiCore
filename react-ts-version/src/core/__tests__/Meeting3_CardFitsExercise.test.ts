@@ -105,7 +105,9 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
       expect(q(id), id).toBe('נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?');
     }
     for (const id of ['s3_r_t2', 's3_r_t4', 's3_r_t6', 's3_g_t2', 's3_g_t4', 's3_g_t6']) {
-      expect(built(id), id).toBe('נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?');
+      expect(built(id), id).toBe(id === 's3_g_t4'
+        ? 'נסו לחשוב: לפני הפריטות בניתם מספר. האם הפריטות שינו אותו?' // two breaks (owner, 4.10.2026)
+        : 'נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?');
       // Nothing built yet: no card that says "you built a number" (owner, 30.9.2026).
       expect(q(id), id).not.toContain('בניתם');
     }

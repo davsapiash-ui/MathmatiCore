@@ -190,6 +190,7 @@ describe('2. the block names of 30.9.2026 are read as counts', () => {
 const BREAK_Q = 'נסו לחשוב: ההנחיה מבקשת לפרוט לבנת מאה אחת לעשר לבני עשרת. איך פורטים אותה?';
 const C1_Q = 'נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?';
 const C7_Q = 'נסו לחשוב: לפני ההקבצה בניתם מספר. האם ההקבצה שינתה אותו?';
+const C7_Q_TWO = 'נסו לחשוב: לפני ההקבצות בניתם מספר. האם ההקבצות שינו אותו?';
 
 describe('3. C1 and C7 wait for the conversion; before it, the conversion the instruction names', () => {
   it('the break card: the block and the click, in the instruction\'s words; no count, no answer', () => {
@@ -273,9 +274,11 @@ describe('3. C1 and C7 wait for the conversion; before it, the conversion the in
     expect(ctxOf(t)).toMatchObject({ conversionDone: false, pendingConversion: 'hundreds', conversionAgain: true });
     // 15 hundreds: the live grouping card speaks, never C7.
     expect(served(t).questionHe).not.toBe(C7_Q);
+    expect(served(t).questionHe).not.toBe(C7_Q_TWO);
     ws().groupColumnClick('hundreds');
     expect(ctxOf(t)).toMatchObject({ conversionDone: true, pendingConversion: null });
-    expect(served(t).questionHe).toBe(C7_Q);
+    // Two groupings: the plural, as the instruction (owner, 4.10.2026).
+    expect(served(t).questionHe).toBe(C7_Q_TWO);
   });
 
   it('without the store (no context), C1 and C7 speak once something is built, as before', () => {
