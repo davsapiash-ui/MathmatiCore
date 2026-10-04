@@ -128,6 +128,11 @@ export function useCognitiveHesitationRadar({
       // Module 19 §ב: the profile applied at this exercise's start, never the live record.
       const supportProfileId = wsState.activeSupportProfileId;
       if (
+        // While the coaching card is open the grid is not shown (it shares
+        // the card's place in the row — StudentWorkspacePage), so it is not
+        // opened either: no state change and no ADAPTIVE_GRID_TOGGLED event
+        // for a grid that never appeared.
+        wsState.helpState !== 'socratic' &&
         shouldOpenAdaptiveGrid({
           supportProfileId,
           sessionNumber: wsState.sessionNumber,

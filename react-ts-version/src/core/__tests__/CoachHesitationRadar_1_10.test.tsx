@@ -194,6 +194,17 @@ describe('D7 — the addition grid opens only in an addition exercise', () => {
     expect(ws().isAdditionHelperOpen).toBe(true);
   });
 
+  it('station 4, addition, the coaching card open: 30 seconds change nothing and log nothing', () => {
+    // While the card is open the grid is not shown (StudentWorkspacePage), so
+    // it must not be "opened" behind it: no state, no ADAPTIVE_GRID_TOGGLED.
+    load(4, task(4, 's4_g_t1'), { ...enhanced, helpState: 'socratic' });
+    mountRadar();
+    vi.advanceTimersByTime(31_000);
+    expect(ws().isAdditionHelperOpen).toBe(false);
+    expect(ws().additionHelperOffered).toBe(false);
+    expect(emitted.filter((e) => e.event_type === 'ADAPTIVE_GRID_TOGGLED')).toEqual([]);
+  });
+
   it('station 5, subtraction: it does not', () => {
     load(5, task(5, 's5_g_t1'), enhanced);
     mountRadar();

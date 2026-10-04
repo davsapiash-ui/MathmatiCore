@@ -480,11 +480,21 @@ function enhancedSteps(): Step[] {
   steps.push({
     id: 'm4-grid-tab-and-chat',
     meeting: 4,
-    note: 'both live in the bottom-left corner',
+    note: 'the grid\'s tab beside the board, and the chat open over the bottom-left corner',
     run: async (cc) => {
       await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
       await ws(cc.page, SET, { isAdditionHelperOpen: false, additionHelperOffered: true });
       await cc.page.evaluate(() => document.dispatchEvent(new CustomEvent('toggle-chat')));
+    },
+  });
+  steps.push({
+    id: 'm4-grid-and-group-buttons',
+    meeting: 4,
+    note: 'the narrowest columns: four of them, the grid open beside the board, and "קבצו 10 ל…" in three',
+    run: async (cc) => {
+      await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
+      await ws(cc.page, 'st.openAdditionHelper("learner");');
+      await ws(cc.page, SET, { counts: { units: 13, tens: 10, hundreds: 10, thousands: 1 } });
     },
   });
   return steps;

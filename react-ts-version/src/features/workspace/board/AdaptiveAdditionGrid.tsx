@@ -31,6 +31,9 @@ interface AdaptiveAdditionGridProps {
   onSelection?: (sum: number) => void;
   onClose?: () => void;
   className?: string;
+  /** The coaching card is open: the grid waits out of sight, still mounted,
+   *  so its chosen row and column — and its finished fade-in — are kept. */
+  hidden?: boolean;
 }
 
 /**
@@ -44,7 +47,7 @@ interface AdaptiveAdditionGridProps {
  * it automatically. The exit animation runs under the page's AnimatePresence,
  * so this component must be mounted inside one.
  */
-export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: AdaptiveAdditionGridProps) {
+export function AdaptiveAdditionGrid({ onSelection, onClose, className = '', hidden = false }: AdaptiveAdditionGridProps) {
   const [activeRow, setActiveRow] = useState<number | null>(null);
   const [activeCol, setActiveCol] = useState<number | null>(null);
 
@@ -105,7 +108,8 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: A
       transition={{ duration: GRID_FADE_IN_SECONDS, ease: 'easeInOut', maxWidth: { duration: 0.25, ease: 'easeOut' } }}
       onAnimationComplete={() => setVisible(true)}
       dir="rtl"
-      className={`${visible ? 'pointer-events-auto' : 'pointer-events-none'} shrink-0 self-start max-h-full min-h-0 overflow-hidden ${GRID_SLOT_WIDTH} ${className}`}
+      data-hidden={hidden ? 'true' : undefined}
+      className={`${hidden ? 'hidden ' : ''}${visible ? 'pointer-events-auto' : 'pointer-events-none'} shrink-0 self-start max-h-full min-h-0 overflow-hidden ${GRID_SLOT_WIDTH} ${className}`}
       role="dialog"
       aria-label={ADDITION_GRID_HE}
       data-testid="adaptive-addition-grid"
