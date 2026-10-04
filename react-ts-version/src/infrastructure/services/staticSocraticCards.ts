@@ -1055,7 +1055,7 @@ export function boardHiddenCard(): SocraticHintResponse {
   return card(`${OPEN}בית המספרים מוסתר עכשיו. איך תעבדו בתרגיל עם הלבנים?`, 'procedural', 'tour-action-buttons', [
     ['מציגים שוב את בית המספרים, ועובדים בו', 'נכון מאוד! הכפתור שמציג אותו נמצא בסרגל העליון.'],
     ['מנחשים את התשובה בלי הלבנים', 'רמז: איך תבדקו את התשובה בלי לראות את הלבנים?'],
-    ['מתחילים את התרגיל מההתחלה', 'רמז: האם הלבנים שבניתם נמחקו, או שהן רק מוסתרות?'],
+    ['מתחילים את התרגיל מההתחלה', 'רמז: האם הלבנים נמחקו, או שהן רק מוסתרות?'],
   ], 'board_hidden', frame('board_hidden', 1, 'בית המספרים מוסתר: מציגים אותו שוב ועובדים בלבנים'));
 }
 
@@ -1291,6 +1291,10 @@ function additionCard(a: number, b: number, blocks: boolean, counts: BoardCounts
  * `zeros` (מסמך 03 §3.6 when there are any, §3.5 otherwise). With blocks on
  * the screen (stations 3–7) the card names no column's block count: the
  * column digits are hidden there, and the child counts (owner, 30.9.2026).
+ * Through a zero, with blocks, one breaks a BLOCK — "לבנת מאה אחת", "לחצו על
+ * לבנת המאה", "לבנת עשרת אחת" — the forms of the owner's documents (02; 03
+ * §3.6; owner, 4.10.2026). Until then "מאה אחת", "לבנת מאה", "עשרת אחת".
+ * Meeting 8 has no blocks, and keeps "מאה אחת".
  */
 function borrowCard(ex: string, c: Place, have: number, need: number, zeros: Place[], m: Place, blocks: boolean): SocraticHintResponse {
   const n = next(c)!;
@@ -1300,12 +1304,12 @@ function borrowCard(ex: string, c: Place, have: number, need: number, zeros: Pla
     const where = zeros.length === 1 ? `ב${COLUMN[zeros[0]]} יש אפס` : `${zeros.map((z) => `ב${COLUMN[z]}`).join(' ו')} יש אפסים`;
     return card(`${OPEN}בתרגיל ${ex}, איך פורטים כש${where}?`, 'conceptual', HL(m), [
       blocks
-        ? [`פורטים תחילה ${ONE[m]} ל${TEN_OF[below]} ב${COLUMN[below]}`, `נכון מאוד! לחצו על ${BLOCK[m]} כדי לפרוט אותה. אחר כך פרטו שוב, טור אחר טור, עד ${COLUMN[c]}.`]
+        ? [`פורטים תחילה ${BLOCK[m]} אחת ל${TEN_OF[below]} ב${COLUMN[below]}`, `נכון מאוד! לחצו על ${BLOCK_THE[m]} כדי לפרוט אותה. אחר כך פרטו שוב, טור אחר טור, עד ${COLUMN[c]}.`]
         : [`פורטים תחילה ${ONE[m]} ל${TEN_OF[below]}, ורושמים את השינוי בעיגולי הזיכרון`, `נכון מאוד! אחר כך פרטו שוב, טור אחר טור, עד ${COLUMN[c]}.`],
       // What a decomposition gives: the next column, never straight into the one that is short.
-      [zeros.length === 1 ? 'מדלגים על האפס וממשיכים לטור הבא' : 'מדלגים על האפסים וממשיכים לטור הבא', `רמז: כשפורטים ${ONE[m]}, מה מקבלים: ${TEN_OF[below]} או ${TEN_OF[c]}?`],
+      [zeros.length === 1 ? 'מדלגים על האפס וממשיכים לטור הבא' : 'מדלגים על האפסים וממשיכים לטור הבא', `רמז: כשפורטים ${blocks ? `${BLOCK[m]} אחת` : ONE[m]}, מה מקבלים: ${TEN_OF[below]} או ${TEN_OF[c]}?`],
       blocks
-        ? [`מוסיפים ${ONE[n]} ל${COLUMN[c]} בלי לפרוט`, HINT.addBlocks]
+        ? [`מוסיפים ${BLOCK[n]} אחת ל${COLUMN[c]} בלי לפרוט`, HINT.addBlocks]
         : [`כותבים 0 בתיבת ה${PLURAL[c]} וממשיכים`, writeZero],
     ], 'borrow', frame('borrow_through_zero', 2, `ב${COLUMN[c]} אין מספיק, והטור שמשמאלו ריק: פורטים מהטור הקרוב שיש בו, טור אחר טור`));
   }
@@ -2590,7 +2594,7 @@ export function showBoardCard(): SocraticHintResponse {
   return card(`${OPEN}בית המספרים מוסתר. איך רואים שוב את הלבנים?`, 'procedural', 'tour-action-buttons', [
     ['לוחצים על הכפתור "הצגת בית המספרים" שבסרגל העליון', 'נכון מאוד! לחצו עליו, והלבנים יחזרו למסך.'],
     ['כותבים את התשובה בלי לבנים', 'רמז: איך תבדקו את התשובה בלי לבנים?'],
-    ['מתחילים את התרגיל מההתחלה', 'רמז: האם הלבנים שבניתם נמחקו, או שהן רק מוסתרות?'],
+    ['מתחילים את התרגיל מההתחלה', 'רמז: האם הלבנים נמחקו, או שהן רק מוסתרות?'],
   ], 'show_board', frame('show_board_button', 3, 'בית המספרים מוסתר: מציגים אותו בכפתור שבסרגל העליון ועובדים בלבנים'));
 }
 
@@ -2871,7 +2875,16 @@ function s1WordsSecondCard(): SocraticHintResponse {
   ], 'build_from_words', frame('build_from_words', 1, 'המילים של המספר אומרות כמה לבנים בונים בכל טור'));
 }
 
-/** Meeting 1, 368 — the value of a digit, the second card: in which column it is built. The child finds the column. */
+/** "ספרת היחידות", "ספרת העשרות", "ספרת המאות" — the Ministry's names, as stations 4 and 6 use them. */
+const DIGIT_OF_HE: Record<Place, string> = { units: 'ספרת היחידות', tens: 'ספרת העשרות', hundreds: 'ספרת המאות', thousands: 'ספרת האלפים' };
+
+/**
+ * Meeting 1, 368 — the value of a digit, the second card (owner, 4.10.2026,
+ * cards round 2, A): which digit of the written number the 6 is. Anchored in
+ * the number, not in the blocks, so it is true for every board worth 368 —
+ * since 4.10.2026 any such board is accepted (2 hundreds, 16 tens, 8 units
+ * too), and "באיזה טור בניתם את הספרה 6" was not.
+ */
 function s1ValueSecondCard(task: any): SocraticHintResponse | null {
   const n: number = task.numberA;
   const v = typeof task.correctAnswer === 'number' ? task.correctAnswer : null;
@@ -2882,14 +2895,10 @@ function s1ValueSecondCard(task: any): SocraticHintResponse | null {
   const cols = places(n);
   if (cols.length !== 3) return null;
   const others = cols.filter((x) => x !== p);
-  // A column to the right of the digit's: how many digits follow it; to its left: which digit is built there.
-  const hintFor = (x: Place) => LOW_TO_HIGH.indexOf(x) < LOW_TO_HIGH.indexOf(p)
-    ? `רמז: כמה ספרות באות אחרי הספרה ${d} במספר ${N}?`
-    : `רמז: איזו ספרה של ${N} בניתם ב${COLUMN[x]}?`;
-  return card(`${OPEN}באיזה טור בניתם את הספרה ${d} של המספר ${N}?`, 'conceptual', 'tour-place-value-board', [
-    [`ב${COLUMN[p]}`, `נכון מאוד! כמה שוות ${d} ${BLOCKS[p]}?`],
-    ...others.map((x): [string, string] => [`ב${COLUMN[x]}`, hintFor(x)]),
-  ], 'digit_column', frame('digit_column', 1, 'ערך הספרה לפי הטור שבו היא בנויה: כמה שוות הלבנים של הטור הזה'));
+  return card(`${OPEN}במספר ${N}, הספרה ${d} היא ${cols.map((x) => DIGIT_OF_HE[x]).join(', ').replace(/, ([^,]+)$/, ' או $1')}?`, 'conceptual', 'tour-place-value-board', [
+    [DIGIT_OF_HE[p], `נכון מאוד! כמה שוות ${d} ${BLOCKS[p]} יחד?`],
+    ...others.map((x): [string, string] => [DIGIT_OF_HE[x], `רמז: איזו ספרה במספר ${N} היא ${DIGIT_OF_HE[x]}?`]),
+  ], 'digit_column', frame('digit_column', 1, 'ערך הספרה לפי מקומה במספר: כמה שוות הלבנים של הטור הזה יחד'));
 }
 
 /**
