@@ -277,6 +277,8 @@ describe('A3-103 / A3-116: a digit in an answer box can be corrected', () => {
     expect(digitJustTyped('55', '5')).toBe('5');
     expect(digitJustTyped('', '6')).toBe('');
     expect(digitJustTyped('a7', '')).toBe('7');
+    // an empty box keeps the first digit of a paste
+    expect(digitJustTyped('123', '')).toBe('1');
   });
 
   function meeting2Boxes() {
@@ -387,12 +389,20 @@ describe('A3-117 / UX-004: where the feedback toast sits', () => {
     expect(toast.style.transform).toContain('translateX(-50%)');
   });
 
-  it('inline (meetings 1, 3–7): in the flow, over nothing', () => {
+  it('inline (meetings 1, 3–7): out of the flow, placed under the position label', () => {
     ws().resetWorkspace();
     useWorkspaceStore.setState({ feedback: { correct: false, title: 'כִּמְעַט... 🧐', sub: 'בדקו שוב.' }, feedbackNonce: 1 } as any);
-    render(<FeedbackToast placement="inline" />);
+    render(
+      <div style={{ position: 'relative' }}>
+        <FeedbackToast placement="inline" />
+        <h1>משימה 1 מתוך 7</h1>
+      </div>
+    );
     const toast = screen.getByTestId('feedback-toast');
-    expect(toast.className).not.toMatch(/\babsolute\b|\bfixed\b/);
+    expect(toast.className).toMatch(/\babsolute\b/);
+    expect(toast.className).not.toMatch(/\bfixed\b|\btop-2\b/);
+    // jsdom has no layout: the label's bottom is 0, so the note sits 4px under it.
+    expect(toast.style.top).toBe('4px');
   });
 });
 
@@ -449,7 +459,7 @@ describe('A5-F10 / A7-005 / A4-F09: the memory-circle note', () => {
     const diff = (sub.numberA ?? 0) - (sub.numberB ?? 0);
     boardOf(diff);
     useWorkspaceStore.setState({ answerDigits: Object.fromEntries((['thousands', 'hundreds', 'tens', 'units'] as const).map((p, i) => [p, String(diff).padStart(4, '0')[i]])) } as any);
-    expect(verdict().sub).toBe('פתרתם נכון! בפעם הבאה, אחרי כל פריטה רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בטור.');
+    expect(verdict().sub).toBe('פתרתם נכון! בפעם הבאה, אחרי כל פריטה רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.');
   });
 });
 

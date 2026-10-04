@@ -1300,8 +1300,10 @@ export function answerDigitsToNumber(digits: Partial<Record<Place, string>>): nu
 export function digitJustTyped(value: string, previous: string): string {
   const raw = value.replace(/[^0-9]/g, '');
   const prev = previous.replace(/[^0-9]/g, '');
+  // An empty box keeps the first digit of what arrived (a paste of "123" → "1").
+  if (!prev) return raw.slice(0, 1);
   let typed = raw;
-  if (raw.length > 1 && prev) {
+  if (raw.length > 1) {
     if (raw.startsWith(prev)) typed = raw.slice(prev.length);
     else if (raw.endsWith(prev)) typed = raw.slice(0, raw.length - prev.length);
   }
@@ -2141,7 +2143,7 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
         return success(
           'שימו לב לעיגולי הזיכרון 💡',
           task.isSubtraction
-            ? 'פתרתם נכון! בפעם הבאה, אחרי כל פריטה רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בטור.'
+            ? 'פתרתם נכון! בפעם הבאה, אחרי כל פריטה רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.'
             : 'פתרתם נכון! בפעם הבאה, רשמו כל המרה בעיגולי הזיכרון שבראש הטורים.',
           3000
         );

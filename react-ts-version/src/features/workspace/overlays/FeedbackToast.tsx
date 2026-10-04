@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -16,14 +16,14 @@ export const FEEDBACK_READ_HOLD_MAX_MS = 30_000;
  *
  * Where it appears:
  *  - `inline` (meetings with the number house, 1 and 3–7): a compact note at
- *    the top of the task column, in the flow, above its heading ("תחנה N",
- *    "משימה N מתוך 7"). It used to float over the middle of the screen, where
+ *    the top of the task column, just under its position label ("משימה N
+ *    מתוך 7"), over the instruction. It used to float over the middle of the screen, where
  *    for a few seconds it covered the units column's name and digit, the
  *    exercise title, and the open coaching card — מסמך 03 §3.1 asks for a side
  *    card "השומר על נראות מלאה של התרגיל בבית המספרים ללא חלונות קופצים"
  *    (report row 1.15). Under the exercise it fell below a 768 px screen; laid
  *    over the heading it hid "משימה N מתוך 7" and the station chip (UX-004).
- *    In the flow it covers nothing: the column moves down while it is shown.
+ *    In the flow it pushed the result row out of the card on short windows.
  *  - `floating` (meetings 2 and 8, the sheet alone in the middle): centred
  *    by its own motion value — framer-motion's transform replaced Tailwind's
  *    -translate-x-1/2, so its left edge sat at the centre (A3-117).
@@ -48,6 +48,24 @@ export function FeedbackToast({ placement = 'floating' }: { placement?: 'floatin
     return () => clearTimeout(t);
   }, [beingRead]);
   const feedback = storeFeedback ?? beingRead;
+  // Inline: the note lies just under the position label ("משימה N מתוך 7"),
+  // out of the flow. In the flow it pushed the result row out of the card on
+  // short windows (s5_g_t1 at 1280×585); laid over the top of the card it hid
+  // the label and the station chip (UX-004). The card is the offset parent.
+  const inlineRef = useRef<HTMLDivElement | null>(null);
+  const [inlineTop, setInlineTop] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (placement !== 'inline' || !feedback) return;
+    const el = inlineRef.current;
+    const card = el?.parentElement;
+    const label = card?.querySelector('h1');
+    if (!el || !card || !label) {
+      setInlineTop(null);
+      return;
+    }
+    const top = label.getBoundingClientRect().bottom - card.getBoundingClientRect().top + card.scrollTop + 4;
+    setInlineTop(Math.round(top));
+  }, [placement, feedback]);
   const speechText = feedback ? (feedback.sub ? `${feedback.title}. ${feedback.sub}` : feedback.title) : '';
 
   useEffect(() => {
@@ -66,6 +84,8 @@ export function FeedbackToast({ placement = 'floating' }: { placement?: 'floatin
     <AnimatePresence>
       {feedback && (
         <motion.div
+          ref={placement === 'inline' ? inlineRef : undefined}
+          style={placement === 'inline' ? { top: inlineTop ?? 8 } : undefined}
           key={feedback.nonce || feedbackNonce || `${feedback.title}-${feedback.correct}`}
           role="status"
           aria-live="assertive"
@@ -77,7 +97,7 @@ export function FeedbackToast({ placement = 'floating' }: { placement?: 'floatin
           transition={{ type: 'spring', stiffness: 350, damping: 25 }}
           className={`${
             placement === 'inline'
-              ? 'relative z-20 mb-fl-4-6 rounded-2xl px-4 py-1.5 gap-3 shadow-[0_12px_28px_-14px_hsl(var(--ws-shadow-warm)/0.45)]'
+              ? 'absolute inset-x-3 z-20 rounded-2xl px-4 py-1.5 gap-3 shadow-[0_12px_28px_-14px_hsl(var(--ws-shadow-warm)/0.45)]'
               : 'fixed top-24 left-1/2 z-50 min-w-[340px] max-w-[540px] rounded-3xl px-6 py-5 shadow-[0_24px_48px_-16px_hsl(var(--ws-shadow-warm)/0.45)]'
           } flex items-start ${placement === 'inline' ? '' : 'gap-4'} bg-ws-surface border-2 ${
             feedback.neutral ? 'border-ws-ink/20' : feedback.correct ? 'border-ws-success/50' : 'border-ws-accent/50'
