@@ -11,7 +11,7 @@ import { render, screen, cleanup } from '@testing-library/react';
  *     "משימה חוזרת" over the task that returns.
  *  2. 320, 2,100, 4,200: a way with unit blocks is refused, with its own toast; never 150.
  *  3. The two missing-result-digit exercises (400 − 156, 328 + 145) say what to do with the blocks.
- *  4. (2,730 — on its own branch, claude/sj-g7b-2730-opening-blocks.)
+ *  4. 2,730 opens with its blocks on the board, and both groupings are the child's own.
  *  5. Station 8: "פתרו את תרגיל החיבור: 1,245 + 328. כתבו את התשובה בשורת התוצאה."
  *  6. The reflection board, stage 2: the tools' names only; "ממשיכים".
  */
@@ -43,7 +43,7 @@ vi.mock('@/presentation/design-system/UdlSpeechButton', () => ({
   UdlSpeechButton: ({ text }: { text: string }) => <span data-testid="speech" data-text={text} />,
 }));
 
-import { useWorkspaceStore, judgeStandardTask, getActiveTasks } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, judgeStandardTask, selectCanProceed, getActiveTasks } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { currentTaskLabelHe } from '@/application/taskLabel';
@@ -52,14 +52,17 @@ import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
 import { hasProbeExercise } from '@/core/qmatrixFlow';
 import { EMPTY_COUNTS, type PlaceCounts } from '@/core/placeValue';
 import { tts } from '@/infrastructure/services/TTSService';
+import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { getSessionTasks, SESSION1_TASKS, type SessionTask } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { S4_ADD, S6_SUB, S8_ADD, S8_SUB, NO_UNIT_BLOCKS_TITLE_HE, NO_UNIT_BLOCKS_SUB_HE } from '@/data/taskBuilders';
+import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
 import { MathText } from '@/features/workspace/tasks/MathText';
 import { FeedbackToast } from '@/features/workspace/overlays/FeedbackToast';
 import { REFLECTION_TEXT_HE, STRATEGY_OPTIONS, reflectionSpeech } from '@/presentation/components/student/Session8ReflectionScreen';
 
 const ws = () => useWorkspaceStore.getState();
+const svc = firebaseSyncService as any;
 const STUDENT = 'student_user6';
 
 const bank: SessionTask[] = [...SESSION1_TASKS];
@@ -96,6 +99,10 @@ const verdict = () => {
   const s = ws();
   return judgeStandardTask(s, getActiveTasks(s)[s.standardTaskIdx]) as any;
 };
+function typeRow(n: string) {
+  const places = ['units', 'tens', 'hundreds', 'thousands'] as const;
+  [...n].reverse().forEach((d, i) => ws().setAnswerDigit(places[i], d));
+}
 
 beforeEach(() => {
   useAuthStore.setState({ user: { uid: STUDENT, student_id: 6, role: 'student', name: 'user6' } as any, role: 'student', isAuthenticated: true } as any);
@@ -295,6 +302,145 @@ describe('3 — a result digit missing: the instruction says what to do with the
 
   it('both fit what the coaching function accepts as an instruction (400 characters)', () => {
     for (const id of ['s6_r_t7', 's4_r_t7']) expect(byId(id).instructionHe.length, id).toBeLessThanOrEqual(400);
+  });
+});
+
+describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings are the child\'s own', () => {
+  const T = () => byId('s7_g_t6');
+  const START = { ...EMPTY_COUNTS, thousands: 1, hundreds: 16, tens: 13 };
+  const END = { ...EMPTY_COUNTS, thousands: 2, hundreds: 7, tens: 3 };
+  /** Station 7, green path, on the exercise — through initSession, as the meeting opens it. */
+  function open() {
+    const idx = getSessionTasks(7, 'green_path').findIndex((t) => t.id === 's7_g_t6');
+    ws().initSession(7, false, idx);
+    useWorkspaceStore.setState({ openingScreenSeen: true } as any);
+    expect(getActiveTasks(ws())[ws().standardTaskIdx].id).toBe('s7_g_t6');
+  }
+
+  it('the instruction, word for word, and the exercise\'s data', () => {
+    expect(T().instructionHe).toBe(
+      'בבית המספרים יש לבנת אלף אחת, 16 לבני מאה ו-13 לבני עשרת. בכל טור שיש בו 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור. איזה מספר מייצגות הלבנים עכשיו? כתבו אותו בשורת התוצאה.'
+    );
+    expect(T()).toMatchObject({ type: 'representation', numberA: 2730, correctAnswer: 2730, requiredCounts: { thousands: 2, hundreds: 7, tens: 3 }, initialCounts: { thousands: 1, hundreds: 16, tens: 13 } });
+    // The result row stays a box per digit: no kind, so no single answer box.
+    expect(T().representationKind).toBeUndefined();
+    expect(REPRESENTATION_LOCKS.s7_g_t6).toEqual({ conversion: 'composition', columns: ['tens', 'hundreds'] });
+    // 1,000 + 1,600 + 130 = 2,730 = 2,000 + 700 + 30.
+    expect(1 * 1000 + 16 * 100 + 13 * 10).toBe(2730);
+  });
+
+  it('read aloud: the counts of blocks in the feminine', () => {
+    const spoken = (tts as any).cleanTextForSpeech(T().instructionHe);
+    expect(spoken).toContain('שש-עשרה לבני מאה');
+    expect(spoken).toContain('שלוש-עשרה לבני עשרת');
+  });
+
+  it('opens with 1 thousand, 16 hundreds and 13 tens; the blocks alone do not light "ממשיכים"', () => {
+    open();
+    expect(ws().counts).toEqual(START);
+    expect(selectCanProceed(ws())).toBe(false);
+    typeRow('2730');
+    expect(selectCanProceed(ws())).toBe(true);
+  });
+
+  it('not accepted before both groupings; accepted after them, in either order', () => {
+    for (const order of [['tens', 'hundreds'], ['hundreds', 'tens']] as const) {
+      open();
+      typeRow('2730');
+      expect(verdict()).toMatchObject({ kind: 'failure', detail: 'wrong_representation' });
+      ws().groupColumnClick(order[0]);
+      expect(verdict()).toMatchObject({ kind: 'failure', detail: 'wrong_representation' });
+      ws().groupColumnClick(order[1]);
+      expect(ws().counts).toEqual(END);
+      expect(verdict().kind).toBe('success');
+    }
+  });
+
+  it('the final blocks built by hand, or with one grouping only, are not the exercise', () => {
+    open();
+    typeRow('2730');
+    board(END);
+    expect(verdict()).toMatchObject({
+      kind: 'failure',
+      detail: 'conversion_skipped',
+      sub: 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.',
+    });
+    open();
+    typeRow('2730');
+    ws().groupColumnClick('tens');
+    board(END); // the hundreds arranged by hand
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped' });
+  });
+
+  it('a wrong number over the right blocks is a wrong answer, as before', () => {
+    open();
+    ws().groupColumnClick('tens');
+    ws().groupColumnClick('hundreds');
+    typeRow('2370');
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'wrong_numeric' });
+  });
+
+  it('a published bank from before the change (no blocks on the board) is judged as it was', () => {
+    const { initialCounts: _dropped, ...old } = T();
+    load(7, old as SessionTask);
+    board(END);
+    typeRow('2730');
+    expect(verdict().kind).toBe('success');
+  });
+
+  // The same behaviour as meeting 1's 26 unit blocks (s1_r_group26).
+  const OPENERS: Array<[string, () => void, PlaceCounts, 'units' | 'tens']> = [
+    ['s1_r_group26', () => ws().initSession(1, false, SESSION1_TASKS.findIndex((t) => t.id === 's1_r_group26')), { ...EMPTY_COUNTS, units: 26 }, 'units'],
+    ['s7_g_t6', open, START, 'tens'],
+  ];
+  for (const [id, start, opening, column] of OPENERS) {
+    it(`${id}: undo takes a grouping back to the opening blocks, and never below them`, () => {
+      start();
+      expect(ws().counts).toEqual(opening);
+      ws().undo(); // nothing to take back
+      expect(ws().counts).toEqual(opening);
+      ws().groupColumnClick(column);
+      expect(ws().counts).not.toEqual(opening);
+      ws().undo();
+      expect(ws().counts).toEqual(opening);
+      ws().undo();
+      expect(ws().counts).toEqual(opening);
+    });
+
+    it(`${id}: a reload keeps the board, the grouping made and its undo`, () => {
+      start();
+      const fresh = JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState()));
+      ws().resetWorkspace();
+      ws().restoreSession(fresh);
+      expect(ws().counts, 'reloaded before any action').toEqual(opening);
+
+      ws().groupColumnClick(column);
+      const afterGrouping = { ...ws().counts };
+      const saved = JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState()));
+      ws().resetWorkspace();
+      ws().restoreSession(saved);
+      expect(ws().counts).toEqual(afterGrouping);
+      expect(ws().hasGrouped).toBe(true);
+      ws().undo();
+      expect(ws().counts).toEqual(opening);
+    });
+  }
+
+  it('after a reload mid-way the second grouping still completes the exercise', () => {
+    open();
+    ws().groupColumnClick('tens');
+    const saved = JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState()));
+    ws().resetWorkspace();
+    ws().restoreSession(saved);
+    expect(getActiveTasks(ws())[ws().standardTaskIdx].id).toBe('s7_g_t6');
+    ws().groupColumnClick('hundreds');
+    typeRow('2730');
+    expect(verdict().kind).toBe('success');
+  });
+
+  it('no other exercise of stations 3–8 opens with blocks', () => {
+    const withBlocks = bank.filter((t) => t.initialCounts && !t.id.startsWith('s1_')).map((t) => t.id);
+    expect(withBlocks).toEqual(['s7_g_t6']);
   });
 });
 

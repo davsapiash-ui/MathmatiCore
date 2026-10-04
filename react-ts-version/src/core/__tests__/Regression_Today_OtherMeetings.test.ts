@@ -164,6 +164,9 @@ function solve(t: SessionTask) {
         const start: PlaceCounts = { ...req, [source]: req[source] + 10 * req[above], [above]: 0 };
         for (const p of PLACES) drop(p, start[p]);
         while (ws().counts[source] >= 10 && ws().counts[above] < req[above]) ws().groupColumnClick(source);
+      } else if (t.initialCounts && lock) {
+        // s7_g_t6 (owner, 4.10.2026): the blocks are on the board; group each listed column.
+        for (const source of lock.columns) ws().groupColumnClick(source);
       } else {
         for (const p of PLACES) drop(p, req[p]);
       }
@@ -264,8 +267,9 @@ describe('meetings 3–8: the seven compulsory exercises still complete, in orde
           for (let i = 0; i < 7; i++) {
             const t = current();
             expect(t.id).toBe(bank[i].id);
-            // A new exercise opens on an empty board with no history (continuesBoard / initialCounts are meeting 1's only).
-            expect(ws().counts, `${t.id} opens on an empty board`).toEqual(EMPTY_COUNTS);
+            // A new exercise opens on an empty board with no history (continuesBoard is meeting 1's only) —
+            // or on the blocks the exercise itself gives (s7_g_t6's 2,730, owner 4.10.2026).
+            expect(ws().counts, `${t.id} opens on an empty board`).toEqual({ ...EMPTY_COUNTS, ...(t.initialCounts ?? {}) });
             expect(ws().undoStack, `${t.id} opens with no undo history`).toEqual([]);
             solve(t);
             expect(selectCanProceed(ws()), `${t.id}: "התקדם" is enabled`).toBe(true);
@@ -320,7 +324,9 @@ describe('meetings 3–8: the seven compulsory exercises still complete, in orde
     expect(all.length).toBeGreaterThan(80);
     for (const t of all) {
       expect(t.hideRequiredCounts, t.id).toBeUndefined();
-      expect(t.initialCounts, t.id).toBeUndefined();
+      // Blocks on the board at the start: station 7's 2,730 only (owner, 4.10.2026).
+      if (t.id === 's7_g_t6') expect(t.initialCounts).toEqual({ thousands: 1, hundreds: 16, tens: 13 });
+      else expect(t.initialCounts, t.id).toBeUndefined();
       expect(t.continuesBoard, t.id).toBeUndefined();
       // The "do the conversion yourself" gate: meeting 1's, and — since the
       // owner's redesign of 30.9.2026 — station 3's breaks and station 7's
