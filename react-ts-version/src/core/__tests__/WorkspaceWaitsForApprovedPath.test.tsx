@@ -15,7 +15,7 @@
  */
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, act } from '@testing-library/react';
+import { render, screen, cleanup, act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 const cls = vi.hoisted(() => ({
@@ -82,8 +82,11 @@ vi.mock('@/features/workspace/board/DienesBlock', () => ({ DienesBlock: () => nu
 vi.mock('@/features/workspace/overlays/FeedbackToast', () => ({ FeedbackToast: () => null }));
 vi.mock('@/features/workspace/overlays/HelpOverlays', () => ({ HelpOverlays: () => null, SocraticSidePanel: () => null }));
 vi.mock('@/features/workspace/overlays/StudentChatOverlay', () => ({ StudentChatOverlay: () => null }));
-vi.mock('@/features/workspace/board/AdaptiveAdditionGrid', () => ({ AdaptiveAdditionGrid: () => <div data-testid="addition-grid" />, ADDITION_GRID_HE: 'לוח החיבור' }));
-vi.mock('@/features/workspace/board/useLeftClearOfSidePanel', () => ({ useLeftClearOfSidePanel: () => 24 }));
+vi.mock('@/features/workspace/board/AdaptiveAdditionGrid', () => ({
+  AdaptiveAdditionGrid: () => <div data-testid="addition-grid" />,
+  AdditionGridTab: () => <button type="button" aria-label="הצגה חוזרת של לוח החיבור" />,
+  ADDITION_GRID_HE: 'לוח החיבור',
+}));
 vi.mock('@/features/workspace/ClosingSentence', () => ({ ClosingSentence: () => null }));
 vi.mock('@/features/workspace/StationOpening', () => ({ StationOpening: () => <div data-testid="station-opening" /> }));
 vi.mock('@/features/workspace/overlays/ReinforcementOrChallengeScreen', () => ({ ReinforcementOrChallengeScreen: () => null }));
@@ -307,6 +310,34 @@ describe('register 18: the addition grid and its return tab only in meetings 3�
     expect(ws().sessionNumber).toBe(4);
     expect(grid()).not.toBeNull();
     act(() => { useWorkspaceStore.setState({ isAdditionHelperOpen: false }); });
+    expect(tab()).not.toBeNull();
+  });
+
+  it('the grid sits in the workspace row beside the board, not floating over it (audit A5-F07 / UX-002)', async () => {
+    await openWithEnhanced(4);
+    const main = document.querySelector('main')!;
+    expect(main.contains(grid())).toBe(true);
+    act(() => { useWorkspaceStore.setState({ isAdditionHelperOpen: false }); });
+    expect(main.contains(tab())).toBe(true);
+  });
+
+  it('while the coaching card is open the grid waits — not closed — and comes back when the card closes', async () => {
+    await openWithEnhanced(4);
+    expect(grid()).not.toBeNull();
+    act(() => { useWorkspaceStore.setState({ helpState: 'socratic' } as any); });
+    expect(grid()).toBeNull();
+    expect(tab()).toBeNull();
+    // register decision ב: only the learner closes it
+    expect(ws().isAdditionHelperOpen).toBe(true);
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    await waitFor(() => expect(grid()).not.toBeNull());
+  });
+
+  it('a closed grid\'s tab also waits while the card is open', async () => {
+    await openWithEnhanced(4);
+    act(() => { useWorkspaceStore.setState({ isAdditionHelperOpen: false, helpState: 'socratic' } as any); });
+    expect(tab()).toBeNull();
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
     expect(tab()).not.toBeNull();
   });
 });

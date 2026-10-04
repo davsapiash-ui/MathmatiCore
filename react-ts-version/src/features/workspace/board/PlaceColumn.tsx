@@ -176,7 +176,11 @@ export function PlaceColumn({
           <button
             onClick={() => groupColumnClick(place)}
             data-pulse={crowdingIsTheGoal ? undefined : 'true'}
-            className={`w-full py-1 px-2 rounded-xl text-xs font-black text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer ${
+            // The main action of a column that holds ten or more: a 44px-high
+            // target, like every child button (DESIGN_SYSTEM_RULES.md; audit
+            // UX-005, meeting 1 task 8: it was 24px). The blocks below make
+            // room by shrinking together (core/blockLayout.ts), never by clipping.
+            className={`w-full min-h-11 py-1 px-2 rounded-xl text-sm leading-tight font-black text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer ${
               crowdingIsTheGoal ? '' : 'animate-pulse hover:animate-none'
             }`}
             style={{ backgroundColor: colors.header }}
