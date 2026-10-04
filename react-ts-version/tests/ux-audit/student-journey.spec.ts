@@ -7,6 +7,7 @@ import {
   gotoPath,
   gotoWorkspace,
   liveSession,
+  markFreshEntry,
   openContext,
   REPORT_JSON,
   REPORT_MD,
@@ -514,6 +515,11 @@ function crashSteps(): Step[] {
         await gotoWorkspace(cc, 3);
         await ws(cc.page, INIT, { meeting: 3, isASD: false, idx: 0 });
         await cc.page.evaluate((key) => localStorage.removeItem(key), QUIET_RELOADS_KEY);
+        // The boundary's automatic reload must come up clean, as it did when
+        // the harness wiped the device copy on every load: the crash itself
+        // (counts = null) is saved to this device's copy like any store change,
+        // and a reload that restored it would only crash again.
+        await markFreshEntry(cc.page);
         await ws(cc.page, CRASH);
       },
     },
@@ -527,6 +533,7 @@ function crashSteps(): Step[] {
         await gotoWorkspace(cc, 3);
         await ws(cc.page, INIT, { meeting: 3, isASD: false, idx: 0 });
         await cc.page.evaluate((key) => localStorage.setItem(key, JSON.stringify([Date.now() - 4000, Date.now() - 2000])), QUIET_RELOADS_KEY);
+        await markFreshEntry(cc.page);
         await ws(cc.page, CRASH);
       },
     },

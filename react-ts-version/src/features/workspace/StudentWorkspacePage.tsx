@@ -33,7 +33,7 @@ import { CornerCloudSyncStatus } from './CloudSyncStatus';
 import { TaskCard } from './tasks/TaskCard';
 import { FeedbackToast } from './overlays/FeedbackToast';
 import { HelpOverlays, SocraticSidePanel } from './overlays/HelpOverlays';
-import { Session8ReflectionScreen, REFLECTION_TEXT_HE } from '@/presentation/components/student/Session8ReflectionScreen';
+import { Session8ReflectionScreen } from '@/presentation/components/student/Session8ReflectionScreen';
 import { ClosingSentence } from './ClosingSentence';
 import { hasClosingSentence } from '@/core/persistenceEncouragement';
 import { StationOpening } from './StationOpening';
@@ -44,14 +44,11 @@ import { shouldRecordScreen, startScreenRecorder } from './screenRecorder';
 import { useStore } from '@/application/useStore';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
-import { AdaptiveAdditionGrid, ADDITION_GRID_HE } from './board/AdaptiveAdditionGrid';
-import { useLeftClearOfSidePanel } from './board/useLeftClearOfSidePanel';
-import { Grid3x3 } from 'lucide-react';
+import { AdaptiveAdditionGrid, AdditionGridTab } from './board/AdaptiveAdditionGrid';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { useCognitiveHesitationRadar } from '@/application/useCognitiveHesitationRadar';
-import { toast } from 'sonner';
 import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting2WaitingScreen';
 import { TeacherWillOpenWaitingScreen } from '@/presentation/components/student/TeacherWillOpenWaitingScreen';
 import { ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
@@ -132,8 +129,6 @@ export function StudentWorkspacePage() {
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
   const qflowPhase = useWorkspaceStore((s) => s.qflow?.phase);
   const isSocraticPanelOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
-  // The grid's re-open tab keeps clear of the coaching card too (report row 1.28).
-  const gridTabLeft = useLeftClearOfSidePanel();
   const user = useAuthStore((s) => s.user);
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
 
@@ -431,7 +426,6 @@ export function StudentWorkspacePage() {
   const [finishedOnEntry, setFinishedOnEntry] = useState<number | null>(null);
   const isAdditionHelperOpen = useWorkspaceStore((s) => s.isAdditionHelperOpen);
   const additionHelperOffered = useWorkspaceStore((s) => s.additionHelperOffered);
-  const openAdditionHelper = useWorkspaceStore((s) => s.openAdditionHelper);
 
   // Tab switching & background throttling detection (Module 10 & 18)
   const [isTabHidden, setIsTabHidden] = useState<boolean>(
@@ -762,6 +756,18 @@ export function StudentWorkspacePage() {
   // simply not shown, nor its return tab, while the exercise is not an addition.
   const isAdditionOnScreen = useWorkspaceStore((s) => isAdditionExercise(selectStandardTask(s)));
   const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber >= 3 && sessionNumber <= 7 && isAdditionOnScreen;
+  // The grid and its re-open tab have a slot of their own in the workspace
+  // row, beside the board (AdaptiveAdditionGrid.tsx). The coaching card is the
+  // next level of the same hierarchy (Module 10 §א: grid at 30s, Socratic
+  // intervention at 45s), and the row cannot hold the sheet, the board, the
+  // grid and the card together on a 1024px screen without squeezing the
+  // exercise out of view. So while the card is open the grid waits: it is not
+  // closed (register decision ב: only the learner closes it), only not shown,
+  // and it comes back as it was when the card closes — as it already waits
+  // while the exercise on the screen is not an addition (owner, 1.10.2026, D7).
+  const isAdditionGridShown = isAdditionBoardEnabled && isAdditionHelperOpen && !isSocraticPanelOpen;
+  const isAdditionGridTabShown = isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen && !isSocraticPanelOpen;
+  const isAdditionGridSlotShown = isAdditionGridShown || isAdditionGridTabShown;
 
 
   useEffect(() => {
@@ -1250,10 +1256,10 @@ export function StudentWorkspacePage() {
           if (!outcome.ok) {
             // Not even stored in the offline queue on this device (Module 17
             // holds everything else): the board stays on step 3 with the same
-            // answers, the button works again, and the child is told what to
-            // do. Ending the meeting here would lose the reflection for good
-            // behind "העבודה נשמרה בבטחה".
-            toast.error(REFLECTION_TEXT_HE.notSaved, { duration: 15000 });
+            // answers, the button works again, and the board itself tells the
+            // child what to do, under the button, with a read-aloud button
+            // (REFLECTION_TEXT_HE.notSaved). Ending the meeting here would lose
+            // the reflection for good behind "העבודה נשמרה בבטחה".
             return false;
           }
           // In the offline queue, which sends it and removes it only on the
@@ -1438,8 +1444,28 @@ export function StudentWorkspacePage() {
 
           {/* Place-value board (hidden/unmounted in Session 2 and Session 8) */}
           {sessionNumber !== 2 && sessionNumber !== 8 && (
-            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} shareRow={isSocraticPanelOpen} additionGridOpen={isAdditionBoardEnabled && isAdditionHelperOpen} />
+            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} shareRow={isSocraticPanelOpen || isAdditionGridSlotShown} />
           )}
+
+          {/* Module 10 (register decision ב): the addition grid fades in over 2s
+              and stays until the learner closes it with the X. It has its own
+              slot in this row, beside the board, so it covers nothing the
+              learner works with (Module 10 §ב: blocks, typing and regrouping
+              go on while it is open). AnimatePresence here lets the exit
+              animation play after the store closes it. */}
+          {isAdditionBoardEnabled && (
+            <AnimatePresence>
+              {isAdditionGridShown && (
+                <AdaptiveAdditionGrid key="adaptive-grid" />
+              )}
+            </AnimatePresence>
+          )}
+          {/* מסמך 03 §1.3 ב' / 04 §1 (register deviation 18): a learner may bring
+              back an aid that faded. The tab sits where the grid itself appears,
+              not in the topbar — מסמך 04 §3א keeps the topbar to "כפתורי ניווט
+              בסיסיים ושקטים". isAdditionBoardEnabled already restricts this to
+              enhanced_cognitive_support learners in sessions 3–7. */}
+          {isAdditionGridTabShown && <AdditionGridTab />}
 
           {/* מסמך 03 / 04 §א: the Socratic card is a side panel that slides out
               from the side of the screen (the left edge in RTL) and keeps the
@@ -1453,34 +1479,6 @@ export function StudentWorkspacePage() {
         <HelpOverlays />
         <StudentChatOverlay />
 
-        {/* Module 10 + the matrix (register decision ב): the grid fades in over
-            2.5s and hides itself 3s after a correct digit. AnimatePresence
-            here lets the exit animation play after the store closes it. */}
-        {isAdditionBoardEnabled && (
-          <AnimatePresence>
-            {isAdditionHelperOpen && (
-              <AdaptiveAdditionGrid key="adaptive-grid" />
-            )}
-          </AnimatePresence>
-        )}
-        {/* מסמך 03 §1.3 ב' / 04 §1 (register deviation 18): a learner may bring
-            back an aid that faded. The tab sits where the grid itself appears,
-            not in the topbar — מסמך 04 §3א keeps the topbar to "כפתורי ניווט
-            בסיסיים ושקטים". isAdditionBoardEnabled already restricts this to
-            enhanced_cognitive_support learners in sessions 3–7. */}
-        {isAdditionBoardEnabled && additionHelperOffered && !isAdditionHelperOpen && (
-          <button
-            type="button"
-            onClick={() => openAdditionHelper('learner')}
-            style={{ left: gridTabLeft }}
-            className="fixed bottom-6 z-40 h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-lg active:scale-95 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-700/60 dark:text-amber-200"
-            aria-label={`הצגה חוזרת של ${ADDITION_GRID_HE}`}
-            title={`החזרת ${ADDITION_GRID_HE} למסך`}
-          >
-            <Grid3x3 className="w-4 h-4" aria-hidden="true" />
-            <span>{ADDITION_GRID_HE}</span>
-          </button>
-        )}
       </div>
 
       {/* Module 15 projector, teacher pause and teacher close (register 7):

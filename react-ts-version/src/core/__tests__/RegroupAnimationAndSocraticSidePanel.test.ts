@@ -257,7 +257,7 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     const main = page.slice(page.indexOf('<main '), page.indexOf('</main>'));
     expect(main).toContain('<TaskCard />');
     expect(main).toContain('<PlaceValueBoard');
-    expect(main).toContain('shareRow={isSocraticPanelOpen}');
+    expect(main).toContain('shareRow={isSocraticPanelOpen || isAdditionGridSlotShown}');
     expect(main).toContain('<SocraticSidePanel />');
     expect(main.indexOf('<SocraticSidePanel />')).toBeGreaterThan(main.indexOf('<PlaceValueBoard'));
   });

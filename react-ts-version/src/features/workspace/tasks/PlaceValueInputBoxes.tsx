@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, digitJustTyped } from '@/application/useWorkspaceStore';
 import type { Place } from '@/core/placeValue';
 import { NEUTRAL_BOX_BORDER, PLACE_COLORS } from '../placeColors';
 import { useEnhancedSupport } from './useEnhancedSupport';
@@ -65,7 +65,8 @@ export function PlaceValueInputBoxes({
   }, [mode]);
 
   const handleDigitChange = (place: Place, val: string, nextRef?: React.RefObject<HTMLInputElement | null>) => {
-    const clean = val.replace(/[^0-9]/g, '').slice(-1);
+    // The digit just typed, wherever the caret stood: a wrong digit can be written over.
+    const clean = digitJustTyped(val, answerDigits[place] ?? '');
     setAnswerDigit(place, clean);
     if (clean && nextRef?.current) {
       nextRef.current.focus();
@@ -173,13 +174,27 @@ export function PlaceValueInputBoxes({
                   ref={refs[place]}
                   type="text"
                   inputMode="numeric"
-                  maxLength={1}
                   value={answerDigits[place] ?? ''}
                   data-place={place}
                   {...(placeCues
                     ? { 'aria-labelledby': labelId }
                     : { 'aria-label': `ספרה ${i + 1} מתוך ${places.length} בשורת התוצאה` })}
                   onChange={(e) => handleDigitChange(place, e.target.value, next ? refs[next] : undefined)}
+                  // The digit in the box is selected when the box gets focus, so
+                  // typing replaces it and Backspace deletes it. Chromium's mouseup
+                  // would collapse the selection again.
+                  onFocus={(e) => e.currentTarget.select()}
+                  onMouseUp={(e) => e.preventDefault()}
+                  onKeyDown={(e) => {
+                    // Backspace in an empty box goes back one box and deletes its
+                    // digit: the inverse of the move after a digit (hundreds → tens → units).
+                    if (e.key === 'Backspace' && !answerDigits[place] && i > 0) {
+                      const prevPlace = places[i - 1];
+                      setAnswerDigit(prevPlace, '');
+                      refs[prevPlace].current?.focus();
+                      e.preventDefault();
+                    }
+                  }}
                   className={NEUTRAL_BOX_CLASS}
                   style={
                     placeCues

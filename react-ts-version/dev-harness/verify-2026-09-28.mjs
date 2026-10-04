@@ -198,7 +198,7 @@ for (const [w, h] of sizes) {
     await page.evaluate(() => window.__ws.setState({ flowStatus: 'choice_branch' }));
     await page.waitForTimeout(700);
     const t1 = await text(page);
-    check(`${tag} ע3.2 choice screen says "התחנה"`, t1.includes('סיימתם את שבעת התרגילים של התחנה!') && t1.includes('סיום התחנה עכשיו') && !t1.includes('המפגש'));
+    check(`${tag} ע3.2 choice screen says "התחנה"`, t1.includes('סיימתם את שבע המשימות של התחנה!') && t1.includes('סיום התחנה עכשיו') && !t1.includes('המפגש'));
     await page.screenshot({ path: `${out}/3.2-choice-screen-${tag}.png` });
     await page.evaluate(() => window.__ws.setState({ flowStatus: 'sessionDone' }));
     await page.waitForTimeout(700);
