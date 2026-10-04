@@ -163,12 +163,8 @@ describe('s7_g_t6 (2,730): the static cards against the board that opens with it
   });
 
   it('no card tells the learner to build, or says the learner built the number', () => {
-    // The two cards of a hidden board are every exercise's; one wrong-option
-    // hint of theirs says "הלבנים שבניתם" until the owner's rewording of it
-    // (cards round 2, C) merges from its own branch, claude/sj-g7c-card-wording.
-    const hiddenBoard = new Set(['board_hidden', 'show_board_button']);
+    // Including the two hidden-board cards: their hint is "האם הלבנים נמחקו" (cards round 2, C).
     for (const x of served) {
-      if (hiddenBoard.has(String((x.card as any).situation))) continue;
       for (const t of textsOf(x.card)) {
         expect(t, `${x.what} / ${x.trigger} / opening ${x.level}`).not.toMatch(/בניתם|(?:^|[^א-ת])(?:בנו|בונים|תבנו|לבנות)(?![א-ת])/);
       }
