@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FileDown, FileText, Loader2, Sparkles, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { AI_FALLBACK_TEXT, REPORT_PROCESSING_TEXT, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, describeReportError, formatClock, formatDate } from '@/infrastructure/services/LearnerJourneyService';
 import {
+  FADING_GUESS_SECONDS,
   fetchClassReport,
   generateClassReport,
   RESEARCH_MEASURES_HE,
@@ -9,13 +10,15 @@ import {
   type ClassCatchUp,
   type ClassExerciseRow,
   type ClassLearnerMeasures,
+  type ClassLearnerRow,
   type ClassMeetingReport,
+  type ClassScaffoldCounters,
   type RecommendationTier,
 } from '@/infrastructure/services/ClassReportService';
 import { CHOICE_EXERCISES_HEADING_HE, CHOICE_PATH_LABEL_HE } from '@/core/choiceExercises';
 import { meetingLabelHe } from '@/core/stationNames';
 import { exerciseTitle } from '@/infrastructure/services/LearnerJourneyService';
-import { ROUTE_NAME_HE } from '@/core/routeLabels';
+import { ERROR_CATEGORY_HE, ROUTE_NAME_HE, TRIGGER_REASON_HE } from '@/core/routeLabels';
 import { NOT_IN_THIS_REPORT_HE } from '@/core/researchMeasures';
 import { CATCHUP_REASON_HE, CATCHUP_REASON_KEYS } from '@/core/catchUp';
 
@@ -66,6 +69,79 @@ export function ClassExerciseTables({ exercises, sessionNumber }: { exercises: C
           <ExerciseRows rows={choice} choice sessionNumber={sessionNumber} />
         </div>
       )}
+    </div>
+  );
+}
+
+/** "היסוס 45 שניות: 6 · לא בוצעה המרה נדרשת: 2", in the words of the learner's timeline; null when no card opened. */
+export function countsLineHe(counts: Record<string, number>, names: Readonly<Record<string, string>>, other: string): string | null {
+  const parts = Object.entries(counts)
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, n]) => `${names[key] ?? other}: ${n}`);
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
+/** The scaffold and help line, as the server's class PDF prints it (functions/src/classReport.ts). */
+export function scaffoldsLineHe(s: ClassScaffoldCounters): string {
+  return `לוח החיבור: נפתח ${s.gridOpenings}, הוחזר על ידי הלומד ${s.gridReopenings} · הקלדה לפני המרה (מקלדת נעולה): ${s.keyboardLockBlocks} · קריאות שקטות למורה: ${s.helpRequests}${s.helpWithdrawals > 0 ? ` (הלומדים ביטלו ${s.helpWithdrawals} מהן)` : ''} · בקשות עזרה מהצ׳אט: ${s.chatHelpRequests} · פיגום בשורת התוצאה: ${s.placeCueScaffolds}`;
+}
+
+/**
+ * Register deviation 19: why each card opened and which error it carried, and
+ * the scaffold and help counters — they were in the PDF and the CSV only.
+ */
+function CardsAndScaffolds({ report }: { report: ClassMeetingReport }) {
+  const triggers = countsLineHe(report.socraticTriggers, TRIGGER_REASON_HE, 'סיבה אחרת');
+  const categories = countsLineHe(report.errorCategories, ERROR_CATEGORY_HE, 'סיווג אחר');
+  return (
+    <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 text-ws-ink space-y-1" data-testid="class-cards-scaffolds">
+      <div className="font-black">כרטיסי חניכה ופיגומים</div>
+      <div><span className="font-bold">למה נפתחו הכרטיסים:</span> {triggers ?? 'לא נפתח אף כרטיס'}</div>
+      <div><span className="font-bold">סוגי השגיאות בכרטיסים:</span> {categories ?? 'אין'}</div>
+      <div>{scaffoldsLineHe(report.scaffolds)}</div>
+    </div>
+  );
+}
+
+const fadingValue = (x: number | null, unit: string): string => (x === null ? '—' : `${x}${unit}`);
+
+/**
+ * Register deviation 19: the fading gap of meeting 8 — the same numbers with
+ * the blocks (meetings 4–6) and without them (meeting 8), per learner. It was
+ * computed and stored, and shown only in the fallback PDF.
+ */
+export function FadingGapTable({ learners, sessionNumber }: { learners: ClassLearnerRow[]; sessionNumber: number }) {
+  const rows = learners.filter((l) => l.fadingGap !== null);
+  if (rows.length === 0) return null;
+  const title = (id: string) => exerciseTitle(sessionNumber, id) || id;
+  return (
+    <div className="p-3 rounded-xl bg-orange-50 border border-orange-200 text-orange-950 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-100 overflow-x-auto" data-testid="class-fading-gap">
+      <div className="font-black mb-1">פער הדעיכה: מפגש 8 בלי לבני הדינס מול מפגשים 4–6 עם לבני הדינס (אותם מספרים, אותו לומד)</div>
+      <table className="w-full text-[11px] whitespace-nowrap">
+        <thead className="opacity-80">
+          <tr>
+            <th className="text-right">תלמיד</th><th>זוגות שנמדדו</th><th>נכון בניסיון ראשון: עם לבני הדינס</th><th>בלי</th><th>זמן ממוצע לתרגיל: עם</th><th>בלי</th><th className="text-right">מהר מדי (מתחת ל-{FADING_GUESS_SECONDS} שנ׳)</th><th className="text-right">ללא זוג</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((l) => {
+            const f = l.fadingGap!;
+            return (
+              <tr key={l.studentId} className="border-t border-orange-200 dark:border-orange-800">
+                <td className="text-right font-bold">תלמיד {l.studentId}</td>
+                <td className="text-center">{f.pairsMeasured}</td>
+                <td className="text-center">{fadingValue(f.accuracyWithBlocksPercent, '%')}</td>
+                <td className="text-center">{fadingValue(f.accuracyWithoutBlocksPercent, '%')}</td>
+                <td className="text-center">{fadingValue(f.meanSecondsWithBlocks, ' שנ׳')}</td>
+                <td className="text-center">{fadingValue(f.meanSecondsWithoutBlocks, ' שנ׳')}</td>
+                <td className="text-right">{f.guessedExercises.map(title).join(', ') || 'אין'}</td>
+                <td className="text-right">{f.unpairedExercises.map(title).join(', ') || 'אין'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -315,6 +391,8 @@ export function ClassMeetingReportPanel() {
 
               {/* Exercises */}
               {report.exercises.length > 0 && <ClassExerciseTables exercises={report.exercises} sessionNumber={selectedSession} />}
+
+              <CardsAndScaffolds report={report} />
             </div>
 
             {/* Layer 2 */}
@@ -381,6 +459,8 @@ export function ClassMeetingReportPanel() {
               </tbody>
             </table>
           </div>
+
+          <FadingGapTable learners={report.learners} sessionNumber={report.sessionNumber} />
 
           {/* Owner, 2.10.2026: the mistakes before a reset, documented apart; the table above counts the new run. */}
           {report.preResetNotes.length > 0 && (
