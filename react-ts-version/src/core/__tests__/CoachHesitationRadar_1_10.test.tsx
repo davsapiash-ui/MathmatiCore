@@ -231,31 +231,82 @@ describe('D7 — the addition grid opens only in an addition exercise', () => {
     expect(opens).not.toHaveBeenCalled();
   });
 
-  it('…the card closes because the exercise was solved (awaiting the next one): nothing opens, and the wait is over', async () => {
+  /** 1,245 + 328 solved on the board and in the result row: the next "check" is right. */
+  const SOLVED_S4_T1 = {
+    counts: { thousands: 1, hundreds: 5, tens: 7, units: 3 },
+    answerDigits: { units: '3', tens: '7', hundreds: '5', thousands: '1' },
+    carryDigits: { tens: '1' },
+  };
+
+  it('…the card closes because the LAST exercise was solved (proceed → advanceStandard drops the card): nothing opens, and the wait is over', async () => {
     const { act } = await import('@testing-library/react');
-    load(4, task(4, 's4_g_t1'), { ...enhanced, helpState: 'socratic' });
+    // the only exercise of the set, so it is also the last one
+    load(4, task(4, 's4_g_t1'), { ...enhanced, helpState: 'socratic', currentState: 'SOCRATIC_ACTIVE' });
     mountRadar();
     const opens = spyOnGridOpen();
+    // the learner finishes the work, then sits 30 seconds under the open card
+    act(() => { useWorkspaceStore.setState(SOLVED_S4_T1 as any); });
     vi.advanceTimersByTime(31_000);
-    // the answer was right: the exercise waits for the next one, and its card is dropped
-    act(() => { useWorkspaceStore.setState({ awaitingNext: true, helpState: 'closed' } as any); });
+    expect(ws().additionHelperOffered).toBe(true);
+    expect(ws().helpState).toBe('socratic');
+
+    act(() => { ws().proceed(); });
+    // the real path: a right answer, the exercise waits for what comes next, its card dropped
+    expect(ws().awaitingNext || ws().flowStatus !== 'task').toBe(true);
+    expect(ws().helpState).toBe('closed');
     expect(ws().isAdditionHelperOpen).toBe(false);
     expect(opens).not.toHaveBeenCalled();
-    // a later card that closes on a live exercise opens nothing either: the wait was cleared
-    act(() => { useWorkspaceStore.setState({ awaitingNext: false, helpState: 'socratic' } as any); });
+    // the wait was cleared: a later card closing on a live exercise opens nothing
+    act(() => { useWorkspaceStore.setState({ awaitingNext: false, flowStatus: 'task', helpState: 'socratic' } as any); });
     act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
     expect(opens).not.toHaveBeenCalled();
   });
 
-  it('…the card closes as the meeting leaves its exercises (the last one solved): nothing opens', async () => {
+  it('…30 seconds fall inside the 300 ms beat before a card ("נסו לחשוב…"): the grid is offered and deferred, not opened', async () => {
+    const { act } = await import('@testing-library/react');
+    load(4, task(4, 's4_g_t1'), enhanced);
+    mountRadar();
+    const opens = spyOnGridOpen();
+    vi.advanceTimersByTime(29_800);
+    // the second wrong check: the beat, then the card (noteWrongPress)
+    act(() => { useWorkspaceStore.setState({ helpState: 'friction' } as any); });
+    vi.advanceTimersByTime(250);
+    expect(ws().isAdditionHelperOpen).toBe(false);
+    expect(ws().additionHelperOffered).toBe(true);
+    expect(opens).not.toHaveBeenCalled();
+    act(() => { useWorkspaceStore.setState({ helpState: 'socratic' } as any); });
+    expect(opens).not.toHaveBeenCalled();
+    // the card closes on the live exercise: the grid opens, once
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    expect(opens).toHaveBeenCalledTimes(1);
+    expect(ws().isAdditionHelperOpen).toBe(true);
+  });
+
+  it('…and a card refused after the beat (friction → closed) releases the wait too', async () => {
+    const { act } = await import('@testing-library/react');
+    load(4, task(4, 's4_g_t1'), enhanced);
+    mountRadar();
+    const opens = spyOnGridOpen();
+    vi.advanceTimersByTime(29_800);
+    act(() => { useWorkspaceStore.setState({ helpState: 'friction' } as any); });
+    vi.advanceTimersByTime(250);
+    expect(opens).not.toHaveBeenCalled();
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    expect(opens).toHaveBeenCalledTimes(1);
+  });
+
+  it('…the learner opened the grid from its tab under the card, then closed it: the card\'s closing does not open it again', async () => {
     const { act } = await import('@testing-library/react');
     load(4, task(4, 's4_g_t1'), { ...enhanced, helpState: 'socratic' });
     mountRadar();
     const opens = spyOnGridOpen();
     vi.advanceTimersByTime(31_000);
-    act(() => { useWorkspaceStore.setState({ flowStatus: 'sessionDone', helpState: 'closed' } as any); });
+    act(() => { ws().openAdditionHelper('learner'); });
+    act(() => { ws().closeAdditionHelper(); });
+    expect(opens).toHaveBeenCalledTimes(1);
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    expect(opens).toHaveBeenCalledTimes(1);
     expect(ws().isAdditionHelperOpen).toBe(false);
-    expect(opens).not.toHaveBeenCalled();
   });
 
   it('…the learner opened the grid from its tab while the card was open: nothing more opens when the card closes', async () => {

@@ -127,7 +127,7 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '', hid
       onAnimationComplete={() => setVisible(true)}
       dir="rtl"
       data-hidden={hidden ? 'true' : undefined}
-      className={`${hidden ? 'hidden ' : ''}${visible ? 'pointer-events-auto' : 'pointer-events-none'} shrink-0 self-start max-h-full min-h-0 overflow-hidden outline-none ${GRID_SLOT_WIDTH} ${className}`}
+      className={`${hidden ? 'hidden ' : ''}${visible ? 'pointer-events-auto' : 'pointer-events-none'} shrink-0 self-start max-h-full min-h-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent rounded-3xl ${GRID_SLOT_WIDTH} ${className}`}
       role="dialog"
       aria-label={ADDITION_GRID_HE}
       data-testid="adaptive-addition-grid"

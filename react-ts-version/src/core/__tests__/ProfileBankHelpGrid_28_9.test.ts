@@ -433,6 +433,6 @@ describe('X60 — the grid and its return tab belong to the meeting (register 18
     expect(page).toContain('const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber >= 3 && sessionNumber <= 7 && isAdditionOnScreen;');
     expect(page).toContain('const isAdditionOnScreen = useWorkspaceStore((s) => isAdditionExercise(selectStandardTask(s)));');
     expect(page).toMatch(/isAdditionBoardEnabled && \(\s*<AnimatePresence>/);
-    expect(page).toContain('isAdditionBoardEnabled && additionHelperOffered && !isAdditionGridShown');
+    expect(page).toContain('isAdditionBoardEnabled && (additionHelperOffered || isAdditionHelperOpen) && !isAdditionGridShown');
   });
 });

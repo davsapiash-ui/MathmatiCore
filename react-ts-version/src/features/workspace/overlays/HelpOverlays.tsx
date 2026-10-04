@@ -286,7 +286,7 @@ export function SocraticSidePanel() {
                  the close button fit in the panel down to a 585px-high window.
                  overflow-y-auto stays only as a last resort for a still
                  shorter screen. */
-              className={`h-full min-h-0 flex-col w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto outline-none ${
+              className={`h-full min-h-0 flex-col w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
                 gridOverCard ? 'hidden' : folded ? 'flex invisible pointer-events-none' : 'flex pointer-events-auto'
               }`}
               // Folded: hidden, unreachable by Tab and screen readers, still mounted.
@@ -362,14 +362,15 @@ export function SocraticSidePanel() {
 /**
  * The card's own name, at its top (owner's decision, 4.10.2026): the tab the
  * card folds into is called "כרטיס החניכה", so the card itself says so — the
- * tab names something the learner has seen. It flows beside the read-aloud
- * and ✕ buttons, above the question, with the weight of the grid's own
- * "לוח החיבור" title.
+ * tab names something the learner has seen. One quiet line beside the
+ * read-aloud and ✕ buttons, above the question, in the card's label style
+ * ("בחרו את הדרך הנכונה להתקדם:"), so it does not read as the question's
+ * first words. Not on the hourglass, which has no text (owner, 28.9.2026; X22).
  */
 function CardTitle() {
   return (
     <p
-      className="font-display font-extrabold text-[clamp(0.875rem,2.4vh,1.125rem)] text-ws-ink leading-tight mb-[clamp(0.125rem,0.5vh,0.375rem)]"
+      className="font-extrabold text-xs text-ws-soft whitespace-nowrap mb-[clamp(0.125rem,0.5vh,0.375rem)]"
       data-testid="socratic-card-title"
     >
       <span className="me-1" aria-hidden="true">💡</span>

@@ -149,7 +149,9 @@ export function useCognitiveHesitationRadar({
       // appears beside the card, and the learner may press it. And it is
       // deferred, not dropped: it opens when the card closes, unless a
       // cognitive action came first or the learner opened it from the tab.
-      if (wsState.helpState === 'socratic') {
+      // The same during the 300 ms "נסו לחשוב…" beat before a card: the card
+      // is on its way, and a grid opened now would be hidden at once.
+      if (wsState.helpState !== 'closed') {
         wsState.offerAdditionHelper();
         gridDeferredRef.current = true;
         return;
@@ -302,6 +304,7 @@ export function useCognitiveHesitationRadar({
 
     let lastSignature = selectCognitiveState(useWorkspaceStore.getState());
     let lastHelpState = useWorkspaceStore.getState().helpState;
+    let lastGridOpen = useWorkspaceStore.getState().isAdditionHelperOpen;
     const unsubscribe = useWorkspaceStore.subscribe((state: any) => {
       const next = selectCognitiveState(state);
       if (next !== lastSignature) {
@@ -315,7 +318,14 @@ export function useCognitiveHesitationRadar({
       // was just solved (the last one drops its card on the way to the next
       // screen): the wait ends there, and nothing opens. (If this same change
       // was a cognitive action, resetTimeout above has already cleared the wait.)
-      const cardClosed = lastHelpState === 'socratic' && state.helpState !== 'socratic';
+      // The grid opened, by any way (the learner's press on its tab under the
+      // card): the wait is over. If the learner then closes it, it stays
+      // closed — the card's closing does not open it again.
+      if (state.isAdditionHelperOpen && !lastGridOpen) gridDeferredRef.current = false;
+      lastGridOpen = state.isAdditionHelperOpen;
+      // "Closed" from the card or from the beat before it: a card refused
+      // after the beat releases the wait too.
+      const cardClosed = lastHelpState !== 'closed' && state.helpState === 'closed';
       lastHelpState = state.helpState;
       if (cardClosed && gridDeferredRef.current) {
         gridDeferredRef.current = false;

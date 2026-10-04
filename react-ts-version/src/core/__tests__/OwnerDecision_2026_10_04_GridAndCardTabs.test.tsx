@@ -199,8 +199,8 @@ describe('rules 1–3: the card open, the grid is its amber tab, in the grid\'s 
     expect(column().contains(tab)).toBe(false);
     expect(tab.compareDocumentPosition(column()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // rule 3: nothing of the grid inside the card's column
-    expect(screen.queryByTestId('addition-grid-under-card')).toBeNull();
     expect(within(column()).queryByText('לוח החיבור')).toBeNull();
+    expect(within(column()).queryByRole('button', { name: /לוח החיבור/ })).toBeNull();
     expect(cardTabs()).toHaveLength(0);
   });
 
@@ -386,18 +386,51 @@ describe('rule 6: thirty seconds of hesitation under an open card', () => {
     expect(gridEvents()).toEqual(['opened:learner']);
   });
 
-  it('the card closes because the exercise was solved: no grid opens, and no event', async () => {
+  it('the learner opens the grid from the offered tab, closes it with its X, then closes the card: the grid stays closed, and no further event', async () => {
     await openMeeting4();
     await openCard();
     act1();
     await tick(31_000);
     emitted.length = 0;
 
-    // the answer was accepted: the exercise waits for the next one, and its card goes
-    act(() => { useWorkspaceStore.setState({ awaitingNext: true } as any); ws().closeHelp(); });
-    await tick();
+    fireEvent.click(gridTab()!);
+    fireEvent.click(within(gridEl()!).getByRole('button', { name: 'סגירת לוח החיבור' }));
+    expect(cardShown()).toBe(true);
+    fireEvent.click(within(cardEl()!).getByRole('button', { name: 'הבנתי, סגירת החלונית' }));
+    await tick(1_000);
+    expect(ws().helpState).toBe('closed');
     expect(ws().isAdditionHelperOpen).toBe(false);
-    expect(gridEl()).toBeNull();
+    expect(gridShown()).toBe(false);
+    expect(gridTab()).not.toBeNull();
+    expect(gridEvents()).toEqual(['opened:learner', 'closed:learner']);
+  });
+
+  it('the card closes because the last compulsory exercise was solved (the real "check"): no grid opens, and no event', async () => {
+    await openMeeting4();
+    // the exercise on the screen is the only one of the set, so also the last (1,245 + 328)
+    act(() => { useWorkspaceStore.setState({ dynamicTasks: [selectStandardTask(ws())!], standardTaskIdx: 0 } as any); });
+    expect(selectStandardTask(ws())!.id).toBe('s4_g_t1');
+    await openCard();
+    // the learner finishes the work under the card, then sits 30 seconds
+    act(() => {
+      useWorkspaceStore.setState({
+        counts: { thousands: 1, hundreds: 5, tens: 7, units: 3 },
+        answerDigits: { units: '3', tens: '7', hundreds: '5', thousands: '1' },
+        carryDigits: { tens: '1' },
+      } as any);
+    });
+    expect(ws().helpState).toBe('socratic');
+    await tick(31_000);
+    expect(gridTab()).not.toBeNull();
+    emitted.length = 0;
+
+    act(() => { ws().proceed(); });
+    await tick();
+    // the right answer: proceedStandard → advanceStandard → dropCoachingCard
+    expect(ws().awaitingNext || ws().flowStatus !== 'task').toBe(true);
+    expect(ws().helpState).toBe('closed');
+    expect(ws().isAdditionHelperOpen).toBe(false);
+    expect(gridShown()).toBe(false);
     expect(gridEvents()).toEqual([]);
   });
 });

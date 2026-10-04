@@ -784,7 +784,8 @@ export function StudentWorkspacePage() {
   const isAdditionGridMounted = isAdditionBoardEnabled && isAdditionHelperOpen;
   const isAdditionGridOverCard = useIsAdditionGridOverCard();
   const isAdditionGridShown = isAdditionGridMounted && (!isSocraticPanelOpen || isAdditionGridOverCard);
-  const isAdditionGridTabShown = isAdditionBoardEnabled && additionHelperOffered && !isAdditionGridShown;
+  // An open grid always has its tab while it is not shown, whatever the offer flag says.
+  const isAdditionGridTabShown = isAdditionBoardEnabled && (additionHelperOffered || isAdditionHelperOpen) && !isAdditionGridShown;
   const isAdditionGridSlotShown = isAdditionGridShown || isAdditionGridTabShown;
 
 
