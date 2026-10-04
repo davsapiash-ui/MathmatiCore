@@ -33,6 +33,13 @@ export function withExerciseHe(text: string, label: string | null): string {
   return label ? `${text} (${label})` : text;
 }
 
+/**
+ * The folded coaching card's tab (owner, 4.10.2026, A7-002): the card's name
+ * on the child's screens is "חלונית העזרה" (its ✕ says "סגירת חלונית העזרה").
+ */
+export const CARD_TAB_HE = 'חלונית העזרה';
+export const CARD_TAB_LABEL_HE = 'החזרת חלונית העזרה';
+
 /** The same ready message pressed again within this time is one press. */
 const READY_MESSAGE_REPEAT_MS = 2000;
 
@@ -42,6 +49,7 @@ export const PII_FILTER_RECHECK_MS = 5000;
 export function StudentChatOverlay() {
   // Shared with the coaching card, which folds while the chat is open (A7-002).
   const isOpen = useStudentChatOpen((s) => s.open);
+  const cardFolded = useWorkspaceStore((s) => s.helpState === 'socratic');
   const setIsOpen = (next: boolean | ((prev: boolean) => boolean)) =>
     useStudentChatOpen.setState((s) => ({ open: typeof next === 'function' ? next(s.open) : next }));
   // Each workspace starts with the chat closed, and leaving it closes it.
@@ -241,6 +249,22 @@ export function StudentChatOverlay() {
           <span className="font-bold text-sm text-ws-ink">צ'אט עם המורה</span>
           <span aria-hidden="true" className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
         </div>
+        {/* The coaching card, folded while the chat is open (owner, 4.10.2026,
+            A7-002): its tab sits in this header, so it covers nothing on the
+            screen. A press closes the chat, and the card comes back as it was. */}
+        {cardFolded && (
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            data-testid="socratic-card-tab"
+            aria-label={CARD_TAB_LABEL_HE}
+            title={CARD_TAB_LABEL_HE}
+            className="ms-auto me-2 min-h-11 px-3 rounded-xl text-sm font-bold whitespace-nowrap flex items-center gap-1.5 border-2 border-indigo-200 dark:border-indigo-800/80 bg-ws-surface text-ws-ink hover:bg-ws-accentSoft/40 active:scale-95 transition-all cursor-pointer shadow-sm"
+          >
+            <span aria-hidden="true">💡</span>
+            <span>{CARD_TAB_HE}</span>
+          </button>
+        )}
         <button 
           onClick={() => setIsOpen(false)}
           className="text-ws-soft hover:text-ws-ink text-sm font-bold min-w-11 min-h-11 px-3 rounded-lg hover:bg-ws-surface transition-colors cursor-pointer"

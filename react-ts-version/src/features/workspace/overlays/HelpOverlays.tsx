@@ -16,7 +16,7 @@ import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { MathText } from '../tasks/MathText';
 import { joinSpokenSentences } from '../tasks/spokenSentences';
-import { useStudentChatOpen, closeStudentChat } from '@/application/useStudentChatOpen';
+import { useStudentChatOpen } from '@/application/useStudentChatOpen';
 
 /** The card's silent lock (PRD Module 12 §ב), said by the hint box's read-aloud button too. */
 const LOCK_SENTENCE_HE = 'רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.';
@@ -41,13 +41,6 @@ const LOCK_SENTENCE_HE = 'רגע לחשיבה. אפשר לבחור תשובה ש
  * one question with three options.
  */
 const FRICTION_NEXT_HE = 'עוד רגע תופיע שאלה שתעזור לכם.';
-
-/**
- * The folded card's tab (owner, 4.10.2026, A7-002): the card's name on the
- * child's screens is "חלונית העזרה" (its ✕ says "סגירת חלונית העזרה").
- */
-export const CARD_TAB_HE = 'חלונית העזרה';
-export const CARD_TAB_LABEL_HE = 'החזרת חלונית העזרה';
 
 export function HelpOverlays() {
   const helpState = useWorkspaceStore((s) => s.helpState);
@@ -225,24 +218,6 @@ export function SocraticSidePanel() {
     : [];
 
   return (
-    <>
-    {folded && (
-      /* The folded card: a tab just right of the chat panel (fixed bottom-6
-         left-6, w-80 / sm:w-96), so the chat covers nothing of it. A press
-         closes the chat, and the card comes back as it was. */
-      <button
-        type="button"
-        onClick={closeStudentChat}
-        data-testid="socratic-card-tab"
-        aria-label={CARD_TAB_LABEL_HE}
-        title={CARD_TAB_LABEL_HE}
-        dir="rtl"
-        className="fixed bottom-6 left-[360px] sm:left-[424px] z-50 h-12 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 border-2 shadow-lg active:scale-95 bg-ws-surface border-indigo-200 text-ws-ink hover:bg-ws-accentSoft/40 dark:border-indigo-800/80"
-      >
-        <span aria-hidden="true">💡</span>
-        <span>{CARD_TAB_HE}</span>
-      </button>
-    )}
     <AnimatePresence initial={false}>
       {helpState === 'socratic' && (
         /* In the workspace row, not over it: the panel takes its own width
@@ -336,7 +311,6 @@ export function SocraticSidePanel() {
         </motion.div>
       )}
     </AnimatePresence>
-    </>
   );
 }
 

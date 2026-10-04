@@ -48,7 +48,8 @@ import { useChatStore } from '@/application/useChatStore';
 import { useStudentChatOpen } from '@/application/useStudentChatOpen';
 import { useTeacherGenderStore } from '@/application/useTeacherGender';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
-import { SocraticSidePanel, CARD_TAB_HE, CARD_TAB_LABEL_HE } from '@/features/workspace/overlays/HelpOverlays';
+import { SocraticSidePanel } from '@/features/workspace/overlays/HelpOverlays';
+import { StudentChatOverlay, CARD_TAB_HE, CARD_TAB_LABEL_HE } from '@/features/workspace/overlays/StudentChatOverlay';
 import { WorkspaceTopbar, CHAT_CLOSED_HE } from '@/features/workspace/WorkspaceTopbar';
 import { SessionClosedOverlay } from '@/presentation/components/student/SessionClosedOverlay';
 import { isMeeting2CloseUnfinished, Q_NOT_ANSWERED_TAG } from '@/core/meeting2CloseNotice';
@@ -57,6 +58,8 @@ import { getHardcodedCatalogBanks } from '@/data/sessionTasks';
 import { afterConversionsHe } from '@/data/taskBuilders';
 import { conversionNounHe, noBoardColumnCard } from '@/infrastructure/services/staticSocraticCards';
 
+// jsdom has no scrollIntoView (the chat scrolls to its last message).
+if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => undefined;
 const ws = () => useWorkspaceStore.getState();
 const speechTexts = () => screen.queryAllByTestId('speech').map((b) => b.getAttribute('data-text'));
 const allTasks = () => getHardcodedCatalogBanks().flatMap((b: any) => b.tasks ?? []);
@@ -123,7 +126,7 @@ describe('2 — A7-002: the chat opened over the coaching card', () => {
   afterEach(() => { vi.restoreAllMocks(); });
 
   it('folds into a tab, keeps its choice, hint and lock, writes nothing, and comes back as it was', async () => {
-    const { container } = render(React.createElement(SocraticSidePanel, null));
+    const { container } = render(<><SocraticSidePanel /><StudentChatOverlay /></>);
     act(() => { ws().openSocraticCard('hesitation_45s'); });
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     const wrong = ws().aiSocraticHint!.choices.find((c) => !c.isCorrect)!;
@@ -133,17 +136,19 @@ describe('2 — A7-002: the chat opened over the coaching card', () => {
     const eventsBefore = emitted.length;
     const historyBefore = ws().socraticCardHistory.cards.length;
 
-    act(() => useStudentChatOpen.setState({ open: true }));
+    act(() => { document.dispatchEvent(new CustomEvent('toggle-chat')); });
+    expect(useStudentChatOpen.getState().open).toBe(true);
     const aside = container.querySelector('[data-testid="socratic-card"]')!;
     expect(aside.getAttribute('data-folded')).toBe('true');
     expect(aside.className).toContain('invisible');
     expect(aside.hasAttribute('inert')).toBe(true);
-    const tab = screen.getByTestId('socratic-card-tab');
-    expect(tab.textContent).toContain(CARD_TAB_HE);
-    expect(tab.getAttribute('aria-label')).toBe(CARD_TAB_LABEL_HE);
-    // Escape belongs to the chat while the card is folded: the card stays.
+    // Escape belongs to the chat while the card is folded: the chat closes, the card stays and comes back.
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(ws().helpState).toBe('socratic');
+    expect(useStudentChatOpen.getState().open).toBe(false);
+    expect(aside.getAttribute('data-folded')).toBeNull();
+    act(() => { document.dispatchEvent(new CustomEvent('toggle-chat')); });
+    expect(aside.getAttribute('data-folded')).toBe('true');
 
     // The lock runs on while folded.
     await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
@@ -152,7 +157,11 @@ describe('2 — A7-002: the chat opened over the coaching card', () => {
     expect(emitted.length).toBe(eventsBefore);
     expect(ws().socraticCardHistory.cards.length).toBe(historyBefore);
 
-    // The tab closes the chat; the card is back with the same choice and hint.
+    // The tab, in the chat's header, closes the chat; the card is back with the same choice and hint.
+    const tab = screen.getByTestId('socratic-card-tab');
+    expect(tab.closest('[role="dialog"]')).not.toBeNull();
+    expect(tab.textContent).toContain(CARD_TAB_HE);
+    expect(tab.getAttribute('aria-label')).toBe(CARD_TAB_LABEL_HE);
     fireEvent.click(tab);
     expect(useStudentChatOpen.getState().open).toBe(false);
     expect(screen.queryByTestId('socratic-card-tab')).toBeNull();
@@ -174,8 +183,9 @@ describe('2 — A7-002: the chat opened over the coaching card', () => {
   });
 
   it('no card, no tab', () => {
-    render(React.createElement(SocraticSidePanel, null));
-    act(() => useStudentChatOpen.setState({ open: true }));
+    render(<><SocraticSidePanel /><StudentChatOverlay /></>);
+    act(() => { document.dispatchEvent(new CustomEvent('toggle-chat')); });
+    expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.queryByTestId('socratic-card-tab')).toBeNull();
   });
 });
