@@ -1,6 +1,7 @@
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { useTeacherGenderStore } from '@/application/useTeacherGender';
 import { teacherSentenceHe } from '@/core/teacherGender';
+import { CornerCloudSyncStatus } from '@/features/workspace/CloudSyncStatus';
 
 /**
  * The second sentence of PRD 14 §ב0's waiting text — the owner's own wording,
@@ -10,7 +11,9 @@ import { teacherSentenceHe } from '@/core/teacherGender';
  * screen says "סיימתם את התחנה השנייה בהצלחה", which is false for them; the text
  * on screen must match what the child did.
  *
- * The workspace's quiet waiting layout: the sentence and its read-aloud button, nothing else.
+ * The workspace's quiet waiting layout: the sentence and its read-aloud button,
+ * and the cloud in the corner (PRD 17 §ד) — the meeting may have just closed with
+ * work still waiting on this device.
  */
 export function TeacherWillOpenWaitingScreen() {
   const sentence = teacherSentenceHe('willOpenActivity', useTeacherGenderStore((s) => s.gender));
@@ -24,6 +27,7 @@ export function TeacherWillOpenWaitingScreen() {
         <p className="text-xl font-bold text-ws-ink leading-relaxed">{sentence}</p>
         <UdlSpeechButton text={sentence} className="shrink-0" />
       </div>
+      <CornerCloudSyncStatus />
     </div>
   );
 }

@@ -304,22 +304,33 @@ export class TTSService {
   private chunkText(text: string): string[] {
     if (this.spokenLength(text) <= TTSService.MAX_CHUNK_CHARS) return [text];
 
+    // When a word would overflow, the utterance is cut after the last sentence end
+    // it holds, then after its last comma, and only then at the word itself: the
+    // station-4 instruction was cut "…ורשמו את ההמרה" | "בעיגול הזיכרון." (audit
+    // 4.10.2026, A4-F14), because its first two sentences together stayed under
+    // MIN_CHUNK_CHARS and the third overflowed.
+    const lastIndexMatching = (words: string[], re: RegExp) => {
+      for (let i = words.length - 1; i >= 0; i--) if (re.test(words[i])) return i;
+      return -1;
+    };
     const chunks: string[] = [];
-    let current = '';
+    let current: string[] = [];
     for (const word of text.split(/\s+/).filter(Boolean)) {
-      const candidate = current ? `${current} ${word}` : word;
-      if (this.spokenLength(candidate) > TTSService.MAX_CHUNK_CHARS && current) {
-        chunks.push(current);
-        current = word;
-      } else {
-        current = candidate;
+      // A loop: what is carried over, with the new word, can overflow again.
+      while (current.length && this.spokenLength([...current, word].join(' ')) > TTSService.MAX_CHUNK_CHARS) {
+        let cut = lastIndexMatching(current, /[.!?:;]$/);
+        if (cut < 0) cut = lastIndexMatching(current, /,$/);
+        if (cut < 0) cut = current.length - 1;
+        chunks.push(current.slice(0, cut + 1).join(' '));
+        current = current.slice(cut + 1);
       }
-      if (this.spokenLength(current) >= TTSService.MIN_CHUNK_CHARS && /[.!?:;]$/.test(current)) {
-        chunks.push(current);
-        current = '';
+      current.push(word);
+      if (this.spokenLength(current.join(' ')) >= TTSService.MIN_CHUNK_CHARS && /[.!?:;]$/.test(word)) {
+        chunks.push(current.join(' '));
+        current = [];
       }
     }
-    if (current) chunks.push(current);
+    if (current.length) chunks.push(current.join(' '));
     return chunks;
   }
 

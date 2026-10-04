@@ -58,28 +58,28 @@ const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
     id: 3,
     // מסמכים 02/03: "ערך המקום וגמישות ייצוגית (פירוק והרכבה)".
     title: stationTitleHe(3),
-    desc: 'פרקו מאה לעשר עשרות, וגלו שהמספר נשאר אותו מספר.',
+    desc: 'פרטו לבנת מאה אחת לעשר לבני עשרת. בדקו איזה מספר מייצגות הלבנים לאחר הפריטה.',
     icon: '🔬',
   },
   4: {
     id: 4,
     // מסמכים 02/03: "אלגוריתם החיבור במאונך והמרה פשוטה (הקבצה)".
     title: stationTitleHe(4),
-    desc: 'כשמצטברות בטור עשר לבנים, קבצו אותן ללבנה אחת גדולה.',
+    desc: 'כשמצטברות בטור עשר לבנים, קבצו אותן ללבנה אחת בטור שמשמאלו.',
     icon: '🔍',
   },
   5: {
     id: 5,
     // מסמכים 02/03: "אלגוריתם החיסור במאונך והמרה פשוטה (פריטה)".
     title: stationTitleHe(5),
-    desc: 'כשאין בטור מספיק לבנים, פרטו לבנה אחת מהטור שמשמאל.',
+    desc: 'כשאין בטור מספיק לבנים, פרטו לבנה אחת מהטור שמשמאלו.',
     icon: '💡',
   },
   6: {
     id: 6,
     // מסמכים 02/03: "אתגר האפס כשומר מקום ומעבר מעל אפסים (המרה כפולה)".
     title: stationTitleHe(6),
-    desc: 'מה עושים כשצריך לפרוט ויש אפס? גלו את הדרך.',
+    desc: 'גלו מה עושים כשצריך לפרוט, אבל בטור שמשמאל אין לבנים.',
     icon: '🧬',
   },
   7: {
@@ -94,7 +94,7 @@ const SESSIONS_CONFIG: Record<number, ActiveSessionConfig> = {
     // מסמכים 02/03: "מפגש חוקר (הערכה ורפלקציה מסכמת)"; §3.8 on screen:
     // "פתרו את התרגילים בנחת ובקצב שלכם". The blocks and the board are gone.
     title: stationTitleHe(8),
-    desc: 'עכשיו אפשר כבר גם בלי לבנים. בסוף ספרו מה עזר לכם.',
+    desc: 'הפעם פתרו בלי לבנים. בסוף סמנו מה עזר לכם.',
     icon: '🏆',
   },
 };
@@ -248,13 +248,13 @@ export function StudentHub() {
   }
 
   if (isAwaitingTeacherGate) {
-    return <Meeting2WaitingScreen onApproved={() => setIsTeacherGateApproved(true)} />;
+    return <Meeting2WaitingScreen inAppShell onApproved={() => setIsTeacherGateApproved(true)} />;
   }
 
   return (
     <div
       dir="rtl"
-      className="relative min-h-[calc(100vh-72px)] flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 select-none overflow-hidden"
+      className="relative min-h-full flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 select-none overflow-hidden"
     >
       {/* Background Soft Ambient Elements */}
       <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">

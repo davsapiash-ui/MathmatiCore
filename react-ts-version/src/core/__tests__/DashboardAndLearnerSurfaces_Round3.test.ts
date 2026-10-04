@@ -128,7 +128,21 @@ describe('טופס הכניסה של הילד', () => {
     expect(login).not.toContain('autoFocus');
     expect(login).toContain('המספר שלי בכיתה');
     expect(login).toContain('"רגע, בודקים..." : "כניסה"');
-    expect(login).toContain('<UdlSpeechButton text="בחרו את המספר שלכם בכיתה');
+    // The read-aloud reads the one instruction the screen shows (מסמך 04: "הנחיה
+    // קצרה אחת עם כפתור הקראה"; audit A1-007, 4.10.2026), not a longer sentence.
+    expect(login).toContain('<span>כתבו את קוד הגישה שקיבלתם מהמורה</span>');
+    expect(login).toContain('<UdlSpeechButton text="כתבו את קוד הגישה שקיבלתם מהמורה." />');
+    expect(login).not.toContain('בחרו את המספר שלכם בכיתה');
+  });
+  it('the instruction is readable: at least 14px and dark enough (audit A1-008, UX-009)', () => {
+    expect(login).not.toContain('text-[11px]');
+    expect(login).toMatch(/<span className="text-sm font-bold text-slate-600 dark:text-slate-300[^"]*">\s*<span>כתבו את קוד הגישה/);
+  });
+  it('plain words, no tagline, one definite school label (audit A1-002, A1-003, A1-005)', () => {
+    expect(login).toContain('לחצו על הכפתור המתאים לכם.');
+    expect(login).not.toContain('שער הכניסה');
+    expect(login).not.toContain('VRA');
+    expect(login).toContain('>שם בית הספר</label>');
   });
   it('שגיאת SSO שאינה שלנו אינה מודפסת כמות שהיא', () => {
     expect(login).not.toContain('setErrorMsg(err?.message ||');

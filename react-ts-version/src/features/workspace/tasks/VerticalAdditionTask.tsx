@@ -296,7 +296,7 @@ export function VerticalAdditionTask({
                 readOnly={false}
                 // Meeting 2 without the place cues: no column name read aloud
                 // either — the sighted child sees none (owner, 27.9 and 29.9.2026).
-                aria-label={spokenPlaces ? `חלונית המרה ל${PLACE_LABEL_HE[place]}` : `עיגול זיכרון ${j - firstUsedCol + 1} מתוך ${cols - firstUsedCol}`}
+                aria-label={spokenPlaces ? `עיגול הזיכרון של טור ה${PLACE_LABEL_HE[place]}` : `עיגול זיכרון ${j - firstUsedCol + 1} מתוך ${cols - firstUsedCol}`}
                 data-hint={circlesHint ? 'true' : undefined}
                 className={`rounded-full border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent ${
                   circlesHint ? 'ws-hint-ring' : 'shadow-sm'

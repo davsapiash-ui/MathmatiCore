@@ -9,11 +9,13 @@ import { resolve } from 'path';
  * it accepts (2.10.2026: "no duplicated lists" — until they are one module,
  * this test fails the moment they differ).
  */
-import { FORBIDDEN_TERMS_HE as CLIENT_FORBIDDEN, ABSENT_AIDS_MEETING_8_HE } from '@/infrastructure/services/SocraticEngine';
+import { FORBIDDEN_TERMS_HE as CLIENT_FORBIDDEN, ABSENT_AIDS_MEETING_8_HE, BARE_BOARD_WORD_HE as CLIENT_BARE_BOARD, socraticTextViolation } from '@/infrastructure/services/SocraticEngine';
 import { STATIC_CARD_KINDS } from '@/infrastructure/services/staticSocraticCards';
 import type { SocraticTaskKindWire } from '@/types';
 import {
   FORBIDDEN_TERMS_HE as SERVER_FORBIDDEN,
+  BARE_BOARD_WORD_HE as SERVER_BARE_BOARD,
+  findForbiddenTerm,
   ABSENT_AIDS_NO_BOARD,
   SOCRATIC_TASK_KINDS,
   validateSocraticRequest,
@@ -26,6 +28,18 @@ const source = (p: string) => readFileSync(resolve(__dirname, p), 'utf-8');
 describe('the client\'s copies of the server\'s lists', () => {
   it('the terms no card may use (Module 13)', () => {
     expect([...CLIENT_FORBIDDEN].sort()).toEqual([...SERVER_FORBIDDEN].sort());
+  });
+
+  it('the bare board word: the same pattern on both sides, and the same verdicts (audit 4.10.2026, A7-018)', () => {
+    expect(CLIENT_BARE_BOARD.source).toBe(SERVER_BARE_BOARD.source);
+    for (const bad of ['גררו לבני דינס לטור העשרות', 'כמה לבנים יש בלוח?', 'מה רואים על הלוח?']) {
+      expect(socraticTextViolation([bad], null), bad).toMatch(/^forbidden term/);
+      expect(findForbiddenTerm([bad]), bad).not.toBeNull();
+    }
+    for (const good of ['איזה מספר בחרתם בלוח החיבור?', 'לוחצים על הכפתור "קבצו 10"']) {
+      expect(socraticTextViolation([good], null), good).toBeNull();
+      expect(findForbiddenTerm([good]), good).toBeNull();
+    }
   });
 
   it('the aids meeting 8 does not show (Module 14 §ב)', () => {

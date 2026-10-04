@@ -438,6 +438,29 @@ describe('F3 — הנחיות ארוכות אינן נקטעות אחרי ~15 ש
     expect(words(spoken()).length).toBeGreaterThanOrEqual(original);
   });
 
+  it('the station-4 instruction is cut at a sentence end, never mid-sentence (audit 4.10.2026, A4-F14)', async () => {
+    const { S4_ADD } = await import('@/data/taskBuilders');
+    const tts = await setupTts();
+    tts.speak(S4_ADD('142 + 23'));
+    const parts = synth.queue.map((u: { text: string }) => u.text);
+    expect(parts.length).toBeGreaterThan(1);
+    for (const p of parts) {
+      expect(p.length).toBeLessThanOrEqual(MAX_CHARS);
+      expect(p, p).toMatch(/[.!?:;]$/);
+    }
+    expect(parts[0]).toBe('פתרו במאונך: 142 ועוד 23. ייצגו את המספרים בעזרת לבנים.');
+  });
+
+  it('a text whose sentences are all longer than the ceiling is still cut at a comma before a word', async () => {
+    const tts = await setupTts();
+    const clause = Array.from({ length: 8 }, (_, i) => `מילה${i}`).join(' ');
+    tts.speak(Array.from({ length: 6 }, () => clause).join(', ') + '.');
+    for (const u of synth.queue) {
+      expect(u.text.length).toBeLessThanOrEqual(MAX_CHARS);
+    }
+    expect(synth.queue.slice(0, -1).every((u: { text: string }) => u.text.endsWith(','))).toBe(true);
+  });
+
   it('כל מקטע נשאר מתחת לתקרה גם בטקסט אחיד בלי סימני פיסוק', async () => {
     const tts = await setupTts();
     tts.speak(Array.from({ length: 120 }, (_, i) => `מילה${i}`).join(' '));

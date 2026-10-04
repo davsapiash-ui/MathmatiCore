@@ -108,20 +108,34 @@ export function BlockPalette({ scaffoldLevel, compact = false }: { scaffoldLevel
     ? PALETTE_ITEMS.filter((item) => item.place !== 'thousands')
     : PALETTE_ITEMS;
 
-  // compact: the Socratic side panel is open and the board is narrower. The
-  // tray drops its decorative title, tightens, and may wrap — an RTL flex row
-  // that overflows cuts off its far (left) end, which is where the trash sits,
-  // and the trash is a permanent tool (PRD Module 8 §א).
+  // compact: the side panel is open, or the board is too narrow for the full
+  // tray. The tray tightens and may wrap — an RTL flex row that overflows cuts
+  // off its far (left) end, which is where the trash sits, and the trash is a
+  // permanent tool (PRD Module 8 §א). Its name stays on the screen: the cards
+  // say "גוררים לבנים מארגז הכלים", so the child must see a box called that
+  // (audit 4.10.2026, A4-F04 / A5-F08). In compact form the name sits on the
+  // tray's top edge, like a label on a box, so it adds no row and the board
+  // keeps every pixel of its height.
   return (
     <div
       id="tour-block-palette"
       role="toolbar"
       aria-label="ארגז כלים — גררו לבנים לבית המספרים"
       data-compact={compact ? 'true' : undefined}
-      className={`shrink-0 ws-card !rounded-2xl flex items-center max-w-full select-none bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 shadow-sm ${
+      className={`relative shrink-0 ws-card !rounded-2xl flex items-center max-w-full select-none bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 shadow-sm ${
         compact ? 'px-3 py-2 gap-2 flex-wrap justify-center' : 'px-5 py-2.5 gap-4 justify-between overflow-x-auto no-scrollbar'
       }`}
     >
+      {compact && (
+        <span
+          aria-hidden="true"
+          data-testid="toolbox-name"
+          className="absolute -top-2.5 right-5 inline-flex items-center gap-1 rounded-full px-2 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 text-xs font-black text-slate-800 dark:text-slate-100 leading-4 whitespace-nowrap pointer-events-none"
+        >
+          <span>🧰</span>
+          ארגז כלים
+        </span>
+      )}
       {/* Title & Legend (RTL Right side) */}
       <div className={`${compact ? 'hidden' : 'flex'} items-center gap-2.5 shrink-0 select-none`}>
         <span aria-hidden="true" className="text-xl drop-shadow-xs">🧰</span>

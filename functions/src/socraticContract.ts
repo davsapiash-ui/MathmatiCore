@@ -1913,7 +1913,16 @@ export const FORBIDDEN_TERMS_HE: string[] = [
   // and the child gets the fixed question instead. "קובי" catches קובייה,
   // קוביה and קוביות; "בלוק" catches בלוק and בלוקים.
   "קובי", "בלוק", "לוח הדינס", "לוח הלבנים", "קנבס",
+  // The child reads "לבנים", never "לבני דינס" (register ט; audit 4.10.2026 A7-018).
+  "דינס",
 ];
+
+/**
+ * The board named "לוח" ("הלוח", "בלוח") instead of "בית המספרים" (register ט).
+ * A whole word only — "לוחצים" is not it — and "לוח החיבור", the addition
+ * grid's own name, is allowed. Mirrored on the client (SocraticEngine.BARE_BOARD_WORD_HE).
+ */
+export const BARE_BOARD_WORD_HE = /(^|[^א-ת])[ובלמהשכ]{0,4}לוח(?![א-ת])(?!\s+החיבור)/;
 
 const HEBREW_RE = /[א-ת]/;
 
@@ -2415,6 +2424,7 @@ export function findForbiddenTerm(texts: string[]): string | null {
     for (const term of FORBIDDEN_TERMS_HE) {
       if (t.includes(term)) return term;
     }
+    if (BARE_BOARD_WORD_HE.test(t)) return "לוח";
   }
   return null;
 }
