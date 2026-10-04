@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Replayer } from "rrweb";
 import "rrweb-player/dist/style.css";
 import { Play, Pause, RotateCcw } from "lucide-react";
@@ -38,6 +38,14 @@ function formatTime(ms: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
+/**
+ * A stretch with no recorded event at all for this long is the time between
+ * two openings of the same meeting (each opening is its own recording, and the
+ * journey hands the player all of them as one stream). The player jumps over
+ * it; a learner's pause inside a lesson is far shorter and plays as it was.
+ */
+const RUN_GAP_MS = 5 * 60 * 1000;
+
 export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress, stopAtTime, chapters, onChapterSelect }: ReplayViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const replayerRef = useRef<any>(null);
@@ -50,9 +58,31 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
   // recording still being written carries on into what arrives.
   const holdPausedRef = useRef(false);
 
-  const firstTimestamp = events && events.length > 0 ? events[0].timestamp : 0;
-  const lastTimestamp = events && events.length > 0 ? events[events.length - 1].timestamp : 0;
+  // An event without a time cannot be placed on the timeline: one such event
+  // at the head of the stream made the length NaN, the clock 00:00/00:00 and
+  // the screen black, with no word to the teacher. The player plays the rest.
+  const playable = useMemo(
+    () => (events ?? []).filter((e: any) => Number.isFinite(e?.timestamp)),
+    [events],
+  );
+  const brokenCount = (events?.length ?? 0) - playable.length;
+
+  const firstTimestamp = playable.length > 0 ? playable[0].timestamp : 0;
+  const lastTimestamp = playable.length > 0 ? playable[playable.length - 1].timestamp : 0;
   const totalDurationMs = Math.max(0, lastTimestamp - firstTimestamp);
+
+  // The stretches between two openings of the meeting, as player offsets.
+  const runGaps = useMemo(() => {
+    const gaps: { from: number; to: number }[] = [];
+    for (let i = 1; i < playable.length; i++) {
+      if (playable[i].timestamp - playable[i - 1].timestamp > RUN_GAP_MS) {
+        gaps.push({ from: playable[i - 1].timestamp - playable[0].timestamp, to: playable[i].timestamp - playable[0].timestamp });
+      }
+    }
+    return gaps;
+  }, [playable]);
+  const runGapsRef = useRef(runGaps);
+  runGapsRef.current = runGaps;
 
   const prevFingerprintRef = useRef<string>('');
   const recordingStartRef = useRef<number | null>(null);
@@ -77,7 +107,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
   // Initialize Replayer only when event content actually changes
   useEffect(() => {
     const container = containerRef.current;
-    if (!events || events.length < 2 || !container) {
+    if (playable.length < 2 || !container) {
       if (replayerRef.current) {
         try { replayerRef.current.pause(); } catch { /* already gone */ }
         replayerRef.current = null;
@@ -88,7 +118,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
       return;
     }
 
-    const currentFingerprint = `${events.length}_${events[0]?.timestamp}_${events[events.length - 1]?.timestamp}`;
+    const currentFingerprint = `${playable.length}_${playable[0]?.timestamp}_${playable[playable.length - 1]?.timestamp}`;
     if (replayerRef.current && prevFingerprintRef.current === currentFingerprint) {
       return; // Stable instance - avoid destroy/rebuild to prevent ANY flicker
     }
@@ -98,8 +128,8 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
     // Rebuilding the player is unavoidable (rrweb takes its events once); it
     // resumes from where the previous instance was, playing or paused as it
     // was. Another recording (another meeting) starts from its beginning.
-    const sameRecording = replayerRef.current !== null && recordingStartRef.current === events[0]?.timestamp;
-    recordingStartRef.current = events[0]?.timestamp ?? null;
+    const sameRecording = replayerRef.current !== null && recordingStartRef.current === playable[0]?.timestamp;
+    recordingStartRef.current = playable[0]?.timestamp ?? null;
     let resumeFrom = 0;
     let resumePaused = false;
     if (replayerRef.current) {
@@ -114,13 +144,18 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
     container.innerHTML = "";
 
     try {
-      const metaEvent = events.find((e: any) => e.type === 4);
+      const metaEvent = playable.find((e: any) => e.type === 4);
       const originalWidth = metaEvent?.data?.width || 1280;
       const originalHeight = metaEvent?.data?.height || 720;
 
-      const replayer = new Replayer(events, {
+      const replayer = new Replayer(playable, {
         root: container,
         mouseTail: true,
+        // rrweb replays the learner's recorded focus events with a real
+        // focus() inside its iframe. That took the keyboard away from the
+        // teacher's page: Escape and Tab stopped reaching a drawer opened
+        // over the player.
+        triggerFocus: false,
         speed: playbackSpeed,
         showWarning: false,
         showDebug: false,
@@ -189,7 +224,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
         container.appendChild(notice);
       }
     }
-  }, [events]);
+  }, [playable]);
 
   // Keep the latest onProgress in a ref so the polling interval below doesn't
   // need to be torn down and recreated whenever the parent re-renders with a
@@ -208,6 +243,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
         if (replayerRef.current) {
           try {
             const current = replayerRef.current.getCurrentTime();
+            if (!Number.isFinite(current)) return;
             setCurrentTimeMs(current);
             // מודול 21 §ב: סוף התרגיל שנבחר הוא סוף ההפעלה.
             const stopAt = stopAtRef.current;
@@ -217,6 +253,15 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
               setIsPlaying(false);
               onProgressRef.current?.(stopAt);
               onEndRef.current?.();
+              return;
+            }
+            // Between two openings of the meeting nothing was recorded:
+            // the player goes straight on to the next opening.
+            const gap = runGapsRef.current.find((g) => current > g.from && current < g.to);
+            if (gap) {
+              replayerRef.current.play(gap.to);
+              setCurrentTimeMs(gap.to);
+              onProgressRef.current?.(firstTimestamp + gap.to);
               return;
             }
             // PRD Module 21 §ב: the bidirectional table<->player link requires
@@ -247,7 +292,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
       appliedSeekRef.current = null; // the parent withdrew its request (another meeting)
       return;
     }
-    if (replayerRef.current && events.length > 0) {
+    if (replayerRef.current && playable.length > 0) {
       const request = `${seekNonce ?? ''}@${seekToTime}`;
       if (appliedSeekRef.current === request) return;
       appliedSeekRef.current = request;
@@ -261,7 +306,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
         console.warn("Could not seek player:", err);
       }
     }
-  }, [seekToTime, seekNonce, events, firstTimestamp, totalDurationMs]);
+  }, [seekToTime, seekNonce, playable, firstTimestamp, totalDurationMs]);
 
   const togglePlay = () => {
     if (!replayerRef.current) return;
@@ -334,6 +379,15 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
     );
   }
 
+  // The recording arrived, and too little of it can be placed in time to play.
+  if (playable.length < 2) {
+    return (
+      <div role="alert" className="p-6 bg-red-50 text-red-700 rounded-2xl m-4 font-bold text-center" dir="rtl">
+        ההקלטה של המפגש הזה פגומה, ואי אפשר להציג אותה.
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col w-full mx-auto bg-slate-900 text-white rounded-2xl shadow-xl overflow-hidden relative select-none" dir="rtl">
       {/* Top Controls Bar */}
@@ -388,10 +442,18 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
           </div>
 
           <div className="text-xs text-slate-400 font-mono bg-slate-800/60 px-3 py-1.5 rounded-xl border border-slate-700/50" dir="ltr">
-            {events.length} פעולות
+            {/* rrweb's own events (snapshots, mouse moves, DOM changes) — not the
+                learner's actions, which the decision table counts as "פעולות". */}
+            {playable.length} אירועי הקלטה
           </div>
         </div>
       </div>
+
+      {brokenCount > 0 && (
+        <div role="status" className="w-full bg-amber-100 text-amber-950 text-xs font-bold px-5 py-2 border-b border-amber-300">
+          חלק מההקלטה פגום ואינו מוצג.
+        </div>
+      )}
 
       {/* Timeline Scrubber, with the meeting's exercise segments on it (Module 21 §ב) */}
       <div dir="ltr" className="w-full bg-slate-850 px-5 py-2.5 border-b border-slate-800 flex flex-col gap-1.5">

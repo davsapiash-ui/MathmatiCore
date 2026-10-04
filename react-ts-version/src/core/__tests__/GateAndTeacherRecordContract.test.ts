@@ -151,4 +151,15 @@ describe('Module 19: the learner cannot change their own support profile', () =>
       expect(write).toContain("newData.child('enhanced_support_profile').val() == data.child('enhanced_support_profile').val()");
     }
   });
+
+  // Audit support-9: a hand-made learner request could still rewrite the
+  // profile's version and who updated it, and when.
+  it('locks the profile version, its time and its writer in the learner branch of both learner nodes', () => {
+    for (const node of [rules.rules.users.students.$studentId, rules.rules.students.$studentId]) {
+      const write: string = node['.write'];
+      for (const field of ['support_profile_version', 'support_profile_updated_at', 'support_profile_updated_by']) {
+        expect(write).toContain(`newData.child('${field}').val() == data.child('${field}').val()`);
+      }
+    }
+  });
 });
