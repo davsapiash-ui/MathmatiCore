@@ -123,6 +123,29 @@ export async function hasSavedSRLReflection(rawStudentId: string | number): Prom
 }
 
 /**
+ * Module 16 §ב: "השרת מנהל: reflection_step (1, 2 או 3)". The stage the
+ * learner is on reaches the learner record at every stage change, not only
+ * at the end. A mirror for the live view, like the one submitSRLReflection
+ * writes: reflection_completed is not touched here — only "סיום התחנה" sets
+ * it — so stage 3 on screen is not a finished reflection. Not awaited, for
+ * the same reason as there.
+ */
+export function mirrorReflectionStep(rawStudentId: string | number, step: 1 | 2 | 3): void {
+  const studentNumber = asPilotNumber(rawStudentId);
+  if (studentNumber === null) return;
+  try {
+    update(ref(database, `users/students/student_user${studentNumber}`), {
+      reflection_step: step,
+      reflection_updated_at: Date.now(),
+    }).catch((err) => {
+      console.warn('[srlReflection] live mirror notice:', err);
+    });
+  } catch (err) {
+    console.warn('[srlReflection] live mirror notice:', err);
+  }
+}
+
+/**
  * שומרת את הרפלקציה: מסמך `srl_reflections` ב-Firestore (מקור האמת שדוח
  * הכיתה וייצוא המחקר קוראים), ובמקביל את שלושת השדות שמודול 16 §ב מגדיר
  * כמנוהלים בשרת על צומת הלומד, כדי שהדשבורד יראה מיד שהרפלקציה הושלמה.

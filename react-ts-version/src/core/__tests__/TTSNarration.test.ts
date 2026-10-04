@@ -750,7 +750,8 @@ describe('האפיון: הקראה בממשק הלומד בלבד', () => {
 
   it('שלושת שלבי לוח מפגש 8 מוקראים, ולא רק הראשון', () => {
     const board = SRC('presentation/components/student/Session8ReflectionScreen.tsx');
-    expect(board.match(/<UdlSpeechButton/g) ?? []).toHaveLength(3);
+    // three stages, and the "not saved" message under the finish button (A6-107)
+    expect(board.match(/<UdlSpeechButton/g) ?? []).toHaveLength(4);
   });
 
   it('בצ׳אט של הילד מוקראות הודעות המורה, ולא מה שהילד עצמו כתב', () => {

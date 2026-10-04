@@ -137,10 +137,11 @@ describe('row 1.15 — the feedback covers neither the board nor the coaching ca
       const toast = screen.getByTestId('feedback-toast');
       expect(toast.getAttribute('data-placement')).toBe('inline');
       expect(toast.className).not.toContain('fixed');
-      expect(toast.className).toContain('absolute top-2');
+      // In the flow above the heading, not laid over it (UX-004: it hid "משימה N מתוך 7").
+      expect(toast.className).not.toMatch(/absolute/);
       const card = document.getElementById('tour-task-card')!;
       expect(card.contains(toast)).toBe(true);
-      // it comes before the column, so it lies over the heading, not under the exercise
+      // it comes before the column: above the heading, not under the exercise
       expect(toast.compareDocumentPosition(screen.getByTestId('task-column')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
   }

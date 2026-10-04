@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { MISSING_DIGIT_BOX, speakMissingDigits } from '@/core/missingDigitSpeech';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, digitJustTyped } from '@/application/useWorkspaceStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { NEUTRAL_BOX_BORDER, PLACE_COLORS } from '../placeColors';
 import { useEnhancedSupport } from './useEnhancedSupport';
@@ -214,14 +214,19 @@ export function VerticalAdditionTask({
       <input
         type="text"
         inputMode="numeric"
-        maxLength={1}
         value={operandDigits[which][place] ?? ''}
         aria-label={spokenPlaces ? `ספרת ה${PLACE_LABEL_HE[place]} החסרה ב${number}` : `הספרה החסרה ב${number}: ספרה ${position} מתוך ${str.length}`}
         className="rounded-xl border-2 border-dashed text-center font-mono font-black bg-ws-accentSoft/40 text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent"
         style={{ width: cellMinus(12), height: cellMinus(12), fontSize: cell(0.48), borderColor: PLACE_TINT[place] }}
-        onFocus={() => setFocusedPlace(place)}
+        // The digit in the box is selected on focus, so a wrong digit can be
+        // typed over or deleted (Chromium's mouseup would collapse the selection).
+        onFocus={(e) => {
+          setFocusedPlace(place);
+          e.currentTarget.select();
+        }}
+        onMouseUp={(e) => e.preventDefault()}
         onBlur={() => setFocusedPlace(null)}
-        onChange={(e) => setOperandDigit(which, place, e.target.value)}
+        onChange={(e) => setOperandDigit(which, place, digitJustTyped(e.target.value, operandDigits[which][place] ?? ''))}
       />
     </div>
     );
@@ -409,7 +414,6 @@ export function VerticalAdditionTask({
                 }}
                 type="text"
                 inputMode="numeric"
-                maxLength={1}
                 value={answerDigits[place] ?? ''}
                 readOnly={isLocked}
                 aria-label={spokenPlaces ? `ספרת ה${PLACE_LABEL_HE[place]} בתשובה` : `ספרה ${ansIdx + 1} מתוך ${answerLength} בשורת התוצאה`}
@@ -428,7 +432,14 @@ export function VerticalAdditionTask({
                 // click, Tab, or the move after a digit — shakes nothing. The
                 // move after a digit shook the row before the child had tried
                 // anything there (Module 9: the shake answers a keystroke).
-                onFocus={() => setFocusedPlace(place)}
+                // The digit in the box is selected on focus, so typing replaces
+                // it and Backspace deletes it (Chromium's mouseup would collapse
+                // the selection again).
+                onFocus={(e) => {
+                  setFocusedPlace(place);
+                  e.currentTarget.select();
+                }}
+                onMouseUp={(e) => e.preventDefault()}
                 onBlur={() => setFocusedPlace(null)}
                 onKeyDown={(e) => {
                   // Tab and the arrows still move on: only a key that would write is refused.
@@ -444,7 +455,8 @@ export function VerticalAdditionTask({
                     shake(place);
                     return;
                   }
-                  const v = e.target.value.replace(/[^0-9]/g, '').slice(-1);
+                  // The digit just typed, wherever the caret stood: a wrong digit can be written over.
+                  const v = digitJustTyped(e.target.value, answerDigits[place] ?? '');
                   setAnswerDigit(place, v);
                   // Advance leftward to the next-higher place (natural carrying direction).
                   if (v && ansIdx > 0) inputsRef.current[ansIdx - 1]?.focus();
