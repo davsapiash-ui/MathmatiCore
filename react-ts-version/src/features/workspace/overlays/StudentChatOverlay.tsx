@@ -245,7 +245,7 @@ export function StudentChatOverlay() {
       <div className="bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900/50 p-2.5 px-4 flex items-center justify-between gap-2 shrink-0">
         <span className="flex items-center gap-1.5 text-xs font-medium text-amber-900 dark:text-amber-200">
           {CALL_BANNER_HE}
-          <UdlSpeechButton text={CALL_BANNER_HE} className="w-7 h-7 p-0 shrink-0" />
+          <UdlSpeechButton text={CALL_BANNER_HE} className="shrink-0" />
         </span>
         <button
           onClick={handleCallTeacher}
@@ -263,7 +263,7 @@ export function StudentChatOverlay() {
             <p>אין הודעות קודמות.</p>
             <p className="text-xs flex items-center gap-1.5">
               {EMPTY_CHAT_INSTRUCTION_HE}
-              <UdlSpeechButton text={EMPTY_CHAT_INSTRUCTION_HE} className="w-7 h-7 p-0 shrink-0" />
+              <UdlSpeechButton text={EMPTY_CHAT_INSTRUCTION_HE} className="shrink-0" />
             </p>
           </div>
         ) : (
