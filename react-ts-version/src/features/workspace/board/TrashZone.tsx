@@ -7,7 +7,7 @@ import { session1Checklist } from '@/core/session1Checklist';
  * Station 1 is where the child meets the tools (owner, 29.9.2026): when the
  * text sends them to the trash, the trash is marked until they use it — in
  * step 5 once the undo line is ticked, and in the station's subtraction
- * exercises ("גררו לפח האשפה את הלבנים שאתם מחסירים") until the first block
+ * exercises ("גררו לפח האשפה את הלבנים שאתם מחסרים") until the first block
  * goes in.
  */
 function useTrashHint(): boolean {
