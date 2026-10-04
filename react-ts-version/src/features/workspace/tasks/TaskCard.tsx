@@ -4,6 +4,7 @@ import { useWorkspaceStore, selectStandardTask, effectiveArithmetic } from '@/ap
 import { currentTaskLabelHe } from '@/application/taskLabel';
 import { taskPositionLabelHe } from '@/core/taskPositionLabel';
 import { getCurrentQTask, getEffectiveNumber, isSubtaskActive } from '@/core/qmatrixFlow';
+import { hasOneDiagnosticAnswerBox } from '@/core/QMatrix';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { AccessibleCard } from '@/presentation/design-system/AccessibleCard';
 import { IntroTask } from './IntroTask';
@@ -191,8 +192,14 @@ export function TaskCard() {
                 exit={{ opacity: 0, x: 20 }}
                 className="flex flex-col gap-4"
               >
-                {/* 1. קריאה וכתיבה של מספר תלת-ספרתי */}
-                {qTask.type === 'place_value_zero' && (
+                {/* 1. קריאה וכתיבה של מספר תלת-ספרתי — one free answer box for
+                    every learner, like task 2 (owner, 4.10.2026): no headings,
+                    no place colours, no box per digit. Three boxes prevented
+                    the errors the task is there to catch (65, 6005). */}
+                {qTask.type !== 'digit_value' && hasOneDiagnosticAnswerBox(qTask) && (
+                  <PlaceValueInputBoxes mode="single_value" givenText={qTask.givenHe} />
+                )}
+                {qTask.type === 'place_value_zero' && !hasOneDiagnosticAnswerBox(qTask) && (
                   <PlaceValueInputBoxes
                     mode="three_digits"
                     givenText={qTask.givenHe}

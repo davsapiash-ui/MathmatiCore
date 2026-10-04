@@ -10,6 +10,9 @@ import { computeFirstAttemptScore, DIAGNOSTIC_COMPULSORY_COUNT } from '../meetin
  * "התקדם" (its keystrokes go out with is_correct: null, and a wrong final value
  * sends no PROBLEM_COMPLETE); in every other task a wrong digit counts even
  * after it is corrected.
+ * Owner, 4.10.2026: task 1 has the same one box as task 2 and is judged the
+ * same way (its keystrokes too go out with is_correct: null); the
+ * wrong-digit-counts rule now covers tasks 3–7.
  */
 const ev = (exercise_id: string, event_type: string, details: Record<string, unknown> = {}) => ({
   exercise_id,
@@ -34,9 +37,9 @@ describe('meeting 2: the diagnostic score from the digit events', () => {
 
   it('several wrong digits in one task count that task once', () => {
     const events = [
-      digit('task1_read_write_zero', false),
-      digit('task1_read_write_zero', false),
-      done('task1_read_write_zero'),
+      digit('task3_subtraction_regrouping', false),
+      digit('task3_subtraction_regrouping', false),
+      done('task3_subtraction_regrouping'),
       digit('task4_decompose_number', true),
       done('task4_decompose_number'),
     ];
@@ -54,6 +57,21 @@ describe('meeting 2: the diagnostic score from the digit events', () => {
       done('task2_digit_value'),
     ];
     expect(computeFirstAttemptScore(events, DIAGNOSTIC_COMPULSORY_COUNT).correctFirstAttempt).toBe(1);
+  });
+
+  it('task 1 (owner, 4.10.2026): "65" on the way to "605" is not judged; the right final value counts', () => {
+    const events = [
+      digit('task1_read_write_zero', null),
+      digit('task1_read_write_zero', null),
+      digit('task1_read_write_zero', null),
+      done('task1_read_write_zero'),
+    ];
+    expect(computeFirstAttemptScore(events, DIAGNOSTIC_COMPULSORY_COUNT).correctFirstAttempt).toBe(1);
+  });
+
+  it('task 1: 65 or 6005 at the press sends no PROBLEM_COMPLETE and does not count', () => {
+    const events = [digit('task1_read_write_zero', null), digit('task1_read_write_zero', null)];
+    expect(computeFirstAttemptScore(events, DIAGNOSTIC_COMPULSORY_COUNT).correctFirstAttempt).toBe(0);
   });
 
   it('task 2: a wrong final value sends no PROBLEM_COMPLETE and does not count', () => {

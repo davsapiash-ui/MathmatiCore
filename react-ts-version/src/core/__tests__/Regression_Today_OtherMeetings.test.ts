@@ -80,7 +80,7 @@ import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { getSessionTasks, getHardcodedCatalogBanks, SESSION1_TASKS, type SessionTask } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
-import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
+import { TASKS as DIAGNOSTIC_TASKS, hasOneDiagnosticAnswerBox } from '@/core/QMatrix';
 import { EMPTY_COUNTS, MAX_VISIBLE_BLOCKS, type Place, type PlaceCounts } from '@/core/placeValue';
 import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
@@ -352,9 +352,9 @@ describe('meeting 2: the diagnostic', () => {
         const q = getCurrentQTask(ws().qflow);
         if (!q) break;
         if (seen[seen.length - 1] !== q.id) seen.push(q.id);
-        // Task 2's one box holds the answer, and it is what "התקדם" judges
-        // (owner, 28.9.2026); the box also fills the tens and units.
-        if (q.type === 'digit_value') ws().setProbeAnswer(String(q.correctAnswer));
+        // Tasks 1 and 2: one box holds the answer, and it is what "התקדם"
+        // judges (owner, 28.9.2026 and 4.10.2026); the box also fills the tens and units.
+        if (hasOneDiagnosticAnswerBox(q)) ws().setProbeAnswer(String(q.correctAnswer));
         typeResult(q.correctAnswer!);
         ws().proceed();
         vi.advanceTimersByTime(3000);

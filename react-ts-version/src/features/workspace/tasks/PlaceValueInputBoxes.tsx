@@ -125,9 +125,16 @@ export function PlaceValueInputBoxes({
         <div className="flex flex-col items-center gap-2">
           {/* התווית לא הייתה מקושרת לתיבה, ולכן הקראה הכריזה על שדה
               בלי שם. */}
-          <label htmlFor="pv-single-value" className="text-base font-bold text-ws-ink/70">ערך הספרה:</label>
+          {/* "ערך הספרה" is task 2's question (a marked digit). Task 1 writes a
+              whole number in the same box (owner, 4.10.2026): no heading over
+              it, and the box is named as station 3's single box is. */}
+          {highlightNumber && (
+            <label htmlFor="pv-single-value" className="text-base font-bold text-ws-ink/70">ערך הספרה:</label>
+          )}
           <input
             id="pv-single-value"
+            {...(highlightNumber ? {} : { 'aria-label': 'התשובה' })}
+            autoComplete="off"
             ref={singleRef}
             type="text"
             inputMode="numeric"

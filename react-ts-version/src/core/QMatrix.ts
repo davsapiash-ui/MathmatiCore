@@ -64,6 +64,20 @@ export interface QMatrixTask {
 }
 
 /**
+ * The diagnostic tasks answered in ONE free answer box, judged by the whole
+ * number in it when "ממשיכים" is pressed: task 2 (owner, 28.9.2026) and task 1
+ * (owner, 4.10.2026 — "תיבה אחת לכל הילדים"). Three boxes prevented the two
+ * errors task 1 is there to catch: 65 left a visibly empty box, and 6005 could
+ * not be typed. No headings, no place colours, for every learner. By the
+ * task's id, so nothing published elsewhere can change the form.
+ */
+const ONE_ANSWER_BOX_TASK_IDS: readonly string[] = ['task1_read_write_zero', 'task2_digit_value'];
+
+export function hasOneDiagnosticAnswerBox(task: Pick<QMatrixTask, 'id' | 'type'> | null | undefined): boolean {
+  return Boolean(task) && (ONE_ANSWER_BOX_TASK_IDS.includes(task!.id) || task!.type === 'digit_value');
+}
+
+/**
  * 7 משימות האבחון הרשמיות של מפגש 2 לפי מסמך PRD v7.0 סעיף 3.2:
  * 1. קריאה וכתיבה של מספר תלת-ספרתי ("שש מאות וחמש" -> 605)
  * 2. זיהוי וייצוג ערך ספרה (ערך הספרה 4 במספר 742 -> 40)
