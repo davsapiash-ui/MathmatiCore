@@ -453,6 +453,8 @@ export const STATIC_CARD_KINDS = [
   'add_column', 'carry_written', 'sub_column', 'sub_after_borrow', 'carry_forgotten', 'carry_circle',
   'break_as_asked', 'break_result', 'group_as_asked', 'group_result',
   'compare_words', 'compare_words_column', 'board_hidden', 'guessing', 'count_not_number', 'column_count', 'group_yourselves',
+  // Owner, 4.10.2026 (cards round 2, B1/B2): the blocks an exercise gave changed (2,730).
+  'restore_given', 'restore_given_how',
 ] as const;
 export type StaticCardKind = typeof STATIC_CARD_KINDS[number];
 
@@ -466,6 +468,7 @@ const CARD_FAMILY: Record<StaticCardKind, string> = {
   error_analysis: 'error_analysis', error_analysis_2: 'error_analysis',
   compose_group: 'compose_group', compose_group_2: 'compose_group',
   which_number: 'which_number', which_number_2: 'which_number',
+  restore_given: 'restore_given', restore_given_how: 'restore_given',
   carry: 'carry', carry_2: 'carry', add_start: 'add_start',
   crowded: 'crowded', crowded_2: 'crowded',
   sub_start: 'sub_start',
@@ -555,6 +558,15 @@ export interface StaticCardContext {
    * block went to the trash (hasDeletedBlock).
    */
   blocksRemoved?: boolean;
+  /**
+   * An exercise that opens with the blocks to group (initialCounts: 2,730):
+   * the board is the opening board, or the opening board with exactly the
+   * groupings recorded so far — the final board included
+   * (useWorkspaceStore.givenBoardOnTheWay). False: the given blocks changed.
+   */
+  givenOnTheWay?: boolean;
+  /** Such an exercise: the oldest frame of the undo stack is the opening board, so undoing every step leads back to it. */
+  undoReachesStart?: boolean;
 }
 
 const shownIn = (ctx: StaticCardContext, kind: StaticCardKind) => (ctx.shownKinds ?? []).includes(kind);
@@ -2644,6 +2656,13 @@ export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardCon
   // An empty board: build first what the instruction names; the second card,
   // how blocks get onto the board (2.10.2026).
   const buildFirst = () => ladder(ctx, 'build_first', [['build_first', buildFirstCard], ['build_first_how', buildHowCard]]);
+  // An exercise that opened with its blocks on the board (station 7's 2,730,
+  // owner 4.10.2026), and they are not what it gave — deleted, added, the board
+  // cleared, or the final blocks arranged by hand with nothing grouped: back
+  // to the blocks it started with (B1/B2, cards round 2), before "build first",
+  // the crowded column and "which number is built".
+  const givenChanged = givenBlocksChangedCard(task, counts, ctx);
+  if (givenChanged) return givenChanged;
   // C3 too: "יש טור שאין בו לבנים" says nothing on a board with no blocks at all.
   if (emptyBoard && (composing || kind === 'read_write')) return buildFirst();
   // A part of the number built in another column (1.10.2026): before any
@@ -2839,6 +2858,60 @@ export function s1WrongBreakCard(task: any, counts: BoardCounts, ctx: StaticCard
   const wrongBlock = above.some((p) => (counts[p] ?? 0) < (required[p] ?? 0));
   const brokenTooMany = (counts[b.broken] ?? 0) < (required[b.broken] ?? 0);
   return wrongBlock || brokenTooMany ? ladder(ctx, 'extra_break', [['extra_break', extraBreakCard], ['extra_break_which', extraBreakWhichCard]]) : null;
+}
+
+/**
+ * Station 7's 2,730 (owner, 4.10.2026): the exercise put 1 thousand, 16
+ * hundreds and 13 tens on the board, to be grouped twice. The board is no
+ * longer worth what it gave (blocks deleted or added, the board cleared), or
+ * it shows the final blocks with the groupings not made (arranged by hand):
+ * back to the given blocks. Two ways, one card each (cards round 3,
+ * owner-approved): B1 the undo button, B2 the trash and the toolbox with the
+ * instruction's own list.
+ * - Served on any board that is not on the way (ctx.givenOnTheWay: the
+ *   opening board, or it with exactly the groupings recorded so far — the
+ *   accepted final board included). Without the store, the board alone: worth
+ *   the given number and not the final blocks with a grouping pending.
+ * - B1 only while undoing every step leads back to the opening board (the
+ *   oldest undo frame is it: ctx.undoReachesStart); otherwise B2 at once.
+ *   Never back from B2 to B1.
+ * - B2 on an empty board: nothing to throw away, so its feedback skips the trash.
+ * Not meeting 1's 26 units (s1StartChangedCard: its instruction hides the count).
+ */
+export function givenBlocksChangedCard(task: any, counts: BoardCounts | undefined, ctx: StaticCardContext = {}): SocraticHintResponse | null {
+  if (!task?.initialCounts || task.requiresGrouping || task.representationKind || typeof task.numberA !== 'number' || !counts) return null;
+  if (meetingOfTaskId(task.id) === 1) return null;
+  const onTheWay = typeof ctx.givenOnTheWay === 'boolean'
+    ? ctx.givenOnTheWay
+    : boardValue(counts) === task.numberA &&
+      !(task.requiredCounts && sameCounts(counts, task.requiredCounts) && ctx.conversionDone === false);
+  if (onTheWay) return null;
+  const emptyBoard = boardValue(counts) === 0;
+  const b2 = () => givenBlocksFromInstructionCard(emptyBoard);
+  if (ctx.undoReachesStart === false || shownIn(ctx, 'restore_given_how')) {
+    return inFamily(withKind(b2(), 'restore_given_how'), 'restore_given');
+  }
+  return ladder(ctx, 'restore_given', [['restore_given', givenBlocksRestoreCard], ['restore_given_how', b2]]);
+}
+
+/** B1 (frame 1): the board does not look as it did at the start — undo, step by step, until the button is grey. */
+function givenBlocksRestoreCard(): SocraticHintResponse {
+  return card(`${OPEN}בית המספרים לא נראה עכשיו כמו בתחילת התרגיל. מה עושים?`, 'procedural', 'tour-action-buttons', [
+    ['מחזירים את הלבנים שהיו בתחילת התרגיל', 'נכון מאוד! לחצו שוב ושוב על כפתור ביטול הפעולה, עד שהוא יהיה אפור. אחר כך המשיכו לפי ההנחיה.'],
+    ['ממשיכים בתרגיל בלי להחזיר את הלבנים', 'רמז: אילו לבנים ההנחיה מתארת?'],
+    ['כותבים מספר בשורת התוצאה', 'רמז: מה ההנחיה מבקשת לעשות עם הלבנים שהיו בתחילת התרגיל?'],
+  ], 'restore_given', frame('restore_given', 1, 'הלבנים שהתרגיל נתן השתנו: מחזירים אותן בכפתור ביטול הפעולה, ורק אז מקבצים'));
+}
+
+/** B2 (frame 3): the instruction lists the given blocks — the trash (not on an empty board), then the toolbox. */
+function givenBlocksFromInstructionCard(emptyBoard = false): SocraticHintResponse {
+  return card(`${OPEN}ההנחיה מבקשת לקבץ את הלבנים שהיו בתחילת התרגיל. איך יודעים אילו לבנים היו?`, 'procedural', 'tour-task-card', [
+    ['קוראים בהנחיה אילו לבנים היו', emptyBoard
+      ? 'נכון מאוד! הוסיפו מארגז הכלים לבית המספרים את הלבנים שההנחיה מתארת.'
+      : 'נכון מאוד! לחצו על פח האשפה. אחר כך הוסיפו מארגז הכלים לבית המספרים את הלבנים שההנחיה מתארת.'],
+    ['אי אפשר לדעת', 'רמז: מה כתוב במשפט הראשון של ההנחיה?'],
+    ['מנחשים אילו לבנים היו', 'רמז: איפה על המסך כתוב אילו לבנים היו בבית המספרים?'],
+  ], 'restore_given_how', frame('restore_given_how', 3, 'ההנחיה מונה את הלבנים שהיו בהתחלה: מנקים את בית המספרים, מוסיפים אותן שוב מארגז הכלים ומקבצים'));
 }
 
 /**

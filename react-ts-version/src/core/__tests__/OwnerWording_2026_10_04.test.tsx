@@ -11,7 +11,7 @@ import { render, screen, cleanup } from '@testing-library/react';
  *     "משימה חוזרת" over the task that returns.
  *  2. 320, 2,100, 4,200: a way with unit blocks is refused, with its own toast; never 150.
  *  3. The two missing-result-digit exercises (400 − 156, 328 + 145) say what to do with the blocks.
- *  4. (2,730 — on its own branch, claude/sj-g7b-2730-opening-blocks.)
+ *  4. 2,730 opens with its blocks on the board, and both groupings are the child's own.
  *  5. Station 8: "פתרו את תרגיל החיבור: 1,245 + 328. כתבו את התשובה בשורת התוצאה."
  *  6. The reflection board, stage 2: the tools' names only; "ממשיכים".
  */
@@ -43,7 +43,7 @@ vi.mock('@/presentation/design-system/UdlSpeechButton', () => ({
   UdlSpeechButton: ({ text }: { text: string }) => <span data-testid="speech" data-text={text} />,
 }));
 
-import { useWorkspaceStore, judgeStandardTask, getActiveTasks } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, judgeStandardTask, selectCanProceed, getActiveTasks, emptyColumnConversions } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { currentTaskLabelHe } from '@/application/taskLabel';
@@ -52,14 +52,17 @@ import { TASKS as DIAGNOSTIC_TASKS } from '@/core/QMatrix';
 import { hasProbeExercise } from '@/core/qmatrixFlow';
 import { EMPTY_COUNTS, type PlaceCounts } from '@/core/placeValue';
 import { tts } from '@/infrastructure/services/TTSService';
+import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { getSessionTasks, SESSION1_TASKS, type SessionTask } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { S4_ADD, S6_SUB, S8_ADD, S8_SUB, NO_UNIT_BLOCKS_TITLE_HE, NO_UNIT_BLOCKS_SUB_HE } from '@/data/taskBuilders';
+import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
 import { MathText } from '@/features/workspace/tasks/MathText';
 import { FeedbackToast } from '@/features/workspace/overlays/FeedbackToast';
 import { REFLECTION_TEXT_HE, STRATEGY_OPTIONS, reflectionSpeech } from '@/presentation/components/student/Session8ReflectionScreen';
 
 const ws = () => useWorkspaceStore.getState();
+const svc = firebaseSyncService as any;
 const STUDENT = 'student_user6';
 
 const bank: SessionTask[] = [...SESSION1_TASKS];
@@ -96,6 +99,10 @@ const verdict = () => {
   const s = ws();
   return judgeStandardTask(s, getActiveTasks(s)[s.standardTaskIdx]) as any;
 };
+function typeRow(n: string) {
+  const places = ['units', 'tens', 'hundreds', 'thousands'] as const;
+  [...n].reverse().forEach((d, i) => ws().setAnswerDigit(places[i], d));
+}
 
 beforeEach(() => {
   useAuthStore.setState({ user: { uid: STUDENT, student_id: 6, role: 'student', name: 'user6' } as any, role: 'student', isAuthenticated: true } as any);
@@ -297,6 +304,387 @@ describe('3 — a result digit missing: the instruction says what to do with the
 
   it('both fit what the coaching function accepts as an instruction (400 characters)', () => {
     for (const id of ['s6_r_t7', 's4_r_t7']) expect(byId(id).instructionHe.length, id).toBeLessThanOrEqual(400);
+  });
+});
+
+describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings are the child\'s own', () => {
+  const T = () => byId('s7_g_t6');
+  const START = { ...EMPTY_COUNTS, thousands: 1, hundreds: 16, tens: 13 };
+  const END = { ...EMPTY_COUNTS, thousands: 2, hundreds: 7, tens: 3 };
+  /** Station 7, green path, on the exercise — through initSession, as the meeting opens it. */
+  function open() {
+    const idx = getSessionTasks(7, 'green_path').findIndex((t) => t.id === 's7_g_t6');
+    ws().initSession(7, false, idx);
+    useWorkspaceStore.setState({ openingScreenSeen: true } as any);
+    expect(getActiveTasks(ws())[ws().standardTaskIdx].id).toBe('s7_g_t6');
+  }
+
+  it('the instruction, word for word, and the exercise\'s data', () => {
+    expect(T().instructionHe).toBe(
+      'בבית המספרים יש לבנת אלף אחת, 16 לבני מאה ו-13 לבני עשרת. בכל טור שיש בו 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור. איזה מספר מייצגות הלבנים עכשיו? כתבו אותו בשורת התוצאה.'
+    );
+    expect(T()).toMatchObject({ type: 'representation', numberA: 2730, correctAnswer: 2730, requiredCounts: { thousands: 2, hundreds: 7, tens: 3 }, initialCounts: { thousands: 1, hundreds: 16, tens: 13 } });
+    // The result row stays a box per digit: no kind, so no single answer box.
+    expect(T().representationKind).toBeUndefined();
+    expect(REPRESENTATION_LOCKS.s7_g_t6).toEqual({ conversion: 'composition', columns: ['tens', 'hundreds'] });
+    // 1,000 + 1,600 + 130 = 2,730 = 2,000 + 700 + 30.
+    expect(1 * 1000 + 16 * 100 + 13 * 10).toBe(2730);
+  });
+
+  it('read aloud: the counts of blocks in the feminine', () => {
+    const spoken = (tts as any).cleanTextForSpeech(T().instructionHe);
+    expect(spoken).toContain('שש-עשרה לבני מאה');
+    expect(spoken).toContain('שלוש-עשרה לבני עשרת');
+  });
+
+  it('opens with 1 thousand, 16 hundreds and 13 tens; the blocks alone do not light "ממשיכים"', () => {
+    open();
+    expect(ws().counts).toEqual(START);
+    expect(selectCanProceed(ws())).toBe(false);
+    typeRow('2730');
+    expect(selectCanProceed(ws())).toBe(true);
+  });
+
+  it('not accepted before both groupings; accepted after them, in either order', () => {
+    for (const order of [['tens', 'hundreds'], ['hundreds', 'tens']] as const) {
+      open();
+      typeRow('2730');
+      expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped' });
+      ws().groupColumnClick(order[0]);
+      expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped' });
+      ws().groupColumnClick(order[1]);
+      expect(ws().counts).toEqual(END);
+      expect(verdict().kind).toBe('success');
+    }
+  });
+
+  // Wording round 3 (owner, 4.10.2026), text 4.
+  const BY_HAND = { title: 'שִׂימוּ לֵב 🧱', sub: 'הלבנים מסודרות נכון, אבל ההנחיה מבקשת לקבץ בעזרת הכפתור "קבצו 10".' };
+
+  it('the final blocks arranged by hand, or with one grouping only, are not the exercise: "שימו לב", no button is named to press', () => {
+    open();
+    typeRow('2730');
+    board(END);
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...BY_HAND });
+    open();
+    typeRow('2730');
+    ws().groupColumnClick('tens');
+    board(END); // the hundreds arranged by hand
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...BY_HAND });
+    // The same board with no number written yet: the same toast.
+    open();
+    board(END);
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...BY_HAND });
+  });
+
+  it('text 4 is 2,730\'s alone: meeting 1\'s 26 arranged by hand keeps its sentence', () => {
+    ws().initSession(1, false, SESSION1_TASKS.findIndex((t) => t.id === 's1_r_group26'));
+    useWorkspaceStore.setState({ openingScreenSeen: true } as any);
+    board({ tens: 2, units: 6 });
+    typeRow('26');
+    expect(verdict()).toMatchObject({
+      kind: 'failure',
+      detail: 'conversion_skipped',
+      title: 'קַבְּצוּ 🧱',
+      sub: 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.',
+    });
+  });
+
+  // Wording round 3, text 1.
+  const GROUP_NOW = { title: 'קַבְּצוּ 🧱', sub: 'התשובה שכתבתם נכונה. עכשיו בכל טור שיש בו 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור.' };
+  const NOT_YET = { title: 'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍', sub: 'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.' };
+  const TENS_DONE = { ...EMPTY_COUNTS, thousands: 1, hundreds: 17, tens: 3 };
+  const HUNDREDS_DONE = { ...EMPTY_COUNTS, thousands: 2, hundreds: 6, tens: 13 };
+
+  it('2730 typed, a grouping still to come — the opening board, 1/17/3 after the tens button, 2/6/13 after the hundreds button: "the answer is right, now group"', () => {
+    open();
+    typeRow('2730');
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...GROUP_NOW });
+    ws().groupColumnClick('tens');
+    expect(ws().counts).toEqual(TENS_DONE);
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...GROUP_NOW });
+    open();
+    typeRow('2730');
+    ws().groupColumnClick('hundreds');
+    expect(ws().counts).toEqual(HUNDREDS_DONE);
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...GROUP_NOW });
+    // The opening board again after an undo, the record of groupings empty again.
+    ws().undo();
+    expect(ws().counts).toEqual(START);
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...GROUP_NOW });
+  });
+
+  it('not on any other board: the same blocks arranged by hand, blocks deleted, added or broken, or another number typed', () => {
+    // 1/17/3 and 2/6/13 with their grouping NOT recorded (arranged by hand): one press of the button left leads to a refused 2/7/3.
+    for (const byHand of [TENS_DONE, HUNDREDS_DONE]) {
+      open();
+      typeRow('2730');
+      board(byHand);
+      expect(verdict(), JSON.stringify(byHand)).toMatchObject({ kind: 'failure', detail: 'wrong_representation', ...NOT_YET });
+    }
+    // 1/17/3 with the OTHER grouping recorded only.
+    open();
+    typeRow('2730');
+    ws().groupColumnClick('hundreds');
+    board(TENS_DONE);
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'wrong_representation' });
+    // Worth 2,730, built otherwise (a hundred broken into tens), and boards worth another number.
+    for (const other of [
+      { thousands: 1, hundreds: 15, tens: 23 },
+      { thousands: 1, hundreds: 16, tens: 12 },
+      { thousands: 1, hundreds: 16, tens: 13, units: 4 },
+      {},
+    ]) {
+      open();
+      typeRow('2730');
+      board(other);
+      expect(verdict(), JSON.stringify(other)).toMatchObject({ kind: 'failure', detail: 'wrong_representation', ...NOT_YET });
+    }
+    // The opening board with another number, or none: as before.
+    open();
+    typeRow('1630');
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'wrong_representation', ...NOT_YET });
+    open();
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'wrong_representation', ...NOT_YET });
+  });
+
+  it('that press is a wrong press (PRD Module 23 §ב, measure 3): counted, written as conversion_skipped, and it is in the exercise\'s error_count', () => {
+    open();
+    typeRow('2730');
+    const updateQ = vi.spyOn(useStore.getState(), 'updateQMatrix');
+    ws().proceed();
+    expect(ws().feedback).toMatchObject({ correct: false, ...GROUP_NOW });
+    expect(ws().consecutiveErrorCount).toBe(1);
+    expect(ws().boardCheckFailures).toBe(1);
+    expect(ws().boardCheckFailuresTaskId).toBe('s7_g_t6');
+    expect(ws().awaitingNext).toBe(false);
+    const written = updateQ.mock.calls.map((c) => Object.values(c[1] as any)).flat();
+    expect(written).toEqual(['conversion_skipped']);
+    updateQ.mockRestore();
+    useWorkspaceStore.setState({ feedback: null } as any);
+    ws().groupColumnClick('tens');
+    ws().groupColumnClick('hundreds');
+    emitted.length = 0;
+    ws().proceed();
+    expect(ws().feedback).toMatchObject({ correct: true, sub: 'קיבצתם את הלבנים, והתשובה שכתבתם נכונה.' });
+    const done = emitted.find((e) => e.event_type === 'PROBLEM_COMPLETE');
+    expect(done?.details.error_count).toBe(1);
+  });
+
+  it('meeting 1\'s 26 keeps its message there (text 1b was not taken)', () => {
+    ws().initSession(1, false, SESSION1_TASKS.findIndex((t) => t.id === 's1_r_group26'));
+    useWorkspaceStore.setState({ openingScreenSeen: true } as any);
+    typeRow('26');
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'wrong_representation', ...NOT_YET });
+    ws().groupColumnClick('units');
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'wrong_representation', ...NOT_YET });
+  });
+
+  // Wording round 3, text 2.
+  const GROUPED = { kind: 'success', title: 'כָּל הַכָּבוֹד! 🌟', sub: 'קיבצתם את הלבנים, והתשובה שכתבתם נכונה.' };
+  const BUILT = { kind: 'success', title: 'כָּל הַכָּבוֹד! 🌟', sub: 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.' };
+
+  it('success where the exercise gave the blocks (2,730 and 26): "you grouped the blocks"; where the child built, "you built"', () => {
+    open();
+    ws().groupColumnClick('tens');
+    ws().groupColumnClick('hundreds');
+    typeRow('2730');
+    expect(verdict()).toMatchObject(GROUPED);
+
+    ws().initSession(1, false, SESSION1_TASKS.findIndex((t) => t.id === 's1_r_group26'));
+    useWorkspaceStore.setState({ openingScreenSeen: true } as any);
+    ws().groupColumnClick('units');
+    ws().groupColumnClick('units');
+    typeRow('26');
+    expect(verdict()).toMatchObject(GROUPED);
+
+    // The exercises that shared the sentence keep it: 3,800 (s7_g_t5), 510 (s7_r_t6), meeting 1's 703 and 482.
+    for (const [meeting, id, counts, answer] of [
+      [7, 's7_g_t5', { thousands: 3, hundreds: 8 }, '3800'],
+      [7, 's7_r_t6', byId('s7_r_t6').requiredCounts!, String(byId('s7_r_t6').correctAnswer)],
+      [1, 's1_r_words703', { hundreds: 7, units: 3 }, '703'],
+      [1, 's1_r_words482', { hundreds: 4, tens: 8, units: 2 }, '482'],
+    ] as const) {
+      expect(byId(id).initialCounts, id).toBeUndefined();
+      load(meeting, byId(id));
+      board(counts);
+      typeRow(answer);
+      expect(verdict(), id).toMatchObject(BUILT);
+    }
+  });
+
+  it('only the two exercises that open with blocks to group get that success', () => {
+    const given = bank.filter((t) => t.type === 'representation' && t.initialCounts).map((t) => t.id);
+    expect([...new Set(given)]).toEqual(['s1_r_group26', 's7_g_t6']);
+  });
+
+  // Wording round 3, STOP 1: the trash takes the record of groupings with the blocks.
+  const drag = (p: 'units' | 'tens' | 'hundreds' | 'thousands', n = 1) => {
+    for (let i = 0; i < n; i++) ws().applyDrop({ source: 'palette', sourcePlace: p, target: { kind: 'column', place: p } });
+  };
+
+  it('grouping with the buttons, emptying the board, laying 2/7/3 by hand and typing 2730 is not accepted', () => {
+    open();
+    ws().groupColumnClick('tens');
+    ws().groupColumnClick('hundreds');
+    expect(ws().counts).toEqual(END);
+    ws().clearBoard();
+    expect(ws().counts).toEqual(EMPTY_COUNTS);
+    expect(ws().conversionsByColumn).toEqual(emptyColumnConversions());
+    drag('thousands', 2);
+    drag('hundreds', 7);
+    drag('tens', 3);
+    expect(ws().counts).toEqual(END);
+    typeRow('2730');
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...BY_HAND });
+    ws().proceed();
+    expect(ws().awaitingNext).toBe(false);
+  });
+
+  it('undoing the trash brings the blocks back with their groupings: the exercise is accepted', () => {
+    open();
+    ws().groupColumnClick('tens');
+    ws().groupColumnClick('hundreds');
+    ws().clearBoard();
+    ws().undo();
+    expect(ws().counts).toEqual(END);
+    typeRow('2730');
+    expect(verdict()).toMatchObject(GROUPED);
+    // One grouping, the trash, undo: the grouping still counts, and the second completes the exercise.
+    open();
+    ws().groupColumnClick('tens');
+    ws().clearBoard();
+    ws().undo();
+    expect(ws().counts).toEqual(TENS_DONE);
+    typeRow('2730');
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...GROUP_NOW });
+    ws().groupColumnClick('hundreds');
+    expect(verdict()).toMatchObject(GROUPED);
+  });
+
+  it('the opening blocks laid again after the trash start with no grouping recorded, and both buttons complete the exercise', () => {
+    open();
+    ws().groupColumnClick('tens');
+    ws().clearBoard();
+    drag('thousands', 1);
+    drag('hundreds', 16);
+    drag('tens', 13);
+    expect(ws().counts).toEqual(START);
+    typeRow('2730');
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...GROUP_NOW });
+    ws().groupColumnClick('hundreds');
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', ...GROUP_NOW });
+    ws().groupColumnClick('tens');
+    expect(verdict()).toMatchObject(GROUPED);
+  });
+
+  it('the same for meeting 1\'s 26: grouped twice, emptied, 2 tens and 6 units laid by hand — not accepted; undoing the trash is', () => {
+    const open26 = () => {
+      ws().initSession(1, false, SESSION1_TASKS.findIndex((t) => t.id === 's1_r_group26'));
+      useWorkspaceStore.setState({ openingScreenSeen: true } as any);
+    };
+    open26();
+    ws().groupColumnClick('units');
+    ws().groupColumnClick('units');
+    ws().clearBoard();
+    drag('tens', 2);
+    drag('units', 6);
+    typeRow('26');
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', title: 'קַבְּצוּ 🧱' });
+    open26();
+    ws().groupColumnClick('units');
+    ws().groupColumnClick('units');
+    ws().clearBoard();
+    ws().undo();
+    typeRow('26');
+    expect(verdict()).toMatchObject(GROUPED);
+  });
+
+  it('the trash keeps the record everywhere else: a grouping exercise the child builds (s7_g_t1), and meeting 1\'s tool step on 230', () => {
+    load(7, byId('s7_g_t1'));
+    drag('hundreds', 25);
+    ws().groupColumnClick('hundreds');
+    const before = JSON.parse(JSON.stringify(ws().conversionsByColumn));
+    ws().clearBoard();
+    expect(ws().conversionsByColumn).toEqual(before);
+
+    ws().initSession(1, false, SESSION1_TASKS.findIndex((t) => t.id === 's1_decompose_hundred'));
+    useWorkspaceStore.setState({ openingScreenSeen: true } as any);
+    ws().splitBlockClick('hundreds');
+    const split = JSON.parse(JSON.stringify(ws().conversionsByColumn));
+    ws().clearBoard();
+    expect(ws().conversionsByColumn).toEqual(split);
+  });
+
+  it('a wrong number over the right blocks is a wrong answer, as before', () => {
+    open();
+    ws().groupColumnClick('tens');
+    ws().groupColumnClick('hundreds');
+    typeRow('2370');
+    expect(verdict()).toMatchObject({ kind: 'failure', detail: 'wrong_numeric' });
+  });
+
+  it('a published bank from before the change (no blocks on the board) is judged as it was', () => {
+    const { initialCounts: _dropped, ...old } = T();
+    load(7, old as SessionTask);
+    board(END);
+    typeRow('2730');
+    expect(verdict().kind).toBe('success');
+  });
+
+  // The same behaviour as meeting 1's 26 unit blocks (s1_r_group26).
+  const OPENERS: Array<[string, () => void, PlaceCounts, 'units' | 'tens']> = [
+    ['s1_r_group26', () => ws().initSession(1, false, SESSION1_TASKS.findIndex((t) => t.id === 's1_r_group26')), { ...EMPTY_COUNTS, units: 26 }, 'units'],
+    ['s7_g_t6', open, START, 'tens'],
+  ];
+  for (const [id, start, opening, column] of OPENERS) {
+    it(`${id}: undo takes a grouping back to the opening blocks, and never below them`, () => {
+      start();
+      expect(ws().counts).toEqual(opening);
+      ws().undo(); // nothing to take back
+      expect(ws().counts).toEqual(opening);
+      ws().groupColumnClick(column);
+      expect(ws().counts).not.toEqual(opening);
+      ws().undo();
+      expect(ws().counts).toEqual(opening);
+      ws().undo();
+      expect(ws().counts).toEqual(opening);
+    });
+
+    it(`${id}: a reload keeps the board, the grouping made and its undo`, () => {
+      start();
+      const fresh = JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState()));
+      ws().resetWorkspace();
+      ws().restoreSession(fresh);
+      expect(ws().counts, 'reloaded before any action').toEqual(opening);
+
+      ws().groupColumnClick(column);
+      const afterGrouping = { ...ws().counts };
+      const saved = JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState()));
+      ws().resetWorkspace();
+      ws().restoreSession(saved);
+      expect(ws().counts).toEqual(afterGrouping);
+      expect(ws().hasGrouped).toBe(true);
+      ws().undo();
+      expect(ws().counts).toEqual(opening);
+    });
+  }
+
+  it('after a reload mid-way the second grouping still completes the exercise', () => {
+    open();
+    ws().groupColumnClick('tens');
+    const saved = JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState()));
+    ws().resetWorkspace();
+    ws().restoreSession(saved);
+    expect(getActiveTasks(ws())[ws().standardTaskIdx].id).toBe('s7_g_t6');
+    ws().groupColumnClick('hundreds');
+    typeRow('2730');
+    expect(verdict().kind).toBe('success');
+  });
+
+  it('no other exercise of stations 3–8 opens with blocks', () => {
+    const withBlocks = bank.filter((t) => t.initialCounts && !t.id.startsWith('s1_')).map((t) => t.id);
+    expect(withBlocks).toEqual(['s7_g_t6']);
   });
 });
 

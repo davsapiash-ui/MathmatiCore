@@ -7,7 +7,7 @@ import { digitAt, type Place } from "@/core/placeValue";
 import { researchErrorCategory } from "./socraticResearchCategory";
 import { builtAnyWay } from "@/data/representationLocks";
 import { recentTelemetryFor, MAX_RECENT_FOR_ENGINE } from "./recentTelemetry";
-import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, framed, meeting1Card, s1NoButtonCard, s1GroupActionCard, s1DeficitSecondCard, s1WrongBreakCard, s1StartChangedCard, groupActionCard, strayAddition, strayBlocksCard, multiStepTarget, showBoardCard, boardHiddenCard, noBoardColumnCard, revealsHiddenDigit, ladder as cardLadder, buildNumberCard, digitsInColumnsCard, addBuildCard, skeletonShown, inFamily, withKind, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
+import { exerciseCard, givenBlocksChangedCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, framed, meeting1Card, s1NoButtonCard, s1GroupActionCard, s1DeficitSecondCard, s1WrongBreakCard, s1StartChangedCard, groupActionCard, strayAddition, strayBlocksCard, multiStepTarget, showBoardCard, boardHiddenCard, noBoardColumnCard, revealsHiddenDigit, ladder as cardLadder, buildNumberCard, digitsInColumnsCard, addBuildCard, skeletonShown, inFamily, withKind, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -341,7 +341,14 @@ export function socraticTaskContextFor(task: any, ctx?: StaticCardContext, count
     ? PLACES_LOW_TO_HIGH.slice(0, String(task.isSubtraction ? task.numberA - task.numberB : task.numberA + task.numberB).length)
         .filter((p) => !(resultDigits ?? []).includes(p))
     : [];
-  const start = repKind ? startCountsOf(task, repKind) : undefined;
+  // An exercise that opens with its blocks on the board (meeting 1's 26
+  // units; station 7's 2,730 since 4.10.2026): the opening board is the
+  // exercise's, not the child's work — the function reads the board against
+  // it, and never as something the child built.
+  const given = task.type === 'representation' && task.initialCounts && typeof task.initialCounts === 'object'
+    ? ({ ...task.initialCounts } as Partial<Record<Place, number>>)
+    : undefined;
+  const start = repKind ? startCountsOf(task, repKind) : given;
   const accepted = builtAnyWay(task, counts)
     ? Object.fromEntries(PLACES_LOW_TO_HIGH.filter((p) => (counts?.[p] ?? 0) > 0).map((p) => [p, counts![p]])) as Partial<Record<Place, number>>
     : null;
@@ -352,6 +359,7 @@ export function socraticTaskContextFor(task: any, ctx?: StaticCardContext, count
     // own board is the required one, so the server never reads it as wrong.
     ...(task.requiredCounts ? { required_counts: accepted ?? { ...task.requiredCounts } } : {}),
     ...(start ? { start_counts: start } : {}),
+    ...(given ? { start_given: true } : {}),
     ...(typeof ctx?.conversionDone === 'boolean' ? { conversion_done: ctx.conversionDone } : {}),
     ...(secrets.length ? { secret_numbers: [...new Set(secrets)].slice(0, 4) } : {}),
     ...(hiddenResult.length ? { hidden_result_places: hiddenResult } : {}),
@@ -1911,6 +1919,11 @@ export class SocraticEngine {
     //    number house is empty, build the first number" (PRD Module 14 §ב;
     //    Module 13 §א: no aids that are not on the screen).
     if (blocksOnScreen(meeting)) {
+      // The blocks an exercise put on the board are no longer the ones it gave
+      // (station 7's 2,730; owner, 4.10.2026, cards round 2): back to them,
+      // before "10 or more in a column" is read on a board worth another number.
+      const givenChanged = givenBlocksChangedCard(currentTask, currentCounts, ctx);
+      if (givenChanged) return givenChanged;
       const liveHint = SocraticEngine.analyzeLiveBoardState(currentTask, targetNode, currentCounts, ctx);
       if (liveHint) return liveHint;
     }

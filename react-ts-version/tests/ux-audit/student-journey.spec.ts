@@ -135,6 +135,102 @@ function m1TargetDone(isASD: boolean): Step {
   };
 }
 
+/** Station 7's 2,730 (s7_g_t6) at its place in the green bank: the board opens with 1 thousand, 16 hundreds, 13 tens. */
+const M7_2730_IDX = 5;
+
+/**
+ * 2,730's own toasts and cards (owner, 4.10.2026, wording round 3): the
+ * longest toast over the full board, and the two cards that lead back to the
+ * given blocks — B1 (undo) and B2 (trash and toolbox) — each as it opens and
+ * with its right answer's feedback under it.
+ */
+function given2730Steps(isASD: boolean): Step[] {
+  const open = async (cc: AuditContext) => {
+    await ws(cc.page, INIT, { meeting: 7, isASD, idx: M7_2730_IDX });
+    const id = await ws<string>(cc.page, 'return (st.dynamicTasks || [])[st.standardTaskIdx]?.id || "";');
+    if (id && id !== 's7_g_t6') throw new Error(`exercise ${M7_2730_IDX + 1} of station 7 is ${id}, not s7_g_t6`);
+  };
+  /** A ten deleted: the given blocks changed. `undoLeadsBack` keeps the undo step (B1); without it, B2. */
+  const changed = async (cc: AuditContext, undoLeadsBack: boolean) => {
+    await open(cc);
+    await ws(cc.page, 'st.removeBlockClick("tens");');
+    if (!undoLeadsBack) await ws(cc.page, SET, { undoStack: [] });
+    await ws(cc.page, 'st.openSocraticCard("hesitation_45s");');
+    await cc.page.getByTestId('socratic-card').locator('button:not([disabled])').first().waitFor({ state: 'visible', timeout: 12_000 });
+  };
+  const expectCard = async (cc: AuditContext, kind: string) => {
+    const got = await ws<string>(cc.page, 'return (st.aiSocraticHint && st.aiSocraticHint.cardKind) || "";');
+    if (got !== kind) throw new Error(`the card on screen is "${got}", not ${kind}`);
+  };
+  const answerRight = async (cc: AuditContext) => {
+    const right = await ws<string>(cc.page, 'const h = st.aiSocraticHint; return h && h.choices.find(c => c.isCorrect)?.textHe;');
+    await cc.page.getByTestId('socratic-card').getByRole('button', { name: right }).click();
+  };
+  return [
+    {
+      id: 'm7-2730-toast-group-now',
+      meeting: 7,
+      note: '2730 typed on the opening board: "התשובה שכתבתם נכונה. עכשיו בכל טור…" (the longest toast of the exercise)',
+      settleMs: 900,
+      run: async (cc) => {
+        await open(cc);
+        await ws(cc.page, 'for (const [p, d] of [["units", "0"], ["tens", "3"], ["hundreds", "7"], ["thousands", "2"]]) st.setAnswerDigit(p, d); st.proceed();');
+      },
+    },
+    {
+      id: 'm7-2730-toast-by-hand',
+      meeting: 7,
+      note: '2/7/3 arranged by hand, 2730 typed: "שימו לב"',
+      settleMs: 900,
+      run: async (cc) => {
+        await open(cc);
+        await ws(cc.page, SET, { counts: { units: 0, tens: 3, hundreds: 7, thousands: 2 } });
+        await ws(cc.page, 'for (const [p, d] of [["units", "0"], ["tens", "3"], ["hundreds", "7"], ["thousands", "2"]]) st.setAnswerDigit(p, d); st.proceed();');
+      },
+    },
+    {
+      id: 'm7-2730-card-b1',
+      meeting: 7,
+      note: 'a ten deleted, undo leads back: card B1 (the undo button)',
+      run: async (cc) => {
+        await changed(cc, true);
+        await expectCard(cc, 'restore_given');
+      },
+    },
+    {
+      id: 'm7-2730-card-b1-answered',
+      meeting: 7,
+      note: 'card B1 with its right answer\'s feedback',
+      settleMs: 900,
+      run: async (cc) => {
+        await changed(cc, true);
+        await expectCard(cc, 'restore_given');
+        await answerRight(cc);
+      },
+    },
+    {
+      id: 'm7-2730-card-b2',
+      meeting: 7,
+      note: 'a ten deleted, nothing to undo: card B2 (the trash and the toolbox)',
+      run: async (cc) => {
+        await changed(cc, false);
+        await expectCard(cc, 'restore_given_how');
+      },
+    },
+    {
+      id: 'm7-2730-card-b2-answered',
+      meeting: 7,
+      note: 'card B2 with its right answer\'s feedback',
+      settleMs: 900,
+      run: async (cc) => {
+        await changed(cc, false);
+        await expectCard(cc, 'restore_given_how');
+        await answerRight(cc);
+      },
+    },
+  ];
+}
+
 /** Everything a learner on the green path can see (default profile). */
 async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
   const steps: Step[] = [];
@@ -351,6 +447,7 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
         },
       });
     }
+    if (n === 7) steps.push(...given2730Steps(isASD));
     steps.push({ id: `m${n}-choice`, meeting: n, run: async (cc) => ws(cc.page, SET, { flowStatus: 'choice_branch', awaitingNext: false }) });
     for (const branch of ['reinforcement', 'challenge'] as const) {
       steps.push({

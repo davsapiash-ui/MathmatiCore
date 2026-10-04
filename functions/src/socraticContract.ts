@@ -238,6 +238,13 @@ export interface SocraticTaskContext {
   required_counts?: SocraticCounts;
   /** A break / grouping exercise: the board the instruction builds BEFORE the conversion. */
   start_counts?: SocraticCounts;
+  /**
+   * start_counts were put on the board by the exercise itself (meeting 1's 26
+   * units; station 7's 2,730 since 4.10.2026): the learner builds nothing and
+   * groups them. The opening board is then never "more / less than the
+   * instruction asks", and the prompt says the blocks were given, not built.
+   */
+  start_given?: boolean;
   /** A break / grouping exercise: are the conversions the instruction names done? */
   conversion_done?: boolean;
   /** Numbers the card must never show (what the child is asked to find). Used by the leak check only, never sent to the model. */
@@ -476,6 +483,7 @@ export function validateSocraticRequest(raw: unknown): Validation<SocraticReques
       instruction_he: instruction,
       ...(required ? { required_counts: required } : {}),
       ...(start ? { start_counts: start } : {}),
+      ...(tc.start_given === true && start ? { start_given: true } : {}),
       ...(typeof tc.conversion_done === "boolean" ? { conversion_done: tc.conversion_done } : {}),
       ...(secrets && secrets.length ? { secret_numbers: secrets } : {}),
     };
@@ -673,6 +681,8 @@ export interface SocraticFacts {
   board_vs_task: Partial<Record<SocraticColumn, BoardVsTask>> | null;
   /** Representation tasks: the board is the instruction's board before its conversion. */
   built_before_conversion: boolean;
+  /** The exercise put its opening blocks on the board (task_context.start_given): the learner built nothing. */
+  start_given: boolean;
   /** Representation tasks: the board is exactly the board the instruction asks for. */
   board_matches_task: boolean;
   trigger_reason: SocraticTriggerReason | null;
@@ -847,6 +857,8 @@ function earlierCardsOf(actions: SocraticRecentAction[]): EarlierCard[] {
   return out.slice(-3);
 }
 
+/** The number a set of counts is worth (start_given: a regrouped board is worth the same as the opening one). */
+const givenValue = (c: SocraticCounts) => SOCRATIC_COLUMNS.reduce((sum, col, i) => sum + (c[col] ?? 0) * [1, 10, 100, 1000][i], 0);
 const sameCounts = (a: SocraticCounts, b: Record<SocraticColumn, number>) =>
   SOCRATIC_COLUMNS.every((c) => (a[c] ?? 0) === (b[c] ?? 0));
 
@@ -1051,7 +1063,10 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
   // 28.9.2026). A subtraction after a borrow is the same case (61 − 24 as 5
   // tens and 11 units): "group them back" would undo the step — except once
   // everything is taken away, when a column of 10 or more is a break too many.
-  const crowdingMayBeTheGoal = !ec || ec.operation === "subtraction";
+  // Blocks the exercise itself put on the board, to be grouped (start_given):
+  // ten or more in a column is exactly what the next step is about.
+  const start_given = Boolean(!ec && tc?.start_given && tc.start_counts);
+  const crowdingMayBeTheGoal = (!ec && !start_given) || Boolean(ec && ec.operation === "subtraction");
 
   const columns: ColumnFact[] = SOCRATIC_COLUMNS.map((column) => {
     const digit_a = ec ? digitAt(ec.number_a, column) : 0;
@@ -1121,7 +1136,13 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     built_before_conversion = Boolean(tc.start_counts && sameCounts(tc.start_counts, blocks) && !sameCounts(tc.required_counts, blocks));
     board_matches_task = sameCounts(tc.required_counts, blocks);
     const target = tc.conversion_done === false && tc.start_counts ? tc.start_counts : tc.required_counts;
-    if (!stepsPending) {
+    // Given blocks (start_given), the grouping not finished: a board worth the
+    // same as the opening one was only regrouped — on the way, not a mismatch.
+    // A board worth another number lost or gained blocks: read against the
+    // blocks the exercise gave.
+    const regroupedOnly = start_given && tc.conversion_done === false &&
+      board_value === givenValue(tc.start_counts ?? {});
+    if (!stepsPending && !regroupedOnly) {
       board_vs_task = {};
       for (const c of SOCRATIC_COLUMNS) {
         const want = target[c] ?? 0;
@@ -1314,8 +1335,16 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     const more = SOCRATIC_COLUMNS.filter((c) => board_vs_task![c] === "more").map((c) => COLUMN_NAME_HE[c]);
     const less = SOCRATIC_COLUMNS.filter((c) => board_vs_task![c] === "less").map((c) => COLUMN_NAME_HE[c]);
     suggested_focus_he = built_before_conversion
-      ? "הלבנים בנויות כמו שההנחיה מבקשת בהתחלה, וההמרה שההנחיה מבקשת (פריטה או הקבצה) עוד לא נעשתה."
-      : `בית המספרים עוד לא מראה את מה שההנחיה מבקשת${meeting1 ? "" : `${more.length ? `: ב${more.join(" וב")} יש יותר לבנים ממה שצריך` : ""}${less.length ? `${more.length ? "," : ":"} ב${less.join(" וב")} יש פחות לבנים ממה שצריך` : ""}`}. כוון לקרוא שוב את ההנחיה ולבדוק מה עוד לא נעשה — לא לספור ולכתוב את מה שבנוי עכשיו.`;
+      ? start_given
+        ? "הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההנחיה מבקשת עוד לא נעשתה. הלומד לא בנה אותן."
+        : "הלבנים בנויות כמו שההנחיה מבקשת בהתחלה, וההמרה שההנחיה מבקשת (פריטה או הקבצה) עוד לא נעשתה."
+      : start_given
+        ? `הלבנים שהתרגיל נתן בהתחלה השתנו${meeting1 ? "" : `${more.length ? `: ב${more.join(" וב")} יש יותר לבנים ממה שהתרגיל נתן` : ""}${less.length ? `${more.length ? "," : ":"} ב${less.join(" וב")} יש פחות לבנים ממה שהתרגיל נתן` : ""}`}. כוון לבדוק אם זה עדיין אותו מספר, ולחזור ללבנים שהיו בהתחלה בכפתור ביטול הפעולה — לא לכתוב את מה שבבית המספרים עכשיו.`
+        : `בית המספרים עוד לא מראה את מה שההנחיה מבקשת${meeting1 ? "" : `${more.length ? `: ב${more.join(" וב")} יש יותר לבנים ממה שצריך` : ""}${less.length ? `${more.length ? "," : ":"} ב${less.join(" וב")} יש פחות לבנים ממה שצריך` : ""}`}. כוון לקרוא שוב את ההנחיה ולבדוק מה עוד לא נעשה — לא לספור ולכתוב את מה שבנוי עכשיו.`;
+  } else if (start_given && board_matches_task && tc?.conversion_done === false) {
+    // The final blocks, arranged by hand: the grouping the exercise asks for was not made.
+    suggested_category = "procedural";
+    suggested_focus_he = "בבית המספרים הלבנים שבסוף התרגיל, אבל הן סודרו ביד, בלי הכפתור \"קבצו 10\". ההנחיה מבקשת לקבץ את הלבנים שהתרגיל נתן בהתחלה. כוון לחזור ללבנים שהיו בהתחלה (כפתור ביטול הפעולה) ולקבץ אותן בכפתור — לא לכתוב את המספר.";
   } else if (board_matches_task && trigger === "repeated_errors") {
     suggested_category = "conceptual";
     suggested_focus_he = "בית המספרים מראה בדיוק את מה שההנחיה מבקשת, אבל התשובה שנכתבה שגויה — כוון לקרוא את המספר מהלבנים: כמה שווה כל טור.";
@@ -1385,6 +1414,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     active,
     board_vs_task,
     built_before_conversion,
+    start_given,
     board_matches_task,
     trigger_reason: trigger,
     // The "four errors" streak is zeroed when its card opens (שהB.2): the trigger itself says four.
@@ -1631,6 +1661,16 @@ const TASK_KIND_HE: Record<SocraticTaskKind, string> = {
   small_change: "משווים שני תרגילים קרובים ובוחרים תשובה",
 };
 
+/** A representation whose blocks the exercise put on the board (start_given). */
+const START_GIVEN_KIND_HE =
+  'הלבנים נמצאות בבית המספרים מתחילת התרגיל — התרגיל נתן אותן, והלומד לא בנה אותן. המשימה: לקבץ בכפתור "קבצו 10" כפי שההנחיה מבקשת, ולכתוב את המספר בשורת התוצאה';
+/** The board against the blocks the exercise gave (start_given), where they were lost or added. */
+const BOARD_VS_GIVEN_HE: Record<BoardVsTask, string> = {
+  match: "כמו שהתרגיל נתן",
+  more: "יותר לבנים ממה שהתרגיל נתן",
+  less: "פחות לבנים ממה שהתרגיל נתן",
+};
+
 const BOARD_VS_TASK_HE: Record<BoardVsTask, string> = {
   match: "כמו שההנחיה מבקשת",
   more: "יותר לבנים ממה שההנחיה מבקשת",
@@ -1664,8 +1704,8 @@ function fmtColumnFact(c: ColumnFact, facts: SocraticFacts): string {
   if (c.board_overcrowded) parts.push("10 ומעלה, וכולן חלק מהתרגיל — צריך לקבץ");
   const vs = facts.board_vs_task?.[c.column];
   if (vs) {
-    parts.push(BOARD_VS_TASK_HE[vs]);
-    if (c.blocks_on_board >= 10 && vs !== "more") parts.push("10 ומעלה זה מה שההנחיה מבקשת — לא מקבצים");
+    parts.push(facts.start_given ? BOARD_VS_GIVEN_HE[vs] : BOARD_VS_TASK_HE[vs]);
+    if (c.blocks_on_board >= 10 && vs !== "more" && !facts.start_given) parts.push("10 ומעלה זה מה שההנחיה מבקשת — לא מקבצים");
   }
   if (facts.crowding_intended && c.blocks_on_board >= 10) parts.push("10 ומעלה בכוונה: הפריטה נעשתה כדי שאפשר יהיה להסיר — לא מקבצים בחזרה");
   parts.push(c.completed ? "הטור כבר נפתר נכון" : c.column === facts.active_column && facts.operation ? "<< הטור הפעיל" : facts.operation ? "טרם נפתר" : "");
@@ -1702,8 +1742,9 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
     const subProblem = activeFact ? `${activeFact.shown_a} ${sign} ${activeFact.shown_b}` : ec.target_sub_problem;
     lines.push(`הטור הפעיל: ${COLUMN_NAME_HE[facts.active_column]}${subProblem ? ` (תת-תרגיל: ${subProblem})` : ""}.`);
   } else if (tc) {
-    lines.push(`סוג המשימה: ${TASK_KIND_HE[tc.kind]}.`);
+    lines.push(`סוג המשימה: ${facts.start_given ? START_GIVEN_KIND_HE : TASK_KIND_HE[tc.kind]}.`);
     lines.push(`ההנחיה שעל המסך: «${tc.instruction_he}»`);
+    if (facts.start_given) lines.push("הלומד לא בנה את הלבנים ולא את המספר: אסור לכתוב \"בניתם\" או \"המספר שבניתם\".");
     lines.push("אין כאן תרגיל חיבור או חיסור במאונך, ואין טור פעיל.");
     if (facts.secret_numbers.length) {
       lines.push("אסור לכתוב את המספר שהלומד צריך למצוא — לא בספרות ולא כרשימת לבנים (גם לא רשימת הלבנים שבהנחיה, למשל \"3 לבני אלף ו-4 לבני מאה\"): שאלו על הלבנים בלי למנות אותן.");
@@ -1734,7 +1775,8 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
         ? "בבית המספרים יש יותר מהמספר הראשון: בחיסור בונים רק את המספר הראשון."
         : "בבית המספרים יש יותר לבנים ממה ששני המספרים יחד צריכים: יש לבנים מיותרות.");
     }
-    if (facts.built_before_conversion) lines.push("הלבנים בנויות כמו שההנחיה מבקשת בהתחלה, וההמרה שההנחיה מבקשת עוד לא נעשתה.");
+    if (facts.built_before_conversion && facts.start_given) lines.push("הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההנחיה מבקשת עוד לא נעשתה. הלומד לא בנה אותן.");
+    else if (facts.built_before_conversion) lines.push("הלבנים בנויות כמו שההנחיה מבקשת בהתחלה, וההמרה שההנחיה מבקשת עוד לא נעשתה.");
     else if (facts.board_matches_task) lines.push("בית המספרים מראה בדיוק את מה שההנחיה מבקשת.");
     // The conversion state is per column (fmtColumnFact: "ההמרה בטור הזה כבר
     // בוצעה"); the exercise-wide "a break was done" next to it contradicted
@@ -2449,6 +2491,9 @@ function normalizeOptions(raw: unknown): { option_text: string; feedback_text: s
  * `facts` is optional so the legacy free-text path can still validate
  * everything except the leak check.
  */
+/** "בניתם", "שבניתם" — the child as the one who built the blocks the exercise gave. (An instruction to build them again, after they were lost, is allowed.) */
+export const BUILT_BY_CHILD_HE = /(?:^|[^א-ת])(?:ש|כש|ו)?בניתם(?![א-ת])/;
+
 export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | null): Validation<SocraticResponse> {
   let parsed: unknown = raw;
   if (typeof parsed === "string") {
@@ -2497,6 +2542,10 @@ export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | n
     return { ok: false, reason: "hidden digits leaked" };
   }
   if (facts && findAbsentAid(texts, facts.blocks_on_screen !== false)) return { ok: false, reason: "names an aid that is not on the screen" };
+  // The exercise put the blocks on the board (start_given): the child built nothing.
+  if (facts && facts.start_given && texts.some((t) => BUILT_BY_CHILD_HE.test(t))) {
+    return { ok: false, reason: "start_given: the exercise put the blocks on the board — the card must not say the child built them" };
+  }
   // A digit stated for its column: a skeleton's hidden digit ("ספרת העשרות
   // החסרה היא 8", "במקום ▢ כותבים 8", "חסרות שמונה עשרות"), a hidden result
   // digit ("בטור העשרות כותבים 7"), and — the iron rule — the expected digit
