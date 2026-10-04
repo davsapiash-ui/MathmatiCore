@@ -13,6 +13,7 @@ import { httpsCallable } from 'firebase/functions';
 import { firestore, functions, authReady } from '@/infrastructure/firebase';
 import { TOOL_LABELS_HE } from './LearnerJourneyService';
 import { exercisePathType, type ExercisePathType } from '@/core/choiceExercises';
+import { CATCHUP_REASON_KEYS, isCatchUpReasonKey, type CatchUpReasonKey } from '@/core/catchUp';
 
 export type RecommendationTier = 'below_50' | 'between_50_75' | 'above_75';
 
@@ -125,6 +126,37 @@ export interface ClassMeetingReport {
   driveCsvUrl: string | null;
   /** Per learner whose meeting was reset, where they went wrong before it (owner, 2.10.2026). Empty when none was. */
   preResetNotes: string[];
+  /** Catch-up time (owner, 2.10.2026). null on a report stored before it existed, or when the server could not read the records. */
+  catchUp: ClassCatchUp | null;
+}
+
+/** The class report's catch-up block, as the server's buildClassCatchUpSummary stored it. */
+export interface ClassCatchUp {
+  /** Ascending by learner number. */
+  learners: { studentNumber: number; rounds: number; minutes: number; reasons: CatchUpReasonKey[]; note: string | null; lineHe: string }[];
+  /** Learners per reason; a learner counted once per reason. */
+  reasonCounts: Record<CatchUpReasonKey, number>;
+  learnersWithRounds: number;
+  totalMinutes: number;
+}
+
+export function classCatchUpFromData(v: unknown): ClassCatchUp | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, any>;
+  const countsRaw = (o.reason_counts && typeof o.reason_counts === 'object' ? o.reason_counts : {}) as Record<string, unknown>;
+  const reasonCounts = Object.fromEntries(CATCHUP_REASON_KEYS.map((k) => [k, num(countsRaw[k])])) as Record<CatchUpReasonKey, number>;
+  const learners = (Array.isArray(o.learners) ? o.learners : [])
+    .filter((l: unknown): l is Record<string, any> => Boolean(l) && typeof l === 'object')
+    .map((l: Record<string, any>) => ({
+      studentNumber: num(l.student_number),
+      rounds: num(l.rounds),
+      minutes: num(l.minutes),
+      reasons: (Array.isArray(l.reasons) ? l.reasons : []).filter(isCatchUpReasonKey),
+      note: typeof l.note === 'string' && l.note ? l.note : null,
+      lineHe: typeof l.line_he === 'string' ? l.line_he : '',
+    }))
+    .sort((a: { studentNumber: number }, b: { studentNumber: number }) => a.studentNumber - b.studentNumber);
+  return { learners, reasonCounts, learnersWithRounds: num(o.learners_with_rounds), totalMinutes: num(o.total_minutes) };
 }
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0);
@@ -291,6 +323,7 @@ export function classReportFromData(d: Record<string, any>): ClassMeetingReport 
     drivePdfUrl: url(d.drive_pdf_url),
     driveCsvUrl: url(d.drive_csv_url),
     preResetNotes: preResetNotesFromData(d),
+    catchUp: classCatchUpFromData(d.catch_up),
   };
 }
 

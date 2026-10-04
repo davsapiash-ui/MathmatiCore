@@ -500,6 +500,69 @@ service cloud.firestore {
       allow write: if false; // Writes restricted strictly to Cloud Functions Admin SDK
     }
 
+    // Catch-up time (owner, 2.10.2026): "המורה יקח את אותם ילדים שלא סיימו
+    // למפגש נוסף \ זמן נוסף וזה יתועד מה הסיבה לכך". One document per learner
+    // × meeting, id = the session document's spelling (session_0N_student_K).
+    // The teacher records why a learner did not finish: she creates the
+    // document or adds exactly ONE new round per write, and never changes or
+    // removes a round already there. The server (catchUpRounds.ts, Admin SDK)
+    // fills opened_at / closed_at / closed_by / active_minutes, so the teacher
+    // writes them as null. Learners: no read, no write. Admin: read only.
+    function catchUpReasonKeys() {
+      return ['slow_pace', 'partial_absence', 'technical_fault', 'content_difficulty', 'other'];
+    }
+
+    function isValidCatchUpRound(round) {
+      return round is map &&
+             round.keys().hasOnly([
+               'action', 'reason', 'note', 'stopped_at', 'recorded_by', 'recorded_at',
+               'opened_at', 'closed_at', 'closed_by', 'active_minutes'
+             ]) &&
+             round.keys().hasAll([
+               'action', 'reason', 'note', 'stopped_at', 'recorded_by', 'recorded_at',
+               'opened_at', 'closed_at', 'closed_by', 'active_minutes'
+             ]) &&
+             round.action in ['reopen', 'continue'] &&
+             round.reason in catchUpReasonKeys() &&
+             (round.note == null || (round.note is string && round.note.size() <= 300)) &&
+             (round.stopped_at == null || (round.stopped_at is string && round.stopped_at.size() <= 120)) &&
+             round.recorded_by == request.auth.uid &&
+             round.recorded_at is number &&
+             round.opened_at == null &&
+             round.closed_at == null &&
+             round.closed_by == null &&
+             round.active_minutes == null;
+    }
+
+    function isValidCatchUpDoc(docId) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['student_id', 'session_number', 'class_id', 'rounds']) &&
+             d.student_id is int && d.student_id >= 1 && d.student_id <= 12 &&
+             d.session_number is int && d.session_number >= 1 && d.session_number <= 8 &&
+             d.class_id is string &&
+             d.rounds is map &&
+             docId == 'session_0' + string(d.session_number) + '_student_' + string(d.student_id);
+    }
+
+    match /catchup_records/{docId} {
+      allow read: if isTeacher() || isAdmin();
+      allow create: if isTeacherOfClass(request.resource.data.class_id) &&
+                       isValidCatchUpDoc(docId) &&
+                       request.resource.data.rounds.keys().size() == 1 &&
+                       request.resource.data.rounds.keys()[0].matches('r_[0-9]+') &&
+                       isValidCatchUpRound(request.resource.data.rounds[request.resource.data.rounds.keys()[0]]);
+      allow update: if isTeacherOfClass(resource.data.class_id) &&
+                       isValidCatchUpDoc(docId) &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rounds']) &&
+                       request.resource.data.rounds.diff(resource.data.rounds).removedKeys().size() == 0 &&
+                       request.resource.data.rounds.diff(resource.data.rounds).changedKeys().size() == 0 &&
+                       request.resource.data.rounds.diff(resource.data.rounds).addedKeys().size() == 1 &&
+                       request.resource.data.rounds.keys().removeAll(resource.data.rounds.keys())[0].matches('r_[0-9]+') &&
+                       isValidCatchUpRound(request.resource.data.rounds[request.resource.data.rounds.keys().removeAll(resource.data.rounds.keys())[0]]);
+      // Module 23א §ו: deleting learning data is a reset (backupAndResetSessionData, Admin SDK).
+      allow delete: if false;
+    }
+
     // Module 23 — the class report of one meeting (generateClassMeetingReport).
     match /class_reports/{reportId} {
       allow get: if isTeacher() && (resource == null || isTeacherOfClass(resource.data.class_id));

@@ -7,6 +7,16 @@ import {
   isRestorableFor,
   keepsFreshStartWork,
 } from '@/core/workspaceSnapshot';
+import {
+  COMPLETED_MEETINGS_KEY,
+  WORKSPACE_BY_MEETING_KEY,
+  meetingKey,
+  isMeetingNumber,
+  workspaceByMeetingField,
+  completedMeetingField,
+  resetMeetingOf,
+  savedSnapshotOfMeeting,
+} from '@/core/meetingCompletion';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, getActiveTasks, resolveLearningPath, type WorkspaceInitialization } from '@/application/useWorkspaceStore';
@@ -44,6 +54,59 @@ type WorkspaceStoreState = ReturnType<typeof useWorkspaceStore.getState>;
  * after that. This write, sent last, clears them again.
  */
 export const TEACHER_RESET_FIELDS = { forceReload: null, workspaceState: null, sessionState: null } as const;
+
+/**
+ * TEACHER_RESET_FIELDS for the reset as the record names it (resetMeetingOf):
+ * the reset meeting's saved copy and finished mark are cleared again too
+ * (catch-up, 2.10.2026) — a copy of that meeting sent a moment before the
+ * reset would otherwise bring it back when the meeting is reopened. A full
+ * reset clears both maps. When the record does not say which meeting, only
+ * the fields above: the other meetings' copies on the record are kept.
+ */
+export function teacherResetFields(resetMeeting: number | 'all' | null): Record<string, null> {
+  const fields: Record<string, null> = { ...TEACHER_RESET_FIELDS };
+  if (resetMeeting === 'all') {
+    fields[WORKSPACE_BY_MEETING_KEY] = null;
+    fields[COMPLETED_MEETINGS_KEY] = null;
+  } else if (isMeetingNumber(resetMeeting)) {
+    fields[workspaceByMeetingField(resetMeeting)] = null;
+    fields[completedMeetingField(resetMeeting)] = null;
+  }
+  return fields;
+}
+
+/**
+ * How the copy of meeting N goes to workspaceByMeeting/m{N} (catch-up,
+ * 2.10.2026): inside the record's own throttled update with workspaceState,
+ * unless the two copies together would pass the 50KB limit of one update
+ * (Module 5) — then as a second update of its own, on the map's path. A
+ * meeting outside 1–8 has no per-meeting copy.
+ */
+export function perMeetingCopyWrite(
+  recordKey: string,
+  meeting: number,
+  stampedPayload: Record<string, unknown>,
+  recordFields: Record<string, unknown>
+): { inRecordUpdate: boolean; separate: { path: string; fields: Record<string, unknown> } | null } {
+  if (!isMeetingNumber(meeting)) return { inRecordUpdate: false, separate: null };
+  const together = { ...recordFields, [workspaceByMeetingField(meeting)]: stampedPayload };
+  if (payloadByteSize(together) <= MAX_PAYLOAD_BYTES) return { inRecordUpdate: true, separate: null };
+  return {
+    inRecordUpdate: false,
+    separate: { path: `users/students/${recordKey}/${WORKSPACE_BY_MEETING_KEY}`, fields: { [meetingKey(meeting)]: stampedPayload } },
+  };
+}
+
+/** How long the record a reset was read from names the reset a screen takes up (ms). */
+const RESET_RECORD_FRESH_MS = 10_000;
+
+/** The meetings a device keeps a copy of (Module 14: eight). */
+const MEETINGS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+
+/** This device's copy of a learner's workspace: the latest one, of whatever meeting. */
+const deviceCacheKey = (studentId: string) => `mathmaticore_session_cache_${studentId}`;
+/** This device's copy of one meeting (catch-up, 2.10.2026). */
+const deviceMeetingCacheKey = (studentId: string, meeting: number) => `${deviceCacheKey(studentId)}_${meetingKey(meeting)}`;
 
 /**
  * The ONE key a teacher's record lives under in RTDB users/teachers, and the
@@ -331,6 +394,15 @@ export class FirebaseSyncService {
    * start or restore is a new meeting and is saved as usual.
    */
   private discardedStart: WorkspaceInitialization | null = null;
+  /**
+   * The learner record as last seen carrying a teacher's reset (forceReload);
+   * which meeting was reset is read from it (resetMeetingOf). Kept after the
+   * flag is cleared: a screen may take up the reset after this service did.
+   */
+  private lastResetRecord: Record<string, unknown> | null = null;
+  private lastResetSeenAt = 0;
+  /** "{record key}|{meeting}" whose finished mark this page already sent (markMeetingCompleted). */
+  private readonly completedMarksSent = new Set<string>();
   private unsubscribeSchools: (() => void) | null = null;
   private unsubscribeClasses: (() => void) | null = null;
   private unsubscribePublicClasses: (() => void) | null = null;
@@ -439,6 +511,7 @@ export class FirebaseSyncService {
     this.lastRemoteHelpRequested = undefined;
     this.localBaseline = null;
     this.discardedStart = null;
+    this.lastResetRecord = null;
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
       window.removeEventListener('pagehide', this.flushRemoteSyncOnPageHide);
       window.addEventListener('pagehide', this.flushRemoteSyncOnPageHide);
@@ -451,7 +524,7 @@ export class FirebaseSyncService {
       // (settleStartWithoutRecord). Not on a teacher's reset (forceReload),
       // which the page reload carries out.
       const firstSnapshot = this.isInitialLoad;
-      let recordCopy: unknown;
+      let learnerRecord: Record<string, unknown> | null = null;
       let mayReceiveDeviceWork = false;
       const teacherControls: Record<string, unknown> = {};
       try {
@@ -469,8 +542,11 @@ export class FirebaseSyncService {
             // Teacher initiated a deep reset. Reload the browser to clear local memory.
             // Nothing of the reset meeting that is still waiting goes out after
             // it, and this write — the last one — carries the reset again.
-            this.discardUnsentWorkspace();
-            update(studentRef, { ...TEACHER_RESET_FIELDS }).then(() => {
+            this.lastResetRecord = data;
+            this.lastResetSeenAt = Date.now();
+            const resetMeeting = resetMeetingOf(data);
+            this.discardUnsentWorkspace(resetMeeting);
+            update(studentRef, teacherResetFields(resetMeeting)).then(() => {
               window.location.reload();
             }).catch((err) => {
               console.error("Failed to clear forceReload flag:", err);
@@ -478,7 +554,7 @@ export class FirebaseSyncService {
             });
             return;
           }
-          recordCopy = data.workspaceState;
+          learnerRecord = data;
           mayReceiveDeviceWork = true;
 
           // Real-time synchronization of teacher adaptations to student workspace
@@ -539,6 +615,9 @@ export class FirebaseSyncService {
             // cleared is gone, not kept from before — the lobby opened the
             // reset meeting from it again (Module 23א).
             workspaceState: data.workspaceState ?? undefined,
+            // Which meetings are finished (catch-up, 2.10.2026); a reset's
+            // removal is followed the same way.
+            completedMeetings: data[COMPLETED_MEETINGS_KEY] ?? undefined,
             ...(data.additionBoardEnabled !== undefined || data.forceAdditionHelper !== undefined ? { additionBoardEnabled: additionEnabled } : {}),
             ...(data.forceAdditionHelper !== undefined && { forceAdditionHelper: data.forceAdditionHelper }),
             ...(data.scaffoldLevel !== undefined && { scaffoldLevel: data.scaffoldLevel }),
@@ -582,7 +661,7 @@ export class FirebaseSyncService {
         this.isInitialLoad = false;
         if (firstSnapshot) {
           this.localBaseline = null;
-          if (mayReceiveDeviceWork) this.settleStartWithoutRecord(recordCopy, teacherControls);
+          if (mayReceiveDeviceWork) this.settleStartWithoutRecord(learnerRecord, teacherControls);
         }
       }
     });
@@ -714,18 +793,36 @@ export class FirebaseSyncService {
     const standardTaskIdx = state.standardTaskIdx;
     const flowStatus = state.flowStatus;
     const keyboardState = state.keyboardState;
+    const meeting = state.sessionNumber;
     this.pendingRemoteSync = () => {
       studentKeys.forEach(key => {
-        throttledRtdbUpdate(`users/students/${key}`, {
+        const recordFields: Record<string, unknown> = {
           workspaceState: stampedPayload,
           lastActive: serverTimestamp(),
           currentTaskIdx: standardTaskIdx,
           activeStep: standardTaskIdx + 1,
           lastActivityTimestamp: Date.now(),
           onlineStatus: 'active'
-        }).catch((err) => {
+        };
+        // Catch-up (2.10.2026): the same copy is kept per meeting, so it is
+        // still there when the class moved on and this meeting is reopened
+        // (workspaceByMeeting, core/meetingCompletion.ts).
+        const byMeeting = perMeetingCopyWrite(key, meeting, stampedPayload, recordFields);
+        // An older copy still waiting on the other route must not land after this one.
+        if (byMeeting.inRecordUpdate) {
+          dropPendingFields(`users/students/${key}/${WORKSPACE_BY_MEETING_KEY}`, [meetingKey(meeting)]);
+          recordFields[workspaceByMeetingField(meeting)] = stampedPayload;
+        } else if (byMeeting.separate) {
+          dropPendingFields(`users/students/${key}`, [workspaceByMeetingField(meeting)]);
+        }
+        throttledRtdbUpdate(`users/students/${key}`, recordFields).catch((err) => {
           this.handlePermissionOrAuthError(err);
         });
+        if (byMeeting.separate) {
+          throttledRtdbUpdate(byMeeting.separate.path, byMeeting.separate.fields).catch((err) => {
+            this.handlePermissionOrAuthError(err);
+          });
+        }
       });
 
       if (this.currentUserId) {
@@ -770,19 +867,42 @@ export class FirebaseSyncService {
    * board the learner changed a moment before the reset was written after it
    * and undid it. Called by this service's own listener and by every screen
    * that takes up the reset (acknowledgeTeacherReset); running twice is harmless.
+   *
+   * Catch-up (2.10.2026): this device keeps a copy per meeting. A reset of
+   * one meeting (resetMeetingOf) drops that meeting's copy only, so the other
+   * meetings still resume where the learner stopped; a full reset, or a reset
+   * the record does not name, drops them all. Unsent copies and finished
+   * marks of the per-meeting maps are dropped with the workspace.
    */
-  public discardUnsentWorkspace() {
+  public discardUnsentWorkspace(resetMeeting: number | 'all' | null = null) {
     if (this.remoteSyncTimer) {
       clearTimeout(this.remoteSyncTimer);
       this.remoteSyncTimer = null;
     }
     this.pendingRemoteSync = null;
     for (const key of this.learnerRecordKeys()) {
-      dropPendingFields(`users/students/${key}`, ['workspaceState', 'sessionState']);
-      this.clearLocalSessionProgress(key);
+      dropPendingFields(`users/students/${key}`, ['workspaceState', 'sessionState', WORKSPACE_BY_MEETING_KEY, COMPLETED_MEETINGS_KEY]);
+      dropPendingFields(`users/students/${key}/${WORKSPACE_BY_MEETING_KEY}`, MEETINGS.map(meetingKey));
+      this.clearLocalSessionProgress(key, isMeetingNumber(resetMeeting) ? resetMeeting : undefined);
+    }
+    for (const tag of Array.from(this.completedMarksSent)) {
+      if (!isMeetingNumber(resetMeeting) || tag.endsWith(`|${resetMeeting}`)) this.completedMarksSent.delete(tag);
     }
     const discarded = this.initializedForThisLearner(useWorkspaceStore.getState());
     if (discarded) this.discardedStart = discarded;
+  }
+
+  /**
+   * The meeting a teacher's reset restarted (resetMeetingOf), from the record
+   * a screen saw with forceReload on it, else from the last record this
+   * service saw carrying a reset; null when neither says.
+   */
+  public resetMeetingSeen(resetRecord?: Record<string, unknown> | null): number | 'all' | null {
+    if (resetRecord) return resetMeetingOf(resetRecord);
+    const seen = this.lastResetRecord;
+    // Only the reset being taken up now: one seen earlier names another meeting.
+    if (!seen || Date.now() - this.lastResetSeenAt > RESET_RECORD_FRESH_MS) return null;
+    return resetMeetingOf(seen);
   }
 
   /** This device's copy, under each key the learner's copy is read by. */
@@ -794,13 +914,13 @@ export class FirebaseSyncService {
     }
   }
 
-  /** The latest copy saved on this device for this learner, or null. */
-  private newestDeviceCopy(): Record<string, unknown> | null {
+  /** The latest copy saved on this device for this learner (of this meeting, when given), or null. */
+  private newestDeviceCopy(meeting?: number): Record<string, unknown> | null {
     const normId = normalizeStudentId(this.currentUserId || '');
     let newest: Record<string, unknown> | null = null;
     for (const key of new Set([normId, this.currentUserId])) {
       if (!key) continue;
-      const copy = this.getLocalSessionProgress(key);
+      const copy = this.getLocalSessionProgress(key, meeting);
       if (copy && (!newest || workspaceSavedAt(copy) > workspaceSavedAt(newest))) newest = copy;
     }
     return newest;
@@ -817,7 +937,12 @@ export class FirebaseSyncService {
    * device's is strictly later).
    */
   private nextSavedAt(): number {
-    return Math.max(serverNow(), workspaceSavedAt(this.newestDeviceCopy()) + 1);
+    const meeting = useWorkspaceStore.getState().sessionNumber;
+    const lastSaved = Math.max(
+      workspaceSavedAt(this.newestDeviceCopy()),
+      isMeetingNumber(meeting) ? workspaceSavedAt(this.newestDeviceCopy(meeting)) : 0
+    );
+    return Math.max(serverNow(), lastSaved + 1);
   }
 
   /**
@@ -845,13 +970,17 @@ export class FirebaseSyncService {
    * again before the lesson ends, and the next change would be the first to
    * send it.
    */
-  private settleStartWithoutRecord(recordCopy: unknown, teacherControls: Record<string, unknown>) {
+  private settleStartWithoutRecord(learnerRecord: Record<string, unknown> | null, teacherControls: Record<string, unknown>) {
     try {
       const state = useWorkspaceStore.getState();
       const start = this.initializedForThisLearner(state);
       if (!start) return;
-      const record = recordCopy as Record<string, unknown> | null | undefined;
-      const deviceCopy = this.newestDeviceCopy();
+      // The record's copy of THIS meeting: workspaceState, or — when the class
+      // has moved on and this meeting was reopened for catch-up — its own copy
+      // in workspaceByMeeting. Only the first used to count, so a meeting
+      // started without the record was then sent over the copy it had saved.
+      const record = savedSnapshotOfMeeting(learnerRecord, start.meeting) ?? (learnerRecord?.workspaceState as Record<string, unknown> | null | undefined);
+      const deviceCopy = this.newestDeviceCopy(start.meeting);
       if (start.restoredSavedAt === null) {
         if (isRestorableFor(record, start.meeting) && !keepsFreshStartWork(record, deviceCopy, start.meeting)) {
           state.restoreSession(record);
@@ -1307,37 +1436,101 @@ export class FirebaseSyncService {
   }
 
   // --- PRD V2.0 Section 7: Offline-First Resilience (Session Progress Cache) ---
+  //
+  // Two kinds of copy per learner (catch-up, 2.10.2026): the latest copy, of
+  // whatever meeting (the one key there always was, read by every one-argument
+  // caller), and one copy per meeting. A meeting started without a connection
+  // replaces the latest copy but never another meeting's own copy, so a
+  // meeting reopened for catch-up still finds what this device saved of it.
   public saveSessionProgressLocally(studentId: string, sessionData: any): void {
     if (typeof window === 'undefined' || !studentId) return;
     try {
-      const key = `mathmaticore_session_cache_${studentId}`;
-      localStorage.setItem(key, JSON.stringify({
+      const json = JSON.stringify({
         ...sessionData,
         updatedAt: Date.now()
-      }));
+      });
+      localStorage.setItem(deviceCacheKey(studentId), json);
+      const meeting = sessionData?.sessionNumber;
+      if (isMeetingNumber(meeting)) localStorage.setItem(deviceMeetingCacheKey(studentId, meeting), json);
     } catch (e) {
       console.warn("Failed to cache session progress locally:", e);
     }
   }
 
-  public getLocalSessionProgress(studentId: string): any | null {
+  /**
+   * This device's copy. Without a meeting: the latest copy, of whatever
+   * meeting (as always). With one: this device's copy of that meeting — its
+   * own copy, or the latest copy when that is of this meeting and later (saved
+   * before per-meeting copies existed); null when there is neither.
+   */
+  public getLocalSessionProgress(studentId: string, meeting?: number): any | null {
     if (typeof window === 'undefined' || !studentId) return null;
-    try {
-      const key = `mathmaticore_session_cache_${studentId}`;
+    const read = (key: string) => {
       const raw = localStorage.getItem(key);
       return raw ? JSON.parse(raw) : null;
+    };
+    try {
+      if (meeting === undefined) return read(deviceCacheKey(studentId));
+      if (!isMeetingNumber(meeting)) return null;
+      let own: any = null;
+      let latest: any = null;
+      try { own = read(deviceMeetingCacheKey(studentId, meeting)); } catch { own = null; }
+      try { latest = read(deviceCacheKey(studentId)); } catch { latest = null; }
+      if (latest?.sessionNumber !== meeting) latest = null;
+      if (!own) return latest;
+      if (!latest) return own;
+      return workspaceSavedAt(latest) > workspaceSavedAt(own) ? latest : own;
     } catch (e) {
       console.warn("Failed to retrieve local session progress:", e);
       return null;
     }
   }
 
-  public clearLocalSessionProgress(studentId: string): void {
+  /**
+   * Drops this device's copies. Without a meeting: every copy of this learner
+   * (the latest and each meeting's). With one: that meeting's copy, and the
+   * latest copy only when it is of that meeting.
+   */
+  public clearLocalSessionProgress(studentId: string, meeting?: number): void {
     if (typeof window === 'undefined' || !studentId) return;
     try {
-      localStorage.removeItem(`mathmaticore_session_cache_${studentId}`);
+      if (meeting === undefined) {
+        localStorage.removeItem(deviceCacheKey(studentId));
+        for (const m of MEETINGS) localStorage.removeItem(deviceMeetingCacheKey(studentId, m));
+        return;
+      }
+      if (!isMeetingNumber(meeting)) return;
+      localStorage.removeItem(deviceMeetingCacheKey(studentId, meeting));
+      let latestMeeting: unknown;
+      try { latestMeeting = JSON.parse(localStorage.getItem(deviceCacheKey(studentId)) || 'null')?.sessionNumber; } catch { latestMeeting = meeting; }
+      // A latest copy that names no meeting cannot be told apart: it goes too.
+      if (latestMeeting === meeting || !isMeetingNumber(latestMeeting)) localStorage.removeItem(deviceCacheKey(studentId));
     } catch {
       // ignore
+    }
+  }
+
+  /**
+   * Catch-up (2.10.2026): meeting N is finished — completedMeetings/m{N} on
+   * the learner record, on the server's clock, under both spellings of the
+   * learner's id (as syncHighestCompletedMeeting). Sent once per meeting: not
+   * again from this page, and not when the record already carries the mark.
+   * Never removed here; a teacher's reset of the meeting removes it.
+   * The caller checks isSupersededByOtherDevice.
+   */
+  public markMeetingCompleted(studentId: string, meeting: number): void {
+    if (!studentId || !isMeetingNumber(meeting)) return;
+    const normId = normalizeStudentId(studentId);
+    const students = (typeof useStore?.getState === 'function' ? useStore.getState().students : {}) as Record<string, any>;
+    const alreadyOnRecord = [studentId, normId].some((id) => Boolean(students?.[id]?.completedMeetings?.[meetingKey(meeting)]));
+    for (const id of new Set([studentId, normId])) {
+      const tag = `${id}|${meeting}`;
+      if (alreadyOnRecord || this.completedMarksSent.has(tag)) continue;
+      this.completedMarksSent.add(tag);
+      throttledRtdbUpdate(`users/students/${id}`, { [completedMeetingField(meeting)]: serverTimestamp() }).catch((err) => {
+        this.completedMarksSent.delete(tag);
+        console.error(`[FirebaseSyncService] Could not mark meeting ${meeting} finished on ${id}:`, err);
+      });
     }
   }
 
@@ -2023,18 +2216,29 @@ export const firebaseSyncService = FirebaseSyncService.getInstance();
  * still waiting is dropped, the flag is cleared with a write that carries the
  * reset again (TEACHER_RESET_FIELDS; a device another device took over only
  * clears the flag), and the workspace and this device's copies are reset.
+ *
+ * Catch-up (2.10.2026): only the reset meeting's device copy is dropped, read
+ * from the record the screen saw (resetRecord; else the record this service
+ * saw last). A full reset, or one the record does not name, drops them all.
  */
-export function acknowledgeTeacherReset(normUid: string, otherUid: string | null | undefined, canWrite: boolean): void {
-  firebaseSyncService.discardUnsentWorkspace();
+export function acknowledgeTeacherReset(
+  normUid: string,
+  otherUid: string | null | undefined,
+  canWrite: boolean,
+  resetRecord?: Record<string, unknown> | null
+): void {
+  const resetMeeting = firebaseSyncService.resetMeetingSeen(resetRecord);
+  firebaseSyncService.discardUnsentWorkspace(resetMeeting);
   const path = `users/students/${normUid}`;
   if (canWrite) {
-    rtdbUpdateNow(path, { ...TEACHER_RESET_FIELDS, isOnline: false, lastPing: 0 }).catch(() => {});
+    rtdbUpdateNow(path, { ...teacherResetFields(resetMeeting), isOnline: false, lastPing: 0 }).catch(() => {});
   } else {
     update(ref(database, path), { forceReload: null }).catch(() => {});
   }
   useWorkspaceStore.getState().resetWorkspace?.();
-  firebaseSyncService.clearLocalSessionProgress(normUid);
-  if (otherUid) firebaseSyncService.clearLocalSessionProgress(otherUid);
+  const onlyMeeting = isMeetingNumber(resetMeeting) ? resetMeeting : undefined;
+  firebaseSyncService.clearLocalSessionProgress(normUid, onlyMeeting);
+  if (otherUid) firebaseSyncService.clearLocalSessionProgress(otherUid, onlyMeeting);
 }
 
 export const syncSessionState = (studentId: string, sessionState: SessionState) =>

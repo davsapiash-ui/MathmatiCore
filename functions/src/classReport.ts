@@ -55,6 +55,15 @@ import {
 } from "./meetingMetrics";
 import { buildPreResetRecord, classPreResetNotes, nothingToAnalyseAfterResetHe, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE, type PreResetRecord } from "./preResetRecord";
 import { EXACT_AI_FALLBACK_TEXT } from "./pedagogicalReport";
+import {
+  CATCHUP_COLLECTION,
+  CATCHUP_EXPORT_COLUMNS,
+  buildClassCatchUpSummary,
+  catchUpDocId,
+  catchUpExportCells,
+  type CatchUpRecord,
+  type ClassCatchUpSummary,
+} from "./catchUp";
 import { rtlText } from "./hebrewPdf";
 import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htmlPdf";
 import {
@@ -704,14 +713,26 @@ export function parseClassAnalysis(text: string): ClassAnalysis | null {
 // Outputs: CSV for the research, PDF for the teacher.
 // ---------------------------------------------------------------------------
 
-/** One row per learner, every measurement as its own column; BOM so Excel reads the Hebrew. */
-export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseRow[]): string {
+/**
+ * One row per learner, every measurement as its own column; BOM so Excel reads the Hebrew.
+ * `catchUpRecords` (learner number → that learner's catchup_records document of
+ * this meeting) fills the catch-up columns at the end; no record: 0, 0, "", "".
+ */
+export function buildClassCsv(
+  rows: ClassLearnerRow[],
+  exercises: ClassExerciseRow[],
+  catchUpRecords: Record<number, Partial<CatchUpRecord> | null | undefined> = {}
+): string {
   const exerciseIds = exercises.map((e) => e.exercise_id);
   const cell = (val: unknown) => {
     const text = val === null || val === undefined ? "" : typeof val === "object" ? JSON.stringify(val) : String(val);
     return `"${text.replace(/"/g, '""')}"`;
   };
   const iso = (t: number | null) => (typeof t === "number" && t > 0 ? new Date(t).toISOString() : "");
+  const catchUpCells = (record: Partial<CatchUpRecord> | null | undefined) => {
+    const cells = catchUpExportCells(record);
+    return CATCHUP_EXPORT_COLUMNS.map((c) => cells[c]);
+  };
   const headers = [
     "student_id", "learning_path", "score_percent", "score_source", "recommendation_tier", "compulsory_total",
     "correct_first_attempt", "exercises_attempted", "exercises_completed", "events", "first_event_iso", "last_event_iso",
@@ -739,6 +760,9 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
     "help_withdrawals",
     // Requests for help from the chat (owner, 1.10.2026), appended last.
     "chat_help_requests",
+    // Catch-up time (owner, 2.10.2026), appended last: the same four columns
+    // and values as the research export's meetings file.
+    ...CATCHUP_EXPORT_COLUMNS,
   ];
   const lines = rows.map((r) =>
     [
@@ -765,6 +789,7 @@ export function buildClassCsv(rows: ClassLearnerRow[], exercises: ClassExerciseR
       r.persistence_without_help?.percent ?? "",
       r.help_withdrawals ?? "",
       r.chat_help_requests ?? "",
+      ...catchUpCells(catchUpRecords[r.student_id]),
     ].map(cell).join(",")
   );
   return "﻿" + [headers.map(cell).join(","), ...lines].join("\n");
@@ -969,6 +994,20 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
 // The callable.
 // ---------------------------------------------------------------------------
 
+/** This meeting's catchup_records documents, keyed by learner number; learners without one are left out. */
+export async function readCatchUpRecords(
+  db: admin.firestore.Firestore,
+  sessionNumber: number
+): Promise<Record<number, Partial<CatchUpRecord>>> {
+  const refs = ALL_STUDENT_IDS.map((n) => db.collection(CATCHUP_COLLECTION).doc(catchUpDocId(sessionNumber, n)));
+  const snaps = await db.getAll(...refs);
+  const out: Record<number, Partial<CatchUpRecord>> = {};
+  snaps.forEach((snap, i) => {
+    if (snap.exists) out[ALL_STUDENT_IDS[i]] = snap.data() as Partial<CatchUpRecord>;
+  });
+  return out;
+}
+
 export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
@@ -1144,6 +1183,19 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   });
   const aggregates = aggregateClass(learners, eventsByLearner, sessionNumber, awaitingRerun);
 
+  // Catch-up time (owner, 2.10.2026): "וזה יתועד מה הסיבה לכך". Every learner
+  // the teacher recorded a reason for in this meeting, also one without a
+  // telemetry row. A read failure leaves the block out (null) and does not
+  // stop the report; the reasons stay in catchup_records.
+  let catchUpRecords: Record<number, Partial<CatchUpRecord>> = {};
+  let catchUp: ClassCatchUpSummary | null = null;
+  try {
+    catchUpRecords = await readCatchUpRecords(db, sessionNumber);
+    catchUp = buildClassCatchUpSummary(catchUpRecords);
+  } catch (err) {
+    logger.warn("[classReport] catchup_records could not be read; the report has no catch-up block:", err);
+  }
+
   // ── 5. Layer 2 ──────────────────────────────────────────────────────────
   const analysis = await generateClassAnalysis({ class_id: classId, session_number: sessionNumber, aggregates, learners });
 
@@ -1161,6 +1213,8 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
     exercise_titles: exerciseTitles,
     // Reset in this meeting and not yet worked on again: their note, no row and no score.
     awaiting_rerun: awaitingRerunNotes,
+    // Catch-up time (owner, 2.10.2026); null when the records could not be read.
+    catch_up: catchUp,
     class_patterns: analysis?.class_patterns ?? [],
     teaching_recommendations: analysis?.teaching_recommendations ?? [],
     ai_analysis_available: Boolean(analysis),
@@ -1173,7 +1227,7 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   const pdfPath = `reports/${classId}/session_${sessionNumber}/class_report_${generatedAt}.pdf`;
   const csvPath = `reports/${classId}/session_${sessionNumber}/class_table_${generatedAt}.csv`;
   const pdfBuffer = await createClassReportPdfBuffer(report);
-  const csvText = buildClassCsv(learners, aggregates.exercises);
+  const csvText = buildClassCsv(learners, aggregates.exercises, catchUpRecords);
   const csvBuffer = Buffer.from(csvText, "utf-8");
 
   const tokenUrl = (storagePath: string, downloadToken: string) =>

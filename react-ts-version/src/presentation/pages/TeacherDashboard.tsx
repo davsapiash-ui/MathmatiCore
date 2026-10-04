@@ -13,7 +13,13 @@ import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService"
 import { useStore, type StudentData } from "@/application/useStore";
 import { toast } from "sonner";
 import { ref, onValue, set, update, onDisconnect, serverTimestamp } from "firebase/database";
-import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, readSessionStartedAt, TEACHER_DISCONNECT_GRACE_MS, type ClassSessionStatus } from "@/core/classSession";
+import { getClassSessionStatus, getSessionAutoCloseAt, isClassSessionLive, lastRunFields, readLastClosedRun, readSessionStartedAt, TEACHER_DISCONNECT_GRACE_MS, type ClassSessionStatus, type LastClosedRun } from "@/core/classSession";
+import { buildUnfinishedLearners, needsReason } from "@/core/catchUpUnfinished";
+import { COMPLETED_MEETINGS_KEY, WORKSPACE_BY_MEETING_KEY } from "@/core/meetingCompletion";
+import { workspaceSavedAt } from "@/core/workspaceSnapshot";
+import type { CatchUpAction, CatchUpReasonEntry, CatchUpRecord, UnfinishedLearner } from "@/core/catchUp";
+import { recordCatchUpReasons, subscribeCatchUpRecords } from "@/infrastructure/services/CatchUpService";
+import { CatchUpReasonsDialog } from "./TeacherDashboard/components/CatchUpReasonsDialog";
 import { database, auth, functions, firestore, serverNow, fetchServerClockOffset, isServerClockKnown } from "@/infrastructure/firebase";
 import { doc, onSnapshot, collection, writeBatch, deleteField } from "firebase/firestore";
 import type { SessionDocument, PedagogicalPath } from "@/types";
@@ -45,7 +51,7 @@ import { TeacherApprovalGate } from "./TeacherDashboard/components/TeacherApprov
 import { TeacherGenderSetting } from "./TeacherDashboard/components/TeacherGenderSetting";
 import { useTeacherGender, useTeacherGenderStore } from "@/application/useTeacherGender";
 import { teacherSentenceHe } from "@/core/teacherGender";
-import { buildGateStudentItem, buildGateStudentItems, buildUnfinishedMeeting2Items, gateLearnerNumber, NO_RECOMMENDATION_HE, type GateStudentItem } from "./TeacherDashboard/gateEvidence";
+import { buildGateStudentItem, buildGateStudentItems, buildUnfinishedMeeting2Items, gateLearnerNumber, unfinishedMeeting2AsLearners, NO_RECOMMENDATION_HE, type GateStudentItem } from "./TeacherDashboard/gateEvidence";
 import { SessionActivationModal, type SessionRow } from "./TeacherDashboard/components/SessionActivationModal";
 import { buildSessionRows, sessionStateLabelHe } from "@/core/sessionPicker";
 import { getSessionDurationMinutes } from "@/core/classSession";
@@ -68,6 +74,24 @@ import { meetingLabelHe, meetingShortLabelHe } from "@/core/stationNames";
 import { MEETING_FORMAL_HE, meetingFullLabelHe } from "@/core/meetingFormalNames";
 import { ROUTE_NAME_HE, TEACHER_GATE_HE, routeNameHe } from "@/core/routeLabels";
 
+/**
+ * Two per-meeting maps of one learner (workspaceByMeeting, completedMeetings)
+ * from two rows of one snapshot, key by key; null when neither has any.
+ */
+function mergeByMeeting(
+  earlier: unknown,
+  later: unknown,
+  pick: (a: any, b: any) => unknown
+): Record<string, unknown> | null {
+  const a = earlier && typeof earlier === 'object' ? (earlier as Record<string, unknown>) : {};
+  const b = later && typeof later === 'object' ? (later as Record<string, unknown>) : {};
+  const out: Record<string, unknown> = { ...a };
+  for (const [key, value] of Object.entries(b)) {
+    out[key] = key in a && a[key] ? pick(a[key], value) : value;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 type TabType =
   | "heatmap"
   | "clustering"
@@ -76,6 +100,13 @@ type TabType =
   | "class_management"
   | "approvals";
 
+
+/**
+ * How long a close/open from the catch-up dialog waits for the reasons to be
+ * saved before it goes ahead anyway (the write stays queued). Never longer: a
+ * meeting must stay closable on a slow or missing network.
+ */
+const CATCH_UP_SAVE_WAIT_MS = 5_000;
 
 export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolean }) {
   const { id: routeStudentId } = useParams<{ id: string }>();
@@ -213,6 +244,12 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
   const [isStartingSession, setIsStartingSession] = useState(false);
   // Re-reads the last live record into the dashboard (set by the listener below).
   const reapplySessionStateRef = useRef<() => void>(() => {});
+  // The class record as the database last sent it: the teacher's close reads
+  // the meeting and the server start of the run it ends (lastRunFields).
+  const liveRecordRef = useRef<Record<string, unknown> | null>(null);
+  // Catch-up time (owner decision 2.10.2026): the run the last close ended —
+  // after a close by time, whose reasons are still missing is read from it.
+  const [lastClosedRun, setLastClosedRun] = useState<LastClosedRun | null>(null);
 
   // Whether this page reaches the database now (`.info/connected`). A write to
   // active_class_session made while it does not is applied locally at once —
@@ -283,6 +320,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       lastVal && !isServerClockKnown() ? { ...lastVal, startedAt: null, teacherDisconnectedAt: null } : lastVal;
     const applySessionState = () => {
       const val = timedRecord();
+      liveRecordRef.current = lastVal;
+      setLastClosedRun((prev) => {
+        const next = readLastClosedRun(lastVal);
+        return prev && next && prev.meeting === next.meeting && prev.startedAt === next.startedAt && prev.byTime === next.byTime ? prev : next;
+      });
       if (lastVal && val && isClassSessionLive(val)) {
         const liveNum = (lastVal.sessionNumber as number) || 1;
         setIsClassSessionActive(true);
@@ -318,6 +360,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           endedAt: Date.now(),
           endedBy: 'auto_45min',
           teacherId: (lastVal.teacherId as string) || 'teacher',
+          // Catch-up time: which run ended, for the reasons asked later.
+          ...lastRunFields(closedMeeting, startedAt),
         }).catch(() => {});
         // A meeting 2 closed by time completes no one (owner decision 2.10.2026):
         // the teacher is told where the learners who did not finish are.
@@ -454,6 +498,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           endedAt: Date.now(),
           endedBy: 'teacher_disconnect_grace',
           teacherId: (rec.teacherId as string) || user?.uid || 'teacher',
+          // Catch-up time: which run ended, for the reasons asked later.
+          ...lastRunFields(rec.sessionNumber, readSessionStartedAt(rec)),
         }).catch((err) => console.warn('[TeacherDashboard] closing after the disconnect grace failed:', err));
         toast.info(
           `החיבור שלכם למערכת היה מנותק יותר מ-${graceMinutes} דקות, ולכן המפגש נסגר אצל התלמידים. כדי להמשיך, הפעילו את המפגש מחדש.`,
@@ -636,10 +682,22 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
     }
   };
 
-  const handleEndClassSession = async () => {
-    if (isUpdatingSession || isUpdatingSessionRef.current) return;
+  /**
+   * Writes the teacher's close. Resolves true when the close was taken (or
+   * queued offline), false when it was refused or another control was busy.
+   * The button goes through requestCloseClassSession, which asks the
+   * catch-up reasons first.
+   */
+  const handleEndClassSession = async (): Promise<boolean> => {
+    if (isUpdatingSession || isUpdatingSessionRef.current) return false;
     isUpdatingSessionRef.current = true;
     setIsUpdatingSession(true);
+    // The run this close ends, read before the write (the SDK raises our own
+    // set() on the listener at once, and the record is then the closed one).
+    const endingRun = lastRunFields(
+      liveRecordRef.current?.sessionNumber ?? selectedSessionNum,
+      readSessionStartedAt(liveRecordRef.current) ?? _sessionStartTime
+    );
     try {
       if (auth.currentUser) {
         try {
@@ -661,6 +719,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
           // meeting 2 completes every learner who started it and did not finish
           // (functions/src/meeting2Close.ts; owner decision 29.9.2026).
           closedBy: 'teacher',
+          // Catch-up time (owner decision 2.10.2026): which run ended.
+          ...endingRun,
         }),
         (lateErr) => {
           console.error('Error ending class session (queued write):', lateErr);
@@ -675,9 +735,11 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
       } else {
         toast.info(`המפגש נסגר. כל התלמידים רואים עכשיו "${teacherSentenceHe('closedTitle', useTeacherGenderStore.getState().gender)}".`);
       }
+      return true;
     } catch (err) {
       console.error('Error ending class session:', err);
       toast.error('שגיאה בסגירת המפגש מול השרת.');
+      return false;
     } finally {
       isUpdatingSessionRef.current = false;
       setIsUpdatingSession(false);
@@ -841,6 +903,20 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             physicalOverride: row.physicalOverride === true || row.physicalOverrideActive === true,
             physicalOverrideActive: row.physicalOverrideActive === true || row.physicalOverride === true,
             workspaceState: row.workspaceState || existingLocal?.workspaceState || null,
+            // Catch-up time (core/meetingCompletion.ts): the saved copy of every
+            // meeting and the meetings finished. An alias row of this snapshot
+            // may fill a meeting the canonical row lacks; of two copies of one
+            // meeting, the later by its stamp.
+            [WORKSPACE_BY_MEETING_KEY]: mergeByMeeting(
+              (existingLocal as Record<string, unknown> | undefined)?.[WORKSPACE_BY_MEETING_KEY],
+              row[WORKSPACE_BY_MEETING_KEY],
+              (a, b) => (workspaceSavedAt(b) > workspaceSavedAt(a) ? b : a)
+            ),
+            [COMPLETED_MEETINGS_KEY]: mergeByMeeting(
+              (existingLocal as Record<string, unknown> | undefined)?.[COMPLETED_MEETINGS_KEY],
+              row[COMPLETED_MEETINGS_KEY],
+              (a, b) => a || b
+            ),
             qMatrixResults: Object.assign(
               {},
               existingLocal?.qMatrixResults || {},
@@ -1005,6 +1081,180 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
   const pendingApprovalsBadgeCount =
     gateStudentItems.filter((g) => !g.isApproved).length + (isMeeting2Open ? 0 : unfinishedMeeting2.length);
+
+  // ── Catch-up time ──────────────────────────────────────────────────────────
+  // Owner decision, 2.10.2026: "המורה יקח את אותם ילדים שלא סיימו למפגש נוסף \
+  // זמן נוסף וזה יתועד מה הסיבה לכך ואז אחרי שהם יישרו קו נמשיך עם כל הקבוצה
+  // למפגש הבא". The meeting the bar speaks of: the open one, or the one the
+  // last close ended. Its run started at the server stamp of that opening.
+  const catchUpMeeting: number | null = isClassSessionActive ? selectedSessionNum : lastClosedRun?.meeting ?? null;
+  const catchUpRunStartedAt: number | null = isClassSessionActive ? _sessionStartTime : lastClosedRun?.startedAt ?? null;
+
+  // Started and not finished. Meeting 2 keeps its own reading (#207, the gate tab).
+  const unfinishedInCatchUpMeeting: UnfinishedLearner[] = useMemo(() => {
+    if (catchUpMeeting === null) return [];
+    if (catchUpMeeting === 2) return unfinishedMeeting2AsLearners(unfinishedMeeting2);
+    return buildUnfinishedLearners(students as unknown as Record<string, Record<string, unknown>>, catchUpMeeting);
+  }, [catchUpMeeting, students, unfinishedMeeting2]);
+
+  // The reasons already recorded for that meeting (catchup_records), live.
+  const [catchUpRecords, setCatchUpRecords] = useState<{ meeting: number; records: Record<number, CatchUpRecord> } | null>(null);
+  useEffect(() => {
+    if (catchUpMeeting === null) return;
+    let unsub: (() => void) | null = null;
+    try {
+      unsub = subscribeCatchUpRecords(catchUpMeeting, (records) => setCatchUpRecords({ meeting: catchUpMeeting, records }));
+    } catch (err) {
+      console.warn('[TeacherDashboard] catch-up records listener notice:', err);
+    }
+    return () => { if (unsub) unsub(); };
+  }, [catchUpMeeting]);
+
+  /** The unfinished learners of `meeting` with no reason recorded since this run started. */
+  const learnersNeedingReason = (meeting: number, runStartedAt: number | null): UnfinishedLearner[] => {
+    if (meeting !== catchUpMeeting) return [];
+    const records = catchUpRecords?.meeting === meeting ? catchUpRecords.records : {};
+    // No start stamp yet (our own activation's placeholder): every reason
+    // recorded before now belongs to an earlier run.
+    const since = runStartedAt ?? serverNow();
+    return unfinishedInCatchUpMeeting.filter((l) => needsReason(records[l.studentNumber], since));
+  };
+
+  const [catchUpDialog, setCatchUpDialog] = useState<{
+    meeting: number;
+    trigger: 'close' | 'open_other';
+    nextMeeting: number | null;
+    learners: UnfinishedLearner[];
+    /** The meeting was open when the dialog was asked for (a reopen closes it first). */
+    wasOpen: boolean;
+  } | null>(null);
+  const [isSavingCatchUp, setIsSavingCatchUp] = useState(false);
+  /** The teacher cancelled the dialog while its reasons were being saved: the action is not taken. */
+  const catchUpCancelledRef = useRef(false);
+  /**
+   * One submission of the dialog = one round id (recordedAt). When the chosen
+   * action then fails (the close or the open is refused) and the teacher tries
+   * again, the same id is reused and learners already written are skipped, so a
+   * retry never adds a second round — and never doubles the catch-up minutes.
+   */
+  const catchUpSubmissionRef = useRef<{ meeting: number; action: CatchUpAction; recordedAt: number; written: Set<number>; done: boolean } | null>(null);
+
+  /** Opens a meeting for the class, with the activation window's busy state. */
+  const openMeetingForClass = async (meeting: number): Promise<boolean> => {
+    setIsStartingSession(true);
+    try {
+      return await handleStartClassSession(meeting);
+    } finally {
+      setIsStartingSession(false);
+    }
+  };
+
+  /** "סגרו את המפגש": the reasons first, when someone who started has not finished. */
+  const requestCloseClassSession = async () => {
+    if (isUpdatingSession || isUpdatingSessionRef.current || isSavingCatchUp) return;
+    const learners = learnersNeedingReason(selectedSessionNum, _sessionStartTime);
+    if (learners.length > 0) {
+      setCatchUpDialog({ meeting: selectedSessionNum, trigger: 'close', nextMeeting: null, learners, wasOpen: true });
+      return;
+    }
+    await handleEndClassSession();
+  };
+
+  /**
+   * The activation window confirmed meeting `next`. While another meeting N is
+   * open, or N was the last one and closed by time, its unfinished learners'
+   * reasons come first. Returns true when the dialog took over.
+   */
+  const catchUpBeforeOpening = (next: number): boolean => {
+    const meeting = catchUpMeeting;
+    if (meeting === null) return false;
+    const openNow = isClassSessionActive;
+    if (!openNow && !lastClosedRun?.byTime) return false;
+    const learners = learnersNeedingReason(meeting, catchUpRunStartedAt);
+    if (learners.length === 0) return false;
+    setCatchUpDialog({ meeting, trigger: 'open_other', nextMeeting: next, learners, wasOpen: openNow });
+    return true;
+  };
+
+  /**
+   * The teacher's choice in the dialog. The reasons are written first, but the
+   * close or open never depends on them: the wait is bounded
+   * (CATCH_UP_SAVE_WAIT_MS), and after a refusal, a timeout or a missing sign-in
+   * the chosen action still goes ahead — a meeting must always be closable,
+   * offline too, as it was before the dialog existed. A write still in flight
+   * stays queued by the Firestore SDK; if it is finally refused, one toast says
+   * so. Cancelling while saving stops the action. Then:
+   *   reopen   — the meeting is closed (when open) and opened again for the
+   *              class: a new run, whose start opens the catch-up rounds.
+   *   continue — the close, or the other meeting, goes ahead as before.
+   */
+  const handleCatchUpChoice = async (action: CatchUpAction, entries: CatchUpReasonEntry[]) => {
+    const d = catchUpDialog;
+    if (!d || isSavingCatchUp) return;
+    catchUpCancelledRef.current = false;
+    setIsSavingCatchUp(true);
+    try {
+      const prev = catchUpSubmissionRef.current;
+      const sub = prev && !prev.done && prev.meeting === d.meeting && prev.action === action
+        ? prev
+        : { meeting: d.meeting, action, recordedAt: serverNow(), written: new Set<number>(), done: false };
+      catchUpSubmissionRef.current = sub;
+
+      const notSavedHe = catchUpNotSavedHe(d, action);
+      // The Firebase Auth uid: the rules require recorded_by == request.auth.uid.
+      // The app's user.uid is the display id "teacher_<id>", which the rules refuse.
+      const teacherUid = auth.currentUser?.uid || '';
+      const toWrite = entries.filter((e) => !sub.written.has(e.studentNumber));
+      let saved: 'saved' | 'refused' | 'slow' = 'saved';
+      if (!teacherUid) {
+        saved = 'refused';
+      } else if (toWrite.length > 0) {
+        const all = Promise.all(toWrite.map((entry) =>
+          recordCatchUpReasons({ meeting: d.meeting, action, entries: [entry], teacherUid, recordedAt: sub.recordedAt })
+            .then(() => { sub.written.add(entry.studentNumber); })));
+        saved = await Promise.race([
+          all.then(() => 'saved' as const, (err) => {
+            console.error('[TeacherDashboard] recording catch-up reasons failed:', err);
+            return 'refused' as const;
+          }),
+          new Promise<'slow'>((resolve) => setTimeout(() => resolve('slow'), CATCH_UP_SAVE_WAIT_MS)),
+        ]);
+        if (saved === 'slow') {
+          // Still queued (offline / slow network). Only a final refusal is reported.
+          all.catch((err) => {
+            console.error('[TeacherDashboard] recording catch-up reasons failed later:', err);
+            toast.error(notSavedHe);
+          });
+        }
+      }
+      if (catchUpCancelledRef.current) return;
+      setCatchUpDialog(null);
+
+      let ok: boolean;
+      if (action === 'reopen') {
+        // Meeting 2: the teacher's close (closedBy 'teacher') completes every
+        // learner who started it (meeting2Close.ts) — the opposite of giving
+        // them time. A catch-up of meeting 2 therefore starts a new run in
+        // place, with no close in between; only "סגרו את המפגש" completes.
+        ok = !(d.wasOpen && d.meeting !== 2 && !(await handleEndClassSession())) && (await openMeetingForClass(d.meeting));
+      } else if (d.trigger === 'close') {
+        ok = await handleEndClassSession();
+      } else {
+        ok = d.nextMeeting === null || (await openMeetingForClass(d.nextMeeting));
+      }
+      if (ok) sub.done = true;
+      if (saved === 'refused' && ok) toast.error(notSavedHe);
+    } finally {
+      setIsSavingCatchUp(false);
+    }
+  };
+
+  /** "The reasons were not saved, but …" — what did happen, for the toast. */
+  const catchUpNotSavedHe = (d: NonNullable<typeof catchUpDialog>, action: CatchUpAction): string => {
+    if (action === 'reopen') return `הסיבות לא נשמרו, ולכן זמן ההשלמה לא יתועד. מפגש ${d.meeting} נפתח שוב.`;
+    if (d.trigger === 'close') return `הסיבות לא נשמרו, אבל מפגש ${d.meeting} נסגר.`;
+    return d.nextMeeting !== null ? `הסיבות לא נשמרו, אבל מפגש ${d.nextMeeting} נפתח.` : 'הסיבות לא נשמרו.';
+  };
 
   const handleApproveGateStudent = async (studentId: string, path: PedagogicalPath): Promise<boolean> => {
     setIsApprovingGate(true);
@@ -1660,8 +1910,8 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
                   </button>
                 )}
                 <button
-                  onClick={handleEndClassSession}
-                  disabled={isUpdatingSession}
+                  onClick={() => { void requestCloseClassSession(); }}
+                  disabled={isUpdatingSession || isSavingCatchUp}
                   className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
                   {isUpdatingSession ? (
@@ -1676,6 +1926,33 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
 
           </div>
         </div>
+
+        {/* Catch-up time (owner decision 2.10.2026): who started the open (or
+            the last) meeting and has not finished it, and where they stopped.
+            After a close by time this is where the teacher sees them; the
+            reasons are asked at the next close or opening. */}
+        {catchUpMeeting !== null && unfinishedInCatchUpMeeting.length > 0 && (
+          <section
+            aria-labelledby="catchup-unfinished-title"
+            className="-mt-3 mb-6 shrink-0 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl px-5 py-3 flex flex-col gap-2"
+          >
+            <h3 id="catchup-unfinished-title" className="font-extrabold text-sm text-amber-950 dark:text-amber-100">
+              {unfinishedInCatchUpMeeting.length === 1
+                ? `תלמיד אחד ${isClassSessionActive ? 'עוד ' : ''}לא סיים את מפגש ${catchUpMeeting}`
+                : `${unfinishedInCatchUpMeeting.length} תלמידים ${isClassSessionActive ? 'עוד ' : ''}לא סיימו את מפגש ${catchUpMeeting}`}
+            </h3>
+            <ul className="flex flex-wrap gap-2">
+              {unfinishedInCatchUpMeeting.map((l) => (
+                <li
+                  key={l.studentNumber}
+                  className="px-3 py-1 rounded-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-xs font-bold text-slate-800 dark:text-slate-200"
+                >
+                  תלמיד {l.studentNumber} · {l.stoppedAtHe}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {activeTab === "heatmap" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -2689,6 +2966,13 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
               setPendingActivationSession(null);
               return;
             }
+            // Catch-up time: the open (or time-closed) meeting's unfinished
+            // learners get their reasons first; the dialog then opens one of
+            // the two meetings.
+            if (catchUpBeforeOpening(sessionNum)) {
+              setPendingActivationSession(null);
+              return;
+            }
             setIsStartingSession(true);
             try {
               const success = await handleStartClassSession(sessionNum);
@@ -2700,6 +2984,27 @@ export function TeacherDashboard({ hideSidebar = false }: { hideSidebar?: boolea
             }
           }}
         />
+
+        {/* Catch-up time (owner decision 2.10.2026): why each learner did not
+            finish, before the close or the other meeting is written. */}
+        {catchUpDialog !== null && (
+          <CatchUpReasonsDialog
+            isOpen
+            meeting={catchUpDialog.meeting}
+            learners={catchUpDialog.learners}
+            trigger={catchUpDialog.trigger}
+            nextMeeting={catchUpDialog.nextMeeting}
+            isMeeting2={catchUpDialog.meeting === 2}
+            isSaving={isSavingCatchUp}
+            onReopen={(entries) => { void handleCatchUpChoice('reopen', entries); }}
+            onContinue={(entries) => { void handleCatchUpChoice('continue', entries); }}
+            onCancel={() => {
+              // Also while saving: the teacher is never held here; the chosen action is then not taken.
+              if (isSavingCatchUp) catchUpCancelledRef.current = true;
+              setCatchUpDialog(null);
+            }}
+          />
+        )}
 
         {/* Module 14 §ב1: teacher-only one-time deadline notice */}
         {deadlineNotice !== null && (

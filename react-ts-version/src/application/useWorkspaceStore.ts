@@ -740,10 +740,22 @@ function getStoredSocraticLockDeadline(): number | null {
   return null;
 }
 
-/** This learner's own saved progress on this device (the Module 17 cache), or null. */
-function ownSavedProgress(learnerUid: string) {
+/** This learner's own saved progress in this meeting on this device (the Module 17 cache), or null. */
+function ownSavedProgress(learnerUid: string, meeting: number) {
   if (!learnerUid || typeof firebaseSyncService?.getLocalSessionProgress !== 'function') return null;
-  return firebaseSyncService.getLocalSessionProgress(learnerUid);
+  return firebaseSyncService.getLocalSessionProgress(learnerUid, meeting);
+}
+
+/**
+ * Catch-up (2.10.2026): the learner finished this meeting —
+ * completedMeetings/m{N} on the record (FirebaseSyncService.markMeetingCompleted,
+ * both spellings of the id, once per meeting). Not from a device another
+ * device took over, like highestCompletedMeeting.
+ */
+function markMeetingFinished(studentId: string | null | undefined, meeting: number, supersededByOtherDevice: boolean) {
+  if (!studentId || supersededByOtherDevice) return;
+  if (typeof firebaseSyncService?.markMeetingCompleted !== 'function') return;
+  firebaseSyncService.markMeetingCompleted(studentId, meeting);
 }
 
 /* ── Pure helpers ── */
@@ -2677,6 +2689,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // opens with "כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה" — one praise,
         // the waiting screen's (owner, 29.9.2026).
         recordCorrectionRoundTags();
+        markMeetingFinished(currentStudentUid(), get().sessionNumber, get().isSupersededByOtherDevice);
         set({ flowStatus: 'sessionDone', awaitingNext: false, currentState: 'COMPLETE' });
         break;
     }
@@ -2700,6 +2713,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
       }
     }
+    // Meeting 8 is finished by its reflection board (finishReflection), not here.
+    if (s.sessionNumber !== 8) markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
     // PRD 14 §ג: a learner who is done waits on the quiet end screen. This used
     // to set 'reflection' for every meeting, and each one then rendered the
     // MEETING-2 reflection screen: it overwrote the learner's diagnostic
@@ -3054,6 +3069,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           if (normId !== studentId) {
             firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
           }
+          markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
           const studentPayload = {
             lastAction: 'השלים משימות חובה — בוחר מסלול (ביסוס/אתגר)',
             lastActivityTimestamp: Date.now(),
@@ -3078,6 +3094,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
         }
       }
+      // Meetings 1 and 2 are finished here; meeting 8 only by its reflection board.
+      if (s.sessionNumber !== 8) markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
 
       set({ awaitingNext: true, currentState: 'COMPLETE' });
       showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` }, 2500);
@@ -3128,6 +3146,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
       }
     }
+    // Meetings 3–7 were marked at the branch choice already (sent once).
+    if (s.sessionNumber !== 8) markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
 
     set({ awaitingNext: true, currentState: 'COMPLETE' });
     // One praise, one sentence: meetings 3–7 end on the closing sentence of
@@ -3426,7 +3446,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           meeting: sanitized,
           learnerUid,
           now: serverNow(),
-          ownProgress: () => ownSavedProgress(learnerUid),
+          ownProgress: () => ownSavedProgress(learnerUid, sanitized),
         });
       }
       if (!deadline) {
@@ -3567,7 +3587,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           meeting: sanitized,
           learnerUid,
           now: serverNow(),
-          ownProgress: () => ownSavedProgress(learnerUid),
+          ownProgress: () => ownSavedProgress(learnerUid, sanitized),
         });
       }
 
@@ -4498,6 +4518,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     finishReflection: () => {
       const s = get();
       if (s.sessionNumber !== 8 || s.flowStatus !== 'reflection') return;
+      // Meeting 8 is finished when its reflection is submitted (catch-up, 2.10.2026).
+      markMeetingFinished(currentStudentUid(), 8, s.isSupersededByOtherDevice);
       set({ flowStatus: 'sessionDone', awaitingNext: false });
     },
     proceed: () => {
