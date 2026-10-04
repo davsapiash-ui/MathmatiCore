@@ -86,15 +86,6 @@ describe('פרסום תוכנית הלימודים — אישור ואטומיו
   });
 });
 
-describe('חלון בחירת התפקיד', () => {
-  const modal = src('presentation/components/RoleSelectionModal.tsx');
-  it('role="dialog", ו-Escape מבצע את פעולת הביטול', () => {
-    expect(modal).toContain('role="dialog"');
-    expect(modal).toContain('aria-modal="true"');
-    expect(modal).toContain('useDismissableOverlay<HTMLDivElement>(true, logout)');
-  });
-});
-
 describe('נגן ההקלטות — שגיאה בטוחה', () => {
   const replay = src('presentation/components/ReplayViewer.tsx');
   it('אין החריגה ב-innerHTML; ההודעה נכתבת ב-textContent', () => {

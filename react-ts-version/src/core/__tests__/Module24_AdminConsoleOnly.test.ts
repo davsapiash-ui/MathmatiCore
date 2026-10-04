@@ -38,13 +38,23 @@ describe('נ.2 — מה שייך למורה אינו נפתח לכניסת מנ�
 
   it('הדשבורד, הדוחות האישיים, מסך הלומד, הלובי והמקרן — למורה (והלומד במקומו), לא למנהל', () => {
     expect(app).toContain('const TEACHER_ONLY = ["teacher"];');
-    for (const path of ['/dashboard', '/teacher/dashboard', '/reports/student/:id', '/dashboard/student/:id/view', '/projector']) {
+    for (const path of ['/dashboard', '/teacher/dashboard', '/reports/student/:id', '/projector']) {
       expect(guardOf(path), path).toBe('TEACHER_ONLY');
     }
     for (const path of ['/hub', '/student/lobby', '/workspace']) {
       expect(guardOf(path), path).not.toContain('admin');
     }
     expect(src('presentation/pages/ProjectorSandboxPage.tsx')).not.toContain("user?.role !== 'admin'");
+  });
+
+  it('הכתובת /dashboard/student/:id/view, ששום קישור לא הוביל אליה, אינה קיימת', () => {
+    expect(app).not.toContain('/dashboard/student/:id/view');
+  });
+
+  it('בחירת התפקיד היא בכרטיסי הכניסה בלבד: אין חלון בחירה נוסף ואין כניסה לפי כתובת בלי Google', () => {
+    expect(app).not.toContain('RoleSelectionModal');
+    expect(src('application/useAuthStore.ts')).not.toContain('showRoleSelector');
+    expect(src('infrastructure/services/AuthService.ts')).not.toContain('authenticateWhitelistedEmail');
   });
 
   it('המסכים של המנהל נשארו: סקירה, מוסדות, תוכנית לימודים, תמיכה, אבטחה, הגדרות, צ\'אט וכרטיסי כניסה', () => {
@@ -71,7 +81,7 @@ describe('נ.2 — ה-claims של הכניסה הם של התפקיד שנבחר
   });
 
   it('הדשבורד והקונסולה נפתחים רק אחרי שהאסימון נושא תפקיד אחד (StaffClaimsGate)', () => {
-    expect(app.split('<StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>').length - 1).toBe(4);
+    expect(app.split('<StaffClaimsGate role="teacher"><TeacherDashboard /></StaffClaimsGate>').length - 1).toBe(3);
     expect(app).toContain('<StaffClaimsGate role="admin"><AdminLayout /></StaffClaimsGate>');
     expect(app).toContain('<StaffClaimsGate role="admin"><StudentLoginCardsPage /></StaffClaimsGate>');
     expect(src('presentation/pages/TeacherDashboard.tsx')).not.toContain('tokenRes.claims.role !== "admin"');

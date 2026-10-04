@@ -260,7 +260,6 @@ export function Login() {
           uid: authenticatedUser.uid,
           email: authenticatedUser.email,
           role,
-          displayName: authenticatedUser.displayName,
           // The route guards (App.tsx) trust this stamp; without it every
           // admin-added teacher was bounced back to /login right after a
           // successful sign-in, because the synchronous fallback list only
@@ -284,7 +283,7 @@ export function Login() {
       if (code === "auth/popup-closed-by-user" || msg.includes("popup-closed-by-user")) {
         setErrorMsg("חלון ההזדהות של Google נסגר. אנא לחצו שוב כדי להתחבר.");
       } else if (code === "auth/popup-blocked" || msg.includes("popup-blocked")) {
-        setErrorMsg("הדפדפן חסם את חלון ההתחברות הקופץ. אנא אשר חלונות קופצים (Popups) בדפדפן ונסה שוב.");
+        setErrorMsg("הדפדפן חסם את חלון הכניסה של Google. אשרו חלונות קופצים בדפדפן ונסו שוב.");
       } else if (code === "auth/cancelled-popup-request" || msg.includes("cancelled-popup-request")) {
         setErrorMsg("");
       } else if (code === STAFF_HANDSHAKE_FAILED_CODE || code === "auth/network-request-failed") {

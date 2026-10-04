@@ -31,7 +31,6 @@ export interface AuthUser {
   email?: string;
   role?: string;
   roles?: string[];
-  dualClaims?: string[];
   school_id?: string;
   class_name?: string;
   class_type?: "כיתת ביקורת" | "כיתת ניסוי";
@@ -45,11 +44,9 @@ interface AuthState {
   isAuthenticated: boolean;
   isStudentAuthenticated: boolean;
   isRoleLocked: boolean;
-  showRoleSelector: boolean;
   authTimestamp: number | null;
   activeClass: ClassSchema;
   setUser: (user: AuthUser, role?: string) => void;
-  selectRole: (chosenRole: string) => void;
   setClass: (classInfo: Partial<ClassSchema>) => void;
   /** Resolves once the Firebase identity has been released too (see unifiedLogout). */
   logout: () => Promise<void>;
@@ -146,7 +143,7 @@ const getStoredAuth = () => {
         if (lastClosed && now - lastClosed > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) {
           clearStoredAuth();
           droppedAtLoad = rawRole;
-          return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
+          return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, authTimestamp: null };
         }
         // A window can close without pagehide: swiped away in a tablet's app
         // switcher, a browser crash, a dead battery. On a shared tablet the
@@ -163,7 +160,7 @@ const getStoredAuth = () => {
         if (!restoredFromThisTab && lastActive && now - lastActive > STUDENT_WINDOW_CLOSE_TIMEOUT_MS) {
           clearStoredAuth();
           droppedAtLoad = rawRole;
-          return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
+          return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, authTimestamp: null };
         }
       }
 
@@ -171,7 +168,7 @@ const getStoredAuth = () => {
       if (now - authTime > JWT_EXPIRY_MS) {
         clearStoredAuth();
         droppedAtLoad = rawRole;
-        return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
+        return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, authTimestamp: null };
       }
 
       // A learner restored from localStorage in a new tab: mark this tab as
@@ -195,14 +192,13 @@ const getStoredAuth = () => {
         isAuthenticated: true,
         isStudentAuthenticated: rawRole === 'student',
         isRoleLocked: true,
-        showRoleSelector: false,
         authTimestamp: authTime
       };
     }
   } catch (e) {
     console.error('Failed to restore auth from storage', e);
   }
-  return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, showRoleSelector: false, authTimestamp: null };
+  return { user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false, isRoleLocked: false, authTimestamp: null };
 };
 
 const setStoredAuth = (user: AuthUser, role: string, timestamp?: number) => {
@@ -458,7 +454,6 @@ export function unifiedLogout(options: LogoutOptions = {}): Promise<void> {
       isAuthenticated: false,
       isStudentAuthenticated: false,
       isRoleLocked: false,
-      showRoleSelector: false,
       authTimestamp: null,
     };
   });
@@ -579,7 +574,6 @@ export const useAuthStore = create<AuthState>()(
     isAuthenticated: initial.isAuthenticated,
     isStudentAuthenticated: initial.isStudentAuthenticated,
     isRoleLocked: initial.isRoleLocked,
-    showRoleSelector: initial.showRoleSelector,
     authTimestamp: initial.authTimestamp,
     activeClass: DEFAULT_CLASS,
 
@@ -627,7 +621,6 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: false,
               isStudentAuthenticated: false,
               isRoleLocked: true,
-              showRoleSelector: false,
               authTimestamp: null,
             };
           }
@@ -637,20 +630,6 @@ export const useAuthStore = create<AuthState>()(
       }
 
       const timestamp = user.authTimestamp || Date.now();
-
-      // Check Dual Claims (Master PRD v5.0 Module 2)
-      const claims = user.dualClaims || (user.roles && user.roles.length > 1 ? user.roles : null);
-      if (claims && claims.length > 1 && !explicitRole) {
-        return {
-          user: { ...user },
-          role: null,
-          isAuthenticated: true,
-          isStudentAuthenticated: false,
-          isRoleLocked: false,
-          showRoleSelector: true,
-          authTimestamp: timestamp,
-        };
-      }
 
       // Student ID Constraint Check (Strictly 1..12 Integer)
       if (activeRole === 'student') {
@@ -672,7 +651,6 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             isStudentAuthenticated: false,
             isRoleLocked: false,
-            showRoleSelector: false,
             authTimestamp: null
           };
         }
@@ -692,7 +670,6 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
           isStudentAuthenticated: true,
           isRoleLocked: true,
-          showRoleSelector: false,
           authTimestamp: timestamp,
         };
       }
@@ -706,23 +683,6 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: true,
         isStudentAuthenticated: false,
         isRoleLocked: true,
-        showRoleSelector: false,
-        authTimestamp: timestamp,
-      };
-    }),
-
-    selectRole: (chosenRole: string) => set((state) => {
-      if (!state.user) return state;
-      const timestamp = Date.now();
-      setStoredAuth(state.user, chosenRole, timestamp);
-      AuditLogger.log("מיתוג_תפקיד", state.user.uid || "unknown_uid", `נבחר תפקיד: ${chosenRole}`);
-      return {
-        user: state.user,
-        role: chosenRole,
-        isAuthenticated: true,
-        isStudentAuthenticated: chosenRole === 'student',
-        isRoleLocked: true,
-        showRoleSelector: false,
         authTimestamp: timestamp,
       };
     }),
@@ -731,17 +691,49 @@ export const useAuthStore = create<AuthState>()(
   })
 );
 
+/** How often, and how many times, the wait for firebase.ts is repeated (5 seconds in all). */
+const FIREBASE_LOAD_RETRY_MS = 20;
+const FIREBASE_LOAD_RETRIES = 250;
+
+/**
+ * Runs `run` once firebase.ts has finished loading. The two modules import
+ * each other: firebase.ts re-exports FirebaseSyncService, which imports this
+ * store. When the app enters through firebase.ts (App.tsx does), this file's
+ * body runs BEFORE firebase.ts has initialised `auth` and `authReady`, and
+ * reading either throws. The listener below used to be attached right here,
+ * inside a try/catch: the read threw on every page load, the catch logged a
+ * warning, and reconcileWithFirebaseUser never ran — a dashboard whose
+ * sign-in had ended in another window stayed open and dead.
+ */
+function whenFirebaseLoaded(run: () => void, retriesLeft = FIREBASE_LOAD_RETRIES): void {
+  let loaded = false;
+  try {
+    loaded = Boolean(auth);
+  } catch {
+    // firebase.ts is still loading.
+  }
+  if (loaded) {
+    run();
+  } else if (retriesLeft > 0) {
+    setTimeout(() => whenFirebaseLoaded(run, retriesLeft - 1), FIREBASE_LOAD_RETRY_MS);
+  } else {
+    console.warn('[useAuthStore] Firebase auth listener unavailable.');
+  }
+}
+
 // Firebase Auth is the other half of the single source of truth (Module 2 §ג):
 // follow it, including the sign-outs of other tabs. The method form keeps a
 // stubbed auth (no real config, tests) harmless.
-try {
-  const firebaseAuth = auth as { onAuthStateChanged?: (cb: (u: FirebaseIdentity | null) => void) => unknown };
-  if (typeof firebaseAuth.onAuthStateChanged === 'function') {
-    firebaseAuth.onAuthStateChanged((u) => reconcileWithFirebaseUser(u));
+whenFirebaseLoaded(() => {
+  try {
+    const firebaseAuth = auth as { onAuthStateChanged?: (cb: (u: FirebaseIdentity | null) => void) => unknown };
+    if (typeof firebaseAuth.onAuthStateChanged === 'function') {
+      firebaseAuth.onAuthStateChanged((u) => reconcileWithFirebaseUser(u));
+    }
+  } catch (e) {
+    console.warn('[useAuthStore] Firebase auth listener unavailable:', e);
   }
-} catch (e) {
-  console.warn('[useAuthStore] Firebase auth listener unavailable:', e);
-}
+});
 // A write refused for lack of permission (FirebaseSyncService.handlePermissionOrAuthError).
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
   window.addEventListener('firebase:auth_expired', () => {
@@ -760,15 +752,18 @@ function releaseIdentityDroppedAtLoad(): void {
   const role = droppedAtLoad;
   droppedAtLoad = null;
   if (!role) return;
-  Promise.resolve(authReady)
-    .then(() => {
-      if (useAuthStore.getState().isAuthenticated) return;
-      const firebaseUser = currentFirebaseUser();
-      if (!firebaseUser) return;
-      if ((role === 'student') !== Boolean(firebaseUser.isAnonymous)) return;
-      return releaseFirebaseIdentity(firebaseUser);
-    })
-    .catch(() => {});
+  // authReady is firebase.ts's too (see whenFirebaseLoaded).
+  whenFirebaseLoaded(() => {
+    Promise.resolve(authReady)
+      .then(() => {
+        if (useAuthStore.getState().isAuthenticated) return;
+        const firebaseUser = currentFirebaseUser();
+        if (!firebaseUser) return;
+        if ((role === 'student') !== Boolean(firebaseUser.isAnonymous)) return;
+        return releaseFirebaseIdentity(firebaseUser);
+      })
+      .catch(() => {});
+  });
 }
 releaseIdentityDroppedAtLoad();
 

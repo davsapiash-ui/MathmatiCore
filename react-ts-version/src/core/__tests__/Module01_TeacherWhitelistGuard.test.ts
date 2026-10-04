@@ -25,13 +25,13 @@ const app = readFileSync(resolve(__dirname, '../../App.tsx'), 'utf-8');
 const auth = readFileSync(resolve(__dirname, '../../infrastructure/services/AuthService.ts'), 'utf-8');
 
 describe('Module 1: teacher whitelist guard', () => {
-  it('both real login paths stamp the session as verified against the authoritative list', () => {
-    // Google SSO and the direct whitelisted-email path.
-    expect((auth.match(/whitelistVerified: true/g) || []).length).toBe(2);
-    // …and both do so only after the authoritative async check.
-    expect(auth).toContain('const listedRole = email ? await whitelistedStaffRoleAsync(email) : null;');
+  it('the one real login path stamps the session as verified against the authoritative list', () => {
+    // Google SSO only: the direct whitelisted-email path, which nothing called, is gone.
+    expect((auth.match(/whitelistVerified: true/g) || []).length).toBe(1);
+    expect(auth).not.toContain('authenticateWhitelistedEmail');
+    // …and it does so only after the authoritative async check.
+    expect(auth).toContain('? await whitelistedStaffRoleAsync(email).catch(');
     expect(auth).toContain('const isAuthorized = listedRole !== null;');
-    expect(auth).toContain('(await isWhitelistedTeacherEmailAsync(normalized)) || isWhitelistedTeacherEmail(normalized)');
   });
 
   it('both route guards trust the login-time verification before the hardcoded fallback', () => {

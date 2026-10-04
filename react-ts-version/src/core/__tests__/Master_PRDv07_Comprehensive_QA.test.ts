@@ -35,7 +35,6 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
       isAuthenticated: false,
       isStudentAuthenticated: false,
       isRoleLocked: false,
-      showRoleSelector: false,
       authTimestamp: null,
     });
     useChatStore.setState({ messages: [], activeRoomId: null, unreadCount: 0 });

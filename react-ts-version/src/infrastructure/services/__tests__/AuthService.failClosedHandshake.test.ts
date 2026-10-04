@@ -23,7 +23,7 @@ vi.mock('firebase/auth', () => ({
     user: {
       uid: 'uid-1',
       email: 'teacher@school.example',
-      displayName: null,
+      displayName: 'Dana Levi',
       getIdToken: vi.fn(async () => 'token'),
       getIdTokenResult: vi.fn(async () => ({ claims: { role: 'teacher' } })),
     },
@@ -45,7 +45,8 @@ vi.mock('@/infrastructure/services/FirebaseSyncService', () => ({
   teacherRecordKey: () => 'teacher_school_example',
 }));
 
-import { executeGoogleSSO, STAFF_SIGNIN_REFUSED_HE } from '../AuthService';
+import { getDoc } from 'firebase/firestore';
+import { executeGoogleSSO, STAFF_SIGNIN_REFUSED_HE, STAFF_HANDSHAKE_FAILED_CODE } from '../AuthService';
 
 beforeEach(() => {
   signOut.mockClear();
@@ -65,5 +66,38 @@ describe('Staff sign-in — the server handshake decides (fail-closed)', () => {
     expect(user.role).toBe('teacher');
     expect(user.whitelistVerified).toBe(true);
     expect(signOut).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Audit access-4: a network failure while reading authorizedTeachers used to
+ * be swallowed and read as "not on the list", so a listed teacher went back to
+ * the home page with no message. Still nobody is signed in (fail-closed), but
+ * the error carries the retry code the sign-in screen shows a retry for.
+ */
+describe('Staff sign-in — a whitelist that could not be read is not a refusal', () => {
+  it('a network failure reading the list signs the account out and is marked for a retry', async () => {
+    vi.mocked(getDoc).mockRejectedValueOnce(Object.assign(new Error('client is offline'), { code: 'unavailable' }));
+    await expect(executeGoogleSSO('teacher')).rejects.toMatchObject({ code: STAFF_HANDSHAKE_FAILED_CODE });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(callable).not.toHaveBeenCalled();
+  });
+
+  it('a read the rules refuse stays a plain refusal, with no retry code', async () => {
+    vi.mocked(getDoc).mockRejectedValueOnce(Object.assign(new Error('denied'), { code: 'permission-denied' }));
+    const refusal = await executeGoogleSSO('teacher').catch((e) => e);
+    expect(refusal.message).toBe(STAFF_SIGNIN_REFUSED_HE);
+    expect(refusal.code).toBeUndefined();
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** Audit cross-17; register, "הסרת שמות מורים מהמערכת": the address is the teacher's only identity. */
+describe('Staff sign-in — the Google account name is not kept', () => {
+  it('the signed-in payload carries no display name', async () => {
+    callable.mockResolvedValue({ data: { status: 'SUCCESS' } });
+    const user = await executeGoogleSSO('teacher');
+    expect(JSON.stringify(user)).not.toContain('Dana Levi');
+    expect(user).not.toHaveProperty('displayName');
   });
 });
