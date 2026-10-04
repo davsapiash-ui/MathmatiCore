@@ -10,7 +10,7 @@ import {
   researchCsv,
   withCatchUpRecords,
 } from '../exportDriveReport';
-import { CATCHUP_COLLECTION, CATCHUP_EXPORT_COLUMNS, catchUpDocId, catchUpExportCells, type CatchUpRecord } from '../catchUp';
+import { CATCHUP_COLLECTION, CATCHUP_EXPORT_COLUMNS, CATCHUP_NOTE_MAX_LENGTH, catchUpDocId, catchUpExportCells, sanitizeCatchUpNote, type CatchUpRecord } from '../catchUp';
 
 /**
  * Catch-up time (owner, 2.10.2026): "המורה יקח את אותם ילדים שלא סיימו למפגש
@@ -201,6 +201,21 @@ describe('research export — the meetings file', () => {
     expect(header).toBe([...Object.keys(existing), ...CATCHUP_EXPORT_COLUMNS].map((c) => `"${c}"`).join(','));
     expect(withRecord.endsWith('"1","7","slow_pace|technical_fault","המחשב נתקע"')).toBe(true);
     expect(without.endsWith('"0","0","",""')).toBe(true);
+  });
+
+  it('a note written past the client check is scrubbed before the export prints it', () => {
+    const rec: Partial<CatchUpRecord> = {
+      student_id: 4, session_number: 3, class_id: 'class_1',
+      rounds: {
+        r_1: { action: 'continue', reason: 'other', note: '  התקשר לאמא 050-1234567 או a.b@example.com  ', stopped_at: null, recorded_by: 't', recorded_at: 1, opened_at: null, closed_at: null, closed_by: null, active_minutes: null },
+      },
+    };
+    const note = String(catchUpExportCells(rec).catchup_note);
+    expect(note).not.toMatch(/050|1234567|example\.com/);
+    expect(note).toContain('התקשר לאמא');
+    expect(sanitizeCatchUpNote('א'.repeat(900)).length).toBe(CATCHUP_NOTE_MAX_LENGTH);
+    expect(sanitizeCatchUpNote('   ')).toBe('');
+    expect(sanitizeCatchUpNote(42)).toBe('');
   });
 });
 
