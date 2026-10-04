@@ -344,6 +344,7 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
 describe('with blocks on the screen, the card follows the board', () => {
   const PL = ['units', 'tens', 'hundreds', 'thousands'] as const;
   const ONE: Record<string, string> = { units: 'יחידה אחת', tens: 'עשרת אחת', hundreds: 'מאה אחת', thousands: 'אלף אחד' };
+  const ONE_BLOCK: Record<string, string> = { units: 'לבנת יחידה אחת', tens: 'לבנת עשרת אחת', hundreds: 'לבנת מאה אחת', thousands: 'לבנת אלף אחת' };
   const COLUMN_HE: Record<string, string> = { units: 'טור היחידות', tens: 'טור העשרות', hundreds: 'טור המאות', thousands: 'טור האלפים' };
   const digit = (n: number, i: number) => Math.floor(n / 10 ** i) % 10;
 
@@ -369,7 +370,11 @@ describe('with blocks on the screen, the card follows the board', () => {
         let m = lacking + 1;
         while (counts[PL[m]] === 0) m++;
         const correct = card.choices.find((c) => c.isCorrect)!.textHe;
-        expect(correct, `${task.id} ${JSON.stringify(counts)}`).toMatch(new RegExp(`^פורטים (תחילה )?${ONE[PL[m]]}`));
+        // Through a zero one breaks a BLOCK first — "פורטים תחילה לבנת מאה אחת"
+        // (owner, 4.10.2026: the documents' form); otherwise "פורטים מאה אחת".
+        expect(correct, `${task.id} ${JSON.stringify(counts)}`).toMatch(
+          m > lacking + 1 ? new RegExp(`^פורטים תחילה ${ONE_BLOCK[PL[m]]}`) : new RegExp(`^פורטים ${ONE[PL[m]]}`)
+        );
         if (m > lacking + 1) expect(card.questionHe, task.id).toMatch(/איך פורטים כש.* (אפס|אפסים)\?$/);
         // The column, and no count of its blocks: the child counts (owner, 30.9.2026).
         else expect(card.questionHe, task.id).toContain(`ב${COLUMN_HE[PL[lacking]]} אין מספיק לבנים כדי לחסר`);
