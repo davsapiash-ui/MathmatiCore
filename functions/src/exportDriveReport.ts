@@ -318,6 +318,20 @@ export const DRIVE_FOLDERS = {
 } as const;
 
 /**
+ * The time in a Drive file or folder name, on the Israeli clock the teacher
+ * reads it by: "2026-10-04_13-07". The UTC stamp used before named every file
+ * two or three hours early.
+ */
+export function israelFileStamp(ms: number = Date.now()): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jerusalem", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(ms));
+  const p = (type: string) => parts.find((x) => x.type === type)?.value ?? "";
+  return `${p("year")}-${p("month")}-${p("day")}_${p("hour")}-${p("minute")}`;
+}
+
+/**
  * Resolves (creating as needed) a folder path under the shared Drive folder,
  * e.g. ["01 דוחות תלמידים", "מפגש 3"]. Falls back to the root folder when
  * Drive is unreachable, so an upload still has somewhere to go.
@@ -450,14 +464,12 @@ export async function uploadBufferToDrive(
       return response;
     };
 
-    // Primary attempt: upload to target Shared Drive folder
-    let response = await performUpload([parentFolderId]);
-
-    // Fallback: If folder is restricted/missing (404/403/400), upload directly to Drive
-    if (!response.ok && (response.status === 404 || response.status === 403 || response.status === 400)) {
-      logger.warn(`Target folder ${parentFolderId} returned ${response.status}, retrying upload to Google Drive root...`);
-      response = await performUpload();
-    }
+    // The shared folder, and nowhere else in Drive. A folder that refuses the
+    // file (404/403/400) used to get a second upload with no parent: the file
+    // landed in the service account's own Drive, where nobody sees it, and was
+    // reported as a Drive copy. Register gap יב: what Drive refuses waits in
+    // the backup storage (parkInStorage below).
+    const response = await performUpload([parentFolderId]);
 
     if (response.ok) {
       const resData = await response.json();
@@ -859,6 +871,18 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   // — it's reached with the same Admin SDK credentials already used
   // elsewhere in this codebase (see pedagogicalReport.ts) — and has no
   // meaningful size ceiling.
+  const parkedBackupPath = (driveResult as { fallbackStoragePath?: string }).fallbackStoragePath;
+  if (!driveResult.success && parkedBackupPath) {
+    // uploadBufferToDrive already saved the file Drive refused in this bucket
+    // (drive_fallback/…). That copy is the backup; a second one under backups/
+    // would be the same bytes twice.
+    logger.warn("Drive upload unavailable; the backup is kept in Cloud Storage:", driveResult.error);
+    driveResult = {
+      success: true,
+      fileId: resetId,
+      webViewLink: `gs://${admin.storage().bucket().name}/${parkedBackupPath}`,
+    };
+  }
   if (!driveResult.success) {
     logger.warn("Drive upload unavailable, writing backup to Cloud Storage:", driveResult.error);
     try {
@@ -1078,6 +1102,42 @@ export const LEARNER_SETTINGS_FIELDS = [
   "isASD",
 ] as const;
 
+/**
+ * The restart command of a full reset (Module 23א: the learner starts over).
+ * A learner's open screen acts on forceReload: it drops what it holds and
+ * returns to the lobby; these three fields are how it tells a full reset from
+ * a meeting reset (core/meetingCompletion.ts, resetMeetingOf → 'all').
+ *
+ * Only the teacher's browser used to write it, after the reset call returned.
+ * A call that timed out there, or a deletion that ended with one failed item,
+ * skipped it — and a connected learner's screen wrote its old board back onto
+ * the record that had just been deleted.
+ */
+export const FULL_RESET_RESTART_COMMAND = {
+  forceReload: true,
+  lastAction: "אופס ע״י המורה",
+  highestCompletedMeeting: 0,
+} as const;
+
+/** The key a learner's own screen listens on: users/students/student_user<N>. */
+const CANONICAL_LEARNER_KEY = /^student_user(?:[1-9]|1[0-2])$/;
+
+/**
+ * The canonical learner records a removed RTDB path held: the path itself, or
+ * its children when it is the learners' root. Only records that existed — a
+ * learner who never signed in has no screen to restart and gets no record.
+ */
+export function canonicalLearnerRecordsOf(path: string, value: unknown): string[] {
+  if (value === null || value === undefined) return [];
+  if (path === "users/students") {
+    return typeof value === "object"
+      ? Object.keys(value as Record<string, unknown>).filter((k) => CANONICAL_LEARNER_KEY.test(k)).map((k) => `users/students/${k}`)
+      : [];
+  }
+  const m = /^users\/students\/([^/]+)$/.exec(path);
+  return m && CANONICAL_LEARNER_KEY.test(m[1]) ? [path] : [];
+}
+
 /** The learner settings present on a record, or null when it carries none. */
 export function pickKeptFields(record: unknown, fields: readonly string[]): Record<string, unknown> | null {
   if (!record || typeof record !== "object") return null;
@@ -1128,6 +1188,10 @@ export function buildActiveSessionResetValues(
     // reset learner counted as finished and resumed the old board.
     [`completedMeetings/m${sessionNumber}`]: null,
     [`workspaceByMeeting/m${sessionNumber}`]: null,
+    // The meeting's error-category counts (the radar's distribution panel reads
+    // errorCategoryDistribution/session_N). Left behind, the restarted meeting
+    // showed the old run's counts and added the new ones on top.
+    [`errorCategoryDistribution/session_${sessionNumber}`]: null,
   };
   if (sessionNumber === 2) {
     // The diagnostic meeting's own outputs (Modules 19–20) are part of its progress.
@@ -1331,6 +1395,23 @@ export function catchUpRecordsByLearnerMeeting(docs: Array<{ id: string; data: u
   return byKey;
 }
 
+/**
+ * Each learner's path from the users/students node, for the research export:
+ * the canonical record (student_user<N>) decides; an alias only when the
+ * learner has no canonical record.
+ */
+export function learnerPathsFromRecords(studentsNode: Record<string, any> | null | undefined): Map<number, "green_path" | "remediation_path"> {
+  const paths = new Map<number, "green_path" | "remediation_path">();
+  for (const [key, raw] of Object.entries(studentsNode ?? {})) {
+    const n = parseInt(key.replace(/\D/g, ""), 10);
+    if (!(n >= 1 && n <= 12) || !raw || typeof raw !== "object") continue;
+    const node = raw as Record<string, any>;
+    const path = node.teacher_selected_path === "remediation_path" || node.pedagogicalPath === "remediation_path" ? "remediation_path" : "green_path";
+    if (!paths.has(n) || key === `student_user${n}`) paths.set(n, path);
+  }
+  return paths;
+}
+
 export interface ResetBackupFile {
   backup_format: "mathmaticore-reset-backup/2";
   reset_id: string;
@@ -1510,6 +1591,13 @@ export async function executeResetDeletion(
       const deleted = count - (kept ? Object.keys(kept).length : 0);
       counts.realtime_database[path] = deleted;
       counts.total += deleted;
+      // The record is gone; the learner's open screen is told to start over
+      // here, whatever happens to the rest of the scope or to the caller.
+      for (const record of canonicalLearnerRecordsOf(path, snap.val())) {
+        await rtdb.ref(record).update({ ...FULL_RESET_RESTART_COMMAND }).catch((err: any) => {
+          counts.failures.push(`${record} (restart command): ${err?.message || String(err)}`);
+        });
+      }
     } catch (err: any) {
       counts.failures.push(`${path}: ${err?.message || String(err)}`);
     }
@@ -1837,7 +1925,10 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     const studentsSnap = await rtdb.ref("users/students").get();
     // Recordings live in their own node (recordingsNode.ts); older ones still on the record.
     const studentsNode: Record<string, any> = withRecordings(studentsSnap.val(), (await rtdb.ref(RECORDINGS_ROOT).get()).val());
-    const learnerPath = new Map<number, "green_path" | "remediation_path">();
+    // The canonical record (student_user<N>) is the one the learner's screen
+    // and the gate write. A leftover alias used to win whenever it came first
+    // in the node, and gave a remediation learner the green path.
+    const learnerPath = learnerPathsFromRecords(studentsNode);
     const recordingRows: Record<string, any>[] = [];
     const recordingMinutesByKey = new Map<string, { minutes: number; truncated: boolean }>();
     const rtdbReflectionRows: Record<string, any>[] = [];
@@ -1845,8 +1936,6 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       const n = studentNumber(key);
       if (n === null || !raw || typeof raw !== "object") continue;
       const node = raw as Record<string, any>;
-      const path = node.teacher_selected_path === "remediation_path" || node.pedagogicalPath === "remediation_path" ? "remediation_path" : "green_path";
-      if (!learnerPath.has(n)) learnerPath.set(n, path);
 
       const recordings = node.telemetry_sessions && typeof node.telemetry_sessions === "object" ? node.telemetry_sessions : {};
       for (const [recId, rec] of Object.entries(recordings as Record<string, any>)) {
@@ -2147,8 +2236,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       throw new HttpsError("failed-precondition", RESEARCH_EXPORT_PII_REFUSAL_HE, { reason: "pii" });
     }
 
-    const exportDate = new Date().toISOString().split("T")[0];
-    const stamp = new Date().toISOString().slice(0, 16).replace("T", "_").replace(":", "-");
+    // Israeli clock, like every Drive name the teacher reads (israelFileStamp).
+    const stamp = israelFileStamp();
+    const exportDate = stamp.slice(0, 10);
     const scopeLabel = scopedSession === null ? "כל המפגשים" : `מפגש ${scopedSession}`;
 
     // Requirement 4: Drive folder hierarchy: 02 נתוני מחקר / {scope} / {date}

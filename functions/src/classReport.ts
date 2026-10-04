@@ -4,7 +4,7 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
-import { DRIVE_FOLDERS, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
+import { DRIVE_FOLDERS, israelFileStamp, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
 import { meetingLabelHe } from "./stationNames";
 import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
 import { COLUMN_NAMES_HE, ROUTE_NAME_HE, errorCategoryCountsHe, errorCategoryHe, triggerCountsHe, triggerReasonHe } from "./teacherLabels";
@@ -1222,7 +1222,8 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   };
 
   // ── 6. PDF + CSV to Storage, mirror to Drive, record in Firestore ───────
-  const stamp = new Date(generatedAt).toISOString().slice(0, 16).replace("T", "_").replace(":", "-");
+  // The Drive file names carry the Israeli clock, not UTC.
+  const stamp = israelFileStamp(generatedAt);
   const bucket = admin.storage().bucket();
   const pdfPath = `reports/${classId}/session_${sessionNumber}/class_report_${generatedAt}.pdf`;
   const csvPath = `reports/${classId}/session_${sessionNumber}/class_table_${generatedAt}.csv`;
