@@ -68,6 +68,8 @@ function solveTarget347() {
   useWorkspaceStore.setState({
     counts: { ...EMPTY_COUNTS, hundreds: 3, tens: 3, units: 17 },
     hasUngrouped: true,
+    // The ten broken into units, as splitBlockClick records it (audit A2-F06).
+    conversionsByColumn: { composed: {}, decomposed: { units: true }, times: { decomposed: { units: 1 } } },
     answerDigits: { hundreds: '3', tens: '4', units: '7' },
   });
   ws().proceed();

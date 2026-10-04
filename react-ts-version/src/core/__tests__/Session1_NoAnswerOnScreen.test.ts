@@ -51,7 +51,7 @@ describe('station 1 static cards', () => {
 describe('station 1 live cards', () => {
   it('10 or more blocks in a column: no count, no column name', () => {
     for (const [task, counts] of [
-      [{ id: 's1_r_group26', type: 'representation', numberA: 26 }, { ...EMPTY, units: 26 }],
+      [{ id: 's1_r_group26', type: 'representation', numberA: 26, requiresGrouping: true }, { ...EMPTY, units: 26 }],
       [{ id: 's1_t8', numberA: 713, numberB: 94 }, { ...EMPTY, hundreds: 7, tens: 10, units: 7 }],
       [{ id: 's1_t8', numberA: 713, numberB: 94 }, { ...EMPTY, hundreds: 7, units: 12 }],
     ] as const) {

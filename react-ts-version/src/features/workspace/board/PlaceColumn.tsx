@@ -8,6 +8,7 @@ import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceSto
 import { boardDimmedColumns } from '@/application/boardDimming';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { columnDigitsShown } from '@/core/columnDigits';
+import { builtAnyWay } from '@/data/representationLocks';
 import { DienesBlock } from './DienesBlock';
 import { COLUMN_CELLS } from './columnCells';
 import { useVisibleRegroup, arrivingBlockCount } from './RegroupAnimationLayer';
@@ -63,7 +64,8 @@ export function PlaceColumn({
     const t = getActiveTasks(s)[s.standardTaskIdx];
     if (!t) return false;
     const req = (t.requiredCounts ?? {}) as Partial<Record<Place, number>>;
-    return t.isSubtraction === true || t.type === 'flexible_decomp' || (req[place] ?? 0) >= 10;
+    // "Build the number X" built another way (owner, 4.10.2026): the board is right as it stands.
+    return builtAnyWay(t, s.counts) || t.isSubtraction === true || t.type === 'flexible_decomp' || (req[place] ?? 0) >= 10;
   });
   const digitShown = useWorkspaceStore((s) =>
     s.projectorBoard || columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)

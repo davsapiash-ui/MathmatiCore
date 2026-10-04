@@ -16,6 +16,8 @@
  * subtraction card with no category (null).
  */
 
+import { builtAnyWay } from '@/data/representationLocks';
+
 type Category = 'calculation' | 'procedural' | 'conceptual' | null;
 type Counts = { units: number; tens: number; hundreds: number; thousands: number };
 
@@ -41,8 +43,12 @@ function sessionCardKeys(id?: string): string[] {
 function mainLiveCardFires(task: any, targetNode: string, c: Counts): boolean {
   if (task?.id === 's1_sandbox_controlled' || task?.type === 'session1_intro') return false;
   const required = (task?.requiredCounts ?? {}) as Partial<Counts>;
+  // The live card's own rule (SocraticEngine.analyzeLiveBoardState): a board
+  // worth the number of a "build the number X" exercise is not crowded
+  // (owner, 4.10.2026).
+  const accepted = builtAnyWay(task, c);
   const goal = (p: 'units' | 'tens' | 'hundreds') =>
-    task?.isSubtraction === true || task?.type === 'flexible_decomp' || (required[p] ?? 0) >= 10;
+    accepted || task?.isSubtraction === true || task?.type === 'flexible_decomp' || (required[p] ?? 0) >= 10;
   if ((c.units >= 10 && !goal('units')) || (c.tens >= 10 && !goal('tens')) || (c.hundreds >= 10 && !goal('hundreds'))) return true;
 
   const isSubtraction = task?.isSubtraction ||

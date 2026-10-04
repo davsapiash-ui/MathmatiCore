@@ -26,6 +26,7 @@
  */
 
 import type { Place } from '@/core/placeValue';
+import { buildsAnyWay, builtAnyWay } from '@/data/representationLocks';
 import type { SocraticHintResponse } from './SocraticEngine';
 
 const LOW_TO_HIGH: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
@@ -389,10 +390,14 @@ function chosenCounts(text: string): Counts | null {
 export function contradictsRequiredRepresentation(task: any, choices: { textHe: string; isCorrect?: boolean }[]): boolean {
   if (task?.type !== 'representation' || !task.requiredCounts) return false;
   const required: Counts = task.requiredCounts;
+  // "Build the number X" with no word on how (owner, 4.10.2026): every build
+  // worth X is right (34 tens for 340), so none may be an option marked
+  // wrong. The right option stays the exercise's own board, as before.
+  const anyWay = buildsAnyWay(task);
   for (const c of choices) {
     const chosen = chosenCounts(c.textHe);
     if (!chosen) continue;
-    if (!c.isCorrect && sameCounts(chosen, required)) return true;
+    if (!c.isCorrect && (sameCounts(chosen, required) || (anyWay && builtAnyWay(task, chosen)))) return true;
     if (c.isCorrect && !sameCounts(chosen, required)) return true;
   }
   return false;
@@ -2522,6 +2527,12 @@ export function multiStepTarget(task: any): number | null {
 function kindCard(task: any, kind: RepresentationKind, ctx: StaticCardContext, counts?: BoardCounts): SocraticHintResponse | null {
   switch (kind) {
     case 'read_write': {
+      // 506 or 6,030 built another way, a column holding 10 or more (owner,
+      // 4.10.2026): "יש טור שאין בו לבנים" is not this board. Which number is
+      // built; then how 10 or more in a column are read.
+      if (counts && builtAnyWay(task, counts) && LOW_TO_HIGH.some((p) => (counts[p] ?? 0) >= 10)) {
+        return shownIn(ctx, 'which_number') ? whichNumberLevel2(task, ctx, counts) : whichNumberIsBuiltCard();
+      }
       const c = readWriteCard(task);
       if (c.cardKind === 'read_write_zero' && shownIn(ctx, 'read_write_zero')) return zeroPositionCard(task, ctx) ?? c;
       if (isWhichNumberIsBuilt(c) && shownIn(ctx, 'which_number')) return whichNumberLevel2(task, ctx, counts);
@@ -2955,6 +2966,14 @@ export function meeting1Card(task: any, counts: BoardCounts, ctx: StaticCardCont
     if (!level2) return null;
     if (typeof task.correctAnswer === 'number' && task.correctAnswer !== n) return s1ValueSecondCard(task);
     if (value === n && LOW_TO_HIGH.every((p) => (counts[p] ?? 0) < 10)) return writeBoxes(n, 'words');
+    // The number built another way, a column holding 10 or more (owner,
+    // 4.10.2026: any build is right): how that board is read — not "how many
+    // blocks go in each column", which asks for another build.
+    if (value === n) {
+      const small = LOW_TO_HIGH.find((p) => (counts[p] ?? 0) >= 10)!;
+      const big = next(small) ?? 'hundreds';
+      return inFamily(regroupReadCard('s1_card', false, big, small, true), 's1_card');
+    }
     return s1WordsSecondCard();
   }
   const a = task.numberA;

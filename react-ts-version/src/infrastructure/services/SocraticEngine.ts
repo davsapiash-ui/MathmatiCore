@@ -5,6 +5,7 @@ import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
 import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
 import { researchErrorCategory } from "./socraticResearchCategory";
+import { builtAnyWay } from "@/data/representationLocks";
 import { recentTelemetryFor, MAX_RECENT_FOR_ENGINE } from "./recentTelemetry";
 import { exerciseCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, framed, meeting1Card, s1NoButtonCard, s1GroupActionCard, s1DeficitSecondCard, s1WrongBreakCard, s1StartChangedCard, groupActionCard, strayAddition, strayBlocksCard, multiStepTarget, showBoardCard, boardHiddenCard, noBoardColumnCard, revealsHiddenDigit, ladder as cardLadder, buildNumberCard, digitsInColumnsCard, addBuildCard, skeletonShown, inFamily, withKind, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
 
@@ -305,7 +306,7 @@ function startCountsOf(task: any, kind: string): Partial<Record<Place, number>> 
  * instruction asks for and the numbers the child must find. Without it, a
  * representation reached the model as its id and "the active column: units".
  */
-export function socraticTaskContextFor(task: any, ctx?: StaticCardContext): GeminiSocraticRequest['task_context'] {
+export function socraticTaskContextFor(task: any, ctx?: StaticCardContext, counts?: Partial<Record<Place, number>>): GeminiSocraticRequest['task_context'] {
   if (!task || task.type === 'session1_intro') return undefined;
   const repKind = representationKindOf(task);
   const hasOps = typeof task.numberA === 'number' && typeof task.numberB === 'number';
@@ -341,10 +342,15 @@ export function socraticTaskContextFor(task: any, ctx?: StaticCardContext): Gemi
         .filter((p) => !(resultDigits ?? []).includes(p))
     : [];
   const start = repKind ? startCountsOf(task, repKind) : undefined;
+  const accepted = builtAnyWay(task, counts)
+    ? Object.fromEntries(PLACES_LOW_TO_HIGH.filter((p) => (counts?.[p] ?? 0) > 0).map((p) => [p, counts![p]])) as Partial<Record<Place, number>>
+    : null;
   return {
     kind,
     instruction_he: instruction,
-    ...(task.requiredCounts ? { required_counts: { ...task.requiredCounts } } : {}),
+    // "Build the number X" built another way (owner, 4.10.2026): the child's
+    // own board is the required one, so the server never reads it as wrong.
+    ...(task.requiredCounts ? { required_counts: accepted ?? { ...task.requiredCounts } } : {}),
     ...(start ? { start_counts: start } : {}),
     ...(typeof ctx?.conversionDone === 'boolean' ? { conversion_done: ctx.conversionDone } : {}),
     ...(secrets.length ? { secret_numbers: [...new Set(secrets)].slice(0, 4) } : {}),
@@ -1044,8 +1050,11 @@ export class SocraticEngine {
     // column cannot be written in a box — group it (analysts' matrix S21).
     // Stations 5–6 have their own card for it (staticSocraticCards).
     const subtractionDone = meeting === 1 && currentTask?.isSubtraction === true && a !== null && b !== null && value === a - b;
+    // And "build the number X" with no word on how (owner, 4.10.2026): a
+    // board worth X is right as it stands (340 as 34 tens).
+    const accepted = builtAnyWay(currentTask, counts);
     const crowdingIsTheGoal = (place: 'units' | 'tens' | 'hundreds') =>
-      (currentTask?.isSubtraction === true && !subtractionDone) || currentTask?.type === 'flexible_decomp' || (required[place] ?? 0) >= 10 ||
+      accepted || (currentTask?.isSubtraction === true && !subtractionDone) || currentTask?.type === 'flexible_decomp' || (required[place] ?? 0) >= 10 ||
       (stepsTarget !== null && value !== stepsTarget);
     // Meeting 1: the column and its count stay for the child to find (owner, 29.9.2026).
     if (meeting === 1 &&
@@ -1478,7 +1487,7 @@ export class SocraticEngine {
         },
         recentActions: recentEvents,
       });
-      const taskContext = socraticTaskContextFor(currentTask, monitoring.cardContext);
+      const taskContext = socraticTaskContextFor(currentTask, monitoring.cardContext, counts);
       if (taskContext) socraticRequest.task_context = taskContext;
       socraticRequest.card_frame = cardFrameOf(qMatrixAnchor, currentTask);
       if (monitoring.learnerProfile && (monitoring.learnerProfile.enhanced || monitoring.learnerProfile.quiet)) {
