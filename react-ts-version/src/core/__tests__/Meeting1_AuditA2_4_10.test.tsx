@@ -4,8 +4,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-import { useWorkspaceStore, getActiveTasks, selectCanProceed, judgeStandardTask } from '@/application/useWorkspaceStore';
-import { SESSION1_TASKS, type SessionTask } from '@/data/sessionTasks';
+import { useWorkspaceStore, getActiveTasks, selectCanProceed, judgeStandardTask, buildsAnyWay } from '@/application/useWorkspaceStore';
+import { SESSION1_TASKS, getSessionTasks, type SessionTask } from '@/data/sessionTasks';
+import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { REPRESENTATION_LOCKS } from '@/data/representationLocks';
 import { session1Checklist } from '@/core/session1Checklist';
 import { EMPTY_COUNTS, type Place } from '@/core/placeValue';
@@ -100,6 +101,61 @@ describe('A2-F06: the conversion is checked per column', () => {
     expect(session1Checklist('s1_target_347', ws())!.map((i) => i.done)).toEqual([true, true, true]);
     expect(selectCanProceed(ws())).toBe(true);
     expect(judgeStandardTask(ws(), task()).kind).toBe('success');
+  });
+});
+
+describe('owner 4.10.2026 (A2-F02 / A4-F06): "build the number X" accepts any board worth X', () => {
+  const station3 = [
+    ...getSessionTasks(3, 'remediation_path'), ...getSessionTasks(3, 'green_path'),
+    ...getSessionBranchTasks(3, 'reinforcement', 'remediation_path'), ...getSessionBranchTasks(3, 'reinforcement', 'green_path'),
+  ];
+  const load = (meeting: number, id: string) => {
+    const t = station3.find((x) => x.id === id)!;
+    useWorkspaceStore.setState({ sessionNumber: meeting, dynamicTasks: [t, { ...t, id: `${t.id}_next` }], standardTaskIdx: 0, flowStatus: 'task' } as any);
+    expect(task().id).toBe(id);
+  };
+
+  it('340 (s3_r_t1) built as 34 tens, 340 written: accepted', () => {
+    load(3, 's3_r_t1');
+    useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 34 }, answerDigits: { hundreds: '3', tens: '4', units: '0' } });
+    expect(judgeStandardTask(ws(), task()).kind).toBe('success');
+  });
+
+  it('703 (s1_r_words703) built as 6 hundreds, 10 tens, 3 units: accepted', () => {
+    ws().initSession(1, false, at('s1_r_words703'));
+    useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, hundreds: 6, tens: 10, units: 3 } });
+    typeNumber(703);
+    expect(judgeStandardTask(ws(), task()).kind).toBe('success');
+  });
+
+  it('368 built as 2 hundreds, 16 tens, 8 units: accepted with 60; the question about the 6 is unchanged', () => {
+    ws().initSession(1, false, at('s1_r_value368'));
+    useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 16, units: 8 } });
+    typeNumber(368);
+    expect(judgeStandardTask(ws(), task())).toMatchObject({ kind: 'failure', detail: 'wrong_numeric' });
+    useWorkspaceStore.setState({ answerDigits: {} });
+    typeNumber(60);
+    expect(judgeStandardTask(ws(), task()).kind).toBe('success');
+  });
+
+  it('a board worth another number is still rejected; so is an empty board', () => {
+    load(3, 's3_r_t1');
+    useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 33 }, answerDigits: { hundreds: '3', tens: '4', units: '0' } });
+    expect(judgeStandardTask(ws(), task())).toMatchObject({ kind: 'failure', detail: 'wrong_representation' });
+    useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS } });
+    expect(judgeStandardTask(ws(), task())).toMatchObject({ kind: 'failure', detail: 'wrong_representation' });
+    ws().initSession(1, false, at('s1_r_words703'));
+    typeNumber(703);
+    expect(judgeStandardTask(ws(), task())).toMatchObject({ kind: 'failure', detail: 'wrong_representation' });
+  });
+
+  it('exercises that name blocks or a conversion keep their exact board', () => {
+    expect(buildsAnyWay(SESSION1_TASKS.find((t) => t.id === 's1_r_group26')!)).toBe(false);
+    expect(buildsAnyWay(SESSION1_TASKS.find((t) => t.id === 's1_target_347')!)).toBe(false);
+    for (const t of station3) {
+      if (t.type === 'representation') expect(buildsAnyWay(t), t.id).toBe(t.representationKind === 'read_write');
+    }
+    expect([...new Set(station3.filter((t) => buildsAnyWay(t)).map((t) => t.numberA))].sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([270, 340, 506, 3400, 3600, 6030]);
   });
 });
 

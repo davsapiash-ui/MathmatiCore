@@ -443,7 +443,7 @@ describe('A5-F10 / A7-005 / A4-F09: the memory-circle note', () => {
     useWorkspaceStore.setState({ answerDigits: { hundreds: '3', tens: '1', units: '4' }, carryDigits: {} } as any);
     const v = verdict();
     expect(v.kind).toBe('success');
-    expect(plain(v.sub)).toBe(plain('פְּתַרְתֶּם נָכוֹן וְיִצַּגְתֶּם זֹאת מְצֻיָּן בְּבֵית הַמִּסְפָּרִים.'));
+    expect(plain(v.sub)).toBe(plain('פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים.'));
   });
 
   it('addition (s4): only המרה; subtraction (s5): only פריטה', () => {

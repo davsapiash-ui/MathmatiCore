@@ -464,7 +464,8 @@ describe('the store gate follows the checklist', () => {
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_r_group26'));
     expect(useWorkspaceStore.getState().feedback?.sub).toContain('בעזרת הכפתור שבראש הטור');
     // Grouped from loose units: accepted, and the target task comes next.
-    useWorkspaceStore.setState({ hasGrouped: true });
+    // Grouped twice (A2-F06: 26 groups the units twice, checked per column).
+    useWorkspaceStore.setState({ hasGrouped: true, conversionsByColumn: { composed: { units: true }, decomposed: {}, times: { composed: { units: 2 } } } });
     useWorkspaceStore.getState().proceed();
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_target_347'));
   });

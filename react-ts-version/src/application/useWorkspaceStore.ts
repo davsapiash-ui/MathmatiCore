@@ -981,7 +981,8 @@ export function cardFocusPlace(
   if (task.type === 'representation' || task.type === 'flexible_decomp') {
     const pending = pendingRepresentationConversion(s, task);
     if (pending) return pending;
-    if (task.requiredCounts) {
+    // A board worth the number is right where any build is (owner, 4.10.2026).
+    if (task.requiredCounts && !(buildsAnyWay(task) && getValue(s.counts) === task.numberA)) {
       const required = requiredCountsOf(task);
       const board = PLACE_ORDER.find((p) => (s.counts[p] ?? 0) !== required[p]);
       if (board) return board;
@@ -1861,6 +1862,19 @@ export function requiredCountsOf(task: SessionTask): PlaceCounts {
   return { ...EMPTY_COUNTS, ...(task.requiredCounts ?? {}) };
 }
 
+/**
+ * A representation exercise that only says "build the number X", with no
+ * word on how (owner, 4.10.2026: "לא הייתה לו הנחיה איך לבנות … טעות זה
+ * לא"): station 3's read_write numbers and meeting 1's 703, 482 and 368. Any
+ * board worth X is right (34 tens for 340). Not an exercise that names its
+ * blocks or a conversion: compose_break / compose_group / decompose, 26, 347.
+ */
+export function buildsAnyWay(task: Pick<SessionTask, 'id' | 'type' | 'representationKind' | 'requiresGrouping' | 'requiresUngrouping'>): boolean {
+  if (task.type !== 'representation') return false;
+  if (task.representationKind) return task.representationKind === 'read_write';
+  return task.id.startsWith('s1_') && !task.requiresGrouping && !task.requiresUngrouping;
+}
+
 export function selectStandardTask(s: WorkspaceState): SessionTask | null {
   if (s.sessionNumber === 2) return null;
   return getActiveTasks(s)[s.standardTaskIdx] ?? null;
@@ -2181,7 +2195,11 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     // single answer box holds.
     const kind = task.representationKind;
     const required = requiredCountsOf(task);
-    if (!countsEqual(s.counts, required)) {
+    // An exercise that only says "build the number X" (owner, 4.10.2026):
+    // any board worth X is right; one that names blocks or a conversion still
+    // needs its exact board.
+    const boardRight = buildsAnyWay(task) ? getValue(s.counts) === task.numberA : countsEqual(s.counts, required);
+    if (!boardRight) {
       // The blocks of the instruction's first sentence, the break or the
       // grouping not made yet: the step still missing is named (A4-F01). It
       // counts as a wrong press, as the sentence below does.
