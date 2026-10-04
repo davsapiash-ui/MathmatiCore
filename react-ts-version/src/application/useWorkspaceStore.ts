@@ -1974,9 +1974,6 @@ export function wrongHiddenDigitsHe(task: SessionTask, meeting: number): string 
   return meeting === 8 ? `${which} בדקו שוב.` : `${which} בדקו שוב בעזרת הלבנים בבית המספרים.`;
 }
 
-/** An exercise that opens with the blocks to group (meeting 1's 26, station 7's 2,730): the final blocks, built without grouping. */
-const GROUP_YOURSELVES_HE = 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.';
-
 export function judgeStandardTask(s: WorkspaceState, task: SessionTask): StandardVerdict {
   const success = (title: string, sub: string, ms: number): StandardVerdict => ({ kind: 'success', title, sub, ms });
   const failure = (detail: string, title: string, sub: string, ms: number, extra: { placeError?: boolean; clearReps?: boolean } = {}): StandardVerdict =>
@@ -2227,22 +2224,10 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     } else {
       // Meeting 1: the exercise is the conversion itself, not only its result.
       if (task.requiresGrouping && !s.hasGrouped) {
-        return failure('conversion_skipped', 'קַבְּצוּ 🧱', GROUP_YOURSELVES_HE, 3500);
+        return failure('conversion_skipped', 'קַבְּצוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.', 3500);
       }
       if (task.requiresUngrouping && !s.hasUngrouped) {
         return failure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
-      }
-      // Station 7's 2,730 (owner, 4.10.2026): the board opens with the blocks
-      // to group, and every grouping REPRESENTATION_LOCKS lists is the child's
-      // own — the final blocks built by hand, or with one grouping only, are
-      // not the exercise. The sentence is meeting 1's (the 26 units).
-      if (
-        !task.requiresGrouping &&
-        task.initialCounts &&
-        REPRESENTATION_LOCKS[task.id]?.conversion === 'composition' &&
-        pendingRepresentationConversion(s, task) !== null
-      ) {
-        return failure('conversion_skipped', 'קַבְּצוּ 🧱', GROUP_YOURSELVES_HE, 3500);
       }
     }
     const typed = answerDigitsToNumber(s.answerDigits);

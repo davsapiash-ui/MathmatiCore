@@ -52,9 +52,6 @@
  *                     thousand is decomposed into hundreds (3,800).
  *   s7_g_t6           1 thousand, 16 hundreds, 13 tens → 2,730: ten tens
  *                     grouped into a hundred, ten hundreds into a thousand.
- *                     Since 4.10.2026 (owner) the board opens with these
- *                     blocks (initialCounts), and proceed() waits for both
- *                     groupings for every learner, as for meeting 1's 26 units.
  * No conversion (not listed): station 3's read_write and decompose exercises
  * (s3_r_t1, s3_r_t3, s3_r_t5, s3_g_t1, s3_g_t3, s3_g_t5 and the four
  * reinforcements), s7_r_t6 (340 + 200 − 30 = 510, 4 tens give 3 without a

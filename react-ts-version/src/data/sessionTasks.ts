@@ -144,11 +144,7 @@ export interface SessionTask {
    * 150 (s7_r_t7): every way with an even number of tens there has unit blocks.
    */
   noUnitBlocks?: boolean;
-  /**
-   * Blocks already on the board when the task starts (meeting 1's grouping
-   * refresh, like diagnostic task 5's cubes on screen; station 7's 2,730 —
-   * owner, 4.10.2026).
-   */
+  /** Blocks already on the board when the task starts (meeting 1's grouping refresh, like diagnostic task 5's cubes on screen). */
   initialCounts?: Partial<PlaceCounts>;
   /** representation: the card does not list the board to build — finding it is the exercise. */
   hideRequiredCounts?: boolean;
@@ -577,18 +573,10 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
     'בנו את המספר 3,400 בבית המספרים. הוסיפו אלף אחד, ואז הסירו 6 מאות. השאירו את הלבנים בבית המספרים. איזה מספר קיבלתם? כתבו אותו בשורת התוצאה.',
     INQUIRY),
   // ★ chosen: a quantity given in non-standard form, to be regrouped into the fewest blocks.
-  // Owner, 4.10.2026: the board opens with the quantity on it (1 thousand, 16
-  // hundreds, 13 tens — as s1_r_group26 opens with its 26 units), and both
-  // groupings are the child's own (REPRESENTATION_LOCKS; judgeStandardTask).
-  // Until then the board was empty under "לפניכם כמות", and any board of 2/7/3
-  // was accepted with no grouping made. The result row is unchanged.
-  {
-    ...representation('s7_g_t6', 2730, { thousands: 2, hundreds: 7, tens: 3 },
-      'בעיית חקר של ייצוג מינימלי של לבנים',
-      'בבית המספרים יש לבנת אלף אחת, 16 לבני מאה ו-13 לבני עשרת. בכל טור שיש בו 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור. איזה מספר מייצגות הלבנים עכשיו? כתבו אותו בשורת התוצאה.',
-      INQUIRY),
-    initialCounts: { thousands: 1, hundreds: 16, tens: 13 },
-  },
+  representation('s7_g_t6', 2730, { thousands: 2, hundreds: 7, tens: 3 },
+    'בעיית חקר של ייצוג מינימלי של לבנים',
+    'לפניכם כמות: אלף אחד, 16 מאות ו-13 עשרות. הציגו את אותה כמות במספר הלבנים הקטן ביותר האפשרי. בצעו את כל ההקבצות שמאלה לאורך הטורים. כתבו את המספר בשורת התוצאה.',
+    INQUIRY),
   // ★ chosen.
   skeleton('s7_g_t7', 6752, 2827, true, { a: ['hundreds', 'units'] },
     'בעיית חקר של ספרות חסרות משולבות',

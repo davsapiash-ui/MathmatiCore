@@ -608,10 +608,8 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
         return !same(t.requiredCounts, standard(t.numberA!)) || (init && !same(init, standard(t.numberA!)));
       })
       .map((t) => t.id);
-    // s7_g_t6 opens with its blocks on the board since 4.10.2026 (owner), so the rule above finds it.
-    expect(needs).toContain('s7_g_t6');
-    // s7_g_t5 ends in standard form; its conversion is in the instruction.
-    expect([...needs, 's7_g_t5'].sort()).toEqual(Object.keys(REPRESENTATION_LOCKS).sort());
+    // s7_g_t5 and s7_g_t6 end in standard form; their conversions are in the instruction.
+    expect([...needs, 's7_g_t5', 's7_g_t6'].sort()).toEqual(Object.keys(REPRESENTATION_LOCKS).sort());
   });
 
   it('safety valve: a board equal to requiredCounts opens the box and every column', () => {
