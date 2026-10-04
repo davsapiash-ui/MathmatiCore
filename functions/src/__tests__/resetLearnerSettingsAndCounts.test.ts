@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  *     updates only records that exist.
  * C4 — records_deleted_count of a meeting restart counted the alias records
  *     reset in place (4–5) as deleted. It counts deletions only; the records
- *     reset in place go to records_reset_count.
+ *     reset in place are not counted (the entry keeps to PRD 23א §ד).
  */
 
 const h = vi.hoisted(() => ({
@@ -157,7 +157,7 @@ describe('A — a full learner reset keeps the settings the teacher set', () => 
     expect(at('chat_messages/student_user5')).toEqual([{ op: 'remove', path: 'chat_messages/student_user5' }]);
 
     // Deleted = everything but the kept settings: 10+2+2+1 fields minus 5+2+1 kept, plus 1 chat message.
-    expect(h.auditUpdates.at(-1)).toMatchObject({ records_deleted_count: 8, records_reset_count: 0 });
+    expect(h.auditUpdates.at(-1)).toEqual({ records_deleted_count: 8 });
   });
 
   it('level 3 still deletes the settings with everything else', async () => {
@@ -193,7 +193,7 @@ describe('C1 — the alerts reset touches only learner records that exist', () =
 });
 
 describe('C4 — records_deleted_count counts deletions only', () => {
-  it('a meeting restart of one learner: the alias records reset in place are counted apart', async () => {
+  it('a meeting restart of one learner: the alias records reset in place are not counted as deleted', async () => {
     // Meeting 3 is open for the class now, and learner 4 is in it (not finished).
     h.rtdbData['active_class_session'] = { active: true, status: 'active', sessionNumber: 3, startedAt: Date.now() };
     h.rtdbData['users/students/student_user4'] = { activeSessionNumber: 3, highestCompletedMeeting: 2, workspaceState: {} };
@@ -203,7 +203,7 @@ describe('C4 — records_deleted_count counts deletions only', () => {
     expect(result.status).toBe('SUCCESS');
     // No Firestore session documents in this fake, and nothing in RTDB is deleted.
     expect(result.deletedRecords).toBe(0);
-    expect(h.auditUpdates.at(-1)).toEqual({ records_deleted_count: 0, records_reset_count: 3 });
+    expect(h.auditUpdates.at(-1)).toEqual({ records_deleted_count: 0 });
   });
 
   it('executeResetDeletion: reset_in_place is apart from total', async () => {
