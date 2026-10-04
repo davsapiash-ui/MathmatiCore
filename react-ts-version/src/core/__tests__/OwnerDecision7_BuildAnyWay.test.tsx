@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 
-import { useWorkspaceStore, buildsAnyWay as storeBuildsAnyWay } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, judgeStandardTask, buildsAnyWay as storeBuildsAnyWay } from '@/application/useWorkspaceStore';
 import { SESSION1_TASKS, getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { buildsAnyWay, builtAnyWay } from '@/data/representationLocks';
 import { EMPTY_COUNTS, type PlaceCounts } from '@/core/placeValue';
@@ -48,6 +48,31 @@ describe('the helper lives in data/representationLocks and the store re-exports 
     expect(builtAnyWay(s1('s1_r_group26'), board({ units: 26 }))).toBe(false);
     expect(builtAnyWay(s1('s1_target_347'), board({ hundreds: 3, tens: 4, units: 7 }))).toBe(false);
     expect(builtAnyWay(s3('s3_r_t2'), board({ hundreds: 3, tens: 4 }))).toBe(false);
+  });
+});
+
+describe('a station-3 task published without `representationKind` (an older catalog bank)', () => {
+  const bare = (id: string) => {
+    const { representationKind: _dropped, ...rest } = s3(id) as SessionTask & { representationKind?: string };
+    return rest as SessionTask;
+  };
+
+  it('340 (s3_r_t1) is still "build it any way": accepted as 34 tens, no crowded card, own board sent to the AI', () => {
+    const t = bare('s3_r_t1');
+    expect((t as any).representationKind).toBeUndefined();
+    expect(buildsAnyWay(t)).toBe(true);
+    expect(builtAnyWay(t, board({ tens: 34 }))).toBe(true);
+    expect(SocraticEngine.analyzeLiveBoardState(t, nodeOf(t), board({ tens: 34 }))).toBeNull();
+    expect(socraticTaskContextFor(t, undefined, board({ tens: 34 }))?.required_counts).toEqual({ tens: 34 });
+    useWorkspaceStore.getState().resetWorkspace();
+    useWorkspaceStore.setState({ sessionNumber: 3, dynamicTasks: [t, { ...t, id: `${t.id}_next` }], standardTaskIdx: 0, flowStatus: 'task', counts: board({ tens: 34 }), answerDigits: { hundreds: '3', tens: '4', units: '0' } } as never);
+    expect(judgeStandardTask(useWorkspaceStore.getState(), t).kind).toBe('success');
+  });
+
+  it('a break or a one-block exercise without the field keeps its exact board', () => {
+    expect(buildsAnyWay(bare('s3_r_t2'))).toBe(false);
+    expect(buildsAnyWay(bare('s3_r_t3'))).toBe(false);
+    expect(builtAnyWay(bare('s3_r_t2'), board({ hundreds: 3, tens: 4 }))).toBe(false);
   });
 });
 
@@ -182,9 +207,40 @@ describe('6. station 3, 506 and 6,030 built with a column of 10 or more', () => 
   });
 });
 
-describe('7. meeting 1, 703 and 482 worth the number with a column of 10 or more: the second card', () => {
+describe('7. meeting 1, 703 and 482 worth the number with a column of 10 or more', () => {
   const REBUILD = 'איך יודעים כמה לבנים לשים בכל טור?';
-  it('reads the board as it is; it does not ask how many blocks go in each column', () => {
+  it('the first card already reads the board as it is — not "write in each box how many blocks its column holds"', () => {
+    for (const [id, c] of [
+      ['s1_r_words703', board({ hundreds: 6, tens: 10, units: 3 })],
+      ['s1_r_words482', board({ hundreds: 3, tens: 18, units: 2 })],
+    ] as const) {
+      const card = SocraticEngine.getSynchronousTaskHint(s1(id), c, {});
+      expect(card.questionHe, id).toContain(READ_WITH_TEN);
+      expect(card.questionHe, id).not.toBe(TASK_HINTS[id].questionHe);
+      const texts = card.choices.flatMap((o) => [o.textHe, o.feedbackHe]).join(' | ');
+      expect(texts, id).not.toContain('כתבו בכל תיבה כמה לבנים יש בטור שלה');
+      const wrong = card.choices.find((o) => o.textHe === 'כותבים את מספר הלבנים של כל טור, זה אחרי זה');
+      expect(wrong, id).toBeTruthy();
+      expect(wrong!.isCorrect, id).toBe(false);
+      expect(card.choices.find((o) => o.isCorrect)!.textHe, id).toBe('סופרים כל 10 לבנים כמו לבנה אחת של הטור שמשמאל');
+    }
+  });
+
+  it('703 as 6 hundreds, 10 tens, 3 units with 703 written is judged right; 6-1-0-3 cannot be written in three boxes and 613 is wrong', () => {
+    useWorkspaceStore.getState().resetWorkspace();
+    useWorkspaceStore.getState().initSession(1, false, SESSION1_TASKS.findIndex((t) => t.id === 's1_r_words703'));
+    useWorkspaceStore.setState({ counts: board({ hundreds: 6, tens: 10, units: 3 }), answerDigits: { hundreds: '7', tens: '0', units: '3' } });
+    expect(judgeStandardTask(useWorkspaceStore.getState(), s1('s1_r_words703')).kind).toBe('success');
+    useWorkspaceStore.setState({ answerDigits: { hundreds: '6', tens: '1', units: '3' } });
+    expect(judgeStandardTask(useWorkspaceStore.getState(), s1('s1_r_words703')).kind).toBe('failure');
+  });
+
+  it('the usual board of 703 keeps the exercise\'s own first card', () => {
+    const card = SocraticEngine.getSynchronousTaskHint(s1('s1_r_words703'), board({ hundreds: 7, units: 3 }), {});
+    expect(card.questionHe).toBe(TASK_HINTS.s1_r_words703.questionHe);
+  });
+
+  it('the second card: the same reading card; it does not ask how many blocks go in each column', () => {
     for (const [id, c] of [
       ['s1_r_words703', board({ hundreds: 6, tens: 10, units: 3 })],
       ['s1_r_words482', board({ hundreds: 3, tens: 18, units: 2 })],
