@@ -215,45 +215,31 @@ var HEBREW = /[\u0590-\u05FF\uFB1D-\uFB4F]/;
 var OPENERS = { '(': ')', '[': ']' };
 var ABBREVIATION = /(?:^|[^A-Za-z])(et al|e\.g|i\.e|cf|vs|pp|Eds?|Vol|No|n\.d)\.(?=[\u200E\u200F]?\s*[\u0590-\u05FF])/g;
 
-/**
- * Where to insert direction marks in one Hebrew paragraph. Changes no visible character.
- * Returns [{offset, mark, label, context}] in ascending offset order.
- */
 function planBidiFixes(s) {
   var fixes = [];
-
   bracketPairs_(s).forEach(function (pair) {
     var open = pair[0];
     var close = pair[1];
     var before = directionBefore_(s, open);
     var inside = firstStrong_(s.slice(open + 1, close));
-
     if (before === 'L' && inside !== 'R') {
-      // English right before the brackets: "Bouck et al. (2017)" is one left-to-right unit.
-      // Needed only when Hebrew (or the paragraph end) follows; English after it needs nothing.
-      if (directionAfter_(s, close) !== 'L' && s.charAt(close + 1) !== LRM) {
-        addFix_(fixes, s, close + 1, LRM, open, close);
-      }
+      if (directionAfter_(s, close) !== 'L' && s.charAt(close + 1) !== LRM) addFix_(fixes, close + 1, LRM);
     } else if (before !== 'L' && inside === 'L') {
-      // Hebrew right before the brackets, English inside: "(Root et al., 2017)" stays in the Hebrew flow.
-      if (s.charAt(open - 1) !== RLM) addFix_(fixes, s, open, RLM, open, close);
-      if (s.charAt(close + 1) !== RLM) addFix_(fixes, s, close + 1, RLM, open, close);
+      if (s.charAt(open - 1) !== RLM) addFix_(fixes, open, RLM);
+      if (s.charAt(close + 1) !== RLM) addFix_(fixes, close + 1, RLM);
     }
   });
-
   var m;
   ABBREVIATION.lastIndex = 0;
   while ((m = ABBREVIATION.exec(s)) !== null) {
     var dot = m.index + m[0].length - 1;
     var next = s.charAt(dot + 1);
-    if (next !== LRM && next !== RLM) addFix_(fixes, s, dot + 1, LRM, m.index, dot);
+    if (next !== LRM && next !== RLM) addFix_(fixes, dot + 1, LRM);
   }
-
   fixes.sort(function (a, b) { return a.offset - b.offset; });
   return fixes;
 }
 
-/** Matching ( ) and [ ] pairs, nested ones included, as [open, close]. */
 function bracketPairs_(s) {
   var stack = [];
   var pairs = [];
@@ -274,32 +260,11 @@ function bracketPairs_(s) {
   return pairs;
 }
 
-function addFix_(fixes, s, offset, mark, from, to) {
+function addFix_(fixes, offset, mark) {
   for (var i = 0; i < fixes.length; i++) {
     if (fixes[i].offset === offset && fixes[i].mark === mark) return;
   }
-  var start = from;
-  while (start > 0 && from - start < 25) start--;
-  var space = s.indexOf(' ', start);
-  if (start > 0 && s.charAt(start - 1) !== ' ' && space !== -1 && space < from) start = space + 1;
-  fixes.push({
-    offset: offset,
-    mark: mark,
-    label: mark === LRM ? 'נוסף LRM' : 'נוסף RLM',
-    context: '«' + stripMarks_(s.slice(start, to + 1)).trim() + '»'
-  });
-}
-
-function applyFixesToString_(s, fixes) {
-  for (var k = fixes.length - 1; k >= 0; k--) {
-    s = s.slice(0, fixes[k].offset) + fixes[k].mark + s.slice(fixes[k].offset);
-  }
-  return s;
-}
-
-function insertMark_(text, fix) {
-  if (fix.offset >= text.getText().length) text.appendText(fix.mark);
-  else text.insertText(fix.offset, fix.mark);
+  fixes.push({ offset: offset, mark: mark });
 }
 
 function strongOf_(c) {
@@ -308,7 +273,6 @@ function strongOf_(c) {
   return null;
 }
 
-/** 'L', 'R' or null (start of paragraph): the first strong direction before index. */
 function directionBefore_(s, index) {
   for (var i = index - 1; i >= 0; i--) {
     var d = strongOf_(s.charAt(i));
@@ -317,7 +281,6 @@ function directionBefore_(s, index) {
   return null;
 }
 
-/** 'L', 'R' or null (end of paragraph): the first strong direction after index. */
 function directionAfter_(s, index) {
   for (var i = index + 1; i < s.length; i++) {
     var d = strongOf_(s.charAt(i));
@@ -326,15 +289,10 @@ function directionAfter_(s, index) {
   return null;
 }
 
-/** 'L', 'R' or null (digits and punctuation only): the first strong direction in s. */
 function firstStrong_(s) {
   for (var i = 0; i < s.length; i++) {
     var d = strongOf_(s.charAt(i));
     if (d) return d;
   }
   return null;
-}
-
-function stripMarks_(s) {
-  return s.replace(/[\u200E\u200F]/g, '');
 }
