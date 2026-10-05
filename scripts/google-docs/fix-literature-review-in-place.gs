@@ -199,11 +199,18 @@ function replaceVisible_(text, oldText, newText, every) {
     hits.push(at);
     if (!every) break;
   }
+  // Touch only the characters that differ, so a paragraph is never emptied and keeps its formatting.
+  var p = 0, q = 0;
+  while (p < oldText.length && p < newText.length && oldText.charAt(p) === newText.charAt(p)) p++;
+  while (q < oldText.length - p && q < newText.length - p &&
+         oldText.charAt(oldText.length - 1 - q) === newText.charAt(newText.length - 1 - q)) q++;
+  var insert = newText.slice(p, newText.length - q);
   for (var k = hits.length - 1; k >= 0; k--) {
-    var a = map[hits[k]], b = map[hits[k] + oldText.length - 1];
-    text.deleteText(a, b);
-    if (newText) {
-      if (a >= text.getText().length) text.appendText(newText); else text.insertText(a, newText);
+    var from = hits[k] + p, to = hits[k] + oldText.length - q;  // visible range to replace
+    var at = from < visible.length ? map[from] : s.length;
+    if (to > from) text.deleteText(map[from], map[to - 1]);
+    if (insert) {
+      if (at >= text.getText().length) text.appendText(insert); else text.insertText(at, insert);
     }
   }
   return hits.length;
