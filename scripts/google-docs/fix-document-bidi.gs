@@ -87,11 +87,6 @@ function runDirections_(apply) {
   var title = (apply ? 'תוקן' : 'תצוגה מקדימה') + ' — ' + paragraphs.length + ' פסקאות נבדקו';
   var message = report.length ? report.join('\n') : 'אין מה לתקן — המסמך כבר תקין.';
   Logger.log(title + '\n' + message);
-  try {
-    DocumentApp.getUi().alert(title, message, DocumentApp.getUi().ButtonSet.OK);
-  } catch (e) {
-    // No UI when run outside the document window; the log above has the report.
-  }
   return report;
 }
 
