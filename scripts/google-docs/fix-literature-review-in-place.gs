@@ -1,9 +1,10 @@
 /**
- * הצעות תיקון לסקירת הספרות. יוצר עותק עם התיקונים; המסמך המקורי לא משתנה.
+ * תיקון סקירת הספרות ישירות במסמך הזה.
+ * משנה רק את הטקסטים שברשימה (ומוסיף סימני כיוון בלתי נראים ליד סוגריים). עיצוב, כותרות,
+ * רשימות וקישורים נשארים כמו שהם. תיקון שהטקסט שלו כבר לא קיים במסמך מדולג ומדווח ביומן.
  * 1. במסמך: תוספים ← Apps Script. מוחקים הכול, מדביקים, שומרים.
- * 2. בוחרים createSuggestionsCopy ולוחצים "הפעלה". ביומן הביצוע יופיע קישור לעותק.
- * 3. במסמך המקורי: כלים ← השוואת מסמכים ← בוחרים את העותק ← השוואה.
- * כל תיקון מחפש את הטקסט שלו בכל המסמך. תיקון שהטקסט שלו כבר לא קיים מדולג ומדווח ביומן.
+ * 2. בוחרים fixInPlace ולוחצים "הפעלה".
+ * לביטול: קובץ ← היסטוריית גרסאות ← הגרסה שלפני ההרצה.
  */
 
 // [current text, suggested text, true = every occurrence]
@@ -126,11 +127,9 @@ var EDITS = [
    'לצדו שולבו לוח רפלקציה אישי המודד מאמץ ואסטרטגיה, וכן מדד התמדה לכל תלמיד, שמוצג למורים בלבד.']
 ];
 
-function createSuggestionsCopy() {
-  var source = DocumentApp.getActiveDocument();
-  var copyFile = DriveApp.getFileById(source.getId()).makeCopy(source.getName() + ' — הצעות תיקון');
-  var copy = DocumentApp.openById(copyFile.getId());
-  var paragraphs = copy.getBody().getParagraphs();
+function fixInPlace() {
+  var doc = DocumentApp.getActiveDocument();
+  var paragraphs = doc.getBody().getParagraphs();
   var changed = {};
   var skipped = [];
 
@@ -177,11 +176,9 @@ function createSuggestionsCopy() {
     for (var j = i - 1; j > 0 && paragraphs[j].getText() === ''; j--) paragraphs[j].removeFromParent();
   }
 
-  copy.saveAndClose();
-  Logger.log('נוצר עותק:\n' + copyFile.getUrl() +
-    '\n\nתיקונים שבוצעו: ' + (EDITS.length - skipped.length) + ' מתוך ' + EDITS.length +
-    (skipped.length ? '\nלא נמצאו (כנראה כבר שונו במסמך):\n- ' + skipped.join('\n- ') : '') +
-    '\n\nעכשיו במסמך המקורי: כלים ← השוואת מסמכים ← בחר את העותק.');
+  doc.saveAndClose();
+  Logger.log('תיקונים שבוצעו: ' + (EDITS.length - skipped.length) + ' מתוך ' + EDITS.length +
+    (skipped.length ? '\nלא נמצאו (כבר תוקנו או שהטקסט שונה):\n- ' + skipped.join('\n- ') : ''));
 }
 
 /** Replaces old with new in a paragraph, ignoring direction marks in the existing text. */
