@@ -5,9 +5,9 @@
  * מה הסקריפט עושה, ורק זה:
  *   1. כיוון פסקה: פסקה עם עברית ← מימין לשמאל. פסקה באנגלית בלבד (ביבליוגרפיה) ← משמאל לימין.
  *   2. סימני כיוון בלתי נראים בפסקאות עבריות, לפי המוסכמה שכבר קיימת במסמך:
- *        - הפניה בגוף המשפט:  Bouck et al. (2017)‎   ← LRM (U+200E) אחרי הסוגר, כשאחריו עברית
- *        - הפניה בסוגריים:    ‏(Root et al., 2017)‏   ← RLM (U+200F) לפני הפותח ואחרי הסוגר
- *        - קיצור לועזי לפני עברית:  et al.‎ מצאו      ← LRM אחרי הנקודה של הקיצור
+ *        - הפניה בגוף המשפט:  Bouck et al. (2017)   ← LRM (U+200E) אחרי הסוגר, כשאחריו עברית
+ *        - הפניה בסוגריים:    (Root et al., 2017)   ← RLM (U+200F) לפני הפותח ואחרי הסוגר
+ *        - קיצור לועזי לפני עברית:  et al. מצאו      ← LRM אחרי הנקודה של הקיצור
  *   חל על גוף המסמך, הכותרת העליונה, הכותרת התחתונה וההערות.
  *
  *   הסקריפט לא משנה אף תו גלוי, אף מילה ואף עיצוב. הוא מוסיף רק את שני התווים הבלתי נראים
@@ -22,14 +22,14 @@
  *   לביטול: עריכה ← ביטול (Ctrl+Z) במסמך, או היסטוריית הגרסאות.
  */
 
-var LRM = '‎';
-var RLM = '‏';
+var LRM = '\u200E';
+var RLM = '\u200F';
 
-var LATIN = /[A-Za-zÀ-ɏ]/;
-var HEBREW = /[֐-׿יִ-ﭏ]/;
+var LATIN = /[A-Za-z\u00C0-\u024F]/;
+var HEBREW = /[\u0590-\u05FF\uFB1D-\uFB4F]/;
 var OPENERS = { '(': ')', '[': ']' };
 // Latin abbreviations whose final period belongs to the English, not to the Hebrew sentence.
-var ABBREVIATION = /(?:^|[^A-Za-z])(et al|e\.g|i\.e|cf|vs|pp|Eds?|Vol|No|n\.d)\.(?=[‎‏]?\s*[֐-׿])/g;
+var ABBREVIATION = /(?:^|[^A-Za-z])(et al|e\.g|i\.e|cf|vs|pp|Eds?|Vol|No|n\.d)\.(?=[\u200E\u200F]?\s*[\u0590-\u05FF])/g;
 
 function onOpen() {
   DocumentApp.getUi()
@@ -234,5 +234,5 @@ function firstStrong_(s) {
 }
 
 function stripMarks_(s) {
-  return s.replace(/[‎‏]/g, '');
+  return s.replace(/[\u200E\u200F]/g, '');
 }
