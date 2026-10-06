@@ -826,7 +826,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   {studentNum !== null && selectedSession !== null && (sessionEvents.length > 0 || rrwebEvents.length > 0) && (
                     <button
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
                         downloadMeetingExport(
                           buildMeetingExport({
                             learner: studentNum,
@@ -837,8 +837,8 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                             recordingEvents: rrwebEvents,
                             truncated,
                           }),
-                        )
-                      }
+                        ).catch((err) => console.warn('[LearnerJourney] the meeting file could not be built:', err));
+                      }}
                       title="הורדת כל המפגש: כל הפעולות המתועדות והקלטת מסך העבודה, בקובץ אחד"
                       data-testid="download-meeting"
                       className="flex items-center gap-1 font-bold text-indigo-200 bg-slate-900 border border-slate-700 hover:border-indigo-500 rounded-lg px-2 py-1 cursor-pointer"

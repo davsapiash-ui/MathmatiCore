@@ -24,6 +24,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id: string) {
+          // The meeting download's offline player (meetingExport.ts): its own
+          // chunk, read only when the teacher downloads a meeting.
+          if (id.includes('node_modules/rrweb/dist/') && id.includes('?raw')) return 'rrweb-standalone';
           if (id.includes('node_modules/rrweb')) return 'rrweb';
           if (id.includes('node_modules/recharts')) return 'recharts';
           if (id.includes('node_modules/firebase')) return 'firebase';
