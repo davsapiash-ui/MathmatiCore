@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { TRAIL_STYLES, mouseTailFor, loadTrailStyle, saveTrailStyle, type TrailStyle } from './replayTrail';
 import { Replayer } from "rrweb";
 import "rrweb-player/dist/style.css";
 import { Play, Pause, RotateCcw } from "lucide-react";
@@ -52,6 +53,9 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const [trailStyle, setTrailStyle] = useState<TrailStyle>(() => loadTrailStyle());
+  // Read when a player is (re)built, so a rebuild keeps the teacher's choice.
+  const trailStyleRef = useRef<TrailStyle>(trailStyle);
   const progressTimerRef = useRef<any>(null);
   // The teacher paused (or the chosen exercise ended): a new chunk keeps the
   // player paused. The end of the recording itself is not a pause — a
@@ -150,7 +154,7 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
 
       const replayer = new Replayer(playable, {
         root: container,
-        mouseTail: true,
+        mouseTail: mouseTailFor(trailStyleRef.current),
         // rrweb replays the learner's recorded focus events with a real
         // focus() inside its iframe. That took the keyboard away from the
         // teacher's page: Escape and Tab stopped reaching a drawer opened
@@ -354,6 +358,15 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
     };
   });
 
+  const changeTrail = (style: TrailStyle) => {
+    setTrailStyle(style);
+    trailStyleRef.current = style;
+    saveTrailStyle(style);
+    if (replayerRef.current) {
+      try { replayerRef.current.setConfig({ mouseTail: mouseTailFor(style) }); } catch { /* player gone */ }
+    }
+  };
+
   const changeSpeed = (speed: number) => {
     setPlaybackSpeed(speed);
     if (replayerRef.current) {
@@ -423,6 +436,26 @@ export function ReplayViewer({ events, seekToTime, seekNonce, onEnd, onProgress,
                 }`}
               >
                 x{speed}
+              </button>
+            ))}
+          </div>
+
+          {/* Mouse trail (owner, 6.10.2026): the teacher picks how the mouse's
+              way is drawn, or turns it off and sees the cursor only. */}
+          <div role="group" aria-label="שובל העכבר" data-testid="trail-style" className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-700">
+            <span className="text-[11px] font-bold text-slate-400 px-1.5">שובל העכבר:</span>
+            {TRAIL_STYLES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => changeTrail(t.id)}
+                aria-pressed={trailStyle === t.id}
+                title={t.titleHe}
+                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  trailStyle === t.id ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                {t.labelHe}
               </button>
             ))}
           </div>

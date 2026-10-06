@@ -37,7 +37,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users, Mail } from "lucide-react";
+import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users, Mail, Radar, LayoutGrid, FileText, ShieldCheck, School, PanelRightClose, PanelRightOpen } from "lucide-react";
 
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { LearnerJourney } from "./TeacherDashboard/components/LearnerJourney";
@@ -161,6 +161,17 @@ export function TeacherDashboard() {
     return initial;
   });
 
+  // The side menu folded to icons (owner, 6.10.2026). A per-teacher convenience:
+  // remembered in this browser only, and the page works the same without it.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem('teacher_sidebar_collapsed') === '1'; } catch { return false; }
+  });
+  const toggleSidebar = () => {
+    setSidebarCollapsed((c) => {
+      try { localStorage.setItem('teacher_sidebar_collapsed', c ? '0' : '1'); } catch { /* storage unavailable */ }
+      return !c;
+    });
+  };
   const [activeTab, setActiveTab] = useState<TabType>(
     routeStudentId ? "diagnostic_reports" : "heatmap",
   );
@@ -1689,7 +1700,11 @@ export function TeacherDashboard() {
       // overflow-x-clip, not -hidden: "hidden" turns this element into the scroll
       // container of the sticky side menu, and since it never scrolls itself
       // the menu scrolled away with the page.
-      className="flex flex-col min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 overflow-x-clip"
+      // md and up: the shell is exactly the screen, the side menu stands still
+      // and only the page (main) scrolls, with its own scrollbar beside it
+      // (owner, 6.10.2026: the page scrolled with the window's bar, beyond the
+      // menu, and the bar beside the page belonged to the menu).
+      className="flex flex-col min-h-screen md:h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 overflow-x-clip"
       data-load-timed-out={loadTimedOut ? 'true' : undefined}
       dir="rtl"
     >
@@ -1711,39 +1726,54 @@ export function TeacherDashboard() {
       )}
       {/* The banner above sits over the whole width; the side menu and the
           page share the row below it. */}
-      <div className="flex flex-col md:flex-row flex-1 min-w-0">
+      <div className="flex flex-col md:flex-row flex-1 min-w-0 md:min-h-0">
       {/* Sidebar — stays in place while the page scrolls (md and up), so the
           tabs and the sign-out are always in reach. */}
-        <aside className="w-full md:w-64 lg:w-72 bg-white dark:bg-slate-900 border-b md:border-b-0 md:border-l border-slate-200/80 dark:border-slate-800 flex flex-col shadow-md z-20 transition-all shrink-0 md:sticky md:top-0 md:self-start md:h-screen overflow-y-auto custom-scrollbar">
-        <div className="h-20 flex items-center px-6 border-b border-ws-surface2 bg-white/40 dark:bg-slate-800/40 shrink-0">
+        {/* The menu folds to a strip of icons (owner, 6.10.2026), so the page gets
+            the width. Its own scrollbar, when it needs one, sits on the outer
+            edge of the screen ([direction:ltr]), away from the page's. */}
+        <aside data-collapsed={sidebarCollapsed ? 'true' : undefined} className={`w-full ${sidebarCollapsed ? 'md:w-16' : 'md:w-64 lg:w-72'} bg-white dark:bg-slate-900 border-b md:border-b-0 md:border-l border-slate-200/80 dark:border-slate-800 flex flex-col shadow-md z-20 transition-all shrink-0 md:sticky md:top-0 md:self-start md:h-full overflow-y-auto custom-scrollbar md:[direction:ltr] md:[&>*]:[direction:rtl]`}>
+        <div className={`h-20 flex items-center justify-between gap-2 border-b border-ws-surface2 bg-white/40 dark:bg-slate-800/40 shrink-0 ${sidebarCollapsed ? 'px-6 md:px-0 md:justify-center' : 'px-6'}`}>
           {/* The dashboard stays mounted across its own routes, so the link
               alone left the teacher on the tab she was on. */}
-          <div onClick={() => handleTabChange("heatmap")}>
+          <div onClick={() => handleTabChange("heatmap")} className={sidebarCollapsed ? 'md:hidden' : ''}>
             <Logo size="md" to="/dashboard" textClassName="font-display text-ws-ink" />
           </div>
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            data-testid="sidebar-toggle"
+            aria-expanded={!sidebarCollapsed}
+            aria-label={sidebarCollapsed ? 'פתיחת התפריט' : 'כיווץ התפריט'}
+            title={sidebarCollapsed ? 'פתיחת התפריט' : 'כיווץ התפריט'}
+            className="hidden md:inline-flex items-center justify-center w-9 h-9 rounded-xl text-ws-soft hover:bg-ws-bg hover:text-ws-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent cursor-pointer"
+          >
+            {sidebarCollapsed ? <PanelRightOpen className="w-5 h-5" /> : <PanelRightClose className="w-5 h-5" />}
+          </button>
         </div>
         
-        <div className="p-6 border-b border-ws-surface2">
-          <h2 className="font-display font-black text-xl text-ws-ink tracking-tight mb-2">
+        <div className={`border-b border-ws-surface2 ${sidebarCollapsed ? 'p-6 md:p-2' : 'p-6'}`}>
+          <h2 className={`font-display font-black text-xl text-ws-ink tracking-tight mb-2 ${sidebarCollapsed ? 'md:sr-only' : ''}`}>
             תחנת עבודה מורה
           </h2>
           
-          <div className="mt-4">
+          <div className={sidebarCollapsed ? 'mt-4 md:mt-0' : 'mt-4'}>
             <button
               // One named window: a second click brings the same projector
               // window back instead of opening another, and each extra window
               // released the children's screens when it opened or closed.
               onClick={() => window.open('/projector', 'mathmaticore_projector')}
+              title="ארגז חול למקרן"
               className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 shadow-md font-bold text-sm"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
-              <span>ארגז חול למקרן</span>
+              <span className={sidebarCollapsed ? 'md:sr-only' : ''}>ארגז חול למקרן</span>
             </button>
           </div>
         </div>
 
-        <nav role="tablist" aria-orientation="vertical" aria-label="המסך של המורה" className="flex-1 p-4 flex flex-col gap-2">
-          <div className="text-[10px] font-bold text-slate-400  mb-2 mt-2 px-2 uppercase tracking-widest">
+        <nav role="tablist" aria-orientation="vertical" aria-label="המסך של המורה" className={`flex-1 flex flex-col gap-2 ${sidebarCollapsed ? 'p-4 md:p-2' : 'p-4'}`}>
+          <div className={`text-[10px] font-bold text-slate-400  mb-2 mt-2 px-2 uppercase tracking-widest ${sidebarCollapsed ? 'md:sr-only' : ''}`}>
             פדגוגיה ומעקב
           </div>
           <button
@@ -1751,35 +1781,38 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("heatmap")}
               role="tab"
               aria-selected={activeTab === "heatmap"}
-            className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "heatmap" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+            className={`w-full flex items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "heatmap" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+            title="הרדאר הפדגוגי השקט"
           >
-            הרדאר הפדגוגי השקט
+            <span className="flex items-center gap-2"><Radar className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>הרדאר הפדגוגי השקט</span></span>
           </button>
           <button
             id="tour-tab-clustering"
             onClick={() => handleTabChange("clustering")}
               role="tab"
               aria-selected={activeTab === "clustering"}
-            className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "clustering" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full flex items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "clustering" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            title="מיפוי מיומנויות כיתתי"
           >
-            מיפוי מיומנויות כיתתי
+            <span className="flex items-center gap-2"><LayoutGrid className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>מיפוי מיומנויות כיתתי</span></span>
           </button>
           <button
             id="tour-tab-reports"
             onClick={() => handleTabChange("diagnostic_reports")}
               role="tab"
               aria-selected={activeTab === "diagnostic_reports"}
-            className={`w-full text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "diagnostic_reports" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+            className={`w-full flex items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "diagnostic_reports" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+            title="דוחות אבחון אישיים"
           >
-            דוחות אבחון אישיים
+            <span className="flex items-center gap-2"><FileText className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>דוחות אבחון אישיים</span></span>
           </button>
           <button
             onClick={() => handleTabChange("approvals")}
               role="tab"
               aria-selected={activeTab === "approvals"}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
-            <span>{TEACHER_GATE_HE}</span>
+            <span className="flex items-center gap-2" title={TEACHER_GATE_HE}><ShieldCheck className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>{TEACHER_GATE_HE}</span></span>
             {/* Badge: learners waiting at the Module 20 gate. */}
             {pendingApprovalsBadgeCount > 0 && (
               <span className="bg-ws-accent text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
@@ -1792,12 +1825,12 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("class_management")}
               role="tab"
               aria-selected={activeTab === "class_management"}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "class_management" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "class_management" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            <span>ניהול כיתה ותנאי למידה</span>
+            <span className="flex items-center gap-2" title="ניהול כיתה ותנאי למידה"><School className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>ניהול כיתה ותנאי למידה</span></span>
           </button>
 
-          <div className="text-[10px] font-bold text-slate-400  mb-2 mt-6 px-2 uppercase tracking-widest">
+          <div className={`text-[10px] font-bold text-slate-400  mb-2 mt-6 px-2 uppercase tracking-widest ${sidebarCollapsed ? 'md:sr-only' : ''}`}>
             תקשורת וצ'אט
           </div>
           <button
@@ -1805,9 +1838,9 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("chat_students")}
               role="tab"
               aria-selected={activeTab === "chat_students"}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "chat_students" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "chat_students" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            <span>צ'אט עם תלמידים</span>
+            <span className="flex items-center gap-2" title="צ'אט עם תלמידים"><MessageCircle className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>צ'אט עם תלמידים</span></span>
             {unreadStudentsCount > 0 && (
               <span className="bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-rose-500/30 badge-alert animate-soft-heartbeat">
                 {unreadStudentsCount}
@@ -1816,9 +1849,9 @@ export function TeacherDashboard() {
           </button>
           <button
             onClick={() => setIsAdminChatDrawerOpen(true)}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${isAdminChatDrawerOpen ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${isAdminChatDrawerOpen ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            <span className="flex items-center gap-2"><Mail className="w-4 h-4" />צ'אט הנהלה</span>
+            <span className="flex items-center gap-2" title="צ'אט הנהלה"><Mail className="w-4 h-4 shrink-0" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>צ'אט הנהלה</span></span>
             {unreadAdminCount > 0 && (
               <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg shadow-indigo-600/30 animate-bounce">
                 {unreadAdminCount}
@@ -1827,9 +1860,9 @@ export function TeacherDashboard() {
           </button>
         </nav>
         
-        <div className="p-4 border-t border-ws-surface2 bg-white/40 dark:bg-slate-800/40 mt-auto shrink-0 flex flex-col gap-3">
-          <TeacherGenderSetting />
-          <LogoutButton className="w-full justify-start gap-3 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-colors rounded-xl px-4 py-3" />
+        <div className={`border-t border-ws-surface2 bg-white/40 dark:bg-slate-800/40 mt-auto shrink-0 flex flex-col gap-3 ${sidebarCollapsed ? 'p-4 md:p-2' : 'p-4'}`}>
+          <div className={sidebarCollapsed ? 'md:hidden' : ''}><TeacherGenderSetting /></div>
+          <LogoutButton className={`w-full gap-3 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-colors rounded-xl py-3 ${sidebarCollapsed ? 'justify-start px-4 md:justify-center md:px-0' : 'justify-start px-4'}`} labelClassName={sidebarCollapsed ? 'md:sr-only' : ''} />
         </div>
       </aside>
 
@@ -1837,7 +1870,7 @@ export function TeacherDashboard() {
       {/* On the student chat the page itself does not scroll: main takes exactly the
           screen height and the conversation fills what the session bar leaves, so
           the typing line is always in view. Only the message list scrolls. */}
-      <main className={`flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 relative ${activeTab === "chat_students" ? "md:h-screen md:flex md:flex-col" : ""}`}>
+      <main className={`flex-1 min-w-0 md:min-h-0 md:h-full overflow-y-auto custom-scrollbar p-4 md:p-8 relative ${activeTab === "chat_students" ? "md:flex md:flex-col" : ""}`}>
         {/* Subtle background glow effect */}
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
@@ -2240,11 +2273,11 @@ export function TeacherDashboard() {
 
         {activeTab === "diagnostic_reports" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <header className="mb-10">
-              <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
+            <header className="mb-5">
+              <h1 className="text-2xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
                 דוחות אבחון אישיים
               </h1>
-              <p className="text-ws-soft mt-3 text-lg">
+              <p className="text-ws-soft mt-1 text-sm">
                 תצוגה פדגוגית המשלבת שחזור מהלכים, נתוני רדאר, מיפוי מיומנויות והמלצות להוראה מותאמת אישית.
               </p>
             </header>
@@ -2290,16 +2323,12 @@ export function TeacherDashboard() {
                     הקישור לא מוביל לאף תלמיד בכיתה. מספרי התלמידים הם 1 עד 12. בחרו תלמיד מהרשימה.
                   </p>
                 )}
-                <div className="flex flex-col lg:flex-row gap-6">
-                  {/* Sidebar: Student List */}
-                  <AccessibleCard className="w-full lg:w-64 shrink-0 p-4 bg-ws-surface/80 backdrop-blur-xl border border-ws-surface2 shadow-sm rounded-2xl h-fit max-h-[80vh] overflow-y-auto">
-                    <h3 className="font-bold text-ws-ink mb-4 px-2 flex items-center justify-between">
-                      <span>תלמידי הכיתה</span>
-                      <span className="text-xs bg-ws-surface2 text-ws-soft px-2 py-0.5 rounded-full font-mono">
-                        {allStudents.length}
-                      </span>
-                    </h3>
-                    <div className="space-y-1">
+                <div className="flex flex-col gap-4">
+                  {/* Student picker: one compact row of numbers above the report
+                      (owner, 6.10.2026), instead of a column beside it, so the
+                      report gets the full width. */}
+                  <div role="group" aria-label="תלמידי הכיתה" data-testid="report-student-picker" className="flex items-center gap-1.5 flex-wrap bg-ws-surface/80 border border-ws-surface2 shadow-sm rounded-2xl px-3 py-2">
+                    <span className="text-xs font-bold text-ws-soft ml-1">תלמידי הכיתה ({allStudents.length}):</span>
                       {allStudents.map(studentItem => {
                         const sNumItem = studentItem.studentId.replace(/\D/g, '') || studentItem.studentId;
                         const isSelected = effectiveReplayStudentId === studentItem.studentId || 
@@ -2308,23 +2337,26 @@ export function TeacherDashboard() {
                         return (
                           <button
                             key={studentItem.studentId}
+                            type="button"
                             onClick={() => {
                               setSelectedReplayStudentId(studentItem.studentId);
                               setSelectedStudentId(studentItem.studentId);
                             }}
-                            className={`w-full flex items-center justify-between p-3 rounded-xl text-sm font-bold transition-all text-right cursor-pointer ${
+                            aria-pressed={isSelected}
+                            aria-label={`תלמיד ${sNumItem}${studentItem.isOnline ? ', מחובר' : ''}`}
+                            title={`תלמיד ${sNumItem}${studentItem.isOnline ? ' · מחובר כעת' : ''}`}
+                            className={`relative min-w-9 h-9 px-2 inline-flex items-center justify-center rounded-xl text-sm font-bold transition-all cursor-pointer border ${
                               isSelected
-                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                                : 'text-ws-ink hover:bg-ws-bg/80'
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20'
+                                : 'bg-white dark:bg-slate-800 text-ws-ink border-slate-200 dark:border-slate-700 hover:bg-ws-bg/80'
                             }`}
                           >
-                            <span>תלמיד {sNumItem}</span>
-                            <span className={`w-2 h-2 rounded-full ${studentItem.isOnline ? 'bg-emerald-400' : 'bg-slate-300'}`} />
+                            {sNumItem}
+                            {studentItem.isOnline && <span aria-hidden="true" className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />}
                           </button>
                         );
                       })}
-                    </div>
-                  </AccessibleCard>
+                  </div>
 
                   {/* Main Profile Area */}
                   <div className="flex-1 flex flex-col gap-6">
