@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MonitorPlay, ListOrdered, AlertTriangle, RotateCcw, Sparkles, FileText, Loader2 } from 'lucide-react';
+import { MonitorPlay, ListOrdered, AlertTriangle, RotateCcw, Sparkles, FileText, Loader2, Download } from 'lucide-react';
+import { buildMeetingExport, downloadMeetingExport } from '../meetingExport';
 import { ReplayViewer } from '@/presentation/components/ReplayViewer';
 import { CHOICE_EXERCISES_HEADING_HE } from '@/core/choiceExercises';
 import {
@@ -816,8 +817,34 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   <MonitorPlay className="w-4 h-4 text-indigo-300" aria-hidden="true" />
                   שחזור מסך העבודה, ללא קול · {meetingShortLabelHe(selectedSession)}
                 </span>
-                <span className="text-slate-400">
+                <span className="flex items-center gap-2 text-slate-400">
                   {sessionRecordings.length > 0 ? `${sessionRecordings.reduce((s, r) => s + r.chunkCount, 0)} מקטעי הקלטה` : ''}
+                  {/* Owner, 6.10.2026: the whole meeting — every action and the
+                      recording — as one file (meetingExport.ts). */}
+                  {studentNum !== null && selectedSession !== null && (sessionEvents.length > 0 || rrwebEvents.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadMeetingExport(
+                          buildMeetingExport({
+                            learner: studentNum,
+                            meeting: selectedSession,
+                            actions: sessionEvents,
+                            resets: sessionResets,
+                            chapters,
+                            recordingEvents: rrwebEvents,
+                            truncated,
+                          }),
+                        )
+                      }
+                      title="הורדת כל המפגש: כל הפעולות המתועדות והקלטת מסך העבודה, בקובץ אחד"
+                      data-testid="download-meeting"
+                      className="flex items-center gap-1 font-bold text-indigo-200 bg-slate-900 border border-slate-700 hover:border-indigo-500 rounded-lg px-2 py-1 cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                      הורדת המפגש
+                    </button>
+                  )}
                 </span>
               </div>
               {truncated && (
