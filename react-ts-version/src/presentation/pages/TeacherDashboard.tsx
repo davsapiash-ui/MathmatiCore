@@ -71,7 +71,7 @@ import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/securi
 import { approveTeacherGate } from "@/core/teacherGate";
 import { PILOT_CLASS_ID, PILOT_SCHOOL_ID } from "@/core/pilotInstitution";
 import { meetingLabelHe, meetingShortLabelHe } from "@/core/stationNames";
-import { MEETING_FORMAL_HE, meetingFullLabelHe } from "@/core/meetingFormalNames";
+import { MEETING_FORMAL_HE } from "@/core/meetingFormalNames";
 import { ROUTE_NAME_HE, TEACHER_GATE_HE, routeNameHe } from "@/core/routeLabels";
 
 /**
@@ -172,6 +172,17 @@ export function TeacherDashboard() {
       return !c;
     });
   };
+  // Personal reports: the class report folded to one line unless the teacher
+  // opened it (remembered in this browser; owner, 6.10.2026).
+  const [classReportOpen, setClassReportOpen] = useState<boolean>(() => {
+    try { return localStorage.getItem('teacher_class_report_open') === '1'; } catch { return false; }
+  });
+  const toggleClassReport = () => {
+    setClassReportOpen((o) => {
+      try { localStorage.setItem('teacher_class_report_open', o ? '0' : '1'); } catch { /* storage unavailable */ }
+      return !o;
+    });
+  };
   const [activeTab, setActiveTab] = useState<TabType>(
     routeStudentId ? "diagnostic_reports" : "heatmap",
   );
@@ -201,7 +212,6 @@ export function TeacherDashboard() {
   // The server refused the read (the signed-in account is not a teacher's):
   // checking the internet does not help, signing in as the teacher does.
   const [loadRefused, setLoadRefused] = useState(false);
-  const [diagnosticSelectedSession, setDiagnosticSelectedSession] = useState<number>(2);
 
   // Update active tab and selected student based on route params (PRD 4.3 Navigation Redundancy)
   useEffect(() => {
@@ -2284,8 +2294,24 @@ export function TeacherDashboard() {
 
             {/* Module 23, owner decision 6.9.2026 (register item 9): every
                 meeting has a class report beside the learner reports. */}
-            <div className="mb-6">
-              <ClassMeetingReportPanel />
+            {/* Folded to one line by default (owner, 6.10.2026: the screen was
+                crowded); the panel itself is unchanged when opened. */}
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={toggleClassReport}
+                aria-expanded={classReportOpen}
+                data-testid="class-report-toggle"
+                className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-2xl border border-ws-surface2 bg-ws-surface text-sm font-black text-ws-ink hover:border-ws-accent/40 cursor-pointer"
+              >
+                <span className="flex items-center gap-2"><Users className="w-4 h-4 text-indigo-500" aria-hidden="true" />דוח כיתה למפגש</span>
+                <span className="text-xs font-bold text-ws-soft">{classReportOpen ? 'הסתרה ▴' : 'הצגה ▾'}</span>
+              </button>
+              {classReportOpen && (
+                <div className="mt-2">
+                  <ClassMeetingReportPanel />
+                </div>
+              )}
             </div>
 
             {(() => {
@@ -2451,33 +2477,13 @@ export function TeacherDashboard() {
                               <LearnerJourney studentId={effectiveReplayStudentId} />
                             </div>
 
-                            {/* Main Content Row: Q-Matrix & Traces */}
-                            <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-bold text-ws-soft ml-1">מפגש לבחינת מחוונים ומיומנויות:</span>
-                                {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-                                  <button
-                                    key={num}
-                                    type="button"
-                                    onClick={() => setDiagnosticSelectedSession(num)}
-                                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                      diagnosticSelectedSession === num
-                                        ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20'
-                                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-                                    }`}
-                                    title={meetingFullLabelHe(num)}
-                                  >
-                                    {/* The child's station name, and the formal information the
-                                        teacher had here before it (owner, 27.9.2026). */}
-                                    {meetingShortLabelHe(num)}{num === 2 ? ' (מיפוי יסוד)' : ''}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-
+                            {/* Q-Matrix & traces. The meeting is picked once, in the journey
+                                above; the skill map is meeting 2's diagnostic and stands on its
+                                own (owner, 6.10.2026: a second meeting picker here was the same
+                                choice twice). */}
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
                               {/* Q-Matrix Report */}
-                              {diagnosticSelectedSession === 2 ? (
+                              {(
                                 <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-ws-surface2 shadow-md rounded-2xl h-full">
                                   <h3 className="text-xl font-bold text-ws-ink mb-1 flex items-center gap-2">
                                     <span className="text-ws-accent">📊</span>
@@ -2503,26 +2509,6 @@ export function TeacherDashboard() {
                                       );
                                     })}
                                   </div>
-                                </AccessibleCard>
-                              ) : (
-                                <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-ws-surface2 shadow-md rounded-2xl h-full flex flex-col justify-center items-center text-center">
-                                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center mb-3 text-xl">
-                                    📊
-                                  </div>
-                                  <h4 className="text-base font-bold text-ws-ink mb-1">
-                                    מיפוי מיומנויות — {meetingShortLabelHe(diagnosticSelectedSession)}
-                                  </h4>
-                                  <p className="text-xs text-ws-soft max-w-sm mb-4 leading-relaxed">
-                                    מחוון משימות היסוד מיועד למפגש 2 (מיפוי ראשוני). במפגש {diagnosticSelectedSession} המעקב מתבסס על ציר ההחלטות ועל דוח הלמידה המוצגים למעלה.
-                                  </p>
-                                  <button
-                                    type="button"
-                                    onClick={() => setDiagnosticSelectedSession(2)}
-                                    className="text-xs font-bold px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all cursor-pointer flex items-center gap-1.5"
-                                  >
-                                    <span>צפייה במחוון משימות מפגש 2</span>
-                                    <span className="text-indigo-500">←</span>
-                                  </button>
                                 </AccessibleCard>
                               )}
 
