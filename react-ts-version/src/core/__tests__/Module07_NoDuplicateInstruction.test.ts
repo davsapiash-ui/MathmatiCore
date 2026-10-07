@@ -26,7 +26,9 @@ describe('Module 7 — one instruction on screen, once', () => {
     // sentence and numbered steps, from one split (instructionLayout); still
     // one place, one read-aloud of the whole text.
     expect(taskCard.split('instructionLayout(instruction)').length - 1).toBe(1);
-    expect(taskCard).toMatch(/<p className=\{`text-fl-16-20 text-ws-ink\/85 font-medium [^`]*whitespace-pre-line[^`]*`\} data-testid="instruction-lead">\s*<MathText text=\{lead\} \/>/);
+    // The lead paragraph sits beside its "בניתי" mark (register יח), so it is
+    // flex-1 inside a row; still one place, one MathText of the lead.
+    expect(taskCard).toMatch(/<p className=\{`flex-1 min-w-0 text-fl-16-20 text-ws-ink\/85 font-medium [^`]*whitespace-pre-line[^`]*`\} data-testid="instruction-lead">\s*<MathText text=\{lead\} \/>/);
     expect(taskCard).toContain('<MathText text={step} />');
     expect(taskCard.split('<UdlSpeechButton text={instruction} />').length - 1).toBe(1);
   });

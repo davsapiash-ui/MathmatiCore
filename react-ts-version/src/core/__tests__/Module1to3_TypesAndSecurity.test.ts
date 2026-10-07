@@ -122,11 +122,13 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
         'HELP_WITHDRAWN',
         // Owner, 1.10.2026: a request for help from the chat, with its exercise.
         'CHAT_HELP_REQUESTED',
+        // Owner, 7.10.2026 (register יח): the child's own "בניתי" mark on a build step.
+        'STEP_MARKED_DONE',
       ];
 
-      expect(expectedEvents).toHaveLength(20);
+      expect(expectedEvents).toHaveLength(21);
       expect(COLUMN_SCOPED_EVENTS).toHaveLength(8);
-      expect(NON_COLUMN_EVENTS).toHaveLength(11);
+      expect(NON_COLUMN_EVENTS).toHaveLength(12);
     });
 
     it('validates that DIGIT_ENTERED requires is_correct boolean and column_index (0, 1, 2)', () => {

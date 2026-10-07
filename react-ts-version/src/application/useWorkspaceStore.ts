@@ -439,6 +439,12 @@ export interface WorkspaceState {
    * digits shown, and why the answer is right. Null otherwise.
    */
   successHold: SuccessHold | null;
+  /**
+   * The instruction's build steps the child marked as done (1-based step
+   * numbers), for the exercise on the screen (owner, 7.10.2026; core/buildStep).
+   * The child's own word, not the system's: nothing reads it as a gate.
+   */
+  markedSteps: number[];
   /** Module 19 §ב Safe Application Boundary: a teacher-queued differentiation
    * change (path/scaffold/addition-helper), staged from RTDB
    * users/students/{id}/pendingAdaptation and applied only in startTask(),
@@ -659,6 +665,8 @@ export interface WorkspaceState {
   startSession: (meeting: number) => void;
   initSession: (meeting: SessionNumber, isASD: boolean, startingTaskIdx?: number, existingDeadline?: number | null) => void;
   restoreSession: (savedState: any) => void;
+  /** The child marks a build step of the instruction as done, or takes the mark back (core/buildStep.ts). */
+  toggleStepMark: (stepIndex: number, stepText: string) => void;
   getSessionRemainingSeconds: () => number;
   selectBranch: (branch: 'reinforcement' | 'challenge') => void;
   applyDrop: (input: DropInput) => void;
@@ -1254,6 +1262,7 @@ function restoredCardHistory(raw: unknown): WorkspaceState['socraticCardHistory'
 function resetTaskInteraction(_isASD = false) {
   return {
     successHold: null as SuccessHold | null,
+    markedSteps: [] as number[],
     counts: { ...EMPTY_COUNTS },
     undoStack: [] as UndoFrame[],
     regroupTriggerTimestamps: {} as Record<number, number>,
@@ -3689,6 +3698,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     undoTimestamps: [],
     isBoardLocked: false,
     successHold: null,
+    markedSteps: [],
     pendingAdaptation: null,
     hasRequestedBasicHelp: false,
     helpRequestCount: 0,
@@ -4039,6 +4049,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // exercise, a reload included — and a restore to another exercise
         // brings that exercise's own value, never the one on screen.
         placeCuesShown: saved.placeCuesShown === true,
+        markedSteps: Array.isArray(saved.markedSteps) ? saved.markedSteps.filter((n: unknown) => Number.isInteger(n)) : [],
         // A solved exercise held on the screen stays held after a reload; it
         // is shown only on the exercise it belongs to (activeSuccessHold).
         successHold:
@@ -4976,6 +4987,28 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const strategies = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       set({ reflectionDraft: { ...s.reflectionDraft, strategies } });
     },
+    toggleStepMark: (stepIndex, stepText) => {
+      const s = get();
+      const marked = !s.markedSteps.includes(stepIndex);
+      set({ markedSteps: marked ? [...s.markedSteps, stepIndex].sort((a, b) => a - b) : s.markedSteps.filter((i) => i !== stepIndex) });
+      const task = getActiveTasks(s)[s.standardTaskIdx];
+      const studentId = currentStudentUid();
+      if (!task || !studentId) return;
+      emitTelemetry({
+        session_id: `session_${s.sessionNumber}_student_${studentId}`,
+        student_id: studentId,
+        exercise_id: task.id,
+        event_type: 'STEP_MARKED_DONE',
+        details: {
+          step_index: stepIndex,
+          step_text: stepText,
+          marked,
+          board_value: getValue(s.counts),
+          board_counts: { ...s.counts },
+        },
+      }).catch(console.error);
+    },
+
     proceed: () => {
       const s = get();
       // A solved exercise held on the screen: "ממשיכים" moves on.

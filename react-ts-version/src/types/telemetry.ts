@@ -26,7 +26,11 @@ export type TelemetryEventType =
   // Owner, 30.9.2026: the learner took the silent help call back (research data only).
   | 'HELP_WITHDRAWN'
   // Owner, 1.10.2026: a request for help from the chat, with its exercise; help in measure 2א.
-  | 'CHAT_HELP_REQUESTED';
+  | 'CHAT_HELP_REQUESTED'
+  // Owner, 7.10.2026: the child marked a build step of the instruction as done
+  // (core/buildStep.ts). Research data only: the board at that moment beside
+  // the child's own "I am done" is self-monitoring, measured, never graded.
+  | 'STEP_MARKED_DONE';
 
 // --- Per-event-type details schemas (Master PRD v7.0 Appendix A §3) ---
 
@@ -156,6 +160,14 @@ export interface HelpWithdrawnDetails {
   help_count: number; // this exercise's count of calls (0 when the call was made in an earlier exercise)
 }
 
+export interface StepMarkedDoneDetails {
+  step_index: number; // 1-based, among the instruction's numbered steps
+  step_text: string; // the step's words, as shown
+  marked: boolean; // true = marked, false = the mark taken back
+  board_value: number; // what the blocks showed at that moment
+  board_counts: { units: number; tens: number; hundreds: number; thousands: number };
+}
+
 /**
  * A request for help from the chat (owner, 1.10.2026): "קראו למורה" or the
  * ready message "אפשר עזרה בתרגיל?". The exercise is the event's exercise_id.
@@ -202,6 +214,7 @@ export interface TelemetryDetailsMap {
   KEYBOARD_LOCK_BLOCKED: KeyboardLockBlockedDetails;
   HELP_REQUESTED: HelpRequestedDetails;
   HELP_WITHDRAWN: HelpWithdrawnDetails;
+  STEP_MARKED_DONE: StepMarkedDoneDetails;
   CHAT_HELP_REQUESTED: ChatHelpRequestedDetails;
   BOARD_CLEARED: BoardClearedDetails;
   PLACE_CUES_SHOWN: PlaceCuesShownDetails;
@@ -229,6 +242,7 @@ export const NON_COLUMN_EVENTS: readonly TelemetryEventType[] = [
   'ADAPTIVE_GRID_TOGGLED',
   'HELP_REQUESTED',
   'HELP_WITHDRAWN',
+  'STEP_MARKED_DONE',
   'CHAT_HELP_REQUESTED',
   // ניקוי הלוח אינו שייך לטור אחד — הוא מוחק את כולם.
   'BOARD_CLEARED',

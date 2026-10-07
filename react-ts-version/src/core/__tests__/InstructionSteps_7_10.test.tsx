@@ -88,12 +88,16 @@ describe('on the task card', () => {
     expect(lead.className).toContain('font-bold');
     const steps = screen.getByTestId('instruction-steps').querySelectorAll('li');
     expect(steps).toHaveLength(3);
-    expect(steps[0].textContent).toBe('1ייצגו את המספרים בעזרת לבנים.');
+    // The build step carries the child's own mark, "בניתי" (core/buildStep.ts).
+    expect(steps[0].textContent).toBe('1ייצגו את המספרים בעזרת לבנים.בניתי');
+    expect(screen.getByTestId('mark-step-1').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByTestId('mark-step-2')).toBeNull();
+    expect(screen.queryByTestId('mark-step-3')).toBeNull();
     expect(steps[2].textContent).toBe('3רשמו את התוצאה בשורת התוצאה.');
     // The exercise's numbers stay isolated left-to-right (MathText).
     expect(lead.querySelector('bdi[dir="ltr"]')?.textContent).toBe('1,245 + 328');
-    // One read-aloud button, with the full instruction.
-    expect(box.querySelectorAll('button')).toHaveLength(1);
+    // One read-aloud button (the mark buttons are the child's, not read-alouds).
+    expect(box.querySelectorAll('button:not([data-testid^="mark-step-"])')).toHaveLength(1);
   });
 
   it('meeting 8: two sentences become the task and one step', () => {

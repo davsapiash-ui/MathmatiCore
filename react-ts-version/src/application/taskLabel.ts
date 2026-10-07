@@ -31,6 +31,7 @@ export function currentTaskLabelHe(s: WorkspaceState): string | null {
           sessionNumber: s.sessionNumber,
           isChoice: Boolean(standardTask?.isOptionalChoiceTask),
           isIntro: standardTask?.type === 'session1_intro',
+          isTarget: standardTask?.id === 's1_target_347',
           position: standardTask ? compulsory.findIndex((t) => t.id === standardTask.id) + 1 || null : null,
           total: compulsory.length,
         }

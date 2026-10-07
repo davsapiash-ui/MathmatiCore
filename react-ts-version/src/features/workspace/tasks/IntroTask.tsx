@@ -3,7 +3,6 @@ import type { SessionTask } from '@/data/sessionTasks';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { session1Checklist } from '@/core/session1Checklist';
-import { Session1ChecklistCard } from './Session1ChecklistCard';
 
 /** משימת הפתיחה של מפגש 1 — שאלת חשיבה או משימת חקר בארגז החול. */
 export function IntroTask({ task }: { task: SessionTask }) {
@@ -24,9 +23,12 @@ export function IntroTask({ task }: { task: SessionTask }) {
 
   return (
     <div className="flex flex-col gap-fl-8-24 mt-fl-2-16 flex-1 min-h-0 overflow-y-auto" data-testid="checklist-area">
-      {checklist ? (
-        <Session1ChecklistCard items={checklist} />
-      ) : (
+      {/* The automatic ✓ checklist of the tool steps is gone (owner,
+          7.10.2026): it repeated the instruction, and a tick the system gives
+          on "לחצו ↺" is not the child's judgement. The instruction's numbered
+          steps (TaskCard) are the checklist; the store's "התקדם" gate still
+          reads session1Checklist. */}
+      {checklist ? null : (
         <>
           {task.thoughtQuestionHe && (
             <div className="bg-ws-accentSoft/60 border border-ws-accent/25 rounded-2xl p-5 flex items-start gap-3">

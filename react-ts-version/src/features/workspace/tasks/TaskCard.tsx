@@ -25,6 +25,7 @@ import { UnitBlocksPicture } from './UnitBlocksPicture';
 import { FeedbackToast } from '../overlays/FeedbackToast';
 import { MathText } from './MathText';
 import { instructionLayout } from '@/core/instructionSteps';
+import { isBuildStep, MARK_BUILT_HE, MARK_BUILT_ARIA_HE, MARK_BUILT_MARKED_ARIA_HE } from '@/core/buildStep';
 
 /**
  * כרטיס המשימה — כותרת, הוראה (עם הקראה), וגוף דינמי לפי סוג המשימה והשלב.
@@ -51,6 +52,8 @@ export function TaskCard() {
   // A solved exercise held on the screen (owner, 7.10.2026): the instruction
   // gives way to why the answer is right, until "ממשיכים".
   const hold = useWorkspaceStore((s) => activeSuccessHold(s));
+  const markedSteps = useWorkspaceStore((s) => s.markedSteps);
+  const toggleStepMark = useWorkspaceStore((s) => s.toggleStepMark);
   const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;
   const subtask = sessionNumber === 2 && isSubtaskActive(qflow);
 
@@ -116,6 +119,26 @@ export function TaskCard() {
           // are numbered in the order they are done, with air between them.
           // One sentence stays one sentence. The read-aloud reads it all.
           const { lead, steps } = instructionLayout(instruction);
+          // The mark beside a build sentence (core/buildStep.ts): index 0 is
+          // the lead, 1… the steps. The child's own "בניתי", never checked.
+          const markButton = (index: number, text: string) => {
+            const marked = markedSteps.includes(index);
+            return (
+              <button
+                type="button"
+                onClick={() => toggleStepMark(index, text)}
+                aria-pressed={marked}
+                aria-label={marked ? MARK_BUILT_MARKED_ARIA_HE : MARK_BUILT_ARIA_HE}
+                data-testid={`mark-step-${index}`}
+                className={`shrink-0 mt-[0.1em] inline-flex items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 text-sm font-bold transition-colors cursor-pointer ${
+                  marked ? 'border-slate-400 bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100' : 'border-slate-300 bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                }`}
+              >
+                <span aria-hidden="true">{MARK_BUILT_HE}</span>
+                <span aria-hidden="true" className={`w-4 h-4 rounded border-2 flex items-center justify-center text-[10px] leading-none ${marked ? 'bg-slate-500 border-slate-500 text-white' : 'border-slate-400'}`}>{marked ? '✓' : ''}</span>
+              </button>
+            );
+          };
           return (
           <div
             className="shrink-0 flex items-start gap-3 mb-fl-6-24 rounded-2xl px-fl-12-16 pr-fl-14-20 py-fl-6-16 border-r-4"
@@ -133,19 +156,28 @@ export function TaskCard() {
             } as CSSProperties}
           >
             <div className="flex-1 min-w-0">
-              <p className={`text-fl-16-20 text-ws-ink/85 font-medium leading-[var(--instruction-leading,1.55)] whitespace-pre-line ${steps.length ? 'font-bold text-ws-ink' : ''}`} data-testid="instruction-lead">
-                <MathText text={lead} />
-              </p>
+              <div className="flex items-start gap-2.5">
+                <p className={`flex-1 min-w-0 text-fl-16-20 text-ws-ink/85 font-medium leading-[var(--instruction-leading,1.55)] whitespace-pre-line ${steps.length ? 'font-bold text-ws-ink' : ''}`} data-testid="instruction-lead">
+                  <MathText text={lead} />
+                </p>
+                {isBuildStep(lead) && !hold && markButton(0, lead)}
+              </div>
               {steps.length > 0 && (
                 <ol className="mt-fl-6-12 flex flex-col gap-fl-4-12" data-testid="instruction-steps">
-                  {steps.map((step, i) => (
+                  {steps.map((step, i) => {
+                    // The mark beside a build step only (core/buildStep.ts):
+                    // the child's own "I am done", never checked, never a gate.
+                    const build = isBuildStep(step) && !hold;
+                    return (
                     <li key={i} className="flex items-start gap-2.5 text-fl-16-20 text-ws-ink/85 font-medium leading-[var(--instruction-leading,1.55)]">
                       <span aria-hidden="true" className="shrink-0 mt-[0.2em] w-6 h-6 rounded-full bg-white dark:bg-slate-800 border-2 border-ws-blue/50 text-ws-blue font-display font-black text-sm leading-none flex items-center justify-center">
                         {i + 1}
                       </span>
-                      <span className="min-w-0 whitespace-pre-line"><MathText text={step} /></span>
+                      <span className="min-w-0 flex-1 whitespace-pre-line"><MathText text={step} /></span>
+                      {build && markButton(i + 1, step)}
                     </li>
-                  ))}
+                    );
+                  })}
                 </ol>
               )}
             </div>

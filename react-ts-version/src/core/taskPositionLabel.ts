@@ -32,6 +32,8 @@ export interface TaskPositionInput {
   isChoice?: boolean;
   /** One of meeting 1's tool steps (type session1_intro), not a refresh exercise. */
   isIntro?: boolean;
+  /** Meeting 1's target step (347): "משימת היעד", as its instruction and מסמך 03 call it (owner, 7.10.2026). */
+  isTarget?: boolean;
   /** 1-based place in the meeting's compulsory list, or null when unknown. */
   position: number | null;
   /** Length of the meeting's compulsory list. */
@@ -40,14 +42,15 @@ export interface TaskPositionInput {
 
 export const TASK_LABEL_HE = {
   intro: 'משימת היכרות',
+  target: 'משימת היעד',
   choice: 'תרגיל בחירה',
   correction: 'תרגיל חוזר',
   correctionProbe: 'תרגיל נוסף',
   fallback: 'תרגיל',
 } as const;
 
-export function taskPositionLabelHe({ sessionNumber, isCorrection, isCorrectionProbe, isChoice, isIntro, position, total }: TaskPositionInput): string {
-  if (sessionNumber === 1) return isIntro ? TASK_LABEL_HE.intro : TASK_LABEL_HE.fallback;
+export function taskPositionLabelHe({ sessionNumber, isCorrection, isCorrectionProbe, isChoice, isIntro, isTarget, position, total }: TaskPositionInput): string {
+  if (sessionNumber === 1) return isTarget ? TASK_LABEL_HE.target : isIntro ? TASK_LABEL_HE.intro : TASK_LABEL_HE.fallback;
   if (isCorrection) return isCorrectionProbe ? TASK_LABEL_HE.correctionProbe : TASK_LABEL_HE.correction;
   if (isChoice) return TASK_LABEL_HE.choice;
   if (position !== null && position >= 1 && total >= position) return `תרגיל ${position} מתוך ${total}`;
