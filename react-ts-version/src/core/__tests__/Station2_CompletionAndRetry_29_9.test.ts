@@ -270,22 +270,22 @@ describe('2. a reload never asks for the first attempt again', () => {
 });
 
 describe('4. the correction round tells the child what is on the screen, and praises once', () => {
-  it('the task itself coming back is "מְשִׂימָה חוֹזֶרֶת"; a simpler exercise before it is "מְשִׂימָה נוֹסֶפֶת"', () => {
+  it('the task itself coming back is "תַּרְגִּיל חוֹזֵר"; a simpler exercise before it is "תַּרְגִּיל נוֹסָף"', () => {
     for (const t of TASKS) {
       const wrong = t.id === 'task1_read_write_zero' || t.id === 'task3_subtraction_regrouping';
       answer(wrong ? 999 : t.correctAnswer!);
       settle();
     }
-    expect(toasts.at(-1)).toEqual({ title: 'מְשִׂימָה חוֹזֶרֶת 📝', sub: undefined });
+    expect(toasts.at(-1)).toEqual({ title: 'תַּרְגִּיל חוֹזֵר 📝', sub: undefined });
     answer(605); // task 1, second attempt
     settle();
     settle();
     // Task 3: the simpler exercise, then the task itself.
-    expect(toasts.map((t) => t.title)).toContain('מְשִׂימָה נוֹסֶפֶת 📝');
+    expect(toasts.map((t) => t.title)).toContain('תַּרְגִּיל נוֹסָף 📝');
     answer(probeAnswerOf('task3_subtraction_regrouping')!);
     settle();
     settle();
-    expect(toasts.at(-1)).toEqual({ title: 'מְשִׂימָה חוֹזֶרֶת 📝', sub: undefined });
+    expect(toasts.at(-1)).toEqual({ title: 'תַּרְגִּיל חוֹזֵר 📝', sub: undefined });
     answer(27);
     settle();
     expect(ws().flowStatus).toBe('sessionDone');

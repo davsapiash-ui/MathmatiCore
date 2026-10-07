@@ -1,3 +1,4 @@
+import { continueAfterSuccess } from '@/tests/successHold';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useWorkspaceStore, getActiveTasks, activeExerciseId } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
@@ -94,6 +95,7 @@ describe('מפגש 4 מלא, מסלול ירוק — שבעת תרגילי הח�
 
       solveCurrentExercise();
       useWorkspaceStore.getState().proceed();
+      continueAfterSuccess();
 
       if (i < 6) {
         expect(useWorkspaceStore.getState().standardTaskIdx, `אחרי תרגיל ${i + 1}`).toBe(i + 1);
@@ -108,6 +110,7 @@ describe('מפגש 4 מלא, מסלול ירוק — שבעת תרגילי הח�
     for (let i = 0; i < 7; i++) {
       solveCurrentExercise();
       useWorkspaceStore.getState().proceed();
+      continueAfterSuccess();
     }
     expect(useWorkspaceStore.getState().flowStatus).toBe('choice_branch');
   });
@@ -116,6 +119,7 @@ describe('מפגש 4 מלא, מסלול ירוק — שבעת תרגילי הח�
     for (let i = 0; i < 7; i++) {
       solveCurrentExercise();
       useWorkspaceStore.getState().proceed();
+      continueAfterSuccess();
     }
     useWorkspaceStore.getState().finishMeetingEarly();
     expect(useWorkspaceStore.getState().flowStatus).toBe('sessionDone');
@@ -126,6 +130,7 @@ describe('מפגש 4 מלא, מסלול ירוק — שבעת תרגילי הח�
     for (let i = 0; i < 7; i++) {
       solveCurrentExercise();
       useWorkspaceStore.getState().proceed();
+      continueAfterSuccess();
     }
     useWorkspaceStore.getState().selectBranch('reinforcement');
     const s = useWorkspaceStore.getState();
@@ -253,6 +258,7 @@ describe('מבחן הקבלה של מודול 14 §ד — רענון דפדפן 
     for (let i = 0; i < 4; i++) {
       solveCurrentExercise();
       useWorkspaceStore.getState().proceed();
+      continueAfterSuccess();
     }
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(4); // התרגיל החמישי
 
@@ -309,6 +315,7 @@ describe('מבחן הקבלה של מודול 14 §ד — רענון דפדפן 
     for (let i = 0; i < 7; i++) {
       solveCurrentExercise();
       useWorkspaceStore.getState().proceed();
+      continueAfterSuccess();
     }
     useWorkspaceStore.getState().selectBranch('challenge');
     const before = useWorkspaceStore.getState();
@@ -343,8 +350,10 @@ describe('המורה מחליפה מסלול באמצע המפגש', () => {
   it('התרגיל שעל המסך אינו משתנה, והתרגיל הבא כבר מהמאגר החדש', () => {
     solveCurrentExercise();
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
     solveCurrentExercise();
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
 
     const during = useWorkspaceStore.getState();
     const onScreen = getActiveTasks(during)[during.standardTaskIdx];
@@ -358,6 +367,7 @@ describe('המורה מחליפה מסלול באמצע המפגש', () => {
 
     solveCurrentExercise();
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
 
     const next = useWorkspaceStore.getState();
     expect(next.activeBankPath).toBe('remediation_path');
@@ -462,6 +472,7 @@ describe('ילד שטועה — לולאת התיקון העצמי לפני הפ
     const correctUnit = target % 10;
     useWorkspaceStore.getState().setAnswerDigit('units', String((correctUnit + 3) % 10));
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
     await new Promise((r) => setTimeout(r, 500));
   };
 
@@ -509,6 +520,7 @@ describe('ילד שטועה — לולאת התיקון העצמי לפני הפ
 
     solveCurrentExercise();
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
 
     const s = useWorkspaceStore.getState();
     expect(s.standardTaskIdx).toBe(1);

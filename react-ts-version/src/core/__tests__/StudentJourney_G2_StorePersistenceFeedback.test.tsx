@@ -365,13 +365,13 @@ describe('A3-112 / A3-113 / A3-114: meeting 2 toasts', () => {
     expect(ws().feedback).toMatchObject({ neutral: true, title: 'הַקְלָדַת תְּשׁוּבָה ✏️' });
   });
 
-  it('task 1 answered: "התשובה התקבלה!" without 👍, "עוברים למשימה הבאה"; the last task: no next task promised', () => {
+  it('task 1 answered: "התשובה התקבלה!" without 👍, "עוברים לתרגיל הבא"; the last task: no next task promised', () => {
     meeting2At(0);
     // Task 1's one answer box (owner, 4.10.2026).
     useWorkspaceStore.setState({ probeAnswer: '605' } as any);
     ws().proceed();
     expect(ws().feedback?.title).toBe('הַתְּשׁוּבָה הִתְקַבְּלָה!');
-    expect(ws().feedback?.sub).toBe('עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...');
+    expect(ws().feedback?.sub).toBe('עוֹבְרִים לַתַּרְגִּיל הַבָּא...');
     meeting2At(TASKS.length - 1);
     useWorkspaceStore.setState({ answerDigits: { hundreds: '1', tens: '2', units: '3' } } as any);
     ws().proceed();
@@ -396,7 +396,7 @@ describe('A3-117 / UX-004: where the feedback toast sits', () => {
     render(
       <div style={{ position: 'relative' }}>
         <FeedbackToast placement="inline" />
-        <h1>משימה 1 מתוך 7</h1>
+        <h1>תרגיל 1 מתוך 7</h1>
       </div>
     );
     const toast = screen.getByTestId('feedback-toast');

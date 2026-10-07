@@ -95,7 +95,7 @@ vi.mock('@/presentation/components/student/SessionPausedOverlay', () => ({ Sessi
 vi.mock('@/presentation/components/student/SessionClosedOverlay', () => ({ SessionClosedOverlay: () => null }));
 
 import { StudentWorkspacePage } from '@/features/workspace/StudentWorkspacePage';
-import { useWorkspaceStore, isAdditionExercise, selectStandardTask, SOCRATIC_CORRECT_AUTO_CLOSE_MS } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, isAdditionExercise, selectStandardTask, SOCRATIC_CORRECT_AUTO_CLOSE_MS, activeSuccessHold } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStudentChatOpen } from '@/application/useStudentChatOpen';
@@ -426,8 +426,9 @@ describe('rule 6: thirty seconds of hesitation under an open card', () => {
 
     act(() => { ws().proceed(); });
     await tick();
-    // the right answer: proceedStandard → advanceStandard → dropCoachingCard
-    expect(ws().awaitingNext || ws().flowStatus !== 'task').toBe(true);
+    // the right answer: the exercise held on the screen until "ממשיכים"
+    // (owner, 7.10.2026), its card dropped
+    expect(activeSuccessHold(ws())).not.toBeNull();
     expect(ws().helpState).toBe('closed');
     expect(ws().isAdditionHelperOpen).toBe(false);
     expect(gridShown()).toBe(false);

@@ -35,15 +35,31 @@ export interface RegroupAnimation {
    * and shows the real blocks — the animation never hides the board's truth.
    */
   toCount: number;
+  /** How long this move plays: the full tempo, or the brief one once the
+   *  learner has made the same trade a few times this meeting. */
+  durationMs: number;
+  /** Where the block was let go, in viewport coordinates — a drag right that
+   *  breaks a block starts there, not in the column it came from. */
+  origin?: { x: number; y: number };
+  /** Centres of the blocks that leave the source column, in viewport
+   *  coordinates, measured before the board redraws: the ten that group, or
+   *  the one that breaks apart — the move starts where the child saw them. */
+  fromBlocks?: { x: number; y: number }[];
 }
 
-/** Merge / break-apart phase, then the travel to the next column. Short and calm. */
-export const REGROUP_MERGE_MS = 300;
-export const REGROUP_TRAVEL_MS = 450;
-export const REGROUP_ANIMATION_MS = REGROUP_MERGE_MS + REGROUP_TRAVEL_MS;
+/**
+ * The tempo (owner, 7.10.2026). The trade is shown slowly enough to be seen —
+ * the seams of the block, the ten pieces in their order, the move one column
+ * over — the first times the learner makes it in a meeting; after
+ * BRIEF_AFTER_TRADES of the same trade (same kind, same column) it plays
+ * briefly: a learner who has understood it no longer waits for it. Nothing is
+ * locked either way; the next click or drag cancels the ghost (`toCount`).
+ */
+export const REGROUP_ANIMATION_MS = 1200;
+export const REGROUP_BRIEF_MS = 700;
+export const BRIEF_AFTER_TRADES = 3;
 /** A brief hold on the landed ghost, so the swap to the real block has no gap. */
 const REGROUP_HOLD_MS = 50;
-
 interface RegroupAnimationState {
   current: RegroupAnimation | null;
   play: (move: Omit<RegroupAnimation, 'id'>) => void;
@@ -55,7 +71,6 @@ let clearTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useRegroupAnimationStore = create<RegroupAnimationState>((set, get) => ({
   current: null,
-
   play: (move) => {
     const id = nextId++;
     set({ current: { ...move, id } });
@@ -63,9 +78,8 @@ export const useRegroupAnimationStore = create<RegroupAnimationState>((set, get)
     // when nothing on screen is drawing the ghost (board collapsed, reduced
     // motion, projector page).
     if (clearTimer) clearTimeout(clearTimer);
-    clearTimer = setTimeout(() => get().finish(id), REGROUP_ANIMATION_MS + REGROUP_HOLD_MS);
+    clearTimer = setTimeout(() => get().finish(id), move.durationMs + REGROUP_HOLD_MS);
   },
-
   finish: (id) => {
     if (get().current?.id !== id) return;
     if (clearTimer) {
@@ -76,7 +90,47 @@ export const useRegroupAnimationStore = create<RegroupAnimationState>((set, get)
   },
 }));
 
+/** Trades made this meeting, by kind and column — the tempo's memory. */
+const tradesThisMeeting = new Map<string, number>();
+/** A drop point waiting for the move it causes (set by the board's drag end). */
+let pendingOrigin: { x: number; y: number } | null = null;
+
+/** A new meeting starts with the full tempo again (called by initSession). */
+export function resetRegroupTempo(): void {
+  tradesThisMeeting.clear();
+}
+
+/** The board's drag end: where the block was let go, for the move it may cause; null after. */
+export function setRegroupOrigin(point: { x: number; y: number } | null): void {
+  pendingOrigin = point;
+}
+
 /** Called by useWorkspaceStore after a successful grouping or decomposition. */
-export function announceRegroup(move: Omit<RegroupAnimation, 'id'>): void {
-  useRegroupAnimationStore.getState().play(move);
+/**
+ * The blocks about to leave `from`, read from the board as it still is: the
+ * store has changed the counts, but React has not redrawn the columns yet (the
+ * announcement runs in the same event). The last blocks of a column are the
+ * ones that go — they are the top of its pile.
+ */
+function leavingBlocks(from: Place, how: number): { x: number; y: number }[] | undefined {
+  if (typeof document === 'undefined') return undefined;
+  const els = Array.from(document.querySelectorAll<HTMLElement>(`[id^="column-${from}-"]`))
+    .filter((el) => /^column-[a-z]+-\d+$/.test(el.id))
+    .sort((a, b) => Number(a.id.split('-').pop()) - Number(b.id.split('-').pop()));
+  const leaving = els.slice(-how).map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0);
+  if (leaving.length !== how) return undefined;
+  return leaving.map((r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 }));
+}
+
+export function announceRegroup(move: Omit<RegroupAnimation, 'id' | 'durationMs' | 'origin' | 'fromBlocks'>): void {
+  const key = `${move.kind}:${move.from}`;
+  const before = tradesThisMeeting.get(key) ?? 0;
+  tradesThisMeeting.set(key, before + 1);
+  const durationMs = before >= BRIEF_AFTER_TRADES ? REGROUP_BRIEF_MS : REGROUP_ANIMATION_MS;
+  // Only a split starts where the block was let go: a grouping always starts
+  // in its own column (the button at the top of the column, PRD Module 8 §א).
+  const origin = move.kind === 'split' && pendingOrigin ? pendingOrigin : undefined;
+  pendingOrigin = null;
+  const fromBlocks = origin ? undefined : leavingBlocks(move.from, move.kind === 'group' ? 10 : 1);
+  useRegroupAnimationStore.getState().play({ ...move, durationMs, ...(origin ? { origin } : {}), ...(fromBlocks ? { fromBlocks } : {}) });
 }

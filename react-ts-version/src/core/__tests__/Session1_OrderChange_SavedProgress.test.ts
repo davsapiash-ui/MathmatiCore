@@ -1,3 +1,4 @@
+import { continueAfterSuccess } from '@/tests/successHold';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { useWorkspaceStore, getActiveTasks, SESSION1_ORDER_BEFORE_27_9, SESSION1_ORDER_BEFORE_29_9, SESSION1_ORDER_29_9_MIDDAY } from '@/application/useWorkspaceStore';
@@ -73,6 +74,7 @@ function solveTarget347() {
     answerDigits: { hundreds: '3', tens: '4', units: '7' },
   });
   ws().proceed();
+  continueAfterSuccess();
 }
 
 function solveGroup26() {
@@ -81,6 +83,7 @@ function solveGroup26() {
   ws().groupColumnClick('units');
   useWorkspaceStore.setState({ answerDigits: { tens: '2', units: '6' } });
   ws().proceed();
+  continueAfterSuccess();
 }
 
 /** The page reloads after the deploy: the store is rebuilt from the saved workspace. */
@@ -231,6 +234,7 @@ describe('a learner in the middle of meeting 1 when the 29.9.2026 exercises arri
       answerDigits: { hundreds: '4', tens: '5', units: '5' },
     });
     ws().proceed();
+    continueAfterSuccess();
   }
 
   it('after the last exercise of the older order come the added ones, 703, 368 then 482', () => {
@@ -306,6 +310,7 @@ describe('a learner in the middle of meeting 1 when 703 arrives (later on 29.9.2
       answerDigits: { hundreds: '4', tens: '5', units: '5' },
     });
     ws().proceed();
+    continueAfterSuccess();
     expect(current()).toBe('s1_r_words703');
     expect(activeIds().slice(ws().standardTaskIdx)).toEqual(ADDED_29_9_LATER);
     // place 11: 806 − 351 in today's order — the reload must not send the learner back to it

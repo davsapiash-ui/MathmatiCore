@@ -24,7 +24,7 @@ vi.mock('@/infrastructure/services/FirebaseSyncService', async () => {
   };
 });
 
-import { useWorkspaceStore, answerDigitsFromText, answerTextFromDigits, breakItYourselvesHe, groupItYourselvesHe } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, answerDigitsFromText, answerTextFromDigits, breakItYourselvesHe, groupItYourselvesHe, activeSuccessHold } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { getSessionTasks, SESSION1_TASKS, SESSIONS_BY_PATH, type SessionTask } from '@/data/sessionTasks';
 import { SESSION_BRANCH_TASKS, getSessionBranchTasks } from '@/data/sessionBranchTasks';
@@ -307,7 +307,8 @@ const drop =(place: Place, n = 1) => {
 const buildBlocks = (c: Partial<PlaceCounts>) => PLACES.forEach((p) => drop(p, c[p] ?? 0));
 const answer = (text: string) => ws().setRepresentationAnswer(text);
 const press = () => ws().proceed();
-const sub = () => ws().feedback?.sub ?? '';
+// After a correct answer the exercise is held with its explanation (owner, 7.10.2026).
+const sub = () => activeSuccessHold(ws())?.explanationHe ?? ws().feedback?.sub ?? '';
 const title = () => ws().feedback?.title ?? '';
 const done = () => sent.events.some((e) => e.event_type === 'PROBLEM_COMPLETE');
 const digitsEntered = () => sent.events.filter((e) => e.event_type === 'DIGIT_ENTERED');
@@ -330,7 +331,8 @@ describe('read_write: build the number said in words, write it in digits', () =>
     expect(done()).toBe(false);
     answer('506');
     press();
-    expect(sub()).toBe(SUCCESS);
+    // Solved: why, read from the board — the zero in the tens named (owner, 7.10.2026).
+    expect(sub()).toBe('בבית המספרים יש 5 מאות ו-6 יחידות, וזה בדיוק 506. אין עשרות, ולכן כותבים 0 במקום העשרות.');
     expect(done()).toBe(true);
   });
 
@@ -350,7 +352,7 @@ describe('compose_break: the break is the child\'s own, and the answer is the nu
     answer('340');
     press();
     expect(title()).toBe('פִּרְטוּ 🧱');
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. לחצו על לבנת מאה כדי לפרוט אותה.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל בתרגיל הזה פורטים בעצמכם. בנו את הלבנים שבהנחיה. לחצו על לבנת מאה כדי לפרוט אותה.');
     expect(done()).toBe(false);
     ws().clearBoard();
     buildBlocks({ hundreds: 3, tens: 4 });
@@ -455,12 +457,13 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     answer('125');
     press();
     expect(title()).toBe('קַבְּצוּ 🧱');
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 למאה" שבראש טור העשרות.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל בתרגיל הזה מקבצים בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 למאה" שבראש טור העשרות.');
     ws().clearBoard();
     buildBlocks({ tens: 12, units: 5 });
     ws().groupColumnClick('tens');
     press();
-    expect(sub()).toBe(SUCCESS);
+    // The grouping the child made is told, then the board (owner, 7.10.2026).
+    expect(sub()).toBe('קיבצתם 10 עשרות למאה אחת. עכשיו בבית המספרים יש מאה אחת, 2 עשרות ו-5 יחידות, וזה בדיוק 125.');
     expect(done()).toBe(true);
   });
 
@@ -469,7 +472,7 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     buildBlocks({ thousands: 1, hundreds: 4, tens: 3 });
     answer('1430');
     press();
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 לאלף" שבראש טור המאות.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל בתרגיל הזה מקבצים בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 לאלף" שבראש טור המאות.');
     ws().clearBoard();
     buildBlocks({ hundreds: 14, tens: 3 });
     ws().groupColumnClick('hundreds');
@@ -478,7 +481,7 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     expect(sub()).toBe(WRONG_NUMBER);
     answer('1430');
     press();
-    expect(sub()).toBe(SUCCESS);
+    expect(sub()).toBe('קיבצתם 10 מאות לאלף אחד. עכשיו בבית המספרים יש אלף אחד, 4 מאות ו-3 עשרות, וזה בדיוק 1,430. אין יחידות, ולכן כותבים 0 במקום היחידות.');
     expect(done()).toBe(true);
   });
 
@@ -519,7 +522,7 @@ describe('station 1 keeps its own wording (s1_r_value368, s1_r_group26)', () => 
     ws().setAnswerDigit('tens', '2');
     ws().setAnswerDigit('units', '6');
     press();
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל בתרגיל הזה מקבצים בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.');
   });
 });
 

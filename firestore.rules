@@ -139,7 +139,10 @@ service cloud.firestore {
         // Research data only; it belongs to no column.
         'HELP_WITHDRAWN',
         // Owner, 1.10.2026: a request for help from the chat, with its exercise.
-        'CHAT_HELP_REQUESTED'
+        'CHAT_HELP_REQUESTED',
+        // Owner, 7.10.2026 (register יח): the child marked a build step of the
+        // instruction as done. Research data; it belongs to no column.
+        'STEP_MARKED_DONE'
       ];
     }
 

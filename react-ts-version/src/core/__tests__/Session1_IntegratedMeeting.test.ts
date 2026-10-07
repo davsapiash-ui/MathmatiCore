@@ -1,3 +1,5 @@
+import { continueAfterSuccess } from '@/tests/successHold';
+import { activeSuccessHold } from '@/application/useWorkspaceStore';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -217,6 +219,7 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.getState().splitBlockClick('hundreds');
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, hundreds: 1, tens: 13 });
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
     const s = useWorkspaceStore.getState();
     expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_build_305');
     expect(s.counts).toEqual({ ...EMPTY_COUNTS }); // "הלומדים גוררים שלוש מאות וחמש יחידות"
@@ -229,6 +232,7 @@ describe('the store gate follows the checklist', () => {
     for (let i = 0; i < 5; i++) store.applyDrop({ source: 'palette', sourcePlace: 'units', target: { kind: 'column', place: 'units' } });
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, hundreds: 3, units: 5 });
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
     const s = useWorkspaceStore.getState();
     expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_undo_trash');
     expect(s.counts).toEqual({ ...EMPTY_COUNTS, hundreds: 3, units: 5 });
@@ -237,6 +241,7 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.getState().clearBoard();
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS });
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
     // Since 29.9.2026 (owner) 703 in words comes next…
     expect(getActiveTasks(useWorkspaceStore.getState())[useWorkspaceStore.getState().standardTaskIdx].id).toBe('s1_r_words703');
     // …and the child builds 703 from nothing: an empty board, no blocks of its own
@@ -255,23 +260,28 @@ describe('the store gate follows the checklist', () => {
     // 73 (the 0 left out) is not 703
     useWorkspaceStore.setState({ answerDigits: { tens: '7', units: '3' } });
     store().proceed();
+    continueAfterSuccess();
     expect(current()).toBe('s1_r_words703');
     useWorkspaceStore.setState({ answerDigits: { hundreds: '7', tens: '0', units: '3' } });
     store().proceed();
+    continueAfterSuccess();
     expect(current()).toBe('s1_r_value368');
     expect(store().counts).toEqual({ ...EMPTY_COUNTS });
     tap('hundreds', 3); tap('tens', 6); tap('units', 8);
     // 368 is the number built, not the answer: the value of the 6 is 60
     useWorkspaceStore.setState({ answerDigits: { hundreds: '3', tens: '6', units: '8' } });
     store().proceed();
+    continueAfterSuccess();
     expect(current()).toBe('s1_r_value368');
     useWorkspaceStore.setState({ answerDigits: { tens: '6', units: '0' } });
     store().proceed();
+    continueAfterSuccess();
     expect(current()).toBe('s1_r_words482');
     expect(store().counts).toEqual({ ...EMPTY_COUNTS });
     tap('hundreds', 4); tap('tens', 8); tap('units', 2);
     useWorkspaceStore.setState({ answerDigits: { hundreds: '4', tens: '8', units: '2' } });
     store().proceed();
+    continueAfterSuccess();
     expect(current()).toBe('s1_r_group26');
   });
 
@@ -283,11 +293,14 @@ describe('the store gate follows the checklist', () => {
     }
     useWorkspaceStore.setState({ answerDigits: { tens: '6', units: '8' } });
     store().proceed();
+    continueAfterSuccess();
     expect(store().feedback?.sub).toBe('זה עוד לא הערך של הספרה. הסתכלו בבית המספרים ובדקו שוב!');
     useWorkspaceStore.setState({ answerDigits: { tens: '6', units: '0' } });
     store().proceed();
-    expect(store().feedback?.sub).toBe('מצאתם את הערך של הספרה במספר.');
-    expect(store().feedback?.sub).not.toContain('מתאים ללבנים');
+    // Solved: held on the screen with the exercise's own sentence (60 is not
+    // the number the board shows, so the board is not described).
+    expect(activeSuccessHold(store())?.explanationHe).toBe('מצאתם את הערך של הספרה במספר.');
+    expect(activeSuccessHold(store())?.explanationHe).not.toContain('מתאים ללבנים');
   });
 
   it('713 + 94: a crowded column is not named when the child presses ממשיכים (owner, 29.9.2026)', () => {
@@ -295,6 +308,7 @@ describe('the store gate follows the checklist', () => {
     store().initSession(1, false, at('s1_t8'));
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, hundreds: 7, tens: 10, units: 7 }, answerDigits: { hundreds: '8', tens: '0', units: '7' } });
     store().proceed();
+    continueAfterSuccess();
     const sub = store().feedback?.sub ?? '';
     expect(sub).toBe('באחד הטורים יש 10 לבנים או יותר. לחצו על הכפתור שמופיע בראש אותו טור.');
     expect(sub).not.toMatch(/העשרות|היחידות|המאות|קבצו? 10/);
@@ -306,6 +320,7 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.getState().groupColumnClick('units');
     useWorkspaceStore.setState({ answerDigits: { tens: '2', units: '6' } });
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
     const s = useWorkspaceStore.getState();
     expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_target_347');
     expect(s.counts).toEqual({ ...EMPTY_COUNTS });
@@ -397,6 +412,7 @@ describe('the store gate follows the checklist', () => {
     expect(useWorkspaceStore.getState().hasUngrouped).toBe(true);
     // …so the child who decomposed and reloaded is not told to decompose again
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
     const s = useWorkspaceStore.getState();
     expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_t8');
   });
@@ -420,9 +436,11 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.getState().undo();
     expect(useWorkspaceStore.getState().undoCount).toBe(1);
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_undo_trash'));
     useWorkspaceStore.getState().clearBoard();
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_undo_trash') + 1);
   });
 
@@ -435,6 +453,7 @@ describe('the store gate follows the checklist', () => {
     useWorkspaceStore.setState({ answerDigits: { hundreds: '4', tens: '8', units: '2' } });
     expect(useWorkspaceStore.getState().counts).toEqual({ ...EMPTY_COUNTS, hundreds: 4, tens: 8, units: 2 });
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
     const s1 = useWorkspaceStore.getState();
     expect(getActiveTasks(s1)[s1.standardTaskIdx].id).toBe('s1_r_group26');
     expect(s1.counts).toEqual({ ...EMPTY_COUNTS, units: 26 });
@@ -459,12 +478,14 @@ describe('the store gate follows the checklist', () => {
     // 2 tens and 6 units dragged in directly: the board is right, the grouping never happened.
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 2, units: 6 }, answerDigits: { tens: '2', units: '6' } });
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_r_group26'));
     expect(useWorkspaceStore.getState().feedback?.sub).toContain('בעזרת הכפתור שבראש הטור');
     // Grouped from loose units: accepted, and the target task comes next.
     // Grouped twice (A2-F06: 26 groups the units twice, checked per column).
     useWorkspaceStore.setState({ hasGrouped: true, conversionsByColumn: { composed: { units: true }, decomposed: {}, times: { composed: { units: 2 } } } });
     useWorkspaceStore.getState().proceed();
+    continueAfterSuccess();
     expect(useWorkspaceStore.getState().standardTaskIdx).toBe(at('s1_target_347'));
   });
 });

@@ -2,9 +2,8 @@ import { useRef, useState } from 'react';
 import { useWorkspaceStore, answerTextFromDigits } from '@/application/useWorkspaceStore';
 import { PLACE_ORDER, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import type { SessionTask } from '@/data/sessionTasks';
-import { session1Checklist, session1DoneNoteHe } from '@/core/session1Checklist';
+import { session1Checklist } from '@/core/session1Checklist';
 import { NEUTRAL_BOX_BORDER } from '../placeColors';
-import { Session1ChecklistCard } from './Session1ChecklistCard';
 
 /** One square of the result row: the sheet's notebook square (--ws-cell, index.css). */
 const CELL = 'var(--ws-cell)';
@@ -208,11 +207,11 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
 
       {/* Meeting 1's target task: the checklist after the result row. It is
           the one part of the column that scrolls when the screen is short. */}
-      {checklist && (
-        <div className="w-full max-w-xl flex-1 min-h-[6rem] overflow-y-auto" data-testid="checklist-area">
-          <Session1ChecklistCard items={checklist} doneNote={session1DoneNoteHe(task.id)} />
-        </div>
-      )}
+      {/* 347's automatic ✓ checklist is gone (owner, 7.10.2026): the
+          instruction's numbered steps, with the child's own "סיימתי לבנות"
+          mark, are the checklist. The step's done note still reaches the
+          child on "ממשיכים" through the store. */}
+      {checklist && <div className="hidden" data-testid="checklist-area" aria-hidden="true" />}
     </div>
   );
 }

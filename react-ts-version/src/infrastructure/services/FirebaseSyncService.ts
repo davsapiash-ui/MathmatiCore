@@ -1126,6 +1126,11 @@ export class FirebaseSyncService {
       // the exercise (register 28). Not saved, a reload took it away and the
       // next place error logged a second PLACE_CUES_SHOWN for one exercise.
       placeCuesShown: state.placeCuesShown === true,
+      // A solved exercise held on the screen until "ממשיכים" (owner,
+      // 7.10.2026): a reload keeps it, instead of judging the answer again.
+      successHold: state.successHold ?? null,
+      // The build steps the child marked as done in this exercise (owner, 7.10.2026).
+      markedSteps: state.markedSteps ?? [],
       // The coaching cards that come in levels, already shown in this exercise
       // (C5 before the column's card, C4 once): not saved, a reload showed the
       // first level again (owner, 30.9.2026). Carries its exercise id.
@@ -1683,6 +1688,7 @@ export class FirebaseSyncService {
       KEYBOARD_LOCK_BLOCKED: 'ניסיון הקלדה לפני המרה בלבני הדינס',
       HELP_REQUESTED: 'קריאה שקטה למורה',
       HELP_WITHDRAWN: 'ביטל את הקריאה למורה',
+      STEP_MARKED_DONE: 'סימן צעד בנייה כ"סיימתי"',
       CHAT_HELP_REQUESTED: 'ביקש עזרה מהצ׳אט',
       PLACE_CUES_SHOWN: 'ספרה בתיבה של טור אחר: הופיעו צבעי הטורים וכותרותיהם',
     };

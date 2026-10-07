@@ -41,18 +41,21 @@ describe('meeting 1, the target task', () => {
     const column = screen.getByTestId('task-column');
     const instruction = [...column.querySelectorAll('p')].find((p) => p.textContent?.startsWith('משימת היעד:'))!;
     const row = screen.getByTestId('result-row');
-    const checklist = screen.getByTestId('session1-checklist');
-    expect(instruction && row && checklist).toBeTruthy();
+    // 347's automatic ✓ checklist card is gone (owner, 7.10.2026): the
+    // instruction's numbered steps, with the child's own "בניתי" mark, are the checklist.
+    expect(screen.queryByTestId('session1-checklist')).toBeNull();
+    expect(screen.getByTestId('mark-step-0')).toBeTruthy();
+    expect(instruction && row).toBeTruthy();
     // the number the row is checked against is not printed above it in station 1
     expect(screen.queryByTestId('representation-number')).toBeNull();
     expect(follows(instruction, row)).toBe(true);
-    expect(follows(row, checklist)).toBe(true);
+
     // the result row is the task's own row of three boxes, hundreds on the left
     expect(row.getAttribute('aria-label')).toBe('שורת התוצאה');
     expect(row.querySelectorAll('input')).toHaveLength(3);
   });
 
-  it('the checklist sits in the one area of the column that scrolls', () => {
+  it.skip('the checklist sits in the one area of the column that scrolls (card removed, owner 7.10.2026)', () => {
     render(<TaskCard />);
     const area = screen.getByTestId('checklist-area');
     expect(area.contains(screen.getByTestId('session1-checklist'))).toBe(true);
@@ -65,7 +68,8 @@ describe('meeting 1, the target task', () => {
     render(<TaskCard />);
     const texts = screen.getAllByTestId('speech').map((e) => e.getAttribute('data-text'));
     expect(texts).toContain(SESSION1_TASKS[at('s1_target_347')].instructionHe);
-    expect(texts.some((t) => t?.startsWith('בנו את המספר 347 בלבנים.'))).toBe(true);
+    // The checklist card and its read-aloud are gone (owner, 7.10.2026); the instruction's own read-aloud carries the steps.
+    expect(texts.filter(Boolean).length).toBeGreaterThanOrEqual(1);
   });
 });
 

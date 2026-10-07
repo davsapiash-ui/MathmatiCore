@@ -1,13 +1,17 @@
 import type { CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useWorkspaceStore, selectStandardTask, effectiveArithmetic } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectStandardTask, effectiveArithmetic, activeSuccessHold } from '@/application/useWorkspaceStore';
+import { useSuccessHoldReminder } from '../useSuccessHoldReminder';
+import { PROCEED_HE } from '@/core/toolbarNames';
 import { currentTaskLabelHe } from '@/application/taskLabel';
 import { taskPositionLabelHe } from '@/core/taskPositionLabel';
+import { stationNameHe } from '@/core/stationNames';
 import { getCurrentQTask, getEffectiveNumber, isSubtaskActive } from '@/core/qmatrixFlow';
 import { hasOneDiagnosticAnswerBox } from '@/core/QMatrix';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { AccessibleCard } from '@/presentation/design-system/AccessibleCard';
 import { IntroTask } from './IntroTask';
+import { IntroStepSheet, hasIntroSheet } from './IntroStepSheet';
 import { VerticalAdditionTask } from './VerticalAdditionTask';
 import { MissingElementTask } from './MissingElementTask';
 import { FlexibleDecompTask } from './FlexibleDecompTask';
@@ -21,6 +25,8 @@ import { PlaceValueInputBoxes } from './PlaceValueInputBoxes';
 import { UnitBlocksPicture } from './UnitBlocksPicture';
 import { FeedbackToast } from '../overlays/FeedbackToast';
 import { MathText } from './MathText';
+import { instructionLayout } from '@/core/instructionSteps';
+import { isBuildStep, MARK_BUILT_HE, MARK_BUILT_ARIA_HE, MARK_BUILT_MARKED_ARIA_HE } from '@/core/buildStep';
 
 /**
  * כרטיס המשימה — כותרת, הוראה (עם הקראה), וגוף דינמי לפי סוג המשימה והשלב.
@@ -44,6 +50,11 @@ export function TaskCard() {
   // are a little smaller (--ws-cell, index.css), so the result row stays in view.
   const coachingOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
 
+  // A solved exercise held on the screen (owner, 7.10.2026): the instruction
+  // gives way to why the answer is right, until "ממשיכים".
+  const hold = useWorkspaceStore((s) => activeSuccessHold(s));
+  const markedSteps = useWorkspaceStore((s) => s.markedSteps);
+  const toggleStepMark = useWorkspaceStore((s) => s.toggleStepMark);
   const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;
   const subtask = sessionNumber === 2 && isSubtaskActive(qflow);
 
@@ -91,15 +102,51 @@ export function TaskCard() {
       {sessionNumber !== 2 && sessionNumber !== 8 && <FeedbackToast placement="inline" />}
       <motion.div key={taskKey} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="relative flex flex-col flex-1 min-h-0" data-testid="task-column">
         {qflow.phase !== 'correction' && (
-          <span className="self-start shrink-0 inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-fl-4-6 mb-fl-6-12 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
-            <span aria-hidden="true">✦</span> תחנה {sessionNumber}
+          <span data-testid="task-station-chip" className="self-start shrink-0 max-w-full inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-fl-4-6 mb-fl-6-12 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
+            {/* The station always with its name (owner, 7.10.2026): the name
+                the child met on the lobby card, the one the teacher says. */}
+            <span aria-hidden="true">✦</span> {stationNameHe(sessionNumber) ? `תחנה ${sessionNumber}: ${stationNameHe(sessionNumber)}` : `תחנה ${sessionNumber}`}
           </span>
         )}
         <h1 className="shrink-0 font-display font-black text-fl-22-34 text-ws-ink mb-fl-6-16 leading-[1.15]">
           {positionLabel}
         </h1>
 
-        {instruction && (
+        {hold && <SuccessPanel explanationHe={hold.explanationHe} />}
+        {/* Meeting 1's tool steps have a sheet of their own (IntroStepSheet):
+            a welcome, one explanation, one instruction and a picture of the
+            move — not the exercise sheet's task-and-steps shape. */}
+        {standardTask && hasIntroSheet(standardTask.id) && !hold && (
+          <IntroStepSheet taskId={standardTask.id} instructionHe={instruction} />
+        )}
+        {instruction && !hold && !(standardTask && hasIntroSheet(standardTask.id)) && (() => {
+          // The task, then its steps (core/instructionSteps.ts; owner,
+          // 7.10.2026): the same agreed words, shaped so a third grader can
+          // hold them — the first sentence is what the exercise is, the rest
+          // are numbered in the order they are done, with air between them.
+          // One sentence stays one sentence. The read-aloud reads it all.
+          const { lead, steps } = instructionLayout(instruction);
+          // The mark beside a build sentence (core/buildStep.ts): index 0 is
+          // the lead, 1… the steps. The child's own "בניתי", never checked.
+          const markButton = (index: number, text: string) => {
+            const marked = markedSteps.includes(index);
+            return (
+              <button
+                type="button"
+                onClick={() => toggleStepMark(index, text)}
+                aria-pressed={marked}
+                aria-label={marked ? MARK_BUILT_MARKED_ARIA_HE : MARK_BUILT_ARIA_HE}
+                data-testid={`mark-step-${index}`}
+                className={`shrink-0 mt-[0.1em] inline-flex items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 text-sm font-bold transition-colors cursor-pointer ${
+                  marked ? 'border-slate-400 bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100' : 'border-slate-300 bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                }`}
+              >
+                <span aria-hidden="true">{MARK_BUILT_HE}</span>
+                <span aria-hidden="true" className={`w-4 h-4 rounded border-2 flex items-center justify-center text-[10px] leading-none ${marked ? 'bg-slate-500 border-slate-500 text-white' : 'border-slate-400'}`}>{marked ? '✓' : ''}</span>
+              </button>
+            );
+          };
+          return (
           <div
             className="shrink-0 flex items-start gap-3 mb-fl-6-24 rounded-2xl px-fl-12-16 pr-fl-14-20 py-fl-6-16 border-r-4"
             data-testid="task-instruction"
@@ -107,7 +154,7 @@ export function TaskCard() {
             // wraps to nine lines in the task column of a 1024px tablet, and the
             // vertical exercise under it fell 12px short of the card (UX audit,
             // 4.10.2026). Its lines sit a little closer (--instruction-leading,
-            // read by the paragraph below); the size of the text and every
+            // read by the paragraphs below); the size of the text and every
             // other instruction are unchanged.
             style={{
               backgroundColor: 'hsl(var(--ws-blue-soft) / 0.55)',
@@ -115,15 +162,41 @@ export function TaskCard() {
               ...(instruction.length > LONG_INSTRUCTION_CHARS ? { ['--instruction-leading']: LONG_INSTRUCTION_LEADING } : {}),
             } as CSSProperties}
           >
-            <p className="text-fl-16-20 text-ws-ink/85 font-medium leading-[var(--instruction-leading,1.55)] flex-1 whitespace-pre-line"><MathText text={instruction} /></p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start gap-2.5">
+                <p className={`flex-1 min-w-0 text-fl-16-20 text-ws-ink/85 font-medium leading-[var(--instruction-leading,1.55)] whitespace-pre-line ${steps.length ? 'font-bold text-ws-ink' : ''}`} data-testid="instruction-lead">
+                  <MathText text={lead} />
+                </p>
+                {isBuildStep(lead) && !hold && markButton(0, lead)}
+              </div>
+              {steps.length > 0 && (
+                <ol className="mt-fl-6-12 flex flex-col gap-fl-4-12" data-testid="instruction-steps">
+                  {steps.map((step, i) => {
+                    // The mark beside a build step only (core/buildStep.ts):
+                    // the child's own "I am done", never checked, never a gate.
+                    const build = isBuildStep(step) && !hold;
+                    return (
+                    <li key={i} className="flex items-start gap-2.5 text-fl-16-20 text-ws-ink/85 font-medium leading-[var(--instruction-leading,1.55)]">
+                      <span aria-hidden="true" className="shrink-0 mt-[0.2em] w-6 h-6 rounded-full bg-white dark:bg-slate-800 border-2 border-ws-blue/50 text-ws-blue font-display font-black text-sm leading-none flex items-center justify-center">
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 whitespace-pre-line"><MathText text={step} /></span>
+                      {build && markButton(i + 1, step)}
+                    </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </div>
             <UdlSpeechButton text={instruction} />
           </div>
-        )}
+          );
+        })()}
 
         {/* ── Body ── */}
         {sessionNumber !== 2 && standardTask && (
           <>
-            {standardTask.type === 'session1_intro' && <IntroTask task={standardTask} />}
+            {standardTask.type === 'session1_intro' && !hasIntroSheet(standardTask.id) && <IntroTask task={standardTask} />}
             {(standardTask.type === 'addition_simple' || standardTask.type === 'vertical_addition') &&
               (() => {
                 const { a, b, target } = effectiveArithmetic(standardTask, isASD);
@@ -257,3 +330,36 @@ export function TaskCard() {
   );
 }
 
+/**
+ * After a correct answer (owner, 7.10.2026): "נכון!" and why — what the child
+ * did and what the number house now holds (core/successExplanation.ts) — in
+ * the instruction's place, while the solved board and its digits stay on the
+ * screen. Read aloud only on the child's click (PRD Module 24). Ten seconds
+ * on, one quiet sentence says how to go on; the button itself keeps its
+ * fixed place at the top (מסמך 04, עקביות) and gets a ring there.
+ */
+function SuccessPanel({ explanationHe }: { explanationHe: string }) {
+  const reminded = useSuccessHoldReminder();
+  const reminderHe = `כשתהיו מוכנים, לחצו על "${PROCEED_HE}".`;
+  return (
+    <div
+      role="status"
+      data-testid="success-panel"
+      className="shrink-0 mb-fl-6-24 rounded-2xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-fl-12-16 py-fl-6-16 flex items-start gap-3"
+    >
+      <span aria-hidden="true" className="shrink-0 w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center text-lg font-black">✓</span>
+      <div className="flex-1 min-w-0">
+        <p className="font-display font-black text-fl-16-24 text-emerald-900 dark:text-emerald-100">נכון!</p>
+        <p className="text-fl-16-20 text-emerald-950 dark:text-emerald-50 font-medium leading-snug" data-testid="success-explanation">
+          <MathText text={explanationHe} />
+        </p>
+        {reminded && (
+          <p className="mt-2 text-sm font-bold text-emerald-800 dark:text-emerald-200" data-testid="success-reminder">
+            {reminderHe}
+          </p>
+        )}
+      </div>
+      <UdlSpeechButton text={`נכון! ${explanationHe}${reminded ? ` ${reminderHe}` : ''}`} />
+    </div>
+  );
+}

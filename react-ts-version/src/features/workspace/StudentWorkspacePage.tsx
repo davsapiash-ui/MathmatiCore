@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
-import { useWorkspaceStore, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, activeSuccessHold, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -27,6 +27,7 @@ import { normalizeStudentId } from '@/application/useChatStore';
 import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
 
+import { setRegroupOrigin } from '@/application/useRegroupAnimationStore';
 import { DienesBlock } from './board/DienesBlock';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
 import { CornerCloudSyncStatus } from './CloudSyncStatus';
@@ -128,6 +129,7 @@ export function StudentWorkspacePage() {
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
+  const successHeld = useWorkspaceStore((s) => activeSuccessHold(s) !== null);
   const qflowPhase = useWorkspaceStore((s) => s.qflow?.phase);
   const isSocraticPanelOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
   const user = useAuthStore((s) => s.user);
@@ -513,8 +515,11 @@ export function StudentWorkspacePage() {
   // Nor on the meeting-8 reflection board: it has no column to hesitate in
   // (PRD 18: '45 שניות רצופות ללא פעולה בטור הפעיל'), and the teacher's tile
   // turned yellow while the learner was reflecting.
+  // Nor while a solved exercise is held on the screen (owner, 7.10.2026):
+  // reading why the answer is right is not hesitating, and no grid or card
+  // opens on an exercise that is done.
   useCognitiveHesitationRadar({
-    isActive: !isOverlayActive && flowStatus !== 'choice_branch' && flowStatus !== 'reflection' && !isTeacherOrAdmin,
+    isActive: !isOverlayActive && flowStatus !== 'choice_branch' && flowStatus !== 'reflection' && !isTeacherOrAdmin && !successHeld,
     onHesitationDetected: () => {
       const ws = useWorkspaceStore.getState();
       const currentTask = ws.sessionNumber === 2 ? null : getActiveTasks(ws)[ws.standardTaskIdx];
@@ -1136,6 +1141,11 @@ export function StudentWorkspacePage() {
         return;
       }
 
+      // A block dragged right breaks apart where it was let go, not back in
+      // its own column (owner, 7.10.2026): the child sees the trade happen
+      // under the hand that made it.
+      const dropped = event.active.rect.current.translated;
+      setRegroupOrigin(dropped ? { x: dropped.left + dropped.width / 2, y: dropped.top + dropped.height / 2 } : null);
       applyDrop({
         source: data.source,
         sourcePlace: data.place,
@@ -1143,6 +1153,8 @@ export function StudentWorkspacePage() {
       });
     } catch (err) {
       console.error('[StudentWorkspacePage] drop failed:', err);
+    } finally {
+      setRegroupOrigin(null);
     }
   };
 
@@ -1380,7 +1392,7 @@ export function StudentWorkspacePage() {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body">
         <div className="animate-spin text-4xl mb-4">⏳</div>
-        <h2 className="text-xl font-bold">טוענים את המשימות שלכם...</h2>
+        <h2 className="text-xl font-bold">טוענים את התרגילים שלכם...</h2>
       </div>
     );
   }

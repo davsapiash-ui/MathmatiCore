@@ -22,9 +22,15 @@ describe('Module 7 — one instruction on screen, once', () => {
   it('TaskCard is the single place the instruction is written and spoken', () => {
     // (the class list also carries the short-screen sizes of 27.9.2026)
     // Shown through MathText, which isolates each exercise left to right (audit 4.10.2026, A6-101).
-    expect(taskCard).toMatch(/<p className="[^"]*text-ws-ink\/85 font-medium [^"]*whitespace-pre-line"><MathText text=\{instruction\} \/><\/p>/);
-    expect(taskCard.split('><MathText text={instruction} /></p>').length - 1).toBe(1);
-    expect(taskCard).toContain('<UdlSpeechButton text={instruction} />');
+    // Since 7.10.2026 (register יז) the instruction is laid out as its first
+    // sentence and numbered steps, from one split (instructionLayout); still
+    // one place, one read-aloud of the whole text.
+    expect(taskCard.split('instructionLayout(instruction)').length - 1).toBe(1);
+    // The lead paragraph sits beside its "בניתי" mark (register יח), so it is
+    // flex-1 inside a row; still one place, one MathText of the lead.
+    expect(taskCard).toMatch(/<p className=\{`flex-1 min-w-0 text-fl-16-20 text-ws-ink\/85 font-medium [^`]*whitespace-pre-line[^`]*`\} data-testid="instruction-lead">\s*<MathText text=\{lead\} \/>/);
+    expect(taskCard).toContain('<MathText text={step} />');
+    expect(taskCard.split('<UdlSpeechButton text={instruction} />').length - 1).toBe(1);
   });
 
   it('MissingElementTask no longer repeats it on screen', () => {

@@ -1,3 +1,4 @@
+import { continueAfterSuccess } from '@/tests/successHold';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -36,6 +37,7 @@ describe('the meeting ends even if the help button is pressed during the celebra
       answerDigits: { hundreds: '4', tens: '5', units: '5' },
     });
     ws().proceed();
+    continueAfterSuccess();
     expect(ws().awaitingNext).toBe(true);
     vi.advanceTimersByTime(800);
     ws().requestSilentHelp(); // its own toast replaces the celebration
@@ -78,6 +80,7 @@ describe('a coaching card belongs to the exercise that opened it', () => {
     expect(ws().helpState).toBe('socratic');
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, tens: 2, units: 6 }, hasGrouped: true, conversionsByColumn: { composed: { units: true }, decomposed: {}, times: { composed: { units: 2 } } }, answerDigits: { tens: '2', units: '6' } });
     ws().proceed();
+    continueAfterSuccess();
     vi.advanceTimersByTime(5_000);
     const s = ws();
     expect(getActiveTasks(s)[s.standardTaskIdx].id).toBe('s1_target_347');
@@ -99,6 +102,7 @@ describe('a coaching card belongs to the exercise that opened it', () => {
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, hundreds: 8, units: 7 }, hasGrouped: true });
     for (let i = 0; i < 5; i++) {
       ws().proceed();
+      continueAfterSuccess();
       vi.advanceTimersByTime(4_000);
     }
     expect(ws().helpState).toBe('closed');
@@ -123,9 +127,11 @@ describe('the second wrong answer opens the card in meeting 1 too (מסמך 03 �
     expect(getActiveTasks(ws())[ws().standardTaskIdx].id).toBe('s1_t8');
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, hundreds: 7, tens: 1, units: 3 }, answerDigits: { hundreds: '8', tens: '0', units: '7' } });
     ws().proceed();
+    continueAfterSuccess();
     expect(ws().helpState).toBe('closed');
     vi.advanceTimersByTime(4_000);
     ws().proceed();
+    continueAfterSuccess();
     expect(ws().helpState).toBe('friction');
   });
 });

@@ -27,6 +27,22 @@ export interface DienesBlockProps {
 // SVG Components for each Isometric Block
 // ----------------------------------------------------------------------
 
+/**
+ * The lines that show what a block is made of (owner, 7.10.2026): a ten is
+ * ten units, a hundred ten tens, a thousand ten hundreds. They used to be set
+ * with the vector-effect value "nonScalingStroke", which SVG does not have, so the
+ * browser ignored it and every line shrank with the drawing: a 2.2-unit line
+ * in a 2010-unit view box drawn 82px wide is 0.09px — on a school laptop the
+ * hundred and the thousand looked almost smooth. Now the lines and the edges
+ * keep a fixed width on the screen whatever the block's size, in a dark shade
+ * of the block's own colour (not black), soft enough not to turn the face into
+ * a mesh. Sizes, colours, gradients and shadows are unchanged.
+ */
+const UNIT_LINE = { strokeWidth: 0.75, strokeOpacity: 0.42, vectorEffect: 'non-scaling-stroke', strokeLinecap: 'round' } as const;
+const EDGE = { strokeWidth: 0.8, strokeOpacity: 0.6, vectorEffect: 'non-scaling-stroke', strokeLinejoin: 'round' } as const;
+/** The dark shade of each block's colour, for its edges and unit lines. */
+const SHADE = { units: '#713f12', tens: '#14532d', hundreds: '#1e3a8a', thousands: '#7c2d12' } as const;
+
 export const UnitSVG = () => {
   return (
     <svg viewBox="-5 -5 210 210" className="w-full h-full filter drop-shadow-[0_4px_8px_rgba(234,179,8,0.4)] overflow-visible pointer-events-none select-none">
@@ -44,9 +60,9 @@ export const UnitSVG = () => {
           <stop offset="100%" stopColor="#CA8A04" />
         </linearGradient>
       </defs>
-      <polygon points="100,0 200,50 100,100 0,50" fill="url(#unitTop)" stroke="#0f172a" strokeWidth="2.8" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="100,100 200,50 200,150 100,200" fill="url(#unitRight)" stroke="#0f172a" strokeWidth="2.8" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="0,50 100,100 100,200 0,150" fill="url(#unitLeft)" stroke="#0f172a" strokeWidth="2.8" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
+      <polygon points="100,0 200,50 100,100 0,50" fill="url(#unitTop)" stroke={SHADE.units} {...EDGE} />
+      <polygon points="100,100 200,50 200,150 100,200" fill="url(#unitRight)" stroke={SHADE.units} {...EDGE} />
+      <polygon points="0,50 100,100 100,200 0,150" fill="url(#unitLeft)" stroke={SHADE.units} {...EDGE} />
     </svg>
   );
 };
@@ -55,8 +71,8 @@ export const TenSVG = () => {
   const renderLines = () => {
     const lines = [];
     for (let i = 1; i <= 9; i++) {
-      lines.push(<line key={`t-${i}`} x1={100 + i * 100} y1={i * 50} x2={i * 100} y2={50 + i * 50} stroke="#0f172a" strokeWidth="2.5" opacity="0.9" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`l-${i}`} x1={i * 100} y1={50 + i * 50} x2={i * 100} y2={180 + i * 50} stroke="#0f172a" strokeWidth="2.5" opacity="0.9" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`t-${i}`} x1={100 + i * 100} y1={i * 50} x2={i * 100} y2={50 + i * 50} stroke={SHADE.tens} {...UNIT_LINE} />);
+      lines.push(<line key={`l-${i}`} x1={i * 100} y1={50 + i * 50} x2={i * 100} y2={180 + i * 50} stroke={SHADE.tens} {...UNIT_LINE} />);
     }
     return lines;
   };
@@ -77,10 +93,10 @@ export const TenSVG = () => {
           <stop offset="100%" stopColor="#16A34A" />
         </linearGradient>
       </defs>
-      <polygon points="100,0 1100,500 1000,550 0,50" fill="url(#tenTop)" stroke="#0f172a" strokeWidth="2.8" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="1100,500 1000,550 1000,680 1100,630" fill="url(#tenRight)" stroke="#0f172a" strokeWidth="2.8" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="0,50 1000,550 1000,680 0,180" fill="url(#tenLeft)" stroke="#0f172a" strokeWidth="2.8" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      {renderLines()}
+      <polygon points="100,0 1100,500 1000,550 0,50" fill="url(#tenTop)" stroke={SHADE.tens} {...EDGE} />
+      <polygon points="1100,500 1000,550 1000,680 1100,630" fill="url(#tenRight)" stroke={SHADE.tens} {...EDGE} />
+      <polygon points="0,50 1000,550 1000,680 0,180" fill="url(#tenLeft)" stroke={SHADE.tens} {...EDGE} />
+      <g className="dienes-seams">{renderLines()}</g>
     </svg>
   );
 };
@@ -89,10 +105,10 @@ export const HundredSVG = () => {
   const renderLines = () => {
     const lines = [];
     for (let i = 1; i <= 9; i++) {
-      lines.push(<line key={`tt1-${i}`} x1={1000 - i * 100} y1={i * 50} x2={2000 - i * 100} y2={500 + i * 50} stroke="#0f172a" strokeWidth="2.2" opacity="0.85" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`tt2-${i}`} x1={1000 + i * 100} y1={i * 50} x2={i * 100} y2={500 + i * 50} stroke="#0f172a" strokeWidth="2.2" opacity="0.85" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`rt-${i}`} x1={1000 + i * 100} y1={1000 - i * 50} x2={1000 + i * 100} y2={1100 - i * 50} stroke="#0f172a" strokeWidth="2.2" opacity="0.85" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`lt-${i}`} x1={i * 100} y1={500 + i * 50} x2={i * 100} y2={600 + i * 50} stroke="#0f172a" strokeWidth="2.2" opacity="0.85" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`tt1-${i}`} x1={1000 - i * 100} y1={i * 50} x2={2000 - i * 100} y2={500 + i * 50} stroke={SHADE.hundreds} {...UNIT_LINE} />);
+      lines.push(<line key={`tt2-${i}`} x1={1000 + i * 100} y1={i * 50} x2={i * 100} y2={500 + i * 50} stroke={SHADE.hundreds} {...UNIT_LINE} />);
+      lines.push(<line key={`rt-${i}`} x1={1000 + i * 100} y1={1000 - i * 50} x2={1000 + i * 100} y2={1100 - i * 50} stroke={SHADE.hundreds} {...UNIT_LINE} />);
+      lines.push(<line key={`lt-${i}`} x1={i * 100} y1={500 + i * 50} x2={i * 100} y2={600 + i * 50} stroke={SHADE.hundreds} {...UNIT_LINE} />);
     }
     return lines;
   };
@@ -113,10 +129,10 @@ export const HundredSVG = () => {
           <stop offset="100%" stopColor="#2563EB" />
         </linearGradient>
       </defs>
-      <polygon points="1000,0 2000,500 1000,1000 0,500" fill="url(#hundredTop)" stroke="#0f172a" strokeWidth="2.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="2000,500 1000,1000 1000,1100 2000,600" fill="url(#hundredRight)" stroke="#0f172a" strokeWidth="2.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="0,500 1000,1000 1000,1100 0,600" fill="url(#hundredLeft)" stroke="#0f172a" strokeWidth="2.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      {renderLines()}
+      <polygon points="1000,0 2000,500 1000,1000 0,500" fill="url(#hundredTop)" stroke={SHADE.hundreds} {...EDGE} />
+      <polygon points="2000,500 1000,1000 1000,1100 2000,600" fill="url(#hundredRight)" stroke={SHADE.hundreds} {...EDGE} />
+      <polygon points="0,500 1000,1000 1000,1100 0,600" fill="url(#hundredLeft)" stroke={SHADE.hundreds} {...EDGE} />
+      <g className="dienes-seams">{renderLines()}</g>
     </svg>
   );
 };
@@ -125,12 +141,14 @@ export const ThousandSVG = () => {
   const renderLines = () => {
     const lines = [];
     for (let i = 1; i <= 9; i++) {
-      lines.push(<line key={`t1-${i}`} x1={1000 - i * 100} y1={i * 50} x2={2000 - i * 100} y2={500 + i * 50} stroke="#0f172a" strokeWidth="2.2" opacity="0.85" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`t2-${i}`} x1={1000 + i * 100} y1={i * 50} x2={i * 100} y2={500 + i * 50} stroke="#0f172a" strokeWidth="2.2" opacity="0.85" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`r1-${i}`} x1={1000 + i * 100} y1={1000 + i * 50} x2={1000 + i * 100} y2={2000 + i * 50} stroke="#0f172a" strokeWidth="2.2" opacity="0.85" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`r2-${i}`} x1={1000} y1={1000 + i * 100} x2={2000} y2={500 + i * 100} stroke="#0f172a" strokeWidth="2.2" opacity="0.85" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`l1-${i}`} x1={i * 100} y1={500 + i * 50} x2={i * 100} y2={1500 + i * 50} stroke="#0f172a" strokeWidth="2.2" opacity="0.85" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
-      lines.push(<line key={`l2-${i}`} x1={0} y1={500 + i * 100} x2={1000} y2={1000 + i * 100} stroke="#0f172a" strokeWidth="2.2" opacity="0.85" vectorEffect="nonScalingStroke" strokeLinecap="round" />);
+      lines.push(<line key={`t1-${i}`} x1={1000 - i * 100} y1={i * 50} x2={2000 - i * 100} y2={500 + i * 50} stroke={SHADE.thousands} {...UNIT_LINE} />);
+      lines.push(<line key={`t2-${i}`} x1={1000 + i * 100} y1={i * 50} x2={i * 100} y2={500 + i * 50} stroke={SHADE.thousands} {...UNIT_LINE} />);
+      // The right face runs from (1000,1000)–(1000,2000) up to (2000,500)–(2000,1500):
+      // its vertical lines rise as they go right (they fell below the cube).
+      lines.push(<line key={`r1-${i}`} x1={1000 + i * 100} y1={1000 - i * 50} x2={1000 + i * 100} y2={2000 - i * 50} stroke={SHADE.thousands} {...UNIT_LINE} />);
+      lines.push(<line key={`r2-${i}`} x1={1000} y1={1000 + i * 100} x2={2000} y2={500 + i * 100} stroke={SHADE.thousands} {...UNIT_LINE} />);
+      lines.push(<line key={`l1-${i}`} x1={i * 100} y1={500 + i * 50} x2={i * 100} y2={1500 + i * 50} stroke={SHADE.thousands} {...UNIT_LINE} />);
+      lines.push(<line key={`l2-${i}`} x1={0} y1={500 + i * 100} x2={1000} y2={1000 + i * 100} stroke={SHADE.thousands} {...UNIT_LINE} />);
     }
     return lines;
   };
@@ -151,10 +169,10 @@ export const ThousandSVG = () => {
           <stop offset="100%" stopColor="#EA580C" />
         </linearGradient>
       </defs>
-      <polygon points="1000,0 2000,500 1000,1000 0,500" fill="url(#thousandTop)" stroke="#0f172a" strokeWidth="2.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="1000,1000 2000,500 2000,1500 1000,2000" fill="url(#thousandRight)" stroke="#0f172a" strokeWidth="2.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      <polygon points="0,500 1000,1000 1000,2000 0,1500" fill="url(#thousandLeft)" stroke="#0f172a" strokeWidth="2.5" vectorEffect="nonScalingStroke" strokeLinejoin="round" />
-      {renderLines()}
+      <polygon points="1000,0 2000,500 1000,1000 0,500" fill="url(#thousandTop)" stroke={SHADE.thousands} {...EDGE} />
+      <polygon points="1000,1000 2000,500 2000,1500 1000,2000" fill="url(#thousandRight)" stroke={SHADE.thousands} {...EDGE} />
+      <polygon points="0,500 1000,1000 1000,2000 0,1500" fill="url(#thousandLeft)" stroke={SHADE.thousands} {...EDGE} />
+      <g className="dienes-seams">{renderLines()}</g>
     </svg>
   );
 };

@@ -7,6 +7,7 @@ import {
   isAdditionExercise,
   placeToColumnIndex,
   selectStandardTask,
+  activeSuccessHold,
 } from '@/application/useWorkspaceStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -332,6 +333,9 @@ export function useCognitiveHesitationRadar({
         if (
           state.flowStatus === 'task' &&
           !state.awaitingNext &&
+          // Not onto a solved exercise held on the screen (owner, 7.10.2026):
+          // its card closes because it was solved, and the work is done.
+          !activeSuccessHold(state) &&
           shouldOpenAdaptiveGrid({
             supportProfileId: state.activeSupportProfileId,
             sessionNumber: state.sessionNumber,

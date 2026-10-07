@@ -74,6 +74,24 @@
     }
   }
 
+  /*
+   * פריטה והקבצה (בעל המוצר, 7.10.2026): קווי היחידות של הלבנה — הקווים
+   * שמראים ממה היא עשויה — מתחזקים לרגע כשהיא נפתחת או נסגרת: אלה קווי
+   * החיתוך. פעם אחת, בלי הבהוב. במצב השקט הקווים נשארים כמו שהם; התנועה
+   * עצמה (RegroupAnimationLayer) נשארת, כי היא התנועה שמלמדת.
+   */
+  .regroup-seam-glow .dienes-seams line {
+    animation: regroup-seam-glow var(--seam-glow-ms, 400ms) ease-in-out var(--seam-glow-delay, 0ms) both;
+  }
+  @keyframes regroup-seam-glow {
+    0% { stroke-opacity: 0.42; stroke-width: 0.75px; }
+    45%, 70% { stroke-opacity: 1; stroke-width: 1.5px; }
+    100% { stroke-opacity: 0.42; stroke-width: 0.75px; }
+  }
+  [data-quiet='true'] .regroup-seam-glow .dienes-seams line {
+    animation: none !important;
+  }
+
   :root {
     --background: 240 20% 98%; /* Frost White */
     --foreground: 220 30% 12%; /* Deep Navy Slate */

@@ -26,6 +26,7 @@ import {
 } from '@/core/placeValue';
 import { BLOCK_NAME_HE, NO_UNIT_BLOCKS_SUB_HE, NO_UNIT_BLOCKS_TITLE_HE } from '@/data/taskBuilders';
 import { session1Checklist, session1DoneNoteHe, session1NextStep } from '@/core/session1Checklist';
+import { successExplanationHe, tradesFromUndoStack } from '@/core/successExplanation';
 import {
   advance,
   getCurrentQTask,
@@ -45,7 +46,7 @@ import {
 import { stateReducer } from '@/machines/vraMachine';
 import { computeCognitiveMastery, hasOneDiagnosticAnswerBox, TASKS } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
-import { announceRegroup, REGROUP_ANIMATION_MS } from '@/application/useRegroupAnimationStore';
+import { announceRegroup, resetRegroupTempo, REGROUP_ANIMATION_MS } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { useTeacherGenderStore } from '@/application/useTeacherGender';
@@ -267,6 +268,14 @@ export interface FeedbackState {
   neutral?: boolean;
 }
 
+/** A solved exercise held on the screen (WorkspaceState.successHold). */
+export interface SuccessHold {
+  taskId: string;
+  /** "נכון!" and the sentence after it: what the child did and why it is right. */
+  explanationHe: string;
+  startedAt: number;
+}
+
 export interface UndoFrame {
   counts: PlaceCounts;
   actionType?: TelemetryEventType | null;
@@ -424,6 +433,18 @@ export interface WorkspaceState {
   taskStartTime: number;
   undoTimestamps: number[];
   isBoardLocked: boolean;
+  /**
+   * The exercise was just solved and stays on the screen until the learner
+   * presses "ממשיכים" (owner, 7.10.2026): the board as solved, the column
+   * digits shown, and why the answer is right. Null otherwise.
+   */
+  successHold: SuccessHold | null;
+  /**
+   * The instruction's build steps the child marked as done (1-based step
+   * numbers), for the exercise on the screen (owner, 7.10.2026; core/buildStep).
+   * The child's own word, not the system's: nothing reads it as a gate.
+   */
+  markedSteps: number[];
   /** Module 19 §ב Safe Application Boundary: a teacher-queued differentiation
    * change (path/scaffold/addition-helper), staged from RTDB
    * users/students/{id}/pendingAdaptation and applied only in startTask(),
@@ -644,6 +665,8 @@ export interface WorkspaceState {
   startSession: (meeting: number) => void;
   initSession: (meeting: SessionNumber, isASD: boolean, startingTaskIdx?: number, existingDeadline?: number | null) => void;
   restoreSession: (savedState: any) => void;
+  /** The child marks a build step of the instruction as done, or takes the mark back (core/buildStep.ts). */
+  toggleStepMark: (stepIndex: number, stepText: string) => void;
   getSessionRemainingSeconds: () => number;
   selectBranch: (branch: 'reinforcement' | 'challenge') => void;
   applyDrop: (input: DropInput) => void;
@@ -1238,6 +1261,8 @@ function restoredCardHistory(raw: unknown): WorkspaceState['socraticCardHistory'
 
 function resetTaskInteraction(_isASD = false) {
   return {
+    successHold: null as SuccessHold | null,
+    markedSteps: [] as number[],
     counts: { ...EMPTY_COUNTS },
     undoStack: [] as UndoFrame[],
     regroupTriggerTimestamps: {} as Record<number, number>,
@@ -1448,12 +1473,12 @@ const placeAbove = (p: Place): Place | undefined => PLACE_ORDER[PLACE_ORDER.inde
  * broken; it names the block above the column still waiting for its ten.
  */
 export function breakItYourselvesHe(receiving: Place | null): string {
-  return `הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. ${breakClickHe(receiving)}`;
+  return `הלבנים מסודרות נכון, אבל בתרגיל הזה פורטים בעצמכם. בנו את הלבנים שבהנחיה. ${breakClickHe(receiving)}`;
 }
 
 /** Station 7's "do the grouping yourselves": the button of the column to group, in its own words (PlaceColumn). */
 export function groupItYourselvesHe(source: Place | null): string {
-  return `הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. ${groupClickHe(source)}`;
+  return `הלבנים מסודרות נכון, אבל בתרגיל הזה מקבצים בעצמכם. בנו את הלבנים שבהנחיה. ${groupClickHe(source)}`;
 }
 
 /**
@@ -1935,7 +1960,33 @@ export function selectBoardValue(s: WorkspaceState): number {
 }
 
 /** Vanilla updateProceedButton: interaction required (intro exempt); choice tasks need a selection. */
+/**
+ * The solved exercise held on the screen, when it is the exercise on the
+ * screen (a hold restored onto another exercise is ignored).
+ */
+export function activeSuccessHold(s: Pick<WorkspaceState, 'successHold' | 'sessionNumber' | 'standardTaskIdx' | 'flowStatus'> & Partial<WorkspaceState>): SuccessHold | null {
+  const hold = s.successHold;
+  if (!hold || s.flowStatus !== 'task') return null;
+  const task = getActiveTasks(s as WorkspaceState)[s.standardTaskIdx];
+  return task && task.id === hold.taskId ? hold : null;
+}
+
+/**
+ * Which solved exercises wait for "ממשיכים" (owner, 7.10.2026): every exercise
+ * of meetings 1 and 3–7 the child solves — not meeting 1's tool steps (their
+ * checklist is the feedback, and the target step 347 is one of them), not the
+ * diagnostic (meeting 2 gives no right/wrong feedback, PRD 23), and not
+ * meeting 8 (the researcher works without the column digits, PRD 14).
+ */
+export function holdsAfterSuccess(sessionNumber: number, task: { id: string; type: string }): boolean {
+  if (sessionNumber === 2 || sessionNumber === 8) return false;
+  if (task.type === 'session1_intro') return false;
+  if (session1DoneNoteHe(task.id) !== null) return false;
+  return true;
+}
+
 export function selectCanProceed(s: WorkspaceState): boolean {
+  if (activeSuccessHold(s)) return true;
   if (s.awaitingNext || s.flowStatus !== 'task') return false;
   if (s.sessionNumber === 8) {
     const task = selectStandardTask(s);
@@ -2039,7 +2090,7 @@ export function wrongHiddenDigitsHe(task: SessionTask, meeting: number): string 
 }
 
 /** Meeting 1's 26 units: the final blocks, built without grouping. */
-const GROUP_YOURSELVES_HE = 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.';
+const GROUP_YOURSELVES_HE = 'הלבנים מסודרות נכון, אבל בתרגיל הזה מקבצים בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.';
 
 /** Station 7's 2,730 (owner, 4.10.2026, wording round 3, text 1): the number typed is right; a grouping is still to come. */
 export const GIVEN_ANSWER_RIGHT_GROUP_NOW_HE = 'התשובה שכתבתם נכונה. עכשיו בכל טור שיש בו 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור.';
@@ -2330,7 +2381,7 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
         return failure('conversion_skipped', 'קַבְּצוּ 🧱', GROUP_YOURSELVES_HE, 3500);
       }
       if (task.requiresUngrouping && (m1Listed ? m1Pending : !s.hasUngrouped)) {
-        return failure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
+        return failure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל בתרגיל הזה פורטים בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
       }
       // Station 7's 2,730 (owner, 4.10.2026): the board opens with the blocks
       // to group, and every grouping REPRESENTATION_LOCKS lists is the child's
@@ -2462,7 +2513,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    * A message that must not cancel what the child is in the middle of. The
    * silent-help toast used showFeedback, which bumps the nonce — so pressing
    * the help button while a meeting-2 step was showing ("התשובה התקבלה",
-   * "משימה נוספת") dropped that step's continuation, and "התקדם" stayed
+   * "תרגיל נוסף") dropped that step's continuation, and "התקדם" stayed
    * disabled until a reload.
    */
   function showSideFeedback(feedback: FeedbackState, ms: number) {
@@ -2892,18 +2943,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // the last task no next task follows (the waiting screen, or the
         // correction round with its own toast), so the sub is left out (A3-112).
         // taskIdx is still the task just answered: advance() runs after the toast.
-        const nextTaskSub = get().qflow.taskIdx < TASKS.length - 1 ? 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' : undefined;
+        const nextTaskSub = get().qflow.taskIdx < TASKS.length - 1 ? 'עוֹבְרִים לַתַּרְגִּיל הַבָּא...' : undefined;
         showFeedback({ correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה!', sub: nextTaskSub }, 1500, continueAfterPrimaryAnswer);
         break;
       }
       // The correction round has no hints and no right/wrong feedback (owner's
       // decision, 25.9.2026): it is still part of the diagnostic. Its toasts
       // name what is on the screen and say nothing about the first answer
-      // (owner, 29.9.2026): the task itself coming back is "מְשִׂימָה חוֹזֶרֶת";
-      // the simpler exercise before it (tasks 3, 6, 7) is another task.
+      // (owner, 29.9.2026): the task itself coming back is "תַּרְגִּיל חוֹזֵר";
+      // the simpler exercise before it (tasks 3, 6, 7) is "תַּרְגִּיל נוֹסָף" —
+      // "תרגיל", not "משימה", for every exercise of meetings 2–8 (owner, 7.10.2026).
       case 'start_correction': {
         const task = TASKS.find((t) => t.id === event.taskId);
-        const title = task && hasProbeExercise(task) ? 'מְשִׂימָה נוֹסֶפֶת 📝' : 'מְשִׂימָה חוֹזֶרֶת 📝';
+        const title = task && hasProbeExercise(task) ? 'תַּרְגִּיל נוֹסָף 📝' : 'תַּרְגִּיל חוֹזֵר 📝';
         // The step starts with its toast, not after it: the flow had already
         // moved to it, so for 1.8 seconds the new step sat on the screen with
         // the previous step's answer in its boxes, and a reload in that window
@@ -2931,7 +2983,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Starts with its toast, as start_correction does.
         startTask(event.taskId);
         set({ awaitingNext: true });
-        showFeedback({ correct: true, neutral: true, title: 'מְשִׂימָה חוֹזֶרֶת 📝' }, 1800, () => {
+        showFeedback({ correct: true, neutral: true, title: 'תַּרְגִּיל חוֹזֵר 📝' }, 1800, () => {
           set({ awaitingNext: false });
         });
         break;
@@ -3268,6 +3320,41 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         set({ scaffoldFadeLevel: Math.min(2, get().scaffoldFadeLevel + 1) });
       }
       
+      if (holdsAfterSuccess(s.sessionNumber, task)) {
+        // The solved exercise stays on the screen until "ממשיכים" (owner,
+        // 7.10.2026): the board as the child left it, the column digits
+        // shown, and why the answer is right — read from the board itself.
+        // No toast and no advance: the task column says it, and the child
+        // goes on when ready. The board takes no change meanwhile (the
+        // board actions below), and the hesitation radar is paused (the
+        // workspace page). A card left open belonged to the work; it closes.
+        const now = get();
+        const answer =
+          task.type === 'addition_simple' || task.type === 'vertical_addition'
+            ? effectiveArithmetic(task, now.isASD).target
+            : typeof task.correctAnswer === 'number'
+              ? task.correctAnswer
+              : task.numberA ?? null;
+        const explanationHe = successExplanationHe({
+          counts: now.counts,
+          answer,
+          trades: tradesFromUndoStack(now.undoStack, now.counts),
+          fallback: feedbackSub,
+        });
+        dropCoachingCard();
+        // The last exercise of the list: the meeting is complete now, not on
+        // the press that leaves the held screen (recordMeetingCompleted).
+        if (s.standardTaskIdx + 1 >= tasks.length) recordMeetingCompleted(get());
+        // A message from the press before (a wrong answer seconds ago) does
+        // not stay beside "נכון!"; its timer finds a newer nonce and does nothing.
+        set((st) => ({
+          awaitingNext: false,
+          feedback: null,
+          feedbackNonce: st.feedbackNonce + 1,
+          successHold: { taskId: task.id, explanationHe, startedAt: Date.now() },
+        }));
+        return;
+      }
       showFeedback({ correct: true, title: feedbackTitle, sub: feedbackSub }, feedbackMs);
       advanceStandard();
     };
@@ -3297,6 +3384,30 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
     handleFailure(verdict.detail, verdict.title, verdict.sub, verdict.ms, { holdCard: cuesJustShown });
     if (verdict.clearReps) set({ q3Reps: [] });
+  }
+
+  /**
+   * The meeting's completion on the record: highestCompletedMeeting and the
+   * finished mark (PRD 14 §ב1: "שדה is_completed נקבע אך ורק לפי השלמת שבע
+   * משימות החובה"). Written the moment the last exercise of the list is
+   * solved — also while that exercise is still held on the screen (owner,
+   * 7.10.2026), so a lesson closed before the child presses "ממשיכים" does
+   * not list the child as unfinished. Idempotent: advanceStandard calls it
+   * again on the press, and markMeetingCompleted sends each mark once.
+   * Meeting 8 is finished by its reflection board only.
+   */
+  function recordMeetingCompleted(s: WorkspaceState) {
+    const studentId = currentStudentUid();
+    if (studentId && !s.isSupersededByOtherDevice) {
+      const normId = normalizeStudentId(studentId);
+      useStore.getState().updateHighestCompletedMeeting(studentId, s.sessionNumber);
+      useStore.getState().updateHighestCompletedMeeting(normId, s.sessionNumber);
+      firebaseSyncService.syncHighestCompletedMeeting(studentId, s.sessionNumber).catch(console.error);
+      if (normId !== studentId) {
+        firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
+      }
+    }
+    if (s.sessionNumber !== 8) markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
   }
 
   function advanceStandard() {
@@ -3586,6 +3697,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     socraticCardKinds: { taskId: null, kinds: [] },
     undoTimestamps: [],
     isBoardLocked: false,
+    successHold: null,
+    markedSteps: [],
     pendingAdaptation: null,
     hasRequestedBasicHelp: false,
     helpRequestCount: 0,
@@ -3702,6 +3815,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     initSession: (meeting, isASD, startingTaskIdx, existingDeadline) => {
       flowEpoch++;
+      // Each meeting shows the trades at the full tempo first (useRegroupAnimationStore).
+      resetRegroupTempo();
       const sanitized = sanitizeSessionNumber(meeting);
       // PRD v7.1 Module 26: promote pending curriculum-catalog updates only at
       // session initialization — a live exercise is never disturbed.
@@ -3934,6 +4049,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // exercise, a reload included — and a restore to another exercise
         // brings that exercise's own value, never the one on screen.
         placeCuesShown: saved.placeCuesShown === true,
+        markedSteps: Array.isArray(saved.markedSteps) ? saved.markedSteps.filter((n: unknown) => Number.isInteger(n)) : [],
+        // A solved exercise held on the screen stays held after a reload; it
+        // is shown only on the exercise it belongs to (activeSuccessHold).
+        successHold:
+          saved.successHold && typeof saved.successHold.taskId === 'string' && typeof saved.successHold.explanationHe === 'string'
+            ? { taskId: saved.successHold.taskId, explanationHe: saved.successHold.explanationHe, startedAt: Number(saved.successHold.startedAt) || Date.now() }
+            : null,
         // The same for the coaching cards already shown (C4, C5): a reload
         // does not bring back the first level.
         socraticCardKinds: restoredCardKinds(saved.socraticCardKinds),
@@ -4011,7 +4133,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // rejected drop never shook — the block just did not land.
       let rejectedAt = null as Place | null;
       set((s) => {
-        if (s.isBoardLocked) return s;
+        if (s.isBoardLocked || activeSuccessHold(s)) return s;
         const result = resolveDrop(s.counts, input, selectScaffoldLevel(s));
         if (!result.ok) {
           if (result.reason === 'constraint') rejectedAt = result.place;
@@ -4171,7 +4293,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     removeBlockClick: (place) => {
       let rejected = false as boolean;
       set((state) => {
-        if (state.isBoardLocked) return state;
+        if (state.isBoardLocked || activeSuccessHold(state)) return state;
         const next = removeBlock(state.counts, place);
         if (!next) {
           rejected = true;
@@ -4204,7 +4326,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     clearBoard: () => {
       set((state) => {
-        if (state.isBoardLocked) return state;
+        if (state.isBoardLocked || activeSuccessHold(state)) return state;
         const hasBlocks = state.counts.units > 0 || state.counts.tens > 0 || state.counts.hundreds > 0 || state.counts.thousands > 0;
         // Nothing to clear, but the child did press the trash (meeting 1 step 5).
         // In meeting 1 it is recorded, so the report's tool mastery agrees; the
@@ -4278,7 +4400,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     splitBlockClick: (place) => {
       set((state) => {
-        if (state.isBoardLocked) return state;
+        if (state.isBoardLocked || activeSuccessHold(state)) return state;
         const res = splitBlockClick(state.counts, place);
         if (!res) {
           flagConstraintError(place);
@@ -4345,7 +4467,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     groupColumnClick: (place) => {
       set((state) => {
-        if (state.isBoardLocked) return state;
+        if (state.isBoardLocked || activeSuccessHold(state)) return state;
         const res = groupBlocksManually(state.counts, place);
         if (!res) {
           flagConstraintError(place);
@@ -4412,7 +4534,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     undo: () => {
       set((s) => {
-        if (s.isBoardLocked) return s;
+        // The solved board stays as it was solved while it is held.
+        if (s.isBoardLocked || activeSuccessHold(s)) return s;
         // Only inside an exercise in progress (1.10.2026). On the reflection
         // board, and in the moments after the last exercise, the undo stack
         // still held that exercise's actions: Ctrl+Z rolled its digits back,
@@ -4520,6 +4643,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setAnswerDigit: (place, val) => {
       set((s) => {
+        if (activeSuccessHold(s)) return s;
         const isDelete = val === '' && Boolean(s.answerDigits[place]);
 
         const studentId = currentStudentUid();
@@ -4644,6 +4768,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setCarryDigit: (place, val) => {
       set((s) => {
+        if (activeSuccessHold(s)) return s;
         const isDelete = val === '' && Boolean(s.carryDigits[place]);
         const studentId = currentStudentUid();
         const sessionId = `session_${s.sessionNumber}_student_${studentId}`;
@@ -4862,8 +4987,36 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const strategies = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       set({ reflectionDraft: { ...s.reflectionDraft, strategies } });
     },
+    toggleStepMark: (stepIndex, stepText) => {
+      const s = get();
+      const marked = !s.markedSteps.includes(stepIndex);
+      set({ markedSteps: marked ? [...s.markedSteps, stepIndex].sort((a, b) => a - b) : s.markedSteps.filter((i) => i !== stepIndex) });
+      const task = getActiveTasks(s)[s.standardTaskIdx];
+      const studentId = currentStudentUid();
+      if (!task || !studentId) return;
+      emitTelemetry({
+        session_id: `session_${s.sessionNumber}_student_${studentId}`,
+        student_id: studentId,
+        exercise_id: task.id,
+        event_type: 'STEP_MARKED_DONE',
+        details: {
+          step_index: stepIndex,
+          step_text: stepText,
+          marked,
+          board_value: getValue(s.counts),
+          board_counts: { ...s.counts },
+        },
+      }).catch(console.error);
+    },
+
     proceed: () => {
       const s = get();
+      // A solved exercise held on the screen: "ממשיכים" moves on.
+      if (activeSuccessHold(s)) {
+        set({ successHold: null });
+        advanceStandard();
+        return;
+      }
       if (s.awaitingNext || s.flowStatus !== 'task' || !selectCanProceed(s)) return;
       if (s.sessionNumber === 2) proceedQ();
       else proceedStandard();
@@ -5291,6 +5444,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setOperandDigit: (which, place, val) => {
       const clean = val.replace(/[^0-9]/g, '').slice(-1);
       const s = get();
+      if (activeSuccessHold(s)) return;
       const task = getActiveTasks(s)[s.standardTaskIdx] || null;
       const studentId = currentStudentUid();
       if (clean !== '' && task) {
@@ -5475,6 +5629,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     resetWorkspace: () => {
       flowEpoch++;
       set({
+        // A solved exercise held for the learner who left is not the next one's.
+        successHold: null,
         sessionNumber: 1,
         isASD: false,
         standardTaskIdx: 0,

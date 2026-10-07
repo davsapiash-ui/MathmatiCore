@@ -7,10 +7,14 @@
 import { dimmedColumns, heldFromNumber, verticalBoxes, type VerticalBoxes, type VerticalWork } from '@/core/columnFocus';
 import { getValue, type Place } from '@/core/placeValue';
 import { resultBoxCount } from '@/core/placeCues';
-import { getActiveTasks, effectiveArithmetic, type WorkspaceState } from '@/application/useWorkspaceStore';
+import { getActiveTasks, effectiveArithmetic, activeSuccessHold, type WorkspaceState } from '@/application/useWorkspaceStore';
 
 /** The dimmed columns, for the exercise on the screen. `focusedMemoryCircle`: useBoardFocusStore. */
+const NO_DIMMING: ReadonlySet<Place> = new Set();
+
 export function boardDimmedColumns(s: WorkspaceState, focusedMemoryCircle: Place | null): ReadonlySet<Place> {
+  // A solved exercise held on the screen: the whole board is the answer.
+  if (activeSuccessHold(s)) return NO_DIMMING;
   const task = getActiveTasks(s)[s.standardTaskIdx];
   let vertical: VerticalBoxes | undefined;
   let work: VerticalWork | undefined;

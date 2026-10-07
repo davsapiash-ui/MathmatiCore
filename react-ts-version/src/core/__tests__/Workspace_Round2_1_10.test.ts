@@ -23,7 +23,7 @@ vi.mock('@/infrastructure/services/FirebaseSyncService', async () => {
   };
 });
 
-import { useWorkspaceStore, getActiveTasks, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, type SessionNumber, activeSuccessHold } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { REGROUP_ANIMATION_MS } from '@/application/useRegroupAnimationStore';
 import { approvePath } from '@/test/approvedPath';
@@ -226,7 +226,8 @@ describe('27 — wrong presses open the repeated-errors card, never a "four erro
 
     board({ hundreds: 5, tens: 1 });
     ws().proceed();
-    expect(ws().feedback?.correct).toBe(true);
+    // Solved: held on the screen with "נכון!" (owner, 7.10.2026).
+    expect(activeSuccessHold(ws())).not.toBeNull();
     // A representation exercise reports its failed board checks.
     expect(lastOf('PROBLEM_COMPLETE').details.error_count).toBe(4);
   });
@@ -281,7 +282,8 @@ describe('73 — the state machine (Module 29 §ב)', () => {
     ws().setOperandDigit('a', 'units', '4');
     ws().proceed();
     unsubscribe();
-    expect(ws().feedback?.correct).toBe(true);
+    // Solved: held on the screen with "נכון!" (owner, 7.10.2026).
+    expect(activeSuccessHold(ws())).not.toBeNull();
     expect(seen).toContain('COMPLETE');
     // The only exercise of this list: the learner moves on to the path choice.
     expect(ws().currentState).toBe('COMPLETE');
@@ -297,6 +299,9 @@ describe('73 — the state machine (Module 29 §ב)', () => {
     });
     board({ hundreds: 5, tens: 6, units: 8 });
     ws().setOperandDigit('a', 'units', '4');
+    ws().proceed();
+    // Solved: COMPLETE while held, then "ממשיכים" opens the next one (owner, 7.10.2026).
+    expect(ws().currentState).toBe('COMPLETE');
     ws().proceed();
     unsubscribe();
     expect(ws().standardTaskIdx).toBe(1);

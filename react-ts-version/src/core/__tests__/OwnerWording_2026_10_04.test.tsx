@@ -7,8 +7,8 @@ import { render, screen, cleanup } from '@testing-library/react';
 
 /**
  * Owner's wording decisions of 4.10.2026 ("כן לכולם", student-journey audit, group G7):
- *  1. Station 2's correction round: "משימה נוספת" over the new exercise in round numbers,
- *     "משימה חוזרת" over the task that returns.
+ *  1. Station 2's correction round: "תרגיל נוסף" over the new exercise in round numbers,
+ *     "תרגיל חוזר" over the task that returns.
  *  2. 320, 2,100, 4,200: a way with unit blocks is refused, with its own toast; never 150.
  *  3. The two missing-result-digit exercises (400 − 156, 328 + 145) say what to do with the blocks.
  *  4. 2,730 opens with its blocks on the board, and both groupings are the child's own.
@@ -43,7 +43,7 @@ vi.mock('@/presentation/design-system/UdlSpeechButton', () => ({
   UdlSpeechButton: ({ text }: { text: string }) => <span data-testid="speech" data-text={text} />,
 }));
 
-import { useWorkspaceStore, judgeStandardTask, selectCanProceed, getActiveTasks, emptyColumnConversions } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, judgeStandardTask, selectCanProceed, getActiveTasks, emptyColumnConversions, activeSuccessHold } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { currentTaskLabelHe } from '@/application/taskLabel';
@@ -126,13 +126,13 @@ describe('1 — station 2, the correction round: two headings, each its toast\'s
   });
   const probes = DIAGNOSTIC_TASKS.map((t, i) => (hasProbeExercise(t) ? i : -1)).filter((i) => i >= 0);
 
-  it('the label: "משימה נוספת" for the new exercise, "משימה חוזרת" for the task that returns', () => {
-    expect(TASK_LABEL_HE.correctionProbe).toBe('משימה נוספת');
-    expect(TASK_LABEL_HE.correction).toBe('משימה חוזרת');
-    expect(taskPositionLabelHe({ sessionNumber: 2, isCorrection: true, isCorrectionProbe: true, position: 3, total: 7 })).toBe('משימה נוספת');
-    expect(taskPositionLabelHe({ sessionNumber: 2, isCorrection: true, position: 3, total: 7 })).toBe('משימה חוזרת');
+  it('the label: "תרגיל נוסף" for the new exercise, "תרגיל חוזר" for the task that returns', () => {
+    expect(TASK_LABEL_HE.correctionProbe).toBe('תרגיל נוסף');
+    expect(TASK_LABEL_HE.correction).toBe('תרגיל חוזר');
+    expect(taskPositionLabelHe({ sessionNumber: 2, isCorrection: true, isCorrectionProbe: true, position: 3, total: 7 })).toBe('תרגיל נוסף');
+    expect(taskPositionLabelHe({ sessionNumber: 2, isCorrection: true, position: 3, total: 7 })).toBe('תרגיל חוזר');
     // Outside the correction round the flag means nothing.
-    expect(taskPositionLabelHe({ sessionNumber: 2, isCorrectionProbe: true, position: 3, total: 7 })).toBe('משימה 3 מתוך 7');
+    expect(taskPositionLabelHe({ sessionNumber: 2, isCorrectionProbe: true, position: 3, total: 7 })).toBe('תרגיל 3 מתוך 7');
   });
 
   it('the store: tasks 3, 6 and 7 show the new exercise first, then the task itself; the others only return', () => {
@@ -141,14 +141,14 @@ describe('1 — station 2, the correction round: two headings, each its toast\'s
     for (let idx = 0; idx < DIAGNOSTIC_TASKS.length; idx++) {
       if (probes.includes(idx)) {
         useWorkspaceStore.setState({ qflow: qflow(idx, 'subtask'), flowStatus: 'task' } as any);
-        expect(currentTaskLabelHe(ws()), `task ${idx + 1}, the new exercise`).toBe('משימה נוספת');
+        expect(currentTaskLabelHe(ws()), `task ${idx + 1}, the new exercise`).toBe('תרגיל נוסף');
       }
       useWorkspaceStore.setState({ qflow: qflow(idx, 'retry'), flowStatus: 'task' } as any);
-      expect(currentTaskLabelHe(ws()), `task ${idx + 1}, the task again`).toBe('משימה חוזרת');
+      expect(currentTaskLabelHe(ws()), `task ${idx + 1}, the task again`).toBe('תרגיל חוזר');
     }
     // The first round is numbered, as before.
     useWorkspaceStore.setState({ qflow: { ...qflow(2, 'subtask'), phase: 'primary', failedTasks: [] } } as any);
-    expect(currentTaskLabelHe(ws())).toBe(`משימה 3 מתוך ${DIAGNOSTIC_TASKS.length}`);
+    expect(currentTaskLabelHe(ws())).toBe(`תרגיל 3 מתוך ${DIAGNOSTIC_TASKS.length}`);
   });
 
   it('rendered: the heading of the task card (the chat\'s help message carries the same label)', async () => {
@@ -156,11 +156,11 @@ describe('1 — station 2, the correction round: two headings, each its toast\'s
     ws().initSession(2, false);
     useWorkspaceStore.setState({ qflow: qflow(2, 'subtask'), flowStatus: 'task', openingScreenSeen: true } as any);
     render(<TaskCard />);
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('משימה נוספת');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('תרגיל נוסף');
     cleanup();
     useWorkspaceStore.setState({ qflow: qflow(2, 'retry') } as any);
     render(<TaskCard />);
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('משימה חוזרת');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('תרגיל חוזר');
   });
 });
 
@@ -386,7 +386,7 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
       kind: 'failure',
       detail: 'conversion_skipped',
       title: 'קַבְּצוּ 🧱',
-      sub: 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.',
+      sub: 'הלבנים מסודרות נכון, אבל בתרגיל הזה מקבצים בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.',
     });
   });
 
@@ -466,7 +466,8 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
     ws().groupColumnClick('hundreds');
     emitted.length = 0;
     ws().proceed();
-    expect(ws().feedback).toMatchObject({ correct: true, sub: 'קיבצתם את הלבנים, והתשובה שכתבתם נכונה.' });
+    // Solved: held with why it is right — the child's own groupings, then the board (owner, 7.10.2026).
+    expect(activeSuccessHold(ws())?.explanationHe).toBe('קיבצתם 10 עשרות למאה אחת. קיבצתם 10 מאות לאלף אחד. עכשיו בבית המספרים יש 2 אלפים, 7 מאות ו-3 עשרות, וזה בדיוק 2,730. אין יחידות, ולכן כותבים 0 במקום היחידות.');
     const done = emitted.find((e) => e.event_type === 'PROBLEM_COMPLETE');
     expect(done?.details.error_count).toBe(1);
   });

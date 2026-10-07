@@ -383,7 +383,7 @@ describe('5. C6 once per exercise; s7_g_t1 waits for both groupings', () => {
     expect(ws().counts).toEqual({ ...EMPTY_COUNTS, thousands: 2, hundreds: 5 });
     ws().setRepresentationAnswer('2500');
     ws().proceed();
-    expect(ws().feedback?.sub ?? '').toContain('המשימה היא לקבץ בעצמכם');
+    expect(ws().feedback?.sub ?? '').toContain('בתרגיל הזה מקבצים בעצמכם');
     expect(sent.events.some((e) => e.event_type === 'PROBLEM_COMPLETE')).toBe(false);
   });
 

@@ -1199,6 +1199,36 @@ export function selfCorrectionHe(p: SelfCorrectionIndex | null): string {
   return `${p.percent}% (ביטולים: ${p.undos}, ספרות שגויות: ${p.wrong_digits}, בחירות שגויות בכרטיס: ${p.wrong_options})`;
 }
 
+export interface SelfMonitoringIndex {
+  /** STEP_MARKED_DONE events with marked === true: the child's own "בניתי". */
+  marks: number;
+  /** Those made while the blocks already showed the number the exercise asked to build. */
+  marks_board_right: number;
+  /** marks_board_right ÷ marks × 100; null without a mark. */
+  percent: number | null;
+}
+
+/**
+ * Self-monitoring (owner, 7.10.2026): the gap between a child's own "I built
+ * it" (the "בניתי" mark on a build step, STEP_MARKED_DONE) and what the board
+ * showed at that moment. Research data beside measure 2ב — not part of its
+ * formula, not a grade. The board is "right" when its value equals the
+ * number the exercise asked to build; `expected` maps exercise_id to that
+ * number (an exercise with no such number is skipped).
+ */
+export function computeSelfMonitoringIndex(events: Record<string, any>[], expected: Map<string, number>): SelfMonitoringIndex {
+  let marks = 0;
+  let right = 0;
+  for (const ev of events) {
+    if (ev?.event_type !== "STEP_MARKED_DONE" || ev.details?.marked !== true) continue;
+    const want = expected.get(String(ev.exercise_id));
+    if (typeof want !== "number") continue;
+    marks++;
+    if (Number(ev.details?.board_value) === want) right++;
+  }
+  return { marks, marks_board_right: right, percent: marks === 0 ? null : Math.round((right / marks) * 100) };
+}
+
 export interface PersistenceIndex {
   /** Exercises the learner completed after at least one mistake (a wrong digit or a wrong card choice). */
   exercises_with_errors: number;
