@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useWorkspaceStore, selectStandardTask, effectiveArithmetic } from '@/application/useWorkspaceStore';
 import { currentTaskLabelHe } from '@/application/taskLabel';
 import { taskPositionLabelHe } from '@/core/taskPositionLabel';
+import { stationNameHe } from '@/core/stationNames';
 import { getCurrentQTask, getEffectiveNumber, isSubtaskActive } from '@/core/qmatrixFlow';
 import { hasOneDiagnosticAnswerBox } from '@/core/QMatrix';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
@@ -91,8 +92,10 @@ export function TaskCard() {
       {sessionNumber !== 2 && sessionNumber !== 8 && <FeedbackToast placement="inline" />}
       <motion.div key={taskKey} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="relative flex flex-col flex-1 min-h-0" data-testid="task-column">
         {qflow.phase !== 'correction' && (
-          <span className="self-start shrink-0 inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-fl-4-6 mb-fl-6-12 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
-            <span aria-hidden="true">✦</span> תחנה {sessionNumber}
+          <span data-testid="task-station-chip" className="self-start shrink-0 max-w-full inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-fl-4-6 mb-fl-6-12 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
+            {/* The station always with its name (owner, 7.10.2026): the name
+                the child met on the lobby card, the one the teacher says. */}
+            <span aria-hidden="true">✦</span> {stationNameHe(sessionNumber) ? `תחנה ${sessionNumber}: ${stationNameHe(sessionNumber)}` : `תחנה ${sessionNumber}`}
           </span>
         )}
         <h1 className="shrink-0 font-display font-black text-fl-22-34 text-ws-ink mb-fl-6-16 leading-[1.15]">

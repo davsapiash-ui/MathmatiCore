@@ -266,7 +266,7 @@ describe('one name per thing on the child\'s screen: "בית המספרים", "�
     // the guard itself sees through niqqud
     expect('קֻבִּיּוֹת'.replace(/[֑-ׇ]/g, '')).toMatch(/קביות|קוביות/);
     expect(store).toContain("'עוד אין לבנים בבית המספרים. לחצו על אחת הלבנים שמתחת לבית המספרים, או גררו אותה אליו, ובנו את המספרים שבתרגיל.'");
-    expect(store).toContain("'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.'");
+    expect(store).toContain("'הלבנים מסודרות נכון, אבל בתרגיל הזה פורטים בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.'");
     // a wrong board is refused without spelling out the blocks to build
     expect(store).not.toContain('בבית המספרים צריך להיות בדיוק');
   });
@@ -291,7 +291,7 @@ describe('row ע1.1 and ע3.2 — the child reads "תחנה", not "מפגש"', (
     expect(closed).toContain("teacherSentenceHe('closedTitle', gender)");
     expect(closed).toContain("teacherSentenceHe(meeting2Unfinished ? 'closedBodyMeeting2Unfinished' : 'closedBody', gender)");
     const choice = src('features/workspace/overlays/ReinforcementOrChallengeScreen.tsx');
-    expect(choice).toContain("badge: 'סיימתם את שבע המשימות של התחנה!'");
+    expect(choice).toContain("badge: 'סיימתם את שבעת התרגילים של התחנה!'");
     expect(choice).toContain("finish: 'סיום התחנה עכשיו'");
     expect(choice).toContain("'אפשר גם לסיים את התחנה עכשיו.'");
     const texts = choice.slice(choice.indexOf('const BRANCH_CHOICE_TEXT'), choice.indexOf('interface ReinforcementOrChallengeScreenProps'));

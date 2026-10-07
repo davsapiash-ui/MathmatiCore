@@ -116,15 +116,16 @@ describe('"הצגת בית המספרים" appears only in meetings that have a 
 describe('the early-finisher choice screen tells the truth (מסמך 03 §3.3–3.7)', () => {
   const screen = code('features/workspace/overlays/ReinforcementOrChallengeScreen.tsx');
 
-  it('one challenge task, two review tasks — named "משימה" like every other task screen', () => {
-    // Register 24(א) ("משימה N מתוך M", "משימת בחירה") and the one-name rule
-    // (audit A5-F13, 4.10.2026); never first person plural (A5-F04 / A4-F11).
-    expect(screen).toContain("badge: 'סיימתם את שבע המשימות של התחנה!'");
-    expect(screen).toContain("intro: 'המשימות הבאות הן בחירה שלכם, לא חובה.'");
-    expect(screen).toContain("reinforcement: 'שתי משימות נוספות, לחזרה על הנושא של היום.'");
-    expect(screen).toContain("challenge: 'משימת אתגר אחת, קשה יותר, בנושא של היום.'");
+  it('one challenge task, two review tasks — named "תרגיל" like every other exercise screen', () => {
+    // Register 24(א) ("תרגיל N מתוך M", "תרגיל בחירה") and the one-name rule
+    // (audit A5-F13, 4.10.2026; the word is "תרגיל" since the owner's 7.10.2026
+    // decision); never first person plural (A5-F04 / A4-F11).
+    expect(screen).toContain("badge: 'סיימתם את שבעת התרגילים של התחנה!'");
+    expect(screen).toContain("intro: 'התרגילים הבאים הם בחירה שלכם, לא חובה.'");
+    expect(screen).toContain("reinforcement: 'שני תרגילים נוספים, לחזרה על הנושא של היום.'");
+    expect(screen).toContain("challenge: 'תרגיל אתגר אחד, קשה יותר, בנושא של היום.'");
     const texts = screen.slice(screen.indexOf('const BRANCH_CHOICE_TEXT'), screen.indexOf('interface ReinforcementOrChallengeScreenProps'));
-    expect(texts).not.toContain('תרגיל');
+    expect(texts).not.toContain('משימ');
     expect(texts).not.toContain('שתרגלנו');
   });
 

@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Owner, 1.10.2026: the teacher receives the message the learner pressed, with
- * the exercise the learner is on ("אפשר עזרה בתרגיל? (משימה 3 מתוך 7)"), and
+ * the exercise the learner is on ("אפשר עזרה בתרגיל? (תרגיל 3 מתוך 7)"), and
  * the research data records the exercise of every request for help from the chat.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -63,7 +63,7 @@ describe('chat help messages name the exercise (owner, 1.10.2026)', () => {
     Array.from(c.querySelectorAll('button')).find((b) => b.textContent?.includes(text))!;
 
   it('the label is the heading the learner reads', () => {
-    expect(currentTaskLabelHe(useWorkspaceStore.getState())).toMatch(/^משימה 3 מתוך \d+$/);
+    expect(currentTaskLabelHe(useWorkspaceStore.getState())).toMatch(/^תרגיל 3 מתוך \d+$/);
     expect(withExerciseHe('א', null)).toBe('א');
   });
 

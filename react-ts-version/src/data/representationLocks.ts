@@ -27,7 +27,7 @@
  * The exercises with a `representationKind` (proceed(), useWorkspaceStore.ts):
  * compose_break and compose_group are not solved until the blocks performed
  * every listed conversion, for every learner — "הלבנים מסודרות נכון, אבל
- * המשימה היא לפרוט בעצמכם", naming the block still to break or the column's
+ * בתרגיל הזה פורטים בעצמכם", naming the block still to break or the column's
  * "קבצו 10" button.
  *
  * ★ chosen: the PRD names no columns for these exercises. Each entry is derived

@@ -1448,12 +1448,12 @@ const placeAbove = (p: Place): Place | undefined => PLACE_ORDER[PLACE_ORDER.inde
  * broken; it names the block above the column still waiting for its ten.
  */
 export function breakItYourselvesHe(receiving: Place | null): string {
-  return `הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. ${breakClickHe(receiving)}`;
+  return `הלבנים מסודרות נכון, אבל בתרגיל הזה פורטים בעצמכם. בנו את הלבנים שבהנחיה. ${breakClickHe(receiving)}`;
 }
 
 /** Station 7's "do the grouping yourselves": the button of the column to group, in its own words (PlaceColumn). */
 export function groupItYourselvesHe(source: Place | null): string {
-  return `הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. ${groupClickHe(source)}`;
+  return `הלבנים מסודרות נכון, אבל בתרגיל הזה מקבצים בעצמכם. בנו את הלבנים שבהנחיה. ${groupClickHe(source)}`;
 }
 
 /**
@@ -2039,7 +2039,7 @@ export function wrongHiddenDigitsHe(task: SessionTask, meeting: number): string 
 }
 
 /** Meeting 1's 26 units: the final blocks, built without grouping. */
-const GROUP_YOURSELVES_HE = 'הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.';
+const GROUP_YOURSELVES_HE = 'הלבנים מסודרות נכון, אבל בתרגיל הזה מקבצים בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.';
 
 /** Station 7's 2,730 (owner, 4.10.2026, wording round 3, text 1): the number typed is right; a grouping is still to come. */
 export const GIVEN_ANSWER_RIGHT_GROUP_NOW_HE = 'התשובה שכתבתם נכונה. עכשיו בכל טור שיש בו 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור.';
@@ -2330,7 +2330,7 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
         return failure('conversion_skipped', 'קַבְּצוּ 🧱', GROUP_YOURSELVES_HE, 3500);
       }
       if (task.requiresUngrouping && (m1Listed ? m1Pending : !s.hasUngrouped)) {
-        return failure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
+        return failure('conversion_skipped', 'פִּרְטוּ 🧱', 'הלבנים מסודרות נכון, אבל בתרגיל הזה פורטים בעצמכם: בנו את המספר ולחצו על לבנת עשרת כדי לפרוט אותה.', 3500);
       }
       // Station 7's 2,730 (owner, 4.10.2026): the board opens with the blocks
       // to group, and every grouping REPRESENTATION_LOCKS lists is the child's
@@ -2462,7 +2462,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    * A message that must not cancel what the child is in the middle of. The
    * silent-help toast used showFeedback, which bumps the nonce — so pressing
    * the help button while a meeting-2 step was showing ("התשובה התקבלה",
-   * "משימה נוספת") dropped that step's continuation, and "התקדם" stayed
+   * "תרגיל נוסף") dropped that step's continuation, and "התקדם" stayed
    * disabled until a reload.
    */
   function showSideFeedback(feedback: FeedbackState, ms: number) {
@@ -2892,18 +2892,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // the last task no next task follows (the waiting screen, or the
         // correction round with its own toast), so the sub is left out (A3-112).
         // taskIdx is still the task just answered: advance() runs after the toast.
-        const nextTaskSub = get().qflow.taskIdx < TASKS.length - 1 ? 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' : undefined;
+        const nextTaskSub = get().qflow.taskIdx < TASKS.length - 1 ? 'עוֹבְרִים לַתַּרְגִּיל הַבָּא...' : undefined;
         showFeedback({ correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה!', sub: nextTaskSub }, 1500, continueAfterPrimaryAnswer);
         break;
       }
       // The correction round has no hints and no right/wrong feedback (owner's
       // decision, 25.9.2026): it is still part of the diagnostic. Its toasts
       // name what is on the screen and say nothing about the first answer
-      // (owner, 29.9.2026): the task itself coming back is "מְשִׂימָה חוֹזֶרֶת";
-      // the simpler exercise before it (tasks 3, 6, 7) is another task.
+      // (owner, 29.9.2026): the task itself coming back is "תַּרְגִּיל חוֹזֵר";
+      // the simpler exercise before it (tasks 3, 6, 7) is "תַּרְגִּיל נוֹסָף" —
+      // "תרגיל", not "משימה", for every exercise of meetings 2–8 (owner, 7.10.2026).
       case 'start_correction': {
         const task = TASKS.find((t) => t.id === event.taskId);
-        const title = task && hasProbeExercise(task) ? 'מְשִׂימָה נוֹסֶפֶת 📝' : 'מְשִׂימָה חוֹזֶרֶת 📝';
+        const title = task && hasProbeExercise(task) ? 'תַּרְגִּיל נוֹסָף 📝' : 'תַּרְגִּיל חוֹזֵר 📝';
         // The step starts with its toast, not after it: the flow had already
         // moved to it, so for 1.8 seconds the new step sat on the screen with
         // the previous step's answer in its boxes, and a reload in that window
@@ -2931,7 +2932,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Starts with its toast, as start_correction does.
         startTask(event.taskId);
         set({ awaitingNext: true });
-        showFeedback({ correct: true, neutral: true, title: 'מְשִׂימָה חוֹזֶרֶת 📝' }, 1800, () => {
+        showFeedback({ correct: true, neutral: true, title: 'תַּרְגִּיל חוֹזֵר 📝' }, 1800, () => {
           set({ awaitingNext: false });
         });
         break;

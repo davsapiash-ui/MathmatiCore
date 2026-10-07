@@ -136,7 +136,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
       </div>
 
       {/* Progress */}
-      <div className="mx-auto min-w-0 bg-ws-bg rounded-full px-flw-12-16 py-2 border border-ws-surface2" role="progressbar" aria-label="התקדמות במשימות">
+      <div className="mx-auto min-w-0 bg-ws-bg rounded-full px-flw-12-16 py-2 border border-ws-surface2" role="progressbar" aria-label="התקדמות בתרגילים">
         <ProgressDots total={totalTasks} current={currentIdx} />
       </div>
 

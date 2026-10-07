@@ -7,14 +7,20 @@
  * titles stay in the data for the teacher's screens, the reports and the
  * documents. The child sees where it is in the meeting:
  *
- *  - a compulsory exercise: "משימה 3 מתוך 7";
- *  - an exercise of the choice path (meetings 3–7): "משימת בחירה";
+ *  - a compulsory exercise: "תרגיל 3 מתוך 7";
+ *  - an exercise of the choice path (meetings 3–7): "תרגיל בחירה";
  *  - the diagnostic's correction round (owner, 4.10.2026): the task itself
- *    coming back is "משימה חוזרת"; the new exercise in round numbers shown
- *    before it (tasks 3, 6, 7) is "משימה נוספת" — each heading repeats the
+ *    coming back is "תרגיל חוזר"; the new exercise in round numbers shown
+ *    before it (tasks 3, 6, 7) is "תרגיל נוסף" — each heading repeats the
  *    toast that opens its step (useWorkspaceStore, 'start_correction');
- *  - meeting 1: "משימת היכרות" — PRD Module 14 §ב: meeting 1 is a sandbox
- *    with no numbered compulsory tasks, so it carries no number.
+ *  - meeting 1 — PRD Module 14 §ב: a sandbox with no numbered compulsory
+ *    tasks, so nothing there carries a number. Its tool steps (type
+ *    session1_intro) are "משימת היכרות"; its refresh exercises are "תרגיל".
+ *
+ * Owner decision, 7.10.2026 (register, approved deviation 24): the child's
+ * word for an exercise is "תרגיל", not "משימה" — the word a third-grade
+ * classroom uses for something with a number to solve. Only meeting 1's
+ * tool steps keep "משימה": they ask the child to try a tool, not to solve.
  */
 export interface TaskPositionInput {
   sessionNumber: number;
@@ -24,6 +30,8 @@ export interface TaskPositionInput {
   isCorrectionProbe?: boolean;
   /** An exercise of the choice path, after the seven compulsory ones. */
   isChoice?: boolean;
+  /** One of meeting 1's tool steps (type session1_intro), not a refresh exercise. */
+  isIntro?: boolean;
   /** 1-based place in the meeting's compulsory list, or null when unknown. */
   position: number | null;
   /** Length of the meeting's compulsory list. */
@@ -32,16 +40,16 @@ export interface TaskPositionInput {
 
 export const TASK_LABEL_HE = {
   intro: 'משימת היכרות',
-  choice: 'משימת בחירה',
-  correction: 'משימה חוזרת',
-  correctionProbe: 'משימה נוספת',
-  fallback: 'משימה',
+  choice: 'תרגיל בחירה',
+  correction: 'תרגיל חוזר',
+  correctionProbe: 'תרגיל נוסף',
+  fallback: 'תרגיל',
 } as const;
 
-export function taskPositionLabelHe({ sessionNumber, isCorrection, isCorrectionProbe, isChoice, position, total }: TaskPositionInput): string {
-  if (sessionNumber === 1) return TASK_LABEL_HE.intro;
+export function taskPositionLabelHe({ sessionNumber, isCorrection, isCorrectionProbe, isChoice, isIntro, position, total }: TaskPositionInput): string {
+  if (sessionNumber === 1) return isIntro ? TASK_LABEL_HE.intro : TASK_LABEL_HE.fallback;
   if (isCorrection) return isCorrectionProbe ? TASK_LABEL_HE.correctionProbe : TASK_LABEL_HE.correction;
   if (isChoice) return TASK_LABEL_HE.choice;
-  if (position !== null && position >= 1 && total >= position) return `משימה ${position} מתוך ${total}`;
+  if (position !== null && position >= 1 && total >= position) return `תרגיל ${position} מתוך ${total}`;
   return TASK_LABEL_HE.fallback;
 }

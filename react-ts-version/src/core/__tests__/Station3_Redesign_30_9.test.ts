@@ -350,7 +350,7 @@ describe('compose_break: the break is the child\'s own, and the answer is the nu
     answer('340');
     press();
     expect(title()).toBe('פִּרְטוּ 🧱');
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. לחצו על לבנת מאה כדי לפרוט אותה.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל בתרגיל הזה פורטים בעצמכם. בנו את הלבנים שבהנחיה. לחצו על לבנת מאה כדי לפרוט אותה.');
     expect(done()).toBe(false);
     ws().clearBoard();
     buildBlocks({ hundreds: 3, tens: 4 });
@@ -455,7 +455,7 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     answer('125');
     press();
     expect(title()).toBe('קַבְּצוּ 🧱');
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 למאה" שבראש טור העשרות.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל בתרגיל הזה מקבצים בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 למאה" שבראש טור העשרות.');
     ws().clearBoard();
     buildBlocks({ tens: 12, units: 5 });
     ws().groupColumnClick('tens');
@@ -469,7 +469,7 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     buildBlocks({ thousands: 1, hundreds: 4, tens: 3 });
     answer('1430');
     press();
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 לאלף" שבראש טור המאות.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל בתרגיל הזה מקבצים בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 לאלף" שבראש טור המאות.');
     ws().clearBoard();
     buildBlocks({ hundreds: 14, tens: 3 });
     ws().groupColumnClick('hundreds');
@@ -519,7 +519,7 @@ describe('station 1 keeps its own wording (s1_r_value368, s1_r_group26)', () => 
     ws().setAnswerDigit('tens', '2');
     ws().setAnswerDigit('units', '6');
     press();
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל בתרגיל הזה מקבצים בעצמכם: 10 לבנים בכל פעם, בעזרת הכפתור שבראש הטור.');
   });
 });
 

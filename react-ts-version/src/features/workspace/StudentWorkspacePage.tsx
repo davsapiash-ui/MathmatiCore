@@ -1380,7 +1380,7 @@ export function StudentWorkspacePage() {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body">
         <div className="animate-spin text-4xl mb-4">⏳</div>
-        <h2 className="text-xl font-bold">טוענים את המשימות שלכם...</h2>
+        <h2 className="text-xl font-bold">טוענים את התרגילים שלכם...</h2>
       </div>
     );
   }

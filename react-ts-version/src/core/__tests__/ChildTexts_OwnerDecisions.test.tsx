@@ -37,7 +37,7 @@ import { tenBlocksHint } from '@/infrastructure/services/staticSocraticCards';
 /**
  * Owner decisions, 27.9.2026 (register, approved deviation 24): what the child
  * reads inside the workspace.
- *  1. No exercise title: "משימה N מתוך M" above the instruction.
+ *  1. No exercise title: "תרגיל N מתוך M" above the instruction.
  *  2. Station 2 opens with one sentence, its read-aloud button and "מתחילים", once.
  *  3. "תחנה N", never "מפגש N".
  *  5. The coaching-card texts the owner rewrote.
@@ -69,13 +69,15 @@ function filesUnder(dir: string): string[] {
 afterEach(cleanup);
 
 describe('1 — the child reads where it is, not the exercise title', () => {
-  it('"משימה N מתוך M" for a compulsory exercise, a plain label otherwise', () => {
-    expect(taskPositionLabelHe({ sessionNumber: 4, position: 3, total: 7 })).toBe('משימה 3 מתוך 7');
-    expect(taskPositionLabelHe({ sessionNumber: 2, position: 7, total: 7 })).toBe('משימה 7 מתוך 7');
-    expect(taskPositionLabelHe({ sessionNumber: 5, isChoice: true, position: null, total: 7 })).toBe('משימת בחירה');
-    expect(taskPositionLabelHe({ sessionNumber: 2, isCorrection: true, position: 4, total: 7 })).toBe('משימה חוזרת');
-    // PRD Module 14 §ב: meeting 1 has no numbered compulsory tasks.
-    expect(taskPositionLabelHe({ sessionNumber: 1, position: 3, total: 10 })).toBe('משימת היכרות');
+  it('"תרגיל N מתוך M" for a compulsory exercise, a plain label otherwise', () => {
+    expect(taskPositionLabelHe({ sessionNumber: 4, position: 3, total: 7 })).toBe('תרגיל 3 מתוך 7');
+    expect(taskPositionLabelHe({ sessionNumber: 2, position: 7, total: 7 })).toBe('תרגיל 7 מתוך 7');
+    expect(taskPositionLabelHe({ sessionNumber: 5, isChoice: true, position: null, total: 7 })).toBe('תרגיל בחירה');
+    expect(taskPositionLabelHe({ sessionNumber: 2, isCorrection: true, position: 4, total: 7 })).toBe('תרגיל חוזר');
+    // PRD Module 14 §ב: meeting 1 has no numbered compulsory tasks. Its tool
+    // steps stay "משימת היכרות"; its refresh exercises are "תרגיל" (owner, 7.10.2026).
+    expect(taskPositionLabelHe({ sessionNumber: 1, isIntro: true, position: 3, total: 10 })).toBe('משימת היכרות');
+    expect(taskPositionLabelHe({ sessionNumber: 1, position: 6, total: 10 })).toBe('תרגיל');
     expect(Object.values(TASK_LABEL_HE).join(' ')).not.toMatch(/אבחון|הערכה|רפלקציה|אינטגרציה|צד/);
   });
 
@@ -94,24 +96,43 @@ describe('1 — the child reads where it is, not the exercise title', () => {
       useWorkspaceStore.getState().resetWorkspace();
     });
 
-    it('meeting 3, first exercise: "משימה 1 מתוך 7", and its title is nowhere', async () => {
+    it('meeting 3, first exercise: "תרגיל 1 מתוך 7", and its title is nowhere', async () => {
       const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
       useWorkspaceStore.getState().initSession(3, false);
       const { container } = render(<TaskCard />);
-      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('משימה 1 מתוך 7');
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('תרגיל 1 מתוך 7');
       const title = (useWorkspaceStore.getState().dynamicTasks ?? [])[0]?.titleHe
         ?? getHardcodedCatalogBanks().find((b: any) => b.id === 'session_3_green_path')?.tasks[0]?.titleHe;
       expect(title).toBeTruthy();
       expect(container.textContent).not.toContain(title as string);
-      expect(container.textContent).toContain('תחנה 3');
+      expect(screen.getByTestId('task-station-chip').textContent).toContain('תחנה 3: בונים מספרים בכמה דרכים');
       expect(container.textContent).not.toContain('מפגש 3');
     });
 
-    it('meeting 2: "משימה 1 מתוך 7", not the diagnostic task’s title', async () => {
+    it('meeting 1 (owner, 7.10.2026): a tool step is "משימת היכרות", a refresh exercise is "תרגיל", neither numbered', async () => {
+      const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
+      const { getActiveTasks } = await import('@/application/useWorkspaceStore');
+      useWorkspaceStore.getState().initSession(1, false);
+      const tasks = getActiveTasks(useWorkspaceStore.getState());
+      const intro = tasks.findIndex((t) => t.type === 'session1_intro');
+      const refresh = tasks.findIndex((t) => t.type !== 'session1_intro');
+      expect(intro).toBeGreaterThanOrEqual(0);
+      expect(refresh).toBeGreaterThanOrEqual(0);
+      useWorkspaceStore.getState().initSession(1, false, intro);
+      const first = render(<TaskCard />);
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('משימת היכרות');
+      expect(screen.getByTestId('task-station-chip').textContent).toContain('תחנה 1: ארגז החול');
+      first.unmount();
+      useWorkspaceStore.getState().initSession(1, false, refresh);
+      render(<TaskCard />);
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('תרגיל');
+    });
+
+    it('meeting 2: "תרגיל 1 מתוך 7", not the diagnostic task’s title', async () => {
       const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
       useWorkspaceStore.getState().initSession(2, false);
       const { container } = render(<TaskCard />);
-      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`משימה 1 מתוך ${DIAGNOSTIC_TASKS.length}`);
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`תרגיל 1 מתוך ${DIAGNOSTIC_TASKS.length}`);
       expect(container.textContent).not.toContain(DIAGNOSTIC_TASKS[0].titleHe);
     });
   });
@@ -177,7 +198,7 @@ describe('2 — stations 2 and 8 open with one quiet screen, once', () => {
 
 describe('3 — "תחנה N" inside the workspace, never "מפגש N"', () => {
   it('the card badge, the end screen, the switch screen and the end toast', () => {
-    expect(code('features/workspace/tasks/TaskCard.tsx')).toContain('<span aria-hidden="true">✦</span> תחנה {sessionNumber}');
+    expect(code('features/workspace/tasks/TaskCard.tsx')).toContain('`תחנה ${sessionNumber}: ${stationNameHe(sessionNumber)}`');
     const page = code('features/workspace/StudentWorkspacePage.tsx');
     expect(page).toContain('סיימתם את תחנה {sessionNumber}!');
     expect(page).toContain('עוברים לתחנה {activeClassSession?.sessionNumber}...');
