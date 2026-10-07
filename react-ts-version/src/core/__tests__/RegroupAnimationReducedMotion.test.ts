@@ -79,6 +79,8 @@ describe('Grouping animation under prefers-reduced-motion', () => {
     // … but nothing is drawn and nothing is hidden.
     expect(screen.queryByTestId('regroup-animation-layer')).toBeNull();
     expect(container.querySelectorAll('[data-arriving="true"]')).toHaveLength(0);
+    // The trade in words stays (owner, 7.10.2026): the move is skipped, not its meaning.
+    expect(screen.getByTestId('regroup-caption').textContent).toBe('10 יחידות = עשרת אחת');
     unmount();
   });
 });

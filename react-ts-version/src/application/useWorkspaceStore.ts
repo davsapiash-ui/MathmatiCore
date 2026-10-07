@@ -45,7 +45,7 @@ import {
 import { stateReducer } from '@/machines/vraMachine';
 import { computeCognitiveMastery, hasOneDiagnosticAnswerBox, TASKS } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
-import { announceRegroup, REGROUP_ANIMATION_MS } from '@/application/useRegroupAnimationStore';
+import { announceRegroup, resetRegroupTempo, REGROUP_ANIMATION_MS } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { useTeacherGenderStore } from '@/application/useTeacherGender';
@@ -3703,6 +3703,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     initSession: (meeting, isASD, startingTaskIdx, existingDeadline) => {
       flowEpoch++;
+      // Each meeting shows the trades at the full tempo first (useRegroupAnimationStore).
+      resetRegroupTempo();
       const sanitized = sanitizeSessionNumber(meeting);
       // PRD v7.1 Module 26: promote pending curriculum-catalog updates only at
       // session initialization — a live exercise is never disturbed.

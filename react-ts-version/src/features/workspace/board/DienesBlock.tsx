@@ -30,7 +30,7 @@ export interface DienesBlockProps {
 /**
  * The lines that show what a block is made of (owner, 7.10.2026): a ten is
  * ten units, a hundred ten tens, a thousand ten hundreds. They used to be set
- * with `vectorEffect="nonScalingStroke"`, which is not an SVG value, so the
+ * with the vector-effect value "nonScalingStroke", which SVG does not have, so the
  * browser ignored it and every line shrank with the drawing: a 2.2-unit line
  * in a 2010-unit view box drawn 82px wide is 0.09px — on a school laptop the
  * hundred and the thousand looked almost smooth. Now the lines and the edges
@@ -96,7 +96,7 @@ export const TenSVG = () => {
       <polygon points="100,0 1100,500 1000,550 0,50" fill="url(#tenTop)" stroke={SHADE.tens} {...EDGE} />
       <polygon points="1100,500 1000,550 1000,680 1100,630" fill="url(#tenRight)" stroke={SHADE.tens} {...EDGE} />
       <polygon points="0,50 1000,550 1000,680 0,180" fill="url(#tenLeft)" stroke={SHADE.tens} {...EDGE} />
-      {renderLines()}
+      <g className="dienes-seams">{renderLines()}</g>
     </svg>
   );
 };
@@ -132,7 +132,7 @@ export const HundredSVG = () => {
       <polygon points="1000,0 2000,500 1000,1000 0,500" fill="url(#hundredTop)" stroke={SHADE.hundreds} {...EDGE} />
       <polygon points="2000,500 1000,1000 1000,1100 2000,600" fill="url(#hundredRight)" stroke={SHADE.hundreds} {...EDGE} />
       <polygon points="0,500 1000,1000 1000,1100 0,600" fill="url(#hundredLeft)" stroke={SHADE.hundreds} {...EDGE} />
-      {renderLines()}
+      <g className="dienes-seams">{renderLines()}</g>
     </svg>
   );
 };
@@ -172,7 +172,7 @@ export const ThousandSVG = () => {
       <polygon points="1000,0 2000,500 1000,1000 0,500" fill="url(#thousandTop)" stroke={SHADE.thousands} {...EDGE} />
       <polygon points="1000,1000 2000,500 2000,1500 1000,2000" fill="url(#thousandRight)" stroke={SHADE.thousands} {...EDGE} />
       <polygon points="0,500 1000,1000 1000,2000 0,1500" fill="url(#thousandLeft)" stroke={SHADE.thousands} {...EDGE} />
-      {renderLines()}
+      <g className="dienes-seams">{renderLines()}</g>
     </svg>
   );
 };

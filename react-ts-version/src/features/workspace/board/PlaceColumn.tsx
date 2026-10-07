@@ -9,10 +9,13 @@ import { boardDimmedColumns } from '@/application/boardDimming';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { columnDigitsShown } from '@/core/columnDigits';
 import { builtAnyWay } from '@/data/representationLocks';
-import { DienesBlock } from './DienesBlock';
+import { DienesBlock, BLOCK_SIZES, BLOCK_SVGS } from './DienesBlock';
 import { COLUMN_CELLS } from './columnCells';
 import { useVisibleRegroup, arrivingBlockCount } from './RegroupAnimationLayer';
 import { PLACE_COLORS } from '../placeColors';
+
+/** The place one column to the left: the block that breaks into this column's blocks. */
+const NEXT_UP: Partial<Record<Place, Place>> = { units: 'tens', tens: 'hundreds', hundreds: 'thousands' };
 
 /** Per-place functional colors — one code, shared with the answer boxes (placeColors.ts). */
 const COLUMN_COLORS = PLACE_COLORS;
@@ -86,11 +89,13 @@ export function PlaceColumn({
     data: { kind: 'column', place },
   });
 
-  // Show preview of 10 units when dragging a tens rod over the units column.
+  // Before the hand lets go (owner, 7.10.2026): a block held over the column to
+  // its right shows what it will become there — ten of this column's blocks,
+  // five and five. Every split by drag, not only a ten over the units.
   // activeDragPlace comes from local component state (set once per drag start/end),
   // not from dnd-kit's useDndContext — that context re-renders every column on
   // every pointer-move frame during a drag, which was the source of drag lag.
-  const isPreviewingDecomp = isOver && place === 'units' && activeDragPlace === 'tens';
+  const isPreviewingDecomp = isOver && place !== 'thousands' && activeDragPlace === NEXT_UP[place];
 
 
   const colors = COLUMN_COLORS[place];
@@ -183,6 +188,7 @@ export function PlaceColumn({
         >
           <button
             onClick={() => groupColumnClick(place)}
+            data-group-button
             data-pulse={crowdingIsTheGoal ? undefined : 'true'}
             // The main action of a column that holds ten or more: a 44px-high
             // target, like every child button (DESIGN_SYSTEM_RULES.md; audit
@@ -213,12 +219,16 @@ export function PlaceColumn({
         className="relative flex-1 min-h-0 p-2 overflow-hidden touch-none flex flex-col"
       >
         {/* The blocks stand on the bottom of the column, in rows. Their size is
-            computed so that all of them fit; nothing here scrolls or clips. */}
+            computed so that all of them fit; nothing here scrolls or clips.
+            The rows stack upward (wrap-reverse): the first block stays at the
+            bottom, a new block lands on top of the pile, and a block already
+            in the column never jumps when another arrives or leaves (owner,
+            7.10.2026 — the grouping showed the ten already there leap up). */}
         <div ref={blocksRef} className="relative flex-1 min-h-0 flex flex-col justify-end items-center">
           <div
             data-testid={`column-${place}-blocks`}
             data-scale={fit.scale}
-            className="flex flex-row flex-wrap content-end justify-center"
+            className="flex flex-row flex-wrap-reverse content-start justify-center"
             style={{ width: `${fit.perRow * fit.cell.w}px`, maxWidth: '100%' }}
           >
             {Array.from({ length: renderCount }).map((_, i) => (
@@ -254,10 +264,21 @@ export function PlaceColumn({
 
         {/* Drawn over the column, not in its flow, so the blocks never move. */}
         {isPreviewingDecomp && (
-          <div className="absolute top-2 inset-x-2 z-10 flex flex-wrap justify-center gap-1 p-1 bg-ws-accentSoft/80 border border-dashed border-ws-accent rounded-xl animate-pulse pointer-events-none">
-            {Array.from({ length: 10 }).map((_, idx) => (
-              <div key={`prev-${idx}`} className="w-4 h-4 rounded-md bg-amber-400/70" />
-            ))}
+          <div
+            data-testid={`decomp-preview-${place}`}
+            aria-hidden="true"
+            className="absolute top-2 inset-x-2 z-10 grid grid-cols-5 gap-x-1 gap-y-1.5 p-1.5 rounded-xl border border-dashed pointer-events-none"
+            style={{ borderColor: colors.border, backgroundColor: 'hsl(var(--ws-surface) / 0.85)' }}
+          >
+            {Array.from({ length: 10 }).map((_, idx) => {
+              const Svg = BLOCK_SVGS[place];
+              const size = BLOCK_SIZES[place];
+              return (
+                <div key={`prev-${idx}`} className="w-full max-w-[24px] mx-auto opacity-80" style={{ aspectRatio: `${size.w} / ${size.h}` }}>
+                  <Svg />
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

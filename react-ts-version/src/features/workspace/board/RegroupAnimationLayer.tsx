@@ -1,22 +1,34 @@
-import { useLayoutEffect, useState, type RefObject } from 'react';
+import { useLayoutEffect, useState, type CSSProperties, type RefObject } from 'react';
 import { animate, useReducedMotion, type AnimationPlaybackControls } from 'framer-motion';
 import type { Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import {
   useRegroupAnimationStore,
-  REGROUP_ANIMATION_MS,
-  REGROUP_MERGE_MS,
   type RegroupAnimation,
+  type RegroupCaption,
 } from '@/application/useRegroupAnimationStore';
+import { regroupCaptionHe } from '@/core/regroupCaption';
 import { BLOCK_SIZES, BLOCK_SVGS } from './DienesBlock';
 
 /**
- * The grouping / decomposition animation (מסמך 03 §3.3–3.5, register row 17).
+ * The grouping / decomposition animation (מסמך 03 §3.3–3.5, register row 17;
+ * redrawn with the owner, 7.10.2026). What the child has to see is a trade:
+ * one block for exactly ten of the next place down, the amount unchanged, one
+ * column over. So the move shows the block's own structure — the unit lines
+ * drawn on every ten, hundred and thousand (DienesBlock):
  *
- *  - group: the ten blocks gather into one spot in their column and merge into
- *    one block of the next place, which travels left to its column.
- *  - split: the block breaks into ten blocks of the previous place, which
+ *  - split (a click, or a drag right — the same animation, PRD Module 8 §א):
+ *    the block's seams strengthen for a moment where it is (where it was let
+ *    go, for a drag), it opens along them into its ten pieces, which spread a
+ *    little in their order — five and five, so ten is seen, not counted — and
  *    travel right, each to the exact spot where it now sits.
+ *  - group (the "קבצו 10" button only): the ten blocks leave the column's
+ *    pile and line up in the order they will have inside the new block, five
+ *    and five, close up seam to seam into it — its lines are the gaps that
+ *    closed — and the new block travels left to its column.
+ *
+ * A caption says the trade in words while it plays and a moment after
+ * ("עשרת אחת = 10 יחידות", core/regroupCaption.ts) — not in quiet mode.
  *
  * The counts have already changed in the store; this layer only draws a ghost
  * of the move over the columns (pointer-events-none — every drop, click and
@@ -29,13 +41,15 @@ import { BLOCK_SIZES, BLOCK_SVGS } from './DienesBlock';
  * straight in their final state (measured on 26.9.2026: final positions from the
  * first frame). animate() on the DOM nodes ignores the presence context.
  *
- * Calm by design: under a second, opacity and position only — no flashing,
- * no bounce, no repeat. A learner whose device asks for reduced motion gets
- * the move instantly, as before. Quiet mode (the teacher's sensory flag) keeps
- * it: document 03 describes this motion as how the child sees ten become one,
+ * Calm by design: position, size and opacity only, the seams once — no
+ * flashing, no bounce, no repeat, no sound. The full tempo is 1.2 seconds; the
+ * same trade made again and again in a meeting plays in 0.7
+ * (useRegroupAnimationStore). A learner whose device asks for reduced motion
+ * gets the move instantly, with the caption. Quiet mode (the teacher's
+ * sensory flag) keeps the move without the seams' emphasis or the caption:
+ * document 03 describes this motion as how the child sees ten become one,
  * which is the teaching motion index.css keeps in quiet mode (motion-essential).
  */
-
 /** The regroup to draw right now — null when there is none, the learner asks
  *  for reduced motion, or the destination column changed since it started. */
 export function useVisibleRegroup(): RegroupAnimation | null {
@@ -59,11 +73,21 @@ interface Geometry {
   /** Rendered block size per place right now — columns shrink their blocks to
    *  fit (core/blockLayout.ts), and the ghost is drawn at the same size. */
   sizes: Record<Place, { w: number; h: number }>;
-  /** Centre of the spot the move starts from (bottom of the source column). */
-  source: Point;
+  /** Centre of the block that breaks apart or forms. */
+  centre: Point;
+  /** Centre of each of the ten pieces inside that block, in the block's order. */
+  slices: Point[];
+  /** The same ten pieces spread a little apart, five and five. */
+  spread: Point[];
+  /** A piece's size inside the block, relative to its own drawn size. */
+  sliceScale: number;
+  /** Where the ten pieces line up before they close into one block (group). */
+  frame: Point[];
+  /** Their size there: whole units on the ten frame, block-sized pieces otherwise. */
+  frameScale: number;
   /** Top-left of each block the move lands on, in arrival order. */
   targets: Point[];
-  /** Top-left of each of the ten gathered blocks (group only). */
+  /** Top-left of each of the ten blocks in their column before they group (group only). */
   cluster: Point[];
 }
 
@@ -84,6 +108,44 @@ function renderedBlockSize(container: HTMLElement, place: Place): { w: number; h
   return w > 0 && h > 0 ? { w, h } : BLOCK_SIZES[place];
 }
 
+/**
+ * Where the ten pieces sit inside a block, as fractions of its drawn box —
+ * read from the SVGs' view boxes in DienesBlock:
+ *  - a ten (view box −5 −5 1110 700): ten unit cubes along the rod, centres
+ *    (100 + 100k, 115 + 50k);
+ *  - a hundred (−5 −5 2010 1110): ten rods side by side, parallel to the rod
+ *    drawing, centres (1450 − 100k, 300 + 50k);
+ *  - a thousand (−5 −5 2010 2010): ten flats stacked, top to bottom, centres
+ *    (1000, 550 + 100k).
+ * The scale: how long a piece is inside the block over how long it is drawn
+ * on its own (the blocks are not drawn to one scale, so pieces grow on the way).
+ */
+function sliceLayout(high: Place, highSize: { w: number; h: number }, lowSize: { w: number; h: number }): { fractions: Point[]; scale: number; spreadFactor: number } | null {
+  const k = Array.from({ length: 10 }, (_, i) => i);
+  if (high === 'tens') {
+    return {
+      fractions: k.map((i) => ({ x: (105 + 100 * i) / 1110, y: (120 + 50 * i) / 700 })),
+      scale: ((200 / 1110) * highSize.w) / lowSize.w,
+      spreadFactor: 1.4,
+    };
+  }
+  if (high === 'hundreds') {
+    return {
+      fractions: k.map((i) => ({ x: (1455 - 100 * i) / 2010, y: (305 + 50 * i) / 1110 })),
+      scale: ((1000 / 2010) * highSize.w) / ((1000 / 1110) * lowSize.w),
+      spreadFactor: 2.2,
+    };
+  }
+  if (high === 'thousands') {
+    return {
+      fractions: k.map((i) => ({ x: 1005 / 2010, y: (555 + 100 * i) / 2010 })),
+      scale: highSize.w / lowSize.w,
+      spreadFactor: 3,
+    };
+  }
+  return null;
+}
+
 function measure(container: HTMLElement, regroup: RegroupAnimation): Geometry | null {
   const box = container.getBoundingClientRect();
   const sizes = {
@@ -94,11 +156,43 @@ function measure(container: HTMLElement, regroup: RegroupAnimation): Geometry | 
   };
   const fromZone = container.querySelector(`#column-${regroup.from}-dropzone`);
   const toZone = container.querySelector(`#column-${regroup.to}-dropzone`);
+  const high: Place = regroup.kind === 'group' ? regroup.to : regroup.from;
   const low: Place = regroup.kind === 'group' ? regroup.from : regroup.to;
+  const highSize = sizes[high];
   const lowSize = sizes[low];
 
   const source = centreBottomOf(fromZone, box, 40);
   if (!source) return null;
+  const inBoard = (p: Point): Point => ({
+    x: Math.min(Math.max(p.x - box.left, highSize.w / 2), box.width - highSize.w / 2),
+    y: Math.min(Math.max(p.y - box.top, highSize.h / 2), box.height - highSize.h / 2),
+  });
+  // The ten leave from where the child saw them (measured before the redraw).
+  const before = regroup.fromBlocks?.map((p) => ({ x: p.x - box.left, y: p.y - box.top }));
+  // Where the block breaks apart or forms: where it was let go (a drag right),
+  // where it stood (a click), or amid the ten that group — else, as a last
+  // resort, the bottom of the source column.
+  const centre: Point = regroup.origin
+    ? inBoard(regroup.origin)
+    : before && before.length > 0
+      ? inBoard({
+          x: before.reduce((a, p) => a + p.x, 0) / before.length + box.left,
+          y: before.reduce((a, p) => a + p.y, 0) / before.length + box.top,
+        })
+      : source;
+
+  const layout = sliceLayout(high, highSize, lowSize);
+  if (!layout) return null;
+  const topLeft = { x: centre.x - highSize.w / 2, y: centre.y - highSize.h / 2 };
+  const slices = layout.fractions.map((f) => ({ x: topLeft.x + f.x * highSize.w, y: topLeft.y + f.y * highSize.h }));
+  // Spread along the block's own axis, with one more step between the fifth
+  // and the sixth piece: five and five.
+  const axis = { x: slices[9].x - slices[0].x, y: slices[9].y - slices[0].y };
+  const step = { x: axis.x / 9, y: axis.y / 9 };
+  const spread = slices.map((p, i) => ({
+    x: centre.x + (p.x - centre.x) * layout.spreadFactor + step.x * layout.spreadFactor * (i < 5 ? -0.5 : 0.5),
+    y: centre.y + (p.y - centre.y) * layout.spreadFactor + step.y * layout.spreadFactor * (i < 5 ? -0.5 : 0.5),
+  }));
 
   // Where the real blocks now sit — the ghost lands exactly on them.
   const arriving = regroup.kind === 'group' ? 1 : 10;
@@ -117,27 +211,48 @@ function measure(container: HTMLElement, regroup: RegroupAnimation): Geometry | 
     }
   }
 
-  // The ten blocks that are about to merge, laid out the way the column holds
-  // them: bottom-anchored rows, as many per row as the column fits (max 5).
+  // The ten blocks that are about to group, where they stood; failing that,
+  // laid out the way the column holds them: bottom-anchored rows, as many per
+  // row as the column fits (max 5).
   const cluster: Point[] = [];
   if (regroup.kind === 'group') {
-    const zoneWidth = fromZone ? fromZone.getBoundingClientRect().width : 120;
-    const gap = 6;
-    const perRow = Math.max(1, Math.min(5, Math.floor((zoneWidth - 16) / (lowSize.w + gap))));
-    const rows = Math.ceil(10 / perRow);
-    for (let i = 0; i < 10; i++) {
-      const row = Math.floor(i / perRow);
-      const col = i % perRow;
-      const inRow = Math.min(perRow, 10 - row * perRow);
-      const rowWidth = inRow * lowSize.w + (inRow - 1) * gap;
-      cluster.push({
-        x: source.x - rowWidth / 2 + col * (lowSize.w + gap),
-        y: source.y + 20 - (rows - row) * (lowSize.h + gap),
-      });
+    if (before && before.length === 10) {
+      for (const p of before) cluster.push(at(p, lowSize));
+    } else {
+      const zoneWidth = fromZone ? fromZone.getBoundingClientRect().width : 120;
+      const gap = 6;
+      const perRow = Math.max(1, Math.min(5, Math.floor((zoneWidth - 16) / (lowSize.w + gap))));
+      const rows = Math.ceil(10 / perRow);
+      for (let i = 0; i < 10; i++) {
+        const row = Math.floor(i / perRow);
+        const col = i % perRow;
+        const inRow = Math.min(perRow, 10 - row * perRow);
+        const rowWidth = inRow * lowSize.w + (inRow - 1) * gap;
+        cluster.push({
+          x: source.x - rowWidth / 2 + col * (lowSize.w + gap),
+          y: source.y + 20 - (rows - row) * (lowSize.h + gap),
+        });
+      }
     }
   }
 
-  return { sizes, source, targets, cluster };
+  // Ten units line up as two rows of five before they close into a ten — ten
+  // seen at a glance, as on a ten frame. Larger pieces line up along the new
+  // block's own axis (the spread), five and five.
+  const frame: Point[] =
+    regroup.kind === 'group' && low === 'units'
+      ? Array.from({ length: 10 }, (_, i) => {
+          const col = i % 5;
+          const row = Math.floor(i / 5);
+          const gap = Math.max(4, lowSize.w * 0.25);
+          return {
+            x: centre.x + (col - 2) * (lowSize.w + gap),
+            y: centre.y + (row - 0.5) * (lowSize.h + gap) - highSize.h,
+          };
+        })
+      : spread;
+
+  return { sizes, centre, slices, spread, frame, frameScale: regroup.kind === 'group' && low === 'units' ? 1 : layout.scale, sliceScale: layout.scale, targets, cluster };
 }
 
 function Ghost({ place, size }: { place: Place; size: { w: number; h: number } }) {
@@ -158,6 +273,21 @@ const ghostStyle = (p: Point, opacity: number, scale: number) => ({
   willChange: 'transform, opacity',
 });
 
+/** Top-left of a block of `size` whose centre is `c`. */
+const at = (c: Point, size: { w: number; h: number }): Point => ({ x: c.x - size.w / 2, y: c.y - size.h / 2 });
+
+/** The landing: quick, then settling softly into place. */
+const LAND = [0.22, 1, 0.36, 1] as const;
+
+/**
+ * The phases, as shares of the move's duration.
+ *  split: seams 0–.22, opens .22–.30, spreads .30–.48, travels .48–1
+ *         (each piece leaves a little after the one before it);
+ *  group: lines up .0–.26, closes up .26–.44, becomes one .44–.52, travels .52–1.
+ */
+const SPLIT_T = { cut: 0.22, open: 0.3, spread: 0.48, stagger: 0.022 };
+const GROUP_T = { lineUp: 0.26, close: 0.44, one: 0.52 };
+
 export function RegroupAnimationLayer({ containerRef }: { containerRef: RefObject<HTMLElement | null> }) {
   const regroup = useVisibleRegroup();
   const [geometry, setGeometry] = useState<{ id: number; g: Geometry } | null>(null);
@@ -175,63 +305,89 @@ export function RegroupAnimationLayer({ containerRef }: { containerRef: RefObjec
 
   useLayoutEffect(() => {
     if (!regroup || !ready || !layer) return;
-    const { sizes, source, targets, cluster } = ready;
-    const merge = SEC(REGROUP_MERGE_MS);
-    const total = SEC(REGROUP_ANIMATION_MS);
-    const mergeShare = REGROUP_MERGE_MS / REGROUP_ANIMATION_MS;
+    const { sizes, centre, slices, spread, frame, frameScale, sliceScale, targets, cluster } = ready;
+    const total = SEC(regroup.durationMs);
     const high: Place = regroup.kind === 'group' ? regroup.to : regroup.from;
     const low: Place = regroup.kind === 'group' ? regroup.from : regroup.to;
     const highSize = sizes[high];
     const lowSize = sizes[low];
-    const highAtSource = { x: source.x - highSize.w / 2, y: source.y - highSize.h / 2 };
-    const lowAtSource = { x: source.x - lowSize.w / 2, y: source.y - lowSize.h / 2 };
+    const highAt = at(centre, highSize);
     const controls: AnimationPlaybackControls[] = [];
     const lows = layer.querySelectorAll<HTMLElement>('[data-ghost="low"]');
     const highEl = layer.querySelector<HTMLElement>('[data-ghost="high"]');
-    if (regroup.kind === 'group') {
+    if (regroup.kind === 'split') {
+      if (highEl) controls.push(animate(highEl, { opacity: [1, 1, 0] }, { duration: total * SPLIT_T.open, times: [0, SPLIT_T.cut / SPLIT_T.open, 1], ease: 'linear' }));
       lows.forEach((el, i) => {
-        const p = cluster[i];
-        controls.push(animate(el, { x: [p.x, lowAtSource.x], y: [p.y, lowAtSource.y], opacity: [1, 0], scale: [1, 0.6] }, { duration: merge, ease: 'easeIn', delay: i * 0.008 }));
+        const s = at(slices[i], lowSize);
+        const sp = at(spread[i], lowSize);
+        const t = targets[i];
+        const leave = Math.min(SPLIT_T.spread + i * SPLIT_T.stagger, 0.8);
+        controls.push(animate(el, {
+          x: [s.x, s.x, s.x, sp.x, sp.x, t.x],
+          y: [s.y, s.y, s.y, sp.y, sp.y, t.y],
+          scale: [sliceScale, sliceScale, sliceScale, sliceScale, sliceScale, 1],
+          opacity: [0, 0, 1, 1, 1, 1],
+        }, {
+          duration: total,
+          times: [0, SPLIT_T.cut, SPLIT_T.open, SPLIT_T.spread, leave, 1],
+          ease: ['linear', 'easeOut', 'easeInOut', 'linear', LAND],
+        }));
+      });
+    } else {
+      lows.forEach((el, i) => {
+        const c = cluster[i];
+        const f = at(frame[i], lowSize);
+        const s = at(slices[i], lowSize);
+        controls.push(animate(el, {
+          x: [c.x, f.x, s.x, s.x],
+          y: [c.y, f.y, s.y, s.y],
+          scale: [1, frameScale, sliceScale, sliceScale],
+          opacity: [1, 1, 1, 0],
+        }, {
+          duration: total * GROUP_T.one,
+          times: [0, GROUP_T.lineUp / GROUP_T.one, GROUP_T.close / GROUP_T.one, 1],
+          ease: ['easeInOut', 'easeIn', 'linear'],
+        }));
       });
       if (highEl) controls.push(animate(highEl, {
-        x: [highAtSource.x, highAtSource.x, targets[0].x],
-        y: [highAtSource.y, highAtSource.y, targets[0].y],
-        opacity: [0, 1, 1],
-        scale: [0.85, 1, 1],
-      }, { duration: total, times: [0, mergeShare, 1], ease: 'easeInOut' }));
-    } else {
-      if (highEl) controls.push(animate(highEl, { opacity: [1, 0], scale: [1, 0.9] }, { duration: merge * 0.8, ease: 'easeOut' }));
-      lows.forEach((el, i) => {
-        const t = targets[i];
-        // Break apart: fan out a little around the block, then travel.
-        const fan = { x: lowAtSource.x + (i - 4.5) * (lowSize.w * 0.35), y: lowAtSource.y - 10 };
-        controls.push(animate(el, {
-          x: [lowAtSource.x, fan.x, t.x],
-          y: [lowAtSource.y, fan.y, t.y],
-          opacity: [0, 1, 1],
-          scale: [0.7, 1, 1],
-        }, { duration: total - 0.12, delay: i * 0.012, times: [0, mergeShare, 1], ease: 'easeInOut' }));
-      });
+        x: [highAt.x, highAt.x, highAt.x, targets[0].x],
+        y: [highAt.y, highAt.y, highAt.y, targets[0].y],
+        opacity: [0, 0, 1, 1],
+      }, { duration: total, times: [0, GROUP_T.close, GROUP_T.one, 1], ease: ['linear', 'linear', LAND] }));
     }
     return () => controls.forEach((c) => c.stop());
   }, [regroup, ready, layer]);
 
-  if (!regroup || !ready) return null;
-  const { sizes, source, targets, cluster } = ready;
+  return (
+    <>
+      <RegroupCaptionLabel containerRef={containerRef} />
+      {regroup && ready && (
+        <GhostLayer regroup={regroup} geometry={ready} onLayer={setLayer} />
+      )}
+    </>
+  );
+}
+
+function GhostLayer({ regroup, geometry, onLayer }: { regroup: RegroupAnimation; geometry: Geometry; onLayer: (el: HTMLDivElement | null) => void }) {
+  const { sizes, centre, slices, cluster } = geometry;
   const high: Place = regroup.kind === 'group' ? regroup.to : regroup.from;
   const low: Place = regroup.kind === 'group' ? regroup.from : regroup.to;
   const highSize = sizes[high];
   const lowSize = sizes[low];
-  const highAtSource = { x: source.x - highSize.w / 2, y: source.y - highSize.h / 2 };
-  const lowAtSource = { x: source.x - lowSize.w / 2, y: source.y - lowSize.h / 2 };
+  const ms = regroup.durationMs;
+  // The seams strengthen while the block opens (split) or once it has closed (group).
+  const seams = (regroup.kind === 'split'
+    ? { ['--seam-glow-ms']: `${Math.round(ms * SPLIT_T.open)}ms`, ['--seam-glow-delay']: '0ms' }
+    : { ['--seam-glow-ms']: `${Math.round(ms * 0.36)}ms`, ['--seam-glow-delay']: `${Math.round(ms * GROUP_T.close)}ms` }) as CSSProperties;
 
   return (
     <div
       key={regroup.id}
-      ref={setLayer}
+      ref={onLayer}
       aria-hidden="true"
       data-testid="regroup-animation-layer"
       data-kind={regroup.kind}
+      data-tempo={regroup.durationMs}
       className="absolute inset-0 pointer-events-none z-20 overflow-visible"
     >
       {regroup.kind === 'group' ? (
@@ -239,16 +395,82 @@ export function RegroupAnimationLayer({ containerRef }: { containerRef: RefObjec
           {cluster.map((p, i) => (
             <div key={`low-${i}`} data-ghost="low" style={ghostStyle(p, 1, 1)}><Ghost place={low} size={lowSize} /></div>
           ))}
-          <div data-ghost="high" style={ghostStyle(highAtSource, 0, 0.85)}><Ghost place={high} size={highSize} /></div>
+          <div data-ghost="high" className="regroup-seam-glow" style={{ ...ghostStyle(at(centre, highSize), 0, 1), ...seams }}><Ghost place={high} size={highSize} /></div>
         </>
       ) : (
         <>
-          <div data-ghost="high" style={ghostStyle(highAtSource, 1, 1)}><Ghost place={high} size={highSize} /></div>
-          {targets.map((_, i) => (
-            <div key={`low-${i}`} data-ghost="low" style={ghostStyle(lowAtSource, 0, 0.7)}><Ghost place={low} size={lowSize} /></div>
+          <div data-ghost="high" className="regroup-seam-glow" style={{ ...ghostStyle(at(centre, highSize), 1, 1), ...seams }}><Ghost place={high} size={highSize} /></div>
+          {slices.map((p, i) => (
+            <div key={`low-${i}`} data-ghost="low" style={ghostStyle(at(p, lowSize), 0, geometry.sliceScale)}><Ghost place={low} size={lowSize} /></div>
           ))}
         </>
       )}
     </div>
   );
+}
+
+/**
+ * The trade in words, over the two columns it joins — shown with the move
+ * and a moment after it, also when the move itself is skipped (reduced
+ * motion); never in quiet mode. Not read aloud: the board's own labels are.
+ */
+function RegroupCaptionLabel({ containerRef }: { containerRef: RefObject<HTMLElement | null> }) {
+  const caption = useRegroupAnimationStore((s) => s.caption);
+  const quiet = useWorkspaceStore((s) => s.isASD);
+  const reduceMotion = useReducedMotion();
+  const [pos, setPos] = useState<{ id: number; x: number; y: number } | null>(null);
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!caption || !containerRef.current) return;
+    setPos(placeCaption(containerRef.current, caption));
+  }, [caption, containerRef]);
+
+  useLayoutEffect(() => {
+    if (!el || reduceMotion) return;
+    const c = animate(el, { opacity: [0, 1], y: [4, 0] }, { duration: 0.25, ease: 'easeOut' });
+    return () => c.stop();
+  }, [el, reduceMotion]);
+
+  if (!caption || quiet) return null;
+  const text = regroupCaptionHe(caption.kind, caption.from, caption.to);
+  if (!text || !pos || pos.id !== caption.id) return null;
+  // The outer box centres the caption; only the inner one moves (animate()
+  // writes its own transform).
+  return (
+    <div
+      key={caption.id}
+      aria-hidden="true"
+      dir="rtl"
+      data-testid="regroup-caption"
+      className="absolute z-30 pointer-events-none select-none -translate-x-1/2"
+      style={{ left: pos.x, top: pos.y }}
+    >
+      <div
+        ref={setEl}
+        className="whitespace-nowrap rounded-full bg-white/95 dark:bg-slate-900/95 border border-ws-surface2 shadow-[0_6px_18px_-8px_hsl(var(--ws-shadow-warm)/0.45)] px-3.5 py-1.5 font-display font-extrabold text-fl-16-20 text-ws-ink"
+      >
+        {text}
+      </div>
+    </div>
+  );
+}
+
+/** Midway between the two columns, just under their headers — and under a
+ *  "קבצו 10" button at the top of either, never over it. */
+function placeCaption(container: HTMLElement, caption: RegroupCaption): { id: number; x: number; y: number } | null {
+  const box = container.getBoundingClientRect();
+  const a = container.querySelector(`#column-${caption.from}-dropzone`)?.getBoundingClientRect();
+  const b = container.querySelector(`#column-${caption.to}-dropzone`)?.getBoundingClientRect();
+  if (!a || !b) return null;
+  let top = Math.min(a.top, b.top) + 10;
+  for (const place of [caption.from, caption.to]) {
+    const button = container.querySelector(`#column-${place} [data-group-button]`)?.getBoundingClientRect();
+    if (button && button.height > 0) top = Math.max(top, button.bottom + 8);
+  }
+  return {
+    id: caption.id,
+    x: (a.left + a.width / 2 + b.left + b.width / 2) / 2 - box.left,
+    y: top - box.top,
+  };
 }

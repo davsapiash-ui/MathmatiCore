@@ -27,6 +27,7 @@ import { normalizeStudentId } from '@/application/useChatStore';
 import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
 
+import { setRegroupOrigin } from '@/application/useRegroupAnimationStore';
 import { DienesBlock } from './board/DienesBlock';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
 import { CornerCloudSyncStatus } from './CloudSyncStatus';
@@ -1136,6 +1137,11 @@ export function StudentWorkspacePage() {
         return;
       }
 
+      // A block dragged right breaks apart where it was let go, not back in
+      // its own column (owner, 7.10.2026): the child sees the trade happen
+      // under the hand that made it.
+      const dropped = event.active.rect.current.translated;
+      setRegroupOrigin(dropped ? { x: dropped.left + dropped.width / 2, y: dropped.top + dropped.height / 2 } : null);
       applyDrop({
         source: data.source,
         sourcePlace: data.place,
@@ -1143,6 +1149,8 @@ export function StudentWorkspacePage() {
       });
     } catch (err) {
       console.error('[StudentWorkspacePage] drop failed:', err);
+    } finally {
+      setRegroupOrigin(null);
     }
   };
 
