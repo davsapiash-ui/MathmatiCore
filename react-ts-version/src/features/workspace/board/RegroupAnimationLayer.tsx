@@ -5,9 +5,7 @@ import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import {
   useRegroupAnimationStore,
   type RegroupAnimation,
-  type RegroupCaption,
 } from '@/application/useRegroupAnimationStore';
-import { regroupCaptionHe } from '@/core/regroupCaption';
 import { BLOCK_SIZES, BLOCK_SVGS } from './DienesBlock';
 
 /**
@@ -27,9 +25,6 @@ import { BLOCK_SIZES, BLOCK_SVGS } from './DienesBlock';
  *    and five, close up seam to seam into it — its lines are the gaps that
  *    closed — and the new block travels left to its column.
  *
- * A caption says the trade in words while it plays and a moment after
- * ("עשרת אחת = 10 יחידות", core/regroupCaption.ts) — not in quiet mode.
- *
  * The counts have already changed in the store; this layer only draws a ghost
  * of the move over the columns (pointer-events-none — every drop, click and
  * drag below it stays live), and PlaceColumn keeps the arriving blocks
@@ -45,8 +40,8 @@ import { BLOCK_SIZES, BLOCK_SVGS } from './DienesBlock';
  * flashing, no bounce, no repeat, no sound. The full tempo is 1.2 seconds; the
  * same trade made again and again in a meeting plays in 0.7
  * (useRegroupAnimationStore). A learner whose device asks for reduced motion
- * gets the move instantly, with the caption. Quiet mode (the teacher's
- * sensory flag) keeps the move without the seams' emphasis or the caption:
+ * gets the move instantly. Quiet mode (the teacher's sensory flag) keeps the
+ * move without the seams' emphasis:
  * document 03 describes this motion as how the child sees ten become one,
  * which is the teaching motion index.css keeps in quiet mode (motion-essential).
  */
@@ -358,14 +353,8 @@ export function RegroupAnimationLayer({ containerRef }: { containerRef: RefObjec
     return () => controls.forEach((c) => c.stop());
   }, [regroup, ready, layer]);
 
-  return (
-    <>
-      <RegroupCaptionLabel containerRef={containerRef} />
-      {regroup && ready && (
-        <GhostLayer regroup={regroup} geometry={ready} onLayer={setLayer} />
-      )}
-    </>
-  );
+  if (!regroup || !ready) return null;
+  return <GhostLayer regroup={regroup} geometry={ready} onLayer={setLayer} />;
 }
 
 function GhostLayer({ regroup, geometry, onLayer }: { regroup: RegroupAnimation; geometry: Geometry; onLayer: (el: HTMLDivElement | null) => void }) {
@@ -407,70 +396,4 @@ function GhostLayer({ regroup, geometry, onLayer }: { regroup: RegroupAnimation;
       )}
     </div>
   );
-}
-
-/**
- * The trade in words, over the two columns it joins — shown with the move
- * and a moment after it, also when the move itself is skipped (reduced
- * motion); never in quiet mode. Not read aloud: the board's own labels are.
- */
-function RegroupCaptionLabel({ containerRef }: { containerRef: RefObject<HTMLElement | null> }) {
-  const caption = useRegroupAnimationStore((s) => s.caption);
-  const quiet = useWorkspaceStore((s) => s.isASD);
-  const reduceMotion = useReducedMotion();
-  const [pos, setPos] = useState<{ id: number; x: number; y: number } | null>(null);
-  const [el, setEl] = useState<HTMLDivElement | null>(null);
-
-  useLayoutEffect(() => {
-    if (!caption || !containerRef.current) return;
-    setPos(placeCaption(containerRef.current, caption));
-  }, [caption, containerRef]);
-
-  useLayoutEffect(() => {
-    if (!el || reduceMotion) return;
-    const c = animate(el, { opacity: [0, 1], y: [4, 0] }, { duration: 0.25, ease: 'easeOut' });
-    return () => c.stop();
-  }, [el, reduceMotion]);
-
-  if (!caption || quiet) return null;
-  const text = regroupCaptionHe(caption.kind, caption.from, caption.to);
-  if (!text || !pos || pos.id !== caption.id) return null;
-  // The outer box centres the caption; only the inner one moves (animate()
-  // writes its own transform).
-  return (
-    <div
-      key={caption.id}
-      aria-hidden="true"
-      dir="rtl"
-      data-testid="regroup-caption"
-      className="absolute z-30 pointer-events-none select-none -translate-x-1/2"
-      style={{ left: pos.x, top: pos.y }}
-    >
-      <div
-        ref={setEl}
-        className="whitespace-nowrap rounded-full bg-white/95 dark:bg-slate-900/95 border border-ws-surface2 shadow-[0_6px_18px_-8px_hsl(var(--ws-shadow-warm)/0.45)] px-3.5 py-1.5 font-display font-extrabold text-fl-16-20 text-ws-ink"
-      >
-        {text}
-      </div>
-    </div>
-  );
-}
-
-/** Midway between the two columns, just under their headers — and under a
- *  "קבצו 10" button at the top of either, never over it. */
-function placeCaption(container: HTMLElement, caption: RegroupCaption): { id: number; x: number; y: number } | null {
-  const box = container.getBoundingClientRect();
-  const a = container.querySelector(`#column-${caption.from}-dropzone`)?.getBoundingClientRect();
-  const b = container.querySelector(`#column-${caption.to}-dropzone`)?.getBoundingClientRect();
-  if (!a || !b) return null;
-  let top = Math.min(a.top, b.top) + 10;
-  for (const place of [caption.from, caption.to]) {
-    const button = container.querySelector(`#column-${place} [data-group-button]`)?.getBoundingClientRect();
-    if (button && button.height > 0) top = Math.max(top, button.bottom + 8);
-  }
-  return {
-    id: caption.id,
-    x: (a.left + a.width / 2 + b.left + b.width / 2) / 2 - box.left,
-    y: top - box.top,
-  };
 }

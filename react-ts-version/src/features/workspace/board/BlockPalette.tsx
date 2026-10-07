@@ -135,20 +135,18 @@ export function BlockPalette({ scaffoldLevel, compact = false }: { scaffoldLevel
           should look better). The same tag as the station chip over the
           exercise — the workspace's one way of naming a thing — with an icon
           of stacked blocks instead of an emoji that every system draws
-          differently. Compact: on the tray's top edge, adding no row. */}
+          differently. Compact: on the tray's top edge, adding no row. No
+          second line under it (owner, 7.10.2026). */}
       {compact ? (
         <span aria-hidden="true" data-testid="toolbox-name" className={`absolute -top-3 right-5 ${TOOLBOX_TAG}`}>
           <Boxes className="w-3.5 h-3.5 shrink-0" strokeWidth={2.4} />
           <span>ארגז כלים</span>
         </span>
       ) : (
-        <div className="flex flex-col items-start gap-1 shrink-0 select-none">
-          <span className={TOOLBOX_TAG}>
-            <Boxes aria-hidden="true" className="w-4 h-4 shrink-0" strokeWidth={2.4} />
-            <span>ארגז כלים</span>
-          </span>
-          <span className="text-xs font-bold text-ws-soft leading-tight pr-1">גוררים מכאן לבית המספרים</span>
-        </div>
+        <span className={`shrink-0 select-none ${TOOLBOX_TAG}`}>
+          <Boxes aria-hidden="true" className="w-4 h-4 shrink-0" strokeWidth={2.4} />
+          <span>ארגז כלים</span>
+        </span>
       )}
 
       <div className={`w-px h-10 bg-slate-200/80 shrink-0 ${compact ? 'hidden' : ''}`} />

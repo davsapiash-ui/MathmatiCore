@@ -60,44 +60,25 @@ export const REGROUP_BRIEF_MS = 700;
 export const BRIEF_AFTER_TRADES = 3;
 /** A brief hold on the landed ghost, so the swap to the real block has no gap. */
 const REGROUP_HOLD_MS = 50;
-/** The caption stays a moment after the blocks land, long enough to read. */
-export const REGROUP_CAPTION_EXTRA_MS = 900;
-
-export interface RegroupCaption {
-  id: number;
-  kind: RegroupAnimationKind;
-  from: Place;
-  to: Place;
-}
-
 interface RegroupAnimationState {
   current: RegroupAnimation | null;
-  /** The trade in words ("עשרת אחת = 10 יחידות"), shown a little longer than the move. */
-  caption: RegroupCaption | null;
   play: (move: Omit<RegroupAnimation, 'id'>) => void;
   finish: (id: number) => void;
 }
 
 let nextId = 1;
 let clearTimer: ReturnType<typeof setTimeout> | null = null;
-let captionTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useRegroupAnimationStore = create<RegroupAnimationState>((set, get) => ({
   current: null,
-  caption: null,
   play: (move) => {
     const id = nextId++;
-    set({ current: { ...move, id }, caption: { id, kind: move.kind, from: move.from, to: move.to } });
+    set({ current: { ...move, id } });
     // The store ends the animation itself, so the hidden blocks come back even
     // when nothing on screen is drawing the ghost (board collapsed, reduced
     // motion, projector page).
     if (clearTimer) clearTimeout(clearTimer);
     clearTimer = setTimeout(() => get().finish(id), move.durationMs + REGROUP_HOLD_MS);
-    if (captionTimer) clearTimeout(captionTimer);
-    captionTimer = setTimeout(() => {
-      captionTimer = null;
-      if (get().caption?.id === id) set({ caption: null });
-    }, move.durationMs + REGROUP_CAPTION_EXTRA_MS);
   },
   finish: (id) => {
     if (get().current?.id !== id) return;

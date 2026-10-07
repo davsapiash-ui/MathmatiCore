@@ -10,8 +10,8 @@ import { resolve } from 'path';
 
 /**
  * The grouping / decomposition animation, redrawn with the owner (7.10.2026):
- * the trade of one block for ten, shown through the block's own unit lines;
- * a caption that says it in words; the full tempo the first times, a brief
+ * the trade of one block for ten, shown through the block's own unit lines,
+ * with no words beside it; the full tempo the first times, a brief
  * one after; a drag right that breaks the block where it was let go; and a
  * pile whose blocks never jump when another arrives.
  */
@@ -54,7 +54,6 @@ import {
   REGROUP_BRIEF_MS,
   BRIEF_AFTER_TRADES,
 } from '@/application/useRegroupAnimationStore';
-import { regroupCaptionHe } from '@/core/regroupCaption';
 import { PlaceValueBoard } from '@/features/workspace/board/PlaceValueBoard';
 
 const code = (rel: string) => readFileSync(resolve(__dirname, '..', '..', rel), 'utf8');
@@ -67,40 +66,21 @@ function start(counts: { units: number; tens: number; hundreds: number; thousand
   useWorkspaceStore.setState({ counts, isBoardLocked: false, isASD });
 }
 
-beforeEach(() => vi.useFakeTimers());
+beforeEach(() => {
+  vi.useFakeTimers();
+});
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
 });
 
-describe('the caption says the trade, in the order it happens', () => {
-  it('every pair, both directions', () => {
-    expect(regroupCaptionHe('split', 'tens', 'units')).toBe('עשרת אחת = 10 יחידות');
-    expect(regroupCaptionHe('split', 'hundreds', 'tens')).toBe('מאה אחת = 10 עשרות');
-    expect(regroupCaptionHe('split', 'thousands', 'hundreds')).toBe('אלף אחד = 10 מאות');
-    expect(regroupCaptionHe('group', 'units', 'tens')).toBe('10 יחידות = עשרת אחת');
-    expect(regroupCaptionHe('group', 'tens', 'hundreds')).toBe('10 עשרות = מאה אחת');
-    expect(regroupCaptionHe('group', 'hundreds', 'thousands')).toBe('10 מאות = אלף אחד');
-  });
-
-  it('it is shown with the move and a moment after it; not in quiet mode', () => {
+describe('no words beside the move (owner, 7.10.2026)', () => {
+  it('the board draws no caption', () => {
     start({ units: 12, tens: 0, hundreds: 0, thousands: 0 });
     render(React.createElement(DndContext, null, React.createElement(PlaceValueBoard, null)));
     act(() => { ws().groupColumnClick('units'); });
-    expect(screen.getByTestId('regroup-caption').textContent).toBe('10 יחידות = עשרת אחת');
-    act(() => { vi.advanceTimersByTime(REGROUP_ANIMATION_MS + 100); });
-    // The blocks have landed; the words are still there to be read.
-    expect(screen.queryByTestId('regroup-animation-layer')).toBeNull();
-    expect(screen.getByTestId('regroup-caption')).toBeTruthy();
-    act(() => { vi.advanceTimersByTime(1000); });
-    expect(screen.queryByTestId('regroup-caption')).toBeNull();
-    cleanup();
-
-    start({ units: 12, tens: 0, hundreds: 0, thousands: 0 }, true);
-    render(React.createElement(DndContext, null, React.createElement(PlaceValueBoard, null)));
-    act(() => { ws().groupColumnClick('units'); });
-    expect(useRegroupAnimationStore.getState().current).not.toBeNull();
-    expect(screen.queryByTestId('regroup-caption')).toBeNull();
+    expect(screen.getByTestId('regroup-animation-layer').textContent).toBe('');
+    expect(code('features/workspace/board/RegroupAnimationLayer.tsx')).not.toContain('caption');
   });
 });
 
