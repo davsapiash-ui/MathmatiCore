@@ -38,7 +38,7 @@ import {
   ADDITION_GRID_SELECTOR,
   TEACHER_CHAT_SELECTOR,
 } from '@/application/useCognitiveHesitationRadar';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, activeSuccessHold } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
@@ -251,8 +251,9 @@ describe('D7 — the addition grid opens only in an addition exercise', () => {
     expect(ws().helpState).toBe('socratic');
 
     act(() => { ws().proceed(); });
-    // the real path: a right answer, the exercise waits for what comes next, its card dropped
-    expect(ws().awaitingNext || ws().flowStatus !== 'task').toBe(true);
+    // the real path: a right answer, the exercise held on the screen until
+    // "ממשיכים" (owner, 7.10.2026), its card dropped
+    expect(activeSuccessHold(ws())).not.toBeNull();
     expect(ws().helpState).toBe('closed');
     expect(ws().isAdditionHelperOpen).toBe(false);
     expect(opens).not.toHaveBeenCalled();

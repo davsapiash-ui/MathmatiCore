@@ -10,6 +10,7 @@
  * Set RTDB_EMULATOR_HOST=127.0.0.1:9000 (a running Database emulator) to run
  * the one scenario that needs a server: the write → ack → write cycle.
  */
+import { continueAfterSuccess } from '@/tests/successHold';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
@@ -274,6 +275,7 @@ describe('meetings 3–8: the seven compulsory exercises still complete, in orde
             solve(t);
             expect(selectCanProceed(ws()), `${t.id}: "התקדם" is enabled`).toBe(true);
             ws().proceed();
+            continueAfterSuccess();
             if (i < 6) expect(ws().standardTaskIdx, `${t.id} advanced`).toBe(i + 1);
           }
           unsub();
@@ -298,8 +300,10 @@ describe('meetings 3–8: the seven compulsory exercises still complete, in orde
       startMeeting(3, path);
       solve(current());
       ws().proceed();
+      continueAfterSuccess();
       solve(current());
       ws().proceed();
+      continueAfterSuccess();
       const t = current(); // s3_r_t3: 450 as 45 tens / s3_g_t3: 4,500 as 45 hundreds
       const place = PLACES.find((p) => (t.requiredCounts?.[p] ?? 0) > 0)!;
       expect(t.requiredCounts?.[place]).toBe(45);
@@ -309,6 +313,7 @@ describe('meetings 3–8: the seven compulsory exercises still complete, in orde
       // "בכמה לבני עשרת השתמשתם?" — the answer is the number of blocks (owner, 30.9.2026).
       ws().setRepresentationAnswer('45');
       ws().proceed();
+      continueAfterSuccess();
       expect(ws().standardTaskIdx, `${t.id} completes`).toBe(3);
     }
   });
@@ -357,6 +362,7 @@ describe('meeting 2: the diagnostic', () => {
         if (hasOneDiagnosticAnswerBox(q)) ws().setProbeAnswer(String(q.correctAnswer));
         typeResult(q.correctAnswer!);
         ws().proceed();
+        continueAfterSuccess();
         vi.advanceTimersByTime(3000);
       }
       vi.advanceTimersByTime(5000); // the closing "סיימתם!" hands over to the waiting screen
@@ -460,6 +466,7 @@ describe('undo after a reload through the database (Module 11), meetings 3–8',
     startMeeting(7, 'remediation_path');
     solve(current()); // s7_r_t1 groups 12 tens and 5 units; move on to the skeleton s7_r_t2
     ws().proceed();
+    continueAfterSuccess();
     expect(current().id).toBe('s7_r_t2'); // 31▢ + 254 = 568, hidden: a.units
     ws().setOperandDigit('a', 'units', '4');
     ws().setAnswerDigit('units', '8');
@@ -571,11 +578,13 @@ describe('representation tasks outside meeting 1 (RepresentationTask.tsx, procee
     typeResult(340);
     expect(selectCanProceed(ws())).toBe(true);
     ws().proceed();
+    continueAfterSuccess();
     // The box that listed the blocks is gone (owner, 28.9.2026), and so is the sentence that repeated it.
     expect(ws().feedback?.sub).toBe('בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.');
     expect(ws().standardTaskIdx).toBe(0);
     drop('tens');
     ws().proceed();
+    continueAfterSuccess();
     expect(ws().standardTaskIdx).toBe(1);
   });
 });

@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import { continueAfterSuccess } from '@/tests/successHold';
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act, fireEvent, within } from '@testing-library/react';
@@ -211,6 +212,8 @@ describe('the coaching card: an hourglass, then one card that stays (X19, X22)',
       ws().groupColumnClick('units');
       useWorkspaceStore.setState({ answerDigits: { tens: '2', units: '6' } });
       ws().proceed();
+      // Solved, then "ממשיכים" (owner, 7.10.2026).
+      continueAfterSuccess();
     });
     await tick(5_000);
     expect(getActiveTasks(ws())[ws().standardTaskIdx].id).not.toBe('s1_r_group26');

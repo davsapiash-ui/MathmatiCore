@@ -14,6 +14,7 @@
  * X60 — register deviation 18 (the "לוח חיבור" tab after the grid opened once
  *       in the meeting) and decision ב ("שום דבר לא סוגר אותו אוטומטית").
  */
+import { continueAfterSuccess } from '@/tests/successHold';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -104,6 +105,7 @@ function solveFirstExercise() {
   ws().setAnswerDigit('tens', '6');
   ws().setAnswerDigit('hundreds', '1');
   ws().proceed();
+  continueAfterSuccess();
   expect(ws().standardTaskIdx, 'the next exercise started').toBe(1);
 }
 

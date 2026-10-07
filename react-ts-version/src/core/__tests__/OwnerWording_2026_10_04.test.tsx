@@ -43,7 +43,7 @@ vi.mock('@/presentation/design-system/UdlSpeechButton', () => ({
   UdlSpeechButton: ({ text }: { text: string }) => <span data-testid="speech" data-text={text} />,
 }));
 
-import { useWorkspaceStore, judgeStandardTask, selectCanProceed, getActiveTasks, emptyColumnConversions } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, judgeStandardTask, selectCanProceed, getActiveTasks, emptyColumnConversions, activeSuccessHold } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { currentTaskLabelHe } from '@/application/taskLabel';
@@ -466,7 +466,8 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
     ws().groupColumnClick('hundreds');
     emitted.length = 0;
     ws().proceed();
-    expect(ws().feedback).toMatchObject({ correct: true, sub: 'קיבצתם את הלבנים, והתשובה שכתבתם נכונה.' });
+    // Solved: held with why it is right — the child's own groupings, then the board (owner, 7.10.2026).
+    expect(activeSuccessHold(ws())?.explanationHe).toBe('קיבצתם 10 עשרות למאה אחת. קיבצתם 10 מאות לאלף אחד. עכשיו בבית המספרים יש 2 אלפים, 7 מאות ו-3 עשרות, וזה בדיוק 2,730. אין יחידות, ולכן כותבים 0 במקום היחידות.');
     const done = emitted.find((e) => e.event_type === 'PROBLEM_COMPLETE');
     expect(done?.details.error_count).toBe(1);
   });

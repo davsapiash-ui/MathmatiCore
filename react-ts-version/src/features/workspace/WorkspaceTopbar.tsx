@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { currentStudentNumber, currentStudentUid } from '@/application/useAuthStore';
-import { useWorkspaceStore, selectCanProceed, getActiveTasks, selectBoardOpen, selectStandardTask } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectCanProceed, getActiveTasks, selectBoardOpen, selectStandardTask, activeSuccessHold } from '@/application/useWorkspaceStore';
 import { session1Checklist } from '@/core/session1Checklist';
 import { BOARD_OPEN_HE, BOARD_STAYS_OPEN_HE, boardStaysOpen } from '@/core/boardVisibility';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
+import { useSuccessHoldReminder } from './useSuccessHoldReminder';
 import { CloudSyncStatus } from './CloudSyncStatus';
 import { RotateCcw, MessageSquare, ArrowLeft, Eye, EyeOff, HandHelping } from 'lucide-react';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
@@ -52,7 +53,9 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const standardTaskIdx = useWorkspaceStore((s) => s.standardTaskIdx);
   const qflow = useWorkspaceStore((s) => s.qflow);
-  const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0) && !isDragging;
+  // Not while a solved exercise is held: the board stays as it was solved.
+  const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0 && !activeSuccessHold(s)) && !isDragging;
+  const remindProceed = useSuccessHoldReminder();
   // Station 1, step 5 (owner, 29.9.2026): "לחצו על כפתור ביטול פעולה" names a
   // button that shows only an arrow, so it is marked until the step's first
   // line is ticked — the same check that ticks it (core/session1Checklist.ts).
@@ -263,7 +266,10 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         <button
           onClick={proceed}
           disabled={!canProceed}
-          className="h-12 px-flw-16-24 rounded-2xl text-base font-display font-extrabold text-white whitespace-nowrap bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
+          className={`h-12 px-flw-16-24 rounded-2xl text-base font-display font-extrabold text-white whitespace-nowrap bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer ${
+            remindProceed ? 'ring-4 ring-ws-accent/35 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : ''
+          }`}
+          data-reminder={remindProceed ? 'true' : undefined}
           // Announced by the name it shows (label in name), the name every
           // sentence uses; it was "מעבר למשימה הבאה", also in meeting 1, whose
           // steps are not "משימות".

@@ -25,6 +25,7 @@ import {
   nextDigitErrorStreak,
   nextDigitErrorStreakOnDelete,
   socraticCardColumnIndex,
+  activeSuccessHold,
 } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
@@ -92,7 +93,8 @@ describe('Rule 1 — skeleton exercises of meetings 3–7 accept the result or t
     boardOf(568);
     ws().setOperandDigit('a', 'units', '4');
     proceed();
-    expect(ws().feedback?.correct).toBe(true);
+    // Solved: held on the screen with "נכון!" (owner, 7.10.2026).
+    expect(activeSuccessHold(ws())).not.toBeNull();
     expect(completed()).toHaveLength(1);
   });
 
@@ -100,7 +102,8 @@ describe('Rule 1 — skeleton exercises of meetings 3–7 accept the result or t
     boardOf(314);
     ws().setOperandDigit('a', 'units', '4');
     proceed();
-    expect(ws().feedback?.correct).toBe(true);
+    // Solved: held on the screen with "נכון!" (owner, 7.10.2026).
+    expect(activeSuccessHold(ws())).not.toBeNull();
     expect(completed()).toHaveLength(1);
   });
 
@@ -154,7 +157,8 @@ describe('Rule 1 — skeleton exercises of meetings 3–7 accept the result or t
       ws().setOperandDigit('a', p, String(Math.floor(8003 / UNIT[p]) % 10))
     );
     proceed();
-    expect(ws().feedback?.correct).toBe(true);
+    // Solved: held on the screen with "נכון!" (owner, 7.10.2026).
+    expect(activeSuccessHold(ws())).not.toBeNull();
   });
 
   it('unchanged: an ordinary exercise still needs the result on the board, with the old text', () => {
@@ -178,6 +182,7 @@ describe('Rule 1 — skeleton exercises of meetings 3–7 accept the result or t
     load(8, e);
     ws().setOperandDigit('a', 'tens', '5');
     proceed();
+    // Meeting 8 is not held (holdsAfterSuccess): its own toast, then on.
     expect(ws().feedback?.correct).toBe(true);
   });
 });
@@ -383,6 +388,8 @@ describe('Rule 4 — the card, driven through the store (meeting 4, 1,245 + 328 
     ws().setAnswerDigit('hundreds', '1');
     // A streak left over from the exercise (set directly: a solved exercise ends on correct digits).
     useWorkspaceStore.setState({ digitErrorStreak: 3, digitErrorStreakPlace: 'tens' });
+    proceed();
+    // Solved and held; "ממשיכים" loads the next exercise (owner, 7.10.2026).
     proceed();
     expect(ws().standardTaskIdx).toBe(1);
     expect(ws().digitErrorStreak).toBe(0);

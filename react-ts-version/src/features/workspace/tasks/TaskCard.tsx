@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useWorkspaceStore, selectStandardTask, effectiveArithmetic } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectStandardTask, effectiveArithmetic, activeSuccessHold } from '@/application/useWorkspaceStore';
+import { useSuccessHoldReminder } from '../useSuccessHoldReminder';
+import { PROCEED_HE } from '@/core/toolbarNames';
 import { currentTaskLabelHe } from '@/application/taskLabel';
 import { taskPositionLabelHe } from '@/core/taskPositionLabel';
 import { stationNameHe } from '@/core/stationNames';
@@ -45,6 +47,9 @@ export function TaskCard() {
   // are a little smaller (--ws-cell, index.css), so the result row stays in view.
   const coachingOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
 
+  // A solved exercise held on the screen (owner, 7.10.2026): the instruction
+  // gives way to why the answer is right, until "ממשיכים".
+  const hold = useWorkspaceStore((s) => activeSuccessHold(s));
   const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;
   const subtask = sessionNumber === 2 && isSubtaskActive(qflow);
 
@@ -102,7 +107,8 @@ export function TaskCard() {
           {positionLabel}
         </h1>
 
-        {instruction && (
+        {hold && <SuccessPanel explanationHe={hold.explanationHe} />}
+        {instruction && !hold && (
           <div
             className="shrink-0 flex items-start gap-3 mb-fl-6-24 rounded-2xl px-fl-12-16 pr-fl-14-20 py-fl-6-16 border-r-4"
             data-testid="task-instruction"
@@ -260,3 +266,36 @@ export function TaskCard() {
   );
 }
 
+/**
+ * After a correct answer (owner, 7.10.2026): "נכון!" and why — what the child
+ * did and what the number house now holds (core/successExplanation.ts) — in
+ * the instruction's place, while the solved board and its digits stay on the
+ * screen. Read aloud only on the child's click (PRD Module 24). Ten seconds
+ * on, one quiet sentence says how to go on; the button itself keeps its
+ * fixed place at the top (מסמך 04, עקביות) and gets a ring there.
+ */
+function SuccessPanel({ explanationHe }: { explanationHe: string }) {
+  const reminded = useSuccessHoldReminder();
+  const reminderHe = `כשתהיו מוכנים, לחצו על "${PROCEED_HE}".`;
+  return (
+    <div
+      role="status"
+      data-testid="success-panel"
+      className="shrink-0 mb-fl-6-24 rounded-2xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-fl-12-16 py-fl-6-16 flex items-start gap-3"
+    >
+      <span aria-hidden="true" className="shrink-0 w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center text-lg font-black">✓</span>
+      <div className="flex-1 min-w-0">
+        <p className="font-display font-black text-fl-16-24 text-emerald-900 dark:text-emerald-100">נכון!</p>
+        <p className="text-fl-16-20 text-emerald-950 dark:text-emerald-50 font-medium leading-snug" data-testid="success-explanation">
+          <MathText text={explanationHe} />
+        </p>
+        {reminded && (
+          <p className="mt-2 text-sm font-bold text-emerald-800 dark:text-emerald-200" data-testid="success-reminder">
+            {reminderHe}
+          </p>
+        )}
+      </div>
+      <UdlSpeechButton text={`נכון! ${explanationHe}${reminded ? ` ${reminderHe}` : ''}`} />
+    </div>
+  );
+}

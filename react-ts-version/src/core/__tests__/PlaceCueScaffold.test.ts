@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resultRowCues, isPlaceError, resultBoxCount, PLACE_CUE_LINE_HE } from '@/core/placeCues';
 import { verticalBoxes, lowestEmptyPlace } from '@/core/columnFocus';
-import { useWorkspaceStore, getActiveTasks, resultRowValue, effectiveArithmetic } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, resultRowValue, effectiveArithmetic, activeSuccessHold } from '@/application/useWorkspaceStore';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { digitAt, type Place } from '@/core/placeValue';
@@ -230,11 +230,12 @@ describe('2,045 − 1,128 = 917 in a four-box row (station 6)', () => {
     useWorkspaceStore.getState().initSession(meeting as any, false, idx);
   }
   function proceedWith(digits: Record<string, string>) {
-    useWorkspaceStore.setState({ counts: { units: 7, tens: 1, hundreds: 9, thousands: 0 }, answerDigits: digits, carryDigits: { hundreds: '9' }, feedback: null, awaitingNext: false } as any);
+    useWorkspaceStore.setState({ counts: { units: 7, tens: 1, hundreds: 9, thousands: 0 }, answerDigits: digits, carryDigits: { hundreds: '9' }, feedback: null, awaitingNext: false, successHold: null } as any);
     const before = useWorkspaceStore.getState().standardTaskIdx;
     useWorkspaceStore.getState().proceed();
     const s = useWorkspaceStore.getState();
-    return s.standardTaskIdx !== before || s.awaitingNext || s.flowStatus !== 'task';
+    // Accepted: held on the screen until "ממשיכים" (owner, 7.10.2026), or moved on.
+    return activeSuccessHold(s) !== null || s.standardTaskIdx !== before || s.awaitingNext || s.flowStatus !== 'task';
   }
 
   it('917 written one box to the left is not accepted, and turns on the scaffold', () => {

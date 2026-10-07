@@ -4,7 +4,7 @@ import { motion, useAnimationControls } from 'framer-motion';
 import { MAX_VISIBLE_BLOCKS, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { fitBlockGrid, type Size } from '@/core/blockLayout';
 import { DIMMED_COLUMN_FILTER } from '@/core/columnFocus';
-import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, activeSuccessHold } from '@/application/useWorkspaceStore';
 import { boardDimmedColumns } from '@/application/boardDimming';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { columnDigitsShown } from '@/core/columnDigits';
@@ -74,8 +74,11 @@ export function PlaceColumn({
     // "Build the number X" built another way (owner, 4.10.2026): the board is right as it stands.
     return builtAnyWay(t, s.counts) || t.isSubtraction === true || t.type === 'flexible_decomp' || (req[place] ?? 0) >= 10;
   });
+  // After a correct answer the digits appear (owner, 7.10.2026): the child
+  // has already gone from the blocks to the digits by themself, so seeing
+  // them now confirms that step instead of doing it for them.
   const digitShown = useWorkspaceStore((s) =>
-    s.projectorBoard || columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)
+    s.projectorBoard || activeSuccessHold(s) !== null || columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)
   );
   // PRD Module 7 §א: columns outside the current calculation focus are dimmed
   // to brightness 0.6 (core/columnFocus.ts: gap יט, calibrated 2.10.2026 —
@@ -135,7 +138,10 @@ export function PlaceColumn({
       animate={shakeControls}
       className={`flex-1 min-w-0 flex flex-col rounded-2xl border-2 border-solid transition-colors duration-150 select-none ${isOver ? 'ring-4 ring-offset-1 z-10' : 'shadow-sm'}`}
       style={{
-        borderColor: isOver ? colors.border : `${colors.border}55`,
+        // The column's own colour, softened. `${colors.border}55` (a hex alpha
+        // after a var()) is not a colour, so the browser drew the border in
+        // the text colour — near black (owner's mockup, 7.10.2026).
+        borderColor: isOver ? colors.border : `color-mix(in srgb, ${colors.border} 45%, transparent)`,
         backgroundColor: isOver ? colors.headerBg : isError ? colors.tint : 'hsl(var(--ws-surface))',
         boxShadow: isOver 
           ? `0 12px 28px -6px ${colors.tint}, 0 0 0 3px ${colors.border}` 

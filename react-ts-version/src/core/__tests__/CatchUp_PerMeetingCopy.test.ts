@@ -17,6 +17,7 @@
  * only the Realtime Database transport is replaced (as in
  * OfflineReload_KeepsWork.test.ts).
  */
+import { continueAfterSuccess } from '@/tests/successHold';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const rtdb = vi.hoisted(() => ({
@@ -316,6 +317,7 @@ describe('catch-up A1 — the finished mark, once per meeting', () => {
       expect(marksWritten(RECORD_PATH, 4), `not finished before exercise ${i + 1}`).toHaveLength(0);
       solveCurrentExercise();
       ws().proceed();
+      continueAfterSuccess();
       flushThrottledWrites();
     }
     expect(ws().flowStatus).toBe('choice_branch');

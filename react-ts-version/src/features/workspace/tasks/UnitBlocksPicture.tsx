@@ -35,9 +35,8 @@ export function UnitBlocksPicture({ count }: { count: number }) {
         aria-label="תמונה של לבני יחידה"
         data-testid="unit-blocks-picture"
         className="rounded-2xl border-2 border-solid p-[clamp(6px,calc(1.7143vh-4.29px),12px)] select-none"
-        // The board writes this border as `${border}55`, which is not a valid colour
-        // for a var(); color-mix gives the soft units-column border it means.
-        style={{ borderColor: `color-mix(in srgb, ${border} 33%, transparent)`, backgroundColor: 'hsl(var(--ws-surface))', boxShadow: '0 4px 14px -6px rgba(0,0,0,0.06)' }}
+        // The units column's soft border, as the board draws it (PlaceColumn).
+        style={{ borderColor: `color-mix(in srgb, ${border} 45%, transparent)`, backgroundColor: 'hsl(var(--ws-surface))', boxShadow: '0 4px 14px -6px rgba(0,0,0,0.06)' }}
       >
         <div
           aria-hidden="true"

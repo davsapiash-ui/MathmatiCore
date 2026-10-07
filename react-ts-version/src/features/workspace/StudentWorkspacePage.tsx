@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
-import { useWorkspaceStore, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, activeSuccessHold, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -129,6 +129,7 @@ export function StudentWorkspacePage() {
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
+  const successHeld = useWorkspaceStore((s) => activeSuccessHold(s) !== null);
   const qflowPhase = useWorkspaceStore((s) => s.qflow?.phase);
   const isSocraticPanelOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
   const user = useAuthStore((s) => s.user);
@@ -514,8 +515,11 @@ export function StudentWorkspacePage() {
   // Nor on the meeting-8 reflection board: it has no column to hesitate in
   // (PRD 18: '45 שניות רצופות ללא פעולה בטור הפעיל'), and the teacher's tile
   // turned yellow while the learner was reflecting.
+  // Nor while a solved exercise is held on the screen (owner, 7.10.2026):
+  // reading why the answer is right is not hesitating, and no grid or card
+  // opens on an exercise that is done.
   useCognitiveHesitationRadar({
-    isActive: !isOverlayActive && flowStatus !== 'choice_branch' && flowStatus !== 'reflection' && !isTeacherOrAdmin,
+    isActive: !isOverlayActive && flowStatus !== 'choice_branch' && flowStatus !== 'reflection' && !isTeacherOrAdmin && !successHeld,
     onHesitationDetected: () => {
       const ws = useWorkspaceStore.getState();
       const currentTask = ws.sessionNumber === 2 ? null : getActiveTasks(ws)[ws.standardTaskIdx];

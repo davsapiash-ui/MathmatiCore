@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import { continueAfterSuccess } from '@/tests/successHold';
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, act, cleanup } from '@testing-library/react';
@@ -126,6 +127,7 @@ function typeRow(n: string) {
 /** "התקדם", and the 300 ms beat (HelpOverlays) if it started. */
 async function press() {
   ws().proceed();
+  continueAfterSuccess();
   if (ws().helpState === 'friction') ws().helpFrictionDone();
   await flush();
 }
@@ -212,6 +214,7 @@ describe('a wrong "התקדם" (repeated_errors): the card on the second wrong a
     await press();
     expect(ws().socraticPending).toBe(true);
     ws().proceed();
+    continueAfterSuccess();
     expect(ws().helpState).toBe('socratic'); // not the beat
     expect(ws().socraticPending).toBe(true);
     answer(SocraticEngine.getSynchronousTaskHint(T4(), ws().counts));
@@ -236,6 +239,7 @@ describe('a wrong "התקדם" (repeated_errors): the card on the second wrong a
     await press();
     ws().lockSocraticCard(15_000);
     ws().proceed();
+    continueAfterSuccess();
     expect(ws().helpState).toBe('closed');
   });
 });
@@ -600,6 +604,7 @@ describe('item 5 — only inside an exercise in progress', () => {
     typeRow('1573');
     ws().setCarryDigit('tens', '1');
     ws().proceed();
+    continueAfterSuccess();
     expect(ws().helpState).toBe('closed');
     expect(ws().currentState).not.toBe('SOCRATIC_ACTIVE');
     await vi.advanceTimersByTimeAsync(2600);
@@ -632,6 +637,7 @@ describe('item 5 — only inside an exercise in progress', () => {
     typeRow('1573');
     ws().setCarryDigit('tens', '1');
     ws().proceed();
+    continueAfterSuccess();
     expect(ws().flowStatus).toBe('choice_branch');
     expect(ws().helpState).toBe('closed');
 
@@ -798,6 +804,7 @@ describe('D5 — the 15-second lockout ends with the exercise', () => {
     typeRow('1573');
     ws().setCarryDigit('tens', '1');
     ws().proceed();
+    continueAfterSuccess();
     expect(ws().standardTaskIdx).toBe(1);
     expect(ws().isSocraticCardLocked).toBe(false);
     expect(ws().getSocraticPenaltyRemaining()).toBe(0);

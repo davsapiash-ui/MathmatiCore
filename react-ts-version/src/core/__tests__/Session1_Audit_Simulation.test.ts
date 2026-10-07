@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { continueAfterSuccess } from '@/tests/successHold';
+import { activeSuccessHold, holdsAfterSuccess } from '@/application/useWorkspaceStore';
 import { useWorkspaceStore, getActiveTasks, selectCanProceed, CONVERSION_CARD_COOLDOWN_MS } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
@@ -63,10 +65,12 @@ function typeNumber(n: number) {
 }
 const memo = (place: Place, v: string) => ws().setCarryDigit(place, v);
 
-/** Presses "התקדם" and lets the success/failure toast run out. */
+/** Presses "התקדם" and lets the success/failure toast run out; a solved exercise is then left with "ממשיכים". */
 function proceed(ms = 4000) {
   ws().proceed();
+  continueAfterSuccess();
   vi.advanceTimersByTime(ms);
+  if (continueAfterSuccess()) vi.advanceTimersByTime(ms);
 }
 
 /** The Realtime Database drops null values and empty objects. */
@@ -254,7 +258,12 @@ describe('1. a full correct run, the way a child does it', () => {
         expect(ws().counts, `${step.id} board`).toEqual(step.board);
         expect(canProceed(), `${step.id} done`).toBe(true);
         expectClean(`${step.id} before התקדם`);
+        // An exercise solved stays on the screen until "ממשיכים" (owner,
+        // 7.10.2026); the tool steps and the target step 347 go on at once.
+        const exercise = holdsAfterSuccess(1, task()!);
         ws().proceed();
+        expect(activeSuccessHold(ws()) !== null, `${step.id} held`).toBe(exercise);
+        continueAfterSuccess();
         if (i < STEPS.length - 1) {
           expect(ws().standardTaskIdx, `after ${step.id}`).toBe(i + 1);
           vi.advanceTimersByTime(3000);
@@ -309,6 +318,7 @@ describe('2. typical mistakes: is there always a way forward?', () => {
     tap('units', 4);
     expect(canProceed()).toBe(false);
     ws().proceed();
+    continueAfterSuccess();
     expect(ws().standardTaskIdx).toBe(0);
     tap('units');
     expect(canProceed()).toBe(true);
@@ -386,6 +396,7 @@ describe('2. typical mistakes: is there always a way forward?', () => {
     typeNumber(337);
     expect(canProceed()).toBe(false);
     ws().proceed();
+    continueAfterSuccess();
     expect(ws().feedback).toBeNull(); // documented: only the ⏳ on item 3
     // retyping the tens fixes it
     type('tens', '4');
@@ -533,6 +544,7 @@ describe('2. typical mistakes: is there always a way forward?', () => {
     expect(ws().flowStatus).toBe('task');
     group('tens');
     ws().proceed();
+    continueAfterSuccess();
     vi.advanceTimersByTime(2600);
     expect(ws().flowStatus).toBe('sessionDone');
   });
@@ -556,6 +568,7 @@ describe('3. a reload in the middle of every task', () => {
       STEPS[i].finish();
       expect(canProceed()).toBe(true);
       ws().proceed();
+      continueAfterSuccess();
       vi.advanceTimersByTime(2600);
       if (i < STEPS.length - 1) expect(taskId()).toBe(STEPS[i + 1].id);
       else expect(ws().flowStatus).toBe('sessionDone');
@@ -593,11 +606,13 @@ describe('3. a reload in the middle of every task', () => {
     goTo(SUB806);
     STEPS[SUB806].half(); STEPS[SUB806].finish();
     ws().proceed();
+    continueAfterSuccess();
     vi.advanceTimersByTime(1000);
     reload();
     expect(ws().flowStatus).toBe('task');
     expect(canProceed()).toBe(true);
     ws().proceed();
+    continueAfterSuccess();
     vi.advanceTimersByTime(2600);
     expect(ws().flowStatus).toBe('sessionDone');
   });
@@ -709,6 +724,7 @@ describe('5. timing', () => {
     goTo(SUB806);
     STEPS[SUB806].half(); STEPS[SUB806].finish();
     ws().proceed();
+    continueAfterSuccess();
     vi.advanceTimersByTime(500);
     ws().requestSilentHelp(); // a new toast replaces the nonce the end-of-meeting callback waits for
     vi.advanceTimersByTime(60_000);
@@ -757,6 +773,7 @@ describe('6. the coaching card and the next exercise', () => {
     expect(ws().socraticTriggerReason).toBe('repeated_errors');
     group('units'); group('units');
     ws().proceed();
+    continueAfterSuccess();
     vi.advanceTimersByTime(3000);
     expect(taskId()).toBe('s1_target_347');
   }
@@ -769,6 +786,7 @@ describe('6. the coaching card and the next exercise', () => {
     STEPS[TARGET].half();
     STEPS[TARGET].finish();
     ws().proceed();
+    continueAfterSuccess();
     vi.advanceTimersByTime(3000);
     expect(taskId()).toBe('s1_t8');
   }
