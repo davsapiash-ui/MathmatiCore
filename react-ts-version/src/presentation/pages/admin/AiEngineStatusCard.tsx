@@ -30,9 +30,20 @@ interface AiTestResult {
   in_progress?: boolean;
 }
 
+/** What the children saw, from their own SOCRATIC_CARD_SHOWN events (7.10.2026). */
+interface ShownCards {
+  shown: number;
+  ai: number;
+  static: number;
+  unknown: number;
+  static_reasons: Record<string, number>;
+}
+
 interface AiStatus {
   checked_at: number;
   today: string;
+  /** Absent when the server could not read the events. */
+  shown?: { total: ShownCards; today: ShownCards; truncated: boolean };
   /** Present when the call asked for a live test (test_call: true). */
   test?: AiTestResult;
   key: {
@@ -76,6 +87,19 @@ const OUTCOME_HE: Record<string, string> = {
   safety: "חסימת בטיחות",
   misconfigured: "הגדרה שגויה (בדקו את מפתח ה-API ואת שם המודל)",
   unknown: "אחר",
+};
+
+/** Why a child saw the static card (SOCRATIC_CARD_SHOWN.card_fallback_reason). */
+const FALLBACK_REASON_HE: Record<string, string> = {
+  offline: "אין חיבור לאינטרנט",
+  timeout: "המנוע לא ענה בזמן (8 שניות)",
+  server_failed: "המנוע לא הצליח לכתוב כרטיס תקין",
+  schema_rejected: "התשובה לא הייתה כרטיס שלם",
+  rule_rejected: "הכרטיס נפסל בבדיקת הכללים במחשב הלומד",
+  board_changed: "הלומד שינה את הלוח בזמן ההמתנה",
+  not_coached: "תרגיל שהמנוע אינו מלווה",
+  error: "תקלה אחרת במחשב הלומד",
+  unrecorded: "הסיבה לא נרשמה (לפני 7.10.2026)",
 };
 
 /** Shown when "בדיקת חיבור למודל" is clicked while the previous live test still runs. */
@@ -178,6 +202,40 @@ export function AiEngineStatusCard() {
             </div>
           </div>
 
+          {status.shown && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-300">מה הלומדים ראו בפועל (לפי הרישום אצל הלומדים)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[{ title: `היום (${status.today})`, c: status.shown.today }, { title: "מצטבר", c: status.shown.total }].map(({ title, c }) => (
+                  <div key={title} className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950/60 space-y-1.5">
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{title}</p>
+                    <p className="text-sm text-slate-800 dark:text-slate-200">
+                      כרטיסים שהוצגו: <span className="font-black tabular-nums">{c.shown}</span>
+                    </p>
+                    {c.shown > 0 && (
+                      <ul className="text-xs text-slate-700 dark:text-slate-300 space-y-0.5">
+                        <li>נכתבו על ידי הבינה: <span className="font-black tabular-nums">{c.ai}</span> ({pct(c.ai, c.shown)})</li>
+                        <li>כרטיס גיבוי: <span className="font-black tabular-nums">{c.static}</span> ({pct(c.static, c.shown)})</li>
+                        {c.unknown > 0 && <li>לא ידוע מי כתב (לפני 1.10.2026): <span className="tabular-nums">{c.unknown}</span></li>}
+                      </ul>
+                    )}
+                    {c.static > 0 && (
+                      <ul className="text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5 border-t border-slate-100 dark:border-slate-800 pt-1.5">
+                        {Object.entries(c.static_reasons).sort((a, b) => b[1] - a[1]).map(([reason, n]) => (
+                          <li key={reason}>{FALLBACK_REASON_HE[reason] ?? reason}: <span className="tabular-nums">{n}</span></li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {status.shown.truncated && (
+                <p className="text-[11px] text-amber-700 dark:text-amber-300">נספרו 5,000 הכרטיסים הראשונים בלבד.</p>
+              )}
+            </div>
+          )}
+
+          <p className="text-xs font-bold text-slate-600 dark:text-slate-300">קריאות למנוע (לפי השרת)</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[{ title: `היום (${status.today})`, s: today }, { title: "מצטבר", s: total }].map(({ title, s }) => (
               <div key={title} className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950/60 space-y-1.5">
@@ -246,7 +304,7 @@ export function AiEngineStatusCard() {
           )}
 
           <p className="text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3 leading-relaxed">
-            כל קריאה שאינה "תקינה" פירושה שהלומד קיבל את כרטיס החניכה המובנה במקום ניתוח חי. המפתח מוחלף בפקודה
+            קריאה שאינה "תקינה" פירושה שהלומד קיבל את כרטיס הגיבוי. גם קריאה תקינה יכולה להסתיים בכרטיס גיבוי: אם התשובה הגיעה אחרי 8 שניות, נפסלה בבדיקה במחשב הלומד, או שהלומד שינה את הלוח בזמן ההמתנה. לכן המספר המדויק של מה שהלומדים ראו הוא זה שלמעלה. המפתח מוחלף בפקודה
             <span className="font-mono mx-1" dir="ltr">firebase functions:secrets:set GEMINI_API_KEY</span>
             ולעולם אינו נחשף ללקוח.
           </p>

@@ -60,6 +60,53 @@ export interface SocraticHintResponse {
   source?: 'gemini' | 'static';
   /** The model that wrote it (server meta.model_id). */
   modelId?: string;
+  /**
+   * 7.10.2026, owner: a static card shown in place of the engine's says why
+   * (SOCRATIC_CARD_SHOWN.card_fallback_reason), so the research data and the
+   * admin console count what the child actually saw, not what the server
+   * believes it sent. Absent on the engine's own card.
+   */
+  fallbackReason?: SocraticFallbackReason;
+  /** A short code beside the reason: the server's error code, or the content rule that refused the card. */
+  fallbackDetail?: string;
+  /** How long the hourglass turned before this card appeared (SOCRATIC_CARD_SHOWN.card_wait_ms). */
+  waitMs?: number;
+}
+
+/**
+ * Why the child saw a static card instead of the engine's (7.10.2026):
+ * - offline: no network, the engine was not asked;
+ * - timeout: no answer within SOCRATIC_PROXY_TIMEOUT_MS;
+ * - server_failed: the server answered with an error — it could not get a valid card from the model;
+ * - schema_rejected: the server's answer was not a complete card;
+ * - rule_rejected: the card broke a content rule checked on the learner's side;
+ * - board_changed: the child changed the board under the hourglass, and the card was built again from the screen;
+ * - not_coached: an exercise the engine never coaches (the sandbox, the tool steps);
+ * - error: anything else on the learner's side.
+ */
+export type SocraticFallbackReason =
+  | 'offline'
+  | 'timeout'
+  | 'server_failed'
+  | 'schema_rejected'
+  | 'rule_rejected'
+  | 'board_changed'
+  | 'not_coached'
+  | 'error';
+
+/** A content rule's message as a short code for the research data ("hidden number leaked" → hidden_number_leaked). */
+export function ruleCode(violation: string): string {
+  return violation.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40) || 'rule';
+}
+
+/** The reason an engine call failed, from the error it threw (a callable's code, or the local race). */
+export function fallbackReasonOfError(err: unknown): { reason: SocraticFallbackReason; detail?: string } {
+  const code = String((err as { code?: unknown })?.code ?? '');
+  const message = String((err as { message?: unknown })?.message ?? '');
+  if (message === 'Gemini Socratic Proxy timeout' || code === 'functions/deadline-exceeded') return { reason: 'timeout', detail: code.replace(/^functions\//, '') || undefined };
+  if (code === 'functions/unavailable') return { reason: 'offline', detail: 'unavailable' };
+  if (code.startsWith('functions/')) return { reason: 'server_failed', detail: code.replace(/^functions\//, '').slice(0, 32) };
+  return { reason: 'error' };
 }
 
 /**
@@ -1405,14 +1452,20 @@ export class SocraticEngine {
     recentActions?: string[];
     qMatrixAnchor: SocraticHintResponse;
     monitoring?: SocraticMonitoringSnapshot;
+    /** Told why, whenever this returns null (7.10.2026: the static card records it). */
+    onFallback?: (reason: SocraticFallbackReason, detail?: string) => void;
   }): Promise<SocraticHintResponse | null> {
+    const fallback = (reason: SocraticFallbackReason, detail?: string): null => {
+      params.onFallback?.(reason, detail);
+      return null;
+    };
     try {
       const { currentTask, targetNode, activeColumnName, counts, recentActions, qMatrixAnchor } = params;
       const monitoring: SocraticMonitoringSnapshot = params.monitoring ?? {};
 
       // Sandbox / intro tasks are never AI-coached (Module 12): nothing to diagnose.
       if (currentTask?.id === 's1_sandbox_controlled' || currentTask?.type === 'session1_intro') {
-        return null;
+        return fallback('not_coached');
       }
 
       // ── Pillar 1: the exercise ─────────────────────────────────────────
@@ -1534,7 +1587,7 @@ export class SocraticEngine {
       });
 
       const data = res?.data;
-      if (!data) return null;
+      if (!data) return fallback('schema_rejected', 'empty');
 
       const parsed = typeof data === 'string' ? JSON.parse(data) : (data?.rawText ? JSON.parse(data.rawText) : data);
       // PRD shape (guiding_question / options[].option_text) or the older
@@ -1550,7 +1603,7 @@ export class SocraticEngine {
       // Module 13(a): Rigid validation — missing guiding_question, wrong options count, or missing/invalid error_category MUST fail validation
       if (typeof guidingQuestion !== 'string' || !guidingQuestion.trim() || !Array.isArray(optionsList) || optionsList.length !== 3 || !isValidCategory) {
         console.warn('[Gemini Proxy] Schema validation failed for response (missing required fields or invalid error_category):', parsed);
-        return null;
+        return fallback('schema_rejected', 'fields');
       }
 
       const choices = optionsList.map((opt: any, idx: number) => ({
@@ -1562,7 +1615,7 @@ export class SocraticEngine {
 
       if (choices.some((c: { textHe: string }) => !c.textHe.trim()) || choices.filter((c: { isCorrect: boolean }) => c.isCorrect).length !== 1) {
         console.warn('[Gemini Proxy] Options rejected: every option needs text and exactly one must be correct.');
-        return null;
+        return fallback('schema_rejected', 'options');
       }
 
       const aiTexts = [guidingQuestion, ...choices.flatMap((c: { textHe: string; feedbackHe?: string }) => [c.textHe, c.feedbackHe ?? ''])];
@@ -1608,7 +1661,7 @@ export class SocraticEngine {
           : null);
       if (violation) {
         console.warn('[Gemini Proxy] Response rejected by content rule:', violation);
-        return null;
+        return fallback('rule_rejected', ruleCode(violation));
       }
 
       const errorCategory = rawErrorCategory.toLowerCase() as 'calculation' | 'procedural' | 'conceptual';
@@ -1633,7 +1686,10 @@ export class SocraticEngine {
       };
     } catch (err) {
       console.warn('[Gemini Socratic Engine] Cloud Function proxy query fallback triggered:', err);
-      return null;
+      // A reply that is not JSON at all is a malformed card, not a failure of the call.
+      if (err instanceof SyntaxError) return fallback('schema_rejected', 'json');
+      const { reason, detail } = fallbackReasonOfError(err);
+      return fallback(reason, detail);
     }
   }
 
@@ -1991,8 +2047,10 @@ export class SocraticEngine {
     const activeColumnName = colNames[activeColumnIndex] || 'יחידות';
 
     // 3. Grounded AI Socratic Query (Synthesize live board numbers with Q-Matrix anchor)
+    let why: { reason: SocraticFallbackReason; detail?: string } = { reason: 'error' };
     try {
       const dynamicAiHint = await SocraticEngine.fetchGroundedGeminiSocraticQuery({
+        onFallback: (reason, detail) => { why = { reason, detail }; },
         currentTask: currentTask || {},
         targetNode: targetNode || 'general',
         activeColumnName,
@@ -2020,7 +2078,10 @@ export class SocraticEngine {
     // 4. Fallback: the grounded baseline anchor — its content, not its
     // classification. error_category is the engine's verdict (Module 13);
     // the anchor's hard-coded value would be stored as if the engine had
-    // spoken. See requestSocraticHintWithFallback for the same rule.
-    return baselineAnchor ? { ...baselineAnchor, error_category: null } : baselineAnchor;
+    // spoken. See requestSocraticHintWithFallback for the same rule. It
+    // carries why the engine's card is not the one shown (7.10.2026).
+    return baselineAnchor
+      ? { ...baselineAnchor, error_category: null, fallbackReason: why.reason, ...(why.detail ? { fallbackDetail: why.detail } : {}) }
+      : baselineAnchor;
   }
 }

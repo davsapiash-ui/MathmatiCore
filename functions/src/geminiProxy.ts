@@ -116,8 +116,14 @@ export function scrubPII(text: string): string {
  * when its card broke a rule.
  */
 export const SOCRATIC_AI_TIMEOUT_MS = 4500;
-/** Total budget for both attempts; a retry only starts if it can finish inside this. */
-export const SOCRATIC_TOTAL_BUDGET_MS = 7500;
+/**
+ * Total budget for both attempts; a retry only starts if it can finish inside this.
+ * 7.10.2026: 7 s, not 7.5 s. The learner's 8 s count from the click and also
+ * hold the trip to the server and back; with half a second to spare, a card
+ * the server counted as answered could reach a client that had already shown
+ * the static one. A full second keeps the two counts the same card.
+ */
+export const SOCRATIC_TOTAL_BUDGET_MS = 7000;
 const MIN_RETRY_WINDOW_MS = 2000;
 /**
  * A corrected retry stays on the primary model only with this much budget

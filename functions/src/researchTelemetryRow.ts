@@ -76,6 +76,12 @@ export function researchDetailsColumns(eventType: unknown, raw: unknown): Record
     card_options_he: only(eventType, "SOCRATIC_CARD_SHOWN") && Array.isArray(d.card_options_he) && d.card_options_he.length <= 3
       ? d.card_options_he.map(cardText).join(" | ")
       : "",
+    // SOCRATIC_CARD_SHOWN (7.10.2026): why a static card was shown, a short code beside it, and how long the hourglass turned.
+    card_fallback_reason: only(eventType, "SOCRATIC_CARD_SHOWN")
+      ? oneOf(d.card_fallback_reason, ["offline", "timeout", "server_failed", "schema_rejected", "rule_rejected", "board_changed", "not_coached", "error"] as const)
+      : "",
+    card_fallback_detail: only(eventType, "SOCRATIC_CARD_SHOWN") && typeof d.card_fallback_detail === "string" && /^[a-z0-9_-]{1,40}$/.test(d.card_fallback_detail) ? d.card_fallback_detail : "",
+    card_wait_ms: only(eventType, "SOCRATIC_CARD_SHOWN") ? num(d.card_wait_ms) : "",
     // SOCRATIC_OPTION_SELECTED (is_correct has its own column)
     option_id: only(eventType, "SOCRATIC_OPTION_SELECTED") ? oneOf(d.option_id, ["opt_1", "opt_2", "opt_3"] as const) : "",
     // PROBLEM_COMPLETE
