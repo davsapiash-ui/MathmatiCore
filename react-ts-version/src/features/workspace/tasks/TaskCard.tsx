@@ -11,6 +11,7 @@ import { hasOneDiagnosticAnswerBox } from '@/core/QMatrix';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { AccessibleCard } from '@/presentation/design-system/AccessibleCard';
 import { IntroTask } from './IntroTask';
+import { IntroStepSheet, hasIntroSheet } from './IntroStepSheet';
 import { VerticalAdditionTask } from './VerticalAdditionTask';
 import { MissingElementTask } from './MissingElementTask';
 import { FlexibleDecompTask } from './FlexibleDecompTask';
@@ -112,7 +113,13 @@ export function TaskCard() {
         </h1>
 
         {hold && <SuccessPanel explanationHe={hold.explanationHe} />}
-        {instruction && !hold && (() => {
+        {/* Meeting 1's tool steps have a sheet of their own (IntroStepSheet):
+            a welcome, one explanation, one instruction and a picture of the
+            move — not the exercise sheet's task-and-steps shape. */}
+        {standardTask && hasIntroSheet(standardTask.id) && !hold && (
+          <IntroStepSheet taskId={standardTask.id} instructionHe={instruction} />
+        )}
+        {instruction && !hold && !(standardTask && hasIntroSheet(standardTask.id)) && (() => {
           // The task, then its steps (core/instructionSteps.ts; owner,
           // 7.10.2026): the same agreed words, shaped so a third grader can
           // hold them — the first sentence is what the exercise is, the rest
@@ -189,7 +196,7 @@ export function TaskCard() {
         {/* ── Body ── */}
         {sessionNumber !== 2 && standardTask && (
           <>
-            {standardTask.type === 'session1_intro' && <IntroTask task={standardTask} />}
+            {standardTask.type === 'session1_intro' && !hasIntroSheet(standardTask.id) && <IntroTask task={standardTask} />}
             {(standardTask.type === 'addition_simple' || standardTask.type === 'vertical_addition') &&
               (() => {
                 const { a, b, target } = effectiveArithmetic(standardTask, isASD);
