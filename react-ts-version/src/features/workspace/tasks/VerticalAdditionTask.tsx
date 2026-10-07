@@ -280,8 +280,9 @@ export function VerticalAdditionTask({
     </div>
   );
 
-  // Meeting 2 keeps the window-sized square: its card is the whole screen.
-  const roomy = sessionNumber !== 2;
+  // Meetings 2 and 8 keep the window-sized square: their card is the whole
+  // screen, sized by its content, so there is no room to measure.
+  const roomy = sessionNumber !== 2 && sessionNumber !== 8;
   const sheet = (
     <div
       className="shrink-0 self-center w-full max-w-md flex flex-col items-center gap-fl-4-16 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-fl-8-24 relative"
