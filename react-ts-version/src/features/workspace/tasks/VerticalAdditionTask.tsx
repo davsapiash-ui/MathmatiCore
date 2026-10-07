@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, type CSSProperties } from 'react';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { MISSING_DIGIT_BOX, speakMissingDigits } from '@/core/missingDigitSpeech';
 import { useWorkspaceStore, digitJustTyped } from '@/application/useWorkspaceStore';
@@ -60,6 +60,38 @@ function spokenOperand(digits: string, hidden: Place[]): string {
 const CELL = "var(--ws-cell)";
 const cell = (k: number) => `calc(${CELL} * ${k})`;
 const cellMinus = (px: number) => `calc(${CELL} - ${px}px)`;
+
+/** The sheet's padding (p-fl-8-24) and gap (gap-fl-4-16) as CSS, for the sums below. */
+const SHEET_PAD = 'clamp(8px, calc(4.5714vh - 19.43px), 24px)';
+const SHEET_GAP = 'clamp(4px, calc(3.4286vh - 16.57px), 16px)';
+/** The largest notebook square when the column has room to spare. */
+const ROOMY_CELL_MAX_PX = 80;
+
+/**
+ * The notebook square sized by the room the task column actually has
+ * (owner, 7.10.2026: "בצד הימני היה הרבה מקום… תרווח באופן מושכל כאשר זה
+ * מתאפשר"). The sheet is the last thing in the column, and its wrapper takes
+ * the height left under the instruction (a size container). The square is the
+ * largest that fits that height and the column's width, between 40px and
+ * ROOMY_CELL_MAX_PX — on a 1920×1080 screen the exercise grows into the empty
+ * half of the column; when the instruction is long or the coaching card
+ * narrows the column, the square shrinks with it instead of pushing the
+ * result row out of view. Sizes only: the sheet's layout, colours and order
+ * are unchanged.
+ *
+ * Height, in squares: the paper over the circles, four rows, the paper under
+ * the answer row and the place names (~0.33 of a square at 1.5 line height).
+ * The fixed part: the sheet's two paddings, one gap, a margin for the 12px
+ * floor of the place names, and the scaffold line with its gap when shown.
+ */
+function roomyCell(paperTopSquares: number, cols: number, cueLine: boolean): string {
+  const squaresHigh = paperTopSquares + 4 + 0.4 + 0.33;
+  const fixedHigh = `2 * ${SHEET_PAD} + ${SHEET_GAP} + 8px${cueLine ? ` + 44px + ${SHEET_GAP}` : ''}`;
+  const byHeight = `(100cqh - (${fixedHigh})) / ${squaresHigh}`;
+  // Width: the paper is cols + 1 squares of grid and one square each side.
+  const byWidth = `(100cqw - 2 * ${SHEET_PAD} - 4px) / ${cols + 3}`;
+  return `clamp(40px, min(${byHeight}, ${byWidth}), ${ROOMY_CELL_MAX_PX}px)`;
+}
 
 export function VerticalAdditionTask({
   numberA,
@@ -248,8 +280,14 @@ export function VerticalAdditionTask({
     </div>
   );
 
-  return (
-    <div className="shrink-0 self-center w-full max-w-md flex flex-col items-center gap-fl-4-16 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-fl-8-24 relative">
+  // Meeting 2 keeps the window-sized square: its card is the whole screen.
+  const roomy = sessionNumber !== 2;
+  const sheet = (
+    <div
+      className="shrink-0 self-center w-full max-w-md flex flex-col items-center gap-fl-4-16 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-fl-8-24 relative"
+      // The frame grows with the square; on a small screen it stays 28rem.
+      style={roomy ? { maxWidth: `max(28rem, calc(${cell(cols + 3)} + 2 * ${SHEET_PAD}))` } : undefined}
+    >
       {/* The scaffold line (owner, 30.9.2026): it stays until the end of the
           exercise, with a read-aloud button — played only on the child's click. */}
       {cueLine && (
@@ -493,6 +531,17 @@ export function VerticalAdditionTask({
         )}
       </div>
       )}
+    </div>
+  );
+
+  if (!roomy) return sheet;
+  return (
+    <div
+      data-testid="vertical-sheet-room"
+      className="flex-1 min-h-0 w-full flex flex-col"
+      style={{ containerType: 'size', ['--ws-cell']: roomyCell(0.75, cols, Boolean(cueLine)) } as CSSProperties}
+    >
+      {sheet}
     </div>
   );
 }
