@@ -1,3 +1,4 @@
+import { Boxes } from 'lucide-react';
 import { useDraggable } from '@dnd-kit/core';
 import { PLACE_VALUES, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -93,6 +94,10 @@ function PaletteItemCard({
   );
 }
 
+/** The toolbox's name tag: the station chip's look (TaskCard). */
+const TOOLBOX_TAG =
+  'inline-flex items-center gap-1.5 rounded-full pr-2.5 pl-3 py-0.5 bg-ws-accentSoft text-ws-accent border border-white dark:border-slate-900 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)] text-[13px] font-display font-extrabold leading-5 whitespace-nowrap pointer-events-none';
+
 /**
  * מחסן הכלים (Block Palette) — מגש לבני דינס אותנטי, נקי ומינימליסטי.
  * תואם PRD: גרירה ייעודית וחלקה לבית המספרים (ללא תלות בלחיצות מקומיות).
@@ -126,28 +131,25 @@ export function BlockPalette({ scaffoldLevel, compact = false }: { scaffoldLevel
         compact ? 'px-3 py-2 gap-2 flex-wrap justify-center' : 'px-5 py-2.5 gap-4 justify-between overflow-x-auto no-scrollbar'
       }`}
     >
-      {compact && (
-        <span
-          aria-hidden="true"
-          data-testid="toolbox-name"
-          className="absolute -top-2.5 right-5 inline-flex items-center gap-1 rounded-full px-2 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 text-xs font-black text-slate-800 dark:text-slate-100 leading-4 whitespace-nowrap pointer-events-none"
-        >
-          <span>🧰</span>
-          ארגז כלים
+      {/* The box's name, as a label on the box (owner, 7.10.2026: the name
+          should look better). The same tag as the station chip over the
+          exercise — the workspace's one way of naming a thing — with an icon
+          of stacked blocks instead of an emoji that every system draws
+          differently. Compact: on the tray's top edge, adding no row. */}
+      {compact ? (
+        <span aria-hidden="true" data-testid="toolbox-name" className={`absolute -top-3 right-5 ${TOOLBOX_TAG}`}>
+          <Boxes className="w-3.5 h-3.5 shrink-0" strokeWidth={2.4} />
+          <span>ארגז כלים</span>
         </span>
-      )}
-      {/* Title & Legend (RTL Right side) */}
-      <div className={`${compact ? 'hidden' : 'flex'} items-center gap-2.5 shrink-0 select-none`}>
-        <span aria-hidden="true" className="text-xl drop-shadow-xs">🧰</span>
-        <div className="flex flex-col">
-          <span className="text-xs font-black text-slate-800 tracking-wide leading-tight">
-            ארגז כלים
+      ) : (
+        <div className="flex flex-col items-start gap-1 shrink-0 select-none">
+          <span className={TOOLBOX_TAG}>
+            <Boxes aria-hidden="true" className="w-4 h-4 shrink-0" strokeWidth={2.4} />
+            <span>ארגז כלים</span>
           </span>
-          <span className="text-xs font-bold text-slate-400 leading-none">
-            לבנים
-          </span>
+          <span className="text-xs font-bold text-ws-soft leading-tight pr-1">גוררים מכאן לבית המספרים</span>
         </div>
-      </div>
+      )}
 
       <div className={`w-px h-10 bg-slate-200/80 shrink-0 ${compact ? 'hidden' : ''}`} />
 
