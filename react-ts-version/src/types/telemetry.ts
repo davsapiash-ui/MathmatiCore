@@ -102,6 +102,16 @@ export interface SocraticCardShownDetails {
    */
   card_question_he?: string;
   card_options_he?: string[];
+  /**
+   * 7.10.2026, owner: on a static card, why the engine's card was not shown
+   * (SocraticEngine.SocraticFallbackReason), and a short code beside it (the
+   * server's error code or the refused content rule). Absent on the engine's
+   * card and on events recorded before the field existed.
+   */
+  card_fallback_reason?: 'offline' | 'timeout' | 'server_failed' | 'schema_rejected' | 'rule_rejected' | 'board_changed' | 'not_coached' | 'error';
+  card_fallback_detail?: string;
+  /** How long the hourglass turned before the card appeared, in ms. */
+  card_wait_ms?: number;
 }
 
 export interface SocraticOptionSelectedDetails {

@@ -283,7 +283,8 @@ describe('Module 13: proxy and credential hardening (pinned from source)', () =>
   it('bounds every model call under the client timeout and retries only validator rejections', () => {
     // Measured 1.10.2026: ~2.5 s per answer, ~10% 503s — a 4.5 s first try leaves room for a second.
     expect(proxy).toContain('SOCRATIC_AI_TIMEOUT_MS = 4500');
-    expect(proxy).toContain('SOCRATIC_TOTAL_BUDGET_MS = 7500');
+    // 7.10.2026: 7 s, a full second of the learner's 8 s for the trip there and back.
+    expect(proxy).toContain('SOCRATIC_TOTAL_BUDGET_MS = 7000');
     expect(SOCRATIC_PROXY_TIMEOUT_MS).toBe(8000);
     expect(config).toContain('withGeminiTimeout(\n      ai.models.generateContent(');
     // The SDK's own timeout became an API deadline the API refuses under 10 s: never set.

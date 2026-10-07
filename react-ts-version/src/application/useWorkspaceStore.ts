@@ -4901,6 +4901,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set({ aiSocraticHint: null, socraticPending: true });
       // What the card was asked about: the board and every digit typed.
       const openedOn = cardStateSignature(s);
+      const openedAt = Date.now();
 
       const settle = (hint: SocraticHintResponse) => {
         if (request !== socraticRequestSeq) return; // cancelled, superseded or already settled
@@ -4928,10 +4929,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           shown = {
             ...SocraticEngine.getSynchronousTaskHint(nowTask ?? undefined, now.counts, staticCardContextFor(now, nowTask?.id, nowTask)),
             error_category: null,
+            // 7.10.2026: why the engine's card is not the one on the screen. A
+            // static card keeps its own reason; the engine's card, rebuilt
+            // because the board changed, says so.
+            fallbackReason: hint.source === 'gemini' ? 'board_changed' : hint.fallbackReason ?? 'error',
+            ...(hint.source !== 'gemini' && hint.fallbackDetail ? { fallbackDetail: hint.fallbackDetail } : {}),
           };
           kind = shown.cardKind;
           rebuilt = true;
         }
+        // How long the hourglass turned (research data, SOCRATIC_CARD_SHOWN.card_wait_ms).
+        shown = { ...shown, waitMs: Math.max(0, Date.now() - openedAt) };
         // A card of 30.9.2026 counts as shown also when the engine's card,
         // anchored on it, is the one on the screen.
         set((st) => {
@@ -4960,10 +4968,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       };
 
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        settle(staticCard);
+        settle({ ...staticCard, fallbackReason: 'offline' });
         return;
       }
-      socraticDeadline = setTimeout(() => settle(staticCard), SOCRATIC_PROXY_TIMEOUT_MS);
+      socraticDeadline = setTimeout(() => settle({ ...staticCard, fallbackReason: 'timeout' }), SOCRATIC_PROXY_TIMEOUT_MS);
 
       try {
         const traceData = {
@@ -5020,10 +5028,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         
         // The engine's own fallback is the same static card with a null
         // error_category; a card with a category is the engine's verdict.
-        settle(hint && hint.error_category ? hint : staticCard);
+        // The static card carries the engine's reason for not answering.
+        settle(hint && hint.error_category
+          ? hint
+          : { ...staticCard, fallbackReason: hint?.fallbackReason ?? 'error', ...(hint?.fallbackDetail ? { fallbackDetail: hint.fallbackDetail } : {}) });
       } catch (error) {
         console.error("LLM Socratic Hint failed. Falling back to static hints.", error);
-        settle(staticCard);
+        settle({ ...staticCard, fallbackReason: 'error' });
       }
     },
 

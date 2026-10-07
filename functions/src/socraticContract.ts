@@ -354,6 +354,9 @@ function cleanInstruction(v: unknown): string | null {
   return t;
 }
 
+/** Detail fields that describe how a card was delivered — never part of what the model is told. */
+const TELEMETRY_ONLY_DETAILS: ReadonlySet<string> = new Set(["card_fallback_reason", "card_fallback_detail", "card_wait_ms"]);
+
 function cleanRecentActions(raw: unknown): SocraticRecentAction[] {
   if (!Array.isArray(raw)) return [];
   const out: SocraticRecentAction[] = [];
@@ -366,6 +369,8 @@ function cleanRecentActions(raw: unknown): SocraticRecentAction[] {
       // nothing free-text ever reaches the model from here.
       const details: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(a.details)) {
+        // Research bookkeeping about an earlier card, not the child's work (7.10.2026).
+        if (TELEMETRY_ONLY_DETAILS.has(k)) continue;
         if ((typeof v === "number" || typeof v === "boolean" || v === null) && k.length <= 32) details[k] = v;
         else if (typeof v === "string" && v.length <= 32 && /^[a-z0-9_]+$/i.test(v)) details[k] = v;
       }

@@ -200,6 +200,11 @@ export function SocraticSidePanel() {
         // the research export tells them apart.
         card_source: aiSocraticHint.source === 'gemini' ? 'ai' : 'static',
         model_id: aiSocraticHint.source === 'gemini' ? aiSocraticHint.modelId ?? null : null,
+        // 7.10.2026: why a static card was shown, and how long the hourglass turned —
+        // so the research data counts what the child saw, not what the server sent.
+        ...(aiSocraticHint.source !== 'gemini' && aiSocraticHint.fallbackReason ? { card_fallback_reason: aiSocraticHint.fallbackReason } : {}),
+        ...(aiSocraticHint.source !== 'gemini' && aiSocraticHint.fallbackDetail ? { card_fallback_detail: aiSocraticHint.fallbackDetail } : {}),
+        ...(typeof aiSocraticHint.waitMs === 'number' ? { card_wait_ms: Math.round(aiSocraticHint.waitMs) } : {}),
         card_situation: cardFrameOf(aiSocraticHint, task).situation,
         card_level: cardFrameOf(aiSocraticHint, task).level,
         // 2.10.2026: the card's own text — the question and the options in id

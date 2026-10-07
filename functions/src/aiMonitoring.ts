@@ -162,6 +162,55 @@ function callerIsStaff(token: Record<string, unknown> | undefined): boolean {
   return lowered.includes("admin") || lowered.includes("teacher") || token.admin === true || token.teacher === true;
 }
 
+/** What the children saw, counted from their own SOCRATIC_CARD_SHOWN events. */
+export interface ShownCardsSummary {
+  shown: number;
+  ai: number;
+  static: number;
+  /** Events recorded before card_source existed (1.10.2026): unknown who wrote them. */
+  unknown: number;
+  /** Static cards by reason (card_fallback_reason); "unrecorded" before the field existed (7.10.2026). */
+  static_reasons: Record<string, number>;
+}
+
+const CARD_FALLBACK_REASONS = ["offline", "timeout", "server_failed", "schema_rejected", "rule_rejected", "board_changed", "not_coached", "error"];
+
+function emptyShown(): ShownCardsSummary {
+  return { shown: 0, ai: 0, static: 0, unknown: 0, static_reasons: {} };
+}
+
+/**
+ * 7.10.2026, owner: the counters above are the server's view — a model answer
+ * it validated. The child may still have seen the static card (the answer came
+ * after the 8 s on the learner's side, the learner's own rules refused it, or
+ * the board changed under the hourglass). This counts the cards as shown, from
+ * the learners' SOCRATIC_CARD_SHOWN events: overall and for the Israel day
+ * `today`. Counts only — no learner, exercise or text leaves this function.
+ */
+export function summarizeShownCards(events: Array<Record<string, unknown>>, today: string): { total: ShownCardsSummary; today: ShownCardsSummary } {
+  const total = emptyShown();
+  const day = emptyShown();
+  for (const e of events) {
+    if (e.event_type !== "SOCRATIC_CARD_SHOWN") continue;
+    const d = (e.details && typeof e.details === "object" ? e.details : {}) as Record<string, unknown>;
+    const ts = typeof e.client_timestamp === "number" ? e.client_timestamp : null;
+    const buckets = ts !== null && dayKey(new Date(ts)) === today ? [total, day] : [total];
+    for (const b of buckets) {
+      b.shown++;
+      if (d.card_source === "ai") b.ai++;
+      else if (d.card_source === "static") {
+        b.static++;
+        const reason = typeof d.card_fallback_reason === "string" && CARD_FALLBACK_REASONS.includes(d.card_fallback_reason) ? d.card_fallback_reason : "unrecorded";
+        b.static_reasons[reason] = (b.static_reasons[reason] ?? 0) + 1;
+      } else b.unknown++;
+    }
+  }
+  return { total, today: day };
+}
+
+/** Enough for the pilot's cards; the summary says when it was cut. */
+const SHOWN_CARDS_READ_LIMIT = 5000;
+
 /** One live test call at most this often, for the whole project (it costs a model call). */
 export const AI_TEST_CALL_MIN_INTERVAL_MS = 30_000;
 /** The test call waits as long as a learner's card may: the client's 8 s. */
@@ -247,6 +296,15 @@ export const getAiServiceStatus = onCall({ ...GEMINI_SECRETS, timeoutSeconds: 30
     logger.warn("[ai-monitor] status read failed", { error: String(err) });
   }
 
+  // What the children saw (7.10.2026). A failure only leaves it out.
+  let shown: (ReturnType<typeof summarizeShownCards> & { truncated: boolean }) | null = null;
+  try {
+    const snap = await getFirestore().collection("telemetry_logs").where("event_type", "==", "SOCRATIC_CARD_SHOWN").limit(SHOWN_CARDS_READ_LIMIT).get();
+    shown = { ...summarizeShownCards(snap.docs.map((d) => d.data()), dayKey()), truncated: snap.size >= SHOWN_CARDS_READ_LIMIT };
+  } catch (err) {
+    logger.warn("[ai-monitor] shown-cards read failed", { error: String(err) });
+  }
+
   let test: (AiTestCallResult & { rate_limited?: boolean; in_progress?: boolean }) | null = null;
   if (wantsTest) {
     const stored = (counters?.last_test ?? null) as AiTestCallResult | null;
@@ -278,6 +336,7 @@ export const getAiServiceStatus = onCall({ ...GEMINI_SECRETS, timeoutSeconds: 30
     key,
     counters,
     today: dayKey(),
+    ...(shown ? { shown } : {}),
     ...(test ? { test } : {}),
   };
 });

@@ -33,8 +33,8 @@ vi.mock('firebase-admin/firestore', () => ({
 }));
 
 import { classifyGeminiError, GeminiTimeoutError, getGeminiKeyStatus, SOCRATIC_PRIMARY_MODEL, SOCRATIC_FALLBACK_MODEL } from '../geminiConfig';
-import { generateWithRetry, CORRECTED_RETRY_ON_PRIMARY_MIN_MS } from '../geminiProxy';
-import { recordAiCall, resetAiMonitoringState, getAiServiceStatus } from '../aiMonitoring';
+import { generateWithRetry, CORRECTED_RETRY_ON_PRIMARY_MIN_MS, SOCRATIC_TOTAL_BUDGET_MS } from '../geminiProxy';
+import { recordAiCall, resetAiMonitoringState, getAiServiceStatus, summarizeShownCards } from '../aiMonitoring';
 import { reportTextViolation, keepHebrewLines, reportAnalysisOutcome, isEmptyAnalysis } from '../reportAnalysis';
 import { researchDetailsColumns } from '../researchTelemetryRow';
 import { validateSocraticRequest, deriveSocraticFacts } from '../socraticContract';
@@ -239,5 +239,56 @@ describe('the research export tells an AI card from a static one', () => {
     expect(researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_source: 'gpt', model_id: 'my name is Dana', card_situation: 'Dana', card_level: 9 }))
       .toMatchObject({ card_source: '', card_model_id: '', card_situation: '', card_level: '' });
     expect(researchDetailsColumns('DIGIT_ENTERED', { card_source: 'ai' }).card_source).toBe('');
+  });
+});
+
+/**
+ * 7.10.2026, owner: the measurement counts what the child saw. The server's
+ * "ok" is a model answer it validated; the learner may still have seen the
+ * static card (the answer came after the 8 s, the learner's rules refused it,
+ * or the board changed under the hourglass).
+ */
+describe('what the children saw, not what the server sent (7.10.2026)', () => {
+  it('the server budget leaves a full second of the 8 s on the learner side for the trip there and back', () => {
+    expect(SOCRATIC_TOTAL_BUDGET_MS).toBeLessThanOrEqual(8000 - 1000);
+  });
+
+  it('counts the shown cards from the learner events: AI, static by reason, unknown before 1.10', () => {
+    const today = '2026-10-07';
+    const at = (iso: string) => Date.parse(iso);
+    const ev = (details: Record<string, unknown>, ts = at('2026-10-07T08:00:00Z')) => ({ event_type: 'SOCRATIC_CARD_SHOWN', client_timestamp: ts, details });
+    const s = summarizeShownCards([
+      ev({ card_source: 'ai' }),
+      ev({ card_source: 'ai' }, at('2026-10-05T08:00:00Z')),
+      ev({ card_source: 'static', card_fallback_reason: 'timeout' }),
+      ev({ card_source: 'static', card_fallback_reason: 'rule_rejected', card_fallback_detail: 'hidden_number_leaked' }),
+      ev({ card_source: 'static' }, at('2026-10-02T08:00:00Z')), // before the reason existed
+      ev({ card_source: 'static', card_fallback_reason: 'my name is Dana' }),
+      ev({}, at('2026-09-20T08:00:00Z')), // before card_source existed
+      { event_type: 'DIGIT_ENTERED', client_timestamp: at('2026-10-07T08:00:00Z'), details: { card_source: 'ai' } },
+    ], today);
+    expect(s.total).toEqual({ shown: 7, ai: 2, static: 4, unknown: 1, static_reasons: { timeout: 1, rule_rejected: 1, unrecorded: 2 } });
+    expect(s.today).toEqual({ shown: 4, ai: 1, static: 3, unknown: 0, static_reasons: { timeout: 1, rule_rejected: 1, unrecorded: 1 } });
+  });
+
+  it('the research export has the reason, its code and the wait — closed lists and numbers only', () => {
+    expect(researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_source: 'static', card_fallback_reason: 'timeout', card_fallback_detail: 'deadline-exceeded', card_wait_ms: 8003 }))
+      .toMatchObject({ card_fallback_reason: 'timeout', card_fallback_detail: 'deadline-exceeded', card_wait_ms: 8003 });
+    expect(researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_source: 'ai', card_wait_ms: 2400 }))
+      .toMatchObject({ card_fallback_reason: '', card_fallback_detail: '', card_wait_ms: 2400 });
+    expect(researchDetailsColumns('SOCRATIC_CARD_SHOWN', { card_fallback_reason: 'Dana', card_fallback_detail: 'my name is Dana', card_wait_ms: 'x' }))
+      .toMatchObject({ card_fallback_reason: '', card_fallback_detail: '', card_wait_ms: '' });
+    expect(researchDetailsColumns('DIGIT_ENTERED', { card_fallback_reason: 'timeout' }).card_fallback_reason).toBe('');
+  });
+
+  it('how a card was delivered never reaches the model as the work of the child', () => {
+    const v = validateSocraticRequest({
+      student_id: 5, session_id: 'session_4_student_5', exercise_id: 's4_r_t2', active_column_index: 0,
+      workspace_state: { ones_count: 13, tens_count: 5, hundreds_count: 1, memory_circles: {} },
+      recent_actions: [{ event_type: 'SOCRATIC_CARD_SHOWN', column_index: 0, details: { trigger_reason: 'hesitation_45s', card_source: 'static', card_fallback_reason: 'timeout', card_fallback_detail: 'x', card_wait_ms: 8000 } }],
+      exercise_context: { operation: 'addition', number_a: 128, number_b: 35, session_id: 's', session_topic: '', active_column: 'units', active_column_index: 0, target_sub_problem: '8 + 5' },
+    });
+    if (!v.ok) throw new Error(v.reason);
+    expect(v.value.recent_actions[0].details).toEqual({ trigger_reason: 'hesitation_45s', card_source: 'static' });
   });
 });
