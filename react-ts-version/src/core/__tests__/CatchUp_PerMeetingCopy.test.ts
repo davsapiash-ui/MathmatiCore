@@ -54,7 +54,7 @@ vi.mock('@/infrastructure/services/FirebaseSyncService', async () => {
   return { ...actual, emitTelemetry: () => Promise.resolve() };
 });
 
-import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, activeSuccessHold } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import {
@@ -325,6 +325,30 @@ describe('catch-up A1 — the finished mark, once per meeting', () => {
     // "סיום המפגש כעת" from the choice screen: already marked, not again.
     ws().finishMeetingEarly();
     flushThrottledWrites();
+    expect(marksWritten(RECORD_PATH, 4)).toHaveLength(1);
+  });
+
+  it('the seventh exercise solved and still held on the screen already marks the meeting (owner, 7.10.2026; PRD 14 §ב1)', () => {
+    signInOnline();
+    ws().initSession(4, false);
+    for (let i = 0; i < 6; i++) {
+      solveCurrentExercise();
+      ws().proceed();
+      continueAfterSuccess();
+    }
+    flushThrottledWrites();
+    expect(marksWritten(RECORD_PATH, 4)).toHaveLength(0);
+    solveCurrentExercise();
+    ws().proceed();
+    // Held — the child has not pressed "ממשיכים" — and the lesson may close now.
+    expect(activeSuccessHold(ws())).not.toBeNull();
+    expect(ws().flowStatus).toBe('task');
+    flushThrottledWrites();
+    expect(marksWritten(RECORD_PATH, 4)).toHaveLength(1);
+    // The press that leaves the held screen marks nothing again.
+    continueAfterSuccess();
+    flushThrottledWrites();
+    expect(ws().flowStatus).toBe('choice_branch');
     expect(marksWritten(RECORD_PATH, 4)).toHaveLength(1);
   });
 });

@@ -3333,6 +3333,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           fallback: feedbackSub,
         });
         dropCoachingCard();
+        // The last exercise of the list: the meeting is complete now, not on
+        // the press that leaves the held screen (recordMeetingCompleted).
+        if (s.standardTaskIdx + 1 >= tasks.length) recordMeetingCompleted(get());
         // A message from the press before (a wrong answer seconds ago) does
         // not stay beside "נכון!"; its timer finds a newer nonce and does nothing.
         set((st) => ({
@@ -3372,6 +3375,30 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
     handleFailure(verdict.detail, verdict.title, verdict.sub, verdict.ms, { holdCard: cuesJustShown });
     if (verdict.clearReps) set({ q3Reps: [] });
+  }
+
+  /**
+   * The meeting's completion on the record: highestCompletedMeeting and the
+   * finished mark (PRD 14 §ב1: "שדה is_completed נקבע אך ורק לפי השלמת שבע
+   * משימות החובה"). Written the moment the last exercise of the list is
+   * solved — also while that exercise is still held on the screen (owner,
+   * 7.10.2026), so a lesson closed before the child presses "ממשיכים" does
+   * not list the child as unfinished. Idempotent: advanceStandard calls it
+   * again on the press, and markMeetingCompleted sends each mark once.
+   * Meeting 8 is finished by its reflection board only.
+   */
+  function recordMeetingCompleted(s: WorkspaceState) {
+    const studentId = currentStudentUid();
+    if (studentId && !s.isSupersededByOtherDevice) {
+      const normId = normalizeStudentId(studentId);
+      useStore.getState().updateHighestCompletedMeeting(studentId, s.sessionNumber);
+      useStore.getState().updateHighestCompletedMeeting(normId, s.sessionNumber);
+      firebaseSyncService.syncHighestCompletedMeeting(studentId, s.sessionNumber).catch(console.error);
+      if (normId !== studentId) {
+        firebaseSyncService.syncHighestCompletedMeeting(normId, s.sessionNumber).catch(console.error);
+      }
+    }
+    if (s.sessionNumber !== 8) markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
   }
 
   function advanceStandard() {
