@@ -50,6 +50,10 @@ import type { SessionTask } from '@/data/sessionTasks';
  * עמעם את המאות והעשרות שבהן הילד עוד בונה ופורט) מסר את הכיול: טור מעומעם רק
  * כדי למקד חישוב, ולעולם לא טור שהילד צריך לפעול בו באותו רגע
  * (core/columnFocus.ts). כל סעיף בכלל ננעל כאן בבדיקה משלו.
+ *
+ * 7.10.2026, החלטת בעל המוצר: העמעום מופיע רק כשהילד עומד בתיבה או בעיגול
+ * זיכרון. בלי פוקוס אין עמעום — כלל "התיבה הריקה הנמוכה" ניחש את הצעד הבא
+ * של הילד ועמעם את הטור שבו פעל ילד שעבד בסדר אחר.
  */
 
 const sorted = (s: ReadonlySet<Place>) => PLACE_ORDER.filter((p) => s.has(p));
@@ -130,9 +134,22 @@ describe('vertical exercises: never a column the child has to act in', () => {
     expect(sorted(dimmedColumns({ ...base, sessionNumber: 7, taskType: 'vertical_addition', vertical: sub, work: held, focusedPlace: 'units' }))).toEqual(['hundreds', 'thousands']);
   });
 
+  it('computing, nothing focused: nothing is dimmed, whatever the child does next (owner, 7.10.2026)', () => {
+    for (const sessionNumber of [1, 3, 4, 5, 6, 7]) {
+      expect(dim(sessionNumber, 1245, 328, false)).toEqual([]);
+      expect(dim(sessionNumber, 1245, 328, false, { answerDigits: { units: '3' } })).toEqual([]);
+      expect(dim(sessionNumber, 53, 18, true)).toEqual([]);
+      expect(dim(sessionNumber, 6020, 1485, true, { answerDigits: { units: '5' } })).toEqual([]);
+    }
+    // 358 + 267, the units grouped: the ten lands in the tens column, which is not dimmed.
+    expect(dim(4, 358, 267, false, {}, { counts: { units: 5, tens: 12, hundreds: 5 } })).toEqual([]);
+    // 57 − 23, the tens taken away first: the child acts in a lit column.
+    expect(dim(5, 57, 23, true, {}, { boardValue: 37, counts: { units: 7, tens: 3 } })).toEqual([]);
+  });
+
   it('computing an addition: the focus column alone — the "קבצו 10" button is on it', () => {
-    expect(dim(4, 1245, 328, false)).toEqual(['tens', 'hundreds', 'thousands']);
-    expect(dim(4, 1245, 328, false, { answerDigits: { units: '3' } })).toEqual(['units', 'hundreds', 'thousands']);
+    expect(dim(4, 1245, 328, false, { focusedPlace: 'units' })).toEqual(['tens', 'hundreds', 'thousands']);
+    expect(dim(4, 1245, 328, false, { focusedPlace: 'tens', answerDigits: { units: '3' } })).toEqual(['units', 'hundreds', 'thousands']);
     expect(dim(1, 713, 94, false, { focusedPlace: 'tens', answerDigits: { units: '7' } })).toEqual(['units', 'hundreds', 'thousands']);
   });
 
@@ -156,9 +173,9 @@ describe('vertical exercises: never a column the child has to act in', () => {
 
   it('a column that lacks blocks: the column its break comes from stays lit', () => {
     // 53 − 18: units 3 < 8 — a ten is broken.
-    expect(dim(5, 53, 18, true)).toEqual(['hundreds', 'thousands']);
+    expect(dim(5, 53, 18, true, { focusedPlace: 'units' })).toEqual(['hundreds', 'thousands']);
     // …then the tens alone (5 − 1 = 4 ≥ 1).
-    expect(dim(5, 53, 18, true, { answerDigits: { units: '5' } })).toEqual(['units', 'hundreds', 'thousands']);
+    expect(dim(5, 53, 18, true, { focusedPlace: 'tens', answerDigits: { units: '5' } })).toEqual(['units', 'hundreds', 'thousands']);
     // Meeting 1, 61 − 24 and 806 − 351, the child standing in the box.
     expect(dim(1, 61, 24, true, { focusedPlace: 'units' })).toEqual(['hundreds', 'thousands']);
     expect(dim(1, 806, 351, true, { focusedPlace: 'tens', answerDigits: { units: '5' } })).toEqual(['units', 'thousands']);
@@ -168,13 +185,13 @@ describe('vertical exercises: never a column the child has to act in', () => {
 
   it('a break through empty columns lights every column the block passes', () => {
     // 4,000 − 1,562: at the units a thousand is broken down to a ten.
-    expect(dim(6, 4000, 1562, true)).toEqual([]);
+    expect(dim(6, 4000, 1562, true, { focusedPlace: 'units' })).toEqual([]);
     // 6,020 − 1,485: the units break a ten; the tens then break a thousand through the empty hundreds.
-    expect(dim(6, 6020, 1485, true)).toEqual(['hundreds', 'thousands']);
-    expect(dim(6, 6020, 1485, true, { answerDigits: { units: '5' } })).toEqual(['units']);
+    expect(dim(6, 6020, 1485, true, { focusedPlace: 'units' })).toEqual(['hundreds', 'thousands']);
+    expect(dim(6, 6020, 1485, true, { focusedPlace: 'tens', answerDigits: { units: '5' } })).toEqual(['units']);
     // 300 − 142: one chain at the units; the tens then hold 9 and need nothing.
-    expect(dim(6, 300, 142, true)).toEqual(['thousands']);
-    expect(dim(6, 300, 142, true, { answerDigits: { units: '8' } })).toEqual(['units', 'hundreds', 'thousands']);
+    expect(dim(6, 300, 142, true, { focusedPlace: 'units' })).toEqual(['thousands']);
+    expect(dim(6, 300, 142, true, { focusedPlace: 'tens', answerDigits: { units: '8' } })).toEqual(['units', 'hundreds', 'thousands']);
   });
 
   it('a memory circle in a break chain lights the whole chain', () => {
@@ -196,10 +213,10 @@ describe('vertical exercises: never a column the child has to act in', () => {
   it('a missing result digit: the lower columns the child works out on the board stay lit', () => {
     // s4_r_t7: 328 + 145, only the tens box — the units are grouped first.
     const s4 = verticalBoxes(328, 145, 473, {}, ['units', 'hundreds'], 3);
-    expect(sorted(dimmedColumns({ ...base, sessionNumber: 4, taskType: 'vertical_addition', vertical: s4, work: work(328, 145, false) }))).toEqual(['hundreds', 'thousands']);
+    expect(sorted(dimmedColumns({ ...base, sessionNumber: 4, taskType: 'vertical_addition', vertical: s4, work: work(328, 145, false), focusedPlace: 'tens' }))).toEqual(['hundreds', 'thousands']);
     // s6_r_t7: 400 − 156, only the tens box — the units break a hundred through the empty tens.
     const s6 = verticalBoxes(400, 156, 244, {}, ['units', 'hundreds'], 3);
-    expect(sorted(dimmedColumns({ ...base, sessionNumber: 6, taskType: 'vertical_addition', vertical: s6, work: work(400, 156, true) }))).toEqual(['thousands']);
+    expect(sorted(dimmedColumns({ ...base, sessionNumber: 6, taskType: 'vertical_addition', vertical: s6, work: work(400, 156, true), focusedPlace: 'tens' }))).toEqual(['thousands']);
   });
 
   it('skeleton with a hidden operand, computing: only while a box is focused, with the inverse operation’s breaks', () => {
@@ -245,19 +262,12 @@ describe('vertical exercises: the focus column (computing, an addition without b
     expect(vert({ taskType: 'addition_simple', focusedPlace: 'units' })).toEqual(['tens', 'hundreds', 'thousands']);
   });
 
-  it('meetings 3–7, nothing focused: units lit when computing starts', () => {
-    for (const sessionNumber of [3, 4, 5, 6, 7]) {
-      expect(vert({ sessionNumber })).toEqual(['tens', 'hundreds', 'thousands']);
+  it('nothing focused: nothing is dimmed in any meeting, whatever is typed (owner, 7.10.2026)', () => {
+    for (const sessionNumber of [1, 3, 4, 5, 6, 7]) {
+      for (const answerDigits of [{}, { units: '3' }, { units: '9' }, { units: '3', tens: '7' }, { units: '', tens: '7' }]) {
+        expect(vert({ sessionNumber, answerDigits })).toEqual([]);
+      }
     }
-  });
-
-  it('the lit column moves left as soon as the box holds any digit, right or wrong', () => {
-    expect(vert({ answerDigits: { units: '3' } })).toEqual(['units', 'hundreds', 'thousands']);
-    expect(vert({ answerDigits: { units: '9' } })).toEqual(['units', 'hundreds', 'thousands']); // wrong digit
-    expect(vert({ answerDigits: { units: '3', tens: '7' } })).toEqual(['units', 'tens', 'thousands']);
-    expect(vert({ answerDigits: { units: '3', tens: '7', hundreds: '5' } })).toEqual(['units', 'tens', 'hundreds']);
-    // An emptied box is empty again.
-    expect(vert({ answerDigits: { units: '', tens: '7' } })).toEqual(['tens', 'hundreds', 'thousands']);
   });
 
   it('every box filled: nothing is dimmed', () => {
@@ -453,7 +463,6 @@ describe('every vertical exercise × every stage, through the store', () => {
       const boxes: VerticalBoxes = verticalBoxes(a, b, target, t.hiddenDigits, t.revealedResultDigits, resultBoxCount(session, a, b, target));
       const boxed = (p: Place) => boxes.result.includes(p) || boxes.operandA.includes(p) || boxes.operandB.includes(p);
       const op = opOf(t, a, b);
-      const skeleton = Boolean(t.hiddenDigits);
       const boxFocuses = PLACE_ORDER.filter(boxed);
       const circles: Place[] = session === 1 ? [] : PLACE_ORDER;
       const focuses: Array<{ box: Place | null; circle: Place | null }> = [
@@ -503,11 +512,10 @@ describe('every vertical exercise × every stage, through the store', () => {
               needed = forFocus(f.circle);
               // The circle records a break: the whole chain, its digit written or not.
               for (const p of PLACE_ORDER) if (chain[p]?.includes(f.circle)) involved(p).forEach((x) => needed.add(x));
-            } else if (!skeleton && session >= 3) {
-              const low = PLACE_ORDER.find((p) => boxed(p) && !done(p));
-              if (low) needed = forFocus(low);
             }
             const d = dimNow(k, f);
+            // Owner, 7.10.2026: no box or circle, no dimming.
+            if (!f.box && !f.circle && d.size) violations.push(`${label} computing k=${k} nothing focused → dims ${sorted(d)}`);
             if (d.size) { computingDimmed++; dimmedHere = true; }
             const wrong = PLACE_ORDER.filter((p) => needed.has(p) && d.has(p));
             if (wrong.length) violations.push(`${label} computing k=${k} ${JSON.stringify(f)} → dims ${wrong}`);
@@ -620,21 +628,23 @@ describe('on the board', () => {
     }
   });
 
-  it('meeting 4, vertical: nothing dimmed while the numbers are built; then units lit, moving left as boxes fill', () => {
+  it('meeting 4, vertical: nothing dimmed while the numbers are built or nothing is focused; the box the child stands in lights its column', () => {
     goTo(4, 's4_g_t1');
     const { container } = renderBoard();
     expect(dimmed(container)).toEqual([]);
     act(() => useWorkspaceStore.setState({ counts: { units: 5, tens: 4, hundreds: 2, thousands: 1 }, focusedPlace: 'units' } as any));
     expect(dimmed(container)).toEqual([]); // only 1,245 so far, the cursor in a box
     act(() => useWorkspaceStore.setState({ counts: BUILT_1245_328, focusedPlace: null } as any));
+    expect(dimmed(container)).toEqual([]); // built, but the child is in no box
+    act(() => useWorkspaceStore.setState({ focusedPlace: 'units' } as any));
     expect(dimmed(container)).toEqual(['tens', 'hundreds', 'thousands']);
     const tens = container.querySelector('#column-tens') as HTMLElement;
     expect(tens.style.filter).toBe('brightness(0.6)');
     // Only the brightness the PRD names; the column is not also made see-through.
     expect(tens.style.opacity).toBe('');
     expect(tens.className).not.toContain('opacity-60');
-    // The units digit typed before the units were grouped: the units stay lit.
-    act(() => useWorkspaceStore.setState({ answerDigits: { units: '3' } } as any));
+    // The units digit typed before the units were grouped, the cursor on to the tens: the units stay lit.
+    act(() => useWorkspaceStore.setState({ answerDigits: { units: '3' }, focusedPlace: 'tens' } as any));
     expect(dimmed(container)).toEqual(['hundreds', 'thousands']);
     act(() => useWorkspaceStore.setState({ counts: UNITS_GROUPED } as any));
     expect(dimmed(container)).toEqual(['units', 'hundreds', 'thousands']);
@@ -656,7 +666,7 @@ describe('on the board', () => {
     expect(dimmed(container)).toEqual(['units', 'thousands']);
   });
 
-  it('meeting 5 green, 6,284 − 1,157, nothing focused: the units and the tens their break comes from', () => {
+  it('meeting 5 green, 6,284 − 1,157, in the units box: the units and the tens their break comes from', () => {
     useWorkspaceStore.getState().initSession(5, false);
     const idx = getActiveTasks(useWorkspaceStore.getState()).findIndex((t) => t.id === 's5_g_t5');
     expect(idx).toBeGreaterThanOrEqual(0);
@@ -664,6 +674,8 @@ describe('on the board', () => {
     const { container } = renderBoard();
     expect(dimmed(container)).toEqual([]);
     act(() => useWorkspaceStore.setState({ counts: { units: 4, tens: 8, hundreds: 2, thousands: 6 } } as any));
+    expect(dimmed(container)).toEqual([]); // nothing focused
+    act(() => useWorkspaceStore.setState({ focusedPlace: 'units' } as any));
     expect(dimmed(container)).toEqual(['hundreds', 'thousands']);
   });
 
@@ -694,7 +706,7 @@ describe('on the board', () => {
 
   it('dimming leaves every column clickable and droppable (no pointer-events lock)', () => {
     goTo(4, 's4_g_t1');
-    useWorkspaceStore.setState({ counts: BUILT_1245_328 } as any);
+    useWorkspaceStore.setState({ counts: BUILT_1245_328, focusedPlace: 'units' } as any);
     const { container } = renderBoard();
     expect(dimmed(container)).toEqual(['tens', 'hundreds', 'thousands']);
     for (const p of PLACE_ORDER) {

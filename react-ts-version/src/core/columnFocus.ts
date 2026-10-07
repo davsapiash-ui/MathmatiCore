@@ -33,10 +33,12 @@
  *   dimming.
  * - Vertical exercise, computing: the focus column is the result box,
  *   hidden-operand box or memory circle the child stands in (meeting 1: a box
- *   only, as before); in meetings 3–7, with nothing focused, the lowest place
- *   whose box is still empty — units when computing starts, moving left as
- *   soon as the box holds any digit, right or wrong; every box filled →
- *   nothing dimmed. Lit with it:
+ *   only, as before). With nothing focused nothing is dimmed (owner,
+ *   7.10.2026): the lowest empty box used to stand for the focus, a guess at
+ *   the child's next step — and a child who grouped the tens first, or took
+ *   away the tens first, acted in a dimmed column, and the ten a units
+ *   grouping carries landed in one. The dimming now means one thing only:
+ *   the column of the box the child is writing in. Lit with it:
  *     · every place from the lowest box still empty up to the focus: a box
  *       focused above an empty lower box depends on that column (53 − 18,
  *       the cursor in the tens box before the units: the ten is broken in the
@@ -169,8 +171,6 @@ export function lowestEmptyPlace(
 const PLACE_VALUE: Record<Place, number> = { units: 1, tens: 10, hundreds: 100, thousands: 1000 };
 const digitAt = (n: number, p: Place) => Math.floor(Math.abs(n) / PLACE_VALUE[p]) % 10;
 
-const isSkeleton = (w: VerticalWork) => Boolean(w.hidden?.a?.length || w.hidden?.b?.length);
-
 /**
  * What the child does with the blocks: the exercise itself, or — a skeleton
  * with a hidden operand — the inverse operation that finds it.
@@ -275,12 +275,12 @@ export function dimmedColumns(input: ColumnFocusInput): ReadonlySet<Place> {
   // circle never did (and the sheet has a thousands circle while the meeting-1
   // board has no thousands column, which would dim every column on screen).
   const circle = input.focusedPlace || sessionNumber === 1 ? null : input.focusedMemoryCircle;
-  let focus = input.focusedPlace ?? circle;
-  if (!focus) {
-    if ((work && isSkeleton(work)) || sessionNumber < 3 || sessionNumber > 7 || !input.vertical) return NONE;
-    focus = lowestEmptyPlace(input.vertical, input.answerDigits, input.operandDigits);
-    if (!focus) return NONE;
-  }
+  // Owner, 7.10.2026: dimmed only while the child stands in a box or circle.
+  // With nothing focused the board was dimmed around the lowest empty box —
+  // a guess at the child's next step that dimmed the very column a child who
+  // worked in another order was acting in.
+  const focus = input.focusedPlace ?? circle;
+  if (!focus) return NONE;
   const lit = litColumns(focus, circle, input);
   return new Set(PLACE_ORDER.filter((p) => !lit.has(p)));
 }
