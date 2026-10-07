@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MonitorPlay, ListOrdered, AlertTriangle, RotateCcw, Sparkles, FileText, Loader2 } from 'lucide-react';
+import { MonitorPlay, ListOrdered, AlertTriangle, RotateCcw, Sparkles, FileText, Loader2, Download } from 'lucide-react';
+import { buildMeetingExport, downloadMeetingExport } from '../meetingExport';
 import { ReplayViewer } from '@/presentation/components/ReplayViewer';
 import { CHOICE_EXERCISES_HEADING_HE } from '@/core/choiceExercises';
 import {
@@ -413,7 +414,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
       )}
 
       {/* Meeting strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-1.5">
         {SESSION_NUMBERS.map((n) => {
           const evs = eventsBySession.get(n) ?? [];
           const recs = recordingsBySession.get(n) ?? [];
@@ -426,7 +427,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
               key={n}
               type="button"
               onClick={() => selectSession(n)}
-              className={`text-right p-3 rounded-2xl border transition-all cursor-pointer ${
+              className={`text-right px-2.5 py-2 rounded-xl border transition-all cursor-pointer ${
                 selected
                   ? 'bg-ws-accentSoft border-ws-accent/40 shadow-sm'
                   : hasData
@@ -440,23 +441,25 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   the same source as their lobby card, and under it the
                   meeting's formal subject (document 03 §2) — the teacher keeps
                   both. */}
-              <div className="text-[11px] font-black text-ws-soft">מפגש {n}</div>
-              <div className="text-[10px] font-bold text-ws-soft">אצל התלמידים:</div>
-              <div className="text-xs font-bold text-ws-ink leading-snug">{STATION_NAMES_HE[n]}</div>
-              <div className="text-[10px] text-ws-soft leading-snug mt-0.5">{MEETING_FORMAL_HE[n]}</div>
+              {/* Compact (owner, 6.10.2026): the meeting and the children's
+                  station name on one line, the numbers on the next. The
+                  formal subject is in the tooltip (meetingFullLabelHe) and in
+                  the visually-hidden text, so nothing the teacher had is lost. */}
+              <div className="text-xs font-black text-ws-ink leading-snug truncate">
+                מפגש {n} · <span className="font-bold">{STATION_NAMES_HE[n]}</span>
+              </div>
+              <span className="sr-only">אצל התלמידים: {STATION_NAMES_HE[n]}. {MEETING_FORMAL_HE[n]}</span>
               {hasData ? (
-                <div className="mt-1.5 text-[11px] text-ws-soft space-y-0.5">
-                  {Number.isFinite(firstTs) && <div>{formatDate(firstTs)}</div>}
-                  <div>{evs.length} פעולות</div>
-                  <div>{recs.length > 0 ? `הקלטה ${formatDuration(recMs)}` : 'ללא הקלטה'}</div>
+                <div className="mt-0.5 text-[11px] text-ws-soft leading-snug">
+                  {Number.isFinite(firstTs) ? `${formatDate(firstTs)} · ` : ''}{evs.length} פעולות · {recs.length > 0 ? `הקלטה ${formatDuration(recMs)}` : 'ללא הקלטה'}
                   {(cuttingResetsBySession.get(n)?.length ?? 0) > 0 && (
-                    <div className="font-bold text-amber-800 dark:text-amber-300">
-                      {cuttingResetsBySession.get(n)!.length === 1 ? 'אופס פעם אחת' : `אופס ${cuttingResetsBySession.get(n)!.length} פעמים`}
-                    </div>
+                    <span className="font-bold text-amber-800 dark:text-amber-300">
+                      {' · '}{cuttingResetsBySession.get(n)!.length === 1 ? 'אופס פעם אחת' : `אופס ${cuttingResetsBySession.get(n)!.length} פעמים`}
+                    </span>
                   )}
                 </div>
               ) : (
-                <div className="mt-1.5 text-[11px] text-ws-soft">{eventsState === 'error' ? 'הפעולות לא נקראו' : 'אין נתונים'}</div>
+                <div className="mt-0.5 text-[11px] text-ws-soft">{eventsState === 'error' ? 'הפעולות לא נקראו' : 'אין נתונים'}</div>
               )}
             </button>
           );
@@ -816,8 +819,34 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   <MonitorPlay className="w-4 h-4 text-indigo-300" aria-hidden="true" />
                   שחזור מסך העבודה, ללא קול · {meetingShortLabelHe(selectedSession)}
                 </span>
-                <span className="text-slate-400">
+                <span className="flex items-center gap-2 text-slate-400">
                   {sessionRecordings.length > 0 ? `${sessionRecordings.reduce((s, r) => s + r.chunkCount, 0)} מקטעי הקלטה` : ''}
+                  {/* Owner, 6.10.2026: the whole meeting — every action and the
+                      recording — as one file (meetingExport.ts). */}
+                  {studentNum !== null && selectedSession !== null && (sessionEvents.length > 0 || rrwebEvents.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        downloadMeetingExport(
+                          buildMeetingExport({
+                            learner: studentNum,
+                            meeting: selectedSession,
+                            actions: sessionEvents,
+                            resets: sessionResets,
+                            chapters,
+                            recordingEvents: rrwebEvents,
+                            truncated,
+                          }),
+                        ).catch((err) => console.warn('[LearnerJourney] the meeting file could not be built:', err));
+                      }}
+                      title="הורדת כל המפגש: כל הפעולות המתועדות והקלטת מסך העבודה, בקובץ אחד"
+                      data-testid="download-meeting"
+                      className="flex items-center gap-1 font-bold text-indigo-200 bg-slate-900 border border-slate-700 hover:border-indigo-500 rounded-lg px-2 py-1 cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                      הורדת המפגש
+                    </button>
+                  )}
                 </span>
               </div>
               {truncated && (

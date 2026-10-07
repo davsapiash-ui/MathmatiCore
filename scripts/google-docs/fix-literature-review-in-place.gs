@@ -1,0 +1,306 @@
+/**
+ * תיקון סקירת הספרות ישירות במסמך הזה.
+ * משנה רק את הטקסטים שברשימה (ומוסיף סימני כיוון בלתי נראים ליד סוגריים). עיצוב, כותרות,
+ * רשימות וקישורים נשארים כמו שהם. תיקון שהטקסט שלו כבר לא קיים במסמך מדולג ומדווח ביומן.
+ * 1. במסמך: תוספים ← Apps Script. מוחקים הכול, מדביקים, שומרים.
+ * 2. בוחרים fixInPlace ולוחצים "הפעלה".
+ * לביטול: קובץ ← היסטוריית גרסאות ← הגרסה שלפני ההרצה.
+ */
+
+// [current text, suggested text, true = every occurrence]
+var EDITS = [
+  ['הממצא הבסיסי הוא שהמעבר למניפולציות וירטואליות מעלה את רמת העצמאות.',
+   'הממצא הבסיסי הוא שבהשוואה לעזרים מוחשיים, נמצאה עצמאות רבה במעט בעבודה עם מניפולציות וירטואליות.'],
+  ['המחקרים העוסקים במניפולציות וירטואליות שונים זה מזה באוכלוסייתם:',
+   'גם האוכלוסיות במחקרים העוסקים במניפולציות וירטואליות אינן אחידות:'],
+  ['מורי ביולוגיה בתיכון במסגרת השתלמות',
+   'מורי מדעים (ביולוגיה ופיזיקה) בתיכון במסגרת השתלמויות'],
+  ['המאמר של Agustin (2026) תיאורטי ואינו כולל נתונים.',
+   'המאמר של Agustin (2026) תיאורטי ואינו כולל נתונים, וכך גם המאמר העיוני\u05BEיישומי של Dueker ו\u05BEDesai (2022). הסינתזה של Long et al. (2023) נשענת ברובה על תלמידי חטיבת ביניים (37 מתוך 42).'],
+  ['תופסות את מקומם של אמצעי ההמחשה המוחשיים.',
+   'תופסות את מקומם של אמצעי ההמחשה המוחשיים (Long et al., 2023).'],
+  ['ההצדקה למהלך זה אינה טכנית אלא קוגניטיבית. אובייקט וירטואלי',
+   'לטענת Dueker ו\u05BEDesai (2022), אובייקט וירטואלי'],
+  ['מהפעלה זו נבנה הידע הפרוצדורלי שהלומדים זקוקים לו כדי להתקדם אל ההבנה המושגית',
+   'לדבריהם, מהפעלה זו נבנה הידע הפרוצדורלי שהלומדים זקוקים לו כדי להתקדם אל ההבנה המושגית, אך זוהי טענה במאמר עיוני\u05BEיישומי שאינו מציג נתונים אמפיריים'],
+  ['רוב המשתתפים במחקרים השלימו באמצעותן',
+   'במחקרים של Bassette et al. (2019, 2020) רוב המשתתפים השלימו באמצעותן'],
+  ['אף שרוב המשתתפים במחקרים אלה למדו בחטיבת הביניים.',
+   'אף שרוב המשתתפים במחקרים אלה למדו בחטיבת הביניים (Long et al., 2023).'],
+  ['רוב המחקרים נערכו בקבוצות קטנות מאוד בחינוך המיוחד, ולכן',
+   'רוב המחקרים נערכו במדגמים קטנים מאוד ובמפגשים פרטניים עם חוקר מחוץ לכיתה, גם כשהמשתתפים למדו רוב היום בחינוך הרגיל, ולכן'],
+  ['במחקר השוואתי נמצא כי כל שלושת המשתתפים היו עצמאיים יותר בעבודה עם עזרים מבוססי אפליקציה',
+   'במחקר השוואתי נמצא כי כל שלושת המשתתפים היו עצמאיים במידה מעט רבה יותר בעבודה עם עזרים מבוססי אפליקציה מאשר עם עזרים מוחשיים, אף שההפרשים היו קטנים'],
+  ['וכל השלושה העדיפו אותן (Root et al., 2017).',
+   'וכל השלושה העדיפו אותן (Root et al., 2017). עם זאת, במחקר זה המניפולציות היו חלק מחבילת התערבות רחבה יותר, הוראה מבוססת סכמה, ולכן לא ניתן לבודד את השפעתן (Long et al., 2023).'],
+  ['ומקלות על המאמץ הכרוך בהמרה.',
+   'ומקלות על המאמץ הכרוך בהמרה. בתרגילים מתקדמים יותר, כמו חיבור שברים, הם ממליצים לחשוף את התלמידים לשני סוגי העזרים.'],
+  ['רק השיפור שהביאו הרמזים האנושיים היה מובהק (Pardos & Bhandari, 2023).',
+   'רק השיפור שהביאו הרמזים האנושיים היה מובהק (Pardos & Bhandari, 2023). יש לציין שבאחד משני הנושאים קבוצת ChatGPT הייתה קרובה לתקרה כבר במבחן המקדים, דבר המגביל את ההשוואה.'],
+  ['יש גם סכנה בהסרה פתאומית של התמיכה.',
+   'ממצאי המחקר מרמזים שהסרת התמיכה אינה מובילה מעצמה לפתרון מופשט.'],
+  ['כדי לתמוך בחלוקת תשומת לב הוגנת ובמשוב ממוקד',
+   'כדי לתמוך בחלוקה שוויונית של סוגי המשוב בין תלמידים ברמות שונות ובמשוב ממוקד'],
+  ['באופן משמעותי (Nazaretsky et al., 2022)',
+   'באופן משמעותי (Bloom, 1984, כפי שמובא אצל Nazaretsky et al., 2022)'],
+  ['משוב כזה אינו מאתגר אותם',
+   'נטען כי משוב כזה אינו מאתגר אותם'],
+  ['מורים שקיבלו הסבר לחלוקת התלמידים לקבוצות לפי מיומנויות',
+   'מורים שקיבלו, לצד החלוקה לקבוצות לפי דפוסי התשובות, הסבר לכל קבוצה במונחי המיומנויות שהיא שולטת בהן או מתקשה בהן,'],
+  ['מחקר הראה שאפשר לזהות תלמידים עם חוסר אונים נרכש משילוב',
+   'מחקר ראשוני מצא שאפשר לסווג תלמידים לפי רמת חוסר האונים הנרכש, כפי שדירגו אותה מוריהם, משילוב'],
+  ['כך יכולה המורה להגיע לילד רגע לפני שהוא מוותר.',
+   'כך עשויה המורה לזהות מוקדם ילד הנמצא בסיכון לוותר.'],
+  ['הספרות המחקרית מזהה בבירור את מקור הבעיה: תלמידים בחינוך המיוחד מגיעים פעמים רבות ללא הבסיס המוקדם המאפשר להם להבין את החומר החדש',
+   'הספרות המחקרית מצביעה על מקור אפשרי לבעיה: תלמידים בחינוך המיוחד נוטים להגיע לבית הספר ללא מיומנויות קדם הדרושות ללמידת אפילו המושגים המתמטיים הבסיסיים ביותר'],
+  ['שגיאה קטנה בחישוב, ביצוע השלבים בסדר שגוי או חוסר שליטה מוחלט בדרך הפתרון עצמה',
+   'שגיאה בעובדות היסוד (כגון עובדות החיבור והחיסור עד 10), שגיאה ברכיב מיומנות (ביצוע השלבים בסדר שגוי) או שגיאת אסטרטגיה (הדרך לא נלמדה כלל)'],
+  ['לכן זיהוי מוקדם של הפער אינו רק עניין לימודי, הוא עשוי',
+   'לכן זיהוי מוקדם של סימני חוסר אונים נרכש אינו רק עניין לימודי; הוא עשוי'],
+  ['ובהלימה לעקרונות ההוראה המפורשת (Archer & Hughes, 2010, כפי שמובא אצל Dueker & Desai, 2022), ',
+   ''],
+  ['המוצגת לתלמידים אלה לאחר היסוס ממושך.',
+   'המוצגת לתלמידים אלה לאחר היסוס ממושך. זוהי החלטת עיצוב של הפרויקט, והרקע לה הוא שקשיים בזיכרון העבודה עלולים להקשות על תלמידים עם אוטיזם לשלב את הבעיה במבנה מתמטי (Root et al., 2017).'],
+  ['המערכת אינה מאפשרת לילד לבצע פעולה חסרת היגיון מתמטי, למשל לפרוט',
+   'באפליקציה שנבדקה יש מגבלות מובנות, למשל היא אינה מאפשרת לפרוט'],
+  ['כשילד עובד עם לבנים מוחשיות, הוא עלול לספור בטעות אחת עשרה לבנים, להמשיך הלאה ולהסתבך. במסך, המערכת עוצרת אותו, וכך עשויה למנוע שגיאות נוספות ותסכול',
+   'בעבודה עם לבנים מוחשיות, אם הילד טועה בספירת עשר היחידות שהוא ממיר לעשרת, אין דבר שמונע את הטעות, והיא עלולה להוביל לשגיאות נוספות ולתסכול. באפליקציה, לעומת זאת, בתרגילי חיבור, אפשרות ההמרה האוטומטית לעשרת נפתחת רק כאשר הילד סימן בדיוק עשר יחידות'],
+  ['השקט החזותי משפיע גם על ההתנהגות.',
+   'ייתכן שלעבודה במסך יש השפעה גם על ההתנהגות.'],
+  ['גם הורים דיווחו שהעזרים המוחשיים הסיחו לעיתים את דעתו של ילדם או הציפו אותו',
+   'גם הורים דיווחו על כך: הורה אחד ציין שבעבר ילדו הוסח לעיתים על ידי העזרים המוחשיים, והורה אחר ציין שהעזרים המוחשיים עלולים להציף את ילדו'],
+  ['בנוסף, מאחר שהמערכת אינה מאפשרת לבצע פעולות חסרות היגיון מתמטי, הלומדים אינם נתקלים בטעויות טכניות',
+   'נוסף על כך, מאחר שהמערכת אינה מאפשרת חלק מהפעולות השגויות, כמו פריטה מן המחסר, הלומדים נתקלים פחות בטעויות טכניות'],
+  ['& Lo, Y. (2017)',
+   '& Lo, Y.-y. (2017)'],
+  ['נסכם את העולה בידינו מהספרות',
+   'נסכם את העולה מן הספרות', true],
+  ['בכיתה משלבת של שכבת כיתה ג,',
+   'בכיתה ג\u05F3 משלבת,'],
+  ['מחקר מקביל, בקרב',
+   'מחקר קודם, בקרב'],
+  ['ולכן גם לממצאים מהם המצוטטים',
+   'ולכן גם לממצאיהם המצוטטים'],
+  ['אנחנו מכנים',
+   'אנו מכנים'],
+  ['אנחנו מצפים',
+   'אנו מצפים'],
+  ['לתלמידים חלשים',
+   'לתלמידים מתקשים'],
+  ['לתלמידים החלשים',
+   'לתלמידים המתקשים'],
+  ['אצל תלמידים חלשים',
+   'אצל תלמידים מתקשים'],
+  ['במתן מענה פרטני.',
+   'במתן מענה פרטני?'],
+  ['במשימות מורכבות.',
+   'במשימות מורכבות?'],
+  ['פערי בסיס היסטוריים',
+   'פערים בידע קודם'],
+  ['ההבחנה הזו קריטית',
+   'ההבחנה הזו חיונית'],
+  ['מערכות קיימות מסוגלות',
+   'המערכות שנסקרו כאן מסוגלות'],
+  ['בחומר של היום',
+   'בחומר הנלמד כעת'],
+  ['בכיתה א או ב,',
+   'בכיתה א\u05F3 או ב\u05F3,'],
+  ['לא מצאנו בספרות מודל',
+   'לא מצאנו בספרות שנסקרה מודל'],
+  ['עומסים קוגניטיביים ספציפיים',
+   'עומסים קוגניטיביים ממוקדים'],
+  ['ומדדי החרדה בקרב הלומדים',
+   'וירידה במדדי החרדה בקרב הלומדים'],
+  ['כסטנדרט אוניברסלי לכלל הלומדים',
+   'כסטנדרט לכלל הלומדים'],
+  ['הספרות מראה שמסך נקי חשוב',
+   'הספרות מצביעה על חשיבותו של מסך נקי'],
+  ['אך אף מחקר לא בדק',
+   'אך אף אחד מהמחקרים שנסקרו לא בדק'],
+  ['מתחשבת בשונות הבין\u05BEאישית ומונעת תיוג חברתי.',
+   'מתחשבת בשונות הבין\u05BEאישית, ונועדה גם למנוע תיוג חברתי.'],
+  ['\'מיקוד חזותי בטור הפעיל\' כסטנדרט',
+   '\'מיקוד חזותי בטור הפעיל\' (הדגשת הטור שבו הלומדים עובדים ועמעום שאר הטורים) כסטנדרט'],
+  ['ב\'פרופיל תמיכה קוגניטיבי מוגבר\', ',
+   'ב\'פרופיל תמיכה קוגניטיבי מוגבר\' (שכבת תמיכה נוספת שהמורה מפעילה באופן סמוי, בלי סימון על מסך התלמיד), '],
+  ['לצדו שולבו לוח רפלקציה אישי המודד מאמץ ואסטרטגיה, ומדד התמדה לכל תלמיד, המוצג למורים בלבד.',
+   'לצדו שולבו לוח רפלקציה אישי המודד מאמץ ואסטרטגיה, וכן מדד התמדה לכל תלמיד, שמוצג למורים בלבד.']
+];
+
+function fixInPlace() {
+  var doc = DocumentApp.getActiveDocument();
+  var paragraphs = doc.getBody().getParagraphs();
+  var changed = {};
+  var skipped = [];
+
+  EDITS.forEach(function (e) {
+    var hits = 0;
+    for (var i = 0; i < paragraphs.length && (e[2] || hits === 0); i++) {
+      var n = replaceVisible_(paragraphs[i].editAsText(), e[0], e[1], e[2]);
+      if (n) { hits += n; changed[i] = true; }
+    }
+    if (!hits) skipped.push(e[0]);
+  });
+
+  // Geresh after a grade letter: "כיתה ג" -> "כיתה ג׳".
+  paragraphs.forEach(function (p, i) {
+    var text = p.editAsText();
+    var s = text.getText();
+    var re = /(כיתה|כיתות|או) ([א-ח])(?![\u05D0-\u05EA\u05F3'])/g;
+    var m, at = [];
+    while ((m = re.exec(s)) !== null) {
+      if (m[1] === 'או' && !/כיתה [א-ח]\u05F3? $/.test(s.slice(0, m.index + 1).slice(-10))) continue;
+      at.push(m.index + m[0].length);
+    }
+    for (var k = at.length - 1; k >= 0; k--) {
+      if (at[k] >= text.getText().length) text.appendText('\u05F3'); else text.insertText(at[k], '\u05F3');
+      changed[i] = true;
+    }
+  });
+
+  // Direction marks for brackets in every changed Hebrew paragraph.
+  Object.keys(changed).forEach(function (i) {
+    var text = paragraphs[i].editAsText();
+    var s = text.getText();
+    if (!HEBREW.test(s)) return;
+    var fixes = planBidiFixes(s);
+    for (var k = fixes.length - 1; k >= 0; k--) {
+      if (fixes[k].offset >= text.getText().length) text.appendText(fixes[k].mark);
+      else text.insertText(fixes[k].offset, fixes[k].mark);
+    }
+  });
+
+  // Empty paragraphs right before a "כיווני החקירה" heading.
+  for (var i = paragraphs.length - 1; i > 0; i--) {
+    if (paragraphs[i].getText().trim() !== 'כיווני החקירה') continue;
+    for (var j = i - 1; j > 0 && paragraphs[j].getText() === ''; j--) paragraphs[j].removeFromParent();
+  }
+
+  doc.saveAndClose();
+  Logger.log('תיקונים שבוצעו: ' + (EDITS.length - skipped.length) + ' מתוך ' + EDITS.length +
+    (skipped.length ? '\nלא נמצאו (כבר תוקנו או שהטקסט שונה):\n- ' + skipped.join('\n- ') : ''));
+}
+
+/** Replaces old with new in a paragraph, ignoring direction marks in the existing text. */
+function replaceVisible_(text, oldText, newText, every) {
+  var s = text.getText();
+  var map = [], visible = '';
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charAt(i);
+    if (c === LRM || c === RLM) continue;
+    map.push(i); visible += c;
+  }
+  var hits = [], from = 0, at;
+  var inNew = newText.indexOf(oldText);
+  while ((at = visible.indexOf(oldText, from)) !== -1) {
+    from = at + oldText.length;
+    // Already fixed: the suggested text is already there around this spot.
+    if (inNew !== -1 && visible.substr(at - inNew, newText.length) === newText) continue;
+    hits.push(at);
+    if (!every) break;
+  }
+  // Touch only the characters that differ, so a paragraph is never emptied and keeps its formatting.
+  var p = 0, q = 0;
+  while (p < oldText.length && p < newText.length && oldText.charAt(p) === newText.charAt(p)) p++;
+  while (q < oldText.length - p && q < newText.length - p &&
+         oldText.charAt(oldText.length - 1 - q) === newText.charAt(newText.length - 1 - q)) q++;
+  var insert = newText.slice(p, newText.length - q);
+  for (var k = hits.length - 1; k >= 0; k--) {
+    var from = hits[k] + p, to = hits[k] + oldText.length - q;  // visible range to replace
+    var at = from < visible.length ? map[from] : s.length;
+    if (to > from) text.deleteText(map[from], map[to - 1]);
+    if (insert) {
+      if (at >= text.getText().length) text.appendText(insert); else text.insertText(at, insert);
+    }
+  }
+  return hits.length;
+}
+
+var LRM = '\u200E';
+var RLM = '\u200F';
+var LATIN = /[A-Za-z\u00C0-\u024F]/;
+var HEBREW = /[\u0590-\u05FF\uFB1D-\uFB4F]/;
+var OPENERS = { '(': ')', '[': ']' };
+var ABBREVIATION = /(?:^|[^A-Za-z])(et al|e\.g|i\.e|cf|vs|pp|Eds?|Vol|No|n\.d)\.(?=[\u200E\u200F]?\s*[\u0590-\u05FF])/g;
+
+function planBidiFixes(s) {
+  var fixes = [];
+  bracketPairs_(s).forEach(function (pair) {
+    var open = pair[0];
+    var close = pair[1];
+    var before = directionBefore_(s, open);
+    var inside = firstStrong_(s.slice(open + 1, close));
+    if (before === 'L' && inside !== 'R') {
+      if (directionAfter_(s, close) !== 'L' && s.charAt(close + 1) !== LRM) addFix_(fixes, close + 1, LRM);
+    } else if (before !== 'L' && inside === 'L') {
+      if (s.charAt(open - 1) !== RLM) addFix_(fixes, open, RLM);
+      if (s.charAt(close + 1) !== RLM) addFix_(fixes, close + 1, RLM);
+    }
+  });
+  var m;
+  ABBREVIATION.lastIndex = 0;
+  while ((m = ABBREVIATION.exec(s)) !== null) {
+    var dot = m.index + m[0].length - 1;
+    var next = s.charAt(dot + 1);
+    if (next !== LRM && next !== RLM) addFix_(fixes, dot + 1, LRM);
+  }
+  fixes.sort(function (a, b) { return a.offset - b.offset; });
+  return fixes;
+}
+
+function bracketPairs_(s) {
+  var stack = [];
+  var pairs = [];
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charAt(i);
+    if (OPENERS[c]) {
+      stack.push(i);
+    } else if (c === ')' || c === ']') {
+      for (var k = stack.length - 1; k >= 0; k--) {
+        if (OPENERS[s.charAt(stack[k])] === c) {
+          pairs.push([stack[k], i]);
+          stack.length = k;
+          break;
+        }
+      }
+    }
+  }
+  return pairs;
+}
+
+function addFix_(fixes, offset, mark) {
+  for (var i = 0; i < fixes.length; i++) {
+    if (fixes[i].offset === offset && fixes[i].mark === mark) return;
+  }
+  fixes.push({ offset: offset, mark: mark });
+}
+
+function strongOf_(c) {
+  if (c === LRM || LATIN.test(c)) return 'L';
+  if (c === RLM || HEBREW.test(c)) return 'R';
+  return null;
+}
+
+function directionBefore_(s, index) {
+  for (var i = index - 1; i >= 0; i--) {
+    var d = strongOf_(s.charAt(i));
+    if (d) return d;
+  }
+  return null;
+}
+
+function directionAfter_(s, index) {
+  for (var i = index + 1; i < s.length; i++) {
+    var d = strongOf_(s.charAt(i));
+    if (d) return d;
+  }
+  return null;
+}
+
+function firstStrong_(s) {
+  for (var i = 0; i < s.length; i++) {
+    var d = strongOf_(s.charAt(i));
+    if (d) return d;
+  }
+  return null;
+}

@@ -324,12 +324,16 @@ describe('meeting_control-17 — the picker counts each meeting by itself', () =
 describe('source: layout, dead code and wording', () => {
   const dash = src('presentation/pages/TeacherDashboard.tsx');
 
-  it('M-banner-layout / access-9: the banner spans the page; the side menu is sticky (md+) under a clipping, not scrolling, root', () => {
+  it('M-banner-layout / access-9: the banner spans the page; the side menu stands still (md+) and only the page scrolls', () => {
     expect(dash).toContain('overflow-x-clip');
     expect(dash).not.toContain('overflow-x-hidden');
-    expect(dash).toMatch(/<aside className="[^"]*md:sticky md:top-0 md:self-start md:h-screen/);
+    // md+: the shell is the screen; the menu fills its height; main is the scroller
+    // (owner, 6.10.2026: the page scrolled with the window's bar, beyond the menu).
+    expect(dash).toContain('min-h-screen md:h-screen');
+    expect(dash).toMatch(/<aside [^>]*md:sticky md:top-0 md:self-start md:h-full/);
+    expect(dash).toContain('<main className={`flex-1 min-w-0 md:min-h-0 md:h-full overflow-y-auto');
     // The banner comes before the row that holds the menu and the page.
-    expect(dash.indexOf('{loadTimedOut && (')).toBeLessThan(dash.indexOf('<div className="flex flex-col md:flex-row flex-1 min-w-0">'));
+    expect(dash.indexOf('{loadTimedOut && (')).toBeLessThan(dash.indexOf('<div className="flex flex-col md:flex-row flex-1 min-w-0 md:min-h-0">'));
   });
 
   it('M-banner-text: a refused read gets its own message', () => {
@@ -343,7 +347,7 @@ describe('source: layout, dead code and wording', () => {
   });
 
   it('access-10 / M-projector-badge / M-drawer-stale-escape', () => {
-    expect(dash).toMatch(/<div onClick=\{\(\) => handleTabChange\("heatmap"\)\}>\s*<Logo/);
+    expect(dash).toMatch(/<div onClick=\{\(\) => handleTabChange\("heatmap"\)\}[^>]*>\s*<Logo/);
     expect(dash).toContain("window.open('/projector', 'mathmaticore_projector')");
     expect(dash).not.toContain("window.open('/projector', '_blank')");
     expect(dash).toMatch(/useDismissableOverlay<HTMLDivElement>\(\s*deadlineNotice !== null/);

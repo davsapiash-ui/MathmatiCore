@@ -125,11 +125,11 @@ describe('the teacher and the admin see the child’s station name next to each 
     expect(dash).not.toContain('פעיל בכיתה`');
   });
 
-  it('the skills-mapping meeting buttons: the child’s name and the teacher’s formal information', () => {
+  it('the meeting is picked once, in the journey; the skills map is meeting 2’s own (owner, 6.10.2026)', () => {
     const dash = code('presentation/pages/TeacherDashboard.tsx');
-    // "מפגש 2 · יוצאים למסע (מיפוי יסוד)": the formal information stays beside the name.
-    expect(dash).toContain("{meetingShortLabelHe(num)}{num === 2 ? ' (מיפוי יסוד)' : ''}");
-    expect(dash).toContain('title={meetingFullLabelHe(num)}');
+    // The second picker ("מפגש לבחינת מחוונים ומיומנויות") was the same choice twice.
+    expect(dash).not.toContain('מפגש לבחינת מחוונים ומיומנויות');
+    expect(dash).toContain('תוצאות מיפוי מיומנויות היסוד ({meetingShortLabelHe(2)})');
     expect(meetingFullLabelHe(3)).toBe('מפגש 3 · אצל התלמידים: בונים מספרים בכמה דרכים — ערך המקום וגמישות ייצוגית');
   });
 
@@ -150,7 +150,6 @@ describe('the teacher and the admin see the child’s station name next to each 
     ]) {
       expect(journey, h).toContain(h);
     }
-    expect(code('presentation/pages/TeacherDashboard.tsx')).toContain('מיפוי מיומנויות — {meetingShortLabelHe(diagnosticSelectedSession)}');
     expect(code('presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx')).toContain('התפלגות סיווגי הטעות · {meetingShortLabelHe(liveSelectedStudent.sessionNumber)}');
     expect(code('presentation/pages/TeacherDashboard/components/SessionActivationModal.tsx')).toContain('המפגש הפעיל כעת, {meetingShortLabelHe(currentlyActive.sessionNumber)}, ייסגר');
     const store = code('application/useStore.ts');
