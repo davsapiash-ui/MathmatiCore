@@ -24,6 +24,7 @@ import { PlaceValueInputBoxes } from './PlaceValueInputBoxes';
 import { UnitBlocksPicture } from './UnitBlocksPicture';
 import { FeedbackToast } from '../overlays/FeedbackToast';
 import { MathText } from './MathText';
+import { instructionLayout } from '@/core/instructionSteps';
 
 /**
  * כרטיס המשימה — כותרת, הוראה (עם הקראה), וגוף דינמי לפי סוג המשימה והשלב.
@@ -108,7 +109,14 @@ export function TaskCard() {
         </h1>
 
         {hold && <SuccessPanel explanationHe={hold.explanationHe} />}
-        {instruction && !hold && (
+        {instruction && !hold && (() => {
+          // The task, then its steps (core/instructionSteps.ts; owner,
+          // 7.10.2026): the same agreed words, shaped so a third grader can
+          // hold them — the first sentence is what the exercise is, the rest
+          // are numbered in the order they are done, with air between them.
+          // One sentence stays one sentence. The read-aloud reads it all.
+          const { lead, steps } = instructionLayout(instruction);
+          return (
           <div
             className="shrink-0 flex items-start gap-3 mb-fl-6-24 rounded-2xl px-fl-12-16 pr-fl-14-20 py-fl-6-16 border-r-4"
             data-testid="task-instruction"
@@ -116,7 +124,7 @@ export function TaskCard() {
             // wraps to nine lines in the task column of a 1024px tablet, and the
             // vertical exercise under it fell 12px short of the card (UX audit,
             // 4.10.2026). Its lines sit a little closer (--instruction-leading,
-            // read by the paragraph below); the size of the text and every
+            // read by the paragraphs below); the size of the text and every
             // other instruction are unchanged.
             style={{
               backgroundColor: 'hsl(var(--ws-blue-soft) / 0.55)',
@@ -124,10 +132,27 @@ export function TaskCard() {
               ...(instruction.length > LONG_INSTRUCTION_CHARS ? { ['--instruction-leading']: LONG_INSTRUCTION_LEADING } : {}),
             } as CSSProperties}
           >
-            <p className="text-fl-16-20 text-ws-ink/85 font-medium leading-[var(--instruction-leading,1.55)] flex-1 whitespace-pre-line"><MathText text={instruction} /></p>
+            <div className="flex-1 min-w-0">
+              <p className={`text-fl-16-20 text-ws-ink/85 font-medium leading-[var(--instruction-leading,1.55)] whitespace-pre-line ${steps.length ? 'font-bold text-ws-ink' : ''}`} data-testid="instruction-lead">
+                <MathText text={lead} />
+              </p>
+              {steps.length > 0 && (
+                <ol className="mt-fl-6-12 flex flex-col gap-fl-4-12" data-testid="instruction-steps">
+                  {steps.map((step, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-fl-16-20 text-ws-ink/85 font-medium leading-[var(--instruction-leading,1.55)]">
+                      <span aria-hidden="true" className="shrink-0 mt-[0.2em] w-6 h-6 rounded-full bg-white dark:bg-slate-800 border-2 border-ws-blue/50 text-ws-blue font-display font-black text-sm leading-none flex items-center justify-center">
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 whitespace-pre-line"><MathText text={step} /></span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
             <UdlSpeechButton text={instruction} />
           </div>
-        )}
+          );
+        })()}
 
         {/* ── Body ── */}
         {sessionNumber !== 2 && standardTask && (
