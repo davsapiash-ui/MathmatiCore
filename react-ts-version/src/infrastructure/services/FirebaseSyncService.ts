@@ -1542,6 +1542,13 @@ export class FirebaseSyncService {
    * again from this page, and not when the record already carries the mark.
    * Never removed here; a teacher's reset of the meeting removes it.
    * The caller checks isSupersededByOtherDevice.
+   *
+   * Through the IndexedDB queue (Module 17 §ב), behind the meeting's
+   * telemetry already queued (Module 29 §ג "סדר FIFO קשוח"), as
+   * syncSession2Completion. The server completes and scores meetings 3–8 from
+   * this mark (sessionTrigger.ts onMeetingCompletionMarked); a direct write
+   * could reach it before the last exercises' telemetry after a network drop,
+   * and the meeting would be scored on part of the run.
    */
   public markMeetingCompleted(studentId: string, meeting: number): void {
     if (!studentId || !isMeetingNumber(meeting)) return;
@@ -1552,7 +1559,11 @@ export class FirebaseSyncService {
       const tag = `${id}|${meeting}`;
       if (alreadyOnRecord || this.completedMarksSent.has(tag)) continue;
       this.completedMarksSent.add(tag);
-      throttledRtdbUpdate(`users/students/${id}`, { [completedMeetingField(meeting)]: serverTimestamp() }).catch((err) => {
+      indexedDBQueue.enqueueRtdbMerge(
+        `users/students/${id}`,
+        { [completedMeetingField(meeting)]: serverTimestamp() },
+        `meeting_done_${id}_m${meeting}_${Date.now()}`
+      ).catch((err) => {
         this.completedMarksSent.delete(tag);
         console.error(`[FirebaseSyncService] Could not mark meeting ${meeting} finished on ${id}:`, err);
       });

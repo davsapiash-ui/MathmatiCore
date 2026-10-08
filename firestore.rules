@@ -228,6 +228,26 @@ service cloud.firestore {
       return request.resource.data.get(field, null) == resource.data.get(field, null);
     }
 
+    // PRD 14 §ב0 / 23 §ב: the score, the recommendation it gives, the
+    // server's evaluation stamp and the score kept from before the latest
+    // completion are computed by the server alone (sessionTrigger.ts, Admin
+    // SDK). No client token writes them — the teacher's included: the teacher
+    // client writes only the four approval fields (teacherGate.ts).
+    function createLeavesServerScoreFieldsEmpty() {
+      let d = request.resource.data;
+      return d.get('session_score_percent', null) == null &&
+             d.get('matrix_recommended_path', null) == null &&
+             d.get('evaluated_at', null) == null &&
+             d.get('previous_score_percent', null) == null;
+    }
+
+    function updateKeepsServerScoreFields() {
+      return sessionFieldUnchanged('session_score_percent') &&
+             sessionFieldUnchanged('matrix_recommended_path') &&
+             sessionFieldUnchanged('evaluated_at') &&
+             sessionFieldUnchanged('previous_score_percent');
+    }
+
     function learnerUpdateKeepsStaffFields() {
       return sessionFieldUnchanged('teacher_selected_path') &&
              sessionFieldUnchanged('gate_approved_at') &&
@@ -275,10 +295,12 @@ service cloud.firestore {
       allow read: if isTeacher() || isOwningSession(sessionId);
       allow create: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == false) &&
-                       (isTeacher() || learnerCreateLeavesStaffFieldsEmpty());
+                       (isTeacher() || learnerCreateLeavesStaffFieldsEmpty()) &&
+                       createLeavesServerScoreFieldsEmpty();
       allow update: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == resource.data.teacher_gate_approved) &&
-                       (isTeacher() || learnerUpdateKeepsStaffFields());
+                       (isTeacher() || learnerUpdateKeepsStaffFields()) &&
+                       updateKeepsServerScoreFields();
       allow delete: if false; // Module 23א §ו — see students
     }
 

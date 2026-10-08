@@ -18,7 +18,7 @@ import {
 } from '@/infrastructure/services/ClassReportService';
 import { CHOICE_EXERCISES_HEADING_HE, CHOICE_PATH_LABEL_HE } from '@/core/choiceExercises';
 import { meetingLabelHe } from '@/core/stationNames';
-import { exerciseTitle } from '@/infrastructure/services/LearnerJourneyService';
+import { exerciseTitle, FIRST_ATTEMPT_SCORE_LABEL_HE } from '@/infrastructure/services/LearnerJourneyService';
 import { ERROR_CATEGORY_HE, ROUTE_NAME_HE, TRIGGER_REASON_HE } from '@/core/routeLabels';
 import { NOT_IN_THIS_REPORT_HE } from '@/core/researchMeasures';
 import { CATCHUP_REASON_HE, CATCHUP_REASON_KEYS } from '@/core/catchUp';
@@ -345,7 +345,7 @@ export function ClassMeetingReportPanel() {
             <Stat label="תלמידים עם נתונים" value={`${report.learnersWithData} / 12`} />
             {report.scored ? (
               <Stat
-                label="הצלחה ממוצעת בניסיון ראשון"
+                label={`ממוצע ${FIRST_ATTEMPT_SCORE_LABEL_HE}`}
                 value={pctText(report.scoreMean)}
                 sub={report.scoreMean === null ? 'אין ציון ללומדי המפגש' : `חציון ${pctText(report.scoreMedian)} · טווח ${report.scoreMin}%–${report.scoreMax}%`}
               />
@@ -444,7 +444,7 @@ export function ClassMeetingReportPanel() {
             <table className="w-full text-[11px] whitespace-nowrap">
               <thead className="text-ws-soft">
                 <tr>
-                  <th className="text-right">תלמיד</th><th>מסלול</th>{report.scored && <><th>ציון</th><th>נכון בניסיון ראשון</th></>}<th>תרגילים</th>
+                  <th className="text-right">תלמיד</th><th>מסלול</th>{report.scored && <><th>{FIRST_ATTEMPT_SCORE_LABEL_HE}</th><th>נכון בניסיון ראשון</th></>}<th>תרגילים</th>
                   <th>שגויות (א/ע/מ)</th><th>מחיקות</th><th>ביטולים</th><th>היסוסים</th><th>המרות</th><th>כרטיסים</th><th>דקות</th><th>הקלטה</th><th>רפלקציה</th><th className="text-right">תרגילים</th>
                 </tr>
               </thead>

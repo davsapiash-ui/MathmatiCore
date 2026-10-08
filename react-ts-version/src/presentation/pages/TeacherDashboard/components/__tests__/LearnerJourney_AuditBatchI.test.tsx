@@ -327,6 +327,23 @@ describe('the class report panel on screen', () => {
     expect(fading).toContain('מתחת ל-15 שנ׳');
   });
 
+  it('PRD 23 §ב: measure 1 is "ציון ניסיון ראשון (מדד 1)" in the class report too — the mean and the table column', async () => {
+    h.classReport = classReportFromData({
+      session_number: 4,
+      generated_at: T0,
+      aggregates: { scored: true, score_mean: 57, score_median: 57, score_min: 43, score_max: 71 },
+      learners: [{ student_id: 2, score_percent: 71 }, { student_id: 3, score_percent: 43 }],
+    });
+    render(<ClassMeetingReportPanel />);
+    fireEvent.click(await screen.findByRole('button', { name: meetingLabel(4) }));
+    await screen.findByRole('button', { name: 'הפיקו מחדש' });
+    fireEvent.click(screen.getByRole('button', { name: /הציגו פירוט כיתתי מלא/ }));
+    expect(screen.getByText('ממוצע ציון ניסיון ראשון (מדד 1)')).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'ציון ניסיון ראשון (מדד 1)' })).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: 'ציון' })).toBeNull();
+    expect(screen.queryByText('הצלחה ממוצעת בניסיון ראשון')).toBeNull();
+  });
+
   it('reports-7: no fading-gap table when no learner has one', async () => {
     h.classReport = classReportFromData({ session_number: 4, generated_at: T0, learners: [{ student_id: 2 }] });
     render(<ClassMeetingReportPanel />);

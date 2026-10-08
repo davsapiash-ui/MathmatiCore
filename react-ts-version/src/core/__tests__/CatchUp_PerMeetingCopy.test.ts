@@ -65,6 +65,7 @@ import {
   MAX_PAYLOAD_BYTES,
 } from '@/infrastructure/services/FirebaseSyncService';
 import { flushThrottledWrites, resetThrottledWrites } from '@/infrastructure/services/ThrottledRtdbWriter';
+import { indexedDBQueue } from '@/infrastructure/services/IndexedDBQueue';
 import { resumeSnapshotFor, resetMeetingOf, isMeetingFinished } from '@/core/meetingCompletion';
 import { WORKSPACE_SAVED_AT_KEY } from '@/core/workspaceSnapshot';
 import { fetchServerClockOffset } from '@/infrastructure/firebase';
@@ -142,12 +143,21 @@ function solveCurrentExercise() {
   ws().setAnswerDigit('thousands', String(th));
 }
 
-const marksWritten = (path: string, meeting: number) =>
-  rtdb.updates.filter((u) => u.path === path && `completedMeetings/m${meeting}` in (u.value ?? {}));
+/** The finished marks queued behind the meeting's telemetry (Module 17 FIFO), not written directly. */
+const queuedMerges: Array<{ path: string; value: Record<string, any> }> = [];
+const marksWritten = (path: string, meeting: number) => {
+  const key = `completedMeetings/m${meeting}`;
+  expect(rtdb.updates.filter((u) => u.path === path && key in (u.value ?? {})), 'never a direct write').toHaveLength(0);
+  return queuedMerges.filter((u) => u.path === path && key in (u.value ?? {}));
+};
 
 beforeEach(() => {
   clock.device = 1_900_000_000_000;
   vi.spyOn(Date, 'now').mockImplementation(() => clock.device);
+  queuedMerges.length = 0;
+  vi.spyOn(indexedDBQueue, 'enqueueRtdbMerge').mockImplementation(async (path: string, value: Record<string, unknown>) => {
+    queuedMerges.push({ path, value: value as Record<string, any> });
+  });
   svc.stopSync();
   for (const path of [...rtdb.listeners.keys()]) if (!path.startsWith('.info/')) rtdb.listeners.delete(path);
   rtdb.updates.length = 0;

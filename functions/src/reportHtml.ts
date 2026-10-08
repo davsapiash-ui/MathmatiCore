@@ -217,6 +217,15 @@ function catchUpCardLine(catchUp: Record<string, any> | null | undefined): strin
 export const CATCH_UP_HEADING_HE = "זמן השלמה";
 /** PRD 14 §ב0 / 23 §ב: the score before the learner completed the meeting in catch-up time. */
 export const PREVIOUS_SCORE_LABEL_HE = "הציון הקודם (לפני ההשלמה)";
+
+/**
+ * PRD 23 §ב: measure 1 has one name "בכל דוח ובכל מסך": "ציון ניסיון ראשון
+ * (מדד 1)" — the learner report, the class report and the teacher's screens
+ * (react-ts-version LearnerJourneyService FIRST_ATTEMPT_SCORE_LABEL_HE).
+ */
+export const FIRST_ATTEMPT_SCORE_LABEL_HE = "ציון ניסיון ראשון (מדד 1)";
+/** The class mean of measure 1, under the same name. */
+export const FIRST_ATTEMPT_SCORE_MEAN_LABEL_HE = `ממוצע ${FIRST_ATTEMPT_SCORE_LABEL_HE}`;
 export const CATCH_UP_NOTE_HE =
   "תלמידים שלא סיימו את המפגש: הסיבה שנרשמה, וכמה דקות השלמה קיבלו. נספרות רק הדקות שבהן התלמיד עבד במערכת.";
 
@@ -363,7 +372,7 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
     <div class="card">
       <div><b>לומד:</b> ${esc(report.anonymous_student_label)}</div>
       <div><b>מפגש:</b> ${esc(report.session_number)}</div>
-      <div><b>ציון ניסיון ראשון (מדד 1):</b> ${esc(report.score_percent)}%</div>
+      <div><b>${esc(FIRST_ATTEMPT_SCORE_LABEL_HE)}:</b> ${esc(report.score_percent)}%</div>
       ${typeof report.previous_score_percent === "number" ? `<div class="wide"><b>${esc(PREVIOUS_SCORE_LABEL_HE)}:</b> ${esc(report.previous_score_percent)}%</div>` : ""}
       ${pathLabel ? `<div class="wide"><b>מסלול מומלץ:</b> ${esc(pathLabel)}</div>` : ""}
       ${catchUpCardLine(report.catch_up)}
@@ -407,7 +416,7 @@ const pctHe = (value: number | null | undefined): string => (typeof value === "n
 
 function learnersTable(rows: ClassLearnerRow[], scored = true): string {
   const head = [
-    "לומד", ...(scored ? ["ציון", "נכון בניסיון ראשון"] : []), "תרגילים שנפתחו", "תרגילים שהושלמו", "ספרות שגויות",
+    "לומד", ...(scored ? [FIRST_ATTEMPT_SCORE_LABEL_HE, "נכון בניסיון ראשון"] : []), "תרגילים שנפתחו", "תרגילים שהושלמו", "ספרות שגויות",
     ...COLUMN_NAMES_HE.map((c) => `שגויות: ${c}`),
     "מחיקות", "ביטולים", "היסוסים", "המרות", "כרטיסים", "דקות", "רפלקציה",
   ];
@@ -653,7 +662,7 @@ export function classReportHtml(report: Record<string, any>): string {
     <div class="card">
       <div><b>מפגש:</b> ${esc(report.session_number)}</div>
       <div><b>לומדים עם נתונים:</b> ${esc(a.learners_with_data)} מתוך 12</div>
-      <div><b>ציון ממוצע:</b> ${esc(pctHe(a.score_mean))}</div>
+      <div><b>${esc(FIRST_ATTEMPT_SCORE_MEAN_LABEL_HE)}:</b> ${esc(pctHe(a.score_mean))}</div>
       <div><b>חציון:</b> ${esc(pctHe(a.score_median))}</div>
       <div><b>טווח:</b> ${a.score_min === null ? "לא נמדד" : `${esc(a.score_min)}%–${esc(a.score_max)}%`}</div>
       <div><b>${esc(ROUTE_NAME_HE.green_path)}:</b> ${esc(a.paths.green_path)} | <b>${esc(ROUTE_NAME_HE.remediation_path)}:</b> ${esc(a.paths.remediation_path)}</div>

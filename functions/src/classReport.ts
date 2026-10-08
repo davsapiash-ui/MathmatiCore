@@ -69,6 +69,7 @@ import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htm
 import {
   CHOICE_EXERCISES_HEADING_HE,
   CLASS_REPORT_PDF_OPTIONS,
+  FIRST_ATTEMPT_SCORE_MEAN_LABEL_HE,
   OUTCOME_HE,
   TIER_LABEL_HE,
   classReportHtml,
@@ -857,20 +858,20 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       rtlText(doc, "דוח כיתתי חסוי | מדיניות אפס מידע מזהה | לומדים מזוהים במספר בלבד", { align: "center" });
       doc.moveDown(1);
 
-      doc.rect(40, doc.y, 515, 60).fillAndStroke("#f8fafc", "#cbd5e1");
+      doc.rect(40, doc.y, 515, 75).fillAndStroke("#f8fafc", "#cbd5e1");
       doc.fillColor("#0f172a").fontSize(11);
       const cardY = doc.y + 12;
       const scored = a.scored !== false;
       rtlText(doc, `מפגש: ${report.session_number}`, 400, cardY, { width: 140 });
       rtlText(doc, `לומדים עם נתונים: ${a.learners_with_data} מתוך 12`, 200, cardY, { width: 190 });
       if (scored) {
-        rtlText(doc, `ציון ממוצע: ${pct(a.score_mean)}`, 55, cardY, { width: 140 });
-        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | ${ROUTE_NAME_HE.green_path}: ${a.paths.green_path} | ${ROUTE_NAME_HE.remediation_path}: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
+        rtlText(doc, `${FIRST_ATTEMPT_SCORE_MEAN_LABEL_HE}: ${pct(a.score_mean)}`, 55, cardY + 20, { width: 490 });
+        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | ${ROUTE_NAME_HE.green_path}: ${a.paths.green_path} | ${ROUTE_NAME_HE.remediation_path}: ${a.paths.remediation_path}`, 55, cardY + 40, { width: 490 });
       } else {
         rtlText(doc, "מפגש היכרות וריענון — ללא ציון וללא קבוצות עבודה", 55, cardY + 25, { width: 490 });
       }
       doc.x = 40;
-      doc.y = cardY + 60;
+      doc.y = cardY + 75;
 
       if (scored) {
         heading("1. קבוצות עבודה לפי כלל האחוזים (שכבה 1, דטרמיניסטית)", "#166534");

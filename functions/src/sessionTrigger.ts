@@ -1,4 +1,4 @@
-import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onDocumentWritten, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
@@ -15,6 +15,7 @@ import {
   hasAnswerEvent,
   resolveMeetingPath,
   sessionDocumentIdCandidates,
+  sessionNumberFromId,
   studentNumberFromSessionId,
   COMPULSORY_EXERCISES_PER_MEETING,
 } from "./meetingMetrics";
@@ -138,13 +139,26 @@ export async function catchUpScoreBefore(
 }
 
 /**
+ * Pure. Whether the catch-up record already holds the score before catch-up
+ * of the current run — stamped after the meeting's last reset (or with no
+ * reset at all) — so a later round keeps it.
+ */
+export function keepsScoreBeforeCatchUp(record: Record<string, unknown> | null | undefined, lastResetMs: number | null): boolean {
+  const score = record?.score_before_catchup_percent;
+  const at = record?.score_before_catchup_at;
+  if (!isScore(score) || typeof at !== "number") return false;
+  return lastResetMs === null || at > lastResetMs;
+}
+
+/**
  * A catch-up round opened for this learner (catchUpRounds.ts openCatchUpRounds):
  * the meeting's score as it stands now — the run since the last reset, scored
  * as the completion trigger scores it — is kept on the catch-up record as the
  * score before catch-up. It becomes previous_score_percent when the learner
  * then completes the meeting (PRD 23 §ב "הציון הקודם, שחושב לפני ההשלמה").
  * Nothing is stamped when the learner has answered nothing in the run, or the
- * meeting is not scored.
+ * meeting is not scored, or a round opened earlier in this run stamped it
+ * already (the score before the first round stands).
  */
 export async function stampScoreBeforeCatchUp(
   db: admin.firestore.Firestore,
@@ -155,11 +169,18 @@ export async function stampScoreBeforeCatchUp(
   if (!isScoredMeeting(sessionNum)) return null;
   try {
     const writtenAfterMs = await readLastResetOfMeeting(db, studentNum, sessionNum);
+    // The score before the FIRST catch-up round of this run: a later round
+    // does not replace it (PRD 23 §ב "הציון הקודם, שחושב לפני ההשלמה"). A
+    // stamp from before the meeting's last reset belongs to the erased run.
+    const ref = db.collection(CATCHUP_COLLECTION).doc(catchUpDocId(sessionNum, studentNum));
+    const recordSnap = await ref.get();
+    const record = recordSnap.exists ? recordSnap.data() || {} : {};
+    if (keepsScoreBeforeCatchUp(record, writtenAfterMs)) return record.score_before_catchup_percent as number;
     const events = await readMeetingTelemetry(db, studentNum, sessionNum, { writtenAfterMs });
     if (!hasAnswerEvent(events)) return null;
     const computed = await computeMeetingScore(db, studentNum, sessionNum, "green_path");
     if (computed.outcome !== "scored") return null;
-    await db.collection(CATCHUP_COLLECTION).doc(catchUpDocId(sessionNum, studentNum)).update({
+    await ref.update({
       score_before_catchup_percent: computed.scorePercent,
       score_before_catchup_at: atMs,
     });
@@ -187,10 +208,12 @@ async function stampCatchUpScore(
     const ref = db.collection(CATCHUP_COLLECTION).doc(catchUpDocId(sessionNum, studentNum));
     const snap = await ref.get();
     if (!snap.exists) return;
-    const data = snap.data() || {};
+    // The previous score of THIS completion, as it is: null clears one left
+    // on the record by a run a reset erased (the record survives the reset,
+    // PRD 14 §ב0 "איפוס"; a reset run starts with no previous score).
     await ref.update({
       score_percent: scorePercent,
-      previous_score_percent: previousScore ?? (typeof data.previous_score_percent === "number" ? data.previous_score_percent : null),
+      previous_score_percent: previousScore,
       scored_at: Date.now(),
     });
   } catch (err) {
@@ -234,27 +257,76 @@ export async function rescoreCompletedMeeting(
   const snaps = await Promise.all(candidates.map((id) => db.collection("sessions").doc(id).get()));
   const done = snaps.find((s) => s.exists && (s.data() || {}).is_completed === true);
   if (!done) return "not_completed";
-  const data = done.data() || {};
-  if (!data.evaluated_at) return "not_scored_yet";
+  const docRef = db.collection("sessions").doc(done.id);
+  let data: Record<string, any> = done.data() || {};
 
-  const path = data.teacher_selected_path === "remediation_path" ? "remediation_path" : "green_path";
-  const computed = await computeMeetingScore(db, studentNum, sessionNum, path);
-  if (computed.outcome !== "scored") return "no_score";
-  const { scorePercent, recommendedPath } = computed;
-  const next = rescoreFields(data, scorePercent, recommendedPath, await catchUpScoreBefore(db, studentNum, sessionNum));
-  if (!next.changed) return "unchanged";
+  // Read, compute, write — and the write only when the document still holds
+  // what the score was computed over. Two completions can be re-scored at
+  // once (the meeting-2 close and the learner's record stamp; the mark and
+  // the completion trigger), each from the telemetry it read. Without the
+  // check the slower one, with less of the run, could land last and replace
+  // the right score with a lower one (and name the wrong previous score).
+  // When the document moved on, the score is computed again over the newer
+  // telemetry.
+  for (let attempt = 0; attempt < RESCORE_ATTEMPTS; attempt++) {
+    if (data.is_completed !== true) return "not_completed";
+    if (!data.evaluated_at) return "not_scored_yet";
+    const path = data.teacher_selected_path === "remediation_path" ? "remediation_path" : "green_path";
+    const computed = await computeMeetingScore(db, studentNum, sessionNum, path);
+    if (computed.outcome !== "scored") return "no_score";
+    const { scorePercent, recommendedPath } = computed;
+    const scoreBefore = await catchUpScoreBefore(db, studentNum, sessionNum);
+    const readOver = data;
+    const result = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(docRef);
+      const now: Record<string, any> | null = snap.exists ? snap.data() || {} : null;
+      if (!now || !sameEvaluation(now, readOver)) return { moved: true as const, now };
+      const next = rescoreFields(now, scorePercent, recommendedPath, scoreBefore);
+      if (next.changed) {
+        tx.update(docRef, {
+          ...next.fields,
+          evaluated_at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+      return { moved: false as const, next };
+    });
+    if (result.moved) {
+      if (!result.now) return "not_completed";
+      data = result.now;
+      continue;
+    }
+    if (!result.next.changed) return "unchanged";
+    await mirrorGateScore(studentNum, sessionNum, scorePercent, recommendedPath);
+    await stampCatchUpScore(db, studentNum, sessionNum, scorePercent, result.next.previousScore);
+    logger.info(
+      `Meeting ${sessionNum} of learner ${studentNum} re-scored after a later completion: ` +
+      `${readOver.session_score_percent ?? "none"}% -> ${scorePercent}% (${recommendedPath}).`
+    );
+    return "rescored";
+  }
+  logger.warn(`Meeting ${sessionNum} of learner ${studentNum}: the document kept changing during the re-score; the latest write stands.`);
+  return "unchanged";
+}
 
-  await db.collection("sessions").doc(done.id).update({
-    ...next.fields,
-    evaluated_at: admin.firestore.FieldValue.serverTimestamp(),
-  });
-  await mirrorGateScore(studentNum, sessionNum, scorePercent, recommendedPath);
-  await stampCatchUpScore(db, studentNum, sessionNum, scorePercent, next.previousScore);
-  logger.info(
-    `Meeting ${sessionNum} of learner ${studentNum} re-scored after a later completion: ` +
-    `${data.session_score_percent ?? "none"}% -> ${scorePercent}% (${recommendedPath}).`
-  );
-  return "rescored";
+/** How many times a re-score computes again when the document moved on under it. */
+export const RESCORE_ATTEMPTS = 3;
+
+/** Pure. Whether two reads of a session document carry the same evaluation (score, recommendation, stamp). */
+export function sameEvaluation(a: Record<string, any>, b: Record<string, any>): boolean {
+  return (a.session_score_percent ?? null) === (b.session_score_percent ?? null) &&
+    (a.matrix_recommended_path ?? null) === (b.matrix_recommended_path ?? null) &&
+    sameStamp(a.evaluated_at, b.evaluated_at);
+}
+
+function sameStamp(a: unknown, b: unknown): boolean {
+  const x = a ?? null;
+  const y = b ?? null;
+  if (x === y) return true;
+  if (x === null || y === null) return false;
+  if (typeof x === "number" || typeof y === "number") return x === y;
+  const tx = x as { toMillis?: () => number };
+  const ty = y as { toMillis?: () => number };
+  return typeof tx.toMillis === "function" && typeof ty.toMillis === "function" && tx.toMillis() === ty.toMillis();
 }
 
 /**
@@ -363,9 +435,13 @@ export const onSessionCompleteTrigger = onDocumentWritten({
  * completed already is re-scored (rescoreCompletedMeeting). Meeting 2 is
  * completed by its own document; its mark only re-scores.
  *
- * The mark is a direct RTDB write, while the meeting's telemetry travels the
- * offline FIFO queue. So the run is read until it shows the completion
- * (completionVisible) — for a short while only; a score is computed either way.
+ * The client queues the mark behind the meeting's telemetry (Module 17 FIFO),
+ * but the two travel to different databases, so the run is still read until
+ * it shows the completion (completionVisible), for a short while. When it
+ * still does not, nothing is completed or scored ("skipped"): a score from
+ * part of the run would become the authoritative one in every report. The
+ * reports read the telemetry meanwhile, and when the missing events arrive
+ * onMeetingTelemetryArrived completes the meeting from the mark.
  */
 export const COMPLETION_WAIT_ATTEMPTS = 6;
 export const COMPLETION_WAIT_MS = 10_000;
@@ -406,7 +482,8 @@ export async function completeMeetingFromMark(
     if (i < attempts - 1 && waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
   }
   if (!completionVisible(events, sessionNum)) {
-    logger.warn(`Learner ${studentNum} meeting ${sessionNum}: completion mark arrived, the run does not show it yet; scoring what is there.`);
+    logger.warn(`Learner ${studentNum} meeting ${sessionNum}: completion mark arrived, the run does not show it yet; not completed or scored until it does.`);
+    return "skipped";
   }
 
   const candidates = sessionDocumentIdCandidates(studentNum, sessionNum);
@@ -465,6 +542,65 @@ export const onMeetingCompletionMarked = onValueWritten({
     logger.info(`Learner ${n} meeting ${m}: completion mark -> ${outcome}.`);
   } catch (err) {
     logger.error(`Learner ${n} meeting ${m}: completing the session document from the mark failed:`, err);
+  }
+});
+
+/**
+ * Pure. The learner and meeting whose completion a newly arrived telemetry
+ * event may finish showing: a compulsory exercise completed in meetings 3–7,
+ * or the reflection of meeting 8 (completionVisible). Anything else → null.
+ */
+export function lateCompletionCandidate(event: Record<string, any> | null | undefined): { studentNum: number; sessionNum: number } | null {
+  if (!event) return null;
+  const sessionNum = sessionNumberFromId(String(event.session_id || ""));
+  if (sessionNum === null || sessionNum < 3) return null;
+  const studentNum = Number(event.student_id);
+  if (!Number.isInteger(studentNum) || studentNum < 1 || studentNum > 12) return null;
+  if (sessionNum === 8) return event.event_type === "REFLECTION_SUBMITTED" ? { studentNum, sessionNum } : null;
+  const id = String(event.exercise_id || "");
+  if (event.event_type !== "PROBLEM_COMPLETE" || !id || !isExerciseEvent(event) || isChoiceExercise(id)) return null;
+  return { studentNum, sessionNum };
+}
+
+/** The part of the Realtime Database the late completion reads (admin.database()). */
+export interface CompletionMarkReader {
+  ref: (path: string) => { get: () => Promise<{ val: () => unknown }> };
+}
+
+/**
+ * A meeting 3–8 whose completion mark arrived before the end of its run
+ * ("skipped" above) is completed when the event that shows the completion
+ * arrives. Only while the learner's record carries the mark and the meeting
+ * has no completed session document — a completed one was the mark's.
+ */
+export async function completeMeetingOnLateTelemetry(
+  db: admin.firestore.Firestore,
+  rtdb: CompletionMarkReader,
+  event: Record<string, any> | null | undefined
+): Promise<"created" | "completed" | MeetingRescore | "skipped" | "ignored"> {
+  const candidate = lateCompletionCandidate(event);
+  if (!candidate) return "ignored";
+  const { studentNum, sessionNum } = candidate;
+  const mark = (await rtdb.ref(`users/students/student_user${studentNum}/completedMeetings/m${sessionNum}`).get()).val();
+  if (mark === null || mark === undefined) return "ignored";
+  const snaps = await Promise.all(
+    sessionDocumentIdCandidates(studentNum, sessionNum).map((id) => db.collection("sessions").doc(id).get())
+  );
+  if (snaps.some((s) => s.exists && (s.data() || {}).is_completed === true)) return "ignored";
+  return completeMeetingFromMark(db, studentNum, sessionNum, { attempts: 1, waitMs: 0 });
+}
+
+export const onMeetingTelemetryArrived = onDocumentCreated({
+  document: "telemetry_logs/{logId}",
+  region: "us-central1",
+}, async (event) => {
+  const data = event.data?.data();
+  if (!lateCompletionCandidate(data)) return;
+  try {
+    const outcome = await completeMeetingOnLateTelemetry(admin.firestore(), admin.database(), data);
+    if (outcome !== "ignored") logger.info(`Telemetry ${event.params.logId}: late completion -> ${outcome}.`);
+  } catch (err) {
+    logger.error(`Telemetry ${event.params.logId}: completing the meeting from a late event failed:`, err);
   }
 });
 

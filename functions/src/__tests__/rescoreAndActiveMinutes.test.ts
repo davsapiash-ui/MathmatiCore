@@ -46,27 +46,20 @@ describe('rescoring a completed meeting (PRD 14 §ב0)', () => {
     expect(rescoreFields({ session_score_percent: null }, 57, 'green_path', null).fields).not.toHaveProperty('previous_score_percent');
   });
 
-  it('every scored meeting, not only meeting 2: the score trigger and the completion mark of meetings 3–8', () => {
-    const src = readFileSync(resolve(__dirname, '../sessionTrigger.ts'), 'utf-8');
-    expect(src).toContain('export const onMeetingCompletionMarked = onValueWritten({');
-    expect(src).toContain('ref: "/users/students/{studentKey}/completedMeetings/{meetingKey}"');
-    expect(src).toMatch(/if \(!isScoredMeeting\(sessionNum\)\) return "no_score";/);
+  // The writes themselves (the mark, the re-score, the catch-up stamps, the
+  // meeting-2 mirror) are tested against an in-memory Firestore in
+  // scoringBehaviour.test.ts. Here: only that the triggers are deployed.
+  it('the completion-mark and late-telemetry triggers are exported for deployment', () => {
     const index = readFileSync(resolve(__dirname, '../index.ts'), 'utf-8');
     expect(index).toContain('onMeetingCompletionMarked');
+    expect(index).toContain('onMeetingTelemetryArrived');
   });
 
-  it('only meeting 2 mirrors the score to the learner record (the gate reads it there)', () => {
-    const src = readFileSync(resolve(__dirname, '../sessionTrigger.ts'), 'utf-8');
-    expect(src).toContain('if (sessionNum !== 2) return;');
-  });
-
-  it('a catch-up round stamps the score before it, and the rules let only the server write the score fields', () => {
-    const rounds = readFileSync(resolve(__dirname, '../catchUpRounds.ts'), 'utf-8');
-    expect(rounds).toContain('await stampScoreBeforeCatchUp(db, n, meeting, openedAt);');
+  it('the rules let only the server write the score fields (no client token, the teacher included)', () => {
     const rules = readFileSync(resolve(__dirname, '../../../firestore.rules'), 'utf-8');
     expect(rules).toContain("'previous_score_percent',");
-    expect(rules).toContain("sessionFieldUnchanged('previous_score_percent')");
-    expect(rules).toContain("'score_before_catchup_percent', 'score_before_catchup_at'");
+    expect(rules).toMatch(/learnerCreateLeavesStaffFieldsEmpty\(\)\) &&\s*createLeavesServerScoreFieldsEmpty\(\);/);
+    expect(rules).toMatch(/learnerUpdateKeepsStaffFields\(\)\) &&\s*updateKeepsServerScoreFields\(\);/);
   });
 
   it('reads the completion mark of meetings 1–8 and when a run shows the completion', () => {
