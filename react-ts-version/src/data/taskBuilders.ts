@@ -341,7 +341,7 @@ export function borrowCount(a: number, b: number): number {
 }
 
 export const S6_SUB = (ex: string, _a?: number, _b?: number) =>
-  `פתרו חיסור עם אפסים: ${ex}.${BORROW_WHEN_NEEDED} הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
+  `פתרו במאונך: ${ex}.${BORROW_WHEN_NEEDED} הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
 /** s6_r_t7 (400 − 156): stations 5–6's own middle sentences, then the take-away and the one box. */
 export const S6_MISSING_TENS = (ex: string) =>
   `${TENS_DIGIT_MISSING(ex)}${BORROW_WHEN_NEEDED} הוציאו מבית המספרים את הכמות הנדרשת.${WRITE_MISSING_DIGIT}`;
