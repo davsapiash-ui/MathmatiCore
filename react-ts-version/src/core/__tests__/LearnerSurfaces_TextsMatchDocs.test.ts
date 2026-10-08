@@ -119,11 +119,14 @@ describe('the early-finisher choice screen tells the truth (מסמך 03 §3.3–
   it('one challenge task, two review tasks — named "משימה" like every other task screen', () => {
     // Register 24(א) ("משימה N מתוך M", "משימת בחירה") and the one-name rule
     // (audit A5-F13, 4.10.2026); never first person plural (A5-F04 / A4-F11).
-    expect(screen).toContain("badge: 'סיימתם את שבע המשימות של התחנה!'");
+    // The title is the PRD v7.9 Module 14 §ג wording handed down on 8.10.2026.
+    expect(screen).toContain("badge: 'סיימתם את שבעת התרגילים של התחנה!'");
     expect(screen).toContain("intro: 'המשימות הבאות הן בחירה שלכם, לא חובה.'");
     expect(screen).toContain("reinforcement: 'שתי משימות נוספות, לחזרה על הנושא של היום.'");
     expect(screen).toContain("challenge: 'משימת אתגר אחת, קשה יותר, בנושא של היום.'");
-    const texts = screen.slice(screen.indexOf('const BRANCH_CHOICE_TEXT'), screen.indexOf('interface ReinforcementOrChallengeScreenProps'));
+    const texts = screen
+      .slice(screen.indexOf('const BRANCH_CHOICE_TEXT'), screen.indexOf('interface ReinforcementOrChallengeScreenProps'))
+      .replace("badge: 'סיימתם את שבעת התרגילים של התחנה!'", '');
     expect(texts).not.toContain('תרגיל');
     expect(texts).not.toContain('שתרגלנו');
   });
