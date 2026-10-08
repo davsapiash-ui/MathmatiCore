@@ -378,6 +378,16 @@ describe('A3-112 / A3-113 / A3-114: meeting 2 toasts', () => {
     expect(ws().feedback?.title).toBe('הַתְּשׁוּבָה הִתְקַבְּלָה!');
     expect(ws().feedback?.sub).toBeUndefined();
   });
+
+  it('PRD Module 14 §ב (v7.9): a wrong answer gets the same neutral texts — nothing tells right from wrong', () => {
+    meeting2At(0);
+    // 650 is not the answer of task 1 (605): the toast must not differ.
+    useWorkspaceStore.setState({ probeAnswer: '650' } as any);
+    ws().proceed();
+    expect(ws().feedback).toMatchObject({ neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה!', sub: 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' });
+    // Seven diagnostic tasks: the seventh is the last, and only it drops the sub.
+    expect(TASKS).toHaveLength(7);
+  });
 });
 
 describe('A3-117 / UX-004: where the feedback toast sits', () => {
