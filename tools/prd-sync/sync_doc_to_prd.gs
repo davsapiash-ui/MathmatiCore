@@ -50,10 +50,12 @@ function decorative_(k) { return k === '' || /^[_\-=\s]+$/.test(k); }
 
 function parseTarget_(md) {
   var lines = md.replace(/\r/g, '').split('\n');
-  var units = [];
+  var units = [], inFence = false;
   for (var i = 0; i < lines.length; i++) {
     var l = lines[i];
-    if (/^```/.test(l)) continue;
+    // Fenced code blocks are Docs code blocks in the Doc, which the script cannot see or edit: skip them on both sides.
+    if (/^```/.test(l)) { inFence = !inFence; continue; }
+    if (inFence) continue;
     if (/^©|^מסמך דרישות מוצר/.test(l.trim())) continue;
     if (/^\|/.test(l)) {
       var rows = [];
