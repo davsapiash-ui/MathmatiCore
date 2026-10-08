@@ -53,9 +53,11 @@ function parseTarget_(md) {
   var units = [];
   for (var i = 0; i < lines.length; i++) {
     var l = lines[i];
-    if (/^\s*\|/.test(l)) {
+    if (/^```/.test(l)) continue;
+    if (/^©|^מסמך דרישות מוצר/.test(l.trim())) continue;
+    if (/^\|/.test(l)) {
       var rows = [];
-      while (i < lines.length && /^\s*\|/.test(lines[i])) {
+      while (i < lines.length && /^\|/.test(lines[i])) {
         var cells = lines[i].trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(function (c) { return c.trim(); });
         if (!cells.every(function (c) { return /^:?-+:?$/.test(c); })) rows.push(cells);
         i++;
