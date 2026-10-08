@@ -59,6 +59,13 @@ export interface JourneyEvent {
   details: Record<string, unknown>;
   /** When the event was written to Firestore (synced_at; the tablet's clock). Absent on older events. */
   writtenAt?: number;
+  /** PRD Module 5 §ב: the device's per-sign-in counter; orders events with the same time. Absent on older events. */
+  sequenceNumber?: number;
+}
+
+/** PRD Module 5 §ב: events by client_timestamp ascending, ties by sequence_number (an event without one first). */
+export function compareJourneyEvents(a: Pick<JourneyEvent, 'timestamp' | 'sequenceNumber'>, b: Pick<JourneyEvent, 'timestamp' | 'sequenceNumber'>): number {
+  return a.timestamp - b.timestamp || (a.sequenceNumber ?? -1) - (b.sequenceNumber ?? -1);
 }
 
 const COLUMN_NAMES_HE = ['יחידות', 'עשרות', 'מאות', 'אלפים'];
@@ -444,7 +451,7 @@ export function groupEventsBySession(events: JourneyEvent[]): Map<number, Journe
     list.push(e);
     map.set(e.sessionNumber, list);
   }
-  for (const list of map.values()) list.sort((a, b) => a.timestamp - b.timestamp);
+  for (const list of map.values()) list.sort(compareJourneyEvents);
   return map;
 }
 
@@ -720,6 +727,7 @@ export function journeyEventFromDoc(id: string, d: Record<string, any> | null | 
     ...(typeof d.column_index === 'number' ? { columnIndex: d.column_index } : {}),
     details: d.details && typeof d.details === 'object' ? d.details : {},
     ...(typeof d.synced_at === 'number' ? { writtenAt: d.synced_at } : {}),
+    ...(typeof d.sequence_number === 'number' && Number.isFinite(d.sequence_number) ? { sequenceNumber: d.sequence_number } : {}),
   };
 }
 
@@ -746,7 +754,7 @@ export function subscribeLearnerEvents(
           const e = journeyEventFromDoc(docSnap.id, docSnap.data() as Record<string, any>);
           if (e) events.push(e);
         });
-        events.sort((a, b) => a.timestamp - b.timestamp);
+        events.sort(compareJourneyEvents);
         onChange(events);
       },
       (err) => onError?.(err),
@@ -793,7 +801,7 @@ export async function fetchLearnerEvents(
     const e = journeyEventFromDoc(docSnap.id, docSnap.data() as Record<string, any>);
     if (e) events.push(e);
   });
-  events.sort((a, b) => a.timestamp - b.timestamp);
+  events.sort(compareJourneyEvents);
   learnerEventsCache.set(studentNum, { at: Date.now(), events });
   return events;
 }

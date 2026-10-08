@@ -110,6 +110,8 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
       const validColEvent: TelemetryPayload<'BLOCK_DRAG_COMPLETE'> = {
         idempotency_key: 'idemp_1',
         client_timestamp: Date.now(),
+        sequence_number: 1,
+        device_id: "test-device-1",
         session_id: 'session_1_student_1',
         student_id: 1,
         exercise_id: 's1_t1',
@@ -129,6 +131,8 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
       const validNonColEvent: TelemetryPayload<'SESSION_START'> = {
         idempotency_key: 'idemp_2',
         client_timestamp: Date.now(),
+        sequence_number: 2,
+        device_id: "test-device-1",
         session_id: 'session_1_student_1',
         student_id: 1,
         exercise_id: 's1_t1',

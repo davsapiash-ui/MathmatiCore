@@ -6,10 +6,11 @@ import { computeToolMastery, truncatedRecordingMeetings, isScoredMeeting, TOOLS,
 import { recomputeAdminMetrics } from "./adminAggregator";
 import { containsPhoneNumber } from "./phonePattern";
 import { scrubPII } from "./geminiProxy";
-import { researchDetailsColumns } from "./researchTelemetryRow";
+import { researchDetailsColumns, researchStampColumns } from "./researchTelemetryRow";
 import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
 import { CATCHUP_COLLECTION, catchUpExportCells, type CatchUpRecord } from "./catchUp";
 import { finishedMeetingRefusalHe, resolveActiveSessionNumber, resolveClassSessionNumber, validMeetingNumber } from "./resetMeetingTarget";
+import { compareTelemetryOrder } from "./telemetryOrder";
 
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 const SERVICE_ACCOUNT_EMAIL = "1002220159@edu-haifa.org.il";
@@ -1878,7 +1879,7 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     const telemetry = allTelemetry
       .map(({ id, data }) => ({ id, data, session_number: sessionNumberFromId(String(data.session_id || "")) }))
       .filter((e) => scopedSession === null || e.session_number === scopedSession)
-      .sort((a, b) => (a.data.client_timestamp || 0) - (b.data.client_timestamp || 0));
+      .sort((a, b) => compareTelemetryOrder(a.data, b.data));
 
     const telemetryRows = telemetry.map(({ id, data, session_number }) => {
       const d = data.details && typeof data.details === "object" ? data.details : {};
@@ -1912,6 +1913,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         // dataset. The other Appendix A §3 fields are typed columns too
         // (researchTelemetryRow.ts) — numbers and closed lists only.
         ...researchDetailsColumns(data.event_type, d),
+        // PRD Module 24 column contract / Module 5 §ב: appended at the end of the row.
+        ...researchStampColumns(data, (v) => timestampIso(v) ?? ""),
       };
     });
 

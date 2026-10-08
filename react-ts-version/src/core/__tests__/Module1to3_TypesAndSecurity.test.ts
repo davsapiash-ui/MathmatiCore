@@ -133,6 +133,8 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
       const validPayload: TelemetryPayload<'DIGIT_ENTERED'> = {
         idempotency_key: 'uuid-log-digit-01',
         client_timestamp: Date.now(),
+        sequence_number: 1,
+        device_id: "test-device-1",
         session_id: 'session_01',
         student_id: 4,
         exercise_id: 'ex_03',
@@ -192,6 +194,8 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
       const validPayload: TelemetryPayload<'SOCRATIC_OPTION_SELECTED'> = {
         idempotency_key: 'uuid-log-soc-opt-01',
         client_timestamp: Date.now(),
+        sequence_number: 2,
+        device_id: "test-device-1",
         session_id: 'session_05',
         student_id: 9,
         exercise_id: 'ex_04',

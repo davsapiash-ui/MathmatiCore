@@ -139,7 +139,10 @@ service cloud.firestore {
         // Research data only; it belongs to no column.
         'HELP_WITHDRAWN',
         // Owner, 1.10.2026: a request for help from the chat, with its exercise.
-        'CHAT_HELP_REQUESTED'
+        'CHAT_HELP_REQUESTED',
+        // PRD Module 5 §ג / Appendix A §3: the branch choice after the 7
+        // compulsory exercises (Module 14 §ג); it belongs to no column.
+        'BRANCH_SELECTED'
       ];
     }
 
@@ -154,7 +157,12 @@ service cloud.firestore {
         'event_type',
         'column_index',
         'details',
-        'synced_at'
+        'synced_at',
+        // PRD Module 5 §ב / Appendix A §3: the server's time of receipt, the
+        // device's per-sign-in counter and the browser's random id.
+        'server_received_at',
+        'sequence_number',
+        'device_id'
       ]);
 
       let validTypes = data.idempotency_key is string &&
@@ -163,7 +171,12 @@ service cloud.firestore {
                        data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
                        data.exercise_id is string &&
                        data.event_type is string &&
-                       data.details is map;
+                       data.details is map &&
+                       // Appendix A §3: set by the server (serverTimestamp), equal to request.time.
+                       ('server_received_at' in data) && data.server_received_at == request.time &&
+                       // Absent only on an event queued before these fields existed (Module 17: never discarded).
+                       (!('sequence_number' in data) || (data.sequence_number is int && data.sequence_number >= 0)) &&
+                       (!('device_id' in data) || (data.device_id is string && data.device_id.matches('^[A-Za-z0-9_-]{8,64}$')));
 
       let validColumnRule = (isColumnScopedEvent(data.event_type) && ('column_index' in data) && data.column_index in [0, 1, 2, 3]) ||
                             (isNonColumnEvent(data.event_type) && (!('column_index' in data) || data.column_index == null)) ||

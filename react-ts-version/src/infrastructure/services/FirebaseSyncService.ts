@@ -31,6 +31,7 @@ import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/appl
 import { throttledRtdbUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
 import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
 import { recordRecentTelemetry } from './recentTelemetry';
+import { getDeviceId, nextSequenceNumber } from './telemetryStamp';
 import type { SessionDocument, PedagogicalPath } from '@/types';
 import {
   type TelemetryPayload,
@@ -207,6 +208,15 @@ export function calculateMonotonicMeetingUpdate(currentVal: any, newMeeting: num
 function asPilotStudentNumber(value: unknown): number | null {
   const n = typeof value === 'number' ? value : Number(value);
   return Number.isInteger(n) && n >= 1 && n <= 12 ? n : null;
+}
+
+/**
+ * Which sign-in an event belongs to, for its sequence_number (PRD Module 5 §ב:
+ * "מונה עולה לכל מכשיר ולכל כניסה"): the learner and the moment they signed in.
+ */
+export function telemetrySignInKey(studentNumber: number): string {
+  const at = typeof useAuthStore?.getState === 'function' ? useAuthStore.getState().authTimestamp : null;
+  return `student:${studentNumber}@${at ?? 'unknown'}`;
 }
 
 /**
@@ -456,6 +466,12 @@ export class FirebaseSyncService {
   }
 
   private init() {
+    // Module 17 §ב: the teacher sees the learner's refused events on the
+    // learner card ("אירועים שנדחו"). The queue counts them per identity.
+    if (typeof indexedDBQueue?.onRefusedCountChange === 'function') {
+      indexedDBQueue.onRefusedCountChange((count) => this.publishRefusedEvents(count));
+    }
+
     // Check initial auth state
     const initialAuth = typeof useAuthStore?.getState === 'function' ? useAuthStore.getState() : { isAuthenticated: false, user: null, role: null };
     this.syncSharedListeners(initialAuth.isAuthenticated);
@@ -500,6 +516,22 @@ export class FirebaseSyncService {
       }
     });
     }
+  }
+
+  /**
+   * Writes the signed-in learner's count of refused events to their record
+   * (users/students/student_user{N}/refusedEvents), where the teacher's
+   * learner card reads it. Staff and signed-out devices write nothing.
+   */
+  private publishRefusedEvents(count: number) {
+    const auth = typeof useAuthStore?.getState === 'function' ? useAuthStore.getState() : null;
+    if (!auth?.isAuthenticated) return;
+    const roles = Array.isArray(auth.role) ? auth.role : [auth.role];
+    if (!roles.includes('student') && !auth.isStudentAuthenticated) return;
+    const n = asPilotStudentNumber(auth.user?.student_id);
+    if (n === null) return;
+    if (useWorkspaceStore.getState().isSupersededByOtherDevice) return;
+    throttledRtdbUpdate(`users/students/student_user${n}`, { refusedEvents: Math.max(0, Math.floor(count)) }).catch(() => {});
   }
 
   private startSync(rawStudentId: string, userData: Record<string, unknown>) {
@@ -1641,6 +1673,9 @@ export class FirebaseSyncService {
       event_type: event.event_type,
       ...(event.column_index !== undefined ? { column_index: event.column_index } : {}),
       details: event.details,
+      // PRD Module 5 §ב: per device and per sign-in; device_id is random, no PII.
+      sequence_number: nextSequenceNumber(telemetrySignInKey(numStudentId)),
+      device_id: getDeviceId(),
     };
 
     // Owner decision E1 (27.9.2026, register deviation 24): the closing
@@ -1684,6 +1719,9 @@ export class FirebaseSyncService {
       HELP_REQUESTED: 'קריאה שקטה למורה',
       HELP_WITHDRAWN: 'ביטל את הקריאה למורה',
       CHAT_HELP_REQUESTED: 'ביקש עזרה מהצ׳אט',
+      BRANCH_SELECTED: (event.details as { branch?: string } | undefined)?.branch === 'challenge'
+        ? 'בחר נתיב אתגר 🚀 (משימות רשות)'
+        : 'בחר נתיב ביסוס 🛡️ (משימות רשות)', // the same words selectBranch writes
       PLACE_CUES_SHOWN: 'ספרה בתיבה של טור אחר: הופיעו צבעי הטורים וכותרותיהם',
     };
     rtdbLiveUpdate.lastAction = eventLabels[event.event_type] || event.event_type;
