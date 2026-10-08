@@ -528,8 +528,8 @@ export interface WorkspaceState {
   /** U, E and G of the meeting in progress (E1); reset when a meeting starts, kept across a reload. */
   meetingPersistence: MeetingPersistenceTally;
   /**
-   * Stations 2 and 8 open with one quiet screen before their first task
-   * (owner, 27.9.2026). Set once the learner pressed "מתחילים" in the meeting
+   * Every station opens with one quiet screen before its first task
+   * (PRD 14 §ב). Set once the learner pressed "מתחילים" in the meeting
    * in progress; kept across a reload, so the screen never returns mid-meeting.
    */
   openingScreenSeen: boolean;
@@ -3762,7 +3762,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // A meeting starts here (a reload goes through restoreSession), so its
         // U, E and G start from zero (E1: "the events of the current meeting only").
         meetingPersistence: freshMeetingPersistence(sanitized),
-        // A fresh meeting 2 or 8 starts on its opening screen.
+        // A fresh meeting starts on its station's opening screen (PRD 14 §ב).
         openingScreenSeen: false,
         // …and meeting 8's reflection board on its first stage, with nothing chosen.
         reflectionDraft: freshReflectionDraft(),

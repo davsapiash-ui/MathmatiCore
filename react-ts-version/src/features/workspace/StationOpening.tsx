@@ -2,11 +2,12 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { STATION_START_HE, stationOpeningHe } from '@/core/stationOpening';
 
 /**
- * The one screen before the first task of station 2 and of station 8 (owner,
- * 27.9.2026; register, approved deviation 24): exactly one text, its
- * read-aloud button — on the child's click only (AGENTS.md invariant 6) — and
+ * The one screen before the first task of every station (PRD Module 14 §ב):
+ * a greeting, the station's name and its goal in one text, its read-aloud
+ * button — on the child's click only (AGENTS.md invariant 6) — and
  * "מתחילים". No hint and nothing else. One component; the text is chosen by
- * the meeting (core/stationOpening.ts).
+ * the meeting (core/stationOpening.ts). The press is saved with the
+ * workspace (openingScreenSeen), so a reload does not bring it back.
  */
 export function StationOpening({ meeting, onStart }: { meeting: number; onStart: () => void }) {
   const text = stationOpeningHe(meeting);

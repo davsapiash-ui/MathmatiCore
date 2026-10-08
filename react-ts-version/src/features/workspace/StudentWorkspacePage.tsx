@@ -497,7 +497,7 @@ export function StudentWorkspacePage() {
     waitingAfterApproval ||
     quietFinished ||
     flowStatus === 'sessionDone' ||
-    // The opening screen of station 2 or 8 is not work: no hesitation is measured on it.
+    // A station's opening screen is not work: no hesitation is measured on it (PRD 14 §ב).
     (hasOpeningScreen(sessionNumber) && flowStatus === 'task' && !openingScreenSeen) ||
     isTabHidden;
 
@@ -786,7 +786,8 @@ export function StudentWorkspacePage() {
   const isAdditionGridShown = isAdditionGridMounted && (!isSocraticPanelOpen || isAdditionGridOverCard);
   // An open grid always has its tab while it is not shown, whatever the offer flag says.
   const isAdditionGridTabShown = isAdditionBoardEnabled && (additionHelperOffered || isAdditionHelperOpen) && !isAdditionGridShown;
-  const isAdditionGridSlotShown = isAdditionGridShown || isAdditionGridTabShown;
+  // Stations 2 and 8 have no number house (PRD Module 14 §ב): their task card is centred.
+  const hasBoard = sessionNumber !== 2 && sessionNumber !== 8;
 
 
   useEffect(() => {
@@ -1404,8 +1405,8 @@ export function StudentWorkspacePage() {
       : <><TeacherWillOpenWaitingScreen />{classStateOverlays}</>;
   }
 
-  // Stations 2 and 8, before their first task: one text, its read-aloud button
-  // and "מתחילים" (owner, 27.9.2026). Once pressed it does not return, not even
+  // Every station, before its first task: one text, its read-aloud button and
+  // "מתחילים" (PRD Module 14 §ב). Once pressed it does not return, not even
   // after a reload (openingScreenSeen travels with the saved workspace).
   if (hasOpeningScreen(sessionNumber) && meeting === sessionNumber && endScreen === 'task' && !openingScreenSeen) {
     return <><StationOpening meeting={sessionNumber} onStart={markOpeningScreenSeen} />{classStateOverlays}</>;
@@ -1456,45 +1457,65 @@ export function StudentWorkspacePage() {
 
         <WorkspaceTopbar isDragging={activeDrag !== null} />
 
-        {/* Main 50/50 workspace (or centered in Session 2 & 8) */}
-        <main className={`flex flex-row flex-1 overflow-hidden p-fl-10-20 gap-fl-10-20 max-w-[1600px] mx-auto w-full box-border ${(sessionNumber === 2 || sessionNumber === 8) ? 'justify-center items-center' : ''}`}>
-          {/* Task card */}
-          <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${(sessionNumber === 2 || sessionNumber === 8) ? 'max-w-3xl flex-none h-auto max-h-full' : ''}`}>
-            <TaskCard />
-          </div>
+        {/* PRD Module 7 §א, "חלוקת מסך הלומד": under the top bar, the
+            representations zone (the number house and its blocks) takes 60% of
+            the width, on the visual left, and the task-and-response zone (the
+            task card, the result row and the coaching card) takes 40%, on the
+            right. Stations 2 and 8 have no number house: their task card stays
+            centred. */}
+        <main className={`flex flex-row flex-1 overflow-hidden p-fl-10-20 gap-fl-10-20 w-full box-border ${hasBoard ? '' : 'max-w-[1600px] mx-auto justify-center items-center'}`}>
+          {hasBoard ? (
+            <>
+              {/* The task-and-response zone, 40% (RTL: first in the row, so on
+                  the right). The coaching card's side drawer opens inside it
+                  (PRD Module 12 §ב), between the task card and the number
+                  house, so the representations zone keeps its 60% and stays
+                  in view, and nothing covers anything. The addition grid
+                  (Module 10) shares the drawer's place: the grid and the card
+                  are never shown together (useAdditionGridOverCard.ts). */}
+              <section
+                data-testid="task-zone"
+                aria-label="אגף המשימה"
+                style={{ flex: '2 1 0%' }}
+                className="min-h-0 min-w-0 flex flex-row gap-fl-10-20"
+              >
+                <div className="flex-1 min-h-0 min-w-0 flex flex-col">
+                  <TaskCard />
+                </div>
+                {/* Module 10 (register decision ב): the addition grid fades in
+                    over 2s and stays until the learner closes it with the X.
+                    It covers nothing the learner works with (Module 10 §ב:
+                    blocks, typing and regrouping go on while it is open).
+                    AnimatePresence lets the exit animation play after the
+                    store closes it. */}
+                {isAdditionBoardEnabled && (
+                  <AnimatePresence>
+                    {isAdditionGridMounted && (
+                      <AdaptiveAdditionGrid key="adaptive-grid" hidden={!isAdditionGridShown} overCard={isAdditionGridOverCard} />
+                    )}
+                  </AnimatePresence>
+                )}
+                {/* A learner may bring back an aid that faded: the tab sits
+                    where the grid itself appears, not in the top bar.
+                    isAdditionBoardEnabled already restricts this to
+                    enhanced_cognitive_support learners in sessions 3–7. */}
+                {isAdditionGridTabShown && <AdditionGridTab />}
+                <SocraticSidePanel />
+              </section>
 
-          {/* Place-value board (hidden/unmounted in Session 2 and Session 8) */}
-          {sessionNumber !== 2 && sessionNumber !== 8 && (
-            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} shareRow={isSocraticPanelOpen || isAdditionGridSlotShown} />
+              {/* The representations zone, 60% (RTL: last in the row, so on the left). */}
+              <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} />
+            </>
+          ) : (
+            <>
+              <div className="flex-1 min-h-0 min-w-0 flex flex-col max-w-3xl flex-none h-auto max-h-full">
+                <TaskCard />
+              </div>
+              {/* Station 8 (no number house): the coaching card's drawer beside
+                  the centred task card. Station 2 has no coaching card. */}
+              <SocraticSidePanel />
+            </>
           )}
-
-          {/* Module 10 (register decision ב): the addition grid fades in over 2s
-              and stays until the learner closes it with the X. It has its own
-              slot in this row, beside the board, so it covers nothing the
-              learner works with (Module 10 §ב: blocks, typing and regrouping
-              go on while it is open). AnimatePresence here lets the exit
-              animation play after the store closes it. */}
-          {isAdditionBoardEnabled && (
-            <AnimatePresence>
-              {isAdditionGridMounted && (
-                <AdaptiveAdditionGrid key="adaptive-grid" hidden={!isAdditionGridShown} overCard={isAdditionGridOverCard} />
-              )}
-            </AnimatePresence>
-          )}
-          {/* מסמך 03 §1.3 ב' / 04 §1 (register deviation 18): a learner may bring
-              back an aid that faded. The tab sits where the grid itself appears,
-              not in the topbar — מסמך 04 §3א keeps the topbar to "כפתורי ניווט
-              בסיסיים ושקטים". isAdditionBoardEnabled already restricts this to
-              enhanced_cognitive_support learners in sessions 3–7. It is here
-              also while the coaching card is open: the grid's place, beside
-              the card. */}
-          {isAdditionGridTabShown && <AdditionGridTab />}
-
-          {/* מסמך 03 / 04 §א: the Socratic card is a side panel that slides out
-              from the side of the screen (the left edge in RTL) and keeps the
-              exercise fully visible. It is part of this row, so it can never
-              cover the sheet, the board or the result row. */}
-          <SocraticSidePanel />
         </main>
 
         {/* Meetings with the number house show the feedback in the task column (TaskCard). */}

@@ -21,6 +21,7 @@ import {
   hasOpeningScreen,
   stationOpeningHe,
 } from '@/core/stationOpening';
+const PRD_FILE = resolve(__dirname, '../../../../מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md');
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
@@ -117,18 +118,25 @@ describe('1 — the child reads where it is, not the exercise title', () => {
   });
 });
 
-describe('2 — stations 2 and 8 open with one quiet screen, once', () => {
-  it('the two texts, word for word; no other station has one', () => {
+describe('2 — every station opens with one quiet screen, once (PRD Module 14 §ב)', () => {
+  it('the eight texts, word for word as the PRD writes them', () => {
     expect(STATION2_OPENING_HE).toBe('שלום. התחילו ב"תחנה 2: יוצאים למסע". אין לחץ. עבדו בקצב שלכם.');
     expect(STATION8_OPENING_HE).toBe('שלום מתמטיקאים! היום הגענו לתחנה 8: חוקרים בעצמנו. פתרו את התרגילים בנחת ובקצב שלכם, בדיוק כמו שתרגלתם בתחנות הקודמות. בהצלחה!');
-    expect(stationOpeningHe(2)).toBe(STATION2_OPENING_HE);
-    expect(stationOpeningHe(8)).toBe(STATION8_OPENING_HE);
-    expect([1, 2, 3, 4, 5, 6, 7, 8].filter(hasOpeningScreen)).toEqual([2, 8]);
-    for (const t of [STATION2_OPENING_HE, STATION8_OPENING_HE]) expect(t).not.toMatch(/[%]|ציון|אבחון|מבחן/);
+    const prd = readFileSync(PRD_FILE, 'utf8');
+    for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const text = stationOpeningHe(n);
+      expect(text, `station ${n}`).not.toBeNull();
+      expect(prd, `station ${n}: the PRD's own words`).toContain(`תחנה ${n}: "${text}"`);
+      expect(text).not.toMatch(/[%]|ציון|אבחון|מבחן/);
+    }
+    expect([1, 2, 3, 4, 5, 6, 7, 8].filter(hasOpeningScreen)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(stationOpeningHe(0)).toBeNull();
+    expect(stationOpeningHe(9)).toBeNull();
   });
 
-  for (const [meeting, text] of [[2, STATION2_OPENING_HE], [8, STATION8_OPENING_HE]] as const) {
+  for (const meeting of [1, 2, 3, 4, 5, 6, 7, 8] as const) {
     it(`station ${meeting}: exactly the text, its read-aloud button and "מתחילים" — nothing else`, () => {
+      const text = stationOpeningHe(meeting)!;
       const onStart = vi.fn();
       const { container } = render(<StationOpening meeting={meeting} onStart={onStart} />);
       expect(container.textContent).toBe(`${text}${STATION_START_HE}`);
@@ -142,13 +150,13 @@ describe('2 — stations 2 and 8 open with one quiet screen, once', () => {
     });
   }
 
-  it('the other stations render nothing', () => {
-    const { container } = render(<StationOpening meeting={4} onStart={vi.fn()} />);
+  it('outside 1–8 it renders nothing', () => {
+    const { container } = render(<StationOpening meeting={9} onStart={vi.fn()} />);
     expect(container.innerHTML).toBe('');
   });
 
-  it('a fresh meeting 2 or 8 shows it; "מתחילים" ends it; a reload does not bring it back', () => {
-    for (const n of [2, 8] as const) {
+  it('a fresh meeting shows it; "מתחילים" ends it; a reload does not bring it back', () => {
+    for (const n of [1, 2, 4, 8] as const) {
       useWorkspaceStore.getState().resetWorkspace();
       useWorkspaceStore.getState().initSession(n, false);
       expect(useWorkspaceStore.getState().openingScreenSeen, `meeting ${n}`).toBe(false);
@@ -167,7 +175,7 @@ describe('2 — stations 2 and 8 open with one quiet screen, once', () => {
     expect(sync).toContain('openingScreenSeen: state.openingScreenSeen,');
   });
 
-  it('the page shows it before the first task of station 2 or 8, and measures no hesitation on it', () => {
+  it('the page shows it before the first task of every station, and measures no hesitation on it', () => {
     const page = code('features/workspace/StudentWorkspacePage.tsx');
     expect(page).toContain("if (hasOpeningScreen(sessionNumber) && meeting === sessionNumber && endScreen === 'task' && !openingScreenSeen) {");
     expect(page).toContain('<StationOpening meeting={sessionNumber} onStart={markOpeningScreenSeen} />');
