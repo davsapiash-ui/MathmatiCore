@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { learnerCode } from '../learnerCode';
 
 test.describe('Session 8 (Scaffold-Free E2E)', () => {
   test('verify session 8 disables place value board and number line and accepts direct input', async ({ browser, context, page }) => {
@@ -53,7 +54,7 @@ test.describe('Session 8 (Scaffold-Free E2E)', () => {
     await page.locator('select').first().selectOption({ index: 1 });
     await page.locator('select').nth(1).selectOption({ index: 1 });
     await page.getByPlaceholder('שם משתמש').fill('user15');
-    await page.getByPlaceholder('סיסמה').fill('10203040');
+    await page.getByPlaceholder('••••').fill(learnerCode(15));
     await page.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
 
     // Wait for student hub to load

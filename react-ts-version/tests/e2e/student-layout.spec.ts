@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { learnerCode } from '../learnerCode';
 
 test.describe('Student Workspace Layout', () => {
   test('Workspace has proper height constraints to prevent dual scrollbars', async ({ page }) => {
@@ -11,7 +12,7 @@ test.describe('Student Workspace Layout', () => {
     await page.locator('select').first().selectOption({ index: 1 });
     await page.locator('select').nth(1).selectOption({ index: 1 });
     await page.getByPlaceholder('שם משתמש').fill('user6');
-    await page.getByPlaceholder('סיסמה').fill('10203040');
+    await page.getByPlaceholder('••••').fill(learnerCode(6));
     
     await page.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
 

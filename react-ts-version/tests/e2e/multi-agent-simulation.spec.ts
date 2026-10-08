@@ -1,4 +1,5 @@
 import { test, BrowserContext } from '@playwright/test';
+import { learnerCode } from '../learnerCode';
 
 test.describe('Multi-Agent Behavior Simulation (12 Personas)', () => {
   test.setTimeout(300000); // 5 minute timeout for massive simulation
@@ -98,7 +99,7 @@ test.describe('Multi-Agent Behavior Simulation (12 Personas)', () => {
         await sPage.locator('select').first().selectOption({ index: 1 });
         await sPage.locator('select').nth(1).selectOption({ index: 1 });
         await sPage.getByPlaceholder('שם משתמש').fill(profile.id);
-        await sPage.getByPlaceholder('סיסמה').fill('10203040');
+        await sPage.getByPlaceholder('••••').fill(learnerCode(profile.id));
         await sPage.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
         
         await sPage.waitForURL('**/hub', { timeout: 10000 });

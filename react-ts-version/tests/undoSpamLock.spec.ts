@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { learnerCode } from './learnerCode';
 
 const BASE_URL = 'http://localhost:5173';
 
@@ -17,7 +18,7 @@ test.describe('ASD Safeguards Tests', () => {
     await page.locator('select').first().selectOption({ index: 1 });
     await page.locator('select').nth(1).selectOption({ index: 1 });
     await page.getByPlaceholder('שם משתמש').fill('user1');
-    await page.getByPlaceholder('סיסמה').fill('10203040');
+    await page.getByPlaceholder('••••').fill(learnerCode(1));
     await page.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
 
     // Go to lesson 1

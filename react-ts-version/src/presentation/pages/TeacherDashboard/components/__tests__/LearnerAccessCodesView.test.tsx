@@ -57,6 +57,20 @@ describe('קודי גישה — תצוגת המורה', () => {
     expect(h.calls[1]).toEqual({ name: 'regenerateLearnerAccessCode', data: { studentId: 7 } });
   });
 
+  it('הכותרת "קודי גישה", והקודים אינם נשמרים בדפדפן', async () => {
+    const local = vi.spyOn(Storage.prototype, 'setItem');
+    try {
+      render(<LearnerAccessCodes />);
+      await screen.findByText('0147');
+      expect(screen.getByText('קודי גישה')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'קוד חדש לתלמיד 3' }));
+      await waitFor(() => expect(screen.getByText('0390')).toBeTruthy());
+      expect(local).not.toHaveBeenCalled();
+    } finally {
+      local.mockRestore();
+    }
+  });
+
   it('כשל בטעינה — הודעה, ואין קודים', async () => {
     h.fail = true;
     render(<LearnerAccessCodes />);
