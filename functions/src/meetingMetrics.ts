@@ -320,7 +320,12 @@ export async function readAllDocs(
     const snap: admin.firestore.QuerySnapshot = await pageQuery.get();
     if (snap.empty) break;
     // The server's write time travels with the data: the reports cut a meeting at its last reset by it.
-    for (const d of snap.docs) docs.push({ id: d.id, data: d.data(), writtenAtMs: d.createTime?.toMillis?.() ?? null });
+    for (const d of snap.docs) {
+      const data = d.data();
+      const writtenAtMs = d.createTime?.toMillis?.() ?? null;
+      noteEventArrival(data, writtenAtMs);
+      docs.push({ id: d.id, data, writtenAtMs });
+    }
     last = snap.docs[snap.docs.length - 1];
     if (snap.size < PAGE) break;
   }
@@ -396,6 +401,46 @@ export function computeFirstAttemptScore(
     attempted: attempted.size,
     denominator,
   };
+}
+
+/**
+ * PRD 14 §ב0 / 23 §ב / 24: "דקות פעילות = מספר הדקות השלמות שבהן הגיע מהלומד
+ * לפחות אירוע טלמטריה אחד במפגש" — the one definition of active minutes, for
+ * the catch-up rounds (catchUpRounds.ts) as for the reports and the research
+ * export. A minute is floor(t / 60000) of the time the event reached the
+ * server (the telemetry_logs document's createTime); an event whose arrival is
+ * unknown (built in memory, a test) counts by its client_timestamp.
+ */
+const arrivalTimes = new WeakMap<object, number>();
+
+/** The readers note each event's server write time here (readAllDocs, readMeetingTelemetry, the runs). */
+export function noteEventArrival(event: Record<string, any> | null | undefined, writtenAtMs: number | null | undefined): void {
+  if (event && typeof event === "object" && typeof writtenAtMs === "number" && Number.isFinite(writtenAtMs)) {
+    arrivalTimes.set(event, writtenAtMs);
+  }
+}
+
+/** When the event reached the server, else its client_timestamp; null when neither is known. */
+export function eventArrivalMs(event: Record<string, any> | null | undefined): number | null {
+  if (!event || typeof event !== "object") return null;
+  const written = arrivalTimes.get(event);
+  if (typeof written === "number") return written;
+  return typeof event.client_timestamp === "number" && Number.isFinite(event.client_timestamp) ? event.client_timestamp : null;
+}
+
+/** Pure. Distinct whole minutes (floor(t / 60000)) among the times, within [from, to] when given. */
+export function countActiveMinutes(timesMs: Array<number | null | undefined>, from = -Infinity, to = Infinity): number {
+  if (!(from <= to)) return 0;
+  const minutes = new Set<number>();
+  for (const t of timesMs) {
+    if (typeof t === "number" && Number.isFinite(t) && t >= from && t <= to) minutes.add(Math.floor(t / 60000));
+  }
+  return minutes.size;
+}
+
+/** Active minutes of one meeting's events (countActiveMinutes over eventArrivalMs). */
+export function activeMinutesOfEvents(events: Record<string, any>[]): number {
+  return countActiveMinutes(events.map(eventArrivalMs));
 }
 
 export interface MeetingSummary {
@@ -502,7 +547,9 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
   }
   s.first_event_at = first;
   s.last_event_at = last;
-  s.active_minutes = first !== null && last !== null ? Math.round(((last - first) / 60000) * 10) / 10 : 0;
+  // Whole minutes in which an event arrived — not the span from first to last
+  // event (PRD 14 §ב0: one definition, the catch-up rounds' own).
+  s.active_minutes = activeMinutesOfEvents(events);
   s.exercises_attempted = attempted.size;
   s.exercises_completed = completed.size;
   return s;
@@ -617,7 +664,11 @@ export async function readMeetingTelemetry(
     // The server's own write time, not the tablet's clock: a device clock that
     // runs behind would otherwise drop the new run's events as "before".
     .filter((d) => after == null || (d.createTime?.toMillis?.() ?? Infinity) > after)
-    .map((d) => d.data())
+    .map((d) => {
+      const data = d.data();
+      noteEventArrival(data, d.createTime?.toMillis?.() ?? null);
+      return data;
+    })
     .filter((e) => sessionNumberFromId(String(e?.session_id || "")) === sessionNumber);
   docs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
   return docs;
@@ -719,6 +770,7 @@ export function splitMeetingRuns(events: WrittenEvent[], resets: MeetingReset[])
   const beforeReset: Record<string, any>[] = [];
   let first: number | null = null;
   for (const e of events) {
+    noteEventArrival(e.data, e.writtenAtMs);
     if (e.writtenAtMs !== null && (first === null || e.writtenAtMs < first)) first = e.writtenAtMs;
     // The same test as readMeetingTelemetry's writtenAfterMs.
     if (cut === null || e.writtenAtMs === null || e.writtenAtMs > cut) current.push(e.data);

@@ -206,7 +206,7 @@ describe('A6-102: the reflection board keeps its stage and answers through a rel
     cleanup();
     act(() => ws().setReflectionStep(1));
     render(<Session8ReflectionScreen onComplete={vi.fn()} />);
-    expect(screen.getByRole('button', { name: 'רמה שלוש: מאתגר' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'מאמץ רב' }).getAttribute('aria-pressed')).toBe('true');
   });
 
   it('every stage change reaches reflection_step on the learner record; reflection_completed is not touched', () => {
@@ -244,7 +244,7 @@ describe('A6-103 / A6-107: the reflection board on screen', () => {
 
   it('each effort symbol is three bars of rising height, none of them a square', () => {
     render(<Session8ReflectionScreen onComplete={vi.fn()} />);
-    const bars = Array.from(screen.getByRole('button', { name: 'רמה אחת: קל' }).querySelectorAll('span > span'));
+    const bars = Array.from(screen.getByRole('button', { name: 'מאמץ קל' }).querySelectorAll('span > span'));
     expect(bars.map((b) => b.className.match(/\bh-(\d+)\b/)?.[1])).toEqual(['6', '9', '12']);
     for (const b of bars) expect(b.className).toMatch(/\bw-3\b/);
   });

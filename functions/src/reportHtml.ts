@@ -215,6 +215,8 @@ function catchUpCardLine(catchUp: Record<string, any> | null | undefined): strin
 }
 
 export const CATCH_UP_HEADING_HE = "זמן השלמה";
+/** PRD 14 §ב0 / 23 §ב: the score before the learner completed the meeting in catch-up time. */
+export const PREVIOUS_SCORE_LABEL_HE = "הציון הקודם (לפני ההשלמה)";
 export const CATCH_UP_NOTE_HE =
   "תלמידים שלא סיימו את המפגש: הסיבה שנרשמה, וכמה דקות השלמה קיבלו. נספרות רק הדקות שבהן התלמיד עבד במערכת.";
 
@@ -361,7 +363,8 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
     <div class="card">
       <div><b>לומד:</b> ${esc(report.anonymous_student_label)}</div>
       <div><b>מפגש:</b> ${esc(report.session_number)}</div>
-      <div><b>ציון שליטה:</b> ${esc(report.score_percent)}%</div>
+      <div><b>ציון ניסיון ראשון (מדד 1):</b> ${esc(report.score_percent)}%</div>
+      ${typeof report.previous_score_percent === "number" ? `<div class="wide"><b>${esc(PREVIOUS_SCORE_LABEL_HE)}:</b> ${esc(report.previous_score_percent)}%</div>` : ""}
       ${pathLabel ? `<div class="wide"><b>מסלול מומלץ:</b> ${esc(pathLabel)}</div>` : ""}
       ${catchUpCardLine(report.catch_up)}
     </div>

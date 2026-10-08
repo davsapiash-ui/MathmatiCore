@@ -12,6 +12,7 @@ import {
   readMeetingTelemetry,
   readLastResetOfMeeting,
   resolveCompulsoryTotal,
+  hasAnswerEvent,
   resolveMeetingPath,
   sessionDocumentIdCandidates,
   studentNumberFromSessionId,
@@ -71,21 +72,26 @@ export async function computeMeetingScore(
  * PRD 14 §ב0 / 20 §ב: "ציון המפגש מחושב מחדש בכל פעם שהלומד משלים אותו; הציון
  * הקודם נשמר גם הוא ואינו נדרס". Pure. The fields to write for a new score over
  * what the document already holds:
- *   - no stored score yet: the score and the recommendation;
- *   - a stored score that differs: also previous_score_percent = the stored
- *     score, so the score before this completion is kept next to the new one;
+ *   - a stored score that differs: the score, the recommendation, and
+ *     previous_score_percent = the stored score, so the score before this
+ *     completion is kept next to the new one;
+ *   - no stored score yet: the score and the recommendation, and
+ *     previous_score_percent = `scoreBeforeCatchUp` when the learner had one
+ *     before a catch-up round (the score of a meeting the learner had not
+ *     finished, taken when the round opened — catchUpScoreBefore);
  *   - the same score and recommendation: nothing (changed = false), and a
  *     previous_score_percent kept from an earlier completion stays as it is.
- * The teacher's approval and chosen path are never among the fields.
+ * previous_score_percent is never cleared. The teacher's approval and chosen
+ * path are never among the fields.
  */
 export function rescoreFields(
   stored: { session_score_percent?: unknown; matrix_recommended_path?: unknown } | null | undefined,
   scorePercent: number,
-  recommendedPath: "green_path" | "remediation_path"
+  recommendedPath: "green_path" | "remediation_path",
+  scoreBeforeCatchUp: number | null = null
 ): { changed: boolean; previousScore: number | null; fields: Record<string, unknown> } {
-  const before = typeof stored?.session_score_percent === "number" && Number.isFinite(stored.session_score_percent)
-    ? stored.session_score_percent
-    : null;
+  const storedScore = stored?.session_score_percent;
+  const before = isScore(storedScore) ? storedScore : null;
   if (before === scorePercent && stored?.matrix_recommended_path === recommendedPath) {
     return { changed: false, previousScore: null, fields: {} };
   }
@@ -93,9 +99,75 @@ export function rescoreFields(
     session_score_percent: scorePercent,
     matrix_recommended_path: recommendedPath,
   };
-  const previousScore = before !== null && before !== scorePercent ? before : null;
+  const previousScore = before !== null
+    ? (before !== scorePercent ? before : null)
+    : (isScore(scoreBeforeCatchUp) ? scoreBeforeCatchUp : null);
   if (previousScore !== null) fields.previous_score_percent = previousScore;
   return { changed: true, previousScore, fields };
+}
+
+function isScore(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 100;
+}
+
+/**
+ * The learner's score in this meeting as it stood when the teacher opened a
+ * catch-up round for them (stamped on the catch-up record by
+ * stampScoreBeforeCatchUp), or null: no record, no stamp, or a stamp from
+ * before the meeting's last reset (a reset run starts with no previous score;
+ * the record itself survives the reset, PRD 14 §ב0 "איפוס").
+ */
+export async function catchUpScoreBefore(
+  db: admin.firestore.Firestore,
+  studentNum: number,
+  sessionNum: number
+): Promise<number | null> {
+  try {
+    const snap = await db.collection(CATCHUP_COLLECTION).doc(catchUpDocId(sessionNum, studentNum)).get();
+    if (!snap.exists) return null;
+    const data = snap.data() || {};
+    const score = data.score_before_catchup_percent;
+    const at = data.score_before_catchup_at;
+    if (!isScore(score) || typeof at !== "number") return null;
+    const lastReset = await readLastResetOfMeeting(db, studentNum, sessionNum);
+    return lastReset !== null && at <= lastReset ? null : score;
+  } catch (err) {
+    logger.warn(`Catch-up record of learner ${studentNum} meeting ${sessionNum}: the score before catch-up could not be read:`, err);
+    return null;
+  }
+}
+
+/**
+ * A catch-up round opened for this learner (catchUpRounds.ts openCatchUpRounds):
+ * the meeting's score as it stands now — the run since the last reset, scored
+ * as the completion trigger scores it — is kept on the catch-up record as the
+ * score before catch-up. It becomes previous_score_percent when the learner
+ * then completes the meeting (PRD 23 §ב "הציון הקודם, שחושב לפני ההשלמה").
+ * Nothing is stamped when the learner has answered nothing in the run, or the
+ * meeting is not scored.
+ */
+export async function stampScoreBeforeCatchUp(
+  db: admin.firestore.Firestore,
+  studentNum: number,
+  sessionNum: number,
+  atMs: number
+): Promise<number | null> {
+  if (!isScoredMeeting(sessionNum)) return null;
+  try {
+    const writtenAfterMs = await readLastResetOfMeeting(db, studentNum, sessionNum);
+    const events = await readMeetingTelemetry(db, studentNum, sessionNum, { writtenAfterMs });
+    if (!hasAnswerEvent(events)) return null;
+    const computed = await computeMeetingScore(db, studentNum, sessionNum, "green_path");
+    if (computed.outcome !== "scored") return null;
+    await db.collection(CATCHUP_COLLECTION).doc(catchUpDocId(sessionNum, studentNum)).update({
+      score_before_catchup_percent: computed.scorePercent,
+      score_before_catchup_at: atMs,
+    });
+    return computed.scorePercent;
+  } catch (err) {
+    logger.warn(`Catch-up record of learner ${studentNum} meeting ${sessionNum}: the score before catch-up could not be stamped:`, err);
+    return null;
+  }
 }
 
 /**
@@ -169,7 +241,7 @@ export async function rescoreCompletedMeeting(
   const computed = await computeMeetingScore(db, studentNum, sessionNum, path);
   if (computed.outcome !== "scored") return "no_score";
   const { scorePercent, recommendedPath } = computed;
-  const next = rescoreFields(data, scorePercent, recommendedPath);
+  const next = rescoreFields(data, scorePercent, recommendedPath, await catchUpScoreBefore(db, studentNum, sessionNum));
   if (!next.changed) return "unchanged";
 
   await db.collection("sessions").doc(done.id).update({
@@ -260,8 +332,10 @@ export const onSessionCompleteTrigger = onDocumentWritten({
   // was completed before, then reopened) is kept as previous_score_percent
   // (PRD 14 §ב0: "הציון הקודם נשמר גם הוא ואינו נדרס"). A number the client
   // wrote without a server evaluation is not a score.
+  // With no score of its own yet (a meeting 3–8 the learner first finishes in
+  // catch-up time), the score before the catch-up round is the previous one.
   const stored = beforeData?.evaluated_at ? beforeData : null;
-  const next = rescoreFields(stored, scorePercent, recommendedPath);
+  const next = rescoreFields(stored, scorePercent, recommendedPath, await catchUpScoreBefore(db, studentNum, sessionNum));
   await event.data?.after?.ref.update({
     session_score_percent: scorePercent,
     matrix_recommended_path: recommendedPath,

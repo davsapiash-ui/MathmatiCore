@@ -59,6 +59,7 @@ import {
   EXACT_AI_FALLBACK_TEXT_HE,
   OUTCOME_HE,
   pedagogicalReportHtml,
+  PREVIOUS_SCORE_LABEL_HE,
   reportFooterTemplate,
 } from "./reportHtml";
 
@@ -326,7 +327,11 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
         rtlText(doc, `כלים שעוד לא הופעלו: ${notUsed.length > 0 ? notUsed.join(", ") : "אין — כל הכלים הופעלו"}`, 55, cardY + 25, { width: 490 });
       } else {
         rtlText(doc, `מפגש: ${report.session_number}`, 260, cardY, { width: 110 });
-        rtlText(doc, `ציון שליטה: ${report.score_percent}%`, 70, cardY, { width: 170 });
+        rtlText(doc, `ציון ניסיון ראשון (מדד 1): ${report.score_percent}%`, 70, cardY, { width: 170 });
+        // PRD 14 §ב0 / 23 §ב: the score before the learner completed the meeting in catch-up time.
+        if (typeof report.previous_score_percent === "number") {
+          rtlText(doc, `${PREVIOUS_SCORE_LABEL_HE}: ${report.previous_score_percent}%`, 55, cardY + 40, { width: 490 });
+        }
         // Meeting 2 only: no path in meetings 3–8, and never a colour by default.
         const path = report.matrix_recommended_path === 'green_path' || report.matrix_recommended_path === 'remediation_path' ? ROUTE_NAME_HE[report.matrix_recommended_path as 'green_path' | 'remediation_path'] : null;
         if (path) rtlText(doc, `מסלול מומלץ: ${path}`, 55, cardY + 25, { width: 490 });
@@ -892,6 +897,13 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     logger.warn("[Module23] catch-up record unavailable for the report.", { session_id: sessionId, error: String(err) });
   }
 
+  // PRD 14 §ב0: the session document keeps the score before the latest
+  // completion (sessionTrigger.ts). Only beside a score of that same document.
+  const storedPrevious = scoreSource === "session_document" ? sessionData.previous_score_percent : null;
+  const previousScore: number | null =
+    typeof storedPrevious === "number" && Number.isFinite(storedPrevious) && storedPrevious >= 0 && storedPrevious <= 100
+      ? storedPrevious : null;
+
   // Assemble pedagogical report data payload
   const report = {
     report_id: `rep_${sessionId}`,
@@ -907,6 +919,9 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     meeting_kind: scoredMeeting ? "scored" : "sandbox_refresh",
     is_completed: Boolean(sessionData.is_completed),
     score_percent: score,
+    // PRD 14 §ב0 / 23 §ב "זמן השלמה בדוח": the score before the learner's
+    // latest completion, beside the new one; null when there was none.
+    previous_score_percent: previousScore,
     score_source: scoreSource,
     first_attempt: sessionData.first_attempt || null,
     telemetry_event_count: telemetryDocs.length,
@@ -943,7 +958,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     catch_up: catchUp,
     summary_text_he: score === null
       ? `דוח היכרות וריענון למפגש ${resolvedSessionNumber}, ללא ציון. כלים שעוד לא הופעלו: ${toolMastery && toolMastery.not_used.length > 0 ? toolMastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") : "אין"}.`
-      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%.${resolvedSessionNumber === 2 ? ` מסלול מומלץ: ${score >= 50 ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}.` : ""}`
+      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון ניסיון ראשון (מדד 1): ${score}%.${resolvedSessionNumber === 2 ? ` מסלול מומלץ: ${score >= 50 ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}.` : ""}`
   };
 
   // Render authoritative server-side PDF binary & Upload to Cloud Storage
@@ -996,6 +1011,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       session_number: resolvedSessionNumber,
       storage_path: storageFilePath,
       score_percent: score,
+      previous_score_percent: previousScore,
       score_source: scoreSource,
       routing_group: routingGroup,
       routing_label_he: routingLabelHe,

@@ -282,7 +282,7 @@ export const SERVER_SCORED_FIELDS = ['session_score_percent', 'matrix_recommende
  * meeting-2 completion queued by an earlier version carries the device clock
  * ±30 minutes there; it is left out at delivery.
  */
-const SERVER_SESSION_DOC_FIELDS = [...SERVER_SCORED_FIELDS, 'evaluated_at', 'session_start_time', 'session_deadline_time'];
+const SERVER_SESSION_DOC_FIELDS = [...SERVER_SCORED_FIELDS, 'evaluated_at', 'previous_score_percent', 'session_start_time', 'session_deadline_time'];
 
 /** Owner of an item nobody can attribute to a learner: any staff identity may send it. */
 export const ANY_STAFF_OWNER = 'staff:*';

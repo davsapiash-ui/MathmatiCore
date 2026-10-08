@@ -37,7 +37,7 @@ export { onMeeting2ClosedByTeacher, onMeeting2CompletionRecorded } from "./meeti
 export { onCatchUpSessionWrite } from "./catchUpRounds";
 export { generatePedagogicalReportPDF, getPedagogicalReportDownloadUrl } from "./pedagogicalReport";
 // Module 23, owner decision 6.9.2026 (register item 9): a class report for every meeting.
-export { generateClassMeetingReport } from "./classReport";
+export { generateClassMeetingReport, getClassReportDownloadUrl } from "./classReport";
 export { hourlyAdminAggregator } from "./adminAggregator";
 export { sendTeacherAdminMessage } from "./teacherAdminChat";
 // Module 25 §ד, owner's decision 26.9.2026: printable login cards for the 12 learners.
