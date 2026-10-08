@@ -166,7 +166,8 @@ export type FailureKind = 'network' | 'transient' | 'refusal';
  * item is parked again at once and the pass moves on past it. Giving it 20
  * more attempts made an always-failing item at the head re-block the queue
  * for ~8 minutes on every cycle (review R1).
- * Refusal-parked items (retry_count ≥ 5) are revived on page load only, as before.
+ * Refusal-parked items (retry_count ≥ 5) are revived on page load, and once
+ * per item in the tab when the ID token changes (reviveRefusalParked).
  */
 export function isTransientParked(item: QueuedAction): boolean {
   return (item.retry_count ?? 0) < MAX_RETRIES_BEFORE_PARKING
@@ -444,6 +445,16 @@ export class IndexedDBQueue {
   /** null until the first recount: a listener is not told "0" before the queue was read. */
   private refusedCount: number | null = null;
   private refusedListeners: Array<(count: number) => void> = [];
+  /**
+   * Told after every flush pass (sign-out's included) and on every sign-in:
+   * the count of one identity's refused events, unconditionally, so what the
+   * teacher's learner card shows is never left stale (Module 17 §ב). A
+   * listener may return a promise; the pass waits for it (flushWithin's
+   * budget still bounds sign-out).
+   */
+  private refusedForOwnerListeners: Array<(owner: string, count: number) => void | Promise<void>> = [];
+  /** Refusal-parked items this page already gave an in-tab revive (reviveRefusalParked): once each. */
+  private refusalRevivedThisPage = new Set<string>();
   private syncStateListeners: Array<(state: QueueSyncState) => void> = [];
   private lastSyncState: QueueSyncState | null = null;
 
@@ -482,6 +493,25 @@ export class IndexedDBQueue {
     return () => {
       this.refusedListeners = this.refusedListeners.filter((l) => l !== listener);
     };
+  }
+
+  /** Module 17 §ב: one identity's refused-events count, after every pass and sign-in. Returns an unsubscribe. */
+  public onRefusedCountForOwner(listener: (owner: string, count: number) => void | Promise<void>): () => void {
+    this.refusedForOwnerListeners.push(listener);
+    return () => {
+      this.refusedForOwnerListeners = this.refusedForOwnerListeners.filter((l) => l !== listener);
+    };
+  }
+
+  /** Counts this identity's refused events and tells every onRefusedCountForOwner listener. Never rejects. */
+  private async publishRefusedFor(owner: string | null | undefined): Promise<void> {
+    if (!owner || this.refusedForOwnerListeners.length === 0) return;
+    try {
+      const items = this.db ? await this.getAll() : [];
+      const all = [...items, ...this.memoryFallback];
+      const count = all.filter((i) => isRefusedEvent(i) && this.belongsToCurrentOwner(i, owner)).length;
+      await Promise.allSettled(this.refusedForOwnerListeners.map(async (l) => l(owner, count)));
+    } catch { /* a listener must never break the queue */ }
   }
 
   private setRefusedCount(count: number) {
@@ -689,7 +719,13 @@ export class IndexedDBQueue {
     this.lastOwner = owner;
     this.refreshPendingCount()
       .catch(() => {})
-      .then(() => { if (owner && this.isOnline) return this.flushQueue(); })
+      .then(() => {
+        // A sign-in publishes this identity's count even when it did not
+        // change here: a sign-out flush may have delivered what was refused
+        // (S2). Not awaited: the sign-in's flush does not wait for it.
+        void this.publishRefusedFor(owner);
+        if (owner && this.isOnline) return this.flushQueue();
+      })
       .catch(console.error);
   }
 
@@ -699,6 +735,19 @@ export class IndexedDBQueue {
    * (refPath/idempotency_key); for fields of the record at refPath use enqueueRtdbMerge.
    */
   public async enqueue(arg1: any, arg2?: any): Promise<void> {
+    await this.store(this.itemToEnqueue(arg1, arg2));
+  }
+
+  /**
+   * enqueue(), and whether the item reached IndexedDB (false: it is kept in
+   * the memory fallback only). For moving a legacy copy, which may be
+   * removed only once the item is durably stored (Module 17 §ב).
+   */
+  public async enqueueDurably(arg1: any, arg2?: any): Promise<boolean> {
+    return this.store(this.itemToEnqueue(arg1, arg2));
+  }
+
+  private itemToEnqueue(arg1: any, arg2?: any): QueuedAction {
     let item: QueuedAction;
 
     if (typeof arg1 === 'string') {
@@ -731,8 +780,7 @@ export class IndexedDBQueue {
         retry_count: 0,
       };
     }
-
-    await this.store(item);
+    return item;
   }
 
   /**
@@ -815,21 +863,25 @@ export class IndexedDBQueue {
    * the cloud is not green over an item that has not reached the server, even
    * for the moment before the background flush sends it.
    */
-  private async store(item: QueuedAction): Promise<void> {
+  private async store(item: QueuedAction): Promise<boolean> {
     if (!item.owner) item.owner = this.currentOwner() ?? inferOwner(item);
-    await this.persist(item);
+    const durable = await this.persist(item);
     if (this.belongsToCurrentOwner(item)) this.setPendingCount(this.pendingCount + 1);
     this.scheduleBackgroundFlush();
+    return durable;
   }
 
-  /** Persists one queued item (IndexedDB, or the memory fallback when the database is unavailable). */
-  private async persist(item: QueuedAction): Promise<void> {
+  /**
+   * Persists one queued item (IndexedDB, or the memory fallback when the
+   * database is unavailable). True when it reached IndexedDB.
+   */
+  private async persist(item: QueuedAction): Promise<boolean> {
     if (!this.db) {
       await this.initDB();
     }
 
     if (this.db) {
-      await new Promise<void>((resolve) => {
+      return new Promise<boolean>((resolve) => {
         try {
           const targetStore = this.db!.objectStoreNames.contains(STORE_NAME) ? STORE_NAME : LEGACY_STORE_NAME;
           const tx = this.db!.transaction([targetStore], 'readwrite');
@@ -843,19 +895,19 @@ export class IndexedDBQueue {
             store.add(item);
           };
 
-          tx.oncomplete = () => resolve();
+          tx.oncomplete = () => resolve(true);
           tx.onerror = () => {
             this.keepInMemory(item);
-            resolve();
+            resolve(false);
           };
         } catch {
           this.keepInMemory(item);
-          resolve();
+          resolve(false);
         }
       });
-    } else {
-      this.keepInMemory(item);
     }
+    this.keepInMemory(item);
+    return false;
   }
 
   /** The memory fallback keeps every item too (Module 17 §ב); reaching the cap is logged, not enforced. */
@@ -945,6 +997,61 @@ export class IndexedDBQueue {
         resolve();
       }
     });
+  }
+
+  /**
+   * Gives every item parked by refusals one more set of attempts without a
+   * reload — at most once per item per page. Called when the sign-in's ID
+   * token changes (a refresh or new claims), which is the in-tab signal that
+   * what was refused may now be accepted: a rules deploy that landed after
+   * this build loaded (review B1), or claims that arrived late. A page load
+   * already revives everything (reviveParkedItems); this covers a tab that
+   * stays open through a deploy. Nothing is deleted. Returns how many were revived.
+   */
+  public async reviveRefusalParked(): Promise<number> {
+    const refusalParked = (item: QueuedAction) => (item.retry_count ?? 0) >= MAX_RETRIES_BEFORE_PARKING;
+    const keyOf = (item: QueuedAction) => String(item.idempotency_key ?? item.id ?? '');
+    let revived = 0;
+    for (const item of this.memoryFallback) {
+      const key = keyOf(item);
+      if (refusalParked(item) && key && !this.refusalRevivedThisPage.has(key)) {
+        this.refusalRevivedThisPage.add(key);
+        item.retry_count = 0;
+        revived++;
+      }
+    }
+    if (this.db) {
+      const targetStore = this.db.objectStoreNames.contains(STORE_NAME) ? STORE_NAME : LEGACY_STORE_NAME;
+      revived += await new Promise<number>((resolve) => {
+        let n = 0;
+        try {
+          const tx = this.db!.transaction([targetStore], 'readwrite');
+          const req = tx.objectStore(targetStore).openCursor();
+          req.onsuccess = (e) => {
+            const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+            if (!cursor) return;
+            const value = (cursor.value ?? {}) as QueuedAction;
+            const key = keyOf({ ...value, id: cursor.primaryKey as number });
+            if (refusalParked(value) && key && !this.refusalRevivedThisPage.has(key)) {
+              this.refusalRevivedThisPage.add(key);
+              cursor.update({ ...value, retry_count: 0 });
+              n++;
+            }
+            cursor.continue();
+          };
+          tx.oncomplete = () => resolve(n);
+          tx.onerror = () => resolve(n);
+        } catch {
+          resolve(n);
+        }
+      });
+    }
+    if (revived > 0) {
+      await this.refreshPendingCount().catch(() => {});
+      if (this.isFlushing) this.flushAgainAfterCurrent = true;
+      else if (this.isOnline) this.flushQueue().catch(console.error);
+    }
+    return revived;
   }
 
   /**
@@ -1143,6 +1250,9 @@ export class IndexedDBQueue {
       this.currentFlush = null;
       finished();
       await this.refreshPendingCount().catch(() => {});
+      // Module 17 §ב: the teacher's count follows every pass, the sign-out
+      // flush's included (asOwner), not only a change seen while signed in.
+      await this.publishRefusedFor(owner);
       this.scheduleTransientRevive();
       if (this.flushAgainAfterCurrent) {
         this.flushAgainAfterCurrent = false;

@@ -301,7 +301,7 @@ describe('HARDCORE REALTIME CHAOS & UNCOMPROMISING STRESS TEST HARNESS', () => {
   // 5. Offline Queue 1,500 Burst Saturation & Zero Memory Leak
   // =========================================================================
   describe('5. Offline Telemetry Queue Stress Under Prolonged Disconnection', () => {
-    it('handles a 1,500 burst of offline events by capping at 500 FIFO items and cleanly flushing', async () => {
+    it('handles a 1,500 burst of offline events by keeping all of them in FIFO order and cleanly flushing', async () => {
       const syncService = FirebaseSyncService.getInstance();
       (syncService as any).isOnline = false;
       (syncService as any).offlineTelemetryQueue = [];
@@ -314,13 +314,11 @@ describe('HARDCORE REALTIME CHAOS & UNCOMPROMISING STRESS TEST HARNESS', () => {
         });
       }
 
-      // Verify FIFO boundary
+      // Module 17 §ב: nothing is dropped — every event stays, oldest first.
       const queue = (syncService as any).offlineTelemetryQueue;
-      expect(queue.length).toBe(500);
-
-      // Verify oldest 1,000 items were dropped cleanly and newest 500 are preserved
-      expect(queue[0].payload.details.eventIndex).toBe(1001);
-      expect(queue[499].payload.details.eventIndex).toBe(1500);
+      expect(queue.length).toBe(1500);
+      expect(queue[0].payload.details.eventIndex).toBe(1);
+      expect(queue[1499].payload.details.eventIndex).toBe(1500);
 
       // Reconnect and flush
       (syncService as any).isOnline = true;

@@ -16,8 +16,8 @@ import {
   DEVICE_ID_STORAGE_KEY,
 } from '@/infrastructure/services/telemetryStamp';
 import { telemetryDocumentOf } from '@/infrastructure/services/IndexedDBQueue';
-import { compareJourneyEvents } from '@/infrastructure/services/LearnerJourneyService';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { compareJourneyEvents, describeEvent } from '@/infrastructure/services/LearnerJourneyService';
+import { useWorkspaceStore, getActiveTasks } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
 import { approvePath } from '@/test/approvedPath';
@@ -122,10 +122,14 @@ describe('BRANCH_SELECTED (Module 14 §ג, Appendix A §3)', () => {
     ws().resetWorkspace();
   });
 
-  it('choosing a branch emits it, with the branch and without column_index', () => {
+  it('choosing a branch emits it, with the branch, the 7th compulsory exercise and no column_index', () => {
     approvePath('green_path');
     ws().initSession(4, false);
-    useWorkspaceStore.setState({ standardTaskIdx: 7, flowStatus: 'choice_branch' });
+    const compulsory = getActiveTasks(ws());
+    expect(compulsory).toHaveLength(7);
+    // The real state on the choice screen: advanceStandard sets choice_branch
+    // with standardTaskIdx still on the last compulsory exercise (index 6).
+    useWorkspaceStore.setState({ standardTaskIdx: 6, flowStatus: 'choice_branch' });
     emitted.length = 0;
     ws().selectBranch('challenge');
     expect(ws().selectedBranch, 'the branch was loaded').toBe('challenge');
@@ -134,14 +138,33 @@ describe('BRANCH_SELECTED (Module 14 §ג, Appendix A §3)', () => {
     expect(branch[0].details).toEqual({ branch: 'challenge' });
     expect('column_index' in branch[0]).toBe(false);
     expect(branch[0].session_id).toBe('session_4_student_student_user3');
+    // Made after the 7th compulsory exercise — never the meeting's fallback id.
+    expect(branch[0].exercise_id).toBe(compulsory[6].id);
+    expect(branch[0].exercise_id).not.toBe('ex_4_01');
   });
 
   it('no branch loaded (no approved path), no event', () => {
     ws().initSession(4, false);
-    useWorkspaceStore.setState({ standardTaskIdx: 7, flowStatus: 'choice_branch' });
+    useWorkspaceStore.setState({ standardTaskIdx: 6, flowStatus: 'choice_branch' });
     emitted.length = 0;
     ws().selectBranch('reinforcement');
     expect(emitted.filter((e) => e.event_type === 'BRANCH_SELECTED')).toHaveLength(0);
+  });
+});
+
+describe('BRANCH_SELECTED in the teacher\'s journey table (Module 21) — the learner\'s own button words (Module 14 §ג)', () => {
+  const ev = (branch: unknown) => ({
+    id: 'b', timestamp: 1, sessionNumber: 4, sessionId: 's', exerciseId: 'x', eventType: 'BRANCH_SELECTED', details: { branch },
+  });
+  it('challenge → "אתגר", reinforcement → "חיזוק וחזרה על החומר"; never the raw token, never "מסלול"', () => {
+    const c = describeEvent(ev('challenge') as any);
+    const r = describeEvent(ev('reinforcement') as any);
+    expect([c.label, c.detail]).toEqual(['בחירת נתיב', 'נבחר: אתגר']);
+    expect([r.label, r.detail]).toEqual(['בחירת נתיב', 'נבחר: חיזוק וחזרה על החומר']);
+    for (const d of [c, r]) {
+      expect(`${d.label} ${d.detail}`).not.toContain('BRANCH_SELECTED');
+      expect(`${d.label} ${d.detail}`).not.toContain('מסלול');
+    }
   });
 });
 
@@ -184,5 +207,12 @@ describe('Module 17 §ב: sign-out, role switch and expiry keep the queue and th
     expect(q).not.toMatch(/memoryFallback\.shift\(\)/);
     expect(q).not.toContain('MAX_MEMORY_FALLBACK');
     expect(q).toContain('reportQueueCapacityFault(');
+  });
+
+  it('no discard in FirebaseSyncService either: no shift() past a cap, no slice/filter of the legacy queue', () => {
+    const f = src('infrastructure/services/FirebaseSyncService.ts');
+    expect(f).not.toMatch(/offlineTelemetryQueue\.shift\(\)/);
+    expect(f).not.toContain('Dropping oldest');
+    expect(f).not.toMatch(/\.slice\(-500\)/);
   });
 });

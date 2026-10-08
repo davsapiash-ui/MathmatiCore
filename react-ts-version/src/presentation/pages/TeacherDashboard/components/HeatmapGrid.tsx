@@ -83,10 +83,20 @@ export interface AnonymousStudent {
   refusedEvents?: number;
 }
 
-/** The record's refusedEvents (written by the learner's device), as a count; 0 for anything else. */
+/**
+ * The record's refusedEvents, summed over the learner's devices: each device
+ * writes its own count under refusedEvents/{device_id} (PRD Module 1 §א — a
+ * previous device keeps sending its queue — and Module 17 §ב). Anything that
+ * is not a positive whole number counts 0.
+ */
 export function refusedEventsOf(data: Record<string, unknown> | null | undefined): number {
-  const n = Number((data as { refusedEvents?: unknown } | null | undefined)?.refusedEvents);
-  return Number.isInteger(n) && n > 0 ? n : 0;
+  const raw = (data as { refusedEvents?: unknown } | null | undefined)?.refusedEvents;
+  const countOf = (v: unknown) => {
+    const n = Number(v);
+    return Number.isInteger(n) && n > 0 ? n : 0;
+  };
+  if (raw && typeof raw === 'object') return Object.values(raw as Record<string, unknown>).reduce<number>((sum, v) => sum + countOf(v), 0);
+  return countOf(raw);
 }
 
 // Fixed 12-slot pilot structure (1 to 12) strictly without layout shifts

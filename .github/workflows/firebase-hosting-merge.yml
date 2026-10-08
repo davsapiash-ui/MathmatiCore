@@ -49,6 +49,21 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
 
+      # Security rules go out BEFORE hosting, and hosting waits for them. The
+      # client a new build ships may send fields the old rules refuse (the
+      # telemetry stamps server_received_at / sequence_number / device_id,
+      # PRD Module 5 §ב; the per-device refusedEvents count, Module 17 §ב).
+      # Hosting first meant every tablet that loaded the new build before the
+      # rules landed had its telemetry refused and parked until a reload -- and
+      # for good if the rules step failed. So these two steps carry no
+      # "!cancelled()": a failed rules deploy stops the hosting deploy, and the
+      # old client keeps running against the old rules.
+      - name: Deploy Firestore rules
+        run: npx --yes firebase-tools@13 deploy --only firestore:rules --project mathimaticore --non-interactive
+
+      - name: Deploy Realtime Database rules
+        run: npx --yes firebase-tools@13 deploy --only database --project mathimaticore --non-interactive
+
       - name: Deploy to Firebase Hosting
         run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive
 
@@ -66,9 +81,6 @@ jobs:
       # default. Every target now reports its own verdict in one run, which is
       # what makes the remaining permission gaps legible instead of hidden
       # behind whichever one happens to run first.
-      - name: Deploy Firestore rules
-        run: npx --yes firebase-tools@13 deploy --only firestore:rules --project mathimaticore --non-interactive
-
       - name: Deploy Storage rules
         if: '!cancelled()'
         run: npx --yes firebase-tools@13 deploy --only storage --project mathimaticore --non-interactive
@@ -76,8 +88,4 @@ jobs:
       - name: Deploy Cloud Functions
         if: '!cancelled()'
         run: npx --yes firebase-tools@13 deploy --only functions --project mathimaticore --non-interactive --force
-
-      - name: Deploy Realtime Database rules
-        if: '!cancelled()'
-        run: npx --yes firebase-tools@13 deploy --only database --project mathimaticore --non-interactive
 

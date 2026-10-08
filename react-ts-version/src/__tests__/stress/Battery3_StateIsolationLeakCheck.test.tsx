@@ -117,6 +117,11 @@ import { TeacherDashboard } from '@/presentation/pages/TeacherDashboard';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useAdminStore } from '@/application/useAdminStore';
 
+// The whole TeacherDashboard is rendered and queried by role: CPU-bound work
+// that ran past the default 5 s (and findBy's 1 s) on a loaded worker.
+vi.setConfig({ testTimeout: 30_000 });
+const SLOW = { timeout: 10_000 };
+
 describe('QA Battery 3: State Isolation & Leak Check (TeacherDashboard)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -153,7 +158,7 @@ describe('QA Battery 3: State Isolation & Leak Check (TeacherDashboard)', () => 
     // Wait for initial debounce loading to complete
     await waitFor(() => {
       expect(screen.queryByText(/טוען נתוני תלמידים/i)).toBeNull();
-    }, { timeout: 3000 });
+    }, SLOW);
 
     // 1. Navigate to Student Chat tab
     // The dashboard's tab bars are now marked up as real tablists (role="tab"
@@ -163,11 +168,11 @@ describe('QA Battery 3: State Isolation & Leak Check (TeacherDashboard)', () => 
     fireEvent.click(studentChatTabBtn);
 
     // 2. Select student 1 from the conversation list
-    const student1SelectBtn = await screen.findByText('תלמיד 1');
+    const student1SelectBtn = await screen.findByText('תלמיד 1', {}, SLOW);
     fireEvent.click(student1SelectBtn);
 
     // 3. Locate student chat input and pre-populate inputText
-    const studentInput = (await screen.findByPlaceholderText(/הקלידו הודעה לתלמיד/i)) as HTMLInputElement;
+    const studentInput = (await screen.findByPlaceholderText(/הקלידו הודעה לתלמיד/i, {}, SLOW)) as HTMLInputElement;
     fireEvent.change(studentInput, { target: { value: 'שלום תלמיד 1, שים לב לעמודת העשרות' } });
     expect(studentInput.value).toBe('שלום תלמיד 1, שים לב לעמודת העשרות');
 
@@ -176,7 +181,7 @@ describe('QA Battery 3: State Isolation & Leak Check (TeacherDashboard)', () => 
     fireEvent.click(openAdminDrawerBtn);
 
     // 5. Locate admin input and pre-populate adminInputText
-    const adminInput = (await screen.findByPlaceholderText(/הקלידו הודעה למנהל המערכת/i)) as HTMLInputElement;
+    const adminInput = (await screen.findByPlaceholderText(/הקלידו הודעה למנהל המערכת/i, {}, SLOW)) as HTMLInputElement;
     fireEvent.change(adminInput, { target: { value: 'הודעה למנהל: ישנה תקלת רשת בכיתה' } });
     expect(adminInput.value).toBe('הודעה למנהל: ישנה תקלת רשת בכיתה');
 

@@ -43,7 +43,10 @@
             ".validate": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true) || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 8 && (!data.isNumber() || newData.val() >= data.val()))"
           },
           "refusedEvents": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 1 == 0"
+            ".validate": "newData.hasChildren()",
+            "$deviceId": {
+              ".validate": "$deviceId.matches(/^[A-Za-z0-9_-]{8,64}$/) && newData.isNumber() && newData.val() >= 0 && newData.val() % 1 == 0"
+            }
           }
         }
       },

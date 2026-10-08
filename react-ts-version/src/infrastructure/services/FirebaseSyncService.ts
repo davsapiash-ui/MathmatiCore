@@ -1,5 +1,5 @@
 import { ref, set, get, update, runTransaction, serverTimestamp, onValue, onDisconnect, push, type DataSnapshot } from 'firebase/database';
-import { database, firestore, serverNow } from '@/infrastructure/firebase';
+import { database, firestore, serverNow, auth as firebaseAuth } from '@/infrastructure/firebase';
 import {
   WORKSPACE_SAVED_AT_KEY,
   WORKSPACE_STARTED_WITHOUT_RECORD_KEY,
@@ -209,6 +209,12 @@ function asPilotStudentNumber(value: unknown): number | null {
   const n = typeof value === 'number' ? value : Number(value);
   return Number.isInteger(n) && n >= 1 && n <= 12 ? n : null;
 }
+
+/** Where client versions before IndexedDB kept their queue (read once, by the migration only). */
+const LEGACY_OFFLINE_QUEUE_KEY = 'mathmaticore_offline_queue';
+
+/** How long a flush pass waits for the refused-events count to be written (publishRefusedEvents). */
+const REFUSED_PUBLISH_WAIT_MS = 3000;
 
 /**
  * Which sign-in an event belongs to, for its sequence_number (PRD Module 5 §ב:
@@ -467,10 +473,22 @@ export class FirebaseSyncService {
 
   private init() {
     // Module 17 §ב: the teacher sees the learner's refused events on the
-    // learner card ("אירועים שנדחו"). The queue counts them per identity.
-    if (typeof indexedDBQueue?.onRefusedCountChange === 'function') {
-      indexedDBQueue.onRefusedCountChange((count) => this.publishRefusedEvents(count));
+    // learner card ("אירועים שנדחו"). The queue counts them per identity and
+    // reports after every pass (the sign-out flush's included) and sign-in.
+    if (typeof indexedDBQueue?.onRefusedCountForOwner === 'function') {
+      indexedDBQueue.onRefusedCountForOwner((owner, count) => this.publishRefusedEvents(owner, count));
     }
+    // What the server refused may be accepted once the ID token changes (a
+    // refresh, new claims) — e.g. rules deployed after this build loaded.
+    // Each refusal-parked item gets one such revive per page (review B1).
+    try {
+      const a = firebaseAuth as unknown as { onIdTokenChanged?: (cb: (u: unknown) => void) => unknown };
+      if (typeof a?.onIdTokenChanged === 'function' && typeof indexedDBQueue?.reviveRefusalParked === 'function') {
+        a.onIdTokenChanged((u) => {
+          if (u) indexedDBQueue.reviveRefusalParked().catch(() => {});
+        });
+      }
+    } catch { /* no auth instance (tests, inert stub): page loads still revive */ }
 
     // Check initial auth state
     const initialAuth = typeof useAuthStore?.getState === 'function' ? useAuthStore.getState() : { isAuthenticated: false, user: null, role: null };
@@ -518,20 +536,45 @@ export class FirebaseSyncService {
     }
   }
 
+  /** The count this tab last wrote, per learner and device, so an unchanged count is not rewritten. */
+  private publishedRefused = new Map<number, number>();
+
   /**
-   * Writes the signed-in learner's count of refused events to their record
-   * (users/students/student_user{N}/refusedEvents), where the teacher's
-   * learner card reads it. Staff and signed-out devices write nothing.
+   * Writes a learner's count of refused events on this device to
+   * users/students/student_user{N}/refusedEvents/{device_id}, where the
+   * teacher's learner card sums every device (Module 17 §ב: "המורה רואה את
+   * מספרם"). Per device, because PRD Module 1 §א keeps the previous device
+   * sending its queue after a second sign-in and tells the devices apart by
+   * device_id: a superseded device still writes its own count, and two
+   * devices never overwrite each other. Called after every pass, so the count
+   * also falls to 0 when a sign-out flush delivers what was refused; that
+   * write is made as the identity that is signing out, while its claims last.
+   * A count of 0 removes the device's entry. Staff identities write nothing.
    */
-  private publishRefusedEvents(count: number) {
-    const auth = typeof useAuthStore?.getState === 'function' ? useAuthStore.getState() : null;
-    if (!auth?.isAuthenticated) return;
-    const roles = Array.isArray(auth.role) ? auth.role : [auth.role];
-    if (!roles.includes('student') && !auth.isStudentAuthenticated) return;
-    const n = asPilotStudentNumber(auth.user?.student_id);
+  private async publishRefusedEvents(owner: string, count: number): Promise<void> {
+    const m = /^student:(\d{1,2})$/.exec(owner);
+    const n = m ? asPilotStudentNumber(m[1]) : null;
     if (n === null) return;
-    if (useWorkspaceStore.getState().isSupersededByOtherDevice) return;
-    throttledRtdbUpdate(`users/students/student_user${n}`, { refusedEvents: Math.max(0, Math.floor(count)) }).catch(() => {});
+    const value = Math.max(0, Math.floor(count));
+    if (this.publishedRefused.get(n) === value) return;
+    const field = `refusedEvents/${getDeviceId()}`;
+    const work = (async () => {
+      // A 0 with nothing written by this tab yet: write only if this device
+      // left a count there earlier (a previous page, or a sign-out flush that
+      // delivered after the write could no longer be made) — one read per
+      // learner per page instead of a write on every learner's every pass.
+      if (value === 0 && !this.publishedRefused.has(n)) {
+        const snap = await get(ref(database, `users/students/student_user${n}/${field}`));
+        if (!snap?.exists?.()) { this.publishedRefused.set(n, 0); return; }
+      }
+      await rtdbUpdateNow(`users/students/student_user${n}`, { [field]: value > 0 ? value : null });
+      this.publishedRefused.set(n, value);
+    })();
+    // The flush waits for this write, but never for long: a write that is not
+    // acknowledged (no connection) is tried again after the next pass.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([work.catch(() => {}), new Promise<void>((r) => { timer = setTimeout(r, REFUSED_PUBLISH_WAIT_MS); })]);
+    if (timer) clearTimeout(timer);
   }
 
   private startSync(rawStudentId: string, userData: Record<string, unknown>) {
@@ -1429,28 +1472,40 @@ export class FirebaseSyncService {
   }
 
   /**
-   * Legacy migration only (Module 17): drains a queue persisted by older client
-   * versions into localStorage, then removes the key. New writes never touch
+   * Legacy migration only (Module 17): moves a queue persisted by older client
+   * versions into localStorage over to IndexedDB. New writes never touch
    * localStorage — IndexedDB is the sole durable buffer for the sync queue.
+   *
+   * Module 17 §ב: no item is ever dropped. Every item is stored in IndexedDB
+   * first (no cap, no filter), and only what IndexedDB durably holds leaves
+   * the legacy key; the key is removed once nothing is left in it. An item
+   * that cannot be moved (IndexedDB unavailable, or a shape with no
+   * destination) stays where it is, for the next load. Moving one twice is
+   * harmless: its idempotency key is pinned, so the RTDB child write repeats.
    */
-  private loadOfflineQueueFromStorage() {
+  private async loadOfflineQueueFromStorage(): Promise<void> {
     if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
     try {
-      const raw = localStorage.getItem('mathmaticore_offline_queue');
-      if (raw) {
-        const items = JSON.parse(raw);
-        if (Array.isArray(items)) {
-          this.offlineTelemetryQueue = items
-            .slice(-500)
-            .filter((it: any) => it && typeof it.refPath === 'string')
-            .map((it: any) => ({
-              refPath: it.refPath,
-              payload: it.payload,
-              idempotency_key: it.idempotency_key || this.generateQueueIdempotencyKey(),
-            }));
+      const raw = localStorage.getItem(LEGACY_OFFLINE_QUEUE_KEY);
+      if (!raw) return;
+      const items: unknown = JSON.parse(raw);
+      if (!Array.isArray(items)) return; // not a queue this code understands: left as it is
+      const kept: unknown[] = [];
+      for (const it of items as Array<Record<string, any> | null>) {
+        const payload = it?.payload;
+        if (!it || typeof it.refPath !== 'string' || !payload || typeof payload !== 'object' || Array.isArray(payload)) {
+          kept.push(it);
+          continue;
         }
-        localStorage.removeItem('mathmaticore_offline_queue');
+        const idempotency_key = it.idempotency_key || this.generateQueueIdempotencyKey();
+        let durable = false;
+        try {
+          durable = (await indexedDBQueue.enqueueDurably(it.refPath, { ...payload, idempotency_key })) === true;
+        } catch { /* stays in the legacy key */ }
+        if (!durable) kept.push({ ...it, idempotency_key });
       }
+      if (kept.length === 0) localStorage.removeItem(LEGACY_OFFLINE_QUEUE_KEY);
+      else localStorage.setItem(LEGACY_OFFLINE_QUEUE_KEY, JSON.stringify(kept));
     } catch (e) {
       console.warn("Failed to migrate legacy offline telemetry queue:", e);
     }
@@ -1458,18 +1513,14 @@ export class FirebaseSyncService {
 
   private enqueueOfflineTransaction(refPath: string, payload: any) {
     const idempotency_key = payload?.idempotency_key || this.generateQueueIdempotencyKey();
+    // Module 17 §ב: no capacity drops; every transaction is kept in strict FIFO order.
     this.offlineTelemetryQueue.push({ refPath, payload, idempotency_key });
-    // Queue capacity is 500 items in strict FIFO order; oldest transaction drops on overflow
-    if (this.offlineTelemetryQueue.length > 500) {
-      this.offlineTelemetryQueue.shift();
-      console.warn("Offline telemetry queue exceeded 500 items. Dropping oldest transaction.");
-    }
     // Module 17: durable persistence goes to IndexedDB only, carrying the idempotency key
     indexedDBQueue.enqueue(refPath, { ...payload, idempotency_key }).catch(() => {});
   }
 
   private async flushOfflineQueue() {
-    this.loadOfflineQueueFromStorage();
+    await this.loadOfflineQueueFromStorage();
     if (this.offlineTelemetryQueue.length === 0) {
       indexedDBQueue.flushQueue().catch(() => {});
       return;

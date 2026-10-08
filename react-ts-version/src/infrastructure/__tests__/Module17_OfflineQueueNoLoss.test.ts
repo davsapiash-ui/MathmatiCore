@@ -733,6 +733,106 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       expect(typeof body.synced_at).toBe('number');
     });
 
+    it('S2 — the count is reported after every pass for that pass\'s identity, the sign-out flush included, and again on sign-in', async () => {
+      const reports: Array<[string, number]> = [];
+      const off = queue.onRefusedCountForOwner((owner, n) => { reports.push([owner, n]); });
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_s2'));
+      for (let i = 0; i < 5; i++) await queue.flushQueue();
+      expect(reports[reports.length - 1]).toEqual(['student:3', 1]);
+
+      // Signed out (the auth store is cleared first), the sign-out flush sends
+      // as the identity that is leaving, and the server now takes the event.
+      fs.setDoc.mockImplementation(async () => {});
+      await (queue as unknown as { reviveParkedItems: () => Promise<void> }).reviveParkedItems();
+      signOutState();
+      await vi.advanceTimersByTimeAsync(0);
+      reports.length = 0;
+      await queue.flushQueue('student:3');
+      expect(await stored()).toEqual([]);
+      expect(reports).toEqual([['student:3', 0]]);
+
+      // The next sign-in reports 0 again, although nothing changed here.
+      reports.length = 0;
+      signIn(3);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(reports.some(([o, n]) => o === 'student:3' && n === 0)).toBe(true);
+      off();
+    });
+
+    it('S2/S3 — the learner\'s device writes its own count under refusedEvents/{device_id}, and 0 removes it, also after sign-out', async () => {
+      const svc = sync.firebaseSyncService as unknown as { publishedRefused: Map<number, number> };
+      svc.publishedRefused.clear();
+      const { getDeviceId } = await import('@/infrastructure/services/telemetryStamp');
+      const field = `refusedEvents/${getDeviceId()}`;
+      const countWrites = () => rtdb.update.mock.calls
+        .filter((c) => (c[0] as { path: string }).path === 'users/students/student_user3' && field in ((c[1] ?? {}) as object))
+        .map((c) => (c[1] as Record<string, unknown>)[field]);
+
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_s3'));
+      for (let i = 0; i < 5; i++) await queue.flushQueue();
+      expect(countWrites()).toEqual([1]);
+
+      // Delivered by the sign-out flush: the count goes back to nothing.
+      fs.setDoc.mockImplementation(async () => {});
+      await (queue as unknown as { reviveParkedItems: () => Promise<void> }).reviveParkedItems();
+      signOutState();
+      await vi.advanceTimersByTimeAsync(0);
+      await queue.flushQueue('student:3');
+      expect(countWrites()).toEqual([1, null]);
+      signIn(3);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(countWrites()).toEqual([1, null]); // unchanged: not rewritten
+    });
+
+    it('S2 — a fresh page with 0 refused removes a count this device left earlier, and writes nothing when there is none', async () => {
+      const svc = sync.firebaseSyncService as unknown as { publishedRefused: Map<number, number> };
+      const { getDeviceId } = await import('@/infrastructure/services/telemetryStamp');
+      const field = `refusedEvents/${getDeviceId()}`;
+      const countWrites = () => rtdb.update.mock.calls
+        .filter((c) => field in ((c[1] ?? {}) as object))
+        .map((c) => (c[1] as Record<string, unknown>)[field]);
+
+      svc.publishedRefused.clear();
+      await queue.flushQueue();
+      expect(countWrites()).toEqual([]);
+
+      svc.publishedRefused.clear();
+      rtdb.get.mockImplementation(async (r: { path: string }) =>
+        r.path === `users/students/student_user3/${field}` ? { val: () => 2, exists: () => true } : { val: () => null, exists: () => false });
+      await queue.flushQueue();
+      expect(countWrites()).toEqual([null]);
+    });
+
+    it('B1 — when the ID token changes, a refusal-parked item gets one more series in the tab, once', async () => {
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_token'));
+      for (let i = 0; i < 5; i++) await queue.flushQueue();
+      let [item] = await queue.getAll();
+      expect(item.retry_count).toBe(5);
+
+      // Rules that accept it have landed; the token refresh revives it.
+      fs.setDoc.mockImplementation(async () => {});
+      expect(await queue.reviveRefusalParked()).toBe(1);
+      await vi.waitFor(async () => expect(await stored()).toEqual([]));
+      expect(queue.getRefusedCount()).toBe(0);
+
+      // Still refused: revived once, then it waits for the next page load.
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_token2'));
+      for (let i = 0; i < 5; i++) await queue.flushQueue();
+      expect(await queue.reviveRefusalParked()).toBe(1);
+      // The revive starts a pass of its own; each further pass waits for the one before.
+      await vi.waitFor(async () => {
+        await queue.flushWithin(60_000);
+        expect((await queue.getAll())[0].retry_count).toBe(5);
+      });
+      expect(await queue.reviveRefusalParked()).toBe(0);
+      [item] = await queue.getAll();
+      expect([item.idempotency_key, item.retry_count]).toEqual(['e_token2', 5]); // kept, never deleted
+    });
+
     it('reaching the capacity is logged as a fault, once; nothing is discarded', async () => {
       const err = vi.spyOn(console, 'error').mockImplementation(() => {});
       queueModule.resetQueueCapacityFaultForTests();

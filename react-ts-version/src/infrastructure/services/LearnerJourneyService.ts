@@ -476,6 +476,7 @@ const EVENT_LABELS_HE: Record<string, string> = {
   CHAT_HELP_REQUESTED: 'בקשת עזרה מהצ׳אט',
   BOARD_CLEARED: 'ניקוי בית המספרים',
   PLACE_CUES_SHOWN: 'פיגום בשורת התוצאה',
+  BRANCH_SELECTED: 'בחירת נתיב',
 };
 
 export interface EventDescription {
@@ -509,6 +510,10 @@ export function describeEvent(e: JourneyEvent): EventDescription {
   let selfRegulation = false;
   let attention = false;
   switch (e.eventType) {
+    case 'BRANCH_SELECTED':
+      // PRD Module 14 §ג: the learner's own button words; never "מסלול".
+      detail = d.branch === 'challenge' ? 'נבחר: אתגר' : d.branch === 'reinforcement' ? 'נבחר: חיזוק וחזרה על החומר' : '';
+      break;
     case 'PLACE_CUES_SHOWN':
       // Register deviation 28: a digit was written in another column's box.
       detail = d.profile === 'enhanced' ? 'ספרה בתיבה של טור אחר: הופיעו כותרות הטורים' : 'ספרה בתיבה של טור אחר: הופיעו צבעי הטורים וכותרותיהם';
