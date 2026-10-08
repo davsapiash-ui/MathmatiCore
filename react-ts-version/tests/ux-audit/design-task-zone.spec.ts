@@ -7,16 +7,17 @@ import type { Viewport } from './viewports';
 /**
  * Before/after screenshots of the learner's task zone (design-task-zone).
  * Not part of the audit's gate: run on its own with
- *   DTZ_OUT=ux-screenshots/design-task-zone/after npx playwright test --config playwright.ux-audit.config.ts design-task-zone
+ *   DTZ_OUT=ux-screenshots/design-task-zone/after npx playwright test --config playwright.dtz.config.ts design-task-zone
  */
 const OUT = process.env.DTZ_OUT || 'ux-screenshots/design-task-zone/before';
 const ONLY = process.env.DTZ_ONLY ? new RegExp(process.env.DTZ_ONLY) : null;
 const INIT = 'st.initSession(arg.meeting, false, arg.idx); api.getState().markOpeningScreenSeen();';
 const SET = 'api.setState(arg);';
 const VPS: Viewport[] = [
-  { id: '1366x768', width: 1366, height: 633, tier: 'A', note: '1366x768 laptop, maximised Chrome' },
-  { id: '1280x800', width: 1280, height: 665, tier: 'A', note: '1280x800 laptop, maximised Chrome' },
-];
+  { id: '1366x633', width: 1366, height: 633, tier: 'A', note: '1366x768 laptop, maximised Chrome' },
+  { id: '1280x585', width: 1280, height: 585, tier: 'A', note: '1280x720 laptop' },
+  { id: '1024x694', width: 1024, height: 694, tier: 'A', note: 'iPad landscape' },
+].filter((v) => !process.env.DTZ_VPS || process.env.DTZ_VPS.split(',').includes(v.id));
 type S = { id: string; meeting: number; idx: number; set?: Record<string, unknown> };
 const steps: S[] = [];
 for (let k = 0; k < 12; k++) steps.push({ id: `m1-${String(k + 1).padStart(2, '0')}`, meeting: 1, idx: k });
@@ -42,7 +43,16 @@ steps.push({
 });
 steps.push({ id: 'm1-10-answered', meeting: 1, idx: 9, set: { counts: C(7, 0, 8), answerDigits: { hundreds: '8', tens: '0', units: '7' }, hasInteracted: true } });
 for (const n of [3, 4, 5, 6, 7]) steps.push({ id: `m${n}-01`, meeting: n, idx: 0 });
+steps.push({ id: 'm3-01-answered', meeting: 3, idx: 0, set: { counts: { units: 0, tens: 0, hundreds: 4, thousands: 3 }, answerDigits: { thousands: '3', hundreds: '4', tens: '0', units: '0' }, hasInteracted: true } });
+steps.push({ id: 'm3-02', meeting: 3, idx: 1 });
+steps.push({ id: 'm3-07', meeting: 3, idx: 6 });
+steps.push({ id: 'm4-01-built', meeting: 4, idx: 0, set: { counts: { units: 5, tens: 4, hundreds: 2, thousands: 1 }, hasInteracted: true } });
+steps.push({ id: 'm4-07', meeting: 4, idx: 6 });
+steps.push({ id: 'm6-07', meeting: 6, idx: 6 });
+steps.push({ id: 'm7-04', meeting: 7, idx: 3 });
+steps.push({ id: 'm7-06', meeting: 7, idx: 5 });
 steps.push({ id: 'm8-01', meeting: 8, idx: 0 });
+steps.sort((x, y) => x.meeting - y.meeting);
 
 for (const vp of VPS) {
   test(`design-task-zone shots ${vp.id}`, async ({ browser }) => {
