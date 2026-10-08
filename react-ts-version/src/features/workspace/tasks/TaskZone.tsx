@@ -258,10 +258,10 @@ export function DoneBox({ note }: { note: string | null }) {
 /** `ghost`: the invisible copy that only holds the box's height — no test ids, no read-aloud button. */
 function DoneBoxBody({ note, ghost = false }: { note: string | null; ghost?: boolean }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border-2 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-800 px-fl-10-16 py-fl-6-12">
-      <div className="flex-1 min-w-0 flex flex-col gap-1 text-emerald-800 dark:text-emerald-200">
-        {note && <p className="text-[17px] font-black leading-snug">{note}</p>}
-        <p className="text-base font-bold leading-relaxed" data-testid={ghost ? undefined : 'proceed-sentence'}>
+    <div className="flex items-start gap-3 rounded-2xl border-2 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-800 px-fl-10-16 py-fl-4-8">
+      <div className="flex-1 min-w-0 flex flex-col gap-0.5 text-emerald-800 dark:text-emerald-200">
+        {note && <p className="text-base font-black leading-snug">{note}</p>}
+        <p className="text-base font-bold leading-snug" data-testid={ghost ? undefined : 'proceed-sentence'}>
           {PROCEED_SENTENCE_HE.before} <ProceedChip ghost={ghost} /> {PROCEED_SENTENCE_HE.after}
         </p>
       </div>
