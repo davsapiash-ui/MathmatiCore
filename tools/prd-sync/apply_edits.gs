@@ -15,15 +15,13 @@ var EDITS = [
   ["After the grid has been shown once in the session (at the 30-second stage) and closed by the learner,",
    "Collapse the grid automatically when the Socratic card opens, so components never overlap. After the grid has been shown once in the session (at the 30-second stage) and then closed by the learner or collapsed by the Socratic card,"],
   ["When no session is active for the class, render the quiet waiting screen",
-   "When no session is active for the class, or the active session is paused, or the learner has completed it, render the quiet waiting screen, with the sentence that matches the state,"],
+   "When no session is active for the class, or the active session is paused, or the learner has completed it, render the quiet waiting screen, with the sentence that matches the session state and the learner's completion mark, in the teacher's chosen gender,"],
   ["בלובי, מפגש מושהה מציג \"המורה עצרה את הפעילות לרגע\" במקום כפתור הכניסה.",
-   "בלובי מוצג תמיד אותו מסך המתנה שקט במקום כפתור הכניסה, והמשפט שבו תלוי במצב: כשהמורה עוד לא פתחה מפגש, \"היום עוד לא התחלנו. המורה תפתח את הפעילות בקרוב.\"; כשהמורה עצרה את המפגש, \"המורה עצרה את הפעילות לרגע.\"; כשהלומד סיים את התחנה של היום, \"כשהמורה תפתח את התחנה הבאה, נמשיך יחד.\"; כשהמורה סגרה את התחנה והלומד לא סיים אותה, \"המורה סגרה את התחנה.\". לומד שסיים את התחנה רואה את משפט הסיום גם אם המורה עצרה או סגרה אותה אחר כך."],
+   "בלובי מוצג תמיד אותו מסך המתנה שקט במקום כפתור הכניסה, והמשפט שבו נקבע לפי מצב המפגש ולפי סימן הסיום של הלומד באותה תחנה, ולא לפי סיבת הסגירה: כשהמורה עוד לא פתחה מפגש, \"היום עוד לא התחלנו. המורה תפתח את הפעילות בקרוב.\"; כשהמורה עצרה את המפגש, \"המורה עצרה את הפעילות לרגע.\"; כשהלומד סיים את התחנה של היום, \"כשהמורה תפתח את התחנה הבאה, נמשיך יחד.\"; כשהמורה סגרה את התחנה והלומד לא סיים אותה, \"העבודה שלכם נשמרה בבטחה. המורה תקבע איתכם מתי תמשיכו.\". לומד שסיים את התחנה רואה את משפט הסיום גם אם המורה עצרה או סגרה אותה אחר כך. המשפטים מוצגים בלשון שהמורה בחרה (מודול 7 §א); כאן הם בלשון נקבה, ובלשון זכר הפעלים בזכר: יפתח, עצר, יפתח, יקבע."],
   ["(and in the lobby instead of the enter button)",
    "(in the lobby, the quiet waiting screen instead of the enter button)"],
-  ["בלובי, מפגש מושהה, וכן מפגש שהלומד כבר סיים, מציגים את מסך ההמתנה השקט של הלובי במקום כפתור הכניסה.",
-   "בלובי מוצג תמיד אותו מסך המתנה שקט במקום כפתור הכניסה, והמשפט שבו תלוי במצב: כשהמורה עוד לא פתחה מפגש, \"היום עוד לא התחלנו. המורה תפתח את הפעילות בקרוב.\"; כשהמורה עצרה את המפגש, \"המורה עצרה את הפעילות לרגע.\"; כשהלומד סיים את התחנה של היום, \"כשהמורה תפתח את התחנה הבאה, נמשיך יחד.\"; כשהמורה סגרה את התחנה והלומד לא סיים אותה, \"המורה סגרה את התחנה.\". לומד שסיים את התחנה רואה את משפט הסיום גם אם המורה עצרה או סגרה אותה אחר כך."],
-  ["When no session is active for the class, or the active session is paused, or the learner has completed it, render the quiet waiting screen defined",
-   "When no session is active for the class, or the active session is paused, or the learner has completed it, render the quiet waiting screen, with the sentence that matches the state, defined"]
+  ["בלי פנייה ביחיד ובלי \"שלך\".",
+   "בלי פנייה ביחיד ובלי \"שלך\". משפט במסכי הלומד שמדבר על המורה בפועל שיש לו מין דקדוקי (\"המורה עצרה\", \"המורה תפתח\") כתוב בלשון שהמורה בחרה: המורה בוחרת פעם אחת, בדשבורד, אם מסכי הלומד מדברים על המורה בלשון נקבה או בלשון זכר, וכל משפט כזה, על המסך ובהקראה, עוקב אחר הבחירה. ברירת המחדל היא לשון נקבה. מסכי המורה עצמם פונים ברבים ואינם מושפעים מהבחירה."]
 ];
 
 function applyEdits() {
