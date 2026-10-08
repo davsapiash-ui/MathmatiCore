@@ -64,7 +64,7 @@ describe('MASTER PRD v07 COMPREHENSIVE QA & AUDIT SUITE', () => {
       expect(useAuthStore.getState().isAuthenticated).toBe(false);
     });
 
-    it('validates Zero PII fail-closed regex, Luhn algorithm, and sanitization', () => {
+    it('validates Zero PII regex, Luhn algorithm, and sanitization', () => {
       // Valid Luhn Teudat Zehut (e.g. 012345674)
       expect(isValidIsraeliID('012345674')).toBe(true);
       expect(isValidIsraeliID('123456789')).toBe(false);

@@ -1,13 +1,12 @@
 /**
  * @vitest-environment jsdom
  *
- * PRD Module 3 §א: "במקרה של תקלה ברכיב הסינון, המערכת נועלת את הקלט ליתר
- * ביטחון עד להתאוששות הלוגיקה"; "if the PII detection logic encounters a
- * runtime error, disable all input and transmission components immediately".
+ * PRD Module 3 §א (v7.9): "אם רכיב הסינון עצמו נכשל (שגיאת ריצה), שום דבר
+ * אינו ננעל: הצ'אט, ההקלדה והעבודה ממשיכים כרגיל, והכשל נרשם ביומן השרת".
  *
- * A filter failure stopped that one send and left the box open. Now the text
- * box and its send button stay locked until the filter answers again; the
- * ready messages and "קראו למורה" carry no typed text and stay available.
+ * The filter used to fail closed: a failure locked the text box until the
+ * filter answered again. Now nothing locks, the message goes, and the failure
+ * is logged. A message the filter reads and finds PII in is still refused.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, act, cleanup } from '@testing-library/react';
@@ -44,14 +43,15 @@ vi.mock('@/core/security/PiiFilter', async (importOriginal) => {
   };
 });
 
-import { StudentChatOverlay, PII_FILTER_RECHECK_MS, READY_HELP_MESSAGE_HE, PII_REFUSAL_CHILD_HE } from '../StudentChatOverlay';
+import { StudentChatOverlay, READY_HELP_MESSAGE_HE, PII_REFUSAL_CHILD_HE } from '../StudentChatOverlay';
+import { setPiiFilterFailureSink } from '@/core/security/PiiFilter';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useChatStore } from '@/application/useChatStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 
 if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {};
 
-describe('Module 3 §א — a PII filter failure locks the text box until the filter recovers', () => {
+describe('Module 3 §א — a PII filter failure locks nothing and is logged', () => {
   let sendMessage: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -69,6 +69,8 @@ describe('Module 3 §א — a PII filter failure locks the text box until the fi
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
+    vi.restoreAllMocks();
+    setPiiFilterFailureSink(null);
   });
 
   function open() {
@@ -80,17 +82,29 @@ describe('Module 3 §א — a PII filter failure locks the text box until the fi
     return { box, send, ready };
   }
 
-  it('the failure sends nothing and locks the box and its button; the ready messages still go', () => {
+  it('the failure locks nothing: the message goes, the box stays open, and the failure is logged', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const sink = vi.fn();
+    setPiiFilterFailureSink(sink);
     const { box, send, ready } = open();
     pii.broken = true;
     fireEvent.change(box, { target: { value: 'אפשר עזרה בתרגיל 3' } });
     fireEvent.click(send);
-    expect(sendMessage).not.toHaveBeenCalled();
-    expect(box.disabled).toBe(true);
-    expect(send.disabled).toBe(true);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendMessage.mock.calls[0][3]).toBe('אפשר עזרה בתרגיל 3');
+    expect(box.disabled).toBe(false);
+    expect(box.value, 'sent, so the box is cleared').toBe('');
+    expect(consoleError).toHaveBeenCalled();
+    expect(sink, 'the failure reaches the server log').toHaveBeenCalledWith('StudentChatOverlay', expect.any(Error));
+
+    // Typing and sending continue while the filter is still down.
+    fireEvent.change(box, { target: { value: 'עוד שאלה' } });
+    expect(box.value).toBe('עוד שאלה');
+    fireEvent.click(send);
+    expect(sendMessage).toHaveBeenCalledTimes(2);
 
     fireEvent.click(ready);
-    expect(sendMessage, 'a ready message carries no typed text').toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledTimes(3);
   });
 
   it('a refused message gets one child\'s sentence, not the teacher screens\' text (audit 4.10.2026, A7-006)', async () => {
@@ -110,24 +124,5 @@ describe('Module 3 §א — a PII filter failure locks the text box until the fi
     const { ready } = open();
     expect(ready.className).toMatch(/\btext-sm\b/);
     expect(ready.className).not.toMatch(/text-\[11px\]/);
-  });
-
-  it('the lock lifts once the filter answers again, and the message can be sent', () => {
-    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
-    const { box, send } = open();
-    pii.broken = true;
-    fireEvent.change(box, { target: { value: 'אפשר עזרה בתרגיל 3' } });
-    fireEvent.click(send);
-    expect(box.disabled).toBe(true);
-
-    act(() => { vi.advanceTimersByTime(PII_FILTER_RECHECK_MS); });
-    expect(box.disabled, 'still down: still locked').toBe(true);
-
-    pii.broken = false;
-    act(() => { vi.advanceTimersByTime(PII_FILTER_RECHECK_MS); });
-    expect(box.disabled).toBe(false);
-    expect(box.value, 'what the child typed is still there').toBe('אפשר עזרה בתרגיל 3');
-    fireEvent.click(send);
-    expect(sendMessage).toHaveBeenCalledTimes(1);
   });
 });

@@ -67,7 +67,7 @@ import {
   readQTaskValue,
   type RegroupingKindScore,
 } from "@/core/QMatrix";
-import { validateChatInputForPII, anonymizeChatMessageBody } from "@/core/security/PiiFilter";
+import { validateChatInputForPII, anonymizeChatMessageBody, reportPiiFilterFailure } from "@/core/security/PiiFilter";
 import { approveTeacherGate } from "@/core/teacherGate";
 import { PILOT_CLASS_ID, PILOT_SCHOOL_ID } from "@/core/pilotInstitution";
 import { meetingLabelHe, meetingShortLabelHe } from "@/core/stationNames";
@@ -1553,12 +1553,13 @@ export function TeacherDashboard() {
   // "send", and answered with a toast; the button stayed enabled meanwhile.
   const adminInputPiiNotice = useMemo(() => {
     if (!adminInputText.trim()) return null;
+    // PRD Module 3 §א (v7.9): a filter failure locks nothing; it is logged.
     try {
       const validation = validateChatInputForPII(adminInputText);
       return validation.valid ? null : (validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
     } catch (err) {
-      console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
-      return 'שגיאה בבדיקת הפרטים המזהים. שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.';
+      reportPiiFilterFailure('TeacherDashboard admin chat (live scan)', err);
+      return null;
     }
   }, [adminInputText]);
 
@@ -1568,24 +1569,22 @@ export function TeacherDashboard() {
     isSendingAdminRef.current = true;
     setIsSendingAdmin(true);
 
-    // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
-    let cleanText: string;
+    // Module 22: Tier 1 client-side check. PRD Module 3 §א (v7.9): if the
+    // filter itself fails, nothing is locked — the failure is logged and the
+    // message goes on to the server, whose anonymizer still runs on it.
+    let validation: { valid: boolean; errorHe?: string } = { valid: true };
     try {
-      const validation = validateChatInputForPII(adminInputText);
-      if (!validation.valid) {
-        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
-        isSendingAdminRef.current = false;
-        setIsSendingAdmin(false);
-        return;
-      }
-      cleanText = anonymizeChatMessageBody(adminInputText.trim());
+      validation = validateChatInputForPII(adminInputText);
     } catch (err) {
-      console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
-      toast.error('שגיאה בבדיקת הפרטים המזהים. שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
+      reportPiiFilterFailure('TeacherDashboard admin chat', err);
+    }
+    if (!validation.valid) {
+      toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
       isSendingAdminRef.current = false;
       setIsSendingAdmin(false);
       return;
     }
+    const cleanText = anonymizeChatMessageBody(adminInputText.trim());
 
     // Module 22: Tier 2 anonymization is a *server-side* guarantee, and the
     // admin console reads this channel from Firestore `messages`. Writing
@@ -1637,12 +1636,13 @@ export function TeacherDashboard() {
   // also when the scan itself fails. It used to be a toast after "send".
   const studentInputPiiNotice = useMemo(() => {
     if (!inputText.trim()) return null;
+    // PRD Module 3 §א (v7.9): a filter failure locks nothing; it is logged.
     try {
       const validation = validateChatInputForPII(inputText);
       return validation.valid ? null : (validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
     } catch (err) {
-      console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
-      return 'שגיאה בבדיקת הפרטים המזהים. שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.';
+      reportPiiFilterFailure('TeacherDashboard learner chat (live scan)', err);
+      return null;
     }
   }, [inputText]);
 
@@ -1650,30 +1650,31 @@ export function TeacherDashboard() {
     if (!inputText.trim() || !user || !selectedStudentId) return;
     if (studentInputPiiNotice) return; // the notice is already on screen, under the box
 
-    // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
+    // Module 22: Tier 1 client-side check. PRD Module 3 §א (v7.9): if the
+    // filter itself fails, nothing is locked — the failure is logged and the
+    // message goes.
+    let validation: { valid: boolean; errorHe?: string } = { valid: true };
     try {
-      const validation = validateChatInputForPII(inputText);
-      if (!validation.valid) {
-        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
-        return;
-      }
-
-      const cleanText = anonymizeChatMessageBody(inputText.trim());
-      const targetId = normalizeStudentId(selectedStudentId);
-
-      sendMessage(
-        user.uid as string,
-        // שם המורה אינו נשמר בשום מקום במערכת; ההודעה נושאת תפקיד, לא שם.
-        "מורה",
-        targetId,
-        cleanText,
-      );
-      setInputText("");
+      validation = validateChatInputForPII(inputText);
     } catch (err) {
-      console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
-      toast.error('שגיאה בבדיקת הפרטים המזהים. שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
+      reportPiiFilterFailure('TeacherDashboard learner chat', err);
+    }
+    if (!validation.valid) {
+      toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
       return;
     }
+
+    const cleanText = anonymizeChatMessageBody(inputText.trim());
+    const targetId = normalizeStudentId(selectedStudentId);
+
+    sendMessage(
+      user.uid as string,
+      // שם המורה אינו נשמר בשום מקום במערכת; ההודעה נושאת תפקיד, לא שם.
+      "מורה",
+      targetId,
+      cleanText,
+    );
+    setInputText("");
   };
 
   // Counted from the Firestore admin channel (adminMessages) — the RTDB chat

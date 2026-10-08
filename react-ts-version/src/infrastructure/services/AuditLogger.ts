@@ -1,6 +1,6 @@
 import { ref, push, set, serverTimestamp } from "firebase/database";
-import { database, authReady } from "@/infrastructure/firebase";
-import { sanitizePII } from "@/core/security/PiiFilter";
+import { database, authReady, auth } from "@/infrastructure/firebase";
+import { sanitizePII, setPiiFilterFailureSink } from "@/core/security/PiiFilter";
 import { isTeacherOrAdminId } from "@/core/staffIdentity";
 
 export type ErrorCategory = 'FACTUAL_ERROR' | 'PROCEDURAL_ERROR' | 'STRATEGIC_ERROR';
@@ -103,3 +103,34 @@ class AuditLoggerService {
 }
 
 export const AuditLogger = new AuditLoggerService();
+
+/** The audit-log action of a PII filter runtime failure (PRD Module 3 §א). */
+export const PII_FILTER_FAILURE_ACTION = 'PII_FILTER_RUNTIME_ERROR';
+
+/**
+ * PRD Module 3 §א: a runtime failure of the PII filter locks nothing and "נרשם
+ * ביומן השרת (רישום ביקורת) כדי שהחוקר יידע שהתרחש". It goes to the existing
+ * `audit_logs` node under the signed-in user's own auth uid, which the RTDB
+ * rules accept from staff and learners alike. Only the place and the error's
+ * name are written — never the text that was being checked.
+ */
+export async function logPiiFilterFailureToServer(where: string, err: unknown): Promise<void> {
+  try {
+    if (authReady && typeof (authReady as any).then === 'function') {
+      await authReady;
+    }
+    const uid = auth?.currentUser?.uid;
+    if (!uid) return;
+    const errName = err instanceof Error ? err.name : typeof err;
+    await push(ref(database, 'audit_logs'), {
+      action: PII_FILTER_FAILURE_ACTION,
+      user_id: uid,
+      details: `PII filter runtime error in ${where} (${errName}); nothing was locked`,
+      timestamp: serverTimestamp(),
+    });
+  } catch (e) {
+    console.error('Failed to write the PII filter failure to the audit log:', e);
+  }
+}
+
+setPiiFilterFailureSink((where, err) => { void logPiiFilterFailureToServer(where, err); });

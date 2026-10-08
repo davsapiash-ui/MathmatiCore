@@ -8,7 +8,7 @@ import { useAdminStore } from '@/application/useAdminStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { Check, CheckCheck, Send, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
+import { validateChatInputForPII, anonymizeChatMessageBody, reportPiiFilterFailure } from '@/core/security/PiiFilter';
 import { ref, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
@@ -44,9 +44,6 @@ export const CARD_TAB_LABEL_HE = 'חזרה לכרטיס החניכה';
 /** The same ready message pressed again within this time is one press. */
 const READY_MESSAGE_REPEAT_MS = 2000;
 
-/** While the PII filter is down, how often it is tried again on a harmless probe. */
-export const PII_FILTER_RECHECK_MS = 5000;
-
 export function StudentChatOverlay() {
   // Shared with the coaching card, which folds while the chat is open (A7-002).
   const isOpen = useStudentChatOpen((s) => s.open);
@@ -65,24 +62,6 @@ export function StudentChatOverlay() {
     trapFocus: false,
   });
   const [text, setText] = useState('');
-  // PRD Module 3 §א: "במקרה של תקלה ברכיב הסינון, המערכת נועלת את הקלט ליתר
-  // ביטחון עד להתאוששות הלוגיקה". A failure used to stop that one send only;
-  // the box stayed open. Now the box and its send button are locked until the
-  // filter answers again. The ready messages and "קראו למורה" carry no text
-  // the learner typed, so a child can still ask for help.
-  const [piiFilterDown, setPiiFilterDown] = useState(false);
-  useEffect(() => {
-    if (!piiFilterDown) return;
-    const timer = setInterval(() => {
-      try {
-        validateChatInputForPII('בדיקה');
-        setPiiFilterDown(false);
-      } catch {
-        // still down: the box stays locked
-      }
-    }, PII_FILTER_RECHECK_MS);
-    return () => clearInterval(timer);
-  }, [piiFilterDown]);
   const { messages, sendMessage, markAsRead, initSync } = useChatStore();
   const user = useAuthStore(s => s.user);
   const activeSession = useActiveClassSession();
@@ -149,25 +128,26 @@ export function StudentChatOverlay() {
     const textToSend = text.trim();
     // No learner number (a teacher previewing the workspace): nothing to send
     // as — an empty id wrote to the root of chat_messages.
-    if (!textToSend || !user?.uid || !normUid || piiFilterDown) return;
+    if (!textToSend || !user?.uid || !normUid) return;
+    // PRD Module 3 §א (v7.9): if the filter itself fails, nothing is locked —
+    // the failure is logged (console + audit log) and the message goes.
+    let validation: { valid: boolean; errorHe?: string } = { valid: true };
     try {
-      const validation = validateChatInputForPII(textToSend);
-      if (!validation.valid) {
-        // One child's sentence for every refusal: PiiFilter's own texts are the
-        // teacher screens' ("…השתמשו במזהה האנונימי של התלמיד (1-12)"), an
-        // adult's words that ask a grade-3 child for something it cannot do
-        // (audit 4.10.2026, A7-006).
-        toast.warning(PII_REFUSAL_CHILD_HE);
-        return;
-      }
-      const studentNum = normUid.replace(/\D+/g, '') || '1';
-      sendMessage(normUid, `תלמיד ${studentNum}`, targetTeacherId as string, anonymizeChatMessageBody(textToSend));
-      setText('');
+      validation = validateChatInputForPII(textToSend);
     } catch (err) {
-      console.error('[StudentChat] PII check error:', err);
-      setPiiFilterDown(true);
-      toast.error('ההודעה לא נשלחה. נסו שוב בעוד רגע.');
+      reportPiiFilterFailure('StudentChatOverlay', err);
     }
+    if (!validation.valid) {
+      // One child's sentence for every refusal: PiiFilter's own texts are the
+      // teacher screens' ("…השתמשו במזהה האנונימי של התלמיד (1-12)"), an
+      // adult's words that ask a grade-3 child for something it cannot do
+      // (audit 4.10.2026, A7-006).
+      toast.warning(PII_REFUSAL_CHILD_HE);
+      return;
+    }
+    const studentNum = normUid.replace(/\D+/g, '') || '1';
+    sendMessage(normUid, `תלמיד ${studentNum}`, targetTeacherId as string, anonymizeChatMessageBody(textToSend));
+    setText('');
   };
 
   const sendReadyMessage = (messageText: string) => {
@@ -361,14 +341,13 @@ export function StudentChatOverlay() {
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSend()}
-            disabled={piiFilterDown}
             placeholder="כתבו הודעה למורה..."
             aria-label="הודעה למורה"
             className="flex-1 border border-ws-surface2 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-ws-accent bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
           />
           <button
             onClick={() => handleSend()}
-            disabled={!text.trim() || piiFilterDown}
+            disabled={!text.trim()}
             aria-label="שליחת ההודעה"
             className="bg-ws-accent disabled:opacity-40 text-white rounded-full w-11 h-11 flex items-center justify-center hover:brightness-110 active:scale-95 transition-all font-bold cursor-pointer shrink-0 shadow-sm"
           >
