@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
-import { useWorkspaceStore, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectBoardOpen, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -26,6 +26,7 @@ import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
+import { BOARD_ZONE_FLEX, TASK_ZONE_FLEX } from './workspaceZones';
 
 import { DienesBlock } from './board/DienesBlock';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
@@ -788,6 +789,7 @@ export function StudentWorkspacePage() {
   const isAdditionGridTabShown = isAdditionBoardEnabled && (additionHelperOffered || isAdditionHelperOpen) && !isAdditionGridShown;
   // Stations 2 and 8 have no number house (PRD Module 14 §ב): their task card is centred.
   const hasBoard = sessionNumber !== 2 && sessionNumber !== 8;
+  const isBoardOpen = useWorkspaceStore(selectBoardOpen);
 
 
   useEffect(() => {
@@ -1443,27 +1445,41 @@ export function StudentWorkspacePage() {
           {hasBoard ? (
             <>
               {/* The task-and-response zone, 40% (RTL: first in the row, so on
-                  the right). The coaching card's side drawer opens inside it
-                  (PRD Module 12 §ב), between the task card and the number
-                  house, so the representations zone keeps its 60% and stays
-                  in view, and nothing covers anything. The addition grid
-                  (Module 10) shares the drawer's place: the grid and the card
-                  are never shown together (useAdditionGridOverCard.ts). */}
+                  the right): the task card with its result row, and the
+                  coaching card's side drawer, which opens inside this zone
+                  (PRD Module 12 §ב) — so the representations zone keeps its
+                  60% and stays in view, and nothing covers anything. */}
               <section
                 data-testid="task-zone"
                 aria-label="אגף המשימה"
-                style={{ flex: '2 1 0%' }}
+                style={{ flex: isBoardOpen ? TASK_ZONE_FLEX : '1 1 0%' }}
                 className="min-h-0 min-w-0 flex flex-row gap-2"
               >
                 <div className="flex-1 min-h-0 min-w-0 flex flex-col">
                   <TaskCard />
                 </div>
-                {/* Module 10 (register decision ב): the addition grid fades in
-                    over 2s and stays until the learner closes it with the X.
-                    It covers nothing the learner works with (Module 10 §ב:
-                    blocks, typing and regrouping go on while it is open).
-                    AnimatePresence lets the exit animation play after the
-                    store closes it. */}
+                <SocraticSidePanel inTaskZone />
+              </section>
+
+              {/* The representations zone, 60% (RTL: last in the row, so on
+                  the visual left): the number house and its blocks, and —
+                  for an enhanced-support learner — the addition grid, a
+                  representation aid of its own (Module 10), beside the board.
+                  Module 10 (register decision ב): the grid fades in over 2s
+                  and stays until the learner closes it with the X; it covers
+                  nothing the learner works with (blocks, typing and
+                  regrouping go on while it is open), and it is never shown
+                  together with the coaching card (useAdditionGridOverCard.ts).
+                  AnimatePresence lets its exit animation play. A learner may
+                  bring back an aid that faded: the tab sits where the grid
+                  itself appears, not in the top bar (isAdditionBoardEnabled:
+                  enhanced_cognitive_support learners in sessions 3–7). */}
+              <section
+                data-testid="representations-zone"
+                aria-label="אגף הייצוגים"
+                style={{ flex: isBoardOpen ? BOARD_ZONE_FLEX : '0 0 auto' }}
+                className="min-h-0 min-w-0 flex flex-row gap-2"
+              >
                 {isAdditionBoardEnabled && (
                   <AnimatePresence>
                     {isAdditionGridMounted && (
@@ -1471,16 +1487,9 @@ export function StudentWorkspacePage() {
                     )}
                   </AnimatePresence>
                 )}
-                {/* A learner may bring back an aid that faded: the tab sits
-                    where the grid itself appears, not in the top bar.
-                    isAdditionBoardEnabled already restricts this to
-                    enhanced_cognitive_support learners in sessions 3–7. */}
                 {isAdditionGridTabShown && <AdditionGridTab />}
-                <SocraticSidePanel inTaskZone />
+                <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} inZone />
               </section>
-
-              {/* The representations zone, 60% (RTL: last in the row, so on the left). */}
-              <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} />
             </>
           ) : (
             <>

@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ref, onValue, get } from 'firebase/database';
 import { onAuthStateChanged } from 'firebase/auth';
 import { database, auth, authReady, fetchServerClockOffset, isServerClockKnown } from '@/infrastructure/firebase';
-import { lastMeetingOf } from '@/core/lobbyState';
-import { getClassSessionStatus, isClassSessionLive, readSessionStartedAt, type ActiveClassSessionRecord, type ClassSessionStatus } from '@/core/classSession';
+import { getClassSessionStatus, lastMeetingOf, isClassSessionLive, readSessionStartedAt, type ActiveClassSessionRecord, type ClassSessionStatus } from '@/core/classSession';
 
 export interface ActiveClassSession {
   /** The meeting is open (active or paused). */

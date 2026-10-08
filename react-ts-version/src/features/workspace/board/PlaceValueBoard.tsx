@@ -6,6 +6,7 @@ import { useWorkspaceStore, selectScaffoldLevel, selectBoardOpen } from '@/appli
 import { PlaceColumn } from './PlaceColumn';
 import { BlockPalette } from './BlockPalette';
 import { RegroupAnimationLayer } from './RegroupAnimationLayer';
+import { BOARD_ZONE_FLEX } from '../workspaceZones';
 
 /** Width below which the full tray no longer fits on one row (measured: 708px). */
 export const TRAY_FULL_WIDTH_PX = 720;
@@ -21,15 +22,16 @@ export const TRAY_FULL_WIDTH_PX = 720;
  * board keeps its 60% whether the card is open or not. Collapsible via the
  * topbar toggle; then the task zone takes the row.
  */
-/** The representations zone's share of the row (PRD Module 7 §א): 3 : 2 against the task zone. */
-export const BOARD_ZONE_FLEX = '3 1 0%';
 
 export function PlaceValueBoard({
   fullWidth = false,
   activeDragPlace = null,
+  inZone = false,
 }: {
   fullWidth?: boolean;
   activeDragPlace?: Place | null;
+  /** Inside the representations zone (StudentWorkspacePage), which holds the 60%: the board fills what the zone leaves it. */
+  inZone?: boolean;
 }) {
   // Station 1 keeps the board open whatever the store says (selectBoardOpen).
   const boardOpen = useWorkspaceStore(selectBoardOpen);
@@ -102,7 +104,7 @@ export function PlaceValueBoard({
           initial={{ opacity: 0, flex: '0 0 0%' }}
           animate={{
             opacity: 1,
-            flex: fullWidth ? '1 1 100%' : BOARD_ZONE_FLEX,
+            flex: fullWidth ? '1 1 100%' : inZone ? '1 1 0%' : BOARD_ZONE_FLEX,
           }}
           exit={{ opacity: 0, flex: '0 0 0%' }}
           transition={{ duration: 0.25, ease: 'easeInOut' }}

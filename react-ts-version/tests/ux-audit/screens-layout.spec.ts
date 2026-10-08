@@ -115,7 +115,7 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       await settle(page, 500);
 
       const task = await box(page, '[data-testid="task-zone"]');
-      const board = await box(page, 'section[aria-label="בית המספרים"]');
+      const board = await box(page, '[data-testid="representations-zone"]');
       const share = board.width / (board.width + task.width);
       expect(share, 'the representations zone is 60% of the row').toBeGreaterThan(0.58);
       expect(share).toBeLessThan(0.62);
@@ -126,7 +126,7 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       const card = page.getByTestId('socratic-card');
       await card.locator('button:not([disabled])').first().waitFor({ state: 'visible', timeout: 12_000 });
       await settle(page, 500);
-      const boardOpen = await box(page, 'section[aria-label="בית המספרים"]');
+      const boardOpen = await box(page, '[data-testid="representations-zone"]');
       const taskOpen = await box(page, '[data-testid="task-zone"]');
       const drawer = await box(page, '[data-testid="socratic-side-panel"]');
       const sheet = await box(page, '[data-testid="task-zone"] > div');

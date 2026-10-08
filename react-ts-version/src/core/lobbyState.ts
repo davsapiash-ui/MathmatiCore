@@ -1,5 +1,5 @@
 import { isMeetingFinished, hasStartedMeeting } from '@/core/meetingCompletion';
-import { readLastClosedRun, type ActiveClassSessionRecord } from '@/core/classSession';
+export { lastMeetingOf } from '@/core/classSession';
 import type { TeacherSentenceKey } from '@/core/teacherGender';
 
 /**
@@ -33,14 +33,6 @@ export interface LobbyInput {
   lastMeeting: number | null;
   /** The learner's own record (users/students/{id}). */
   record: LearnerRecord;
-}
-
-/** The meeting a closed broadcast last ran: its close stamp, else the number it still carries. */
-export function lastMeetingOf(raw: ActiveClassSessionRecord | null | undefined): number | null {
-  const run = readLastClosedRun(raw);
-  if (run) return run.meeting;
-  const n = Number(raw?.sessionNumber);
-  return raw?.sessionNumber != null && Number.isInteger(n) && n >= 1 && n <= 8 ? n : null;
 }
 
 export function lobbyState({ live, status, sessionNumber, lastMeeting, record }: LobbyInput): LobbyState {

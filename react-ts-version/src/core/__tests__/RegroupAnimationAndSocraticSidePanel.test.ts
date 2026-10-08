@@ -258,13 +258,18 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     const zone = main.slice(main.indexOf('data-testid="task-zone"'), main.indexOf('</section>'));
     expect(zone).toContain('<TaskCard />');
     expect(zone).toContain('<SocraticSidePanel inTaskZone />');
-    expect(main).toContain("style={{ flex: '2 1 0%' }}");
-    // The board comes after the task zone (RTL: on the visual left) and takes no share from the drawer.
-    expect(main.indexOf('<PlaceValueBoard')).toBeGreaterThan(main.indexOf('</section>'));
+    expect(zone).toContain('style={{ flex: isBoardOpen ? TASK_ZONE_FLEX : \'1 1 0%\' }}');
+    // The representations zone comes after it (RTL: on the visual left), with the board, and takes no share from the drawer.
+    const repsAt = main.indexOf('data-testid="representations-zone"');
+    const reps = main.slice(repsAt, main.indexOf('</section>', repsAt));
+    expect(main.indexOf('data-testid="representations-zone"')).toBeGreaterThan(main.indexOf('</section>'));
+    expect(reps).toContain('style={{ flex: isBoardOpen ? BOARD_ZONE_FLEX : \'0 0 auto\' }}');
+    expect(reps).toContain('<PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} inZone />');
+    expect(reps).not.toContain('<SocraticSidePanel');
     expect(main).not.toContain('shareRow');
-    const board = read('features/workspace/board/PlaceValueBoard.tsx');
-    expect(board).toContain("export const BOARD_ZONE_FLEX = '3 1 0%';");
-    expect(board).toContain("flex: fullWidth ? '1 1 100%' : BOARD_ZONE_FLEX,");
+    const zones = read('features/workspace/workspaceZones.ts');
+    expect(zones).toContain("export const BOARD_ZONE_FLEX = '3 1 0%';");
+    expect(zones).toContain("export const TASK_ZONE_FLEX = '2 1 0%';");
   });
 
   it('a board too narrow for the full tray gets the compact tray, which may wrap, so the trash is never cut off', () => {

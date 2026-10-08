@@ -177,3 +177,15 @@ export function isClassSessionLive(
   if (autoCloseAt !== null && now >= autoCloseAt) return false;
   return true;
 }
+
+/**
+ * The meeting a session that is no longer live last ran: its close stamp, else
+ * the number it still carries (a session past its time that was never closed).
+ * The lobby's sentence follows the learner's finished mark at it (core/lobbyState.ts).
+ */
+export function lastMeetingOf(raw: ActiveClassSessionRecord | null | undefined): number | null {
+  const run = readLastClosedRun(raw);
+  if (run) return run.meeting;
+  const n = Number(raw?.sessionNumber);
+  return raw?.sessionNumber != null && Number.isInteger(n) && n >= 1 && n <= 8 ? n : null;
+}
