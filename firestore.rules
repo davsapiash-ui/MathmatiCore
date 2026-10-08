@@ -569,5 +569,12 @@ service cloud.firestore {
       allow list: if isTeacherOfClass(resource.data.class_id);
       allow write: if false; // Writes restricted strictly to Cloud Functions Admin SDK
     }
+
+    // Modules 1 §א and 25 §ב.3 — the learners' personal access codes. Closed to
+    // every client, staff included: the teacher and the admin read and change
+    // them only through getLearnerAccessCodes / regenerateLearnerAccessCode.
+    match /learner_access_codes/{classId} {
+      allow read, write: if false;
+    }
   }
 }

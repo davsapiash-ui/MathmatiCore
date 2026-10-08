@@ -1,8 +1,7 @@
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
-
-export const FIXED_CLASS_PASSCODE = "10203040";
+import { codesMatch, loadAccessCodes } from "./learnerAccessCodes";
 
 export interface AuthenticateStudentRequest {
   studentId: number;
@@ -12,7 +11,7 @@ export interface AuthenticateStudentRequest {
 
 /**
  * Authenticates an anonymous student session (PRD Module 1 & Module 25).
- * Validates the physical class passcode and attaches verified Custom Claims to the anonymous Auth token.
+ * Validates the learner's personal 4-digit access code and attaches verified Custom Claims to the anonymous Auth token.
  * Custom Claims stamped: { role: 'student', student_id: 1..12, class_id: 'class_1', roles: ['STUDENT'] }
  */
 export const authenticateStudentSession = onCall(
@@ -42,18 +41,22 @@ export const authenticateStudentSession = onCall(
     throw new HttpsError("invalid-argument", "Student ID must be an integer between 1 and 12");
   }
 
-  // 2. Validate class passcode
-  if (typeof passcode !== "string" || passcode.trim() !== FIXED_CLASS_PASSCODE) {
-    throw new HttpsError("permission-denied", "Invalid class access code");
-  }
-
-  // 3. class_id is written into a signed custom claim, and that claim is read
+  // 2. class_id is written into a signed custom claim, and that claim is read
   //    as a security input elsewhere (isTeacherOfClass in the rules, the
   //    research export's class scoping). It used to be whatever the caller
   //    sent — any string, or an object. The pilot has one class.
   //    Module 25 §ב.1 fixes that one class: "המבקרים", id class_1.
   if (classId !== "class_1") {
     throw new HttpsError("invalid-argument", "class_id is not the pilot class.");
+  }
+
+  // 3. Module 1 §א: the learner's own access code — their two-digit number and
+  //    two random digits (learnerAccessCodes.ts). The shared class passcode no
+  //    longer exists. The list is created on first use, so a missing list never
+  //    lets anyone in. The typed code is never logged.
+  const codes = await loadAccessCodes(classId, "system");
+  if (!codesMatch(codes[String(studentId)], passcode)) {
+    throw new HttpsError("permission-denied", "Invalid access code");
   }
 
   const uid = request.auth.uid;

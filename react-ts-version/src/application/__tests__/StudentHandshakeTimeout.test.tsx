@@ -57,7 +57,7 @@ async function fillStudentForm() {
     </MemoryRouter>
   );
   fireEvent.click(screen.getByText('תלמיד'));
-  const field = (await screen.findByPlaceholderText('••••••••')) as HTMLInputElement;
+  const field = (await screen.findByPlaceholderText('••••')) as HTMLInputElement;
   fireEvent.change(field, { target: { value: '1234' } });
   return field;
 }

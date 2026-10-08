@@ -27,11 +27,19 @@ describe('כרטיסי כניסה לתלמידים', () => {
     expect(page).not.toMatch(/<input|<textarea|contentEditable/);
   });
 
-  it('קוד הגישה אינו כתוב בקוד הדפדפן — הוא מגיע מהשרת, למנהל המערכת בלבד', () => {
+  it('קודי הגישה אינם כתובים בקוד הדפדפן — הם מגיעים מהשרת, למנהל המערכת בלבד', () => {
     expect(page).not.toContain('10203040');
     expect(fn).toContain('requireAdmin(request.auth.token');
-    expect(fn).toContain('FIXED_CLASS_PASSCODE');
+    expect(fn).not.toContain('FIXED_CLASS_PASSCODE');
+    expect(fn).toContain('loadAccessCodes(PILOT_CLASS_ID');
     expect(index).toContain('export { getStudentLoginCards } from "./studentLoginCards";');
+  });
+
+  it('על כל כרטיס קוד הגישה האישי של הלומד, ו"קוד חדש" אינו מודפס (מודול 25 §ד)', () => {
+    expect(page).toContain('data.codes[String(id)]');
+    expect(page).not.toContain('data.passcode');
+    expect(page).toMatch(/print:hidden[^"]*"\s*>\s*קוד חדש/);
+    expect(page).toContain('"regenerateLearnerAccessCode"');
   });
 
   it('הדף פתוח למנהל המערכת בלבד', () => {
@@ -41,6 +49,6 @@ describe('כרטיסי כניסה לתלמידים', () => {
   });
 
   it('12 כרטיסים — מזהים 1 עד 12', () => {
-    expect(fn).toContain('Array.from({ length: 12 }, (_, i) => i + 1)');
+    expect(fn).toContain('studentIds: [...LEARNER_IDS]');
   });
 });
