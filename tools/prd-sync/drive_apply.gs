@@ -27,7 +27,7 @@ function applyPrdOps()   { run_(true); }
 function run_(write) {
   var ops = JSON.parse(OPS_JSON);
   var body = DocumentApp.getActiveDocument().getBody();
-  var done = 0, skipped = [];
+  var done = 0, already = 0, skipped = [];
 
   // Version line: the paragraph that starts with "גרסה" or "מוגרסה" and contains "7.3".
   var paras = body.getParagraphs();
@@ -45,26 +45,43 @@ function run_(write) {
     var anchorText = plain_(op.op === 'replace' ? op.old : op.anchor);
     var para = findParagraph_(body, anchorText);
     if (!para) { skipped.push((op.source || '?') + ': לא נמצאה הפסקה: "' + anchorText.slice(0, 60) + '…"'); continue; }
+    var newParas = op.new.split(/\n\s*\n/);
+    // Already applied in an earlier run? (the first new paragraph already sits right after the anchor)
+    if (op.op === 'insert_after' && newParas.length && nextText_(para) === plain_(newParas[0])) { already++; continue; }
     if (!write) { done++; continue; }
 
-    var newParas = op.new.split(/\n\s*\n/);
-    if (op.op === 'replace') {
-      setParagraphMarkdown_(para, newParas[0]);
-      insertAfter_(body, para, newParas.slice(1));
-    } else {
-      insertAfter_(body, para, newParas);
+    try {
+      if (op.op === 'replace') {
+        setParagraphMarkdown_(para, newParas[0]);
+        insertAfter_(body, para, newParas.slice(1));
+      } else {
+        insertAfter_(body, para, newParas);
+      }
+      done++;
+    } catch (e) {
+      skipped.push((op.source || '?') + ': שגיאה: ' + e.message + ' — "' + anchorText.slice(0, 50) + '…"');
     }
-    done++;
   }
-  Logger.log('%s %s פעולות. דולגו: %s', write ? 'בוצעו' : 'ניתן לבצע', done, skipped.length);
+  Logger.log('%s %s פעולות. כבר בוצעו קודם: %s. דולגו: %s', write ? 'בוצעו' : 'ניתן לבצע', done, already, skipped.length);
   skipped.forEach(function (s) { Logger.log('דולג — ' + s); });
 }
 
+function nextText_(para) {
+  var parent = para.getParent();
+  var idx = parent.getChildIndex(para);
+  if (idx + 1 >= parent.getNumChildren()) return null;
+  var n = parent.getChild(idx + 1);
+  if (n.getType() !== DocumentApp.ElementType.PARAGRAPH && n.getType() !== DocumentApp.ElementType.LIST_ITEM) return null;
+  return n.asText().getText().replace(/\s+/g, ' ').trim();
+}
+
+// Inserts right after `para`, inside whatever contains it (the body or a table cell).
 function insertAfter_(body, para, mdParas) {
+  var parent = para.getParent();
   var attrs = para.getAttributes();
-  var idx = body.getChildIndex(para);
+  var idx = parent.getChildIndex(para);
   for (var j = 0; j < mdParas.length; j++) {
-    var p = body.insertParagraph(idx + 1 + j, '');
+    var p = parent.insertParagraph(idx + 1 + j, '');
     p.setAttributes(attrs);
     p.setHeading(DocumentApp.ParagraphHeading.NORMAL);
     setParagraphMarkdown_(p, mdParas[j]);
