@@ -31,17 +31,33 @@ The **only** authoritative requirements document is:
 מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md
 ```
 
-Version 7.3, 18 September 2026, exactly as the product owner uploaded it — 29 modules plus
-23א, Appendix A and Appendix B. Read it before implementing anything. When you cite a
-requirement, cite it from this file, by module.
+Version 7.4, 8 October 2026 — 29 modules plus 23א, Appendix A and Appendix B. Read it
+before implementing anything. When you cite a requirement, cite it from this file, by
+module.
 
-**Agents never edit this file.** Not to record a decision, not to "update" a module, not
-to add an implementation note. Between 30 August and 9 September 2026 agents wrote seven
-rounds of product-owner decisions into it while its header still said v7.2; on 14
-September the owner had the file restored to the uploaded original. Every one of those
-decisions already lived in the deviation register — that is where they belong, and the
-only place they go (Rule 2). If the owner wants the specification itself changed, the
-owner uploads a new version.
+The PRD describes the **target** system, not the code as it is today. Since 8 October
+2026 it also carries every product-owner decision that used to live in a separate
+deviation register; that register was merged into the modules and deleted. There is
+no second document, and a requirement in the PRD that the code does not yet meet is
+work for the code, not a reason to doubt the PRD.
+
+**Agents never edit this file on their own.** Not to record a decision, not to "update"
+a module, not to add an implementation note. Between 30 August and 9 September 2026
+agents wrote seven rounds of decisions into it on their own initiative, and on 14
+September the owner had the file restored. The owner's copy of the PRD is the Google
+Doc of the same name in their Drive; the file here mirrors it. The PRD changes in
+exactly two ways:
+
+1. **The owner edits the Google Doc** and asks an agent to sync it. The agent exports the
+   Doc and replaces this file with it, as a whole, without "improving" anything.
+2. **The owner decides something in chat** and tells the agent, explicitly, to write it
+   into the PRD. The agent then edits this file **and** records the same edit as ops in
+   `tools/prd-sync/ops/` (see `tools/prd-sync/README.md`), so the owner can apply it to
+   the Google Doc paragraph by paragraph without losing the Doc's formatting or their
+   own later edits. The pull request gets the label `owner-approved-spec-change`.
+
+Anything else — a decision you think the owner made, a gap you noticed, a mismatch you
+would like to resolve — you raise with the owner and stop. You do not write it anywhere.
 
 ### The owner's pedagogical source documents — read-only
 
@@ -57,14 +73,13 @@ owner uploads a new version.
 These five are the product owner's pedagogical specification, written for their
 academic supervisor. The PRD was derived from them. They are here so an agent can
 **read** them — to understand why a requirement exists, or to check an exercise's
-numbers (the register's decision א cites document 03).
+numbers (module 26 of the PRD takes its exercise banks from document 03).
 
 **Agents never edit, rename, move, delete, convert or "update" these files, and never
 derive a new document from them.** They are not a second specification: where they and
 the PRD differ, the PRD governs (Rule 1), and the difference is a pedagogical question
 for the owner — not something an agent resolves, in either direction. If reading them
-reveals that the code departs from the PRD, propose it in the register's "ממתין להחלטה"
-table (Rule 2) and stop.
+reveals that the code departs from the PRD, raise it with the owner and stop.
 
 A CI check (`.github/workflows/protect-spec.yml`) fails any pull request that touches
 these files or the PRD unless the owner has labelled it `owner-approved-spec-change`.
@@ -79,28 +94,31 @@ Therefore:
 
 - **Never create a new PRD, spec, plan, audit, roadmap or status document** — not at
   the repo root, not anywhere. If a requirement must change, the product owner changes
-  it; you record the decision in the deviation register (Rule 2).
+  it in the PRD, by one of the two ways above.
 - Never treat a chat message, a commit message, an old branch, or your own memory as
   the spec. The file above is the spec.
 - If the spec is silent on something, say so and ask. Do not invent a requirement.
 
-## Rule 2 — Deviations are registered, not improvised
+## Rule 2 — When the code and the PRD disagree, the code changes
 
-```
-מסמכי אפיון/סטיות_מהאפיון.md
-```
-
-This register is **not** a specification. It records only where the code
-intentionally departs from the spec, who approved it, and when.
-
-> כלל הבית: כשהקוד והאפיון לא מסכימים, **הקוד משתנה** — אלא אם הסטייה רשומה כאן עם אישור.
+> כלל הבית: כשהקוד והאפיון לא מסכימים, **הקוד משתנה.** אין מרשם סטיות: כל סטייה שאושרה
+> כתובה ב-PRD עצמו כדרישה רגילה.
 >
-> *House rule: when the code and the spec disagree, the code changes — unless the
-> deviation is registered here with an approval.*
+> *House rule: when the code and the spec disagree, the code changes. There is no
+> deviation register: every approved deviation is written into the PRD itself as an
+> ordinary requirement.*
 
-Before "fixing" a mismatch, check the register. If the deviation is approved, leave
-it alone. If it is not, the code changes. Only the product owner adds a new approved
-deviation — you may propose one, never record one as approved yourself.
+There used to be a separate register of approved deviations. On 8 October 2026 the
+owner had it merged into the PRD and deleted, so that one document describes the
+system. Consequences:
+
+- Do not look for a register, and do not create one. If the PRD says X and the code
+  does Y, the code is wrong — unless the owner tells you otherwise in this session, in
+  which case the PRD changes first (Rule 1, way 2) and then the code.
+- "The code has always done it this way", an old commit, a code comment or a deleted
+  document are not approvals.
+- The PRD is silent on something you need? Say so and ask. Do not invent a requirement
+  and do not infer one from the code.
 
 ## Rule 3 — Exercises go through the pedagogy gate
 

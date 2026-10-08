@@ -2,8 +2,8 @@
 # written by the product owner only. Any pull request that changes them fails
 # unless the owner has put the label `owner-approved-spec-change` on it.
 #
-# The deviation register (סטיות_מהאפיון.md) is deliberately NOT protected —
-# that is the one file agents are supposed to write to (Rule 2).
+# Since 8 October 2026 the PRD also carries every decision that used to live in
+# the deviation register; that register no longer exists.
 
 name: Protect the specification
 on:
@@ -44,5 +44,5 @@ jobs:
           echo "AGENTS.md Rule 1: only the product owner changes the PRD or the pedagogical"
           echo "source documents. If this change is the owner's, add the label"
           echo "owner-approved-spec-change to the pull request. Otherwise revert it and"
-          echo "record the decision in מסמכי אפיון/סטיות_מהאפיון.md instead."
+          echo "raise the question with the owner instead (AGENTS.md Rule 2)."
           exit 1
