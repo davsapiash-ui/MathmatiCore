@@ -263,7 +263,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 )}
                 {activeSessionNumber === 8 && (
                   // PRD 23א §ב.2: in meeting 8 the class reset deletes the meeting's reflections, so the class can redo it.
-                  <li className="text-red-700 dark:text-red-300 font-semibold">במפגש 8 יימחקו גם הרפלקציות של המפגש, כדי שהכיתה תוכל לבצע את המפגש מחדש. הן נשמרות בגיבוי.</li>
+                  <li className="text-red-700 dark:text-red-300 font-semibold">במפגש 8 יימחקו גם הרפלקציות של המפגש, כדי שאפשר יהיה לבצע את המפגש מחדש בכיתה. הן נשמרות בגיבוי.</li>
                 )}
                 <li>המפגש של הכיתה נשאר פתוח, והשעון שלו ממשיך מהרגע שהופעל.</li>
                 <li>{RESET_LOG_LINE_HE}</li>

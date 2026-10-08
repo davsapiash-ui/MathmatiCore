@@ -299,7 +299,7 @@ export async function downloadMeetingExport(data: MeetingExport): Promise<void> 
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 0);
-  // PRD 23א §ד: the meeting download is logged in reset_audit_log with
+  // PRD 23א §ד: the meeting download is logged in the reset log with
   // reset_level 'export' (server-side, no e-mail). A failed log never blocks the file.
   void logMeetingDownload(data.learner, data.meeting);
 }

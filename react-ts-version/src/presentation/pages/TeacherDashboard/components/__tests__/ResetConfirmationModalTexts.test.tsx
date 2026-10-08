@@ -116,7 +116,7 @@ describe('level 2 — the whole class', () => {
 
   it('meeting 8: the meeting\'s reflections are deleted too (PRD 23א §ב.2)', () => {
     open(8);
-    expect(screen.getByText('במפגש 8 יימחקו גם הרפלקציות של המפגש, כדי שהכיתה תוכל לבצע את המפגש מחדש. הן נשמרות בגיבוי.')).toBeTruthy();
+    expect(screen.getByText('במפגש 8 יימחקו גם הרפלקציות של המפגש, כדי שאפשר יהיה לבצע את המפגש מחדש בכיתה. הן נשמרות בגיבוי.')).toBeTruthy();
   });
 
   it('no meeting open: the real way to reset one learner', () => {

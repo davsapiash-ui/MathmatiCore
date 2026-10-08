@@ -67,9 +67,9 @@ describe('catchup_records — the rules follow the contract', () => {
     expect(b).toContain('allow delete: if false;');
   });
 
-  it('staff read it; learners have no rule that lets them in', () => {
+  it('the class teacher reads it (PRD 23א §ו); learners have no rule that lets them in', () => {
     const b = block();
-    expect(b).toContain('allow read: if isTeacher() || isAdmin();');
+    expect(b).toContain('allow read: if isClassTeacherReading();');
     expect(b).not.toContain('isOwningStudent');
     expect(b).not.toContain('isOwningSession');
   });

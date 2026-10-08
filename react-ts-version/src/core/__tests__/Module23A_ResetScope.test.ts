@@ -70,7 +70,7 @@ describe('Module 23א — one scope for backup and deletion', () => {
     // The whole learner is still backed up, nothing of theirs is removed whole.
     expect(fn).toMatch(/rtdbPaths: \[\],\s*rtdbBackupOnlyPaths: \[/);
     // Only the meeting's own session documents go.
-    expect(fn).toMatch(/collection === "sessions" \? \{ sessionNumber \} : \{\}/);
+    expect(fn).toMatch(/collection === "sessions" \? \{ studentNumbers: \[parseInt\(rawNum, 10\)\], sessionNumber \} : \{ studentValues \}/);
     expect(fn).toMatch(/entry\.sessionNumber\s*\? await deleteSessionDocsOfMeeting\(db, entry, entry\.sessionNumber\)/);
     // The audit entry records which scope and which meeting.
     expect(fn).toMatch(/reset_scope: singleScope, session_number: activeSessionNumber/);
@@ -83,7 +83,9 @@ describe('Module 23א — one scope for backup and deletion', () => {
     expect(body).toContain('workspaceState: null');
     expect(body).toContain('sessionState: null');
     expect(body).toContain('[`completedMeeting${sessionNumber}`]: false');
-    expect(body).toContain('highestCompletedMeeting: Math.min(highest, sessionNumber - 1)');
+    // PRD 23א §ב.2: recomputed as the highest meeting whose completion mark is still set.
+    expect(body).toContain('const highest = highestCompletedAfterReset(sessionNumber, current);');
+    expect(body).toContain('highestCompletedMeeting: highest,');
     expect(body).toContain('if (sessionNumber === 2)');
     expect(body).toContain('if (sessionNumber === 8)');
     // Recordings, chat and the support profile are not meeting progress.
@@ -190,10 +192,11 @@ describe('Module 23א — level 2 for the whole class (register, deviation 20)',
     expect(classScope).toContain('rtdbBackupOnlyPaths: ["users/students", "chat_messages", RECORDINGS_ROOT],');
     expect(classScope).toContain('ALL_STUDENT_IDS.flatMap((n) => studentAliases(String(n)))');
     // Register deviation 20: the help calls on the radar are not reset (that is level 1).
-    expect(classScope).toContain('values: { __activeSessionNumber: sessionNumber, __keepHelpCalls: true }');
-    // Same rule as one learner: every collection is backed up, only the meeting's session documents go.
-    expect(classScope).toContain('backupOnly: collection !== "sessions",');
-    expect(classScope).toContain('collection === "sessions" ? { sessionNumber } : {}');
+    // PRD 23א §ב.2: in meeting 8 the meeting's reflections go too.
+    expect(classScope).toContain('values: { __activeSessionNumber: sessionNumber, __keepHelpCalls: true, ...(sessionNumber === 8 ? { __clearReflection: true } : {}) },');
+    // Every collection is backed up; only the meeting's session documents (and in meeting 8 its reflections) go.
+    expect(classScope).toContain('const deletedByMeeting = collection === "sessions" || (sessionNumber === 8 && collection === "srl_reflections");');
+    expect(classScope).toContain('backupOnly: !deletedByMeeting,');
     // Twelve learners under four aliases is past Firestore's 30-value "in" limit.
     expect(classScope).not.toContain('studentValues');
   });
