@@ -1,16 +1,23 @@
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onValueWritten } from "firebase-functions/v2/database";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { readCallerRoles } from "./callerIdentity";
 import {
   computeFirstAttemptScore,
+  isChoiceExercise,
+  isExerciseEvent,
   isScoredMeeting,
   readMeetingTelemetry,
   readLastResetOfMeeting,
   resolveCompulsoryTotal,
+  resolveMeetingPath,
+  sessionDocumentIdCandidates,
   studentNumberFromSessionId,
+  COMPULSORY_EXERCISES_PER_MEETING,
 } from "./meetingMetrics";
+import { CATCHUP_COLLECTION, catchUpDocId } from "./catchUp";
 
 export type MeetingScore =
   | { outcome: "scored"; scorePercent: number; recommendedPath: "green_path" | "remediation_path" }
@@ -21,7 +28,11 @@ export type MeetingScore =
  * One learner's score in one meeting, from the meeting's telemetry (PRD 23 §ב:
  * first-attempt correct ÷ compulsory), and the path it recommends (≥ 50% →
  * green_path). Shared by the completion trigger below and the re-scoring of
- * a meeting 2 the learner finished after the teacher's close (meeting2Close.ts).
+ * every later completion (rescoreCompletedMeeting).
+ *
+ * Meetings 3–8 are scored on the path the learner worked on in THAT meeting
+ * (PRD 23 §ב: the bank most of the learner's exercises were opened from), and
+ * `path` is only the fallback when no exercise was opened.
  */
 export async function computeMeetingScore(
   db: admin.firestore.Firestore,
@@ -38,11 +49,15 @@ export async function computeMeetingScore(
   if (telemetry.length === 0) return { outcome: "no_telemetry" };
 
   const compulsoryIds = new Map<string, ReadonlySet<string>>();
-  const compulsoryTotal = await resolveCompulsoryTotal(db, sessionNum, path, new Map(), compulsoryIds);
+  const cache = new Map<string, number | null>();
+  const scoringPath = sessionNum >= 3
+    ? await resolveMeetingPath(db, sessionNum, telemetry, path, cache, compulsoryIds)
+    : path;
+  const compulsoryTotal = await resolveCompulsoryTotal(db, sessionNum, scoringPath, cache, compulsoryIds);
   const computed = computeFirstAttemptScore(
     telemetry,
     compulsoryTotal,
-    compulsoryIds.get(`${sessionNum}:${path}`) ?? null
+    compulsoryIds.get(`${sessionNum}:${scoringPath}`) ?? null
   );
   if (computed.scorePercent === null) return { outcome: "no_denominator" };
   return {
@@ -50,6 +65,124 @@ export async function computeMeetingScore(
     scorePercent: computed.scorePercent,
     recommendedPath: computed.scorePercent >= 50 ? "green_path" : "remediation_path",
   };
+}
+
+/**
+ * PRD 14 §ב0 / 20 §ב: "ציון המפגש מחושב מחדש בכל פעם שהלומד משלים אותו; הציון
+ * הקודם נשמר גם הוא ואינו נדרס". Pure. The fields to write for a new score over
+ * what the document already holds:
+ *   - no stored score yet: the score and the recommendation;
+ *   - a stored score that differs: also previous_score_percent = the stored
+ *     score, so the score before this completion is kept next to the new one;
+ *   - the same score and recommendation: nothing (changed = false), and a
+ *     previous_score_percent kept from an earlier completion stays as it is.
+ * The teacher's approval and chosen path are never among the fields.
+ */
+export function rescoreFields(
+  stored: { session_score_percent?: unknown; matrix_recommended_path?: unknown } | null | undefined,
+  scorePercent: number,
+  recommendedPath: "green_path" | "remediation_path"
+): { changed: boolean; previousScore: number | null; fields: Record<string, unknown> } {
+  const before = typeof stored?.session_score_percent === "number" && Number.isFinite(stored.session_score_percent)
+    ? stored.session_score_percent
+    : null;
+  if (before === scorePercent && stored?.matrix_recommended_path === recommendedPath) {
+    return { changed: false, previousScore: null, fields: {} };
+  }
+  const fields: Record<string, unknown> = {
+    session_score_percent: scorePercent,
+    matrix_recommended_path: recommendedPath,
+  };
+  const previousScore = before !== null && before !== scorePercent ? before : null;
+  if (previousScore !== null) fields.previous_score_percent = previousScore;
+  return { changed: true, previousScore, fields };
+}
+
+/**
+ * PRD 14 §ב0: "רישום ההשלמה ... נושא את הציון החדש שחושב בהשלמה, ולצדו את הציון
+ * הקודם, כשהיה כזה." When the learner has a catch-up record for this meeting,
+ * the new score (and the previous one, or null) is written on it. Top-level
+ * server fields: the rules let the teacher change only `rounds`.
+ */
+async function stampCatchUpScore(
+  db: admin.firestore.Firestore,
+  studentNum: number,
+  sessionNum: number,
+  scorePercent: number,
+  previousScore: number | null
+): Promise<void> {
+  try {
+    const ref = db.collection(CATCHUP_COLLECTION).doc(catchUpDocId(sessionNum, studentNum));
+    const snap = await ref.get();
+    if (!snap.exists) return;
+    const data = snap.data() || {};
+    await ref.update({
+      score_percent: scorePercent,
+      previous_score_percent: previousScore ?? (typeof data.previous_score_percent === "number" ? data.previous_score_percent : null),
+      scored_at: Date.now(),
+    });
+  } catch (err) {
+    logger.warn(`Catch-up record of learner ${studentNum} meeting ${sessionNum}: the score could not be stamped:`, err);
+  }
+}
+
+/**
+ * The learner's RTDB record mirrors the meeting-2 gate (Module 20): the radar,
+ * the class-management card and the approval drawer read the recommendation
+ * from there. Only meeting 2 — a later meeting's score is not the gate's.
+ */
+async function mirrorGateScore(studentNum: number, sessionNum: number, scorePercent: number, recommendedPath: string): Promise<void> {
+  if (sessionNum !== 2) return;
+  await admin.database().ref(`users/students/student_user${studentNum}`).update({
+    session_score_percent: scorePercent,
+    matrix_recommended_path: recommendedPath,
+  }).catch((err) => logger.warn(`Learner ${studentNum}: RTDB mirror of the meeting-2 score failed:`, err));
+}
+
+export type MeetingRescore = "not_completed" | "not_scored_yet" | "unchanged" | "rescored" | "no_score";
+
+/**
+ * PRD 14 §ב0, in every scored meeting (all but meeting 1), not only meeting 2:
+ * a completed meeting the learner completes again (catch-up time, or a reopened
+ * meeting 2 after the teacher's close) is re-scored from the run since its last
+ * reset, the score before it is kept as previous_score_percent, the
+ * recommendation follows the new score, and a gate approval already given and
+ * the path the teacher chose are not touched.
+ *
+ * Only once the document has been scored: before that, the completion trigger
+ * is about to score it from the same run.
+ */
+export async function rescoreCompletedMeeting(
+  db: admin.firestore.Firestore,
+  studentNum: number,
+  sessionNum: number
+): Promise<MeetingRescore> {
+  if (!isScoredMeeting(sessionNum)) return "no_score";
+  const candidates = sessionDocumentIdCandidates(studentNum, sessionNum);
+  const snaps = await Promise.all(candidates.map((id) => db.collection("sessions").doc(id).get()));
+  const done = snaps.find((s) => s.exists && (s.data() || {}).is_completed === true);
+  if (!done) return "not_completed";
+  const data = done.data() || {};
+  if (!data.evaluated_at) return "not_scored_yet";
+
+  const path = data.teacher_selected_path === "remediation_path" ? "remediation_path" : "green_path";
+  const computed = await computeMeetingScore(db, studentNum, sessionNum, path);
+  if (computed.outcome !== "scored") return "no_score";
+  const { scorePercent, recommendedPath } = computed;
+  const next = rescoreFields(data, scorePercent, recommendedPath);
+  if (!next.changed) return "unchanged";
+
+  await db.collection("sessions").doc(done.id).update({
+    ...next.fields,
+    evaluated_at: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  await mirrorGateScore(studentNum, sessionNum, scorePercent, recommendedPath);
+  await stampCatchUpScore(db, studentNum, sessionNum, scorePercent, next.previousScore);
+  logger.info(
+    `Meeting ${sessionNum} of learner ${studentNum} re-scored after a later completion: ` +
+    `${data.session_score_percent ?? "none"}% -> ${scorePercent}% (${recommendedPath}).`
+  );
+  return "rescored";
 }
 
 /**
@@ -118,14 +251,21 @@ export const onSessionCompleteTrigger = onDocumentWritten({
   const { scorePercent, recommendedPath } = computed;
   // null when nothing was submitted — a meeting 2 completed by the teacher's close (meeting2Close.ts).
   const submitted = typeof afterData.session_score_percent === "number" ? afterData.session_score_percent : NaN;
-  if (Number.isFinite(submitted) && submitted !== scorePercent) {
+  if (Number.isFinite(submitted) && submitted !== scorePercent && !beforeData?.evaluated_at) {
     logger.warn(`Session ${event.params.sessionId}: client reported ${submitted}%, server computed ${scorePercent}%. Server value stands.`);
   }
   logger.info(`Evaluating Session ${event.params.sessionId} (Session ${sessionNum}): Score ${scorePercent}% -> Recommended ${recommendedPath}`);
 
+  // A score the server already computed before this completion (the meeting
+  // was completed before, then reopened) is kept as previous_score_percent
+  // (PRD 14 §ב0: "הציון הקודם נשמר גם הוא ואינו נדרס"). A number the client
+  // wrote without a server evaluation is not a score.
+  const stored = beforeData?.evaluated_at ? beforeData : null;
+  const next = rescoreFields(stored, scorePercent, recommendedPath);
   await event.data?.after?.ref.update({
     session_score_percent: scorePercent,
     matrix_recommended_path: recommendedPath,
+    ...(next.previousScore !== null ? { previous_score_percent: next.previousScore } : {}),
     evaluated_at: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -133,10 +273,125 @@ export const onSessionCompleteTrigger = onDocumentWritten({
   // the radar, the class-management card and the approval drawer all read the
   // recommendation from there. Left unmirrored, the teacher would see the
   // client's number on four screens and the server's in the gate tab.
-  await admin.database().ref(`users/students/student_user${studentNum}`).update({
-    session_score_percent: scorePercent,
-    matrix_recommended_path: recommendedPath,
-  }).catch((err) => logger.warn(`Session ${event.params.sessionId}: RTDB mirror of the score failed:`, err));
+  // Meeting 2 only (mirrorGateScore writes users/students/student_user${studentNum}).
+  await mirrorGateScore(studentNum, sessionNum, scorePercent, recommendedPath);
+  await stampCatchUpScore(db, studentNum, sessionNum, scorePercent, next.previousScore);
+});
+
+/**
+ * PRD 14 §ב0, meetings 3–8 (8 after its reflection board): the learner's
+ * client marks the meeting finished on the learner record
+ * (users/students/{key}/completedMeetings/m{N}, FirebaseSyncService
+ * markMeetingCompleted). Those meetings had no session document, so nothing
+ * scored them at completion and nothing kept a score to compare a later one
+ * with. Here the mark completes the meeting's SessionDocument — creating it
+ * when there is none — which fires onSessionCompleteTrigger; a document
+ * completed already is re-scored (rescoreCompletedMeeting). Meeting 2 is
+ * completed by its own document; its mark only re-scores.
+ *
+ * The mark is a direct RTDB write, while the meeting's telemetry travels the
+ * offline FIFO queue. So the run is read until it shows the completion
+ * (completionVisible) — for a short while only; a score is computed either way.
+ */
+export const COMPLETION_WAIT_ATTEMPTS = 6;
+export const COMPLETION_WAIT_MS = 10_000;
+
+/** Pure. Whether the meeting's run on the server already shows the learner's completion. */
+export function completionVisible(events: Record<string, any>[], sessionNum: number): boolean {
+  if (sessionNum === 8) return events.some((e) => e?.event_type === "REFLECTION_SUBMITTED");
+  const done = new Set<string>();
+  for (const e of events) {
+    const id = String(e?.exercise_id || "");
+    if (e?.event_type === "PROBLEM_COMPLETE" && id && isExerciseEvent(e) && !isChoiceExercise(id)) done.add(id);
+  }
+  return done.size >= COMPULSORY_EXERCISES_PER_MEETING;
+}
+
+/** "m3" → 3. */
+export function meetingFromCompletionKey(key: string): number | null {
+  const m = /^m([1-8])$/.exec(String(key));
+  return m ? Number(m[1]) : null;
+}
+
+export async function completeMeetingFromMark(
+  db: admin.firestore.Firestore,
+  studentNum: number,
+  sessionNum: number,
+  options: { attempts?: number; waitMs?: number; classId?: string } = {}
+): Promise<"created" | "completed" | MeetingRescore | "skipped"> {
+  if (!isScoredMeeting(sessionNum)) return "skipped";
+  if (sessionNum === 2) return rescoreCompletedMeeting(db, studentNum, 2);
+
+  const attempts = Math.max(1, options.attempts ?? COMPLETION_WAIT_ATTEMPTS);
+  const waitMs = options.waitMs ?? COMPLETION_WAIT_MS;
+  let events: Record<string, any>[] = [];
+  for (let i = 0; i < attempts; i++) {
+    const writtenAfterMs = await readLastResetOfMeeting(db, studentNum, sessionNum);
+    events = await readMeetingTelemetry(db, studentNum, sessionNum, { writtenAfterMs });
+    if (completionVisible(events, sessionNum)) break;
+    if (i < attempts - 1 && waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+  }
+  if (!completionVisible(events, sessionNum)) {
+    logger.warn(`Learner ${studentNum} meeting ${sessionNum}: completion mark arrived, the run does not show it yet; scoring what is there.`);
+  }
+
+  const candidates = sessionDocumentIdCandidates(studentNum, sessionNum);
+  const snaps = await Promise.all(candidates.map((id) => db.collection("sessions").doc(id).get()));
+  if (snaps.some((s) => s.exists && (s.data() || {}).is_completed === true)) {
+    return rescoreCompletedMeeting(db, studentNum, sessionNum);
+  }
+  const existing = snaps.find((s) => s.exists);
+  const docRef = db.collection("sessions").doc(existing ? existing.id : candidates[0]);
+  const firstEventAt = events.find((e) => typeof e?.client_timestamp === "number")?.client_timestamp ?? null;
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(docRef);
+    const data = snap.exists ? snap.data() || {} : null;
+    if (data && data.is_completed === true) return "completed" as const;
+    if (data) {
+      tx.update(docRef, { is_completed: true });
+      return "completed" as const;
+    }
+    // Only the fields the Firestore rules allow on a session document
+    // (isValidSessionDoc). The score and the path are the trigger's.
+    tx.set(docRef, {
+      session_id: docRef.id,
+      class_id: options.classId ?? "class_1",
+      session_number: sessionNum,
+      session_start_time: firstEventAt,
+      session_deadline_time: null,
+      active_exercise_id: null,
+      is_completed: true,
+      session_score_percent: null,
+      teacher_gate_approved: false,
+      gate_approved_at: null,
+      gate_approved_by: null,
+      teacher_selected_path: null,
+      matrix_recommended_path: null,
+    });
+    return "created" as const;
+  });
+}
+
+export const onMeetingCompletionMarked = onValueWritten({
+  ref: "/users/students/{studentKey}/completedMeetings/{meetingKey}",
+  region: "us-central1",
+  timeoutSeconds: 120,
+}, async (event) => {
+  const after = event.data.after.val();
+  if (after === null || after === undefined) return;
+  // A mark already there and written again is not a new completion.
+  const before = event.data.before.val();
+  if (before !== null && before !== undefined) return;
+  const match = /^student_user(\d+)$/.exec(String(event.params.studentKey));
+  const n = match ? Number(match[1]) : NaN;
+  const m = meetingFromCompletionKey(String(event.params.meetingKey));
+  if (!Number.isInteger(n) || n < 1 || n > 12 || m === null) return;
+  try {
+    const outcome = await completeMeetingFromMark(admin.firestore(), n, m);
+    logger.info(`Learner ${n} meeting ${m}: completion mark -> ${outcome}.`);
+  } catch (err) {
+    logger.error(`Learner ${n} meeting ${m}: completing the session document from the mark failed:`, err);
+  }
 });
 
 /**

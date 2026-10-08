@@ -30,7 +30,7 @@ export { getAiServiceStatus } from "./aiMonitoring";
 export { exportAdminReportToDrive, backupAndResetSessionData, exportResearchDataset } from "./exportDriveReport";
 
 // Export WP6 Cloud Functions (Module 14, 20, 22, 24, 27)
-export { onSessionCompleteTrigger, createSessionWithServerDeadline } from "./sessionTrigger";
+export { onSessionCompleteTrigger, onMeetingCompletionMarked, createSessionWithServerDeadline } from "./sessionTrigger";
 // PRD 14 §ב1 + owner decision 29.9.2026: the teacher closing meeting 2 completes every learner who started it.
 export { onMeeting2ClosedByTeacher, onMeeting2CompletionRecorded } from "./meeting2Close";
 // Owner decision 2.10.2026 (catch-up time): the server opens and closes the catch-up rounds and counts their minutes.
