@@ -47,6 +47,10 @@ steps.push({ id: 'm3-01-answered', meeting: 3, idx: 0, set: { counts: { units: 0
 steps.push({ id: 'm3-02', meeting: 3, idx: 1 });
 steps.push({ id: 'm3-07', meeting: 3, idx: 6 });
 steps.push({ id: 'm4-01-built', meeting: 4, idx: 0, set: { counts: { units: 5, tens: 4, hundreds: 2, thousands: 1 }, hasInteracted: true } });
+steps.push({ id: 'm4-01-written', meeting: 4, idx: 0, set: { counts: { units: 3, tens: 7, hundreds: 5, thousands: 1 }, answerDigits: { thousands: '1', hundreds: '5', tens: '7', units: '3' }, hasInteracted: true } });
+steps.push({ id: 'm3-02-half', meeting: 3, idx: 1, set: { counts: { units: 0, tens: 0, hundreds: 4, thousands: 3 }, hasInteracted: true } });
+steps.push({ id: 'm5-01-built', meeting: 5, idx: 0, set: { counts: { units: 2, tens: 3, hundreds: 4, thousands: 5 }, hasInteracted: true } });
+steps.push({ id: 'm5-01-written', meeting: 5, idx: 0, set: { counts: { units: 4, tens: 1, hundreds: 3, thousands: 3 }, takeAwayTrack: { taskId: 's5_g_t1', held: true, started: true }, answerDigits: { thousands: '3', hundreds: '3', tens: '1', units: '4' }, hasInteracted: true } });
 steps.push({ id: 'm4-07', meeting: 4, idx: 6 });
 steps.push({ id: 'm6-07', meeting: 6, idx: 6 });
 steps.push({ id: 'm7-04', meeting: 7, idx: 3 });

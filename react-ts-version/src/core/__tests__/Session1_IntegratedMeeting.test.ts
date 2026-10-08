@@ -183,9 +183,17 @@ describe('what completes each introduction step', () => {
 
   it('every checklist label is the document\'s own wording', () => {
     const state = { ...base, counts: { ...EMPTY_COUNTS } };
-    for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash', 's1_target_347']) {
+    for (const id of ['s1_decompose_hundred', 's1_build_305', 's1_target_347']) {
       for (const item of session1Checklist(id, state)!) inDoc03(item.label, item.label);
     }
+    // Steps 1 and 5 in the words the owner approved on 8.10.2026 (learner wording
+    // proposal §א): the number of blocks said in words; the instruction's two
+    // sentences, without "אחר כך" — the numbering says the order.
+    expect(session1Checklist('s1_sandbox_controlled', state)!.map((i) => i.label)).toEqual(['גררו 5 לבנים לטורים משמאל, וצפו בספרות המשתנות בבית המספרים']);
+    expect(session1Checklist('s1_undo_trash', state)!.map((i) => i.label)).toEqual([
+      'לחצו על כפתור ביטול הפעולה ↺ כדי לחזור צעד אחד אחורה',
+      'לחצו על פח האשפה כדי לנקות את בית המספרים',
+    ]);
     const other305 = session1Checklist('s1_build_305', { ...state, counts: { ...EMPTY_COUNTS, hundreds: 2, tens: 10, units: 5 } })!;
     // The corrective second item is an action, not a phrase (owner, 25.9.2026:
     // on-screen texts say what the child actually has to do); it ends on the
@@ -286,7 +294,9 @@ describe('the store gate follows the checklist', () => {
     expect(store().feedback?.sub).toBe('זה עוד לא הערך של הספרה. הסתכלו בבית המספרים ובדקו שוב!');
     useWorkspaceStore.setState({ answerDigits: { tens: '6', units: '0' } });
     store().proceed();
-    expect(store().feedback?.sub).toBe('מצאתם את הערך של הספרה במספר.');
+    // Owner, 8.10.2026: the exercise's own "נכון! …" (learner wording proposal §א).
+    expect(store().feedback?.title).toBe('נכון!');
+    expect(store().feedback?.sub).toBe('הספרה 6 נמצאת בטור העשרות, ולכן הערך שלה 60.');
     expect(store().feedback?.sub).not.toContain('מתאים ללבנים');
   });
 

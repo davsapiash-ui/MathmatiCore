@@ -4,7 +4,9 @@
  * One source for both the task card (IntroTask) and the store's "התקדם" gate,
  * so what the child sees and what lets them advance can never disagree.
  *
- * Every label is the document's own on-screen wording for that step. The
+ * Every label is the PRD's wording for that step; steps 1 and 5 as the owner
+ * approved them on 8.10.2026 (the number of blocks said in words; the
+ * instruction's two full sentences, without "אחר כך" — the numbering says it). The
  * steps are guided, as the document writes them: the learners "מונחים לבצע
  * פעולת פירוק יזומה", "נדרשים לייצג על הלוח מספר המכיל את הספרה אפס בטור
  * העשרות, למשל המספר 305", "מונחים ללחוץ באופן אקטיבי על כפתור ביטול פעולה".
@@ -50,7 +52,7 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
     // Steps 1–2: welcome, free dragging.
     case 's1_sandbox_controlled':
       return [{
-        label: 'גררו לבנים לטורים משמאל וצפו בספרות המשתנות בבית המספרים',
+        label: 'גררו 5 לבנים לטורים משמאל, וצפו בספרות המשתנות בבית המספרים',
         done: s.blocksAddedCount >= SANDBOX_MIN_BLOCKS,
         progress: { value: s.blocksAddedCount, of: SANDBOX_MIN_BLOCKS },
       }];
@@ -71,8 +73,8 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
     // Step 5: undo, then the trash.
     case 's1_undo_trash':
       return [
-        { label: 'לחצו על כפתור ביטול הפעולה ↺', done: s.undoCount >= 1 },
-        { label: 'לחצו על פח האשפה', done: s.hasClearedBoard },
+        { label: 'לחצו על כפתור ביטול הפעולה ↺ כדי לחזור צעד אחד אחורה', done: s.undoCount >= 1 },
+        { label: 'לחצו על פח האשפה כדי לנקות את בית המספרים', done: s.hasClearedBoard },
       ];
     // Step 6, the target task: the instruction, clause by clause. The third
     // line is the owner's wording of 27.9.2026 (register decision י).

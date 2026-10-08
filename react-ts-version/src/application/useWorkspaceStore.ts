@@ -26,6 +26,7 @@ import {
 } from '@/core/placeValue';
 import { BLOCK_NAME_HE, NO_UNIT_BLOCKS_SUB_HE, NO_UNIT_BLOCKS_TITLE_HE } from '@/data/taskBuilders';
 import { session1Checklist, session1DoneNoteHe, session1NextStep } from '@/core/session1Checklist';
+import { taskGuide } from '@/core/taskGuide';
 import {
   advance,
   getCurrentQTask,
@@ -2052,7 +2053,26 @@ export const GIVEN_GROUPED_SUCCESS_HE = 'קיבצתם את הלבנים, והת�
 /** Station 7's 2,730: the final blocks arranged by hand, a grouping not made (wording round 3, text 4). */
 export const GIVEN_ARRANGED_BY_HAND_HE = 'הלבנים מסודרות נכון, אבל ההנחיה מבקשת לקבץ בעזרת הכפתור "קבצו 10".';
 
+/**
+ * The general praise after a solved exercise of stations 1 and 3–7 becomes the
+ * exercise's own "נכון! …" (owner, 8.10.2026: learner wording proposal §א,
+ * modelled on 347's sentence) — what the child saw, said after the check, so
+ * it never gives an answer away before it. The checks, their order and every
+ * other message are judgeStandardTaskChecks' own; a success with a reminder of
+ * its own (the memory circles) keeps it.
+ */
 export function judgeStandardTask(s: WorkspaceState, task: SessionTask): StandardVerdict {
+  const verdict = judgeStandardTaskChecks(s, task);
+  if (verdict.kind !== 'success' || verdict.title !== GENERAL_PRAISE_HE) return verdict;
+  const correct = taskGuide(task, s.sessionNumber)?.correctHe;
+  if (!correct) return verdict;
+  const [title, ...rest] = correct.split(' ');
+  return { ...verdict, title, sub: rest.join(' ') };
+}
+
+const GENERAL_PRAISE_HE = 'כָּל הַכָּבוֹד! 🌟';
+
+function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): StandardVerdict {
   const success = (title: string, sub: string, ms: number): StandardVerdict => ({ kind: 'success', title, sub, ms });
   const failure = (detail: string, title: string, sub: string, ms: number, extra: { placeError?: boolean; clearReps?: boolean } = {}): StandardVerdict =>
     ({ kind: 'failure', detail, title, sub, ms, ...extra });

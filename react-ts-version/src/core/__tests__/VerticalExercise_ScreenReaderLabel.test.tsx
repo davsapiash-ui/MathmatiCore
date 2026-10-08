@@ -146,7 +146,8 @@ describe('a skeleton exercise: the label says "ספרה חסרה" and never the 
     const instruction = byId('s7_g_t2').instructionHe;
     expect(instruction).toContain('2,▢3▢ + 1,554');
     expect(container.textContent).toContain('2,▢3▢ + 1,554');
-    expect(screen.getAllByTestId('speech').map((s) => s.getAttribute('data-text'))).toContain(instruction);
+    // The guide block's read-aloud (owner, 8.10.2026) reads the goal, which holds the exercise as written.
+    expect(screen.getAllByTestId('speech').some((s) => (s.getAttribute('data-text') ?? '').includes('בתרגיל 2,▢3▢ + 1,554 = 4,191'))).toBe(true);
   });
 
   it('the read-aloud of each skeleton instruction says the hidden operand exactly as the label does', () => {

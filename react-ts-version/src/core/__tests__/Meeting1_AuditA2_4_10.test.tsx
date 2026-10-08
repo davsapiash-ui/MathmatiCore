@@ -218,9 +218,15 @@ describe('A2-F04: the done checklist is compact', () => {
     expect(screen.getByTestId('session1-done')).toBeTruthy();
   });
 
-  it('an item still open keeps its pill', () => {
+  // Design-task-zone (owner, 8.10.2026): a done step says "בוצע" beside its green
+  // check; a step still to do shows its number — no "עוד לא" pill, no 12px text.
+  it('a done item says "בוצע", an open one shows its number and no pill', () => {
     render(<Session1ChecklistCard items={[{ label: 'א', done: true }, { label: 'ב', done: false }]} />);
-    expect(screen.getByText('בוצע!')).toBeTruthy();
-    expect(screen.getByText('עוד לא')).toBeTruthy();
+    expect(screen.getByText('בוצע')).toBeTruthy();
+    expect(screen.queryByText('עוד לא')).toBeNull();
+    const rows = screen.getByTestId('session1-checklist-items').querySelectorAll('li');
+    expect(rows[0].getAttribute('data-state')).toBe('done');
+    expect(rows[1].getAttribute('data-state')).toBe('current');
+    expect(rows[1].textContent).toContain('2');
   });
 });
