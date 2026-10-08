@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   LATE_MARKERS_ROOT,
-  acknowledgementUpdate,
+  acknowledgementOf,
+  lateRecordingMarkerRevert,
   assembleLateRecordings,
   classifyRecordingLeaf,
   classifyRecordingWrite,
@@ -90,11 +91,12 @@ describe('the marker a full learner reset or a system reset writes before it del
   };
 
   it('the recordings in the backup, the meeting open now, and an unacknowledged restart', () => {
-    const u = lateRecordingMarkerUpdates({ resetId: 'reset_1', classId: 'class_1', performedAt: RESET_AT, learners: [4], rtdbBackup: backup, classStartedAt: 300 });
+    const u = lateRecordingMarkerUpdates({ resetId: 'reset_1', classId: 'class_1', performedAt: RESET_AT, learners: [4], rtdbBackup: backup, classStartedAt: 300, meeting: 3 });
     const base = `${LATE_MARKERS_ROOT}/learner_4`;
     expect(Object.keys(u).sort()).toEqual([
       `${base}/acknowledged_at`,
       `${base}/latest`,
+      `${base}/meetings`,
       `${base}/recordings/session_100`,
       `${base}/recordings/session_200`,
       `${base}/recordings/session_300`,
@@ -102,6 +104,25 @@ describe('the marker a full learner reset or a system reset writes before it del
     ]);
     expect(u[`${base}/recordings/session_100`]).toEqual(RESET);
     expect(u[`${base}/acknowledged_at`]).toBeNull();
+    expect(u[`${base}/meetings`]).toEqual({ meeting_3: true });
+  });
+
+  it('before the backup is collected: the open meeting\'s recording only, everyone unacknowledged', () => {
+    const u = lateRecordingMarkerUpdates({ resetId: 'reset_1', classId: 'class_1', performedAt: RESET_AT, learners: [4], rtdbBackup: null, classStartedAt: 300 });
+    const base = `${LATE_MARKERS_ROOT}/learner_4`;
+    expect(Object.keys(u).filter((k) => k.includes('/recordings/'))).toEqual([`${base}/recordings/session_300`]);
+    expect(u[`${base}/acknowledged_at`]).toBeNull();
+  });
+
+  it('an aborted reset restores the markers it found', () => {
+    const before = { learner_4: { latest: { reset_id: 'r0', class_id: 'class_1', performed_at: 1 }, acknowledged_at: 5, recordings: { session_1: { reset_id: 'r0' } } } };
+    const u = lateRecordingMarkerUpdates({ resetId: 'reset_1', classId: 'class_1', performedAt: RESET_AT, learners: [4, 5], rtdbBackup: null, classStartedAt: 300 });
+    const r = lateRecordingMarkerRevert(before, u);
+    expect(r[`${LATE_MARKERS_ROOT}/learner_4/latest`]).toEqual(before.learner_4.latest);
+    expect(r[`${LATE_MARKERS_ROOT}/learner_4/acknowledged_at`]).toBe(5);
+    expect(r[`${LATE_MARKERS_ROOT}/learner_4/recordings/session_300`]).toBeNull();
+    expect(r[`${LATE_MARKERS_ROOT}/learner_5/latest`]).toBeNull();
+    expect(Object.keys(r).sort()).toEqual(Object.keys(u).sort());
   });
 
   it('a system reset: every learner from the whole recordings root; one with no record is acknowledged at once', () => {
@@ -120,7 +141,7 @@ describe('the marker a full learner reset or a system reset writes before it del
 describe('late = the device had not yet learned of the reset', () => {
   const marker = { recordings: { session_100: RESET }, latest: RESET };
 
-  it('a write into a reset recording is late until the restart is acknowledged, whenever it was recorded', () => {
+  it('a write into a reset recording is late until the device acknowledges the reset, whenever it was recorded', () => {
     expect(lateResetFor(marker, 'chunk', 'session_100', RESET_AT - 5000)).toEqual(RESET);
     // Recorded AFTER the reset on a device that was still offline: late too.
     expect(lateResetFor(marker, 'chunk', 'session_100', RESET_AT + 600_000)).toEqual(RESET);
@@ -135,32 +156,44 @@ describe('late = the device had not yet learned of the reset', () => {
     expect(lateResetFor(acked, 'recording_truncated', 'session_100', null)).toBeNull();
   });
 
-  it('not late: another recording, or no marker at all', () => {
-    expect(lateResetFor(marker, 'chunk', 'session_999', RESET_AT - 5000)).toBeNull();
+  it('another recording: late only when it was recorded before the reset (the server never had it)', () => {
+    expect(lateResetFor(marker, 'chunk', 'session_999', RESET_AT - 5000)).toEqual(RESET);
+    expect(lateResetFor(marker, 'chunk', 'session_999', RESET_AT + 5000)).toBeNull();
     expect(lateResetFor(null, 'chunk', 'session_100', RESET_AT - 5000)).toBeNull();
   });
 
-  it('the acknowledgement: the screen cleared forceReload after the reset; not the reset\'s own delete-and-restart', () => {
-    expect(acknowledgementUpdate(4, marker, null, RESET_AT + 1000)).toEqual({ [`${LATE_MARKERS_ROOT}/learner_4/acknowledged_at`]: RESET_AT + 1000 });
-    expect(acknowledgementUpdate(4, marker, true, RESET_AT + 1000)).toBeNull();
-    expect(acknowledgementUpdate(4, marker, null, RESET_AT - 1)).toBeNull();
-    expect(acknowledgementUpdate(4, { ...marker, acknowledged_at: 5 }, null, RESET_AT + 1000)).toBeNull();
-    expect(acknowledgementUpdate(4, null, null, RESET_AT + 1000)).toBeNull();
+  it('byte counts and budget flags: only the meeting open at reset time', () => {
+    const m = { ...marker, meetings: { meeting_3: true } };
+    expect(lateResetFor(m, 'bytes', 'meeting_3', RESET_AT + 1)).toEqual(RESET);
+    expect(lateResetFor(m, 'bytes', 'meeting_4', RESET_AT + 1)).toBeNull();
+    expect(lateResetFor(m, 'budget_truncated', 'meeting_4', null)).toBeNull();
+  });
+
+  it('the acknowledgement: the marker\'s stamp, else the time the screen wrote on the record, never one older than the reset', () => {
+    expect(acknowledgementOf({ ...marker, acknowledged_at: 7 }, RESET_AT + 9)).toBe(7);
+    expect(acknowledgementOf(marker, RESET_AT + 1000)).toBe(RESET_AT + 1000);
+    expect(acknowledgementOf(marker, RESET_AT - 1)).toBeNull();
+    expect(acknowledgementOf(marker, null)).toBeNull();
   });
 });
 
 describe('the trigger: one atomic move into the server-only quarantine', () => {
   const marker = { recordings: { session_100: RESET }, latest: RESET };
 
-  function setup(withMarker = true) {
-    const tree = fakeTree(withMarker ? { [`${LATE_MARKERS_ROOT}/learner_4`]: marker } : {});
+  function setup(withMarker = true, deviceAck: number | null = null) {
+    const tree = fakeTree({
+      ...(withMarker ? { [`${LATE_MARKERS_ROOT}/learner_4`]: marker } : {}),
+      ...(deviceAck !== null ? { 'users/students/student_user4/reset_acknowledged_at': deviceAck } : {}),
+    });
     let markerReads = 0;
+    let ackReads = 0;
     const deps = {
       readMarker: async (n: number) => { markerReads += 1; return tree.get(`${LATE_MARKERS_ROOT}/learner_${n}`) as any; },
+      readDeviceAck: async (n: number) => { ackReads += 1; return tree.get(`users/students/student_user${n}/reset_acknowledged_at`); },
       update: tree.update,
-      serverTime: 12345,
+      moveCount: 1,
     };
-    return { tree, deps, reads: () => markerReads };
+    return { tree, deps, reads: () => markerReads, ackReads: () => ackReads };
   }
 
   it('a burst of 300 chunks and metadata at once: every one moved, none left in recordings/, one update each', async () => {
@@ -180,7 +213,7 @@ describe('the trigger: one atomic move into the server-only quarantine', () => {
     const q = tree.get('late_recordings/reset_1/learner_4/session_100') as any;
     expect(Object.keys(q.chunks)).toHaveLength(150);
     expect(Object.keys(q.metadata)).toHaveLength(150);
-    expect(tree.get('late_recordings_pending/reset_1')).toEqual({ class_id: 'class_1', performed_at: RESET_AT, last_moved_at: 12345 });
+    expect(tree.get('late_recordings_pending/reset_1')).toEqual({ class_id: 'class_1', performed_at: RESET_AT, moves: 1 });
     // Each move is ONE update that writes the copy and removes the original together.
     const moves = tree.updates.filter((u) => Object.keys(u).some((p) => p.startsWith('late_recordings/')));
     expect(moves).toHaveLength(300);
@@ -215,12 +248,38 @@ describe('the trigger: one atomic move into the server-only quarantine', () => {
     expect(await quarantineIfLate({ learnerKey: 'student_user4', field: 'other', group: 'x', kind: 'y', key: 'z' }, 1, deps)).toBeNull();
     expect(reads()).toBe(1);
   });
+
+  it('the learner\'s new run: a chunk minted after the screen took up the reset, before the server stamped anything, stays', async () => {
+    // The screen cleared forceReload and wrote reset_acknowledged_at at ACK in
+    // the same update; the marker carries no acknowledged_at yet.
+    const ACK = RESET_AT + 30_000;
+    const { tree, deps, ackReads } = setup(true, ACK);
+    const fresh = pushKey(ACK + 2000);
+    const path = `recordings/student_user4/telemetry_sessions/session_100/chunks/${fresh}`;
+    await tree.update({ [path]: '[full snapshot]' });
+    expect(await quarantineIfLate({ learnerKey: 'student_user4', field: 'telemetry_sessions', group: 'session_100', kind: 'chunks', key: fresh }, '[full snapshot]', deps)).toBeNull();
+    expect(tree.get(path)).toBe('[full snapshot]');
+    // The acknowledgement is kept on the marker: the next write reads it there.
+    expect(tree.get(`${LATE_MARKERS_ROOT}/learner_4/acknowledged_at`)).toBe(ACK);
+    // A chunk the offline device minted before it learned of the reset is still late.
+    const stale = pushKey(ACK - 1000);
+    await tree.update({ [`recordings/student_user4/telemetry_sessions/session_100/chunks/${stale}`]: '[old]' });
+    expect(await quarantineIfLate({ learnerKey: 'student_user4', field: 'telemetry_sessions', group: 'session_100', kind: 'chunks', key: stale }, '[old]', deps)).toBe('moved');
+    expect(ackReads()).toBe(1);
+  });
+
+  it('an acknowledgement older than the reset (a previous reset\'s) does not count', async () => {
+    const { tree, deps } = setup(true, RESET_AT - 60_000);
+    const key = pushKey(RESET_AT + 2000);
+    await tree.update({ [`recordings/student_user4/telemetry_sessions/session_100/chunks/${key}`]: '[x]' });
+    expect(await quarantineIfLate({ learnerKey: 'student_user4', field: 'telemetry_sessions', group: 'session_100', kind: 'chunks', key }, '[x]', deps)).toBe('moved');
+  });
 });
 
 describe('the daily file: assembled once, cleared only after it is written and linked', () => {
   function setup(opts: { failWrite?: boolean; failLink?: boolean } = {}) {
     const tree = fakeTree({
-      'late_recordings_pending/reset_1': { class_id: 'class_1', performed_at: RESET_AT, last_moved_at: 1 },
+      'late_recordings_pending/reset_1': { class_id: 'class_1', performed_at: RESET_AT, moves: 1 },
       'late_recordings/reset_1/learner_4/session_100': { chunks: { a: '[1]', b: '[2]' }, metadata: { a: { e: 1 } }, recording_truncated: true },
     });
     const files: Record<string, LateRecordingFile> = {

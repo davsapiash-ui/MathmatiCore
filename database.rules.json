@@ -44,6 +44,9 @@
           },
           "highestCompletedMeeting": {
             ".validate": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true) || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 8 && (!data.isNumber() || newData.val() >= data.val()))"
+          },
+          "reset_acknowledged_at": {
+            ".validate": "newData.val() == now"
           }
         }
       },

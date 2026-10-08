@@ -214,9 +214,11 @@ describe('Module 23א — level 2 for the whole class (register, deviation 20)',
   it('the audit entry says it was the class, which meeting, and all 12 learners', () => {
     expect(fn).toContain("? { reset_scope: singleScope, session_number: activeSessionNumber, reset_target: resetTarget }");
     expect(fn).toContain('const affectedStudentIds = isOneLearner ? [parseInt(rawNum, 10)] : [...ALL_STUDENT_IDS];');
-    // Three entries: the snapshot that could not be collected (§ד: an attempted
-    // reset is recorded also when it failed), the failed backup, and the success.
-    expect((fn.match(/\.\.\.level2Audit,/g) || []).length).toBe(3);
+    // Four entries: the snapshot that could not be collected (§ד: an attempted
+    // reset is recorded also when it failed), the failed backup, the backup
+    // saved but the late-recording markers not written (nothing deleted), and
+    // the success.
+    expect((fn.match(/\.\.\.level2Audit,/g) || []).length).toBe(4);
   });
 
   it('the teacher store sends level 2 + class + active_session, and never a learner id', () => {

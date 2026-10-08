@@ -6,23 +6,28 @@
  *
  * How it works:
  *
- * 1. Marker. A full learner reset or a system reset writes, before it deletes
- *    anything, a server-only marker per affected learner:
+ * 1. Marker. A full learner reset or a system reset writes, before it even
+ *    collects the backup, a server-only marker per affected learner:
  *    late_recording_markers/learner_N = {
  *      recordings: { <recording id>: { reset_id, class_id, performed_at } },
  *      latest: { reset_id, class_id, performed_at },
+ *      meetings: { meeting_N: true },   // the meeting open at reset time
  *      acknowledged_at: <absent until the learner's device took up the restart>
  *    }
- *    The recording ids are the ones in the reset's backup, plus the recording
- *    of the class meeting open at the time (session_{startedAt}), which an
- *    offline device keeps writing into.
+ *    First with the recording of the meeting open now (session_{startedAt}),
+ *    which online and offline devices keep writing into; once the backup is
+ *    collected, with every recording id in it. Written that early, chunks that
+ *    arrive while the backup is being written are quarantined, not deleted
+ *    unbacked. An aborted reset restores the marker it found.
  *
- * 2. "Late" means the device had not yet learned of the reset: a write into one
- *    of those recordings while the restart is unacknowledged, or one whose push
- *    key was minted before the acknowledgement. The acknowledgement is the
- *    learner's screen clearing the restart command (forceReload) on its record
- *    (onLateRecordingAck). A learner with no record at reset time has no screen
- *    to restart; the reset time itself is the acknowledgement.
+ * 2. "Late" means the device had not yet learned of the reset. The learner's
+ *    screen, when it takes up the restart (clears forceReload), writes
+ *    users/students/student_userN/reset_acknowledged_at (server time) in the
+ *    same update. A write into one of the reset's recordings is late while
+ *    there is no such acknowledgement, or when its push key was minted before
+ *    it; so is any recording write minted before the reset itself. A learner
+ *    with no record at reset time has no screen to restart; the reset time is
+ *    the acknowledgement.
  *
  * 3. Quarantine. A late chunk, metadata entry or recording_truncated flag is
  *    moved in ONE atomic multi-path RTDB update into the server-only
@@ -37,7 +42,7 @@
  *    (late_recording_files). The quarantined entries are cleared only after
  *    the file was written and linked.
  */
-import { onValueCreated, onValueDeleted } from "firebase-functions/v2/database";
+import { onValueCreated } from "firebase-functions/v2/database";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { LATE_RECORDING_LABEL, learnerNumber2, israelDateTime } from "./driveNames";
@@ -77,8 +82,13 @@ export interface LateReset {
 export interface LateMarker {
   recordings?: Record<string, LateReset>;
   latest?: LateReset;
+  /** meeting_N keys of the meeting open at reset time (byte counts and budget flags). */
+  meetings?: Record<string, unknown>;
   acknowledged_at?: number;
 }
+
+/** The learner record field the screen writes when it takes up a reset (client: RESET_ACK_FIELD). */
+export const RESET_ACK_FIELD = "reset_acknowledged_at";
 
 function validReset(r: unknown): LateReset | null {
   if (!r || typeof r !== "object") return null;
@@ -109,20 +119,37 @@ export function classifyRecordingLeaf(field: string, group: string, leaf: string
   return null;
 }
 
+/** When the device acknowledged the reset: the marker's stamp, else the record's, if it is not older than the reset. */
+export function acknowledgementOf(marker: LateMarker | null, deviceAck: unknown): number | null {
+  if (typeof marker?.acknowledged_at === "number") return marker.acknowledged_at;
+  const latest = validReset(marker?.latest);
+  return latest && typeof deviceAck === "number" && deviceAck >= latest.performed_at ? deviceAck : null;
+}
+
 /**
  * The reset a write missed, or null when the write is not late. A write into
- * one of the reset's recordings (or a budget write of that learner) is late
- * while the learner's device has not acknowledged the restart, or when it was
- * minted (push key) before the acknowledgement. A write with no push-key time
- * is late only while unacknowledged.
+ * one of the reset's recordings is late while the device has not acknowledged
+ * the reset, or when it was minted (push key) before the acknowledgement; a
+ * write into any recording minted before the reset itself is late too. A byte
+ * count or budget flag counts only for the meeting open at reset time (any
+ * meeting when none was open). A write with no push-key time is late only
+ * while unacknowledged.
  */
-export function lateResetFor(marker: LateMarker | null, what: RecordingWrite, recordingId: string, writeTime: number | null): LateReset | null {
+export function lateResetFor(marker: LateMarker | null, what: RecordingWrite, group: string, writeTime: number | null, ack: number | null = acknowledgementOf(marker, null)): LateReset | null {
   if (!marker || typeof marker !== "object") return null;
-  const ack = typeof marker.acknowledged_at === "number" ? marker.acknowledged_at : null;
+  const latest = validReset(marker.latest);
   const beforeAck = ack === null || (writeTime !== null && writeTime < ack);
-  if (!beforeAck) return null;
-  if (what === "bytes" || what === "budget_truncated") return validReset(marker.latest);
-  return validReset(marker.recordings?.[recordingId]);
+  if (what === "bytes" || what === "budget_truncated") {
+    const meetings = marker.meetings && typeof marker.meetings === "object" ? Object.keys(marker.meetings) : [];
+    if (meetings.length > 0 && !meetings.includes(group)) return null;
+    return beforeAck ? latest : null;
+  }
+  const reset = validReset(marker.recordings?.[group]);
+  if (reset && beforeAck) return reset;
+  // Recorded before the reset, in a recording the server never had (the device
+  // was offline from its start): it belongs to what the reset deleted.
+  if (latest && writeTime !== null && writeTime < latest.performed_at) return latest;
+  return null;
 }
 
 /** Recording ids of one learner in a reset's backup snapshot (recordings/{alias} or the whole recordings root). */
@@ -155,40 +182,51 @@ function hadLearnerRecord(rtdbBackup: Record<string, unknown>, learner: number):
 
 /**
  * The marker writes of a full learner reset or a system reset, one multi-path
- * update, written before anything is deleted. Merges into earlier resets'
- * recordings, and re-arms the acknowledgement.
+ * update. Merges into earlier resets' recordings, and re-arms the
+ * acknowledgement. Called twice: before the backup is collected
+ * (rtdbBackup null: the open meeting's recording only, everyone unacknowledged)
+ * and once the backup is collected (its recording ids, and learners with no
+ * record acknowledged at once).
  */
 export function lateRecordingMarkerUpdates(input: {
   resetId: string;
   classId: string;
   performedAt: number;
   learners: readonly number[];
-  rtdbBackup: Record<string, unknown>;
+  rtdbBackup: Record<string, unknown> | null;
   classStartedAt: number | null;
+  meeting?: number | null;
 }): Record<string, unknown> {
   const reset: LateReset = { reset_id: input.resetId, class_id: input.classId, performed_at: input.performedAt };
   const updates: Record<string, unknown> = {};
   for (const n of input.learners) {
     const base = `${LATE_MARKERS_ROOT}/learner_${n}`;
-    const ids = recordingIdsInBackup(input.rtdbBackup, n);
+    const ids = input.rtdbBackup ? recordingIdsInBackup(input.rtdbBackup, n) : [];
     if (typeof input.classStartedAt === "number" && input.classStartedAt > 0) ids.push(`session_${input.classStartedAt}`);
     for (const id of new Set(ids)) updates[`${base}/recordings/${id}`] = reset;
     updates[`${base}/latest`] = reset;
-    updates[`${base}/acknowledged_at`] = hadLearnerRecord(input.rtdbBackup, n) ? null : input.performedAt;
+    updates[`${base}/meetings`] = typeof input.meeting === "number" && input.meeting >= 1 && input.meeting <= 8 ? { [`meeting_${input.meeting}`]: true } : null;
+    updates[`${base}/acknowledged_at`] = input.rtdbBackup && !hadLearnerRecord(input.rtdbBackup, n) ? input.performedAt : null;
   }
   return updates;
 }
 
 /**
- * The learner's screen cleared the restart command (forceReload) — the device
- * has learned of the reset. Null when there is nothing to acknowledge, or when
- * the flag is set again right now (a reset's own delete-and-restart).
+ * The update that restores the markers as they were before `updates` (an
+ * aborted reset): every path written goes back to its earlier value, or away.
  */
-export function acknowledgementUpdate(learner: number, marker: LateMarker | null, forceReloadNow: unknown, eventTime: number): Record<string, unknown> | null {
-  const latest = validReset(marker?.latest);
-  if (!latest || typeof marker?.acknowledged_at === "number") return null;
-  if (forceReloadNow === true || eventTime < latest.performed_at) return null;
-  return { [`${LATE_MARKERS_ROOT}/learner_${learner}/acknowledged_at`]: eventTime };
+export function lateRecordingMarkerRevert(before: Record<string, unknown> | null, updates: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const prefix = `${LATE_MARKERS_ROOT}/`;
+  for (const path of Object.keys(updates)) {
+    if (!path.startsWith(prefix)) continue;
+    const value = path.slice(prefix.length).split("/").reduce<unknown>(
+      (node, key) => (node && typeof node === "object" ? (node as Record<string, unknown>)[key] : undefined),
+      before ?? {}
+    );
+    out[path] = value === undefined ? null : value;
+  }
+  return out;
 }
 
 export interface LateWrite {
@@ -203,10 +241,12 @@ export interface LateWrite {
 
 export interface QuarantineDeps {
   readMarker: (learner: number) => Promise<LateMarker | null>;
+  /** users/students/student_userN/reset_acknowledged_at; read only while the marker is unacknowledged. */
+  readDeviceAck: (learner: number) => Promise<unknown>;
   /** One atomic multi-path update at the database root. */
   update: (updates: Record<string, unknown>) => Promise<void>;
-  /** The server's time placeholder (admin.database.ServerValue.TIMESTAMP). */
-  serverTime: unknown;
+  /** A counter of moves into the reset's pending mark (admin.database.ServerValue.increment(1)). */
+  moveCount: unknown;
 }
 
 /**
@@ -221,7 +261,14 @@ export async function quarantineIfLate(w: LateWrite, value: unknown, deps: Quara
   const learner = learnerOfKey(w.learnerKey);
   if (!what || learner === null) return null;
   const marker = await deps.readMarker(learner);
-  const reset = lateResetFor(marker, what, w.group, w.key !== null ? pushKeyTime(w.key) : null);
+  if (!marker) return null;
+  let ack = acknowledgementOf(marker, null);
+  if (ack === null && validReset(marker.latest)) {
+    ack = acknowledgementOf(marker, await deps.readDeviceAck(learner));
+    // Kept on the marker, so the next write needs no second read.
+    if (ack !== null) await deps.update({ [`${LATE_MARKERS_ROOT}/learner_${learner}/acknowledged_at`]: ack });
+  }
+  const reset = lateResetFor(marker, what, w.group, w.key !== null ? pushKeyTime(w.key) : null, ack);
   if (!reset) return null;
 
   const nodePath = `recordings/${w.learnerKey}/${w.field}/${w.group}/${w.kind}${w.key !== null ? `/${w.key}` : ""}`;
@@ -233,7 +280,9 @@ export async function quarantineIfLate(w: LateWrite, value: unknown, deps: Quara
   const target = what === "recording_truncated" ? `${q}/recording_truncated` : `${q}/${w.kind}/${w.key}`;
   await deps.update({
     [target]: value,
-    [`${LATE_PENDING_ROOT}/${reset.reset_id}`]: { class_id: reset.class_id, performed_at: reset.performed_at, last_moved_at: deps.serverTime },
+    [`${LATE_PENDING_ROOT}/${reset.reset_id}/class_id`]: reset.class_id,
+    [`${LATE_PENDING_ROOT}/${reset.reset_id}/performed_at`]: reset.performed_at,
+    [`${LATE_PENDING_ROOT}/${reset.reset_id}/moves`]: deps.moveCount,
     [nodePath]: null,
   });
   return "moved";
@@ -302,8 +351,8 @@ export interface AssembleDeps {
   writeFile: (storagePath: string, file: LateRecordingFile) => Promise<string>;
   /** Adds the file to the reset's audit entry (late_recording_files). */
   link: (resetId: string, url: string) => Promise<void>;
-  /** Drops the reset's pending mark, unless a chunk was moved in since `lastMovedAt`. */
-  dropPending: (resetId: string, lastMovedAt: unknown) => Promise<void>;
+  /** Drops the reset's pending mark, unless a chunk was moved in since it was read (its move count changed). */
+  dropPending: (resetId: string, moves: unknown) => Promise<void>;
 }
 
 /**
@@ -338,7 +387,7 @@ export async function assembleLateRecordings(deps: AssembleDeps): Promise<{ writ
         }
       }
     }
-    if (allDone) await deps.dropPending(resetId, p?.last_moved_at).catch(() => {});
+    if (allDone) await deps.dropPending(resetId, p?.moves).catch(() => {});
   }
   return { written, failed };
 }
@@ -369,9 +418,9 @@ export function firebaseAssembleDeps(): AssembleDeps {
       await admin.firestore().collection("reset_audit_log").doc(resetId)
         .update({ late_recording_files: admin.firestore.FieldValue.arrayUnion(url) });
     },
-    dropPending: async (resetId, lastMovedAt) => {
+    dropPending: async (resetId, moves) => {
       await rtdb.ref(`${LATE_PENDING_ROOT}/${resetId}`).transaction((cur) =>
-        cur && cur.last_moved_at === lastMovedAt ? null : cur
+        cur && cur.moves === moves ? null : cur
       );
     },
   };
@@ -381,8 +430,9 @@ function firebaseQuarantineDeps(): QuarantineDeps {
   const rtdb = admin.database();
   return {
     readMarker: async (learner) => (await rtdb.ref(`${LATE_MARKERS_ROOT}/learner_${learner}`).get()).val(),
+    readDeviceAck: async (learner) => (await rtdb.ref(`users/students/student_user${learner}/${RESET_ACK_FIELD}`).get()).val(),
     update: async (updates) => { await rtdb.ref().update(updates); },
-    serverTime: admin.database.ServerValue.TIMESTAMP,
+    moveCount: admin.database.ServerValue.increment(1),
   };
 }
 
@@ -395,6 +445,9 @@ async function onRecordingWrite(w: LateWrite, value: unknown): Promise<void> {
 export const onLateRecordingChunk = onValueCreated({
   ref: "/recordings/{learnerKey}/{field}/{group}/{kind}/{chunkKey}",
   region: "us-central1",
+  // A failed run would leave a late chunk recreating the deleted recording;
+  // the move is idempotent, so a retry is safe.
+  retry: true,
 }, async (event) => {
   const { learnerKey, field, group, kind, chunkKey } = event.params as Record<string, string>;
   await onRecordingWrite({ learnerKey, field, group, kind, key: chunkKey }, event.data.val());
@@ -404,23 +457,9 @@ export const onLateRecordingChunk = onValueCreated({
 export const onLateRecordingFlag = onValueCreated({
   ref: "/recordings/{learnerKey}/{field}/{group}/{leaf}",
   region: "us-central1",
+  retry: true,
 }, async (event) => {
   const { learnerKey, field, group, leaf } = event.params as Record<string, string>;
   if (!classifyRecordingLeaf(field, group, leaf)) return;
   await onRecordingWrite({ learnerKey, field, group, kind: leaf, key: null }, event.data.val());
-});
-
-/** The learner's screen cleared the restart command: its device now knows of the reset. */
-export const onLateRecordingAck = onValueDeleted({
-  ref: "/users/students/{learnerKey}/forceReload",
-  region: "us-central1",
-}, async (event) => {
-  const learner = learnerOfKey((event.params as Record<string, string>).learnerKey);
-  if (learner === null || event.data.val() !== true) return;
-  const rtdb = admin.database();
-  const marker = (await rtdb.ref(`${LATE_MARKERS_ROOT}/learner_${learner}`).get()).val();
-  if (!marker) return;
-  const now = (await rtdb.ref(`users/students/${(event.params as Record<string, string>).learnerKey}/forceReload`).get()).val();
-  const updates = acknowledgementUpdate(learner, marker, now, Date.parse(event.time) || Date.now());
-  if (updates) await rtdb.ref().update(updates);
 });

@@ -164,7 +164,8 @@ describe('X26 — the audit entry is written first, and a failed write aborts th
     await expect(run(teacherRequest({ reset_level: 'single_student', reset_scope: 'full_student', student_id: 3 })))
       .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringContaining('לא נמחקו נתונים') });
     expect(h.log.some((l) => l.startsWith('storage save'))).toBe(true);
-    expect(h.log.filter((l) => l.startsWith('rtdb remove') || l.startsWith('rtdb update'))).toEqual([]);
+    // Only the late-recording markers (root updates), written before the backup and restored on the abort.
+    expect(h.log.filter((l) => l.startsWith('rtdb remove') || (l.startsWith('rtdb update') && l !== 'rtdb update undefined'))).toEqual([]);
   });
 });
 

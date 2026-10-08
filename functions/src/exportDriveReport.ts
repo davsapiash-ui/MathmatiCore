@@ -10,7 +10,7 @@ import { researchDetailsColumns } from "./researchTelemetryRow";
 import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
 import { CATCHUP_COLLECTION, catchUpExportCells, type CatchUpRecord } from "./catchUp";
 import { finishedMeetingRefusalHe, resolveActiveSessionNumber, resolveClassSessionNumber, validMeetingNumber } from "./resetMeetingTarget";
-import { LATE_MARKERS_ROOT, lateRecordingMarkerUpdates } from "./lateRecordings";
+import { LATE_MARKERS_ROOT, lateRecordingMarkerRevert, lateRecordingMarkerUpdates } from "./lateRecordings";
 import {
   DRIVE_FOLDERS,
   RESEARCH_FILE_LABELS,
@@ -856,6 +856,46 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
     : {};
   return withClassResetLock(db, class_id, resetId, async () => {
     const scope = withCatchUpRecords(buildResetScope(reset_level, rawNum, singleScope, activeSessionNumber, resetTarget));
+    const performedAt = Date.now();
+
+    // Step 0 (Module 23א §ג, Module 21): a full learner reset or a system reset
+    // marks the recordings it is about to delete BEFORE it collects the backup
+    // (lateRecordings.ts). Chunks that arrive while the backup is collected and
+    // written (up to 90 s for Drive), or from a device that has not yet learned
+    // of the reset, are then quarantined into "הקלטה שהגיעה אחרי האיפוס"
+    // instead of being deleted with no backup or recreating the recording.
+    // Every abort before the deletion restores the markers it found; without
+    // the marker nothing is deleted.
+    const fullReset = reset_level === 'system' || singleScope === 'full_student';
+    let markersBefore: Record<string, unknown> | null = null;
+    const markerWrites: Record<string, unknown> = {};
+    let classStartedAt: number | null = null;
+    let openMeeting: number | null = null;
+    const revertMarkers = async () => {
+      if (Object.keys(markerWrites).length === 0) return;
+      await rtdb.ref().update(lateRecordingMarkerRevert(markersBefore, markerWrites))
+        .catch((err) => logger.error(`Reset ${resetId}: the late-recording markers could not be restored:`, err));
+    };
+    const writeMarkers = async (rtdbBackup: Record<string, unknown> | null) => {
+      const updates = lateRecordingMarkerUpdates({
+        resetId, classId: class_id, performedAt, learners: affectedStudentIds, rtdbBackup, classStartedAt, meeting: openMeeting,
+      });
+      await rtdb.ref().update(updates);
+      Object.assign(markerWrites, updates);
+    };
+    if (fullReset) {
+      try {
+        markersBefore = (await rtdb.ref(LATE_MARKERS_ROOT).get()).val();
+        const cls = (await rtdb.ref("active_class_session").get()).val() || {};
+        classStartedAt = typeof cls.startedAt === 'number' ? cls.startedAt : null;
+        openMeeting = cls.active === true && typeof cls.sessionNumber === 'number' ? cls.sessionNumber : null;
+        await writeMarkers(null);
+      } catch (err: any) {
+        logger.error(`Reset ${resetId}: the late-recording markers could not be written; nothing is collected or deleted:`, err);
+        await revertMarkers();
+        throw new HttpsError("aborted", "לא ניתן היה להכין את האיפוס כעת. נסו שוב בעוד רגע. לא נמחקו נתונים.");
+      }
+    }
 
     // Step 1: collect everything in scope into one structured snapshot.
     let backup: ResetBackupFile;
@@ -887,6 +927,7 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
         ...level2Audit,
         created_at: admin.firestore.FieldValue.serverTimestamp(),
       }).catch((auditErr) => logger.error("Failed to write the failed-reset audit entry:", auditErr));
+      await revertMarkers();
       throw new HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
     }
 
@@ -945,10 +986,40 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
       created_at: admin.firestore.FieldValue.serverTimestamp(),
     }).catch((auditErr) => logger.error("Failed to write the failed-reset audit entry:", auditErr));
 
+    await revertMarkers();
     throw new HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
   }
   if (written.channel === 'storage') {
     logger.warn(`Reset ${resetId}: the backup is in Cloud Storage (${written.url}); the daily job copies it to Drive. Drive said: ${written.driveError}`);
+  }
+
+  // Step 2b: the markers again, now with every recording id in the backup.
+  if (fullReset) {
+    try {
+      await writeMarkers(backup.realtime_database);
+    } catch (err: any) {
+      logger.error(`Reset ${resetId}: the late-recording markers could not be completed; nothing is deleted:`, err);
+      await revertMarkers();
+      await db.collection("reset_audit_log").doc(resetId).set({
+        reset_id: resetId,
+        reset_level,
+        performed_by_teacher_id: performedBy,
+        performed_at: performedAt,
+        class_id,
+        affected_student_ids: affectedStudentIds,
+        backup_file_url: written.url,
+        backup_status: 'success',
+        reset_reason: reason,
+        reason_note,
+        records_deleted_count: 0,
+        backup_channel: written.channel,
+        backup_drive_copied_at: null,
+        deletion_status: 'not_required',
+        ...level2Audit,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+      }).catch((auditErr) => logger.error("Failed to write the aborted-reset audit entry:", auditErr));
+      throw new HttpsError("failed-precondition", "הגיבוי נשמר, אך הכנת האיפוס נכשלה, ולכן האיפוס בוטל ולא נמחקו נתונים.");
+    }
   }
 
   // Step 3: the audit entry, BEFORE anything is deleted (Module 23א §ד), with
@@ -959,7 +1030,7 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
     reset_id: resetId,
     reset_level,
     performed_by_teacher_id: performedBy,
-    performed_at: Date.now(),
+    performed_at: performedAt,
     class_id,
     affected_student_ids: affectedStudentIds,
     backup_file_url: written.url,
@@ -979,35 +1050,16 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
     });
   } catch (auditErr) {
     logger.error(`Reset ${resetId}: the audit entry could not be written; the reset is aborted before any deletion:`, auditErr);
+    await revertMarkers();
     throw new HttpsError(
       "failed-precondition",
       "הגיבוי נשמר, אך רישום האיפוס ביומן הביקורת נכשל, ולכן האיפוס בוטל ולא נמחקו נתונים."
     );
   }
 
-  // Step 3b (Module 23א §ג): a full learner reset or a system reset marks the
-  // recordings it is about to delete, so that chunks a device sends before it
-  // learns of the reset are quarantined instead of recreating them
-  // (lateRecordings.ts). Written before the deletion, so chunks arriving while
-  // the entry is 'in_progress', or for good when it ends 'partial', are caught.
   // Steps that delete nothing themselves fail into side_effect_errors: they do
   // not make the deletion 'partial' (§ד: only the records in scope decide).
   const sideEffectErrors: string[] = [];
-  if (reset_level === 'system' || singleScope === 'full_student') {
-    try {
-      const startedAt = (await rtdb.ref("active_class_session/startedAt").get()).val();
-      await rtdb.ref().update(lateRecordingMarkerUpdates({
-        resetId,
-        classId: class_id,
-        performedAt: auditEntry.performed_at,
-        learners: affectedStudentIds,
-        rtdbBackup: backup.realtime_database,
-        classStartedAt: typeof startedAt === 'number' ? startedAt : null,
-      }));
-    } catch (e: any) {
-      sideEffectErrors.push(`${LATE_MARKERS_ROOT}: ${e?.message || e}`);
-    }
-  }
 
   // Step 4: delete ONLY after the backup write and the audit entry were
   // confirmed — the very same scope that was just backed up, and every record

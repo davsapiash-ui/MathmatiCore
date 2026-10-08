@@ -184,7 +184,9 @@ describe('the reset end to end (Module 23א §ג–§ד)', () => {
     await expect((backupAndResetSessionData as any).run(fullLearner4()))
       .rejects.toMatchObject({ code: 'internal', message: expect.stringContaining('לא נמחקו נתונים') });
     expect(h.log.filter(isDelete)).toEqual([]);
-    expect(h.log.some((s) => s.startsWith('rtdb.update'))).toBe(false);
+    // The late-recording markers written before the backup are restored (there were none).
+    expect(h.log.filter((s) => s.startsWith('rtdb.update')).every((s) => s.includes('late_recording_markers'))).toBe(true);
+    expect(JSON.stringify(h.rtdb.late_recording_markers ?? {})).not.toMatch(/reset_|session_/);
     expect(h.rtdb.users.students.student_user4.workspaceState).toEqual({ a: 1 });
     expect(Object.keys(h.fs.sessions)).toHaveLength(2);
     const entries = Object.values(h.fs.reset_audit_log);
@@ -193,7 +195,7 @@ describe('the reset end to end (Module 23א §ג–§ד)', () => {
     expect(h.fs.reset_locks?.class_1).toBeUndefined();
   });
 
-  it('the order: backup, entry "in_progress", marker, deletes, entry "completed"', async () => {
+  it('the order: marker (before the backup is collected), marker with the backup\'s recordings, entry "in_progress", deletes, entry "completed"', async () => {
     const res = await (backupAndResetSessionData as any).run(fullLearner4());
     expect(res).toMatchObject({ status: 'SUCCESS', backupChannel: 'drive' });
     const entrySet = firstIndex((s) => s === 'fs.set reset_audit_log in_progress success');
@@ -201,8 +203,11 @@ describe('the reset end to end (Module 23א §ג–§ד)', () => {
     const firstDelete = firstIndex(isDelete);
     const completed = firstIndex((s) => s === 'fs.update reset_audit_log completed');
     expect(entrySet).toBeGreaterThanOrEqual(0);
-    expect(marker).toBeGreaterThan(entrySet);
-    expect(firstDelete).toBeGreaterThan(marker);
+    const markerWrites = h.log.map((s, i) => (s.startsWith('rtdb.update / late_recording_markers') ? i : -1)).filter((i) => i >= 0);
+    expect(marker).toBe(0);
+    expect(markerWrites).toHaveLength(2);
+    expect(entrySet).toBeGreaterThan(markerWrites[1]);
+    expect(firstDelete).toBeGreaterThan(entrySet);
     expect(completed).toBeGreaterThan(h.log.map(isDelete).lastIndexOf(true));
     // What was deleted, and what stayed.
     expect(h.rtdb.recordings?.student_user4).toBeUndefined();

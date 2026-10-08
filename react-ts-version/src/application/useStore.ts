@@ -198,6 +198,14 @@ function resetSuccessToast(message: string, data: unknown): void {
   } else {
     toast.success(text);
   }
+  // Module 23א §ד: every record in scope was deleted, but a step after the
+  // deletion that deletes nothing (the learner's restart, the projector, the
+  // admin summary) failed. The server keeps it on the reset's entry
+  // (side_effect_errors); the teacher is told quietly.
+  const sideEffects = (data as { sideEffectErrors?: unknown } | null | undefined)?.sideEffectErrors;
+  if (Array.isArray(sideEffects) && sideEffects.length > 0) {
+    toast.warning('הנתונים נמחקו, אך חלק מהפעולות שאחרי האיפוס לא הצליחו. אם מסך של לומד לא חזר להתחלה, רעננו אותו.', { duration: 10000 });
+  }
 }
 
 /** What else a meeting's reset erased (register deviation 10), for the success toast. */

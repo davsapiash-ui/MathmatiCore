@@ -56,6 +56,15 @@ type WorkspaceStoreState = ReturnType<typeof useWorkspaceStore.getState>;
 export const TEACHER_RESET_FIELDS = { forceReload: null, workspaceState: null, sessionState: null } as const;
 
 /**
+ * Module 23א §ג: the server time at which this device took up a teacher's
+ * reset, written in the same update that clears forceReload. The server's
+ * late-recording check (functions/src/lateRecordings.ts) reads it: a recording
+ * chunk minted after it is part of the learner's new run, not a late chunk.
+ */
+export const RESET_ACK_FIELD = 'reset_acknowledged_at';
+export const resetAcknowledgement = (): Record<string, object> => ({ [RESET_ACK_FIELD]: serverTimestamp() });
+
+/**
  * TEACHER_RESET_FIELDS for the reset as the record names it (resetMeetingOf):
  * the reset meeting's saved copy and finished mark are cleared again too
  * (catch-up, 2.10.2026) — a copy of that meeting sent a moment before the
@@ -563,7 +572,7 @@ export class FirebaseSyncService {
             this.lastResetSeenAt = Date.now();
             const resetMeeting = resetMeetingOf(data);
             this.discardUnsentWorkspace(resetMeeting);
-            update(studentRef, teacherResetFields(resetMeeting)).then(() => {
+            update(studentRef, { ...teacherResetFields(resetMeeting), ...resetAcknowledgement() }).then(() => {
               window.location.reload();
             }).catch((err) => {
               console.error("Failed to clear forceReload flag:", err);
@@ -2246,9 +2255,9 @@ export function acknowledgeTeacherReset(
   firebaseSyncService.discardUnsentWorkspace(resetMeeting);
   const path = `users/students/${normUid}`;
   if (canWrite) {
-    rtdbUpdateNow(path, { ...teacherResetFields(resetMeeting), isOnline: false, lastPing: 0 }).catch(() => {});
+    rtdbUpdateNow(path, { ...teacherResetFields(resetMeeting), ...resetAcknowledgement(), isOnline: false, lastPing: 0 }).catch(() => {});
   } else {
-    update(ref(database, path), { forceReload: null }).catch(() => {});
+    update(ref(database, path), { forceReload: null, ...resetAcknowledgement() }).catch(() => {});
   }
   useWorkspaceStore.getState().resetWorkspace?.();
   const onlyMeeting = isMeetingNumber(resetMeeting) ? resetMeeting : undefined;
