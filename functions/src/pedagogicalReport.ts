@@ -4,7 +4,8 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
-import { DRIVE_FOLDERS, israelFileStamp, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
+import { DRIVE_FOLDERS, uploadBufferToDrive } from "./exportDriveReport";
+import { learnerReportFileName } from "./driveNames";
 import { meetingLabelHe } from "./stationNames";
 import { COLUMN_NAMES_HE, ROUTE_NAME_HE } from "./teacherLabels";
 import {
@@ -1025,9 +1026,10 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     // Module 23 Drive mirror: archive a copy of the same PDF in the shared Drive folder.
     // Best-effort only — a Drive failure must never fail or degrade report generation.
     try {
-      const driveFileName = `דוח_תלמיד${clampedStudentNum}_מפגש${resolvedSessionNumber}_${israelFileStamp()}.pdf`;
-      const driveFolderId = await resolveDriveFolder([DRIVE_FOLDERS.learnerReports, `מפגש ${resolvedSessionNumber}`]);
-      const driveResult = await uploadBufferToDrive(pdfBuffer, driveFileName, "application/pdf", driveFolderId);
+      // PRD Module 23, "תיקיות הדרייב": "מפגש 3 - תלמיד 01 - 08.10.2026.pdf" in
+      // the flat folder "1 דוחות". A regenerated report is a new file.
+      const driveFileName = learnerReportFileName(resolvedSessionNumber, clampedStudentNum);
+      const driveResult = await uploadBufferToDrive(pdfBuffer, driveFileName, "application/pdf", DRIVE_FOLDERS.reports);
       if (driveResult.success) {
         driveMirrorUrl = driveResult.webViewLink;
         await db.collection("reports").doc(`rep_${sessionId}`).set({

@@ -27,7 +27,9 @@ export { getAiServiceStatus } from "./aiMonitoring";
 // path is onStudentEvent, which stores and checks ownership.
 
 // Export the Google Drive Admin PDF Report module
-export { exportAdminReportToDrive, backupAndResetSessionData, exportResearchDataset } from "./exportDriveReport";
+export { exportAdminReportToDrive, backupAndResetSessionData, exportResearchDataset, logMeetingDownload } from "./exportDriveReport";
+// Module 23א §ג: the daily copy of Storage-only reset backups to the Drive folder "3 גיבויים".
+export { copyStorageBackupsToDrive } from "./backupDriveCopy";
 
 // Export WP6 Cloud Functions (Module 14, 20, 22, 24, 27)
 export { onSessionCompleteTrigger, createSessionWithServerDeadline } from "./sessionTrigger";
