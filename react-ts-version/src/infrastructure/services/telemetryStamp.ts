@@ -14,8 +14,8 @@
  * number on this device.
  */
 
-export const DEVICE_ID_STORAGE_KEY = 'mathmaticore_device_id';
-export const SEQUENCE_STORAGE_KEY = 'mathmaticore_telemetry_sequence';
+export const DEVICE_ID_STORAGE_KEY = 'mc_telemetry_device_id';
+export const SEQUENCE_STORAGE_KEY = 'mc_telemetry_sequence';
 
 let memoryDeviceId: string | null = null;
 let memorySequence: { signIn: string; n: number } | null = null;

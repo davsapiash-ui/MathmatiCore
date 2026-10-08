@@ -52,6 +52,7 @@ vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, coll: string, id: string) => ({ coll, id }),
   setDoc: (...a: unknown[]) => fs.setDoc(...a),
   getDoc: (...a: unknown[]) => fs.getDoc(...a),
+  serverTimestamp: () => ({ __serverTimestamp: true }),
   getFirestore: () => ({}),
   collection: () => ({}),
   query: () => ({}),
@@ -687,6 +688,59 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
       const [item] = await queue.getAll();
       expect([item.idempotency_key, item.retry_count]).toEqual(['e_refused_5', 5]);
+    });
+  });
+
+  describe('Module 17 §ב — refused events: never deleted, parked after 5, counted for the teacher', () => {
+    it('five refusals park the event, count it, and the next page load gives it a new series; the count stays until the Ack', async () => {
+      const counts: number[] = [];
+      const off = queue.onRefusedCountChange((n) => counts.push(n));
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_refused'));
+      for (let i = 0; i < 4; i++) await queue.flushQueue();
+      expect(queue.getRefusedCount()).toBe(0);
+      await queue.flushQueue();
+      expect(queue.getRefusedCount()).toBe(1);
+      expect(counts[counts.length - 1]).toBe(1);
+      let [item] = await queue.getAll();
+      expect(item.refused_parked_at).toBeTypeOf('number');
+
+      // A page load: a new series of attempts, still counted as refused.
+      await (queue as unknown as { reviveParkedItems: () => Promise<void> }).reviveParkedItems();
+      [item] = await queue.getAll();
+      expect(item.retry_count).toBe(0);
+      expect(item.refused_parked_at).toBeTypeOf('number');
+      await queue.flushQueue();
+      expect(fs.setDoc.mock.calls.length).toBe(6);
+      expect(queue.getRefusedCount()).toBe(1);
+
+      // The server takes it: gone, and the count goes back to 0.
+      fs.setDoc.mockImplementation(async () => {});
+      await (queue as unknown as { reviveParkedItems: () => Promise<void> }).reviveParkedItems();
+      await queue.flushQueue();
+      expect(await stored()).toEqual([]);
+      expect(queue.getRefusedCount()).toBe(0);
+      expect(counts[counts.length - 1]).toBe(0);
+      off();
+    });
+
+    it('the delivered document carries server_received_at and device_id', async () => {
+      await queue.enqueue(event('e_stamped'));
+      await queue.flushQueue();
+      const [, body] = fs.setDoc.mock.calls[0] as [unknown, Record<string, unknown>];
+      expect(body.server_received_at).toEqual({ __serverTimestamp: true });
+      expect(typeof body.device_id).toBe('string');
+      expect(typeof body.synced_at).toBe('number');
+    });
+
+    it('reaching the capacity is logged as a fault, once; nothing is discarded', async () => {
+      const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+      queueModule.resetQueueCapacityFaultForTests();
+      queueModule.reportQueueCapacityFault('indexeddb', queueModule.QUEUE_CAPACITY);
+      queueModule.reportQueueCapacityFault('indexeddb', queueModule.QUEUE_CAPACITY + 1);
+      expect(err.mock.calls.filter((c) => String(c[0]).includes('FAULT'))).toHaveLength(1);
+      err.mockRestore();
+      queueModule.resetQueueCapacityFaultForTests();
     });
   });
 

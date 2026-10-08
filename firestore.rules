@@ -174,9 +174,12 @@ service cloud.firestore {
                        data.details is map &&
                        // Appendix A §3: set by the server (serverTimestamp), equal to request.time.
                        ('server_received_at' in data) && data.server_received_at == request.time &&
-                       // Absent only on an event queued before these fields existed (Module 17: never discarded).
-                       (!('sequence_number' in data) || (data.sequence_number is int && data.sequence_number >= 0)) &&
-                       (!('device_id' in data) || (data.device_id is string && data.device_id.matches('^[A-Za-z0-9_-]{8,64}$')));
+                       // Module 5 §ב: the browser's random id. The queue stamps it on delivery,
+                       // so an event queued before it existed carries it too.
+                       ('device_id' in data) && data.device_id is string && data.device_id.matches('^[A-Za-z0-9_-]{8,64}$') &&
+                       // Absent only on an event queued before the counter existed: it cannot be
+                       // invented afterwards, and a refused event is never discarded (Module 17 §ב).
+                       (!('sequence_number' in data) || (data.sequence_number is int && data.sequence_number >= 0));
 
       let validColumnRule = (isColumnScopedEvent(data.event_type) && ('column_index' in data) && data.column_index in [0, 1, 2, 3]) ||
                             (isNonColumnEvent(data.event_type) && (!('column_index' in data) || data.column_index == null)) ||

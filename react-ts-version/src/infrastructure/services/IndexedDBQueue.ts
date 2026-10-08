@@ -1319,6 +1319,7 @@ export class IndexedDBQueue {
     this.memoryFallback = [];
     await this.clearAllStores();
     this.setPendingCount(0);
+    this.setRefusedCount(0);
   }
 
   private clearAllStores(): Promise<void> {

@@ -15,6 +15,7 @@
  * screen already shows, and the file holds what the screen already read.
  */
 import {
+  compareJourneyEvents,
   compulsoryNumbers,
   daySeparatorHe,
   describeEvent,
@@ -59,7 +60,7 @@ export function buildMeetingExport(input: {
     exportedAt: (input.now ?? new Date()).toISOString(),
     learner: input.learner,
     meeting: input.meeting,
-    actions: [...input.actions].sort((a, b) => a.timestamp - b.timestamp),
+    actions: [...input.actions].sort(compareJourneyEvents), // Module 5 §ב: ties by sequence_number
     resets: input.resets,
     chapters: input.chapters,
     recording: { truncated: input.truncated, events: input.recordingEvents },

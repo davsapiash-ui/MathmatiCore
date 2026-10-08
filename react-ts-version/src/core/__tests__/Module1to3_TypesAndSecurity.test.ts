@@ -122,11 +122,13 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
         'HELP_WITHDRAWN',
         // Owner, 1.10.2026: a request for help from the chat, with its exercise.
         'CHAT_HELP_REQUESTED',
+        // PRD Module 14 §ג / Appendix A §3: the branch choice after the compulsory exercises.
+        'BRANCH_SELECTED',
       ];
 
-      expect(expectedEvents).toHaveLength(20);
+      expect(expectedEvents).toHaveLength(21);
       expect(COLUMN_SCOPED_EVENTS).toHaveLength(8);
-      expect(NON_COLUMN_EVENTS).toHaveLength(11);
+      expect(NON_COLUMN_EVENTS).toHaveLength(12);
     });
 
     it('validates that DIGIT_ENTERED requires is_correct boolean and column_index (0, 1, 2)', () => {
