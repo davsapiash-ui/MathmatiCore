@@ -204,7 +204,7 @@ describe('Rule 2 — meetings 5–6 ask the child to check each column (owner 28
   });
   it('the reinforcement exercise reads in full', () => {
     expect(byId('s6_r_reinforce_1').instructionHe).toBe(
-      `פתרו חיסור עם אפסים: 305 − 102. ${NEW} הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`
+      `פתרו במאונך: 305 − 102. ${NEW} הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`
     );
   });
 });
