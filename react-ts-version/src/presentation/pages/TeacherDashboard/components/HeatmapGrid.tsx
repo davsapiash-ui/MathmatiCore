@@ -230,8 +230,9 @@ interface HeatmapGridProps {
  * מודול 18: רדאר פדגוגי שקט (Silent Radar Module Spec)
  * רשת קבועה 3x4 עבור 12 תלמידי הפיילוט (מזהים 1-12 בלבד, אפס שמות/תמונות/ראשי תיבות).
  * צבעי רקע בזמן אמת עם מסנן 1000ms:
- * - ירוק: פעילות תקינה ורציפה
- * - צהוב: היסוס מעל 45 שניות בטור הפעיל
+ * - ירוק: הלומד ביצע פעולה ב-45 השניות האחרונות
+ * - צהוב: 45 שניות ומעלה ללא פעולה בטור הפעיל (בלי פער ביניהם: הדגל
+ *   נכתב בשנייה ה-45 ומשם המשבצת צהובה)
  * - אדום: כרטיס חניכה סוקרטי פעיל
  * - אפור: מנותק / לא החל
  */
@@ -403,7 +404,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           // offline learner is "לא מחובר" — never "יצא מהחלון".
           let lastAction = 'לא מחובר';
           if (isOnline) {
-            lastAction = data.lastAction || (isSocraticActive ? CARD_OPEN_HE : hesitationSeconds >= hesitationThreshold ? `היסוס מעל ${hesitationThreshold} שניות בטור הפעיל` : 'פעיל בלמידה');
+            lastAction = data.lastAction || (isSocraticActive ? CARD_OPEN_HE : hesitationSeconds >= hesitationThreshold ? `${hesitationThreshold} שניות ומעלה ללא פעולה בטור הפעיל` : 'פעיל בלמידה');
           }
 
           const isWaitingAtGate = Boolean(

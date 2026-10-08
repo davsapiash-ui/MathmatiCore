@@ -73,7 +73,9 @@ export function calculateRadarColor(cell: {
     return 'YELLOW';
   }
 
-  // 4. GREEN: Normal active learning (cognitive action within last 30s)
+  // 4. GREEN: the learner acted within the last 45 seconds (Module 18 §ב). The
+  //    hesitating flag is raised at second 45, so GREEN ends exactly where
+  //    YELLOW begins, with no gap.
   return 'GREEN';
 }
 
