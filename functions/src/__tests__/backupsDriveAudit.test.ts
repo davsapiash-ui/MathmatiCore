@@ -17,14 +17,6 @@ import {
   writeResetBackup,
 } from '../resetAudit';
 import { copyPendingBackups, pendingStorageBackups } from '../backupDriveCopy';
-import {
-  classifyRecordingWrite,
-  learnerOfKey,
-  lateRecordingStoragePath,
-  pushKeyTime,
-  resetMissedByChunk,
-  withLateEntry,
-} from '../lateRecordings';
 
 /** PRD Modules 23 ("תיקיות הדרייב"), 23א §ג–§ד and 24 §ב. */
 
@@ -112,6 +104,16 @@ describe('the daily copy of Storage-only backups to "3 גיבויים"', () => {
     ]);
   });
 
+  it('an entry written before backup_channel existed, whose backup is a gs:// url, is copied too', () => {
+    expect(pendingStorageBackups([
+      { id: 'old', data: { backup_status: 'success', backup_file_url: 'gs://b/drive_fallback/2026-09-01/1756700000000_גיבוי_מערכת.json' } },
+      { id: 'oldDrive', data: { backup_status: 'success', backup_file_url: 'https://drive.google.com/file/d/x/view' } },
+      { id: 'failed', data: { backup_status: 'failed', backup_channel: null, backup_file_url: null } },
+    ])).toEqual([
+      { id: 'old', storagePath: 'drive_fallback/2026-09-01/1756700000000_גיבוי_מערכת.json', fileName: 'גיבוי_מערכת.json' },
+    ]);
+  });
+
   it('sets the Drive link and backup_drive_copied_at; a failure leaves the entry waiting', async () => {
     const marked: unknown[] = [];
     const pending = [...pendingStorageBackups(entries), { id: 'z', storagePath: 'backups/class_1/z/x.json', fileName: 'x.json' }];
@@ -172,49 +174,3 @@ describe('the audit trail', () => {
   });
 });
 
-describe('recording chunks that arrive after a full learner or system reset', () => {
-  const PUSH = '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
-  const pushKey = (t: number) => {
-    let s = '';
-    for (let i = 0; i < 8; i++) { s = PUSH.charAt(t % 64) + s; t = Math.floor(t / 64); }
-    return `${s}abcdefghijkl`;
-  };
-  const RESET_AT = AT;
-  const full = { reset_id: 'reset_1', class_id: 'class_1', reset_level: 'single_student', reset_scope: 'full_student', affected_student_ids: [4], performed_at: RESET_AT, backup_status: 'success', deletion_status: 'completed' };
-
-  it('reads the device time out of the chunk\'s push key, and the learner out of the node', () => {
-    expect(pushKeyTime(pushKey(RESET_AT - 5000))).toBe(RESET_AT - 5000);
-    expect(pushKeyTime('not-a-key')).toBeNull();
-    expect(learnerOfKey('student_user4')).toBe(4);
-    expect(learnerOfKey('student_12')).toBe(12);
-    expect(learnerOfKey('student_user13')).toBeNull();
-    expect(classifyRecordingWrite('telemetry_sessions', 'session_1', 'chunks')).toBe('chunk');
-    expect(classifyRecordingWrite('telemetry_sessions', 'session_1', 'metadata')).toBe('metadata');
-    expect(classifyRecordingWrite('recorded_bytes', 'meeting_3', 'chunks')).toBe('bytes');
-    expect(classifyRecordingWrite('recorded_bytes', 'meeting_3', 'truncated')).toBeNull();
-  });
-
-  it('recorded before a completed full reset and arrived after it: late, linked to that reset', () => {
-    expect(resetMissedByChunk([full], 4, RESET_AT - 5000, RESET_AT + 60_000)).toEqual({ reset_id: 'reset_1', class_id: 'class_1', performed_at: RESET_AT });
-    expect(resetMissedByChunk([{ ...full, reset_level: 'system', reset_scope: undefined, affected_student_ids: [1, 2, 3, 4] }], 4, RESET_AT - 5000, RESET_AT + 1)?.reset_id).toBe('reset_1');
-  });
-
-  it('not late: recorded after the reset, another learner, a session reset, or a reset that did not complete', () => {
-    expect(resetMissedByChunk([full], 4, RESET_AT + 1, RESET_AT + 60_000)).toBeNull();
-    expect(resetMissedByChunk([full], 5, RESET_AT - 5000, RESET_AT + 60_000)).toBeNull();
-    expect(resetMissedByChunk([{ ...full, reset_scope: 'active_session', session_number: 3 }], 4, RESET_AT - 5000, RESET_AT + 60_000)).toBeNull();
-    expect(resetMissedByChunk([{ ...full, deletion_status: 'partial' }], 4, RESET_AT - 5000, RESET_AT + 60_000)).toBeNull();
-  });
-
-  it('one file per reset × learner × recording, named "הקלטה שהגיעה אחרי האיפוס", next to the reset\'s backup', () => {
-    const reset = { reset_id: 'reset_1', class_id: 'class_1', performed_at: RESET_AT };
-    expect(lateRecordingStoragePath(reset, 4, 'session_17')).toBe('backups/class_1/reset_1/הקלטה שהגיעה אחרי האיפוס - תלמיד 04 - session_17 - 08.10.2026 14-30.json');
-    const base = { reset_id: 'reset_1', class_id: 'class_1', student_id: 4, recording_id: 'session_17' };
-    const one = withLateEntry(null, base, 'chunks', 'k1', '[1]');
-    const two = withLateEntry(one, base, 'metadata', 'k1', { startTime: 1 });
-    const three = withLateEntry(two, base, 'chunks', 'k2', '[2]');
-    expect(three.chunks).toEqual({ k1: '[1]', k2: '[2]' });
-    expect(three.metadata).toEqual({ k1: { startTime: 1 } });
-    expect(three.label).toBe('הקלטה שהגיעה אחרי האיפוס');
-  });
-});

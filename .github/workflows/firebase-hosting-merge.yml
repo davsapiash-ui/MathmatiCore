@@ -66,8 +66,10 @@ jobs:
       # default. Every target now reports its own verdict in one run, which is
       # what makes the remaining permission gaps legible instead of hidden
       # behind whichever one happens to run first.
-      - name: Deploy Firestore rules
-        run: npx --yes firebase-tools@13 deploy --only firestore:rules --project mathimaticore --non-interactive
+      # firestore:indexes too: LearnerJourneyService queries reset_audit_log by
+      # class_id == and affected_student_ids array-contains (firestore.indexes.json).
+      - name: Deploy Firestore rules and indexes
+        run: npx --yes firebase-tools@13 deploy --only firestore:rules,firestore:indexes --project mathimaticore --non-interactive
 
       - name: Deploy Storage rules
         if: '!cancelled()'

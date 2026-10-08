@@ -8,11 +8,20 @@
  * success the entry's backup_file_url becomes the Drive link and
  * backup_drive_copied_at is set. backup_channel stays 'storage' (where the
  * backup was written at reset time) and the Storage copy is kept.
+ *
+ * Entries written before backup_channel existed carry none; when their
+ * backup_file_url is a gs:// url (the old code parked reset backups under
+ * drive_fallback/), the backup is only in Storage too, and is copied the same
+ * way.
+ *
+ * The same run first assembles the late recording chunks quarantined since the
+ * last run into their files (lateRecordings.ts).
  */
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { DRIVE_FOLDERS, baseName, parseGsUrl } from "./driveNames";
+import { assembleLateRecordings, firebaseAssembleDeps } from "./lateRecordings";
 
 export interface PendingBackup {
   id: string;
@@ -24,11 +33,14 @@ export interface PendingBackup {
 export function pendingStorageBackups(entries: Array<{ id: string; data: Record<string, unknown> }>): PendingBackup[] {
   const out: PendingBackup[] = [];
   for (const { id, data } of entries) {
-    if (data.backup_channel !== "storage") continue;
+    const legacy = (data.backup_channel === undefined || data.backup_channel === null) && data.backup_status === "success";
+    if (data.backup_channel !== "storage" && !legacy) continue;
     if (data.backup_drive_copied_at !== undefined && data.backup_drive_copied_at !== null) continue;
     const gs = parseGsUrl(data.backup_file_url);
     if (!gs) continue;
-    out.push({ id, storagePath: gs.path, fileName: baseName(gs.path) });
+    // drive_fallback/<date>/<ms>_<name>: the name without the time prefix.
+    const name = gs.path.startsWith("drive_fallback/") ? baseName(gs.path).replace(/^\d{10,}_/, "") : baseName(gs.path);
+    out.push({ id, storagePath: gs.path, fileName: name });
   }
   return out;
 }
@@ -69,8 +81,21 @@ export const copyStorageBackupsToDrive = onSchedule({
   // Loaded here: exportDriveReport pulls in the whole reset module.
   const { uploadBufferToDrive } = await import("./exportDriveReport");
   const db = admin.firestore();
-  const snap = await db.collection("reset_audit_log").where("backup_channel", "==", "storage").get();
-  const pending = pendingStorageBackups(snap.docs.map((d) => ({ id: d.id, data: d.data() })));
+  try {
+    const late = await assembleLateRecordings(firebaseAssembleDeps());
+    logger.info(`copyStorageBackupsToDrive: ${late.written.length} late recording files written, ${late.failed.length} still waiting.`);
+  } catch (err: any) {
+    logger.error("copyStorageBackupsToDrive: the late recordings could not be assembled (they stay in the quarantine):", err);
+  }
+  const [storageSnap, legacySnap] = await Promise.all([
+    db.collection("reset_audit_log").where("backup_channel", "==", "storage").get(),
+    db.collection("reset_audit_log").where("backup_status", "==", "success").get(),
+  ]);
+  const seen = new Set<string>();
+  const entries = [...storageSnap.docs, ...legacySnap.docs]
+    .filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)))
+    .map((d) => ({ id: d.id, data: d.data() }));
+  const pending = pendingStorageBackups(entries);
   if (pending.length === 0) return;
   const bucket = admin.storage().bucket();
   const result = await copyPendingBackups(pending, {

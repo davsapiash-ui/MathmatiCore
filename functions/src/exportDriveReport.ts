@@ -10,6 +10,7 @@ import { researchDetailsColumns } from "./researchTelemetryRow";
 import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
 import { CATCHUP_COLLECTION, catchUpExportCells, type CatchUpRecord } from "./catchUp";
 import { finishedMeetingRefusalHe, resolveActiveSessionNumber, resolveClassSessionNumber, validMeetingNumber } from "./resetMeetingTarget";
+import { LATE_MARKERS_ROOT, lateRecordingMarkerUpdates } from "./lateRecordings";
 import {
   DRIVE_FOLDERS,
   RESEARCH_FILE_LABELS,
@@ -399,33 +400,11 @@ export async function uploadBufferToDrive(
     }
 
     const metadata = { name: fileName, mimeType, parents: [parentFolderId] };
-    const boundary = "mathmaticore_upload_boundary";
-    const delimiter = `\r\n--${boundary}\r\n`;
-    const closeDelimiter = `\r\n--${boundary}--`;
-    const multipartBody = Buffer.concat([
-      Buffer.from(
-        `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`
-      ),
-      Buffer.from(
-        `${delimiter}Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${buffer.toString("base64")}`
-      ),
-      Buffer.from(closeDelimiter),
-    ]);
-
     // The folder, and nowhere else in Drive: no second upload without a parent
     // (it used to land in the service account's own Drive, where nobody sees it).
-    const response = await fetch(
-      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&supportsTeamDrives=true",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": `multipart/related; boundary=${boundary}`,
-        },
-        body: multipartBody,
-        signal: options.signal,
-      }
-    );
+    const response = buffer.length > DRIVE_MULTIPART_MAX_BYTES
+      ? await resumableDriveUpload(accessToken, metadata, buffer, mimeType, options.signal)
+      : await multipartDriveUpload(accessToken, metadata, buffer, mimeType, options.signal);
 
     if (response.ok) {
       const resData = await response.json();
@@ -437,6 +416,55 @@ export async function uploadBufferToDrive(
   } catch (err: any) {
     return await parkInStorage(err?.message || String(err));
   }
+}
+
+/**
+ * Google documents the multipart upload for files of 5 MB or less and the
+ * resumable upload above that; a large reset backup sent as multipart never
+ * reached Drive and was retried by the daily job every day.
+ */
+export const DRIVE_MULTIPART_MAX_BYTES = 5 * 1024 * 1024;
+
+const DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files?supportsAllDrives=true&supportsTeamDrives=true";
+
+async function multipartDriveUpload(accessToken: string, metadata: Record<string, unknown>, buffer: Buffer, mimeType: string, signal?: AbortSignal): Promise<Response> {
+  const boundary = "mathmaticore_upload_boundary";
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelimiter = `\r\n--${boundary}--`;
+  const multipartBody = Buffer.concat([
+    Buffer.from(`${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`),
+    Buffer.from(`${delimiter}Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${buffer.toString("base64")}`),
+    Buffer.from(closeDelimiter),
+  ]);
+  return fetch(`${DRIVE_UPLOAD_URL}&uploadType=multipart`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+    body: multipartBody,
+    signal,
+  });
+}
+
+/** A resumable upload session: the metadata first, then the whole file in one PUT. */
+async function resumableDriveUpload(accessToken: string, metadata: Record<string, unknown>, buffer: Buffer, mimeType: string, signal?: AbortSignal): Promise<Response> {
+  const start = await fetch(`${DRIVE_UPLOAD_URL}&uploadType=resumable`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json; charset=UTF-8",
+      "X-Upload-Content-Type": mimeType,
+      "X-Upload-Content-Length": String(buffer.length),
+    },
+    body: JSON.stringify(metadata),
+    signal,
+  });
+  const session = start.ok ? start.headers.get("location") : null;
+  if (!session) return start.ok ? new Response("Drive returned no upload session", { status: 502 }) : start;
+  return fetch(session, {
+    method: "PUT",
+    headers: { "Content-Type": mimeType, "Content-Length": String(buffer.length) },
+    body: buffer as unknown as BodyInit,
+    signal,
+  });
 }
 
 export const VALID_RESET_REASONS = [
@@ -662,7 +690,9 @@ async function withClassResetLock<T>(db: admin.firestore.Firestore, classId: str
     locked = await acquireClassResetLock(db as unknown as LockStore, classId, resetId);
   } catch (lockErr: any) {
     logger.error(`Reset ${resetId}: the class reset lock could not be taken:`, lockErr);
-    throw new HttpsError("unavailable", "לא ניתן היה להתחיל את האיפוס כעת. נסו שוב בעוד רגע. לא נמחקו נתונים.");
+    // 'aborted', not 'unavailable': the client reads 'unavailable' as "the
+    // reset may still be running", and here nothing started.
+    throw new HttpsError("aborted", "לא ניתן היה להתחיל את האיפוס כעת. נסו שוב בעוד רגע. לא נמחקו נתונים.");
   }
   if (!locked) {
     throw new HttpsError("failed-precondition", RESET_LOCK_REFUSAL_HE, { reason: "reset_in_progress" });
@@ -955,29 +985,55 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
     );
   }
 
+  // Step 3b (Module 23א §ג): a full learner reset or a system reset marks the
+  // recordings it is about to delete, so that chunks a device sends before it
+  // learns of the reset are quarantined instead of recreating them
+  // (lateRecordings.ts). Written before the deletion, so chunks arriving while
+  // the entry is 'in_progress', or for good when it ends 'partial', are caught.
+  // Steps that delete nothing themselves fail into side_effect_errors: they do
+  // not make the deletion 'partial' (§ד: only the records in scope decide).
+  const sideEffectErrors: string[] = [];
+  if (reset_level === 'system' || singleScope === 'full_student') {
+    try {
+      const startedAt = (await rtdb.ref("active_class_session/startedAt").get()).val();
+      await rtdb.ref().update(lateRecordingMarkerUpdates({
+        resetId,
+        classId: class_id,
+        performedAt: auditEntry.performed_at,
+        learners: affectedStudentIds,
+        rtdbBackup: backup.realtime_database,
+        classStartedAt: typeof startedAt === 'number' ? startedAt : null,
+      }));
+    } catch (e: any) {
+      sideEffectErrors.push(`${LATE_MARKERS_ROOT}: ${e?.message || e}`);
+    }
+  }
+
   // Step 4: delete ONLY after the backup write and the audit entry were
   // confirmed — the very same scope that was just backed up, and every record
   // of it (no page limits).
   const deletion = await executeResetDeletion(rtdb, db, scope);
+  sideEffectErrors.push(...deletion.side_effect_failures);
 
   if (reset_level === 'system') {
     // A class that starts over has no projector and — Module 14: session
     // activation is exclusively a teacher action — no active session.
-    await rtdb.ref("system_control/projector_mode").set({ active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch((e) => deletion.failures.push(`system_control/projector_mode: ${e?.message || e}`));
-    await rtdb.ref("active_class_session").set({ active: false, status: "closed", sessionNumber: null, endedAt: Date.now() }).catch((e) => deletion.failures.push(`active_class_session: ${e?.message || e}`));
+    await rtdb.ref("system_control/projector_mode").set({ active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch((e) => sideEffectErrors.push(`system_control/projector_mode: ${e?.message || e}`));
+    await rtdb.ref("active_class_session").set({ active: false, status: "closed", sessionNumber: null, endedAt: Date.now() }).catch((e) => sideEffectErrors.push(`active_class_session: ${e?.message || e}`));
     // Module 24's store_cache/admin_metrics is derived from the data just
     // deleted; recompute it now so the admin console does not keep showing
     // the pre-reset summary until the next scheduled run.
-    await recomputeAdminMetrics(db).catch((e) => deletion.failures.push(`store_cache/admin_metrics: ${e?.message || e}`));
+    await recomputeAdminMetrics(db).catch((e) => sideEffectErrors.push(`store_cache/admin_metrics: ${e?.message || e}`));
   }
 
   // Step 5: the real number of records deleted, and how the deletion ended
-  // ('completed', or 'partial' when an item failed — never rolled back).
-  // Learner records reset in place (a meeting restart) are not counted.
+  // ('completed', or 'partial' when a record in scope failed — never rolled
+  // back). Learner records reset in place (a meeting restart) are not counted.
   const deletionStatus: DeletionStatus = deletionStatusAfter(deletion.failures);
   await auditRef.update({
     records_deleted_count: deletion.total,
     deletion_status: deletionStatus,
+    ...(sideEffectErrors.length > 0 ? { side_effect_errors: sideEffectErrors.map((e) => e.slice(0, 500)) } : {}),
   }).catch((auditErr) => {
     // The entry exists and stays 'in_progress'; say so rather than report a clean reset.
     logger.error("Failed to record the deletion outcome on the reset audit entry:", auditErr);
@@ -987,14 +1043,17 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
   if (deletion.failures.length > 0) {
     // The backup is safe and most of the scope is gone; say exactly what is
     // not, instead of reporting a clean reset.
-    logger.error(`Reset ${resetId}: deletion incomplete —`, deletion.failures);
+    logger.error(`Reset ${resetId}: deletion incomplete —`, deletion.failures, sideEffectErrors);
     throw new HttpsError(
       "internal",
-      `הגיבוי נשמר, אך חלק מהנתונים לא נמחקו: ${deletion.failures.join('; ')}. ניתן להריץ את האיפוס שוב.`,
+      `הגיבוי נשמר, אך חלק מהנתונים לא נמחקו: ${[...deletion.failures, ...sideEffectErrors].join('; ')}. ניתן להריץ את האיפוס שוב.`,
       // The client used to report every non-permission error as "הגיבוי נכשל…
       // לא נמחקו נתונים" — the opposite of what happened here.
       { stage: 'deletion_incomplete' }
     );
+  }
+  if (sideEffectErrors.length > 0) {
+    logger.error(`Reset ${resetId}: every record in scope was deleted, but some follow-up steps failed —`, sideEffectErrors);
   }
 
   logger.info(
@@ -1009,6 +1068,7 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
     webViewLink: written.url,
     backedUpRecords: backup.counts.total,
     deletedRecords: deletion.total,
+    ...(sideEffectErrors.length > 0 ? { sideEffectErrors } : {}),
     ...(reset_level === 'single_student' ? { resetScope: singleScope, sessionNumber: activeSessionNumber, resetTarget } : {}),
   };
   });
@@ -1605,6 +1665,12 @@ export interface DeletionCounts {
   reset_in_place: number;
   /** Scope items that could not be deleted, as "path: reason". */
   failures: string[];
+  /**
+   * Steps after a record was deleted that delete nothing themselves (the
+   * learner's restart command). They do not make the deletion 'partial'
+   * (§ד: the records in scope are gone); they are reported separately.
+   */
+  side_effect_failures: string[];
 }
 
 /**
@@ -1616,7 +1682,7 @@ export async function executeResetDeletion(
   db: admin.firestore.Firestore,
   scope: ResetScope
 ): Promise<DeletionCounts> {
-  const counts: DeletionCounts = { realtime_database: {}, firestore: {}, total: 0, reset_in_place: 0, failures: [] };
+  const counts: DeletionCounts = { realtime_database: {}, firestore: {}, total: 0, reset_in_place: 0, failures: [], side_effect_failures: [] };
 
   for (const path of scope.rtdbPaths) {
     try {
@@ -1634,7 +1700,7 @@ export async function executeResetDeletion(
       // here, whatever happens to the rest of the scope or to the caller.
       for (const record of canonicalLearnerRecordsOf(path, snap.val())) {
         await rtdb.ref(record).update({ ...FULL_RESET_RESTART_COMMAND }).catch((err: any) => {
-          counts.failures.push(`${record} (restart command): ${err?.message || String(err)}`);
+          counts.side_effect_failures.push(`${record} (restart command): ${err?.message || String(err)}`);
         });
       }
     } catch (err: any) {

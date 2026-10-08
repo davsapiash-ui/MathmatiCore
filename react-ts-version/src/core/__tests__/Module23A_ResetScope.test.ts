@@ -124,8 +124,9 @@ describe('Module 23א — one scope for backup and deletion', () => {
     expect(systemBlock).toBeGreaterThan(-1);
     const recompute = fn.indexOf('await recomputeAdminMetrics(db)', systemBlock);
     expect(recompute).toBeGreaterThan(systemBlock);
-    // Runs only after deletion, and a failure is reported like any other incomplete step.
-    expect(fn.slice(recompute, recompute + 200)).toContain('deletion.failures.push(`store_cache/admin_metrics:');
+    // Runs only after deletion. It deletes nothing, so a failure is recorded as a
+    // side effect (side_effect_errors) and does not make the reset 'partial' (§ד).
+    expect(fn.slice(recompute, recompute + 200)).toContain('sideEffectErrors.push(`store_cache/admin_metrics:');
   });
 
   it('refuses a single-learner reset without a learner number instead of defaulting to learner 1', () => {

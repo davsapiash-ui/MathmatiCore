@@ -31,7 +31,7 @@ export { exportAdminReportToDrive, backupAndResetSessionData, exportResearchData
 // Module 23א §ג: the daily copy of Storage-only reset backups to the Drive folder "3 גיבויים".
 export { copyStorageBackupsToDrive } from "./backupDriveCopy";
 // Module 23א §ג: recording chunks that reach the server after a full learner or system reset.
-export { onLateRecordingChunk } from "./lateRecordings";
+export { onLateRecordingChunk, onLateRecordingFlag, onLateRecordingAck } from "./lateRecordings";
 
 // Export WP6 Cloud Functions (Module 14, 20, 22, 24, 27)
 export { onSessionCompleteTrigger, createSessionWithServerDeadline } from "./sessionTrigger";

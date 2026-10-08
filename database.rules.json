@@ -1,5 +1,8 @@
 {
   "rules": {
+    "late_recording_markers": { ".read": false, ".write": false },
+    "late_recordings": { ".read": false, ".write": false },
+    "late_recordings_pending": { ".read": false, ".write": false },
     "schools": {
       ".read": "auth != null",
       ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
