@@ -104,10 +104,6 @@ export function adminReportFileName(ms: number = Date.now()): string {
 /** Module 23א §ג: recording chunks that arrive after a full learner or a system reset. */
 export const LATE_RECORDING_LABEL = "הקלטה שהגיעה אחרי האיפוס";
 
-/** "הקלטה שהגיעה אחרי האיפוס - תלמיד 04 - 08.10.2026 14-30.json" */
-export function lateRecordingFileName(studentNumber: number, ms: number = Date.now()): string {
-  return `${LATE_RECORDING_LABEL} - תלמיד ${learnerNumber2(studentNumber)} - ${israelDateTime(ms)}.json`;
-}
 
 /** Module 23א §ג: wait at most 90 s for the backup's Drive write. */
 export const BACKUP_DRIVE_TIMEOUT_MS = 90_000;
