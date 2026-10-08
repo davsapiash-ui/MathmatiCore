@@ -13,6 +13,7 @@ const h = vi.hoisted(() => ({
   docs: {} as Record<string, Record<string, any>>,
   claims: [] as Array<{ uid: string; claims: unknown }>,
   logs: [] as string[],
+  transactions: 0,
 }));
 
 vi.mock('firebase-functions/logger', () => {
@@ -32,10 +33,10 @@ vi.mock('firebase-admin', async (importOriginal) => {
   };
   const db = {
     collection: (name: string) => ({ doc: (id: string) => docRef(name, id) }),
-    runTransaction: async (fn: (tx: any) => Promise<unknown>) => fn({
+    runTransaction: async (fn: (tx: any) => Promise<unknown>) => { h.transactions++; return fn({
       get: (ref: any) => ref.get(),
       set: (ref: any, data: any) => { void ref.set(data); },
-    }),
+    }); },
   };
   const firestore = Object.assign(() => db, { FieldValue: { serverTimestamp: () => 'ts' } });
   return {
@@ -64,6 +65,7 @@ beforeEach(() => {
   h.docs = {};
   h.claims = [];
   h.logs = [];
+  h.transactions = 0;
 });
 
 describe('כלל הקוד', () => {
@@ -113,6 +115,15 @@ describe('כלל הקוד', () => {
     expect(codesMatch('0147', '10203040')).toBe(false);
     expect(codesMatch('0147', 147)).toBe(false);
   });
+
+  it('השוואה: כל מה שאינו בדיוק 4 ספרות נדחה לפני ההשוואה', () => {
+    for (const bad of ['', '014', '01470', '01a7', '0147\n0147', '0'.repeat(9), ' '.repeat(4) + '0147' + ' '.repeat(4) + ' ', '٠١٤٧']) {
+      expect(codesMatch('0147', bad), JSON.stringify(bad)).toBe(false);
+    }
+    expect(codesMatch('0147', '0147' + 'x'.repeat(1_000_000))).toBe(false);
+    // A stored value that is not a string never matches.
+    expect(codesMatch(undefined as unknown as string, '0147')).toBe(false);
+  });
 });
 
 describe('הרשימה — למורה ולמנהל המערכת בלבד', () => {
@@ -132,6 +143,13 @@ describe('הרשימה — למורה ולמנהל המערכת בלבד', () =>
     await expect(call(getLearnerAccessCodes, {}, null)).rejects.toThrow();
     await expect(call(regenerateLearnerAccessCode, { studentId: 3 }, { role: 'student', student_id: 3 })).rejects.toThrow();
     await expect(call(getLearnerAccessCodes, {}, { role: 'teacher', class_id: 'class_9' })).rejects.toThrow();
+  });
+
+  it('מורה שבאסימון שלה אין class_id — נדחית (fail closed)', async () => {
+    await expect(call(getLearnerAccessCodes, {}, { role: 'teacher' })).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(call(regenerateLearnerAccessCode, { studentId: 3 }, { role: 'teacher' })).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(call(getLearnerAccessCodes, {}, { role: 'teacher', class_id: '' })).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(h.docs['learner_access_codes/class_1']).toBeUndefined();
   });
 
   it('"קוד חדש" משנה רק את הקוד של הלומד הזה — מורה וגם מנהל', async () => {
@@ -180,6 +198,36 @@ describe('כניסת לומד — מול הקוד האישי', () => {
     await call(regenerateLearnerAccessCode, { studentId: 4 }, TEACHER);
     await expect(call(authenticateStudentSession, { studentId: 4, passcode: old }, ANON)).rejects.toThrow(/Invalid access code/);
     expect(h.claims).toHaveLength(0);
+  });
+
+  it('קוד ארוך מ-4 ספרות נדחה גם כשהוא מתחיל בקוד הנכון', async () => {
+    const codes = (await call(getLearnerAccessCodes, {}, TEACHER)).codes;
+    await expect(call(authenticateStudentSession, { studentId: 6, passcode: codes['6'] + '0' }, ANON)).rejects.toThrow(/Invalid access code/);
+    await expect(call(authenticateStudentSession, { studentId: 6, passcode: codes['6'].repeat(1000) }, ANON)).rejects.toThrow(/Invalid access code/);
+    expect(h.claims).toHaveLength(0);
+  });
+
+  it('כשהרשימה שלמה, כניסת לומד קוראת בלבד — בלי טרנזקציה; "קוד חדש" נשאר בטרנזקציה', async () => {
+    const codes = (await call(getLearnerAccessCodes, {}, TEACHER)).codes;
+    expect(h.transactions).toBe(1); // the list was created once
+    h.transactions = 0;
+    for (let id = 1; id <= 12; id++) {
+      await call(authenticateStudentSession, { studentId: id, passcode: codes[String(id)] }, ANON, `anon_${id}`);
+    }
+    await call(getLearnerAccessCodes, {}, ADMIN);
+    expect(h.transactions).toBe(0);
+    expect(h.claims).toHaveLength(12);
+    await call(regenerateLearnerAccessCode, { studentId: 2 }, TEACHER);
+    expect(h.transactions).toBe(1);
+  });
+
+  it('רשימה חסרה לומד — נקראת בטרנזקציה ומושלמת, והקודים הקיימים נשמרים', async () => {
+    h.docs['learner_access_codes/class_1'] = { codes: { '1': '0147' } };
+    await expect(call(authenticateStudentSession, { studentId: 1, passcode: '0147' }, ANON)).resolves.toMatchObject({ success: true });
+    expect(h.transactions).toBe(1);
+    const stored = h.docs['learner_access_codes/class_1'].codes;
+    expect(stored['1']).toBe('0147');
+    expect(Object.keys(stored)).toHaveLength(12);
   });
 
   it('לפני שנוצרה רשימה, 10203040 אינו מכניס — והרשימה נוצרת', async () => {

@@ -90,11 +90,18 @@ export function completeCodeMap(existing: unknown): { codes: AccessCodeMap; chan
   return { codes, changed };
 }
 
-/** Constant-time comparison of a typed code against the stored one. */
+/**
+ * Constant-time comparison of a typed code against the stored one. Anything
+ * that is not exactly four digits (after trimming surrounding spaces) is
+ * rejected before it is copied or compared, and an oversized input is
+ * rejected before it is even trimmed.
+ */
 export function codesMatch(expected: string, given: unknown): boolean {
-  if (typeof given !== "string") return false;
+  if (typeof expected !== "string" || typeof given !== "string" || given.length > 8) return false;
+  const typed = given.trim();
+  if (!/^[0-9]{4}$/.test(typed)) return false;
   const a = Buffer.from(expected, "utf8");
-  const b = Buffer.from(given.trim(), "utf8");
+  const b = Buffer.from(typed, "utf8");
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
@@ -102,12 +109,19 @@ const codesDoc = (classId: string) =>
   admin.firestore().collection(ACCESS_CODES_COLLECTION).doc(classId);
 
 /**
- * Reads the class's code list, generating the initial codes (or any missing
- * learner's code) in the same transaction. `actor` is a uid or "system" —
- * never an e-mail address (Module 25 §ב.3).
+ * Reads the class's code list. In steady state the list is complete and a
+ * plain read is enough — no read-write transaction on every learner sign-in
+ * (Module 1's latency budget, and no lock contention with "קוד חדש" when
+ * twelve learners sign in together). Only a missing or incomplete list opens a
+ * transaction, which re-reads and generates the initial codes (or any missing
+ * learner's code). `actor` is a uid or "system" — never an e-mail address
+ * (Module 25 §ב.3).
  */
 export async function loadAccessCodes(classId: string, actor: string): Promise<AccessCodeMap> {
   const ref = codesDoc(classId);
+  const plain = await ref.get();
+  const stored = completeCodeMap(plain.exists ? plain.data()?.codes : undefined);
+  if (!stored.changed) return stored.codes;
   return admin.firestore().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const { codes, changed } = completeCodeMap(snap.exists ? snap.data()?.codes : undefined);
@@ -129,7 +143,8 @@ export function requireStaffOfPilotClass(token: Record<string, unknown> | undefi
   if (!caller.isTeacher && !caller.isAdmin) {
     throw new HttpsError("permission-denied", "רשימת קודי הגישה גלויה למורה ולמנהל המערכת בלבד.");
   }
-  if (!caller.isAdmin && caller.classId !== null && caller.classId !== PILOT_CLASS_ID) {
+  // Fail closed: a teacher token with no class_id is not the pilot class's teacher.
+  if (!caller.isAdmin && caller.classId !== PILOT_CLASS_ID) {
     throw new HttpsError("permission-denied", "הכיתה אינה כיתת הפיילוט.");
   }
 }
