@@ -233,6 +233,13 @@ deploys hosting, Cloud Functions, Firestore rules, Storage rules and RTDB rules.
 
 These inform decisions. They do not override Rule 1.
 
+**Design skills** (`frontend-design`, `redesign-skill`, or any other UI/design skill an agent
+has installed) are a working method only — plan, build, check with screenshots. They are
+never a source of requirements. Order of precedence: the PRD, then `DESIGN_SYSTEM_RULES.md`
+and `BUTTON_DESIGN_RULES.md`, then the skill. The student screens are calm by requirement
+(ASD and special education): no effect, animation, colour or layout a skill suggests goes in
+unless the PRD allows it. If a skill's advice conflicts with the PRD, the PRD wins.
+
 ---
 
 ## A note on rules-file precedence
