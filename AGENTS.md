@@ -59,14 +59,27 @@ exactly two ways:
 Anything else — a decision you think the owner made, a gap you noticed, a mismatch you
 would like to resolve — you raise with the owner and stop. You do not write it anywhere.
 
-**Removed for good — never reintroduce.** Typing a digit never creates, deletes or
-changes blocks, in any session; blocks change only by the learner's own actions on them.
-An agent invented "typing creates blocks" in August 2026 from document 03's phrase
-"סנכרון דו-כיווני מבוקר", and it reached the PRD as if the owner had written it. The owner
-removed it on 23 September 2026 and again on 8 October 2026. Document 03 keeps its wording
-(it is written for the owner's academic supervisor); the PRD governs and says the sync is
-one-way. CI (`protect-spec.yml`) fails if the requirement returns to the PRD. Do not
-"complete" a one-way rule into a two-way one.
+### Removed for good — never reintroduce
+
+The owner removed each of these on purpose. Do not bring one back — not in the PRD, not
+in code, not as a "fix" for a gap you noticed, not because an old document, an old
+commit, a code comment or document 01–04 seems to ask for it. If you think one should
+return, raise it with the owner and stop.
+
+| Removed | When |
+|---|---|
+| Typing a digit creates, deletes or changes blocks. Sync is one-way: blocks → digits only. An agent invented it in August 2026 from document 03's phrase "סנכרון דו-כיווני מבוקר"; document 03 keeps its wording (it is written for the academic supervisor), the PRD governs. | 23.9.2026, again 8.10.2026 |
+| A return-to-lobby button on activity screens. Moving between the lobby and a station is the teacher's action. | 9.9.2026, confirmed 8.10.2026 |
+| A button that enters the session from the lobby. The lobby waits; when the teacher activates the session it swaps in place to the station's opening screen. | 25–26.9.2026, 8.10.2026 |
+| AI-written exercises, and the teacher editing exercises in chat or in any form. There is no exercise editor anywhere. | 4.9.2026 |
+| Injecting an "אתגר מצוינות" exercise into the compulsory sequence. | 14.9.2026 |
+| The "איזו עזרה תרצו לקבל כעת?" window (hint / guiding question / solved example). | 14.9.2026 |
+| A "גורם משלב" role. There are three roles only: student, teacher, admin. | 14.9.2026 |
+| Redo. There is undo only. | 14.9.2026 |
+| A bee, or any bee animation, on any student screen; the stage is "שלב החלוקה למסלולים". | 29.9.2026 |
+| Any percentage, score or ranking on a student screen, including the persistence index. | 27.9.2026 |
+
+CI (`protect-spec.yml`) fails a pull request that writes the first two back into the PRD.
 
 ### The owner's pedagogical source documents — read-only
 

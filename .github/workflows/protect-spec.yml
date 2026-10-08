@@ -25,12 +25,12 @@ jobs:
           # The owner removed this for good (23.9.2026, again 8.10.2026): an agent invented
           # "typing a digit creates blocks" in August 2026 from document 03's "two-way sync".
           # Document 03 stays as the owner wrote it; the PRD must never carry the requirement.
-          hits=$(grep -nE 'הקלדה המייצרת לבנים|הקלדת ספרה מייצרת|כיוון שני, הקלדה|סנכרון דו-כיווני' \
+          hits=$(grep -nE 'הקלדה המייצרת לבנים|הקלדת ספרה מייצרת|כיוון שני, הקלדה|סנכרון דו-כיווני|כפתור החזרה ללובי ממוקם|return-to-lobby button fixed' \
             'מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md' || true)
           if [ -n "$hits" ]; then
             echo "$hits"
             echo
-            echo "Typing a digit never creates blocks (AGENTS.md, Rule 1). Remove the sentence above."
+            echo "The owner removed this for good (AGENTS.md, \"Removed for good\"). Remove the sentence above."
             exit 1
           fi
       - name: Fail if protected spec files changed without owner approval
