@@ -61,10 +61,12 @@ would like to resolve — you raise with the owner and stop. You do not write it
 
 **Removed for good — never reintroduce.** Typing a digit never creates, deletes or
 changes blocks, in any session; blocks change only by the learner's own actions on them.
-An agent invented "typing creates blocks" in August 2026 from the phrase "two-way sync",
-and it reached the PRD and document 03 as if the owner had written it. The owner removed
-it on 23 September 2026 and again on 8 October 2026. CI (`protect-spec.yml`) fails if it
-comes back. Do not "complete" a one-way rule into a two-way one.
+An agent invented "typing creates blocks" in August 2026 from document 03's phrase
+"סנכרון דו-כיווני מבוקר", and it reached the PRD as if the owner had written it. The owner
+removed it on 23 September 2026 and again on 8 October 2026. Document 03 keeps its wording
+(it is written for the owner's academic supervisor); the PRD governs and says the sync is
+one-way. CI (`protect-spec.yml`) fails if the requirement returns to the PRD. Do not
+"complete" a one-way rule into a two-way one.
 
 ### The owner's pedagogical source documents — read-only
 

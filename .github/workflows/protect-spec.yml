@@ -22,11 +22,11 @@ jobs:
       - name: Fail if a requirement the owner removed comes back
         run: |
           set -euo pipefail
-          # The owner removed these for good (23.9.2026, again 8.10.2026). An agent invented
-          # "typing a digit creates blocks" in August 2026 from the phrase "two-way sync";
-          # neither may reappear in the PRD or the pedagogical source documents.
-          hits=$(grep -rnE 'הקלדה המייצרת לבנים|הקלדת ספרה מייצרת|דו-כיווני מבוקר|כיוון שני, הקלדה' \
-            'מסמכי אפיון/' || true)
+          # The owner removed this for good (23.9.2026, again 8.10.2026): an agent invented
+          # "typing a digit creates blocks" in August 2026 from document 03's "two-way sync".
+          # Document 03 stays as the owner wrote it; the PRD must never carry the requirement.
+          hits=$(grep -nE 'הקלדה המייצרת לבנים|הקלדת ספרה מייצרת|כיוון שני, הקלדה|סנכרון דו-כיווני' \
+            'מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md' || true)
           if [ -n "$hits" ]; then
             echo "$hits"
             echo
