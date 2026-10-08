@@ -111,8 +111,11 @@ test('live scenario: teacher and learner together', async ({ browser }) => {
   await step('learner-moved-in', 'הלומד עובר לבד מהלובי למפגש 3', async () => {
     await c.page.waitForURL(/workspace\?meeting=3/, { timeout: 30_000 });
     await c.page.waitForFunction(() => !(document.body.innerText || '').includes('טוען את המשימות'), undefined, { timeout: 30_000 });
+    // PRD 14 §ב: the station's opening screen first, then "מתחילים" leads to the first exercise.
+    await expect(c.page.getByText('ברוכים הבאים לתחנה 3', { exact: false })).toBeVisible({ timeout: 20_000 });
+    await c.page.getByRole('button', { name: 'מתחילים' }).click();
     await expect(c.page.getByText(/משימה 1 מתוך/)).toBeVisible({ timeout: 20_000 });
-    return 'הלומד במפגש 3, "משימה 1 מתוך 7" מוצג';
+    return 'הלומד במסך הפתיחה של תחנה 3, ואחרי "מתחילים" — "משימה 1 מתוך 7"';
   });
 
   // Exercise 1 of meeting 3 is a representation: build it, type it, continue.

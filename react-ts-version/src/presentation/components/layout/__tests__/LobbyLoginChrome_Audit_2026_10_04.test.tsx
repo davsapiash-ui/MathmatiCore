@@ -34,10 +34,10 @@ function topbarAs(role: 'student' | 'teacher', path = '/hub') {
 }
 
 describe('A1-038 — the lobby has one name', () => {
-  it('no "בית" subtitle on /hub (the badge says "מרחב הלמידה האישי שלכם")', () => {
+  it('no "בית" subtitle on /hub, and no badge of its own in the lobby (PRD 6: the waiting sentence or the opening screen only)', () => {
     const { container } = topbarAs('student');
     expect(container.textContent).not.toContain('בית');
-    expect(src('presentation/pages/StudentHub.tsx')).toContain('<span>מרחב הלמידה האישי שלכם</span>');
+    expect(src('presentation/pages/StudentHub.tsx')).not.toContain('מרחב הלמידה האישי שלכם');
   });
 });
 

@@ -90,22 +90,25 @@ export function HelpOverlays() {
 }
 
 /**
- * כרטיס החניכה הסוקרטי — חלונית צדדית.
+ * כרטיס החניכה הסוקרטי — חלונית צדדית נשלפת.
  *
- * מסמך 03: הכרטיס מוצג "כרכיב צדדי עדין השומר על נראות מלאה של התרגיל", "בחלונית
- * צדדית"; מסמך 04 §א: "אך ורק כחלונית צדדית נשלפת מצד המסך המותירה את מרחב
- * העבודה במרכז פעיל". Register row 17 (25.9.2026): built as document 03 says.
- *
- * It used to float over the top centre of the screen, on top of the exercise
- * sheet. It is now a column of the workspace row itself — after the board, so
- * in RTL it slides out from the left edge of the screen — and the sheet and the
- * board share the rest of the row. Being in the layout, it cannot cover the
- * sheet, the board or the result row on any screen size. Nothing about its
- * behaviour changed: the 30-second lock on the answer buttons, the read-aloud
- * button, SOCRATIC_CARD_SHOWN / SOCRATIC_OPTION_SELECTED, Escape to close, no
- * focus trap (the keyboard and the board stay usable while it is open).
+ * PRD Module 12 §ב: the card opens "בחלונית צדדית נשלפת (Side Drawer) באגף
+ * המשימה והמענה, כך שאגף הייצוגים ומרחב הלבנים הדיגיטליות נשארים גלויים".
+ * In the meetings with a number house it is a column inside the task zone
+ * (`inTaskZone`, StudentWorkspacePage): the zone keeps its 40% of the row and
+ * the task card shares it with the drawer, so the board keeps its 60% (Module 7
+ * §א) and nothing covers anything. In meeting 8, which has no board, it slides
+ * out beside the centred task card. Nothing about its behaviour changed: the
+ * lock on the answer buttons, the read-aloud button, SOCRATIC_CARD_SHOWN /
+ * SOCRATIC_OPTION_SELECTED, Escape to close, no focus trap (the keyboard and
+ * the board stay usable while it is open).
  */
-export function SocraticSidePanel() {
+/** The drawer's width inside the task zone: a share of the zone, so the task card keeps the rest. */
+const TASK_ZONE_DRAWER_WIDTH = 'w-[clamp(176px,38%,300px)]';
+/** Its width beside the centred card of meeting 8. */
+const BESIDE_CARD_DRAWER_WIDTH = 'w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px]';
+
+export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean }) {
   const helpState = useWorkspaceStore((s) => s.helpState);
   const closeHelp = useWorkspaceStore((s) => s.closeHelp);
   // Owner, 4.10.2026 (A7-002): the chat panel is fixed to the bottom-left
@@ -251,10 +254,10 @@ export function SocraticSidePanel() {
   return (
     <AnimatePresence initial={false}>
       {helpState === 'socratic' && (
-        /* In the workspace row, not over it: the panel takes its own width
-           (max-width grows 0 → full in 250ms, so the sheet and the board ease
-           aside instead of jumping) and releases the pointer the moment it
-           starts leaving. No backdrop, no z-index over the work. */
+        /* In the layout, not over it: the panel takes its own width
+           (max-width grows 0 → full in 250ms, so the task card eases aside
+           instead of jumping) and releases the pointer the moment it starts
+           leaving. No backdrop, no z-index over the work. */
         <motion.div
           key="socratic-side-panel"
           initial={{ maxWidth: 0, opacity: 0 }}
@@ -262,7 +265,7 @@ export function SocraticSidePanel() {
           exit={{ maxWidth: 0, opacity: 0, pointerEvents: 'none' }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
           className={`socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden ${
-            gridOverCard ? 'w-16' : 'w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px]'
+            gridOverCard ? 'w-16' : inTaskZone ? TASK_ZONE_DRAWER_WIDTH : BESIDE_CARD_DRAWER_WIDTH
           }`}
           dir="rtl"
           data-testid="socratic-side-panel"
@@ -291,7 +294,7 @@ export function SocraticSidePanel() {
                  the close button fit in the panel down to a 585px-high window.
                  overflow-y-auto stays only as a last resort for a still
                  shorter screen. */
-              className={`h-full min-h-0 flex-col w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px] bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
+              className={`h-full min-h-0 flex-col ${inTaskZone ? 'w-full' : BESIDE_CARD_DRAWER_WIDTH} bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
                 gridOverCard ? 'hidden' : folded ? 'flex invisible pointer-events-none' : 'flex pointer-events-auto'
               }`}
               // Folded: hidden, unreachable by Tab and screen readers, still mounted.

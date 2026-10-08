@@ -75,7 +75,9 @@ interface Step {
 const noop = async () => {};
 
 // ── store snippets (bodies of (st, api, arg) functions, run in the page) ──
-const INIT = 'st.initSession(arg.meeting, arg.isASD, arg.idx); if (arg.skipOpening) api.getState().markOpeningScreenSeen();';
+// Every station opens on its opening screen (PRD 14 §ב); a step measures it only
+// when it asks for it (showOpening), every other step starts past it.
+const INIT = 'st.initSession(arg.meeting, arg.isASD, arg.idx); if (!arg.showOpening) api.getState().markOpeningScreenSeen();';
 const SET = 'api.setState(arg);';
 const Q_FLOW = 'api.getState().markOpeningScreenSeen(); api.setState({ qflow: arg, flowStatus: "task", awaitingNext: false, probeAnswer: "" });';
 
@@ -105,7 +107,7 @@ function qflow(idx: number, phase: 'primary' | 'correction', subphase: 'subtask'
 
 function initTask(meeting: number, isASD: boolean, idx: number): Step['run'] {
   return async (c) => {
-    await ws(c.page, INIT, { meeting, isASD, idx, skipOpening: meeting === 2 || meeting === 8 });
+    await ws(c.page, INIT, { meeting, isASD, idx });
   };
 }
 
@@ -238,6 +240,8 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
 
   // Meeting 1 — the guided sandbox: intro steps and the refresh exercises.
   const m1Count = scope === 'smoke' ? 1 : await countTasks(c, 1, isASD);
+  // Every station's opening screen (PRD 14 §ב): greeting, name and goal, read-aloud, "מתחילים".
+  steps.push({ id: 'm1-opening', meeting: 1, run: async (cc) => ws(cc.page, INIT, { meeting: 1, isASD, idx: 0, showOpening: true }) });
   for (let k = 0; k < m1Count; k++) steps.push({ id: `m1-task-${k + 1}`, meeting: 1, run: initTask(1, isASD, k) });
   if (scope !== 'smoke') {
     steps.push({
@@ -271,7 +275,7 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
   }
 
   // Meeting 2 — the diagnostic: opening screen, seven tasks, the correction round.
-  steps.push({ id: 'm2-opening', meeting: 2, run: async (cc) => ws(cc.page, INIT, { meeting: 2, isASD, idx: 0 }) });
+  steps.push({ id: 'm2-opening', meeting: 2, run: async (cc) => ws(cc.page, INIT, { meeting: 2, isASD, idx: 0, showOpening: true }) });
   const diag = scope === 'smoke' ? DIAGNOSTIC.slice(0, 1) : DIAGNOSTIC;
   for (const t of diag) steps.push({ id: `m2-task-${t.idx + 1}`, meeting: 2, run: async (cc) => ws(cc.page, Q_FLOW, qflow(t.idx, 'primary', 'subtask')) });
   for (const t of scope === 'smoke' ? DIAGNOSTIC.slice(2, 3) : DIAGNOSTIC) {
@@ -298,6 +302,7 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
   const lessonMeetings = scope === 'smoke' ? [3] : [3, 4, 5, 6, 7];
   for (const n of lessonMeetings) {
     const count = scope === 'smoke' ? 1 : await countTasks(c, n, isASD);
+    steps.push({ id: `m${n}-opening`, meeting: n, run: async (cc) => ws(cc.page, INIT, { meeting: n, isASD, idx: 0, showOpening: true }) });
     for (let k = 0; k < count; k++) steps.push({ id: `m${n}-task-${k + 1}`, meeting: n, run: initTask(n, isASD, k) });
     steps.push({
       id: `m${n}-coaching-open`,
@@ -485,14 +490,14 @@ async function defaultSteps(c: AuditContext, scope: Scope): Promise<Step[]> {
   }
 
   // Meeting 8 — the master researcher: no board, and the reflection board at the end.
-  steps.push({ id: 'm8-opening', meeting: 8, run: async (cc) => ws(cc.page, INIT, { meeting: 8, isASD, idx: 0 }) });
+  steps.push({ id: 'm8-opening', meeting: 8, run: async (cc) => ws(cc.page, INIT, { meeting: 8, isASD, idx: 0, showOpening: true }) });
   const m8Count = scope === 'smoke' ? 1 : await countTasks(c, 8, isASD);
   for (let k = 0; k < m8Count; k++) steps.push({ id: `m8-task-${k + 1}`, meeting: 8, run: initTask(8, isASD, k) });
   steps.push({
     id: 'm8-coaching-open',
     meeting: 8,
     run: async (cc) => {
-      await ws(cc.page, INIT, { meeting: 8, isASD, idx: 0, skipOpening: true });
+      await ws(cc.page, INIT, { meeting: 8, isASD, idx: 0 });
       await ws(cc.page, 'st.openSocraticCard("repeated_errors");');
     },
   });
@@ -554,7 +559,7 @@ async function remediationSteps(c: AuditContext): Promise<Step[]> {
 /** The ASD variants: simplified numbers, the visual organiser, quiet mode on every screen. */
 async function asdSteps(c: AuditContext): Promise<Step[]> {
   const steps: Step[] = [];
-  steps.push({ id: 'm2-opening', meeting: 2, run: async (cc) => ws(cc.page, INIT, { meeting: 2, isASD: true, idx: 0 }) });
+  steps.push({ id: 'm2-opening', meeting: 2, run: async (cc) => ws(cc.page, INIT, { meeting: 2, isASD: true, idx: 0, showOpening: true }) });
   for (const t of DIAGNOSTIC) steps.push({ id: `m2-task-${t.idx + 1}`, meeting: 2, run: async (cc) => ws(cc.page, Q_FLOW, qflow(t.idx, 'primary', 'subtask')) });
   for (const t of DIAGNOSTIC) {
     if (t.probe) steps.push({ id: `m2-correction-probe-${t.idx + 1}`, meeting: 2, run: async (cc) => ws(cc.page, Q_FLOW, qflow(t.idx, 'correction', 'subtask')) });
@@ -793,6 +798,23 @@ const LOBBY_AND_LOGIN: Array<{ opts: ContextOptions; steps: Step[] }> = [
           cc.rtdb.set('system_control/projector_mode', { active: true, projector_mode: true, projector_mode_updated_at: Date.now() });
         },
       },
+      {
+        // PRD Module 6: the teacher activates the session and the lobby swaps,
+        // in place and without a reload, to the station's opening screen.
+        // Last of the lobby's steps: the page is in the workspace after it.
+        id: 'lobby-to-opening',
+        meeting: null,
+        url: '/hub',
+        note: 'the teacher activates station 4: the lobby becomes its opening screen',
+        resets: true,
+        run: async (cc) => {
+          cc.rtdb.set('active_class_session', closedSession() as never);
+          cc.rtdb.set('system_control/projector_mode', { active: false, projector_mode: false, projector_mode_updated_at: Date.now() });
+          await cc.page.getByText('היום עוד לא התחלנו', { exact: false }).waitFor({ state: 'visible', timeout: 15_000 });
+          cc.rtdb.set('active_class_session', liveSession(4) as never);
+          await cc.page.getByRole('button', { name: 'מתחילים' }).waitFor({ state: 'visible', timeout: 30_000 });
+        },
+      },
     ],
   },
   {
@@ -832,7 +854,7 @@ const LOBBY_AND_LOGIN: Array<{ opts: ContextOptions; steps: Step[] }> = [
 
 async function countTasks(c: AuditContext, meeting: number, isASD: boolean): Promise<number> {
   await gotoWorkspace(c, meeting);
-  await ws(c.page, INIT, { meeting, isASD, idx: 0, skipOpening: true });
+  await ws(c.page, INIT, { meeting, isASD, idx: 0 });
   // The top bar renders a beat after the store initialises; poll rather than guess.
   let n = 0;
   for (let i = 0; i < 20 && n === 0; i++) {

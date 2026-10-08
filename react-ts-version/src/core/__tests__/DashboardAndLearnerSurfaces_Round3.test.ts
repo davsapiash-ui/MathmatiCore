@@ -101,14 +101,13 @@ describe('מסכי ההמתנה של הלומד', () => {
     'presentation/components/student/SessionClosedOverlay.tsx',
     'presentation/components/student/ProjectorWaitingScreen.tsx',
   ];
-  it('הנקודות הפועמות מכבדות מצב שקט', () => {
+  it('מסכי ההמתנה עומדים במקומם: אין אנימציה חוזרת, לאף ילד', () => {
+    // Calm screens (ASD and special education): no looping animation at all —
+    // not only under the teacher's quiet marking. Their texts stay.
     for (const p of screens) {
       const s = src(p);
-      // The hook that reads MotionConfig — the teacher's quiet marking arrives
-      // only there; useReducedMotion() reads the device setting alone.
-      expect(s, p).toContain('useReducedMotionConfig()');
-      expect(s, p).not.toContain('useReducedMotion()');
-      expect(s, p).toContain('reduceMotion ? {} :');
+      expect(s, p).not.toContain('repeat: Infinity');
+      expect(s, p).not.toMatch(/animate-(pulse|bounce|spin|ping)/);
     }
   });
   it('לכל מסך המתנה יש הקראה', () => {

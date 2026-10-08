@@ -190,7 +190,7 @@ describe('3 — "תחנה N" inside the workspace, never "מפגש N"', () => {
     expect(page).toContain('סיימתם את תחנה {sessionNumber}!');
     expect(page).toContain('עוברים לתחנה {activeClassSession?.sessionNumber}...');
     const store = code('application/useWorkspaceStore.ts');
-    expect(store.match(/sub: `תַּחֲנָה \$\{s\.sessionNumber\} הוּשְׁלְמָה בְּהַצְלָחָה!`/g)).toHaveLength(2);
+    expect(store.match(/`תַּחֲנָה \$\{s\.sessionNumber\} הוּשְׁלְמָה בְּהַצְלָחָה!/g)).toHaveLength(3);
   });
 
   it('no meeting number anywhere the child reads (the radar\'s lastAction lines are the teacher\'s)', () => {

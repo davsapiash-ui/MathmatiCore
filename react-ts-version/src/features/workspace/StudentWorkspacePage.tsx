@@ -1308,65 +1308,41 @@ export function StudentWorkspacePage() {
     return <><Meeting2WaitingScreen onApproved={() => navigate('/hub')} /><CornerCloudSyncStatus />{classStateOverlays}</>;
   }
 
-  // Module 14: Session complete screen. In meetings 3–7 it carries the one
-  // closing sentence of owner decision E2, chosen by this meeting's own
-  // persistence index (E1): the sentence and its read-aloud button, and
-  // nothing else — no number, no board, no question. Meetings 1 and 2 have
-  // no sentence; meeting 8 has its own on the reflection board.
-  //
-  // One praise, one sentence: every closing sentence already opens with
-  // "כל הכבוד", so where it is shown the heading only says which station is
-  // done (and the end toast carries no praise either, useWorkspaceStore).
-  //
-  // Meeting 8 reaches this screen from its reflection board, whose last step
-  // already said "כל הכבוד": the heading only says which station is done. It is
-  // the last station, so there is no "next station" line.
+  // Module 14: the quiet end screen of a station. PRD 14 §ג / 16 §ב: in
+  // meetings 3–7 it carries one encouragement sentence, chosen by this
+  // meeting's own persistence index (E1), with its read-aloud button on the
+  // child's click only — no board, no question, no number. Meetings 1 and 2
+  // have no encouragement at all, and meeting 8's is on its reflection board.
+  // So the heading only says which station is done, in every meeting, and the
+  // screen has no celebration: no bouncing emoji, nothing that moves.
   //
   // Read-aloud: meetings 3–7 carry the closing sentence's own button and nothing
-  // more (E2). Meetings 1, 2 and 8 had no button at all; there one button beside
-  // the heading reads the screen's lines (PRD 7 §א; register, 15.9.2026), on the
-  // child's click only. The ✓ is not spoken.
+  // more (E2). Meetings 1, 2 and 8 have one button beside the heading that reads
+  // the screen's lines (PRD 7 §א), on the child's click only. The ✓ is not spoken.
   if (endScreen === 'sessionDone') {
     const withClosingSentence = hasClosingSentence(sessionNumber);
-    const afterReflection = sessionNumber === 8;
-    const endScreenSpeech = afterReflection
+    const lastStation = sessionNumber === 8;
+    const nextStationLine = teacherSentenceHe('nextStation', teacherGender);
+    const endScreenSpeech = lastStation
       ? `סיימתם את תחנה ${sessionNumber}! העבודה נשמרה בבטחה.`
-      : `כל הכבוד, מתמטיקאים! סיימתם את תחנה ${sessionNumber}! העבודה נשמרה בבטחה. ${teacherSentenceHe('nextStation', teacherGender)}`;
-    const endScreenSpeechButton = withClosingSentence ? null : (
-      <UdlSpeechButton text={endScreenSpeech} className="shrink-0" />
-    );
+      : `סיימתם את תחנה ${sessionNumber}! העבודה נשמרה בבטחה. ${nextStationLine}`;
     return (
-      <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6 animate-in fade-in duration-300">
-        <div className="bg-ws-surface p-10 rounded-3xl shadow-2xl max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
-          <div className="text-6xl animate-bounce motion-essential">🎉✨</div>
-          {withClosingSentence || afterReflection ? (
-            <div className="flex items-center justify-center gap-3">
-              <h1 className="text-3xl font-display font-black text-ws-ink">
-                סיימתם את תחנה {sessionNumber}!
-              </h1>
-              {endScreenSpeechButton}
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-center gap-3">
-                <h1 className="text-3xl font-display font-black text-ws-ink">
-                  כל הכבוד, מתמטיקאים!
-                </h1>
-                {endScreenSpeechButton}
-              </div>
-              <p className="text-base text-ws-soft leading-relaxed">
-                סיימתם את תחנה {sessionNumber}!
-              </p>
-            </>
-          )}
+      <div dir="rtl" data-testid="station-end-screen" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
+        <div className="bg-ws-surface p-10 rounded-3xl shadow-sm max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
+          <div className="flex items-center justify-center gap-3">
+            <h1 className="text-3xl font-display font-black text-ws-ink">
+              סיימתם את תחנה {sessionNumber}!
+            </h1>
+            {!withClosingSentence && <UdlSpeechButton text={endScreenSpeech} className="shrink-0" />}
+          </div>
           <ClosingSentence sessionNumber={sessionNumber} counts={meetingPersistence} />
           <div className="pt-4 flex flex-col gap-2">
             <div className="inline-flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800 text-sm">
               <span>העבודה נשמרה בבטחה</span>
-              <span>✓</span>
+              <span aria-hidden="true">✓</span>
             </div>
-            {!afterReflection && (
-              <p className="text-xs text-ws-soft">{teacherSentenceHe('nextStation', teacherGender)}</p>
+            {!lastStation && (
+              <p className="text-base text-ws-soft">{nextStationLine}</p>
             )}
           </div>
         </div>
@@ -1477,7 +1453,7 @@ export function StudentWorkspacePage() {
                 data-testid="task-zone"
                 aria-label="אגף המשימה"
                 style={{ flex: '2 1 0%' }}
-                className="min-h-0 min-w-0 flex flex-row gap-fl-10-20"
+                className="min-h-0 min-w-0 flex flex-row gap-2"
               >
                 <div className="flex-1 min-h-0 min-w-0 flex flex-col">
                   <TaskCard />
@@ -1500,7 +1476,7 @@ export function StudentWorkspacePage() {
                     isAdditionBoardEnabled already restricts this to
                     enhanced_cognitive_support learners in sessions 3–7. */}
                 {isAdditionGridTabShown && <AdditionGridTab />}
-                <SocraticSidePanel />
+                <SocraticSidePanel inTaskZone />
               </section>
 
               {/* The representations zone, 60% (RTL: last in the row, so on the left). */}

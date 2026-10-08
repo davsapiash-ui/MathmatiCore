@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ref, onValue, get } from 'firebase/database';
 import { onAuthStateChanged } from 'firebase/auth';
 import { database, auth, authReady, fetchServerClockOffset, isServerClockKnown } from '@/infrastructure/firebase';
+import { lastMeetingOf } from '@/core/lobbyState';
 import { getClassSessionStatus, isClassSessionLive, readSessionStartedAt, type ActiveClassSessionRecord, type ClassSessionStatus } from '@/core/classSession';
 
 export interface ActiveClassSession {
@@ -13,6 +14,12 @@ export interface ActiveClassSession {
   startedAt: number | null;
   teacherId?: string;
   isLoaded: boolean;
+  /**
+   * The meeting a session that is no longer live last ran (core/lobbyState.ts
+   * lastMeetingOf), or null — the lobby's sentence follows the learner's
+   * finished mark at that station (PRD 14 §ב0).
+   */
+  lastMeeting?: number | null;
 }
 
 /**
@@ -78,7 +85,8 @@ export function useActiveClassSession() {
         prev.sessionNumber === next.sessionNumber &&
         prev.startedAt === next.startedAt &&
         prev.teacherId === next.teacherId &&
-        prev.isLoaded === next.isLoaded
+        prev.isLoaded === next.isLoaded &&
+        (prev.lastMeeting ?? null) === (next.lastMeeting ?? null)
           ? prev
           : next
       );
@@ -110,6 +118,7 @@ export function useActiveClassSession() {
         sessionNumber: null,
         startedAt: null,
         isLoaded: true,
+        lastMeeting: lastMeetingOf(raw),
       });
     };
 

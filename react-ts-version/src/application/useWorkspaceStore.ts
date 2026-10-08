@@ -3370,7 +3370,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (s.sessionNumber !== 8) markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
 
       set({ awaitingNext: true, currentState: 'COMPLETE' });
-      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` }, 2500);
+      // PRD 14 §ג / 16 §ב: meetings 1 and 2 carry no encouragement — the toast
+      // only says the station is done, like the one before meetings 3–7's end.
+      showFeedback({ correct: true, title: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` }, 2500);
       // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
       // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
       // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים

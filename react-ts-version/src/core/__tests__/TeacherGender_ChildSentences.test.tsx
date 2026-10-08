@@ -163,8 +163,8 @@ describe('the children’s screens follow the teacher’s choice, on the screen 
   it('the lobby, the end-of-station screen and the help-call toast read the same sentences', () => {
     const hub = src('presentation/pages/StudentHub.tsx');
     expect(hub).toContain('const teacherGender = useTeacherGender();');
-    expect(hub).toContain("teacherSentenceHe('willOpenActivity', teacherGender)");
-    expect(hub).toContain("teacherSentenceHe('pausedTitle', teacherGender)");
+    // Every lobby sentence (core/lobbyState.ts) in the teacher's gender.
+    expect(hub).toContain('teacherSentenceHe(state.sentence, teacherGender)');
     const page = src('features/workspace/StudentWorkspacePage.tsx');
     expect(page).toContain('const teacherGender = useTeacherGender();');
     expect(page).toContain("teacherSentenceHe('nextStation', teacherGender)");

@@ -136,6 +136,8 @@ async function openMeeting4(profile: string | null = 'enhanced_cognitive_support
     </MemoryRouter>
   );
   await tick();
+  // PRD 14 §ב: the station opens on its opening screen; "מתחילים" leads to the task.
+  act(() => { ws().markOpeningScreenSeen(); });
   act(() => { useWorkspaceStore.setState({ activeSupportProfileId: profile } as any); });
   expect(ws().sessionNumber).toBe(4);
   expect(ws().flowStatus).toBe('task');
@@ -483,7 +485,7 @@ describe('rule 7, the exercise started again', () => {
     expect(cardShown()).toBe(false);
 
     await tick(1_000);
-    act(() => { ws().initSession(4, false, 0); });
+    act(() => { ws().initSession(4, false, 0); ws().markOpeningScreenSeen(); });
     act(() => { useWorkspaceStore.setState({ activeSupportProfileId: 'enhanced_cognitive_support' } as any); });
     systemOpensGrid();
     await openCard();

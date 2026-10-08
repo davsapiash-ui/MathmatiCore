@@ -1,4 +1,4 @@
-import { motion, useReducedMotionConfig } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
 /**
@@ -8,13 +8,8 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
  * ללא חלונות קופצים או מודאלים מסיחים, סנכרון בזמן אמת מתחת ל-1000ms.
  */
 export function ProjectorWaitingScreen() {
-  // מצב שקט: MotionConfig מכבה תנועות תמרה, אך לא לולאת שקיפות אינסופית —
-  // הנקודות המשיכו לפעום מול ילד שהמורה סימנה כרגיש חושית. כאן הן עומדות.
-  // useReducedMotionConfig ולא useReducedMotion: האחרון קורא רק את הגדרת
-  // המכשיר ומתעלם מ-MotionConfig, שדרכו בלבד מגיע הסימון של המורה.
-  const reduceMotion = useReducedMotionConfig();
-  const loop = (frames: Record<string, number[]>, transition: Record<string, unknown>) =>
-    reduceMotion ? {} : { animate: frames, transition };
+  // No looping animation on this screen (a calm screen; ASD and special
+  // education): the icon stands still and there is no "breathing" row of dots.
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -34,15 +29,7 @@ export function ProjectorWaitingScreen() {
 
       <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-8 text-center bg-white dark:bg-slate-900 p-10 rounded-3xl border border-indigo-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5">
         {/* Projector Icon */}
-        <motion.div
-          animate={{
-            y: [-3, 3, -3],
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
+        <div
           className="w-24 h-24 rounded-3xl bg-indigo-600/10 dark:bg-indigo-500/20 border-2 border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-inner"
         >
           <svg
@@ -66,7 +53,7 @@ export function ProjectorWaitingScreen() {
             <line x1="6" y1="18" x2="6" y2="20" />
             <line x1="18" y1="18" x2="18" y2="20" />
           </svg>
-        </motion.div>
+        </div>
 
         {/* Message */}
         <div className="flex flex-col gap-3">
@@ -79,16 +66,6 @@ export function ProjectorWaitingScreen() {
           <UdlSpeechButton text="הדגמה על גבי המקרן. הקשיבו להסבר של המורה על גבי המקרן" className="self-center" />
         </div>
 
-        {/* Subtle breathing indicator */}
-        <div className="flex items-center gap-2 pt-2">
-          {[0, 1, 2].map((i) => (
-            <motion.div
-              key={i}
-              {...loop({ scale: [1, 1.3, 1], opacity: [0.4, 1, 0.4] }, { duration: 1.8, repeat: Infinity, delay: i * 0.35, ease: 'easeInOut' })}
-              className="w-2.5 h-2.5 rounded-full bg-indigo-500 dark:bg-indigo-400"
-            />
-          ))}
-        </div>
       </div>
     </motion.div>
   );

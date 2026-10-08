@@ -59,7 +59,20 @@ export const TEACHER_SENTENCES_HE = {
     female: 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.',
     male: 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודק את העבודה שלכם. כשהמורה יסיים לבדוק, נמשיך.',
   },
-  /** The end-of-station screen, under "העבודה נשמרה בבטחה". */
+  /**
+   * PRD 14 §ב0: the lobby's quiet waiting screen, one sentence per state
+   * (core/lobbyState.ts). "Finished" is `nextStation`, below.
+   */
+  lobbyNotStarted: {
+    female: 'היום עוד לא התחלנו. המורה תפתח את הפעילות בקרוב.',
+    male: 'היום עוד לא התחלנו. המורה יפתח את הפעילות בקרוב.',
+  },
+  lobbyPaused: { female: 'המורה עצרה את הפעילות לרגע.', male: 'המורה עצר את הפעילות לרגע.' },
+  lobbyClosedUnfinished: {
+    female: 'העבודה שלכם נשמרה בבטחה. המורה תקבע איתכם מתי תמשיכו.',
+    male: 'העבודה שלכם נשמרה בבטחה. המורה יקבע איתכם מתי תמשיכו.',
+  },
+  /** The end-of-station screen, under "העבודה נשמרה בבטחה"; also the lobby's "finished" sentence. */
   nextStation: {
     female: 'כשהמורה תפתח את התחנה הבאה, נמשיך יחד.',
     male: 'כשהמורה יפתח את התחנה הבאה, נמשיך יחד.',

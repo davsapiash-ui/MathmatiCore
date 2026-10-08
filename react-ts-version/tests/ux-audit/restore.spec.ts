@@ -76,6 +76,9 @@ const hasBuilt = (counts: Partial<Counts> | undefined) =>
 
 async function enterMeeting3(c: AuditContext): Promise<void> {
   await gotoWorkspace(c, 3);
+  // PRD 14 §ב: a fresh station opens on its opening screen; "מתחילים" is saved
+  // with the workspace, so the restores below come back past it.
+  await c.page.getByRole('button', { name: 'מתחילים' }).click({ timeout: 20_000 });
   await expect(c.page.getByText(/משימה 1 מתוך/)).toBeVisible({ timeout: 20_000 });
 }
 

@@ -331,9 +331,9 @@ describe('Module 12: the coaching card never blocks the number house', () => {
         React.createElement(
           'div',
           { style: { position: 'relative' } },
-          React.createElement(PlaceValueBoard, { shareRow: true }),
+          React.createElement(PlaceValueBoard, {}),
           React.createElement(HelpOverlays, null),
-          React.createElement(SocraticSidePanel, null)
+          React.createElement(SocraticSidePanel, { inTaskZone: true })
         )
       )
     );

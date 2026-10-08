@@ -1,4 +1,4 @@
-import { motion, useReducedMotionConfig } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { useTeacherGenderStore } from '@/application/useTeacherGender';
@@ -20,13 +20,8 @@ export function SessionClosedOverlay({ meeting2Unfinished = false }: {
    */
   meeting2Unfinished?: boolean;
 } = {}) {
-  // מצב שקט: MotionConfig מכבה תנועות תמרה, אך לא לולאת שקיפות אינסופית —
-  // הנקודות המשיכו לפעום מול ילד שהמורה סימנה כרגיש חושית. כאן הן עומדות.
-  // useReducedMotionConfig ולא useReducedMotion: האחרון קורא רק את הגדרת
-  // המכשיר ומתעלם מ-MotionConfig, שדרכו בלבד מגיע הסימון של המורה.
-  const reduceMotion = useReducedMotionConfig();
-  const loop = (frames: Record<string, number[]>, transition: Record<string, unknown>) =>
-    reduceMotion ? {} : { animate: frames, transition };
+  // No looping animation on this screen (a calm screen; ASD and special
+  // education): the icon stands still and there is no "breathing" row of dots.
   const gender = useTeacherGenderStore((s) => s.gender);
   const title = teacherSentenceHe('closedTitle', gender);
   const body = teacherSentenceHe(meeting2Unfinished ? 'closedBodyMeeting2Unfinished' : 'closedBody', gender);
@@ -42,14 +37,12 @@ export function SessionClosedOverlay({ meeting2Unfinished = false }: {
       className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm font-body select-none"
     >
       <div className="w-full max-w-md flex flex-col items-center gap-6 text-center bg-white dark:bg-slate-900 p-10 rounded-3xl border border-indigo-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5">
-        <motion.div
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        <div
           className="w-24 h-24 rounded-3xl bg-indigo-50 dark:bg-indigo-950/40 border-2 border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center text-5xl shadow-inner"
           aria-hidden="true"
         >
           ✨
-        </motion.div>
+        </div>
         <div className="flex flex-col gap-2">
           <h2 className="font-display font-black text-2xl text-slate-800 dark:text-slate-100">
             {title}
@@ -58,15 +51,6 @@ export function SessionClosedOverlay({ meeting2Unfinished = false }: {
             {body}
           </p>
           <UdlSpeechButton text={`${title}. ${body}`} className="self-center" />
-        </div>
-        <div className="flex items-center gap-2 pt-1" aria-hidden="true">
-          {[0, 1, 2].map((i) => (
-            <motion.div
-              key={i}
-              {...loop({ scale: [1, 1.3, 1], opacity: [0.4, 1, 0.4] }, { duration: 1.8, repeat: Infinity, delay: i * 0.35, ease: 'easeInOut' })}
-              className="w-2.5 h-2.5 rounded-full bg-indigo-500 dark:bg-indigo-400"
-            />
-          ))}
         </div>
 
         {/* Accessible logout button so the student is never trapped when class ends */}

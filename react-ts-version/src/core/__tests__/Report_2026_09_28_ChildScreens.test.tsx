@@ -162,8 +162,10 @@ describe('row 1.28 (and audit A5-F07 / UX-001 / UX-002, 4.10.2026) — the addit
     const row = page.slice(page.indexOf('<main'), page.indexOf('</main>'));
     expect(row).toContain('<AdaptiveAdditionGrid key="adaptive-grid"');
     expect(row).toContain('<AdditionGridTab />');
-    // the board shares the row with the grid's slot, as it does with the card
-    expect(row).toContain('shareRow={isSocraticPanelOpen || isAdditionGridSlotShown}');
+    // the grid's slot is in the task zone (PRD 7 §א / 12 §ב), with the card's drawer; the board keeps its 60%
+    const zone = row.slice(row.indexOf('data-testid="task-zone"'), row.indexOf('</section>'));
+    expect(zone).toContain('<AdaptiveAdditionGrid key="adaptive-grid"');
+    expect(zone).toContain('<AdditionGridTab />');
   });
 
   // The grid and the coaching card are never shown together; what each does

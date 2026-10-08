@@ -80,7 +80,9 @@ vi.mock('@/features/workspace/overlays/HelpOverlays', () => ({ HelpOverlays: () 
 vi.mock('@/features/workspace/overlays/StudentChatOverlay', () => ({ StudentChatOverlay: () => null }));
 vi.mock('@/features/workspace/board/AdaptiveAdditionGrid', () => ({ AdaptiveAdditionGrid: () => null, AdditionGridTab: () => null, ADDITION_GRID_HE: 'לוח החיבור' }));
 vi.mock('@/features/workspace/ClosingSentence', () => ({ ClosingSentence: () => null }));
-vi.mock('@/features/workspace/StationOpening', () => ({ StationOpening: () => null }));
+vi.mock('@/features/workspace/StationOpening', () => ({
+  StationOpening: ({ onStart }: { onStart: () => void }) => <button type="button" onClick={onStart}>מתחילים</button>,
+}));
 vi.mock('@/features/workspace/overlays/ReinforcementOrChallengeScreen', () => ({
   ReinforcementOrChallengeScreen: () => <div data-testid="choice-screen" />,
 }));
@@ -144,6 +146,10 @@ afterEach(() => cleanup());
 
 async function openMeeting1() {
   const view = open(1);
+  await flush();
+  // PRD 14 §ב: a fresh station opens on its opening screen; "מתחילים" leads to the first task.
+  expect(screen.queryByTestId('task-card')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'מתחילים' }));
   await flush();
   expect(screen.queryByTestId('task-card')).not.toBeNull();
   useWorkspaceStore.setState({ proceed, undo } as any);
@@ -248,7 +254,7 @@ describe('read-aloud on the end screen and the other-device lock — click only'
   afterEach(() => speak.mockRestore());
   const speechButtons = () => screen.queryAllByRole('button', { name: 'הקראה בקול' });
 
-  it('meeting 1: one button reads the heading, the station line, the saved line and the next-station line', async () => {
+  it('meeting 1: one button reads the heading, the saved line and the next-station line — no praise in stations 1–2 (PRD 14 §ג)', async () => {
     await openMeeting1();
     act(() => useWorkspaceStore.setState({ flowStatus: 'sessionDone', awaitingNext: false }));
     expect(speechButtons()).toHaveLength(1);
@@ -256,7 +262,9 @@ describe('read-aloud on the end screen and the other-device lock — click only'
     fireEvent.click(speechButtons()[0]);
     expect(speak).toHaveBeenCalledTimes(1);
     const text = speak.mock.calls[0][0] as string;
-    expect(text).toMatch(/^כל הכבוד, מתמטיקאים! סיימתם את תחנה 1! העבודה נשמרה בבטחה\. כשהמורה (תפתח|יפתח) את התחנה הבאה, נמשיך יחד\.$/);
+    expect(text).toMatch(/^סיימתם את תחנה 1! העבודה נשמרה בבטחה\. כשהמורה (תפתח|יפתח) את התחנה הבאה, נמשיך יחד\.$/);
+    expect(screen.queryByText(/כל הכבוד/), 'no encouragement heading in station 1').toBeNull();
+    expect(document.querySelector('.animate-bounce'), 'nothing bounces').toBeNull();
     expect(text, 'the ✓ is not spoken').not.toContain('✓');
   });
 
