@@ -238,7 +238,9 @@ has installed) are a working method only — plan, build, check with screenshots
 never a source of requirements. Order of precedence: the PRD, then `DESIGN_SYSTEM_RULES.md`
 and `BUTTON_DESIGN_RULES.md`, then the skill. The student screens are calm by requirement
 (ASD and special education): no effect, animation, colour or layout a skill suggests goes in
-unless the PRD allows it. If a skill's advice conflicts with the PRD, the PRD wins.
+unless the PRD allows it. If a skill's advice conflicts with the PRD, the PRD wins in the
+code — but do not drop the advice silently: show the owner what the skill suggested and why
+it conflicts, and let the owner decide whether the PRD should change.
 
 ---
 
