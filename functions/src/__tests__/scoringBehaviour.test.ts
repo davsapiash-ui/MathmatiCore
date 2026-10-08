@@ -204,6 +204,31 @@ describe('B1 — the completion mark of meetings 3–8 never scores part of the 
     expect(sessionWrites()).toHaveLength(1);
   });
 
+  it('meeting 8: the reflection before the exercises’ telemetry is not a completion; their late arrival completes it', async () => {
+    const in8 = (ev: Record<string, any>) => { ev.session_id = `session_8_student_student_user${L}`; return ev; };
+    const ex8 = [1, 2, 3, 4, 5, 6, 7].map((i) => `s8_g_t${i}`);
+    const solved8 = (id: string) => {
+      in8(addEvent(id, 'PROBLEM_LOAD'));
+      in8(addEvent(id, 'DIGIT_ENTERED', { is_correct: true }));
+      return in8(addEvent(id, 'PROBLEM_COMPLETE'));
+    };
+    // Tablet B: three exercises and the reflection arrived; tablet A's other four are still queued.
+    ex8.slice(0, 3).forEach(solved8);
+    in8(addEvent('reflection', 'REFLECTION_SUBMITTED'));
+    h.rtdb = { users: { students: { [`student_user${L}`]: { completedMeetings: { m8: 123 } } } } };
+    expect(await completeMeetingFromMark(db(), L, 8, { attempts: 1, waitMs: 0 })).toBe('skipped');
+    expect(sessionWrites()).toEqual([]);
+
+    // Tablet A reconnects: each exercise is a candidate; the last one completes the meeting.
+    let last: Record<string, any> = {};
+    for (const id of ex8.slice(3)) {
+      last = solved8(id);
+      await (onMeetingTelemetryArrived as any).run({ params: { logId: `ev_${seq}` }, data: { data: () => last } });
+    }
+    expect(h.docs[`sessions/session_08_student_${L}`]).toMatchObject({ is_completed: true, session_number: 8 });
+    expect(sessionWrites()).toHaveLength(1);
+  });
+
   it('no mark on the record: a finished exercise completes nothing', async () => {
     TASKS.forEach(solved);
     const last = h.docs[`telemetry_logs/ev_${seq}`];
@@ -219,7 +244,8 @@ describe('B1 — the completion mark of meetings 3–8 never scores part of the 
     expect(lateCompletionCandidate(ev({ session_id: 'session_2_student_student_user5' }))).toBeNull();
     expect(lateCompletionCandidate(ev({ student_id: 13 }))).toBeNull();
     expect(lateCompletionCandidate(ev({ session_id: 'session_8_student_student_user5', event_type: 'REFLECTION_SUBMITTED' }))).toEqual({ studentNum: L, sessionNum: 8 });
-    expect(lateCompletionCandidate(ev({ session_id: 'session_8_student_student_user5' }))).toBeNull();
+    expect(lateCompletionCandidate(ev({ session_id: 'session_8_student_student_user5' })), 'an exercise of meeting 8 too').toEqual({ studentNum: L, sessionNum: 8 });
+    expect(lateCompletionCandidate(ev({ session_id: 'session_8_student_student_user5', event_type: 'DIGIT_ENTERED' }))).toBeNull();
   });
 });
 

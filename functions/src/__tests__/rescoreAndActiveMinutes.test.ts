@@ -70,7 +70,8 @@ describe('rescoring a completed meeting (PRD 14 §ב0)', () => {
     expect(completionVisible(seven, 4)).toBe(true);
     expect(completionVisible(seven.slice(0, 6), 4)).toBe(false);
     expect(completionVisible(seven, 8)).toBe(false);
-    expect(completionVisible([{ event_type: 'REFLECTION_SUBMITTED' }], 8)).toBe(true);
+    expect(completionVisible([{ event_type: 'REFLECTION_SUBMITTED' }], 8), 'the reflection alone is not the run').toBe(false);
+    expect(completionVisible([...seven, { event_type: 'REFLECTION_SUBMITTED' }], 8)).toBe(true);
   });
 });
 

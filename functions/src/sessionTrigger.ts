@@ -234,7 +234,7 @@ async function mirrorGateScore(studentNum: number, sessionNum: number, scorePerc
   }).catch((err) => logger.warn(`Learner ${studentNum}: RTDB mirror of the meeting-2 score failed:`, err));
 }
 
-export type MeetingRescore = "not_completed" | "not_scored_yet" | "unchanged" | "rescored" | "no_score";
+export type MeetingRescore = "not_completed" | "not_scored_yet" | "unchanged" | "rescored" | "no_score" | "contended";
 
 /**
  * PRD 14 §ב0, in every scored meeting (all but meeting 1), not only meeting 2:
@@ -288,7 +288,7 @@ export async function rescoreCompletedMeeting(
           evaluated_at: admin.firestore.FieldValue.serverTimestamp(),
         });
       }
-      return { moved: false as const, next };
+      return { moved: false as const, next, now };
     });
     if (result.moved) {
       if (!result.now) return "not_completed";
@@ -297,7 +297,12 @@ export async function rescoreCompletedMeeting(
     }
     if (!result.next.changed) return "unchanged";
     await mirrorGateScore(studentNum, sessionNum, scorePercent, recommendedPath);
-    await stampCatchUpScore(db, studentNum, sessionNum, scorePercent, result.next.previousScore);
+    // The same score with only the recommendation corrected keeps the
+    // document's previous score (rescoreFields leaves it there); the catch-up
+    // record carries the same one, not a cleared field.
+    const kept = result.now.previous_score_percent;
+    const previousOnRecord = result.next.previousScore ?? (isScore(kept) ? kept : null);
+    await stampCatchUpScore(db, studentNum, sessionNum, scorePercent, previousOnRecord);
     logger.info(
       `Meeting ${sessionNum} of learner ${studentNum} re-scored after a later completion: ` +
       `${readOver.session_score_percent ?? "none"}% -> ${scorePercent}% (${recommendedPath}).`
@@ -305,7 +310,7 @@ export async function rescoreCompletedMeeting(
     return "rescored";
   }
   logger.warn(`Meeting ${sessionNum} of learner ${studentNum}: the document kept changing during the re-score; the latest write stands.`);
-  return "unchanged";
+  return "contended";
 }
 
 /** How many times a re-score computes again when the document moved on under it. */
@@ -446,15 +451,21 @@ export const onSessionCompleteTrigger = onDocumentWritten({
 export const COMPLETION_WAIT_ATTEMPTS = 6;
 export const COMPLETION_WAIT_MS = 10_000;
 
-/** Pure. Whether the meeting's run on the server already shows the learner's completion. */
+/**
+ * Pure. Whether the meeting's run on the server already shows the learner's
+ * completion: the seven compulsory exercises completed — and in meeting 8 its
+ * reflection as well. The reflection alone is not enough: it can reach the
+ * server before the exercises' telemetry (a second tablet, a parked item), and
+ * the meeting would then be scored on part of the run.
+ */
 export function completionVisible(events: Record<string, any>[], sessionNum: number): boolean {
-  if (sessionNum === 8) return events.some((e) => e?.event_type === "REFLECTION_SUBMITTED");
   const done = new Set<string>();
   for (const e of events) {
     const id = String(e?.exercise_id || "");
     if (e?.event_type === "PROBLEM_COMPLETE" && id && isExerciseEvent(e) && !isChoiceExercise(id)) done.add(id);
   }
-  return done.size >= COMPULSORY_EXERCISES_PER_MEETING;
+  if (done.size < COMPULSORY_EXERCISES_PER_MEETING) return false;
+  return sessionNum !== 8 || events.some((e) => e?.event_type === "REFLECTION_SUBMITTED");
 }
 
 /** "m3" → 3. */
@@ -547,8 +558,14 @@ export const onMeetingCompletionMarked = onValueWritten({
 
 /**
  * Pure. The learner and meeting whose completion a newly arrived telemetry
- * event may finish showing: a compulsory exercise completed in meetings 3–7,
- * or the reflection of meeting 8 (completionVisible). Anything else → null.
+ * event may finish showing (completionVisible): a compulsory exercise
+ * completed in meetings 3–8, or the reflection of meeting 8. Anything else →
+ * null.
+ *
+ * onMeetingTelemetryArrived runs on every telemetry write on purpose: this
+ * pure filter is all most events cost, and a candidate costs one RTDB read
+ * while the meeting has no completion mark (the usual case: the mark is
+ * queued behind them).
  */
 export function lateCompletionCandidate(event: Record<string, any> | null | undefined): { studentNum: number; sessionNum: number } | null {
   if (!event) return null;
@@ -556,7 +573,7 @@ export function lateCompletionCandidate(event: Record<string, any> | null | unde
   if (sessionNum === null || sessionNum < 3) return null;
   const studentNum = Number(event.student_id);
   if (!Number.isInteger(studentNum) || studentNum < 1 || studentNum > 12) return null;
-  if (sessionNum === 8) return event.event_type === "REFLECTION_SUBMITTED" ? { studentNum, sessionNum } : null;
+  if (sessionNum === 8 && event.event_type === "REFLECTION_SUBMITTED") return { studentNum, sessionNum };
   const id = String(event.exercise_id || "");
   if (event.event_type !== "PROBLEM_COMPLETE" || !id || !isExerciseEvent(event) || isChoiceExercise(id)) return null;
   return { studentNum, sessionNum };

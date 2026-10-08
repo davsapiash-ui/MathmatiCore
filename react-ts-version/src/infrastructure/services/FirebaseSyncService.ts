@@ -336,6 +336,7 @@ export async function deliverQueuedRtdbWrite(refPath: string, payload: any, deli
     return;
   }
   const { idempotency_key: _key, ...fields } = (payload ?? {}) as Record<string, unknown>;
+  if (typeof delivery.completionMarkOf === 'number') await holdMarkWhileResetPending(refPath, delivery.completionMarkOf);
   const guarded = delivery.skipFieldsIfGateApproved ?? [];
   if (guarded.length > 0) {
     // A pre-read that fails because the network is down does not count
@@ -350,6 +351,30 @@ export async function deliverQueuedRtdbWrite(refPath: string, payload: any, deli
   for (const field of SERVER_SCORED_FIELDS) delete fields[field];
   if (Object.keys(fields).length === 0) return;
   await update(ref(database, refPath), fields);
+}
+
+/**
+ * A queued "meeting N finished" mark is not written while the record shows a
+ * teacher's reset of meeting N (or of everything) that this learner's screen
+ * has not taken up yet (forceReload still set). The mark was queued before
+ * that reset — after it, the screen restarted the meeting — and taking the
+ * reset up removes it from the queue (discardUnsentWorkspace →
+ * discardCompletionMarks). Until then it waits, counted as the network
+ * (queueUnreached): it is never parked or dropped here. Without this, a
+ * device reconnecting after the reset could deliver the old mark before its
+ * record listener saw the reset, and the reset meeting read as finished.
+ */
+async function holdMarkWhileResetPending(refPath: string, meeting: number): Promise<void> {
+  const fields = ['forceReload', 'lastAction', 'highestCompletedMeeting', 'activeSessionNumber', 'activeSessionId', 'completedMeeting8'] as const;
+  const snaps = await Promise.all(fields.map((f) => get(ref(database, `${refPath}/${f}`))))
+    .catch((err) => { throw preReadFailure(err); });
+  const record: Record<string, unknown> = {};
+  fields.forEach((f, i) => { record[f] = snaps[i]?.val?.() ?? null; });
+  if (record.forceReload !== true) return;
+  const reset = resetMeetingOf(record as Parameters<typeof resetMeetingOf>[0]);
+  if (reset === meeting || reset === 'all' || reset === null) {
+    throw Object.assign(new Error(`completion mark of meeting ${meeting} held: a reset is waiting for the learner's screen`), { queueUnreached: true });
+  }
 }
 
 /**
@@ -904,6 +929,14 @@ export class FirebaseSyncService {
     }
     for (const tag of Array.from(this.completedMarksSent)) {
       if (!isMeetingNumber(resetMeeting) || tag.endsWith(`|${resetMeeting}`)) this.completedMarksSent.delete(tag);
+    }
+    // A finished mark still queued for the reset meeting belongs to the run
+    // the reset erased: written later, it would show that meeting finished
+    // again. Only those marks go; telemetry and everything else stay queued.
+    if (typeof indexedDBQueue?.discardCompletionMarks === 'function') {
+      indexedDBQueue
+        .discardCompletionMarks(this.learnerRecordKeys().map((k) => `users/students/${k}`), isMeetingNumber(resetMeeting) ? resetMeeting : 'all')
+        .catch(() => {});
     }
     const discarded = this.initializedForThisLearner(useWorkspaceStore.getState());
     if (discarded) this.discardedStart = discarded;
@@ -1562,7 +1595,8 @@ export class FirebaseSyncService {
       indexedDBQueue.enqueueRtdbMerge(
         `users/students/${id}`,
         { [completedMeetingField(meeting)]: serverTimestamp() },
-        `meeting_done_${id}_m${meeting}_${Date.now()}`
+        `meeting_done_${id}_m${meeting}_${Date.now()}`,
+        { completionMarkOf: meeting }
       ).catch((err) => {
         this.completedMarksSent.delete(tag);
         console.error(`[FirebaseSyncService] Could not mark meeting ${meeting} finished on ${id}:`, err);

@@ -334,6 +334,94 @@ describe('Module 17 — the real queue on IndexedDB', () => {
     });
   });
 
+  describe('X6b — the "meeting finished" mark of meetings 3–8 rides the queue behind the meeting\'s telemetry', () => {
+    const MARK_PATH = 'users/students/student_user3';
+    const settle = async () => { for (let i = 0; i < 50; i++) await Promise.resolve(); };
+    const markItems = async () => (await queue.getAll()).filter((i) => typeof i.completionMarkOf === 'number');
+    const prepare = () => {
+      const svc = sync.firebaseSyncService as unknown as { completedMarksSent: Set<string>; currentUserId: string | null };
+      svc.completedMarksSent.clear();
+      svc.currentUserId = 'student_user3';
+    };
+
+    it('stored after the last exercise\'s PROBLEM_COMPLETE, and delivered after it', async () => {
+      prepare();
+      await queue.enqueue(event('e_ex7_complete'));
+      sync.firebaseSyncService.markMeetingCompleted('student_user3', 4);
+      await settle();
+      // Nothing written straight to the database: the mark is on the device first.
+      expect(deliveries()).toEqual([]);
+      const keys = await stored();
+      expect(keys[0]).toBe('e_ex7_complete');
+      expect(keys.slice(1).every((k) => String(k).startsWith('meeting_done_'))).toBe(true);
+      expect((await markItems()).map((i) => [i.refPath, i.completionMarkOf])).toContainEqual([MARK_PATH, 4]);
+
+      const order: string[] = [];
+      fs.setDoc.mockImplementation(async (ref: { coll: string; id: string }) => { order.push(`${ref.coll}:${ref.id}`); });
+      rtdb.update.mockImplementation(async (ref: { path: string }, fields: Record<string, unknown>) => {
+        order.push(`rtdb:${ref.path}:${Object.keys(fields).join(',')}`);
+      });
+      await queue.flushQueue();
+      expect(order[0]).toBe('telemetry_logs:e_ex7_complete');
+      expect(order).toContain(`rtdb:${MARK_PATH}:completedMeetings/m4`);
+      expect(order.indexOf(`rtdb:${MARK_PATH}:completedMeetings/m4`)).toBeGreaterThan(0);
+      expect(await stored()).toEqual([]);
+    });
+
+    it('a reset of that meeting, taken up on the device, removes only its queued marks', async () => {
+      prepare();
+      fakeWindow.dispatchEvent(new Event('offline'));
+      await queue.enqueue(event('e_m4'));
+      sync.firebaseSyncService.markMeetingCompleted('student_user3', 4);
+      sync.firebaseSyncService.markMeetingCompleted('student_user3', 5);
+      await settle();
+      expect((await markItems()).map((i) => i.completionMarkOf).sort()).toEqual([4, 5]);
+
+      sync.firebaseSyncService.discardUnsentWorkspace(4);
+      await settle();
+      expect(await stored()).toContain('e_m4');
+      expect((await markItems()).map((i) => i.completionMarkOf)).not.toContain(4);
+      expect((await markItems()).map((i) => i.completionMarkOf)).toContain(5);
+      fakeWindow.dispatchEvent(new Event('online'));
+    });
+
+    it('reconnecting before the device saw the reset: the mark waits — never written, never dropped — and the reset removes it', async () => {
+      prepare();
+      fakeWindow.dispatchEvent(new Event('offline'));
+      await queue.enqueue(event('e_m4_last'));
+      sync.firebaseSyncService.markMeetingCompleted('student_user3', 4);
+      await settle();
+      // The teacher reset meeting 4 meanwhile; the learner's screen has not taken it up yet.
+      rtdb.get.mockImplementation(async (ref: { path: string }) => ({
+        val: () => (ref.path.endsWith('/forceReload') ? true : ref.path.endsWith('/lastAction') ? 'המפגש 4 אופס ע״י המורה' : null),
+        exists: () => true,
+      }));
+      fakeWindow.dispatchEvent(new Event('online'));
+      await queue.flushQueue();
+      expect(firestoreWrites()).toEqual(['e_m4_last']);
+      expect(deliveries().filter((c) => 'completedMeetings/m4' in ((c[1] ?? {}) as object))).toEqual([]);
+      expect((await markItems()).length).toBeGreaterThan(0);
+      expect((await queue.getAll()).every((i) => !i.parked_at)).toBe(true);
+
+      sync.firebaseSyncService.discardUnsentWorkspace(4);
+      await settle();
+      expect(await stored()).toEqual([]);
+    });
+
+    it('a mark whose meeting has no pending reset is delivered (another meeting\'s reset does not hold it)', async () => {
+      prepare();
+      rtdb.get.mockImplementation(async (ref: { path: string }) => ({
+        val: () => (ref.path.endsWith('/forceReload') ? true : ref.path.endsWith('/lastAction') ? 'המפגש 3 אופס ע״י המורה' : null),
+        exists: () => true,
+      }));
+      sync.firebaseSyncService.markMeetingCompleted('student_user3', 4);
+      await settle();
+      await queue.flushQueue();
+      expect(deliveries().some((c) => 'completedMeetings/m4' in ((c[1] ?? {}) as object))).toBe(true);
+      expect(await stored()).toEqual([]);
+    });
+  });
+
   describe('X6 — the meeting-2 completion goes through the queue, after the meeting\'s telemetry', () => {
     it('queued in FIFO order: telemetry, then the RTDB merge, then the session document', async () => {
       await queue.enqueue(event('e_last_task'));

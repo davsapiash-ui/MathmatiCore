@@ -18,6 +18,8 @@ import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { toast } from "sonner";
 import { useAdminStore } from "@/application/useAdminStore";
 import { stationNameHe } from "@/core/stationNames";
+// PRD 23 §ב: measure 1 has one name in every report and on every screen.
+import { FIRST_ATTEMPT_SCORE_LABEL_HE } from "@/infrastructure/services/LearnerJourneyService";
 import {
   BarChart,
   Bar,
@@ -444,7 +446,7 @@ export function AdminOverview() {
               {stat.hasData ? (
                 <div className="text-[11px] text-slate-500 space-y-0.5">
                   <div>שיעור השלמה: <span className="font-bold text-slate-800 dark:text-slate-200">{stat.completionRate}</span></div>
-                  <div>ציון ממוצע: {stat.averageScore !== null
+                  <div>ממוצע {FIRST_ATTEMPT_SCORE_LABEL_HE}: {stat.averageScore !== null
                     ? <span className="font-bold text-indigo-600 dark:text-indigo-400">{stat.averageScore}</span>
                     : <span className="text-slate-400 italic">אין נתונים עדיין</span>}</div>
                 </div>
