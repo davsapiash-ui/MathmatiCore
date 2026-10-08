@@ -299,4 +299,18 @@ export async function downloadMeetingExport(data: MeetingExport): Promise<void> 
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 0);
+  // PRD 23א §ד: the meeting download is logged in reset_audit_log with
+  // reset_level 'export' (server-side, no e-mail). A failed log never blocks the file.
+  void logMeetingDownload(data.learner, data.meeting);
+}
+
+/** Records the download in the reset log (functions/src/exportDriveReport.ts logMeetingDownload). */
+export async function logMeetingDownload(learner: number, meeting: number): Promise<void> {
+  try {
+    const { httpsCallable } = await import('firebase/functions');
+    const { functions } = await import('@/infrastructure/firebase');
+    await httpsCallable(functions, 'logMeetingDownload')({ class_id: 'class_1', student_id: learner, session_number: meeting });
+  } catch (err) {
+    console.warn('[meetingExport] the download could not be logged:', err);
+  }
 }

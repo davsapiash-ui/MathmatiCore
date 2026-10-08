@@ -40,7 +40,6 @@ import {
   canonicalLearnerRecordsOf,
   executeResetDeletion,
   FULL_RESET_RESTART_COMMAND,
-  israelFileStamp,
   learnerPathsFromRecords,
   uploadBufferToDrive,
 } from '../exportDriveReport';
@@ -48,22 +47,24 @@ import { generateExerciseNarrativeFromEvents } from '../pedagogicalReport';
 import { aggregateClass, buildLearnerRow } from '../classReport';
 import { classReportHtml, pedagogicalReportHtml } from '../reportHtml';
 import { SANDBOX_MEETING_PURPOSE_HE } from '../meetingMetrics';
+import { israelDateTime } from '../driveNames';
 
 const source = (f: string) => readFileSync(resolve(__dirname, '..', f), 'utf-8');
 
 describe('Drive file names carry the Israeli clock, not UTC', () => {
+  // PRD Module 23, "תיקיות הדרייב": DD.MM.YYYY and HH-mm, Israel time.
   it('summer time: 10:07 UTC is 13:07 in Israel', () => {
-    expect(israelFileStamp(Date.UTC(2026, 9, 4, 10, 7))).toBe('2026-10-04_13-07');
+    expect(israelDateTime(Date.UTC(2026, 9, 4, 10, 7))).toBe('04.10.2026 13-07');
   });
 
   it('winter time, across midnight: the date moves too', () => {
-    expect(israelFileStamp(Date.UTC(2026, 0, 15, 22, 30))).toBe('2026-01-16_00-30');
+    expect(israelDateTime(Date.UTC(2026, 0, 15, 22, 30))).toBe('16.01.2026 00-30');
   });
 
   it('the personal report, the class report and the research export all use it', () => {
-    expect(source('pedagogicalReport.ts')).toContain('_${israelFileStamp()}.pdf`');
-    expect(source('classReport.ts')).toContain('const stamp = israelFileStamp(generatedAt);');
-    expect(source('exportDriveReport.ts')).toContain('const stamp = israelFileStamp();');
+    expect(source('pedagogicalReport.ts')).toContain('learnerReportFileName(resolvedSessionNumber, clampedStudentNum)');
+    expect(source('classReport.ts')).toContain('classReportFileName(sessionNumber, "pdf", generatedAt)');
+    expect(source('exportDriveReport.ts')).toContain('researchExportFileName(f.name, scopedSession, exportedAt)');
     for (const f of ['pedagogicalReport.ts', 'classReport.ts']) {
       expect(source(f)).not.toContain('toISOString().slice(0, 16)');
     }
@@ -182,7 +183,8 @@ describe('a file the shared Drive folder refuses waits in the backup storage', (
         h.uploads.push(Buffer.from(init.body as Buffer).toString('utf8'));
         return new Response('refused', { status: h.uploadStatus });
       }
-      return new Response(JSON.stringify({ files: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+      // The folder search finds the flat folder "1 דוחות".
+      return new Response(JSON.stringify({ files: [{ id: 'shared-folder' }] }), { status: 200, headers: { 'content-type': 'application/json' } });
     }) as typeof fetch;
   });
   afterEach(() => {
@@ -191,7 +193,7 @@ describe('a file the shared Drive folder refuses waits in the backup storage', (
 
   it.each([403, 404, 400])('Drive answers %i: one upload only, never without a parent folder', { timeout: 30_000 }, async (status) => {
     h.uploadStatus = status;
-    const res = await uploadBufferToDrive(Buffer.from('report'), 'דוח.pdf', 'application/pdf', 'shared-folder');
+    const res = await uploadBufferToDrive(Buffer.from('report'), 'דוח.pdf', 'application/pdf', '1 דוחות');
     expect(h.uploads).toHaveLength(1);
     expect(h.uploads[0]).toContain('"parents":["shared-folder"]');
     expect(res.success).toBe(false);
@@ -199,13 +201,13 @@ describe('a file the shared Drive folder refuses waits in the backup storage', (
     expect(h.saved).toEqual([res.fallbackStoragePath]);
   });
 
-  it('the reset keeps the copy already saved there instead of saving the backup again', () => {
-    const src = source('exportDriveReport.ts');
-    const step = src.slice(src.indexOf('const parkedBackupPath ='), src.indexOf('// There are two backup channels and no third.'));
-    expect(step).toContain('if (!driveResult.success && parkedBackupPath) {');
-    expect(step).toContain('webViewLink: `gs://${admin.storage().bucket().name}/${parkedBackupPath}`,');
-    // The second save is reached only when nothing was parked.
-    expect(step.indexOf('if (!driveResult.success && parkedBackupPath) {')).toBeLessThan(step.indexOf('const storagePath = `backups/${class_id}/${resetId}.json`;'));
+  it('a reset backup is never parked in drive_fallback/: its fallback is backups/{class_id}/ (PRD 23א §ג)', async () => {
+    h.uploadStatus = 403;
+    const res = await uploadBufferToDrive(Buffer.from('{}'), 'גיבוי.json', 'application/json', '3 גיבויים', { park: false });
+    expect(res.success).toBe(false);
+    expect(res.fallbackStoragePath).toBeUndefined();
+    expect(h.saved).toEqual([]);
+    expect(source('exportDriveReport.ts')).toContain('uploadBufferToDrive(buffer, fileName, "application/json", DRIVE_FOLDERS.backups, { park: false, signal })');
   });
 });
 

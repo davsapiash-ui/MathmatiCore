@@ -114,9 +114,9 @@ describe('level 2 — the whole class', () => {
     expect(screen.getByText('במפגש 2 יימחקו גם ציוני האבחון, ההמלצות והמסלולים שאושרו ב"שלב החלוקה למסלולים" לכל התלמידים. מי שכבר התקדם למפגש 3 ואילך ימתין עד שיעשה שוב את מפגש 2 ותאשרו לו מסלול מחדש.')).toBeTruthy();
   });
 
-  it('meeting 8: what really happens to the reflections (register deviation 20 keeps them)', () => {
+  it('meeting 8: the meeting\'s reflections are deleted too (PRD 23א §ב.2)', () => {
     open(8);
-    expect(screen.getByText('במפגש 8 הרפלקציות שהתלמידים כבר שלחו נשמרות ונספרות בדוח הכיתה, ותלמיד ששלח רפלקציה לא ימלא אותה שוב.')).toBeTruthy();
+    expect(screen.getByText('במפגש 8 יימחקו גם הרפלקציות של המפגש, כדי שהכיתה תוכל לבצע את המפגש מחדש. הן נשמרות בגיבוי.')).toBeTruthy();
   });
 
   it('no meeting open: the real way to reset one learner', () => {

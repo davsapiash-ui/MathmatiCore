@@ -191,7 +191,7 @@ async function getDriveAccessToken(): Promise<string | null> {
 /**
  * Cloud Function: exportAdminReportToDrive
  * Generates an executive PDF report and uploads it directly to Google Drive
- * folder 0AMiALsm_TxT5Uk9PVA authorized for Service Account 1002220159@edu-haifa.org.il.
+ * folder "4 מנהל" (PRD Module 24 §ב): counts only, no e-mail address.
  */
 export const exportAdminReportToDrive = onCall(async (request) => {
   if (!request.auth) {
@@ -205,7 +205,25 @@ export const exportAdminReportToDrive = onCall(async (request) => {
   // from the response. This is the governance report: it belongs to the admin.
   requireAdmin(request.auth.token as Record<string, unknown>);
 
-  const { schoolsCount = 0, teachersCount = 0, studentsCount = 0, alertsCount = 0 } = request.data || {};
+  // PRD Module 24 §ב: counts only. Anything that is not a whole number is
+  // dropped to 0, so no text (an address included) can reach the PDF.
+  const count = (v: unknown): number => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  };
+  const schoolsCount = count(request.data?.schoolsCount);
+  const teachersCount = count(request.data?.teachersCount);
+  const studentsCount = count(request.data?.studentsCount);
+  // Active radar alerts are counted here, from radar_alerts (cleared by the
+  // alerts reset): the admin console does not read that node.
+  let alertsCount = count(request.data?.alertsCount);
+  try {
+    const alertsSnap = await admin.database().ref("radar_alerts").get();
+    if (alertsSnap.exists()) alertsCount = alertsSnap.numChildren();
+    else alertsCount = 0;
+  } catch (err: any) {
+    logger.warn(`Admin report: radar_alerts could not be counted: ${err?.message || err}`);
+  }
 
   const now = Date.now();
   const timestampStr = new Date(now).toISOString();
@@ -626,11 +644,22 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   const db = admin.firestore();
   const resetId = `reset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-  // Module 23א §ד: at most one reset per class at a time. A second request for
-  // the same class is refused here, before anything is collected or deleted.
+  return resetUnderLock(request, {
+    reset_level, reason, student_id, reset_scope, session_number,
+    class_id, reason_note, isClassTarget, performedBy, rtdb, db, resetId,
+  });
+}
+
+/**
+ * Module 23א §ד: "בכל רגע מתבצע לכל היותר איפוס אחד לכל כיתה: בקשת איפוס
+ * נוספת לאותה כיתה בזמן שאיפוס מתבצע נדחית לפני הגיבוי". Taken after the
+ * request is validated and its target meeting resolved (those refusals delete
+ * nothing), and before anything is collected; released when the reset ends.
+ */
+async function withClassResetLock<T>(db: admin.firestore.Firestore, classId: string, resetId: string, fn: () => Promise<T>): Promise<T> {
   let locked: boolean;
   try {
-    locked = await acquireClassResetLock(db as unknown as LockStore, class_id, resetId);
+    locked = await acquireClassResetLock(db as unknown as LockStore, classId, resetId);
   } catch (lockErr: any) {
     logger.error(`Reset ${resetId}: the class reset lock could not be taken:`, lockErr);
     throw new HttpsError("unavailable", "לא ניתן היה להתחיל את האיפוס כעת. נסו שוב בעוד רגע. לא נמחקו נתונים.");
@@ -639,12 +668,9 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     throw new HttpsError("failed-precondition", RESET_LOCK_REFUSAL_HE, { reason: "reset_in_progress" });
   }
   try {
-    return await resetUnderLock(request, {
-      reset_level, reason, student_id, reset_scope, session_number,
-      class_id, reason_note, isClassTarget, performedBy, rtdb, db, resetId,
-    });
+    return await fn();
   } finally {
-    await releaseClassResetLock(db as unknown as LockStore, class_id, resetId)
+    await releaseClassResetLock(db as unknown as LockStore, classId, resetId)
       .catch((err) => logger.error(`Reset ${resetId}: the class reset lock could not be released (it expires by itself):`, err));
   }
 }
@@ -798,71 +824,72 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
   const level2Audit = reset_level === 'single_student'
     ? { reset_scope: singleScope, session_number: activeSessionNumber, reset_target: resetTarget }
     : {};
-  const scope = withCatchUpRecords(buildResetScope(reset_level, rawNum, singleScope, activeSessionNumber, resetTarget));
+  return withClassResetLock(db, class_id, resetId, async () => {
+    const scope = withCatchUpRecords(buildResetScope(reset_level, rawNum, singleScope, activeSessionNumber, resetTarget));
 
-  // Step 1: collect everything in scope into one structured snapshot.
-  let backup: ResetBackupFile;
-  try {
-    backup = await collectResetBackup(rtdb, db, scope, {
-      reset_id: resetId,
-      reset_level,
-      class_id,
-      affected_student_ids: affectedStudentIds,
-      performed_by_teacher_id: performedBy,
-    });
-  } catch (err: any) {
-    logger.error("Failed to collect data for backup:", err);
-    // Module 23א §ד: a reset that was attempted is recorded, also when it failed.
-    await db.collection("reset_audit_log").doc(resetId).set({
-      reset_id: resetId,
-      reset_level,
-      performed_by_teacher_id: performedBy,
-      performed_at: Date.now(),
-      class_id,
-      affected_student_ids: affectedStudentIds,
-      backup_file_url: null,
-      backup_status: 'failed',
-      reset_reason: reason,
-      reason_note,
-      records_deleted_count: 0,
-      backup_channel: null,
-      deletion_status: 'not_required',
-      ...level2Audit,
-      created_at: admin.firestore.FieldValue.serverTimestamp(),
-    }).catch((auditErr) => logger.error("Failed to write the failed-reset audit entry:", auditErr));
-    throw new HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
-  }
-
-  // Step 2: write the backup (PRD Module 23א §ג). Drive folder "3 גיבויים"
-  // first, waiting at most 90 seconds; when Drive fails, does not finish in
-  // time, or the backup is above 30MB, Cloud Storage under backups/{class_id}/
-  // (teacher-readable, storage.rules) and the reset continues. When both fail,
-  // nothing is deleted.
-  const backupKind: BackupKind = isClassTarget
-    ? { type: "class_session", session: activeSessionNumber ?? 1 }
-    : reset_level === 'system'
-      ? { type: "system" }
-      : singleScope === 'active_session'
-        ? { type: "student_session", student: parseInt(rawNum, 10), session: activeSessionNumber ?? 1 }
-        : { type: "student_full", student: parseInt(rawNum, 10) };
-  const backupName = backupFileName(backupKind, backup.snapshot_time);
-  const backupBuffer = Buffer.from(JSON.stringify(backup), "utf-8");
-  logger.info(
-    `Reset ${resetId}: ${reset_level} backup is ${backupBuffer.length} bytes, ` +
-    `${backup.counts.total} records (rtdb=${JSON.stringify(backup.counts.realtime_database)}, firestore=${JSON.stringify(backup.counts.firestore)})`
-  );
-
-  const written = await writeResetBackup(backupBuffer, backupName, backupStoragePath(class_id, resetId, backupName), {
-    writeDrive: (buffer, fileName, signal) =>
-      uploadBufferToDrive(buffer, fileName, "application/json", DRIVE_FOLDERS.backups, { park: false, signal }),
-    writeStorage: async (buffer, storagePath) => {
-      const bucket = admin.storage().bucket();
-      await bucket.file(storagePath).save(buffer, {
-        contentType: "application/json",
-        metadata: { metadata: { reset_id: resetId, class_id, original_name: backupName } },
+    // Step 1: collect everything in scope into one structured snapshot.
+    let backup: ResetBackupFile;
+    try {
+      backup = await collectResetBackup(rtdb, db, scope, {
+        reset_id: resetId,
+        reset_level,
+        class_id,
+        affected_student_ids: affectedStudentIds,
+        performed_by_teacher_id: performedBy,
       });
-      return `gs://${bucket.name}/${storagePath}`;
-    },
+    } catch (err: any) {
+      logger.error("Failed to collect data for backup:", err);
+      // Module 23א §ד: a reset that was attempted is recorded, also when it failed.
+      await db.collection("reset_audit_log").doc(resetId).set({
+        reset_id: resetId,
+        reset_level,
+        performed_by_teacher_id: performedBy,
+        performed_at: Date.now(),
+        class_id,
+        affected_student_ids: affectedStudentIds,
+        backup_file_url: null,
+        backup_status: 'failed',
+        reset_reason: reason,
+        reason_note,
+        records_deleted_count: 0,
+        backup_channel: null,
+        deletion_status: 'not_required',
+        ...level2Audit,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+      }).catch((auditErr) => logger.error("Failed to write the failed-reset audit entry:", auditErr));
+      throw new HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
+    }
+
+    // Step 2: write the backup (PRD Module 23א §ג). Drive folder "3 גיבויים"
+    // first, waiting at most 90 seconds; when Drive fails, does not finish in
+    // time, or the backup is above 30MB, Cloud Storage under backups/{class_id}/
+    // (teacher-readable, storage.rules) and the reset continues. When both fail,
+    // nothing is deleted.
+    const backupKind: BackupKind = isClassTarget
+      ? { type: "class_session", session: activeSessionNumber ?? 1 }
+      : reset_level === 'system'
+        ? { type: "system" }
+        : singleScope === 'active_session'
+          ? { type: "student_session", student: parseInt(rawNum, 10), session: activeSessionNumber ?? 1 }
+          : { type: "student_full", student: parseInt(rawNum, 10) };
+    const backupName = backupFileName(backupKind, backup.snapshot_time);
+    const backupBuffer = Buffer.from(JSON.stringify(backup), "utf-8");
+    logger.info(
+      `Reset ${resetId}: ${reset_level} backup is ${backupBuffer.length} bytes, ` +
+      `${backup.counts.total} records (rtdb=${JSON.stringify(backup.counts.realtime_database)}, firestore=${JSON.stringify(backup.counts.firestore)})`
+    );
+
+    const written = await writeResetBackup(backupBuffer, backupName, backupStoragePath(class_id, resetId, backupName), {
+      writeDrive: (buffer, fileName, signal) =>
+        uploadBufferToDrive(buffer, fileName, "application/json", DRIVE_FOLDERS.backups, { park: false, signal }),
+      writeStorage: async (buffer, storagePath) => {
+        const bucket = admin.storage().bucket();
+        await bucket.file(storagePath).save(buffer, {
+          contentType: "application/json",
+          metadata: { metadata: { reset_id: resetId, class_id, original_name: backupName } },
+        });
+        return `gs://${bucket.name}/${storagePath}`;
+      },
   });
 
   if (!written) {
@@ -984,6 +1011,7 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
     deletedRecords: deletion.total,
     ...(reset_level === 'single_student' ? { resetScope: singleScope, sessionNumber: activeSessionNumber, resetTarget } : {}),
   };
+  });
 }
 
 // ─── Reset scope, backup and deletion helpers (Module 23א) ───────────────────
@@ -2021,9 +2049,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         }
       }
     }
-    // The reset log records who performed each reset by e-mail. That is the
-    // one column of this export that is a person; it stays in Firestore for
-    // audit and does not go to Drive. PRD: anonymous ids 1-12 only.
+    // Who performed a reset is a person: performed_by_teacher_id (and the
+    // e-mail older entries carried) stays in Firestore and does not go to
+    // Drive. PRD 23א §ד: no e-mail in any record; anonymous ids 1-12 only.
     const resetRows = resetLogs.map(({ id, data }) => {
       const row: Record<string, any> = { log_id: id };
       for (const [k, v] of Object.entries(data)) {

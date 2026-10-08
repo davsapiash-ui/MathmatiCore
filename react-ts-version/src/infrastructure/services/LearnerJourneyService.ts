@@ -215,6 +215,27 @@ export interface MeetingResetMark {
   at: number;
   reasonHe: string | null;
   scope: 'system' | 'full_student' | 'active_session';
+  /**
+   * PRD 23א §ג: the backup went to Cloud Storage and the daily job has not yet
+   * copied it to the Drive folder "3 גיבויים". Present only when true.
+   */
+  backupNotInDrive?: true;
+}
+
+/**
+ * PRD 23א §ד: "רק איפוס שה-deletion_status שלו 'completed' נחשב איפוס בדוחות
+ * ובייצוא" — the server's rule (functions/src/resetAudit.ts isCompletedReset).
+ * An entry written before deletion_status existed counts by its backup status.
+ */
+export function isCompletedReset(e: Record<string, any> | null | undefined): boolean {
+  if (!e || (e.reset_level !== 'single_student' && e.reset_level !== 'system')) return false;
+  if (e.deletion_status === undefined || e.deletion_status === null) return e.backup_status === 'success';
+  return e.deletion_status === 'completed';
+}
+
+/** PRD 23א §ג: the entry's backup is still only in Cloud Storage. */
+export function backupNotYetInDrive(e: Record<string, any> | null | undefined): boolean {
+  return Boolean(e) && e!.backup_channel === 'storage' && (e!.backup_drive_copied_at === undefined || e!.backup_drive_copied_at === null);
 }
 
 /**
@@ -225,7 +246,7 @@ export interface MeetingResetMark {
 export function resetsOfMeeting(entries: Record<string, any>[], studentNum: number, sessionNumber: number): MeetingResetMark[] {
   const out: MeetingResetMark[] = [];
   for (const e of entries) {
-    if (e?.backup_status !== 'success') continue;
+    if (!isCompletedReset(e)) continue;
     if (!Array.isArray(e.affected_student_ids) || !e.affected_student_ids.includes(studentNum)) continue;
     const scope: MeetingResetMark['scope'] | null =
       e.reset_level === 'system'
@@ -237,7 +258,7 @@ export function resetsOfMeeting(entries: Record<string, any>[], studentNum: numb
             : null;
     const at = Number(e.performed_at);
     if (scope === null || !Number.isFinite(at)) continue;
-    out.push({ at, reasonHe: resetReasonHe(e.reset_reason), scope });
+    out.push({ at, reasonHe: resetReasonHe(e.reset_reason), scope, ...(backupNotYetInDrive(e) ? { backupNotInDrive: true as const } : {}) });
   }
   return out.sort((a, b) => a.at - b.at);
 }
@@ -245,7 +266,8 @@ export function resetsOfMeeting(entries: Record<string, any>[], studentNum: numb
 /** The reset log entries that name this learner (firestore.rules: the teacher reads reset_audit_log). */
 export async function fetchLearnerResets(studentNum: number): Promise<Record<string, any>[]> {
   await authReady;
-  const snap = await getDocs(query(collection(firestore, 'reset_audit_log'), where('affected_student_ids', 'array-contains', studentNum)));
+  // firestore.rules (PRD 23א §ו): the class teacher reads her class's entries only, so the query names the class.
+  const snap = await getDocs(query(collection(firestore, 'reset_audit_log'), where('class_id', '==', 'class_1'), where('affected_student_ids', 'array-contains', studentNum)));
   const out: Record<string, any>[] = [];
   snap.forEach((d) => { out.push(d.data() as Record<string, any>); });
   return out;
@@ -412,8 +434,11 @@ export function resetWhatHe(scope: MeetingResetMark['scope']): string {
 
 /** The separator's text: "איפוס · 2.10.2026 14:05 · המפגש אופס. הסיבה: …". */
 export function resetSeparatorHe(r: MeetingResetMark): string {
-  return `איפוס · ${formatDate(r.at)} ${formatClock(r.at)} · ${resetWhatHe(r.scope)}.${r.reasonHe ? ` הסיבה: ${r.reasonHe}.` : ''} הדוח של המפגש נבנה רק מהעבודה שמכאן והלאה.`;
+  return `איפוס · ${formatDate(r.at)} ${formatClock(r.at)} · ${resetWhatHe(r.scope)}.${r.reasonHe ? ` הסיבה: ${r.reasonHe}.` : ''} הדוח של המפגש נבנה רק מהעבודה שמכאן והלאה.${r.backupNotInDrive ? ` ${BACKUP_NOT_IN_DRIVE_HE}` : ''}`;
 }
+
+/** PRD 23א §ג: the dashboard marks a reset whose backup has not reached Drive yet. */
+export const BACKUP_NOT_IN_DRIVE_HE = 'הגיבוי של האיפוס הזה שמור ב-Cloud Storage ועוד לא הגיע לתיקיית "3 גיבויים" בדרייב; הוא יועתק לשם אוטומטית פעם ביום.';
 
 /**
  * The answers of the server's rule (meetingMetrics ANSWER_EVENT_TYPES): a

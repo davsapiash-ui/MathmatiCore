@@ -118,7 +118,8 @@ function recordsFromSnapshot(snap: QuerySnapshot): Record<number, CatchUpRecord>
 }
 
 function meetingQuery(meeting: number) {
-  return query(collection(firestore, CATCHUP_COLLECTION), where('session_number', '==', meeting));
+  // firestore.rules: the class teacher reads her class's records only, so the query names the class.
+  return query(collection(firestore, CATCHUP_COLLECTION), where('class_id', '==', PILOT_CLASS_ID), where('session_number', '==', meeting));
 }
 
 /** Every catch-up record of one meeting (teacher/admin token), keyed by learner number. */

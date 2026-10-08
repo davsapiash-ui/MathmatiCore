@@ -184,7 +184,8 @@ export function backupSavedHe(webViewLink: unknown): { text: string; driveLink: 
   const link = typeof webViewLink === 'string' ? webViewLink : '';
   return /^https:\/\/drive\.google\.com\//.test(link)
     ? { text: 'הגיבוי נשמר ב-Google Drive.', driveLink: link }
-    : { text: 'הגיבוי נשמר באחסון הגיבוי של המערכת.', driveLink: null };
+    // PRD 23א §ג: Drive did not take it within 90 seconds; the daily job copies it there.
+    : { text: 'הגיבוי נשמר ב-Cloud Storage, ויועתק לתיקיית "3 גיבויים" בדרייב בהעתקה היומית.', driveLink: null };
 }
 
 /** The success toast of a reset that deleted: what happened, then where the backup is. */
@@ -202,8 +203,8 @@ function resetSuccessToast(message: string, data: unknown): void {
 /** What else a meeting's reset erased (register deviation 10), for the success toast. */
 function meetingResetExtraHe(sessionNumber: number | null, target: 'student' | 'class'): string {
   if (sessionNumber === 2) return target === 'class' ? ' ציוני האבחון והמסלולים שאושרו נמחקו.' : ' ציון האבחון והמסלול שאושר נמחקו.';
-  // Register deviation 20: the whole-class restart keeps reflections.
-  if (sessionNumber === 8 && target === 'student') return ' הרפלקציה שלו נמחקה.';
+  // PRD 23א §ב.2: in meeting 8 the reset deletes the meeting's reflections, for one learner or the whole class.
+  if (sessionNumber === 8) return target === 'class' ? ' הרפלקציות של המפגש נמחקו.' : ' הרפלקציה שלו נמחקה.';
   return '';
 }
 
