@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PLACE_ORDER, type Place } from '@/core/placeValue';
 import { MISSING_DIGIT_BOX, speakMissingDigits } from '@/core/missingDigitSpeech';
 import { useWorkspaceStore, digitJustTyped } from '@/application/useWorkspaceStore';
@@ -114,7 +114,6 @@ export function VerticalAdditionTask({
   // Paper over the memory circles: half a square in meeting 2 (its card is the
   // whole screen and must fit a short window), three quarters elsewhere.
   const PAPER_TOP = sessionNumber === 2 ? cell(0.5) : cell(0.75);
-  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   // Module 9: a keystroke into a locked box shakes that box only — as in
   // RepresentationTask. One flag for the whole row shook every result box,
@@ -409,9 +408,6 @@ export function VerticalAdditionTask({
           return (
             <div key={`ans${j}`} className="flex items-center justify-center">
               <input
-                ref={(el) => {
-                  inputsRef.current[ansIdx] = el;
-                }}
                 type="text"
                 inputMode="numeric"
                 value={answerDigits[place] ?? ''}
@@ -458,8 +454,11 @@ export function VerticalAdditionTask({
                   // The digit just typed, wherever the caret stood: a wrong digit can be written over.
                   const v = digitJustTyped(e.target.value, answerDigits[place] ?? '');
                   setAnswerDigit(place, v);
-                  // Advance leftward to the next-higher place (natural carrying direction).
-                  if (v && ansIdx > 0) inputsRef.current[ansIdx - 1]?.focus();
+                  // PRD Module 14 §ב (v7.9): the work goes from the units
+                  // leftward, "אבל אחרי שהוקלדה ספרה המיקוד אינו עובר אוטומטית
+                  // לטור הבא: הלומד עובר בעצמו לטור הבא, כך שיש לו זמן לרשום
+                  // את ההמרה או את הפריטה בעיגול הזיכרון". So the focus stays
+                  // in this box; the learner moves on by click, Tab or arrows.
                 }}
               />
             </div>

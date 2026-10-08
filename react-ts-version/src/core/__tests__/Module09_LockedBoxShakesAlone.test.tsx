@@ -55,14 +55,16 @@ describe('Module 9 — a keystroke into a locked box shakes that box only', () =
     expect(recordBlockedKeystroke).toHaveBeenCalledWith('tens');
   });
 
-  it('arriving in a locked box shakes nothing — by a click, or by the move after a digit', () => {
+  it('arriving in a locked box shakes nothing — by a click, or after a digit in the next box', () => {
     const { units, tens, all } = row();
     fireEvent.focus(tens);
     expect(shaking(all)).toEqual([]);
 
     units.focus();
     fireEvent.change(units, { target: { value: '2' } });
-    expect(document.activeElement, 'the move leftward still happens').toBe(tens);
+    // PRD Module 14 §ב (v7.9): the focus no longer moves on by itself.
+    expect(document.activeElement, 'the focus stays where the digit was typed').toBe(units);
+    tens.focus();
     expect(shaking(all), 'no attempt was made in the tens box').toEqual([]);
     expect(recordBlockedKeystroke).not.toHaveBeenCalled();
   });
