@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, Sparkles, ChevronRight, Zap, CheckCircle2, Sliders, ShieldCheck, RotateCcw } from 'lucide-react';
 import { useStore, type StudentData } from '@/application/useStore';
 import { ResetConfirmationModal } from './components/ResetConfirmationModal';
+import { LearnerAccessCodes } from './components/LearnerAccessCodes';
 import { ref, onValue, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { normalizeStudentId } from '@/application/useChatStore';
@@ -425,6 +426,9 @@ export function ClassManagement({
           ))}
         </div>
       </section>
+
+      {/* Modules 1 §א and 25 §ב.3: the learners' personal access codes. */}
+      <LearnerAccessCodes />
 
       {/* The radar lives in its own tab only (owner, 30.9.2026): a second copy here doubled its listeners and its reset buttons. */}
 

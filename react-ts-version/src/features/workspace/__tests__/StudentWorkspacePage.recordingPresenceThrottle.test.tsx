@@ -23,6 +23,12 @@ import type { FakeRealtimeDatabase } from './fakeRealtimeDatabase';
 vi.hoisted(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
 });
+// Each test mounts the whole workspace page and drives it through seconds of
+// fake time (settle() alone is 30 act passes). The work is deterministic but
+// CPU-bound: on a loaded worker of the full suite it took longer than the
+// default 5 s, the first test timed out, and its cleanup racing the next
+// test's mount failed every test after it (also on the base branch).
+vi.setConfig({ testTimeout: 30_000 });
 const fake = vi.hoisted(() => ({ db: null as unknown as FakeRealtimeDatabase }));
 const rrweb = vi.hoisted(() => ({
   emit: null as null | ((event: unknown) => void),

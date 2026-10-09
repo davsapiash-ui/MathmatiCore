@@ -53,6 +53,13 @@ service cloud.firestore {
       );
     }
 
+    // The class teacher, and not the admin: a document of her class, or a
+    // document that does not exist (a get of a missing record).
+    function isClassTeacherReading() {
+      return isTeacher() && !isAdmin() &&
+        (resource == null || isTeacherOfClass(resource.data.get('class_id', null)));
+    }
+
     // --- Strict Allowlist Schemas (Replacing Negative PII Blocklists) ---
 
     // 1. Anonymous Student Schema Allowlist (Module 4 & Appendix A §1)
@@ -139,7 +146,10 @@ service cloud.firestore {
         // Research data only; it belongs to no column.
         'HELP_WITHDRAWN',
         // Owner, 1.10.2026: a request for help from the chat, with its exercise.
-        'CHAT_HELP_REQUESTED'
+        'CHAT_HELP_REQUESTED',
+        // PRD Module 5 §ג / Appendix A §3: the branch choice after the 7
+        // compulsory exercises (Module 14 §ג); it belongs to no column.
+        'BRANCH_SELECTED'
       ];
     }
 
@@ -154,7 +164,12 @@ service cloud.firestore {
         'event_type',
         'column_index',
         'details',
-        'synced_at'
+        'synced_at',
+        // PRD Module 5 §ב / Appendix A §3: the server's time of receipt, the
+        // device's per-sign-in counter and the browser's random id.
+        'server_received_at',
+        'sequence_number',
+        'device_id'
       ]);
 
       let validTypes = data.idempotency_key is string &&
@@ -163,7 +178,15 @@ service cloud.firestore {
                        data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
                        data.exercise_id is string &&
                        data.event_type is string &&
-                       data.details is map;
+                       data.details is map &&
+                       // Appendix A §3: set by the server (serverTimestamp), equal to request.time.
+                       ('server_received_at' in data) && data.server_received_at == request.time &&
+                       // Module 5 §ב: the browser's random id. The queue stamps it on delivery,
+                       // so an event queued before it existed carries it too.
+                       ('device_id' in data) && data.device_id is string && data.device_id.matches('^[A-Za-z0-9_-]{8,64}$') &&
+                       // Absent only on an event queued before the counter existed: it cannot be
+                       // invented afterwards, and a refused event is never discarded (Module 17 §ב).
+                       (!('sequence_number' in data) || (data.sequence_number is int && data.sequence_number >= 0));
 
       let validColumnRule = (isColumnScopedEvent(data.event_type) && ('column_index' in data) && data.column_index in [0, 1, 2, 3]) ||
                             (isNonColumnEvent(data.event_type) && (!('column_index' in data) || data.column_index == null)) ||
@@ -193,6 +216,9 @@ service cloud.firestore {
         'teacher_selected_path',
         'matrix_recommended_path',
         'evaluated_at',
+        // PRD 14 §ב0: the score before the learner's latest completion, kept
+        // beside the new one (sessionTrigger.ts, Admin SDK). Server-only below.
+        'previous_score_percent',
         'pedagogical_report_pdf_path',
         'pedagogical_report_generated_at'
       ]) &&
@@ -217,11 +243,32 @@ service cloud.firestore {
              d.get('gate_approved_by', null) == null &&
              d.get('session_score_percent', null) == null &&
              d.get('matrix_recommended_path', null) == null &&
-             d.get('evaluated_at', null) == null;
+             d.get('evaluated_at', null) == null &&
+             d.get('previous_score_percent', null) == null;
     }
 
     function sessionFieldUnchanged(field) {
       return request.resource.data.get(field, null) == resource.data.get(field, null);
+    }
+
+    // PRD 14 §ב0 / 23 §ב: the score, the recommendation it gives, the
+    // server's evaluation stamp and the score kept from before the latest
+    // completion are computed by the server alone (sessionTrigger.ts, Admin
+    // SDK). No client token writes them — the teacher's included: the teacher
+    // client writes only the four approval fields (teacherGate.ts).
+    function createLeavesServerScoreFieldsEmpty() {
+      let d = request.resource.data;
+      return d.get('session_score_percent', null) == null &&
+             d.get('matrix_recommended_path', null) == null &&
+             d.get('evaluated_at', null) == null &&
+             d.get('previous_score_percent', null) == null;
+    }
+
+    function updateKeepsServerScoreFields() {
+      return sessionFieldUnchanged('session_score_percent') &&
+             sessionFieldUnchanged('matrix_recommended_path') &&
+             sessionFieldUnchanged('evaluated_at') &&
+             sessionFieldUnchanged('previous_score_percent');
     }
 
     function learnerUpdateKeepsStaffFields() {
@@ -230,7 +277,8 @@ service cloud.firestore {
              sessionFieldUnchanged('gate_approved_by') &&
              sessionFieldUnchanged('session_score_percent') &&
              sessionFieldUnchanged('matrix_recommended_path') &&
-             sessionFieldUnchanged('evaluated_at');
+             sessionFieldUnchanged('evaluated_at') &&
+             sessionFieldUnchanged('previous_score_percent');
     }
 
     // --- Collections Routing ---
@@ -270,10 +318,12 @@ service cloud.firestore {
       allow read: if isTeacher() || isOwningSession(sessionId);
       allow create: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == false) &&
-                       (isTeacher() || learnerCreateLeavesStaffFieldsEmpty());
+                       (isTeacher() || learnerCreateLeavesStaffFieldsEmpty()) &&
+                       createLeavesServerScoreFieldsEmpty();
       allow update: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == resource.data.teacher_gate_approved) &&
-                       (isTeacher() || learnerUpdateKeepsStaffFields());
+                       (isTeacher() || learnerUpdateKeepsStaffFields()) &&
+                       updateKeepsServerScoreFields();
       allow delete: if false; // Module 23א §ו — see students
     }
 
@@ -370,8 +420,10 @@ service cloud.firestore {
     // "a read-only cache store": only the server computes it (adminAggregator,
     // aiMonitoring, the reset's recompute — all Admin SDK). No client writes it;
     // an admin token could overwrite the figures the console shows as the server's.
+    // Module 24 §ב: "הריצה משרתת את מנהל המערכת בלבד; המורה והלומדים אינם
+    // קוראים ממסמך זה." Admin only.
     match /store_cache/{cacheId} {
-      allow read: if isAdmin() || isTeacher();
+      allow read: if isAdmin();
       allow write: if false;
     }
 
@@ -399,7 +451,9 @@ service cloud.firestore {
 
     // Reset Audit Logs (Module 23א: Immutable Audit Log for All Data Resets & Dataset Exports)
     match /reset_audit_log/{logId} {
-      allow read: if isTeacher() || isAdmin();
+      // Module 23א §ו: "יומן האיפוסים נקרא על ידי המורה של הכיתה בלבד; מנהל
+      // המערכת אינו קורא אותו." A query must name the class (class_id ==).
+      allow read: if isClassTeacherReading();
       // Module 23א: the reset flow writes its own entry, in the Cloud Function
       // (backupAndResetSessionData, Admin SDK). No client writes here. A direct
       // teacher create had no schema, could never be deleted, and was read back
@@ -536,7 +590,13 @@ service cloud.firestore {
 
     function isValidCatchUpDoc(docId) {
       let d = request.resource.data;
-      return d.keys().hasOnly(['student_id', 'session_number', 'class_id', 'rounds']) &&
+      // The score fields are the server's (sessionTrigger.ts, PRD 14 §ב0): the
+      // score at the completion, the one before it, and the score when the
+      // catch-up round opened. A teacher never writes them (create below, and
+      // an update may change only `rounds`).
+      return d.keys().hasOnly(['student_id', 'session_number', 'class_id', 'rounds',
+                               'score_percent', 'previous_score_percent', 'scored_at',
+                               'score_before_catchup_percent', 'score_before_catchup_at']) &&
              d.student_id is int && d.student_id >= 1 && d.student_id <= 12 &&
              d.session_number is int && d.session_number >= 1 && d.session_number <= 8 &&
              d.class_id is string &&
@@ -545,9 +605,12 @@ service cloud.firestore {
     }
 
     match /catchup_records/{docId} {
-      allow read: if isTeacher() || isAdmin();
+      // Readable by the class teacher only (as reset_audit_log). A missing
+      // document reads as nothing rather than as a refusal.
+      allow read: if isClassTeacherReading();
       allow create: if isTeacherOfClass(request.resource.data.class_id) &&
                        isValidCatchUpDoc(docId) &&
+                       request.resource.data.keys().hasOnly(['student_id', 'session_number', 'class_id', 'rounds']) &&
                        request.resource.data.rounds.keys().size() == 1 &&
                        request.resource.data.rounds.keys()[0].matches('r_[0-9]+') &&
                        isValidCatchUpRound(request.resource.data.rounds[request.resource.data.rounds.keys()[0]]);
@@ -568,6 +631,13 @@ service cloud.firestore {
       allow get: if isTeacher() && (resource == null || isTeacherOfClass(resource.data.class_id));
       allow list: if isTeacherOfClass(resource.data.class_id);
       allow write: if false; // Writes restricted strictly to Cloud Functions Admin SDK
+    }
+
+    // Modules 1 §א and 25 §ב.3 — the learners' personal access codes. Closed to
+    // every client, staff included: the teacher and the admin read and change
+    // them only through getLearnerAccessCodes / regenerateLearnerAccessCode.
+    match /learner_access_codes/{classId} {
+      allow read, write: if false;
     }
   }
 }

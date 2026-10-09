@@ -106,5 +106,30 @@ export function researchDetailsColumns(eventType: unknown, raw: unknown): Record
     cleared_hundreds: only(eventType, "BOARD_CLEARED") ? num(d.hundreds) : "",
     cleared_thousands: only(eventType, "BOARD_CLEARED") ? num(d.thousands) : "",
     blocks_removed: only(eventType, "BOARD_CLEARED") ? num(d.blocks_removed) : "",
+    // BRANCH_SELECTED (Appendix A §3, Module 14 §ג). New columns go at the end of the row (Module 24).
+    branch: only(eventType, "BRANCH_SELECTED") ? oneOf(d.branch, ["reinforcement", "challenge"] as const) : "",
+  };
+}
+
+/** A device_id as the client creates it (random, no PII); anything else is left out. */
+const DEVICE_ID = /^[A-Za-z0-9_-]{8,64}$/;
+
+/**
+ * PRD Module 24, the "פעולות" file's column contract: each event's
+ * client_timestamp, sequence_number, device_id and server_received_at. They
+ * are appended at the end of the row, after every existing column, in this
+ * order (a new column is added only at the end). An event stored before a
+ * field existed leaves its cell empty. `timeIso` turns the server's
+ * Timestamp into ISO text ("" when absent).
+ */
+export function researchStampColumns(
+  data: Record<string, unknown>,
+  timeIso: (v: unknown) => string
+): { sequence_number: number | ""; device_id: string; server_received_at: string } {
+  const seq = data.sequence_number;
+  return {
+    sequence_number: typeof seq === "number" && Number.isInteger(seq) && seq >= 0 ? seq : "",
+    device_id: typeof data.device_id === "string" && DEVICE_ID.test(data.device_id) ? data.device_id : "",
+    server_received_at: data.server_received_at === undefined || data.server_received_at === null ? "" : timeIso(data.server_received_at),
   };
 }

@@ -126,7 +126,8 @@ describe('Module 23: exercise narrative (server-authored, not AI)', () => {
   });
 
   it('is built from telemetry order, not from a fixed template with counters', () => {
-    expect(report).toContain('telemetryDocs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));');
+    // PRD Module 5 §ב: client_timestamp, ties by sequence_number (telemetryOrder.ts).
+    expect(report).toContain('telemetryDocs.sort(compareTelemetryOrder);');
     // The old aggregate phrasing must not come back.
     expect(report).not.toContain('גרירות בלוקים');
     expect(report).not.toContain('פעולות ביטול (Undo) לבקרה עצמית');

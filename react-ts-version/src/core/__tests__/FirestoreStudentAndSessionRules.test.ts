@@ -77,6 +77,21 @@ describe('מסמך המפגש', () => {
     expect(rules).not.toContain('gateDecisionFieldsAreEmpty');
   });
 
+  // PRD 14 §ב0 / 23 §ב: הציון, ההמלצה, חותמת החישוב והציון הקודם הם של השרת
+  // בלבד — גם המורה אינה כותבת אותם (סקירת claude/code-scoring-reports, S7).
+  it('שדות הציון של השרת חסומים לכל לקוח, גם למורה, ביצירה ובעדכון', () => {
+    const serverOnly = ['session_score_percent', 'matrix_recommended_path', 'evaluated_at', 'previous_score_percent'];
+    const create = section('function createLeavesServerScoreFieldsEmpty', 'function updateKeepsServerScoreFields');
+    const update = section('function updateKeepsServerScoreFields', '// --- Collections Routing ---');
+    for (const field of serverOnly) {
+      expect(create).toContain(`d.get('${field}', null) == null`);
+      expect(update).toContain(`sessionFieldUnchanged('${field}')`);
+    }
+    const routing = section('match /sessions/{sessionId}', 'match /telemetry_logs');
+    expect(routing).toMatch(/\(isTeacher\(\) \|\| learnerCreateLeavesStaffFieldsEmpty\(\)\) &&\s*createLeavesServerScoreFieldsEmpty\(\);/);
+    expect(routing).toMatch(/\(isTeacher\(\) \|\| learnerUpdateKeepsStaffFields\(\)\) &&\s*updateKeepsServerScoreFields\(\);/);
+  });
+
   it('הכלל חל גם ביצירה וגם בעדכון', () => {
     const routing = section('match /sessions/{sessionId}', 'match /telemetry_logs');
     expect(routing).toContain('(isTeacher() || learnerCreateLeavesStaffFieldsEmpty())');

@@ -4,6 +4,7 @@ import { AI_FALLBACK_TEXT, REPORT_PROCESSING_TEXT, PRE_RESET_HEADING_HE, PRE_RES
 import {
   FADING_GUESS_SECONDS,
   fetchClassReport,
+  fetchClassReportFileUrl,
   generateClassReport,
   RESEARCH_MEASURES_HE,
   TIER_LABELS_HE,
@@ -17,7 +18,7 @@ import {
 } from '@/infrastructure/services/ClassReportService';
 import { CHOICE_EXERCISES_HEADING_HE, CHOICE_PATH_LABEL_HE } from '@/core/choiceExercises';
 import { meetingLabelHe } from '@/core/stationNames';
-import { exerciseTitle } from '@/infrastructure/services/LearnerJourneyService';
+import { exerciseTitle, FIRST_ATTEMPT_SCORE_LABEL_HE } from '@/infrastructure/services/LearnerJourneyService';
 import { ERROR_CATEGORY_HE, ROUTE_NAME_HE, TRIGGER_REASON_HE } from '@/core/routeLabels';
 import { NOT_IN_THIS_REPORT_HE } from '@/core/researchMeasures';
 import { CATCHUP_REASON_HE, CATCHUP_REASON_KEYS } from '@/core/catchUp';
@@ -221,8 +222,25 @@ export function ClassMeetingReportPanel() {
     }
   };
 
-  const openUrl = (url: string | null) => {
-    if (url) window.open(url, '_blank', 'noopener');
+  // PRD 23 §ב: the links are valid for one hour, so each click asks for a
+  // fresh one. The tab opens inside the click (a tab opened after the wait may
+  // be blocked) and gets its address when the link arrives.
+  const openFile = async (kind: 'pdf' | 'csv') => {
+    if (!report) return;
+    const tab = window.open('', '_blank');
+    if (!tab) {
+      setError('הדפדפן חסם את פתיחת הקובץ בלשונית חדשה. אפשרו חלונות קופצים לאתר ונסו שוב.');
+      setState('error');
+      return;
+    }
+    tab.opener = null;
+    try {
+      tab.location.href = await fetchClassReportFileUrl(report.sessionNumber, kind);
+    } catch (err) {
+      tab.close();
+      setError(describeReportError(err).message);
+      setState('error');
+    }
   };
 
   const scoredLearnersWithoutScore = report
@@ -260,20 +278,20 @@ export function ClassMeetingReportPanel() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {report?.pdfUrl && (
+          {report?.hasPdf && (
             <button
               type="button"
-              onClick={() => openUrl(report.pdfUrl)}
+              onClick={() => { void openFile('pdf'); }}
               className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer"
             >
               <FileText className="w-3.5 h-3.5" />
               פתחו PDF
             </button>
           )}
-          {report?.csvUrl && (
+          {report?.hasCsv && (
             <button
               type="button"
-              onClick={() => openUrl(report.csvUrl)}
+              onClick={() => { void openFile('csv'); }}
               title="טבלת הלומדים של המפגש, שורה לכל תלמיד, לשימוש המחקר"
               className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer"
             >
@@ -327,7 +345,7 @@ export function ClassMeetingReportPanel() {
             <Stat label="תלמידים עם נתונים" value={`${report.learnersWithData} / 12`} />
             {report.scored ? (
               <Stat
-                label="הצלחה ממוצעת בניסיון ראשון"
+                label={`ממוצע ${FIRST_ATTEMPT_SCORE_LABEL_HE}`}
                 value={pctText(report.scoreMean)}
                 sub={report.scoreMean === null ? 'אין ציון ללומדי המפגש' : `חציון ${pctText(report.scoreMedian)} · טווח ${report.scoreMin}%–${report.scoreMax}%`}
               />
@@ -426,7 +444,7 @@ export function ClassMeetingReportPanel() {
             <table className="w-full text-[11px] whitespace-nowrap">
               <thead className="text-ws-soft">
                 <tr>
-                  <th className="text-right">תלמיד</th><th>מסלול</th>{report.scored && <><th>ציון</th><th>נכון בניסיון ראשון</th></>}<th>תרגילים</th>
+                  <th className="text-right">תלמיד</th><th>מסלול</th>{report.scored && <><th>{FIRST_ATTEMPT_SCORE_LABEL_HE}</th><th>נכון בניסיון ראשון</th></>}<th>תרגילים</th>
                   <th>שגויות (א/ע/מ)</th><th>מחיקות</th><th>ביטולים</th><th>היסוסים</th><th>המרות</th><th>כרטיסים</th><th>דקות</th><th>הקלטה</th><th>רפלקציה</th><th className="text-right">תרגילים</th>
                 </tr>
               </thead>
@@ -434,7 +452,7 @@ export function ClassMeetingReportPanel() {
                 {report.learners.map((l) => (
                   <tr key={l.studentId} className="border-t border-ws-surface2">
                     <td className="text-right font-bold">תלמיד {l.studentId}</td>
-                    <td className="text-center">{ROUTE_NAME_HE[l.learningPath === 'green_path' ? 'green_path' : 'remediation_path']}</td>
+                    <td className="text-center">{l.learningPath ? ROUTE_NAME_HE[l.learningPath] : '—'}</td>
                     {report.scored && (
                       <>
                         <td className="text-center font-black">{pctText(l.scorePercent)}</td>

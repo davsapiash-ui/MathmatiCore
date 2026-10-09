@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { learnerCode } from '../learnerCode';
 
 const BASE_URL = 'http://localhost:5173';
 
@@ -48,7 +49,7 @@ test.describe('Massive Multi-User E2E Simulation', () => {
       await studentPages[i].locator('select').first().selectOption({ index: 1 }); // Pick first school
       await studentPages[i].locator('select').nth(1).selectOption({ index: 1 }); // Pick first class
       await studentPages[i].getByPlaceholder('שם משתמש').fill(`user${i + 1}`);
-      await studentPages[i].getByPlaceholder('סיסמה').fill('10203040');
+      await studentPages[i].getByPlaceholder('••••').fill(learnerCode(i + 1));
       await studentPages[i].locator('button').filter({ hasText: 'יאללה, נכנסים! ✨' }).click();
       await studentPages[i].waitForURL('**/hub');
       // Navigate to Workspace

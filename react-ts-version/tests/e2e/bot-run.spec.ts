@@ -1,4 +1,5 @@
 import { test } from '@playwright/test';
+import { learnerCode } from '../learnerCode';
 
 test('Generate Real Student Telemetry and AI Report', async ({ browser }) => {
   test.setTimeout(120000); // 2 minutes to allow full session 2 diagnostic loop
@@ -20,7 +21,7 @@ test('Generate Real Student Telemetry and AI Report', async ({ browser }) => {
   await page.locator('select').first().selectOption({ index: 1 }); // Pick first school
   await page.locator('select').nth(1).selectOption({ index: 1 }); // Pick first class
   await page.getByPlaceholder('שם משתמש').fill('user1');
-  await page.getByPlaceholder('סיסמה').fill('10203040');
+  await page.getByPlaceholder('••••').fill(learnerCode(1));
   await page.locator('button').filter({ hasText: 'יאללה, נכנסים! ✨' }).click();
   await page.waitForURL('**/hub', { timeout: 15000 });
   console.log("Logged in as user1.");

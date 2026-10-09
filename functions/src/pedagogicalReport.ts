@@ -4,7 +4,8 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
-import { DRIVE_FOLDERS, israelFileStamp, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
+import { DRIVE_FOLDERS, uploadBufferToDrive } from "./exportDriveReport";
+import { learnerReportFileName } from "./driveNames";
 import { meetingLabelHe } from "./stationNames";
 import { COLUMN_NAMES_HE, ROUTE_NAME_HE } from "./teacherLabels";
 import {
@@ -59,8 +60,10 @@ import {
   EXACT_AI_FALLBACK_TEXT_HE,
   OUTCOME_HE,
   pedagogicalReportHtml,
+  PREVIOUS_SCORE_LABEL_HE,
   reportFooterTemplate,
 } from "./reportHtml";
+import { compareTelemetryOrder } from "./telemetryOrder";
 
 export const EXACT_AI_FALLBACK_TEXT = EXACT_AI_FALLBACK_TEXT_HE;
 
@@ -91,7 +94,7 @@ export function generateExerciseNarrativeFromEvents(
   const exerciseMap: Record<string, any[]> = {};
 
   // Group events chronologically by exercise_id
-  telemetryDocs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  telemetryDocs.sort(compareTelemetryOrder);
   for (const doc of telemetryDocs) {
     // SESSION_START ("ex_N_01") and REFLECTION_SUBMITTED are not exercises (isExerciseEvent).
     if (!isExerciseEvent(doc)) continue;
@@ -326,7 +329,11 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
         rtlText(doc, `כלים שעוד לא הופעלו: ${notUsed.length > 0 ? notUsed.join(", ") : "אין — כל הכלים הופעלו"}`, 55, cardY + 25, { width: 490 });
       } else {
         rtlText(doc, `מפגש: ${report.session_number}`, 260, cardY, { width: 110 });
-        rtlText(doc, `ציון שליטה: ${report.score_percent}%`, 70, cardY, { width: 170 });
+        rtlText(doc, `ציון ניסיון ראשון (מדד 1): ${report.score_percent}%`, 70, cardY, { width: 170 });
+        // PRD 14 §ב0 / 23 §ב: the score before the learner completed the meeting in catch-up time.
+        if (typeof report.previous_score_percent === "number") {
+          rtlText(doc, `${PREVIOUS_SCORE_LABEL_HE}: ${report.previous_score_percent}%`, 55, cardY + 40, { width: 490 });
+        }
         // Meeting 2 only: no path in meetings 3–8, and never a colour by default.
         const path = report.matrix_recommended_path === 'green_path' || report.matrix_recommended_path === 'remediation_path' ? ROUTE_NAME_HE[report.matrix_recommended_path as 'green_path' | 'remediation_path'] : null;
         if (path) rtlText(doc, `מסלול מומלץ: ${path}`, 55, cardY + 25, { width: 490 });
@@ -622,7 +629,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // In the order the learner produced them. The narrative used to be written
   // here (and sorted the events as it went); it is written below, once the
   // catalog gives the exercises their Hebrew titles.
-  telemetryDocs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  telemetryDocs.sort(compareTelemetryOrder);
 
   // The learner's live record: the approved path and gate state live there
   // for every meeting, whether or not a SessionDocument was written.
@@ -892,6 +899,13 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     logger.warn("[Module23] catch-up record unavailable for the report.", { session_id: sessionId, error: String(err) });
   }
 
+  // PRD 14 §ב0: the session document keeps the score before the latest
+  // completion (sessionTrigger.ts). Only beside a score of that same document.
+  const storedPrevious = scoreSource === "session_document" ? sessionData.previous_score_percent : null;
+  const previousScore: number | null =
+    typeof storedPrevious === "number" && Number.isFinite(storedPrevious) && storedPrevious >= 0 && storedPrevious <= 100
+      ? storedPrevious : null;
+
   // Assemble pedagogical report data payload
   const report = {
     report_id: `rep_${sessionId}`,
@@ -907,6 +921,9 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     meeting_kind: scoredMeeting ? "scored" : "sandbox_refresh",
     is_completed: Boolean(sessionData.is_completed),
     score_percent: score,
+    // PRD 14 §ב0 / 23 §ב "זמן השלמה בדוח": the score before the learner's
+    // latest completion, beside the new one; null when there was none.
+    previous_score_percent: previousScore,
     score_source: scoreSource,
     first_attempt: sessionData.first_attempt || null,
     telemetry_event_count: telemetryDocs.length,
@@ -943,7 +960,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     catch_up: catchUp,
     summary_text_he: score === null
       ? `דוח היכרות וריענון למפגש ${resolvedSessionNumber}, ללא ציון. כלים שעוד לא הופעלו: ${toolMastery && toolMastery.not_used.length > 0 ? toolMastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") : "אין"}.`
-      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון שליטה: ${score}%.${resolvedSessionNumber === 2 ? ` מסלול מומלץ: ${score >= 50 ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}.` : ""}`
+      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון ניסיון ראשון (מדד 1): ${score}%.${resolvedSessionNumber === 2 ? ` מסלול מומלץ: ${score >= 50 ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}.` : ""}`
   };
 
   // Render authoritative server-side PDF binary & Upload to Cloud Storage
@@ -996,6 +1013,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       session_number: resolvedSessionNumber,
       storage_path: storageFilePath,
       score_percent: score,
+      previous_score_percent: previousScore,
       score_source: scoreSource,
       routing_group: routingGroup,
       routing_label_he: routingLabelHe,
@@ -1025,9 +1043,10 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     // Module 23 Drive mirror: archive a copy of the same PDF in the shared Drive folder.
     // Best-effort only — a Drive failure must never fail or degrade report generation.
     try {
-      const driveFileName = `דוח_תלמיד${clampedStudentNum}_מפגש${resolvedSessionNumber}_${israelFileStamp()}.pdf`;
-      const driveFolderId = await resolveDriveFolder([DRIVE_FOLDERS.learnerReports, `מפגש ${resolvedSessionNumber}`]);
-      const driveResult = await uploadBufferToDrive(pdfBuffer, driveFileName, "application/pdf", driveFolderId);
+      // PRD Module 23, "תיקיות הדרייב": "מפגש 3 - תלמיד 01 - 08.10.2026.pdf" in
+      // the flat folder "1 דוחות". A regenerated report is a new file.
+      const driveFileName = learnerReportFileName(resolvedSessionNumber, clampedStudentNum);
+      const driveResult = await uploadBufferToDrive(pdfBuffer, driveFileName, "application/pdf", DRIVE_FOLDERS.reports);
       if (driveResult.success) {
         driveMirrorUrl = driveResult.webViewLink;
         await db.collection("reports").doc(`rep_${sessionId}`).set({

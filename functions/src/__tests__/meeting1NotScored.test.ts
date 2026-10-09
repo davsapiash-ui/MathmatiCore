@@ -172,6 +172,7 @@ describe('the meeting 1 class report', () => {
     expect(html).toContain('שליטה בכלי המערכת לקראת האבחון');
     expect(html).toContain('ניתוח הבינה: לקראת האבחון');
     expect(html).not.toContain('ציון ממוצע');
+    expect(html).not.toContain('ציון ניסיון ראשון (מדד 1)');
     expect(html).not.toContain('קבוצות עבודה לפי כלל האחוזים');
     expect(html).not.toContain('על מנהל המערכת לפרסם');
   });

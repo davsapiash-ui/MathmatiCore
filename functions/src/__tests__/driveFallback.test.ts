@@ -39,12 +39,14 @@ describe('קובץ שהדרייב דחה אינו נזרק', () => {
 
   it('ייצוא המחקר מדווח על הקבצים הממתינים ואינו מכריז כישלון כשהם קיימים', () => {
     expect(src).toContain('const parked: Array<{ name: string; url: string | null; path: string }> = [];');
-    expect(src).toContain('if (uploadedIds.length === 0 && parked.length === 0) {');
-    expect(src).toContain('parked_files: parked.map((p) => p.path),');
-    expect(src).toContain('"SUCCESS_STORAGE_ONLY"');
+    expect(src).toContain('if (uploadedLinks.length === 0 && parked.length === 0) {');
+    // The export's audit entry (reset_level 'export') points at the parked file when Drive took none.
+    expect(src).toContain('fileUrl: uploadedLinks[0] ?? (parked[0] ? `gs://${admin.storage().bucket().name}/${parked[0].path}` : null),');
+    expect(src).toContain('"ב-Cloud Storage בלבד (הדרייב לא היה זמין)"');
   });
 
-  it('גיבוי האיפוס שומר את נפילת האחסון שהייתה לו', () => {
-    expect(src).toContain('const storagePath = `backups/${class_id}/${resetId}.json`;');
+  it('גיבוי האיפוס נופל ל-backups/{class_id}/ ולא ל-drive_fallback/ (מודול 23א §ג)', () => {
+    expect(src).toContain('backupStoragePath(class_id, resetId, backupName)');
+    expect(src).toContain('DRIVE_FOLDERS.backups, { park: false, signal }');
   });
 });

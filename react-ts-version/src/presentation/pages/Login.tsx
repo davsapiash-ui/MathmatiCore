@@ -495,7 +495,10 @@ export function Login() {
                             setStudentPassword(e.target.value);
                             setErrorMsg("");
                           }}
-                          placeholder="••••••••"
+                          placeholder="••••"
+                          // Module 1 §א: the learner's personal code has 4 digits.
+                          inputMode="numeric"
+                          maxLength={4}
                           className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl p-3.5 [@media(max-height:560px)]:py-2 text-center text-xl font-bold tracking-widest focus:border-[hsl(var(--ws-blue))] outline-none transition-all shadow-inner min-h-[48px] placeholder:text-slate-300 dark:placeholder:text-slate-700"
                           autoComplete="off"
                         />

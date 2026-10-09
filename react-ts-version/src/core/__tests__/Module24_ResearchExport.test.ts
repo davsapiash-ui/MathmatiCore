@@ -45,8 +45,11 @@ describe('Module 24 — research export covers the whole process', () => {
   });
 
   it('exports five files: actions, meetings, recordings, reflections, reset log', () => {
-    for (const name of ['פעולות', 'מפגשים', 'הקלטות', 'רפלקציות', 'יומן_איפוסים']) {
-      expect(exportSection).toContain(`{ name: "${name}"`);
+    // PRD Module 24 §ב: the five files, by the names the PRD gives them (driveNames.ts).
+    const names = readFileSync(resolve(__dirname, '../../../../functions/src/driveNames.ts'), 'utf-8');
+    expect(names).toContain('export const RESEARCH_FILE_LABELS = ["פעולות", "מפגשים", "הקלטות", "רפלקציות", "יומן איפוסים"] as const;');
+    for (const label of ['labelActions', 'labelMeetings', 'labelRecordings', 'labelReflections', 'labelResetLog']) {
+      expect(exportSection).toContain(`{ name: ${label},`);
     }
   });
 
@@ -60,10 +63,11 @@ describe('Module 24 — research export covers the whole process', () => {
     // Audit M-export (2.10.2026): the refusal says why and that a retry will not help, and carries details.reason.
     expect(exportSection).toContain('throw new HttpsError("failed-precondition", RESEARCH_EXPORT_PII_REFUSAL_HE, { reason: "pii" });');
     expect(exportSection).toMatch(/callerClassId !== class_id/);
-    expect(exportSection).toMatch(/reset_level: "export",/);
+    // PRD 23א §ד: logged with reset_level 'export' in the ResetAuditEntry shape (resetAudit.ts exportAuditEntry).
+    expect(exportSection).toContain('...exportAuditEntry({');
   });
 
-  it('lands under the research folder, never the Drive root', () => {
-    expect(exportSection).toMatch(/resolveDriveFolder\(\[DRIVE_FOLDERS\.researchData, scopeLabel, exportDate\]\)/);
+  it('lands in the flat research folder "2 נתוני מחקר", never the Drive root', () => {
+    expect(exportSection).toContain('researchExportFileName(f.name, scopedSession, exportedAt), "text/csv", DRIVE_FOLDERS.researchData);');
   });
 });

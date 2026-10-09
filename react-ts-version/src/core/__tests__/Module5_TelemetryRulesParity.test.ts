@@ -41,6 +41,24 @@ describe('firestore.rules accepts every telemetry event the client emits', () =>
   });
 });
 
+describe('PRD Module 5 §ב / Appendix A §3: the three stamps and device_id', () => {
+  const start = rules.indexOf('function isValidTelemetryDoc()');
+  const body = rules.slice(start, rules.indexOf('return hasPermittedKeys', start));
+
+  it('the allowlist names server_received_at, sequence_number and device_id', () => {
+    const allow = body.slice(body.indexOf('hasOnly(['), body.indexOf(']);'));
+    for (const f of ['server_received_at', 'sequence_number', 'device_id', 'synced_at']) expect(allow, f).toContain(`'${f}'`);
+  });
+
+  it('server_received_at is required and must equal request.time', () => {
+    expect(body).toContain("('server_received_at' in data) && data.server_received_at == request.time");
+  });
+
+  it('device_id is required, in the random shape the client creates', () => {
+    expect(body).toContain("('device_id' in data) && data.device_id is string");
+  });
+});
+
 describe('server-side guards found by the dashboard audit (20.9.2026)', () => {
   const reset = readFileSync(resolve(__dirname, '../../../../functions/src/exportDriveReport.ts'), 'utf-8');
   const studentAuth = readFileSync(resolve(__dirname, '../../../../functions/src/authenticateStudentSession.ts'), 'utf-8');

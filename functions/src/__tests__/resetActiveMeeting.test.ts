@@ -203,12 +203,14 @@ describe('fix 2 — a single learner\'s meeting-8 reset clears the reflection', 
     expect(entry.studentValues).toContain(4);
   });
 
-  it('other meetings, the full learner reset and the whole class keep reflections (deviation 20)', () => {
+  it('other meetings and the full learner reset keep reflections; the whole class at meeting 8 deletes them (PRD 23א §ב.2)', () => {
     expect(reflectionEntry(buildResetScope('single_student', '4', 'active_session', 3, 'student')).backupOnly).toBe(true);
     expect(reflectionEntry(buildResetScope('single_student', '4', 'full_student', null, 'student')).backupOnly).toBe(true);
     const classEntry = reflectionEntry(buildResetScope('single_student', '', 'active_session', 8, 'class'));
-    expect(classEntry.backupOnly).toBe(true);
-    expect(classEntry.sessionNumber).toBeUndefined();
+    expect(classEntry.backupOnly).toBe(false);
+    expect(classEntry.sessionNumber).toBe(8);
+    const classAt3 = reflectionEntry(buildResetScope('single_student', '', 'active_session', 3, 'class'));
+    expect(classAt3.backupOnly).toBe(true);
   });
 
   it('the four mirror fields srlReflection.ts writes are nulled only when asked', () => {
@@ -245,7 +247,7 @@ describe('fix 2 — a single learner\'s meeting-8 reset clears the reflection', 
     });
   });
 
-  it('end to end, whole class at meeting 8: reflections and the mirror stay', async () => {
+  it('end to end, whole class at meeting 8: the meeting\'s reflections and their mirror go (PRD 23א §ב.2)', async () => {
     const rtdb = fakeRtdb({ 'users/students/student_user4': { reflection_completed: true } });
     const db = fakeFirestore({
       srl_reflections: [{ id: 'session_08_student_4', data: { student_id: 4, session_number: 8 } }],
@@ -253,8 +255,8 @@ describe('fix 2 — a single learner\'s meeting-8 reset clears the reflection', 
     });
     const counts = await executeResetDeletion(rtdb, db, buildResetScope('single_student', '', 'active_session', 8, 'class'));
     expect(counts.failures).toEqual([]);
-    expect(db.deleted).toEqual(['sessions/session_08_student_4']);
+    expect([...db.deleted].sort()).toEqual(['sessions/session_08_student_4', 'srl_reflections/session_08_student_4']);
     const update = rtdb.updates.find((u: any) => u.path === 'users/students/student_user4');
-    expect('reflection_completed' in update.values).toBe(false);
+    expect(update.values.reflection_completed).toBeNull();
   });
 });

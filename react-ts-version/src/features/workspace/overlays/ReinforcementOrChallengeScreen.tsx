@@ -13,10 +13,12 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
  * שבו תרגיל האתגר בתחום האלף — ודיבר עם הילד על "ציון השליטה". תרגילי
  * הבחירה אכן אינם נספרים בשבעת תרגילי החובה (PRD מודול 14 §ג); לילד נאמר
  * רק שהם בחירה ולא חובה.
+ *
+ * PRD v7.9 מודול 14 §ג: הכפתורים שהלומד רואה הם "חיזוק וחזרה על החומר" ו"אתגר",
+ * והמילה "מסלול" אינה מופיעה במסך הבחירה (היא שמורה למסלול שהמורה קובעת,
+ * מודול 20). המסך מוצג אחרי שבעת תרגילי החובה גם אם זמן היעד חלף.
  */
 const BRANCH_CHOICE_TEXT = {
-  // PRD 7 (l.286) and 14 §ג, word for word: the badge, the two buttons and the
-  // finish; the word "מסלול" is not on this screen (it belongs to the teacher's path, Module 20).
   badge: 'סיימתם את שבעת התרגילים של התחנה!',
   heading: 'איך תרצו להמשיך?',
   intro: 'המשימות הבאות הן בחירה שלכם, לא חובה.',

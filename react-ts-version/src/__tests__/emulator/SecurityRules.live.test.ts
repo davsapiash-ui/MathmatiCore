@@ -7,7 +7,7 @@ import {
   assertSucceeds,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { ref, get as rtdbGet, set as rtdbSet, update as rtdbUpdate } from 'firebase/database';
 
 /**
@@ -67,6 +67,15 @@ beforeEach(async () => {
 });
 
 const learner12 = () => env.authenticatedContext('student_user12', { student_id: 12 });
+
+/**
+ * PRD Module 5 §ב / Appendix A §3: every event the client writes carries the
+ * browser's random device_id and the server's time of receipt
+ * (server_received_at = serverTimestamp(), equal to request.time). Without
+ * them a write is refused, so every positive and negative case below carries
+ * them: a negative case then fails for the reason it names, not for a missing stamp.
+ */
+const STAMPS = () => ({ device_id: 'abcdefghijkl', server_received_at: serverTimestamp() });
 const learner7 = () => env.authenticatedContext('student_user7', { student_id: 7 });
 const teacher = () => env.authenticatedContext('teacher_uid', { role: 'teacher', email: TEACHER_EMAIL });
 const admin = () => env.authenticatedContext('admin_uid', { role: 'admin', email: 'admin@example.com' });
@@ -104,7 +113,7 @@ describe('מודול 27 — אסימון של ילד מול המנוע האמי�
   it('אינו כותב טלמטריה בשם ילד אחר', async () => {
     const key = 'idem_foreign_1';
     await assertFails(setDoc(doc(learner12().firestore(), 'telemetry_logs', key), {
-      idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_3_student_user7',
+      ...STAMPS(), idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_3_student_user7',
       student_id: 7, exercise_id: 's3_g_t1', event_type: 'PROBLEM_LOAD', details: {},
     }));
   });
@@ -112,7 +121,7 @@ describe('מודול 27 — אסימון של ילד מול המנוע האמי�
   it('כותב טלמטריה תקינה בשם עצמו', async () => {
     const key = 'idem_own_1';
     await assertSucceeds(setDoc(doc(learner12().firestore(), 'telemetry_logs', key), {
-      idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_3_student_user12',
+      ...STAMPS(), idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_3_student_user12',
       student_id: 12, exercise_id: 's3_g_t1', event_type: 'PROBLEM_LOAD', details: {},
     }));
   });
@@ -120,7 +129,7 @@ describe('מודול 27 — אסימון של ילד מול המנוע האמי�
   it('כלל ה-column_index של מודול 5 נאכף בשרת: אירוע לפי טור בלי טור נדחה', async () => {
     const key = 'idem_nocol';
     await assertFails(setDoc(doc(learner12().firestore(), 'telemetry_logs', key), {
-      idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_3_student_user12',
+      ...STAMPS(), idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_3_student_user12',
       student_id: 12, exercise_id: 's3_g_t1', event_type: 'DIGIT_ENTERED',
       details: { digit_value: 4, is_correct: true },
     }));
@@ -249,7 +258,7 @@ describe('ניקוי הלוח נרשם כאירוע תקני', () => {
   it('הילד כותב BOARD_CLEARED בלי טור, והשרת מקבל', async () => {
     const key = 'idem_board_cleared';
     await assertSucceeds(setDoc(doc(learner12().firestore(), 'telemetry_logs', key), {
-      idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_4_student_user12',
+      ...STAMPS(), idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_4_student_user12',
       student_id: 12, exercise_id: 's4_g_t1', event_type: 'BOARD_CLEARED',
       details: { units: 3, tens: 2, hundreds: 0, thousands: 0, blocks_removed: 5 },
     }));
@@ -258,9 +267,99 @@ describe('ניקוי הלוח נרשם כאירוע תקני', () => {
   it('עם טור — נדחה, כי הניקוי אינו שייך לטור אחד', async () => {
     const key = 'idem_board_cleared_col';
     await assertFails(setDoc(doc(learner12().firestore(), 'telemetry_logs', key), {
-      idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_4_student_user12',
+      ...STAMPS(), idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_4_student_user12',
       student_id: 12, exercise_id: 's4_g_t1', event_type: 'BOARD_CLEARED', column_index: 0,
       details: { units: 3, tens: 2, hundreds: 0, thousands: 0, blocks_removed: 5 },
     }));
+  });
+});
+
+/* ── מודול 5 §ב / נספח א' §3 — החותמות, ו-BRANCH_SELECTED (מודול 14 §ג) ── */
+
+describe('telemetry stamps: server_received_at, device_id, sequence_number', () => {
+  const event = (key: string, over: Record<string, unknown> = {}) => ({
+    ...STAMPS(), idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_4_student_user12',
+    student_id: 12, exercise_id: 's4_g_t1', event_type: 'PROBLEM_LOAD', details: {}, ...over,
+  });
+  const write = (key: string, data: Record<string, unknown>) =>
+    setDoc(doc(learner12().firestore(), 'telemetry_logs', key), data);
+
+  it('with a sequence_number it is accepted', async () => {
+    await assertSucceeds(write('idem_seq', event('idem_seq', { sequence_number: 7 })));
+  });
+
+  it('without a sequence_number (queued before the counter existed) it is still accepted', async () => {
+    const data = event('idem_legacy');
+    expect('sequence_number' in data).toBe(false);
+    await assertSucceeds(write('idem_legacy', data));
+  });
+
+  it('a negative or fractional sequence_number is refused', async () => {
+    await assertFails(write('idem_seq_neg', event('idem_seq_neg', { sequence_number: -1 })));
+    await assertFails(write('idem_seq_frac', event('idem_seq_frac', { sequence_number: 1.5 })));
+  });
+
+  it('a server_received_at set by the client is refused', async () => {
+    await assertFails(write('idem_client_time', event('idem_client_time', { server_received_at: Timestamp.now() })));
+  });
+
+  it('without server_received_at it is refused', async () => {
+    const data: Record<string, unknown> = event('idem_no_srv');
+    delete data.server_received_at;
+    await assertFails(write('idem_no_srv', data));
+  });
+
+  it('without device_id it is refused', async () => {
+    const data: Record<string, unknown> = event('idem_no_dev');
+    delete data.device_id;
+    await assertFails(write('idem_no_dev', data));
+  });
+
+  it('a device_id that is not a random id (a name, with a space) is refused', async () => {
+    await assertFails(write('idem_name_dev', event('idem_name_dev', { device_id: 'Dana Cohen' })));
+    await assertFails(write('idem_short_dev', event('idem_short_dev', { device_id: 'abc' })));
+  });
+
+  it('an unknown key is refused', async () => {
+    await assertFails(write('idem_extra', event('idem_extra', { child_name: 'x' })));
+  });
+
+  it('BRANCH_SELECTED without a column is accepted, with column_index refused', async () => {
+    await assertSucceeds(write('idem_branch', event('idem_branch', { event_type: 'BRANCH_SELECTED', details: { branch: 'challenge' }, sequence_number: 3 })));
+    await assertFails(write('idem_branch_col', event('idem_branch_col', { event_type: 'BRANCH_SELECTED', column_index: 0, details: { branch: 'reinforcement' } })));
+  });
+});
+
+/* ── מודול 17 §ב — "אירועים שנדחו", מונה לכל מכשיר ── */
+
+describe('users/students/{id}/refusedEvents/{device_id}', () => {
+  const path = (dev: string) => `users/students/student_user12/refusedEvents/${dev}`;
+
+  it('the learner writes a whole count ≥ 0 for a device, and removes it', async () => {
+    const db = learner12().database();
+    await assertSucceeds(rtdbUpdate(ref(db, 'users/students/student_user12'), { 'refusedEvents/abcdefghijkl': 2 }));
+    await assertSucceeds(rtdbSet(ref(db, path('abcdefghijkl')), 0));
+    await assertSucceeds(rtdbUpdate(ref(db, 'users/students/student_user12'), { 'refusedEvents/abcdefghijkl': null }));
+  });
+
+  it('a negative, fractional or non-number count is refused', async () => {
+    const db = learner12().database();
+    await assertFails(rtdbSet(ref(db, path('abcdefghijkl')), -1));
+    await assertFails(rtdbSet(ref(db, path('abcdefghijkl')), 1.5));
+    await assertFails(rtdbSet(ref(db, path('abcdefghijkl')), 'two'));
+  });
+
+  it('a key that is not a device id, or a bare number in place of the per-device map, is refused', async () => {
+    const db = learner12().database();
+    await assertFails(rtdbSet(ref(db, path('Dana Cohen')), 1));
+    await assertFails(rtdbSet(ref(db, 'users/students/student_user12/refusedEvents'), 3));
+  });
+
+  it('another learner cannot write it; the teacher reads it', async () => {
+    await assertFails(rtdbSet(ref(learner7().database(), path('abcdefghijkl')), 1));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await rtdbSet(ref(ctx.database(), path('abcdefghijkl')), 4);
+    });
+    await assertSucceeds(rtdbGet(ref(teacher().database(), 'users/students/student_user12/refusedEvents')));
   });
 });

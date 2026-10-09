@@ -39,7 +39,8 @@ export interface ClassLearnerMeasures {
 
 export interface ClassLearnerRow {
   studentId: number;
-  learningPath: 'green_path' | 'remediation_path';
+  /** PRD 23 §ב: the path of this meeting; null in meetings 1–2, which have none. */
+  learningPath: 'green_path' | 'remediation_path' | null;
   /** null = not measured (the meeting's compulsory count is unknown). Never shown as 0%. */
   scorePercent: number | null;
   scoreSource: string;
@@ -151,8 +152,13 @@ export interface ClassMeetingReport {
   classPatterns: string[];
   teachingRecommendations: string[];
   aiAnalysisAvailable: boolean;
-  pdfUrl: string | null;
-  csvUrl: string | null;
+  /**
+   * A PDF / CSV of this report is stored. PRD 23 §ב: its download link is valid
+   * for one hour, so no link is kept here: opening the file asks the server for
+   * a fresh signed one (fetchClassReportFileUrl).
+   */
+  hasPdf: boolean;
+  hasCsv: boolean;
   drivePdfUrl: string | null;
   driveCsvUrl: string | null;
   /** Per learner whose meeting was reset, where they went wrong before it (owner, 2.10.2026). Empty when none was. */
@@ -256,7 +262,7 @@ function learnerFromData(d: Record<string, any>): ClassLearnerRow {
       : null;
   return {
     studentId: num(d.student_id),
-    learningPath: d.learning_path === 'remediation_path' ? 'remediation_path' : 'green_path',
+    learningPath: d.learning_path === 'remediation_path' ? 'remediation_path' : d.learning_path === 'green_path' ? 'green_path' : null,
     scorePercent: numOrNull(d.score_percent),
     scoreSource: String(d.score_source ?? ''),
     tier,
@@ -373,8 +379,8 @@ export function classReportFromData(d: Record<string, any>): ClassMeetingReport 
     classPatterns: strList(d.class_patterns),
     teachingRecommendations: strList(d.teaching_recommendations),
     aiAnalysisAvailable: d.ai_analysis_available === true,
-    pdfUrl: url(d.pdf_url),
-    csvUrl: url(d.csv_url),
+    hasPdf: Boolean(url(d.storage_pdf_path) || url(d.pdf_url)),
+    hasCsv: Boolean(url(d.storage_csv_path) || url(d.csv_url)),
     drivePdfUrl: url(d.drive_pdf_url),
     driveCsvUrl: url(d.drive_csv_url),
     preResetNotes: preResetNotesFromData(d),
@@ -388,6 +394,15 @@ export async function fetchClassReport(sessionNumber: number, classId = 'class_1
   const snap = await getDoc(doc(firestore, 'class_reports', `${classId}_session_${sessionNumber}`));
   if (!snap.exists()) return null;
   return classReportFromData(snap.data() as Record<string, any>);
+}
+
+/** A fresh one-hour signed link to the stored PDF or CSV of a meeting's class report (PRD 23 §ב). */
+export async function fetchClassReportFileUrl(sessionNumber: number, kind: 'pdf' | 'csv', classId = 'class_1'): Promise<string> {
+  const call = httpsCallable(functions, 'getClassReportDownloadUrl');
+  const res = await call({ classId, sessionNumber, kind });
+  const link = (res.data as Record<string, any> | undefined)?.downloadUrl;
+  if (typeof link !== 'string' || !link) throw new Error('לא התקבל קישור לקובץ');
+  return link;
 }
 
 /** Asks the server to build (or rebuild) the class report of one meeting. Reads every event of the meeting; up to a minute. */

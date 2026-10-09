@@ -177,12 +177,13 @@ describe('catchup_records — what the teacher may not write', () => {
 });
 
 describe('catchup_records — who reads', () => {
-  it('the teacher and the admin read; the admin does not write', async () => {
+  it('the class teacher reads (PRD 23א §ו); the admin neither reads nor writes', async () => {
     await seedClosedRound();
     await assertSucceeds(getDoc(ref(teacher())));
-    await assertSucceeds(getDocs(query(collection(teacher().firestore(), CATCHUP_COLLECTION), where('session_number', '==', 3))));
-    await assertSucceeds(getDoc(ref(admin())));
-    await assertSucceeds(getDocs(collection(admin().firestore(), CATCHUP_COLLECTION)));
+    await assertSucceeds(getDocs(query(collection(teacher().firestore(), CATCHUP_COLLECTION), where('class_id', '==', 'class_1'), where('session_number', '==', 3))));
+    await assertFails(getDoc(ref(otherClassTeacher())));
+    await assertFails(getDoc(ref(admin())));
+    await assertFails(getDocs(collection(admin().firestore(), CATCHUP_COLLECTION)));
     await assertFails(setDoc(ref(admin(), catchUpDocId(5, 4)), record(round({ recorded_by: 'admin_uid' }), undefined, 5)));
   });
 

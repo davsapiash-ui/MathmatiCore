@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { researchDetailsColumns } from '../researchTelemetryRow';
+import { researchDetailsColumns, researchStampColumns } from '../researchTelemetryRow';
+import { compareTelemetryOrder } from '../telemetryOrder';
 
 /**
  * PRD Module 24: the research export carries "כל השדות" of every telemetry
@@ -89,5 +90,55 @@ describe('research export — every typed details field has a column', () => {
     const rows = src.slice(src.indexOf('const telemetryRows = telemetry.map('), src.indexOf('// ── 2. One row per learner × meeting'));
     expect(rows).toContain('...researchDetailsColumns(data.event_type, d),');
     expect(rows).not.toContain('details_json: d');
+  });
+});
+
+
+/**
+ * PRD Module 5 §ב / Appendix A §3 and the Module 24 column contract: each
+ * "פעולות" row carries sequence_number, device_id and server_received_at,
+ * appended after every existing column; BRANCH_SELECTED's branch is a closed list.
+ */
+describe('research export — the stamps and BRANCH_SELECTED', () => {
+  const iso = (v: unknown) => (v && typeof v === 'object' && 'toDate' in (v as any) ? (v as any).toDate().toISOString() : '');
+
+  it('stamps: numbers and the random id kept, anything else empty; the server time as ISO', () => {
+    const at = { toDate: () => new Date('2026-10-08T10:00:00.000Z') };
+    expect(researchStampColumns({ sequence_number: 4, device_id: 'abcdefghijklmnop', server_received_at: at }, iso))
+      .toEqual({ sequence_number: 4, device_id: 'abcdefghijklmnop', server_received_at: '2026-10-08T10:00:00.000Z' });
+    expect(researchStampColumns({}, iso)).toEqual({ sequence_number: '', device_id: '', server_received_at: '' });
+    expect(researchStampColumns({ sequence_number: -1, device_id: 'Dana Cohen 050' }, iso))
+      .toEqual({ sequence_number: '', device_id: '', server_received_at: '' });
+  });
+
+  it('the stamp columns are the last cells of the row, in the contract order', () => {
+    const src = readFileSync(resolve(__dirname, '../exportDriveReport.ts'), 'utf-8');
+    const row = src.slice(src.indexOf('const telemetryRows = telemetry.map('), src.indexOf('// ── 2. One row per learner'));
+    expect(row.indexOf('...researchDetailsColumns(')).toBeLessThan(row.indexOf('...researchStampColumns('));
+    expect(row.slice(row.indexOf('...researchStampColumns(')).match(/^\s+[a-z_]+:/m)).toBeNull();
+    expect(Object.keys(researchStampColumns({}, iso))).toEqual(['sequence_number', 'device_id', 'server_received_at']);
+  });
+
+  it('branch: reinforcement | challenge, on BRANCH_SELECTED only', () => {
+    expect(researchDetailsColumns('BRANCH_SELECTED', { branch: 'challenge' }).branch).toBe('challenge');
+    expect(researchDetailsColumns('BRANCH_SELECTED', { branch: 'Dana' }).branch).toBe('');
+    expect(researchDetailsColumns('DIGIT_ENTERED', { branch: 'challenge' }).branch).toBe('');
+  });
+
+  it('events are ordered by client_timestamp, ties by sequence_number', () => {
+    const evs = [
+      { id: 'c', client_timestamp: 10, sequence_number: 3 },
+      { id: 'b', client_timestamp: 10, sequence_number: 2 },
+      { id: 'a', client_timestamp: 5, sequence_number: 9 },
+      { id: 'old', client_timestamp: 10 },
+    ];
+    expect([...evs].sort(compareTelemetryOrder).map((e) => e.id)).toEqual(['a', 'old', 'b', 'c']);
+  });
+
+  it('every reader sorts with the one comparator', () => {
+    for (const f of ['meetingMetrics.ts', 'classReport.ts', 'pedagogicalReport.ts', 'exportDriveReport.ts', 'adminAggregator.ts']) {
+      const src = readFileSync(resolve(__dirname, '..', f), 'utf-8');
+      expect(src, f).not.toMatch(/\(a\??\.(data\.)?client_timestamp \|\| 0\) - \(b\??\.(data\.)?client_timestamp \|\| 0\)/);
+    }
   });
 });

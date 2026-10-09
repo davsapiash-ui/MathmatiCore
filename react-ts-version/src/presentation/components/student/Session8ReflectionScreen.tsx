@@ -30,12 +30,10 @@ type EffortId = 'EASY' | 'MEDIUM' | 'HARD';
  * כל מה שהילד רואה ושומע במסך. הנוסחים של מסמך 03 §3.8, "מסך הרפלקציה
  * האישי התלת שלבי"; ההתנהגות של PRD מודול 16 §ג.
  *
- * שלב 1 — PRD: "בחירה מתוך 3 סמלים חזותיים (מאמץ קל, בינוני, רב)". מסמך 03:
- * "סרגל מאמץ חזותי קווי תלת שלבי ללא מילים: רמה אחת: קל, רמה שתיים: מתאים,
- * רמה שלוש: מאתגר". שניהם מתקיימים: על המסך שלושה סמלים של סרגל עולה (פס
- * אחד, שניים, שלושה) — חזותיים, בלי מילים, ומאמץ קל־בינוני־רב בגובה הפסים.
- * המילים של מסמך 03 נשמעות בהקראה ומשמשות שם נגיש לכל כפתור, כך שילד
- * שאינו קורא, או שמשתמש בקורא מסך, יודע מה כל רמה.
+ * שלב 1 — PRD v7.9 מודול 16 §ג: "בחירה מתוך 3 סמלים חזותיים (מאמץ קל, בינוני,
+ * רב)". על המסך שלושה סמלים של סרגל עולה (פס אחד, שניים, שלושה), ומתחת לכל
+ * סמל שמו: "מאמץ קל", "מאמץ בינוני", "מאמץ רב". אותו שם נשמע בהקראה ומשמש שם
+ * נגיש לכל כפתור. (מסמך 03 כתב "קל / מתאים / מאתגר" בלי מילים; ה-PRD גובר.)
  *
  * שלב 2 — שלוש האסטרטגיות בסדר של המרשם (שורה 10): כפתור ביטול פעולה,
  * עיגולי הזיכרון, השאלות בכרטיס החניכה. אפשר לסמן כמה (מסמך 03: "לסמן כל
@@ -77,11 +75,15 @@ export const REFLECTION_TEXT_HE = {
   notSavedSpoken: 'השמירה לא הצליחה. לחצו שוב על סיום התחנה. אם זה לא עוזר, בקשו עזרה מהמורה.',
 } as const;
 
-/** שלוש רמות המאמץ: סמל חזותי בלבד על המסך; השם (מסמך 03) להקראה ולקורא מסך. */
+/**
+ * שלוש רמות המאמץ: סמל חזותי, ומתחתיו השם של PRD v7.9 מודול 16 §ג ("מאמץ קל,
+ * בינוני, רב"). אותו שם נקרא בקול ומשמש שם נגיש לכפתור. ה-PRD גובר על מסמך 03
+ * ("קל / מתאים / מאתגר", בלי מילים).
+ */
 export const EFFORT_LEVELS: ReadonlyArray<{ id: EffortId; bars: 1 | 2 | 3; spokenHe: string }> = [
-  { id: 'EASY', bars: 1, spokenHe: 'רמה אחת: קל' },
-  { id: 'MEDIUM', bars: 2, spokenHe: 'רמה שתיים: מתאים' },
-  { id: 'HARD', bars: 3, spokenHe: 'רמה שלוש: מאתגר' },
+  { id: 'EASY', bars: 1, spokenHe: 'מאמץ קל' },
+  { id: 'MEDIUM', bars: 2, spokenHe: 'מאמץ בינוני' },
+  { id: 'HARD', bars: 3, spokenHe: 'מאמץ רב' },
 ];
 
 /**
@@ -199,7 +201,7 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
         className="max-w-2xl w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-10 shadow-2xl relative overflow-hidden"
       >
         <AnimatePresence mode="wait">
-          {/* שלב 1: הערכת מאמץ — סרגל חזותי ללא מילים */}
+          {/* שלב 1: הערכת מאמץ — סמל חזותי ושם (PRD מודול 16 §ג) */}
           {step === 1 && (
             <motion.div
               key="step1"
@@ -228,13 +230,14 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                     aria-label={level.spokenHe}
                     aria-pressed={effortLevel === level.id}
                     title={level.spokenHe}
-                    className={`flex items-center justify-center p-5 rounded-2xl border-2 transition-all cursor-pointer ${
+                    className={`flex flex-col items-center justify-center gap-2 p-5 rounded-2xl border-2 transition-all cursor-pointer ${
                       effortLevel === level.id
                         ? 'border-indigo-600 bg-indigo-50/60 dark:bg-indigo-950/30 shadow-md scale-105'
                         : 'border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 hover:scale-102'
                     }`}
                   >
                     <EffortBars filled={level.bars} />
+                    <span aria-hidden="true" className="text-sm font-extrabold text-slate-700 dark:text-slate-200">{level.spokenHe}</span>
                   </button>
                 ))}
               </div>

@@ -430,6 +430,11 @@ export function taskGuide(task: SessionTask | null | undefined, sessionNumber: n
     const g = STATION1[task.id];
     return g ? { doneNoteHe: g.steps.some((s) => s.tick.kind === 'fill') ? WROTE_ANSWER_HE : null, ...g } : null;
   }
+  // Every guide below is built from the instruction's text. An exercise that
+  // carries none (a restored or generated task without instructionHe) has no
+  // guide, rather than throwing — the store's builtTrack subscription calls
+  // this on every board change, and a throw there breaks the setState in progress.
+  if (typeof task.instructionHe !== 'string') return null;
   if (task.representationKind === 'read_write') return readWriteGuide(task);
   if (task.representationKind === 'decompose') {
     // "בנו … את המספר 450 מלבני עשרת בלבד" names exactly the blocks: it ticks when the board is so.

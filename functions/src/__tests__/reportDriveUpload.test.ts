@@ -43,7 +43,7 @@ describe('a report PDF goes to Google Drive', () => {
   it('uploads the PDF as one multipart request to the Drive upload endpoint, into the given folder', { timeout: 30_000 }, async () => {
     const { uploadBufferToDrive } = await import('../exportDriveReport');
     const pdf = Buffer.from('%PDF-1.4 test report');
-    const res = await uploadBufferToDrive(pdf, 'דוח פדגוגי - לומד 5 - מפגש 4.pdf', 'application/pdf', 'folder-of-meeting-4');
+    const res = await uploadBufferToDrive(pdf, 'מפגש 4 - תלמיד 05 - 08.10.2026.pdf', 'application/pdf', '1 דוחות');
     expect(res).toMatchObject({ success: true, fileId: 'file-1' });
     const upload = h.calls.find((c) => c.url.startsWith('https://www.googleapis.com/upload/drive/v3/files'));
     expect(upload, 'the Drive upload endpoint is reached').toBeTruthy();
@@ -53,8 +53,11 @@ describe('a report PDF goes to Google Drive', () => {
     expect(headers.Authorization).toBe('Bearer test-access-token');
     expect(headers['Content-Type']).toMatch(/^multipart\/related; boundary=/);
     const body = Buffer.from(upload!.init.body as Buffer).toString('utf8');
-    expect(body).toContain('"name":"דוח פדגוגי - לומד 5 - מפגש 4.pdf"');
-    expect(body).toContain('"parents":["folder-of-meeting-4"]');
+    expect(body).toContain('"name":"מפגש 4 - תלמיד 05 - 08.10.2026.pdf"');
+    // The flat folder "1 דוחות" was not there, so it was created on first write.
+    const create = h.calls.find((c) => c.url.startsWith('https://www.googleapis.com/drive/v3/files?supportsAllDrives') && c.init?.method === 'POST');
+    expect(String(create!.init.body)).toContain('"name":"1 דוחות"');
+    expect(body).toContain('"parents":["folder-1"]');
     expect(body).toContain('Content-Type: application/pdf');
     expect(body).toContain(pdf.toString('base64'));
   });

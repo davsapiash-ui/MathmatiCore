@@ -79,6 +79,24 @@ export interface AnonymousStudent {
   isOnline?: boolean;
   isWaitingAtGate?: boolean;
   recommendedPath?: 'ירוק' | 'צמצום פערים' | 'טרם נקבעה';
+  /** PRD Module 17 §ב: events the server refused 5 times, still kept on the learner's device ("אירועים שנדחו"). */
+  refusedEvents?: number;
+}
+
+/**
+ * The record's refusedEvents, summed over the learner's devices: each device
+ * writes its own count under refusedEvents/{device_id} (PRD Module 1 §א — a
+ * previous device keeps sending its queue — and Module 17 §ב). Anything that
+ * is not a positive whole number counts 0.
+ */
+export function refusedEventsOf(data: Record<string, unknown> | null | undefined): number {
+  const raw = (data as { refusedEvents?: unknown } | null | undefined)?.refusedEvents;
+  const countOf = (v: unknown) => {
+    const n = Number(v);
+    return Number.isInteger(n) && n > 0 ? n : 0;
+  };
+  if (raw && typeof raw === 'object') return Object.values(raw as Record<string, unknown>).reduce<number>((sum, v) => sum + countOf(v), 0);
+  return countOf(raw);
 }
 
 // Fixed 12-slot pilot structure (1 to 12) strictly without layout shifts
@@ -150,6 +168,7 @@ export function describeRadarCell(
   const glyph = getCognitiveGlyph(student.errorCategory);
   if (glyph) parts.push(glyph.title);
   if (student.enhancedSupport) parts.push('תמיכה מוגברת פעילה');
+  if ((student.refusedEvents ?? 0) > 0) parts.push(`אירועים שנדחו: ${student.refusedEvents}`);
 
   parts.push('לחיצה פותחת את פרטי התלמיד');
   return parts.join('. ');
@@ -461,6 +480,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             isOnline,
             isWaitingAtGate,
             recommendedPath,
+            refusedEvents: refusedEventsOf(data),
           };
         }
         return updated;
@@ -963,6 +983,17 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     </div>
 
                   </>
+                )}
+
+                {/* PRD Module 17 §ב: the teacher sees the count of refused
+                    events on the learner card, only when there are any. */}
+                {(student.refusedEvents ?? 0) > 0 && (
+                  <div
+                    data-testid={`refused-events-${student.studentNumber}`}
+                    className="mt-1 text-[10px] font-bold text-slate-600 dark:text-slate-300"
+                  >
+                    אירועים שנדחו: {student.refusedEvents}
+                  </div>
                 )}
 
                 {/* Module 20 on the tile: a row of its own, in the tile's own

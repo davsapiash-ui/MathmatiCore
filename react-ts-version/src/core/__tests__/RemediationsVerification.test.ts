@@ -177,8 +177,7 @@ describe('Remediations Verification Suite (R1 - R5)', () => {
   });
 
   describe('R4: RTDB Sync & Offline Queue Remediations', () => {
-    it('allows offline queue to hold up to 500 items before dropping oldest', () => {
-      // Simulate enqueuing 505 transactions offline
+    it('the offline queue never drops an item past 500 (Module 17 §ב)', () => {
       (firebaseSyncService as any).isOnline = false;
       (firebaseSyncService as any).offlineTelemetryQueue = [];
 
@@ -187,10 +186,9 @@ describe('Remediations Verification Suite (R1 - R5)', () => {
       }
 
       const queue = (firebaseSyncService as any).offlineTelemetryQueue;
-      expect(queue.length).toBe(500);
-      // First 5 were shifted out
-      expect(queue[0].payload.eventIndex).toBe(6);
-      expect(queue[499].payload.eventIndex).toBe(505);
+      expect(queue.length).toBe(505);
+      expect(queue[0].payload.eventIndex).toBe(1);
+      expect(queue[504].payload.eventIndex).toBe(505);
     });
   });
 
