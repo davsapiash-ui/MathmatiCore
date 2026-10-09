@@ -410,8 +410,9 @@ export function computeFirstAttemptScore(
  * לפחות אירוע טלמטריה אחד במפגש" — the one definition of active minutes, for
  * the catch-up rounds (catchUpRounds.ts) as for the reports and the research
  * export. A minute is floor(t / 60000) of the time the event reached the
- * server (the telemetry_logs document's createTime); an event whose arrival is
- * unknown (built in memory, a test) counts by its client_timestamp.
+ * server: its server_received_at stamp (Module 5 §ב), else the telemetry_logs
+ * document's createTime for an event stored before the stamp existed; an event
+ * whose arrival is unknown (built in memory, a test) counts by its client_timestamp.
  */
 const arrivalTimes = new WeakMap<object, number>();
 
@@ -422,9 +423,32 @@ export function noteEventArrival(event: Record<string, any> | null | undefined, 
   }
 }
 
-/** When the event reached the server, else its client_timestamp; null when neither is known. */
+/**
+ * PRD Module 5 §ב: the server stamps every telemetry event with
+ * server_received_at (firestore.rules: equal to request.time). Its time in ms
+ * (a Firestore Timestamp, a Date or a number), else null — an event written
+ * before the stamp existed has none.
+ */
+export function serverReceivedAtMs(event: Record<string, any> | null | undefined): number | null {
+  const v = event && typeof event === "object" ? event.server_received_at : undefined;
+  if (v === undefined || v === null) return null;
+  const ms =
+    typeof v === "number" ? v
+      : typeof v?.toMillis === "function" ? v.toMillis()
+        : v instanceof Date ? v.getTime()
+          : NaN;
+  return typeof ms === "number" && Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * When the event reached the server: its server_received_at stamp, else the
+ * document's write time (createTime, noted by the readers), else its
+ * client_timestamp; null when none is known.
+ */
 export function eventArrivalMs(event: Record<string, any> | null | undefined): number | null {
   if (!event || typeof event !== "object") return null;
+  const stamped = serverReceivedAtMs(event);
+  if (stamped !== null) return stamped;
   const written = arrivalTimes.get(event);
   if (typeof written === "number") return written;
   return typeof event.client_timestamp === "number" && Number.isFinite(event.client_timestamp) ? event.client_timestamp : null;

@@ -21,7 +21,7 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { CATCHUP_COLLECTION, type CatchUpClosedBy, type CatchUpRound } from "./catchUp";
 import { SESSION_HARD_CAP_MS, TEACHER_DISCONNECT_GRACE_MS, TEACHER_CLOSE_MARKER } from "./meeting2Close";
-import { countActiveMinutes, sessionNumberFromId } from "./meetingMetrics";
+import { countActiveMinutes, serverReceivedAtMs, sessionNumberFromId } from "./meetingMetrics";
 import { stampScoreBeforeCatchUp } from "./sessionTrigger";
 
 type Rec = Record<string, unknown> | null | undefined;
@@ -136,7 +136,7 @@ export function classifyCatchUpTransition(before: Rec, after: Rec, atMs: number)
  * Pure. Distinct whole minutes (floor(t / 60000)) among the server write
  * times in [openedAt, closedAt]. The measure: "minutes in which the server
  * received at least one event of this learner in this meeting" (telemetry_logs
- * createTime) — the same definition as the reports and the research export
+ * server_received_at, else createTime) — the same definition as the reports and the research export
  * (meetingMetrics.countActiveMinutes, PRD 14 §ב0). Presence pings are not kept
  * as history, so they cannot be counted.
  */
@@ -229,7 +229,8 @@ async function telemetryWriteTimes(db: admin.firestore.Firestore, studentNumber:
   for (const d of snap.docs) {
     const data = d.data() || {};
     if (sessionNumberFromId(String(data.session_id || "")) !== meeting) continue;
-    const t = d.createTime?.toMillis?.();
+    // server_received_at (PRD Module 5 §ב), else createTime for an event stored before the stamp existed.
+    const t = serverReceivedAtMs(data) ?? d.createTime?.toMillis?.();
     if (typeof t === "number" && Number.isFinite(t)) times.push(t);
   }
   return times;
