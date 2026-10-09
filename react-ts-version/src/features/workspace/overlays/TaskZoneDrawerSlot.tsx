@@ -22,7 +22,9 @@ const INSTRUCTION = '[data-testid="task-instruction"]';
  * the accessibility tree); closing the drawer gives it back exactly as it was.
  *
  * Everything is read from the card from the outside (#tour-task-card and the
- * test id above), so the card itself is not touched. `atTop`: only the folded
+ * test id above), so the card itself is not touched. The work area does not
+ * move while the drawer is open (owner, 9.10.2026): a drawer taller than its
+ * place scrolls inside itself; the card never scrolls. `atTop`: only the folded
  * card's tab is shown, at the zone's top corner.
  */
 export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }: { children: ReactNode; atTop?: boolean; covering?: boolean }) {
@@ -38,17 +40,12 @@ export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }
     const zone = slot?.closest<HTMLElement>('[data-testid="task-zone"]');
     if (!slot || !zone) return;
     let covered: HTMLElement | null = null;
-    // Extra height given to the covered guide block when the drawer is taller
-    // than it (see below); 0 when none.
-    let added = 0;
     const release = () => {
       if (covered) {
         covered.removeAttribute('inert');
         covered.removeAttribute('aria-hidden');
-        covered.style.minHeight = '';
         covered = null;
       }
-      added = 0;
     };
     const measure = () => {
       const zr = zone.getBoundingClientRect();
@@ -74,38 +71,9 @@ export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }
       } else if (!covering) {
         release();
       }
-      // A drawer taller than the guide block it covers (long options, the hint
-      // after an answer): the guide block's place grows toward the drawer's
-      // height, so the work area moves down into the card's free space below
-      // it, never further (capped at that space). Back to its own height on close.
-      const aside = slot.querySelector<HTMLElement>('[data-testid="socratic-card"]');
-      // +2: the aside's own border, outside its scrollHeight.
-      const natural = aside ? aside.scrollHeight + 2 : 0;
-      if (covered && covered === instruction) {
-        const ownHeight = instruction.getBoundingClientRect().height - added;
-        // Never more than the card's free space under its content: the card
-        // itself must not scroll (PRD 7 §א rule 7) and the result row stays in
-        // it (rule 6). Beyond that the drawer scrolls inside (review RB1).
-        // The free space: from the bottom of the last thing in the guide
-        // block's column to the card's inner bottom, plus what was already
-        // added (scrollHeight never drops below clientHeight, so it cannot tell).
-        const column = instruction.parentElement;
-        const last = column?.lastElementChild as HTMLElement | null | undefined;
-        let slack = 0;
-        if (card && last) {
-          const cs = getComputedStyle(card);
-          const innerBottom = card.getBoundingClientRect().bottom - parseFloat(cs.paddingBottom || '0') - parseFloat(cs.borderBottomWidth || '0');
-          const overflow = Math.max(0, card.scrollHeight - card.clientHeight);
-          slack = Math.max(0, Math.floor(innerBottom - last.getBoundingClientRect().bottom) - overflow + added);
-        }
-        const want = Math.min(slack, Math.max(0, natural - (room - added)));
-        if (Math.abs(want - added) > 1) {
-          added = want;
-          instruction.style.minHeight = added > 0 ? `${Math.round(ownHeight + added)}px` : '';
-          window.requestAnimationFrame(measure); // the layout changed: measure again
-          return;
-        }
-      }
+      // Owner, 9.10.2026 (RO1): the work area never moves while the drawer is
+      // open. The drawer stays in the guide block's own place, capped above
+      // the work area; content taller than that scrolls inside the drawer.
       const maxHeight = Math.max(0, room);
       setPlace((prev) => (prev && prev.top === top && prev.maxHeight === maxHeight ? prev : { top, maxHeight }));
     };

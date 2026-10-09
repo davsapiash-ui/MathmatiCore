@@ -130,6 +130,21 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       expect(share).toBeLessThan(0.62);
       expect(board.x + board.width, 'the board is on the visual left').toBeLessThanOrEqual(task.x + 1);
       await check(page, 'workspace-station4', viewport.width, viewport.height);
+      // Owner, 9.10.2026 (RO1): the work area does not move while the drawer
+      // is open — the sheet's boxes stay where they are, opened and after a
+      // wrong choice; the card never scrolls; the result row stays in the card.
+      const sheetBoxes = page.locator('[aria-label^="תרגיל במאונך"] input');
+      const sheetAt = async () => {
+        const all = await sheetBoxes.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+        return all;
+      };
+      const cardOverflow = () =>
+        page.evaluate(() => {
+          const el = document.querySelector('#tour-task-card') as HTMLElement | null;
+          return el ? el.scrollHeight - el.clientHeight : -1;
+        });
+      const sheetBefore = await sheetAt();
+      expect(sheetBefore.length).toBeGreaterThan(0);
 
       await ws(page, 'st.openSocraticCard("hesitation_45s");');
       const card = page.getByTestId('socratic-card');
@@ -153,6 +168,8 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
         const b = await boxes.nth(i).boundingBox();
         expect(b && overlaps(drawer, b), `the drawer covers no box of the sheet (${i})`).toBe(false);
       }
+      expect(await sheetAt(), 'the sheet does not move when the drawer opens').toEqual(sheetBefore);
+      expect(await cardOverflow(), 'the task card does not scroll with the drawer open').toBeLessThanOrEqual(0);
       await check(page, 'workspace-station4-socratic', viewport.width, viewport.height);
 
       // Review RB1: after a wrong choice (the hint and the lock line) the drawer
@@ -172,6 +189,7 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       const lastBox = await boxes.nth(count - 1).boundingBox();
       expect(lastBox, 'the result row is on the screen').not.toBeNull();
       expect(lastBox!.y + lastBox!.height, 'the result row is inside the card').toBeLessThanOrEqual(cardBox.y + cardBox.height + 1);
+      expect(await sheetAt(), 'the sheet does not move after a wrong choice').toEqual(sheetBefore);
       for (let i = 0; i < count; i += 1) {
         const b = await boxes.nth(i).boundingBox();
         expect(b && overlaps(await box(page, '[data-testid="socratic-side-panel"]'), b), `after the wrong choice the drawer covers no box (${i})`).toBe(false);

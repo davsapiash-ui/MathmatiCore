@@ -302,6 +302,10 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
               // Focusable by the page only (the card's return from under the grid), not by Tab.
               tabIndex={-1}
               data-folded={folded ? 'true' : undefined}
+              // Owner, 9.10.2026 (RO1): in the task zone this drawer may scroll
+              // inside itself (the work area never moves); the UX audit allows
+              // this one scroll and no other.
+              data-scroll-allowed={inTaskZone ? 'owner-2026-10-09' : undefined}
               role="region"
               aria-label="כרטיס החניכה"
               aria-busy={socraticPending}
