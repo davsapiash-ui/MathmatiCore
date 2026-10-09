@@ -177,6 +177,33 @@ describe('2 — every station opens with one quiet screen, once (PRD Module 14 �
     expect(sync).toContain('openingScreenSeen: state.openingScreenSeen,');
   });
 
+  it('B1: a copy saved mid-meeting with openingScreenSeen: false (before every station had the screen) does not reopen it', () => {
+    const ws = () => useWorkspaceStore.getState();
+    ws().resetWorkspace();
+    // Meeting 4, task 4, saved by the code before this deploy (initSession wrote false).
+    ws().restoreSession({ sessionNumber: 4, flowStatus: 'task', openingScreenSeen: false, standardTaskIdx: 3 });
+    expect(ws().openingScreenSeen).toBe(true);
+    ws().restoreSession({ sessionNumber: 4, flowStatus: 'task', openingScreenSeen: false, standardTaskIdx: 0, hasInteracted: true });
+    expect(ws().openingScreenSeen).toBe(true);
+    ws().restoreSession({ sessionNumber: 4, flowStatus: 'choice_branch', openingScreenSeen: false });
+    expect(ws().openingScreenSeen).toBe(true);
+    ws().restoreSession({ sessionNumber: 1, flowStatus: 'sessionDone', openingScreenSeen: false });
+    expect(ws().openingScreenSeen).toBe(true);
+    // Nothing done yet: the opening screen is still owed.
+    ws().restoreSession({ sessionNumber: 4, flowStatus: 'task', openingScreenSeen: false, standardTaskIdx: 0, hasInteracted: false });
+    expect(ws().openingScreenSeen).toBe(false);
+  });
+
+  it('S6: "מתחילים" starts task 1\'s clock', () => {
+    const ws = () => useWorkspaceStore.getState();
+    ws().resetWorkspace();
+    ws().initSession(4, false);
+    useWorkspaceStore.setState({ taskStartTime: 1 });
+    const before = Date.now();
+    ws().markOpeningScreenSeen();
+    expect(ws().taskStartTime).toBeGreaterThanOrEqual(before);
+  });
+
   it('the page shows it before the first task of every station, and measures no hesitation on it', () => {
     const page = code('features/workspace/StudentWorkspacePage.tsx');
     expect(page).toContain("if (hasOpeningScreen(sessionNumber) && meeting === sessionNumber && endScreen === 'task' && !openingScreenSeen) {");

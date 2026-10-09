@@ -2492,6 +2492,27 @@ export const MEETING8_SOLVED_SUB_HE = 'פְּתַרְתֶּם נָכוֹן.';
  */
 export const SOCRATIC_LOCKOUT_MS = 15_000;
 
+/**
+ * A saved meeting copy is past its opening screen ("מתחילים" pressed): the flag
+ * says so, or the copy shows progress — an interaction, a later task, a later
+ * phase of the meeting, or a diagnostic answer (review B1, 9.10.2026).
+ */
+export function openingScreenPassed(saved: {
+  openingScreenSeen?: unknown;
+  hasInteracted?: unknown;
+  standardTaskIdx?: unknown;
+  flowStatus?: unknown;
+  qflow?: { taskIdx?: unknown; results?: unknown } | null;
+}): boolean {
+  if (saved.openingScreenSeen !== false) return true;
+  if (saved.hasInteracted === true) return true;
+  if (typeof saved.standardTaskIdx === 'number' && saved.standardTaskIdx > 0) return true;
+  if ((saved.flowStatus ?? 'task') !== 'task') return true;
+  const q = saved.qflow;
+  if (q && ((typeof q.taskIdx === 'number' && q.taskIdx > 0) || (q.results && typeof q.results === 'object' && Object.keys(q.results).length > 0))) return true;
+  return false;
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /**
    * Which meeting a deferred step belongs to. initSession, restoreSession and
@@ -3964,9 +3985,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         flowStatus: saved.flowStatus === 'reflection' && sanitized !== 8 ? 'sessionDone' : (saved.flowStatus ?? 'task'),
         // This meeting's U, E and G survive the reload (E1).
         meetingPersistence: restoredMeetingPersistence(saved.meetingPersistence, sanitized),
-        // A snapshot saved before the opening screen existed is a meeting
-        // already under way: it does not go back to the opening.
-        openingScreenSeen: saved.openingScreenSeen === false ? false : true,
+        // "מתחילים" is saved, so a refresh mid-meeting never brings the opening
+        // screen back (PRD 14 §ב). Copies saved before every station had one
+        // carry openingScreenSeen: false from initSession even though the
+        // learner is well into the meeting: a copy that shows progress is past
+        // the opening screen whatever the flag says (review B1, 9.10.2026).
+        openingScreenSeen: openingScreenPassed(saved),
         counts: saved.counts ?? { ...EMPTY_COUNTS },
         undoCount: saved.undoCount ?? 0,
         hesitationCount: saved.hesitationCount ?? 0,
@@ -5321,9 +5345,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     markOpeningScreenSeen: () => {
       // "מתחילים" moves from the opening screen to task 1: the next-exercise
       // boundary at which a profile the teacher turned on meanwhile is applied
-      // (PRD 19 §ב). The opening screen itself is not an exercise.
+      // (PRD 19 §ב). The opening screen itself is not an exercise: task 1's
+      // clock starts here, so its duration (PROBLEM_COMPLETE.total_duration_ms,
+      // Module 24) does not include the time spent reading the opening.
       applyPendingSupportProfile();
-      set({ openingScreenSeen: true, lastInteractionTime: Date.now() });
+      const now = Date.now();
+      set({ openingScreenSeen: true, lastInteractionTime: now, taskStartTime: now });
     },
     recordPersistenceEvent: (event) => {
       if (!persistenceEventKind(event)) return;
