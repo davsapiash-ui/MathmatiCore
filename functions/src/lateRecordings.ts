@@ -40,7 +40,9 @@
  *    into one JSON file per reset × learner × recording, next to the reset's
  *    backup in Cloud Storage, and the reset's audit entry lists it
  *    (late_recording_files). The quarantined entries are cleared only after
- *    the file was written and linked.
+ *    the file was written and linked. The same run then copies the file to the
+ *    Drive folder "3 גיבויים" and swaps the link for the Drive one, keeping
+ *    the Storage copy (backupDriveCopy.ts, owner decision 9.10.2026).
  */
 import { onValueCreated } from "firebase-functions/v2/database";
 import * as logger from "firebase-functions/logger";
@@ -416,7 +418,11 @@ export function firebaseAssembleDeps(): AssembleDeps {
     },
     link: async (resetId, url) => {
       await admin.firestore().collection("reset_audit_log").doc(resetId)
-        .update({ late_recording_files: admin.firestore.FieldValue.arrayUnion(url) });
+        .update({
+          late_recording_files: admin.firestore.FieldValue.arrayUnion(url),
+          // The daily copy to "3 גיבויים" picks the entry up (backupDriveCopy.ts).
+          late_recording_drive_pending: true,
+        });
     },
     dropPending: async (resetId, moves) => {
       await rtdb.ref(`${LATE_PENDING_ROOT}/${resetId}`).transaction((cur) =>
