@@ -604,7 +604,7 @@ function enhancedSteps(): Step[] {
       meeting: n,
       run: async (cc) => {
         await ws(cc.page, INIT, { meeting: n, isASD: false, idx });
-        await ws(cc.page, 'st.openAdditionHelper();');
+        await ws(cc.page, 'st.openAdditionHelper("learner");');
       },
     });
     steps.push({
@@ -613,38 +613,38 @@ function enhancedSteps(): Step[] {
       note: 'the grid faded; the "לוח חיבור" tab that brings it back',
       run: async (cc) => {
         await ws(cc.page, INIT, { meeting: n, isASD: false, idx });
-        await ws(cc.page, SET, { isAdditionHelperOpen: false, additionHelperShownOnce: true });
+        await ws(cc.page, SET, { isAdditionHelperOpen: false, additionHelperOffered: true });
       },
     });
   }
-  // PRD 10 §א: the coaching card's opening folds the grid; its "לוח חיבור"
-  // tab stands in the grid's place, the bottom-left corner of the workspace.
+  // The grid and the coaching card are never shown together (owner's
+  // decision, 4.10.2026): the one not shown is a tab in its own place.
   steps.push({
     id: 'm4-grid-and-coaching',
     meeting: 4,
-    note: 'the grid was open when the card arrived: the card folded it, and its amber tab is in its place',
+    note: 'the grid was open when the card arrived: the card, and the amber "לוח החיבור" tab beside it',
     run: async (cc) => {
       await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
-      await ws(cc.page, 'st.openAdditionHelper(); st.openSocraticCard("hesitation_45s");');
+      await ws(cc.page, 'st.openAdditionHelper("learner"); st.openSocraticCard("hesitation_45s");');
     },
   });
   steps.push({
     id: 'm4-grid-closed-and-coaching',
     meeting: 4,
-    note: 'the grid was closed earlier: the card, and the amber tab still in the grid\'s place',
+    note: 'the grid was closed earlier: the card, and the amber tab still beside it',
     run: async (cc) => {
       await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
-      await ws(cc.page, SET, { isAdditionHelperOpen: false, additionHelperShownOnce: true });
+      await ws(cc.page, SET, { isAdditionHelperOpen: false, additionHelperOffered: true });
       await ws(cc.page, 'st.openSocraticCard("hesitation_45s");');
     },
   });
   steps.push({
     id: 'm4-coaching-longest-and-grid-tab',
     meeting: 4,
-    note: 'the longest card (question, three options, a wrong answer\'s hint and the lock sentence), and the amber tab',
+    note: 'the longest card (question, three options, a wrong answer\'s hint and the lock sentence) beside the amber tab',
     run: async (cc) => {
       await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
-      await ws(cc.page, 'st.openAdditionHelper(); st.openSocraticCard("hesitation_45s");');
+      await ws(cc.page, 'st.openAdditionHelper("learner"); st.openSocraticCard("hesitation_45s");');
       await clickWrongCardOption(cc);
     },
   });
@@ -654,17 +654,17 @@ function enhancedSteps(): Step[] {
     note: 'the narrowest columns: four of them, the grid open beside the board, and "קבצו 10 ל…" in three',
     run: async (cc) => {
       await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
-      await ws(cc.page, 'st.openAdditionHelper();');
+      await ws(cc.page, 'st.openAdditionHelper("learner");');
       await ws(cc.page, SET, { counts: { units: 13, tens: 10, hundreds: 10, thousands: 1 } });
     },
   });
   steps.push({
-    id: 'm4-grid-back-beside-coaching',
+    id: 'm4-grid-over-folded-coaching',
     meeting: 4,
-    note: 'the amber tab was pressed while the card was open: the grid is back, and the card stays as it is',
+    note: 'the amber tab was pressed while the card was open: the grid is shown, the card is its "כרטיס החניכה" tab',
     run: async (cc) => {
       await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
-      await ws(cc.page, 'st.openAdditionHelper(); st.openSocraticCard("hesitation_45s");');
+      await ws(cc.page, 'st.openAdditionHelper("learner"); st.openSocraticCard("hesitation_45s");');
       await cc.page.getByTestId('addition-grid-tab').click();
     },
   });
@@ -675,7 +675,7 @@ function enhancedSteps(): Step[] {
     note: 'the grid\'s tab beside the board, and the chat open over the bottom-left corner',
     run: async (cc) => {
       await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
-      await ws(cc.page, SET, { isAdditionHelperOpen: false, additionHelperShownOnce: true });
+      await ws(cc.page, SET, { isAdditionHelperOpen: false, additionHelperOffered: true });
       await openChat(cc);
     },
   });
@@ -685,17 +685,17 @@ function enhancedSteps(): Step[] {
     note: 'the card and the amber tab, the chat over them: the card folds into the chat header\'s tab',
     run: async (cc) => {
       await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
-      await ws(cc.page, 'st.openAdditionHelper(); st.openSocraticCard("hesitation_45s");');
+      await ws(cc.page, 'st.openAdditionHelper("learner"); st.openSocraticCard("hesitation_45s");');
       await openChat(cc);
     },
   });
   steps.push({
-    id: 'm4-grid-back-beside-coaching-and-chat',
+    id: 'm4-grid-over-folded-coaching-and-chat',
     meeting: 4,
-    note: 'the grid back beside the card, the chat over them: one "כרטיס החניכה" tab, in the chat header',
+    note: 'the grid over the folded card, the chat over them: one "כרטיס החניכה" tab, in the chat header',
     run: async (cc) => {
       await ws(cc.page, INIT, { meeting: 4, isASD: false, idx: 0 });
-      await ws(cc.page, 'st.openAdditionHelper(); st.openSocraticCard("hesitation_45s");');
+      await ws(cc.page, 'st.openAdditionHelper("learner"); st.openSocraticCard("hesitation_45s");');
       // The chat an earlier step left open covers the amber tab: the tab first, then the chat.
       await closeChat(cc);
       await cc.page.getByTestId('addition-grid-tab').click();

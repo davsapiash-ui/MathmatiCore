@@ -59,11 +59,12 @@ describe('A7-015 — the grid\'s instruction has a read-aloud button, read on th
     expect(speak.mock.calls[0][0]).toBe(GRID_PICK_COL_HE);
   });
 
-  it('a grid that leaves the screen (its X, or the coaching card folding it) stops its own read-aloud', () => {
+  it('a grid hidden behind the coaching card stops its own read-aloud', () => {
     const stopIfCurrent = vi.spyOn(tts, 'stopIfCurrent');
-    const { unmount } = render(<AnimatePresence><AdaptiveAdditionGrid key="g" onClose={() => {}} /></AnimatePresence>);
+    const { rerender } = render(<AnimatePresence><AdaptiveAdditionGrid key="g" onClose={() => {}} /></AnimatePresence>);
     fireEvent.click(screen.getByRole('button', { name: 'הקראה בקול' }));
-    unmount();
+    rerender(<AnimatePresence><AdaptiveAdditionGrid key="g" onClose={() => {}} hidden /></AnimatePresence>);
+    expect(screen.queryByRole('button', { name: 'הקראה בקול' })).toBeNull();
     // the handle speak() returned for this button's read
     expect(stopIfCurrent).toHaveBeenCalledWith(1);
     stopIfCurrent.mockRestore();
@@ -84,7 +85,7 @@ describe('A5-F07 / UX-002 / UX-001 — the grid and its tab take their own place
   });
 
   it('the tab brings the grid back', () => {
-    useWorkspaceStore.setState({ additionHelperShownOnce: true, isAdditionHelperOpen: false } as never);
+    useWorkspaceStore.setState({ additionHelperOffered: true, isAdditionHelperOpen: false } as never);
     render(<AdditionGridTab />);
     const tab = screen.getByRole('button', { name: 'הצגה חוזרת של לוח החיבור' });
     expect(tab.className).not.toMatch(/\bfixed\b/);

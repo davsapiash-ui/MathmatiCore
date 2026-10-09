@@ -19,6 +19,7 @@ import {
   compulsoryNumbers,
   daySeparatorHe,
   describeEvent,
+  gridReturnIds,
   exerciseTitle,
   formatClock,
   formatDate,
@@ -82,11 +83,12 @@ export function meetingExportRows(data: MeetingExport): ExportRow[] {
   const ids = meetingExerciseIds(data.actions, chapters);
   const numbers = compulsoryNumbers(ids);
   const rows = withDaySeparators(withResetSeparators(data.actions, data.resets as MeetingResetMark[]));
+  const gridReturns = gridReturnIds(data.actions);
   return rows.map((r): ExportRow => {
     if (r.kind === 'day') return { kind: 'note', text: daySeparatorHe(r.at), tone: 'day' };
     if (r.kind === 'reset') return { kind: 'note', text: resetSeparatorHe(r.reset), tone: 'reset' };
     const e = r.event;
-    const d = describeEvent(e);
+    const d = describeEvent(e, { gridReturn: gridReturns.has(e.id) });
     const n = numbers.get(e.exerciseId);
     return {
       kind: 'event',

@@ -74,42 +74,31 @@ describe('מסמך 03 §1.3 ב\' — bringing the Module 10 grid back', () => {
 
   it('once the grid has opened, closing it leaves it available to bring back', () => {
     const s = useWorkspaceStore.getState();
-    expect(s.additionHelperShownOnce).toBe(false);
+    expect(s.additionHelperOffered).toBe(false);
     s.openAdditionHelper();
     s.closeAdditionHelper();
-    expect(useWorkspaceStore.getState().additionHelperShownOnce).toBe(true);
+    expect(useWorkspaceStore.getState().additionHelperOffered).toBe(true);
     expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(false);
   });
 
   it('a workspace reset forgets the offer', () => {
     useWorkspaceStore.getState().openAdditionHelper();
     useWorkspaceStore.getState().resetWorkspace();
-    expect(useWorkspaceStore.getState().additionHelperShownOnce).toBe(false);
-  });
-
-  it('the learner cannot open the grid before the 30-second stage has shown it (PRD 10 §א)', () => {
-    useWorkspaceStore.getState().openAdditionHelper('learner');
-    expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(false);
-    useWorkspaceStore.getState().openAdditionHelper();
-    useWorkspaceStore.getState().closeAdditionHelper();
-    useWorkspaceStore.getState().openAdditionHelper('learner');
-    expect(useWorkspaceStore.getState().isAdditionHelperOpen).toBe(true);
-    expect(useWorkspaceStore.getState().additionHelperSource).toBe('learner');
+    expect(useWorkspaceStore.getState().additionHelperOffered).toBe(false);
   });
 
   it('the bring-back tab sits where the grid lives, under the same profile/session gate as the grid, never in the topbar (source pin)', () => {
     const page = readFileSync(resolve(__dirname, '../../features/workspace/StudentWorkspacePage.tsx'), 'utf-8');
-    expect(page).toContain('isAdditionBoardEnabled && additionHelperShownOnce && !isAdditionHelperOpen');
+    expect(page).toContain('isAdditionBoardEnabled && (additionHelperOffered || isAdditionHelperOpen) && !isAdditionGridShown');
     expect(page).toContain('{isAdditionGridTabShown && <AdditionGridTab />}');
     const grid = readFileSync(resolve(__dirname, '../../features/workspace/board/AdaptiveAdditionGrid.tsx'), 'utf-8');
     expect(grid).toContain('GRID_TAB_RETURN_LABEL_HE = `הצגה חוזרת של ${ADDITION_GRID_HE}`');
     // the tab sits in the grid's own slot of the row, never over the tray or the
-    // trash (audit UX-001) — also while the coaching card is open
-    // (Module10_GridCardTabTelemetry.test.tsx)
+    // trash (audit UX-001) — also while the coaching card is open (owner's
+    // decision, 4.10.2026: OwnerDecision_2026_10_04_GridAndCardTabs.test.tsx)
     expect(grid).not.toMatch(/(?<![-\w])fixed(?![-\w])/);
     // מסמך 04 §3א: the topbar holds basic navigation only.
     const topbar = readFileSync(resolve(__dirname, '../../features/workspace/WorkspaceTopbar.tsx'), 'utf-8');
-    expect(topbar).not.toContain('additionHelperShownOnce');
-    expect(topbar).not.toContain('AdditionGridTab');
+    expect(topbar).not.toContain('additionHelperOffered');
   });
 });

@@ -602,32 +602,35 @@ export interface WorkspaceState {
   activeBankPath: 'green_path' | 'remediation_path' | null;
   keyboardState: KeyboardState;
   /**
-   * The Module 10 grid is open. PRD 10 §א: nothing closes it automatically —
-   * only the learner's X — with one exception: the coaching card's opening
-   * folds it (openSocraticCard). An open grid stays open across an exercise
-   * change; it is on the screen only in an addition exercise
-   * (isAdditionGridVisible).
+   * The Module 10 grid is open. Register decision ב: nothing closes it
+   * automatically — only the learner does — so an open grid stays open across
+   * an exercise change (it waits as its tab while the coaching card is
+   * shown, useAdditionGridOverCard.ts).
    *
    * PRD 10, Strict Developer Instructions: "Manage grid visibility via local
-   * React state decoupled from Firestore write streams" — this field and the
-   * two below are never saved with the snapshot, never restored from it, and
-   * a change to them writes nothing to the record.
+   * React state decoupled from Firestore write streams" — this field, the
+   * offer below, the source and closedByLearner are never saved with the
+   * snapshot, never restored from it, and a change to them writes nothing to
+   * the record.
    */
   isAdditionHelperOpen: boolean;
   /**
-   * The grid has been opened at least once this meeting — by the 30-second
-   * stage (PRD 10 §א). Only then does its "לוח חיבור" tab exist, and only then
-   * may the learner bring it back: "הפעם הראשונה נפתחת רק בשלב 30 השניות". A
-   * grid that came due under an open card and was never shown does not count.
-   * Reset when a meeting starts.
+   * The system offered the Module 10 grid at least once this meeting — it
+   * opened, or its 30 seconds came due while the coaching card was open — so
+   * the learner may open it from its tab (register deviation 18, מסמך 03 §1.3
+   * ב'). Reset when a meeting starts; local only (not saved).
    */
-  additionHelperShownOnce: boolean;
-  /**
-   * Who opened the grid that is open now (or was open last): the 30-second
-   * stage or the learner's tab — the ADAPTIVE_GRID_TOGGLED source (Appendix
-   * A §3). Its closing is logged with the same source.
-   */
+  additionHelperOffered: boolean;
+  /** Who opened the grid that is open now (or was open last) — ADAPTIVE_GRID_TOGGLED's source. */
   additionHelperSource: AdditionGridSource | null;
+  /** The grid's last closing was the learner's X (closeAdditionHelper), not a reset or a new meeting. */
+  additionHelperClosedByLearner: boolean;
+  /**
+   * The grid was offered while the coaching card was open and has not been
+   * opened yet this meeting: its tab says "הצגת לוח החיבור", not "הצגה חוזרת".
+   * Not saved: after a reload the tab speaks of a return.
+   */
+  additionHelperOfferedUnopened: boolean;
   helpRequested: boolean;
   /**
    * Module 19 §ב, Pending Adaptation: a support profile the teacher changed
@@ -671,14 +674,14 @@ export interface WorkspaceState {
   toggleHelpRequested: () => void;
   /** Owner, 1.10.2026: a request for help from the chat, recorded with its exercise (research data). */
   logChatHelpRequest: (kind: 'call' | 'ready_message') => void;
+  /** 'learner' when the learner brings the grid back (מסמך 03 §1.3 ב'); default is the Module 10 hesitation stage. */
+  openAdditionHelper: (source?: 'hesitation_30s' | 'learner') => void;
   /**
-   * Opens the grid. Default: the Module 10 30-second stage. 'learner': the
-   * learner's "לוח חיבור" tab, which brings back only a grid the 30-second
-   * stage has already shown this meeting (PRD 10 §א). No telemetry here: the
-   * grid's appearing on the screen is logged (the subscription beside
-   * isAdditionGridVisible, at the end of this file).
+   * The 30-second stage came due while the coaching card was open: the grid is
+   * offered — its tab appears beside the card — and not opened. No event: the
+   * grid did not appear (ADAPTIVE_GRID_TOGGLED is written when it opens).
    */
-  openAdditionHelper: (source?: AdditionGridSource) => void;
+  offerAdditionHelper: () => void;
   /** Module 9: a digit key pressed on a locked result cell. Logged, never acted on. */
   recordBlockedKeystroke: (place: Place) => void;
   closeAdditionHelper: () => void;
@@ -1357,10 +1360,9 @@ function resetTaskInteraction(_isASD = false) {
     // record's helpRequested (PRD 29 §ב, "מיתוג דו-כיווני"; מסמך 03 §3.1,
     // "ניתנת לביטול בכל עת"), so a call made in one exercise can be taken
     // back in the next. Clearing it here lost the call at every exercise.
-    // Nor isAdditionHelperOpen / additionHelperShownOnce: the grid and its
-    // tab belong to the meeting (PRD 10 §א: only the learner's X or the
-    // coaching card closes the grid) — initSession clears them when a meeting
-    // starts.
+    // Nor isAdditionHelperOpen / additionHelperOffered: the grid and its
+    // return tab belong to the meeting (register 18, decision ב) — initSession
+    // clears them when a meeting starts.
     helpRequestCount: 0,
     taskStartTime: Date.now(),
     keyboardState: 'UNLOCKED' as KeyboardState,
@@ -3705,8 +3707,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     errorNonce: 0,
     focusedPlace: null,
     isAdditionHelperOpen: false,
-    additionHelperShownOnce: false,
+    additionHelperOffered: false,
+    additionHelperOfferedUnopened: false,
     additionHelperSource: null,
+    additionHelperClosedByLearner: false,
 
     hasInteracted: false,
     placeCuesShown: false,
@@ -3900,11 +3904,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // …and meeting 8's reflection board on its first stage, with nothing chosen.
         reflectionDraft: freshReflectionDraft(),
         ...resetTaskInteraction(isASD),
-        // The addition grid and its tab belong to the meeting (PRD 10 §א): a
-        // new meeting starts without them.
+        // The addition grid and its return tab belong to the meeting (register
+        // 18): a new meeting starts without them.
         isAdditionHelperOpen: false,
-        additionHelperShownOnce: false,
+        additionHelperOffered: false,
+        additionHelperOfferedUnopened: false,
         additionHelperSource: null,
+        additionHelperClosedByLearner: false,
         // Module 17: from here on the store holds this learner's meeting.
         workspaceInitializedFor: { learner: currentStudentUid(), meeting: sanitized, restoredSavedAt: null },
       });
@@ -4159,7 +4165,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // meeting) starts without it.
         ...(get().workspaceInitializedFor?.meeting === sanitized && get().workspaceInitializedFor?.learner === learnerUid
           ? {}
-          : { isAdditionHelperOpen: false, additionHelperShownOnce: false, additionHelperSource: null }),
+          : { isAdditionHelperOpen: false, additionHelperOffered: false, additionHelperOfferedUnopened: false, additionHelperSource: null, additionHelperClosedByLearner: false }),
         // Module 17: from here on the store holds this learner's meeting, as saved.
         // A copy of a fresh start made without the record is still a fresh
         // start: the record's first snapshot settles it by the fresh-start rule.
@@ -5319,16 +5325,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     unlockKeyboard: () => set({ keyboardState: 'UNLOCKED' }),
     lockKeyboard: () => set({ keyboardState: 'LOCKED' }),
     openAdditionHelper: (source = 'hesitation_30s') => {
+      if (get().isAdditionHelperOpen) return;
+      // No telemetry here: what the learner sees is logged once, where the
+      // card's fold is known too (useAdditionGridOverCard.ts).
+      set({ isAdditionHelperOpen: true, additionHelperOffered: true, additionHelperOfferedUnopened: false, additionHelperSource: source, additionHelperClosedByLearner: false });
+    },
+    offerAdditionHelper: () => {
       const s = get();
-      if (s.isAdditionHelperOpen) return;
-      // PRD 10 §א: "הלומד אינו יכול לפתוח את הלוח לפני שהמערכת הציעה אותו" —
-      // the tab brings back only a grid the 30-second stage has shown.
-      if (source === 'learner' && !s.additionHelperShownOnce) return;
-      set({ isAdditionHelperOpen: true, additionHelperShownOnce: true, additionHelperSource: source });
+      if (s.isAdditionHelperOpen || s.additionHelperOffered) return;
+      set({ additionHelperOffered: true, additionHelperOfferedUnopened: true });
     },
     closeAdditionHelper: () => {
       if (!get().isAdditionHelperOpen) return;
-      set({ isAdditionHelperOpen: false });
+      set({ isAdditionHelperOpen: false, additionHelperClosedByLearner: true });
     },
     recordBlockedKeystroke: (place) => {
       const s = get();
@@ -5396,10 +5405,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         keyboardState: st.keyboardState === 'LOCKED' ? ('SOCRATIC_ONLY' as KeyboardState) : st.keyboardState,
         helpState: 'socratic',
         currentState: 'SOCRATIC_ACTIVE',
-        // PRD 10 §א / Module 12 §ב: "כשכרטיס החניכה נפתח, הלוח מתקפל אוטומטית"
-        // — the one thing besides the learner's X that closes the grid. Its
-        // "לוח חיבור" tab takes its place (StudentWorkspacePage).
-        isAdditionHelperOpen: false,
         frictionTriggerSource: null,
         socraticTriggerReason: reason,
         socraticCardPlace: cardPlace,
@@ -5706,8 +5711,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         errorNonce: 0,
         focusedPlace: null,
         isAdditionHelperOpen: false,
-        additionHelperShownOnce: false,
-        additionHelperSource: null,
+    additionHelperOffered: false,
+    additionHelperOfferedUnopened: false,
+    additionHelperSource: null,
+    additionHelperClosedByLearner: false,
         hasInteracted: false,
         placeCuesShown: false,
         socraticCardKinds: { taskId: null, kinds: [] },
@@ -5922,13 +5929,12 @@ useWorkspaceStore.subscribe((s, prev) => {
 });
 
 /**
- * PRD Module 10: the addition grid is on the learner's screen. It exists only
- * for an enhanced_cognitive_support learner (the profile applied to the
- * exercise on screen, Module 19 §ב), only in meetings 3–7, and only in an
- * addition exercise (owner, 1.10.2026, D7) on the exercise screen — and there
- * only while it is open. StudentWorkspacePage mounts it by this rule, and its
- * ADAPTIVE_GRID_TOGGLED events are logged by it, so the log and the screen
- * cannot disagree.
+ * PRD Module 10: the addition grid is open on the exercise screen of a
+ * learner who receives it — enhanced_cognitive_support (the profile applied
+ * to the exercise on screen, Module 19 §ב), meetings 3–7, an addition
+ * exercise (owner, 1.10.2026, D7). StudentWorkspacePage mounts it by this
+ * rule; whether the coaching card hides it is decided beside the card's fold
+ * (useAdditionGridOverCard.ts), which logs what the learner sees.
  */
 export function isAdditionGridVisible(s: WorkspaceState): boolean {
   return (
@@ -5941,26 +5947,11 @@ export function isAdditionGridVisible(s: WorkspaceState): boolean {
   );
 }
 
-/*
- * PRD Module 10 §ב: "כל פתיחה וסגירה של הלוח נרשמת בטלמטריה כאירוע
- * ADAPTIVE_GRID_TOGGLED", with the action and the source of the opening
- * (Appendix A §3: 'hesitation_30s' | 'learner'). Logged here, once per change
- * of what the learner sees, whatever caused it: the 30-second stage, the
- * learner's tab, the learner's X, the coaching card folding the grid, an
- * exercise that is not an addition taking the screen (and the next addition
- * exercise bringing the open grid back), a new meeting, a reset. A closing
- * carries the source of the opening it ends, and the exercise it was on.
- */
-useWorkspaceStore.subscribe((s, prev) => {
-  const was = isAdditionGridVisible(prev);
-  const now = isAdditionGridVisible(s);
-  if (was === now || !currentStudentUid()) return;
-  if (now) {
-    emitScaffoldEvent(s, 'ADAPTIVE_GRID_TOGGLED', { action: 'opened', source: s.additionHelperSource ?? 'hesitation_30s' });
-  } else {
-    emitScaffoldEvent(prev, 'ADAPTIVE_GRID_TOGGLED', { action: 'closed', source: prev.additionHelperSource ?? 'hesitation_30s' });
-  }
-});
+/** One ADAPTIVE_GRID_TOGGLED (Appendix A §3), on the exercise of `s`. */
+export function emitAdditionGridToggled(s: WorkspaceState, action: 'opened' | 'closed', source: AdditionGridSource): void {
+  if (!currentStudentUid()) return;
+  emitScaffoldEvent(s, 'ADAPTIVE_GRID_TOGGLED', { action, source });
+}
 
 /* Re-exports used by components */
 export { getCurrentQTask, getEffectiveChoices, getEffectiveNumber, getExpectedBlocks, isSubtaskActive };

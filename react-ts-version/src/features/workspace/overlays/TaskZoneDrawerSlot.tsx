@@ -24,14 +24,19 @@ const INSTRUCTION = '[data-testid="task-instruction"]';
  * Everything is read from the card from the outside (#tour-task-card and the
  * test id above), so the card itself is not touched. The work area does not
  * move while the drawer is open (owner, 9.10.2026): a drawer taller than its
- * place scrolls inside itself; the card never scrolls.
+ * place scrolls inside itself; the card never scrolls. `atTop`: only the folded
+ * card's tab is shown, at the zone's top corner.
  */
-export function TaskZoneDrawerSlot({ children, covering = false }: { children: ReactNode; covering?: boolean }) {
+export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }: { children: ReactNode; atTop?: boolean; covering?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<{ top: number; maxHeight: number } | null>(null);
 
   useLayoutEffect(() => {
     const slot = ref.current;
+    if (atTop) {
+      setPlace({ top: 8, maxHeight: 9999 });
+      return;
+    }
     const zone = slot?.closest<HTMLElement>('[data-testid="task-zone"]');
     if (!slot || !zone) return;
     let covered: HTMLElement | null = null;
@@ -89,7 +94,7 @@ export function TaskZoneDrawerSlot({ children, covering = false }: { children: R
       window.removeEventListener('resize', measure);
       release();
     };
-  }, [covering]);
+  }, [atTop, covering]);
 
   return (
     <div

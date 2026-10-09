@@ -55,6 +55,7 @@ import {
   chapterForChip,
   compulsoryNumbers,
   describeEvent,
+  gridReturnIds,
   latestMeetingWithData,
   meetingExerciseIds,
   parseRecordingEvents,
@@ -102,11 +103,34 @@ describe('the service', () => {
     expect(compulsoryNumbers(['s4_g_reinforce_1', 's4_g_t1']).get('s4_g_reinforce_1')).toBeUndefined();
   });
 
+  it('PRD 10 §ב: a system opening right after a system close is the grid coming back, not a new 30-second opening', () => {
+    const g = (i: number, action: string, source: string) => ev(i, { eventType: 'ADAPTIVE_GRID_TOGGLED', columnIndex: undefined, details: { action, source } });
+    const events = [
+      g(1, 'opened', 'hesitation_30s'), // 30 seconds
+      g(2, 'closed', 'hesitation_30s'), // the card folds it
+      g(3, 'opened', 'hesitation_30s'), // back when the card closes
+      g(4, 'closed', 'learner'), //        the X
+      g(5, 'opened', 'hesitation_30s'), // a new 30-second opening
+      g(6, 'closed', 'hesitation_30s'),
+      ev(7, { eventType: 'SESSION_START', exerciseId: 'ex_4_01', details: { session_number: 4 } }), // a reload
+      g(8, 'opened', 'hesitation_30s'),
+    ];
+    const returns = gridReturnIds([...events].reverse());
+    expect([...returns]).toEqual(['e3']);
+    const detail = (e: JourneyEvent) => describeEvent(e, { gridReturn: returns.has(e.id) }).detail;
+    expect(detail(events[0])).toBe('נפתח אחרי 30 שניות של היסוס');
+    expect(detail(events[2])).toBe('הלוח חזר למסך (אחרי כרטיס החניכה או תרגיל שאינו חיבור)');
+    expect(detail(events[4])).toBe('נפתח אחרי 30 שניות של היסוס');
+    expect(detail(events[7])).toBe('נפתח אחרי 30 שניות של היסוס');
+  });
+
   it('learner_view-3 / reports-5: grid open and close, effort in Hebrew, a toolbox block is "added"', () => {
     const grid = (details: Record<string, unknown>) => describeEvent(ev(1, { eventType: 'ADAPTIVE_GRID_TOGGLED', details })).detail;
     expect(grid({ action: 'opened', source: 'hesitation_30s' })).toBe('נפתח אחרי 30 שניות של היסוס');
     expect(grid({ action: 'opened', source: 'learner' })).toBe('הלומד החזיר את הלוח');
     expect(grid({ action: 'closed', source: 'learner' })).toBe('הלומד סגר את הלוח');
+    // PRD 10 §ב: the grid hidden without the learner closing it (the card's fold, or a non-addition exercise)
+    expect(grid({ action: 'closed', source: 'hesitation_30s' })).toBe('הלוח הוסתר בלי שהלומד סגר אותו (כרטיס החניכה או תרגיל שאינו חיבור)');
     const reflection = describeEvent(ev(1, { eventType: 'REFLECTION_SUBMITTED', details: { reflection_step: 3, effort_score: 'HIGH', persistence_index: 80 } })).detail;
     expect(reflection).toBe('שלב 3 · מאמץ רב · תיקון עצמי 80%');
     expect(reflection).not.toMatch(/[A-Z]/);

@@ -17,7 +17,8 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { MathText } from '../tasks/MathText';
 import { joinSpokenSentences } from '../tasks/spokenSentences';
 import { useStudentChatOpen } from '@/application/useStudentChatOpen';
-import { CARD_TAB_HE } from './StudentChatOverlay';
+import { coachingCardKey, showCoachingCard, useIsAdditionGridOverCard } from '@/application/useAdditionGridOverCard';
+import { CARD_TAB_HE, CARD_TAB_LABEL_HE } from './StudentChatOverlay';
 import { TaskZoneDrawerSlot } from './TaskZoneDrawerSlot';
 
 /** The card's silent lock (PRD Module 12 §ב), said by the hint box's read-aloud button too. */
@@ -118,11 +119,16 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
   // so nothing else on the screen moves. Only its read-aloud stops: the speech
   // buttons unmount while folded, and each stops its own read as it goes.
   const chatOpen = useStudentChatOpen((s) => s.open);
-  // The addition grid never folds the card: PRD 10 §א folds the grid when the
-  // card opens, and names no fold the other way. A learner who brings the
-  // grid back from its tab while the card is open sees both — the card here,
-  // in the task zone, and the grid at the representations zone's far edge.
-  const folded = helpState === 'socratic' && chatOpen;
+  // Owner's decision, 4.10.2026: the same fold for the addition grid (enhanced
+  // profile). The grid and the card are never shown together; the one that is
+  // not shown is a tab in its own place (useAdditionGridOverCard.ts). While
+  // the card is shown, the grid's amber "לוח החיבור" tab is beside it, in the
+  // grid's slot. Pressing it shows the grid and folds the card — here the
+  // column narrows to the card's "כרטיס החניכה" tab, to make room for the
+  // grid. Pressing that tab, or closing the grid (X), brings the card back as
+  // it was. Not a help event, no telemetry.
+  const gridOverCard = useIsAdditionGridOverCard();
+  const folded = helpState === 'socratic' && (chatOpen || gridOverCard);
 
   // מסמך העיצוב §1.2: כל חלונית נסגרת ב-Escape, דרך ההוק המשותף — אחרת
   // מסך אחד מתנהג אחרת מכל השאר. הכרטיס הזה נשאר עד כה בלי Escape בכלל:
@@ -131,6 +137,20 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
   // לנווט אל הלוח ואל כפתור הביטול בזמן שהוא פתוח (מודול 12 §ב).
   // Folded, Escape belongs to the chat: it closes the chat, and the card comes back.
   const cardRef = useDismissableOverlay<HTMLElement>(helpState === 'socratic' && !folded, closeHelp, { trapFocus: false, autoFocus: false });
+
+  // The card comes back from under the grid (its tab, the chat's tab, or the
+  // grid's X): the keyboard's focus comes to the card, instead of staying on
+  // a control that is gone. Only for the same card: a new card that arrives
+  // unfolded never takes the focus from the learner's typing.
+  const cardKey = useWorkspaceStore(coachingCardKey);
+  const wasOverRef = useRef<string | null>(null);
+  useEffect(() => {
+    const wasOverKey = wasOverRef.current;
+    wasOverRef.current = gridOverCard ? cardKey : null;
+    if (!gridOverCard && !folded && wasOverKey !== null && wasOverKey === cardKey) {
+      cardRef.current?.focus({ preventScroll: true });
+    }
+  }, [gridOverCard, folded, cardKey, cardRef]);
 
   const aiSocraticHint = useWorkspaceStore((s) => s.aiSocraticHint);
   // Until the engine answers (at most 8 seconds) the card shows an hourglass,
@@ -245,11 +265,26 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
           key="socratic-side-panel"
           {...drawerMotion}
           className={inTaskZone
-            ? 'socratic-side-panel w-full min-h-0 flex flex-col'
-            : `socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden ${BESIDE_CARD_DRAWER_WIDTH}`}
+            ? `socratic-side-panel w-full min-h-0 flex flex-col ${gridOverCard ? 'items-end' : ''}`
+            : `socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden ${gridOverCard ? 'w-16' : BESIDE_CARD_DRAWER_WIDTH}`}
           dir="rtl"
           data-testid="socratic-side-panel"
         >
+            {/* The card folded for the addition grid: its tab, in the card's
+                own column (under the chat the tab is in the chat's header). */}
+            {gridOverCard && !chatOpen && (
+              <button
+                type="button"
+                onClick={showCoachingCard}
+                data-testid="socratic-card-tab"
+                aria-label={CARD_TAB_LABEL_HE}
+                title={CARD_TAB_LABEL_HE}
+                className="pointer-events-auto shrink-0 w-16 min-h-[72px] px-1 py-2 rounded-2xl text-sm font-bold leading-tight flex flex-col items-center justify-center gap-1 border-2 border-indigo-200 dark:border-indigo-800/80 bg-ws-surface text-ws-ink hover:bg-ws-accentSoft/40 active:scale-95 transition-all cursor-pointer shadow-sm"
+              >
+                <span aria-hidden="true">💡</span>
+                <span className="text-center">{CARD_TAB_HE}</span>
+              </button>
+            )}
             <aside
               ref={cardRef}
               /* Fixed inner width, so the text does not reflow while the panel
@@ -260,11 +295,11 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
                  overflow-y-auto stays only as a last resort for a still
                  shorter screen. */
               className={`${inTaskZone ? 'w-full min-h-0 pointer-events-auto' : `h-full min-h-0 ${BESIDE_CARD_DRAWER_WIDTH}`} flex-col bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 ${inTaskZone ? 'p-2' : 'p-[clamp(0.625rem,1.8vh,1.25rem)]'} overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
-                folded ? 'flex invisible pointer-events-none' : 'flex pointer-events-auto'
+                gridOverCard ? 'hidden' : folded ? 'flex invisible pointer-events-none' : 'flex pointer-events-auto'
               }`}
               // Folded: hidden, unreachable by Tab and screen readers, still mounted.
               inert={folded || undefined}
-              // Focusable by script only, not by Tab.
+              // Focusable by the page only (the card's return from under the grid), not by Tab.
               tabIndex={-1}
               data-folded={folded ? 'true' : undefined}
               // Owner, 9.10.2026 (RO1): in the task zone this drawer may scroll
@@ -335,7 +370,9 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
 
   if (inTaskZone) {
     return (
-      <TaskZoneDrawerSlot covering={helpState === 'socratic' && !folded}>
+      // Folded for the addition grid, only its tab is left: at the zone's top
+      // corner, beside the station tag, over nothing the learner reads.
+      <TaskZoneDrawerSlot atTop={gridOverCard} covering={helpState === 'socratic' && !gridOverCard && !folded}>
         <AnimatePresence initial={false}>{drawer}</AnimatePresence>
       </TaskZoneDrawerSlot>
     );

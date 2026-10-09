@@ -1,16 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { GRID_FADE_IN_SECONDS } from '@/core/hesitationStages';
 import { X, Sparkles, Grid3x3 } from 'lucide-react';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { showAdditionGrid } from '@/application/useAdditionGridOverCard';
 
 /** The grid's one name on the child's screen (register decision ט: one name per component). */
 export const ADDITION_GRID_HE = 'לוח החיבור';
 
-/** The grid's tab, to a screen reader and on hover: the grid, shown before, comes back (PRD 10 §א). */
+/** The grid's tab, to a screen reader and on hover: a grid that was on the screen comes back… */
 export const GRID_TAB_RETURN_LABEL_HE = `הצגה חוזרת של ${ADDITION_GRID_HE}`;
 export const GRID_TAB_RETURN_TITLE_HE = `החזרת ${ADDITION_GRID_HE} למסך`;
+/** …and a grid that was offered beside the coaching card, and never shown yet, is shown. */
+export const GRID_TAB_FIRST_LABEL_HE = `הצגת ${ADDITION_GRID_HE}`;
 
 /** The grid's instruction lines: before a row is chosen, and before a column is. */
 export const GRID_PICK_ROW_HE = 'לחצו על מספר שורה כדי להתחיל.';
@@ -20,7 +23,7 @@ export const GRID_PICK_COL_HE = 'עכשיו בחרו מספר עמודה כדי 
  * Where the grid lives: PRD 10 §א, "הפינה השמאלית התחתונה של מרחב העבודה" —
  * a slot of its own at the left end of the representations zone's row, at
  * its bottom (StudentWorkspacePage). The board eases aside to make room, so
- * the grid covers nothing. Its "לוח חיבור" tab takes the same place.
+ * the grid covers nothing. Its "לוח החיבור" tab takes the same place.
  *
  * PRD Module 10 §א–ב: the grid is support during the learner's own work, and
  * that work goes on while it is open — the timer resets on "גרירת לבנים,
@@ -35,6 +38,14 @@ interface AdaptiveAdditionGridProps {
   onSelection?: (sum: number) => void;
   onClose?: () => void;
   className?: string;
+  /** The coaching card is the one shown: the grid waits as its tab, still
+   *  mounted, so its chosen row and column — and its finished fade-in — are kept. */
+  hidden?: boolean;
+  /** The learner chose the grid over the open coaching card (the amber tab):
+   *  the keyboard's focus comes to the grid, instead of staying on a tab that
+   *  is gone. Only then — a grid that opens by itself never takes the focus
+   *  from the learner's typing. */
+  overCard?: boolean;
 }
 
 /**
@@ -48,7 +59,11 @@ interface AdaptiveAdditionGridProps {
  * it automatically. The exit animation runs under the page's AnimatePresence,
  * so this component must be mounted inside one.
  */
-export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: AdaptiveAdditionGridProps) {
+export function AdaptiveAdditionGrid({ onSelection, onClose, className = '', hidden = false, overCard = false }: AdaptiveAdditionGridProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (overCard) rootRef.current?.focus({ preventScroll: true });
+  }, [overCard]);
   const [activeRow, setActiveRow] = useState<number | null>(null);
   const [activeCol, setActiveCol] = useState<number | null>(null);
 
@@ -103,6 +118,7 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: A
     // aside, while the grid itself fades in over two seconds.
     <motion.div
       key="adaptive-grid"
+      ref={rootRef}
       tabIndex={-1}
       initial={{ opacity: 0, maxWidth: 0 }}
       animate={{ opacity: 1, maxWidth: 400 }}
@@ -110,7 +126,8 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: A
       transition={{ duration: GRID_FADE_IN_SECONDS, ease: 'easeInOut', maxWidth: { duration: 0.25, ease: 'easeOut' } }}
       onAnimationComplete={() => setVisible(true)}
       dir="rtl"
-      className={`${visible ? 'pointer-events-auto' : 'pointer-events-none'} shrink-0 self-end max-h-full min-h-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent rounded-3xl ${GRID_SLOT_WIDTH} ${className}`}
+      data-hidden={hidden ? 'true' : undefined}
+      className={`${hidden ? 'hidden ' : ''}${visible ? 'pointer-events-auto' : 'pointer-events-none'} shrink-0 self-end max-h-full min-h-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent rounded-3xl ${GRID_SLOT_WIDTH} ${className}`}
       role="dialog"
       aria-label={ADDITION_GRID_HE}
       data-testid="adaptive-addition-grid"
@@ -142,7 +159,10 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: A
           </div>
         ) : (
           <div className="mb-2 min-h-11 flex items-center gap-2" data-testid="addition-grid-instruction">
-            <UdlSpeechButton text={instruction} className="shrink-0" />
+            {/* Not rendered while the grid is hidden: unmounting the button
+                stops its own read-aloud, so nothing is read from a grid the
+                learner cannot see. */}
+            {!hidden && <UdlSpeechButton text={instruction} className="shrink-0" />}
             <p className="text-sm leading-snug text-slate-600 dark:text-slate-300 font-medium">{instruction}</p>
           </div>
         )}
@@ -214,26 +234,31 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '' }: A
 }
 
 /**
- * PRD 10 §א, "החזרה יזומה של הלוח על ידי הלומד": once the grid has been
- * opened in the meeting at the 30-second stage, and the learner closed it or
- * the coaching card folded it, this tab stands where the grid itself appears —
- * the bottom-left corner of the workspace, in the grid's own slot beside the
- * board (StudentWorkspacePage) — never in the top bar, and never over the tray
- * or the trash (audit UX-001: pinned to the screen's corner, it sat on the
- * trash). A press brings the grid back; the coaching card, if open, stays as
- * it is.
+ * Register deviation 18 (מסמך 03 §1.3 ב' / 04 §1): a learner may bring back
+ * the grid after closing it. The tab sits where the grid itself appears — in
+ * the grid's slot of the row, beside the board at the bottom-left corner of
+ * the workspace (PRD 10 §א) — never in the topbar (מסמך 04
+ * §3א: "כפתורי ניווט בסיסיים ושקטים") and never over the tray or the trash
+ * (audit UX-001: pinned to the screen's corner, it sat on the trash).
+ *
+ * The same tab, in the same place, while the coaching card is open (owner's
+ * decision, 4.10.2026): the grid and the card are never shown together, and
+ * the one that is not shown is a tab in its own place. Pressing the tab then
+ * shows the grid and folds the card into its "כרטיס החניכה" tab
+ * (useAdditionGridOverCard.ts).
  */
 export function AdditionGridTab() {
-  const openAdditionHelper = useWorkspaceStore((s) => s.openAdditionHelper);
+  // Offered at 30 seconds beside the open card and never shown yet: nothing "returns".
+  const neverShown = useWorkspaceStore((s) => s.additionHelperOfferedUnopened);
   return (
     <div className="shrink-0 self-end w-16" data-testid="addition-grid-tab-slot">
       <button
         type="button"
-        onClick={() => openAdditionHelper('learner')}
+        onClick={showAdditionGrid}
         className="w-16 min-h-[72px] px-1 py-2 rounded-2xl text-sm font-bold leading-tight transition-all cursor-pointer flex flex-col items-center justify-center gap-1 border shadow-md active:scale-95 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-700/60 dark:text-amber-200"
         data-testid="addition-grid-tab"
-        aria-label={GRID_TAB_RETURN_LABEL_HE}
-        title={GRID_TAB_RETURN_TITLE_HE}
+        aria-label={neverShown ? GRID_TAB_FIRST_LABEL_HE : GRID_TAB_RETURN_LABEL_HE}
+        title={neverShown ? GRID_TAB_FIRST_LABEL_HE : GRID_TAB_RETURN_TITLE_HE}
       >
         <Grid3x3 className="w-5 h-5" aria-hidden="true" />
         <span className="text-center">{ADDITION_GRID_HE}</span>

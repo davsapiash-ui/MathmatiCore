@@ -537,8 +537,45 @@ function blockName(value: unknown): string {
 /** PRD Module 16 §ג: "מאמץ קל, בינוני, רב". The stored values stay LOW / MEDIUM / HIGH. */
 export const EFFORT_HE: Readonly<Record<string, string>> = { LOW: 'קל', MEDIUM: 'בינוני', HIGH: 'רב' };
 
-/** Plain-Hebrew description of one telemetry event, from its own details only. */
-export function describeEvent(e: JourneyEvent): EventDescription {
+/** The grid's descriptions (PRD 10 §ב; useAdditionGridOverCard.ts writes the events). */
+export const GRID_OPENED_30S_HE = 'נפתח אחרי 30 שניות של היסוס';
+export const GRID_RETURNED_HE = 'הלוח חזר למסך (אחרי כרטיס החניכה או תרגיל שאינו חיבור)';
+export const GRID_REOPENED_BY_LEARNER_HE = 'הלומד החזיר את הלוח';
+export const GRID_CLOSED_BY_LEARNER_HE = 'הלומד סגר את הלוח';
+export const GRID_HIDDEN_HE = 'הלוח הוסתר בלי שהלומד סגר אותו (כרטיס החניכה או תרגיל שאינו חיבור)';
+
+/**
+ * The ADAPTIVE_GRID_TOGGLED "opened" events that are the grid coming back,
+ * not a new 30-second opening. The client writes a close with source
+ * 'learner' only for the learner's X; a close with 'hesitation_30s' is the
+ * grid, still open, leaving the screen (folded under the coaching card, or an
+ * exercise that is not an addition). A system "opened" right after such a
+ * close is its return. A SESSION_START (a load or reload — the grid is local
+ * state) ends that. The same rule as functions/src/meetingMetrics.ts
+ * gridOpenings, so the timeline and the reports count alike.
+ */
+export function gridReturnIds(events: readonly JourneyEvent[]): Set<string> {
+  const ids = new Set<string>();
+  let hiddenBySystem = false;
+  for (const e of [...events].sort(compareJourneyEvents)) {
+    if (e.eventType === 'SESSION_START') { hiddenBySystem = false; continue; }
+    if (e.eventType !== 'ADAPTIVE_GRID_TOGGLED') continue;
+    const d = e.details || {};
+    if (d.action === 'closed') hiddenBySystem = d.source !== 'learner';
+    else if (d.action === 'opened') {
+      if (d.source !== 'learner' && hiddenBySystem) ids.add(e.id);
+      hiddenBySystem = false;
+    }
+  }
+  return ids;
+}
+
+/**
+ * Plain-Hebrew description of one telemetry event, from its own details —
+ * and, for the addition grid, whether an opening is a return (gridReturnIds
+ * of the meeting's events, which only the whole sequence can tell).
+ */
+export function describeEvent(e: JourneyEvent, context: { gridReturn?: boolean } = {}): EventDescription {
   const d = e.details || {};
   const col = typeof e.columnIndex === 'number' ? COLUMN_NAMES_HE[e.columnIndex] : undefined;
   let label = EVENT_LABELS_HE[e.eventType] ?? String(e.eventType);
@@ -568,11 +605,15 @@ export function describeEvent(e: JourneyEvent): EventDescription {
       detail = d.path_type === 'challenge' ? 'נתיב אתגר' : d.path_type === 'consolidation' ? 'נתיב ביסוס' : 'תרגיל חובה';
       break;
     case 'ADAPTIVE_GRID_TOGGLED':
-      // Register deviation 19: opened by the 30-second stage or brought back by the learner; closed by the learner.
+      // PRD 10 §ב. A close by the learner's X, or the grid hidden without
+      // the learner closing it — the coaching card's fold and a non-addition
+      // exercise share one source in Appendix A's fields, so they share one
+      // wording. An opening by the 30-second stage, the grid's return, or the
+      // learner's tab.
       detail = d.action === 'closed'
-        ? 'הלומד סגר את הלוח'
+        ? (d.source === 'learner' ? GRID_CLOSED_BY_LEARNER_HE : d.source === 'hesitation_30s' ? GRID_HIDDEN_HE : 'הלוח נסגר')
         : d.action === 'opened'
-          ? (d.source === 'hesitation_30s' ? 'נפתח אחרי 30 שניות של היסוס' : d.source === 'learner' ? 'הלומד החזיר את הלוח' : 'נפתח')
+          ? (d.source === 'learner' ? GRID_REOPENED_BY_LEARNER_HE : d.source === 'hesitation_30s' ? (context.gridReturn ? GRID_RETURNED_HE : GRID_OPENED_30S_HE) : 'נפתח')
           : '';
       break;
     case 'BLOCK_DRAG_COMPLETE':

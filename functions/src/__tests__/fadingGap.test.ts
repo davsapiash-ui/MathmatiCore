@@ -87,3 +87,38 @@ describe('summarizeMeeting counts the three scaffold events (register deviation 
     expect(s.help_requests).toBe(1);
   });
 });
+
+describe('summarizeMeeting counts only the system\'s 30-second openings of the grid (PRD 10 §ב)', () => {
+  const g = (action: string, source: string, t: number) => ev(4, 's4_r_t1', 'ADAPTIVE_GRID_TOGGLED', { action, source }, t);
+
+  it('a grid folded under the coaching card, or hidden by a non-addition exercise, that comes back is not another opening', () => {
+    const s = summarizeMeeting([
+      g('opened', 'hesitation_30s', 1), // the 30-second stage
+      g('closed', 'hesitation_30s', 2), // the card folds it
+      g('opened', 'hesitation_30s', 3), // the card closes: it comes back
+      g('closed', 'hesitation_30s', 4), // a subtraction takes the screen
+      g('opened', 'hesitation_30s', 5), // an addition again
+      g('closed', 'hesitation_30s', 6), // the card folds it
+      g('opened', 'learner', 7), //        the learner's tab over the card
+      g('closed', 'learner', 8), //        the learner's X
+      g('opened', 'hesitation_30s', 9), // a new 30-second opening
+    ]);
+    expect(s.grid_openings).toBe(2);
+    expect(s.grid_reopenings).toBe(1);
+  });
+
+  it('in time order, whatever order the events arrive in', () => {
+    const s = summarizeMeeting([g('opened', 'hesitation_30s', 3), g('closed', 'hesitation_30s', 2), g('opened', 'hesitation_30s', 1)]);
+    expect(s.grid_openings).toBe(1);
+  });
+
+  it('a reload (SESSION_START) clears a fold: the grid is local state and does not survive it', () => {
+    const s = summarizeMeeting([
+      g('opened', 'hesitation_30s', 1),
+      g('closed', 'hesitation_30s', 2),
+      ev(4, 'ex_4_01', 'SESSION_START', { session_number: 4 }, 3),
+      g('opened', 'hesitation_30s', 4),
+    ]);
+    expect(s.grid_openings).toBe(2);
+  });
+});

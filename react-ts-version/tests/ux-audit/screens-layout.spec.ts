@@ -23,11 +23,11 @@ import { selectedViewports } from './viewports';
  *     (PRD Module 14 §ב0), and swaps in place, without a reload, to the
  *     station's opening screen when the teacher activates the session (Module 6);
  *   - the opening screens of stations 1 and 4 (Module 14 §ב);
- *   - the workspace of station 4 splits 60 / 40: the representations zone on
+ *   - the workspace of station 4 splits 55 / 45 (PRD 7 §א; workspaceZones.ts): the representations zone on
  *     the visual left, the task-and-response zone on the right (Module 7 §א),
  *     and the coaching card's drawer opens inside the task zone, over the
- *     instruction (in place of the steps), leaving the board's 60%, the
- *     zone's 40% and the work area as they were (Module 7 §א rule 6, v7.15;
+ *     instruction (in place of the steps), leaving the board's 55%, the
+ *     zone's 45% and the work area as they were (Module 7 §א rule 6, v7.15;
  *     Module 12 §ב);
  *   - the lobby's finished sentences, station 8's included (PRD v7.15, 14 §ב0);
  *   - the quiet end screens of stations 1, 4 and 8 (14 §ג) and the waiting
@@ -116,7 +116,7 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       });
     }
 
-    test('station 4 workspace: 60 / 40, the drawer inside the task zone', async () => {
+    test('station 4 workspace: 55 / 45, the drawer inside the task zone', async () => {
       await gotoWorkspace(c, 4);
       await c.page.getByRole('button', { name: 'מתחילים' }).click();
       const page = c.page;
@@ -126,8 +126,8 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       const task = await box(page, '[data-testid="task-zone"]');
       const board = await box(page, '[data-testid="representations-zone"]');
       const share = board.width / (board.width + task.width);
-      expect(share, 'the representations zone is 60% of the row').toBeGreaterThan(0.58);
-      expect(share).toBeLessThan(0.62);
+      expect(share, 'the representations zone is 55% of the row').toBeGreaterThan(0.53);
+      expect(share).toBeLessThan(0.57);
       expect(board.x + board.width, 'the board is on the visual left').toBeLessThanOrEqual(task.x + 1);
       await check(page, 'workspace-station4', viewport.width, viewport.height);
       // Owner, 9.10.2026 (RO1): the work area does not move while the drawer
@@ -153,8 +153,8 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       const boardOpen = await box(page, '[data-testid="representations-zone"]');
       const taskOpen = await box(page, '[data-testid="task-zone"]');
       const drawer = await box(page, '[data-testid="socratic-side-panel"]');
-      expect(Math.abs(boardOpen.width - board.width), 'the board keeps its 60% with the drawer open').toBeLessThanOrEqual(2);
-      expect(Math.abs(taskOpen.width - task.width), 'and the task zone its 40%').toBeLessThanOrEqual(2);
+      expect(Math.abs(boardOpen.width - board.width), 'the board keeps its 55% with the drawer open').toBeLessThanOrEqual(2);
+      expect(Math.abs(taskOpen.width - task.width), 'and the task zone its 45%').toBeLessThanOrEqual(2);
       expect(drawer.x, 'the drawer is inside the task zone').toBeGreaterThanOrEqual(taskOpen.x - 1);
       expect(drawer.x + drawer.width).toBeLessThanOrEqual(taskOpen.x + taskOpen.width + 1);
       expect(drawer.y + drawer.height).toBeLessThanOrEqual(taskOpen.y + taskOpen.height + 1);

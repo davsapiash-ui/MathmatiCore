@@ -16,6 +16,7 @@ import {
   daySeparatorHe,
   describeReportError,
   describeEvent,
+  gridReturnIds,
   exerciseTitle,
   latestMeetingWithData,
   meetingExerciseIds,
@@ -220,6 +221,8 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
 
   const exerciseIds = useMemo(() => meetingExerciseIds(sessionEvents, chapters), [sessionEvents, chapters]);
   const exerciseNumbers = useMemo(() => compulsoryNumbers(exerciseIds), [exerciseIds]);
+  // The grid's returns are read from the whole meeting, not the filtered exercise.
+  const gridReturns = useMemo(() => gridReturnIds(sessionEvents), [sessionEvents]);
 
   const visibleEvents = useMemo(
     () => (selectedExercise ? sessionEvents.filter((e) => e.exerciseId === selectedExercise) : sessionEvents),
@@ -823,7 +826,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                         }
                         const e = row.event;
                         const idx = visibleEvents.indexOf(e);
-                        const desc = describeEvent(e);
+                        const desc = describeEvent(e, { gridReturn: gridReturns.has(e.id) });
                         const prev = idx > 0 ? visibleEvents[idx - 1] : null;
                         const delaySec = prev ? Math.round((e.timestamp - prev.timestamp) / 1000) : 0;
                         const isHighlighted = idx === highlightedIdx;

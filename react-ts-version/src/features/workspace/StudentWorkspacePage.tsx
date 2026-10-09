@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
-import { useWorkspaceStore, selectBoardOpen, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, isAdditionGridVisible, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectBoardOpen, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -46,6 +46,7 @@ import { useStore } from '@/application/useStore';
 
 import { StudentChatOverlay } from './overlays/StudentChatOverlay';
 import { AdaptiveAdditionGrid, AdditionGridTab } from './board/AdaptiveAdditionGrid';
+import { useIsAdditionGridOverCard } from '@/application/useAdditionGridOverCard';
 
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
@@ -133,6 +134,7 @@ export function StudentWorkspacePage() {
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
   const qflowPhase = useWorkspaceStore((s) => s.qflow?.phase);
   const selectedBranch = useWorkspaceStore((s) => s.selectedBranch);
+  const isSocraticPanelOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
   const user = useAuthStore((s) => s.user);
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
 
@@ -360,7 +362,7 @@ export function StudentWorkspacePage() {
   // at initialisation only: a learner at work is never moved to the end screen.
   const [finishedOnEntry, setFinishedOnEntry] = useState<number | null>(null);
   const isAdditionHelperOpen = useWorkspaceStore((s) => s.isAdditionHelperOpen);
-  const additionHelperShownOnce = useWorkspaceStore((s) => s.additionHelperShownOnce);
+  const additionHelperOffered = useWorkspaceStore((s) => s.additionHelperOffered);
 
   // Tab switching & background throttling detection (Module 10 & 18)
   const [isTabHidden, setIsTabHidden] = useState<boolean>(
@@ -691,24 +693,36 @@ export function StudentWorkspacePage() {
   // simply not shown, nor its return tab, while the exercise is not an addition.
   const isAdditionOnScreen = useWorkspaceStore((s) => isAdditionExercise(selectStandardTask(s)));
   const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber >= 3 && sessionNumber <= 7 && isAdditionOnScreen;
-  // PRD Module 10 §א, the grid and its tab:
-  //  - the grid opens at the 30-second stage and stays until the learner
-  //    closes it with its X. The one exception: "כשכרטיס החניכה נפתח, הלוח
-  //    מתקפל אוטומטית" — the card's opening closes it (openSocraticCard);
-  //  - once the grid has been opened in the meeting at the 30-second stage,
-  //    and the learner closed it or the card folded it, its "לוח חיבור" tab
-  //    stands "במקום שבו הלוח עצמו מופיע (הפינה השמאלית התחתונה של מרחב
-  //    העבודה)", never in the top bar; a press brings the grid back. Never
-  //    before the 30-second stage has shown it (additionHelperShownOnce);
-  //  - mounted by the same rule its ADAPTIVE_GRID_TOGGLED events are logged by
-  //    (isAdditionGridVisible), so the log and the screen cannot disagree.
-  // The PRD names no other fold: the card stays as it is when the learner
-  // brings the grid back while it is open — the two are in different zones
-  // (the card in the task zone, the grid at the representations zone's far
-  // edge) and cover nothing of each other. (When the exercise on the screen
-  // is not an addition the grid is unmounted and has no tab: owner, 1.10.2026, D7.)
-  const isAdditionGridMounted = useWorkspaceStore(isAdditionGridVisible);
-  const isAdditionGridTabShown = isAdditionBoardEnabled && additionHelperShownOnce && !isAdditionHelperOpen;
+  // The grid and its tab have a slot of their own in the workspace row, beside
+  // the board (AdaptiveAdditionGrid.tsx). The coaching card is the next level
+  // of the same hierarchy (Module 10 §א: grid at 30s, Socratic intervention at
+  // 45s), and the two are never shown together: two aids at once are too much
+  // for the learner they serve, and the row cannot hold the sheet, the board,
+  // the grid and the card on a 1024px screen without squeezing the exercise
+  // out of view. Owner's decision, 4.10.2026 — one mechanism, two named tabs,
+  // each in its own place, the same on every screen size:
+  //  - the grid's place is this slot, at the bottom-left corner of the
+  //    workspace (PRD 10 §א: "הפינה השמאלית התחתונה של מרחב העבודה"); the
+  //    card's place is its column in the task zone. The one that is not shown is a tab in its own
+  //    place, so a swap never moves a tab;
+  //  - while the card is open, the card is shown and the grid is its amber
+  //    "לוח החיבור" tab beside the card — whenever the grid was offered:
+  //    open when the card arrived, closed earlier, or offered at 30 seconds
+  //    under the card (useCognitiveHesitationRadar);
+  //  - pressing that tab shows the grid, and the card folds into its "כרטיס
+  //    החניכה" tab (SocraticSidePanel); that tab, or the grid's X, brings the
+  //    card back (useAdditionGridOverCard.ts).
+  // A grid that waits as a tab is not closed (מסמך 03 §1.3 ה', register
+  // decision ב: only the learner closes it) and not unmounted, only hidden
+  // (display: none), so it is back exactly as it was — the chosen row and
+  // column kept, no second fade-in, clickable at once. (When the exercise on
+  // the screen is not an addition the grid is unmounted instead, and has no
+  // tab: owner, 1.10.2026, D7.)
+  const isAdditionGridMounted = isAdditionBoardEnabled && isAdditionHelperOpen;
+  const isAdditionGridOverCard = useIsAdditionGridOverCard();
+  const isAdditionGridShown = isAdditionGridMounted && (!isSocraticPanelOpen || isAdditionGridOverCard);
+  // An open grid always has its tab while it is not shown, whatever the offer flag says.
+  const isAdditionGridTabShown = isAdditionBoardEnabled && (additionHelperOffered || isAdditionHelperOpen) && !isAdditionGridShown;
   // Stations 2 and 8 have no number house (PRD Module 14 §ב): their task card is centred.
   const hasBoard = sessionNumber !== 2 && sessionNumber !== 8;
   const isBoardOpen = useWorkspaceStore(selectBoardOpen);
@@ -1440,20 +1454,21 @@ export function StudentWorkspacePage() {
               </section>
 
               {/* The representations zone, 55% (RTL: last in the row, so on
-                  the visual left): the number house and its blocks, and — for
-                  an enhanced-support learner — the addition grid, a
-                  representation aid of its own (Module 10). PRD 10 §א: the
-                  grid's place, and its "לוח חיבור" tab's, is "הפינה השמאלית
-                  התחתונה של מרחב העבודה" — so both are the last item of this
-                  RTL row (the workspace's left edge) and sit at its bottom
-                  (self-end). A slot of their own beside the board, not over
-                  it: the board eases aside, and the columns, the tray and the
-                  trash stay visible and usable (audit A5-F07 / UX-001). The
-                  grid fades in over 2s and stays until the learner closes it
-                  with the X, or the coaching card folds it. AnimatePresence
-                  lets its exit animation play. The tab is never in the top
-                  bar (isAdditionBoardEnabled: enhanced_cognitive_support
-                  learners in sessions 3–7, in an addition exercise). */}
+                  the visual left): the number house and its blocks, and —
+                  for an enhanced-support learner — the addition grid, a
+                  representation aid of its own (Module 10), beside the board.
+                  PRD 10 §א: the grid's place, and its tab's, is "הפינה
+                  השמאלית התחתונה של מרחב העבודה" — the last item of this RTL
+                  row (the workspace's left edge), at its bottom (self-end).
+                  Module 10 (register decision ב): the grid fades in over 2s
+                  and stays until the learner closes it with the X; it covers
+                  nothing the learner works with (blocks, typing and
+                  regrouping go on while it is open), and it is never shown
+                  together with the coaching card (useAdditionGridOverCard.ts).
+                  AnimatePresence lets its exit animation play. A learner may
+                  bring back an aid that faded: the tab sits where the grid
+                  itself appears, not in the top bar (isAdditionBoardEnabled:
+                  enhanced_cognitive_support learners in sessions 3–7). */}
               <section
                 data-testid="representations-zone"
                 aria-label="אגף הייצוגים"
@@ -1464,7 +1479,7 @@ export function StudentWorkspacePage() {
                 {isAdditionBoardEnabled && (
                   <AnimatePresence>
                     {isAdditionGridMounted && (
-                      <AdaptiveAdditionGrid key="adaptive-grid" />
+                      <AdaptiveAdditionGrid key="adaptive-grid" hidden={!isAdditionGridShown} overCard={isAdditionGridOverCard} />
                     )}
                   </AnimatePresence>
                 )}

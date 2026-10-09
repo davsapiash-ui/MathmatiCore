@@ -15,7 +15,7 @@
  */
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, act, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, act, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 const cls = vi.hoisted(() => ({
@@ -298,7 +298,7 @@ describe('register 18: the addition grid and its return tab only in meetings 3â€
     act(() => {
       useWorkspaceStore.setState({
         activeSupportProfileId: 'enhanced_cognitive_support',
-        additionHelperShownOnce: true,
+        additionHelperOffered: true,
         isAdditionHelperOpen: true,
       } as any);
     });
@@ -328,9 +328,40 @@ describe('register 18: the addition grid and its return tab only in meetings 3â€
     expect(main.contains(tab())).toBe(true);
   });
 
-  it('a grid that was never shown is not in the DOM while the card is open, and has no tab', async () => {
+  it('while the coaching card is open the grid is hidden, not closed and not unmounted, and its tab is in its place; it comes back exactly as it was', async () => {
     await openWithEnhanced(4);
-    act(() => { useWorkspaceStore.setState({ isAdditionHelperOpen: false, additionHelperShownOnce: false, helpState: 'socratic' } as any); });
+    const before = grid()!;
+    expect(before).not.toBeNull();
+    // the 2-second fade-in ends: the grid takes clicks
+    await waitFor(() => expect(before.className).toContain('pointer-events-auto'), { timeout: 4000 });
+    // the learner chooses row 7 and column 5
+    fireEvent.click(within(before).getByText('7', { selector: 'tbody td:first-child' }));
+    fireEvent.click(within(before).getByText('5', { selector: 'thead th' }));
+    expect(before.textContent).toContain('7 + 5 = 12');
+
+    act(() => { useWorkspaceStore.setState({ helpState: 'socratic' } as any); });
+    // the same element, out of sight (display: none), and its tab in the row
+    expect(grid()).toBe(before);
+    expect(before.className).toMatch(/(^|\s)hidden(\s|$)/);
+    expect(before.getAttribute('data-hidden')).toBe('true');
+    expect(document.querySelector('main')!.contains(tab())).toBe(true);
+    // register decision ×‘: only the learner closes it
+    expect(ws().isAdditionHelperOpen).toBe(true);
+
+    act(() => { useWorkspaceStore.setState({ helpState: 'closed' } as any); });
+    // at once: the same element, shown, its choice kept, no second fade-in
+    expect(grid()).toBe(before);
+    expect(before.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+    expect(before.getAttribute('data-hidden')).toBeNull();
+    expect(tab()).toBeNull();
+    expect(before.textContent).toContain('7 + 5 = 12');
+    expect(before.className).toContain('pointer-events-auto');
+    expect(before.style.opacity).toBe('1');
+  }, 10_000);
+
+  it('a grid that was never offered is not in the DOM while the card is open, and has no tab', async () => {
+    await openWithEnhanced(4);
+    act(() => { useWorkspaceStore.setState({ isAdditionHelperOpen: false, additionHelperOffered: false, helpState: 'socratic' } as any); });
     await waitFor(() => expect(grid()).toBeNull());
     expect(tab()).toBeNull();
   });
