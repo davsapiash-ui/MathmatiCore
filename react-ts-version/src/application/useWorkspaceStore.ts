@@ -76,7 +76,6 @@ import { mirrorReflectionStep } from '@/core/srlReflection';
 import {
   EMPTY_PERSISTENCE_COUNTS,
   addPersistenceEvent,
-  hasClosingSentence,
   meetingOfSessionId,
   persistenceEventKind,
   type PersistenceCounts,
@@ -3460,9 +3459,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (s.sessionNumber !== 8) markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
 
       set({ awaitingNext: true, currentState: 'COMPLETE' });
-      // PRD 14 §ג / 16 §ב: meetings 1 and 2 carry no encouragement — the toast
-      // only says the station is done, like the one before meetings 3–7's end.
-      showFeedback({ correct: true, title: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` }, 2500);
+      // No toast: the "station done" toast was not PRD text, and the station's
+      // end screen that follows says it in the PRD's words (PRD 14 §ג; review
+      // S11, 9.10.2026).
       // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
       // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
       // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
@@ -3514,15 +3513,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (s.sessionNumber !== 8) markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
 
     set({ awaitingNext: true, currentState: 'COMPLETE' });
-    // One praise, one sentence: meetings 3–7 end on the closing sentence of
-    // owner decision E2, which opens with "כל הכבוד" itself, so the toast
-    // before it only says the station is done.
-    showFeedback(
-      hasClosingSentence(s.sessionNumber)
-        ? { correct: true, title: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה! 🎉` }
-        : { correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` },
-      2500,
-    );
+    // No toast (review S11, 9.10.2026): the "station done" toast was not
+    // PRD text, and PRD 14 §ג gives the end of meetings 3–7 one encouragement
+    // sentence only — the closing sentence of the end screen that follows.
     // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
     // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
     // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים

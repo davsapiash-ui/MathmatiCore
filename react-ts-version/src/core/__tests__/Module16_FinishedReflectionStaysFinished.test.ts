@@ -127,13 +127,13 @@ describe('8.10 — the finished reflection board leads to the quiet end screen',
 
   it('meeting 8’s end screen does not promise a next station and does not praise twice', () => {
     const page = src('features/workspace/StudentWorkspacePage.tsx');
-    expect(page).toContain('const lastStation = sessionNumber === 8;');
+    expect(page).toContain('const lastStation = endStation === 8;');
     // One heading for every meeting: it names the station and praises nothing
     // (PRD 14 §ג: no encouragement in meetings 1–2; meeting 8's is on its board).
     const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"), page.indexOf('<ClosingSentence sessionNumber={sessionNumber}'));
     // PRD 14 §ג (v7.15): station 8 says it is the last one.
-    expect(end).toContain('`סיימתם את תחנה ${sessionNumber}, התחנה האחרונה!`');
-    expect(end).toContain('`סיימתם את תחנה ${sessionNumber}!`');
+    expect(end).toContain('`סיימתם את תחנה ${endStation}, התחנה האחרונה!`');
+    expect(end).toContain('`סיימתם את תחנה ${endStation}!`');
     expect(end).not.toContain('כל הכבוד');
     // Meetings 1–7 keep #125's line ("כשהמורה תפתח / יפתח את התחנה הבאה, נמשיך
     // יחד.", in the teacher's gender — core/teacherGender.ts); meeting 8, the

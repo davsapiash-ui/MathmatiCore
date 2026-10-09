@@ -1,4 +1,4 @@
-import { isMeetingFinished, hasStartedMeeting } from '@/core/meetingCompletion';
+import { isMeetingFinished, hasStartedMeeting, savedSnapshotOfMeeting } from '@/core/meetingCompletion';
 export { lastMeetingOf } from '@/core/classSession';
 import { teacherSentenceHe, type TeacherGender, type TeacherSentenceKey } from '@/core/teacherGender';
 
@@ -8,6 +8,9 @@ import { teacherSentenceHe, type TeacherGender, type TeacherSentenceKey } from '
  * once the teacher activates the session — the station's opening screen (the
  * page swaps in place, without a reload, to the workspace, whose first screen
  * it is until the learner presses "מתחילים").
+ *
+ * A learner who finished the active station sees the finished sentence too
+ * (Module 6: "or the learner has completed it").
  *
  * The sentence follows the state of the session and the learner's own
  * finished mark at that station, not the reason the session closed:
@@ -54,6 +57,15 @@ export function lobbyState({ live, status, sessionNumber, lastMeeting, record }:
     if (status === 'paused') {
       return { kind: 'waiting', sentence: isMeetingFinished(record, sessionNumber) ? finishedSentence(sessionNumber) : 'lobbyPaused' };
     }
+    // Module 6: a learner who has completed the active station has no open
+    // session — the finished sentence, not the workspace. Except: meeting 2,
+    // whose end is its own wait for the teacher's check (Module 20) and which
+    // the teacher's close completes part-way (catch-up goes back in); and a
+    // meeting 3–7 learner still at the optional exercises (choice screen or a
+    // chosen branch), who goes on with them (features/workspace/meetingEntry.ts).
+    if (sessionNumber !== 2 && isMeetingFinished(record, sessionNumber) && !atOptionalExercises(record, sessionNumber)) {
+      return { kind: 'waiting', sentence: finishedSentence(sessionNumber) };
+    }
     return { kind: 'opening', meeting: sessionNumber };
   }
   const last = lastMeeting;
@@ -62,4 +74,13 @@ export function lobbyState({ live, status, sessionNumber, lastMeeting, record }:
     if (hasStartedMeeting(record, last)) return { kind: 'waiting', sentence: 'lobbyClosedUnfinished' };
   }
   return { kind: 'waiting', sentence: 'lobbyNotStarted' };
+}
+
+/** Meeting 3–7: the saved copy is past the compulsory seven and not ended (meetingEntry.isPastCompulsoryInProgress). */
+function atOptionalExercises(record: LearnerRecord, meeting: number): boolean {
+  if (meeting < 3 || meeting > 7) return false;
+  const snap = savedSnapshotOfMeeting(record, meeting);
+  if (!snap) return false;
+  if (snap.flowStatus === 'choice_branch') return true;
+  return snap.flowStatus === 'task' && typeof snap.selectedBranch === 'string' && snap.selectedBranch.length > 0;
 }

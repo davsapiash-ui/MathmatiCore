@@ -265,7 +265,7 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
           key="socratic-side-panel"
           {...drawerMotion}
           className={inTaskZone
-            ? `socratic-side-panel w-full flex ${gridOverCard ? 'justify-end' : ''}`
+            ? `socratic-side-panel w-full min-h-0 flex flex-col ${gridOverCard ? 'items-end' : ''}`
             : `socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden ${gridOverCard ? 'w-16' : BESIDE_CARD_DRAWER_WIDTH}`}
           dir="rtl"
           data-testid="socratic-side-panel"
@@ -294,7 +294,7 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
                  the close button fit in the panel down to a 585px-high window.
                  overflow-y-auto stays only as a last resort for a still
                  shorter screen. */
-              className={`${inTaskZone ? 'w-full pointer-events-auto' : `h-full min-h-0 ${BESIDE_CARD_DRAWER_WIDTH}`} flex-col bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
+              className={`${inTaskZone ? 'w-full min-h-0 pointer-events-auto' : `h-full min-h-0 ${BESIDE_CARD_DRAWER_WIDTH}`} flex-col bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
                 gridOverCard ? 'hidden' : folded ? 'flex invisible pointer-events-none' : 'flex pointer-events-auto'
               }`}
               // Folded: hidden, unreachable by Tab and screen readers, still mounted.
@@ -351,8 +351,8 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
                     ✕
                   </button>
                 </div>
-                <CardTitle />
-                <h2 className="font-display font-black text-[clamp(0.875rem,2.4vh,1.25rem)] text-ws-ink leading-tight">
+                <CardTitle inTaskZone={inTaskZone} />
+                <h2 className={`font-display font-black ${inTaskZone ? 'text-[clamp(0.9375rem,2.4vh,1.25rem)]' : 'text-[clamp(0.875rem,2.4vh,1.25rem)]'} text-ws-ink leading-tight`}>
                   <MathText text={shownCard?.questionHe || 'שאלה מנחה לחשיבה'} />
                 </h2>
               </div>
@@ -368,7 +368,7 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
     return (
       // Folded for the addition grid, only its tab is left: at the zone's top
       // corner, beside the station tag, over nothing the learner reads.
-      <TaskZoneDrawerSlot atTop={gridOverCard}>
+      <TaskZoneDrawerSlot atTop={gridOverCard} covering={helpState === 'socratic' && !gridOverCard && !folded}>
         <AnimatePresence initial={false}>{drawer}</AnimatePresence>
       </TaskZoneDrawerSlot>
     );
@@ -384,10 +384,11 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
  * ("בחרו את הדרך הנכונה להתקדם:"), so it does not read as the question's
  * first words. Not on the hourglass, which has no text (owner, 28.9.2026; X22).
  */
-function CardTitle() {
+function CardTitle({ inTaskZone = false }: { inTaskZone?: boolean }) {
   return (
     <p
-      className="font-extrabold text-xs text-ws-soft whitespace-nowrap mb-[clamp(0.125rem,0.5vh,0.375rem)]"
+      // In the task zone no text is under 14px (PRD 7 §א rule 1).
+      className={`font-extrabold ${inTaskZone ? 'text-sm' : 'text-xs'} text-ws-soft whitespace-nowrap mb-[clamp(0.125rem,0.5vh,0.375rem)]`}
       data-testid="socratic-card-title"
     >
       <span className="me-1" aria-hidden="true">💡</span>
@@ -495,11 +496,31 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
     }
   };
 
+  // PRD Module 12 §ב locks "לחצני המענה בכרטיס בלבד" (15 seconds, owner 1.10.2026). The
+  // close button was locked too, so the child could not dismiss the card
+  // for the whole penalty. The answer buttons stay locked; this does not.
+  const closeButton = (
+    <button
+      onClick={onClose}
+      className={`${columns ? 'px-5' : 'mt-[clamp(0.125rem,0.8vh,0.5rem)] w-full'} h-11 shrink-0 rounded-full font-display font-extrabold text-sm transition-all bg-ws-accent text-white hover:brightness-105 shadow-md`}
+    >
+      {locked ? 'סגירה' : 'הבנתי, סגירת החלונית'}
+    </button>
+  );
+
   return (
     <div className="mt-[clamp(0.25rem,1.2vh,1rem)] flex flex-col gap-[clamp(0.25rem,0.9vh,0.625rem)] shrink-0">
       {/* While the answer buttons are locked the prompt's line goes to the
           hint; it comes back with the buttons. */}
-      {!locked && !answered && <p className="font-extrabold text-xs text-ws-soft">בחרו תשובה:</p>}
+      {/* In the task zone the drawer lies over the guide block and must stay as
+          short as it (PRD 7 §א rule 6): the prompt and the close button share
+          one row above the options, instead of a row each. */}
+      {columns ? (
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-extrabold text-sm text-ws-soft">{!locked && !answered ? 'בחרו תשובה:' : ''}</p>
+          {closeButton}
+        </div>
+      ) : (!locked && !answered && <p className="font-extrabold text-xs text-ws-soft">בחרו תשובה:</p>)}
       <div className={columns ? 'grid grid-cols-3 gap-2' : 'contents'} data-testid="socratic-options">
       {options.map((opt) => {
         const isChosen = selectedOpt === opt.id;
@@ -514,7 +535,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
             onClick={() => handleSelect(opt)}
             // At least 44px tall, the child's touch target (DESIGN_SYSTEM_RULES.md;
             // UX audit 4.10.2026: 36–42px on 585–729px-high windows).
-            className={`min-h-11 ${columns ? 'px-2 justify-center text-center' : 'px-3 text-right'} py-[clamp(0.3125rem,1.3vh,0.75rem)] rounded-2xl border-2 font-medium text-[clamp(0.75rem,2vh,0.875rem)] leading-snug transition-all flex items-center gap-2 ${
+            className={`min-h-11 ${columns ? 'px-2 justify-center text-center' : 'px-3 text-right'} py-[clamp(0.3125rem,1.3vh,0.75rem)] rounded-2xl border-2 font-medium ${columns ? 'text-sm' : 'text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug transition-all flex items-center gap-2 ${
               isCorrectChosen
                 ? 'border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100'
                 : isWrongChosen
@@ -538,7 +559,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
         <div
           role="status"
           aria-live="assertive"
-          className={`rounded-2xl px-3 py-[clamp(0.25rem,1vh,0.75rem)] text-[clamp(0.75rem,2vh,0.875rem)] leading-snug font-semibold ${
+          className={`rounded-2xl px-3 py-[clamp(0.25rem,1vh,0.75rem)] ${columns ? 'text-sm' : 'text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug font-semibold ${
           selectedOpt && options.find(o => o.id === selectedOpt)?.correct
             ? 'bg-emerald-50 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800'
             : 'bg-rose-50 text-rose-950 dark:bg-rose-950/50 dark:text-rose-200 border border-rose-300 dark:border-rose-800'
@@ -564,22 +585,14 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
         // שעון חול עדין ומשפט אחד, בלי מספרים. `role="status"` מכריז על
         // המשפט פעם אחת, כשהנעילה מתחילה.
         <div role="status" data-testid="socratic-lock-indicator"
-          className="flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl px-3 py-[clamp(0.25rem,1vh,0.75rem)] text-amber-900 dark:text-amber-200 text-[clamp(0.75rem,2vh,0.875rem)] leading-snug font-bold">
+          className={`flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl px-3 py-[clamp(0.25rem,1vh,0.75rem)] text-amber-900 dark:text-amber-200 ${columns ? 'text-sm' : 'text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug font-bold`}>
           <span aria-hidden="true" className="text-base">⏳</span>
           <span>רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.</span>
           {!folded && <UdlSpeechButton text={LOCK_SENTENCE_HE} className="shrink-0" />}
         </div>
       )}
 
-      {/* PRD Module 12 §ב locks "לחצני המענה בכרטיס בלבד" (15 seconds, owner 1.10.2026). The
-          close button was locked too, so the child could not dismiss the card
-          for the whole penalty. The answer buttons stay locked; this does not. */}
-      <button
-        onClick={onClose}
-        className="mt-[clamp(0.125rem,0.8vh,0.5rem)] w-full h-11 shrink-0 rounded-full font-display font-extrabold text-sm transition-all bg-ws-accent text-white hover:brightness-105 shadow-md"
-      >
-        {locked ? 'סגירה' : 'הבנתי, סגירת החלונית'}
-      </button>
+      {!columns && closeButton}
     </div>
   );
 }

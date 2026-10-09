@@ -59,6 +59,16 @@ describe('lobbyState', () => {
     expect(lobbyState({ ...closed, lastMeeting: null, record: {} })).toEqual({ kind: 'waiting', sentence: 'lobbyNotStarted' });
   });
 
+  it('S1 — activated, and this learner already finished it: the finished sentence (Module 6), not the workspace', () => {
+    expect(lobbyState({ live: true, status: 'active', sessionNumber: 4, lastMeeting: null, record: finished4 })).toEqual({ kind: 'waiting', sentence: 'lobbyFinished' });
+    expect(lobbyState({ live: true, status: 'active', sessionNumber: 8, lastMeeting: null, record: { completedMeetings: { m8: 1 } } })).toEqual({ kind: 'waiting', sentence: 'lobbyFinishedLastStation' });
+    // Still at the optional exercises of meeting 4: back to them.
+    const atChoice = { ...finished4, workspaceByMeeting: { m4: { sessionNumber: 4, flowStatus: 'choice_branch', savedAt: 1 } } };
+    expect(lobbyState({ live: true, status: 'active', sessionNumber: 4, lastMeeting: null, record: atChoice })).toEqual({ kind: 'opening', meeting: 4 });
+    // Meeting 2 ends on its own wait for the teacher's check (Module 20).
+    expect(lobbyState({ live: true, status: 'active', sessionNumber: 2, lastMeeting: null, record: { completedMeeting2: true } })).toEqual({ kind: 'opening', meeting: 2 });
+  });
+
   it('activated: the opening screen of that station', () => {
     expect(lobbyState({ live: true, status: 'active', sessionNumber: 4, lastMeeting: null, record: {} })).toEqual({ kind: 'opening', meeting: 4 });
   });

@@ -63,6 +63,7 @@ import { SessionClosedOverlay } from '@/presentation/components/student/SessionC
 import { isMeeting2CloseUnfinished } from '@/core/meeting2CloseNotice';
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 
 /**
  * How long the workspace waits for the learner's Firebase record before it
@@ -1169,16 +1170,15 @@ export function StudentWorkspacePage() {
   // the lock's z-50.
   if (isSupersededByOtherDevice) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-6 font-body text-center" dir="rtl">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-ws-bg p-6 font-body text-center" dir="rtl">
         <CornerCloudSyncStatus />
-        <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center text-3xl shadow-inner">
-            📱
-          </div>
-          <h2 className="font-display font-black text-xl text-slate-900 dark:text-white">
+        {/* The same quiet card as the lobby, the opening and the end screens
+            (PRD 7 §א: one calm colour code), no emoji. */}
+        <div className="max-w-md w-full bg-ws-surface text-ws-ink border-2 border-ws-surface2 rounded-3xl p-10 shadow-sm space-y-4">
+          <h2 className="font-display font-black text-2xl text-ws-ink">
             המשכתם במכשיר אחר
           </h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+          <p className="text-base text-ws-soft leading-relaxed">
             העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה.
           </p>
           <UdlSpeechButton text="המשכתם במכשיר אחר. העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה." />
@@ -1188,33 +1188,47 @@ export function StudentWorkspacePage() {
   }
 
 
-  // PRD 14 §ב0, the close: a learner who finished the station sees the
-  // station's own end screen, not the close screen, without routing to
-  // the lobby. Finished, per station (core/meetingCompletion.ts): station 1
-  // and 8 on their end screen (8: the reflection sent); stations 3–7 once the
-  // compulsory seven are done (the choice screen or an optional exercise —
-  // PRD 14 §ג: a close before the optional exercises leaves nothing missing);
-  // station 2 past the primary round of the seven tasks (meeting2CloseNotice).
-  // Read only from this meeting's own workspace, or from the learner's
-  // finished mark when this device holds another meeting.
+  // PRD 14 §ב0: "לומד שסיים את התחנה רואה את משפט הסיום גם אם המורה עצרה או
+  // סגרה אותה אחר כך" — in the workspace too: a finished learner keeps the
+  // station's own end screen under a pause and gets it at a close, never the
+  // pause or close screen, and is not routed to the lobby. Finished, per
+  // station (core/meetingCompletion.ts): stations 1 and 8 on their end screen
+  // (8: the reflection sent); stations 3–7 once the compulsory seven are done
+  // (the choice screen or an optional exercise — PRD 14 §ג: a close before the
+  // optional exercises leaves nothing missing); station 2 past the primary
+  // round of the seven tasks (meeting2CloseNotice). Read from this meeting's
+  // own workspace, or — when this device holds another meeting or none yet —
+  // from the learner's finished mark (not for station 2, whose mark the
+  // teacher's close also sets).
   const workspaceOnThisMeeting = isInitialized && sessionNumber === meeting;
+  const stationFinishedHere = !isTeacherOrAdmin && (
+    meeting === 2
+      ? workspaceOnThisMeeting && !isMeeting2CloseUnfinished({
+          meeting,
+          isTeacherOrAdmin,
+          isGateApproved,
+          workspaceOnMeeting2: true,
+          flowStatus,
+          qflowPhase,
+          recordLoaded: firebaseLoaded,
+          record: { completedMeeting2, qMatrixResults: myData?.qMatrixResults },
+        })
+      : (workspaceOnThisMeeting && (
+          flowStatus === 'sessionDone' ||
+          (meeting >= 3 && meeting <= 7 && (flowStatus === 'choice_branch' || selectedBranch !== null))
+        )) ||
+        (firebaseLoaded && isMeetingFinished(myData as Record<string, unknown> | null, meeting))
+  );
   const closedStationFinished =
-    !isTeacherOrAdmin && activeClassSession.isLoaded && activeClassSession.status === 'closed' && workspaceOnThisMeeting && (
-      meeting === 2
-        ? !isMeeting2CloseUnfinished({
-            meeting,
-            isTeacherOrAdmin,
-            isGateApproved,
-            workspaceOnMeeting2: true,
-            flowStatus,
-            qflowPhase,
-            recordLoaded: firebaseLoaded,
-            record: { completedMeeting2, qMatrixResults: myData?.qMatrixResults },
-          })
-        : flowStatus === 'sessionDone' ||
-          (meeting >= 3 && meeting <= 7 && (flowStatus === 'choice_branch' || selectedBranch !== null)) ||
-          isMeetingFinished(myData as Record<string, unknown> | null, meeting)
-    );
+    activeClassSession.isLoaded && activeClassSession.status === 'closed' && stationFinishedHere;
+  // Only meeting 8 ends on the reflection board (Module 16 §א; below).
+  const endScreen = closedStationFinished || (flowStatus === 'reflection' && sessionNumber !== 8) ? 'sessionDone' : flowStatus;
+  // The station the end screen speaks of: this meeting when the close sent a
+  // finished learner there from another meeting's store.
+  const endStation = closedStationFinished ? meeting : sessionNumber;
+  // A pause does not cover the end screen (or meeting 2's wait for the
+  // teacher's check, its end) of a learner who finished.
+  const pauseCoversScreen = !(endScreen === 'sessionDone' || (pendingApproval && showMeeting2Waiting) || closedStationFinished);
 
   // The teacher’s three controls (Module 14 / register 7: start, pause,
   // close) and projector mode (Module 15) reach the learner live, in place —
@@ -1227,7 +1241,7 @@ export function StudentWorkspacePage() {
         {isProjectorModeActive && <ProjectorWaitingScreen />}
       </AnimatePresence>
       <AnimatePresence>
-        {activeClassSession.status === 'paused' && !isTeacherOrAdmin && <SessionPausedOverlay />}
+        {activeClassSession.status === 'paused' && !isTeacherOrAdmin && pauseCoversScreen && <SessionPausedOverlay />}
       </AnimatePresence>
       <AnimatePresence>
         {activeClassSession.status === 'closed' && !isTeacherOrAdmin && activeClassSession.isLoaded && !closedStationFinished && (
@@ -1274,10 +1288,7 @@ export function StudentWorkspacePage() {
   // only be a snapshot older code saved (restoreSession already turns it into
   // 'sessionDone'); it is shown as the finished meeting it is.
   // After every hook so React's hook order stays stable.
-  // A learner who finished the station when the teacher closed it gets the
-  // station's end screen from wherever they were (the choice screen, an optional
-  // exercise, station 2's correction round): closedStationFinished.
-  const endScreen = closedStationFinished || (flowStatus === 'reflection' && sessionNumber !== 8) ? 'sessionDone' : flowStatus;
+  // endScreen and endStation are computed above, with the class-state screens.
   if (endScreen === 'reflection') {
     {
       // Meeting 8's own U, E and G, counted from the events the server counts
@@ -1343,14 +1354,17 @@ export function StudentWorkspacePage() {
   // more (E2). Meetings 1, 2 and 8 have one button beside the heading that reads
   // the screen's lines (PRD 7 §א), on the child's click only. The ✓ is not spoken.
   if (endScreen === 'sessionDone') {
-    const withClosingSentence = hasClosingSentence(sessionNumber);
-    const lastStation = sessionNumber === 8;
+    // The closing sentence is chosen by this meeting's own counts: only when the
+    // store holds this meeting (a finished learner sent here by the close from
+    // another meeting's store gets the lines without it).
+    const withClosingSentence = hasClosingSentence(endStation) && endStation === sessionNumber;
+    const lastStation = endStation === 8;
     const nextStationLine = teacherSentenceHe('nextStation', teacherGender);
     // PRD 14 §ג, word for word: station 1 is the heading, the saved line and
     // the next-station line, with no praise; station 8's heading says it is the
     // last station, and it has no next-station line. Stations 2–7 follow
     // station 1's lines.
-    const endHeading = lastStation ? `סיימתם את תחנה ${sessionNumber}, התחנה האחרונה!` : `סיימתם את תחנה ${sessionNumber}!`;
+    const endHeading = lastStation ? `סיימתם את תחנה ${endStation}, התחנה האחרונה!` : `סיימתם את תחנה ${endStation}!`;
     const savedLine = 'העבודה שלכם נשמרה בבטחה.';
     const endScreenSpeech = lastStation
       ? `${endHeading} ${savedLine}`
@@ -1364,7 +1378,7 @@ export function StudentWorkspacePage() {
             </h1>
             {!withClosingSentence && <UdlSpeechButton text={endScreenSpeech} className="shrink-0" />}
           </div>
-          <ClosingSentence sessionNumber={sessionNumber} counts={meetingPersistence} />
+          {withClosingSentence && <ClosingSentence sessionNumber={sessionNumber} counts={meetingPersistence} />}
           <div className="pt-4 flex flex-col gap-2">
             <div className="inline-flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800 text-sm">
               <span>{savedLine}</span>
@@ -1374,6 +1388,13 @@ export function StudentWorkspacePage() {
               <p className="text-base text-ws-soft">{nextStationLine}</p>
             )}
           </div>
+          {/* The teacher closed the station: the close screen's way out (a shared
+              classroom device), here too — signing out, not a link to the lobby. */}
+          {closedStationFinished && (
+            <div className="pt-2 flex justify-center">
+              <LogoutButton className="h-12 px-6 rounded-2xl text-sm font-bold text-ws-soft hover:text-rose-600 hover:bg-rose-50 border border-ws-surface2 transition-colors cursor-pointer flex items-center justify-center gap-2" />
+            </div>
+          )}
         </div>
         <CornerCloudSyncStatus />
         {classStateOverlays}

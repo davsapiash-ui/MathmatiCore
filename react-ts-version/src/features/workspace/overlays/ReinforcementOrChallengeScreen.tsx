@@ -15,12 +15,14 @@ import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
  * רק שהם בחירה ולא חובה.
  */
 const BRANCH_CHOICE_TEXT = {
-  badge: 'סיימתם את שבע המשימות של התחנה!',
+  // PRD 7 (l.286) and 14 §ג, word for word: the badge, the two buttons and the
+  // finish; the word "מסלול" is not on this screen (it belongs to the teacher's path, Module 20).
+  badge: 'סיימתם את שבעת התרגילים של התחנה!',
   heading: 'איך תרצו להמשיך?',
   intro: 'המשימות הבאות הן בחירה שלכם, לא חובה.',
-  reinforcementTitle: 'מסלול ביסוס',
+  reinforcementTitle: 'חיזוק וחזרה על החומר',
   reinforcement: 'שתי משימות נוספות, לחזרה על הנושא של היום.',
-  challengeTitle: 'מסלול אתגר',
+  challengeTitle: 'אתגר',
   challenge: 'משימת אתגר אחת, קשה יותר, בנושא של היום.',
   finish: 'סיום התחנה עכשיו',
 } as const;

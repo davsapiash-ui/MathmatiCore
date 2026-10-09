@@ -71,7 +71,7 @@ describe('the lobby has no entry button — the page swaps to the opening screen
   });
 
   it('an activated session swaps the page, without a reload, to the workspace and its opening screen', () => {
-    expect(hub).toContain("const openingMeeting = activeClassSession.isLoaded && state.kind === 'opening' && !isAwaitingTeacherGate && !isProjectorModeActive");
+    expect(hub).toContain("const openingMeeting = activeClassSession.isLoaded && (recordLoaded || !normUid) && state.kind === 'opening' && !isAwaitingTeacherGate && !isProjectorModeActive");
     expect(hub).toMatch(/navigate\(`\/workspace\?meeting=\$\{openingMeeting\}`, \{ replace: true \}\);/);
     expect(hub).not.toContain('window.location');
   });
@@ -102,12 +102,18 @@ describe('the early-finisher choice screen tells the truth (מסמך 03 §3.3–
   it('one challenge task, two review tasks — named "משימה" like every other task screen', () => {
     // Register 24(א) ("משימה N מתוך M", "משימת בחירה") and the one-name rule
     // (audit A5-F13, 4.10.2026); never first person plural (A5-F04 / A4-F11).
-    expect(screen).toContain("badge: 'סיימתם את שבע המשימות של התחנה!'");
+    // PRD 7 (l.286) / 14 §ג, word for word (v7.15): the badge says "תרגילים" —
+    // the PRD's own text, so the one-name rule below excepts it.
+    expect(screen).toContain("badge: 'סיימתם את שבעת התרגילים של התחנה!'");
+    expect(screen).toContain("reinforcementTitle: 'חיזוק וחזרה על החומר'");
+    expect(screen).toContain("challengeTitle: 'אתגר'");
     expect(screen).toContain("intro: 'המשימות הבאות הן בחירה שלכם, לא חובה.'");
     expect(screen).toContain("reinforcement: 'שתי משימות נוספות, לחזרה על הנושא של היום.'");
     expect(screen).toContain("challenge: 'משימת אתגר אחת, קשה יותר, בנושא של היום.'");
     const texts = screen.slice(screen.indexOf('const BRANCH_CHOICE_TEXT'), screen.indexOf('interface ReinforcementOrChallengeScreenProps'));
-    expect(texts).not.toContain('תרגיל');
+    expect(texts.replace('שבעת התרגילים של התחנה', '')).not.toContain('תרגיל');
+    // PRD 14 §ג: "המילה "מסלול" אינה מופיעה במסך הבחירה".
+    expect(texts.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n')).not.toContain('מסלול');
     expect(texts).not.toContain('שתרגלנו');
   });
 

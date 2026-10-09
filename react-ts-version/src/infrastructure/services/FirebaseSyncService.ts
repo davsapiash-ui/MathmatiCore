@@ -1094,7 +1094,7 @@ export class FirebaseSyncService {
       // This meeting's U, E and G (E1), so a reload keeps the closing sentence
       // the child earned. Counts only — the index is never stored for the child.
       meetingPersistence: state.meetingPersistence,
-      // The opening screen of station 2 or 8 was already passed (owner, 27.9.2026).
+      // The opening screen of the station was already passed (owner, 27.9.2026).
       openingScreenSeen: state.openingScreenSeen,
       hasInteracted: state.hasInteracted,
       // What a meeting 1 step or exercise is decided by. restoreSession read

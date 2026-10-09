@@ -32,6 +32,9 @@ export function StudentHub() {
   const [hasCompletedSession2, setHasCompletedSession2] = useState<boolean>(false);
   // The learner's own record, for their finished mark at the station (the lobby's sentence).
   const [record, setRecord] = useState<Record<string, unknown> | null>(null);
+  // The record has answered once (also when it does not exist): until then the
+  // finished mark is unknown, and no sentence is shown (review S2).
+  const [recordLoaded, setRecordLoaded] = useState(false);
 
   // Realtime Active Class Session from Teacher
   const activeClassSession = useActiveClassSession();
@@ -48,6 +51,7 @@ export function StudentHub() {
     const unsub = onValue(
       studentRef,
       (snap) => {
+        setRecordLoaded(true);
         if (snap.exists()) {
           const val = snap.val();
           setRecord(val && typeof val === 'object' ? val : null);
@@ -162,7 +166,7 @@ export function StudentHub() {
     lastMeeting: activeClassSession.lastMeeting ?? null,
     record,
   });
-  const openingMeeting = activeClassSession.isLoaded && state.kind === 'opening' && !isAwaitingTeacherGate && !isProjectorModeActive
+  const openingMeeting = activeClassSession.isLoaded && (recordLoaded || !normUid) && state.kind === 'opening' && !isAwaitingTeacherGate && !isProjectorModeActive
     ? state.meeting
     : null;
 
@@ -183,7 +187,7 @@ export function StudentHub() {
 
   // Until the broadcast is read, and for the moment of the swap: the same quiet
   // page with nothing on it yet — never a sentence that is not true.
-  const sentence = activeClassSession.isLoaded && state.kind === 'waiting' ? lobbySentenceHe(state.sentence, teacherGender) : null;
+  const sentence = activeClassSession.isLoaded && (recordLoaded || !normUid) && state.kind === 'waiting' ? lobbySentenceHe(state.sentence, teacherGender) : null;
 
   return (
     <div

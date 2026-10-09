@@ -245,22 +245,18 @@ describe('one praise, one sentence at the end of meetings 3–7', () => {
   it('where the sentence is shown, the heading only names the station', () => {
     const page = read(resolve(SRC, 'features/workspace/StudentWorkspacePage.tsx'));
     const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"), page.indexOf('<ClosingSentence sessionNumber={sessionNumber}'));
-    expect(end).toContain('const withClosingSentence = hasClosingSentence(sessionNumber);');
+    expect(end).toContain('const withClosingSentence = hasClosingSentence(endStation) && endStation === sessionNumber;');
     // One praise-free heading for every meeting: 3–7 praise in the closing
     // sentence, 1–2 not at all, 8 on its reflection board (PRD 14 §ג).
-    expect(end).toContain('`סיימתם את תחנה ${sessionNumber}!`');
+    expect(end).toContain('`סיימתם את תחנה ${endStation}!`');
     expect(end).not.toContain('כל הכבוד');
     expect(end).toContain('{!withClosingSentence && <UdlSpeechButton text={endScreenSpeech} className="shrink-0" />}');
   });
 
-  it('the toast before that screen carries no praise either', () => {
+  it('no toast before that screen (review S11, 9.10.2026: not PRD text)', () => {
     const store = read(resolve(SRC, 'application/useWorkspaceStore.ts'));
-    const at = store.indexOf('hasClosingSentence(s.sessionNumber)\n        ? { correct: true, title: ');
-    expect(at).toBeGreaterThan(-1);
-    const toast = store.slice(at, store.indexOf('\n', store.indexOf('?', at)));
-    const plain = toast.replace(/[֑-ׇ]/g, ''); // without the vowel points
-    expect(plain).toContain('תחנה ${s.sessionNumber} הושלמה בהצלחה!');
-    expect(plain).not.toContain('כל הכבוד');
-    expect(plain).not.toContain('sub:');
+    const plain = store.replace(/[\u0591-\u05C7]/g, '');
+    expect(plain).not.toContain('הושלמה בהצלחה');
+    expect(store).not.toContain('🎉');
   });
 });

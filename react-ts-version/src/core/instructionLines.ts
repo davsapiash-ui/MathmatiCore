@@ -9,8 +9,9 @@
  * the instruction already has. Numbers ("1,245", "4▢2") never contain a
  * sentence end followed by a space, so they are never split.
  */
-export function instructionLines(text: string): string[] {
-  return text
+export function instructionLines(text: string | undefined): string[] {
+  // A task built without an instruction (a test's hand-made task) has no lines.
+  return (text ?? '')
     .split('\n')
     .flatMap((line) => line.split(/(?<=[.!?])\s+/))
     .map((s) => s.trim())

@@ -293,7 +293,7 @@ describe('row ע1.1 and ע3.2 — the child reads "תחנה", not "מפגש"', (
     expect(closed).toContain("teacherSentenceHe('closedTitle', gender)");
     expect(closed).toContain("teacherSentenceHe('closedBodyMeeting2Unfinished', gender)");
     const choice = src('features/workspace/overlays/ReinforcementOrChallengeScreen.tsx');
-    expect(choice).toContain("badge: 'סיימתם את שבע המשימות של התחנה!'");
+    expect(choice).toContain("badge: 'סיימתם את שבעת התרגילים של התחנה!'");
     expect(choice).toContain("finish: 'סיום התחנה עכשיו'");
     expect(choice).toContain("'אפשר גם לסיים את התחנה עכשיו.'");
     const texts = choice.slice(choice.indexOf('const BRANCH_CHOICE_TEXT'), choice.indexOf('interface ReinforcementOrChallengeScreenProps'));

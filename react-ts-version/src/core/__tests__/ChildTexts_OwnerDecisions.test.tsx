@@ -213,14 +213,15 @@ describe('2 — every station opens with one quiet screen, once (PRD Module 14 �
 });
 
 describe('3 — "תחנה N" inside the workspace, never "מפגש N"', () => {
-  it('the card badge, the end screen, the switch screen and the end toast', () => {
+  it('the card badge, the end screen and the switch screen; no end toast', () => {
     // The station tag of the task zone (design-task-zone, 8.10.2026: no ✦ glyph).
     expect(code('features/workspace/tasks/TaskZone.tsx')).toContain('תחנה {stationNumber}');
     const page = code('features/workspace/StudentWorkspacePage.tsx');
-    expect(page).toContain('`סיימתם את תחנה ${sessionNumber}!`');
+    expect(page).toContain('`סיימתם את תחנה ${endStation}!`');
     expect(page).toContain('עוברים לתחנה {activeClassSession?.sessionNumber}...');
     const store = code('application/useWorkspaceStore.ts');
-    expect(store.match(/`תַּחֲנָה \$\{s\.sessionNumber\} הוּשְׁלְמָה בְּהַצְלָחָה!/g)).toHaveLength(3);
+    // No end toast at all (review S11, 9.10.2026): it was not PRD text.
+    expect(store).not.toMatch(/הוּשְׁלְמָה בְּהַצְלָחָה/);
   });
 
   it('no meeting number anywhere the child reads (the radar\'s lastAction lines are the teacher\'s)', () => {

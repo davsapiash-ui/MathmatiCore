@@ -24,18 +24,12 @@ export function SessionPausedOverlay() {
       dir="rtl"
       role="status"
       aria-live="polite"
-      className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm font-body select-none"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-ws-bg font-body select-none"
     >
-      <div className="w-full max-w-md flex flex-col items-center gap-6 text-center bg-white dark:bg-slate-900 p-10 rounded-3xl border border-amber-100 dark:border-slate-800 shadow-xl shadow-amber-500/5">
-        <div
-          className="w-24 h-24 rounded-3xl bg-amber-500/10 dark:bg-amber-400/15 border-2 border-amber-200 dark:border-amber-800/60 flex items-center justify-center text-5xl shadow-inner"
-          aria-hidden="true"
-        >
-          ⏸️
-        </div>
+      <div className="w-full max-w-md flex flex-col items-center gap-6 text-center bg-ws-surface text-ws-ink p-10 rounded-3xl shadow-sm border-2 border-ws-surface2">
         <div className="flex flex-col gap-2">
-          <h2 className="font-display font-black text-2xl text-slate-800 dark:text-slate-100">{title}</h2>
-          <p className="text-base text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+          <h2 className="font-display font-black text-2xl text-ws-ink">{title}</h2>
+          <p className="text-base text-ws-soft font-medium leading-relaxed">
             {body}
           </p>
           <UdlSpeechButton text={`${title}. ${body}`} className="self-center" />

@@ -78,7 +78,8 @@ describe('Module 14 — teacher controls', () => {
 
 describe('Module 14 — the learner sees every state in place', () => {
   it('paused → the waiting overlay over the untouched workspace', () => {
-    expect(learner).toMatch(/activeClassSession\.status === 'paused' && !isTeacherOrAdmin && <SessionPausedOverlay \/>/);
+    // …except over the end screen of a learner who finished (PRD 14 §ב0, review S3).
+    expect(learner).toMatch(/activeClassSession\.status === 'paused' && !isTeacherOrAdmin && pauseCoversScreen && <SessionPausedOverlay \/>/);
   });
 
   it('closed → the in-place closed screen, no automatic navigation to the lobby', () => {

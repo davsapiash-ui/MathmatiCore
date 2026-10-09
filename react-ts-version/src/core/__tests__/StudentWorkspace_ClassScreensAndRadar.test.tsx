@@ -99,6 +99,7 @@ vi.mock('@/presentation/components/student/ProjectorWaitingScreen', () => ({
 vi.mock('@/presentation/components/student/SessionPausedOverlay', () => ({
   SessionPausedOverlay: () => <button type="button" data-testid="paused-screen" />,
 }));
+vi.mock('@/presentation/components/ui/LogoutButton', () => ({ LogoutButton: () => <button type="button" data-testid="logout" /> }));
 vi.mock('@/presentation/components/student/SessionClosedOverlay', () => ({ SessionClosedOverlay: () => <div data-testid="closed-screen" /> }));
 
 import { StudentWorkspacePage } from '@/features/workspace/StudentWorkspacePage';
@@ -227,6 +228,28 @@ describe('PRD 14 §ב0 (v7.15) — the close: unfinished sees the close screen, 
     expect(screen.queryByTestId('closed-screen')).toBeNull();
     expect(screen.getByTestId('station-end-screen')).toBeTruthy();
     expect(screen.getByText('סיימתם את תחנה 1!')).toBeTruthy();
+  });
+
+  it('S4 — the finished learner at the close keeps a way to sign out', async () => {
+    const view = await openMeeting1();
+    act(() => useWorkspaceStore.setState({ flowStatus: 'sessionDone', awaitingNext: false }));
+    closeSession(view);
+    expect(screen.getByTestId('station-end-screen')).toBeTruthy();
+    expect(screen.getByTestId('logout')).toBeTruthy();
+  });
+
+  it('S3 — a pause does not cover the end screen of a learner who finished', async () => {
+    const view = await openMeeting1();
+    act(() => useWorkspaceStore.setState({ flowStatus: 'sessionDone', awaitingNext: false }));
+    h.session = { ...h.session, status: 'paused' };
+    view.rerender(
+      <MemoryRouter initialEntries={['/workspace?meeting=1']}>
+        <StudentWorkspacePage />
+      </MemoryRouter>
+    );
+    expect(screen.getByTestId('station-end-screen')).toBeTruthy();
+    expect(screen.queryByTestId('paused-screen')).toBeNull();
+    expect(screen.queryByTestId('logout'), 'no sign-out on a pause').toBeNull();
   });
 
   it('station 1: finished means its end screen, nothing earlier', async () => {

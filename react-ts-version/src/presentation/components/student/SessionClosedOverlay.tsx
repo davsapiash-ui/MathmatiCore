@@ -30,20 +30,14 @@ export function SessionClosedOverlay() {
       dir="rtl"
       role="status"
       aria-live="polite"
-      className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm font-body select-none"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-ws-bg font-body select-none"
     >
-      <div className="w-full max-w-md flex flex-col items-center gap-6 text-center bg-white dark:bg-slate-900 p-10 rounded-3xl border border-indigo-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5">
-        <div
-          className="w-24 h-24 rounded-3xl bg-indigo-50 dark:bg-indigo-950/40 border-2 border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center text-5xl shadow-inner"
-          aria-hidden="true"
-        >
-          ✨
-        </div>
+      <div className="w-full max-w-md flex flex-col items-center gap-6 text-center bg-ws-surface text-ws-ink p-10 rounded-3xl shadow-sm border-2 border-ws-surface2">
         <div className="flex flex-col gap-2">
-          <h2 className="font-display font-black text-2xl text-slate-800 dark:text-slate-100">
+          <h2 className="font-display font-black text-2xl text-ws-ink">
             {title}
           </h2>
-          <p className="text-base text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+          <p className="text-base text-ws-soft font-medium leading-relaxed">
             {body}
           </p>
           <UdlSpeechButton text={`${title}. ${body}`} className="self-center" />
@@ -51,7 +45,7 @@ export function SessionClosedOverlay() {
 
         {/* Accessible logout button so the student is never trapped when class ends */}
         <div className="pt-2 w-full flex justify-center">
-          <LogoutButton className="h-12 px-6 rounded-2xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 border border-slate-200 dark:border-slate-700 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs" />
+          <LogoutButton className="h-12 px-6 rounded-2xl text-sm font-bold text-ws-soft hover:text-rose-600 hover:bg-rose-50 border border-ws-surface2 transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-xs" />
         </div>
       </div>
     </motion.div>
