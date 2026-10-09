@@ -49,7 +49,7 @@ describe('meeting 1, the target task', () => {
     expect(heading.textContent).toBe('משימת היכרות: בודקים אם המספר משתנה');
     // PRD 7 §א rule (1): the location is a smaller span than the topic, on the same line.
     expect(screen.getByTestId('task-position').textContent).toBe('משימת היכרות:');
-    expect(goal.textContent).toBe('משימת היעד: איזה מספר, לדעתכם, הלבנים יראו לאחר הפריטה?');
+    expect(goal.textContent).toBe('משימת היעד: לדעתכם, איזה מספר יהיה בבית המספרים לאחר הפריטה?');
     expect([...steps.querySelectorAll(':scope > li')].map((li) => li.textContent)).toEqual([
       '1בנו את המספר 347 בבית המספרים',
       '2פרטו לבנת עשרת אחת לעשר לבני יחידה',
@@ -82,7 +82,7 @@ describe('meeting 1, the target task', () => {
     const texts = screen.getAllByTestId('speech').map((e) => e.getAttribute('data-text') ?? '');
     const guide = texts.find((t) => t.startsWith('משימת היכרות: בודקים אם המספר משתנה.'));
     expect(guide).toBeTruthy();
-    expect(guide).toContain('משימת היעד: איזה מספר, לדעתכם, הלבנים יראו לאחר הפריטה? בנו את המספר 347 בבית המספרים.');
+    expect(guide).toContain('משימת היעד: לדעתכם, איזה מספר יהיה בבית המספרים לאחר הפריטה? בנו את המספר 347 בבית המספרים.');
     expect(guide).toContain('בנו את המספר 347 בבית המספרים. פרטו לבנת עשרת אחת לעשר לבני יחידה. כתבו בשורת התוצאה');
   });
 });

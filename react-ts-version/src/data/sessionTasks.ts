@@ -276,7 +276,7 @@ export const SESSION1_TASKS: SessionTask[] = [
   // they see the quantity did not change; the numbers are unchanged.
   s1(representation('s1_target_347', 347, { hundreds: 3, tens: 3, units: 17 },
     'משימת יעד מסכמת',
-    'משימת היעד: איזה מספר, לדעתכם, הלבנים יראו לאחר הפריטה?\nבנו את המספר 347 בבית המספרים.\nפרטו לבנת עשרת אחת לעשר לבני יחידה.\nכתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו.'),
+    'משימת היעד: לדעתכם, איזה מספר יהיה בבית המספרים לאחר הפריטה?\nבנו את המספר 347 בבית המספרים.\nפרטו לבנת עשרת אחת לעשר לבני יחידה.\nכתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו.'),
     { requiresUngrouping: true, hideRequiredCounts: true }),
 
   // ★ chosen (owner, 24.9.2026). Mirrors task 6 (124 + 85) in structure with

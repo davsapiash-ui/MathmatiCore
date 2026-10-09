@@ -252,7 +252,7 @@ const STATION_TOPIC: Partial<Record<number, string>> = { 4: 'מחברים במא
 const KIND_TOPIC_HE = {
   break: 'פורטים לבנים',
   group: 'מקבצים לבנים',
-  represent: 'מייצגים מספר בדרכים שונות',
+  represent: 'בונים מספר בדרכים שונות',
   missing: 'מגלים מה חסר',
   check: 'בודקים פתרון',
   change: 'משנים מספר',

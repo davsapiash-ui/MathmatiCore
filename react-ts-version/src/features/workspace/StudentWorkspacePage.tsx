@@ -1476,7 +1476,7 @@ export function StudentWorkspacePage() {
                   enhanced_cognitive_support learners in sessions 3–7). */}
               <section
                 data-testid="representations-zone"
-                aria-label="אגף הייצוגים"
+                aria-label="אגף בית המספרים"
                 style={{ flex: isBoardOpen ? BOARD_ZONE_FLEX : '0 0 auto' }}
                 className={BOARD_ZONE_CLASS}
               >

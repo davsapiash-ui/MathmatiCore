@@ -110,7 +110,7 @@ describe('station 1 says on screen what PRD 7.15 Module 14 §ב says, word for w
 
   it('the target task says the PRD\'s words exactly (Module 14 §ב, task 9)', () => {
     expect(task('s1_target_347').instructionHe).toBe(
-      'משימת היעד: איזה מספר, לדעתכם, הלבנים יראו לאחר הפריטה?\nבנו את המספר 347 בבית המספרים.\nפרטו לבנת עשרת אחת לעשר לבני יחידה.\nכתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו.'
+      'משימת היעד: לדעתכם, איזה מספר יהיה בבית המספרים לאחר הפריטה?\nבנו את המספר 347 בבית המספרים.\nפרטו לבנת עשרת אחת לעשר לבני יחידה.\nכתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו.'
     );
     const labels = session1Checklist('s1_target_347', { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false })!.map((i) => i.label);
     // PRD 7.15 (Module 14 §ב, task 9): the items word for word.
