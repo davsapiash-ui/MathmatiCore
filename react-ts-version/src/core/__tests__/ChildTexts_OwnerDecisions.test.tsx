@@ -96,12 +96,13 @@ describe('1 — the child reads where it is, not the exercise title', () => {
     });
 
     // Owner, 8.10.2026: the heading line is the position and the learner's topic
-    // ("משימה 1 מתוך 7: ממילים לספרות"); the teacher's exercise title is still nowhere.
+    // ("משימה 1 מתוך 7: קוראים וכותבים מספרים" — owner, 9.10.2026: a general topic);
+    // the teacher's exercise title is still nowhere.
     it('meeting 3, first exercise: "משימה 1 מתוך 7: <topic>", and its title is nowhere', async () => {
       const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
       useWorkspaceStore.getState().initSession(3, false);
       const { container } = render(<TaskCard />);
-      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('משימה 1 מתוך 7: ממילים לספרות');
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('משימה 1 מתוך 7: קוראים וכותבים מספרים');
       const title = (useWorkspaceStore.getState().dynamicTasks ?? [])[0]?.titleHe
         ?? getHardcodedCatalogBanks().find((b: any) => b.id === 'session_3_green_path')?.tasks[0]?.titleHe;
       expect(title).toBeTruthy();

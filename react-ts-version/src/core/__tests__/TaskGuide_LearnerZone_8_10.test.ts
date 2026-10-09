@@ -89,6 +89,60 @@ describe('every exercise of stations 1 and 3–7 has a guide; stations 2 and 8 k
     for (const { meeting, task } of banks()) if (meeting === 6 || task.id === 's1_r_words703') expect(taskGuide(task, meeting)!.topicHe ?? '', task.id).not.toMatch(/אפס/);
   });
 
+  // Owner, 9.10.2026: stations 3 and 7 take a general topic per kind of exercise —
+  // it does not say what to do, and it is grammatical. Every exercise has one.
+  it('stations 3 and 7: a general topic for every exercise, by its kind (owner, 9.10.2026)', () => {
+    const TOPIC: Record<string, string> = {
+      s3_r_t1: 'קוראים וכותבים מספרים',
+      s3_r_t2: 'פורטים לבנים',
+      s3_r_t3: 'מייצגים מספר בדרכים שונות',
+      s3_r_t4: 'פורטים לבנים',
+      s3_r_t5: 'קוראים וכותבים מספרים',
+      s3_r_t6: 'פורטים לבנים',
+      s3_r_t7: 'מגלים מה חסר',
+      s3_g_t1: 'קוראים וכותבים מספרים',
+      s3_g_t2: 'פורטים לבנים',
+      s3_g_t3: 'מייצגים מספר בדרכים שונות',
+      s3_g_t4: 'פורטים לבנים',
+      s3_g_t5: 'קוראים וכותבים מספרים',
+      s3_g_t6: 'פורטים לבנים',
+      s3_g_t7: 'מייצגים מספר בדרכים שונות',
+      s3_g_reinforce_1: 'קוראים וכותבים מספרים',
+      s3_g_reinforce_2: 'מייצגים מספר בדרכים שונות',
+      s3_g_challenge_1: 'מייצגים מספר בדרכים שונות',
+      s3_r_reinforce_1: 'קוראים וכותבים מספרים',
+      s3_r_reinforce_2: 'מייצגים מספר בדרכים שונות',
+      s3_r_challenge_1: 'מייצגים מספר בדרכים שונות',
+      s7_r_t1: 'מקבצים לבנים',
+      s7_r_t2: 'מגלים מה חסר',
+      s7_r_t3: 'מגלים מה חסר',
+      s7_r_t4: 'מגלים מה חסר',
+      s7_r_t5: 'בודקים פתרון',
+      s7_r_t6: 'משנים מספר',
+      s7_r_t7: 'מייצגים מספר בדרכים שונות',
+      s7_g_t1: 'מקבצים לבנים',
+      s7_g_t2: 'מגלים מה חסר',
+      s7_g_t3: 'מגלים מה חסר',
+      s7_g_t4: 'בודקים פתרון',
+      s7_g_t5: 'משנים מספר',
+      s7_g_t6: 'מקבצים לבנים',
+      s7_g_t7: 'מגלים מה חסר',
+      s7_g_reinforce_1: 'מגלים מה חסר',
+      s7_g_reinforce_2: 'מקבצים לבנים',
+      s7_g_challenge_1: 'מגלים מה חסר',
+      s7_r_reinforce_1: 'מגלים מה חסר',
+      s7_r_reinforce_2: 'מגלים מה חסר',
+      s7_r_challenge_1: 'מגלים מה חסר',
+    };
+    const seen = new Set<string>();
+    for (const { meeting, task } of banks()) {
+      if (meeting !== 3 && meeting !== 7) continue;
+      seen.add(task.id);
+      expect(taskGuide(task, meeting)!.topicHe, task.id).toBe(TOPIC[task.id]);
+    }
+    expect([...seen].sort()).toEqual(Object.keys(TOPIC).sort());
+  });
+
   it('the representative exercises read as the proposal writes them', () => {
     const s5 = taskGuide(byId('s5_r_t2').task, 5)!;
     expect(s5.goalHe).toBe('פתרו במאונך: 53 − 18.');
@@ -102,12 +156,12 @@ describe('every exercise of stations 1 and 3–7 has a guide; stations 2 and 8 k
     expect(s4.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים את 128 ואת 35', 'כתבו את התוצאה בשורת התוצאה']);
     expect(s4.correctHe).toBe('נכון! ‏128 + 35 = 163, וגם בבית המספרים בניתם 163.');
     const s3 = taskGuide(byId('s3_r_t2').task, 3)!;
-    expect(s3.topicHe).toBe('פורטים לבנת מאה');
+    expect(s3.topicHe).toBe('פורטים לבנים');
     expect(s3.goalHe).toBe('איזה מספר מייצגות הלבנים לאחר הפריטה?');
     expect(s3.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים 3 לבני מאה ו-4 לבני עשרת', 'פרטו לבנת מאה אחת לעשר לבני עשרת', 'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו']);
     expect(s3.correctHe).toBe('נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 340.');
     const s7 = taskGuide(byId('s7_r_t3').task, 7)!;
-    expect(s7.topicHe).toBe('מגלים ספרה חסרה');
+    expect(s7.topicHe).toBe('מגלים מה חסר');
     expect(s7.steps.map((s) => s.label)).toEqual(['גלו את הספרה בעזרת הלבנים', 'כתבו אותה בתיבה הריקה']);
     expect(s7.correctHe).toBe('נכון! הספרה החסרה היא 8: ‏386 + 271 = 657.');
   });

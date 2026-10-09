@@ -81,7 +81,7 @@ export interface GuideStep {
 }
 
 export interface TaskGuide {
-  /** The topic after "משימת היכרות:" / "משימה N מתוך 7:" — null where no topic is approved yet. */
+  /** The topic after "משימת היכרות:" / "משימה N מתוך 7:" — null only for an exercise of no known kind. */
   topicHe: string | null;
   goalHe: string | null;
   steps: GuideStep[];
@@ -242,6 +242,52 @@ function station1Guide(task: SessionTask, spec: Station1Spec): TaskGuide {
 /** One heading for every exercise of the station (proposal: "אותה כותרת לכל שבעת תרגילי התחנה"). */
 const STATION_TOPIC: Partial<Record<number, string>> = { 4: 'מחברים במאונך', 5: 'מחסרים במאונך', 6: 'מחסרים במאונך' };
 
+/**
+ * Stations 3 and 7: a general topic per kind of exercise (owner, 9.10.2026).
+ * A topic names the kind of work, never what to do in this exercise (which
+ * block to break, which digit is missing), and reads as a sentence.
+ */
+const KIND_TOPIC_HE = {
+  break: 'פורטים לבנים',
+  group: 'מקבצים לבנים',
+  represent: 'מייצגים מספר בדרכים שונות',
+  missing: 'מגלים מה חסר',
+  check: 'בודקים פתרון',
+  change: 'משנים מספר',
+  readWrite: 'קוראים וכותבים מספרים',
+} as const;
+
+/** The topic of a station-3/7 exercise by its kind, or null for an exercise of no known kind. */
+function kindTopicHe(task: SessionTask): string | null {
+  const text = task.instructionHe;
+  switch (task.representationKind) {
+    case 'read_write':
+      return KIND_TOPIC_HE.readWrite;
+    case 'compose_break':
+      return KIND_TOPIC_HE.break;
+    case 'compose_group':
+      return KIND_TOPIC_HE.group;
+    case 'decompose':
+      return KIND_TOPIC_HE.represent;
+  }
+  if (task.type === 'flexible_decomp') return KIND_TOPIC_HE.represent;
+  if (task.type === 'missing_element' || task.hiddenDigits || task.revealedResultDigits?.length) return KIND_TOPIC_HE.missing;
+  if ((task.type === 'vertical_addition' || task.type === 'addition_simple') && /מצאו את הטעות/.test(text)) return KIND_TOPIC_HE.check;
+  if (task.type === 'representation') {
+    // s7_r_t6 / s7_g_t5: "הוסיפו …, ואז הוציאו …".
+    if (/הוסיפו/.test(text) && /הוציאו/.test(text)) return KIND_TOPIC_HE.change;
+    // s7_g_t6: a quantity on the board, grouped with "קבצו 10".
+    if (task.initialCounts && /קבצו 10/.test(text)) return KIND_TOPIC_HE.group;
+  }
+  return null;
+}
+
+/** The heading topic of an exercise of stations 3–7. */
+function topicOf(task: SessionTask, sessionNumber: number): string | null {
+  if (sessionNumber === 3 || sessionNumber === 7) return kindTopicHe(task);
+  return STATION_TOPIC[sessionNumber] ?? null;
+}
+
 const PLACE_BY_NAME: Record<string, Place> = Object.fromEntries(Object.entries(BLOCK_NAME_HE).map(([p, n]) => [n, p as Place]));
 const ORDER: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
 const above = (p: Place) => ORDER[ORDER.indexOf(p) + 1];
@@ -258,7 +304,7 @@ function conversionOf(line: string): { verb: 'break' | 'group'; from: Place } | 
 }
 
 /** compose_break / compose_group (taskBuilders): build, convert (once or twice), say which number the blocks make. */
-function composeGuide(task: SessionTask): TaskGuide {
+function composeGuide(task: SessionTask, sessionNumber: number): TaskGuide {
   const lines = instructionLines(task.instructionHe);
   const conversions = lines.map(conversionOf);
   const convLines = lines.filter((_, i) => conversions[i]);
@@ -278,13 +324,8 @@ function composeGuide(task: SessionTask): TaskGuide {
     }
     boards.unshift(c);
   }
-  const fromNames = [...new Set(convs.map((c) => c.from))];
-  const isBreak = convs[0]?.verb === 'break';
-  const topicHe = isBreak
-    ? `פורטים ${fromNames.map((p) => `לבנת ${BLOCK_NAME_HE[p]}`).join(' ו')}`
-    : `מקבצים לבני ${BLOCK_NAME_HE[fromNames[0] ?? 'units']} ל${GROUP_TARGET_HE[above(fromNames[0] ?? 'units')]}`;
   return {
-    topicHe,
+    topicHe: topicOf(task, sessionNumber),
     goalHe: question,
     steps: [
       step(noDot(lines[0]), { kind: 'boardCounts', counts: boards[0] }),
@@ -298,15 +339,12 @@ function composeGuide(task: SessionTask): TaskGuide {
   };
 }
 
-/** "מקבצים לבני יחידה לעשרות" (station 1) — the place a group of ten becomes, in the plural. */
-const GROUP_TARGET_HE: Record<Place, string> = { units: 'יחידות', tens: 'עשרות', hundreds: 'מאות', thousands: 'אלפים' };
-
 /** read_write: "בנו בבית המספרים את המספר <words>. כתבו אותו בספרות בשורת התוצאה." — like 703 and 482. */
-function readWriteGuide(task: SessionTask): TaskGuide {
+function readWriteGuide(task: SessionTask, sessionNumber: number): TaskGuide {
   const words = task.instructionHe.match(/את המספר (.+?)\. כתבו/)?.[1] ?? '';
   const value = task.numberA ?? 0;
   return {
-    topicHe: 'ממילים לספרות',
+    topicHe: topicOf(task, sessionNumber),
     goalHe: `המספר הוא ${words}.`,
     steps: [step('בנו את המספר בבית המספרים', { kind: 'boardValue', value }), step('כתבו אותו בספרות בשורת התוצאה', fill)],
     doneNoteHe: WROTE_ANSWER_HE,
@@ -321,7 +359,7 @@ function additionGuide(task: SessionTask, sessionNumber: number): TaskGuide {
   const r = resultOf(task);
   const missing = Boolean(task.revealedResultDigits?.length);
   return {
-    topicHe: STATION_TOPIC[sessionNumber] ?? null,
+    topicHe: topicOf(task, sessionNumber),
     goalHe: lines[0],
     steps: [
       // PRD 26, station 4 exercise 2: the step names the two numbers ("בנו בבית המספרים את 128 ואת 35.")
@@ -341,7 +379,7 @@ function subtractionGuide(task: SessionTask, sessionNumber: number): TaskGuide {
   const r = resultOf(task);
   const missing = Boolean(task.revealedResultDigits?.length);
   return {
-    topicHe: STATION_TOPIC[sessionNumber] ?? null,
+    topicHe: topicOf(task, sessionNumber),
     goalHe: lines[0],
     steps: [
       step(noDot(BUILD_MINUEND_HE), { kind: 'boardValue', value: task.numberA ?? 0 }),
@@ -374,9 +412,8 @@ function skeletonGuide(task: SessionTask, sessionNumber: number): TaskGuide {
   const parts = (act ?? '').split(/,? (?=וכתבו )/);
   const discover = parts[0] ?? '';
   const write = parts[1] ? parts[1].replace(/^ו/, '') : '';
-  const count = (task.hiddenDigits?.a?.length ?? 0) + (task.hiddenDigits?.b?.length ?? 0);
   return {
-    topicHe: STATION_TOPIC[sessionNumber] ?? (count > 1 ? 'מגלים ספרות חסרות' : 'מגלים ספרה חסרה'),
+    topicHe: topicOf(task, sessionNumber),
     goalHe: goal ?? null,
     steps: [
       // "רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול הפעולה ↺." stays, as a line under the step.
@@ -393,7 +430,7 @@ function skeletonGuide(task: SessionTask, sessionNumber: number): TaskGuide {
  * analysis and its add-then-remove exercises, the comparison of two
  * exercises): the instruction's own sentences, in its order, by the rules of
  * section 0 — a question or a statement is the goal, an action is a step, a
- * writing step ticks when filled. No topic is approved for these yet.
+ * writing step ticks when filled.
  */
 function sentencesGuide(task: SessionTask, sessionNumber: number): TaskGuide {
   const lines = instructionLines(task.instructionHe);
@@ -431,7 +468,7 @@ function sentencesGuide(task: SessionTask, sessionNumber: number): TaskGuide {
   }
   const writes = steps.some((s) => s.tick.kind === 'fill');
   return {
-    topicHe: STATION_TOPIC[sessionNumber] ?? null,
+    topicHe: topicOf(task, sessionNumber),
     goalHe: goal.join(' ') || null,
     steps,
     doneNoteHe: writes ? WROTE_ANSWER_HE : null,
@@ -451,13 +488,13 @@ export function taskGuide(task: SessionTask | null | undefined, sessionNumber: n
   // guide, rather than throwing — the store's builtTrack subscription calls
   // this on every board change, and a throw there breaks the setState in progress.
   if (typeof task.instructionHe !== 'string') return null;
-  if (task.representationKind === 'read_write') return readWriteGuide(task);
+  if (task.representationKind === 'read_write') return readWriteGuide(task, sessionNumber);
   if (task.representationKind === 'decompose') {
     // "בנו … את המספר 450 מלבני עשרת בלבד" names exactly the blocks: it ticks when the board is so.
     const g = sentencesGuide(task, sessionNumber);
     return { ...g, steps: g.steps.map((st, i) => (i === 0 ? { ...st, tick: { kind: 'boardCounts', counts: counts(task.requiredCounts ?? {}) } } : st)) };
   }
-  if (task.representationKind === 'compose_break' || task.representationKind === 'compose_group') return composeGuide(task);
+  if (task.representationKind === 'compose_break' || task.representationKind === 'compose_group') return composeGuide(task, sessionNumber);
   if (task.type === 'vertical_addition' || task.type === 'addition_simple') {
     if (task.hiddenDigits) return skeletonGuide(task, sessionNumber);
     const shaped = task.instructionHe.includes(task.isSubtraction ? BUILD_MINUEND_HE : BUILD_BOTH_HE);
