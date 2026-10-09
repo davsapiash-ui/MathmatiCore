@@ -242,28 +242,29 @@ describe('3 — "תחנה N" inside the workspace, never "מפגש N"', () => {
 describe('5 — the coaching-card texts the owner rewrote', () => {
   const engine = code('infrastructure/services/SocraticEngine.ts');
 
-  it('the carried digit is an המרה in the memory circle, never a "שארית"', () => {
-    expect(engine).toContain('tts_text: "עבדו טור טור מימין לשמאל, ואל תשכחו לרשום את ההמרה בעיגול הזיכרון."');
-    expect(engine).toContain('textHe: "מתחילים מהיחידות, עוברים לעשרות ואחר כך למאות, ורושמים כל המרה בעיגול הזיכרון"');
+  it('the carried digit is written in the memory circle, never a "שארית" and never an "המרה" (owner, 9.10.2026)', () => {
+    expect(engine).toContain('tts_text: "עבדו טור אחר טור, מימין לשמאל. רשמו בעיגול הזיכרון כל 1 שעובר לטור הבא."');
+    expect(engine).toContain('textHe: "מתחילים מהיחידות, עוברים לעשרות ואחר כך למאות"');
     // The list of terms a card may not use names it — and only that list.
     expect(engine.replace(/export const FORBIDDEN_TERMS_HE = \[[\s\S]*?\];/, '')).not.toMatch(/שארית|שאריות/);
     expect(code('data/sessionTasks.ts')).not.toMatch(/שארית|שאריות/);
   });
 
-  it('the memory-circle hint names the operation of the exercise: המרה in addition, פריטה in subtraction', () => {
+  it('the memory-circle hint names the action of the exercise: grouping in addition, breaking in subtraction (owner, 9.10.2026)', () => {
     const counts = { units: 0, tens: 0, hundreds: 0, thousands: 0 };
     expect(getDynamicSocraticHint('procedural_fluency', counts, { numberA: 146, numberB: 235 }, { units: '1' }, {}))
-      .toBe('רשמתם ספרה בתשובה, אך האם ביצעתם המרה? אם כן, איפה עלינו לרשום אותה בראש התרגיל כדי לא לשכוח?');
+      .toBe('רשמתם ספרה בתשובה. האם קיבצתם 10 לבנים? אם כן, איפה רושמים את ה־1 בראש התרגיל כדי לא לשכוח?');
     expect(getDynamicSocraticHint('procedural_fluency', counts, { numberA: 52, numberB: 27, isSubtraction: true }, { units: '5' }, {}))
-      .toBe('רשמתם ספרה בתשובה, אך האם ביצעתם פריטה? אם כן, איפה עלינו לרשום אותה בראש התרגיל כדי לא לשכוח?');
+      .toBe('רשמתם ספרה בתשובה. האם פרטתם לבנה? אם כן, איפה רושמים את זה בראש התרגיל כדי לא לשכוח?');
   });
 
   it('the missing addend and the missing subtrahend, in correct Hebrew and correct mathematics', () => {
-    expect(engine).toContain('tts_text: "מחובר ועוד מחובר שווה סכום. אם חסר מחובר, מחסרים מהסכום את המחובר הידוע."');
-    expect(engine).toContain('questionHe: "כיצד מוצאים מחובר חסר?"');
-    expect(engine).toContain('textHe: "מהסכום מחסרים את המחובר הידוע, ומקבלים את המחובר החסר"');
+    // Owner, 9.10.2026: the learner's words — "המספר החסר", "התוצאה" — never "מחובר" (PRD Module 13 §א, k ops).
+    expect(engine).toContain('tts_text: "שני המספרים יחד נותנים את התוצאה. אם חסר מספר, מחסרים מהתוצאה את המספר הידוע."');
+    expect(engine).toContain('questionHe: "איך מוצאים את המספר החסר בתרגיל חיבור?"');
+    expect(engine).toContain('textHe: "מהתוצאה מחסרים את המספר הידוע, ומקבלים את המספר החסר"');
     // PRD 7.4 Module 13 §א: the card "המספר שחיסרנו", in the PRD's own words.
-    expect(engine).toContain('questionHe: "כיצד מוצאים את המספר שחיסרנו?"');
+    expect(engine).toContain('questionHe: "איך מוצאים את המספר שחיסרנו?"');
     expect(engine).toContain('textHe: "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו"');
     expect(engine).not.toContain('המספר שמחסרים"');
     expect(engine).not.toMatch(/מחוברים חסר|מחוברים ידוע|תוצאה - מה שנשאר/);

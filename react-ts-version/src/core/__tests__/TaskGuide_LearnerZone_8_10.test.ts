@@ -146,9 +146,9 @@ describe('every exercise of stations 1 and 3–7 has a guide; stations 2 and 8 k
   it('the representative exercises read as the proposal writes them', () => {
     const s5 = taskGuide(byId('s5_r_t2').task, 5)!;
     expect(s5.goalHe).toBe('פתרו במאונך: 53 − 18.');
-    expect(s5.steps.map((s) => s.label)).toEqual(['בנו את המחוסר בבית המספרים', 'הוציאו מבית המספרים את הכמות הנדרשת', 'כתבו את התוצאה בשורת התוצאה']);
+    expect(s5.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים את המספר הראשון, 53', 'הוציאו מבית המספרים את המספר השני, 18', 'כתבו את התוצאה בשורת התוצאה']);
     expect(s5.steps[1].subs).toEqual([
-      'אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור.',
+      'אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו. לחצו על הלבנה, או גררו אותה אל הטור שמימין.',
       'אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.',
     ]);
     expect(s5.correctHe).toBe('נכון! ‏53 − 18 = 35, וגם בבית המספרים נשארו 35.');
@@ -160,8 +160,8 @@ describe('every exercise of stations 1 and 3–7 has a guide; stations 2 and 8 k
     expect(s4.correctHe).toBe('נכון! ‏128 + 35 = 163, וגם בבית המספרים בניתם 163.');
     const s3 = taskGuide(byId('s3_r_t2').task, 3)!;
     expect(s3.topicHe).toBe('פורטים לבנים');
-    expect(s3.goalHe).toBe('איזה מספר מייצגות הלבנים לאחר הפריטה?');
-    expect(s3.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים 3 לבני מאה ו-4 לבני עשרת', 'פרטו לבנת מאה אחת לעשר לבני עשרת', 'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו']);
+    expect(s3.goalHe).toBe('איזה מספר הלבנים מראות לאחר הפריטה?');
+    expect(s3.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים 3 לבני מאה ו-4 לבני עשרת', 'פרטו לבנת מאה אחת לעשר לבני עשרת', 'כתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו']);
     expect(s3.correctHe).toBe('נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 340.');
     const s7 = taskGuide(byId('s7_r_t3').task, 7)!;
     expect(s7.topicHe).toBe('מגלים מה חסר');
@@ -184,7 +184,7 @@ describe('every exercise of stations 1 and 3–7 has a guide; stations 2 and 8 k
     const t8 = taskGuide(SESSION1_TASKS.find((t) => t.id === 's1_t8'), 1)!;
     expect(t8.goalHe).toBe('פתרו: 713 + 94.');
     expect(t8.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים את 713 ואת 94', 'כתבו את התוצאה בשורת התוצאה']);
-    expect(t8.steps[0].subs).toEqual(['כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור.', 'רשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה החדשה.']);
+    expect(t8.steps[0].subs).toEqual(['כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור.', 'אחר כך רשמו בעיגול הזיכרון את ה־1 שעבר לטור הבא.']);
   });
 });
 

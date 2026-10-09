@@ -77,7 +77,7 @@ describe('the client counts every failed board check of a representation exercis
 
   it('PROBLEM_COMPLETE of a representation exercise reports those failures, not the shared consecutive counter', () => {
     expect(store).toMatch(/error_count: isRepresentationTask\(task\)\s*\? \(s\.boardCheckFailuresTaskId === task\.id \? s\.boardCheckFailures : 0\)\s*: s\.consecutiveErrorCount \|\| 0,/);
-    // "הוספת ייצוג" refuses in five ways (the fourth, owner 4.10.2026: unit blocks in 320, 2,100, 4,200; the fifth, owner 9.10.2026: no ten blocks in 150); each is a failed board check in a lesson exercise.
+    // "שמירת הדרך" refuses in five ways (the fourth, owner 4.10.2026: unit blocks in 320, 2,100, 4,200; the fifth, owner 9.10.2026: no ten blocks in 150); each is a failed board check in a lesson exercise.
     const start = store.indexOf('addRepresentation: () => {');
     const body = store.slice(start, store.indexOf('demoUngroup: () =>', start));
     expect((body.match(/if \(lessonTaskId\) \{\s*recordBoardCheckFailure\(lessonTaskId\);/g) || []).length).toBe(5);

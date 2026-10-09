@@ -509,7 +509,7 @@ describe('4. through the real store: the fields the cards read reach them (audit
     const c = TASK_HINTS['s1_sandbox_controlled'];
     expect(c.choices.map((o) => o.textHe)).toEqual([
       'לגרור עוד לבנים לטורים ולצפות בספרות בבית המספרים',
-      'לקבץ 10 עשרות ולהמיר אותן למאה אחת',
+      'לקבץ 10 לבני עשרת ללבנת מאה אחת',
       'לכתוב מספר בשורת התוצאה',
     ]);
     expect(c.choices[0].feedbackHe).toBe('נכון מאוד! גררו עוד לבנים, ושימו לב איך הספרות משתנות.');

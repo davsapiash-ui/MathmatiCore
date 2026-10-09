@@ -110,14 +110,14 @@ describe('station 1 says on screen what PRD 7.15 Module 14 §ב says, word for w
 
   it('the target task says the PRD\'s words exactly (Module 14 §ב, task 9)', () => {
     expect(task('s1_target_347').instructionHe).toBe(
-      'משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה?\nבנו את המספר 347 בבית המספרים.\nפרטו לבנת עשרת אחת לעשר לבני יחידה.\nכתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו.'
+      'משימת היעד: איזה מספר, לדעתכם, הלבנים יראו לאחר הפריטה?\nבנו את המספר 347 בבית המספרים.\nפרטו לבנת עשרת אחת לעשר לבני יחידה.\nכתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו.'
     );
     const labels = session1Checklist('s1_target_347', { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false })!.map((i) => i.label);
     // PRD 7.15 (Module 14 §ב, task 9): the items word for word.
     expect(labels).toEqual([
       'בנו את המספר 347 בבית המספרים',
       'פרטו לבנת עשרת אחת לעשר לבני יחידה',
-      'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו',
+      'כתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו',
     ]);
     expect(session1DoneNoteHe('s1_target_347')).toBe('נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 347.');
     for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash', 's1_r_group26']) {
@@ -126,7 +126,7 @@ describe('station 1 says on screen what PRD 7.15 Module 14 §ב says, word for w
   });
 
   it('the three memory-circle sentences of 29.9.2026 are on screen', () => {
-    expect(task('s1_t8').instructionHe).toContain('רשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה החדשה.');
+    expect(task('s1_t8').instructionHe).toContain('אחר כך רשמו בעיגול הזיכרון את ה־1 שעבר לטור הבא.');
     for (const id of ['s1_r_sub61', 's1_r_sub806']) {
       expect(task(id).instructionHe, id).toContain('אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.');
     }
@@ -201,7 +201,7 @@ describe('what completes each introduction step', () => {
     // Steps 1 and 5 in the words the owner approved on 8.10.2026 (learner wording
     // proposal §א): the number of blocks said in words; the instruction's two
     // sentences, without "אחר כך" — the numbering says the order.
-    expect(session1Checklist('s1_sandbox_controlled', state)!.map((i) => i.label)).toEqual(['גררו 5 לבנים לטורים משמאל, וצפו בספרות המשתנות בבית המספרים']);
+    expect(session1Checklist('s1_sandbox_controlled', state)!.map((i) => i.label)).toEqual(['גררו 5 לבנים לטורים משמאל. צפו בספרות המשתנות בבית המספרים']);
     expect(session1Checklist('s1_undo_trash', state)!.map((i) => i.label)).toEqual([
       'לחצו על כפתור ביטול הפעולה ↺ כדי לחזור צעד אחד אחורה',
       'לחצו על פח האשפה כדי לנקות את בית המספרים',

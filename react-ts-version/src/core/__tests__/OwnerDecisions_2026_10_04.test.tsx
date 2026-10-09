@@ -246,8 +246,8 @@ describe('3 — A1-059: the teacher closed the chat', () => {
 
 describe('4 — A5-F03 / A4-F07: two conversions, the plural of מסמך 03', () => {
   it('5,230 and 2,500 close in the plural; one conversion stays singular', () => {
-    expect(byId('s3_g_t4').instructionHe).toBe('בנו בבית המספרים 5 לבני אלף, 2 לבני מאה ו-3 לבני עשרת. פרטו לבנת אלף אחת לעשר לבני מאה. אחר כך פרטו לבנת מאה אחת לעשר לבני עשרת. איזה מספר מייצגות הלבנים לאחר שתי הפריטות? כתבו אותו בשורת התוצאה.');
-    expect(byId('s7_g_t1').instructionHe).toBe('בנו בבית המספרים 25 לבני מאה. קבצו 10 לבני מאה ללבנת אלף אחת. קבצו שוב 10 לבני מאה ללבנת אלף אחת. איזה מספר מייצגות הלבנים לאחר שתי ההקבצות? כתבו אותו בשורת התוצאה.');
+    expect(byId('s3_g_t4').instructionHe).toBe('בנו בבית המספרים 5 לבני אלף, 2 לבני מאה ו-3 לבני עשרת. פרטו לבנת אלף אחת לעשר לבני מאה. אחר כך פרטו לבנת מאה אחת לעשר לבני עשרת. איזה מספר הלבנים מראות לאחר שתי הפריטות? כתבו אותו בשורת התוצאה.');
+    expect(byId('s7_g_t1').instructionHe).toBe('בנו בבית המספרים 25 לבני מאה. קבצו 10 לבני מאה ללבנת אלף אחת. קבצו שוב 10 לבני מאה ללבנת אלף אחת. איזה מספר הלבנים מראות לאחר שתי ההקבצות? כתבו אותו בשורת התוצאה.');
     for (const id of ['s3_r_t2', 's3_r_t4', 's3_r_t6', 's3_g_t2', 's3_g_t6']) expect(byId(id).instructionHe, id).toContain('לאחר הפריטה?');
     for (const id of ['s7_r_t1']) expect(byId(id).instructionHe, id).toContain('לאחר ההקבצה?');
     expect(afterConversionsHe(1, 'הפריטה', 'הפריטות')).toBe('הפריטה');

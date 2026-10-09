@@ -158,7 +158,7 @@ describe('the two cards the audit saw', () => {
     expect(SocraticEngine.getSynchronousTaskHint(byId('s8_g_t1'), EMPTY).questionHe).toBe('נסו לחשוב: לפני שכותבים ספרה בשורת התוצאה, מה בודקים בכל טור?');
     const card = SocraticEngine.getSynchronousTaskHint(byId('s8_g_t1'), EMPTY, { shownKinds: ['s8_check'] });
     expect(card.questionHe).toBe('נסו לחשוב: בתרגיל 1,245 + 328, בטור היחידות מצטברות 10 יחידות או יותר. מה עושים איתן?');
-    expect(card.choices[0].textHe).toBe('ממירים 10 יחידות לעשרת אחת, ורושמים אותה בעיגול הזיכרון שמעל טור העשרות');
+    expect(card.choices[0].textHe).toBe('מקבצים 10 יחידות לעשרת אחת, ורושמים אותה בעיגול הזיכרון שמעל טור העשרות');
     expect(JSON.stringify(card)).not.toMatch(/עשרות הצטברו|יותר מ-9 עשרות|לבנ|פח|1245/);
   });
 
@@ -284,11 +284,11 @@ describe('the AI card gets the same checks (the engine runs on the server)', () 
     const card = (right: string, wrong: string) => ({
       data: {
         error_category: 'conceptual',
-        guiding_question: 'באילו לבנים ההנחיה מבקשת לבנות את המספר 3,400?',
+        guiding_question: 'באילו לבנים ההוראה מבקשת לבנות את המספר 3,400?',
         options: [
           { id: 'opt_1', option_text: right, feedback_text: 'נכון', is_correct: true },
-          { id: 'opt_2', option_text: wrong, feedback_text: 'רמז: מה כתוב בהנחיה?', is_correct: false },
-          { id: 'opt_3', option_text: 'נכתוב את המספר בלי לבנות', feedback_text: 'רמז: מה כתוב בהנחיה?', is_correct: false },
+          { id: 'opt_2', option_text: wrong, feedback_text: 'רמז: מה כתוב בהוראה?', is_correct: false },
+          { id: 'opt_3', option_text: 'נכתוב את המספר בלי לבנות', feedback_text: 'רמז: מה כתוב בהוראה?', is_correct: false },
         ],
       },
     });

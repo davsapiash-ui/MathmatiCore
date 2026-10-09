@@ -105,7 +105,7 @@ export const SECOND_PERSON_SINGULAR_FORMS = [
 const SECOND_PERSON_SINGULAR_IN_CONTEXT = new RegExp(
   [
     // "כתוב / רשום" opening a clause ("כתוב בתיבה…") or with an object ("כתוב את…") — not "מה כתוב בהנחיה?", "מה רשום בעיגול הזיכרון?".
-    `(?:${CLAUSE_START}|(?:^|[^א-ת])ו)(?:כתוב|רשום)(?![א-ת])(?!\\s+(?:ב(?:הנחיה|תרגיל|מסך|כרטיס)|ש))`,
+    `(?:${CLAUSE_START}|(?:^|[^א-ת])ו)(?:כתוב|רשום)(?![א-ת])(?!\\s+(?:ב(?:הנחיה|הוראה|תרגיל|מסך|כרטיס)|ש))`,
     "(?:^|[^א-ת])ו?(?:כתוב|רשום)\\s+את(?![א-ת])",
     // "חשוב" asking to think ("חשוב רגע", "חשוב מה…") — not the adjective ("חשוב לבדוק").
     `(?:${CLAUSE_START}|(?:^|[^א-ת])ו)חשוב(?=\\s*(?:על|מה|איך|כמה|רגע|היטב|טוב|שוב|באיזה|למה|מתי|[:?!,.]|$))`,
@@ -354,7 +354,7 @@ export function cardStyleViolation(card: CardFormCheck, ctx: StyleContext = {}):
   // The question, the options and the hints — not the "נכון מאוד!" feedback, which rightly names the instruction's action.
   const quotable = [q, ...card.options.flatMap((o) => (o.is_correct ? [o.option_text] : [o.option_text, o.feedback_text]))];
   if (ctx.instruction && quotable.some((t) => instructionQuoteRun(t, ctx.instruction!) >= INSTRUCTION_QUOTE_MAX_RUN)) {
-    return rule("instruction_quoted", 'Never copy the instruction sentence: the child sees it on the screen. Point to it ("מה ההנחיה מבקשת?") or name one step of it in a few words.');
+    return rule("instruction_quoted", 'Never copy the instruction sentence: the child sees it on the screen. Point to it ("מה ההוראה מבקשת?") or name one step of it in a few words.');
   }
   const questions = [q, ...card.options.filter((o) => !o.is_correct).map((o) => o.feedback_text)];
   if (questions.some(frontedClauseWithoutComma)) {
@@ -401,7 +401,7 @@ export function cardStyleViolation(card: CardFormCheck, ctx: StyleContext = {}):
 export function socraticStyleSpec(blocks: boolean, meeting1 = false): string {
   // Static cards, verbatim (StaticCards_ServerValidator_2_10.test.ts checks each against the cards the client shows).
   // Format: (where, level) question | ✓ right option → its feedback | ✗ wrong option → its hint | ✗ wrong option.
-  const BOARD_EMPTY = '(stations 1, 3, 4, 7 — level 1) נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם? | ✓ בונים בבית המספרים את מה שההנחיה מבקשת → נכון מאוד! קראו את ההנחיה. בנו בבית המספרים את מה שהיא מבקשת. | ✗ כותבים מספר בשורת התוצאה → רמז: מה ההנחיה מבקשת לעשות לפני שכותבים? | ✗ מנחשים את התשובה';
+  const BOARD_EMPTY = '(stations 1, 3, 4, 7 — level 1) נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם? | ✓ בונים בבית המספרים את מה שההוראה מבקשת → נכון מאוד! קראו את ההוראה. בנו בבית המספרים את מה שהיא מבקשת. | ✗ כותבים מספר בשורת התוצאה → רמז: מה ההוראה מבקשת לעשות לפני שכותבים? | ✗ מנחשים את התשובה';
   const ONE_MISSING = '(stations 1, 4, 7 — level 1) נסו לחשוב: בתרגיל 713 + 94, איזה מספר עוד לא בבית המספרים? | ✓ המספר 94 → נכון מאוד! בנו את 94, כל ספרה בטור שלה. | ✗ המספר 713 → רמז: אילו לבנים כבר בניתם? | ✗ שני המספרים כבר שם';
   const BORROW_FROM_BOX = '(stations 1, 5, 6 — level 1; blocks were dragged from the tool box in a subtraction) נסו לחשוב: בחיסור, כשבטור אין מספיק לבנים כדי לחסר, מה עושים? | ✓ פורטים לבנה מהטור שמשמאל → נכון מאוד! לחצו על כפתור ביטול הפעולה ↺ עד שהלבנים שהוספתם ייצאו מבית המספרים. אחר כך פרטו לבנה מהטור שמשמאל. | ✗ מוסיפים לבנים מארגז הכלים → רמז: אם תוסיפו לבנים מארגז הכלים, האם המספר יישאר אותו מספר? | ✗ מוציאים מהטור רק את מה שיש בו';
   const CHECK_BEFORE = '(stations 1, 5, 6 — level 1) נסו לחשוב: בתרגיל 61 − 24, מה בודקים לפני שמוציאים לבנים מטור? | ✓ אם יש בטור מספיק לבנים להוציא → נכון מאוד! אם אין מספיק, פורטים לבנה מהטור שמשמאל. | ✗ שום דבר, מוציאים מיד → רמז: מה יקרה אם בטור אין מספיק לבנים להוציא? | ✗ מוסיפים לבנים חדשות לטור';
@@ -434,7 +434,7 @@ export function socraticStyleSpec(blocks: boolean, meeting1 = false): string {
     ? [
         `✗ "נסו לחשוב: במשימת היעד עם המספר 347 בית המספרים עדיין ריק, מה עושים עכשיו?" ✓ "נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?" (the title repeated; a fronted phrase with no comma)`,
         `✗ "נסו לחשוב: במשימת החקר, איך מוצאים דרך נוספת לייצג את 2,100?" ✓ "נסו לחשוב: איך מוצאים דרך נוספת לייצג את 2,100?" (never the exercise's title)`,
-        `✗ "נסו לחשוב: ההנחיה אומרת בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות, אז מה עושים קודם?" ✓ "נסו לחשוב: מה ההנחיה מבקשת לבנות קודם?" (the child sees the instruction: never copy it)`,
+        `✗ "נסו לחשוב: ההוראה אומרת בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות, אז מה עושים קודם?" ✓ "נסו לחשוב: מה ההוראה מבקשת לבנות קודם?" (the child sees the instruction: never copy it)`,
         shortage,
         `✗ "נסו לחשוב: באחד הטורים נשארו 10 לבנים. מה עושים?" ✓ "נסו לחשוב: באחד הטורים יש 10 לבנים או יותר. מה עושים?" (meaning: "נשארו" says something was taken away, and 11 or 14 blocks need grouping too)`,
         `✗ "נסו לחשוב: בתרגיל 61 − 24, מה בודקים לפני שמוציאים לבנים?" ✓ "נסו לחשוב: בתרגיל 61 − 24, מה בודקים לפני שמוציאים לבנים מטור?" (meaning: the check is made in each column — a shorter question that drops "מטור" lost the fact the child needs)`,
@@ -443,7 +443,7 @@ export function socraticStyleSpec(blocks: boolean, meeting1 = false): string {
           : [`✗ "נסו לחשוב: בתרגיל 53 − 18, אחרי שבניתם את 53 ובדקתם את טור היחידות וראיתם שאין בו מספיק לבנים, מה צריך לעשות עכשיו כדי שתוכלו להמשיך?" ✓ "נסו לחשוב: בתרגיל 53 − 18, בטור היחידות אין מספיק לבנים כדי לחסר 8 יחידות. מה עושים?" (clarity: one fact sentence, then one clear question — every fact kept: the numbers, the column, what is short and for what)`]),
         `✗ "נסו לחשוב: כשבאחד הטורים יש 10 לבנים או יותר מה עושים?" ✓ "נסו לחשוב: כשבאחד הטורים יש 10 לבנים או יותר, מה עושים?" (a comma after a fronted clause)`,
         `✗ "רמז: אם תוסיפו לבנים חדשות מארגז הכלים לטור, האם המספר שבבית המספרים יישאר בדיוק אותו מספר שבניתם בהתחלה?" ✓ "רמז: אם תוסיפו לבנים חדשות, האם המספר שבניתם ישתנה?" (clarity: one clear question, without repeated words)`,
-        `✗ "קוראים שוב את כל ההנחיה מההתחלה ועד הסוף, ואחר כך בונים בבית המספרים את כל מה שכתוב בה בדיוק" ✓ "בונים בבית המספרים את מה שההנחיה מבקשת" (an option is one action)`,
+        `✗ "קוראים שוב את כל ההוראה מההתחלה ועד הסוף, ואחר כך בונים בבית המספרים את כל מה שכתוב בה בדיוק" ✓ "בונים בבית המספרים את מה שההוראה מבקשת" (an option is one action)`,
       ]
     : [
         `✗ "נסו לחשוב: במשימת החקר עם התרגיל 1,245 + 328 מה כותבים קודם?" ✓ "נסו לחשוב: בתרגיל 1,245 + 328, מאיזה טור מתחילים?" (never the exercise's title; a comma after the fronted phrase)`,
@@ -461,7 +461,7 @@ export function socraticStyleSpec(blocks: boolean, meeting1 = false): string {
   return `STYLE — how a good card reads (owner, 2.10.2026: "שיפור אינו אומר בהכרח קיצור אלא שיפור הנוסח ועד כמה הוא נכון לשונית וברור"; binding):
 - CORRECT AND CLEAR FIRST. One clear question. Correct agreement (${agreement}). A comma after a fronted clause or phrase ("בתרגיל 713 + 94, איזה מספר…", "כשמחברים את הספרות, מה עושים?") and "?" at the end. The screen's exact names. No "הזאת" or "שם" without a clear referent in the same card. Keep every fact the question depends on: the exercise's numbers, ${named}, what the child already did. ${misleading}
 - Brevity only after that: never drop a fact or a name to save words. Cut repetition, filler and chains of "ו…ו…ו"; at most one fact sentence before the question. Each option is one action, the three options alike in form; a hint is "${HINT_OPENING}" and one guiding question.
-- "${CARD_OPENING}" only at the very start of the question. Name the exercise by its numbers ("בתרגיל 61 − 24") — NEVER by its title or topic ("משימת היעד", "משימת חקר", the session topic). NEVER copy the instruction sentence into the question, an option or a hint: the child sees it; point to it ("מה ההנחיה מבקשת?").
+- "${CARD_OPENING}" only at the very start of the question. Name the exercise by its numbers ("בתרגיל 61 − 24") — NEVER by its title or topic ("משימת היעד", "משימת חקר", the session topic). NEVER copy the instruction sentence into the question, an option or a hint: the child sees it; point to it ("מה ההוראה מבקשת?").
 ${label} — copy their SOUND only, never their content (where, level: question | ✓ right option → feedback | ✗ wrong option → hint | ✗ wrong option):
 ${cards.map((c) => `• ${c}`).join("\n")}
 STYLE AND MEANING — DON'T / DO (real faults):
@@ -485,13 +485,13 @@ export function languageViolation(texts: string[]): LanguageRule | null {
  */
 export function socraticLanguageSpec(blocks: boolean): string {
   const imperatives = blocks ? '"בנו", "בדקו", "לחצו", "קבצו", "פרטו", "כתבו", "נסו"' : '"בדקו", "חברו", "פרטו", "כתבו", "רשמו", "נסו"';
-  const options = blocks ? '"מקבצים", "פורטים", "מוחקים", "בודקים"' : '"ממירים", "פורטים", "רושמים", "בודקים"';
+  const options = blocks ? '"מקבצים", "פורטים", "מוחקים", "בודקים"' : '"רושמים", "פורטים", "מחברים", "בודקים"';
   const government = blocks
     ? 'one breaks a block INTO smaller ones — "פורטים עשרת אחת לעשר יחידות", "פורטים מאה אחת לעשר עשרות" (never "פורטים … לטור"); one groups "10 יחידות לעשרת אחת".'
     : 'one breaks INTO smaller units — "פורטים עשרת אחת לעשר יחידות" (never "פורטים … לטור"), and writes the change in the memory circle.';
   const forms = blocks
-    ? 'Only these verb forms: "קבצו" / "מקבצים" ("הקבצו", "הקביצו" are not Hebrew). Addition regrouping is "הקבצה" (or "המרה"), subtraction regrouping is "פריטה"'
-    : 'Addition regrouping is "המרה", written in the memory circle; subtraction regrouping is "פריטה"';
+    ? 'Only these verb forms: "קבצו" / "מקבצים" ("הקבצו", "הקביצו" are not Hebrew). Addition regrouping is "הקבצה", subtraction regrouping is "פריטה"'
+    : 'In addition, the 1 that passes to the next column is written in the memory circle ("רושמים 1 בעיגול הזיכרון") — never "המרה"; subtraction regrouping is "פריטה"';
   const agreement = blocks
     ? 'The plural of "לבנה" is "לבנים": "לבני עשרת", "לבני יחידה", "הלבנים המיותרות" — never "לבנות עשרת", "הלבנות". '
     : "";
@@ -506,7 +506,7 @@ export function socraticLanguageSpec(blocks: boolean): string {
 ✗ "שים לב לטור העשרות" ✓ "שימו לב לטור העשרות"
 ✗ "בדקי כמה לבנים יש בטור" ✓ "בדקו כמה לבנים יש בטור"
 ✗ "כשנגיע לטור המאות, ונבדוק" ✓ "כשמגיעים לטור המאות, בודקים"
-✓ "איזה מספר נבנה בבית המספרים?" ✓ "מה כתוב בהנחיה?" ✓ "נסו את הכפתור קבצו 10"`
+✓ "איזה מספר נבנה בבית המספרים?" ✓ "מה כתוב בהוראה?" ✓ "נסו את הכפתור קבצו 10"`
     : `✗ "כשפורטים עשרת אחת לטור היחידות" ✓ "פורטים עשרת אחת לעשר יחידות, ורושמים בעיגול הזיכרון"
 ✗ "מה נעשה עכשיו?" ✓ "מה עושים עכשיו?"
 ✗ "כמה ספרות אפשר לרשום בכל משבצת?" ✓ "כמה ספרות כותבים בכל תיבה בשורת התוצאה?"
@@ -516,8 +516,9 @@ export function socraticLanguageSpec(blocks: boolean): string {
 - Address the children in the second person plural imperative, gender-neutral: ${imperatives}. Answer options are in the impersonal present: ${options}. NEVER the first person plural ("נבדוק", "נפרוט", "נמחק", "נזרוק", "בואו נ…", "מה נעשה", "ונבדוק", "כשנגיע") and never "אנו". NEVER the second person singular, masculine or feminine ("שים לב", "נסה", "בדוק", "לחץ על", "תבדוק", "בדקי", "שימי", "שלך"): "שימו לב", "נסו", "בדקו", "לחצו על", "שלכם". Never slash or dot gender forms.
 - The guiding question is ONE direct question ending with "?". It may open with "נסו לחשוב:" — the only opening of that kind (never "בואו נחשוב", never "חשבו רגע:"). The feedback of a wrong option is "רמז:" and ONE direct guiding question ending with "?". The feedback of the correct option opens with "נכון מאוד!". An indirect question inside a sentence takes "אם", not "האם", and no "?" ("בדקו אם צריך לרשום משהו בעיגול הזיכרון.") — it may appear only inside the correct option's feedback, never as the guiding question or as a hint.
 - Verb government: ${government} Subtraction is the pi'el "מחסרים" / "לחסר" / "חיסרו" — never "מחסירים" / "להחסיר"; avoid the bare imperative "חסרו" (read aloud it sounds like "you lacked"): write "מחסרים" instead.
-- ${forms} — never "פירוק", "מפרקים", "שבירה", "הלוואה", "נשיאה". The digit that passes to the next column is NEVER "שארית": in addition it is "המרה", in subtraction "פריטה", and it is written in the memory circle.
-- The PRD's own wordings, word for word when a card is about them: the missing addend — "כיצד מוצאים מחובר חסר?" → "מהסכום מחסרים את המחובר הידוע, ומקבלים את המחובר החסר"; the number subtracted — "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו" ("המספר שחיסרנו" is that number's name: the one first-person-plural phrase a card may hold).${blocks ? ' On the limit of a column: "בסוף התרגיל נשארות בכל טור לכל היותר 9 לבנים, כי 10 לבנים יוצרות לבנה אחת בטור השמאלי" — never "כל טור יכול להכיל לכל היותר 9 לבנים".' : ""}
+- ${forms} — never "פירוק", "מפרקים", "שבירה", "הלוואה", "נשיאה". The digit that passes to the next column is NEVER "שארית": in addition it comes from ten that pass to the next column${blocks ? ' (a "הקבצה")' : ""}, in subtraction from a "פריטה", and it is written in the memory circle.
+- NEVER with the learner (the teacher's terms): "פריטה אחת", "שתי פריטות", "במחוסר", "המרה", "מחוסר", "מחובר", "ייצוג". Say "המספר הראשון, 345", "המספר השני, 182", "התוצאה"; "בנו" / "הלבנים מראות"; "ההוראה"; "איך", "כש", "אפשר", "בלי" — never "כיצד", "כאשר", "ניתן", "מבלי".
+- The PRD's own wordings, word for word when a card is about them: the missing addend — "איך מוצאים את המספר החסר בתרגיל חיבור?" → "מהתוצאה מחסרים את המספר הידוע, ומקבלים את המספר החסר"; the number subtracted — "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו" ("המספר שחיסרנו" is that number's name: the one first-person-plural phrase a card may hold).${blocks ? ' On the limit of a column: "בסוף התרגיל נשארות בכל טור לכל היותר 9 לבנים, כי 10 לבנים יוצרות לבנה אחת בטור השמאלי" — never "כל טור יכול להכיל לכל היותר 9 לבנים".' : ""}
 - Agreement: "עשרת", "מאה", "יחידה" are feminine ("עשרת אחת", "שתי עשרות", "עשר יחידות"); "אלף" is masculine ("אלף אחד"). What a grouping passes on is ONE block of the column that receives it: into the tens "עשרת אחת", into the hundreds "מאה אחת", into the thousands "אלף אחד" — never "עשרת" for every column. What a break gives is ten blocks of the column on its right: "פורטים עשרת אחת לעשר יחידות", "פורטים מאה אחת לעשר עשרות", "פורטים אלף אחד לעשר מאות". ${agreement}One unit is "יחידה אחת" / "עשרת אחת", never "1 יחידה". The number comes before the noun; "10 היחידות", not "ה-10 יחידות"; a prefix before digits takes a hyphen ("ל-10").
 - Names: a result box is "תיבה" in "שורת התוצאה" (never "משבצת"); a column is "טור" ("בטור העשרות"), never "עמודה", "עמודות" or "עמודת"; the undo button is "${UNDO_BUTTON_NAME_HE}"; name only what the prompt's screen section lists.
 - Style: short sentences, one action each; the question last; no filler ("למעשה", "חשוב לציין"); a verb, not "יש לבצע פריטה"; "אם", not "במידה ש"; "כדי", not "בכדי"; no comma before a defining "ש". Numbers as the exercise writes them ("1,245"; a hidden digit as "▢"). The symbol "↺" only right after the undo button's name ("${UNDO_BUTTON_NAME_HE}"), never on its own.

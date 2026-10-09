@@ -220,7 +220,7 @@ export function afterConversionsHe(count: number, one: string, many: string): st
 
 /**
  * compose_break — "בנו בבית המספרים 3 לבני מאה ו-4 לבני עשרת. פרטו לבנת מאה
- * אחת לעשר לבני עשרת. איזה מספר מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת
+ * אחת לעשר לבני עשרת. איזה מספר הלבנים מראות לאחר הפריטה? כתבו אותו בשורת
  * התוצאה." `breaks` lists the block broken each time, in order; the child
  * breaks it with the blocks (requiresUngrouping, REPRESENTATION_LOCKS).
  */
@@ -235,14 +235,14 @@ export function composeBreak(id: string, built: Partial<PlaceCounts>, breaks: Pl
   const value = valueOf(built);
   return {
     ...representationOfKind('compose_break', id, value, after, value, titleHe,
-      `בנו בבית המספרים ${boardHe(built)}. ${steps.join(' ')} איזה מספר מייצגות הלבנים לאחר ${afterConversionsHe(breaks.length, 'הפריטה', 'הפריטות')}? כתבו אותו בשורת התוצאה.`, opts),
+      `בנו בבית המספרים ${boardHe(built)}. ${steps.join(' ')} איזה מספר הלבנים מראות לאחר ${afterConversionsHe(breaks.length, 'הפריטה', 'הפריטות')}? כתבו אותו בשורת התוצאה.`, opts),
     requiresUngrouping: true,
   };
 }
 
 /**
  * compose_group — "בנו בבית המספרים 12 לבני עשרת ו-5 לבני יחידה. קבצו 10 לבני
- * עשרת ללבנת מאה אחת. איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת
+ * עשרת ללבנת מאה אחת. איזה מספר הלבנים מראות לאחר ההקבצה? כתבו אותו בשורת
  * התוצאה." `groups` lists the column grouped each time, in order; the child
  * groups with the column's "קבצו 10" button (requiresGrouping, REPRESENTATION_LOCKS).
  */
@@ -257,7 +257,7 @@ export function composeGroup(id: string, built: Partial<PlaceCounts>, groups: Pl
   const value = valueOf(built);
   return {
     ...representationOfKind('compose_group', id, value, after, value, titleHe,
-      `בנו בבית המספרים ${boardHe(built)}. ${steps.join(' ')} איזה מספר מייצגות הלבנים לאחר ${afterConversionsHe(groups.length, 'ההקבצה', 'ההקבצות')}? כתבו אותו בשורת התוצאה.`, opts),
+      `בנו בבית המספרים ${boardHe(built)}. ${steps.join(' ')} איזה מספר הלבנים מראות לאחר ${afterConversionsHe(groups.length, 'ההקבצה', 'ההקבצות')}? כתבו אותו בשורת התוצאה.`, opts),
     requiresGrouping: true,
   };
 }
@@ -288,15 +288,26 @@ export const WRITE_RESULT_HE = 'כתבו את התוצאה בשורת התוצא
 export const BUILD_BOTH_HE = 'בנו בבית המספרים את שני המספרים.';
 /** Station 4's condition: the button and the memory circle (one sentence in the instruction, two lines in the task zone). */
 export const GROUP_WHEN_TEN_HE = 'כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור';
-export const RECORD_CONVERSION_HE = 'רשמו את ההמרה בעיגול הזיכרון';
-/** Stations 5–6's build sentence. */
-export const BUILD_MINUEND_HE = 'בנו את המחוסר בבית המספרים.';
-/** Stations 5–6's two condition sentences. */
+/**
+ * Owner, 9.10.2026 (learner language): the learner's words are "קבצו" /
+ * "הקבצה" in addition — never "המרה". The sentence says what is written: the
+ * 1 a grouping passes to the next column (one grouping passes exactly one
+ * block, in every column). "אחר כך" ties it to the grouping before it, so an
+ * exercise with no grouping asks for nothing it lacks.
+ */
+export const RECORD_CONVERSION_HE = 'אחר כך רשמו בעיגול הזיכרון את ה־1 שעבר לטור הבא';
+/**
+ * Stations 5–6's build sentence (owner, 9.10.2026): the number by its role and
+ * its value — "המספר הראשון, 345" — never "המחוסר".
+ */
+export const BUILD_MINUEND_HE = (a: number) => `בנו בבית המספרים את המספר הראשון, ${numberHe(a)}.`;
+/** Stations 5–6's two condition sentences: short sentences, one action each (owner, 9.10.2026). */
 export const BORROW_WHEN_NEEDED_HE = [
-  'אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור.',
+  'אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו. לחצו על הלבנה, או גררו אותה אל הטור שמימין.',
   'אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.',
 ] as const;
-export const TAKE_AWAY_HE = 'הוציאו מבית המספרים את הכמות הנדרשת';
+/** The take-away names the number taken (owner, 9.10.2026), never "הכמות הנדרשת". */
+export const TAKE_AWAY_HE = (b: number) => `הוציאו מבית המספרים את המספר השני, ${numberHe(b)}`;
 
 /**
  * Station 4 (owner, 30.9.2026): every exercise names the "קבצו 10" button — its
@@ -304,7 +315,7 @@ export const TAKE_AWAY_HE = 'הוציאו מבית המספרים את הכמו�
  * ("כשמצטברות…") governs both actions, so an exercise without grouping asks for
  * nothing it lacks. Wording: PRD 7.15, Module 26, station 4, word for word.
  */
-const GROUP_WHEN_TEN = ` ${BUILD_BOTH_HE} ${GROUP_WHEN_TEN_HE} ו${RECORD_CONVERSION_HE}.`;
+const GROUP_WHEN_TEN = ` ${BUILD_BOTH_HE} ${GROUP_WHEN_TEN_HE}. ${RECORD_CONVERSION_HE}.`;
 export const S4_ADD = (ex: string) =>
   `פתרו במאונך: ${ex}.${GROUP_WHEN_TEN} ${WRITE_RESULT_HE}`;
 /**
@@ -324,10 +335,10 @@ export const S4_MISSING_TENS = (ex: string) => `${TENS_DIGIT_MISSING(ex)}${GROUP
  * the memory circles. (Until 30.9.2026 station 5 said "פרטו עשרת אחת ליחידות…"
  * and station 6 "כאן דרושה פריטה כפולה: פרטו פעמיים…".)
  */
-const BORROW_WHEN_NEEDED = ` ${BUILD_MINUEND_HE} ${BORROW_WHEN_NEEDED_HE.join(' ')}`;
+const BORROW_WHEN_NEEDED = (a: number) => ` ${BUILD_MINUEND_HE(a)} ${BORROW_WHEN_NEEDED_HE.join(' ')}`;
 
-export function S5_SUB(ex: string, _a?: number, _b?: number): string {
-  return `פתרו במאונך: ${ex}.${BORROW_WHEN_NEEDED} ${TAKE_AWAY_HE} ו${WRITE_RESULT_HE}`;
+export function S5_SUB(ex: string, a: number, b: number): string {
+  return `פתרו במאונך: ${ex}.${BORROW_WHEN_NEEDED(a)} ${TAKE_AWAY_HE(b)}. ${WRITE_RESULT_HE}`;
 }
 
 /**
@@ -360,11 +371,11 @@ export function borrowCount(a: number, b: number): number {
   return borrowColumns(a, b).length;
 }
 
-export const S6_SUB = (ex: string, _a?: number, _b?: number) =>
-  `פתרו במאונך: ${ex}.${BORROW_WHEN_NEEDED} ${TAKE_AWAY_HE} ו${WRITE_RESULT_HE}`;
+export const S6_SUB = (ex: string, a: number, b: number) =>
+  `פתרו במאונך: ${ex}.${BORROW_WHEN_NEEDED(a)} ${TAKE_AWAY_HE(b)}. ${WRITE_RESULT_HE}`;
 /** s6_r_t7 (400 − 156): stations 5–6's own middle sentences, then the take-away and the one box. */
-export const S6_MISSING_TENS = (ex: string) =>
-  `${TENS_DIGIT_MISSING(ex)}${BORROW_WHEN_NEEDED} ${TAKE_AWAY_HE}.${WRITE_MISSING_DIGIT}`;
+export const S6_MISSING_TENS = (ex: string, a: number, b: number) =>
+  `${TENS_DIGIT_MISSING(ex)}${BORROW_WHEN_NEEDED(a)} ${TAKE_AWAY_HE(b)}.${WRITE_MISSING_DIGIT}`;
 /**
  * Station 8 (owner, 4.10.2026): the order of stations 4–6 — "פתרו …: the
  * exercise." — then one action a sentence. Until then the exercise came first
@@ -373,7 +384,9 @@ export const S6_MISSING_TENS = (ex: string) =>
 export const S8_ADD = (ex: string) => `פתרו את תרגיל החיבור: ${ex}. כתבו את התשובה בשורת התוצאה.`;
 export const S8_SUB = (ex: string) => `פתרו את תרגיל החיסור: ${ex}. כתבו את התשובה בשורת התוצאה.`;
 // The button records one way per press, two in all (FlexibleDecompTask): the second way needs a second press.
-export const FLEX_HOWTO = 'בנו את המספר בדרך אחת. לחצו על הכפתור "הוספת ייצוג". אחר כך בנו אותו בדרך שונה, ולחצו שוב על "הוספת ייצוג". רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול הפעולה ↺.';
+export const FLEX_HOWTO = 'בנו את המספר בדרך אחת. לחצו על הכפתור "שמירת הדרך". אחר כך בנו אותו בדרך שונה. לחצו שוב על "שמירת הדרך". רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול הפעולה ↺.';
+/** The flexible exercise's button (owner, 9.10.2026: "הוספת ייצוג" → "שמירת הדרך"; the learner builds ways, never "ייצוגים"). */
+export const SAVE_WAY_BUTTON_HE = 'שמירת הדרך';
 /**
  * 320, 2,100, 4,200 (owner, 4.10.2026): the toast for a way that has blocks
  * in the units column — the rule, then the action that fixes it. It appears
@@ -389,4 +402,4 @@ export const NO_UNIT_BLOCKS_SUB_HE = 'בתרגיל הזה בונים את המס
  * instruction and gives no way away.
  */
 export const NO_TEN_BLOCKS_TITLE_HE = 'בִּדְקוּ אֶת טוּר הָעֲשָׂרוֹת 🤔';
-export const NO_TEN_BLOCKS_SUB_HE = 'ההנחיה מבקשת שבכל דרך יהיו לבני עשרת. קראו אותה שוב ונסו שוב.';
+export const NO_TEN_BLOCKS_SUB_HE = 'ההוראה מבקשת שבכל דרך יהיו לבני עשרת. קראו אותה שוב ונסו שוב.';

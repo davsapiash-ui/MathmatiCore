@@ -174,7 +174,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 אירעה שגיאה בטעינת הדף
               </h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                המערכת זיהתה תקלה זמנית. ניתן לרענן את הדף, לחזור למסך הכניסה או לאפס את הזיכרון המקומי.
+                המערכת זיהתה תקלה זמנית. אפשר לרענן את הדף, לחזור למסך הכניסה או לאפס את הזיכרון המקומי.
               </p>
             </div>
 

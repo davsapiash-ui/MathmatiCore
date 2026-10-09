@@ -20,7 +20,8 @@ import { EMPTY_COUNTS } from '@/core/placeValue';
  */
 
 /** Owner-approved word for word, still in the first person plural: waiting for his decision. */
-const AWAITING_OWNER = ['איפה עלינו לרשום אותה בראש התרגיל'];
+// Owner, 9.10.2026 (learner language): the last "עלינו" hint was rewritten ("איפה רושמים…"); none waits now.
+const AWAITING_OWNER: string[] = [];
 const withoutAwaiting = (s: string) => AWAITING_OWNER.reduce((t, a) => t.split(a).join(''), s);
 
 const FIRST_PERSON =
@@ -86,7 +87,7 @@ describe('the child is addressed in the second person plural, never "we"', () =>
     expect(found).toEqual([]);
   });
 
-  it('no hint text in sessionTasks.ts says "we"; the one waiting for the owner is still there', () => {
+  it('no hint text in sessionTasks.ts says "we"', () => {
     const hints = hintTexts();
     expect(hints.filter((s) => FIRST_PERSON.test(withoutAwaiting(s)))).toEqual([]);
     for (const a of AWAITING_OWNER) expect(hints.some((s) => s.includes(a)), a).toBe(true);

@@ -157,7 +157,7 @@ describe('A7-001: the representations of a two-ways exercise survive a reload', 
       useWorkspaceStore.setState({ dynamicTasks: [byId('s3_g_t7')], standardTaskIdx: 0 } as any);
       expect(ws().q3Reps).toEqual([{ ...EMPTY_COUNTS, thousands: 2, hundreds: 1 }]);
       render(<FlexibleDecompTask targetNumber={2100} />);
-      expect(screen.getByRole('button', { name: /הוספת ייצוג \(2\/2\)/ })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /שמירת הדרך \(2\/2\)/ })).toBeTruthy();
     });
   }
 
@@ -532,7 +532,7 @@ describe('A7-011: odd tens in an even-tens exercise', () => {
     load(7, byId('s7_r_t7'));
     board({ hundreds: 1, tens: 5 });
     ws().addRepresentation();
-    expect(ws().feedback?.sub).toBe('בדרך הזאת מספר העשרות צריך להיות זוגי. פרטו עשרת אחת לעשר יחידות, או קבצו 10 יחידות לעשרת אחת.');
+    expect(ws().feedback?.sub).toBe('בדרך הזאת מספר לבני העשרת צריך להיות זוגי. קראו שוב את ההוראה.');
   });
 
   // Owner's decision, 9.10.2026: every way has ten blocks — 0 is even, but a
@@ -572,7 +572,7 @@ describe('A4-F01: the blocks of the instruction built, the conversion not made',
     useWorkspaceStore.setState({ answerDigits: { hundreds: '3', tens: '4', units: '0' } } as any);
     const v = verdict();
     expect(v).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', title: 'פִּרְטוּ 🧱' });
-    expect(v.sub).toBe('בניתם את הלבנים שבהנחיה. עכשיו לחצו על לבנת מאה כדי לפרוט אותה.');
+    expect(v.sub).toBe('בניתם את הלבנים שבהוראה. עכשיו לחצו על לבנת מאה כדי לפרוט אותה.');
   });
 
   it('s3_g_t4 (two breaks): the board before both is the one built', () => {
@@ -586,7 +586,7 @@ describe('A4-F01: the blocks of the instruction built, the conversion not made',
     board({ tens: 12, units: 5 });
     const v = verdict();
     expect(v).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', title: 'קַבְּצוּ 🧱' });
-    expect(v.sub).toBe('בניתם את הלבנים שבהנחיה. עכשיו לחצו על הכפתור "קבצו 10" שבראש טור העשרות.');
+    expect(v.sub).toBe('בניתם את הלבנים שבהוראה. עכשיו לחצו על הכפתור "קבצו 10" שבראש טור העשרות.');
   });
 
   it('any other wrong board keeps the existing sentence', () => {

@@ -216,7 +216,7 @@ describe('finding 2 — a digit stated for its column is refused, in every wordi
 describe('finding 3 — second person singular is refused; plural and look-alikes pass', () => {
   const bad = ['שים לב לטור העשרות', 'נסה שוב', 'לחץ על הכפתור', 'בדוק את הטור', 'תבדוק כמה לבנים יש', 'בדקי את הטור', 'כתוב את המספר', 'גרור לבנה לפח', 'חשוב רגע', 'שימי לב', 'נסי שוב', 'כשתבדוק את הטור', 'ושים לב', 'מה נראה לך?', 'הלבנים שלך'];
   for (const t of bad) it(`refuses: ${t}`, () => expect(languageViolation([t])?.id).toBe('second_person_singular'));
-  const good = ['שימו לב לטור העשרות', 'נסו שוב', 'לחצו על הכפתור', 'בדקו את הטור', 'מה כתוב בהנחיה?', 'מה רשום בעיגול הזיכרון?', 'חשוב לבדוק כל טור', 'התלמיד בחר בתשובה', 'העשרת תעבור לטור העשרות', 'איך תראה התוצאה?', 'בלי לחץ', 'נסו לחשוב: מה עושים?', 'שישים לבנים'];
+  const good = ['שימו לב לטור העשרות', 'נסו שוב', 'לחצו על הכפתור', 'בדקו את הטור', 'מה כתוב בהוראה?', 'מה רשום בעיגול הזיכרון?', 'חשוב לבדוק כל טור', 'התלמיד בחר בתשובה', 'העשרת תעבור לטור העשרות', 'איך תראה התוצאה?', 'בלי לחץ', 'נסו לחשוב: מה עושים?', 'שישים לבנים'];
   for (const t of good) it(`passes: ${t}`, () => expect(languageViolation([t])).toBeNull());
 });
 
@@ -283,11 +283,11 @@ describe('finding 5 — two-step representation tasks are read step by step', ()
     const f = deriveSocraticFacts(req);
     expect(f.instruction_steps?.done).toBe(1);
     expect(f.board_vs_task).toBeNull();
-    expect(f.suggested_focus_he).toContain('הצעד הבא בהנחיה: מוסיפים אלף אחד');
+    expect(f.suggested_focus_he).toContain('הצעד הבא בהוראה: מוסיפים אלף אחד');
     expect(f.suggested_focus_he).not.toContain('פחות לבנים');
     const prompt = buildSocraticPrompt(req, f);
     expect(prompt).toContain('2. מוסיפים אלף אחד ← הצעד הבא');
-    expect(prompt).not.toContain('פחות לבנים ממה שההנחיה מבקשת');
+    expect(prompt).not.toContain('פחות לבנים ממה שההוראה מבקשת');
     expect(prompt).not.toContain('3800');
   });
 
@@ -304,13 +304,13 @@ describe('finding 5 — two-step representation tasks are read step by step', ()
     expect(f.crowding_intended).toBe(true);
     expect(f.suggested_focus_he).toContain('אסור להציע לקבץ אותן בחזרה');
     const prompt = buildSocraticPrompt(req, f);
-    expect(prompt).not.toContain('יותר לבנים ממה שההנחיה מבקשת');
+    expect(prompt).not.toContain('יותר לבנים ממה שההוראה מבקשת');
     expect(prompt).toContain('10 ומעלה בכוונה');
     const back = validateSocraticResponse(card('מה עושים עם המאות בטור המאות?', 'מקבצים 10 מאות לאלף אחד', 'נכון מאוד! לחצו על "קבצו 10".'), f);
     expect(back.ok).toBe(false);
     if (!back.ok) expect(back.reason).toMatch(/^frame:/);
     // As a wrong option with a hint it may stay.
-    expect(validateSocraticResponse(card('מה ההנחיה מבקשת לעשות עכשיו?', 'מסירים מאות לפח האשפה', 'נכון מאוד! גררו לפח את המאות שההנחיה מבקשת להסיר.', ['מקבצים 10 מאות לאלף אחד', 'מוסיפים עוד אלף']), f).ok).toBe(true);
+    expect(validateSocraticResponse(card('מה ההוראה מבקשת לעשות עכשיו?', 'מסירים מאות לפח האשפה', 'נכון מאוד! גררו לפח את המאות שההוראה מבקשת להסיר.', ['מקבצים 10 מאות לאלף אחד', 'מוסיפים עוד אלף']), f).ok).toBe(true);
   });
 
   it('s7_g_t5 done: the final board is compared again', () => {

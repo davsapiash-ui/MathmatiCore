@@ -5,7 +5,7 @@ Usage: python3 apply_pairs_md.py <ops.json> [<ops.json> ...]
 
 The pairs are written as the Google Doc reads them, without Markdown escapes. The
 Markdown copies are Google Docs exports, which escape _ ! + and a full stop or a closing bracket
-after a digit, so each pair is escaped the same way before it is looked up. A pair is applied
+after a digit (and, in some copies, square brackets), so each pair is escaped the same way before it is looked up. A pair is applied
 only when it occurs exactly once; the version line of the PRD is left to the caller.
 """
 import json
@@ -32,7 +32,8 @@ def main() -> int:
     for path in sys.argv[1:]:
         for op in json.load(open(path, encoding="utf-8")):
             t = texts[op["doc"]]
-            for old, new in ((esc(op["old"]), esc(op["new"])), (op["old"], op["new"])):
+            brk = lambda s: re.sub(r"([\[\]])", r"\\\1", esc(s))
+            for old, new in ((esc(op["old"]), esc(op["new"])), (op["old"], op["new"]), (brk(op["old"]), brk(op["new"]))):
                 if t.count(old) == 1:
                     texts[op["doc"]] = t.replace(old, new)
                     break

@@ -3,7 +3,7 @@ import { motion, useReducedMotionConfig } from 'framer-motion';
 import { ArrowLeft, Check } from 'lucide-react';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { PROCEED_HE, PROCEED_SENTENCE_HE, proceedSentenceHe } from '@/core/toolbarNames';
-import { MathText } from './MathText';
+import { MathText, SentenceLines } from './MathText';
 
 /**
  * The learner's task zone — one layout for every exercise (design-task-zone;
@@ -75,7 +75,7 @@ export function InstructionBlock({ text, style }: { text: string; style?: CSSPro
       data-testid="task-instruction"
     >
       <p className="flex-1 min-w-0 max-w-[60ch] text-fl-16-20 text-ws-ink font-medium leading-[var(--instruction-leading,1.55)] whitespace-pre-line">
-        <MathText text={text} />
+        <SentenceLines text={text} />
       </p>
       <UdlSpeechButton text={text} className="shrink-0" />
     </div>
@@ -147,7 +147,7 @@ export function GuideBlock({
     <section className={`shrink-0 flex flex-col mb-2 ${PANEL_CLASS}`} style={PANEL_STYLE} data-testid="task-instruction">
       {goal ? (
         <p className="max-w-[60ch] text-[clamp(17px,calc(0.5714vh+13.57px),19px)] text-ws-ink font-semibold leading-snug [text-wrap:pretty]" data-testid="task-goal">
-          <MathText text={goal} />
+          <SentenceLines text={goal} />
           {speak}
         </p>
       ) : null}
@@ -231,7 +231,7 @@ function StepRow({ step, number, first, last, tight }: { step: StepView; number:
         <ul className="ms-9 flex flex-col rounded-lg px-2" style={{ backgroundColor: 'hsl(var(--ws-surface) / 0.6)' }} data-testid="step-subs">
           {step.subs.map((sub) => (
             <li key={sub} className="text-sm font-normal text-ws-soft leading-tight">
-              <MathText text={sub} />
+              <SentenceLines text={sub} />
             </li>
           ))}
         </ul>

@@ -39,7 +39,7 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       challenge: [
         flexible('s3_r_challenge_1', 320,
           'אתגר: כל הדרכים לייצג את 320',
-          `מצאו דרכים שונות לייצג את המספר 320 באמצעות מאות ועשרות בלבד. ${FLEX_HOWTO}`, { ...C, noUnitBlocks: true }),
+          `מצאו דרכים שונות לבנות את המספר 320. השתמשו רק בלבני מאה ועשרת. ${FLEX_HOWTO}`, { ...C, noUnitBlocks: true }),
       ],
     },
     green_path: {
@@ -52,7 +52,7 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       challenge: [
         flexible('s3_g_challenge_1', 4200,
           'אתגר: כל הדרכים לייצג את 4,200',
-          `מצאו דרכים שונות לייצג את המספר 4,200 באמצעות אלפים, מאות ועשרות בלבד. ${FLEX_HOWTO}`, { ...C, noUnitBlocks: true }),
+          `מצאו דרכים שונות לבנות את המספר 4,200. השתמשו רק בלבני אלף, מאה ועשרת. ${FLEX_HOWTO}`, { ...C, noUnitBlocks: true }),
       ],
     },
   },
@@ -130,17 +130,17 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       reinforcement: [
         skeleton('s7_r_reinforce_1', 412, 253, false, { a: ['units'] },
           'ביסוס 1: ספרת יחידות חסרה בחיבור ללא המרה',
-          'בתרגיל 41▢ + 253 = 665 חסרה ספרת היחידות של המחובר הראשון. גלו אותה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
+          'בתרגיל 41▢ + 253 = 665 חסרה ספרת היחידות במספר הראשון. גלו אותה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
           { ...R, targetNode: 'relational_thinking' }),
         skeleton('s7_r_reinforce_2', 467, 213, true, { a: ['tens'] },
           'ביסוס 2: ספרת עשרות חסרה בחיסור ללא פריטה',
-          'בתרגיל 4▢7 − 213 = 254 חסרה ספרת העשרות של המחוסר. גלו אותה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
+          'בתרגיל 4▢7 − 213 = 254 חסרה ספרת העשרות במספר הראשון. גלו אותה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
           { ...R, targetNode: 'relational_thinking' }),
       ],
       challenge: [
         skeleton('s7_r_challenge_1', 415, 258, false, { a: ['hundreds', 'tens', 'units'] },
           'אתגר: תרגיל שלד עם שלוש ספרות חסרות',
-          'בתרגיל ▢▢▢ + 258 = 673 חסרות שלוש ספרות של המחובר הראשון, בטורים שונים. גלו אותן בעזרת הלבנים בבית המספרים וכתבו אותן בתיבות הריקות.',
+          'בתרגיל ▢▢▢ + 258 = 673 חסרות שלוש ספרות במספר הראשון, בטורים שונים. גלו אותן בעזרת הלבנים בבית המספרים. כתבו אותן בתיבות הריקות.',
           { ...C, targetNode: 'relational_thinking' }),
       ],
     },
@@ -148,7 +148,7 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       reinforcement: [
         skeleton('s7_g_reinforce_1', 5538, 1246, false, { a: ['hundreds', 'units'] },
           'ביסוס 1: שתי ספרות חסרות בחיבור עם המרה אחת',
-          'בתרגיל 5,▢3▢ + 1,246 = 6,784 חסרות שתי ספרות של המחובר הראשון. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
+          'בתרגיל 5,▢3▢ + 1,246 = 6,784 חסרות שתי ספרות במספר הראשון. גלו אותן בעזרת הלבנים. כתבו אותן בתיבות הריקות.',
           { ...R, targetNode: 'relational_thinking' }),
         // Owner, 30.9.2026: a grouping composition, like s7_g_t1 — build the
         // blocks, group ten hundreds, write the number. ★ owner's numbers: 14
@@ -162,7 +162,7 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       challenge: [
         skeleton('s7_g_challenge_1', 8003, 2587, true, { a: ['thousands', 'hundreds', 'tens', 'units'] },
           'אתגר: תרגיל שלד בתחום הרבבה עם ארבע ספרות חסרות',
-          'בתרגיל ▢,▢▢▢ − 2,587 = 5,416 חסרות ארבע ספרות של המחוסר. גלו את הספרות בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
+          'בתרגיל ▢,▢▢▢ − 2,587 = 5,416 חסרות ארבע ספרות במספר הראשון. גלו את הספרות בעזרת הלבנים. כתבו אותן בתיבות הריקות.',
           { ...C, targetNode: 'relational_thinking' }),
       ],
     },

@@ -212,7 +212,7 @@ describe('A2-F04: the done checklist is compact', () => {
     const items = [
       { label: 'בנו את המספר 347 בלבנים', done: true },
       { label: 'פרטו עשרת אחת לעשר יחידות', done: true },
-      { label: 'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה', done: true },
+      { label: 'כתבו בשורת התוצאה איזה מספר הלבנים מראות לאחר הפריטה', done: true },
     ];
     render(<Session1ChecklistCard items={items} doneNote="נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 347." />);
     expect(screen.queryByText('בוצע!')).toBeNull();

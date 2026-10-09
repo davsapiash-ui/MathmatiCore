@@ -178,13 +178,13 @@ describe('2 — 320, 2,100, 4,200: a way with unit blocks is refused; 150 is not
     expect((tts as any).cleanTextForSpeech(NO_UNIT_BLOCKS_SUB_HE)).toContain('קבצו כל עשר לבני יחידה ללבנת עשרת אחת');
   });
 
-  it('only these three exercises carry the rule; each says "בלבד"', () => {
+  it('only these three exercises carry the rule; each says "השתמשו רק" (owner, 9.10.2026)', () => {
     expect(bank.filter((t) => t.noUnitBlocks).map((t) => t.id).sort()).toEqual(['s3_g_challenge_1', 's3_g_t7', 's3_r_challenge_1']);
-    expect(byId('s3_r_challenge_1').instructionHe).toContain('מצאו דרכים שונות לייצג את המספר 320 באמצעות מאות ועשרות בלבד. ');
-    expect(byId('s3_g_t7').instructionHe).toContain('מצאו דרכים שונות לייצג את המספר 2,100 באמצעות אלפים, מאות ועשרות בלבד. ');
-    expect(byId('s3_g_challenge_1').instructionHe).toContain('מצאו דרכים שונות לייצג את המספר 4,200 באמצעות אלפים, מאות ועשרות בלבד. ');
+    expect(byId('s3_r_challenge_1').instructionHe).toContain('מצאו דרכים שונות לבנות את המספר 320. השתמשו רק בלבני מאה ועשרת. ');
+    expect(byId('s3_g_t7').instructionHe).toContain('מצאו דרכים שונות לבנות את המספר 2,100. השתמשו רק בלבני אלף, מאה ועשרת. ');
+    expect(byId('s3_g_challenge_1').instructionHe).toContain('מצאו דרכים שונות לבנות את המספר 4,200. השתמשו רק בלבני אלף, מאה ועשרת. ');
     expect(byId('s7_r_t7').noUnitBlocks).toBeUndefined();
-    expect(byId('s7_r_t7').instructionHe).not.toContain('בלבד');
+    expect(byId('s7_r_t7').instructionHe).not.toContain('השתמשו רק');
   });
 
   for (const [id, withUnits, without] of NO_UNITS) {
@@ -194,7 +194,7 @@ describe('2 — 320, 2,100, 4,200: a way with unit blocks is refused; 150 is not
       ws().addRepresentation();
       expect(ws().q3Reps).toHaveLength(0);
       expect(ws().feedback).toMatchObject({ correct: false, title: 'בִּדְקוּ אֶת טוּר הַיְחִידוֹת 🤔', sub: 'בתרגיל הזה בונים את המספר בלי לבני יחידה. קבצו כל 10 לבני יחידה ללבנת עשרת אחת.' });
-      // Counted like the other refusals of "הוספת ייצוג" in station 3.
+      // Counted like the other refusals of "שמירת הדרך" in station 3.
       expect(ws().wrongAnswerStreak).toBe(1);
       expect(ws().boardCheckFailures).toBe(1);
       board(without);
@@ -259,13 +259,13 @@ describe('2 — 320, 2,100, 4,200: a way with unit blocks is refused; 150 is not
 describe('3 — a result digit missing: the instruction says what to do with the blocks', () => {
   it('400 − 156 (s6_r_t7), word for word', () => {
     expect(byId('s6_r_t7').instructionHe).toBe(
-      'בתרגיל 400 − 156 חסרה ספרת העשרות בשורת התוצאה. בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. הוציאו מבית המספרים את הכמות הנדרשת. כתבו את הספרה החסרה בתיבה הריקה.'
+      'בתרגיל 400 − 156 חסרה ספרת העשרות בשורת התוצאה. בנו בבית המספרים את המספר הראשון, 400. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו. לחצו על הלבנה, או גררו אותה אל הטור שמימין. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. הוציאו מבית המספרים את המספר השני, 156. כתבו את הספרה החסרה בתיבה הריקה.'
     );
   });
 
   it('328 + 145 (s4_r_t7), word for word', () => {
     expect(byId('s4_r_t7').instructionHe).toBe(
-      'בתרגיל 328 + 145 חסרה ספרת העשרות בשורת התוצאה. בנו בבית המספרים את שני המספרים. כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. כתבו את הספרה החסרה בתיבה הריקה.'
+      'בתרגיל 328 + 145 חסרה ספרת העשרות בשורת התוצאה. בנו בבית המספרים את שני המספרים. כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור. אחר כך רשמו בעיגול הזיכרון את ה־1 שעבר לטור הבא. כתבו את הספרה החסרה בתיבה הריקה.'
     );
   });
 
@@ -275,18 +275,19 @@ describe('3 — a result digit missing: the instruction says what to do with the
   });
 
   it('the shared sentences are the stations\' own: no other exercise changed', () => {
-    expect(S4_ADD('507 + 125')).toBe('פתרו במאונך: 507 + 125. בנו בבית המספרים את שני המספרים. כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. כתבו את התוצאה בשורת התוצאה.');
-    expect(S6_SUB('500 − 287')).toBe('פתרו במאונך: 500 − 287. בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.');
+    expect(S4_ADD('507 + 125')).toBe('פתרו במאונך: 507 + 125. בנו בבית המספרים את שני המספרים. כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור. אחר כך רשמו בעיגול הזיכרון את ה־1 שעבר לטור הבא. כתבו את התוצאה בשורת התוצאה.');
+    expect(S6_SUB('500 − 287', 500, 287)).toBe('פתרו במאונך: 500 − 287. בנו בבית המספרים את המספר הראשון, 500. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו. לחצו על הלבנה, או גררו אותה אל הטור שמימין. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. הוציאו מבית המספרים את המספר השני, 287. כתבו את התוצאה בשורת התוצאה.');
     expect(byId('s4_r_t6').instructionHe).toBe(S4_ADD('507 + 125'));
-    expect(byId('s6_r_t6').instructionHe).toBe(S6_SUB('500 − 287'));
+    expect(byId('s6_r_t6').instructionHe).toBe(S6_SUB('500 − 287', 500, 287));
   });
 
   // Until 8.10.2026 the 300-character paragraph of 400 − 156 sat closer (line
   // height 1.4) to keep the sheet in view. The task zone now shows it as a goal
   // line and steps (owner, 8.10.2026), so no paragraph that long is on screen;
   // station 8 keeps the PRD paragraph at 1.55.
-  it('400 − 156 is the one instruction over 300 characters: on screen it is a goal and steps, not one paragraph', async () => {
-    expect(bank.filter((t) => (t.instructionHe ?? '').length > 300).map((t) => t.id)).toEqual(['s6_r_t7']);
+  it('400 − 156 is the one instruction over 320 characters: on screen it is a goal and steps, not one paragraph', async () => {
+    // 9.10.2026: stations 5–6 name both numbers and say one action a sentence (≈300 characters); 400 − 156 is still the longest.
+    expect(bank.filter((t) => (t.instructionHe ?? '').length > 320).map((t) => t.id)).toEqual(['s6_r_t7']);
     const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
     load(6, byId('s6_r_t7'));
     render(<TaskCard />);
@@ -319,7 +320,7 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
 
   it('the instruction, word for word, and the exercise\'s data', () => {
     expect(T().instructionHe).toBe(
-      'בבית המספרים יש לבנת אלף אחת, 16 לבני מאה ו-13 לבני עשרת. בכל טור שיש בו 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור. איזה מספר מייצגות הלבנים עכשיו? כתבו אותו בשורת התוצאה.'
+      'בבית המספרים יש לבנת אלף אחת, 16 לבני מאה ו-13 לבני עשרת. קבצו בכל טור שיש בו 10 לבנים או יותר. לחצו על הכפתור "קבצו 10" שבראש הטור. איזה מספר הלבנים מראות עכשיו? כתבו אותו בשורת התוצאה.'
     );
     expect(T()).toMatchObject({ type: 'representation', numberA: 2730, correctAnswer: 2730, requiredCounts: { thousands: 2, hundreds: 7, tens: 3 }, initialCounts: { thousands: 1, hundreds: 16, tens: 13 } });
     // The result row stays a box per digit: no kind, so no single answer box.
@@ -357,7 +358,7 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
   });
 
   // Wording round 3 (owner, 4.10.2026), text 4.
-  const BY_HAND = { title: 'שִׂימוּ לֵב 🧱', sub: 'הלבנים מסודרות נכון, אבל ההנחיה מבקשת לקבץ בעזרת הכפתור "קבצו 10".' };
+  const BY_HAND = { title: 'שִׂימוּ לֵב 🧱', sub: 'הלבנים מסודרות נכון, אבל ההוראה מבקשת לקבץ בעזרת הכפתור "קבצו 10".' };
 
   it('the final blocks arranged by hand, or with one grouping only, are not the exercise: "שימו לב", no button is named to press', () => {
     open();
@@ -390,7 +391,7 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
 
   // Wording round 3, text 1.
   const GROUP_NOW = { title: 'קַבְּצוּ 🧱', sub: 'התשובה שכתבתם נכונה. עכשיו בכל טור שיש בו 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור.' };
-  const NOT_YET = { title: 'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍', sub: 'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.' };
+  const NOT_YET = { title: 'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍', sub: 'בית המספרים עוד לא מראה את מה שההוראה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.' };
   const TENS_DONE = { ...EMPTY_COUNTS, thousands: 1, hundreds: 17, tens: 3 };
   const HUNDREDS_DONE = { ...EMPTY_COUNTS, thousands: 2, hundreds: 6, tens: 13 };
 
@@ -490,7 +491,7 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
   // "נכון! …" says it instead of the general praise; the checks are unchanged.
   const CORRECT: Record<string, { kind: 'success'; title: string; sub: string }> = {
     s1_r_group26: { kind: 'success', title: 'נכון!', sub: 'הלבנים מסודרות אחרת, אבל המספר נשאר 26.' },
-    s1_r_words703: { kind: 'success', title: 'נכון!', sub: 'במספר שבע מאות ושלוש אין עשרות, ולכן בטור העשרות כותבים 0: 703.' },
+    s1_r_words703: { kind: 'success', title: 'נכון!', sub: 'במספר שבע מאות ושלוש אין לבנים בטור העשרות, ולכן כותבים שם 0: 703.' },
     s1_r_words482: { kind: 'success', title: 'נכון!', sub: 'ארבע מאות שמונים ושתיים כותבים בספרות 482.' },
   };
 

@@ -15,7 +15,7 @@ import { initQFlow, recordResult, advance, hasProbeExercise } from '@/core/qmatr
  *    משפט, וכפתור "התקדם" מושבת — והיציאה היחידה הייתה התנתקות.
  * 2. התשובה נבדקה מול התרגיל הלא נכון: במשימה 3 מוצג 40 − 10 והתשובה נבדקה
  *    מול 27 (התשובה ל-42 − 15). כלומר 30 נפסל ו-27 התקבל.
- * 3. ההנחיה הדפיסה לילד את התשובה הסופית, ומיד אחר כך נשאל שוב אותו תרגיל.
+ * 3. ההוראה הדפיסה לילד את התשובה הסופית, ומיד אחר כך נשאל שוב אותו תרגיל.
  */
 const src = (p: string) => readFileSync(resolve(__dirname, '../../', p), 'utf-8');
 const view = src('features/workspace/tasks/BackwardDiagnosisView.tsx');
@@ -109,7 +109,7 @@ describe('the simpler exercises: no carry, no borrow (owner, 29.9.2026)', () => 
   });
 });
 
-describe('ההנחיה אינה מוסרת את התשובה', () => {
+describe('ההוראה אינה מוסרת את התשובה', () => {
   it('אף הנחיית תיקון אינה מכילה את התשובה הסופית של המשימה', () => {
     // מודול 13, חוק ברזל 1: "איסור מוחלט לחשוף את התשובה המספרית הסופית".
     const offenders: string[] = [];

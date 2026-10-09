@@ -239,14 +239,14 @@ describe('קריינות: הקראה בסיסית', () => {
   });
 });
 
-describe('ספרה חסרה בהנחיה נאמרת כמו בתווית של התרגיל (core/missingDigitSpeech.ts)', () => {
-  it('"3▢6" נאמר "3, ספרה חסרה, 6", ושאר ההנחיה נאמרת כמו קודם', async () => {
+describe('ספרה חסרה בהוראה נאמרת כמו בתווית של התרגיל (core/missingDigitSpeech.ts)', () => {
+  it('"3▢6" נאמר "3, ספרה חסרה, 6", ושאר ההוראה נאמרת כמו קודם', async () => {
     const tts = await setupTts();
     tts.speak(
-      'בתרגיל 3▢6 + 271 = 657 חסרה ספרת העשרות של המחובר הראשון. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.'
+      'בתרגיל 3▢6 + 271 = 657 חסרה ספרת העשרות במספר הראשון. גלו את הספרה בעזרת הלבנים. כתבו אותה בתיבה הריקה.'
     );
     expect(spoken()).toBe(
-      'בתרגיל 3, ספרה חסרה, 6 ועוד 271 שווה 657 חסרה ספרת העשרות של המחובר הראשון. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.'
+      'בתרגיל 3, ספרה חסרה, 6 ועוד 271 שווה 657 חסרה ספרת העשרות במספר הראשון. גלו את הספרה בעזרת הלבנים. כתבו אותה בתיבה הריקה.'
     );
     expect(spoken()).not.toContain('▢');
   });
@@ -407,7 +407,7 @@ describe('F2 — מנוע מושהה', () => {
 describe('F3 — הנחיות ארוכות אינן נקטעות אחרי ~15 שניות', () => {
   const MAX_CHARS = 140;
 
-  it('ההנחיה הארוכה ביותר בקטלוג מפוצלת למקטעים קצרים, בלי לאבד מילה', async () => {
+  it('ההוראה הארוכה ביותר בקטלוג מפוצלת למקטעים קצרים, בלי לאבד מילה', async () => {
     // The instructions a child can actually hear: every bank the administrator
     // publishes, and the diagnostic. (Reading them off the source missed every
     // exercise written through a builder.)
@@ -448,7 +448,7 @@ describe('F3 — הנחיות ארוכות אינן נקטעות אחרי ~15 ש
       expect(p.length).toBeLessThanOrEqual(MAX_CHARS);
       expect(p, p).toMatch(/[.!?:;]$/);
     }
-    expect(parts[0]).toBe('פתרו במאונך: 142 ועוד 23. בנו בבית המספרים את שני המספרים.');
+    expect(parts[0]).toBe('פתרו במאונך: 142 ועוד 23. בנו בבית המספרים את שני המספרים. כשמצטברות עשר לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור.');
   });
 
   it('a text whose sentences are all longer than the ceiling is still cut at a comma before a word', async () => {
@@ -738,7 +738,7 @@ describe('האפיון: הקראה בממשק הלומד בלבד', () => {
 
   it('כל מסך לומד שמציג הנחיה משלו מקריא אותה', () => {
     // האפיון: "כל הנחיה המוצגת ללומד על גבי המסך מלווה בכפתור הקראה קולית ייעודי".
-    // משימות המשנה אינן ברשימה משום שהן מוצגות בתוך TaskCard, שמקריא את ההנחיה.
+    // משימות המשנה אינן ברשימה משום שהן מוצגות בתוך TaskCard, שמקריא את ההוראה.
     const surfaces = [
       // The task card's instruction and guide are drawn by the task zone (8.10.2026).
       'features/workspace/tasks/TaskZone.tsx',

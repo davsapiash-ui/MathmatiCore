@@ -72,8 +72,8 @@ describe('PRD Module 7 §א — the undo button is "כפתור ביטול הפע
       guiding_question: 'נסו לחשוב: בית המספרים לא נראה עכשיו כמו בתחילת התרגיל. מה עושים?',
       options: [
         { option_text: 'מחזירים את הלבנים שהיו בתחילת התרגיל', feedback_text: feedback, is_correct: true },
-        { option_text: 'ממשיכים בתרגיל בלי להחזיר את הלבנים', feedback_text: 'רמז: אילו לבנים ההנחיה מתארת?', is_correct: false },
-        { option_text: 'כותבים מספר בשורת התוצאה', feedback_text: 'רמז: מה ההנחיה מבקשת לעשות קודם?', is_correct: false },
+        { option_text: 'ממשיכים בתרגיל בלי להחזיר את הלבנים', feedback_text: 'רמז: אילו לבנים ההוראה מתארת?', is_correct: false },
+        { option_text: 'כותבים מספר בשורת התוצאה', feedback_text: 'רמז: מה ההוראה מבקשת לעשות קודם?', is_correct: false },
       ],
     }, deriveSocraticFacts(v.value));
     expect(card('נכון מאוד! לחצו על כפתור ביטול הפעולה ↺ עד שהלבנים יחזרו להיות כמו בהתחלה.').ok).toBe(true);

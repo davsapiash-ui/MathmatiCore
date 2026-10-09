@@ -88,7 +88,7 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       partLabelHe: 'חלק א',
       topicHe: 'פורטים לבנים',
       instructionHe:
-        'בנו בבית המספרים את המספר 350. פרטו לבנת מאה אחת לעשר לבני עשרת. כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו.',
+        'בנו בבית המספרים את המספר 350. פרטו לבנת מאה אחת לעשר לבני עשרת. כתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו.',
       // 3 hundreds and 5 tens; a hundred broken into ten tens: 2 hundreds and 15 tens, still 350.
       body: { kind: 'build', answer: 350, finalCounts: { hundreds: 2, tens: 15 } },
       // 350 built, before the break.
@@ -126,18 +126,18 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       id: 'demo_s4_choice',
       partLabelHe: 'תשובות לבחירה',
       topicHe: 'מחברים במאונך',
-      instructionHe: 'השוו בין שני תרגילים קרובים וגלו כיצד המרה בטור העשרות משפיעה על הטורים הבאים.',
+      instructionHe: 'השוו בין שני תרגילים קרובים: איך הקבצה בטור העשרות משפיעה על הטורים הבאים?',
       body: {
         kind: 'choice',
         a: 238,
         b: 146,
         changedB: 186,
         givenHe: '238 + 146 = 384',
-        questionHe: 'מחליפים רק את ספרת העשרות של המחובר השני: 238 + 186. מה ישתנה?',
+        questionHe: 'מחליפים רק את ספרת העשרות במספר השני: 238 + 186. מה ישתנה?',
         choices: [
-          { id: 'א', textHe: 'תיווסף המרה גם בטור העשרות, ההמרה בטור היחידות תישאר, והתוצאה תהיה 424', correct: true },
-          { id: 'ב', textHe: 'רק ספרת העשרות בתוצאה תשתנה, והתוצאה תהיה 324' },
-          { id: 'ג', textHe: 'ההמרה בטור היחידות תיעלם, והתוצאה תהיה 414' },
+          { id: 'א', textHe: 'תהיה הקבצה בטור היחידות ובטור העשרות, והתוצאה תהיה 424', correct: true },
+          { id: 'ב', textHe: 'תהיה הקבצה רק בטור היחידות, והתוצאה תהיה 324' },
+          { id: 'ג', textHe: 'תהיה הקבצה רק בטור העשרות, והתוצאה תהיה 414' },
         ],
       },
       coachingBoard: {},
@@ -181,7 +181,7 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       topicHe: 'מגלים מה חסר',
       // 2▢3 + 134 = 35▢: the units give 3 + 4 = 7, then the tens ▢ + 3 = 5, so 223 + 134 = 357.
       instructionHe:
-        'בתרגיל 2▢3 + 134 = 35▢ חסרות ספרת העשרות של המחובר הראשון וספרת היחידות בשורת התוצאה. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
+        'בתרגיל 2▢3 + 134 = 35▢ חסרות ספרת העשרות במספר הראשון וספרת היחידות בשורת התוצאה. גלו אותן בעזרת הלבנים. כתבו אותן בתיבות הריקות.',
       body: {
         kind: 'vertical',
         a: 223,

@@ -373,7 +373,7 @@ describe('C3 — reading and writing a number with an empty column (station 3)',
       const built = { ...EMPTY, ...t.requiredCounts };
       expect(q(REDESIGN.find((x) => x.id === id), built).questionHe, id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
       expect(q(t, built).questionHe, id).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
-      expect(q(t, { ...EMPTY, hundreds: 1 }).questionHe, id).toBe('נסו לחשוב: איך בודקים שבית המספרים מראה את המספר שבהנחיה?');
+      expect(q(t, { ...EMPTY, hundreds: 1 }).questionHe, id).toBe('נסו לחשוב: איך בודקים שבית המספרים מראה את המספר שבהוראה?');
       // On an empty board: build first (owner, 30.9.2026).
       expect(q(byId(id)).questionHe, id).toBe('נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?');
     }
@@ -487,7 +487,7 @@ describe('C7 — blocks built one way, then grouped (station 7)', () => {
 
   it('14 hundreds and 3 tens, grouped once → 1,430 (s7_g_reinforce_2): the singular, with the green block names', () => {
     const task = rep('s7_g_reinforce_2', 'compose_group', 1430, 1430, { thousands: 1, hundreds: 4, tens: 3 },
-      'בנו בבית המספרים 14 לבני מאה ו-3 לבני עשרת. קבצו 10 לבני מאה ללבנת אלף אחת. איזה מספר מייצגות הלבנים לאחר ההקבצה?');
+      'בנו בבית המספרים 14 לבני מאה ו-3 לבני עשרת. קבצו 10 לבני מאה ללבנת אלף אחת. איזה מספר הלבנים מראות לאחר ההקבצה?');
     const c = q(task, { ...EMPTY, thousands: 1, hundreds: 4, tens: 3 });
     expect(c.questionHe).toBe('נסו לחשוב: לפני ההקבצה בניתם מספר. האם ההקבצה שינתה אותו?');
     expect(c.choices.map((o) => [o.textHe, o.feedbackHe])).toEqual([

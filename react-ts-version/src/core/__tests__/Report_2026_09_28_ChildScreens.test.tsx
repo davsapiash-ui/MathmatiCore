@@ -212,7 +212,7 @@ describe('meeting 7, gap-closing track, exercise 7 (owner, 28.9.2026; מסמך 0
   const t = getSessionTasks(7, 'remediation_path').find((x) => x.id === 's7_r_t7')!;
 
   it('asks for two ways, as the document does, and gives no answer away', () => {
-    expect(t.instructionHe.startsWith('מצאו שתי דרכים שונות לייצג את המספר 150 כך שבכל דרך יש לבני עשרת, ומספר לבני העשרת זוגי. ')).toBe(true);
+    expect(t.instructionHe.startsWith('מצאו שתי דרכים שונות לבנות את המספר 150. בכל דרך יהיו לבני עשרת, ומספר לבני העשרת יהיה זוגי. ')).toBe(true);
     expect(t.instructionHe).not.toContain('למשל');
     expect(t.instructionHe).not.toContain('14 עשרות');
   });
@@ -251,7 +251,7 @@ describe('one name per thing on the child\'s screen: "בית המספרים", "�
 
   it('the checks after "ממשיכים" use the same names (report rows ע1.2, ע1.3)', () => {
     const store = src('application/useWorkspaceStore.ts');
-    expect(store).toContain("'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.'");
+    expect(store).toContain("'בית המספרים עוד לא מראה את מה שההוראה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.'");
     expect(store).toContain("'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.'");
     expect(store).toContain("'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!'");
     // Only what the child reads: the string literals, niqqud (U+0591–U+05C7)

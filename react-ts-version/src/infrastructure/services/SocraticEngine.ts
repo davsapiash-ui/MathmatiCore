@@ -593,7 +593,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     questionHe: 'הסתכלו ברשימה "מה עושים". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
     choices: [
       { id: "1", textHe: "לגרור עוד לבנים לטורים ולצפות בספרות בבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! גררו עוד לבנים, ושימו לב איך הספרות משתנות." },
-      { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "רמז: מה כתוב בשורה שעוד לא סומנה ברשימה?" },
+      { id: "2", textHe: "לקבץ 10 לבני עשרת ללבנת מאה אחת", isCorrect: false, feedbackHe: "רמז: מה כתוב בשורה שעוד לא סומנה ברשימה?" },
       { id: "3", textHe: "לכתוב מספר בשורת התוצאה", isCorrect: false, feedbackHe: "רמז: האם משהו ברשימה מבקש לכתוב מספר?" }
     ],
     correctChoiceId: "1",
@@ -680,7 +680,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
       { id: "opt_1", textHe: "כל חלק בתיבה של הטור שלו", isCorrect: true, feedbackHe: "נכון מאוד! בנו כל חלק בטור שלו, וכתבו ספרה אחת בכל תיבה." },
       // D10 (owner, 1.10.2026): guiding questions.
       { id: "opt_2", textHe: "כל חלק כמו שהוא, זה אחרי זה", isCorrect: false, feedbackHe: HINT.oneDigitPerBox },
-      { id: "opt_3", textHe: "רק את החלק הראשון במספר", isCorrect: false, feedbackHe: "רמז: כמה חלקים יש במספר שבהנחיה?" }
+      { id: "opt_3", textHe: "רק את החלק הראשון במספר", isCorrect: false, feedbackHe: "רמז: כמה חלקים יש במספר שבהוראה?" }
     ],
     correctChoiceId: "opt_1",
     cardKind: 's1_card',
@@ -856,18 +856,18 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   's8_card':   {
     pedagogical_intent: "procedural",
     error_category: "procedural",
-    tts_text: 'נסו לחשוב: כיצד תפתרו את התרגיל כאשר אין לכם לבנים על המסך?',
+    tts_text: 'נסו לחשוב: איך תפתרו את התרגיל כשאין לכם לבנים על המסך?',
     suggested_highlight: "tour-column-units",
-    questionHe: 'נסו לחשוב: כיצד תפתרו את התרגיל כאשר אין לכם לבנים על המסך?',
+    questionHe: 'נסו לחשוב: איך תפתרו את התרגיל כשאין לכם לבנים על המסך?',
     choices: [
-      { id: "opt_1", textHe: 'מתבוננים בתרגיל ונעזרים בעיגולי הזיכרון בראש הטורים כדי לנהל את פעולת ההמרה או הפריטה בשלבים', isCorrect: true, feedbackHe: 'נכון מאוד! התקדמו טור אחר טור ורשמו את המעברים בעיגולי הזיכרון.' },
+      { id: "opt_1", textHe: 'מתבוננים בתרגיל, ונעזרים בעיגולי הזיכרון שבראש הטורים', isCorrect: true, feedbackHe: 'נכון מאוד! התקדמו טור אחר טור ורשמו את המעברים בעיגולי הזיכרון.' },
       { id: "opt_2", textHe: 'מנחשים את התוצאה הסופית ומקלידים אותה מיד', isCorrect: false, feedbackHe: 'רמז: איך אפשר למצוא את התוצאה בלי לנחש?' },
       { id: "opt_3", textHe: 'מחכים שהתשובה הנכונה תופיע על המסך', isCorrect: false, feedbackHe: 'רמז: מאיזה טור אפשר להתחיל לפתור בעצמכם?' }
     ],
     correctChoiceId: "opt_1",
     situation: 'guessing_loop',
     frameLevel: 1,
-    intentHe: 'בלי לבנים: לא מנחשים, פותרים טור אחר טור ורושמים כל המרה ופריטה בעיגולי הזיכרון',
+    intentHe: 'בלי לבנים: לא מנחשים, פותרים טור אחר טור ורושמים כל הקבצה ופריטה בעיגולי הזיכרון',
   }
 };
 
@@ -880,7 +880,7 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
     pedagogical_intent: "conceptual",
     tts_text: "בנו את שני המספרים בבית המספרים וספרו כל טור בנפרד.",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "כיצד מחברים שני מספרים בבית המספרים?",
+    questionHe: "איך מחברים שני מספרים בבית המספרים?",
     choices: [
       { id: "opt_1", textHe: "בונים את שני המספרים וסופרים את הלבנים בכל טור בנפרד" },
       { id: "opt_2", textHe: "בונים רק את המספר הגדול" },
@@ -890,7 +890,7 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
   },
   regrouping_fluency: {
     pedagogical_intent: "procedural",
-    tts_text: "כאשר יש 10 לבנים ומעלה בטור — מקבצים 10 מהן ללבנה אחת בטור הבא.",
+    tts_text: "כשיש בטור 10 לבנים או יותר, מקבצים 10 מהן ללבנה אחת בטור הבא.",
     suggested_highlight: "tour-column-units",
     questionHe: "יש יותר מ-9 לבנים בטור — מה עושים?",
     choices: [
@@ -902,23 +902,23 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
   },
   flexible_regrouping: {
     pedagogical_intent: "conceptual",
-    tts_text: "ניתן לפרוט לבנה גדולה לקטנות יותר — הכמות הכוללת לא משתנה.",
+    tts_text: "אפשר לפרוט לבנה גדולה ללבנים קטנות יותר. המספר לא משתנה.",
     suggested_highlight: "tour-column-hundreds",
-    questionHe: "כיצד מייצגים את אותו מספר בדרך אחרת?",
+    questionHe: "איך בונים את אותו מספר בדרך אחרת?",
     choices: [
       { id: "opt_1", textHe: "פורטים לבנה גדולה ללבנים קטנות — הכמות נשמרת" },
       { id: "opt_2", textHe: "מוסיפים לבנים נוספות" },
-      { id: "opt_3", textHe: "לכל מספר יש ייצוג אחד בלבד" }
+      { id: "opt_3", textHe: "לכל מספר יש רק דרך אחת לבנות אותו" }
     ],
     correctChoiceId: "opt_1"
   },
   procedural_fluency: {
     pedagogical_intent: "procedural",
-    tts_text: "עבדו טור טור מימין לשמאל, ואל תשכחו לרשום את ההמרה בעיגול הזיכרון.",
+    tts_text: "עבדו טור אחר טור, מימין לשמאל. רשמו בעיגול הזיכרון כל 1 שעובר לטור הבא.",
     suggested_highlight: "tour-column-units",
     questionHe: "מה הסדר הנכון בחיבור במאונך?",
     choices: [
-      { id: "opt_1", textHe: "מתחילים מהיחידות, עוברים לעשרות ואחר כך למאות, ורושמים כל המרה בעיגול הזיכרון" },
+      { id: "opt_1", textHe: "מתחילים מהיחידות, עוברים לעשרות ואחר כך למאות" },
       { id: "opt_2", textHe: "מתחילים מהמספר הגדול" },
       { id: "opt_3", textHe: "אין חשיבות לסדר" }
     ],
@@ -926,7 +926,7 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
   },
   zero_placeholder: {
     pedagogical_intent: "conceptual",
-    tts_text: "כאשר טור ריק לחלוטין — כותבים 0 כדי לשמור על ערכי הטורים האחרים.",
+    tts_text: "כשאין לבנים בטור, כותבים בו 0. כך כל ספרה נשארת בטור שלה.",
     suggested_highlight: "tour-column-tens",
     questionHe: "מה קורה לספרות האחרות אם לא רושמים 0 בטור הריק?",
     choices: [
@@ -942,7 +942,7 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-place-value-board",
     questionHe: "איך פעולה הפוכה עוזרת לבדוק תשובה?",
     choices: [
-      { id: "opt_1", textHe: "מחסרים את אחד המחוברים מהסכום — אם מקבלים את השני, נכון" },
+      { id: "opt_1", textHe: "מהתוצאה מוציאים את אחד המספרים, ובודקים אם נשאר המספר השני" },
       { id: "opt_2", textHe: "עושים שוב את אותה פעולה" },
       { id: "opt_3", textHe: "פעולה הפוכה לא קשורה לבדיקה" }
     ],
@@ -954,9 +954,9 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
   // the PRD gives this number, so the question and the narration use it too.
   missing_subtrahend: {
     pedagogical_intent: "conceptual",
-    tts_text: "אם יודעים מה נשאר — מורידים אותו מהמספר המקורי כדי לגלות את המספר שחיסרנו.",
+    tts_text: "אם יודעים מה נשאר, מורידים אותו מהמספר שממנו מחסרים. כך מגלים את המספר שחיסרנו.",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "כיצד מוצאים את המספר שחיסרנו?",
+    questionHe: "איך מוצאים את המספר שחיסרנו?",
     choices: [
       { id: "opt_1", textHe: "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו" },
       { id: "opt_2", textHe: "מנחשים" },
@@ -966,11 +966,11 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
   },
   missing_addend: {
     pedagogical_intent: "conceptual",
-    tts_text: "מחובר ועוד מחובר שווה סכום. אם חסר מחובר, מחסרים מהסכום את המחובר הידוע.",
+    tts_text: "שני המספרים יחד נותנים את התוצאה. אם חסר מספר, מחסרים מהתוצאה את המספר הידוע.",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "כיצד מוצאים מחובר חסר?",
+    questionHe: "איך מוצאים את המספר החסר בתרגיל חיבור?",
     choices: [
-      { id: "opt_1", textHe: "מהסכום מחסרים את המחובר הידוע, ומקבלים את המחובר החסר" },
+      { id: "opt_1", textHe: "מהתוצאה מחסרים את המספר הידוע, ומקבלים את המספר החסר" },
       { id: "opt_2", textHe: "מנחשים" },
       { id: "opt_3", textHe: "מחברים את כל המספרים" }
     ],
@@ -1164,7 +1164,7 @@ export class SocraticEngine {
           // Wrong options get a guiding question (owner, 30.9.2026).
           {
             id: "opt_2",
-            textHe: "מוחקים 10 יחידות מטור היחידות לפח האשפה מבלי להוסיף עשרת",
+            textHe: "מוחקים 10 יחידות מטור היחידות לפח האשפה, בלי להוסיף עשרת",
             isCorrect: false,
             feedbackHe: HINT.deleteBlocks
           },
@@ -1191,7 +1191,7 @@ export class SocraticEngine {
             id: "opt_1", 
             textHe: "אוספים 10 עשרות ומקבצים אותן למאה אחת בטור המאות", 
             isCorrect: true, 
-            feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבצו 10" שבראש טור העשרות כדי להמיר למאה אחת.'
+            feedbackHe: 'נכון מאוד! לחצו על הכפתור "קבצו 10" שבראש טור העשרות כדי לקבץ אותן ללבנת מאה אחת.'
           },
           {
             id: "opt_2",
@@ -1356,7 +1356,7 @@ export class SocraticEngine {
           tts_text: `${inUnitsHe(counts.units)}, וצריך לחסר ${unitsB}. פרטו עשרת אחת ל-10 יחידות.`,
           suggested_highlight: "tour-column-tens",
           situation: 'deficit_column', frameLevel: 2, intentHe: 'בטור היחידות אין מספיק כדי לחסר: פורטים עשרת אחת לעשר יחידות',
-          questionHe: `${inUnitsHe(counts.units)}, וצריך לחסר ${unitsHe(unitsB)}. מה הצעד הנכון לבצע?`,
+          questionHe: `${inUnitsHe(counts.units)}, וצריך לחסר ${unitsHe(unitsB)}. מה עושים עכשיו?`,
           choices: [
             {
               id: "opt_1",
@@ -1830,7 +1830,7 @@ export class SocraticEngine {
     const staticFallback: SocraticHintResponse = (fallbackTask?.id && TASK_HINTS[fallbackTask.id]) || {
         pedagogical_intent: 'conceptual',
         error_category: 'conceptual',
-        questionHe: 'מה הפעולה המתמטית שצריך לבצע בבית המספרים?',
+        questionHe: 'מה הפעולה שצריך לעשות בבית המספרים?',
         choices: [
           { id: 'opt_1', textHe: 'לבדוק את כמות הלבנים בכל טור בבית המספרים', isCorrect: true },
           { id: 'opt_2', textHe: 'לפרוט עשרת אחת ל-10 יחידות', isCorrect: false },

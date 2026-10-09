@@ -43,6 +43,7 @@ import {
   BUILD_MINUEND_HE,
   GROUP_WHEN_TEN_HE,
   RECORD_CONVERSION_HE,
+  SAVE_WAY_BUTTON_HE,
   TAKE_AWAY_HE,
   WRITE_RESULT_HE,
 } from '@/data/taskBuilders';
@@ -70,7 +71,7 @@ export type TickRule =
   | { kind: 'boardValue'; value: number; sticky?: true }
   /** The board holds exactly these blocks. `conversionsDone`: and the exercise's conversions are done with the blocks. */
   | { kind: 'boardCounts'; counts: PlaceCounts; conversionsDone?: boolean }
-  /** The flexible exercise's "הוספת ייצוג": at least `n` ways recorded. */
+  /** The flexible exercise's "שמירת הדרך": at least `n` ways recorded. */
   | { kind: 'reps'; n: number };
 
 export interface GuideStep {
@@ -173,7 +174,8 @@ const STATION1: Record<string, Station1Spec> = {
   s1_r_words703: {
     topicHe: 'ממילים לספרות',
     steps: [{ tick: { kind: 'boardValue', value: 703 } }, { tick: fill }],
-    correctHe: 'נכון! במספר שבע מאות ושלוש אין עשרות, ולכן בטור העשרות כותבים 0: 703.',
+    // Owner, 9.10.2026: 703 has 70 tens — what it lacks is blocks in the tens column.
+    correctHe: 'נכון! במספר שבע מאות ושלוש אין לבנים בטור העשרות, ולכן כותבים שם 0: 703.',
   },
   s1_r_value368: {
     topicHe: 'מוצאים את ערך הספרה',
@@ -332,7 +334,7 @@ function composeGuide(task: SessionTask, sessionNumber: number): TaskGuide {
       ...convLines.map((l, i) =>
         step(noDot(l), { kind: 'boardCounts', counts: boards[i + 1], conversionsDone: i === convLines.length - 1 })
       ),
-      step('כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו', fill),
+      step('כתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו', fill),
     ],
     doneNoteHe: WROTE_ANSWER_HE,
     correctHe: `נכון! הלבנים מסודרות אחרת, אבל המספר נשאר ${fmt(task.numberA ?? 0)}.`,
@@ -383,8 +385,8 @@ function subtractionGuide(task: SessionTask, sessionNumber: number): TaskGuide {
     topicHe: topicOf(task, sessionNumber),
     goalHe: lines[0],
     steps: [
-      step(noDot(BUILD_MINUEND_HE), { kind: 'boardValue', value: task.numberA ?? 0 }),
-      step(noDot(TAKE_AWAY_HE), { kind: 'none' }, BORROW_SUBS_HE),
+      step(noDot(BUILD_MINUEND_HE(task.numberA ?? 0)), { kind: 'boardValue', value: task.numberA ?? 0 }),
+      step(noDot(TAKE_AWAY_HE(task.numberB ?? 0)), { kind: 'none' }, BORROW_SUBS_HE),
       step(noDot(missing ? WRITE_MISSING_HE : WRITE_RESULT_HE), fill),
     ],
     doneNoteHe: WROTE_ANSWER_HE,
@@ -409,10 +411,13 @@ function missingDigitCorrectHe(task: SessionTask): string | null {
 /** A skeleton (hidden operand digits): the exercise is the goal; "גלו …" and "כתבו …" are the steps. */
 function skeletonGuide(task: SessionTask, sessionNumber: number): TaskGuide {
   const lines = instructionLines(task.instructionHe);
-  const [goal, act, ...rest] = lines;
+  const [goal, act, ...after] = lines;
   const parts = (act ?? '').split(/,? (?=וכתבו )/);
   const discover = parts[0] ?? '';
-  const write = parts[1] ? parts[1].replace(/^ו/, '') : '';
+  // Since 9.10.2026 (owner: one action a sentence) "כתבו …" is a sentence of its own.
+  const own = !parts[1] && /^כתבו /.test(after[0] ?? '');
+  const write = parts[1] ? parts[1].replace(/^ו/, '') : own ? after[0] : '';
+  const rest = own ? after.slice(1) : after;
   return {
     topicHe: topicOf(task, sessionNumber),
     goalHe: goal ?? null,
@@ -452,7 +457,7 @@ function sentencesGuide(task: SessionTask, sessionNumber: number): TaskGuide {
       goal.push(l);
       continue;
     }
-    if (/"הוספת ייצוג"/.test(l)) {
+    if (l.includes(`"${SAVE_WAY_BUTTON_HE}"`)) {
       reps++;
       steps.push(step(noDot(l), { kind: 'reps', n: reps }));
       continue;
@@ -498,7 +503,7 @@ export function taskGuide(task: SessionTask | null | undefined, sessionNumber: n
   if (task.representationKind === 'compose_break' || task.representationKind === 'compose_group') return composeGuide(task, sessionNumber);
   if (task.type === 'vertical_addition' || task.type === 'addition_simple') {
     if (task.hiddenDigits) return skeletonGuide(task, sessionNumber);
-    const shaped = task.instructionHe.includes(task.isSubtraction ? BUILD_MINUEND_HE : BUILD_BOTH_HE);
+    const shaped = task.instructionHe.includes(task.isSubtraction ? BUILD_MINUEND_HE(task.numberA ?? 0) : BUILD_BOTH_HE);
     if (shaped) return task.isSubtraction ? subtractionGuide(task, sessionNumber) : additionGuide(task, sessionNumber);
   }
   return sentencesGuide(task, sessionNumber);

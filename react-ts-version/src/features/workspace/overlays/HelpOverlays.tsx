@@ -14,7 +14,7 @@ import { orderSocraticChoices } from '@/infrastructure/services/socraticOptionOr
 import { socraticCardTextDetails, socraticOptionKey } from '@/infrastructure/services/socraticCardText';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
-import { MathText } from '../tasks/MathText';
+import { MathText, SentenceLines } from '../tasks/MathText';
 import { joinSpokenSentences } from '../tasks/spokenSentences';
 import { useStudentChatOpen } from '@/application/useStudentChatOpen';
 import { coachingCardKey, showCoachingCard, useIsAdditionGridOverCard } from '@/application/useAdditionGridOverCard';
@@ -359,7 +359,7 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
                 </div>
                 <CardTitle inTaskZone={inTaskZone} />
                 <h2 className={`font-display font-black ${inTaskZone ? 'text-[clamp(0.9375rem,2.4vh,1.25rem)]' : 'text-[clamp(0.875rem,2.4vh,1.25rem)]'} text-ws-ink leading-tight`}>
-                  <MathText text={shownCard?.questionHe || 'שאלה מנחה לחשיבה'} />
+                  <SentenceLines text={shownCard?.questionHe || 'שאלה מנחה לחשיבה'} />
                 </h2>
               </div>
 
@@ -586,7 +586,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
             text={locked ? joinSpokenSentences([feedbackHint, LOCK_SENTENCE_HE]) : feedbackHint}
             className="float-left ms-2 shrink-0"
           />}
-          <div>💡 <MathText text={feedbackHint} /></div>
+          <div>💡 <SentenceLines text={feedbackHint} /></div>
           {locked && (
             // שעון חול עדין ומשפט אחד, בלי מספרים (מודול 12 §ב; ע1.5).
             <div data-testid="socratic-lock-indicator" className="mt-1 flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200">

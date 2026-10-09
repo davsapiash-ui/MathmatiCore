@@ -1344,12 +1344,12 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     suggested_category = "procedural";
     const st = instruction_steps;
     if (st.done === null) {
-      suggested_focus_he = `בית המספרים לא נמצא באף שלב של ההנחיה (${st.steps.map(stepHe).join(", ואז ")}). כוון לקרוא שוב את ההנחיה ולבדוק איזה צעד כבר נעשה ועל איזו לבנה — בלי לומר את המספר שיתקבל.`;
+      suggested_focus_he = `בית המספרים לא נמצא באף שלב של ההוראה (${st.steps.map(stepHe).join(", ואז ")}). כוון לקרוא שוב את ההוראה ולבדוק איזה צעד כבר נעשה ועל איזו לבנה — בלי לומר את המספר שיתקבל.`;
     } else {
       const next = st.steps[st.done];
       const doneHe = st.done === 0
-        ? (st.partial ? "המספר הראשון שבהנחיה עוד לא בנוי בשלמותו" : "בית המספרים ריק")
-        : `בית המספרים מראה ${st.done === 1 ? "את הצעד הראשון של ההנחיה" : `את ${st.done} הצעדים הראשונים של ההנחיה`} (${st.steps.slice(0, st.done).map(stepHe).join(", ")})`;
+        ? (st.partial ? "המספר הראשון שבהוראה עוד לא בנוי בשלמותו" : "בית המספרים ריק")
+        : `בית המספרים מראה ${st.done === 1 ? "את הצעד הראשון של ההוראה" : `את ${st.done} הצעדים הראשונים של ההוראה`} (${st.steps.slice(0, st.done).map(stepHe).join(", ")})`;
       const left = next.column ? NEXT_COLUMN[next.column] : null;
       const breakHe = st.needs_break && next.column && left
         ? ` — אבל ב${COLUMN_NAME_HE[next.column]} אין מספיק ${BLOCK_NOUN_HE[next.column]} כדי להסיר: קודם פורטים ${ONE_BLOCK_HE[left]} ל${TEN_BLOCKS_HE[next.column]} (המספר לא משתנה), ואחר כך מסירים`
@@ -1357,7 +1357,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
       const crowdedHe = st.break_done && st.break_column
         ? ` הפריטה שההסרה צריכה כבר נעשתה: 10 לבנים או יותר ב${COLUMN_NAME_HE[st.break_column]} הם שלב בדרך, בכוונה. אסור להציע לקבץ אותן בחזרה.`
         : "";
-      suggested_focus_he = `${doneHe}. הצעד ${st.partial ? "שבאמצע הביצוע" : "הבא"} בהנחיה: ${stepHe(next)}${breakHe}.${crowdedHe} כוון לצעד הזה בלבד, בלי לומר את המספר שיתקבל.`;
+      suggested_focus_he = `${doneHe}. הצעד ${st.partial ? "שבאמצע הביצוע" : "הבא"} בהוראה: ${stepHe(next)}${breakHe}.${crowdedHe} כוון לצעד הזה בלבד, בלי לומר את המספר שיתקבל.`;
     }
   } else if (board_vs_task && Object.values(board_vs_task).some((v) => v !== "match")) {
     suggested_category = "procedural";
@@ -1365,18 +1365,18 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     const less = SOCRATIC_COLUMNS.filter((c) => board_vs_task![c] === "less").map((c) => COLUMN_NAME_HE[c]);
     suggested_focus_he = built_before_conversion
       ? start_given
-        ? "הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההנחיה מבקשת עוד לא נעשתה. הלומד לא בנה אותן."
-        : "הלבנים בנויות כמו שההנחיה מבקשת בהתחלה, וההמרה שההנחיה מבקשת (פריטה או הקבצה) עוד לא נעשתה."
+        ? "הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההוראה מבקשת עוד לא נעשתה. הלומד לא בנה אותן."
+        : "הלבנים בנויות כמו שההוראה מבקשת בהתחלה, וההמרה שההוראה מבקשת (פריטה או הקבצה) עוד לא נעשתה."
       : start_given
         ? `הלבנים שהתרגיל נתן בהתחלה השתנו${meeting1 ? "" : `${more.length ? `: ב${more.join(" וב")} יש יותר לבנים ממה שהתרגיל נתן` : ""}${less.length ? `${more.length ? "," : ":"} ב${less.join(" וב")} יש פחות לבנים ממה שהתרגיל נתן` : ""}`}. כוון לבדוק אם זה עדיין אותו מספר, ולחזור ללבנים שהיו בהתחלה בכפתור ביטול הפעולה — לא לכתוב את מה שבבית המספרים עכשיו.`
-        : `בית המספרים עוד לא מראה את מה שההנחיה מבקשת${meeting1 ? "" : `${more.length ? `: ב${more.join(" וב")} יש יותר לבנים ממה שצריך` : ""}${less.length ? `${more.length ? "," : ":"} ב${less.join(" וב")} יש פחות לבנים ממה שצריך` : ""}`}. כוון לקרוא שוב את ההנחיה ולבדוק מה עוד לא נעשה — לא לספור ולכתוב את מה שבנוי עכשיו.`;
+        : `בית המספרים עוד לא מראה את מה שההוראה מבקשת${meeting1 ? "" : `${more.length ? `: ב${more.join(" וב")} יש יותר לבנים ממה שצריך` : ""}${less.length ? `${more.length ? "," : ":"} ב${less.join(" וב")} יש פחות לבנים ממה שצריך` : ""}`}. כוון לקרוא שוב את ההוראה ולבדוק מה עוד לא נעשה — לא לספור ולכתוב את מה שבנוי עכשיו.`;
   } else if (start_given && board_matches_task && tc?.conversion_done === false) {
     // The final blocks, arranged by hand: the grouping the exercise asks for was not made.
     suggested_category = "procedural";
-    suggested_focus_he = "בבית המספרים הלבנים שבסוף התרגיל, אבל הן סודרו ביד, בלי הכפתור \"קבצו 10\". ההנחיה מבקשת לקבץ את הלבנים שהתרגיל נתן בהתחלה. כוון לחזור ללבנים שהיו בהתחלה (כפתור ביטול הפעולה) ולקבץ אותן בכפתור — לא לכתוב את המספר.";
+    suggested_focus_he = "בבית המספרים הלבנים שבסוף התרגיל, אבל הן סודרו ביד, בלי הכפתור \"קבצו 10\". ההוראה מבקשת לקבץ את הלבנים שהתרגיל נתן בהתחלה. כוון לחזור ללבנים שהיו בהתחלה (כפתור ביטול הפעולה) ולקבץ אותן בכפתור — לא לכתוב את המספר.";
   } else if (board_matches_task && trigger === "repeated_errors") {
     suggested_category = "conceptual";
-    suggested_focus_he = "בית המספרים מראה בדיוק את מה שההנחיה מבקשת, אבל התשובה שנכתבה שגויה — כוון לקרוא את המספר מהלבנים: כמה שווה כל טור.";
+    suggested_focus_he = "בית המספרים מראה בדיוק את מה שההוראה מבקשת, אבל התשובה שנכתבה שגויה — כוון לקרוא את המספר מהלבנים: כמה שווה כל טור.";
   } else if (overcrowded) {
     suggested_category = "conceptual";
     suggested_focus_he = noCounts
@@ -1414,7 +1414,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
       : `הלומד השתהה ב${COLUMN_NAME_HE[active.column]} ללא פעולה; יש לכוון אותו לצעד המדויק הבא באותו טור.`;
   } else {
     suggested_category = "procedural";
-    suggested_focus_he = "הלומד השתהה ללא פעולה; יש לכוון אותו לצעד הבא שההנחיה מבקשת.";
+    suggested_focus_he = "הלומד השתהה ללא פעולה; יש לכוון אותו לצעד הבא שההוראה מבקשת.";
   }
 
   return {
@@ -1495,7 +1495,7 @@ THE SCREEN. The prompt's section "המסך" lists what is on THIS child's screen
 THE REFERENCE CARD. The prompt includes the static card this child would otherwise see, written and approved by the product owner. It sets the card's LEVEL, TERMS and FORM: keep its level (a first-level card that asks what to check stays a question about what to check — do not name the column or give the step it leaves the child to find); use its terms and the screen's actions only; keep its form. Tailor the question to THIS exercise and THIS child's actions, and never contradict the reference card.
 
 HEBREW. Natural, grammatically flawless Hebrew for children: short, warm, empowering sentences; exact gender/number agreement (4 מאות, 2 עשרות, 5 יחידות, 10 עשרות, עשרת אחת, מאה אחת, אלף אחד). A grouping passes ONE block of the receiving column (into the hundreds "מאה אחת", into the thousands "אלף אחד"); a break gives ten blocks of the column on its right ("פורטים מאה אחת לעשר עשרות"). Address the learner in the second person plural, gender-neutral, in every instruction and feedback ("בדקו", "פרטו", "לחצו"); gender-equal writing means the second person plural only, never split, dot or slash gender forms. Phrase the guiding question impersonally ("מה עושים?", "איך מגלים?") or in the second person plural. Write answer options that describe an action in the impersonal present plural ("מקבצים", "פורטים", "משתמשים"). NEVER use the first person plural ("נבדוק", "נפרוט", "מה נעשה", "בואו נ…") and never the second person singular ("שים לב", "בדוק", "בדקי"). The guiding question and every hint are DIRECT questions that end with "?". An indirect question inside a sentence takes "אם", not "האם", and ends with a period, not "?" ("בדקו אם צריך לרשום משהו בעיגול הזיכרון.") — use it only inside the correct option's feedback; a prefix letter stays outside quotation marks (ל"שורת התוצאה", never "לשורת התוצאה" inside the quotes).
-TERMINOLOGY (Ministry of Education): subtraction regrouping is "פריטה" ONLY (never שבירה / הלוואה / לווים); addition regrouping is "המרה" / "הקבצה" ONLY, the verb "מקבצים" (never נשיאה); the workspace is "בית המספרים" with "טור היחידות / טור העשרות / טור המאות / טור האלפים"; tools are "עיגולי הזיכרון" and "פח האשפה". The blocks are "לבנים" ONLY ("לבנה" in the singular; never "קוביות", "קובייה", "בלוק" or "בלוקים"), and the board is "בית המספרים" ONLY (never "לוח הדינס", "לוח הלבנים" or "קנבס"). Never mention physical objects that do not exist on screen (מקלות, חרוזים, אצבעות, מטבעות, חשבונייה).
+TERMINOLOGY (Ministry of Education): subtraction regrouping is "פריטה" ONLY (never שבירה / הלוואה / לווים); addition regrouping is "הקבצה" ONLY, the verb "מקבצים" (never נשיאה; "המרה" in these instructions is the model's word only — never write it to the learner); the workspace is "בית המספרים" with "טור היחידות / טור העשרות / טור המאות / טור האלפים"; tools are "עיגולי הזיכרון" and "פח האשפה". The blocks are "לבנים" ONLY ("לבנה" in the singular; never "קוביות", "קובייה", "בלוק" or "בלוקים"), and the board is "בית המספרים" ONLY (never "לוח הדינס", "לוח הלבנים" or "קנבס"). Never mention physical objects that do not exist on screen (מקלות, חרוזים, אצבעות, מטבעות, חשבונייה).
 ${LANGUAGE_SLOT}
 
 IRON RULES:
@@ -1540,9 +1540,9 @@ export const SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS = withLanguage(SOCRATIC_SYSTE
   )
   .replace("blocks deleted without preserving the total, 10 or more blocks left in one column.", "a conversion not written in the memory circle.")
   .replace('the workspace is "בית המספרים" with "טור היחידות / טור העשרות / טור המאות / טור האלפים";', 'the columns are "טור היחידות / טור העשרות / טור המאות / טור האלפים";')
-  .replace('addition regrouping is "המרה" / "הקבצה" ONLY, the verb "מקבצים" (never נשיאה)', 'addition regrouping is "המרה", written in the memory circle (never נשיאה)')
+  .replace(`addition regrouping is "הקבצה" ONLY, the verb "מקבצים" (never נשיאה; "המרה" in these instructions is the model's word only — never write it to the learner)`, 'in addition the 1 that passes to the next column is written in the memory circle (never נשיאה; never "המרה" to the learner)')
   // The options' example verbs: no grouping on this screen, the conversion is written in the memory circle.
-  .replace('("מקבצים", "פורטים", "משתמשים")', '("ממירים", "פורטים", "רושמים")'), false);
+  .replace('("מקבצים", "פורטים", "משתמשים")', '("רושמים", "פורטים", "מחברים")'), false);
 
 /**
  * Station 1 (meeting 1): nothing on the screen or read aloud may give the
@@ -1667,7 +1667,7 @@ export function screenDescriptionHe(facts: Pick<SocraticFacts, "screen"> & Parti
     case "flexible":
       return [
         ...BOARD_CONTROLS_HE,
-        'בונים דרך אחת בבית המספרים ולוחצים על הכפתור "הוספת ייצוג", ואחר כך בונים דרך שונה. אין עיגולי זיכרון.',
+        'בונים דרך אחת בבית המספרים ולוחצים על הכפתור "שמירת הדרך", ואחר כך בונים דרך שונה. אין עיגולי זיכרון.',
       ];
     default:
       return [...BOARD_CONTROLS_HE, 'יש "שורת התוצאה" לכתיבת התשובה.'];
@@ -1681,10 +1681,10 @@ const TASK_KIND_HE: Record<SocraticTaskKind, string> = {
   missing_result_digit: "תרגיל במאונך שבו חסרה ספרה בשורת התוצאה, והלומד מגלה אותה",
   error_analysis: "ניתוח שגיאה: תלמיד דמיוני פתר את התרגיל וטעה; הלומד מוצא את הטעות ומתקן אותה בעזרת הלבנים",
   read_write: "מספר שנאמר במילים: בונים אותו בלבנים וכותבים אותו בספרות",
-  compose_break: "בונים לבנים לפי ההנחיה, פורטים לבנה כפי שההנחיה מבקשת, וכותבים איזה מספר הלבנים מייצגות אחרי הפריטה",
+  compose_break: "בונים לבנים לפי ההוראה, פורטים לבנה כפי שההוראה מבקשת, וכותבים איזה מספר הלבנים מראות אחרי הפריטה",
   decompose: "בונים מספר מסוג לבנה אחד בלבד, וכותבים בכמה לבנים השתמשו",
-  compose_group: 'בונים לבנים לפי ההנחיה, מקבצים בכפתור "קבצו 10" כפי שההנחיה מבקשת, וכותבים איזה מספר הלבנים מייצגות אחרי ההקבצה',
-  representation: "בונים בבית המספרים את מה שההנחיה מבקשת, וכותבים את המספר בשורת התוצאה",
+  compose_group: 'בונים לבנים לפי ההוראה, מקבצים בכפתור "קבצו 10" כפי שההוראה מבקשת, וכותבים איזה מספר הלבנים מראות אחרי ההקבצה',
+  representation: "בונים בבית המספרים את מה שההוראה מבקשת, וכותבים את המספר בשורת התוצאה",
   flexible: "מוצאים כמה דרכים שונות לייצג אותו מספר בלבנים",
   missing_element: "מוצאים את החלק החסר של מספר",
   small_change: "משווים שני תרגילים קרובים ובוחרים תשובה",
@@ -1692,7 +1692,7 @@ const TASK_KIND_HE: Record<SocraticTaskKind, string> = {
 
 /** A representation whose blocks the exercise put on the board (start_given). */
 const START_GIVEN_KIND_HE =
-  'הלבנים נמצאות בבית המספרים מתחילת התרגיל — התרגיל נתן אותן, והלומד לא בנה אותן. המשימה: לקבץ בכפתור "קבצו 10" כפי שההנחיה מבקשת, ולכתוב את המספר בשורת התוצאה';
+  'הלבנים נמצאות בבית המספרים מתחילת התרגיל — התרגיל נתן אותן, והלומד לא בנה אותן. המשימה: לקבץ בכפתור "קבצו 10" כפי שההוראה מבקשת, ולכתוב את המספר בשורת התוצאה';
 /** The board against the blocks the exercise gave (start_given), where they were lost or added. */
 const BOARD_VS_GIVEN_HE: Record<BoardVsTask, string> = {
   match: "כמו שהתרגיל נתן",
@@ -1701,9 +1701,9 @@ const BOARD_VS_GIVEN_HE: Record<BoardVsTask, string> = {
 };
 
 const BOARD_VS_TASK_HE: Record<BoardVsTask, string> = {
-  match: "כמו שההנחיה מבקשת",
-  more: "יותר לבנים ממה שההנחיה מבקשת",
-  less: "פחות לבנים ממה שההנחיה מבקשת",
+  match: "כמו שההוראה מבקשת",
+  more: "יותר לבנים ממה שההוראה מבקשת",
+  less: "פחות לבנים ממה שההוראה מבקשת",
 };
 
 function fmtColumnFact(c: ColumnFact, facts: SocraticFacts): string {
@@ -1734,7 +1734,7 @@ function fmtColumnFact(c: ColumnFact, facts: SocraticFacts): string {
   const vs = facts.board_vs_task?.[c.column];
   if (vs) {
     parts.push(facts.start_given ? BOARD_VS_GIVEN_HE[vs] : BOARD_VS_TASK_HE[vs]);
-    if (c.blocks_on_board >= 10 && vs !== "more" && !facts.start_given) parts.push("10 ומעלה זה מה שההנחיה מבקשת — לא מקבצים");
+    if (c.blocks_on_board >= 10 && vs !== "more" && !facts.start_given) parts.push("10 ומעלה זה מה שההוראה מבקשת — לא מקבצים");
   }
   if (facts.crowding_intended && c.blocks_on_board >= 10) parts.push("10 ומעלה בכוונה: הפריטה נעשתה כדי שאפשר יהיה להסיר — לא מקבצים בחזרה");
   parts.push(c.completed ? "הטור כבר נפתר נכון" : c.column === facts.active_column && facts.operation ? "<< הטור הפעיל" : facts.operation ? "טרם נפתר" : "");
@@ -1761,22 +1761,23 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
     if (ec.hidden_places) {
       lines.push(`על המסך התוצאה נתונה (${formatNumberHe(ec.operation === "subtraction" ? ec.number_a - ec.number_b : ec.number_a + ec.number_b)}), והספרות שמסומנות ▢ מוסתרות: הלומד מגלה אותן. אסור לכתוב ספרה מוסתרת או את המספר המלא.`);
     }
-    if (ec.session_topic) lines.push(`נושא המפגש: ${ec.session_topic}`);
+    // Owner, 9.10.2026: the title is the teacher's (it may say "פריטה אחת", "במחוסר", "המרה"): context for the model only.
+    if (ec.session_topic) lines.push(`נושא התרגיל (למודל בלבד; אסור לצטט אותו ללומד או להשתמש במונחים שלו): ${ec.session_topic}`);
     if (facts.hidden_result_digits.length) {
       lines.push(`בשורת התוצאה חסרה ספרה ב${facts.hidden_result_digits.map((h) => COLUMN_NAME_HE[h.column]).join(" וב")}: הלומד מגלה אותה. אסור לכתוב אותה, גם לא כמספר לבנים בטור הזה.`);
     }
     if (tc && tc.kind !== "addition" && tc.kind !== "subtraction") lines.push(`סוג המשימה: ${TASK_KIND_HE[tc.kind]}.`);
-    if (tc) lines.push(`ההנחיה שעל המסך: «${tc.instruction_he}»`);
+    if (tc) lines.push(`ההוראה שעל המסך: «${tc.instruction_he}»`);
     const activeFact = facts.columns.find((c) => c.column === facts.active_column);
     const subProblem = activeFact ? `${activeFact.shown_a} ${sign} ${activeFact.shown_b}` : ec.target_sub_problem;
     lines.push(`הטור הפעיל: ${COLUMN_NAME_HE[facts.active_column]}${subProblem ? ` (תת-תרגיל: ${subProblem})` : ""}.`);
   } else if (tc) {
     lines.push(`סוג המשימה: ${facts.start_given ? START_GIVEN_KIND_HE : TASK_KIND_HE[tc.kind]}.`);
-    lines.push(`ההנחיה שעל המסך: «${tc.instruction_he}»`);
+    lines.push(`ההוראה שעל המסך: «${tc.instruction_he}»`);
     if (facts.start_given) lines.push("הלומד לא בנה את הלבנים ולא את המספר: אסור לכתוב \"בניתם\" או \"המספר שבניתם\".");
     lines.push("אין כאן תרגיל חיבור או חיסור במאונך, ואין טור פעיל.");
     if (facts.secret_numbers.length) {
-      lines.push("אסור לכתוב את המספר שהלומד צריך למצוא — לא בספרות ולא כרשימת לבנים (גם לא רשימת הלבנים שבהנחיה, למשל \"3 לבני אלף ו-4 לבני מאה\"): שאלו על הלבנים בלי למנות אותן.");
+      lines.push("אסור לכתוב את המספר שהלומד צריך למצוא — לא בספרות ולא כרשימת לבנים (גם לא רשימת הלבנים שבהוראה, למשל \"3 לבני אלף ו-4 לבני מאה\"): שאלו על הלבנים בלי למנות אותן.");
     }
   } else {
     lines.push(`תרגיל ${req.exercise_id} (ללא אופרנדים מספריים — משימת ייצוג/בנייה בבית המספרים). הטור הפעיל: ${COLUMN_NAME_HE[facts.active_column]}.`);
@@ -1804,23 +1805,23 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
         ? "בבית המספרים יש יותר מהמספר הראשון: בחיסור בונים רק את המספר הראשון."
         : "בבית המספרים יש יותר לבנים ממה ששני המספרים יחד צריכים: יש לבנים מיותרות.");
     }
-    if (facts.built_before_conversion && facts.start_given) lines.push("הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההנחיה מבקשת עוד לא נעשתה. הלומד לא בנה אותן.");
-    else if (facts.built_before_conversion) lines.push("הלבנים בנויות כמו שההנחיה מבקשת בהתחלה, וההמרה שההנחיה מבקשת עוד לא נעשתה.");
-    else if (facts.board_matches_task) lines.push("בית המספרים מראה בדיוק את מה שההנחיה מבקשת.");
+    if (facts.built_before_conversion && facts.start_given) lines.push("הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההוראה מבקשת עוד לא נעשתה. הלומד לא בנה אותן.");
+    else if (facts.built_before_conversion) lines.push("הלבנים בנויות כמו שההוראה מבקשת בהתחלה, וההמרה שההוראה מבקשת עוד לא נעשתה.");
+    else if (facts.board_matches_task) lines.push("בית המספרים מראה בדיוק את מה שההוראה מבקשת.");
     // The conversion state is per column (fmtColumnFact: "ההמרה בטור הזה כבר
     // בוצעה"); the exercise-wide "a break was done" next to it contradicted
     // the column that still needs one (review of 1.10.2026), so it is gone.
     // A representation task says whether ITS conversion — the one its
     // instruction names — is done.
     if (!facts.operation && tc && typeof tc.conversion_done === "boolean" && tc.start_counts) {
-      lines.push(tc.conversion_done ? "ההמרה שההנחיה מבקשת כבר נעשתה בלבנים." : "ההמרה שההנחיה מבקשת עוד לא נעשתה בלבנים.");
+      lines.push(tc.conversion_done ? "ההמרה שההוראה מבקשת כבר נעשתה בלבנים." : "ההמרה שההוראה מבקשת עוד לא נעשתה בלבנים.");
     }
     const st = facts.instruction_steps;
     if (st) {
       // The steps, without the value they end on: that is the number the child finds.
       const mark = (i: number) => (st.done === null ? "" : i < st.done ? " ✓ נעשה" : i === st.done ? (st.partial ? " ← באמצע הביצוע" : " ← הצעד הבא") : "");
-      lines.push(`שלבי ההנחיה: ${st.steps.map((s, i) => `${i + 1}. ${stepHe(s)}${mark(i)}`).join("; ")}.`);
-      if (st.done === null) lines.push("בית המספרים לא נמצא באף שלב של ההנחיה.");
+      lines.push(`שלבי ההוראה: ${st.steps.map((s, i) => `${i + 1}. ${stepHe(s)}${mark(i)}`).join("; ")}.`);
+      if (st.done === null) lines.push("בית המספרים לא נמצא באף שלב של ההוראה.");
       if (st.needs_break) lines.push("לצעד הבא אין מספיק לבנים בטור שממנו מסירים: קודם פורטים לבנה מהטור שמשמאלו (המספר לא משתנה), ואחר כך מסירים.");
       if (st.break_done && st.break_column) lines.push(`הפריטה שהצעד צריך כבר נעשתה: 10 לבנים או יותר ב${COLUMN_NAME_HE[st.break_column]} הם שלב בדרך, בכוונה. אסור להציע לקבץ אותן בחזרה.`);
     }
@@ -1927,7 +1928,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
   lines.push("Return ONLY this JSON object:");
   lines.push(`{
   "error_category": "calculation" | "procedural" | "conceptual",
-  "guiding_question": "<שאלה מנחה אחת קצרה בעברית, עד 14 מילים אחרי «נסו לחשוב:», המזכירה ${facts.meeting === 1 || facts.card_frame?.level === 1 ? "את התרגיל, בלי לציין שם של טור, " : facts.operation ? "את התרגיל, את הטור הפעיל " : "את המספר שבהנחיה או את מה שבבית המספרים (לא את כותרת המשימה ולא את משפט ההנחיה) "}${facts.blocks_on_screen ? (facts.meeting !== null && (facts.meeting === 1 || (facts.meeting >= 3 && facts.meeting <= 7)) ? "ואת מצב הלבנים, בלי לכתוב כמה לבנים יש בטור" : "ואת מצב הלבנים") : "ואת עיגולי הזיכרון"}>",
+  "guiding_question": "<שאלה מנחה אחת קצרה בעברית, עד 14 מילים אחרי «נסו לחשוב:», המזכירה ${facts.meeting === 1 || facts.card_frame?.level === 1 ? "את התרגיל, בלי לציין שם של טור, " : facts.operation ? "את התרגיל, את הטור הפעיל " : "את המספר שבהוראה או את מה שבבית המספרים (לא את כותרת המשימה ולא את משפט ההוראה) "}${facts.blocks_on_screen ? (facts.meeting !== null && (facts.meeting === 1 || (facts.meeting >= 3 && facts.meeting <= 7)) ? "ואת מצב הלבנים, בלי לכתוב כמה לבנים יש בטור" : "ואת מצב הלבנים") : "ואת עיגולי הזיכרון"}>",
   "options": [
     { "id": "opt_1", "option_text": "<פעולה קצרה בעברית, עד 10 מילים>", "feedback_text": "<משוב בעברית, עד 16 מילים>", "is_correct": true|false },
     { "id": "opt_2", "option_text": "<פעולה קצרה בעברית, עד 10 מילים>", "feedback_text": "<משוב בעברית, עד 16 מילים>", "is_correct": true|false },

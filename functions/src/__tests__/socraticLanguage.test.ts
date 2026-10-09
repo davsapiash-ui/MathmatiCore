@@ -80,7 +80,7 @@ describe('text the PRD itself writes is never refused (PRD 7.4 Module 13 §א, M
       expect(spec).toContain('NEVER "שארית"');
       expect(spec).toContain('a column is "טור" ("בטור העשרות"), never "עמודה", "עמודות" or "עמודת"');
       expect(spec).toContain('"מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו"');
-      expect(spec).toContain('"מהסכום מחסרים את המחובר הידוע, ומקבלים את המחובר החסר"');
+      expect(spec).toContain('"מהתוצאה מחסרים את המספר הידוע, ומקבלים את המספר החסר"');
     }
     expect(socraticLanguageSpec(true)).toContain('"בסוף התרגיל נשארות בכל טור לכל היותר 9 לבנים, כי 10 לבנים יוצרות לבנה אחת בטור השמאלי"');
     // Meetings 2 and 8 have no blocks: their prompt names none.

@@ -1539,12 +1539,12 @@ const placeAbove = (p: Place): Place | undefined => PLACE_ORDER[PLACE_ORDER.inde
  * broken; it names the block above the column still waiting for its ten.
  */
 export function breakItYourselvesHe(receiving: Place | null): string {
-  return `הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. ${breakClickHe(receiving)}`;
+  return `הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהוראה. ${breakClickHe(receiving)}`;
 }
 
 /** Station 7's "do the grouping yourselves": the button "קבצו 10" of the column to group (owner, 9.10.2026: sentences say "קבצו 10"). */
 export function groupItYourselvesHe(source: Place | null): string {
-  return `הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. ${groupClickHe(source)}`;
+  return `הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהוראה. ${groupClickHe(source)}`;
 }
 
 /**
@@ -1579,7 +1579,7 @@ function breakClickHe(receiving: Place | null): string {
   const above = receiving ? placeAbove(receiving) : undefined;
   return above
     ? `לחצו על לבנת ${BLOCK_NAME_HE[above]} כדי לפרוט אותה.`
-    : 'לחצו על הלבנה שההנחיה מבקשת לפרוט.';
+    : 'לחצו על הלבנה שההוראה מבקשת לפרוט.';
 }
 
 /** The button that makes the pending grouping: "קבצו 10" at the head of its column (owner, 9.10.2026; the label on the button is PlaceColumn's). */
@@ -1592,12 +1592,12 @@ function groupClickHe(source: Place | null): string {
 
 /** The board shows the blocks the instruction builds; the break is still to come. */
 export function breakNowHe(receiving: Place | null): string {
-  return `בניתם את הלבנים שבהנחיה. עכשיו ${breakClickHe(receiving)}`;
+  return `בניתם את הלבנים שבהוראה. עכשיו ${breakClickHe(receiving)}`;
 }
 
 /** The board shows the blocks the instruction builds; the grouping is still to come. */
 export function groupNowHe(source: Place | null): string {
-  return `בניתם את הלבנים שבהנחיה. עכשיו ${groupClickHe(source)}`;
+  return `בניתם את הלבנים שבהוראה. עכשיו ${groupClickHe(source)}`;
 }
 
 /** The block a decomposition exercise is built from (450 → the tens). */
@@ -2150,7 +2150,7 @@ export const GIVEN_ANSWER_RIGHT_GROUP_NOW_S1_HE = 'התשובה שכתבתם נ�
 export const GIVEN_GROUPED_SUCCESS_HE = 'קיבצתם את הלבנים, והתשובה שכתבתם נכונה.';
 
 /** Station 7's 2,730: the final blocks arranged by hand, a grouping not made (wording round 3, text 4). */
-export const GIVEN_ARRANGED_BY_HAND_HE = 'הלבנים מסודרות נכון, אבל ההנחיה מבקשת לקבץ בעזרת הכפתור "קבצו 10".';
+export const GIVEN_ARRANGED_BY_HAND_HE = 'הלבנים מסודרות נכון, אבל ההוראה מבקשת לקבץ בעזרת הכפתור "קבצו 10".';
 
 /**
  * The general praise after a solved exercise of stations 1 and 3–7 becomes the
@@ -2185,7 +2185,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     // Meeting 1 tool steps (מסמך 03 §3.1): the checklist on the card is the rule.
     if (session1Checklist(task.id, s)) {
       const nextStep = session1NextStep(task.id, s);
-      if (nextStep) return failure('sandbox_incomplete', 'עוד צעד אחד 🛠️', `${nextStep}.`, 3500);
+      if (nextStep) return failure('sandbox_incomplete', 'עוֹד צַעַד אֶחָד 🛠️', `${nextStep}.`, 3500);
       return praise('ממשיכים לשלב הבא.', 2000);
     }
     if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return success('מְעֻלֶּה!', 'ממשיכים הלאה.', 1500);
@@ -2195,7 +2195,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     if (s.selectedChoiceId !== task.correctAnswer) {
       return failure('wrong_choice', 'חִשְׁבוּ שׁוּב 🤔', 'האם הוספתם לבנים לבית המספרים או הורדתם ממנו לבנים?', 2800);
     }
-    return success('נכון מאוד!', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
+    return success('נָכוֹן מְאוֹד!', 'המספר לא השתנה, כי לא הוספתם לבנים ולא הוצאתם לבנים.', 2500);
   }
 
   if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
@@ -2306,7 +2306,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     const ansVal = resultRowValue(typedDigits);
     if (ansVal !== target) {
       if (s.sessionNumber === 8) {
-        return failure('wrong_numeric', 'נסו שוב 🤔', 'התשובה שכתבתם אינה נכונה. בדקו שוב!', 2800);
+        return failure('wrong_numeric', 'נַסּוּ שׁוּב 🤔', 'התשובה שכתבתם אינה נכונה. בדקו שוב!', 2800);
       }
       // Stations 3–7 (owner, 30.9.2026): a digit in the wrong place turns on
       // the result row's place cues until the end of the exercise; the line
@@ -2345,7 +2345,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
       // with no option chosen used to do nothing at all — no message.
       return notice('בַּחֲרוּ תְּשׁוּבָה', `סמנו אחת מהאפשרויות, ואז לחצו על "${PROCEED_HE}".`, 1800);
     }
-    if (s.selectedChoiceId !== task.correctAnswer) return failure('wrong_choice', 'נסו שוב 🤔', 'התשובה שבחרתם אינה נכונה.', 2500);
+    if (s.selectedChoiceId !== task.correctAnswer) return failure('wrong_choice', 'נַסּוּ שׁוּב 🤔', 'התשובה שבחרתם אינה נכונה.', 2500);
     return praise('תשובה נכונה.', 2500);
   }
 
@@ -2354,7 +2354,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     if (answer === null || Number.isNaN(answer)) {
       return notice('הַקְלָדַת תְּשׁוּבָה ✏️', `כתבו את החלק החסר בתיבה, ואז לחצו על "${PROCEED_HE}".`, 1800);
     }
-    if (answer !== task.correctAnswer) return failure('wrong_answer', 'נסו שוב 🤔', 'המספר שכתבתם אינו נכון.', 2500);
+    if (answer !== task.correctAnswer) return failure('wrong_answer', 'נַסּוּ שׁוּב 🤔', 'המספר שכתבתם אינו נכון.', 2500);
     return praise('תשובה נכונה.', 2500);
   }
 
@@ -2404,7 +2404,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
         // the blocks to build, as the box by the result row did; with the box
         // gone (owner, 28.9.2026) that gave the answer away on a wrong press
         // ("איזה מספר קיבלתם?"), and it was too long for the feedback note.
-        'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.',
+        'בית המספרים עוד לא מראה את מה שההוראה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.',
         3500
       );
     }
@@ -2457,8 +2457,8 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
         'הַקְלָדַת תְּשׁוּבָה ✏️',
         // A decomposition's answer is a number of blocks, not "the number".
         kind === 'decompose'
-          ? 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את התשובה בשורת התוצאה.'
-          : 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את המספר בשורת התוצאה.',
+          ? 'הלבנים מסודרות בדיוק כמו בהוראה! עכשיו כתבו את התשובה בשורת התוצאה.'
+          : 'הלבנים מסודרות בדיוק כמו בהוראה! עכשיו כתבו את המספר בשורת התוצאה.',
         3000
       );
     }
@@ -2506,15 +2506,15 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
       return failure('no_tens', NO_TEN_BLOCKS_TITLE_HE, NO_TEN_BLOCKS_SUB_HE, 2800, { clearReps: true });
     }
     if (task.requireEvenTens && s.q3Reps.some((r) => r.tens % 2 !== 0)) {
-      return failure('odd_tens', 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', 'בכל דרך מספר העשרות צריך להיות זוגי. נסו שוב!', 2800, { clearReps: true });
+      return failure('odd_tens', 'בִּדְקוּ אֶת לִבְנֵי הָעֲשֶׂרֶת 🤔', 'בכל דרך מספר לבני העשרת צריך להיות זוגי. נסו שוב!', 2800, { clearReps: true });
     }
-    if (s.q3Reps.length < 2) return notice('נִדְרָשִׁים שְׁנֵי יִצּוּגִים שׁוֹנִים', 'הוֹסִיפוּ יִצּוּג שֵׁנִי!', 1800);
+    if (s.q3Reps.length < 2) return notice('צָרִיךְ שְׁתֵּי דְּרָכִים שׁוֹנוֹת', 'בְּנוּ אֶת הַמִּסְפָּר בְּדֶרֶךְ שְׁנִיָּה.', 1800);
     const [r1, r2] = s.q3Reps;
     const isIdentical = (['units', 'tens', 'hundreds', 'thousands'] as Place[]).every((p) => r1[p] === r2[p]);
     if (isIdentical) {
-      return failure('canonical_fixation', 'הַיִּצּוּגִים זֵהִים 🤔', 'נַסּוּ לִיצֹר אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ אַחֶרֶת (לְמָשָׁל עַל יְדֵי פְּרִיטַת עֲשֶׂרֶת).', 2800, { clearReps: true });
+      return failure('canonical_fixation', 'הַדְּרָכִים זֵהוֹת 🤔', 'נַסּוּ לִבְנוֹת אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ אַחֶרֶת.', 2800, { clearReps: true });
     }
-    return praise('הצלחתם להציג שני ייצוגים שונים.', 2500);
+    return praise('בניתם את המספר בשתי דרכים שונות.', 2500);
   }
 
   return praise('ממשיכים לשלב הבא.', 2500);
@@ -4995,7 +4995,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             recordBoardCheckFailure(lessonTaskId);
             if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
           }
-          showFeedback({ correct: false, title: 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. פרטו עשרת אחת לעשר יחידות, או קבצו 10 יחידות לעשרת אחת.' }, 3200);
+          // Owner, 9.10.2026: no fix is given (either one could leave no ten blocks, now refused) — back to the instruction.
+          showFeedback({ correct: false, title: 'בִּדְקוּ אֶת לִבְנֵי הָעֲשֶׂרֶת 🤔', sub: 'בדרך הזאת מספר לבני העשרת צריך להיות זוגי. קראו שוב את ההוראה.' }, 3200);
           return;
         }
       }
@@ -5011,8 +5012,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
         const hint =
           s.sessionNumber === 2
-            ? 'הלבנים בבית המספרים עוד לא מראות את המספר שבהנחיה. מה תוכלו לשנות?'
-            : 'הלבנים בבית המספרים עוד לא מראות את המספר שבהנחיה. נסו שוב!';
+            ? 'הלבנים בבית המספרים עוד לא מראות את המספר שבהוראה. מה תוכלו לשנות?'
+            : 'הלבנים בבית המספרים עוד לא מראות את המספר שבהוראה. נסו שוב!';
         showFeedback({ correct: false, title: 'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍', sub: hint }, 3200);
         return;
       }
@@ -5049,7 +5050,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           recordBoardCheckFailure(lessonTaskId);
           if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
         }
-        showFeedback({ correct: false, title: 'זוֹ אוֹתָהּ דֶּרֶךְ 🤔', sub: 'הַרְאוּ אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ שׁוֹנָה: פִּרְטוּ אוֹ קַבְּצוּ, וְאָז לַחֲצוּ עַל "הוֹסָפַת יִצּוּג".' }, 3200);
+        showFeedback({ correct: false, title: 'זוֹ אוֹתָהּ דֶּרֶךְ 🤔', sub: 'בְּנוּ אֶת הַמִּסְפָּר בְּדֶרֶךְ שׁוֹנָה. אַחַר כָּךְ לַחֲצוּ עַל "שְׁמִירַת הַדֶּרֶךְ".' }, 3200);
         return;
       }
 
@@ -5315,7 +5316,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Owner, 30.9.2026: the take-back is research data. The call itself
         // still counts as help in measure 2א — the teacher may already have come.
         emitScaffoldEvent(get(), 'HELP_WITHDRAWN', { help_count: s.helpRequestCount || 0 });
-        showSideFeedback({ correct: true, neutral: true, title: 'הקריאה בוטלה', sub: 'אפשר ללחוץ שוב בכל עת.' }, 2000);
+        showSideFeedback({ correct: true, neutral: true, title: 'הַקְּרִיאָה בֻּטְּלָה', sub: 'אפשר ללחוץ שוב בכל עת.' }, 2000);
         return;
       }
 

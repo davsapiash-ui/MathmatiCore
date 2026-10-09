@@ -70,10 +70,10 @@ describe('the opening board: given, not built, not a mismatch', () => {
     const p = promptOf(OPENING, G6(false));
     expect(p).toContain('סוג המשימה: הלבנים נמצאות בבית המספרים מתחילת התרגיל — התרגיל נתן אותן, והלומד לא בנה אותן.');
     expect(p).toContain('הלומד לא בנה את הלבנים ולא את המספר: אסור לכתוב "בניתם" או "המספר שבניתם".');
-    expect(p).toContain('הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההנחיה מבקשת עוד לא נעשתה. הלומד לא בנה אותן.');
-    expect(p).toContain('ההמרה שההנחיה מבקשת עוד לא נעשתה בלבנים.');
-    expect(p).not.toContain('בונים בבית המספרים את מה שההנחיה מבקשת');
-    expect(p).not.toContain('ממה שההנחיה מבקשת');
+    expect(p).toContain('הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההוראה מבקשת עוד לא נעשתה. הלומד לא בנה אותן.');
+    expect(p).toContain('ההמרה שההוראה מבקשת עוד לא נעשתה בלבנים.');
+    expect(p).not.toContain('בונים בבית המספרים את מה שההוראה מבקשת');
+    expect(p).not.toContain('ממה שההוראה מבקשת');
     expect(p).not.toContain('הלבנים בנויות');
     expect(p).toContain('10 ומעלה, וכולן חלק מהתרגיל — צריך לקבץ');
   });
@@ -96,8 +96,8 @@ describe('on the way and at the end', () => {
     expect(f.board_matches_task).toBe(true);
     expect(f.board_vs_task).toEqual({ thousands: 'match', hundreds: 'match', tens: 'match' });
     const p = promptOf(BOTH_GROUPED, G6(true));
-    expect(p).toContain('בית המספרים מראה בדיוק את מה שההנחיה מבקשת.');
-    expect(p).toContain('ההמרה שההנחיה מבקשת כבר נעשתה בלבנים.');
+    expect(p).toContain('בית המספרים מראה בדיוק את מה שההוראה מבקשת.');
+    expect(p).toContain('ההמרה שההוראה מבקשת כבר נעשתה בלבנים.');
     expect(p).not.toContain('לא נעשתה');
   });
 
@@ -106,7 +106,7 @@ describe('on the way and at the end', () => {
     expect(f.board_vs_task).toBeNull();
     expect(f.built_before_conversion).toBe(false);
     const p = promptOf(BOTH_GROUPED, G6(false));
-    expect(p).toContain('ההמרה שההנחיה מבקשת עוד לא נעשתה בלבנים.');
+    expect(p).toContain('ההמרה שההוראה מבקשת עוד לא נעשתה בלבנים.');
     expect(f.suggested_focus_he).toContain('הן סודרו ביד, בלי הכפתור "קבצו 10"');
     expect(f.suggested_focus_he).not.toMatch(/בניתם|בנוי/);
   });
@@ -120,7 +120,7 @@ describe('blocks lost or added: read against the blocks the exercise gave', () =
     expect(f.suggested_focus_he).toContain('כפתור ביטול הפעולה');
     const p = promptOf([0, 12, 16, 1], G6(false));
     expect(p).toContain('פחות לבנים ממה שהתרגיל נתן');
-    expect(p).not.toContain('ממה שההנחיה מבקשת');
+    expect(p).not.toContain('ממה שההוראה מבקשת');
     // 16 hundreds "match" the given blocks — never "this is what the instruction asks, do not group".
     expect(p).not.toContain('לא מקבצים');
   });
@@ -143,7 +143,7 @@ describe('the opening board with no word on the grouping (a request without conv
     expect(f.start_given).toBe(true);
     expect(f.built_before_conversion).toBe(true);
     expect(f.board_vs_task).toEqual({ thousands: 'less', hundreds: 'more', tens: 'more' });
-    expect(f.suggested_focus_he).toBe('הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההנחיה מבקשת עוד לא נעשתה. הלומד לא בנה אותן.');
+    expect(f.suggested_focus_he).toBe('הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההוראה מבקשת עוד לא נעשתה. הלומד לא בנה אותן.');
   });
 
   it('the same board in an exercise the child builds keeps its own sentence', () => {
@@ -151,7 +151,7 @@ describe('the opening board with no word on the grouping (a request without conv
     const f = factsOf(OPENING, built);
     expect(f.start_given).toBe(false);
     expect(f.built_before_conversion).toBe(true);
-    expect(f.suggested_focus_he).toBe('הלבנים בנויות כמו שההנחיה מבקשת בהתחלה, וההמרה שההנחיה מבקשת (פריטה או הקבצה) עוד לא נעשתה.');
+    expect(f.suggested_focus_he).toBe('הלבנים בנויות כמו שההוראה מבקשת בהתחלה, וההמרה שההוראה מבקשת (פריטה או הקבצה) עוד לא נעשתה.');
   });
 });
 
@@ -185,7 +185,7 @@ describe('meeting 1\'s 26 unit blocks (s1_r_group26): given blocks too', () => {
     const req = request(U26, G26(false), 1);
     const p = buildSocraticPrompt(req, deriveSocraticFacts(req));
     expect(p).toContain('הלומד לא בנה את הלבנים ולא את המספר: אסור לכתוב "בניתם" או "המספר שבניתם".');
-    expect(p).toContain('הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההנחיה מבקשת עוד לא נעשתה. הלומד לא בנה אותן.');
+    expect(p).toContain('הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההוראה מבקשת עוד לא נעשתה. הלומד לא בנה אותן.');
     expect(p).not.toContain('הלבנים בנויות');
   });
 
@@ -205,7 +205,7 @@ describe('meeting 1\'s 26 unit blocks (s1_r_group26): given blocks too', () => {
   it('with no word on the grouping, the opening 26 units are still "given, not built"', () => {
     const f = factsOf(U26, G26(), 1);
     expect(f.built_before_conversion).toBe(true);
-    expect(f.suggested_focus_he).toBe('הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההנחיה מבקשת עוד לא נעשתה. הלומד לא בנה אותן.');
+    expect(f.suggested_focus_he).toBe('הלבנים שהתרגיל נתן נמצאות בבית המספרים כמו בתחילת התרגיל, וההקבצה שההוראה מבקשת עוד לא נעשתה. הלומד לא בנה אותן.');
   });
 
   it('a card that says the child built the 26 units is refused', () => {

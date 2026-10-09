@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
-import { MathText } from '../tasks/MathText';
+import { MathText, SentenceLines } from '../tasks/MathText';
 
 /** The last feedback that already fired confetti — a remount must not fire it again. */
 let lastCelebrated: unknown = null;
@@ -121,7 +121,7 @@ export function FeedbackToast({ placement = 'floating' }: { placement?: 'floatin
               its exercise left to right (audit A6-101; chief re-review B-2). */}
           <div className={`flex-1 min-w-0 ${placement === 'inline' ? '' : 'pt-0.5'}`}>
             <p className={`font-display font-extrabold ${placement === 'inline' ? 'text-base' : 'text-xl'} text-ws-ink leading-snug`}><MathText text={feedback.title} /></p>
-            {feedback.sub && <p className={`${placement === 'inline' ? 'text-sm leading-snug mt-0.5' : 'text-base mt-1 leading-relaxed'} text-ws-soft`}><MathText text={feedback.sub} /></p>}
+            {feedback.sub && <p className={`${placement === 'inline' ? 'text-sm leading-snug mt-0.5' : 'text-base mt-1 leading-relaxed'} text-ws-soft`}><SentenceLines text={feedback.sub} /></p>}
           </div>
           <UdlSpeechButton
             key={speechText}
