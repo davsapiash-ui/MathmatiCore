@@ -54,7 +54,7 @@ export function TaskZoneHeader({
         )}
       </h1>
       {showStation && (
-        <span className="shrink-0 mt-0.5 text-sm font-bold text-ws-ink bg-ws-blueSoft rounded-full px-3 py-1" data-testid="station-tag">
+        <span className="shrink-0 text-sm font-bold text-ws-ink bg-ws-blueSoft rounded-full px-3 py-0.5" data-testid="station-tag">
           תחנה {stationNumber}
         </span>
       )}
@@ -126,13 +126,13 @@ export function GuideBlock({
   return (
     <section className="shrink-0 flex flex-col gap-fl-4-8 mb-fl-6-16 rounded-2xl px-fl-12-16 py-fl-6-12" style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.45)' }} data-testid="task-instruction">
       <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0 flex flex-col gap-fl-4-8">
+        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
           {goal && (
             <p className="max-w-[60ch] text-fl-16-20 text-ws-ink font-medium leading-snug [text-wrap:pretty]" data-testid="task-goal">
               <MathText text={goal} />
             </p>
           )}
-          {steps.length > 0 && <h2 className="text-[15px] font-bold text-ws-soft">מה עושים:</h2>}
+          {steps.length > 0 && <h2 className="text-[15px] leading-tight font-bold text-ws-soft">מה עושים:</h2>}
         </div>
         <UdlSpeechButton text={speech} className="shrink-0" />
       </div>
@@ -189,9 +189,9 @@ function StepRow({ step, number, roomy }: { step: StepView; number: number | nul
   // A single step has no number (wording rule 3): its mark is a ring, blue while it is the step to do.
   const mark = number === null && step.state !== 'done' ? (step.state === 'current' ? 'border-2 border-ws-blue' : MARK_TONE.todo) : MARK_TONE[step.state];
   return (
-    <li className={`rounded-xl border-2 px-fl-8-12 py-fl-4-8 tz-step-color ${ROW_TONE[step.state]}`} data-state={step.state}>
-      <div className={`flex items-center gap-3 ${roomy ? 'min-h-[40px]' : 'min-h-[28px]'}`}>
-        <span aria-hidden="true" className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-black tz-step-color ${mark}`}>
+    <li className={`rounded-xl border-2 px-fl-8-12 ${roomy ? 'py-fl-4-8' : 'py-0.5'} tz-step-color ${ROW_TONE[step.state]}`} data-state={step.state}>
+      <div className={`flex items-center gap-3 ${roomy ? 'min-h-[40px]' : 'min-h-[24px]'}`}>
+        <span aria-hidden="true" className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-sm font-black tz-step-color ${mark}`}>
           {step.state === 'done' ? <Check className="w-4 h-4" strokeWidth={3} /> : number}
         </span>
         <span className="flex-1 min-w-0 text-[clamp(15px,calc(0.5714vh+11.57px),17px)] font-semibold text-ws-ink leading-snug">
@@ -204,9 +204,9 @@ function StepRow({ step, number, roomy }: { step: StepView; number: number | nul
         ) : null}
       </div>
       {step.subs?.length ? (
-        <ul className="mt-1 flex flex-col gap-0.5 ps-10" data-testid="step-subs">
+        <ul className="mt-0.5 mb-0.5 flex flex-col ps-9" data-testid="step-subs">
           {step.subs.map((sub) => (
-            <li key={sub} className="text-[15px] font-medium text-ws-ink leading-snug">
+            <li key={sub} className="text-sm font-medium text-ws-ink leading-tight">
               <MathText text={sub} />
             </li>
           ))}
@@ -284,12 +284,14 @@ export function DoneBox({ note }: { note: string | null }) {
 function DoneBoxBody({ note, ghost = false }: { note: string | null; ghost?: boolean }) {
   return (
     <div className="flex items-start gap-3 rounded-2xl border-2 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-800 px-fl-10-16 py-fl-4-8">
-      <div className="flex-1 min-w-0 flex flex-col gap-0.5 text-emerald-800 dark:text-emerald-200">
-        {note && <p className="text-base font-black leading-snug">{note}</p>}
-        <p className="text-base font-bold leading-snug" data-testid={ghost ? undefined : 'proceed-sentence'}>
+      {/* One text, as PRD 14 §ב tick rule (4) writes it: "כתבתם תשובה. לחצו על הכפתור…" —
+          what was done (bold), then the sentence that names the button. */}
+      <p className="flex-1 min-w-0 text-base font-bold leading-snug text-emerald-800 dark:text-emerald-200">
+        {note && <span className="font-black">{note} </span>}
+        <span data-testid={ghost ? undefined : 'proceed-sentence'}>
           {PROCEED_SENTENCE_HE.before} <ProceedChip ghost={ghost} /> {PROCEED_SENTENCE_HE.after}
-        </p>
-      </div>
+        </span>
+      </p>
       {/* PRD Module 7: what the box says is read aloud on the child's click only. */}
       {ghost ? <span className="shrink-0 w-11 h-11" /> : <UdlSpeechButton text={note ? `${note} ${proceedSentenceHe()}` : proceedSentenceHe()} className="shrink-0" />}
     </div>
