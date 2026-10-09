@@ -95,11 +95,6 @@ function serverClockAhead(offsetMs: number) {
   expect(serverNow() - Date.now()).toBe(offsetMs);
 }
 
-/** The Module 17 sync, live: every change to the workspace saves the learner's progress again. */
-function liveSync() {
-  (firebaseSyncService as any).isInitialLoad = false;
-}
-
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   at(T0);
@@ -359,10 +354,10 @@ describe('the device-wide deadline the previous version left behind', () => {
     expect(ws().sessionDeadlineTime).toBeNull();
     expect(stored(meetingDeadlineKey(4, 'student_user7'))).toBeNull(); // a restore starts no deadline
 
-    // Learner 7 works: the sync saves their progress again, stamped now — after the value was set.
-    liveSync();
+    // Learner 7 works: their progress is saved again, stamped now — after the value was set.
+    // (Saved as the Module 17 cache saves it; the live subscription's timing is not this test's subject.)
     at(NOW + 1 * MIN);
-    useWorkspaceStore.setState({ standardTaskIdx: 3 });
+    progressOnThisDevice(7, 4, NOW + 1 * MIN);
     const resaved = firebaseSyncService.getLocalSessionProgress('student_user7');
     expect(resaved?.sessionNumber).toBe(4);
     expect(workspaceSavedAt(resaved)).toBeGreaterThanOrEqual(LEGACY - 15 * MIN);
