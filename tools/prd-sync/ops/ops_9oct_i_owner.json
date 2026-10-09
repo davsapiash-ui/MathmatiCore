@@ -1,0 +1,272 @@
+[
+ {
+  "doc": "PRD",
+  "where": "מודול 10 §א, שלב 2 (הלוח וכרטיס החניכה)",
+  "old": "היוצא מן הכלל היחיד הוא פתיחת כרטיס החניכה. הלוח אינו מופיע במפגשים 2 ו-8. כשכרטיס החניכה נפתח, הלוח מתקפל אוטומטית, כדי למנוע הסתרה וחפיפה של רכיבים במסך (מודול 12).",
+  "new": "היוצא מן הכלל היחיד הוא פתיחת כרטיס החניכה. הלוח אינו מופיע במפגשים 2 ו-8. כשכרטיס החניכה נפתח, הלוח מתקפל אוטומטית, כדי למנוע הסתרה וחפיפה של רכיבים במסך (מודול 12). הלוח מופיע רק בתרגילי חיבור (החלטת בעל המוצר, 1.10.2026): בתרגיל שאינו חיבור לוח פתוח אינו מוצג, והוא חוזר למסך בתרגיל החיבור הבא. הלוח וכרטיס החניכה אינם מוצגים יחד (החלטת בעל המוצר, 4.10.2026): כשהלומד לוחץ על לשונית \"לוח חיבור\" בזמן שהכרטיס פתוח, הכרטיס מתקפל ללשונית \"כרטיס החניכה\" והלוח מוצג; לחיצה על לשונית הכרטיס, או סגירת הלוח ב-X, מחזירה את הכרטיס, וסגירת הכרטיס מחזירה את הלוח שהתקפל בגללו. כשההיסוס של 30 השניות מזוהה בזמן שהכרטיס פתוח, מופיעה לשונית הלוח בלבד, והלוח נפתח כשהכרטיס נסגר, אם הלומד עדיין באותו תרגיל ולא ביצע בו בינתיים פעולה קוגניטיבית."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 10 §ב, ADAPTIVE_GRID_TOGGLED",
+  "old": "כל פתיחה וסגירה של הלוח נרשמת בטלמטריה כאירוע ADAPTIVE_GRID_TOGGLED (נספח א', סעיף 3), עם הפעולה (נפתח או נסגר) ומקור הפתיחה: שלב 30 השניות או החזרה יזומה של הלומד.",
+  "new": "כל הופעה של הלוח על המסך וכל יציאה שלו מהמסך נרשמות בטלמטריה כאירוע ADAPTIVE_GRID_TOGGLED (נספח א', סעיף 3), עם הפעולה (opened או closed) ועם המקור (source). משמעות הצירופים: closed עם 'learner' — הלומד סגר את הלוח ב-X; closed עם 'hesitation_30s' — הלוח, שעדיין פתוח, יצא מהמסך בלי שהלומד סגר אותו (התקפל בגלל כרטיס החניכה, או תרגיל שאינו חיבור); opened עם 'learner' — הלומד לחץ על לשונית \"לוח חיבור\"; opened עם 'hesitation_30s' — פתיחה בשלב 30 השניות, או לוח שעדיין פתוח שחזר למסך (למשל כשהכרטיס נסגר, או בתרגיל החיבור הבא). בדוחות, בייצוא המחקר ובציר הזמן של הלומד, opened של המערכת שבא מיד אחרי closed של המערכת נספר כחזרה של הלוח ולא כפתיחה חדשה; טעינה מחדש של המפגש (SESSION_START) מסיימת רצף כזה."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 10, הנחיות פיתוח",
+  "old": "and never before the 30-second stage has offered the grid.",
+  "new": "and never before the 30-second stage has offered the grid. Show the grid only in addition exercises: an open grid is hidden in any other exercise and comes back in the next addition exercise. When the learner presses the \"לוח חיבור\" tab while the card is open, fold the card into a \"כרטיס החניכה\" tab and show the grid; that tab, or closing the grid with its X, brings the card back, and closing the card brings back the grid it folded. A 30-second hesitation detected while the card is open shows only the grid tab, and the grid opens when the card closes if the learner is still in that exercise and has performed no cognitive action since. Log ADAPTIVE_GRID_TOGGLED for every appearance and disappearance of the grid on screen, with the source meanings of §ב; count a system \"opened\" that directly follows a system \"closed\" as a return, not a new opening, until the next SESSION_START."
+ },
+ {
+  "doc": "PRD",
+  "where": "נספח א' §3, AdaptiveGridToggledDetails",
+  "old": "// the 30-second stage, or the learner's own tab (Module 10)",
+  "new": "// opened: 'hesitation_30s' = the 30-second opening or the open grid back on screen, 'learner' = the learner's tab; closed: 'learner' = the learner's X, 'hesitation_30s' = the open grid left the screen without the learner (Module 10 §ב)"
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 12 §ב, מתי הכרטיס אינו נפתח",
+  "old": "גם אם התקיים אחד מתנאי ההפעלה; הוא נפתח בטעות הבאה.",
+  "new": "גם אם התקיים אחד מתנאי ההפעלה; הוא נפתח בטעות הבאה. כרטיס החניכה אינו נפתח גם כשהתקיים תנאי הפעלה במקרים האלה: כשכרטיס אחר פתוח או בדרך להיפתח; בזמן נעילת 15 השניות שאחרי בחירה שגויה בכרטיס, גם אם הכרטיס נסגר בינתיים; כשהתרגיל שעל המסך כבר נפתר, או כשאין תרגיל פתוח (מסך הבחירה, מסך הסיום); כרטיס היסוס של 45 שניות, כל עוד הקריאה השקטה של הלומד למורה פתוחה, כי הלומד ממתין למורה (החלטת בעל המוצר, 1.10.2026); כרטיס אי-ביצוע המרה, בתוך 60 שניות מהפעם הקודמת שנפתח באותו טור באותו תרגיל; וכרטיס זהה — אותו טריגר, אותו טור ואותה משפחת מצב — שכבר הוצג פעמיים באותו תרגיל, או שהלומד כבר בחר בו בתשובה הנכונה באותו תרגיל. הדרגה הבאה של אותה משפחה, שמתקדמת צעד אחד, נפתחת כרגיל."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 12, הנחיות פיתוח",
+  "old": "Send workspace telemetry JSON to initiate backend AI analysis.",
+  "new": "Send workspace telemetry JSON to initiate backend AI analysis. Whatever the trigger, never open a card while another card is open or on its way, during the 15-second lockout even if the card was closed meanwhile, on an exercise already solved, or when no exercise is open; never open the 45-second card while the learner's silent call to the teacher is open; open the conversion-not-performed card at most once per column per 60 seconds in an exercise; never open the same card (same trigger, column and situation family) more than twice in one exercise, nor again once the learner chose its right option in that exercise; the family's next level opens normally."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 13 §א, הרמז הסטטי במפגש 3",
+  "old": "בכל תרגילי מפגש 3, בשני המסלולים, השאלה המנחה היא: \"בואו נחשוב רגע יחד: באילו לבנים ההנחיה מבקשת לבנות את המספר N?\". האפשרות הנכונה היא בדיוק הלבנים שבהנחיה; שום אפשרות שגויה אינה הלבנים שבהנחיה. אפשרות שגויה שערכה גם הוא N אומרת זאת במשוב ואומרת מה ההנחיה מבקשת (\"רמז: גם זה N, בדרך הרגילה. ההנחיה מבקשת דרך אחרת. קראו אותה שוב.\" או \"רמז: גם זה N, אבל ההנחיה מבקשת לבנות אותו בטורים אחרים.\"). בתרגיל בדרך הרגילה המסיח הוא טעות בערך המקום: כשההנחיה אומרת שטור ריק, הספרה עוברת לטור הריק (506 ← \"5 מאות ו-6 עשרות\"; 6,030 ← \"6 אלפים ו-3 מאות\"), ואחרת שתי הספרות הגבוהות מתחלפות (340 ← \"4 מאות ו-3 עשרות\"). תרגיל מפגש 3 שצורתו אינה מוכרת מקבל את השאלה \"איך יודעים איזה מספר בנוי בבית המספרים?\", שאינה פוסלת שום ייצוג. תרגיל שהנחייתו מבקשת חלק חסר (\"המספר 160 מורכב ממאה אחת ועוד כמה?\") מקבל את כרטיס החלק החסר.",
+  "new": "בתחנה 3 הרמז הסטטי נקבע לפי סוג התרגיל (מודול 26) ולפי מצב בית המספרים, ולא בשאלה אחת לכל המפגש, וכל שאלה מנחה בו נפתחת במילים \"נסו לחשוב: \" (החלטת בעל המוצר, 30.9.2026). כשבית המספרים ריק, השאלה היא \"נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?\", והאפשרות הנכונה היא \"בונים בבית המספרים את מה שההנחיה מבקשת\". בקריאת מספר במילים ובנייתו, כשבמספר יש טור ריק, השאלה היא \"נסו לחשוב: יש טור שאין בו לבנים. מה כותבים במספר בשביל הטור הזה?\" (האפשרות הנכונה: \"כותבים 0\"). בבניית לבנים נקובות ופריטה של אחת מהן, אחרי הפריטה, השאלה היא אם הפריטה שינתה את המספר שנבנה לפניה; בבניית מספר מסוג לבנה אחד בלבד, השאלה היא כמה לבנים מהסוג הזה שוות ללבנה אחת מהסוג הגדול ממנו. כשאף אחת מאלה אינה מתאימה לסוג התרגיל ולמצב הלוח, השאלה היא \"נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?\" (האפשרות הנכונה: \"סופרים את הלבנים בכל טור לחוד\"), שאינה פוסלת שום ייצוג. תרגיל ייצוג שאינו מאחד הסוגים של מודול 26 מקבל את השאלה \"נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר N?\". בכרטיס הזה האפשרות הנכונה היא בדיוק הלבנים שבהנחיה; שום אפשרות שגויה אינה הלבנים שבהנחיה. אפשרות שגויה שערכה גם הוא N אומרת זאת במשוב ושואלת מה ההנחיה מבקשת (\"רמז: גם זה N. באילו לבנים ההנחיה מבקשת לבנות אותו?\" או \"רמז: גם זה N. האם ההנחיה מבקשת לבנות אותו רק מלבני יחידה?\"). כשההנחיה מבקשת את הלבנים הרגילות של המספר, המסיח הוא טעות בערך המקום: כשההנחיה אומרת שטור ריק, הספרה עוברת לטור הריק (506 ← \"5 מאות ו-6 עשרות\"; 6,030 ← \"6 אלפים ו-3 מאות\"), ואחרת שתי הספרות הגבוהות מתחלפות (340 ← \"4 מאות ו-3 עשרות\"). תרגיל שהנחייתו מבקשת חלק חסר (\"המספר 160 מורכב ממאה אחת ועוד כמה?\") מקבל את כרטיס החלק החסר."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 14 §ב, תווית המיקום בסבב התיקונים",
+  "old": "בסבב התיקונים של מפגש 2 כתוב \"משימה חוזרת\"",
+  "new": "בסבב התיקונים של מפגש 2 כתוב \"משימה חוזרת\" מעל המשימה שחוזרת, ו\"משימה נוספת\" מעל התרגיל הפשוט יותר שמוצג לפניה במשימות 3, 6 ו-7 (החלטת בעל המוצר, 4.10.2026), כמו בהודעת המעבר של אותו שלב"
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 14 §ב, נוסח משימה 1 בסבב התיקונים",
+  "old": "הפעם פתרו לבד.\" משימה 2",
+  "new": "הפעם פתרו לבד.\" כשמשימה 1 חוזרת בסבב התיקונים, ההנחיה היא \"קראו את המספר וכתבו אותו בשורת התוצאה.\", בלי \"הפעם פתרו לבד.\" (החלטת בעל המוצר, 29.9.2026). משימה 2"
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 14 §ג, הכפתור השלישי במסך הבחירה",
+  "old": "הלומד בוחר נתיב אחד בלבד; כשסיים אותו, הוא ממתין במסך הסיום השקט.",
+  "new": "הלומד בוחר נתיב אחד בלבד; כשסיים אותו, הוא ממתין במסך הסיום השקט. במסך הבחירה יש גם כפתור שלישי, \"סיום התחנה עכשיו\" (מסמך 03), שמסיים את התחנה בלי תרגילי בחירה ומעביר את הלומד למסך הסיום; לחיצה עליו אינה נרשמת כ-BRANCH_SELECTED."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 23 §ב, קובץ הדוח והקישור אליו",
+  "old": "השמור ב-Cloud Storage, והקישור אליו נשמר במסמך הדוח באוסף reports. הפקה חוזרת יוצרת קובץ חדש ואינה דורסת את הקודם.",
+  "new": "השמור ב-Cloud Storage. נתיב הקובץ נשמר במסמך הדוח באוסף reports, וקישור הורדה, התקף לשעה אחת, נוצר מחדש בכל בקשה. כל הפקה יוצרת מסמך דוח וקובץ חדשים ואינה דורסת את הקודמים."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 1, הנחיות פיתוח (K1, K4, K6)",
+  "old": "while 'Teacher' and 'Admin' strictly invoke Google SSO handshake.",
+  "new": "while 'Teacher' and 'Admin' strictly lead to the staff sign-in step, whose \"כניסה באמצעות Google SSO\" button invokes the Google SSO handshake (two clicks: the role, then the button)."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 1, הנחיות פיתוח, פקיעת זמן (K4, K6)",
+  "old": "If the server request times out or fails during authentication on Screen 2, trigger an immediate rollback to the idle state.",
+  "new": "If the server request times out or fails during authentication on Screen 2, trigger an immediate rollback to the idle state. The timeout covers the whole learner handshake (anonymous sign-in, server check and token refresh) and is 20 seconds; the rollback, like every learner sign-in error, clears the access code only and keeps the chosen school, class and learner ID."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 1 §א, פקיעת זמן (K4, K6)",
+  "old": "במקרה של פקיעת זמן, המערכת מאפסת את השדות למניעת מצב ביניים תקוע (State Limbo), תוך מתן משוב פדגוגי מינימלי.",
+  "new": "במקרה של פקיעת זמן, כלומר כשההזדהות כולה (הכניסה האנונימית, בדיקת השרת וחידוש האסימון) לא הושלמה בתוך 20 שניות, המערכת מאפסת את שדה קוד הגישה למניעת מצב ביניים תקוע (State Limbo), תוך מתן משוב פדגוגי מינימלי; בית הספר, הכיתה והמזהה שנבחרו נשארים."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 1 §ב, ניקוי שדות (K4)",
+  "old": "רטט ויזואלי של 300ms וניקוי שדות.",
+  "new": "רטט ויזואלי של 300ms וניקוי שדה קוד הגישה; בית הספר, הכיתה והמזהה שנבחרו נשארים."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 2, פקיעת הכניסה (K2)",
+  "old": "ניקוי מצב הסשן המקומי וניתוב הביתה;",
+  "new": "ניקוי מצב הסשן המקומי וניתוב למסך בחירת התפקיד (‎/login), כמו כל משתמש שאינו מחובר;"
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 2, תחילת 8 השעות (K13)",
+  "old": "מרגע הכניסה או מרגע בחירת התפקיד",
+  "new": "מרגע שהכניסה בתפקיד שנבחר הושלמה"
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 6, הנחיות פיתוח, מה הלובי מציג (K9)",
+  "old": "the lobby shows exactly one card reflecting the currently active session or nothing at all.",
+  "new": "the lobby shows exactly one thing: the quiet waiting screen with the sentence of its state, or, once the teacher activates the session, the station's opening screen in its place; there is no session card and no entry button."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 6, הנחיות פיתוח, מסך ההמתנה (K9)",
+  "old": "Render the quiet waiting screen defined in Module 14 §ב0 instead of the session card.",
+  "new": "Render the quiet waiting screen defined in Module 14 §ב0."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 6, הנחיות פיתוח, הפתיח (K9)",
+  "old": "Render a clean dashboard displaying only the current active session object, read from the Realtime Database broadcast active_class_session.",
+  "new": "Render a clean lobby driven only by the current active session, read from the Realtime Database broadcast active_class_session."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 14 §ב0, הלובי (K9)",
+  "old": "הלובי מציג כרטיס דינמי יחיד המשקף את active_session_id הפעיל בלבד, בהתאם למודול 6.",
+  "new": "הלובי מציג דבר אחד בלבד, לפי active_session_id הפעיל: את מסך ההמתנה השקט, או, כשהמורה מפעילה את המפגש, את מסך הפתיחה של התחנה במקומו, בלי כרטיס מפגש ובלי כפתור כניסה (מודול 6)."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 4, הנחיות פיתוח, students.created_at (K12)",
+  "old": "The client writes student_id, class_id, school_id, created_at and active_session_id to this document on session activation;",
+  "new": "The client writes student_id, class_id, school_id and active_session_id to this document on session activation, and created_at only when the document has none yet;"
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 7 §א, מונה הלבנים של הטור (K14)",
+  "old": "תצוגת הטורים. כל טור בבית המספרים מציג תמיד את מספר הלבנים שבו, גם כשהוא ריק: מונה הלבנים של הטור מציג 0 בצבע הטור, ואינו נעלם באף טור ובאף מפגש.",
+  "new": "תצוגת הטורים. מונה הלבנים של הטור הוא הספרה שליד שם הטור, ולכן הוא מוצג ומוסתר לפי הכלל של הסנכרון שלעיל (בתחנות 3–7 ובחלק מתחנה 1 הוא מוסתר). בכל מקום שבו הוא מוצג, הוא מראה את מספר הלבנים שבטור גם כשהטור ריק: 0 בצבע הטור, בכל טור ובכל מפגש."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 7 §א, כרטיס שנדחה (K15)",
+  "old": "נדחה והלומד מקבל את השאלה הקבועה.",
+  "new": "נדחה, והלומד מקבל במקומו את הרמז הסטטי (מודול 13 §א); שאלת המפגש הקבועה מוגשת רק כשאין רמז סטטי לתרגיל."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 8, השלכת לבנה לפח (K17)",
+  "old": "וכמו מנגנון ה-Undo, מוחרגות לחלוטין ממדדי השגיאות והשחיקה.",
+  "new": "וכמו מנגנון ה-Undo, מוחרגות לחלוטין ממדדי השגיאות והשחיקה. השלכת לבנה בודדת לפח נרשמת כאירוע BLOCK_DRAG_COMPLETE שבו column_index ו-source_column_index שווים, ושניהם הטור שהלבנה עזבה (צירוף שגרירה אחרת אינה יוצרת); ניקוי הלוח כולו בכפתור הפח נרשם כאירוע BOARD_CLEARED."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 7 §א, העמעום (K19)",
+  "old": "(הטור שממנו פורטים, הטור שאליו מקבצים, והטורים שמהתיבה הריקה הנמוכה ביותר ועד הטור שבמיקוד)",
+  "new": "(בחיסור, כשבטור שבמיקוד אין די לבנים, הטורים שמהם מגיעה הפריטה, דרך טור ריק ועד הטור הראשון שיש בו לבנה; בחיבור, טור נמוך יותר שעדיין יש בו 10 לבנים או יותר, שההקבצה שלו עוברת לטור שבמיקוד; כל טור נמוך יותר שאין לו תיבה משלו; והטורים שמהתיבה הריקה הנמוכה ביותר ועד הטור שבמיקוד)"
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 7, הנחיות פיתוח, העמעום (K19)",
+  "old": "(the column decomposed from, the column grouped into, and every column from the lowest empty box up to the focus)",
+  "new": "(in subtraction, when the focus column lacks blocks, the columns its decomposition comes from, through an empty column up to the first that holds a block; in addition, a lower column still holding ten blocks or more, whose grouping carries into the focus column; every lower column without a box of its own; and every column from the lowest empty box up to the focus)"
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 8, לבנה על טור של ערך גבוה ממנה (K21)",
+  "old": "גרירה שמאלית לצורך הקבצה נדחית ואינה מנגנון חוקי.",
+  "new": "גרירה שמאלית לצורך הקבצה נדחית ואינה מנגנון חוקי. לבנה שמשחררים על טור של ערך גבוה ממנה נדחית בכל מפגש ונשארת במקומה, בין שבאה מטור אחר ובין שבאה מארגז הכלים (לבנת יחידה ששוחררה על טור העשרות אינה נוספת ללוח), והטור מסמן את הדחייה ברטט קצר (החלטת בעל המוצר, 28.9.2026); רק לבנה מארגז הכלים ששוחררה מחוץ לטורים עוברת לטור שלה."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 14 §ג, תרגילי השלד, הודעת ספרה חסרה שגויה (K34)",
+  "old": "(3) ספרה חסרה שגויה, בהודעה \"הספרה החסרה שכתבתם אינה נכונה. בדקו שוב.\", לפני בדיקת הלוח;",
+  "new": "(3) ספרה חסרה שגויה, בהודעה \"הספרה החסרה שכתבתם אינה נכונה. בדקו שוב בעזרת הלבנים בבית המספרים.\" (וכשחסרות כמה ספרות: \"לא כל הספרות שכתבתם נכונות. בדקו שוב בעזרת הלבנים בבית המספרים.\"), לפני בדיקת הלוח;"
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 14 §ג, תרגילי השלד, מפגש 8 (K34)",
+  "old": "במפגש 8 ספרה חסרה שגויה מקבלת את ההודעה \"הספרה החסרה שכתבתם אינה נכונה. בדקו שוב.\" בלי הפניה ללבנים.",
+  "new": "במפגש 8 ספרה חסרה שגויה מקבלת את ההודעה \"הספרה החסרה שכתבתם אינה נכונה. בדקו שוב.\" (וכשחסרות כמה ספרות: \"לא כל הספרות שכתבתם נכונות. בדקו שוב.\") בלי הפניה ללבנים."
+ },
+ {
+  "doc": "PRD",
+  "where": "נספח א' §2, ExerciseTemplate (K39)",
+  "old": "ושאר הסוגים ל-'addition' או ל-'subtraction').",
+  "new": "ושאר הסוגים ל-'addition' או ל-'subtraction'). בשימוש הזה operand_a ו-expected_result הם null כשאין לתרגיל מספר או תשובה כאלה, ו-expected_result יכול להיות גם מחרוזת (האות של תשובה לבחירה); learning_path הוא null כשהתרגיל אינו שייך למסלול; ושדות blocks_visible ו-socratic_enabled אינם נשלחים."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 23 §ב, כפתור דוח הלומד (K40)",
+  "old": "\"הפק דוח למפגש N\"",
+  "new": "\"הפיקו דוח למפגש N\""
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 23, כפתור דוח הכיתה (K40)",
+  "old": "\"הפק דוח כיתה למפגש N\"",
+  "new": "\"הפיקו דוח כיתה למפגש N\""
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 18 §ב, ירוק וצהוב (K41)",
+  "old": "היסוס קוגניטיבי (45 שניות ומעלה ללא פעולה בטור הפעיל).",
+  "new": "היסוס קוגניטיבי (45 שניות ומעלה ללא פעולה בטור הפעיל). הירוק מסתיים ברגע שהצהוב מתחיל, בלי חפיפה ובלי פער. 45 השניות הן ברירת המחדל של כיול הרדאר הפדגוגי (system_control); שינוי הכיול מזיז רק את מועד הצבע הצהוב, וכרטיס החניכה נפתח תמיד אחרי 45 שניות (מודול 12)."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 18, הנחיות פיתוח, ירוק וצהוב (K41)",
+  "old": "YELLOW starts at 45 seconds without an action in the active column.",
+  "new": "YELLOW starts at 45 seconds without an action in the active column. GREEN ends exactly when YELLOW starts. 45 seconds is the default of the radar calibration in system_control; the calibration moves only the YELLOW threshold, never the coaching card's fixed 45 seconds (Module 12)."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 17 §ד, הענן (K44)",
+  "old": "אונליין מסונכרן = ענן ירוק.",
+  "new": "אונליין מסונכרן = ענן ירוק. הענן אפור גם כשיש רשת ועדיין יש בתור פריטים שלא נשלחו, ואינו מציג מספר; פריטים שנדחו נספרים רק בכרטיס הלומד שבמסך המורה (\"אירועים שנדחו\")."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 17, הנחיות פיתוח, הענן (K44)",
+  "old": "and count parked items in the sync indicator and on the teacher's learner card as \"אירועים שנדחו\".",
+  "new": "and count parked items on the teacher's learner card as \"אירועים שנדחו\"; the learner's cloud icon shows no count: grey while offline or while the queue is still being delivered, green once it has been delivered."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 23, מדד 4, כרטיס שהוחלף (K45)",
+  "old": "והקודם אינו נספר ב-S;",
+  "new": "והקודם אינו נספר ב-S, אבל נשאר נספר ב-C;"
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 28 §ב, מיון הפניות (K51)",
+  "old": "הממוינת לפי school_id ו-class_name.",
+  "new": "הממוינת לפי school_id ו-class_name, ובתוך כל כיתה מהפנייה החדשה לישנה."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 23א §ד, records_deleted_count (K58)",
+  "old": "כלומר מסמכי Cloud Firestore וצמתי Realtime Database;",
+  "new": "כלומר מסמכי Cloud Firestore וצמתי Realtime Database: כל מסמך נספר פעם אחת, וכל צומת של לומד (רשומת הלומד, ההקלטות, הצ'אט) נספר פעם אחת עם כל מה שתחתיו; צומת שורש שמחיקתו מסירה צמתים רבים (באיפוס מערכת) נספר לפי מספר הצמתים שתחתיו;"
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 24, ייצוא המחקר, client_timestamp (K59)",
+  "old": "בכל הקבצים חותמות זמן נכתבות כטקסט ISO.",
+  "new": "בכל הקבצים חותמות זמן נכתבות כטקסט ISO. יוצא מן הכלל אחד: בקובץ הפעולות העמודה client_timestamp נשארת המספר הגולמי שנרשם (מילישניות), ולצידה העמודה client_time_iso בטקסט ISO."
+ },
+ {
+  "doc": "PRD",
+  "where": "מודול 29 §ב, חנויות Zustand (K60)",
+  "old": "ניהול המצב המקומי מופרד ל-3 חנויות Zustand בלתי תלויות:",
+  "new": "ניהול המצב המקומי מבוסס על 3 חנויות Zustand מרכזיות בלתי תלויות, ולצידן חנויות נוספות לתחומים נפרדים, כגון useStore (החנות הראשית של היישום) ו-useAdminStore (בתי הספר, הכיתות והמורים):"
+ },
+ {
+  "doc": "PRD",
+  "where": "נספח א' §3, sequence_number (K63)",
+  "old": "sequence_number: number; // per device per sign-in, increasing; orders events with the same client_timestamp",
+  "new": "sequence_number?: number; // per device per sign-in, increasing; orders events with the same client_timestamp; absent only from an event queued before the field existed (the Security Rules accept it without one)"
+ },
+ {
+  "doc": "מסמך 03",
+  "where": "שלב 7 של מהלך ההדגמה בתחנה 1",
+  "old": "(דקה, בעזרת תמונת מסך). המורה מסבירה שבכל תרגיל כותבים את התשובה בשורת התוצאה.",
+  "new": "(דקה). המורה מצביעה על שורת התוצאה ועל הכפתור \"ממשיכים\" שעל מסך המקרן, ומסבירה שבכל תרגיל כותבים את התשובה בשורת התוצאה."
+ },
+ {
+  "doc": "מסמך 03",
+  "where": "שלב 8 של מהלך ההדגמה בתחנה 1",
+  "old": "(דקה וחצי, בעזרת תמונת מסך). המורה מסבירה שלפעמים נפתח בצד המסך כרטיס עם שאלה מנחה ועם תשובות לבחירה. המורה אומרת לכיתה: \"הכרטיס הזה עוזר לכם לחשוב. קראו את השאלה ובחרו תשובה.",
+  "new": "(דקה וחצי). המורה מסבירה שלפעמים נפתח בצד המסך כרטיס עם שאלה מנחה ועם תשובות לבחירה, ולוחצת על \"דוגמה לכרטיס החניכה\". בצד המסך נפתח כרטיס החניכה, כמו שהתלמידים רואים אותו, ובו השאלה \"נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?\" ושלוש תשובות. המורה בוחרת בכוונה תשובה לא נכונה, \"כותבים מספר בשורת התוצאה\", ומראה את הרמז שמופיע בכרטיס: \"רמז: מה ההנחיה מבקשת לעשות לפני שכותבים?\" אחר כך היא בוחרת את התשובה הנכונה, \"בונים בבית המספרים את מה שההנחיה מבקשת\", והכרטיס נסגר מעצמו אחרי כמה שניות. המורה אומרת לכיתה: \"הכרטיס הזה עוזר לכם לחשוב. קראו את השאלה ובחרו תשובה. אם בחרתם תשובה לא נכונה, יופיע רמז; קראו אותו, ואחרי המתנה קצרה בחרו שוב."
+ }
+]
