@@ -5,17 +5,15 @@ import { gotoWorkspace, measure, openContext, settle, ws } from './harness';
 import type { Viewport } from './viewports';
 
 /**
- * TRIAL ONLY (branch claude/task-zone-hierarchy): the task-zone hierarchy variants
- * (VITE_TASK_ZONE_VARIANT=A|B) shot in six states, with the 0-scroll metrics.
- * Writes nothing unless HIER_OUT names the folder. Split and variant come from
- * the dev server (VITE_WORKSPACE_SPLIT=55-45, VITE_TASK_ZONE_VARIANT=A|B):
+ * The task zone (the calm card, owner's choice 9.10.2026) and the 55 : 45 split,
+ * shot in six states at the three PRD sizes, with the 0-scroll metrics (PRD
+ * Module 7 §א rule 7). Writes nothing unless HIER_OUT names the folder:
  *
- *   VITE_WORKSPACE_SPLIT=55-45 VITE_TASK_ZONE_VARIANT=A HIER_OUT=/tmp/x HIER_TAG=A \
- *     npx playwright test --config playwright.ux-audit.config.ts task-zone-hierarchy
- *   HIER_SIZES=1280x585 HIER_STATES=s1-t11-sub61,... narrow the run.
+ *   HIER_OUT=/tmp/x npx playwright test --config playwright.ux-audit.config.ts task-zone-hierarchy
+ *   HIER_SIZES=1280x585 HIER_STATES=s1-t11-sub61,... narrow the run; HIER_TAG names the shots.
  */
 const OUT = process.env.HIER_OUT ?? '';
-const TAG = process.env.HIER_TAG ?? 'X';
+const TAG = process.env.HIER_TAG ?? 'B';
 const ONLY_SIZES = (process.env.HIER_SIZES ?? '').split(',').filter(Boolean);
 const ONLY_STATES = (process.env.HIER_STATES ?? '').split(',').filter(Boolean);
 const INIT = 'st.initSession(arg.meeting, false, arg.idx); api.getState().markOpeningScreenSeen();';

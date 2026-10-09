@@ -252,7 +252,7 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     startMeeting(1);
   });
 
-  it('PRD 12 §ב: the workspace renders the drawer inside the task zone (40%), and the board keeps its 60% of the row (PRD 7 §א)', () => {
+  it('PRD 12 §ב: the workspace renders the drawer inside the task zone (45%), and the board keeps its 55% of the row (owner, 9.10.2026)', () => {
     const page = read('features/workspace/StudentWorkspacePage.tsx');
     const main = page.slice(page.indexOf('<main '), page.indexOf('</main>'));
     const zone = main.slice(main.indexOf('data-testid="task-zone"'), main.indexOf('</section>'));
@@ -268,8 +268,9 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     expect(reps).not.toContain('<SocraticSidePanel');
     expect(main).not.toContain('shareRow');
     const zones = read('features/workspace/workspaceZones.ts');
-    expect(zones).toContain("export const BOARD_ZONE_FLEX = TRIAL_55_45 ? '11 1 0%' : '3 1 0%';");
-    expect(zones).toContain("export const TASK_ZONE_FLEX = TRIAL_55_45 ? '9 1 0%' : '2 1 0%';");
+    // Owner's decision, 9.10.2026: 55 : 45 (11 : 9).
+    expect(zones).toContain("export const BOARD_ZONE_FLEX = '11 1 0%';");
+    expect(zones).toContain("export const TASK_ZONE_FLEX = '9 1 0%';");
   });
 
   it('a board too narrow for the full tray gets the compact tray, which may wrap, so the trash is never cut off', () => {
