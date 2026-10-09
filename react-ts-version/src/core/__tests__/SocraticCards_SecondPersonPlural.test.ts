@@ -33,6 +33,14 @@ const FIRST_PERSON_PLURAL = new RegExp(
   'g',
 );
 
+/**
+ * The one first-person-plural phrase the PRD itself mandates (PRD 7.4 Module
+ * 13 §א): the card "המספר שחיסרנו" answers "…ומקבלים את המספר שחיסרנו". It
+ * is the name of the number, written by the PRD, and the PRD governs (AGENTS.md
+ * Rule 1); the server accepts it too (functions socraticLanguage PRD_FIXED_PHRASES).
+ */
+const PRD_FIXED_PHRASES = /המספר שחיסרנו/g;
+
 const EMPTY = { units: 0, tens: 0, hundreds: 0, thousands: 0 };
 const STATES = [
   EMPTY,
@@ -63,7 +71,7 @@ describe('the coaching card speaks in the second person plural (owner\'s lecture
       'features/workspace/overlays/HelpOverlays.tsx',
     ]) {
       // The guard that reads the model's options accepts both persons ("נשתמש ב-…" and "משתמשים ב-…").
-      const text = code(f).replace(/^const REPRESENTATION_CHOICE = .*$/m, '');
+      const text = code(f).replace(/^const REPRESENTATION_CHOICE = .*$/m, '').replace(PRD_FIXED_PHRASES, '');
       for (const m of text.matchAll(FIRST_PERSON_PLURAL)) {
         const at = m.index ?? 0;
         found.push(`${f}: …${text.slice(Math.max(0, at - 30), at + 30).replace(/\s+/g, ' ')}…`);
@@ -77,7 +85,7 @@ describe('the coaching card speaks in the second person plural (owner\'s lecture
     for (const t of tasks) {
       for (const counts of STATES) {
         for (const s of textsOf(SocraticEngine.getSynchronousTaskHint(t, counts))) {
-          if (new RegExp(FIRST_PERSON_PLURAL.source).test(s)) found.push(`${t.id} ${JSON.stringify(counts)}: ${s}`);
+          if (new RegExp(FIRST_PERSON_PLURAL.source).test(s.replace(PRD_FIXED_PHRASES, ''))) found.push(`${t.id} ${JSON.stringify(counts)}: ${s}`);
         }
       }
     }

@@ -809,7 +809,7 @@ function buildHowCard(): SocraticHintResponse {
 /** Meeting 1's 26 changed — blocks deleted or added (audit D8): the number changed with them (frame 1). */
 function sameNumberCard(): SocraticHintResponse {
   return card(`${OPEN}האם בבית המספרים יש עכשיו אותו מספר כמו בתחילת התרגיל?`, 'conceptual', 'tour-place-value-board', [
-    ['לא. לבנים יצאו מבית המספרים או נוספו אליו', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים יחזרו להיות כמו בהתחלה.'],
+    ['לא. לבנים יצאו מבית המספרים או נוספו אליו', 'נכון מאוד! לחצו על כפתור ביטול הפעולה ↺ עד שהלבנים יחזרו להיות כמו בהתחלה.'],
     ['כן, כי בכל טור יש עכשיו פחות מ-10 לבנים', 'רמז: האם הוצאתם או הוספתם לבנים מאז ההתחלה?'],
     ['כן, כי עדיין יש לבנים בבית המספרים', 'רמז: האם יש בבית המספרים אותן לבנים שהיו בתחילת התרגיל?'],
   ], 'same_number', frame('same_number_check', 1, 'הלבנים שהתרגיל נתן השתנו, ולכן גם המספר: מחזירים אותן בכפתור ביטול הפעולה'));
@@ -845,7 +845,7 @@ function strayWhichCard(): SocraticHintResponse {
 /** A block broken that the instruction does not ask to break, the second card: which blocks it asks to break (frame 1). */
 function extraBreakWhichCard(): SocraticHintResponse {
   return card(`${OPEN}אילו לבנים ההנחיה מבקשת לפרוט?`, 'procedural', 'tour-task-card', [
-    ['רק את הלבנים שכתובות בהנחיה אחרי המילה "פרטו"', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהפריטה המיותרת תתבטל.'],
+    ['רק את הלבנים שכתובות בהנחיה אחרי המילה "פרטו"', 'נכון מאוד! לחצו על כפתור ביטול הפעולה ↺ עד שהפריטה המיותרת תתבטל.'],
     ['כל לבנה שאפשר ללחוץ עליה', 'רמז: מה כתוב בהנחיה אחרי המילה "פרטו"?'],
     ['לבנה אחת מכל טור', 'רמז: האם ההנחיה מבקשת לפרוט לבנה בכל טור?'],
   ], 'extra_break_which', frame('extra_break_which', 1, 'פורטים רק את הלבנים שההנחיה מבקשת, ומבטלים כל פריטה אחרת'));
@@ -877,7 +877,7 @@ function takeAwayProgressCard(b: number): SocraticHintResponse {
 function tookTooManyColumnCard(ex: string, b: number, c: Place): SocraticHintResponse {
   const B = formatNumberHe(b);
   return card(`${OPEN}בתרגיל ${ex}, מה קובע כמה לבנים מוציאים מ${COLUMN[c]}?`, 'procedural', HL(c), [
-    [`ספרת ה${PLURAL[c]} של ${B}`, 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים שהוצאתם בטעות יחזרו.'],
+    [`ספרת ה${PLURAL[c]} של ${B}`, 'נכון מאוד! לחצו על כפתור ביטול הפעולה ↺ עד שהלבנים שהוצאתם בטעות יחזרו.'],
     ['כמה לבנים יש בטור', 'רמז: האם מחסרים את כל מה שיש בטור?'],
     ['כמה שנוח, העיקר שיישאר מעט', 'רמז: איזה מספר מחסרים בתרגיל?'],
   ], 'took_too_many_next', frame('took_too_many_column', 2, `מ${COLUMN[c]} מוציאים לבנים בדיוק לפי הספרה של ${B} בטור הזה`));
@@ -887,7 +887,7 @@ function tookTooManyColumnCard(ex: string, b: number, c: Place): SocraticHintRes
 function undoTakenCard(b: number): SocraticHintResponse {
   const B = formatNumberHe(b);
   return card(`${OPEN}הוצאתם יותר מדי לבנים. איך מחזירים אותן?`, 'procedural', 'tour-action-buttons', [
-    ['לוחצים על כפתור ביטול הפעולה עד שהלבנים חוזרות', `נכון מאוד! אחר כך בדקו שמכל טור הוצאתם לבנים בדיוק לפי הספרה של ${B} באותו טור.`],
+    ['לוחצים על כפתור ביטול הפעולה ↺ עד שהלבנים חוזרות', `נכון מאוד! אחר כך בדקו שמכל טור הוצאתם לבנים בדיוק לפי הספרה של ${B} באותו טור.`],
     ['מוציאים עוד לבנים', 'רמז: אם תוציאו עוד, יהיו בבית המספרים יותר לבנים או פחות?'],
     ['כותבים את מה שנשאר בבית המספרים', `רמז: האם הוצאתם בדיוק את ${B}?`],
   ], 'took_too_many_next', frame('took_too_many_undo', 3, 'מחזירים את מה שהוצא בטעות בכפתור ביטול הפעולה, ובודקים כל טור'));
@@ -1041,7 +1041,7 @@ function columnCountCard(ex: string, p: Place): SocraticHintResponse {
 /** Meeting 1's 26, its result built by hand (2 tens and 6 units, nothing grouped), the second card: the grouping the instruction asks for (frame 3). */
 function s1GroupYourselvesCard(): SocraticHintResponse {
   return card(`${OPEN}מה ההנחיה מבקשת לעשות עם לבני היחידה שהיו בטור בהתחלה?`, 'procedural', 'tour-task-card', [
-    ['מקבצים אותן בכפתור "קבצו 10"', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שלבני היחידה יחזרו. אחר כך קבצו אותן בכפתור.'],
+    ['מקבצים אותן בכפתור "קבצו 10"', 'נכון מאוד! לחצו על כפתור ביטול הפעולה ↺ עד שלבני היחידה יחזרו. אחר כך קבצו אותן בכפתור.'],
     ['בונים את התוצאה בעצמכם, בלי הכפתור', 'רמז: באיזה כפתור ההנחיה מבקשת לקבץ?'],
     ['כותבים את המספר בלי לקבץ', 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים?'],
   ], 'group_yourselves', frame('group_yourselves', 3, 'ההנחיה מבקשת לקבץ בעצמכם בכפתור "קבצו 10": מחזירים את לבני היחידה ומקבצים'));
@@ -1433,7 +1433,7 @@ export function checkBeforeTakingCard(ex: string): SocraticHintResponse {
  */
 export function paletteBorrowCard(): SocraticHintResponse {
   return card(`${OPEN}בחיסור, כשבטור אין מספיק לבנים כדי לחסר, מה עושים?`, 'procedural', 'tour-place-value-board', [
-    ['פורטים לבנה מהטור שמשמאל', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים שהוספתם ייצאו מבית המספרים. אחר כך פרטו לבנה מהטור שמשמאל.'],
+    ['פורטים לבנה מהטור שמשמאל', 'נכון מאוד! לחצו על כפתור ביטול הפעולה ↺ עד שהלבנים שהוספתם ייצאו מבית המספרים. אחר כך פרטו לבנה מהטור שמשמאל.'],
     ['מוסיפים לבנים מארגז הכלים', 'רמז: אם תוסיפו לבנים מארגז הכלים, האם המספר יישאר אותו מספר?'],
     // Not "תחסרו": read aloud it may be תֶּחְסְרוּ ("you will lack").
     ['מוציאים מהטור רק את מה שיש בו', 'רמז: האם כך תוציאו את כל המספר השני?'],
@@ -1443,7 +1443,7 @@ export function paletteBorrowCard(): SocraticHintResponse {
 /** Subtraction with blocks: more taken away than the number subtracted. */
 export function overRemovalCard(): SocraticHintResponse {
   return card(`${OPEN}איך בודקים שהוצאתם בדיוק את המספר שמחסרים?`, 'procedural', 'tour-place-value-board', [
-    ['בודקים בכל טור כמה לבנים הוצאתם, ומשווים לספרה של המספר השני', 'נכון מאוד! אם הוצאתם יותר מדי, לחצו על כפתור ביטול הפעולה.'],
+    ['בודקים בכל טור כמה לבנים הוצאתם, ומשווים לספרה של המספר השני', 'נכון מאוד! אם הוצאתם יותר מדי, לחצו על כפתור ביטול הפעולה ↺.'],
     ['סופרים כמה לבנים נשארו בבית המספרים', 'רמז: איך תדעו כמה הוצאתם מכל טור?'],
     ['מוציאים עוד לבנים עד שהטור מתרוקן', 'רמז: כמה לבנים צריך להוציא מכל טור?'],
   ], 'took_too_many', frame('took_too_many', 1, 'משווים בכל טור את מה שהוצא לספרה של המספר השני באותו טור'));
@@ -2353,7 +2353,7 @@ function conversionCard(task: any, kind: 'compose_break' | 'compose_group', ctx:
 /** A block broken that the instruction does not ask to break (station 3; meeting 1's 347). */
 function extraBreakCard(): SocraticHintResponse {
   return card(`${OPEN}פרטתם לבנה שההנחיה לא מבקשת לפרוט. מה עושים?`, 'procedural', 'tour-action-buttons', [
-    ['מבטלים את הפריטה הזאת בכפתור ביטול הפעולה', 'נכון מאוד! לחצו על כפתור ביטול הפעולה. אחר כך בדקו שבית המספרים מראה את מה שההנחיה מבקשת.'],
+    ['מבטלים את הפריטה הזאת בכפתור ביטול הפעולה ↺', 'נכון מאוד! לחצו על כפתור ביטול הפעולה ↺. אחר כך בדקו שבית המספרים מראה את מה שההנחיה מבקשת.'],
     ['כותבים את המספר בלי לתקן', 'רמז: האם בית המספרים מראה עכשיו את מה שההנחיה מבקשת?'],
     ['פורטים עוד לבנה', 'רמז: האם עוד פריטה תחזיר את הלבנים למה שההנחיה מבקשת?'],
   ], 'extra_break', frame('extra_break', 1, 'נפרטה לבנה שההנחיה לא מבקשת: מבטלים אותה בכפתור ביטול הפעולה'));
@@ -2376,7 +2376,7 @@ export function strayBlocksCard(column?: Place | null, representation = false): 
   if (column) {
     const n = next(column);
     return card(`${OPEN}יש ב${COLUMN[column]} לבנים שהתרגיל לא צריך. מה עושים?`, 'procedural', HL(column), [
-      [`בודקים כמה ${BLOCKS[column]} התרגיל צריך, ומוציאים לפח האשפה את המיותרות`, 'נכון מאוד! אפשר גם ללחוץ על כפתור ביטול הפעולה.'],
+      [`בודקים כמה ${BLOCKS[column]} התרגיל צריך, ומוציאים לפח האשפה את המיותרות`, 'נכון מאוד! אפשר גם ללחוץ על כפתור ביטול הפעולה ↺.'],
       n
         ? [`מקבצים 10 ${BLOCKS[column]} ל${BLOCK[n]} אחת`, 'רמז: האם הקבצה מוציאה את הלבנים המיותרות מבית המספרים?']
         : ['משאירים אותן, כי הן לא מפריעות', 'רמז: האם המספר שבבית המספרים הוא המספר שהתרגיל צריך?'],
@@ -2385,7 +2385,7 @@ export function strayBlocksCard(column?: Place | null, representation = false): 
   }
   const needs = representation ? 'ההנחיה מבקשת' : 'התרגיל צריך';
   return card(`${OPEN}איך בודקים אם יש בבית המספרים לבנים מיותרות?`, 'procedural', 'tour-place-value-board', [
-    [`בודקים בכל טור כמה לבנים ${needs}`, 'נכון מאוד! הוציאו לפח האשפה את הלבנים המיותרות, או לחצו על כפתור ביטול הפעולה.'],
+    [`בודקים בכל טור כמה לבנים ${needs}`, 'נכון מאוד! הוציאו לפח האשפה את הלבנים המיותרות, או לחצו על כפתור ביטול הפעולה ↺.'],
     ['סופרים את כל הלבנים יחד', 'רמז: האם כל הלבנים בבית המספרים שוות אותו דבר?'],
     ['מקבצים 10 לבנים ללבנה אחת', 'רמז: האם הקבצה משנה את המספר שבבית המספרים?'],
   ], 'stray', frame('stray_blocks', 1, 'יש בבית המספרים לבנים מיותרות: בודקים בכל טור כמה לבנים צריך ומוציאים את המיותרות'));
@@ -2783,7 +2783,7 @@ export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardCon
 /** Meeting 1: 10 or more blocks in a column that has no grouping button (no thousands column there). */
 export function s1NoButtonCard(): SocraticHintResponse {
   return card(`${OPEN}באחד הטורים יש 10 לבנים או יותר, ואין בראשו הכפתור "קבצו 10". מה עושים?`, 'procedural', 'tour-place-value-board', [
-    ['בודקים בהנחיה איזה מספר בונים, ומוציאים את הלבנים המיותרות', 'נכון מאוד! אפשר גם ללחוץ על כפתור ביטול הפעולה כדי לחזור צעד אחד אחורה.'],
+    ['בודקים בהנחיה איזה מספר בונים, ומוציאים את הלבנים המיותרות', 'נכון מאוד! אפשר גם ללחוץ על כפתור ביטול הפעולה ↺ כדי לחזור צעד אחד אחורה.'],
     ['מקבצים 10 לבנים ללבנה אחת בטור שמשמאלו', 'רמז: האם בבית המספרים יש טור משמאל לטור הזה?'],
     ['משאירים את כל הלבנים בטור', HINT.oneDigitPerBox],
   ], 'no_button', frame('s1_crowded_no_button', 1, 'בטור בלי כפתור הקבצה יש יותר לבנים ממה שהמספר צריך: בודקים כמה צריך ומוציאים את המיותרות'));
@@ -2897,7 +2897,7 @@ export function givenBlocksChangedCard(task: any, counts: BoardCounts | undefine
 /** B1 (frame 1): the board does not look as it did at the start — undo, step by step, until the button is grey. */
 function givenBlocksRestoreCard(): SocraticHintResponse {
   return card(`${OPEN}בית המספרים לא נראה עכשיו כמו בתחילת התרגיל. מה עושים?`, 'procedural', 'tour-action-buttons', [
-    ['מחזירים את הלבנים שהיו בתחילת התרגיל', 'נכון מאוד! לחצו שוב ושוב על כפתור ביטול הפעולה, עד שהוא יהיה אפור. אחר כך המשיכו לפי ההנחיה.'],
+    ['מחזירים את הלבנים שהיו בתחילת התרגיל', 'נכון מאוד! לחצו שוב ושוב על כפתור ביטול הפעולה ↺, עד שהוא יהיה אפור. אחר כך המשיכו לפי ההנחיה.'],
     ['ממשיכים בתרגיל בלי להחזיר את הלבנים', 'רמז: אילו לבנים ההנחיה מתארת?'],
     ['כותבים מספר בשורת התוצאה', 'רמז: מה ההנחיה מבקשת לעשות עם הלבנים שהיו בתחילת התרגיל?'],
   ], 'restore_given', frame('restore_given', 1, 'הלבנים שהתרגיל נתן השתנו: מחזירים אותן בכפתור ביטול הפעולה, ורק אז מקבצים'));
@@ -2933,7 +2933,7 @@ export function s1StartChangedCard(task: any, counts: BoardCounts, ctx: StaticCa
  */
 function s1RestoreCard(): SocraticHintResponse {
   return card(`${OPEN}ההנחיה מבקשת לקבץ את הלבנים שהיו בהתחלה, אבל הן השתנו. מה עושים?`, 'procedural', 'tour-action-buttons', [
-    ['מחזירים אותן בכפתור ביטול הפעולה, ואז מקבצים', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים יחזרו להיות כמו בהתחלה. אחר כך קבצו כל 10 לבנים בכפתור "קבצו 10".'],
+    ['מחזירים אותן בכפתור ביטול הפעולה ↺, ואז מקבצים', 'נכון מאוד! לחצו על כפתור ביטול הפעולה ↺ עד שהלבנים יחזרו להיות כמו בהתחלה. אחר כך קבצו כל 10 לבנים בכפתור "קבצו 10".'],
     ['כותבים את המספר שהלבנים מראות עכשיו', 'רמז: מה ההנחיה מבקשת לעשות עם הלבנים שהיו בתחילת התרגיל?'],
     ['לוחצים על פח האשפה', 'רמז: מה קורה ללבנים כשלוחצים על פח האשפה?'],
   ], 'restore_start', frame('s1_restore_start', 1, 'הלבנים שהתרגיל נתן השתנו: מחזירים אותן בכפתור ביטול הפעולה, ורק אז מקבצים'));

@@ -150,7 +150,8 @@ describe('Verification Suite: Module 12(c) and Module 13(a)', () => {
           ],
           final_intervention: {
             error_category: 'procedural',
-            guiding_question: 'בתרגיל חיסור 425 פחות 162, בעמודת העשרות אין מספיק עשרות כדי להחסיר 6. כיצד נקבל עוד עשרות בבית המספרים?',
+            // "בטור העשרות" — a card that says "עמודה" is refused (PRD 7.4 Module 7 §א).
+            guiding_question: 'בתרגיל חיסור 425 פחות 162, בטור העשרות אין מספיק עשרות כדי להחסיר 6. כיצד נקבל עוד עשרות בבית המספרים?',
             options: [
               { id: '1', text: 'נפרוט מאה אחת מטור המאות ל-10 עשרות', feedback: 'נכון מאוד!', is_correct: true },
               { id: '2', text: 'נחסיר הפוך 6 פחות 2', feedback: 'רמז: האם זה נכון?', is_correct: false },

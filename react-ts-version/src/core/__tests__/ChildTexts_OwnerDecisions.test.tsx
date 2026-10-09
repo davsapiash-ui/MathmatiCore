@@ -245,7 +245,8 @@ describe('5 — the coaching-card texts the owner rewrote', () => {
   it('the carried digit is an המרה in the memory circle, never a "שארית"', () => {
     expect(engine).toContain('tts_text: "עבדו טור טור מימין לשמאל, ואל תשכחו לרשום את ההמרה בעיגול הזיכרון."');
     expect(engine).toContain('textHe: "מתחילים מהיחידות, עוברים לעשרות ואחר כך למאות, ורושמים כל המרה בעיגול הזיכרון"');
-    expect(engine).not.toMatch(/שארית|שאריות/);
+    // The list of terms a card may not use names it — and only that list.
+    expect(engine.replace(/export const FORBIDDEN_TERMS_HE = \[[\s\S]*?\];/, '')).not.toMatch(/שארית|שאריות/);
     expect(code('data/sessionTasks.ts')).not.toMatch(/שארית|שאריות/);
   });
 
@@ -261,8 +262,10 @@ describe('5 — the coaching-card texts the owner rewrote', () => {
     expect(engine).toContain('tts_text: "מחובר ועוד מחובר שווה סכום. אם חסר מחובר, מחסרים מהסכום את המחובר הידוע."');
     expect(engine).toContain('questionHe: "כיצד מוצאים מחובר חסר?"');
     expect(engine).toContain('textHe: "מהסכום מחסרים את המחובר הידוע, ומקבלים את המחובר החסר"');
-    expect(engine).toContain('questionHe: "כיצד מוצאים את המספר שמחסרים?"');
-    expect(engine).toContain('textHe: "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שמחסרים"');
+    // PRD 7.4 Module 13 §א: the card "המספר שחיסרנו", in the PRD's own words.
+    expect(engine).toContain('questionHe: "כיצד מוצאים את המספר שחיסרנו?"');
+    expect(engine).toContain('textHe: "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו"');
+    expect(engine).not.toContain('המספר שמחסרים"');
     expect(engine).not.toMatch(/מחוברים חסר|מחוברים ידוע|תוצאה - מה שנשאר/);
   });
 

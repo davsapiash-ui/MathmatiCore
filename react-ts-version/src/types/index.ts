@@ -114,6 +114,13 @@ export interface VRAWorkspaceStore {
 
 import type { TelemetryEventType, TelemetryPayload } from './telemetry';
 
+/**
+ * A column as GeminiExerciseContext.active_column names it on the wire (PRD
+ * 7.4 Appendix A §6). The client's own name for the ones column is 'units'
+ * (core/placeValue Place); SocraticEngine maps it at the request boundary.
+ */
+export type GeminiWireColumn = 'ones' | 'tens' | 'hundreds' | 'thousands';
+
 export interface GeminiSocraticRequest {
   student_id: number; // Strictly 1-12
   session_id: string;
@@ -125,7 +132,7 @@ export interface GeminiSocraticRequest {
     number_b: number;
     session_id: string;
     session_topic: string;
-    active_column: 'units' | 'tens' | 'hundreds' | 'thousands';
+    active_column: GeminiWireColumn;
     active_column_index: number;
     target_sub_problem: string;
     /** Digits a skeleton exercise hides on the screen; the server never shows them to the model. */

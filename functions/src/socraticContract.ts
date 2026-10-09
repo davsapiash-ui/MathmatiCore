@@ -31,6 +31,27 @@ export type SocraticTriggerReason =
   | "repeated_errors";
 
 export const SOCRATIC_COLUMNS: SocraticColumn[] = ["units", "tens", "hundreds", "thousands"];
+
+/**
+ * exercise_context.active_column as the wire carries it — PRD 7.4 Appendix A
+ * §6 (GeminiExerciseContext): 'ones' | 'tens' | 'hundreds' | 'thousands'.
+ * Inside this module the column keeps its internal name ("units").
+ */
+export type SocraticWireColumn = "ones" | "tens" | "hundreds" | "thousands";
+export const SOCRATIC_WIRE_COLUMNS: SocraticWireColumn[] = ["ones", "tens", "hundreds", "thousands"];
+
+/**
+ * The PRD's wire name → the internal column; null when it is neither.
+ * 'units' — the name clients sent before 9.10.2026 — is still accepted and
+ * normalised, for one release, so a child on a cached client keeps getting
+ * the engine's card; remove it in the release after.
+ */
+export function columnFromWire(v: unknown): SocraticColumn | null {
+  if (v === "ones" || v === "units") return "units";
+  if (v === "tens" || v === "hundreds" || v === "thousands") return v;
+  return null;
+}
+
 export const SOCRATIC_ERROR_CATEGORIES: SocraticErrorCategory[] = ["calculation", "procedural", "conceptual"];
 export const SOCRATIC_TRIGGER_REASONS: SocraticTriggerReason[] = [
   "hesitation_45s",
@@ -425,8 +446,9 @@ export function validateSocraticRequest(raw: unknown): Validation<SocraticReques
     if (ec.operation === "subtraction" && ec.number_b > ec.number_a) {
       return { ok: false, reason: "exercise_context: subtrahend larger than minuend" };
     }
-    const activeColumn = ec.active_column;
-    if (typeof activeColumn !== "string" || !SOCRATIC_COLUMNS.includes(activeColumn as SocraticColumn)) {
+    // 'ones' | 'tens' | 'hundreds' | 'thousands' (PRD Appendix A §6); the legacy 'units' is normalised.
+    const activeColumn = columnFromWire(ec.active_column);
+    if (!activeColumn) {
       return { ok: false, reason: "exercise_context.active_column invalid" };
     }
     exercise_context = {
@@ -435,7 +457,7 @@ export function validateSocraticRequest(raw: unknown): Validation<SocraticReques
       number_b: ec.number_b,
       session_id: typeof ec.session_id === "string" ? ec.session_id.slice(0, 64) : String(raw.session_id),
       session_topic: typeof ec.session_topic === "string" ? ec.session_topic.slice(0, 120) : "",
-      active_column: activeColumn as SocraticColumn,
+      active_column: activeColumn,
       active_column_index: isInt(ec.active_column_index, 0, 3) ? ec.active_column_index : raw.active_column_index,
       target_sub_problem: typeof ec.target_sub_problem === "string" ? ec.target_sub_problem.slice(0, 40) : "",
     };
@@ -1583,7 +1605,7 @@ const BOARD_CONTROLS_TAIL_HE = [
 ];
 const BOARD_CONTROLS_END_HE = [
   'גוררים לבנים אל "פח האשפה" כדי להוציא אותן מבית המספרים.',
-  '"כפתור ביטול הפעולה" מבטל את הפעולה האחרונה.',
+  '"כפתור ביטול הפעולה ↺" מבטל את הפעולה האחרונה.',
 ];
 const BOARD_CONTROLS_ALL_HE = [
   '"בית המספרים": טור היחידות, טור העשרות, טור המאות וטור האלפים.',
@@ -1616,7 +1638,7 @@ export function screenDescriptionHe(facts: Pick<SocraticFacts, "screen"> & Parti
       return [
         'התרגיל כתוב במאונך. מעל כל טור יש "עיגול הזיכרון" לרישום ההמרה או הפריטה.',
         'מתחת לתרגיל "שורת התוצאה" ובה תיבה אחת לכל טור; בכל תיבה כותבים ספרה אחת.',
-        '"כפתור ביטול הפעולה" מבטל את הפעולה האחרונה.',
+        '"כפתור ביטול הפעולה ↺" מבטל את הפעולה האחרונה.',
         'אין על המסך לבנים, בית מספרים, פח אשפה או כפתור "קבצו 10". אסור להזכיר אותם.',
       ];
     case "representation_one_box":
@@ -1964,6 +1986,11 @@ export const FORBIDDEN_TERMS_HE: string[] = [
   "קובי", "בלוק", "לוח הדינס", "לוח הלבנים", "קנבס",
   // The child reads "לבנים", never "לבני דינס" (register ט; audit 4.10.2026 A7-018).
   "דינס",
+  // PRD 7.4 Module 13 §א: the digit that passes to the next column is not a
+  // "שארית" — in addition it is "המרה", in subtraction "פריטה".
+  "שארית", "שאריות",
+  // PRD 7.4 Module 7 §א: a column is "טור" ("בטור העשרות"), not "עמודה".
+  "עמודה", "עמודות", "עמודת",
 ];
 
 /**

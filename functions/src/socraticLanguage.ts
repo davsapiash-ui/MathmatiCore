@@ -28,6 +28,19 @@ const HE_VERB = (w: string, prefixes = "וכש|כש|ו|ש") => new RegExp(`(^|[^
 /** Where a clause starts: the text's start, or after a sentence mark, a comma, a quote or a bracket. */
 const CLAUSE_START = '(?:^|[.!?:;,"“”(\\n])\\s*';
 
+/** The undo button as a sentence names it (PRD 7.4 Module 7 §א: "המשפטים קוראים לו 'כפתור ביטול הפעולה ↺'"). */
+export const UNDO_BUTTON_NAME_HE = "כפתור ביטול הפעולה ↺";
+
+/**
+ * Phrases the PRD itself writes into a card, word for word, that a language
+ * rule would otherwise read as a fault. PRD 7.4 Module 13 §א: the card "המספר
+ * שחיסרנו" answers "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר
+ * שחיסרנו" — the PRD's name for the subtrahend, in the first person plural.
+ * The PRD governs (AGENTS.md Rule 1), so a card — static or the engine's —
+ * that says it is not refused for it. Removed before the language rules run.
+ */
+export const PRD_FIXED_PHRASES_HE = ["המספר שחיסרנו"];
+
 export interface LanguageRule {
   /** Short id for the monitoring detail and the retry instruction. */
   id: string;
@@ -135,7 +148,7 @@ export const LANGUAGE_RULES: LanguageRule[] = [
   // adjective after it.
   { id: "blocks_plural", re: /(^|[^א-ת])[ובלמשכ]{0,3}הלבנות(?![א-ת])|לבנות\s+(העודפות|המיותרות|האלה|האלו|הללו|הנוספות|הבודדות|עודפות|מיותרות)(?![א-ת])/, fix: 'The plural of "לבנה" is "לבנים" ("לבני עשרת", "הלבנים המיותרות"), never "לבנות".' },
   { id: "result_box_name", re: HE_WORD("משבצת|משבצות|המשבצת|המשבצות"), fix: 'A result box is "תיבה" in "שורת התוצאה", never "משבצת".' },
-  { id: "action_not_on_screen_mark", re: HE_WORD("סמנו|מסמנים|לסמן|סימון|תסמנו"), fix: 'There is no way to mark blocks on the screen. Name only the screen\'s own actions: drag blocks, click a block to break it, the "קבצו 10" button, the trash ("פח האשפה"), the undo button ("כפתור ביטול הפעולה").' },
+  { id: "action_not_on_screen_mark", re: HE_WORD("סמנו|מסמנים|לסמן|סימון|תסמנו"), fix: `There is no way to mark blocks on the screen. Name only the screen's own actions: drag blocks, click a block to break it, the "קבצו 10" button, the trash ("פח האשפה"), the undo button ("${UNDO_BUTTON_NAME_HE}").` },
   { id: "name_not_on_screen", re: /מאגר הלבנים|מאגר לבנים|לבני דינס|לבני הדינס|דינס|(^|[^א-ת])[ובלמהשכ]{0,3}לוח(?![א-ת])|ארגז הלבנים/, fix: 'Use the screen\'s names only: "בית המספרים" for the board, "לבנים" for the blocks, "ארגז כלים" for where the blocks are dragged from.' },
   { id: "parsing_verb", re: HE_EXACT("מפרקים|לפרק|פרקו|נפרק|מפרקות|פירקו|פירוק|הפירוק|מתפרק|מתפרקת|מתפרקים|מתפרקות|התפרקה|התפרק|להתפרק"), fix: 'Subtraction regrouping is "פריטה" only: "פורטים", "פרטו", "נפרטת" — never "מפרקים", "פירוק" or "מתפרקת".' },
   // The error is breaking a block INTO a column. Moving the new blocks to a
@@ -151,7 +164,10 @@ export const LANGUAGE_RULES: LanguageRule[] = [
   // Subtraction is pi'el (coordinator's decision, 2.10.2026): "מחסרים", "לחסר", "חיסרו" — not the hif'il.
   { id: "subtraction_verb", re: HE_WORD("להחסיר|מחסירים|מחסירות|מחסיר|החסירו|תחסירו|החסרתם|החסירה"), fix: 'Subtraction is the pi\'el: "מחסרים", "לחסר", "חיסרו" — never "מחסירים", "להחסיר", "החסירו". Avoid the bare imperative "חסרו" (read aloud as "you lacked"): write the impersonal present ("מחסרים").' },
   // "▢" stays allowed: it is how the screen writes a skeleton's hidden digit ("3▢6 + 271"), and the narration reads it as "ספרה חסרה".
-  { id: "icon_symbol", re: /[↺⟲⟳]/, fix: 'Do not write the symbol "↺": name the undo button "כפתור ביטול הפעולה".' },
+  // PRD 7.4 Module 7 §א: sentences call the undo button "כפתור ביטול הפעולה ↺" — so "↺" is allowed right after that
+  // name, and only there; on its own ("לחצו על ↺") it is refused, and the other arrows always are. The narration drops
+  // the symbol (client TTSService strips U+2190–U+21FF).
+  { id: "icon_symbol", re: /[⟲⟳]|(?<!כפתור ביטול הפעולה ?)↺/, fix: `Write the symbol "↺" only as part of the undo button's name, "${UNDO_BUTTON_NAME_HE}" — never on its own ("לחצו על ↺").` },
 ];
 
 /** The card's form (owner, 30.9.2026). */
@@ -387,7 +403,7 @@ export function socraticStyleSpec(blocks: boolean, meeting1 = false): string {
   // Format: (where, level) question | ✓ right option → its feedback | ✗ wrong option → its hint | ✗ wrong option.
   const BOARD_EMPTY = '(stations 1, 3, 4, 7 — level 1) נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם? | ✓ בונים בבית המספרים את מה שההנחיה מבקשת → נכון מאוד! קראו את ההנחיה. בנו בבית המספרים את מה שהיא מבקשת. | ✗ כותבים מספר בשורת התוצאה → רמז: מה ההנחיה מבקשת לעשות לפני שכותבים? | ✗ מנחשים את התשובה';
   const ONE_MISSING = '(stations 1, 4, 7 — level 1) נסו לחשוב: בתרגיל 713 + 94, איזה מספר עוד לא בבית המספרים? | ✓ המספר 94 → נכון מאוד! בנו את 94, כל ספרה בטור שלה. | ✗ המספר 713 → רמז: אילו לבנים כבר בניתם? | ✗ שני המספרים כבר שם';
-  const BORROW_FROM_BOX = '(stations 1, 5, 6 — level 1; blocks were dragged from the tool box in a subtraction) נסו לחשוב: בחיסור, כשבטור אין מספיק לבנים כדי לחסר, מה עושים? | ✓ פורטים לבנה מהטור שמשמאל → נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים שהוספתם ייצאו מבית המספרים. אחר כך פרטו לבנה מהטור שמשמאל. | ✗ מוסיפים לבנים מארגז הכלים → רמז: אם תוסיפו לבנים מארגז הכלים, האם המספר יישאר אותו מספר? | ✗ מוציאים מהטור רק את מה שיש בו';
+  const BORROW_FROM_BOX = '(stations 1, 5, 6 — level 1; blocks were dragged from the tool box in a subtraction) נסו לחשוב: בחיסור, כשבטור אין מספיק לבנים כדי לחסר, מה עושים? | ✓ פורטים לבנה מהטור שמשמאל → נכון מאוד! לחצו על כפתור ביטול הפעולה ↺ עד שהלבנים שהוספתם ייצאו מבית המספרים. אחר כך פרטו לבנה מהטור שמשמאל. | ✗ מוסיפים לבנים מארגז הכלים → רמז: אם תוסיפו לבנים מארגז הכלים, האם המספר יישאר אותו מספר? | ✗ מוציאים מהטור רק את מה שיש בו';
   const CHECK_BEFORE = '(stations 1, 5, 6 — level 1) נסו לחשוב: בתרגיל 61 − 24, מה בודקים לפני שמוציאים לבנים מטור? | ✓ אם יש בטור מספיק לבנים להוציא → נכון מאוד! אם אין מספיק, פורטים לבנה מהטור שמשמאל. | ✗ שום דבר, מוציאים מיד → רמז: מה יקרה אם בטור אין מספיק לבנים להוציא? | ✗ מוסיפים לבנים חדשות לטור';
   const WRITE_BOXES = '(station 1 — level 1) נסו לחשוב: מה כותבים בכל תיבה בשורת התוצאה? | ✓ את מספר הלבנים שבטור של אותה תיבה → נכון מאוד! כתבו ספרה בכל תיבה, גם בתיבה של טור שאין בו לבנים. | ✗ רק בתיבות של טורים שיש בהם לבנים → רמז: מה כותבים בתיבה של טור שאין בו אף לבנה? | ✗ את מספר כל הלבנים יחד, בתיבה אחת';
   const DIGIT_BOX = '(stations 4–7 — level 1, the owner\'s card of 30.9) נסו לחשוב: איך יודעים באיזו תיבה בשורת התוצאה כותבים כל ספרה? | ✓ לכל טור יש תיבה משלו, מתחת לטור → נכון מאוד! כתבו כל ספרה בתיבה של הטור שלה. | ✗ כותבים כל ספרה בתיבה הפנויה הראשונה → רמז: לאיזה טור שייכת כל תיבה? | ✗ כותבים את הספרות לפי הסדר שבו מחשבים אותן';
@@ -454,7 +470,9 @@ ${faults.join("\n")}`;
 
 /** The first language rule the texts break, or null. */
 export function languageViolation(texts: string[]): LanguageRule | null {
-  for (const t of texts) {
+  for (const raw of texts) {
+    // The phrase stands for a noun ("המספר"), so the rest of the sentence is still read as a sentence.
+    const t = PRD_FIXED_PHRASES_HE.reduce((s, p) => s.split(p).join("המספר"), raw);
     for (const rule of LANGUAGE_RULES) if (rule.re.test(t)) return rule;
   }
   return null;
@@ -498,10 +516,11 @@ export function socraticLanguageSpec(blocks: boolean): string {
 - Address the children in the second person plural imperative, gender-neutral: ${imperatives}. Answer options are in the impersonal present: ${options}. NEVER the first person plural ("נבדוק", "נפרוט", "נמחק", "נזרוק", "בואו נ…", "מה נעשה", "ונבדוק", "כשנגיע") and never "אנו". NEVER the second person singular, masculine or feminine ("שים לב", "נסה", "בדוק", "לחץ על", "תבדוק", "בדקי", "שימי", "שלך"): "שימו לב", "נסו", "בדקו", "לחצו על", "שלכם". Never slash or dot gender forms.
 - The guiding question is ONE direct question ending with "?". It may open with "נסו לחשוב:" — the only opening of that kind (never "בואו נחשוב", never "חשבו רגע:"). The feedback of a wrong option is "רמז:" and ONE direct guiding question ending with "?". The feedback of the correct option opens with "נכון מאוד!". An indirect question inside a sentence takes "אם", not "האם", and no "?" ("בדקו אם צריך לרשום משהו בעיגול הזיכרון.") — it may appear only inside the correct option's feedback, never as the guiding question or as a hint.
 - Verb government: ${government} Subtraction is the pi'el "מחסרים" / "לחסר" / "חיסרו" — never "מחסירים" / "להחסיר"; avoid the bare imperative "חסרו" (read aloud it sounds like "you lacked"): write "מחסרים" instead.
-- ${forms} — never "פירוק", "מפרקים", "שבירה", "הלוואה", "נשיאה".
+- ${forms} — never "פירוק", "מפרקים", "שבירה", "הלוואה", "נשיאה". The digit that passes to the next column is NEVER "שארית": in addition it is "המרה", in subtraction "פריטה", and it is written in the memory circle.
+- The PRD's own wordings, word for word when a card is about them: the missing addend — "כיצד מוצאים מחובר חסר?" → "מהסכום מחסרים את המחובר הידוע, ומקבלים את המחובר החסר"; the number subtracted — "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו" ("המספר שחיסרנו" is that number's name: the one first-person-plural phrase a card may hold).${blocks ? ' On the limit of a column: "בסוף התרגיל נשארות בכל טור לכל היותר 9 לבנים, כי 10 לבנים יוצרות לבנה אחת בטור השמאלי" — never "כל טור יכול להכיל לכל היותר 9 לבנים".' : ""}
 - Agreement: "עשרת", "מאה", "יחידה" are feminine ("עשרת אחת", "שתי עשרות", "עשר יחידות"); "אלף" is masculine ("אלף אחד"). What a grouping passes on is ONE block of the column that receives it: into the tens "עשרת אחת", into the hundreds "מאה אחת", into the thousands "אלף אחד" — never "עשרת" for every column. What a break gives is ten blocks of the column on its right: "פורטים עשרת אחת לעשר יחידות", "פורטים מאה אחת לעשר עשרות", "פורטים אלף אחד לעשר מאות". ${agreement}One unit is "יחידה אחת" / "עשרת אחת", never "1 יחידה". The number comes before the noun; "10 היחידות", not "ה-10 יחידות"; a prefix before digits takes a hyphen ("ל-10").
-- Names: a result box is "תיבה" in "שורת התוצאה" (never "משבצת"); name only what the prompt's screen section lists.
-- Style: short sentences, one action each; the question last; no filler ("למעשה", "חשוב לציין"); a verb, not "יש לבצע פריטה"; "אם", not "במידה ש"; "כדי", not "בכדי"; no comma before a defining "ש". Numbers as the exercise writes them ("1,245"; a hidden digit as "▢"). Do not write the symbol "↺".
+- Names: a result box is "תיבה" in "שורת התוצאה" (never "משבצת"); a column is "טור" ("בטור העשרות"), never "עמודה", "עמודות" or "עמודת"; the undo button is "${UNDO_BUTTON_NAME_HE}"; name only what the prompt's screen section lists.
+- Style: short sentences, one action each; the question last; no filler ("למעשה", "חשוב לציין"); a verb, not "יש לבצע פריטה"; "אם", not "במידה ש"; "כדי", not "בכדי"; no comma before a defining "ש". Numbers as the exercise writes them ("1,245"; a hidden digit as "▢"). The symbol "↺" only right after the undo button's name ("${UNDO_BUTTON_NAME_HE}"), never on its own.
 DON'T / DO (real errors):
 ${examples}`;
 }

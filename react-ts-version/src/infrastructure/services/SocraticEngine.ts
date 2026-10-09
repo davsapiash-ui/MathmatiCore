@@ -1,6 +1,6 @@
 import { functions, authReady } from "@/infrastructure/firebase";
 import { httpsCallable } from "firebase/functions";
-import type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption } from "@/types";
+import type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption, GeminiWireColumn } from "@/types";
 import type { TelemetryEventType, TelemetryPayload } from "@/types/telemetry";
 import { normalizeStudentId } from "@/application/useChatStore";
 import { digitAt, type Place } from "@/core/placeValue";
@@ -232,6 +232,13 @@ export interface SocraticMonitoringSnapshot {
 
 const WIRE_COLUMNS: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
 
+/**
+ * exercise_context.active_column on the wire: the PRD's names (Appendix A §6,
+ * 'ones' | 'tens' | 'hundreds' | 'thousands'). The client calls the ones
+ * column 'units'; it is renamed here, at the request boundary, and nowhere else.
+ */
+export const PRD_WIRE_COLUMN: Record<Place, GeminiWireColumn> = { units: 'ones', tens: 'tens', hundreds: 'hundreds', thousands: 'thousands' };
+
 /** Terminology PRD Module 13 forbids in anything a learner reads; mirrored from functions/src/socraticContract.ts. */
 export const FORBIDDEN_TERMS_HE = [
   'שבירה', 'לשבור', 'שוברים', 'נשבור',
@@ -242,6 +249,11 @@ export const FORBIDDEN_TERMS_HE = [
   'קובי', 'בלוק', 'לוח הדינס', 'לוח הלבנים', 'קנבס',
   // The child reads "לבנים", never "לבני דינס" (register ט; audit 4.10.2026 A7-018).
   'דינס',
+  // PRD 7.4 Module 13 §א: the digit that passes to the next column is not a
+  // "שארית" — in addition it is "המרה", in subtraction "פריטה".
+  'שארית', 'שאריות',
+  // PRD 7.4 Module 7 §א: a column is "טור" ("בטור העשרות"), not "עמודה".
+  'עמודה', 'עמודות', 'עמודת',
 ];
 
 /**
@@ -936,13 +948,17 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
     ],
     correctChoiceId: "opt_1"
   },
+  // PRD 7.4 Module 13 §א ("נוסח הכרטיסים בשפת הלומד"): the card "המספר
+  // שחיסרנו" answers "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את
+  // המספר שחיסרנו" — the PRD's words, verbatim. "המספר שחיסרנו" is the name
+  // the PRD gives this number, so the question and the narration use it too.
   missing_subtrahend: {
     pedagogical_intent: "conceptual",
-    tts_text: "אם יודעים מה נשאר — מורידים אותו מהמספר המקורי כדי לגלות את המספר שמחסרים.",
+    tts_text: "אם יודעים מה נשאר — מורידים אותו מהמספר המקורי כדי לגלות את המספר שחיסרנו.",
     suggested_highlight: "tour-place-value-board",
-    questionHe: "כיצד מוצאים את המספר שמחסרים?",
+    questionHe: "כיצד מוצאים את המספר שחיסרנו?",
     choices: [
-      { id: "opt_1", textHe: "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שמחסרים" },
+      { id: "opt_1", textHe: "מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו" },
       { id: "opt_2", textHe: "מנחשים" },
       { id: "opt_3", textHe: "אי אפשר למצוא" }
     ],
@@ -1502,7 +1518,7 @@ export class SocraticEngine {
           number_b: operands.b,
           session_id: sessionId,
           session_topic: String(currentTask?.titleHe ?? '').slice(0, 120),
-          active_column: activeColumn,
+          active_column: PRD_WIRE_COLUMN[activeColumn],
           active_column_index: colIdx,
           target_sub_problem: operands.isSubtraction ? `${da} - ${db}` : `${da} + ${db}`,
           ...(hiddenA.length || hiddenB.length ? { hidden_places: { a: hiddenA, b: hiddenB } } : {}),
@@ -1761,7 +1777,7 @@ export class SocraticEngine {
       number_b: number;
       session_id: string;
       session_topic: string;
-      active_column: 'units' | 'tens' | 'hundreds' | 'thousands';
+      active_column: GeminiWireColumn;
       active_column_index: number;
       target_sub_problem: string;
     };

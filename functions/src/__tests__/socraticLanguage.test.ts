@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LANGUAGE_RULES, languageViolation, cardFormViolation, socraticLanguageSpec } from '../socraticLanguage';
+import { LANGUAGE_RULES, languageViolation, cardFormViolation, socraticLanguageSpec, PRD_FIXED_PHRASES_HE, UNDO_BUTTON_NAME_HE } from '../socraticLanguage';
 import { validateSocraticRequest, deriveSocraticFacts, validateSocraticResponse, SOCRATIC_SYSTEM_INSTRUCTION, SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS } from '../socraticContract';
 
 /**
@@ -41,8 +41,52 @@ const cases: Record<string, { bad: string[]; good: string[] }> = {
   gender_slash: { bad: ['תלמידים/ות', 'בדקו/י'], good: ['בדקו'] },
   filler_or_formal: { bad: ['למעשה יש לבצע פריטה', 'במידה שאין מספיק', 'בכדי לחסר', 'אנו מחסרים'], good: ['אם אין מספיק לבנים, פרטו', 'כדי לחסר'] },
   subtraction_verb: { bad: ['אין מספיק לבנים כדי להחסיר', 'מחסירים את הספרה התחתונה', 'החסירו 8 יחידות'], good: ['אין מספיק לבנים כדי לחסר', 'מחסרים את הספרה התחתונה מהעליונה', 'מה חיסרו בטור הזה?', 'חסרות שתי ספרות'] },
-  icon_symbol: { bad: ['לחצו על ↺'], good: ['לחצו על כפתור ביטול הפעולה', 'בתרגיל 3▢6 + 271 = 657'] },
+  // PRD 7.4 Module 7 §א: sentences call the undo button "כפתור ביטול הפעולה ↺"; the symbol alone is refused.
+  icon_symbol: {
+    bad: ['לחצו על ↺', '↺ מבטל את הפעולה', 'לחצו על הכפתור ↺', 'לחצו על ⟲', 'לחצו על כפתור ביטול הפעולה ⟲'],
+    good: ['לחצו על כפתור ביטול הפעולה', 'לחצו על כפתור ביטול הפעולה ↺', 'לחצו על כפתור ביטול הפעולה ↺.', 'מחזירים אותן בכפתור ביטול הפעולה ↺, ואז מקבצים', 'בתרגיל 3▢6 + 271 = 657'],
+  },
 };
+
+describe('text the PRD itself writes is never refused (PRD 7.4 Module 13 §א, Module 7 §א)', () => {
+  it('the card "המספר שחיסרנו", in the PRD\'s words, passes the language rules', () => {
+    expect(PRD_FIXED_PHRASES_HE).toContain('המספר שחיסרנו');
+    for (const t of [
+      'מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו',
+      'כיצד מוצאים את המספר שחיסרנו?',
+      'אם יודעים מה נשאר — מורידים אותו מהמספר המקורי כדי לגלות את המספר שחיסרנו.',
+    ]) expect(languageViolation([t]), t).toBeNull();
+  });
+
+  it('the first person plural is still refused everywhere else', () => {
+    for (const t of ['האם חיסרנו כבר?', 'כמה חיסרנו בטור העשרות?', 'את המספר שחיסרנו נבדוק עכשיו']) {
+      expect(languageViolation([t]), t).not.toBeNull();
+    }
+  });
+
+  it('the undo button by its PRD name passes; the prompt teaches that name', () => {
+    expect(UNDO_BUTTON_NAME_HE).toBe('כפתור ביטול הפעולה ↺');
+    expect(languageViolation(['נכון מאוד! לחצו על כפתור ביטול הפעולה ↺ עד שהלבנים יחזרו להיות כמו בהתחלה.'])).toBeNull();
+    for (const blocks of [true, false]) {
+      const spec = socraticLanguageSpec(blocks);
+      expect(spec).toContain('"כפתור ביטול הפעולה ↺"');
+      expect(spec).not.toContain('Do not write the symbol');
+    }
+  });
+
+  it('the prompt names "שארית" and "עמודה" as wrong, and teaches the PRD\'s card wordings', () => {
+    for (const blocks of [true, false]) {
+      const spec = socraticLanguageSpec(blocks);
+      expect(spec).toContain('NEVER "שארית"');
+      expect(spec).toContain('a column is "טור" ("בטור העשרות"), never "עמודה", "עמודות" or "עמודת"');
+      expect(spec).toContain('"מהמספר שממנו מחסרים מורידים את התוצאה, ומקבלים את המספר שחיסרנו"');
+      expect(spec).toContain('"מהסכום מחסרים את המחובר הידוע, ומקבלים את המחובר החסר"');
+    }
+    expect(socraticLanguageSpec(true)).toContain('"בסוף התרגיל נשארות בכל טור לכל היותר 9 לבנים, כי 10 לבנים יוצרות לבנה אחת בטור השמאלי"');
+    // Meetings 2 and 8 have no blocks: their prompt names none.
+    expect(socraticLanguageSpec(false)).not.toContain('לבנים יוצרות');
+  });
+});
 
 describe('the language spec: each rule refuses the real errors and passes the right wording', () => {
   for (const [id, { bad, good }] of Object.entries(cases)) {
