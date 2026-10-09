@@ -294,7 +294,7 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
                  the close button fit in the panel down to a 585px-high window.
                  overflow-y-auto stays only as a last resort for a still
                  shorter screen. */
-              className={`${inTaskZone ? 'w-full min-h-0 pointer-events-auto' : `h-full min-h-0 ${BESIDE_CARD_DRAWER_WIDTH}`} flex-col bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
+              className={`${inTaskZone ? 'w-full min-h-0 pointer-events-auto' : `h-full min-h-0 ${BESIDE_CARD_DRAWER_WIDTH}`} flex-col bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 ${inTaskZone ? 'p-2' : 'p-[clamp(0.625rem,1.8vh,1.25rem)]'} overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
                 gridOverCard ? 'hidden' : folded ? 'flex invisible pointer-events-none' : 'flex pointer-events-auto'
               }`}
               // Folded: hidden, unreachable by Tab and screen readers, still mounted.
@@ -332,7 +332,7 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
                   own above it: on a 585–700px-high window that row pushed the
                   close button below the panel (owner, 28.9.2026: no scroll
                   at any size). */}
-              <div className="flow-root shrink-0 mb-[clamp(0.25rem,1vh,0.75rem)]">
+              <div className={`flow-root shrink-0 ${inTaskZone ? 'mb-1' : 'mb-[clamp(0.25rem,1vh,0.75rem)]'}`}>
                 <div className="float-left flex items-center gap-1 ms-2 mb-1">
                   {!folded && <UdlSpeechButton
                     text={joinSpokenSentences([
@@ -509,7 +509,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
   );
 
   return (
-    <div className="mt-[clamp(0.25rem,1.2vh,1rem)] flex flex-col gap-[clamp(0.25rem,0.9vh,0.625rem)] shrink-0">
+    <div className={`${columns ? 'gap-1.5' : 'mt-[clamp(0.25rem,1.2vh,1rem)] gap-[clamp(0.25rem,0.9vh,0.625rem)]'} flex flex-col shrink-0`}>
       {/* While the answer buttons are locked the prompt's line goes to the
           hint; it comes back with the buttons. */}
       {/* In the task zone the drawer lies over the guide block and must stay as
@@ -521,7 +521,11 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
           {closeButton}
         </div>
       ) : (!locked && !answered && <p className="font-extrabold text-xs text-ws-soft">בחרו תשובה:</p>)}
-      <div className={columns ? 'grid grid-cols-3 gap-2' : 'contents'} data-testid="socratic-options">
+      {/* In the task zone, once the right answer is chosen the options are
+          done (they take no second press) and the hint below says it: they
+          give their row to the hint, so the drawer stays as short as the
+          guide block it lies over (PRD 7 §א rules 6–7). */}
+      {!(columns && answered) && <div className={columns ? 'grid grid-cols-3 gap-2' : 'contents'} data-testid="socratic-options">
       {options.map((opt) => {
         const isChosen = selectedOpt === opt.id;
         const isWrongChosen = isChosen && !opt.correct;
@@ -551,7 +555,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
           </button>
         );
       })}
-      </div>
+      </div>}
 
       {/* After a wrong choice the hint and the lock share one box: two boxes
           pushed the close button below a 585px-high window (28.9.2026). */}

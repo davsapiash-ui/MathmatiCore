@@ -260,7 +260,8 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       c.rtdb.set('active_class_session', liveSession(4) as never);
       await ws(page, 'api.setState({ flowStatus: "task", awaitingNext: false });');
       await page.locator('[data-testid="task-zone"]').waitFor({ state: 'visible' });
-      await ws(page, 'api.setState({ isSupersededByOtherDevice: true });');
+      // As the page's own listener drives it: another device claims the record.
+      c.rtdb.set(`users/students/${STUDENT_UID}/active_device_id`, 'ux-audit-other-device');
       await expect(page.getByText('העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה.')).toBeVisible();
       await check(page, 'waiting-other-device', viewport.width, viewport.height);
     });
