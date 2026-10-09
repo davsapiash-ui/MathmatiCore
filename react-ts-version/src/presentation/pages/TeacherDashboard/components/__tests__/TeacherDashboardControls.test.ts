@@ -14,6 +14,7 @@ const dash = read('../../../TeacherDashboard.tsx');
 const gate = read('../TeacherApprovalGate.tsx');
 const gateEvidence = read('../../gateEvidence.ts');
 const gateCore = read('../../../../../core/teacherGate.ts');
+const gateServer = read('../../../../../../../functions/src/teacherGate.ts');
 const sync = read('../../../../../infrastructure/services/FirebaseSyncService.ts');
 const drawer = read('../StudentLearningConditionsDrawer.tsx');
 const chatStore = read('../../../../../application/useChatStore.ts');
@@ -51,12 +52,14 @@ describe('Module 20: the approval gate cannot be bypassed or mis-routed', () => 
   });
 
   it('the canonical RTDB mirror must land or the approval fails loudly', () => {
-    expect(gateCore).toContain("const canonicalPath = `users/students/student_user${num}`;");
-    expect(gateCore).toMatch(/await update\(ref\(database, canonicalPath\), mirror\);/);
-    expect(gateCore).toMatch(/reason:\s*'write_failed',\s*message:\s*'האישור נשמר\. שחרור מסך התלמיד/);
-    // Module 17: the mirror that releases the learner is queued, never dropped.
-    // It is a merge into the record at canonicalPath, not a child write under it.
-    expect(gateCore).toContain('indexedDBQueue.enqueueRtdbMerge(canonicalPath, { ...mirror }');
+    // PRD 20 §ב: the server writes the mirror (functions/src/teacherGate.ts);
+    // a failed mirror is an error the dashboard shows, never a silent success.
+    expect(gateServer).toContain('const records = [`student_user${n}`];');
+    expect(gateServer).toContain('await rtdb.ref().update(updates);');
+    expect(gateServer).toMatch(/"unavailable",\s*"האישור נשמר, אבל שחרור מסך התלמיד/);
+    expect(gateServer).toContain('{ reason: "mirror_failed" }');
+    expect(gateCore).toContain("reason === 'mirror_failed'");
+    expect(gateCore).toMatch(/reason:\s*'write_failed',/);
   });
 
   it('generating a report no longer bricks the gate: the session allowlist carries the report fields', () => {

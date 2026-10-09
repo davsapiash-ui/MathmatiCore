@@ -37,6 +37,8 @@ export { onLateRecordingChunk, onLateRecordingFlag } from "./lateRecordings";
 export { onSessionCompleteTrigger, onMeetingCompletionMarked, onMeetingTelemetryArrived, createSessionWithServerDeadline } from "./sessionTrigger";
 // PRD 14 §ב1 + owner decision 29.9.2026: the teacher closing meeting 2 completes every learner who started it.
 export { onMeeting2ClosedByTeacher, onMeeting2CompletionRecorded } from "./meeting2Close";
+// PRD Module 20 §ב: the teacher's approval in "שלב החלוקה למסלולים" — the server writes the session document and the learner-record mirror.
+export { approveTeacherGate } from "./teacherGate";
 // Owner decision 2.10.2026 (catch-up time): the server opens and closes the catch-up rounds and counts their minutes.
 export { onCatchUpSessionWrite } from "./catchUpRounds";
 export { generatePedagogicalReportPDF, getPedagogicalReportDownloadUrl } from "./pedagogicalReport";

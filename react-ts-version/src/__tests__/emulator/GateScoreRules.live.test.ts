@@ -204,8 +204,17 @@ describe('הרשומה ב-RTDB — לפני החישוב והאישור', () => 
 
   it('סיום מפגש 2 כפי שהלקוח כותב אותו עובר', async () => {
     await assertSucceeds(rtdbUpdate(learnerRec(), {
-      session_02_completed: true, teacher_gate_approved: false, routeStatus: 'PENDING_TEACHER_APPROVAL', updatedAt: Date.now(),
+      session_02_completed: true, updatedAt: Date.now(),
     }));
+  });
+
+  // PRD מודול 20 §ב: "ההשתקפות ניתנת לכתיבה על ידי צוות בלבד; הלומד אינו
+  // יכול לכתוב אותה" — גם לא את מצב ההמתנה, שהשרת כותב.
+  it('אינו כותב את ההשתקפות, גם לא את מצב ההמתנה', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => { await rtdbSet(ref(ctx.database(), REC), { isOnline: true }); });
+    await assertFails(rtdbUpdate(learnerRec(), { routeStatus: 'PENDING_TEACHER_APPROVAL' }));
+    await assertFails(rtdbUpdate(learnerRec(), { teacher_gate_approved: false }));
+    await assertFails(rtdbUpdate(learnerRec(), { routeStatus: 'APPROVED', teacher_gate_approved: true }));
   });
 
   it('תגיות סבב התיקון נכתבות כרגיל', async () => {

@@ -29,7 +29,7 @@ import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportP
 import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME, PILOT_CLASS_CAPACITY, DEFAULT_CLASS_TYPE } from '@/core/pilotInstitution';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
 import { throttledRtdbUpdate, throttledRtdbChildUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
-import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
+import { indexedDBQueue, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
 import { recordRecentTelemetry } from './recentTelemetry';
 import { getDeviceId, newTelemetryKey, nextSequenceNumber } from './telemetryStamp';
 import type { SessionDocument, PedagogicalPath } from '@/types';
@@ -342,10 +342,10 @@ export function enforceMaxPayloadBytes(data: Record<string, any>): Record<string
  *    `update` of the record at refPath itself, without the idempotency key.
  *    Every queued RTDB item used to be replayed as a child, so these fields
  *    landed under users/students/{id}/{key}, where nothing reads them.
- * skipFieldsIfGateApproved: when the record is already approved by the
- * teacher (Module 20), those fields are left out, so a late replay of the
- * meeting-2 completion cannot lock the child out again. Only the two gate
- * fields are read, not the learner's whole record.
+ * skipFieldsIfGateApproved (the name items stored by earlier versions carry):
+ * those fields are always left out. They are the gate fields, which only
+ * staff write (Module 20 §ב); a meeting-2 completion queued by an earlier
+ * version still carries them.
  * SERVER_SCORED_FIELDS (the score and the recommended path) are never
  * written from here. Only sessionTrigger.ts computes and mirrors them (PRD
  * Module 20: "בטריגר עצמאי על סיום המפגש"), and the rules refuse a learner
@@ -362,17 +362,13 @@ export async function deliverQueuedRtdbWrite(refPath: string, payload: any, deli
   }
   const { idempotency_key: _key, ...fields } = (payload ?? {}) as Record<string, unknown>;
   if (typeof delivery.completionMarkOf === 'number') await holdMarkWhileResetPending(refPath, delivery.completionMarkOf);
-  const guarded = delivery.skipFieldsIfGateApproved ?? [];
-  if (guarded.length > 0) {
-    // A pre-read that fails because the network is down does not count
-    // toward parking (preReadFailure): the item waits, as the write would.
-    const [approvedSnap, routeSnap] = await Promise.all([
-      get(ref(database, `${refPath}/teacher_gate_approved`)),
-      get(ref(database, `${refPath}/routeStatus`)),
-    ]).catch((err) => { throw preReadFailure(err); });
-    const approved = approvedSnap?.val?.() === true || routeSnap?.val?.() === 'APPROVED';
-    if (approved) for (const field of guarded) delete fields[field];
-  }
+  // The gate fields are staff-only (PRD Module 20 §ב: "ההשתקפות ניתנת לכתיבה
+  // על ידי צוות בלבד"), and the rules refuse a learner write that changes
+  // them. A meeting-2 completion stored on a device by an earlier version
+  // still carries teacher_gate_approved:false and routeStatus
+  // 'PENDING_TEACHER_APPROVAL'; they are left out, so the item is delivered
+  // instead of refused. The server writes the pending state itself.
+  for (const field of delivery.skipFieldsIfGateApproved ?? []) delete fields[field];
   for (const field of SERVER_SCORED_FIELDS) delete fields[field];
   if (Object.keys(fields).length === 0) return;
   await update(ref(database, refPath), fields);
@@ -2046,25 +2042,22 @@ export class FirebaseSyncService {
     // telemetry, and the server trigger (sessionTrigger.ts) then scored the
     // meeting once, on part of it.
     //
-    // 1. RTDB users/students/${studentId} — what the teacher's gate list and
-    // the learner's own waiting screen read. Merged into the record. A late
-    // replay over the teacher's approval must not lock the child out again,
-    // so the two gate fields are left out when the record is already approved
-    // (GATE_PENDING_FIELDS). The approval itself cannot overtake this item:
-    // the teacher approves on the session document, queued right behind it.
-    // The score and path are the server's: sessionTrigger.ts mirrors them
-    // here itself.
+    // 1. RTDB users/students/${studentId} — the learner's own completion,
+    // merged into the record. No gate field: PRD Module 20 §ב, "ההשתקפות
+    // ניתנת לכתיבה על ידי צוות בלבד; הלומד אינו יכול לכתוב אותה". The
+    // server writes the pending routeStatus when the session
+    // document completes (sessionTrigger.ts markGatePending), and the
+    // learner's waiting screen does not wait for it: it reads
+    // session_02_completed / completedMeeting2 / highestCompletedMeeting,
+    // which the learner writes. The score and path are the server's too:
+    // sessionTrigger.ts mirrors them here itself.
     const rtdbPath = `users/students/${studentId}`;
     const rtdbPayload = {
       session_02_completed: true,
-      teacher_gate_approved: false,
-      routeStatus: 'PENDING_TEACHER_APPROVAL',
       updatedAt: now
     };
     await indexedDBQueue
-      .enqueueRtdbMerge(rtdbPath, rtdbPayload, `s2_done_rtdb_${studentId}`, {
-        skipFieldsIfGateApproved: GATE_PENDING_FIELDS,
-      })
+      .enqueueRtdbMerge(rtdbPath, rtdbPayload, `s2_done_rtdb_${studentId}`)
       .catch((e) => console.error('[FirebaseSyncService] Session 2 completion (RTDB) could not be queued:', e));
 
     // 2. Firestore `sessions/${docId}` — the SessionDocument the server scores

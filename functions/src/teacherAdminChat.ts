@@ -4,27 +4,28 @@ import * as admin from "firebase-admin";
 import { scrubPII } from "./geminiProxy";
 
 /**
- * Anonymize student real names against known student roster map (Module 22).
+ * PRD Module 22 §ב, layer 2: "מסירה שם שבא אחרי 'תלמיד N המכונה' ומשאירה
+ * 'תלמיד N'" (§ז: "תלמיד 3 המכונה דניאל מתקשה בפריטה" → "תלמיד 3 מתקשה
+ * בפריטה"). A name is one or two Hebrew words, as in scrubPII's introducer
+ * pattern (geminiProxy.ts hebrewNameRegex). Two words are taken when the
+ * second one ends the clause (end of text or punctuation): "תלמיד 3 המכונה
+ * דני כהן" and "…דני כהן, מתקשה" lose both. Otherwise one word only, so the
+ * sentence that follows the name ("מתקשה בפריטה") is kept, as §ז requires.
+ *
+ * There is no list of the class's names (Zero PII): the server never matches
+ * against names, and a first name written alone is not replaced.
  */
-function substituteKnownStudentNames(text: string, knownNameMap: Record<string, number | string>): string {
-  let processed = text;
-  for (const [name, studentNum] of Object.entries(knownNameMap)) {
-    if (name && name.length >= 2) {
-      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // Matches standalone Hebrew name with common prefixes (ו, כ, ל, ב, מ, ש, ה)
-      const regex = new RegExp(`(^|[\\s,.:;!?])([וכלבמשה]?)${escaped}(?=[\\s,.:;!?]|$)`, 'gu');
-      processed = processed.replace(regex, (_match, before, prefix) => {
-        return `${before}${prefix || ''}תלמיד ${studentNum}`;
-      });
-    }
-  }
-  return processed;
+const NICKNAME_AFTER_LEARNER_ID =
+  /(תלמיד\s+\d+)\s+המכונה\s+(?:[א-ת]+\s+[א-ת]+(?=\s*(?:$|[,.:;!?()\-–—"'׳״]))|[א-ת]+)/gu;
+
+export function stripNicknameAfterLearnerId(text: string): string {
+  return text.replace(NICKNAME_AFTER_LEARNER_ID, "$1");
 }
 
 /**
  * sendTeacherAdminMessage (Module 22: Teacher-Admin Chat Layer 2 Security)
- * Enforces second layer PII scrubbing and server-side student roster cross-referencing
- * before writing to Firestore /messages collection.
+ * Enforces the second layer of PII scrubbing (Module 22 §ב) before writing to
+ * the Firestore /messages collection. No roster, no name list (Zero PII).
  */
 export const sendTeacherAdminMessage = onCall(async (request) => {
   if (!request.auth) {
@@ -42,7 +43,7 @@ export const sendTeacherAdminMessage = onCall(async (request) => {
     throw new HttpsError("permission-denied", "Only teachers and admins may use this channel.");
   }
 
-  const { receiver_id, message_body, school_id, class_name, class_id = "class_1", ephemeral_name_map, client_message_id } = request.data || {};
+  const { receiver_id, message_body, school_id, class_name, class_id = "class_1", client_message_id } = request.data || {};
   if (!receiver_id || !message_body) {
     throw new HttpsError("invalid-argument", "Missing receiver_id or message_body.");
   }
@@ -69,29 +70,12 @@ export const sendTeacherAdminMessage = onCall(async (request) => {
   const senderId = addressingManagement ? teacherKey : "admin";
   const db = admin.firestore();
 
-  // Layer 2A: Ephemeral in-memory student name map (passed only during active teacher session, never stored in DB)
-  // Bounded: the pilot has twelve learners, so twelve names is the ceiling.
-  // The map came straight off the request and every entry became a regex
-  // over the whole message — an unbounded client-chosen loop.
-  const knownNameMap: Record<string, number | string> = {};
-  if (ephemeral_name_map && typeof ephemeral_name_map === 'object') {
-    for (const [name, num] of Object.entries(ephemeral_name_map as Record<string, unknown>).slice(0, 12)) {
-      const n = Number(num);
-      if (typeof name === 'string' && name.length >= 2 && name.length <= 40 && Number.isInteger(n) && n >= 1 && n <= 12) {
-        knownNameMap[name] = n;
-      }
-    }
-  }
+  // Layer 2A: "תלמיד {X} המכונה {שם}" -> "תלמיד {X}". No name map of any
+  // kind is accepted (PRD Module 22 §ב: "אין במערכת רשימת שמות של הכיתה").
+  const preProcessedBody = stripNicknameAfterLearnerId(String(message_body).trim());
 
-  // Cognitive pattern check: "תלמיד {X} המכונה {שם}" -> "תלמיד {X}"
-  let preProcessedBody = String(message_body).trim();
-  preProcessedBody = preProcessedBody.replace(/(תלמיד\s+\d+)\s+המכונה\s+[א-ת]+/gu, '$1');
-
-  // Layer 2B: Substitute matched names with anonymous IDs ("דניאל" -> "תלמיד 4")
-  const substitutedBody = substituteKnownStudentNames(preProcessedBody, knownNameMap);
-
-  // Layer 2C: Server-side PII regex scrubbing
-  const cleanBody = scrubPII(substitutedBody);
+  // Layer 2B: e-mail, phone, ID number, a name after an introducer, passwords.
+  const cleanBody = scrubPII(preProcessedBody);
 
   const messageDoc = {
     sender_id: senderId,

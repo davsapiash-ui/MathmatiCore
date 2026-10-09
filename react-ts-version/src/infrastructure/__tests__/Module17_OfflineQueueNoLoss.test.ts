@@ -457,7 +457,10 @@ describe('Module 17 — the real queue on IndexedDB', () => {
         'sessions:session_02_student_3',
       ]);
       const rtdbFields = rtdb.update.mock.calls[0][1];
-      expect(rtdbFields).toMatchObject({ session_02_completed: true, teacher_gate_approved: false, routeStatus: 'PENDING_TEACHER_APPROVAL' });
+      expect(rtdbFields).toMatchObject({ session_02_completed: true });
+      // PRD 20 §ב: the gate mirror is staff-written only; the server writes the pending state.
+      expect(rtdbFields).not.toHaveProperty('teacher_gate_approved');
+      expect(rtdbFields).not.toHaveProperty('routeStatus');
       expect(rtdbFields).not.toHaveProperty('idempotency_key');
       expect(fs.setDoc.mock.calls[1][2]).toEqual({ merge: true });
     });
@@ -473,6 +476,19 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       expect(fields).not.toHaveProperty('teacher_gate_approved');
       expect(fields).not.toHaveProperty('routeStatus');
       expect(fields).toMatchObject({ session_02_completed: true });
+    });
+
+    it('a completion queued by an earlier version with the gate fields delivers without them, approved or not', async () => {
+      const data = fakeIDB.store(DB_NAME, STORE);
+      // As the previous version stored it: a merge that skipped the gate fields only over an approval.
+      data.records.set(710, { id: 710, refPath: 'users/students/student_user3', rtdbMode: 'merge', skipFieldsIfGateApproved: ['teacher_gate_approved', 'routeStatus'], payload: { session_02_completed: true, teacher_gate_approved: false, routeStatus: 'PENDING_TEACHER_APPROVAL', updatedAt: 5 }, idempotency_key: 's2_done_rtdb_student_user3', timestamp: 1, retry_count: 0 });
+      data.nextKey = 711;
+      await queue.flushQueue();
+
+      expect(rtdb.update.mock.calls[0][1]).toEqual({ session_02_completed: true, updatedAt: 5 });
+      // No pre-read of the gate: the learner never writes it, so there is nothing to check.
+      expect(rtdb.get.mock.calls.filter((c) => /teacher_gate_approved|routeStatus/.test((c[0] as { path: string }).path))).toEqual([]);
+      expect(await stored()).toEqual([]);
     });
   });
 
@@ -524,7 +540,8 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       data.nextKey = 702;
       await queue.flushQueue();
 
-      expect(rtdb.update.mock.calls[0][1]).toEqual({ session_02_completed: true, teacher_gate_approved: false, routeStatus: 'PENDING_TEACHER_APPROVAL' });
+      // The gate fields are staff-only now (PRD 20 §ב): left out, so the rules accept the item.
+      expect(rtdb.update.mock.calls[0][1]).toEqual({ session_02_completed: true });
       expect(fs.setDoc.mock.calls[0][1]).toEqual({ is_completed: true, teacher_gate_approved: false });
       expect(await stored()).toEqual([]);
     });
@@ -685,12 +702,13 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       // Well past 20 attempts (the old item was parked after ~18 minutes).
       for (let i = 0; i < 40; i++) await queue.flushQueue();
       await vi.advanceTimersByTimeAsync(30 * 60 * 1000);
+      // The RTDB item has no pre-read any more (it carries no gate field, PRD
+      // 20 §ב), so here only the session document waits on its pre-read.
       const waiting = await queue.getAll();
       expect(waiting.map((i) => [i.idempotency_key, i.retry_count ?? 0, i.transient_count ?? 0])).toEqual([
-        ['s2_done_rtdb_student_user3', 0, 0],
         ['s2_done_doc_session_02_student_3', 0, 0],
       ]);
-      expect(deliveries()).toEqual([]);
+      expect(deliveries()).toHaveLength(1);
       expect(fs.setDoc).not.toHaveBeenCalled();
 
       // The network comes back. No reload, no online/offline event.

@@ -56,25 +56,20 @@ describe('מודול 20 — שער המעבר נאכף בשרת, לא רק בד�
         });
       }
 
-      it('לומד רשאי לבקש אישור מעבר, ולעולם לא להעניק אותו לעצמו', () => {
-        // מודול 20: סיום מפגש 2 בצד הלומד כותב PENDING_TEACHER_APPROVAL —
-        // זו בקשה, לא החלטה. APPROVED שמור לצוות בלבד.
-        const validate = node?.routeStatus?.['.validate'];
-        expect(typeof validate).toBe('string');
-        for (const marker of STAFF_MARKERS) expect(validate).toContain(marker);
-        for (const marker of ADMIN_MARKERS) expect(validate).not.toContain(marker);
-        expect(validate).toContain("newData.val() == 'PENDING_TEACHER_APPROVAL'");
-        expect(validate).not.toContain("'APPROVED'");
-      });
-
-      it('לומד רשאי לאפס את דגל האישור, ולעולם לא להדליק אותו', () => {
-        const validate = node?.teacher_gate_approved?.['.validate'];
-        expect(typeof validate).toBe('string');
-        for (const marker of STAFF_MARKERS) expect(validate).toContain(marker);
-        for (const marker of ADMIN_MARKERS) expect(validate).not.toContain(marker);
-        expect(validate).toContain('newData.val() == false');
-        expect(validate).not.toContain('newData.val() == true');
-      });
+      // PRD מודול 20 §ב: "ההשתקפות ניתנת לכתיבה על ידי צוות בלבד; הלומד אינו
+      // יכול לכתוב אותה". גם PENDING_TEACHER_APPROVAL נכתב בשרת
+      // (sessionTrigger.ts markGatePending), לא בלקוח הלומד.
+      for (const field of ['routeStatus', 'teacher_gate_approved']) {
+        it(`ההשתקפות ${field} נכתבת בידי צוות בלבד — הלומד אינו יכול לשנות אותה כלל`, () => {
+          const validate = node?.[field]?.['.validate'];
+          expect(typeof validate).toBe('string');
+          for (const marker of STAFF_MARKERS) expect(validate).toContain(marker);
+          for (const marker of ADMIN_MARKERS) expect(validate).not.toContain(marker);
+          expect(validate.trim().endsWith('|| newData.val() == data.val()')).toBe(true);
+          expect(validate.split('newData.')).toHaveLength(2);
+          expect(validate).not.toContain('PENDING_TEACHER_APPROVAL');
+        });
+      }
 
       it('התקדמות המפגשים נשארת מונוטונית ובטווח 0 עד 8', () => {
         const validate = node?.highestCompletedMeeting?.['.validate'];
@@ -93,15 +88,33 @@ describe('מודול 20 — שער המעבר נאכף בשרת, לא רק בד�
     expect(sync).toContain('delete sanitizedPayload.physicalOverride;');
   });
 
-  it('סיום מפגש 2 בצד הלומד כותב בדיוק את שני הערכים שהחוקים מתירים לו', () => {
-    // הבדיקה הזו היא הצד השני של החוקים: אם מישהו ישנה כאן את הערך
-    // ל-APPROVED, הכתיבה תידחה בשרת בשקט והמורה לא יראה את הילד ממתין.
+  it('סיום מפגש 2 בצד הלומד אינו כותב את שדות השער ברשומת הלומד', () => {
+    // הבדיקה הזו היא הצד השני של החוקים: שדה שער בכתיבה של הלומד היה נדחה
+    // בשרת, והפריט כולו היה נתקע בתור.
     const sync = src('infrastructure/services/FirebaseSyncService.ts');
     const fn = sync.slice(sync.indexOf('public async syncSession2Completion'));
     const body = fn.slice(0, fn.indexOf('public async fetchTeacherClassrooms'));
-    expect(body).toContain("routeStatus: 'PENDING_TEACHER_APPROVAL'");
-    expect(body).toContain('teacher_gate_approved: false');
+    const rtdbPayload = body.slice(body.indexOf('const rtdbPayload = {'), body.indexOf('};', body.indexOf('const rtdbPayload = {')));
+    expect(rtdbPayload).toContain('session_02_completed: true');
+    expect(rtdbPayload).not.toContain('routeStatus');
+    expect(rtdbPayload).not.toContain('teacher_gate_approved');
+    expect(body).not.toContain("'PENDING_TEACHER_APPROVAL'");
     expect(body).not.toContain("'APPROVED'");
+  });
+
+  it('השרת כותב את מצב ההמתנה בכל סיום של מסמך מפגש 2, ולעולם לא מעל אישור', () => {
+    const trigger = repo('functions/src/sessionTrigger.ts');
+    const close = repo('functions/src/meeting2Close.ts');
+    const fn = trigger.slice(trigger.indexOf('export async function markGatePending'));
+    expect(fn).toContain('cur === "APPROVED" ? undefined : "PENDING_TEACHER_APPROVAL"');
+    expect(fn).toContain('cur === true ? undefined : false');
+    // In the completion trigger itself, before the score can stop on missing telemetry.
+    const handler = trigger.slice(trigger.indexOf('export const onSessionCompleteTrigger'));
+    expect(handler.indexOf('markGatePending(')).toBeGreaterThan(-1);
+    expect(handler.indexOf('markGatePending(')).toBeLessThan(handler.indexOf('computeMeetingScore('));
+    // And in the teacher's close.
+    expect(close).toContain('await markGatePending(');
+    expect(close).not.toContain('updates.routeStatus');
   });
 });
 

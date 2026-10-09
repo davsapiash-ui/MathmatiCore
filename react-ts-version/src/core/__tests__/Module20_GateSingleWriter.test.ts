@@ -15,13 +15,22 @@ const read = (rel: string) => readFileSync(resolve(__dirname, '../../', rel), 'u
  * shut.
  */
 describe('Module 20: single-writer invariant for the teacher gate', () => {
-  it('core/teacherGate.ts writes the Firestore SessionDocument before mirroring', () => {
+  it('core/teacherGate.ts calls the server, which writes the SessionDocument and the mirror (PRD 20 §ב: "השרת כותב")', () => {
     const src = read('core/teacherGate.ts');
-    expect(src).toContain('updateDoc(sessionDocRef');
-    expect(src).toContain('teacher_gate_approved: true');
-    expect(src).toContain('teacher_selected_path: path');
+    expect(src).toContain("APPROVE_TEACHER_GATE_FN = 'approveTeacherGate'");
+    expect(src).toContain('httpsCallable');
+    // The client writes neither side itself.
+    expect(src).not.toContain('updateDoc');
+    expect(src).not.toContain("from 'firebase/database'");
+    expect(src).not.toContain('enqueueRtdbMerge');
+
+    const server = readFileSync(resolve(__dirname, '../../../../functions/src/teacherGate.ts'), 'utf-8');
+    expect(server).toContain('tx.update(docRef, {');
+    expect(server).toContain('teacher_gate_approved: true');
+    expect(server).toContain('teacher_selected_path: path');
     // The engine's own read key must travel with the decision.
-    expect(src).toContain('pedagogicalPath: path');
+    expect(server).toContain('pedagogicalPath: path');
+    expect(server).toContain('routeStatus: "APPROVED"');
   });
 
   it('FirebaseSyncService no longer carries a second gate-approval writer', () => {

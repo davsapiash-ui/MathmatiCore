@@ -47,11 +47,12 @@ export interface QueuedAction {
   /** Absent on items stored before 'merge' existed: those were all child writes. */
   rtdbMode?: RtdbWriteMode;
   /**
-   * A merge that must not undo the teacher's gate decision (Module 20): when
-   * the record at refPath is already approved at delivery time, these fields
-   * are left out of the write. The meeting-2 completion carries
-   * teacher_gate_approved:false and routeStatus:'PENDING_TEACHER_APPROVAL';
-   * replayed late, over an approval, they would lock the child out again.
+   * Fields left out of the merge at delivery. Only the meeting-2 completion
+   * stored by an earlier version carries it (or is recognised by its key,
+   * rtdbDeliveryOf): it held teacher_gate_approved:false and
+   * routeStatus:'PENDING_TEACHER_APPROVAL', which only staff may write since
+   * PRD Module 20 §ב ("ההשתקפות ניתנת לכתיבה על ידי צוות בלבד"). They are
+   * always left out, so the item is delivered instead of refused.
    */
   skipFieldsIfGateApproved?: string[];
   /**
@@ -343,7 +344,7 @@ export type QueueSyncState = 'offline' | 'pending' | 'synced';
 
 type Attempt = 'delivered' | 'no-route';
 
-/** The gate fields a late meeting-2 completion must not write over an approval. */
+/** The gate fields a meeting-2 completion queued by an earlier version carries; left out at delivery (staff-only, Module 20 §ב). */
 export const GATE_PENDING_FIELDS = ['teacher_gate_approved', 'routeStatus'];
 /**
  * The fields only sessionTrigger.ts writes (PRD Module 20: "בטריגר עצמאי על
@@ -403,14 +404,16 @@ export function inferOwner(item: QueuedAction): string {
  * delivered where it belongs once this version loads.
  */
 export function rtdbDeliveryOf(item: QueuedAction): RtdbDelivery {
+  const key = String(item.idempotency_key ?? item.payload?.idempotency_key ?? '');
   if (item.rtdbMode) {
+    // A meeting-2 completion never writes the gate fields, whatever version stored it (Module 20 §ב).
+    const skip = item.skipFieldsIfGateApproved ?? (key.startsWith('s2_done_rtdb_') ? GATE_PENDING_FIELDS : undefined);
     return {
       mode: item.rtdbMode,
-      ...(item.skipFieldsIfGateApproved ? { skipFieldsIfGateApproved: item.skipFieldsIfGateApproved } : {}),
+      ...(skip ? { skipFieldsIfGateApproved: skip } : {}),
       ...(typeof item.completionMarkOf === 'number' ? { completionMarkOf: item.completionMarkOf } : {}),
     };
   }
-  const key = String(item.idempotency_key ?? item.payload?.idempotency_key ?? '');
   if (key.startsWith('s2_done_rtdb_')) {
     return { mode: 'merge', skipFieldsIfGateApproved: GATE_PENDING_FIELDS };
   }
