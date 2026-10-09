@@ -472,6 +472,9 @@ export class FirebaseSyncService {
   }
 
   private init() {
+    // A device that never goes offline never sees 'online': the legacy queue
+    // is also moved once at start.
+    void this.loadOfflineQueueFromStorage();
     // Module 17 §ב: the teacher sees the learner's refused events on the
     // learner card ("אירועים שנדחו"). The queue counts them per identity and
     // reports after every pass (the sign-out flush's included) and sign-in.
@@ -550,6 +553,9 @@ export class FirebaseSyncService {
    * also falls to 0 when a sign-out flush delivers what was refused; that
    * write is made as the identity that is signing out, while its claims last.
    * A count of 0 removes the device's entry. Staff identities write nothing.
+   * On sign-out the write may still be in flight when the claims are
+   * released; it is then refused, and the count is written again on this
+   * learner's next sign-in on this device.
    */
   private async publishRefusedEvents(owner: string, count: number): Promise<void> {
     const m = /^student:(\d{1,2})$/.exec(owner);
@@ -557,17 +563,22 @@ export class FirebaseSyncService {
     if (n === null) return;
     const value = Math.max(0, Math.floor(count));
     if (this.publishedRefused.get(n) === value) return;
-    const field = `refusedEvents/${getDeviceId()}`;
+    const deviceId = getDeviceId();
+    const node = `users/students/student_user${n}/refusedEvents`;
     const work = (async () => {
       // A 0 with nothing written by this tab yet: write only if this device
       // left a count there earlier (a previous page, or a sign-out flush that
       // delivered after the write could no longer be made) — one read per
       // learner per page instead of a write on every learner's every pass.
       if (value === 0 && !this.publishedRefused.has(n)) {
-        const snap = await get(ref(database, `users/students/student_user${n}/${field}`));
+        const snap = await get(ref(database, `${node}/${deviceId}`));
         if (!snap?.exists?.()) { this.publishedRefused.set(n, 0); return; }
       }
-      await rtdbUpdateNow(`users/students/student_user${n}`, { [field]: value > 0 ? value : null });
+      // Its own path, outside the throttled writer of the learner record: an
+      // immediate write there (rtdbUpdateNow) would also send whatever board
+      // or presence write is pending on the record, without its guards — on a
+      // superseded device, over the active device's board (Module 1 §א).
+      await update(ref(database, node), { [deviceId]: value > 0 ? value : null });
       this.publishedRefused.set(n, value);
     })();
     // The flush waits for this write, but never for long: a write that is not
@@ -1483,26 +1494,50 @@ export class FirebaseSyncService {
    * destination) stays where it is, for the next load. Moving one twice is
    * harmless: its idempotency key is pinned, so the RTDB child write repeats.
    */
-  private async loadOfflineQueueFromStorage(): Promise<void> {
+  private loadOfflineQueueFromStorage(): Promise<void> {
+    // One migration at a time: two runs over the same legacy array (two
+    // 'online' events close together) would each move every item.
+    this.legacyMigration ??= this.migrateLegacyQueue().finally(() => { this.legacyMigration = null; });
+    return this.legacyMigration;
+  }
+
+  private legacyMigration: Promise<void> | null = null;
+
+  private async migrateLegacyQueue(): Promise<void> {
     if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
     try {
       const raw = localStorage.getItem(LEGACY_OFFLINE_QUEUE_KEY);
       if (!raw) return;
-      const items: unknown = JSON.parse(raw);
-      if (!Array.isArray(items)) return; // not a queue this code understands: left as it is
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return; // not a queue this code understands: left as it is
+      // Every item gets its key BEFORE anything is moved, and the array is
+      // saved with the keys: a run cut short (the tab closed mid-loop) and run
+      // again moves the same items under the same keys — the same RTDB
+      // children — never as second copies under new random keys.
+      let keyed = false;
+      const items = (parsed as Array<Record<string, any> | null>).map((it): Record<string, any> | null => {
+        if (it && typeof it === 'object' && !Array.isArray(it) && typeof it.refPath === 'string' && !it.idempotency_key) {
+          keyed = true;
+          return { ...it, idempotency_key: this.generateQueueIdempotencyKey() };
+        }
+        return it;
+      });
+      if (keyed) localStorage.setItem(LEGACY_OFFLINE_QUEUE_KEY, JSON.stringify(items));
       const kept: unknown[] = [];
-      for (const it of items as Array<Record<string, any> | null>) {
+      for (const it of items) {
         const payload = it?.payload;
         if (!it || typeof it.refPath !== 'string' || !payload || typeof payload !== 'object' || Array.isArray(payload)) {
           kept.push(it);
           continue;
         }
-        const idempotency_key = it.idempotency_key || this.generateQueueIdempotencyKey();
+        const idempotency_key = String(it.idempotency_key);
         let durable = false;
         try {
-          durable = (await indexedDBQueue.enqueueDurably(it.refPath, { ...payload, idempotency_key })) === true;
+          // Owned by the learner the item is about (its path), not by whoever
+          // is signed in when the migration runs.
+          durable = (await indexedDBQueue.enqueueLegacyDurably(it.refPath, { ...payload, idempotency_key })) === true;
         } catch { /* stays in the legacy key */ }
-        if (!durable) kept.push({ ...it, idempotency_key });
+        if (!durable) kept.push(it);
       }
       if (kept.length === 0) localStorage.removeItem(LEGACY_OFFLINE_QUEUE_KEY);
       else localStorage.setItem(LEGACY_OFFLINE_QUEUE_KEY, JSON.stringify(kept));

@@ -77,7 +77,7 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
     it('moves every item of a legacy 1,000-item localStorage queue into IndexedDB before removing the legacy key', async () => {
       const syncService = firebaseSyncService as any;
       const stored: Array<{ refPath: string; payload: any }> = [];
-      const spy = vi.spyOn(indexedDBQueue, 'enqueueDurably').mockImplementation(async (refPath: any, payload: any) => {
+      const spy = vi.spyOn(indexedDBQueue, 'enqueueLegacyDurably').mockImplementation(async (refPath: any, payload: any) => {
         // The legacy key is still there while the item is being stored.
         expect(mockStorage['mathmaticore_offline_queue']).toBeDefined();
         stored.push({ refPath, payload });
@@ -102,7 +102,7 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
     it('keeps in the legacy key what IndexedDB did not durably take, and what has no destination', async () => {
       const syncService = firebaseSyncService as any;
       let n = 0;
-      const spy = vi.spyOn(indexedDBQueue, 'enqueueDurably').mockImplementation(async () => (n++ % 2) === 0);
+      const spy = vi.spyOn(indexedDBQueue, 'enqueueLegacyDurably').mockImplementation(async () => (n++ % 2) === 0);
 
       const legacy = [
         { refPath: 'a/student_user2', payload: { seq: 0 } },

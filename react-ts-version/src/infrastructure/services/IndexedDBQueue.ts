@@ -747,6 +747,17 @@ export class IndexedDBQueue {
     return this.store(this.itemToEnqueue(arg1, arg2));
   }
 
+  /**
+   * A child write moved from the legacy localStorage queue: enqueueDurably,
+   * owned by the identity its path names (inferOwner), never by whoever is
+   * signed in when the migration runs.
+   */
+  public async enqueueLegacyDurably(refPath: string, payload: Record<string, unknown>): Promise<boolean> {
+    const item = this.itemToEnqueue(refPath, payload);
+    item.owner = inferOwner(item);
+    return this.store(item);
+  }
+
   private itemToEnqueue(arg1: any, arg2?: any): QueuedAction {
     let item: QueuedAction;
 
@@ -1250,14 +1261,15 @@ export class IndexedDBQueue {
       this.currentFlush = null;
       finished();
       await this.refreshPendingCount().catch(() => {});
-      // Module 17 §ב: the teacher's count follows every pass, the sign-out
-      // flush's included (asOwner), not only a change seen while signed in.
-      await this.publishRefusedFor(owner);
       this.scheduleTransientRevive();
       if (this.flushAgainAfterCurrent) {
         this.flushAgainAfterCurrent = false;
         this.scheduleBackgroundFlush();
       }
+      // Module 17 §ב: the teacher's count follows every pass, the sign-out
+      // flush's included (asOwner), not only a change seen while signed in.
+      // After the follow-up is scheduled: a slow write does not hold it back.
+      await this.publishRefusedFor(owner);
     }
   }
 

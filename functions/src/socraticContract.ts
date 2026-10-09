@@ -807,6 +807,8 @@ function summarizeActions(actions: SocraticRecentAction[]): string[] {
     if (a.event_type === "DIGIT_DELETED") return `מחק ספרה${col}`;
     if (a.event_type === "REGROUPING_SUCCESS") return `${d.regrouping_type === "decomposition" ? "פרט" : "קיבץ"}${col}`;
     if (a.event_type === "REGROUPING_TRIGGERED") return "";
+    // Research data on the branch choice (Module 14 §ג): never a raw token in the text sent to the model.
+    if (a.event_type === "BRANCH_SELECTED") return "";
     if (a.event_type === "UNDO_EXECUTED") return "ביטל פעולה";
     if (a.event_type === "HESITATION_DETECTED") return "השתהה";
     if (a.event_type === "KEYBOARD_LOCK_BLOCKED") return `ניסה להקליד לפני ההמרה${col}`;

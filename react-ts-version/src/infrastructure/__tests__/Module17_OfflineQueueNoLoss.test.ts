@@ -760,13 +760,37 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       off();
     });
 
+    it('R1 — the count goes on its own path: a guarded board write pending on a superseded device is not sent with it', async () => {
+      const svc = sync.firebaseSyncService as unknown as { publishedRefused: Map<number, number> };
+      svc.publishedRefused.clear();
+      const writer = await import('@/infrastructure/services/ThrottledRtdbWriter');
+      // A first write opens the window; the second waits in it, guarded (the
+      // device is superseded by the time it would be sent).
+      await writer.throttledRtdbUpdate('users/students/student_user3', { 'workspaceState/counts': { units: 1 } });
+      let superseded = false;
+      writer.throttledRtdbUpdate('users/students/student_user3', { 'workspaceState/counts': { units: 9 } }, { guard: () => !superseded }).catch(() => {});
+      superseded = true;
+      rtdb.update.mockClear();
+
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_r1'));
+      for (let i = 0; i < 5; i++) await queue.flushQueue();
+
+      const calls = rtdb.update.mock.calls.map((c) => [(c[0] as { path: string }).path, c[1]] as const);
+      expect(calls.some(([p]) => p === 'users/students/student_user3/refusedEvents')).toBe(true);
+      // The stale board stayed behind its guard: nothing carried it out.
+      expect(calls.filter(([, v]) => 'workspaceState/counts' in ((v ?? {}) as object))).toEqual([]);
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(rtdb.update.mock.calls.filter((c) => 'workspaceState/counts' in ((c[1] ?? {}) as object))).toEqual([]);
+    });
+
     it('S2/S3 — the learner\'s device writes its own count under refusedEvents/{device_id}, and 0 removes it, also after sign-out', async () => {
       const svc = sync.firebaseSyncService as unknown as { publishedRefused: Map<number, number> };
       svc.publishedRefused.clear();
       const { getDeviceId } = await import('@/infrastructure/services/telemetryStamp');
-      const field = `refusedEvents/${getDeviceId()}`;
+      const field = getDeviceId();
       const countWrites = () => rtdb.update.mock.calls
-        .filter((c) => (c[0] as { path: string }).path === 'users/students/student_user3' && field in ((c[1] ?? {}) as object))
+        .filter((c) => (c[0] as { path: string }).path === 'users/students/student_user3/refusedEvents' && field in ((c[1] ?? {}) as object))
         .map((c) => (c[1] as Record<string, unknown>)[field]);
 
       fs.setDoc.mockImplementation(async () => { throw denied(); });
@@ -789,9 +813,9 @@ describe('Module 17 — the real queue on IndexedDB', () => {
     it('S2 — a fresh page with 0 refused removes a count this device left earlier, and writes nothing when there is none', async () => {
       const svc = sync.firebaseSyncService as unknown as { publishedRefused: Map<number, number> };
       const { getDeviceId } = await import('@/infrastructure/services/telemetryStamp');
-      const field = `refusedEvents/${getDeviceId()}`;
+      const field = getDeviceId();
       const countWrites = () => rtdb.update.mock.calls
-        .filter((c) => field in ((c[1] ?? {}) as object))
+        .filter((c) => (c[0] as { path: string }).path === 'users/students/student_user3/refusedEvents' && field in ((c[1] ?? {}) as object))
         .map((c) => (c[1] as Record<string, unknown>)[field]);
 
       svc.publishedRefused.clear();
@@ -800,7 +824,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
 
       svc.publishedRefused.clear();
       rtdb.get.mockImplementation(async (r: { path: string }) =>
-        r.path === `users/students/student_user3/${field}` ? { val: () => 2, exists: () => true } : { val: () => null, exists: () => false });
+        r.path === `users/students/student_user3/refusedEvents/${field}` ? { val: () => 2, exists: () => true } : { val: () => null, exists: () => false });
       await queue.flushQueue();
       expect(countWrites()).toEqual([null]);
     });
@@ -831,6 +855,76 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       expect(await queue.reviveRefusalParked()).toBe(0);
       [item] = await queue.getAll();
       expect([item.idempotency_key, item.retry_count]).toEqual(['e_token2', 5]); // kept, never deleted
+    });
+
+    describe('R2 — the legacy localStorage queue moves into the real queue', () => {
+      const LEGACY = 'mathmaticore_offline_queue';
+      let mem: Map<string, string>;
+      let failSave = false;
+      const withBrowser = async (run: () => Promise<void>) => {
+        vi.stubGlobal('window', fakeWindow);
+        vi.stubGlobal('localStorage', {
+          getItem: (k: string) => (mem.has(k) ? mem.get(k)! : null),
+          setItem: (k: string, v: string) => { if (failSave && k === LEGACY) throw new Error('closed'); mem.set(k, String(v)); },
+          removeItem: (k: string) => { if (failSave && k === LEGACY) throw new Error('closed'); mem.delete(k); },
+        });
+        try { await run(); } finally {
+          vi.stubGlobal('window', undefined);
+          vi.unstubAllGlobals();
+          vi.stubGlobal('IDBKeyRange', fakeKeyRange);
+          vi.stubGlobal('window', undefined);
+        }
+      };
+      const migrate = () => (sync.firebaseSyncService as unknown as { loadOfflineQueueFromStorage: () => Promise<void> }).loadOfflineQueueFromStorage();
+      const legacy = () => [
+        { refPath: 'users/students/student_user2/legacy_events', payload: { n: 1 } },
+        { refPath: 'users/students/student_user2/legacy_events', payload: { n: 2 } },
+        { refPath: 'users/students/student_user2/legacy_events', payload: { n: 3 }, idempotency_key: 'kept_key' },
+      ];
+      beforeEach(() => { mem = new Map(); failSave = false; });
+
+      it('a run cut short and run again moves the same items under the same keys; nothing is lost', async () => {
+        fakeWindow.dispatchEvent(new Event('offline')); // keep them in the queue to look at
+        await withBrowser(async () => {
+          mem.set(LEGACY, JSON.stringify(legacy()));
+          // The keys are saved before the loop; the tab "closes" before the key is cleared.
+          const realSet = (globalThis.localStorage as Storage).setItem;
+          let saves = 0;
+          (globalThis.localStorage as unknown as { setItem: (k: string, v: string) => void }).setItem = (k, v) => {
+            saves++;
+            if (saves > 1) throw new Error('closed');
+            realSet(k, v);
+          };
+          (globalThis.localStorage as unknown as { removeItem: (k: string) => void }).removeItem = () => { throw new Error('closed'); };
+          await migrate();
+          const first = (await queue.getAll()).map((i) => i.idempotency_key);
+          expect(first).toHaveLength(3);
+          expect(JSON.parse(mem.get(LEGACY)!)).toHaveLength(3); // still there: nothing removed early
+
+          await migrate(); // the next load
+          const all = (await queue.getAll()).map((i) => String(i.idempotency_key));
+          expect(new Set(all).size).toBe(3); // the same three keys — the same RTDB children
+          expect(new Set(all)).toEqual(new Set(first));
+          expect(all).toContain('kept_key');
+        });
+        fakeWindow.dispatchEvent(new Event('online'));
+      });
+
+      it('two migrations at once run once; the items belong to the learner their path names, not to whoever is signed in', async () => {
+        fakeWindow.dispatchEvent(new Event('offline'));
+        signIn(5);
+        await vi.advanceTimersByTimeAsync(0);
+        await withBrowser(async () => {
+          mem.set(LEGACY, JSON.stringify(legacy()));
+          await Promise.all([migrate(), migrate()]);
+          const items = await queue.getAll();
+          expect(items).toHaveLength(3);
+          expect(items.every((i) => i.owner === 'student:2')).toBe(true);
+          expect(mem.has(LEGACY)).toBe(false);
+        });
+        signIn(3);
+        fakeWindow.dispatchEvent(new Event('online'));
+      });
     });
 
     it('reaching the capacity is logged as a fault, once; nothing is discarded', async () => {
