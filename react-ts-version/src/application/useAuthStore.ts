@@ -7,7 +7,7 @@ import { useStore } from "@/application/useStore";
 import { useWorkspaceStore } from "@/application/useWorkspaceStore";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useChatStore, normalizeStudentId, stopChatSync } from "@/application/useChatStore";
-import { containsPII } from "@/core/security/PiiFilter";
+import { containsPII, reportPiiFilterFailure } from "@/core/security/PiiFilter";
 import { indexedDBQueue } from "@/infrastructure/services/IndexedDBQueue";
 
 export interface ClassSchema {
@@ -610,11 +610,14 @@ export const useAuthStore = create<AuthState>()(
     setUser: (user, explicitRole) => set((state) => {
       const activeRole = explicitRole || (typeof user.role === 'string' ? user.role : 'teacher');
 
-      // Validate Zero PII constraints strictly for anonymous students (Module 3 - Fail Closed)
+      // Zero PII for anonymous learners (Module 3): a name that holds an e-mail,
+      // phone or ID number is refused. If the filter itself fails, nothing is
+      // locked (Module 3 §א, v7.9): the failure is logged and sign-in goes on.
       if (activeRole === 'student') {
         try {
           if (typeof user.name === 'string' && containsPII(user.name)) {
-            console.error(`[Zero PII Security Fail-Closed] Student authentication rejected: PII detected in name (${user.name})`);
+            // Never log the name itself: it is the PII that was just found.
+            console.error('[Zero PII] Student authentication rejected: PII detected in the display name');
             return {
               user: null,
               role: null,
@@ -625,7 +628,7 @@ export const useAuthStore = create<AuthState>()(
             };
           }
         } catch (piiErr) {
-          console.error('[Zero PII Security Fail-Closed] Scanning error:', piiErr);
+          reportPiiFilterFailure('useAuthStore.setUser', piiErr);
         }
       }
 

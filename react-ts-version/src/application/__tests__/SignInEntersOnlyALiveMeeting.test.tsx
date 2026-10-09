@@ -76,7 +76,7 @@ async function signInAsLearner() {
     </MemoryRouter>
   );
   fireEvent.click(screen.getByText('תלמיד'));
-  fireEvent.change(await screen.findByPlaceholderText('••••••••'), { target: { value: '1234' } });
+  fireEvent.change(await screen.findByPlaceholderText('••••'), { target: { value: '1234' } });
   fireEvent.click(screen.getByText('כניסה'));
 }
 

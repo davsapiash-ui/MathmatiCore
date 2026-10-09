@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { learnerCode } from '../learnerCode';
 
 const BASE_URL = 'http://localhost:5173';
 
@@ -62,7 +63,7 @@ test.describe('Challenger Edge Cases', () => {
     await studentPage.locator('select').first().selectOption({ index: 1 });
     await studentPage.locator('select').nth(1).selectOption({ index: 1 });
     await studentPage.getByPlaceholder('שם משתמש').fill('user1');
-    await studentPage.getByPlaceholder('סיסמה').fill('10203040');
+    await studentPage.getByPlaceholder('••••').fill(learnerCode(1));
     await studentPage.locator('button').filter({ hasText: 'יאללה, נכנסים! ✨' }).click();
     await studentPage.waitForURL('**/hub', { timeout: 15000 });
 
@@ -168,7 +169,7 @@ test.describe('Challenger Edge Cases', () => {
     await studentPage.locator('select').first().selectOption({ index: 1 });
     await studentPage.locator('select').nth(1).selectOption({ index: 1 });
     await studentPage.getByPlaceholder('שם משתמש').fill('user15');
-    await studentPage.getByPlaceholder('סיסמה').fill('10203040');
+    await studentPage.getByPlaceholder('••••').fill(learnerCode(15));
     await studentPage.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
     await studentPage.waitForURL('**/hub', { timeout: 15000 });
 

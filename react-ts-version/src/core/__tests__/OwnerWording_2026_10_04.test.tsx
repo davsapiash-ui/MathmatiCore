@@ -265,7 +265,7 @@ describe('3 — a result digit missing: the instruction says what to do with the
 
   it('328 + 145 (s4_r_t7), word for word', () => {
     expect(byId('s4_r_t7').instructionHe).toBe(
-      'בתרגיל 328 + 145 חסרה ספרת העשרות בשורת התוצאה. ייצגו את המספרים בעזרת לבנים. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. כתבו את הספרה החסרה בתיבה הריקה.'
+      'בתרגיל 328 + 145 חסרה ספרת העשרות בשורת התוצאה. בנו בבית המספרים את שני המספרים. כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. כתבו את הספרה החסרה בתיבה הריקה.'
     );
   });
 
@@ -275,31 +275,29 @@ describe('3 — a result digit missing: the instruction says what to do with the
   });
 
   it('the shared sentences are the stations\' own: no other exercise changed', () => {
-    expect(S4_ADD('507 + 125')).toBe('פתרו במאונך: 507 + 125. ייצגו את המספרים בעזרת לבנים. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. רשמו את התוצאה בשורת התוצאה.');
-    expect(S6_SUB('500 − 287')).toBe('פתרו חיסור עם אפסים: 500 − 287. בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.');
+    expect(S4_ADD('507 + 125')).toBe('פתרו במאונך: 507 + 125. בנו בבית המספרים את שני המספרים. כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. כתבו את התוצאה בשורת התוצאה.');
+    expect(S6_SUB('500 − 287')).toBe('פתרו במאונך: 500 − 287. בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.');
     expect(byId('s4_r_t6').instructionHe).toBe(S4_ADD('507 + 125'));
     expect(byId('s6_r_t6').instructionHe).toBe(S6_SUB('500 − 287'));
   });
 
-  it('400 − 156 is the one instruction over 300 characters: its lines sit closer, every other instruction keeps its spacing', async () => {
+  // Until 8.10.2026 the 300-character paragraph of 400 − 156 sat closer (line
+  // height 1.4) to keep the sheet in view. The task zone now shows it as a goal
+  // line and steps (owner, 8.10.2026), so no paragraph that long is on screen;
+  // station 8 keeps the PRD paragraph at 1.55.
+  it('400 − 156 is the one instruction over 300 characters: on screen it is a goal and steps, not one paragraph', async () => {
     expect(bank.filter((t) => (t.instructionHe ?? '').length > 300).map((t) => t.id)).toEqual(['s6_r_t7']);
     const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
-    const shown = (meeting: number, id: string) => {
-      load(meeting, byId(id));
-      render(<TaskCard />);
-      const box = screen.getByTestId('task-instruction');
-      const out = { cls: box.querySelector('p')!.className, lineHeight: box.style.getPropertyValue('--instruction-leading') };
-      cleanup();
-      return out;
-    };
-    expect(shown(6, 's6_r_t7').lineHeight).toBe('1.4');
-    for (const [m, id] of [[6, 's6_r_t6'], [4, 's4_r_t7'], [8, 's8_g_t1']] as const) {
-      expect(shown(m, id).lineHeight, id).toBe('');
-      // 1.55 unless the box says otherwise.
-      expect(shown(m, id).cls, id).toContain('leading-[var(--instruction-leading,1.55)]');
-    }
-    // The size of the text is the same for the long one.
-    expect(shown(6, 's6_r_t7').cls).toBe(shown(6, 's6_r_t6').cls);
+    load(6, byId('s6_r_t7'));
+    render(<TaskCard />);
+    expect(screen.getByTestId('task-goal').textContent).toBe('בתרגיל 400 − 156 חסרה ספרת העשרות בשורת התוצאה.');
+    expect(screen.getByTestId('guide-steps').querySelectorAll(':scope > li')).toHaveLength(3);
+    for (const p of screen.getByTestId('task-instruction').querySelectorAll('p')) expect((p.textContent ?? '').length).toBeLessThan(120);
+    cleanup();
+    load(8, byId('s8_g_t1'));
+    render(<TaskCard />);
+    expect(screen.getByTestId('task-instruction').querySelector('p')!.className).toContain('leading-[var(--instruction-leading,1.55)]');
+    cleanup();
   });
 
   it('both fit what the coaching function accepts as an instruction (400 characters)', () => {
@@ -486,8 +484,15 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
   });
 
   // Wording round 3, text 2.
-  const GROUPED = { kind: 'success', title: 'כָּל הַכָּבוֹד! 🌟', sub: 'קיבצתם את הלבנים, והתשובה שכתבתם נכונה.' };
-  const BUILT = { kind: 'success', title: 'כָּל הַכָּבוֹד! 🌟', sub: 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.' };
+  const GROUPED = { kind: 'success', title: 'כָּל הַכָּבוֹד!', sub: 'קיבצתם את הלבנים, והתשובה שכתבתם נכונה.' };
+  const BUILT = { kind: 'success', title: 'כָּל הַכָּבוֹד!', sub: 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.' };
+  // Owner, 8.10.2026 (learner wording proposal §א): an exercise with its own
+  // "נכון! …" says it instead of the general praise; the checks are unchanged.
+  const CORRECT: Record<string, { kind: 'success'; title: string; sub: string }> = {
+    s1_r_group26: { kind: 'success', title: 'נכון!', sub: 'הלבנים מסודרות אחרת, אבל המספר נשאר 26.' },
+    s1_r_words703: { kind: 'success', title: 'נכון!', sub: 'במספר שבע מאות ושלוש אין עשרות, ולכן בטור העשרות כותבים 0: 703.' },
+    s1_r_words482: { kind: 'success', title: 'נכון!', sub: 'ארבע מאות שמונים ושתיים כותבים בספרות 482.' },
+  };
 
   it('success where the exercise gave the blocks (2,730 and 26): "you grouped the blocks"; where the child built, "you built"', () => {
     open();
@@ -501,9 +506,9 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
     ws().groupColumnClick('units');
     ws().groupColumnClick('units');
     typeRow('26');
-    expect(verdict()).toMatchObject(GROUPED);
+    expect(verdict()).toMatchObject(CORRECT.s1_r_group26);
 
-    // The exercises that shared the sentence keep it: 3,800 (s7_g_t5), 510 (s7_r_t6), meeting 1's 703 and 482.
+    // The exercises that shared the sentence keep it (or say their own "נכון! …"): 3,800 (s7_g_t5), 510 (s7_r_t6), meeting 1's 703 and 482.
     for (const [meeting, id, counts, answer] of [
       [7, 's7_g_t5', { thousands: 3, hundreds: 8 }, '3800'],
       [7, 's7_r_t6', byId('s7_r_t6').requiredCounts!, String(byId('s7_r_t6').correctAnswer)],
@@ -514,7 +519,7 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
       load(meeting, byId(id));
       board(counts);
       typeRow(answer);
-      expect(verdict(), id).toMatchObject(BUILT);
+      expect(verdict(), id).toMatchObject(CORRECT[id] ?? BUILT);
     }
   });
 
@@ -602,7 +607,7 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
     ws().clearBoard();
     ws().undo();
     typeRow('26');
-    expect(verdict()).toMatchObject(GROUPED);
+    expect(verdict()).toMatchObject(CORRECT.s1_r_group26);
   });
 
   it('the trash keeps the record everywhere else: a grouping exercise the child builds (s7_g_t1), and meeting 1\'s tool step on 230', () => {
@@ -744,9 +749,9 @@ describe('6 — the reflection board, stage 2: the tools by their names', () => 
     expect(REFLECTION_TEXT_HE.strategyQuestion).toBe('מה עזר לכם להצליח היום בפתרון התרגילים?');
     expect(REFLECTION_TEXT_HE.strategyInstruction).toBe('אפשר לסמן יותר מתשובה אחת.');
     expect(STRATEGY_OPTIONS.map((o) => [o.id, o.label])).toEqual([
-      ['undo', 'כפתור ביטול הפעולה'],
+      ['undo', 'כפתור ביטול הפעולה ↺'],
       ['memory', 'עיגולי הזיכרון'],
-      ['hints', 'השאלות בכרטיס החניכה'],
+      ['hints', 'כרטיס החניכה'],
     ]);
     expect(REFLECTION_TEXT_HE.next).toBe('ממשיכים');
     expect(REFLECTION_TEXT_HE.back).toBe('חזרה');
@@ -755,7 +760,7 @@ describe('6 — the reflection board, stage 2: the tools by their names', () => 
 
   it('what is read aloud follows the same words', () => {
     expect(reflectionSpeech(2)).toBe(
-      'שלב שני מתוך שלושה. מה עזר לכם להצליח היום בפתרון התרגילים? אפשר לסמן יותר מתשובה אחת. כפתור ביטול הפעולה. עיגולי הזיכרון. השאלות בכרטיס החניכה.'
+      'שלב שני מתוך שלושה. מה עזר לכם להצליח היום בפתרון התרגילים? אפשר לסמן יותר מתשובה אחת. כפתור ביטול הפעולה ↺. עיגולי הזיכרון. כרטיס החניכה.'
     );
   });
 });

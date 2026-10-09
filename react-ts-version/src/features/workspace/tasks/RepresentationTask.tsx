@@ -2,9 +2,7 @@ import { useRef, useState } from 'react';
 import { useWorkspaceStore, answerTextFromDigits } from '@/application/useWorkspaceStore';
 import { PLACE_ORDER, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import type { SessionTask } from '@/data/sessionTasks';
-import { session1Checklist, session1DoneNoteHe } from '@/core/session1Checklist';
 import { NEUTRAL_BOX_BORDER } from '../placeColors';
-import { Session1ChecklistCard } from './Session1ChecklistCard';
 
 /** One square of the result row: the sheet's notebook square (--ws-cell, index.css). */
 const CELL = 'var(--ws-cell)';
@@ -101,24 +99,19 @@ function RepresentationAnswerBox() {
  * s7_g_t6): a box per digit, high place on the left.
  */
 function RepresentationResultRow({ task }: { task: SessionTask }) {
-  const counts = useWorkspaceStore((s) => s.counts);
   const answerDigits = useWorkspaceStore((s) => s.answerDigits);
   const setAnswerDigit = useWorkspaceStore((s) => s.setAnswerDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
   const isRepresentationColumnLocked = useWorkspaceStore((s) => s.isRepresentationColumnLocked);
   const recordBlockedKeystroke = useWorkspaceStore((s) => s.recordBlockedKeystroke);
-  // Subscribed so a conversion (or its undo) re-renders the lock and the checklist at once.
-  const conversionsByColumn = useWorkspaceStore((s) => s.conversionsByColumn);
+  // Subscribed so a conversion (or its undo) re-renders the lock at once.
+  useWorkspaceStore((s) => s.conversionsByColumn);
   // Module 9: a keystroke into a locked box shakes that box only.
   const [shakingPlace, setShakingPlace] = useState<Place | null>(null);
   const shake = (place: Place) => {
     setShakingPlace(place);
     setTimeout(() => setShakingPlace((p) => (p === place ? null : p)), 500);
   };
-  const hasUngrouped = useWorkspaceStore((s) => s.hasUngrouped);
-  // Meeting 1's target task (מסמך 03 §3.1 step 6) is a guided step: its
-  // instruction as a checklist, the rule the proceed button follows.
-  const checklist = session1Checklist(task.id, { counts, answerDigits, hasUngrouped, conversionsByColumn, blocksAddedCount: 0, undoCount: 0, hasClearedBoard: false });
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   // The number the result row holds: the number built, or its own answer when
@@ -153,9 +146,10 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
                 locked ? 'cursor-not-allowed opacity-75' : ''
               }`}
               style={{
-                width: `calc(${CELL} - 12px)`,
-                height: `calc(${CELL} - 12px)`,
-                fontSize: `calc(${CELL} * 0.48)`,
+                // About one notebook square, as on the vertical sheet (owner, 9.10.2026).
+                width: `calc(${CELL} - 6px)`,
+                height: `calc(${CELL} - 6px)`,
+                fontSize: `calc(${CELL} * 0.6)`,
                 borderColor: PLACE_TINT[place],
                 ...(shakingPlace === place ? { animation: 'shake 0.5s ease-in-out' } : {}),
               }}
@@ -194,7 +188,7 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
                 }
               }}
             />
-            <span className="font-bold" style={{ fontSize: `max(12px, calc(${CELL} * 0.22))`, color: PLACE_TINT[place] }}>
+            <span className="font-bold" style={{ fontSize: `max(14px, calc(${CELL} * 0.22))`, color: PLACE_TINT[place] }}>
               {PLACE_NAMES_HE[place]}
             </span>
           </div>
@@ -206,13 +200,6 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
           (owner, 28.9.2026): it is in no document. The instruction names what
           to build, and the number house shows every column. */}
 
-      {/* Meeting 1's target task: the checklist after the result row. It is
-          the one part of the column that scrolls when the screen is short. */}
-      {checklist && (
-        <div className="w-full max-w-xl flex-1 min-h-[6rem] overflow-y-auto" data-testid="checklist-area">
-          <Session1ChecklistCard items={checklist} doneNote={session1DoneNoteHe(task.id)} />
-        </div>
-      )}
     </div>
   );
 }

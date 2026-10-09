@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { learnerCode } from '../learnerCode';
 
 test.describe('Passive Drifting Radar Alerts', () => {
   test('verify passive drifting alert is triggered and throttled', async ({ context, page }) => {
@@ -18,7 +19,7 @@ test.describe('Passive Drifting Radar Alerts', () => {
     await page.locator('select').first().selectOption({ index: 1 });
     await page.locator('select').nth(1).selectOption({ index: 1 });
     await page.getByPlaceholder('שם משתמש').fill('user10');
-    await page.getByPlaceholder('סיסמה').fill('10203040');
+    await page.getByPlaceholder('••••').fill(learnerCode(10));
     await page.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
 
     // Wait for hub to load and navigate via Lesson 1 card

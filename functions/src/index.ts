@@ -27,21 +27,27 @@ export { getAiServiceStatus } from "./aiMonitoring";
 // path is onStudentEvent, which stores and checks ownership.
 
 // Export the Google Drive Admin PDF Report module
-export { exportAdminReportToDrive, backupAndResetSessionData, exportResearchDataset } from "./exportDriveReport";
+export { exportAdminReportToDrive, backupAndResetSessionData, exportResearchDataset, logMeetingDownload } from "./exportDriveReport";
+// Module 23א §ג: the daily copy of Storage-only reset backups to the Drive folder "3 גיבויים".
+export { copyStorageBackupsToDrive } from "./backupDriveCopy";
+// Module 23א §ג: recording chunks that reach the server after a full learner or system reset.
+export { onLateRecordingChunk, onLateRecordingFlag } from "./lateRecordings";
 
 // Export WP6 Cloud Functions (Module 14, 20, 22, 24, 27)
-export { onSessionCompleteTrigger, createSessionWithServerDeadline } from "./sessionTrigger";
+export { onSessionCompleteTrigger, onMeetingCompletionMarked, onMeetingTelemetryArrived, createSessionWithServerDeadline } from "./sessionTrigger";
 // PRD 14 §ב1 + owner decision 29.9.2026: the teacher closing meeting 2 completes every learner who started it.
 export { onMeeting2ClosedByTeacher, onMeeting2CompletionRecorded } from "./meeting2Close";
 // Owner decision 2.10.2026 (catch-up time): the server opens and closes the catch-up rounds and counts their minutes.
 export { onCatchUpSessionWrite } from "./catchUpRounds";
 export { generatePedagogicalReportPDF, getPedagogicalReportDownloadUrl } from "./pedagogicalReport";
 // Module 23, owner decision 6.9.2026 (register item 9): a class report for every meeting.
-export { generateClassMeetingReport } from "./classReport";
+export { generateClassMeetingReport, getClassReportDownloadUrl } from "./classReport";
 export { hourlyAdminAggregator } from "./adminAggregator";
 export { sendTeacherAdminMessage } from "./teacherAdminChat";
 // Module 25 §ד, owner's decision 26.9.2026: printable login cards for the 12 learners.
 export { getStudentLoginCards } from "./studentLoginCards";
+// Modules 1 §א and 25 §ב.3: personal 4-digit learner access codes (teacher and admin).
+export { getLearnerAccessCodes, regenerateLearnerAccessCode } from "./learnerAccessCodes";
 // Module 21: screen recordings of earlier versions, moved off the learner record on the teacher's press.
 export { moveLegacyRecordings } from "./moveLegacyRecordings";
 

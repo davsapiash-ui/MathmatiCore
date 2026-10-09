@@ -55,7 +55,7 @@ vi.mock('@/core/security/PiiFilter', async (importOriginal) => {
 
 import { update } from 'firebase/database';
 import { StudentLearningConditionsDrawer } from '../StudentLearningConditionsDrawer';
-import { FloatingChatPanel, PII_FILTER_RECHECK_MS } from '../FloatingChatPanel';
+import { FloatingChatPanel } from '../FloatingChatPanel';
 import { ResetConfirmationModal } from '../ResetConfirmationModal';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
@@ -135,9 +135,8 @@ describe('the floating chat', () => {
     expect(screen.queryByTitle('מזער')).toBeNull();
   });
 
-  it('Module 3 §א — a PII filter failure locks the box until the filter recovers', () => {
-    vi.useFakeTimers();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('Module 3 §א (v7.9) — a PII filter failure locks nothing: the message goes and the failure is logged', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     render(<FloatingChatPanel student={student} onClose={vi.fn()} teacherId="teacher" />);
     const box = screen.getByPlaceholderText('כתבו הודעה לתלמיד...') as HTMLInputElement;
     const send = screen.getByRole('button', { name: 'שליחת ההודעה' }) as HTMLButtonElement;
@@ -145,19 +144,18 @@ describe('the floating chat', () => {
     pii.broken = true;
     fireEvent.change(box, { target: { value: 'שלום' } });
     fireEvent.click(send);
-    expect(sendMessage).not.toHaveBeenCalled();
-    expect(box.disabled).toBe(true);
-    expect(send.disabled).toBe(true);
-
-    // Still down at the next probe: still locked.
-    act(() => { vi.advanceTimersByTime(PII_FILTER_RECHECK_MS); });
-    expect(box.disabled).toBe(true);
-
-    pii.broken = false;
-    act(() => { vi.advanceTimersByTime(PII_FILTER_RECHECK_MS); });
-    expect(box.disabled).toBe(false);
-    fireEvent.click(send);
     expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(box.disabled).toBe(false);
+    expect(send.disabled).toBe(false);
+    expect(consoleError).toHaveBeenCalled();
+  });
+
+  it('a message with an e-mail, phone or ID number is still refused', () => {
+    render(<FloatingChatPanel student={student} onClose={vi.fn()} teacherId="teacher" />);
+    const box = screen.getByPlaceholderText('כתבו הודעה לתלמיד...') as HTMLInputElement;
+    fireEvent.change(box, { target: { value: 'כתבו ל-dani@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'שליחת ההודעה' }));
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 });
 
@@ -190,24 +188,19 @@ describe('the reset confirmation', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('Module 3 §א — a PII filter failure drops the note, locks the field and resets nothing on that click', async () => {
-    vi.useFakeTimers();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('Module 3 §א (v7.9) — a PII filter failure locks nothing: the note is kept and the reset goes ahead', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const onConfirm = vi.fn().mockResolvedValue(undefined);
     render(<Host onConfirm={onConfirm} />);
     chooseReason();
+    expect(note().disabled).toBe(false);
     fireEvent.change(note(), { target: { value: 'בדיקה של המערכת' } });
 
     pii.broken = true;
     await act(async () => { execute(); });
-    expect(onConfirm).not.toHaveBeenCalled();
-    expect(note().disabled).toBe(true);
-    expect(note().value).toBe('');
-    expect(screen.getByRole('alert').textContent).toMatch(/שדה ההערה נעול/);
-
-    pii.broken = false;
-    act(() => { vi.advanceTimersByTime(5000); });
-    expect(note().disabled).toBe(false);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onConfirm.mock.calls[0][1]).toBe('בדיקה של המערכת');
+    expect(consoleError).toHaveBeenCalled();
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });

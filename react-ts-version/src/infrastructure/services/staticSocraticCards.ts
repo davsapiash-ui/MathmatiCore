@@ -927,8 +927,8 @@ function breakResultCard(from: Place, into: Place): SocraticHintResponse {
 
 /** A grouping the instruction asks for, the second card: what the button gives (frame 2). */
 function groupResultCard(from: Place, to: Place): SocraticHintResponse {
-  return card(`${OPEN}מה מופיע בבית המספרים כשלוחצים על הכפתור "קבצו 10 ל${WORTH[to]}" שבראש ${COLUMN[from]}?`, 'conceptual', HL(from), [
-    [`${BLOCK[to]} אחת במקום 10 ${BLOCKS[from]}`, `נכון מאוד! לחצו עכשיו על הכפתור "קבצו 10 ל${WORTH[to]}" שבראש ${COLUMN[from]}.`],
+  return card(`${OPEN}מה מופיע בבית המספרים כשלוחצים על הכפתור "קבצו 10" שבראש ${COLUMN[from]}?`, 'conceptual', HL(from), [
+    [`${BLOCK[to]} אחת במקום 10 ${BLOCKS[from]}`, `נכון מאוד! לחצו עכשיו על הכפתור "קבצו 10" שבראש ${COLUMN[from]}.`],
     [`10 ${BLOCKS[from]} נעלמות, ולא מופיע דבר`, 'רמז: כשמקבצים, האם הערך של הלבנים הולך לאיבוד?'],
     [`מופיעות עוד 10 ${BLOCKS[from]}`, `רמז: לאיזו לבנה מקבצים 10 ${BLOCKS[from]}?`],
   ], 'group_result', frame('group_result', 2, `הכפתור "קבצו 10" מקבץ 10 ${BLOCKS[from]} ל${BLOCK[to]} אחת`));
@@ -1041,10 +1041,10 @@ function columnCountCard(ex: string, p: Place): SocraticHintResponse {
 /** Meeting 1's 26, its result built by hand (2 tens and 6 units, nothing grouped), the second card: the grouping the instruction asks for (frame 3). */
 function s1GroupYourselvesCard(): SocraticHintResponse {
   return card(`${OPEN}מה ההנחיה מבקשת לעשות עם לבני היחידה שהיו בטור בהתחלה?`, 'procedural', 'tour-task-card', [
-    ['מקבצים אותן בכפתור "קבצו 10 לעשרת"', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שלבני היחידה יחזרו. אחר כך קבצו אותן בכפתור.'],
+    ['מקבצים אותן בכפתור "קבצו 10"', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שלבני היחידה יחזרו. אחר כך קבצו אותן בכפתור.'],
     ['בונים את התוצאה בעצמכם, בלי הכפתור', 'רמז: באיזה כפתור ההנחיה מבקשת לקבץ?'],
     ['כותבים את המספר בלי לקבץ', 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים?'],
-  ], 'group_yourselves', frame('group_yourselves', 3, 'ההנחיה מבקשת לקבץ בעצמכם בכפתור "קבצו 10 לעשרת": מחזירים את לבני היחידה ומקבצים'));
+  ], 'group_yourselves', frame('group_yourselves', 3, 'ההנחיה מבקשת לקבץ בעצמכם בכפתור "קבצו 10": מחזירים את לבני היחידה ומקבצים'));
 }
 
 /** A forgotten carry whose 1 is already in the memory circle, the second card: that 1 is added too (frame 2). */
@@ -1187,7 +1187,7 @@ function oneNumberMissingCard(ex: string, a: number, b: number, value: number): 
 export function groupActionCard(c: Place, vertical: boolean): SocraticHintResponse {
   const n = next(c)!;
   return card(`${OPEN}איך מקבצים 10 ${BLOCKS[c]} ל${BLOCK[n]} אחת?`, 'procedural', HL(c), [
-    [`לוחצים על הכפתור "קבצו 10 ל${WORTH[n]}" שבראש ${COLUMN[c]}`, vertical ? `נכון מאוד! אחר כך רשמו 1 בעיגול הזיכרון שמעל ${COLUMN[n]}.` : 'נכון מאוד! אחר כך בדקו מה השתנה בבית המספרים.'],
+    [`לוחצים על הכפתור "קבצו 10" שבראש ${COLUMN[c]}`, vertical ? `נכון מאוד! אחר כך רשמו 1 בעיגול הזיכרון שמעל ${COLUMN[n]}.` : 'נכון מאוד! אחר כך בדקו מה השתנה בבית המספרים.'],
     [`גוררים ${BLOCK[n]} חדשה מארגז הכלים`, HINT.addBlock],
     [`גוררים 10 ${BLOCKS[c]} לפח האשפה`, HINT.deleteBlocks],
   ], 'crowded_2', frame('group_action', 3, `מקבצים בכפתור "קבצו 10" שבראש ${COLUMN[c]}`));
@@ -1481,7 +1481,7 @@ function overTakenColumn(a: number, b: number, counts: BoardCounts, ctx: StaticC
 function groupBackCard(p: Place): SocraticHintResponse {
   const n = next(p)!;
   return card(`${OPEN}בסוף החיסור יישארו ב${COLUMN[p]} 10 לבנים או יותר. מה עושים איתן?`, 'procedural', HL(p), [
-    [`מקבצים 10 ${PLURAL[p]} ל${ONE[n]}`, `נכון מאוד! לחצו על הכפתור "קבצו 10 ל${WORTH[n]}" שבראש ${COLUMN[p]}. בסוף, בכל טור צריכות להיות פחות מ-10 לבנים.`],
+    [`מקבצים 10 ${PLURAL[p]} ל${ONE[n]}`, `נכון מאוד! לחצו על הכפתור "קבצו 10" שבראש ${COLUMN[p]}. בסוף, בכל טור צריכות להיות פחות מ-10 לבנים.`],
     ['כותבים בתיבה את כל מה שנשאר בטור', HINT.oneDigitPerBox],
     ['מוציאים לפח האשפה עוד לבנים מהטור', 'רמז: אם תוציאו עוד לבנים, האם תוציאו יותר מהמספר השני?'],
   ], 'extra_break_sub', frame('extra_break_sub', 2, `בטור יישארו 10 לבנים או יותר גם אחרי החיסור: מקבצים 10 ${PLURAL[p]} ל${ONE[n]}`));
@@ -1779,7 +1779,7 @@ function skeletonAddColumnCard(hiddenOf: number, known: number, p: Place, blocks
   }
   return card(`${OPEN}ב${COLUMN[p]}, כמה צריך להוסיף ל-${base} כדי לקבל ${r} בספרת התוצאה?`, 'procedural', HL(p), [
     [`מוסיפים ל-${base} עד שמגיעים ל-${target}, וסופרים כמה הוספתם`, !pass ? `נכון מאוד! ${write}.`
-      : blocks && next(p) ? `נכון מאוד! ${write}. אחר כך לחצו על הכפתור "קבצו 10 ל${WORTH[next(p)!]}". רשמו 1 בעיגול הזיכרון שמעל ${COLUMN[next(p)!]}.`
+      : blocks && next(p) ? `נכון מאוד! ${write}. אחר כך לחצו על הכפתור "קבצו 10" שבראש ${COLUMN[p]}. רשמו 1 בעיגול הזיכרון שמעל ${COLUMN[next(p)!]}.`
       : `נכון מאוד! ${write}. אחר כך רשמו 1 בעיגול הזיכרון שמעל הטור שמשמאל.`],
     ...distractors,
   ], 'skeleton_2', frame('skeleton_missing_addend_column', 2, `ב${COLUMN[p]}: כמה מוסיפים לספרה הידועה כדי להגיע לספרת התוצאה, ומה קורה כשמגיעים ל-10 או יותר`));
@@ -2933,7 +2933,7 @@ export function s1StartChangedCard(task: any, counts: BoardCounts, ctx: StaticCa
  */
 function s1RestoreCard(): SocraticHintResponse {
   return card(`${OPEN}ההנחיה מבקשת לקבץ את הלבנים שהיו בהתחלה, אבל הן השתנו. מה עושים?`, 'procedural', 'tour-action-buttons', [
-    ['מחזירים אותן בכפתור ביטול הפעולה, ואז מקבצים', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים יחזרו להיות כמו בהתחלה. אחר כך קבצו כל 10 לבנים בכפתור "קבצו 10 לעשרת".'],
+    ['מחזירים אותן בכפתור ביטול הפעולה, ואז מקבצים', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים יחזרו להיות כמו בהתחלה. אחר כך קבצו כל 10 לבנים בכפתור "קבצו 10".'],
     ['כותבים את המספר שהלבנים מראות עכשיו', 'רמז: מה ההנחיה מבקשת לעשות עם הלבנים שהיו בתחילת התרגיל?'],
     ['לוחצים על פח האשפה', 'רמז: מה קורה ללבנים כשלוחצים על פח האשפה?'],
   ], 'restore_start', frame('s1_restore_start', 1, 'הלבנים שהתרגיל נתן השתנו: מחזירים אותן בכפתור ביטול הפעולה, ורק אז מקבצים'));

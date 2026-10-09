@@ -31,7 +31,15 @@ export default defineConfig({
     actionTimeout: 15_000,
     navigationTimeout: 90_000,
   },
-  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+  // PW_CHROMIUM=<path> runs on a preinstalled Chromium whose build differs
+  // from this Playwright's (a cloud container: /opt/pw-browsers/chromium) —
+  // never `playwright install` there.
+  projects: [
+    {
+      name: 'chromium',
+      use: { browserName: 'chromium', launchOptions: process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {} },
+    },
+  ],
   webServer: {
     command: `npx vite --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,

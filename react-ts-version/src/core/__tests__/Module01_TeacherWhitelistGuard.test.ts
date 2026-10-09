@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { isWhitelistedTeacherEmail, STAFF_SIGNIN_REFUSED_HE, verifiedStaffRole } from '@/infrastructure/services/AuthService';
+import { decideRoute } from '@/core/routeAccess';
 
 /**
  * PRD Module 1 §ג — teacher authorisation is fail-closed and whitelist-based.
@@ -35,8 +36,10 @@ describe('Module 1: teacher whitelist guard', () => {
   });
 
   it('both route guards trust the login-time verification before the hardcoded fallback', () => {
-    const guardChecks = app.match(/user\.whitelistVerified !== true && !isWhitelistedTeacherEmail\(email\)/g) || [];
-    expect(guardChecks.length).toBe(2);
+    // RoleRouter (on /login) and AuthGuard (every protected route; the rule
+    // itself is core/routeAccess.ts, PRD Module 2 §א).
+    expect(app).toContain('user.whitelistVerified !== true && !isWhitelistedTeacherEmail(email)');
+    expect(app).toContain('const staffAuthorized = user?.whitelistVerified === true || isWhitelistedTeacherEmail(email);');
     // The old form — fallback list alone deciding — must not come back.
     expect(app).not.toMatch(/if \(!isWhitelistedTeacherEmail\(email\)\) \{/);
   });
@@ -99,7 +102,9 @@ describe('Module 1: teacher whitelist guard', () => {
   it('a session without the stamp and outside the fallback is still logged out (fail-closed)', () => {
     // The guard is `whitelistVerified !== true && !fallback` → logout. A forged
     // or stale session with neither is rejected, as before.
-    expect(app).toContain('logout();');
-    expect(app).toContain('return <Navigate to="/login" replace />;');
+    expect(app).toContain('if (decision.logout) logout();');
+    expect(app).toContain('return <Navigate to={decision.to} replace />;');
+    expect(decideRoute({ isAuthenticated: true, role: 'teacher', staffAuthorized: false, allowedRoles: ['teacher'] }))
+      .toEqual({ kind: 'redirect', to: '/login', logout: true });
   });
 });

@@ -47,7 +47,11 @@ describe('Module 18: the radar is still', () => {
   });
 
   it('the slow breath respects prefers-reduced-motion', () => {
-    const at = css.indexOf('.animate-radar-call {');
+    // The rule that defines the breath (a line that starts with the class), not
+    // the quiet-mode override "[data-quiet='true'] .animate-radar-call {" earlier
+    // in the file, whose neighbourhood other rules can push the media query out of.
+    const at = css.search(/^\s*\.animate-radar-call \{\s*animation: radar-call/m);
+    expect(at).toBeGreaterThan(-1);
     expect(css.slice(at, at + 400)).toContain('prefers-reduced-motion');
   });
 });

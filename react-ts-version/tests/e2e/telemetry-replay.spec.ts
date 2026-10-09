@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { learnerCode } from '../learnerCode';
 
 async function dragAndDrop(page, sourceSelector, targetSelector) {
   const source = page.locator(sourceSelector).first();
@@ -43,7 +44,7 @@ test.describe('Telemetry & Replay Pipeline', () => {
     await page.locator('select').first().selectOption({ index: 1 });
     await page.locator('select').nth(1).selectOption({ index: 1 });
     await page.getByPlaceholder('שם משתמש').fill('user7');
-    await page.getByPlaceholder('סיסמה').fill('10203040');
+    await page.getByPlaceholder('••••').fill(learnerCode(7));
     await page.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
 
     // Wait for student hub and enter Lesson 1 workspace

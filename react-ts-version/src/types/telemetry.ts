@@ -26,7 +26,9 @@ export type TelemetryEventType =
   // Owner, 30.9.2026: the learner took the silent help call back (research data only).
   | 'HELP_WITHDRAWN'
   // Owner, 1.10.2026: a request for help from the chat, with its exercise; help in measure 2א.
-  | 'CHAT_HELP_REQUESTED';
+  | 'CHAT_HELP_REQUESTED'
+  // PRD Module 14 §ג / Appendix A §3: the learner's choice after the 7 compulsory exercises, sessions 3–7.
+  | 'BRANCH_SELECTED';
 
 // --- Per-event-type details schemas (Master PRD v7.0 Appendix A §3) ---
 
@@ -179,6 +181,11 @@ export interface BoardClearedDetails {
   blocks_removed: number;
 }
 
+/** Appendix A §3: the learner's branch choice after the 7 compulsory exercises, sessions 3–7 (Module 14 §ג). */
+export interface BranchSelectedDetails {
+  branch: 'reinforcement' | 'challenge';
+}
+
 /** Register deviation 28: which profile saw the scaffold (regular: colours + labels; enhanced: labels). */
 export interface PlaceCuesShownDetails {
   profile: 'regular' | 'enhanced';
@@ -204,6 +211,7 @@ export interface TelemetryDetailsMap {
   HELP_WITHDRAWN: HelpWithdrawnDetails;
   CHAT_HELP_REQUESTED: ChatHelpRequestedDetails;
   BOARD_CLEARED: BoardClearedDetails;
+  BRANCH_SELECTED: BranchSelectedDetails;
   PLACE_CUES_SHOWN: PlaceCuesShownDetails;
 }
 
@@ -234,6 +242,8 @@ export const NON_COLUMN_EVENTS: readonly TelemetryEventType[] = [
   'BOARD_CLEARED',
   // The scaffold lights the whole result row, not one column.
   'PLACE_CUES_SHOWN',
+  // Appendix A §3 / Module 5 §ג: the branch choice belongs to no column.
+  'BRANCH_SELECTED',
 ] as const;
 
 export interface TelemetryPayload<T extends TelemetryEventType = TelemetryEventType> {
@@ -245,6 +255,21 @@ export interface TelemetryPayload<T extends TelemetryEventType = TelemetryEventT
   event_type: T;
   column_index?: number; // 0: Ones, 1: Tens, 2: Hundreds, 3: Thousands — required for column-scoped events, omitted otherwise
   details: TelemetryDetailsMap[T];
+  /**
+   * PRD Module 5 §ב / Appendix A §3: an increasing counter per device and per
+   * sign-in (telemetryStamp.ts); orders events with the same client_timestamp.
+   */
+  sequence_number: number;
+  /** PRD Module 5 §ב: a random id of this browser, created on first use; no PII (telemetryStamp.ts). */
+  device_id: string;
+  /**
+   * PRD Appendix A §3: set by the server (Firestore serverTimestamp) when the
+   * queue delivers the event; the Security Rules require it to equal
+   * request.time. Absent on the payload while it waits in the queue.
+   */
+  server_received_at?: unknown;
+  /** Device time when the event was sent from the queue (Module 17 §ב). Absent while it waits. */
+  synced_at?: number;
 }
 
 export interface OfflineQueueItem {

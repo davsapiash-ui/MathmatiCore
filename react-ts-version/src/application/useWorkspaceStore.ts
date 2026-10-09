@@ -26,6 +26,7 @@ import {
 } from '@/core/placeValue';
 import { BLOCK_NAME_HE, NO_UNIT_BLOCKS_SUB_HE, NO_UNIT_BLOCKS_TITLE_HE } from '@/data/taskBuilders';
 import { session1Checklist, session1DoneNoteHe, session1NextStep } from '@/core/session1Checklist';
+import { stickyBuildValue, taskGuide } from '@/core/taskGuide';
 import {
   advance,
   getCurrentQTask,
@@ -75,7 +76,6 @@ import { mirrorReflectionStep } from '@/core/srlReflection';
 import {
   EMPTY_PERSISTENCE_COUNTS,
   addPersistenceEvent,
-  hasClosingSentence,
   meetingOfSessionId,
   persistenceEventKind,
   type PersistenceCounts,
@@ -89,7 +89,7 @@ import {
  */
 function emitScaffoldEvent(
   s: WorkspaceState,
-  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED' | 'HELP_WITHDRAWN' | 'PLACE_CUES_SHOWN' | 'CHAT_HELP_REQUESTED',
+  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED' | 'HELP_WITHDRAWN' | 'PLACE_CUES_SHOWN' | 'CHAT_HELP_REQUESTED' | 'BRANCH_SELECTED',
   details: Record<string, unknown>,
   columnIndex?: number
 ): void {
@@ -311,6 +311,8 @@ export interface UndoFrame {
    * (WorkspaceState.heldFromTrack), brought back with the board on undo.
    */
   heldFromTrack?: HeldFromTrack;
+  /** The built-number record as it was BEFORE the action (WorkspaceState.builtTrack), brought back on undo. */
+  builtTrack?: BuiltTrack;
 }
 
 /**
@@ -458,6 +460,15 @@ export interface WorkspaceState {
    * board, like takeAwayTrack's `held`; null elsewhere.
    */
   heldFromTrack: HeldFromTrack | null;
+  /**
+   * The task zone's "build N" step that a later instruction changes on purpose
+   * (station 7: "בנו את המספר 340 … הוסיפו …, ואז הוציאו …", core/taskGuide.ts
+   * stickyBuildValue): the board has held N in the exercise `taskId` since it
+   * was last empty. Kept by nextBuiltTrack on every change of the board, saved
+   * with the workspace and brought back by undo, so the step's tick survives a
+   * refresh and goes away when the build itself is undone. View only.
+   */
+  builtTrack: BuiltTrack | null;
   /** The trash was pressed this task (clearBoard) — meeting 1 step 5. Dragging one block into it does not count. */
   hasClearedBoard: boolean;
   blocksAddedCount: number; // Added to enforce the 5 block rule in Sandbox
@@ -528,8 +539,8 @@ export interface WorkspaceState {
   /** U, E and G of the meeting in progress (E1); reset when a meeting starts, kept across a reload. */
   meetingPersistence: MeetingPersistenceTally;
   /**
-   * Stations 2 and 8 open with one quiet screen before their first task
-   * (owner, 27.9.2026). Set once the learner pressed "מתחילים" in the meeting
+   * Every station opens with one quiet screen before its first task
+   * (PRD 14 §ב). Set once the learner pressed "מתחילים" in the meeting
    * in progress; kept across a reload, so the screen never returns mid-meeting.
    */
   openingScreenSeen: boolean;
@@ -813,6 +824,8 @@ export function restoreUndoFrames(raw: unknown): UndoFrame[] {
       if (track) frame.takeAwayTrack = track;
       const fromTrack = restoredHeldFromTrack(f.heldFromTrack);
       if (fromTrack) frame.heldFromTrack = fromTrack;
+      const built = restoredBuiltTrack(f.builtTrack);
+      if (built) frame.builtTrack = built;
       return frame;
     });
 }
@@ -1082,6 +1095,31 @@ function restoredHeldFromTrack(raw: unknown): HeldFromTrack | null {
   return { taskId: r.taskId, held: r.held === true };
 }
 
+/** View only (WorkspaceState.builtTrack): the board has held the number of a sticky "build N" step. */
+export interface BuiltTrack {
+  taskId: string;
+  value: number;
+  held: boolean;
+}
+
+/**
+ * The built-number record after the board went to `after` in the exercise
+ * `taskId` whose sticky step waits for `value`: an emptied board starts over;
+ * the board worth `value` once is recorded (the same rule as nextHeldFromTrack).
+ */
+export function nextBuiltTrack(prev: BuiltTrack | null | undefined, taskId: string, value: number, after: number): BuiltTrack {
+  if (after === 0) return { taskId, value, held: false };
+  const same = prev?.taskId === taskId && prev.value === value;
+  return { taskId, value, held: (same && prev!.held) || after === value };
+}
+
+/** A saved built-number record back into shape (the database drops false and null alike). */
+function restoredBuiltTrack(raw: unknown): BuiltTrack | null {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
+  if (!r || typeof r.taskId !== 'string' || typeof r.value !== 'number') return null;
+  return { taskId: r.taskId, value: r.value, held: r.held === true };
+}
+
 /** Subtraction with blocks: taking away has started in this exercise (takeAwayTrack). */
 function takingAwayStarted(s: StaticCardStoreState, taskId: string): boolean {
   const t = s.takeAwayTrack;
@@ -1249,6 +1287,7 @@ function resetTaskInteraction(_isASD = false) {
     hasDeletedBlock: false,
     takeAwayTrack: null as TakeAwayTrack | null,
     heldFromTrack: null as HeldFromTrack | null,
+    builtTrack: null as BuiltTrack | null,
     hasClearedBoard: false,
     blocksAddedCount: 0,
     hasUngrouped: false,
@@ -1451,7 +1490,7 @@ export function breakItYourselvesHe(receiving: Place | null): string {
   return `הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. ${breakClickHe(receiving)}`;
 }
 
-/** Station 7's "do the grouping yourselves": the button of the column to group, in its own words (PlaceColumn). */
+/** Station 7's "do the grouping yourselves": the button "קבצו 10" of the column to group (owner, 9.10.2026: sentences say "קבצו 10"). */
 export function groupItYourselvesHe(source: Place | null): string {
   return `הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. ${groupClickHe(source)}`;
 }
@@ -1491,11 +1530,11 @@ function breakClickHe(receiving: Place | null): string {
     : 'לחצו על הלבנה שההנחיה מבקשת לפרוט.';
 }
 
-/** The button that makes the pending grouping, in its own words (PlaceColumn). */
+/** The button that makes the pending grouping: "קבצו 10" at the head of its column (owner, 9.10.2026; the label on the button is PlaceColumn's). */
 function groupClickHe(source: Place | null): string {
   const above = source ? placeAbove(source) : undefined;
   return source && above
-    ? `לחצו על הכפתור "קבצו 10 ל${BLOCK_NAME_HE[above]}" שבראש טור ה${PLACE_NAMES_HE[source]}.`
+    ? `לחצו על הכפתור "קבצו 10" שבראש טור ה${PLACE_NAMES_HE[source]}.`
     : 'קבצו 10 לבנים בעזרת הכפתור שבראש הטור.';
 }
 
@@ -2002,7 +2041,14 @@ export function selectCanProceed(s: WorkspaceState): boolean {
  * order and their messages are the ones proceedStandard had.
  */
 export type StandardVerdict =
-  | { kind: 'success'; title: string; sub: string; ms: number }
+  | {
+      kind: 'success';
+      title: string;
+      sub: string;
+      ms: number;
+      /** The general praise ("כָּל הַכָּבוֹד!"), which an exercise with its own "נכון! …" replaces (judgeStandardTask). */
+      generalPraise?: true;
+    }
   | {
       kind: 'failure';
       detail: string;
@@ -2052,8 +2098,30 @@ export const GIVEN_GROUPED_SUCCESS_HE = 'קיבצתם את הלבנים, והת�
 /** Station 7's 2,730: the final blocks arranged by hand, a grouping not made (wording round 3, text 4). */
 export const GIVEN_ARRANGED_BY_HAND_HE = 'הלבנים מסודרות נכון, אבל ההנחיה מבקשת לקבץ בעזרת הכפתור "קבצו 10".';
 
+/**
+ * The general praise after a solved exercise of stations 1 and 3–7 becomes the
+ * exercise's own "נכון! …" (owner, 8.10.2026: learner wording proposal §א,
+ * modelled on 347's sentence) — what the child saw, said after the check, so
+ * it never gives an answer away before it. The checks, their order and every
+ * other message are judgeStandardTaskChecks' own; a success with a reminder of
+ * its own (the memory circles) keeps it.
+ */
 export function judgeStandardTask(s: WorkspaceState, task: SessionTask): StandardVerdict {
+  const verdict = judgeStandardTaskChecks(s, task);
+  if (verdict.kind !== 'success' || !verdict.generalPraise) return verdict;
+  const correct = taskGuide(task, s.sessionNumber)?.correctHe;
+  if (!correct) return verdict;
+  const [title, ...rest] = correct.split(' ');
+  const { generalPraise: _praise, ...rest0 } = verdict;
+  return { ...rest0, title, sub: rest.join(' ') };
+}
+
+const GENERAL_PRAISE_HE = 'כָּל הַכָּבוֹד!'.normalize('NFC'); // one byte order of the niqqud, whatever the source was typed in
+
+function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): StandardVerdict {
   const success = (title: string, sub: string, ms: number): StandardVerdict => ({ kind: 'success', title, sub, ms });
+  // Marked by its call, not recognised by its words: a wording edit never turns the "נכון! …" swap on or off.
+  const praise = (sub: string, ms: number): StandardVerdict => ({ kind: 'success', title: GENERAL_PRAISE_HE, sub, ms, generalPraise: true });
   const failure = (detail: string, title: string, sub: string, ms: number, extra: { placeError?: boolean; clearReps?: boolean } = {}): StandardVerdict =>
     ({ kind: 'failure', detail, title, sub, ms, ...extra });
   const notice = (title: string, sub: string, ms: number): StandardVerdict => ({ kind: 'notice', title, sub, ms });
@@ -2063,16 +2131,16 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     if (session1Checklist(task.id, s)) {
       const nextStep = session1NextStep(task.id, s);
       if (nextStep) return failure('sandbox_incomplete', 'עוד צעד אחד 🛠️', `${nextStep}.`, 3500);
-      return success('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2000);
+      return praise('ממשיכים לשלב הבא.', 2000);
     }
-    if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return success('מְעֻלֶּה! 🌟', 'ממשיכים הלאה.', 1500);
+    if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return success('מְעֻלֶּה!', 'ממשיכים הלאה.', 1500);
     if (!s.selectedChoiceId) {
       return failure('no_choice', 'עֲנוּ עַל שְׁאֵלַת הַחֲשִׁיבָה 🤔', 'בַּחֲרוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת כְּדֵי לְהַמְשִׁיךְ.', 2500);
     }
     if (s.selectedChoiceId !== task.correctAnswer) {
       return failure('wrong_choice', 'חִשְׁבוּ שׁוּב 🤔', 'האם הוספתם לבנים לבית המספרים או הורדתם ממנו לבנים?', 2800);
     }
-    return success('נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
+    return success('נכון מאוד!', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
   }
 
   if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
@@ -2133,8 +2201,8 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
       if (hasOvercrowded) {
         // Names the column and the one action: the button "קבצו 10" at the head of the column (מסמך 02).
         const crowded = s.counts.units >= 10 ? 'היחידות' : s.counts.tens >= 10 ? 'העשרות' : 'המאות';
-        // The button says where the ten go (PlaceColumn: "קבצו 10 לעשרת / למאה / לאלף").
-        const groupButton = s.counts.units >= 10 ? 'קבצו 10 לעשרת' : s.counts.tens >= 10 ? 'קבצו 10 למאה' : 'קבצו 10 לאלף';
+        // The sentence names the button "קבצו 10" (owner, 9.10.2026; PRD 7.15 module 7);
+        // the label on the button itself says where the ten go (PlaceColumn).
         return failure(
           'overcrowded_columns',
           'קַבְּצוּ 🧱',
@@ -2142,7 +2210,7 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
           // the child finds the crowded column — the words of the meeting-1 card.
           s.sessionNumber === 1
             ? 'באחד הטורים יש 10 לבנים או יותר. לחצו על הכפתור שמופיע בראש אותו טור.'
-            : `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "${groupButton}" שבראש הטור.`,
+            : `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "קבצו 10" שבראש הטור.`,
           4000
         );
       }
@@ -2231,8 +2299,8 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     // Meeting 8 has no number house (מסמך 03 §3.8, Module 14 §ב): its praise
     // does not speak of one (owner, 1.10.2026, D11b).
     return s.sessionNumber === 8
-      ? success('כָּל הַכָּבוֹד! 🌟', MEETING8_SOLVED_SUB_HE, 2500)
-      : success('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים.', 2500);
+      ? praise(MEETING8_SOLVED_SUB_HE, 2500)
+      : praise('פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים.', 2500);
   }
 
   if (task.type === 'small_change') {
@@ -2242,7 +2310,7 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
       return notice('בַּחֲרוּ תְּשׁוּבָה', `סמנו אחת מהאפשרויות, ואז לחצו על "${PROCEED_HE}".`, 1800);
     }
     if (s.selectedChoiceId !== task.correctAnswer) return failure('wrong_choice', 'נסו שוב 🤔', 'התשובה שבחרתם אינה נכונה.', 2500);
-    return success('כָּל הַכָּבוֹד! 🌟', 'תשובה נכונה.', 2500);
+    return praise('תשובה נכונה.', 2500);
   }
 
   if (task.type === 'missing_element') {
@@ -2251,7 +2319,7 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
       return notice('הַקְלָדַת תְּשׁוּבָה ✏️', `כתבו את החלק החסר בתיבה, ואז לחצו על "${PROCEED_HE}".`, 1800);
     }
     if (answer !== task.correctAnswer) return failure('wrong_answer', 'נסו שוב 🤔', 'המספר שכתבתם אינו נכון.', 2500);
-    return success('כָּל הַכָּבוֹד! 🌟', 'תשובה נכונה.', 2500);
+    return praise('תשובה נכונה.', 2500);
   }
 
   if (task.type === 'representation') {
@@ -2372,9 +2440,7 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
           2800
         );
       }
-      return success(
-        'כָּל הַכָּבוֹד! 🌟',
-        kind === 'decompose'
+      return praise(kind === 'decompose'
           ? `בניתם את המספר מלבני ${block} בלבד, והתשובה שכתבתם נכונה.`
           : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.',
         2500
@@ -2390,11 +2456,11 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     }
     // 347 is a guided step: the checklist already shows its done note, so its
     // success is the tool steps' one (audit A2-F13).
-    if (session1DoneNoteHe(task.id) !== null) return success('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2000);
+    if (session1DoneNoteHe(task.id) !== null) return praise('ממשיכים לשלב הבא.', 2000);
     // Blocks the exercise put on the board (26, 2,730): the child grouped
     // them and built nothing (owner, 4.10.2026, wording round 3, text 2).
-    if (task.initialCounts) return success('כָּל הַכָּבוֹד! 🌟', GIVEN_GROUPED_SUCCESS_HE, 2500);
-    return success('כָּל הַכָּבוֹד! 🌟', asksDigitValue ? 'מצאתם את הערך של הספרה במספר.' : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
+    if (task.initialCounts) return praise(GIVEN_GROUPED_SUCCESS_HE, 2500);
+    return praise(asksDigitValue ? 'מצאתם את הערך של הספרה במספר.' : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
   }
 
   if (task.type === 'flexible_decomp') {
@@ -2407,10 +2473,10 @@ export function judgeStandardTask(s: WorkspaceState, task: SessionTask): Standar
     if (isIdentical) {
       return failure('canonical_fixation', 'הַיִּצּוּגִים זֵהִים 🤔', 'נַסּוּ לִיצֹר אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ אַחֶרֶת (לְמָשָׁל עַל יְדֵי פְּרִיטַת עֲשֶׂרֶת).', 2800, { clearReps: true });
     }
-    return success('כָּל הַכָּבוֹד! 🌟', 'הצלחתם להציג שני ייצוגים שונים.', 2500);
+    return praise('הצלחתם להציג שני ייצוגים שונים.', 2500);
   }
 
-  return success('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2500);
+  return praise('ממשיכים לשלב הבא.', 2500);
 }
 
 /**
@@ -2424,6 +2490,27 @@ export const MEETING8_SOLVED_SUB_HE = 'פְּתַרְתֶּם נָכוֹן.';
  * Owner, 1.10.2026: 15 seconds (PRD Module 12 §ב and doc 03 said 30).
  */
 export const SOCRATIC_LOCKOUT_MS = 15_000;
+
+/**
+ * A saved meeting copy is past its opening screen ("מתחילים" pressed): the flag
+ * says so, or the copy shows progress — an interaction, a later task, a later
+ * phase of the meeting, or a diagnostic answer (review B1, 9.10.2026).
+ */
+export function openingScreenPassed(saved: {
+  openingScreenSeen?: unknown;
+  hasInteracted?: unknown;
+  standardTaskIdx?: unknown;
+  flowStatus?: unknown;
+  qflow?: { taskIdx?: unknown; results?: unknown } | null;
+}): boolean {
+  if (saved.openingScreenSeen !== false) return true;
+  if (saved.hasInteracted === true) return true;
+  if (typeof saved.standardTaskIdx === 'number' && saved.standardTaskIdx > 0) return true;
+  if ((saved.flowStatus ?? 'task') !== 'task') return true;
+  const q = saved.qflow;
+  if (q && ((typeof q.taskIdx === 'number' && q.taskIdx > 0) || (q.results && typeof q.results === 'object' && Object.keys(q.results).length > 0))) return true;
+  return false;
+}
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /**
@@ -2496,6 +2583,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (track) frame.takeAwayTrack = { ...track };
     const fromTrack = get().heldFromTrack;
     if (fromTrack) frame.heldFromTrack = { ...fromTrack };
+    const built = get().builtTrack;
+    if (built) frame.builtTrack = { ...built };
     const stack = [...currentStack, frame];
     if (stack.length > UNDO_STACK_CAP) stack.shift();
     return stack;
@@ -3370,7 +3459,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (s.sessionNumber !== 8) markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
 
       set({ awaitingNext: true, currentState: 'COMPLETE' });
-      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` }, 2500);
+      // No toast: the "station done" toast was not PRD text, and the station's
+      // end screen that follows says it in the PRD's words (PRD 14 §ג; review
+      // S11, 9.10.2026).
       // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
       // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
       // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
@@ -3422,15 +3513,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (s.sessionNumber !== 8) markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
 
     set({ awaitingNext: true, currentState: 'COMPLETE' });
-    // One praise, one sentence: meetings 3–7 end on the closing sentence of
-    // owner decision E2, which opens with "כל הכבוד" itself, so the toast
-    // before it only says the station is done.
-    showFeedback(
-      hasClosingSentence(s.sessionNumber)
-        ? { correct: true, title: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה! 🎉` }
-        : { correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` },
-      2500,
-    );
+    // No toast (review S11, 9.10.2026): the "station done" toast was not
+    // PRD text, and PRD 14 §ג gives the end of meetings 3–7 one encouragement
+    // sentence only — the closing sentence of the end screen that follows.
     // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
     // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
     // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
@@ -3593,6 +3678,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     hasDeletedBlock: false,
     takeAwayTrack: null as TakeAwayTrack | null,
     heldFromTrack: null as HeldFromTrack | null,
+    builtTrack: null as BuiltTrack | null,
     hasClearedBoard: false,
     blocksAddedCount: 0,
     digitErrorStreak: 0,
@@ -3762,7 +3848,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // A meeting starts here (a reload goes through restoreSession), so its
         // U, E and G start from zero (E1: "the events of the current meeting only").
         meetingPersistence: freshMeetingPersistence(sanitized),
-        // A fresh meeting 2 or 8 starts on its opening screen.
+        // A fresh meeting starts on its station's opening screen (PRD 14 §ב).
         openingScreenSeen: false,
         // …and meeting 8's reflection board on its first stage, with nothing chosen.
         reflectionDraft: freshReflectionDraft(),
@@ -3815,6 +3901,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!path) return;
       const branchTasks = getSessionBranchTasks(s.sessionNumber, branch, path);
       if (branchTasks.length === 0) return;
+
+      // Appendix A §3 (Module 14 §ג): the choice is recorded, with the exercise
+      // it was made after. No column_index (Module 5 §ג).
+      emitScaffoldEvent(s, 'BRANCH_SELECTED', { branch });
 
       set({
         selectedBranch: branch,
@@ -3892,9 +3982,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         flowStatus: saved.flowStatus === 'reflection' && sanitized !== 8 ? 'sessionDone' : (saved.flowStatus ?? 'task'),
         // This meeting's U, E and G survive the reload (E1).
         meetingPersistence: restoredMeetingPersistence(saved.meetingPersistence, sanitized),
-        // A snapshot saved before the opening screen existed is a meeting
-        // already under way: it does not go back to the opening.
-        openingScreenSeen: saved.openingScreenSeen === false ? false : true,
+        // "מתחילים" is saved, so a refresh mid-meeting never brings the opening
+        // screen back (PRD 14 §ב). Copies saved before every station had one
+        // carry openingScreenSeen: false from initSession even though the
+        // learner is well into the meeting: a copy that shows progress is past
+        // the opening screen whatever the flag says (review B1, 9.10.2026).
+        openingScreenSeen: openingScreenPassed(saved),
         counts: saved.counts ?? { ...EMPTY_COUNTS },
         undoCount: saved.undoCount ?? 0,
         hesitationCount: saved.hesitationCount ?? 0,
@@ -3962,6 +4055,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Subtraction: a reload mid-take-away is still taking away.
         takeAwayTrack: restoredTakeAwayTrack(saved.takeAwayTrack),
         heldFromTrack: restoredHeldFromTrack(saved.heldFromTrack),
+        builtTrack: restoredBuiltTrack(saved.builtTrack),
         blocksAddedCount: saved.blocksAddedCount ?? 0,
         // Meeting 1 decides by these: a child who grouped or decomposed and
         // then reloaded was told "do the conversion yourself" on a correct board.
@@ -4489,6 +4583,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           // new value, so the board subscription leaves it as written.
           takeAwayTrack: snapshot.takeAwayTrack ? { ...snapshot.takeAwayTrack } : null,
           heldFromTrack: snapshot.heldFromTrack ? { ...snapshot.heldFromTrack } : null,
+          builtTrack: snapshot.builtTrack ? { ...snapshot.builtTrack } : null,
           undoStack: stack,
           undoCount: s.undoCount + 1,
           consecutiveUndoCount: nextConsecutiveUndos,
@@ -5247,9 +5342,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     markOpeningScreenSeen: () => {
       // "מתחילים" moves from the opening screen to task 1: the next-exercise
       // boundary at which a profile the teacher turned on meanwhile is applied
-      // (PRD 19 §ב). The opening screen itself is not an exercise.
+      // (PRD 19 §ב). The opening screen itself is not an exercise: task 1's
+      // clock starts here, so its duration (PROBLEM_COMPLETE.total_duration_ms,
+      // Module 24) does not include the time spent reading the opening.
       applyPendingSupportProfile();
-      set({ openingScreenSeen: true, lastInteractionTime: Date.now() });
+      const now = Date.now();
+      set({ openingScreenSeen: true, lastInteractionTime: now, taskStartTime: now });
     },
     recordPersistenceEvent: (event) => {
       if (!persistenceEventKind(event)) return;
@@ -5511,6 +5609,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         hasDeletedBlock: false,
         takeAwayTrack: null as TakeAwayTrack | null,
         heldFromTrack: null as HeldFromTrack | null,
+        builtTrack: null as BuiltTrack | null,
         hasClearedBoard: false,
         blocksAddedCount: 0,
         digitErrorStreak: 0,
@@ -5692,6 +5791,23 @@ useWorkspaceStore.subscribe((s, prev) => {
   const was = s.heldFromTrack;
   if (was && was.taskId === next.taskId && was.held === next.held) return;
   useWorkspaceStore.setState({ heldFromTrack: next });
+});
+
+/*
+ * The task zone's sticky "build N" step (WorkspaceState.builtTrack, view
+ * only): every change of the board updates whether the board has held N in
+ * the exercise on the screen. A set that writes the record itself (a reset, a
+ * restore, undo) is left as written.
+ */
+useWorkspaceStore.subscribe((s, prev) => {
+  if (s.counts === prev.counts || s.builtTrack !== prev.builtTrack) return;
+  const task = getActiveTasks(s)[s.standardTaskIdx];
+  const value = s.sessionNumber === 2 ? null : stickyBuildValue(task, s.sessionNumber);
+  if (!task || value === null) return;
+  const next = nextBuiltTrack(s.builtTrack, task.id, value, getValue(s.counts));
+  const was = s.builtTrack;
+  if (was && was.taskId === next.taskId && was.value === next.value && was.held === next.held) return;
+  useWorkspaceStore.setState({ builtTrack: next });
 });
 
 /* Re-exports used by components */

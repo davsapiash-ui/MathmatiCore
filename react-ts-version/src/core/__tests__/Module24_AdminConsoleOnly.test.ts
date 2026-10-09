@@ -36,8 +36,8 @@ describe('נ.2 — מה שייך למורה אינו נפתח לכניסת מנ�
     expect(src('presentation/pages/AdminLayout.tsx')).not.toContain('תצוגת מורה');
   });
 
-  it('הדשבורד, הדוחות האישיים, מסך הלומד, הלובי והמקרן — למורה (והלומד במקומו), לא למנהל', () => {
-    expect(app).toContain('const TEACHER_ONLY = ["teacher"];');
+  it('הדשבורד, הדוחות האישיים והמקרן — למורה; מסך הלומד והלובי — ללומד בלבד (PRD מודול 2 §א); לא למנהל', () => {
+    expect(app).toContain('const TEACHER_ONLY: readonly AppRole[] = ["teacher"];');
     for (const path of ['/dashboard', '/teacher/dashboard', '/reports/student/:id', '/projector']) {
       expect(guardOf(path), path).toBe('TEACHER_ONLY');
     }

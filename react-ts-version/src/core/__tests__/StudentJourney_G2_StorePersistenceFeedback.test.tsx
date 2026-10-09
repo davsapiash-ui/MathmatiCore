@@ -206,7 +206,7 @@ describe('A6-102: the reflection board keeps its stage and answers through a rel
     cleanup();
     act(() => ws().setReflectionStep(1));
     render(<Session8ReflectionScreen onComplete={vi.fn()} />);
-    expect(screen.getByRole('button', { name: 'רמה שלוש: מאתגר' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'מאמץ רב' }).getAttribute('aria-pressed')).toBe('true');
   });
 
   it('every stage change reaches reflection_step on the learner record; reflection_completed is not touched', () => {
@@ -244,7 +244,7 @@ describe('A6-103 / A6-107: the reflection board on screen', () => {
 
   it('each effort symbol is three bars of rising height, none of them a square', () => {
     render(<Session8ReflectionScreen onComplete={vi.fn()} />);
-    const bars = Array.from(screen.getByRole('button', { name: 'רמה אחת: קל' }).querySelectorAll('span > span'));
+    const bars = Array.from(screen.getByRole('button', { name: 'מאמץ קל' }).querySelectorAll('span > span'));
     expect(bars.map((b) => b.className.match(/\bh-(\d+)\b/)?.[1])).toEqual(['6', '9', '12']);
     for (const b of bars) expect(b.className).toMatch(/\bw-3\b/);
   });
@@ -378,6 +378,16 @@ describe('A3-112 / A3-113 / A3-114: meeting 2 toasts', () => {
     expect(ws().feedback?.title).toBe('הַתְּשׁוּבָה הִתְקַבְּלָה!');
     expect(ws().feedback?.sub).toBeUndefined();
   });
+
+  it('PRD Module 14 §ב (v7.9): a wrong answer gets the same neutral texts — nothing tells right from wrong', () => {
+    meeting2At(0);
+    // 650 is not the answer of task 1 (605): the toast must not differ.
+    useWorkspaceStore.setState({ probeAnswer: '650' } as any);
+    ws().proceed();
+    expect(ws().feedback).toMatchObject({ neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה!', sub: 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' });
+    // Seven diagnostic tasks: the seventh is the last, and only it drops the sub.
+    expect(TASKS).toHaveLength(7);
+  });
 });
 
 describe('A3-117 / UX-004: where the feedback toast sits', () => {
@@ -436,6 +446,7 @@ describe('A5-F05: skeleton feedback counts the hidden digits', () => {
 });
 
 describe('A5-F10 / A7-005 / A4-F09: the memory-circle note', () => {
+  // The ordinary success of a one-digit skeleton is its own "נכון! …" (owner, 9.10.2026; PRD 14 §ב).
   it('s5_r_t7 (4▢2 − 128), board on the discovered 442, circles empty: the ordinary success', () => {
     const t = byId('s5_r_t7');
     load(5, t);
@@ -444,7 +455,8 @@ describe('A5-F10 / A7-005 / A4-F09: the memory-circle note', () => {
     useWorkspaceStore.setState({ answerDigits: { hundreds: '3', tens: '1', units: '4' }, carryDigits: {} } as any);
     const v = verdict();
     expect(v.kind).toBe('success');
-    expect(plain(v.sub)).toBe(plain('פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים.'));
+    expect(v.title).toBe('נכון!');
+    expect(plain(v.sub)).toBe(plain('הספרה החסרה היא 4: \u200f442 − 128 = 314.'));
   });
 
   it('addition (s4): only המרה; subtraction (s5): only פריטה', () => {
@@ -506,7 +518,7 @@ describe('A4-F01: the blocks of the instruction built, the conversion not made',
     board({ tens: 12, units: 5 });
     const v = verdict();
     expect(v).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', title: 'קַבְּצוּ 🧱' });
-    expect(v.sub).toBe('בניתם את הלבנים שבהנחיה. עכשיו לחצו על הכפתור "קבצו 10 למאה" שבראש טור העשרות.');
+    expect(v.sub).toBe('בניתם את הלבנים שבהנחיה. עכשיו לחצו על הכפתור "קבצו 10" שבראש טור העשרות.');
   });
 
   it('any other wrong board keeps the existing sentence', () => {

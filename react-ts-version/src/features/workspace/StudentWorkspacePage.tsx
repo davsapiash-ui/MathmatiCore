@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
-import { useWorkspaceStore, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectBoardOpen, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -26,6 +26,7 @@ import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
+import { BOARD_ZONE_FLEX, TASK_ZONE_FLEX, TASK_ZONE_CELL_CLASS } from './workspaceZones';
 
 import { DienesBlock } from './board/DienesBlock';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
@@ -54,7 +55,7 @@ import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting
 import { TeacherWillOpenWaitingScreen } from '@/presentation/components/student/TeacherWillOpenWaitingScreen';
 import { ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { isRestorableFor, workspaceSavedAt, startedWithoutRecord, isDiagnosticPrimaryRound } from '@/core/workspaceSnapshot';
-import { resumeSnapshotFor, savedSnapshotOfMeeting } from '@/core/meetingCompletion';
+import { resumeSnapshotFor, savedSnapshotOfMeeting, isMeetingFinished } from '@/core/meetingCompletion';
 import { planMeetingEntry } from './meetingEntry';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { SessionPausedOverlay } from '@/presentation/components/student/SessionPausedOverlay';
@@ -62,6 +63,7 @@ import { SessionClosedOverlay } from '@/presentation/components/student/SessionC
 import { isMeeting2CloseUnfinished } from '@/core/meeting2CloseNotice';
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
+import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 
 /**
  * How long the workspace waits for the learner's Firebase record before it
@@ -129,6 +131,7 @@ export function StudentWorkspacePage() {
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
   const qflowPhase = useWorkspaceStore((s) => s.qflow?.phase);
+  const selectedBranch = useWorkspaceStore((s) => s.selectedBranch);
   const isSocraticPanelOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
   const user = useAuthStore((s) => s.user);
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
@@ -497,7 +500,7 @@ export function StudentWorkspacePage() {
     waitingAfterApproval ||
     quietFinished ||
     flowStatus === 'sessionDone' ||
-    // The opening screen of station 2 or 8 is not work: no hesitation is measured on it.
+    // A station's opening screen is not work: no hesitation is measured on it (PRD 14 §ב).
     (hasOpeningScreen(sessionNumber) && flowStatus === 'task' && !openingScreenSeen) ||
     isTabHidden;
 
@@ -786,7 +789,9 @@ export function StudentWorkspacePage() {
   const isAdditionGridShown = isAdditionGridMounted && (!isSocraticPanelOpen || isAdditionGridOverCard);
   // An open grid always has its tab while it is not shown, whatever the offer flag says.
   const isAdditionGridTabShown = isAdditionBoardEnabled && (additionHelperOffered || isAdditionHelperOpen) && !isAdditionGridShown;
-  const isAdditionGridSlotShown = isAdditionGridShown || isAdditionGridTabShown;
+  // Stations 2 and 8 have no number house (PRD Module 14 §ב): their task card is centred.
+  const hasBoard = sessionNumber !== 2 && sessionNumber !== 8;
+  const isBoardOpen = useWorkspaceStore(selectBoardOpen);
 
 
   useEffect(() => {
@@ -1165,24 +1170,65 @@ export function StudentWorkspacePage() {
   // the lock's z-50.
   if (isSupersededByOtherDevice) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-6 font-body text-center" dir="rtl">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-ws-bg p-6 font-body text-center" dir="rtl">
         <CornerCloudSyncStatus />
-        <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center text-3xl shadow-inner">
-            📱
-          </div>
-          <h2 className="font-display font-black text-xl text-slate-900 dark:text-white">
+        {/* The same quiet card as the lobby, the opening and the end screens
+            (PRD 7 §א: one calm colour code), no emoji. */}
+        <div className="max-w-md w-full bg-ws-surface text-ws-ink border-2 border-ws-surface2 rounded-3xl p-10 shadow-sm space-y-4">
+          <h2 className="font-display font-black text-2xl text-ws-ink">
             המשכתם במכשיר אחר
           </h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            הפעילות שלכם פתוחה עכשיו במכשיר אחר. המסך הזה נעול כדי לשמור על העבודה שלכם.
+          <p className="text-base text-ws-soft leading-relaxed">
+            העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה.
           </p>
-          <UdlSpeechButton text="המשכתם במכשיר אחר. הפעילות שלכם פתוחה עכשיו במכשיר אחר. המסך הזה נעול כדי לשמור על העבודה שלכם." />
+          <UdlSpeechButton text="המשכתם במכשיר אחר. העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה." />
         </div>
       </div>
     );
   }
 
+
+  // PRD 14 §ב0: "לומד שסיים את התחנה רואה את משפט הסיום גם אם המורה עצרה או
+  // סגרה אותה אחר כך" — in the workspace too: a finished learner keeps the
+  // station's own end screen under a pause and gets it at a close, never the
+  // pause or close screen, and is not routed to the lobby. Finished, per
+  // station (core/meetingCompletion.ts): stations 1 and 8 on their end screen
+  // (8: the reflection sent); stations 3–7 once the compulsory seven are done
+  // (the choice screen or an optional exercise — PRD 14 §ג: a close before the
+  // optional exercises leaves nothing missing); station 2 past the primary
+  // round of the seven tasks (meeting2CloseNotice). Read from this meeting's
+  // own workspace, or — when this device holds another meeting or none yet —
+  // from the learner's finished mark (not for station 2, whose mark the
+  // teacher's close also sets).
+  const workspaceOnThisMeeting = isInitialized && sessionNumber === meeting;
+  const stationFinishedHere = !isTeacherOrAdmin && (
+    meeting === 2
+      ? workspaceOnThisMeeting && !isMeeting2CloseUnfinished({
+          meeting,
+          isTeacherOrAdmin,
+          isGateApproved,
+          workspaceOnMeeting2: true,
+          flowStatus,
+          qflowPhase,
+          recordLoaded: firebaseLoaded,
+          record: { completedMeeting2, qMatrixResults: myData?.qMatrixResults },
+        })
+      : (workspaceOnThisMeeting && (
+          flowStatus === 'sessionDone' ||
+          (meeting >= 3 && meeting <= 7 && (flowStatus === 'choice_branch' || selectedBranch !== null))
+        )) ||
+        (firebaseLoaded && isMeetingFinished(myData as Record<string, unknown> | null, meeting))
+  );
+  const closedStationFinished =
+    activeClassSession.isLoaded && activeClassSession.status === 'closed' && stationFinishedHere;
+  // Only meeting 8 ends on the reflection board (Module 16 §א; below).
+  const endScreen = closedStationFinished || (flowStatus === 'reflection' && sessionNumber !== 8) ? 'sessionDone' : flowStatus;
+  // The station the end screen speaks of: this meeting when the close sent a
+  // finished learner there from another meeting's store.
+  const endStation = closedStationFinished ? meeting : sessionNumber;
+  // A pause does not cover the end screen (or meeting 2's wait for the
+  // teacher's check, its end) of a learner who finished.
+  const pauseCoversScreen = !(endScreen === 'sessionDone' || (pendingApproval && showMeeting2Waiting) || closedStationFinished);
 
   // The teacher’s three controls (Module 14 / register 7: start, pause,
   // close) and projector mode (Module 15) reach the learner live, in place —
@@ -1195,22 +1241,11 @@ export function StudentWorkspacePage() {
         {isProjectorModeActive && <ProjectorWaitingScreen />}
       </AnimatePresence>
       <AnimatePresence>
-        {activeClassSession.status === 'paused' && !isTeacherOrAdmin && <SessionPausedOverlay />}
+        {activeClassSession.status === 'paused' && !isTeacherOrAdmin && pauseCoversScreen && <SessionPausedOverlay />}
       </AnimatePresence>
       <AnimatePresence>
-        {activeClassSession.status === 'closed' && !isTeacherOrAdmin && activeClassSession.isLoaded && (
-          <SessionClosedOverlay
-            meeting2Unfinished={isMeeting2CloseUnfinished({
-              meeting,
-              isTeacherOrAdmin,
-              isGateApproved,
-              workspaceOnMeeting2: isInitialized && sessionNumber === 2,
-              flowStatus,
-              qflowPhase,
-              recordLoaded: firebaseLoaded,
-              record: { completedMeeting2, qMatrixResults: myData?.qMatrixResults },
-            })}
-          />
+        {activeClassSession.status === 'closed' && !isTeacherOrAdmin && activeClassSession.isLoaded && !closedStationFinished && (
+          <SessionClosedOverlay />
         )}
       </AnimatePresence>
     </>
@@ -1231,7 +1266,7 @@ export function StudentWorkspacePage() {
   }
 
   // Module 14: Post-Mandatory Tasks Choice Point (Reinforcement vs Challenge)
-  if (flowStatus === 'choice_branch') {
+  if (flowStatus === 'choice_branch' && !closedStationFinished) {
     return (
       <>
         <ReinforcementOrChallengeScreen
@@ -1253,7 +1288,7 @@ export function StudentWorkspacePage() {
   // only be a snapshot older code saved (restoreSession already turns it into
   // 'sessionDone'); it is shown as the finished meeting it is.
   // After every hook so React's hook order stays stable.
-  const endScreen = flowStatus === 'reflection' && sessionNumber !== 8 ? 'sessionDone' : flowStatus;
+  // endScreen and endStation are computed above, with the class-state screens.
   if (endScreen === 'reflection') {
     {
       // Meeting 8's own U, E and G, counted from the events the server counts
@@ -1307,67 +1342,73 @@ export function StudentWorkspacePage() {
     return <><Meeting2WaitingScreen onApproved={() => navigate('/hub')} /><CornerCloudSyncStatus />{classStateOverlays}</>;
   }
 
-  // Module 14: Session complete screen. In meetings 3–7 it carries the one
-  // closing sentence of owner decision E2, chosen by this meeting's own
-  // persistence index (E1): the sentence and its read-aloud button, and
-  // nothing else — no number, no board, no question. Meetings 1 and 2 have
-  // no sentence; meeting 8 has its own on the reflection board.
-  //
-  // One praise, one sentence: every closing sentence already opens with
-  // "כל הכבוד", so where it is shown the heading only says which station is
-  // done (and the end toast carries no praise either, useWorkspaceStore).
-  //
-  // Meeting 8 reaches this screen from its reflection board, whose last step
-  // already said "כל הכבוד": the heading only says which station is done. It is
-  // the last station, so there is no "next station" line.
+  // Module 14: the quiet end screen of a station. PRD 14 §ג / 16 §ב: in
+  // meetings 3–7 it carries one encouragement sentence, chosen by this
+  // meeting's own persistence index (E1), with its read-aloud button on the
+  // child's click only — no board, no question, no number. Meetings 1 and 2
+  // have no encouragement at all, and meeting 8's is on its reflection board.
+  // So the heading only says which station is done, in every meeting, and the
+  // screen has no celebration: no bouncing emoji, nothing that moves.
   //
   // Read-aloud: meetings 3–7 carry the closing sentence's own button and nothing
-  // more (E2). Meetings 1, 2 and 8 had no button at all; there one button beside
-  // the heading reads the screen's lines (PRD 7 §א; register, 15.9.2026), on the
-  // child's click only. The ✓ is not spoken.
+  // more (E2). Meetings 1, 2 and 8 have one button beside the heading that reads
+  // the screen's lines (PRD 7 §א), on the child's click only. The ✓ is not spoken.
   if (endScreen === 'sessionDone') {
-    const withClosingSentence = hasClosingSentence(sessionNumber);
-    const afterReflection = sessionNumber === 8;
-    const endScreenSpeech = afterReflection
-      ? `סיימתם את תחנה ${sessionNumber}! העבודה נשמרה בבטחה.`
-      : `כל הכבוד, מתמטיקאים! סיימתם את תחנה ${sessionNumber}! העבודה נשמרה בבטחה. ${teacherSentenceHe('nextStation', teacherGender)}`;
-    const endScreenSpeechButton = withClosingSentence ? null : (
-      <UdlSpeechButton text={endScreenSpeech} className="shrink-0" />
-    );
+    // Owner, 9.10.2026 (OWNER-1): every station shows exactly the PRD's words
+    // for its end, and nothing is copied from one station to another.
+    //   station 1   — PRD 14 §ג: "סיימתם את תחנה 1!", "העבודה שלכם נשמרה
+    //                 בבטחה.", and the next-station line (teacherGender.ts)
+    //   station 8   — PRD 14 §ג / 16 §ג: "סיימתם את תחנה 8, התחנה האחרונה!",
+    //                 "העבודה שלכם נשמרה בבטחה.", no next-station line
+    //   stations 3–7 — PRD 14 §ג / 16 §ב: "משפט עידוד אחד בלבד … בלי לוח, בלי
+    //                 שאלות ובלי מספר": the one encouragement sentence alone,
+    //                 chosen by this meeting's own counts
+    //   otherwise   — the PRD's end-screen sentence of Module 7 (l.286),
+    //                 lobbyFinished in teacherGender.ts (station
+    //                 2 after the gate approved; stations 3–7 when the close sent
+    //                 a finished learner here without this meeting's counts)
+    // Station 2's own end, the wait for the teacher's check, is above.
+    const savedLine = 'העבודה שלכם נשמרה בבטחה.';
+    const endKind: 'station1' | 'station8' | 'encouragement' | 'generic' =
+      endStation === 1 ? 'station1'
+      : endStation === 8 ? 'station8'
+      : hasClosingSentence(endStation) && endStation === sessionNumber ? 'encouragement'
+      : 'generic';
+    const endLines: string[] =
+      endKind === 'station1' ? ['סיימתם את תחנה 1!', savedLine, teacherSentenceHe('nextStation', teacherGender)]
+      : endKind === 'station8' ? ['סיימתם את תחנה 8, התחנה האחרונה!', savedLine]
+      : endKind === 'generic' ? [teacherSentenceHe('lobbyFinished', teacherGender)]
+      : [];
     return (
-      <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6 animate-in fade-in duration-300">
-        <div className="bg-ws-surface p-10 rounded-3xl shadow-2xl max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
-          <div className="text-6xl animate-bounce motion-essential">🎉✨</div>
-          {withClosingSentence || afterReflection ? (
-            <div className="flex items-center justify-center gap-3">
-              <h1 className="text-3xl font-display font-black text-ws-ink">
-                סיימתם את תחנה {sessionNumber}!
-              </h1>
-              {endScreenSpeechButton}
-            </div>
+      <div dir="rtl" data-testid="station-end-screen" data-end-kind={endKind} className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
+        <div className="bg-ws-surface p-10 rounded-3xl shadow-sm max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
+          {endKind === 'encouragement' ? (
+            // The one sentence, with its own read-aloud button (on click only).
+            <ClosingSentence sessionNumber={sessionNumber} counts={meetingPersistence} />
           ) : (
-            <>
-              <div className="flex items-center justify-center gap-3">
-                <h1 className="text-3xl font-display font-black text-ws-ink">
-                  כל הכבוד, מתמטיקאים!
-                </h1>
-                {endScreenSpeechButton}
+            <div className="flex items-start justify-center gap-3">
+              <div className="flex flex-col gap-3">
+                {endKind === 'generic' ? (
+                  <p className="text-2xl font-display font-black text-ws-ink leading-snug">{endLines[0]}</p>
+                ) : (
+                  <>
+                    <h1 className="text-3xl font-display font-black text-ws-ink">{endLines[0]}</h1>
+                    <p className="text-lg font-bold text-ws-ink">{endLines[1]}</p>
+                    {endLines[2] && <p className="text-base text-ws-soft">{endLines[2]}</p>}
+                  </>
+                )}
               </div>
-              <p className="text-base text-ws-soft leading-relaxed">
-                סיימתם את תחנה {sessionNumber}!
-              </p>
-            </>
-          )}
-          <ClosingSentence sessionNumber={sessionNumber} counts={meetingPersistence} />
-          <div className="pt-4 flex flex-col gap-2">
-            <div className="inline-flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800 text-sm">
-              <span>העבודה נשמרה בבטחה</span>
-              <span>✓</span>
+              {/* PRD 7 §א: one read-aloud button for the screen's lines, on the child's click only. */}
+              <UdlSpeechButton text={endLines.join(' ')} className="shrink-0" />
             </div>
-            {!afterReflection && (
-              <p className="text-xs text-ws-soft">{teacherSentenceHe('nextStation', teacherGender)}</p>
-            )}
-          </div>
+          )}
+          {/* The teacher closed the station: the close screen's way out (a shared
+              classroom device), here too — signing out, not a link to the lobby. */}
+          {closedStationFinished && (
+            <div className="pt-2 flex justify-center">
+              <LogoutButton className="h-12 px-6 rounded-2xl text-sm font-bold text-ws-soft hover:text-rose-600 hover:bg-rose-50 border border-ws-surface2 transition-colors cursor-pointer flex items-center justify-center gap-2" />
+            </div>
+          )}
         </div>
         <CornerCloudSyncStatus />
         {classStateOverlays}
@@ -1404,8 +1445,8 @@ export function StudentWorkspacePage() {
       : <><TeacherWillOpenWaitingScreen />{classStateOverlays}</>;
   }
 
-  // Stations 2 and 8, before their first task: one text, its read-aloud button
-  // and "מתחילים" (owner, 27.9.2026). Once pressed it does not return, not even
+  // Every station, before its first task: one text, its read-aloud button and
+  // "מתחילים" (PRD Module 14 §ב). Once pressed it does not return, not even
   // after a reload (openingScreenSeen travels with the saved workspace).
   if (hasOpeningScreen(sessionNumber) && meeting === sessionNumber && endScreen === 'task' && !openingScreenSeen) {
     return <><StationOpening meeting={sessionNumber} onStart={markOpeningScreenSeen} />{classStateOverlays}</>;
@@ -1456,45 +1497,79 @@ export function StudentWorkspacePage() {
 
         <WorkspaceTopbar isDragging={activeDrag !== null} />
 
-        {/* Main 50/50 workspace (or centered in Session 2 & 8) */}
-        <main className={`flex flex-row flex-1 overflow-hidden p-fl-10-20 gap-fl-10-20 max-w-[1600px] mx-auto w-full box-border ${(sessionNumber === 2 || sessionNumber === 8) ? 'justify-center items-center' : ''}`}>
-          {/* Task card */}
-          <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${(sessionNumber === 2 || sessionNumber === 8) ? 'max-w-3xl flex-none h-auto max-h-full' : ''}`}>
-            <TaskCard />
-          </div>
+        {/* PRD Module 7 §א, "חלוקת מסך הלומד": under the top bar, the
+            representations zone (the number house and its blocks) takes 60% of
+            the width, on the visual left, and the task-and-response zone (the
+            task card, the result row and the coaching card) takes 40%, on the
+            right. Stations 2 and 8 have no number house: their task card stays
+            centred. */}
+        <main className={`flex flex-row flex-1 overflow-hidden p-fl-10-20 gap-fl-10-20 w-full box-border ${hasBoard ? '' : 'max-w-[1600px] mx-auto justify-center items-center'}`}>
+          {hasBoard ? (
+            <>
+              {/* The task-and-response zone, 40% (RTL: first in the row, so on
+                  the right): the task card with its result row, and the
+                  coaching card's drawer, which opens inside this zone over the
+                  instruction, in place of the steps (PRD 7 §א rule 6, v7.15;
+                  Module 12 §ב) — so the representations zone keeps its 60%
+                  and the work area stays in view. */}
+              <section
+                data-testid="task-zone"
+                aria-label="אגף המשימה"
+                style={{ flex: isBoardOpen ? TASK_ZONE_FLEX : '1 1 0%' }}
+                className="relative min-h-0 min-w-0 flex flex-col"
+              >
+                {/* The task card, wrapped from the outside. Its notebook
+                    square (--ws-cell) also follows the zone's width, so on a
+                    narrow screen (a 1024px tablet: a ~390px zone) the result
+                    row and the vertical sheet fit across and under the
+                    instruction without scrolling (PRD 7 §א rule 7). Not
+                    binding on a laptop, where the height decides. */}
+                <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${TASK_ZONE_CELL_CLASS}`}>
+                  <TaskCard />
+                </div>
+                <SocraticSidePanel inTaskZone />
+              </section>
 
-          {/* Place-value board (hidden/unmounted in Session 2 and Session 8) */}
-          {sessionNumber !== 2 && sessionNumber !== 8 && (
-            <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} shareRow={isSocraticPanelOpen || isAdditionGridSlotShown} />
+              {/* The representations zone, 60% (RTL: last in the row, so on
+                  the visual left): the number house and its blocks, and —
+                  for an enhanced-support learner — the addition grid, a
+                  representation aid of its own (Module 10), beside the board.
+                  Module 10 (register decision ב): the grid fades in over 2s
+                  and stays until the learner closes it with the X; it covers
+                  nothing the learner works with (blocks, typing and
+                  regrouping go on while it is open), and it is never shown
+                  together with the coaching card (useAdditionGridOverCard.ts).
+                  AnimatePresence lets its exit animation play. A learner may
+                  bring back an aid that faded: the tab sits where the grid
+                  itself appears, not in the top bar (isAdditionBoardEnabled:
+                  enhanced_cognitive_support learners in sessions 3–7). */}
+              <section
+                data-testid="representations-zone"
+                aria-label="אגף הייצוגים"
+                style={{ flex: isBoardOpen ? BOARD_ZONE_FLEX : '0 0 auto' }}
+                className="min-h-0 min-w-0 flex flex-row gap-2"
+              >
+                {isAdditionBoardEnabled && (
+                  <AnimatePresence>
+                    {isAdditionGridMounted && (
+                      <AdaptiveAdditionGrid key="adaptive-grid" hidden={!isAdditionGridShown} overCard={isAdditionGridOverCard} />
+                    )}
+                  </AnimatePresence>
+                )}
+                {isAdditionGridTabShown && <AdditionGridTab />}
+                <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} inZone />
+              </section>
+            </>
+          ) : (
+            <>
+              <div className="flex-1 min-h-0 min-w-0 flex flex-col max-w-3xl flex-none h-auto max-h-full">
+                <TaskCard />
+              </div>
+              {/* Station 8 (no number house): the coaching card's drawer beside
+                  the centred task card. Station 2 has no coaching card. */}
+              <SocraticSidePanel />
+            </>
           )}
-
-          {/* Module 10 (register decision ב): the addition grid fades in over 2s
-              and stays until the learner closes it with the X. It has its own
-              slot in this row, beside the board, so it covers nothing the
-              learner works with (Module 10 §ב: blocks, typing and regrouping
-              go on while it is open). AnimatePresence here lets the exit
-              animation play after the store closes it. */}
-          {isAdditionBoardEnabled && (
-            <AnimatePresence>
-              {isAdditionGridMounted && (
-                <AdaptiveAdditionGrid key="adaptive-grid" hidden={!isAdditionGridShown} overCard={isAdditionGridOverCard} />
-              )}
-            </AnimatePresence>
-          )}
-          {/* מסמך 03 §1.3 ב' / 04 §1 (register deviation 18): a learner may bring
-              back an aid that faded. The tab sits where the grid itself appears,
-              not in the topbar — מסמך 04 §3א keeps the topbar to "כפתורי ניווט
-              בסיסיים ושקטים". isAdditionBoardEnabled already restricts this to
-              enhanced_cognitive_support learners in sessions 3–7. It is here
-              also while the coaching card is open: the grid's place, beside
-              the card. */}
-          {isAdditionGridTabShown && <AdditionGridTab />}
-
-          {/* מסמך 03 / 04 §א: the Socratic card is a side panel that slides out
-              from the side of the screen (the left edge in RTL) and keeps the
-              exercise fully visible. It is part of this row, so it can never
-              cover the sheet, the board or the result row. */}
-          <SocraticSidePanel />
         </main>
 
         {/* Meetings with the number house show the feedback in the task column (TaskCard). */}

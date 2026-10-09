@@ -76,6 +76,9 @@ vi.mock('firebase-admin', async (importOriginal) => {
         }),
       }),
       batch: () => ({ delete: () => {}, commit: async () => {} }),
+      // The per-class reset lock (Module 23א §ד): always free here.
+      runTransaction: async (fn: (tx: any) => Promise<unknown>) =>
+        fn({ get: async () => ({ exists: false, data: () => undefined }), set: () => {}, delete: () => {} }),
     }),
     actual.firestore
   );
@@ -161,7 +164,8 @@ describe('X26 — the audit entry is written first, and a failed write aborts th
     await expect(run(teacherRequest({ reset_level: 'single_student', reset_scope: 'full_student', student_id: 3 })))
       .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringContaining('לא נמחקו נתונים') });
     expect(h.log.some((l) => l.startsWith('storage save'))).toBe(true);
-    expect(h.log.filter((l) => l.startsWith('rtdb remove') || l.startsWith('rtdb update'))).toEqual([]);
+    // Only the late-recording markers (root updates), written before the backup and restored on the abort.
+    expect(h.log.filter((l) => l.startsWith('rtdb remove') || (l.startsWith('rtdb update') && l !== 'rtdb update undefined'))).toEqual([]);
   });
 });
 
@@ -273,7 +277,10 @@ describe('the export scope is one meeting 1–8, or the whole process', () => {
 
 describe('X35 — export file names carry the scope', () => {
   it('one meeting, and the whole process', () => {
-    expect(researchExportFileName('פעולות', 3, '2026-09-28_10-30')).toBe('פעולות_מפגש_3_2026-09-28_10-30.csv');
-    expect(researchExportFileName('יומן_איפוסים', null, '2026-09-28_10-30')).toBe('יומן_איפוסים_כל_המפגשים_2026-09-28_10-30.csv');
+    // PRD Module 24 §ב: "ייצוא DD.MM.YYYY HH-mm - <קובץ>.csv" for all sessions,
+    // "ייצוא מפגש N - DD.MM.YYYY HH-mm - <קובץ>.csv" for one, Israel time.
+    const at = Date.UTC(2026, 8, 28, 7, 30); // 10:30 in Israel (summer time)
+    expect(researchExportFileName('פעולות', 3, at)).toBe('ייצוא מפגש 3 - 28.09.2026 10-30 - פעולות.csv');
+    expect(researchExportFileName('יומן איפוסים', null, at)).toBe('ייצוא 28.09.2026 10-30 - יומן איפוסים.csv');
   });
 });

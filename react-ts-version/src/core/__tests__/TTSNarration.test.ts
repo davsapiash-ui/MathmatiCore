@@ -448,7 +448,7 @@ describe('F3 — הנחיות ארוכות אינן נקטעות אחרי ~15 ש
       expect(p.length).toBeLessThanOrEqual(MAX_CHARS);
       expect(p, p).toMatch(/[.!?:;]$/);
     }
-    expect(parts[0]).toBe('פתרו במאונך: 142 ועוד 23. ייצגו את המספרים בעזרת לבנים.');
+    expect(parts[0]).toBe('פתרו במאונך: 142 ועוד 23. בנו בבית המספרים את שני המספרים.');
   });
 
   it('a text whose sentences are all longer than the ceiling is still cut at a comma before a word', async () => {
@@ -740,7 +740,8 @@ describe('האפיון: הקראה בממשק הלומד בלבד', () => {
     // האפיון: "כל הנחיה המוצגת ללומד על גבי המסך מלווה בכפתור הקראה קולית ייעודי".
     // משימות המשנה אינן ברשימה משום שהן מוצגות בתוך TaskCard, שמקריא את ההנחיה.
     const surfaces = [
-      'features/workspace/tasks/TaskCard.tsx',
+      // The task card's instruction and guide are drawn by the task zone (8.10.2026).
+      'features/workspace/tasks/TaskZone.tsx',
       'features/workspace/tasks/IntroTask.tsx',
       'features/workspace/tasks/SmallChangeTask.tsx',
       'features/workspace/tasks/MissingElementTask.tsx',

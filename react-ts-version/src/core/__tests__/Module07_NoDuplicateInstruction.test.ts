@@ -16,15 +16,19 @@ import { resolve } from 'path';
  * aloud), so the button stays — moved beside the equation it describes.
  */
 const taskCard = readFileSync(resolve(__dirname, '../../features/workspace/tasks/TaskCard.tsx'), 'utf-8');
+const taskZone = readFileSync(resolve(__dirname, '../../features/workspace/tasks/TaskZone.tsx'), 'utf-8');
 const missing = readFileSync(resolve(__dirname, '../../features/workspace/tasks/MissingElementTask.tsx'), 'utf-8');
 
 describe('Module 7 — one instruction on screen, once', () => {
-  it('TaskCard is the single place the instruction is written and spoken', () => {
-    // (the class list also carries the short-screen sizes of 27.9.2026)
+  // Since 8.10.2026 the task zone draws it (TaskZone.tsx): stations 2 and 8 as the
+  // PRD writes it (InstructionBlock), stations 1 and 3–7 as goal and steps (GuideBlock).
+  it('the task zone is the single place the instruction is written and spoken', () => {
     // Shown through MathText, which isolates each exercise left to right (audit 4.10.2026, A6-101).
-    expect(taskCard).toMatch(/<p className="[^"]*text-ws-ink\/85 font-medium [^"]*whitespace-pre-line"><MathText text=\{instruction\} \/><\/p>/);
-    expect(taskCard.split('><MathText text={instruction} /></p>').length - 1).toBe(1);
-    expect(taskCard).toContain('<UdlSpeechButton text={instruction} />');
+    expect(taskZone).toContain('<MathText text={text} />');
+    expect(taskZone.split('<MathText text={text} />').length - 1).toBe(1);
+    expect(taskZone).toContain('<UdlSpeechButton text={text} className="shrink-0" />');
+    expect(taskCard.split('<InstructionBlock').length - 1).toBe(1);
+    expect(taskCard.split('<TaskGuideBlock').length - 1).toBe(1);
   });
 
   it('MissingElementTask no longer repeats it on screen', () => {

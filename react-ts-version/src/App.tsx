@@ -63,6 +63,7 @@ if (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'test') {
   (window as any).useStore = useStore;
 }
 import { useIdleTimeout } from "@/application/useIdleTimeout";
+import { decideRoute, type AppRole } from "@/core/routeAccess";
 
 /**
  * PRD Module 24 §ב: "מנהלי מערכת חסומים מגישה לנתוני טלמטריה פרטניים או
@@ -71,7 +72,10 @@ import { useIdleTimeout } from "@/application/useIdleTimeout";
  * the console only (register, gap יא — the owner picks the role at each
  * sign-in). The admin's "תצוגת מורה" page is gone for the same reason.
  */
-const TEACHER_ONLY = ["teacher"];
+const TEACHER_ONLY: readonly AppRole[] = ["teacher"];
+// PRD Module 2 §א: the lobby and the workspace are the learner's routes; a
+// teacher or an admin who opens one goes back to their own home.
+const STUDENT_ONLY: readonly AppRole[] = ["student"];
 
 /**
  * Mount-gate on the Firebase session: children mount only after sign-in completes.
@@ -141,21 +145,17 @@ function StaffClaimsGate({ role, children }: { role: StaffRole; children: React.
 }
 
 /**
- * Direct Route Guard (Master PRD v5.0 Module 2)
- * Performs asynchronous permission checks on route changes.
- * Restricts anonymous student access to teacher/admin routes, immediately redirecting back to student hub.
+ * Route guard (PRD Module 2 §א): not signed in → /login; staff not on the
+ * authorized list → signed out → /login; a signed-in user on another role's
+ * route → that user's own home (learner /hub, teacher /dashboard, admin /admin).
  */
-function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; children: React.ReactNode }) {
+function AuthGuard({ allowedRoles, children }: { allowedRoles: readonly AppRole[]; children: React.ReactNode }) {
   const { user, role, isAuthenticated, logout } = useAuthStore();
 
   // Enforce idle timeout and 8-hour token expiration for authenticated users
   useIdleTimeout();
 
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  const activeRole = (typeof role === "string" ? role : (user.role as string)) || "teacher";
+  const activeRole = user ? ((typeof role === "string" ? role : (user.role as string)) || "teacher") : null;
 
   // Whitelist enforcement for teachers & admins.
   //
@@ -168,27 +168,20 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: string[]; childre
   // after a successful login, with no message. The server remains the security
   // boundary regardless: Firestore rules and every callable check the custom
   // claims syncUserRoles stamps from the same authorizedTeachers collection.
-  if (activeRole === "teacher" || activeRole === "admin") {
-    const email = ((user.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
-    if (user.whitelistVerified !== true && !isWhitelistedTeacherEmail(email)) {
-      logout();
-      return <Navigate to="/login" replace />;
-    }
-  }
+  const email = ((user?.email as string) || (auth.currentUser?.email as string) || "").toLowerCase().trim();
+  const staffAuthorized = user?.whitelistVerified === true || isWhitelistedTeacherEmail(email);
 
-  const hasAccess = allowedRoles.includes(activeRole);
+  // PRD Module 2 §א: core/routeAccess.ts holds the rule.
+  const decision = decideRoute({
+    isAuthenticated: Boolean(isAuthenticated && user),
+    role: activeRole,
+    staffAuthorized,
+    allowedRoles,
+  });
 
-  if (!hasAccess) {
-    if (activeRole === "student") {
-      // Immediate bounce back to Student Hub without changing state
-      return <Navigate to="/hub" replace />;
-    }
-    if (activeRole === "teacher") {
-      return <Navigate to="/dashboard" replace />;
-    }
-    if (activeRole === "admin") {
-      return <Navigate to="/admin" replace />;
-    }
+  if (decision.kind === "redirect") {
+    if (decision.logout) logout();
+    return <Navigate to={decision.to} replace />;
   }
 
   return <>{children}</>;
@@ -254,14 +247,14 @@ function App() {
         {/* App Shell wraps authenticated routes */}
         <Route element={<AppShell />}>
           <Route path="/hub" element={
-            <AuthGuard allowedRoles={["student", "teacher"]}>
+            <AuthGuard allowedRoles={STUDENT_ONLY}>
               <StudentHub />
             </AuthGuard>
           } />
 
           {/* Master PRD v5.0 Route Aliases */}
           <Route path="/student/lobby" element={
-            <AuthGuard allowedRoles={["student", "teacher"]}>
+            <AuthGuard allowedRoles={STUDENT_ONLY}>
               <StudentHub />
             </AuthGuard>
           } />
@@ -295,7 +288,7 @@ function App() {
 
         {/* Student workspace: standalone fullscreen experience */}
         <Route path="/workspace" element={
-          <AuthGuard allowedRoles={["student", "teacher"]}>
+          <AuthGuard allowedRoles={STUDENT_ONLY}>
             <FirebaseGate>
               <StudentWorkspacePage />
             </FirebaseGate>

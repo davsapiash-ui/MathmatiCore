@@ -36,36 +36,54 @@ afterEach(cleanup);
 describe('meeting 1, the target task', () => {
   beforeEach(() => ws().initSession(1, false, at('s1_target_347')));
 
-  it('instruction → result row → checklist, in the task column\'s DOM; no big 347 (owner, 29.9.2026)', () => {
+  // Owner, 8.10.2026 (task-zone design spec, approved): heading, then the guide
+  // — goal, steps, and the done box in a slot of its own — then the work area.
+  // The slot keeps one height from the start, so the result row never moves
+  // when the done box appears and stays in view (owner, 27.9.2026).
+  it('heading → goal → steps → result row, in the task column\'s DOM; no big 347 (owner, 29.9.2026)', () => {
     render(<TaskCard />);
-    const column = screen.getByTestId('task-column');
-    const instruction = [...column.querySelectorAll('p')].find((p) => p.textContent?.startsWith('משימת היעד:'))!;
+    const heading = screen.getByTestId('task-heading');
+    const goal = screen.getByTestId('task-goal');
+    const steps = screen.getByTestId('guide-steps');
     const row = screen.getByTestId('result-row');
-    const checklist = screen.getByTestId('session1-checklist');
-    expect(instruction && row && checklist).toBeTruthy();
+    expect(heading.textContent).toBe('משימת היכרות: בודקים אם המספר משתנה');
+    // PRD 7 §א rule (1): the location is a smaller span than the topic, on the same line.
+    expect(screen.getByTestId('task-position').textContent).toBe('משימת היכרות:');
+    expect(goal.textContent).toBe('משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה?');
+    expect([...steps.querySelectorAll(':scope > li')].map((li) => li.textContent)).toEqual([
+      '1בנו את המספר 347 בבית המספרים',
+      '2פרטו לבנת עשרת אחת לעשר לבני יחידה',
+      '3כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו',
+    ]);
     // the number the row is checked against is not printed above it in station 1
     expect(screen.queryByTestId('representation-number')).toBeNull();
-    expect(follows(instruction, row)).toBe(true);
-    expect(follows(row, checklist)).toBe(true);
+    expect(follows(heading, goal)).toBe(true);
+    expect(follows(goal, steps)).toBe(true);
+    expect(follows(steps, row)).toBe(true);
     // the result row is the task's own row of three boxes, hundreds on the left
     expect(row.getAttribute('aria-label')).toBe('שורת התוצאה');
     expect(row.querySelectorAll('input')).toHaveLength(3);
   });
 
-  it('the checklist sits in the one area of the column that scrolls', () => {
+  it('the done box\'s height is held from the start: an invisible copy in the same slot, so the row does not move', () => {
     render(<TaskCard />);
-    const area = screen.getByTestId('checklist-area');
-    expect(area.contains(screen.getByTestId('session1-checklist'))).toBe(true);
-    expect(area.className).toContain('overflow-y-auto');
-    expect(area.className).toContain('flex-1');
-    expect(area.contains(screen.getByTestId('result-row'))).toBe(false);
+    const slot = screen.getByTestId('guide-slot');
+    const layers = [...slot.children];
+    expect(layers).toHaveLength(2);
+    expect(layers[1].className).toContain('invisible');
+    expect(layers[1].getAttribute('aria-hidden')).toBe('true');
+    expect(layers[1].textContent).toContain('בסרגל העליון כדי לעבור לשלב הבא!');
+    expect(screen.queryByTestId('session1-done')).toBeNull();
+    expect(slot.contains(screen.getByTestId('result-row'))).toBe(false);
   });
 
-  it('read-aloud buttons are all still there: the instruction and the checklist', () => {
+  it('one read-aloud button for the guide: the heading, the goal and every step, in order', () => {
     render(<TaskCard />);
-    const texts = screen.getAllByTestId('speech').map((e) => e.getAttribute('data-text'));
-    expect(texts).toContain(SESSION1_TASKS[at('s1_target_347')].instructionHe);
-    expect(texts.some((t) => t?.startsWith('בנו את המספר 347 בלבנים.'))).toBe(true);
+    const texts = screen.getAllByTestId('speech').map((e) => e.getAttribute('data-text') ?? '');
+    const guide = texts.find((t) => t.startsWith('משימת היכרות: בודקים אם המספר משתנה.'));
+    expect(guide).toBeTruthy();
+    expect(guide).toContain('משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? בנו את המספר 347 בבית המספרים.');
+    expect(guide).toContain('בנו את המספר 347 בבית המספרים. פרטו לבנת עשרת אחת לעשר לבני יחידה. כתבו בשורת התוצאה');
   });
 });
 
@@ -124,6 +142,6 @@ describe('the layout that keeps the row in view (source)', () => {
 
   it('the task card and the centred card of meetings 2 and 8 never grow past the screen', () => {
     expect(src('features/workspace/tasks/TaskCard.tsx')).toMatch(/id="tour-task-card" className="[^"]*min-h-0[^"]*overflow-y-auto/);
-    expect(src('features/workspace/StudentWorkspacePage.tsx')).toContain("'max-w-3xl flex-none h-auto max-h-full'");
+    expect(src('features/workspace/StudentWorkspacePage.tsx')).toContain('max-w-3xl flex-none h-auto max-h-full');
   });
 });

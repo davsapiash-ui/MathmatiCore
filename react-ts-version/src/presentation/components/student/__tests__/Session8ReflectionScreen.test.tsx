@@ -68,11 +68,12 @@ describe('שלב 1 — כמה מאמץ השקעתם', () => {
     expect(visibleText(container)).toContain('כמה מאמץ והשתדלות השקעתם היום בפתרון התרגילים?');
   });
 
-  it('שלוש רמות, בלי מילים על המסך, עם שם נגיש לפי מסמך 03', () => {
+  it('שלוש רמות: סמל ומתחתיו השם של PRD מודול 16 §ג (מאמץ קל / מאמץ בינוני / מאמץ רב)', () => {
     renderBoard();
-    const levels = ['רמה אחת: קל', 'רמה שתיים: מתאים', 'רמה שלוש: מאתגר'].map((name) => screen.getByRole('button', { name }));
+    const names = ['מאמץ קל', 'מאמץ בינוני', 'מאמץ רב'];
+    const levels = names.map((name) => screen.getByRole('button', { name }));
     expect(levels).toHaveLength(3);
-    for (const b of levels) expect((b.textContent ?? '').trim()).toBe('');
+    levels.forEach((b, i) => expect((b.textContent ?? '').trim()).toBe(names[i]));
   });
 
   it('ההקראה אומרת את השאלה, את ההנחיה ואת שם כל רמה', () => {
@@ -80,14 +81,14 @@ describe('שלב 1 — כמה מאמץ השקעתם', () => {
     const s = speech();
     expect(s).toContain(REFLECTION_TEXT_HE.effortQuestion);
     expect(s).toContain(REFLECTION_TEXT_HE.effortInstruction);
-    for (const w of ['רמה אחת: קל', 'רמה שתיים: מתאים', 'רמה שלוש: מאתגר']) expect(s).toContain(w);
+    for (const w of ['מאמץ קל', 'מאמץ בינוני', 'מאמץ רב']) expect(s).toContain(w);
   });
 
   it('אי אפשר להמשיך בלי לבחור רמה', () => {
     renderBoard();
     const next = screen.getByRole('button', { name: /ממשיכים/ });
     expect((next as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'רמה שתיים: מתאים' }));
+    fireEvent.click(screen.getByRole('button', { name: 'מאמץ בינוני' }));
     expect((next as HTMLButtonElement).disabled).toBe(false);
   });
 });
@@ -95,7 +96,7 @@ describe('שלב 1 — כמה מאמץ השקעתם', () => {
 describe('שלב 2 — מה עזר לכם', () => {
   function toStep2() {
     const r = renderBoard();
-    fireEvent.click(screen.getByRole('button', { name: 'רמה שלוש: מאתגר' }));
+    fireEvent.click(screen.getByRole('button', { name: 'מאמץ רב' }));
     fireEvent.click(screen.getByRole('button', { name: /ממשיכים/ }));
     return r;
   }
@@ -105,9 +106,9 @@ describe('שלב 2 — מה עזר לכם', () => {
     expect(visibleText(container)).toContain('מה עזר לכם להצליח היום בפתרון התרגילים?');
     const boxes = screen.getAllByRole('checkbox').map((b) => (b.textContent ?? '').trim());
     expect(boxes).toEqual([
-      'כפתור ביטול הפעולה',
+      'כפתור ביטול הפעולה ↺',
       'עיגולי הזיכרון',
-      'השאלות בכרטיס החניכה',
+      'כרטיס החניכה',
     ]);
     expect(STRATEGY_OPTIONS.map((o) => o.id)).toEqual(['undo', 'memory', 'hints']);
     expect(visibleText(container)).not.toContain('שארית');
@@ -125,7 +126,7 @@ describe('שלב 2 — מה עזר לכם', () => {
 describe('שלב 3 — משפט עידוד לפי מדד ההתמדה של מפגש 8, בלי מספר, וסיום', () => {
   function toStep3(onComplete = vi.fn(), metrics = { undoCount: 2, errorCount: 1, guessCount: 1 }) {
     const r = renderBoard(onComplete, metrics);
-    fireEvent.click(screen.getByRole('button', { name: 'רמה שלוש: מאתגר' }));
+    fireEvent.click(screen.getByRole('button', { name: 'מאמץ רב' }));
     fireEvent.click(screen.getByRole('button', { name: /ממשיכים/ }));
     fireEvent.click(screen.getByRole('checkbox', { name: /כפתור ביטול הפעולה/ }));
     fireEvent.click(screen.getByRole('checkbox', { name: /כרטיס החניכה/ }));
@@ -264,7 +265,7 @@ describe('אין מילים באנגלית, בשום שלב', () => {
       for (const name of accessibleNames(container)) expect(name).not.toMatch(LATIN);
     };
     check();
-    fireEvent.click(screen.getByRole('button', { name: 'רמה אחת: קל' }));
+    fireEvent.click(screen.getByRole('button', { name: 'מאמץ קל' }));
     fireEvent.click(screen.getByRole('button', { name: /ממשיכים/ }));
     check();
     fireEvent.click(screen.getByRole('button', { name: /ממשיכים/ }));

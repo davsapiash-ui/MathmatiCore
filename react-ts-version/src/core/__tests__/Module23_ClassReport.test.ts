@@ -20,7 +20,7 @@ const dashboard = readFileSync(resolve(__dirname, '../../presentation/pages/Teac
 
 describe('Module 23 — class report per meeting (server)', () => {
   it('is deployed as its own callable, for any meeting 1–8', () => {
-    expect(index).toContain('export { generateClassMeetingReport } from "./classReport";');
+    expect(index).toContain('export { generateClassMeetingReport, getClassReportDownloadUrl } from "./classReport";');
     expect(server).toMatch(/export const generateClassMeetingReport = onCall\(CLASS_REPORT_RUNTIME/);
     expect(server).toContain('throw new HttpsError("invalid-argument", "sessionNumber must be 1-8.");');
   });
@@ -69,9 +69,10 @@ describe('Module 23 — class report per meeting (server)', () => {
     expect(server).toMatch(/class_patterns: analysis\?\.class_patterns \?\? \[\]/);
   });
 
-  it('writes PDF + CSV, mirrors to "05 דוחות כיתה / מפגש N", and stores every number in class_reports', () => {
-    expect(drive).toContain('classReports: "05 דוחות כיתה",');
-    expect(server).toMatch(/resolveDriveFolder\(\[DRIVE_FOLDERS\.classReports, `מפגש \$\{sessionNumber\}`\]\)/);
+  it('writes PDF + CSV, mirrors to the flat folder "1 דוחות", and stores every number in class_reports', () => {
+    expect(drive).toContain('DRIVE_FOLDERS');
+    expect(server).toContain('classReportFileName(sessionNumber, "pdf", generatedAt), "application/pdf", DRIVE_FOLDERS.reports');
+    expect(server).toContain('classReportFileName(sessionNumber, "csv", generatedAt), "text/csv", DRIVE_FOLDERS.reports');
     expect(server).toMatch(/const csvText = buildClassCsv\(learners, aggregates\.exercises, catchUpRecords\);/);
     expect(server).toMatch(/await db\.collection\("class_reports"\)\.doc\(reportId\)\.set\(stored\);/);
     expect(server).toContain('const reportId = `${classId}_session_${sessionNumber}`;');
@@ -102,8 +103,8 @@ describe('Module 23 — class report per meeting (teacher page)', () => {
   });
 
   it('shows the groups, the exercises, every learner\'s row, the PDF and the research CSV, and the PRD fallbacks', () => {
-    for (const field of ['tiers', 'exercises', 'learners', 'pdfUrl', 'csvUrl', 'classPatterns', 'teachingRecommendations', 'wrongDigitsByColumn']) {
-      expect(panel).toContain(`report.${field}`);
+    for (const field of ['tiers', 'exercises', 'learners', 'hasPdf', 'hasCsv', 'classPatterns', 'teachingRecommendations', 'wrongDigitsByColumn']) {
+      expect(panel).toMatch(new RegExp(`report\\??\\.${field}\\b`));
     }
     // A final refusal (not-found, permission) shows the server's own reason;
     // only a transient failure falls back to the PRD "processing" text.

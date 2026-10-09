@@ -1,11 +1,10 @@
 import type { CSSProperties } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotionConfig } from 'framer-motion';
 import { useWorkspaceStore, selectStandardTask, effectiveArithmetic } from '@/application/useWorkspaceStore';
 import { currentTaskLabelHe } from '@/application/taskLabel';
 import { taskPositionLabelHe } from '@/core/taskPositionLabel';
 import { getCurrentQTask, getEffectiveNumber, isSubtaskActive } from '@/core/qmatrixFlow';
 import { hasOneDiagnosticAnswerBox } from '@/core/QMatrix';
-import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { AccessibleCard } from '@/presentation/design-system/AccessibleCard';
 import { IntroTask } from './IntroTask';
 import { VerticalAdditionTask } from './VerticalAdditionTask';
@@ -20,16 +19,23 @@ import { BackwardDiagnosisView } from './BackwardDiagnosisView';
 import { PlaceValueInputBoxes } from './PlaceValueInputBoxes';
 import { UnitBlocksPicture } from './UnitBlocksPicture';
 import { FeedbackToast } from '../overlays/FeedbackToast';
-import { MathText } from './MathText';
+import { InstructionBlock, TaskZoneHeader } from './TaskZone';
+import { TaskGuideBlock } from './TaskGuideBlock';
+import { taskGuide } from '@/core/taskGuide';
 
 /**
  * כרטיס המשימה — כותרת, הוראה (עם הקראה), וגוף דינמי לפי סוג המשימה והשלב.
  * UDL: ריבוי אמצעי ייצוג — טקסט + הקראה + ייצוג חזותי.
  */
-/** An instruction longer than this gets the closer line spacing (one exercise today: s6_r_t7). */
-const LONG_INSTRUCTION_CHARS = 300;
-/** …instead of the 1.55 of every other instruction. */
-const LONG_INSTRUCTION_LEADING = 1.4;
+/** The notebook square inside the task card (design spec §2.5). */
+// …and no wider than 1/8.2 of the task zone after the card's paddings (a
+// 4-digit sheet is seven squares across, with room to spare): the zone is a size
+// container (.task-zone-cells, StudentWorkspacePage), so 100cqi is the zone's
+// width; with no container (stations 2 and 8) it is the window's, and never binds.
+// Station 1's vertical exercises (61 − 24, 806 − 351) under their guide block
+// needed 13-17px more at 1280x585 and 1024x694 in the 40% zone: the square
+// goes down to 32px there (UX audit, 9.10.2026).
+const TASK_CARD_CELL = 'clamp(32px, min(5.8vh, 4.4vw, calc((100cqi - 96px) / 8.2)), 64px)';
 
 export function TaskCard() {
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
@@ -37,12 +43,12 @@ export function TaskCard() {
   const qflow = useWorkspaceStore((s) => s.qflow);
   const standardTask = useWorkspaceStore(selectStandardTask);
   const standardTaskIdx = useWorkspaceStore((s) => s.standardTaskIdx);
-  // The coaching card takes a column of its own, so the task column narrows
-  // and the instruction wraps to more lines; in stations 5–6 the result row
-  // of the vertical exercise fell below the card (UX audit 1.10.2026: 8px at
-  // 1280×585, 38px at 1024×694). While the card is open the notebook squares
-  // are a little smaller (--ws-cell, index.css), so the result row stays in view.
-  const coachingOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
+  // The notebook squares of the task card (--ws-cell, index.css) are a little
+  // smaller than the board's: the guide (goal and steps) sits above the
+  // exercise, and the result row stays in view at 1280×585 and 1024×694
+  // (design spec §2.5, owner 8.10.2026; until then only while the coaching
+  // card was open — UX audit 1.10.2026).
+  const reduceMotion = useReducedMotionConfig();
 
   const qTask = sessionNumber === 2 ? getCurrentQTask(qflow) : null;
   const subtask = sessionNumber === 2 && isSubtaskActive(qflow);
@@ -68,56 +74,31 @@ export function TaskCard() {
 
   const taskKey = `${sessionNumber}-${qTask?.id ?? standardTask?.id ?? ''}-${subtask ? 'sub' : qflow.subphase}-${standardTaskIdx}`;
 
-  // Layout (owner, 27.9.2026): the result row is in view without scrolling on
-  // a 1024×768, 1280×720, 1366×768 or 1536×864 laptop. Top to bottom: the
-  // station and position, the instruction, the number or the exercise, the
-  // result row, and only then a checklist or other extra content. The column
-  // is a flex column whose paddings, gaps and big number grow and shrink with
-  // the window's height (`fl-*` in tailwind.config.js, `--ws-cell`), with no
-  // step at any screen size (owner, 28.9.2026). The card itself still scrolls
-  // as a last resort, so nothing is ever out of reach. Meeting 2 has no board:
-  // its card is the whole screen, centred, with the same sizes.
+  // The task zone (design-task-zone; owner, 8.10.2026): one heading line —
+  // the position and, in stations 1 and 3–7, the topic — then the guide (goal,
+  // steps, done box) and the work area under it (TaskZone.tsx). Stations 2 and
+  // 8 keep the PRD instruction as it is. Sizes grow and shrink with the
+  // window's height (`fl-*` in tailwind.config.js, `--ws-cell`), with no step
+  // at any screen size (owner, 28.9.2026); the card still scrolls as a last
+  // resort, so nothing is ever out of reach.
+  const guide = qTask ? null : taskGuide(standardTask, sessionNumber);
+  const heading = guide?.topicHe ? `${positionLabel}: ${guide.topicHe}` : positionLabel;
   return (
-    <AccessibleCard id="tour-task-card" className="flex-1 min-w-0 min-h-0 p-fl-12-32 overflow-y-auto relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95" style={coachingOpen ? ({ ['--ws-cell']: 'clamp(36px, min(6.2vh, 4.4vw), 64px)' } as CSSProperties) : undefined}>
-      {/* Soft decorative corner glow — warmth without noise */}
-      <div
-        aria-hidden="true"
-        className="absolute top-0 left-0 w-56 h-56 pointer-events-none rounded-full opacity-70"
-        style={{ background: 'radial-gradient(closest-side, hsl(var(--ws-blue-soft)), transparent)' }}
-      />
+    <AccessibleCard id="tour-task-card" className="flex-1 min-w-0 min-h-0 p-fl-12-32 overflow-y-auto relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95" style={{ ['--ws-cell']: TASK_CARD_CELL } as CSSProperties}>
       {/* The feedback, over this column's heading only: not over the board,
           the coaching card or the exercise (report row 1.15). Meetings 2 and 8
           keep the page's floating one. */}
       {sessionNumber !== 2 && sessionNumber !== 8 && <FeedbackToast placement="inline" />}
-      <motion.div key={taskKey} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="relative flex flex-col flex-1 min-h-0" data-testid="task-column">
-        {qflow.phase !== 'correction' && (
-          <span className="self-start shrink-0 inline-flex items-center gap-1.5 text-sm font-display font-extrabold text-ws-accent bg-ws-accentSoft rounded-full px-3.5 py-fl-4-6 mb-fl-6-12 shadow-[0_2px_6px_-2px_hsl(var(--ws-accent)/0.35)]">
-            <span aria-hidden="true">✦</span> תחנה {sessionNumber}
-          </span>
-        )}
-        <h1 className="shrink-0 font-display font-black text-fl-22-34 text-ws-ink mb-fl-6-16 leading-[1.15]">
-          {positionLabel}
-        </h1>
+      {/* A new exercise fades in (opacity only, 200 ms; none in quiet mode): no slide, no scale (DESIGN_SYSTEM_RULES 1.3). */}
+      <motion.div key={taskKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduceMotion ? 0 : 0.2 }} className="relative flex flex-col flex-1 min-h-0" data-testid="task-column">
+        <TaskZoneHeader stationNumber={sessionNumber} positionLabel={positionLabel} topic={guide?.topicHe ?? null} showStation={qflow.phase !== 'correction'} />
 
-        {instruction && (
-          <div
-            className="shrink-0 flex items-start gap-3 mb-fl-6-24 rounded-2xl px-fl-12-16 pr-fl-14-20 py-fl-6-16 border-r-4"
-            data-testid="task-instruction"
-            // The longest instruction (400 − 156, station 6: over 300 characters)
-            // wraps to nine lines in the task column of a 1024px tablet, and the
-            // vertical exercise under it fell 12px short of the card (UX audit,
-            // 4.10.2026). Its lines sit a little closer (--instruction-leading,
-            // read by the paragraph below); the size of the text and every
-            // other instruction are unchanged.
-            style={{
-              backgroundColor: 'hsl(var(--ws-blue-soft) / 0.55)',
-              borderColor: 'hsl(var(--ws-blue) / 0.55)',
-              ...(instruction.length > LONG_INSTRUCTION_CHARS ? { ['--instruction-leading']: LONG_INSTRUCTION_LEADING } : {}),
-            } as CSSProperties}
-          >
-            <p className="text-fl-16-20 text-ws-ink/85 font-medium leading-[var(--instruction-leading,1.55)] flex-1 whitespace-pre-line"><MathText text={instruction} /></p>
-            <UdlSpeechButton text={instruction} />
-          </div>
+        {guide && standardTask ? (
+          <TaskGuideBlock task={standardTask} guide={guide} positionHeading={heading} />
+        ) : instruction && (
+          <InstructionBlock
+            text={instruction}
+          />
         )}
 
         {/* ── Body ── */}

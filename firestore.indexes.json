@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "reset_audit_log",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "class_id", "order": "ASCENDING" },
+        { "fieldPath": "affected_student_ids", "arrayConfig": "CONTAINS" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

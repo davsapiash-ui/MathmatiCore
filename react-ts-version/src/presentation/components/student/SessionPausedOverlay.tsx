@@ -1,4 +1,4 @@
-import { motion, useReducedMotionConfig } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { useTeacherGenderStore } from '@/application/useTeacherGender';
 import { teacherSentenceHe } from '@/core/teacherGender';
@@ -10,13 +10,8 @@ import { teacherSentenceHe } from '@/core/teacherGender';
  * overlay just takes the pointer. Resuming removes it and work continues.
  */
 export function SessionPausedOverlay() {
-  // מצב שקט: MotionConfig מכבה תנועות תמרה, אך לא לולאת שקיפות אינסופית —
-  // הנקודות המשיכו לפעום מול ילד שהמורה סימנה כרגיש חושית. כאן הן עומדות.
-  // useReducedMotionConfig ולא useReducedMotion: האחרון קורא רק את הגדרת
-  // המכשיר ומתעלם מ-MotionConfig, שדרכו בלבד מגיע הסימון של המורה.
-  const reduceMotion = useReducedMotionConfig();
-  const loop = (frames: Record<string, number[]>, transition: Record<string, unknown>) =>
-    reduceMotion ? {} : { animate: frames, transition };
+  // No looping animation on this screen (a calm screen; ASD and special
+  // education): the icon stands still and there is no "breathing" row of dots.
   const gender = useTeacherGenderStore((s) => s.gender);
   const title = teacherSentenceHe('pausedTitle', gender);
   const body = teacherSentenceHe('pausedBody', gender);
@@ -29,32 +24,15 @@ export function SessionPausedOverlay() {
       dir="rtl"
       role="status"
       aria-live="polite"
-      className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm font-body select-none"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-ws-bg font-body select-none"
     >
-      <div className="w-full max-w-md flex flex-col items-center gap-6 text-center bg-white dark:bg-slate-900 p-10 rounded-3xl border border-amber-100 dark:border-slate-800 shadow-xl shadow-amber-500/5">
-        <motion.div
-          animate={{ scale: [1, 1.06, 1] }}
-          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-          className="w-24 h-24 rounded-3xl bg-amber-500/10 dark:bg-amber-400/15 border-2 border-amber-200 dark:border-amber-800/60 flex items-center justify-center text-5xl shadow-inner"
-          aria-hidden="true"
-        >
-          ⏸️
-        </motion.div>
+      <div className="w-full max-w-md flex flex-col items-center gap-6 text-center bg-ws-surface text-ws-ink p-10 rounded-3xl shadow-sm border-2 border-ws-surface2">
         <div className="flex flex-col gap-2">
-          <h2 className="font-display font-black text-2xl text-slate-800 dark:text-slate-100">{title}</h2>
-          <p className="text-base text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+          <h2 className="font-display font-black text-2xl text-ws-ink">{title}</h2>
+          <p className="text-base text-ws-soft font-medium leading-relaxed">
             {body}
           </p>
           <UdlSpeechButton text={`${title}. ${body}`} className="self-center" />
-        </div>
-        <div className="flex items-center gap-2 pt-1" aria-hidden="true">
-          {[0, 1, 2].map((i) => (
-            <motion.div
-              key={i}
-              {...loop({ scale: [1, 1.3, 1], opacity: [0.4, 1, 0.4] }, { duration: 1.8, repeat: Infinity, delay: i * 0.35, ease: 'easeInOut' })}
-              className="w-2.5 h-2.5 rounded-full bg-amber-500 dark:bg-amber-400"
-            />
-          ))}
         </div>
       </div>
     </motion.div>

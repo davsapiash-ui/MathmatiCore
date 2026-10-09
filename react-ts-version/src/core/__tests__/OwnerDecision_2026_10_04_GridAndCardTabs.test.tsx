@@ -136,6 +136,8 @@ async function openMeeting4(profile: string | null = 'enhanced_cognitive_support
     </MemoryRouter>
   );
   await tick();
+  // PRD 14 §ב: the station opens on its opening screen; "מתחילים" leads to the task.
+  act(() => { ws().markOpeningScreenSeen(); });
   act(() => { useWorkspaceStore.setState({ activeSupportProfileId: profile } as any); });
   expect(ws().sessionNumber).toBe(4);
   expect(ws().flowStatus).toBe('task');
@@ -194,10 +196,11 @@ describe('rules 1–3: the card open, the grid is its amber tab, in the grid\'s 
     expect(tab.textContent).toBe('לוח החיבור');
     expect(tab.getAttribute('aria-label')).toBe('הצגה חוזרת של לוח החיבור');
     expect(tab.getAttribute('title')).toBe('החזרת לוח החיבור למסך');
-    // in the row, before the card's column: the grid's place, not the card's
+    // in the row, after the card's column — the grid's place beside the board, in
+    // the representations zone (PRD 7 §א), not the card's
     expect(main().contains(tab)).toBe(true);
     expect(column().contains(tab)).toBe(false);
-    expect(tab.compareDocumentPosition(column()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(tab.compareDocumentPosition(column()) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
     // rule 3: nothing of the grid inside the card's column
     expect(within(column()).queryByText('לוח החיבור')).toBeNull();
     expect(within(column()).queryByRole('button', { name: /לוח החיבור/ })).toBeNull();
@@ -483,7 +486,7 @@ describe('rule 7, the exercise started again', () => {
     expect(cardShown()).toBe(false);
 
     await tick(1_000);
-    act(() => { ws().initSession(4, false, 0); });
+    act(() => { ws().initSession(4, false, 0); ws().markOpeningScreenSeen(); });
     act(() => { useWorkspaceStore.setState({ activeSupportProfileId: 'enhanced_cognitive_support' } as any); });
     systemOpensGrid();
     await openCard();

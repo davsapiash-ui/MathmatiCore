@@ -1,91 +1,20 @@
-import { motion } from 'framer-motion';
 import type { Session1ChecklistItem } from '@/core/session1Checklist';
-import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
-import { PROCEED_HE, PROCEED_SENTENCE_HE, proceedSentenceHe } from '@/core/toolbarNames';
+import { TaskSteps } from './TaskZone';
 
 /**
- * מפגש 1 — the checklist of a guided step (מסמך 03 §3.1): what the step asks,
- * ticked off as the learner acts. The proceed button lights up when every item is done
- * (the store applies the same rule, core/session1Checklist.ts).
+ * מפגש 1 — the checklist of a guided step (PRD Module 14 §ב, "מה עושים בשלב
+ * הזה"): what the step asks, ticked off as the learner acts. The proceed
+ * button lights up when every item is done (the store applies the same rule,
+ * core/session1Checklist.ts), at the same render as the done box.
  *
  * `doneNote` (session1DoneNoteHe) is said first once every item is done — the
  * target task's "נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 347." (owner,
  * 27.9.2026). It carries the praise itself, so it takes the place of
- * "✨ מצוין!": one praise, then what to press.
+ * "מצוין!": one praise, then what to press.
  *
- * The sentence on the screen and the one read aloud are built from the same
- * halves and the button's own name (core/toolbarNames), so they cannot drift.
+ * Drawn by the task zone's shared steps (TaskZone.tsx), so every task shows
+ * its steps and its done signal the same way.
  */
 export function Session1ChecklistCard({ items, doneNote = null }: { items: Session1ChecklistItem[]; doneNote?: string | null }) {
-  const allDone = items.every((i) => i.done);
-  const proceedHe = proceedSentenceHe();
-  return (
-    <div className={`flex flex-col bg-ws-surface rounded-2xl border border-ws-surface2 shadow-sm ${allDone ? 'gap-1.5 px-fl-8-24 py-2' : 'gap-fl-6-16 p-fl-8-24'}`} data-testid="session1-checklist">
-      <div className="flex items-center justify-between gap-3 mb-fl-0-4">
-        <h3 className="text-lg font-bold text-ws-ink">📋 מה עושים בשלב הזה:</h3>
-        {/* PRD Module 24: every instruction on screen has its read-aloud button. */}
-        <UdlSpeechButton text={items.map((i) => i.label).join('. ')} />
-      </div>
-
-      {/* Every item done: one compact line per item, no "בוצע!" pills, so the
-          done box below fits without scrolling (audit A2-F04). */}
-      <div className={`flex flex-col ${allDone ? 'gap-1' : 'gap-fl-4-12'}`} data-testid="session1-checklist-items">
-        {items.map((item) => (
-          // Below 1024 px (portrait tablet, tier B) the count may go under the
-          // words: beside them, a narrow column broke the line word by word.
-          <div key={item.label} className={`flex items-center justify-between max-lg:flex-wrap max-lg:gap-y-2 px-fl-8-16 rounded-xl bg-ws-bg border border-ws-surface2 transition-all ${allDone ? 'py-1' : 'py-fl-5-16'}`}>
-            <div className="flex items-center gap-3">
-              <span className={`${allDone ? 'text-base' : 'text-fl-16-24'} transition-transform ${item.done ? 'scale-110 text-green-500' : 'text-slate-400'}`}>
-                {item.done ? '✅' : '⏳'}
-              </span>
-              <span className={`${allDone ? 'text-sm' : 'text-base'} font-semibold ${item.done ? 'text-ws-soft line-through' : 'text-ws-ink'}`}>
-                {item.label}
-              </span>
-            </div>
-            {allDone ? null : item.progress ? (
-              <div className="flex items-center gap-2">
-                <div className="w-20 bg-slate-200 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-ws-accent h-full transition-all duration-300"
-                    style={{ width: `${Math.min(100, (item.progress.value / item.progress.of) * 100)}%` }}
-                  />
-                </div>
-                <span className="text-xs font-mono font-bold text-ws-soft">{Math.min(item.progress.value, item.progress.of)}/{item.progress.of}</span>
-              </div>
-            ) : (
-              <span className="shrink-0 whitespace-nowrap text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-ws-soft">
-                {item.done ? 'בוצע!' : 'עוד לא'}
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {allDone && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="px-fl-10-16 py-2 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl text-center shadow-sm"
-          role="status"
-          aria-live="polite"
-          data-testid="session1-done"
-        >
-          {doneNote && (
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <span className="text-emerald-800 font-black text-base">{doneNote}</span>
-            </div>
-          )}
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-emerald-800 font-black block text-base" data-testid="proceed-sentence">
-              {doneNote ? '' : '✨ מצוין! '}{PROCEED_SENTENCE_HE.before}{' '}
-              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-lg" data-testid="proceed-chip">{PROCEED_HE} <span aria-hidden="true">←</span></span>{' '}
-              {PROCEED_SENTENCE_HE.after}
-            </span>
-            {/* PRD Module 24: what the box says is read aloud on the child's click only. */}
-            <UdlSpeechButton text={doneNote ? `${doneNote} ${proceedHe}` : `מצוין! ${proceedHe}`} className="shrink-0" />
-          </div>
-        </motion.div>
-      )}
-    </div>
-  );
+  return <TaskSteps steps={items} doneNote={doneNote} testIds={{ list: 'session1-checklist', items: 'session1-checklist-items' }} />;
 }

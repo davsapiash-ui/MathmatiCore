@@ -19,7 +19,7 @@ import { Session1ChecklistCard } from '@/features/workspace/tasks/Session1Checkl
  */
 
 /** The praise title as every exercise of the store writes it (dagesh before qamats). */
-const PRAISE = 'כָּל הַכָּבוֹד! 🌟';
+const PRAISE = 'כָּל הַכָּבוֹד!'.normalize('NFC');
 
 const at = (id: string) => SESSION1_TASKS.findIndex((t) => t.id === id);
 const ws = () => useWorkspaceStore.getState();
@@ -171,7 +171,7 @@ describe('A2-F13: 347 gets one praise, the tool steps\' one', () => {
 });
 
 describe('A2-F17: the tool steps\' titles carry the niqqud of every other praise', () => {
-  it('a finished tool step says "כָּל הַכָּבוֹד! 🌟"', () => {
+  it('a finished tool step says "כָּל הַכָּבוֹד!", with no emoji (chief review S8, 9.10.2026)', () => {
     ws().initSession(1, false, at('s1_decompose_hundred'));
     ws().splitBlockClick('hundreds');
     const v = judgeStandardTask(ws(), task());
@@ -180,7 +180,8 @@ describe('A2-F17: the tool steps\' titles carry the niqqud of every other praise
 });
 
 describe('A2-F09: the success line of a solved exercise', () => {
-  it('713 + 94 solved: "פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים."', () => {
+  // PRD 7.15, Module 14 §ב task 10: after a successful check, the exercise's own "נכון! …".
+  it('713 + 94 solved: "נכון! קיבצתם 10 לבני עשרת ללבנת מאה אחת, ולכן בטור העשרות 0: 713 + 94 = 807."', () => {
     ws().initSession(1, false, at('s1_t8'));
     const t = task();
     const result = (t.numberA ?? 0) + (t.numberB ?? 0);
@@ -189,7 +190,7 @@ describe('A2-F09: the success line of a solved exercise', () => {
       t
     );
     expect(result).toBe(807);
-    if (v.kind === 'success') expect(v.sub).toBe('פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים.');
+    if (v.kind === 'success') expect(`${v.title} ${v.sub}`).toBe('נכון! קיבצתם 10 לבני עשרת ללבנת מאה אחת, ולכן בטור העשרות 0: \u200f713 + 94 = 807.');
     else throw new Error(`not solved: ${JSON.stringify(v)}`);
   });
 });
@@ -218,9 +219,15 @@ describe('A2-F04: the done checklist is compact', () => {
     expect(screen.getByTestId('session1-done')).toBeTruthy();
   });
 
-  it('an item still open keeps its pill', () => {
+  // Design-task-zone (owner, 8.10.2026): a done step says "בוצע" beside its green
+  // check; a step still to do shows its number — no "עוד לא" pill, no 12px text.
+  it('a done item says "בוצע", an open one shows its number and no pill', () => {
     render(<Session1ChecklistCard items={[{ label: 'א', done: true }, { label: 'ב', done: false }]} />);
-    expect(screen.getByText('בוצע!')).toBeTruthy();
-    expect(screen.getByText('עוד לא')).toBeTruthy();
+    expect(screen.getByText('בוצע')).toBeTruthy();
+    expect(screen.queryByText('עוד לא')).toBeNull();
+    const rows = screen.getByTestId('session1-checklist-items').querySelectorAll('li');
+    expect(rows[0].getAttribute('data-state')).toBe('done');
+    expect(rows[1].getAttribute('data-state')).toBe('current');
+    expect(rows[1].textContent).toContain('2');
   });
 });

@@ -89,10 +89,10 @@ describe('one source for the station names', () => {
     expect(stationNameHe(0)).toBeNull();
   });
 
-  it('the lobby reads every title from it and spells none itself', () => {
-    const hub = code('presentation/pages/StudentHub.tsx');
-    for (const n of MEETING_NUMBERS) expect(hub).toContain(`title: stationTitleHe(${n}),`);
-    expect(hub).not.toMatch(/title: '/);
+  it('the opening screens read every title from it and spell none themselves (PRD 14 §ב)', () => {
+    const opening = code('core/stationOpening.ts');
+    for (const n of MEETING_NUMBERS) expect(opening).toContain(`${'$'}{stationTitleHe(${n})}`);
+    expect(opening).not.toMatch(/תחנה \d:/);
   });
 
   it('no other source file spells a station name of its own', () => {

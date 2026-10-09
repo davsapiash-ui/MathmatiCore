@@ -33,13 +33,20 @@ vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => ({})),
   onSnapshot: vi.fn(() => vi.fn()),
   getDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => ({}) }),
+  // Read by fetchLearnerResets / fetchLearnerCatchUpLines when they are not mocked.
+  getDocs: vi.fn().mockResolvedValue({ docs: [], forEach: () => {} }),
+  query: vi.fn(() => ({})),
+  where: vi.fn(() => ({})),
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => vi.fn().mockResolvedValue({})) }));
 vi.mock('@/presentation/components/ReplayViewer', () => ({ ReplayViewer: () => null }));
 
 const reports = vi.hoisted(() => ({
   generateClass: [] as Array<{ session: number; resolve: (r: unknown) => void }>,
-  learnerEvents: {} as Record<number, Promise<unknown[]>>,
+  // Delivered synchronously from the subscription (inside render's act): the
+  // test does not wait on wall-clock time, so worker load cannot fail it.
+  // A learner without an entry models "events still on their way".
+  learnerEvents: {} as Record<number, unknown[]>,
   generateMeeting: [] as Array<{ studentNum: number; sessionNumber: number; sessionId: string }>,
 }));
 
@@ -61,10 +68,12 @@ vi.mock('@/infrastructure/services/LearnerJourneyService', async (importOriginal
     subscribeLearnerRecordings: vi.fn(() => () => {}),
     subscribeLearnerTruncatedMeetings: vi.fn(() => () => {}),
     subscribeLearnerEvents: vi.fn((studentNum: number, onChange: (events: unknown[]) => void) => {
-      let cancelled = false;
-      reports.learnerEvents[studentNum]?.then((list) => { if (!cancelled) onChange(list); });
-      return () => { cancelled = true; };
+      const list = reports.learnerEvents[studentNum];
+      if (list) onChange(list);
+      return () => {};
     }),
+    fetchLearnerResets: vi.fn(() => Promise.resolve([])),
+    fetchLearnerCatchUpLines: vi.fn(() => Promise.resolve(new Map())),
     fetchMeetingReport: vi.fn(() => Promise.resolve(null)),
     generateMeetingReport: vi.fn(async (p: { studentNum: number; sessionNumber: number; sessionId: string }) => {
       reports.generateMeeting.push(p);
@@ -78,6 +87,13 @@ import { LearnerJourney } from '../LearnerJourney';
 import { HeatmapGrid } from '../HeatmapGrid';
 import { classReportFromData } from '@/infrastructure/services/ClassReportService';
 import { meetingLabelHe, meetingShortLabelHe } from '@/core/stationNames';
+
+/** Settles every pending promise pass and timer-0 task, inside act. */
+const flushAll = async () => {
+  for (let i = 0; i < 5; i++) {
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  }
+};
 
 afterEach(() => {
   cleanup();
@@ -116,18 +132,22 @@ describe('learner journey: a switch of learner starts clean', () => {
       id: `e${i}`, timestamp: 1_790_000_000_000 + i, sessionNumber: 4, sessionId: 'session_4_student_user3',
       exerciseId: 's4_g_t1', eventType: 'digit_input', details: {},
     });
-    reports.learnerEvents[3] = Promise.resolve([ev(1), ev(2)]);
-    // Learner 5's events are still on their way.
+    reports.learnerEvents[3] = [ev(1), ev(2)];
+    // Learner 5's events are still on their way (no entry: never delivered).
     const { rerender } = render(<LearnerJourney studentId="student_user3" />);
-    expect(await screen.findByRole('button', { name: 'הפיקו דוח למפגש 4' })).toBeTruthy();
+    // The remaining passes (default meeting, report fetch, resets, catch-up)
+    // are promise-driven: flush them inside act instead of polling.
+    await flushAll();
+    expect(screen.getByText('הפיקו דוח למפגש 4').closest('button')).toBeTruthy();
     expect(screen.getByText(/2 פעולות מתועדות/)).toBeTruthy();
 
     rerender(<LearnerJourney studentId="student_user5" />);
+    await flushAll();
     expect(screen.getByText('מסע הלמידה של תלמיד 5')).toBeTruthy();
     // Learner 3's decision table and "הפיקו" used to stay, and the server got
     // learner 5's number with learner 3's session id.
     expect(screen.getByText(/0 פעולות מתועדות/)).toBeTruthy();
-    const stale = screen.queryByRole('button', { name: 'הפיקו דוח למפגש 4' }) as HTMLButtonElement | null;
+    const stale = (screen.queryByText('הפיקו דוח למפגש 4')?.closest('button') ?? null) as HTMLButtonElement | null;
     if (stale && !stale.disabled) await act(async () => { fireEvent.click(stale); });
     expect(reports.generateMeeting.filter((p) => p.studentNum === 5 && p.sessionId.includes('student_user3'))).toEqual([]);
     expect(stale === null || stale.disabled).toBe(true);

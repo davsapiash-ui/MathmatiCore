@@ -242,27 +242,19 @@ describe('one praise, one sentence at the end of meetings 3–7', () => {
     for (const s of Object.values(ENCOURAGEMENT_SENTENCES_HE)) expect(s.startsWith('כל הכבוד'), s).toBe(true);
   });
 
-  it('where the sentence is shown, the heading only names the station', () => {
+  it('meetings 3–7 end on the one sentence alone (PRD 14 §ג: no heading, no number; owner, OWNER-1)', () => {
     const page = read(resolve(SRC, 'features/workspace/StudentWorkspacePage.tsx'));
-    const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"), page.indexOf('<ClosingSentence sessionNumber={sessionNumber}'));
-    expect(end).toContain('const withClosingSentence = hasClosingSentence(sessionNumber);');
-    // Meeting 8 arrives here from its reflection board, which already praised
-    // (audit 8.10, 28.9.2026): it takes the same praise-free heading.
-    const at = end.indexOf('{withClosingSentence || afterReflection ? (');
-    expect(at).toBeGreaterThan(-1);
-    const withSentence = end.slice(at, end.indexOf(') : (', at));
-    expect(withSentence).toContain('סיימתם את תחנה {sessionNumber}!');
-    expect(withSentence).not.toContain('כל הכבוד');
+    const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"), page.indexOf('{classStateOverlays}', page.indexOf("if (endScreen === 'sessionDone') {")));
+    expect(end).toContain("hasClosingSentence(endStation) && endStation === sessionNumber ? 'encouragement'");
+    expect(end).toMatch(/endKind === 'encouragement' \? \(\s*\/\/[^\n]*\n\s*<ClosingSentence sessionNumber=\{sessionNumber\} counts=\{meetingPersistence\} \/>/);
+    expect(end).not.toContain('`סיימתם את תחנה ${');
+    expect(end).not.toContain('כל הכבוד');
   });
 
-  it('the toast before that screen carries no praise either', () => {
+  it('no toast before that screen (review S11, 9.10.2026: not PRD text)', () => {
     const store = read(resolve(SRC, 'application/useWorkspaceStore.ts'));
-    const at = store.indexOf('hasClosingSentence(s.sessionNumber)\n        ? { correct: true, title: ');
-    expect(at).toBeGreaterThan(-1);
-    const toast = store.slice(at, store.indexOf('\n', store.indexOf('?', at)));
-    const plain = toast.replace(/[֑-ׇ]/g, ''); // without the vowel points
-    expect(plain).toContain('תחנה ${s.sessionNumber} הושלמה בהצלחה!');
-    expect(plain).not.toContain('כל הכבוד');
-    expect(plain).not.toContain('sub:');
+    const plain = store.replace(/[\u0591-\u05C7]/g, '');
+    expect(plain).not.toContain('הושלמה בהצלחה');
+    expect(store).not.toContain('🎉');
   });
 });

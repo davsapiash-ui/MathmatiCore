@@ -15,9 +15,9 @@ const code = (p: string) =>
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/^\s*\/\/.*$/gm, '');
 
-describe('the lobby card names the meeting as documents 02 and 03 do (register row 4)', () => {
+describe('the station names, and a lobby with no station card (PRD 14 §ב0, Module 6)', () => {
   const hub = code('presentation/pages/StudentHub.tsx');
-  // The names live in one place since 27.9.2026 (register ט); the lobby reads them from there.
+  // The names live in one place since 27.9.2026 (register ט); the opening screens read them from there.
   const names = code('core/stationNames.ts');
 
   const TITLES: Record<number, string> = {
@@ -34,9 +34,16 @@ describe('the lobby card names the meeting as documents 02 and 03 do (register r
   for (const [n, title] of Object.entries(TITLES)) {
     it(`meeting ${n}: "${title}"`, () => {
       expect(stationTitleHe(Number(n) as (typeof MEETING_NUMBERS)[number])).toBe(title);
-      expect(hub).toContain(`title: stationTitleHe(${n}),`);
     });
   }
+
+  it('the lobby shows only the waiting sentence or the opening screen: no station card, no description of its own', () => {
+    // The station's name and goal are the opening screen's (core/stationOpening.ts),
+    // in the PRD's own words; the lobby had descriptions no document gives.
+    expect(hub).not.toContain('SESSIONS_CONFIG');
+    expect(hub).not.toMatch(/desc: '/);
+    expect(hub).not.toContain('stationTitleHe');
+  });
 
   it('no educator jargon reaches the child (owner, 27.9.2026)', () => {
     for (const word of ['אבחון', 'הערכה', 'רפלקציה', 'אינטגרציה', 'מסכם', 'המערכת']) {
@@ -51,34 +58,9 @@ describe('the lobby card names the meeting as documents 02 and 03 do (register r
       expect(names, old).not.toContain(old);
     }
   });
-
-  it('the descriptions speak to the class, never to one child in the singular', () => {
-    const descs = [...hub.matchAll(/desc: '([^']*)'/g)].map((m) => m[1]);
-    expect(descs).toHaveLength(8);
-    for (const d of descs) {
-      expect(d, d).not.toMatch(/שלך|עבורך|\bלך\b/);
-    }
-  });
-
-  it('meeting 8 says the blocks are gone, in a positive way; meeting 5 is subtraction', () => {
-    // "סמנו": the reflection board has the child mark strategies; no ambiguous "ספרו", no filler "כבר גם".
-    expect(hub).toContain("desc: 'הפעם פתרו בלי לבנים. בסוף סמנו מה עזר לכם.'");
-    expect(stationTitleHe(5)).toMatch(/^תחנה 5: [^']*חיסור/);
-  });
-
-  it('meetings 3–6 use the approved terms and never state the answer (register ט, row 23; audit 4.10.2026)', () => {
-    // 3: פרטו … ל־ with the blocks' child names; "the number stays the same" is the answer, so it is not said.
-    expect(hub).toContain("desc: 'פרטו לבנת מאה אחת לעשר לבני עשרת. בדקו איזה מספר מייצגות הלבנים לאחר הפריטה.'");
-    expect(hub).toContain("desc: 'כשמצטברות בטור עשר לבנים, קבצו אותן ללבנה אחת בטור שמשמאלו.'");
-    expect(hub).toContain("desc: 'כשאין בטור מספיק לבנים, פרטו לבנה אחת מהטור שמשמאלו.'");
-    expect(hub).toContain("desc: 'גלו מה עושים כשצריך לפרוט, אבל בטור שמשמאל אין לבנים.'");
-    for (const old of ['פרקו', 'נשאר אותו מספר', 'לבנה אחת גדולה', 'מהטור שמשמאל.', 'ויש אפס?']) {
-      expect(hub, old).not.toContain(old);
-    }
-  });
 });
 
-describe('the lobby has no entry button — the learner is moved in (register rows 14 and 17)', () => {
+describe('the lobby has no entry button — the page swaps to the opening screen (PRD Module 6)', () => {
   const hub = code('presentation/pages/StudentHub.tsx');
 
   it('no "התחל פעילות" / "היכנס לפעילות" button and no click handler that navigates', () => {
@@ -88,15 +70,15 @@ describe('the lobby has no entry button — the learner is moved in (register ro
     expect(hub).not.toMatch(/<button[\s\S]*?onClick/);
   });
 
-  it('a running meeting still moves the learner into the workspace by itself', () => {
-    expect(hub).toMatch(/activeClassSession\?\.status === 'active' && !isAwaitingTeacherGate && !isProjectorModeActive\) \{\s*navigate\(`\/workspace\?meeting=\$\{teacherSessionNum\}`, \{ replace: true \}\);/);
+  it('an activated session swaps the page, without a reload, to the workspace and its opening screen', () => {
+    expect(hub).toContain("const openingMeeting = activeClassSession.isLoaded && (recordLoaded || !normUid) && state.kind === 'opening' && !isAwaitingTeacherGate && !isProjectorModeActive");
+    expect(hub).toMatch(/navigate\(`\/workspace\?meeting=\$\{openingMeeting\}`, \{ replace: true \}\);/);
+    expect(hub).not.toContain('window.location');
   });
 
-  it('a paused meeting still shows the station card with the pause message (register item 7)', () => {
-    // "המורה עצרה / עצר את הפעילות לרגע", in the teacher's gender (core/teacherGender.ts).
-    expect(hub).toContain("const pausedTitle = teacherSentenceHe('pausedTitle', teacherGender);");
-    expect(hub).toMatch(/activeClassSession\.status === 'paused' && \([\s\S]*?\{pausedTitle\}\. חכו…/);
-    expect(hub).toContain('{activeSession.title}');
+  it('every other state is the waiting sentence of lobbyState, in the teacher\'s gender', () => {
+    expect(hub).toContain("lobbySentenceHe(state.sentence, teacherGender)");
+    expect(hub).toContain('<UdlSpeechButton text={sentence}');
   });
 });
 
@@ -109,7 +91,8 @@ describe('"הצגת בית המספרים" appears only in meetings that have a 
     expect(at).toBeGreaterThan(-1);
     const gate = topbar.slice(topbar.lastIndexOf('{sessionNumber', at), at);
     expect(gate).toContain('sessionNumber !== 2 && sessionNumber !== 8');
-    expect(page).toMatch(/\{sessionNumber !== 2 && sessionNumber !== 8 && \(\s*<PlaceValueBoard/);
+    expect(page).toContain('const hasBoard = sessionNumber !== 2 && sessionNumber !== 8;');
+    expect(page).toMatch(/\{hasBoard \? \([\s\S]*?<PlaceValueBoard[\s\S]*?\) : \(/);
   });
 });
 
@@ -119,12 +102,18 @@ describe('the early-finisher choice screen tells the truth (מסמך 03 §3.3–
   it('one challenge task, two review tasks — named "משימה" like every other task screen', () => {
     // Register 24(א) ("משימה N מתוך M", "משימת בחירה") and the one-name rule
     // (audit A5-F13, 4.10.2026); never first person plural (A5-F04 / A4-F11).
-    expect(screen).toContain("badge: 'סיימתם את שבע המשימות של התחנה!'");
+    // PRD 7 (l.286) / 14 §ג, word for word (v7.15): the badge says "תרגילים" —
+    // the PRD's own text, so the one-name rule below excepts it.
+    expect(screen).toContain("badge: 'סיימתם את שבעת התרגילים של התחנה!'");
+    expect(screen).toContain("reinforcementTitle: 'חיזוק וחזרה על החומר'");
+    expect(screen).toContain("challengeTitle: 'אתגר'");
     expect(screen).toContain("intro: 'המשימות הבאות הן בחירה שלכם, לא חובה.'");
     expect(screen).toContain("reinforcement: 'שתי משימות נוספות, לחזרה על הנושא של היום.'");
     expect(screen).toContain("challenge: 'משימת אתגר אחת, קשה יותר, בנושא של היום.'");
     const texts = screen.slice(screen.indexOf('const BRANCH_CHOICE_TEXT'), screen.indexOf('interface ReinforcementOrChallengeScreenProps'));
-    expect(texts).not.toContain('תרגיל');
+    expect(texts.replace('שבעת התרגילים של התחנה', '')).not.toContain('תרגיל');
+    // PRD 14 §ג: "המילה "מסלול" אינה מופיעה במסך הבחירה".
+    expect(texts.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n')).not.toContain('מסלול');
     expect(texts).not.toContain('שתרגלנו');
   });
 

@@ -312,7 +312,6 @@ const title = () => ws().feedback?.title ?? '';
 const done = () => sent.events.some((e) => e.event_type === 'PROBLEM_COMPLETE');
 const digitsEntered = () => sent.events.filter((e) => e.event_type === 'DIGIT_ENTERED');
 
-const SUCCESS = 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.';
 const WRONG_NUMBER = 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!';
 const WRONG_BOARD = 'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.';
 
@@ -330,7 +329,7 @@ describe('read_write: build the number said in words, write it in digits', () =>
     expect(done()).toBe(false);
     answer('506');
     press();
-    expect(sub()).toBe(SUCCESS);
+    expect(sub()).toBe('חמש מאות ושש כותבים בספרות 506.'); // owner, 8.10.2026: the exercise's own "נכון! …"
     expect(done()).toBe(true);
   });
 
@@ -356,7 +355,7 @@ describe('compose_break: the break is the child\'s own, and the answer is the nu
     buildBlocks({ hundreds: 3, tens: 4 });
     ws().splitBlockClick('hundreds');
     press();
-    expect(sub()).toBe(SUCCESS);
+    expect(sub()).toBe('הלבנים מסודרות אחרת, אבל המספר נשאר 340.');
     expect(done()).toBe(true);
   });
 
@@ -455,12 +454,12 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     answer('125');
     press();
     expect(title()).toBe('קַבְּצוּ 🧱');
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 למאה" שבראש טור העשרות.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10" שבראש טור העשרות.');
     ws().clearBoard();
     buildBlocks({ tens: 12, units: 5 });
     ws().groupColumnClick('tens');
     press();
-    expect(sub()).toBe(SUCCESS);
+    expect(sub()).toBe('הלבנים מסודרות אחרת, אבל המספר נשאר 125.');
     expect(done()).toBe(true);
   });
 
@@ -469,7 +468,7 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     buildBlocks({ thousands: 1, hundreds: 4, tens: 3 });
     answer('1430');
     press();
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 לאלף" שבראש טור המאות.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10" שבראש טור המאות.');
     ws().clearBoard();
     buildBlocks({ hundreds: 14, tens: 3 });
     ws().groupColumnClick('hundreds');
@@ -478,12 +477,12 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     expect(sub()).toBe(WRONG_NUMBER);
     answer('1430');
     press();
-    expect(sub()).toBe(SUCCESS);
+    expect(sub()).toBe('הלבנים מסודרות אחרת, אבל המספר נשאר 1,430.');
     expect(done()).toBe(true);
   });
 
-  it('s7_g_t1: 25 hundreds, grouped twice; the button of the hundreds is "קבצו 10 לאלף"', () => {
-    expect(groupItYourselvesHe('hundreds')).toContain('לחצו על הכפתור "קבצו 10 לאלף" שבראש טור המאות.');
+  it('s7_g_t1: 25 hundreds, grouped twice; the sentence names the button "קבצו 10" over the hundreds', () => {
+    expect(groupItYourselvesHe('hundreds')).toContain('לחצו על הכפתור "קבצו 10" שבראש טור המאות.');
     load(byId('s7_g_t1'));
     drop('hundreds', 25);
     ws().groupColumnClick('hundreds');
@@ -506,7 +505,8 @@ describe('station 1 keeps its own wording (s1_r_value368, s1_r_group26)', () => 
     expect(sub()).toBe('זה עוד לא הערך של הספרה. הסתכלו בבית המספרים ובדקו שוב!');
     ws().setAnswerDigit('units', '0');
     press();
-    expect(sub()).toBe('מצאתם את הערך של הספרה במספר.');
+    // Owner, 8.10.2026: the exercise's own "נכון! …" (learner wording proposal §א).
+    expect(sub()).toBe('הספרה 6 נמצאת בטור העשרות, ולכן הערך שלה 60.');
   });
 
   it('26 units grouped into tens: the station-1 "do it yourselves" sentence is unchanged', () => {

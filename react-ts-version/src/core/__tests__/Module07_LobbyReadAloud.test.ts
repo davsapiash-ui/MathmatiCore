@@ -19,14 +19,12 @@ describe('Module 7 — the lobby reads its own text aloud on request', () => {
     expect(hub).toContain("import { UdlSpeechButton } from \"@/presentation/design-system/UdlSpeechButton\";");
   });
 
-  it('covers all three states a learner can see in the lobby', () => {
-    // waiting for the teacher to open a meeting (the sentence about the
-    // teacher is in the teacher's gender, core/teacherGender.ts)
-    expect(hub).toContain('<UdlSpeechButton text={`היום עוד לא התחלנו. ${willOpenActivity}`} className="shrink-0" />');
-    // the active meeting card
-    expect(hub).toContain('<UdlSpeechButton text={`${activeSession.title}. ${activeSession.desc}`} className="shrink-0" />');
-    // the teacher paused the meeting
-    expect(hub).toContain('<UdlSpeechButton text={`${pausedTitle}. חכו.`} className="shrink-0" />');
+  it('covers every waiting sentence a learner can see in the lobby (PRD 14 §ב0)', () => {
+    // One sentence per state — not started, paused, finished, closed unfinished —
+    // in the teacher's gender (core/lobbyState.ts, core/teacherGender.ts); the
+    // one waiting screen reads whichever is shown. The other lobby state is the
+    // station's opening screen, which carries its own button (StationOpening).
+    expect(hub).toContain('<UdlSpeechButton text={sentence} className="shrink-0" />');
   });
 
   it('never speaks on its own — no autoplay anywhere in the lobby', () => {

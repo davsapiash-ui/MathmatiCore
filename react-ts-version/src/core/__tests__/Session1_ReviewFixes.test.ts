@@ -210,12 +210,13 @@ describe('no wording from the old meeting 1, and the documents’ names for thin
     expect(engine).not.toContain('בטור היחידות היחידות');
   });
 
-  it('the lobby card of meeting 1 says "ארגז החול" (מסמך 04)', () => {
-    expect(src('presentation/pages/StudentHub.tsx')).toContain('title: stationTitleHe(1),');
+  it('the opening screen of meeting 1 says "ארגז החול" (מסמך 04; PRD 14 §ב)', () => {
+    expect(src('core/stationOpening.ts')).toContain('ברוכים הבאים ל${stationTitleHe(1)}.');
     expect(src('core/stationNames.ts')).toContain("1: 'ארגז החול',");
   });
 
   it('the checklist has a read-aloud button (PRD Module 24)', () => {
-    expect(src('features/workspace/tasks/Session1ChecklistCard.tsx')).toContain('<UdlSpeechButton text={items.map((i) => i.label).join');
+    // Drawn by the task zone's shared steps (design-task-zone, 8.10.2026).
+    expect(src('features/workspace/tasks/TaskZone.tsx')).toContain('<UdlSpeechButton text={steps.map((s) => s.label).join');
   });
 });

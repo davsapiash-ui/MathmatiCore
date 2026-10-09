@@ -152,7 +152,10 @@ export function BlockPalette({ scaffoldLevel, compact = false }: { scaffoldLevel
       <div className={`w-px h-10 bg-slate-200/80 shrink-0 ${compact ? 'hidden' : ''}`} />
 
       {/* Manipulatives on Tray (Center) */}
-      <div className={`flex items-center flex-1 justify-center ${compact ? 'gap-1.5 flex-wrap' : 'gap-2.5'}`}>
+      {/* Compact: room for two blocks a row before the group wraps (the trash may then take a
+          row of its own), so a narrow board — 1024px with the grid open beside it — gets a
+          2 × 2 tray, not a column of four that leaves the columns no height. */}
+      <div className={`flex items-center justify-center ${compact ? 'flex-[1_1_190px] gap-1.5 flex-wrap' : 'flex-1 gap-2.5'}`}>
         {itemsToRender.map(({ place, labelHe, subHe, scale }) => (
           <PaletteItemCard
             key={place}

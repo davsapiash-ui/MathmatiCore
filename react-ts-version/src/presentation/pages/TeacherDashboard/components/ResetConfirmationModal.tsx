@@ -1,16 +1,13 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, ShieldAlert, RefreshCw, X, Check } from 'lucide-react';
 import type { ResetReason, ResetTarget, SingleStudentResetScope } from '@/types';
-import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
+import { validateChatInputForPII, anonymizeChatMessageBody, reportPiiFilterFailure } from '@/core/security/PiiFilter';
 import { meetingLabelHe } from '@/core/stationNames';
 import { useResetMeetingTarget } from '@/application/useResetMeetingTarget';
 import { finishedMeetingRefusalHe } from '@/core/resetMeetingTarget';
 import { RESET_ACTION_HE, RESET_LOG_LINE_HE, RESET_REASON_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
-
-/** While the PII filter is down, how often it is tried again (as in the learner's chat). */
-export const PII_FILTER_RECHECK_MS = 5000;
 
 /** "תלמיד 3" → "3", for a sentence that already says "תלמיד". */
 function learnerLabelOf(name: string | undefined): string {
@@ -69,24 +66,6 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   const [selectedReason, setSelectedReason] = useState<ResetReason | ''>('');
   const [reasonNote, setReasonNote] = useState('');
   const [noteError, setNoteError] = useState<string | null>(null);
-  // PRD Module 3 §א: "במקרה של תקלה ברכיב הסינון, המערכת נועלת את הקלט ליתר
-  // ביטחון עד להתאוששות הלוגיקה". The note is the only free text here. A
-  // filter failure used to escape handleExecute as an unhandled rejection
-  // with the field left open. Now the note is dropped and the field locked
-  // until the filter answers again; the reset itself needs only the reason.
-  const [piiFilterDown, setPiiFilterDown] = useState(false);
-  useEffect(() => {
-    if (!piiFilterDown) return;
-    const timer = setInterval(() => {
-      try {
-        validateChatInputForPII('בדיקה');
-        setPiiFilterDown(false);
-      } catch {
-        // still down: the field stays locked
-      }
-    }, PII_FILTER_RECHECK_MS);
-    return () => clearInterval(timer);
-  }, [piiFilterDown]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [doubleConfirmed, setDoubleConfirmed] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
@@ -157,20 +136,19 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
     // research export read. Every other free-text field a teacher types
     // passes the same check; this one did not, so "איפוס כי דניאל בכה" would
     // have put a child’s name in the one place nothing else ever does.
-    const trimmedNote = piiFilterDown ? '' : reasonNote.trim();
+    // PRD Module 3 §א (v7.9): if the filter itself fails, nothing is locked —
+    // the note is kept, the reset goes ahead, and the failure is logged. The
+    // server still runs its own PII filter on reason_note (Module 22 §ב).
+    const trimmedNote = reasonNote.trim();
     if (trimmedNote) {
+      let check: { valid: boolean; errorHe?: string } = { valid: true };
       try {
-        const check = validateChatInputForPII(trimmedNote);
-        if (!check.valid) {
-          setNoteError(check.errorHe || 'ההערה מכילה פרטים מזהים. כתבו רק את מספר התלמיד (1–12).');
-          return;
-        }
+        check = validateChatInputForPII(trimmedNote);
       } catch (err) {
-        // Fail-closed: nothing is reset on this click, and the unchecked note is not kept.
-        console.error('[Module 3 Fail-Closed] PII check failed on the reset note:', err);
-        setReasonNote('');
-        setNoteError(null);
-        setPiiFilterDown(true);
+        reportPiiFilterFailure('ResetConfirmationModal', err);
+      }
+      if (!check.valid) {
+        setNoteError(check.errorHe || 'ההערה מכילה פרטים מזהים. כתבו רק את מספר התלמיד (1–12).');
         return;
       }
     }
@@ -284,8 +262,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                   </li>
                 )}
                 {activeSessionNumber === 8 && (
-                  // Register deviation 20: the whole-class restart keeps reflections.
-                  <li>במפגש 8 הרפלקציות שהתלמידים כבר שלחו נשמרות ונספרות בדוח הכיתה, ותלמיד ששלח רפלקציה לא ימלא אותה שוב.</li>
+                  // PRD 23א §ב.2: in meeting 8 the class reset deletes the meeting's reflections, so the class can redo it.
+                  <li className="text-red-700 dark:text-red-300 font-semibold">במפגש 8 יימחקו גם הרפלקציות של המפגש, כדי שאפשר יהיה לבצע את המפגש מחדש בכיתה. הן נשמרות בגיבוי.</li>
                 )}
                 <li>המפגש של הכיתה נשאר פתוח, והשעון שלו ממשיך מהרגע שהופעל.</li>
                 <li>{RESET_LOG_LINE_HE}</li>
@@ -444,14 +422,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 onChange={(e) => { setReasonNote(e.target.value); if (noteError) setNoteError(null); }}
                 placeholder="הסבר קצר על נסיבות האיפוס, בלי שמות. אפשר לכתוב מספר תלמיד."
                 aria-invalid={noteError ? true : undefined}
-                disabled={piiFilterDown}
                 className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500"
               />
-              {piiFilterDown && (
-                <p role="alert" className="mt-1.5 text-xs font-bold text-red-700 dark:text-red-300">
-                  בדיקת הפרטים המזהים לא פועלת כרגע, ולכן שדה ההערה נעול וההערה נמחקה. אפשר לבצע את האיפוס בלי הערה, עם הסיבה שנבחרה.
-                </p>
-              )}
               {noteError && (
                 <p role="alert" className="mt-1.5 text-xs font-bold text-red-700 dark:text-red-300">{noteError}</p>
               )}

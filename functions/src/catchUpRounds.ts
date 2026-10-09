@@ -21,7 +21,8 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { CATCHUP_COLLECTION, type CatchUpClosedBy, type CatchUpRound } from "./catchUp";
 import { SESSION_HARD_CAP_MS, TEACHER_DISCONNECT_GRACE_MS, TEACHER_CLOSE_MARKER } from "./meeting2Close";
-import { sessionNumberFromId } from "./meetingMetrics";
+import { countActiveMinutes, serverReceivedAtMs, sessionNumberFromId } from "./meetingMetrics";
+import { stampScoreBeforeCatchUp } from "./sessionTrigger";
 
 type Rec = Record<string, unknown> | null | undefined;
 
@@ -135,17 +136,13 @@ export function classifyCatchUpTransition(before: Rec, after: Rec, atMs: number)
  * Pure. Distinct whole minutes (floor(t / 60000)) among the server write
  * times in [openedAt, closedAt]. The measure: "minutes in which the server
  * received at least one event of this learner in this meeting" (telemetry_logs
- * createTime). Presence pings are not kept as history, so they cannot be counted.
+ * server_received_at, else createTime) — the same definition as the reports and the research export
+ * (meetingMetrics.countActiveMinutes, PRD 14 §ב0). Presence pings are not kept
+ * as history, so they cannot be counted.
  */
 export function computeActiveMinutes(writeTimesMs: number[], openedAt: number, closedAt: number): number {
   if (!Number.isFinite(openedAt) || !Number.isFinite(closedAt) || closedAt < openedAt) return 0;
-  const minutes = new Set<number>();
-  for (const t of writeTimesMs) {
-    if (typeof t === "number" && Number.isFinite(t) && t >= openedAt && t <= closedAt) {
-      minutes.add(Math.floor(t / 60000));
-    }
-  }
-  return minutes.size;
+  return countActiveMinutes(writeTimesMs, openedAt, closedAt);
 }
 
 function studentOfDoc(id: string, data: Record<string, unknown>): number | null {
@@ -212,7 +209,12 @@ export async function openCatchUpRounds(
         tx.update(ref, updates);
         return true;
       });
-      if (did && n !== null) opened.push(n);
+      if (did && n !== null) {
+        opened.push(n);
+        // PRD 14 §ב0 / 23 §ב: the score before the catch-up, kept to stand
+        // beside the new one when the learner completes the meeting.
+        await stampScoreBeforeCatchUp(db, n, meeting, openedAt);
+      }
     } catch (err) {
       logger.error(`Catch-up: opening the rounds of ${d.id} failed:`, err);
     }
@@ -227,7 +229,8 @@ async function telemetryWriteTimes(db: admin.firestore.Firestore, studentNumber:
   for (const d of snap.docs) {
     const data = d.data() || {};
     if (sessionNumberFromId(String(data.session_id || "")) !== meeting) continue;
-    const t = d.createTime?.toMillis?.();
+    // server_received_at (PRD Module 5 §ב), else createTime for an event stored before the stamp existed.
+    const t = serverReceivedAtMs(data) ?? d.createTime?.toMillis?.();
     if (typeof t === "number" && Number.isFinite(t)) times.push(t);
   }
   return times;

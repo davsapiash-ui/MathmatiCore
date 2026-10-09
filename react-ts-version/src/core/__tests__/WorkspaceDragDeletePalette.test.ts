@@ -161,6 +161,7 @@ describe('Workspace Drag-and-Drop & Trash Deletion Suite', () => {
     expect(hint).toBeDefined();
     // Must NOT ask about overcrowding (12 tens)
     expect(hint?.questionHe).not.toContain('12 עשרות');
-    expect(hint?.questionHe).toContain('הסתכלו ברשימה "מה עושים בשלב הזה"');
+    // The list's heading is "מה עושים:" since 8.10.2026 (owner: learner wording proposal, rule 3).
+    expect(hint?.questionHe).toContain('הסתכלו ברשימה "מה עושים"');
   });
 });

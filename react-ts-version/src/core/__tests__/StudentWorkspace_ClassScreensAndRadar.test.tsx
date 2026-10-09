@@ -80,7 +80,9 @@ vi.mock('@/features/workspace/overlays/HelpOverlays', () => ({ HelpOverlays: () 
 vi.mock('@/features/workspace/overlays/StudentChatOverlay', () => ({ StudentChatOverlay: () => null }));
 vi.mock('@/features/workspace/board/AdaptiveAdditionGrid', () => ({ AdaptiveAdditionGrid: () => null, AdditionGridTab: () => null, ADDITION_GRID_HE: 'לוח החיבור' }));
 vi.mock('@/features/workspace/ClosingSentence', () => ({ ClosingSentence: () => null }));
-vi.mock('@/features/workspace/StationOpening', () => ({ StationOpening: () => null }));
+vi.mock('@/features/workspace/StationOpening', () => ({
+  StationOpening: ({ onStart }: { onStart: () => void }) => <button type="button" onClick={onStart}>מתחילים</button>,
+}));
 vi.mock('@/features/workspace/overlays/ReinforcementOrChallengeScreen', () => ({
   ReinforcementOrChallengeScreen: () => <div data-testid="choice-screen" />,
 }));
@@ -97,7 +99,8 @@ vi.mock('@/presentation/components/student/ProjectorWaitingScreen', () => ({
 vi.mock('@/presentation/components/student/SessionPausedOverlay', () => ({
   SessionPausedOverlay: () => <button type="button" data-testid="paused-screen" />,
 }));
-vi.mock('@/presentation/components/student/SessionClosedOverlay', () => ({ SessionClosedOverlay: () => null }));
+vi.mock('@/presentation/components/ui/LogoutButton', () => ({ LogoutButton: () => <button type="button" data-testid="logout" /> }));
+vi.mock('@/presentation/components/student/SessionClosedOverlay', () => ({ SessionClosedOverlay: () => <div data-testid="closed-screen" /> }));
 
 import { StudentWorkspacePage } from '@/features/workspace/StudentWorkspacePage';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
@@ -144,6 +147,10 @@ afterEach(() => cleanup());
 
 async function openMeeting1() {
   const view = open(1);
+  await flush();
+  // PRD 14 §ב: a fresh station opens on its opening screen; "מתחילים" leads to the first task.
+  expect(screen.queryByTestId('task-card')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'מתחילים' }));
   await flush();
   expect(screen.queryByTestId('task-card')).not.toBeNull();
   useWorkspaceStore.setState({ proceed, undo } as any);
@@ -198,6 +205,71 @@ describe('Module 15 §ב — the workspace under the projector screen takes no i
   });
 });
 
+describe('PRD 14 §ב0 (v7.15) — the close: unfinished sees the close screen, finished sees the station\'s end screen', () => {
+  const closeSession = (view: ReturnType<typeof open>) => {
+    h.session = { ...h.session, active: false, status: 'closed' };
+    view.rerender(
+      <MemoryRouter initialEntries={['/workspace?meeting=1']}>
+        <StudentWorkspacePage />
+      </MemoryRouter>
+    );
+  };
+
+  it('a learner still working sees "המורה סגרה את התחנה"', async () => {
+    const view = await openMeeting1();
+    closeSession(view);
+    expect(screen.getByTestId('closed-screen')).toBeTruthy();
+  });
+
+  it('a learner on the end screen keeps it — no close screen over it, no lobby', async () => {
+    const view = await openMeeting1();
+    act(() => useWorkspaceStore.setState({ flowStatus: 'sessionDone', awaitingNext: false }));
+    closeSession(view);
+    expect(screen.queryByTestId('closed-screen')).toBeNull();
+    expect(screen.getByTestId('station-end-screen')).toBeTruthy();
+    expect(screen.getByText('סיימתם את תחנה 1!')).toBeTruthy();
+  });
+
+  it('S5 — the close finds the learner finished by the record\'s mark (no work in this store): the end screen of that station', async () => {
+    h.session = { ...h.session, active: false, status: 'closed' };
+    useStore.setState({ students: { [STUDENT]: { highestCompletedMeeting: 1, completedMeetings: { m1: 1 } } } as any, firebaseLoaded: true });
+    open(1);
+    await flush();
+    expect(screen.queryByTestId('closed-screen')).toBeNull();
+    expect(screen.getByTestId('station-end-screen')).toBeTruthy();
+    expect(screen.getByText('סיימתם את תחנה 1!')).toBeTruthy();
+  });
+
+  it('S4 — the finished learner at the close keeps a way to sign out', async () => {
+    const view = await openMeeting1();
+    act(() => useWorkspaceStore.setState({ flowStatus: 'sessionDone', awaitingNext: false }));
+    closeSession(view);
+    expect(screen.getByTestId('station-end-screen')).toBeTruthy();
+    expect(screen.getByTestId('logout')).toBeTruthy();
+  });
+
+  it('S3 — a pause does not cover the end screen of a learner who finished', async () => {
+    const view = await openMeeting1();
+    act(() => useWorkspaceStore.setState({ flowStatus: 'sessionDone', awaitingNext: false }));
+    h.session = { ...h.session, status: 'paused' };
+    view.rerender(
+      <MemoryRouter initialEntries={['/workspace?meeting=1']}>
+        <StudentWorkspacePage />
+      </MemoryRouter>
+    );
+    expect(screen.getByTestId('station-end-screen')).toBeTruthy();
+    expect(screen.queryByTestId('paused-screen')).toBeNull();
+    expect(screen.queryByTestId('logout'), 'no sign-out on a pause').toBeNull();
+  });
+
+  it('station 1: finished means its end screen, nothing earlier', async () => {
+    const view = await openMeeting1();
+    act(() => useWorkspaceStore.setState({ sessionNumber: 1, flowStatus: 'choice_branch', awaitingNext: false } as any));
+    closeSession(view);
+    expect(screen.getByTestId('closed-screen')).toBeTruthy();
+  });
+});
+
 describe('Module 10 §א — no hesitation clock on the reinforcement-or-challenge screen', () => {
   it('the radar stops on the choice screen and starts again with the chosen exercise', async () => {
     await openMeeting1();
@@ -248,7 +320,7 @@ describe('read-aloud on the end screen and the other-device lock — click only'
   afterEach(() => speak.mockRestore());
   const speechButtons = () => screen.queryAllByRole('button', { name: 'הקראה בקול' });
 
-  it('meeting 1: one button reads the heading, the station line, the saved line and the next-station line', async () => {
+  it('meeting 1: one button reads the heading, the saved line and the next-station line — no praise in stations 1–2 (PRD 14 §ג)', async () => {
     await openMeeting1();
     act(() => useWorkspaceStore.setState({ flowStatus: 'sessionDone', awaitingNext: false }));
     expect(speechButtons()).toHaveLength(1);
@@ -256,24 +328,39 @@ describe('read-aloud on the end screen and the other-device lock — click only'
     fireEvent.click(speechButtons()[0]);
     expect(speak).toHaveBeenCalledTimes(1);
     const text = speak.mock.calls[0][0] as string;
-    expect(text).toMatch(/^כל הכבוד, מתמטיקאים! סיימתם את תחנה 1! העבודה נשמרה בבטחה\. כשהמורה (תפתח|יפתח) את התחנה הבאה, נמשיך יחד\.$/);
+    expect(text).toMatch(/^סיימתם את תחנה 1! העבודה שלכם נשמרה בבטחה\. כשהמורה (תפתח|יפתח) את התחנה הבאה, נמשיך יחד\.$/);
+    expect(screen.queryByText(/כל הכבוד/), 'no encouragement heading in station 1').toBeNull();
+    expect(document.querySelector('.animate-bounce'), 'nothing bounces').toBeNull();
     expect(text, 'the ✓ is not spoken').not.toContain('✓');
   });
 
-  it('meeting 8: the button reads "סיימתם את תחנה 8! העבודה נשמרה בבטחה." and nothing about a next station', async () => {
+  it('meeting 8: the button reads "סיימתם את תחנה 8, התחנה האחרונה! העבודה שלכם נשמרה בבטחה." and nothing about a next station', async () => {
     await openMeeting1();
     act(() => useWorkspaceStore.setState({ sessionNumber: 8, flowStatus: 'sessionDone', awaitingNext: false } as any));
     expect(speechButtons()).toHaveLength(1);
     expect(speak).not.toHaveBeenCalled();
     fireEvent.click(speechButtons()[0]);
-    expect(speak.mock.calls[0][0]).toBe('סיימתם את תחנה 8! העבודה נשמרה בבטחה.');
+    expect(speak.mock.calls[0][0]).toBe('סיימתם את תחנה 8, התחנה האחרונה! העבודה שלכם נשמרה בבטחה.');
+  });
+
+  it('OWNER-1: station 2 after the gate approved — the PRD\'s end-screen sentence (Module 7, l.286), nothing else', async () => {
+    useStore.setState({ students: { [STUDENT]: { highestCompletedMeeting: 0, teacher_gate_approved: true } } as any, firebaseLoaded: true });
+    await openMeeting1();
+    act(() => useWorkspaceStore.setState({ sessionNumber: 2, flowStatus: 'sessionDone', awaitingNext: false } as any));
+    const end = screen.getByTestId('station-end-screen');
+    expect(end.getAttribute('data-end-kind')).toBe('generic');
+    expect(end.textContent).toBe('סיימתם את התחנה. כשהמורה תפתח את התחנה הבאה, נמשיך יחד.');
+    fireEvent.click(speechButtons()[0]);
+    expect(speak.mock.calls[0][0]).toBe('סיימתם את התחנה. כשהמורה תפתח את התחנה הבאה, נמשיך יחד.');
   });
 
   it('meetings 3–7: no second button — the closing sentence carries the only one (E2)', async () => {
     await openMeeting1();
     act(() => useWorkspaceStore.setState({ sessionNumber: 4, flowStatus: 'sessionDone', awaitingNext: false } as any));
-    // ClosingSentence is stubbed in this file, so the page itself adds none.
-    expect(screen.getByText('סיימתם את תחנה 4!')).toBeTruthy();
+    // ClosingSentence is stubbed in this file, so the page itself adds none —
+    // and no heading either: the one encouragement sentence alone (PRD 14 §ג).
+    expect(screen.getByTestId('station-end-screen').getAttribute('data-end-kind')).toBe('encouragement');
+    expect(screen.queryByText('סיימתם את תחנה 4!')).toBeNull();
     expect(speechButtons()).toHaveLength(0);
   });
 
@@ -285,6 +372,6 @@ describe('read-aloud on the end screen and the other-device lock — click only'
     expect(speechButtons()).toHaveLength(1);
     expect(speak).not.toHaveBeenCalled();
     fireEvent.click(speechButtons()[0]);
-    expect(speak.mock.calls[0][0]).toBe('המשכתם במכשיר אחר. הפעילות שלכם פתוחה עכשיו במכשיר אחר. המסך הזה נעול כדי לשמור על העבודה שלכם.');
+    expect(speak.mock.calls[0][0]).toBe('המשכתם במכשיר אחר. העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה.');
   });
 });

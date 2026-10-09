@@ -8,6 +8,58 @@
 // (phonePattern.ts) — every common Israeli layout, never arithmetic.
 import { containsPhoneNumber, redactPhoneNumbers } from './phonePattern';
 
+// ---------------------------------------------------------------------------
+// PRD Module 3 §א (v7.9): "אם רכיב הסינון עצמו נכשל (שגיאת ריצה), שום דבר
+// אינו ננעל: הצ'אט, ההקלדה והעבודה ממשיכים כרגיל, והכשל נרשם ביומן השרת
+// (רישום ביקורת) כדי שהחוקר יידע שהתרחש."
+//
+// The filter fails OPEN: a runtime error inside the check is reported and the
+// text is treated as clean. A text the filter does read and finds an e-mail,
+// a phone number or an ID number in is still refused, as before.
+// ---------------------------------------------------------------------------
+
+/** Where a filter failure is sent beyond the console (the audit log). */
+export type PiiFilterFailureSink = (where: string, err: unknown) => void;
+
+let failureSink: PiiFilterFailureSink | null = null;
+const lastServerReportAt = new Map<string, number>();
+
+/** One server entry per place per minute: a live scan runs on every keystroke. */
+export const PII_FILTER_FAILURE_REPORT_INTERVAL_MS = 60_000;
+
+/**
+ * Registers the server-side sink (infrastructure/services/AuditLogger.ts does,
+ * writing to the existing `audit_logs` node). Kept as a hook so this core
+ * module does not import Firebase.
+ */
+export function setPiiFilterFailureSink(sink: PiiFilterFailureSink | null): void {
+  failureSink = sink;
+  lastServerReportAt.clear();
+}
+
+/**
+ * Records a runtime failure of the PII filter: always to the console, and to
+ * the server audit log at most once a minute per place. Never throws, never
+ * locks anything.
+ */
+export function reportPiiFilterFailure(where: string, err: unknown): void {
+  try {
+    console.error(`[PiiFilter] runtime error in ${where} — failing open, nothing is locked:`, err);
+  } catch {
+    // the console itself is not worth failing over
+  }
+  if (!failureSink) return;
+  const now = Date.now();
+  const last = lastServerReportAt.get(where);
+  if (last !== undefined && now - last < PII_FILTER_FAILURE_REPORT_INTERVAL_MS) return;
+  lastServerReportAt.set(where, now);
+  try {
+    failureSink(where, err);
+  } catch {
+    // a failing log must not turn into a lock either
+  }
+}
+
 // Email addresses: standard RFC-compliant address format
 export const PII_EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
@@ -78,9 +130,9 @@ export function containsPII(text?: string | null): boolean {
 
     return false;
   } catch (err) {
-    // Fail-Closed: any error during scanning treats the text as potentially containing PII
-    console.error('[PiiFilter] Error during containsPII scan (failing closed):', err);
-    return true;
+    // Module 3 §א: fail-open — the failure is logged, nothing is blocked.
+    reportPiiFilterFailure('containsPII', err);
+    return false;
   }
 }
 
@@ -169,8 +221,9 @@ export function validateZeroPIIPayload(payload: unknown): { valid: boolean; reas
 
     return { valid: true };
   } catch (err) {
-    console.error('[PiiFilter] Error during validateZeroPIIPayload (failing closed):', err);
-    return { valid: false, reason: 'Fail-closed: Runtime error during PII validation' };
+    // Module 3 §א: fail-open — the failure is logged, nothing is blocked.
+    reportPiiFilterFailure('validateZeroPIIPayload', err);
+    return { valid: true };
   }
 }
 
@@ -180,6 +233,16 @@ export function validateZeroPIIPayload(payload: unknown): { valid: boolean; reas
  */
 export function validateChatInputForPII(text?: string | null): { valid: boolean; errorHe?: string } {
   if (!text || typeof text !== 'string') return { valid: true };
+  try {
+    return scanChatInputForPII(text);
+  } catch (err) {
+    // Module 3 §א: fail-open — the failure is logged, the message goes.
+    reportPiiFilterFailure('validateChatInputForPII', err);
+    return { valid: true };
+  }
+}
+
+function scanChatInputForPII(text: string): { valid: boolean; errorHe?: string } {
 
   // 1. Check Emails
   PII_EMAIL_REGEX.lastIndex = 0;
@@ -221,7 +284,16 @@ export function validateChatInputForPII(text?: string | null): { valid: boolean;
  */
 export function anonymizeChatMessageBody(text: string, knownNameMap?: Record<string, number>): string {
   if (!text || typeof text !== 'string') return '';
+  try {
+    return anonymizeChatMessageBodyUnsafe(text, knownNameMap);
+  } catch (err) {
+    // Module 3 §א: fail-open — the text goes as typed, and the failure is logged.
+    reportPiiFilterFailure('anonymizeChatMessageBody', err);
+    return text;
+  }
+}
 
+function anonymizeChatMessageBodyUnsafe(text: string, knownNameMap?: Record<string, number>): string {
   let processed = text;
 
   // Replace names if map is provided (supports Hebrew single-letter prefixes like ו, ל, ב, מ, כ, ש, ה)

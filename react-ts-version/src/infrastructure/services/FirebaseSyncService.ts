@@ -1,5 +1,5 @@
 import { ref, set, get, update, runTransaction, serverTimestamp, onValue, onDisconnect, push, type DataSnapshot } from 'firebase/database';
-import { database, firestore, serverNow } from '@/infrastructure/firebase';
+import { database, firestore, serverNow, auth as firebaseAuth } from '@/infrastructure/firebase';
 import {
   WORKSPACE_SAVED_AT_KEY,
   WORKSPACE_STARTED_WITHOUT_RECORD_KEY,
@@ -31,6 +31,7 @@ import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/appl
 import { throttledRtdbUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
 import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
 import { recordRecentTelemetry } from './recentTelemetry';
+import { getDeviceId, nextSequenceNumber } from './telemetryStamp';
 import type { SessionDocument, PedagogicalPath } from '@/types';
 import {
   type TelemetryPayload,
@@ -54,6 +55,15 @@ type WorkspaceStoreState = ReturnType<typeof useWorkspaceStore.getState>;
  * after that. This write, sent last, clears them again.
  */
 export const TEACHER_RESET_FIELDS = { forceReload: null, workspaceState: null, sessionState: null } as const;
+
+/**
+ * Module 23א §ג: the server time at which this device took up a teacher's
+ * reset, written in the same update that clears forceReload. The server's
+ * late-recording check (functions/src/lateRecordings.ts) reads it: a recording
+ * chunk minted after it is part of the learner's new run, not a late chunk.
+ */
+export const RESET_ACK_FIELD = 'reset_acknowledged_at';
+export const resetAcknowledgement = (): Record<string, object> => ({ [RESET_ACK_FIELD]: serverTimestamp() });
 
 /**
  * TEACHER_RESET_FIELDS for the reset as the record names it (resetMeetingOf):
@@ -209,6 +219,21 @@ function asPilotStudentNumber(value: unknown): number | null {
   return Number.isInteger(n) && n >= 1 && n <= 12 ? n : null;
 }
 
+/** Where client versions before IndexedDB kept their queue (read once, by the migration only). */
+const LEGACY_OFFLINE_QUEUE_KEY = 'mathmaticore_offline_queue';
+
+/** How long a flush pass waits for the refused-events count to be written (publishRefusedEvents). */
+const REFUSED_PUBLISH_WAIT_MS = 3000;
+
+/**
+ * Which sign-in an event belongs to, for its sequence_number (PRD Module 5 §ב:
+ * "מונה עולה לכל מכשיר ולכל כניסה"): the learner and the moment they signed in.
+ */
+export function telemetrySignInKey(studentNumber: number): string {
+  const at = typeof useAuthStore?.getState === 'function' ? useAuthStore.getState().authTimestamp : null;
+  return `student:${studentNumber}@${at ?? 'unknown'}`;
+}
+
 /**
  * מודול 5 / חוקי Firestore §4: student_id באירוע טלמטריה חייב להיות בדיוק
  * מספר התלמיד המאומת (1-12).
@@ -336,6 +361,7 @@ export async function deliverQueuedRtdbWrite(refPath: string, payload: any, deli
     return;
   }
   const { idempotency_key: _key, ...fields } = (payload ?? {}) as Record<string, unknown>;
+  if (typeof delivery.completionMarkOf === 'number') await holdMarkWhileResetPending(refPath, delivery.completionMarkOf);
   const guarded = delivery.skipFieldsIfGateApproved ?? [];
   if (guarded.length > 0) {
     // A pre-read that fails because the network is down does not count
@@ -350,6 +376,30 @@ export async function deliverQueuedRtdbWrite(refPath: string, payload: any, deli
   for (const field of SERVER_SCORED_FIELDS) delete fields[field];
   if (Object.keys(fields).length === 0) return;
   await update(ref(database, refPath), fields);
+}
+
+/**
+ * A queued "meeting N finished" mark is not written while the record shows a
+ * teacher's reset of meeting N (or of everything) that this learner's screen
+ * has not taken up yet (forceReload still set). The mark was queued before
+ * that reset — after it, the screen restarted the meeting — and taking the
+ * reset up removes it from the queue (discardUnsentWorkspace →
+ * discardCompletionMarks). Until then it waits, counted as the network
+ * (queueUnreached): it is never parked or dropped here. Without this, a
+ * device reconnecting after the reset could deliver the old mark before its
+ * record listener saw the reset, and the reset meeting read as finished.
+ */
+async function holdMarkWhileResetPending(refPath: string, meeting: number): Promise<void> {
+  const fields = ['forceReload', 'lastAction', 'highestCompletedMeeting', 'activeSessionNumber', 'activeSessionId', 'completedMeeting8'] as const;
+  const snaps = await Promise.all(fields.map((f) => get(ref(database, `${refPath}/${f}`))))
+    .catch((err) => { throw preReadFailure(err); });
+  const record: Record<string, unknown> = {};
+  fields.forEach((f, i) => { record[f] = snaps[i]?.val?.() ?? null; });
+  if (record.forceReload !== true) return;
+  const reset = resetMeetingOf(record as Parameters<typeof resetMeetingOf>[0]);
+  if (reset === meeting || reset === 'all' || reset === null) {
+    throw Object.assign(new Error(`completion mark of meeting ${meeting} held: a reset is waiting for the learner's screen`), { queueUnreached: true });
+  }
 }
 
 /**
@@ -456,6 +506,27 @@ export class FirebaseSyncService {
   }
 
   private init() {
+    // A device that never goes offline never sees 'online': the legacy queue
+    // is also moved once at start.
+    void this.loadOfflineQueueFromStorage();
+    // Module 17 §ב: the teacher sees the learner's refused events on the
+    // learner card ("אירועים שנדחו"). The queue counts them per identity and
+    // reports after every pass (the sign-out flush's included) and sign-in.
+    if (typeof indexedDBQueue?.onRefusedCountForOwner === 'function') {
+      indexedDBQueue.onRefusedCountForOwner((owner, count) => this.publishRefusedEvents(owner, count));
+    }
+    // What the server refused may be accepted once the ID token changes (a
+    // refresh, new claims) — e.g. rules deployed after this build loaded.
+    // Each refusal-parked item gets one such revive per page (review B1).
+    try {
+      const a = firebaseAuth as unknown as { onIdTokenChanged?: (cb: (u: unknown) => void) => unknown };
+      if (typeof a?.onIdTokenChanged === 'function' && typeof indexedDBQueue?.reviveRefusalParked === 'function') {
+        a.onIdTokenChanged((u) => {
+          if (u) indexedDBQueue.reviveRefusalParked().catch(() => {});
+        });
+      }
+    } catch { /* no auth instance (tests, inert stub): page loads still revive */ }
+
     // Check initial auth state
     const initialAuth = typeof useAuthStore?.getState === 'function' ? useAuthStore.getState() : { isAuthenticated: false, user: null, role: null };
     this.syncSharedListeners(initialAuth.isAuthenticated);
@@ -500,6 +571,55 @@ export class FirebaseSyncService {
       }
     });
     }
+  }
+
+  /** The count this tab last wrote, per learner and device, so an unchanged count is not rewritten. */
+  private publishedRefused = new Map<number, number>();
+
+  /**
+   * Writes a learner's count of refused events on this device to
+   * users/students/student_user{N}/refusedEvents/{device_id}, where the
+   * teacher's learner card sums every device (Module 17 §ב: "המורה רואה את
+   * מספרם"). Per device, because PRD Module 1 §א keeps the previous device
+   * sending its queue after a second sign-in and tells the devices apart by
+   * device_id: a superseded device still writes its own count, and two
+   * devices never overwrite each other. Called after every pass, so the count
+   * also falls to 0 when a sign-out flush delivers what was refused; that
+   * write is made as the identity that is signing out, while its claims last.
+   * A count of 0 removes the device's entry. Staff identities write nothing.
+   * On sign-out the write may still be in flight when the claims are
+   * released; it is then refused, and the count is written again on this
+   * learner's next sign-in on this device.
+   */
+  private async publishRefusedEvents(owner: string, count: number): Promise<void> {
+    const m = /^student:(\d{1,2})$/.exec(owner);
+    const n = m ? asPilotStudentNumber(m[1]) : null;
+    if (n === null) return;
+    const value = Math.max(0, Math.floor(count));
+    if (this.publishedRefused.get(n) === value) return;
+    const deviceId = getDeviceId();
+    const node = `users/students/student_user${n}/refusedEvents`;
+    const work = (async () => {
+      // A 0 with nothing written by this tab yet: write only if this device
+      // left a count there earlier (a previous page, or a sign-out flush that
+      // delivered after the write could no longer be made) — one read per
+      // learner per page instead of a write on every learner's every pass.
+      if (value === 0 && !this.publishedRefused.has(n)) {
+        const snap = await get(ref(database, `${node}/${deviceId}`));
+        if (!snap?.exists?.()) { this.publishedRefused.set(n, 0); return; }
+      }
+      // Its own path, outside the throttled writer of the learner record: an
+      // immediate write there (rtdbUpdateNow) would also send whatever board
+      // or presence write is pending on the record, without its guards — on a
+      // superseded device, over the active device's board (Module 1 §א).
+      await update(ref(database, node), { [deviceId]: value > 0 ? value : null });
+      this.publishedRefused.set(n, value);
+    })();
+    // The flush waits for this write, but never for long: a write that is not
+    // acknowledged (no connection) is tried again after the next pass.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([work.catch(() => {}), new Promise<void>((r) => { timer = setTimeout(r, REFUSED_PUBLISH_WAIT_MS); })]);
+    if (timer) clearTimeout(timer);
   }
 
   private startSync(rawStudentId: string, userData: Record<string, unknown>) {
@@ -563,7 +683,7 @@ export class FirebaseSyncService {
             this.lastResetSeenAt = Date.now();
             const resetMeeting = resetMeetingOf(data);
             this.discardUnsentWorkspace(resetMeeting);
-            update(studentRef, teacherResetFields(resetMeeting)).then(() => {
+            update(studentRef, { ...teacherResetFields(resetMeeting), ...resetAcknowledgement() }).then(() => {
               window.location.reload();
             }).catch((err) => {
               console.error("Failed to clear forceReload flag:", err);
@@ -905,6 +1025,14 @@ export class FirebaseSyncService {
     for (const tag of Array.from(this.completedMarksSent)) {
       if (!isMeetingNumber(resetMeeting) || tag.endsWith(`|${resetMeeting}`)) this.completedMarksSent.delete(tag);
     }
+    // A finished mark still queued for the reset meeting belongs to the run
+    // the reset erased: written later, it would show that meeting finished
+    // again. Only those marks go; telemetry and everything else stay queued.
+    if (typeof indexedDBQueue?.discardCompletionMarks === 'function') {
+      indexedDBQueue
+        .discardCompletionMarks(this.learnerRecordKeys().map((k) => `users/students/${k}`), isMeetingNumber(resetMeeting) ? resetMeeting : 'all')
+        .catch(() => {});
+    }
     const discarded = this.initializedForThisLearner(useWorkspaceStore.getState());
     if (discarded) this.discardedStart = discarded;
   }
@@ -1094,7 +1222,7 @@ export class FirebaseSyncService {
       // This meeting's U, E and G (E1), so a reload keeps the closing sentence
       // the child earned. Counts only — the index is never stored for the child.
       meetingPersistence: state.meetingPersistence,
-      // The opening screen of station 2 or 8 was already passed (owner, 27.9.2026).
+      // The opening screen of the station was already passed (owner, 27.9.2026).
       openingScreenSeen: state.openingScreenSeen,
       hasInteracted: state.hasInteracted,
       // What a meeting 1 step or exercise is decided by. restoreSession read
@@ -1139,6 +1267,9 @@ export class FirebaseSyncService {
       // Column dimming only (view): the skeleton's board has held the number
       // its board work starts from — a reload mid-computation keeps the focus.
       heldFromTrack: state.heldFromTrack ?? null,
+      // The task zone's sticky "build N" step (station 7's add-then-remove): a
+      // reload keeps its tick.
+      builtTrack: state.builtTrack ?? null,
       // Stations 3 and 7: the single answer box as it was at the last press of
       // "התקדם". Not saved, a reload recorded its unchanged digits again.
       lastSubmittedAnswer: typeof state.lastSubmittedAnswer === 'string' ? state.lastSubmittedAnswer : null,
@@ -1397,28 +1528,64 @@ export class FirebaseSyncService {
   }
 
   /**
-   * Legacy migration only (Module 17): drains a queue persisted by older client
-   * versions into localStorage, then removes the key. New writes never touch
+   * Legacy migration only (Module 17): moves a queue persisted by older client
+   * versions into localStorage over to IndexedDB. New writes never touch
    * localStorage — IndexedDB is the sole durable buffer for the sync queue.
+   *
+   * Module 17 §ב: no item is ever dropped. Every item is stored in IndexedDB
+   * first (no cap, no filter), and only what IndexedDB durably holds leaves
+   * the legacy key; the key is removed once nothing is left in it. An item
+   * that cannot be moved (IndexedDB unavailable, or a shape with no
+   * destination) stays where it is, for the next load. Moving one twice is
+   * harmless: its idempotency key is pinned, so the RTDB child write repeats.
    */
-  private loadOfflineQueueFromStorage() {
+  private loadOfflineQueueFromStorage(): Promise<void> {
+    // One migration at a time: two runs over the same legacy array (two
+    // 'online' events close together) would each move every item.
+    this.legacyMigration ??= this.migrateLegacyQueue().finally(() => { this.legacyMigration = null; });
+    return this.legacyMigration;
+  }
+
+  private legacyMigration: Promise<void> | null = null;
+
+  private async migrateLegacyQueue(): Promise<void> {
     if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
     try {
-      const raw = localStorage.getItem('mathmaticore_offline_queue');
-      if (raw) {
-        const items = JSON.parse(raw);
-        if (Array.isArray(items)) {
-          this.offlineTelemetryQueue = items
-            .slice(-500)
-            .filter((it: any) => it && typeof it.refPath === 'string')
-            .map((it: any) => ({
-              refPath: it.refPath,
-              payload: it.payload,
-              idempotency_key: it.idempotency_key || this.generateQueueIdempotencyKey(),
-            }));
+      const raw = localStorage.getItem(LEGACY_OFFLINE_QUEUE_KEY);
+      if (!raw) return;
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return; // not a queue this code understands: left as it is
+      // Every item gets its key BEFORE anything is moved, and the array is
+      // saved with the keys: a run cut short (the tab closed mid-loop) and run
+      // again moves the same items under the same keys — the same RTDB
+      // children — never as second copies under new random keys.
+      let keyed = false;
+      const items = (parsed as Array<Record<string, any> | null>).map((it): Record<string, any> | null => {
+        if (it && typeof it === 'object' && !Array.isArray(it) && typeof it.refPath === 'string' && !it.idempotency_key) {
+          keyed = true;
+          return { ...it, idempotency_key: this.generateQueueIdempotencyKey() };
         }
-        localStorage.removeItem('mathmaticore_offline_queue');
+        return it;
+      });
+      if (keyed) localStorage.setItem(LEGACY_OFFLINE_QUEUE_KEY, JSON.stringify(items));
+      const kept: unknown[] = [];
+      for (const it of items) {
+        const payload = it?.payload;
+        if (!it || typeof it.refPath !== 'string' || !payload || typeof payload !== 'object' || Array.isArray(payload)) {
+          kept.push(it);
+          continue;
+        }
+        const idempotency_key = String(it.idempotency_key);
+        let durable = false;
+        try {
+          // Owned by the learner the item is about (its path), not by whoever
+          // is signed in when the migration runs.
+          durable = (await indexedDBQueue.enqueueLegacyDurably(it.refPath, { ...payload, idempotency_key })) === true;
+        } catch { /* stays in the legacy key */ }
+        if (!durable) kept.push(it);
       }
+      if (kept.length === 0) localStorage.removeItem(LEGACY_OFFLINE_QUEUE_KEY);
+      else localStorage.setItem(LEGACY_OFFLINE_QUEUE_KEY, JSON.stringify(kept));
     } catch (e) {
       console.warn("Failed to migrate legacy offline telemetry queue:", e);
     }
@@ -1426,18 +1593,14 @@ export class FirebaseSyncService {
 
   private enqueueOfflineTransaction(refPath: string, payload: any) {
     const idempotency_key = payload?.idempotency_key || this.generateQueueIdempotencyKey();
+    // Module 17 §ב: no capacity drops; every transaction is kept in strict FIFO order.
     this.offlineTelemetryQueue.push({ refPath, payload, idempotency_key });
-    // Queue capacity is 500 items in strict FIFO order; oldest transaction drops on overflow
-    if (this.offlineTelemetryQueue.length > 500) {
-      this.offlineTelemetryQueue.shift();
-      console.warn("Offline telemetry queue exceeded 500 items. Dropping oldest transaction.");
-    }
     // Module 17: durable persistence goes to IndexedDB only, carrying the idempotency key
     indexedDBQueue.enqueue(refPath, { ...payload, idempotency_key }).catch(() => {});
   }
 
   private async flushOfflineQueue() {
-    this.loadOfflineQueueFromStorage();
+    await this.loadOfflineQueueFromStorage();
     if (this.offlineTelemetryQueue.length === 0) {
       indexedDBQueue.flushQueue().catch(() => {});
       return;
@@ -1542,6 +1705,13 @@ export class FirebaseSyncService {
    * again from this page, and not when the record already carries the mark.
    * Never removed here; a teacher's reset of the meeting removes it.
    * The caller checks isSupersededByOtherDevice.
+   *
+   * Through the IndexedDB queue (Module 17 §ב), behind the meeting's
+   * telemetry already queued (Module 29 §ג "סדר FIFO קשוח"), as
+   * syncSession2Completion. The server completes and scores meetings 3–8 from
+   * this mark (sessionTrigger.ts onMeetingCompletionMarked); a direct write
+   * could reach it before the last exercises' telemetry after a network drop,
+   * and the meeting would be scored on part of the run.
    */
   public markMeetingCompleted(studentId: string, meeting: number): void {
     if (!studentId || !isMeetingNumber(meeting)) return;
@@ -1552,7 +1722,12 @@ export class FirebaseSyncService {
       const tag = `${id}|${meeting}`;
       if (alreadyOnRecord || this.completedMarksSent.has(tag)) continue;
       this.completedMarksSent.add(tag);
-      throttledRtdbUpdate(`users/students/${id}`, { [completedMeetingField(meeting)]: serverTimestamp() }).catch((err) => {
+      indexedDBQueue.enqueueRtdbMerge(
+        `users/students/${id}`,
+        { [completedMeetingField(meeting)]: serverTimestamp() },
+        `meeting_done_${id}_m${meeting}_${Date.now()}`,
+        { completionMarkOf: meeting }
+      ).catch((err) => {
         this.completedMarksSent.delete(tag);
         console.error(`[FirebaseSyncService] Could not mark meeting ${meeting} finished on ${id}:`, err);
       });
@@ -1641,6 +1816,9 @@ export class FirebaseSyncService {
       event_type: event.event_type,
       ...(event.column_index !== undefined ? { column_index: event.column_index } : {}),
       details: event.details,
+      // PRD Module 5 §ב: per device and per sign-in; device_id is random, no PII.
+      sequence_number: nextSequenceNumber(telemetrySignInKey(numStudentId)),
+      device_id: getDeviceId(),
     };
 
     // Owner decision E1 (27.9.2026, register deviation 24): the closing
@@ -1684,6 +1862,9 @@ export class FirebaseSyncService {
       HELP_REQUESTED: 'קריאה שקטה למורה',
       HELP_WITHDRAWN: 'ביטל את הקריאה למורה',
       CHAT_HELP_REQUESTED: 'ביקש עזרה מהצ׳אט',
+      BRANCH_SELECTED: (event.details as { branch?: string } | undefined)?.branch === 'challenge'
+        ? 'בחר נתיב אתגר 🚀 (משימות רשות)'
+        : 'בחר נתיב ביסוס 🛡️ (משימות רשות)', // the same words selectBranch writes
       PLACE_CUES_SHOWN: 'ספרה בתיבה של טור אחר: הופיעו צבעי הטורים וכותרותיהם',
     };
     rtdbLiveUpdate.lastAction = eventLabels[event.event_type] || event.event_type;
@@ -2246,9 +2427,9 @@ export function acknowledgeTeacherReset(
   firebaseSyncService.discardUnsentWorkspace(resetMeeting);
   const path = `users/students/${normUid}`;
   if (canWrite) {
-    rtdbUpdateNow(path, { ...teacherResetFields(resetMeeting), isOnline: false, lastPing: 0 }).catch(() => {});
+    rtdbUpdateNow(path, { ...teacherResetFields(resetMeeting), ...resetAcknowledgement(), isOnline: false, lastPing: 0 }).catch(() => {});
   } else {
-    update(ref(database, path), { forceReload: null }).catch(() => {});
+    update(ref(database, path), { forceReload: null, ...resetAcknowledgement() }).catch(() => {});
   }
   useWorkspaceStore.getState().resetWorkspace?.();
   const onlyMeeting = isMeetingNumber(resetMeeting) ? resetMeeting : undefined;

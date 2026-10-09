@@ -46,9 +46,13 @@ vi.mock('firebase-admin', async (importOriginal) => {
       doc: (id: string) => docRef(name, id),
       where: (field: string, op: string, value: unknown) => ({
         get: async () => {
-          expect(op).toBe('==');
+          // '==' (telemetry_logs, catchup_records) and 'array-contains'
+          // (reset_audit_log, read by stampScoreBeforeCatchUp); nothing else.
+          expect(['==', 'array-contains']).toContain(op);
+          const matches = (d: Record<string, any>) =>
+            op === 'array-contains' ? Array.isArray(d[field]) && d[field].includes(value) : d[field] === value;
           const docs = Object.entries(h.docs)
-            .filter(([p, d]) => p.startsWith(`${name}/`) && d[field] === value)
+            .filter(([p, d]) => p.startsWith(`${name}/`) && matches(d))
             .map(([p, d]) => ({
               id: p.slice(name.length + 1),
               data: () => structuredClone(d),
@@ -357,5 +361,27 @@ describe('onCatchUpSessionWrite', () => {
     expect(await openCatchUpRounds(admin.firestore(), 7, S)).toEqual([9]);
     expect(await closeCatchUpRounds(admin.firestore(), 7, S + MIN, 'switch')).toEqual([9]);
     expect(rec(7, 10).rounds.r_1.closed_at).toBeNull();
+  });
+
+  it('opening a round stamps the score before catch-up on the record (PRD 14 §ב0, 23 §ב)', async () => {
+    // Meeting 4, learner 5: 3 of the 7 compulsory exercises right the first time → 43%.
+    const answer = (id: string, event_type: string, details: Record<string, unknown>, t: number) => {
+      seq++;
+      h.docs[`telemetry_logs/ev_${seq}`] = {
+        student_id: 5, session_id: 'session_4_student_student_user5', exercise_id: id, event_type, client_timestamp: t, details,
+      };
+      h.createTimes[`telemetry_logs/ev_${seq}`] = t;
+    };
+    [1, 2, 3].forEach((i) => {
+      const id = `s4_g_t${i}`;
+      const t = S - 30 * MIN + i * MIN;
+      answer(id, 'PROBLEM_LOAD', {}, t);
+      answer(id, 'DIGIT_ENTERED', { is_correct: true }, t + 1);
+      answer(id, 'PROBLEM_COMPLETE', {}, t + 2);
+    });
+    putRecord(4, 5, { r_1: round() });
+    expect(await openCatchUpRounds(admin.firestore(), 4, S)).toEqual([5]);
+    expect(rec(4, 5)).toMatchObject({ score_before_catchup_percent: 43, score_before_catchup_at: S });
+    expect(rec(4, 5).rounds.r_1.opened_at).toBe(S);
   });
 });

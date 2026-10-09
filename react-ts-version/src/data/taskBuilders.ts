@@ -278,14 +278,35 @@ export function flexible(id: string, value: number, titleHe: string, instruction
  * decompose. */
 
 /**
- * Station 4 (owner, 30.9.2026): every exercise names the "קבצו 10" button — its
- * absence told the child in advance that nothing needs grouping. "כאשר" governs
- * both actions, so an exercise without grouping asks for nothing it lacks.
+ * The sentences stations 4–6 share (PRD 7.15, Module 26: "ההנחיה בכל תרגיל"),
+ * one copy each. core/taskGuide.ts shows the same sentences as the steps and
+ * the condition lines of the task zone, so the screen and the instruction
+ * (read aloud, the teacher's view, telemetry) never say two different things.
  */
-const GROUP_WHEN_TEN =
-  ' ייצגו את המספרים בעזרת לבנים. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון.';
+export const WRITE_RESULT_HE = 'כתבו את התוצאה בשורת התוצאה.';
+/** Station 4's build sentence. */
+export const BUILD_BOTH_HE = 'בנו בבית המספרים את שני המספרים.';
+/** Station 4's condition: the button and the memory circle (one sentence in the instruction, two lines in the task zone). */
+export const GROUP_WHEN_TEN_HE = 'כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור';
+export const RECORD_CONVERSION_HE = 'רשמו את ההמרה בעיגול הזיכרון';
+/** Stations 5–6's build sentence. */
+export const BUILD_MINUEND_HE = 'בנו את המחוסר בבית המספרים.';
+/** Stations 5–6's two condition sentences. */
+export const BORROW_WHEN_NEEDED_HE = [
+  'אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור.',
+  'אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.',
+] as const;
+export const TAKE_AWAY_HE = 'הוציאו מבית המספרים את הכמות הנדרשת';
+
+/**
+ * Station 4 (owner, 30.9.2026): every exercise names the "קבצו 10" button — its
+ * absence told the child in advance that nothing needs grouping. The condition
+ * ("כשמצטברות…") governs both actions, so an exercise without grouping asks for
+ * nothing it lacks. Wording: PRD 7.15, Module 26, station 4, word for word.
+ */
+const GROUP_WHEN_TEN = ` ${BUILD_BOTH_HE} ${GROUP_WHEN_TEN_HE} ו${RECORD_CONVERSION_HE}.`;
 export const S4_ADD = (ex: string) =>
-  `פתרו במאונך: ${ex}.${GROUP_WHEN_TEN} רשמו את התוצאה בשורת התוצאה.`;
+  `פתרו במאונך: ${ex}.${GROUP_WHEN_TEN} ${WRITE_RESULT_HE}`;
 /**
  * A result digit missing (s4_r_t7, s6_r_t7 — owner, 4.10.2026): the exercise
  * with the tens digit of its result missing, the station's own middle
@@ -303,11 +324,10 @@ export const S4_MISSING_TENS = (ex: string) => `${TENS_DIGIT_MISSING(ex)}${GROUP
  * the memory circles. (Until 30.9.2026 station 5 said "פרטו עשרת אחת ליחידות…"
  * and station 6 "כאן דרושה פריטה כפולה: פרטו פעמיים…".)
  */
-const BORROW_WHEN_NEEDED =
-  ' בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.';
+const BORROW_WHEN_NEEDED = ` ${BUILD_MINUEND_HE} ${BORROW_WHEN_NEEDED_HE.join(' ')}`;
 
 export function S5_SUB(ex: string, _a?: number, _b?: number): string {
-  return `פתרו במאונך: ${ex}.${BORROW_WHEN_NEEDED} הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
+  return `פתרו במאונך: ${ex}.${BORROW_WHEN_NEEDED} ${TAKE_AWAY_HE} ו${WRITE_RESULT_HE}`;
 }
 
 /**
@@ -341,10 +361,10 @@ export function borrowCount(a: number, b: number): number {
 }
 
 export const S6_SUB = (ex: string, _a?: number, _b?: number) =>
-  `פתרו חיסור עם אפסים: ${ex}.${BORROW_WHEN_NEEDED} הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`;
+  `פתרו במאונך: ${ex}.${BORROW_WHEN_NEEDED} ${TAKE_AWAY_HE} ו${WRITE_RESULT_HE}`;
 /** s6_r_t7 (400 − 156): stations 5–6's own middle sentences, then the take-away and the one box. */
 export const S6_MISSING_TENS = (ex: string) =>
-  `${TENS_DIGIT_MISSING(ex)}${BORROW_WHEN_NEEDED} הוציאו מבית המספרים את הכמות הנדרשת.${WRITE_MISSING_DIGIT}`;
+  `${TENS_DIGIT_MISSING(ex)}${BORROW_WHEN_NEEDED} ${TAKE_AWAY_HE}.${WRITE_MISSING_DIGIT}`;
 /**
  * Station 8 (owner, 4.10.2026): the order of stations 4–6 — "פתרו …: the
  * exercise." — then one action a sentence. Until then the exercise came first

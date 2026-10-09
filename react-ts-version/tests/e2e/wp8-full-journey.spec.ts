@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { learnerCode } from '../learnerCode';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDupqh8inn1tZ1p-KIzV3RIMst7IdpUYPw",
@@ -24,7 +25,7 @@ test.describe('WP8 Part A: Full End-to-End Virtual Student Journey (Browser + Fi
     });
 
     // =========================================================================
-    // STEP 1: Student Login (Anonymous ID 2, Code 10203040)
+    // STEP 1: Student Login (Anonymous ID 2, their personal access code)
     // =========================================================================
     console.log('\n[STEP 1] Navigating to login and selecting Student role...');
     await page.goto('/login');
@@ -41,10 +42,10 @@ test.describe('WP8 Part A: Full End-to-End Virtual Student Journey (Browser + Fi
       await studentSelect.selectOption('2');
     }
 
-    // Enter fixed passcode
-    const passwordInput = page.getByPlaceholder('10203040');
+    // Enter learner 2's personal access code (PRD Module 1)
+    const passwordInput = page.getByPlaceholder('••••');
     await expect(passwordInput).toBeVisible();
-    await passwordInput.fill('10203040');
+    await passwordInput.fill(learnerCode(2));
 
     // Click submit
     const submitBtn = page.getByRole('button', { name: 'כניסה לסביבה' });

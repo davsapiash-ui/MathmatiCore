@@ -3,10 +3,7 @@ import { type StudentData } from '@/application/useStore';
 import { X, Send, Minus, CheckCheck } from 'lucide-react';
 import { useChatStore, normalizeStudentId, isTeacherOrAdminId } from '@/application/useChatStore';
 import { toast } from 'sonner';
-import { validateChatInputForPII, anonymizeChatMessageBody } from '@/core/security/PiiFilter';
-
-/** While the PII filter is down, how often it is tried again (as in the learner's chat). */
-export const PII_FILTER_RECHECK_MS = 5000;
+import { validateChatInputForPII, anonymizeChatMessageBody, reportPiiFilterFailure } from '@/core/security/PiiFilter';
 
 interface Props {
   student: StudentData;
@@ -17,23 +14,6 @@ interface Props {
 export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [inputText, setInputText] = useState('');
-  // PRD Module 3 §א: "במקרה של תקלה ברכיב הסינון, המערכת נועלת את הקלט ליתר
-  // ביטחון עד להתאוששות הלוגיקה". A failure used to stop that one send only
-  // and leave the box open; the learner's chat already locks (StudentChatOverlay).
-  const [piiFilterDown, setPiiFilterDown] = useState(false);
-  useEffect(() => {
-    if (!piiFilterDown) return;
-    const timer = setInterval(() => {
-      try {
-        validateChatInputForPII('בדיקה');
-        setPiiFilterDown(false);
-      } catch {
-        // still down: the box stays locked
-      }
-    }, PII_FILTER_RECHECK_MS);
-    return () => clearInterval(timer);
-  }, [piiFilterDown]);
-
   const { messages, sendMessage, markAsRead, initSync } = useChatStore();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -67,25 +47,25 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   // chat history goes only with a reset, after its backup (23א §ג).
 
   const handleSend = () => {
-    if (!inputText.trim() || piiFilterDown) return;
+    if (!inputText.trim()) return;
 
-    // Module 22: Tier 1 Client-Side Regex Validation (Fail-Closed Architecture)
+    // Module 22 Tier 1: an e-mail, phone or ID number is refused. PRD Module 3
+    // §א (v7.9): if the filter itself fails, nothing is locked — the failure is
+    // logged (console + audit log) and the message goes.
+    let validation: { valid: boolean; errorHe?: string } = { valid: true };
     try {
-      const validation = validateChatInputForPII(inputText);
-      if (!validation.valid) {
-        toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
-        return;
-      }
-
-      const cleanText = anonymizeChatMessageBody(inputText.trim());
-      sendMessage(teacherId || 'teacher', 'מורה', normStudentId, cleanText);
-      setInputText('');
+      validation = validateChatInputForPII(inputText);
     } catch (err) {
-      console.error('[Module 3/22 Fail-Closed] PII scanning error caught:', err);
-      setPiiFilterDown(true);
-      toast.error('שגיאה בבדיקת הפרטים המזהים. שליחת ההודעה נחסמה להגנה על פרטיות התלמידים.');
-      return; // Fail-Closed: Strictly blocks message transmission
+      reportPiiFilterFailure('FloatingChatPanel', err);
     }
+    if (!validation.valid) {
+      toast.warning(validation.errorHe || 'הודעה מכילה פרטים מזהים. יש להשתמש במזהה 1-12 בלבד.');
+      return;
+    }
+
+    const cleanText = anonymizeChatMessageBody(inputText.trim());
+    sendMessage(teacherId || 'teacher', 'מורה', normStudentId, cleanText);
+    setInputText('');
   };
 
   // Above the learner drawer, whose chat button opens this panel. Both stood
@@ -159,14 +139,12 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
               value={inputText}
               onChange={e => setInputText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
-              disabled={piiFilterDown}
-              placeholder={piiFilterDown ? 'הכתיבה נעולה עד שבדיקת הפרטים המזהים תחזור לפעול' : 'כתבו הודעה לתלמיד...'}
+              placeholder="כתבו הודעה לתלמיד..."
               className="flex-1 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
             />
             
             <button 
               onClick={handleSend}
-              disabled={piiFilterDown}
               aria-label="שליחת ההודעה"
               className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-full transition-colors flex items-center justify-center w-9 h-9 shrink-0 shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >

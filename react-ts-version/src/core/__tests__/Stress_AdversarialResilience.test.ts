@@ -3,6 +3,7 @@ import { useAuthStore, unifiedLogout } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useChatStore, normalizeStudentId, computeRoomId, type ChatMessage } from '@/application/useChatStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
+import { indexedDBQueue } from '@/infrastructure/services/IndexedDBQueue';
 
 // Mock storage
 const mockStorage: Record<string, string> = {};
@@ -39,12 +40,11 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
   // ==========================================================================
   // 1. OFFLINE TELEMETRY QUEUE STRESS TEST (1,000 ITEMS, FIFO, 500 CAP)
   // ==========================================================================
-  describe('1. Offline Telemetry Queue — 1,000 Item Burst & FIFO 500 Cap', () => {
-    it('should strictly enforce 500-item cap and maintain FIFO ordering when flooded with 1,000 items', () => {
+  describe('1. Offline Telemetry Queue — 1,000 Item Burst, FIFO, no discard', () => {
+    it('keeps every one of 1,000 offline transactions in FIFO order (Module 17 §ב: nothing is dropped)', () => {
       const syncService = firebaseSyncService as any;
       syncService.offlineTelemetryQueue = [];
 
-      // Step 1: Enqueue 1,000 sequential telemetry transactions while offline
       for (let i = 0; i < 1000; i++) {
         syncService.enqueueOfflineTransaction('radar_alerts/student_user1', {
           sequenceId: i,
@@ -56,55 +56,72 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
 
       const queue: Array<{ refPath: string, payload: any }> = syncService.offlineTelemetryQueue;
 
-      // Invariant 1: Queue length must be strictly capped at 500 items
-      expect(queue.length).toBe(500);
-
-      // Invariant 2: FIFO behavior — the oldest 500 items (0..499) must be dropped,
-      // and items 500..999 must remain in strictly ascending sequence
-      expect(queue[0].payload.sequenceId).toBe(500);
-      expect(queue[499].payload.sequenceId).toBe(999);
-
-      for (let j = 0; j < 500; j++) {
-        expect(queue[j].payload.sequenceId).toBe(500 + j);
+      // No capacity drop: all 1,000 remain, oldest first.
+      expect(queue.length).toBe(1000);
+      for (let j = 0; j < 1000; j++) {
+        expect(queue[j].payload.sequenceId).toBe(j);
       }
 
-      // Invariant 3 (PRD v7.0 Module 17): the sync queue must NEVER persist to localStorage —
-      // IndexedDB is the sole durable buffer. Enqueueing must not produce any localStorage write.
+      // PRD Module 17: the sync queue never persists to localStorage — IndexedDB is the sole durable buffer.
       const queueWrites = mockLocalStorage.setItem.mock.calls.filter(
         (call: any[]) => call[0] === 'mathmaticore_offline_queue'
       );
       expect(queueWrites.length).toBe(0);
 
-      // Invariant 4 (PRD v7.0 Module 17 §C step 5): every queued transaction carries a unique
-      // idempotency key, so flush retries overwrite instead of duplicating telemetry.
+      // Every queued transaction carries a unique idempotency key.
       const keys = queue.map((item: any) => item.idempotency_key);
       expect(keys.every((k: string) => typeof k === 'string' && k.length > 0)).toBe(true);
       expect(new Set(keys).size).toBe(queue.length);
     });
 
-    it('should migrate (truncate to latest 500) a legacy 1,000-item localStorage queue and remove the legacy key', () => {
+    it('moves every item of a legacy 1,000-item localStorage queue into IndexedDB before removing the legacy key', async () => {
       const syncService = firebaseSyncService as any;
+      const stored: Array<{ refPath: string; payload: any }> = [];
+      const spy = vi.spyOn(indexedDBQueue, 'enqueueLegacyDurably').mockImplementation(async (refPath: any, payload: any) => {
+        // The legacy key is still there while the item is being stored.
+        expect(mockStorage['mathmaticore_offline_queue']).toBeDefined();
+        stored.push({ refPath, payload });
+        return true;
+      });
 
-      // Simulate external/previous session storing 1,000 items in localStorage
-      const mockOversizedPayload = Array.from({ length: 1000 }, (_, i) => ({
+      const legacy = Array.from({ length: 1000 }, (_, i) => ({
         refPath: `telemetry_chunks/student_user2`,
-        payload: { seq: i, timestamp: Date.now() + i }
+        payload: { seq: i, timestamp: 1000 + i }
       }));
-      mockStorage['mathmaticore_offline_queue'] = JSON.stringify(mockOversizedPayload);
+      mockStorage['mathmaticore_offline_queue'] = JSON.stringify(legacy);
 
-      // Trigger load
-      syncService.loadOfflineQueueFromStorage();
+      await syncService.loadOfflineQueueFromStorage();
 
-      const queue = syncService.offlineTelemetryQueue;
-      expect(queue.length).toBe(500);
-      expect(queue[0].payload.seq).toBe(500);
-      expect(queue[499].payload.seq).toBe(999);
-
-      // PRD v7.0 Module 17: the legacy localStorage key must be removed after migration
+      expect(stored.length).toBe(1000);
+      expect(stored.map((s) => s.payload.seq)).toEqual(legacy.map((_, i) => i));
+      expect(stored.every((s) => typeof s.payload.idempotency_key === 'string' && s.payload.idempotency_key.length > 0)).toBe(true);
       expect(mockStorage['mathmaticore_offline_queue']).toBeUndefined();
+      spy.mockRestore();
     });
 
-    it('should survive corrupted and non-array storage payloads without crashing', () => {
+    it('keeps in the legacy key what IndexedDB did not durably take, and what has no destination', async () => {
+      const syncService = firebaseSyncService as any;
+      let n = 0;
+      const spy = vi.spyOn(indexedDBQueue, 'enqueueLegacyDurably').mockImplementation(async () => (n++ % 2) === 0);
+
+      const legacy = [
+        { refPath: 'a/student_user2', payload: { seq: 0 } },
+        { refPath: 'a/student_user2', payload: { seq: 1 } },
+        { payload: { seq: 2 } },
+        { refPath: 'a/student_user2', payload: { seq: 3 } },
+      ];
+      mockStorage['mathmaticore_offline_queue'] = JSON.stringify(legacy);
+
+      await syncService.loadOfflineQueueFromStorage();
+
+      const left = JSON.parse(mockStorage['mathmaticore_offline_queue']);
+      expect(left.map((it: any) => it.payload.seq)).toEqual([1, 2]);
+      // A kept item keeps the key it was given, so moving it again later is idempotent.
+      expect(typeof left[0].idempotency_key).toBe('string');
+      spy.mockRestore();
+    });
+
+    it('should survive corrupted and non-array storage payloads without crashing', async () => {
       const syncService = firebaseSyncService as any;
 
       const corruptedPayloads = [
@@ -118,11 +135,11 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
 
       for (const badPayload of corruptedPayloads) {
         mockStorage['mathmaticore_offline_queue'] = badPayload;
-        expect(() => syncService.loadOfflineQueueFromStorage()).not.toThrow();
+        await expect(syncService.loadOfflineQueueFromStorage()).resolves.toBeUndefined();
       }
     });
 
-    it('should sustain 10 consecutive multi-bursts of 200 items (2,000 total) with zero invariant violations', () => {
+    it('should sustain 10 consecutive multi-bursts of 200 items (2,000 total) and keep all of them', () => {
       const syncService = firebaseSyncService as any;
       syncService.offlineTelemetryQueue = [];
 
@@ -135,17 +152,13 @@ describe('Challenger 2 — Concurrency, Network Chaos, & SRL Metrics Adversarial
             data: `chunk_${totalEnqueued}`
           });
           totalEnqueued++;
-
-          // Invariant: At no point during bursts should queue exceed 500
-          expect(syncService.offlineTelemetryQueue.length).toBeLessThanOrEqual(500);
         }
       }
 
       expect(totalEnqueued).toBe(2000);
-      expect(syncService.offlineTelemetryQueue.length).toBe(500);
-      // Items remaining should be 1500 to 1999
-      expect(syncService.offlineTelemetryQueue[0].payload.globalSeq).toBe(1500);
-      expect(syncService.offlineTelemetryQueue[499].payload.globalSeq).toBe(1999);
+      expect(syncService.offlineTelemetryQueue.length).toBe(2000);
+      expect(syncService.offlineTelemetryQueue[0].payload.globalSeq).toBe(0);
+      expect(syncService.offlineTelemetryQueue[1999].payload.globalSeq).toBe(1999);
     });
   });
 

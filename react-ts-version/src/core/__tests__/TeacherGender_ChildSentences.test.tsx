@@ -95,9 +95,9 @@ describe('the sentences, in both genders', () => {
     expect(TEACHER_SENTENCES_HE.helpCallReceived.female).toBe('המורה יודעת 🤝');
     expect(TEACHER_SENTENCES_HE.willOpenActivity.female).toBe('המורה תפתח את הפעילות בקרוב.');
     expect(TEACHER_SENTENCES_HE.pausedTitle.female).toBe('המורה עצרה את הפעילות לרגע');
-    expect(TEACHER_SENTENCES_HE.pausedBody.female).toBe('חכו רגע. כשהמורה תמשיך, העבודה שלכם תחזור בדיוק מאיפה שעצרתם.');
+    expect(TEACHER_SENTENCES_HE.pausedBody.female).toBe('חכו רגע. העבודה שלכם שמורה בדיוק כמו שהשארתם אותה.');
     expect(TEACHER_SENTENCES_HE.closedTitle.female).toBe('המורה סגרה את התחנה');
-    expect(TEACHER_SENTENCES_HE.closedBody.female).toBe('העבודה שלכם נשמרה בבטחה. כשהמורה תפתח תחנה חדשה, הפעילות תתחדש כאן מיד.');
+    expect(TEACHER_SENTENCES_HE.closedBodyMeeting2Unfinished.female).toBe('העבודה שלכם נשמרה בבטחה. המורה תקבע איתכם מתי תמשיכו.');
     expect(TEACHER_SENTENCES_HE.meeting2Waiting.female).toBe('כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.');
     expect(TEACHER_SENTENCES_HE.nextStation.female).toBe('כשהמורה תפתח את התחנה הבאה, נמשיך יחד.');
   });
@@ -106,9 +106,9 @@ describe('the sentences, in both genders', () => {
     expect(TEACHER_SENTENCES_HE.helpCallReceived.male).toBe('המורה יודע 🤝');
     expect(TEACHER_SENTENCES_HE.willOpenActivity.male).toBe('המורה יפתח את הפעילות בקרוב.');
     expect(TEACHER_SENTENCES_HE.pausedTitle.male).toBe('המורה עצר את הפעילות לרגע');
-    expect(TEACHER_SENTENCES_HE.pausedBody.male).toBe('חכו רגע. כשהמורה ימשיך, העבודה שלכם תחזור בדיוק מאיפה שעצרתם.');
+    expect(TEACHER_SENTENCES_HE.pausedBody.male).toBe('חכו רגע. העבודה שלכם שמורה בדיוק כמו שהשארתם אותה.');
     expect(TEACHER_SENTENCES_HE.closedTitle.male).toBe('המורה סגר את התחנה');
-    expect(TEACHER_SENTENCES_HE.closedBody.male).toBe('העבודה שלכם נשמרה בבטחה. כשהמורה יפתח תחנה חדשה, הפעילות תתחדש כאן מיד.');
+    expect(TEACHER_SENTENCES_HE.closedBodyMeeting2Unfinished.male).toBe('העבודה שלכם נשמרה בבטחה. המורה יקבע איתכם מתי תמשיכו.');
     expect(TEACHER_SENTENCES_HE.meeting2Waiting.male).toBe('כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודק את העבודה שלכם. כשהמורה יסיים לבדוק, נמשיך.');
     expect(TEACHER_SENTENCES_HE.nextStation.male).toBe('כשהמורה יפתח את התחנה הבאה, נמשיך יחד.');
   });
@@ -125,20 +125,20 @@ describe('the children’s screens follow the teacher’s choice, on the screen 
   it('the pause', () => {
     render(<SessionPausedOverlay />);
     expect(screen.getByRole('heading').textContent).toBe('המורה עצרה את הפעילות לרגע');
-    expect(speechTexts()).toEqual(['המורה עצרה את הפעילות לרגע. חכו רגע. כשהמורה תמשיך, העבודה שלכם תחזור בדיוק מאיפה שעצרתם.']);
+    expect(speechTexts()).toEqual(['המורה עצרה את הפעילות לרגע. חכו רגע. העבודה שלכם שמורה בדיוק כמו שהשארתם אותה.']);
     setGender('male');
     expect(screen.getByRole('heading').textContent).toBe('המורה עצר את הפעילות לרגע');
-    expect(screen.getByText('חכו רגע. כשהמורה ימשיך, העבודה שלכם תחזור בדיוק מאיפה שעצרתם.')).toBeTruthy();
-    expect(speechTexts()).toEqual(['המורה עצר את הפעילות לרגע. חכו רגע. כשהמורה ימשיך, העבודה שלכם תחזור בדיוק מאיפה שעצרתם.']);
+    expect(screen.getByText('חכו רגע. העבודה שלכם שמורה בדיוק כמו שהשארתם אותה.')).toBeTruthy();
+    expect(speechTexts()).toEqual(['המורה עצר את הפעילות לרגע. חכו רגע. העבודה שלכם שמורה בדיוק כמו שהשארתם אותה.']);
   });
 
   it('the closed meeting', () => {
     render(<SessionClosedOverlay />);
     expect(screen.getByRole('heading').textContent?.trim()).toBe('המורה סגרה את התחנה');
-    expect(speechTexts()).toEqual(['המורה סגרה את התחנה. העבודה שלכם נשמרה בבטחה. כשהמורה תפתח תחנה חדשה, הפעילות תתחדש כאן מיד.']);
+    expect(speechTexts()).toEqual(['המורה סגרה את התחנה. העבודה שלכם נשמרה בבטחה. המורה תקבע איתכם מתי תמשיכו.']);
     setGender('male');
     expect(screen.getByRole('heading').textContent?.trim()).toBe('המורה סגר את התחנה');
-    expect(speechTexts()).toEqual(['המורה סגר את התחנה. העבודה שלכם נשמרה בבטחה. כשהמורה יפתח תחנה חדשה, הפעילות תתחדש כאן מיד.']);
+    expect(speechTexts()).toEqual(['המורה סגר את התחנה. העבודה שלכם נשמרה בבטחה. המורה יקבע איתכם מתי תמשיכו.']);
   });
 
   it('the quiet wait in meetings 3–8', () => {
@@ -163,8 +163,8 @@ describe('the children’s screens follow the teacher’s choice, on the screen 
   it('the lobby, the end-of-station screen and the help-call toast read the same sentences', () => {
     const hub = src('presentation/pages/StudentHub.tsx');
     expect(hub).toContain('const teacherGender = useTeacherGender();');
-    expect(hub).toContain("teacherSentenceHe('willOpenActivity', teacherGender)");
-    expect(hub).toContain("teacherSentenceHe('pausedTitle', teacherGender)");
+    // Every lobby sentence (core/lobbyState.ts) in the teacher's gender.
+    expect(hub).toContain('lobbySentenceHe(state.sentence, teacherGender)');
     const page = src('features/workspace/StudentWorkspacePage.tsx');
     expect(page).toContain('const teacherGender = useTeacherGender();');
     expect(page).toContain("teacherSentenceHe('nextStation', teacherGender)");

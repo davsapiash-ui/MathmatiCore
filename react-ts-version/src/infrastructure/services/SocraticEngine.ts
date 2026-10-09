@@ -575,9 +575,10 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
   // becomes "רמז:" and one guiding question, the right one opens "נכון מאוד!".
   's1_sandbox_controlled': {
     pedagogical_intent: "procedural",
-    tts_text: 'הסתכלו ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
+    // The list's heading is "מה עושים:" since 8.10.2026 (owner: learner wording proposal, rule 3).
+    tts_text: 'הסתכלו ברשימה "מה עושים". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
     suggested_highlight: "tour-place-value-board",
-    questionHe: 'הסתכלו ברשימה "מה עושים בשלב הזה". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
+    questionHe: 'הסתכלו ברשימה "מה עושים". מה עוד נשאר לעשות כדי לעבור לשלב הבא?',
     choices: [
       { id: "1", textHe: "לגרור עוד לבנים לטורים ולצפות בספרות בבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! גררו עוד לבנים, ושימו לב איך הספרות משתנות." },
       { id: "2", textHe: "לקבץ 10 עשרות ולהמיר אותן למאה אחת", isCorrect: false, feedbackHe: "רמז: מה כתוב בשורה שעוד לא סומנה ברשימה?" },
@@ -685,7 +686,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-units",
     questionHe: "נסו לחשוב: מה צריך להיות בטור היחידות בסוף התרגיל?",
     choices: [
-      { id: "opt_1", textHe: "פחות מ-10 לבנים", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על הכפתור "קבצו 10 לעשרת" שבראש הטור.' },
+      { id: "opt_1", textHe: "פחות מ-10 לבנים", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור.' },
       // D10 (owner, 1.10.2026): guiding questions.
       { id: "opt_2", textHe: "כל הלבנים שהיו בטור", isCorrect: false, feedbackHe: "רמז: מה עושים עם כל 10 יחידות שבטור?" },
       { id: "opt_3", textHe: "אף לבנה, הטור ריק", isCorrect: false, feedbackHe: "רמז: אם בטור יש פחות מ-10 יחידות, האם אפשר לקבץ אותן?" }

@@ -616,12 +616,12 @@ describe('item 5 — only inside an exercise in progress', () => {
     expect(verdict.kind).toBe('success');
     expect(verdict.sub).toBe(MEETING8_SOLVED_SUB_HE);
     expect(stripNiqqud(verdict.sub)).toBe('פתרתם נכון.');
-    // The other stations keep theirs.
+    // Station 4 speaks of the number house: its own "נכון! …" (PRD 7.15, Module 26 / 14 §ב).
     load(4, T4());
     boardOf(1573);
     typeRow('1573');
     ws().setCarryDigit('tens', '1');
-    expect(stripNiqqud(judgeStandardTask(ws(), T4()).sub)).toBe('פתרתם נכון, ובניתם נכון גם בלבנים.');
+    expect(stripNiqqud(judgeStandardTask(ws(), T4()).sub)).toBe('‏1,245 + 328 = 1,573, וגם בבית המספרים בניתם 1,573.');
   });
 
   it('…nor onto the choice screen, nor through "סיום המפגש כעת"', async () => {
