@@ -49,42 +49,48 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHIMATICORE }}
 
-      - name: Deploy to Firebase Hosting
-        run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive
-
-      # No continue-on-error here. This step had been failing in ~3 seconds on
-      # every merge for months — "Missing permissions required for functions
-      # deploy… iam.serviceAccounts.ActAs" — while the workflow still reported
-      # success, so no Cloud Function or security rule ever reached production
-      # and nothing surfaced it. A failed backend deploy must fail the run.
-      # Split per target, and each one runs even after an earlier target failed
-      # ("!cancelled()" rather than continue-on-error: a failure still fails the
-      # run, it just no longer skips the steps behind it). The combined command
-      # aborted on its first failing target, so a single missing permission kept
-      # every rule set and every function on the ground -- and merely splitting
-      # the steps was not enough, because a failed step still skips the rest by
-      # default. Every target now reports its own verdict in one run, which is
-      # what makes the remaining permission gaps legible instead of hidden
-      # behind whichever one happens to run first.
+      # Every backend target goes out BEFORE hosting, and hosting waits for all
+      # of them: Firestore rules -> RTDB rules -> Storage rules -> Functions ->
+      # Hosting. The client a new build ships depends on what these deploy:
+      # fields the old rules refuse (the telemetry stamps server_received_at /
+      # sequence_number / device_id, PRD Module 5 §ב; the per-device
+      # refusedEvents count, Module 17 §ב), and triggers and callables that
+      # must exist before the client writes for them (an RTDB trigger does not
+      # fire for a write made before it was deployed). Hosting first meant
+      # every tablet that loaded the new build early had its telemetry refused
+      # and parked until a reload -- and for good if a backend step failed.
+      #
+      # No continue-on-error and no "!cancelled()" on any of these steps: a
+      # failed backend deploy fails the run and stops every step after it,
+      # hosting included, so the old client keeps running against what is
+      # live. (These steps once failed for months behind continue-on-error --
+      # "Missing permissions ... iam.serviceAccounts.ActAs" -- while the run
+      # reported success; a failure is now a red run with hosting held back.)
+      #
+      # The reverse risk remains: if hosting fails after the rules landed,
+      # tablets keep the old JS, whose events the new rules refuse; they are
+      # parked, never lost. Re-run the workflow, or have the teacher reload the
+      # learners (forceReload), and prefer merging outside lesson hours.
       - name: Deploy Firestore rules
         run: npx --yes firebase-tools@13 deploy --only firestore:rules --project mathimaticore --non-interactive
 
-      # Its own step: an index failure must not hold back the rules release.
-      # LearnerJourneyService queries reset_audit_log by class_id == and
-      # affected_student_ids array-contains (firestore.indexes.json).
-      - name: Deploy Firestore indexes
-        if: '!cancelled()'
-        run: npx --yes firebase-tools@13 deploy --only firestore:indexes --project mathimaticore --non-interactive
+      - name: Deploy Realtime Database rules
+        run: npx --yes firebase-tools@13 deploy --only database --project mathimaticore --non-interactive
 
       - name: Deploy Storage rules
-        if: '!cancelled()'
         run: npx --yes firebase-tools@13 deploy --only storage --project mathimaticore --non-interactive
 
       - name: Deploy Cloud Functions
-        if: '!cancelled()'
         run: npx --yes firebase-tools@13 deploy --only functions --project mathimaticore --non-interactive --force
 
-      - name: Deploy Realtime Database rules
-        if: '!cancelled()'
-        run: npx --yes firebase-tools@13 deploy --only database --project mathimaticore --non-interactive
+      - name: Deploy to Firebase Hosting
+        run: npx --yes firebase-tools@13 deploy --only hosting --project mathimaticore --non-interactive
 
+      # Its own step, after the blocking chain above and outside it: an index
+      # failure must not hold back the rules release, and indexes still deploy
+      # when an earlier step failed ('!cancelled()'). LearnerJourneyService
+      # queries reset_audit_log by class_id == and affected_student_ids
+      # array-contains (firestore.indexes.json).
+      - name: Deploy Firestore indexes
+        if: '!cancelled()'
+        run: npx --yes firebase-tools@13 deploy --only firestore:indexes --project mathimaticore --non-interactive

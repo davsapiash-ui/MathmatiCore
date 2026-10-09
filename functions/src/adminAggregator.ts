@@ -13,6 +13,7 @@ import {
   meetingRunsByLearner,
   resolveMeetingPath,
 } from "./meetingMetrics";
+import { compareTelemetryOrder } from "./telemetryOrder";
 
 /**
  * hourlyAdminAggregator (Module 24: Store Cache & Admin Aggregator)
@@ -163,8 +164,8 @@ export function groupTelemetryByMeeting(events: Record<string, any>[]): Map<numb
   }
   // Documents come back in id order, which is random: the first-attempt rule
   // needs the order the events happened (as classReport and meetingMetrics sort).
-  const at = (e: Record<string, any>) => Number(e?.client_timestamp) || 0;
-  for (const perLearner of out.values()) for (const evs of perLearner.values()) evs.sort((a, b) => at(a) - at(b));
+  // Module 5 §ב: ties by sequence_number.
+  for (const perLearner of out.values()) for (const evs of perLearner.values()) evs.sort(compareTelemetryOrder);
   return out;
 }
 

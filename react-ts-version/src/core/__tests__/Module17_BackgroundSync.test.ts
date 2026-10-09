@@ -18,6 +18,7 @@ vi.mock('@/infrastructure/firebase', () => ({ firestore: {}, functions: {}, data
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db: unknown, coll: string, id: string) => ({ coll, id })),
   setDoc: (...args: unknown[]) => setDoc(...(args as [])),
+  serverTimestamp: () => ({ __serverTimestamp: true }),
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => vi.fn(() => Promise.resolve({ data: {} }))) }));
 

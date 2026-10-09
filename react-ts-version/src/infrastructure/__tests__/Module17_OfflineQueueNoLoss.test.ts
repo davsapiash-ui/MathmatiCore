@@ -52,6 +52,7 @@ vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, coll: string, id: string) => ({ coll, id }),
   setDoc: (...a: unknown[]) => fs.setDoc(...a),
   getDoc: (...a: unknown[]) => fs.getDoc(...a),
+  serverTimestamp: () => ({ __serverTimestamp: true }),
   getFirestore: () => ({}),
   collection: () => ({}),
   query: () => ({}),
@@ -775,6 +776,253 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
       const [item] = await queue.getAll();
       expect([item.idempotency_key, item.retry_count]).toEqual(['e_refused_5', 5]);
+    });
+  });
+
+  describe('Module 17 §ב — refused events: never deleted, parked after 5, counted for the teacher', () => {
+    it('five refusals park the event, count it, and the next page load gives it a new series; the count stays until the Ack', async () => {
+      const counts: number[] = [];
+      const off = queue.onRefusedCountChange((n) => counts.push(n));
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_refused'));
+      for (let i = 0; i < 4; i++) await queue.flushQueue();
+      expect(queue.getRefusedCount()).toBe(0);
+      await queue.flushQueue();
+      expect(queue.getRefusedCount()).toBe(1);
+      expect(counts[counts.length - 1]).toBe(1);
+      let [item] = await queue.getAll();
+      expect(item.refused_parked_at).toBeTypeOf('number');
+
+      // A page load: a new series of attempts, still counted as refused.
+      await (queue as unknown as { reviveParkedItems: () => Promise<void> }).reviveParkedItems();
+      [item] = await queue.getAll();
+      expect(item.retry_count).toBe(0);
+      expect(item.refused_parked_at).toBeTypeOf('number');
+      await queue.flushQueue();
+      expect(fs.setDoc.mock.calls.length).toBe(6);
+      expect(queue.getRefusedCount()).toBe(1);
+
+      // The server takes it: gone, and the count goes back to 0.
+      fs.setDoc.mockImplementation(async () => {});
+      await (queue as unknown as { reviveParkedItems: () => Promise<void> }).reviveParkedItems();
+      await queue.flushQueue();
+      expect(await stored()).toEqual([]);
+      expect(queue.getRefusedCount()).toBe(0);
+      expect(counts[counts.length - 1]).toBe(0);
+      off();
+    });
+
+    it('the delivered document carries server_received_at and device_id', async () => {
+      await queue.enqueue(event('e_stamped'));
+      await queue.flushQueue();
+      const [, body] = fs.setDoc.mock.calls[0] as [unknown, Record<string, unknown>];
+      expect(body.server_received_at).toEqual({ __serverTimestamp: true });
+      expect(typeof body.device_id).toBe('string');
+      expect(typeof body.synced_at).toBe('number');
+    });
+
+    it('S2 — the count is reported after every pass for that pass\'s identity, the sign-out flush included, and again on sign-in', async () => {
+      const reports: Array<[string, number]> = [];
+      const off = queue.onRefusedCountForOwner((owner, n) => { reports.push([owner, n]); });
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_s2'));
+      for (let i = 0; i < 5; i++) await queue.flushQueue();
+      expect(reports[reports.length - 1]).toEqual(['student:3', 1]);
+
+      // Signed out (the auth store is cleared first), the sign-out flush sends
+      // as the identity that is leaving, and the server now takes the event.
+      fs.setDoc.mockImplementation(async () => {});
+      await (queue as unknown as { reviveParkedItems: () => Promise<void> }).reviveParkedItems();
+      signOutState();
+      await vi.advanceTimersByTimeAsync(0);
+      reports.length = 0;
+      await queue.flushQueue('student:3');
+      expect(await stored()).toEqual([]);
+      expect(reports).toEqual([['student:3', 0]]);
+
+      // The next sign-in reports 0 again, although nothing changed here.
+      reports.length = 0;
+      signIn(3);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(reports.some(([o, n]) => o === 'student:3' && n === 0)).toBe(true);
+      off();
+    });
+
+    it('R1 — the count goes on its own path: a guarded board write pending on a superseded device is not sent with it', async () => {
+      const svc = sync.firebaseSyncService as unknown as { publishedRefused: Map<number, number> };
+      svc.publishedRefused.clear();
+      const writer = await import('@/infrastructure/services/ThrottledRtdbWriter');
+      // A first write opens the window; the second waits in it, guarded (the
+      // device is superseded by the time it would be sent).
+      await writer.throttledRtdbUpdate('users/students/student_user3', { 'workspaceState/counts': { units: 1 } });
+      let superseded = false;
+      writer.throttledRtdbUpdate('users/students/student_user3', { 'workspaceState/counts': { units: 9 } }, { guard: () => !superseded }).catch(() => {});
+      superseded = true;
+      rtdb.update.mockClear();
+
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_r1'));
+      for (let i = 0; i < 5; i++) await queue.flushQueue();
+
+      const calls = rtdb.update.mock.calls.map((c) => [(c[0] as { path: string }).path, c[1]] as const);
+      expect(calls.some(([p]) => p === 'users/students/student_user3/refusedEvents')).toBe(true);
+      // The stale board stayed behind its guard: nothing carried it out.
+      expect(calls.filter(([, v]) => 'workspaceState/counts' in ((v ?? {}) as object))).toEqual([]);
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(rtdb.update.mock.calls.filter((c) => 'workspaceState/counts' in ((c[1] ?? {}) as object))).toEqual([]);
+    });
+
+    it('S2/S3 — the learner\'s device writes its own count under refusedEvents/{device_id}, and 0 removes it, also after sign-out', async () => {
+      const svc = sync.firebaseSyncService as unknown as { publishedRefused: Map<number, number> };
+      svc.publishedRefused.clear();
+      const { getDeviceId } = await import('@/infrastructure/services/telemetryStamp');
+      const field = getDeviceId();
+      const countWrites = () => rtdb.update.mock.calls
+        .filter((c) => (c[0] as { path: string }).path === 'users/students/student_user3/refusedEvents' && field in ((c[1] ?? {}) as object))
+        .map((c) => (c[1] as Record<string, unknown>)[field]);
+
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_s3'));
+      for (let i = 0; i < 5; i++) await queue.flushQueue();
+      expect(countWrites()).toEqual([1]);
+
+      // Delivered by the sign-out flush: the count goes back to nothing.
+      fs.setDoc.mockImplementation(async () => {});
+      await (queue as unknown as { reviveParkedItems: () => Promise<void> }).reviveParkedItems();
+      signOutState();
+      await vi.advanceTimersByTimeAsync(0);
+      await queue.flushQueue('student:3');
+      expect(countWrites()).toEqual([1, null]);
+      signIn(3);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(countWrites()).toEqual([1, null]); // unchanged: not rewritten
+    });
+
+    it('S2 — a fresh page with 0 refused removes a count this device left earlier, and writes nothing when there is none', async () => {
+      const svc = sync.firebaseSyncService as unknown as { publishedRefused: Map<number, number> };
+      const { getDeviceId } = await import('@/infrastructure/services/telemetryStamp');
+      const field = getDeviceId();
+      const countWrites = () => rtdb.update.mock.calls
+        .filter((c) => (c[0] as { path: string }).path === 'users/students/student_user3/refusedEvents' && field in ((c[1] ?? {}) as object))
+        .map((c) => (c[1] as Record<string, unknown>)[field]);
+
+      svc.publishedRefused.clear();
+      await queue.flushQueue();
+      expect(countWrites()).toEqual([]);
+
+      svc.publishedRefused.clear();
+      rtdb.get.mockImplementation(async (r: { path: string }) =>
+        r.path === `users/students/student_user3/refusedEvents/${field}` ? { val: () => 2, exists: () => true } : { val: () => null, exists: () => false });
+      await queue.flushQueue();
+      expect(countWrites()).toEqual([null]);
+    });
+
+    it('B1 — when the ID token changes, a refusal-parked item gets one more series in the tab, once', async () => {
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_token'));
+      for (let i = 0; i < 5; i++) await queue.flushQueue();
+      let [item] = await queue.getAll();
+      expect(item.retry_count).toBe(5);
+
+      // Rules that accept it have landed; the token refresh revives it.
+      fs.setDoc.mockImplementation(async () => {});
+      expect(await queue.reviveRefusalParked()).toBe(1);
+      await vi.waitFor(async () => expect(await stored()).toEqual([]));
+      expect(queue.getRefusedCount()).toBe(0);
+
+      // Still refused: revived once, then it waits for the next page load.
+      fs.setDoc.mockImplementation(async () => { throw denied(); });
+      await queue.enqueue(event('e_token2'));
+      for (let i = 0; i < 5; i++) await queue.flushQueue();
+      expect(await queue.reviveRefusalParked()).toBe(1);
+      // The revive starts a pass of its own; each further pass waits for the one before.
+      await vi.waitFor(async () => {
+        await queue.flushWithin(60_000);
+        expect((await queue.getAll())[0].retry_count).toBe(5);
+      });
+      expect(await queue.reviveRefusalParked()).toBe(0);
+      [item] = await queue.getAll();
+      expect([item.idempotency_key, item.retry_count]).toEqual(['e_token2', 5]); // kept, never deleted
+    });
+
+    describe('R2 — the legacy localStorage queue moves into the real queue', () => {
+      const LEGACY = 'mathmaticore_offline_queue';
+      let mem: Map<string, string>;
+      let failSave = false;
+      const withBrowser = async (run: () => Promise<void>) => {
+        vi.stubGlobal('window', fakeWindow);
+        vi.stubGlobal('localStorage', {
+          getItem: (k: string) => (mem.has(k) ? mem.get(k)! : null),
+          setItem: (k: string, v: string) => { if (failSave && k === LEGACY) throw new Error('closed'); mem.set(k, String(v)); },
+          removeItem: (k: string) => { if (failSave && k === LEGACY) throw new Error('closed'); mem.delete(k); },
+        });
+        try { await run(); } finally {
+          vi.stubGlobal('window', undefined);
+          vi.unstubAllGlobals();
+          vi.stubGlobal('IDBKeyRange', fakeKeyRange);
+          vi.stubGlobal('window', undefined);
+        }
+      };
+      const migrate = () => (sync.firebaseSyncService as unknown as { loadOfflineQueueFromStorage: () => Promise<void> }).loadOfflineQueueFromStorage();
+      const legacy = () => [
+        { refPath: 'users/students/student_user2/legacy_events', payload: { n: 1 } },
+        { refPath: 'users/students/student_user2/legacy_events', payload: { n: 2 } },
+        { refPath: 'users/students/student_user2/legacy_events', payload: { n: 3 }, idempotency_key: 'kept_key' },
+      ];
+      beforeEach(() => { mem = new Map(); failSave = false; });
+
+      it('a run cut short and run again moves the same items under the same keys; nothing is lost', async () => {
+        fakeWindow.dispatchEvent(new Event('offline')); // keep them in the queue to look at
+        await withBrowser(async () => {
+          mem.set(LEGACY, JSON.stringify(legacy()));
+          // The keys are saved before the loop; the tab "closes" before the key is cleared.
+          const realSet = (globalThis.localStorage as Storage).setItem;
+          let saves = 0;
+          (globalThis.localStorage as unknown as { setItem: (k: string, v: string) => void }).setItem = (k, v) => {
+            saves++;
+            if (saves > 1) throw new Error('closed');
+            realSet(k, v);
+          };
+          (globalThis.localStorage as unknown as { removeItem: (k: string) => void }).removeItem = () => { throw new Error('closed'); };
+          await migrate();
+          const first = (await queue.getAll()).map((i) => i.idempotency_key);
+          expect(first).toHaveLength(3);
+          expect(JSON.parse(mem.get(LEGACY)!)).toHaveLength(3); // still there: nothing removed early
+
+          await migrate(); // the next load
+          const all = (await queue.getAll()).map((i) => String(i.idempotency_key));
+          expect(new Set(all).size).toBe(3); // the same three keys — the same RTDB children
+          expect(new Set(all)).toEqual(new Set(first));
+          expect(all).toContain('kept_key');
+        });
+        fakeWindow.dispatchEvent(new Event('online'));
+      });
+
+      it('two migrations at once run once; the items belong to the learner their path names, not to whoever is signed in', async () => {
+        fakeWindow.dispatchEvent(new Event('offline'));
+        signIn(5);
+        await vi.advanceTimersByTimeAsync(0);
+        await withBrowser(async () => {
+          mem.set(LEGACY, JSON.stringify(legacy()));
+          await Promise.all([migrate(), migrate()]);
+          const items = await queue.getAll();
+          expect(items).toHaveLength(3);
+          expect(items.every((i) => i.owner === 'student:2')).toBe(true);
+          expect(mem.has(LEGACY)).toBe(false);
+        });
+        signIn(3);
+        fakeWindow.dispatchEvent(new Event('online'));
+      });
+    });
+
+    it('reaching the capacity is logged as a fault, once; nothing is discarded', async () => {
+      const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+      queueModule.resetQueueCapacityFaultForTests();
+      queueModule.reportQueueCapacityFault('indexeddb', queueModule.QUEUE_CAPACITY);
+      queueModule.reportQueueCapacityFault('indexeddb', queueModule.QUEUE_CAPACITY + 1);
+      expect(err.mock.calls.filter((c) => String(c[0]).includes('FAULT'))).toHaveLength(1);
+      err.mockRestore();
+      queueModule.resetQueueCapacityFaultForTests();
     });
   });
 

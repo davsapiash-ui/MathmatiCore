@@ -47,6 +47,12 @@
           },
           "reset_acknowledged_at": {
             ".validate": "newData.val() == now"
+          },
+          "refusedEvents": {
+            ".validate": "newData.hasChildren()",
+            "$deviceId": {
+              ".validate": "$deviceId.matches(/^[A-Za-z0-9_-]{8,64}$/) && newData.isNumber() && newData.val() >= 0 && newData.val() % 1 == 0"
+            }
           }
         }
       },

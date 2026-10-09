@@ -80,6 +80,7 @@ import { resolveRecommendationTier, type RecommendationTier } from "./reportAnal
 import { GEMINI_MODEL_ID, GEMINI_SECRETS, classifyGeminiError, generateGeminiText } from "./geminiConfig";
 import { recordAiCall, type AiOutcome } from "./aiMonitoring";
 import { REPORT_RETRY_MIN_MS, REPORT_TERMS_HE, REPORT_THINKING, keepHebrewLines, reportAnalysisOutcome, reportTextViolation } from "./reportAnalysis";
+import { compareTelemetryOrder } from "./telemetryOrder";
 
 /**
  * Module 23 — the CLASS report of one meeting (owner decision, 6.9.2026,
@@ -269,7 +270,7 @@ export function buildLearnerRow(
   /** WHICH exercises are compulsory. Without them the numerator counted optional early-finisher tasks too. */
   compulsoryIds: ReadonlySet<string> | null = null
 ): ClassLearnerRow {
-  const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  const sorted = [...events].sort(compareTelemetryOrder);
   // PRD 23 §ב: compulsory exercises solved on the first attempt ÷ compulsory
   // exercises. The ids were passed by one caller only (a trigger that never runs
   // in the live flow), so a learner with 4 of 7 compulsory and 2 optional tasks

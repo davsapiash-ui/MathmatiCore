@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { isCompletedReset } from "./resetAudit";
+import { compareTelemetryOrder } from "./telemetryOrder";
 
 /**
  * Per-meeting measurements derived from the learner's own telemetry events.
@@ -82,7 +83,7 @@ export const MEETING1_TOOL_STEPS: readonly string[] = [
 ];
 
 export function computeExerciseOutcomes(events: Record<string, any>[]): Record<string, ExerciseOutcome> {
-  const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  const sorted = [...events].sort(compareTelemetryOrder);
   const wrongInExercise = new Set<string>();
   const outcomes: Record<string, ExerciseOutcome> = {};
   for (const ev of sorted) {
@@ -671,7 +672,7 @@ export async function readMeetingTelemetry(
       return data;
     })
     .filter((e) => sessionNumberFromId(String(e?.session_id || "")) === sessionNumber);
-  docs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  docs.sort(compareTelemetryOrder);
   return docs;
 }
 
@@ -764,7 +765,8 @@ export interface WrittenEvent {
   writtenAtMs: number | null;
 }
 
-const byClientTime = (a: Record<string, any>, b: Record<string, any>) => (a.client_timestamp || 0) - (b.client_timestamp || 0);
+/** Module 5 §ב: client_timestamp, ties by sequence_number. */
+const byClientTime = (a: Record<string, any>, b: Record<string, any>) => compareTelemetryOrder(a, b);
 
 export function splitMeetingRuns(events: WrittenEvent[], resets: MeetingReset[]): MeetingRuns {
   const cut = resets.length === 0 ? null : resets[resets.length - 1].at;
@@ -961,7 +963,7 @@ export async function readAllTelemetryForSession(
     last = snap.docs[snap.docs.length - 1];
     if (snap.size < TELEMETRY_PAGE) break;
   }
-  docs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  docs.sort(compareTelemetryOrder);
   return docs;
 }
 
@@ -1006,7 +1008,7 @@ export interface ExerciseAttempt {
 
 /** One record per exercise from a meeting's events, in time order. */
 export function exerciseAttempts(events: Record<string, any>[]): Record<string, ExerciseAttempt> {
-  const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  const sorted = [...events].sort(compareTelemetryOrder);
   const out: Record<string, ExerciseAttempt> = {};
   const wrong = new Set<string>();
   for (const ev of sorted) {
@@ -1125,7 +1127,7 @@ export interface FlexibilityIndex {
  * counts every failed board check.
  */
 export function computeFlexibilityIndex(events: Record<string, any>[]): FlexibilityIndex {
-  const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  const sorted = [...events].sort(compareTelemetryOrder);
   const seen = new Set<string>();
   let firstTry = 0;
   for (const ev of sorted) {
@@ -1161,7 +1163,7 @@ export interface MediationEffectiveness {
  * (exercise ids are unique across meetings).
  */
 export function computeMediationEffectiveness(events: Record<string, any>[]): MediationEffectiveness {
-  const sorted = [...events].sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  const sorted = [...events].sort(compareTelemetryOrder);
   let cards = 0;
   let effective = 0;
   // exercise_id → a card is waiting for the learner's next answer there
@@ -1278,7 +1280,7 @@ export function computePersistenceIndex(events: Record<string, any>[]): Persiste
   const withError = new Set<string>();
   const withHelp = new Set<string>();
   const completed = new Set<string>();
-  const sorted = [...events].sort((a, b) => (a?.client_timestamp || 0) - (b?.client_timestamp || 0));
+  const sorted = [...events].sort(compareTelemetryOrder);
   for (const ev of sorted) {
     const exId = String(ev?.exercise_id || "");
     if (!exId || !isExerciseEvent(ev)) continue;

@@ -6,9 +6,10 @@
  * אפס מידע מזהה (Zero PII).
  */
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import type { TelemetryPayload, TelemetryEventType } from '@/types/telemetry';
+import { getDeviceId } from './telemetryStamp';
 
 /**
  * How a queued RTDB item is written when it is delivered.
@@ -105,6 +106,13 @@ export interface QueuedAction {
   transient_count?: number;
   /** What the last failure was: the network (no answer), another transient-looking error, or a refusal. */
   last_failure_kind?: FailureKind;
+  /**
+   * When the server's refusals first parked the item (5 refusals). Kept when
+   * a page load gives the item a new series of attempts, and gone only with
+   * the item itself, on the server's Ack: the item is one of the learner's
+   * "אירועים שנדחו" (Module 17 §ב) until the server takes it.
+   */
+  refused_parked_at?: number;
   /** When the item was last parked by the transient threshold (see nextReviveAt). */
   parked_at?: number;
   /** How many times the revive timer has given this item another probe (see nextReviveAt). */
@@ -117,14 +125,27 @@ const STORE_NAME = 'offline_telemetry_queue';
 const LEGACY_STORE_NAME = 'offline_actions';
 const DB_VERSION = 2;
 /**
- * מודול 17: "A failed chunk is never discarded." התור יושב על הדיסק
- * (IndexedDB) — 500 פריטים היו תקרה שמחקה את הפריט הישן ביותר אחרי כמה
- * דקות של ניתוק במפגש פעיל. התקרה כאן היא הגנה מפני מצב פגום בלבד, לא
- * מדיניות: מפגש שלם של 45 דקות אינו מתקרב אליה.
+ * מודול 17 §ב: "אף פריט בתור אינו מושלך לעולם, גם לא בהגעה לתקרת הנפח של
+ * התור (50,000 פריטים): הגעה לתקרה היא תקלה, לא סיבה להשליך." The cap is
+ * not enforced by deleting anything: an item stored at or beyond it is kept,
+ * and the fault is logged (reportQueueCapacityFault). The memory fallback
+ * (no IndexedDB at all) has the same cap and the same rule.
  */
-const MAX_QUEUE_CAPACITY = 50_000;
-/** נפילה לזיכרון בלבד — כשאין IndexedDB כלל. כאן הזיכרון הוא הגבול. */
-const MAX_MEMORY_FALLBACK = 5_000;
+export const QUEUE_CAPACITY = 50_000;
+
+/** Reaching the cap is a fault (Module 17 §ב): logged, once per page, never a reason to discard. */
+let capacityFaultReported = false;
+export function reportQueueCapacityFault(where: 'indexeddb' | 'memory', count: number): void {
+  if (capacityFaultReported) return;
+  capacityFaultReported = true;
+  console.error(
+    `[IndexedDBQueue] FAULT: the offline queue (${where}) holds ${count} items, at or over its capacity of ${QUEUE_CAPACITY}. Nothing is discarded (PRD Module 17 §ב).`
+  );
+}
+/** For tests. */
+export function resetQueueCapacityFaultForTests(): void {
+  capacityFaultReported = false;
+}
 
 /**
  * אחרי כמה כישלונות פריט מוגדר "תקוע" ומדולג עד טעינת הדף הבאה. הוא לעולם
@@ -156,7 +177,8 @@ export type FailureKind = 'network' | 'transient' | 'refusal';
  * item is parked again at once and the pass moves on past it. Giving it 20
  * more attempts made an always-failing item at the head re-block the queue
  * for ~8 minutes on every cycle (review R1).
- * Refusal-parked items (retry_count ≥ 5) are revived on page load only, as before.
+ * Refusal-parked items (retry_count ≥ 5) are revived on page load, and once
+ * per item in the tab when the ID token changes (reviveRefusalParked).
  */
 export function isTransientParked(item: QueuedAction): boolean {
   return (item.retry_count ?? 0) < MAX_RETRIES_BEFORE_PARKING
@@ -351,7 +373,7 @@ export function rtdbDeliveryOf(item: QueuedAction): RtdbDelivery {
   return { mode: 'child' };
 }
 
-type FailureCounts = Pick<QueuedAction, 'retry_count' | 'transient_count' | 'last_error' | 'last_failure_kind' | 'parked_at'>;
+type FailureCounts = Pick<QueuedAction, 'retry_count' | 'transient_count' | 'last_error' | 'last_failure_kind' | 'parked_at' | 'refused_parked_at'>;
 
 /** The item's counters after one more failure (see isParked). */
 function failureCounts(item: QueuedAction, err: unknown): FailureCounts {
@@ -361,13 +383,21 @@ function failureCounts(item: QueuedAction, err: unknown): FailureCounts {
   }
   const transient = isTransientFailure(err);
   const transient_count = (item.transient_count ?? 0) + (transient ? 1 : 0);
+  const retry_count = (item.retry_count ?? 0) + (transient ? 0 : 1);
   return {
-    retry_count: (item.retry_count ?? 0) + (transient ? 0 : 1),
+    retry_count,
     transient_count,
     last_error,
     last_failure_kind: !transient ? 'refusal' : isUnreachable(err) ? 'network' : 'transient',
     ...(transient && transient_count >= MAX_TRANSIENT_BEFORE_PARKING ? { parked_at: Date.now() } : {}),
+    ...(!transient && retry_count >= MAX_RETRIES_BEFORE_PARKING && !item.refused_parked_at ? { refused_parked_at: Date.now() } : {}),
   };
+}
+
+/** One of "אירועים שנדחו" (Module 17 §ב): a telemetry event the server refused 5 times and that has not been taken since. */
+export function isRefusedEvent(item: QueuedAction): boolean {
+  const isTelemetry = !item.refPath && !item.callable && !item.firestoreDoc && Boolean(item.payload?.event_type);
+  return isTelemetry && (Boolean(item.refused_parked_at) || (item.retry_count ?? 0) >= MAX_RETRIES_BEFORE_PARKING);
 }
 
 /**
@@ -423,6 +453,20 @@ export class IndexedDBQueue {
   private currentFlush: Promise<void> | null = null;
   private pendingCount = 0;
   private pendingListeners: Array<(count: number) => void> = [];
+  /** This identity's refused events (isRefusedEvent), for the teacher's learner card. */
+  /** null until the first recount: a listener is not told "0" before the queue was read. */
+  private refusedCount: number | null = null;
+  private refusedListeners: Array<(count: number) => void> = [];
+  /**
+   * Told after every flush pass (sign-out's included) and on every sign-in:
+   * the count of one identity's refused events, unconditionally, so what the
+   * teacher's learner card shows is never left stale (Module 17 §ב). A
+   * listener may return a promise; the pass waits for it (flushWithin's
+   * budget still bounds sign-out).
+   */
+  private refusedForOwnerListeners: Array<(owner: string, count: number) => void | Promise<void>> = [];
+  /** Refusal-parked items this page already gave an in-tab revive (reviveRefusalParked): once each. */
+  private refusalRevivedThisPage = new Set<string>();
   private syncStateListeners: Array<(state: QueueSyncState) => void> = [];
   private lastSyncState: QueueSyncState | null = null;
 
@@ -447,6 +491,47 @@ export class IndexedDBQueue {
     return () => {
       this.pendingListeners = this.pendingListeners.filter((l) => l !== listener);
     };
+  }
+
+  /** Module 17 §ב: how many of this identity's events the server refused 5 times ("אירועים שנדחו"). */
+  public getRefusedCount(): number {
+    return this.refusedCount ?? 0;
+  }
+
+  /** מנוי על מספר האירועים שנדחו. מחזיר פונקציית ביטול. */
+  public onRefusedCountChange(listener: (count: number) => void): () => void {
+    this.refusedListeners.push(listener);
+    if (this.refusedCount !== null) listener(this.refusedCount);
+    return () => {
+      this.refusedListeners = this.refusedListeners.filter((l) => l !== listener);
+    };
+  }
+
+  /** Module 17 §ב: one identity's refused-events count, after every pass and sign-in. Returns an unsubscribe. */
+  public onRefusedCountForOwner(listener: (owner: string, count: number) => void | Promise<void>): () => void {
+    this.refusedForOwnerListeners.push(listener);
+    return () => {
+      this.refusedForOwnerListeners = this.refusedForOwnerListeners.filter((l) => l !== listener);
+    };
+  }
+
+  /** Counts this identity's refused events and tells every onRefusedCountForOwner listener. Never rejects. */
+  private async publishRefusedFor(owner: string | null | undefined): Promise<void> {
+    if (!owner || this.refusedForOwnerListeners.length === 0) return;
+    try {
+      const items = this.db ? await this.getAll() : [];
+      const all = [...items, ...this.memoryFallback];
+      const count = all.filter((i) => isRefusedEvent(i) && this.belongsToCurrentOwner(i, owner)).length;
+      await Promise.allSettled(this.refusedForOwnerListeners.map(async (l) => l(owner, count)));
+    } catch { /* a listener must never break the queue */ }
+  }
+
+  private setRefusedCount(count: number) {
+    if (this.refusedCount === count) return;
+    this.refusedCount = count;
+    for (const l of this.refusedListeners) {
+      try { l(count); } catch { /* a listener must never break the queue */ }
+    }
   }
 
   private setPendingCount(count: number) {
@@ -510,7 +595,9 @@ export class IndexedDBQueue {
     const parked = all.filter(isTransientParked);
     this.hasTransientParked = parked.length > 0;
     this.nextTransientReviveAt = parked.length ? Math.min(...parked.map(nextReviveAt)) : null;
-    this.setPendingCount(all.filter((i) => this.belongsToCurrentOwner(i)).length);
+    const own = all.filter((i) => this.belongsToCurrentOwner(i));
+    this.setRefusedCount(own.filter(isRefusedEvent).length);
+    this.setPendingCount(own.length);
   }
 
   /** מתזמן ניסיון ריקון נוסף בהשהיה מדורגת. */
@@ -644,7 +731,13 @@ export class IndexedDBQueue {
     this.lastOwner = owner;
     this.refreshPendingCount()
       .catch(() => {})
-      .then(() => { if (owner && this.isOnline) return this.flushQueue(); })
+      .then(() => {
+        // A sign-in publishes this identity's count even when it did not
+        // change here: a sign-out flush may have delivered what was refused
+        // (S2). Not awaited: the sign-in's flush does not wait for it.
+        void this.publishRefusedFor(owner);
+        if (owner && this.isOnline) return this.flushQueue();
+      })
       .catch(console.error);
   }
 
@@ -654,6 +747,30 @@ export class IndexedDBQueue {
    * (refPath/idempotency_key); for fields of the record at refPath use enqueueRtdbMerge.
    */
   public async enqueue(arg1: any, arg2?: any): Promise<void> {
+    await this.store(this.itemToEnqueue(arg1, arg2));
+  }
+
+  /**
+   * enqueue(), and whether the item reached IndexedDB (false: it is kept in
+   * the memory fallback only). For moving a legacy copy, which may be
+   * removed only once the item is durably stored (Module 17 §ב).
+   */
+  public async enqueueDurably(arg1: any, arg2?: any): Promise<boolean> {
+    return this.store(this.itemToEnqueue(arg1, arg2));
+  }
+
+  /**
+   * A child write moved from the legacy localStorage queue: enqueueDurably,
+   * owned by the identity its path names (inferOwner), never by whoever is
+   * signed in when the migration runs.
+   */
+  public async enqueueLegacyDurably(refPath: string, payload: Record<string, unknown>): Promise<boolean> {
+    const item = this.itemToEnqueue(refPath, payload);
+    item.owner = inferOwner(item);
+    return this.store(item);
+  }
+
+  private itemToEnqueue(arg1: any, arg2?: any): QueuedAction {
     let item: QueuedAction;
 
     if (typeof arg1 === 'string') {
@@ -686,8 +803,7 @@ export class IndexedDBQueue {
         retry_count: 0,
       };
     }
-
-    await this.store(item);
+    return item;
   }
 
   /**
@@ -771,56 +887,57 @@ export class IndexedDBQueue {
    * the cloud is not green over an item that has not reached the server, even
    * for the moment before the background flush sends it.
    */
-  private async store(item: QueuedAction): Promise<void> {
+  private async store(item: QueuedAction): Promise<boolean> {
     if (!item.owner) item.owner = this.currentOwner() ?? inferOwner(item);
-    await this.persist(item);
+    const durable = await this.persist(item);
     if (this.belongsToCurrentOwner(item)) this.setPendingCount(this.pendingCount + 1);
     this.scheduleBackgroundFlush();
+    return durable;
   }
 
-  /** Persists one queued item (IndexedDB, or the memory fallback when the database is unavailable). */
-  private async persist(item: QueuedAction): Promise<void> {
+  /**
+   * Persists one queued item (IndexedDB, or the memory fallback when the
+   * database is unavailable). True when it reached IndexedDB.
+   */
+  private async persist(item: QueuedAction): Promise<boolean> {
     if (!this.db) {
       await this.initDB();
     }
 
     if (this.db) {
-      await new Promise<void>((resolve) => {
+      return new Promise<boolean>((resolve) => {
         try {
           const targetStore = this.db!.objectStoreNames.contains(STORE_NAME) ? STORE_NAME : LEGACY_STORE_NAME;
           const tx = this.db!.transaction([targetStore], 'readwrite');
           const store = tx.objectStore(targetStore);
           const countReq = store.count();
 
+          // Module 17 §ב: the item is always stored. At the cap the fault is
+          // logged; nothing older is deleted to make room.
           countReq.onsuccess = () => {
-            if (countReq.result >= MAX_QUEUE_CAPACITY) {
-              const cursorReq = store.openCursor();
-              cursorReq.onsuccess = (e) => {
-                const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
-                if (cursor) {
-                  store.delete(cursor.primaryKey);
-                }
-              };
-            }
+            if (countReq.result >= QUEUE_CAPACITY) reportQueueCapacityFault('indexeddb', countReq.result + 1);
             store.add(item);
           };
 
-          tx.oncomplete = () => resolve();
+          tx.oncomplete = () => resolve(true);
           tx.onerror = () => {
-            this.memoryFallback.push(item);
-            if (this.memoryFallback.length > MAX_MEMORY_FALLBACK) this.memoryFallback.shift();
-            resolve();
+            this.keepInMemory(item);
+            resolve(false);
           };
         } catch {
-          this.memoryFallback.push(item);
-          if (this.memoryFallback.length > MAX_MEMORY_FALLBACK) this.memoryFallback.shift();
-          resolve();
+          this.keepInMemory(item);
+          resolve(false);
         }
       });
-    } else {
-      this.memoryFallback.push(item);
-      if (this.memoryFallback.length > MAX_MEMORY_FALLBACK) this.memoryFallback.shift();
     }
+    this.keepInMemory(item);
+    return false;
+  }
+
+  /** The memory fallback keeps every item too (Module 17 §ב); reaching the cap is logged, not enforced. */
+  private keepInMemory(item: QueuedAction): void {
+    this.memoryFallback.push(item);
+    if (this.memoryFallback.length >= QUEUE_CAPACITY) reportQueueCapacityFault('memory', this.memoryFallback.length);
   }
 
   /**
@@ -904,6 +1021,61 @@ export class IndexedDBQueue {
         resolve();
       }
     });
+  }
+
+  /**
+   * Gives every item parked by refusals one more set of attempts without a
+   * reload — at most once per item per page. Called when the sign-in's ID
+   * token changes (a refresh or new claims), which is the in-tab signal that
+   * what was refused may now be accepted: a rules deploy that landed after
+   * this build loaded (review B1), or claims that arrived late. A page load
+   * already revives everything (reviveParkedItems); this covers a tab that
+   * stays open through a deploy. Nothing is deleted. Returns how many were revived.
+   */
+  public async reviveRefusalParked(): Promise<number> {
+    const refusalParked = (item: QueuedAction) => (item.retry_count ?? 0) >= MAX_RETRIES_BEFORE_PARKING;
+    const keyOf = (item: QueuedAction) => String(item.idempotency_key ?? item.id ?? '');
+    let revived = 0;
+    for (const item of this.memoryFallback) {
+      const key = keyOf(item);
+      if (refusalParked(item) && key && !this.refusalRevivedThisPage.has(key)) {
+        this.refusalRevivedThisPage.add(key);
+        item.retry_count = 0;
+        revived++;
+      }
+    }
+    if (this.db) {
+      const targetStore = this.db.objectStoreNames.contains(STORE_NAME) ? STORE_NAME : LEGACY_STORE_NAME;
+      revived += await new Promise<number>((resolve) => {
+        let n = 0;
+        try {
+          const tx = this.db!.transaction([targetStore], 'readwrite');
+          const req = tx.objectStore(targetStore).openCursor();
+          req.onsuccess = (e) => {
+            const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+            if (!cursor) return;
+            const value = (cursor.value ?? {}) as QueuedAction;
+            const key = keyOf({ ...value, id: cursor.primaryKey as number });
+            if (refusalParked(value) && key && !this.refusalRevivedThisPage.has(key)) {
+              this.refusalRevivedThisPage.add(key);
+              cursor.update({ ...value, retry_count: 0 });
+              n++;
+            }
+            cursor.continue();
+          };
+          tx.oncomplete = () => resolve(n);
+          tx.onerror = () => resolve(n);
+        } catch {
+          resolve(n);
+        }
+      });
+    }
+    if (revived > 0) {
+      await this.refreshPendingCount().catch(() => {});
+      if (this.isFlushing) this.flushAgainAfterCurrent = true;
+      else if (this.isOnline) this.flushQueue().catch(console.error);
+    }
+    return revived;
   }
 
   /**
@@ -1107,6 +1279,10 @@ export class IndexedDBQueue {
         this.flushAgainAfterCurrent = false;
         this.scheduleBackgroundFlush();
       }
+      // Module 17 §ב: the teacher's count follows every pass, the sign-out
+      // flush's included (asOwner), not only a change seen while signed in.
+      // After the follow-up is scheduled: a slow write does not hold it back.
+      await this.publishRefusedFor(owner);
     }
   }
 
@@ -1189,10 +1365,7 @@ export class IndexedDBQueue {
       return true;
     }
     if (item.payload && item.payload.event_type && item.idempotency_key) {
-      await setDoc(doc(firestore, 'telemetry_logs', item.idempotency_key), {
-        ...item.payload,
-        synced_at: Date.now(),
-      });
+      await setDoc(doc(firestore, 'telemetry_logs', item.idempotency_key), telemetryDocumentOf(item.payload));
     }
     return true;
   }
@@ -1325,6 +1498,7 @@ export class IndexedDBQueue {
     this.memoryFallback = [];
     await this.clearAllStores();
     this.setPendingCount(0);
+    this.setRefusedCount(0);
   }
 
   private clearAllStores(): Promise<void> {
@@ -1344,6 +1518,25 @@ export class IndexedDBQueue {
 }
 
 export const indexedDBQueue = IndexedDBQueue.getInstance();
+
+/**
+ * The telemetry_logs document of a queued event (Module 17 §ב): the event as
+ * it was stored, plus synced_at and server_received_at — the server's time,
+ * which the Security Rules require to equal request.time (Appendix A §3).
+ * An event queued before device_id existed was queued in this same browser
+ * (the queue lives in its IndexedDB), so it gets this browser's id; its
+ * sequence_number is unknown and stays absent.
+ */
+export function telemetryDocumentOf(payload: Record<string, unknown>): Record<string, unknown> {
+  const { server_received_at: _ignored, ...event } = payload;
+  void _ignored;
+  return {
+    ...event,
+    ...(typeof event.device_id === 'string' && event.device_id ? {} : { device_id: getDeviceId() }),
+    synced_at: Date.now(),
+    server_received_at: serverTimestamp(),
+  };
+}
 
 // --- Enqueue-first writes -------------------------------------------------
 // Module 17 §ב: IndexedDB is the durable buffer. A write made straight to the

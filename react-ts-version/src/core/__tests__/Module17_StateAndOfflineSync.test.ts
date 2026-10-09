@@ -207,6 +207,8 @@ describe('Work Package 2 (WP2): Global State Management & Offline Queue Engine',
       const samplePayload: TelemetryPayload<'REGROUPING_SUCCESS'> = {
         idempotency_key: 'idemp-uuid-regroup-999',
         client_timestamp: Date.now(),
+        sequence_number: 1,
+        device_id: "test-device-1",
         session_id: 'session_pilot_02',
         student_id: 6,
         exercise_id: 'ex_compulsory_04',

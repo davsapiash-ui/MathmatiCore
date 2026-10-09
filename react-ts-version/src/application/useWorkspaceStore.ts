@@ -89,7 +89,7 @@ import {
  */
 function emitScaffoldEvent(
   s: WorkspaceState,
-  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED' | 'HELP_WITHDRAWN' | 'PLACE_CUES_SHOWN' | 'CHAT_HELP_REQUESTED',
+  eventType: 'ADAPTIVE_GRID_TOGGLED' | 'KEYBOARD_LOCK_BLOCKED' | 'HELP_REQUESTED' | 'HELP_WITHDRAWN' | 'PLACE_CUES_SHOWN' | 'CHAT_HELP_REQUESTED' | 'BRANCH_SELECTED',
   details: Record<string, unknown>,
   columnIndex?: number
 ): void {
@@ -3815,6 +3815,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (!path) return;
       const branchTasks = getSessionBranchTasks(s.sessionNumber, branch, path);
       if (branchTasks.length === 0) return;
+
+      // Appendix A §3 (Module 14 §ג): the choice is recorded, with the exercise
+      // it was made after. No column_index (Module 5 §ג).
+      emitScaffoldEvent(s, 'BRANCH_SELECTED', { branch });
 
       set({
         selectedBranch: branch,

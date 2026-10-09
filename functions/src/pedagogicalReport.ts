@@ -63,6 +63,7 @@ import {
   PREVIOUS_SCORE_LABEL_HE,
   reportFooterTemplate,
 } from "./reportHtml";
+import { compareTelemetryOrder } from "./telemetryOrder";
 
 export const EXACT_AI_FALLBACK_TEXT = EXACT_AI_FALLBACK_TEXT_HE;
 
@@ -93,7 +94,7 @@ export function generateExerciseNarrativeFromEvents(
   const exerciseMap: Record<string, any[]> = {};
 
   // Group events chronologically by exercise_id
-  telemetryDocs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  telemetryDocs.sort(compareTelemetryOrder);
   for (const doc of telemetryDocs) {
     // SESSION_START ("ex_N_01") and REFLECTION_SUBMITTED are not exercises (isExerciseEvent).
     if (!isExerciseEvent(doc)) continue;
@@ -628,7 +629,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // In the order the learner produced them. The narrative used to be written
   // here (and sorted the events as it went); it is written below, once the
   // catalog gives the exercises their Hebrew titles.
-  telemetryDocs.sort((a, b) => (a.client_timestamp || 0) - (b.client_timestamp || 0));
+  telemetryDocs.sort(compareTelemetryOrder);
 
   // The learner's live record: the approved path and gate state live there
   // for every meeting, whether or not a SessionDocument was written.
