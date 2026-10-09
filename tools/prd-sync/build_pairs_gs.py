@@ -26,7 +26,9 @@ out = ["// " + line for line in header.split("\n")]
 out.append("// Run applyAll. Safe to run more than once.")
 out.append("var DOCS = [")
 for name, doc_id in IDS.items():
-    pairs = [[op["old"], op["new"]] for op in ops if op["doc"] == name]
+    # An op may name which of several identical paragraphs it replaces
+    # ({"nth": 1, "total": 2}); the runtime then counts instead of matching once.
+    pairs = [[op["old"], op["new"]] + ([None, op["nth"], op["total"]] if "total" in op else []) for op in ops if op["doc"] == name]
     if not pairs:
         continue
     v = json.dumps(version) if name == "PRD" else "null"

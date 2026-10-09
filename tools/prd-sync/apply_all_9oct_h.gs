@@ -1,18 +1,6 @@
-// MathmatiCore — one script for all of 9.10.2026 after f. Run it after apply_all_9oct_f.gs.
-// PRD 7.18: the fixes of the earlier review (g); the teacher's demonstration screen (Module 15) with the demonstration aids
-// the owner approved on 9.10.2026 (the result-row colours, the example coaching card, station 1's result row and "ממשיכים",
-// station 4's choice exercise); owner decisions the code already follows, written where the PRD was silent (the addition grid
-// and the coaching card, when the card is withheld, station 3's static card, the correction round's headings, the early-finish
-// button, the report link); and clarifications of PRD lines that could be built two ways.
-// Documents 02, 03 and 04: the demonstration paragraphs as a step-by-step guide for the teacher, with the same aids.
-// Owner decisions of 9.10.2026 (j): subtraction named by the number of regroupings and where the zeros are (Ministry of
-// Education usage: "פריטה אחת", "שתי פריטות", "אפסים במחוסר"), one title per exercise for exercises that practise the
-// same skill, station 4's first step "בנו בבית המספרים את שני המספרים.", 150 with ten blocks in every way; and the fixes of
-// the independent review.
-// Owner decisions of 9.10.2026 (k), the learner's language: in every quoted learner sentence only classroom words —
-// "קבצו"/"הקבצה" in addition and "פרטו"/"פריטה" in subtraction (no "המרה"), a number by its role and value ("המספר
-// הראשון, [המספר הראשון]") instead of "המחוסר"/"המחובר", "הלבנים מראות" and the button "שמירת הדרך" instead of "ייצוג",
-// "ההוראה", short sentences with one action each, and the closed-choice answers built alike.
+// MathmatiCore — one script (9.10.2026). Run it after apply_all_9oct_f.gs.
+// PRD 7.18: the teacher's demonstration screen (Module 15), owner decisions written into the PRD,
+// clarifications, subtraction terminology, learner language. Documents 02, 03, 04 aligned.
 // Run applyAll. Safe to run more than once.
 var DOCS = [
   { name: "PRD", id: '1siy2VT-bPVy9LflxJBt-Xr7uQEW5umHPEh_vMVlmbWY', version: "7.18", edits: [
@@ -164,7 +152,13 @@ var DOCS = [
   ["ביצוע פריטה כפולה או משולשת סימולטנית דרך טור העשרות הריק. מודל", "ביצוע שתי פריטות או שלוש פריטות רצופות, כשבמחוסר יש אפסים. מודל"],
   ["ביצוע פריטה כפולה או משולשת סימולטנית דרך טור העשרות הריק בתרגילי חיסור במאונך.", "ביצוע שתי פריטות או שלוש פריטות רצופות בתרגילי חיסור במאונך, כשבמחוסר יש אפסים."],
   ["המצריכים פריטה כפולה או משולשת דרך ספרת האפס.", "המצריכים שתי פריטות או שלוש פריטות, כשבמחוסר יש אפסים."],
-  [" \"כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור \"קבצו 10\" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון.\"", " \"כשמצטברות 10 לבנים בטור, לחצו על הכפתור \"קבצו 10\" שבראש הטור. אחר כך רשמו בעיגול הזיכרון את ה־1 שעבר לטור הבא.\""]
+  [" \"כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור \"קבצו 10\" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון.\"", " \"כשמצטברות 10 לבנים בטור, לחצו על הכפתור \"קבצו 10\" שבראש הטור. אחר כך רשמו בעיגול הזיכרון את ה־1 שעבר לטור הבא.\""],
+  ["\"בנו את המחוסר בבית המספרים.\"", "\"בנו בבית המספרים את המספר הראשון.\"", null, 1, 2],
+  ["\"בנו את המחוסר בבית המספרים.\"", "\"בנו בבית המספרים את המספר הראשון.\"", null, 1, 1],
+  ["\"אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור.\"", "\"אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו. לחצו על הלבנה, או גררו אותה אל הטור שמימין.\"", null, 1, 2],
+  ["\"אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור.\"", "\"אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו. לחצו על הלבנה, או גררו אותה אל הטור שמימין.\"", null, 1, 1],
+  ["\"הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.\"", "\"הוציאו מבית המספרים את המספר השני. כתבו את התוצאה בשורת התוצאה.\"", null, 1, 2],
+  ["\"הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.\"", "\"הוציאו מבית המספרים את המספר השני. כתבו את התוצאה בשורת התוצאה.\"", null, 1, 1]
 ] },
   { name: "מסמך 03", id: '1deVf-QeccnmA37jb5lkFHh-6Df1NMYGSFrWQL29gK4A', version: null, edits: [
   ["הדגמה אחת, משותפת לשני המסלולים: ייצוג המספר 230 באמצעות 2 מאות ו-3 עשרות, ופריטת לבנת מאה אחת לקבלת מאה אחת ו-13 עשרות.", "הדגמה אחת, משותפת לשני המסלולים: ייצוג המספר 350 באמצעות 3 מאות ו-5 עשרות, ופריטת לבנת מאה אחת לקבלת 2 מאות ו-15 עשרות (המספר עדיין 350), ואחר כך בניית המספר \"ארבע מאות ושבע\" וכתיבתו בספרות, 407."],

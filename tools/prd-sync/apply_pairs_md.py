@@ -33,9 +33,15 @@ def main() -> int:
         for op in json.load(open(path, encoding="utf-8")):
             t = texts[op["doc"]]
             brk = lambda s: re.sub(r"([\[\]])", r"\\\1", esc(s))
+            # An op may name which of several identical paragraphs it replaces
+            # ({"nth": 1, "total": 2}); the count must then equal "total".
+            want, nth = op.get("total", 1), op.get("nth", 1)
             for old, new in ((esc(op["old"]), esc(op["new"])), (op["old"], op["new"]), (brk(op["old"]), brk(op["new"]))):
-                if t.count(old) == 1:
-                    texts[op["doc"]] = t.replace(old, new)
+                if t.count(old) == want:
+                    i = -1
+                    for _ in range(nth):
+                        i = t.index(old, i + 1)
+                    texts[op["doc"]] = t[:i] + new + t[i + len(old):]
                     break
             else:
                 failed += 1
