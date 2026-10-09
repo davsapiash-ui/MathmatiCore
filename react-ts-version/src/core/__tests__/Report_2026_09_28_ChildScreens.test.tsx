@@ -212,7 +212,7 @@ describe('meeting 7, gap-closing track, exercise 7 (owner, 28.9.2026; מסמך 0
   const t = getSessionTasks(7, 'remediation_path').find((x) => x.id === 's7_r_t7')!;
 
   it('asks for two ways, as the document does, and gives no answer away', () => {
-    expect(t.instructionHe.startsWith('מצאו שתי דרכים שונות לייצג את המספר 150 כך שבכל דרך מספר העשרות זוגי. ')).toBe(true);
+    expect(t.instructionHe.startsWith('מצאו שתי דרכים שונות לייצג את המספר 150 כך שבכל דרך יש לבני עשרת, ומספר לבני העשרת זוגי. ')).toBe(true);
     expect(t.instructionHe).not.toContain('למשל');
     expect(t.instructionHe).not.toContain('14 עשרות');
   });

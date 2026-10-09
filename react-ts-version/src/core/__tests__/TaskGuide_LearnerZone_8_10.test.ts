@@ -4,7 +4,7 @@ import { SESSION_BRANCH_TASKS } from '@/data/sessionBranchTasks';
 import { EMPTY_COUNTS, getValue, type Place, type PlaceCounts } from '@/core/placeValue';
 import { emptyColumnConversions, useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { approvePath } from '@/test/approvedPath';
-import { answerFilled, fmt, guideTicksNow, stickyBuildValue, taskGuide, type GuideTickState } from '@/core/taskGuide';
+import { answerFilled, fmt, guideSpeechHe, guideTicksNow, stickyBuildValue, taskGuide, type GuideTickState } from '@/core/taskGuide';
 import { instructionLines } from '@/core/instructionLines';
 import { session1Checklist } from '@/core/session1Checklist';
 
@@ -153,7 +153,10 @@ describe('every exercise of stations 1 and 3–7 has a guide; stations 2 and 8 k
     ]);
     expect(s5.correctHe).toBe('נכון! ‏53 − 18 = 35, וגם בבית המספרים נשארו 35.');
     const s4 = taskGuide(byId('s4_r_t2').task, 4)!;
-    expect(s4.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים את 128 ואת 35', 'כתבו את התוצאה בשורת התוצאה']);
+    // Owner, 9.10.2026: the step says "את שני המספרים", as the PRD's station instruction does; the goal line names them.
+    expect(s4.goalHe).toBe('פתרו במאונך: 128 + 35.');
+    expect(s4.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים את שני המספרים', 'כתבו את התוצאה בשורת התוצאה']);
+    expect(guideSpeechHe('', s4, [])).toContain('בנו בבית המספרים את שני המספרים');
     expect(s4.correctHe).toBe('נכון! ‏128 + 35 = 163, וגם בבית המספרים בניתם 163.');
     const s3 = taskGuide(byId('s3_r_t2').task, 3)!;
     expect(s3.topicHe).toBe('פורטים לבנים');

@@ -109,7 +109,7 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
         subtraction('s6_r_reinforce_2', 250, 130, 'ביסוס 2: חיסור ללא פריטה', S6_SUB('250 − 130', 250, 130), { ...R, targetNode: 'zero_placeholder' }),
       ],
       challenge: [
-        subtraction('s6_r_challenge_1', 600, 247, 'אתגר: פריטה כפולה דרך שני אפסים עוקבים', S6_SUB('600 − 247', 600, 247), { ...C, targetNode: 'zero_placeholder' }),
+        subtraction('s6_r_challenge_1', 600, 247, 'אתגר: שתי פריטות, כשבמחוסר יש אפסים בטור העשרות ובטור היחידות', S6_SUB('600 − 247', 600, 247), { ...C, targetNode: 'zero_placeholder' }),
       ],
     },
     green_path: {
@@ -118,7 +118,7 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
         subtraction('s6_g_reinforce_2', 3006, 1004, 'ביסוס 2: חיסור ללא פריטה עם אפסים', S6_SUB('3,006 − 1,004', 3006, 1004), { ...R, targetNode: 'zero_placeholder' }),
       ],
       challenge: [
-        subtraction('s6_g_challenge_1', 8000, 2376, 'אתגר: פריטה משולשת רצופה דרך שלושה אפסים', S6_SUB('8,000 − 2,376', 8000, 2376), { ...C, targetNode: 'zero_placeholder' }),
+        subtraction('s6_g_challenge_1', 8000, 2376, 'אתגר: שלוש פריטות, כשבמחוסר יש אפסים בטורי המאות, העשרות והיחידות', S6_SUB('8,000 − 2,376', 8000, 2376), { ...C, targetNode: 'zero_placeholder' }),
       ],
     },
   },

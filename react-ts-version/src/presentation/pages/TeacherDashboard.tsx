@@ -2178,7 +2178,7 @@ export function TeacherDashboard() {
                     {CONCEPT_LABELS_HE.decimal_structure}
                   </h3>
                   <p className="text-ws-soft mb-4 text-sm leading-relaxed">
-                    תלמידים שהתקשו בקריאה וכתיבה של מספר עם אפס (משימה 1), בערך הספרה (משימה 2), בפירוק מספר לרכיביו (משימה 4) או בחיסור דרך אפס בטור העשרות (משימה 7).
+                    תלמידים שהתקשו בקריאה וכתיבה של מספר עם אפס (משימה 1), בערך הספרה (משימה 2), בפירוק מספר לרכיביו (משימה 4) או בחיסור עם פריטה אחת כשבמחוסר יש 0 בטור העשרות (משימה 7).
                   </p>
                   <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
                     <DataGrid
@@ -2209,7 +2209,7 @@ export function TeacherDashboard() {
                     {CONCEPT_LABELS_HE.regrouping_fluency}
                   </h3>
                   <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
-                    הקבצה: המרת יחידות לעשרות (משימה 5) וחיבור עם המרה (משימה 6). פריטה: חיסור עם פריטה (משימה 3) וחיסור דרך אפס בטור העשרות (משימה 7). "רמת שליטה" מאחדת את ארבע המשימות; שני החלקים מוצגים לצידה.
+                    הקבצה: המרת יחידות לעשרות (משימה 5) וחיבור עם המרה (משימה 6). פריטה: חיסור עם פריטה (משימה 3) וחיסור עם פריטה אחת כשבמחוסר יש 0 בטור העשרות (משימה 7). "רמת שליטה" מאחדת את ארבע המשימות; שני החלקים מוצגים לצידה.
                   </p>
                   <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
                     <DataGrid

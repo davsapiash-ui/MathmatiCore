@@ -24,7 +24,7 @@ import {
   countsEqual,
   digitAt,
 } from '@/core/placeValue';
-import { BLOCK_NAME_HE, NO_UNIT_BLOCKS_SUB_HE, NO_UNIT_BLOCKS_TITLE_HE } from '@/data/taskBuilders';
+import { BLOCK_NAME_HE, NO_TEN_BLOCKS_SUB_HE, NO_TEN_BLOCKS_TITLE_HE, NO_UNIT_BLOCKS_SUB_HE, NO_UNIT_BLOCKS_TITLE_HE } from '@/data/taskBuilders';
 import { session1Checklist, session1DoneNoteHe, session1NextStep } from '@/core/session1Checklist';
 import { stickyBuildValue, taskGuide } from '@/core/taskGuide';
 import {
@@ -2500,6 +2500,11 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
   }
 
   if (task.type === 'flexible_decomp') {
+    // Owner's decision, 9.10.2026: every way has ten blocks (0 is even, but a
+    // way without them misses what the exercise practises).
+    if (task.requireEvenTens && s.q3Reps.some((r) => r.tens === 0)) {
+      return failure('no_tens', NO_TEN_BLOCKS_TITLE_HE, NO_TEN_BLOCKS_SUB_HE, 2800, { clearReps: true });
+    }
     if (task.requireEvenTens && s.q3Reps.some((r) => r.tens % 2 !== 0)) {
       return failure('odd_tens', 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', 'בכל דרך מספר העשרות צריך להיות זוגי. נסו שוב!', 2800, { clearReps: true });
     }
@@ -4973,6 +4978,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       let wrongAddPressCounts = false;
       // Owner, 4.10.2026: 320, 2,100 and 4,200 are built without unit blocks.
       let noUnitBlocks = false;
+      // 150 (owner's decision, 9.10.2026): every way has ten blocks.
+      let needsTenBlocks = false;
       if (s.sessionNumber === 2) {
         const task = getCurrentQTask(s.qflow);
         target = task ? getEffectiveNumber(task, s.qflow, s.isASD) : undefined;
@@ -4982,6 +4989,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         lessonTaskId = isRepresentationTask(task) ? task.id : null;
         wrongAddPressCounts = lessonTaskId !== null && s.sessionNumber === 3;
         noUnitBlocks = task?.noUnitBlocks === true;
+        needsTenBlocks = task?.requireEvenTens === true;
         if (task?.requireEvenTens && s.counts.tens % 2 !== 0) {
           if (lessonTaskId) {
             recordBoardCheckFailure(lessonTaskId);
@@ -5015,6 +5023,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // לעשרת" button is in view: the toast says the rule, then the action.
       // The same toast, duration and counting as the even-tens refusal above;
       // 150 (s7_r_t7) carries no such rule — each of its ways has unit blocks.
+      // 150: a way that shows the number with no ten blocks (owner's decision,
+      // 9.10.2026) — the same toast duration and counting as the refusals above.
+      if (needsTenBlocks && s.counts.tens === 0) {
+        if (lessonTaskId) {
+          recordBoardCheckFailure(lessonTaskId);
+          if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
+        }
+        showFeedback({ correct: false, title: NO_TEN_BLOCKS_TITLE_HE, sub: NO_TEN_BLOCKS_SUB_HE }, 3200);
+        return;
+      }
       if (noUnitBlocks && s.counts.units > 0) {
         if (lessonTaskId) {
           recordBoardCheckFailure(lessonTaskId);

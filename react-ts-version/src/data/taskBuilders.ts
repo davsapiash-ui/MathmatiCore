@@ -382,3 +382,11 @@ export const FLEX_HOWTO = 'בנו את המספר בדרך אחת. לחצו על
  */
 export const NO_UNIT_BLOCKS_TITLE_HE = 'בִּדְקוּ אֶת טוּר הַיְחִידוֹת 🤔';
 export const NO_UNIT_BLOCKS_SUB_HE = 'בתרגיל הזה בונים את המספר בלי לבני יחידה. קבצו כל 10 לבני יחידה ללבנת עשרת אחת.';
+/**
+ * 150 (s7_r_t7, owner's decision, 9.10.2026): every way has ten blocks, and an
+ * even number of them. A way with no ten blocks (0 is even) is refused when it
+ * is added, once the board shows the number: the toast points back to the
+ * instruction and gives no way away.
+ */
+export const NO_TEN_BLOCKS_TITLE_HE = 'בִּדְקוּ אֶת טוּר הָעֲשָׂרוֹת 🤔';
+export const NO_TEN_BLOCKS_SUB_HE = 'ההנחיה מבקשת שבכל דרך יהיו לבני עשרת. קראו אותה שוב ונסו שוב.';

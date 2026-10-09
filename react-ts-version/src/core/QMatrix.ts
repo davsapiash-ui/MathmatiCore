@@ -85,7 +85,7 @@ export function hasOneDiagnosticAnswerBox(task: Pick<QMatrixTask, 'id' | 'type'>
  * 4. פירוק מספר תלת-ספרתי לרכיביו ("חמש מאות שישים ושלוש" -> 5 מאות, 6 עשרות, 3 יחידות = 563)
  * 5. המרה עצמאית בין עזרים וירטואליים (25 לבני יחידה -> 2 עשרות, 5 יחידות = 25)
  * 6. חיבור במאונך עם המרה מעל מאה (124 + 85 = 209)
- * 7. חיסור במאונך עם פריטה דרך אפס בטור העשרות (405 - 132 = 273)
+ * 7. חיסור במאונך עם פריטה אחת, כשבמחוסר יש 0 בטור העשרות (405 - 132 = 273)
  */
 export const TASKS: QMatrixTask[] = [
   {
@@ -188,7 +188,7 @@ export const TASKS: QMatrixTask[] = [
     id: "task7_subtraction_zero_tens",
     type: "vertical_addition",
     isSubtraction: true,
-    titleHe: "חיסור במאונך עם פריטה דרך אפס בטור העשרות",
+    titleHe: "חיסור במאונך עם פריטה אחת, כשבמחוסר יש 0 בטור העשרות",
     instructionHe: "פתרו את תרגיל החיסור וכתבו את התשובה בשורת התוצאה!",
     numberA: 405,
     numberB: 132,

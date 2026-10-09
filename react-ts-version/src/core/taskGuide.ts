@@ -362,9 +362,10 @@ function additionGuide(task: SessionTask, sessionNumber: number): TaskGuide {
     topicHe: topicOf(task, sessionNumber),
     goalHe: lines[0],
     steps: [
-      // PRD 26, station 4 exercise 2: the step names the two numbers ("בנו בבית המספרים את 128 ואת 35.")
-      // where the station's instruction says "את שני המספרים".
-      step(`בנו בבית המספרים את ${fmt(task.numberA ?? 0)} ואת ${fmt(task.numberB ?? 0)}`, { kind: 'boardValue', value: r }, GROUP_SUBS_HE),
+      // PRD 26, station 4 exercise 2 (owner, 9.10.2026): the step says what the
+      // station's instruction says, "בנו בבית המספרים את שני המספרים." — the
+      // goal line above it names them, and the teacher explains in her own words.
+      step(noDot(BUILD_BOTH_HE), { kind: 'boardValue', value: r }, GROUP_SUBS_HE),
       step(noDot(missing ? WRITE_MISSING_HE : WRITE_RESULT_HE), fill),
     ],
     doneNoteHe: WROTE_ANSWER_HE,

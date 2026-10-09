@@ -2005,16 +2005,16 @@ function flexibleCard(task: any): SocraticHintResponse {
   ], 'flexible', frame('flexible_second_way', 1, 'דרך נוספת: פורטים לבנה לעשר קטנות ממנה, או מקבצים עשר לבנים לאחת, והכמות לא משתנה'));
 }
 
-/** s7_r_t7, "in each way the number of tens is even" (1.10.2026): a ten broken into units changes the tens by one. */
+/** s7_r_t7, "in each way there are ten blocks, an even number of them" (1.10.2026; ten blocks required, owner 9.10.2026): a ten broken into units changes the tens by one. */
 function flexibleEvenTensCard(task: any): SocraticHintResponse {
   const N = typeof task.numberA === 'number' && numberOnScreen(task, task.numberA) ? formatNumberHe(task.numberA) : '';
   const same = N ? `האם המספר יישאר ${N}?` : 'האם הכמות תישאר אותה כמות?';
-  return card(`${OPEN}איך מייצגים את ${N ? `המספר ${N}` : 'הכמות'} כך שמספר לבני העשרת יהיה זוגי?`, 'conceptual', 'tour-place-value-board', [
+  return card(`${OPEN}איך מייצגים את ${N ? `המספר ${N}` : 'הכמות'} כך שיהיו לבני עשרת, ומספר לבני העשרת יהיה זוגי?`, 'conceptual', 'tour-place-value-board', [
     ['פורטים לבנת עשרת אחת לעשר לבני יחידה', 'נכון מאוד! אחרי כל פריטה, בדקו אם מספר לבני העשרת זוגי.'],
     ['מוסיפים לבנת עשרת חדשה', `רמז: אם תוסיפו לבנה חדשה, ${same}`],
     // As the number is written: 1 hundred and 5 tens (not "without breaking": 1 hundred, 4 tens and 10 units can come straight from the tool box).
     [N ? `בונים את ${N} כמו שכותבים אותו` : 'בונים את המספר כמו שכותבים אותו', 'רמז: האם מספר לבני העשרת יהיה אז זוגי?'],
-  ], 'flexible', frame('flexible_even_tens', 1, 'מספר לבני העשרת צריך להיות זוגי: פריטה של עשרת אחת לעשר יחידות משנה אותו'));
+  ], 'flexible', frame('flexible_even_tens', 1, 'בכל דרך יש לבני עשרת, ומספרן צריך להיות זוגי: פריטה של עשרת אחת לעשר יחידות משנה אותו'));
 }
 
 /** Two representations, the second card: the button that keeps the first one (frame 3). */

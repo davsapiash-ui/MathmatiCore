@@ -98,7 +98,7 @@ describe('one source for the station names', () => {
   it('no other source file spells a station name of its own', () => {
     const everything = filesUnder('.').filter((f) => f !== 'core/stationNames.ts');
     // A name as a whole string of its own. Exercise titles may contain the
-    // words ("חיסור במאונך עם פריטה דרך אפס"); that is not a station name.
+    // words ("חיסור במאונך עם פריטה אחת"); that is not a station name.
     for (const n of MEETING_NUMBERS) {
       const literal = new RegExp(`(['"\`])${STATION_NAMES_HE[n]}\\1`);
       expect(hits(everything, literal), STATION_NAMES_HE[n]).toEqual([]);
@@ -110,7 +110,7 @@ describe('one source for the station names', () => {
     // drifts just the same. Exercise titles may contain the words for their
     // own mathematics; only those, listed here, are allowed.
     const everything = filesUnder('.').filter((f) => f !== 'core/stationNames.ts');
-    const EXERCISE_WORDS = ['חיסור במאונך עם פריטה דרך אפס בטור העשרות'];
+    const EXERCISE_WORDS = ['חיסור במאונך עם פריטה אחת, כשבמחוסר יש 0 בטור העשרות'];
     for (const n of MEETING_NUMBERS) {
       expect(hits(everything, new RegExp(STATION_NAMES_HE[n]), EXERCISE_WORDS), STATION_NAMES_HE[n]).toEqual([]);
     }

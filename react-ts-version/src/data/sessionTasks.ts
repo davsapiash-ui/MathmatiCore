@@ -135,7 +135,11 @@ export interface SessionTask {
   hiddenDigits?: { a?: Place[]; b?: Place[] };
   /** Skeleton exercise: result digits shown up-front; the learner supplies only the missing ones. */
   revealedResultDigits?: Place[];
-  /** flexible_decomp: every recorded representation must hold an even number of tens. */
+  /**
+   * flexible_decomp: every recorded representation must hold ten blocks, and
+   * an even number of them (150, s7_r_t7; owner's decision, 9.10.2026: a way
+   * with no ten blocks is refused, though 0 is even).
+   */
   requireEvenTens?: boolean;
   /**
    * flexible_decomp (owner, 4.10.2026): the number is built without unit
@@ -298,7 +302,7 @@ export const SESSION1_TASKS: SessionTask[] = [
   // of the minuend, no borrow in the units, one borrow from the hundreds into
   // the tens.
   s1(subtraction('s1_r_sub806', 806, 351,
-    'חיסור במאונך עם פריטה דרך אפס בטור העשרות',
+    'חיסור במאונך עם פריטה אחת, כשבמחוסר יש 0 בטור העשרות',
     'פתרו: 806 − 351.\nבנו את 806 בבית המספרים.\nגררו לפח האשפה את הלבנים שאתם מחסרים.\nאם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור.\nאחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.\nכתבו את התוצאה בשורת התוצאה.',
     { scaffoldLevel: 1 })),
 ];
@@ -359,7 +363,7 @@ export const SESSION3_GREEN_TASKS: SessionTask[] = [
     'ייצוג מספר עם אפס בטור המאות',
     { targetNode: 'decimal_structure' }),
   composeBreak('s3_g_t6', { thousands: 6, tens: 3 }, ['thousands'],
-    'פירוק אלפים דרך טור מאות ריק',
+    'פירוק אלף למאות כשטור המאות ריק',
     { targetNode: 'decimal_structure' }),
   flexible('s3_g_t7', 2100,
     'משימת חקר של גמישות ייצוגית',
@@ -437,16 +441,16 @@ export const SESSION5_REMEDIATION_TASKS: SessionTask[] = [
 ];
 
 export const SESSION5_GREEN_TASKS: SessionTask[] = [
-  subtraction('s5_g_t1', 5432, 2118, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('5,432 − 2,118', 5432, 2118)),
-  subtraction('s5_g_t2', 6543, 1227, 'פריטה ביחידות עם נוכחות אלפים', S5_SUB('6,543 − 1,227', 6543, 1227)),
+  subtraction('s5_g_t1', 5432, 2118, 'פריטה אחת בטור היחידות בתחום הרבבה (12 − 8 ביחידות)', S5_SUB('5,432 − 2,118', 5432, 2118)),
+  subtraction('s5_g_t2', 6543, 1227, 'פריטה אחת בטור היחידות בתחום הרבבה (13 − 7 ביחידות)', S5_SUB('6,543 − 1,227', 6543, 1227)),
   // ★ owner-approved replacement (3.9.2026): the document's 7,651 − 3,325 borrowed in the units, not the tens.
   // מסמך 03 carries 7,651 − 3,381 since 25.9.2026 (the owner updated it).
   subtraction('s5_g_t3', 7651, 3381, 'פריטה בטור העשרות בלבד', S5_SUB('7,651 − 3,381', 7651, 3381)),
   // ★ owner-approved replacement (3.9.2026): the document's 8,762 − 4,439 borrowed in the units, not the hundreds.
   // מסמך 03 carries 8,762 − 4,932 since 25.9.2026 (the owner updated it).
   subtraction('s5_g_t4', 8762, 4932, 'פריטה בטור המאות בלבד', S5_SUB('8,762 − 4,932', 8762, 4932)),
-  subtraction('s5_g_t5', 6284, 1157, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('6,284 − 1,157', 6284, 1157)),
-  subtraction('s5_g_t6', 3845, 1517, 'פריטה פשוטה ביחידות, כל הספרות שונות מאפס', S5_SUB('3,845 − 1,517', 3845, 1517)),
+  subtraction('s5_g_t5', 6284, 1157, 'פריטה אחת בטור היחידות בתחום הרבבה (14 − 7 ביחידות)', S5_SUB('6,284 − 1,157', 6284, 1157)),
+  subtraction('s5_g_t6', 3845, 1517, 'פריטה אחת בטור היחידות בתחום הרבבה (15 − 7 ביחידות)', S5_SUB('3,845 − 1,517', 3845, 1517)),
   // ★ chosen: מסמך 03 describes an inquiry comparing near exercises, without numbers.
   withOpts({
     id: 's5_g_t7', type: 'small_change',
@@ -476,9 +480,9 @@ export const SESSION6_REMEDIATION_TASKS: SessionTask[] = [
   subtraction('s6_r_t1', 240, 125, 'ביסוס פריטה פשוטה עם אפס בטור היחידות של המחוסר', S6_SUB('240 − 125', 240, 125), ZERO),
   subtraction('s6_r_t2', 305, 12, 'פריטה פשוטה מטור המאות כאשר טור העשרות ריק', S6_SUB('305 − 12', 305, 12), ZERO),
   subtraction('s6_r_t3', 204, 112, 'פריטה פשוטה מטור המאות לטור העשרות', S6_SUB('204 − 112', 204, 112), ZERO),
-  subtraction('s6_r_t4', 300, 142, 'פריטה כפולה קלאסית דרך אפס בתחום האלף', S6_SUB('300 − 142', 300, 142), ZERO),
-  subtraction('s6_r_t5', 602, 145, 'פריטה כפולה דרך אפס כאשר ספרת היחידות אינה אפס', S6_SUB('602 − 145', 602, 145), ZERO),
-  subtraction('s6_r_t6', 500, 287, 'ביסוס פריטה כפולה בתחום האלף', S6_SUB('500 − 287', 500, 287), ZERO),
+  subtraction('s6_r_t4', 300, 142, 'שתי פריטות, כשבמחוסר יש אפסים בטור העשרות ובטור היחידות', S6_SUB('300 − 142', 300, 142), ZERO),
+  subtraction('s6_r_t5', 602, 145, 'שתי פריטות, כשבמחוסר יש 0 רק בטור העשרות', S6_SUB('602 − 145', 602, 145), ZERO),
+  subtraction('s6_r_t6', 500, 287, 'ביסוס שתי פריטות, כשבמחוסר יש אפסים בטור העשרות ובטור היחידות', S6_SUB('500 − 287', 500, 287), ZERO),
   // ★ chosen (400 − 156 is the grade-ג example in מסמך 05, המטריקס).
   missingResultDigit('s6_r_t7', 400, 156, true, 'tens',
     'משימת חקר וספרה חסרה',
@@ -490,12 +494,12 @@ export const SESSION6_REMEDIATION_TASKS: SessionTask[] = [
 ];
 
 export const SESSION6_GREEN_TASKS: SessionTask[] = [
-  subtraction('s6_g_t1', 2045, 1128, 'פריטה כפולה, אחת מהן אל טור מאות ריק', S6_SUB('2,045 − 1,128', 2045, 1128), ZERO),
-  subtraction('s6_g_t2', 3005, 1248, 'פריטה משולשת דרך טורי מאות ועשרות ריקים', S6_SUB('3,005 − 1,248', 3005, 1248), ZERO),
-  subtraction('s6_g_t3', 4000, 1562, 'פריטה משולשת דרך אפסים עוקבים', S6_SUB('4,000 − 1,562', 4000, 1562), ZERO),
-  subtraction('s6_g_t4', 5000, 2345, 'תרגול נוסף של פריטה משולשת', S6_SUB('5,000 − 2,345', 5000, 2345), ZERO),
-  subtraction('s6_g_t5', 6020, 1485, 'פריטה משולשת עם אפסים שאינם רציפים', S6_SUB('6,020 − 1,485', 6020, 1485), ZERO),
-  subtraction('s6_g_t6', 7003, 2845, 'פריטה משולשת עם ספרת יחידות שאינה אפס', S6_SUB('7,003 − 2,845', 7003, 2845), ZERO),
+  subtraction('s6_g_t1', 2045, 1128, 'שתי פריטות, לטור היחידות ולטור המאות, כשבמחוסר יש 0 בטור המאות', S6_SUB('2,045 − 1,128', 2045, 1128), ZERO),
+  subtraction('s6_g_t2', 3005, 1248, 'שלוש פריטות, כשבמחוסר יש אפסים בטור המאות ובטור העשרות', S6_SUB('3,005 − 1,248', 3005, 1248), ZERO),
+  subtraction('s6_g_t3', 4000, 1562, 'שלוש פריטות, כשבמחוסר יש אפסים בטורי המאות, העשרות והיחידות', S6_SUB('4,000 − 1,562', 4000, 1562), ZERO),
+  subtraction('s6_g_t4', 5000, 2345, 'תרגול נוסף של שלוש פריטות, כשבמחוסר יש אפסים בטורי המאות, העשרות והיחידות', S6_SUB('5,000 − 2,345', 5000, 2345), ZERO),
+  subtraction('s6_g_t5', 6020, 1485, 'שלוש פריטות, כשבמחוסר יש אפסים לא סמוכים, בטור המאות ובטור היחידות', S6_SUB('6,020 − 1,485', 6020, 1485), ZERO),
+  subtraction('s6_g_t6', 7003, 2845, 'תרגול נוסף של שלוש פריטות, כשבמחוסר יש אפסים בטור המאות ובטור העשרות', S6_SUB('7,003 − 2,845', 7003, 2845), ZERO),
   // ★ chosen: מסמך 03 names the task ("השלמת ספרות חסרות בשורת המחוסר") without numbers.
   // Owner, 1.10.2026 (D12): a hidden minuend is found by adding back — the
   // instruction no longer sends the child to "the break"; it says what the
@@ -548,7 +552,7 @@ export const SESSION7_REMEDIATION_TASKS: SessionTask[] = [
     INQUIRY),
   flexible('s7_r_t7', 150,
     'בעיית חקר פתוחה למחצה של הרכבים משתנים',
-    `מצאו שתי דרכים שונות לייצג את המספר 150 כך שבכל דרך מספר העשרות זוגי. ${FLEX_HOWTO}`,
+    `מצאו שתי דרכים שונות לייצג את המספר 150 כך שבכל דרך יש לבני עשרת, ומספר לבני העשרת זוגי. ${FLEX_HOWTO}`,
     { ...INQUIRY, requireEvenTens: true }),
 ];
 
@@ -564,7 +568,7 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
     INQUIRY),
   // ★ chosen. Owner, 1.10.2026 (D12): "בעזרת הלבנים", not "בעזרת הפריטה" (see s6_g_t7).
   skeleton('s7_g_t3', 5006, 2847, true, { a: ['hundreds', 'tens', 'units'] },
-    'שלוש ספרות חסרות בחיסור עם פריטה משולשת',
+    'שלוש ספרות חסרות בחיסור עם שלוש פריטות',
     'בתרגיל 5,▢▢▢ − 2,847 = 2,159 חסרות שלוש ספרות של המחוסר. גלו את הספרות בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
     INQUIRY),
   // ★ chosen: the imaginary learner's error is the one מסמך 03 describes: the carry from the hundreds into the
@@ -613,9 +617,9 @@ export const SESSION8_REMEDIATION_TASKS: SessionTask[] = [
   subtraction('s8_r_t4', 78, 25, 'חיסור ללא פריטה בתחום המאה', S8_SUB('78 − 25'), { scaffoldLevel: 1 }),
   subtraction('s8_r_t5', 53, 18, 'חיסור עם פריטה פשוטה בתחום המאה', S8_SUB('53 − 18'), { scaffoldLevel: 1 }),
   // ★ chosen (owner, 16.9.2026): מסמך 03 §3.8 lists 302 − 145 here, which the learner never met in sessions 4–6,
-  // against the section's own rule. Replaced by session 6 exercise 5 (602 − 145 = 457): the same double
-  // decomposition through a single zero in the tens, so the title stays true and the fading gap can be measured.
-  subtraction('s8_r_t6', 602, 145, 'חיסור עם פריטה כפולה דרך אפס יחיד', S8_SUB('602 − 145'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
+  // against the section's own rule. Replaced by session 6 exercise 5 (602 − 145 = 457): the same two
+  // decompositions with a single zero, in the tens, so the title stays true and the fading gap can be measured.
+  subtraction('s8_r_t6', 602, 145, 'חיסור עם שתי פריטות, כשבמחוסר יש 0 בטור העשרות', S8_SUB('602 − 145'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
   // ★ chosen: reuses 456 + 281 (session 4) as מסמך 03 requires known numbers; the tens digit of an addend is hidden.
   skeleton('s8_r_t7', 456, 281, false, { a: ['tens'] },
     'בעיית חקר של גילוי ספרה חסרה בתחום האלף',
@@ -626,11 +630,11 @@ export const SESSION8_REMEDIATION_TASKS: SessionTask[] = [
 export const SESSION8_GREEN_TASKS: SessionTask[] = [
   addition('s8_g_t1', 1245, 328, 'חיבור עם המרה אחת בתחום הרבבה', S8_ADD('1,245 + 328'), { scaffoldLevel: 1 }),
   addition('s8_g_t2', 5678, 2453, 'חיבור עם המרה משולשת בתחום הרבבה', S8_ADD('5,678 + 2,453'), { scaffoldLevel: 1 }),
-  subtraction('s8_g_t3', 5432, 2118, 'חיסור עם פריטה פשוטה בתחום הרבבה', S8_SUB('5,432 − 2,118'), { scaffoldLevel: 1 }),
+  subtraction('s8_g_t3', 5432, 2118, 'חיסור עם פריטה אחת בטור היחידות בתחום הרבבה (12 − 8 ביחידות)', S8_SUB('5,432 − 2,118'), { scaffoldLevel: 1 }),
   // ★ chosen (owner, 16.9.2026): מסמך 03 §3.8 lists 4,354 − 1,126 here, never met in sessions 4–6. Replaced by
-  // session 5 exercise 5 (6,284 − 1,157 = 5,127), which the document titles identically: one decomposition, units only.
-  subtraction('s8_g_t4', 6284, 1157, 'חיסור עם פריטה פשוטה בתחום הרבבה', S8_SUB('6,284 − 1,157'), { scaffoldLevel: 1 }),
-  subtraction('s8_g_t5', 4000, 1562, 'חיסור מעל אפסים רציפים בתחום הרבבה', S8_SUB('4,000 − 1,562'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
+  // session 5 exercise 5 (6,284 − 1,157 = 5,127): one decomposition, units only (titles: owner, 9.10.2026, one per exercise).
+  subtraction('s8_g_t4', 6284, 1157, 'חיסור עם פריטה אחת בטור היחידות בתחום הרבבה (14 − 7 ביחידות)', S8_SUB('6,284 − 1,157'), { scaffoldLevel: 1 }),
+  subtraction('s8_g_t5', 4000, 1562, 'חיסור עם שלוש פריטות, כשבמחוסר יש אפסים בטורי המאות, העשרות והיחידות', S8_SUB('4,000 − 1,562'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
   // ★ chosen: reuses 5,678 + 2,453 (session 4); two addend digits hidden.
   skeleton('s8_g_t6', 5678, 2453, false, { a: ['hundreds', 'units'] },
     'בעיית חקר של ספרות חסרות בחיבור',

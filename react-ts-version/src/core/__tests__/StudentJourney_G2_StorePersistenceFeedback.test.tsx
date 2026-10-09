@@ -67,6 +67,7 @@ import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { EMPTY_COUNTS, type PlaceCounts } from '@/core/placeValue';
 import { fmt } from '@/core/taskGuide';
+import { NO_TEN_BLOCKS_SUB_HE } from '@/data/taskBuilders';
 import { resetThrottledWrites } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { TASKS } from '@/core/QMatrix';
 import { Session8ReflectionScreen, REFLECTION_TEXT_HE } from '@/presentation/components/student/Session8ReflectionScreen';
@@ -532,6 +533,33 @@ describe('A7-011: odd tens in an even-tens exercise', () => {
     board({ hundreds: 1, tens: 5 });
     ws().addRepresentation();
     expect(ws().feedback?.sub).toBe('בדרך הזאת מספר העשרות צריך להיות זוגי. פרטו עשרת אחת לעשר יחידות, או קבצו 10 יחידות לעשרת אחת.');
+  });
+
+  // Owner's decision, 9.10.2026: every way has ten blocks — 0 is even, but a
+  // way without ten blocks misses what the exercise practises.
+  it('s7_r_t7 (150): a way with no ten blocks is refused, and the toast reveals no way', () => {
+    load(7, byId('s7_r_t7'));
+    for (const counts of [{ hundreds: 1, units: 50 }, { units: 150 }]) {
+      board(counts);
+      ws().addRepresentation();
+      expect(ws().feedback?.sub).toBe(NO_TEN_BLOCKS_SUB_HE);
+      expect(ws().q3Reps).toHaveLength(0);
+    }
+    board({ hundreds: 1, tens: 4, units: 10 });
+    ws().addRepresentation();
+    expect(ws().q3Reps).toHaveLength(1);
+    board({ tens: 14, units: 10 });
+    ws().addRepresentation();
+    expect(ws().q3Reps).toHaveLength(2);
+    expect(verdict().kind).toBe('success');
+  });
+
+  it('s7_r_t7 (150): a recorded way with no ten blocks fails the check', () => {
+    load(7, byId('s7_r_t7'));
+    useWorkspaceStore.setState({ q3Reps: [{ units: 50, tens: 0, hundreds: 1, thousands: 0 }, { units: 10, tens: 14, hundreds: 0, thousands: 0 }] } as any);
+    const v = verdict();
+    expect(v.kind).toBe('failure');
+    expect(v.sub).toBe(NO_TEN_BLOCKS_SUB_HE);
   });
 });
 

@@ -70,7 +70,7 @@ describe('הקבצה and פריטה are counted separately', () => {
     expect(diagnosticTaskLabelHe(byId.task5_units_to_tens)).toBe('המרה עצמאית בין עזרים וירטואליים (הקבצה)');
     expect(diagnosticTaskLabelHe(byId.task6_vertical_addition)).toBe('חיבור במאונך עם המרה מעל מאה (הקבצה)');
     expect(diagnosticTaskLabelHe(byId.task3_subtraction_regrouping)).toBe('חיסור חד-שלבי עם פריטה בתחום המאה (פריטה)');
-    expect(diagnosticTaskLabelHe(byId.task7_subtraction_zero_tens)).toBe('חיסור במאונך עם פריטה דרך אפס בטור העשרות (פריטה)');
+    expect(diagnosticTaskLabelHe(byId.task7_subtraction_zero_tens)).toBe('חיסור במאונך עם פריטה אחת, כשבמחוסר יש 0 בטור העשרות (פריטה)');
     // Tasks that measure neither keep their plain title.
     expect(diagnosticTaskLabelHe(byId.task1_read_write_zero)).toBe(byId.task1_read_write_zero.titleHe);
     expect(diagnosticTaskLabelHe(byId.task4_decompose_number)).toBe(byId.task4_decompose_number.titleHe);
