@@ -518,7 +518,7 @@ describe('A4-F01: the blocks of the instruction built, the conversion not made',
     board({ tens: 12, units: 5 });
     const v = verdict();
     expect(v).toMatchObject({ kind: 'failure', detail: 'conversion_skipped', title: 'קַבְּצוּ 🧱' });
-    expect(v.sub).toBe('בניתם את הלבנים שבהנחיה. עכשיו לחצו על הכפתור "קבצו 10 למאה" שבראש טור העשרות.');
+    expect(v.sub).toBe('בניתם את הלבנים שבהנחיה. עכשיו לחצו על הכפתור "קבצו 10" שבראש טור העשרות.');
   });
 
   it('any other wrong board keeps the existing sentence', () => {

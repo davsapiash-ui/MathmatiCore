@@ -454,7 +454,7 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     answer('125');
     press();
     expect(title()).toBe('קַבְּצוּ 🧱');
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 למאה" שבראש טור העשרות.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10" שבראש טור העשרות.');
     ws().clearBoard();
     buildBlocks({ tens: 12, units: 5 });
     ws().groupColumnClick('tens');
@@ -468,7 +468,7 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     buildBlocks({ thousands: 1, hundreds: 4, tens: 3 });
     answer('1430');
     press();
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10 לאלף" שבראש טור המאות.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10" שבראש טור המאות.');
     ws().clearBoard();
     buildBlocks({ hundreds: 14, tens: 3 });
     ws().groupColumnClick('hundreds');
@@ -481,8 +481,8 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     expect(done()).toBe(true);
   });
 
-  it('s7_g_t1: 25 hundreds, grouped twice; the button of the hundreds is "קבצו 10 לאלף"', () => {
-    expect(groupItYourselvesHe('hundreds')).toContain('לחצו על הכפתור "קבצו 10 לאלף" שבראש טור המאות.');
+  it('s7_g_t1: 25 hundreds, grouped twice; the sentence names the button "קבצו 10" over the hundreds', () => {
+    expect(groupItYourselvesHe('hundreds')).toContain('לחצו על הכפתור "קבצו 10" שבראש טור המאות.');
     load(byId('s7_g_t1'));
     drop('hundreds', 25);
     ws().groupColumnClick('hundreds');

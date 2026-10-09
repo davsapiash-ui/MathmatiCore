@@ -1490,7 +1490,7 @@ export function breakItYourselvesHe(receiving: Place | null): string {
   return `הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. ${breakClickHe(receiving)}`;
 }
 
-/** Station 7's "do the grouping yourselves": the button of the column to group, in its own words (PlaceColumn). */
+/** Station 7's "do the grouping yourselves": the button "קבצו 10" of the column to group (owner, 9.10.2026: sentences say "קבצו 10"). */
 export function groupItYourselvesHe(source: Place | null): string {
   return `הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. ${groupClickHe(source)}`;
 }
@@ -1530,11 +1530,11 @@ function breakClickHe(receiving: Place | null): string {
     : 'לחצו על הלבנה שההנחיה מבקשת לפרוט.';
 }
 
-/** The button that makes the pending grouping, in its own words (PlaceColumn). */
+/** The button that makes the pending grouping: "קבצו 10" at the head of its column (owner, 9.10.2026; the label on the button is PlaceColumn's). */
 function groupClickHe(source: Place | null): string {
   const above = source ? placeAbove(source) : undefined;
   return source && above
-    ? `לחצו על הכפתור "קבצו 10 ל${BLOCK_NAME_HE[above]}" שבראש טור ה${PLACE_NAMES_HE[source]}.`
+    ? `לחצו על הכפתור "קבצו 10" שבראש טור ה${PLACE_NAMES_HE[source]}.`
     : 'קבצו 10 לבנים בעזרת הכפתור שבראש הטור.';
 }
 
@@ -2201,8 +2201,8 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
       if (hasOvercrowded) {
         // Names the column and the one action: the button "קבצו 10" at the head of the column (מסמך 02).
         const crowded = s.counts.units >= 10 ? 'היחידות' : s.counts.tens >= 10 ? 'העשרות' : 'המאות';
-        // The button says where the ten go (PlaceColumn: "קבצו 10 לעשרת / למאה / לאלף").
-        const groupButton = s.counts.units >= 10 ? 'קבצו 10 לעשרת' : s.counts.tens >= 10 ? 'קבצו 10 למאה' : 'קבצו 10 לאלף';
+        // The sentence names the button "קבצו 10" (owner, 9.10.2026; PRD 7.15 module 7);
+        // the label on the button itself says where the ten go (PlaceColumn).
         return failure(
           'overcrowded_columns',
           'קַבְּצוּ 🧱',
@@ -2210,7 +2210,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
           // the child finds the crowded column — the words of the meeting-1 card.
           s.sessionNumber === 1
             ? 'באחד הטורים יש 10 לבנים או יותר. לחצו על הכפתור שמופיע בראש אותו טור.'
-            : `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "${groupButton}" שבראש הטור.`,
+            : `בטור ${crowded} יש 10 לבנים או יותר. לחצו על הכפתור "קבצו 10" שבראש הטור.`,
           4000
         );
       }
