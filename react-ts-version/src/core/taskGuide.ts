@@ -516,16 +516,15 @@ export function answerFilled(task: SessionTask, s: GuideTickState): boolean {
     const row = ORDER.slice(0, boxes);
     const filled = (p: Place) => (s.answerDigits[p] ?? '') !== '';
     if (task.isSubtraction && s.sessionNumber >= 3 && s.sessionNumber <= 7) {
-      // Owner, 9.10.2026: in a subtraction of stations 3–7 the child may leave
-      // the leading boxes empty when the answer is shorter than the row
-      // (204 − 112 = 92 in three boxes, written "92"), as the verdict already
-      // accepts. The step ticks when every box from the units up to the highest
-      // written digit is filled with no gap. Only the hundreds box and above
-      // may stay empty: the tens and units are always written, so "5" alone in
-      // 53 − 18 still does not tick (chief review B1).
-      const highest = row.reduce((h, p, i) => (filled(p) ? i : h), -1);
-      const upTo = Math.max(highest, Math.min(boxes, 2) - 1);
-      return row.slice(0, upTo + 1).every(filled);
+      // Owner, 9.10.2026: in a subtraction of stations 3–7 whose answer is
+      // shorter than the row (204 − 112 = 92 in three boxes, 2,045 − 1,128 =
+      // 917 in four), the child may leave the leading boxes the answer does
+      // not use empty, as the verdict already accepts ("_92", "092"). Every
+      // box the answer uses must be filled. Only in those exercises: a child
+      // types from the units leftward, so a general "up to the highest digit"
+      // rule ticked "14" on the way to 314 and showed the done box too early.
+      const used = String(Math.abs(target)).length;
+      if (used < boxes) return row.slice(0, used).every(filled);
     }
     return row.every(filled);
   }
