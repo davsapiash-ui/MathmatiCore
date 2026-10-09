@@ -6,6 +6,7 @@ import { emptyColumnConversions, useWorkspaceStore } from '@/application/useWork
 import { approvePath } from '@/test/approvedPath';
 import { answerFilled, fmt, guideTicksNow, stickyBuildValue, taskGuide, type GuideTickState } from '@/core/taskGuide';
 import { instructionLines } from '@/core/instructionLines';
+import { session1Checklist } from '@/core/session1Checklist';
 
 /**
  * The learner's task zone (owner, 8.10.2026: the wording proposal for the
@@ -109,6 +110,24 @@ describe('every exercise of stations 1 and 3–7 has a guide; stations 2 and 8 k
     expect(s7.topicHe).toBe('מגלים ספרה חסרה');
     expect(s7.steps.map((s) => s.label)).toEqual(['גלו את הספרה בעזרת הלבנים', 'כתבו אותה בתיבה הריקה']);
     expect(s7.correctHe).toBe('נכון! הספרה החסרה היא 8: ‏386 + 271 = 657.');
+  });
+
+  it('station 1: the goal, the steps and the condition lines are the instruction\'s own lines (one source, PRD 7.15 Module 14 §ב)', () => {
+    for (const task of SESSION1_TASKS) {
+      const g = taskGuide(task, 1)!;
+      const shown = [g.goalHe, ...g.steps.flatMap((s) => (s.label ? [`${s.label}.`, ...(s.subs ?? [])] : []))];
+      expect(shown, task.id).toEqual(task.instructionHe.split('\n'));
+    }
+    // A checklist step shows the checklist's label: it is the instruction's line, without its full stop.
+    for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash', 's1_target_347']) {
+      const task = SESSION1_TASKS.find((t) => t.id === id)!;
+      const labels = session1Checklist(id, { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false })!.map((i) => i.label);
+      expect(labels.map((l) => `${l}.`), id).toEqual(task.instructionHe.split('\n').slice(1));
+    }
+    const t8 = taskGuide(SESSION1_TASKS.find((t) => t.id === 's1_t8'), 1)!;
+    expect(t8.goalHe).toBe('פתרו: 713 + 94.');
+    expect(t8.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים את 713 ואת 94', 'כתבו את התוצאה בשורת התוצאה']);
+    expect(t8.steps[0].subs).toEqual(['כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור.', 'רשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה החדשה.']);
   });
 });
 

@@ -182,13 +182,15 @@ function s1(
 
 export const SESSION1_TASKS: SessionTask[] = [
   // מסמך 03 §3.1 steps 1–2: welcome, free dragging, the digits follow the
-  // blocks. Steps 1–5 are tool steps, their on-screen text the document's,
-  // word for word; core/session1Checklist.ts says what completes each.
+  // blocks. Steps 1–5 are tool steps; core/session1Checklist.ts says what
+  // completes each. Every station-1 instruction is PRD 7.15 Module 14 §ב word
+  // for word, one line each: the goal, then each step and its condition lines
+  // (core/taskGuide.ts shows them in the task zone from these lines).
   {
     id: 's1_sandbox_controlled',
     type: 'session1_intro',
     titleHe: 'חקירה וירטואלית חופשית',
-    instructionHe: 'ברוכים הבאים למתמטיקאור! בתחנה הראשונה מכירים את הכלים: שחקו וחקרו בחופשיות.\nגררו לבנים לטורים משמאל וצפו בספרות המשתנות בבית המספרים!',
+    instructionHe: 'ברוכים הבאים למתמטיקאור! בתחנה הראשונה מכירים את הכלים: שחקו וחקרו בחופשיות.\nגררו 5 לבנים לטורים משמאל, וצפו בספרות המשתנות בבית המספרים.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },
@@ -199,7 +201,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_decompose_hundred',
     type: 'session1_intro',
     titleHe: 'פירוק והרכבה',
-    instructionHe: 'לחצו על לבנה כדי לפרוט אותה ללבנים קטנות יותר, ועקבו אחר השינוי בבית המספרים.',
+    instructionHe: 'בבית המספרים יש 230. עקבו אחר השינוי כשפורטים לבנה.\nלחצו על לבנה כדי לפרוט אותה ללבנים קטנות יותר.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
     initialCounts: { hundreds: 2, tens: 3 },
@@ -209,7 +211,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_build_305',
     type: 'session1_intro',
     titleHe: 'האפס כשומר מקום',
-    instructionHe: 'נסו לבנות את המספר 305 בלבנים. כשתצליחו, הסתכלו בבית המספרים: איזו ספרה מופיעה ליד שם כל טור?',
+    instructionHe: 'כשתצליחו, הסתכלו בבית המספרים: איזו ספרה מופיעה ליד שם כל טור?\nנסו לבנות את המספר 305 בבית המספרים.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },
@@ -218,7 +220,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_undo_trash',
     type: 'session1_intro',
     titleHe: 'ביטול פעולה וניקוי בית המספרים',
-    instructionHe: 'לחצו על כפתור ביטול הפעולה ↺ כדי לחזור צעד אחד אחורה.\nאחר כך לחצו על פח האשפה כדי לנקות את בית המספרים.',
+    instructionHe: 'גלו איך חוזרים צעד אחורה ואיך מתחילים מחדש.\nלחצו על כפתור ביטול הפעולה ↺ כדי לחזור צעד אחד אחורה.\nלחצו על פח האשפה כדי לנקות את בית המספרים.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
     // מסמך 03: undo "the last typing or dragging", then the trash "resets the
@@ -231,7 +233,7 @@ export const SESSION1_TASKS: SessionTask[] = [
   // nowhere on the screen; the empty tens column is the child's to find.
   s1(representation('s1_r_words703', 703, { hundreds: 7, units: 3 },
     'קריאה וכתיבה של מספר עם אפס',
-    'בנו בבית המספרים את המספר שבע מאות ושלוש, וכתבו אותו בספרות בשורת התוצאה.'),
+    'המספר הוא שבע מאות ושלוש.\nבנו את המספר בבית המספרים.\nכתבו אותו בספרות בשורת התוצאה.'),
     { hideRequiredCounts: true }),
   // ★ chosen (owner, 29.9.2026). Mirrors task 2 (742, the 4 marked → 40): a
   // three-digit number, no zero, the digit asked about in the tens. The child
@@ -239,7 +241,7 @@ export const SESSION1_TASKS: SessionTask[] = [
   s1({
     ...representation('s1_r_value368', 368, { hundreds: 3, tens: 6, units: 8 },
       'ערך הספרה לפי מקומה',
-      'בנו בבית המספרים את המספר 368. מה הערך של הספרה 6 במספר הזה? כתבו אותו בשורת התוצאה.'),
+      'המספר הוא 368. מה הערך של הספרה 6 במספר הזה?\nבנו את המספר 368 בבית המספרים.\nכתבו את הערך של הספרה 6 בשורת התוצאה.'),
     correctAnswer: 60,
   }, { hideRequiredCounts: true }),
   // ★ chosen (owner, 29.9.2026). Mirrors task 4 ("חמש מאות שישים ושלוש" → 563):
@@ -247,7 +249,7 @@ export const SESSION1_TASKS: SessionTask[] = [
   // nowhere on the screen (no number card in station 1, no column digits).
   s1(representation('s1_r_words482', 482, { hundreds: 4, tens: 8, units: 2 },
     'כתיבת מספר בספרות',
-    'בנו בבית המספרים את המספר ארבע מאות שמונים ושתיים, וכתבו אותו בספרות בשורת התוצאה.'),
+    'המספר הוא ארבע מאות שמונים ושתיים.\nבנו את המספר בבית המספרים.\nכתבו אותו בספרות בשורת התוצאה.'),
     { hideRequiredCounts: true }),
   // Order (owner, 27.9.2026 — register decision י): the grouping exercise
   // comes before the target task, easy to hard. Grouping ends in the familiar
@@ -261,16 +263,16 @@ export const SESSION1_TASKS: SessionTask[] = [
   // unit cubes wait on the board, and are grouped twice into tens.
   s1(representation('s1_r_group26', 26, { tens: 2, units: 6 },
     'המרה עצמאית בין עזרים וירטואליים',
-    'בטור היחידות יש לבני יחידה. קבצו כל 10 יחידות לעשרת אחת בעזרת הכפתור "קבצו 10 לעשרת" שבראש הטור, וכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
+    'בטור היחידות יש לבני יחידה.\nקבצו כל 10 לבני יחידה ללבנת עשרת אחת: לחצו על הכפתור "קבצו 10" שבראש הטור.\nכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
     { requiresGrouping: true, initialCounts: { units: 26 }, hideRequiredCounts: true }),
 
   // מסמך 03 §3.1 step 6 — the target task: 347 → 3 hundreds, 3 tens, 17 units.
-  // On-screen wording: the owner's, 27.9.2026 (register decision י). The child
+  // On-screen wording: PRD 7.15 Module 14 §ב, task 9 (first the owner's of 27.9.2026). The child
   // is asked which number the blocks show after the decomposition, so that
   // they see the quantity did not change; the numbers are unchanged.
   s1(representation('s1_target_347', 347, { hundreds: 3, tens: 3, units: 17 },
     'משימת יעד מסכמת',
-    'משימת היעד: בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.'),
+    'משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה?\nבנו את המספר 347 בבית המספרים.\nפרטו לבנת עשרת אחת לעשר לבני יחידה.\nכתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו.'),
     { requiresUngrouping: true, hideRequiredCounts: true }),
 
   // ★ chosen (owner, 24.9.2026). Mirrors task 6 (124 + 85) in structure with
@@ -281,7 +283,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     type: 'addition_simple',
     numberA: 713, numberB: 94, correctAnswer: 807,
     titleHe: 'חיבור במאונך עם המרה מעל מאה',
-    instructionHe: 'בנו בבית המספרים 713 ו-94 וחברו אותם. כאשר באחד הטורים מצטברות 10 לבנים, לחצו על הכפתור שבראש הטור. רשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה החדשה. כתבו את התשובה בשורת התוצאה.',
+    instructionHe: 'פתרו: 713 + 94.\nבנו בבית המספרים את 713 ואת 94.\nכשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור.\nרשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה החדשה.\nכתבו את התוצאה בשורת התוצאה.',
     scaffoldLevel: 1,
     requiresGrouping: true,
     targetNode: 'regrouping_fluency',
@@ -290,14 +292,14 @@ export const SESSION1_TASKS: SessionTask[] = [
   // two, one borrow in the units, the tens need no borrow.
   s1(subtraction('s1_r_sub61', 61, 24,
     'חיסור חד-שלבי עם פריטה בתחום המאה',
-    'בנו 61 והוציאו ממנו 24: גררו לפח האשפה את הלבנים שאתם מחסרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. כתבו את התשובה בשורת התוצאה.',
+    'פתרו: 61 − 24.\nבנו את 61 בבית המספרים.\nגררו לפח האשפה את הלבנים שאתם מחסרים.\nאם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור.\nאחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.\nכתבו את התוצאה בשורת התוצאה.',
     { scaffoldLevel: 1 })),
   // ★ chosen (owner, 24.9.2026). Mirrors task 7 (405 − 132): a 0 in the tens
   // of the minuend, no borrow in the units, one borrow from the hundreds into
   // the tens.
   s1(subtraction('s1_r_sub806', 806, 351,
     'חיסור במאונך עם פריטה דרך אפס בטור העשרות',
-    'בנו 806 והוציאו ממנו 351: גררו לפח האשפה את הלבנים שאתם מחסרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. כתבו את התשובה בשורת התוצאה.',
+    'פתרו: 806 − 351.\nבנו את 806 בבית המספרים.\nגררו לפח האשפה את הלבנים שאתם מחסרים.\nאם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור.\nאחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.\nכתבו את התוצאה בשורת התוצאה.',
     { scaffoldLevel: 1 })),
 ];
 
@@ -430,7 +432,7 @@ export const SESSION5_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen: מסמך 03 names the task ("ספרה חסרה בטור המחוסר") without numbers.
   skeleton('s5_r_t7', 442, 128, true, { a: ['tens'] },
     'משימת חקר וגילוי ספרה חסרה',
-    'בשורת המחוסר חסרה ספרת העשרות: 4▢2 − 128 = 314. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
+    'בתרגיל 4▢2 − 128 = 314 חסרה ספרת העשרות של המחוסר. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
     { targetNode: 'relational_thinking' }),
 ];
 
@@ -500,7 +502,7 @@ export const SESSION6_GREEN_TASKS: SessionTask[] = [
   // station's other skeletons say ("בעזרת הלבנים").
   skeleton('s6_g_t7', 6005, 2847, true, { a: ['tens', 'units'] },
     'משימת חקר של השלמת ספרות חסרות בתחום הרבבה',
-    'בשורת המחוסר חסרות שתי ספרות: 6,0▢▢ − 2,847 = 3,158. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות. רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול הפעולה ↺.',
+    'בתרגיל 6,0▢▢ − 2,847 = 3,158 חסרות שתי ספרות של המחוסר. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות. רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול הפעולה ↺.',
     ZERO),
 ];
 
@@ -542,7 +544,7 @@ export const SESSION7_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen: two-step add-then-remove reaching a defined target.
   representation('s7_r_t6', 510, { hundreds: 5, tens: 1 },
     'אינטגרציה דו שלבית של הוספה והפחתה',
-    'בנו את המספר 340 בבית המספרים. הוסיפו 2 מאות, ואז הסירו 3 עשרות. השאירו את הלבנים בבית המספרים. איזה מספר קיבלתם? כתבו אותו בשורת התוצאה.',
+    'בנו את המספר 340 בבית המספרים. הוסיפו 2 מאות, ואז הוציאו 3 עשרות. השאירו את הלבנים בבית המספרים. איזה מספר קיבלתם? כתבו אותו בשורת התוצאה.',
     INQUIRY),
   flexible('s7_r_t7', 150,
     'בעיית חקר פתוחה למחצה של הרכבים משתנים',
@@ -574,7 +576,7 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
   // ★ chosen: add one thousand, remove hundreds, reach a defined target.
   representation('s7_g_t5', 3800, { thousands: 3, hundreds: 8 },
     'אינטגרציה דו שלבית של פעולות הפוכות בתחום הרבבה',
-    'בנו את המספר 3,400 בבית המספרים. הוסיפו אלף אחד, ואז הסירו 6 מאות. השאירו את הלבנים בבית המספרים. איזה מספר קיבלתם? כתבו אותו בשורת התוצאה.',
+    'בנו את המספר 3,400 בבית המספרים. הוסיפו אלף אחד, ואז הוציאו 6 מאות. השאירו את הלבנים בבית המספרים. איזה מספר קיבלתם? כתבו אותו בשורת התוצאה.',
     INQUIRY),
   // ★ chosen: a quantity given in non-standard form, to be regrouped into the fewest blocks.
   // Owner, 4.10.2026: the board opens with the quantity on it (1 thousand, 16

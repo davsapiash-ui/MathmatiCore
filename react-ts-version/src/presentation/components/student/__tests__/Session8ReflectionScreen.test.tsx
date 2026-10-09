@@ -106,9 +106,9 @@ describe('שלב 2 — מה עזר לכם', () => {
     expect(visibleText(container)).toContain('מה עזר לכם להצליח היום בפתרון התרגילים?');
     const boxes = screen.getAllByRole('checkbox').map((b) => (b.textContent ?? '').trim());
     expect(boxes).toEqual([
-      'כפתור ביטול הפעולה',
+      'כפתור ביטול הפעולה ↺',
       'עיגולי הזיכרון',
-      'השאלות בכרטיס החניכה',
+      'כרטיס החניכה',
     ]);
     expect(STRATEGY_OPTIONS.map((o) => o.id)).toEqual(['undo', 'memory', 'hints']);
     expect(visibleText(container)).not.toContain('שארית');

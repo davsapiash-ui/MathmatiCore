@@ -265,7 +265,7 @@ describe('3 — a result digit missing: the instruction says what to do with the
 
   it('328 + 145 (s4_r_t7), word for word', () => {
     expect(byId('s4_r_t7').instructionHe).toBe(
-      'בתרגיל 328 + 145 חסרה ספרת העשרות בשורת התוצאה. ייצגו את המספרים בעזרת לבנים. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. כתבו את הספרה החסרה בתיבה הריקה.'
+      'בתרגיל 328 + 145 חסרה ספרת העשרות בשורת התוצאה. בנו בבית המספרים את שני המספרים. כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. כתבו את הספרה החסרה בתיבה הריקה.'
     );
   });
 
@@ -275,7 +275,7 @@ describe('3 — a result digit missing: the instruction says what to do with the
   });
 
   it('the shared sentences are the stations\' own: no other exercise changed', () => {
-    expect(S4_ADD('507 + 125')).toBe('פתרו במאונך: 507 + 125. ייצגו את המספרים בעזרת לבנים. כאשר מצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. רשמו את התוצאה בשורת התוצאה.');
+    expect(S4_ADD('507 + 125')).toBe('פתרו במאונך: 507 + 125. בנו בבית המספרים את שני המספרים. כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור ורשמו את ההמרה בעיגול הזיכרון. כתבו את התוצאה בשורת התוצאה.');
     expect(S6_SUB('500 − 287')).toBe('פתרו במאונך: 500 − 287. בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה. הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.');
     expect(byId('s4_r_t6').instructionHe).toBe(S4_ADD('507 + 125'));
     expect(byId('s6_r_t6').instructionHe).toBe(S6_SUB('500 − 287'));
@@ -749,9 +749,9 @@ describe('6 — the reflection board, stage 2: the tools by their names', () => 
     expect(REFLECTION_TEXT_HE.strategyQuestion).toBe('מה עזר לכם להצליח היום בפתרון התרגילים?');
     expect(REFLECTION_TEXT_HE.strategyInstruction).toBe('אפשר לסמן יותר מתשובה אחת.');
     expect(STRATEGY_OPTIONS.map((o) => [o.id, o.label])).toEqual([
-      ['undo', 'כפתור ביטול הפעולה'],
+      ['undo', 'כפתור ביטול הפעולה ↺'],
       ['memory', 'עיגולי הזיכרון'],
-      ['hints', 'השאלות בכרטיס החניכה'],
+      ['hints', 'כרטיס החניכה'],
     ]);
     expect(REFLECTION_TEXT_HE.next).toBe('ממשיכים');
     expect(REFLECTION_TEXT_HE.back).toBe('חזרה');
@@ -760,7 +760,7 @@ describe('6 — the reflection board, stage 2: the tools by their names', () => 
 
   it('what is read aloud follows the same words', () => {
     expect(reflectionSpeech(2)).toBe(
-      'שלב שני מתוך שלושה. מה עזר לכם להצליח היום בפתרון התרגילים? אפשר לסמן יותר מתשובה אחת. כפתור ביטול הפעולה. עיגולי הזיכרון. השאלות בכרטיס החניכה.'
+      'שלב שני מתוך שלושה. מה עזר לכם להצליח היום בפתרון התרגילים? אפשר לסמן יותר מתשובה אחת. כפתור ביטול הפעולה ↺. עיגולי הזיכרון. כרטיס החניכה.'
     );
   });
 });
