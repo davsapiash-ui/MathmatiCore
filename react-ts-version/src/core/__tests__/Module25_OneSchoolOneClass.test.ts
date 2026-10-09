@@ -75,9 +75,42 @@ describe('Module 25 §ב.1 — one school, one class', () => {
 
   it('the database rules accept writes to the pilot school and class ids only', () => {
     expect(rtdbRules.rules.schools.$schoolId['.validate']).toBe("$schoolId == 'school_bikorot'");
-    expect(rtdbRules.rules.classes.$classId['.validate']).toBe("$classId == 'class_1'");
+    expect(rtdbRules.rules.classes.$classId['.validate']).toMatch(/^\$classId == 'class_1' && /);
     expect(rtdbRules.rules.public_classes.$classId['.validate']).toBe("$classId == 'class_1'");
     expect(firestoreRules).toContain("allow create, update: if isAdmin() && schoolId == 'school_bikorot';");
     expect(firestoreRules).toContain("allow create, update: if classId == 'class_1' && (isTeacherOfClass(classId) || isAdmin()) && isValidClassDoc();");
+  });
+});
+
+/**
+ * PRD 25 §ב.2 / §ה (l.1145, l.1159): "חוק אבטחה בשרת חוסם רישום של יותר מ-12
+ * תלמידים פעילים", and a field outside the standard is refused on the server.
+ * The RTDB class record checked its key only, and the global limit had no
+ * validation at all: the admin console could store 40.
+ */
+describe('Module 25 §ב.2 — the 12-learner cap in the RTDB rules', () => {
+  const classRule: string = rtdbRules.rules.classes.$classId['.validate'];
+  const limitRule: string = rtdbRules.rules.system_control.globalStudentLimit['.validate'];
+
+  it('the class record: the pilot name and a capacity of 1–12', () => {
+    expect(classRule).toContain("newData.child('name').val() == 'המבקרים'");
+    expect(classRule).toContain("newData.child('studentLimit').isNumber()");
+    expect(classRule).toContain("newData.child('studentLimit').val() >= 1");
+    expect(classRule).toContain("newData.child('studentLimit').val() <= 12");
+  });
+
+  it('the global limit: a number, 1–12', () => {
+    expect(limitRule).toBe('newData.isNumber() && newData.val() >= 1 && newData.val() <= 12');
+  });
+
+  it('every admin write of the class record carries what the rule asks for', () => {
+    const store = read('../../application/useAdminStore.ts');
+    const sync = read('../../infrastructure/services/FirebaseSyncService.ts');
+    // The wizard clamps the capacity to 1–12; reset and add-class write the fixed 12.
+    expect(store).toContain('studentLimit: Math.min(12, Math.max(1, studentLimit)),');
+    expect(store).toContain('studentLimit: 12,');
+    expect(store).toContain('name: PILOT_CLASS_NAME,');
+    expect(sync).toContain('studentLimit: PILOT_CLASS_CAPACITY,');
+    expect(store).toContain("firebaseSet(ref(database, 'system_control/globalStudentLimit'), 12);");
   });
 });

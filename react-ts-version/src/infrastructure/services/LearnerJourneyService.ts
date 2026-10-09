@@ -281,6 +281,17 @@ export async function fetchLearnerResets(studentNum: number): Promise<Record<str
 }
 
 /**
+ * PRD 23א §ז: the reset the dashboard named (reset_id) — the server stores its
+ * entry under that id — read back to show its outcome once the teacher's
+ * connection returns. Null when nothing is logged under the id (yet).
+ */
+export async function fetchResetAuditEntry(resetId: string): Promise<Record<string, any> | null> {
+  await authReady;
+  const snap = await getDoc(doc(firestore, 'reset_audit_log', resetId));
+  return snap.exists() ? (snap.data() as Record<string, any>) : null;
+}
+
+/**
  * Catch-up time (owner, 2.10.2026: "המורה יקח את אותם ילדים שלא סיימו למפגש
  * נוסף \ זמן נוסף וזה יתועד מה הסיבה לכך"): the teacher's one line for this
  * learner's meeting — the minutes of catch-up time and the reasons recorded —

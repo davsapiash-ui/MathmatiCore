@@ -204,10 +204,23 @@ describe('הקונסולה של המנהל עובדת', () => {
     const db = adminSignIn().database();
     await assertSucceeds(rtdbSet(ref(db, 'schools/school_bikorot'), { id: 'school_bikorot', name: 'בית ספר ביקורת' }));
     await assertSucceeds(rtdbSet(ref(db, 'users/teachers/example_teacher'), { id: 'example_teacher', licenseActive: true }));
-    await assertSucceeds(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים' }));
+    await assertSucceeds(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים', studentLimit: 12 }));
     await assertSucceeds(rtdbSet(ref(db, 'public_classes/class_1'), { id: 'class_1', name: 'המבקרים' }));
     await assertSucceeds(rtdbSet(ref(db, 'system_control/globalStudentLimit'), 12));
     await assertSucceeds(rtdbGet(ref(db, 'audit_logs')));
+  });
+
+  // PRD 25 §ב.2 / §ה: no class of more than 12 learners, and a field outside
+  // the standard is refused on the server.
+  it('הכיתה והמגבלה אינן עוברות את 12 הלומדים', async () => {
+    const db = adminSignIn().database();
+    await assertFails(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים', studentLimit: 13 }));
+    await assertFails(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים', studentLimit: 0 }));
+    await assertFails(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים' }));
+    await assertFails(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'כיתה אחרת', studentLimit: 12 }));
+    await assertFails(rtdbSet(ref(db, 'system_control/globalStudentLimit'), 13));
+    await assertFails(rtdbSet(ref(db, 'system_control/globalStudentLimit'), '12'));
+    await assertSucceeds(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים', studentLimit: 8 }));
     await assertSucceeds(rtdbGet(ref(db, 'active_class_session')));
   });
 

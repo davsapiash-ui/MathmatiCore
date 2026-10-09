@@ -79,7 +79,8 @@ describe('what the teacher is told when a reset does not go cleanly (Module 23א
     expect(server).toContain("{ stage: 'deletion_incomplete' }");
     expect(client).toContain("if (err?.details?.stage === 'deletion_incomplete') {");
     // All three reset actions ask the helper before falling back to the backup-failure message.
-    expect((client.match(/reportResetFailureAfterBackupStage\(err, code, serverMessage\);/g) || []).length).toBe(3);
+    // Each passes the reset it named, so an unknown outcome can be read back later (PRD 23א §ז).
+    expect((client.match(/reportResetFailureAfterBackupStage\(err, code, serverMessage, \{ resetId, kind: '(class|student|system)'/g) || []).length).toBe(3);
   });
 
   it('a reset that could not be collected still leaves a failed audit entry, and a missing audit entry is reported', () => {

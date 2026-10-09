@@ -327,7 +327,10 @@ service cloud.firestore {
                        (isTeacher() || request.resource.data.teacher_gate_approved == false) &&
                        (isTeacher() || learnerCreateLeavesStaffFieldsEmpty()) &&
                        createLeavesServerScoreFieldsEmpty();
+      // Module 27 §ב.5: a teacher updates the approval fields only (the gate,
+      // core/teacherGate.ts, is the one teacher-side writer of this collection).
       allow update: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
+                       (!isTeacher() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teacher_gate_approved', 'gate_approved_at', 'gate_approved_by', 'teacher_selected_path'])) &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == resource.data.teacher_gate_approved) &&
                        (isTeacher() || learnerUpdateKeepsStaffFields()) &&
                        updateKeepsServerScoreFields();

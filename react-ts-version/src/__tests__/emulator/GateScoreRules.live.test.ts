@@ -186,6 +186,14 @@ describe('מסמך המפגש — אישור המורה אינו מתבטל בי
     }));
   });
 
+  // PRD 27 §ב.5 (l.1318): a teacher updates the approval fields only.
+  it('המורה אינה משנה שדה שאינו שדה אישור', async () => {
+    const teacherDoc = () => doc(teacher().firestore(), 'sessions', S2);
+    await assertFails(updateDoc(teacherDoc(), { is_completed: false }));
+    await assertFails(updateDoc(teacherDoc(), { active_exercise_id: 'task8_missing_addend' }));
+    await assertFails(updateDoc(teacherDoc(), { teacher_gate_approved: true, session_number: 3 }));
+  });
+
   it('גם המורה אינה כותבת את הציון, ההמלצה, חותמת החישוב או הציון הקודם (S7)', async () => {
     const teacherDoc = () => doc(teacher().firestore(), 'sessions', S2);
     await assertFails(updateDoc(teacherDoc(), { session_score_percent: 100 }));

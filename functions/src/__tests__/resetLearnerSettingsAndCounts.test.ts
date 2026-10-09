@@ -159,8 +159,12 @@ describe('A — a full learner reset keeps the settings the teacher set', () => 
     expect(at('users/students/user5')).toEqual([{ op: 'remove', path: 'users/students/user5' }]);
     expect(at('chat_messages/student_user5')).toEqual([{ op: 'remove', path: 'chat_messages/student_user5' }]);
 
-    // Deleted = everything but the kept settings: 10+2+2+1 fields minus 5+2+1 kept, plus 1 chat message.
-    expect(h.auditUpdates.at(-1)).toEqual({ records_deleted_count: 8, deletion_status: 'completed' });
+    // PRD 23א §ד (l.1048): records_deleted_count counts deleted records — each
+    // RTDB node one record — not their fields. It used to read 8 here: 10+2+2+1
+    // fields minus the 5+2+1 kept, plus the chat. Now: student_user5, 5 and
+    // user5 (deleted; the settings two of them keep are not the record) and the
+    // chat — 4. student_5 held nothing but settings and lost nothing: 0.
+    expect(h.auditUpdates.at(-1)).toEqual({ records_deleted_count: 4, deletion_status: 'completed' });
   });
 
   it('level 3 still deletes the settings with everything else', async () => {

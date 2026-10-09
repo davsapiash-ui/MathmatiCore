@@ -30,6 +30,7 @@ describe('Module 23א: מודול איפוס נתונים, גיבוי ותיעו
       reset_reason: 'restart_session',
       reason_note: 'פתיחת מפגש חדש לכיתה',
       records_deleted_count: 12,
+      created_at: 1720000000050,
     };
 
     expect(auditRecord.reset_id).toBeDefined();

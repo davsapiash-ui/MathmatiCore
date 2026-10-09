@@ -4,7 +4,15 @@ import { database, functions } from '@/infrastructure/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { toast } from 'sonner';
 import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
-import { invalidateLearnerEventsCache } from '@/infrastructure/services/LearnerJourneyService';
+import { invalidateLearnerEventsCache, fetchResetAuditEntry } from '@/infrastructure/services/LearnerJourneyService';
+import {
+  RESET_OUTCOME_MESSAGES_HE,
+  loadPendingReset,
+  newResetId,
+  savePendingReset,
+  watchResetOutcome,
+  type PendingReset,
+} from '@/application/resetOutcome';
 
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import type { MasteryProfile } from '@/core/QMatrix';
@@ -147,7 +155,7 @@ export function isResetOutcomeUnknown(code: string, serverMessage: string): bool
  *    be deleting (isResetOutcomeUnknown).
  * Throws for those two; returns for everything else, which the caller reports.
  */
-function reportResetFailureAfterBackupStage(err: any, code: string, serverMessage: string): void {
+function reportResetFailureAfterBackupStage(err: any, code: string, serverMessage: string, pending: PendingReset): void {
   if (err?.details?.stage === 'deletion_incomplete') {
     console.error('[Module 23א] Reset deleted only part of its scope:', err);
     toast.error(serverMessage || 'הגיבוי נשמר, אך חלק מהנתונים לא נמחקו. ניתן להריץ את האיפוס שוב.', { duration: 12000 });
@@ -155,7 +163,11 @@ function reportResetFailureAfterBackupStage(err: any, code: string, serverMessag
   }
   if (isResetOutcomeUnknown(code, serverMessage)) {
     console.error('[Module 23א] Reset outcome unknown (no answer from the server):', err);
-    toast.error('לא התקבלה תשובה מהשרת, וייתכן שהאיפוס עדיין מתבצע. רעננו את הדף בעוד דקה ובדקו את המצב לפני שמריצים שוב.', { duration: 12000 });
+    // PRD 23א §ז: the outcome is shown when the connection returns. The
+    // teacher used to be told to refresh the page and check for herself.
+    toast.error(RESET_OUTCOME_MESSAGES_HE.noAnswer, { duration: 12000 });
+    savePendingReset(pending);
+    startResetOutcomeWatch(pending);
     throw new Error('RESET_OUTCOME_UNKNOWN');
   }
 }
@@ -301,6 +313,8 @@ let studentsUnsubscribe: (() => void) | null = null;
 
 export const initStoreSubscriptions = (): (() => void) => {
   if (studentsUnsubscribe) return studentsUnsubscribe;
+  // PRD 23א §ז: a reset left without an answer is shown once its entry is final.
+  resumePendingResetWatch();
 
   try {
     const studentsRef = ref(database, 'users/students');
@@ -750,6 +764,9 @@ export const useStore = create<AppState>()(
 
         // Same hard gate as every other reset (Module 23א §ג): the server backs
         // up first, and nothing is reset if the backup fails.
+        // PRD 23א §ז: the reset is named, so its outcome can be read back.
+        const resetId = newResetId();
+        const startedAt = Date.now();
         let classResult: { data?: unknown } | undefined;
         try {
           const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData', { timeout: RESET_CALLABLE_TIMEOUT_MS });
@@ -761,6 +778,7 @@ export const useStore = create<AppState>()(
             reason_note: reasonNote || null,
             class_id: 'class_1',
             session_number: sessionNumber,
+            reset_id: resetId,
           });
         } catch (err: any) {
           const code: string = typeof err?.code === 'string' ? err.code : '';
@@ -775,27 +793,13 @@ export const useStore = create<AppState>()(
             toast.error(serverMessage || 'האיפוס נדחה. לא נמחקו נתונים.');
             throw new Error('RESET_REFUSED');
           }
-          reportResetFailureAfterBackupStage(err, code, serverMessage);
+          reportResetFailureAfterBackupStage(err, code, serverMessage, { resetId, kind: 'class', sessionNumber, startedAt });
           console.error('[Module 23א] Backup failed — class session reset aborted, no data deleted:', err);
           toast.error(resetFailureMessageHe(code, serverMessage));
           throw new Error('BACKUP_FAILED_RESET_ABORTED');
         }
 
-        // The server reset the meeting's fields on every learner record and set
-        // forceReload; here only the local mirrors follow.
-        for (let n = 1; n <= 12; n++) {
-          for (const id of [`student_user${n}`, `student_${n}`, `user${n}`, String(n)]) {
-            firebaseSyncService.clearLocalSessionProgress(id);
-          }
-        }
-        set((state) => {
-          const students = { ...state.students };
-          for (const [key, existing] of Object.entries(students)) {
-            if (existing) students[key] = patchStudentAfterSessionReset(existing, sessionNumber);
-          }
-          return { students };
-        });
-        resetSuccessToast(`${meetingShortLabelHe(sessionNumber)} אופס לכל הכיתה, ו-12 התלמידים חוזרים לתחילתו. העבודה במפגשים האחרים נשמרה.${meetingResetExtraHe(sessionNumber, 'class')}`, classResult?.data);
+        applyClassResetSuccess(sessionNumber, classResult?.data);
       },
 
       resetStudentData: async (studentId: string, reason: ResetReason, reasonNote?: string, options?: SingleStudentResetOptions) => {
@@ -804,7 +808,6 @@ export const useStore = create<AppState>()(
         // המורה חייבת לראות מיד שהנתונים נמחקו. בלי זה מסע הלמידה היה
         // ממשיך להציג את האירועים מהמטמון אחרי איפוס.
         invalidateLearnerEventsCache(parseInt(num, 10));
-        const defaultName = `תלמיד ${num}`;
         // PRD Module 23א §ב.2: the default restarts the active meeting only.
         const scope: SingleStudentResetScope = options?.scope || 'active_session';
         const requestedSession = options?.sessionNumber && options.sessionNumber >= 1 && options.sessionNumber <= 8 ? options.sessionNumber : null;
@@ -816,6 +819,9 @@ export const useStore = create<AppState>()(
         // it differs from the one the dialog named).
         let resetSession: number | null = null;
         let resetData: unknown = null;
+        // PRD 23א §ז: the reset is named, so its outcome can be read back.
+        const resetId = newResetId();
+        const startedAt = Date.now();
         try {
           const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData', { timeout: RESET_CALLABLE_TIMEOUT_MS });
           const result = await backupResetCallable({
@@ -826,6 +832,7 @@ export const useStore = create<AppState>()(
             class_id: 'class_1',
             reset_scope: scope,
             session_number: requestedSession,
+            reset_id: resetId,
           });
           resetData = result?.data ?? null;
           const returned = Number((result?.data as { sessionNumber?: unknown } | undefined)?.sessionNumber);
@@ -846,146 +853,13 @@ export const useStore = create<AppState>()(
             toast.error(serverMessage || 'האיפוס נדחה. לא נמחקו נתונים.');
             throw new Error('RESET_REFUSED');
           }
-          reportResetFailureAfterBackupStage(err, code, serverMessage);
+          reportResetFailureAfterBackupStage(err, code, serverMessage, { resetId, kind: 'student', studentId, scope, sessionNumber: requestedSession, startedAt });
           console.error('[Module 23א] Backup failed — reset aborted, no data deleted:', err);
           toast.error(resetFailureMessageHe(code, serverMessage));
           throw new Error('BACKUP_FAILED_RESET_ABORTED');
         }
 
-        if (scope === 'active_session') {
-          // The server already reset the meeting's fields in place and set
-          // forceReload; here only the local mirrors are cleared so the teacher's
-          // view and the learner's cached progress follow immediately.
-          for (const id of [normId, studentId, `student_${num}`, `user${num}`, num]) {
-            firebaseSyncService.clearLocalSessionProgress(id);
-          }
-          const sessionLabel = resetSession ? meetingShortLabelHe(resetSession) : 'המפגש הנוכחי';
-          set((state) => {
-            const existing = state.students[normId] || state.students[studentId];
-            if (!existing) return {};
-            const patched = patchStudentAfterSessionReset(existing, resetSession ?? 0);
-            return {
-              students: {
-                ...state.students,
-                [normId]: patched,
-                ...(studentId !== normId ? { [studentId]: patched } : {}),
-              },
-            };
-          });
-          resetSuccessToast(`${defaultName} הוחזר לתחילת ${sessionLabel}. העבודה במפגשים האחרים נשמרה.${meetingResetExtraHe(resetSession, 'student')}`, resetData);
-          return;
-        }
-
-        // Direct RTDB Reset for guaranteed real-time responsiveness
-        try {
-          const cleanPayload = {
-            completedMeeting1: false,
-            completedMeeting2: false,
-            completedMeeting3: false,
-            completedMeeting4: false,
-            completedMeeting5: false,
-            completedMeeting6: false,
-            completedMeeting7: false,
-            completedMeeting8: false,
-            session_1_completed: false,
-            session_2_completed: false,
-            session_3_completed: false,
-            highestCompletedMeeting: 0,
-            session_completed: 0,
-            workspaceState: null,
-            // Catch-up time: every meeting's saved copy and finished mark (core/meetingCompletion.ts).
-            workspaceByMeeting: null,
-            completedMeetings: null,
-            sessionState: null,
-            routeStatus: null,
-            routeRecommendation: null,
-            teacher_gate_approved: false,
-            forceReload: true,
-            lastAction: 'אופס ע״י המורה',
-            lastPing: 0,
-            isOnline: false,
-            activeSessionId: 1,
-            qMatrixResults: null,
-            traceData: null,
-            reflections: null,
-            // The support profile and quiet mode are the teacher's settings for
-            // the learner and survive a full learner reset (owner, 2.10.2026);
-            // the server keeps them on the record (LEARNER_SETTINGS_FIELDS).
-            physicalOverride: false,
-            physicalOverrideActive: false,
-            forceAdditionHelper: false,
-            additionBoardEnabled: false,
-            scaffoldLevel: 0,
-            // No path until the gate approves one (owner, 28.9.2026; Module 26): never green by default.
-            pedagogicalPath: null,
-            isBoardLocked: false,
-            helpRequested: false,
-            handRaised: false,
-            isStruggling: false,
-          };
-          // The canonical record only (student_userN). The same payload used to
-          // be written under student_N, userN and N as well: an update creates
-          // the node it names, so every reset left alias records of learners
-          // that the teacher's screens then had to merge. The server removes
-          // the aliases that exist.
-          await update(ref(database, `users/students/${normId}`), cleanPayload).catch(() => {});
-          await remove(ref(database, `chat_messages/${normId}`)).catch(() => {});
-          firebaseSyncService.clearLocalSessionProgress(normId);
-          firebaseSyncService.clearLocalSessionProgress(studentId);
-          firebaseSyncService.clearLocalSessionProgress(`student_${num}`);
-          firebaseSyncService.clearLocalSessionProgress(`user${num}`);
-          firebaseSyncService.clearLocalSessionProgress(num);
-        } catch (rtdbErr) {
-          console.error('[useStore] Direct RTDB reset notice:', rtdbErr);
-        }
-
-        const cleanStudent: StudentData = {
-          studentId: normId,
-          classId: 'class_1',
-          name: defaultName,
-          completedMeeting2: false,
-          highestCompletedMeeting: 0,
-          qMatrixResults: {
-            task1_read_write_zero: null,
-            task2_digit_value: null,
-            task3_subtraction_regrouping: null,
-            task4_decompose_number: null,
-            task5_units_to_tens: null,
-            task6_vertical_addition: null,
-            task7_subtraction_zero_tens: null,
-          },
-          traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
-          routeRecommendation: null,
-          routeStatus: null,
-          liveSessionMetrics: null,
-          isOnline: false,
-          physicalOverride: false,
-          physicalOverrideActive: false,
-          reflections: null,
-        };
-
-        // Update local Zustand state. The teacher's settings for the learner
-        // are kept, as on the server — the RTDB listener sends no new value
-        // for them, so a clean copy without them hid them until a reload.
-        set((state) => {
-          const before = state.students[normId] || state.students[studentId];
-          const kept: StudentData = {
-            ...cleanStudent,
-            ...(before?.isASD !== undefined ? { isASD: before.isASD } : {}),
-            ...(before?.support_profile_id !== undefined ? { support_profile_id: before.support_profile_id } : {}),
-          };
-          return {
-            students: {
-              ...state.students,
-              [normId]: kept,
-              ...(studentId !== normId ? { [studentId]: kept } : {}),
-              [`student_${num}`]: kept,
-            }
-          };
-        });
-
-        useChatStore.getState().clearStudentMessages(normId);
-        resetSuccessToast(`${defaultName} אופס כולו: ההתקדמות בכל המפגשים, תוצאות האבחון, המסלול, ההקלטות והצ'אט נמחקו. ההגדרות שלו נשמרו.`, resetData);
+        await applyStudentResetSuccess(studentId, scope, resetSession, resetData);
       },
 
       /**
@@ -1005,6 +879,7 @@ export const useStore = create<AppState>()(
             reason,
             reason_note: reasonNote || null,
             class_id: 'class_1',
+            reset_id: newResetId(),
           });
         } catch (err: any) {
           console.error('[Module 23א] Alerts reset failed:', err);
@@ -1024,6 +899,9 @@ export const useStore = create<AppState>()(
         // PRD v7.1 Module 23א §ג + §ז: backup-before-delete is a HARD gate for a
         // system reset too. A failed backup must abort the deletion entirely —
         // no partial deletion is ever permitted.
+        // PRD 23א §ז: the reset is named, so its outcome can be read back.
+        const resetId = newResetId();
+        const startedAt = Date.now();
         let systemResult: { data?: unknown } | undefined;
         try {
           const backupResetCallable = httpsCallable(functions, 'backupAndResetSessionData', { timeout: RESET_CALLABLE_TIMEOUT_MS });
@@ -1032,6 +910,7 @@ export const useStore = create<AppState>()(
             reason,
             reason_note: reasonNote || '',
             class_id: 'class_1',
+            reset_id: resetId,
           });
         } catch (err: any) {
           // The server rejects for more reasons than a failed backup (no
@@ -1044,123 +923,323 @@ export const useStore = create<AppState>()(
             toast.error(serverMessage || 'אין הרשאה לאיפוס. לא נמחקו נתונים.');
             throw new Error('RESET_PERMISSION_DENIED');
           }
-          reportResetFailureAfterBackupStage(err, code, serverMessage);
+          reportResetFailureAfterBackupStage(err, code, serverMessage, { resetId, kind: 'system', startedAt });
           console.error('[Module 23א] Backup failed — system reset aborted, no data deleted:', err);
           toast.error(resetFailureMessageHe(code, serverMessage));
           throw new Error('BACKUP_FAILED_RESET_ABORTED');
         }
 
-        // Direct RTDB Reset for all 12 students and sessions
-        try {
-          for (let i = 1; i <= 12; i++) {
-            const cleanPayload = {
-              completedMeeting1: false,
-              completedMeeting2: false,
-              completedMeeting3: false,
-              completedMeeting4: false,
-              completedMeeting5: false,
-              completedMeeting6: false,
-              completedMeeting7: false,
-              completedMeeting8: false,
-              session_1_completed: false,
-              session_2_completed: false,
-              session_3_completed: false,
-              highestCompletedMeeting: 0,
-              session_completed: 0,
-              workspaceState: null,
-              workspaceByMeeting: null,
-              completedMeetings: null,
-              sessionState: null,
-              routeStatus: null,
-              routeRecommendation: null,
-              teacher_gate_approved: false,
-              forceReload: true,
-              lastAction: 'אופס ע״י המורה',
-              lastPing: 0,
-              isOnline: false,
-              activeSessionId: 1,
-              qMatrixResults: null,
-              traceData: null,
-              reflections: null,
-              enhanced_support_profile: null, // the legacy alias (core/supportProfile.ts) is removed, not written
-            support_profile_id: null,
-              physicalOverride: false,
-              physicalOverrideActive: false,
-              forceAdditionHelper: false,
-              additionBoardEnabled: false,
-              scaffoldLevel: 0,
-              // No path until the gate approves one (owner, 28.9.2026; Module 26): never green by default.
-              pedagogicalPath: null,
-              isBoardLocked: false,
-              helpRequested: false,
-              handRaised: false,
-              isStruggling: false,
-            };
-            // The canonical record only: no alias records are created (see resetStudentData).
-            await update(ref(database, `users/students/student_user${i}`), cleanPayload).catch(() => {});
-            firebaseSyncService.clearLocalSessionProgress(`student_user${i}`);
-            firebaseSyncService.clearLocalSessionProgress(`student_${i}`);
-            firebaseSyncService.clearLocalSessionProgress(`user${i}`);
-            firebaseSyncService.clearLocalSessionProgress(`${i}`);
-          }
-          await remove(ref(database, 'chat_messages')).catch(() => {});
-          await remove(ref(database, 'radar_alerts')).catch(() => {});
-          await remove(ref(database, 'replays')).catch(() => {});
-          await remove(ref(database, 'sessions')).catch(() => {});
-          await remove(ref(database, 'telemetry_sessions')).catch(() => {});
-          await fbSet(ref(database, 'system_control/projector_mode'), { active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch(() => {});
-          // PRD v7.1 Module 14: session activation is exclusively a teacher action.
-          // A system reset must leave NO active session; the teacher reopens explicitly.
-          await fbSet(ref(database, 'active_class_session'), { active: false, status: 'closed', sessionNumber: null, endedAt: Date.now() }).catch(() => {});
-          
-          if (typeof window !== 'undefined') {
-            Object.keys(localStorage).forEach((k) => {
-              if (k.startsWith('mathmaticore_') || k.startsWith('offline_queue_')) {
-                localStorage.removeItem(k);
-              }
-            });
-          }
-          useWorkspaceStore.getState().resetWorkspace?.();
-        } catch (rtdbErr) {
-          console.error('[useStore] Direct RTDB class reset notice:', rtdbErr);
-        }
-
-        const cleanStudents: Record<string, StudentData> = {};
-
-        for (let i = 1; i <= 12; i++) {
-          const normId = `student_user${i}`;
-          const defaultName = `תלמיד ${i}`;
-          const cleanStudent: StudentData = {
-            studentId: normId,
-            classId: 'class_1',
-            name: defaultName,
-            completedMeeting2: false,
-            highestCompletedMeeting: 0,
-            qMatrixResults: {
-              task1_read_write_zero: null,
-              task2_digit_value: null,
-              task3_subtraction_regrouping: null,
-              task4_decompose_number: null,
-              task5_units_to_tens: null,
-              task6_vertical_addition: null,
-              task7_subtraction_zero_tens: null,
-            },
-            traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
-            routeRecommendation: null,
-            routeStatus: null,
-            liveSessionMetrics: null,
-            isOnline: false,
-            physicalOverride: false,
-            physicalOverrideActive: false,
-            reflections: null,
-          };
-          cleanStudents[normId] = cleanStudent;
-          cleanStudents[`student_${i}`] = cleanStudent;
-        }
-
-        set({ students: cleanStudents });
-        useChatStore.getState().clearAllMessages();
-        resetSuccessToast('כל נתוני הלמידה של הכיתה נמחקו, וכל 12 התלמידים מתחילים מההתחלה.', systemResult?.data);
+        await applySystemResetSuccess(systemResult?.data);
       }
     })
 );
+
+// ─── After a level-2/3 reset the server confirmed (Module 23א) ──────────────
+// What the dashboard does once the server answered SUCCESS — right after the
+// call, or later from the reset's entry when the call ended with no answer
+// (PRD 23א §ז, startResetOutcomeWatch).
+
+/** Level 2, whole class: the local mirrors follow the server's reset of meeting N. */
+function applyClassResetSuccess(sessionNumber: number, data: unknown): void {
+  // The server reset the meeting's fields on every learner record and set
+  // forceReload; here only the local mirrors follow.
+  for (let n = 1; n <= 12; n++) {
+    for (const id of [`student_user${n}`, `student_${n}`, `user${n}`, String(n)]) {
+      firebaseSyncService.clearLocalSessionProgress(id);
+    }
+  }
+  useStore.setState((state) => {
+    const students = { ...state.students };
+    for (const [key, existing] of Object.entries(students)) {
+      if (existing) students[key] = patchStudentAfterSessionReset(existing, sessionNumber);
+    }
+    return { students };
+  });
+  resetSuccessToast(`${meetingShortLabelHe(sessionNumber)} אופס לכל הכיתה, ו-12 התלמידים חוזרים לתחילתו. העבודה במפגשים האחרים נשמרה.${meetingResetExtraHe(sessionNumber, 'class')}`, data);
+}
+
+/** Level 2, one learner: the local mirrors follow the server's reset. */
+async function applyStudentResetSuccess(
+  studentId: string,
+  scope: SingleStudentResetScope,
+  resetSession: number | null,
+  resetData: unknown
+): Promise<void> {
+  const normId = normalizeStudentId(studentId);
+  const num = normId.replace(/\D/g, '') || '1';
+  const defaultName = `תלמיד ${num}`;
+  if (scope === 'active_session') {
+    // The server already reset the meeting's fields in place and set
+    // forceReload; here only the local mirrors are cleared so the teacher's
+    // view and the learner's cached progress follow immediately.
+    for (const id of [normId, studentId, `student_${num}`, `user${num}`, num]) {
+      firebaseSyncService.clearLocalSessionProgress(id);
+    }
+    const sessionLabel = resetSession ? meetingShortLabelHe(resetSession) : 'המפגש הנוכחי';
+    useStore.setState((state) => {
+      const existing = state.students[normId] || state.students[studentId];
+      if (!existing) return {};
+      const patched = patchStudentAfterSessionReset(existing, resetSession ?? 0);
+      return {
+        students: {
+          ...state.students,
+          [normId]: patched,
+          ...(studentId !== normId ? { [studentId]: patched } : {}),
+        },
+      };
+    });
+    resetSuccessToast(`${defaultName} הוחזר לתחילת ${sessionLabel}. העבודה במפגשים האחרים נשמרה.${meetingResetExtraHe(resetSession, 'student')}`, resetData);
+    return;
+  }
+
+  // Direct RTDB Reset for guaranteed real-time responsiveness
+  try {
+    const cleanPayload = {
+      completedMeeting1: false,
+      completedMeeting2: false,
+      completedMeeting3: false,
+      completedMeeting4: false,
+      completedMeeting5: false,
+      completedMeeting6: false,
+      completedMeeting7: false,
+      completedMeeting8: false,
+      session_1_completed: false,
+      session_2_completed: false,
+      session_3_completed: false,
+      highestCompletedMeeting: 0,
+      session_completed: 0,
+      workspaceState: null,
+      // Catch-up time: every meeting's saved copy and finished mark (core/meetingCompletion.ts).
+      workspaceByMeeting: null,
+      completedMeetings: null,
+      sessionState: null,
+      routeStatus: null,
+      routeRecommendation: null,
+      teacher_gate_approved: false,
+      forceReload: true,
+      lastAction: 'אופס ע״י המורה',
+      lastPing: 0,
+      isOnline: false,
+      activeSessionId: 1,
+      qMatrixResults: null,
+      traceData: null,
+      reflections: null,
+      // The support profile and quiet mode are the teacher's settings for
+      // the learner and survive a full learner reset (owner, 2.10.2026);
+      // the server keeps them on the record (LEARNER_SETTINGS_FIELDS).
+      physicalOverride: false,
+      physicalOverrideActive: false,
+      forceAdditionHelper: false,
+      additionBoardEnabled: false,
+      scaffoldLevel: 0,
+      // No path until the gate approves one (owner, 28.9.2026; Module 26): never green by default.
+      pedagogicalPath: null,
+      isBoardLocked: false,
+      helpRequested: false,
+      handRaised: false,
+      isStruggling: false,
+    };
+    // The canonical record only (student_userN). The same payload used to
+    // be written under student_N, userN and N as well: an update creates
+    // the node it names, so every reset left alias records of learners
+    // that the teacher's screens then had to merge. The server removes
+    // the aliases that exist.
+    await update(ref(database, `users/students/${normId}`), cleanPayload).catch(() => {});
+    await remove(ref(database, `chat_messages/${normId}`)).catch(() => {});
+    firebaseSyncService.clearLocalSessionProgress(normId);
+    firebaseSyncService.clearLocalSessionProgress(studentId);
+    firebaseSyncService.clearLocalSessionProgress(`student_${num}`);
+    firebaseSyncService.clearLocalSessionProgress(`user${num}`);
+    firebaseSyncService.clearLocalSessionProgress(num);
+  } catch (rtdbErr) {
+    console.error('[useStore] Direct RTDB reset notice:', rtdbErr);
+  }
+
+  const cleanStudent: StudentData = {
+    studentId: normId,
+    classId: 'class_1',
+    name: defaultName,
+    completedMeeting2: false,
+    highestCompletedMeeting: 0,
+    qMatrixResults: {
+      task1_read_write_zero: null,
+      task2_digit_value: null,
+      task3_subtraction_regrouping: null,
+      task4_decompose_number: null,
+      task5_units_to_tens: null,
+      task6_vertical_addition: null,
+      task7_subtraction_zero_tens: null,
+    },
+    traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
+    routeRecommendation: null,
+    routeStatus: null,
+    liveSessionMetrics: null,
+    isOnline: false,
+    physicalOverride: false,
+    physicalOverrideActive: false,
+    reflections: null,
+  };
+
+  // Update local Zustand state. The teacher's settings for the learner
+  // are kept, as on the server — the RTDB listener sends no new value
+  // for them, so a clean copy without them hid them until a reload.
+  useStore.setState((state) => {
+    const before = state.students[normId] || state.students[studentId];
+    const kept: StudentData = {
+      ...cleanStudent,
+      ...(before?.isASD !== undefined ? { isASD: before.isASD } : {}),
+      ...(before?.support_profile_id !== undefined ? { support_profile_id: before.support_profile_id } : {}),
+    };
+    return {
+      students: {
+        ...state.students,
+        [normId]: kept,
+        ...(studentId !== normId ? { [studentId]: kept } : {}),
+        [`student_${num}`]: kept,
+      }
+    };
+  });
+
+  useChatStore.getState().clearStudentMessages(normId);
+  resetSuccessToast(`${defaultName} אופס כולו: ההתקדמות בכל המפגשים, תוצאות האבחון, המסלול, ההקלטות והצ'אט נמחקו. ההגדרות שלו נשמרו.`, resetData);
+}
+
+/** Level 3: the local mirrors follow the server's system reset. */
+async function applySystemResetSuccess(data: unknown): Promise<void> {
+  // Direct RTDB Reset for all 12 students and sessions
+  try {
+    for (let i = 1; i <= 12; i++) {
+      const cleanPayload = {
+        completedMeeting1: false,
+        completedMeeting2: false,
+        completedMeeting3: false,
+        completedMeeting4: false,
+        completedMeeting5: false,
+        completedMeeting6: false,
+        completedMeeting7: false,
+        completedMeeting8: false,
+        session_1_completed: false,
+        session_2_completed: false,
+        session_3_completed: false,
+        highestCompletedMeeting: 0,
+        session_completed: 0,
+        workspaceState: null,
+        workspaceByMeeting: null,
+        completedMeetings: null,
+        sessionState: null,
+        routeStatus: null,
+        routeRecommendation: null,
+        teacher_gate_approved: false,
+        forceReload: true,
+        lastAction: 'אופס ע״י המורה',
+        lastPing: 0,
+        isOnline: false,
+        activeSessionId: 1,
+        qMatrixResults: null,
+        traceData: null,
+        reflections: null,
+        enhanced_support_profile: null, // the legacy alias (core/supportProfile.ts) is removed, not written
+      support_profile_id: null,
+        physicalOverride: false,
+        physicalOverrideActive: false,
+        forceAdditionHelper: false,
+        additionBoardEnabled: false,
+        scaffoldLevel: 0,
+        // No path until the gate approves one (owner, 28.9.2026; Module 26): never green by default.
+        pedagogicalPath: null,
+        isBoardLocked: false,
+        helpRequested: false,
+        handRaised: false,
+        isStruggling: false,
+      };
+      // The canonical record only: no alias records are created (see resetStudentData).
+      await update(ref(database, `users/students/student_user${i}`), cleanPayload).catch(() => {});
+      firebaseSyncService.clearLocalSessionProgress(`student_user${i}`);
+      firebaseSyncService.clearLocalSessionProgress(`student_${i}`);
+      firebaseSyncService.clearLocalSessionProgress(`user${i}`);
+      firebaseSyncService.clearLocalSessionProgress(`${i}`);
+    }
+    await remove(ref(database, 'chat_messages')).catch(() => {});
+    await remove(ref(database, 'radar_alerts')).catch(() => {});
+    await remove(ref(database, 'replays')).catch(() => {});
+    await remove(ref(database, 'sessions')).catch(() => {});
+    await remove(ref(database, 'telemetry_sessions')).catch(() => {});
+    await fbSet(ref(database, 'system_control/projector_mode'), { active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch(() => {});
+    // PRD v7.1 Module 14: session activation is exclusively a teacher action.
+    // A system reset must leave NO active session; the teacher reopens explicitly.
+    await fbSet(ref(database, 'active_class_session'), { active: false, status: 'closed', sessionNumber: null, endedAt: Date.now() }).catch(() => {});
+    
+    if (typeof window !== 'undefined') {
+      Object.keys(localStorage).forEach((k) => {
+        if (k.startsWith('mathmaticore_') || k.startsWith('offline_queue_')) {
+          localStorage.removeItem(k);
+        }
+      });
+    }
+    useWorkspaceStore.getState().resetWorkspace?.();
+  } catch (rtdbErr) {
+    console.error('[useStore] Direct RTDB class reset notice:', rtdbErr);
+  }
+
+  const cleanStudents: Record<string, StudentData> = {};
+
+  for (let i = 1; i <= 12; i++) {
+    const normId = `student_user${i}`;
+    const defaultName = `תלמיד ${i}`;
+    const cleanStudent: StudentData = {
+      studentId: normId,
+      classId: 'class_1',
+      name: defaultName,
+      completedMeeting2: false,
+      highestCompletedMeeting: 0,
+      qMatrixResults: {
+        task1_read_write_zero: null,
+        task2_digit_value: null,
+        task3_subtraction_regrouping: null,
+        task4_decompose_number: null,
+        task5_units_to_tens: null,
+        task6_vertical_addition: null,
+        task7_subtraction_zero_tens: null,
+      },
+      traceData: { hesitation_events: 0, undo_clicks: 0, semantic_trace: [] },
+      routeRecommendation: null,
+      routeStatus: null,
+      liveSessionMetrics: null,
+      isOnline: false,
+      physicalOverride: false,
+      physicalOverrideActive: false,
+      reflections: null,
+    };
+    cleanStudents[normId] = cleanStudent;
+    cleanStudents[`student_${i}`] = cleanStudent;
+  }
+
+  useStore.setState({ students: cleanStudents });
+  useChatStore.getState().clearAllMessages();
+  resetSuccessToast('כל נתוני הלמידה של הכיתה נמחקו, וכל 12 התלמידים מתחילים מההתחלה.', data);
+}
+
+/**
+ * PRD 23א §ז: reads the named reset's entry until it holds a final status,
+ * then shows it as the reset would have: the same success path, or the same
+ * failure message.
+ */
+function startResetOutcomeWatch(pending: PendingReset): void {
+  watchResetOutcome(pending, {
+    fetchEntry: fetchResetAuditEntry,
+    onCompleted: (p, data) => {
+      if (p.kind === 'class') applyClassResetSuccess(data.sessionNumber ?? p.sessionNumber, data);
+      else if (p.kind === 'student') void applyStudentResetSuccess(p.studentId, p.scope, data.sessionNumber ?? p.sessionNumber, data);
+      else void applySystemResetSuccess(data);
+    },
+    onFailed: (_p, message) => {
+      toast.error(message, { duration: 12000 });
+    },
+  });
+}
+
+/** A reset whose outcome had not arrived when the dashboard was last open (e.g. reloaded). */
+export function resumePendingResetWatch(): void {
+  const pending = loadPendingReset();
+  if (pending) startResetOutcomeWatch(pending);
+}

@@ -16,7 +16,7 @@
     "classes": {
       ".read": "auth != null",
       ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
-      "$classId": { ".validate": "$classId == 'class_1'" }
+      "$classId": { ".validate": "$classId == 'class_1' && newData.child('name').val() == 'המבקרים' && newData.child('studentLimit').isNumber() && newData.child('studentLimit').val() >= 1 && newData.child('studentLimit').val() <= 12" }
     },
     "users": {
       "students": {
@@ -123,7 +123,8 @@
     "system_control": {
       ".read": "auth != null",
       "globalStudentLimit": {
-        ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')"
+        ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'ADMIN')",
+        ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 12"
       },
       "projector_mode": {
         ".write": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true)",

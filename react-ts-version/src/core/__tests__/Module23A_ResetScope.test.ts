@@ -230,7 +230,12 @@ describe('Module 23א — level 2 for the whole class (register, deviation 20)',
     // No meeting, no call.
     expect(body.indexOf("throw new Error('NO_ACTIVE_CLASS_SESSION')")).toBeLessThan(body.indexOf('httpsCallable('));
     // A failed backup aborts: local state is touched only after the callable resolved.
-    expect(body.indexOf("throw new Error('BACKUP_FAILED_RESET_ABORTED')")).toBeLessThan(body.indexOf('patchStudentAfterSessionReset('));
+    // (The local mirrors moved into applyClassResetSuccess, shared with the
+    // outcome read back after a lost answer — PRD 23א §ז.)
+    expect(body.indexOf("throw new Error('BACKUP_FAILED_RESET_ABORTED')")).toBeLessThan(body.indexOf('applyClassResetSuccess('));
+    expect(body.indexOf('applyClassResetSuccess(')).toBeGreaterThan(-1);
+    const apply = store.slice(store.indexOf('function applyClassResetSuccess('));
+    expect(apply.slice(0, apply.indexOf('\n}\n'))).toContain('patchStudentAfterSessionReset(');
   });
 
   it('the dialog offers no full wipe for the class, needs an open meeting and an explicit tick', () => {

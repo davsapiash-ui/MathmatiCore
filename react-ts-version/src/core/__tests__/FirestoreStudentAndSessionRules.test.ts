@@ -178,3 +178,30 @@ describe('Module 4 — telemetry_logs, sessions and classes', () => {
     expect(schema).toContain("'created_at'");
   });
 });
+
+/**
+ * PRD 27 §ב.5 (l.1318): a teacher may update the approval fields only. The
+ * update rule let a teacher token change any field the schema allows —
+ * is_completed, active_exercise_id, the session times. The one teacher-side
+ * writer of the collection (core/teacherGate.ts) writes exactly four fields.
+ */
+describe('מסמך המפגש — עדכון של המורה', () => {
+  const APPROVAL = ['teacher_gate_approved', 'gate_approved_at', 'gate_approved_by', 'teacher_selected_path'];
+
+  it('the update rule limits a teacher to the four approval fields', () => {
+    const update = section('match /sessions/{sessionId}', 'allow delete: if false; // Module 23א §ו — see students');
+    const rule = update.slice(update.indexOf('allow update:'));
+    expect(rule).toContain(
+      "(!isTeacher() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teacher_gate_approved', 'gate_approved_at', 'gate_approved_by', 'teacher_selected_path']))"
+    );
+  });
+
+  it('the gate approval (now on the server) writes exactly those four fields', () => {
+    // The approval now runs on the server (functions/src/teacherGate.ts, PRD l.799/803).
+    const gate = readFileSync(resolve(__dirname, '../../../../functions/src/teacherGate.ts'), 'utf-8');
+    const write = gate.slice(gate.indexOf('tx.update(docRef, {'));
+    const body = write.slice(0, write.indexOf('});'));
+    const keys = [...body.matchAll(/^\s*([a-z_]+):/gm)].map((m) => m[1]).sort();
+    expect(keys).toEqual([...APPROVAL].sort());
+  });
+});
