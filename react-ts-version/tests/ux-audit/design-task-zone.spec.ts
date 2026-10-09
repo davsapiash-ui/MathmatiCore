@@ -6,10 +6,13 @@ import type { Viewport } from './viewports';
 
 /**
  * Before/after screenshots of the learner's task zone (design-task-zone).
- * Not part of the audit's gate: run on its own with
+ * Not part of the audit's gate, and it writes nothing unless asked: it runs
+ * only when DTZ_OUT names the folder to write, e.g.
  *   DTZ_OUT=ux-screenshots/design-task-zone/after npx playwright test --config playwright.dtz.config.ts design-task-zone
+ * (An audit run that picks up every spec in tests/ux-audit used to overwrite
+ * the committed "before" shots with the current code.)
  */
-const OUT = process.env.DTZ_OUT || 'ux-screenshots/design-task-zone/before';
+const OUT = process.env.DTZ_OUT ?? '';
 const ONLY = process.env.DTZ_ONLY ? new RegExp(process.env.DTZ_ONLY) : null;
 const INIT = 'st.initSession(arg.meeting, false, arg.idx); api.getState().markOpeningScreenSeen();';
 const SET = 'api.setState(arg);';
@@ -60,6 +63,7 @@ steps.sort((x, y) => x.meeting - y.meeting);
 
 for (const vp of VPS) {
   test(`design-task-zone shots ${vp.id}`, async ({ browser }) => {
+    test.skip(!OUT, 'design-task-zone shots run only with DTZ_OUT set (the folder to write)');
     test.setTimeout(30 * 60_000);
     const c = await openContext(browser, vp, { mode: 'default', path: 'green_path', approved: true });
     const dir = path.resolve(OUT, vp.id);
