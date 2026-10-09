@@ -3,7 +3,7 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { exerciseAttempts, readLastResetOfMeeting, readMeetingTelemetry, sessionDocumentIdCandidates } from "./meetingMetrics";
 import { computeCognitiveMastery } from "./diagnosticMastery";
-import { computeMeetingScore } from "./sessionTrigger";
+import { rescoreCompletedMeeting, type MeetingRescore } from "./sessionTrigger";
 import { isClassSessionOpenAt } from "./classSessionLive";
 
 /**
@@ -346,7 +346,7 @@ export async function catchUpCompletedMeeting2(
   return qChanged || rescore === "rescored";
 }
 
-export type Meeting2Rescore = "not_completed" | "not_scored_yet" | "unchanged" | "rescored" | "no_score";
+export type Meeting2Rescore = MeetingRescore;
 
 /**
  * A learner whom the teacher's close completed can still go on: when the
@@ -355,48 +355,20 @@ export type Meeting2Rescore = "not_completed" | "not_scored_yet" | "unchanged" |
  * the learner then finishes, the learner's completion of the session
  * document finds it completed already and is not written again
  * (FirebaseSyncService syncSession2Completion, deliveredWhen), so the score
- * trigger, which scores a document once, never saw the new run: the gate kept
- * the score and the path of the close.
+ * trigger, which scores a document once, never saw the new run.
  *
- * Re-scores meeting 2 from the run since its last reset (the same reading as
- * the score trigger) once the document has been scored, and writes the score
- * and the recommendation only when they changed. The teacher's approval and
- * the path she chose are not touched; the recommendation stays a
- * recommendation.
+ * Meeting 2's case of the rule every scored meeting follows (PRD 14 §ב0,
+ * sessionTrigger.ts rescoreCompletedMeeting): re-scored from the run since its
+ * last reset, the previous score kept as previous_score_percent, the
+ * recommendation from the new score, the teacher's approval and chosen path
+ * untouched. `rtdb` is kept for the callers; the mirror writes the default app.
  */
 export async function rescoreCompletedMeeting2(
   db: admin.firestore.Firestore,
-  rtdb: admin.database.Database,
+  _rtdb: admin.database.Database,
   n: number
 ): Promise<Meeting2Rescore> {
-  const candidates = sessionDocumentIdCandidates(n, 2);
-  const snaps = await Promise.all(candidates.map((id) => db.collection("sessions").doc(id).get()));
-  const done = snaps.find((s) => s.exists && (s.data() || {}).is_completed === true);
-  if (!done) return "not_completed";
-  const data = done.data() || {};
-  // Not scored yet: the score trigger is about to score it from the same run.
-  if (!data.evaluated_at) return "not_scored_yet";
-
-  const path = data.teacher_selected_path === "remediation_path" ? "remediation_path" : "green_path";
-  const computed = await computeMeetingScore(db, n, 2, path);
-  if (computed.outcome !== "scored") return "no_score";
-  const { scorePercent, recommendedPath } = computed;
-  if (data.session_score_percent === scorePercent && data.matrix_recommended_path === recommendedPath) return "unchanged";
-
-  await db.collection("sessions").doc(done.id).update({
-    session_score_percent: scorePercent,
-    matrix_recommended_path: recommendedPath,
-    evaluated_at: admin.firestore.FieldValue.serverTimestamp(),
-  });
-  await rtdb.ref(`users/students/student_user${n}`).update({
-    session_score_percent: scorePercent,
-    matrix_recommended_path: recommendedPath,
-  });
-  logger.info(
-    `Meeting 2 of learner ${n} re-scored after a later finish: ` +
-    `${data.session_score_percent ?? "none"}% -> ${scorePercent}% (${recommendedPath}).`
-  );
-  return "rescored";
+  return rescoreCompletedMeeting(db, n, 2);
 }
 
 /**

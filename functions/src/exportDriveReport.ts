@@ -1386,6 +1386,8 @@ export function withCatchUpRecords(scope: ResetScope): ResetScope {
  * the meetings file's rows. The learner and the meeting come from the fields,
  * else from the document id (the session document's spelling).
  */
+const isPercent = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 100;
+
 export function catchUpRecordsByLearnerMeeting(docs: Array<{ id: string; data: unknown }>): Map<string, Partial<CatchUpRecord>> {
   const byKey = new Map<string, Partial<CatchUpRecord>>();
   for (const { id, data } of docs) {
@@ -2166,7 +2168,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         reflection_submitted: summary.reflection_submitted,
         recording_minutes: rec?.minutes ?? 0,
         recording_truncated: rec?.truncated ?? false,
-        learning_path: path,
+        // PRD 23 §ב / 24 §ב: the bank most of the learner's exercises in this
+        // meeting were opened from, else the learner's record; meetings 1–2 have none.
+        learning_path: m >= 3 ? path : "",
         // Module 14 §ב: meeting 1 is not scored, whatever a stored document says.
         session_doc_score_percent: isScoredMeeting(m) ? (sessionDoc?.session_score_percent ?? "") : "",
         session_doc_recommended_path: sessionDoc?.matrix_recommended_path ?? "",
@@ -2187,6 +2191,10 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         ...afterValues,
         // Catch-up time (owner, 2.10.2026): rounds, minutes, reasons, notes — appended last.
         ...catchUpExportCells(catchUpByKey.get(k)),
+        // PRD 14 §ב0 / 24 §ב: the meeting's score before the learner's latest
+        // completion, next to the new one (session_doc_score_percent); empty
+        // when there was none. Appended last.
+        previous_score_percent: isScoredMeeting(m) && isPercent(sessionDoc?.previous_score_percent) ? sessionDoc!.previous_score_percent : "",
       });
     }
 

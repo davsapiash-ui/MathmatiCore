@@ -48,6 +48,13 @@ describe('D1 — the class report says why the cards opened in Hebrew', () => {
     expect(text).not.toMatch(/hesitation_45s|consecutive_errors_4|conversion_not_performed|procedural|conceptual|calculation/);
   });
 
+  it('PRD 23 §ב: measure 1 by its one name — the class mean and the table column', () => {
+    const text = visibleText(classReportHtml({ session_number: 4, aggregates: a, learners: [row], exercise_titles: titles }));
+    expect(text).toContain('ממוצע ציון ניסיון ראשון (מדד 1):');
+    expect(text).toContain('ציון ניסיון ראשון (מדד 1)');
+    expect(text).not.toContain('ציון ממוצע');
+  });
+
   it('nothing on the page is Latin except the product name', () => {
     const html = classReportHtml({ session_number: 4, aggregates: a, learners: [row], exercise_titles: titles });
     const latin = visibleText(html).replace(/MathematiCore/g, '').match(/[A-Za-z_]{2,}/g);

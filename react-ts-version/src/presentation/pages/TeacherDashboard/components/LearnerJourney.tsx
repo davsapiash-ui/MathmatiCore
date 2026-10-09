@@ -44,6 +44,8 @@ import {
   type MeetingReport,
   type RecordingChapter,
   type RecordingSession,
+  FIRST_ATTEMPT_SCORE_LABEL_HE,
+  PREVIOUS_SCORE_LABEL_HE,
 } from '@/infrastructure/services/LearnerJourneyService';
 import { STATION_NAMES_HE, meetingShortLabelHe } from '@/core/stationNames';
 import { MEETING_FORMAL_HE, meetingFullLabelHe } from '@/core/meetingFormalNames';
@@ -627,7 +629,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                       <div className="flex items-center gap-3 p-3 rounded-xl bg-ws-bg border border-ws-surface2">
                         <div className="text-2xl font-black text-ws-ink" dir="ltr">{report.scorePercent === null ? '—' : `${report.scorePercent}%`}</div>
                         <div>
-                          <div className="font-bold text-ws-ink">הצלחה בניסיון ראשון</div>
+                          <div className="font-bold text-ws-ink">{FIRST_ATTEMPT_SCORE_LABEL_HE}</div>
                           <div className="text-ws-soft">
                             {report.scorePercent === null
                               ? 'לא נמדד'
@@ -637,6 +639,11 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                                   ? `מחושב מ-${report.telemetryEventCount} פעולות מתועדות`
                                   : 'מתוצאות האבחון'}
                           </div>
+                          {report.previousScorePercent !== null && (
+                            <div className="text-ws-soft" data-testid="previous-score">
+                              {PREVIOUS_SCORE_LABEL_HE}: <span dir="ltr">{report.previousScorePercent}%</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">

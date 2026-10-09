@@ -165,6 +165,14 @@ describe('מסמך המפגש — אישור המורה אינו מתבטל בי
       teacher_gate_approved: true, teacher_selected_path: 'green_path', gate_approved_at: Date.now(), gate_approved_by: 'teacher_uid',
     }));
   });
+
+  it('גם המורה אינה כותבת את הציון, ההמלצה, חותמת החישוב או הציון הקודם (S7)', async () => {
+    const teacherDoc = () => doc(teacher().firestore(), 'sessions', S2);
+    await assertFails(updateDoc(teacherDoc(), { session_score_percent: 100 }));
+    await assertFails(updateDoc(teacherDoc(), { matrix_recommended_path: 'green_path' }));
+    await assertFails(updateDoc(teacherDoc(), { evaluated_at: Date.now() }));
+    await assertFails(updateDoc(teacherDoc(), { previous_score_percent: 43 }));
+  });
 });
 
 describe('הרשומה ב-RTDB — לפני החישוב והאישור', () => {

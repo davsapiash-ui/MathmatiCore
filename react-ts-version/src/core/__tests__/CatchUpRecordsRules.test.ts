@@ -52,7 +52,11 @@ describe('catchup_records — the rules follow the contract', () => {
     expect(doc).toContain("docId == 'session_0' + string(d.session_number) + '_student_' + string(d.student_id)");
     // The rule's spelling is catchUpDocId's for every meeting the rule admits (1–8).
     for (let m = 1; m <= 8; m++) expect(catchUpDocId(m, 4)).toBe(`session_0${m}_student_4`);
-    expect(doc).toContain("d.keys().hasOnly(['student_id', 'session_number', 'class_id', 'rounds'])");
+    // The teacher's fields, plus the server's score fields (PRD 14 §ב0), which a teacher never writes:
+    expect(doc).toContain("d.keys().hasOnly(['student_id', 'session_number', 'class_id', 'rounds',");
+    expect(doc).toContain("'score_percent', 'previous_score_percent', 'scored_at',");
+    expect(block()).toContain("request.resource.data.keys().hasOnly(['student_id', 'session_number', 'class_id', 'rounds'])");
+    expect(block()).toContain("request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rounds'])");
   });
 
   it('only the teacher of the class writes; a create carries one round, an update adds exactly one and changes none', () => {

@@ -69,6 +69,7 @@ import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htm
 import {
   CHOICE_EXERCISES_HEADING_HE,
   CLASS_REPORT_PDF_OPTIONS,
+  FIRST_ATTEMPT_SCORE_MEAN_LABEL_HE,
   OUTCOME_HE,
   TIER_LABEL_HE,
   classReportHtml,
@@ -112,7 +113,8 @@ export type { ExerciseOutcome };
 
 export interface ClassLearnerRow {
   student_id: number;
-  learning_path: "green_path" | "remediation_path";
+  /** PRD 23 §ב: the path of THIS meeting (the bank most exercises were opened from, else the record); null in meetings 1–2. */
+  learning_path: "green_path" | "remediation_path" | null;
   /** null when this meeting's compulsory count is unknown — there is no score to state. */
   score_percent: number | null;
   score_source: "session_document" | "telemetry_first_attempt";
@@ -305,7 +307,7 @@ export function buildLearnerRow(
 
   return {
     student_id: studentId,
-    learning_path: learningPath,
+    learning_path: research !== null && research.sessionNumber < 3 ? null : learningPath,
     score_percent: score,
     score_source: docScore !== null ? "session_document" : "telemetry_first_attempt",
     recommendation_tier: score === null ? null : resolveRecommendationTier(score),
@@ -856,20 +858,20 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       rtlText(doc, "דוח כיתתי חסוי | מדיניות אפס מידע מזהה | לומדים מזוהים במספר בלבד", { align: "center" });
       doc.moveDown(1);
 
-      doc.rect(40, doc.y, 515, 60).fillAndStroke("#f8fafc", "#cbd5e1");
+      doc.rect(40, doc.y, 515, 75).fillAndStroke("#f8fafc", "#cbd5e1");
       doc.fillColor("#0f172a").fontSize(11);
       const cardY = doc.y + 12;
       const scored = a.scored !== false;
       rtlText(doc, `מפגש: ${report.session_number}`, 400, cardY, { width: 140 });
       rtlText(doc, `לומדים עם נתונים: ${a.learners_with_data} מתוך 12`, 200, cardY, { width: 190 });
       if (scored) {
-        rtlText(doc, `ציון ממוצע: ${pct(a.score_mean)}`, 55, cardY, { width: 140 });
-        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | ${ROUTE_NAME_HE.green_path}: ${a.paths.green_path} | ${ROUTE_NAME_HE.remediation_path}: ${a.paths.remediation_path}`, 55, cardY + 25, { width: 490 });
+        rtlText(doc, `${FIRST_ATTEMPT_SCORE_MEAN_LABEL_HE}: ${pct(a.score_mean)}`, 55, cardY + 20, { width: 490 });
+        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | ${ROUTE_NAME_HE.green_path}: ${a.paths.green_path} | ${ROUTE_NAME_HE.remediation_path}: ${a.paths.remediation_path}`, 55, cardY + 40, { width: 490 });
       } else {
         rtlText(doc, "מפגש היכרות וריענון — ללא ציון וללא קבוצות עבודה", 55, cardY + 25, { width: 490 });
       }
       doc.x = 40;
-      doc.y = cardY + 60;
+      doc.y = cardY + 75;
 
       if (scored) {
         heading("1. קבוצות עבודה לפי כלל האחוזים (שכבה 1, דטרמיניסטית)", "#166534");
@@ -1231,20 +1233,20 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   const csvText = buildClassCsv(learners, aggregates.exercises, catchUpRecords);
   const csvBuffer = Buffer.from(csvText, "utf-8");
 
-  const tokenUrl = (storagePath: string, downloadToken: string) =>
-    `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(storagePath)}?alt=media&token=${downloadToken}`;
-  const pdfToken = require("crypto").randomUUID();
-  const csvToken = require("crypto").randomUUID();
+  // PRD 23 §ב: "הקישורים להורדתם בתוקף לשעה אחת מרגע יצירתם, כמו הקישור לדוח
+  // הלומד". The files carry no download token (a token URL never expires);
+  // each link is a signed URL valid for one hour, and the dashboard asks for a
+  // fresh one when the teacher opens a stored report (getClassReportDownloadUrl).
   const meta = { class_id: classId, session_number: String(sessionNumber), read_only: "true" };
   try {
-    await bucket.file(pdfPath).save(pdfBuffer, { contentType: "application/pdf", metadata: { metadata: { ...meta, firebaseStorageDownloadTokens: pdfToken } } });
-    await bucket.file(csvPath).save(csvBuffer, { contentType: "text/csv; charset=utf-8", metadata: { metadata: { ...meta, firebaseStorageDownloadTokens: csvToken } } });
+    await bucket.file(pdfPath).save(pdfBuffer, { contentType: "application/pdf", metadata: { metadata: meta } });
+    await bucket.file(csvPath).save(csvBuffer, { contentType: "text/csv; charset=utf-8", metadata: { metadata: meta } });
   } catch (err: any) {
     logger.error("[classReport] Storage write failed:", err);
     throw new HttpsError("internal", `הדוח חושב אך שמירת הקבצים נכשלה: ${err?.message || err}`);
   }
-  const pdfUrl = tokenUrl(pdfPath, pdfToken);
-  const csvUrl = tokenUrl(csvPath, csvToken);
+  const pdfUrl = await signedClassReportUrl(pdfPath);
+  const csvUrl = await signedClassReportUrl(csvPath);
 
   let drivePdfUrl: string | null = null;
   let driveCsvUrl: string | null = null;
@@ -1262,8 +1264,10 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
     ...report,
     storage_pdf_path: pdfPath,
     storage_csv_path: csvPath,
-    pdf_url: pdfUrl,
-    csv_url: csvUrl,
+    // No link is stored: a stored link would outlive its hour. The dashboard
+    // asks for a fresh one (getClassReportDownloadUrl).
+    pdf_url: null,
+    csv_url: null,
     drive_pdf_url: drivePdfUrl,
     drive_csv_url: driveCsvUrl,
     created_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -1276,4 +1280,55 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
     status: "SUCCESS",
     report: { ...report, pdf_url: pdfUrl, csv_url: csvUrl, drive_pdf_url: drivePdfUrl, drive_csv_url: driveCsvUrl },
   };
+});
+
+/** PRD 23 §ב: how long a class-report download link is valid — one hour, as the learner report's. */
+export const CLASS_REPORT_LINK_TTL_MS = 60 * 60 * 1000;
+
+/** A signed read link to a stored class-report file, valid for one hour; null when none could be issued. */
+async function signedClassReportUrl(storagePath: string): Promise<string | null> {
+  try {
+    const [url] = await admin.storage().bucket().file(storagePath).getSignedUrl({
+      action: "read",
+      expires: Date.now() + CLASS_REPORT_LINK_TTL_MS,
+    });
+    return url;
+  } catch (err) {
+    logger.warn(`[classReport] No signed link could be issued for ${storagePath}:`, err);
+    return null;
+  }
+}
+
+/** Pure. Which stored file of a class report the request names: its Storage path, or null. */
+export function classReportStoragePath(stored: Record<string, any> | null | undefined, kind: unknown): string | null {
+  if (!stored) return null;
+  const path = kind === "csv" ? stored.storage_csv_path : kind === "pdf" ? stored.storage_pdf_path : null;
+  return typeof path === "string" && path.startsWith("reports/") ? path : null;
+}
+
+/**
+ * getClassReportDownloadUrl (PRD 23 §ב, Module 27): a fresh one-hour signed
+ * link to the PDF or the CSV of the class report stored for one meeting.
+ * Teacher of the class only.
+ */
+export const getClassReportDownloadUrl = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "User must be authenticated.");
+  const { classId: rawClassId, sessionNumber: rawSession, kind } = (request.data || {}) as Record<string, unknown>;
+  const classId = typeof rawClassId === "string" && rawClassId ? rawClassId : "class_1";
+  const sessionNumber = Number(rawSession);
+  if (!Number.isInteger(sessionNumber) || sessionNumber < 1 || sessionNumber > 8) {
+    throw new HttpsError("invalid-argument", "sessionNumber must be 1–8.");
+  }
+  if (kind !== "pdf" && kind !== "csv") throw new HttpsError("invalid-argument", "kind must be pdf or csv.");
+  requireTeacherForIndividualData(request.auth.token as Record<string, unknown>);
+  const token: Record<string, any> = request.auth.token;
+  if (token.class_id && token.class_id !== classId) {
+    throw new HttpsError("permission-denied", "Teacher is restricted to their own class.");
+  }
+  const snap = await admin.firestore().collection("class_reports").doc(`${classId}_session_${sessionNumber}`).get();
+  const storagePath = classReportStoragePath(snap.exists ? snap.data() : null, kind);
+  if (!storagePath) throw new HttpsError("not-found", `לא נמצא קובץ שמור לדוח הכיתה של מפגש ${sessionNumber}.`);
+  const downloadUrl = await signedClassReportUrl(storagePath);
+  if (!downloadUrl) throw new HttpsError("unavailable", "לא ניתן היה להפיק קישור לקובץ. נסו שוב בעוד רגע.");
+  return { status: "SUCCESS", downloadUrl };
 });

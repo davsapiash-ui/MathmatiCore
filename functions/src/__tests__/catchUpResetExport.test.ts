@@ -177,11 +177,13 @@ describe('research export — the meetings file', () => {
     expect(read).toBeLessThan(fn.indexOf('for (const [k, events] of Array.from(byLearnerMeeting.entries()).sort())'));
   });
 
-  it('the four columns come last, after every existing column', () => {
+  it('the four columns come after every existing column, and previous_score_percent after them (PRD 24 §ב)', () => {
     const push = fn.slice(fn.indexOf('meetingRows.push({'));
     const end = push.indexOf('\n      });');
     const row = push.slice(0, end);
-    expect(row.trimEnd().endsWith('...catchUpExportCells(catchUpByKey.get(k)),')).toBe(true);
+    expect(row.indexOf('...catchUpExportCells(catchUpByKey.get(k)),')).toBeGreaterThan(0);
+    expect(row.indexOf('previous_score_percent:')).toBeGreaterThan(row.indexOf('...catchUpExportCells('));
+    expect(/previous_score_percent:[^\n]*,$/.test(row.trimEnd())).toBe(true);
     // The earlier columns are unchanged and still in their places.
     expect(row.indexOf('was_reset:')).toBeLessThan(row.indexOf('reset_times_iso:'));
     expect(row.indexOf('...afterValues,')).toBeLessThan(row.indexOf('...catchUpExportCells('));

@@ -820,6 +820,11 @@ export function formatDuration(ms: number): string {
 // layer 1 (score, working group) by the PRD percentage rule, layer 2 (knowledge
 // gaps, teaching recommendations) by the AI engine, plus the exercise narrative.
 
+/** PRD 23 §ב: measure 1 has this one name in every report and on every screen. */
+export const FIRST_ATTEMPT_SCORE_LABEL_HE = 'ציון ניסיון ראשון (מדד 1)';
+/** PRD 14 §ב0 / 23 §ב: the score before the learner completed the meeting in catch-up time. */
+export const PREVIOUS_SCORE_LABEL_HE = 'הציון הקודם (לפני ההשלמה)';
+
 /** PRD Module 23 §ד: the only text shown while a report is not ready. */
 export const REPORT_PROCESSING_TEXT = 'הדוח בעיבוד כעת, אנא נסו שוב בעוד מספר רגעים';
 /**
@@ -890,6 +895,11 @@ export interface MeetingReport {
   sessionNumber: number;
   /** null when the meeting is not scored (meeting 1) — never shown as 0%. */
   scorePercent: number | null;
+  /**
+   * PRD 14 §ב0 / 23 §ב: the score before the learner's latest completion of
+   * the meeting (catch-up time), shown beside the new one. null when none.
+   */
+  previousScorePercent: number | null;
   /** Set for meeting 1: the report shows tools and refresh outcomes instead of a score and a group. */
   sandbox: SandboxReportPart | null;
   /** Where the score came from: the meeting's session document, or the PRD first-attempt rule over its telemetry. */
@@ -1024,6 +1034,7 @@ export function reportFromData(
     sessionId: String(d.session_id ?? sessionId),
     sessionNumber,
     scorePercent: sandbox || typeof d.score_percent !== 'number' ? null : d.score_percent,
+    previousScorePercent: sandbox || typeof d.previous_score_percent !== 'number' ? null : d.previous_score_percent,
     sandbox: sandbox ? sandboxPartOf(d) : null,
     scoreSource: String(d.score_source ?? ''),
     routingLabelHe: String(d.routing_label_he ?? ''),

@@ -27,6 +27,8 @@ export interface RtdbDelivery {
   mode: RtdbWriteMode;
   /** See QueuedAction.skipFieldsIfGateApproved. */
   skipFieldsIfGateApproved?: string[];
+  /** See QueuedAction.completionMarkOf. */
+  completionMarkOf?: number;
 }
 
 export type RtdbSyncHandler = (refPath: string, payload: any, delivery: RtdbDelivery) => Promise<void>;
@@ -51,6 +53,15 @@ export interface QueuedAction {
    * replayed late, over an approval, they would lock the child out again.
    */
   skipFieldsIfGateApproved?: string[];
+  /**
+   * The learner's "meeting N finished" mark (completedMeetings/m{N},
+   * FirebaseSyncService.markMeetingCompleted). A teacher's reset of meeting N
+   * clears the mark on the record; a mark still queued from before the reset
+   * must not write it back. It is dropped when this device takes up the reset
+   * (discardCompletionMarks), and held at delivery while the record shows that
+   * reset still waiting for the learner's screen (deliverQueuedRtdbWrite).
+   */
+  completionMarkOf?: number;
   /**
    * Module 22 §ה: a teacher→admin message written while offline is queued here
    * and sent through the named Cloud Function when the connection returns, so
@@ -282,7 +293,7 @@ export const SERVER_SCORED_FIELDS = ['session_score_percent', 'matrix_recommende
  * meeting-2 completion queued by an earlier version carries the device clock
  * ±30 minutes there; it is left out at delivery.
  */
-const SERVER_SESSION_DOC_FIELDS = [...SERVER_SCORED_FIELDS, 'evaluated_at', 'session_start_time', 'session_deadline_time'];
+const SERVER_SESSION_DOC_FIELDS = [...SERVER_SCORED_FIELDS, 'evaluated_at', 'previous_score_percent', 'session_start_time', 'session_deadline_time'];
 
 /** Owner of an item nobody can attribute to a learner: any staff identity may send it. */
 export const ANY_STAFF_OWNER = 'staff:*';
@@ -329,6 +340,7 @@ export function rtdbDeliveryOf(item: QueuedAction): RtdbDelivery {
     return {
       mode: item.rtdbMode,
       ...(item.skipFieldsIfGateApproved ? { skipFieldsIfGateApproved: item.skipFieldsIfGateApproved } : {}),
+      ...(typeof item.completionMarkOf === 'number' ? { completionMarkOf: item.completionMarkOf } : {}),
     };
   }
   const key = String(item.idempotency_key ?? item.payload?.idempotency_key ?? '');
@@ -704,12 +716,13 @@ export class IndexedDBQueue {
     refPath: string,
     fields: Record<string, unknown>,
     idempotencyKey: string,
-    options: { skipFieldsIfGateApproved?: string[] } = {}
+    options: { skipFieldsIfGateApproved?: string[]; completionMarkOf?: number } = {}
   ): Promise<void> {
     await this.store({
       refPath,
       rtdbMode: 'merge',
       ...(options.skipFieldsIfGateApproved?.length ? { skipFieldsIfGateApproved: options.skipFieldsIfGateApproved } : {}),
+      ...(typeof options.completionMarkOf === 'number' ? { completionMarkOf: options.completionMarkOf } : {}),
       payload: { ...fields },
       timestamp: Date.now(),
       idempotency_key: idempotencyKey,
@@ -1162,7 +1175,7 @@ export class IndexedDBQueue {
     }
     if (item.refPath) {
       if (!this.syncCallback) return false;
-      const { mode, skipFieldsIfGateApproved } = rtdbDeliveryOf(item);
+      const { mode, skipFieldsIfGateApproved, completionMarkOf } = rtdbDeliveryOf(item);
       // A child write needs its key in the payload; items stored by the legacy
       // enqueue(refPath, payload) form may carry it on the item only.
       const payload = mode === 'child' && item.payload && typeof item.payload === 'object' && !item.payload.idempotency_key && item.idempotency_key
@@ -1171,6 +1184,7 @@ export class IndexedDBQueue {
       await this.syncCallback(item.refPath, payload, {
         mode,
         ...(skipFieldsIfGateApproved ? { skipFieldsIfGateApproved } : {}),
+        ...(typeof completionMarkOf === 'number' ? { completionMarkOf } : {}),
       });
       return true;
     }
@@ -1257,6 +1271,49 @@ export class IndexedDBQueue {
 
   public getOnlineStatus(): boolean {
     return this.isOnline;
+  }
+
+  /**
+   * A teacher's reset of a meeting, taken up on this device: the "meeting
+   * finished" marks still queued for it (QueuedAction.completionMarkOf) under
+   * these record paths belong to the run the reset erased, and are removed.
+   * `meeting` 'all': every meeting's. Nothing else is touched — telemetry and
+   * every other item stay until the server acknowledges them (Module 17 §ג).
+   * Returns how many marks were removed.
+   */
+  public async discardCompletionMarks(refPaths: string[], meeting: number | 'all'): Promise<number> {
+    const paths = new Set(refPaths);
+    const stale = (item: QueuedAction) =>
+      typeof item.completionMarkOf === 'number' &&
+      paths.has(String(item.refPath ?? '')) &&
+      (meeting === 'all' || item.completionMarkOf === meeting);
+    let removed = 0;
+    const before = this.memoryFallback.length;
+    this.memoryFallback = this.memoryFallback.filter((i) => !stale(i));
+    removed += before - this.memoryFallback.length;
+    if (!this.db) await this.initDB();
+    if (this.db) {
+      for (const storeName of [STORE_NAME, LEGACY_STORE_NAME]) {
+        if (!this.db.objectStoreNames.contains(storeName)) continue;
+        const items = await new Promise<QueuedAction[]>((resolve) => {
+          try {
+            const req = this.db!.transaction([storeName], 'readonly').objectStore(storeName).getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+          } catch {
+            resolve([]);
+          }
+        });
+        for (const item of items) {
+          if (item.id !== undefined && stale(item)) {
+            await this.deleteById(storeName, item.id);
+            removed++;
+          }
+        }
+      }
+    }
+    if (removed > 0) await this.refreshPendingCount().catch(() => {});
+    return removed;
   }
 
   /**
