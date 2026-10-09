@@ -39,6 +39,7 @@ export function TaskZoneHeader({
   topic: string | null;
   showStation: boolean;
 }) {
+  if (TZ_VARIANT) return <HierarchyHeader stationNumber={stationNumber} positionLabel={positionLabel} topic={topic} showStation={showStation} />;
   return (
     <div className="shrink-0 flex items-start justify-between gap-3 mb-fl-6-16">
       <h1 className="font-display font-black text-ws-ink leading-tight [text-wrap:balance] text-[clamp(20px,calc(1.1429vh+13.14px),24px)]" data-testid="task-heading">
@@ -114,6 +115,7 @@ export function GuideBlock({
   doneNote: string | null;
   lockHeight: boolean;
 }) {
+  if (TZ_VARIANT) return <HierarchyGuideBlock variant={TZ_VARIANT} goal={goal} steps={steps} speech={speech} done={done} doneNote={doneNote} lockHeight={lockHeight} />;
   // Without a work area (station 1's tool steps) the rows take the taller size: the space is there.
   const roomy = !lockHeight;
   const working = <StepList steps={steps} testId="guide-steps" roomy={roomy} />;
@@ -305,5 +307,173 @@ function ProceedChip({ ghost = false }: { ghost?: boolean }) {
       {PROCEED_HE}
       <ArrowLeft className="w-4 h-4" aria-hidden="true" />
     </span>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * TRIAL ONLY (owner's hierarchy review, 9.10.2026, branch claude/task-zone-hierarchy):
+ * two alternative task-zone designs, chosen at dev-server start with
+ * VITE_TASK_ZONE_VARIANT=A ("open list") or =B ("calm card"). Unset — every
+ * build and deploy — the layout above stays. Same wording, same order, same
+ * done-box slot and locked height (PRD Module 7 §א rules 1–8). Not for main.
+ * ─────────────────────────────────────────────────────────────────────────── */
+type TzVariant = 'A' | 'B';
+const TZ_ENV = import.meta.env.VITE_TASK_ZONE_VARIANT as string | undefined;
+const TZ_VARIANT: TzVariant | null = TZ_ENV === 'A' || TZ_ENV === 'B' ? TZ_ENV : null;
+
+/** Location small and soft, topic large and bold — still one sentence (Module 14 §ב); the station tag quiet. */
+function HierarchyHeader({ stationNumber, positionLabel, topic, showStation }: { stationNumber: number; positionLabel: string; topic: string | null; showStation: boolean }) {
+  return (
+    <div className="shrink-0 flex items-start justify-between gap-3 mb-2">
+      <h1 className="font-display font-black text-ws-ink leading-[1.3] [text-wrap:balance] text-[clamp(20px,calc(1.1429vh+13.14px),24px)]" data-testid="task-heading">
+        {topic ? (
+          <>
+            <span className="text-sm font-semibold text-ws-soft" data-testid="task-position">
+              {positionLabel}:
+            </span>{' '}
+            {topic}
+          </>
+        ) : (
+          positionLabel
+        )}
+      </h1>
+      {showStation && (
+        <span className="shrink-0 mt-1 text-sm font-semibold text-ws-soft border border-ws-surface2 rounded-full px-2.5 leading-6" data-testid="station-tag">
+          תחנה {stationNumber}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function HierarchyGuideBlock({
+  variant,
+  goal,
+  steps,
+  speech,
+  done,
+  doneNote,
+  lockHeight,
+}: {
+  variant: TzVariant;
+  goal: string | null;
+  steps: StepView[];
+  speech: string;
+  done: boolean;
+  doneNote: string | null;
+  lockHeight: boolean;
+}) {
+  // PRD Module 7 rule (2): the step rows may close up to 2–4px when the card would otherwise scroll —
+  // the exercises with condition lines, which carry the vertical sheet. Every other gap stays the same.
+  const tight = lockHeight && steps.some((s) => s.subs?.length);
+  const list = (s: StepView[], testId?: string) => <HierarchyStepList variant={variant} steps={s} testId={testId} tight={tight} />;
+  const working = list(steps, 'guide-steps');
+  const finished = (ghost: boolean) => (
+    <div className="flex flex-col gap-3">
+      {list(steps.map((s) => ({ ...s, subs: undefined })), ghost ? undefined : 'guide-steps')}
+      {ghost ? <DoneBoxBody note={doneNote} ghost /> : <DoneBox note={doneNote} />}
+    </div>
+  );
+  const speak = (
+    <span className="inline-block align-middle -my-3 ms-2">
+      <UdlSpeechButton text={speech} />
+    </span>
+  );
+  const panel = variant === 'B' ? 'rounded-2xl border border-ws-surface2 px-4 py-3' : '';
+  return (
+    <section
+      className={`shrink-0 flex flex-col mb-4 ${panel}`}
+      style={variant === 'B' ? { backgroundColor: 'hsl(var(--ws-blue-soft) / 0.35)' } : undefined}
+      data-testid="task-instruction"
+      data-variant={variant}
+    >
+      {goal ? (
+        <p className="max-w-[60ch] text-[clamp(17px,calc(0.5714vh+13.57px),19px)] text-ws-ink font-semibold leading-normal [text-wrap:pretty]" data-testid="task-goal">
+          <MathText text={goal} />
+          {speak}
+        </p>
+      ) : null}
+      {steps.length > 0 && (
+        <h2 className={`${goal ? 'mt-2' : ''} mb-2 text-[15px] leading-normal font-bold text-ws-ink`}>
+          מה עושים:
+          {!goal && speak}
+        </h2>
+      )}
+      {steps.length > 0 &&
+        (lockHeight ? (
+          <div className="grid" data-testid="guide-slot">
+            <div className={`[grid-area:1/1] ${done ? 'invisible' : ''}`} aria-hidden={done || undefined} inert={done || undefined}>
+              {done ? list(steps) : working}
+            </div>
+            <div className={`[grid-area:1/1] ${done ? '' : 'invisible'}`} aria-hidden={!done || undefined} inert={!done || undefined}>
+              {finished(!done)}
+            </div>
+          </div>
+        ) : done ? (
+          finished(false)
+        ) : (
+          working
+        ))}
+    </section>
+  );
+}
+
+function HierarchyStepList({ variant, steps, testId, tight }: { variant: TzVariant; steps: StepView[]; testId?: string; tight: boolean }) {
+  const numbered = steps.length > 1;
+  // A: open list, 16px between steps. B: one panel, thin dividers, 12px each side.
+  const listClass = variant === 'A' ? `flex flex-col ${tight ? 'gap-1' : 'gap-4'}` : 'flex flex-col divide-y divide-ws-surface2';
+  return (
+    <ol className={listClass} data-testid={testId}>
+      {steps.map((step, i) => (
+        <HierarchyStepRow key={`${i}-${step.label}`} variant={variant} step={step} number={numbered ? i + 1 : null} first={i === 0} last={i === steps.length - 1} tight={tight} />
+      ))}
+    </ol>
+  );
+}
+
+const H_MARK: Record<StepState, string> = {
+  done: 'bg-emerald-600 text-white',
+  current: 'bg-ws-blue text-white',
+  todo: 'border-2 border-ws-soft text-ws-soft',
+  passed: 'border-2 border-ws-soft text-ws-soft',
+};
+
+function HierarchyStepRow({ variant, step, number, first, last, tight }: { variant: TzVariant; step: StepView; number: number | null; first: boolean; last: boolean; tight: boolean }) {
+  const mark = number === null && step.state !== 'done' ? (step.state === 'current' ? 'border-2 border-ws-blue' : H_MARK.todo) : H_MARK[step.state];
+  const pt = first ? 'pt-0' : tight ? 'pt-0.5' : 'pt-3';
+  const pb = last ? 'pb-0' : tight ? 'pb-0.5' : 'pb-3';
+  const pad = variant === 'B' ? `${pt} ${pb}` : '';
+  const band = step.state === 'current' ? 'bg-ws-blueSoft/70' : '';
+  return (
+    <li className={pad} data-state={step.state}>
+      <div className="flex items-start gap-3">
+        <span aria-hidden="true" className={`shrink-0 mt-[3px] w-6 h-6 rounded-full flex items-center justify-center text-sm font-black tz-step-color ${mark}`}>
+          {step.state === 'done' ? <Check className="w-4 h-4" strokeWidth={3} /> : number}
+        </span>
+        <span className={`flex-1 min-w-0 -my-0.5 py-0.5 px-2 -mx-2 rounded-lg text-base font-medium text-ws-ink leading-normal tz-step-color ${band}`}>
+          <MathText text={step.label} />
+        </span>
+        {step.state === 'done' ? (
+          <span className="shrink-0 mt-0.5 text-sm font-bold leading-6 text-emerald-800 dark:text-emerald-300">בוצע</span>
+        ) : step.progress ? (
+          <span className="mt-2">
+            <ProgressDots value={step.progress.value} of={step.progress.of} />
+          </span>
+        ) : null}
+      </div>
+      {step.subs?.length ? (
+        <ul
+          className={`mt-1 ms-9 flex flex-col gap-1 ${variant === 'B' ? 'rounded-xl px-3 py-1' : ''}`}
+          style={variant === 'B' ? { backgroundColor: 'hsl(var(--ws-surface) / 0.75)' } : undefined}
+          data-testid="step-subs"
+        >
+          {step.subs.map((sub) => (
+            <li key={sub} className="text-sm font-normal text-ws-soft leading-snug">
+              <MathText text={sub} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </li>
   );
 }
