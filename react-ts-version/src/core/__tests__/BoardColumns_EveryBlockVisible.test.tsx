@@ -295,12 +295,10 @@ describe('the column renders every block, at the fitted size', () => {
   });
 
   it('the digit sits beside the column name, not pinned over it', () => {
-    // the teacher's demonstration board shows the digits in station 1
-    // (in stations 3–7 it shows the board as the learners see it — Module 15 §ג)
-    const was = useWorkspaceStore.getState().sessionNumber;
-    useWorkspaceStore.setState({ projectorBoard: true, sessionNumber: 1, counts: { units: 0, tens: 0, hundreds: 45, thousands: 0 } } as any);
+    // the teacher's projector board shows the digits in every range (stations 3–7 hide them)
+    useWorkspaceStore.setState({ projectorBoard: true, counts: { units: 0, tens: 0, hundreds: 45, thousands: 0 } } as any);
     const { container } = render(<DndContext><PlaceColumn place="hundreds" /></DndContext>);
-    useWorkspaceStore.setState({ projectorBoard: false, sessionNumber: was } as any);
+    useWorkspaceStore.setState({ projectorBoard: false } as any);
     const badge = Array.from(container.querySelectorAll('span[aria-hidden="true"]')).find((e) => e.textContent === '45') as HTMLElement;
     expect(badge).toBeTruthy();
     expect(badge.className).not.toMatch(/\babsolute\b/);

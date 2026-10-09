@@ -71,10 +71,10 @@ export function PlaceColumn({
     // "Build the number X" built another way (owner, 4.10.2026): the board is right as it stands.
     return builtAnyWay(t, s.counts) || t.isSubtraction === true || t.type === 'flexible_decomp' || (req[place] ?? 0) >= 10;
   });
-  // The teacher's demonstration: station 1 shows the digits; stations 3–7
-  // show the board as the learners see it (Module 15 §ג, owner 9.10.2026).
+  // PRD Module 7 (l.290): on the teacher's projector board the digits stay
+  // shown in every station, because the teacher is demonstrating.
   const digitShown = useWorkspaceStore((s) =>
-    (s.projectorBoard && s.sessionNumber === 1) || columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)
+    s.projectorBoard || columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)
   );
   // PRD Module 7 §א: columns outside the current calculation focus are dimmed
   // to brightness 0.6 (core/columnFocus.ts: gap יט, calibrated 2.10.2026 —
