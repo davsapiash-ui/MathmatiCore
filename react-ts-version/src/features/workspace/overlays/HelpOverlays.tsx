@@ -535,7 +535,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
             onClick={() => handleSelect(opt)}
             // At least 44px tall, the child's touch target (DESIGN_SYSTEM_RULES.md;
             // UX audit 4.10.2026: 36–42px on 585–729px-high windows).
-            className={`min-h-11 ${columns ? 'px-2 justify-center text-center' : 'px-3 text-right'} py-[clamp(0.3125rem,1.3vh,0.75rem)] rounded-2xl border-2 font-medium ${columns ? 'text-sm' : 'text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug transition-all flex items-center gap-2 ${
+            className={`min-h-11 ${columns ? 'px-2 py-1 justify-center text-center' : 'px-3 text-right py-[clamp(0.3125rem,1.3vh,0.75rem)]'} rounded-2xl border-2 font-medium ${columns ? 'text-sm' : 'text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug transition-all flex items-center gap-2 ${
               isCorrectChosen
                 ? 'border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100'
                 : isWrongChosen
@@ -559,7 +559,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
         <div
           role="status"
           aria-live="assertive"
-          className={`rounded-2xl px-3 py-[clamp(0.25rem,1vh,0.75rem)] ${columns ? 'text-sm' : 'text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug font-semibold ${
+          className={`rounded-2xl px-3 ${columns ? 'py-1.5 text-sm' : 'py-[clamp(0.25rem,1vh,0.75rem)] text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug font-semibold ${
           selectedOpt && options.find(o => o.id === selectedOpt)?.correct
             ? 'bg-emerald-50 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800'
             : 'bg-rose-50 text-rose-950 dark:bg-rose-950/50 dark:text-rose-200 border border-rose-300 dark:border-rose-800'

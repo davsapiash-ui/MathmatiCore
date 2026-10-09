@@ -230,6 +230,16 @@ describe('PRD 14 §ב0 (v7.15) — the close: unfinished sees the close screen, 
     expect(screen.getByText('סיימתם את תחנה 1!')).toBeTruthy();
   });
 
+  it('S5 — the close finds the learner finished by the record\'s mark (no work in this store): the end screen of that station', async () => {
+    h.session = { ...h.session, active: false, status: 'closed' };
+    useStore.setState({ students: { [STUDENT]: { highestCompletedMeeting: 1, completedMeetings: { m1: 1 } } } as any, firebaseLoaded: true });
+    open(1);
+    await flush();
+    expect(screen.queryByTestId('closed-screen')).toBeNull();
+    expect(screen.getByTestId('station-end-screen')).toBeTruthy();
+    expect(screen.getByText('סיימתם את תחנה 1!')).toBeTruthy();
+  });
+
   it('S4 — the finished learner at the close keeps a way to sign out', async () => {
     const view = await openMeeting1();
     act(() => useWorkspaceStore.setState({ flowStatus: 'sessionDone', awaitingNext: false }));

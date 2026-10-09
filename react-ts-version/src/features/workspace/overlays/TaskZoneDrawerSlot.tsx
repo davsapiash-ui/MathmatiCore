@@ -75,14 +75,30 @@ export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }
         release();
       }
       // A drawer taller than the guide block it covers (long options, the hint
-      // after an answer): the guide block's place grows to the drawer's height,
-      // so the work area moves down into the card's free space below it rather
-      // than going under the drawer. Back to its own height on close.
+      // after an answer): the guide block's place grows toward the drawer's
+      // height, so the work area moves down into the card's free space below
+      // it, never further (capped at that space). Back to its own height on close.
       const aside = slot.querySelector<HTMLElement>('[data-testid="socratic-card"]');
-      const natural = aside ? aside.scrollHeight + 4 : 0;
+      // +2: the aside's own border, outside its scrollHeight.
+      const natural = aside ? aside.scrollHeight + 2 : 0;
       if (covered && covered === instruction) {
         const ownHeight = instruction.getBoundingClientRect().height - added;
-        const want = Math.max(0, natural - (room - added));
+        // Never more than the card's free space under its content: the card
+        // itself must not scroll (PRD 7 §א rule 7) and the result row stays in
+        // it (rule 6). Beyond that the drawer scrolls inside (review RB1).
+        // The free space: from the bottom of the last thing in the guide
+        // block's column to the card's inner bottom, plus what was already
+        // added (scrollHeight never drops below clientHeight, so it cannot tell).
+        const column = instruction.parentElement;
+        const last = column?.lastElementChild as HTMLElement | null | undefined;
+        let slack = 0;
+        if (card && last) {
+          const cs = getComputedStyle(card);
+          const innerBottom = card.getBoundingClientRect().bottom - parseFloat(cs.paddingBottom || '0') - parseFloat(cs.borderBottomWidth || '0');
+          const overflow = Math.max(0, card.scrollHeight - card.clientHeight);
+          slack = Math.max(0, Math.floor(innerBottom - last.getBoundingClientRect().bottom) - overflow + added);
+        }
+        const want = Math.min(slack, Math.max(0, natural - (room - added)));
         if (Math.abs(want - added) > 1) {
           added = want;
           instruction.style.minHeight = added > 0 ? `${Math.round(ownHeight + added)}px` : '';

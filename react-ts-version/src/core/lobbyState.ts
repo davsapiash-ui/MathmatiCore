@@ -1,4 +1,4 @@
-import { isMeetingFinished, hasStartedMeeting, savedSnapshotOfMeeting } from '@/core/meetingCompletion';
+import { isMeetingFinished, hasStartedMeeting, resumeSnapshotFor } from '@/core/meetingCompletion';
 export { lastMeetingOf } from '@/core/classSession';
 import { teacherSentenceHe, type TeacherGender, type TeacherSentenceKey } from '@/core/teacherGender';
 
@@ -50,12 +50,22 @@ export interface LobbyInput {
   lastMeeting: number | null;
   /** The learner's own record (users/students/{id}). */
   record: LearnerRecord;
+  /**
+   * This device's saved copy of a meeting, when there is one: the newer of it
+   * and the record's copy decides, as on entering the workspace
+   * (meetingEntry.planMeetingEntry; review RN1).
+   */
+  deviceCopyOf?: (meeting: number) => Record<string, unknown> | null | undefined;
 }
 
-export function lobbyState({ live, status, sessionNumber, lastMeeting, record }: LobbyInput): LobbyState {
+export function lobbyState({ live, status, sessionNumber, lastMeeting, record, deviceCopyOf }: LobbyInput): LobbyState {
+  const atOptional = (meeting: number) => atOptionalExercises(record, meeting, deviceCopyOf?.(meeting));
   if (live && sessionNumber !== null) {
     if (status === 'paused') {
-      return { kind: 'waiting', sentence: isMeetingFinished(record, sessionNumber) ? finishedSentence(sessionNumber) : 'lobbyPaused' };
+      // A learner still at the optional exercises is not done with the station:
+      // the pause, as the workspace shows it to them.
+      const done = isMeetingFinished(record, sessionNumber) && !atOptional(sessionNumber);
+      return { kind: 'waiting', sentence: done ? finishedSentence(sessionNumber) : 'lobbyPaused' };
     }
     // Module 6: a learner who has completed the active station has no open
     // session — the finished sentence, not the workspace. Except: meeting 2,
@@ -63,7 +73,7 @@ export function lobbyState({ live, status, sessionNumber, lastMeeting, record }:
     // the teacher's close completes part-way (catch-up goes back in); and a
     // meeting 3–7 learner still at the optional exercises (choice screen or a
     // chosen branch), who goes on with them (features/workspace/meetingEntry.ts).
-    if (sessionNumber !== 2 && isMeetingFinished(record, sessionNumber) && !atOptionalExercises(record, sessionNumber)) {
+    if (sessionNumber !== 2 && isMeetingFinished(record, sessionNumber) && !atOptional(sessionNumber)) {
       return { kind: 'waiting', sentence: finishedSentence(sessionNumber) };
     }
     return { kind: 'opening', meeting: sessionNumber };
@@ -77,9 +87,9 @@ export function lobbyState({ live, status, sessionNumber, lastMeeting, record }:
 }
 
 /** Meeting 3–7: the saved copy is past the compulsory seven and not ended (meetingEntry.isPastCompulsoryInProgress). */
-function atOptionalExercises(record: LearnerRecord, meeting: number): boolean {
+function atOptionalExercises(record: LearnerRecord, meeting: number, deviceCopy: Record<string, unknown> | null | undefined): boolean {
   if (meeting < 3 || meeting > 7) return false;
-  const snap = savedSnapshotOfMeeting(record, meeting);
+  const snap = resumeSnapshotFor(record, deviceCopy as Parameters<typeof resumeSnapshotFor>[1], meeting);
   if (!snap) return false;
   if (snap.flowStatus === 'choice_branch') return true;
   return snap.flowStatus === 'task' && typeof snap.selectedBranch === 'string' && snap.selectedBranch.length > 0;

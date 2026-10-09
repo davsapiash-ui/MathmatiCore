@@ -154,6 +154,29 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
         expect(b && overlaps(drawer, b), `the drawer covers no box of the sheet (${i})`).toBe(false);
       }
       await check(page, 'workspace-station4-socratic', viewport.width, viewport.height);
+
+      // Review RB1: after a wrong choice (the hint and the lock line) the drawer
+      // is at its tallest. The card itself never scrolls (PRD 7 §א rule 7) and
+      // the result row stays inside it (rule 6).
+      const wrong = await ws<string>(page, 'const h = st.aiSocraticHint; return (h && h.choices.find((c) => !c.isCorrect)?.textHe) || "";');
+      expect(wrong, 'the card has a wrong option').not.toBe('');
+      await page.getByTestId('socratic-card').getByRole('button', { name: wrong }).click();
+      await page.getByTestId('socratic-lock-indicator').waitFor({ state: 'visible' });
+      await settle(page, 700);
+      const overflow = await page.evaluate(() => {
+        const card = document.querySelector('#tour-task-card') as HTMLElement | null;
+        return card ? card.scrollHeight - card.clientHeight : -1;
+      });
+      expect(overflow, 'the task card does not scroll after a wrong choice').toBeLessThanOrEqual(0);
+      const cardBox = await box(page, '#tour-task-card');
+      const lastBox = await boxes.nth(count - 1).boundingBox();
+      expect(lastBox, 'the result row is on the screen').not.toBeNull();
+      expect(lastBox!.y + lastBox!.height, 'the result row is inside the card').toBeLessThanOrEqual(cardBox.y + cardBox.height + 1);
+      for (let i = 0; i < count; i += 1) {
+        const b = await boxes.nth(i).boundingBox();
+        expect(b && overlaps(await box(page, '[data-testid="socratic-side-panel"]'), b), `after the wrong choice the drawer covers no box (${i})`).toBe(false);
+      }
+      await check(page, 'workspace-station4-socratic-wrong', viewport.width, viewport.height);
     });
 
     test('lobby: finished, finished station 8, closed unfinished', async () => {
@@ -232,6 +255,11 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       await expect(page.getByText('המורה סגרה את התחנה')).toHaveCount(0);
       await check(page, 'waiting-closed-finished', viewport.width, viewport.height);
 
+      // Back to work in an open station (review RN2: the closed session's end
+      // screen stayed under the lock in the shots), then the other device takes over.
+      c.rtdb.set('active_class_session', liveSession(4) as never);
+      await ws(page, 'api.setState({ flowStatus: "task", awaitingNext: false });');
+      await page.locator('[data-testid="task-zone"]').waitFor({ state: 'visible' });
       await ws(page, 'api.setState({ isSupersededByOtherDevice: true });');
       await expect(page.getByText('העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה.')).toBeVisible();
       await check(page, 'waiting-other-device', viewport.width, viewport.height);
