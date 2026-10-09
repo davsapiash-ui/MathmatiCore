@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set, get } from 'firebase/database';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDupqh8inn1tZ1p-KIzV3RIMst7IdpUYPw",
@@ -42,6 +43,19 @@ async function globalSetup() {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
         await createUserWithEmailAndPassword(auth, 'admin@mathmaticore.local', 'carlibach');
       }
+    }
+
+    // 2b. Module 1 §א: every learner has a personal access code. Read the list
+    //     as the admin and hand it to the workers (tests/learnerCode.ts).
+    try {
+      const res = await httpsCallable<unknown, { codes: Record<string, string> }>(
+        getFunctions(app),
+        'getLearnerAccessCodes'
+      )();
+      process.env.E2E_LEARNER_CODES = JSON.stringify(res.data.codes);
+      console.log('Global Setup: learner access codes loaded.');
+    } catch (err) {
+      console.error('Global Setup: could not read learner access codes', err);
     }
 
     // 3. Seed teacher in Firebase Realtime Database

@@ -1,4 +1,5 @@
 import { test } from '@playwright/test';
+import { learnerCode } from '../learnerCode';
 
 test('Generate Average Student Telemetry and AI Report', async ({ browser }) => {
   test.setTimeout(120000); 
@@ -17,7 +18,7 @@ test('Generate Average Student Telemetry and AI Report', async ({ browser }) => 
   await page.locator('select').first().selectOption({ index: 1 }); // Pick first school
   await page.locator('select').nth(1).selectOption({ index: 1 }); // Pick first class
   await page.getByPlaceholder('שם משתמש').fill('user3');
-  await page.getByPlaceholder('סיסמה').fill('10203040');
+  await page.getByPlaceholder('••••').fill(learnerCode(3));
   await page.locator('button').filter({ hasText: 'יאללה, נכנסים! ✨' }).click();
   await page.waitForURL('**/hub', { timeout: 15000 });
   console.log("Logged in as user3.");

@@ -42,6 +42,8 @@ export { hourlyAdminAggregator } from "./adminAggregator";
 export { sendTeacherAdminMessage } from "./teacherAdminChat";
 // Module 25 §ד, owner's decision 26.9.2026: printable login cards for the 12 learners.
 export { getStudentLoginCards } from "./studentLoginCards";
+// Modules 1 §א and 25 §ב.3: personal 4-digit learner access codes (teacher and admin).
+export { getLearnerAccessCodes, regenerateLearnerAccessCode } from "./learnerAccessCodes";
 // Module 21: screen recordings of earlier versions, moved off the learner record on the teacher's press.
 export { moveLegacyRecordings } from "./moveLegacyRecordings";
 

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { learnerCode } from '../learnerCode';
 
 test.describe('Thousands Column Visibility', () => {
   test('verify thousands column is dynamically hidden or shown based on pedagogical rule', async ({ browser }) => {
@@ -22,7 +23,7 @@ test.describe('Thousands Column Visibility', () => {
     await studentPage.locator('select').first().selectOption({ index: 1 });
     await studentPage.locator('select').nth(1).selectOption({ index: 1 });
     await studentPage.getByPlaceholder('שם משתמש').fill('user9');
-    await studentPage.getByPlaceholder('סיסמה').fill('10203040');
+    await studentPage.getByPlaceholder('••••').fill(learnerCode(9));
     await studentPage.getByRole('button', { name: 'יאללה, נכנסים! ✨' }).click();
 
     // Wait for student hub to load

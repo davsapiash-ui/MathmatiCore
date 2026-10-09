@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/infrastructure/firebase";
 import { PILOT_CLASS_NAME, PILOT_SCHOOL_NAME } from "@/core/pilotInstitution";
+import { toast } from "sonner";
 
 /**
  * כרטיסי כניסה להדפסה — PRD מודול 25 §ד ומסמך 04 ("מחולל כרטיסי כניסה להדפסה").
@@ -12,13 +13,32 @@ import { PILOT_CLASS_NAME, PILOT_SCHOOL_NAME } from "@/core/pilotInstitution";
  *
  * התוויות זהות לאלה שבמסך הכניסה ("המספר שלי בכיתה", "קוד גישה"), כדי שהילד
  * יזהה על המסך את מה שכתוב לו על הכרטיס.
+ *
+ * לכל לומד קוד הגישה האישי שלו (מודול 1 §א, מודול 25 §ב.3 ו-§ד). מנהל המערכת
+ * יכול לשנות כאן קוד של לומד ("קוד חדש"); הכפתור אינו מודפס.
  */
-type CardsData = { passcode: string; studentIds: number[] };
+type CardsData = { studentIds: number[]; codes: Record<string, string> };
 
 export function StudentLoginCardsPage() {
   const navigate = useNavigate();
   const [data, setData] = useState<CardsData | null>(null);
   const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const handleNewCode = async (studentId: number) => {
+    setBusyId(studentId);
+    try {
+      const res = await httpsCallable<{ studentId: number }, { studentId: number; code: string }>(
+        functions, "regenerateLearnerAccessCode"
+      )({ studentId });
+      setData((prev) => (prev ? { ...prev, codes: { ...prev.codes, [String(studentId)]: res.data.code } } : prev));
+      toast.success(`לתלמיד ${studentId} נוצר קוד גישה חדש. הקוד הקודם אינו פעיל עוד.`);
+    } catch {
+      toast.error("יצירת הקוד החדש נכשלה. הקוד הקודם נשאר בתוקף.");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -75,8 +95,17 @@ export function StudentLoginCardsPage() {
                 המספר שלי בכיתה: <strong className="text-3xl font-black">{id}</strong>
               </p>
               <p className="text-lg">
-                קוד גישה: <strong className="font-mono tracking-widest">{data.passcode}</strong>
+                קוד גישה: <strong className="font-mono tracking-widest" dir="ltr">{data.codes[String(id)]}</strong>
               </p>
+              <button
+                type="button"
+                onClick={() => handleNewCode(id)}
+                disabled={busyId !== null}
+                aria-label={`קוד חדש לתלמיד ${id}`}
+                className="print:hidden self-start h-9 px-4 rounded-full text-sm font-bold border border-slate-300 disabled:opacity-50"
+              >
+                קוד חדש
+              </button>
             </section>
           ))}
         </div>
