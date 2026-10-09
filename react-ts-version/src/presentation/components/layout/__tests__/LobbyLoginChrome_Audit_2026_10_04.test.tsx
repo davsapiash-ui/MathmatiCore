@@ -106,10 +106,10 @@ describe('A1-075 — the loading gate speaks in the neutral plural', () => {
 });
 
 describe('A1-016 — the public page calls the coaching card by its one name', () => {
-  it('"כרטיס החניכה", not "חונך סוקרטי"', () => {
+  // PRD Module 1 §א, Screen 0: the landing page is clean — logo and two
+  // buttons — so it no longer describes the coaching card at all.
+  it('never "חונך סוקרטי"', () => {
     const landing = src('presentation/pages/LandingPage.tsx');
-    expect(landing).toContain('title: "כרטיס החניכה"');
-    expect(landing).toContain('desc: "כרטיס ששואל שאלה מכוונת במקום לתת תשובה, וכך התובנה נשארת של התלמידים."');
     expect(landing).not.toContain('חונך');
   });
 });

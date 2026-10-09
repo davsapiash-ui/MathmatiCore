@@ -1,16 +1,17 @@
 /**
  * @vitest-environment jsdom
  *
- * A learner who signs in enters a meeting only if the lobby would call it live.
+ * PRD Module 1 §א, Screen 2: a successful sign-in "מעביר ללובי התלמיד" — always
+ * the lobby, never straight into a meeting. A live meeting is the lobby's to
+ * open: it swaps in place to the station's opening screen (Module 6).
  *
- * The sign-in (Login.tsx) and the /login redirect (App.tsx RoleRouter) routed
- * on the raw record, `active && status !== 'closed'`. A meeting the teacher
- * never closed stays `active` in the database past its 45 minutes, and after
- * the teacher's 15-minute disconnect grace. A child who signed in before the
- * teacher opened today's meeting landed in yesterday's — the closed-meeting
- * screen, a fresh SESSION_START, presence "פעיל/ה במפגש N" — instead of the
- * lobby's "היום עוד לא התחלנו" (PRD Module 14 §ב0). Both now use
- * isClassSessionLive on the server clock, as the lobby hook does.
+ * Module 1 §א, "התוצאה הצפויה": "המכשיר שנכנס אחרון הוא הפעיל" — the sign-in,
+ * and only the sign-in, claims the learner for this browser's one stable id.
+ *
+ * Module 1 (Strict): "'Student' routes strictly to Screen 2 ('/auth')".
+ *
+ * readLiveMeetingNumber (the lobby's test on the server clock) keeps its own
+ * tests below.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
@@ -20,6 +21,7 @@ const h = vi.hoisted(() => ({
   record: null as Record<string, unknown> | null,
   clockKnown: true,
   offset: 0,
+  updates: [] as Array<{ path: string; payload: Record<string, unknown> }>,
 }));
 
 // A full stub, not importOriginal: the real module re-exports FirebaseSyncService,
@@ -52,7 +54,11 @@ vi.mock('firebase/database', async (importOriginal) => ({
   ),
   onValue: vi.fn(() => () => {}),
   set: vi.fn(() => Promise.resolve()),
-  update: vi.fn(() => Promise.resolve()),
+  update: vi.fn((r: { path: string }, payload: Record<string, unknown>) => {
+    h.updates.push({ path: r.path, payload });
+    return Promise.resolve();
+  }),
+  serverTimestamp: () => ({ '.sv': 'timestamp' }),
   remove: vi.fn(() => Promise.resolve()),
   push: vi.fn(() => ({ key: 'k' })),
   onDisconnect: vi.fn(() => ({ set: () => Promise.resolve(), update: () => Promise.resolve(), cancel: () => Promise.resolve() })),
@@ -61,15 +67,16 @@ vi.mock('firebase/database', async (importOriginal) => ({
 import { Login } from '@/presentation/pages/Login';
 import { readLiveMeetingNumber } from '../useActiveClassSession';
 import { useAuthStore } from '../useAuthStore';
+import { getDeviceId } from '@/infrastructure/services/telemetryStamp';
 
 const MIN = 60 * 1000;
-const HOUR = 60 * MIN;
 
 async function signInAsLearner() {
   render(
     <MemoryRouter initialEntries={['/login']}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/auth" element={<Login studentForm />} />
         <Route path="/hub" element={<div>LOBBY</div>} />
         <Route path="/workspace" element={<div>MEETING</div>} />
       </Routes>
@@ -80,27 +87,62 @@ async function signInAsLearner() {
   fireEvent.click(screen.getByText('כניסה'));
 }
 
-describe('the sign-in enters a live meeting only', () => {
+describe('the sign-in goes to the lobby', () => {
   beforeEach(() => {
     h.record = null;
     h.clockKnown = true;
     h.offset = 0;
+    h.updates = [];
     useAuthStore.setState({ user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false });
   });
 
   afterEach(() => cleanup());
 
-  it("yesterday's meeting, never closed, still 'active' in the database: the lobby", async () => {
-    h.record = { active: true, status: 'active', sessionNumber: 4, startedAt: Date.now() - 20 * HOUR };
+  it("'תלמיד' on Screen 1 opens Screen 2 at '/auth'", async () => {
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/auth" element={<div>AUTH<Login studentForm /></div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByText('תלמיד'));
+    expect(await screen.findByText('כניסת תלמידים')).toBeTruthy();
+    expect(screen.getByText(/AUTH/)).toBeTruthy();
+  });
+
+  it("'חזרה לתפריט' on Screen 2 goes back to Screen 1", async () => {
+    render(
+      <MemoryRouter initialEntries={['/auth']}>
+        <Routes>
+          <Route path="/login" element={<div>ROLES</div>} />
+          <Route path="/auth" element={<Login studentForm />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    fireEvent.click(await screen.findByText(/חזרה לתפריט/));
+    expect(await screen.findByText('ROLES')).toBeTruthy();
+  });
+
+  it('no meeting live: the lobby', async () => {
+    await signInAsLearner();
+    await waitFor(() => expect(screen.getByText('LOBBY')).toBeTruthy());
+  });
+
+  it("today's meeting live: still the lobby, which opens it in place", async () => {
+    h.record = { active: true, status: 'active', sessionNumber: 4, startedAt: Date.now() - 10 * MIN };
     await signInAsLearner();
     await waitFor(() => expect(screen.getByText('LOBBY')).toBeTruthy());
     expect(screen.queryByText('MEETING')).toBeNull();
   });
 
-  it("today's meeting, opened ten minutes ago: straight into it", async () => {
-    h.record = { active: true, status: 'active', sessionNumber: 4, startedAt: Date.now() - 10 * MIN };
+  it("claims the learner for this browser's stable device id", async () => {
     await signInAsLearner();
-    await waitFor(() => expect(screen.getByText('MEETING')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('LOBBY')).toBeTruthy());
+    const claims = h.updates.filter((u) => u.path === 'users/students/student_user1' && 'active_device_id' in u.payload);
+    expect(claims).toHaveLength(1);
+    expect(claims[0].payload.active_device_id).toBe(getDeviceId());
   });
 });
 

@@ -105,6 +105,7 @@ import { resetThrottledWrites, rtdbUpdateNow, RTDB_WRITE_THROTTLE_MS } from '@/i
 import { HeatmapGrid } from '@/presentation/pages/TeacherDashboard/components/HeatmapGrid';
 import { isHeartbeatFresh, PRESENCE_FRESH_WINDOW_MS } from '@/core/presence';
 import { approvePath } from '@/test/approvedPath';
+import { getDeviceId } from '@/infrastructure/services/telemetryStamp';
 
 const UID = 'student_user12';
 const STUDENT = `users/students/${UID}`;
@@ -327,41 +328,79 @@ describe('Module 18 — every client write to the learner record is throttled to
 });
 
 describe('WP6 — the soft device lock locks only for another device', () => {
-  it('opened from the lobby onto a record that still names an earlier visit\'s device: this device claims the learner and is not locked', async () => {
+  // PRD Module 1 §א: "המכשיר שנכנס אחרון הוא הפעיל, והמכשיר הקודם עובר למצב
+  // קריאה בלבד עם ההודעה "המשכתם במכשיר אחר"". The claim is the sign-in's
+  // (Login.tsx), with this browser's one stable id; the page only reads it.
+  const claimsFromThisPage = () =>
+    fake.db.writes.filter((w) => (w.path === STUDENT && 'active_device_id' in w.value) || w.path === `${STUDENT}/active_device_id`);
+
+  it('opened from the lobby onto a record that still names a per-load id from before the stable id: this device claims the learner and is not locked', async () => {
     useStore.setState({ firebaseLoaded: true } as any);
     const startedAt = fake.db.serverTime();
     await openMeeting(4, startedAt);
-    // Every page load draws a new device id, so the record always names the
-    // device of an earlier visit (yesterday's, or this tab before a refresh).
-    fake.db.update(STUDENT, { active_device_id: 'dev_earlier_visit' });
+    // The id an older build drew on every page load. It names no device that
+    // can be told apart from this one.
+    fake.db.update(STUDENT, { active_device_id: 'dev_k3j9x2a_1759000000000' });
     fake.db.writes = [];
     // The record answers the page's listener after a round trip, as the real
     // SDK does: the presence write is queued, guarded by the lock, before then.
     fake.db.deferFirstSnapshot = true;
     // The lobby's "leaving" write goes out as the workspace opens: the record's
-    // write window is busy when the page claims the learner. The claim used to
-    // wait for that window, the listener saw the earlier device in the meantime
-    // and locked the page, and the lock's own guard then dropped the claim —
-    // "המשכתם במכשיר אחר" on the only device, through every refresh.
+    // write window is busy when the page claims the learner.
     await act(async () => { await rtdbUpdateNow(STUDENT, { isOnline: false, lastPing: 0 }); });
     const view = await mountMeeting(4);
     await settle();
-    // Not even for the moment the claim waits for its window.
     expect(ws().isSupersededByOtherDevice).toBe(false);
     await advance(3 * RTDB_WRITE_THROTTLE_MS);
     await settle();
 
     expect(ws().isSupersededByOtherDevice).toBe(false);
-    expect(fake.db.read(`${STUDENT}/active_device_id`)).toBe(ws().activeDeviceId);
+    expect(fake.db.read(`${STUDENT}/active_device_id`)).toBe(getDeviceId());
+    expect(ws().activeDeviceId).toBe(getDeviceId());
     expect(view.container.textContent).not.toContain('המשכתם במכשיר אחר');
-    // The recording was never stopped by a lock.
     await vi.waitFor(() => expect(rrweb.started).toBe(1));
     expect(rrweb.stopped).toBe(0);
 
-    // Another device that claims the learner afterwards still locks this one.
-    await act(async () => { fake.db.update(STUDENT, { active_device_id: 'dev_other_tablet' }); });
+    // Another device that signs in afterwards still locks this one.
+    await act(async () => { fake.db.update(STUDENT, { active_device_id: 'othertabletsignedinlater' }); });
     await settle();
     expect(ws().isSupersededByOtherDevice).toBe(true);
+  });
+
+  it('the record names this browser (it signed in last): not locked, and the page load writes no claim', async () => {
+    useStore.setState({ firebaseLoaded: true } as any);
+    await openMeeting(4, fake.db.serverTime());
+    fake.db.update(STUDENT, { active_device_id: getDeviceId() });
+    fake.db.writes = [];
+    const view = await mountMeeting(4);
+    await settle();
+    await advance(3 * RTDB_WRITE_THROTTLE_MS);
+    await settle();
+    expect(ws().isSupersededByOtherDevice).toBe(false);
+    expect(view.container.textContent).not.toContain('המשכתם במכשיר אחר');
+    expect(claimsFromThisPage()).toEqual([]);
+  });
+
+  it('a device that signed in earlier and reloads its workspace does not take the learner back', async () => {
+    useStore.setState({ firebaseLoaded: true } as any);
+    await openMeeting(4, fake.db.serverTime());
+    // Another tablet signed in after this browser did.
+    fake.db.update(STUDENT, { active_device_id: 'othertabletsignedinlater' });
+    fake.db.writes = [];
+    const view = await mountMeeting(4);
+    await settle();
+    await advance(3 * RTDB_WRITE_THROTTLE_MS);
+    await settle();
+
+    expect(ws().isSupersededByOtherDevice).toBe(true);
+    expect(view.container.textContent).toContain('המשכתם במכשיר אחר');
+    expect(view.container.textContent).toContain('העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה.');
+    expect(fake.db.read(`${STUDENT}/active_device_id`)).toBe('othertabletsignedinlater');
+    expect(claimsFromThisPage()).toEqual([]);
+    // Read-only: no presence heartbeat from this device either.
+    await advance(10_000);
+    await settle();
+    expect(fake.db.writes.filter((w) => w.path === STUDENT && 'isOnline' in w.value && w.value.isOnline === true)).toEqual([]);
   });
 });
 

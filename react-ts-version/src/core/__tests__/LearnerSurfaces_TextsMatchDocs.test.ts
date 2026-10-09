@@ -71,7 +71,8 @@ describe('the lobby has no entry button — the page swaps to the opening screen
   });
 
   it('an activated session swaps the page, without a reload, to the workspace and its opening screen', () => {
-    expect(hub).toContain("const openingMeeting = activeClassSession.isLoaded && (recordLoaded || !normUid) && state.kind === 'opening' && !isAwaitingTeacherGate && !isProjectorModeActive");
+    // A device another device took over (PRD Module 1 §א) never swaps in.
+    expect(hub).toContain("const openingMeeting = !isSuperseded && activeClassSession.isLoaded && (recordLoaded || !normUid) && state.kind === 'opening' && !isAwaitingTeacherGate && !isProjectorModeActive");
     expect(hub).toMatch(/navigate\(`\/workspace\?meeting=\$\{openingMeeting\}`, \{ replace: true \}\);/);
     expect(hub).not.toContain('window.location');
   });

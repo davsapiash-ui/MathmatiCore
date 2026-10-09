@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -12,6 +12,9 @@ import { ProjectorWaitingScreen } from '@/presentation/components/student/Projec
 import { useProjectorMode } from '@/application/useProjectorMode';
 import { useTeacherGender } from '@/application/useTeacherGender';
 import { lobbyState, lobbySentenceHe } from '@/core/lobbyState';
+import { useDeviceOwnership } from '@/application/deviceOwnership';
+import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { DeviceSupersededScreen } from '@/presentation/components/student/DeviceSupersededScreen';
 
 export function StudentHub() {
   const navigate = useNavigate();
@@ -26,7 +29,16 @@ export function StudentHub() {
   // stopped. With no learner number nothing below reads or writes a record.
   const normUid = currentStudentUid();
 
-  const [activeSessionId, setActiveSessionId] = useState<number>(1);
+  // PRD Module 6 (Strict): "Keep local Zustand state updated with the latest
+  // session ID fetched from the authoritative server state" — the live
+  // session number of active_class_session, in the workspace store.
+  const lobbySessionId = useWorkspaceStore((s) => s.lobbySessionId);
+  const setLobbySessionId = useWorkspaceStore((s) => s.setLobbySessionId);
+  // PRD Module 1 §א: the device that signed in last is the active one. When
+  // another device signed in after this one, the lobby shows "המשכתם במכשיר
+  // אחר" and writes nothing more to the learner's record.
+  const supersededRef = useRef(false);
+  const isSuperseded = useDeviceOwnership(normUid, supersededRef);
   const [, setLiveRouteStatus] = useState<string | null>(null);
   const [isTeacherGateApproved, setIsTeacherGateApproved] = useState<boolean>(false);
   const [hasCompletedSession2, setHasCompletedSession2] = useState<boolean>(false);
@@ -46,6 +58,10 @@ export function StudentHub() {
   const teacherSessionNum = isTeacherSessionActive ? Number(activeClassSession?.sessionNumber) || 1 : null;
 
   useEffect(() => {
+    setLobbySessionId(teacherSessionNum);
+  }, [teacherSessionNum, setLobbySessionId]);
+
+  useEffect(() => {
     if (!uid || !normUid) return;
     const studentRef = ref(database, `users/students/${normUid}`);
     const unsub = onValue(
@@ -56,11 +72,10 @@ export function StudentHub() {
           const val = snap.val();
           setRecord(val && typeof val === 'object' ? val : null);
           if (val?.forceReload === true) {
-            acknowledgeTeacherReset(normUid, uid, true, val);
+            acknowledgeTeacherReset(normUid, uid, !supersededRef.current, val);
             setHasCompletedSession2(false);
             setIsTeacherGateApproved(false);
             setLiveRouteStatus(null);
-            setActiveSessionId(teacherSessionNum || 1);
             return;
           }
 
@@ -77,10 +92,6 @@ export function StudentHub() {
             val.routeStatus === 'PENDING_TEACHER_APPROVAL'
           );
           setHasCompletedSession2(completedM2);
-
-          // Determine active session ID strictly: Teacher's live broadcast takes absolute precedence
-          const resolvedSession = teacherSessionNum || 1;
-          setActiveSessionId(resolvedSession);
         }
       },
       (err) => {
@@ -92,14 +103,16 @@ export function StudentHub() {
       }
     );
     return () => unsub();
-  }, [uid, normUid, teacherSessionNum]);
+  }, [uid, normUid]);
 
   // Maintain live presence heartbeat while in Student Hub / Lobby
   useEffect(() => {
-    if (!normUid) return;
+    if (!normUid || isSuperseded) return;
     // Every write to the learner record goes through its one throttled writer
-    // (PRD 18: at most once per 1000 ms); leaving is sent at once.
+    // (PRD 18: at most once per 1000 ms); leaving is sent at once. A write
+    // queued before another device took the learner over is not sent after it.
     const presencePath = `users/students/${normUid}`;
+    const guard = () => !supersededRef.current;
 
     throttledRtdbUpdate(presencePath, {
       isOnline: true,
@@ -108,7 +121,7 @@ export function StudentHub() {
       lastActivityTimestamp: Date.now(),
       hasJoinedSession: true,
       lastAction: 'בלובי / ממתין לשיעור',
-    }).catch(() => {});
+    }, { guard }).catch(() => {});
 
     try {
       onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
@@ -119,6 +132,8 @@ export function StudentHub() {
 
     const handleDisconnect = () => {
       stampStudentWindowClosed();
+      // The record is the other device's now: this one does not write it offline.
+      if (supersededRef.current) return;
       rtdbUpdateNow(presencePath, {
         isOnline: false,
         onlineStatus: 'offline',
@@ -137,7 +152,7 @@ export function StudentHub() {
         onlineStatus: 'active',
         lastPing: serverTimestamp(),
         lastActivityTimestamp: Date.now(),
-      }).catch(() => {});
+      }, { guard }).catch(() => {});
     }, 4000);
 
     return () => {
@@ -146,12 +161,12 @@ export function StudentHub() {
       window.removeEventListener('pagehide', handleDisconnect);
       handleDisconnect();
     };
-  }, [normUid]);
+  }, [normUid, isSuperseded]);
 
   // Compute the single active session to render - teacher broadcast takes direct reactive precedence
   const effectiveSessionId = teacherSessionNum
     ? Math.min(Math.max(1, teacherSessionNum), 8)
-    : Math.min(Math.max(1, activeSessionId), 8);
+    : Math.min(Math.max(1, lobbySessionId ?? 1), 8);
 
   // Module 20: If student completed Session 2 and attempts Session 3 without teacher approval -> the meeting-2 waiting screen
   const isAwaitingTeacherGate = hasCompletedSession2 && effectiveSessionId === 3 && !isTeacherGateApproved;
@@ -172,7 +187,7 @@ export function StudentHub() {
     // This device's own copy of the meeting, as the workspace reads it on entry.
     deviceCopyOf: (m) => (normUid || uid ? firebaseSyncService.getLocalSessionProgress(normUid || uid, m) : null),
   });
-  const openingMeeting = activeClassSession.isLoaded && (recordLoaded || !normUid) && state.kind === 'opening' && !isAwaitingTeacherGate && !isProjectorModeActive
+  const openingMeeting = !isSuperseded && activeClassSession.isLoaded && (recordLoaded || !normUid) && state.kind === 'opening' && !isAwaitingTeacherGate && !isProjectorModeActive
     ? state.meeting
     : null;
 
@@ -181,6 +196,10 @@ export function StudentHub() {
       navigate(`/workspace?meeting=${openingMeeting}`, { replace: true });
     }
   }, [openingMeeting, navigate]);
+
+  if (isSuperseded) {
+    return <DeviceSupersededScreen />;
+  }
 
   // Module 15: projector broadcast covers every student surface, the lobby included
   if (isProjectorModeActive) {

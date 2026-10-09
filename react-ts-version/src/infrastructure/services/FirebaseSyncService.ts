@@ -419,6 +419,13 @@ export function liveMistakeCount(state: {
   return Math.max(state.consecutiveErrorCount || 0, boardChecks);
 }
 
+/**
+ * PRD Module 1 §א: "המכשיר הקודם עובר למצב קריאה בלבד". Checked when a
+ * throttled presence or live-state write is sent: none goes out from a device
+ * another device signed in after (application/deviceOwnership.ts).
+ */
+const notSuperseded = (): boolean => !useWorkspaceStore.getState().isSupersededByOtherDevice;
+
 export class FirebaseSyncService {
   private static instance: FirebaseSyncService;
   private unsubscribeWorkspace: (() => void) | null = null;
@@ -641,7 +648,7 @@ export class FirebaseSyncService {
       lastPing: serverTimestamp(),
       lastActivityTimestamp: Date.now(),
       hasJoinedSession: true,
-    }).catch(() => {});
+    }, { guard: notSuperseded }).catch(() => {});
     
     this.isInitialLoad = true;
     this.lastSyncedPayloadKey = null;
@@ -1901,9 +1908,12 @@ export class FirebaseSyncService {
     // Write live snapshot to RTDB for both student aliases — merged into the
     // record's one write per window (PRD 18: at most once per 1000 ms). It used
     // to be a write of its own on every event: ten block drops, ten writes.
-    throttledRtdbUpdate(`users/students/${normUid}`, rtdbLiveUpdate).catch(() => {});
+    // PRD Module 1 §א: a device another device took over is read-only — its
+    // live state no longer reaches the record (its queue still sends, Module 17).
+    const liveGuard = { guard: notSuperseded };
+    throttledRtdbUpdate(`users/students/${normUid}`, rtdbLiveUpdate, liveGuard).catch(() => {});
     if (normUid !== rawStudentUid) {
-      throttledRtdbUpdate(`users/students/${rawStudentUid}`, rtdbLiveUpdate).catch(() => {});
+      throttledRtdbUpdate(`users/students/${rawStudentUid}`, rtdbLiveUpdate, liveGuard).catch(() => {});
     }
 
     // 6. Enqueue into IndexedDB FIFO queue (Module 17) -> syncs to Firestore telemetry_logs

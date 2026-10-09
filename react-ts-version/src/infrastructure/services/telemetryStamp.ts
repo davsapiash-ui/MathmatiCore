@@ -18,6 +18,8 @@ export const DEVICE_ID_STORAGE_KEY = 'mc_telemetry_device_id';
 export const SEQUENCE_STORAGE_KEY = 'mc_telemetry_sequence';
 
 let memoryDeviceId: string | null = null;
+/** memoryDeviceId is also in this browser's storage, so a reload reads it back. */
+let memoryDeviceIdStored = false;
 let memorySequence: { signIn: string; n: number } | null = null;
 
 function storage(): Storage | null {
@@ -57,13 +59,28 @@ export function getDeviceId(): string {
     const stored = store?.getItem(DEVICE_ID_STORAGE_KEY);
     if (stored && DEVICE_ID_PATTERN.test(stored)) {
       memoryDeviceId = stored;
+      memoryDeviceIdStored = true;
       return stored;
     }
   } catch { /* storage blocked: an id for this page only */ }
   const id = randomId();
   memoryDeviceId = id;
-  try { store?.setItem(DEVICE_ID_STORAGE_KEY, id); } catch { /* kept in memory */ }
+  try {
+    store?.setItem(DEVICE_ID_STORAGE_KEY, id);
+    memoryDeviceIdStored = store?.getItem(DEVICE_ID_STORAGE_KEY) === id;
+  } catch { /* kept in memory */ }
   return id;
+}
+
+/**
+ * Whether getDeviceId() survives a reload of this page: true when the id is
+ * kept in this browser's storage, false when storage is blocked and the id
+ * lives in this page's memory only (a reload then draws a new one). The soft
+ * device lock (application/deviceOwnership.ts) reads it.
+ */
+export function isDeviceIdStable(): boolean {
+  getDeviceId();
+  return memoryDeviceIdStored;
 }
 
 /**
@@ -162,5 +179,6 @@ export function telemetryDocIdOf(key: string): string {
 /** For tests: forget the in-memory copies. */
 export function resetTelemetryStampForTests(): void {
   memoryDeviceId = null;
+  memoryDeviceIdStored = false;
   memorySequence = null;
 }

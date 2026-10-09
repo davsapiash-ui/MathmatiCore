@@ -849,8 +849,8 @@ const LOBBY_AND_LOGIN: Array<{ opts: ContextOptions; steps: Step[] }> = [
           await cc.page.getByRole('button', { name: 'תלמיד' }).first().click();
         },
       },
-      // The public landing page ("/") is a long presentation page for visitors,
-      // not a screen of the child's work; it is meant to scroll and is not measured.
+      // The public landing page ("/") is the logo and two buttons (PRD Module 1
+      // §א, Screen 0), not a screen of the child's work; it is not measured.
     ],
   },
 ];

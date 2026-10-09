@@ -45,7 +45,7 @@ describe('ע0.2 — the child’s sign-in screen is "כניסת תלמידים" 
 describe('ע0.4 — the public home page says "קושי", as decision ט did on the teacher screens', () => {
   it('no "מאבק"', () => {
     const landing = src('presentation/pages/LandingPage.tsx');
-    expect(landing).toContain('זיהוי קושי, פערים ודפוסי חשיבה');
+    // The feature cards are gone (PRD Module 1 §א, Screen 0: a clean landing page).
     expect(landing).not.toContain('מאבק');
   });
 });

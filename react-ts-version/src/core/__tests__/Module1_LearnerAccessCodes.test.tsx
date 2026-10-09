@@ -97,6 +97,7 @@ describe('מסך הכניסה — קוד בן 4 ספרות', () => {
       <MemoryRouter initialEntries={['/login']}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/auth" element={<Login studentForm />} />
           <Route path="/hub" element={<div>LOBBY</div>} />
           <Route path="/workspace" element={<div>MEETING</div>} />
         </Routes>

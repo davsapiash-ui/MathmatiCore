@@ -64,6 +64,8 @@ import { isMeeting2CloseUnfinished } from '@/core/meeting2CloseNotice';
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
+import { DeviceSupersededScreen } from '@/presentation/components/student/DeviceSupersededScreen';
+import { useDeviceOwnership } from '@/application/deviceOwnership';
 
 /**
  * How long the workspace waits for the learner's Firebase record before it
@@ -216,83 +218,14 @@ export function StudentWorkspacePage() {
     return () => unsub();
   }, []);
 
-  // WP6 / Chaos Scenario 2: Soft Device Lock (active_device_id writer and real-time takeover listener)
-  const currentDeviceIdRef = useRef<string>(
-    `dev_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`
-  );
+  // WP6 / Chaos Scenario 2: Soft Device Lock (PRD Module 1 §א). This page
+  // only reads users/students/{id}/active_device_id: the device that signed in
+  // last is the active one, and the claim is the sign-in's (Login.tsx). The
+  // page used to draw a new id and claim the learner on every load, so an
+  // older device that refreshed, or whose lobby swapped in here, took the
+  // learner back from the device that had signed in after it.
   const isSupersededRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    if (!normUid) return;
-    const myDevId = currentDeviceIdRef.current;
-    const myClaimTime = Date.now();
-    isSupersededRef.current = false;
-    useWorkspaceStore.getState().setActiveDeviceId(myDevId);
-    useWorkspaceStore.getState().setSupersededByOtherDevice(false);
-
-    // Every page load draws a new id, so until this device's claim has reached
-    // the server the record names an earlier load's device — this tab before a
-    // refresh, or yesterday's visit. That is not a takeover. The claim waits
-    // for the record's write window (PRD 18), and the lobby's "leaving" write
-    // has just used it; locking on the earlier id meanwhile locked the only
-    // device, and the lock's guard on the presence and board writes queued in
-    // the same window then dropped the claim with them: "המשכתם במכשיר אחר"
-    // with no other device, through every refresh (owner, live, 28.9.2026).
-    let active = true;
-    let claimLanded = false;
-    let remoteDevId: string | null = null;
-    const applyOwnership = () => {
-      if (!active) return;
-      // Direct ownership check: if the active device recorded in DB is not me, I am locked
-      if (evaluateDeviceOwnership(remoteDevId, myDevId).isSuperseded) {
-        if (!claimLanded) return;
-        isSupersededRef.current = true;
-        useWorkspaceStore.getState().setSupersededByOtherDevice(true);
-        try {
-          onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).cancel();
-          onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).cancel();
-        } catch {}
-      } else if (remoteDevId === myDevId) {
-        isSupersededRef.current = false;
-        useWorkspaceStore.getState().setSupersededByOtherDevice(false);
-        try {
-          onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
-          onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).set(0);
-        } catch {}
-      }
-    };
-
-    // 1. Claim ownership of student session for this device
-    throttledRtdbUpdate(`users/students/${normUid}`, {
-      active_device_id: myDevId,
-      device_claimed_at: myClaimTime,
-    })
-      .then(() => {
-        claimLanded = true;
-        applyOwnership();
-      })
-      .catch(console.error);
-
-    // 2. Real-time listener: Detect if another device took over ownership in DB
-    const studentNodeRef = ref(database, `users/students/${normUid}`);
-    const unsubDevice = onValue(
-      studentNodeRef,
-      (snap) => {
-        if (snap.exists()) {
-          remoteDevId = snap.val()?.active_device_id ?? null;
-          applyOwnership();
-        }
-      },
-      (err) => {
-        console.warn('[StudentWorkspacePage] deviceRef listener notice:', err);
-      }
-    );
-
-    return () => {
-      active = false;
-      unsubDevice();
-    };
-  }, [normUid]);
+  useDeviceOwnership(normUid, isSupersededRef);
 
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
 
@@ -1170,20 +1103,9 @@ export function StudentWorkspacePage() {
   // the lock's z-50.
   if (isSupersededByOtherDevice) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-ws-bg p-6 font-body text-center" dir="rtl">
+      <DeviceSupersededScreen>
         <CornerCloudSyncStatus />
-        {/* The same quiet card as the lobby, the opening and the end screens
-            (PRD 7 §א: one calm colour code), no emoji. */}
-        <div className="max-w-md w-full bg-ws-surface text-ws-ink border-2 border-ws-surface2 rounded-3xl p-10 shadow-sm space-y-4">
-          <h2 className="font-display font-black text-2xl text-ws-ink">
-            המשכתם במכשיר אחר
-          </h2>
-          <p className="text-base text-ws-soft leading-relaxed">
-            העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה.
-          </p>
-          <UdlSpeechButton text="המשכתם במכשיר אחר. העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה." />
-        </div>
-      </div>
+      </DeviceSupersededScreen>
     );
   }
 

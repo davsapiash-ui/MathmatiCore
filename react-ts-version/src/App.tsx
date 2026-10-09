@@ -1,7 +1,6 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { authReady, auth } from "@/infrastructure/firebase";
-import { readLiveMeetingNumber } from "@/application/useActiveClassSession";
 import { Login } from "@/presentation/pages/Login";
 import { isWhitelistedTeacherEmail } from "@/infrastructure/services/AuthService";
 import { LandingPage } from "@/presentation/pages/LandingPage";
@@ -187,7 +186,8 @@ function AuthGuard({ allowedRoles, children }: { allowedRoles: readonly AppRole[
   return <>{children}</>;
 }
 
-function RoleRouter() {
+/** Screens 1 ('/login') and 2 ('/auth') of PRD Module 1 §א; a signed-in user goes home. */
+function RoleRouter({ studentForm = false }: { studentForm?: boolean }) {
   const { user, role, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
 
@@ -204,22 +204,13 @@ function RoleRouter() {
       }
       if (activeRole === "admin") navigate("/admin", { replace: true });
       else if (activeRole === "teacher") navigate("/dashboard", { replace: true });
-      else if (activeRole === "student") {
-        // Live by the lobby's own test, not the raw record (Module 14 §ב0).
-        readLiveMeetingNumber().then((meeting) => {
-          if (meeting !== null) {
-            navigate(`/workspace?meeting=${meeting}`, { replace: true });
-            return;
-          }
-          navigate("/hub", { replace: true });
-        }).catch(() => {
-          navigate("/hub", { replace: true });
-        });
-      }
+      // PRD Module 1 §א: a signed-in learner goes to the lobby ("מעביר ללובי
+      // התלמיד"), which swaps in place to a live station's opening screen.
+      else if (activeRole === "student") navigate("/hub", { replace: true });
     }
   }, [isAuthenticated, user, role, navigate, logout]);
 
-  return <Login />;
+  return <Login studentForm={studentForm} />;
 }
 
 function App() {
@@ -242,7 +233,9 @@ function App() {
       >
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<RoleRouter />} />
+        <Route path="/login" element={<RoleRouter key="login" />} />
+        {/* PRD Module 1 (Strict): "'Student' routes strictly to Screen 2 ('/auth')". */}
+        <Route path="/auth" element={<RoleRouter key="auth" studentForm />} />
         
         {/* App Shell wraps authenticated routes */}
         <Route element={<AppShell />}>

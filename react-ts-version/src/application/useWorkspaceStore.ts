@@ -637,12 +637,19 @@ export interface WorkspaceState {
   supportProfileApplied: boolean;
   activeDeviceId: string | null;
   isSupersededByOtherDevice: boolean;
+  /**
+   * PRD Module 6: the live session number the lobby read from the
+   * authoritative broadcast active_class_session (1–8), or null when no
+   * session is live.
+   */
+  lobbySessionId: number | null;
   /** Which learner and meeting the workspace was started or restored for; null until then and after resetWorkspace. */
   workspaceInitializedFor: WorkspaceInitialization | null;
 
   // actions
   setActiveDeviceId: (id: string) => void;
   setSupersededByOtherDevice: (superseded: boolean) => void;
+  setLobbySessionId: (sessionId: number | null) => void;
   setPendingSupportProfile: (profileId: string | null) => void;
   /**
    * The learner record's support profile, as the student listener read it.
@@ -3763,9 +3770,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     supportProfileApplied: false,
     activeDeviceId: null,
     isSupersededByOtherDevice: false,
+    lobbySessionId: null,
     workspaceInitializedFor: null,
 
     setActiveDeviceId: (id) => set({ activeDeviceId: id }),
+    setLobbySessionId: (sessionId) => {
+      const next = typeof sessionId === 'number' && Number.isInteger(sessionId) && sessionId >= 1 && sessionId <= 8 ? sessionId : null;
+      if (get().lobbySessionId !== next) set({ lobbySessionId: next });
+    },
     setSupersededByOtherDevice: (superseded) => {
       // Every change to the student record echoed this call with the same
       // value; each call re-ran the workspace sync, which wrote the record
@@ -5665,6 +5677,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       flowEpoch++;
       set({
         sessionNumber: 1,
+        // The lobby's live session number belongs to the learner who signed out.
+        lobbySessionId: null,
         isASD: false,
         standardTaskIdx: 0,
         qflow: initQFlow(),
