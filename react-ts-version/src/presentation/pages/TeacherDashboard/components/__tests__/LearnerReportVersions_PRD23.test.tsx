@@ -12,9 +12,9 @@ import { resolve } from 'path';
  *    האיפוס נשמר ומסומן 'לפני האיפוס'; דוח שמופק אחרי האיפוס הוא קובץ חדש ואינו
  *    מחליף אותו" — the journey lists every report of the meeting, newest first,
  *    and marks the ones produced before the meeting's last reset.
- *  - "הקישורים להורדתם בתוקף לשעה אחת מרגע יצירתם, כמו הקישור לדוח הלומד" —
- *    the learner report's PDF is opened through a one-hour link asked for on
- *    every opening; generation returns no link.
+ *  - "הקישורים להורדתם נוצרים בכל בקשה של מורה מחוברת, כמו הקישור לדוח הלומד" —
+ *    the learner report's PDF is opened through a link asked for on every
+ *    opening; generation returns no link.
  *  - Drive: the flat folder "1 דוחות".
  */
 
@@ -146,7 +146,7 @@ describe('the service', () => {
   });
 });
 
-describe('the one-hour link', () => {
+describe('the per-request link', () => {
   it('names the report it opens', async () => {
     const real = await vi.importActual<typeof import('@/infrastructure/services/LearnerJourneyService')>('@/infrastructure/services/LearnerJourneyService');
     h.callableResult = { status: 'SUCCESS', downloadUrl: 'https://signed.example/x.pdf' };

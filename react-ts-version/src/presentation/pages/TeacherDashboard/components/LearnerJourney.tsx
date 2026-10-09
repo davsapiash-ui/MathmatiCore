@@ -361,7 +361,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
       setReportState('error');
       return;
     }
-    // PRD 23 §ב: the link is valid one hour, so it is asked from the server
+    // PRD 23 §ב: the link is made per request, so it is asked from the server
     // on every opening. A tab opened after that wait is outside the click, and
     // the browser may block it without a word. The tab opens in the click
     // itself, and gets its address when the link arrives.

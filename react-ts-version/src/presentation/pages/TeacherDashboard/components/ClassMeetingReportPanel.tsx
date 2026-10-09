@@ -222,7 +222,7 @@ export function ClassMeetingReportPanel() {
     }
   };
 
-  // PRD 23 §ב: the links are valid for one hour, so each click asks for a
+  // PRD 23 §ב: the links are made per request, so each click asks for a
   // fresh one. The tab opens inside the click (a tab opened after the wait may
   // be blocked) and gets its address when the link arrives.
   const openFile = async (kind: 'pdf' | 'csv') => {

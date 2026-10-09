@@ -551,7 +551,7 @@ async function newestReportOfSession(
  * Computes metrics, builds deterministic Exercise Narratives, renders an authoritative
  * binary PDF, stores it in Cloud Storage, and returns the structured data and
  * the new report's id; the PDF link is issued on request by
- * getPedagogicalReportDownloadUrl (valid one hour, PRD 23 §ב).
+ * getPedagogicalReportDownloadUrl (PRD 23 §ב: a link made on each request of a signed-in teacher).
  *
  * Owner decision (2026-09-04, register item 4): the teacher may request this
  * report for ANY meeting (1–8) of a learner from "דו"חות אבחון אישיים", not
@@ -1026,10 +1026,10 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     const bucket = admin.storage().bucket();
     const file = bucket.file(storageFilePath);
 
-    // PRD 23 §ב: the download links "בתוקף לשעה אחת מרגע יצירתם, כמו הקישור
+    // PRD 23 §ב: the download links "נוצרים בכל בקשה של מורה מחוברת, כמו הקישור
     // לדוח הלומד". The file carries no Firebase download token: a token URL
     // never expires, and whoever holds it reads the PDF past storage.rules'
-    // class check. The only link is the one-hour signed URL that
+    // class check. The only link is the signed URL that
     // getPedagogicalReportDownloadUrl issues to the class teacher on request.
     await file.save(pdfBuffer, {
       contentType: "application/pdf",
@@ -1132,7 +1132,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   }
 
   // No link is returned: the teacher opens the PDF through
-  // getPedagogicalReportDownloadUrl, which issues a one-hour signed URL to the
+  // getPedagogicalReportDownloadUrl, which issues a signed URL to the
   // class teacher (PRD 23 §ב), as the class report does.
   return {
     status: "SUCCESS",
@@ -1147,8 +1147,13 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
 
 /**
  * getPedagogicalReportDownloadUrl (Module 23 & 27: On-demand secure signed URL generator)
- * Validates teacher authorization and returns a fresh 1-hour signed URL for the stored PDF.
+ * Validates teacher authorization and returns a fresh signed URL for the stored PDF.
+ * The PRD sets no expiry (owner, 9.10.2026: access is by the organisation's accounts); the
+ * link lasts as long as a signed URL may, seven days.
  */
+/** How long a report download link stays valid: the signing maximum, since the PRD sets no expiry (owner, 9.10.2026). */
+export const REPORT_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 export const getPedagogicalReportDownloadUrl = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
@@ -1203,7 +1208,7 @@ export const getPedagogicalReportDownloadUrl = onCall(async (request) => {
 
   const [signedUrl] = await file.getSignedUrl({
     action: "read",
-    expires: Date.now() + 60 * 60 * 1000, // 1 hour fresh signed URL
+    expires: Date.now() + REPORT_LINK_TTL_MS, // the PRD sets no expiry (owner, 9.10.2026); a signed URL's maximum
   });
 
   return {

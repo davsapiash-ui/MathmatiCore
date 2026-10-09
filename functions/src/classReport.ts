@@ -1235,7 +1235,7 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
 
   // PRD 23 §ב: "הקישורים להורדתם בתוקף לשעה אחת מרגע יצירתם, כמו הקישור לדוח
   // הלומד". The files carry no download token (a token URL never expires);
-  // each link is a signed URL valid for one hour, and the dashboard asks for a
+  // each link is a signed URL made per request, and the dashboard asks for a
   // fresh one when the teacher opens a stored report (getClassReportDownloadUrl).
   const meta = { class_id: classId, session_number: String(sessionNumber), read_only: "true" };
   try {
@@ -1283,10 +1283,10 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   };
 });
 
-/** PRD 23 §ב: how long a class-report download link is valid — one hour, as the learner report's. */
-export const CLASS_REPORT_LINK_TTL_MS = 60 * 60 * 1000;
+/** PRD 23 §ב: a class-report download link is made on each request of a signed-in teacher; the PRD sets no expiry (owner, 9.10.2026), so it lasts the signing maximum, seven days. */
+export const CLASS_REPORT_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** A signed read link to a stored class-report file, valid for one hour; null when none could be issued. */
+/** A signed read link to a stored class-report file, made per request; null when none could be issued. */
 async function signedClassReportUrl(storagePath: string): Promise<string | null> {
   try {
     const [url] = await admin.storage().bucket().file(storagePath).getSignedUrl({
@@ -1308,7 +1308,7 @@ export function classReportStoragePath(stored: Record<string, any> | null | unde
 }
 
 /**
- * getClassReportDownloadUrl (PRD 23 §ב, Module 27): a fresh one-hour signed
+ * getClassReportDownloadUrl (PRD 23 §ב, Module 27): a fresh signed
  * link to the PDF or the CSV of the class report stored for one meeting.
  * Teacher of the class only.
  */

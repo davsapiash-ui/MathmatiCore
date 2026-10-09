@@ -398,7 +398,7 @@ describe('the admin metrics count a meeting as the reports do', () => {
   });
 });
 
-describe('every generation of a learner report is kept, and its link lasts one hour (PRD 23 §ב)', () => {
+describe('every generation of a learner report is kept, and its link is made on each request (PRD 23 §ב)', () => {
   const SESSION = 'session_3_student_student_user4';
   const download = (data: Record<string, unknown>) =>
     (getPedagogicalReportDownloadUrl as any).run({ auth: { uid: 'teacher-uid', token: { role: 'teacher', roles: ['TEACHER'], teacher: true, class_id: 'class_1' } }, data });
@@ -426,7 +426,7 @@ describe('every generation of a learner report is kept, and its link lasts one h
     }
   });
 
-  it('"בתוקף לשעה אחת": the PDF carries no download token and generation returns no link', async () => {
+  it('the PDF carries no download token and generation returns no link (the link is made per request)', async () => {
     const res = await personal(4);
     expect(res.status).toBe('SUCCESS');
     expect(res.downloadUrl).toBeNull();
@@ -435,7 +435,7 @@ describe('every generation of a learner report is kept, and its link lasts one h
     expect(JSON.stringify(res)).not.toContain('alt=media&token=');
   });
 
-  it('the one-hour link names the generation asked for; without one, the newest; an old single document still opens', async () => {
+  it('the link names the generation asked for; without one, the newest; an old single document still opens', async () => {
     h.collections.reports = [
       { id: legacyPedagogicalReportDocId(SESSION), data: { session_id: SESSION, class_id: 'class_1', generated_at: 100, storage_path: 'reports/class_1/session_3/student_4_100.pdf' } },
       { id: pedagogicalReportDocId(SESSION, 200), data: { session_id: SESSION, class_id: 'class_1', generated_at: 200, storage_path: 'reports/class_1/session_3/student_4_200.pdf' } },

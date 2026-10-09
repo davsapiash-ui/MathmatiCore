@@ -1107,7 +1107,7 @@ function sandboxPartOf(d: Record<string, any>): SandboxReportPart {
 /**
  * `justGenerated`: the server produced this report (and its PDF) in this very
  * request, so its file is the new one whatever the document says. The report
- * carries no link: PRD 23 §ב, the links are "בתוקף לשעה אחת מרגע יצירתם, כמו
+ * carries no link: PRD 23 §ב, the links are "נוצרים בכל בקשה של מורה מחוברת, כמו הקישור לדוח הלומד" (PRD 23 §ב; was "בתוקף לשעה אחת מרגע יצירתם, כמו
  * הקישור לדוח הלומד", and fetchMeetingReportUrl asks for one on each opening.
  */
 export function reportFromData(
@@ -1197,7 +1197,7 @@ export async function generateMeetingReport(params: { studentNum: number; sessio
   // numbers) or failed with an unrelated message.
   // PRD 7.3 Module 23 §ה fixes the text for a PDF the server failed to render:
   // "הדוח בעיבוד כעת, אנא נסו שוב בעוד מספר רגעים" (register, deviation 4).
-  // The server returns no link (PRD 23 §ב, one-hour links only): the PDF
+  // The server returns no link (PRD 23 §ב, per-request links only): the PDF
   // failed when the server says so, not when no link came back.
   const pdfFailed = data.status === 'DEGRADED_JSON_ONLY' || data.pdf_stored === false;
   return reportFromData(
@@ -1210,8 +1210,8 @@ export async function generateMeetingReport(params: { studentNum: number; sessio
 }
 
 /**
- * A fresh one-hour link to the stored PDF of one report of a meeting (PRD 23
- * §ב: "בתוקף לשעה אחת מרגע יצירתם"), asked for on every opening.
+ * A fresh link to the stored PDF of one report of a meeting (PRD 23
+ * §ב: "נוצרים בכל בקשה של מורה מחוברת"), asked for on every opening.
  */
 export async function fetchMeetingReportUrl(sessionId: string, reportId: string): Promise<string> {
   const call = httpsCallable(functions, 'getPedagogicalReportDownloadUrl');
