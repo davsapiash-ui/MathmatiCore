@@ -1291,10 +1291,10 @@ export class FirebaseSyncService {
       // re-resolved the path, and before the learner record arrived that was
       // the green bank for every learner.
       activeBankPath: state.activeBankPath ?? null,
-      // Register 18 / decision ב: the grid's return tab, and an open grid,
-      // belong to the meeting and survive a reload.
-      additionHelperOffered: Boolean(state.additionHelperOffered),
-      isAdditionHelperOpen: Boolean(state.isAdditionHelperOpen),
+      // Not the addition grid (isAdditionHelperOpen, additionHelperShownOnce):
+      // PRD 10, Strict Developer Instructions — "Manage grid visibility via
+      // local React state decoupled from Firestore write streams". Opening or
+      // closing the grid writes nothing to the record.
       helpRequested: Boolean(state.helpRequested),
       // PRD Module 11: the last actions stay undoable after a reload too
       // (capped at UNDO_STACK_CAP frames; restoreSession already reads it).

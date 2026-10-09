@@ -168,9 +168,8 @@ describe('row 1.28 (and audit A5-F07 / UX-001 / UX-002, 4.10.2026) — the addit
     expect(zone).toContain('<AdditionGridTab />');
   });
 
-  // The grid and the coaching card are never shown together; what each does
-  // while the other is shown is tested on the rendered page, in
-  // OwnerDecision_2026_10_04_GridAndCardTabs.test.tsx.
+  // The coaching card folding the grid, the grid's tab and its log are tested
+  // on the rendered page, in Module10_GridCardTabTelemetry.test.tsx.
 
   it('the grid has one name', () => {
     const grid = src('features/workspace/board/AdaptiveAdditionGrid.tsx');

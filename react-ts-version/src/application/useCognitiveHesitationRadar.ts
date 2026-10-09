@@ -142,17 +142,15 @@ export function useCognitiveHesitationRadar({
         // not in station 3's representations, not in a subtraction.
         isAdditionExercise(selectStandardTask(wsState));
       if (!due) return;
-      // The grid and the coaching card are never shown together
-      // (StudentWorkspacePage), so while the card is open the grid is not
-      // opened over or behind it, and no ADAPTIVE_GRID_TOGGLED is written for
-      // a grid that did not appear. It is offered: its "לוח החיבור" tab
-      // appears beside the card, and the learner may press it. And it is
-      // deferred, not dropped: it opens when the card closes, unless a
-      // cognitive action came first or the learner opened it from the tab.
-      // The same during the 300 ms "נסו לחשוב…" beat before a card: the card
-      // is on its way, and a grid opened now would be hidden at once.
+      // PRD 10 §א: the coaching card's opening folds the grid, so the system
+      // does not open the grid while the card is open. Nor does a tab appear:
+      // the "לוח חיבור" tab exists only once the grid has been shown (PRD
+      // 10 §א, "לאחר שהלוח נפתח פעם אחת במפגש, בשלב 30 השניות"). The stage is
+      // deferred, not dropped: the grid opens when the card closes, unless a
+      // cognitive action came first. The same during the 300 ms "נסו
+      // לחשוב…" beat before a card: the card is on its way, and would fold a
+      // grid opened now at once.
       if (wsState.helpState !== 'closed') {
-        wsState.offerAdditionHelper();
         gridDeferredRef.current = true;
         return;
       }
@@ -318,8 +316,8 @@ export function useCognitiveHesitationRadar({
       // was just solved (the last one drops its card on the way to the next
       // screen): the wait ends there, and nothing opens. (If this same change
       // was a cognitive action, resetTimeout above has already cleared the wait.)
-      // The grid opened, by any way (the learner's press on its tab under the
-      // card): the wait is over. If the learner then closes it, it stays
+      // The grid opened, by any way (the learner's press on its tab, for a
+      // grid shown earlier in the meeting): the wait is over. If the learner then closes it, it stays
       // closed — the card's closing does not open it again.
       if (state.isAdditionHelperOpen && !lastGridOpen) gridDeferredRef.current = false;
       lastGridOpen = state.isAdditionHelperOpen;

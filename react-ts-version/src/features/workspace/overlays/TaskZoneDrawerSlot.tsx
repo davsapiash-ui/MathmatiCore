@@ -11,7 +11,7 @@ const INSTRUCTION = '[data-testid="task-instruction"]';
  * והמענה, במקום הצעדים, בלי לשנות את רוחב אגף הייצוגים ובלי להסתיר את שורת
  * התוצאה".
  *
- * The zone keeps its 40% and the task card keeps its layout. The drawer is laid
+ * The zone keeps its 45% (workspaceZones.ts) and the task card keeps its layout. The drawer is laid
  * over the card's guide block (the goal and the steps, data-testid
  * "task-instruction"), from its top — the location row and the topic heading
  * above it stay in view — and never lower than the work area under it (the
@@ -24,19 +24,14 @@ const INSTRUCTION = '[data-testid="task-instruction"]';
  * Everything is read from the card from the outside (#tour-task-card and the
  * test id above), so the card itself is not touched. The work area does not
  * move while the drawer is open (owner, 9.10.2026): a drawer taller than its
- * place scrolls inside itself; the card never scrolls. `atTop`: only the folded
- * card's tab is shown, at the zone's top corner.
+ * place scrolls inside itself; the card never scrolls.
  */
-export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }: { children: ReactNode; atTop?: boolean; covering?: boolean }) {
+export function TaskZoneDrawerSlot({ children, covering = false }: { children: ReactNode; covering?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<{ top: number; maxHeight: number } | null>(null);
 
   useLayoutEffect(() => {
     const slot = ref.current;
-    if (atTop) {
-      setPlace({ top: 8, maxHeight: 9999 });
-      return;
-    }
     const zone = slot?.closest<HTMLElement>('[data-testid="task-zone"]');
     if (!slot || !zone) return;
     let covered: HTMLElement | null = null;
@@ -94,7 +89,7 @@ export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }
       window.removeEventListener('resize', measure);
       release();
     };
-  }, [atTop, covering]);
+  }, [covering]);
 
   return (
     <div

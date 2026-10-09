@@ -379,7 +379,7 @@ describe('X59 — the call-teacher button follows the record (PRD 29 §ב)', () 
 
 /* ── X60 ─────────────────────────────────────────────────────────────────── */
 
-describe('X60 — the grid and its return tab belong to the meeting (register 18, decision ב)', () => {
+describe('X60 — the grid and its tab belong to the meeting, as local state only (PRD 10 §א and its Strict Developer Instructions)', () => {
   beforeEach(() => {
     signIn();
     deliver(enhanced);
@@ -390,33 +390,46 @@ describe('X60 — the grid and its return tab belong to the meeting (register 18
     ws().openAdditionHelper();
     solveFirstExercise();
     expect(ws().isAdditionHelperOpen).toBe(true);
-    expect(ws().additionHelperOffered).toBe(true);
+    expect(ws().additionHelperShownOnce).toBe(true);
   });
 
   it('the return tab stays after an exercise change', () => {
     ws().openAdditionHelper();
     ws().closeAdditionHelper();
     solveFirstExercise();
-    expect(ws().additionHelperOffered).toBe(true);
+    expect(ws().additionHelperShownOnce).toBe(true);
     expect(ws().isAdditionHelperOpen).toBe(false);
   });
 
-  it('both survive a reload', () => {
+  it('neither is saved with the snapshot: "Manage grid visibility via local React state decoupled from Firestore write streams"', () => {
+    const before = JSON.stringify(svc.getSyncableWorkspaceState());
     ws().openAdditionHelper();
     const open = JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState()));
-    expect(open.isAdditionHelperOpen).toBe(true);
-    expect(open.additionHelperOffered).toBe(true);
-    ws().resetWorkspace();
-    ws().restoreSession(open);
-    expect(ws().isAdditionHelperOpen).toBe(true);
-    expect(ws().additionHelperOffered).toBe(true);
-
+    expect(open).not.toHaveProperty('isAdditionHelperOpen');
+    expect(open).not.toHaveProperty('additionHelperOffered');
+    expect(open).not.toHaveProperty('additionHelperShownOnce');
+    expect(open).not.toHaveProperty('additionHelperSource');
+    // opening the grid changes nothing the record would be sent
+    expect(JSON.stringify(open)).toBe(before);
     ws().closeAdditionHelper();
-    const closed = JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState()));
+    expect(JSON.stringify(svc.getSyncableWorkspaceState())).toBe(before);
+  });
+
+  it('nor read back from one: a reload starts without them, even from a copy saved by older code', () => {
+    ws().openAdditionHelper();
+    const saved = { ...JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState())), isAdditionHelperOpen: true, additionHelperOffered: true };
     ws().resetWorkspace();
-    ws().restoreSession(closed);
+    ws().restoreSession(saved);
     expect(ws().isAdditionHelperOpen).toBe(false);
-    expect(ws().additionHelperOffered, 'the tab is back after the reload').toBe(true);
+    expect(ws().additionHelperShownOnce).toBe(false);
+  });
+
+  it('a restore of the meeting this device already holds leaves the grid as it is', () => {
+    ws().openAdditionHelper();
+    const saved = JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState()));
+    ws().restoreSession(saved);
+    expect(ws().isAdditionHelperOpen).toBe(true);
+    expect(ws().additionHelperShownOnce).toBe(true);
   });
 
   it('a new meeting starts without them', () => {
@@ -424,7 +437,7 @@ describe('X60 — the grid and its return tab belong to the meeting (register 18
     approvePath('remediation_path');
     ws().initSession(5, false);
     expect(ws().isAdditionHelperOpen).toBe(false);
-    expect(ws().additionHelperOffered).toBe(false);
+    expect(ws().additionHelperShownOnce).toBe(false);
   });
 
   it('the profile gate still decides whether they are shown (enhanced profile, not meetings 2 or 8)', () => {
@@ -433,6 +446,7 @@ describe('X60 — the grid and its return tab belong to the meeting (register 18
     expect(page).toContain('const isAdditionBoardEnabled = hasEnhancedSupport && sessionNumber >= 3 && sessionNumber <= 7 && isAdditionOnScreen;');
     expect(page).toContain('const isAdditionOnScreen = useWorkspaceStore((s) => isAdditionExercise(selectStandardTask(s)));');
     expect(page).toMatch(/isAdditionBoardEnabled && \(\s*<AnimatePresence>/);
-    expect(page).toContain('isAdditionBoardEnabled && (additionHelperOffered || isAdditionHelperOpen) && !isAdditionGridShown');
+    expect(page).toContain('isAdditionBoardEnabled && additionHelperShownOnce && !isAdditionHelperOpen');
+    expect(page).toContain('const isAdditionGridMounted = useWorkspaceStore(isAdditionGridVisible);');
   });
 });
