@@ -4,8 +4,8 @@
 Usage: python3 apply_pairs_md.py <ops.json> [<ops.json> ...]
 
 The pairs are written as the Google Doc reads them, without Markdown escapes. The
-Markdown copies are Google Docs exports, which escape _ ! + and a full stop after a
-digit, so each pair is escaped the same way before it is looked up. A pair is applied
+Markdown copies are Google Docs exports, which escape _ ! + and a full stop or a closing bracket
+after a digit, so each pair is escaped the same way before it is looked up. A pair is applied
 only when it occurs exactly once; the version line of the PRD is left to the caller.
 """
 import json
@@ -22,6 +22,7 @@ FILES = {
 
 def esc(s: str) -> str:
     s = re.sub(r"([_!+])", r"\\\1", s)
+    s = re.sub(r"(\d)\)(?=\s)", r"\1\\)", s)
     return re.sub(r"(\d)\.(?=\s|$)", r"\1\\.", s)
 
 
