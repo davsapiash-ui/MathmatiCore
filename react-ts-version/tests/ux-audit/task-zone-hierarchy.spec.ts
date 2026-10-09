@@ -75,7 +75,21 @@ async function metrics(page: Page) {
         blockH: first ? Math.round(first.height) : null,
       };
     });
+    // The place names under the vertical sheet: the narrowest gap between two neighbours' text (negative = overlap).
+    let labelGap: number | null = null;
+    document.querySelectorAll('[data-testid="sheet-place-labels"]').forEach((row) => {
+      const boxes = Array.from(row.querySelectorAll('[data-place-label]')).map((el) => {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        return range.getBoundingClientRect();
+      }).sort((a, b) => a.left - b.left);
+      for (let i = 1; i < boxes.length; i++) {
+        const g = +(boxes[i].left - boxes[i - 1].right).toFixed(1);
+        labelGap = labelGap === null ? g : Math.min(labelGap, g);
+      }
+    });
     return {
+      labelGap,
       boardW: board ? Math.round(board.width) : null,
       taskW: task ? Math.round(task.width) : null,
       share: board && task ? +(board.width / (board.width + task.width)).toFixed(3) : null,
