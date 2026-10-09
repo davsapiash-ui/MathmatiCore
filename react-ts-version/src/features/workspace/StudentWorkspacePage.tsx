@@ -26,7 +26,16 @@ import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
-import { BOARD_ZONE_FLEX, TASK_ZONE_FLEX, TASK_ZONE_CELL_CLASS } from './workspaceZones';
+import {
+  BOARD_ZONE_CLASS,
+  BOARD_ZONE_FLEX,
+  TASK_ZONE_CLASS,
+  TASK_ZONE_FLEX,
+  TASK_ZONE_INNER_CLASS,
+  WORKSPACE_MAIN_CLASS,
+  WORKSPACE_SURFACE_CLASS,
+} from './workspaceZones';
+import { WorkspaceBackdrop } from './WorkspaceBackdrop';
 
 import { DienesBlock } from './board/DienesBlock';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
@@ -1399,7 +1408,7 @@ export function StudentWorkspacePage() {
       // Module 15 §ב: under the projector, pause or close screen the workspace
       // is kept as it is and takes no focus, typing or keyboard drag.
       inert={isClassScreenUp || undefined}
-      className="h-[100dvh] w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"
+      className={`h-[100dvh] w-full overflow-hidden flex flex-col relative ${WORKSPACE_SURFACE_CLASS}`}
     >
       {/* Flat vector background shapes — playful world energy, zero visual noise.
             These were animated (animate-breathe) AND blended (mix-blend-multiply).
@@ -1412,11 +1421,7 @@ export function StudentWorkspacePage() {
             5% opacity, so they stay exactly as they look — just static and
             unblended, which restores a smooth 60fps and makes block dragging
             responsive again. */}
-        <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full bg-indigo-500/5" />
-          <div className="absolute -bottom-32 -right-20 w-[380px] h-[380px] rounded-full bg-teal-500/5" />
-          <div className="absolute top-[30%] right-[42%] w-16 h-16 rounded-2xl rotate-12 bg-blue-500/5" />
-        </div>
+        <WorkspaceBackdrop />
 
         <WorkspaceTopbar isDragging={activeDrag !== null} />
 
@@ -1426,7 +1431,7 @@ export function StudentWorkspacePage() {
             task card, the result row and the coaching card) takes 45%, on the
             right (workspaceZones.ts). Stations 2 and 8 have no number house:
             their task card stays centred. */}
-        <main className={`flex flex-row flex-1 overflow-hidden p-fl-10-20 gap-fl-10-20 w-full box-border ${hasBoard ? '' : 'max-w-[1600px] mx-auto justify-center items-center'}`}>
+        <main className={`${WORKSPACE_MAIN_CLASS} ${hasBoard ? '' : 'max-w-[1600px] mx-auto justify-center items-center'}`}>
           {hasBoard ? (
             <>
               {/* The task-and-response zone, 45% (RTL: first in the row, so on
@@ -1439,7 +1444,7 @@ export function StudentWorkspacePage() {
                 data-testid="task-zone"
                 aria-label="אגף המשימה"
                 style={{ flex: isBoardOpen ? TASK_ZONE_FLEX : '1 1 0%' }}
-                className="relative min-h-0 min-w-0 flex flex-col"
+                className={TASK_ZONE_CLASS}
               >
                 {/* The task card, wrapped from the outside. Its notebook
                     square (--ws-cell) also follows the zone's width, so on a
@@ -1447,7 +1452,7 @@ export function StudentWorkspacePage() {
                     row and the vertical sheet fit across and under the
                     instruction without scrolling (PRD 7 §א rule 7). Not
                     binding on a laptop, where the height decides. */}
-                <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${TASK_ZONE_CELL_CLASS}`}>
+                <div className={TASK_ZONE_INNER_CLASS}>
                   <TaskCard />
                 </div>
                 <SocraticSidePanel inTaskZone />
@@ -1473,7 +1478,7 @@ export function StudentWorkspacePage() {
                 data-testid="representations-zone"
                 aria-label="אגף הייצוגים"
                 style={{ flex: isBoardOpen ? BOARD_ZONE_FLEX : '0 0 auto' }}
-                className="min-h-0 min-w-0 flex flex-row gap-2"
+                className={BOARD_ZONE_CLASS}
               >
                 <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} inZone />
                 {isAdditionBoardEnabled && (

@@ -1,44 +1,53 @@
-import type { CSSProperties } from 'react';
 import { digitAt, type Place } from '@/core/placeValue';
 import { resultBoxCount } from '@/core/placeCues';
+import { taskGuide, type TaskGuide } from '@/core/taskGuide';
+import { demoSessionTask } from '@/application/teacherDemoTasks';
 import type { DemoStation, TeacherDemoPart } from '@/data/teacherDemos';
-import { AccessibleCard } from '@/presentation/design-system/AccessibleCard';
-import { MathText } from './MathText';
-import { RepresentationAnswerBox } from './RepresentationTask';
-import { TASK_CARD_CELL } from './TaskCard';
-import { TaskZoneHeader } from './TaskZone';
+import { RepresentationAnswerBox, ResultRowBoxes } from './RepresentationTask';
+import { SmallChangeTask } from './SmallChangeTask';
+import { TASK_COLUMN_CLASS, TaskCardFrame } from './TaskCard';
+import { GuideBlock, TaskZoneHeader, type StepView } from './TaskZone';
 import { VerticalAdditionTask } from './VerticalAdditionTask';
 
 /**
- * The task card of the teacher's demonstration (PRD Module 15 §ג): the card as
- * the learners see it — the heading with the topic, the instruction, the
- * exercise (the vertical sheet with its memory circles and result row, or the
- * one result box) — in demo mode (projectorBoard in the workspace store).
+ * The demonstration as the learners' task zone reads an exercise: its
+ * instruction laid out by the learners' own guide (core/taskGuide.ts) — the
+ * goal line, "מה עושים:" and the steps with their condition lines — under the
+ * demonstration's topic. The words are the demonstration's instruction,
+ * unchanged; only their layout is the learners'.
+ */
+export function demoGuide(station: DemoStation, part: TeacherDemoPart): TaskGuide | null {
+  const guide = taskGuide(demoSessionTask(station, part), station);
+  return guide && { ...guide, topicHe: part.topicHe };
+}
+
+/**
+ * The task card of the teacher's demonstration (PRD Module 15 §ג): "אגף המשימה
+ * והמענה כמו שהלומדים רואים אותו". It is built from the learner's own parts —
+ * the card's frame (TaskCardFrame), the topic heading, the guide block with
+ * its steps, the vertical sheet with its memory circles and result row, the
+ * one result box, the choice exercise — so a design change to the learner's
+ * screen reaches it.
  *
- * What the learner's card adds and this one leaves out on purpose: the feedback
- * toast, the steps and their ticks, the done box and "ממשיכים", and every
- * read-aloud button (the teacher's screens have no narration — AGENTS.md,
- * Module 24). Nothing here checks what she writes.
+ * In demo mode (projectorBoard in the workspace store) the learner's card
+ * loses what judges or narrates, and nothing takes its place: no "משימה N
+ * מתוך M" (the heading is the topic alone), no step marking (every step is
+ * drawn as one still to do), no done box and no "ממשיכים", no feedback, and
+ * no read-aloud button (the page turns narration off — NarrationContext;
+ * AGENTS.md, Module 24). Nothing here checks what she writes.
+ *
+ * The id is the learner card's, so the coaching card's drawer
+ * (TaskZoneDrawerSlot) finds the card the same way on both screens.
  */
 export function DemoTaskCard({ station, part }: { station: DemoStation; part: TeacherDemoPart }) {
   const { body } = part;
+  const guide = demoGuide(station, part);
+  const steps: StepView[] = (guide?.steps ?? []).map((s) => ({ label: s.label, subs: s.subs, state: 'todo' }));
   return (
-    <AccessibleCard
-      className="flex-1 min-w-0 min-h-0 p-fl-12-32 overflow-hidden relative border-none rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/95 dark:bg-slate-900/95"
-      style={{ ['--ws-cell']: TASK_CARD_CELL } as CSSProperties}
-      data-testid="demo-task-card"
-    >
-      <div className="relative flex flex-col flex-1 min-h-0 h-full">
-        <TaskZoneHeader stationNumber={station} positionLabel="הדגמה" topic={part.topicHe} showStation />
-        <div
-          className="shrink-0 mb-fl-6-24 rounded-2xl border border-ws-surface2 px-fl-12-16 py-fl-6-16"
-          style={{ backgroundColor: 'hsl(var(--ws-blue-soft) / 0.35)' }}
-          data-testid="demo-instruction"
-        >
-          <p className="max-w-[60ch] text-fl-16-20 text-ws-ink font-medium leading-snug">
-            <MathText text={part.instructionHe} />
-          </p>
-        </div>
+    <TaskCardFrame id="tour-task-card" testId="demo-task-card">
+      <div className={TASK_COLUMN_CLASS} data-testid="task-column">
+        <TaskZoneHeader stationNumber={station} positionLabel={null} topic={part.topicHe} showStation />
+        <GuideBlock goal={guide?.goalHe ?? null} steps={steps} speech={null} done={false} doneNote={null} lockHeight noDoneBox />
 
         {body.kind === 'vertical' ? (
           <VerticalAdditionTask
@@ -52,10 +61,33 @@ export function DemoTaskCard({ station, part }: { station: DemoStation; part: Te
               (body.revealedResult ?? []).map((p: Place) => [p, String(digitAt(body.answer, p))])
             )}
           />
+        ) : body.kind === 'choice' ? (
+          <SmallChangeTask key={part.id} givenHe={body.givenHe} questionHe={body.questionHe} choices={body.choices} />
         ) : (
           <RepresentationAnswerBox key={part.id} />
         )}
       </div>
-    </AccessibleCard>
+    </TaskCardFrame>
+  );
+}
+
+/** Station 1 in the 1,000 range: hundreds, tens, units. */
+const STATION1_PLACES: Place[] = ['hundreds', 'tens', 'units'];
+
+/**
+ * Station 1's demonstration (owner, 9.10.2026): the tools, beside an empty
+ * number house — the learner's task card with the station tag and the result
+ * row as station 1 draws it (a box per column, in its colour and with its
+ * name), so the teacher points at the row itself. No exercise, no
+ * instruction: the teacher says what to do.
+ */
+export function DemoStation1Card() {
+  return (
+    <TaskCardFrame id="tour-task-card" testId="demo-task-card">
+      <div className={TASK_COLUMN_CLASS} data-testid="task-column">
+        <TaskZoneHeader stationNumber={1} positionLabel={null} topic={null} showStation />
+        <ResultRowBoxes places={STATION1_PLACES} />
+      </div>
+    </TaskCardFrame>
   );
 }

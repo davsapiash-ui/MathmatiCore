@@ -58,9 +58,13 @@ export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }
       // other work area is not entered at all.
       const sheetBox = work?.querySelector<HTMLElement>('[aria-label^="תרגיל במאונך"] input');
       const workTop = sheetBox ? sheetBox.getBoundingClientRect().top : work ? work.getBoundingClientRect().top : cardBottom;
-      const anchor = instruction ? instruction.getBoundingClientRect().top : zr.top;
+      // A card with no guide block — the teacher's demonstration of station 1
+      // (Module 15 §ג), a result row and nothing above it — gets the drawer
+      // under its result row, which it must not hide (PRD 7 §א rule 6).
+      const row = instruction ? null : zone.querySelector<HTMLElement>('[data-testid="result-row"]');
+      const anchor = instruction ? instruction.getBoundingClientRect().top : row ? row.getBoundingClientRect().bottom + GAP_PX : zr.top;
       const top = Math.round(anchor - zr.top);
-      const room = Math.round(workTop - GAP_PX - anchor);
+      const room = Math.round((row ? cardBottom : workTop) - GAP_PX - anchor);
       // The covered guide block takes no focus and is not announced (re-applied
       // when the card renders a new one, for the next task).
       if (covering && instruction && instruction !== covered) {

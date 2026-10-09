@@ -176,6 +176,8 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
     // A card that settles while folded under the chat is not seen yet either.
     if (cardShownRef.current || socraticPending || !aiSocraticHint || classScreenUp || folded) return;
     cardShownRef.current = true;
+    // The teacher's example card (demonstration screen, Module 15 §ג) is no learner's card.
+    if (useWorkspaceStore.getState().projectorBoard) return;
 
     const ws = useWorkspaceStore.getState();
     const studentId = currentStudentUid();
@@ -472,6 +474,10 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
     setFeedbackHint(opt.hint);
 
     const wsState = useWorkspaceStore.getState();
+    // The teacher's example card (owner, 9.10.2026): the hint and the closing
+    // as the learner sees them, but no event, no record of the answer and no
+    // pause after a wrong option — the teacher goes on at once.
+    if (wsState.projectorBoard) return;
     const studentId = currentStudentUid();
     const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
     const optionKey = socraticOptionKey(opt.id);

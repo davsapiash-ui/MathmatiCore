@@ -7,7 +7,7 @@
  *      branches, station 1 or the diagnostic.
  */
 import { describe, it, expect } from 'vitest';
-import { TEACHER_DEMOS, DEMO_S7_B_STEPS, type DemoVerticalBody, type DemoBuildBody } from '@/data/teacherDemos';
+import { TEACHER_DEMOS, DEMO_S7_B_STEPS, type DemoVerticalBody, type DemoBuildBody, type DemoChoiceBody, type DemoBody } from '@/data/teacherDemos';
 import { SESSION1_TASKS, SESSIONS_BY_PATH, type SessionTask } from '@/data/sessionTasks';
 import { SESSION_BRANCH_TASKS } from '@/data/sessionBranchTasks';
 import { TASKS as QMATRIX_TASKS } from '@/core/QMatrix';
@@ -16,6 +16,18 @@ import { PLACE_ORDER, type Place, type PlaceCounts } from '@/core/placeValue';
 const VALUE: Record<Place, number> = { units: 1, tens: 10, hundreds: 100, thousands: 1000 };
 const valueOf = (c: Partial<PlaceCounts>) => PLACE_ORDER.reduce((sum, p) => sum + (c[p] ?? 0) * VALUE[p], 0);
 const digit = (n: number, p: Place) => Math.floor(n / VALUE[p]) % 10;
+
+/** Every number a demonstration shows or reaches: operands, results, and every number in a choice. */
+function numbersOf(body: DemoBody): number[] {
+  if (body.kind === 'vertical') return [body.a, body.b, body.answer];
+  if (body.kind === 'build') return [body.answer];
+  const inText = [body.givenHe, body.questionHe, ...body.choices.map((c) => c.textHe)]
+    .join(' ')
+    .replace(/(\d),(\d)/g, '$1$2')
+    .match(/\d+/g)!
+    .map(Number);
+  return [...new Set([body.a, body.b, body.changedB, body.a + body.b, body.a + body.changedB, ...inText])];
+}
 
 const vertical = (station: 4 | 5 | 6 | 7, i = 0) => TEACHER_DEMOS[station][i].body as DemoVerticalBody;
 const build = (station: 3 | 7, i: number) => TEACHER_DEMOS[station][i].body as DemoBuildBody;
@@ -111,11 +123,43 @@ describe('demonstration arithmetic', () => {
     expect(build(7, 1).answer).toBe(280);
   });
 
+  it('station 4 "תשובות לבחירה": 238 + 146 = 384 groups in the units; 238 + 186 = 424 groups in the units and the tens', () => {
+    const part = TEACHER_DEMOS[4][1];
+    expect(part.partLabelHe).toBe('תשובות לבחירה');
+    const c = part.body as DemoChoiceBody;
+    expect(c.kind).toBe('choice');
+    expect(c.a + c.b).toBe(384);
+    expect(c.givenHe).toBe(`${c.a} + ${c.b} = ${c.a + c.b}`);
+    expect(conversionColumns(c.a, c.b, false)).toEqual(['units']);
+    // Only the tens digit of the second number changed.
+    expect(c.b - digit(c.b, 'tens') * 10).toBe(c.changedB - digit(c.changedB, 'tens') * 10);
+    expect(c.questionHe).toContain(`${c.a} + ${c.changedB}`);
+    const changed = c.a + c.changedB;
+    expect(changed).toBe(424);
+    expect(conversionColumns(c.a, c.changedB, false)).toEqual(['units', 'tens']);
+
+    // Exactly one right option, and it names the right result.
+    const right = c.choices.filter((x) => x.correct);
+    expect(right).toHaveLength(1);
+    expect(right[0].textHe).toContain(String(changed));
+    // Each wrong option is a forgotten carry, and not the result.
+    const forgotTensCarry = digit(changed, 'units') + 10 * ((digit(c.a, 'tens') + digit(c.changedB, 'tens') + 1) % 10) + 100 * (digit(c.a, 'hundreds') + digit(c.changedB, 'hundreds'));
+    const forgotUnitsCarry = (() => {
+      const u = (digit(c.a, 'units') + digit(c.changedB, 'units')) % 10;
+      const t = digit(c.a, 'tens') + digit(c.changedB, 'tens');
+      const h = digit(c.a, 'hundreds') + digit(c.changedB, 'hundreds') + (t >= 10 ? 1 : 0);
+      return u + 10 * (t % 10) + 100 * h;
+    })();
+    expect([forgotTensCarry, forgotUnitsCarry]).toEqual([324, 414]);
+    const wrong = c.choices.filter((x) => !x.correct).map((x) => Number(x.textHe.match(/(\d+)$/)![1]));
+    expect(wrong).toEqual([forgotTensCarry, forgotUnitsCarry]);
+    for (const w of wrong) expect(w).not.toBe(changed);
+  });
+
   it('every demonstration is in the range of מסלול צמצום פערי קדם (≤ 1,000)', () => {
     for (const parts of Object.values(TEACHER_DEMOS)) {
       for (const { body } of parts) {
-        const nums = body.kind === 'vertical' ? [body.a, body.b, body.answer] : [body.answer];
-        for (const n of nums) expect(n).toBeLessThanOrEqual(1000);
+        for (const n of numbersOf(body)) expect(n).toBeLessThanOrEqual(1000);
       }
     }
   });
@@ -148,16 +192,16 @@ describe('no demonstration is a learner exercise', () => {
       if (typeof n === 'number') learnerNumbers.add(n);
     }
   }
-  const learnerText = [...learnerTasks.map((t) => t.instructionHe), ...QMATRIX_TASKS.map((q) => `${q.instructionHe ?? ''} ${q.givenHe ?? ''}`)]
+  // With the choice exercises' solved exercise, question and options (station 4's "תשובות לבחירה").
+  const learnerText = [
+    ...learnerTasks.map((t) => [t.instructionHe, t.givenHe ?? '', t.questionHe ?? '', ...(t.choices ?? []).map((c) => c.textHe)].join(' ')),
+    ...QMATRIX_TASKS.map((q) => `${q.instructionHe ?? ''} ${q.givenHe ?? ''}`)]
     .join(' ')
     .replace(/(\d),(\d)/g, '$1$2');
 
   const demoNumbers: number[] = [];
   for (const parts of Object.values(TEACHER_DEMOS)) {
-    for (const { body } of parts) {
-      if (body.kind === 'vertical') demoNumbers.push(body.a, body.b, body.answer);
-      else demoNumbers.push(body.answer);
-    }
+    for (const { body } of parts) demoNumbers.push(...numbersOf(body));
   }
   demoNumbers.push(DEMO_S7_B_STEPS.start, DEMO_S7_B_STEPS.start + DEMO_S7_B_STEPS.add);
 

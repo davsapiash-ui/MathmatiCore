@@ -698,6 +698,14 @@ export interface WorkspaceState {
   startProjectorDemo: (station: SessionNumber) => void;
   /** The demonstration screen's "נקו את בית המספרים": the blocks go, the typed input stays; undo brings the blocks back. */
   clearProjectorBoard: () => void;
+  /**
+   * The demonstration screen's "דוגמה לכרטיס החניכה" (owner, 9.10.2026): the
+   * learner's coaching card opens with this static card — no hourglass, no
+   * engine request, no event, no lock after a wrong option. Demo mode only.
+   */
+  openDemoCoachingCard: (card: SocraticHintResponse) => void;
+  /** The demonstration screen's "הצגת הצבעים בשורת התוצאה": the result row's scaffold on or off. Demo mode only. */
+  setDemoPlaceCues: (shown: boolean) => void;
   restoreSession: (savedState: any) => void;
   getSessionRemainingSeconds: () => number;
   selectBranch: (branch: 'reinforcement' | 'challenge') => void;
@@ -3957,12 +3965,35 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         errorPlace: null,
         feedback: null,
         helpState: 'closed',
+        aiSocraticHint: null,
+        socraticPending: false,
+        isSocraticCardLocked: false,
+        socraticLockDeadline: null,
         frictionTriggerSource: null,
         currentState: 'PROBLEM_ACTIVE',
         isAdditionHelperOpen: false,
         additionHelperOffered: false,
         additionHelperOfferedUnopened: false,
       });
+    },
+
+    openDemoCoachingCard: (card) => {
+      if (!get().projectorBoard) return;
+      cancelSocraticRequest();
+      // currentState stays PROBLEM_ACTIVE: nothing of the learner's flow runs.
+      set({
+        helpState: 'socratic',
+        aiSocraticHint: { ...card, source: 'static' },
+        socraticPending: false,
+        isSocraticCardLocked: false,
+        socraticLockDeadline: null,
+        socraticDistractorHint: null,
+      });
+    },
+
+    setDemoPlaceCues: (shown) => {
+      if (!get().projectorBoard) return;
+      set({ placeCuesShown: shown });
     },
 
     clearProjectorBoard: () => {
@@ -4691,6 +4722,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setFocusedPlace: (place) => set({ focusedPlace: place }),
 
     selectChoice: (id) => {
+      // The teacher's demonstration (Module 15 §ג): the selection shows, nothing else.
+      if (get().projectorBoard) {
+        set({ selectedChoiceId: id });
+        return;
+      }
       set({ selectedChoiceId: id, hasInteracted: true });
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {

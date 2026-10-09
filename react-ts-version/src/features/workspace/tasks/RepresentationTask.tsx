@@ -99,6 +99,19 @@ export function RepresentationAnswerBox() {
  * s7_g_t6): a box per digit, high place on the left.
  */
 function RepresentationResultRow({ task }: { task: SessionTask }) {
+  // The number the result row holds: the number built, or its own answer when
+  // the exercise asks for something else about it (368 → the value of the 6, 60).
+  const value = typeof task.correctAnswer === 'number' ? task.correctAnswer : task.numberA ?? 0;
+  // Result row: one square per digit of the number, high place on the left.
+  return <ResultRowBoxes places={PLACE_ORDER.slice(0, String(value).length).reverse()} />;
+}
+
+/**
+ * The boxes of station 1's result row, high place on the left, each with its
+ * column's colour and name. Also on the teacher's demonstration of station 1
+ * (Module 15 §ג), in the 1,000 range: hundreds, tens, units.
+ */
+export function ResultRowBoxes({ places }: { places: Place[] }) {
   const answerDigits = useWorkspaceStore((s) => s.answerDigits);
   const setAnswerDigit = useWorkspaceStore((s) => s.setAnswerDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
@@ -113,13 +126,6 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
     setTimeout(() => setShakingPlace((p) => (p === place ? null : p)), 500);
   };
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
-
-  // The number the result row holds: the number built, or its own answer when
-  // the exercise asks for something else about it (368 → the value of the 6, 60).
-  const value = typeof task.correctAnswer === 'number' ? task.correctAnswer : task.numberA ?? 0;
-
-  // Result row: one square per digit of the number, high place on the left.
-  const places: Place[] = PLACE_ORDER.slice(0, String(value).length).reverse();
 
   return (
     <div className="flex flex-col items-center gap-fl-6-20 mt-fl-0-16 flex-1 min-h-0">

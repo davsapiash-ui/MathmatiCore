@@ -1,4 +1,5 @@
 import type { Place, PlaceCounts } from '@/core/placeValue';
+import type { TaskChoice } from './sessionTasks';
 import { S4_ADD, S5_SUB, S6_SUB } from './taskBuilders';
 
 /**
@@ -43,7 +44,24 @@ export interface DemoVerticalBody {
   memoryCircles: Partial<Record<Place, string>>;
 }
 
-export type DemoBody = DemoBuildBody | DemoVerticalBody;
+/**
+ * A multiple-choice exercise, drawn as the green path's choice exercise of the
+ * station (s4_g_t7, SmallChangeTask): a solved exercise, a question, three
+ * options. The teacher selects one; nothing is checked.
+ */
+export interface DemoChoiceBody {
+  kind: 'choice';
+  /** The solved exercise: a + b = given. */
+  a: number;
+  b: number;
+  /** The changed second number, and the result it gives. */
+  changedB: number;
+  givenHe: string;
+  questionHe: string;
+  choices: TaskChoice[];
+}
+
+export type DemoBody = DemoBuildBody | DemoVerticalBody | DemoChoiceBody;
 
 export interface TeacherDemoPart {
   id: string;
@@ -54,6 +72,13 @@ export interface TeacherDemoPart {
   /** The instruction on the card, in the style of the station's learner exercises. */
   instructionHe: string;
   body: DemoBody;
+  /**
+   * The board at the moment the example coaching card speaks of ("דוגמה לכרטיס
+   * החניכה"): the card is the station's static card for this exercise and this
+   * board (SocraticEngine), so the teacher shows the card a learner gets at the
+   * station's core step, the same card every time.
+   */
+  coachingBoard: Partial<PlaceCounts>;
 }
 
 export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
@@ -66,6 +91,8 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
         'בנו בבית המספרים את המספר 350. פרטו לבנת מאה אחת לעשר לבני עשרת. כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו.',
       // 3 hundreds and 5 tens; a hundred broken into ten tens: 2 hundreds and 15 tens, still 350.
       body: { kind: 'build', answer: 350, finalCounts: { hundreds: 2, tens: 15 } },
+      // 350 built, before the break.
+      coachingBoard: { hundreds: 3, tens: 5 },
     },
     {
       id: 'demo_s3_b',
@@ -73,16 +100,47 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       topicHe: 'קוראים וכותבים מספרים',
       instructionHe: 'בנו בבית המספרים את המספר ארבע מאות ושבע. כתבו אותו בספרות בשורת התוצאה.',
       body: { kind: 'build', answer: 407, finalCounts: { hundreds: 4, units: 7 } },
+      // 407 built, before it is written.
+      coachingBoard: { hundreds: 4, units: 7 },
     },
   ],
   4: [
     {
       id: 'demo_s4',
-      partLabelHe: null,
+      partLabelHe: 'תרגיל במאונך',
       topicHe: 'מחברים במאונך',
       // One grouping, in the units (8 + 6 = 14): the memory circle over the tens gets 1.
       instructionHe: S4_ADD('238 + 146'),
       body: { kind: 'vertical', a: 238, b: 146, isSubtraction: false, answer: 384, memoryCircles: { tens: '1' } },
+      // Both numbers built: 14 unit blocks, before the grouping.
+      coachingBoard: { hundreds: 3, tens: 7, units: 14 },
+    },
+    {
+      // ★ chosen (owner, 9.10.2026: "תשובות לבחירה" in the demonstration of
+      // station 4; numbers chosen here, checked by the pedagogy gate). Drawn as
+      // the green path's s4_g_t7. 238 + 146 = 384 groups in the units only;
+      // 238 + 186 groups in the units (8 + 6 = 14) and in the tens
+      // (3 + 8 + 1 = 12): 424. The wrong options are the two forgotten carries:
+      // the tens' 1 into the hundreds (324) and the units' 1 into the tens (414).
+      // None of these numbers is in a learner exercise (TeacherDemos_Arithmetic.test.ts).
+      id: 'demo_s4_choice',
+      partLabelHe: 'תשובות לבחירה',
+      topicHe: 'מחברים במאונך',
+      instructionHe: 'השוו בין שני תרגילים קרובים וגלו כיצד המרה בטור העשרות משפיעה על הטורים הבאים.',
+      body: {
+        kind: 'choice',
+        a: 238,
+        b: 146,
+        changedB: 186,
+        givenHe: '238 + 146 = 384',
+        questionHe: 'מחליפים רק את ספרת העשרות של המחובר השני: 238 + 186. מה ישתנה?',
+        choices: [
+          { id: 'א', textHe: 'תיווסף המרה גם בטור העשרות, ההמרה בטור היחידות תישאר, והתוצאה תהיה 424', correct: true },
+          { id: 'ב', textHe: 'רק ספרת העשרות בתוצאה תשתנה, והתוצאה תהיה 324' },
+          { id: 'ג', textHe: 'ההמרה בטור היחידות תיעלם, והתוצאה תהיה 414' },
+        ],
+      },
+      coachingBoard: {},
     },
   ],
   5: [
@@ -93,6 +151,8 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       // One break, a ten into the units: 6 tens, 14 units.
       instructionHe: S5_SUB('74 − 38', 74, 38),
       body: { kind: 'vertical', a: 74, b: 38, isSubtraction: true, answer: 36, memoryCircles: { tens: '6', units: '14' } },
+      // 74 built, before anything is taken away.
+      coachingBoard: { tens: 7, units: 4 },
     },
   ],
   6: [
@@ -110,6 +170,8 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
         answer: 466,
         memoryCircles: { hundreds: '6', tens: '9', units: '10' },
       },
+      // 700 built, before anything is taken away.
+      coachingBoard: { hundreds: 7 },
     },
   ],
   7: [
@@ -130,6 +192,7 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
         revealedResult: ['hundreds', 'tens'],
         memoryCircles: {},
       },
+      coachingBoard: {},
     },
     {
       id: 'demo_s7_b',
@@ -140,6 +203,8 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       instructionHe:
         'בנו את המספר 260 בבית המספרים. הוסיפו מאה אחת, ואז הוציאו 8 עשרות. השאירו את הלבנים בבית המספרים. איזה מספר קיבלתם? כתבו אותו בשורת התוצאה.',
       body: { kind: 'build', answer: 280, finalCounts: { hundreds: 2, tens: 8 } },
+      // An empty board: the card of the start ("מה עושים קודם?").
+      coachingBoard: {},
     },
   ],
 };
@@ -150,6 +215,11 @@ export const DEMO_S7_B_STEPS = { start: 260, add: 100, takeAway: 80 } as const;
 export function isDemoStation(station: number): station is DemoStation {
   return station >= 3 && station <= 7;
 }
+
+/** The teacher's buttons for the demonstration aids (owner, 9.10.2026). */
+export const DEMO_SHOW_COLOURS_HE = 'הצגת הצבעים בשורת התוצאה';
+export const DEMO_HIDE_COLOURS_HE = 'הסתרת הצבעים בשורת התוצאה';
+export const DEMO_CARD_HE = 'דוגמה לכרטיס החניכה';
 
 /** The sentence a station without a demonstration shows (stations 2 and 8). */
 export const NO_DEMO_HE = 'בתחנה זו אין הדגמה.';

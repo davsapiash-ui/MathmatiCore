@@ -47,7 +47,10 @@ import { ProjectorSandboxPage } from '../ProjectorSandboxPage';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
-import { NO_DEMO_HE, TEACHER_DEMOS } from '@/data/teacherDemos';
+import { NO_DEMO_HE, TEACHER_DEMOS, DEMO_CARD_HE, DEMO_SHOW_COLOURS_HE, DEMO_HIDE_COLOURS_HE } from '@/data/teacherDemos';
+import { demoGuide } from '@/features/workspace/tasks/DemoTaskCard';
+import { demoCoachingCard } from '@/application/teacherDemoTasks';
+import { PLACE_CUE_LINE_HE } from '@/core/placeCues';
 
 function renderProjector() {
   return render(
@@ -79,21 +82,38 @@ describe('the station picker', () => {
   it('replaces the range picker: eight stations, no "תחום ה-…" button', () => {
     renderProjector();
     const group = screen.getByRole('group', { name: 'בחירת תחנה' });
-    expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual(
+    expect(within(group).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(
       ['תחנה 1', 'תחנה 2', 'תחנה 3', 'תחנה 4', 'תחנה 5', 'תחנה 6', 'תחנה 7', 'תחנה 8']
     );
     expect(screen.queryByText(/תחום ה-1,000/)).toBeNull();
     expect(screen.queryByText(/תחום ה-10,000/)).toBeNull();
   });
 
-  it('station 1: the 1,000 range — an empty board without a thousands column, its digits shown, no task card', () => {
+  it('station 1: the 1,000 range — an empty board without a thousands column, the result row and "ממשיכים" as the learners see them', () => {
     renderProjector();
     expect(screen.getByRole('button', { name: 'תחנה 1' }).getAttribute('aria-pressed')).toBe('true');
     expect(useWorkspaceStore.getState().sessionNumber).toBe(1);
     expect(useWorkspaceStore.getState().projectorBoard).toBe(true);
     expect(board()).not.toBeNull();
     expect(document.getElementById('column-thousands-dropzone')).toBeNull();
-    expect(screen.queryByTestId('demo-task-card')).toBeNull();
+    // The learner's card: the station tag and station 1's result row (hundreds, tens, units), no exercise.
+    const card = screen.getByTestId('demo-task-card');
+    expect(within(card).getByTestId('station-tag').textContent).toBe('תחנה 1');
+    expect(within(card).queryByTestId('task-heading')).toBeNull();
+    expect(within(card).queryByTestId('task-instruction')).toBeNull();
+    const row = within(card).getByTestId('result-row');
+    expect(within(row).getAllByRole('textbox').map((b) => b.getAttribute('aria-label'))).toEqual([
+      'ספרת המאות בשורת התוצאה',
+      'ספרת העשרות בשורת התוצאה',
+      'ספרת היחידות בשורת התוצאה',
+    ]);
+    // "ממשיכים", the learners' button, moves nothing.
+    const proceed = screen.getByTestId('proceed-button');
+    expect(proceed.textContent).toBe('ממשיכים');
+    const before = useWorkspaceStore.getState();
+    fireEvent.click(proceed);
+    const after = useWorkspaceStore.getState();
+    expect([after.sessionNumber, after.standardTaskIdx, after.flowStatus, after.feedback]).toEqual([before.sessionNumber, before.standardTaskIdx, before.flowStatus, before.feedback]);
     // Undo and clear stay; "התחילו מחדש" belongs to stations 3–7.
     expect(screen.getByTitle('ביטול הפעולה האחרונה')).toBeTruthy();
     expect(screen.getByTitle('ניקוי כל הלבנים מבית המספרים')).toBeTruthy();
@@ -110,8 +130,26 @@ describe('the station picker', () => {
       expect(document.getElementById('column-thousands-dropzone')).not.toBeNull();
       const card = screen.getByTestId('demo-task-card');
       expect(within(card).getByTestId('station-tag').textContent).toBe(`תחנה ${n}`);
-      expect(within(card).getByTestId('demo-instruction').textContent).toBe(TEACHER_DEMOS[n as 3][0].instructionHe);
+      // The heading is the topic alone: no "משימה N מתוך M".
+      const part = TEACHER_DEMOS[n as 3][0];
+      expect(within(card).getByTestId('task-heading').textContent).toBe(part.topicHe);
+      expect(within(card).queryByTestId('task-position')).toBeNull();
+      // The instruction in the learners' guide block: the goal and the steps, in the instruction's own words.
+      const guide = demoGuide(n as 3, part)!;
+      const block = within(card).getByTestId('task-instruction');
+      if (guide.goalHe) expect(within(block).getByTestId('task-goal').textContent).toBe(guide.goalHe);
+      for (const s of guide.steps) expect(block.textContent).toContain(s.label);
     }
+  });
+
+  it('the guide block is the learners\' component: its steps, their condition lines, their spacing', () => {
+    renderProjector();
+    pick(5);
+    const block = screen.getByTestId('task-instruction');
+    expect(within(block).getByText('מה עושים:')).toBeTruthy();
+    const steps = within(block).getByTestId('guide-steps');
+    expect(within(steps).getAllByRole('listitem').filter((li) => li.hasAttribute('data-state'))).toHaveLength(3);
+    expect(within(block).getByTestId('step-subs').textContent).toContain('אם בטור אין מספיק לבנים');
   });
 
   it.each([2, 8])('station %i: "בתחנה זו אין הדגמה." and no board', (n) => {
@@ -124,10 +162,14 @@ describe('the station picker', () => {
     expect(screen.queryByTitle('ביטול הפעולה האחרונה')).toBeNull();
   });
 
-  it('the part switch: stations 3 and 7 only, and a part starts from the beginning', () => {
+  it('the part switch: stations 3, 4 and 7 only, and a part starts from the beginning', () => {
     renderProjector();
+    for (const n of [5, 6]) {
+      pick(n);
+      expect(screen.queryByRole('group', { name: 'בחירת חלק ההדגמה' })).toBeNull();
+    }
     pick(4);
-    expect(screen.queryByRole('group', { name: 'בחירת חלק ההדגמה' })).toBeNull();
+    expect(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getAllByRole('button').map((b) => b.textContent)).toEqual(['תרגיל במאונך', 'תשובות לבחירה']);
     pick(3);
     const parts = screen.getByRole('group', { name: 'בחירת חלק ההדגמה' });
     expect(within(parts).getAllByRole('button').map((b) => b.textContent)).toEqual(['חלק א', 'חלק ב']);
@@ -142,14 +184,21 @@ describe('the station picker', () => {
 });
 
 describe('demo mode: the teacher does everything, nothing judges it', () => {
-  it('the card has no read-aloud, no steps, no done box, no "ממשיכים"', () => {
+  it('the card has no read-aloud, no step marking, no done box, no "ממשיכים"', () => {
     renderProjector();
     for (const n of [3, 4, 5, 6, 7]) {
       pick(n);
       expect(screen.queryAllByLabelText('הקראה בקול')).toEqual([]);
-      expect(screen.queryByTestId('guide-steps')).toBeNull();
+      // Every step is drawn as one still to do: no "current" band, no tick, no "בוצע" (Module 15 §ג: "אין סימון צעדים").
+      const states = [...document.querySelectorAll('[data-state]')].map((el) => el.getAttribute('data-state'));
+      expect(states.length).toBeGreaterThan(0);
+      expect(new Set(states)).toEqual(new Set(['todo']));
+      expect(screen.queryByText('בוצע')).toBeNull();
       expect(screen.queryByTestId('session1-done')).toBeNull();
       expect(screen.queryByText(/ממשיכים/)).toBeNull();
+      // Even after the board and the row are complete.
+      act(() => useWorkspaceStore.getState().applyDrop({ source: 'palette', sourcePlace: 'hundreds', target: { kind: 'column', place: 'hundreds' } } as never));
+      expect(new Set([...document.querySelectorAll('[data-state]')].map((el) => el.getAttribute('data-state')))).toEqual(new Set(['todo']));
     }
   });
 
@@ -189,6 +238,106 @@ describe('demo mode: the teacher does everything, nothing judges it', () => {
   });
 });
 
+describe('the demonstration aids (owner, 9.10.2026)', () => {
+  const colours = () => screen.queryByTestId('demo-colours-toggle');
+  const cardButton = () => screen.queryByTestId('demo-card-toggle');
+
+  it('"הצגת הצבעים בשורת התוצאה": stations 4–6 only, off by default; the learner\'s scaffold line without read-aloud', () => {
+    renderProjector();
+    for (const n of [1, 3, 7]) {
+      pick(n);
+      expect(colours()).toBeNull();
+    }
+    pick(4);
+    fireEvent.click(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getByRole('button', { name: 'תשובות לבחירה' }));
+    expect(colours()).toBeNull();
+    for (const n of [4, 5, 6]) {
+      pick(n);
+      expect(colours()!.textContent).toBe(DEMO_SHOW_COLOURS_HE);
+      expect(colours()!.getAttribute('aria-pressed')).toBe('false');
+      expect(screen.queryByTestId('place-cue-line')).toBeNull();
+      fireEvent.click(colours()!);
+      expect(colours()!.textContent).toBe(DEMO_HIDE_COLOURS_HE);
+      const line = screen.getByTestId('place-cue-line');
+      expect(line.textContent).toBe(PLACE_CUE_LINE_HE.regular);
+      expect(within(line).queryByLabelText('הקראה בקול')).toBeNull();
+      // The place names under the result row's boxes, as the learner gets them.
+      expect(screen.getAllByLabelText(/^ספרת ה(יחידות|עשרות|מאות) בתשובה|^ספרת ה/).length).toBeGreaterThan(0);
+      fireEvent.click(colours()!);
+      expect(screen.queryByTestId('place-cue-line')).toBeNull();
+    }
+    expect(DEMO_SHOW_COLOURS_HE).toBe('הצגת הצבעים בשורת התוצאה');
+    expect(DEMO_HIDE_COLOURS_HE).toBe('הסתרת הצבעים בשורת התוצאה');
+  });
+
+  it('"דוגמה לכרטיס החניכה": stations 1 and 3–7, the learner\'s card with the station\'s static card', () => {
+    renderProjector();
+    for (const n of [1, 3, 4, 5, 6, 7]) {
+      pick(n);
+      expect(cardButton()!.textContent).toBe(DEMO_CARD_HE);
+      fireEvent.click(cardButton()!);
+      const card = screen.getByTestId('socratic-card');
+      expect(within(card).getByTestId('socratic-card-title').textContent).toContain('כרטיס החניכה');
+      const expected = n === 1 ? demoCoachingCard(1, null) : demoCoachingCard(n as 3, TEACHER_DEMOS[n as 3][0]);
+      expect(card.textContent).toContain(expected.questionHe);
+      expect(within(card).getAllByRole('button').filter((b) => expected.choices.some((c) => b.textContent?.includes(c.textHe)))).toHaveLength(3);
+      expect(within(card).queryByLabelText('הקראה בקול')).toBeNull();
+      // Pressed again, it closes.
+      fireEvent.click(cardButton()!);
+      expect(useWorkspaceStore.getState().helpState).toBe('closed');
+      expect(cardButton()!.getAttribute('aria-pressed')).toBe('false');
+    }
+    for (const n of [2, 8]) {
+      pick(n);
+      expect(cardButton()).toBeNull();
+    }
+    expect(DEMO_CARD_HE).toBe('דוגמה לכרטיס החניכה');
+  });
+
+  it('the card: a wrong option shows its hint with no pause, the right one closes the card after 4 seconds, "הבנתי" closes it', () => {
+    vi.useFakeTimers();
+    try {
+      renderProjector();
+      pick(4);
+      fireEvent.click(cardButton()!);
+      const card = demoCoachingCard(4, TEACHER_DEMOS[4][0]);
+      const wrong = card.choices.find((c) => !c.isCorrect)!;
+      const right = card.choices.find((c) => c.isCorrect)!;
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(wrong.textHe.slice(0, 20)) }));
+      expect(screen.getByTestId('socratic-card').textContent).toMatch(/💡 רמז: /);
+      expect(screen.queryByTestId('socratic-lock-indicator')).toBeNull();
+      expect(useWorkspaceStore.getState().socraticDistractorErrors).toBe(0);
+      const rightButton = screen.getByRole('button', { name: new RegExp(right.textHe.slice(0, 20)) }) as HTMLButtonElement;
+      expect(rightButton.disabled).toBe(false);
+      fireEvent.click(rightButton);
+      expect(screen.getByTestId('socratic-card')).toBeTruthy();
+      act(() => vi.advanceTimersByTime(4100));
+      expect(useWorkspaceStore.getState().helpState).toBe('closed');
+
+      fireEvent.click(cardButton()!);
+      fireEvent.click(screen.getByRole('button', { name: 'הבנתי, סגירת החלונית' }));
+      expect(useWorkspaceStore.getState().helpState).toBe('closed');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('station 4 "תשובות לבחירה": the green path\'s choice exercise, three options, the selection shows and nothing is checked', () => {
+    renderProjector();
+    pick(4);
+    fireEvent.click(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getByRole('button', { name: 'תשובות לבחירה' }));
+    const card = screen.getByTestId('demo-task-card');
+    expect(card.textContent).toContain('238 + 146 = 384');
+    const options = within(card).getAllByRole('radio');
+    expect(options).toHaveLength(3);
+    fireEvent.click(options[1]);
+    expect(options[1].getAttribute('aria-checked')).toBe('true');
+    expect(screen.queryByText(/נכון/)).toBeNull();
+    expect(useWorkspaceStore.getState().feedback).toBeNull();
+    expect(screen.queryByLabelText('הקראה בקול')).toBeNull();
+  });
+});
+
 describe('demo mode writes nothing', () => {
   it('no telemetry, no research trace, no learner record — only the broadcast flag', () => {
     vi.mocked(rtdbSet).mockClear();
@@ -209,6 +358,15 @@ describe('demo mode writes nothing', () => {
     drop('tens', { kind: 'trash' });
     fireEvent.click(screen.getByTitle('ביטול הפעולה האחרונה'));
     fireEvent.click(screen.getByTitle('ניקוי כל הלבנים מבית המספרים'));
+    // Its result row, "ממשיכים", and the example card with every option.
+    fireEvent.change(screen.getByLabelText('ספרת המאות בשורת התוצאה'), { target: { value: '3' } });
+    fireEvent.click(screen.getByTestId('proceed-button'));
+    const answerEveryOption = () => {
+      fireEvent.click(screen.getByTestId('demo-card-toggle'));
+      for (const b of within(screen.getByTestId('socratic-options')).getAllByRole('button')) fireEvent.click(b);
+      fireEvent.click(screen.getByRole('button', { name: 'הבנתי, סגירת החלונית' }));
+    };
+    answerEveryOption();
 
     // Station 3: build, break a hundred, write the number.
     pick(3);
@@ -227,6 +385,13 @@ describe('demo mode writes nothing', () => {
     fireEvent.change(units, { target: { value: '' } });
     fireEvent.change(units, { target: { value: '4' } });
     fireEvent.click(screen.getByTitle('ביטול הפעולה האחרונה'));
+    // The colours on and off, the example card, then the choice exercise.
+    fireEvent.click(screen.getByTestId('demo-colours-toggle'));
+    fireEvent.click(screen.getByTestId('demo-colours-toggle'));
+    answerEveryOption();
+    fireEvent.click(screen.getByRole('button', { name: 'תשובות לבחירה' }));
+    for (const r of screen.getAllByRole('radio')) fireEvent.click(r);
+    answerEveryOption();
 
     // Station 7: the hidden digit of the first number, then the other example.
     pick(7);

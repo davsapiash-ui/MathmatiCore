@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { UdlButton } from './UdlButton';
 import { tts } from '@/infrastructure/services/TTSService';
@@ -11,7 +11,19 @@ interface UdlSpeechButtonProps {
   onPlayingChange?: (playing: boolean) => void;
 }
 
-export function UdlSpeechButton({ text, lang = 'he-IL', className = '', onPlayingChange }: UdlSpeechButtonProps) {
+/**
+ * Whether the read-aloud buttons exist on this screen. The learner's screens
+ * have them; the teacher's demonstration screen (ProjectorSandboxPage) shows
+ * the learner's own components with narration off — the teacher's screens
+ * have no narration at all (AGENTS.md invariant 6; PRD Modules 7, 15 §ג, 24).
+ */
+export const NarrationContext = createContext(true);
+
+export function UdlSpeechButton(props: UdlSpeechButtonProps) {
+  return useContext(NarrationContext) ? <SpeechButton {...props} /> : null;
+}
+
+function SpeechButton({ text, lang = 'he-IL', className = '', onPlayingChange }: UdlSpeechButtonProps) {
   const [isPlaying, setIsPlayingState] = useState(false);
   /** Which read this button owns, so unmounting it cannot silence a different button. */
   const handleRef = useRef(0);

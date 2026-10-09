@@ -14,9 +14,29 @@ import type { DragSource, Place, DropInput } from '@/core/placeValue';
 import { useWorkspaceStore, type SessionNumber } from '@/application/useWorkspaceStore';
 import { PlaceValueBoard } from '@/features/workspace/board/PlaceValueBoard';
 import { DienesBlock } from '@/features/workspace/board/DienesBlock';
-import { DemoTaskCard } from '@/features/workspace/tasks/DemoTaskCard';
-import { BOARD_ZONE_FLEX, TASK_ZONE_FLEX, TASK_ZONE_CELL_CLASS } from '@/features/workspace/workspaceZones';
-import { TEACHER_DEMOS, NO_DEMO_HE, isDemoStation } from '@/data/teacherDemos';
+import { DemoStation1Card, DemoTaskCard } from '@/features/workspace/tasks/DemoTaskCard';
+import { SocraticSidePanel } from '@/features/workspace/overlays/HelpOverlays';
+import { ProceedButton } from '@/features/workspace/ProceedButton';
+import { demoCoachingCard } from '@/application/teacherDemoTasks';
+import { NarrationContext } from '@/presentation/design-system/UdlSpeechButton';
+import {
+  BOARD_ZONE_CLASS,
+  BOARD_ZONE_FLEX,
+  TASK_ZONE_CLASS,
+  TASK_ZONE_FLEX,
+  TASK_ZONE_INNER_CLASS,
+  WORKSPACE_MAIN_CLASS,
+  WORKSPACE_SURFACE_CLASS,
+} from '@/features/workspace/workspaceZones';
+import { WorkspaceBackdrop } from '@/features/workspace/WorkspaceBackdrop';
+import {
+  TEACHER_DEMOS,
+  NO_DEMO_HE,
+  isDemoStation,
+  DEMO_CARD_HE,
+  DEMO_HIDE_COLOURS_HE,
+  DEMO_SHOW_COLOURS_HE,
+} from '@/data/teacherDemos';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Logo } from '@/presentation/components/ui/Logo';
@@ -26,7 +46,9 @@ import {
   Tv,
   RotateCcw,
   Eraser,
-  RefreshCw
+  RefreshCw,
+  Palette,
+  Lightbulb,
 } from 'lucide-react';
 import { ref, set, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
@@ -65,6 +87,11 @@ export function ProjectorSandboxPage() {
   const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0);
   const startProjectorDemo = useWorkspaceStore((s) => s.startProjectorDemo);
   const clearProjectorBoard = useWorkspaceStore((s) => s.clearProjectorBoard);
+  const openDemoCoachingCard = useWorkspaceStore((s) => s.openDemoCoachingCard);
+  const closeHelp = useWorkspaceStore((s) => s.closeHelp);
+  const cardOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
+  const placeCuesShown = useWorkspaceStore((s) => s.placeCuesShown);
+  const setDemoPlaceCues = useWorkspaceStore((s) => s.setDemoPlaceCues);
 
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
   const [station, setStation] = useState<SessionNumber>(1);
@@ -72,6 +99,24 @@ export function ProjectorSandboxPage() {
   const parts = isDemoStation(station) ? TEACHER_DEMOS[station] : [];
   const part = parts[partIdx] ?? null;
   const hasBoard = station === 1 || part !== null;
+  // Owner, 9.10.2026: stations 4–6 show the result row's colours on request —
+  // the scaffold a learner gets after a digit in another column's box. Stations
+  // 3 and 7 have a one-box row, or a sheet whose row the colours do not explain.
+  const hasColourScaffold = (station === 4 || station === 5 || station === 6) && part?.body.kind === 'vertical';
+  // Owner, 9.10.2026: an example of the coaching card in stations 1 and 3–7.
+  const hasCardExample = station === 1 || part !== null;
+  // Each opening is a fresh card: its options unanswered, even while the last
+  // one is still fading out (the panel keeps its state through its exit).
+  const [cardOpening, setCardOpening] = useState(0);
+  const toggleCardExample = () => {
+    if (cardOpen) {
+      closeHelp();
+      return;
+    }
+    setCardOpening((k) => k + 1);
+    if (station === 1) openDemoCoachingCard(demoCoachingCard(1, null));
+    else if (part && isDemoStation(station)) openDemoCoachingCard(demoCoachingCard(station, part));
+  };
   // Opening this page used to start broadcasting immediately: preparing a demo
   // mid-lesson blanked all twelve screens before the teacher had arranged
   // anything. Broadcasting now starts when she says so.
@@ -92,7 +137,8 @@ export function ProjectorSandboxPage() {
   // Demo mode for as long as this page is open (useWorkspaceStore.projectorBoard).
   useEffect(() => {
     useWorkspaceStore.setState({ projectorBoard: true });
-    return () => useWorkspaceStore.setState({ projectorBoard: false });
+    return () =>
+      useWorkspaceStore.setState({ projectorBoard: false, helpState: 'closed', aiSocraticHint: null, placeCuesShown: false, selectedChoiceId: null });
   }, []);
 
   // Each station and part starts from its beginning: an empty board, nothing typed.
@@ -257,10 +303,20 @@ export function ProjectorSandboxPage() {
   };
 
   return (
-    <div dir="rtl" className="h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans flex flex-col overflow-hidden select-none">
+    // No read-aloud anywhere on this screen: the learner's components it shows
+    // drop their speech buttons (the teacher's screens have no narration —
+    // AGENTS.md invariant 6; PRD Module 15 §ג "אין במסך ההדגמה הקראה").
+    <NarrationContext.Provider value={false}>
+    {/* The learner's surface (background, ink, font) under the teacher's bars,
+        so the projected area looks as the learners' screen does. */}
+    <div dir="rtl" className={`relative h-[100dvh] w-full flex flex-col overflow-hidden select-none ${WORKSPACE_SURFACE_CLASS}`}>
+      <WorkspaceBackdrop />
 
       {/* ── Teacher Dedicated Projector Topbar ── */}
-      <header className="h-16 px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between z-30 shrink-0">
+      {/* The teacher's two bars together stay close to the learners' one top
+          bar (72px), so the task zone below has nearly the learners' height
+          and fits without scrolling (PRD Module 15 §ג). */}
+      <header className="relative h-12 px-5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between z-30 shrink-0">
 
         {/* ימין: מיתוג וכותרת מקרן */}
         <div className="flex items-center gap-4">
@@ -339,12 +395,17 @@ export function ProjectorSandboxPage() {
       </header>
 
       {/* ── The demonstration's controls: station, part, undo, clear, restart ── */}
-      <div className="shrink-0 px-6 py-2 bg-white/70 dark:bg-slate-900/70 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 z-20">
+      {/* One row at a projector's width (1280px and up); it wraps rather than
+          overlapping on a narrower window. The station picker shows the
+          numbers after one "תחנה" (each button is still named "תחנה N"), so
+          the demonstration aids fit beside it. */}
+      <div className="relative shrink-0 px-5 py-1 bg-white/70 dark:bg-slate-900/70 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 z-20">
         <div className="flex items-center gap-3 min-w-0">
-          <div role="group" aria-label="בחירת תחנה" className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+          <div role="group" aria-label="בחירת תחנה" className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+            <span aria-hidden="true" className="px-2 text-xs font-bold text-slate-500 dark:text-slate-400">תחנה</span>
             {STATIONS.map((n) => (
-              <button key={n} type="button" aria-pressed={station === n} onClick={() => chooseStation(n)} className={SEGMENT_CLASS(station === n)}>
-                תחנה {n}
+              <button key={n} type="button" aria-pressed={station === n} aria-label={`תחנה ${n}`} onClick={() => chooseStation(n)} className={`min-w-[2rem] ${SEGMENT_CLASS(station === n)}`}>
+                {n}
               </button>
             ))}
           </div>
@@ -361,14 +422,14 @@ export function ProjectorSandboxPage() {
         </div>
 
         {hasBoard && (
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Meeting 1's opening (owner, 1.10.2026): the teacher shows the class
                 the undo button — "רשת הביטחון" of doc 03 §3.1 — with the arrow the
                 learners see on their own toolbar (WorkspaceTopbar). The clear
                 button used that same arrow, so it now has an eraser. */}
-            <button type="button" onClick={undo} disabled={!canUndo} className={CONTROL_CLASS} title="ביטול הפעולה האחרונה">
-              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>ביטול הפעולה האחרונה</span>
+            {/* The arrow alone, as on the learners' top bar; its name is "ביטול הפעולה האחרונה". */}
+            <button type="button" onClick={undo} disabled={!canUndo} className={CONTROL_CLASS} title="ביטול הפעולה האחרונה" aria-label="ביטול הפעולה האחרונה">
+              <RotateCcw className="w-4 h-4 text-slate-500" />
             </button>
 
             <button type="button" onClick={clearProjectorBoard} className={CONTROL_CLASS} title="ניקוי כל הלבנים מבית המספרים">
@@ -383,12 +444,45 @@ export function ProjectorSandboxPage() {
                 <span>התחילו מחדש</span>
               </button>
             )}
+
+            {hasColourScaffold && (
+              <button
+                type="button"
+                onClick={() => setDemoPlaceCues(!placeCuesShown)}
+                aria-pressed={placeCuesShown}
+                className={CONTROL_CLASS}
+                data-testid="demo-colours-toggle"
+              >
+                <Palette className="w-3.5 h-3.5 text-slate-500" />
+                <span>{placeCuesShown ? DEMO_HIDE_COLOURS_HE : DEMO_SHOW_COLOURS_HE}</span>
+              </button>
+            )}
+
+            {hasCardExample && (
+              <button
+                type="button"
+                onClick={toggleCardExample}
+                aria-pressed={cardOpen}
+                className={CONTROL_CLASS}
+                data-testid="demo-card-toggle"
+              >
+                <Lightbulb className="w-3.5 h-3.5 text-slate-500" />
+                <span>{DEMO_CARD_HE}</span>
+              </button>
+            )}
+
+            {/* Station 1 (owner, 9.10.2026): the learners' "ממשיכים", where
+                their top bar has it (its far end), so the teacher can point at
+                it. It moves nothing here. */}
+            {station === 1 && <ProceedButton onClick={() => {}} disabled={false} />}
           </div>
         )}
       </div>
 
       {/* ── The projected area ── */}
-      <main className="flex-1 min-h-0 flex overflow-hidden p-fl-10-20 gap-fl-10-20 bg-slate-100/70 dark:bg-slate-950">
+      {/* The learner's row under the top bar (workspaceZones.ts): the same
+          paddings, gap and 45 : 55 split, so the task zone sits where theirs does. */}
+      <main className={`relative min-h-0 ${WORKSPACE_MAIN_CLASS}`}>
         {!hasBoard ? (
           <div className="flex-1 flex items-center justify-center" data-testid="no-demo">
             <p role="status" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl px-10 py-8 text-2xl font-bold text-slate-700 dark:text-slate-200 shadow-sm">
@@ -403,25 +497,19 @@ export function ProjectorSandboxPage() {
             onDragEnd={handleDragEnd}
             onDragCancel={() => setActiveDrag(null)}
           >
-            {part && isDemoStation(station) ? (
-              <>
-                {/* The learners' split (workspaceZones.ts): the task zone on the
-                    right, the number house on the visual left. */}
-                <section aria-label="אגף המשימה" style={{ flex: TASK_ZONE_FLEX }} className="relative min-h-0 min-w-0 flex flex-col">
-                  <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${TASK_ZONE_CELL_CLASS}`}>
-                    <DemoTaskCard station={station} part={part} />
-                  </div>
-                </section>
-                <section aria-label="אגף הייצוגים" style={{ flex: BOARD_ZONE_FLEX }} className="min-h-0 min-w-0 flex flex-row">
-                  <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} inZone />
-                </section>
-              </>
-            ) : (
-              <div className="w-full h-full max-w-7xl mx-auto flex flex-col min-h-0">
-                {/* בית המספרים בפריסה מלאה 100% */}
-                <PlaceValueBoard fullWidth={true} />
+            {/* The learners' split (workspaceZones.ts): the task zone on the
+                right, with the coaching card's drawer where theirs opens
+                (SocraticSidePanel, over the guide block), and the number
+                house on the visual left. */}
+            <section data-testid="task-zone" aria-label="אגף המשימה" style={{ flex: TASK_ZONE_FLEX }} className={TASK_ZONE_CLASS}>
+              <div className={TASK_ZONE_INNER_CLASS}>
+                {part && isDemoStation(station) ? <DemoTaskCard station={station} part={part} /> : <DemoStation1Card />}
               </div>
-            )}
+              <SocraticSidePanel key={cardOpening} inTaskZone />
+            </section>
+            <section data-testid="representations-zone" aria-label="אגף הייצוגים" style={{ flex: BOARD_ZONE_FLEX }} className={BOARD_ZONE_CLASS}>
+              <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} inZone />
+            </section>
 
             <DragOverlay dropAnimation={null}>
               {activeDrag ? (
@@ -439,5 +527,6 @@ export function ProjectorSandboxPage() {
         )}
       </main>
     </div>
+    </NarrationContext.Provider>
   );
 }

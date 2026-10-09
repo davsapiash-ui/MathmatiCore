@@ -36,14 +36,17 @@ export function TaskZoneHeader({
   showStation,
 }: {
   stationNumber: number;
-  positionLabel: string;
+  /** null: no location line (the teacher's demonstration, PRD Module 15 §ג) — the topic alone. */
+  positionLabel: string | null;
   topic: string | null;
   showStation: boolean;
 }) {
   return (
     <div className="shrink-0 flex items-start justify-between gap-3 mb-1">
-      <h1 className="font-display font-black text-ws-ink leading-[1.3] [text-wrap:balance] text-[clamp(20px,calc(1.1429vh+13.14px),24px)]" data-testid="task-heading">
-        {topic ? (
+      {positionLabel === null && !topic ? <span /> : <h1 className="font-display font-black text-ws-ink leading-[1.3] [text-wrap:balance] text-[clamp(20px,calc(1.1429vh+13.14px),24px)]" data-testid="task-heading">
+        {positionLabel === null ? (
+          topic
+        ) : topic ? (
           <>
             <span className="text-sm font-semibold text-ws-soft" data-testid="task-position">
               {positionLabel}:
@@ -53,7 +56,7 @@ export function TaskZoneHeader({
         ) : (
           positionLabel
         )}
-      </h1>
+      </h1>}
       {showStation && (
         <span className="shrink-0 mt-1 text-sm font-semibold text-ws-soft border border-ws-surface2 rounded-full px-2.5 leading-6" data-testid="station-tag">
           תחנה {stationNumber}
@@ -111,13 +114,17 @@ export function GuideBlock({
   done,
   doneNote,
   lockHeight,
+  noDoneBox = false,
 }: {
   goal: string | null;
   steps: StepView[];
-  speech: string;
+  /** What the read-aloud button reads; null: no button (the teacher's demonstration has no narration — Module 7, Module 15 §ג). */
+  speech: string | null;
   done: boolean;
   doneNote: string | null;
   lockHeight: boolean;
+  /** The teacher's demonstration: no done box, not even its reserved slot (nothing there is checked). */
+  noDoneBox?: boolean;
 }) {
   // PRD Module 7 rule (2): the step rows may close up to 2–4px when the card would otherwise scroll —
   // the exercises with condition lines, which carry the vertical sheet (2px between rows, 4px around
@@ -131,7 +138,7 @@ export function GuideBlock({
       {ghost ? <DoneBoxBody note={doneNote} ghost /> : <DoneBox note={doneNote} />}
     </div>
   );
-  const speak = (
+  const speak = speech === null ? null : (
     <span className="inline-block align-middle -my-3 ms-2">
       <UdlSpeechButton text={speech} />
     </span>
@@ -151,7 +158,9 @@ export function GuideBlock({
         </h2>
       )}
       {steps.length > 0 &&
-        (lockHeight ? (
+        (noDoneBox ? (
+          working
+        ) : lockHeight ? (
           <div className="grid" data-testid="guide-slot">
             <div className={`[grid-area:1/1] ${done ? 'invisible' : ''}`} aria-hidden={done || undefined} inert={done || undefined}>
               {done ? list(steps) : working}
