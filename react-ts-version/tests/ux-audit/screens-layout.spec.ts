@@ -2,7 +2,9 @@ import { test, expect, type Page } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
+  STUDENT_UID,
   closedSession,
+  studentRecord,
   gotoPath,
   gotoWorkspace,
   liveSession,
@@ -23,8 +25,15 @@ import { selectedViewports } from './viewports';
  *   - the opening screens of stations 1 and 4 (Module 14 §ב);
  *   - the workspace of station 4 splits 60 / 40: the representations zone on
  *     the visual left, the task-and-response zone on the right (Module 7 §א),
- *     and the coaching card's drawer opens inside the task zone, leaving the
- *     board's 60% as it was (Module 12 §ב).
+ *     and the coaching card's drawer opens inside the task zone, over the
+ *     instruction (in place of the steps), leaving the board's 60%, the
+ *     zone's 40% and the work area as they were (Module 7 §א rule 6, v7.15;
+ *     Module 12 §ב);
+ *   - the lobby's finished sentences, station 8's included (PRD v7.15, 14 §ב0);
+ *   - the quiet end screens of stations 1, 4 and 8 (14 §ג) and the waiting
+ *     screens over the workspace: pause, close (unfinished), projector, the
+ *     other device — and the close for a learner who finished, which keeps
+ *     the end screen (14 §ב0).
  *
  * Every state is also measured for the owner's 0-scroll rule (measure.ts).
  * Tier-A viewports only — the hard-fail ones.
@@ -129,13 +138,103 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       const boardOpen = await box(page, '[data-testid="representations-zone"]');
       const taskOpen = await box(page, '[data-testid="task-zone"]');
       const drawer = await box(page, '[data-testid="socratic-side-panel"]');
-      const sheet = await box(page, '[data-testid="task-zone"] > div');
       expect(Math.abs(boardOpen.width - board.width), 'the board keeps its 60% with the drawer open').toBeLessThanOrEqual(2);
+      expect(Math.abs(taskOpen.width - task.width), 'and the task zone its 40%').toBeLessThanOrEqual(2);
       expect(drawer.x, 'the drawer is inside the task zone').toBeGreaterThanOrEqual(taskOpen.x - 1);
       expect(drawer.x + drawer.width).toBeLessThanOrEqual(taskOpen.x + taskOpen.width + 1);
+      expect(drawer.y + drawer.height).toBeLessThanOrEqual(taskOpen.y + taskOpen.height + 1);
       expect(overlaps(drawer, boardOpen), 'the drawer covers nothing of the board').toBe(false);
-      expect(overlaps(drawer, sheet), 'the drawer covers nothing of the task').toBe(false);
+      // PRD 7 §א rule 6 (v7.15): over the instruction, in place of the steps —
+      // never over the work area: no box of the vertical sheet is under it.
+      const boxes = page.locator('[aria-label^="תרגיל במאונך"] input');
+      const count = await boxes.count();
+      expect(count).toBeGreaterThan(0);
+      for (let i = 0; i < count; i += 1) {
+        const b = await boxes.nth(i).boundingBox();
+        expect(b && overlaps(drawer, b), `the drawer covers no box of the sheet (${i})`).toBe(false);
+      }
       await check(page, 'workspace-station4-socratic', viewport.width, viewport.height);
+    });
+
+    test('lobby: finished, finished station 8, closed unfinished', async () => {
+      const finished = (m: number) => ({ ...studentRecord(c.opts), completedMeetings: { [`m${m}`]: Date.now() } });
+      c.rtdb.set(`users/students/${STUDENT_UID}`, finished(4) as never);
+      c.rtdb.set('active_class_session', { ...closedSession(), lastSessionNumber: 4 } as never);
+      await gotoPath(c, '/hub');
+      const page = c.page;
+      await expect(page.getByText('סיימתם את התחנה. כשהמורה תפתח את התחנה הבאה, נמשיך יחד.')).toBeVisible();
+      await check(page, 'lobby-finished', viewport.width, viewport.height);
+
+      c.rtdb.set(`users/students/${STUDENT_UID}`, finished(8) as never);
+      c.rtdb.set('active_class_session', { ...closedSession(), lastSessionNumber: 8 } as never);
+      await expect(page.getByText('סיימתם את תחנה 8, התחנה האחרונה. העבודה שלכם נשמרה בבטחה.')).toBeVisible();
+      await expect(page.getByText('התחנה הבאה', { exact: false })).toHaveCount(0);
+      await check(page, 'lobby-finished-station8', viewport.width, viewport.height);
+
+      c.rtdb.set(`users/students/${STUDENT_UID}`, {
+        ...studentRecord(c.opts),
+        workspaceByMeeting: { m4: { sessionNumber: 4, flowStatus: 'task', hasInteracted: true, savedAt: 1 } },
+      } as never);
+      c.rtdb.set('active_class_session', { ...closedSession(), lastSessionNumber: 4 } as never);
+      await expect(page.getByText('העבודה שלכם נשמרה בבטחה. המורה תקבע איתכם מתי תמשיכו.')).toBeVisible();
+      await check(page, 'lobby-closed-unfinished', viewport.width, viewport.height);
+    });
+
+    test('end screens of stations 1, 4 and 8', async () => {
+      const page = c.page;
+      // The harness's learner finished station 1: its end screen.
+      await gotoWorkspace(c, 1);
+      await expect(page.getByText('סיימתם את תחנה 1!')).toBeVisible();
+      await expect(page.getByText('העבודה שלכם נשמרה בבטחה.')).toBeVisible();
+      await expect(page.getByText('כל הכבוד', { exact: false })).toHaveCount(0);
+      await check(page, 'end-station1', viewport.width, viewport.height);
+
+      for (const meeting of [4, 8] as const) {
+        await gotoWorkspace(c, meeting);
+        // Straight to the end: the end screen comes before the opening screen.
+        await ws(page, 'api.setState({ flowStatus: "sessionDone", awaitingNext: false });');
+        await expect(page.getByTestId('station-end-screen')).toBeVisible();
+        if (meeting === 8) {
+          await expect(page.getByText('סיימתם את תחנה 8, התחנה האחרונה!')).toBeVisible();
+          await expect(page.getByText('התחנה הבאה', { exact: false })).toHaveCount(0);
+        }
+        await check(page, `end-station${meeting}`, viewport.width, viewport.height);
+      }
+    });
+
+    test('waiting screens over the station 4 workspace', async () => {
+      await gotoWorkspace(c, 4);
+      const page = c.page;
+      await page.getByRole('button', { name: 'מתחילים' }).click();
+      await page.locator('[data-testid="task-zone"]').waitFor({ state: 'visible' });
+
+      c.rtdb.set('active_class_session', liveSession(4, 'paused') as never);
+      await expect(page.getByText('חכו רגע. העבודה שלכם שמורה בדיוק כמו שהשארתם אותה.')).toBeVisible();
+      await check(page, 'waiting-paused', viewport.width, viewport.height);
+
+      c.rtdb.set('active_class_session', { ...closedSession(), lastSessionNumber: 4 } as never);
+      await expect(page.getByText('העבודה שלכם נשמרה בבטחה. המורה תקבע איתכם מתי תמשיכו.')).toBeVisible();
+      await check(page, 'waiting-closed-unfinished', viewport.width, viewport.height);
+
+      c.rtdb.set('active_class_session', liveSession(4) as never);
+      c.rtdb.set('system_control/projector_mode', { active: true, projector_mode: true, projector_mode_updated_at: Date.now() });
+      await expect(page.getByText('הקשיבו להסבר של המורה על גבי המקרן')).toBeVisible();
+      await expect(page.getByText('הדגמה על גבי המקרן', { exact: false })).toHaveCount(0);
+      await check(page, 'waiting-projector', viewport.width, viewport.height);
+      c.rtdb.set('system_control/projector_mode', { active: false, projector_mode: false, projector_mode_updated_at: Date.now() });
+      await expect(page.getByText('הקשיבו להסבר של המורה על גבי המקרן')).toHaveCount(0);
+
+      // Finished, then the teacher closes: the end screen stays, no close screen.
+      await ws(page, 'api.setState({ flowStatus: "sessionDone", awaitingNext: false });');
+      c.rtdb.set('active_class_session', { ...closedSession(), lastSessionNumber: 4 } as never);
+      await expect(page.getByTestId('station-end-screen')).toBeVisible();
+      await settle(page, 500);
+      await expect(page.getByText('המורה סגרה את התחנה')).toHaveCount(0);
+      await check(page, 'waiting-closed-finished', viewport.width, viewport.height);
+
+      await ws(page, 'api.setState({ isSupersededByOtherDevice: true });');
+      await expect(page.getByText('העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה.')).toBeVisible();
+      await check(page, 'waiting-other-device', viewport.width, viewport.height);
     });
   });
 }

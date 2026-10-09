@@ -26,7 +26,7 @@ import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
-import { BOARD_ZONE_FLEX, TASK_ZONE_FLEX } from './workspaceZones';
+import { BOARD_ZONE_FLEX, TASK_ZONE_FLEX, TASK_ZONE_CELL_CLASS } from './workspaceZones';
 
 import { DienesBlock } from './board/DienesBlock';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
@@ -1473,16 +1473,23 @@ export function StudentWorkspacePage() {
             <>
               {/* The task-and-response zone, 40% (RTL: first in the row, so on
                   the right): the task card with its result row, and the
-                  coaching card's side drawer, which opens inside this zone
-                  (PRD Module 12 §ב) — so the representations zone keeps its
-                  60% and stays in view, and nothing covers anything. */}
+                  coaching card's drawer, which opens inside this zone over the
+                  instruction, in place of the steps (PRD 7 §א rule 6, v7.15;
+                  Module 12 §ב) — so the representations zone keeps its 60%
+                  and the work area stays in view. */}
               <section
                 data-testid="task-zone"
                 aria-label="אגף המשימה"
                 style={{ flex: isBoardOpen ? TASK_ZONE_FLEX : '1 1 0%' }}
-                className="min-h-0 min-w-0 flex flex-row gap-2"
+                className="relative min-h-0 min-w-0 flex flex-col"
               >
-                <div className="flex-1 min-h-0 min-w-0 flex flex-col">
+                {/* The task card, wrapped from the outside. Its notebook
+                    square (--ws-cell) also follows the zone's width, so on a
+                    narrow screen (a 1024px tablet: a ~390px zone) the result
+                    row and the vertical sheet fit across and under the
+                    instruction without scrolling (PRD 7 §א rule 7). Not
+                    binding on a laptop, where the height decides. */}
+                <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${TASK_ZONE_CELL_CLASS}`}>
                   <TaskCard />
                 </div>
                 <SocraticSidePanel inTaskZone />

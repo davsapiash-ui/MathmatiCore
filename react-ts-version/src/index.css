@@ -612,3 +612,16 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
+
+/* PRD Module 7 §א rule 7: in the 40% task zone (StudentWorkspacePage,
+   workspaceZones.ts) the notebook square also follows the zone's width, so on a
+   ~390px zone (a 1024px tablet) the result row and the vertical sheet fit
+   without scrolling. !important: the task card sets its own square on its root
+   while the coaching card is open; inside the zone this one decides. */
+.task-zone-cells {
+  container-type: inline-size;
+}
+.task-zone-cells,
+.task-zone-cells > * {
+  --ws-cell: clamp(34px, min(7.4vh, 5vw, calc((100cqi - 96px) / 7.5)), 64px) !important;
+}

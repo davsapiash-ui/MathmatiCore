@@ -75,6 +75,6 @@ describe('the learner\'s screen', () => {
     const guard = page.indexOf('if (waitingAfterApproval) {');
     expect(page.slice(guard, guard + 120)).toContain('<TeacherWillOpenWaitingScreen />');
     // Before any screen of the running meeting is drawn.
-    expect(guard).toBeLessThan(page.indexOf("if (flowStatus === 'choice_branch')"));
+    expect(guard).toBeLessThan(page.indexOf("if (flowStatus === 'choice_branch' && !closedStationFinished)"));
   });
 });

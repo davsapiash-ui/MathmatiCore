@@ -19,6 +19,7 @@ import { joinSpokenSentences } from '../tasks/spokenSentences';
 import { useStudentChatOpen } from '@/application/useStudentChatOpen';
 import { coachingCardKey, showCoachingCard, useIsAdditionGridOverCard } from '@/application/useAdditionGridOverCard';
 import { CARD_TAB_HE, CARD_TAB_LABEL_HE } from './StudentChatOverlay';
+import { TaskZoneDrawerSlot } from './TaskZoneDrawerSlot';
 
 /** The card's silent lock (PRD Module 12 §ב), said by the hint box's read-aloud button too. */
 const LOCK_SENTENCE_HE = 'רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.';
@@ -103,8 +104,6 @@ export function HelpOverlays() {
  * SOCRATIC_OPTION_SELECTED, Escape to close, no focus trap (the keyboard and
  * the board stay usable while it is open).
  */
-/** The drawer's width inside the task zone: a share of the zone, so the task card keeps the rest. */
-const TASK_ZONE_DRAWER_WIDTH = 'w-[clamp(176px,38%,300px)]';
 /** Its width beside the centred card of meeting 8. */
 const BESIDE_CARD_DRAWER_WIDTH = 'w-[clamp(236px,24vw,260px)] xl:w-[280px] 2xl:w-[340px]';
 
@@ -251,22 +250,23 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
       })()
     : [];
 
-  return (
-    <AnimatePresence initial={false}>
-      {helpState === 'socratic' && (
-        /* In the layout, not over it: the panel takes its own width
-           (max-width grows 0 → full in 250ms, so the task card eases aside
-           instead of jumping) and releases the pointer the moment it starts
-           leaving. No backdrop, no z-index over the work. */
+  // PRD Module 7 §א rule 6 (v7.15): in the task-and-response zone the drawer
+  // is laid over the instruction — "במקום הצעדים" — and the zone, the board
+  // and the work area keep their places (TaskZoneDrawerSlot). It fades in and
+  // out; nothing slides. Beside the centred card of meeting 8 it keeps its own
+  // column, sliding out as before.
+  const drawerMotion = inTaskZone
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0, pointerEvents: 'none' as const }, transition: { duration: 0.2 } }
+    : { initial: { maxWidth: 0, opacity: 0 }, animate: { maxWidth: 400, opacity: 1 }, exit: { maxWidth: 0, opacity: 0, pointerEvents: 'none' as const }, transition: { duration: 0.25, ease: 'easeOut' as const } };
+  const drawer = helpState === 'socratic' && (
+        /* In the layout, not over the work: no backdrop, no z-index over the
+           board, and the pointer is released the moment it starts leaving. */
         <motion.div
           key="socratic-side-panel"
-          initial={{ maxWidth: 0, opacity: 0 }}
-          animate={{ maxWidth: 400, opacity: 1 }}
-          exit={{ maxWidth: 0, opacity: 0, pointerEvents: 'none' }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className={`socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden ${
-            gridOverCard ? 'w-16' : inTaskZone ? TASK_ZONE_DRAWER_WIDTH : BESIDE_CARD_DRAWER_WIDTH
-          }`}
+          {...drawerMotion}
+          className={inTaskZone
+            ? `socratic-side-panel w-full flex ${gridOverCard ? 'justify-end' : ''}`
+            : `socratic-side-panel shrink-0 self-stretch min-h-0 max-h-full overflow-hidden ${gridOverCard ? 'w-16' : BESIDE_CARD_DRAWER_WIDTH}`}
           dir="rtl"
           data-testid="socratic-side-panel"
         >
@@ -294,7 +294,7 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
                  the close button fit in the panel down to a 585px-high window.
                  overflow-y-auto stays only as a last resort for a still
                  shorter screen. */
-              className={`h-full min-h-0 flex-col ${inTaskZone ? 'w-full' : BESIDE_CARD_DRAWER_WIDTH} bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
+              className={`${inTaskZone ? 'w-full pointer-events-auto' : `h-full min-h-0 ${BESIDE_CARD_DRAWER_WIDTH}`} flex-col bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
                 gridOverCard ? 'hidden' : folded ? 'flex invisible pointer-events-none' : 'flex pointer-events-auto'
               }`}
               // Folded: hidden, unreachable by Tab and screen readers, still mounted.
@@ -358,13 +358,22 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
               </div>
 
               {/* 3 Closed Dynamic Options for Socratic Mentoring */}
-              <SocraticPenaltyLockOptions choices={shownChoices} onClose={closeHelp} folded={folded} />
+              <SocraticPenaltyLockOptions choices={shownChoices} onClose={closeHelp} folded={folded} columns={inTaskZone} />
               </>)}
             </aside>
         </motion.div>
-      )}
-    </AnimatePresence>
   );
+
+  if (inTaskZone) {
+    return (
+      // Folded for the addition grid, only its tab is left: at the zone's top
+      // corner, beside the station tag, over nothing the learner reads.
+      <TaskZoneDrawerSlot atTop={gridOverCard}>
+        <AnimatePresence initial={false}>{drawer}</AnimatePresence>
+      </TaskZoneDrawerSlot>
+    );
+  }
+  return <AnimatePresence initial={false}>{drawer}</AnimatePresence>;
 }
 
 /**
@@ -387,7 +396,12 @@ function CardTitle() {
   );
 }
 
-function SocraticPenaltyLockOptions({ choices, onClose, folded = false }: { choices: SocraticChoice[]; onClose: () => void; folded?: boolean }) {
+/**
+ * `columns`: in the task zone the drawer is as wide as the zone and lies over
+ * the instruction, so its three options stand side by side — the drawer stays
+ * as short as the instruction it covers (PRD Module 7 §א rule 6).
+ */
+function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns = false }: { choices: SocraticChoice[]; onClose: () => void; folded?: boolean; columns?: boolean }) {
   const socraticPenaltyLockoutUntil = useWorkspaceStore((s) => s.socraticPenaltyLockoutUntil);
   const triggerSocraticPenaltyLockout = useWorkspaceStore((s) => s.triggerSocraticPenaltyLockout);
   const getSocraticPenaltyRemaining = useWorkspaceStore((s) => s.getSocraticPenaltyRemaining);
@@ -486,6 +500,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false }: { choi
       {/* While the answer buttons are locked the prompt's line goes to the
           hint; it comes back with the buttons. */}
       {!locked && !answered && <p className="font-extrabold text-xs text-ws-soft">בחרו תשובה:</p>}
+      <div className={columns ? 'grid grid-cols-3 gap-2' : 'contents'} data-testid="socratic-options">
       {options.map((opt) => {
         const isChosen = selectedOpt === opt.id;
         const isWrongChosen = isChosen && !opt.correct;
@@ -499,7 +514,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false }: { choi
             onClick={() => handleSelect(opt)}
             // At least 44px tall, the child's touch target (DESIGN_SYSTEM_RULES.md;
             // UX audit 4.10.2026: 36–42px on 585–729px-high windows).
-            className={`min-h-11 px-3 py-[clamp(0.3125rem,1.3vh,0.75rem)] rounded-2xl border-2 text-right font-medium text-[clamp(0.75rem,2vh,0.875rem)] leading-snug transition-all flex items-center gap-2 ${
+            className={`min-h-11 ${columns ? 'px-2 justify-center text-center' : 'px-3 text-right'} py-[clamp(0.3125rem,1.3vh,0.75rem)] rounded-2xl border-2 font-medium text-[clamp(0.75rem,2vh,0.875rem)] leading-snug transition-all flex items-center gap-2 ${
               isCorrectChosen
                 ? 'border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100'
                 : isWrongChosen
@@ -515,6 +530,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false }: { choi
           </button>
         );
       })}
+      </div>
 
       {/* After a wrong choice the hint and the lock share one box: two boxes
           pushed the close button below a 585px-high window (28.9.2026). */}
