@@ -102,7 +102,7 @@ import { compareTelemetryOrder } from "./telemetryOrder";
  *
  * Outputs: a PDF for the teacher, a CSV of the per-learner table for the
  * research, both in Cloud Storage and mirrored to Drive under
- * "05 דוחות כיתה / מפגש N", and a Firestore document class_reports/{class}_session_{N}
+ * the flat folder "1 דוחות" (PRD 23 §ב, no subfolders), and a Firestore document class_reports/{class}_session_{N}
  * carrying every number so the dashboard shows the report without regenerating.
  */
 

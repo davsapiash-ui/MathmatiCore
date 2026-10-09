@@ -17,7 +17,7 @@ const h = vi.hoisted(() => ({
   collections: {} as Record<string, Array<{ id: string; data: Record<string, any>; writtenAt?: number }>>,
   rtdb: {} as Record<string, unknown>,
   sets: [] as Array<{ name: string; id: string; values: Record<string, any> }>,
-  files: [] as Array<{ path: string; text: string }>,
+  files: [] as Array<{ path: string; text: string; options?: Record<string, any> }>,
   failResetLog: false,
   failTelemetry: false,
 }));
@@ -91,17 +91,23 @@ vi.mock('firebase-admin', async (importOriginal) => {
   const storage = () => ({
     bucket: () => ({
       name: 'test-bucket',
-      file: (path: string) => ({ save: async (buf: Buffer) => { h.files.push({ path, text: Buffer.from(buf).toString('utf8') }); }, getSignedUrl: async () => ['https://signed.example/file'] }),
+      file: (path: string) => ({ save: async (buf: Buffer, options?: Record<string, any>) => { h.files.push({ path, text: Buffer.from(buf).toString('utf8'), options }); }, getSignedUrl: async () => [`https://signed.example/${path}`] }),
     }),
   });
   const app = () => { throw new Error('no default app in tests'); };
   return { ...actual, default: { ...actual, database, firestore, storage, app }, database, firestore, storage, app };
 });
 
-import { generatePedagogicalReportPDF } from '../pedagogicalReport';
+import {
+  generatePedagogicalReportPDF,
+  getPedagogicalReportDownloadUrl,
+  isReportDocOfSession,
+  legacyPedagogicalReportDocId,
+  pedagogicalReportDocId,
+} from '../pedagogicalReport';
 import { generateClassMeetingReport } from '../classReport';
 import { pathOfMeeting, splitMeetingRuns, resetsOfMeeting } from '../meetingMetrics';
-import { buildPreResetRecord, nothingToAnalyseAfterResetHe, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE } from '../preResetRecord';
+import { AWAITING_RERUN_REASON_HE, buildPreResetRecord, nothingToAnalyseAfterResetHe, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE } from '../preResetRecord';
 import { exportResearchDataset } from '../exportDriveReport';
 import { buildAdminMetrics, currentRunEvents, groupTelemetryByMeeting } from '../adminAggregator';
 import { pedagogicalReportHtml, classReportHtml } from '../reportHtml';
@@ -220,7 +226,7 @@ describe('the personal report after a reset', () => {
 
   it('a meeting reset and not yet done again has no report, and says why — also when the screen reopened', async () => {
     // Learner 6 has SESSION_START and PROBLEM_LOAD after the reset and nothing answered: not 0% and remediation.
-    await expect(personal(6)).rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringContaining('אופס') });
+    await expect(personal(6)).rejects.toMatchObject({ code: 'failed-precondition', message: AWAITING_RERUN_REASON_HE });
   });
 
   it('when the reset log cannot be read there is no report, said plainly (it would count the whole history)', async () => {
@@ -241,7 +247,8 @@ describe('the personal report after a reset', () => {
   });
 
   it('the refusal is true also when the child pressed things that send no answer', async () => {
-    await expect(personal(6)).rejects.toMatchObject({ message: 'מפגש 3 של תלמיד 6 אופס, ומאז עוד לא נרשמה לו אף תשובה. אפשר להפיק את הדוח אחרי שתירשם לו תשובה במפגש הזה.' });
+    // PRD 23 §ב, word for word: "נדחית, עם הנימוק: 'מאז האיפוס עוד לא נרשמה לו אף תשובה'".
+    await expect(personal(6)).rejects.toMatchObject({ message: 'מאז האיפוס עוד לא נרשמה לו אף תשובה' });
   });
 
   it('a meeting that was never reset has no "לפני האיפוס" section', async () => {
@@ -388,5 +395,66 @@ describe('the admin metrics count a meeting as the reports do', () => {
     // 4 and 5 at 100%; 6 (reset, nothing answered since) has no score rather than 0%.
     expect(metrics.session_breakdown['3'].average_score_percent).toBe(100);
     expect(metrics.session_breakdown['3'].wrong_digits).toBe(0);
+  });
+});
+
+describe('every generation of a learner report is kept, and its link lasts one hour (PRD 23 §ב)', () => {
+  const SESSION = 'session_3_student_student_user4';
+  const download = (data: Record<string, unknown>) =>
+    (getPedagogicalReportDownloadUrl as any).run({ auth: { uid: 'teacher-uid', token: { role: 'teacher', roles: ['TEACHER'], teacher: true, class_id: 'class_1' } }, data });
+
+  it('"הפקה חוזרת יוצרת קובץ חדש ואינה דורסת את הקודם": a new document and a new file each time', async () => {
+    let now = T_RESET + 10_000_000;
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now++);
+    try {
+      const first = await personal(4);
+      const second = await personal(4);
+      const stored = h.sets.filter((s) => s.name === 'reports' && s.values.report_id);
+      expect(stored.map((s) => s.id)).toEqual([first.reportId, second.reportId]);
+      expect(first.reportId).not.toBe(second.reportId);
+      for (const r of [first, second]) {
+        expect(r.reportId).toBe(pedagogicalReportDocId(SESSION, r.report.generated_at));
+        expect(r.report.report_id).toBe(r.reportId);
+        expect(isReportDocOfSession(r.reportId, SESSION)).toBe(true);
+      }
+      // Never the old single document, which every generation overwrote.
+      expect(stored.some((s) => s.id === legacyPedagogicalReportDocId(SESSION))).toBe(false);
+      const pdfs = h.files.filter((f) => f.path.startsWith('reports/class_1/session_3/student_4_'));
+      expect(new Set(pdfs.map((f) => f.path)).size).toBe(2);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it('"בתוקף לשעה אחת": the PDF carries no download token and generation returns no link', async () => {
+    const res = await personal(4);
+    expect(res.status).toBe('SUCCESS');
+    expect(res.downloadUrl).toBeNull();
+    const pdf = h.files.find((f) => f.path === res.storagePath)!;
+    expect(JSON.stringify(pdf.options ?? {})).not.toContain('firebaseStorageDownloadTokens');
+    expect(JSON.stringify(res)).not.toContain('alt=media&token=');
+  });
+
+  it('the one-hour link names the generation asked for; without one, the newest; an old single document still opens', async () => {
+    h.collections.reports = [
+      { id: legacyPedagogicalReportDocId(SESSION), data: { session_id: SESSION, class_id: 'class_1', generated_at: 100, storage_path: 'reports/class_1/session_3/student_4_100.pdf' } },
+      { id: pedagogicalReportDocId(SESSION, 200), data: { session_id: SESSION, class_id: 'class_1', generated_at: 200, storage_path: 'reports/class_1/session_3/student_4_200.pdf' } },
+      { id: pedagogicalReportDocId(SESSION, 300), data: { session_id: SESSION, class_id: 'class_1', generated_at: 300, storage_path: 'reports/class_1/session_3/student_4_300.pdf' } },
+    ];
+    expect((await download({ sessionId: SESSION, reportId: pedagogicalReportDocId(SESSION, 200) })).downloadUrl)
+      .toBe('https://signed.example/reports/class_1/session_3/student_4_200.pdf');
+    expect((await download({ sessionId: SESSION, reportId: legacyPedagogicalReportDocId(SESSION) })).downloadUrl)
+      .toBe('https://signed.example/reports/class_1/session_3/student_4_100.pdf');
+    expect(await download({ sessionId: SESSION })).toMatchObject({
+      reportId: pedagogicalReportDocId(SESSION, 300),
+      downloadUrl: 'https://signed.example/reports/class_1/session_3/student_4_300.pdf',
+    });
+  });
+
+  it("a report id of another learner's meeting is refused", async () => {
+    await expect(download({ sessionId: SESSION, reportId: pedagogicalReportDocId('session_3_student_student_user5', 200) }))
+      .rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(isReportDocOfSession('rep_session_3_student_student_user4_abc', SESSION)).toBe(false);
+    expect(isReportDocOfSession('rep_session_3_student_student_user4/x', SESSION)).toBe(false);
   });
 });

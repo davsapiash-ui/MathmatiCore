@@ -953,8 +953,6 @@ export interface MeetingReport {
   aiAnalysisAvailable: boolean;
   telemetryEventCount: number;
   generatedAt: number | null;
-  /** Direct PDF link when the server just produced it; otherwise fetched on demand. */
-  downloadUrl: string | null;
   /**
    * PRD 7.3, Module 23 §ב "מדדי המחקר": shown in the learner report. One ready
    * line per measure; empty for a report produced before the measures existed.
@@ -1054,10 +1052,16 @@ function sandboxPartOf(d: Record<string, any>): SandboxReportPart {
   };
 }
 
+/**
+ * `justGenerated`: the server produced this report (and its PDF) in this very
+ * request, so its file is the new one whatever the document says. The report
+ * carries no link: PRD 23 §ב, the links are "בתוקף לשעה אחת מרגע יצירתם, כמו
+ * הקישור לדוח הלומד", and fetchMeetingReportUrl asks for one on each opening.
+ */
 export function reportFromData(
   d: Record<string, any>,
   sessionId: string,
-  downloadUrl: string | null,
+  justGenerated: boolean | null = null,
   pdfFailureMessage: string | null = null,
   driveUrl: string | null = null,
 ): MeetingReport {
@@ -1066,8 +1070,8 @@ export function reportFromData(
   const sandbox = d.meeting_kind === 'sandbox_refresh' || sessionNumber === 1;
   return {
     driveUrl: driveUrl ?? (typeof d.drive_file_url === 'string' && d.drive_file_url ? d.drive_file_url : null),
-    // A link the server has just made belongs to a fresh PDF, whatever the document still says.
-    storedPdfOutdated: sandbox && downloadUrl === null && (d.meeting_kind !== 'sandbox_refresh' || typeof d.score_percent === 'number'),
+    // A PDF the server has just made is a fresh one, whatever the document still says.
+    storedPdfOutdated: sandbox && justGenerated !== true && (d.meeting_kind !== 'sandbox_refresh' || typeof d.score_percent === 'number'),
     reportId: String(d.report_id ?? `rep_${sessionId}`),
     sessionId: String(d.session_id ?? sessionId),
     sessionNumber,
@@ -1083,19 +1087,45 @@ export function reportFromData(
     aiAnalysisAvailable: d.ai_analysis_available === true,
     telemetryEventCount: Number(d.telemetry_event_count) || 0,
     generatedAt: typeof d.generated_at === 'number' ? d.generated_at : null,
-    downloadUrl,
     researchMeasures: researchMeasureLines(d.research_measures),
     pdfFailureMessage,
     preReset: strList(d.pre_reset?.lines_he).length > 0 ? { lines: strList(d.pre_reset.lines_he) } : null,
   };
 }
 
-/** The report already produced for this meeting, if any (Firestore reports/rep_{sessionId}). */
-export async function fetchMeetingReport(sessionId: string): Promise<MeetingReport | null> {
+/** PRD 23 §ב: the mark of a report produced before the meeting's last reset. */
+export const REPORT_BEFORE_RESET_LABEL_HE = 'לפני האיפוס';
+
+/** Newest first; a report with no time (none is stored without one) last. */
+export function newestReportsFirst(reports: MeetingReport[]): MeetingReport[] {
+  return [...reports].sort((a, b) => (b.generatedAt ?? -Infinity) - (a.generatedAt ?? -Infinity));
+}
+
+/**
+ * PRD 23 §ב: "דוח שהופק לפני האיפוס נשמר ומסומן 'לפני האיפוס'; דוח שמופק אחרי
+ * האיפוס הוא קובץ חדש ואינו מחליף אותו". Read against the reset log at display
+ * time, since the reset may come after the report: produced before the last
+ * completed reset of this meeting (resetsOfMeeting, PRD 23א §ד).
+ */
+export function isReportBeforeReset(report: Pick<MeetingReport, 'generatedAt'>, resets: Pick<MeetingResetMark, 'at'>[]): boolean {
+  if (report.generatedAt === null || resets.length === 0) return false;
+  const last = Math.max(...resets.map((r) => r.at));
+  return report.generatedAt < last;
+}
+
+/**
+ * Every report produced for this meeting, newest first. PRD 23 §ב: "הפקה
+ * חוזרת יוצרת קובץ חדש ואינה דורסת את הקודם" — one document per generation
+ * (reports/rep_{sessionId}_{generatedAt}), and the single document a meeting
+ * had before that (reports/rep_{sessionId}) is read with them.
+ */
+export async function fetchMeetingReports(sessionId: string): Promise<MeetingReport[]> {
   await authReady;
-  const snap = await getDoc(doc(firestore, 'reports', `rep_${sessionId}`));
-  if (!snap.exists()) return null;
-  return reportFromData(snap.data() as Record<string, any>, sessionId, null);
+  // firestore.rules (reports, list): the query names the class, as the teacher's own reads do.
+  const snap = await getDocs(query(collection(firestore, 'reports'), where('class_id', '==', 'class_1'), where('session_id', '==', sessionId)));
+  const out: MeetingReport[] = [];
+  snap.forEach((d) => { out.push(reportFromData({ report_id: d.id, ...(d.data() as Record<string, any>) }, sessionId)); });
+  return newestReportsFirst(out);
 }
 
 /** Asks the server to build (or rebuild) the report for one meeting. Takes up to ~20 seconds. */
@@ -1109,27 +1139,31 @@ export async function generateMeetingReport(params: { studentNum: number; sessio
   });
   const data = (res.data ?? {}) as Record<string, any>;
   if (!data.report) throw new Error('השרת לא החזיר דוח');
-  const downloadUrl = typeof data.downloadUrl === 'string' && data.downloadUrl ? data.downloadUrl : null;
   // The server answers DEGRADED_JSON_ONLY when the report was built but its PDF
   // could not be rendered or stored. That status used to be ignored: the report
   // appeared on screen, and "פתח PDF" then opened the PDF of an EARLIER run (stale
   // numbers) or failed with an unrelated message.
   // PRD 7.3 Module 23 §ה fixes the text for a PDF the server failed to render:
   // "הדוח בעיבוד כעת, אנא נסו שוב בעוד מספר רגעים" (register, deviation 4).
-  const pdfFailed = data.status === 'DEGRADED_JSON_ONLY' || downloadUrl === null;
+  // The server returns no link (PRD 23 §ב, one-hour links only): the PDF
+  // failed when the server says so, not when no link came back.
+  const pdfFailed = data.status === 'DEGRADED_JSON_ONLY' || data.pdf_stored === false;
   return reportFromData(
-    data.report,
+    typeof data.reportId === 'string' && data.reportId ? { ...data.report, report_id: data.reportId } : data.report,
     params.sessionId,
-    downloadUrl,
+    !pdfFailed,
     pdfFailed ? REPORT_PROCESSING_TEXT : null,
     typeof data.driveMirrorUrl === 'string' && data.driveMirrorUrl ? data.driveMirrorUrl : null,
   );
 }
 
-/** A fresh one-hour link to the stored PDF of a meeting's report. */
-export async function fetchMeetingReportUrl(sessionId: string): Promise<string> {
+/**
+ * A fresh one-hour link to the stored PDF of one report of a meeting (PRD 23
+ * §ב: "בתוקף לשעה אחת מרגע יצירתם"), asked for on every opening.
+ */
+export async function fetchMeetingReportUrl(sessionId: string, reportId: string): Promise<string> {
   const call = httpsCallable(functions, 'getPedagogicalReportDownloadUrl');
-  const res = await call({ sessionId });
+  const res = await call({ sessionId, reportId });
   const url = (res.data as Record<string, any> | undefined)?.downloadUrl;
   if (typeof url !== 'string' || !url) throw new Error('לא התקבל קישור לקובץ');
   return url;

@@ -74,7 +74,7 @@ vi.mock('@/infrastructure/services/LearnerJourneyService', async (importOriginal
     }),
     fetchLearnerResets: vi.fn(() => Promise.resolve([])),
     fetchLearnerCatchUpLines: vi.fn(() => Promise.resolve(new Map())),
-    fetchMeetingReport: vi.fn(() => Promise.resolve(null)),
+    fetchMeetingReports: vi.fn(() => Promise.resolve([])),
     generateMeetingReport: vi.fn(async (p: { studentNum: number; sessionNumber: number; sessionId: string }) => {
       reports.generateMeeting.push(p);
       return new Promise(() => {});

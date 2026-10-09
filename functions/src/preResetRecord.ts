@@ -68,6 +68,14 @@ export function classPreResetNotes(report: Record<string, any>): string[] {
   return out;
 }
 
+/**
+ * PRD 23 §ב, word for word: a learner report requested before the learner
+ * answered again since the reset "נדחית, עם הנימוק: 'מאז האיפוס עוד לא נרשמה לו
+ * אף תשובה'". The refusal is this sentence and nothing else.
+ */
+export const AWAITING_RERUN_REASON_HE = "מאז האיפוס עוד לא נרשמה לו אף תשובה";
+
+/** The class report's line for such a learner: the same reason, and that there is no score (begins with AWAITING_RERUN_REASON_HE). */
 export const AWAITING_RERUN_HE = "מאז האיפוס עוד לא נרשמה לו אף תשובה, ולכן אין לו ציון במפגש הזה.";
 
 /** When the reset log cannot be read, no report: it would count the whole history (review of PR #209). */

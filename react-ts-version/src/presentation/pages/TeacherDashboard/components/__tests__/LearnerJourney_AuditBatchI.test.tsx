@@ -42,7 +42,7 @@ vi.mock('@/infrastructure/services/LearnerJourneyService', async (importOriginal
     }),
     fetchLearnerResets: vi.fn(async () => []),
     fetchLearnerCatchUpLines: vi.fn(async () => new Map()),
-    fetchMeetingReport: vi.fn(async () => h.meetingReport),
+    fetchMeetingReports: vi.fn(async () => (h.meetingReport ? [h.meetingReport] : [])),
     fetchMeetingReportUrl: vi.fn(async () => h.reportUrl),
   };
 });
@@ -172,7 +172,7 @@ describe('the service', () => {
     expect(fresh.storedPdfOutdated).toBe(false);
     expect(fresh.driveUrl).toBe('https://drive.example/x');
     // Just produced: the link is to the new PDF, whatever the stored document says.
-    expect(reportFromData({ session_number: 1, score_percent: 71 }, 's', 'https://storage.example/new.pdf', null, 'https://drive.example/new').storedPdfOutdated).toBe(false);
+    expect(reportFromData({ session_number: 1, score_percent: 71 }, 's', true, null, 'https://drive.example/new').storedPdfOutdated).toBe(false);
     expect(reportFromData({ session_number: 4, score_percent: 71 }, 's', null).driveUrl).toBeNull();
   });
 
