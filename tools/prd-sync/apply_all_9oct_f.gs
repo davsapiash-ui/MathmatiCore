@@ -5,9 +5,12 @@
 // tick rule for the writing step in vertical subtraction; step-row spacing; the coaching drawer;
 // reset audit fields, late-recording file to Drive and the teacher message; general praise words;
 // task topics in stations 3 and 7.
+// PRD 7.17: workspace split 55/45 (owner, 9.10.2026).
 // Run applyAll. Safe to run more than once.
 var DOCS = [
-  { name: 'PRD', id: '1siy2VT-bPVy9LflxJBt-Xr7uQEW5umHPEh_vMVlmbWY', version: '7.16', edits: [
+  { name: 'PRD', id: '1siy2VT-bPVy9LflxJBt-Xr7uQEW5umHPEh_vMVlmbWY', version: '7.17', edits: [
+  ["תופס 60% מרוחב המסך, בצד השמאלי","תופס 55% מרוחב המסך, בצד השמאלי"],
+  ["תופס 40% מרוחב המסך, בצדו הימני","תופס 45% מרוחב המסך, בצדו הימני"],
   [" כתבו את התוצאה בשורת התוצאה.\" (הפעלים \"בנו\" ו\"כתבו\" לפי מודול 7; מסמך 03 §3.4 עדיין נוקט \"ייצגו\" ו\"רשמו את התוצאה\")"," כתבו את התוצאה בשורת התוצאה.\"",null],
   ["(\"אם בטור…\", \"כשבאחד הטורים…\")","(\"אם בטור…\", \"כשמצטברות…\")",null],
   ["צעד אחד, בלי מספר: \"נסו לבנות את המספר 305 בלבנים.\"","צעד אחד, בלי מספר: \"נסו לבנות את המספר 305 בבית המספרים.\""],
