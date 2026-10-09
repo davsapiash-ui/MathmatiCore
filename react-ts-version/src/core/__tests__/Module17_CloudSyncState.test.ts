@@ -18,8 +18,14 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => vi.fn(() => Promise.resolve({ data: {} }))) }));
 
+// Events are keyed by a UUID v4 since the telemetry rules require one (PRD l.204);
+// the re-keying of older, non-UUID keys is covered by its own tests.
+const uuidFor = (name: string) => {
+  const hex = [...name].reduce((h, c) => ((h * 31 + c.charCodeAt(0)) >>> 0), 7).toString(16).padStart(8, '0').slice(-8);
+  return `${hex}-0000-4000-8000-000000000000`;
+};
 const event = (key: string) => ({
-  idempotency_key: key,
+  idempotency_key: uuidFor(key),
   client_timestamp: 1_000,
   session_id: 'session_4_student_student_user3',
   student_id: 3,
