@@ -19,7 +19,7 @@ import { Session1ChecklistCard } from '@/features/workspace/tasks/Session1Checkl
  */
 
 /** The praise title as every exercise of the store writes it (dagesh before qamats). */
-const PRAISE = 'כָּל הַכָּבוֹד! 🌟';
+const PRAISE = 'כָּל הַכָּבוֹד!';
 
 const at = (id: string) => SESSION1_TASKS.findIndex((t) => t.id === id);
 const ws = () => useWorkspaceStore.getState();
@@ -171,7 +171,7 @@ describe('A2-F13: 347 gets one praise, the tool steps\' one', () => {
 });
 
 describe('A2-F17: the tool steps\' titles carry the niqqud of every other praise', () => {
-  it('a finished tool step says "כָּל הַכָּבוֹד! 🌟"', () => {
+  it('a finished tool step says "כָּל הַכָּבוֹד!", with no emoji (chief review S8, 9.10.2026)', () => {
     ws().initSession(1, false, at('s1_decompose_hundred'));
     ws().splitBlockClick('hundreds');
     const v = judgeStandardTask(ws(), task());
@@ -180,7 +180,8 @@ describe('A2-F17: the tool steps\' titles carry the niqqud of every other praise
 });
 
 describe('A2-F09: the success line of a solved exercise', () => {
-  it('713 + 94 solved: "פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים."', () => {
+  // PRD 7.15, Module 14 §ב task 10: after a successful check, the exercise's own "נכון! …".
+  it('713 + 94 solved: "נכון! קיבצתם 10 לבני עשרת ללבנת מאה אחת, ולכן בטור העשרות 0: 713 + 94 = 807."', () => {
     ws().initSession(1, false, at('s1_t8'));
     const t = task();
     const result = (t.numberA ?? 0) + (t.numberB ?? 0);
@@ -189,7 +190,7 @@ describe('A2-F09: the success line of a solved exercise', () => {
       t
     );
     expect(result).toBe(807);
-    if (v.kind === 'success') expect(v.sub).toBe('פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים.');
+    if (v.kind === 'success') expect(`${v.title} ${v.sub}`).toBe('נכון! קיבצתם 10 לבני עשרת ללבנת מאה אחת, ולכן בטור העשרות 0: \u200f713 + 94 = 807.');
     else throw new Error(`not solved: ${JSON.stringify(v)}`);
   });
 });

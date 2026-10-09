@@ -66,7 +66,7 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
     case 's1_build_305': {
       const is305 = boardValue(s.counts) === 305;
       const standard = countsEqual(s.counts, { ...EMPTY_COUNTS, hundreds: 3, units: 5 });
-      const items: Session1ChecklistItem[] = [{ label: 'נסו לבנות את המספר 305 בלבנים', done: is305 }];
+      const items: Session1ChecklistItem[] = [{ label: 'נסו לבנות את המספר 305 בבית המספרים', done: is305 }];
       if (is305 && !standard) items.push({ label: 'בנו את 305 כך שבכל טור יהיו פחות מ-10 לבנים', done: false });
       return items;
     }
@@ -86,12 +86,13 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
         : s.hasUngrouped;
       const decomposed = brokeATen && countsEqual(s.counts, required);
       return [
-        { label: 'בנו את המספר 347 בלבנים', done: is347 },
-        { label: 'פרטו עשרת אחת לעשר יחידות', done: decomposed },
+        // PRD 7.15, Module 14 §ב task 9: the three items word for word.
+        { label: 'בנו את המספר 347 בבית המספרים', done: is347 },
+        { label: 'פרטו לבנת עשרת אחת לעשר לבני יחידה', done: decomposed },
         // The line asks for the number "לאחר הפריטה": 347 typed before the
         // decomposition is not that answer yet, so it is ticked only once the
         // decomposition line is (owner, 28.9.2026).
-        { label: 'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה', done: decomposed && typedNumber(s.answerDigits) === 347 },
+        { label: 'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו', done: decomposed && typedNumber(s.answerDigits) === 347 },
       ];
     }
     default:

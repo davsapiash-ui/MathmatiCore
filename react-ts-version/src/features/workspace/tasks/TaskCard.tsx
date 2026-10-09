@@ -84,10 +84,10 @@ export function TaskCard() {
       {sessionNumber !== 2 && sessionNumber !== 8 && <FeedbackToast placement="inline" />}
       {/* A new exercise fades in (opacity only, 200 ms; none in quiet mode): no slide, no scale (DESIGN_SYSTEM_RULES 1.3). */}
       <motion.div key={taskKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduceMotion ? 0 : 0.2 }} className="relative flex flex-col flex-1 min-h-0" data-testid="task-column">
-        <TaskZoneHeader stationNumber={sessionNumber} heading={heading} showStation={qflow.phase !== 'correction'} />
+        <TaskZoneHeader stationNumber={sessionNumber} positionLabel={positionLabel} topic={guide?.topicHe ?? null} showStation={qflow.phase !== 'correction'} />
 
         {guide && standardTask ? (
-          <TaskGuideBlock task={standardTask} guide={guide} heading={heading} taskKey={taskKey} />
+          <TaskGuideBlock task={standardTask} guide={guide} positionHeading={heading} />
         ) : instruction && (
           <InstructionBlock
             text={instruction}

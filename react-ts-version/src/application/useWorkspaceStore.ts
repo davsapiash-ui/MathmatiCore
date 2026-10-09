@@ -2063,14 +2063,15 @@ export const GIVEN_ARRANGED_BY_HAND_HE = 'הלבנים מסודרות נכון, 
  */
 export function judgeStandardTask(s: WorkspaceState, task: SessionTask): StandardVerdict {
   const verdict = judgeStandardTaskChecks(s, task);
-  if (verdict.kind !== 'success' || verdict.title !== GENERAL_PRAISE_HE) return verdict;
+  // NFC: the titles in this file write the same niqqud in two byte orders.
+  if (verdict.kind !== 'success' || verdict.title.normalize('NFC') !== GENERAL_PRAISE_HE.normalize('NFC')) return verdict;
   const correct = taskGuide(task, s.sessionNumber)?.correctHe;
   if (!correct) return verdict;
   const [title, ...rest] = correct.split(' ');
   return { ...verdict, title, sub: rest.join(' ') };
 }
 
-const GENERAL_PRAISE_HE = 'כָּל הַכָּבוֹד! 🌟';
+const GENERAL_PRAISE_HE = 'כָּל הַכָּבוֹד!';
 
 function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): StandardVerdict {
   const success = (title: string, sub: string, ms: number): StandardVerdict => ({ kind: 'success', title, sub, ms });
@@ -2083,16 +2084,16 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     if (session1Checklist(task.id, s)) {
       const nextStep = session1NextStep(task.id, s);
       if (nextStep) return failure('sandbox_incomplete', 'עוד צעד אחד 🛠️', `${nextStep}.`, 3500);
-      return success('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2000);
+      return success('כָּל הַכָּבוֹד!', 'ממשיכים לשלב הבא.', 2000);
     }
-    if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return success('מְעֻלֶּה! 🌟', 'ממשיכים הלאה.', 1500);
+    if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return success('מְעֻלֶּה!', 'ממשיכים הלאה.', 1500);
     if (!s.selectedChoiceId) {
       return failure('no_choice', 'עֲנוּ עַל שְׁאֵלַת הַחֲשִׁיבָה 🤔', 'בַּחֲרוּ אַחַת מֵהָאֶפְשָׁרֻיּוֹת כְּדֵי לְהַמְשִׁיךְ.', 2500);
     }
     if (s.selectedChoiceId !== task.correctAnswer) {
       return failure('wrong_choice', 'חִשְׁבוּ שׁוּב 🤔', 'האם הוספתם לבנים לבית המספרים או הורדתם ממנו לבנים?', 2800);
     }
-    return success('נכון מאוד! 🌟', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
+    return success('נכון מאוד!', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
   }
 
   if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
@@ -2251,8 +2252,8 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     // Meeting 8 has no number house (מסמך 03 §3.8, Module 14 §ב): its praise
     // does not speak of one (owner, 1.10.2026, D11b).
     return s.sessionNumber === 8
-      ? success('כָּל הַכָּבוֹד! 🌟', MEETING8_SOLVED_SUB_HE, 2500)
-      : success('כָּל הַכָּבוֹד! 🌟', 'פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים.', 2500);
+      ? success('כָּל הַכָּבוֹד!', MEETING8_SOLVED_SUB_HE, 2500)
+      : success('כָּל הַכָּבוֹד!', 'פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים.', 2500);
   }
 
   if (task.type === 'small_change') {
@@ -2262,7 +2263,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
       return notice('בַּחֲרוּ תְּשׁוּבָה', `סמנו אחת מהאפשרויות, ואז לחצו על "${PROCEED_HE}".`, 1800);
     }
     if (s.selectedChoiceId !== task.correctAnswer) return failure('wrong_choice', 'נסו שוב 🤔', 'התשובה שבחרתם אינה נכונה.', 2500);
-    return success('כָּל הַכָּבוֹד! 🌟', 'תשובה נכונה.', 2500);
+    return success('כָּל הַכָּבוֹד!', 'תשובה נכונה.', 2500);
   }
 
   if (task.type === 'missing_element') {
@@ -2271,7 +2272,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
       return notice('הַקְלָדַת תְּשׁוּבָה ✏️', `כתבו את החלק החסר בתיבה, ואז לחצו על "${PROCEED_HE}".`, 1800);
     }
     if (answer !== task.correctAnswer) return failure('wrong_answer', 'נסו שוב 🤔', 'המספר שכתבתם אינו נכון.', 2500);
-    return success('כָּל הַכָּבוֹד! 🌟', 'תשובה נכונה.', 2500);
+    return success('כָּל הַכָּבוֹד!', 'תשובה נכונה.', 2500);
   }
 
   if (task.type === 'representation') {
@@ -2393,7 +2394,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
         );
       }
       return success(
-        'כָּל הַכָּבוֹד! 🌟',
+        'כָּל הַכָּבוֹד!',
         kind === 'decompose'
           ? `בניתם את המספר מלבני ${block} בלבד, והתשובה שכתבתם נכונה.`
           : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.',
@@ -2410,11 +2411,11 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     }
     // 347 is a guided step: the checklist already shows its done note, so its
     // success is the tool steps' one (audit A2-F13).
-    if (session1DoneNoteHe(task.id) !== null) return success('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2000);
+    if (session1DoneNoteHe(task.id) !== null) return success('כָּל הַכָּבוֹד!', 'ממשיכים לשלב הבא.', 2000);
     // Blocks the exercise put on the board (26, 2,730): the child grouped
     // them and built nothing (owner, 4.10.2026, wording round 3, text 2).
-    if (task.initialCounts) return success('כָּל הַכָּבוֹד! 🌟', GIVEN_GROUPED_SUCCESS_HE, 2500);
-    return success('כָּל הַכָּבוֹד! 🌟', asksDigitValue ? 'מצאתם את הערך של הספרה במספר.' : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
+    if (task.initialCounts) return success('כָּל הַכָּבוֹד!', GIVEN_GROUPED_SUCCESS_HE, 2500);
+    return success('כָּל הַכָּבוֹד!', asksDigitValue ? 'מצאתם את הערך של הספרה במספר.' : 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.', 2500);
   }
 
   if (task.type === 'flexible_decomp') {
@@ -2427,10 +2428,10 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     if (isIdentical) {
       return failure('canonical_fixation', 'הַיִּצּוּגִים זֵהִים 🤔', 'נַסּוּ לִיצֹר אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ אַחֶרֶת (לְמָשָׁל עַל יְדֵי פְּרִיטַת עֲשֶׂרֶת).', 2800, { clearReps: true });
     }
-    return success('כָּל הַכָּבוֹד! 🌟', 'הצלחתם להציג שני ייצוגים שונים.', 2500);
+    return success('כָּל הַכָּבוֹד!', 'הצלחתם להציג שני ייצוגים שונים.', 2500);
   }
 
-  return success('כָּל הַכָּבוֹד! 🌟', 'ממשיכים לשלב הבא.', 2500);
+  return success('כָּל הַכָּבוֹד!', 'ממשיכים לשלב הבא.', 2500);
 }
 
 /**

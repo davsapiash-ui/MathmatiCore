@@ -1,20 +1,18 @@
-import { useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useWorkspaceStore, selectCanProceed } from '@/application/useWorkspaceStore';
 import type { SessionTask } from '@/data/sessionTasks';
-import { getValue } from '@/core/placeValue';
 import { session1Checklist } from '@/core/session1Checklist';
 import { guideSpeechHe, guideTicksNow, ticks, type TaskGuide } from '@/core/taskGuide';
 import { GuideBlock, type StepView } from './TaskZone';
 
 /**
- * The guide of the exercise on screen (core/taskGuide.ts), with its ticks:
- * a board step, once done, stays ticked while the learner goes on (blocks
- * taken away, a block broken) — until the board is emptied. The done box
- * appears when every step that ticks has ticked and "ממשיכים" is lit, at the
- * same render (selectCanProceed), so the two never disagree.
+ * The guide of the exercise on screen (core/taskGuide.ts), with its ticks.
+ * The ticks are derived from the workspace's saved state (guideTicksNow), so
+ * they survive a refresh and go away when the learner undoes that step. The
+ * done box appears when every step that ticks has ticked and "ממשיכים" is lit,
+ * at the same render (selectCanProceed), so the two never disagree.
  */
-export function TaskGuideBlock({ task, guide, heading, taskKey }: { task: SessionTask; guide: TaskGuide; heading: string; taskKey: string }) {
+export function TaskGuideBlock({ task, guide, positionHeading }: { task: SessionTask; guide: TaskGuide; positionHeading: string }) {
   const s = useWorkspaceStore(
     useShallow((st) => ({
       sessionNumber: st.sessionNumber,
@@ -26,6 +24,7 @@ export function TaskGuideBlock({ task, guide, heading, taskKey }: { task: Sessio
       q3Reps: st.q3Reps,
       conversionsByColumn: st.conversionsByColumn,
       takeAwayTrack: st.takeAwayTrack,
+      undoStack: st.undoStack,
       blocksAddedCount: st.blocksAddedCount,
       hasUngrouped: st.hasUngrouped,
       undoCount: st.undoCount,
@@ -34,17 +33,7 @@ export function TaskGuideBlock({ task, guide, heading, taskKey }: { task: Sessio
     }))
   );
   const checklist = session1Checklist(task.id, s);
-  const now = guideTicksNow(guide, task, { ...s, checklist });
-
-  // "Stays ticked": per exercise on screen; an empty board starts over.
-  const memo = useRef<{ key: string; reached: Set<number> }>({ key: '', reached: new Set() });
-  if (memo.current.key !== taskKey) memo.current = { key: taskKey, reached: new Set() };
-  if (getValue(s.counts) === 0) memo.current.reached.clear();
-  guide.steps.forEach((st, i) => {
-    const sticky = st.tick.kind === 'boardValue' || st.tick.kind === 'boardCounts';
-    if (sticky && now[i]) memo.current.reached.add(i);
-  });
-  const done = guide.steps.map((st, i) => now[i] || ((st.tick.kind === 'boardValue' || st.tick.kind === 'boardCounts') && memo.current.reached.has(i)));
+  const done = guideTicksNow(guide, task, { ...s, checklist });
 
   // A station-1 checklist item exists only while the checklist lists it (305's second line).
   const visible = guide.steps.map((st) => st.tick.kind !== 'checklist' || Boolean(checklist?.[st.tick.index]));
@@ -65,7 +54,7 @@ export function TaskGuideBlock({ task, guide, heading, taskKey }: { task: Sessio
 
   const allTicked = shown.every((i) => !ticks(guide.steps[i]) || done[i]);
   const showDone = steps.length > 0 && allTicked && s.canProceed;
-  const speech = guideSpeechHe(heading, { ...guide, steps: shown.map((i) => ({ ...guide.steps[i], label: labels[i] })) }, []);
+  const speech = guideSpeechHe(positionHeading, { ...guide, steps: shown.map((i) => ({ ...guide.steps[i], label: labels[i] })) }, []);
 
   return (
     <GuideBlock

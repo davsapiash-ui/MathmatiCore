@@ -104,10 +104,11 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
       'משימת היעד: בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.'
     );
     const labels = session1Checklist('s1_target_347', { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false })!.map((i) => i.label);
+    // PRD 7.15 (Module 14 §ב, task 9): the items word for word.
     expect(labels).toEqual([
-      'בנו את המספר 347 בלבנים',
-      'פרטו עשרת אחת לעשר יחידות',
-      'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה',
+      'בנו את המספר 347 בבית המספרים',
+      'פרטו לבנת עשרת אחת לעשר לבני יחידה',
+      'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו',
     ]);
     expect(session1DoneNoteHe('s1_target_347')).toBe('נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 347.');
     for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash', 's1_r_group26']) {
@@ -183,9 +184,11 @@ describe('what completes each introduction step', () => {
 
   it('every checklist label is the document\'s own wording', () => {
     const state = { ...base, counts: { ...EMPTY_COUNTS } };
-    for (const id of ['s1_decompose_hundred', 's1_build_305', 's1_target_347']) {
+    for (const id of ['s1_decompose_hundred']) {
       for (const item of session1Checklist(id, state)!) inDoc03(item.label, item.label);
     }
+    // 305 and 347 in PRD 7.15's words (Module 14 §ב, tasks 3 and 9: "בבית המספרים").
+    expect(session1Checklist('s1_build_305', state)!.map((i) => i.label)).toEqual(['נסו לבנות את המספר 305 בבית המספרים']);
     // Steps 1 and 5 in the words the owner approved on 8.10.2026 (learner wording
     // proposal §א): the number of blocks said in words; the instruction's two
     // sentences, without "אחר כך" — the numbering says the order.
@@ -198,8 +201,7 @@ describe('what completes each introduction step', () => {
     // The corrective second item is an action, not a phrase (owner, 25.9.2026:
     // on-screen texts say what the child actually has to do); it ends on the
     // document's own words.
-    expect(other305[0].label).toBe('נסו לבנות את המספר 305 בלבנים');
-    inDoc03(other305[0].label, other305[0].label);
+    expect(other305[0].label).toBe('נסו לבנות את המספר 305 בבית המספרים');
     expect(other305[1].label).toBe('בנו את 305 כך שבכל טור יהיו פחות מ-10 לבנים');
   });
 

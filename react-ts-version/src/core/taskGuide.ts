@@ -166,7 +166,8 @@ const STATION1: Record<string, Omit<TaskGuide, 'doneNoteHe'> & { doneNoteHe?: st
     topicHe: 'מקבצים לבני יחידה לעשרות',
     goalHe: 'בטור היחידות יש לבני יחידה.',
     steps: [
-      step('קבצו כל 10 לבני יחידה ללבנת עשרת אחת: לחצו על הכפתור "קבצו 10 לעשרת" שבראש הטור'),
+      // PRD 14 §ב, task 8: sentences name the button "קבצו 10" (Module 7, the button's name in sentences).
+      step('קבצו כל 10 לבני יחידה ללבנת עשרת אחת: לחצו על הכפתור "קבצו 10" שבראש הטור'),
       step('כתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם', fill),
     ],
     correctHe: 'נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 26.',
@@ -184,7 +185,8 @@ const STATION1: Record<string, Omit<TaskGuide, 'doneNoteHe'> & { doneNoteHe?: st
     goalHe: 'פתרו: 713 + 94.',
     steps: [
       step('בנו בבית המספרים את 713 ואת 94', { kind: 'boardValue', value: 807 }, [
-        'כשבאחד הטורים מצטברות 10 לבנים, לחצו על הכפתור "קבצו 10" שבראש הטור.',
+        // PRD 14 §ב, task 10: the station's own condition line.
+        GROUP_SUBS_HE[0],
         'רשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה החדשה.',
       ]),
       step('כתבו את התוצאה בשורת התוצאה', fill),
@@ -454,6 +456,12 @@ export interface GuideTickState {
   q3Reps: unknown[];
   conversionsByColumn: ColumnConversions;
   takeAwayTrack: { taskId: string; held: boolean } | null;
+  /**
+   * The boards before each recent action, oldest first (WorkspaceState.undoStack,
+   * saved with the workspace and popped by undo). A "build N" step stays ticked
+   * while N is among the boards since the board was last empty.
+   */
+  undoStack: { counts: PlaceCounts }[];
   /** Station 1's checklist for this exercise (session1Checklist), when it has one. */
   checklist: { label: string; done: boolean }[] | null;
 }
@@ -473,26 +481,32 @@ export function answerFilled(task: SessionTask, s: GuideTickState): boolean {
       const missing = ORDER.slice(0, String(target).length).filter((p) => !task.revealedResultDigits!.includes(p));
       return missing.every((p) => (s.answerDigits[p] ?? '') !== '');
     }
-    // A run of digits from the units up. Stations 3–7 show a box for the
-    // longest number (resultBoxCount), so a subtraction's highest box may stay
-    // empty: one box fewer still counts as written — the same for every
-    // answer, so the tick never tells how long the answer is.
+    // PRD 14 §ב, tick rule (3): "צעד הכתיבה מסומן כשכל התיבות מולאו" — every
+    // box of the result row (resultBoxCount), the same for every answer, so
+    // the tick never tells how long the answer is. Whether a subtraction's
+    // highest box may stay empty when the result is shorter than the row
+    // (204 − 112 = 92 in three boxes) is the owner's to decide (review O3).
     const boxes = resultBoxCount(s.sessionNumber, a, b, target);
-    let run = 0;
-    for (const p of ORDER.slice(0, boxes)) {
-      if ((s.answerDigits[p] ?? '') === '') break;
-      run++;
-    }
-    const typedAbove = ORDER.slice(run, boxes).some((p) => (s.answerDigits[p] ?? '') !== '');
-    const needed = task.isSubtraction && s.sessionNumber >= 3 && boxes > 1 ? boxes - 1 : boxes;
-    return !typedAbove && run >= needed;
+    return ORDER.slice(0, boxes).every((p) => (s.answerDigits[p] ?? '') !== '');
   }
   return false;
 }
 
 /** Whether each step's instruction is carried out now (the caller adds the "stays ticked" memory). */
+/**
+ * Whether each step's instruction is carried out (proposal §ג; PRD 14 §ב tick
+ * rule (1)). Everything is derived from the workspace's own saved state, so a
+ * tick survives a refresh (PRD: the learner returns "לאותו שלב עם אותה
+ * התקדמות") and goes away when the learner undoes that very step:
+ *  - a built number stays built while the learner goes on: for a subtraction's
+ *    minuend through takeAwayTrack, otherwise while it is among the boards of
+ *    the undo history since the board was last empty;
+ *  - in a build-and-convert chain, a step is done when its board is on screen
+ *    or a later board step of the chain is done (the board after a break shows
+ *    that the blocks before it were built).
+ */
 export function guideTicksNow(guide: TaskGuide, task: SessionTask, s: GuideTickState): boolean[] {
-  return guide.steps.map((st) => {
+  const now = guide.steps.map((st) => {
     const t = st.tick;
     switch (t.kind) {
       case 'none':
@@ -504,9 +518,8 @@ export function guideTicksNow(guide: TaskGuide, task: SessionTask, s: GuideTickS
       case 'reps':
         return s.q3Reps.length >= t.n;
       case 'boardValue':
-        // The minuend built once stays built while blocks are taken away (takeAwayTrack, kept across a refresh).
         if (task.isSubtraction && t.value === (task.numberA ?? -1) && s.takeAwayTrack?.taskId === task.id && s.takeAwayTrack.held) return true;
-        return getValue(s.counts) === t.value;
+        return getValue(s.counts) === t.value || boardsSinceEmpty(s).some((c) => getValue(c) === t.value);
       case 'boardCounts':
         if (!countsEqual(s.counts, t.counts)) return false;
         return (
@@ -515,6 +528,24 @@ export function guideTicksNow(guide: TaskGuide, task: SessionTask, s: GuideTickS
         );
     }
   });
+  // A build-and-convert chain: a later board step done means the earlier ones were.
+  for (let i = guide.steps.length - 2; i >= 0; i--) {
+    if (guide.steps[i].tick.kind !== 'boardCounts' || now[i]) continue;
+    now[i] = guide.steps.some((st, j) => j > i && st.tick.kind === 'boardCounts' && now[j]);
+  }
+  return now;
+}
+
+/** The boards of the undo history since the board was last empty, newest first. */
+function boardsSinceEmpty(s: GuideTickState): PlaceCounts[] {
+  if (getValue(s.counts) === 0) return [];
+  const out: PlaceCounts[] = [];
+  for (let i = s.undoStack.length - 1; i >= 0; i--) {
+    const c = { ...EMPTY_COUNTS, ...s.undoStack[i].counts };
+    if (getValue(c) === 0) break;
+    out.push(c);
+  }
+  return out;
 }
 
 /** A step that ticks ("none" steps are checked on "ממשיכים" only). */

@@ -35,6 +35,7 @@ const state = (over: Partial<GuideTickState> = {}): GuideTickState => ({
   q3Reps: [],
   conversionsByColumn: emptyColumnConversions(),
   takeAwayTrack: null,
+  undoStack: [],
   checklist: null,
   ...over,
 });
@@ -170,12 +171,48 @@ describe('tick rule (proposal §ג): carried out, not right', () => {
     expect(guideTicksNow(g, task, state({ sessionNumber: 3, counts: c({ hundreds: 2, tens: 14 }), conversionsByColumn: broke }))[1]).toBe(true);
   });
 
-  it('stations 3–7: a subtraction\'s highest box may stay empty — the same for every answer', () => {
-    const { task } = byId('s6_g_t1'); // 2,045 − 1,128 = 917, four boxes
+  // Chief review S6 (9.10.2026): the ticks are derived from the saved workspace,
+  // so a refresh after the break shows the build step done as well.
+  it('after the break, the build step is done too — from the board and the recorded break, with no memory of the screen', () => {
+    const { task } = byId('s3_r_t2');
+    const g = taskGuide(task, 3)!;
+    const broke = { ...emptyColumnConversions(), decomposed: { tens: true }, times: { composed: {}, decomposed: { tens: 1 } } } as any;
+    expect(guideTicksNow(g, task, state({ sessionNumber: 3, counts: c({ hundreds: 2, tens: 14 }), conversionsByColumn: broke }))).toEqual([true, true, false]);
+  });
+
+  // Chief review S5: undoing the break takes its tick away (the board is back to 3 hundreds and 4 tens).
+  it('undoing the break un-ticks the break step; the build step stays', () => {
+    const { task } = byId('s3_r_t2');
+    const g = taskGuide(task, 3)!;
+    const undone = state({ sessionNumber: 3, counts: c({ hundreds: 3, tens: 4 }), undoStack: [{ counts: c({ hundreds: 3, tens: 3 }) }] });
+    expect(guideTicksNow(g, task, undone)).toEqual([true, false, false]);
+  });
+
+  it('a built number stays built through the following steps, until undo takes it back or the board is emptied', () => {
+    const { task } = byId('s7_r_t6'); // build 340, add 2 hundreds, remove 3 tens
+    const g = taskGuide(task, 7)!;
+    expect(g.steps[0].tick).toEqual({ kind: 'boardValue', value: 340 });
+    const history = [c({ hundreds: 3, tens: 3 }), c({ hundreds: 3, tens: 4 }), c({ hundreds: 4, tens: 4 })];
+    // after adding: 540 on the board, 340 in the history
+    expect(guideTicksNow(g, task, state({ sessionNumber: 7, counts: c({ hundreds: 5, tens: 4 }), undoStack: history.map((x) => ({ counts: x })) }))[0]).toBe(true);
+    // undo back before 340 was complete: not built
+    expect(guideTicksNow(g, task, state({ sessionNumber: 7, counts: c({ hundreds: 3, tens: 3 }), undoStack: [{ counts: c({ hundreds: 3, tens: 2 }) }] }))[0]).toBe(false);
+    // the trash emptied the board after 340: the history before the empty board does not count
+    expect(guideTicksNow(g, task, state({ sessionNumber: 7, counts: c({ hundreds: 1 }), undoStack: [{ counts: c({ hundreds: 3, tens: 4 }) }, { counts: c({}) }] }))[0]).toBe(false);
+  });
+
+  // PRD 14 §ב rule (3): "כשכל התיבות מולאו" — never after the units digit alone
+  // (chief review B1: 53 − 18 ticked after "5" and the done box sent the child to "ממשיכים").
+  it('the writing step ticks only when every box of the result row is filled', () => {
+    const s5 = byId('s5_r_t2').task; // 53 − 18, two boxes
+    expect(answerFilled(s5, state({ sessionNumber: 5, answerDigits: { units: '5' } }))).toBe(false);
+    expect(answerFilled(s5, state({ sessionNumber: 5, answerDigits: { units: '5', tens: '3' } }))).toBe(true);
+    const s6 = byId('s6_g_t1').task; // 2,045 − 1,128 = 917, four boxes
     const base = state({ sessionNumber: 6 });
-    expect(answerFilled(task, { ...base, answerDigits: { units: '7', tens: '1' } })).toBe(false);
-    expect(answerFilled(task, { ...base, answerDigits: { units: '7', tens: '1', hundreds: '9' } })).toBe(true);
-    expect(answerFilled(task, { ...base, answerDigits: { units: '7', hundreds: '9', thousands: '0' } })).toBe(false);
+    expect(answerFilled(s6, { ...base, answerDigits: { units: '7', tens: '1', hundreds: '9' } })).toBe(false);
+    expect(answerFilled(s6, { ...base, answerDigits: { units: '7', tens: '1', hundreds: '9', thousands: '0' } })).toBe(true);
+    const s5g = byId('s5_g_t1').task; // 5,432 − 2,118: "314" is not yet written
+    expect(answerFilled(s5g, state({ sessionNumber: 5, answerDigits: { units: '4', tens: '1', hundreds: '3' } }))).toBe(false);
   });
 });
 

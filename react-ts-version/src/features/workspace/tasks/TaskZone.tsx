@@ -22,11 +22,36 @@ import { MathText } from './MathText';
  * quiet mode or with reduced motion.
  */
 
-export function TaskZoneHeader({ stationNumber, heading, showStation }: { stationNumber: number; heading: string; showStation: boolean }) {
+/**
+ * PRD Module 7 §א rule (1): the location line is smaller than the topic. Both
+ * stay on one line (Module 14 §ב: "משימה N מתוך 7: <נושא>"): the location is a
+ * smaller, softer span inside the same heading, so the heading reads as one
+ * sentence. Without an approved topic the location is the heading itself.
+ */
+export function TaskZoneHeader({
+  stationNumber,
+  positionLabel,
+  topic,
+  showStation,
+}: {
+  stationNumber: number;
+  positionLabel: string;
+  topic: string | null;
+  showStation: boolean;
+}) {
   return (
     <div className="shrink-0 flex items-start justify-between gap-3 mb-fl-6-16">
       <h1 className="font-display font-black text-ws-ink leading-tight [text-wrap:balance] text-[clamp(20px,calc(1.1429vh+13.14px),24px)]" data-testid="task-heading">
-        {heading}
+        {topic ? (
+          <>
+            <span className="text-[clamp(15px,calc(0.5714vh+11.57px),17px)] font-bold text-ws-soft" data-testid="task-position">
+              {positionLabel}:
+            </span>{' '}
+            {topic}
+          </>
+        ) : (
+          positionLabel
+        )}
       </h1>
       {showStation && (
         <span className="shrink-0 mt-0.5 text-sm font-bold text-ws-ink bg-ws-blueSoft rounded-full px-3 py-1" data-testid="station-tag">
@@ -164,9 +189,9 @@ function StepRow({ step, number, roomy }: { step: StepView; number: number | nul
   // A single step has no number (wording rule 3): its mark is a ring, blue while it is the step to do.
   const mark = number === null && step.state !== 'done' ? (step.state === 'current' ? 'border-2 border-ws-blue' : MARK_TONE.todo) : MARK_TONE[step.state];
   return (
-    <li className={`rounded-xl border-2 px-fl-8-12 py-fl-4-8 transition-colors duration-200 ${ROW_TONE[step.state]}`} data-state={step.state}>
+    <li className={`rounded-xl border-2 px-fl-8-12 py-fl-4-8 tz-step-color ${ROW_TONE[step.state]}`} data-state={step.state}>
       <div className={`flex items-center gap-3 ${roomy ? 'min-h-[40px]' : 'min-h-[28px]'}`}>
-        <span aria-hidden="true" className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-black transition-colors duration-200 ${mark}`}>
+        <span aria-hidden="true" className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-black tz-step-color ${mark}`}>
           {step.state === 'done' ? <Check className="w-4 h-4" strokeWidth={3} /> : number}
         </span>
         <span className="flex-1 min-w-0 text-[clamp(15px,calc(0.5714vh+11.57px),17px)] font-semibold text-ws-ink leading-snug">
@@ -197,7 +222,7 @@ function ProgressDots({ value, of }: { value: number; of: number }) {
   return (
     <span className="shrink-0 flex items-center gap-1.5" data-testid="step-progress" aria-hidden="true">
       {Array.from({ length: of }, (_, i) => (
-        <span key={i} className={`w-2.5 h-2.5 rounded-full transition-colors duration-200 ${i < filled ? 'bg-emerald-600' : 'border-2 border-ws-soft'}`} />
+        <span key={i} className={`w-2.5 h-2.5 rounded-full tz-step-color ${i < filled ? 'bg-emerald-600' : 'border-2 border-ws-soft'}`} />
       ))}
     </span>
   );
@@ -274,7 +299,7 @@ function DoneBoxBody({ note, ghost = false }: { note: string | null; ghost?: boo
 /** A small, non-interactive copy of the top bar's "ממשיכים" (WorkspaceTopbar): same colour, radius and arrow. */
 function ProceedChip({ ghost = false }: { ghost?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-1 align-middle rounded-xl bg-ws-accent text-white font-display font-extrabold text-sm px-2.5 py-0.5" data-testid={ghost ? undefined : 'proceed-chip'}>
+    <span className="inline-flex items-center gap-1 align-middle rounded-2xl bg-ws-accent text-white font-display font-extrabold text-sm px-2.5 py-0.5" data-testid={ghost ? undefined : 'proceed-chip'}>
       {PROCEED_HE}
       <ArrowLeft className="w-4 h-4" aria-hidden="true" />
     </span>

@@ -62,6 +62,22 @@
     animation: revert !important;
   }
 
+  /*
+   * PRD מודול 7 §א, כלל (8): מצב הצעד באגף המשימה מתחלף במעבר צבע של עד
+   * 200 אלפיות השנייה, "שאינו קיים במצב השקט" — וגם לא למי שביקש תנועה מופחתת.
+   */
+  .tz-step-color {
+    transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+  }
+  [data-quiet='true'] .tz-step-color {
+    transition: none !important;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tz-step-color {
+      transition: none !important;
+    }
+  }
+
   /* מסמך העיצוב §1.3: אפס הבהובים תזזיתיים למי שביקש תנועה מופחתת. */
   @media (prefers-reduced-motion: reduce) {
     *,

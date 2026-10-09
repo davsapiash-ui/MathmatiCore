@@ -484,8 +484,8 @@ describe('4 — 2,730 (s7_g_t6): the blocks are on the board, and both groupings
   });
 
   // Wording round 3, text 2.
-  const GROUPED = { kind: 'success', title: 'כָּל הַכָּבוֹד! 🌟', sub: 'קיבצתם את הלבנים, והתשובה שכתבתם נכונה.' };
-  const BUILT = { kind: 'success', title: 'כָּל הַכָּבוֹד! 🌟', sub: 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.' };
+  const GROUPED = { kind: 'success', title: 'כָּל הַכָּבוֹד!', sub: 'קיבצתם את הלבנים, והתשובה שכתבתם נכונה.' };
+  const BUILT = { kind: 'success', title: 'כָּל הַכָּבוֹד!', sub: 'בניתם בדיוק את מה שהתבקש, והמספר שכתבתם מתאים ללבנים בבית המספרים.' };
   // Owner, 8.10.2026 (learner wording proposal §א): an exercise with its own
   // "נכון! …" says it instead of the general praise; the checks are unchanged.
   const CORRECT: Record<string, { kind: 'success'; title: string; sub: string }> = {

@@ -47,11 +47,13 @@ describe('meeting 1, the target task', () => {
     const steps = screen.getByTestId('guide-steps');
     const row = screen.getByTestId('result-row');
     expect(heading.textContent).toBe('משימת היכרות: בודקים אם המספר משתנה');
+    // PRD 7 §א rule (1): the location is a smaller span than the topic, on the same line.
+    expect(screen.getByTestId('task-position').textContent).toBe('משימת היכרות:');
     expect(goal.textContent).toBe('משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה?');
     expect([...steps.querySelectorAll(':scope > li')].map((li) => li.textContent)).toEqual([
-      '1בנו את המספר 347 בלבנים',
-      '2פרטו עשרת אחת לעשר יחידות',
-      '3כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה',
+      '1בנו את המספר 347 בבית המספרים',
+      '2פרטו לבנת עשרת אחת לעשר לבני יחידה',
+      '3כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו',
     ]);
     // the number the row is checked against is not printed above it in station 1
     expect(screen.queryByTestId('representation-number')).toBeNull();
@@ -80,8 +82,8 @@ describe('meeting 1, the target task', () => {
     const texts = screen.getAllByTestId('speech').map((e) => e.getAttribute('data-text') ?? '');
     const guide = texts.find((t) => t.startsWith('משימת היכרות: בודקים אם המספר משתנה.'));
     expect(guide).toBeTruthy();
-    expect(guide).toContain('משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? בנו את המספר 347 בלבנים.');
-    expect(guide).toContain('בנו את המספר 347 בלבנים. פרטו עשרת אחת לעשר יחידות. כתבו בשורת התוצאה');
+    expect(guide).toContain('משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? בנו את המספר 347 בבית המספרים.');
+    expect(guide).toContain('בנו את המספר 347 בבית המספרים. פרטו לבנת עשרת אחת לעשר לבני יחידה. כתבו בשורת התוצאה');
   });
 });
 
