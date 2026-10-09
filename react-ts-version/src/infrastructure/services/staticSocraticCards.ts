@@ -1041,10 +1041,10 @@ function columnCountCard(ex: string, p: Place): SocraticHintResponse {
 /** Meeting 1's 26, its result built by hand (2 tens and 6 units, nothing grouped), the second card: the grouping the instruction asks for (frame 3). */
 function s1GroupYourselvesCard(): SocraticHintResponse {
   return card(`${OPEN}מה ההנחיה מבקשת לעשות עם לבני היחידה שהיו בטור בהתחלה?`, 'procedural', 'tour-task-card', [
-    ['מקבצים אותן בכפתור "קבצו 10 לעשרת"', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שלבני היחידה יחזרו. אחר כך קבצו אותן בכפתור.'],
+    ['מקבצים אותן בכפתור "קבצו 10"', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שלבני היחידה יחזרו. אחר כך קבצו אותן בכפתור.'],
     ['בונים את התוצאה בעצמכם, בלי הכפתור', 'רמז: באיזה כפתור ההנחיה מבקשת לקבץ?'],
     ['כותבים את המספר בלי לקבץ', 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים?'],
-  ], 'group_yourselves', frame('group_yourselves', 3, 'ההנחיה מבקשת לקבץ בעצמכם בכפתור "קבצו 10 לעשרת": מחזירים את לבני היחידה ומקבצים'));
+  ], 'group_yourselves', frame('group_yourselves', 3, 'ההנחיה מבקשת לקבץ בעצמכם בכפתור "קבצו 10": מחזירים את לבני היחידה ומקבצים'));
 }
 
 /** A forgotten carry whose 1 is already in the memory circle, the second card: that 1 is added too (frame 2). */
@@ -2933,7 +2933,7 @@ export function s1StartChangedCard(task: any, counts: BoardCounts, ctx: StaticCa
  */
 function s1RestoreCard(): SocraticHintResponse {
   return card(`${OPEN}ההנחיה מבקשת לקבץ את הלבנים שהיו בהתחלה, אבל הן השתנו. מה עושים?`, 'procedural', 'tour-action-buttons', [
-    ['מחזירים אותן בכפתור ביטול הפעולה, ואז מקבצים', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים יחזרו להיות כמו בהתחלה. אחר כך קבצו כל 10 לבנים בכפתור "קבצו 10 לעשרת".'],
+    ['מחזירים אותן בכפתור ביטול הפעולה, ואז מקבצים', 'נכון מאוד! לחצו על כפתור ביטול הפעולה עד שהלבנים יחזרו להיות כמו בהתחלה. אחר כך קבצו כל 10 לבנים בכפתור "קבצו 10".'],
     ['כותבים את המספר שהלבנים מראות עכשיו', 'רמז: מה ההנחיה מבקשת לעשות עם הלבנים שהיו בתחילת התרגיל?'],
     ['לוחצים על פח האשפה', 'רמז: מה קורה ללבנים כשלוחצים על פח האשפה?'],
   ], 'restore_start', frame('s1_restore_start', 1, 'הלבנים שהתרגיל נתן השתנו: מחזירים אותן בכפתור ביטול הפעולה, ורק אז מקבצים'));
