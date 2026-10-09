@@ -238,6 +238,10 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
         if (meeting === 8) {
           await expect(page.getByText('סיימתם את תחנה 8, התחנה האחרונה!')).toBeVisible();
           await expect(page.getByText('התחנה הבאה', { exact: false })).toHaveCount(0);
+        } else {
+          // PRD 14 §ג (owner, OWNER-1): the one encouragement sentence alone — no heading, no number.
+          await expect(page.getByTestId('closing-sentence')).toBeVisible();
+          await expect(page.getByText('סיימתם את תחנה', { exact: false })).toHaveCount(0);
         }
         await check(page, `end-station${meeting}`, viewport.width, viewport.height);
       }
