@@ -571,6 +571,9 @@ export const useStore = create<AppState>()(
       }),
 
       logSemanticEvent: (studentId, event) => set((state) => {
+        // The teacher's demonstration screen (Module 15 §ג) is no learner's
+        // work: nothing of it goes into a research trace.
+        if (useWorkspaceStore.getState()?.projectorBoard) return state;
         const students = { ...state.students };
         if (students[studentId]) {
           // A record merged from a partial RTDB snapshot (or reset by the

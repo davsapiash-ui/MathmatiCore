@@ -65,7 +65,7 @@ import { ref, update } from 'firebase/database';
 import { database, serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
+import { firebaseSyncService, emitTelemetry as emitTelemetryToService } from '@/infrastructure/services/FirebaseSyncService';
 import { readStoredMeetingDeadline, storeMeetingDeadline } from '@/application/meetingDeadline';
 import type { TelemetryEventType } from '@/types/telemetry';
 import { REPRESENTATION_LOCKS, buildsAnyWay, builtAnyWay } from '@/data/representationLocks';
@@ -81,6 +81,16 @@ import {
   type PersistenceCounts,
   type PersistenceEventLike,
 } from '@/core/persistenceEncouragement';
+
+/**
+ * Every telemetry event of this store goes through here. The teacher's
+ * demonstration screen (Module 15 §ג, ProjectorSandboxPage) runs on this
+ * store with `projectorBoard` set: nothing it does is any learner's work, and
+ * nothing of it is recorded (PRD: "דבר מן ההדגמה אינו נרשם בטלמטריה או
+ * בנתוני המחקר"). The service checks the flag too; this stops the event here.
+ */
+const emitTelemetry: typeof emitTelemetryToService = (event) =>
+  useWorkspaceStore.getState().projectorBoard ? Promise.resolve(null) : emitTelemetryToService(event);
 
 /**
  * Appendix A §3 scaffold events (owner, 16.9.2026 — register deviation 19).
@@ -379,7 +389,12 @@ export interface WorkspaceState {
   // canonical VRA state machine (Module 29 / Appendix A §5)
   currentState: VRAWorkspaceState;
   activeColumnIndex: number; // 0: Ones, 1: Tens, 2: Hundreds
-  /** The teacher's projector board (ProjectorSandboxPage): it demonstrates, so the column digits always show. */
+  /**
+   * The teacher's demonstration screen (ProjectorSandboxPage, Module 15 §ג):
+   * demo mode. No learner exercise is active (getActiveTasks is empty), so
+   * nothing is checked, locked, coached or advanced, and no telemetry or
+   * research record is written. Station 1's column digits always show.
+   */
   projectorBoard: boolean;
   /** The result-row place cues shown as a scaffold after a digit in the wrong place (core/placeCues.ts, owner 30.9.2026); per exercise. */
   placeCuesShown: boolean;
@@ -654,6 +669,15 @@ export interface WorkspaceState {
   injectTask: (task: SessionTask, position: 'next' | 'end') => void;
   startSession: (meeting: number) => void;
   initSession: (meeting: SessionNumber, isASD: boolean, startingTaskIdx?: number, existingDeadline?: number | null) => void;
+  /**
+   * The teacher's demonstration screen (Module 15 §ג): an empty board, no
+   * typed input and no undo history, in the station's number range — and demo
+   * mode on (projectorBoard). Unlike initSession it starts no meeting: no
+   * deadline, no learner exercise, no catalogue activation, no event.
+   */
+  startProjectorDemo: (station: SessionNumber) => void;
+  /** The demonstration screen's "נקו את בית המספרים": the blocks go, the typed input stays; undo brings the blocks back. */
+  clearProjectorBoard: () => void;
   restoreSession: (savedState: any) => void;
   getSessionRemainingSeconds: () => number;
   selectBranch: (branch: 'reinforcement' | 'challenge') => void;
@@ -1763,6 +1787,8 @@ function restoredSession1Order(saved: { standardTaskIdx?: number; activeTask?: {
 }
 
 export function getActiveTasks(s: WorkspaceState): SessionTask[] {
+  // The teacher's demonstration is no learner exercise (Module 15 §ג).
+  if (s.projectorBoard) return [];
   // Session 2 runs through the Q-Matrix flow — it has no standard task list.
   if (s.sessionNumber === 2) return [];
   if (s.dynamicTasks) return s.dynamicTasks;
@@ -2588,6 +2614,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const stack = [...currentStack, frame];
     if (stack.length > UNDO_STACK_CAP) stack.shift();
     return stack;
+  }
+
+  /**
+   * Typing on the demonstration screen: the input and an undo frame, nothing
+   * else — no checking, no streak, no coaching card, no event.
+   */
+  function demoInput(change: (s: WorkspaceState) => Partial<WorkspaceState>, place: Place) {
+    set((s) => ({
+      ...change(s),
+      undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s), undefined, placeToColumnIndex(place)),
+    }));
   }
 
   /** The learner's typed state, for an undo frame. */
@@ -3886,6 +3923,42 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
     },
 
+    startProjectorDemo: (station) => {
+      flowEpoch++;
+      cancelSocraticRequest();
+      set({
+        ...resetTaskInteraction(false),
+        projectorBoard: true,
+        sessionNumber: sanitizeSessionNumber(station),
+        isASD: false,
+        selectedBranch: null,
+        dynamicTasks: null,
+        standardTaskIdx: 0,
+        flowStatus: 'task',
+        awaitingNext: false,
+        boardOpen: true,
+        scaffoldFadeLevel: 0,
+        errorPlace: null,
+        feedback: null,
+        helpState: 'closed',
+        frictionTriggerSource: null,
+        currentState: 'PROBLEM_ACTIVE',
+        isAdditionHelperOpen: false,
+        additionHelperOffered: false,
+        additionHelperOfferedUnopened: false,
+      });
+    },
+
+    clearProjectorBoard: () => {
+      set((s) => {
+        if (!s.projectorBoard) return s;
+        return {
+          counts: { ...EMPTY_COUNTS },
+          undoStack: createNextUndoStack(s.undoStack, s.counts, 'BLOCK_DRAG_COMPLETE', inputSnapshot(s), s.conversionsByColumn),
+        };
+      });
+    },
+
     getSessionRemainingSeconds: () => {
       const deadline = get().sessionDeadlineTime;
       if (!deadline) return get().sessionDurationMinutes * 60;
@@ -4614,6 +4687,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     setAnswerDigit: (place, val) => {
+      if (get().projectorBoard) {
+        demoInput((s) => ({ answerDigits: { ...s.answerDigits, [place]: val } }), place);
+        return;
+      }
       set((s) => {
         const isDelete = val === '' && Boolean(s.answerDigits[place]);
 
@@ -4738,6 +4815,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     setCarryDigit: (place, val) => {
+      if (get().projectorBoard) {
+        demoInput((s) => ({ carryDigits: { ...s.carryDigits, [place]: val } }), place);
+        return;
+      }
       set((s) => {
         const isDelete = val === '' && Boolean(s.carryDigits[place]);
         const studentId = currentStudentUid();
@@ -5258,6 +5339,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     openSocraticCard: (reason, place) => {
       const s = get();
+      // No coaching card on the teacher's demonstration screen (Module 15 §ג).
+      if (s.projectorBoard) return;
       // PRD Module 12 & 14: the card is disabled outright in session 2, and never
       // reopens over an open card or during the wrong-answer lockout — the
       // whole rule is socraticCardRefusal. An open card is helpState
@@ -5388,6 +5471,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setOperandDigit: (which, place, val) => {
       const clean = val.replace(/[^0-9]/g, '').slice(-1);
+      if (get().projectorBoard) {
+        demoInput((s) => ({ operandDigits: { ...s.operandDigits, [which]: { ...s.operandDigits[which], [place]: clean } } }), place);
+        return;
+      }
       const s = get();
       const task = getActiveTasks(s)[s.standardTaskIdx] || null;
       const studentId = currentStudentUid();
@@ -5450,6 +5537,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     isRepresentationColumnLocked: (place) => {
       const s = get();
+      if (s.projectorBoard) return false;
       if (s.sessionNumber === 2 || s.sessionNumber === 8) return false;
       // PRD Module 9: the lock exists for enhanced_cognitive_support only; every other learner's row stays open.
       const supportProfile = s.activeSupportProfileId;
@@ -5474,6 +5562,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     isRepresentationAnswerLocked: () => {
       const s = get();
+      if (s.projectorBoard) return false;
       // Module 14: never in meetings 2 and 8. Module 9: enhanced_cognitive_support only.
       if (s.sessionNumber === 2 || s.sessionNumber === 8) return false;
       if (s.activeSupportProfileId !== 'enhanced_cognitive_support') return false;
@@ -5527,6 +5616,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     isColumnInputLocked: (place, numberA, numberB, isSubtraction) => {
       const s = get();
+      // The teacher's demonstration has no keyboard locks (Module 15 §ג).
+      if (s.projectorBoard) return false;
       // PRD v7.0 Module 14: In sessions 2 and 8, the keyboard lock is disabled for every learner regardless of profile
       if (s.sessionNumber === 2 || s.sessionNumber === 8) return false;
 

@@ -36,7 +36,7 @@ export function RepresentationTask({ task }: { task: SessionTask }) {
  * until the exercise's conversion is done with the blocks (Module 9 §א,
  * REPRESENTATION_LOCKS); a keystroke into it is rejected, logged and shakes it.
  */
-function RepresentationAnswerBox() {
+export function RepresentationAnswerBox() {
   const answerDigits = useWorkspaceStore((s) => s.answerDigits);
   const setRepresentationAnswer = useWorkspaceStore((s) => s.setRepresentationAnswer);
   const recordBlockedAnswerKeystroke = useWorkspaceStore((s) => s.recordBlockedAnswerKeystroke);

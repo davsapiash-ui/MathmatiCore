@@ -15,8 +15,9 @@ import type { PlaceCounts } from './placeValue';
  *   - everywhere else in station 1: hidden.
  * Stations 3–7 (owner, 29.9.2026; carried out 30.9.2026 after a station-by-station
  * analysis): hidden for the whole exercise — the child counts the blocks and
- * writes the digit themselves. The teacher's projector board keeps them
- * (`projectorBoard` in the workspace store).
+ * writes the digit themselves. The teacher's demonstration screen keeps them
+ * in station 1 (`projectorBoard` in the workspace store); in stations 3–7 it
+ * shows the board as the learners see it (Module 15 §ג, 9.10.2026).
  */
 const STATION1_SHOWN = new Set(['s1_sandbox_controlled', 's1_decompose_hundred']);
 
