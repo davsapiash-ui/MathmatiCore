@@ -75,7 +75,7 @@ describe('Module 25 §ב.1 — one school, one class', () => {
 
   it('the database rules accept writes to the pilot school and class ids only', () => {
     expect(rtdbRules.rules.schools.$schoolId['.validate']).toBe("$schoolId == 'school_bikorot'");
-    expect(rtdbRules.rules.classes.$classId['.validate']).toMatch(/^\$classId == 'class_1' && /);
+    expect(rtdbRules.rules.classes.$classId['.validate']).toBe("$classId == 'class_1'");
     expect(rtdbRules.rules.public_classes.$classId['.validate']).toBe("$classId == 'class_1'");
     expect(firestoreRules).toContain("allow create, update: if isAdmin() && schoolId == 'school_bikorot';");
     expect(firestoreRules).toContain("allow create, update: if classId == 'class_1' && (isTeacherOfClass(classId) || isAdmin()) && isValidClassDoc();");
@@ -89,14 +89,19 @@ describe('Module 25 §ב.1 — one school, one class', () => {
  * validation at all: the admin console could store 40.
  */
 describe('Module 25 §ב.2 — the 12-learner cap in the RTDB rules', () => {
-  const classRule: string = rtdbRules.rules.classes.$classId['.validate'];
+  // Checked per field, so a partial update of another child (e.g. teacherId) is
+  // not judged against an older record's name or limit.
+  const classNode = rtdbRules.rules.classes.$classId;
+  const classRule: string = [classNode['.validate'], classNode.name['.validate'], classNode.studentLimit['.validate']].join(' && ');
   const limitRule: string = rtdbRules.rules.system_control.globalStudentLimit['.validate'];
 
   it('the class record: the pilot name and a capacity of 1–12', () => {
-    expect(classRule).toContain("newData.child('name').val() == 'המבקרים'");
-    expect(classRule).toContain("newData.child('studentLimit').isNumber()");
-    expect(classRule).toContain("newData.child('studentLimit').val() >= 1");
-    expect(classRule).toContain("newData.child('studentLimit').val() <= 12");
+    expect(classNode['.validate']).toContain("$classId == 'class_1'");
+    expect(classNode.name['.validate']).toBe("newData.val() == 'המבקרים'");
+    expect(classNode.studentLimit['.validate']).toContain('newData.isNumber()');
+    expect(classNode.studentLimit['.validate']).toContain('newData.val() >= 1');
+    expect(classNode.studentLimit['.validate']).toContain('newData.val() <= 12');
+    expect(classRule).not.toContain("newData.child('name')");
   });
 
   it('the global limit: a number, 1–12', () => {

@@ -1158,6 +1158,16 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       expect(await stored()).toEqual([]);
     });
 
+    it('an old item whose pre-read the rules refuse (a learner may not read a missing document) is written under its new id', async () => {
+      storeOldItem();
+      fs.getDoc.mockImplementation(async () => { throw Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' }); });
+      await queue.flushQueue();
+      expect(fs.setDoc).toHaveBeenCalledTimes(1);
+      const ref = fs.setDoc.mock.calls[0][0] as { id: string };
+      expect(ref.id).toBe(telemetryDocIdOf(OLD_KEY));
+      expect(await stored()).toEqual([]);
+    });
+
     it('an old item whose pre-read cannot reach the server stays queued for the next pass', async () => {
       storeOldItem();
       fs.getDoc.mockImplementationOnce(async () => { throw unreachable(); });

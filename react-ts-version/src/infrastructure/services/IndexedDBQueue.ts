@@ -1425,9 +1425,13 @@ export class IndexedDBQueue {
         try {
           snap = await getDoc(doc(firestore, 'telemetry_logs', item.idempotency_key));
         } catch (err) {
-          throw preReadFailure(err);
+          // A learner may read only a document of their own that exists: the
+          // rules refuse the read of a missing one (resource is null). That
+          // refusal means "not stored under the old key" — write it anew.
+          if (!isPermissionDenied(err)) throw preReadFailure(err);
+          snap = null;
         }
-        if (snap.exists()) return true;
+        if (snap?.exists()) return true;
       }
       await setDoc(doc(firestore, 'telemetry_logs', docId), telemetryDocumentOf(item.payload, docId));
     }
