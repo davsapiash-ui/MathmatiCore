@@ -243,10 +243,55 @@ describe('tick rule (proposal §ג): carried out, not right', () => {
     expect(answerFilled(s5, state({ sessionNumber: 5, answerDigits: { units: '5', tens: '3' } }))).toBe(true);
     const s6 = byId('s6_g_t1').task; // 2,045 − 1,128 = 917, four boxes
     const base = state({ sessionNumber: 6 });
-    expect(answerFilled(s6, { ...base, answerDigits: { units: '7', tens: '1', hundreds: '9' } })).toBe(false);
     expect(answerFilled(s6, { ...base, answerDigits: { units: '7', tens: '1', hundreds: '9', thousands: '0' } })).toBe(true);
-    const s5g = byId('s5_g_t1').task; // 5,432 − 2,118: "314" is not yet written
-    expect(answerFilled(s5g, state({ sessionNumber: 5, answerDigits: { units: '4', tens: '1', hundreds: '3' } }))).toBe(false);
+    const s5g = byId('s5_g_t1').task; // 5,432 − 2,118: "3" alone, or a gap, is not yet written
+    expect(answerFilled(s5g, state({ sessionNumber: 5, answerDigits: { units: '4' } }))).toBe(false);
+    expect(answerFilled(s5g, state({ sessionNumber: 5, answerDigits: { units: '4', tens: '1', thousands: '3' } }))).toBe(false);
+    expect(answerFilled(s5g, state({ sessionNumber: 5, answerDigits: { units: '4', tens: '1', hundreds: '3', thousands: '3' } }))).toBe(true);
+  });
+
+  // Owner, 9.10.2026: in a subtraction of stations 3–7 the child may leave the
+  // hundreds box (or any higher one) empty when the answer is shorter than the
+  // row, as the verdict already accepts "_92" and "092". The tick follows: every
+  // box from the units up to the highest written digit, no gap; tens and units always.
+  describe('a subtraction answer shorter than its row (owner, 9.10.2026)', () => {
+    const s6r = () => byId('s6_r_t3').task; // 204 − 112 = 92, three boxes
+    const at6 = (answerDigits: GuideTickState['answerDigits']) => state({ sessionNumber: 6, answerDigits });
+
+    it('204 − 112: "_92" ticks', () => {
+      expect(s6r().numberA).toBe(204);
+      expect(s6r().numberB).toBe(112);
+      expect(answerFilled(s6r(), at6({ tens: '9', units: '2' }))).toBe(true);
+    });
+    it('204 − 112: "092" ticks', () => {
+      expect(answerFilled(s6r(), at6({ hundreds: '0', tens: '9', units: '2' }))).toBe(true);
+    });
+    it('204 − 112: "9_2" does not tick — a gap', () => {
+      expect(answerFilled(s6r(), at6({ hundreds: '9', units: '2' }))).toBe(false);
+    });
+    it('204 − 112: the units or the tens alone does not tick', () => {
+      expect(answerFilled(s6r(), at6({ units: '2' }))).toBe(false);
+      expect(answerFilled(s6r(), at6({ tens: '9' }))).toBe(false);
+    });
+    it('53 − 18 (two boxes): "5" alone does not tick (chief review B1 stays fixed)', () => {
+      const s5 = byId('s5_r_t2').task;
+      expect(answerFilled(s5, state({ sessionNumber: 5, answerDigits: { units: '5' } }))).toBe(false);
+      expect(answerFilled(s5, state({ sessionNumber: 5, answerDigits: { tens: '5' } }))).toBe(false);
+    });
+    it('2,045 − 1,128 = 917 in four boxes: "_917" ticks, so does "__17" (the tick never tells the length); "_9_7" and "9_17" do not', () => {
+      const s6 = byId('s6_g_t1').task;
+      expect(answerFilled(s6, state({ sessionNumber: 6, answerDigits: { hundreds: '9', tens: '1', units: '7' } }))).toBe(true);
+      expect(answerFilled(s6, state({ sessionNumber: 6, answerDigits: { hundreds: '9', units: '7' } }))).toBe(false);
+      expect(answerFilled(s6, state({ sessionNumber: 6, answerDigits: { tens: '1', units: '7' } }))).toBe(true);
+      expect(answerFilled(s6, state({ sessionNumber: 6, answerDigits: { thousands: '9', tens: '1', units: '7' } }))).toBe(false);
+    });
+    it('the writing step of the guide ticks for "_92"', () => {
+      const task = s6r();
+      const g = taskGuide(task, 6)!;
+      const i = g.steps.findIndex((st) => st.tick.kind === 'fill');
+      expect(i).toBeGreaterThanOrEqual(0);
+      expect(guideTicksNow(g, task, at6({ tens: '9', units: '2' }))[i]).toBe(true);
+    });
   });
 });
 

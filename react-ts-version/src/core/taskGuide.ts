@@ -511,11 +511,23 @@ export function answerFilled(task: SessionTask, s: GuideTickState): boolean {
     }
     // PRD 14 §ב, tick rule (3): "צעד הכתיבה מסומן כשכל התיבות מולאו" — every
     // box of the result row (resultBoxCount), the same for every answer, so
-    // the tick never tells how long the answer is. Whether a subtraction's
-    // highest box may stay empty when the result is shorter than the row
-    // (204 − 112 = 92 in three boxes) is the owner's to decide (review O3).
+    // the tick never tells how long the answer is.
     const boxes = resultBoxCount(s.sessionNumber, a, b, target);
-    return ORDER.slice(0, boxes).every((p) => (s.answerDigits[p] ?? '') !== '');
+    const row = ORDER.slice(0, boxes);
+    const filled = (p: Place) => (s.answerDigits[p] ?? '') !== '';
+    if (task.isSubtraction && s.sessionNumber >= 3 && s.sessionNumber <= 7) {
+      // Owner, 9.10.2026: in a subtraction of stations 3–7 the child may leave
+      // the leading boxes empty when the answer is shorter than the row
+      // (204 − 112 = 92 in three boxes, written "92"), as the verdict already
+      // accepts. The step ticks when every box from the units up to the highest
+      // written digit is filled with no gap. Only the hundreds box and above
+      // may stay empty: the tens and units are always written, so "5" alone in
+      // 53 − 18 still does not tick (chief review B1).
+      const highest = row.reduce((h, p, i) => (filled(p) ? i : h), -1);
+      const upTo = Math.max(highest, Math.min(boxes, 2) - 1);
+      return row.slice(0, upTo + 1).every(filled);
+    }
+    return row.every(filled);
   }
   return false;
 }
