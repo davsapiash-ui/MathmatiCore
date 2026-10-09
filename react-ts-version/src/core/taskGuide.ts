@@ -548,11 +548,22 @@ export function answerFilled(task: SessionTask, s: GuideTickState): boolean {
     }
     // PRD 14 §ב, tick rule (3): "צעד הכתיבה מסומן כשכל התיבות מולאו" — every
     // box of the result row (resultBoxCount), the same for every answer, so
-    // the tick never tells how long the answer is. Whether a subtraction's
-    // highest box may stay empty when the result is shorter than the row
-    // (204 − 112 = 92 in three boxes) is the owner's to decide (review O3).
+    // the tick never tells how long the answer is.
     const boxes = resultBoxCount(s.sessionNumber, a, b, target);
-    return ORDER.slice(0, boxes).every((p) => (s.answerDigits[p] ?? '') !== '');
+    const row = ORDER.slice(0, boxes);
+    const filled = (p: Place) => (s.answerDigits[p] ?? '') !== '';
+    if (task.isSubtraction && s.sessionNumber >= 3 && s.sessionNumber <= 7) {
+      // Owner, 9.10.2026: in a subtraction of stations 3–7 whose answer is
+      // shorter than the row (204 − 112 = 92 in three boxes, 2,045 − 1,128 =
+      // 917 in four), the child may leave the leading boxes the answer does
+      // not use empty, as the verdict already accepts ("_92", "092"). Every
+      // box the answer uses must be filled. Only in those exercises: a child
+      // types from the units leftward, so a general "up to the highest digit"
+      // rule ticked "14" on the way to 314 and showed the done box too early.
+      const used = String(Math.abs(target)).length;
+      if (used < boxes) return row.slice(0, used).every(filled);
+    }
+    return row.every(filled);
   }
   return false;
 }

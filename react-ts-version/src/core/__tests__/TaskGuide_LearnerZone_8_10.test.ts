@@ -297,10 +297,61 @@ describe('tick rule (proposal §ג): carried out, not right', () => {
     expect(answerFilled(s5, state({ sessionNumber: 5, answerDigits: { units: '5', tens: '3' } }))).toBe(true);
     const s6 = byId('s6_g_t1').task; // 2,045 − 1,128 = 917, four boxes
     const base = state({ sessionNumber: 6 });
-    expect(answerFilled(s6, { ...base, answerDigits: { units: '7', tens: '1', hundreds: '9' } })).toBe(false);
     expect(answerFilled(s6, { ...base, answerDigits: { units: '7', tens: '1', hundreds: '9', thousands: '0' } })).toBe(true);
-    const s5g = byId('s5_g_t1').task; // 5,432 − 2,118: "314" is not yet written
+    const s5g = byId('s5_g_t1').task; // 5,432 − 2,118 = 3,314: "314" is not yet written
     expect(answerFilled(s5g, state({ sessionNumber: 5, answerDigits: { units: '4', tens: '1', hundreds: '3' } }))).toBe(false);
+    expect(answerFilled(s5g, state({ sessionNumber: 5, answerDigits: { units: '4', tens: '1', hundreds: '3', thousands: '3' } }))).toBe(true);
+  });
+
+  // Owner, 9.10.2026: in a subtraction of stations 3–7 whose answer is shorter
+  // than its row — today s6_r_t3 (92 in three boxes) and s6_g_t1 (917 in four) —
+  // the leading boxes the answer does not use may stay empty, as the verdict
+  // already accepts "_92" and "092". Every other exercise still needs every box:
+  // a child types from the units leftward, and "14" on the way to 314 must not tick.
+  describe('a subtraction answer shorter than its row (owner, 9.10.2026)', () => {
+    const s6r = () => byId('s6_r_t3').task; // 204 − 112 = 92, three boxes
+    const at6 = (answerDigits: GuideTickState['answerDigits']) => state({ sessionNumber: 6, answerDigits });
+
+    it('a 3-digit subtraction with a 3-digit answer: the last two digits typed do not tick', () => {
+      const t = byId('s5_r_t4').task; // 345 − 182 = 163
+      expect([t.numberA, t.numberB]).toEqual([345, 182]);
+      expect(answerFilled(t, state({ sessionNumber: 5, answerDigits: { tens: '6', units: '3' } }))).toBe(false);
+      expect(answerFilled(t, state({ sessionNumber: 5, answerDigits: { hundreds: '1', tens: '6', units: '3' } }))).toBe(true);
+      const u = byId('s6_r_t2').task; // 305 − 12 = 293: "93" on the way does not tick
+      expect(answerFilled(u, at6({ tens: '9', units: '3' }))).toBe(false);
+    });
+    it('s6_r_t3, 204 − 112: "_92" ticks', () => {
+      expect([s6r().numberA, s6r().numberB]).toEqual([204, 112]);
+      expect(answerFilled(s6r(), at6({ tens: '9', units: '2' }))).toBe(true);
+    });
+    it('s6_r_t3: "092" ticks', () => {
+      expect(answerFilled(s6r(), at6({ hundreds: '0', tens: '9', units: '2' }))).toBe(true);
+    });
+    it('s6_r_t3: "9_2", "2" alone and "9" alone do not tick', () => {
+      expect(answerFilled(s6r(), at6({ hundreds: '9', units: '2' }))).toBe(false);
+      expect(answerFilled(s6r(), at6({ units: '2' }))).toBe(false);
+      expect(answerFilled(s6r(), at6({ tens: '9' }))).toBe(false);
+    });
+    it('53 − 18 (two boxes): "5" alone does not tick (chief review B1 stays fixed)', () => {
+      const s5 = byId('s5_r_t2').task;
+      expect(answerFilled(s5, state({ sessionNumber: 5, answerDigits: { units: '5' } }))).toBe(false);
+      expect(answerFilled(s5, state({ sessionNumber: 5, answerDigits: { tens: '5' } }))).toBe(false);
+    });
+    it('s6_g_t1, 2,045 − 1,128 = 917 in four boxes: "_917" and "0917" tick; "__17" and "_9_7" do not', () => {
+      const s6 = byId('s6_g_t1').task;
+      expect([s6.numberA, s6.numberB]).toEqual([2045, 1128]);
+      expect(answerFilled(s6, at6({ hundreds: '9', tens: '1', units: '7' }))).toBe(true);
+      expect(answerFilled(s6, at6({ thousands: '0', hundreds: '9', tens: '1', units: '7' }))).toBe(true);
+      expect(answerFilled(s6, at6({ tens: '1', units: '7' }))).toBe(false);
+      expect(answerFilled(s6, at6({ hundreds: '9', units: '7' }))).toBe(false);
+    });
+    it('the writing step of the guide ticks for "_92"', () => {
+      const task = s6r();
+      const g = taskGuide(task, 6)!;
+      const i = g.steps.findIndex((st) => st.tick.kind === 'fill');
+      expect(i).toBeGreaterThanOrEqual(0);
+      expect(guideTicksNow(g, task, at6({ tens: '9', units: '2' }))[i]).toBe(true);
+    });
   });
 });
 
