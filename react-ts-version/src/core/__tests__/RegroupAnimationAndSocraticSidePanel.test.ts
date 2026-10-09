@@ -252,25 +252,33 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     startMeeting(1);
   });
 
-  it('the workspace renders the panel inside the work row, after the board, and the board shares the row', () => {
+  it('PRD 12 §ב: the workspace renders the drawer inside the task zone (40%), and the board keeps its 60% of the row (PRD 7 §א)', () => {
     const page = read('features/workspace/StudentWorkspacePage.tsx');
     const main = page.slice(page.indexOf('<main '), page.indexOf('</main>'));
-    expect(main).toContain('<TaskCard />');
-    expect(main).toContain('<PlaceValueBoard');
-    expect(main).toContain('shareRow={isSocraticPanelOpen || isAdditionGridSlotShown}');
-    expect(main).toContain('<SocraticSidePanel />');
-    expect(main.indexOf('<SocraticSidePanel />')).toBeGreaterThan(main.indexOf('<PlaceValueBoard'));
+    const zone = main.slice(main.indexOf('data-testid="task-zone"'), main.indexOf('</section>'));
+    expect(zone).toContain('<TaskCard />');
+    expect(zone).toContain('<SocraticSidePanel inTaskZone />');
+    expect(zone).toContain('style={{ flex: isBoardOpen ? TASK_ZONE_FLEX : \'1 1 0%\' }}');
+    // The representations zone comes after it (RTL: on the visual left), with the board, and takes no share from the drawer.
+    const repsAt = main.indexOf('data-testid="representations-zone"');
+    const reps = main.slice(repsAt, main.indexOf('</section>', repsAt));
+    expect(main.indexOf('data-testid="representations-zone"')).toBeGreaterThan(main.indexOf('</section>'));
+    expect(reps).toContain('style={{ flex: isBoardOpen ? BOARD_ZONE_FLEX : \'0 0 auto\' }}');
+    expect(reps).toContain('<PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} inZone />');
+    expect(reps).not.toContain('<SocraticSidePanel');
+    expect(main).not.toContain('shareRow');
+    const zones = read('features/workspace/workspaceZones.ts');
+    expect(zones).toContain("export const BOARD_ZONE_FLEX = '3 1 0%';");
+    expect(zones).toContain("export const TASK_ZONE_FLEX = '2 1 0%';");
   });
 
-  it('with the panel open the board\'s tray goes compact and may wrap, so the trash is never cut off', () => {
+  it('a board too narrow for the full tray gets the compact tray, which may wrap, so the trash is never cut off', () => {
+    const board = read('features/workspace/board/PlaceValueBoard.tsx');
+    expect(board).toContain('setNarrow(entry.contentRect.width < TRAY_FULL_WIDTH_PX)');
+    expect(board).toContain('compact={narrow}');
     startMeeting(3);
-    const { unmount } = render(
-      React.createElement(DndContext, null, React.createElement(PlaceValueBoard, { shareRow: true }))
-    );
+    const { unmount } = render(React.createElement(DndContext, null, React.createElement(PlaceValueBoard, {})));
     const tray = screen.getByRole('toolbar', { name: /ארגז כלים/ });
-    expect(tray.getAttribute('data-compact')).toBe('true');
-    expect(tray.className).toContain('flex-wrap');
-    expect(tray.className).not.toContain('overflow-x-auto');
     expect(within(tray).getByLabelText(/פח אשפה/)).toBeDefined();
     unmount();
   });

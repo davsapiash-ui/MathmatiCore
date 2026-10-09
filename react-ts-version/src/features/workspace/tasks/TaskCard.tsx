@@ -28,7 +28,14 @@ import { taskGuide } from '@/core/taskGuide';
  * UDL: ריבוי אמצעי ייצוג — טקסט + הקראה + ייצוג חזותי.
  */
 /** The notebook square inside the task card (design spec §2.5). */
-const TASK_CARD_CELL = 'clamp(36px, min(6.2vh, 4.4vw), 64px)';
+// …and no wider than a seventh and a half of the task zone after the card's
+// paddings (a 4-digit sheet is seven squares across): the zone is a size
+// container (.task-zone-cells, StudentWorkspacePage), so 100cqi is the zone's
+// width; with no container (stations 2 and 8) it is the window's, and never binds.
+// Station 1's vertical exercises (61 − 24, 806 − 351) under their guide block
+// needed 13-17px more at 1280x585 and 1024x694 in the 40% zone: the square
+// goes down to 32px there (UX audit, 9.10.2026).
+const TASK_CARD_CELL = 'clamp(32px, min(5.8vh, 4.4vw, calc((100cqi - 96px) / 8.2)), 64px)';
 
 export function TaskCard() {
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);

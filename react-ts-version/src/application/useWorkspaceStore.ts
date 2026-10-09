@@ -76,7 +76,6 @@ import { mirrorReflectionStep } from '@/core/srlReflection';
 import {
   EMPTY_PERSISTENCE_COUNTS,
   addPersistenceEvent,
-  hasClosingSentence,
   meetingOfSessionId,
   persistenceEventKind,
   type PersistenceCounts,
@@ -540,8 +539,8 @@ export interface WorkspaceState {
   /** U, E and G of the meeting in progress (E1); reset when a meeting starts, kept across a reload. */
   meetingPersistence: MeetingPersistenceTally;
   /**
-   * Stations 2 and 8 open with one quiet screen before their first task
-   * (owner, 27.9.2026). Set once the learner pressed "מתחילים" in the meeting
+   * Every station opens with one quiet screen before its first task
+   * (PRD 14 §ב). Set once the learner pressed "מתחילים" in the meeting
    * in progress; kept across a reload, so the screen never returns mid-meeting.
    */
   openingScreenSeen: boolean;
@@ -2492,6 +2491,27 @@ export const MEETING8_SOLVED_SUB_HE = 'פְּתַרְתֶּם נָכוֹן.';
  */
 export const SOCRATIC_LOCKOUT_MS = 15_000;
 
+/**
+ * A saved meeting copy is past its opening screen ("מתחילים" pressed): the flag
+ * says so, or the copy shows progress — an interaction, a later task, a later
+ * phase of the meeting, or a diagnostic answer (review B1, 9.10.2026).
+ */
+export function openingScreenPassed(saved: {
+  openingScreenSeen?: unknown;
+  hasInteracted?: unknown;
+  standardTaskIdx?: unknown;
+  flowStatus?: unknown;
+  qflow?: { taskIdx?: unknown; results?: unknown } | null;
+}): boolean {
+  if (saved.openingScreenSeen !== false) return true;
+  if (saved.hasInteracted === true) return true;
+  if (typeof saved.standardTaskIdx === 'number' && saved.standardTaskIdx > 0) return true;
+  if ((saved.flowStatus ?? 'task') !== 'task') return true;
+  const q = saved.qflow;
+  if (q && ((typeof q.taskIdx === 'number' && q.taskIdx > 0) || (q.results && typeof q.results === 'object' && Object.keys(q.results).length > 0))) return true;
+  return false;
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /**
    * Which meeting a deferred step belongs to. initSession, restoreSession and
@@ -3439,7 +3459,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (s.sessionNumber !== 8) markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
 
       set({ awaitingNext: true, currentState: 'COMPLETE' });
-      showFeedback({ correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` }, 2500);
+      // No toast: the "station done" toast was not PRD text, and the station's
+      // end screen that follows says it in the PRD's words (PRD 14 §ג; review
+      // S11, 9.10.2026).
       // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
       // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
       // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
@@ -3491,15 +3513,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (s.sessionNumber !== 8) markMeetingFinished(studentId, s.sessionNumber, s.isSupersededByOtherDevice);
 
     set({ awaitingNext: true, currentState: 'COMPLETE' });
-    // One praise, one sentence: meetings 3–7 end on the closing sentence of
-    // owner decision E2, which opens with "כל הכבוד" itself, so the toast
-    // before it only says the station is done.
-    showFeedback(
-      hasClosingSentence(s.sessionNumber)
-        ? { correct: true, title: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה! 🎉` }
-        : { correct: true, title: 'כָּל הַכָּבוֹד! 🎉', sub: `תַּחֲנָה ${s.sessionNumber} הוּשְׁלְמָה בְּהַצְלָחָה!` },
-      2500,
-    );
+    // No toast (review S11, 9.10.2026): the "station done" toast was not
+    // PRD text, and PRD 14 §ג gives the end of meetings 3–7 one encouragement
+    // sentence only — the closing sentence of the end screen that follows.
     // מודול 16: מפגש 8 מסתיים בלוח הרפלקציה התלת-שלבי — זו כל מטרתו
     // ("חוקר-על — סיכום ורפלקציית SRL", מודול 14). הלוח היה בנוי, נבדק
     // ונשמר כהלכה, אבל שום מסלול בקוד לא הוביל אליו: כל מפגש הסתיים
@@ -3832,7 +3848,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // A meeting starts here (a reload goes through restoreSession), so its
         // U, E and G start from zero (E1: "the events of the current meeting only").
         meetingPersistence: freshMeetingPersistence(sanitized),
-        // A fresh meeting 2 or 8 starts on its opening screen.
+        // A fresh meeting starts on its station's opening screen (PRD 14 §ב).
         openingScreenSeen: false,
         // …and meeting 8's reflection board on its first stage, with nothing chosen.
         reflectionDraft: freshReflectionDraft(),
@@ -3966,9 +3982,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         flowStatus: saved.flowStatus === 'reflection' && sanitized !== 8 ? 'sessionDone' : (saved.flowStatus ?? 'task'),
         // This meeting's U, E and G survive the reload (E1).
         meetingPersistence: restoredMeetingPersistence(saved.meetingPersistence, sanitized),
-        // A snapshot saved before the opening screen existed is a meeting
-        // already under way: it does not go back to the opening.
-        openingScreenSeen: saved.openingScreenSeen === false ? false : true,
+        // "מתחילים" is saved, so a refresh mid-meeting never brings the opening
+        // screen back (PRD 14 §ב). Copies saved before every station had one
+        // carry openingScreenSeen: false from initSession even though the
+        // learner is well into the meeting: a copy that shows progress is past
+        // the opening screen whatever the flag says (review B1, 9.10.2026).
+        openingScreenSeen: openingScreenPassed(saved),
         counts: saved.counts ?? { ...EMPTY_COUNTS },
         undoCount: saved.undoCount ?? 0,
         hesitationCount: saved.hesitationCount ?? 0,
@@ -5323,9 +5342,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     markOpeningScreenSeen: () => {
       // "מתחילים" moves from the opening screen to task 1: the next-exercise
       // boundary at which a profile the teacher turned on meanwhile is applied
-      // (PRD 19 §ב). The opening screen itself is not an exercise.
+      // (PRD 19 §ב). The opening screen itself is not an exercise: task 1's
+      // clock starts here, so its duration (PROBLEM_COMPLETE.total_duration_ms,
+      // Module 24) does not include the time spent reading the opening.
       applyPendingSupportProfile();
-      set({ openingScreenSeen: true, lastInteractionTime: Date.now() });
+      const now = Date.now();
+      set({ openingScreenSeen: true, lastInteractionTime: now, taskStartTime: now });
     },
     recordPersistenceEvent: (event) => {
       if (!persistenceEventKind(event)) return;

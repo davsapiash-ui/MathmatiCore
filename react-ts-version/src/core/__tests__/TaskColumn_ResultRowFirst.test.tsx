@@ -142,6 +142,6 @@ describe('the layout that keeps the row in view (source)', () => {
 
   it('the task card and the centred card of meetings 2 and 8 never grow past the screen', () => {
     expect(src('features/workspace/tasks/TaskCard.tsx')).toMatch(/id="tour-task-card" className="[^"]*min-h-0[^"]*overflow-y-auto/);
-    expect(src('features/workspace/StudentWorkspacePage.tsx')).toContain("'max-w-3xl flex-none h-auto max-h-full'");
+    expect(src('features/workspace/StudentWorkspacePage.tsx')).toContain('max-w-3xl flex-none h-auto max-h-full');
   });
 });

@@ -210,8 +210,8 @@ describe('no wording from the old meeting 1, and the documents’ names for thin
     expect(engine).not.toContain('בטור היחידות היחידות');
   });
 
-  it('the lobby card of meeting 1 says "ארגז החול" (מסמך 04)', () => {
-    expect(src('presentation/pages/StudentHub.tsx')).toContain('title: stationTitleHe(1),');
+  it('the opening screen of meeting 1 says "ארגז החול" (מסמך 04; PRD 14 §ב)', () => {
+    expect(src('core/stationOpening.ts')).toContain('ברוכים הבאים ל${stationTitleHe(1)}.');
     expect(src('core/stationNames.ts')).toContain("1: 'ארגז החול',");
   });
 

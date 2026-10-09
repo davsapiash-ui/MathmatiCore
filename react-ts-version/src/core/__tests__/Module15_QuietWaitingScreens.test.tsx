@@ -22,35 +22,40 @@ import { SessionPausedOverlay } from '@/presentation/components/student/SessionP
 import { SessionClosedOverlay } from '@/presentation/components/student/SessionClosedOverlay';
 
 /**
- * Register, quiet profile (מסמך העיצוב §1.3 "מצב שקט חזותי"): the breathing
- * dots of the waiting screens stop for a child the teacher marked quiet. The
- * marking reaches these screens only as <MotionConfig reducedMotion="always">,
- * and the screens read useReducedMotion(), which looks at the device setting
- * alone — so on a device without it the dots went on pulsing in opacity.
+ * The waiting screens are calm for every child (ASD and special education):
+ * no looping animation — no breathing dots, no bobbing or pulsing icon — with
+ * or without the teacher's quiet marking. Their texts stay as they were. The
+ * only motion left is the screen's own one-time fade in.
  */
-const SCREENS: Array<[string, () => React.ReactElement]> = [
-  ['projector', () => <ProjectorWaitingScreen />],
-  ['paused', () => <SessionPausedOverlay />],
-  ['closed', () => <SessionClosedOverlay />],
+const SCREENS: Array<[string, () => React.ReactElement, RegExp]> = [
+  ['projector', () => <ProjectorWaitingScreen />, /הקשיבו להסבר של המורה על גבי המקרן/],
+  ['paused', () => <SessionPausedOverlay />, /המורה עצרה את הפעילות לרגע/],
+  ['closed', () => <SessionClosedOverlay />, /המורה סגרה את התחנה/],
 ];
-const dots = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>('.rounded-full.w-2\\.5.h-2\\.5')];
+/** Every animation a screen asked for that repeats: a keyframe list. */
+const loops = (c: HTMLElement) =>
+  [...c.querySelectorAll<HTMLElement>('[data-animate]')].map((el) => el.getAttribute('data-animate') || '').filter((a) => a.includes('['));
 
 afterEach(() => cleanup());
 
-describe('the waiting screens keep still for a quiet child', () => {
-  for (const [name, screen] of SCREENS) {
-    it(`${name}: no pulse under the teacher's quiet marking`, () => {
-      const { container } = render(<MotionConfig reducedMotion="always">{screen()}</MotionConfig>);
-      const found = dots(container);
-      expect(found).toHaveLength(3);
-      for (const d of found) expect(d.getAttribute('data-animate'), 'no loop').toBe('');
-    });
-
-    it(`${name}: the dots still breathe for every other child`, () => {
-      const { container } = render(<MotionConfig reducedMotion="never">{screen()}</MotionConfig>);
-      const found = dots(container);
-      expect(found).toHaveLength(3);
-      for (const d of found) expect(d.getAttribute('data-animate')).toContain('opacity');
-    });
+describe('the waiting screens keep still, for every child', () => {
+  for (const [name, screen, text] of SCREENS) {
+    for (const reducedMotion of ['always', 'never'] as const) {
+      it(`${name} (reducedMotion="${reducedMotion}"): no loop, no breathing dots, the text stays`, () => {
+        const { container } = render(<MotionConfig reducedMotion={reducedMotion}>{screen()}</MotionConfig>);
+        expect(loops(container)).toEqual([]);
+        expect(container.querySelectorAll('.rounded-full.w-2\\.5.h-2\\.5')).toHaveLength(0);
+        expect(container.textContent).toMatch(text);
+      });
+    }
   }
+});
+
+describe('PRD Module 15 (v7.15): the projector screen is its one sentence, with no heading above it', () => {
+  it('no "הדגמה על גבי המקרן"', () => {
+    const { container } = render(<ProjectorWaitingScreen />);
+    expect(container.textContent).not.toContain('הדגמה על גבי המקרן');
+    expect(container.querySelector('h1, h2, h3')).toBeNull();
+    expect(container.textContent?.trim()).toBe('הקשיבו להסבר של המורה על גבי המקרן');
+  });
 });

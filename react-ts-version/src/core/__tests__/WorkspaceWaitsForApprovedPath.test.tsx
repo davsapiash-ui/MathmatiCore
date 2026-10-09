@@ -85,7 +85,17 @@ vi.mock('@/features/workspace/overlays/StudentChatOverlay', () => ({ StudentChat
 // The addition grid and its tab are the real components (not mocked): the
 // tests below check what the grid keeps while the coaching card is open.
 vi.mock('@/features/workspace/ClosingSentence', () => ({ ClosingSentence: () => null }));
-vi.mock('@/features/workspace/StationOpening', () => ({ StationOpening: () => <div data-testid="station-opening" /> }));
+// Every station opens on its opening screen (PRD 14 §ב). These tests are about
+// which bank starts and when, so the stub presses "מתחילים" as it appears.
+vi.mock('@/features/workspace/StationOpening', async () => {
+  const { useEffect } = await import('react');
+  return {
+    StationOpening: ({ onStart }: { onStart: () => void }) => {
+      useEffect(() => onStart(), [onStart]);
+      return <div data-testid="station-opening" />;
+    },
+  };
+});
 vi.mock('@/features/workspace/overlays/ReinforcementOrChallengeScreen', () => ({ ReinforcementOrChallengeScreen: () => null }));
 vi.mock('@/presentation/components/student/Session8ReflectionScreen', () => ({ Session8ReflectionScreen: () => null, REFLECTION_TEXT_HE: {} }));
 vi.mock('@/presentation/components/student/ProjectorWaitingScreen', () => ({ ProjectorWaitingScreen: () => null }));

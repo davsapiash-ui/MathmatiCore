@@ -21,6 +21,7 @@ import {
   hasOpeningScreen,
   stationOpeningHe,
 } from '@/core/stationOpening';
+const PRD_FILE = resolve(__dirname, '../../../../מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md');
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStore } from '@/application/useStore';
@@ -119,18 +120,25 @@ describe('1 — the child reads where it is, not the exercise title', () => {
   });
 });
 
-describe('2 — stations 2 and 8 open with one quiet screen, once', () => {
-  it('the two texts, word for word; no other station has one', () => {
+describe('2 — every station opens with one quiet screen, once (PRD Module 14 §ב)', () => {
+  it('the eight texts, word for word as the PRD writes them', () => {
     expect(STATION2_OPENING_HE).toBe('שלום. התחילו ב"תחנה 2: יוצאים למסע". אין לחץ. עבדו בקצב שלכם.');
     expect(STATION8_OPENING_HE).toBe('שלום מתמטיקאים! היום הגענו לתחנה 8: חוקרים בעצמנו. פתרו את התרגילים בנחת ובקצב שלכם, בדיוק כמו שתרגלתם בתחנות הקודמות. בהצלחה!');
-    expect(stationOpeningHe(2)).toBe(STATION2_OPENING_HE);
-    expect(stationOpeningHe(8)).toBe(STATION8_OPENING_HE);
-    expect([1, 2, 3, 4, 5, 6, 7, 8].filter(hasOpeningScreen)).toEqual([2, 8]);
-    for (const t of [STATION2_OPENING_HE, STATION8_OPENING_HE]) expect(t).not.toMatch(/[%]|ציון|אבחון|מבחן/);
+    const prd = readFileSync(PRD_FILE, 'utf8');
+    for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const text = stationOpeningHe(n);
+      expect(text, `station ${n}`).not.toBeNull();
+      expect(prd, `station ${n}: the PRD's own words`).toContain(`תחנה ${n}: "${text}"`);
+      expect(text).not.toMatch(/[%]|ציון|אבחון|מבחן/);
+    }
+    expect([1, 2, 3, 4, 5, 6, 7, 8].filter(hasOpeningScreen)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(stationOpeningHe(0)).toBeNull();
+    expect(stationOpeningHe(9)).toBeNull();
   });
 
-  for (const [meeting, text] of [[2, STATION2_OPENING_HE], [8, STATION8_OPENING_HE]] as const) {
+  for (const meeting of [1, 2, 3, 4, 5, 6, 7, 8] as const) {
     it(`station ${meeting}: exactly the text, its read-aloud button and "מתחילים" — nothing else`, () => {
+      const text = stationOpeningHe(meeting)!;
       const onStart = vi.fn();
       const { container } = render(<StationOpening meeting={meeting} onStart={onStart} />);
       expect(container.textContent).toBe(`${text}${STATION_START_HE}`);
@@ -144,13 +152,13 @@ describe('2 — stations 2 and 8 open with one quiet screen, once', () => {
     });
   }
 
-  it('the other stations render nothing', () => {
-    const { container } = render(<StationOpening meeting={4} onStart={vi.fn()} />);
+  it('outside 1–8 it renders nothing', () => {
+    const { container } = render(<StationOpening meeting={9} onStart={vi.fn()} />);
     expect(container.innerHTML).toBe('');
   });
 
-  it('a fresh meeting 2 or 8 shows it; "מתחילים" ends it; a reload does not bring it back', () => {
-    for (const n of [2, 8] as const) {
+  it('a fresh meeting shows it; "מתחילים" ends it; a reload does not bring it back', () => {
+    for (const n of [1, 2, 4, 8] as const) {
       useWorkspaceStore.getState().resetWorkspace();
       useWorkspaceStore.getState().initSession(n, false);
       expect(useWorkspaceStore.getState().openingScreenSeen, `meeting ${n}`).toBe(false);
@@ -169,7 +177,34 @@ describe('2 — stations 2 and 8 open with one quiet screen, once', () => {
     expect(sync).toContain('openingScreenSeen: state.openingScreenSeen,');
   });
 
-  it('the page shows it before the first task of station 2 or 8, and measures no hesitation on it', () => {
+  it('B1: a copy saved mid-meeting with openingScreenSeen: false (before every station had the screen) does not reopen it', () => {
+    const ws = () => useWorkspaceStore.getState();
+    ws().resetWorkspace();
+    // Meeting 4, task 4, saved by the code before this deploy (initSession wrote false).
+    ws().restoreSession({ sessionNumber: 4, flowStatus: 'task', openingScreenSeen: false, standardTaskIdx: 3 });
+    expect(ws().openingScreenSeen).toBe(true);
+    ws().restoreSession({ sessionNumber: 4, flowStatus: 'task', openingScreenSeen: false, standardTaskIdx: 0, hasInteracted: true });
+    expect(ws().openingScreenSeen).toBe(true);
+    ws().restoreSession({ sessionNumber: 4, flowStatus: 'choice_branch', openingScreenSeen: false });
+    expect(ws().openingScreenSeen).toBe(true);
+    ws().restoreSession({ sessionNumber: 1, flowStatus: 'sessionDone', openingScreenSeen: false });
+    expect(ws().openingScreenSeen).toBe(true);
+    // Nothing done yet: the opening screen is still owed.
+    ws().restoreSession({ sessionNumber: 4, flowStatus: 'task', openingScreenSeen: false, standardTaskIdx: 0, hasInteracted: false });
+    expect(ws().openingScreenSeen).toBe(false);
+  });
+
+  it('S6: "מתחילים" starts task 1\'s clock', () => {
+    const ws = () => useWorkspaceStore.getState();
+    ws().resetWorkspace();
+    ws().initSession(4, false);
+    useWorkspaceStore.setState({ taskStartTime: 1 });
+    const before = Date.now();
+    ws().markOpeningScreenSeen();
+    expect(ws().taskStartTime).toBeGreaterThanOrEqual(before);
+  });
+
+  it('the page shows it before the first task of every station, and measures no hesitation on it', () => {
     const page = code('features/workspace/StudentWorkspacePage.tsx');
     expect(page).toContain("if (hasOpeningScreen(sessionNumber) && meeting === sessionNumber && endScreen === 'task' && !openingScreenSeen) {");
     expect(page).toContain('<StationOpening meeting={sessionNumber} onStart={markOpeningScreenSeen} />');
@@ -178,14 +213,15 @@ describe('2 — stations 2 and 8 open with one quiet screen, once', () => {
 });
 
 describe('3 — "תחנה N" inside the workspace, never "מפגש N"', () => {
-  it('the card badge, the end screen, the switch screen and the end toast', () => {
+  it('the card badge, the end screen and the switch screen; no end toast', () => {
     // The station tag of the task zone (design-task-zone, 8.10.2026: no ✦ glyph).
     expect(code('features/workspace/tasks/TaskZone.tsx')).toContain('תחנה {stationNumber}');
     const page = code('features/workspace/StudentWorkspacePage.tsx');
-    expect(page).toContain('סיימתם את תחנה {sessionNumber}!');
+    expect(page).toContain('`סיימתם את תחנה ${endStation}!`');
     expect(page).toContain('עוברים לתחנה {activeClassSession?.sessionNumber}...');
     const store = code('application/useWorkspaceStore.ts');
-    expect(store.match(/sub: `תַּחֲנָה \$\{s\.sessionNumber\} הוּשְׁלְמָה בְּהַצְלָחָה!`/g)).toHaveLength(2);
+    // No end toast at all (review S11, 9.10.2026): it was not PRD text.
+    expect(store).not.toMatch(/הוּשְׁלְמָה בְּהַצְלָחָה/);
   });
 
   it('no meeting number anywhere the child reads (the radar\'s lastAction lines are the teacher\'s)', () => {

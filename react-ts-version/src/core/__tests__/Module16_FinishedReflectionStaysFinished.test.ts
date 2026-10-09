@@ -127,16 +127,21 @@ describe('8.10 — the finished reflection board leads to the quiet end screen',
 
   it('meeting 8’s end screen does not promise a next station and does not praise twice', () => {
     const page = src('features/workspace/StudentWorkspacePage.tsx');
-    expect(page).toContain('const afterReflection = sessionNumber === 8;');
-    expect(page).toContain('{withClosingSentence || afterReflection ? (');
+    expect(page).toContain('const lastStation = endStation === 8;');
+    // One heading for every meeting: it names the station and praises nothing
+    // (PRD 14 §ג: no encouragement in meetings 1–2; meeting 8's is on its board).
+    const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"), page.indexOf('<ClosingSentence sessionNumber={sessionNumber}'));
+    // PRD 14 §ג (v7.15): station 8 says it is the last one.
+    expect(end).toContain('`סיימתם את תחנה ${endStation}, התחנה האחרונה!`');
+    expect(end).toContain('`סיימתם את תחנה ${endStation}!`');
+    expect(end).not.toContain('כל הכבוד');
     // Meetings 1–7 keep #125's line ("כשהמורה תפתח / יפתח את התחנה הבאה, נמשיך
     // יחד.", in the teacher's gender — core/teacherGender.ts); meeting 8, the
     // last station, has none.
-    expect(page).toMatch(/\{!afterReflection && \(\s*<p className="text-xs text-ws-soft">\{teacherSentenceHe\('nextStation', teacherGender\)\}<\/p>\s*\)\}/);
-    // Twice: the line itself, and the end screen's read-aloud for meetings 1–2
-    // (audit A1-069, 4.10.2026) — whose meeting-8 text carries no next station.
-    expect(page.match(/teacherSentenceHe\('nextStation'/g)).toHaveLength(2);
-    expect(page).toMatch(/const endScreenSpeech = afterReflection\s*\? `סיימתם את תחנה \$\{sessionNumber\}! העבודה נשמרה בבטחה\.`\s*: `כל הכבוד, מתמטיקאים!/);
+    expect(page).toContain("const nextStationLine = teacherSentenceHe('nextStation', teacherGender);");
+    expect(page).toMatch(/\{!lastStation && \(\s*<p className="text-base text-ws-soft">\{nextStationLine\}<\/p>\s*\)\}/);
+    expect(page).toContain("const savedLine = 'העבודה שלכם נשמרה בבטחה.';");
+    expect(page).toMatch(/const endScreenSpeech = lastStation\s*\? `\$\{endHeading\} \$\{savedLine\}`\s*: `\$\{endHeading\} \$\{savedLine\} \$\{nextStationLine\}`/);
   });
 });
 

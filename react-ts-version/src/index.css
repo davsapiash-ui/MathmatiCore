@@ -628,3 +628,11 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
+
+/* PRD Module 7 §א rule 7: the 40% task zone (StudentWorkspacePage) is a size
+   container, so the task card's notebook square (TASK_CARD_CELL, TaskCard.tsx)
+   also follows the zone's width (cqi): on a ~390px zone (a 1024px tablet) the
+   result row and the vertical sheet fit without scrolling. */
+.task-zone-cells {
+  container-type: inline-size;
+}

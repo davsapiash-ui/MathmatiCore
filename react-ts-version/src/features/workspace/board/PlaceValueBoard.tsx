@@ -6,6 +6,7 @@ import { useWorkspaceStore, selectScaffoldLevel, selectBoardOpen } from '@/appli
 import { PlaceColumn } from './PlaceColumn';
 import { BlockPalette } from './BlockPalette';
 import { RegroupAnimationLayer } from './RegroupAnimationLayer';
+import { BOARD_ZONE_FLEX } from '../workspaceZones';
 
 /** Width below which the full tray no longer fits on one row (measured: 708px). */
 export const TRAY_FULL_WIDTH_PX = 720;
@@ -13,22 +14,24 @@ export const TRAY_FULL_WIDTH_PX = 720;
 /**
  * טבלת ערך המקום ("בית המספרים") — the mathematical place-value structure.
  * Column order in RTL: units rightmost → thousands leftmost (standard Hebrew notation).
- * 50% of the workspace when open; collapsible via the topbar toggle.
+ *
+ * PRD Module 7 §א ("חלוקת מסך הלומד"): the representations zone — this board
+ * and its blocks — takes 60% of the width under the top bar, on the visual
+ * left; the task-and-response zone takes the other 40% (StudentWorkspacePage).
+ * The coaching card's drawer opens inside the task zone (Module 12 §ב), so the
+ * board keeps its 60% whether the card is open or not. Collapsible via the
+ * topbar toggle; then the task zone takes the row.
  */
-/** Below this window width, with the side panel open, the sheet takes a little more of the row than the board. */
-const TIGHT_ROW_PX = 1180;
 
 export function PlaceValueBoard({
   fullWidth = false,
   activeDragPlace = null,
-  shareRow = false,
+  inZone = false,
 }: {
   fullWidth?: boolean;
   activeDragPlace?: Place | null;
-  /** The Socratic side panel, or the addition grid's slot, is open beside the
-   *  board: the board and the exercise sheet share what is left of the row,
-   *  instead of the board keeping a fixed half and squeezing the sheet. */
-  shareRow?: boolean;
+  /** Inside the representations zone (StudentWorkspacePage), which holds the 60%: the board fills what the zone leaves it. */
+  inZone?: boolean;
 }) {
   // Station 1 keeps the board open whatever the store says (selectBoardOpen).
   const boardOpen = useWorkspaceStore(selectBoardOpen);
@@ -39,21 +42,9 @@ export function PlaceValueBoard({
   const columnsRef = useRef<HTMLDivElement | null>(null);
 
   // The tray's full form (title, divider, four blocks, trash) needs about 710px.
-  // At the board's usual half width on a 1280–1366px laptop it has ~610–660px,
-  // and the RTL row cut off its far (left) end — the trash. Measured, not
-  // assumed: the tray goes compact whenever the board is too narrow for it,
-  // with the side panel open or not.
+  // Measured, not assumed: the tray goes compact whenever the board is too
+  // narrow for it (its RTL row would cut off its far, left, end — the trash).
   const [narrow, setNarrow] = useState(false);
-  // Below 1180px (an iPad in landscape) the side panel leaves too little
-  // for 1.25 : 1 — the sheet's vertical exercise fell below its fold
-  // (1024×694, 39px; owner, 28.9.2026: no scroll at any size). There the
-  // sheet takes a little more than the board (1 : 0.85).
-  const [tightRow, setTightRow] = useState(() => typeof window !== 'undefined' && window.innerWidth < TIGHT_ROW_PX);
-  useEffect(() => {
-    const onResize = () => setTightRow(window.innerWidth < TIGHT_ROW_PX);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
   const sectionRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const el = sectionRef.current;
@@ -88,7 +79,7 @@ export function PlaceValueBoard({
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.5 }}
           className="flex flex-col items-center justify-center h-full w-full bg-ws-surface rounded-3xl border-2 border-ws-accent/30 shadow-xl p-8"
-          style={{ flexBasis: fullWidth ? '100%' : '50%' }}
+          style={{ flex: fullWidth ? '1 1 100%' : BOARD_ZONE_FLEX }}
         >
           <div className="text-5xl mb-4">📐</div>
           <h2 className="text-2xl font-bold text-ws-ink text-center">
@@ -110,16 +101,12 @@ export function PlaceValueBoard({
         <motion.section
           key="place-value-board"
           ref={sectionRef}
-          initial={{ opacity: 0, width: 0, flex: '0 0 0%' }}
-          animate={{ 
-            opacity: 1, 
-            width: fullWidth ? '100%' : '50%', 
-            // With the side panel open the board takes a little more than the
-            // sheet (1.25 : 1), so its columns and the whole tray, trash
-            // included, stay usable on a 1280–1366px laptop.
-            flex: fullWidth ? '1 1 100%' : shareRow ? (tightRow ? '0.85 1 0%' : '1.25 1 0%') : '0 0 50%'
+          initial={{ opacity: 0, flex: '0 0 0%' }}
+          animate={{
+            opacity: 1,
+            flex: fullWidth ? '1 1 100%' : inZone ? '1 1 0%' : BOARD_ZONE_FLEX,
           }}
-          exit={{ opacity: 0, width: 0, flex: '0 0 0%' }}
+          exit={{ opacity: 0, flex: '0 0 0%' }}
           transition={{ duration: 0.25, ease: 'easeInOut' }}
           className="flex flex-col gap-3 overflow-hidden h-full max-h-full min-w-0 w-full"
           aria-label="בית המספרים"
@@ -173,7 +160,7 @@ export function PlaceValueBoard({
           </div>
 
           <div className="transition-opacity">
-            <BlockPalette scaffoldLevel={scaffoldLevel} compact={shareRow || narrow} />
+            <BlockPalette scaffoldLevel={scaffoldLevel} compact={narrow} />
           </div>
         </motion.section>
       )}

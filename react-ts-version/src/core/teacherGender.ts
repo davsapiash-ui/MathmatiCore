@@ -35,20 +35,23 @@ export const TEACHER_SENTENCES_HE = {
   willOpenActivity: { female: 'המורה תפתח את הפעילות בקרוב.', male: 'המורה יפתח את הפעילות בקרוב.' },
   /** The pause, as a heading (workspace) and as the lobby card's line. */
   pausedTitle: { female: 'המורה עצרה את הפעילות לרגע', male: 'המורה עצר את הפעילות לרגע' },
-  pausedBody: {
-    female: 'חכו רגע. כשהמורה תמשיך, העבודה שלכם תחזור בדיוק מאיפה שעצרתם.',
-    male: 'חכו רגע. כשהמורה ימשיך, העבודה שלכם תחזור בדיוק מאיפה שעצרתם.',
-  },
-  /** The teacher closed the meeting. */
-  closedTitle: { female: 'המורה סגרה את התחנה', male: 'המורה סגר את התחנה' },
-  closedBody: {
-    female: 'העבודה שלכם נשמרה בבטחה. כשהמורה תפתח תחנה חדשה, הפעילות תתחדש כאן מיד.',
-    male: 'העבודה שלכם נשמרה בבטחה. כשהמורה יפתח תחנה חדשה, הפעילות תתחדש כאן מיד.',
-  },
   /**
-   * The teacher closed meeting 2 before this child finished it (owner,
-   * 4.10.2026, A3-106): "הפעילות תתחדש כאן מיד" is not true for this child —
-   * the teacher sets a time to finish the station.
+   * PRD 14 §ב0, the pause: the workspace screen's second line (the lobby shows
+   * the pause sentence alone). It names no gendered verb about the teacher, so
+   * it reads the same in both forms; it stays here beside its title.
+   */
+  pausedBody: {
+    female: 'חכו רגע. העבודה שלכם שמורה בדיוק כמו שהשארתם אותה.',
+    male: 'חכו רגע. העבודה שלכם שמורה בדיוק כמו שהשארתם אותה.',
+  },
+  /** The teacher closed the station. */
+  closedTitle: { female: 'המורה סגרה את התחנה', male: 'המורה סגר את התחנה' },
+  /**
+   * PRD 14 §ב0, the close: the second line for a learner who has not finished
+   * the station, in every station and not only station 2 — in stations 3–8 too
+   * whoever did not finish gets catch-up time. (A learner who finished sees the
+   * station's own end screen instead.) The name keeps the key it was born with
+   * (owner, 4.10.2026, A3-106, then meeting 2 only).
    */
   closedBodyMeeting2Unfinished: {
     female: 'העבודה שלכם נשמרה בבטחה. המורה תקבע איתכם מתי תמשיכו.',
@@ -59,7 +62,26 @@ export const TEACHER_SENTENCES_HE = {
     female: 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודקת את העבודה שלכם. כשהמורה תסיים לבדוק, נמשיך.',
     male: 'כל הכבוד, מתמטיקאים! סיימתם את התחנה השנייה. המורה בודק את העבודה שלכם. כשהמורה יסיים לבדוק, נמשיך.',
   },
-  /** The end-of-station screen, under "העבודה נשמרה בבטחה". */
+  /**
+   * PRD 14 §ב0: the lobby's quiet waiting screen, one sentence per state
+   * (core/lobbyState.ts). Station 8 finished has no gendered verb and lives in
+   * lobbyState.ts (LOBBY_FINISHED_LAST_STATION_HE).
+   */
+  lobbyNotStarted: {
+    female: 'היום עוד לא התחלנו. המורה תפתח את הפעילות בקרוב.',
+    male: 'היום עוד לא התחלנו. המורה יפתח את הפעילות בקרוב.',
+  },
+  lobbyPaused: { female: 'המורה עצרה את הפעילות לרגע.', male: 'המורה עצר את הפעילות לרגע.' },
+  lobbyClosedUnfinished: {
+    female: 'העבודה שלכם נשמרה בבטחה. המורה תקבע איתכם מתי תמשיכו.',
+    male: 'העבודה שלכם נשמרה בבטחה. המורה יקבע איתכם מתי תמשיכו.',
+  },
+  /** PRD 14 §ב0: the lobby's sentence for a learner who finished the station (stations 1–7). */
+  lobbyFinished: {
+    female: 'סיימתם את התחנה. כשהמורה תפתח את התחנה הבאה, נמשיך יחד.',
+    male: 'סיימתם את התחנה. כשהמורה יפתח את התחנה הבאה, נמשיך יחד.',
+  },
+  /** The end-of-station screen's last line, under "העבודה שלכם נשמרה בבטחה." (PRD 14 §ג). */
   nextStation: {
     female: 'כשהמורה תפתח את התחנה הבאה, נמשיך יחד.',
     male: 'כשהמורה יפתח את התחנה הבאה, נמשיך יחד.',

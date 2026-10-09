@@ -70,7 +70,7 @@ describe('מפגש 2 — האבחון מסתיים בהמתנה לאישור ה�
     const page = src('features/workspace/StudentWorkspacePage.tsx');
     // החלטת בעל המוצר E2 (27.9.2026): לוח רפלקציה רק במפגש 8. 'reflection'
     // במפגש אחר (תמונת מצב ישנה) מוצג כמפגש שהסתיים.
-    expect(page).toContain("const endScreen = flowStatus === 'reflection' && sessionNumber !== 8 ? 'sessionDone' : flowStatus;");
+    expect(page).toContain("const endScreen = closedStationFinished || (flowStatus === 'reflection' && sessionNumber !== 8) ? 'sessionDone' : flowStatus;");
     const block = page.slice(page.indexOf("if (endScreen === 'reflection')"), page.indexOf("endScreen === 'sessionDone' && sessionNumber === 2"));
     expect(block).toContain('<Session8ReflectionScreen');
     expect(page).not.toContain('<ReflectionScreen');

@@ -162,8 +162,10 @@ describe('row 1.28 (and audit A5-F07 / UX-001 / UX-002, 4.10.2026) — the addit
     const row = page.slice(page.indexOf('<main'), page.indexOf('</main>'));
     expect(row).toContain('<AdaptiveAdditionGrid key="adaptive-grid"');
     expect(row).toContain('<AdditionGridTab />');
-    // the board shares the row with the grid's slot, as it does with the card
-    expect(row).toContain('shareRow={isSocraticPanelOpen || isAdditionGridSlotShown}');
+    // the grid's slot is beside the board, in the representations zone (PRD 7 §א; Module 10)
+    const zone = row.slice(row.indexOf('data-testid="representations-zone"'));
+    expect(zone).toContain('<AdaptiveAdditionGrid key="adaptive-grid"');
+    expect(zone).toContain('<AdditionGridTab />');
   });
 
   // The grid and the coaching card are never shown together; what each does
@@ -284,12 +286,12 @@ describe('row ע1.1 and ע3.2 — the child reads "תחנה", not "מפגש"', (
     for (const gender of ['female', 'male'] as const) {
       expect(TEACHER_SENTENCES_HE.nextStation[gender]).toContain('את התחנה הבאה, נמשיך יחד.');
       expect(TEACHER_SENTENCES_HE.closedTitle[gender]).toMatch(/^המורה סגרה? את התחנה$/);
-      expect(TEACHER_SENTENCES_HE.closedBody[gender]).toMatch(/כשהמורה (תפתח|יפתח) תחנה חדשה/);
+      expect(TEACHER_SENTENCES_HE.closedBodyMeeting2Unfinished[gender]).toMatch(/המורה (תקבע|יקבע) איתכם מתי תמשיכו/);
     }
     expect(src('features/workspace/StudentWorkspacePage.tsx')).toContain("teacherSentenceHe('nextStation', teacherGender)");
     const closed = src('presentation/components/student/SessionClosedOverlay.tsx');
     expect(closed).toContain("teacherSentenceHe('closedTitle', gender)");
-    expect(closed).toContain("teacherSentenceHe(meeting2Unfinished ? 'closedBodyMeeting2Unfinished' : 'closedBody', gender)");
+    expect(closed).toContain("teacherSentenceHe('closedBodyMeeting2Unfinished', gender)");
     const choice = src('features/workspace/overlays/ReinforcementOrChallengeScreen.tsx');
     expect(choice).toContain("badge: 'סיימתם את שבעת התרגילים של התחנה!'");
     expect(choice).toContain("finish: 'סיום התחנה עכשיו'");
