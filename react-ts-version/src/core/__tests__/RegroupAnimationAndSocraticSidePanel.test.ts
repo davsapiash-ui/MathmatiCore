@@ -268,8 +268,8 @@ describe('The Socratic card is a side panel beside the work (מסמך 03 / 04 §
     expect(reps).not.toContain('<SocraticSidePanel');
     expect(main).not.toContain('shareRow');
     const zones = read('features/workspace/workspaceZones.ts');
-    expect(zones).toContain("export const BOARD_ZONE_FLEX = '3 1 0%';");
-    expect(zones).toContain("export const TASK_ZONE_FLEX = '2 1 0%';");
+    expect(zones).toContain("export const BOARD_ZONE_FLEX = TRIAL_55_45 ? '11 1 0%' : '3 1 0%';");
+    expect(zones).toContain("export const TASK_ZONE_FLEX = TRIAL_55_45 ? '9 1 0%' : '2 1 0%';");
   });
 
   it('a board too narrow for the full tray gets the compact tray, which may wrap, so the trash is never cut off', () => {
