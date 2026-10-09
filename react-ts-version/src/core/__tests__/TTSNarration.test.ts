@@ -448,7 +448,7 @@ describe('F3 — הנחיות ארוכות אינן נקטעות אחרי ~15 ש
       expect(p.length).toBeLessThanOrEqual(MAX_CHARS);
       expect(p, p).toMatch(/[.!?:;]$/);
     }
-    expect(parts[0]).toBe('פתרו במאונך: 142 ועוד 23. ייצגו את המספרים בעזרת לבנים.');
+    expect(parts[0]).toBe('פתרו במאונך: 142 ועוד 23. בנו בבית המספרים את שני המספרים.');
   });
 
   it('a text whose sentences are all longer than the ceiling is still cut at a comma before a word', async () => {

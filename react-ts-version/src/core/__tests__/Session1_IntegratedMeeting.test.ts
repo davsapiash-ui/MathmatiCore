@@ -30,6 +30,16 @@ const DOC03 = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון
  * מסמך 03 §3.1 quotes it the same way, so every word is compared as it is.
  */
 const inDoc03 = (line: string, where: string) => expect(DOC03, where).toContain(line);
+/**
+ * PRD 7.15, Module 14 §ב ("מבנה מפגש 1"): the goal line, the steps and the
+ * condition lines of every station-1 exercise, word for word. Since 7.15 the
+ * PRD, not מסמך 03, is the wording on screen (AGENTS.md Rule 1).
+ */
+const PRD = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md'), 'utf-8');
+const PRD_STATION1 = PRD.slice(PRD.indexOf('### מבנה מפגש 1'), PRD.indexOf('### מפגש 2 (תחנה 2'));
+/** A numbered step is quoted in the PRD with its number ("1. בנו את המספר בבית המספרים."). */
+const inPrd = (line: string, where: string) =>
+  expect(PRD_STATION1, where).toMatch(new RegExp(`"(?:\\d\\. )?${line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
 const task = (id: string) => SESSION1_TASKS.find((t) => t.id === id)!;
 const diag = (id: string) => DIAGNOSTIC_TASKS.find((t) => t.id === id)!;
 /** A task's place in meeting 1. */
@@ -83,25 +93,24 @@ describe('the order of meeting 1', () => {
   });
 });
 
-describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word', () => {
+describe('station 1 says on screen what PRD 7.15 Module 14 §ב says, word for word', () => {
   const lines = (t: SessionTask) => t.instructionHe.split('\n');
   for (const id of ['s1_sandbox_controlled', 's1_decompose_hundred', 's1_build_305', 's1_undo_trash']) {
     it(id, () => {
-      for (const line of lines(task(id))) inDoc03(line, line);
+      for (const line of lines(task(id))) inPrd(line, line);
     });
   }
 
-  it('the refresh exercises and the target task say on screen what מסמך 03 §3.1 says, word for word', () => {
-    // The owner added them to the document on 24.9.2026 (register ו); the
-    // value and words exercises of 29.9.2026 are in it since the sync of 30.9.2026.
+  it('the refresh exercises and the target task say on screen what the PRD says, word for word', () => {
+    // One line each: the goal, then each step and its condition lines (core/taskGuide.ts reads them).
     for (const id of ['s1_r_words703', 's1_r_value368', 's1_r_words482', 's1_target_347', 's1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806']) {
-      for (const line of lines(task(id))) inDoc03(line, `${id}: ${line}`);
+      for (const line of lines(task(id))) inPrd(line, `${id}: ${line}`);
     }
   });
 
-  it('the target task says the owner\'s words exactly (register decision י, 27.9.2026)', () => {
+  it('the target task says the PRD\'s words exactly (Module 14 §ב, task 9)', () => {
     expect(task('s1_target_347').instructionHe).toBe(
-      'משימת היעד: בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות. איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.'
+      'משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה?\nבנו את המספר 347 בבית המספרים.\nפרטו לבנת עשרת אחת לעשר לבני יחידה.\nכתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו.'
     );
     const labels = session1Checklist('s1_target_347', { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: false, undoCount: 0, hasClearedBoard: false })!.map((i) => i.label);
     // PRD 7.15 (Module 14 §ב, task 9): the items word for word.
@@ -125,7 +134,7 @@ describe('steps 1–5 say on screen what מסמך 03 §3.1 says, word for word',
 
   it('step 6 names the document\'s number and actions', () => {
     const t = task('s1_target_347');
-    expect(t.instructionHe.startsWith('משימת היעד: בנו את המספר 347 בלבנים ופרטו עשרת אחת לעשר יחידות')).toBe(true);
+    expect(t.instructionHe).toContain('בנו את המספר 347 בבית המספרים.\nפרטו לבנת עשרת אחת לעשר לבני יחידה.');
     expect(t.requiredCounts).toEqual({ hundreds: 3, tens: 3, units: 17 });
     expect(t.requiresUngrouping).toBe(true);
     // the new representation is what the child finds — the card does not list it in advance

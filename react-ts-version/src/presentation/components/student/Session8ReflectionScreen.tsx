@@ -38,7 +38,7 @@ type EffortId = 'EASY' | 'MEDIUM' | 'HARD';
  * שאינו קורא, או שמשתמש בקורא מסך, יודע מה כל רמה.
  *
  * שלב 2 — שלוש האסטרטגיות בסדר של המרשם (שורה 10): כפתור ביטול פעולה,
- * עיגולי הזיכרון, השאלות בכרטיס החניכה. אפשר לסמן כמה (מסמך 03: "לסמן כל
+ * עיגולי הזיכרון, כרטיס החניכה (PRD 7.15, מודול 16 §ג). אפשר לסמן כמה (מסמך 03: "לסמן כל
  * תשובה מתאימה מתוך שלוש").
  *
  * שלב 3 — משפט עידוד אחד מתוך ארבעה, שנבחר לפי מדד ההתמדה של מפגש 8
@@ -91,9 +91,9 @@ export const EFFORT_LEVELS: ReadonlyArray<{ id: EffortId; bars: 1 | 2 | 3; spoke
  * בביטחון וברוגע").
  */
 export const STRATEGY_OPTIONS = [
-  { id: 'undo', label: 'כפתור ביטול הפעולה', icon: RotateCcw },
+  { id: 'undo', label: 'כפתור ביטול הפעולה ↺', icon: RotateCcw },
   { id: 'memory', label: 'עיגולי הזיכרון', icon: CircleDot },
-  { id: 'hints', label: 'השאלות בכרטיס החניכה', icon: HelpCircle },
+  { id: 'hints', label: 'כרטיס החניכה', icon: HelpCircle },
 ] as const;
 
 /**
