@@ -28,7 +28,7 @@ describe('ע0.1 — the lobby’s waiting screen says only what PRD Module 14 §
     // The PRD's sentence, in the teacher's gender (core/teacherGender.ts), chosen by core/lobbyState.ts.
     expect(TEACHER_SENTENCES_HE.willOpenActivity.female).toBe('המורה תפתח את הפעילות בקרוב.');
     expect(TEACHER_SENTENCES_HE.lobbyNotStarted.female).toBe('היום עוד לא התחלנו. המורה תפתח את הפעילות בקרוב.');
-    expect(hub).toContain('teacherSentenceHe(state.sentence, teacherGender)');
+    expect(hub).toContain('lobbySentenceHe(state.sentence, teacherGender)');
     expect(hub).toContain('<UdlSpeechButton text={sentence} className="shrink-0" />');
   });
 });

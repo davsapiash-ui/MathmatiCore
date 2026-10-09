@@ -55,7 +55,7 @@ import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting
 import { TeacherWillOpenWaitingScreen } from '@/presentation/components/student/TeacherWillOpenWaitingScreen';
 import { ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { isRestorableFor, workspaceSavedAt, startedWithoutRecord, isDiagnosticPrimaryRound } from '@/core/workspaceSnapshot';
-import { resumeSnapshotFor, savedSnapshotOfMeeting } from '@/core/meetingCompletion';
+import { resumeSnapshotFor, savedSnapshotOfMeeting, isMeetingFinished } from '@/core/meetingCompletion';
 import { planMeetingEntry } from './meetingEntry';
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { SessionPausedOverlay } from '@/presentation/components/student/SessionPausedOverlay';
@@ -130,6 +130,7 @@ export function StudentWorkspacePage() {
   const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
   const flowStatus = useWorkspaceStore((s) => s.flowStatus);
   const qflowPhase = useWorkspaceStore((s) => s.qflow?.phase);
+  const selectedBranch = useWorkspaceStore((s) => s.selectedBranch);
   const isSocraticPanelOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
   const user = useAuthStore((s) => s.user);
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin';
@@ -1178,14 +1179,42 @@ export function StudentWorkspacePage() {
             המשכתם במכשיר אחר
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            הפעילות שלכם פתוחה עכשיו במכשיר אחר. המסך הזה נעול כדי לשמור על העבודה שלכם.
+            העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה.
           </p>
-          <UdlSpeechButton text="המשכתם במכשיר אחר. הפעילות שלכם פתוחה עכשיו במכשיר אחר. המסך הזה נעול כדי לשמור על העבודה שלכם." />
+          <UdlSpeechButton text="המשכתם במכשיר אחר. העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה." />
         </div>
       </div>
     );
   }
 
+
+  // PRD 14 §ב0, the close: a learner who finished the station sees the
+  // station's own end screen, not the close screen, without routing to
+  // the lobby. Finished, per station (core/meetingCompletion.ts): station 1
+  // and 8 on their end screen (8: the reflection sent); stations 3–7 once the
+  // compulsory seven are done (the choice screen or an optional exercise —
+  // PRD 14 §ג: a close before the optional exercises leaves nothing missing);
+  // station 2 past the primary round of the seven tasks (meeting2CloseNotice).
+  // Read only from this meeting's own workspace, or from the learner's
+  // finished mark when this device holds another meeting.
+  const workspaceOnThisMeeting = isInitialized && sessionNumber === meeting;
+  const closedStationFinished =
+    !isTeacherOrAdmin && activeClassSession.isLoaded && activeClassSession.status === 'closed' && workspaceOnThisMeeting && (
+      meeting === 2
+        ? !isMeeting2CloseUnfinished({
+            meeting,
+            isTeacherOrAdmin,
+            isGateApproved,
+            workspaceOnMeeting2: true,
+            flowStatus,
+            qflowPhase,
+            recordLoaded: firebaseLoaded,
+            record: { completedMeeting2, qMatrixResults: myData?.qMatrixResults },
+          })
+        : flowStatus === 'sessionDone' ||
+          (meeting >= 3 && meeting <= 7 && (flowStatus === 'choice_branch' || selectedBranch !== null)) ||
+          isMeetingFinished(myData as Record<string, unknown> | null, meeting)
+    );
 
   // The teacher’s three controls (Module 14 / register 7: start, pause,
   // close) and projector mode (Module 15) reach the learner live, in place —
@@ -1201,19 +1230,8 @@ export function StudentWorkspacePage() {
         {activeClassSession.status === 'paused' && !isTeacherOrAdmin && <SessionPausedOverlay />}
       </AnimatePresence>
       <AnimatePresence>
-        {activeClassSession.status === 'closed' && !isTeacherOrAdmin && activeClassSession.isLoaded && (
-          <SessionClosedOverlay
-            meeting2Unfinished={isMeeting2CloseUnfinished({
-              meeting,
-              isTeacherOrAdmin,
-              isGateApproved,
-              workspaceOnMeeting2: isInitialized && sessionNumber === 2,
-              flowStatus,
-              qflowPhase,
-              recordLoaded: firebaseLoaded,
-              record: { completedMeeting2, qMatrixResults: myData?.qMatrixResults },
-            })}
-          />
+        {activeClassSession.status === 'closed' && !isTeacherOrAdmin && activeClassSession.isLoaded && !closedStationFinished && (
+          <SessionClosedOverlay />
         )}
       </AnimatePresence>
     </>
@@ -1234,7 +1252,7 @@ export function StudentWorkspacePage() {
   }
 
   // Module 14: Post-Mandatory Tasks Choice Point (Reinforcement vs Challenge)
-  if (flowStatus === 'choice_branch') {
+  if (flowStatus === 'choice_branch' && !closedStationFinished) {
     return (
       <>
         <ReinforcementOrChallengeScreen
@@ -1256,7 +1274,10 @@ export function StudentWorkspacePage() {
   // only be a snapshot older code saved (restoreSession already turns it into
   // 'sessionDone'); it is shown as the finished meeting it is.
   // After every hook so React's hook order stays stable.
-  const endScreen = flowStatus === 'reflection' && sessionNumber !== 8 ? 'sessionDone' : flowStatus;
+  // A learner who finished the station when the teacher closed it gets the
+  // station's end screen from wherever they were (the choice screen, an optional
+  // exercise, station 2's correction round): closedStationFinished.
+  const endScreen = closedStationFinished || (flowStatus === 'reflection' && sessionNumber !== 8) ? 'sessionDone' : flowStatus;
   if (endScreen === 'reflection') {
     {
       // Meeting 8's own U, E and G, counted from the events the server counts
@@ -1325,22 +1346,28 @@ export function StudentWorkspacePage() {
     const withClosingSentence = hasClosingSentence(sessionNumber);
     const lastStation = sessionNumber === 8;
     const nextStationLine = teacherSentenceHe('nextStation', teacherGender);
+    // PRD 14 §ג, word for word: station 1 is the heading, the saved line and
+    // the next-station line, with no praise; station 8's heading says it is the
+    // last station, and it has no next-station line. Stations 2–7 follow
+    // station 1's lines.
+    const endHeading = lastStation ? `סיימתם את תחנה ${sessionNumber}, התחנה האחרונה!` : `סיימתם את תחנה ${sessionNumber}!`;
+    const savedLine = 'העבודה שלכם נשמרה בבטחה.';
     const endScreenSpeech = lastStation
-      ? `סיימתם את תחנה ${sessionNumber}! העבודה נשמרה בבטחה.`
-      : `סיימתם את תחנה ${sessionNumber}! העבודה נשמרה בבטחה. ${nextStationLine}`;
+      ? `${endHeading} ${savedLine}`
+      : `${endHeading} ${savedLine} ${nextStationLine}`;
     return (
       <div dir="rtl" data-testid="station-end-screen" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
         <div className="bg-ws-surface p-10 rounded-3xl shadow-sm max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
           <div className="flex items-center justify-center gap-3">
             <h1 className="text-3xl font-display font-black text-ws-ink">
-              סיימתם את תחנה {sessionNumber}!
+              {endHeading}
             </h1>
             {!withClosingSentence && <UdlSpeechButton text={endScreenSpeech} className="shrink-0" />}
           </div>
           <ClosingSentence sessionNumber={sessionNumber} counts={meetingPersistence} />
           <div className="pt-4 flex flex-col gap-2">
             <div className="inline-flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800 text-sm">
-              <span>העבודה נשמרה בבטחה</span>
+              <span>{savedLine}</span>
               <span aria-hidden="true">✓</span>
             </div>
             {!lastStation && (

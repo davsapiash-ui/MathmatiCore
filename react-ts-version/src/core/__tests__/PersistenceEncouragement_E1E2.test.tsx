@@ -248,7 +248,7 @@ describe('one praise, one sentence at the end of meetings 3–7', () => {
     expect(end).toContain('const withClosingSentence = hasClosingSentence(sessionNumber);');
     // One praise-free heading for every meeting: 3–7 praise in the closing
     // sentence, 1–2 not at all, 8 on its reflection board (PRD 14 §ג).
-    expect(end).toContain('סיימתם את תחנה {sessionNumber}!');
+    expect(end).toContain('`סיימתם את תחנה ${sessionNumber}!`');
     expect(end).not.toContain('כל הכבוד');
     expect(end).toContain('{!withClosingSentence && <UdlSpeechButton text={endScreenSpeech} className="shrink-0" />}');
   });

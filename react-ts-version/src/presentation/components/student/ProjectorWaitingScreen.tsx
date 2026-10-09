@@ -57,13 +57,11 @@ export function ProjectorWaitingScreen() {
 
         {/* Message */}
         <div className="flex flex-col gap-3">
-          <h2 className="font-display font-black text-2xl text-slate-800 dark:text-slate-100">
-            הדגמה על גבי המקרן 📽️
-          </h2>
-          <p className="text-base text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+          {/* PRD Module 15: the one sentence, with no heading above it (not "הדגמה על גבי המקרן"). */}
+          <p className="font-display font-black text-2xl text-slate-800 dark:text-slate-100 leading-relaxed">
             הקשיבו להסבר של המורה על גבי המקרן
           </p>
-          <UdlSpeechButton text="הדגמה על גבי המקרן. הקשיבו להסבר של המורה על גבי המקרן" className="self-center" />
+          <UdlSpeechButton text="הקשיבו להסבר של המורה על גבי המקרן" className="self-center" />
         </div>
 
       </div>

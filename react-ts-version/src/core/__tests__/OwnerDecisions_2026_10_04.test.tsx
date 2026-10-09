@@ -78,16 +78,12 @@ describe('1 — A3-106: meeting 2 closed before the child finished', () => {
     expect(TEACHER_SENTENCES_HE.closedBodyMeeting2Unfinished.male).toBe('העבודה שלכם נשמרה בבטחה. המורה יקבע איתכם מתי תמשיכו.');
   });
 
-  it('the screen and its read-aloud say it; the generic close stays as it was', () => {
-    render(<SessionClosedOverlay meeting2Unfinished />);
+  it('the screen and its read-aloud say it, in every station (PRD 14 §ב0, v7.15)', () => {
+    render(<SessionClosedOverlay />);
     expect(screen.getByText('העבודה שלכם נשמרה בבטחה. המורה תקבע איתכם מתי תמשיכו.')).toBeTruthy();
     expect(speechTexts()).toEqual(['המורה סגרה את התחנה. העבודה שלכם נשמרה בבטחה. המורה תקבע איתכם מתי תמשיכו.']);
     act(() => useTeacherGenderStore.setState({ gender: 'male' }));
     expect(speechTexts()).toEqual(['המורה סגר את התחנה. העבודה שלכם נשמרה בבטחה. המורה יקבע איתכם מתי תמשיכו.']);
-    cleanup();
-    act(() => useTeacherGenderStore.setState({ gender: 'female' }));
-    render(<SessionClosedOverlay />);
-    expect(speechTexts()).toEqual(['המורה סגרה את התחנה. העבודה שלכם נשמרה בבטחה. כשהמורה תפתח תחנה חדשה, הפעילות תתחדש כאן מיד.']);
   });
 
   const base = { meeting: 2, isTeacherOrAdmin: false, isGateApproved: false, workspaceOnMeeting2: true, flowStatus: 'task', qflowPhase: 'primary', recordLoaded: true, record: null };

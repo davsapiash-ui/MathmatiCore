@@ -140,7 +140,7 @@ async function open(meeting: number, record: Record<string, unknown>) {
   await flush();
 }
 
-const finishedScreen = (m: number) => screen.queryByText(`סיימתם את תחנה ${m}!`);
+const finishedScreen = (m: number) => screen.queryByText(m === 8 ? `סיימתם את תחנה 8, התחנה האחרונה!` : `סיימתם את תחנה ${m}!`);
 
 beforeEach(() => {
   h.listeners.clear();

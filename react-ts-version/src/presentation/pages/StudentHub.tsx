@@ -11,8 +11,7 @@ import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { ProjectorWaitingScreen } from '@/presentation/components/student/ProjectorWaitingScreen';
 import { useProjectorMode } from '@/application/useProjectorMode';
 import { useTeacherGender } from '@/application/useTeacherGender';
-import { teacherSentenceHe } from '@/core/teacherGender';
-import { lobbyState } from '@/core/lobbyState';
+import { lobbyState, lobbySentenceHe } from '@/core/lobbyState';
 
 export function StudentHub() {
   const navigate = useNavigate();
@@ -184,7 +183,7 @@ export function StudentHub() {
 
   // Until the broadcast is read, and for the moment of the swap: the same quiet
   // page with nothing on it yet — never a sentence that is not true.
-  const sentence = activeClassSession.isLoaded && state.kind === 'waiting' ? teacherSentenceHe(state.sentence, teacherGender) : null;
+  const sentence = activeClassSession.isLoaded && state.kind === 'waiting' ? lobbySentenceHe(state.sentence, teacherGender) : null;
 
   return (
     <div

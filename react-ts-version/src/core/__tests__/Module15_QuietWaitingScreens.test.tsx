@@ -50,3 +50,12 @@ describe('the waiting screens keep still, for every child', () => {
     }
   }
 });
+
+describe('PRD Module 15 (v7.15): the projector screen is its one sentence, with no heading above it', () => {
+  it('no "הדגמה על גבי המקרן"', () => {
+    const { container } = render(<ProjectorWaitingScreen />);
+    expect(container.textContent).not.toContain('הדגמה על גבי המקרן');
+    expect(container.querySelector('h1, h2, h3')).toBeNull();
+    expect(container.textContent?.trim()).toBe('הקשיבו להסבר של המורה על גבי המקרן');
+  });
+});

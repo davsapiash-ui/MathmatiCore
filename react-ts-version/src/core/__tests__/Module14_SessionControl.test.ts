@@ -90,7 +90,7 @@ describe('Module 14 — the learner sees every state in place', () => {
     // PRD 14 §ב0: the quiet waiting screen with the paused sentence ("המורה
     // עצרה / עצר את הפעילות לרגע.", in the teacher's gender) — core/lobbyState.ts.
     expect(hub).toContain('status: activeClassSession.status,');
-    expect(hub).toContain("teacherSentenceHe(state.sentence, teacherGender)");
+    expect(hub).toContain("lobbySentenceHe(state.sentence, teacherGender)");
   });
 
   it('the learner re-reads the session state from the server, not only through the listener', () => {

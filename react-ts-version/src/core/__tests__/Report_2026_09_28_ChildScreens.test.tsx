@@ -286,12 +286,12 @@ describe('row ע1.1 and ע3.2 — the child reads "תחנה", not "מפגש"', (
     for (const gender of ['female', 'male'] as const) {
       expect(TEACHER_SENTENCES_HE.nextStation[gender]).toContain('את התחנה הבאה, נמשיך יחד.');
       expect(TEACHER_SENTENCES_HE.closedTitle[gender]).toMatch(/^המורה סגרה? את התחנה$/);
-      expect(TEACHER_SENTENCES_HE.closedBody[gender]).toMatch(/כשהמורה (תפתח|יפתח) תחנה חדשה/);
+      expect(TEACHER_SENTENCES_HE.closedBodyMeeting2Unfinished[gender]).toMatch(/המורה (תקבע|יקבע) איתכם מתי תמשיכו/);
     }
     expect(src('features/workspace/StudentWorkspacePage.tsx')).toContain("teacherSentenceHe('nextStation', teacherGender)");
     const closed = src('presentation/components/student/SessionClosedOverlay.tsx');
     expect(closed).toContain("teacherSentenceHe('closedTitle', gender)");
-    expect(closed).toContain("teacherSentenceHe(meeting2Unfinished ? 'closedBodyMeeting2Unfinished' : 'closedBody', gender)");
+    expect(closed).toContain("teacherSentenceHe('closedBodyMeeting2Unfinished', gender)");
     const choice = src('features/workspace/overlays/ReinforcementOrChallengeScreen.tsx');
     expect(choice).toContain("badge: 'סיימתם את שבע המשימות של התחנה!'");
     expect(choice).toContain("finish: 'סיום התחנה עכשיו'");

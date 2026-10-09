@@ -77,7 +77,7 @@ describe('the lobby has no entry button — the page swaps to the opening screen
   });
 
   it('every other state is the waiting sentence of lobbyState, in the teacher\'s gender', () => {
-    expect(hub).toContain("teacherSentenceHe(state.sentence, teacherGender)");
+    expect(hub).toContain("lobbySentenceHe(state.sentence, teacherGender)");
     expect(hub).toContain('<UdlSpeechButton text={sentence}');
   });
 });

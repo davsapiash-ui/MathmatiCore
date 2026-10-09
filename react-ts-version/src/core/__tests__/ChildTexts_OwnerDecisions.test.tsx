@@ -187,7 +187,7 @@ describe('3 — "תחנה N" inside the workspace, never "מפגש N"', () => {
   it('the card badge, the end screen, the switch screen and the end toast', () => {
     expect(code('features/workspace/tasks/TaskCard.tsx')).toContain('<span aria-hidden="true">✦</span> תחנה {sessionNumber}');
     const page = code('features/workspace/StudentWorkspacePage.tsx');
-    expect(page).toContain('סיימתם את תחנה {sessionNumber}!');
+    expect(page).toContain('`סיימתם את תחנה ${sessionNumber}!`');
     expect(page).toContain('עוברים לתחנה {activeClassSession?.sessionNumber}...');
     const store = code('application/useWorkspaceStore.ts');
     expect(store.match(/`תַּחֲנָה \$\{s\.sessionNumber\} הוּשְׁלְמָה בְּהַצְלָחָה!/g)).toHaveLength(3);

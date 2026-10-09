@@ -8,23 +8,19 @@ import { teacherSentenceHe } from '@/core/teacherGender';
  * החלטת בעל המוצר (6.9.2026, סטייה 10 ברשם הסטיות):
  * כאשר המורה סוגרת את המפגש, כל לומד רואה את המסך השקט הזה במקום (In-Place),
  * מעל מרחב העבודה, ללא ניווט אוטומטי ללובי וללא השמדת מרחב העבודה (Unmount).
- * העבודה של התלמיד שמורה לחלוטין מתחת. כשהמורה תפתח מפגש חדש, הפעילות תתחדש מיד.
+ * העבודה של התלמיד שמורה לחלוטין מתחת.
  * כפתור התנתקות נגיש מאפשר לתלמיד להתנתק בצורה מסודרת בסיום יום הלימודים.
  */
-export function SessionClosedOverlay({ meeting2Unfinished = false }: {
-  /**
-   * Meeting 2 closed before this child finished it (owner, 4.10.2026,
-   * A3-106): the teacher sets a time to go on, so the screen says that
-   * instead of "הפעילות תתחדש כאן מיד". Every other close keeps the generic
-   * text (register 7).
-   */
-  meeting2Unfinished?: boolean;
-} = {}) {
+export function SessionClosedOverlay() {
+  // PRD 14 §ב0, the close: shown only to a learner who has not finished the
+  // station (one who has sees the station's own end screen), so the second
+  // line is the same in every station — the teacher sets a time with them to
+  // go on (catch-up time, stations 2–8).
   // No looping animation on this screen (a calm screen; ASD and special
   // education): the icon stands still and there is no "breathing" row of dots.
   const gender = useTeacherGenderStore((s) => s.gender);
   const title = teacherSentenceHe('closedTitle', gender);
-  const body = teacherSentenceHe(meeting2Unfinished ? 'closedBodyMeeting2Unfinished' : 'closedBody', gender);
+  const body = teacherSentenceHe('closedBodyMeeting2Unfinished', gender);
   return (
     <motion.div
       initial={{ opacity: 0 }}
