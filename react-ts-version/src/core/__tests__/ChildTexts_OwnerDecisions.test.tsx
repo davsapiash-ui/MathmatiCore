@@ -95,11 +95,13 @@ describe('1 — the child reads where it is, not the exercise title', () => {
       useWorkspaceStore.getState().resetWorkspace();
     });
 
-    it('meeting 3, first exercise: "משימה 1 מתוך 7", and its title is nowhere', async () => {
+    // Owner, 8.10.2026: the heading line is the position and the learner's topic
+    // ("משימה 1 מתוך 7: ממילים לספרות"); the teacher's exercise title is still nowhere.
+    it('meeting 3, first exercise: "משימה 1 מתוך 7: <topic>", and its title is nowhere', async () => {
       const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
       useWorkspaceStore.getState().initSession(3, false);
       const { container } = render(<TaskCard />);
-      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('משימה 1 מתוך 7');
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('משימה 1 מתוך 7: ממילים לספרות');
       const title = (useWorkspaceStore.getState().dynamicTasks ?? [])[0]?.titleHe
         ?? getHardcodedCatalogBanks().find((b: any) => b.id === 'session_3_green_path')?.tasks[0]?.titleHe;
       expect(title).toBeTruthy();
@@ -185,7 +187,8 @@ describe('2 — every station opens with one quiet screen, once (PRD Module 14 �
 
 describe('3 — "תחנה N" inside the workspace, never "מפגש N"', () => {
   it('the card badge, the end screen, the switch screen and the end toast', () => {
-    expect(code('features/workspace/tasks/TaskCard.tsx')).toContain('<span aria-hidden="true">✦</span> תחנה {sessionNumber}');
+    // The station tag of the task zone (design-task-zone, 8.10.2026: no ✦ glyph).
+    expect(code('features/workspace/tasks/TaskZone.tsx')).toContain('תחנה {stationNumber}');
     const page = code('features/workspace/StudentWorkspacePage.tsx');
     expect(page).toContain('`סיימתם את תחנה ${sessionNumber}!`');
     expect(page).toContain('עוברים לתחנה {activeClassSession?.sessionNumber}...');

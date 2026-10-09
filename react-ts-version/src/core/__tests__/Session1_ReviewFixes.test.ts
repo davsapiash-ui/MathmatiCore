@@ -216,6 +216,7 @@ describe('no wording from the old meeting 1, and the documents’ names for thin
   });
 
   it('the checklist has a read-aloud button (PRD Module 24)', () => {
-    expect(src('features/workspace/tasks/Session1ChecklistCard.tsx')).toContain('<UdlSpeechButton text={items.map((i) => i.label).join');
+    // Drawn by the task zone's shared steps (design-task-zone, 8.10.2026).
+    expect(src('features/workspace/tasks/TaskZone.tsx')).toContain('<UdlSpeechButton text={steps.map((s) => s.label).join');
   });
 });

@@ -4,7 +4,9 @@
  * One source for both the task card (IntroTask) and the store's "התקדם" gate,
  * so what the child sees and what lets them advance can never disagree.
  *
- * Every label is the document's own on-screen wording for that step. The
+ * Every label is the PRD's wording for that step; steps 1 and 5 as the owner
+ * approved them on 8.10.2026 (the number of blocks said in words; the
+ * instruction's two full sentences, without "אחר כך" — the numbering says it). The
  * steps are guided, as the document writes them: the learners "מונחים לבצע
  * פעולת פירוק יזומה", "נדרשים לייצג על הלוח מספר המכיל את הספרה אפס בטור
  * העשרות, למשל המספר 305", "מונחים ללחוץ באופן אקטיבי על כפתור ביטול פעולה".
@@ -50,7 +52,7 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
     // Steps 1–2: welcome, free dragging.
     case 's1_sandbox_controlled':
       return [{
-        label: 'גררו לבנים לטורים משמאל וצפו בספרות המשתנות בבית המספרים',
+        label: 'גררו 5 לבנים לטורים משמאל, וצפו בספרות המשתנות בבית המספרים',
         done: s.blocksAddedCount >= SANDBOX_MIN_BLOCKS,
         progress: { value: s.blocksAddedCount, of: SANDBOX_MIN_BLOCKS },
       }];
@@ -64,15 +66,15 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
     case 's1_build_305': {
       const is305 = boardValue(s.counts) === 305;
       const standard = countsEqual(s.counts, { ...EMPTY_COUNTS, hundreds: 3, units: 5 });
-      const items: Session1ChecklistItem[] = [{ label: 'נסו לבנות את המספר 305 בלבנים', done: is305 }];
+      const items: Session1ChecklistItem[] = [{ label: 'נסו לבנות את המספר 305 בבית המספרים', done: is305 }];
       if (is305 && !standard) items.push({ label: 'בנו את 305 כך שבכל טור יהיו פחות מ-10 לבנים', done: false });
       return items;
     }
     // Step 5: undo, then the trash.
     case 's1_undo_trash':
       return [
-        { label: 'לחצו על כפתור ביטול הפעולה ↺', done: s.undoCount >= 1 },
-        { label: 'לחצו על פח האשפה', done: s.hasClearedBoard },
+        { label: 'לחצו על כפתור ביטול הפעולה ↺ כדי לחזור צעד אחד אחורה', done: s.undoCount >= 1 },
+        { label: 'לחצו על פח האשפה כדי לנקות את בית המספרים', done: s.hasClearedBoard },
       ];
     // Step 6, the target task: the instruction, clause by clause. The third
     // line is the owner's wording of 27.9.2026 (register decision י).
@@ -84,12 +86,13 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
         : s.hasUngrouped;
       const decomposed = brokeATen && countsEqual(s.counts, required);
       return [
-        { label: 'בנו את המספר 347 בלבנים', done: is347 },
-        { label: 'פרטו עשרת אחת לעשר יחידות', done: decomposed },
+        // PRD 7.15, Module 14 §ב task 9: the three items word for word.
+        { label: 'בנו את המספר 347 בבית המספרים', done: is347 },
+        { label: 'פרטו לבנת עשרת אחת לעשר לבני יחידה', done: decomposed },
         // The line asks for the number "לאחר הפריטה": 347 typed before the
         // decomposition is not that answer yet, so it is ticked only once the
         // decomposition line is (owner, 28.9.2026).
-        { label: 'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים לאחר הפריטה', done: decomposed && typedNumber(s.answerDigits) === 347 },
+        { label: 'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו', done: decomposed && typedNumber(s.answerDigits) === 347 },
       ];
     }
     default:

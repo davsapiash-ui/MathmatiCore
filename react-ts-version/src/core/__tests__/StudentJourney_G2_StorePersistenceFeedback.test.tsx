@@ -446,6 +446,7 @@ describe('A5-F05: skeleton feedback counts the hidden digits', () => {
 });
 
 describe('A5-F10 / A7-005 / A4-F09: the memory-circle note', () => {
+  // The ordinary success of a one-digit skeleton is its own "נכון! …" (owner, 9.10.2026; PRD 14 §ב).
   it('s5_r_t7 (4▢2 − 128), board on the discovered 442, circles empty: the ordinary success', () => {
     const t = byId('s5_r_t7');
     load(5, t);
@@ -454,7 +455,8 @@ describe('A5-F10 / A7-005 / A4-F09: the memory-circle note', () => {
     useWorkspaceStore.setState({ answerDigits: { hundreds: '3', tens: '1', units: '4' }, carryDigits: {} } as any);
     const v = verdict();
     expect(v.kind).toBe('success');
-    expect(plain(v.sub)).toBe(plain('פְּתַרְתֶּם נָכוֹן, וּבְנִיתֶם נָכוֹן גַּם בַּלְּבֵנִים.'));
+    expect(v.title).toBe('נכון!');
+    expect(plain(v.sub)).toBe(plain('הספרה החסרה היא 4: \u200f442 − 128 = 314.'));
   });
 
   it('addition (s4): only המרה; subtraction (s5): only פריטה', () => {

@@ -68,15 +68,29 @@ describe('the target task, done', () => {
   });
 });
 
-describe('the other steps keep their words', () => {
-  it('"✨ מצוין! לחצו על הכפתור ממשיכים…", read aloud too, and no extra sentence', () => {
-    const items = session1Checklist('s1_decompose_hundred', { counts: { ...EMPTY_COUNTS }, blocksAddedCount: 0, hasUngrouped: true, undoCount: 0, hasClearedBoard: false })!;
-    render(<Session1ChecklistCard items={items} doneNote={session1DoneNoteHe('s1_decompose_hundred')} />);
-    const text = screen.getByTestId('session1-done').textContent ?? '';
-    expect(text.startsWith('✨ מצוין! לחצו על הכפתור ממשיכים')).toBe(true);
-    expect(text).not.toContain('נכון!');
-    expect(shown(screen.getByTestId('proceed-sentence'))).toBe(`✨ מצוין! ${proceedSentenceHe().replace(/"/g, '')}`);
-    const speech = [...screen.getByTestId('session1-done').querySelectorAll('[data-testid="speech"]')].map((e) => e.getAttribute('data-text'));
-    expect(speech).toEqual([`מצוין! ${proceedSentenceHe()}`]);
+/**
+ * Owner, 8.10.2026 (learner wording proposal §א, rule 6): the tool steps say
+ * what happened instead of "✨ מצוין!" — "הלבנים השתנו, אבל המספר נשאר 230."
+ * after a break — then the sentence that names the proceed button. No "נכון":
+ * the tool steps have no right or wrong answer (PRD Module 14).
+ */
+describe('the tool steps say what happened, then what to press', () => {
+  it('230 broken: "הלבנים השתנו, אבל המספר נשאר 230." and the proceed sentence, read aloud too', async () => {
+    const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
+    const { useWorkspaceStore } = await import('@/application/useWorkspaceStore');
+    const { SESSION1_TASKS } = await import('@/data/sessionTasks');
+    const ws = useWorkspaceStore.getState();
+    ws.resetWorkspace();
+    ws.initSession(1, false, SESSION1_TASKS.findIndex((t) => t.id === 's1_decompose_hundred'));
+    useWorkspaceStore.setState({ openingScreenSeen: true, hasUngrouped: true } as any);
+    render(<TaskCard />);
+    const box = screen.getByTestId('session1-done');
+    const note = 'הלבנים השתנו, אבל המספר נשאר 230.';
+    expect((box.textContent ?? '').startsWith(note)).toBe(true);
+    expect(box.textContent).not.toContain('נכון!');
+    expect(box.textContent).not.toContain('מצוין');
+    expect(shown(screen.getByTestId('proceed-sentence'))).toBe(proceedSentenceHe().replace(/"/g, ''));
+    const speech = [...box.querySelectorAll('[data-testid="speech"]')].map((e) => e.getAttribute('data-text'));
+    expect(speech).toEqual([`${note} ${proceedSentenceHe()}`]);
   });
 });
