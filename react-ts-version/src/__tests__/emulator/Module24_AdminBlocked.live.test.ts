@@ -7,7 +7,7 @@ import {
   assertSucceeds,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField, collection, getDocs } from 'firebase/firestore';
 import { ref, get as rtdbGet, set as rtdbSet, update as rtdbUpdate } from 'firebase/database';
 import { ref as storageRef, getBytes, uploadString } from 'firebase/storage';
 import { claimsForSignIn } from '../../../../functions/src/roleClaims';
@@ -204,10 +204,23 @@ describe('הקונסולה של המנהל עובדת', () => {
     const db = adminSignIn().database();
     await assertSucceeds(rtdbSet(ref(db, 'schools/school_bikorot'), { id: 'school_bikorot', name: 'בית ספר ביקורת' }));
     await assertSucceeds(rtdbSet(ref(db, 'users/teachers/example_teacher'), { id: 'example_teacher', licenseActive: true }));
-    await assertSucceeds(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים' }));
+    await assertSucceeds(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים', studentLimit: 12 }));
     await assertSucceeds(rtdbSet(ref(db, 'public_classes/class_1'), { id: 'class_1', name: 'המבקרים' }));
     await assertSucceeds(rtdbSet(ref(db, 'system_control/globalStudentLimit'), 12));
     await assertSucceeds(rtdbGet(ref(db, 'audit_logs')));
+  });
+
+  // PRD 25 §ב.2 / §ה: no class of more than 12 learners, and a field outside
+  // the standard is refused on the server.
+  it('הכיתה והמגבלה אינן עוברות את 12 הלומדים', async () => {
+    const db = adminSignIn().database();
+    await assertFails(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים', studentLimit: 13 }));
+    await assertFails(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים', studentLimit: 0 }));
+    await assertFails(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים' }));
+    await assertFails(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'כיתה אחרת', studentLimit: 12 }));
+    await assertFails(rtdbSet(ref(db, 'system_control/globalStudentLimit'), 13));
+    await assertFails(rtdbSet(ref(db, 'system_control/globalStudentLimit'), '12'));
+    await assertSucceeds(rtdbSet(ref(db, 'classes/class_1'), { id: 'class_1', name: 'המבקרים', studentLimit: 8 }));
     await assertSucceeds(rtdbGet(ref(db, 'active_class_session')));
   });
 
@@ -220,6 +233,19 @@ describe('הקונסולה של המנהל עובדת', () => {
     await assertSucceeds(getDoc(doc(fs, 'classes', 'class_1')));
     await assertSucceeds(getDoc(doc(fs, 'messages', 'm1')));
     await assertSucceeds(updateDoc(doc(fs, 'messages', 'm1'), { read: true }));
+  });
+
+  it('אשף ההקמה אינו כותב updated_at למסמך הכיתה, ומסיר עותק ישן שלו (מודול 4)', async () => {
+    const wizard = {
+      class_id: 'class_1', school_id: 'school_bikorot', class_name: 'המבקרים',
+      class_type: 'קבוצת ביקורת פיילוט', student_count: 12, created_at: 1,
+    };
+    await assertFails(setDoc(doc(adminSignIn().firestore(), 'classes', 'class_1'), { ...wizard, updated_at: 1 }, { merge: true }));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'classes', 'class_1'), { updated_at: 1 });
+    });
+    // What FirebaseSyncService.writeClassDocument writes.
+    await assertSucceeds(setDoc(doc(adminSignIn().firestore(), 'classes', 'class_1'), { ...wizard, updated_at: deleteField() }, { merge: true }));
   });
 
   it('אשף ההקמה יוצר את מסמך הכיתה ב-Firestore עם סוג הכיתה שנבחר (מודול 25 §ד)', async () => {
@@ -276,6 +302,21 @@ describe('המורה עובדת כרגיל, גם כשבעל המוצר נכנס 
         class_id: 'class_1', school_id: 'school_bikorot', class_name: 'המבקרים', class_type: 'כיתת ביקורת',
         teacher_id: 'teacher_uid', active_session_id: 'session_03', updated_by_teacher_id: 'teacher_uid', student_count: 12,
       }, { merge: true }));
+    });
+
+    // Module 4: the class document holds its listed fields — "No other field is permitted".
+    it(`${name}: מסמך הכיתה אינו מקבל updated_at; הפעלה מסירה עותק ישן שלו`, async () => {
+      const fs = who().firestore();
+      const activation = {
+        class_id: 'class_1', school_id: 'school_bikorot', class_name: 'המבקרים', class_type: 'כיתת ביקורת',
+        teacher_id: 'teacher_uid', active_session_id: 'session_03', updated_by_teacher_id: 'teacher_uid', student_count: 12,
+      };
+      await assertFails(setDoc(doc(fs, 'classes', 'class_1'), { ...activation, updated_at: 1 }, { merge: true }));
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), 'classes', 'class_1'), { updated_at: 1 });
+      });
+      // What TeacherDashboard writes: the stale copy goes, and the write is accepted.
+      await assertSucceeds(setDoc(doc(fs, 'classes', 'class_1'), { ...activation, updated_at: deleteField() }, { merge: true }));
     });
   }
 });

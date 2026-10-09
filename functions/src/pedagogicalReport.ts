@@ -45,7 +45,7 @@ import {
 } from "./meetingMetrics";
 import { GEMINI_SECRETS } from "./geminiConfig";
 import { CATCHUP_COLLECTION, catchUpDocId, catchUpSummaryHe, summarizeCatchUpRecord, type CatchUpRecord, type CatchUpSummary } from "./catchUp";
-import { buildPreResetRecord, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE } from "./preResetRecord";
+import { AWAITING_RERUN_REASON_HE, buildPreResetRecord, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE } from "./preResetRecord";
 import {
   buildFailedExercises,
   buildTelemetrySummary,
@@ -502,12 +502,56 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
   });
 }
 
+/**
+ * The reports/ document of one generation of a learner's meeting report.
+ *
+ * PRD 23 §ב: "הפקה חוזרת יוצרת קובץ חדש ואינה דורסת את הקודם", and "דוח
+ * שהופק לפני האיפוס נשמר ומסומן 'לפני האיפוס'; דוח שמופק אחרי האיפוס הוא קובץ
+ * חדש ואינו מחליף אותו". Every generation has its own document; whether it was
+ * produced before a reset is read from the reset log against generated_at,
+ * since the reset may come after it.
+ */
+export function pedagogicalReportDocId(sessionId: string, generatedAt: number): string {
+  return `${legacyPedagogicalReportDocId(sessionId)}_${generatedAt}`;
+}
 
+/** The single document per meeting of reports produced before one document per generation; still read. */
+export function legacyPedagogicalReportDocId(sessionId: string): string {
+  return `rep_${sessionId}`;
+}
+
+/** Whether a reports/ document id names a report of this meeting: the old single document or one generation. */
+export function isReportDocOfSession(docId: string, sessionId: string): boolean {
+  if (!docId || !sessionId || docId.includes("/") || sessionId.includes("/")) return false;
+  const legacy = legacyPedagogicalReportDocId(sessionId);
+  if (docId === legacy) return true;
+  return docId.startsWith(`${legacy}_`) && /^\d+$/.test(docId.slice(legacy.length + 1));
+}
+
+/** The newest stored report of a meeting: the latest generation, else the old single document. */
+async function newestReportOfSession(
+  db: admin.firestore.Firestore,
+  sessionId: string
+): Promise<{ id: string; data: Record<string, any> } | null> {
+  const snap = await db.collection("reports").where("session_id", "==", sessionId).get();
+  let newest: { id: string; data: Record<string, any> } | null = null;
+  for (const d of snap.docs) {
+    if (!isReportDocOfSession(d.id, sessionId)) continue;
+    const data = d.data() || {};
+    const at = Number(data.generated_at) || 0;
+    if (newest === null || at > (Number(newest.data.generated_at) || 0)) newest = { id: d.id, data };
+  }
+  if (newest) return newest;
+  const legacy = await db.collection("reports").doc(legacyPedagogicalReportDocId(sessionId)).get();
+  return legacy.exists ? { id: legacy.id, data: legacy.data() || {} } : null;
+}
 
 /**
  * generatePedagogicalReportPDF (Module 23: Pedagogical Reporting Engine)
  * Computes metrics, builds deterministic Exercise Narratives, renders an authoritative
- * binary PDF, stores it in Cloud Storage, and returns signed download link + structured data.
+ * binary PDF, stores it in Cloud Storage, and returns the structured data and
+ * the new report's id; the PDF link is issued on request by
+ * getPedagogicalReportDownloadUrl (PRD 23 §ב: a link made on each request of a signed-in teacher).
  *
  * Owner decision (2026-09-04, register item 4): the teacher may request this
  * report for ANY meeting (1–8) of a learner from "דו"חות אבחון אישיים", not
@@ -533,6 +577,10 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   const { sessionId, classId = "class_1", sessionNumber, studentId: explicitStudentId } = request.data || {};
   if (!sessionId || typeof sessionId !== "string") {
     throw new HttpsError("invalid-argument", "Missing sessionId.");
+  }
+  // The session id is part of the report's document id (pedagogicalReportDocId).
+  if (sessionId.includes("/")) {
+    throw new HttpsError("invalid-argument", "Invalid sessionId.");
   }
 
   const db = admin.firestore();
@@ -602,12 +650,11 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // PROBLEM_LOAD as soon as the meeting reopens, and those alone scored 0%
   // and sent the child to remediation before they had started.
   if (isAwaitingRerun(meetingRuns)) {
-    throw new HttpsError(
-      "failed-precondition",
-      // "לא נרשמה תשובה" is true both when the child has not started and when the
-      // child pressed things that send no telemetry (a wrong board check, a choice).
-      `מפגש ${resolvedSessionNumber} של תלמיד ${clampedStudentNum} אופס, ומאז עוד לא נרשמה לו אף תשובה. אפשר להפיק את הדוח אחרי שתירשם לו תשובה במפגש הזה.`
-    );
+    // PRD 23 §ב, word for word: the request "נדחית, עם הנימוק: 'מאז האיפוס עוד
+    // לא נרשמה לו אף תשובה'". "לא נרשמה תשובה" is true both when the child has
+    // not started and when the child pressed things that send no telemetry (a
+    // wrong board check, a choice).
+    throw new HttpsError("failed-precondition", AWAITING_RERUN_REASON_HE);
   }
 
   // The student number in the heading came from the caller and was never
@@ -906,11 +953,16 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     typeof storedPrevious === "number" && Number.isFinite(storedPrevious) && storedPrevious >= 0 && storedPrevious <= 100
       ? storedPrevious : null;
 
+  // One document and one file per generation (pedagogicalReportDocId): a
+  // regenerated report never replaces the previous one (PRD 23 §ב).
+  const generatedAt = Date.now();
+  const reportId = pedagogicalReportDocId(sessionId, generatedAt);
+
   // Assemble pedagogical report data payload
   const report = {
-    report_id: `rep_${sessionId}`,
+    report_id: reportId,
     session_id: sessionId,
-    generated_at: Date.now(),
+    generated_at: generatedAt,
     title_he: scoredMeeting
       ? `MathematiCore - דוח פדגוגי · ${meetingLabelHe(resolvedSessionNumber)}`
       : `MathematiCore - דוח היכרות וריענון · ${meetingLabelHe(resolvedSessionNumber)}`,
@@ -964,8 +1016,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   };
 
   // Render authoritative server-side PDF binary & Upload to Cloud Storage
-  let pdfUrl = "";
-  const storageFilePath = `reports/${classId}/session_${resolvedSessionNumber}/student_${clampedStudentNum}_${Date.now()}.pdf`;
+  const storageFilePath = `reports/${classId}/session_${resolvedSessionNumber}/student_${clampedStudentNum}_${generatedAt}.pdf`;
   let storageSuccess = false;
   let storageErrorMessage = "";
   let driveMirrorUrl: string | null = null;
@@ -975,12 +1026,15 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     const bucket = admin.storage().bucket();
     const file = bucket.file(storageFilePath);
 
-    const downloadToken = require("crypto").randomUUID();
+    // PRD 23 §ב: the download links "נוצרים בכל בקשה של מורה מחוברת, כמו הקישור
+    // לדוח הלומד". The file carries no Firebase download token: a token URL
+    // never expires, and whoever holds it reads the PDF past storage.rules'
+    // class check. The only link is the signed URL that
+    // getPedagogicalReportDownloadUrl issues to the class teacher on request.
     await file.save(pdfBuffer, {
       contentType: "application/pdf",
       metadata: {
         metadata: {
-          firebaseStorageDownloadTokens: downloadToken,
           student_id: String(clampedStudentNum),
           session_id: sessionId,
           class_id: classId,
@@ -990,8 +1044,6 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       },
     });
 
-    pdfUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(storageFilePath)}?alt=media&token=${downloadToken}`;
-
     // Link permanent storage PDF path and timestamp to SessionDocument
     // Only onto the learner's real SessionDocument. Writing it under the id the
     // caller passed created a second, two-field "session" per report: the admin
@@ -1000,13 +1052,15 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     if (sessionDoc.exists) {
       await sessionDoc.ref.set({
         pedagogical_report_pdf_path: storageFilePath,
-        pedagogical_report_generated_at: Date.now(),
+        pedagogical_report_generated_at: generatedAt,
       }, { merge: true });
     }
 
-    // Record immutable report artifact in Firestore reports collection
-    await db.collection("reports").doc(`rep_${sessionId}`).set({
-      report_id: `rep_${sessionId}`,
+    // Record immutable report artifact in Firestore reports collection: a new
+    // document per generation, so the previous report — also one produced
+    // before the meeting was reset — stays as it was (PRD 23 §ב).
+    await db.collection("reports").doc(reportId).set({
+      report_id: reportId,
       session_id: sessionId,
       student_id: clampedStudentNum,
       class_id: classId,
@@ -1049,7 +1103,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       const driveResult = await uploadBufferToDrive(pdfBuffer, driveFileName, "application/pdf", DRIVE_FOLDERS.reports);
       if (driveResult.success) {
         driveMirrorUrl = driveResult.webViewLink;
-        await db.collection("reports").doc(`rep_${sessionId}`).set({
+        await db.collection("reports").doc(reportId).set({
           drive_file_id: driveResult.fileId,
           drive_file_url: driveResult.webViewLink,
         }, { merge: true });
@@ -1071,16 +1125,21 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       pdf_stored: false,
       error_message: storageErrorMessage,
       report,
+      reportId: null,
       downloadUrl: null,
       storagePath: null,
     };
   }
 
+  // No link is returned: the teacher opens the PDF through
+  // getPedagogicalReportDownloadUrl, which issues a signed URL to the
+  // class teacher (PRD 23 §ב), as the class report does.
   return {
     status: "SUCCESS",
     pdf_stored: true,
     report,
-    downloadUrl: pdfUrl,
+    reportId,
+    downloadUrl: null,
     storagePath: storageFilePath,
     driveMirrorUrl,
   };
@@ -1088,33 +1147,56 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
 
 /**
  * getPedagogicalReportDownloadUrl (Module 23 & 27: On-demand secure signed URL generator)
- * Validates teacher authorization and returns a fresh 1-hour signed URL for the stored PDF.
+ * Validates teacher authorization and returns a fresh signed URL for the stored PDF.
+ * The PRD sets no expiry (owner, 9.10.2026: access is by the organisation's accounts); the
+ * link lasts as long as a signed URL may, seven days.
  */
+/** How long a report download link stays valid: the signing maximum, since the PRD sets no expiry (owner, 9.10.2026). */
+export const REPORT_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 export const getPedagogicalReportDownloadUrl = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
-  const { sessionId } = request.data || {};
-  if (!sessionId) {
+  // Teacher authorization first: nothing about a learner's reports is read for anyone else.
+  requireTeacherForIndividualData(request.auth.token as Record<string, unknown>);
+
+  const { sessionId, reportId } = request.data || {};
+  if (!sessionId || typeof sessionId !== "string" || sessionId.includes("/")) {
     throw new HttpsError("invalid-argument", "Missing sessionId.");
+  }
+  // reportId names one generation (PRD 23 §ב: a regenerated report does not
+  // replace the previous one). Without it — a caller from before one document
+  // per generation — the newest report of the meeting.
+  if (reportId !== undefined && reportId !== null && (typeof reportId !== "string" || !isReportDocOfSession(reportId, sessionId))) {
+    throw new HttpsError("invalid-argument", "Invalid reportId.");
   }
 
   const db = admin.firestore();
-  const reportDoc = await db.collection("reports").doc(`rep_${sessionId}`).get();
-
-  if (!reportDoc.exists) {
-    throw new HttpsError("not-found", `Report rep_${sessionId} not found.`);
+  let found: { id: string; data: Record<string, any> } | null;
+  if (typeof reportId === "string") {
+    const snap = await db.collection("reports").doc(reportId).get();
+    found = snap.exists ? { id: reportId, data: snap.data() || {} } : null;
+  } else {
+    found = await newestReportOfSession(db, sessionId);
   }
 
-  const data = reportDoc.data() || {};
+  if (!found) {
+    throw new HttpsError("not-found", `No report of ${sessionId} found.`);
+  }
+
+  const data = found.data;
+  if (typeof data.session_id === "string" && data.session_id !== sessionId) {
+    throw new HttpsError("not-found", `No report of ${sessionId} found.`);
+  }
   const storagePath = data.storage_path;
-  if (!storagePath) {
+  // Only a learner report's own file under reports/ is ever signed.
+  if (typeof storagePath !== "string" || !storagePath.startsWith("reports/")) {
     throw new HttpsError("not-found", "Storage path not found on report document.");
   }
 
-  // Teacher authorization check against class_id
-  requireTeacherForIndividualData(request.auth.token as Record<string, unknown>);
+  // Teacher of this class only
   const callerClassId = request.auth.token.class_id;
 
   if (callerClassId && callerClassId !== data.class_id) {
@@ -1126,12 +1208,13 @@ export const getPedagogicalReportDownloadUrl = onCall(async (request) => {
 
   const [signedUrl] = await file.getSignedUrl({
     action: "read",
-    expires: Date.now() + 60 * 60 * 1000, // 1 hour fresh signed URL
+    expires: Date.now() + REPORT_LINK_TTL_MS, // the PRD sets no expiry (owner, 9.10.2026); a signed URL's maximum
   });
 
   return {
     status: "SUCCESS",
     downloadUrl: signedUrl,
+    reportId: found.id,
     storagePath,
   };
 });

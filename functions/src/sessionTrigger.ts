@@ -234,6 +234,44 @@ async function mirrorGateScore(studentNum: number, sessionNum: number, scorePerc
   }).catch((err) => logger.warn(`Learner ${studentNum}: RTDB mirror of the meeting-2 score failed:`, err));
 }
 
+/**
+ * PRD Module 20 §ב: the learner record's gate mirror (routeStatus,
+ * teacher_gate_approved) "ניתנת לכתיבה על ידי צוות בלבד; הלומד אינו יכול
+ * לכתוב אותה". So the pending state a finished meeting 2 puts the learner in
+ * is the server's to write too: here, whenever the session-2 document
+ * completes (the learner's seventh answer with the meeting still open, the
+ * teacher's close, a completion after a reset), and from the teacher's close
+ * (meeting2Close.ts).
+ *
+ * An approval is never put back to pending: not when the session document
+ * already carries it, not when the record does, and not when the teacher's
+ * approval lands while this runs — routeStatus is written in a transaction
+ * that aborts on 'APPROVED', and teacher_gate_approved in one that aborts on
+ * true (the approval, approveTeacherGate, writes both in one update).
+ */
+export interface GateRtdbLike {
+  ref(path: string): {
+    get(): Promise<{ val(): unknown }>;
+    transaction(update: (current: unknown) => unknown): Promise<{ committed: boolean }>;
+  };
+}
+
+export async function markGatePending(
+  rtdb: GateRtdbLike,
+  studentNum: number,
+  sessionDocApproved: boolean
+): Promise<"pending" | "approved"> {
+  if (sessionDocApproved) return "approved";
+  const recordPath = `users/students/student_user${studentNum}`;
+  if ((await rtdb.ref(`${recordPath}/teacher_gate_approved`).get()).val() === true) return "approved";
+  const route = await rtdb.ref(`${recordPath}/routeStatus`).transaction((cur) =>
+    cur === "APPROVED" ? undefined : "PENDING_TEACHER_APPROVAL"
+  );
+  if (!route.committed) return "approved";
+  await rtdb.ref(`${recordPath}/teacher_gate_approved`).transaction((cur) => (cur === true ? undefined : false));
+  return "pending";
+}
+
 export type MeetingRescore = "not_completed" | "not_scored_yet" | "unchanged" | "rescored" | "no_score" | "contended";
 
 /**
@@ -374,6 +412,16 @@ export const onSessionCompleteTrigger = onDocumentWritten({
   if (studentNum === null) {
     logger.warn(`Session ${event.params.sessionId}: no learner in the document id, score not recomputed.`);
     return;
+  }
+
+  // Meeting 2: the learner now waits in "שלב החלוקה למסלולים". Before the
+  // score, which may find no telemetry and stop; the wait does not depend on it.
+  if (sessionNum === 2) {
+    try {
+      await markGatePending(admin.database() as unknown as GateRtdbLike, studentNum, afterData.teacher_gate_approved === true);
+    } catch (err) {
+      logger.error(`Session ${event.params.sessionId}: the pending gate state could not be mirrored to learner ${studentNum}:`, err);
+    }
   }
 
   const db = admin.firestore();

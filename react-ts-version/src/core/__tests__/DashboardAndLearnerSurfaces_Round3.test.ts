@@ -172,10 +172,12 @@ describe('קוד מת ומפה לא חסומה', () => {
     expect(() => src('infrastructure/services/PedagogicalReportService.ts')).toThrow();
     expect(() => src('presentation/pages/TeacherDashboard/components/SilentAdaptationPanel.tsx')).toThrow();
   });
-  it('מפת השמות בצ׳אט מורה-מנהל חסומה ל-12 רשומות תקפות', () => {
+  // PRD מודול 22 §ב: "אין במערכת רשימת שמות של הכיתה (Zero PII), ולכן השרת
+  // אינו מצליב מול שמות".
+  it('אין מפת שמות בצ׳אט מורה-מנהל', () => {
     const chat = repo('functions/src/teacherAdminChat.ts');
-    expect(chat).toContain('.slice(0, 12)');
-    expect(chat).toContain('name.length <= 40');
-    expect(chat).not.toContain('Object.assign(knownNameMap, ephemeral_name_map)');
+    expect(chat).not.toContain('ephemeral_name_map');
+    expect(chat).not.toContain('knownNameMap');
+    expect(chat).not.toContain('substituteKnownStudentNames');
   });
 });

@@ -83,10 +83,10 @@ describe('the end of a meeting', () => {
   it('a correct answer with empty memory circles is recorded as a solved exercise', () => {
     // The verdict is judged once (judgeStandardTask, 1.10.2026) and every
     // success verdict goes through handleSuccess (PROBLEM_COMPLETE, Q-matrix).
-    const rest = store.slice(store.indexOf('if (!hasCarriesEntered && !boardShowsDiscovered) {'));
-    const branch = rest.slice(0, rest.search(/\r?\n {6}\}\r?\n/));
-    expect(branch).toContain('return success(');
-    expect(branch).not.toContain('advanceStandard();');
+    // Empty circles no longer get a verdict of their own (PRD 14 §ב: the
+    // exercise's "נכון! …"); the ordinary success verdict covers them.
+    expect(store).not.toContain('if (!hasCarriesEntered && !boardShowsDiscovered) {');
+    expect(store).not.toContain('שימו לב לעיגולי הזיכרון');
     expect(store).toMatch(/if \(verdict\.kind === 'success'\) \{\s*handleSuccess\(verdict\.title, verdict\.sub, verdict\.ms\);/);
   });
 

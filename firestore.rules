@@ -173,6 +173,11 @@ service cloud.firestore {
       ]);
 
       let validTypes = data.idempotency_key is string &&
+                       // Module 4 / Module 17 §ב / Appendix A §3: synced_at, the device's
+                       // time when the queue sent the event, is required. The queue stamps
+                       // it on every delivery (telemetryDocumentOf), so an event queued
+                       // before the field existed carries it too.
+                       ('synced_at' in data) && data.synced_at is number &&
                        data.client_timestamp is number &&
                        data.session_id is string &&
                        data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
@@ -317,10 +322,15 @@ service cloud.firestore {
     match /sessions/{sessionId} {
       allow read: if isTeacher() || isOwningSession(sessionId);
       allow create: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
+                       // Module 4: the client writes a session document for meeting 2 only.
+                       (isTeacher() || request.resource.data.session_number == 2) &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == false) &&
                        (isTeacher() || learnerCreateLeavesStaffFieldsEmpty()) &&
                        createLeavesServerScoreFieldsEmpty();
+      // Module 27 §ב.5: a teacher updates the approval fields only (the gate,
+      // core/teacherGate.ts, is the one teacher-side writer of this collection).
       allow update: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
+                       (!isTeacher() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teacher_gate_approved', 'gate_approved_at', 'gate_approved_by', 'teacher_selected_path'])) &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == resource.data.teacher_gate_approved) &&
                        (isTeacher() || learnerUpdateKeepsStaffFields()) &&
                        updateKeepsServerScoreFields();
@@ -335,6 +345,8 @@ service cloud.firestore {
       allow create: if isAuthenticated() &&
                        (isOwningStudent(string(request.resource.data.student_id))) &&
                        (request.resource.data.idempotency_key == logId) &&
+                       // Module 4: the document id is the event's idempotency_key, a UUID v4.
+                       logId.matches('^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') &&
                        isValidTelemetryDoc();
       allow update: if false;
       allow delete: if false; // Module 23א §ו — see students
@@ -374,8 +386,7 @@ service cloud.firestore {
         'student_count',
         'students',
         'updated_by_teacher_id',
-        'created_at',
-        'updated_at'
+        'created_at'
       ]) &&
       data.class_id is string && data.class_id.size() > 0 &&
       data.school_id is string && data.school_id.size() > 0 &&
@@ -466,8 +477,48 @@ service cloud.firestore {
     // SRL Reflections (Module 16 — Session 8 Reflection)
     // Only the owning student may write their own reflection document.
     // Schema is strictly enforced: no extra fields, no cross-student writes, create-only.
-    function isValidSRLReflectionDoc() {
+    // The document is Appendix A §4's SRLReflectionState, field for field, plus
+    // session_number and the three counters behind persistence_index. Its id is
+    // the learner's meeting-8 id (Module 4: session_0N_student_K), which is also
+    // its session_id; idempotency_key is the offline queue's key for it.
+    function isValidSRLReflectionDoc(reflectionId) {
       let data = request.resource.data;
+      return data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
+      data.session_id is string && data.session_id == reflectionId &&
+      data.session_number is int && data.session_number == 8 &&
+      data.selected_strategies is list &&
+      data.persistence_index is number && data.persistence_index >= 0 && data.persistence_index <= 100 &&
+      (isSRLReflectionStateDoc(data, reflectionId) || isLegacySRLReflectionDoc(data));
+    }
+
+    function isSRLReflectionStateDoc(data, reflectionId) {
+      return data.keys().hasOnly([
+        'session_id',
+        'student_id',
+        'reflection_step',
+        'effort_score',
+        'selected_strategies',
+        'persistence_index',
+        'reflection_completed',
+        'reflection_updated_at',
+        'idempotency_key',
+        'session_number',
+        'undo_count',
+        'error_count',
+        'guess_count'
+      ]) &&
+      data.reflection_step in [1, 2, 3] &&
+      (data.effort_score == null || data.effort_score in ['LOW', 'MEDIUM', 'HIGH']) &&
+      data.reflection_completed is bool &&
+      data.reflection_updated_at is number &&
+      data.idempotency_key is string && data.idempotency_key == 'srl_reflection_' + reflectionId;
+    }
+
+    // The shape written before 9.10.2026 (effort_level, submitted_at). Still
+    // accepted on create so a reflection already waiting in a device's offline
+    // queue, or sent by a page loaded before the update, is delivered and not
+    // parked for ever. New clients never write it.
+    function isLegacySRLReflectionDoc(data) {
       return data.keys().hasOnly([
         'student_id',
         'session_id',
@@ -480,12 +531,7 @@ service cloud.firestore {
         'guess_count',
         'submitted_at'
       ]) &&
-      data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
-      data.session_id is string &&
-      data.session_number is int && data.session_number == 8 &&
       data.effort_level in ['LOW', 'MEDIUM', 'HIGH'] &&
-      data.selected_strategies is list &&
-      data.persistence_index is number && data.persistence_index >= 0 && data.persistence_index <= 100 &&
       data.submitted_at is number;
     }
 
@@ -538,7 +584,7 @@ service cloud.firestore {
     match /srl_reflections/{reflectionId} {
       allow read: if isTeacher() || isOwningStudent(string(resource.data.student_id));
       allow create: if isOwningStudent(string(request.resource.data.student_id)) &&
-                       isValidSRLReflectionDoc();
+                       isValidSRLReflectionDoc(reflectionId);
       allow update: if false;
       allow delete: if false; // Module 23א §ו — see students
     }

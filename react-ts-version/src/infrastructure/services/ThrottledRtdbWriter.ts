@@ -121,6 +121,34 @@ export function throttledRtdbUpdate(
   });
 }
 
+/** A copy without undefined values, at any depth: update() refuses them, and in a merged window one would sink every field. */
+function withoutUndefined(value: Record<string, any>): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (v === undefined) continue;
+    out[k] = isPlainObject(v) ? withoutUndefined(v) : v;
+  }
+  return out;
+}
+
+/**
+ * update(ref(recordPath/child), fields), through the throttle of the record:
+ * each field becomes a `child/<field>` key of the record's window, so a write
+ * to a node beneath the learner record joins that record's one write per
+ * 1000ms (PRD Module 18 §ב) instead of going around it. Same result on the
+ * server as the direct update() of the child.
+ */
+export function throttledRtdbChildUpdate(
+  recordPath: string,
+  child: string,
+  fields: Record<string, any>
+): Promise<void> {
+  const prefixed: Record<string, any> = {};
+  for (const [k, v] of Object.entries(withoutUndefined(fields || {}))) prefixed[`${child}/${k}`] = v;
+  if (Object.keys(prefixed).length === 0) return Promise.resolve();
+  return throttledRtdbUpdate(recordPath, prefixed);
+}
+
 /**
  * The learner is leaving (page hide, sign-out, a teacher's reload): whatever is
  * pending on this path goes out now, merged with these fields, in one update().

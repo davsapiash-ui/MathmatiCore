@@ -25,7 +25,7 @@ export function FlexibleDecompTask({ targetNumber }: { targetNumber: number }) {
               key={i}
               className="px-4 py-2 rounded-full bg-green-50 border border-ws-success text-ws-success font-bold text-sm"
             >
-              ✓ ייצוג {i + 1}: {getValue(rep).toLocaleString('he-IL')}
+              ✓ דרך {i + 1}: {getValue(rep).toLocaleString('he-IL')}
             </span>
           ))}
         </div>
@@ -40,7 +40,7 @@ export function FlexibleDecompTask({ targetNumber }: { targetNumber: number }) {
             : 'bg-ws-accent text-white hover:brightness-105 active:scale-95'
         }`}
       >
-        {done ? '✓✓ שני ייצוגים נרשמו' : `+ הוספת ייצוג (${q3Reps.length + 1}/2)`}
+        {done ? '✓✓ שתי דרכים נשמרו' : `+ שמירת הדרך (${q3Reps.length + 1}/2)`}
       </button>
     </div>
   );

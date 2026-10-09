@@ -141,13 +141,13 @@ describe('the learner report shows both scores (PRD 23 §ב "זמן השלמה �
   });
 });
 
-describe('class report links (PRD 23 §ב: valid for one hour)', () => {
+describe('class report links (PRD 23 §ב: made on each request of a signed-in teacher; no expiry set — owner, 9.10.2026)', () => {
   const src = readFileSync(resolve(__dirname, '../classReport.ts'), 'utf-8');
 
   it('issues signed links and stores no token link', () => {
     expect(src).not.toContain('firebaseStorageDownloadTokens');
     expect(src).not.toContain('alt=media&token=');
-    expect(src).toContain('export const CLASS_REPORT_LINK_TTL_MS = 60 * 60 * 1000;');
+    expect(src).toContain('export const CLASS_REPORT_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;');
     expect(src).toContain('pdf_url: null,');
   });
 

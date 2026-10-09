@@ -16,6 +16,7 @@ import {
   daySeparatorHe,
   describeReportError,
   describeEvent,
+  gridReturnIds,
   exerciseTitle,
   latestMeetingWithData,
   meetingExerciseIds,
@@ -25,13 +26,16 @@ import {
   withDaySeparators,
   fetchLearnerCatchUpLines,
   fetchLearnerResets,
-  fetchMeetingReport,
+  fetchMeetingReports,
   fetchMeetingReportUrl,
   formatClock,
   formatDate,
   formatDuration,
   generateMeetingReport,
   groupEventsBySession,
+  isReportBeforeReset,
+  newestReportsFirst,
+  REPORT_BEFORE_RESET_LABEL_HE,
   parseRecordingEvents,
   answeredSince,
   PRE_RESET_HEADING_HE,
@@ -217,6 +221,8 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
 
   const exerciseIds = useMemo(() => meetingExerciseIds(sessionEvents, chapters), [sessionEvents, chapters]);
   const exerciseNumbers = useMemo(() => compulsoryNumbers(exerciseIds), [exerciseIds]);
+  // The grid's returns are read from the whole meeting, not the filtered exercise.
+  const gridReturns = useMemo(() => gridReturnIds(sessionEvents), [sessionEvents]);
 
   const visibleEvents = useMemo(
     () => (selectedExercise ? sessionEvents.filter((e) => e.exerciseId === selectedExercise) : sessionEvents),
@@ -305,24 +311,26 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
   // Module 23 (owner decision, register item 4): the AI report of the selected
   // meeting. The meeting's telemetry session_id is the key the server needs.
   const meetingSessionId = sessionEvents.length > 0 ? sessionEvents[0].sessionId : null;
-  const [report, setReport] = useState<MeetingReport | null>(null);
+  // PRD 23 §ב: "הפקה חוזרת יוצרת קובץ חדש ואינה דורסת את הקודם" — every
+  // report of the meeting, newest first; the teacher reads one at a time.
+  const [reports, setReports] = useState<MeetingReport[]>([]);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const report = reports.find((r) => r.reportId === selectedReportId) ?? reports[0] ?? null;
   const [reportState, setReportState] = useState<'idle' | 'loading' | 'generating' | 'opening' | 'error'>('idle');
   const [reportError, setReportError] = useState<string>('');
 
   useEffect(() => {
     let cancelled = false;
-    setReport(null);
+    setReports([]);
+    setSelectedReportId(null);
     setReportError('');
     if (!meetingSessionId) { setReportState('idle'); return; }
     setReportState('loading');
-    fetchMeetingReport(meetingSessionId)
-      .then((r) => { if (!cancelled) { setReport(r); setReportState('idle'); } })
+    fetchMeetingReports(meetingSessionId)
+      .then((r) => { if (!cancelled) { setReports(r); setReportState('idle'); } })
       .catch((err) => {
         if (cancelled) return;
-        // firestore.rules dereferences resource.data on reads, so a report that
-        // simply does not exist yet comes back as permission-denied — that is
-        // the "no report yet" state, not a failure.
-        if (isMissingReport(err)) { setReport(null); setReportState('idle'); return; }
+        if (isMissingReport(err)) { setReports([]); setReportState('idle'); return; }
         setReportError(isPermissionDenied(err) ? NO_REPORT_ACCESS_TEXT : describeReportError(err).message);
         setReportState('error');
       });
@@ -335,7 +343,9 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
     setReportError('');
     try {
       const r = await generateMeetingReport({ studentNum, sessionNumber: selectedSession, sessionId: meetingSessionId });
-      setReport(r);
+      // A new report beside the earlier ones; none of them is replaced.
+      setReports((prev) => newestReportsFirst([r, ...prev.filter((p) => p.reportId !== r.reportId)]));
+      setSelectedReportId(r.reportId);
       setReportState('idle');
     } catch (err) {
       setReportError(describeReportError(err).message);
@@ -351,8 +361,8 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
       setReportState('error');
       return;
     }
-    // A report loaded from Firestore has no link yet, and it is fetched from
-    // the server first. A tab opened after that wait is outside the click, and
+    // PRD 23 §ב: the link is made per request, so it is asked from the server
+    // on every opening. A tab opened after that wait is outside the click, and
     // the browser may block it without a word. The tab opens in the click
     // itself, and gets its address when the link arrives.
     const tab = window.open('', '_blank');
@@ -364,7 +374,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
     tab.opener = null;
     try {
       setReportState('opening');
-      const url = report.downloadUrl ?? (await fetchMeetingReportUrl(report.sessionId));
+      const url = await fetchMeetingReportUrl(report.sessionId, report.reportId);
       tab.location.href = url;
       setReportState('idle');
     } catch (err) {
@@ -529,6 +539,11 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                 {report?.generatedAt && (
                   <span className="text-[11px] font-bold text-ws-soft">הופק {formatDate(report.generatedAt)} {formatClock(report.generatedAt)}</span>
                 )}
+                {report && isReportBeforeReset(report, sessionResets) && (
+                  <span data-testid="report-before-reset" className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+                    {REPORT_BEFORE_RESET_LABEL_HE}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 {report && !report.storedPdfOutdated && (
@@ -558,6 +573,31 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
             {reportState === 'error' && (
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
                 <div>{reportError || REPORT_PROCESSING_TEXT}</div>
+              </div>
+            )}
+
+            {/* PRD 23 §ב: every report of the meeting is kept, newest first; one produced before the reset is marked so. */}
+            {reports.length > 1 && (
+              <div data-testid="meeting-report-list" className="text-xs">
+                <div className="font-bold text-ws-soft mb-1">הדוחות שהופקו למפגש זה (החדש ראשון)</div>
+                <ul className="flex flex-wrap gap-2">
+                  {reports.map((r) => {
+                    const active = report?.reportId === r.reportId;
+                    return (
+                      <li key={r.reportId}>
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedReportId(r.reportId); setReportError(''); if (reportState === 'error') setReportState('idle'); }}
+                          aria-pressed={active}
+                          className={`text-[11px] font-bold px-3 py-1.5 rounded-full border cursor-pointer ${active ? 'bg-ws-accent text-white border-ws-accent' : 'bg-ws-bg text-ws-ink border-ws-surface2 hover:border-ws-accent/40'}`}
+                        >
+                          {r.generatedAt !== null ? `הופק ${formatDate(r.generatedAt)} ${formatClock(r.generatedAt)}` : 'דוח ללא תאריך הפקה'}
+                          {isReportBeforeReset(r, sessionResets) ? ` · ${REPORT_BEFORE_RESET_LABEL_HE}` : ''}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             )}
 
@@ -786,7 +826,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                         }
                         const e = row.event;
                         const idx = visibleEvents.indexOf(e);
-                        const desc = describeEvent(e);
+                        const desc = describeEvent(e, { gridReturn: gridReturns.has(e.id) });
                         const prev = idx > 0 ? visibleEvents[idx - 1] : null;
                         const delaySec = prev ? Math.round((e.timestamp - prev.timestamp) / 1000) : 0;
                         const isHighlighted = idx === highlightedIdx;

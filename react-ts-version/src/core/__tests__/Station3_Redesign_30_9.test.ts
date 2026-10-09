@@ -59,7 +59,7 @@ const APPROVED: Record<string, { kind: string; text: string; numberA: number; an
   },
   s3_r_t2: {
     kind: 'compose_break', numberA: 340, answer: 340, board: { hundreds: 2, tens: 14 },
-    text: 'בנו בבית המספרים 3 לבני מאה ו-4 לבני עשרת. פרטו לבנת מאה אחת לעשר לבני עשרת. איזה מספר מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.',
+    text: 'בנו בבית המספרים 3 לבני מאה ו-4 לבני עשרת. פרטו לבנת מאה אחת לעשר לבני עשרת. איזה מספר הלבנים מראות לאחר הפריטה? כתבו אותו בשורת התוצאה.',
   },
   s3_r_t3: {
     kind: 'decompose', numberA: 450, answer: 45, board: { tens: 45 },
@@ -67,7 +67,7 @@ const APPROVED: Record<string, { kind: string; text: string; numberA: number; an
   },
   s3_r_t4: {
     kind: 'compose_break', numberA: 85, answer: 85, board: { tens: 7, units: 15 },
-    text: 'בנו בבית המספרים 8 לבני עשרת ו-5 לבני יחידה. פרטו לבנת עשרת אחת לעשר לבני יחידה. איזה מספר מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.',
+    text: 'בנו בבית המספרים 8 לבני עשרת ו-5 לבני יחידה. פרטו לבנת עשרת אחת לעשר לבני יחידה. איזה מספר הלבנים מראות לאחר הפריטה? כתבו אותו בשורת התוצאה.',
   },
   s3_r_t5: {
     kind: 'read_write', numberA: 506, answer: 506, board: { hundreds: 5, units: 6 },
@@ -75,7 +75,7 @@ const APPROVED: Record<string, { kind: string; text: string; numberA: number; an
   },
   s3_r_t6: {
     kind: 'compose_break', numberA: 506, answer: 506, board: { hundreds: 4, tens: 10, units: 6 },
-    text: 'בנו בבית המספרים 5 לבני מאה ו-6 לבני יחידה. פרטו לבנת מאה אחת לעשר לבני עשרת. איזה מספר מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.',
+    text: 'בנו בבית המספרים 5 לבני מאה ו-6 לבני יחידה. פרטו לבנת מאה אחת לעשר לבני עשרת. איזה מספר הלבנים מראות לאחר הפריטה? כתבו אותו בשורת התוצאה.',
   },
   s3_g_t1: {
     kind: 'read_write', numberA: 3400, answer: 3400, board: { thousands: 3, hundreds: 4 },
@@ -83,7 +83,7 @@ const APPROVED: Record<string, { kind: string; text: string; numberA: number; an
   },
   s3_g_t2: {
     kind: 'compose_break', numberA: 3400, answer: 3400, board: { thousands: 2, hundreds: 14 },
-    text: 'בנו בבית המספרים 3 לבני אלף ו-4 לבני מאה. פרטו לבנת אלף אחת לעשר לבני מאה. איזה מספר מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.',
+    text: 'בנו בבית המספרים 3 לבני אלף ו-4 לבני מאה. פרטו לבנת אלף אחת לעשר לבני מאה. איזה מספר הלבנים מראות לאחר הפריטה? כתבו אותו בשורת התוצאה.',
   },
   s3_g_t3: {
     kind: 'decompose', numberA: 4500, answer: 45, board: { hundreds: 45 },
@@ -91,7 +91,7 @@ const APPROVED: Record<string, { kind: string; text: string; numberA: number; an
   },
   s3_g_t4: {
     kind: 'compose_break', numberA: 5230, answer: 5230, board: { thousands: 4, hundreds: 11, tens: 13 },
-    text: 'בנו בבית המספרים 5 לבני אלף, 2 לבני מאה ו-3 לבני עשרת. פרטו לבנת אלף אחת לעשר לבני מאה. אחר כך פרטו לבנת מאה אחת לעשר לבני עשרת. איזה מספר מייצגות הלבנים לאחר שתי הפריטות? כתבו אותו בשורת התוצאה.',
+    text: 'בנו בבית המספרים 5 לבני אלף, 2 לבני מאה ו-3 לבני עשרת. פרטו לבנת אלף אחת לעשר לבני מאה. אחר כך פרטו לבנת מאה אחת לעשר לבני עשרת. איזה מספר הלבנים מראות לאחר שתי הפריטות? כתבו אותו בשורת התוצאה.',
   },
   s3_g_t5: {
     kind: 'read_write', numberA: 6030, answer: 6030, board: { thousands: 6, tens: 3 },
@@ -99,7 +99,7 @@ const APPROVED: Record<string, { kind: string; text: string; numberA: number; an
   },
   s3_g_t6: {
     kind: 'compose_break', numberA: 6030, answer: 6030, board: { thousands: 5, hundreds: 10, tens: 3 },
-    text: 'בנו בבית המספרים 6 לבני אלף ו-3 לבני עשרת. פרטו לבנת אלף אחת לעשר לבני מאה. איזה מספר מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.',
+    text: 'בנו בבית המספרים 6 לבני אלף ו-3 לבני עשרת. פרטו לבנת אלף אחת לעשר לבני מאה. איזה מספר הלבנים מראות לאחר הפריטה? כתבו אותו בשורת התוצאה.',
   },
   s3_r_reinforce_1: {
     kind: 'read_write', numberA: 270, answer: 270, board: { hundreds: 2, tens: 7 },
@@ -119,16 +119,16 @@ const APPROVED: Record<string, { kind: string; text: string; numberA: number; an
   },
   s7_r_t1: {
     kind: 'compose_group', numberA: 125, answer: 125, board: { hundreds: 1, tens: 2, units: 5 },
-    text: 'בנו בבית המספרים 12 לבני עשרת ו-5 לבני יחידה. קבצו 10 לבני עשרת ללבנת מאה אחת. איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת התוצאה.',
+    text: 'בנו בבית המספרים 12 לבני עשרת ו-5 לבני יחידה. קבצו 10 לבני עשרת ללבנת מאה אחת. איזה מספר הלבנים מראות לאחר ההקבצה? כתבו אותו בשורת התוצאה.',
   },
   s7_g_t1: {
     kind: 'compose_group', numberA: 2500, answer: 2500, board: { thousands: 2, hundreds: 5 },
-    text: 'בנו בבית המספרים 25 לבני מאה. קבצו 10 לבני מאה ללבנת אלף אחת. קבצו שוב 10 לבני מאה ללבנת אלף אחת. איזה מספר מייצגות הלבנים לאחר שתי ההקבצות? כתבו אותו בשורת התוצאה.',
+    text: 'בנו בבית המספרים 25 לבני מאה. קבצו 10 לבני מאה ללבנת אלף אחת. קבצו שוב 10 לבני מאה ללבנת אלף אחת. איזה מספר הלבנים מראות לאחר שתי ההקבצות? כתבו אותו בשורת התוצאה.',
   },
   // The green path's second reinforcement of station 7 (owner, 30.9.2026), with its own numbers.
   s7_g_reinforce_2: {
     kind: 'compose_group', numberA: 1430, answer: 1430, board: { thousands: 1, hundreds: 4, tens: 3 },
-    text: 'בנו בבית המספרים 14 לבני מאה ו-3 לבני עשרת. קבצו 10 לבני מאה ללבנת אלף אחת. איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת התוצאה.',
+    text: 'בנו בבית המספרים 14 לבני מאה ו-3 לבני עשרת. קבצו 10 לבני מאה ללבנת אלף אחת. איזה מספר הלבנים מראות לאחר ההקבצה? כתבו אותו בשורת התוצאה.',
   },
 };
 
@@ -163,15 +163,15 @@ describe('the approved exercises (owner, 30.9.2026)', () => {
   it('the green path is built like the gap-closing path, kind for kind: the same opening and the same closing', () => {
     const CLOSING: Record<string, string> = {
       read_write: 'כתבו אותו בספרות בשורת התוצאה.',
-      compose_break: 'איזה מספר מייצגות הלבנים לאחר הפריטה? כתבו אותו בשורת התוצאה.',
+      compose_break: 'איזה מספר הלבנים מראות לאחר הפריטה? כתבו אותו בשורת התוצאה.',
       decompose: 'כתבו את התשובה בשורת התוצאה.',
-      compose_group: 'איזה מספר מייצגות הלבנים לאחר ההקבצה? כתבו אותו בשורת התוצאה.',
+      compose_group: 'איזה מספר הלבנים מראות לאחר ההקבצה? כתבו אותו בשורת התוצאה.',
     };
     for (const [id, a] of Object.entries(APPROVED)) {
       expect(a.text.startsWith('בנו בבית המספרים '), id).toBe(true);
       // Two conversions close in the plural of מסמך 03 (owner, 4.10.2026): s3_g_t4, s7_g_t1.
-      const closing = id === 's3_g_t4' ? 'איזה מספר מייצגות הלבנים לאחר שתי הפריטות? כתבו אותו בשורת התוצאה.'
-        : id === 's7_g_t1' ? 'איזה מספר מייצגות הלבנים לאחר שתי ההקבצות? כתבו אותו בשורת התוצאה.'
+      const closing = id === 's3_g_t4' ? 'איזה מספר הלבנים מראות לאחר שתי הפריטות? כתבו אותו בשורת התוצאה.'
+        : id === 's7_g_t1' ? 'איזה מספר הלבנים מראות לאחר שתי ההקבצות? כתבו אותו בשורת התוצאה.'
         : CLOSING[a.kind];
       expect(a.text.endsWith(closing), id).toBe(true);
     }
@@ -313,7 +313,7 @@ const done = () => sent.events.some((e) => e.event_type === 'PROBLEM_COMPLETE');
 const digitsEntered = () => sent.events.filter((e) => e.event_type === 'DIGIT_ENTERED');
 
 const WRONG_NUMBER = 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!';
-const WRONG_BOARD = 'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.';
+const WRONG_BOARD = 'בית המספרים עוד לא מראה את מה שההוראה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.';
 
 beforeEach(() => {
   sent.events.length = 0;
@@ -349,7 +349,7 @@ describe('compose_break: the break is the child\'s own, and the answer is the nu
     answer('340');
     press();
     expect(title()).toBe('פִּרְטוּ 🧱');
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. לחצו על לבנת מאה כדי לפרוט אותה.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהוראה. לחצו על לבנת מאה כדי לפרוט אותה.');
     expect(done()).toBe(false);
     ws().clearBoard();
     buildBlocks({ hundreds: 3, tens: 4 });
@@ -428,7 +428,7 @@ describe('decompose: the answer is the number of blocks', () => {
     load(byId('s3_g_reinforce_2'));
     drop('hundreds', 36);
     press();
-    expect(sub()).toBe('הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את התשובה בשורת התוצאה.');
+    expect(sub()).toBe('הלבנים מסודרות בדיוק כמו בהוראה! עכשיו כתבו את התשובה בשורת התוצאה.');
     answer('35');
     press();
     expect(sub()).toBe('בדקו שוב: כמה לבני מאה יש בבית המספרים?');
@@ -454,7 +454,7 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     answer('125');
     press();
     expect(title()).toBe('קַבְּצוּ 🧱');
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10" שבראש טור העשרות.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהוראה. לחצו על הכפתור "קבצו 10" שבראש טור העשרות.');
     ws().clearBoard();
     buildBlocks({ tens: 12, units: 5 });
     ws().groupColumnClick('tens');
@@ -468,7 +468,7 @@ describe('compose_group (station 7): the grouping is the child\'s own', () => {
     buildBlocks({ thousands: 1, hundreds: 4, tens: 3 });
     answer('1430');
     press();
-    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. לחצו על הכפתור "קבצו 10" שבראש טור המאות.');
+    expect(sub()).toBe('הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהוראה. לחצו על הכפתור "קבצו 10" שבראש טור המאות.');
     ws().clearBoard();
     buildBlocks({ hundreds: 14, tens: 3 });
     ws().groupColumnClick('hundreds');

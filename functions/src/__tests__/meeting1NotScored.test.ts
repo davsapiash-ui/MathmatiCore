@@ -218,7 +218,7 @@ describe('the meeting 1 individual report (Chromium template)', () => {
     score_percent: null,
     tool_mastery: computeToolMastery(learner4),
     exercise_outcomes: computeExerciseOutcomes(learner4),
-    exercise_titles: { s1_r_sub806: 'חיסור במאונך עם פריטה דרך אפס בטור העשרות' },
+    exercise_titles: { s1_r_sub806: 'חיסור במאונך עם פריטה אחת, כשבמחוסר יש 0 בטור העשרות' },
     exercise_narratives: [],
     knowledge_gaps: [],
     teaching_recommendations: [],
@@ -230,7 +230,7 @@ describe('the meeting 1 individual report (Chromium template)', () => {
     expect(html).toContain('ביטול פעולה');
     expect(html).toContain('לא הופעל');
     expect(html).toContain('הופעל פעם אחת');
-    expect(html).toContain('חיסור במאונך עם פריטה דרך אפס בטור העשרות');
+    expect(html).toContain('חיסור במאונך עם פריטה אחת, כשבמחוסר יש 0 בטור העשרות');
     expect(html).toContain('אחרי תיקון');
     expect(html).toContain('לקראת האבחון');
   });

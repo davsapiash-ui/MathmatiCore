@@ -27,9 +27,14 @@ export interface ClassDocument {
   class_name: 'המבקרים'; // Strictly set for pilot
   class_type: string;
   active_session_id: string | null;
-  projector_mode: boolean;
-  projector_mode_updated_at: number;
-  updated_by_teacher_id: string | null;
+  projector_mode: boolean; // not written; the projector state lives in RTDB system_control/projector_mode (Module 15)
+  projector_mode_updated_at: number; // not written (Module 15)
+  updated_by_teacher_id: string | null; // the teacher who last activated a session (Module 14 §ב0)
+
+  teacher_id: string | null; // auxiliary, admin console
+  student_count: number; // auxiliary, 0-12
+  students: number[]; // auxiliary, anonymous IDs 1-12
+  created_at: number; // auxiliary
 }
 
 export type PedagogicalPath = 'green_path' | 'remediation_path';
@@ -114,6 +119,13 @@ export interface VRAWorkspaceStore {
 
 import type { TelemetryEventType, TelemetryPayload } from './telemetry';
 
+/**
+ * A column as GeminiExerciseContext.active_column names it on the wire (PRD
+ * 7.4 Appendix A §6). The client's own name for the ones column is 'units'
+ * (core/placeValue Place); SocraticEngine maps it at the request boundary.
+ */
+export type GeminiWireColumn = 'ones' | 'tens' | 'hundreds' | 'thousands';
+
 export interface GeminiSocraticRequest {
   student_id: number; // Strictly 1-12
   session_id: string;
@@ -125,7 +137,7 @@ export interface GeminiSocraticRequest {
     number_b: number;
     session_id: string;
     session_topic: string;
-    active_column: 'units' | 'tens' | 'hundreds' | 'thousands';
+    active_column: GeminiWireColumn;
     active_column_index: number;
     target_sub_problem: string;
     /** Digits a skeleton exercise hides on the screen; the server never shows them to the model. */
@@ -203,8 +215,8 @@ export interface GeminiReportRequest {
   student_id: number; // Strictly 1-12
   session_id: string;
   session_number: number;
-  session_score_percent: number;
-  recommendation_tier: 'below_50' | 'between_50_75' | 'above_75';
+  session_score_percent: number | null; // null in session 1, which has no score (Module 14 §ב)
+  recommendation_tier: 'below_50' | 'between_50_75' | 'above_75' | null; // null in session 1
   failed_exercises: ExerciseTemplate[];
   telemetry_summary: TelemetryPayload<TelemetryEventType>[];
 }
@@ -285,4 +297,19 @@ export interface ResetAuditEntry {
   session_number?: number | null;
   /** Level 2 only: one learner, or the whole class at once. */
   reset_target?: ResetTarget;
+  /**
+   * Server time the entry was written, epoch ms. Entries written before
+   * 9.10.2026 hold a Firestore Timestamp here; a reader takes both shapes.
+   */
+  created_at: number;
+  /** Where the backup was written (Module 23א §ג). */
+  backup_channel?: 'drive' | 'storage' | null;
+  /** Set by the daily job when a Storage-only backup reaches Drive. */
+  backup_drive_copied_at?: number | null;
+  /** Only 'completed' counts as a reset in reports and exports. */
+  deletion_status?: 'not_required' | 'in_progress' | 'completed' | 'partial';
+  /** Links to the "הקלטה שהגיעה אחרי האיפוס - …json" files of this reset (Module 23א §ג). */
+  late_recording_files?: string[];
+  /** Follow-up steps that failed after the deletion (Module 23א §ד). */
+  side_effect_errors?: string[];
 }

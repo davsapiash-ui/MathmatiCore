@@ -20,10 +20,10 @@ export const GRID_PICK_ROW_HE = 'לחצו על מספר שורה כדי להתח
 export const GRID_PICK_COL_HE = 'עכשיו בחרו מספר עמודה כדי לראות את החיבור.';
 
 /**
- * Where the grid lives: a slot of its own in the workspace row, between בית
- * המספרים and the coaching card (the row is RTL: sheet | board | grid | card).
- * The board and the sheet ease aside to make room, as they do for the
- * coaching card, so the grid covers nothing.
+ * Where the grid lives: PRD 10 §א, "הפינה השמאלית התחתונה של מרחב העבודה" —
+ * a slot of its own at the left end of the representations zone's row, at
+ * its bottom (StudentWorkspacePage). The board eases aside to make room, so
+ * the grid covers nothing. Its "לוח החיבור" tab takes the same place.
  *
  * PRD Module 10 §א–ב: the grid is support during the learner's own work, and
  * that work goes on while it is open — the timer resets on "גרירת לבנים,
@@ -127,7 +127,7 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '', hid
       onAnimationComplete={() => setVisible(true)}
       dir="rtl"
       data-hidden={hidden ? 'true' : undefined}
-      className={`${hidden ? 'hidden ' : ''}${visible ? 'pointer-events-auto' : 'pointer-events-none'} shrink-0 self-start max-h-full min-h-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent rounded-3xl ${GRID_SLOT_WIDTH} ${className}`}
+      className={`${hidden ? 'hidden ' : ''}${visible ? 'pointer-events-auto' : 'pointer-events-none'} shrink-0 self-end max-h-full min-h-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent rounded-3xl ${GRID_SLOT_WIDTH} ${className}`}
       role="dialog"
       aria-label={ADDITION_GRID_HE}
       data-testid="adaptive-addition-grid"
@@ -236,7 +236,8 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '', hid
 /**
  * Register deviation 18 (מסמך 03 §1.3 ב' / 04 §1): a learner may bring back
  * the grid after closing it. The tab sits where the grid itself appears — in
- * the grid's slot of the row, beside the board — never in the topbar (מסמך 04
+ * the grid's slot of the row, beside the board at the bottom-left corner of
+ * the workspace (PRD 10 §א) — never in the topbar (מסמך 04
  * §3א: "כפתורי ניווט בסיסיים ושקטים") and never over the tray or the trash
  * (audit UX-001: pinned to the screen's corner, it sat on the trash).
  *
@@ -250,7 +251,7 @@ export function AdditionGridTab() {
   // Offered at 30 seconds beside the open card and never shown yet: nothing "returns".
   const neverShown = useWorkspaceStore((s) => s.additionHelperOfferedUnopened);
   return (
-    <div className="shrink-0 self-start w-16" data-testid="addition-grid-tab-slot">
+    <div className="shrink-0 self-end w-16" data-testid="addition-grid-tab-slot">
       <button
         type="button"
         onClick={showAdditionGrid}

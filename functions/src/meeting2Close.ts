@@ -3,7 +3,7 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { exerciseAttempts, readLastResetOfMeeting, readMeetingTelemetry, sessionDocumentIdCandidates } from "./meetingMetrics";
 import { computeCognitiveMastery } from "./diagnosticMastery";
-import { rescoreCompletedMeeting, type MeetingRescore } from "./sessionTrigger";
+import { markGatePending, rescoreCompletedMeeting, type GateRtdbLike, type MeetingRescore } from "./sessionTrigger";
 import { isClassSessionOpenAt } from "./classSessionLive";
 
 /**
@@ -241,7 +241,6 @@ export async function completeUnfinishedMeeting2(
       const recordPath = `users/students/student_user${n}`;
       const recordSnap = await rtdb.ref(recordPath).get();
       const record = (recordSnap.val() || {}) as Record<string, any>;
-      const approved = record.teacher_gate_approved === true || record.routeStatus === "APPROVED";
       const existingQ = (record.qMatrixResults || {}) as Record<string, unknown>;
 
       const updates: Record<string, unknown> = {
@@ -249,7 +248,6 @@ export async function completeUnfinishedMeeting2(
         session_02_completed: true,
         updatedAt: Date.now(),
       };
-      if (!approved) updates.routeStatus = "PENDING_TEACHER_APPROVAL";
       const q = diagnosticQMatrixAtClose(events);
       const finalQ: Record<string, string | null> = {};
       for (const id of DIAGNOSTIC_TASK_IDS) {
@@ -266,6 +264,9 @@ export async function completeUnfinishedMeeting2(
       // and the counter of "מיפוי מיומנויות כיתתי".
       updates.conceptMastery = computeCognitiveMastery(finalQ);
       await rtdb.ref(recordPath).update(updates);
+      // PRD Module 20 §ב: the pending gate state is staff-written only; an
+      // approval already given (or landing meanwhile) is never undone.
+      await markGatePending(rtdb as unknown as GateRtdbLike, n, false);
       await rtdb.ref(`${recordPath}/highestCompletedMeeting`).transaction((cur) => {
         const current = typeof cur === "number" && Number.isFinite(cur) ? cur : 0;
         return Math.max(current, 2);

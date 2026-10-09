@@ -135,7 +135,11 @@ export interface SessionTask {
   hiddenDigits?: { a?: Place[]; b?: Place[] };
   /** Skeleton exercise: result digits shown up-front; the learner supplies only the missing ones. */
   revealedResultDigits?: Place[];
-  /** flexible_decomp: every recorded representation must hold an even number of tens. */
+  /**
+   * flexible_decomp: every recorded representation must hold ten blocks, and
+   * an even number of them (150, s7_r_t7; owner's decision, 9.10.2026: a way
+   * with no ten blocks is refused, though 0 is even).
+   */
   requireEvenTens?: boolean;
   /**
    * flexible_decomp (owner, 4.10.2026): the number is built without unit
@@ -190,7 +194,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     id: 's1_sandbox_controlled',
     type: 'session1_intro',
     titleHe: 'חקירה וירטואלית חופשית',
-    instructionHe: 'ברוכים הבאים למתמטיקאור! בתחנה הראשונה מכירים את הכלים: שחקו וחקרו בחופשיות.\nגררו 5 לבנים לטורים משמאל, וצפו בספרות המשתנות בבית המספרים.',
+    instructionHe: 'ברוכים הבאים למתמטיקאור! בתחנה הראשונה מכירים את הכלים. שחקו וחקרו בחופשיות.\nגררו 5 לבנים לטורים משמאל. צפו בספרות המשתנות בבית המספרים.',
     correctAnswer: 'proceed_any',
     scaffoldLevel: 0,
   },
@@ -263,7 +267,7 @@ export const SESSION1_TASKS: SessionTask[] = [
   // unit cubes wait on the board, and are grouped twice into tens.
   s1(representation('s1_r_group26', 26, { tens: 2, units: 6 },
     'המרה עצמאית בין עזרים וירטואליים',
-    'בטור היחידות יש לבני יחידה.\nקבצו כל 10 לבני יחידה ללבנת עשרת אחת: לחצו על הכפתור "קבצו 10" שבראש הטור.\nכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
+    'בטור היחידות יש לבני יחידה.\nקבצו כל 10 לבני יחידה ללבנת עשרת אחת. לחצו על הכפתור "קבצו 10" שבראש הטור.\nכתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם.'),
     { requiresGrouping: true, initialCounts: { units: 26 }, hideRequiredCounts: true }),
 
   // מסמך 03 §3.1 step 6 — the target task: 347 → 3 hundreds, 3 tens, 17 units.
@@ -272,7 +276,7 @@ export const SESSION1_TASKS: SessionTask[] = [
   // they see the quantity did not change; the numbers are unchanged.
   s1(representation('s1_target_347', 347, { hundreds: 3, tens: 3, units: 17 },
     'משימת יעד מסכמת',
-    'משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה?\nבנו את המספר 347 בבית המספרים.\nפרטו לבנת עשרת אחת לעשר לבני יחידה.\nכתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו.'),
+    'משימת היעד: לדעתכם, איזה מספר יהיה בבית המספרים לאחר הפריטה?\nבנו את המספר 347 בבית המספרים.\nפרטו לבנת עשרת אחת לעשר לבני יחידה.\nכתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו.'),
     { requiresUngrouping: true, hideRequiredCounts: true }),
 
   // ★ chosen (owner, 24.9.2026). Mirrors task 6 (124 + 85) in structure with
@@ -283,7 +287,7 @@ export const SESSION1_TASKS: SessionTask[] = [
     type: 'addition_simple',
     numberA: 713, numberB: 94, correctAnswer: 807,
     titleHe: 'חיבור במאונך עם המרה מעל מאה',
-    instructionHe: 'פתרו: 713 + 94.\nבנו בבית המספרים את 713 ואת 94.\nכשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור.\nרשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה החדשה.\nכתבו את התוצאה בשורת התוצאה.',
+    instructionHe: 'פתרו: 713 + 94.\nבנו בבית המספרים את 713 ואת 94.\nכשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור.\nאחר כך רשמו בעיגול הזיכרון את ה־1 שעבר לטור הבא.\nכתבו את התוצאה בשורת התוצאה.',
     scaffoldLevel: 1,
     requiresGrouping: true,
     targetNode: 'regrouping_fluency',
@@ -292,14 +296,14 @@ export const SESSION1_TASKS: SessionTask[] = [
   // two, one borrow in the units, the tens need no borrow.
   s1(subtraction('s1_r_sub61', 61, 24,
     'חיסור חד-שלבי עם פריטה בתחום המאה',
-    'פתרו: 61 − 24.\nבנו את 61 בבית המספרים.\nגררו לפח האשפה את הלבנים שאתם מחסרים.\nאם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור.\nאחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.\nכתבו את התוצאה בשורת התוצאה.',
+    'פתרו: 61 − 24.\nבנו את 61 בבית המספרים.\nגררו לפח האשפה את הלבנים שאתם מחסרים.\nאם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו. לחצו על הלבנה, או גררו אותה אל הטור שמימין.\nאחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.\nכתבו את התוצאה בשורת התוצאה.',
     { scaffoldLevel: 1 })),
   // ★ chosen (owner, 24.9.2026). Mirrors task 7 (405 − 132): a 0 in the tens
   // of the minuend, no borrow in the units, one borrow from the hundreds into
   // the tens.
   s1(subtraction('s1_r_sub806', 806, 351,
-    'חיסור במאונך עם פריטה דרך אפס בטור העשרות',
-    'פתרו: 806 − 351.\nבנו את 806 בבית המספרים.\nגררו לפח האשפה את הלבנים שאתם מחסרים.\nאם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור.\nאחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.\nכתבו את התוצאה בשורת התוצאה.',
+    'חיסור במאונך עם פריטה אחת, כשבמחוסר יש 0 בטור העשרות',
+    'פתרו: 806 − 351.\nבנו את 806 בבית המספרים.\nגררו לפח האשפה את הלבנים שאתם מחסרים.\nאם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו. לחצו על הלבנה, או גררו אותה אל הטור שמימין.\nאחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.\nכתבו את התוצאה בשורת התוצאה.',
     { scaffoldLevel: 1 })),
 ];
 
@@ -359,11 +363,11 @@ export const SESSION3_GREEN_TASKS: SessionTask[] = [
     'ייצוג מספר עם אפס בטור המאות',
     { targetNode: 'decimal_structure' }),
   composeBreak('s3_g_t6', { thousands: 6, tens: 3 }, ['thousands'],
-    'פירוק אלפים דרך טור מאות ריק',
+    'פירוק אלף למאות כשטור המאות ריק',
     { targetNode: 'decimal_structure' }),
   flexible('s3_g_t7', 2100,
     'משימת חקר של גמישות ייצוגית',
-    `מצאו דרכים שונות לייצג את המספר 2,100 באמצעות אלפים, מאות ועשרות בלבד. ${FLEX_HOWTO}`,
+    `מצאו דרכים שונות לבנות את המספר 2,100. השתמשו רק בלבני אלף, מאה ועשרת. ${FLEX_HOWTO}`,
     { noUnitBlocks: true }),
 ];
 
@@ -403,13 +407,16 @@ export const SESSION4_GREEN_TASKS: SessionTask[] = [
   withOpts({
     id: 's4_g_t7', type: 'small_change',
     titleHe: 'משימת חקר של הרכבי המרה משתנים',
-    instructionHe: 'השוו בין שני תרגילים קרובים וגלו כיצד המרה בטור היחידות משפיעה על הטורים הבאים.',
+    instructionHe: 'השוו בין שני תרגילים קרובים: איך הקבצה בטור היחידות משפיעה על הטורים הבאים?',
     givenHe: '3,456 + 2,183 = 5,639',
-    questionHe: 'מחליפים רק את ספרת היחידות של המחובר הראשון: 3,459 + 2,183. מה ישתנה?',
+    questionHe: 'מחליפים רק את ספרת היחידות במספר הראשון: 3,459 + 2,183. מה ישתנה?',
     choices: [
-      { id: 'א', textHe: 'תיווסף המרה גם בטור היחידות, ההמרה בטור העשרות תישאר, והתוצאה תהיה 5,642', correct: true },
-      { id: 'ב', textHe: 'רק ספרת היחידות בתוצאה תשתנה, והתוצאה תהיה 5,632' },
-      { id: 'ג', textHe: 'ההמרה בטור העשרות תיעלם, והתוצאה תהיה 5,542' },
+      // Owner, 9.10.2026: the three options alike — each names where the
+      // groupings are and states a result; the wrong ones are the two
+      // forgotten carries (units → tens: 5,632; tens → hundreds: 5,542).
+      { id: 'א', textHe: 'תהיה הקבצה בטור היחידות ובטור העשרות, והתוצאה תהיה 5,642', correct: true },
+      { id: 'ב', textHe: 'תהיה הקבצה רק בטור העשרות, והתוצאה תהיה 5,632' },
+      { id: 'ג', textHe: 'תהיה הקבצה רק בטור היחידות, והתוצאה תהיה 5,542' },
     ],
     correctAnswer: 'א',
     targetNode: 'relational_thinking',
@@ -432,32 +439,36 @@ export const SESSION5_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen: מסמך 03 names the task ("ספרה חסרה בטור המחוסר") without numbers.
   skeleton('s5_r_t7', 442, 128, true, { a: ['tens'] },
     'משימת חקר וגילוי ספרה חסרה',
-    'בתרגיל 4▢2 − 128 = 314 חסרה ספרת העשרות של המחוסר. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
+    'בתרגיל 4▢2 − 128 = 314 חסרה ספרת העשרות במספר הראשון. גלו את הספרה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
     { targetNode: 'relational_thinking' }),
 ];
 
 export const SESSION5_GREEN_TASKS: SessionTask[] = [
-  subtraction('s5_g_t1', 5432, 2118, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('5,432 − 2,118', 5432, 2118)),
-  subtraction('s5_g_t2', 6543, 1227, 'פריטה ביחידות עם נוכחות אלפים', S5_SUB('6,543 − 1,227', 6543, 1227)),
+  subtraction('s5_g_t1', 5432, 2118, 'פריטה אחת בטור היחידות בתחום הרבבה (12 − 8 ביחידות)', S5_SUB('5,432 − 2,118', 5432, 2118)),
+  subtraction('s5_g_t2', 6543, 1227, 'פריטה אחת בטור היחידות בתחום הרבבה (13 − 7 ביחידות)', S5_SUB('6,543 − 1,227', 6543, 1227)),
   // ★ owner-approved replacement (3.9.2026): the document's 7,651 − 3,325 borrowed in the units, not the tens.
   // מסמך 03 carries 7,651 − 3,381 since 25.9.2026 (the owner updated it).
   subtraction('s5_g_t3', 7651, 3381, 'פריטה בטור העשרות בלבד', S5_SUB('7,651 − 3,381', 7651, 3381)),
   // ★ owner-approved replacement (3.9.2026): the document's 8,762 − 4,439 borrowed in the units, not the hundreds.
   // מסמך 03 carries 8,762 − 4,932 since 25.9.2026 (the owner updated it).
   subtraction('s5_g_t4', 8762, 4932, 'פריטה בטור המאות בלבד', S5_SUB('8,762 − 4,932', 8762, 4932)),
-  subtraction('s5_g_t5', 6284, 1157, 'פריטה פשוטה בטור היחידות בתחום הרבבה', S5_SUB('6,284 − 1,157', 6284, 1157)),
-  subtraction('s5_g_t6', 3845, 1517, 'פריטה פשוטה ביחידות, כל הספרות שונות מאפס', S5_SUB('3,845 − 1,517', 3845, 1517)),
+  subtraction('s5_g_t5', 6284, 1157, 'פריטה אחת בטור היחידות בתחום הרבבה (14 − 7 ביחידות)', S5_SUB('6,284 − 1,157', 6284, 1157)),
+  subtraction('s5_g_t6', 3845, 1517, 'פריטה אחת בטור היחידות בתחום הרבבה (15 − 7 ביחידות)', S5_SUB('3,845 − 1,517', 3845, 1517)),
   // ★ chosen: מסמך 03 describes an inquiry comparing near exercises, without numbers.
   withOpts({
     id: 's5_g_t7', type: 'small_change',
     titleHe: 'משימת חקר של הרכבי פריטה משתנים',
-    instructionHe: 'השוו בין שני תרגילים קרובים וגלו כיצד פריטה בטור העשרות משפיעה על הטורים הבאים.',
+    instructionHe: 'השוו בין שני תרגילים קרובים: איך פריטה בטור העשרות משפיעה על הטורים הבאים?',
     givenHe: '7,651 − 3,381 = 4,270',
-    questionHe: 'מחליפים רק את ספרת העשרות של המחוסר: 7,691 − 3,381. מה ישתנה?',
+    questionHe: 'מחליפים רק את ספרת העשרות במספר הראשון: 7,691 − 3,381. מה ישתנה?',
     choices: [
-      { id: 'א', textHe: 'לא תידרש יותר פריטה כי 9 עשרות גדולות מ-8 עשרות, והתוצאה תהיה 4,310', correct: true },
-      { id: 'ב', textHe: 'הפריטה מטור המאות תישאר, והתוצאה תהיה 4,210' },
-      { id: 'ג', textHe: 'רק ספרת העשרות בתוצאה תשתנה, והתוצאה תהיה 4,280' },
+      // Owner, 9.10.2026: the three options alike — each says whether a
+      // block is broken and states a result, and the reason is in none. The
+      // wrong ones: breaking a hundred out of habit (4,210), and "nothing is
+      // broken, so nothing changes" (4,270).
+      { id: 'א', textHe: 'לא תהיה פריטה באף טור, והתוצאה תהיה 4,310', correct: true },
+      { id: 'ב', textHe: 'תהיה פריטה מטור המאות, והתוצאה תהיה 4,210' },
+      { id: 'ג', textHe: 'לא תהיה פריטה באף טור, והתוצאה תישאר 4,270' },
     ],
     correctAnswer: 'א',
     targetNode: 'relational_thinking',
@@ -476,33 +487,33 @@ export const SESSION6_REMEDIATION_TASKS: SessionTask[] = [
   subtraction('s6_r_t1', 240, 125, 'ביסוס פריטה פשוטה עם אפס בטור היחידות של המחוסר', S6_SUB('240 − 125', 240, 125), ZERO),
   subtraction('s6_r_t2', 305, 12, 'פריטה פשוטה מטור המאות כאשר טור העשרות ריק', S6_SUB('305 − 12', 305, 12), ZERO),
   subtraction('s6_r_t3', 204, 112, 'פריטה פשוטה מטור המאות לטור העשרות', S6_SUB('204 − 112', 204, 112), ZERO),
-  subtraction('s6_r_t4', 300, 142, 'פריטה כפולה קלאסית דרך אפס בתחום האלף', S6_SUB('300 − 142', 300, 142), ZERO),
-  subtraction('s6_r_t5', 602, 145, 'פריטה כפולה דרך אפס כאשר ספרת היחידות אינה אפס', S6_SUB('602 − 145', 602, 145), ZERO),
-  subtraction('s6_r_t6', 500, 287, 'ביסוס פריטה כפולה בתחום האלף', S6_SUB('500 − 287', 500, 287), ZERO),
+  subtraction('s6_r_t4', 300, 142, 'שתי פריטות, כשבמחוסר יש אפסים בטור העשרות ובטור היחידות', S6_SUB('300 − 142', 300, 142), ZERO),
+  subtraction('s6_r_t5', 602, 145, 'שתי פריטות, כשבמחוסר יש 0 רק בטור העשרות', S6_SUB('602 − 145', 602, 145), ZERO),
+  subtraction('s6_r_t6', 500, 287, 'ביסוס שתי פריטות, כשבמחוסר יש אפסים בטור העשרות ובטור היחידות', S6_SUB('500 − 287', 500, 287), ZERO),
   // ★ chosen (400 − 156 is the grade-ג example in מסמך 05, המטריקס).
   missingResultDigit('s6_r_t7', 400, 156, true, 'tens',
     'משימת חקר וספרה חסרה',
     // Owner, 4.10.2026: build, break when needed, take away — the sentences of
     // the station's other exercises; until then "בצעו את הפריטה בלבנים כדי
     // לגלות אותה" named neither the building nor the taking away the check needs.
-    S6_MISSING_TENS('400 − 156'),
+    S6_MISSING_TENS('400 − 156', 400, 156),
     ZERO),
 ];
 
 export const SESSION6_GREEN_TASKS: SessionTask[] = [
-  subtraction('s6_g_t1', 2045, 1128, 'פריטה כפולה, אחת מהן אל טור מאות ריק', S6_SUB('2,045 − 1,128', 2045, 1128), ZERO),
-  subtraction('s6_g_t2', 3005, 1248, 'פריטה משולשת דרך טורי מאות ועשרות ריקים', S6_SUB('3,005 − 1,248', 3005, 1248), ZERO),
-  subtraction('s6_g_t3', 4000, 1562, 'פריטה משולשת דרך אפסים עוקבים', S6_SUB('4,000 − 1,562', 4000, 1562), ZERO),
-  subtraction('s6_g_t4', 5000, 2345, 'תרגול נוסף של פריטה משולשת', S6_SUB('5,000 − 2,345', 5000, 2345), ZERO),
-  subtraction('s6_g_t5', 6020, 1485, 'פריטה משולשת עם אפסים שאינם רציפים', S6_SUB('6,020 − 1,485', 6020, 1485), ZERO),
-  subtraction('s6_g_t6', 7003, 2845, 'פריטה משולשת עם ספרת יחידות שאינה אפס', S6_SUB('7,003 − 2,845', 7003, 2845), ZERO),
+  subtraction('s6_g_t1', 2045, 1128, 'שתי פריטות, לטור היחידות ולטור המאות, כשבמחוסר יש 0 בטור המאות', S6_SUB('2,045 − 1,128', 2045, 1128), ZERO),
+  subtraction('s6_g_t2', 3005, 1248, 'שלוש פריטות, כשבמחוסר יש אפסים בטור המאות ובטור העשרות', S6_SUB('3,005 − 1,248', 3005, 1248), ZERO),
+  subtraction('s6_g_t3', 4000, 1562, 'שלוש פריטות, כשבמחוסר יש אפסים בטורי המאות, העשרות והיחידות', S6_SUB('4,000 − 1,562', 4000, 1562), ZERO),
+  subtraction('s6_g_t4', 5000, 2345, 'תרגול נוסף של שלוש פריטות, כשבמחוסר יש אפסים בטורי המאות, העשרות והיחידות', S6_SUB('5,000 − 2,345', 5000, 2345), ZERO),
+  subtraction('s6_g_t5', 6020, 1485, 'שלוש פריטות, כשבמחוסר יש אפסים לא סמוכים, בטור המאות ובטור היחידות', S6_SUB('6,020 − 1,485', 6020, 1485), ZERO),
+  subtraction('s6_g_t6', 7003, 2845, 'תרגול נוסף של שלוש פריטות, כשבמחוסר יש אפסים בטור המאות ובטור העשרות', S6_SUB('7,003 − 2,845', 7003, 2845), ZERO),
   // ★ chosen: מסמך 03 names the task ("השלמת ספרות חסרות בשורת המחוסר") without numbers.
   // Owner, 1.10.2026 (D12): a hidden minuend is found by adding back — the
   // instruction no longer sends the child to "the break"; it says what the
   // station's other skeletons say ("בעזרת הלבנים").
   skeleton('s6_g_t7', 6005, 2847, true, { a: ['tens', 'units'] },
     'משימת חקר של השלמת ספרות חסרות בתחום הרבבה',
-    'בתרגיל 6,0▢▢ − 2,847 = 3,158 חסרות שתי ספרות של המחוסר. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות. רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול הפעולה ↺.',
+    'בתרגיל 6,0▢▢ − 2,847 = 3,158 חסרות שתי ספרות במספר הראשון. גלו אותן בעזרת הלבנים. כתבו אותן בתיבות הריקות. רוצים לחזור צעד אחד אחורה? לחצו על כפתור ביטול הפעולה ↺.',
     ZERO),
 ];
 
@@ -524,17 +535,17 @@ export const SESSION7_REMEDIATION_TASKS: SessionTask[] = [
   // ★ chosen: מסמך 03 describes the skeleton without numbers.
   skeleton('s7_r_t2', 314, 254, false, { a: ['units'] },
     'ספרה חסרה אחת בחיבור ללא המרה',
-    'בתרגיל 31▢ + 254 = 568 חסרה ספרת היחידות של המחובר הראשון. גלו אותה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
+    'בתרגיל 31▢ + 254 = 568 חסרה ספרת היחידות במספר הראשון. גלו אותה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
     INQUIRY),
   // ★ chosen.
   skeleton('s7_r_t3', 386, 271, false, { a: ['tens'] },
     'ספרה חסרה בחיבור עם המרה',
-    'בתרגיל 3▢6 + 271 = 657 חסרה ספרת העשרות של המחובר הראשון. גלו את הספרה בעזרת הלבנים וכתבו אותה בתיבה הריקה.',
+    'בתרגיל 3▢6 + 271 = 657 חסרה ספרת העשרות במספר הראשון. גלו את הספרה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
     INQUIRY),
   // ★ chosen. Owner, 1.10.2026 (D12): "בעזרת הלבנים", not "בעזרת הפריטה" (see s6_g_t7).
   skeleton('s7_r_t4', 542, 178, true, { a: ['tens', 'units'] },
     'שתי ספרות חסרות בחיסור עם פריטה',
-    'בתרגיל 5▢▢ − 178 = 364 חסרות ספרת העשרות וספרת היחידות של המחוסר. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 5▢▢ − 178 = 364 חסרות ספרת העשרות וספרת היחידות במספר הראשון. גלו אותן בעזרת הלבנים. כתבו אותן בתיבות הריקות.',
     INQUIRY),
   // ★ chosen: the imaginary learner's error is the one מסמך 03 describes (a forgotten memory-circle carry).
   addition('s7_r_t5', 247, 135,
@@ -548,7 +559,7 @@ export const SESSION7_REMEDIATION_TASKS: SessionTask[] = [
     INQUIRY),
   flexible('s7_r_t7', 150,
     'בעיית חקר פתוחה למחצה של הרכבים משתנים',
-    `מצאו שתי דרכים שונות לייצג את המספר 150 כך שבכל דרך מספר העשרות זוגי. ${FLEX_HOWTO}`,
+    `מצאו שתי דרכים שונות לבנות את המספר 150. בכל דרך יהיו לבני עשרת, ומספר לבני העשרת יהיה זוגי. ${FLEX_HOWTO}`,
     { ...INQUIRY, requireEvenTens: true }),
 ];
 
@@ -560,12 +571,12 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
   // ★ chosen: מסמך 03 describes the skeleton without numbers.
   skeleton('s7_g_t2', 2637, 1554, false, { a: ['hundreds', 'units'] },
     'שתי ספרות חסרות בחיבור עם המרה כפולה',
-    'בתרגיל 2,▢3▢ + 1,554 = 4,191 חסרות שתי ספרות של המחובר הראשון, בטורים שונים. גלו אותן בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 2,▢3▢ + 1,554 = 4,191 חסרות שתי ספרות במספר הראשון, בטורים שונים. גלו אותן בעזרת הלבנים. כתבו אותן בתיבות הריקות.',
     INQUIRY),
   // ★ chosen. Owner, 1.10.2026 (D12): "בעזרת הלבנים", not "בעזרת הפריטה" (see s6_g_t7).
   skeleton('s7_g_t3', 5006, 2847, true, { a: ['hundreds', 'tens', 'units'] },
-    'שלוש ספרות חסרות בחיסור עם פריטה משולשת',
-    'בתרגיל 5,▢▢▢ − 2,847 = 2,159 חסרות שלוש ספרות של המחוסר. גלו את הספרות בעזרת הלבנים וכתבו אותן בתיבות הריקות.',
+    'שלוש ספרות חסרות בחיסור עם שלוש פריטות',
+    'בתרגיל 5,▢▢▢ − 2,847 = 2,159 חסרות שלוש ספרות במספר הראשון. גלו את הספרות בעזרת הלבנים. כתבו אותן בתיבות הריקות.',
     INQUIRY),
   // ★ chosen: the imaginary learner's error is the one מסמך 03 describes: the carry from the hundreds into the
   // thousands was forgotten (7,425 instead of 8,425). The screen no longer states it (owner, 30.9.2026).
@@ -587,14 +598,14 @@ export const SESSION7_GREEN_TASKS: SessionTask[] = [
   {
     ...representation('s7_g_t6', 2730, { thousands: 2, hundreds: 7, tens: 3 },
       'בעיית חקר של ייצוג מינימלי של לבנים',
-      'בבית המספרים יש לבנת אלף אחת, 16 לבני מאה ו-13 לבני עשרת. בכל טור שיש בו 10 לבנים או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור. איזה מספר מייצגות הלבנים עכשיו? כתבו אותו בשורת התוצאה.',
+      'בבית המספרים יש לבנת אלף אחת, 16 לבני מאה ו-13 לבני עשרת. קבצו בכל טור שיש בו 10 לבנים או יותר. לחצו על הכפתור "קבצו 10" שבראש הטור. איזה מספר הלבנים מראות עכשיו? כתבו אותו בשורת התוצאה.',
       INQUIRY),
     initialCounts: { thousands: 1, hundreds: 16, tens: 13 },
   },
   // ★ chosen.
   skeleton('s7_g_t7', 6752, 2827, true, { a: ['hundreds', 'units'] },
     'בעיית חקר של ספרות חסרות משולבות',
-    'בתרגיל 6,▢5▢ − 2,827 = 3,925 חסרות שתי ספרות של המחוסר המקורי. גלו אותן על סמך התוצאה ובעזרת הלבנים בבית המספרים, וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 6,▢5▢ − 2,827 = 3,925 חסרות שתי ספרות במספר הראשון. גלו אותן בעזרת הלבנים. כתבו אותן בתיבות הריקות.',
     INQUIRY),
 ];
 
@@ -613,33 +624,33 @@ export const SESSION8_REMEDIATION_TASKS: SessionTask[] = [
   subtraction('s8_r_t4', 78, 25, 'חיסור ללא פריטה בתחום המאה', S8_SUB('78 − 25'), { scaffoldLevel: 1 }),
   subtraction('s8_r_t5', 53, 18, 'חיסור עם פריטה פשוטה בתחום המאה', S8_SUB('53 − 18'), { scaffoldLevel: 1 }),
   // ★ chosen (owner, 16.9.2026): מסמך 03 §3.8 lists 302 − 145 here, which the learner never met in sessions 4–6,
-  // against the section's own rule. Replaced by session 6 exercise 5 (602 − 145 = 457): the same double
-  // decomposition through a single zero in the tens, so the title stays true and the fading gap can be measured.
-  subtraction('s8_r_t6', 602, 145, 'חיסור עם פריטה כפולה דרך אפס יחיד', S8_SUB('602 − 145'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
+  // against the section's own rule. Replaced by session 6 exercise 5 (602 − 145 = 457): the same two
+  // decompositions with a single zero, in the tens, so the title stays true and the fading gap can be measured.
+  subtraction('s8_r_t6', 602, 145, 'חיסור עם שתי פריטות, כשבמחוסר יש 0 בטור העשרות', S8_SUB('602 − 145'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
   // ★ chosen: reuses 456 + 281 (session 4) as מסמך 03 requires known numbers; the tens digit of an addend is hidden.
   skeleton('s8_r_t7', 456, 281, false, { a: ['tens'] },
     'בעיית חקר של גילוי ספרה חסרה בתחום האלף',
-    'בתרגיל 4▢6 + 281 = 737 חסרה ספרת העשרות של המחובר הראשון. גלו אותה וכתבו אותה בתיבה הריקה.',
+    'בתרגיל 4▢6 + 281 = 737 חסרה ספרת העשרות במספר הראשון. גלו אותה. כתבו אותה בתיבה הריקה.',
     { scaffoldLevel: 1, targetNode: 'relational_thinking' }),
 ];
 
 export const SESSION8_GREEN_TASKS: SessionTask[] = [
   addition('s8_g_t1', 1245, 328, 'חיבור עם המרה אחת בתחום הרבבה', S8_ADD('1,245 + 328'), { scaffoldLevel: 1 }),
   addition('s8_g_t2', 5678, 2453, 'חיבור עם המרה משולשת בתחום הרבבה', S8_ADD('5,678 + 2,453'), { scaffoldLevel: 1 }),
-  subtraction('s8_g_t3', 5432, 2118, 'חיסור עם פריטה פשוטה בתחום הרבבה', S8_SUB('5,432 − 2,118'), { scaffoldLevel: 1 }),
+  subtraction('s8_g_t3', 5432, 2118, 'חיסור עם פריטה אחת בטור היחידות בתחום הרבבה (12 − 8 ביחידות)', S8_SUB('5,432 − 2,118'), { scaffoldLevel: 1 }),
   // ★ chosen (owner, 16.9.2026): מסמך 03 §3.8 lists 4,354 − 1,126 here, never met in sessions 4–6. Replaced by
-  // session 5 exercise 5 (6,284 − 1,157 = 5,127), which the document titles identically: one decomposition, units only.
-  subtraction('s8_g_t4', 6284, 1157, 'חיסור עם פריטה פשוטה בתחום הרבבה', S8_SUB('6,284 − 1,157'), { scaffoldLevel: 1 }),
-  subtraction('s8_g_t5', 4000, 1562, 'חיסור מעל אפסים רציפים בתחום הרבבה', S8_SUB('4,000 − 1,562'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
+  // session 5 exercise 5 (6,284 − 1,157 = 5,127): one decomposition, units only (titles: owner, 9.10.2026, one per exercise).
+  subtraction('s8_g_t4', 6284, 1157, 'חיסור עם פריטה אחת בטור היחידות בתחום הרבבה (14 − 7 ביחידות)', S8_SUB('6,284 − 1,157'), { scaffoldLevel: 1 }),
+  subtraction('s8_g_t5', 4000, 1562, 'חיסור עם שלוש פריטות, כשבמחוסר יש אפסים בטורי המאות, העשרות והיחידות', S8_SUB('4,000 − 1,562'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
   // ★ chosen: reuses 5,678 + 2,453 (session 4); two addend digits hidden.
   skeleton('s8_g_t6', 5678, 2453, false, { a: ['hundreds', 'units'] },
     'בעיית חקר של ספרות חסרות בחיבור',
-    'בתרגיל 5,▢7▢ + 2,453 = 8,131 חסרות שתי ספרות של המחובר הראשון. גלו אותן וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 5,▢7▢ + 2,453 = 8,131 חסרות שתי ספרות במספר הראשון. גלו אותן. כתבו אותן בתיבות הריקות.',
     { scaffoldLevel: 1, targetNode: 'relational_thinking' }),
   // ★ chosen: reuses 4,000 − 1,562 (session 6); three minuend digits hidden.
   skeleton('s8_g_t7', 4000, 1562, true, { a: ['hundreds', 'tens', 'units'] },
     'בעיית חקר של ספרות חסרות בחיסור',
-    'בתרגיל 4,▢▢▢ − 1,562 = 2,438 חסרות שלוש ספרות של המחוסר. גלו אותן וכתבו אותן בתיבות הריקות.',
+    'בתרגיל 4,▢▢▢ − 1,562 = 2,438 חסרות שלוש ספרות במספר הראשון. גלו אותן. כתבו אותן בתיבות הריקות.',
     { scaffoldLevel: 1, targetNode: 'relational_thinking' }),
 ];
 
@@ -650,10 +661,10 @@ export const SESSION8_TASKS: SessionTask[] = SESSION8_GREEN_TASKS;
 export const SOCRATIC_HINTS: Record<string, string> = {
   zero_placeholder: 'מה קורה כשטור מתרוקן לחלוטין? האם אפשר פשוט לדלג עליו כשכותבים את המספר?',
   number_magnitude: 'בדקו אם המספר קרוב יותר להתחלת ישר המספרים, לאמצע שלו או לסוף שלו.',
-  flexible_regrouping: 'האם יש רק דרך אחת לייצג את המספר הזה? נסו לבצע פריטה כדי למצוא דרך נוספת.',
+  flexible_regrouping: 'האם יש רק דרך אחת לבנות את המספר הזה? נסו לפרוט לבנה כדי למצוא דרך נוספת.',
   procedural_fluency: 'האם התשובה שלכם מסתדרת עם מה שאתם כבר יודעים על המספרים? נסו לחשב רק את היחידות קודם.',
   relational_thinking: 'מה קורה למספר כולו כשמשנים רק את ספרת היחידות באחד?',
-  regrouping_fluency: 'אין מספיק יחידות כדי לחסר. מאיפה אפשר לארגן עוד יחידות בבית המספרים מבלי לשנות את הכמות הכוללת?',
+  regrouping_fluency: 'אין מספיק יחידות כדי לחסר. מאיפה אפשר להביא עוד יחידות בבית המספרים, בלי לשנות את המספר?',
   missing_subtrahend: 'אתם יודעים כמה נשאר בסוף. מה אפשר לעשות כדי לגלות כמה חסר באמצע?',
   missing_addend: 'חיבור וחיסור הן פעולות הפוכות. האם אפשר להשתמש בזה כדי למצוא את המספר החסר?',
 };
@@ -679,7 +690,7 @@ export function getDynamicSocraticHint(
       return `ספרתם ${counts.units} יחידות בטור היחידות. האם אפשר לאסוף 10 מהן ולקבץ אותן לעשרת אחת? איך זה ישפיע על הסדר בבית המספרים?`;
     }
     if (counts.tens >= 10) {
-      return `יש לכם ${counts.tens} עשרות בטור העשרות. האם אפשר לקחת 10 מהן ולהמיר אותן למאה אחת?`;
+      return `יש לכם ${counts.tens} עשרות בטור העשרות. האם אפשר לקחת 10 מהן ולקבץ אותן למאה אחת?`;
     }
     if (task?.isSubtraction && task.numberA && task.numberB) {
       const unitsA = task.numberA % 10;
@@ -697,7 +708,7 @@ export function getDynamicSocraticHint(
       const zeroIdx = numStr.indexOf('0');
       const placeName = numStr.length - 1 - zeroIdx === 1 ? 'עשרות' : 'מאות';
       if (counts.tens === 0 && placeName === 'עשרות') {
-        return `שימו לב שאין לבנים בטור העשרות. כשרושמים את המספר, איך מסמנים שהמקום הזה ריק מבלי שהספרות האחרות יזוזו שמאלה?`;
+        return `שימו לב שאין לבנים בטור העשרות. כשרושמים את המספר, איך מסמנים שהמקום הזה ריק, בלי שהספרות האחרות יזוזו שמאלה?`;
       }
     }
   }
@@ -709,8 +720,8 @@ export function getDynamicSocraticHint(
       // Owner, 27.9.2026: the carried digit is not a "שארית". In addition it
       // is an המרה, in subtraction a פריטה — chosen by the exercise's operation.
       return task?.isSubtraction
-        ? 'רשמתם ספרה בתשובה, אך האם ביצעתם פריטה? אם כן, איפה עלינו לרשום אותה בראש התרגיל כדי לא לשכוח?'
-        : 'רשמתם ספרה בתשובה, אך האם ביצעתם המרה? אם כן, איפה עלינו לרשום אותה בראש התרגיל כדי לא לשכוח?';
+        ? 'רשמתם ספרה בתשובה. האם פרטתם לבנה? אם כן, איפה רושמים את זה בראש התרגיל כדי לא לשכוח?'
+        : 'רשמתם ספרה בתשובה. האם קיבצתם 10 לבנים? אם כן, איפה רושמים את ה־1 בראש התרגיל כדי לא לשכוח?';
     }
   }
 
@@ -731,7 +742,7 @@ export const SUPPORT_CONTENT: Record<SupportType, SupportContent> = {
     kind: 'equivalence',
     lines: [
       'הסתכלו על בית המספרים: האם יש בטור כלשהו יותר מ-9 לבנים? מה אפשר לעשות עם זה?',
-      'אין מספיק יחידות לפעולת החיסור? מאיפה אפשר להשיג עוד יחידות מבלי לשנות את המספר עצמו?',
+      'אין מספיק יחידות כדי לחסר? מאיפה אפשר להביא עוד יחידות, בלי לשנות את המספר?',
     ],
   },
 };

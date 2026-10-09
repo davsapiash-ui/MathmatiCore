@@ -28,6 +28,80 @@ export function deletionStatusAfter(failures: readonly string[]): "completed" | 
   return failures.length === 0 ? "completed" : "partial";
 }
 
+/**
+ * §ז: the teacher's dashboard names each reset it asks for (reset_<time>_<random>)
+ * and the server uses that name as the reset_audit_log document id, so the
+ * dashboard can read the outcome when its connection returns.
+ */
+export function isClientResetId(raw: unknown): raw is string {
+  return typeof raw === "string" && /^reset_[A-Za-z0-9_-]{8,100}$/.test(raw);
+}
+
+/** Messages the reset already used, given again for a reset that was already logged. */
+export const RESET_BACKUP_FAILED_HE = "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.";
+export const RESET_DELETION_INCOMPLETE_HE = "הגיבוי נשמר, אך חלק מהנתונים לא נמחקו. ניתן להריץ את האיפוס שוב.";
+export const RESET_ABORTED_AFTER_BACKUP_HE = "הגיבוי נשמר, אך הכנת האיפוס נכשלה, ולכן האיפוס בוטל ולא נמחקו נתונים.";
+export const RESET_STILL_RUNNING_HE = "האיפוס הזה כבר התחיל בשרת ועדיין לא הסתיים. התוצאה תוצג כשהוא יסתיים.";
+
+export type ReplayOutcome =
+  | { kind: "result"; result: Record<string, unknown> }
+  | {
+      kind: "error";
+      code: "unavailable" | "internal" | "failed-precondition" | "permission-denied" | "invalid-argument";
+      message: string;
+      details?: Record<string, unknown>;
+    };
+
+/**
+ * §ז: a request whose reset id is already in reset_audit_log never runs a
+ * second reset. It gets the logged reset's outcome, in the shape the first
+ * request would have had: the success result, or the same refusal.
+ */
+export function replayOutcomeOfEntry(entry: Record<string, unknown>, classId: string): ReplayOutcome {
+  const resetId = String(entry.reset_id ?? "");
+  if (entry.class_id !== classId) {
+    return { kind: "error", code: "permission-denied", message: "אפשר לאפס רק את הכיתה המשויכת לחשבון המחובר. לא נמחקו נתונים." };
+  }
+  if (entry.reset_level === "alerts") {
+    return { kind: "result", result: { status: "SUCCESS", message: "התראות אופסו בהצלחה ותועדו בלוג.", resetId, replayed: true } };
+  }
+  if (entry.reset_level !== "single_student" && entry.reset_level !== "system") {
+    return { kind: "error", code: "invalid-argument", message: "מזהה האיפוס אינו תקין. האיפוס בוטל ולא נמחקו נתונים." };
+  }
+  if (entry.backup_status === "failed") {
+    return { kind: "error", code: "internal", message: RESET_BACKUP_FAILED_HE };
+  }
+  const status = entry.deletion_status;
+  if (status === "in_progress") {
+    // Still deleting, or stopped midway (§ד: the entry then stays 'in_progress').
+    // 'unavailable': the dashboard keeps waiting for the entry's final status.
+    return { kind: "error", code: "unavailable", message: RESET_STILL_RUNNING_HE };
+  }
+  if (status === "partial") {
+    return { kind: "error", code: "internal", message: RESET_DELETION_INCOMPLETE_HE, details: { stage: "deletion_incomplete" } };
+  }
+  if (status === "not_required") {
+    return { kind: "error", code: "failed-precondition", message: RESET_ABORTED_AFTER_BACKUP_HE };
+  }
+  // 'completed' — or an entry from before deletion_status, written after a successful backup.
+  const sideEffectErrors = Array.isArray(entry.side_effect_errors) ? entry.side_effect_errors : [];
+  return {
+    kind: "result",
+    result: {
+      status: "SUCCESS",
+      resetId,
+      replayed: true,
+      backupChannel: entry.backup_channel ?? null,
+      webViewLink: entry.backup_file_url ?? null,
+      deletedRecords: typeof entry.records_deleted_count === "number" ? entry.records_deleted_count : 0,
+      ...(sideEffectErrors.length > 0 ? { sideEffectErrors } : {}),
+      ...(entry.reset_level === "single_student"
+        ? { resetScope: entry.reset_scope ?? null, sessionNumber: entry.session_number ?? null, resetTarget: entry.reset_target ?? null }
+        : {}),
+    },
+  };
+}
+
 /** §ד: one reset per class at a time. */
 export const RESET_LOCK_REFUSAL_HE = "איפוס אחר של הכיתה מתבצע כעת. נסו שוב בעוד רגע. לא נמחקו נתונים.";
 export const RESET_LOCK_COLLECTION = "reset_locks";
@@ -162,5 +236,7 @@ export function exportAuditEntry(input: {
     records_deleted_count: 0,
     session_number: input.sessionNumber,
     deletion_status: "not_required",
+    // §ד / Appendix A: the server time the entry is written, epoch ms.
+    created_at: input.now ?? Date.now(),
   };
 }

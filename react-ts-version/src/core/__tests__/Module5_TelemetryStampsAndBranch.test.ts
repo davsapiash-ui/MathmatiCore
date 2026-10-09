@@ -14,6 +14,9 @@ import {
   nextSequenceNumber,
   resetTelemetryStampForTests,
   DEVICE_ID_STORAGE_KEY,
+  isUuidV4,
+  newTelemetryKey,
+  telemetryDocIdOf,
 } from '@/infrastructure/services/telemetryStamp';
 import { telemetryDocumentOf } from '@/infrastructure/services/IndexedDBQueue';
 import { compareJourneyEvents, describeEvent } from '@/infrastructure/services/LearnerJourneyService';
@@ -90,6 +93,49 @@ describe('the telemetry_logs document', () => {
     const d = telemetryDocumentOf({ idempotency_key: 'k0', client_timestamp: 5, event_type: 'PROBLEM_LOAD', details: {} });
     expect(d.device_id).toBe(getDeviceId());
     expect('sequence_number' in d).toBe(false);
+  });
+});
+
+describe('Module 4: the telemetry_logs id is the idempotency_key, a UUID v4', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('a new key is crypto.randomUUID where it exists', () => {
+    expect(isUuidV4(newTelemetryKey())).toBe(true);
+    vi.stubGlobal('crypto', { randomUUID: () => '11111111-2222-4333-8444-555555555555' });
+    expect(newTelemetryKey()).toBe('11111111-2222-4333-8444-555555555555');
+  });
+
+  it('without randomUUID, or without crypto at all, the key is still a UUID v4', () => {
+    vi.stubGlobal('crypto', { getRandomValues: (b: Uint8Array) => { b.fill(0xff); return b; } });
+    expect(newTelemetryKey()).toBe('ffffffff-ffff-4fff-bfff-ffffffffffff');
+    vi.stubGlobal('crypto', undefined);
+    const keys = new Set(Array.from({ length: 50 }, () => newTelemetryKey()));
+    for (const k of keys) expect(isUuidV4(k)).toBe(true);
+    expect(keys.size).toBe(50);
+  });
+
+  it('the client never falls back to a non-UUID key', () => {
+    const svc = src('infrastructure/services/FirebaseSyncService.ts');
+    expect(svc).not.toContain('`telemetry_${Date.now()}');
+    expect(svc).toContain('const idempotency_key = newTelemetryKey();');
+  });
+
+  it('a UUID v4 key is its own document id; an older non-UUID key maps to a fixed UUID v4 derived from it', () => {
+    const uuid = '0f8fad5b-d9cb-469f-a165-70867728950e';
+    expect(telemetryDocIdOf(uuid)).toBe(uuid);
+    const old = 'telemetry_1700000000000_abc1234';
+    const id = telemetryDocIdOf(old);
+    expect(isUuidV4(id)).toBe(true);
+    expect(telemetryDocIdOf(old)).toBe(id); // every retry: the same document
+    expect(telemetryDocIdOf('telemetry_1700000000000_abc1235')).not.toBe(id);
+    expect(isUuidV4(telemetryDocIdOf(''))).toBe(true);
+  });
+
+  it('the document written carries the id it is written under as its idempotency_key', () => {
+    const id = telemetryDocIdOf('telemetry_1_x');
+    const d = telemetryDocumentOf({ idempotency_key: 'telemetry_1_x', client_timestamp: 5, event_type: 'PROBLEM_LOAD', details: {} }, id);
+    expect(d.idempotency_key).toBe(id);
+    expect(typeof d.synced_at).toBe('number');
   });
 });
 

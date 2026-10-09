@@ -95,13 +95,16 @@ vi.mock('@/presentation/components/student/SessionPausedOverlay', () => ({ Sessi
 vi.mock('@/presentation/components/student/SessionClosedOverlay', () => ({ SessionClosedOverlay: () => null }));
 
 import { StudentWorkspacePage } from '@/features/workspace/StudentWorkspacePage';
-import { useWorkspaceStore, isAdditionExercise, selectStandardTask, SOCRATIC_CORRECT_AUTO_CLOSE_MS } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, isAdditionExercise, selectStandardTask, getActiveTasks, SOCRATIC_CORRECT_AUTO_CLOSE_MS } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useStudentChatOpen } from '@/application/useStudentChatOpen';
 import { useAdditionGridOverCard } from '@/application/useAdditionGridOverCard';
 import { SocraticEngine } from '@/infrastructure/services/SocraticEngine';
 import { CARD_TAB_HE, CARD_TAB_LABEL_HE } from '@/features/workspace/overlays/StudentChatOverlay';
+
+// Each test renders the whole workspace page; on a busy machine that runs past the 5-second default.
+vi.setConfig({ testTimeout: 30_000 });
 
 const STUDENT = 'student_user5';
 const ws = () => useWorkspaceStore.getState();
@@ -230,7 +233,7 @@ describe('rules 1–3: the card open, the grid is its amber tab, in the grid\'s 
 });
 
 describe('rules 4–5, 9–10: the two tabs swap the grid and the card', () => {
-  it('the amber tab shows the grid as it was and folds the card; the card\'s tab brings the card back as it was; no event, nothing saved', async () => {
+  it('the amber tab shows the grid as it was and folds the card; the card\'s tab brings the card back as it was; only the grid\'s two visible changes are logged, nothing saved', async () => {
     await openMeeting4();
     systemOpensGrid();
     const grid = gridEl()!;
@@ -289,8 +292,13 @@ describe('rules 4–5, 9–10: the two tabs swap the grid and the card', () => {
     expect(gridTab()).not.toBeNull();
     expect(within(grid).getByText('7', { selector: 'tbody td:first-child' }).className).toContain('bg-amber-500');
 
-    // rule 9: two swaps wrote no event, no new card, no help request, and saved nothing
-    expect(emitted.length).toBe(eventsBefore);
+    // rule 9: two swaps wrote no help event, no new card, no help request, and
+    // saved nothing. What the learner saw of the grid is logged (PRD 10 §ב):
+    // the tab put it on the screen, the card's tab folded it back.
+    expect(emitted.slice(eventsBefore).map((e) => `${e.event_type}:${e.details.action}:${e.details.source}`)).toEqual([
+      'ADAPTIVE_GRID_TOGGLED:opened:learner',
+      'ADAPTIVE_GRID_TOGGLED:closed:hesitation_30s',
+    ]);
     expect(saved.length).toBe(savedBefore);
     expect(ws().socraticCardHistory.cards.length).toBe(cardsBefore);
     expect(ws().helpRequested).toBe(false);
@@ -555,5 +563,84 @@ describe('every other learner: none of this exists', () => {
     expect(ws().additionHelperOffered).toBe(false);
     expect(gridEvents()).toEqual([]);
     expect(column().className).not.toContain('w-16');
+  });
+});
+
+describe('PRD 10 §א: the grid and its tab at the bottom-left corner of the workspace', () => {
+  it('both are the last item of the representations zone\'s RTL row (its left end), aligned to its bottom', async () => {
+    await openMeeting4();
+    const zone = screen.getByTestId('representations-zone');
+    systemOpensGrid();
+    expect(zone.lastElementChild).toBe(gridEl());
+    expect(gridEl()!.className).toMatch(/(^|\s)self-end(\s|$)/);
+    await openCard();
+    const slot = screen.getByTestId('addition-grid-tab-slot');
+    expect(zone.lastElementChild).toBe(slot);
+    expect(slot.className).toMatch(/(^|\s)self-end(\s|$)/);
+    expect(slot.className).not.toMatch(/(?<![-\w])(fixed|absolute)(?![-\w])/);
+  });
+});
+
+describe('PRD 10 §ב: every open and close the learner sees is one ADAPTIVE_GRID_TOGGLED {action, source} (Appendix A §3)', () => {
+  /** The learner's own X on the grid, once its 2-second fade-in lets it take clicks. */
+  async function closeWithX() {
+    await tick(2500);
+    fireEvent.click(within(gridEl()!).getByRole('button', { name: 'סגירת לוח החיבור' }));
+    await tick(1000);
+  }
+
+  it('the payload: action and source only, no column, on the exercise on the screen', async () => {
+    await openMeeting4();
+    systemOpensGrid();
+    const ev = emitted.find((e) => e.event_type === 'ADAPTIVE_GRID_TOGGLED')!;
+    expect(ev.details).toEqual({ action: 'opened', source: 'hesitation_30s' });
+    expect(ev).not.toHaveProperty('column_index');
+    expect(ev.exercise_id).toBe(selectStandardTask(ws())!.id);
+  });
+
+  it('the card folds the grid (a system close), the card closes and the grid comes back (a system return), the X (the learner\'s close)', async () => {
+    await openMeeting4();
+    systemOpensGrid();
+    await openCard();
+    act(() => { ws().closeHelp(); });
+    expect(gridShown()).toBe(true);
+    await closeWithX();
+    expect(gridEvents()).toEqual(['opened:hesitation_30s', 'closed:hesitation_30s', 'opened:hesitation_30s', 'closed:learner']);
+  });
+
+  it('the grid over the folded card: its X closes it (learner) and the card is shown again', async () => {
+    await openMeeting4();
+    systemOpensGrid();
+    await openCard();
+    fireEvent.click(gridTab()!);
+    await closeWithX();
+    expect(gridEvents()).toEqual(['opened:hesitation_30s', 'closed:hesitation_30s', 'opened:learner', 'closed:learner']);
+  });
+
+  it('an exercise that is not an addition takes the screen: the grid leaves it (closed, on the exercise it was on); the next addition brings it back', async () => {
+    await openMeeting4();
+    const idx = getActiveTasks(ws()).findIndex((t) => !isAdditionExercise(t));
+    expect(idx).toBeGreaterThan(0);
+    const additionId = selectStandardTask(ws())!.id;
+    systemOpensGrid();
+    act(() => { useWorkspaceStore.setState({ standardTaskIdx: idx } as any); });
+    expect(ws().isAdditionHelperOpen).toBe(true);
+    const closed = emitted.filter((e) => e.event_type === 'ADAPTIVE_GRID_TOGGLED')[1];
+    expect(closed.details).toEqual({ action: 'closed', source: 'hesitation_30s' });
+    expect(closed.exercise_id).toBe(additionId);
+    act(() => { useWorkspaceStore.setState({ standardTaskIdx: 0 } as any); });
+    expect(gridShown()).toBe(true);
+    expect(gridEvents()).toEqual(['opened:hesitation_30s', 'closed:hesitation_30s', 'opened:hesitation_30s']);
+  });
+
+  it('no event for what the learner does not see: a second open, the card closing over a closed grid', async () => {
+    await openMeeting4();
+    systemOpensGrid();
+    systemOpensGrid();
+    expect(gridEvents()).toEqual(['opened:hesitation_30s']);
+    await closeWithX();
+    await openCard();
+    act(() => { ws().closeHelp(); });
+    expect(gridEvents()).toEqual(['opened:hesitation_30s', 'closed:learner']);
   });
 });

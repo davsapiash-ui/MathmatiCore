@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { auth, functions } from "@/infrastructure/firebase";
 import { signInAnonymously } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
-import { readLiveMeetingNumber } from "@/application/useActiveClassSession";
+import { claimDeviceOwnership } from "@/application/deviceOwnership";
 
 const ROLES = [
   { id: "student" as const, icon: "🎓", label: "תלמיד" },
@@ -52,14 +52,27 @@ function withinHandshakeTime<T>(promise: Promise<T>, ms: number = STUDENT_HANDSH
   });
 }
 
-export function Login() {
+/**
+ * Screens 1 and 2 of PRD Module 1 §א. On '/login' (Screen 1) the role
+ * buttons; "תלמיד" routes to '/auth' (Screen 2, the learner form — Module 1,
+ * Strict: "'Student' routes strictly to Screen 2 ('/auth')"), which renders
+ * this component with `studentForm`. Its "חזרה לתפריט" goes back to '/login'.
+ */
+export function Login({ studentForm = false }: { studentForm?: boolean } = {}) {
   const { setUser } = useAuthStore();
   const { login } = useStore();
   const navigate = useNavigate();
 
   const schoolsList = PILOT_SCHOOLS;
 
-  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
+  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(studentForm ? "student" : null);
+  // '/login' and '/auth' may render this same instance one after the other
+  // (a router that does not key the two routes): the screen follows the route.
+  const [formRoute, setFormRoute] = useState(studentForm);
+  if (formRoute !== studentForm) {
+    setFormRoute(studentForm);
+    setSelectedRole(studentForm ? "student" : null);
+  }
   const [selectedSchool, setSelectedSchool] = useState<string>("school_bikorot");
 
   const classesForSelectedSchool = PILOT_CLASSES;
@@ -208,18 +221,17 @@ export function Login() {
       login("student", studentUid);
       setIsLoggingIn(false);
 
-      // Deviation 10 & Session Resumption: direct entry to the teacher's live
-      // meeting — live by the lobby's own test (readLiveMeetingNumber).
-      try {
-        const meeting = await readLiveMeetingNumber();
-        if (meeting !== null) {
-          navigate(`/workspace?meeting=${meeting}`, { replace: true });
-          return;
-        }
-      } catch (sessErr) {
-        console.warn('Could not check active_class_session on student login:', sessErr);
-      }
+      // PRD Module 1 §א: "המכשיר שנכנס אחרון הוא הפעיל" — this sign-in makes
+      // this browser the learner's active device. Only here: the lobby and the
+      // workspace read the claim and never make it on a page load.
+      claimDeviceOwnership(studentUid, { now: true }).catch((claimErr) => {
+        console.warn("Device claim on student sign-in:", claimErr);
+      });
 
+      // PRD Module 1 §א: a successful sign-in "מעביר ללובי התלמיד". The lobby
+      // decides from there — a live session swaps it in place to the
+      // station's opening screen (Module 6), a finished station, the
+      // teacher's gate or the projector keep it on their own screen.
       navigate("/hub", { replace: true });
     } catch (err: unknown) {
       console.error("Student Login Error (Invalid code or server rejection):", err);
@@ -367,6 +379,10 @@ export function Login() {
                     <button
                       key={role.id}
                       onClick={() => {
+                        if (role.id === "student") {
+                          navigate("/auth");
+                          return;
+                        }
                         setSelectedRole(role.id);
                         setSelectedStudentNum(1);
                         setStudentPassword("");
@@ -398,6 +414,10 @@ export function Login() {
                   <button
                     type="button"
                     onClick={() => {
+                      if (studentForm) {
+                        navigate("/login");
+                        return;
+                      }
                       setSelectedRole(null);
                       setSelectedStudentNum(1);
                       setStudentPassword("");

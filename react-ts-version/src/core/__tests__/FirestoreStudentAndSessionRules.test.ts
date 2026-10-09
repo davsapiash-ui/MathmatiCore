@@ -150,3 +150,58 @@ describe('מסמך המפגש', () => {
     expect(keysOf(read('../../__tests__/emulator/GateScoreRules.live.test.ts'), 'const completionDoc')).toEqual(clientKeys);
   });
 });
+
+/**
+ * The same three rules run on the real engine in src/__tests__/emulator
+ * (npm run test:rules); these text checks keep them in `npm test`, which the
+ * deploy runs.
+ */
+describe('Module 4 — telemetry_logs, sessions and classes', () => {
+  it('telemetry: synced_at is required and a number; the document id is a UUID v4', () => {
+    const schema = section('function isValidTelemetryDoc', '// 3. Session Document Schema');
+    expect(schema).toContain("('synced_at' in data) && data.synced_at is number");
+    const route = section('match /telemetry_logs/{logId}', '// Authorized Teachers');
+    expect(route).toContain("logId.matches('^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')");
+    // sequence_number stays optional: an event queued before the counter existed.
+    expect(schema).toContain("(!('sequence_number' in data) ||");
+  });
+
+  it('sessions: a learner creates the session document of meeting 2 only', () => {
+    const route = section('match /sessions/{sessionId}', '// Telemetry Logs');
+    const create = route.slice(route.indexOf('allow create'), route.indexOf('allow update'));
+    expect(create).toContain('(isTeacher() || request.resource.data.session_number == 2)');
+  });
+
+  it('classes: updated_at is not a permitted field', () => {
+    const schema = section('function isValidClassDoc', '// Classes & Schools Collections');
+    expect(schema).not.toContain("'updated_at'");
+    expect(schema).toContain("'created_at'");
+  });
+});
+
+/**
+ * PRD 27 §ב.5 (l.1318): a teacher may update the approval fields only. The
+ * update rule let a teacher token change any field the schema allows —
+ * is_completed, active_exercise_id, the session times. The one teacher-side
+ * writer of the collection (core/teacherGate.ts) writes exactly four fields.
+ */
+describe('מסמך המפגש — עדכון של המורה', () => {
+  const APPROVAL = ['teacher_gate_approved', 'gate_approved_at', 'gate_approved_by', 'teacher_selected_path'];
+
+  it('the update rule limits a teacher to the four approval fields', () => {
+    const update = section('match /sessions/{sessionId}', 'allow delete: if false; // Module 23א §ו — see students');
+    const rule = update.slice(update.indexOf('allow update:'));
+    expect(rule).toContain(
+      "(!isTeacher() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teacher_gate_approved', 'gate_approved_at', 'gate_approved_by', 'teacher_selected_path']))"
+    );
+  });
+
+  it('the gate approval (now on the server) writes exactly those four fields', () => {
+    // The approval now runs on the server (functions/src/teacherGate.ts, PRD l.799/803).
+    const gate = readFileSync(resolve(__dirname, '../../../../functions/src/teacherGate.ts'), 'utf-8');
+    const write = gate.slice(gate.indexOf('tx.update(docRef, {'));
+    const body = write.slice(0, write.indexOf('});'));
+    const keys = [...body.matchAll(/^\s*([a-z_]+):/gm)].map((m) => m[1]).sort();
+    expect(keys).toEqual([...APPROVAL].sort());
+  });
+});

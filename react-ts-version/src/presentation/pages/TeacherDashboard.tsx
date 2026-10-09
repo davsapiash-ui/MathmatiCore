@@ -21,7 +21,8 @@ import type { CatchUpAction, CatchUpReasonEntry, CatchUpRecord, UnfinishedLearne
 import { recordCatchUpReasons, subscribeCatchUpRecords } from "@/infrastructure/services/CatchUpService";
 import { CatchUpReasonsDialog } from "./TeacherDashboard/components/CatchUpReasonsDialog";
 import { database, auth, functions, firestore, serverNow, fetchServerClockOffset, isServerClockKnown } from "@/infrastructure/firebase";
-import { doc, onSnapshot, collection, writeBatch, deleteField } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, collection, writeBatch, deleteField } from "firebase/firestore";
+import { activationMirror } from "@/core/classActivationMirror";
 import type { SessionDocument, PedagogicalPath } from "@/types";
 import { httpsCallable } from "firebase/functions";
 import { ensureStaffRoleClaims } from "@/infrastructure/services/staffRoleClaims";
@@ -660,19 +661,40 @@ export function TeacherDashboard() {
       }
 
       // 3. Secondary Firestore atomic batch update for class & student documents (PRD v7.1 Module 14 §ב0)
-      try {
+      //
+      // Not awaited. The RTDB broadcast above is what opens the meeting for
+      // the class; this is a mirror. A Firestore write does not fail while
+      // the server is unreachable — it waits — and awaiting it left the
+      // activation window spinning, with "ביטול" disabled, long after every
+      // learner was already in the meeting: the teacher could not reach
+      // pause or close until she reloaded (live teacher↔learner scenario,
+      // 28.9.2026). The mirror now completes in the background, and a
+      // rejection still tells the teacher.
+      //
+      // The documents are read first: class_type (set by the admin, Module 25)
+      // and students/*.created_at (Appendix A §1) are written only when missing
+      // (core/classActivationMirror.ts). When they cannot be read (offline),
+      // the merge leaves both as they are.
+      const mirrorWrite = async () => {
+        const classRef = doc(firestore, 'classes', classId);
+        const studentRefs = Array.from({ length: 12 }, (_, i) => doc(firestore, 'students', `student_user${i + 1}`));
+        let classDoc: Record<string, unknown> | null | undefined;
+        let studentDocs: Array<Record<string, unknown> | null | undefined> = [];
+        try {
+          const [classSnap, ...studentSnaps] = await Promise.all([classRef, ...studentRefs].map((r) => getDoc(r)));
+          classDoc = classSnap.exists() ? (classSnap.data() as Record<string, unknown>) : null;
+          studentDocs = studentSnaps.map((snap) => (snap.exists() ? (snap.data() as Record<string, unknown>) : null));
+        } catch (readErr) {
+          console.warn('[TeacherDashboard] class documents could not be read before the mirror write:', readErr);
+        }
+        const mirror = activationMirror({
+          classId, schoolId, teacherUid: user?.uid || null, activeSessionId, now, classDoc, studentDocs,
+        });
         const batch = writeBatch(firestore);
         batch.set(
-          doc(firestore, 'classes', classId),
+          classRef,
           {
-            class_id: classId,
-            school_id: schoolId,
-            class_name: 'המבקרים',
-            class_type: 'כיתת ביקורת',
-            teacher_id: user?.uid || 'teacher',
-            active_session_id: activeSessionId,
-            updated_by_teacher_id: user?.uid || null,
-            student_count: 12,
+            ...mirror.classFields,
             // Module 4 lists the class document's fields "strictly"; register
             // deviation 14 adds four, and `updated_at` is not one of them. It
             // was written here on every activation; the copy earlier
@@ -681,40 +703,18 @@ export function TeacherDashboard() {
           },
           { merge: true }
         );
-
-        for (let studentNum = 1; studentNum <= 12; studentNum++) {
-          // Module 19: support_profile_id/version belong to the silent
-          // adaptation flow — stamping fixed values here on every activation
-          // reset any adjusted profile back to its default.
-          batch.set(
-            doc(firestore, 'students', `student_user${studentNum}`),
-            {
-              student_id: studentNum,
-              class_id: classId,
-              school_id: schoolId,
-              created_at: now,
-              active_session_id: activeSessionId,
-            },
-            { merge: true }
-          );
-        }
-        // Not awaited. The RTDB broadcast above is what opens the meeting for
-        // the class; this is a mirror. A Firestore write does not fail while
-        // the server is unreachable — it waits — and awaiting it left the
-        // activation window spinning, with "ביטול" disabled, long after every
-        // learner was already in the meeting: the teacher could not reach
-        // pause or close until she reloaded (live teacher↔learner scenario,
-        // 28.9.2026). The mirror now completes in the background, and a
-        // rejection still tells the teacher.
-        batch.commit().catch((firestoreErr) => {
-          console.warn('[TeacherDashboard] Firestore class session sync failed:', firestoreErr);
-          toast.warning('המפגש שודר לתלמידים, אך עדכון מסמכי הכיתה בשרת נדחה. ודאו שהחשבון משויך לכיתה.');
+        // Module 19: support_profile_id/version belong to the silent
+        // adaptation flow — stamping fixed values here on every activation
+        // reset any adjusted profile back to its default.
+        studentRefs.forEach((studentRef, i) => {
+          batch.set(studentRef, mirror.studentFields.get(i + 1) ?? {}, { merge: true });
         });
-      } catch (firestoreErr) {
-        // Building the batch itself failed (not the server): same warning, no rollback.
+        await batch.commit();
+      };
+      mirrorWrite().catch((firestoreErr) => {
         console.warn('[TeacherDashboard] Firestore class session sync failed:', firestoreErr);
         toast.warning('המפגש שודר לתלמידים, אך עדכון מסמכי הכיתה בשרת נדחה. ודאו שהחשבון משויך לכיתה.');
-      }
+      });
 
       // The listener has usually set the server's stamp already (the SDK raises
       // our own write locally, resolved on the server clock); never overwrite it.
@@ -2178,7 +2178,7 @@ export function TeacherDashboard() {
                     {CONCEPT_LABELS_HE.decimal_structure}
                   </h3>
                   <p className="text-ws-soft mb-4 text-sm leading-relaxed">
-                    תלמידים שהתקשו בקריאה וכתיבה של מספר עם אפס (משימה 1), בערך הספרה (משימה 2), בפירוק מספר לרכיביו (משימה 4) או בחיסור דרך אפס בטור העשרות (משימה 7).
+                    תלמידים שהתקשו בקריאה וכתיבה של מספר עם אפס (משימה 1), בערך הספרה (משימה 2), בפירוק מספר לרכיביו (משימה 4) או בחיסור עם פריטה אחת כשבמחוסר יש 0 בטור העשרות (משימה 7).
                   </p>
                   <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
                     <DataGrid
@@ -2209,7 +2209,7 @@ export function TeacherDashboard() {
                     {CONCEPT_LABELS_HE.regrouping_fluency}
                   </h3>
                   <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
-                    הקבצה: המרת יחידות לעשרות (משימה 5) וחיבור עם המרה (משימה 6). פריטה: חיסור עם פריטה (משימה 3) וחיסור דרך אפס בטור העשרות (משימה 7). "רמת שליטה" מאחדת את ארבע המשימות; שני החלקים מוצגים לצידה.
+                    הקבצה: המרת יחידות לעשרות (משימה 5) וחיבור עם המרה (משימה 6). פריטה: חיסור עם פריטה (משימה 3) וחיסור עם פריטה אחת כשבמחוסר יש 0 בטור העשרות (משימה 7). "רמת שליטה" מאחדת את ארבע המשימות; שני החלקים מוצגים לצידה.
                   </p>
                   <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
                     <DataGrid

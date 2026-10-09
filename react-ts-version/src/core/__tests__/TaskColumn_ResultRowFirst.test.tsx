@@ -49,11 +49,11 @@ describe('meeting 1, the target task', () => {
     expect(heading.textContent).toBe('משימת היכרות: בודקים אם המספר משתנה');
     // PRD 7 §א rule (1): the location is a smaller span than the topic, on the same line.
     expect(screen.getByTestId('task-position').textContent).toBe('משימת היכרות:');
-    expect(goal.textContent).toBe('משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה?');
+    expect(goal.textContent).toBe('משימת היעד: לדעתכם, איזה מספר יהיה בבית המספרים לאחר הפריטה?');
     expect([...steps.querySelectorAll(':scope > li')].map((li) => li.textContent)).toEqual([
       '1בנו את המספר 347 בבית המספרים',
       '2פרטו לבנת עשרת אחת לעשר לבני יחידה',
-      '3כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו',
+      '3כתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו',
     ]);
     // the number the row is checked against is not printed above it in station 1
     expect(screen.queryByTestId('representation-number')).toBeNull();
@@ -82,7 +82,7 @@ describe('meeting 1, the target task', () => {
     const texts = screen.getAllByTestId('speech').map((e) => e.getAttribute('data-text') ?? '');
     const guide = texts.find((t) => t.startsWith('משימת היכרות: בודקים אם המספר משתנה.'));
     expect(guide).toBeTruthy();
-    expect(guide).toContain('משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה? בנו את המספר 347 בבית המספרים.');
+    expect(guide).toContain('משימת היעד: לדעתכם, איזה מספר יהיה בבית המספרים לאחר הפריטה? בנו את המספר 347 בבית המספרים.');
     expect(guide).toContain('בנו את המספר 347 בבית המספרים. פרטו לבנת עשרת אחת לעשר לבני יחידה. כתבו בשורת התוצאה');
   });
 });
@@ -141,7 +141,9 @@ describe('the layout that keeps the row in view (source)', () => {
   });
 
   it('the task card and the centred card of meetings 2 and 8 never grow past the screen', () => {
-    expect(src('features/workspace/tasks/TaskCard.tsx')).toMatch(/id="tour-task-card" className="[^"]*min-h-0[^"]*overflow-y-auto/);
+    // The card is drawn by TaskCardFrame (shared with the teacher's demonstration).
+    expect(src('features/workspace/tasks/TaskCard.tsx')).toContain('<TaskCardFrame id="tour-task-card">');
+    expect(src('features/workspace/tasks/TaskCard.tsx')).toMatch(/function TaskCardFrame[\s\S]*?className="[^"]*min-h-0[^"]*overflow-y-auto/);
     expect(src('features/workspace/StudentWorkspacePage.tsx')).toContain('max-w-3xl flex-none h-auto max-h-full');
   });
 });

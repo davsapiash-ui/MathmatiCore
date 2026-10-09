@@ -85,9 +85,8 @@ export function scrubPII(text: string): string {
   // common word a teacher writes. This function scrubs the teacher-admin chat
   // (Module 22), so "אני צריכה עזרה עם תלמיד 4" reached the other side as
   // "אני [REDACTED_NAME] עם תלמיד 4" and the message was destroyed. It also
-  // protected nothing that the two layers before it do not: the teacher's own
-  // twelve-name map is substituted first, and no name is ever stored anywhere
-  // in the system (Zero-PII).
+  // protected nothing: no name is ever stored anywhere in the system
+  // (Zero-PII), and staff write learner IDs 1–12 only (Module 22 §ב).
   //
   // What replaces it is wider where it matters — every real Hebrew introducer,
   // for oneself and for a third person — and it no longer fires on the middle

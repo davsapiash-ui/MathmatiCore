@@ -56,7 +56,7 @@ export const QMATRIX_ITEMS: QMatrixItem[] = [
     q_id: 'SQ_HESITATION_GENERIC',
     trigger_condition: 'hesitation_timer_expire',
     pedagogical_goal: 'הכוונה בעת השהייה במשימה',
-    question_text: 'מה הצעד הבא שיש לבצע כדי להתקדם בתרגיל?',
+    question_text: 'מה הצעד הבא בתרגיל?',
     options: [
       { id: 'A', text: 'לבחון אם נדרשת פריטה או הקבצה בטור הנוכחי.', is_correct: true },
       { id: 'B', text: 'להקליד תשובה אקראית במקלדת.', is_correct: false },
@@ -81,7 +81,7 @@ export const QMATRIX_ITEMS: QMatrixItem[] = [
     q_id: 'SQ_TASK3_FLEXIBLE_DECOMP',
     trigger_condition: 'task3_flexible_decomp_trigger',
     pedagogical_goal: 'זיהוי ייצוגים שונים של אותו מספר',
-    question_text: 'איך עוד ניתן לייצג את המספר 520 בעזרת פריטה?',
+    question_text: 'איך עוד אפשר לבנות את המספר 520 בעזרת פריטה?',
     options: [
       { id: 'A', text: '4 מאות ו-12 עשרות', is_correct: true },
       { id: 'B', text: '5 מאות ו-12 עשרות', is_correct: false },
@@ -114,7 +114,7 @@ export const QMATRIX_ITEMS: QMatrixItem[] = [
     q_id: 'SQ_TASK6_SUBTRACTION_REGROUPING',
     trigger_condition: 'task6_subtraction_regrouping_trigger',
     pedagogical_goal: 'ביסוס אלגוריתם החיסור עם פריטה',
-    question_text: 'כאשר אין מספיק יחידות לחיסור, מאיפה פורטים?',
+    question_text: 'כשאין מספיק יחידות כדי לחסר, מאיפה פורטים?',
     options: [
       { id: 'A', text: 'פורטים עשרת אחת מטור העשרות ל-10 יחידות.', is_correct: true },
       { id: 'B', text: 'מחברים את המספרים במקום להחסיר.', is_correct: false },
@@ -125,9 +125,9 @@ export const QMATRIX_ITEMS: QMatrixItem[] = [
     q_id: 'SQ_TASK7_MISSING_SUBTRAHEND',
     trigger_condition: 'task7_missing_subtrahend_trigger',
     pedagogical_goal: 'חשיבה אלגברית ומציאת המחסר',
-    question_text: 'כיצד מוצאים את המחסר במשוואה 640 - ? = 425?',
+    question_text: 'איך מוצאים את המספר החסר בתרגיל 640 − ? = 425?',
     options: [
-      { id: 'A', text: 'מחוסר פחות הפרש (640 - 425).', is_correct: true },
+      { id: 'A', text: 'המספר הראשון פחות התוצאה (640 − 425).', is_correct: true },
       { id: 'B', text: 'מחברים את 640 ו-425.', is_correct: false },
     ],
     visual_cue: 'highlight_equation',
@@ -136,9 +136,9 @@ export const QMATRIX_ITEMS: QMatrixItem[] = [
     q_id: 'SQ_TASK8_MISSING_ADDEND',
     trigger_condition: 'task8_missing_addend_trigger',
     pedagogical_goal: 'חשיבה אלגברית ומציאת המחבר',
-    question_text: 'כיצד מוצאים את המחבר במשוואה 380 + ? = 645?',
+    question_text: 'איך מוצאים את המספר החסר בתרגיל 380 + ? = 645?',
     options: [
-      { id: 'A', text: 'סכום פחות מחובר ידוע (645 - 380).', is_correct: true },
+      { id: 'A', text: 'התוצאה פחות המספר הידוע (645 − 380).', is_correct: true },
       { id: 'B', text: 'מחברים את 380 ו-645.', is_correct: false },
     ],
     visual_cue: 'highlight_equation',

@@ -105,17 +105,21 @@ test.describe('WP8 Part A: Full End-to-End Virtual Student Journey (Browser + Fi
     console.log('\n[STEP 5] Submitting Session 8 SRL reflection to Firestore...');
 
     const srlRef = doc(db, 'srl_reflections', 'session_08_student_2');
+    // Appendix A §4 SRLReflectionState field names.
     await setDoc(srlRef, {
-      student_id: 2,
       session_id: 'session_08_student_2',
-      session_number: 8,
-      effort_level: 'HIGH',
-      focus_area: 'regrouping',
+      student_id: 2,
+      reflection_step: 3,
+      effort_score: 'HIGH',
+      selected_strategies: ['UNDO_BUTTON'],
       persistence_index: 85,
+      reflection_completed: true,
+      reflection_updated_at: Date.now(),
+      idempotency_key: 'srl_reflection_session_08_student_2',
+      session_number: 8,
       undo_count: 3,
       error_count: 1,
       guess_count: 0,
-      submitted_at: Date.now()
     });
 
     // Verify Firestore data directly
@@ -127,7 +131,7 @@ test.describe('WP8 Part A: Full End-to-End Virtual Student Journey (Browser + Fi
     expect(sessionData?.session_score_percent).toBe(71.4);
     expect(sessionData?.matrix_recommended_path).toBe('green_path');
     expect(sessionData?.teacher_gate_approved).toBe(true);
-    expect(srlData?.effort_level).toBe('HIGH');
+    expect(srlData?.effort_score).toBe('HIGH');
     expect(srlData?.persistence_index).toBe(85);
 
     console.log('✅ STEP 5 PASSED: Session 8 SRL reflection and Session 2 Mastery verified directly from Firestore database.');

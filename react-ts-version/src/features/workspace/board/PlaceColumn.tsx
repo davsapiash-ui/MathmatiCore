@@ -21,6 +21,17 @@ const COLUMN_COLORS = PLACE_COLORS;
  *  grouping button drops its ✨ and its side padding, so its words fit. */
 const NARROW_COLUMN_SPACE_PX = 92;
 
+/**
+ * The grouping button's caption (PRD 7.4 Module 7 §א): "קבצו 10 לעשרת" on the
+ * units, "קבצו 10 למאה" on the tens, "קבצו 10 לאלף" on the hundreds. One name:
+ * the caption, the tooltip and the accessible name are these words exactly.
+ */
+const GROUP_BUTTON_LABEL_HE: Record<Exclude<Place, 'thousands'>, string> = {
+  units: 'קבצו 10 לעשרת',
+  tens: 'קבצו 10 למאה',
+  hundreds: 'קבצו 10 לאלף',
+};
+
 /** Content-box size of an element, kept current. */
 function useContentSize(ref: React.RefObject<HTMLElement | null>): Size | null {
   const [size, setSize] = useState<Size | null>(null);
@@ -71,6 +82,8 @@ export function PlaceColumn({
     // "Build the number X" built another way (owner, 4.10.2026): the board is right as it stands.
     return builtAnyWay(t, s.counts) || t.isSubtraction === true || t.type === 'flexible_decomp' || (req[place] ?? 0) >= 10;
   });
+  // PRD Module 7 (l.290): on the teacher's projector board the digits stay
+  // shown in every station, because the teacher is demonstrating.
   const digitShown = useWorkspaceStore((s) =>
     s.projectorBoard || columnDigitsShown(s.sessionNumber, getActiveTasks(s)[s.standardTaskIdx]?.id, s.counts)
   );
@@ -106,6 +119,7 @@ export function PlaceColumn({
   // bricks (VRA: the concrete and the symbolic change together).
   const shownCount = count - (regroup && regroup.to === place ? arrivingBlockCount(regroup, place) : 0);
   const isError = errorPlace === place;
+  const groupLabel = place === 'thousands' ? '' : GROUP_BUTTON_LABEL_HE[place];
 
   // Every block the digit counts is on the screen (core/blockLayout.ts).
   const blocksRef = useRef<HTMLDivElement | null>(null);
@@ -196,10 +210,13 @@ export function PlaceColumn({
               crowdingIsTheGoal ? '' : 'animate-pulse hover:animate-none'
             }`}
             style={{ backgroundColor: colors.header }}
-            title={`קבצו 10 לבנים ל${place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}`}
+            // One name per component (PRD 7.4 Module 7 §א): the label, the
+            // tooltip and the accessible name are the same words.
+            title={groupLabel}
+            aria-label={groupLabel}
           >
             {!narrow && <span aria-hidden="true">✨</span>}
-            <span className="min-w-0 text-center">קבצו 10 ל{place === 'units' ? 'עשרת' : place === 'tens' ? 'מאה' : 'אלף'}</span>
+            <span className="min-w-0 text-center">{groupLabel}</span>
           </button>
         </motion.div>
       )}

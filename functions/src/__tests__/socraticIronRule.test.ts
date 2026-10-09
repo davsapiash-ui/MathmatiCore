@@ -108,8 +108,26 @@ describe('שם אחד לכל רכיב: לבנים ובית המספרים', () =
     expect(validateSocraticResponse(card(good)).ok).toBe(true);
   });
 
+  it('"שארית" and "עמודה" are refused — PRD 7.4 Module 13 §א (no "שארית") and Module 7 §א ("טור", not "עמודה")', () => {
+    for (const bad of [
+      'מה עושים עם השארית של טור היחידות?',
+      'כמה שאריות רשמתם בעיגולי הזיכרון?',
+      'כמה לבנים יש בעמודה של העשרות?',
+      'מה רואים בעמודות של בית המספרים?',
+      'כמה לבנים יש בעמודת היחידות?',
+    ]) {
+      expect(findForbiddenTerm([bad]), bad).not.toBeNull();
+      const v = validateSocraticResponse(card(bad));
+      expect(v.ok, bad).toBe(false);
+      if (!v.ok) expect(v.reason, bad).toMatch(/^forbidden terminology/);
+    }
+    for (const good of ['כמה לבנים יש בטור העשרות?', 'מה רושמים בעיגול הזיכרון אחרי ההמרה?', 'מה רושמים בעיגול הזיכרון אחרי הפריטה?']) {
+      expect(findForbiddenTerm([good]), good).toBeNull();
+    }
+  });
+
   it('the new terms are in the list, and the client keeps the same list', () => {
-    for (const term of ['קובי', 'בלוק', 'לוח הדינס', 'לוח הלבנים', 'קנבס']) {
+    for (const term of ['קובי', 'בלוק', 'לוח הדינס', 'לוח הלבנים', 'קנבס', 'שארית', 'שאריות', 'עמודה', 'עמודות', 'עמודת']) {
       expect(FORBIDDEN_TERMS_HE).toContain(term);
     }
     // The client refuses the same words (defence in depth, SocraticEngine.ts):

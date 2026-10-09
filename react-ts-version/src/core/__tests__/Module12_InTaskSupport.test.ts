@@ -39,7 +39,7 @@ describe('Module 12 — a mistake is met inside the exercise, never with an inje
     expect(block).toContain("const incomplete = detail === 'missing_answer' || detail === 'no_choice';");
     expect(block).toContain('if (!incomplete) noteWrongPress(task.id, { holdCard: opts.holdCard });');
     expect(block).not.toContain('injectTask(');
-    // The wrong press itself (noteWrongPress, shared with "הוספת ייצוג", D6).
+    // The wrong press itself (noteWrongPress, shared with "שמירת הדרך", D6).
     const press = store.slice(store.indexOf('function noteWrongPress('), store.indexOf('function socraticCardRefusal('));
     // One help per press (owner, 30.9.2026): the press that brings the result
     // row's place cues holds the card to the next wrong answer (PlaceCueScaffold.test.ts).

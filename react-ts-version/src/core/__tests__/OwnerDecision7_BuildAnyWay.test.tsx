@@ -28,7 +28,7 @@ const s1 = (id: string): SessionTask => SESSION1_TASKS.find((t) => t.id === id)!
 const board = (c: Partial<PlaceCounts>): PlaceCounts => ({ ...EMPTY_COUNTS, ...c });
 
 const CROWDED = '10 לבנים או יותר. מה עושים?';
-const READ_WITH_TEN = 'באחד הטורים יש 10 לבנים או יותר. איך יודעים איזה מספר מייצגות הלבנים?';
+const READ_WITH_TEN = 'באחד הטורים יש 10 לבנים או יותר. איך יודעים איזה מספר הלבנים מראות?';
 const nodeOf = (t: SessionTask) => (t as any).targetNode ?? 'basic_addition_fluency';
 
 afterEach(() => cleanup());

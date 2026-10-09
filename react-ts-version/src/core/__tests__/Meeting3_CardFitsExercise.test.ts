@@ -119,7 +119,7 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
     for (const t of namedBoth) {
       const card = SocraticEngine.getSynchronousTaskHint(t, EMPTY);
       const N = (t.numberA as number).toLocaleString('en-US');
-      expect(card.questionHe, t.id).toBe(`נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר ${N}?`);
+      expect(card.questionHe, t.id).toBe(`נסו לחשוב: באילו לבנים ההוראה מבקשת לבנות את המספר ${N}?`);
     }
   });
 
@@ -128,7 +128,7 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
       const N = t.numberA as number;
       const Nhe = N.toLocaleString('en-US');
       const card = SocraticEngine.getSynchronousTaskHint(t, EMPTY);
-      expect(card.questionHe, t.id).toBe(`נסו לחשוב: באילו לבנים ההנחיה מבקשת לבנות את המספר ${Nhe}?`);
+      expect(card.questionHe, t.id).toBe(`נסו לחשוב: באילו לבנים ההוראה מבקשת לבנות את המספר ${Nhe}?`);
       expect(card.choices, t.id).toHaveLength(3);
       const [correct, ...wrong] = card.choices;
       expect(correct.isCorrect, t.id).toBe(true);
@@ -142,7 +142,7 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
         expect(same(wc!, t.requiredCounts!), `${t.id}: ${w.textHe}`).toBe(false);
         if (value(wc!) === N) {
           expect(w.feedbackHe, `${t.id}: ${w.textHe}`).toContain(`גם זה ${Nhe}`);
-          expect(w.feedbackHe, `${t.id}: ${w.textHe}`).toContain('ההנחיה מבקשת');
+          expect(w.feedbackHe, `${t.id}: ${w.textHe}`).toContain('ההוראה מבקשת');
         }
       }
     }
@@ -163,8 +163,8 @@ describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
 
   it('the fixed hints are guiding questions, and "בדרך הרגילה" is gone (owner, 30.9.2026)', () => {
     const t2 = SocraticEngine.getSynchronousTaskHint(namedBothId('s3_g_t2'), EMPTY);
-    expect(t2.choices[1]).toMatchObject({ textHe: 'משתמשים ב-3 אלפים ו-4 מאות', feedbackHe: 'רמז: גם זה 3,400. באילו לבנים ההנחיה מבקשת לבנות אותו?' });
-    expect(t2.choices[2]).toMatchObject({ textHe: 'משתמשים ב-3,400 יחידות', feedbackHe: 'רמז: גם זה 3,400. האם ההנחיה מבקשת לבנות אותו רק מלבני יחידה?' });
+    expect(t2.choices[1]).toMatchObject({ textHe: 'משתמשים ב-3 אלפים ו-4 מאות', feedbackHe: 'רמז: גם זה 3,400. באילו לבנים ההוראה מבקשת לבנות אותו?' });
+    expect(t2.choices[2]).toMatchObject({ textHe: 'משתמשים ב-3,400 יחידות', feedbackHe: 'רמז: גם זה 3,400. האם ההוראה מבקשת לבנות אותו רק מלבני יחידה?' });
     for (const t of [...tasks, ...namedBoth]) expect(JSON.stringify(SocraticEngine.getSynchronousTaskHint(t, EMPTY)), t.id).not.toContain('בדרך הרגילה');
   });
 

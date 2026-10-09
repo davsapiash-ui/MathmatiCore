@@ -8,10 +8,11 @@ import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { TASKS } from '@/core/QMatrix';
 import { ProgressDots } from './ProgressDots';
 import { CloudSyncStatus } from './CloudSyncStatus';
-import { RotateCcw, MessageSquare, ArrowLeft, Eye, EyeOff, HandHelping } from 'lucide-react';
+import { RotateCcw, MessageSquare, Eye, EyeOff, HandHelping } from 'lucide-react';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
 import { Logo } from '@/presentation/components/ui/Logo';
-import { PROCEED_HE, studentBadgeHe } from '@/core/toolbarNames';
+import { studentBadgeHe } from '@/core/toolbarNames';
+import { ProceedButton } from './ProceedButton';
 
 /**
  * הסרגל העליון של מרחב הפעילות.
@@ -260,19 +261,7 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
         )}
         </span>
 
-        <button
-          onClick={proceed}
-          disabled={!canProceed}
-          className="h-12 px-flw-16-24 rounded-2xl text-base font-display font-extrabold text-white whitespace-nowrap bg-ws-accent hover:brightness-110 active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
-          // Announced by the name it shows (label in name), the name every
-          // sentence uses; it was "מעבר למשימה הבאה", also in meeting 1, whose
-          // steps are not "משימות".
-          title={PROCEED_HE}
-          data-testid="proceed-button"
-        >
-          <span>{PROCEED_HE}</span>
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        <ProceedButton onClick={proceed} disabled={!canProceed} />
 
         {/* Module 1: Clean Synchronous Logout */}
         <LogoutButton className="h-12 px-flw-8-12 rounded-2xl text-sm font-bold whitespace-nowrap text-ws-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 border border-transparent hover:border-red-200" />

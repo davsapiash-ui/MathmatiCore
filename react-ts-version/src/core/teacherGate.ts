@@ -1,19 +1,24 @@
 /**
- * PRD v7.1 Module 20 — Teacher Approval Gate.
+ * PRD Module 20 §ב — Teacher Approval Gate ("שלב החלוקה למסלולים").
  *
  * SessionDocument.teacher_gate_approved on the learner's session-2 document is
- * the SOLE source of truth. Approval writes exactly four fields atomically:
- * teacher_gate_approved, teacher_selected_path, gate_approved_at, gate_approved_by.
+ * the SOLE source of truth. "עם אישור המורה, השרת כותב את האישור למסמך המפגש
+ * ומשקף אותו באותה פעולה לרשומת הלומד" — so the approval is one call to the
+ * server (functions/src/teacherGate.ts, approveTeacherGate), which checks that
+ * the caller is the teacher of the learner's class and writes, with the Admin
+ * SDK, both the session document (teacher_gate_approved, teacher_selected_path,
+ * gate_approved_at, gate_approved_by) and the staff-only mirror on the learner
+ * record (routeStatus, teacher_gate_approved, pedagogicalPath, …) that the
+ * learner's route guard listens to.
  *
  * Every approval surface in the dashboard must go through `approveTeacherGate`
- * so no path can invent its own student-level approval flag.
+ * so no path can invent its own student-level approval flag. The client writes
+ * neither side itself.
  */
 
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { ref, update } from 'firebase/database';
-import { firestore, database } from '@/infrastructure/firebase';
-import { indexedDBQueue } from '@/infrastructure/services/IndexedDBQueue';
-import type { SessionDocument, PedagogicalPath } from '@/types';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/infrastructure/firebase';
+import type { PedagogicalPath } from '@/types';
 import { meetingShortLabelHe } from '@/core/stationNames';
 
 export type GateApprovalResult =
@@ -26,103 +31,50 @@ export function session2DocId(studentId: string): string {
   return `session_02_student_${num}`;
 }
 
+/** The callable's name (functions/src/index.ts). */
+export const APPROVE_TEACHER_GATE_FN = 'approveTeacherGate';
+
+/**
+ * The approval. `_teacherId` is kept for the callers' signature only: the
+ * server records the signed-in caller (request.auth.uid), never an id the
+ * client names.
+ */
 export async function approveTeacherGate(
   studentId: string,
   path: PedagogicalPath,
-  teacherId: string | null
+  _teacherId?: string | null
 ): Promise<GateApprovalResult> {
   const num = String(studentId).replace(/\D/g, '') || '1';
-  const sessionDocRef = doc(firestore, 'sessions', session2DocId(studentId));
-
-  let snap;
   try {
-    snap = await getDoc(sessionDocRef);
+    const call = httpsCallable<{ studentId: string; path: PedagogicalPath }, { ok: boolean }>(functions, APPROVE_TEACHER_GATE_FN);
+    await call({ studentId: String(studentId), path });
+    return { ok: true };
   } catch (err) {
-    console.error('[teacherGate] failed reading SessionDocument:', err);
-    return { ok: false, reason: 'write_failed', message: 'שגיאה בקריאת מסמך המפגש מהשרת.' };
-  }
-
-  // Zero fake approvals: never synthesize a SessionDocument to approve against.
-  if (!snap.exists()) {
-    return {
-      ok: false,
-      reason: 'missing_session_doc',
-      message: `לא נמצא מסמך אבחון (${meetingShortLabelHe(2)}) עבור תלמיד ${num}. לא ניתן לאשר מעבר טרם סיום המפגש בפועל.`,
-    };
-  }
-  if ((snap.data() as SessionDocument).is_completed === false) {
-    return {
-      ok: false,
-      reason: 'not_completed',
-      message: `תלמיד ${num} טרם השלים את כל משימות החובה ב${meetingShortLabelHe(2)}. לא ניתן לאשר מעבר.`,
-    };
-  }
-
-  const now = Date.now();
-  try {
-    // Authoritative write — exactly the four approval fields (Module 20 §ב).
-    await updateDoc(sessionDocRef, {
-      teacher_gate_approved: true,
-      teacher_selected_path: path,
-      gate_approved_at: now,
-      gate_approved_by: teacherId || 'teacher',
-    });
-  } catch (err) {
-    console.error('[teacherGate] failed writing approval:', err);
-    return { ok: false, reason: 'write_failed', message: 'שגיאה בכתיבת האישור לשרת.' };
-  }
-
-  // Mirror to RTDB purely so the student's live listener unlocks within P95 ≤ 1000ms.
-  // This mirror is a transport, never a second source of truth.
-  //
-  // pedagogicalPath is the field the live task engine actually consults:
-  // getActiveTasks() in useWorkspaceStore selects the sessions 3-7 bank from
-  // student.pedagogicalPath, and every RTDB→store hydration path (useStore,
-  // StudentWorkspacePage, FirebaseSyncService) forwards only that name. The
-  // PRD-canonical teacher_selected_path was mirrored here but read by nothing
-  // on the client, so a remediation_path approval never reached the engine
-  // and the learner was always handed the green_path (10,000-range) bank —
-  // exactly what Module 26 forbids ("חל איסור מוחלט על טעינת תרגילים ממאגר
-  // שאינו תואם למסלול המאושר"). Carrying the decision under the engine's own
-  // key makes the gate the initial path assignment; Module 19's later
-  // silent-adaptation override writes the same field at a task boundary,
-  // which is the intended precedence.
-  const mirror = {
-    teacher_gate_approved: true,
-    teacher_selected_path: path,
-    pedagogicalPath: path,
-    gate_approved_at: now,
-    gate_approved_by: teacherId || 'teacher',
-    routeStatus: 'APPROVED',
-  };
-  // The canonical alias (student_user{N}) is the one the learner's live
-  // listener reads — if that write is rejected, the learner stays stuck on
-  // the waiting screen, so it must fail the approval loudly. The legacy
-  // aliases are best-effort back-compat only.
-  const canonicalPath = `users/students/student_user${num}`;
-  try {
-    await update(ref(database, canonicalPath), mirror);
-  } catch (err) {
-    console.error('[teacherGate] canonical RTDB mirror failed:', err);
-    // The approval is already the truth (Firestore). The mirror that
-    // releases the learner’s screen is queued (Module 17) so it lands by
-    // itself when the connection returns — the teacher used to be told to
-    // "try again" while a second click re-read the document and, with the
-    // network still down, failed the same way. The message says what will
-    // happen instead of what to do.
-    // A merge into the learner's record (update), not a child of it.
-    await indexedDBQueue.enqueueRtdbMerge(canonicalPath, { ...mirror }, `gate_mirror_${num}_${now}`).catch(() => {});
+    console.error('[teacherGate] approval failed:', err);
+    const e = err as { code?: string; message?: string; details?: { reason?: string } } | null;
+    const reason = e?.details?.reason;
+    // Zero fake approvals: the server never synthesises a SessionDocument to approve against.
+    if (reason === 'missing_session_doc') {
+      return {
+        ok: false,
+        reason: 'missing_session_doc',
+        message: `לא נמצא מסמך אבחון (${meetingShortLabelHe(2)}) עבור תלמיד ${num}. לא ניתן לאשר מעבר טרם סיום המפגש בפועל.`,
+      };
+    }
+    if (reason === 'not_completed') {
+      return {
+        ok: false,
+        reason: 'not_completed',
+        message: `תלמיד ${num} טרם השלים את כל משימות החובה ב${meetingShortLabelHe(2)}. לא ניתן לאשר מעבר.`,
+      };
+    }
+    // The approval was saved but the learner's screen was not released, or the
+    // caller is refused: the server's own sentence says which.
+    const serverSays = reason === 'mirror_failed' || e?.code === 'functions/permission-denied' || e?.code === 'functions/invalid-argument';
     return {
       ok: false,
       reason: 'write_failed',
-      message: 'האישור נשמר. שחרור מסך התלמיד לא הצליח כרגע בגלל הרשת — הוא יישלח מעצמו ברגע שהחיבור יחזור.',
+      message: serverSays && e?.message ? e.message : 'שגיאה בכתיבת האישור לשרת.',
     };
   }
-  await Promise.all(
-    [`student_${num}`, num].map((alias) =>
-      update(ref(database, `users/students/${alias}`), mirror).catch(() => {})
-    )
-  );
-
-  return { ok: true };
 }

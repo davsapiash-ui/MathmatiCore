@@ -12,8 +12,8 @@ import { reportFromData, FIRST_ATTEMPT_SCORE_LABEL_HE, PREVIOUS_SCORE_LABEL_HE }
 
 /**
  * PRD 14 §ב0 / 23 §ב: the learner report shows the new score and the previous
- * one; measure 1 has one name everywhere; the class report's links are valid
- * for one hour, so the page asks for a fresh one; learning_path is empty in
+ * one; measure 1 has one name everywhere; the class report's links are made
+ * per request, so the page asks for a fresh one; learning_path is empty in
  * meetings 1–2.
  */
 describe('learner report: both scores, one name', () => {
@@ -38,7 +38,7 @@ describe('learner report: both scores, one name', () => {
   });
 });
 
-describe('class report: fresh one-hour links, no path in meetings 1–2', () => {
+describe('class report: fresh per-request links, no path in meetings 1–2', () => {
   it('a stored report has files but keeps no link', () => {
     const r = classReportFromData({ session_number: 3, storage_pdf_path: 'reports/class_1/session_3/a.pdf', storage_csv_path: 'reports/class_1/session_3/a.csv', pdf_url: null, csv_url: null });
     expect(r.hasPdf).toBe(true);

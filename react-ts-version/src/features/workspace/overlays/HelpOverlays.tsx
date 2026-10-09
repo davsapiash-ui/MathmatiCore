@@ -14,7 +14,7 @@ import { orderSocraticChoices } from '@/infrastructure/services/socraticOptionOr
 import { socraticCardTextDetails, socraticOptionKey } from '@/infrastructure/services/socraticCardText';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
-import { MathText } from '../tasks/MathText';
+import { MathText, SentenceLines } from '../tasks/MathText';
 import { joinSpokenSentences } from '../tasks/spokenSentences';
 import { useStudentChatOpen } from '@/application/useStudentChatOpen';
 import { coachingCardKey, showCoachingCard, useIsAdditionGridOverCard } from '@/application/useAdditionGridOverCard';
@@ -96,9 +96,9 @@ export function HelpOverlays() {
  * PRD Module 12 §ב: the card opens "בחלונית צדדית נשלפת (Side Drawer) באגף
  * המשימה והמענה, כך שאגף הייצוגים ומרחב הלבנים הדיגיטליות נשארים גלויים".
  * In the meetings with a number house it is a column inside the task zone
- * (`inTaskZone`, StudentWorkspacePage): the zone keeps its 40% of the row and
- * the task card shares it with the drawer, so the board keeps its 60% (Module 7
- * §א) and nothing covers anything. In meeting 8, which has no board, it slides
+ * (`inTaskZone`, StudentWorkspacePage): the zone keeps its 45% of the row and
+ * the task card shares it with the drawer, so the board keeps its 55% (Module 7
+ * §א; workspaceZones.ts) and nothing covers anything. In meeting 8, which has no board, it slides
  * out beside the centred task card. Nothing about its behaviour changed: the
  * lock on the answer buttons, the read-aloud button, SOCRATIC_CARD_SHOWN /
  * SOCRATIC_OPTION_SELECTED, Escape to close, no focus trap (the keyboard and
@@ -176,6 +176,8 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
     // A card that settles while folded under the chat is not seen yet either.
     if (cardShownRef.current || socraticPending || !aiSocraticHint || classScreenUp || folded) return;
     cardShownRef.current = true;
+    // The teacher's example card (demonstration screen, Module 15 §ג) is no learner's card.
+    if (useWorkspaceStore.getState().projectorBoard) return;
 
     const ws = useWorkspaceStore.getState();
     const studentId = currentStudentUid();
@@ -357,7 +359,7 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
                 </div>
                 <CardTitle inTaskZone={inTaskZone} />
                 <h2 className={`font-display font-black ${inTaskZone ? 'text-[clamp(0.9375rem,2.4vh,1.25rem)]' : 'text-[clamp(0.875rem,2.4vh,1.25rem)]'} text-ws-ink leading-tight`}>
-                  <MathText text={shownCard?.questionHe || 'שאלה מנחה לחשיבה'} />
+                  <SentenceLines text={shownCard?.questionHe || 'שאלה מנחה לחשיבה'} />
                 </h2>
               </div>
 
@@ -472,6 +474,10 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
     setFeedbackHint(opt.hint);
 
     const wsState = useWorkspaceStore.getState();
+    // The teacher's example card (owner, 9.10.2026): the hint and the closing
+    // as the learner sees them, but no event, no record of the answer and no
+    // pause after a wrong option — the teacher goes on at once.
+    if (wsState.projectorBoard) return;
     const studentId = currentStudentUid();
     const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
     const optionKey = socraticOptionKey(opt.id);
@@ -580,7 +586,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
             text={locked ? joinSpokenSentences([feedbackHint, LOCK_SENTENCE_HE]) : feedbackHint}
             className="float-left ms-2 shrink-0"
           />}
-          <div>💡 <MathText text={feedbackHint} /></div>
+          <div>💡 <SentenceLines text={feedbackHint} /></div>
           {locked && (
             // שעון חול עדין ומשפט אחד, בלי מספרים (מודול 12 §ב; ע1.5).
             <div data-testid="socratic-lock-indicator" className="mt-1 flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200">

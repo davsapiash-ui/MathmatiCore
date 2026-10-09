@@ -807,7 +807,7 @@ describe('D5 — the 15-second lockout ends with the exercise', () => {
   });
 });
 
-describe('D6 — station 3\'s "another way": a wrong "הוספת ייצוג" is a wrong press', () => {
+describe('D6 — station 3\'s "another way": a wrong "שמירת הדרך" is a wrong press', () => {
   it('the second wrong press in a row opens the card; a press that records a way breaks the run', async () => {
     const t = byId('s3_g_t7'); // two ways to show 2,100
     load(3, t);
@@ -882,7 +882,7 @@ describe('the child texts of this round (D11a, D11c, D12)', () => {
   it('a hidden minuend is found "בעזרת הלבנים", not by "the break" (s6_g_t7, s7_r_t4, s7_g_t3)', () => {
     for (const id of ['s6_g_t7', 's7_r_t4', 's7_g_t3']) {
       const text = byId(id).instructionHe;
-      expect(text, id).toContain('בעזרת הלבנים וכתבו אותן בתיבות הריקות.');
+      expect(text, id).toContain('בעזרת הלבנים. כתבו אותן בתיבות הריקות.');
       expect(text, id).not.toContain('הפריטה');
     }
   });

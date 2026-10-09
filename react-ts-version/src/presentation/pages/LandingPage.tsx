@@ -1,28 +1,17 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
+import { ArrowLeft, LogIn } from "lucide-react";
 import { useAuthStore } from "@/application/useAuthStore";
-import { motion } from "framer-motion";
-import { Blocks, MessageCircleQuestion, LayoutDashboard, ArrowLeft } from "lucide-react";
 import { Logo } from "@/presentation/components/ui/Logo";
 
-const FEATURES = [
-  {
-    icon: Blocks,
-    title: "בית המספרים",
-    desc: "לבנים של יחידות, עשרות ומאות שגוררים ביד — התלמידים בונים מספרים ומבינים באמת מה זה \"לקבץ\" ו\"לפרוט\".",
-  },
-  {
-    icon: MessageCircleQuestion,
-    title: "כרטיס החניכה",
-    desc: "כרטיס ששואל שאלה מכוונת במקום לתת תשובה, וכך התובנה נשארת של התלמידים.",
-  },
-  {
-    icon: LayoutDashboard,
-    title: "דשבורד מורים",
-    desc: "תמונת מצב פדגוגית בזמן אמת: זיהוי קושי, פערים ודפוסי חשיבה — בלי ציונים מלחיצים לתלמיד.",
-  },
-];
-
+/**
+ * Screen 0 of PRD Module 1 §א: "מסך נחיתה נקי ומזמין עם לחצן התחלה מרכזי
+ * ("מתחילים ללמוד"); בראש המסך כפתור "התחברות למערכת", המוביל גם הוא למסך 1."
+ * The module's design note asks for "שפה חזותית מרגיעה … וצמצום אלמנטים
+ * מסיחים": the logo and the two buttons, nothing else — no background shapes,
+ * no animation, no feature cards, no footer. Both buttons lead to Screen 1
+ * ('/login').
+ */
 export function LandingPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -37,102 +26,29 @@ export function LandingPage() {
   }, [user, navigate]);
 
   return (
-    <div dir="rtl" className="relative min-h-screen bg-gradient-to-br from-ws-bg via-ws-bg to-[hsl(var(--ws-blue-soft)/0.4)] font-body text-ws-ink overflow-hidden selection:bg-[hsl(var(--ws-blue-soft))] selection:text-[hsl(var(--ws-blue))]">
-      {/* Soft gradient orbs for background — minimal visual noise, pleasant aesthetics */}
-      <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[hsl(var(--ws-blue)/0.12)] to-transparent blur-3xl" />
-        <div className="absolute top-[20%] right-[5%] w-[400px] h-[400px] rounded-full bg-gradient-to-bl from-[hsl(var(--ws-accent)/0.08)] to-transparent blur-3xl" />
-        <div className="absolute -bottom-40 -right-20 w-[500px] h-[500px] rounded-full bg-gradient-to-bl from-[hsl(var(--ws-teal)/0.12)] to-transparent blur-3xl" />
-      </div>
-
-      {/* Navbar - Glassmorphic */}
-      <nav className="relative z-10 w-full max-w-6xl mx-auto flex justify-between items-center px-6 py-4 mt-6 rounded-3xl bg-[hsl(var(--ws-surface)/0.6)] backdrop-blur-xl border border-[hsl(var(--ws-surface-2)/0.5)] shadow-[0_4px_30px_rgba(0,0,0,0.03)]">
-        <Logo size="lg" to="/" />
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate("/login")}
-            className="inline-flex items-center px-7 py-2.5 rounded-full font-display font-bold text-white bg-gradient-to-r from-[hsl(var(--ws-blue))] to-[hsl(var(--ws-teal))] shadow-lg shadow-[hsl(var(--ws-blue)/0.25)] hover:shadow-[hsl(var(--ws-blue)/0.4)] hover:brightness-105 active:scale-[0.98] transition-all duration-300"
-          >
-            התחברות למערכת
-          </button>
-        </div>
-      </nav>
-
-      {/* Hero */}
-      <main className="relative z-10 w-full max-w-6xl mx-auto px-6 pt-24 pb-32 flex flex-col items-center text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[hsl(var(--ws-surface)/0.8)] backdrop-blur-md text-[hsl(var(--ws-blue))] font-display font-bold text-sm mb-10 border border-[hsl(var(--ws-blue)/0.15)] shadow-sm"
+    <div dir="rtl" className="min-h-[100dvh] flex flex-col bg-ws-bg font-body text-ws-ink">
+      <header className="w-full max-w-5xl mx-auto flex justify-between items-center gap-4 px-4 sm:px-6 py-4">
+        <Logo size="lg" />
+        <button
+          type="button"
+          onClick={() => navigate("/login")}
+          className="inline-flex items-center gap-2 min-h-[48px] px-5 rounded-xl font-display font-bold text-sm bg-ws-surface text-ws-ink border border-ws-surface2 shadow-sm hover:bg-ws-surface2 active:scale-[0.97] transition-all duration-150 cursor-pointer focus-visible:ring-4 focus-visible:ring-[hsl(var(--ws-blue)/0.4)] focus-visible:outline-none"
         >
-          מערכת למידה מותאמת אישית (UDL)
-        </motion.div>
+          <LogIn className="w-5 h-5" aria-hidden="true" />
+          התחברות למערכת
+        </button>
+      </header>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-          className="font-display font-black text-5xl md:text-7xl lg:text-[5rem] tracking-tight leading-[1.1] mb-8 text-ws-ink"
+      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 pb-16">
+        <button
+          type="button"
+          onClick={() => navigate("/login")}
+          className="inline-flex items-center justify-center gap-3 min-h-[64px] px-10 py-4 rounded-2xl font-display font-extrabold text-xl text-white bg-[hsl(var(--ws-blue))] shadow-md hover:brightness-105 active:scale-[0.97] transition-all duration-150 cursor-pointer focus-visible:ring-4 focus-visible:ring-[hsl(var(--ws-blue)/0.4)] focus-visible:outline-none"
         >
-          ללמוד מתמטיקה
-          <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-l from-[hsl(var(--ws-blue))] to-[hsl(var(--ws-teal))]">
-            עם הידיים ועם הלב
-          </span>
-        </motion.h1>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
-          className="text-xl md:text-2xl text-ws-soft max-w-2xl mb-12 leading-relaxed"
-        >
-          סביבה פדגוגית חמה ומזמינה שבה תלמידים בונים הבנה של ערך המקום צעד אחר
-          צעד — בקצב שלהם, בלי טיימרים ובלי לחץ.
-        </motion.p>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut", delay: 0.3 }}
-        >
-          <button
-            onClick={() => navigate("/login")}
-            className="group relative inline-flex items-center justify-center gap-3 px-10 py-5 rounded-full font-display font-extrabold text-xl text-white overflow-hidden shadow-xl shadow-[hsl(var(--ws-blue)/0.3)] hover:shadow-[hsl(var(--ws-blue)/0.5)] hover:-translate-y-1 active:translate-y-0 transition-all duration-300"
-          >
-            {/* Button Gradient Background */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--ws-blue))] via-[hsl(var(--ws-teal))] to-[hsl(var(--ws-blue))] bg-[length:200%_auto] group-hover:bg-[position:100%_center] transition-all duration-500" />
-            <span className="relative z-10">מתחילים ללמוד</span>
-            <ArrowLeft className="relative z-10 w-6 h-6 group-hover:-translate-x-1 transition-transform duration-300" />
-          </button>
-        </motion.div>
-
-        {/* Feature cards - Glassmorphic */}
-        <div className="grid md:grid-cols-3 gap-8 mt-32 w-full text-right">
-          {FEATURES.map((f, i) => (
-            <motion.div
-              key={f.title}
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-40px" }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.15 }}
-              className="relative p-10 rounded-3xl bg-[hsl(var(--ws-surface)/0.6)] backdrop-blur-xl border border-[hsl(var(--ws-surface-2)/0.6)] shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] transition-all duration-500 group"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[hsl(var(--ws-blue)/0.15)] to-[hsl(var(--ws-teal)/0.15)] flex items-center justify-center mb-8 border border-[hsl(var(--ws-blue)/0.1)] group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500">
-                <f.icon className="w-8 h-8 text-[hsl(var(--ws-blue))]" />
-              </div>
-              <h3 className="font-display font-extrabold text-2xl mb-4 text-ws-ink tracking-tight">{f.title}</h3>
-              <p className="text-ws-soft text-lg leading-relaxed">{f.desc}</p>
-            </motion.div>
-          ))}
-        </div>
+          מתחילים ללמוד
+          <ArrowLeft className="w-6 h-6" aria-hidden="true" />
+        </button>
       </main>
-
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-[hsl(var(--ws-surface-2)/0.5)] bg-[hsl(var(--ws-surface)/0.4)] backdrop-blur-sm py-10 mt-auto text-center text-sm md:text-base font-medium text-ws-soft">
-        מתמטיקאור &copy; — סביבת למידה פדגוגית לערך המקום
-      </footer>
     </div>
   );
 }

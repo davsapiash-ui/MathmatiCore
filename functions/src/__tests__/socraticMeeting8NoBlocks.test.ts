@@ -155,7 +155,7 @@ describe('what the model is told matches the screen', () => {
     }
     expect(SOCRATIC_SYSTEM_INSTRUCTION).toContain('("מקבצים", "פורטים", "משתמשים")');
     // Meeting 8 converts in the memory circle: no grouping verb in its examples.
-    expect(SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS).toContain('("ממירים", "פורטים", "רושמים")');
+    expect(SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS).toContain('("רושמים", "פורטים", "מחברים")');
     expect(SOCRATIC_SYSTEM_INSTRUCTION_NO_BLOCKS).not.toContain('מקבצים');
   });
 

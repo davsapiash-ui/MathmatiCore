@@ -234,7 +234,7 @@ describe('5: a hidden digit the screen shows nowhere', () => {
     expect(revealsHiddenDigit(['מוסיפים 8'], task)).toBe(8);
     expect(revealsHiddenDigit(['נכון מאוד! הספרה שמונה.'], task)).toBe(8);
     expect(revealsHiddenDigit(['7 ועוד ▢ הם 15'], task)).toBeNull();
-    for (const t of ['מה כתוב בהנחיה?', 'כותבים ספרה אחת בכל תיבה', 'רושמים 1 בעיגול הזיכרון', 'מקבצים 10 יחידות לעשרת אחת', 'בודקים את שני המספרים', 'בתרגיל 3▢6 + 271 = 657']) {
+    for (const t of ['מה כתוב בהוראה?', 'כותבים ספרה אחת בכל תיבה', 'רושמים 1 בעיגול הזיכרון', 'מקבצים 10 יחידות לעשרת אחת', 'בודקים את שני המספרים', 'בתרגיל 3▢6 + 271 = 657']) {
       expect(revealsHiddenDigit([t], task)).toBeNull();
     }
     expect(mentionsDigitAnywhere('18', 8)).toBe(false);

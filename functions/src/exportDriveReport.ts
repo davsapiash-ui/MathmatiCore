@@ -27,8 +27,10 @@ import {
   acquireClassResetLock,
   deletionStatusAfter,
   exportAuditEntry,
+  isClientResetId,
   isCompletedReset,
   releaseClassResetLock,
+  replayOutcomeOfEntry,
   writeResetBackup,
   type BackupChannel,
   type DeletionStatus,
@@ -552,6 +554,16 @@ export interface ResetAuditEntry {
   backup_drive_copied_at?: number | null;
   /** Only 'completed' counts as a reset in reports and exports (§ד). */
   deletion_status?: DeletionStatus;
+  /**
+   * Server time the entry was written, epoch ms (PRD 23א §ד, Appendix A).
+   * Entries written before 9.10.2026 hold a Firestore Timestamp here; every
+   * reader takes both (the research export writes either as ISO text).
+   */
+  created_at: number;
+  /** Links to the "הקלטה שהגיעה אחרי האיפוס - …json" files of this reset (§ג). */
+  late_recording_files?: string[];
+  /** Follow-up steps that failed after the deletion (§ד). */
+  side_effect_errors?: string[];
 }
 
 /**
@@ -671,12 +683,48 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   const performedBy = request.auth.uid;
   const rtdb = admin.database();
   const db = admin.firestore();
-  const resetId = `reset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  // PRD 23א §ז: the outcome reaches the teacher when her connection returns.
+  // Her dashboard names the reset (reset_id) and reads reset_audit_log/{id}
+  // when it can; the id is the entry's document id. A request that carries
+  // the id of a reset already logged never runs a second reset: it gets that
+  // reset's outcome.
+  const requestedResetId = request.data?.reset_id;
+  if (requestedResetId !== undefined && requestedResetId !== null && !isClientResetId(requestedResetId)) {
+    throw new HttpsError("invalid-argument", "מזהה האיפוס אינו תקין. האיפוס בוטל ולא נמחקו נתונים.");
+  }
+  const clientNamedReset = isClientResetId(requestedResetId);
+  const resetId = clientNamedReset
+    ? requestedResetId
+    : `reset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  if (clientNamedReset) {
+    const replayed = await replayLoggedReset(db, resetId, class_id);
+    if (replayed) return replayed;
+  }
 
   return resetUnderLock(request, {
     reset_level, reason, student_id, reset_scope, session_number,
-    class_id, reason_note, isClassTarget, performedBy, rtdb, db, resetId,
+    class_id, reason_note, isClassTarget, performedBy, rtdb, db, resetId, clientNamedReset,
   });
+}
+
+/**
+ * §ז: when reset_audit_log already holds an entry under this reset id, the
+ * reset ran (or was refused after its backup) before: its outcome, as a
+ * result or as the same refusal. Null when no entry exists — the reset may run.
+ */
+async function replayLoggedReset(db: admin.firestore.Firestore, resetId: string, classId: string): Promise<Record<string, unknown> | null> {
+  let snap: admin.firestore.DocumentSnapshot;
+  try {
+    snap = await db.collection("reset_audit_log").doc(resetId).get();
+  } catch (err: any) {
+    logger.error(`Reset ${resetId}: reset_audit_log could not be read to check for an earlier run; nothing is done:`, err);
+    throw new HttpsError("aborted", "לא ניתן היה להתחיל את האיפוס כעת. נסו שוב בעוד רגע. לא נמחקו נתונים.");
+  }
+  if (!snap.exists) return null;
+  const outcome = replayOutcomeOfEntry(snap.data() || {}, classId);
+  logger.info(`Reset ${resetId} was already logged; returning its outcome instead of running it again.`);
+  if (outcome.kind === "result") return outcome.result;
+  throw new HttpsError(outcome.code, outcome.message, outcome.details);
 }
 
 /**
@@ -685,7 +733,7 @@ async function runBackupAndReset(request: CallableRequest<any>) {
  * request is validated and its target meeting resolved (those refusals delete
  * nothing), and before anything is collected; released when the reset ends.
  */
-async function withClassResetLock<T>(db: admin.firestore.Firestore, classId: string, resetId: string, fn: () => Promise<T>): Promise<T> {
+async function withClassResetLock<T>(db: admin.firestore.Firestore, classId: string, resetId: string, clientNamedReset: boolean, fn: () => Promise<T>): Promise<T> {
   let locked: boolean;
   try {
     locked = await acquireClassResetLock(db as unknown as LockStore, classId, resetId);
@@ -699,6 +747,12 @@ async function withClassResetLock<T>(db: admin.firestore.Firestore, classId: str
     throw new HttpsError("failed-precondition", RESET_LOCK_REFUSAL_HE, { reason: "reset_in_progress" });
   }
   try {
+    // The same reset id, sent again while the first request still held the
+    // lock: by now that request may have logged it. Never a second run.
+    if (clientNamedReset) {
+      const replayed = await replayLoggedReset(db, resetId, classId);
+      if (replayed) return replayed as T;
+    }
     return await fn();
   } finally {
     await releaseClassResetLock(db as unknown as LockStore, classId, resetId)
@@ -719,12 +773,14 @@ interface ResetContext {
   rtdb: admin.database.Database;
   db: admin.firestore.Firestore;
   resetId: string;
+  /** The dashboard named this reset (reset_id): a repeat of it never runs twice (§ז). */
+  clientNamedReset: boolean;
 }
 
 async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext) {
   const {
     reset_level, reason, student_id, reset_scope, session_number,
-    class_id, reason_note, isClassTarget, performedBy, rtdb, db, resetId,
+    class_id, reason_note, isClassTarget, performedBy, rtdb, db, resetId, clientNamedReset,
   } = ctx;
 
   // Level 1: Alerts only (no destructive workspace/session deletion, but mandatory audit log)
@@ -737,21 +793,20 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
       performed_by_teacher_id: performedBy,
       performed_at: Date.now(),
       class_id,
-      affected_student_ids: /\d/.test(String(student_id ?? ''))
-        ? [parseInt(String(student_id).replace(/\D/g, ''), 10)]
-        : [...ALL_STUDENT_IDS],
+      // §ב.1: "איפוס התראות חל תמיד על כל הכיתה, ואין לו יעד של לומד בודד".
+      // A student_id in the request used to be logged as the only learner
+      // affected, while all twelve learners' alerts were cleared.
+      affected_student_ids: [...ALL_STUDENT_IDS],
       backup_file_url: null,
       backup_status: 'not_required',
       reset_reason: reason,
       reason_note,
       records_deleted_count: 0,
       deletion_status: 'not_required',
+      created_at: Date.now(),
     };
     try {
-      await db.collection("reset_audit_log").doc(resetId).set({
-        ...auditEntry,
-        created_at: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      await db.collection("reset_audit_log").doc(resetId).set(auditEntry);
     } catch (auditErr) {
       logger.error("Failed to write the alerts-reset audit entry; nothing was cleared:", auditErr);
       throw new HttpsError("failed-precondition", "רישום האיפוס ביומן הביקורת נכשל, ולכן האיפוס בוטל. ההתראות לא אופסו.");
@@ -855,7 +910,7 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
   const level2Audit = reset_level === 'single_student'
     ? { reset_scope: singleScope, session_number: activeSessionNumber, reset_target: resetTarget }
     : {};
-  return withClassResetLock(db, class_id, resetId, async () => {
+  return withClassResetLock(db, class_id, resetId, clientNamedReset, async () => {
     const scope = withCatchUpRecords(buildResetScope(reset_level, rawNum, singleScope, activeSessionNumber, resetTarget));
     const performedAt = Date.now();
 
@@ -926,7 +981,7 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
         backup_channel: null,
         deletion_status: 'not_required',
         ...level2Audit,
-        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        created_at: Date.now(),
       }).catch((auditErr) => logger.error("Failed to write the failed-reset audit entry:", auditErr));
       await revertMarkers();
       throw new HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
@@ -981,11 +1036,9 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
       backup_channel: null,
       deletion_status: 'not_required',
       ...level2Audit,
+      created_at: Date.now(),
     };
-    await db.collection("reset_audit_log").doc(resetId).set({
-      ...failedEntry,
-      created_at: admin.firestore.FieldValue.serverTimestamp(),
-    }).catch((auditErr) => logger.error("Failed to write the failed-reset audit entry:", auditErr));
+    await db.collection("reset_audit_log").doc(resetId).set(failedEntry).catch((auditErr) => logger.error("Failed to write the failed-reset audit entry:", auditErr));
 
     await revertMarkers();
     throw new HttpsError("internal", "הגיבוי נכשל. האיפוס בוטל ולא נמחקו נתונים.");
@@ -1017,7 +1070,7 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
         backup_drive_copied_at: null,
         deletion_status: 'not_required',
         ...level2Audit,
-        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        created_at: Date.now(),
       }).catch((auditErr) => logger.error("Failed to write the aborted-reset audit entry:", auditErr));
       throw new HttpsError("failed-precondition", "הגיבוי נשמר, אך הכנת האיפוס נכשלה, ולכן האיפוס בוטל ולא נמחקו נתונים.");
     }
@@ -1043,12 +1096,10 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
     backup_drive_copied_at: null,
     deletion_status: 'in_progress',
     ...level2Audit,
+    created_at: Date.now(),
   };
   try {
-    await auditRef.set({
-      ...auditEntry,
-      created_at: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await auditRef.set(auditEntry);
   } catch (auditErr) {
     logger.error(`Reset ${resetId}: the audit entry could not be written; the reset is aborted before any deletion:`, auditErr);
     await revertMarkers();
@@ -1694,9 +1745,8 @@ export async function collectResetBackup(
     const snap = await rtdb.ref(path).get();
     const value = snap.val();
     backup.realtime_database[path] = value ?? null;
-    // A node with children counts its children (learners, messages, alerts);
-    // a leaf counts as one record; a missing node as zero.
-    const count = !snap.exists() ? 0 : snap.hasChildren() ? snap.numChildren() : 1;
+    // The same unit as records_deleted_count (rtdbRecordCount).
+    const count = rtdbRecordCount(path, snap);
     backup.counts.realtime_database[path] = count;
     backup.counts.total += count;
   }
@@ -1709,6 +1759,28 @@ export async function collectResetBackup(
   }
 
   return backup;
+}
+
+/**
+ * PRD 23א §ד: "records_deleted_count סופר רק רשומות שנמחקו, כלומר מסמכי Cloud
+ * Firestore וצמתי Realtime Database". A scope path that names one node — a
+ * learner's record, recordings or chat under one alias (users/students/<a>,
+ * recordings/<a>, chat_messages/<a>, approved_tasks/<a>) — is one record. A
+ * path that holds many such nodes (the roots a system reset removes:
+ * users/students, chat_messages, radar_alerts, …) counts each node under it as
+ * one. So a learner's record counts once whichever reset deletes it.
+ *
+ * The node's own fields used to be counted instead: a full learner reset of
+ * one record with ten fields reported ten deleted records, while the system
+ * reset counted that same record as one.
+ */
+export function rtdbRecordCount(
+  path: string,
+  snap: { exists(): boolean; hasChildren(): boolean; numChildren(): number }
+): number {
+  if (!snap.exists()) return 0;
+  const holdsManyNodes = !path.includes("/") || path === "users/students";
+  return holdsManyNodes && snap.hasChildren() ? snap.numChildren() : 1;
 }
 
 export interface DeletionCounts {
@@ -1742,13 +1814,20 @@ export async function executeResetDeletion(
   for (const path of scope.rtdbPaths) {
     try {
       const snap = await rtdb.ref(path).get();
-      const count = !snap.exists() ? 0 : snap.hasChildren() ? snap.numChildren() : 1;
+      const count = rtdbRecordCount(path, snap);
       const keepFields = scope.rtdbKeepFields?.[path];
       const kept = keepFields && count > 0 ? pickKeptFields(snap.val(), keepFields) : null;
       // One write either way: the node becomes just its kept fields, or goes.
+      // Either way the record is deleted (PRD 23א §ב.2: "מחיקת רשומת הלומד
+      // כולה"; the settings it keeps are not the record) and counts as one
+      // (rtdbRecordCount).
+      // A record that held nothing but its settings lost nothing: not counted.
       if (kept) await rtdb.ref(path).set(kept);
       else if (count > 0) await rtdb.ref(path).remove();
-      const deleted = count - (kept ? Object.keys(kept).length : 0);
+      const value = snap.val();
+      const lostNothing = kept !== null && value !== null && typeof value === "object" &&
+        Object.keys(value as Record<string, unknown>).length === Object.keys(kept).length;
+      const deleted = lostNothing ? 0 : count;
       counts.realtime_database[path] = deleted;
       counts.total += deleted;
       // The record is gone; the learner's open screen is told to start over
@@ -1909,6 +1988,21 @@ export function isValidExportScope(raw: unknown): boolean {
 }
 
 /**
+ * A meeting-8 reflection under Appendix A §4's field names (SRLReflectionState).
+ * Documents written before 9.10.2026 carry effort_level and submitted_at; they
+ * are read as effort_score and reflection_updated_at. A field the document has
+ * under its own name wins.
+ */
+export function normalizeReflectionFields(raw: Record<string, any>): Record<string, any> {
+  const r: Record<string, any> = { ...raw };
+  if (r.effort_score === undefined && r.effort_level !== undefined) r.effort_score = r.effort_level;
+  if (r.reflection_updated_at === undefined && r.submitted_at !== undefined) r.reflection_updated_at = r.submitted_at;
+  delete r.effort_level;
+  delete r.submitted_at;
+  return r;
+}
+
+/**
  * A Firestore Timestamp (or anything shaped like one, as it comes back from a
  * document or a JSON copy of it), or a Date, as an ISO string; null otherwise.
  */
@@ -1937,11 +2031,41 @@ function csvValue(val: unknown): unknown {
   return val;
 }
 
+/** A field that holds a time: `…_at` (performed_at, created_at, submitted_at, …) or `timestamp`. */
+const TIME_FIELD = /(?:_at|^timestamp)$/;
+
+/**
+ * PRD 24 §ב: "בכל הקבצים חותמות זמן נכתבות כטקסט ISO". csvValue turns a
+ * Firestore Timestamp into ISO text, but most times are stored as epoch
+ * milliseconds — the reset log's performed_at, created_at and
+ * backup_drive_copied_at, a reflection's submitted_at and timestamp — and
+ * reached the file as a thirteen-digit number. A time field that holds a
+ * number is written as ISO text, also inside a nested map (the reset log's
+ * late_recording_drive.<file>.copied_at); anything else is left as it is.
+ * Applied to the rows copied from stored documents (reset log, reflections);
+ * the actions file keeps its raw client_timestamp next to client_time_iso.
+ */
+export function isoTimeFields(row: Record<string, any>): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(row)) out[k] = isoTimeValue(k, v);
+  return out;
+}
+
+function isoTimeValue(key: string, v: unknown): unknown {
+  if (TIME_FIELD.test(key) && typeof v === "number" && Number.isFinite(v) && v > 0) return new Date(v).toISOString();
+  if (Array.isArray(v)) return v.map((x) => isoTimeValue("", x));
+  if (v && typeof v === "object" && Object.getPrototypeOf(v) === Object.prototype) {
+    return isoTimeFields(v as Record<string, any>);
+  }
+  return v;
+}
+
 /**
  * One research-export CSV file (BOM, every cell quoted).
  *
- * Every reset and every export writes `created_at` as a server timestamp. The
- * reset-log file copied it as is, and the cell turned the object into
+ * Every reset and every export used to write `created_at` as a server
+ * timestamp (entries since 9.10.2026 hold epoch ms; older ones keep the
+ * Timestamp, and both reach the file as ISO text). The reset-log file copied it as is, and the cell turned the object into
  * {"_seconds":…,"_nanoseconds":282943000}; the PII gate below read the nine
  * nanosecond digits as an ID number and refused the whole export. The first
  * export worked, and from then on — after any reset or any earlier export —
@@ -2181,7 +2305,7 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         if (/email|performed_by/i.test(k)) continue;
         row[k] = v;
       }
-      return row;
+      return isoTimeFields(row);
     });
 
     // Owner, 2.10.2026: "אני כן רוצה אבל שיהיה תיעוד איפה היו טעויות בלי הורדת
@@ -2350,13 +2474,16 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     // used to be spread wholesale into the CSV, and a reflection is where a
     // child types; the PII check below only knows phone numbers, e-mails and
     // nine-digit ids, so a Hebrew first name passed straight through.
+    // Appendix A §4 (SRLReflectionState) names the columns; a document written
+    // before 9.10.2026 carries effort_level / submitted_at, read into them.
     const REFLECTION_FIELDS = [
-      "student_id", "session_id", "session_number", "effort_level", "selected_strategies",
-      "persistence_index", "undo_count", "error_count", "guess_count", "submitted_at",
+      "student_id", "session_id", "session_number", "reflection_step", "effort_score", "selected_strategies",
+      "persistence_index", "reflection_completed", "reflection_updated_at", "idempotency_key",
+      "undo_count", "error_count", "guess_count",
       "effort", "strategies", "persistenceIndex", "undoCount", "timestamp",
     ] as const;
     const pickReflection = (source: string, id: string, raw: unknown): Record<string, any> => {
-      const r = raw && typeof raw === "object" ? (raw as Record<string, any>) : {};
+      const r = normalizeReflectionFields(raw && typeof raw === "object" ? (raw as Record<string, any>) : {});
       const out: Record<string, any> = { source, reflection_id: id };
       for (const f of REFLECTION_FIELDS) {
         const v = r[f];
@@ -2364,7 +2491,7 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         out[f] = Array.isArray(v) ? v.map(String).join("|") : typeof v === "object" && v !== null ? "" : v;
       }
       if (out.student_id === undefined) out.student_id = studentNumber(r.student?.id ?? r.student_id) ?? "";
-      return out;
+      return isoTimeFields(out);
     };
     const reflectionRows: Record<string, any>[] = [
       ...fsReflections.map(({ id, data }) => pickReflection("firestore", id, data)),
@@ -2443,7 +2570,6 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         sessionNumber: scopedSession,
         now: exportedAt,
       }),
-      created_at: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     logger.info(`Research dataset exported for class ${class_id} (${scopeLabel}): ${files.map((f) => `${f.name}=${f.rows}`).join(", ")}`);
@@ -2492,7 +2618,6 @@ export const logMeetingDownload = onCall(async (request) => {
       sessionNumber: meeting,
       now,
     }),
-    created_at: admin.firestore.FieldValue.serverTimestamp(),
   });
   return { status: "SUCCESS", logId: id };
 });

@@ -4,7 +4,7 @@ import { SESSION_BRANCH_TASKS } from '@/data/sessionBranchTasks';
 import { EMPTY_COUNTS, getValue, type Place, type PlaceCounts } from '@/core/placeValue';
 import { emptyColumnConversions, useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { approvePath } from '@/test/approvedPath';
-import { answerFilled, fmt, guideTicksNow, stickyBuildValue, taskGuide, type GuideTickState } from '@/core/taskGuide';
+import { answerFilled, fmt, guideSpeechHe, guideTicksNow, stickyBuildValue, taskGuide, type GuideTickState } from '@/core/taskGuide';
 import { instructionLines } from '@/core/instructionLines';
 import { session1Checklist } from '@/core/session1Checklist';
 
@@ -95,31 +95,31 @@ describe('every exercise of stations 1 and 3–7 has a guide; stations 2 and 8 k
     const TOPIC: Record<string, string> = {
       s3_r_t1: 'קוראים וכותבים מספרים',
       s3_r_t2: 'פורטים לבנים',
-      s3_r_t3: 'מייצגים מספר בדרכים שונות',
+      s3_r_t3: 'בונים מספר בדרכים שונות',
       s3_r_t4: 'פורטים לבנים',
       s3_r_t5: 'קוראים וכותבים מספרים',
       s3_r_t6: 'פורטים לבנים',
       s3_r_t7: 'מגלים מה חסר',
       s3_g_t1: 'קוראים וכותבים מספרים',
       s3_g_t2: 'פורטים לבנים',
-      s3_g_t3: 'מייצגים מספר בדרכים שונות',
+      s3_g_t3: 'בונים מספר בדרכים שונות',
       s3_g_t4: 'פורטים לבנים',
       s3_g_t5: 'קוראים וכותבים מספרים',
       s3_g_t6: 'פורטים לבנים',
-      s3_g_t7: 'מייצגים מספר בדרכים שונות',
+      s3_g_t7: 'בונים מספר בדרכים שונות',
       s3_g_reinforce_1: 'קוראים וכותבים מספרים',
-      s3_g_reinforce_2: 'מייצגים מספר בדרכים שונות',
-      s3_g_challenge_1: 'מייצגים מספר בדרכים שונות',
+      s3_g_reinforce_2: 'בונים מספר בדרכים שונות',
+      s3_g_challenge_1: 'בונים מספר בדרכים שונות',
       s3_r_reinforce_1: 'קוראים וכותבים מספרים',
-      s3_r_reinforce_2: 'מייצגים מספר בדרכים שונות',
-      s3_r_challenge_1: 'מייצגים מספר בדרכים שונות',
+      s3_r_reinforce_2: 'בונים מספר בדרכים שונות',
+      s3_r_challenge_1: 'בונים מספר בדרכים שונות',
       s7_r_t1: 'מקבצים לבנים',
       s7_r_t2: 'מגלים מה חסר',
       s7_r_t3: 'מגלים מה חסר',
       s7_r_t4: 'מגלים מה חסר',
       s7_r_t5: 'בודקים פתרון',
       s7_r_t6: 'משנים מספר',
-      s7_r_t7: 'מייצגים מספר בדרכים שונות',
+      s7_r_t7: 'בונים מספר בדרכים שונות',
       s7_g_t1: 'מקבצים לבנים',
       s7_g_t2: 'מגלים מה חסר',
       s7_g_t3: 'מגלים מה חסר',
@@ -146,19 +146,22 @@ describe('every exercise of stations 1 and 3–7 has a guide; stations 2 and 8 k
   it('the representative exercises read as the proposal writes them', () => {
     const s5 = taskGuide(byId('s5_r_t2').task, 5)!;
     expect(s5.goalHe).toBe('פתרו במאונך: 53 − 18.');
-    expect(s5.steps.map((s) => s.label)).toEqual(['בנו את המחוסר בבית המספרים', 'הוציאו מבית המספרים את הכמות הנדרשת', 'כתבו את התוצאה בשורת התוצאה']);
+    expect(s5.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים את המספר הראשון, 53', 'הוציאו מבית המספרים את המספר השני, 18', 'כתבו את התוצאה בשורת התוצאה']);
     expect(s5.steps[1].subs).toEqual([
-      'אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור.',
+      'אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו. לחצו על הלבנה, או גררו אותה אל הטור שמימין.',
       'אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.',
     ]);
     expect(s5.correctHe).toBe('נכון! ‏53 − 18 = 35, וגם בבית המספרים נשארו 35.');
     const s4 = taskGuide(byId('s4_r_t2').task, 4)!;
-    expect(s4.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים את 128 ואת 35', 'כתבו את התוצאה בשורת התוצאה']);
+    // Owner, 9.10.2026: the step says "את שני המספרים", as the PRD's station instruction does; the goal line names them.
+    expect(s4.goalHe).toBe('פתרו במאונך: 128 + 35.');
+    expect(s4.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים את שני המספרים', 'כתבו את התוצאה בשורת התוצאה']);
+    expect(guideSpeechHe('', s4, [])).toContain('בנו בבית המספרים את שני המספרים');
     expect(s4.correctHe).toBe('נכון! ‏128 + 35 = 163, וגם בבית המספרים בניתם 163.');
     const s3 = taskGuide(byId('s3_r_t2').task, 3)!;
     expect(s3.topicHe).toBe('פורטים לבנים');
-    expect(s3.goalHe).toBe('איזה מספר מייצגות הלבנים לאחר הפריטה?');
-    expect(s3.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים 3 לבני מאה ו-4 לבני עשרת', 'פרטו לבנת מאה אחת לעשר לבני עשרת', 'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו']);
+    expect(s3.goalHe).toBe('איזה מספר הלבנים מראות לאחר הפריטה?');
+    expect(s3.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים 3 לבני מאה ו-4 לבני עשרת', 'פרטו לבנת מאה אחת לעשר לבני עשרת', 'כתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו']);
     expect(s3.correctHe).toBe('נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 340.');
     const s7 = taskGuide(byId('s7_r_t3').task, 7)!;
     expect(s7.topicHe).toBe('מגלים מה חסר');
@@ -181,7 +184,7 @@ describe('every exercise of stations 1 and 3–7 has a guide; stations 2 and 8 k
     const t8 = taskGuide(SESSION1_TASKS.find((t) => t.id === 's1_t8'), 1)!;
     expect(t8.goalHe).toBe('פתרו: 713 + 94.');
     expect(t8.steps.map((s) => s.label)).toEqual(['בנו בבית המספרים את 713 ואת 94', 'כתבו את התוצאה בשורת התוצאה']);
-    expect(t8.steps[0].subs).toEqual(['כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור.', 'רשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה החדשה.']);
+    expect(t8.steps[0].subs).toEqual(['כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור.', 'אחר כך רשמו בעיגול הזיכרון את ה־1 שעבר לטור הבא.']);
   });
 });
 

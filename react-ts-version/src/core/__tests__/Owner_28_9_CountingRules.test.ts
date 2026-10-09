@@ -188,7 +188,7 @@ describe('Rule 2 — meetings 5–6 ask the child to check each column (owner 28
   // 28.9.2026: the instruction does not decide for the child that nothing needs
   // borrowing. 30.9.2026: it does not say where or how many times either — every
   // subtraction of meetings 5–6 carries the station-1 sentence.
-  const NEW = 'בנו את המחוסר בבית המספרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.';
+  const NEW = 'אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו. לחצו על הלבנה, או גררו אותה אל הטור שמימין. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.';
   it('every subtraction of meetings 5–6 carries it; none says in advance how many times to borrow', () => {
     const subs = allTasks().filter((t) => /^s[56]_/.test(t.id) && t.isSubtraction && !t.hiddenDigits && !t.revealedResultDigits?.length);
     expect(subs.length).toBe(36);
@@ -204,7 +204,7 @@ describe('Rule 2 — meetings 5–6 ask the child to check each column (owner 28
   });
   it('the reinforcement exercise reads in full', () => {
     expect(byId('s6_r_reinforce_1').instructionHe).toBe(
-      `פתרו במאונך: 305 − 102. ${NEW} הוציאו מבית המספרים את הכמות הנדרשת וכתבו את התוצאה בשורת התוצאה.`
+      `פתרו במאונך: 305 − 102. בנו בבית המספרים את המספר הראשון, 305. ${NEW} הוציאו מבית המספרים את המספר השני, 102. כתבו את התוצאה בשורת התוצאה.`
     );
   });
 });

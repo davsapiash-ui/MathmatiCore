@@ -608,3 +608,61 @@ describe('a meeting 2 that already ended by time is not closed by the teacher', 
     expect(h.docs['sessions/session_02_student_6']).toMatchObject({ is_completed: true });
   });
 });
+
+/**
+ * PRD Module 20 §ב: "ההשתקפות ניתנת לכתיבה על ידי צוות בלבד; הלומד אינו יכול
+ * לכתוב אותה". The learner's client no longer writes routeStatus
+ * 'PENDING_TEACHER_APPROVAL' at the seventh answer; the server writes it when
+ * the session-2 document completes — also while meeting 2 stays open.
+ */
+describe('the server, not the learner, puts a finished meeting 2 in the pending state', () => {
+  const completeDoc = (s: number, extra: Record<string, any> = {}) => {
+    h.docs[`sessions/session_02_student_${s}`] = {
+      session_id: `session_02_student_${s}`, class_id: 'class_1', session_number: 2, is_completed: true,
+      teacher_gate_approved: false, teacher_selected_path: null, ...extra,
+    };
+  };
+
+  it('the seventh answer with meeting 2 still open: the completion trigger writes the pending state', async () => {
+    TASKS.forEach((t) => solved(5, t));
+    // What the learner's client writes now: its completion, no gate field.
+    h.rtdb['users/students/student_user5'] = { session_02_completed: true, completedMeeting2: true, highestCompletedMeeting: 2 };
+    completeDoc(5);
+    await fireScoreTrigger('session_02_student_5', { is_completed: false });
+    expect(h.rtdb['users/students/student_user5']).toMatchObject({
+      routeStatus: 'PENDING_TEACHER_APPROVAL',
+      teacher_gate_approved: false,
+      matrix_recommended_path: 'green_path',
+    });
+  });
+
+  it('without telemetry (no score) the learner still waits', async () => {
+    h.rtdb['users/students/student_user6'] = { session_02_completed: true };
+    completeDoc(6);
+    await fireScoreTrigger('session_02_student_6', null);
+    expect(h.rtdb['users/students/student_user6']).toMatchObject({ routeStatus: 'PENDING_TEACHER_APPROVAL', teacher_gate_approved: false });
+    expect(h.docs['sessions/session_02_student_6'].session_score_percent).toBeUndefined();
+  });
+
+  it('an approval already on the record or on the document is never put back to pending', async () => {
+    TASKS.forEach((t) => solved(7, t));
+    h.rtdb['users/students/student_user7'] = { routeStatus: 'APPROVED', teacher_gate_approved: true };
+    completeDoc(7);
+    await fireScoreTrigger('session_02_student_7', { is_completed: false });
+    expect(h.rtdb['users/students/student_user7']).toMatchObject({ routeStatus: 'APPROVED', teacher_gate_approved: true });
+
+    TASKS.forEach((t) => solved(8, t));
+    h.rtdb['users/students/student_user8'] = { session_02_completed: true };
+    completeDoc(8, { teacher_gate_approved: true, teacher_selected_path: 'green_path' });
+    await fireScoreTrigger('session_02_student_8', { is_completed: false });
+    expect(h.rtdb['users/students/student_user8'].routeStatus).toBeUndefined();
+    expect(h.rtdb['users/students/student_user8'].teacher_gate_approved).toBeUndefined();
+  });
+
+  it('meeting 3 does not touch the gate', async () => {
+    h.rtdb['users/students/student_user9'] = { routeStatus: 'APPROVED', teacher_gate_approved: true };
+    h.docs['sessions/session_03_student_9'] = { session_id: 'session_03_student_9', class_id: 'class_1', session_number: 3, is_completed: true };
+    await fireScoreTrigger('session_03_student_9', { is_completed: false });
+    expect(h.rtdb['users/students/student_user9']).toEqual({ routeStatus: 'APPROVED', teacher_gate_approved: true });
+  });
+});

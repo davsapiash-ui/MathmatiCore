@@ -155,7 +155,8 @@ describe('X26 — the audit entry is written first, and a failed write aborts th
     expect(backup).toBeGreaterThanOrEqual(0);
     expect(audit).toBeGreaterThan(backup);
     expect(removal).toBeGreaterThan(audit);
-    expect(h.log.find((l) => l.startsWith('firestore update reset_audit_log/'))).toContain('"records_deleted_count":2');
+    // One learner record deleted: one record (PRD 23א §ד, l.1048), not its two fields.
+    expect(h.log.find((l) => l.startsWith('firestore update reset_audit_log/'))).toContain('"records_deleted_count":1');
   });
 
   it('level 2: when the entry cannot be written, the backup stays and nothing is deleted', async () => {

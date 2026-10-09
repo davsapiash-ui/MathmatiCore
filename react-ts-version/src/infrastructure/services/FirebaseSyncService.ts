@@ -17,7 +17,7 @@ import {
   resetMeetingOf,
   savedSnapshotOfMeeting,
 } from '@/core/meetingCompletion';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { deleteField, doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, getActiveTasks, resolveLearningPath, type WorkspaceInitialization } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
@@ -28,10 +28,10 @@ export const REMOTE_SYNC_WINDOW_MS = 500;
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME, PILOT_CLASS_CAPACITY, DEFAULT_CLASS_TYPE } from '@/core/pilotInstitution';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
-import { throttledRtdbUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
-import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
+import { throttledRtdbUpdate, throttledRtdbChildUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
+import { indexedDBQueue, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
 import { recordRecentTelemetry } from './recentTelemetry';
-import { getDeviceId, nextSequenceNumber } from './telemetryStamp';
+import { getDeviceId, newTelemetryKey, nextSequenceNumber } from './telemetryStamp';
 import type { SessionDocument, PedagogicalPath } from '@/types';
 import {
   type TelemetryPayload,
@@ -342,10 +342,10 @@ export function enforceMaxPayloadBytes(data: Record<string, any>): Record<string
  *    `update` of the record at refPath itself, without the idempotency key.
  *    Every queued RTDB item used to be replayed as a child, so these fields
  *    landed under users/students/{id}/{key}, where nothing reads them.
- * skipFieldsIfGateApproved: when the record is already approved by the
- * teacher (Module 20), those fields are left out, so a late replay of the
- * meeting-2 completion cannot lock the child out again. Only the two gate
- * fields are read, not the learner's whole record.
+ * skipFieldsIfGateApproved (the name items stored by earlier versions carry):
+ * those fields are always left out. They are the gate fields, which only
+ * staff write (Module 20 §ב); a meeting-2 completion queued by an earlier
+ * version still carries them.
  * SERVER_SCORED_FIELDS (the score and the recommended path) are never
  * written from here. Only sessionTrigger.ts computes and mirrors them (PRD
  * Module 20: "בטריגר עצמאי על סיום המפגש"), and the rules refuse a learner
@@ -362,17 +362,13 @@ export async function deliverQueuedRtdbWrite(refPath: string, payload: any, deli
   }
   const { idempotency_key: _key, ...fields } = (payload ?? {}) as Record<string, unknown>;
   if (typeof delivery.completionMarkOf === 'number') await holdMarkWhileResetPending(refPath, delivery.completionMarkOf);
-  const guarded = delivery.skipFieldsIfGateApproved ?? [];
-  if (guarded.length > 0) {
-    // A pre-read that fails because the network is down does not count
-    // toward parking (preReadFailure): the item waits, as the write would.
-    const [approvedSnap, routeSnap] = await Promise.all([
-      get(ref(database, `${refPath}/teacher_gate_approved`)),
-      get(ref(database, `${refPath}/routeStatus`)),
-    ]).catch((err) => { throw preReadFailure(err); });
-    const approved = approvedSnap?.val?.() === true || routeSnap?.val?.() === 'APPROVED';
-    if (approved) for (const field of guarded) delete fields[field];
-  }
+  // The gate fields are staff-only (PRD Module 20 §ב: "ההשתקפות ניתנת לכתיבה
+  // על ידי צוות בלבד"), and the rules refuse a learner write that changes
+  // them. A meeting-2 completion stored on a device by an earlier version
+  // still carries teacher_gate_approved:false and routeStatus
+  // 'PENDING_TEACHER_APPROVAL'; they are left out, so the item is delivered
+  // instead of refused. The server writes the pending state itself.
+  for (const field of delivery.skipFieldsIfGateApproved ?? []) delete fields[field];
   for (const field of SERVER_SCORED_FIELDS) delete fields[field];
   if (Object.keys(fields).length === 0) return;
   await update(ref(database, refPath), fields);
@@ -418,6 +414,13 @@ export function liveMistakeCount(state: {
   const boardChecks = state.boardCheckFailuresTaskId ? state.boardCheckFailures || 0 : 0;
   return Math.max(state.consecutiveErrorCount || 0, boardChecks);
 }
+
+/**
+ * PRD Module 1 §א: "המכשיר הקודם עובר למצב קריאה בלבד". Checked when a
+ * throttled presence or live-state write is sent: none goes out from a device
+ * another device signed in after (application/deviceOwnership.ts).
+ */
+const notSuperseded = (): boolean => !useWorkspaceStore.getState().isSupersededByOtherDevice;
 
 export class FirebaseSyncService {
   private static instance: FirebaseSyncService;
@@ -641,7 +644,7 @@ export class FirebaseSyncService {
       lastPing: serverTimestamp(),
       lastActivityTimestamp: Date.now(),
       hasJoinedSession: true,
-    }).catch(() => {});
+    }, { guard: notSuperseded }).catch(() => {});
     
     this.isInitialLoad = true;
     this.lastSyncedPayloadKey = null;
@@ -1288,10 +1291,10 @@ export class FirebaseSyncService {
       // re-resolved the path, and before the learner record arrived that was
       // the green bank for every learner.
       activeBankPath: state.activeBankPath ?? null,
-      // Register 18 / decision ב: the grid's return tab, and an open grid,
-      // belong to the meeting and survive a reload.
-      additionHelperOffered: Boolean(state.additionHelperOffered),
-      isAdditionHelperOpen: Boolean(state.isAdditionHelperOpen),
+      // Not the addition grid (isAdditionHelperOpen, additionHelperShownOnce):
+      // PRD 10, Strict Developer Instructions — "Manage grid visibility via
+      // local React state decoupled from Firestore write streams". Opening or
+      // closing the grid writes nothing to the record.
       helpRequested: Boolean(state.helpRequested),
       // PRD Module 11: the last actions stay undoable after a reload too
       // (capped at UNDO_STACK_CAP frames; restoreSession already reads it).
@@ -1367,17 +1370,20 @@ export class FirebaseSyncService {
     await set(teacherRef, dataToSave);
   }
 
-  // --- NEW: Sync specific fields to Firebase directly ---
+  // --- Sync specific fields of the learner record ---
+  // PRD Module 18 §ב: client writes to users/students are throttled to one per
+  // 1000ms. These three nodes sit beneath the learner record, so they go
+  // through the record's throttled window (as `<node>/<field>` keys), like
+  // syncTraceData — never around it with a direct update().
   public async syncQMatrix(rawStudentId: string, qMatrixUpdates: Partial<QMatrix>) {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
-    const qMatrixRef = ref(database, `users/students/${studentId}/qMatrixResults`);
-    await update(qMatrixRef, qMatrixUpdates).catch((err) => {
+    await throttledRtdbChildUpdate(`users/students/${studentId}`, 'qMatrixResults', qMatrixUpdates).catch((err) => {
       console.error(`[FirebaseSyncService] Failed to sync Q-Matrix for ${studentId}:`, err);
       throw err;
     });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}/qMatrixResults`), qMatrixUpdates).catch((err) => {
+      await throttledRtdbChildUpdate(`users/students/${rawStudentId}`, 'qMatrixResults', qMatrixUpdates).catch((err) => {
         console.warn(`[FirebaseSyncService] Legacy Q-Matrix mirror notice for ${rawStudentId}:`, err);
       });
     }
@@ -1407,13 +1413,12 @@ export class FirebaseSyncService {
   public async syncConceptMastery(rawStudentId: string, masteryUpdates: any) {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
-    const masteryRef = ref(database, `users/students/${studentId}/conceptMastery`);
-    await update(masteryRef, masteryUpdates).catch((err) => {
+    await throttledRtdbChildUpdate(`users/students/${studentId}`, 'conceptMastery', masteryUpdates).catch((err) => {
       console.error(`[FirebaseSyncService] Failed to sync concept mastery for ${studentId}:`, err);
       throw err;
     });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}/conceptMastery`), masteryUpdates).catch((err) => {
+      await throttledRtdbChildUpdate(`users/students/${rawStudentId}`, 'conceptMastery', masteryUpdates).catch((err) => {
         console.warn(`[FirebaseSyncService] Legacy concept mastery mirror notice for ${rawStudentId}:`, err);
       });
     }
@@ -1422,13 +1427,12 @@ export class FirebaseSyncService {
   public async syncLiveSessionMetrics(rawStudentId: string, metricsUpdates: any) {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
-    const metricsRef = ref(database, `users/students/${studentId}/live_session_metrics`);
-    await update(metricsRef, metricsUpdates).catch((err) => {
+    await throttledRtdbChildUpdate(`users/students/${studentId}`, 'live_session_metrics', metricsUpdates).catch((err) => {
       console.error(`[FirebaseSyncService] Failed to sync live session metrics for ${studentId}:`, err);
       throw err;
     });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}/live_session_metrics`), metricsUpdates).catch((err) => {
+      await throttledRtdbChildUpdate(`users/students/${rawStudentId}`, 'live_session_metrics', metricsUpdates).catch((err) => {
         console.warn(`[FirebaseSyncService] Legacy metrics mirror notice for ${rawStudentId}:`, err);
       });
     }
@@ -1801,10 +1805,8 @@ export class FirebaseSyncService {
     const normUid = `student_user${numStudentId}`;
     const rawStudentUid = `student_${numStudentId}`;
 
-    // 2. Generate UUID idempotency_key
-    const idempotency_key = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `telemetry_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    // 2. Generate the idempotency_key — always a UUID v4 (Module 4; the rules refuse any other id)
+    const idempotency_key = newTelemetryKey();
 
     // 3. Build TelemetryPayload<T>
     const payload: TelemetryPayload<T> = {
@@ -1903,9 +1905,12 @@ export class FirebaseSyncService {
     // Write live snapshot to RTDB for both student aliases — merged into the
     // record's one write per window (PRD 18: at most once per 1000 ms). It used
     // to be a write of its own on every event: ten block drops, ten writes.
-    throttledRtdbUpdate(`users/students/${normUid}`, rtdbLiveUpdate).catch(() => {});
+    // PRD Module 1 §א: a device another device took over is read-only — its
+    // live state no longer reaches the record (its queue still sends, Module 17).
+    const liveGuard = { guard: notSuperseded };
+    throttledRtdbUpdate(`users/students/${normUid}`, rtdbLiveUpdate, liveGuard).catch(() => {});
     if (normUid !== rawStudentUid) {
-      throttledRtdbUpdate(`users/students/${rawStudentUid}`, rtdbLiveUpdate).catch(() => {});
+      throttledRtdbUpdate(`users/students/${rawStudentUid}`, rtdbLiveUpdate, liveGuard).catch(() => {});
     }
 
     // 6. Enqueue into IndexedDB FIFO queue (Module 17) -> syncs to Firestore telemetry_logs
@@ -2037,25 +2042,22 @@ export class FirebaseSyncService {
     // telemetry, and the server trigger (sessionTrigger.ts) then scored the
     // meeting once, on part of it.
     //
-    // 1. RTDB users/students/${studentId} — what the teacher's gate list and
-    // the learner's own waiting screen read. Merged into the record. A late
-    // replay over the teacher's approval must not lock the child out again,
-    // so the two gate fields are left out when the record is already approved
-    // (GATE_PENDING_FIELDS). The approval itself cannot overtake this item:
-    // the teacher approves on the session document, queued right behind it.
-    // The score and path are the server's: sessionTrigger.ts mirrors them
-    // here itself.
+    // 1. RTDB users/students/${studentId} — the learner's own completion,
+    // merged into the record. No gate field: PRD Module 20 §ב, "ההשתקפות
+    // ניתנת לכתיבה על ידי צוות בלבד; הלומד אינו יכול לכתוב אותה". The
+    // server writes the pending routeStatus when the session
+    // document completes (sessionTrigger.ts markGatePending), and the
+    // learner's waiting screen does not wait for it: it reads
+    // session_02_completed / completedMeeting2 / highestCompletedMeeting,
+    // which the learner writes. The score and path are the server's too:
+    // sessionTrigger.ts mirrors them here itself.
     const rtdbPath = `users/students/${studentId}`;
     const rtdbPayload = {
       session_02_completed: true,
-      teacher_gate_approved: false,
-      routeStatus: 'PENDING_TEACHER_APPROVAL',
       updatedAt: now
     };
     await indexedDBQueue
-      .enqueueRtdbMerge(rtdbPath, rtdbPayload, `s2_done_rtdb_${studentId}`, {
-        skipFieldsIfGateApproved: GATE_PENDING_FIELDS,
-      })
+      .enqueueRtdbMerge(rtdbPath, rtdbPayload, `s2_done_rtdb_${studentId}`)
       .catch((e) => console.error('[FirebaseSyncService] Session 2 completion (RTDB) could not be queued:', e));
 
     // 2. Firestore `sessions/${docId}` — the SessionDocument the server scores
@@ -2359,6 +2361,9 @@ export class FirebaseSyncService {
       class_type: classType || DEFAULT_CLASS_TYPE,
       student_count: PILOT_CLASS_CAPACITY,
       created_at: Date.now(),
+      // Module 4: "No other field is permitted" — a copy of `updated_at` left
+      // by an older version is removed, or the rules refuse this merge.
+      updated_at: deleteField(),
     }, { merge: true });
   }
 

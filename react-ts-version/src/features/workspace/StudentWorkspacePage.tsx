@@ -26,7 +26,16 @@ import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { PlaceValueBoard } from './board/PlaceValueBoard';
-import { BOARD_ZONE_FLEX, TASK_ZONE_FLEX, TASK_ZONE_CELL_CLASS } from './workspaceZones';
+import {
+  BOARD_ZONE_CLASS,
+  BOARD_ZONE_FLEX,
+  TASK_ZONE_CLASS,
+  TASK_ZONE_FLEX,
+  TASK_ZONE_INNER_CLASS,
+  WORKSPACE_MAIN_CLASS,
+  WORKSPACE_SURFACE_CLASS,
+} from './workspaceZones';
+import { WorkspaceBackdrop } from './WorkspaceBackdrop';
 
 import { DienesBlock } from './board/DienesBlock';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
@@ -64,6 +73,8 @@ import { isMeeting2CloseUnfinished } from '@/core/meeting2CloseNotice';
 import { ReinforcementOrChallengeScreen } from './overlays/ReinforcementOrChallengeScreen';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { LogoutButton } from '@/presentation/components/ui/LogoutButton';
+import { DeviceSupersededScreen } from '@/presentation/components/student/DeviceSupersededScreen';
+import { useDeviceOwnership } from '@/application/deviceOwnership';
 
 /**
  * How long the workspace waits for the learner's Firebase record before it
@@ -216,83 +227,14 @@ export function StudentWorkspacePage() {
     return () => unsub();
   }, []);
 
-  // WP6 / Chaos Scenario 2: Soft Device Lock (active_device_id writer and real-time takeover listener)
-  const currentDeviceIdRef = useRef<string>(
-    `dev_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`
-  );
+  // WP6 / Chaos Scenario 2: Soft Device Lock (PRD Module 1 §א). This page
+  // only reads users/students/{id}/active_device_id: the device that signed in
+  // last is the active one, and the claim is the sign-in's (Login.tsx). The
+  // page used to draw a new id and claim the learner on every load, so an
+  // older device that refreshed, or whose lobby swapped in here, took the
+  // learner back from the device that had signed in after it.
   const isSupersededRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    if (!normUid) return;
-    const myDevId = currentDeviceIdRef.current;
-    const myClaimTime = Date.now();
-    isSupersededRef.current = false;
-    useWorkspaceStore.getState().setActiveDeviceId(myDevId);
-    useWorkspaceStore.getState().setSupersededByOtherDevice(false);
-
-    // Every page load draws a new id, so until this device's claim has reached
-    // the server the record names an earlier load's device — this tab before a
-    // refresh, or yesterday's visit. That is not a takeover. The claim waits
-    // for the record's write window (PRD 18), and the lobby's "leaving" write
-    // has just used it; locking on the earlier id meanwhile locked the only
-    // device, and the lock's guard on the presence and board writes queued in
-    // the same window then dropped the claim with them: "המשכתם במכשיר אחר"
-    // with no other device, through every refresh (owner, live, 28.9.2026).
-    let active = true;
-    let claimLanded = false;
-    let remoteDevId: string | null = null;
-    const applyOwnership = () => {
-      if (!active) return;
-      // Direct ownership check: if the active device recorded in DB is not me, I am locked
-      if (evaluateDeviceOwnership(remoteDevId, myDevId).isSuperseded) {
-        if (!claimLanded) return;
-        isSupersededRef.current = true;
-        useWorkspaceStore.getState().setSupersededByOtherDevice(true);
-        try {
-          onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).cancel();
-          onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).cancel();
-        } catch {}
-      } else if (remoteDevId === myDevId) {
-        isSupersededRef.current = false;
-        useWorkspaceStore.getState().setSupersededByOtherDevice(false);
-        try {
-          onDisconnect(ref(database, `users/students/${normUid}/isOnline`)).set(false);
-          onDisconnect(ref(database, `users/students/${normUid}/lastPing`)).set(0);
-        } catch {}
-      }
-    };
-
-    // 1. Claim ownership of student session for this device
-    throttledRtdbUpdate(`users/students/${normUid}`, {
-      active_device_id: myDevId,
-      device_claimed_at: myClaimTime,
-    })
-      .then(() => {
-        claimLanded = true;
-        applyOwnership();
-      })
-      .catch(console.error);
-
-    // 2. Real-time listener: Detect if another device took over ownership in DB
-    const studentNodeRef = ref(database, `users/students/${normUid}`);
-    const unsubDevice = onValue(
-      studentNodeRef,
-      (snap) => {
-        if (snap.exists()) {
-          remoteDevId = snap.val()?.active_device_id ?? null;
-          applyOwnership();
-        }
-      },
-      (err) => {
-        console.warn('[StudentWorkspacePage] deviceRef listener notice:', err);
-      }
-    );
-
-    return () => {
-      active = false;
-      unsubDevice();
-    };
-  }, [normUid]);
+  useDeviceOwnership(normUid, isSupersededRef);
 
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
 
@@ -768,8 +710,9 @@ export function StudentWorkspacePage() {
   // the grid and the card on a 1024px screen without squeezing the exercise
   // out of view. Owner's decision, 4.10.2026 — one mechanism, two named tabs,
   // each in its own place, the same on every screen size:
-  //  - the grid's place is this slot; the card's place is its column at the
-  //    edge of the screen. The one that is not shown is a tab in its own
+  //  - the grid's place is this slot, at the bottom-left corner of the
+  //    workspace (PRD 10 §א: "הפינה השמאלית התחתונה של מרחב העבודה"); the
+  //    card's place is its column in the task zone. The one that is not shown is a tab in its own
   //    place, so a swap never moves a tab;
   //  - while the card is open, the card is shown and the grid is its amber
   //    "לוח החיבור" tab beside the card — whenever the grid was offered:
@@ -1170,20 +1113,9 @@ export function StudentWorkspacePage() {
   // the lock's z-50.
   if (isSupersededByOtherDevice) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-ws-bg p-6 font-body text-center" dir="rtl">
+      <DeviceSupersededScreen>
         <CornerCloudSyncStatus />
-        {/* The same quiet card as the lobby, the opening and the end screens
-            (PRD 7 §א: one calm colour code), no emoji. */}
-        <div className="max-w-md w-full bg-ws-surface text-ws-ink border-2 border-ws-surface2 rounded-3xl p-10 shadow-sm space-y-4">
-          <h2 className="font-display font-black text-2xl text-ws-ink">
-            המשכתם במכשיר אחר
-          </h2>
-          <p className="text-base text-ws-soft leading-relaxed">
-            העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה.
-          </p>
-          <UdlSpeechButton text="המשכתם במכשיר אחר. העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה." />
-        </div>
-      </div>
+      </DeviceSupersededScreen>
     );
   }
 
@@ -1476,7 +1408,7 @@ export function StudentWorkspacePage() {
       // Module 15 §ב: under the projector, pause or close screen the workspace
       // is kept as it is and takes no focus, typing or keyboard drag.
       inert={isClassScreenUp || undefined}
-      className="h-[100dvh] w-full overflow-hidden font-body text-ws-ink flex flex-col relative bg-ws-bg"
+      className={`h-[100dvh] w-full overflow-hidden flex flex-col relative ${WORKSPACE_SURFACE_CLASS}`}
     >
       {/* Flat vector background shapes — playful world energy, zero visual noise.
             These were animated (animate-breathe) AND blended (mix-blend-multiply).
@@ -1489,34 +1421,30 @@ export function StudentWorkspacePage() {
             5% opacity, so they stay exactly as they look — just static and
             unblended, which restores a smooth 60fps and makes block dragging
             responsive again. */}
-        <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full bg-indigo-500/5" />
-          <div className="absolute -bottom-32 -right-20 w-[380px] h-[380px] rounded-full bg-teal-500/5" />
-          <div className="absolute top-[30%] right-[42%] w-16 h-16 rounded-2xl rotate-12 bg-blue-500/5" />
-        </div>
+        <WorkspaceBackdrop />
 
         <WorkspaceTopbar isDragging={activeDrag !== null} />
 
         {/* PRD Module 7 §א, "חלוקת מסך הלומד": under the top bar, the
-            representations zone (the number house and its blocks) takes 60% of
+            representations zone (the number house and its blocks) takes 55% of
             the width, on the visual left, and the task-and-response zone (the
-            task card, the result row and the coaching card) takes 40%, on the
-            right. Stations 2 and 8 have no number house: their task card stays
-            centred. */}
-        <main className={`flex flex-row flex-1 overflow-hidden p-fl-10-20 gap-fl-10-20 w-full box-border ${hasBoard ? '' : 'max-w-[1600px] mx-auto justify-center items-center'}`}>
+            task card, the result row and the coaching card) takes 45%, on the
+            right (workspaceZones.ts). Stations 2 and 8 have no number house:
+            their task card stays centred. */}
+        <main className={`${WORKSPACE_MAIN_CLASS} ${hasBoard ? '' : 'max-w-[1600px] mx-auto justify-center items-center'}`}>
           {hasBoard ? (
             <>
-              {/* The task-and-response zone, 40% (RTL: first in the row, so on
+              {/* The task-and-response zone, 45% (RTL: first in the row, so on
                   the right): the task card with its result row, and the
                   coaching card's drawer, which opens inside this zone over the
                   instruction, in place of the steps (PRD 7 §א rule 6, v7.15;
-                  Module 12 §ב) — so the representations zone keeps its 60%
+                  Module 12 §ב) — so the representations zone keeps its 55%
                   and the work area stays in view. */}
               <section
                 data-testid="task-zone"
                 aria-label="אגף המשימה"
                 style={{ flex: isBoardOpen ? TASK_ZONE_FLEX : '1 1 0%' }}
-                className="relative min-h-0 min-w-0 flex flex-col"
+                className={TASK_ZONE_CLASS}
               >
                 {/* The task card, wrapped from the outside. Its notebook
                     square (--ws-cell) also follows the zone's width, so on a
@@ -1524,16 +1452,19 @@ export function StudentWorkspacePage() {
                     row and the vertical sheet fit across and under the
                     instruction without scrolling (PRD 7 §א rule 7). Not
                     binding on a laptop, where the height decides. */}
-                <div className={`flex-1 min-h-0 min-w-0 flex flex-col ${TASK_ZONE_CELL_CLASS}`}>
+                <div className={TASK_ZONE_INNER_CLASS}>
                   <TaskCard />
                 </div>
                 <SocraticSidePanel inTaskZone />
               </section>
 
-              {/* The representations zone, 60% (RTL: last in the row, so on
+              {/* The representations zone, 55% (RTL: last in the row, so on
                   the visual left): the number house and its blocks, and —
                   for an enhanced-support learner — the addition grid, a
                   representation aid of its own (Module 10), beside the board.
+                  PRD 10 §א: the grid's place, and its tab's, is "הפינה
+                  השמאלית התחתונה של מרחב העבודה" — the last item of this RTL
+                  row (the workspace's left edge), at its bottom (self-end).
                   Module 10 (register decision ב): the grid fades in over 2s
                   and stays until the learner closes it with the X; it covers
                   nothing the learner works with (blocks, typing and
@@ -1545,10 +1476,11 @@ export function StudentWorkspacePage() {
                   enhanced_cognitive_support learners in sessions 3–7). */}
               <section
                 data-testid="representations-zone"
-                aria-label="אגף הייצוגים"
+                aria-label="אגף בית המספרים"
                 style={{ flex: isBoardOpen ? BOARD_ZONE_FLEX : '0 0 auto' }}
-                className="min-h-0 min-w-0 flex flex-row gap-2"
+                className={BOARD_ZONE_CLASS}
               >
+                <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} inZone />
                 {isAdditionBoardEnabled && (
                   <AnimatePresence>
                     {isAdditionGridMounted && (
@@ -1557,7 +1489,6 @@ export function StudentWorkspacePage() {
                   </AnimatePresence>
                 )}
                 {isAdditionGridTabShown && <AdditionGridTab />}
-                <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} inZone />
               </section>
             </>
           ) : (

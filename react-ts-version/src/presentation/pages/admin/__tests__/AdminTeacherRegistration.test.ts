@@ -58,6 +58,8 @@ vi.mock('firebase/firestore', () => ({
   where: vi.fn(),
   setDoc: firestoreMock.setDoc,
   deleteDoc: firestoreMock.deleteDoc,
+  // writeClassDocument clears a stale updated_at (PRD Module 4 l.222).
+  deleteField: vi.fn(() => ({ __deleteField: true })),
 }));
 
 vi.mock('@/infrastructure/firebase', () => ({
@@ -266,6 +268,8 @@ describe('the setup creates the Firestore class document with the chosen class t
     expect(w?.data).toEqual({
       class_id: 'class_1', school_id: 'school_bikorot', class_name: 'המבקרים',
       class_type: 'כיתת פיילוט סטנדרטית', student_count: 12, created_at: expect.any(Number),
+      // an old updated_at is cleared, since the merge write would otherwise keep it and be refused (PRD l.222)
+      updated_at: { __deleteField: true },
     });
     expect(w?.options).toEqual({ merge: true });
   });

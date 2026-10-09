@@ -52,7 +52,7 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
     // Steps 1–2: welcome, free dragging.
     case 's1_sandbox_controlled':
       return [{
-        label: 'גררו 5 לבנים לטורים משמאל, וצפו בספרות המשתנות בבית המספרים',
+        label: 'גררו 5 לבנים לטורים משמאל. צפו בספרות המשתנות בבית המספרים',
         done: s.blocksAddedCount >= SANDBOX_MIN_BLOCKS,
         progress: { value: s.blocksAddedCount, of: SANDBOX_MIN_BLOCKS },
       }];
@@ -92,7 +92,7 @@ export function session1Checklist(taskId: string, s: Session1ChecklistState): Se
         // The line asks for the number "לאחר הפריטה": 347 typed before the
         // decomposition is not that answer yet, so it is ticked only once the
         // decomposition line is (owner, 28.9.2026).
-        { label: 'כתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו', done: decomposed && typedNumber(s.answerDigits) === 347 },
+        { label: 'כתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו', done: decomposed && typedNumber(s.answerDigits) === 347 },
       ];
     }
     default:

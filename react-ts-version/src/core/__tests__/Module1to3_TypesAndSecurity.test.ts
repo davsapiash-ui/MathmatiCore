@@ -46,6 +46,11 @@ describe('Work Package 1 (WP1): Types & Security Contracts Verification', () => 
         projector_mode: false,
         projector_mode_updated_at: Date.now(),
         updated_by_teacher_id: 'teacher_01',
+        // Appendix A §2: the four auxiliary fields of the admin console.
+        teacher_id: 'teacher_01',
+        student_count: 12,
+        students: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        created_at: Date.now(),
       };
 
       expect(cls.class_name).toBe('המבקרים');

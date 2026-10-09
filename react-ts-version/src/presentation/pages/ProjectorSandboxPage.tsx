@@ -11,9 +11,32 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import type { DragSource, Place, DropInput } from '@/core/placeValue';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, type SessionNumber } from '@/application/useWorkspaceStore';
 import { PlaceValueBoard } from '@/features/workspace/board/PlaceValueBoard';
 import { DienesBlock } from '@/features/workspace/board/DienesBlock';
+import { DemoStation1Card, DemoTaskCard } from '@/features/workspace/tasks/DemoTaskCard';
+import { SocraticSidePanel } from '@/features/workspace/overlays/HelpOverlays';
+import { ProceedButton } from '@/features/workspace/ProceedButton';
+import { demoCoachingCard } from '@/application/teacherDemoTasks';
+import { NarrationContext } from '@/presentation/design-system/UdlSpeechButton';
+import {
+  BOARD_ZONE_CLASS,
+  BOARD_ZONE_FLEX,
+  TASK_ZONE_CLASS,
+  TASK_ZONE_FLEX,
+  TASK_ZONE_INNER_CLASS,
+  WORKSPACE_MAIN_CLASS,
+  WORKSPACE_SURFACE_CLASS,
+} from '@/features/workspace/workspaceZones';
+import { WorkspaceBackdrop } from '@/features/workspace/WorkspaceBackdrop';
+import {
+  TEACHER_DEMOS,
+  NO_DEMO_HE,
+  isDemoStation,
+  DEMO_CARD_HE,
+  DEMO_HIDE_COLOURS_HE,
+  DEMO_SHOW_COLOURS_HE,
+} from '@/data/teacherDemos';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Logo } from '@/presentation/components/ui/Logo';
@@ -22,15 +45,39 @@ import {
   ArrowRight,
   Tv,
   RotateCcw,
-  Eraser
+  Eraser,
+  RefreshCw,
+  Palette,
+  Lightbulb,
 } from 'lucide-react';
 import { ref, set, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 
+const STATIONS: SessionNumber[] = [1, 2, 3, 4, 5, 6, 7, 8];
+
+const SEGMENT_CLASS = (on: boolean) =>
+  `px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${
+    on
+      ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
+      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+  }`;
+const CONTROL_CLASS =
+  'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed';
+
 /**
- * מודול 15: מקרן כיתתי וארגז חול למורה (Classroom Projector & Sandbox)
- * מסך הדגמה ייעודי למורה בפריסה מלאה (Full Width) להקרנה על הלוח החכם.
- * כולל שידור חי למסכי התלמידים בזמן אמת (<1000ms), שליטה בטווחים, איפוס לוח וחזרה מהירה לדשבורד.
+ * מודול 15 §ג: מסך ההדגמה של המורה (owner, 9.10.2026), shown on the class's
+ * board. The teacher picks a station (1–8):
+ *   - station 1: an empty number house and its blocks (the 1,000 range), the
+ *     column digits shown, to demonstrate the tools;
+ *   - stations 3–7: the station's demonstration exercise (data/teacherDemos.ts)
+ *     — the task card as the learners see it, beside the board (the 10,000
+ *     range: the thousands column), with the result row, the memory circles,
+ *     typing and undo. The teacher does every action herself;
+ *   - stations 2 and 8: no demonstration (מסמכים 02 ו-03), and no board.
+ * Demo mode (projectorBoard in the workspace store): nothing is checked,
+ * locked, coached, advanced, read aloud or recorded. The chosen station is
+ * this window's own state: it is not broadcast and not written anywhere.
+ * The broadcast to the learners' screens is unchanged (system_control/projector_mode).
  */
 export function ProjectorSandboxPage() {
   const navigate = useNavigate();
@@ -38,10 +85,38 @@ export function ProjectorSandboxPage() {
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
   const undo = useWorkspaceStore((s) => s.undo);
   const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0);
-  const initSession = useWorkspaceStore((s) => s.initSession);
-  
+  const startProjectorDemo = useWorkspaceStore((s) => s.startProjectorDemo);
+  const clearProjectorBoard = useWorkspaceStore((s) => s.clearProjectorBoard);
+  const openDemoCoachingCard = useWorkspaceStore((s) => s.openDemoCoachingCard);
+  const closeHelp = useWorkspaceStore((s) => s.closeHelp);
+  const cardOpen = useWorkspaceStore((s) => s.helpState === 'socratic');
+  const placeCuesShown = useWorkspaceStore((s) => s.placeCuesShown);
+  const setDemoPlaceCues = useWorkspaceStore((s) => s.setDemoPlaceCues);
+
   const [activeDrag, setActiveDrag] = useState<{ place: Place; source: DragSource; renderPlace?: Place } | null>(null);
-  const [selectedRange, setSelectedRange] = useState<'1000' | '10000'>('1000');
+  const [station, setStation] = useState<SessionNumber>(1);
+  const [partIdx, setPartIdx] = useState(0);
+  const parts = isDemoStation(station) ? TEACHER_DEMOS[station] : [];
+  const part = parts[partIdx] ?? null;
+  const hasBoard = station === 1 || part !== null;
+  // Owner, 9.10.2026: stations 4–6 show the result row's colours on request —
+  // the scaffold a learner gets after a digit in another column's box. Stations
+  // 3 and 7 have a one-box row, or a sheet whose row the colours do not explain.
+  const hasColourScaffold = (station === 4 || station === 5 || station === 6) && part?.body.kind === 'vertical';
+  // Owner, 9.10.2026: an example of the coaching card in stations 1 and 3–7.
+  const hasCardExample = station === 1 || part !== null;
+  // Each opening is a fresh card: its options unanswered, even while the last
+  // one is still fading out (the panel keeps its state through its exit).
+  const [cardOpening, setCardOpening] = useState(0);
+  const toggleCardExample = () => {
+    if (cardOpen) {
+      closeHelp();
+      return;
+    }
+    setCardOpening((k) => k + 1);
+    if (station === 1) openDemoCoachingCard(demoCoachingCard(1, null));
+    else if (part && isDemoStation(station)) openDemoCoachingCard(demoCoachingCard(station, part));
+  };
   // Opening this page used to start broadcasting immediately: preparing a demo
   // mid-lesson blanked all twelve screens before the teacher had arranged
   // anything. Broadcasting now starts when she says so.
@@ -59,17 +134,22 @@ export function ProjectorSandboxPage() {
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
   );
 
-  // The projector demonstrates: its column digits always show (core/columnDigits.ts hides them in stations 3–7).
+  // Demo mode for as long as this page is open (useWorkspaceStore.projectorBoard).
   useEffect(() => {
     useWorkspaceStore.setState({ projectorBoard: true });
-    return () => useWorkspaceStore.setState({ projectorBoard: false });
+    return () =>
+      useWorkspaceStore.setState({ projectorBoard: false, helpState: 'closed', aiSocraticHint: null, placeCuesShown: false, selectedChoiceId: null });
   }, []);
 
-  // אתחול סשן נקי ללוח בהתאם לטווח הנבחר
+  // Each station and part starts from its beginning: an empty board, nothing typed.
   useEffect(() => {
-    const targetSession = selectedRange === '1000' ? 1 : 3;
-    initSession(targetSession, false);
-  }, [selectedRange, initSession]);
+    startProjectorDemo(station);
+  }, [station, partIdx, startProjectorDemo]);
+
+  const chooseStation = (next: SessionNumber) => {
+    setStation(next);
+    setPartIdx(0);
+  };
 
   // סנכרון מצב שידור מקרן מול Firebase RTDB
   useEffect(() => {
@@ -185,10 +265,8 @@ export function ProjectorSandboxPage() {
     navigate('/dashboard');
   };
 
-  const handleResetBoard = () => {
-    const targetSession = selectedRange === '1000' ? 1 : 3;
-    initSession(targetSession, false);
-  };
+  // "התחילו מחדש": the demonstration back to its start (board and typing).
+  const handleRestart = () => startProjectorDemo(station);
 
   if (user?.role !== 'teacher') {
     return <Navigate to="/" replace />;
@@ -225,11 +303,21 @@ export function ProjectorSandboxPage() {
   };
 
   return (
-    <div dir="rtl" className="h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans flex flex-col overflow-hidden select-none">
-      
+    // No read-aloud anywhere on this screen: the learner's components it shows
+    // drop their speech buttons (the teacher's screens have no narration —
+    // AGENTS.md invariant 6; PRD Module 15 §ג "אין במסך ההדגמה הקראה").
+    <NarrationContext.Provider value={false}>
+    {/* The learner's surface (background, ink, font) under the teacher's bars,
+        so the projected area looks as the learners' screen does. */}
+    <div dir="rtl" className={`relative h-[100dvh] w-full flex flex-col overflow-hidden select-none ${WORKSPACE_SURFACE_CLASS}`}>
+      <WorkspaceBackdrop />
+
       {/* ── Teacher Dedicated Projector Topbar ── */}
-      <header className="h-16 px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between z-30 shrink-0">
-        
+      {/* The teacher's two bars together stay close to the learners' one top
+          bar (72px), so the task zone below has nearly the learners' height
+          and fits without scrolling (PRD Module 15 §ג). */}
+      <header className="relative h-12 px-5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between z-30 shrink-0">
+
         {/* ימין: מיתוג וכותרת מקרן */}
         <div className="flex items-center gap-4">
           <Logo className="scale-90" />
@@ -241,38 +329,13 @@ export function ProjectorSandboxPage() {
             {/* The line under the title gave the spec's module number and an
                 English loan word ("סנדבוקס"), on the class's board. */}
             <h1 className="font-black text-base text-slate-800 dark:text-white leading-tight">
-              מקרן כיתתי — לוח הקניה והדגמה
+              מקרן כיתתי — מסך ההדגמה
             </h1>
           </div>
         </div>
 
-        {/* מרכז: בורר תחום מספרים + סטטוס שידור חי */}
+        {/* מרכז: סטטוס שידור חי */}
         <div className="flex items-center gap-3">
-          
-          {/* בורר טווח 1000 / 10000 */}
-          <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-            <button
-              onClick={() => setSelectedRange('1000')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                selectedRange === '1000'
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              תחום ה-1,000 (מפגשים 1–2)
-            </button>
-            <button
-              onClick={() => setSelectedRange('10000')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                selectedRange === '10000'
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              תחום ה-10,000 (מפגשים 3–8)
-            </button>
-          </div>
-
           {/* כפתור שידור חי לכיתה */}
           {connectionLost ? (
             // A press here would wait in the browser and start a broadcast by
@@ -312,31 +375,8 @@ export function ProjectorSandboxPage() {
           )}
         </div>
 
-        {/* שמאל: כפתורי פעולה למורה (נקה לוח, חזרה לדשבורד, יציאה) */}
+        {/* שמאל: חזרה לדשבורד, יציאה */}
         <div className="flex items-center gap-2.5">
-          {/* Meeting 1's opening (owner, 1.10.2026): the teacher shows the class
-              the undo button — "רשת הביטחון" of doc 03 §3.1 — with the arrow the
-              learners see on their own toolbar (WorkspaceTopbar). The clear
-              button used that same arrow, so it now has an eraser. */}
-          <button
-            onClick={undo}
-            disabled={!canUndo}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-all shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed"
-            title="ביטול הפעולה האחרונה"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-            <span>ביטול הפעולה האחרונה</span>
-          </button>
-
-          <button
-            onClick={handleResetBoard}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-all shadow-2xs"
-            title="ניקוי כל הלבנים מבית המספרים"
-          >
-            <Eraser className="w-3.5 h-3.5 text-slate-500" />
-            <span>נקו את בית המספרים</span>
-          </button>
-
           <button
             onClick={handleReturnToDashboard}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/20 transition-all cursor-pointer"
@@ -354,33 +394,139 @@ export function ProjectorSandboxPage() {
         </div>
       </header>
 
-      {/* ── Full Width Projector Canvas Area ── */}
-      <main className="flex-1 flex overflow-hidden p-6 bg-slate-100/70 dark:bg-slate-950">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={pointerWithin}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="w-full h-full max-w-7xl mx-auto flex flex-col min-h-0">
-            {/* בית המספרים בפריסה מלאה 100% */}
-            <PlaceValueBoard fullWidth={true} />
+      {/* ── The demonstration's controls: station, part, undo, clear, restart ── */}
+      {/* One row at a projector's width (1280px and up); it wraps rather than
+          overlapping on a narrower window. The station picker shows the
+          numbers after one "תחנה" (each button is still named "תחנה N"), so
+          the demonstration aids fit beside it. */}
+      <div className="relative shrink-0 px-5 py-1 bg-white/70 dark:bg-slate-900/70 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 z-20">
+        <div className="flex items-center gap-3 min-w-0">
+          <div role="group" aria-label="בחירת תחנה" className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+            <span aria-hidden="true" className="px-2 text-xs font-bold text-slate-500 dark:text-slate-400">תחנה</span>
+            {STATIONS.map((n) => (
+              <button key={n} type="button" aria-pressed={station === n} aria-label={`תחנה ${n}`} onClick={() => chooseStation(n)} className={`min-w-[2rem] ${SEGMENT_CLASS(station === n)}`}>
+                {n}
+              </button>
+            ))}
           </div>
 
-          <DragOverlay dropAnimation={null}>
-            {activeDrag ? (
-              <div style={{ opacity: 0.9, transform: 'scale(1.05)' }}>
-                <DienesBlock
-                  id="drag-overlay"
-                  source={activeDrag.source}
-                  place={activeDrag.renderPlace || activeDrag.place}
-                  isOverlay
-                />
+          {parts.length > 1 && (
+            <div role="group" aria-label="בחירת חלק ההדגמה" className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+              {parts.map((p, i) => (
+                <button key={p.id} type="button" aria-pressed={partIdx === i} onClick={() => setPartIdx(i)} className={SEGMENT_CLASS(partIdx === i)}>
+                  {p.partLabelHe}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {hasBoard && (
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Meeting 1's opening (owner, 1.10.2026): the teacher shows the class
+                the undo button — "רשת הביטחון" of doc 03 §3.1 — with the arrow the
+                learners see on their own toolbar (WorkspaceTopbar). The clear
+                button used that same arrow, so it now has an eraser. */}
+            {/* The arrow alone, as on the learners' top bar; its name is "ביטול הפעולה האחרונה". */}
+            <button type="button" onClick={undo} disabled={!canUndo} className={CONTROL_CLASS} title="ביטול הפעולה האחרונה" aria-label="ביטול הפעולה האחרונה">
+              <RotateCcw className="w-4 h-4 text-slate-500" />
+            </button>
+
+            <button type="button" onClick={clearProjectorBoard} className={CONTROL_CLASS} title="ניקוי כל הלבנים מבית המספרים">
+              <Eraser className="w-3.5 h-3.5 text-slate-500" />
+              <span>נקו את בית המספרים</span>
+            </button>
+
+            {/* Stations 3–7 only (Module 15 §ג): station 1 has no demonstration to restart. */}
+            {part && (
+              <button type="button" onClick={handleRestart} className={CONTROL_CLASS} title="ההדגמה חוזרת להתחלה: בית מספרים ריק ושום דבר לא כתוב">
+                <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                <span>התחילו מחדש</span>
+              </button>
+            )}
+
+            {hasColourScaffold && (
+              <button
+                type="button"
+                onClick={() => setDemoPlaceCues(!placeCuesShown)}
+                aria-pressed={placeCuesShown}
+                className={CONTROL_CLASS}
+                data-testid="demo-colours-toggle"
+              >
+                <Palette className="w-3.5 h-3.5 text-slate-500" />
+                <span>{placeCuesShown ? DEMO_HIDE_COLOURS_HE : DEMO_SHOW_COLOURS_HE}</span>
+              </button>
+            )}
+
+            {hasCardExample && (
+              <button
+                type="button"
+                onClick={toggleCardExample}
+                aria-pressed={cardOpen}
+                className={CONTROL_CLASS}
+                data-testid="demo-card-toggle"
+              >
+                <Lightbulb className="w-3.5 h-3.5 text-slate-500" />
+                <span>{DEMO_CARD_HE}</span>
+              </button>
+            )}
+
+            {/* Station 1 (owner, 9.10.2026): the learners' "ממשיכים", where
+                their top bar has it (its far end), so the teacher can point at
+                it. It moves nothing here. */}
+            {station === 1 && <ProceedButton onClick={() => {}} disabled={false} />}
+          </div>
+        )}
+      </div>
+
+      {/* ── The projected area ── */}
+      {/* The learner's row under the top bar (workspaceZones.ts): the same
+          paddings, gap and 45 : 55 split, so the task zone sits where theirs does. */}
+      <main className={`relative min-h-0 ${WORKSPACE_MAIN_CLASS}`}>
+        {!hasBoard ? (
+          <div className="flex-1 flex items-center justify-center" data-testid="no-demo">
+            <p role="status" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl px-10 py-8 text-2xl font-bold text-slate-700 dark:text-slate-200 shadow-sm">
+              {NO_DEMO_HE}
+            </p>
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={pointerWithin}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={() => setActiveDrag(null)}
+          >
+            {/* The learners' split (workspaceZones.ts): the task zone on the
+                right, with the coaching card's drawer where theirs opens
+                (SocraticSidePanel, over the guide block), and the number
+                house on the visual left. */}
+            <section data-testid="task-zone" aria-label="אגף המשימה" style={{ flex: TASK_ZONE_FLEX }} className={TASK_ZONE_CLASS}>
+              <div className={TASK_ZONE_INNER_CLASS}>
+                {part && isDemoStation(station) ? <DemoTaskCard station={station} part={part} /> : <DemoStation1Card />}
               </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+              <SocraticSidePanel key={cardOpening} inTaskZone />
+            </section>
+            <section data-testid="representations-zone" aria-label="אגף הייצוגים" style={{ flex: BOARD_ZONE_FLEX }} className={BOARD_ZONE_CLASS}>
+              <PlaceValueBoard activeDragPlace={activeDrag?.place ?? null} inZone />
+            </section>
+
+            <DragOverlay dropAnimation={null}>
+              {activeDrag ? (
+                <div style={{ opacity: 0.9, transform: 'scale(1.05)' }}>
+                  <DienesBlock
+                    id="drag-overlay"
+                    source={activeDrag.source}
+                    place={activeDrag.renderPlace || activeDrag.place}
+                    isOverlay
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )}
       </main>
     </div>
+    </NarrationContext.Provider>
   );
 }

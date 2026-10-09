@@ -68,8 +68,8 @@ const AI_CARD: SocraticHintResponse = {
   modelId: 'gemini-3.8-flash',
   questionHe: 'נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?',
   choices: [
-    { id: 'opt_2', textHe: 'כותבים מספר בשורת התוצאה', isCorrect: false, feedbackHe: 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים?' },
-    { id: 'opt_1', textHe: 'בונים בבית המספרים את מה שההנחיה מבקשת', isCorrect: true, feedbackHe: 'נכון מאוד! בנו את מה שההנחיה מבקשת.' },
+    { id: 'opt_2', textHe: 'כותבים מספר בשורת התוצאה', isCorrect: false, feedbackHe: 'רמז: מה ההוראה מבקשת לעשות לפני שכותבים?' },
+    { id: 'opt_1', textHe: 'בונים בבית המספרים את מה שההוראה מבקשת', isCorrect: true, feedbackHe: 'נכון מאוד! בנו את מה שההוראה מבקשת.' },
     { id: 'opt_3', textHe: 'מנחשים את התשובה', isCorrect: false, feedbackHe: 'רמז: מה אפשר לבנות במקום לנחש?' },
   ],
   correctChoiceId: 'opt_1',
@@ -102,7 +102,7 @@ describe('SOCRATIC_CARD_SHOWN carries the card\'s text (2.10.2026)', () => {
     const d = cardsShown()[0].details;
     expect(d.card_source).toBe('ai');
     expect(d.card_question_he).toBe(AI_CARD.questionHe);
-    expect(d.card_options_he).toEqual(['בונים בבית המספרים את מה שההנחיה מבקשת', 'כותבים מספר בשורת התוצאה', 'מנחשים את התשובה']);
+    expect(d.card_options_he).toEqual(['בונים בבית המספרים את מה שההוראה מבקשת', 'כותבים מספר בשורת התוצאה', 'מנחשים את התשובה']);
     unmount();
   });
 
@@ -127,7 +127,7 @@ describe('SOCRATIC_CARD_SHOWN carries the card\'s text (2.10.2026)', () => {
     const details = { trigger_reason: 'hesitation_45s', error_category: 'procedural', card_source: 'ai', model_id: 'gemini-3.8-flash', card_situation: 'board_empty_build_first', card_level: 1, ...socraticCardTextDetails(AI_CARD) };
     const cols = researchDetailsColumns('SOCRATIC_CARD_SHOWN', details);
     expect(cols.card_question_he).toBe(AI_CARD.questionHe);
-    expect(cols.card_options_he).toBe('בונים בבית המספרים את מה שההנחיה מבקשת | כותבים מספר בשורת התוצאה | מנחשים את התשובה');
+    expect(cols.card_options_he).toBe('בונים בבית המספרים את מה שההוראה מבקשת | כותבים מספר בשורת התוצאה | מנחשים את התשובה');
     const row = describeEvent({ id: 'e', timestamp: 0, sessionNumber: 1, sessionId: 'session_1_student_1', exerciseId: 's1_t8', eventType: 'SOCRATIC_CARD_SHOWN', columnIndex: 0, details });
     expect(row.detail).not.toContain(AI_CARD.questionHe);
     expect(row.detail.length).toBeGreaterThan(0);

@@ -57,7 +57,7 @@ describe('the meeting ends even if the help button is pressed during the celebra
     expect(ws().hasRequestedBasicHelp).toBe(true);
     ws().requestSilentHelp();
     expect(ws().hasRequestedBasicHelp).toBe(false);
-    expect(ws().feedback?.title).toBe('הקריאה בוטלה');
+    expect(ws().feedback?.title).toBe('הַקְּרִיאָה בֻּטְּלָה');
     expect(ws().feedback?.neutral).toBe(true);
     ws().requestSilentHelp(); // and it can be sent again
     expect(ws().hasRequestedBasicHelp).toBe(true);

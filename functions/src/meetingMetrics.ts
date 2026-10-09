@@ -244,10 +244,10 @@ export const CHOICE_TITLES_HE: Readonly<Record<string, string>> = {
   s5_g_challenge_1: "אתגר: שלוש פריטות רצופות",
   s6_r_reinforce_1: "ביסוס 1: קריאת האפס כשומר מקום, ללא פריטה",
   s6_r_reinforce_2: "ביסוס 2: חיסור ללא פריטה",
-  s6_r_challenge_1: "אתגר: פריטה כפולה דרך שני אפסים עוקבים",
+  s6_r_challenge_1: "אתגר: שתי פריטות, כשבמחוסר יש אפסים בטור העשרות ובטור היחידות",
   s6_g_reinforce_1: "ביסוס 1: חיסור ללא פריטה עם אפסים",
   s6_g_reinforce_2: "ביסוס 2: חיסור ללא פריטה עם אפסים",
-  s6_g_challenge_1: "אתגר: פריטה משולשת רצופה דרך שלושה אפסים",
+  s6_g_challenge_1: "אתגר: שלוש פריטות, כשבמחוסר יש אפסים בטורי המאות, העשרות והיחידות",
   s7_r_reinforce_1: "ביסוס 1: ספרת יחידות חסרה בחיבור ללא המרה",
   s7_r_reinforce_2: "ביסוס 2: ספרת עשרות חסרה בחיסור ללא פריטה",
   s7_r_challenge_1: "אתגר: תרגיל שלד עם שלוש ספרות חסרות",
@@ -501,6 +501,48 @@ export interface MeetingSummary {
   chat_help_requests: number;
 }
 
+/**
+ * PRD Module 10 §ב: ADAPTIVE_GRID_TOGGLED is logged for every open and close
+ * the learner sees, with Appendix A's {action, source}. The client
+ * (useAdditionGridOverCard.ts) writes a close as source 'learner' only for the
+ * learner's X; 'hesitation_30s' on a close means the grid, still open, left
+ * the screen without the learner closing it (folded under the coaching card,
+ * or an exercise that is not an addition). The next system "opened" after
+ * such a close is the grid coming back, not a new 30-second opening.
+ *
+ * So, in time order: opened/'learner' is the learner's tab (a reopening);
+ * opened/'hesitation_30s' is a 30-second opening unless the last grid event
+ * was a system close. A SESSION_START (a page load or reload: the grid's state
+ * is local and does not survive it) clears that. Events written before the
+ * card's fold was logged never carry a system close, and count as before.
+ */
+export function gridOpenings(events: Record<string, any>[]): { systemOpenings: number; learnerOpenings: number } {
+  const relevant = events
+    .map((ev, i) => ({ ev, i }))
+    .filter(({ ev }) => ev.event_type === "ADAPTIVE_GRID_TOGGLED" || ev.event_type === "SESSION_START")
+    .sort((a, b) => {
+      const ta = typeof a.ev.client_timestamp === "number" ? a.ev.client_timestamp : 0;
+      const tb = typeof b.ev.client_timestamp === "number" ? b.ev.client_timestamp : 0;
+      return ta - tb || a.i - b.i;
+    });
+  let systemOpenings = 0;
+  let learnerOpenings = 0;
+  let hiddenBySystem = false;
+  for (const { ev } of relevant) {
+    if (ev.event_type === "SESSION_START") { hiddenBySystem = false; continue; }
+    const action = ev.details?.action;
+    const source = ev.details?.source;
+    if (action === "closed") {
+      hiddenBySystem = source !== "learner";
+    } else if (action === "opened") {
+      if (source === "learner") learnerOpenings++;
+      else if (!hiddenBySystem) systemOpenings++;
+      hiddenBySystem = false;
+    }
+  }
+  return { systemOpenings, learnerOpenings };
+}
+
 /** Counters of what happened in one meeting, straight from its events. */
 export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary {
   const attempted = new Set<string>();
@@ -557,12 +599,7 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
       case "REGROUPING_SUCCESS": s.regroupings++; break;
       case "SOCRATIC_CARD_SHOWN": s.socratic_cards++; break;
       case "REFLECTION_SUBMITTED": s.reflection_submitted = true; break;
-      case "ADAPTIVE_GRID_TOGGLED":
-        if (ev.details?.action === "opened") {
-          if (ev.details?.source === "learner") s.grid_reopenings++;
-          else s.grid_openings++;
-        }
-        break;
+      // ADAPTIVE_GRID_TOGGLED: counted below, in time order (gridOpenings).
       case "KEYBOARD_LOCK_BLOCKED": s.keyboard_lock_blocks++; break;
       case "HELP_REQUESTED": s.help_requests++; break;
       case "HELP_WITHDRAWN": s.help_withdrawals++; break;
@@ -571,6 +608,9 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
       default: break;
     }
   }
+  const grid = gridOpenings(events);
+  s.grid_openings = grid.systemOpenings;
+  s.grid_reopenings = grid.learnerOpenings;
   s.first_event_at = first;
   s.last_event_at = last;
   // Whole minutes in which an event arrived — not the span from first to last

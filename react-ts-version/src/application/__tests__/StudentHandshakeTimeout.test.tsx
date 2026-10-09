@@ -52,6 +52,7 @@ async function fillStudentForm() {
     <MemoryRouter initialEntries={['/login']}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/auth" element={<Login studentForm />} />
         <Route path="/hub" element={<div>LOBBY</div>} />
       </Routes>
     </MemoryRouter>

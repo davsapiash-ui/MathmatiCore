@@ -24,7 +24,7 @@ import {
   countsEqual,
   digitAt,
 } from '@/core/placeValue';
-import { BLOCK_NAME_HE, NO_UNIT_BLOCKS_SUB_HE, NO_UNIT_BLOCKS_TITLE_HE } from '@/data/taskBuilders';
+import { BLOCK_NAME_HE, NO_TEN_BLOCKS_SUB_HE, NO_TEN_BLOCKS_TITLE_HE, NO_UNIT_BLOCKS_SUB_HE, NO_UNIT_BLOCKS_TITLE_HE } from '@/data/taskBuilders';
 import { session1Checklist, session1DoneNoteHe, session1NextStep } from '@/core/session1Checklist';
 import { stickyBuildValue, taskGuide } from '@/core/taskGuide';
 import {
@@ -61,11 +61,10 @@ import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
 import { STATIC_CARD_KINDS, cardFamilyOf, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
-import { ref, update } from 'firebase/database';
-import { database, serverNow } from '@/infrastructure/firebase';
+import { serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { firebaseSyncService, emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
+import { firebaseSyncService, emitTelemetry as emitTelemetryToService } from '@/infrastructure/services/FirebaseSyncService';
 import { readStoredMeetingDeadline, storeMeetingDeadline } from '@/application/meetingDeadline';
 import type { TelemetryEventType } from '@/types/telemetry';
 import { REPRESENTATION_LOCKS, buildsAnyWay, builtAnyWay } from '@/data/representationLocks';
@@ -81,6 +80,16 @@ import {
   type PersistenceCounts,
   type PersistenceEventLike,
 } from '@/core/persistenceEncouragement';
+
+/**
+ * Every telemetry event of this store goes through here. The teacher's
+ * demonstration screen (Module 15 §ג, ProjectorSandboxPage) runs on this
+ * store with `projectorBoard` set: nothing it does is any learner's work, and
+ * nothing of it is recorded (PRD: "דבר מן ההדגמה אינו נרשם בטלמטריה או
+ * בנתוני המחקר"). The service checks the flag too; this stops the event here.
+ */
+const emitTelemetry: typeof emitTelemetryToService = (event) =>
+  useWorkspaceStore.getState().projectorBoard ? Promise.resolve(null) : emitTelemetryToService(event);
 
 /**
  * Appendix A §3 scaffold events (owner, 16.9.2026 — register deviation 19).
@@ -178,6 +187,9 @@ function restoredMeetingPersistence(saved: unknown, sessionNumber: number): Meet
 
 /** PRD Module 12: the only in-task help is the Socratic card ('socratic'), reached through a short 'friction' beat. */
 export type HelpState = 'closed' | 'friction' | 'socratic';
+
+/** ADAPTIVE_GRID_TOGGLED's source (PRD Appendix A §3): the 30-second stage, or the learner's own tab. */
+export type AdditionGridSource = 'hesitation_30s' | 'learner';
 export type FlowStatus = 'task' | 'choice_branch' | 'reflection' | 'sessionDone';
 
 /**
@@ -379,7 +391,12 @@ export interface WorkspaceState {
   // canonical VRA state machine (Module 29 / Appendix A §5)
   currentState: VRAWorkspaceState;
   activeColumnIndex: number; // 0: Ones, 1: Tens, 2: Hundreds
-  /** The teacher's projector board (ProjectorSandboxPage): it demonstrates, so the column digits always show. */
+  /**
+   * The teacher's demonstration screen (ProjectorSandboxPage, Module 15 §ג):
+   * demo mode. No learner exercise is active (getActiveTasks is empty), so
+   * nothing is checked, locked, coached or advanced, and no telemetry or
+   * research record is written. Station 1's column digits always show.
+   */
   projectorBoard: boolean;
   /** The result-row place cues shown as a scaffold after a digit in the wrong place (core/placeCues.ts, owner 30.9.2026); per exercise. */
   placeCuesShown: boolean;
@@ -585,18 +602,29 @@ export interface WorkspaceState {
   activeBankPath: 'green_path' | 'remediation_path' | null;
   keyboardState: KeyboardState;
   /**
-   * The Module 10 grid is on screen. Register decision ב: nothing closes it
+   * The Module 10 grid is open. Register decision ב: nothing closes it
    * automatically — only the learner does — so an open grid stays open across
-   * an exercise change and a reload (it travels with the snapshot).
+   * an exercise change (it waits as its tab while the coaching card is
+   * shown, useAdditionGridOverCard.ts).
+   *
+   * PRD 10, Strict Developer Instructions: "Manage grid visibility via local
+   * React state decoupled from Firestore write streams" — this field, the
+   * offer below, the source and closedByLearner are never saved with the
+   * snapshot, never restored from it, and a change to them writes nothing to
+   * the record.
    */
   isAdditionHelperOpen: boolean;
   /**
    * The system offered the Module 10 grid at least once this meeting — it
    * opened, or its 30 seconds came due while the coaching card was open — so
    * the learner may open it from its tab (register deviation 18, מסמך 03 §1.3
-   * ב'). Reset only when a meeting starts; saved with the snapshot.
+   * ב'). Reset when a meeting starts; local only (not saved).
    */
   additionHelperOffered: boolean;
+  /** Who opened the grid that is open now (or was open last) — ADAPTIVE_GRID_TOGGLED's source. */
+  additionHelperSource: AdditionGridSource | null;
+  /** The grid's last closing was the learner's X (closeAdditionHelper), not a reset or a new meeting. */
+  additionHelperClosedByLearner: boolean;
   /**
    * The grid was offered while the coaching card was open and has not been
    * opened yet this meeting: its tab says "הצגת לוח החיבור", not "הצגה חוזרת".
@@ -622,12 +650,19 @@ export interface WorkspaceState {
   supportProfileApplied: boolean;
   activeDeviceId: string | null;
   isSupersededByOtherDevice: boolean;
+  /**
+   * PRD Module 6: the live session number the lobby read from the
+   * authoritative broadcast active_class_session (1–8), or null when no
+   * session is live.
+   */
+  lobbySessionId: number | null;
   /** Which learner and meeting the workspace was started or restored for; null until then and after resetWorkspace. */
   workspaceInitializedFor: WorkspaceInitialization | null;
 
   // actions
   setActiveDeviceId: (id: string) => void;
   setSupersededByOtherDevice: (superseded: boolean) => void;
+  setLobbySessionId: (sessionId: number | null) => void;
   setPendingSupportProfile: (profileId: string | null) => void;
   /**
    * The learner record's support profile, as the student listener read it.
@@ -654,6 +689,23 @@ export interface WorkspaceState {
   injectTask: (task: SessionTask, position: 'next' | 'end') => void;
   startSession: (meeting: number) => void;
   initSession: (meeting: SessionNumber, isASD: boolean, startingTaskIdx?: number, existingDeadline?: number | null) => void;
+  /**
+   * The teacher's demonstration screen (Module 15 §ג): an empty board, no
+   * typed input and no undo history, in the station's number range — and demo
+   * mode on (projectorBoard). Unlike initSession it starts no meeting: no
+   * deadline, no learner exercise, no catalogue activation, no event.
+   */
+  startProjectorDemo: (station: SessionNumber) => void;
+  /** The demonstration screen's "נקו את בית המספרים": the blocks go, the typed input stays; undo brings the blocks back. */
+  clearProjectorBoard: () => void;
+  /**
+   * The demonstration screen's "דוגמה לכרטיס החניכה" (owner, 9.10.2026): the
+   * learner's coaching card opens with this static card — no hourglass, no
+   * engine request, no event, no lock after a wrong option. Demo mode only.
+   */
+  openDemoCoachingCard: (card: SocraticHintResponse) => void;
+  /** The demonstration screen's "הצגת הצבעים בשורת התוצאה": the result row's scaffold on or off. Demo mode only. */
+  setDemoPlaceCues: (shown: boolean) => void;
   restoreSession: (savedState: any) => void;
   getSessionRemainingSeconds: () => number;
   selectBranch: (branch: 'reinforcement' | 'challenge') => void;
@@ -1487,12 +1539,12 @@ const placeAbove = (p: Place): Place | undefined => PLACE_ORDER[PLACE_ORDER.inde
  * broken; it names the block above the column still waiting for its ten.
  */
 export function breakItYourselvesHe(receiving: Place | null): string {
-  return `הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהנחיה. ${breakClickHe(receiving)}`;
+  return `הלבנים מסודרות נכון, אבל המשימה היא לפרוט בעצמכם. בנו את הלבנים שבהוראה. ${breakClickHe(receiving)}`;
 }
 
 /** Station 7's "do the grouping yourselves": the button "קבצו 10" of the column to group (owner, 9.10.2026: sentences say "קבצו 10"). */
 export function groupItYourselvesHe(source: Place | null): string {
-  return `הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהנחיה. ${groupClickHe(source)}`;
+  return `הלבנים מסודרות נכון, אבל המשימה היא לקבץ בעצמכם. בנו את הלבנים שבהוראה. ${groupClickHe(source)}`;
 }
 
 /**
@@ -1527,7 +1579,7 @@ function breakClickHe(receiving: Place | null): string {
   const above = receiving ? placeAbove(receiving) : undefined;
   return above
     ? `לחצו על לבנת ${BLOCK_NAME_HE[above]} כדי לפרוט אותה.`
-    : 'לחצו על הלבנה שההנחיה מבקשת לפרוט.';
+    : 'לחצו על הלבנה שההוראה מבקשת לפרוט.';
 }
 
 /** The button that makes the pending grouping: "קבצו 10" at the head of its column (owner, 9.10.2026; the label on the button is PlaceColumn's). */
@@ -1540,12 +1592,12 @@ function groupClickHe(source: Place | null): string {
 
 /** The board shows the blocks the instruction builds; the break is still to come. */
 export function breakNowHe(receiving: Place | null): string {
-  return `בניתם את הלבנים שבהנחיה. עכשיו ${breakClickHe(receiving)}`;
+  return `בניתם את הלבנים שבהוראה. עכשיו ${breakClickHe(receiving)}`;
 }
 
 /** The board shows the blocks the instruction builds; the grouping is still to come. */
 export function groupNowHe(source: Place | null): string {
-  return `בניתם את הלבנים שבהנחיה. עכשיו ${groupClickHe(source)}`;
+  return `בניתם את הלבנים שבהוראה. עכשיו ${groupClickHe(source)}`;
 }
 
 /** The block a decomposition exercise is built from (450 → the tens). */
@@ -1763,6 +1815,8 @@ function restoredSession1Order(saved: { standardTaskIdx?: number; activeTask?: {
 }
 
 export function getActiveTasks(s: WorkspaceState): SessionTask[] {
+  // The teacher's demonstration is no learner exercise (Module 15 §ג).
+  if (s.projectorBoard) return [];
   // Session 2 runs through the Q-Matrix flow — it has no standard task list.
   if (s.sessionNumber === 2) return [];
   if (s.dynamicTasks) return s.dynamicTasks;
@@ -2096,15 +2150,16 @@ export const GIVEN_ANSWER_RIGHT_GROUP_NOW_S1_HE = 'התשובה שכתבתם נ�
 export const GIVEN_GROUPED_SUCCESS_HE = 'קיבצתם את הלבנים, והתשובה שכתבתם נכונה.';
 
 /** Station 7's 2,730: the final blocks arranged by hand, a grouping not made (wording round 3, text 4). */
-export const GIVEN_ARRANGED_BY_HAND_HE = 'הלבנים מסודרות נכון, אבל ההנחיה מבקשת לקבץ בעזרת הכפתור "קבצו 10".';
+export const GIVEN_ARRANGED_BY_HAND_HE = 'הלבנים מסודרות נכון, אבל ההוראה מבקשת לקבץ בעזרת הכפתור "קבצו 10".';
 
 /**
  * The general praise after a solved exercise of stations 1 and 3–7 becomes the
  * exercise's own "נכון! …" (owner, 8.10.2026: learner wording proposal §א,
  * modelled on 347's sentence) — what the child saw, said after the check, so
  * it never gives an answer away before it. The checks, their order and every
- * other message are judgeStandardTaskChecks' own; a success with a reminder of
- * its own (the memory circles) keeps it.
+ * other message are judgeStandardTaskChecks' own. Every correct check of a
+ * standard arithmetic exercise ends in the general praise, so it always
+ * becomes the exercise's "נכון! …" when the exercise has one.
  */
 export function judgeStandardTask(s: WorkspaceState, task: SessionTask): StandardVerdict {
   const verdict = judgeStandardTaskChecks(s, task);
@@ -2130,7 +2185,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     // Meeting 1 tool steps (מסמך 03 §3.1): the checklist on the card is the rule.
     if (session1Checklist(task.id, s)) {
       const nextStep = session1NextStep(task.id, s);
-      if (nextStep) return failure('sandbox_incomplete', 'עוד צעד אחד 🛠️', `${nextStep}.`, 3500);
+      if (nextStep) return failure('sandbox_incomplete', 'עוֹד צַעַד אֶחָד 🛠️', `${nextStep}.`, 3500);
       return praise('ממשיכים לשלב הבא.', 2000);
     }
     if (task.correctAnswer === 'proceed_any' || !task.choices?.length) return success('מְעֻלֶּה!', 'ממשיכים הלאה.', 1500);
@@ -2140,7 +2195,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     if (s.selectedChoiceId !== task.correctAnswer) {
       return failure('wrong_choice', 'חִשְׁבוּ שׁוּב 🤔', 'האם הוספתם לבנים לבית המספרים או הורדתם ממנו לבנים?', 2800);
     }
-    return success('נכון מאוד!', 'הערך נשאר זהה לחלוטין מכיוון שלא שינינו את הכמות הכוללת.', 2500);
+    return success('נָכוֹן מְאוֹד!', 'המספר לא השתנה, כי לא הוספתם לבנים ולא הוצאתם לבנים.', 2500);
   }
 
   if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
@@ -2251,7 +2306,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     const ansVal = resultRowValue(typedDigits);
     if (ansVal !== target) {
       if (s.sessionNumber === 8) {
-        return failure('wrong_numeric', 'נסו שוב 🤔', 'התשובה שכתבתם אינה נכונה. בדקו שוב!', 2800);
+        return failure('wrong_numeric', 'נַסּוּ שׁוּב 🤔', 'התשובה שכתבתם אינה נכונה. בדקו שוב!', 2800);
       }
       // Stations 3–7 (owner, 30.9.2026): a digit in the wrong place turns on
       // the result row's place cues until the end of the exercise; the line
@@ -2270,31 +2325,12 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
       );
     }
 
-    // Memory circles are introduced in meeting 4 (מסמך 03 §3.4); meeting 1 does
-    // not mention them, so its refresh exercises get the plain success.
-    if (task.type === 'vertical_addition' && (task.requiresGrouping || task.requiresUngrouping) && s.sessionNumber !== 1) {
-      const hasCarriesEntered = Object.values(s.carryDigits).some((v) => v !== undefined && v !== '');
-      // A skeleton exercise whose board shows the number the child discovered
-      // (decision יד, option א) made no conversion on the board: no reminder
-      // about recording one — the ordinary success below (A5-F10).
-      const boardShowsDiscovered = s.sessionNumber >= 3 && s.sessionNumber <= 7 && hasHiddenDigits(task) && boardVal !== target;
-      if (!hasCarriesEntered && !boardShowsDiscovered) {
-        // A correct answer with the memory circles left empty is still a
-        // solved exercise. This branch used to advance on its own and skip
-        // handleSuccess: no PROBLEM_COMPLETE (the report said "לא השלים את
-        // התרגיל" and scored it 0), no Q-matrix success, and the error streak
-        // carried into the next exercise.
-        // By operation (register decision ט (2): addition "המרה", subtraction
-        // "פריטה"), in the words of each instruction (taskBuilders).
-        return success(
-          'שימו לב לעיגולי הזיכרון 💡',
-          task.isSubtraction
-            ? 'פתרתם נכון! בפעם הבאה, אחרי כל פריטה רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.'
-            : 'פתרתם נכון! בפעם הבאה, רשמו כל המרה בעיגולי הזיכרון שבראש הטורים.',
-          3000
-        );
-      }
-    }
+    // A correct answer is the exercise's "נכון! …" (PRD Module 14 §ב, Module 26),
+    // whether or not the memory circles were filled in: the step "רשמו את
+    // ההמרה בעיגול הזיכרון" is not checked, and the PRD has no other message
+    // for it. A memory-circle reminder used to replace the "נכון! …" here when
+    // the circles were empty, in stations 4–7 and in meeting 8; it is not in
+    // the PRD.
 
     // Meeting 8 has no number house (מסמך 03 §3.8, Module 14 §ב): its praise
     // does not speak of one (owner, 1.10.2026, D11b).
@@ -2309,7 +2345,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
       // with no option chosen used to do nothing at all — no message.
       return notice('בַּחֲרוּ תְּשׁוּבָה', `סמנו אחת מהאפשרויות, ואז לחצו על "${PROCEED_HE}".`, 1800);
     }
-    if (s.selectedChoiceId !== task.correctAnswer) return failure('wrong_choice', 'נסו שוב 🤔', 'התשובה שבחרתם אינה נכונה.', 2500);
+    if (s.selectedChoiceId !== task.correctAnswer) return failure('wrong_choice', 'נַסּוּ שׁוּב 🤔', 'התשובה שבחרתם אינה נכונה.', 2500);
     return praise('תשובה נכונה.', 2500);
   }
 
@@ -2318,7 +2354,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     if (answer === null || Number.isNaN(answer)) {
       return notice('הַקְלָדַת תְּשׁוּבָה ✏️', `כתבו את החלק החסר בתיבה, ואז לחצו על "${PROCEED_HE}".`, 1800);
     }
-    if (answer !== task.correctAnswer) return failure('wrong_answer', 'נסו שוב 🤔', 'המספר שכתבתם אינו נכון.', 2500);
+    if (answer !== task.correctAnswer) return failure('wrong_answer', 'נַסּוּ שׁוּב 🤔', 'המספר שכתבתם אינו נכון.', 2500);
     return praise('תשובה נכונה.', 2500);
   }
 
@@ -2368,7 +2404,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
         // the blocks to build, as the box by the result row did; with the box
         // gone (owner, 28.9.2026) that gave the answer away on a wrong press
         // ("איזה מספר קיבלתם?"), and it was too long for the feedback note.
-        'בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.',
+        'בית המספרים עוד לא מראה את מה שההוראה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.',
         3500
       );
     }
@@ -2421,8 +2457,8 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
         'הַקְלָדַת תְּשׁוּבָה ✏️',
         // A decomposition's answer is a number of blocks, not "the number".
         kind === 'decompose'
-          ? 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את התשובה בשורת התוצאה.'
-          : 'הלבנים מסודרות בדיוק כנדרש! עכשיו כתבו את המספר בשורת התוצאה.',
+          ? 'הלבנים מסודרות בדיוק כמו בהוראה! עכשיו כתבו את התשובה בשורת התוצאה.'
+          : 'הלבנים מסודרות בדיוק כמו בהוראה! עכשיו כתבו את המספר בשורת התוצאה.',
         3000
       );
     }
@@ -2464,16 +2500,21 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
   }
 
   if (task.type === 'flexible_decomp') {
-    if (task.requireEvenTens && s.q3Reps.some((r) => r.tens % 2 !== 0)) {
-      return failure('odd_tens', 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', 'בכל דרך מספר העשרות צריך להיות זוגי. נסו שוב!', 2800, { clearReps: true });
+    // Owner's decision, 9.10.2026: every way has ten blocks (0 is even, but a
+    // way without them misses what the exercise practises).
+    if (task.requireEvenTens && s.q3Reps.some((r) => r.tens === 0)) {
+      return failure('no_tens', NO_TEN_BLOCKS_TITLE_HE, NO_TEN_BLOCKS_SUB_HE, 2800, { clearReps: true });
     }
-    if (s.q3Reps.length < 2) return notice('נִדְרָשִׁים שְׁנֵי יִצּוּגִים שׁוֹנִים', 'הוֹסִיפוּ יִצּוּג שֵׁנִי!', 1800);
+    if (task.requireEvenTens && s.q3Reps.some((r) => r.tens % 2 !== 0)) {
+      return failure('odd_tens', 'בִּדְקוּ אֶת לִבְנֵי הָעֲשֶׂרֶת 🤔', 'בכל דרך מספר לבני העשרת צריך להיות זוגי. נסו שוב!', 2800, { clearReps: true });
+    }
+    if (s.q3Reps.length < 2) return notice('צָרִיךְ שְׁתֵּי דְּרָכִים שׁוֹנוֹת', 'בְּנוּ אֶת הַמִּסְפָּר בְּדֶרֶךְ שְׁנִיָּה.', 1800);
     const [r1, r2] = s.q3Reps;
     const isIdentical = (['units', 'tens', 'hundreds', 'thousands'] as Place[]).every((p) => r1[p] === r2[p]);
     if (isIdentical) {
-      return failure('canonical_fixation', 'הַיִּצּוּגִים זֵהִים 🤔', 'נַסּוּ לִיצֹר אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ אַחֶרֶת (לְמָשָׁל עַל יְדֵי פְּרִיטַת עֲשֶׂרֶת).', 2800, { clearReps: true });
+      return failure('canonical_fixation', 'הַדְּרָכִים זֵהוֹת 🤔', 'נַסּוּ לִבְנוֹת אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ אַחֶרֶת.', 2800, { clearReps: true });
     }
-    return praise('הצלחתם להציג שני ייצוגים שונים.', 2500);
+    return praise('בניתם את המספר בשתי דרכים שונות.', 2500);
   }
 
   return praise('ממשיכים לשלב הבא.', 2500);
@@ -2588,6 +2629,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const stack = [...currentStack, frame];
     if (stack.length > UNDO_STACK_CAP) stack.shift();
     return stack;
+  }
+
+  /**
+   * Typing on the demonstration screen: the input and an undo frame, nothing
+   * else — no checking, no streak, no coaching card, no event.
+   */
+  function demoInput(change: (s: WorkspaceState) => Partial<WorkspaceState>, place: Place) {
+    set((s) => ({
+      ...change(s),
+      undoStack: createNextUndoStack(s.undoStack, s.counts, 'DIGIT_ENTERED', inputSnapshot(s), undefined, placeToColumnIndex(place)),
+    }));
   }
 
   /** The learner's typed state, for an undo frame. */
@@ -2717,7 +2769,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     set({ pendingAdaptation: null });
 
-    update(ref(database, `users/students/${normId}`), { ...liveFields, pendingAdaptation: null }).catch((err) => {
+    // PRD Module 18 §ב: through the learner record's throttled window (one
+    // write per 1000ms). pedagogicalPath is not sent: the RTDB rules let only a
+    // teacher change it (a learner may write only its current value), and in a
+    // merged window a refused field would take the window's other fields with it.
+    const { pedagogicalPath: _teacherOwned, ...learnerFields } = liveFields;
+    throttledRtdbUpdate(`users/students/${normId}`, { ...learnerFields, pendingAdaptation: null }).catch((err) => {
       console.error('[Module 19] Failed to commit boundary-applied adaptation:', err);
     });
   }
@@ -3665,6 +3722,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     isAdditionHelperOpen: false,
     additionHelperOffered: false,
     additionHelperOfferedUnopened: false,
+    additionHelperSource: null,
+    additionHelperClosedByLearner: false,
 
     hasInteracted: false,
     placeCuesShown: false,
@@ -3726,9 +3785,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     supportProfileApplied: false,
     activeDeviceId: null,
     isSupersededByOtherDevice: false,
+    lobbySessionId: null,
     workspaceInitializedFor: null,
 
     setActiveDeviceId: (id) => set({ activeDeviceId: id }),
+    setLobbySessionId: (sessionId) => {
+      const next = typeof sessionId === 'number' && Number.isInteger(sessionId) && sessionId >= 1 && sessionId <= 8 ? sessionId : null;
+      if (get().lobbySessionId !== next) set({ lobbySessionId: next });
+    },
     setSupersededByOtherDevice: (superseded) => {
       // Every change to the student record echoed this call with the same
       // value; each call re-ran the workspace sync, which wrote the record
@@ -3858,6 +3922,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         isAdditionHelperOpen: false,
         additionHelperOffered: false,
         additionHelperOfferedUnopened: false,
+        additionHelperSource: null,
+        additionHelperClosedByLearner: false,
         // Module 17: from here on the store holds this learner's meeting.
         workspaceInitializedFor: { learner: currentStudentUid(), meeting: sanitized, restoredSavedAt: null },
       });
@@ -3884,6 +3950,65 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           },
         }).catch(console.error);
       }
+    },
+
+    startProjectorDemo: (station) => {
+      flowEpoch++;
+      cancelSocraticRequest();
+      set({
+        ...resetTaskInteraction(false),
+        projectorBoard: true,
+        sessionNumber: sanitizeSessionNumber(station),
+        isASD: false,
+        selectedBranch: null,
+        dynamicTasks: null,
+        standardTaskIdx: 0,
+        flowStatus: 'task',
+        awaitingNext: false,
+        boardOpen: true,
+        scaffoldFadeLevel: 0,
+        errorPlace: null,
+        feedback: null,
+        helpState: 'closed',
+        aiSocraticHint: null,
+        socraticPending: false,
+        isSocraticCardLocked: false,
+        socraticLockDeadline: null,
+        frictionTriggerSource: null,
+        currentState: 'PROBLEM_ACTIVE',
+        isAdditionHelperOpen: false,
+        additionHelperOffered: false,
+        additionHelperOfferedUnopened: false,
+      });
+    },
+
+    openDemoCoachingCard: (card) => {
+      if (!get().projectorBoard) return;
+      cancelSocraticRequest();
+      // currentState stays PROBLEM_ACTIVE: nothing of the learner's flow runs.
+      set({
+        helpState: 'socratic',
+        aiSocraticHint: { ...card, source: 'static' },
+        socraticPending: false,
+        isSocraticCardLocked: false,
+        socraticLockDeadline: null,
+        socraticDistractorHint: null,
+      });
+    },
+
+    setDemoPlaceCues: (shown) => {
+      if (!get().projectorBoard) return;
+      set({ placeCuesShown: shown });
+    },
+
+    clearProjectorBoard: () => {
+      set((s) => {
+        if (!s.projectorBoard) return s;
+        return {
+          counts: { ...EMPTY_COUNTS },
+          undoStack: createNextUndoStack(s.undoStack, s.counts, 'BLOCK_DRAG_COMPLETE', inputSnapshot(s), s.conversionsByColumn),
+        };
+      });
     },
 
     getSessionRemainingSeconds: () => {
@@ -4069,10 +4194,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         undoStack: restoreUndoFrames(saved.undoStack),
         regroupTriggerTimestamps: {},
         currentState: 'PROBLEM_ACTIVE',
-        // Register 18 / decision ב: the return tab, and an open grid, survive a reload.
-        additionHelperOffered: saved.additionHelperOffered === true,
-        additionHelperOfferedUnopened: false,
-        isAdditionHelperOpen: saved.isAdditionHelperOpen === true,
+        // PRD 10, Strict Developer Instructions: the grid is local state,
+        // decoupled from the record — nothing of it is read from a snapshot.
+        // A restore of the meeting this device already holds for this learner
+        // keeps the grid as it is; any other restore (a reload, another
+        // meeting) starts without it.
+        ...(get().workspaceInitializedFor?.meeting === sanitized && get().workspaceInitializedFor?.learner === learnerUid
+          ? {}
+          : { isAdditionHelperOpen: false, additionHelperOffered: false, additionHelperOfferedUnopened: false, additionHelperSource: null, additionHelperClosedByLearner: false }),
         // Module 17: from here on the store holds this learner's meeting, as saved.
         // A copy of a fresh start made without the record is still a fresh
         // start: the record's first snapshot settles it by the fresh-start rule.
@@ -4598,6 +4727,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     setFocusedPlace: (place) => set({ focusedPlace: place }),
 
     selectChoice: (id) => {
+      // The teacher's demonstration (Module 15 §ג): the selection shows, nothing else.
+      if (get().projectorBoard) {
+        set({ selectedChoiceId: id });
+        return;
+      }
       set({ selectedChoiceId: id, hasInteracted: true });
       const studentId = useAuthStore.getState().user?.uid;
       if (studentId) {
@@ -4614,6 +4748,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     setAnswerDigit: (place, val) => {
+      if (get().projectorBoard) {
+        demoInput((s) => ({ answerDigits: { ...s.answerDigits, [place]: val } }), place);
+        return;
+      }
       set((s) => {
         const isDelete = val === '' && Boolean(s.answerDigits[place]);
 
@@ -4738,6 +4876,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     setCarryDigit: (place, val) => {
+      if (get().projectorBoard) {
+        demoInput((s) => ({ carryDigits: { ...s.carryDigits, [place]: val } }), place);
+        return;
+      }
       set((s) => {
         const isDelete = val === '' && Boolean(s.carryDigits[place]);
         const studentId = currentStudentUid();
@@ -4836,6 +4978,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       let wrongAddPressCounts = false;
       // Owner, 4.10.2026: 320, 2,100 and 4,200 are built without unit blocks.
       let noUnitBlocks = false;
+      // 150 (owner's decision, 9.10.2026): every way has ten blocks.
+      let needsTenBlocks = false;
       if (s.sessionNumber === 2) {
         const task = getCurrentQTask(s.qflow);
         target = task ? getEffectiveNumber(task, s.qflow, s.isASD) : undefined;
@@ -4845,12 +4989,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         lessonTaskId = isRepresentationTask(task) ? task.id : null;
         wrongAddPressCounts = lessonTaskId !== null && s.sessionNumber === 3;
         noUnitBlocks = task?.noUnitBlocks === true;
+        needsTenBlocks = task?.requireEvenTens === true;
         if (task?.requireEvenTens && s.counts.tens % 2 !== 0) {
           if (lessonTaskId) {
             recordBoardCheckFailure(lessonTaskId);
             if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
           }
-          showFeedback({ correct: false, title: 'בִּדְקוּ אֶת הָעֲשָׂרוֹת 🤔', sub: 'בדרך הזאת מספר העשרות צריך להיות זוגי. פרטו עשרת אחת לעשר יחידות, או קבצו 10 יחידות לעשרת אחת.' }, 3200);
+          // Owner, 9.10.2026: no fix is given (either one could leave no ten blocks, now refused) — back to the instruction.
+          showFeedback({ correct: false, title: 'בִּדְקוּ אֶת לִבְנֵי הָעֲשֶׂרֶת 🤔', sub: 'בדרך הזאת מספר לבני העשרת צריך להיות זוגי. קראו שוב את ההוראה.' }, 3200);
           return;
         }
       }
@@ -4866,8 +5012,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         }
         const hint =
           s.sessionNumber === 2
-            ? 'הלבנים בבית המספרים עוד לא מראות את המספר שבהנחיה. מה תוכלו לשנות?'
-            : 'הלבנים בבית המספרים עוד לא מראות את המספר שבהנחיה. נסו שוב!';
+            ? 'הלבנים בבית המספרים עוד לא מראות את המספר שבהוראה. מה תוכלו לשנות?'
+            : 'הלבנים בבית המספרים עוד לא מראות את המספר שבהוראה. נסו שוב!';
         showFeedback({ correct: false, title: 'דַּיְּקוּ אֶת הַמִּבְנֶה 🔍', sub: hint }, 3200);
         return;
       }
@@ -4878,6 +5024,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // לעשרת" button is in view: the toast says the rule, then the action.
       // The same toast, duration and counting as the even-tens refusal above;
       // 150 (s7_r_t7) carries no such rule — each of its ways has unit blocks.
+      // 150: a way that shows the number with no ten blocks (owner's decision,
+      // 9.10.2026) — the same toast duration and counting as the refusals above.
+      if (needsTenBlocks && s.counts.tens === 0) {
+        if (lessonTaskId) {
+          recordBoardCheckFailure(lessonTaskId);
+          if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
+        }
+        showFeedback({ correct: false, title: NO_TEN_BLOCKS_TITLE_HE, sub: NO_TEN_BLOCKS_SUB_HE }, 3200);
+        return;
+      }
       if (noUnitBlocks && s.counts.units > 0) {
         if (lessonTaskId) {
           recordBoardCheckFailure(lessonTaskId);
@@ -4894,7 +5050,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           recordBoardCheckFailure(lessonTaskId);
           if (wrongAddPressCounts) noteWrongPress(lessonTaskId);
         }
-        showFeedback({ correct: false, title: 'זוֹ אוֹתָהּ דֶּרֶךְ 🤔', sub: 'הַרְאוּ אֶת אוֹתוֹ מִסְפָּר בְּדֶרֶךְ שׁוֹנָה: פִּרְטוּ אוֹ קַבְּצוּ, וְאָז לַחֲצוּ עַל "הוֹסָפַת יִצּוּג".' }, 3200);
+        showFeedback({ correct: false, title: 'זוֹ אוֹתָהּ דֶּרֶךְ 🤔', sub: 'בְּנוּ אֶת הַמִּסְפָּר בְּדֶרֶךְ שׁוֹנָה. אַחַר כָּךְ לַחֲצוּ עַל "שְׁמִירַת הַדֶּרֶךְ".' }, 3200);
         return;
       }
 
@@ -5160,7 +5316,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // Owner, 30.9.2026: the take-back is research data. The call itself
         // still counts as help in measure 2א — the teacher may already have come.
         emitScaffoldEvent(get(), 'HELP_WITHDRAWN', { help_count: s.helpRequestCount || 0 });
-        showSideFeedback({ correct: true, neutral: true, title: 'הקריאה בוטלה', sub: 'אפשר ללחוץ שוב בכל עת.' }, 2000);
+        showSideFeedback({ correct: true, neutral: true, title: 'הַקְּרִיאָה בֻּטְּלָה', sub: 'אפשר ללחוץ שוב בכל עת.' }, 2000);
         return;
       }
 
@@ -5225,8 +5381,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     lockKeyboard: () => set({ keyboardState: 'LOCKED' }),
     openAdditionHelper: (source = 'hesitation_30s') => {
       if (get().isAdditionHelperOpen) return;
-      set({ isAdditionHelperOpen: true, additionHelperOffered: true, additionHelperOfferedUnopened: false });
-      emitScaffoldEvent(get(), 'ADAPTIVE_GRID_TOGGLED', { action: 'opened', source });
+      // No telemetry here: what the learner sees is logged once, where the
+      // card's fold is known too (useAdditionGridOverCard.ts).
+      set({ isAdditionHelperOpen: true, additionHelperOffered: true, additionHelperOfferedUnopened: false, additionHelperSource: source, additionHelperClosedByLearner: false });
     },
     offerAdditionHelper: () => {
       const s = get();
@@ -5235,8 +5392,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
     closeAdditionHelper: () => {
       if (!get().isAdditionHelperOpen) return;
-      set({ isAdditionHelperOpen: false });
-      emitScaffoldEvent(get(), 'ADAPTIVE_GRID_TOGGLED', { action: 'closed', source: 'learner' });
+      set({ isAdditionHelperOpen: false, additionHelperClosedByLearner: true });
     },
     recordBlockedKeystroke: (place) => {
       const s = get();
@@ -5251,13 +5407,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         placeToColumnIndex(place)
       );
     },
-    toggleAdditionHelper: () => set((s) => ({ isAdditionHelperOpen: !s.isAdditionHelperOpen })),
+    toggleAdditionHelper: () => {
+      if (get().isAdditionHelperOpen) get().closeAdditionHelper();
+      else get().openAdditionHelper('learner');
+    },
     setKeyboardSocratic: () => {
       get().openSocraticCard('hesitation_45s');
     },
 
     openSocraticCard: (reason, place) => {
       const s = get();
+      // No coaching card on the teacher's demonstration screen (Module 15 §ג).
+      if (s.projectorBoard) return;
       // PRD Module 12 & 14: the card is disabled outright in session 2, and never
       // reopens over an open card or during the wrong-answer lockout — the
       // whole rule is socraticCardRefusal. An open card is helpState
@@ -5388,6 +5549,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     setOperandDigit: (which, place, val) => {
       const clean = val.replace(/[^0-9]/g, '').slice(-1);
+      if (get().projectorBoard) {
+        demoInput((s) => ({ operandDigits: { ...s.operandDigits, [which]: { ...s.operandDigits[which], [place]: clean } } }), place);
+        return;
+      }
       const s = get();
       const task = getActiveTasks(s)[s.standardTaskIdx] || null;
       const studentId = currentStudentUid();
@@ -5450,6 +5615,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     isRepresentationColumnLocked: (place) => {
       const s = get();
+      if (s.projectorBoard) return false;
       if (s.sessionNumber === 2 || s.sessionNumber === 8) return false;
       // PRD Module 9: the lock exists for enhanced_cognitive_support only; every other learner's row stays open.
       const supportProfile = s.activeSupportProfileId;
@@ -5474,6 +5640,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     isRepresentationAnswerLocked: () => {
       const s = get();
+      if (s.projectorBoard) return false;
       // Module 14: never in meetings 2 and 8. Module 9: enhanced_cognitive_support only.
       if (s.sessionNumber === 2 || s.sessionNumber === 8) return false;
       if (s.activeSupportProfileId !== 'enhanced_cognitive_support') return false;
@@ -5527,6 +5694,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     isColumnInputLocked: (place, numberA, numberB, isSubtraction) => {
       const s = get();
+      // The teacher's demonstration has no keyboard locks (Module 15 §ג).
+      if (s.projectorBoard) return false;
       // PRD v7.0 Module 14: In sessions 2 and 8, the keyboard lock is disabled for every learner regardless of profile
       if (s.sessionNumber === 2 || s.sessionNumber === 8) return false;
 
@@ -5574,6 +5743,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       flowEpoch++;
       set({
         sessionNumber: 1,
+        // The lobby's live session number belongs to the learner who signed out.
+        lobbySessionId: null,
         isASD: false,
         standardTaskIdx: 0,
         qflow: initQFlow(),
@@ -5597,6 +5768,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         isAdditionHelperOpen: false,
     additionHelperOffered: false,
     additionHelperOfferedUnopened: false,
+    additionHelperSource: null,
+    additionHelperClosedByLearner: false,
         hasInteracted: false,
         placeCuesShown: false,
         socraticCardKinds: { taskId: null, kinds: [] },
@@ -5809,6 +5982,31 @@ useWorkspaceStore.subscribe((s, prev) => {
   if (was && was.taskId === next.taskId && was.value === next.value && was.held === next.held) return;
   useWorkspaceStore.setState({ builtTrack: next });
 });
+
+/**
+ * PRD Module 10: the addition grid is open on the exercise screen of a
+ * learner who receives it — enhanced_cognitive_support (the profile applied
+ * to the exercise on screen, Module 19 §ב), meetings 3–7, an addition
+ * exercise (owner, 1.10.2026, D7). StudentWorkspacePage mounts it by this
+ * rule; whether the coaching card hides it is decided beside the card's fold
+ * (useAdditionGridOverCard.ts), which logs what the learner sees.
+ */
+export function isAdditionGridVisible(s: WorkspaceState): boolean {
+  return (
+    s.isAdditionHelperOpen &&
+    s.flowStatus === 'task' &&
+    s.activeSupportProfileId === 'enhanced_cognitive_support' &&
+    s.sessionNumber >= 3 &&
+    s.sessionNumber <= 7 &&
+    isAdditionExercise(selectStandardTask(s))
+  );
+}
+
+/** One ADAPTIVE_GRID_TOGGLED (Appendix A §3), on the exercise of `s`. */
+export function emitAdditionGridToggled(s: WorkspaceState, action: 'opened' | 'closed', source: AdditionGridSource): void {
+  if (!currentStudentUid()) return;
+  emitScaffoldEvent(s, 'ADAPTIVE_GRID_TOGGLED', { action, source });
+}
 
 /* Re-exports used by components */
 export { getCurrentQTask, getEffectiveChoices, getEffectiveNumber, getExpectedBlocks, isSubtaskActive };

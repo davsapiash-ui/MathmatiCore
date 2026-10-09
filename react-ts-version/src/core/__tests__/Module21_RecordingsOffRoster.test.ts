@@ -146,4 +146,14 @@ describe('the rules give the recordings node the access the learner record gave 
     expect(node.$studentId['.write']).not.toContain('admin');
     expect(node.$studentId.$other['.validate']).toBe(false);
   });
+
+  // PRD Module 21 §ב / Module 24 §ב.6: "מורה מורשית קוראת את כל צומת ההקלטות
+  // של כיתתה ואינה כותבת בו". Resets remove recordings with the Admin SDK.
+  it('the teacher reads every recording and writes none', () => {
+    const node = rules.recordings;
+    expect(node.$studentId['.read']).toContain('auth.token.teacher == true');
+    for (const marker of ["auth.token.role == 'teacher'", "auth.token.role == 'TEACHER'", 'auth.token.teacher == true']) {
+      expect(node.$studentId['.write']).not.toContain(marker);
+    }
+  });
 });

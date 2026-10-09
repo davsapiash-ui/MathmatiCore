@@ -379,7 +379,7 @@ describe('X59 — the call-teacher button follows the record (PRD 29 §ב)', () 
 
 /* ── X60 ─────────────────────────────────────────────────────────────────── */
 
-describe('X60 — the grid and its return tab belong to the meeting (register 18, decision ב)', () => {
+describe('X60 — the grid and its return tab belong to the meeting (register 18, decision ב), as local state only (PRD 10)', () => {
   beforeEach(() => {
     signIn();
     deliver(enhanced);
@@ -401,22 +401,33 @@ describe('X60 — the grid and its return tab belong to the meeting (register 18
     expect(ws().isAdditionHelperOpen).toBe(false);
   });
 
-  it('both survive a reload', () => {
+  it('neither is saved with the snapshot: "Manage grid visibility via local React state decoupled from Firestore write streams" (PRD 10)', () => {
+    const before = JSON.stringify(svc.getSyncableWorkspaceState());
     ws().openAdditionHelper();
     const open = JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState()));
-    expect(open.isAdditionHelperOpen).toBe(true);
-    expect(open.additionHelperOffered).toBe(true);
+    expect(open).not.toHaveProperty('isAdditionHelperOpen');
+    expect(open).not.toHaveProperty('additionHelperOffered');
+    expect(open).not.toHaveProperty('additionHelperSource');
+    // opening the grid changes nothing the record would be sent
+    expect(JSON.stringify(open)).toBe(before);
+    ws().closeAdditionHelper();
+    expect(JSON.stringify(svc.getSyncableWorkspaceState())).toBe(before);
+  });
+
+  it('nor read back from one: a reload starts without them, even from a copy saved by older code', () => {
+    ws().openAdditionHelper();
+    const saved = { ...JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState())), isAdditionHelperOpen: true, additionHelperOffered: true };
     ws().resetWorkspace();
-    ws().restoreSession(open);
+    ws().restoreSession(saved);
+    expect(ws().isAdditionHelperOpen).toBe(false);
+    expect(ws().additionHelperOffered).toBe(false);
+  });
+
+  it('a restore of the meeting this device already holds leaves the grid as it is', () => {
+    ws().openAdditionHelper();
+    ws().restoreSession(JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState())));
     expect(ws().isAdditionHelperOpen).toBe(true);
     expect(ws().additionHelperOffered).toBe(true);
-
-    ws().closeAdditionHelper();
-    const closed = JSON.parse(JSON.stringify(svc.getSyncableWorkspaceState()));
-    ws().resetWorkspace();
-    ws().restoreSession(closed);
-    expect(ws().isAdditionHelperOpen).toBe(false);
-    expect(ws().additionHelperOffered, 'the tab is back after the reload').toBe(true);
   });
 
   it('a new meeting starts without them', () => {

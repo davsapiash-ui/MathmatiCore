@@ -24,8 +24,9 @@ describe('Module 7 — one instruction on screen, once', () => {
   // PRD writes it (InstructionBlock), stations 1 and 3–7 as goal and steps (GuideBlock).
   it('the task zone is the single place the instruction is written and spoken', () => {
     // Shown through MathText, which isolates each exercise left to right (audit 4.10.2026, A6-101).
-    expect(taskZone).toContain('<MathText text={text} />');
-    expect(taskZone.split('<MathText text={text} />').length - 1).toBe(1);
+    // Since 9.10.2026 one sentence per line (SentenceLines, which renders each through MathText).
+    expect(taskZone).toContain('<SentenceLines text={text} />');
+    expect(taskZone.split('<SentenceLines text={text} />').length - 1).toBe(1);
     expect(taskZone).toContain('<UdlSpeechButton text={text} className="shrink-0" />');
     expect(taskCard.split('<InstructionBlock').length - 1).toBe(1);
     expect(taskCard.split('<TaskGuideBlock').length - 1).toBe(1);
@@ -34,7 +35,7 @@ describe('Module 7 — one instruction on screen, once', () => {
   it('MissingElementTask no longer repeats it on screen', () => {
     expect(missing).not.toContain('>{instructionHe}<');
     // The instruction still reaches the learner's ear, inside the equation sentence.
-    expect(missing).toContain('const speechText = isSubtraction');
+    expect(missing).toContain('const speechText = `${');
     expect(missing).toContain('<UdlSpeechButton text={speechText} />');
   });
 

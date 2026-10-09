@@ -344,8 +344,9 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                   onChange={(e) => setClassConfirmed(e.target.checked)}
                   className="w-5 h-5 rounded text-amber-600 focus:ring-amber-500"
                 />
+                {/* PRD 23א (l.1032): exactly this sentence, M the open meeting's number. */}
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  כן, לאפס את {meetingLabel} לכל 12 התלמידים.
+                  {`כן, לאפס את מפגש ${activeSessionNumber} לכל 12 התלמידים.`}
                 </span>
               </label>
             )}

@@ -20,9 +20,10 @@ export function MissingElementTask({
   const setProbeAnswer = useWorkspaceStore((s) => s.setProbeAnswer);
 
   const sign = isSubtraction ? '-' : '+';
-  const speechText = isSubtraction 
-    ? `${instructionHe}. כמה צריך לחסר מ-${numberA} כדי להגיע ל-${numberB}?`
-    : `${instructionHe}. כמה צריך להוסיף ל-${numberA} כדי להגיע ל-${numberB}?`;
+  // The instruction, then the equation in words as a statement: one full stop,
+  // and the instruction's own question is not asked a second time.
+  const said = instructionHe.trim();
+  const speechText = `${/[.!?]$/.test(said) ? said : `${said}.`} ${numberA} ${isSubtraction ? 'פחות' : 'ועוד'} החלק החסר שווה ${numberB}.`;
 
   return (
     <div className="flex flex-col gap-fl-8-24 mt-fl-2-16 items-center w-full">

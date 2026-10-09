@@ -11,9 +11,8 @@ import { ref, get as rtdbGet, set as rtdbSet, update as rtdbUpdate, remove as rt
 
 /**
  * Module 21 — the recordings' own node, recordings/{student}, in the real rules
- * engine (2.10.2026). It gives exactly what users/students/{student} gave the
- * recordings before they moved: the learner writes and reads only their own,
- * the teacher reads every learner's (the replay) and may write, the admin
+ * engine (2.10.2026). The learner writes and reads only their own, the teacher
+ * reads every learner's (the replay) and writes none (PRD Module 24 §ב.6), the admin
  * reads nothing (Module 24 §ב). Nothing but recordings and their budgets may
  * be stored there.
  *
@@ -87,8 +86,11 @@ describe('Module 21 §ג — the teacher reads every recording (the replay)', ()
     await assertSucceeds(rtdbGet(ref(teacher(), 'recordings')));
     await assertSucceeds(rtdbGet(ref(teacher(), 'recordings/student_user7/telemetry_sessions')));
   });
-  it('may remove one learner, as with the learner record', async () => {
-    await assertSucceeds(rtdbRemove(ref(teacher(), 'recordings/student_user7')));
+  // PRD Module 24 §ב.6: "מורה מורשית קוראת את כל צומת ההקלטות של כיתתה ואינה
+  // כותבת בו". Resets remove recordings on the server, with the Admin SDK.
+  it('writes nothing there: no chunk, no removal', async () => {
+    await assertFails(rtdbRemove(ref(teacher(), 'recordings/student_user7')));
+    await assertFails(rtdbSet(ref(teacher(), 'recordings/student_user7/telemetry_sessions/s/chunks/k'), { data: '[]' }));
   });
 });
 

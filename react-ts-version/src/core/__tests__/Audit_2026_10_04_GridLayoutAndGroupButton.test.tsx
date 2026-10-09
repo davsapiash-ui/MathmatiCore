@@ -108,3 +108,22 @@ describe('UX-005 — "קבצו 10 לעשרת" is a 44px-high target (DESIGN_SYST
     expect(button.className).not.toContain('text-xs');
   });
 });
+
+describe('PRD 7.4 Module 7 §א — one name for the grouping button: caption, tooltip and accessible name', () => {
+  for (const [place, label] of [['units', 'קבצו 10 לעשרת'], ['tens', 'קבצו 10 למאה'], ['hundreds', 'קבצו 10 לאלף']] as const) {
+    it(`${place}: "${label}"`, () => {
+      useWorkspaceStore.setState({ sessionNumber: 4, counts: { units: 0, tens: 0, hundreds: 0, thousands: 0, [place]: 12 } } as never);
+      render(
+        <DndContext>
+          <PlaceColumn place={place} canGroup />
+        </DndContext>
+      );
+      const button = screen.getByRole('button', { name: label });
+      expect(button.getAttribute('title')).toBe(label);
+      expect(button.getAttribute('aria-label')).toBe(label);
+      // The ✨ is decoration (aria-hidden) and gives way in a narrow column.
+      expect(button.textContent?.replace('✨', '')).toBe(label);
+      expect(button.outerHTML).not.toContain('לבנים ל');
+    });
+  }
+});

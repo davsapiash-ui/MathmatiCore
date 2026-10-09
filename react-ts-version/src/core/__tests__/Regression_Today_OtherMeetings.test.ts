@@ -572,7 +572,7 @@ describe('representation tasks outside meeting 1 (RepresentationTask.tsx, procee
     expect(selectCanProceed(ws())).toBe(true);
     ws().proceed();
     // The box that listed the blocks is gone (owner, 28.9.2026), and so is the sentence that repeated it.
-    expect(ws().feedback?.sub).toBe('בית המספרים עוד לא מראה את מה שההנחיה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.');
+    expect(ws().feedback?.sub).toBe('בית המספרים עוד לא מראה את מה שההוראה מבקשת. קראו אותה שוב ובדקו כמה לבנים יש בכל טור.');
     expect(ws().standardTaskIdx).toBe(0);
     drop('tens');
     ws().proceed();

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { resolve, join } from 'path';
 import { FakeIndexedDB, fakeKeyRange } from './fakeIndexedDB';
+import { telemetryDocIdOf } from '@/infrastructure/services/telemetryStamp';
 
 /**
  * Module 17 on the REAL IndexedDBQueue, running on an in-memory IndexedDB —
@@ -13,6 +14,20 @@ import { FakeIndexedDB, fakeKeyRange } from './fakeIndexedDB';
  *  PRD 29 §ג: "סדר FIFO קשוח".
  *  AGENTS.md invariant 2: "A failed chunk is never discarded."
  */
+
+/**
+ * Module 4: a telemetry key is a UUID v4. The tests name their events
+ * ('e1', 'poison'…) and K turns a name into its UUID; the transport mock and
+ * the helpers below turn a UUID back into its name, so the assertions read
+ * as names. A key the tests never named is left as it is.
+ */
+const keyNames = new Map<string, string>();
+const K = (name: string) => {
+  const id = telemetryDocIdOf(name);
+  keyNames.set(id, name);
+  return id;
+};
+const nameOf = (key: unknown) => (typeof key === 'string' ? keyNames.get(key) ?? key : key);
 
 const rtdb = {
   set: vi.fn<any[], any>(async () => {}),
@@ -49,7 +64,7 @@ vi.mock('firebase/database', () => ({
   off: () => {},
 }));
 vi.mock('firebase/firestore', () => ({
-  doc: (_db: unknown, coll: string, id: string) => ({ coll, id }),
+  doc: (_db: unknown, coll: string, id: string) => ({ coll, id: nameOf(id) }),
   setDoc: (...a: unknown[]) => fs.setDoc(...a),
   getDoc: (...a: unknown[]) => fs.getDoc(...a),
   serverTimestamp: () => ({ __serverTimestamp: true }),
@@ -71,8 +86,8 @@ const STORE = 'offline_telemetry_queue';
 const fakeIDB = new FakeIndexedDB();
 const fakeWindow = Object.assign(new EventTarget(), { indexedDB: fakeIDB });
 
-const event = (key: string, student = 3) => ({
-  idempotency_key: key,
+const event = (name: string, student = 3) => ({
+  idempotency_key: K(name),
   client_timestamp: 1_000,
   session_id: `session_4_student_student_user${student}`,
   student_id: student,
@@ -121,7 +136,7 @@ const signInTeacher = () =>
 const signOutState = () =>
   auth.useAuthStore.setState({ user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false });
 
-const stored = async () => (await queue.getAll()).map((i) => i.idempotency_key);
+const stored = async () => (await queue.getAll()).map((i) => nameOf(i.idempotency_key));
 
 describe('Module 17 — the real queue on IndexedDB', () => {
   beforeAll(async () => {
@@ -160,7 +175,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
 
   it('runs on IndexedDB, not on the memory fallback', async () => {
     await queue.enqueue(event('e_disk'));
-    expect([...fakeIDB.store(DB_NAME, STORE).records.values()].map((r) => r.idempotency_key)).toEqual(['e_disk']);
+    expect([...fakeIDB.store(DB_NAME, STORE).records.values()].map((r) => nameOf(r.idempotency_key))).toEqual(['e_disk']);
   });
 
   describe('X7 — sign-out never deletes what the server has not acknowledged', () => {
@@ -442,7 +457,10 @@ describe('Module 17 — the real queue on IndexedDB', () => {
         'sessions:session_02_student_3',
       ]);
       const rtdbFields = rtdb.update.mock.calls[0][1];
-      expect(rtdbFields).toMatchObject({ session_02_completed: true, teacher_gate_approved: false, routeStatus: 'PENDING_TEACHER_APPROVAL' });
+      expect(rtdbFields).toMatchObject({ session_02_completed: true });
+      // PRD 20 §ב: the gate mirror is staff-written only; the server writes the pending state.
+      expect(rtdbFields).not.toHaveProperty('teacher_gate_approved');
+      expect(rtdbFields).not.toHaveProperty('routeStatus');
       expect(rtdbFields).not.toHaveProperty('idempotency_key');
       expect(fs.setDoc.mock.calls[1][2]).toEqual({ merge: true });
     });
@@ -458,6 +476,19 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       expect(fields).not.toHaveProperty('teacher_gate_approved');
       expect(fields).not.toHaveProperty('routeStatus');
       expect(fields).toMatchObject({ session_02_completed: true });
+    });
+
+    it('a completion queued by an earlier version with the gate fields delivers without them, approved or not', async () => {
+      const data = fakeIDB.store(DB_NAME, STORE);
+      // As the previous version stored it: a merge that skipped the gate fields only over an approval.
+      data.records.set(710, { id: 710, refPath: 'users/students/student_user3', rtdbMode: 'merge', skipFieldsIfGateApproved: ['teacher_gate_approved', 'routeStatus'], payload: { session_02_completed: true, teacher_gate_approved: false, routeStatus: 'PENDING_TEACHER_APPROVAL', updatedAt: 5 }, idempotency_key: 's2_done_rtdb_student_user3', timestamp: 1, retry_count: 0 });
+      data.nextKey = 711;
+      await queue.flushQueue();
+
+      expect(rtdb.update.mock.calls[0][1]).toEqual({ session_02_completed: true, updatedAt: 5 });
+      // No pre-read of the gate: the learner never writes it, so there is nothing to check.
+      expect(rtdb.get.mock.calls.filter((c) => /teacher_gate_approved|routeStatus/.test((c[0] as { path: string }).path))).toEqual([]);
+      expect(await stored()).toEqual([]);
     });
   });
 
@@ -509,7 +540,8 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       data.nextKey = 702;
       await queue.flushQueue();
 
-      expect(rtdb.update.mock.calls[0][1]).toEqual({ session_02_completed: true, teacher_gate_approved: false, routeStatus: 'PENDING_TEACHER_APPROVAL' });
+      // The gate fields are staff-only now (PRD 20 §ב): left out, so the rules accept the item.
+      expect(rtdb.update.mock.calls[0][1]).toEqual({ session_02_completed: true });
       expect(fs.setDoc.mock.calls[0][1]).toEqual({ is_completed: true, teacher_gate_approved: false });
       expect(await stored()).toEqual([]);
     });
@@ -555,7 +587,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       await queue.enqueue(event('e_really_refused'));
       await queue.flushQueue();
       const [item] = await queue.getAll();
-      expect(item.idempotency_key).toBe('e_really_refused');
+      expect(nameOf(item.idempotency_key)).toBe('e_really_refused');
       expect(item.retry_count).toBe(1);
     });
 
@@ -569,7 +601,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
 
       // The other tab delivered it and deleted the row.
       const data = fakeIDB.store(DB_NAME, STORE);
-      for (const [k, v] of data.records) if (v.idempotency_key === 'e_two_tabs') data.records.delete(k);
+      for (const [k, v] of data.records) if (nameOf(v.idempotency_key) === 'e_two_tabs') data.records.delete(k);
 
       fail(unreachable());
       await pass;
@@ -609,7 +641,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       await queue.flushQueue(); // fifth refusal: parked, and the queue moves on
       expect(firestoreWrites().filter((id) => id === 'behind')).toEqual(['behind']);
       const left = await queue.getAll();
-      expect(left.map((i) => [i.idempotency_key, i.retry_count])).toEqual([['poison', 5]]);
+      expect(left.map((i) => [nameOf(i.idempotency_key), i.retry_count])).toEqual([['poison', 5]]);
     });
 
     it('a callable that always fails with internal is parked after 20 failures; the gate mirror behind it is sent', async () => {
@@ -670,12 +702,13 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       // Well past 20 attempts (the old item was parked after ~18 minutes).
       for (let i = 0; i < 40; i++) await queue.flushQueue();
       await vi.advanceTimersByTimeAsync(30 * 60 * 1000);
+      // The RTDB item has no pre-read any more (it carries no gate field, PRD
+      // 20 §ב), so here only the session document waits on its pre-read.
       const waiting = await queue.getAll();
       expect(waiting.map((i) => [i.idempotency_key, i.retry_count ?? 0, i.transient_count ?? 0])).toEqual([
-        ['s2_done_rtdb_student_user3', 0, 0],
         ['s2_done_doc_session_02_student_3', 0, 0],
       ]);
-      expect(deliveries()).toEqual([]);
+      expect(deliveries()).toHaveLength(1);
       expect(fs.setDoc).not.toHaveBeenCalled();
 
       // The network comes back. No reload, no online/offline event.
@@ -775,7 +808,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       fakeWindow.dispatchEvent(new Event('online'));
       await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
       const [item] = await queue.getAll();
-      expect([item.idempotency_key, item.retry_count]).toEqual(['e_refused_5', 5]);
+      expect([nameOf(item.idempotency_key), item.retry_count]).toEqual(['e_refused_5', 5]);
     });
   });
 
@@ -942,7 +975,7 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       });
       expect(await queue.reviveRefusalParked()).toBe(0);
       [item] = await queue.getAll();
-      expect([item.idempotency_key, item.retry_count]).toEqual(['e_token2', 5]); // kept, never deleted
+      expect([nameOf(item.idempotency_key), item.retry_count]).toEqual(['e_token2', 5]); // kept, never deleted
     });
 
     describe('R2 — the legacy localStorage queue moves into the real queue', () => {
@@ -1057,6 +1090,152 @@ describe('Module 17 — the real queue on IndexedDB', () => {
       expect(queue.getSyncState()).toBe('pending'); // tried, not acknowledged: not green
       await queue.flushQueue();
       expect(queue.getSyncState()).toBe('synced');
+    });
+  });
+
+  describe('X14 — Module 4: the telemetry_logs id is a UUID v4, and synced_at is on every document', () => {
+    const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    const OLD_KEY = 'telemetry_1700000000000_abc1234';
+    /** An event queued by an older version: a non-UUID key, and no synced_at. */
+    const storeOldItem = (key = OLD_KEY, id = 1200) => {
+      const data = fakeIDB.store(DB_NAME, STORE);
+      data.records.set(id, {
+        id,
+        payload: { ...event('unused'), idempotency_key: key },
+        idempotency_key: key,
+        student_id: 3,
+        timestamp: 1,
+        retry_count: 0,
+      });
+      data.nextKey = id + 1;
+    };
+
+    it('a new event is sent under its own UUID v4 key, with synced_at', async () => {
+      await queue.enqueue(event('e_new'));
+      await queue.flushQueue();
+      const [ref, body] = fs.setDoc.mock.calls[0] as [{ coll: string; id: string }, Record<string, unknown>];
+      expect(ref).toEqual({ coll: 'telemetry_logs', id: 'e_new' });
+      expect(body.idempotency_key).toBe(K('e_new'));
+      expect(body.idempotency_key).toMatch(UUID_V4);
+      expect(typeof body.synced_at).toBe('number');
+      expect(fs.getDoc).not.toHaveBeenCalled(); // no pre-read for a UUID key
+    });
+
+    it('an old item with a non-UUID key and no synced_at is delivered under a UUID derived from its key', async () => {
+      storeOldItem();
+      await queue.flushQueue();
+      expect(fs.getDoc).toHaveBeenCalledWith({ coll: 'telemetry_logs', id: OLD_KEY });
+      expect(fs.setDoc).toHaveBeenCalledTimes(1);
+      const [ref, body] = fs.setDoc.mock.calls[0] as [{ coll: string; id: string }, Record<string, unknown>];
+      expect(ref.coll).toBe('telemetry_logs');
+      expect(ref.id).toMatch(UUID_V4);
+      expect(ref.id).toBe(telemetryDocIdOf(OLD_KEY));
+      expect(body.idempotency_key).toBe(ref.id); // the rules require doc id == idempotency_key
+      expect(typeof body.synced_at).toBe('number');
+      expect(await stored()).toEqual([]);
+    });
+
+    it('every retry of an old item writes the same document: redelivery stays idempotent', async () => {
+      storeOldItem();
+      fs.setDoc.mockImplementationOnce(async () => { throw unreachable(); });
+      await queue.flushQueue();
+      expect(await stored()).toEqual([OLD_KEY]); // kept, never discarded
+      await queue.flushQueue();
+      const ids = fs.setDoc.mock.calls.map((c) => (c[0] as { id: string }).id);
+      expect(ids).toHaveLength(2);
+      expect(ids[1]).toBe(ids[0]);
+      expect(await stored()).toEqual([]);
+    });
+
+    it('an old item the server already holds under its old key counts as delivered, and is not written twice', async () => {
+      storeOldItem();
+      fs.getDoc.mockImplementation(async (ref: { coll: string; id: string }) => ({
+        exists: () => ref.coll === 'telemetry_logs' && ref.id === OLD_KEY,
+        data: () => ({}),
+      }));
+      await queue.flushQueue();
+      expect(fs.setDoc).not.toHaveBeenCalled();
+      expect(await stored()).toEqual([]);
+    });
+
+    it('an old item whose pre-read the rules refuse (a learner may not read a missing document) is written under its new id', async () => {
+      storeOldItem();
+      fs.getDoc.mockImplementation(async () => { throw Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' }); });
+      await queue.flushQueue();
+      expect(fs.setDoc).toHaveBeenCalledTimes(1);
+      const ref = fs.setDoc.mock.calls[0][0] as { id: string };
+      expect(ref.id).toBe(telemetryDocIdOf(OLD_KEY));
+      expect(await stored()).toEqual([]);
+    });
+
+    it('an old item whose pre-read cannot reach the server stays queued for the next pass', async () => {
+      storeOldItem();
+      fs.getDoc.mockImplementationOnce(async () => { throw unreachable(); });
+      await queue.flushQueue();
+      expect(fs.setDoc).not.toHaveBeenCalled();
+      expect(await stored()).toEqual([OLD_KEY]);
+      await queue.flushQueue();
+      expect(fs.setDoc).toHaveBeenCalledTimes(1);
+      expect(await stored()).toEqual([]);
+    });
+  });
+
+  describe('X15 — Module 5 §ב: every batch read from the queue is at most 20 events and 50KB', () => {
+    const bigEvent = (name: string, bytes: number) => ({ ...event(name), details: { total_duration_ms: 1000, undo_count: 0, error_count: 0, pad: 'x'.repeat(bytes) } });
+
+    it('the batch rule: 20 items, or the next item would pass 50KB; an item never waits behind an empty batch', () => {
+      const { startsNewBatch, MAX_BATCH_BYTES, MAX_BATCH_ITEMS } = queueModule;
+      expect(MAX_BATCH_BYTES).toBe(50 * 1024);
+      expect(MAX_BATCH_ITEMS).toBe(20);
+      expect(startsNewBatch(0, 0, 10)).toBe(false);
+      expect(startsNewBatch(0, 0, MAX_BATCH_BYTES + 1)).toBe(false); // alone: still read
+      expect(startsNewBatch(1, 30 * 1024, 20 * 1024)).toBe(false); // exactly 50KB
+      expect(startsNewBatch(1, 30 * 1024, 20 * 1024 + 1)).toBe(true);
+      expect(startsNewBatch(19, 100, 100)).toBe(false);
+      expect(startsNewBatch(20, 100, 100)).toBe(true);
+    });
+
+    it('queuedItemBytes is the UTF-8 size of the payload sent', () => {
+      expect(queueModule.queuedItemBytes({ payload: { a: 'א' } } as never)).toBe(new TextEncoder().encode('{"a":"א"}').length);
+    });
+
+    it('three 20KB events are read as two batches, and all three are delivered in order', async () => {
+      const proto = Object.getPrototypeOf((queue as unknown as { db: object }).db) as { transaction: (...a: unknown[]) => unknown };
+      const countReads = async (run: () => Promise<void>) => {
+        const real = proto.transaction;
+        let reads = 0;
+        proto.transaction = function (this: unknown, ...a: unknown[]) {
+          if (a[1] === 'readonly') reads++;
+          return real.apply(this, a);
+        };
+        try { await run(); } finally { proto.transaction = real; }
+        return reads;
+      };
+
+      for (const n of ['s1', 's2', 's3']) await queue.enqueue(event(n));
+      const smallReads = await countReads(() => queue.flushQueue());
+      expect(firestoreWrites()).toEqual(['s1', 's2', 's3']);
+      fs.setDoc.mockClear();
+
+      for (const n of ['b1', 'b2', 'b3']) await queue.enqueue(bigEvent(n, 20 * 1024));
+      const bigReads = await countReads(() => queue.flushQueue());
+      expect(firestoreWrites()).toEqual(['b1', 'b2', 'b3']);
+      expect(bigReads - smallReads).toBe(1); // [b1, b2] then [b3]
+      expect(await stored()).toEqual([]);
+    });
+
+    it('a single event over 50KB is sent alone and reported — never silently discarded', async () => {
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        await queue.enqueue(bigEvent('huge', 60 * 1024));
+        await queue.enqueue(event('after_huge'));
+        await queue.flushQueue();
+        expect(firestoreWrites()).toEqual(['huge', 'after_huge']);
+        expect(errors.mock.calls.some((c) => String(c[0]).includes(`${K('huge')} is`) && String(c[0]).includes('over the 51200-byte batch limit'))).toBe(true);
+        expect(await stored()).toEqual([]);
+      } finally {
+        errors.mockRestore();
+      }
     });
   });
 

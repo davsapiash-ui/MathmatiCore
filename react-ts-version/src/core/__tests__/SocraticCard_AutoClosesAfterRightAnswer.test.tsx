@@ -87,7 +87,8 @@ describe('the coaching card after the right choice (owner, 30.9.2026; 1.10.2026,
     fireEvent.click(screen.getByText(correct.textHe));
     await act(async () => { await vi.advanceTimersByTimeAsync(SOCRATIC_CORRECT_AUTO_CLOSE_MS - 500); });
     expect(ws().helpState).toBe('socratic');
-    expect(screen.getByText(correct.feedbackHe!, { exact: false })).toBeTruthy();
+    // One sentence per line since 9.10.2026 (SentenceLines): the feedback is read across its lines.
+    expect(document.body.textContent).toContain(correct.feedbackHe!);
     expect(screen.queryByText('בחרו תשובה:')).toBeNull();
 
     // The answer is given: the other options take no press — no lock, no second event.

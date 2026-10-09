@@ -844,9 +844,12 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           PRD Module 18 / מסמך 04 §3ב: the cells carry meaning in colour alone —
           nothing here blinks, moves or resizes. The pulses that used to sit on
           "מחובר" and "פעיל" ran on most of the class at once, so the quiet grid
-          the teacher is meant to read at a glance was never quiet. */}
+          the teacher is meant to read at a glance was never quiet.
+          PRD Module 18 §ב: "גריד קבוע של 3×4" — three rows of four, at every
+          width. A breakpoint used to drop it to three columns (four rows) on a
+          narrow screen, moving every tile from 4 on. */}
       <section className="w-full">
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 max-w-4xl mx-auto w-full">
+        <div data-testid="radar-grid" className="grid grid-cols-4 grid-rows-3 gap-2 sm:gap-4 max-w-4xl mx-auto w-full">
           {students.map((student) => {
             return (
               <div

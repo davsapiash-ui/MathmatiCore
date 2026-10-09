@@ -23,3 +23,32 @@ export function MathText({ text }: { text: string }) {
     </>
   );
 }
+
+/**
+ * Each sentence of a child-facing text on its own line (Ministry of Education,
+ * special-education adaptations: "כל משפט כתוב בשורה נפרדת" — a technical,
+ * recommended adaptation; coordinator, 9.10.2026). Display only: the string,
+ * its read-aloud and its textContent (one space between sentences) are unchanged.
+ * A sentence ends at ".", "?" or "!" followed by a space; an exercise
+ * ("1,245 + 328") holds none, so it is never split.
+ */
+export function splitSentences(text: string): string[] {
+  return text.split(/(?<=[.?!])\s+(?=\S)/).filter((s) => s.length > 0);
+}
+
+export function SentenceLines({ text }: { text: string }) {
+  const sentences = splitSentences(text);
+  if (sentences.length <= 1) return <MathText text={text} />;
+  return (
+    <>
+      {sentences.map((s, i) => (
+        <span key={i}>
+          {i > 0 ? ' ' : null}
+          <span className="block">
+            <MathText text={s} />
+          </span>
+        </span>
+      ))}
+    </>
+  );
+}

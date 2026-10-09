@@ -61,8 +61,8 @@ const AI_CARD: SocraticHintResponse = {
   modelId: 'gemini-3.8-flash',
   questionHe: 'נסו לחשוב: בית המספרים עדיין ריק. מה עושים קודם?',
   choices: [
-    { id: 'opt_1', textHe: 'בונים בבית המספרים את מה שההנחיה מבקשת', isCorrect: true, feedbackHe: 'נכון מאוד!' },
-    { id: 'opt_2', textHe: 'כותבים מספר בשורת התוצאה', isCorrect: false, feedbackHe: 'רמז: מה ההנחיה מבקשת?' },
+    { id: 'opt_1', textHe: 'בונים בבית המספרים את מה שההוראה מבקשת', isCorrect: true, feedbackHe: 'נכון מאוד!' },
+    { id: 'opt_2', textHe: 'כותבים מספר בשורת התוצאה', isCorrect: false, feedbackHe: 'רמז: מה ההוראה מבקשת?' },
     { id: 'opt_3', textHe: 'מנחשים את התשובה', isCorrect: false, feedbackHe: 'רמז: מה אפשר לבנות?' },
   ],
   correctChoiceId: 'opt_1',

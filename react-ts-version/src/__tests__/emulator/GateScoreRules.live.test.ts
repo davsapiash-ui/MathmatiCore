@@ -103,15 +103,35 @@ describe('מסמך המפגש — הציון וההמלצה של השרת', () =
   });
 
   it('אינו יוצר מסמך מפגש עם ציון, המלצה או חותמת משלו', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), 'sessions', S2));
+    });
     const base = {
-      session_id: 'session_03_student_12', class_id: 'class_1', session_number: 3,
+      session_id: S2, class_id: 'class_1', session_number: 2,
       is_completed: false, teacher_gate_approved: false,
     };
-    const own = () => doc(learner12().firestore(), 'sessions', 'session_03_student_12');
+    const own = learnerDoc;
     await assertFails(setDoc(own(), { ...base, session_score_percent: 100 }));
     await assertFails(setDoc(own(), { ...base, matrix_recommended_path: 'green_path' }));
     await assertFails(setDoc(own(), { ...base, evaluated_at: 1 }));
     await assertSucceeds(setDoc(own(), { ...base, session_score_percent: null, matrix_recommended_path: null }));
+  });
+
+  // Module 4: "הלקוח כותב מסמך כזה רק למפגש 2" — a learner creates no
+  // session document for any other meeting.
+  it('אינו יוצר מסמך מפגש לשום מפגש מלבד מפגש 2', async () => {
+    for (const n of [1, 3, 4, 5, 6, 7, 8]) {
+      const id = `session_0${n}_student_12`;
+      await assertFails(setDoc(doc(learner12().firestore(), 'sessions', id), {
+        session_id: id, class_id: 'class_1', session_number: n, is_completed: false, teacher_gate_approved: false,
+      }));
+    }
+  });
+
+  it('…והמורה עדיין יוצרת מסמך מפגש לכל מפגש', async () => {
+    await assertSucceeds(setDoc(doc(teacher().firestore(), 'sessions', 'session_03_student_12'), {
+      session_id: 'session_03_student_12', class_id: 'class_1', session_number: 3, is_completed: false, teacher_gate_approved: false,
+    }));
   });
 
   it('סיום מפגש 2 כפי שהלקוח כותב אותו עובר — על המסמך שיצרה פונקציית המועד', async () => {
@@ -166,6 +186,14 @@ describe('מסמך המפגש — אישור המורה אינו מתבטל בי
     }));
   });
 
+  // PRD 27 §ב.5 (l.1318): a teacher updates the approval fields only.
+  it('המורה אינה משנה שדה שאינו שדה אישור', async () => {
+    const teacherDoc = () => doc(teacher().firestore(), 'sessions', S2);
+    await assertFails(updateDoc(teacherDoc(), { is_completed: false }));
+    await assertFails(updateDoc(teacherDoc(), { active_exercise_id: 'task8_missing_addend' }));
+    await assertFails(updateDoc(teacherDoc(), { teacher_gate_approved: true, session_number: 3 }));
+  });
+
   it('גם המורה אינה כותבת את הציון, ההמלצה, חותמת החישוב או הציון הקודם (S7)', async () => {
     const teacherDoc = () => doc(teacher().firestore(), 'sessions', S2);
     await assertFails(updateDoc(teacherDoc(), { session_score_percent: 100 }));
@@ -184,8 +212,17 @@ describe('הרשומה ב-RTDB — לפני החישוב והאישור', () => 
 
   it('סיום מפגש 2 כפי שהלקוח כותב אותו עובר', async () => {
     await assertSucceeds(rtdbUpdate(learnerRec(), {
-      session_02_completed: true, teacher_gate_approved: false, routeStatus: 'PENDING_TEACHER_APPROVAL', updatedAt: Date.now(),
+      session_02_completed: true, updatedAt: Date.now(),
     }));
+  });
+
+  // PRD מודול 20 §ב: "ההשתקפות ניתנת לכתיבה על ידי צוות בלבד; הלומד אינו
+  // יכול לכתוב אותה" — גם לא את מצב ההמתנה, שהשרת כותב.
+  it('אינו כותב את ההשתקפות, גם לא את מצב ההמתנה', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => { await rtdbSet(ref(ctx.database(), REC), { isOnline: true }); });
+    await assertFails(rtdbUpdate(learnerRec(), { routeStatus: 'PENDING_TEACHER_APPROVAL' }));
+    await assertFails(rtdbUpdate(learnerRec(), { teacher_gate_approved: false }));
+    await assertFails(rtdbUpdate(learnerRec(), { routeStatus: 'APPROVED', teacher_gate_approved: true }));
   });
 
   it('תגיות סבב התיקון נכתבות כרגיל', async () => {

@@ -147,11 +147,11 @@ describe('1. a column\'s current block count is not written in the engine\'s car
     vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue({
       data: {
         error_category: 'conceptual',
-        guiding_question: 'איך בונים את המספר שבהנחיה?',
+        guiding_question: 'איך בונים את המספר שבהוראה?',
         options: [
           { id: 'opt_1', option_text: 'בונים 3 לבני מאה ו-4 לבני עשרת', feedback_text: 'נכון מאוד! בנו אותן.', is_correct: true },
           { id: 'opt_2', option_text: 'בונים 4 לבני מאה', feedback_text: 'רמז: כמה מאות יש במספר?', is_correct: false },
-          { id: 'opt_3', option_text: 'כותבים בלי לבנות', feedback_text: 'רמז: מה ההנחיה מבקשת לעשות קודם?', is_correct: false },
+          { id: 'opt_3', option_text: 'כותבים בלי לבנות', feedback_text: 'רמז: מה ההוראה מבקשת לעשות קודם?', is_correct: false },
         ],
       },
     });
@@ -187,7 +187,7 @@ describe('2. the block names of 30.9.2026 are read as counts', () => {
 
 /* ── 3 ── */
 
-const BREAK_Q = 'נסו לחשוב: ההנחיה מבקשת לפרוט לבנת מאה אחת לעשר לבני עשרת. איך פורטים אותה?';
+const BREAK_Q = 'נסו לחשוב: ההוראה מבקשת לפרוט לבנת מאה אחת לעשר לבני עשרת. איך פורטים אותה?';
 const C1_Q = 'נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?';
 const C7_Q = 'נסו לחשוב: לפני ההקבצה בניתם מספר. האם ההקבצה שינתה אותו?';
 const C7_Q_TWO = 'נסו לחשוב: לפני ההקבצות בניתם מספר. האם ההקבצות שינו אותו?';
@@ -200,7 +200,7 @@ describe('3. C1 and C7 wait for the conversion; before it, the conversion the in
     expect(rows(c)).toEqual([
       ['לוחצים על לבנת מאה', 'נכון מאוד! לחצו על לבנת מאה כדי לפרוט אותה.', true],
       ['מוסיפים לבני עשרת חדשות', 'רמז: אם תוסיפו לבנים חדשות, האם המספר יישאר אותו מספר?', false],
-      ['כותבים את המספר בלי לפרוט', 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים את המספר?', false],
+      ['כותבים את המספר בלי לפרוט', 'רמז: מה ההוראה מבקשת לעשות לפני שכותבים את המספר?', false],
     ]);
     // Since 2.10.2026 (audit D5) every card has a kind: its next level is
     // what the click gives ("מה מופיע בבית המספרים כשלוחצים על לבנת מאה?").
@@ -214,11 +214,11 @@ describe('3. C1 and C7 wait for the conversion; before it, the conversion the in
 
   it('every break and grouping of the banks: the block the instruction breaks or the column it groups', () => {
     const expected: Record<string, string> = {
-      s3_r_t4: 'נסו לחשוב: ההנחיה מבקשת לפרוט לבנת עשרת אחת לעשר לבני יחידה. איך פורטים אותה?',
-      s3_g_t2: 'נסו לחשוב: ההנחיה מבקשת לפרוט לבנת אלף אחת לעשר לבני מאה. איך פורטים אותה?',
-      s3_g_t4: 'נסו לחשוב: ההנחיה מבקשת לפרוט לבנת אלף אחת לעשר לבני מאה. איך פורטים אותה?',
-      s7_r_t1: 'נסו לחשוב: ההנחיה מבקשת לקבץ 10 לבני עשרת ללבנת מאה אחת. איך מקבצים אותן?',
-      s7_g_reinforce_2: 'נסו לחשוב: ההנחיה מבקשת לקבץ 10 לבני מאה ללבנת אלף אחת. איך מקבצים אותן?',
+      s3_r_t4: 'נסו לחשוב: ההוראה מבקשת לפרוט לבנת עשרת אחת לעשר לבני יחידה. איך פורטים אותה?',
+      s3_g_t2: 'נסו לחשוב: ההוראה מבקשת לפרוט לבנת אלף אחת לעשר לבני מאה. איך פורטים אותה?',
+      s3_g_t4: 'נסו לחשוב: ההוראה מבקשת לפרוט לבנת אלף אחת לעשר לבני מאה. איך פורטים אותה?',
+      s7_r_t1: 'נסו לחשוב: ההוראה מבקשת לקבץ 10 לבני עשרת ללבנת מאה אחת. איך מקבצים אותן?',
+      s7_g_reinforce_2: 'נסו לחשוב: ההוראה מבקשת לקבץ 10 לבני מאה ללבנת אלף אחת. איך מקבצים אותן?',
     };
     // The blocks the instruction builds, before the conversion.
     const builtBefore: Record<string, Partial<Counts>> = {
@@ -230,7 +230,7 @@ describe('3. C1 and C7 wait for the conversion; before it, the conversion the in
       const c = exerciseCard(t, { ...EMPTY, ...builtBefore[id] }, { conversionDone: false })!;
       expect(c.questionHe, id).toBe(question);
       expect(wrongHintViolation(c), id).toBeNull();
-      expect(t.instructionHe, id).toContain(question.replace('נסו לחשוב: ההנחיה מבקשת ל', '').replace(/\. איך .*$/, '').replace(/^פרוט/, 'פרטו').replace(/^קבץ/, 'קבצו'));
+      expect(t.instructionHe, id).toContain(question.replace('נסו לחשוב: ההוראה מבקשת ל', '').replace(/\. איך .*$/, '').replace(/^פרוט/, 'פרטו').replace(/^קבץ/, 'קבצו'));
     }
     // s3_g_t4's second break: the hundred, once the thousand is broken.
     const second = exerciseCard(byId('s3_g_t4'), { ...EMPTY, thousands: 4, hundreds: 12, tens: 3 }, { conversionDone: false, pendingConversion: 'tens' })!;
@@ -240,7 +240,7 @@ describe('3. C1 and C7 wait for the conversion; before it, the conversion the in
     expect(rows(g)).toEqual([
       ['לוחצים על הכפתור "קבצו 10" שבראש הטור', 'נכון מאוד! לחצו על הכפתור "קבצו 10" שבראש טור העשרות.', true],
       ['מוסיפים לבנת מאה חדשה', 'רמז: אם תוסיפו לבנה חדשה, האם המספר יישאר אותו מספר?', false],
-      ['כותבים את המספר בלי לקבץ', 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים את המספר?', false],
+      ['כותבים את המספר בלי לקבץ', 'רמז: מה ההוראה מבקשת לעשות לפני שכותבים את המספר?', false],
     ]);
   });
 
@@ -248,7 +248,7 @@ describe('3. C1 and C7 wait for the conversion; before it, the conversion the in
     const t = byId('s7_g_t1');
     expect(t.instructionHe).toContain('קבצו שוב 10 לבני מאה ללבנת אלף אחת');
     const c = exerciseCard(t, { ...EMPTY, thousands: 1, hundreds: 15 }, { conversionDone: false, pendingConversion: 'hundreds', conversionAgain: true })!;
-    expect(c.questionHe).toBe('נסו לחשוב: ההנחיה מבקשת לקבץ שוב 10 לבני מאה ללבנת אלף אחת. איך מקבצים אותן?');
+    expect(c.questionHe).toBe('נסו לחשוב: ההוראה מבקשת לקבץ שוב 10 לבני מאה ללבנת אלף אחת. איך מקבצים אותן?');
   });
 
   it('through the store: s3_r_t2 gets the break card until the child breaks, then C1', () => {
@@ -296,8 +296,8 @@ describe('4. an empty board in stations 3 and 7: build first what the instructio
     const c = q(byId('s3_r_t1'), EMPTY);
     expect(c.questionHe).toBe(BUILD_Q);
     expect(rows(c)).toEqual([
-      ['בונים בבית המספרים את מה שההנחיה מבקשת', 'נכון מאוד! קראו את ההנחיה. בנו בבית המספרים את מה שהיא מבקשת.', true],
-      ['כותבים מספר בשורת התוצאה', 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים?', false],
+      ['בונים בבית המספרים את מה שההוראה מבקשת', 'נכון מאוד! קראו את ההוראה. בנו בבית המספרים את מה שהיא מבקשת.', true],
+      ['כותבים מספר בשורת התוצאה', 'רמז: מה ההוראה מבקשת לעשות לפני שכותבים?', false],
       ['מנחשים את התשובה', 'רמז: מה אפשר לבנות בבית המספרים במקום לנחש?', false],
     ]);
     expect(textsOf(c).join(' ')).not.toMatch(/\d/);
@@ -321,7 +321,7 @@ describe('4. an empty board in stations 3 and 7: build first what the instructio
     }
     // 2.10.2026 (audit D10): a board that is not yet the number is compared with
     // its words first; "which number is built" speaks once it is.
-    expect(q(byId('s3_r_t1'), { ...EMPTY, hundreds: 3 }).questionHe).toBe('נסו לחשוב: איך בודקים שבית המספרים מראה את המספר שבהנחיה?');
+    expect(q(byId('s3_r_t1'), { ...EMPTY, hundreds: 3 }).questionHe).toBe('נסו לחשוב: איך בודקים שבית המספרים מראה את המספר שבהוראה?');
     expect(q(byId('s3_r_t1'), { ...EMPTY, hundreds: 3, tens: 4 }).questionHe).toBe('נסו לחשוב: איך יודעים איזה מספר בנוי בבית המספרים?');
     // Changed 1.10.2026 (owner, via the coordinator: every misleading cell gets
     // a fitting card; analysts' matrix 4.2): the carry card spoke of 10 blocks
@@ -455,7 +455,7 @@ describe('6. the single answer box: only what changed, at least one wrong digit 
 
 const BUILD_BEFORE_GROUP = 'נסו לחשוב: מה עושים לפני שמקבצים?';
 const BUILD_BEFORE_BREAK = 'נסו לחשוב: מה עושים לפני שפורטים?';
-const REBUILD_GROUP = 'נסו לחשוב: ההנחיה מבקשת שתקבצו בעצמכם. מה עושים עכשיו?';
+const REBUILD_GROUP = 'נסו לחשוב: ההוראה מבקשת שתקבצו בעצמכם. מה עושים עכשיו?';
 
 describe('the conversion card follows what the board allows', () => {
   it('s7_r_t1 with 5 tens: the "קבצו 10" button is not there yet — build all the instruction\'s blocks first', () => {
@@ -463,9 +463,9 @@ describe('the conversion card follows what the board allows', () => {
     const c = exerciseCard(t, { ...EMPTY, tens: 5 }, { conversionDone: false, pendingConversion: 'tens' })!;
     expect(c.questionHe).toBe(BUILD_BEFORE_GROUP);
     expect(rows(c)).toEqual([
-      ['בונים בבית המספרים את כל הלבנים שההנחיה מבקשת', 'נכון מאוד! בנו את כל הלבנים שבהנחיה. אחר כך לחצו על הכפתור "קבצו 10" שבראש טור העשרות.', true],
+      ['בונים בבית המספרים את כל הלבנים שההוראה מבקשת', 'נכון מאוד! בנו את כל הלבנים שבהוראה. אחר כך לחצו על הכפתור "קבצו 10" שבראש טור העשרות.', true],
       ['מקבצים את הלבנים שכבר נמצאות בטור העשרות', 'רמז: כמה לבני עשרת מקבצים ללבנת מאה אחת?', false],
-      ['כותבים את המספר בלי לקבץ', 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים את המספר?', false],
+      ['כותבים את המספר בלי לקבץ', 'רמז: מה ההוראה מבקשת לעשות לפני שכותבים את המספר?', false],
     ]);
     expect(wrongHintViolation(c)).toBeNull();
     // Through the store.
@@ -481,8 +481,8 @@ describe('the conversion card follows what the board allows', () => {
     const c = served(t);
     expect(c.questionHe).toBe(REBUILD_GROUP);
     expect(rows(c)).toEqual([
-      ['בונים מחדש את הלבנים שבהנחיה, ואחר כך מקבצים', 'נכון מאוד! לחצו על פח האשפה כדי לנקות את בית המספרים. בנו את הלבנים שבהנחיה. אחר כך לחצו על הכפתור "קבצו 10" שבראש טור העשרות.', true],
-      ['כותבים את המספר, כי הלבנים כבר מסודרות', 'רמז: מה ההנחיה מבקשת שתעשו בעצמכם לפני שכותבים?', false],
+      ['בונים מחדש את הלבנים שבהוראה, ואחר כך מקבצים', 'נכון מאוד! לחצו על פח האשפה כדי לנקות את בית המספרים. בנו את הלבנים שבהוראה. אחר כך לחצו על הכפתור "קבצו 10" שבראש טור העשרות.', true],
+      ['כותבים את המספר, כי הלבנים כבר מסודרות', 'רמז: מה ההוראה מבקשת שתעשו בעצמכם לפני שכותבים?', false],
       ['מוסיפים לבנת מאה חדשה', 'רמז: אם תוסיפו לבנה חדשה, האם המספר יישאר אותו מספר?', false],
     ]);
     expect(revealsSecretInCounts(textsOf(c), secretNumbersOf(t))).toBeNull();
@@ -496,15 +496,15 @@ describe('the conversion card follows what the board allows', () => {
     const c = served(t);
     expect(c.questionHe).toBe(BUILD_BEFORE_BREAK);
     expect(rows(c)).toEqual([
-      ['בונים בבית המספרים את כל הלבנים שההנחיה מבקשת', 'נכון מאוד! בנו את כל הלבנים שבהנחיה. אחר כך לחצו על לבנת מאה כדי לפרוט אותה.', true],
-      ['פורטים לבנה אחרת שכבר נמצאת בבית המספרים', 'רמז: איזו לבנה ההנחיה מבקשת לפרוט?', false],
-      ['כותבים את המספר בלי לפרוט', 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים את המספר?', false],
+      ['בונים בבית המספרים את כל הלבנים שההוראה מבקשת', 'נכון מאוד! בנו את כל הלבנים שבהוראה. אחר כך לחצו על לבנת מאה כדי לפרוט אותה.', true],
+      ['פורטים לבנה אחרת שכבר נמצאת בבית המספרים', 'רמז: איזו לבנה ההוראה מבקשת לפרוט?', false],
+      ['כותבים את המספר בלי לפרוט', 'רמז: מה ההוראה מבקשת לעשות לפני שכותבים את המספר?', false],
     ]);
     // The final board built by hand (2 hundreds, 14 tens): build again, then break.
     load(t);
     buildBlocks({ hundreds: 2, tens: 14 });
-    expect(served(t).questionHe).toBe('נסו לחשוב: ההנחיה מבקשת שתפרטו בעצמכם. מה עושים עכשיו?');
-    expect(served(t).choices[0].feedbackHe).toBe('נכון מאוד! לחצו על פח האשפה כדי לנקות את בית המספרים. בנו את הלבנים שבהנחיה. אחר כך לחצו על לבנת מאה כדי לפרוט אותה.');
+    expect(served(t).questionHe).toBe('נסו לחשוב: ההוראה מבקשת שתפרטו בעצמכם. מה עושים עכשיו?');
+    expect(served(t).choices[0].feedbackHe).toBe('נכון מאוד! לחצו על פח האשפה כדי לנקות את בית המספרים. בנו את הלבנים שבהוראה. אחר כך לחצו על לבנת מאה כדי לפרוט אותה.');
   });
 });
 
@@ -525,7 +525,7 @@ describe('statesBoardCount: what the exercise itself shows is not refused', () =
       options: [
         { id: 'opt_1', option_text: 'לוחצים על הכפתור "קבצו 10" שבראש הטור', feedback_text: 'נכון מאוד! לחצו על הכפתור.', is_correct: true },
         { id: 'opt_2', option_text: 'מוחקים לבנים', feedback_text: 'רמז: אם תמחקו לבנים, האם המספר יישאר אותו מספר?', is_correct: false },
-        { id: 'opt_3', option_text: 'כותבים את המספר בלי לקבץ', feedback_text: 'רמז: מה ההנחיה מבקשת לעשות לפני שכותבים את המספר?', is_correct: false },
+        { id: 'opt_3', option_text: 'כותבים את המספר בלי לקבץ', feedback_text: 'רמז: מה ההוראה מבקשת לעשות לפני שכותבים את המספר?', is_correct: false },
       ],
     },
   });
@@ -536,7 +536,7 @@ describe('statesBoardCount: what the exercise itself shows is not refused', () =
     });
 
   it('the engine: the instruction\'s "12 לבני עשרת" and the active column\'s digit are accepted', async () => {
-    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard('ההנחיה מבקשת לבנות 12 לבני עשרת. מה עושים עכשיו?'));
+    vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard('ההוראה מבקשת לבנות 12 לבני עשרת. מה עושים עכשיו?'));
     expect(await ask(byId('s7_r_t1'), { ...EMPTY, tens: 12, units: 5 }, 'עשרות')).not.toBeNull();
     vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue(aiCard('בתרגיל 1,245 + 328, בטור היחידות מחברים 5 יחידות ועוד 8 יחידות. מה עושים?'));
     expect(await ask(byId('s4_g_t1'), { ...EMPTY, units: 5, tens: 4 })).not.toBeNull();

@@ -100,7 +100,9 @@ describe('level 2 — the whole class', () => {
   it('one name with its button, the tick in plain words, the class reasons', () => {
     open(4);
     expect(screen.getByText('איפוס המפגש לכיתה (רמה 2)')).toBeTruthy();
-    expect(screen.getByText('כן, לאפס את מפגש 4 · אצל התלמידים: חיבור במאונך עם הקבצה לכל 12 התלמידים.')).toBeTruthy();
+    // PRD 23א (l.1032): exactly "כן, לאפס את מפגש M לכל 12 התלמידים." — no station name in it.
+    expect(screen.getByText('כן, לאפס את מפגש 4 לכל 12 התלמידים.')).toBeTruthy();
+    expect(screen.queryByText(/כן, לאפס את מפגש 4 · /)).toBeNull();
     expect(dialog().textContent).not.toMatch(/טלמטריה/);
     // Register deviation 20: the help calls stay (the alerts are level 1).
     expect(screen.getByText('הקריאות לעזרה של התלמידים נשארות ברדאר. כדי לנקות אותן לחצו על "איפוס התראות".')).toBeTruthy();

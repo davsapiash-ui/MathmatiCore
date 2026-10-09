@@ -154,7 +154,7 @@ export interface ClassMeetingReport {
   aiAnalysisAvailable: boolean;
   /**
    * A PDF / CSV of this report is stored. PRD 23 §ב: its download link is valid
-   * for one hour, so no link is kept here: opening the file asks the server for
+   * per request, so no link is kept here: opening the file asks the server for
    * a fresh signed one (fetchClassReportFileUrl).
    */
   hasPdf: boolean;
@@ -396,7 +396,7 @@ export async function fetchClassReport(sessionNumber: number, classId = 'class_1
   return classReportFromData(snap.data() as Record<string, any>);
 }
 
-/** A fresh one-hour signed link to the stored PDF or CSV of a meeting's class report (PRD 23 §ב). */
+/** A fresh signed link to the stored PDF or CSV of a meeting's class report (PRD 23 §ב). */
 export async function fetchClassReportFileUrl(sessionNumber: number, kind: 'pdf' | 'csv', classId = 'class_1'): Promise<string> {
   const call = httpsCallable(functions, 'getClassReportDownloadUrl');
   const res = await call({ classId, sessionNumber, kind });

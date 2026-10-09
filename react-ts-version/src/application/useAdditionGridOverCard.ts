@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { useWorkspaceStore } from './useWorkspaceStore';
+import { useWorkspaceStore, isAdditionGridVisible, emitAdditionGridToggled, type AdditionGridSource } from './useWorkspaceStore';
 
 /**
  * The addition grid and the coaching card are never shown together (enhanced
@@ -17,7 +17,8 @@ import { useWorkspaceStore } from './useWorkspaceStore';
  * with nothing to reset.
  *
  * Not workspace state: nothing here is saved, restored or sent. Folding is
- * not a help event and writes no telemetry.
+ * not a help event; what it changes on the screen is logged with every other
+ * appearance of the grid (logAdditionGridOnScreen, below).
  */
 export const useAdditionGridOverCard = create<{ cardKey: string | null }>(() => ({ cardKey: null }));
 
@@ -48,10 +49,10 @@ export function useIsAdditionGridOverCard(): boolean {
 }
 
 /**
- * The amber "לוח החיבור" tab: the grid is shown in its place. A closed grid
- * opens (the one ADAPTIVE_GRID_TOGGLED of a learner's opening); a grid that
- * waited behind the card is only shown again, which is no event. If the card
- * is open it folds into its tab.
+ * The amber "לוח החיבור" tab: the grid is shown in its place — a closed grid
+ * opens, a grid that waited behind the card is shown again; either is one
+ * ADAPTIVE_GRID_TOGGLED {opened, learner}. If the card is open it folds into
+ * its tab.
  */
 export function showAdditionGrid(): void {
   const ws = useWorkspaceStore.getState();
@@ -63,3 +64,54 @@ export function showAdditionGrid(): void {
 export function showCoachingCard(): void {
   useAdditionGridOverCard.setState({ cardKey: null });
 }
+
+type WorkspaceSnapshot = ReturnType<typeof useWorkspaceStore.getState>;
+
+/** The grid is on the learner's screen: open, on an addition exercise of a learner who receives it, and not waiting as its tab under the coaching card. */
+export function isAdditionGridOnScreen(s: WorkspaceSnapshot, cardKey: string | null): boolean {
+  return isAdditionGridVisible(s) && (s.helpState !== 'socratic' || isAdditionGridOverCard(s, cardKey));
+}
+
+/*
+ * PRD Module 10 §ב: "כל פתיחה וסגירה של הלוח נרשמת בטלמטריה כאירוע
+ * ADAPTIVE_GRID_TOGGLED" — logged here once for every change of what the
+ * learner sees, whatever caused it. The payload is Appendix A's, {action,
+ * source}, and the source reads:
+ *  - opened, 'hesitation_30s': the system put the grid on the screen — its
+ *    30-second opening (the grid was closed), or the grid, still open, coming
+ *    back (the card closed, the learner's card tab, an addition exercise again);
+ *  - opened, 'learner': the learner's "לוח החיבור" tab;
+ *  - closed, 'learner': the learner's X;
+ *  - closed, 'hesitation_30s': the grid, still open, left the screen without
+ *    the learner closing it — folded under the coaching card, or an exercise
+ *    that is not an addition (or a new meeting, a reset).
+ * A system "opened" that follows a system "closed" is therefore a return, not
+ * a new 30-second opening (functions/src/meetingMetrics.ts,
+ * LearnerJourneyService). A closing is logged on the exercise it happened on.
+ */
+let lastWs: WorkspaceSnapshot = useWorkspaceStore.getState();
+let lastCardKey: string | null = useAdditionGridOverCard.getState().cardKey;
+let lastOnScreen = isAdditionGridOnScreen(lastWs, lastCardKey);
+
+function logAdditionGridOnScreen(): void {
+  const ws = useWorkspaceStore.getState();
+  const cardKey = useAdditionGridOverCard.getState().cardKey;
+  const prev = lastWs;
+  const wasOver = isAdditionGridOverCard(prev, lastCardKey);
+  lastWs = ws;
+  lastCardKey = cardKey;
+  const now = isAdditionGridOnScreen(ws, cardKey);
+  if (now === lastOnScreen) return;
+  lastOnScreen = now;
+  if (now) {
+    let source: AdditionGridSource;
+    if (!prev.isAdditionHelperOpen) source = ws.additionHelperSource ?? 'hesitation_30s';
+    else source = isAdditionGridOverCard(ws, cardKey) && !wasOver ? 'learner' : 'hesitation_30s';
+    emitAdditionGridToggled(ws, 'opened', source);
+  } else {
+    const byX = !ws.isAdditionHelperOpen && ws.additionHelperClosedByLearner;
+    emitAdditionGridToggled(prev, 'closed', byX ? 'learner' : 'hesitation_30s');
+  }
+}
+useWorkspaceStore.subscribe(logAdditionGridOnScreen);
+useAdditionGridOverCard.subscribe(logAdditionGridOnScreen);

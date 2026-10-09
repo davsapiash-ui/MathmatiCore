@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { telemetryDocIdOf } from '@/infrastructure/services/telemetryStamp';
 
 /**
  * מודול 29 §ג: "ברשת פעילה, הסנכרון ל-Firestore מתבצע ברקע לפי סדר FIFO".
@@ -22,8 +23,11 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => vi.fn(() => Promise.resolve({ data: {} }))) }));
 
-const event = (key: string) => ({
-  idempotency_key: key,
+/** A readable name's UUID v4 — every new event's key is one (Module 4). */
+const K = (name: string) => telemetryDocIdOf(name);
+
+const event = (name: string) => ({
+  idempotency_key: K(name),
   client_timestamp: 1_000,
   session_id: 'session_4_student_student_user3',
   student_id: 3,
@@ -53,8 +57,8 @@ describe('the queue is sent in the background while the network is up', () => {
     await vi.advanceTimersByTimeAsync(2000);
 
     expect(setDoc).toHaveBeenCalledTimes(2);
-    expect((setDoc.mock.calls[0] as unknown[])[0]).toEqual({ coll: 'telemetry_logs', id: 'evt_a' }); // FIFO
-    expect((setDoc.mock.calls[1] as unknown[])[0]).toEqual({ coll: 'telemetry_logs', id: 'evt_b' });
+    expect((setDoc.mock.calls[0] as unknown[])[0]).toEqual({ coll: 'telemetry_logs', id: K('evt_a') }); // FIFO
+    expect((setDoc.mock.calls[1] as unknown[])[0]).toEqual({ coll: 'telemetry_logs', id: K('evt_b') });
     // Deleted only after the server took it.
     expect((await indexedDBQueue.getAll()).length).toBe(0);
   });
@@ -67,7 +71,7 @@ describe('the queue is sent in the background while the network is up', () => {
     await indexedDBQueue.enqueue(event('evt_refused'));
     await vi.advanceTimersByTimeAsync(2000);
 
-    expect((await indexedDBQueue.getAll()).map((i) => i.idempotency_key)).toEqual(['evt_refused']);
+    expect((await indexedDBQueue.getAll()).map((i) => i.idempotency_key)).toEqual([K('evt_refused')]);
     await indexedDBQueue.clearAll();
   });
 
