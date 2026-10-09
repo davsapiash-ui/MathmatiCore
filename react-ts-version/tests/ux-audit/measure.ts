@@ -181,6 +181,11 @@ export function measurePage(): Measurement {
         over = Math.max(over, r.right - right, left - r.left);
         if (/(auto|scroll)/.test(ox) && (r.right - right > 2 || left - r.left > 2)) scrollable = true;
       }
+      // The one scroll the owner allowed (9.10.2026, RO1): the coaching card's
+      // drawer in the task zone keeps the work area still and scrolls inside
+      // itself when its content is taller than its place. The task card itself
+      // still may not scroll (judged against the card, further up).
+      if (over > 2 && scrollable && a.hasAttribute('data-scroll-allowed')) continue;
       if (over > 2) {
         const container = describe(a);
         add(

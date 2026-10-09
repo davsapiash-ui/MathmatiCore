@@ -242,15 +242,13 @@ describe('one praise, one sentence at the end of meetings 3–7', () => {
     for (const s of Object.values(ENCOURAGEMENT_SENTENCES_HE)) expect(s.startsWith('כל הכבוד'), s).toBe(true);
   });
 
-  it('where the sentence is shown, the heading only names the station', () => {
+  it('meetings 3–7 end on the one sentence alone (PRD 14 §ג: no heading, no number; owner, OWNER-1)', () => {
     const page = read(resolve(SRC, 'features/workspace/StudentWorkspacePage.tsx'));
-    const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"), page.indexOf('<ClosingSentence sessionNumber={sessionNumber}'));
-    expect(end).toContain('const withClosingSentence = hasClosingSentence(endStation) && endStation === sessionNumber;');
-    // One praise-free heading for every meeting: 3–7 praise in the closing
-    // sentence, 1–2 not at all, 8 on its reflection board (PRD 14 §ג).
-    expect(end).toContain('`סיימתם את תחנה ${endStation}!`');
+    const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"), page.indexOf('{classStateOverlays}', page.indexOf("if (endScreen === 'sessionDone') {")));
+    expect(end).toContain("hasClosingSentence(endStation) && endStation === sessionNumber ? 'encouragement'");
+    expect(end).toMatch(/endKind === 'encouragement' \? \(\s*\/\/[^\n]*\n\s*<ClosingSentence sessionNumber=\{sessionNumber\} counts=\{meetingPersistence\} \/>/);
+    expect(end).not.toContain('`סיימתם את תחנה ${');
     expect(end).not.toContain('כל הכבוד');
-    expect(end).toContain('{!withClosingSentence && <UdlSpeechButton text={endScreenSpeech} className="shrink-0" />}');
   });
 
   it('no toast before that screen (review S11, 9.10.2026: not PRD text)', () => {

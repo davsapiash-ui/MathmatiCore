@@ -4,7 +4,7 @@ import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentSt
 import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { ref, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
-import { acknowledgeTeacherReset } from '@/infrastructure/services/FirebaseSyncService';
+import { acknowledgeTeacherReset, firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { throttledRtdbUpdate, rtdbUpdateNow } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { Meeting2WaitingScreen } from '@/presentation/components/student/Meeting2WaitingScreen';
 import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
@@ -84,6 +84,10 @@ export function StudentHub() {
         }
       },
       (err) => {
+        // A failed read must not leave the lobby blank and the swap waiting for
+        // ever: the record stays unknown (read as not finished) and the lobby
+        // goes on as it did before it waited for the record (review RS2).
+        setRecordLoaded(true);
         console.warn('[StudentHub] student listener notice:', err);
       }
     );
@@ -165,6 +169,8 @@ export function StudentHub() {
     sessionNumber: teacherSessionNum,
     lastMeeting: activeClassSession.lastMeeting ?? null,
     record,
+    // This device's own copy of the meeting, as the workspace reads it on entry.
+    deviceCopyOf: (m) => (normUid || uid ? firebaseSyncService.getLocalSessionProgress(normUid || uid, m) : null),
   });
   const openingMeeting = activeClassSession.isLoaded && (recordLoaded || !normUid) && state.kind === 'opening' && !isAwaitingTeacherGate && !isProjectorModeActive
     ? state.meeting

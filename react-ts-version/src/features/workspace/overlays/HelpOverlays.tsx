@@ -294,7 +294,7 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
                  the close button fit in the panel down to a 585px-high window.
                  overflow-y-auto stays only as a last resort for a still
                  shorter screen. */
-              className={`${inTaskZone ? 'w-full min-h-0 pointer-events-auto' : `h-full min-h-0 ${BESIDE_CARD_DRAWER_WIDTH}`} flex-col bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 p-[clamp(0.625rem,1.8vh,1.25rem)] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
+              className={`${inTaskZone ? 'w-full min-h-0 pointer-events-auto' : `h-full min-h-0 ${BESIDE_CARD_DRAWER_WIDTH}`} flex-col bg-ws-surface rounded-3xl shadow-lg border-2 border-indigo-200 dark:border-indigo-800/80 ${inTaskZone ? 'p-2' : 'p-[clamp(0.625rem,1.8vh,1.25rem)]'} overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ws-accent ${
                 gridOverCard ? 'hidden' : folded ? 'flex invisible pointer-events-none' : 'flex pointer-events-auto'
               }`}
               // Folded: hidden, unreachable by Tab and screen readers, still mounted.
@@ -302,6 +302,10 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
               // Focusable by the page only (the card's return from under the grid), not by Tab.
               tabIndex={-1}
               data-folded={folded ? 'true' : undefined}
+              // Owner, 9.10.2026 (RO1): in the task zone this drawer may scroll
+              // inside itself (the work area never moves); the UX audit allows
+              // this one scroll and no other.
+              data-scroll-allowed={inTaskZone ? 'owner-2026-10-09' : undefined}
               role="region"
               aria-label="כרטיס החניכה"
               aria-busy={socraticPending}
@@ -332,7 +336,7 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
                   own above it: on a 585–700px-high window that row pushed the
                   close button below the panel (owner, 28.9.2026: no scroll
                   at any size). */}
-              <div className="flow-root shrink-0 mb-[clamp(0.25rem,1vh,0.75rem)]">
+              <div className={`flow-root shrink-0 ${inTaskZone ? 'mb-1' : 'mb-[clamp(0.25rem,1vh,0.75rem)]'}`}>
                 <div className="float-left flex items-center gap-1 ms-2 mb-1">
                   {!folded && <UdlSpeechButton
                     text={joinSpokenSentences([
@@ -509,7 +513,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
   );
 
   return (
-    <div className="mt-[clamp(0.25rem,1.2vh,1rem)] flex flex-col gap-[clamp(0.25rem,0.9vh,0.625rem)] shrink-0">
+    <div className={`${columns ? 'gap-1.5' : 'mt-[clamp(0.25rem,1.2vh,1rem)] gap-[clamp(0.25rem,0.9vh,0.625rem)]'} flex flex-col shrink-0`}>
       {/* While the answer buttons are locked the prompt's line goes to the
           hint; it comes back with the buttons. */}
       {/* In the task zone the drawer lies over the guide block and must stay as
@@ -521,7 +525,11 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
           {closeButton}
         </div>
       ) : (!locked && !answered && <p className="font-extrabold text-xs text-ws-soft">בחרו תשובה:</p>)}
-      <div className={columns ? 'grid grid-cols-3 gap-2' : 'contents'} data-testid="socratic-options">
+      {/* In the task zone, once the right answer is chosen the options are
+          done (they take no second press) and the hint below says it: they
+          give their row to the hint, so the drawer stays as short as the
+          guide block it lies over (PRD 7 §א rules 6–7). */}
+      {!(columns && answered) && <div className={columns ? 'grid grid-cols-3 gap-2' : 'contents'} data-testid="socratic-options">
       {options.map((opt) => {
         const isChosen = selectedOpt === opt.id;
         const isWrongChosen = isChosen && !opt.correct;
@@ -535,7 +543,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
             onClick={() => handleSelect(opt)}
             // At least 44px tall, the child's touch target (DESIGN_SYSTEM_RULES.md;
             // UX audit 4.10.2026: 36–42px on 585–729px-high windows).
-            className={`min-h-11 ${columns ? 'px-2 justify-center text-center' : 'px-3 text-right'} py-[clamp(0.3125rem,1.3vh,0.75rem)] rounded-2xl border-2 font-medium ${columns ? 'text-sm' : 'text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug transition-all flex items-center gap-2 ${
+            className={`min-h-11 ${columns ? 'px-2 py-1 justify-center text-center' : 'px-3 text-right py-[clamp(0.3125rem,1.3vh,0.75rem)]'} rounded-2xl border-2 font-medium ${columns ? 'text-sm' : 'text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug transition-all flex items-center gap-2 ${
               isCorrectChosen
                 ? 'border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100'
                 : isWrongChosen
@@ -551,7 +559,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
           </button>
         );
       })}
-      </div>
+      </div>}
 
       {/* After a wrong choice the hint and the lock share one box: two boxes
           pushed the close button below a 585px-high window (28.9.2026). */}
@@ -559,7 +567,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
         <div
           role="status"
           aria-live="assertive"
-          className={`rounded-2xl px-3 py-[clamp(0.25rem,1vh,0.75rem)] ${columns ? 'text-sm' : 'text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug font-semibold ${
+          className={`rounded-2xl px-3 ${columns ? 'py-1.5 text-sm' : 'py-[clamp(0.25rem,1vh,0.75rem)] text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug font-semibold ${
           selectedOpt && options.find(o => o.id === selectedOpt)?.correct
             ? 'bg-emerald-50 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800'
             : 'bg-rose-50 text-rose-950 dark:bg-rose-950/50 dark:text-rose-200 border border-rose-300 dark:border-rose-800'

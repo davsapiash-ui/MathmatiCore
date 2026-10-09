@@ -218,7 +218,8 @@ describe('3 — "תחנה N" inside the workspace, never "מפגש N"', () => {
     // The station tag of the task zone (design-task-zone, 8.10.2026: no ✦ glyph).
     expect(code('features/workspace/tasks/TaskZone.tsx')).toContain('תחנה {stationNumber}');
     const page = code('features/workspace/StudentWorkspacePage.tsx');
-    expect(page).toContain('`סיימתם את תחנה ${endStation}!`');
+    expect(page).toContain("['סיימתם את תחנה 1!', savedLine");
+    expect(page).toContain("['סיימתם את תחנה 8, התחנה האחרונה!', savedLine]");
     expect(page).toContain('עוברים לתחנה {activeClassSession?.sessionNumber}...');
     const store = code('application/useWorkspaceStore.ts');
     // No end toast at all (review S11, 9.10.2026): it was not PRD text.

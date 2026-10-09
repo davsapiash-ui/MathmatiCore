@@ -187,7 +187,7 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
                 }
               }}
             />
-            <span className="font-bold" style={{ fontSize: `max(12px, calc(${CELL} * 0.22))`, color: PLACE_TINT[place] }}>
+            <span className="font-bold" style={{ fontSize: `max(14px, calc(${CELL} * 0.22))`, color: PLACE_TINT[place] }}>
               {PLACE_NAMES_HE[place]}
             </span>
           </div>

@@ -28,8 +28,8 @@ import { taskGuide } from '@/core/taskGuide';
  * UDL: ריבוי אמצעי ייצוג — טקסט + הקראה + ייצוג חזותי.
  */
 /** The notebook square inside the task card (design spec §2.5). */
-// …and no wider than a seventh and a half of the task zone after the card's
-// paddings (a 4-digit sheet is seven squares across): the zone is a size
+// …and no wider than 1/8.2 of the task zone after the card's paddings (a
+// 4-digit sheet is seven squares across, with room to spare): the zone is a size
 // container (.task-zone-cells, StudentWorkspacePage), so 100cqi is the zone's
 // width; with no container (stations 2 and 8) it is the window's, and never binds.
 // Station 1's vertical exercises (61 − 24, 806 − 351) under their guide block

@@ -158,6 +158,11 @@ function given2730Steps(isASD: boolean): Step[] {
     await ws(cc.page, 'st.removeBlockClick("tens");');
     if (!undoLeadsBack) await ws(cc.page, SET, { undoStack: [] });
     await ws(cc.page, 'st.openSocraticCard("hesitation_45s");');
+    // The card has settled (not the hourglass, whose ✕ is an enabled button too).
+    await cc.page.waitForFunction(() => {
+      const st = (window as unknown as { __wsStore: { getState: () => { socraticPending?: boolean; aiSocraticHint?: unknown } } }).__wsStore.getState();
+      return !st.socraticPending && Boolean(st.aiSocraticHint);
+    }, undefined, { timeout: 12_000 });
     await cc.page.getByTestId('socratic-card').locator('button:not([disabled])').first().waitFor({ state: 'visible', timeout: 12_000 });
   };
   const expectCard = async (cc: AuditContext, kind: string) => {

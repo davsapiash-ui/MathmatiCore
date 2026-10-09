@@ -130,6 +130,21 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       expect(share).toBeLessThan(0.62);
       expect(board.x + board.width, 'the board is on the visual left').toBeLessThanOrEqual(task.x + 1);
       await check(page, 'workspace-station4', viewport.width, viewport.height);
+      // Owner, 9.10.2026 (RO1): the work area does not move while the drawer
+      // is open — the sheet's boxes stay where they are, opened and after a
+      // wrong choice; the card never scrolls; the result row stays in the card.
+      const sheetBoxes = page.locator('[aria-label^="תרגיל במאונך"] input');
+      const sheetAt = async () => {
+        const all = await sheetBoxes.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+        return all;
+      };
+      const cardOverflow = () =>
+        page.evaluate(() => {
+          const el = document.querySelector('#tour-task-card') as HTMLElement | null;
+          return el ? el.scrollHeight - el.clientHeight : -1;
+        });
+      const sheetBefore = await sheetAt();
+      expect(sheetBefore.length).toBeGreaterThan(0);
 
       await ws(page, 'st.openSocraticCard("hesitation_45s");');
       const card = page.getByTestId('socratic-card');
@@ -153,7 +168,33 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
         const b = await boxes.nth(i).boundingBox();
         expect(b && overlaps(drawer, b), `the drawer covers no box of the sheet (${i})`).toBe(false);
       }
+      expect(await sheetAt(), 'the sheet does not move when the drawer opens').toEqual(sheetBefore);
+      expect(await cardOverflow(), 'the task card does not scroll with the drawer open').toBeLessThanOrEqual(0);
       await check(page, 'workspace-station4-socratic', viewport.width, viewport.height);
+
+      // Review RB1: after a wrong choice (the hint and the lock line) the drawer
+      // is at its tallest. The card itself never scrolls (PRD 7 §א rule 7) and
+      // the result row stays inside it (rule 6).
+      const wrong = await ws<string>(page, 'const h = st.aiSocraticHint; return (h && h.choices.find((c) => !c.isCorrect)?.textHe) || "";');
+      expect(wrong, 'the card has a wrong option').not.toBe('');
+      await page.getByTestId('socratic-card').getByRole('button', { name: wrong }).click();
+      await page.getByTestId('socratic-lock-indicator').waitFor({ state: 'visible' });
+      await settle(page, 700);
+      const overflow = await page.evaluate(() => {
+        const card = document.querySelector('#tour-task-card') as HTMLElement | null;
+        return card ? card.scrollHeight - card.clientHeight : -1;
+      });
+      expect(overflow, 'the task card does not scroll after a wrong choice').toBeLessThanOrEqual(0);
+      const cardBox = await box(page, '#tour-task-card');
+      const lastBox = await boxes.nth(count - 1).boundingBox();
+      expect(lastBox, 'the result row is on the screen').not.toBeNull();
+      expect(lastBox!.y + lastBox!.height, 'the result row is inside the card').toBeLessThanOrEqual(cardBox.y + cardBox.height + 1);
+      expect(await sheetAt(), 'the sheet does not move after a wrong choice').toEqual(sheetBefore);
+      for (let i = 0; i < count; i += 1) {
+        const b = await boxes.nth(i).boundingBox();
+        expect(b && overlaps(await box(page, '[data-testid="socratic-side-panel"]'), b), `after the wrong choice the drawer covers no box (${i})`).toBe(false);
+      }
+      await check(page, 'workspace-station4-socratic-wrong', viewport.width, viewport.height);
     });
 
     test('lobby: finished, finished station 8, closed unfinished', async () => {
@@ -197,6 +238,10 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
         if (meeting === 8) {
           await expect(page.getByText('סיימתם את תחנה 8, התחנה האחרונה!')).toBeVisible();
           await expect(page.getByText('התחנה הבאה', { exact: false })).toHaveCount(0);
+        } else {
+          // PRD 14 §ג (owner, OWNER-1): the one encouragement sentence alone — no heading, no number.
+          await expect(page.getByTestId('closing-sentence')).toBeVisible();
+          await expect(page.getByText('סיימתם את תחנה', { exact: false })).toHaveCount(0);
         }
         await check(page, `end-station${meeting}`, viewport.width, viewport.height);
       }
@@ -232,7 +277,13 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       await expect(page.getByText('המורה סגרה את התחנה')).toHaveCount(0);
       await check(page, 'waiting-closed-finished', viewport.width, viewport.height);
 
-      await ws(page, 'api.setState({ isSupersededByOtherDevice: true });');
+      // Back to work in an open station (review RN2: the closed session's end
+      // screen stayed under the lock in the shots), then the other device takes over.
+      c.rtdb.set('active_class_session', liveSession(4) as never);
+      await ws(page, 'api.setState({ flowStatus: "task", awaitingNext: false });');
+      await page.locator('[data-testid="task-zone"]').waitFor({ state: 'visible' });
+      // As the page's own listener drives it: another device claims the record.
+      c.rtdb.set(`users/students/${STUDENT_UID}/active_device_id`, 'ux-audit-other-device');
       await expect(page.getByText('העבודה שלכם נשמרה. אם לא עברתם למכשיר אחר, קראו למורה.')).toBeVisible();
       await check(page, 'waiting-other-device', viewport.width, viewport.height);
     });

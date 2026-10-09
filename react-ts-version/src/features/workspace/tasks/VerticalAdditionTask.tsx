@@ -300,7 +300,8 @@ export function VerticalAdditionTask({
                 className={`rounded-full border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent ${
                   circlesHint ? 'ws-hint-ring' : 'shadow-sm'
                 }`}
-                style={{ width: cell(0.6), height: cell(0.6), fontSize: cell(0.35) }}
+                // No text in the task zone under 14px (PRD 7 §א rule 1): the circle keeps room for it.
+                style={{ width: `max(24px, ${cell(0.6)})`, height: `max(24px, ${cell(0.6)})`, fontSize: `max(14px, ${cell(0.35)})` }}
                 onFocus={() => setFocusedMemoryCircle(place)}
                 onBlur={() => setFocusedMemoryCircle(null)}
                 onChange={(e) => {
@@ -484,7 +485,7 @@ export function VerticalAdditionTask({
             <div
               key={`l${j}`}
               className="text-center font-bold"
-              style={{ width: CELL, fontSize: `max(12px, ${cell(0.22)})`, color: PLACE_TINT[place] }}
+              style={{ width: CELL, fontSize: `max(14px, ${cell(0.22)})`, color: PLACE_TINT[place] }}
             >
               {PLACE_LABEL_HE[place]}
             </div>
