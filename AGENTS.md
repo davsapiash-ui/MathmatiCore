@@ -31,7 +31,7 @@ The **only** authoritative requirements document is:
 מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md
 ```
 
-Version 7.4, 8 October 2026 — 29 modules plus 23א, Appendix A and Appendix B. Read it
+Version 7.18, 9 October 2026 — 29 modules plus 23א, Appendix A and Appendix B. Read it
 before implementing anything. When you cite a requirement, cite it from this file, by
 module.
 
