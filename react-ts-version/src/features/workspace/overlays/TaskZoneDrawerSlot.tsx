@@ -38,12 +38,17 @@ export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }
     const zone = slot?.closest<HTMLElement>('[data-testid="task-zone"]');
     if (!slot || !zone) return;
     let covered: HTMLElement | null = null;
+    // Extra height given to the covered guide block when the drawer is taller
+    // than it (see below); 0 when none.
+    let added = 0;
     const release = () => {
       if (covered) {
         covered.removeAttribute('inert');
         covered.removeAttribute('aria-hidden');
+        covered.style.minHeight = '';
         covered = null;
       }
+      added = 0;
     };
     const measure = () => {
       const zr = zone.getBoundingClientRect();
@@ -58,8 +63,7 @@ export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }
       const workTop = sheetBox ? sheetBox.getBoundingClientRect().top : work ? work.getBoundingClientRect().top : cardBottom;
       const anchor = instruction ? instruction.getBoundingClientRect().top : zr.top;
       const top = Math.round(anchor - zr.top);
-      const maxHeight = Math.max(0, Math.round(workTop - GAP_PX - anchor));
-      setPlace((prev) => (prev && prev.top === top && prev.maxHeight === maxHeight ? prev : { top, maxHeight }));
+      const room = Math.round(workTop - GAP_PX - anchor);
       // The covered guide block takes no focus and is not announced (re-applied
       // when the card renders a new one, for the next task).
       if (covering && instruction && instruction !== covered) {
@@ -70,6 +74,24 @@ export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }
       } else if (!covering) {
         release();
       }
+      // A drawer taller than the guide block it covers (long options, the hint
+      // after an answer): the guide block's place grows to the drawer's height,
+      // so the work area moves down into the card's free space below it rather
+      // than going under the drawer. Back to its own height on close.
+      const aside = slot.querySelector<HTMLElement>('[data-testid="socratic-card"]');
+      const natural = aside ? aside.scrollHeight + 4 : 0;
+      if (covered && covered === instruction) {
+        const ownHeight = instruction.getBoundingClientRect().height - added;
+        const want = Math.max(0, natural - (room - added));
+        if (Math.abs(want - added) > 1) {
+          added = want;
+          instruction.style.minHeight = added > 0 ? `${Math.round(ownHeight + added)}px` : '';
+          window.requestAnimationFrame(measure); // the layout changed: measure again
+          return;
+        }
+      }
+      const maxHeight = Math.max(0, room);
+      setPlace((prev) => (prev && prev.top === top && prev.maxHeight === maxHeight ? prev : { top, maxHeight }));
     };
     measure();
     // The task column fades in with a small slide; measure again once it has settled.
