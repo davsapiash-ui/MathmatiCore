@@ -341,6 +341,12 @@ describe('finding 8 — level 1: the column to act on, not a column the instruct
     expect([...instructionColumnsOf('בנו 61 והוציאו ממנו 24: גררו לפח האשפה את הלבנים שאתם מחסרים. אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו.')]).toEqual([]);
   });
 
+  it('the PRD 7.15 wording names the blocks on both sides of the conversion, and still yields both columns', () => {
+    // s1_target_347 and s1_r_group26 as sessionTasks.ts says them since uniformity-texts (PRD 7.15, Module 14 §ב).
+    expect([...instructionColumnsOf('משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה?\nבנו את המספר 347 בבית המספרים.\nפרטו לבנת עשרת אחת לעשר לבני יחידה.\nכתבו בשורת התוצאה איזה מספר מייצגות הלבנים עכשיו.')].sort()).toEqual(['tens', 'units']);
+    expect([...instructionColumnsOf('קבצו כל 10 לבני יחידה ללבנת עשרת אחת: לחצו על הכפתור "קבצו 10" שבראש הטור.')].sort()).toEqual(['tens', 'units']);
+  });
+
   it('a faithful copy of the CURRENT s1_target_347 card passes (hints in the 30.9 question form)', () => {
     const f = deriveSocraticFacts(rep({ session: 1, id: 's1_target_347', counts: [7, 4, 3, 0], task: T347, frame: { situation: 's1_target_347', level: 1 } }));
     const r = validateSocraticResponse({
