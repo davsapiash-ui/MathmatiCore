@@ -60,6 +60,24 @@ function spokenOperand(digits: string, hidden: Place[]): string {
 const CELL = "var(--ws-cell)";
 const cell = (k: number) => `calc(${CELL} * ${k})`;
 const cellMinus = (px: number) => `calc(${CELL} - ${px}px)`;
+/**
+ * A column of the sheet: one square, but never narrower than a place name at
+ * 14px ("יחידות", "עשרות") with a gap to its neighbour — on a short window the
+ * square is ~34px and the names ran into each other (owner, 9.10.2026). The
+ * rows keep the square's height; the paper's lines follow both.
+ */
+const COL = `max(${CELL}, 42px)`;
+/** The digits of the two numbers, and the same size for every digit typed into a box. */
+const DIGIT_SIZE = cell(0.6);
+/**
+ * A result box (and a missing-digit box): about one digit cell, a little
+ * inside the square so the grid lines show — the typed digit is as large as
+ * the digits above it (owner, 9.10.2026: "sensible", not bigger than the cell).
+ */
+const ANSWER_BOX = cellMinus(6);
+/** A memory circle: 28–32px, its digits 16–18px — readable, not dominating the sheet (owner, 9.10.2026). */
+const MEMORY_CIRCLE = `clamp(28px, ${cell(0.68)}, 32px)`;
+const MEMORY_DIGIT = `clamp(16px, ${cell(0.4)}, 18px)`;
 
 export function VerticalAdditionTask({
   numberA,
@@ -193,7 +211,7 @@ export function VerticalAdditionTask({
         className={`relative flex items-center justify-center font-mono font-black text-ws-ink leading-none ${
           isStriked && d ? 'opacity-60' : ''
         }`}
-        style={{ fontSize: cell(0.6), ...extra }}
+        style={{ fontSize: DIGIT_SIZE, ...extra }}
       >
         {d}
         {isStriked && d && (
@@ -216,7 +234,7 @@ export function VerticalAdditionTask({
         value={operandDigits[which][place] ?? ''}
         aria-label={spokenPlaces ? `ספרת ה${PLACE_LABEL_HE[place]} החסרה ב${number}` : `הספרה החסרה ב${number}: ספרה ${position} מתוך ${str.length}`}
         className="rounded-xl border-2 border-dashed text-center font-mono font-black bg-ws-accentSoft/40 text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent"
-        style={{ width: cellMinus(12), height: cellMinus(12), fontSize: cell(0.48), borderColor: PLACE_TINT[place] }}
+        style={{ width: ANSWER_BOX, height: ANSWER_BOX, fontSize: DIGIT_SIZE, borderColor: PLACE_TINT[place] }}
         // The digit in the box is selected on focus, so a wrong digit can be
         // typed over or deleted (Chromium's mouseup would collapse the selection).
         onFocus={(e) => {
@@ -236,7 +254,7 @@ export function VerticalAdditionTask({
     <div
       key={key}
       className="flex items-center justify-center rounded-xl border-2 font-mono font-black text-ws-ink/80 bg-ws-surface2/40"
-      style={{ width: cellMinus(12), height: cellMinus(12), fontSize: cell(0.48), borderColor: PLACE_TINT[place], margin: 'auto' }}
+      style={{ width: ANSWER_BOX, height: ANSWER_BOX, fontSize: DIGIT_SIZE, borderColor: PLACE_TINT[place], margin: 'auto' }}
       aria-label={
         spokenPlaces
           ? `ספרת ה${PLACE_LABEL_HE[place]} בתשובה, נתונה: ${d}`
@@ -264,16 +282,16 @@ export function VerticalAdditionTask({
         aria-label={`תרגיל במאונך: ${spokenOperand(aStr, hiddenA)} ${isSubtraction ? 'פחות' : 'ועוד'} ${spokenOperand(bStr, hiddenB)}`}
         className="grid rounded-2xl shadow-sm"
         style={{
-          gridTemplateColumns: `${CELL} repeat(${cols}, ${CELL})`,
+          gridTemplateColumns: `${COL} repeat(${cols}, ${COL})`,
           gridTemplateRows: `${CELL} ${CELL} ${CELL} ${CELL}`,
           // Less paper under the answer row than over the memory circles:
           // the place names sit right below it, and a short window needs the room.
           // Meeting 2 also has less over the memory circles (PAPER_TOP).
-          padding: `${PAPER_TOP} ${CELL} ${cell(0.4)}`,
+          padding: `${PAPER_TOP} ${COL} ${cell(0.4)}`,
           backgroundColor: 'var(--ws-surface)',
           backgroundImage:
             'linear-gradient(rgba(96,130,190,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(96,130,190,0.15) 1px, transparent 1px)',
-          backgroundSize: `${CELL} ${CELL}`,
+          backgroundSize: `${COL} ${CELL}`,
           backgroundPosition: `0 ${PAPER_TOP}`,
         }}
       >
@@ -300,8 +318,8 @@ export function VerticalAdditionTask({
                 className={`rounded-full border-2 border-ws-surface2 text-center font-mono font-bold bg-ws-surface text-ws-ink transition-shadow focus:outline-none focus:ring-2 focus:ring-ws-accent ${
                   circlesHint ? 'ws-hint-ring' : 'shadow-sm'
                 }`}
-                // No text in the task zone under 14px (PRD 7 §א rule 1): the circle keeps room for it.
-                style={{ width: `max(24px, ${cell(0.6)})`, height: `max(24px, ${cell(0.6)})`, fontSize: `max(14px, ${cell(0.35)})` }}
+                // 28–32px, its digits 16–18px (owner, 9.10.2026; PRD 7 §א rule 1: no text under 14px).
+                style={{ width: MEMORY_CIRCLE, height: MEMORY_CIRCLE, fontSize: MEMORY_DIGIT }}
                 onFocus={() => setFocusedMemoryCircle(place)}
                 onBlur={() => setFocusedMemoryCircle(null)}
                 onChange={(e) => {
@@ -419,9 +437,9 @@ export function VerticalAdditionTask({
                   isLocked ? 'cursor-not-allowed opacity-75' : ''
                 }`}
                 style={{
-                  width: cellMinus(12),
-                  height: cellMinus(12),
-                  fontSize: cell(0.48),
+                  width: ANSWER_BOX,
+                  height: ANSWER_BOX,
+                  fontSize: DIGIT_SIZE,
                   borderColor: PLACE_TINT[place],
                   ...(shakingPlace === place ? { animation: 'shake 0.5s ease-in-out' } : {}),
                 }}
@@ -474,8 +492,9 @@ export function VerticalAdditionTask({
       <div
         dir="ltr"
         className="grid"
+        data-testid="sheet-place-labels"
         aria-hidden={cues.labels ? undefined : true}
-        style={{ gridTemplateColumns: `${CELL} repeat(${cols}, ${CELL})`, visibility: cues.labels ? 'visible' : 'hidden' }}
+        style={{ gridTemplateColumns: `${COL} repeat(${cols}, ${COL})`, visibility: cues.labels ? 'visible' : 'hidden' }}
       >
         <div aria-hidden="true" />
         {colPlaces.map((place, j) =>
@@ -484,10 +503,15 @@ export function VerticalAdditionTask({
           ) : (
             <div
               key={`l${j}`}
-              className="text-center font-bold"
-              style={{ width: CELL, fontSize: `max(14px, ${cell(0.22)})`, color: PLACE_TINT[place] }}
+              className="flex justify-center"
+              style={{ width: COL, color: PLACE_TINT[place] }}
             >
-              {PLACE_LABEL_HE[place]}
+              {/* A name can be wider than a short window's square (יחידות at 14px on a ~34px
+                  column): centred on its own column, overflowing it evenly, a little tighter
+                  set, so it never runs into its neighbour. Never under 14px (PRD 7 §א rule 1). */}
+              <span data-place-label className="whitespace-nowrap font-semibold leading-tight tracking-[-0.03em]" style={{ fontSize: `max(14px, ${cell(0.22)})` }}>
+                {PLACE_LABEL_HE[place]}
+              </span>
             </div>
           )
         )}

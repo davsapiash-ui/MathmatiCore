@@ -146,9 +146,10 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
                 locked ? 'cursor-not-allowed opacity-75' : ''
               }`}
               style={{
-                width: `calc(${CELL} - 12px)`,
-                height: `calc(${CELL} - 12px)`,
-                fontSize: `calc(${CELL} * 0.48)`,
+                // About one notebook square, as on the vertical sheet (owner, 9.10.2026).
+                width: `calc(${CELL} - 6px)`,
+                height: `calc(${CELL} - 6px)`,
+                fontSize: `calc(${CELL} * 0.6)`,
                 borderColor: PLACE_TINT[place],
                 ...(shakingPlace === place ? { animation: 'shake 0.5s ease-in-out' } : {}),
               }}
