@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { getSessionTasks, SESSION1_TASKS, type SessionTask } from '@/data/sessionTasks';
 import { SESSION_BRANCH_TASKS } from '@/data/sessionBranchTasks';
-import { EMPTY_COUNTS, type PlaceCounts } from '@/core/placeValue';
-import { emptyColumnConversions } from '@/application/useWorkspaceStore';
-import { answerFilled, fmt, guideTicksNow, taskGuide, type GuideTickState } from '@/core/taskGuide';
+import { EMPTY_COUNTS, getValue, type Place, type PlaceCounts } from '@/core/placeValue';
+import { emptyColumnConversions, useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { approvePath } from '@/test/approvedPath';
+import { answerFilled, fmt, guideTicksNow, stickyBuildValue, taskGuide, type GuideTickState } from '@/core/taskGuide';
 import { instructionLines } from '@/core/instructionLines';
 
 /**
@@ -35,7 +36,7 @@ const state = (over: Partial<GuideTickState> = {}): GuideTickState => ({
   q3Reps: [],
   conversionsByColumn: emptyColumnConversions(),
   takeAwayTrack: null,
-  undoStack: [],
+  builtTrack: null,
   checklist: null,
   ...over,
 });
@@ -184,21 +185,35 @@ describe('tick rule (proposal §ג): carried out, not right', () => {
   it('undoing the break un-ticks the break step; the build step stays', () => {
     const { task } = byId('s3_r_t2');
     const g = taskGuide(task, 3)!;
-    const undone = state({ sessionNumber: 3, counts: c({ hundreds: 3, tens: 4 }), undoStack: [{ counts: c({ hundreds: 3, tens: 3 }) }] });
+    const undone = state({ sessionNumber: 3, counts: c({ hundreds: 3, tens: 4 }) });
     expect(guideTicksNow(g, task, undone)).toEqual([true, false, false]);
   });
 
-  it('a built number stays built through the following steps, until undo takes it back or the board is emptied', () => {
-    const { task } = byId('s7_r_t6'); // build 340, add 2 hundreds, remove 3 tens
-    const g = taskGuide(task, 7)!;
-    expect(g.steps[0].tick).toEqual({ kind: 'boardValue', value: 340 });
-    const history = [c({ hundreds: 3, tens: 3 }), c({ hundreds: 3, tens: 4 }), c({ hundreds: 4, tens: 4 })];
-    // after adding: 540 on the board, 340 in the history
-    expect(guideTicksNow(g, task, state({ sessionNumber: 7, counts: c({ hundreds: 5, tens: 4 }), undoStack: history.map((x) => ({ counts: x })) }))[0]).toBe(true);
-    // undo back before 340 was complete: not built
-    expect(guideTicksNow(g, task, state({ sessionNumber: 7, counts: c({ hundreds: 3, tens: 3 }), undoStack: [{ counts: c({ hundreds: 3, tens: 2 }) }] }))[0]).toBe(false);
-    // the trash emptied the board after 340: the history before the empty board does not count
-    expect(guideTicksNow(g, task, state({ sessionNumber: 7, counts: c({ hundreds: 1 }), undoStack: [{ counts: c({ hundreds: 3, tens: 4 }) }, { counts: c({}) }] }))[0]).toBe(false);
+  // Chief re-review S-A (9.10.2026): PRD 14 §ב tasks 5–7 and 10 tick "כשבבית
+  // המספרים 703 / 368 / 482 / 807" — the steps after them do not change the
+  // board, so a board that is no longer N is not built.
+  it('a "build N" step followed only by writing shows the board as it is now: 703 then one more ten is not built', () => {
+    const { task } = byId('s1_r_words703');
+    const g = taskGuide(task, 1)!;
+    expect(g.steps[0].tick).toEqual({ kind: 'boardValue', value: 703 });
+    expect(guideTicksNow(g, task, state({ counts: c({ hundreds: 7, units: 3 }) }))[0]).toBe(true);
+    expect(guideTicksNow(g, task, state({ counts: c({ hundreds: 7, tens: 1, units: 3 }) }))[0]).toBe(false);
+  });
+
+  it('station 7\'s add-then-remove build is sticky, read from builtTrack (saved, and brought back by undo)', () => {
+    for (const id of ['s7_r_t6', 's7_g_t5']) {
+      const { task } = byId(id);
+      const g = taskGuide(task, 7)!;
+      const t = g.steps[0].tick;
+      expect(t.kind === 'boardValue' && t.sticky, id).toBe(true);
+      const value = t.kind === 'boardValue' ? t.value : -1;
+      expect(guideTicksNow(g, task, state({ sessionNumber: 7, counts: c({ hundreds: 9 }), builtTrack: { taskId: task.id, value, held: true } }))[0], id).toBe(true);
+      expect(guideTicksNow(g, task, state({ sessionNumber: 7, counts: c({ hundreds: 9 }), builtTrack: { taskId: task.id, value, held: false } }))[0], id).toBe(false);
+      expect(guideTicksNow(g, task, state({ sessionNumber: 7, counts: c({ hundreds: 9 }), builtTrack: { taskId: 'other', value, held: true } }))[0], id).toBe(false);
+    }
+    // Nothing else is sticky: no other exercise of the banks waits on builtTrack.
+    const sticky = banks().filter(({ meeting, task }) => stickyBuildValue(task, meeting) !== null).map(({ task }) => task.id);
+    expect(sticky.sort()).toEqual(['s7_g_t5', 's7_r_t6']);
   });
 
   // PRD 14 §ב rule (3): "כשכל התיבות מולאו" — never after the units digit alone
@@ -219,5 +234,81 @@ describe('tick rule (proposal §ג): carried out, not right', () => {
 describe('the instruction, one sentence per line, is the instruction', () => {
   it('joined again, the lines give back every instruction of the banks', () => {
     for (const { task } of banks()) expect(instructionLines(task.instructionHe).join(' '), task.id).toBe(task.instructionHe.replace(/\s*\n\s*/g, ' ').trim());
+  });
+});
+
+/**
+ * Chief re-review B-1 (9.10.2026): the tick of station 7's "בנו את המספר N"
+ * must survive the add-then-remove and the typing that follows. It used to be
+ * read from the undo history, which keeps 10 frames: typing the answer pushed
+ * the board that held 3,400 out, the tick went, and the done box never came.
+ * Driven through the real store.
+ */
+describe('station 7 add-then-remove, through the store: the build tick holds to the end', () => {
+  const ws = () => useWorkspaceStore.getState();
+  const drop = (p: Place, n = 1) => { for (let i = 0; i < n; i++) ws().applyDrop({ source: 'palette', sourcePlace: p, target: { kind: 'column', place: p } }); };
+  const trash = (p: Place, n = 1) => { for (let i = 0; i < n; i++) ws().removeBlockClick(p); };
+  const ticksOf = (id: string) => {
+    const task = byId(id).task;
+    const g = taskGuide(task, 7)!;
+    const s = ws();
+    return guideTicksNow(g, task, { ...s, probeAnswer: s.probeAnswer ?? '', checklist: null } as GuideTickState);
+  };
+  const open = (id: string) => {
+    approvePath(id.startsWith('s7_g') ? 'green_path' : 'remediation_path');
+    ws().resetWorkspace();
+    ws().initSession(7, false, getSessionTasks(7, id.startsWith('s7_g') ? 'green_path' : 'remediation_path').findIndex((t) => t.id === id));
+  };
+
+  it('s7_g_t5: build 3,400, add a thousand, break one, remove 6 hundreds, type 3800 — step 1 stays ticked and every tick is in', () => {
+    open('s7_g_t5');
+    drop('thousands', 3);
+    drop('hundreds', 4);
+    expect(ticksOf('s7_g_t5')[0]).toBe(true);
+    drop('thousands');
+    ws().splitBlockClick('thousands');
+    trash('hundreds', 6);
+    expect(getValue(ws().counts)).toBe(3800);
+    for (const [p, d] of [['thousands', '3'], ['hundreds', '8'], ['tens', '0'], ['units', '0']] as const) ws().setAnswerDigit(p, d);
+    expect(ws().undoStack.length).toBe(10); // the cap: the board that held 3,400 is gone from the history
+    expect(ticksOf('s7_g_t5')).toEqual([true, false, false, true]);
+  });
+
+  it('s7_r_t6: build 340, add 2 hundreds, remove 3 tens, a slip and its correction, type 510 — still ticked; undoing back past 340 un-ticks', () => {
+    open('s7_r_t6');
+    drop('hundreds', 3);
+    drop('tens', 4);
+    drop('hundreds', 2);
+    trash('tens', 3);
+    drop('units');
+    trash('units');
+    for (const [p, d] of [['hundreds', '5'], ['tens', '1'], ['units', '9']] as const) ws().setAnswerDigit(p, d);
+    ws().setAnswerDigit('units', '0');
+    expect(ws().undoStack.length).toBe(10);
+    expect(ticksOf('s7_r_t6')).toEqual([true, false, false, true]);
+  });
+
+  it('s7_r_t6: undoing the block that completed 340 takes the tick back (builtTrack returns with the board)', () => {
+    open('s7_r_t6');
+    drop('hundreds', 3);
+    drop('tens', 4);
+    drop('hundreds', 2);
+    expect(ticksOf('s7_r_t6')[0]).toBe(true);
+    ws().undo();
+    ws().undo();
+    ws().undo();
+    expect(getValue(ws().counts)).toBe(330);
+    expect(ticksOf('s7_r_t6')[0]).toBe(false);
+  });
+
+  it('the trash empties the board: the build is no longer recorded', () => {
+    open('s7_r_t6');
+    drop('hundreds', 3);
+    drop('tens', 4);
+    expect(ws().builtTrack).toMatchObject({ taskId: 's7_r_t6', value: 340, held: true });
+    ws().clearBoard();
+    drop('hundreds');
+    expect(ws().builtTrack?.held).toBe(false);
+    expect(ticksOf('s7_r_t6')[0]).toBe(false);
   });
 });

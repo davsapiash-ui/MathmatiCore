@@ -24,7 +24,7 @@ export function TaskGuideBlock({ task, guide, positionHeading }: { task: Session
       q3Reps: st.q3Reps,
       conversionsByColumn: st.conversionsByColumn,
       takeAwayTrack: st.takeAwayTrack,
-      undoStack: st.undoStack,
+      builtTrack: st.builtTrack,
       blocksAddedCount: st.blocksAddedCount,
       hasUngrouped: st.hasUngrouped,
       undoCount: st.undoCount,

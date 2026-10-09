@@ -121,7 +121,11 @@ test('live scenario: teacher and learner together', async ({ browser }) => {
     // The green path's exercise 1 (s3_g_t1, owner 30.9.2026): the number is
     // said in words, and nothing on the screen shows it in digits — build its
     // standard blocks and write it in the one answer box.
-    await expect(c.page.getByText('בנו בבית המספרים את המספר שלושת אלפים וארבע מאות.')).toBeVisible({ timeout: 15_000 });
+    // Since PRD 7.13 (owner, 9.10.2026) the task zone shows the instruction as a
+    // goal line and steps (Module 14 §ב, Module 26): "המספר הוא …" and "בנו את
+    // המספר בבית המספרים", "כתבו אותו בספרות בשורת התוצאה".
+    await expect(c.page.getByTestId('task-goal')).toHaveText('המספר הוא שלושת אלפים וארבע מאות.', { timeout: 15_000 });
+    await expect(c.page.getByTestId('guide-steps').getByText('בנו את המספר בבית המספרים')).toBeVisible();
     const target = 3400;
     await ws(c.page, 'api.setState({ counts: arg, hasInteracted: true });', { thousands: 3, hundreds: 4, tens: 0, units: 0 });
     await c.page.getByTestId('representation-answer').fill(String(target));

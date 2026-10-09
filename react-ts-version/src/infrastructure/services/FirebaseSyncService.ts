@@ -1267,6 +1267,9 @@ export class FirebaseSyncService {
       // Column dimming only (view): the skeleton's board has held the number
       // its board work starts from — a reload mid-computation keeps the focus.
       heldFromTrack: state.heldFromTrack ?? null,
+      // The task zone's sticky "build N" step (station 7's add-then-remove): a
+      // reload keeps its tick.
+      builtTrack: state.builtTrack ?? null,
       // Stations 3 and 7: the single answer box as it was at the last press of
       // "התקדם". Not saved, a reload recorded its unchanged digits again.
       lastSubmittedAnswer: typeof state.lastSubmittedAnswer === 'string' ? state.lastSubmittedAnswer : null,
