@@ -17,7 +17,7 @@ import {
   resetMeetingOf,
   savedSnapshotOfMeeting,
 } from '@/core/meetingCompletion';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { deleteField, doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { useWorkspaceStore, getActiveTasks, resolveLearningPath, type WorkspaceInitialization } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
@@ -31,7 +31,7 @@ import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/appl
 import { throttledRtdbUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
 import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
 import { recordRecentTelemetry } from './recentTelemetry';
-import { getDeviceId, nextSequenceNumber } from './telemetryStamp';
+import { getDeviceId, newTelemetryKey, nextSequenceNumber } from './telemetryStamp';
 import type { SessionDocument, PedagogicalPath } from '@/types';
 import {
   type TelemetryPayload,
@@ -1801,10 +1801,8 @@ export class FirebaseSyncService {
     const normUid = `student_user${numStudentId}`;
     const rawStudentUid = `student_${numStudentId}`;
 
-    // 2. Generate UUID idempotency_key
-    const idempotency_key = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `telemetry_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    // 2. Generate the idempotency_key — always a UUID v4 (Module 4; the rules refuse any other id)
+    const idempotency_key = newTelemetryKey();
 
     // 3. Build TelemetryPayload<T>
     const payload: TelemetryPayload<T> = {
@@ -2359,6 +2357,9 @@ export class FirebaseSyncService {
       class_type: classType || DEFAULT_CLASS_TYPE,
       student_count: PILOT_CLASS_CAPACITY,
       created_at: Date.now(),
+      // Module 4: "No other field is permitted" — a copy of `updated_at` left
+      // by an older version is removed, or the rules refuse this merge.
+      updated_at: deleteField(),
     }, { merge: true });
   }
 

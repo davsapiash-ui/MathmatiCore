@@ -9,7 +9,7 @@
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import type { TelemetryPayload, TelemetryEventType } from '@/types/telemetry';
-import { getDeviceId } from './telemetryStamp';
+import { getDeviceId, telemetryDocIdOf } from './telemetryStamp';
 
 /**
  * How a queued RTDB item is written when it is delivered.
@@ -200,6 +200,51 @@ function probeFields(item: QueuedAction, timer: boolean): Partial<QueuedAction> 
     ...(timer ? { revive_count: (item.revive_count ?? 0) + 1 } : {}),
   };
 }
+/**
+ * Module 5 §ב: every batch sent from the queue is at most 20 events and at
+ * most 50KB. A batch is cut before the item that would take it over.
+ */
+export const MAX_BATCH_ITEMS = 20;
+export const MAX_BATCH_BYTES = 50 * 1024;
+
+/** The UTF-8 size of what an item sends: its payload as JSON. */
+export function queuedItemBytes(item: QueuedAction): number {
+  let json: string;
+  try {
+    json = JSON.stringify(item.payload ?? null) ?? '';
+  } catch {
+    return 0;
+  }
+  if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(json).length;
+  return unescape(encodeURIComponent(json)).length;
+}
+
+/**
+ * Whether the next item opens a new batch: the batch already holds 20 items,
+ * or the item would take it over 50KB. An item never waits behind an empty
+ * batch, so one larger than 50KB on its own is still read — and sent alone.
+ */
+export function startsNewBatch(itemsInBatch: number, batchBytes: number, nextItemBytes: number): boolean {
+  if (itemsInBatch >= MAX_BATCH_ITEMS) return true;
+  return itemsInBatch > 0 && batchBytes + nextItemBytes > MAX_BATCH_BYTES;
+}
+
+/**
+ * A single item over 50KB cannot share a batch, and cannot be made smaller
+ * here: the PRD gives no rule for cutting an event, and a queued item is never
+ * discarded (Module 17 §ב). It is sent alone, and the fault is logged so it
+ * is not silent.
+ */
+function reportOversizedBatch(items: QueuedAction[]): void {
+  if (items.length !== 1) return;
+  const size = queuedItemBytes(items[0]);
+  if (size > MAX_BATCH_BYTES) {
+    console.error(
+      `[IndexedDBQueue] FAULT: queued item ${items[0].idempotency_key} is ${size} bytes, over the ${MAX_BATCH_BYTES}-byte batch limit (PRD Module 5 §ב). Sent alone; nothing is discarded.`
+    );
+  }
+}
+
 /** השהיה מדורגת בין ניסיונות ריקון, עד תקרה. */
 const RETRY_BACKOFF_MS = [2000, 4000, 8000, 16000, 30000];
 /**
@@ -1189,34 +1234,36 @@ export class IndexedDBQueue {
 
       const targetStore = this.db.objectStoreNames.contains(STORE_NAME) ? STORE_NAME : LEGACY_STORE_NAME;
 
-      // Step 2: Read FIFO items in bounded batches of 20 items.
-      // Paging starts after the last key this pass already looked at, so the
-      // parked items and other identities' items it passed over are not re-read.
-      const BATCH_SIZE = 20;
+      // Step 2: Read FIFO items in bounded batches: at most 20 items and at
+      // most 50KB (Module 5 §ב: "≤50KB לכל מנה שנשלחת מהתור לשרת (עד 20
+      // אירועים במנה)"). Paging starts after the last key this pass already
+      // looked at, so the parked items and other identities' items it passed
+      // over are not re-read.
       let hasMore = true;
       let lastSeenKey: number | null = null;
 
       while (hasMore && this.isOnline) {
-        const batchItems = await new Promise<QueuedAction[]>((resolve) => {
+        const { items: batchItems, exhausted } = await new Promise<{ items: QueuedAction[]; exhausted: boolean }>((resolve) => {
           try {
             const tx = this.db!.transaction([targetStore], 'readonly');
             const store = tx.objectStore(targetStore);
             const range = lastSeenKey === null ? undefined : IDBKeyRange.lowerBound(lastSeenKey, true);
             const req = store.openCursor(range);
             const items: QueuedAction[] = [];
+            let bytes = 0;
 
             req.onsuccess = (e) => {
               const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
-              if (cursor && items.length < BATCH_SIZE) {
-                items.push({ ...cursor.value, id: cursor.primaryKey as number });
-                cursor.continue();
-              } else {
-                resolve(items);
-              }
+              if (!cursor) { resolve({ items, exhausted: true }); return; }
+              const size = queuedItemBytes(cursor.value as QueuedAction);
+              if (startsNewBatch(items.length, bytes, size)) { resolve({ items, exhausted: false }); return; }
+              items.push({ ...cursor.value, id: cursor.primaryKey as number });
+              bytes += size;
+              cursor.continue();
             };
-            req.onerror = () => resolve([]);
+            req.onerror = () => resolve({ items: [], exhausted: true });
           } catch {
-            resolve([]);
+            resolve({ items: [], exhausted: true });
           }
         });
 
@@ -1224,6 +1271,7 @@ export class IndexedDBQueue {
           hasMore = false;
           break;
         }
+        reportOversizedBatch(batchItems);
 
         // Step 3, 4, 5: deliver, and delete on server Ack
         for (const item of batchItems) {
@@ -1262,7 +1310,7 @@ export class IndexedDBQueue {
           }
         }
 
-        if (batchItems.length < BATCH_SIZE) {
+        if (exhausted) {
           hasMore = false;
         }
       }
@@ -1365,7 +1413,20 @@ export class IndexedDBQueue {
       return true;
     }
     if (item.payload && item.payload.event_type && item.idempotency_key) {
-      await setDoc(doc(firestore, 'telemetry_logs', item.idempotency_key), telemetryDocumentOf(item.payload));
+      const docId = telemetryDocIdOf(item.idempotency_key);
+      if (docId !== item.idempotency_key) {
+        // A key from an older version: the rules then accepted any id, so the
+        // event may already be stored under the old key (its Ack was lost).
+        // That document is this write, delivered — not a second copy.
+        let snap;
+        try {
+          snap = await getDoc(doc(firestore, 'telemetry_logs', item.idempotency_key));
+        } catch (err) {
+          throw preReadFailure(err);
+        }
+        if (snap.exists()) return true;
+      }
+      await setDoc(doc(firestore, 'telemetry_logs', docId), telemetryDocumentOf(item.payload, docId));
     }
     return true;
   }
@@ -1385,7 +1446,7 @@ export class IndexedDBQueue {
       const deliveredWhen = deliveredWhenOf(item);
       target = { ...item.firestoreDoc, ...(deliveredWhen ? { deliveredWhen } : {}) };
     } else if (!item.callable && !item.refPath && item.payload?.event_type && item.idempotency_key) {
-      target = { collection: 'telemetry_logs', docId: item.idempotency_key };
+      target = { collection: 'telemetry_logs', docId: telemetryDocIdOf(item.idempotency_key) };
     }
     if (!target) return false;
     const createOnly = CREATE_ONLY_COLLECTIONS.has(target.collection);
@@ -1526,12 +1587,16 @@ export const indexedDBQueue = IndexedDBQueue.getInstance();
  * An event queued before device_id existed was queued in this same browser
  * (the queue lives in its IndexedDB), so it gets this browser's id; its
  * sequence_number is unknown and stays absent.
+ *
+ * docId: the document's id (telemetryDocIdOf), written as its idempotency_key —
+ * the rules require the two to be equal.
  */
-export function telemetryDocumentOf(payload: Record<string, unknown>): Record<string, unknown> {
+export function telemetryDocumentOf(payload: Record<string, unknown>, docId?: string): Record<string, unknown> {
   const { server_received_at: _ignored, ...event } = payload;
   void _ignored;
   return {
     ...event,
+    ...(docId ? { idempotency_key: docId } : {}),
     ...(typeof event.device_id === 'string' && event.device_id ? {} : { device_id: getDeviceId() }),
     synced_at: Date.now(),
     server_received_at: serverTimestamp(),

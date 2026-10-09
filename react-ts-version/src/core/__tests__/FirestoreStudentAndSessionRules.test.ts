@@ -150,3 +150,31 @@ describe('מסמך המפגש', () => {
     expect(keysOf(read('../../__tests__/emulator/GateScoreRules.live.test.ts'), 'const completionDoc')).toEqual(clientKeys);
   });
 });
+
+/**
+ * The same three rules run on the real engine in src/__tests__/emulator
+ * (npm run test:rules); these text checks keep them in `npm test`, which the
+ * deploy runs.
+ */
+describe('Module 4 — telemetry_logs, sessions and classes', () => {
+  it('telemetry: synced_at is required and a number; the document id is a UUID v4', () => {
+    const schema = section('function isValidTelemetryDoc', '// 3. Session Document Schema');
+    expect(schema).toContain("('synced_at' in data) && data.synced_at is number");
+    const route = section('match /telemetry_logs/{logId}', '// Authorized Teachers');
+    expect(route).toContain("logId.matches('^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')");
+    // sequence_number stays optional: an event queued before the counter existed.
+    expect(schema).toContain("(!('sequence_number' in data) ||");
+  });
+
+  it('sessions: a learner creates the session document of meeting 2 only', () => {
+    const route = section('match /sessions/{sessionId}', '// Telemetry Logs');
+    const create = route.slice(route.indexOf('allow create'), route.indexOf('allow update'));
+    expect(create).toContain('(isTeacher() || request.resource.data.session_number == 2)');
+  });
+
+  it('classes: updated_at is not a permitted field', () => {
+    const schema = section('function isValidClassDoc', '// Classes & Schools Collections');
+    expect(schema).not.toContain("'updated_at'");
+    expect(schema).toContain("'created_at'");
+  });
+});

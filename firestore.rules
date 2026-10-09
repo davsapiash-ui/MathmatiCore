@@ -173,6 +173,11 @@ service cloud.firestore {
       ]);
 
       let validTypes = data.idempotency_key is string &&
+                       // Module 4 / Module 17 §ב / Appendix A §3: synced_at, the device's
+                       // time when the queue sent the event, is required. The queue stamps
+                       // it on every delivery (telemetryDocumentOf), so an event queued
+                       // before the field existed carries it too.
+                       ('synced_at' in data) && data.synced_at is number &&
                        data.client_timestamp is number &&
                        data.session_id is string &&
                        data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
@@ -317,6 +322,8 @@ service cloud.firestore {
     match /sessions/{sessionId} {
       allow read: if isTeacher() || isOwningSession(sessionId);
       allow create: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
+                       // Module 4: the client writes a session document for meeting 2 only.
+                       (isTeacher() || request.resource.data.session_number == 2) &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == false) &&
                        (isTeacher() || learnerCreateLeavesStaffFieldsEmpty()) &&
                        createLeavesServerScoreFieldsEmpty();
@@ -335,6 +342,8 @@ service cloud.firestore {
       allow create: if isAuthenticated() &&
                        (isOwningStudent(string(request.resource.data.student_id))) &&
                        (request.resource.data.idempotency_key == logId) &&
+                       // Module 4: the document id is the event's idempotency_key, a UUID v4.
+                       logId.matches('^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') &&
                        isValidTelemetryDoc();
       allow update: if false;
       allow delete: if false; // Module 23א §ו — see students
@@ -374,8 +383,7 @@ service cloud.firestore {
         'student_count',
         'students',
         'updated_by_teacher_id',
-        'created_at',
-        'updated_at'
+        'created_at'
       ]) &&
       data.class_id is string && data.class_id.size() > 0 &&
       data.school_id is string && data.school_id.size() > 0 &&

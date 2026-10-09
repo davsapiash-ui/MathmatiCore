@@ -9,6 +9,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc, updateDoc, collection, getDocs, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { ref, get as rtdbGet, set as rtdbSet, update as rtdbUpdate } from 'firebase/database';
+import { telemetryDocIdOf } from '@/infrastructure/services/telemetryStamp';
 
 /**
  * חוקי האבטחה האמיתיים, במנוע האמיתי (23.9.2026).
@@ -75,7 +76,13 @@ const learner12 = () => env.authenticatedContext('student_user12', { student_id:
  * them a write is refused, so every positive and negative case below carries
  * them: a negative case then fails for the reason it names, not for a missing stamp.
  */
-const STAMPS = () => ({ device_id: 'abcdefghijkl', server_received_at: serverTimestamp() });
+const STAMPS = () => ({ device_id: 'abcdefghijkl', server_received_at: serverTimestamp(), synced_at: Date.now() });
+/**
+ * Module 4: the document id is the event's idempotency_key, a UUID v4. The
+ * tests name their events; KEY turns a name into a UUID v4 (the same one
+ * every time), as the client's queue does.
+ */
+const KEY = (name: string) => telemetryDocIdOf(name);
 const learner7 = () => env.authenticatedContext('student_user7', { student_id: 7 });
 const teacher = () => env.authenticatedContext('teacher_uid', { role: 'teacher', email: TEACHER_EMAIL });
 const admin = () => env.authenticatedContext('admin_uid', { role: 'admin', email: 'admin@example.com' });
@@ -111,7 +118,7 @@ describe('מודול 27 — אסימון של ילד מול המנוע האמי�
   });
 
   it('אינו כותב טלמטריה בשם ילד אחר', async () => {
-    const key = 'idem_foreign_1';
+    const key = KEY('idem_foreign_1');
     await assertFails(setDoc(doc(learner12().firestore(), 'telemetry_logs', key), {
       ...STAMPS(), idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_3_student_user7',
       student_id: 7, exercise_id: 's3_g_t1', event_type: 'PROBLEM_LOAD', details: {},
@@ -119,7 +126,7 @@ describe('מודול 27 — אסימון של ילד מול המנוע האמי�
   });
 
   it('כותב טלמטריה תקינה בשם עצמו', async () => {
-    const key = 'idem_own_1';
+    const key = KEY('idem_own_1');
     await assertSucceeds(setDoc(doc(learner12().firestore(), 'telemetry_logs', key), {
       ...STAMPS(), idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_3_student_user12',
       student_id: 12, exercise_id: 's3_g_t1', event_type: 'PROBLEM_LOAD', details: {},
@@ -127,7 +134,7 @@ describe('מודול 27 — אסימון של ילד מול המנוע האמי�
   });
 
   it('כלל ה-column_index של מודול 5 נאכף בשרת: אירוע לפי טור בלי טור נדחה', async () => {
-    const key = 'idem_nocol';
+    const key = KEY('idem_nocol');
     await assertFails(setDoc(doc(learner12().firestore(), 'telemetry_logs', key), {
       ...STAMPS(), idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_3_student_user12',
       student_id: 12, exercise_id: 's3_g_t1', event_type: 'DIGIT_ENTERED',
@@ -136,7 +143,7 @@ describe('מודול 27 — אסימון של ילד מול המנוע האמי�
   });
 
   it('אירוע שנכתב אינו ניתן לשינוי בדיעבד', async () => {
-    const key = 'idem_immutable';
+    const key = KEY('idem_immutable');
     await env.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'telemetry_logs', key), {
         idempotency_key: key, client_timestamp: 1, session_id: 'session_3_student_user12',
@@ -256,7 +263,7 @@ describe('הרשימה הלבנה — בדיקת הכניסה ממשיכה לע�
 
 describe('ניקוי הלוח נרשם כאירוע תקני', () => {
   it('הילד כותב BOARD_CLEARED בלי טור, והשרת מקבל', async () => {
-    const key = 'idem_board_cleared';
+    const key = KEY('idem_board_cleared');
     await assertSucceeds(setDoc(doc(learner12().firestore(), 'telemetry_logs', key), {
       ...STAMPS(), idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_4_student_user12',
       student_id: 12, exercise_id: 's4_g_t1', event_type: 'BOARD_CLEARED',
@@ -265,7 +272,7 @@ describe('ניקוי הלוח נרשם כאירוע תקני', () => {
   });
 
   it('עם טור — נדחה, כי הניקוי אינו שייך לטור אחד', async () => {
-    const key = 'idem_board_cleared_col';
+    const key = KEY('idem_board_cleared_col');
     await assertFails(setDoc(doc(learner12().firestore(), 'telemetry_logs', key), {
       ...STAMPS(), idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_4_student_user12',
       student_id: 12, exercise_id: 's4_g_t1', event_type: 'BOARD_CLEARED', column_index: 0,
@@ -277,12 +284,15 @@ describe('ניקוי הלוח נרשם כאירוע תקני', () => {
 /* ── מודול 5 §ב / נספח א' §3 — החותמות, ו-BRANCH_SELECTED (מודול 14 §ג) ── */
 
 describe('telemetry stamps: server_received_at, device_id, sequence_number', () => {
-  const event = (key: string, over: Record<string, unknown> = {}) => ({
-    ...STAMPS(), idempotency_key: key, client_timestamp: Date.now(), session_id: 'session_4_student_user12',
+  const event = (name: string, over: Record<string, unknown> = {}) => ({
+    ...STAMPS(), idempotency_key: KEY(name), client_timestamp: Date.now(), session_id: 'session_4_student_user12',
     student_id: 12, exercise_id: 's4_g_t1', event_type: 'PROBLEM_LOAD', details: {}, ...over,
   });
-  const write = (key: string, data: Record<string, unknown>) =>
-    setDoc(doc(learner12().firestore(), 'telemetry_logs', key), data);
+  const write = (name: string, data: Record<string, unknown>) =>
+    setDoc(doc(learner12().firestore(), 'telemetry_logs', KEY(name)), data);
+  /** Written under exactly this id, with idempotency_key equal to it. */
+  const writeRaw = (id: string, over: Record<string, unknown> = {}) =>
+    setDoc(doc(learner12().firestore(), 'telemetry_logs', id), { ...event('unused'), idempotency_key: id, ...over });
 
   it('with a sequence_number it is accepted', async () => {
     await assertSucceeds(write('idem_seq', event('idem_seq', { sequence_number: 7 })));
@@ -318,6 +328,31 @@ describe('telemetry stamps: server_received_at, device_id, sequence_number', () 
   it('a device_id that is not a random id (a name, with a space) is refused', async () => {
     await assertFails(write('idem_name_dev', event('idem_name_dev', { device_id: 'Dana Cohen' })));
     await assertFails(write('idem_short_dev', event('idem_short_dev', { device_id: 'abc' })));
+  });
+
+  // Module 4 / Module 17 §ב / Appendix A §3: synced_at is required, a number.
+  it('without synced_at it is refused', async () => {
+    const data: Record<string, unknown> = event('idem_no_synced');
+    delete data.synced_at;
+    await assertFails(write('idem_no_synced', data));
+  });
+
+  it('a synced_at that is not a number is refused', async () => {
+    await assertFails(write('idem_synced_str', event('idem_synced_str', { synced_at: '2026-10-09' })));
+    await assertFails(write('idem_synced_null', event('idem_synced_null', { synced_at: null })));
+  });
+
+  // Module 4: "שמזהה המסמך שלו הוא idempotency_key של האירוע, UUID v4".
+  it('a document id that is not a UUID v4 is refused, even when it equals idempotency_key', async () => {
+    await assertFails(writeRaw('telemetry_1700000000000_abc1234')); // the old client fallback
+    await assertFails(writeRaw('idem_plain'));
+    await assertFails(writeRaw('0f8fad5b-d9cb-169f-a165-70867728950e')); // version 1
+    await assertFails(writeRaw('0F8FAD5B-D9CB-469F-A165-70867728950E')); // upper case
+    await assertSucceeds(writeRaw('0f8fad5b-d9cb-469f-a165-70867728950e'));
+  });
+
+  it('a document id that is not the idempotency_key is refused', async () => {
+    await assertFails(setDoc(doc(learner12().firestore(), 'telemetry_logs', KEY('idem_a')), event('idem_b')));
   });
 
   it('an unknown key is refused', async () => {

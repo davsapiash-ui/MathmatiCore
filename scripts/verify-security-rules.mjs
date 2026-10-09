@@ -32,7 +32,7 @@ try {
 }
 
 const { initializeTestEnvironment, assertFails, assertSucceeds } = rulesTesting;
-const { doc, setDoc } = firestoreSdk;
+const { doc, setDoc, serverTimestamp } = firestoreSdk;
 const { ref, update, set, get } = databaseSdk;
 
 const env = await initializeTestEnvironment({
@@ -305,11 +305,15 @@ await check('מדד התמדה מחוץ לטווח נדחה', () =>
   )
 );
 
+// Module 4: the document id is the event's idempotency_key, a UUID v4; and
+// every event carries device_id and the server's server_received_at (Module 5 §ב).
+const OWN_KEY = '0f8fad5b-d9cb-469f-a165-70867728950e';
+const OTHER_KEY = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 console.log('\nFirestore — בעלות על טלמטריה');
 await check('הלומד כותב אירוע על עצמו', () =>
   assertSucceeds(
-    setDoc(doc(lfs, 'telemetry_logs', 'idem_own'), {
-      idempotency_key: 'idem_own',
+    setDoc(doc(lfs, 'telemetry_logs', OWN_KEY), {
+      idempotency_key: OWN_KEY,
       client_timestamp: 1,
       session_id: 'session_02_student_3',
       student_id: 3,
@@ -317,13 +321,15 @@ await check('הלומד כותב אירוע על עצמו', () =>
       event_type: 'PROBLEM_COMPLETE',
       details: {},
       synced_at: 2,
+      device_id: 'abcdefghijkl',
+      server_received_at: serverTimestamp(),
     })
   )
 );
 await check('הלומד אינו כותב אירוע על ילד אחר', () =>
   assertFails(
-    setDoc(doc(lfs, 'telemetry_logs', 'idem_other'), {
-      idempotency_key: 'idem_other',
+    setDoc(doc(lfs, 'telemetry_logs', OTHER_KEY), {
+      idempotency_key: OTHER_KEY,
       client_timestamp: 1,
       session_id: 'session_02_student_7',
       student_id: 7,
@@ -331,6 +337,8 @@ await check('הלומד אינו כותב אירוע על ילד אחר', () =>
       event_type: 'PROBLEM_COMPLETE',
       details: {},
       synced_at: 2,
+      device_id: 'abcdefghijkl',
+      server_received_at: serverTimestamp(),
     })
   )
 );

@@ -103,15 +103,35 @@ describe('מסמך המפגש — הציון וההמלצה של השרת', () =
   });
 
   it('אינו יוצר מסמך מפגש עם ציון, המלצה או חותמת משלו', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), 'sessions', S2));
+    });
     const base = {
-      session_id: 'session_03_student_12', class_id: 'class_1', session_number: 3,
+      session_id: S2, class_id: 'class_1', session_number: 2,
       is_completed: false, teacher_gate_approved: false,
     };
-    const own = () => doc(learner12().firestore(), 'sessions', 'session_03_student_12');
+    const own = learnerDoc;
     await assertFails(setDoc(own(), { ...base, session_score_percent: 100 }));
     await assertFails(setDoc(own(), { ...base, matrix_recommended_path: 'green_path' }));
     await assertFails(setDoc(own(), { ...base, evaluated_at: 1 }));
     await assertSucceeds(setDoc(own(), { ...base, session_score_percent: null, matrix_recommended_path: null }));
+  });
+
+  // Module 4: "הלקוח כותב מסמך כזה רק למפגש 2" — a learner creates no
+  // session document for any other meeting.
+  it('אינו יוצר מסמך מפגש לשום מפגש מלבד מפגש 2', async () => {
+    for (const n of [1, 3, 4, 5, 6, 7, 8]) {
+      const id = `session_0${n}_student_12`;
+      await assertFails(setDoc(doc(learner12().firestore(), 'sessions', id), {
+        session_id: id, class_id: 'class_1', session_number: n, is_completed: false, teacher_gate_approved: false,
+      }));
+    }
+  });
+
+  it('…והמורה עדיין יוצרת מסמך מפגש לכל מפגש', async () => {
+    await assertSucceeds(setDoc(doc(teacher().firestore(), 'sessions', 'session_03_student_12'), {
+      session_id: 'session_03_student_12', class_id: 'class_1', session_number: 3, is_completed: false, teacher_gate_approved: false,
+    }));
   });
 
   it('סיום מפגש 2 כפי שהלקוח כותב אותו עובר — על המסמך שיצרה פונקציית המועד', async () => {
