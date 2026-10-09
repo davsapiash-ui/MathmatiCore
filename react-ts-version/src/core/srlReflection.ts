@@ -15,10 +15,11 @@
  */
 
 import { doc, getDocFromServer } from 'firebase/firestore';
-import { ref, update } from 'firebase/database';
-import { firestore, database } from '@/infrastructure/firebase';
+import { firestore } from '@/infrastructure/firebase';
 import { emitTelemetry } from '@/infrastructure/services/FirebaseSyncService';
 import { indexedDBQueue, queueSRLReflection } from '@/infrastructure/services/IndexedDBQueue';
+import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
+import type { SRLReflectionState } from '@/types';
 
 export type SRLEffortLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 export type SRLStrategy = 'UNDO_BUTTON' | 'MEMORY_CIRCLES' | 'SOCRATIC_CARD';
@@ -45,10 +46,37 @@ const STRATEGY_BY_SCREEN_ID: Record<string, SRLStrategy> = {
   hints: 'SOCRATIC_CARD',
 };
 
-/** מזהה מסמך הרפלקציה של מפגש 8 עבור לומד — גם מפתח האידמפוטנטיות. */
+/**
+ * מזהה מסמך הרפלקציה של מפגש 8 עבור לומד, וגם ה-session_id שלה.
+ * PRD Module 4 gives one spelling for a learner's meeting: session_0N_student_K
+ * (the sessions document id). The reflection document and its
+ * REFLECTION_SUBMITTED event both carry it.
+ */
 export function srlReflectionDocId(studentNumber: number): string {
   return `session_08_student_${studentNumber}`;
 }
+
+/**
+ * Appendix A §4 idempotency_key: the key the offline queue sends the document
+ * under (queueSRLReflection), stored in the document as well. firestore.rules
+ * requires it to be this function of the document id.
+ */
+export function srlReflectionIdempotencyKey(studentNumber: number): string {
+  return `srl_reflection_${srlReflectionDocId(studentNumber)}`;
+}
+
+/**
+ * The srl_reflections document: Appendix A §4 SRLReflectionState, field for
+ * field ("חל איסור על שימוש בשמות שדות שונים בקוד"), plus the meeting number
+ * and the three counters behind persistence_index (Module 16 §ב) that the
+ * research export reports.
+ */
+export type SRLReflectionDocument = SRLReflectionState & {
+  session_number: 8;
+  undo_count: number;
+  error_count: number;
+  guess_count: number;
+};
 
 export function toSRLEffortLevel(value: string | null): SRLEffortLevel {
   return EFFORT_BY_SCREEN_ID[value || ''] ?? 'MEDIUM';
@@ -133,8 +161,11 @@ export async function hasSavedSRLReflection(rawStudentId: string | number): Prom
 export function mirrorReflectionStep(rawStudentId: string | number, step: 1 | 2 | 3): void {
   const studentNumber = asPilotNumber(rawStudentId);
   if (studentNumber === null) return;
+  // PRD Module 18 §ב: client writes to users/students are throttled to one per
+  // 1000ms — through the shared writer of the learner record, which merges
+  // this into the window's one update() and never drops the last write.
   try {
-    update(ref(database, `users/students/student_user${studentNumber}`), {
+    throttledRtdbUpdate(`users/students/student_user${studentNumber}`, {
       reflection_step: step,
       reflection_updated_at: Date.now(),
     }).catch((err) => {
@@ -174,26 +205,29 @@ export async function submitSRLReflection(
   const submittedAt = Date.now();
   const persistenceIndex = Math.min(100, Math.max(0, Math.round(result.persistenceIndex)));
 
-  // The stored document is research data (Module 16 §ב): exactly the fields
-  // isValidSRLReflectionDoc (firestore.rules) allows, nothing added on the
-  // way. The queue keeps its own bookkeeping (idempotency key, retries) on the
-  // queue item, not in the document; submitted_at is the moment the learner
-  // pressed, not the delivery.
-  const record = {
-    student_id: studentNumber,
+  // The stored document is Appendix A §4's SRLReflectionState (Module 16 §ב),
+  // with exactly the fields isValidSRLReflectionDoc (firestore.rules) allows.
+  // It is written once, when the learner presses "סיום" on step 3: the
+  // reflection is complete, and reflection_updated_at is that moment, not the
+  // delivery. idempotency_key is the key the queue sends it under.
+  const record: SRLReflectionDocument = {
     session_id: docId,
-    session_number: 8,
-    effort_level: toSRLEffortLevel(result.effortLevel),
+    student_id: studentNumber,
+    reflection_step: 3,
+    effort_score: toSRLEffortLevel(result.effortLevel),
     selected_strategies: toSRLStrategies(result.strategies),
     persistence_index: persistenceIndex,
+    reflection_completed: true,
+    reflection_updated_at: submittedAt,
+    idempotency_key: srlReflectionIdempotencyKey(studentNumber),
+    session_number: 8,
     undo_count: Math.max(0, Math.round(result.undoCount || 0)),
     error_count: Math.max(0, Math.round(result.errorCount || 0)),
     guess_count: Math.max(0, Math.round(result.guessCount || 0)),
-    submitted_at: submittedAt,
   };
 
   try {
-    await queueSRLReflection(docId, record);
+    await queueSRLReflection(docId, { ...record });
   } catch (err) {
     // Not even stored on this device: the board stays, and the learner is told what to do.
     console.error('[srlReflection] the reflection could not be stored on this device:', err);
@@ -202,9 +236,11 @@ export async function submitSRLReflection(
 
   // נספח א׳ §3: REFLECTION_SUBMITTED. האירוע נפלט עד כה רק ממסך הרפלקציה
   // של מפגש 2 — המסך שאינו באפיון. הוא נפלט כאן, מהכותב המשותף, כך שכל
-  // רפלקציה שנשמרת מייצרת אותו בדיוק פעם אחת.
+  // רפלקציה שנשמרת מייצרת אותו בדיוק פעם אחת. Its session_id is the
+  // document's own (Module 4's session_0N_student_K), so the event and the
+  // document it reports name the same meeting the same way.
   emitTelemetry({
-    session_id: `session_8_student_student_user${studentNumber}`,
+    session_id: docId,
     student_id: `student_user${studentNumber}`,
     exercise_id: `reflection_meeting_8`,
     event_type: 'REFLECTION_SUBMITTED',
@@ -219,8 +255,9 @@ export async function submitSRLReflection(
   // מודול 16 §ב: reflection_step, reflection_completed ו-persistence_index
   // מנוהלים בשרת. זהו שיקוף לתצוגה החיה בלבד, לא מקור אמת שני.
   // Not awaited: offline, an RTDB write resolves only when the server takes
-  // it, and the learner must not wait for the mirror to finish.
-  update(ref(database, `users/students/student_user${studentNumber}`), {
+  // it, and the learner must not wait for the mirror to finish. Throttled with
+  // every other write to the learner record (Module 18 §ב).
+  throttledRtdbUpdate(`users/students/student_user${studentNumber}`, {
     reflection_step: 3,
     reflection_completed: true,
     persistence_index: persistenceIndex,

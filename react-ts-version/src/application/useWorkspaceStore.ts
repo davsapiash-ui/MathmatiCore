@@ -61,8 +61,7 @@ import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
 import { STATIC_CARD_KINDS, cardFamilyOf, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
-import { ref, update } from 'firebase/database';
-import { database, serverNow } from '@/infrastructure/firebase';
+import { serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { firebaseSyncService, emitTelemetry as emitTelemetryToService } from '@/infrastructure/services/FirebaseSyncService';
@@ -2136,8 +2135,9 @@ export const GIVEN_ARRANGED_BY_HAND_HE = 'הלבנים מסודרות נכון, 
  * exercise's own "נכון! …" (owner, 8.10.2026: learner wording proposal §א,
  * modelled on 347's sentence) — what the child saw, said after the check, so
  * it never gives an answer away before it. The checks, their order and every
- * other message are judgeStandardTaskChecks' own; a success with a reminder of
- * its own (the memory circles) keeps it.
+ * other message are judgeStandardTaskChecks' own. Every correct check of a
+ * standard arithmetic exercise ends in the general praise, so it always
+ * becomes the exercise's "נכון! …" when the exercise has one.
  */
 export function judgeStandardTask(s: WorkspaceState, task: SessionTask): StandardVerdict {
   const verdict = judgeStandardTaskChecks(s, task);
@@ -2303,31 +2303,12 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
       );
     }
 
-    // Memory circles are introduced in meeting 4 (מסמך 03 §3.4); meeting 1 does
-    // not mention them, so its refresh exercises get the plain success.
-    if (task.type === 'vertical_addition' && (task.requiresGrouping || task.requiresUngrouping) && s.sessionNumber !== 1) {
-      const hasCarriesEntered = Object.values(s.carryDigits).some((v) => v !== undefined && v !== '');
-      // A skeleton exercise whose board shows the number the child discovered
-      // (decision יד, option א) made no conversion on the board: no reminder
-      // about recording one — the ordinary success below (A5-F10).
-      const boardShowsDiscovered = s.sessionNumber >= 3 && s.sessionNumber <= 7 && hasHiddenDigits(task) && boardVal !== target;
-      if (!hasCarriesEntered && !boardShowsDiscovered) {
-        // A correct answer with the memory circles left empty is still a
-        // solved exercise. This branch used to advance on its own and skip
-        // handleSuccess: no PROBLEM_COMPLETE (the report said "לא השלים את
-        // התרגיל" and scored it 0), no Q-matrix success, and the error streak
-        // carried into the next exercise.
-        // By operation (register decision ט (2): addition "המרה", subtraction
-        // "פריטה"), in the words of each instruction (taskBuilders).
-        return success(
-          'שימו לב לעיגולי הזיכרון 💡',
-          task.isSubtraction
-            ? 'פתרתם נכון! בפעם הבאה, אחרי כל פריטה רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.'
-            : 'פתרתם נכון! בפעם הבאה, רשמו כל המרה בעיגולי הזיכרון שבראש הטורים.',
-          3000
-        );
-      }
-    }
+    // A correct answer is the exercise's "נכון! …" (PRD Module 14 §ב, Module 26),
+    // whether or not the memory circles were filled in: the step "רשמו את
+    // ההמרה בעיגול הזיכרון" is not checked, and the PRD has no other message
+    // for it. A memory-circle reminder used to replace the "נכון! …" here when
+    // the circles were empty, in stations 4–7 and in meeting 8; it is not in
+    // the PRD.
 
     // Meeting 8 has no number house (מסמך 03 §3.8, Module 14 §ב): its praise
     // does not speak of one (owner, 1.10.2026, D11b).
@@ -2761,7 +2742,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     set({ pendingAdaptation: null });
 
-    update(ref(database, `users/students/${normId}`), { ...liveFields, pendingAdaptation: null }).catch((err) => {
+    // PRD Module 18 §ב: through the learner record's throttled window (one
+    // write per 1000ms). pedagogicalPath is not sent: the RTDB rules let only a
+    // teacher change it (a learner may write only its current value), and in a
+    // merged window a refused field would take the window's other fields with it.
+    const { pedagogicalPath: _teacherOwned, ...learnerFields } = liveFields;
+    throttledRtdbUpdate(`users/students/${normId}`, { ...learnerFields, pendingAdaptation: null }).catch((err) => {
       console.error('[Module 19] Failed to commit boundary-applied adaptation:', err);
     });
   }

@@ -474,8 +474,48 @@ service cloud.firestore {
     // SRL Reflections (Module 16 — Session 8 Reflection)
     // Only the owning student may write their own reflection document.
     // Schema is strictly enforced: no extra fields, no cross-student writes, create-only.
-    function isValidSRLReflectionDoc() {
+    // The document is Appendix A §4's SRLReflectionState, field for field, plus
+    // session_number and the three counters behind persistence_index. Its id is
+    // the learner's meeting-8 id (Module 4: session_0N_student_K), which is also
+    // its session_id; idempotency_key is the offline queue's key for it.
+    function isValidSRLReflectionDoc(reflectionId) {
       let data = request.resource.data;
+      return data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
+      data.session_id is string && data.session_id == reflectionId &&
+      data.session_number is int && data.session_number == 8 &&
+      data.selected_strategies is list &&
+      data.persistence_index is number && data.persistence_index >= 0 && data.persistence_index <= 100 &&
+      (isSRLReflectionStateDoc(data, reflectionId) || isLegacySRLReflectionDoc(data));
+    }
+
+    function isSRLReflectionStateDoc(data, reflectionId) {
+      return data.keys().hasOnly([
+        'session_id',
+        'student_id',
+        'reflection_step',
+        'effort_score',
+        'selected_strategies',
+        'persistence_index',
+        'reflection_completed',
+        'reflection_updated_at',
+        'idempotency_key',
+        'session_number',
+        'undo_count',
+        'error_count',
+        'guess_count'
+      ]) &&
+      data.reflection_step in [1, 2, 3] &&
+      (data.effort_score == null || data.effort_score in ['LOW', 'MEDIUM', 'HIGH']) &&
+      data.reflection_completed is bool &&
+      data.reflection_updated_at is number &&
+      data.idempotency_key is string && data.idempotency_key == 'srl_reflection_' + reflectionId;
+    }
+
+    // The shape written before 9.10.2026 (effort_level, submitted_at). Still
+    // accepted on create so a reflection already waiting in a device's offline
+    // queue, or sent by a page loaded before the update, is delivered and not
+    // parked for ever. New clients never write it.
+    function isLegacySRLReflectionDoc(data) {
       return data.keys().hasOnly([
         'student_id',
         'session_id',
@@ -488,12 +528,7 @@ service cloud.firestore {
         'guess_count',
         'submitted_at'
       ]) &&
-      data.student_id is int && data.student_id >= 1 && data.student_id <= 12 &&
-      data.session_id is string &&
-      data.session_number is int && data.session_number == 8 &&
       data.effort_level in ['LOW', 'MEDIUM', 'HIGH'] &&
-      data.selected_strategies is list &&
-      data.persistence_index is number && data.persistence_index >= 0 && data.persistence_index <= 100 &&
       data.submitted_at is number;
     }
 
@@ -546,7 +581,7 @@ service cloud.firestore {
     match /srl_reflections/{reflectionId} {
       allow read: if isTeacher() || isOwningStudent(string(resource.data.student_id));
       allow create: if isOwningStudent(string(request.resource.data.student_id)) &&
-                       isValidSRLReflectionDoc();
+                       isValidSRLReflectionDoc(reflectionId);
       allow update: if false;
       allow delete: if false; // Module 23א §ו — see students
     }

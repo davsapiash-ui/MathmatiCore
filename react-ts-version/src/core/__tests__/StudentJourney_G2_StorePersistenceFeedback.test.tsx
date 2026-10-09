@@ -59,12 +59,15 @@ import {
   restoredReflectionDraft,
   freshReflectionDraft,
   boardBeforeConversion,
+  MEETING8_SOLVED_SUB_HE,
 } from '@/application/useWorkspaceStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { EMPTY_COUNTS, type PlaceCounts } from '@/core/placeValue';
+import { fmt } from '@/core/taskGuide';
+import { resetThrottledWrites } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { TASKS } from '@/core/QMatrix';
 import { Session8ReflectionScreen, REFLECTION_TEXT_HE } from '@/presentation/components/student/Session8ReflectionScreen';
 import { FlexibleDecompTask } from '@/features/workspace/tasks/FlexibleDecompTask';
@@ -209,15 +212,31 @@ describe('A6-102: the reflection board keeps its stage and answers through a rel
     expect(screen.getByRole('button', { name: 'מאמץ רב' }).getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('every stage change reaches reflection_step on the learner record; reflection_completed is not touched', () => {
-    toReflection();
-    ws().setReflectionEffort('EASY');
-    ws().setReflectionStep(2);
-    ws().setReflectionStep(3);
-    ws().setReflectionStep(2);
-    const steps = db.updates.filter((u) => u.path === 'users/students/student_user4').map((u) => u.value);
-    expect(steps.map((v) => v.reflection_step)).toEqual([2, 3, 2]);
-    for (const v of steps) expect('reflection_completed' in v).toBe(false);
+  it('every stage change reaches reflection_step on the learner record, one write per 1000ms (PRD 18 §ב), the last never dropped; reflection_completed is not touched', async () => {
+    vi.useFakeTimers();
+    try {
+      toReflection();
+      resetThrottledWrites();
+      db.updates.length = 0;
+      ws().setReflectionEffort('EASY');
+      ws().setReflectionStep(2);
+      ws().setReflectionStep(3);
+      ws().setReflectionStep(2);
+      const steps = () =>
+        db.updates.filter((u) => u.path === 'users/students/student_user4' && 'reflection_step' in u.value).map((u) => u.value);
+      // The first change goes out at once; the next two share the window and leave as one write, the last value.
+      expect(steps().map((v) => v.reflection_step)).toEqual([2]);
+      await vi.advanceTimersByTimeAsync(999);
+      expect(steps()).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(steps().map((v) => v.reflection_step)).toEqual([2, 2]);
+      ws().setReflectionStep(3);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(steps().map((v) => v.reflection_step)).toEqual([2, 2, 3]);
+      for (const v of steps()) expect('reflection_completed' in v).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('no stage 2 without a level; a new meeting starts the board afresh', () => {
@@ -464,15 +483,36 @@ describe('A5-F10 / A7-005 / A4-F09: the memory-circle note', () => {
     load(4, add);
     boardOf(add.correctAnswer as number);
     const target = (add.numberA ?? 0) + (add.numberB ?? 0);
-    useWorkspaceStore.setState({ answerDigits: Object.fromEntries((['thousands', 'hundreds', 'tens', 'units'] as const).map((p, i) => [p, String(target).padStart(4, '0')[i]])) } as any);
-    expect(verdict().sub).toBe('פתרתם נכון! בפעם הבאה, רשמו כל המרה בעיגולי הזיכרון שבראש הטורים.');
+    useWorkspaceStore.setState({ answerDigits: Object.fromEntries((['thousands', 'hundreds', 'tens', 'units'] as const).map((p, i) => [p, String(target).padStart(4, '0')[i]])), carryDigits: {} } as any);
+    // PRD 14 §ב / 26: circles empty or not, a correct check is the exercise's "נכון! …".
+    const addV = verdict();
+    expect(addV.kind).toBe('success');
+    expect(addV.title).toBe('נכון!');
+    expect(plain(addV.sub)).toBe(plain(`\u200f${fmt(add.numberA ?? 0)} + ${fmt(add.numberB ?? 0)} = ${fmt(target)}, וגם בבית המספרים בניתם ${fmt(target)}.`));
+    expect(addV.title + addV.sub).not.toContain('עיגולי הזיכרון');
 
     const sub = byId('s5_g_t1');
     load(5, sub);
     const diff = (sub.numberA ?? 0) - (sub.numberB ?? 0);
     boardOf(diff);
-    useWorkspaceStore.setState({ answerDigits: Object.fromEntries((['thousands', 'hundreds', 'tens', 'units'] as const).map((p, i) => [p, String(diff).padStart(4, '0')[i]])) } as any);
-    expect(verdict().sub).toBe('פתרתם נכון! בפעם הבאה, אחרי כל פריטה רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.');
+    useWorkspaceStore.setState({ answerDigits: Object.fromEntries((['thousands', 'hundreds', 'tens', 'units'] as const).map((p, i) => [p, String(diff).padStart(4, '0')[i]])), carryDigits: {} } as any);
+    const subV = verdict();
+    expect(subV.kind).toBe('success');
+    expect(subV.title).toBe('נכון!');
+    expect(plain(subV.sub)).toBe(plain(`\u200f${fmt(sub.numberA ?? 0)} − ${fmt(sub.numberB ?? 0)} = ${fmt(diff)}, וגם בבית המספרים נשארו ${fmt(diff)}.`));
+    expect(subV.title + subV.sub).not.toContain('עיגולי הזיכרון');
+  });
+
+  it('meeting 8, circles empty: the meeting\u2019s own praise, no memory-circle reminder (not in the PRD)', () => {
+    const t = bank.find((x) => x.id.startsWith('s8_') && x.type === 'vertical_addition' && (x.requiresGrouping || x.requiresUngrouping) && !x.hiddenDigits && !x.revealedResultDigits)!;
+    expect(t).toBeDefined();
+    load(8, t);
+    const r = t.isSubtraction ? (t.numberA ?? 0) - (t.numberB ?? 0) : (t.numberA ?? 0) + (t.numberB ?? 0);
+    useWorkspaceStore.setState({ answerDigits: Object.fromEntries((['thousands', 'hundreds', 'tens', 'units'] as const).map((p, i) => [p, String(r).padStart(4, '0')[i]])), carryDigits: {} } as any);
+    const v = verdict();
+    expect(v.kind).toBe('success');
+    expect(v.sub).toBe(MEETING8_SOLVED_SUB_HE);
+    expect(v.title + v.sub).not.toContain('עיגולי הזיכרון');
   });
 });
 

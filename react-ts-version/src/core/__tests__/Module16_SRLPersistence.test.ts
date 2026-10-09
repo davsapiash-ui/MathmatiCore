@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { srlReflectionDocId, toSRLEffortLevel, toSRLStrategies } from '../srlReflection';
+import { srlReflectionDocId, srlReflectionIdempotencyKey, toSRLEffortLevel, toSRLStrategies } from '../srlReflection';
 
 /**
  * מודול 16 — לוח הרפלקציה של מפגש 8.
@@ -56,17 +56,27 @@ describe('מסמך הרפלקציה תואם את מה שחוקי Firestore מת
     expect(rules).toContain('allow update: if false;');
   });
 
-  it('כל שדה שהמודול כותב נמצא ברשימת השדות המותרת', () => {
-    const schema = rules.slice(rules.indexOf('function isValidSRLReflectionDoc'));
+  // Appendix A §4 (SRLReflectionState), and "חל איסור על שימוש בשמות שדות שונים בקוד" (Appendix A).
+  const APPENDIX_A_4 = [
+    'session_id', 'student_id', 'reflection_step', 'effort_score', 'selected_strategies',
+    'persistence_index', 'reflection_completed', 'reflection_updated_at', 'idempotency_key',
+  ];
+
+  it('כל שדה שהמודול כותב נמצא ברשימת השדות המותרת — בשמות של נספח א׳ §4', () => {
+    const schema = rules.slice(rules.indexOf('function isSRLReflectionStateDoc'));
     const allowlist = schema.slice(0, schema.indexOf(']'));
-    for (const field of [
-      'student_id', 'session_id', 'session_number', 'effort_level',
-      'selected_strategies', 'persistence_index', 'undo_count',
-      'error_count', 'guess_count', 'submitted_at',
-    ]) {
+    for (const field of [...APPENDIX_A_4, 'session_number', 'undo_count', 'error_count', 'guess_count']) {
       expect(allowlist).toContain(`'${field}'`);
       expect(module).toContain(`${field}:`);
     }
+    // The old names are not written any more.
+    expect(module).not.toContain('effort_level:');
+    expect(module).not.toContain('submitted_at:');
+  });
+
+  it('the type the module writes is Appendix A §4 SRLReflectionState', () => {
+    expect(module).toContain("import type { SRLReflectionState } from '@/types';");
+    expect(module).toContain('const record: SRLReflectionDocument = {');
   });
 
   it('החוקים דורשים מפגש 8 ומדד התמדה בטווח 0 עד 100', () => {
@@ -74,7 +84,27 @@ describe('מסמך הרפלקציה תואם את מה שחוקי Firestore מת
     const body = schema.slice(0, schema.indexOf('match /support_tickets'));
     expect(body).toContain('data.session_number == 8');
     expect(body).toContain('data.persistence_index >= 0 && data.persistence_index <= 100');
+    expect(body).toContain("data.effort_score in ['LOW', 'MEDIUM', 'HIGH']");
+    expect(body).toContain('data.reflection_step in [1, 2, 3]');
+    expect(body).toContain('data.reflection_completed is bool');
+    expect(body).toContain('data.reflection_updated_at is number');
+    // The document id is its session_id, and the key the offline queue sends it under is in it.
+    expect(body).toContain('data.session_id == reflectionId');
+    expect(body).toContain("data.idempotency_key == 'srl_reflection_' + reflectionId");
+    expect(rules).toContain('isValidSRLReflectionDoc(reflectionId);');
+  });
+
+  it('a reflection already queued on a device in the old shape is still delivered', () => {
+    const legacy = rules.slice(rules.indexOf('function isLegacySRLReflectionDoc'));
+    const body = legacy.slice(0, legacy.indexOf('match /support_tickets'));
     expect(body).toContain("data.effort_level in ['LOW', 'MEDIUM', 'HIGH']");
+    expect(body).toContain('data.submitted_at is number');
+  });
+
+  it('idempotency_key is the offline queue key of the document', () => {
+    expect(srlReflectionIdempotencyKey(7)).toBe('srl_reflection_session_08_student_7');
+    const queue = src('infrastructure/services/IndexedDBQueue.ts');
+    expect(queue).toContain("indexedDBQueue.enqueueFirestoreDoc('srl_reflections', docId, reflection, `srl_reflection_${docId}`)");
   });
 });
 

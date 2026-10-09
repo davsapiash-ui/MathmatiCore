@@ -260,14 +260,32 @@ await check('המורה מאשרת ובוחרת מסלול', () =>
   )
 );
 
+// Appendix A §4 SRLReflectionState, plus session_number and the three counters.
 const reflection = {
-  student_id: 3,
   session_id: 'session_08_student_3',
-  session_number: 8,
-  effort_level: 'HIGH',
+  student_id: 3,
+  reflection_step: 3,
+  effort_score: 'HIGH',
   selected_strategies: ['UNDO_BUTTON', 'SOCRATIC_CARD'],
   persistence_index: 75,
+  reflection_completed: true,
+  reflection_updated_at: 9,
+  idempotency_key: 'srl_reflection_session_08_student_3',
+  session_number: 8,
   undo_count: 3,
+  error_count: 1,
+  guess_count: 0,
+};
+
+// The shape written before 9.10.2026, as a device may still hold it in its offline queue.
+const legacyReflection = {
+  student_id: 6,
+  session_id: 'session_08_student_6',
+  session_number: 8,
+  effort_level: 'LOW',
+  selected_strategies: [],
+  persistence_index: 50,
+  undo_count: 1,
   error_count: 1,
   guess_count: 0,
   submitted_at: 9,
@@ -300,9 +318,45 @@ await check('מדד התמדה מחוץ לטווח נדחה', () =>
       ...reflection,
       student_id: 5,
       session_id: 'session_08_student_5',
+      idempotency_key: 'srl_reflection_session_08_student_5',
       persistence_index: 900,
     })
   )
+);
+// Learner 6 has no reflection yet, so each refusal below is the schema's, not the create-only rule's.
+const lfs6 = env.authenticatedContext('student_user6', { student_id: 6 }).firestore();
+const reflection6 = {
+  ...reflection,
+  student_id: 6,
+  session_id: 'session_08_student_6',
+  idempotency_key: 'srl_reflection_session_08_student_6',
+};
+await check('session_id שאינו מזהה המסמך נדחה', () =>
+  assertFails(
+    setDoc(doc(lfs6, 'srl_reflections', 'session_08_student_6'), {
+      ...reflection6,
+      session_id: 'session_8_student_student_user6',
+    })
+  )
+);
+await check('idempotency_key שאינו מפתח התור של המסמך נדחה', () =>
+  assertFails(
+    setDoc(doc(lfs6, 'srl_reflections', 'session_08_student_6'), {
+      ...reflection6,
+      idempotency_key: 'something-else',
+    })
+  )
+);
+await check('שם שדה ישן לצד החדשים נדחה', () =>
+  assertFails(
+    setDoc(doc(lfs6, 'srl_reflections', 'session_08_student_6'), {
+      ...reflection6,
+      effort_level: 'HIGH',
+    })
+  )
+);
+await check('רפלקציה בצורה שנכתבה לפני 9.10.2026 (ממתינה בתור של מכשיר) עדיין מתקבלת', () =>
+  assertSucceeds(setDoc(doc(lfs6, 'srl_reflections', 'session_08_student_6'), legacyReflection))
 );
 
 // Module 4: the document id is the event's idempotency_key, a UUID v4; and

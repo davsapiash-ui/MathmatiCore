@@ -1909,6 +1909,21 @@ export function isValidExportScope(raw: unknown): boolean {
 }
 
 /**
+ * A meeting-8 reflection under Appendix A §4's field names (SRLReflectionState).
+ * Documents written before 9.10.2026 carry effort_level and submitted_at; they
+ * are read as effort_score and reflection_updated_at. A field the document has
+ * under its own name wins.
+ */
+export function normalizeReflectionFields(raw: Record<string, any>): Record<string, any> {
+  const r: Record<string, any> = { ...raw };
+  if (r.effort_score === undefined && r.effort_level !== undefined) r.effort_score = r.effort_level;
+  if (r.reflection_updated_at === undefined && r.submitted_at !== undefined) r.reflection_updated_at = r.submitted_at;
+  delete r.effort_level;
+  delete r.submitted_at;
+  return r;
+}
+
+/**
  * A Firestore Timestamp (or anything shaped like one, as it comes back from a
  * document or a JSON copy of it), or a Date, as an ISO string; null otherwise.
  */
@@ -2350,13 +2365,16 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     // used to be spread wholesale into the CSV, and a reflection is where a
     // child types; the PII check below only knows phone numbers, e-mails and
     // nine-digit ids, so a Hebrew first name passed straight through.
+    // Appendix A §4 (SRLReflectionState) names the columns; a document written
+    // before 9.10.2026 carries effort_level / submitted_at, read into them.
     const REFLECTION_FIELDS = [
-      "student_id", "session_id", "session_number", "effort_level", "selected_strategies",
-      "persistence_index", "undo_count", "error_count", "guess_count", "submitted_at",
+      "student_id", "session_id", "session_number", "reflection_step", "effort_score", "selected_strategies",
+      "persistence_index", "reflection_completed", "reflection_updated_at", "idempotency_key",
+      "undo_count", "error_count", "guess_count",
       "effort", "strategies", "persistenceIndex", "undoCount", "timestamp",
     ] as const;
     const pickReflection = (source: string, id: string, raw: unknown): Record<string, any> => {
-      const r = raw && typeof raw === "object" ? (raw as Record<string, any>) : {};
+      const r = normalizeReflectionFields(raw && typeof raw === "object" ? (raw as Record<string, any>) : {});
       const out: Record<string, any> = { source, reflection_id: id };
       for (const f of REFLECTION_FIELDS) {
         const v = r[f];

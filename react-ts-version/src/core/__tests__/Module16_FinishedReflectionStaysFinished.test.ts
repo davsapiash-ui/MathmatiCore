@@ -65,6 +65,7 @@ import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
 import { submitSRLReflection, hasSavedSRLReflection, SRL_SERVER_CHECK_BUDGET_MS } from '../srlReflection';
 import { indexedDBQueue, type QueuedAction } from '@/infrastructure/services/IndexedDBQueue';
+import { resetThrottledWrites } from '@/infrastructure/services/ThrottledRtdbWriter';
 
 const STUDENT = 'student_user12';
 const src = (p: string) => readFileSync(resolve(__dirname, '../../', p), 'utf-8');
@@ -135,19 +136,26 @@ describe('8.10 — the finished reflection board leads to the quiet end screen',
   });
 });
 
-/** Module 16 §ב, as isValidSRLReflectionDoc (firestore.rules) allows it: these ten fields, nothing else. */
+/**
+ * Appendix A §4 SRLReflectionState, as isValidSRLReflectionDoc (firestore.rules)
+ * allows it, plus the meeting number and the three counters: nothing else.
+ */
 const STORED_FIELDS = [
-  'student_id', 'session_id', 'session_number', 'effort_level', 'selected_strategies',
-  'persistence_index', 'undo_count', 'error_count', 'guess_count', 'submitted_at',
+  'session_id', 'student_id', 'reflection_step', 'effort_score', 'selected_strategies',
+  'persistence_index', 'reflection_completed', 'reflection_updated_at', 'idempotency_key',
+  'session_number', 'undo_count', 'error_count', 'guess_count',
 ];
 
 const STORED = {
-  student_id: 12,
   session_id: 'session_08_student_12',
-  session_number: 8,
-  effort_level: 'MEDIUM',
+  student_id: 12,
+  reflection_step: 3,
+  effort_score: 'MEDIUM',
   selected_strategies: ['UNDO_BUTTON'],
   persistence_index: 100,
+  reflection_completed: true,
+  idempotency_key: 'srl_reflection_session_08_student_12',
+  session_number: 8,
   undo_count: 0,
   error_count: 0,
   guess_count: 0,
@@ -161,6 +169,8 @@ describe('Module 16/17 — the reflection is saved by one path, the offline queu
   beforeEach(async () => {
     // Nothing queued by the store tests above is flushed into these.
     await indexedDBQueue.clearAll();
+    // The live mirror goes through the learner record's throttle: a fresh window per test.
+    resetThrottledWrites();
     firestoreMock.setDoc.mockReset();
     firestoreMock.getDocFromServer.mockReset();
     databaseMock.update.mockClear();
@@ -182,11 +192,11 @@ describe('Module 16/17 — the reflection is saved by one path, the offline queu
     expect(queueWatch.queueSRLReflection).toHaveBeenCalledTimes(1);
     const [docId, record] = queueWatch.queueSRLReflection.mock.calls[0];
     expect(docId).toBe('session_08_student_12');
-    expect(record).toEqual({ ...STORED, submitted_at: expect.any(Number) });
+    expect(record).toEqual({ ...STORED, reflection_updated_at: expect.any(Number) });
     expect(Object.keys(record).sort()).toEqual([...STORED_FIELDS].sort());
 
     // queueSRLReflection hands the queue that same object, untouched; the
-    // idempotency key lives on the queue item, not in the document.
+    // queue item's key is the document's idempotency_key.
     expect(enqueue).toHaveBeenCalledTimes(1);
     expect(enqueue).toHaveBeenCalledWith('srl_reflections', 'session_08_student_12', record, 'srl_reflection_session_08_student_12');
     expect(enqueue.mock.calls[0][2]).toBe(record);
@@ -194,6 +204,19 @@ describe('Module 16/17 — the reflection is saved by one path, the offline queu
     // One path: no direct write, and the outcome is never read off the server.
     expect(reflectionWrites()).toEqual([]);
     expect(firestoreMock.getDocFromServer).not.toHaveBeenCalled();
+  });
+
+  it('the REFLECTION_SUBMITTED event names the meeting as the document does: session_08_student_N (PRD Module 4)', async () => {
+    vi.spyOn(indexedDBQueue, 'enqueueFirestoreDoc').mockResolvedValue();
+    await expect(submitSRLReflection(STUDENT, RESULT)).resolves.toEqual({ ok: true });
+    await vi.waitFor(() => {
+      const event = vi.mocked(indexedDBQueue.enqueue).mock.calls
+        .map(([item]) => item as Record<string, unknown>)
+        .find((item) => item?.event_type === 'REFLECTION_SUBMITTED');
+      expect(event).toBeDefined();
+      expect(event!.session_id).toBe('session_08_student_12');
+      expect(event!.session_id).toBe(queueWatch.queueSRLReflection.mock.calls[0][1].session_id);
+    });
   });
 
   it('queued is safe: the learner can finish while the network hangs', async () => {
@@ -204,7 +227,11 @@ describe('Module 16/17 — the reflection is saved by one path, the offline queu
     // The RTDB live mirror resolves only when the server takes it; it is not awaited.
     databaseMock.update.mockImplementation(never);
     await expect(submitSRLReflection(STUDENT, RESULT)).resolves.toEqual({ ok: true });
-    expect(databaseMock.update).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ reflection_completed: true }));
+    // The mirror shares the learner record's throttled window (PRD 18 §ב): out within one window, never dropped.
+    await vi.waitFor(
+      () => expect(databaseMock.update).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ reflection_completed: true })),
+      { timeout: 2000 }
+    );
   });
 
   it('only a reflection the queue could not store is a failure: the board stays', async () => {

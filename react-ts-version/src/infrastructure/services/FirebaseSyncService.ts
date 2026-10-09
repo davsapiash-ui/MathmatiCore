@@ -28,7 +28,7 @@ export const REMOTE_SYNC_WINDOW_MS = 500;
 import { hasEnhancedSupport, ENHANCED_SUPPORT_PROFILE_ID } from '@/core/supportProfile';
 import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME, PILOT_CLASS_CAPACITY, DEFAULT_CLASS_TYPE } from '@/core/pilotInstitution';
 import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/application/useAdminStore';
-import { throttledRtdbUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
+import { throttledRtdbUpdate, throttledRtdbChildUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
 import { indexedDBQueue, GATE_PENDING_FIELDS, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
 import { recordRecentTelemetry } from './recentTelemetry';
 import { getDeviceId, newTelemetryKey, nextSequenceNumber } from './telemetryStamp';
@@ -1374,17 +1374,20 @@ export class FirebaseSyncService {
     await set(teacherRef, dataToSave);
   }
 
-  // --- NEW: Sync specific fields to Firebase directly ---
+  // --- Sync specific fields of the learner record ---
+  // PRD Module 18 §ב: client writes to users/students are throttled to one per
+  // 1000ms. These three nodes sit beneath the learner record, so they go
+  // through the record's throttled window (as `<node>/<field>` keys), like
+  // syncTraceData — never around it with a direct update().
   public async syncQMatrix(rawStudentId: string, qMatrixUpdates: Partial<QMatrix>) {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
-    const qMatrixRef = ref(database, `users/students/${studentId}/qMatrixResults`);
-    await update(qMatrixRef, qMatrixUpdates).catch((err) => {
+    await throttledRtdbChildUpdate(`users/students/${studentId}`, 'qMatrixResults', qMatrixUpdates).catch((err) => {
       console.error(`[FirebaseSyncService] Failed to sync Q-Matrix for ${studentId}:`, err);
       throw err;
     });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}/qMatrixResults`), qMatrixUpdates).catch((err) => {
+      await throttledRtdbChildUpdate(`users/students/${rawStudentId}`, 'qMatrixResults', qMatrixUpdates).catch((err) => {
         console.warn(`[FirebaseSyncService] Legacy Q-Matrix mirror notice for ${rawStudentId}:`, err);
       });
     }
@@ -1414,13 +1417,12 @@ export class FirebaseSyncService {
   public async syncConceptMastery(rawStudentId: string, masteryUpdates: any) {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
-    const masteryRef = ref(database, `users/students/${studentId}/conceptMastery`);
-    await update(masteryRef, masteryUpdates).catch((err) => {
+    await throttledRtdbChildUpdate(`users/students/${studentId}`, 'conceptMastery', masteryUpdates).catch((err) => {
       console.error(`[FirebaseSyncService] Failed to sync concept mastery for ${studentId}:`, err);
       throw err;
     });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}/conceptMastery`), masteryUpdates).catch((err) => {
+      await throttledRtdbChildUpdate(`users/students/${rawStudentId}`, 'conceptMastery', masteryUpdates).catch((err) => {
         console.warn(`[FirebaseSyncService] Legacy concept mastery mirror notice for ${rawStudentId}:`, err);
       });
     }
@@ -1429,13 +1431,12 @@ export class FirebaseSyncService {
   public async syncLiveSessionMetrics(rawStudentId: string, metricsUpdates: any) {
     if (!rawStudentId) return;
     const studentId = normalizeStudentId(rawStudentId);
-    const metricsRef = ref(database, `users/students/${studentId}/live_session_metrics`);
-    await update(metricsRef, metricsUpdates).catch((err) => {
+    await throttledRtdbChildUpdate(`users/students/${studentId}`, 'live_session_metrics', metricsUpdates).catch((err) => {
       console.error(`[FirebaseSyncService] Failed to sync live session metrics for ${studentId}:`, err);
       throw err;
     });
     if (rawStudentId !== studentId) {
-      await update(ref(database, `users/students/${rawStudentId}/live_session_metrics`), metricsUpdates).catch((err) => {
+      await throttledRtdbChildUpdate(`users/students/${rawStudentId}`, 'live_session_metrics', metricsUpdates).catch((err) => {
         console.warn(`[FirebaseSyncService] Legacy metrics mirror notice for ${rawStudentId}:`, err);
       });
     }
