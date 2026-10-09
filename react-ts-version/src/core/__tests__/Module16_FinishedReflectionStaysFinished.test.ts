@@ -127,21 +127,11 @@ describe('8.10 — the finished reflection board leads to the quiet end screen',
 
   it('meeting 8’s end screen does not promise a next station and does not praise twice', () => {
     const page = src('features/workspace/StudentWorkspacePage.tsx');
-    expect(page).toContain('const lastStation = endStation === 8;');
-    // One heading for every meeting: it names the station and praises nothing
-    // (PRD 14 §ג: no encouragement in meetings 1–2; meeting 8's is on its board).
-    const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"), page.indexOf('<ClosingSentence sessionNumber={sessionNumber}'));
-    // PRD 14 §ג (v7.15): station 8 says it is the last one.
-    expect(end).toContain('`סיימתם את תחנה ${endStation}, התחנה האחרונה!`');
-    expect(end).toContain('`סיימתם את תחנה ${endStation}!`');
-    expect(end).not.toContain('כל הכבוד');
-    // Meetings 1–7 keep #125's line ("כשהמורה תפתח / יפתח את התחנה הבאה, נמשיך
-    // יחד.", in the teacher's gender — core/teacherGender.ts); meeting 8, the
-    // last station, has none.
-    expect(page).toContain("const nextStationLine = teacherSentenceHe('nextStation', teacherGender);");
-    expect(page).toMatch(/\{!lastStation && \(\s*<p className="text-base text-ws-soft">\{nextStationLine\}<\/p>\s*\)\}/);
+    const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"), page.indexOf('{classStateOverlays}', page.indexOf("if (endScreen === 'sessionDone') {")));
+    // PRD 14 §ג / 16 §ג (v7.15), word for word: the heading and the saved line, no next station.
+    expect(end).toContain("endKind === 'station8' ? ['סיימתם את תחנה 8, התחנה האחרונה!', savedLine]");
     expect(page).toContain("const savedLine = 'העבודה שלכם נשמרה בבטחה.';");
-    expect(page).toMatch(/const endScreenSpeech = lastStation\s*\? `\$\{endHeading\} \$\{savedLine\}`\s*: `\$\{endHeading\} \$\{savedLine\} \$\{nextStationLine\}`/);
+    expect(end).not.toContain('כל הכבוד');
   });
 });
 

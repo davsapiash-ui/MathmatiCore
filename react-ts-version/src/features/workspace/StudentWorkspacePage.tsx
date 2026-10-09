@@ -1354,40 +1354,54 @@ export function StudentWorkspacePage() {
   // more (E2). Meetings 1, 2 and 8 have one button beside the heading that reads
   // the screen's lines (PRD 7 §א), on the child's click only. The ✓ is not spoken.
   if (endScreen === 'sessionDone') {
-    // The closing sentence is chosen by this meeting's own counts: only when the
-    // store holds this meeting (a finished learner sent here by the close from
-    // another meeting's store gets the lines without it).
-    const withClosingSentence = hasClosingSentence(endStation) && endStation === sessionNumber;
-    const lastStation = endStation === 8;
-    const nextStationLine = teacherSentenceHe('nextStation', teacherGender);
-    // PRD 14 §ג, word for word: station 1 is the heading, the saved line and
-    // the next-station line, with no praise; station 8's heading says it is the
-    // last station, and it has no next-station line. Stations 2–7 follow
-    // station 1's lines.
-    const endHeading = lastStation ? `סיימתם את תחנה ${endStation}, התחנה האחרונה!` : `סיימתם את תחנה ${endStation}!`;
+    // Owner, 9.10.2026 (OWNER-1): every station shows exactly the PRD's words
+    // for its end, and nothing is copied from one station to another.
+    //   station 1   — PRD 14 §ג: "סיימתם את תחנה 1!", "העבודה שלכם נשמרה
+    //                 בבטחה.", and the next-station line (teacherGender.ts)
+    //   station 8   — PRD 14 §ג / 16 §ג: "סיימתם את תחנה 8, התחנה האחרונה!",
+    //                 "העבודה שלכם נשמרה בבטחה.", no next-station line
+    //   stations 3–7 — PRD 14 §ג / 16 §ב: "משפט עידוד אחד בלבד … בלי לוח, בלי
+    //                 שאלות ובלי מספר": the one encouragement sentence alone,
+    //                 chosen by this meeting's own counts
+    //   otherwise   — the PRD's end-screen sentence of Module 7 (l.286),
+    //                 lobbyFinished in teacherGender.ts (station
+    //                 2 after the gate approved; stations 3–7 when the close sent
+    //                 a finished learner here without this meeting's counts)
+    // Station 2's own end, the wait for the teacher's check, is above.
     const savedLine = 'העבודה שלכם נשמרה בבטחה.';
-    const endScreenSpeech = lastStation
-      ? `${endHeading} ${savedLine}`
-      : `${endHeading} ${savedLine} ${nextStationLine}`;
+    const endKind: 'station1' | 'station8' | 'encouragement' | 'generic' =
+      endStation === 1 ? 'station1'
+      : endStation === 8 ? 'station8'
+      : hasClosingSentence(endStation) && endStation === sessionNumber ? 'encouragement'
+      : 'generic';
+    const endLines: string[] =
+      endKind === 'station1' ? ['סיימתם את תחנה 1!', savedLine, teacherSentenceHe('nextStation', teacherGender)]
+      : endKind === 'station8' ? ['סיימתם את תחנה 8, התחנה האחרונה!', savedLine]
+      : endKind === 'generic' ? [teacherSentenceHe('lobbyFinished', teacherGender)]
+      : [];
     return (
-      <div dir="rtl" data-testid="station-end-screen" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
+      <div dir="rtl" data-testid="station-end-screen" data-end-kind={endKind} className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body p-6">
         <div className="bg-ws-surface p-10 rounded-3xl shadow-sm max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
-          <div className="flex items-center justify-center gap-3">
-            <h1 className="text-3xl font-display font-black text-ws-ink">
-              {endHeading}
-            </h1>
-            {!withClosingSentence && <UdlSpeechButton text={endScreenSpeech} className="shrink-0" />}
-          </div>
-          {withClosingSentence && <ClosingSentence sessionNumber={sessionNumber} counts={meetingPersistence} />}
-          <div className="pt-4 flex flex-col gap-2">
-            <div className="inline-flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800 text-sm">
-              <span>{savedLine}</span>
-              <span aria-hidden="true">✓</span>
+          {endKind === 'encouragement' ? (
+            // The one sentence, with its own read-aloud button (on click only).
+            <ClosingSentence sessionNumber={sessionNumber} counts={meetingPersistence} />
+          ) : (
+            <div className="flex items-start justify-center gap-3">
+              <div className="flex flex-col gap-3">
+                {endKind === 'generic' ? (
+                  <p className="text-2xl font-display font-black text-ws-ink leading-snug">{endLines[0]}</p>
+                ) : (
+                  <>
+                    <h1 className="text-3xl font-display font-black text-ws-ink">{endLines[0]}</h1>
+                    <p className="text-lg font-bold text-ws-ink">{endLines[1]}</p>
+                    {endLines[2] && <p className="text-base text-ws-soft">{endLines[2]}</p>}
+                  </>
+                )}
+              </div>
+              {/* PRD 7 §א: one read-aloud button for the screen's lines, on the child's click only. */}
+              <UdlSpeechButton text={endLines.join(' ')} className="shrink-0" />
             </div>
-            {!lastStation && (
-              <p className="text-base text-ws-soft">{nextStationLine}</p>
-            )}
-          </div>
+          )}
           {/* The teacher closed the station: the close screen's way out (a shared
               classroom device), here too — signing out, not a link to the lobby. */}
           {closedStationFinished && (

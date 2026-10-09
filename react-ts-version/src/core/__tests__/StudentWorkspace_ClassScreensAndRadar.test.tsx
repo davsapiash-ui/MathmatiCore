@@ -343,11 +343,24 @@ describe('read-aloud on the end screen and the other-device lock — click only'
     expect(speak.mock.calls[0][0]).toBe('סיימתם את תחנה 8, התחנה האחרונה! העבודה שלכם נשמרה בבטחה.');
   });
 
+  it('OWNER-1: station 2 after the gate approved — the PRD\'s end-screen sentence (Module 7, l.286), nothing else', async () => {
+    useStore.setState({ students: { [STUDENT]: { highestCompletedMeeting: 0, teacher_gate_approved: true } } as any, firebaseLoaded: true });
+    await openMeeting1();
+    act(() => useWorkspaceStore.setState({ sessionNumber: 2, flowStatus: 'sessionDone', awaitingNext: false } as any));
+    const end = screen.getByTestId('station-end-screen');
+    expect(end.getAttribute('data-end-kind')).toBe('generic');
+    expect(end.textContent).toBe('סיימתם את התחנה. כשהמורה תפתח את התחנה הבאה, נמשיך יחד.');
+    fireEvent.click(speechButtons()[0]);
+    expect(speak.mock.calls[0][0]).toBe('סיימתם את התחנה. כשהמורה תפתח את התחנה הבאה, נמשיך יחד.');
+  });
+
   it('meetings 3–7: no second button — the closing sentence carries the only one (E2)', async () => {
     await openMeeting1();
     act(() => useWorkspaceStore.setState({ sessionNumber: 4, flowStatus: 'sessionDone', awaitingNext: false } as any));
-    // ClosingSentence is stubbed in this file, so the page itself adds none.
-    expect(screen.getByText('סיימתם את תחנה 4!')).toBeTruthy();
+    // ClosingSentence is stubbed in this file, so the page itself adds none —
+    // and no heading either: the one encouragement sentence alone (PRD 14 §ג).
+    expect(screen.getByTestId('station-end-screen').getAttribute('data-end-kind')).toBe('encouragement');
+    expect(screen.queryByText('סיימתם את תחנה 4!')).toBeNull();
     expect(speechButtons()).toHaveLength(0);
   });
 
