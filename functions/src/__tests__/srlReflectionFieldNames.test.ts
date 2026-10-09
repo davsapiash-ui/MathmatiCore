@@ -164,7 +164,7 @@ describe('Appendix A §4 — the reflection fields under their names', () => {
     expect(header).not.toContain('effort_level');
     expect(header).not.toContain('submitted_at');
     const byId = new Map(rows.map((r) => [r.reflection_id, r]));
-    expect(byId.get('session_08_student_3')).toMatchObject({ effort_score: 'HIGH', reflection_step: '3', reflection_completed: 'true', reflection_updated_at: '1760000000000', idempotency_key: 'srl_reflection_session_08_student_3' });
-    expect(byId.get('session_08_student_4')).toMatchObject({ effort_score: 'LOW', reflection_updated_at: '1759000000000' });
+    expect(byId.get('session_08_student_3')).toMatchObject({ effort_score: 'HIGH', reflection_step: '3', reflection_completed: 'true', reflection_updated_at: new Date(1760000000000).toISOString(), idempotency_key: 'srl_reflection_session_08_student_3' });
+    expect(byId.get('session_08_student_4')).toMatchObject({ effort_score: 'LOW', reflection_updated_at: new Date(1759000000000).toISOString() }); // PRD l.1105: every timestamp in the export is ISO text
   });
 });
