@@ -625,3 +625,12 @@
 .task-zone-cells > * {
   --ws-cell: clamp(34px, min(7.4vh, 5vw, calc((100cqi - 96px) / 7.5)), 64px) !important;
 }
+/* A narrow task zone (under 420px: the 1024px tablet) keeps its text whole
+   without scrolling: the instruction's lines sit a little closer and the card's
+   padding is the low end of its range. Laptops are not affected. */
+@container (max-width: 420px) {
+  .task-zone-cells > * {
+    --instruction-leading: 1.35;
+    padding: 14px !important;
+  }
+}

@@ -195,7 +195,8 @@ test.describe('restore', () => {
       await gotoWorkspace(c, 2);
       await c.page.getByRole('button', { name: 'מתחילים' }).click();
       await expect(c.page.getByText(/משימה 1 מתוך/)).toBeVisible({ timeout: 15_000 });
-      await c.page.locator('[data-testid=pv-result-row] input').first().click();
+      // Task 1 writes the whole number in one box (owner, 4.10.2026: #pv-single-value).
+      await c.page.locator('#pv-single-value').click();
       await c.page.keyboard.type('605');
       await c.page.getByTestId('proceed-button').click();
       await expect(c.page.getByText(/משימה 2 מתוך/)).toBeVisible({ timeout: 15_000 });
