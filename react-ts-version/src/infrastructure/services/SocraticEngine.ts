@@ -686,7 +686,7 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
     suggested_highlight: "tour-column-units",
     questionHe: "נסו לחשוב: מה צריך להיות בטור היחידות בסוף התרגיל?",
     choices: [
-      { id: "opt_1", textHe: "פחות מ-10 לבנים", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על הכפתור "קבצו 10 לעשרת" שבראש הטור.' },
+      { id: "opt_1", textHe: "פחות מ-10 לבנים", isCorrect: true, feedbackHe: 'נכון מאוד! כשיש בטור 10 יחידות או יותר, לחצו על הכפתור "קבצו 10" שבראש הטור.' },
       // D10 (owner, 1.10.2026): guiding questions.
       { id: "opt_2", textHe: "כל הלבנים שהיו בטור", isCorrect: false, feedbackHe: "רמז: מה עושים עם כל 10 יחידות שבטור?" },
       { id: "opt_3", textHe: "אף לבנה, הטור ריק", isCorrect: false, feedbackHe: "רמז: אם בטור יש פחות מ-10 יחידות, האם אפשר לקבץ אותן?" }

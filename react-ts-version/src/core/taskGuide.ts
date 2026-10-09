@@ -21,7 +21,7 @@
  *    the board is so. It stays ticked through a later step only where that
  *    step changes the board by instruction (PRD 14 §ב rule (1): "למשל כשמוציאים
  *    לבנים") — a subtraction's take-away (takeAwayTrack) and station 7's "הוסיפו
- *    …, ואז הסירו …" (builtTrack); elsewhere it shows the board as it is now;
+ *    …, ואז הוציאו …" (builtTrack); elsewhere it shows the board as it is now;
  *  - "none": a step whose board is the result, or where the learner decides
  *    whether and how much (take away, group every 10, "גלו") — checked on
  *    "ממשיכים" only;
@@ -36,7 +36,16 @@
  * numbers on the board. Station 2 and station 8 have no guide (PRD, unchanged).
  */
 import type { SessionTask } from '@/data/sessionTasks';
-import { BLOCK_NAME_HE } from '@/data/taskBuilders';
+import {
+  BLOCK_NAME_HE,
+  BORROW_WHEN_NEEDED_HE,
+  BUILD_BOTH_HE,
+  BUILD_MINUEND_HE,
+  GROUP_WHEN_TEN_HE,
+  RECORD_CONVERSION_HE,
+  TAKE_AWAY_HE,
+  WRITE_RESULT_HE,
+} from '@/data/taskBuilders';
 import { countsEqual, EMPTY_COUNTS, getValue, type Place, type PlaceCounts } from './placeValue';
 import { resultBoxCount } from './placeCues';
 import { instructionLines } from './instructionLines';
@@ -54,7 +63,7 @@ export type TickRule =
   | { kind: 'checklist'; index: number }
   /**
    * The board's value is `value` (any arrangement of blocks). `sticky`: a later
-   * step changes the board by instruction ("הוסיפו …, ואז הסירו …"), so once
+   * step changes the board by instruction ("הוסיפו …, ואז הוציאו …"), so once
    * built it stays built (WorkspaceState.builtTrack) until the board is emptied
    * or the build is undone.
    */
@@ -94,15 +103,10 @@ export const fmt = (n: number) => n.toLocaleString('en-US');
 const minus = '−';
 
 const WROTE_ANSWER_HE = 'כתבתם תשובה.';
-const WRITE_RESULT_HE = 'כתבו את התוצאה בשורת התוצאה.';
 const WRITE_MISSING_HE = 'כתבו את הספרה החסרה בתיבה הריקה.';
-const BUILD_MINUEND_HE = 'בנו את המחוסר בבית המספרים.';
-const TAKE_AWAY_HE = 'הוציאו מבית המספרים את הכמות הנדרשת.';
-const BORROW_SUBS_HE = [
-  'אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו: לחצו עליה או גררו אותה אל אותו טור.',
-  'אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.',
-];
-const GROUP_SUBS_HE = ['כשמצטברות 10 לבנים בטור, לחצו על הכפתור "קבצו 10" שבראש הטור.', 'רשמו את ההמרה בעיגול הזיכרון.'];
+/** Stations 4–6's condition lines: the instruction's own sentences (taskBuilders), one line each. */
+const BORROW_SUBS_HE = [...BORROW_WHEN_NEEDED_HE];
+const GROUP_SUBS_HE = [`${GROUP_WHEN_TEN_HE}.`, `${RECORD_CONVERSION_HE}.`];
 
 const step = (label: string, tick: TickRule = { kind: 'none' }, subs?: string[]): GuideStep => (subs ? { label, tick, subs } : { label, tick });
 const fill: TickRule = { kind: 'fill' };
@@ -120,108 +124,118 @@ function resultOf(task: SessionTask): number {
   return task.isSubtraction ? a - b : a + b;
 }
 
-/* ── station 1 (proposal, section א) ── */
+/* ── station 1 (PRD 14 §ב, "מבנה מפגש 1") ── */
 
-const STATION1: Record<string, Omit<TaskGuide, 'doneNoteHe'> & { doneNoteHe?: string | null }> = {
+/**
+ * What a station-1 exercise adds to its instruction: the topic, how each step
+ * ticks, how many condition lines sit under it, and the done and "נכון!"
+ * sentences. The words of the goal, the steps and the condition lines are the
+ * exercise's own instruction (sessionTasks.ts), one per line: the goal first,
+ * then each step followed by its condition lines — so the task zone, the
+ * read-aloud text, the teacher's view and telemetry say the same thing.
+ */
+interface Station1Spec {
+  topicHe: string;
+  steps: { tick: TickRule; subs?: number }[];
+  doneNoteHe?: string | null;
+  correctHe: string | null;
+}
+
+const checklistStep = (index: number): { tick: TickRule } => ({ tick: { kind: 'checklist', index } });
+
+const STATION1: Record<string, Station1Spec> = {
   s1_sandbox_controlled: {
     topicHe: 'מכירים את הלבנים',
-    goalHe: 'ברוכים הבאים למתמטיקאור! בתחנה הראשונה מכירים את הכלים: שחקו וחקרו בחופשיות.',
-    steps: [step('', { kind: 'checklist', index: 0 })],
+    steps: [checklistStep(0)],
     doneNoteHe: 'כל לבנה שגררתם שינתה את הספרה בטור שלה.',
     correctHe: null,
   },
   s1_decompose_hundred: {
     topicHe: 'פורטים לבנה ללבנים קטנות',
-    goalHe: 'בבית המספרים יש 230. עקבו אחר השינוי כשפורטים לבנה.',
-    steps: [step('', { kind: 'checklist', index: 0 })],
+    steps: [checklistStep(0)],
     doneNoteHe: 'הלבנים השתנו, אבל המספר נשאר 230.',
     correctHe: null,
   },
   s1_build_305: {
     topicHe: 'בונים את המספר 305',
-    goalHe: 'כשתצליחו, הסתכלו בבית המספרים: איזו ספרה מופיעה ליד שם כל טור?',
-    // The second item appears only for a child who built 305 another way (session1Checklist).
-    steps: [step('', { kind: 'checklist', index: 0 }), step('', { kind: 'checklist', index: 1 })],
+    // The second item appears only for a child who built 305 another way
+    // (session1Checklist); it is not in the instruction, so its words are the checklist's.
+    steps: [checklistStep(0), checklistStep(1)],
     doneNoteHe: 'בטור העשרות אין לבנים, ולכן ליד שמו מופיעה הספרה 0.',
     correctHe: null,
   },
   s1_undo_trash: {
     topicHe: 'מבטלים פעולה ומנקים',
-    goalHe: 'גלו איך חוזרים צעד אחורה ואיך מתחילים מחדש.',
-    steps: [step('', { kind: 'checklist', index: 0 }), step('', { kind: 'checklist', index: 1 })],
+    steps: [checklistStep(0), checklistStep(1)],
     doneNoteHe: 'עכשיו אתם יודעים לבטל פעולה ולנקות את בית המספרים. מותר לנסות ולטעות.',
     correctHe: null,
   },
   s1_r_words703: {
     topicHe: 'ממילים לספרות',
-    goalHe: 'המספר הוא שבע מאות ושלוש.',
-    steps: [step('בנו את המספר בבית המספרים', { kind: 'boardValue', value: 703 }), step('כתבו אותו בספרות בשורת התוצאה', fill)],
+    steps: [{ tick: { kind: 'boardValue', value: 703 } }, { tick: fill }],
     correctHe: 'נכון! במספר שבע מאות ושלוש אין עשרות, ולכן בטור העשרות כותבים 0: 703.',
   },
   s1_r_value368: {
     topicHe: 'מוצאים את ערך הספרה',
-    goalHe: 'המספר הוא 368. מה הערך של הספרה 6 במספר הזה?',
-    steps: [step('בנו את המספר 368 בבית המספרים', { kind: 'boardValue', value: 368 }), step('כתבו את הערך של הספרה 6 בשורת התוצאה', fill)],
+    steps: [{ tick: { kind: 'boardValue', value: 368 } }, { tick: fill }],
     correctHe: 'נכון! הספרה 6 נמצאת בטור העשרות, ולכן הערך שלה 60.',
   },
   s1_r_words482: {
     topicHe: 'ממילים לספרות',
-    goalHe: 'המספר הוא ארבע מאות שמונים ושתיים.',
-    steps: [step('בנו את המספר בבית המספרים', { kind: 'boardValue', value: 482 }), step('כתבו אותו בספרות בשורת התוצאה', fill)],
+    steps: [{ tick: { kind: 'boardValue', value: 482 } }, { tick: fill }],
     correctHe: 'נכון! ארבע מאות שמונים ושתיים כותבים בספרות 482.',
   },
   s1_r_group26: {
     topicHe: 'מקבצים לבני יחידה לעשרות',
-    goalHe: 'בטור היחידות יש לבני יחידה.',
-    steps: [
-      // PRD 14 §ב, task 8: sentences name the button "קבצו 10" (Module 7, the button's name in sentences).
-      step('קבצו כל 10 לבני יחידה ללבנת עשרת אחת: לחצו על הכפתור "קבצו 10" שבראש הטור'),
-      step('כתבו בשורת התוצאה כמה עשרות וכמה יחידות קיבלתם', fill),
-    ],
+    // PRD 14 §ב, task 8: the grouping step is checked on "ממשיכים" only.
+    steps: [{ tick: { kind: 'none' } }, { tick: fill }],
     correctHe: 'נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 26.',
   },
   s1_target_347: {
     topicHe: 'בודקים אם המספר משתנה',
-    goalHe: 'משימת היעד: איזה מספר, לדעתכם, מייצגות הלבנים לאחר הפריטה?',
-    steps: [0, 1, 2].map((index) => step('', { kind: 'checklist', index })),
+    steps: [checklistStep(0), checklistStep(1), checklistStep(2)],
     // The PRD's sentence (Module 14 §ב, task 9), said in the box as soon as the checklist is done.
     doneNoteHe: 'נכון! הלבנים מסודרות אחרת, אבל המספר נשאר 347.',
     correctHe: null,
   },
   s1_t8: {
     topicHe: 'מחברים בעזרת הלבנים',
-    goalHe: 'פתרו: 713 + 94.',
-    steps: [
-      step('בנו בבית המספרים את 713 ואת 94', { kind: 'boardValue', value: 807 }, [
-        // PRD 14 §ב, task 10: the station's own condition line.
-        GROUP_SUBS_HE[0],
-        'רשמו את ההמרה בעיגול הזיכרון שמעל הטור שאליו עברה הלבנה החדשה.',
-      ]),
-      step('כתבו את התוצאה בשורת התוצאה', fill),
-    ],
+    // PRD 14 §ב, task 10: two condition lines under the build step.
+    steps: [{ tick: { kind: 'boardValue', value: 807 }, subs: 2 }, { tick: fill }],
     correctHe: `נכון! קיבצתם 10 לבני עשרת ללבנת מאה אחת, ולכן בטור העשרות 0: ${RLM}713 + 94 = 807.`,
   },
   s1_r_sub61: {
     topicHe: 'מחסרים בעזרת הלבנים',
-    goalHe: `פתרו: 61 ${minus} 24.`,
-    steps: [
-      step('בנו את 61 בבית המספרים', { kind: 'boardValue', value: 61 }),
-      step('גררו לפח האשפה את הלבנים שאתם מחסרים', { kind: 'none' }, BORROW_SUBS_HE),
-      step('כתבו את התוצאה בשורת התוצאה', fill),
-    ],
+    steps: [{ tick: { kind: 'boardValue', value: 61 } }, { tick: { kind: 'none' }, subs: 2 }, { tick: fill }],
     correctHe: `נכון! ${RLM}61 ${minus} 24 = 37, וגם בבית המספרים נשארו 37.`,
   },
   s1_r_sub806: {
     topicHe: 'מחסרים בעזרת הלבנים',
-    goalHe: `פתרו: 806 ${minus} 351.`,
-    steps: [
-      step('בנו את 806 בבית המספרים', { kind: 'boardValue', value: 806 }),
-      step('גררו לפח האשפה את הלבנים שאתם מחסרים', { kind: 'none' }, BORROW_SUBS_HE),
-      step('כתבו את התוצאה בשורת התוצאה', fill),
-    ],
+    steps: [{ tick: { kind: 'boardValue', value: 806 } }, { tick: { kind: 'none' }, subs: 2 }, { tick: fill }],
     correctHe: `נכון! ${RLM}806 ${minus} 351 = 455, וגם בבית המספרים נשארו 455.`,
   },
 };
+
+/** A station-1 guide: the instruction's lines (goal, then each step and its condition lines) with the spec's ticks. */
+function station1Guide(task: SessionTask, spec: Station1Spec): TaskGuide {
+  const [goal, ...rest] = task.instructionHe
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  let i = 0;
+  const steps = spec.steps.map(({ tick, subs }) => {
+    const label = noDot(rest[i++] ?? '');
+    const lines = subs ? rest.slice(i, (i += subs)) : undefined;
+    return step(label, tick, lines);
+  });
+  return {
+    topicHe: spec.topicHe,
+    goalHe: goal ?? null,
+    steps,
+    doneNoteHe: spec.doneNoteHe !== undefined ? spec.doneNoteHe : steps.some((st) => st.tick.kind === 'fill') ? WROTE_ANSWER_HE : null,
+    correctHe: spec.correctHe,
+  };
+}
 
 /* ── stations 3–7 (proposal, section א, built per kind of exercise) ── */
 
@@ -310,6 +324,8 @@ function additionGuide(task: SessionTask, sessionNumber: number): TaskGuide {
     topicHe: STATION_TOPIC[sessionNumber] ?? null,
     goalHe: lines[0],
     steps: [
+      // PRD 26, station 4 exercise 2: the step names the two numbers ("בנו בבית המספרים את 128 ואת 35.")
+      // where the station's instruction says "את שני המספרים".
       step(`בנו בבית המספרים את ${fmt(task.numberA ?? 0)} ואת ${fmt(task.numberB ?? 0)}`, { kind: 'boardValue', value: r }, GROUP_SUBS_HE),
       step(noDot(missing ? WRITE_MISSING_HE : WRITE_RESULT_HE), fill),
     ],
@@ -427,8 +443,8 @@ function sentencesGuide(task: SessionTask, sessionNumber: number): TaskGuide {
 export function taskGuide(task: SessionTask | null | undefined, sessionNumber: number): TaskGuide | null {
   if (!task || sessionNumber === 2 || sessionNumber === 8) return null;
   if (sessionNumber === 1) {
-    const g = STATION1[task.id];
-    return g ? { doneNoteHe: g.steps.some((s) => s.tick.kind === 'fill') ? WROTE_ANSWER_HE : null, ...g } : null;
+    const spec = STATION1[task.id];
+    return spec ? station1Guide(task, spec) : null;
   }
   // Every guide below is built from the instruction's text. An exercise that
   // carries none (a restored or generated task without instructionHe) has no
@@ -444,7 +460,7 @@ export function taskGuide(task: SessionTask | null | undefined, sessionNumber: n
   if (task.representationKind === 'compose_break' || task.representationKind === 'compose_group') return composeGuide(task);
   if (task.type === 'vertical_addition' || task.type === 'addition_simple') {
     if (task.hiddenDigits) return skeletonGuide(task, sessionNumber);
-    const shaped = task.isSubtraction ? /מחוסר בבית המספרים/.test(task.instructionHe) : /ייצגו את המספרים בעזרת לבנים/.test(task.instructionHe);
+    const shaped = task.instructionHe.includes(task.isSubtraction ? BUILD_MINUEND_HE : BUILD_BOTH_HE);
     if (shaped) return task.isSubtraction ? subtractionGuide(task, sessionNumber) : additionGuide(task, sessionNumber);
   }
   return sentencesGuide(task, sessionNumber);

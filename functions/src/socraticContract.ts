@@ -2397,12 +2397,14 @@ export function revealedColumnDigit(texts: string[], facts: Parameters<typeof di
 /**
  * The columns an instruction itself names, or whose blocks its conversion
  * names: s1_r_group26 says "בטור היחידות … קבצו כל 10 יחידות לעשרת אחת",
- * s1_target_347 "פרטו עשרת אחת לעשר יחידות". A card may name those — they do
+ * s1_target_347 "פרטו עשרת אחת לעשר יחידות". Since PRD 7.15 the blocks are
+ * named on both sides ("פרטו לבנת עשרת אחת לעשר לבני יחידה", "קבצו כל 10 לבני
+ * יחידה ללבנת עשרת אחת"), so "לבנת"/"לבני" may stand before either noun. A card may name those — they do
  * not tell the child where the difficulty is (owner, 29.9.2026: the card
  * never names the column WHERE THE DIFFICULTY IS; the child finds it).
  */
 const CONVERSION_NOUNS = "(יחידות|יחידה|עשרות|עשרת|מאות|מאה|אלפים|אלף)";
-const INSTRUCTION_CONVERSION_RE = new RegExp(`(?:פרטו|לפרוט|פורטים|קבצו|לקבץ|מקבצים)\\s+(?:כל\\s+)?(?:\\d+\\s+|את\\s+)?(?:ה)?(?:לבנת\\s+|לבני\\s+)?${CONVERSION_NOUNS}(?:\\s+אחת|\\s+אחד)?\\s+ל-?(?:10\\s+|עשר\\s+|ה)?${CONVERSION_NOUNS}`, "g");
+const INSTRUCTION_CONVERSION_RE = new RegExp(`(?:פרטו|לפרוט|פורטים|קבצו|לקבץ|מקבצים)\\s+(?:כל\\s+)?(?:\\d+\\s+|את\\s+)?(?:ה)?(?:לבנת\\s+|לבני\\s+)?${CONVERSION_NOUNS}(?:\\s+אחת|\\s+אחד)?\\s+ל-?(?:10\\s+|עשר\\s+|ה)?(?:לבנת\\s+|לבני\\s+)?${CONVERSION_NOUNS}`, "g");
 export function instructionColumnsOf(instruction: string | null): Set<SocraticColumn> {
   const out = new Set<SocraticColumn>();
   if (!instruction) return out;

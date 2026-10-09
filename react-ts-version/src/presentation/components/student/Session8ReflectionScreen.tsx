@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckSquare, Square, RotateCcw, CircleDot, HelpCircle, Award, ArrowLeft, Loader2 } from 'lucide-react';
+import { CheckSquare, Square, CircleDot, HelpCircle, Award, ArrowLeft, Loader2 } from 'lucide-react';
 import type { SRLReflectionResult } from '@/core/srlReflection';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { encouragementSentenceHe, persistenceIndexPercent, splitEncouragement } from '@/core/persistenceEncouragement';
@@ -36,7 +36,7 @@ type EffortId = 'EASY' | 'MEDIUM' | 'HARD';
  * נגיש לכל כפתור. (מסמך 03 כתב "קל / מתאים / מאתגר" בלי מילים; ה-PRD גובר.)
  *
  * שלב 2 — שלוש האסטרטגיות בסדר של המרשם (שורה 10): כפתור ביטול פעולה,
- * עיגולי הזיכרון, השאלות בכרטיס החניכה. אפשר לסמן כמה (מסמך 03: "לסמן כל
+ * עיגולי הזיכרון, כרטיס החניכה (PRD 7.15, מודול 16 §ג). אפשר לסמן כמה (מסמך 03: "לסמן כל
  * תשובה מתאימה מתוך שלוש").
  *
  * שלב 3 — משפט עידוד אחד מתוך ארבעה, שנבחר לפי מדד ההתמדה של מפגש 8
@@ -93,9 +93,10 @@ export const EFFORT_LEVELS: ReadonlyArray<{ id: EffortId; bars: 1 | 2 | 3; spoke
  * בביטחון וברוגע").
  */
 export const STRATEGY_OPTIONS = [
-  { id: 'undo', label: 'כפתור ביטול הפעולה', icon: RotateCcw },
+  // The label names the button by its arrow, as the PRD writes it (Module 16 §ג): no second arrow beside it.
+  { id: 'undo', label: 'כפתור ביטול הפעולה ↺', icon: null },
   { id: 'memory', label: 'עיגולי הזיכרון', icon: CircleDot },
-  { id: 'hints', label: 'השאלות בכרטיס החניכה', icon: HelpCircle },
+  { id: 'hints', label: 'כרטיס החניכה', icon: HelpCircle },
 ] as const;
 
 /**
@@ -293,9 +294,14 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                       }`}
                     >
                       <div className="flex items-center gap-3.5">
-                        <div className={`p-2 rounded-xl ${isChecked ? 'bg-purple-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
-                          <Icon className="w-5 h-5" />
-                        </div>
+                        {Icon ? (
+                          <div className={`p-2 rounded-xl ${isChecked ? 'bg-purple-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                            <Icon className="w-5 h-5" />
+                          </div>
+                        ) : (
+                          // Keeps the three labels aligned.
+                          <div className="w-9 h-9 shrink-0" aria-hidden="true" />
+                        )}
                         <span className="font-bold text-sm text-slate-900 dark:text-white">
                           {strat.label}
                         </span>

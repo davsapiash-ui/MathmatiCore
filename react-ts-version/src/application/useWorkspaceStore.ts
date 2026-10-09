@@ -462,7 +462,7 @@ export interface WorkspaceState {
   heldFromTrack: HeldFromTrack | null;
   /**
    * The task zone's "build N" step that a later instruction changes on purpose
-   * (station 7: "בנו את המספר 340 … הוסיפו …, ואז הסירו …", core/taskGuide.ts
+   * (station 7: "בנו את המספר 340 … הוסיפו …, ואז הוציאו …", core/taskGuide.ts
    * stickyBuildValue): the board has held N in the exercise `taskId` since it
    * was last empty. Kept by nextBuiltTrack on every change of the board, saved
    * with the workspace and brought back by undo, so the step's tick survives a
