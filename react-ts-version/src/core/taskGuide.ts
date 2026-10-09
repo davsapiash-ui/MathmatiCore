@@ -18,7 +18,10 @@
  * Tick rule (section ג): a step says the instruction was carried out, never
  * that the result is right —
  *  - "board": a step that names exactly what to build or convert ticks when
- *    the board is so, and stays ticked (until the board is emptied);
+ *    the board is so. It stays ticked through a later step only where that
+ *    step changes the board by instruction (PRD 14 §ב rule (1): "למשל כשמוציאים
+ *    לבנים") — a subtraction's take-away (takeAwayTrack) and station 7's "הוסיפו
+ *    …, ואז הסירו …" (builtTrack); elsewhere it shows the board as it is now;
  *  - "none": a step whose board is the result, or where the learner decides
  *    whether and how much (take away, group every 10, "גלו") — checked on
  *    "ממשיכים" only;
@@ -49,8 +52,13 @@ export type TickRule =
   | { kind: 'none' }
   | { kind: 'fill' }
   | { kind: 'checklist'; index: number }
-  /** The board's value is `value` (any arrangement of blocks). */
-  | { kind: 'boardValue'; value: number }
+  /**
+   * The board's value is `value` (any arrangement of blocks). `sticky`: a later
+   * step changes the board by instruction ("הוסיפו …, ואז הסירו …"), so once
+   * built it stays built (WorkspaceState.builtTrack) until the board is emptied
+   * or the build is undone.
+   */
+  | { kind: 'boardValue'; value: number; sticky?: true }
   /** The board holds exactly these blocks. `conversionsDone`: and the exercise's conversions are done with the blocks. */
   | { kind: 'boardCounts'; counts: PlaceCounts; conversionsDone?: boolean }
   /** The flexible exercise's "הוספת ייצוג": at least `n` ways recorded. */
@@ -397,7 +405,10 @@ function sentencesGuide(task: SessionTask, sessionNumber: number): TaskGuide {
     }
     const build = l.match(/^בנו (?:בבית המספרים )?את המספר ([\d,]+)(?: בבית המספרים)?\.$/);
     if (build) {
-      steps.push(step(noDot(l), { kind: 'boardValue', value: Number(build[1].replace(/,/g, '')) }));
+      const value = Number(build[1].replace(/,/g, ''));
+      // A later instruction that adds or removes blocks (station 7's add-then-remove).
+      const changesLater = lines.slice(i + 1).some((x) => /^(הוסיפו|הסירו|הוציאו)/.test(x));
+      steps.push(step(noDot(l), changesLater ? { kind: 'boardValue', value, sticky: true } : { kind: 'boardValue', value }));
       continue;
     }
     steps.push(step(noDot(l), /^כתבו /.test(l) ? fill : { kind: 'none' }));
@@ -456,12 +467,8 @@ export interface GuideTickState {
   q3Reps: unknown[];
   conversionsByColumn: ColumnConversions;
   takeAwayTrack: { taskId: string; held: boolean } | null;
-  /**
-   * The boards before each recent action, oldest first (WorkspaceState.undoStack,
-   * saved with the workspace and popped by undo). A "build N" step stays ticked
-   * while N is among the boards since the board was last empty.
-   */
-  undoStack: { counts: PlaceCounts }[];
+  /** The board has held a sticky step's number in this exercise (WorkspaceState.builtTrack). */
+  builtTrack: { taskId: string; value: number; held: boolean } | null;
   /** Station 1's checklist for this exercise (session1Checklist), when it has one. */
   checklist: { label: string; done: boolean }[] | null;
 }
@@ -492,15 +499,17 @@ export function answerFilled(task: SessionTask, s: GuideTickState): boolean {
   return false;
 }
 
-/** Whether each step's instruction is carried out now (the caller adds the "stays ticked" memory). */
 /**
  * Whether each step's instruction is carried out (proposal §ג; PRD 14 §ב tick
  * rule (1)). Everything is derived from the workspace's own saved state, so a
  * tick survives a refresh (PRD: the learner returns "לאותו שלב עם אותה
  * התקדמות") and goes away when the learner undoes that very step:
- *  - a built number stays built while the learner goes on: for a subtraction's
- *    minuend through takeAwayTrack, otherwise while it is among the boards of
- *    the undo history since the board was last empty;
+ *  - a built number stays built through a later step that changes the board by
+ *    instruction: a subtraction's minuend through takeAwayTrack, station 7's
+ *    add-then-remove through builtTrack (both saved with the workspace and
+ *    brought back by undo). Any other "build N" step shows whether the board is
+ *    N now: the steps after it (writing, grouping) do not change its value, so a
+ *    board that is no longer N is not built (chief re-review S-A);
  *  - in a build-and-convert chain, a step is done when its board is on screen
  *    or a later board step of the chain is done (the board after a break shows
  *    that the blocks before it were built).
@@ -519,7 +528,8 @@ export function guideTicksNow(guide: TaskGuide, task: SessionTask, s: GuideTickS
         return s.q3Reps.length >= t.n;
       case 'boardValue':
         if (task.isSubtraction && t.value === (task.numberA ?? -1) && s.takeAwayTrack?.taskId === task.id && s.takeAwayTrack.held) return true;
-        return getValue(s.counts) === t.value || boardsSinceEmpty(s).some((c) => getValue(c) === t.value);
+        if (t.sticky && s.builtTrack?.taskId === task.id && s.builtTrack.value === t.value && s.builtTrack.held) return true;
+        return getValue(s.counts) === t.value;
       case 'boardCounts':
         if (!countsEqual(s.counts, t.counts)) return false;
         return (
@@ -536,16 +546,13 @@ export function guideTicksNow(guide: TaskGuide, task: SessionTask, s: GuideTickS
   return now;
 }
 
-/** The boards of the undo history since the board was last empty, newest first. */
-function boardsSinceEmpty(s: GuideTickState): PlaceCounts[] {
-  if (getValue(s.counts) === 0) return [];
-  const out: PlaceCounts[] = [];
-  for (let i = s.undoStack.length - 1; i >= 0; i--) {
-    const c = { ...EMPTY_COUNTS, ...s.undoStack[i].counts };
-    if (getValue(c) === 0) break;
-    out.push(c);
-  }
-  return out;
+/**
+ * The number a sticky "build N" step of this exercise waits for, or null —
+ * the store keeps builtTrack for it (useWorkspaceStore, nextBuiltTrack).
+ */
+export function stickyBuildValue(task: SessionTask | null | undefined, sessionNumber: number): number | null {
+  const step = taskGuide(task, sessionNumber)?.steps.find((st) => st.tick.kind === 'boardValue' && st.tick.sticky);
+  return step && step.tick.kind === 'boardValue' ? step.tick.value : null;
 }
 
 /** A step that ticks ("none" steps are checked on "ממשיכים" only). */

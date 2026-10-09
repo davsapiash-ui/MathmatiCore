@@ -19,7 +19,7 @@ import { Session1ChecklistCard } from '@/features/workspace/tasks/Session1Checkl
  */
 
 /** The praise title as every exercise of the store writes it (dagesh before qamats). */
-const PRAISE = 'כָּל הַכָּבוֹד!';
+const PRAISE = 'כָּל הַכָּבוֹד!'.normalize('NFC');
 
 const at = (id: string) => SESSION1_TASKS.findIndex((t) => t.id === id);
 const ws = () => useWorkspaceStore.getState();
