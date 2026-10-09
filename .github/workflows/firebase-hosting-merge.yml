@@ -69,6 +69,13 @@ jobs:
       - name: Deploy Firestore rules
         run: npx --yes firebase-tools@13 deploy --only firestore:rules --project mathimaticore --non-interactive
 
+      # Its own step: an index failure must not hold back the rules release.
+      # LearnerJourneyService queries reset_audit_log by class_id == and
+      # affected_student_ids array-contains (firestore.indexes.json).
+      - name: Deploy Firestore indexes
+        if: '!cancelled()'
+        run: npx --yes firebase-tools@13 deploy --only firestore:indexes --project mathimaticore --non-interactive
+
       - name: Deploy Storage rules
         if: '!cancelled()'
         run: npx --yes firebase-tools@13 deploy --only storage --project mathimaticore --non-interactive

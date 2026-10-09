@@ -92,7 +92,8 @@ describe('מודול 27 — מי כותב מה (סבב 1.10.2026)', () => {
 
   it('מטמון המדדים (store_cache) לקריאה בלבד — רק השרת מחשב אותו (מודול 24)', () => {
     expect(block('store_cache')).toContain('allow write: if false;');
-    expect(block('store_cache')).toContain('allow read: if isAdmin() || isTeacher();');
+    // Module 24 §ב: the cache serves the admin only; the teacher and learners do not read it.
+    expect(block('store_cache')).toContain('allow read: if isAdmin();');
     const writes = sources.filter((s) => /(setDoc|updateDoc|deleteDoc|addDoc)\([^;]*store_cache/.test(s.text));
     expect(writes).toEqual([]);
   });

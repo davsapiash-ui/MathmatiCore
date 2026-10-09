@@ -69,9 +69,10 @@ describe('Module 23 — class report per meeting (server)', () => {
     expect(server).toMatch(/class_patterns: analysis\?\.class_patterns \?\? \[\]/);
   });
 
-  it('writes PDF + CSV, mirrors to "05 דוחות כיתה / מפגש N", and stores every number in class_reports', () => {
-    expect(drive).toContain('classReports: "05 דוחות כיתה",');
-    expect(server).toMatch(/resolveDriveFolder\(\[DRIVE_FOLDERS\.classReports, `מפגש \$\{sessionNumber\}`\]\)/);
+  it('writes PDF + CSV, mirrors to the flat folder "1 דוחות", and stores every number in class_reports', () => {
+    expect(drive).toContain('DRIVE_FOLDERS');
+    expect(server).toContain('classReportFileName(sessionNumber, "pdf", generatedAt), "application/pdf", DRIVE_FOLDERS.reports');
+    expect(server).toContain('classReportFileName(sessionNumber, "csv", generatedAt), "text/csv", DRIVE_FOLDERS.reports');
     expect(server).toMatch(/const csvText = buildClassCsv\(learners, aggregates\.exercises, catchUpRecords\);/);
     expect(server).toMatch(/await db\.collection\("class_reports"\)\.doc\(reportId\)\.set\(stored\);/);
     expect(server).toContain('const reportId = `${classId}_session_${sessionNumber}`;');

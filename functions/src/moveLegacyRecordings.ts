@@ -29,10 +29,10 @@ import { requireTeacherForIndividualData } from "./callerIdentity";
 import {
   DRIVE_FOLDERS,
   assertCallerClass,
-  resolveDriveFolder,
   uploadBufferToDrive,
   validateClassId,
 } from "./exportDriveReport";
+import { backupFileName } from "./driveNames";
 import { RECORDINGS_ROOT, RECORDING_FIELDS, RECORDING_OR_FLAGS } from "./recordingsNode";
 
 /**
@@ -269,10 +269,11 @@ export const moveLegacyRecordings = onCall(MOVE_RUNTIME, async (request) => {
     realtime_database: Object.fromEntries(moves.map((m) => [m.from, m.value])),
   };
   const buffer = Buffer.from(JSON.stringify(backup), "utf-8");
-  const fileName = `Backup_recordings_move_${class_id}_${snapshotTime}.json`;
+  // PRD Module 23, "תיקיות הדרייב": the backup folder "3 גיבויים", Israel time.
+  const fileName = backupFileName({ type: "other", label: "העברת הקלטות" }, snapshotTime);
   let backupLink: string | null = null;
   if (buffer.length <= DRIVE_MAX_BYTES) {
-    const drive = await uploadBufferToDrive(buffer, fileName, "application/json", await resolveDriveFolder([DRIVE_FOLDERS.resetBackups]));
+    const drive = await uploadBufferToDrive(buffer, fileName, "application/json", DRIVE_FOLDERS.backups, { park: false });
     if (drive.success) backupLink = drive.webViewLink || drive.fileId;
   }
   if (!backupLink) {

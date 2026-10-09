@@ -330,7 +330,7 @@ describe('the research export adds the after-reset numbers and keeps the rest', 
       data: { class_id: 'class_1', session_number: 'all' },
     });
     expect(res.status).toBe('SUCCESS');
-    const file = h.files.find((f) => /\/\d+_מפגשים_/.test(f.path))!;
+    const file = h.files.find((f) => /_-_מפגשים\.csv$/.test(f.path))!;
     const [head, ...lines] = file.text.replace(/^﻿/, '').split('\n');
     const split = (l: string) => l.split('","').map((c) => c.replace(/^"|"$/g, ''));
     const cols = split(head);
@@ -361,7 +361,7 @@ describe('the research export adds the after-reset numbers and keeps the rest', 
       auth: { uid: 'teacher-uid', token: { role: 'teacher', roles: ['TEACHER'], teacher: true, class_id: 'class_1' } },
       data: { class_id: 'class_1', session_number: 3 },
     });
-    const file = h.files.find((f) => /\/\d+_מפגשים_/.test(f.path))!;
+    const file = h.files.find((f) => /_-_מפגשים\.csv$/.test(f.path))!;
     const [head, ...lines] = file.text.replace(/^﻿/, '').split('\n');
     const split = (l: string) => l.split('","').map((c) => c.replace(/^"|"$/g, ''));
     const cols = split(head);

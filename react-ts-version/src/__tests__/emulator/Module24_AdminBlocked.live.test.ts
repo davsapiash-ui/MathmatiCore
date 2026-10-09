@@ -182,6 +182,12 @@ describe('מודול 24 §ב ו-23א §ו — כניסת מנהל אינה קו�
     await assertFails(setDoc(doc(fs, 'store_cache', 'admin_metrics'), { total_students: 99 }));
     await assertFails(deleteDoc(doc(fs, 'store_cache', 'admin_metrics')));
     await assertFails(setDoc(doc(teacher().firestore(), 'store_cache', 'admin_metrics'), { total_students: 99 }));
+    // Module 24 §ב: the cache serves the admin only; the teacher does not read it.
+    await assertFails(getDoc(doc(teacher().firestore(), 'store_cache', 'admin_metrics')));
+  });
+
+  it('אינה קוראת את יומן האיפוסים (מודול 23א §ו)', async () => {
+    await assertFails(getDoc(doc(adminSignIn().firestore(), 'reset_audit_log', 'r_any')));
   });
 
   it('אינה קוראת דוח אישי או גיבוי איפוס בקבצים', async () => {

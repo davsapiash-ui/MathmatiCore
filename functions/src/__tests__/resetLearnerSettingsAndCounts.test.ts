@@ -67,6 +67,9 @@ vi.mock('firebase-admin', async (importOriginal) => {
         }),
       }),
       batch: () => ({ delete: () => {}, commit: async () => {} }),
+      // The per-class reset lock (Module 23א §ד): always free here.
+      runTransaction: async (fn: (tx: any) => Promise<unknown>) =>
+        fn({ get: async () => ({ exists: false, data: () => undefined }), set: () => {}, delete: () => {} }),
     }),
     actual.firestore
   );
@@ -157,7 +160,7 @@ describe('A — a full learner reset keeps the settings the teacher set', () => 
     expect(at('chat_messages/student_user5')).toEqual([{ op: 'remove', path: 'chat_messages/student_user5' }]);
 
     // Deleted = everything but the kept settings: 10+2+2+1 fields minus 5+2+1 kept, plus 1 chat message.
-    expect(h.auditUpdates.at(-1)).toEqual({ records_deleted_count: 8 });
+    expect(h.auditUpdates.at(-1)).toEqual({ records_deleted_count: 8, deletion_status: 'completed' });
   });
 
   it('level 3 still deletes the settings with everything else', async () => {
@@ -203,7 +206,7 @@ describe('C4 — records_deleted_count counts deletions only', () => {
     expect(result.status).toBe('SUCCESS');
     // No Firestore session documents in this fake, and nothing in RTDB is deleted.
     expect(result.deletedRecords).toBe(0);
-    expect(h.auditUpdates.at(-1)).toEqual({ records_deleted_count: 0 });
+    expect(h.auditUpdates.at(-1)).toEqual({ records_deleted_count: 0, deletion_status: 'completed' });
   });
 
   it('executeResetDeletion: reset_in_place is apart from total', async () => {

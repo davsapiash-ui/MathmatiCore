@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import { isCompletedReset } from "./resetAudit";
 
 /**
  * Per-meeting measurements derived from the learner's own telemetry events.
@@ -719,7 +720,8 @@ export function resetsOfMeeting(
 ): MeetingReset[] {
   const out: MeetingReset[] = [];
   for (const e of entries) {
-    if (e?.backup_status !== "success") continue;
+    // PRD 23א §ד: only a reset whose deletion completed counts (resetAudit.ts).
+    if (!isCompletedReset(e)) continue;
     if (!Array.isArray(e.affected_student_ids) || !e.affected_student_ids.includes(studentNumber)) continue;
     const scope: MeetingReset["scope"] | null =
       e.reset_level === "system"

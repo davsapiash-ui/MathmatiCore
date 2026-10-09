@@ -53,6 +53,13 @@ service cloud.firestore {
       );
     }
 
+    // The class teacher, and not the admin: a document of her class, or a
+    // document that does not exist (a get of a missing record).
+    function isClassTeacherReading() {
+      return isTeacher() && !isAdmin() &&
+        (resource == null || isTeacherOfClass(resource.data.get('class_id', null)));
+    }
+
     // --- Strict Allowlist Schemas (Replacing Negative PII Blocklists) ---
 
     // 1. Anonymous Student Schema Allowlist (Module 4 & Appendix A §1)
@@ -397,8 +404,10 @@ service cloud.firestore {
     // "a read-only cache store": only the server computes it (adminAggregator,
     // aiMonitoring, the reset's recompute — all Admin SDK). No client writes it;
     // an admin token could overwrite the figures the console shows as the server's.
+    // Module 24 §ב: "הריצה משרתת את מנהל המערכת בלבד; המורה והלומדים אינם
+    // קוראים ממסמך זה." Admin only.
     match /store_cache/{cacheId} {
-      allow read: if isAdmin() || isTeacher();
+      allow read: if isAdmin();
       allow write: if false;
     }
 
@@ -426,7 +435,9 @@ service cloud.firestore {
 
     // Reset Audit Logs (Module 23א: Immutable Audit Log for All Data Resets & Dataset Exports)
     match /reset_audit_log/{logId} {
-      allow read: if isTeacher() || isAdmin();
+      // Module 23א §ו: "יומן האיפוסים נקרא על ידי המורה של הכיתה בלבד; מנהל
+      // המערכת אינו קורא אותו." A query must name the class (class_id ==).
+      allow read: if isClassTeacherReading();
       // Module 23א: the reset flow writes its own entry, in the Cloud Function
       // (backupAndResetSessionData, Admin SDK). No client writes here. A direct
       // teacher create had no schema, could never be deleted, and was read back
@@ -578,7 +589,9 @@ service cloud.firestore {
     }
 
     match /catchup_records/{docId} {
-      allow read: if isTeacher() || isAdmin();
+      // Readable by the class teacher only (as reset_audit_log). A missing
+      // document reads as nothing rather than as a refusal.
+      allow read: if isClassTeacherReading();
       allow create: if isTeacherOfClass(request.resource.data.class_id) &&
                        isValidCatchUpDoc(docId) &&
                        request.resource.data.keys().hasOnly(['student_id', 'session_number', 'class_id', 'rounds']) &&

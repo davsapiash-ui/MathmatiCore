@@ -89,7 +89,12 @@ describe('reset scope — catchup_records handled exactly as sessions', () => {
     const catchUp = catchUpEntries(scope);
     expect(sessions).toHaveLength(1);
     expect(catchUp).toHaveLength(1);
-    expect({ ...catchUp[0], collection: 'sessions' }).toEqual(sessions[0]);
+    // PRD 23א §ב.2: a session reset keeps the meeting's catch-up record (shown
+    // under "לפני האיפוס"); it is backed up, never deleted. A full learner reset
+    // and level 3 delete it with the session documents.
+    const meetingScoped = sessions[0].sessionNumber !== undefined;
+    expect(catchUp[0].backupOnly).toBe(meetingScoped ? true : sessions[0].backupOnly);
+    expect({ ...catchUp[0], collection: 'sessions', backupOnly: sessions[0].backupOnly }).toEqual(sessions[0]);
     // Every other entry, and the RTDB part, are exactly the base scope's.
     expect(scope.firestore.slice(0, base.firestore.length)).toEqual(base.firestore);
     expect(scope.rtdbPaths).toEqual(base.rtdbPaths);
@@ -127,17 +132,17 @@ describe('reset deletion — which catch-up records go', () => {
     };
   };
 
-  it('meeting reset of learner 4 in meeting 3: only that record, backed up first', async () => {
+  it('meeting reset of learner 4 in meeting 3: backed up, and kept (PRD 23א §ב.2)', async () => {
     const r = await run(withCatchUpRecords(buildResetScope('single_student', '4', 'active_session', 3, 'student')));
     expect(r.failures).toEqual([]);
     expect(r.backedUp).toEqual(['session_03_student_4', 'session_04_student_4']);
-    expect(r.deleted).toEqual(['session_03_student_4']);
+    expect(r.deleted).toEqual([]);
   });
 
-  it('class meeting reset of meeting 3: every learner\'s meeting-3 record, all backed up', async () => {
+  it('class meeting reset of meeting 3: every record backed up, none deleted (PRD 23א §ב.2)', async () => {
     const r = await run(withCatchUpRecords(buildResetScope('single_student', '4', 'active_session', 3, 'class')));
     expect(r.backedUp).toHaveLength(4);
-    expect(r.deleted).toEqual(['session_03_student_4', 'session_03_student_5']);
+    expect(r.deleted).toEqual([]);
   });
 
   it('full learner reset of learner 4: all of learner 4\'s records', async () => {

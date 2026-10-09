@@ -4,7 +4,8 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as path from "path";
 import * as fs from "fs";
-import { DRIVE_FOLDERS, israelFileStamp, resolveDriveFolder, uploadBufferToDrive } from "./exportDriveReport";
+import { DRIVE_FOLDERS, uploadBufferToDrive } from "./exportDriveReport";
+import { classReportFileName } from "./driveNames";
 import { meetingLabelHe } from "./stationNames";
 import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
 import { COLUMN_NAMES_HE, ROUTE_NAME_HE, errorCategoryCountsHe, errorCategoryHe, triggerCountsHe, triggerReasonHe } from "./teacherLabels";
@@ -1224,8 +1225,6 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   };
 
   // ── 6. PDF + CSV to Storage, mirror to Drive, record in Firestore ───────
-  // The Drive file names carry the Israeli clock, not UTC.
-  const stamp = israelFileStamp(generatedAt);
   const bucket = admin.storage().bucket();
   const pdfPath = `reports/${classId}/session_${sessionNumber}/class_report_${generatedAt}.pdf`;
   const csvPath = `reports/${classId}/session_${sessionNumber}/class_table_${generatedAt}.csv`;
@@ -1251,10 +1250,11 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   let drivePdfUrl: string | null = null;
   let driveCsvUrl: string | null = null;
   try {
-    const folderId = await resolveDriveFolder([DRIVE_FOLDERS.classReports, `מפגש ${sessionNumber}`]);
-    const pdfRes = await uploadBufferToDrive(pdfBuffer, `דוח_כיתה_מפגש${sessionNumber}_${stamp}.pdf`, "application/pdf", folderId);
+    // PRD Module 23, "תיקיות הדרייב": "מפגש 3 - כיתה - 08.10.2026.pdf" (and
+    // .csv) in the flat folder "1 דוחות", Israel date. A regenerated report is a new file.
+    const pdfRes = await uploadBufferToDrive(pdfBuffer, classReportFileName(sessionNumber, "pdf", generatedAt), "application/pdf", DRIVE_FOLDERS.reports);
     if (pdfRes.success) drivePdfUrl = pdfRes.webViewLink; else logger.warn(`[classReport] Drive PDF mirror skipped: ${pdfRes.error}`);
-    const csvRes = await uploadBufferToDrive(csvBuffer, `טבלת_כיתה_מפגש${sessionNumber}_${stamp}.csv`, "text/csv", folderId);
+    const csvRes = await uploadBufferToDrive(csvBuffer, classReportFileName(sessionNumber, "csv", generatedAt), "text/csv", DRIVE_FOLDERS.reports);
     if (csvRes.success) driveCsvUrl = csvRes.webViewLink; else logger.warn(`[classReport] Drive CSV mirror skipped: ${csvRes.error}`);
   } catch (err: any) {
     logger.warn(`[classReport] Drive mirror failed (non-fatal): ${err?.message || err}`);

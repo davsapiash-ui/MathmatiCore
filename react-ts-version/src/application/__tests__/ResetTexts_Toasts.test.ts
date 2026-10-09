@@ -46,7 +46,7 @@ vi.mock('sonner', () => ({
 
 const { useStore, backupSavedHe } = await import('@/application/useStore');
 
-const STORAGE = 'הגיבוי נשמר באחסון הגיבוי של המערכת.';
+const STORAGE = 'הגיבוי נשמר ב-Cloud Storage, ויועתק לתיקיית "3 גיבויים" בדרייב בהעתקה היומית.';
 const DRIVE_LINK = 'https://drive.google.com/file/d/abc123/view';
 
 describe('where the backup went', () => {
