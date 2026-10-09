@@ -35,7 +35,8 @@ const inDoc03 = (line: string, where: string) => expect(DOC03, where).toContain(
  * condition lines of every station-1 exercise, word for word. Since 7.15 the
  * PRD, not מסמך 03, is the wording on screen (AGENTS.md Rule 1).
  */
-const PRD = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md'), 'utf-8');
+// The Drive's Markdown export escapes punctuation ("\\!", "\\.", "\\_"); the words on screen carry none.
+const PRD = readFileSync(resolve(__dirname, '../../../../מסמכי אפיון/07- 3.MathematiCore_PRD_v07 הסופי.md'), 'utf-8').replace(/\\([_!+.()\[\]*#\-<>`=|~])/g, '$1');
 const PRD_STATION1 = PRD.slice(PRD.indexOf('### מבנה מפגש 1'), PRD.indexOf('### מפגש 2 (תחנה 2'));
 /** A numbered step is quoted in the PRD with its number ("1. בנו את המספר בבית המספרים."). */
 const inPrd = (line: string, where: string) =>

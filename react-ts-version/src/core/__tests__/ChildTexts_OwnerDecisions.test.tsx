@@ -125,7 +125,8 @@ describe('2 — every station opens with one quiet screen, once (PRD Module 14 �
   it('the eight texts, word for word as the PRD writes them', () => {
     expect(STATION2_OPENING_HE).toBe('שלום. התחילו ב"תחנה 2: יוצאים למסע". אין לחץ. עבדו בקצב שלכם.');
     expect(STATION8_OPENING_HE).toBe('שלום מתמטיקאים! היום הגענו לתחנה 8: חוקרים בעצמנו. פתרו את התרגילים בנחת ובקצב שלכם, בדיוק כמו שתרגלתם בתחנות הקודמות. בהצלחה!');
-    const prd = readFileSync(PRD_FILE, 'utf8');
+    // The Drive's Markdown export escapes punctuation ("\\!", "\\."); the words on screen carry none.
+    const prd = readFileSync(PRD_FILE, 'utf8').replace(/\\([_!+.()\[\]*#\-<>`=|~])/g, '$1');
     for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) {
       const text = stationOpeningHe(n);
       expect(text, `station ${n}`).not.toBeNull();
