@@ -279,18 +279,18 @@ export function AdminOverview() {
   return (
     <div className="p-2 sm:p-4 xl:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 p-8 text-white shadow-2xl border border-indigo-400/40">
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-violet-600 via-violet-700 to-purple-700 p-8 text-white shadow-2xl border border-violet-400/40">
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 border border-white/25 text-white text-xs font-bold shadow-sm backdrop-blur-md">
-              <Zap className="w-4 h-4 text-amber-300" />
+              <Zap className="w-4 h-4 text-stone-300" />
               <span>לוח בקרה ניהולי בזמן אמת</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white drop-shadow-sm">
               סקירה כללית ומדדי מערכת
             </h1>
-            <p className="text-indigo-100 text-sm md:text-base font-normal">
+            <p className="text-violet-100 text-sm md:text-base font-normal">
               מעקב אחר פעילות הלמידה במערכת MathmatiCore, היקף השימוש, אבטחת מידע ותקני פרטיות.
             </p>
           </div>
@@ -339,7 +339,7 @@ export function AdminOverview() {
       {/* Metrics Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-blue-500/50 transition-all">
-          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-blue-500 to-indigo-600" />
+          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-blue-500 to-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">מוסדות פעילים</p>
@@ -373,12 +373,12 @@ export function AdminOverview() {
         </AccessibleCard>
 
         <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-purple-500/50 transition-all">
-          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-purple-500 to-indigo-600" />
+          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-purple-500 to-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">תלמידים במערכת</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{totalStudents}</h3>
-              <div className="flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold pt-1">
+              <div className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold pt-1">
                 <Activity className="w-3.5 h-3.5" />
                 <span>רשומים לפיילוט</span>
               </div>
@@ -389,18 +389,18 @@ export function AdminOverview() {
           </div>
         </AccessibleCard>
 
-        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-amber-500/50 transition-all">
-          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-amber-500 to-orange-600" />
+        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-stone-500/50 transition-all">
+          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-stone-500 to-orange-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">שיעור השלמת מפגשים</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{completionRatePercent}%</h3>
-              <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold pt-1">
+              <div className="flex items-center gap-1 text-[11px] text-stone-600 dark:text-stone-400 font-semibold pt-1">
                 <ShieldAlert className="w-3.5 h-3.5" />
                 <span>מדד מרוכז ממסד הנתונים</span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20">
+            <div className="w-12 h-12 rounded-2xl bg-stone-500/10 dark:bg-stone-500/20 text-stone-600 dark:text-stone-400 flex items-center justify-center border border-stone-500/20">
               <ShieldAlert className="w-6 h-6" />
             </div>
           </div>
@@ -412,7 +412,7 @@ export function AdminOverview() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-indigo-600" />
+              <BarChart3 className="w-5 h-5 text-violet-600" />
               תמונת מצב פדגוגית מרוכזת (מפגשים 3–8)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -421,7 +421,7 @@ export function AdminOverview() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl border border-indigo-200 dark:border-indigo-800">
+            <span className="px-3 py-1 bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-300 font-bold text-xs rounded-xl border border-violet-200 dark:border-violet-800">
               אנונימיות מלאה (Zero PII)
             </span>
           </div>
@@ -447,7 +447,7 @@ export function AdminOverview() {
                 <div className="text-[11px] text-slate-500 space-y-0.5">
                   <div>שיעור השלמה: <span className="font-bold text-slate-800 dark:text-slate-200">{stat.completionRate}</span></div>
                   <div>ממוצע {FIRST_ATTEMPT_SCORE_LABEL_HE}: {stat.averageScore !== null
-                    ? <span className="font-bold text-indigo-600 dark:text-indigo-400">{stat.averageScore}</span>
+                    ? <span className="font-bold text-violet-600 dark:text-violet-400">{stat.averageScore}</span>
                     : <span className="text-slate-400 italic">אין נתונים עדיין</span>}</div>
                 </div>
               ) : (
@@ -464,7 +464,7 @@ export function AdminOverview() {
       <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
         <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
           <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Activity className="w-5 h-5 text-indigo-600" />
+            <Activity className="w-5 h-5 text-violet-600" />
             תרגילים ומדדי שגיאות (כל המפגשים)
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -488,7 +488,7 @@ export function AdminOverview() {
               <span className="font-extrabold text-xs text-slate-900 dark:text-white">{m.label}</span>
               {typeof m.value === 'number' ? (
                 <>
-                  <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{m.value}</span>
+                  <span className="text-2xl font-black text-violet-600 dark:text-violet-400">{m.value}</span>
                   {m.sub && <span className="text-[11px] text-slate-500">{m.sub}</span>}
                 </>
               ) : (
@@ -559,7 +559,7 @@ export function AdminOverview() {
                   button here read an RTDB node (`replays`) that nothing writes,
                   so it could only ever answer "אין נתוני הקלטות". */}
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center shrink-0">
                   <ShieldAlert className="w-5 h-5" />
                 </div>
                 <div className="space-y-1 flex-1">
@@ -580,7 +580,7 @@ export function AdminOverview() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Clock className="w-5 h-5 text-indigo-500" />
+              <Clock className="w-5 h-5 text-violet-500" />
               יומן אירועי אבטחה וביקורת (Audit Log)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -604,19 +604,19 @@ export function AdminOverview() {
             <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
               <button 
                 onClick={() => setLogFilter("ALL")}
-                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ALL" ? "bg-indigo-600 text-white shadow" : "text-slate-500"}`}
+                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ALL" ? "bg-violet-600 text-white shadow" : "text-slate-500"}`}
               >
                 הכל
               </button>
               <button 
                 onClick={() => setLogFilter("ADMIN")}
-                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ADMIN" ? "bg-indigo-600 text-white shadow" : "text-slate-500"}`}
+                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ADMIN" ? "bg-violet-600 text-white shadow" : "text-slate-500"}`}
               >
                 הנהלה
               </button>
               <button 
                 onClick={() => setLogFilter("TEACHER")}
-                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "TEACHER" ? "bg-indigo-600 text-white shadow" : "text-slate-500"}`}
+                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "TEACHER" ? "bg-violet-600 text-white shadow" : "text-slate-500"}`}
               >
                 מורים
               </button>
@@ -642,7 +642,7 @@ export function AdminOverview() {
                       {log.timestamp ? new Date(log.timestamp).toLocaleString('he-IL') : 'לא ידוע'}
                     </td>
                     <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs border border-indigo-200 dark:border-indigo-800">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 text-xs border border-violet-200 dark:border-violet-800">
                         {log.action}
                       </span>
                     </td>

@@ -696,9 +696,9 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
-              <Users className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+              <Users className="w-6 h-6 text-violet-600 dark:text-violet-400" />
               <span>הרדאר הפדגוגי השקט</span>
-              <span className="text-xs bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800 px-2.5 py-0.5 rounded-full font-bold">
+              <span className="text-xs bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400 border border-violet-200/60 dark:border-violet-800 px-2.5 py-0.5 rounded-full font-bold">
                 12 תלמידים
               </span>
             </h2>
@@ -710,7 +710,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <button
                 onClick={handleExportResearchDataset}
                 disabled={isExportingDataset}
-                className="px-3 py-2.5 min-h-11 rounded-xl border border-indigo-200 hover:border-indigo-400 bg-indigo-50/60 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                className="px-3 py-2.5 min-h-11 rounded-xl border border-violet-200 hover:border-violet-400 bg-violet-50/60 hover:bg-violet-100 dark:bg-violet-950/40 dark:border-violet-800 text-violet-700 dark:text-violet-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
                 title="ייצוא נתוני מחקר גולמיים ואנונימיים (טלמטריה, מפגשים, רפלקציות, לוג איפוסים) ל-Drive"
               >
                 <FileDown className={`w-3.5 h-3.5 ${isExportingDataset ? 'animate-pulse' : ''}`} />
@@ -1081,7 +1081,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <div className="flex-1 min-h-0 overflow-y-auto p-6 md:p-8 pb-4 md:pb-4">
                 <div className="flex justify-between items-center pb-4 mb-6 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black text-lg flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white font-black text-lg flex items-center justify-center shadow-lg shadow-violet-500/25">
                       {selectedStudent.displayName.replace('תלמיד ', '')}
                     </div>
                     <div>
@@ -1121,7 +1121,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   </div>
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                     <span className="text-xs text-slate-500 font-bold block mb-1">התקדמות ברצף המפגשים</span>
-                    <span className="text-base font-extrabold text-indigo-600">
+                    <span className="text-base font-extrabold text-violet-600">
                       מפגש {liveSelectedStudent.sessionNumber} מתוך 8
                     </span>
                     {stationNameHe(liveSelectedStudent.sessionNumber) && (
@@ -1184,17 +1184,17 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 {(() => {
                   const rec = getPedagogicalRecommendations(liveSelectedStudent);
                   return (
-                    <div className="p-5 rounded-2xl bg-indigo-50/70 dark:bg-slate-800/80 border border-indigo-100 dark:border-slate-700 mb-6">
+                    <div className="p-5 rounded-2xl bg-violet-50/70 dark:bg-slate-800/80 border border-violet-100 dark:border-slate-700 mb-6">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-lg">💡</span>
-                        <h4 className="font-extrabold text-sm text-indigo-950 dark:text-indigo-200">
+                        <h4 className="font-extrabold text-sm text-violet-950 dark:text-violet-200">
                           {rec.category}
                         </h4>
                       </div>
                       <ul className="flex flex-col gap-2">
                         {rec.questions.map((q, i) => (
                           <li key={i} className="text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
-                            <span className="text-indigo-500 font-bold">•</span>
+                            <span className="text-violet-500 font-bold">•</span>
                             <span>{q}</span>
                           </li>
                         ))}
@@ -1213,7 +1213,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       setSelectedStudent(null);
                       onDrillDown(sid);
                     }}
-                    className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-sm shadow-lg shadow-indigo-600/25 active:scale-[0.97] transition-all text-center cursor-pointer"
+                    className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-extrabold text-sm shadow-lg shadow-violet-600/25 active:scale-[0.97] transition-all text-center cursor-pointer"
                   >
                     מעבר לניתוח מעמיק
                   </button>

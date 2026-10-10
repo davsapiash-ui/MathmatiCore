@@ -58,7 +58,7 @@ export function StudentLoginCardsPage() {
           type="button"
           onClick={() => window.print()}
           disabled={!data}
-          className="h-11 px-6 rounded-full font-bold text-white bg-indigo-600 disabled:opacity-50"
+          className="h-11 px-6 rounded-full font-bold text-white bg-violet-600 disabled:opacity-50"
         >
           הדפסה
         </button>

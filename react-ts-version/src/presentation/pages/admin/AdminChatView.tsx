@@ -192,7 +192,7 @@ export function AdminChatView() {
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 space-y-3">
           <div className="flex justify-between items-center">
             <h2 className="font-black text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
-              <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <Users className="w-5 h-5 text-violet-600 dark:text-violet-400" />
               <span>ערוץ פניות מורים והנהלה</span>
             </h2>
             {unansweredTotal > 0 && (
@@ -213,14 +213,14 @@ export function AdminChatView() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="חיפוש לפי שם מורה או מוסד..."
-            className="w-full px-3.5 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 shadow-sm"
+            className="w-full px-3.5 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-slate-200 shadow-sm"
           />
 
           {/* Filter Chips */}
           <div className="flex gap-1.5 pt-1">
             <button
               onClick={() => setFilterTab("ALL")}
-              className={`flex-1 py-2.5 min-h-10 text-xs font-bold rounded-lg transition-all ${filterTab === "ALL" ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+              className={`flex-1 py-2.5 min-h-10 text-xs font-bold rounded-lg transition-all ${filterTab === "ALL" ? 'bg-violet-600 text-white shadow-sm' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
             >
               הכל ({anonymousTeachers.length})
             </button>
@@ -253,18 +253,18 @@ export function AdminChatView() {
                     setSelectedTeacherId(teacher.id);
                     setInputText("");
                   }}
-                  className={`w-full text-right p-3.5 rounded-2xl flex items-start justify-between transition-all border ${isSelected ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 shadow-md' : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-indigo-300'}`}
+                  className={`w-full text-right p-3.5 rounded-2xl flex items-start justify-between transition-all border ${isSelected ? 'bg-violet-50 dark:bg-violet-950/60 border-violet-500 shadow-md' : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-violet-300'}`}
                 >
                   <div className="flex items-start gap-3">
                     <div className="relative">
-                      <UserCircle2 className={`w-10 h-10 ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`} />
+                      <UserCircle2 className={`w-10 h-10 ${isSelected ? 'text-violet-600' : 'text-slate-400'}`} />
                       {isUnanswered && (
                         <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-rose-500 ring-2 ring-white animate-ping" />
                       )}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className={`font-black text-sm ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-800 dark:text-slate-100'}`}>
+                        <span className={`font-black text-sm ${isSelected ? 'text-violet-900 dark:text-violet-200' : 'text-slate-800 dark:text-slate-100'}`}>
                           <bdi dir="auto">{teacher.label}</bdi>
                         </span>
                         {isUnanswered && (

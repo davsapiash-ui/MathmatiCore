@@ -39,7 +39,7 @@ export interface SupportTicket {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  OPEN: { label: 'פתוחה', color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200', icon: AlertCircle },
+  OPEN: { label: 'פתוחה', color: 'text-stone-600 bg-stone-50 dark:bg-stone-950/30 border-stone-200', icon: AlertCircle },
   RESOLVED: { label: 'נפתרה', color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200', icon: CheckCircle2 },
 };
 
@@ -158,11 +158,11 @@ export function AdminSupportHubView() {
   return (
     <div className="p-6 md:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-8 text-white shadow-2xl border border-indigo-500/20">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-violet-950 to-slate-900 p-8 text-white shadow-2xl border border-violet-500/20">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/20 border border-violet-400/30 text-violet-300 text-xs font-semibold">
               <LifeBuoy className="w-3.5 h-3.5" />
               <span>מוקד תמיכה וסיוע פדגוגי</span>
             </div>
@@ -186,7 +186,7 @@ export function AdminSupportHubView() {
             placeholder="חיפוש פנייה לפי נושא, מספר תלמיד או תיאור..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-4 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full pl-4 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
           />
         </div>
 
@@ -232,7 +232,7 @@ export function AdminSupportHubView() {
                   onClick={() => setSelectedTicket(ticket)}
                   className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col md:flex-row justify-between gap-4 ${
                     isSelected
-                      ? 'border-indigo-600 bg-indigo-50/40 dark:bg-indigo-950/20 shadow-md'
+                      ? 'border-violet-600 bg-violet-50/40 dark:bg-violet-950/20 shadow-md'
                       : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
                   }`}
                 >
@@ -244,7 +244,7 @@ export function AdminSupportHubView() {
                       </span>
 
                       {ticket.student_id && (
-                        <span className="text-xs font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                        <span className="text-xs font-black text-violet-600 bg-violet-50 dark:bg-violet-950 px-2 py-0.5 rounded-lg border border-violet-200 dark:border-violet-800">
                           {ticket.student_id.replace('student_', 'תלמיד ')}
                         </span>
                       )}
@@ -271,7 +271,7 @@ export function AdminSupportHubView() {
                     </span>
 
                     {ticket.responses && ticket.responses.length > 0 && (
-                      <span className="text-xs font-bold text-indigo-600 flex items-center gap-1">
+                      <span className="text-xs font-bold text-violet-600 flex items-center gap-1">
                         <MessageSquare className="w-3.5 h-3.5" />
                         <span>{ticket.responses.length} תגובות</span>
                       </span>

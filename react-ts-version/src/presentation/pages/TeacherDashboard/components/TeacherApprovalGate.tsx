@@ -98,7 +98,7 @@ export function TeacherApprovalGate({
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-indigo-500 inline-block" />
+            <span className="w-3 h-3 rounded-full bg-violet-500 inline-block" />
             <h2 className="text-xl font-display font-black text-slate-900 dark:text-white">
               {TEACHER_GATE_HE} לפני {meetingShortLabelHe(3)} 🛡️
             </h2>
@@ -114,7 +114,7 @@ export function TeacherApprovalGate({
               type="button"
               onClick={handleBatchApprove}
               disabled={isLoading || approvingId === 'ALL' || readyStudents.length === 0}
-              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-indigo-600/25 active:scale-[0.97] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-violet-600/25 active:scale-[0.97] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <UserCheck className="w-4 h-4" />
               <span>
@@ -140,11 +140,11 @@ export function TeacherApprovalGate({
       {unfinished.length > 0 && (
         <section
           aria-labelledby="gate-unfinished-title"
-          className="bg-amber-50 dark:bg-amber-950/30 p-5 rounded-3xl border border-amber-200 dark:border-amber-900 flex flex-col gap-3"
+          className="bg-stone-50 dark:bg-stone-950/30 p-5 rounded-3xl border border-stone-200 dark:border-stone-900 flex flex-col gap-3"
         >
           <div>
-            <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300">{meetingShortLabelHe(2)}</p>
-            <h3 id="gate-unfinished-title" className="font-extrabold text-sm text-amber-950 dark:text-amber-100">
+            <p className="text-[11px] font-bold text-stone-800 dark:text-stone-300">{meetingShortLabelHe(2)}</p>
+            <h3 id="gate-unfinished-title" className="font-extrabold text-sm text-stone-950 dark:text-stone-100">
               תלמידים שהתחילו את המפגש ולא סיימו ({unfinished.length})
             </h3>
           </div>
@@ -152,19 +152,19 @@ export function TeacherApprovalGate({
             {unfinished.map((u) => (
               <li
                 key={u.studentId}
-                className="px-3 py-1 rounded-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-xs font-bold text-slate-800 dark:text-slate-200"
+                className="px-3 py-1 rounded-full bg-white dark:bg-slate-900 border border-stone-200 dark:border-stone-800 text-xs font-bold text-slate-800 dark:text-slate-200"
               >
                 {u.anonymousLabel} · עצר במשימה {u.currentTask} מתוך 7
               </li>
             ))}
           </ul>
           {isMeeting2Open ? (
-            <p className="text-xs text-amber-900 dark:text-amber-200">
+            <p className="text-xs text-stone-900 dark:text-stone-200">
               המפגש פתוח עכשיו, והם עדיין עובדים. כשתסגרו אותו בכפתור &quot;סגרו את המפגש&quot;, הם יעברו לטבלה שלמטה.
             </p>
           ) : (
             <>
-              <p className="text-xs text-amber-900 dark:text-amber-200">
+              <p className="text-xs text-stone-900 dark:text-stone-200">
                 המפגש נסגר לפני שהם סיימו, וכל מה שעשו נשמר. אם תפתחו אותו שוב לכיתה, הם ימשיכו מהמשימה שבה עצרו. מי שסיים את כל המשימות, או שכבר אישרתם לו מסלול, לא יעשה את המפגש שוב.
                 כשתסגרו את המפגש בכפתור &quot;סגרו את המפגש&quot;, הם יעברו לטבלה שלמטה.
               </p>
@@ -222,7 +222,7 @@ export function TeacherApprovalGate({
                             type="button"
                             onClick={() => onOpenLearner(st.studentId)}
                             title="פתיחת דוח האבחון של התלמיד"
-                            className="font-black underline decoration-dotted underline-offset-4 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+                            className="font-black underline decoration-dotted underline-offset-4 hover:text-violet-700 dark:hover:text-violet-300 cursor-pointer"
                           >
                             {st.anonymousLabel}
                           </button>
@@ -251,7 +251,7 @@ export function TeacherApprovalGate({
                             {ROUTE_NAME_HE.green_path}
                           </span>
                         ) : st.recommendedPath === 'remediation_path' ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-stone-100 text-stone-800 dark:bg-stone-950/60 dark:text-stone-300">
                             <AlertCircle className="w-3 h-3" />
                             {ROUTE_NAME_HE.remediation_path}
                           </span>
@@ -267,7 +267,7 @@ export function TeacherApprovalGate({
                           value={currentPath ?? ''}
                           onChange={(e) => handlePathChange(st.studentId, e.target.value as PedagogicalPath)}
                           aria-label={`מסלול מאושר — ${st.anonymousLabel}`}
-                          className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-violet-500"
                         >
                           {currentPath === null && (
                             <option value="" disabled>בחרו מסלול</option>

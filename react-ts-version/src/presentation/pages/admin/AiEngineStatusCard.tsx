@@ -183,7 +183,7 @@ export function AiEngineStatusCard() {
           <div className="flex items-start gap-3 p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950/60">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
               keyOk ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                : key.configured ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                : key.configured ? "bg-stone-500/10 text-stone-600 dark:text-stone-400"
                 : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
             }`}>
               {keyOk ? <CheckCircle2 className="w-5 h-5" /> : key.configured ? <AlertTriangle className="w-5 h-5" /> : <MinusCircle className="w-5 h-5" />}
@@ -197,7 +197,7 @@ export function AiEngineStatusCard() {
                 מקור: {SOURCE_HE[key.source]} · מודל: <span className="font-mono" dir="ltr">{key.model_id}</span>
               </p>
               {key.problem && (
-                <p className="text-xs text-amber-700 dark:text-amber-300" dir="ltr">{key.problem}</p>
+                <p className="text-xs text-stone-700 dark:text-stone-300" dir="ltr">{key.problem}</p>
               )}
             </div>
           </div>
@@ -230,7 +230,7 @@ export function AiEngineStatusCard() {
                 ))}
               </div>
               {status.shown.truncated && (
-                <p className="text-[11px] text-amber-700 dark:text-amber-300">נספרו 5,000 הכרטיסים הראשונים בלבד.</p>
+                <p className="text-[11px] text-stone-700 dark:text-stone-300">נספרו 5,000 הכרטיסים הראשונים בלבד.</p>
               )}
             </div>
           )}

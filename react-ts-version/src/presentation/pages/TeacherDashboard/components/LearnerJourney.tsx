@@ -562,7 +562,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   onClick={requestReport}
                   disabled={!meetingSessionId || reportState === 'generating' || reportState === 'loading'}
                   title={meetingSessionId ? 'ניתוח אוטומטי של הפעולות המתועדות במפגש זה' : 'אין פעולות מתועדות במפגש זה, אין מה לנתח'}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {reportState === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
                   {reportState === 'generating' ? 'הדוח בעיבוד… (כ-20 שניות)' : report ? 'הפיקו מחדש' : `הפיקו דוח למפגש ${selectedSession}`}
@@ -863,7 +863,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                     from recorded DOM changes (Module 21), and there is no sound
                     to have. Hence no camera icon and no English "chunks". */}
                 <span className="font-black flex items-center gap-1.5">
-                  <MonitorPlay className="w-4 h-4 text-indigo-300" aria-hidden="true" />
+                  <MonitorPlay className="w-4 h-4 text-violet-300" aria-hidden="true" />
                   שחזור מסך העבודה, ללא קול · {meetingShortLabelHe(selectedSession)}
                 </span>
                 <span className="flex items-center gap-2 text-slate-400">
@@ -888,7 +888,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                       }}
                       title="הורדת כל המפגש: כל הפעולות המתועדות והקלטת מסך העבודה, בקובץ אחד"
                       data-testid="download-meeting"
-                      className="flex items-center gap-1 font-bold text-indigo-200 bg-slate-900 border border-slate-700 hover:border-indigo-500 rounded-lg px-2 py-1 cursor-pointer"
+                      className="flex items-center gap-1 font-bold text-violet-200 bg-slate-900 border border-slate-700 hover:border-violet-500 rounded-lg px-2 py-1 cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" aria-hidden="true" />
                       הורדת המפגש
@@ -942,7 +942,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                         type="button"
                         onClick={() => selectChapter(c)}
                         title={`${exerciseTitle(selectedSession, c.exerciseId)} — קפיצה לתחילת התרגיל`}
-                        className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border cursor-pointer ${active ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-indigo-500'}`}
+                        className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border cursor-pointer ${active ? 'bg-violet-600 border-violet-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-violet-500'}`}
                       >
                         {formatClock(c.start)} · {exerciseTitle(selectedSession, c.exerciseId)}
                       </button>

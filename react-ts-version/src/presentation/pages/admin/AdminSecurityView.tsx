@@ -61,10 +61,10 @@ function StatusRow({
 export function AdminSecurityView() {
   return (
     <div className="p-6 md:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-8 text-white shadow-2xl border border-indigo-500/20">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-violet-950 to-slate-900 p-8 text-white shadow-2xl border border-violet-500/20">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/20 border border-violet-400/30 text-violet-300 text-xs font-semibold">
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>מדיניות אבטחה והרשאות שרת</span>
           </div>
@@ -81,7 +81,7 @@ export function AdminSecurityView() {
         <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
           <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Fingerprint className="w-5 h-5 text-indigo-500" />
+              <Fingerprint className="w-5 h-5 text-violet-500" />
               הזדהות אחידה (SSO)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -107,7 +107,7 @@ export function AdminSecurityView() {
           <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
             <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Clock className="w-5 h-5 text-amber-500" />
+                <Clock className="w-5 h-5 text-stone-500" />
                 מדיניות ניתוק בעת חוסר פעילות
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -120,7 +120,7 @@ export function AdminSecurityView() {
                 <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
                   צוות (מורים ומנהלים)
                 </span>
-                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
+                <span className="text-sm font-black text-violet-600 dark:text-violet-400 tabular-nums">
                   {STAFF_IDLE_TIMEOUT_MINUTES} דקות חוסר פעילות
                 </span>
               </div>
@@ -128,7 +128,7 @@ export function AdminSecurityView() {
                 <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
                   תלמידים
                 </span>
-                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
+                <span className="text-sm font-black text-violet-600 dark:text-violet-400 tabular-nums">
                   {STUDENT_IDLE_TIMEOUT_MINUTES} דקות מסגירת החלון
                 </span>
               </div>

@@ -75,14 +75,14 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
     <div className={`fixed bottom-0 left-8 w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-t-2xl shadow-2xl z-[10000] flex flex-col transition-all duration-300 ${isMinimized ? 'h-12' : 'h-[440px]'}`} dir="rtl">
       {/* Header */}
       <div 
-        className="h-12 px-4 bg-indigo-600 text-white rounded-t-2xl flex items-center justify-between cursor-pointer select-none"
+        className="h-12 px-4 bg-violet-600 text-white rounded-t-2xl flex items-center justify-between cursor-pointer select-none"
         onClick={() => setIsMinimized(!isMinimized)}
       >
         <div className="font-bold text-sm flex items-center gap-2">
           <div className={`w-2.5 h-2.5 rounded-full ${student?.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`}></div>
           <span>תלמיד {normStudentId.replace(/\D/g, '') || normStudentId}</span>
         </div>
-        <div className="flex gap-2 text-indigo-200">
+        <div className="flex gap-2 text-violet-200">
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setIsMinimized((v) => !v); }}
@@ -115,11 +115,11 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
                     <div key={msg.id} className={`flex ${isTeacher ? 'justify-end' : 'justify-start'}`}>
                       <div className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-sm shadow-sm space-y-1 ${
                         isTeacher 
-                          ? 'bg-indigo-600 text-white rounded-br-xs' 
+                          ? 'bg-violet-600 text-white rounded-br-xs' 
                           : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-bl-xs'
                       }`}>
                         {msg.text && <p className="leading-relaxed">{msg.text}</p>}
-                        <div className={`text-[10px] flex items-center justify-end gap-1 ${isTeacher ? 'text-indigo-200' : 'text-slate-400'}`}>
+                        <div className={`text-[10px] flex items-center justify-end gap-1 ${isTeacher ? 'text-violet-200' : 'text-slate-400'}`}>
                           <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           {isTeacher && (
                             <CheckCheck className={`w-3 h-3 ${msg.read ? 'text-emerald-300' : 'opacity-60'}`} />
@@ -140,13 +140,13 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
               onChange={e => setInputText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
               placeholder="כתבו הודעה לתלמיד..."
-              className="flex-1 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+              className="flex-1 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
             />
             
             <button 
               onClick={handleSend}
               aria-label="שליחת ההודעה"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-full transition-colors flex items-center justify-center w-9 h-9 shrink-0 shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="bg-violet-600 hover:bg-violet-700 text-white p-2 rounded-full transition-colors flex items-center justify-center w-9 h-9 shrink-0 shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Send className="w-4 h-4 -mr-0.5" />
             </button>

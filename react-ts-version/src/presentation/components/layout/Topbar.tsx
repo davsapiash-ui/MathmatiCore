@@ -42,7 +42,7 @@ export function Topbar() {
               </span>
             )}
           </div>
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-sm text-xs font-black">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center shadow-sm text-xs font-black">
             {user?.role === 'student' ? (user?.student_id || 'ת') : '👤'}
           </div>
         </div>

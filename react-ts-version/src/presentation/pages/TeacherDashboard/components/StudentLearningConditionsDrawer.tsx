@@ -158,7 +158,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
         {/* Header */}
         <div className="h-20 px-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-950/60 border border-violet-100 dark:border-violet-800 flex items-center justify-center text-violet-600 dark:text-violet-400 font-bold">
               <Sliders className="w-5 h-5" />
             </div>
             <div>
@@ -189,7 +189,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
             {onOpenChat && (
               <button 
                 onClick={() => onOpenChat(student)}
-                className="p-2 hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-indigo-600 dark:text-indigo-400 cursor-pointer"
+                className="p-2 hover:bg-violet-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-violet-600 dark:text-violet-400 cursor-pointer"
                 title="צ'אט ישיר עם התלמיד"
               >
                 <MessageCircle className="w-5 h-5" />
@@ -208,16 +208,16 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
 
         {/* Alert Banner for Help Requests */}
         {hasHelpRequest && (
-          <div className="px-6 py-3 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900 flex items-center justify-between gap-3 shrink-0">
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-200">
-              <BellRing className="w-4 h-4 text-amber-600 animate-bounce" />
+          <div className="px-6 py-3 bg-stone-50 dark:bg-stone-950/40 border-b border-stone-200 dark:border-stone-900 flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2 text-xs font-bold text-stone-900 dark:text-stone-200">
+              <BellRing className="w-4 h-4 text-stone-600 animate-bounce" />
               {/* No count: nothing in the system writes one, so it always read "0 קריאות תועדו". */}
               <span>התלמיד ביקש עזרה</span>
             </div>
             <button
               onClick={handleClearHelpRequest}
               disabled={isClearingHelp}
-              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 disabled:cursor-not-allowed text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-stone-600 hover:bg-stone-700 disabled:bg-stone-400 disabled:cursor-not-allowed text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer"
             >
               {isClearingHelp ? (
                 <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -243,7 +243,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center gap-2 px-3.5 py-3 font-bold text-xs rounded-t-xl transition-all whitespace-nowrap cursor-pointer border-b-2 ${
                   isActive
-                    ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-slate-800 shadow-sm'
+                    ? 'border-violet-600 text-violet-700 dark:text-violet-400 bg-white dark:bg-slate-800 shadow-sm'
                     : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
@@ -305,8 +305,8 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
           {activeTab === 'replay' && (
             <div className="space-y-6 animate-in fade-in duration-200">
               <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 text-center space-y-4 shadow-sm">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center mx-auto text-2xl shadow-inner">
-                  <Video className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
+                <div className="w-14 h-14 rounded-2xl bg-violet-50 dark:bg-violet-950/40 text-violet-600 flex items-center justify-center mx-auto text-2xl shadow-inner">
+                  <Video className="w-7 h-7 text-violet-600 dark:text-violet-400" />
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
@@ -326,7 +326,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                         onClose();
                       }
                     }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 active:scale-95 transition-all cursor-pointer"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold text-xs shadow-md shadow-violet-600/20 active:scale-95 transition-all cursor-pointer"
                   >
                     <span>מעבר למסע לומד ושחזור מלא</span>
                     <ExternalLink className="w-4 h-4" />
@@ -353,7 +353,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
             <button
               onClick={handleSaveSettings}
               disabled={isSaving}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
+              className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs rounded-xl shadow-md shadow-violet-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
             >
               <Check className="w-4 h-4" />
               <span>{isSaving ? 'שומר שינויים...' : 'שמרו את תנאי הלמידה'}</span>

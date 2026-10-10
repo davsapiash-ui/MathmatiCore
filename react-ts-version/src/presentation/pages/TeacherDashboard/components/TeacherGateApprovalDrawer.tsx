@@ -152,10 +152,10 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
         <div className="mx-auto my-2 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-700 sm:hidden shrink-0" />
 
         {/* Header */}
-        <div className="h-20 px-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-gradient-to-l from-indigo-50/70 via-purple-50/40 to-white dark:from-indigo-950/40 dark:via-purple-950/20 dark:to-slate-900 shrink-0">
+        <div className="h-20 px-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-gradient-to-l from-violet-50/70 via-purple-50/40 to-white dark:from-violet-950/40 dark:via-purple-950/20 dark:to-slate-900 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-600/20">
-              <Sparkles className="w-5 h-5 text-amber-300" />
+            <div className="w-10 h-10 rounded-2xl bg-violet-600 text-white flex items-center justify-center font-bold shadow-md shadow-violet-600/20">
+              <Sparkles className="w-5 h-5 text-stone-300" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -167,7 +167,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                     המסלול אושר
                   </span>
                 ) : (
-                  <span data-testid="gate-drawer-state" className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                  <span data-testid="gate-drawer-state" className="bg-stone-100 text-stone-800 dark:bg-stone-950 dark:text-stone-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-stone-200 dark:border-stone-800">
                     ממתין להחלטתכם
                   </span>
                 )}
@@ -195,7 +195,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
           {/* STEP 1: THE DIAGNOSTIC EVIDENCE (PRD Module 20: המלצת המטריקס) */}
           <section className="space-y-3" aria-label="ממצאי האבחון">
             <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-              <ClipboardList className="w-4 h-4 text-indigo-600" />
+              <ClipboardList className="w-4 h-4 text-violet-600" />
               <span>1. ממצאי האבחון ב{meetingShortLabelHe(2)}:</span>
             </h3>
 
@@ -208,7 +208,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                       {ROUTE_NAME_HE.green_path}
                     </span>
                   ) : recommendation === 'remediation_path' ? (
-                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-stone-100 text-stone-800 dark:bg-stone-950/60 dark:text-stone-300">
                       {ROUTE_NAME_HE.remediation_path}
                     </span>
                   ) : (
@@ -246,7 +246,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
           {/* STEP 2: CHOOSE PEDAGOGICAL PATH */}
           <div className="space-y-3">
             <label className="block text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 uppercase tracking-wide">
-              <Compass className="w-4 h-4 text-indigo-600" />
+              <Compass className="w-4 h-4 text-violet-600" />
               <span>2. קביעת מסלול הלימוד ל{meetingShortLabelHe(3)} ואילך:</span>
             </label>
 
@@ -291,19 +291,19 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                 onClick={() => setSelectedPath('remediation_path')}
                 className={`text-right p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
                   selectedPath === 'remediation_path'
-                    ? 'border-amber-600 bg-amber-50/60 dark:bg-amber-950/40 shadow-sm ring-2 ring-amber-500/20'
+                    ? 'border-stone-600 bg-stone-50/60 dark:bg-stone-950/40 shadow-sm ring-2 ring-stone-500/20'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-amber-500" />
+                    <span className="w-3 h-3 rounded-full bg-stone-500" />
                     <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
                       {ROUTE_NAME_HE.remediation_path}
                     </span>
                   </div>
                   {selectedPath === 'remediation_path' && (
-                    <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                    <CheckCircle2 className="w-4 h-4 text-stone-600" />
                   )}
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
@@ -316,7 +316,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
         </div>
 
         {/* Footer with Approve Action */}
-        <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-gradient-to-l from-indigo-50/70 via-purple-50/40 to-white dark:from-indigo-950/40 dark:via-purple-950/20 dark:to-slate-900 backdrop-blur-md flex items-center justify-between shrink-0">
+        <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-gradient-to-l from-violet-50/70 via-purple-50/40 to-white dark:from-violet-950/40 dark:via-purple-950/20 dark:to-slate-900 backdrop-blur-md flex items-center justify-between shrink-0">
           <button
             onClick={onClose}
             className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer"
@@ -328,9 +328,9 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
             onClick={handleApprove}
             disabled={isApproving || selectedPath === null || nothingToSave}
             title={selectedPath === null ? 'יש לבחור מסלול לפני האישור' : nothingToSave ? 'כדי לשנות את המסלול, בחרו במסלול האחר' : undefined}
-            className="px-7 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+            className="px-7 py-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-violet-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
           >
-            <CheckCircle2 className="w-5 h-5 text-amber-300" />
+            <CheckCircle2 className="w-5 h-5 text-stone-300" />
             <span>
               {alreadyApproved
                 ? (isApproving ? 'מעדכן...' : nothingToSave ? 'המסלול כבר אושר' : 'שנו את המסלול')
