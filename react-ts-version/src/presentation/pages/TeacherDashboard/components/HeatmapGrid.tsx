@@ -15,7 +15,9 @@ import {
   DoorOpen,
   FileDown,
   BellRing,
-  WifiOff
+  WifiOff,
+  Rocket,
+  Shield
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/application/useStore';
@@ -887,7 +889,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     hesitationThresholdSeconds: getHesitationThresholdSeconds(),
                     sessionStarted: hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum),
                   })]
-                }`}
+                }${student.helpRequested ? ' ring-2 ring-blue-600 ring-offset-2 ring-offset-slate-50 dark:ring-offset-slate-950' : ''}`}
               >
                 {/* Top Badge Row */}
                 <div className="flex justify-between items-start w-full">
@@ -913,43 +915,47 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   
                   {/* Status tag — help, card, connection and hesitation in the colour's order (Module 18): a yellow tile says "היסוס", also in a challenge or reinforcement branch; the gate has its own row below */}
                   {student.helpRequested ? (
-                    <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="קריאה לעזרה">
+                    <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="קריאה לעזרה">
+                      <BellRing className="w-3 h-3" aria-hidden="true" />
                       קריאה לעזרה
                     </span>
                   ) : student.isSocraticActive ? (
-                    <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={CARD_OPEN_HE}>
+                    <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title={CARD_OPEN_HE}>
                       <ShieldAlert className="w-3 h-3" />
                       {CARD_OPEN_HE}
                     </span>
                   ) : !student.isOnline ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="לא מחובר">
+                    <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="לא מחובר">
+                      <WifiOff className="w-3 h-3" aria-hidden="true" />
                       מנותק
                     </span>
                   ) : !isClassSessionActive ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר וממתין בלובי">
+                    <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="מחובר וממתין בלובי">
                       <span className="w-2 h-2 rounded-full bg-white" />
                       בלובי
                     </span>
                   ) : !hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum) ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר וממתין לאישור המסלול">
+                    <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="מחובר וממתין לאישור המסלול">
                       <span className="w-2 h-2 rounded-full bg-white" />
-                      ממתין
+                      ממתין לאישור מסלול
                     </span>
                   ) : student.hesitationSeconds >= getHesitationThresholdSeconds() ? (
-                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={`היסוס > ${getHesitationThresholdSeconds()} שניות`}>
+                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title={`היסוס > ${getHesitationThresholdSeconds()} שניות`}>
                       <AlertTriangle className="w-3 h-3" />
                       היסוס
                     </span>
                   ) : student.activeBranch === 'challenge' ? (
-                    <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מבצע משימות אתגר (לומד מהיר)">
-                      🚀 אתגר
+                    <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="מבצע משימות אתגר (לומד מהיר)">
+                      <Rocket className="w-3 h-3" aria-hidden="true" />
+                      משימות אתגר
                     </span>
                   ) : student.activeBranch === 'reinforcement' ? (
-                    <span className="inline-flex items-center gap-1 bg-emerald-700 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מבצע משימות ביסוס">
-                      🛡️ ביסוס
+                    <span className="inline-flex items-center gap-1 bg-emerald-700 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="מבצע משימות ביסוס">
+                      <Shield className="w-3 h-3" aria-hidden="true" />
+                      משימות ביסוס
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="פעיל ותקין">
+                    <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="פעיל ותקין">
                       <span className="w-2 h-2 rounded-full bg-white" />
                       פעיל
                     </span>
@@ -978,11 +984,11 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     </div>
 
                     {/* Real-Time Trace Metrics */}
-                    <div className="text-[10px] text-slate-600 dark:text-slate-300 flex justify-between items-center pt-1 border-t border-slate-200/60 dark:border-slate-800 font-mono font-bold">
+                    <div className="text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap gap-x-2 justify-between items-center pt-1 border-t border-slate-200/60 dark:border-slate-800 font-mono font-bold">
                       {/* "היסוס", as in the radar's legend (Module 18). */}
-                      <span>היסוס: {student.hesitationSeconds} שנ׳</span>
-                      <span>ביטולים: {student.undoCount ?? 0}</span>
-                      <span>טעויות: {student.mistakeCount ?? 0}</span>
+                      <span className="whitespace-nowrap">היסוס: {student.hesitationSeconds} שנ׳</span>
+                      <span className="whitespace-nowrap">ביטולים: {student.undoCount ?? 0}</span>
+                      <span className="whitespace-nowrap">טעויות: {student.mistakeCount ?? 0}</span>
                     </div>
 
                   </>
