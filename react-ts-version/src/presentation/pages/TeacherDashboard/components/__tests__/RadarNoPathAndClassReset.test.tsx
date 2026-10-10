@@ -106,12 +106,16 @@ describe('C2 — the radar names a path only when the gate approved one', () => 
   });
 });
 
+/** The three resets sit in the "הגדרות ואיפוס" menu (owner, 10.10.2026): open it first. */
+const openResetMenu = () => fireEvent.click(screen.getByTestId('reset-menu-button'));
+
 describe('C3 — the whole-class meeting reset needs an open meeting', () => {
   const students = Array.from({ length: 12 }, (_, i) => base(i + 1, { isOnline: false }));
 
   it('no meeting open: disabled, and the tooltip says why', () => {
     meeting.value = null;
     render(<HeatmapGrid initialStudents={students} />);
+    openResetMenu();
     const button = screen.getByTestId('class-session-reset-button') as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     expect(button.title).toBe('אין מפגש פתוח לכיתה. אפשר לאפס את המפגש לכל הכיתה רק כשמפגש פתוח.');
@@ -120,17 +124,59 @@ describe('C3 — the whole-class meeting reset needs an open meeting', () => {
   it('a meeting the teacher closed, or one past the teacher-disconnect grace, counts as not open', () => {
     meeting.value = { active: false, status: 'closed', sessionNumber: null };
     const { unmount } = render(<HeatmapGrid initialStudents={students} />);
+    openResetMenu();
     expect((screen.getByTestId('class-session-reset-button') as HTMLButtonElement).disabled).toBe(true);
     unmount();
     meeting.value = { ...OPEN(), teacherDisconnectedAt: Date.now() - 60 * 60 * 1000 };
     render(<HeatmapGrid initialStudents={students} />);
+    openResetMenu();
     expect((screen.getByTestId('class-session-reset-button') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('a meeting open: enabled, with the usual tooltip', () => {
     render(<HeatmapGrid initialStudents={students} />);
+    openResetMenu();
     const button = screen.getByTestId('class-session-reset-button') as HTMLButtonElement;
     expect(button.disabled).toBe(false);
     expect(button.title).toBe('מחזיר את כל 12 התלמידים לתחילת המפגש הפתוח. העבודה במפגשים האחרים נשמרת');
+  });
+});
+
+describe('the resets sit behind one menu (PRD Module 23א, owner 10.10.2026)', () => {
+  const students = Array.from({ length: 12 }, (_, i) => base(i + 1, { isOnline: false }));
+
+  it('closed at first: the row shows the menu button and none of the three resets', () => {
+    render(<HeatmapGrid initialStudents={students} />);
+    expect(screen.getByTestId('reset-menu-button').textContent).toContain('הגדרות ואיפוס');
+    expect(screen.queryByTestId('reset-menu')).toBeNull();
+    expect(screen.queryByText('איפוס התראות')).toBeNull();
+    expect(screen.queryByText('איפוס כל נתוני הכיתה')).toBeNull();
+    expect(screen.queryByTestId('class-session-reset-button')).toBeNull();
+  });
+
+  it('open: the three resets in the order of the levels 1, 2, 3', () => {
+    render(<HeatmapGrid initialStudents={students} />);
+    openResetMenu();
+    const labels = within(screen.getByTestId('reset-menu')).getAllByRole('button').map((b) => b.textContent?.trim());
+    expect(labels).toEqual(['איפוס התראות', 'איפוס המפגש לכיתה', 'איפוס כל נתוני הכיתה']);
+    expect(screen.getByTestId('reset-menu-button').getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('Escape and a click on the menu button close it', () => {
+    render(<HeatmapGrid initialStudents={students} />);
+    openResetMenu();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByTestId('reset-menu')).toBeNull();
+    openResetMenu();
+    openResetMenu();
+    expect(screen.queryByTestId('reset-menu')).toBeNull();
+  });
+
+  it('choosing a reset closes the menu and opens that reset\'s window', () => {
+    render(<HeatmapGrid initialStudents={students} />);
+    openResetMenu();
+    fireEvent.click(screen.getByText('איפוס כל נתוני הכיתה'));
+    expect(screen.queryByTestId('reset-menu')).toBeNull();
+    expect(screen.getByRole('dialog')).toBeTruthy();
   });
 });
