@@ -3107,6 +3107,10 @@ export function TeacherDashboard() {
               const success = await handleStartClassSession(sessionNum);
               if (success) {
                 setPendingActivationSession(null);
+                // The lesson starts: the teacher lands on the radar (owner,
+                // 10.10.2026). Only on her own activation — never on a change
+                // that arrives from elsewhere, so no tab ever moves under her.
+                handleTabChange("heatmap");
               }
             } finally {
               setIsStartingSession(false);
