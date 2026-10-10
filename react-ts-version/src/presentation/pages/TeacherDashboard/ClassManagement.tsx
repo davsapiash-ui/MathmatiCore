@@ -270,7 +270,7 @@ export function ClassManagement({
                 key={student.id}
                 className={`p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
                   isApproved
-                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800'
+                    ? 'bg-violet-50/50 dark:bg-violet-950/20 border-violet-300 dark:border-violet-800'
                     : isDoneM2
                     ? 'bg-stone-50/60 dark:bg-stone-950/20 border-stone-300 dark:border-stone-700 shadow-sm'
                     : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 opacity-75'
@@ -287,7 +287,7 @@ export function ClassManagement({
                   </div>
 
                   {isApproved ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-2.5 py-1 rounded-lg">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/60 px-2.5 py-1 rounded-lg">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       מאושר ל{meetingShortLabelHe(3)}
                     </span>
@@ -311,7 +311,7 @@ export function ClassManagement({
                         ? 'bg-stone-200/80 text-stone-900 dark:bg-stone-900 dark:text-stone-100'
                         : student.recommendedPath === 'טרם נקבעה'
                         ? 'bg-slate-200/80 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                        : 'bg-emerald-200/80 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100'
+                        : 'bg-violet-200/80 text-violet-900 dark:bg-violet-900 dark:text-violet-100'
                     }`}>
                       {student.recommendedPath === 'ירוק' ? ROUTE_NAME_HE.green_path : student.recommendedPath === 'צמצום פערי קדם' ? ROUTE_NAME_HE.remediation_path : student.recommendedPath}
                     </span>
@@ -324,8 +324,8 @@ export function ClassManagement({
                       aria-pressed={student.approvedPath === 'ירוק'}
                       className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer active:scale-[0.97] ${
                         student.approvedPath === 'ירוק'
-                          ? 'bg-emerald-600 text-white shadow-md'
-                          : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200'
+                          ? 'bg-violet-600 text-white shadow-md'
+                          : 'bg-violet-100 text-violet-800 hover:bg-violet-200 dark:bg-violet-900/40 dark:text-violet-200'
                       }`}
                     >
                       {ROUTE_APPROVE_HE.green_path}

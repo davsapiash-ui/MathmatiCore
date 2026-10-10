@@ -140,20 +140,20 @@ export function AdminSchoolsView() {
   return (
     <div className="p-2 sm:p-4 xl:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-violet-600 via-violet-700 to-purple-700 p-8 text-white shadow-xl border border-violet-400/40">
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-violet-50 dark:bg-slate-900 p-8 text-slate-900 dark:text-white shadow-sm border border-violet-200 dark:border-violet-900/60">
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 border border-white/25 text-white text-xs font-semibold backdrop-blur-md">
-              <Sparkles className="w-3.5 h-3.5 text-stone-300" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5 text-violet-600 dark:text-violet-300" />
               <span>ניהול מוסדות, סגלי הוראה וכיתות</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
               פריסת מוסדות, מורים וכיתות
             </h1>
-            <p className="text-violet-100 text-sm md:text-base max-w-2xl font-light leading-relaxed">
+            <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base max-w-2xl leading-relaxed">
               מערכת ניהול להקמה ולליווי של מוסדות לימוד, שיוך מורים והגדרת כיתות בהתאם לתקן הפיילוט.
             </p>
           </div>
@@ -162,20 +162,20 @@ export function AdminSchoolsView() {
             {/* Module 25 §ד: printable login cards for the 12 learners. */}
             <UdlButton
               semanticColor="neutral"
-              className="gap-2 bg-white/15 hover:bg-white/25 text-white font-bold py-3.5 px-5 rounded-2xl shadow-lg border border-white/30 transition-all text-xs cursor-pointer"
+              className="gap-2 bg-white hover:bg-violet-100 text-violet-900 font-bold py-3.5 px-5 rounded-2xl shadow-sm border border-violet-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-violet-100 dark:border-slate-700 transition-all text-xs cursor-pointer"
               onClick={() => navigate("/admin/login-cards")}
             >
-              <Printer className="w-4 h-4 text-white" />
+              <Printer className="w-4 h-4 text-violet-700 dark:text-violet-200" />
               <span>הדפסת כרטיסי כניסה לתלמידים</span>
             </UdlButton>
 
             <UdlButton
               semanticColor="neutral"
-              className="gap-2 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3.5 px-5 rounded-2xl shadow-lg border border-rose-400/40 transition-all hover:scale-105 active:scale-95 text-xs cursor-pointer"
+              className="gap-2 bg-white hover:bg-rose-50 text-rose-900 font-bold py-3.5 px-5 rounded-2xl shadow-sm border border-rose-300 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800 transition-all active:scale-95 text-xs cursor-pointer"
               onClick={handleResetPilot}
               disabled={isResetting}
             >
-              <Trash2 className="w-4 h-4 text-white" />
+              <Trash2 className="w-4 h-4 text-rose-700 dark:text-rose-300" />
               <span>{isResetting ? "מאפס נתונים..." : "איפוס נתונים למבנה הפיילוט הרשמי"}</span>
             </UdlButton>
 
@@ -183,7 +183,7 @@ export function AdminSchoolsView() {
             {schools.length === 0 && (
             <UdlButton 
               semanticColor="primary" 
-              className="gap-2 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-violet-600/30 border border-violet-400/30 transition-all hover:scale-105 active:scale-95"
+              className="gap-2 bg-violet-700 hover:bg-violet-800 text-white font-bold py-3.5 px-6 rounded-2xl shadow-sm border border-violet-700 transition-all active:scale-95"
               onClick={() => openWizard("full_setup")}
             >
               <Plus className="w-5 h-5" />
@@ -194,33 +194,33 @@ export function AdminSchoolsView() {
         </div>
 
         {/* Pilot Scale Progress Bar */}
-        <div className="mt-8 pt-6 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between">
+        <div className="mt-8 pt-6 border-t border-violet-200/70 dark:border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white dark:bg-slate-950/40 border border-violet-100 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between">
             <div>
-              <span className="text-xs text-slate-300 block">מוסדות חינוך פעילים</span>
-              <span className="text-2xl font-black text-violet-300">{schools.length} / 1</span>
+              <span className="text-xs text-slate-600 dark:text-slate-300 block">מוסדות חינוך פעילים</span>
+              <span className="text-2xl font-black text-violet-800 dark:text-violet-200">{schools.length} / 1</span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-400/30 flex items-center justify-center text-violet-300">
+            <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-500/20 border border-violet-200 dark:border-violet-400/30 flex items-center justify-center text-violet-700 dark:text-violet-300">
               <Building className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-950/40 border border-violet-100 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between">
             <div>
-              <span className="text-xs text-slate-300 block">סגל מורים רשום</span>
-              <span className="text-2xl font-black text-emerald-300">{teachers.length}</span>
+              <span className="text-xs text-slate-600 dark:text-slate-300 block">סגל מורים רשום</span>
+              <span className="text-2xl font-black text-violet-800 dark:text-violet-200">{teachers.length}</span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300">
+            <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-500/20 border border-violet-200 dark:border-violet-400/30 flex items-center justify-center text-violet-700 dark:text-violet-300">
               <Users className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-950/40 border border-violet-100 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between">
             <div>
-              <span className="text-xs text-slate-300 block">כיתות לימוד פעילות</span>
-              <span className="text-2xl font-black text-cyan-300">{classes.length}</span>
+              <span className="text-xs text-slate-600 dark:text-slate-300 block">כיתות לימוד פעילות</span>
+              <span className="text-2xl font-black text-violet-800 dark:text-violet-200">{classes.length}</span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300">
+            <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-500/20 border border-violet-200 dark:border-violet-400/30 flex items-center justify-center text-violet-700 dark:text-violet-300">
               <Layers className="w-5 h-5" />
             </div>
           </div>

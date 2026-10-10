@@ -73,7 +73,7 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStar
               )}
               <li>המפגש יישאר פעיל עד שתפתחו מפגש אחר.</li>
               {isReopen && (
-                <li className="text-emerald-700 dark:text-emerald-400">
+                <li className="text-violet-700 dark:text-violet-400">
                   מפגש זה כבר הושלם. חזרה אליו אפשרית ומותרת, ואינה מוחקת נתונים קיימים.
                 </li>
               )}
@@ -91,7 +91,7 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStar
             <button
               onClick={() => onConfirm(sessionNumber)}
               disabled={isStarting}
-              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white font-bold text-sm shadow-sm cursor-pointer flex items-center gap-2"
+              className="px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:bg-violet-400 disabled:cursor-not-allowed text-white font-bold text-sm shadow-sm cursor-pointer flex items-center gap-2"
             >
               {isStarting ? (
                 <>

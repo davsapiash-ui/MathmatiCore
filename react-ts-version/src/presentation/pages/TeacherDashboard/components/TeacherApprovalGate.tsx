@@ -172,7 +172,7 @@ export function TeacherApprovalGate({
                 <button
                   type="button"
                   onClick={onReopenMeeting2}
-                  className="self-start px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl shadow-sm transition-all cursor-pointer active:scale-[0.97]"
+                  className="self-start px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-xs rounded-2xl shadow-sm transition-all cursor-pointer active:scale-[0.97]"
                 >
                   פתחו שוב את {meetingShortLabelHe(2)}
                 </button>
@@ -246,7 +246,7 @@ export function TeacherApprovalGate({
 
                       <td className="p-4">
                         {st.recommendedPath === 'green_path' ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-violet-100 text-violet-800 dark:bg-violet-950/60 dark:text-violet-300">
                             <Sparkles className="w-3 h-3" />
                             {ROUTE_NAME_HE.green_path}
                           </span>
@@ -283,7 +283,7 @@ export function TeacherApprovalGate({
                           onClick={() => handleSingleApprove(st.studentId)}
                           disabled={isBusy || currentPath === null}
                           title={currentPath === null ? 'יש לבחור מסלול לפני האישור' : undefined}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97] inline-flex items-center gap-1.5"
+                          className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97] inline-flex items-center gap-1.5"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>{isBusy ? 'מאשר...' : 'אשרו את המסלול'}</span>
@@ -304,7 +304,7 @@ export function TeacherApprovalGate({
           <span>תלמידים שכבר אושרו ל{meetingShortLabelHe(3)}: {approvedStudents.length}</span>
           {/* The approval lets them in; the meeting itself opens only when the
               teacher opens it for the class (PRD 14 §ב0). */}
-          <span className="font-bold text-emerald-600 dark:text-emerald-400">ייכנסו כשתפתחו את המפגש לכיתה</span>
+          <span className="font-bold text-violet-600 dark:text-violet-400">ייכנסו כשתפתחו את המפגש לכיתה</span>
         </div>
       )}
     </div>

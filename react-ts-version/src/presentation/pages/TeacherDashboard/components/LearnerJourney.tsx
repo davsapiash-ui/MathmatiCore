@@ -645,7 +645,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                         </div>
                       ) : (
                         <>
-                          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
+                          <div className="p-3 rounded-xl bg-violet-50 border border-violet-200 text-violet-900 dark:bg-violet-950/40 dark:border-violet-800 dark:text-violet-100">
                             <div className="font-black mb-1">שליטה בכלי המערכת</div>
                             <ul className="space-y-0.5">
                               {report.sandbox.tools.map((t) => (
@@ -686,7 +686,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                           )}
                         </div>
                       </div>
-                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
+                      <div className="p-3 rounded-xl bg-violet-50 border border-violet-200 text-violet-900 dark:bg-violet-950/40 dark:border-violet-800 dark:text-violet-100">
                         <div className="font-black mb-1">קבוצת למידה מומלצת: {report.routingLabelHe}</div>
                         <div>{report.recommendationDetailsHe}</div>
                       </div>

@@ -279,41 +279,41 @@ export function AdminOverview() {
   return (
     <div className="p-2 sm:p-4 xl:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-violet-600 via-violet-700 to-purple-700 p-8 text-white shadow-2xl border border-violet-400/40">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-violet-50 dark:bg-slate-900 p-8 text-slate-900 dark:text-white shadow-sm border border-violet-200 dark:border-violet-900/60">
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 border border-white/25 text-white text-xs font-bold shadow-sm backdrop-blur-md">
-              <Zap className="w-4 h-4 text-stone-300" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 text-xs font-bold">
+              <Zap className="w-4 h-4 text-violet-600 dark:text-violet-300" />
               <span>לוח בקרה ניהולי בזמן אמת</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white drop-shadow-sm">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
               סקירה כללית ומדדי מערכת
             </h1>
-            <p className="text-violet-100 text-sm md:text-base font-normal">
+            <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base">
               מעקב אחר פעילות הלמידה במערכת MathmatiCore, היקף השימוש, אבטחת מידע ותקני פרטיות.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <UdlButton
-              semanticColor="success"
+              semanticColor="primary"
               onClick={handleExportReport}
               disabled={isExportingReport}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-lg border border-emerald-400/40 active:scale-95 transition-all"
+              className="gap-2 bg-violet-700 hover:bg-violet-800 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-sm border border-violet-700 active:scale-95 transition-all"
               title="הפקת דוח PDF והעלאה ישירה למרחב השיתופי ב-Google Drive"
             >
               <UploadCloud className="w-4 h-4" />
               <span>{isExportingReport ? "מעלה דוח ל-Google Drive..." : "הפקת דוח והעלאה ל-Google Drive ☁️"}</span>
             </UdlButton>
 
-            <div className={`flex items-center gap-2.5 backdrop-blur-md border px-4 py-2.5 rounded-2xl text-xs font-bold text-white shadow-md transition-all ${
+            <div className={`flex items-center gap-2.5 border px-4 py-2.5 rounded-2xl text-xs font-bold bg-white dark:bg-slate-950/60 transition-all ${
               isFirebaseConnected 
-                ? 'bg-emerald-500/20 border-emerald-400/40' 
-                : 'bg-rose-500/30 border-rose-400/50'
+                ? 'border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100' 
+                : 'border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200'
             }`}>
               <span className={`w-2.5 h-2.5 rounded-full ${
-                isFirebaseConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+                isFirebaseConnected ? 'bg-slate-500' : 'bg-rose-700'
               }`} />
               <span>
                 {isFirebaseConnected 
@@ -338,42 +338,42 @@ export function AdminOverview() {
 
       {/* Metrics Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-blue-500/50 transition-all">
-          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-blue-500 to-violet-600" />
+        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-violet-500/50 transition-all">
+          <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">מוסדות פעילים</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{schools.length}</h3>
-              <div className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold pt-1">
+              <div className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold pt-1">
                 <TrendingUp className="w-3.5 h-3.5" />
                 <span>בהתאם לתקן הפיילוט</span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-500/20">
+            <div className="w-12 h-12 rounded-2xl bg-violet-500/10 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 flex items-center justify-center border border-violet-500/20">
               <GraduationCap className="w-6 h-6" />
             </div>
           </div>
         </AccessibleCard>
 
-        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-emerald-500/50 transition-all">
-          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-emerald-500 to-teal-600" />
+        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-violet-500/50 transition-all">
+          <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">מורים מובילים</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{teachers.length}</h3>
-              <div className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold pt-1">
+              <div className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold pt-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>רישיונות פעילים</span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+            <div className="w-12 h-12 rounded-2xl bg-violet-500/10 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 flex items-center justify-center border border-violet-500/20">
               <Users className="w-6 h-6" />
             </div>
           </div>
         </AccessibleCard>
 
-        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-purple-500/50 transition-all">
-          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-purple-500 to-violet-600" />
+        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-violet-500/50 transition-all">
+          <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">תלמידים במערכת</p>
@@ -383,14 +383,14 @@ export function AdminOverview() {
                 <span>רשומים לפיילוט</span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-500/20">
+            <div className="w-12 h-12 rounded-2xl bg-violet-500/10 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 flex items-center justify-center border border-violet-500/20">
               <Activity className="w-6 h-6" />
             </div>
           </div>
         </AccessibleCard>
 
         <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-stone-500/50 transition-all">
-          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-stone-500 to-orange-600" />
+          <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">שיעור השלמת מפגשים</p>
@@ -438,7 +438,7 @@ export function AdminOverview() {
                   )}
                 </span>
                 {stat.hasData && (
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold text-violet-600 bg-violet-50 dark:bg-violet-950 px-1.5 py-0.5 rounded">
                     {stat.completionRate}
                   </span>
                 )}

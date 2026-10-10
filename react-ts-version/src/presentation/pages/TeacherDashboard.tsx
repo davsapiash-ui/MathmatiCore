@@ -1917,7 +1917,7 @@ export function TeacherDashboard() {
         <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col min-[1700px]:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div aria-hidden="true" className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${
-              classSessionStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : classSessionStatus === 'paused' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
+              classSessionStatus === 'active' ? 'bg-violet-100 text-violet-700' : classSessionStatus === 'paused' ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-500'
             }`}>
               {classSessionStatus === 'active' ? <Play className="w-6 h-6" /> : classSessionStatus === 'paused' ? <Pause className="w-6 h-6" /> : <School className="w-6 h-6" />}
             </div>
@@ -1931,8 +1931,8 @@ export function TeacherDashboard() {
                     : 'ניהול המפגש בזמן אמת'}
                 </h3>
                 {classSessionStatus === 'active' && (
-                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                  <span className="bg-violet-50 text-violet-800 border border-violet-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-violet-600"></span>
                     פתוח ללמידה
                   </span>
                 )}
@@ -1996,7 +1996,7 @@ export function TeacherDashboard() {
               onClick={() => setPendingActivationSession(pickedSessionNum)}
               disabled={(isClassSessionActive && pickedSessionNum === selectedSessionNum) || isUpdatingSession || isStartingSession}
               title={isClassSessionActive && pickedSessionNum === selectedSessionNum ? `${meetingShortLabelHe(pickedSessionNum)} כבר פתוח עכשיו` : `פתיחת ${meetingShortLabelHe(pickedSessionNum)} לכל הכיתה`}
-              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="px-6 py-2.5 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-300 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
             >
               <Play className="w-4 h-4" aria-hidden="true" />
               <span>הפעילו מפגש</span>
@@ -2007,7 +2007,7 @@ export function TeacherDashboard() {
                   <button
                     onClick={handleResumeClassSession}
                     disabled={isUpdatingSession}
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                    className="px-5 py-2.5 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                   >
                     {isUpdatingSession ? (
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2020,7 +2020,7 @@ export function TeacherDashboard() {
                   <button
                     onClick={handlePauseClassSession}
                     disabled={isUpdatingSession}
-                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                    className="px-5 py-2.5 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                   >
                     {isUpdatingSession ? (
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2033,7 +2033,7 @@ export function TeacherDashboard() {
                 <button
                   onClick={() => { void requestCloseClassSession(); }}
                   disabled={isUpdatingSession || isSavingCatchUp}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 bg-rose-800 hover:bg-rose-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
                   {isUpdatingSession ? (
                     <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2387,7 +2387,7 @@ export function TeacherDashboard() {
                   case 'not_attempted':
                     return { text: 'טרם ניגש', icon: '—', color: 'text-slate-400 dark:text-slate-500' };
                   case 'mastered':
-                    return { text: 'שולט', icon: '✓', color: 'text-emerald-700 dark:text-emerald-400' };
+                    return { text: 'שולט', icon: '✓', color: 'text-violet-700 dark:text-violet-300' };
                   default:
                     return { text: 'דרוש חיזוק', icon: '▲', color: 'text-rose-700 dark:text-rose-400' };
                 }
@@ -2429,7 +2429,7 @@ export function TeacherDashboard() {
                             }`}
                           >
                             {sNumItem}
-                            {studentItem.isOnline && <span aria-hidden="true" className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                            {studentItem.isOnline && <span aria-hidden="true" className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-violet-400" />}
                           </button>
                         );
                       })}
@@ -2469,10 +2469,10 @@ export function TeacherDashboard() {
                                 </h3>
                                 <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${
                                   s.isOnline
-                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300'
+                                    ? 'bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300'
                                     : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
                                 }`}>
-                                  <span className={`w-2 h-2 rounded-full ${s.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                                  <span className={`w-2 h-2 rounded-full ${s.isOnline ? 'bg-violet-600' : 'bg-slate-400'}`} />
                                   {s.isOnline ? 'מחובר כעת' : 'לא מחובר'}
                                 </span>
                                 {s.physicalOverride && (
@@ -2486,7 +2486,7 @@ export function TeacherDashboard() {
                                     : journeyRecommendation === 'remediation_path'
                                     ? 'bg-amber-50 text-amber-700 border-amber-200'
                                     : journeyRecommendation === 'green_path'
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    ? 'bg-violet-50 text-violet-800 border-violet-200'
                                     : 'bg-slate-100 text-slate-700 border-slate-200'
                                 }`}>
                                   {!hasCompletedDiagnosticM2
@@ -2751,7 +2751,7 @@ export function TeacherDashboard() {
                         </span>
                         {isMe && (
                           msg.read ? (
-                            <span title="נקרא על ידי הנהלה"><CheckCheck className="w-3.5 h-3.5 text-emerald-500" /></span>
+                            <span title="נקרא על ידי הנהלה"><CheckCheck className="w-3.5 h-3.5 text-violet-500" /></span>
                           ) : (
                             <span title="נשלח בהצלחה"><Check className="w-3.5 h-3.5 text-slate-400" /></span>
                           )
@@ -2934,7 +2934,7 @@ export function TeacherDashboard() {
                               {currentStudent?.name || `תלמיד ${selectedStudentId.replace(/\D/g, '') || '?'}`}
                             </h3>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className={`w-2 h-2 rounded-full ${isStudentOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                              <span className={`w-2 h-2 rounded-full ${isStudentOnline ? 'bg-violet-600' : 'bg-slate-400'}`}></span>
                               <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                                 {isStudentOnline ? 'מחובר כעת' : 'לא מחובר'}
                               </span>
@@ -2982,7 +2982,7 @@ export function TeacherDashboard() {
                               </span>
                               {isMe && (
                                 msg.read ? (
-                                  <span title="נקרא על ידי התלמיד"><CheckCheck className="w-3.5 h-3.5 text-emerald-500" /></span>
+                                  <span title="נקרא על ידי התלמיד"><CheckCheck className="w-3.5 h-3.5 text-violet-500" /></span>
                                 ) : (
                                   <span title="נשלח בהצלחה"><Check className="w-3.5 h-3.5 text-slate-400" /></span>
                                 )

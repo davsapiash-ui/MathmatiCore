@@ -73,25 +73,25 @@ export function AdminLayout() {
 
         {/* Mobile Navigation Tabs */}
         <nav className="lg:hidden flex overflow-x-auto p-2 bg-white border-b border-slate-200 gap-1 custom-scrollbar z-20">
-          <NavLink to="/admin" end className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
+          <NavLink to="/admin" end className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             סקירה כללית
           </NavLink>
-          <NavLink to="/admin/schools" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
+          <NavLink to="/admin/schools" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             מוסדות ומורים
           </NavLink>
-          <NavLink to="/admin/curriculum" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
+          <NavLink to="/admin/curriculum" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             פדגוגיה
           </NavLink>
-          <NavLink to="/admin/support" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
+          <NavLink to="/admin/support" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             מוקד תמיכה
           </NavLink>
-          <NavLink to="/admin/security" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
+          <NavLink to="/admin/security" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             אבטחה
           </NavLink>
-          <NavLink to="/admin/chat" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
+          <NavLink to="/admin/chat" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             צ'אט
           </NavLink>
-          <NavLink to="/admin/settings" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
+          <NavLink to="/admin/settings" className={({isActive}) => `px-3 py-2 text-xs font-bold whitespace-nowrap rounded-xl transition-all ${isActive ? "bg-violet-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}>
             הגדרות (UDL)
           </NavLink>
         </nav>
@@ -117,7 +117,7 @@ export function AdminLayout() {
               <SidebarMenu className="gap-1.5">
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-overview" to="/admin" end className={({isActive}) => isActive ? "bg-violet-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-overview" to="/admin" end className={({isActive}) => isActive ? "bg-violet-700 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <Settings className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">סקירה כללית</span>
                     </NavLink>
@@ -126,7 +126,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-schools" to="/admin/schools" className={({isActive}) => isActive ? "bg-violet-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-schools" to="/admin/schools" className={({isActive}) => isActive ? "bg-violet-700 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <GraduationCap className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">מוסדות ומורים</span>
                     </NavLink>
@@ -135,7 +135,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-violet-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-curriculum" to="/admin/curriculum" className={({isActive}) => isActive ? "bg-violet-700 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 text-slate-700 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <Layers className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">תוכנית לימודים ופדגוגיה</span>
                     </NavLink>
@@ -144,7 +144,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-support" to="/admin/support" className={({isActive}) => isActive ? "bg-violet-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-support" to="/admin/support" className={({isActive}) => isActive ? "bg-violet-700 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <LifeBuoy className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">מוקד תמיכה ופניות</span>
                     </NavLink>
@@ -153,7 +153,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-security" to="/admin/security" className={({isActive}) => isActive ? "bg-violet-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-security" to="/admin/security" className={({isActive}) => isActive ? "bg-violet-700 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <Shield className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">אבטחה והרשאות</span>
                     </NavLink>
@@ -162,7 +162,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-chat" to="/admin/chat" className={({isActive}) => isActive ? "bg-violet-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-chat" to="/admin/chat" className={({isActive}) => isActive ? "bg-violet-700 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <Users className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">ערוץ פניות מורים</span>
                     </NavLink>
@@ -171,7 +171,7 @@ export function AdminLayout() {
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className={NAV_BUTTON}>
-                    <NavLink id="tour-admin-settings" to="/admin/settings" className={({isActive}) => isActive ? "bg-violet-600 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
+                    <NavLink id="tour-admin-settings" to="/admin/settings" className={({isActive}) => isActive ? "bg-violet-700 text-white font-bold rounded-xl shadow-sm p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold transition-colors rounded-xl p-3.5 [@media(max-height:820px)]:py-2.5 flex items-center w-full leading-snug"}>
                       <Settings className="w-5 h-5 ml-3 opacity-90" /> 
                       <span className="text-sm lg:text-base tracking-wide">נגישות ופדגוגיה מותאמת (UDL)</span>
                     </NavLink>
@@ -183,7 +183,7 @@ export function AdminLayout() {
 
           <div className="p-4 lg:p-6 border-t border-white/20 dark:border-white/5 mt-auto bg-white/20 dark:bg-black/10 [@media(max-height:820px)]:hidden">
             <div className="flex items-center gap-3 mb-3 p-2.5 rounded-2xl bg-white/50 dark:bg-slate-900/50 shadow-inner border border-white/40 dark:border-white/5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-lg text-sm shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-violet-700 flex items-center justify-center font-bold text-white shadow-lg text-sm shrink-0">
                 {(user?.displayName as string)?.[0] || "A"}
               </div>
               <div className="flex-1 overflow-hidden">
@@ -203,7 +203,7 @@ export function AdminLayout() {
           <header className="hidden lg:flex items-center justify-between p-4 px-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 rounded-2xl mb-4 shadow-sm z-10 sticky top-0 transition-all">
             {/* Title */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 via-violet-700 to-purple-600 flex items-center justify-center text-white font-bold shadow-md">
+              <div className="w-10 h-10 rounded-xl bg-violet-700 flex items-center justify-center text-white font-bold shadow-md">
                 <Shield className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -237,7 +237,7 @@ export function AdminLayout() {
 
               {/* User Profile Badge */}
               <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/90 backdrop-blur-md rounded-full py-1.5 px-3.5 shadow-sm border border-slate-200 dark:border-slate-700">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0">
+                <div className="w-9 h-9 rounded-full bg-violet-700 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0">
                   <UserCircle className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col items-start leading-tight">

@@ -79,7 +79,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
         onClick={() => setIsMinimized(!isMinimized)}
       >
         <div className="font-bold text-sm flex items-center gap-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${student?.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`}></div>
+          <div className={`w-2.5 h-2.5 rounded-full ${student?.isOnline ? 'bg-violet-400 animate-pulse' : 'bg-slate-400'}`}></div>
           <span>תלמיד {normStudentId.replace(/\D/g, '') || normStudentId}</span>
         </div>
         <div className="flex gap-2 text-violet-200">
@@ -122,7 +122,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
                         <div className={`text-[10px] flex items-center justify-end gap-1 ${isTeacher ? 'text-violet-200' : 'text-slate-400'}`}>
                           <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           {isTeacher && (
-                            <CheckCheck className={`w-3 h-3 ${msg.read ? 'text-emerald-300' : 'opacity-60'}`} />
+                            <CheckCheck className={`w-3 h-3 ${msg.read ? 'text-violet-300' : 'opacity-60'}`} />
                           )}
                         </div>
                       </div>
