@@ -17,7 +17,9 @@ import {
   BellRing,
   WifiOff,
   Rocket,
-  Shield
+  Shield,
+  Settings,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/application/useStore';
@@ -260,6 +262,19 @@ interface HeatmapGridProps {
 export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps = {}) {
   const [students, setStudents] = useState<AnonymousStudent[]>(initialStudents || INITIAL_MOCK_STUDENTS);
   const [selectedStudent, setSelectedStudent] = useState<AnonymousStudent | null>(null);
+  // The resets' menu: closed on Escape and on a click outside it.
+  const [resetMenuOpen, setResetMenuOpen] = useState(false);
+  const resetMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!resetMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setResetMenuOpen(false); };
+    const onDown = (e: MouseEvent) => {
+      if (resetMenuRef.current && !resetMenuRef.current.contains(e.target as Node)) setResetMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onDown);
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onDown); };
+  }, [resetMenuOpen]);
 
   // Module 18 & Session Active state: Track active class session state
   const [isClassSessionActive, setIsClassSessionActive] = useState<boolean>(false);
@@ -719,12 +734,37 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
               <LegacyRecordingsButton visible={legacyRecordings} />
 
+              {/* The three resets sit behind one button (owner, 10.10.2026; PRD
+                  Module 23א): the row shows only what the teacher uses during the
+                  lesson, and the deleting actions are one deliberate click away.
+                  Same buttons, same windows, same order (levels 1, 2, 3). */}
+              <div ref={resetMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setResetMenuOpen((open) => !open)}
+                  aria-haspopup="menu"
+                  aria-expanded={resetMenuOpen}
+                  data-testid="reset-menu-button"
+                  title="איפוס התראות, איפוס המפגש לכיתה ואיפוס כל נתוני הכיתה"
+                  className="px-3 py-2.5 min-h-11 rounded-xl border border-slate-200/80 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold transition-all active:scale-[0.97] flex items-center gap-1.5 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/40"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>הגדרות ואיפוס</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${resetMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {resetMenuOpen && (
+                  <div
+                    role="menu"
+                    data-testid="reset-menu"
+                    className="absolute z-30 top-full mt-2 right-0 w-64 flex flex-col gap-2 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl"
+                  >
+                    <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 px-1">איפוס נתונים</span>
               {/* Module 23א level 1 — Alerts Reset. Strictly separate from the
                   level-3 system reset; never merged into one action. */}
               <button
-                onClick={() => setIsAlertsResetModalOpen(true)}
+                onClick={() => { setResetMenuOpen(false); setIsAlertsResetModalOpen(true); }}
                 disabled={isResettingAlerts}
-                className="px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 hover:border-amber-400 bg-amber-50/60 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                className="w-full px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 hover:border-amber-400 bg-amber-50/60 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
                 title="מוחק את הקריאות לעזרה ואת היסטוריית ההתראות. לא נוגע בנתוני הלמידה"
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isResettingAlerts ? 'animate-spin' : ''}`} />
@@ -737,10 +777,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               {/* Only while a meeting is open (deviation 20; the server refuses
                   otherwise) — by the same liveness rule as the rest of the app. */}
               <button
-                onClick={() => setIsSessionResetModalOpen(true)}
+                onClick={() => { setResetMenuOpen(false); setIsSessionResetModalOpen(true); }}
                 disabled={isResettingSession || !isClassSessionActive || !activeSessionNum}
                 data-testid="class-session-reset-button"
-                className="px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 hover:border-amber-400 bg-amber-50/60 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-xs"
+                className="w-full px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 hover:border-amber-400 bg-amber-50/60 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-xs"
                 title={isClassSessionActive && activeSessionNum
                   ? 'מחזיר את כל 12 התלמידים לתחילת המפגש הפתוח. העבודה במפגשים האחרים נשמרת'
                   : 'אין מפגש פתוח לכיתה. אפשר לאפס את המפגש לכל הכיתה רק כשמפגש פתוח.'}
@@ -750,14 +790,17 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               </button>
 
               <button
-                onClick={handleResetAllClass}
+                onClick={() => { setResetMenuOpen(false); handleResetAllClass(); }}
                 disabled={isResettingClass}
-                className="px-3 py-2.5 min-h-11 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50/60 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                className="w-full px-3 py-2.5 min-h-11 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50/60 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
                 title="מוחק את כל נתוני הלמידה של 12 התלמידים, אחרי שנשמר גיבוי"
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isResettingClass ? 'animate-spin' : ''}`} />
                 <span>{RESET_ACTION_HE.system}</span>
               </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
