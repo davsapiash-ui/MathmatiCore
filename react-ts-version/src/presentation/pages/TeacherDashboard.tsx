@@ -38,7 +38,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users, Mail, Radar, LayoutGrid, FileText, ShieldCheck, School, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users, Mail, Radar, LayoutGrid, FileText, ShieldCheck, School, PanelRightClose, PanelRightOpen, Play, Pause, Square } from "lucide-react";
 
 import { ClassManagement } from "./TeacherDashboard/ClassManagement";
 import { LearnerJourney } from "./TeacherDashboard/components/LearnerJourney";
@@ -453,6 +453,18 @@ export function TeacherDashboard() {
   // popup "עברו X דקות", where X is derived from the session's configured duration
   // (20 / 25 / 15) and never a hardcoded constant. Once dismissed it never returns,
   // so the shown-marker is persisted per session activation.
+  // The live bar's clock (owner, 10.10.2026): minutes since the activation,
+  // against the meeting's time limit (Module 14 §ב), refreshed twice a minute.
+  // Information for the teacher only — nothing here locks or closes anything.
+  const [elapsedMinutes, setElapsedMinutes] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isClassSessionActive || !_sessionStartTime) { setElapsedMinutes(null); return; }
+    const tick = () => setElapsedMinutes(Math.max(0, Math.floor((serverNow() - _sessionStartTime) / 60_000)));
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, [isClassSessionActive, _sessionStartTime]);
+
   useEffect(() => {
     if (!isClassSessionActive || !_sessionStartTime) return;
 
@@ -1694,6 +1706,17 @@ export function TeacherDashboard() {
       return validStudentIds.has(normSender);
     }).length;
   }, [messages, user, allStudents]);
+  const onlineCount = useMemo(() => allStudents.filter((s) => Boolean(s.isOnline)).length, [allStudents]);
+  // The live bar's message button (owner, 10.10.2026): a learner's unread
+  // message opens that learner's floating panel over the current tab, so the
+  // teacher answers without leaving the radar; with nothing unread it opens
+  // the students' chat tab.
+  const openUnreadStudentChat = () => {
+    const unread = messages.find((m) => !m.read && allStudents.some((s) => normalizeStudentId(s.studentId) === normalizeStudentId(m.senderId)));
+    const learner = unread ? allStudents.find((s) => normalizeStudentId(s.studentId) === normalizeStudentId(unread.senderId)) : undefined;
+    if (learner) setFloatingChatStudent(learner);
+    else handleTabChange('chat_students');
+  };
 
   if (isLoading) {
     return (
@@ -1886,14 +1909,17 @@ export function TeacherDashboard() {
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
 
-        {/* Class Session Control Bar */}
-        {/* Class Session Control Bar — Bright, Clean & Accessible */}
-        <div className="mb-6 shrink-0 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col min-[1700px]:flex-row items-center justify-between gap-4">
+        {/* Class Session Control Bar — the one bar for the live lesson (owner,
+            10.10.2026): it stays at the top of the page on every tab, so the
+            three actions of Module 14 §ב, the clock and the learners' messages
+            are always one click away. Icons, not emoji (DESIGN_SYSTEM_RULES 1.1). */}
+        <div data-testid="live-session-bar" className="sticky top-0 z-30 -mx-4 md:-mx-8 -mt-4 md:-mt-8 px-4 md:px-8 pt-4 md:pt-6 pb-3 mb-3 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm shrink-0">
+        <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col min-[1700px]:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm ${
+            <div aria-hidden="true" className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${
               classSessionStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : classSessionStatus === 'paused' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
             }`}>
-              {classSessionStatus === 'active' ? '🟢' : classSessionStatus === 'paused' ? '⏸️' : '🏫'}
+              {classSessionStatus === 'active' ? <Play className="w-6 h-6" /> : classSessionStatus === 'paused' ? <Pause className="w-6 h-6" /> : <School className="w-6 h-6" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -1917,9 +1943,17 @@ export function TeacherDashboard() {
                   </span>
                 )}
               </div>
-              <p className="text-slate-600 text-xs mt-1">
+              <p className="text-slate-600 dark:text-slate-300 text-xs mt-1" data-testid="live-session-line">
                 {classSessionStatus === 'active'
-                  ? `מפגש ${selectedSessionNum} פתוח כעת עבור התלמידים בכיתה.`
+                  ? (
+                    <>
+                      <span>{`מפגש ${selectedSessionNum} פתוח כעת עבור התלמידים בכיתה.`}</span>
+                      {' '}
+                      <span data-testid="live-session-status" className="font-bold text-slate-800 dark:text-slate-100">
+                        {`${onlineCount} מתוך 12 מחוברים${elapsedMinutes === null ? '' : ` · ${elapsedMinutes === 1 ? 'חלפה דקה אחת' : `חלפו ${elapsedMinutes} דקות`} מתוך ${getSessionDurationMinutes(selectedSessionNum)}`}`}
+                      </span>
+                    </>
+                  )
                   : classSessionStatus === 'paused'
                     ? 'העבודה של התלמידים שמורה. "המשיכו את המפגש" מחזיר אותם לאותה נקודה.'
                     : 'בחרו מפגש ולחצו על "הפעילו מפגש" כדי לפתוח את הלמידה לתלמידים.'}
@@ -1928,6 +1962,21 @@ export function TeacherDashboard() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full min-[1700px]:w-auto justify-end">
+            <button
+              type="button"
+              onClick={openUnreadStudentChat}
+              aria-label={unreadStudentsCount > 0 ? `הודעות מתלמידים, ${unreadStudentsCount} שלא נקראו` : 'הודעות מתלמידים'}
+              title="הודעות מתלמידים"
+              className="relative inline-flex items-center gap-2 min-h-11 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-xl shadow-sm font-bold text-xs transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/40 cursor-pointer"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>הודעות מתלמידים</span>
+              {unreadStudentsCount > 0 && (
+                <span data-testid="live-bar-unread" className="min-w-5 h-5 px-1.5 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-[11px] font-black">
+                  {unreadStudentsCount}
+                </span>
+              )}
+            </button>
             {/* Module 14 §ב0: the picker shows all eight sessions and their state at all
                 times. Opening another session replaces the active one directly — a
                 session stays active until the teacher opens a different one. */}
@@ -1949,7 +1998,7 @@ export function TeacherDashboard() {
               title={isClassSessionActive && pickedSessionNum === selectedSessionNum ? `${meetingShortLabelHe(pickedSessionNum)} כבר פתוח עכשיו` : `פתיחת ${meetingShortLabelHe(pickedSessionNum)} לכל הכיתה`}
               className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
             >
-              <span>▶️</span>
+              <Play className="w-4 h-4" aria-hidden="true" />
               <span>הפעילו מפגש</span>
             </button>
             {isClassSessionActive && (
@@ -1963,7 +2012,7 @@ export function TeacherDashboard() {
                     {isUpdatingSession ? (
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <span>▶️</span>
+                      <Play className="w-4 h-4" aria-hidden="true" />
                     )}
                     <span>המשיכו את המפגש</span>
                   </button>
@@ -1976,7 +2025,7 @@ export function TeacherDashboard() {
                     {isUpdatingSession ? (
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <span>⏸️</span>
+                      <Pause className="w-4 h-4" aria-hidden="true" />
                     )}
                     <span>עצרו את המפגש</span>
                   </button>
@@ -1989,7 +2038,7 @@ export function TeacherDashboard() {
                   {isUpdatingSession ? (
                     <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <span>⏹️</span>
+                    <Square className="w-4 h-4" aria-hidden="true" />
                   )}
                   <span>סגרו את המפגש</span>
                 </button>
@@ -1997,6 +2046,7 @@ export function TeacherDashboard() {
             )}
 
           </div>
+        </div>
         </div>
 
         {/* Catch-up time (owner decision 2.10.2026): who started the open (or
