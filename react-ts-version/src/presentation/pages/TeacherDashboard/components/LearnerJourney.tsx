@@ -465,7 +465,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                 <div className="mt-0.5 text-[11px] text-ws-soft leading-snug">
                   {Number.isFinite(firstTs) ? `${formatDate(firstTs)} · ` : ''}{evs.length} פעולות · {recs.length > 0 ? `הקלטה ${formatDuration(recMs)}` : 'ללא הקלטה'}
                   {(cuttingResetsBySession.get(n)?.length ?? 0) > 0 && (
-                    <span className="font-bold text-amber-800 dark:text-amber-300">
+                    <span className="font-bold text-stone-800 dark:text-stone-300">
                       {' · '}{cuttingResetsBySession.get(n)!.length === 1 ? 'אופס פעם אחת' : `אופס ${cuttingResetsBySession.get(n)!.length} פעמים`}
                     </span>
                   )}
@@ -534,13 +534,13 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
           <div className="bg-ws-surface border border-ws-surface2 rounded-2xl p-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-black text-ws-ink">
-                <Sparkles className="w-4 h-4 text-amber-500" />
+                <Sparkles className="w-4 h-4 text-stone-500" />
                 דוח תובנות פדגוגיות · {meetingShortLabelHe(selectedSession)}
                 {report?.generatedAt && (
                   <span className="text-[11px] font-bold text-ws-soft">הופק {formatDate(report.generatedAt)} {formatClock(report.generatedAt)}</span>
                 )}
                 {report && isReportBeforeReset(report, sessionResets) && (
-                  <span data-testid="report-before-reset" className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+                  <span data-testid="report-before-reset" className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-stone-50 border border-stone-200 text-stone-900 dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-200">
                     {REPORT_BEFORE_RESET_LABEL_HE}
                   </span>
                 )}
@@ -564,14 +564,14 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   title={meetingSessionId ? 'ניתוח אוטומטי של הפעולות המתועדות במפגש זה' : 'אין פעולות מתועדות במפגש זה, אין מה לנתח'}
                   className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {reportState === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
+                  {reportState === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-stone-300" />}
                   {reportState === 'generating' ? 'הדוח בעיבוד… (כ-20 שניות)' : report ? 'הפיקו מחדש' : `הפיקו דוח למפגש ${selectedSession}`}
                 </button>
               </div>
             </div>
 
             {reportState === 'error' && (
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+              <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 text-xs font-bold dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-200">
                 <div>{reportError || REPORT_PROCESSING_TEXT}</div>
               </div>
             )}
@@ -615,7 +615,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
 
             {/* A report kept from before the meeting's last reset (resets keep reports) describes the old run. */}
             {report && lastCuttingReset && report.generatedAt !== null && report.generatedAt < lastCuttingReset.at && (
-              <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+              <div role="status" className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 text-xs font-bold dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-200">
                 {/* "הפיקו מחדש" helps only once the learner has answered since the reset; before that the server refuses. */}
                 {answeredSince(sessionEvents, lastCuttingReset.at)
                   ? 'הדוח הזה הופק לפני האיפוס של המפגש, ולכן הוא מתאר את העבודה הקודמת. לחצו "הפיקו מחדש" כדי לקבל דוח על העבודה שאחרי האיפוס.'
@@ -635,12 +635,12 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                       </div>
                       {/* PRD Module 14: meeting 1 is not scored, and this report's stored PDF still prints a score. */}
                       {report.storedPdfOutdated && (
-                        <div role="status" data-testid="outdated-meeting1-pdf" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100">
+                        <div role="status" data-testid="outdated-meeting1-pdf" className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-950 dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-100">
                           {OUTDATED_MEETING1_PDF_HE}
                         </div>
                       )}
                       {report.sandbox.outdated ? (
-                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100">
+                        <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-950 dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-100">
                           דוח זה הופק לפני שנוסף לו פירוט הכלים ותרגילי הריענון. לחצו "הפיקו מחדש" כדי לראות אותם.
                         </div>
                       ) : (
@@ -719,7 +719,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                     </div>
                   )}
                 </div>
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100 space-y-2">
+                <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-950 dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-100 space-y-2">
                   <div className="font-black">{report.sandbox ? 'לקראת האבחון' : 'תובנות פדגוגיות וניתוח למידה'}</div>
                   {report.aiAnalysisAvailable ? (
                     <>
@@ -754,7 +754,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   </div>
                 )}
                 {report.pdfFailureMessage && (
-                  <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+                  <div role="status" className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 font-bold dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-200">
                     {report.pdfFailureMessage}
                   </div>
                 )}
@@ -817,8 +817,8 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                         if (row.kind === 'reset') {
                           // A meeting done twice: where the new run begins (audit learner_view).
                           return (
-                            <tr key={`reset-${row.reset.at}`} data-testid="reset-separator" className="bg-amber-100 dark:bg-amber-950/60">
-                              <td colSpan={6} className="p-2 text-[11px] font-black text-amber-950 dark:text-amber-100 border-y-2 border-amber-400">
+                            <tr key={`reset-${row.reset.at}`} data-testid="reset-separator" className="bg-stone-100 dark:bg-stone-950/60">
+                              <td colSpan={6} className="p-2 text-[11px] font-black text-stone-950 dark:text-stone-100 border-y-2 border-stone-400">
                                 {resetSeparatorHe(row.reset)}
                               </td>
                             </tr>
@@ -839,7 +839,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                             ref={isHighlighted ? highlightedRowRef : undefined}
                             onClick={() => requestSeek(e.timestamp)}
                             title={`לחיצה מקפיצה את ההקלטה לשעה ${formatClock(e.timestamp)}`}
-                            className={`cursor-pointer transition-colors ${isHighlighted ? 'bg-ws-accentSoft border-r-4 border-ws-accent' : 'hover:bg-ws-bg'} ${desc.attention ? 'text-amber-900 dark:text-amber-200' : 'text-ws-ink'}`}
+                            className={`cursor-pointer transition-colors ${isHighlighted ? 'bg-ws-accentSoft border-r-4 border-ws-accent' : 'hover:bg-ws-bg'} ${desc.attention ? 'text-stone-900 dark:text-stone-200' : 'text-ws-ink'}`}
                           >
                             <td className="p-2 font-mono text-[11px] text-ws-soft whitespace-nowrap" dir="ltr">{formatClock(e.timestamp)}</td>
                             <td className="p-2 whitespace-nowrap" title={exerciseTitle(selectedSession, e.exerciseId)}>{exerciseCell}</td>
@@ -897,7 +897,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                 </span>
               </div>
               {truncated && (
-                <div className="flex items-center gap-2 text-[11px] font-bold text-amber-200 bg-amber-950/50 border border-amber-800 rounded-xl px-3 py-2">
+                <div className="flex items-center gap-2 text-[11px] font-bold text-stone-200 bg-stone-950/50 border border-stone-800 rounded-xl px-3 py-2">
                   <AlertTriangle className="w-3.5 h-3.5" />
                   ההקלטה נקטעה בתקרת 50MB. הפעולות בטבלה מלאות.
                 </div>

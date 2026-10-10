@@ -1937,8 +1937,8 @@ export function TeacherDashboard() {
                   </span>
                 )}
                 {classSessionStatus === 'paused' && (
-                  <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  <span className="bg-stone-50 text-stone-700 border border-stone-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-stone-500"></span>
                     מושהה · התלמידים ממתינים
                   </span>
                 )}
@@ -2056,9 +2056,9 @@ export function TeacherDashboard() {
         {catchUpMeeting !== null && unfinishedInCatchUpMeeting.length > 0 && (
           <section
             aria-labelledby="catchup-unfinished-title"
-            className="-mt-3 mb-6 shrink-0 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl px-5 py-3 flex flex-col gap-2"
+            className="-mt-3 mb-6 shrink-0 bg-stone-50 dark:bg-stone-950/30 border border-stone-200 dark:border-stone-900 rounded-2xl px-5 py-3 flex flex-col gap-2"
           >
-            <h3 id="catchup-unfinished-title" className="font-extrabold text-sm text-amber-950 dark:text-amber-100">
+            <h3 id="catchup-unfinished-title" className="font-extrabold text-sm text-stone-950 dark:text-stone-100">
               {unfinishedInCatchUpMeeting.length === 1
                 ? `תלמיד אחד ${isClassSessionActive ? 'עוד ' : ''}לא סיים את מפגש ${catchUpMeeting}`
                 : `${unfinishedInCatchUpMeeting.length} תלמידים ${isClassSessionActive ? 'עוד ' : ''}לא סיימו את מפגש ${catchUpMeeting}`}
@@ -2067,7 +2067,7 @@ export function TeacherDashboard() {
               {unfinishedInCatchUpMeeting.map((l) => (
                 <li
                   key={l.studentNumber}
-                  className="px-3 py-1 rounded-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-xs font-bold text-slate-800 dark:text-slate-200"
+                  className="px-3 py-1 rounded-full bg-white dark:bg-slate-900 border border-stone-200 dark:border-stone-800 text-xs font-bold text-slate-800 dark:text-slate-200"
                 >
                   תלמיד {l.studentNumber} · {l.stoppedAtHe}
                 </li>
@@ -2118,12 +2118,12 @@ export function TeacherDashboard() {
             {studentsWithMastery === 0 && (
               <div
                 role="status"
-                className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-5"
+                className="mb-6 flex items-start gap-3 rounded-2xl border border-stone-200 dark:border-stone-900 bg-stone-50 dark:bg-stone-950/30 p-5"
               >
                 <span aria-hidden="true" className="text-2xl leading-none">▲</span>
                 <div>
-                  <p className="font-bold text-amber-950 dark:text-amber-100">מיפוי המיומנויות עדיין ריק</p>
-                  <p className="text-sm text-amber-900/80 dark:text-amber-200/80 mt-1">
+                  <p className="font-bold text-stone-950 dark:text-stone-100">מיפוי המיומנויות עדיין ריק</p>
+                  <p className="text-sm text-stone-900/80 dark:text-stone-200/80 mt-1">
                     המיפוי נוצר לכל תלמיד בסיום מפגש האבחון (מפגש 2). כל עוד אף תלמיד לא סיים אותו,
                     הקבוצות והגרף שלמטה ריקים — זה אינו אומר שאין פערים.
                   </p>
@@ -2396,7 +2396,7 @@ export function TeacherDashboard() {
               return (
                 <>
                 {noLearnerFromLink && (
-                  <p role="alert" className="mb-4 rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-5 py-3 text-sm font-bold text-amber-950 dark:text-amber-100">
+                  <p role="alert" className="mb-4 rounded-2xl border border-stone-200 dark:border-stone-900 bg-stone-50 dark:bg-stone-950/30 px-5 py-3 text-sm font-bold text-stone-950 dark:text-stone-100">
                     הקישור לא מוביל לאף תלמיד בכיתה. מספרי התלמידים הם 1 עד 12. בחרו תלמיד מהרשימה.
                   </p>
                 )}
@@ -2484,7 +2484,7 @@ export function TeacherDashboard() {
                                   !hasCompletedDiagnosticM2
                                     ? 'bg-slate-100 text-slate-700 border-slate-200'
                                     : journeyRecommendation === 'remediation_path'
-                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    ? 'bg-stone-50 text-stone-700 border-stone-200'
                                     : journeyRecommendation === 'green_path'
                                     ? 'bg-violet-50 text-violet-800 border-violet-200'
                                     : 'bg-slate-100 text-slate-700 border-slate-200'
@@ -2513,7 +2513,7 @@ export function TeacherDashboard() {
                                     className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold text-xs rounded-xl shadow-md shadow-violet-600/25 transition-all active:scale-95 cursor-pointer"
                                     title={`${TEACHER_GATE_HE}: אישור המסלול למפגש 3`}
                                   >
-                                    <Sparkles className="w-4 h-4 text-amber-300" />
+                                    <Sparkles className="w-4 h-4 text-stone-300" />
                                     <span>{TEACHER_GATE_HE}</span>
                                     {!(s.routeStatus === 'APPROVED' || (s as any).teacher_gate_approved) && (
                                       <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-md font-semibold">ממתין לאישור</span>
@@ -2626,7 +2626,7 @@ export function TeacherDashboard() {
                                         onClick={() => setGateStudent(s)}
                                         className="px-4 py-2 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/50 dark:hover:bg-violet-900 text-violet-700 dark:text-violet-300 font-bold text-xs rounded-xl border border-violet-200 dark:border-violet-800 transition-all cursor-pointer flex items-center gap-1.5"
                                       >
-                                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                                        <Sparkles className="w-3.5 h-3.5 text-stone-500" />
                                         <span>{TEACHER_GATE_HE}</span>
                                       </button>
                                     </div>
@@ -2693,7 +2693,7 @@ export function TeacherDashboard() {
             {/* Header */}
             <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm z-10 shrink-0">
               <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
+                <div className="w-11 h-11 rounded-2xl bg-violet-700 text-white flex items-center justify-center shadow-lg shadow-stone-500/20 shrink-0">
                   <Mail className="w-6 h-6" />
                 </div>
                 <div>
@@ -2766,7 +2766,7 @@ export function TeacherDashboard() {
             {/* Input Footer - ALWAYS VISIBLE AT BOTTOM (shrink-0) */}
             <div className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 z-20">
             {adminInputPiiNotice && (
-              <p id="admin-chat-pii-notice" role="status" className="px-4 pt-3 text-xs font-bold text-amber-800 dark:text-amber-300">
+              <p id="admin-chat-pii-notice" role="status" className="px-4 pt-3 text-xs font-bold text-stone-800 dark:text-stone-300">
                 {adminInputPiiNotice}
               </p>
             )}
@@ -2780,7 +2780,7 @@ export function TeacherDashboard() {
                 disabled={isSendingAdmin}
                 aria-invalid={adminInputPiiNotice ? true : undefined}
                 aria-describedby={adminInputPiiNotice ? "admin-chat-pii-notice" : undefined}
-                className={`flex-1 bg-slate-50 dark:bg-slate-800 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-white disabled:opacity-60 ${adminInputPiiNotice ? 'border-amber-400 focus:ring-amber-400' : 'border-slate-200 dark:border-slate-700 focus:ring-violet-500'}`}
+                className={`flex-1 bg-slate-50 dark:bg-slate-800 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-white disabled:opacity-60 ${adminInputPiiNotice ? 'border-stone-400 focus:ring-stone-400' : 'border-slate-200 dark:border-slate-700 focus:ring-violet-500'}`}
               />
 
               <button
@@ -2876,7 +2876,7 @@ export function TeacherDashboard() {
                                 any hesitation ever counted, and stuck on meeting 2's number. */}
                             {student.isOnline && (student as { hesitating?: { hesitating?: boolean } }).hesitating?.hesitating === true && (
                               <div
-                                className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 shadow-md"
+                                className="absolute -top-1 -right-1 bg-stone-500 text-white rounded-full p-0.5 shadow-md"
                                 title="מהסס עכשיו"
                               >
                                 <ShieldAlert className="w-3 h-3 text-white" />
@@ -2997,7 +2997,7 @@ export function TeacherDashboard() {
                   {/* Input Footer - ALWAYS VISIBLE AT BOTTOM (shrink-0) */}
                   <div className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 z-20">
                   {studentInputPiiNotice && (
-                    <p id="student-chat-pii-notice" role="status" className="px-4 pt-3 text-xs font-bold text-amber-800 dark:text-amber-300">
+                    <p id="student-chat-pii-notice" role="status" className="px-4 pt-3 text-xs font-bold text-stone-800 dark:text-stone-300">
                       {studentInputPiiNotice}
                     </p>
                   )}
@@ -3011,7 +3011,7 @@ export function TeacherDashboard() {
                       placeholder="הקלידו הודעה לתלמיד..."
                       aria-invalid={studentInputPiiNotice ? true : undefined}
                       aria-describedby={studentInputPiiNotice ? "student-chat-pii-notice" : undefined}
-                      className={`flex-1 bg-slate-50 dark:bg-slate-800 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-white ${studentInputPiiNotice ? 'border-amber-400 focus:ring-amber-400' : 'border-slate-200 dark:border-slate-700 focus:ring-violet-500'}`}
+                      className={`flex-1 bg-slate-50 dark:bg-slate-800 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-white ${studentInputPiiNotice ? 'border-stone-400 focus:ring-stone-400' : 'border-slate-200 dark:border-slate-700 focus:ring-violet-500'}`}
                     />
 
                     <button
