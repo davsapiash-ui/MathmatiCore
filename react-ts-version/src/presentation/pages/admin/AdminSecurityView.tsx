@@ -34,7 +34,7 @@ function StatusRow({
         className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
           active
             ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-            : "bg-slate-400/10 text-slate-400"
+            : "bg-slate-400/10 text-slate-600"
         }`}
       >
         {active ? <CheckCircle2 className="w-5 h-5" /> : <MinusCircle className="w-5 h-5" />}
@@ -46,13 +46,13 @@ function StatusRow({
             className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
               active
                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
             }`}
           >
             {active ? "אכיפה פעילה" : "לא מוגדר"}
           </span>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{detail}</p>
+        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{detail}</p>
       </div>
     </div>
   );
@@ -61,17 +61,17 @@ function StatusRow({
 export function AdminSecurityView() {
   return (
     <div className="p-6 md:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-8 text-white shadow-2xl border border-indigo-500/20">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-violet-50 dark:bg-slate-900 p-8 text-slate-900 dark:text-white shadow-sm border border-violet-200 dark:border-violet-900/60">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 text-xs font-semibold">
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>מדיניות אבטחה והרשאות שרת</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
             ניהול אבטחה וזהויות
           </h1>
-          <p className="text-slate-300 text-sm md:text-base font-light max-w-3xl">
+          <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base max-w-3xl">
             תצוגת מצב בלבד. כללי האבטחה וההרשאות נאכפים ברמת מסדי הנתונים והאחסון בענן (Firestore, Realtime DB, Storage), ומוחלים אוטומטית בתהליך הפריסה המאובטח.
           </p>
         </div>
@@ -81,10 +81,10 @@ export function AdminSecurityView() {
         <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
           <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Fingerprint className="w-5 h-5 text-indigo-500" />
+              <Fingerprint className="w-5 h-5 text-violet-500" />
               הזדהות אחידה (SSO)
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               מנגנוני ההזדהות המאובטחים הפעילים עבור צוות ההוראה.
             </p>
           </div>
@@ -107,10 +107,10 @@ export function AdminSecurityView() {
           <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
             <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Clock className="w-5 h-5 text-amber-500" />
+                <Clock className="w-5 h-5 text-stone-500" />
                 מדיניות ניתוק בעת חוסר פעילות
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                 פרקי הזמן הנאכפים במערכת לשמירה על אבטחת החשבון.
               </p>
             </div>
@@ -120,7 +120,7 @@ export function AdminSecurityView() {
                 <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
                   צוות (מורים ומנהלים)
                 </span>
-                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
+                <span className="text-sm font-black text-violet-600 dark:text-violet-400 tabular-nums">
                   {STAFF_IDLE_TIMEOUT_MINUTES} דקות חוסר פעילות
                 </span>
               </div>
@@ -128,7 +128,7 @@ export function AdminSecurityView() {
                 <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
                   תלמידים
                 </span>
-                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
+                <span className="text-sm font-black text-violet-600 dark:text-violet-400 tabular-nums">
                   {STUDENT_IDLE_TIMEOUT_MINUTES} דקות מסגירת החלון
                 </span>
               </div>
@@ -160,7 +160,7 @@ export function AdminSecurityView() {
               </li>
             </ul>
 
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3 leading-relaxed">
+            <p className="text-[11px] text-slate-600 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3 leading-relaxed">
               עדכון כללי ההרשאות מתבצע בקובצי האבטחה ונפרס באופן אוטומטי ומבוקר בענן.
             </p>
           </AccessibleCard>

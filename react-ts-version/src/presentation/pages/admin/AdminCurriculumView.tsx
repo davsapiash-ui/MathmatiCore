@@ -212,18 +212,18 @@ export function AdminCurriculumView() {
   return (
     <div className="p-6 md:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 p-8 text-white shadow-2xl border border-purple-500/20">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-violet-50 dark:bg-slate-900 p-8 text-slate-900 dark:text-white shadow-sm border border-violet-200 dark:border-violet-900/60">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-300 text-xs font-semibold">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 text-xs font-semibold">
               <BookOpen className="w-3.5 h-3.5" />
               <span>תוכנית הלימודים והפצה מרוכזת</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
               קטלוג פדגוגי וכיול מנוע הלמידה
             </h1>
-            <p className="text-slate-300 text-sm md:text-base font-light">
+            <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base">
               מאגרי המשימות של 8 המפגשים (משימות חובה, ביסוס ואתגר לפי מסלול), פרסום התוכן למסד הנתונים וכיול סף ההיסוס של רדאר הלמידה.
             </p>
           </div>
@@ -242,7 +242,7 @@ export function AdminCurriculumView() {
             <button
               onClick={handlePublishCatalog}
               disabled={isPublishingCatalog}
-              className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              className="px-5 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-violet-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
             >
               <BookOpen className="w-4 h-4" />
               <span>{isPublishingCatalog ? 'מפרסם תוכנית לימודים...' : 'פרסום תוכנית הלימודים'}</span>
@@ -257,7 +257,7 @@ export function AdminCurriculumView() {
           role="status"
           className={`rounded-2xl border px-5 py-4 flex items-start gap-3 text-sm ${
             freshnessError || freshness?.status === 'stale'
-              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+              ? 'bg-stone-50 dark:bg-stone-950/40 border-stone-300 dark:border-stone-800 text-stone-900 dark:text-stone-200'
               : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
           }`}
         >
@@ -285,7 +285,7 @@ export function AdminCurriculumView() {
               <Layers className="w-5 h-5 text-purple-600" />
               קטלוג מפגשי הלמידה (משימות חובה + משימות בחירה לפי מסלול)
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               מבנה המשימות המוצג לתלמידים — נגזר ישירות ממאגרי התוכן המפורסמים במערכת
             </p>
           </div>
@@ -319,7 +319,7 @@ export function AdminCurriculumView() {
                       <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
                         {item.sessionTitle}
                       </h3>
-                      <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5">
+                      <div className="flex items-center gap-3 text-[11px] text-slate-600 mt-0.5">
                         <span>
                           {item.unscored
                             ? `${compulsoryCount} תרגילי ריענון, ללא ציון`
@@ -335,7 +335,7 @@ export function AdminCurriculumView() {
                     </div>
                   </div>
 
-                  <div className="text-slate-400">
+                  <div className="text-slate-600">
                     {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                   </div>
                 </button>
@@ -345,7 +345,7 @@ export function AdminCurriculumView() {
                     {item.banks.map((bank) => (
                       <div key={bank.label} className="grid md:grid-cols-2 gap-4">
                         <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
-                          <div className="text-xs font-bold text-indigo-600 flex items-center gap-1">
+                          <div className="text-xs font-bold text-violet-600 flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>{bank.label}: {item.unscored ? "שלבי היכרות ותרגילי ריענון, ללא ציון" : "משימות חובה"} ({bank.compulsory.length})</span>
                           </div>
@@ -357,12 +357,12 @@ export function AdminCurriculumView() {
                         </div>
 
                         <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
-                          <div className="text-xs font-bold text-amber-600 flex items-center gap-1">
+                          <div className="text-xs font-bold text-stone-600 flex items-center gap-1">
                             <Sparkles className="w-3.5 h-3.5" />
                             <span>משימות בחירה לאחר 7 החובה</span>
                           </div>
                           {bank.reinforcement.length === 0 && bank.challenge.length === 0 ? (
-                            <p className="text-xs text-slate-400">אין משימות בחירה במפגש זה.</p>
+                            <p className="text-xs text-slate-600">אין משימות בחירה במפגש זה.</p>
                           ) : (
                             <div className="text-xs text-slate-600 dark:text-slate-300 space-y-2">
                               {bank.reinforcement.length > 0 && (
@@ -373,7 +373,7 @@ export function AdminCurriculumView() {
                               )}
                               {bank.challenge.length > 0 && (
                                 <div>
-                                  <div className="font-bold text-amber-700 dark:text-amber-300">אתגר ({bank.challenge.length})</div>
+                                  <div className="font-bold text-stone-700 dark:text-stone-300">אתגר ({bank.challenge.length})</div>
                                   <ul className="list-disc list-inside pr-1">{bank.challenge.map((t, idx) => <li key={idx}>{t}</li>)}</ul>
                                 </div>
                               )}
@@ -395,10 +395,10 @@ export function AdminCurriculumView() {
         <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
           <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <SlidersHorizontal className="w-5 h-5 text-indigo-500" />
+              <SlidersHorizontal className="w-5 h-5 text-violet-500" />
               כיול הרדאר הפדגוגי השקט (Trace Data Calibration)
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               הגדרת סף הרגישות שבו הרדאר של המורה מסמן קושי סמוי במהלך עבודת התלמיד
             </p>
           </div>
@@ -409,7 +409,7 @@ export function AdminCurriculumView() {
                 <label className="font-bold text-sm text-slate-800 dark:text-slate-200">
                   סף זיהוי השהיה וחשיבה (Hesitation Threshold)
                 </label>
-                <span className="font-black text-indigo-600 dark:text-indigo-400 text-base font-mono bg-indigo-50 dark:bg-indigo-950 px-3 py-1 rounded-xl border border-indigo-200 dark:border-indigo-800">
+                <span className="font-black text-violet-600 dark:text-violet-400 text-base font-mono bg-violet-50 dark:bg-violet-950 px-3 py-1 rounded-xl border border-violet-200 dark:border-violet-800">
                   {hesitationThreshold} שניות
                 </span>
               </div>
@@ -419,12 +419,12 @@ export function AdminCurriculumView() {
                 max="120" 
                 value={hesitationThreshold}
                 onChange={(e) => setHesitationThreshold(parseInt(e.target.value, 10))}
-                className="w-full accent-indigo-600 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer" 
+                className="w-full accent-violet-600 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer" 
               />
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 משך הזמן (בשניות) שבו הלומד משתהה ללא פעולה במרחב הלמידה, בטרם הריבוע שלו מסמן היסוס ברדאר של המורה.
               </p>
-              <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed font-semibold">
+              <p className="text-xs text-stone-700 dark:text-stone-400 leading-relaxed font-semibold">
                 הסף הזה נוגע לרדאר של המורה בלבד. כרטיס החניכה שהלומד מקבל קבוע על 45 שניות לפי האפיון, ואינו זז עם הסליידר.
               </p>
             </div>
@@ -438,7 +438,7 @@ export function AdminCurriculumView() {
 
             <UdlButton 
               semanticColor="primary" 
-              className="w-full justify-center py-3.5 rounded-2xl font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 cursor-pointer disabled:opacity-50"
+              className="w-full justify-center py-3.5 rounded-2xl font-bold bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/25 cursor-pointer disabled:opacity-50"
               onClick={handleSaveCalibration}
               disabled={isSavingCalibration}
             >

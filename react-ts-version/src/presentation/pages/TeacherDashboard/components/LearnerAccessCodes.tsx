@@ -42,10 +42,10 @@ export function LearnerAccessCodes() {
     <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none">
       <div className="mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-          <KeyRound className="w-6 h-6 text-indigo-600" />
+          <KeyRound className="w-6 h-6 text-violet-600" />
           קודי גישה
         </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
           לכל תלמיד קוד גישה אישי בן 4 ספרות. מסרו לכל תלמיד את הקוד שלו. אחרי "קוד חדש" הקוד הקודם אינו פעיל עוד.
         </p>
       </div>
@@ -70,7 +70,7 @@ export function LearnerAccessCodes() {
                 onClick={() => handleNewCode(id)}
                 disabled={busyId !== null}
                 aria-label={`קוד חדש לתלמיד ${id}`}
-                className="w-full py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-slate-800 dark:text-indigo-300 dark:border-indigo-800 disabled:opacity-50"
+                className="w-full py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-white hover:bg-violet-50 text-violet-700 border border-violet-200 dark:bg-slate-800 dark:text-violet-300 dark:border-violet-800 disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${busyId === id ? 'animate-spin' : ''}`} />
                 <span>קוד חדש</span>

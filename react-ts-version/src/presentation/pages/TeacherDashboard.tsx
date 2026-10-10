@@ -1722,7 +1722,7 @@ export function TeacherDashboard() {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-50">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
           <p className="text-slate-600 font-medium">טוען נתוני תלמידים...</p>
         </div>
       </div>
@@ -1738,7 +1738,7 @@ export function TeacherDashboard() {
       // and only the page (main) scrolls, with its own scrollbar beside it
       // (owner, 6.10.2026: the page scrolled with the window's bar, beyond the
       // menu, and the bar beside the page belonged to the menu).
-      className="flex flex-col min-h-screen md:h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 overflow-x-clip"
+      className="flex flex-col min-h-screen md:h-screen bg-slate-50 font-sans text-slate-900 selection:bg-violet-100 overflow-x-clip"
       data-load-timed-out={loadTimedOut ? 'true' : undefined}
       dir="rtl"
     >
@@ -1780,7 +1780,7 @@ export function TeacherDashboard() {
             aria-expanded={!sidebarCollapsed}
             aria-label={sidebarCollapsed ? 'פתיחת התפריט' : 'כיווץ התפריט'}
             title={sidebarCollapsed ? 'פתיחת התפריט' : 'כיווץ התפריט'}
-            className="hidden md:inline-flex items-center justify-center w-9 h-9 rounded-xl text-ws-soft hover:bg-ws-bg hover:text-ws-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent cursor-pointer"
+            className="hidden md:inline-flex items-center justify-center w-9 h-9 rounded-xl text-ws-soft hover:bg-ws-bg hover:text-ws-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 cursor-pointer"
           >
             {sidebarCollapsed ? <PanelRightOpen className="w-5 h-5" /> : <PanelRightClose className="w-5 h-5" />}
           </button>
@@ -1798,7 +1798,7 @@ export function TeacherDashboard() {
               // released the children's screens when it opened or closed.
               onClick={() => window.open('/projector', 'mathmaticore_projector')}
               title="ארגז חול למקרן"
-              className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 shadow-md font-bold text-sm"
+              className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 shadow-md font-bold text-sm"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
               <span className={sidebarCollapsed ? 'md:sr-only' : ''}>ארגז חול למקרן</span>
@@ -1807,7 +1807,7 @@ export function TeacherDashboard() {
         </div>
 
         <nav role="tablist" aria-orientation="vertical" aria-label="המסך של המורה" className={`flex-1 flex flex-col gap-2 ${sidebarCollapsed ? 'p-4 md:p-2' : 'p-4'}`}>
-          <div className={`text-[10px] font-bold text-slate-400  mb-2 mt-2 px-2 uppercase tracking-widest ${sidebarCollapsed ? 'md:sr-only' : ''}`}>
+          <div className={`text-[10px] font-bold text-slate-600  mb-2 mt-2 px-2 uppercase tracking-widest ${sidebarCollapsed ? 'md:sr-only' : ''}`}>
             פדגוגיה ומעקב
           </div>
           <button
@@ -1815,7 +1815,7 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("heatmap")}
               role="tab"
               aria-selected={activeTab === "heatmap"}
-            className={`w-full flex items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "heatmap" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+            className={`w-full flex items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "heatmap" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
             title="הרדאר הפדגוגי השקט"
           >
             <span className="flex items-center gap-2"><Radar className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>הרדאר הפדגוגי השקט</span></span>
@@ -1825,7 +1825,7 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("clustering")}
               role="tab"
               aria-selected={activeTab === "clustering"}
-            className={`w-full flex items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "clustering" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full flex items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "clustering" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
             title="מיפוי מיומנויות כיתתי"
           >
             <span className="flex items-center gap-2"><LayoutGrid className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>מיפוי מיומנויות כיתתי</span></span>
@@ -1835,7 +1835,7 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("diagnostic_reports")}
               role="tab"
               aria-selected={activeTab === "diagnostic_reports"}
-            className={`w-full flex items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "diagnostic_reports" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+            className={`w-full flex items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "diagnostic_reports" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
             title="דוחות אבחון אישיים"
           >
             <span className="flex items-center gap-2"><FileText className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>דוחות אבחון אישיים</span></span>
@@ -1844,12 +1844,12 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("approvals")}
               role="tab"
               aria-selected={activeTab === "approvals"}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "approvals" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "approvals" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
           >
             <span className="flex items-center gap-2" title={TEACHER_GATE_HE}><ShieldCheck className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>{TEACHER_GATE_HE}</span></span>
             {/* Badge: learners waiting at the Module 20 gate. */}
             {pendingApprovalsBadgeCount > 0 && (
-              <span className="bg-ws-accent text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+              <span className="bg-violet-700 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
                 {pendingApprovalsBadgeCount}
               </span>
             )}
@@ -1859,12 +1859,12 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("class_management")}
               role="tab"
               aria-selected={activeTab === "class_management"}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "class_management" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "class_management" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             <span className="flex items-center gap-2" title="ניהול כיתה ותנאי למידה"><School className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>ניהול כיתה ותנאי למידה</span></span>
           </button>
 
-          <div className={`text-[10px] font-bold text-slate-400  mb-2 mt-6 px-2 uppercase tracking-widest ${sidebarCollapsed ? 'md:sr-only' : ''}`}>
+          <div className={`text-[10px] font-bold text-slate-600  mb-2 mt-6 px-2 uppercase tracking-widest ${sidebarCollapsed ? 'md:sr-only' : ''}`}>
             תקשורת וצ'אט
           </div>
           <button
@@ -1872,7 +1872,7 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("chat_students")}
               role="tab"
               aria-selected={activeTab === "chat_students"}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${activeTab === "chat_students" ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "chat_students" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             <span className="flex items-center gap-2" title="צ'אט עם תלמידים"><MessageCircle className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>צ'אט עם תלמידים</span></span>
             {unreadStudentsCount > 0 && (
@@ -1883,11 +1883,11 @@ export function TeacherDashboard() {
           </button>
           <button
             onClick={() => setIsAdminChatDrawerOpen(true)}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ws-accent focus-visible:ring-offset-2 ${isAdminChatDrawerOpen ? "bg-ws-accentSoft text-ws-accent font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${isAdminChatDrawerOpen ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
             <span className="flex items-center gap-2" title="צ'אט הנהלה"><Mail className="w-4 h-4 shrink-0" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>צ'אט הנהלה</span></span>
             {unreadAdminCount > 0 && (
-              <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg shadow-indigo-600/30 animate-bounce">
+              <span className="bg-violet-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg shadow-violet-600/30 animate-bounce">
                 {unreadAdminCount}
               </span>
             )}
@@ -1906,7 +1906,7 @@ export function TeacherDashboard() {
           the typing line is always in view. Only the message list scrolls. */}
       <main className={`flex-1 min-w-0 md:min-h-0 md:h-full overflow-y-auto custom-scrollbar p-4 md:p-8 relative ${activeTab === "chat_students" ? "md:flex md:flex-col" : ""}`}>
         {/* Subtle background glow effect */}
-        <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
+        <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-violet-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
 
         {/* Class Session Control Bar — the one bar for the live lesson (owner,
@@ -1917,7 +1917,7 @@ export function TeacherDashboard() {
         <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col min-[1700px]:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div aria-hidden="true" className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${
-              classSessionStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : classSessionStatus === 'paused' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
+              classSessionStatus === 'active' ? 'bg-violet-100 text-violet-700' : classSessionStatus === 'paused' ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-600'
             }`}>
               {classSessionStatus === 'active' ? <Play className="w-6 h-6" /> : classSessionStatus === 'paused' ? <Pause className="w-6 h-6" /> : <School className="w-6 h-6" />}
             </div>
@@ -1931,14 +1931,14 @@ export function TeacherDashboard() {
                     : 'ניהול המפגש בזמן אמת'}
                 </h3>
                 {classSessionStatus === 'active' && (
-                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                  <span className="bg-violet-50 text-violet-800 border border-violet-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-violet-600"></span>
                     פתוח ללמידה
                   </span>
                 )}
                 {classSessionStatus === 'paused' && (
-                  <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  <span className="bg-stone-50 text-stone-700 border border-stone-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-stone-500"></span>
                     מושהה · התלמידים ממתינים
                   </span>
                 )}
@@ -1967,7 +1967,7 @@ export function TeacherDashboard() {
               onClick={openUnreadStudentChat}
               aria-label={unreadStudentsCount > 0 ? `הודעות מתלמידים, ${unreadStudentsCount} שלא נקראו` : 'הודעות מתלמידים'}
               title="הודעות מתלמידים"
-              className="relative inline-flex items-center gap-2 min-h-11 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-xl shadow-sm font-bold text-xs transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/40 cursor-pointer"
+              className="relative inline-flex items-center gap-2 min-h-11 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-xl shadow-sm font-bold text-xs transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/40 cursor-pointer"
             >
               <MessageCircle className="w-4 h-4" />
               <span>הודעות מתלמידים</span>
@@ -1983,7 +1983,7 @@ export function TeacherDashboard() {
             <select
               value={pickedSessionNum}
               onChange={(e) => setPickedSessionNum(parseInt(e.target.value, 10))}
-              className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+              className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer shadow-sm"
             >
               {sessionRows.map((row) => (
                 <option key={row.sessionNumber} value={row.sessionNumber}>
@@ -1996,7 +1996,7 @@ export function TeacherDashboard() {
               onClick={() => setPendingActivationSession(pickedSessionNum)}
               disabled={(isClassSessionActive && pickedSessionNum === selectedSessionNum) || isUpdatingSession || isStartingSession}
               title={isClassSessionActive && pickedSessionNum === selectedSessionNum ? `${meetingShortLabelHe(pickedSessionNum)} כבר פתוח עכשיו` : `פתיחת ${meetingShortLabelHe(pickedSessionNum)} לכל הכיתה`}
-              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="px-6 py-2.5 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
             >
               <Play className="w-4 h-4" aria-hidden="true" />
               <span>הפעילו מפגש</span>
@@ -2007,7 +2007,7 @@ export function TeacherDashboard() {
                   <button
                     onClick={handleResumeClassSession}
                     disabled={isUpdatingSession}
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                    className="px-5 py-2.5 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                   >
                     {isUpdatingSession ? (
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2020,7 +2020,7 @@ export function TeacherDashboard() {
                   <button
                     onClick={handlePauseClassSession}
                     disabled={isUpdatingSession}
-                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                    className="px-5 py-2.5 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                   >
                     {isUpdatingSession ? (
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2033,7 +2033,7 @@ export function TeacherDashboard() {
                 <button
                   onClick={() => { void requestCloseClassSession(); }}
                   disabled={isUpdatingSession || isSavingCatchUp}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 bg-rose-800 hover:bg-rose-900 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
                   {isUpdatingSession ? (
                     <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2056,9 +2056,9 @@ export function TeacherDashboard() {
         {catchUpMeeting !== null && unfinishedInCatchUpMeeting.length > 0 && (
           <section
             aria-labelledby="catchup-unfinished-title"
-            className="-mt-3 mb-6 shrink-0 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl px-5 py-3 flex flex-col gap-2"
+            className="-mt-3 mb-6 shrink-0 bg-stone-50 dark:bg-stone-950/30 border border-stone-200 dark:border-stone-900 rounded-2xl px-5 py-3 flex flex-col gap-2"
           >
-            <h3 id="catchup-unfinished-title" className="font-extrabold text-sm text-amber-950 dark:text-amber-100">
+            <h3 id="catchup-unfinished-title" className="font-extrabold text-sm text-stone-950 dark:text-stone-100">
               {unfinishedInCatchUpMeeting.length === 1
                 ? `תלמיד אחד ${isClassSessionActive ? 'עוד ' : ''}לא סיים את מפגש ${catchUpMeeting}`
                 : `${unfinishedInCatchUpMeeting.length} תלמידים ${isClassSessionActive ? 'עוד ' : ''}לא סיימו את מפגש ${catchUpMeeting}`}
@@ -2067,7 +2067,7 @@ export function TeacherDashboard() {
               {unfinishedInCatchUpMeeting.map((l) => (
                 <li
                   key={l.studentNumber}
-                  className="px-3 py-1 rounded-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-xs font-bold text-slate-800 dark:text-slate-200"
+                  className="px-3 py-1 rounded-full bg-white dark:bg-slate-900 border border-stone-200 dark:border-stone-800 text-xs font-bold text-slate-800 dark:text-slate-200"
                 >
                   תלמיד {l.studentNumber} · {l.stoppedAtHe}
                 </li>
@@ -2100,7 +2100,7 @@ export function TeacherDashboard() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-l from-slate-900 via-indigo-950 to-slate-700 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
+                <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-l from-slate-900 via-violet-950 to-slate-700 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
                   קיבוץ תלמידים לפי מיומנויות ופערי למידה
                 </h1>
                 <p className="text-ws-soft mt-2 text-base md:text-lg">
@@ -2118,12 +2118,12 @@ export function TeacherDashboard() {
             {studentsWithMastery === 0 && (
               <div
                 role="status"
-                className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-5"
+                className="mb-6 flex items-start gap-3 rounded-2xl border border-stone-200 dark:border-stone-900 bg-stone-50 dark:bg-stone-950/30 p-5"
               >
                 <span aria-hidden="true" className="text-2xl leading-none">▲</span>
                 <div>
-                  <p className="font-bold text-amber-950 dark:text-amber-100">מיפוי המיומנויות עדיין ריק</p>
-                  <p className="text-sm text-amber-900/80 dark:text-amber-200/80 mt-1">
+                  <p className="font-bold text-stone-950 dark:text-stone-100">מיפוי המיומנויות עדיין ריק</p>
+                  <p className="text-sm text-stone-900/80 dark:text-stone-200/80 mt-1">
                     המיפוי נוצר לכל תלמיד בסיום מפגש האבחון (מפגש 2). כל עוד אף תלמיד לא סיים אותו,
                     הקבוצות והגרף שלמטה ריקים — זה אינו אומר שאין פערים.
                   </p>
@@ -2141,14 +2141,14 @@ export function TeacherDashboard() {
             </div>
 
             <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl mb-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <h2 className="text-2xl font-bold mb-8 flex items-center gap-3">
-                <span className="w-1.5 h-6 bg-ws-accentSoft0 rounded-full"></span>
+                <span className="w-1.5 h-6 bg-violet-500 rounded-full"></span>
                 התפלגות שליטה במיומנויות (כיתה שלמה)
               </h2>
               <div className="h-[350px] w-full relative z-10" dir="ltr">
                 {qMatrixData.every(d => d.success === 0 && d.struggle === 0) ? (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-500 bg-slate-50/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <div className="h-full flex flex-col items-center justify-center text-slate-600 bg-slate-50/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800">
                     <span className="text-5xl mb-4 opacity-40 animate-pulse">📊</span>
                     <p className="font-bold text-lg text-slate-600 dark:text-slate-300">אין עדיין נתונים מהתלמידים</p>
                     <p className="text-sm opacity-80 mt-1">התפלגות השליטה תוצג כאן לאחר סיום שלב האבחון</p>
@@ -2222,7 +2222,7 @@ export function TeacherDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6 pb-6">
               {(!activeClusterFilter || activeClusterFilter === 'decimal_structure') && (
               <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-violet-600"></div>
                 <div>
                   <h3 className="text-xl font-bold mb-3 text-ws-ink">
                     {CONCEPT_LABELS_HE.decimal_structure}
@@ -2253,7 +2253,7 @@ export function TeacherDashboard() {
                   הקבצה = tasks 5 and 6, פריטה = tasks 3 and 7. */}
               {(!activeClusterFilter || activeClusterFilter === 'regrouping_fluency') && (
               <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-violet-600"></div>
                 <div>
                   <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
                     {CONCEPT_LABELS_HE.regrouping_fluency}
@@ -2288,7 +2288,7 @@ export function TeacherDashboard() {
 
               {(!activeClusterFilter || activeClusterFilter === 'procedural_fluency') && (
               <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-rose-500 to-red-500"></div>
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-violet-600"></div>
                 <div>
                   <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
                     {CONCEPT_LABELS_HE.procedural_fluency}
@@ -2353,9 +2353,9 @@ export function TeacherDashboard() {
                 onClick={toggleClassReport}
                 aria-expanded={classReportOpen}
                 data-testid="class-report-toggle"
-                className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-2xl border border-ws-surface2 bg-ws-surface text-sm font-black text-ws-ink hover:border-ws-accent/40 cursor-pointer"
+                className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-2xl border border-ws-surface2 bg-ws-surface text-sm font-black text-ws-ink hover:border-violet-600/40 cursor-pointer"
               >
-                <span className="flex items-center gap-2"><Users className="w-4 h-4 text-indigo-500" aria-hidden="true" />דוח כיתה למפגש</span>
+                <span className="flex items-center gap-2"><Users className="w-4 h-4 text-violet-500" aria-hidden="true" />דוח כיתה למפגש</span>
                 <span className="text-xs font-bold text-ws-soft">{classReportOpen ? 'הסתרה ▴' : 'הצגה ▾'}</span>
               </button>
               {classReportOpen && (
@@ -2385,9 +2385,9 @@ export function TeacherDashboard() {
               const getQStatus = (val: unknown) => {
                 switch (getQTaskStatus(val)) {
                   case 'not_attempted':
-                    return { text: 'טרם ניגש', icon: '—', color: 'text-slate-400 dark:text-slate-500' };
+                    return { text: 'טרם ניגש', icon: '—', color: 'text-slate-600 dark:text-slate-500' };
                   case 'mastered':
-                    return { text: 'שולט', icon: '✓', color: 'text-emerald-700 dark:text-emerald-400' };
+                    return { text: 'שולט', icon: '✓', color: 'text-violet-700 dark:text-violet-300' };
                   default:
                     return { text: 'דרוש חיזוק', icon: '▲', color: 'text-rose-700 dark:text-rose-400' };
                 }
@@ -2396,7 +2396,7 @@ export function TeacherDashboard() {
               return (
                 <>
                 {noLearnerFromLink && (
-                  <p role="alert" className="mb-4 rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-5 py-3 text-sm font-bold text-amber-950 dark:text-amber-100">
+                  <p role="alert" className="mb-4 rounded-2xl border border-stone-200 dark:border-stone-900 bg-stone-50 dark:bg-stone-950/30 px-5 py-3 text-sm font-bold text-stone-950 dark:text-stone-100">
                     הקישור לא מוביל לאף תלמיד בכיתה. מספרי התלמידים הם 1 עד 12. בחרו תלמיד מהרשימה.
                   </p>
                 )}
@@ -2424,12 +2424,12 @@ export function TeacherDashboard() {
                             title={`תלמיד ${sNumItem}${studentItem.isOnline ? ' · מחובר כעת' : ''}`}
                             className={`relative min-w-9 h-9 px-2 inline-flex items-center justify-center rounded-xl text-sm font-bold transition-all cursor-pointer border ${
                               isSelected
-                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20'
+                                ? 'bg-violet-600 text-white border-violet-600 shadow-md shadow-violet-600/20'
                                 : 'bg-white dark:bg-slate-800 text-ws-ink border-slate-200 dark:border-slate-700 hover:bg-ws-bg/80'
                             }`}
                           >
                             {sNumItem}
-                            {studentItem.isOnline && <span aria-hidden="true" className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                            {studentItem.isOnline && <span aria-hidden="true" className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-violet-400" />}
                           </button>
                         );
                       })}
@@ -2439,7 +2439,7 @@ export function TeacherDashboard() {
                   <div className="flex-1 flex flex-col gap-6">
                     {!s ? (
                       <div className="p-12 text-center bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-                        <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4 text-slate-400">
+                        <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4 text-slate-600">
                           <Users className="w-8 h-8" />
                         </div>
                         <h3 className="text-xl font-bold text-ws-ink mb-2">יש לבחור תלמיד מהרשימה להצגת מסע הלמידה ודוח האבחון</h3>
@@ -2469,10 +2469,10 @@ export function TeacherDashboard() {
                                 </h3>
                                 <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${
                                   s.isOnline
-                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300'
+                                    ? 'bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300'
                                     : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
                                 }`}>
-                                  <span className={`w-2 h-2 rounded-full ${s.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                                  <span className={`w-2 h-2 rounded-full ${s.isOnline ? 'bg-violet-600' : 'bg-slate-400'}`} />
                                   {s.isOnline ? 'מחובר כעת' : 'לא מחובר'}
                                 </span>
                                 {s.physicalOverride && (
@@ -2484,9 +2484,9 @@ export function TeacherDashboard() {
                                   !hasCompletedDiagnosticM2
                                     ? 'bg-slate-100 text-slate-700 border-slate-200'
                                     : journeyRecommendation === 'remediation_path'
-                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    ? 'bg-stone-50 text-stone-700 border-stone-200'
                                     : journeyRecommendation === 'green_path'
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    ? 'bg-violet-50 text-violet-800 border-violet-200'
                                     : 'bg-slate-100 text-slate-700 border-slate-200'
                                 }`}>
                                   {!hasCompletedDiagnosticM2
@@ -2502,7 +2502,7 @@ export function TeacherDashboard() {
                                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700/70 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-600 shadow-sm transition-all active:scale-95 cursor-pointer"
                                   title="שקט חזותי לתלמיד ושחזור מהלכים"
                                 >
-                                  <Sliders className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                  <Sliders className="w-4 h-4 text-violet-600 dark:text-violet-400" />
                                   <span>התאמת תנאי למידה</span>
                                 </button>
 
@@ -2510,10 +2510,10 @@ export function TeacherDashboard() {
                                 {hasCompletedDiagnosticM2 && (
                                   <button
                                     onClick={() => setGateStudent(s)}
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/25 transition-all active:scale-95 cursor-pointer"
+                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-700 hover:bg-violet-800 text-white font-bold text-xs rounded-xl shadow-md shadow-violet-600/25 transition-all active:scale-95 cursor-pointer"
                                     title={`${TEACHER_GATE_HE}: אישור המסלול למפגש 3`}
                                   >
-                                    <Sparkles className="w-4 h-4 text-amber-300" />
+                                    <Sparkles className="w-4 h-4 text-stone-300" />
                                     <span>{TEACHER_GATE_HE}</span>
                                     {!(s.routeStatus === 'APPROVED' || (s as any).teacher_gate_approved) && (
                                       <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-md font-semibold">ממתין לאישור</span>
@@ -2537,7 +2537,7 @@ export function TeacherDashboard() {
                               {(
                                 <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-ws-surface2 shadow-md rounded-2xl h-full">
                                   <h3 className="text-xl font-bold text-ws-ink mb-1 flex items-center gap-2">
-                                    <span className="text-ws-accent">📊</span>
+                                    <span className="text-violet-800">📊</span>
                                     תוצאות מיפוי מיומנויות היסוד ({meetingShortLabelHe(2)})
                                   </h3>
                                   <p className="text-xs text-ws-soft mb-4">שבע משימות אבחון בשלושה תחומים: המבנה העשרוני והאפס, הקבצה ופריטה, וחישוב במאונך. ליד משימה שמודדת הקבצה או פריטה כתוב איזו מהשתיים. "שליטה" מעידה על פתרון מדויק בניסיון ראשון.</p>
@@ -2564,9 +2564,9 @@ export function TeacherDashboard() {
                               )}
 
                               {/* Trace Data & AI Plan */}
-                              <AccessibleCard className="p-6 border shadow-md rounded-2xl flex flex-col h-full bg-indigo-50/40 border-indigo-100">
+                              <AccessibleCard className="p-6 border shadow-md rounded-2xl flex flex-col h-full bg-violet-50/40 border-violet-100">
                                 <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
-                                  <span className="text-ws-accent">🧭</span>
+                                  <span className="text-violet-800">🧭</span>
                                   סיכום האבחון והמסלול
                                 </h3>
                                 
@@ -2591,31 +2591,31 @@ export function TeacherDashboard() {
 
                                   {/* Clinical Diagnosis & Action Plan - Only rendered when real diagnostic exists */}
                                   {!hasCompletedDiagnosticM2 ? (
-                                    <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-indigo-100 dark:border-indigo-900 shadow-sm">
-                                      <h4 className="font-bold text-indigo-900 mb-2 text-base flex items-center gap-2">
-                                        <span className="text-indigo-600">ℹ️</span>
+                                    <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-violet-100 dark:border-violet-900 shadow-sm">
+                                      <h4 className="font-bold text-violet-900 mb-2 text-base flex items-center gap-2">
+                                        <span className="text-violet-600">ℹ️</span>
                                         סטטוס מיפוי פדגוגי
                                       </h4>
-                                      <div className="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-100 text-indigo-950 text-xs leading-relaxed">
+                                      <div className="bg-violet-50/60 p-3.5 rounded-xl border border-violet-100 text-violet-950 text-xs leading-relaxed">
                                         <p className="font-bold mb-1">
                                           {hasStarted ? `${meetingShortLabelHe(1)} (${MEETING_FORMAL_HE[1]}) הושלם.` : 'התלמיד עדיין לא סיים אף מפגש.'}
                                         </p>
-                                        <p className="text-indigo-800">
+                                        <p className="text-violet-800">
                                           מיפוי מיומנויות היסוד, שאינו מוצג לתלמיד כמבחן, והמלצת המסלול ({ROUTE_NAME_HE.green_path} או {ROUTE_NAME_HE.remediation_path}) ייבנו רק מביצועי התלמיד במפגש 2.
                                         </p>
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-indigo-100 dark:border-indigo-900 shadow-sm">
-                                      <h4 className="font-bold text-indigo-900 mb-3 text-lg flex items-center gap-2">
-                                        <span className="text-indigo-600">🎯</span>
+                                    <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-violet-100 dark:border-violet-900 shadow-sm">
+                                      <h4 className="font-bold text-violet-900 mb-3 text-lg flex items-center gap-2">
+                                        <span className="text-violet-600">🎯</span>
                                         המלצות פדגוגיות ומסלול מותאם למפגש 3 ואילך:
                                       </h4>
                                       <div className="flex gap-3">
                                         <UdlButton 
                                           size="sm" 
                                           semanticColor="primary"
-                                          className="flex-1 font-bold shadow-md shadow-indigo-500/20 cursor-pointer"
+                                          className="flex-1 font-bold shadow-md shadow-violet-500/20 cursor-pointer"
                                           onClick={() => {
                                           handleTabChange("approvals");
                                         }}
@@ -2624,9 +2624,9 @@ export function TeacherDashboard() {
                                       </UdlButton>
                                       <button
                                         onClick={() => setGateStudent(s)}
-                                        className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl border border-indigo-200 dark:border-indigo-800 transition-all cursor-pointer flex items-center gap-1.5"
+                                        className="px-4 py-2 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/50 dark:hover:bg-violet-900 text-violet-700 dark:text-violet-300 font-bold text-xs rounded-xl border border-violet-200 dark:border-violet-800 transition-all cursor-pointer flex items-center gap-1.5"
                                       >
-                                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                                        <Sparkles className="w-3.5 h-3.5 text-stone-500" />
                                         <span>{TEACHER_GATE_HE}</span>
                                       </button>
                                     </div>
@@ -2693,7 +2693,7 @@ export function TeacherDashboard() {
             {/* Header */}
             <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm z-10 shrink-0">
               <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
+                <div className="w-11 h-11 rounded-2xl bg-violet-700 text-white flex items-center justify-center shadow-lg shadow-stone-500/20 shrink-0">
                   <Mail className="w-6 h-6" />
                 </div>
                 <div>
@@ -2707,7 +2707,7 @@ export function TeacherDashboard() {
               <button
                 onClick={() => setIsAdminChatDrawerOpen(false)}
                 aria-label="סגירת ערוץ השיח"
-                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white font-bold cursor-pointer shrink-0"
+                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 hover:text-slate-900 dark:hover:text-white font-bold cursor-pointer shrink-0"
               >
                 ✕
               </button>
@@ -2716,12 +2716,12 @@ export function TeacherDashboard() {
             {/* Chat Messages View */}
             <div ref={adminMessagesScrollRef} data-testid="admin-chat-messages" className="flex-1 min-h-0 p-5 overflow-y-auto flex flex-col gap-4 bg-slate-50/50 dark:bg-slate-950/50">
               {adminMessages.length === 0 ? (
-                <div className="m-auto text-center flex flex-col items-center justify-center text-slate-400 max-w-sm">
-                  <div className="w-16 h-16 rounded-full bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center mb-3 text-indigo-500">
+                <div className="m-auto text-center flex flex-col items-center justify-center text-slate-600 max-w-sm">
+                  <div className="w-16 h-16 rounded-full bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center mb-3 text-violet-500">
                     <MessageCircle className="w-8 h-8 opacity-40" />
                   </div>
                   <h4 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-1">אין הודעות קודמות</h4>
-                  <p className="text-xs text-slate-500">תוכלו להקליד פנייה חדשה למנהל המערכת.</p>
+                  <p className="text-xs text-slate-600">תוכלו להקליד פנייה חדשה למנהל המערכת.</p>
                 </div>
               ) : (
                 adminMessages.map((msg) => {
@@ -2736,13 +2736,13 @@ export function TeacherDashboard() {
                       <div
                         className={`px-4 py-2.5 rounded-2xl shadow-md ${
                           isMe
-                            ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-tl-xs"
+                            ? "bg-violet-700 text-white rounded-tl-xs"
                             : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-tr-xs"
                         }`}
                       >
                         {msg.text && <p className="leading-relaxed text-sm">{msg.text}</p>}
                       </div>
-                      <div className="text-[10px] font-medium text-slate-400 mt-1 px-2 flex items-center gap-1">
+                      <div className="text-[10px] font-medium text-slate-600 mt-1 px-2 flex items-center gap-1">
                         <span>
                           {new Date(msg.timestamp).toLocaleTimeString([], {
                             hour: "2-digit",
@@ -2751,9 +2751,9 @@ export function TeacherDashboard() {
                         </span>
                         {isMe && (
                           msg.read ? (
-                            <span title="נקרא על ידי הנהלה"><CheckCheck className="w-3.5 h-3.5 text-emerald-500" /></span>
+                            <span title="נקרא על ידי הנהלה"><CheckCheck className="w-3.5 h-3.5 text-violet-500" /></span>
                           ) : (
-                            <span title="נשלח בהצלחה"><Check className="w-3.5 h-3.5 text-slate-400" /></span>
+                            <span title="נשלח בהצלחה"><Check className="w-3.5 h-3.5 text-slate-600" /></span>
                           )
                         )}
                       </div>
@@ -2766,7 +2766,7 @@ export function TeacherDashboard() {
             {/* Input Footer - ALWAYS VISIBLE AT BOTTOM (shrink-0) */}
             <div className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 z-20">
             {adminInputPiiNotice && (
-              <p id="admin-chat-pii-notice" role="status" className="px-4 pt-3 text-xs font-bold text-amber-800 dark:text-amber-300">
+              <p id="admin-chat-pii-notice" role="status" className="px-4 pt-3 text-xs font-bold text-stone-800 dark:text-stone-300">
                 {adminInputPiiNotice}
               </p>
             )}
@@ -2780,14 +2780,14 @@ export function TeacherDashboard() {
                 disabled={isSendingAdmin}
                 aria-invalid={adminInputPiiNotice ? true : undefined}
                 aria-describedby={adminInputPiiNotice ? "admin-chat-pii-notice" : undefined}
-                className={`flex-1 bg-slate-50 dark:bg-slate-800 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-white disabled:opacity-60 ${adminInputPiiNotice ? 'border-amber-400 focus:ring-amber-400' : 'border-slate-200 dark:border-slate-700 focus:ring-indigo-500'}`}
+                className={`flex-1 bg-slate-50 dark:bg-slate-800 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-white disabled:opacity-60 ${adminInputPiiNotice ? 'border-stone-400 focus:ring-stone-400' : 'border-slate-200 dark:border-slate-700 focus:ring-violet-500'}`}
               />
 
               <button
                 onClick={handleSendAdmin}
                 disabled={!adminInputText.trim() || isSendingAdmin || adminInputPiiNotice !== null}
                 aria-label="שליחת ההודעה"
-                className="rounded-full w-10 h-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                className="rounded-full w-10 h-10 flex items-center justify-center bg-violet-600 hover:bg-violet-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0 cursor-pointer disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4 -mr-0.5" aria-hidden="true" />
               </button>
@@ -2813,13 +2813,13 @@ export function TeacherDashboard() {
                     {unreadStudentsCount > 0 && (
                       <button
                         onClick={() => markAllAsRead()}
-                        className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline transition-colors px-1"
+                        className="text-xs font-bold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 hover:underline transition-colors px-1"
                         title="סמנו את כל ההודעות כנקראו"
                       >
                         סמנו הכול כנקרא
                       </button>
                     )}
-                    <span className="text-xs font-bold px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-full border border-indigo-200/50 dark:border-indigo-800/40">
+                    <span className="text-xs font-bold px-2.5 py-1 bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400 rounded-full border border-violet-200/50 dark:border-violet-800/40">
                       {filteredChatStudents.length} תלמידים
                     </span>
                   </div>
@@ -2827,20 +2827,20 @@ export function TeacherDashboard() {
 
                 {/* Search Bar */}
                 <div className="relative">
-                  <Search className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
+                  <Search className="w-4 h-4 text-slate-600 absolute right-3 top-3" />
                   <input
                     type="text"
                     value={studentSearchQuery}
                     onChange={(e) => setStudentSearchQuery(e.target.value)}
                     placeholder="חפשו תלמיד לפי מספר..."
-                    className="w-full pl-3 pr-9 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                    className="w-full pl-3 pr-9 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-900 dark:text-white"
                   />
                 </div>
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
                 {filteredChatStudents.length === 0 ? (
-                  <div className="text-center text-xs text-slate-400 py-8">לא נמצאו תלמידים מתאימים.</div>
+                  <div className="text-center text-xs text-slate-600 py-8">לא נמצאו תלמידים מתאימים.</div>
                 ) : (
                   filteredChatStudents.map((student) => {
                     const normId = normalizeStudentId(student.studentId);
@@ -2861,14 +2861,14 @@ export function TeacherDashboard() {
                         }}
                         className={`w-full text-right p-3 rounded-2xl flex items-center justify-between transition-all ${
                           isSelected 
-                            ? "bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/20" 
+                            ? "bg-violet-600 text-white font-bold shadow-md shadow-violet-600/20" 
                             : "hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
                         }`}
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
                           <div
                             className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 relative ${
-                              isSelected ? "bg-white/20 text-white" : "bg-gradient-to-tr from-indigo-500 to-purple-600"
+                              isSelected ? "bg-white/20 text-white" : "bg-violet-700"
                             }`}
                           >
                             {(student.studentId.replace(/\D/g, '') || '1')}
@@ -2876,7 +2876,7 @@ export function TeacherDashboard() {
                                 any hesitation ever counted, and stuck on meeting 2's number. */}
                             {student.isOnline && (student as { hesitating?: { hesitating?: boolean } }).hesitating?.hesitating === true && (
                               <div
-                                className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 shadow-md"
+                                className="absolute -top-1 -right-1 bg-stone-500 text-white rounded-full p-0.5 shadow-md"
                                 title="מהסס עכשיו"
                               >
                                 <ShieldAlert className="w-3 h-3 text-white" />
@@ -2887,7 +2887,7 @@ export function TeacherDashboard() {
                             <span className={`font-bold text-sm truncate ${isSelected ? "text-white" : "text-slate-900 dark:text-white"}`}>
                               תלמיד {student.studentId.replace(/\D/g, '') || student.studentId}
                             </span>
-                            <span className={`text-xs truncate ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
+                            <span className={`text-xs truncate ${isSelected ? "text-violet-100" : "text-slate-600"}`}>
                               {lastStudentMsg?.text || 'לחצו לפתיחת שיחה'}
                             </span>
                           </div>
@@ -2919,7 +2919,7 @@ export function TeacherDashboard() {
                       </button>
                       {/* The learner's number, as in the list beside it. The first
                           letter of "תלמיד N" put a "ת" here for every learner. */}
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-md text-base shrink-0" aria-hidden="true">
+                      <div className="w-10 h-10 rounded-full bg-violet-700 flex items-center justify-center font-bold text-white shadow-md text-base shrink-0" aria-hidden="true">
                         {selectedStudentId.replace(/\D/g, '') || '?'}
                       </div>
                       {(() => {
@@ -2934,8 +2934,8 @@ export function TeacherDashboard() {
                               {currentStudent?.name || `תלמיד ${selectedStudentId.replace(/\D/g, '') || '?'}`}
                             </h3>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className={`w-2 h-2 rounded-full ${isStudentOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
-                              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                              <span className={`w-2 h-2 rounded-full ${isStudentOnline ? 'bg-violet-600' : 'bg-slate-400'}`}></span>
+                              <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
                                 {isStudentOnline ? 'מחובר כעת' : 'לא מחובר'}
                               </span>
                             </div>
@@ -2948,12 +2948,12 @@ export function TeacherDashboard() {
                   {/* Messages Scroll Area */}
                   <div ref={studentMessagesScrollRef} className="flex-1 min-h-0 p-5 overflow-y-auto flex flex-col gap-4">
                     {studentMessages.length === 0 ? (
-                      <div className="m-auto text-center flex flex-col items-center justify-center text-slate-400 max-w-sm">
-                        <div className="w-16 h-16 rounded-full bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center mb-3 text-indigo-500">
+                      <div className="m-auto text-center flex flex-col items-center justify-center text-slate-600 max-w-sm">
+                        <div className="w-16 h-16 rounded-full bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center mb-3 text-violet-500">
                           <MessageCircle className="w-8 h-8 opacity-40" />
                         </div>
                         <h4 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-1">אין הודעות קודמות</h4>
-                        <p className="text-xs text-slate-500">הקלידו הודעה או שלחו רמז פדגוגי לתלמיד.</p>
+                        <p className="text-xs text-slate-600">הקלידו הודעה או שלחו רמז פדגוגי לתלמיד.</p>
                       </div>
                     ) : (
                       studentMessages.map((msg) => {
@@ -2967,13 +2967,13 @@ export function TeacherDashboard() {
                             <div
                               className={`px-4 py-2.5 rounded-2xl shadow-md ${
                                 isMe
-                                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-tl-xs"
+                                  ? "bg-violet-700 text-white rounded-tl-xs"
                                   : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-tr-xs"
                               }`}
                             >
                               {msg.text && <p className="leading-relaxed text-sm">{msg.text}</p>}
                             </div>
-                            <div className="text-[10px] font-medium text-slate-400 mt-1 px-2 flex items-center gap-1">
+                            <div className="text-[10px] font-medium text-slate-600 mt-1 px-2 flex items-center gap-1">
                               <span>
                                 {new Date(msg.timestamp).toLocaleTimeString([], {
                                   hour: "2-digit",
@@ -2982,9 +2982,9 @@ export function TeacherDashboard() {
                               </span>
                               {isMe && (
                                 msg.read ? (
-                                  <span title="נקרא על ידי התלמיד"><CheckCheck className="w-3.5 h-3.5 text-emerald-500" /></span>
+                                  <span title="נקרא על ידי התלמיד"><CheckCheck className="w-3.5 h-3.5 text-violet-500" /></span>
                                 ) : (
-                                  <span title="נשלח בהצלחה"><Check className="w-3.5 h-3.5 text-slate-400" /></span>
+                                  <span title="נשלח בהצלחה"><Check className="w-3.5 h-3.5 text-slate-600" /></span>
                                 )
                               )}
                             </div>
@@ -2997,7 +2997,7 @@ export function TeacherDashboard() {
                   {/* Input Footer - ALWAYS VISIBLE AT BOTTOM (shrink-0) */}
                   <div className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 z-20">
                   {studentInputPiiNotice && (
-                    <p id="student-chat-pii-notice" role="status" className="px-4 pt-3 text-xs font-bold text-amber-800 dark:text-amber-300">
+                    <p id="student-chat-pii-notice" role="status" className="px-4 pt-3 text-xs font-bold text-stone-800 dark:text-stone-300">
                       {studentInputPiiNotice}
                     </p>
                   )}
@@ -3011,14 +3011,14 @@ export function TeacherDashboard() {
                       placeholder="הקלידו הודעה לתלמיד..."
                       aria-invalid={studentInputPiiNotice ? true : undefined}
                       aria-describedby={studentInputPiiNotice ? "student-chat-pii-notice" : undefined}
-                      className={`flex-1 bg-slate-50 dark:bg-slate-800 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-white ${studentInputPiiNotice ? 'border-amber-400 focus:ring-amber-400' : 'border-slate-200 dark:border-slate-700 focus:ring-indigo-500'}`}
+                      className={`flex-1 bg-slate-50 dark:bg-slate-800 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-white ${studentInputPiiNotice ? 'border-stone-400 focus:ring-stone-400' : 'border-slate-200 dark:border-slate-700 focus:ring-violet-500'}`}
                     />
 
                     <button
                       onClick={handleSendStudent}
                       disabled={!inputText.trim() || studentInputPiiNotice !== null}
                       aria-label="שליחת ההודעה"
-                      className="rounded-full w-10 h-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
+                      className="rounded-full w-10 h-10 flex items-center justify-center bg-violet-600 hover:bg-violet-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
                     >
                       <Send className="w-4 h-4 -mr-0.5" aria-hidden="true" />
                     </button>
@@ -3027,13 +3027,13 @@ export function TeacherDashboard() {
                 </>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 dark:bg-slate-950/50">
-                  <div className="w-20 h-20 rounded-3xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center mb-4 text-indigo-600 dark:text-indigo-400 shadow-sm border border-indigo-100 dark:border-indigo-900/50">
+                  <div className="w-20 h-20 rounded-3xl bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center mb-4 text-violet-600 dark:text-violet-400 shadow-sm border border-violet-100 dark:border-violet-900/50">
                     <MessageCircle className="w-10 h-10" />
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
                     שיחות פדגוגיות עם תלמידים
                   </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed">
+                  <p className="text-sm text-slate-600 dark:text-slate-400 max-w-sm leading-relaxed">
                     בחרו תלמיד מהרשימה מימין כדי להציג את היסטוריית השיחה ולהעביר הנחיות או רמזים פדגוגיים בזמן אמת.
                   </p>
                 </div>
@@ -3156,7 +3156,7 @@ export function TeacherDashboard() {
               </p>
               <button
                 onClick={() => setDeadlineNotice(null)}
-                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm cursor-pointer"
               >
                 הבנתי
               </button>

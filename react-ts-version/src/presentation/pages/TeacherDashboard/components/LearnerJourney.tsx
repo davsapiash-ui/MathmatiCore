@@ -411,7 +411,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
         <button
           type="button"
           onClick={() => setReloadNonce((n) => n + 1)}
-          className="text-xs font-bold text-ws-soft hover:text-ws-accent flex items-center gap-1.5 px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-surface cursor-pointer"
+          className="text-xs font-bold text-ws-soft hover:text-violet-800 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-surface cursor-pointer"
           title="טעינה מחדש של הפעולות המתועדות"
         >
           <RotateCcw className="w-3.5 h-3.5" />
@@ -441,9 +441,9 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
               onClick={() => selectSession(n)}
               className={`text-right px-2.5 py-2 rounded-xl border transition-all cursor-pointer ${
                 selected
-                  ? 'bg-ws-accentSoft border-ws-accent/40 shadow-sm'
+                  ? 'bg-violet-50 border-violet-600/40 shadow-sm'
                   : hasData
-                    ? 'bg-ws-surface border-ws-surface2 hover:border-ws-accent/40'
+                    ? 'bg-ws-surface border-ws-surface2 hover:border-violet-600/40'
                     : 'bg-ws-bg border-ws-surface2 opacity-60'
               }`}
               aria-pressed={selected}
@@ -465,7 +465,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                 <div className="mt-0.5 text-[11px] text-ws-soft leading-snug">
                   {Number.isFinite(firstTs) ? `${formatDate(firstTs)} · ` : ''}{evs.length} פעולות · {recs.length > 0 ? `הקלטה ${formatDuration(recMs)}` : 'ללא הקלטה'}
                   {(cuttingResetsBySession.get(n)?.length ?? 0) > 0 && (
-                    <span className="font-bold text-amber-800 dark:text-amber-300">
+                    <span className="font-bold text-stone-800 dark:text-stone-300">
                       {' · '}{cuttingResetsBySession.get(n)!.length === 1 ? 'אופס פעם אחת' : `אופס ${cuttingResetsBySession.get(n)!.length} פעמים`}
                     </span>
                   )}
@@ -495,7 +495,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
               <button
                 type="button"
                 onClick={() => chooseExercise(null)}
-                className={`text-xs font-bold px-3 py-1.5 rounded-full border cursor-pointer ${selectedExercise === null ? 'bg-ws-accent text-white border-ws-accent' : 'bg-ws-surface text-ws-ink border-ws-surface2'}`}
+                className={`text-xs font-bold px-3 py-1.5 rounded-full border cursor-pointer ${selectedExercise === null ? 'bg-violet-700 text-white border-violet-600' : 'bg-ws-surface text-ws-ink border-ws-surface2'}`}
               >
                 הכול
               </button>
@@ -514,7 +514,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                       if (chapter) requestSeek(chapter.start);
                     }}
                     title={exerciseTitle(selectedSession, id)}
-                    className={`text-xs font-bold px-3 py-1.5 rounded-full border cursor-pointer ${active ? 'bg-ws-accent text-white border-ws-accent' : 'bg-ws-surface text-ws-ink border-ws-surface2 hover:border-ws-accent/40'}`}
+                    className={`text-xs font-bold px-3 py-1.5 rounded-full border cursor-pointer ${active ? 'bg-violet-700 text-white border-violet-600' : 'bg-ws-surface text-ws-ink border-ws-surface2 hover:border-violet-600/40'}`}
                   >
                     {number !== null ? `${number}. ` : ''}{exerciseTitle(selectedSession, id)}{chapter ? '' : ' (ללא הקלטה)'}
                   </button>
@@ -534,13 +534,13 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
           <div className="bg-ws-surface border border-ws-surface2 rounded-2xl p-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-black text-ws-ink">
-                <Sparkles className="w-4 h-4 text-amber-500" />
+                <Sparkles className="w-4 h-4 text-stone-500" />
                 דוח תובנות פדגוגיות · {meetingShortLabelHe(selectedSession)}
                 {report?.generatedAt && (
                   <span className="text-[11px] font-bold text-ws-soft">הופק {formatDate(report.generatedAt)} {formatClock(report.generatedAt)}</span>
                 )}
                 {report && isReportBeforeReset(report, sessionResets) && (
-                  <span data-testid="report-before-reset" className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+                  <span data-testid="report-before-reset" className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-stone-50 border border-stone-200 text-stone-900 dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-200">
                     {REPORT_BEFORE_RESET_LABEL_HE}
                   </span>
                 )}
@@ -551,7 +551,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                     type="button"
                     onClick={openReportPdf}
                     disabled={reportState === 'opening' || reportState === 'generating'}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-violet-600/40 cursor-pointer disabled:opacity-50"
                   >
                     {reportState === 'opening' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
                     פתחו PDF
@@ -562,16 +562,16 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   onClick={requestReport}
                   disabled={!meetingSessionId || reportState === 'generating' || reportState === 'loading'}
                   title={meetingSessionId ? 'ניתוח אוטומטי של הפעולות המתועדות במפגש זה' : 'אין פעולות מתועדות במפגש זה, אין מה לנתח'}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-violet-700 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {reportState === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
+                  {reportState === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-stone-300" />}
                   {reportState === 'generating' ? 'הדוח בעיבוד… (כ-20 שניות)' : report ? 'הפיקו מחדש' : `הפיקו דוח למפגש ${selectedSession}`}
                 </button>
               </div>
             </div>
 
             {reportState === 'error' && (
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+              <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 text-xs font-bold dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-200">
                 <div>{reportError || REPORT_PROCESSING_TEXT}</div>
               </div>
             )}
@@ -589,7 +589,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                           type="button"
                           onClick={() => { setSelectedReportId(r.reportId); setReportError(''); if (reportState === 'error') setReportState('idle'); }}
                           aria-pressed={active}
-                          className={`text-[11px] font-bold px-3 py-1.5 rounded-full border cursor-pointer ${active ? 'bg-ws-accent text-white border-ws-accent' : 'bg-ws-bg text-ws-ink border-ws-surface2 hover:border-ws-accent/40'}`}
+                          className={`text-[11px] font-bold px-3 py-1.5 rounded-full border cursor-pointer ${active ? 'bg-violet-700 text-white border-violet-600' : 'bg-ws-bg text-ws-ink border-ws-surface2 hover:border-violet-600/40'}`}
                         >
                           {r.generatedAt !== null ? `הופק ${formatDate(r.generatedAt)} ${formatClock(r.generatedAt)}` : 'דוח ללא תאריך הפקה'}
                           {isReportBeforeReset(r, sessionResets) ? ` · ${REPORT_BEFORE_RESET_LABEL_HE}` : ''}
@@ -615,7 +615,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
 
             {/* A report kept from before the meeting's last reset (resets keep reports) describes the old run. */}
             {report && lastCuttingReset && report.generatedAt !== null && report.generatedAt < lastCuttingReset.at && (
-              <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+              <div role="status" className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 text-xs font-bold dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-200">
                 {/* "הפיקו מחדש" helps only once the learner has answered since the reset; before that the server refuses. */}
                 {answeredSince(sessionEvents, lastCuttingReset.at)
                   ? 'הדוח הזה הופק לפני האיפוס של המפגש, ולכן הוא מתאר את העבודה הקודמת. לחצו "הפיקו מחדש" כדי לקבל דוח על העבודה שאחרי האיפוס.'
@@ -635,17 +635,17 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                       </div>
                       {/* PRD Module 14: meeting 1 is not scored, and this report's stored PDF still prints a score. */}
                       {report.storedPdfOutdated && (
-                        <div role="status" data-testid="outdated-meeting1-pdf" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100">
+                        <div role="status" data-testid="outdated-meeting1-pdf" className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-950 dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-100">
                           {OUTDATED_MEETING1_PDF_HE}
                         </div>
                       )}
                       {report.sandbox.outdated ? (
-                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100">
+                        <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-950 dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-100">
                           דוח זה הופק לפני שנוסף לו פירוט הכלים ותרגילי הריענון. לחצו "הפיקו מחדש" כדי לראות אותם.
                         </div>
                       ) : (
                         <>
-                          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
+                          <div className="p-3 rounded-xl bg-violet-50 border border-violet-200 text-violet-900 dark:bg-violet-950/40 dark:border-violet-800 dark:text-violet-100">
                             <div className="font-black mb-1">שליטה בכלי המערכת</div>
                             <ul className="space-y-0.5">
                               {report.sandbox.tools.map((t) => (
@@ -686,7 +686,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                           )}
                         </div>
                       </div>
-                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
+                      <div className="p-3 rounded-xl bg-violet-50 border border-violet-200 text-violet-900 dark:bg-violet-950/40 dark:border-violet-800 dark:text-violet-100">
                         <div className="font-black mb-1">קבוצת למידה מומלצת: {report.routingLabelHe}</div>
                         <div>{report.recommendationDetailsHe}</div>
                       </div>
@@ -719,7 +719,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                     </div>
                   )}
                 </div>
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100 space-y-2">
+                <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-950 dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-100 space-y-2">
                   <div className="font-black">{report.sandbox ? 'לקראת האבחון' : 'תובנות פדגוגיות וניתוח למידה'}</div>
                   {report.aiAnalysisAvailable ? (
                     <>
@@ -754,7 +754,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   </div>
                 )}
                 {report.pdfFailureMessage && (
-                  <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+                  <div role="status" className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 font-bold dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-200">
                     {report.pdfFailureMessage}
                   </div>
                 )}
@@ -778,7 +778,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
             <div className="min-w-0 bg-ws-surface border border-ws-surface2 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-ws-surface2 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-black text-ws-ink">
-                  <ListOrdered className="w-4 h-4 text-ws-accent" />
+                  <ListOrdered className="w-4 h-4 text-violet-800" />
                   ציר ההחלטות · {meetingShortLabelHe(selectedSession)}
                 </div>
                 <span className="text-[11px] text-ws-soft">{visibleEvents.length} פעולות</span>
@@ -817,8 +817,8 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                         if (row.kind === 'reset') {
                           // A meeting done twice: where the new run begins (audit learner_view).
                           return (
-                            <tr key={`reset-${row.reset.at}`} data-testid="reset-separator" className="bg-amber-100 dark:bg-amber-950/60">
-                              <td colSpan={6} className="p-2 text-[11px] font-black text-amber-950 dark:text-amber-100 border-y-2 border-amber-400">
+                            <tr key={`reset-${row.reset.at}`} data-testid="reset-separator" className="bg-stone-100 dark:bg-stone-950/60">
+                              <td colSpan={6} className="p-2 text-[11px] font-black text-stone-950 dark:text-stone-100 border-y-2 border-stone-400">
                                 {resetSeparatorHe(row.reset)}
                               </td>
                             </tr>
@@ -839,7 +839,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                             ref={isHighlighted ? highlightedRowRef : undefined}
                             onClick={() => requestSeek(e.timestamp)}
                             title={`לחיצה מקפיצה את ההקלטה לשעה ${formatClock(e.timestamp)}`}
-                            className={`cursor-pointer transition-colors ${isHighlighted ? 'bg-ws-accentSoft border-r-4 border-ws-accent' : 'hover:bg-ws-bg'} ${desc.attention ? 'text-amber-900 dark:text-amber-200' : 'text-ws-ink'}`}
+                            className={`cursor-pointer transition-colors ${isHighlighted ? 'bg-violet-50 border-r-4 border-violet-600' : 'hover:bg-ws-bg'} ${desc.attention ? 'text-stone-900 dark:text-stone-200' : 'text-ws-ink'}`}
                           >
                             <td className="p-2 font-mono text-[11px] text-ws-soft whitespace-nowrap" dir="ltr">{formatClock(e.timestamp)}</td>
                             <td className="p-2 whitespace-nowrap" title={exerciseTitle(selectedSession, e.exerciseId)}>{exerciseCell}</td>
@@ -863,10 +863,10 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                     from recorded DOM changes (Module 21), and there is no sound
                     to have. Hence no camera icon and no English "chunks". */}
                 <span className="font-black flex items-center gap-1.5">
-                  <MonitorPlay className="w-4 h-4 text-indigo-300" aria-hidden="true" />
+                  <MonitorPlay className="w-4 h-4 text-violet-300" aria-hidden="true" />
                   שחזור מסך העבודה, ללא קול · {meetingShortLabelHe(selectedSession)}
                 </span>
-                <span className="flex items-center gap-2 text-slate-400">
+                <span className="flex items-center gap-2 text-slate-600">
                   {sessionRecordings.length > 0 ? `${sessionRecordings.reduce((s, r) => s + r.chunkCount, 0)} מקטעי הקלטה` : ''}
                   {/* Owner, 6.10.2026: the whole meeting — every action and the
                       recording — as one file (meetingExport.ts). */}
@@ -888,7 +888,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                       }}
                       title="הורדת כל המפגש: כל הפעולות המתועדות והקלטת מסך העבודה, בקובץ אחד"
                       data-testid="download-meeting"
-                      className="flex items-center gap-1 font-bold text-indigo-200 bg-slate-900 border border-slate-700 hover:border-indigo-500 rounded-lg px-2 py-1 cursor-pointer"
+                      className="flex items-center gap-1 font-bold text-violet-200 bg-slate-900 border border-slate-700 hover:border-violet-500 rounded-lg px-2 py-1 cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" aria-hidden="true" />
                       הורדת המפגש
@@ -897,7 +897,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                 </span>
               </div>
               {truncated && (
-                <div className="flex items-center gap-2 text-[11px] font-bold text-amber-200 bg-amber-950/50 border border-amber-800 rounded-xl px-3 py-2">
+                <div className="flex items-center gap-2 text-[11px] font-bold text-stone-200 bg-stone-950/50 border border-stone-800 rounded-xl px-3 py-2">
                   <AlertTriangle className="w-3.5 h-3.5" />
                   ההקלטה נקטעה בתקרת 50MB. הפעולות בטבלה מלאות.
                 </div>
@@ -921,7 +921,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                         word "וידאו" stays until the owner changes the PRD or
                         registers a deviation; the line below says what is true. */}
                     <p className="font-bold text-slate-200">וידאו השחזור בהכנה</p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-slate-600">
                       {/* A recording that failed to load may well exist: no claim either way. */}
                       {recordingFailed
                         ? 'הפעולות המתועדות מוצגות בטבלה.'
@@ -942,7 +942,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                         type="button"
                         onClick={() => selectChapter(c)}
                         title={`${exerciseTitle(selectedSession, c.exerciseId)} — קפיצה לתחילת התרגיל`}
-                        className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border cursor-pointer ${active ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-indigo-500'}`}
+                        className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border cursor-pointer ${active ? 'bg-violet-600 border-violet-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-violet-500'}`}
                       >
                         {formatClock(c.start)} · {exerciseTitle(selectedSession, c.exerciseId)}
                       </button>

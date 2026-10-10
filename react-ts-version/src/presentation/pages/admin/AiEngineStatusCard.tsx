@@ -168,7 +168,7 @@ export function AiEngineStatusCard() {
           onClick={() => load(false)}
           disabled={loading}
           aria-label="רענון מצב מנוע ה-AI"
-          className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
+          className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
         </button>
@@ -183,7 +183,7 @@ export function AiEngineStatusCard() {
           <div className="flex items-start gap-3 p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950/60">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
               keyOk ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                : key.configured ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                : key.configured ? "bg-stone-500/10 text-stone-600 dark:text-stone-400"
                 : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
             }`}>
               {keyOk ? <CheckCircle2 className="w-5 h-5" /> : key.configured ? <AlertTriangle className="w-5 h-5" /> : <MinusCircle className="w-5 h-5" />}
@@ -191,13 +191,13 @@ export function AiEngineStatusCard() {
             <div className="space-y-1">
               <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
                 {key.configured ? "מפתח Gemini מחובר" : "מפתח Gemini חסר"}
-                {key.key_hint ? <span className="font-mono text-xs text-slate-500 ms-2" dir="ltr">…{key.key_hint}</span> : null}
+                {key.key_hint ? <span className="font-mono text-xs text-slate-600 ms-2" dir="ltr">…{key.key_hint}</span> : null}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 מקור: {SOURCE_HE[key.source]} · מודל: <span className="font-mono" dir="ltr">{key.model_id}</span>
               </p>
               {key.problem && (
-                <p className="text-xs text-amber-700 dark:text-amber-300" dir="ltr">{key.problem}</p>
+                <p className="text-xs text-stone-700 dark:text-stone-300" dir="ltr">{key.problem}</p>
               )}
             </div>
           </div>
@@ -208,7 +208,7 @@ export function AiEngineStatusCard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[{ title: `היום (${status.today})`, c: status.shown.today }, { title: "מצטבר", c: status.shown.total }].map(({ title, c }) => (
                   <div key={title} className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950/60 space-y-1.5">
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{title}</p>
+                    <p className="text-xs font-bold text-slate-600 dark:text-slate-400">{title}</p>
                     <p className="text-sm text-slate-800 dark:text-slate-200">
                       כרטיסים שהוצגו: <span className="font-black tabular-nums">{c.shown}</span>
                     </p>
@@ -220,7 +220,7 @@ export function AiEngineStatusCard() {
                       </ul>
                     )}
                     {c.static > 0 && (
-                      <ul className="text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5 border-t border-slate-100 dark:border-slate-800 pt-1.5">
+                      <ul className="text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5 border-t border-slate-100 dark:border-slate-800 pt-1.5">
                         {Object.entries(c.static_reasons).sort((a, b) => b[1] - a[1]).map(([reason, n]) => (
                           <li key={reason}>{FALLBACK_REASON_HE[reason] ?? reason}: <span className="tabular-nums">{n}</span></li>
                         ))}
@@ -230,7 +230,7 @@ export function AiEngineStatusCard() {
                 ))}
               </div>
               {status.shown.truncated && (
-                <p className="text-[11px] text-amber-700 dark:text-amber-300">נספרו 5,000 הכרטיסים הראשונים בלבד.</p>
+                <p className="text-[11px] text-stone-700 dark:text-stone-300">נספרו 5,000 הכרטיסים הראשונים בלבד.</p>
               )}
             </div>
           )}
@@ -239,7 +239,7 @@ export function AiEngineStatusCard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[{ title: `היום (${status.today})`, s: today }, { title: "מצטבר", s: total }].map(({ title, s }) => (
               <div key={title} className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950/60 space-y-1.5">
-                <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{title}</p>
+                <p className="text-xs font-bold text-slate-600 dark:text-slate-400">{title}</p>
                 <p className="text-sm text-slate-800 dark:text-slate-200">
                   קריאות: <span className="font-black tabular-nums">{s?.calls ?? 0}</span>
                   <span className="mx-2 text-slate-300">·</span>
@@ -252,7 +252,7 @@ export function AiEngineStatusCard() {
                   )}
                 </p>
                 {s && s.fallbacks.length > 0 && (
-                  <ul className="text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5">
+                  <ul className="text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5">
                     {s.fallbacks.map((f) => (
                       <li key={f.outcome}>{f.label}: <span className="tabular-nums">{f.count}</span></li>
                     ))}
@@ -273,7 +273,7 @@ export function AiEngineStatusCard() {
             </button>
             {(() => {
               const t = status.test ?? status.counters?.last_test;
-              if (!t) return <span className="text-xs text-slate-500 dark:text-slate-400">הבדיקה שולחת למודל בקשה אמיתית אחת ומראה אם הוא עונה עכשיו.</span>;
+              if (!t) return <span className="text-xs text-slate-600 dark:text-slate-400">הבדיקה שולחת למודל בקשה אמיתית אחת ומראה אם הוא עונה עכשיו.</span>;
               // A click while the previous test still runs is not a failure of the engine.
               if (t.in_progress || t.error_code === "in_progress") {
                 return <span role="status" className="text-sm text-slate-600 dark:text-slate-300">{AI_TEST_IN_PROGRESS_HE}</span>;
@@ -295,7 +295,7 @@ export function AiEngineStatusCard() {
           </div>
 
           {lastFailure && (
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">
               כשל אחרון: {OUTCOME_HE[lastFailure.outcome] ?? lastFailure.outcome}
               {lastFailure.detail ? <span dir="ltr" className="font-mono ms-1">({lastFailure.detail})</span> : null}
               {" · "}
@@ -303,7 +303,7 @@ export function AiEngineStatusCard() {
             </p>
           )}
 
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3 leading-relaxed">
+          <p className="text-[11px] text-slate-600 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3 leading-relaxed">
             קריאה שאינה "תקינה" פירושה שהלומד קיבל את כרטיס הגיבוי. גם קריאה תקינה יכולה להסתיים בכרטיס גיבוי: אם התשובה הגיעה אחרי 8 שניות, נפסלה בבדיקה במחשב הלומד, או שהלומד שינה את הלוח בזמן ההמתנה. לכן המספר המדויק של מה שהלומדים ראו הוא זה שלמעלה. המפתח מוחלף בפקודה
             <span className="font-mono mx-1" dir="ltr">firebase functions:secrets:set GEMINI_API_KEY</span>
             ולעולם אינו נחשף ללקוח.

@@ -42,13 +42,13 @@ export function Topbar() {
               </span>
             )}
           </div>
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-sm text-xs font-black">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center shadow-sm text-xs font-black">
             {user?.role === 'student' ? (user?.student_id || 'ת') : '👤'}
           </div>
         </div>
 
         {/* Logout Button */}
-        <LogoutButton className="min-h-11 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 rounded-2xl px-4 py-2 text-xs sm:text-sm font-extrabold transition-all border border-rose-200 dark:border-rose-800/60 shadow-sm" />
+        <LogoutButton className="min-h-11 bg-rose-50 hover:bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 rounded-2xl px-4 py-2 text-xs sm:text-sm font-extrabold transition-all border border-rose-200 dark:border-rose-800/60 shadow-sm" />
       </div>
     </header>
   );

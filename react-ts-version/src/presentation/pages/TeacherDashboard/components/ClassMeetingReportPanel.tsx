@@ -251,7 +251,7 @@ export function ClassMeetingReportPanel() {
     <section className="bg-ws-surface border border-ws-surface2 rounded-2xl p-4 space-y-3" dir="rtl" data-testid="class-meeting-report">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-black text-ws-ink">
-          <Users className="w-4 h-4 text-indigo-500" />
+          <Users className="w-4 h-4 text-violet-500" />
           דוח כיתה למפגש
           <div className="flex items-center gap-1 mr-2">
             {SESSION_NUMBERS.map((n) => (
@@ -261,7 +261,7 @@ export function ClassMeetingReportPanel() {
                 onClick={() => setSelectedSession(n)}
                 disabled={isGenerating}
                 className={`w-11 h-11 rounded-lg text-sm font-black transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
-                  selectedSession === n ? 'bg-indigo-600 text-white' : 'bg-ws-bg text-ws-soft hover:text-ws-ink'
+                  selectedSession === n ? 'bg-violet-600 text-white' : 'bg-ws-bg text-ws-soft hover:text-ws-ink'
                 }`}
                 aria-pressed={selectedSession === n}
                 aria-label={meetingLabelHe(n)}
@@ -282,7 +282,7 @@ export function ClassMeetingReportPanel() {
             <button
               type="button"
               onClick={() => { void openFile('pdf'); }}
-              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-violet-600/40 cursor-pointer"
             >
               <FileText className="w-3.5 h-3.5" />
               פתחו PDF
@@ -293,7 +293,7 @@ export function ClassMeetingReportPanel() {
               type="button"
               onClick={() => { void openFile('csv'); }}
               title="טבלת הלומדים של המפגש, שורה לכל תלמיד, לשימוש המחקר"
-              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-violet-600/40 cursor-pointer"
             >
               <FileDown className="w-3.5 h-3.5" />
               טבלה למחקר (CSV)
@@ -303,16 +303,16 @@ export function ClassMeetingReportPanel() {
             type="button"
             onClick={requestReport}
             disabled={state === 'generating' || state === 'loading'}
-            className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-violet-700 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {state === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
+            {state === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-stone-300" />}
             {state === 'generating' ? 'מעבד את כל פעולות המפגש… (עד דקה)' : report ? 'הפיקו מחדש' : `הפיקו דוח כיתה למפגש ${selectedSession}`}
           </button>
           {report && (
             <button
               type="button"
               onClick={() => setIsExpanded((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-violet-600/40 cursor-pointer transition-colors"
               title={isExpanded ? 'כווצו את הפירוט הכיתתי' : 'הציגו פירוט כיתתי מלא'}
             >
               {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -323,7 +323,7 @@ export function ClassMeetingReportPanel() {
       </div>
 
       {state === 'error' && (
-        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+        <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 text-xs font-bold dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-200">
           <div>{error || REPORT_PROCESSING_TEXT}</div>
         </div>
       )}
@@ -360,7 +360,7 @@ export function ClassMeetingReportPanel() {
               score. A learner with no recorded work has no score for that
               reason alone, and is listed apart ("תלמידים עם נתונים"). */}
           {report.scored && scoredLearnersWithoutScore.length > 0 && (
-            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+            <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 text-xs font-bold dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-200">
               ללא ציון: {scoredLearnersWithoutScore.map((id) => `תלמיד ${id}`).join(', ')}. מאגר תרגילי החובה של המפגש אינו זמין בשרת, ולכן אין ממה לחשב ציון. על מנהל המערכת ללחוץ "פרסום תוכנית הלימודים", ואז להפיק את הדוח מחדש.
             </div>
           )}
@@ -372,7 +372,7 @@ export function ClassMeetingReportPanel() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             <div className="space-y-2">
               {/* Layer 1: working groups — or, in meeting 1 (Module 14 §ב), the tools before the diagnostic */}
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100">
+              <div className="p-3 rounded-xl bg-violet-50 border border-violet-200 text-violet-900 dark:bg-violet-950/40 dark:border-violet-800 dark:text-violet-100">
                 {report.scored ? (
                   <>
                     <div className="font-black mb-1">חלוקה לקבוצות למידה דיפרנציאליות (לפי רמת הישג)</div>
@@ -414,7 +414,7 @@ export function ClassMeetingReportPanel() {
             </div>
 
             {/* Layer 2 */}
-            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100 space-y-2">
+            <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-950 dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-100 space-y-2">
               <div className="font-black">{report.scored ? 'תובנות פדגוגיות כיתתיות' : 'לקראת האבחון'}</div>
               {report.aiAnalysisAvailable ? (
                 <>

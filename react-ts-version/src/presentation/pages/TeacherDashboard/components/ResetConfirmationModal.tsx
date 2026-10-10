@@ -200,13 +200,13 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           onClick={handleClose}
           disabled={isSubmitting}
           aria-label="סגירת החלון"
-          className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500"
+          className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600"
         >
           <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
         <div className="flex items-center gap-3 mb-4">
-          <div className={`p-3 rounded-2xl ${isLevel3 ? 'bg-red-50 dark:bg-red-950/50 text-red-600' : isLevel2 ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-600' : 'bg-blue-50 dark:bg-blue-950/50 text-blue-600'}`}>
+          <div className={`p-3 rounded-2xl ${isLevel3 ? 'bg-red-50 dark:bg-red-950/50 text-red-600' : isLevel2 ? 'bg-stone-50 dark:bg-stone-950/50 text-stone-600' : 'bg-blue-50 dark:bg-blue-950/50 text-blue-600'}`}>
             {isLevel3 ? <ShieldAlert className="w-7 h-7" /> : <AlertTriangle className="w-7 h-7" />}
           </div>
           <div>
@@ -223,10 +223,10 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             {isLevel2 && !isFullStudent && activeSessionNumber ? (
               // The one meeting this reset touches. A full reset of the learner
               // touches all eight, so no single meeting is named for it.
-              <p className="text-sm font-bold text-amber-700 dark:text-amber-300 mt-0.5">{meetingLabelHe(activeSessionNumber)}</p>
+              <p className="text-sm font-bold text-stone-700 dark:text-stone-300 mt-0.5">{meetingLabelHe(activeSessionNumber)}</p>
             ) : null}
             {/* Level 1 deletes no learning data and needs no backup (PRD 23א §ב.1); it used to claim one. */}
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
               {isLevel2 || isLevel3
                 ? 'לפני שנמחק משהו נשמר גיבוי, והפעולה נרשמת ביומן האיפוסים.'
                 : 'הפעולה נרשמת ביומן האיפוסים. לא נשמר גיבוי, כי לא נמחקים נתוני למידה.'}
@@ -240,7 +240,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           <ul className="list-disc list-inside space-y-1 text-xs text-slate-600 dark:text-slate-300">
             {isLevel3 && (
               <>
-                <li className="text-amber-700 dark:text-amber-300 font-semibold">לפני שנמחק משהו נשמר גיבוי של הנתונים של כל 12 התלמידים.</li>
+                <li className="text-stone-700 dark:text-stone-300 font-semibold">לפני שנמחק משהו נשמר גיבוי של הנתונים של כל 12 התלמידים.</li>
                 <li className="text-red-700 dark:text-red-300 font-semibold">יימחקו כל נתוני הלמידה של הכיתה: ההתקדמות בכל המפגשים, ציוני האבחון והמסלולים שאושרו, ההקלטות, הודעות הצ'אט, הדוחות, הרפלקציות, רישום הפעולות והתראות הרדאר.</li>
                 <li>יימחקו גם ההגדרות של כל התלמידים: פרופיל התמיכה המוגברת ומצב השקט החזותי.</li>
                 <li>המפגש הפתוח ייסגר, והשידור למסכי התלמידים ייעצר.</li>
@@ -250,7 +250,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             )}
             {isClassTarget && (
               <>
-                <li className="text-amber-700 dark:text-amber-300 font-semibold">לפני האיפוס נשמר גיבוי של הנתונים של כל 12 התלמידים.</li>
+                <li className="text-stone-700 dark:text-stone-300 font-semibold">לפני האיפוס נשמר גיבוי של הנתונים של כל 12 התלמידים.</li>
                 {activeSessionNumber ? <li>יימחקו העבודה וההתקדמות של כל 12 התלמידים ב{meetingLabel}.</li> : null}
                 <li>כל התלמידים יחזרו לתחילת המפגש. העבודה במפגשים האחרים, ההקלטות והודעות הצ'אט נשמרות.</li>
                 {/* Register deviation 20, "מה לא משתנה": the radar alerts are not reset (that is level 1). */}
@@ -271,7 +271,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             )}
             {isLevel2 && !isClassTarget && !isFullStudent && (
               <>
-                <li className="text-amber-700 dark:text-amber-300 font-semibold">לפני האיפוס נשמר גיבוי של כל הנתונים של {learnerName}.</li>
+                <li className="text-stone-700 dark:text-stone-300 font-semibold">לפני האיפוס נשמר גיבוי של כל הנתונים של {learnerName}.</li>
                 {activeSessionNumber ? <li>יימחקו העבודה וההתקדמות של התלמיד ב{meetingLabel}.</li> : null}
                 <li>התלמיד יחזור לתחילת המפגש. העבודה במפגשים האחרים, ההקלטות והודעות הצ'אט נשמרות.</li>
                 {resetMeeting.loading ? (
@@ -309,7 +309,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             )}
             {isFullStudent && (
               <>
-                <li className="text-amber-700 dark:text-amber-300 font-semibold">לפני האיפוס נשמר גיבוי של כל הנתונים של {learnerName}.</li>
+                <li className="text-stone-700 dark:text-stone-300 font-semibold">לפני האיפוס נשמר גיבוי של כל הנתונים של {learnerName}.</li>
                 <li className="text-red-700 dark:text-red-300 font-semibold">יימחקו: ההתקדמות בכל 8 המפגשים, תוצאות האבחון וההמלצה, המסלול שאושר ב"{TEACHER_GATE_HE}", ההקלטות והודעות הצ'אט.</li>
                 {/* Owner, 2.10.2026: the teacher's settings stay (functions LEARNER_SETTINGS_FIELDS). */}
                 <li>יישמרו: ההגדרות שקבעתם לתלמיד (פרופיל התמיכה המוגברת ומצב השקט החזותי), רישום הפעולות של התלמיד למחקר, הדוחות והרפלקציות.</li>
@@ -337,12 +337,12 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
               </div>
             )}
             {isClassTarget && activeSessionNumber && (
-              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/30 transition-colors">
+              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-stone-300 dark:border-stone-800 bg-stone-50/60 dark:bg-stone-950/30 transition-colors">
                 <input
                   type="checkbox"
                   checked={classConfirmed}
                   onChange={(e) => setClassConfirmed(e.target.checked)}
-                  className="w-5 h-5 rounded text-amber-600 focus:ring-amber-500"
+                  className="w-5 h-5 rounded text-stone-600 focus:ring-stone-500"
                 />
                 {/* PRD 23א (l.1032): exactly this sentence, M the open meeting's number. */}
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
@@ -356,21 +356,21 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                   מה לאפס?
                 </legend>
                 <div className="space-y-2" role="radiogroup" aria-label="היקף האיפוס">
-                  <label className={`flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${scope === 'active_session' ? 'border-amber-400 bg-amber-50/60 dark:bg-amber-950/30' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
+                  <label className={`flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${scope === 'active_session' ? 'border-stone-400 bg-stone-50/60 dark:bg-stone-950/30' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
                     <input
                       type="radio"
                       name="reset-scope"
                       value="active_session"
                       checked={scope === 'active_session'}
                       onChange={() => setScope('active_session')}
-                      className="mt-0.5 w-4 h-4 text-amber-600 focus:ring-amber-500"
+                      className="mt-0.5 w-4 h-4 text-stone-600 focus:ring-stone-500"
                     />
                     <span className="text-xs">
                       {/* No meeting to reset (none determined, or a finished one): no meeting named here either. */}
                       <span className="block font-bold text-slate-800 dark:text-slate-200">
                         {activeSessionNumber ? `המפגש הזה בלבד (ברירת המחדל): ${meetingLabel}` : 'המפגש הזה בלבד (ברירת המחדל)'}
                       </span>
-                      <span className="block text-slate-500 dark:text-slate-400">התלמיד מתחיל את המפגש הזה מההתחלה. העבודה במפגשים האחרים נשמרת.</span>
+                      <span className="block text-slate-600 dark:text-slate-400">התלמיד מתחיל את המפגש הזה מההתחלה. העבודה במפגשים האחרים נשמרת.</span>
                     </span>
                   </label>
                   <label className={`flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${scope === 'full_student' ? 'border-red-400 bg-red-50/60 dark:bg-red-950/30' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
@@ -384,7 +384,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                     />
                     <span className="text-xs">
                       <span className="block font-bold text-slate-800 dark:text-slate-200">איפוס מוחלט של התלמיד</span>
-                      <span className="block text-slate-500 dark:text-slate-400">ההתקדמות בכל 8 המפגשים, תוצאות האבחון, המסלול, ההקלטות והצ'אט נמחקים. ההגדרות של התלמיד נשמרות.</span>
+                      <span className="block text-slate-600 dark:text-slate-400">ההתקדמות בכל 8 המפגשים, תוצאות האבחון, המסלול, ההקלטות והצ'אט נמחקים. ההגדרות של התלמיד נשמרות.</span>
                     </span>
                   </label>
                 </div>
@@ -400,7 +400,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 aria-required="true"
                 value={selectedReason}
                 onChange={(e) => setSelectedReason(e.target.value as ResetReason | '')}
-                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-violet-500"
               >
                 <option value="" disabled>
                   בחרו סיבה מהרשימה
@@ -423,7 +423,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 onChange={(e) => { setReasonNote(e.target.value); if (noteError) setNoteError(null); }}
                 placeholder="הסבר קצר על נסיבות האיפוס, בלי שמות. אפשר לכתוב מספר תלמיד."
                 aria-invalid={noteError ? true : undefined}
-                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-violet-500"
               />
               {noteError && (
                 <p role="alert" className="mt-1.5 text-xs font-bold text-red-700 dark:text-red-300">{noteError}</p>
@@ -476,8 +476,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
               isLevel3
                 ? 'bg-red-600 hover:bg-red-700 disabled:opacity-50'
                 : isLevel2
-                ? 'bg-amber-600 hover:bg-amber-700 disabled:opacity-50'
-                : 'bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50'
+                ? 'bg-stone-600 hover:bg-stone-700 disabled:opacity-50'
+                : 'bg-violet-600 hover:bg-violet-700 disabled:opacity-50'
             }`}
           >
             {isSubmitting ? (

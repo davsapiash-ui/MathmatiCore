@@ -277,7 +277,7 @@ export function AdminWizardModal({
             {/* Header */}
             <div className="p-6 pb-4 [@media(max-height:820px)]:p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                <div className="w-10 h-10 rounded-2xl bg-violet-700 flex items-center justify-center text-white shadow-lg shadow-violet-500/20">
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
@@ -288,14 +288,14 @@ export function AdminWizardModal({
                       ? "הקמת כיתת לימוד" 
                       : "אשף הקמת מוסד חינוכי חדש"}
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
                     תקני פיילוט ומבנה מוסדי
                   </p>
                 </div>
               </div>
               <button 
                 onClick={resetAndClose}
-                className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 transition-colors"
+                className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-600 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -308,7 +308,7 @@ export function AdminWizardModal({
                   {/* Connecting Line */}
                   <div className="absolute top-1/2 left-0 right-0 h-1 bg-slate-200 dark:bg-slate-800 -translate-y-1/2 z-0" />
                   <div 
-                    className="absolute top-1/2 right-0 h-1 bg-gradient-to-l from-indigo-500 to-cyan-400 -translate-y-1/2 z-0 transition-all duration-500"
+                    className="absolute top-1/2 right-0 h-1 bg-gradient-to-l from-violet-500 to-violet-400 -translate-y-1/2 z-0 transition-all duration-500"
                     style={{ width: `${((step - 1) / 3) * 100}%` }}
                   />
 
@@ -330,13 +330,13 @@ export function AdminWizardModal({
                             isCompleted 
                               ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" 
                               : isActive 
-                              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-4 ring-indigo-100 dark:ring-indigo-950" 
-                              : "bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                              ? "bg-violet-600 text-white shadow-lg shadow-violet-600/30 ring-4 ring-violet-100 dark:ring-violet-950" 
+                              : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
                           }`}
                         >
                           {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <IconComponent className="w-4 h-4" />}
                         </div>
-                        <span className={`text-[11px] font-semibold ${isActive ? "text-indigo-600 dark:text-indigo-400 font-bold" : "text-slate-500 dark:text-slate-400"}`}>
+                        <span className={`text-[11px] font-semibold ${isActive ? "text-violet-600 dark:text-violet-400 font-bold" : "text-slate-600 dark:text-slate-400"}`}>
                           {s.title}
                         </span>
                       </div>
@@ -368,7 +368,7 @@ export function AdminWizardModal({
                   <div className="pt-4">
                     <UdlButton 
                       semanticColor="primary" 
-                      className="px-8 py-3 rounded-2xl shadow-lg shadow-indigo-500/25"
+                      className="px-8 py-3 rounded-2xl shadow-lg shadow-violet-500/25"
                       onClick={resetAndClose}
                     >
                       סגור חלון
@@ -380,11 +380,11 @@ export function AdminWizardModal({
                   {/* Step 1: School Info */}
                   {step === 1 && mode === "full_setup" && (
                     <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-                      <div className="bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 p-4 rounded-2xl flex items-start gap-3">
-                        <Building className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                      <div className="bg-violet-50/50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40 p-4 rounded-2xl flex items-start gap-3">
+                        <Building className="w-5 h-5 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" />
                         <div>
-                          <h4 className="font-bold text-sm text-indigo-950 dark:text-indigo-200">הגדרת בית ספר / מוסד חינוכי</h4>
-                          <p className="text-xs text-indigo-800/80 dark:text-indigo-300/80 mt-0.5">
+                          <h4 className="font-bold text-sm text-violet-950 dark:text-violet-200">הגדרת בית ספר / מוסד חינוכי</h4>
+                          <p className="text-xs text-violet-800/80 dark:text-violet-300/80 mt-0.5">
                             הפיילוט פועל עם בית ספר אחד וכיתה אחת: {PILOT_SCHOOL_NAME}, כיתת המבקרים.
                           </p>
                         </div>
@@ -396,7 +396,7 @@ export function AdminWizardModal({
                         </label>
                         <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-4 text-base font-bold flex items-center justify-between">
                           <span>{PILOT_SCHOOL_NAME}</span>
-                          <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
+                          <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
                         </div>
                         {schoolError && (
                           <p className="text-xs text-rose-500 font-semibold flex items-center gap-1 mt-2">
@@ -419,7 +419,7 @@ export function AdminWizardModal({
                           <select 
                             value={selectedSchoolId}
                             onChange={(e) => setSelectedSchoolId(e.target.value)}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-4 text-sm focus:border-indigo-500 outline-none"
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-4 text-sm focus:border-violet-500 outline-none"
                           >
                             {schools.map(s => (
                               <option key={s.id} value={s.id}>{s.name}</option>
@@ -449,7 +449,7 @@ export function AdminWizardModal({
                             placeholder="teacher@edu-haifa.org.il"
                             value={teacherSsoEmail}
                             onChange={(e) => { setTeacherSsoEmail(e.target.value); setTeacherError(""); }}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-mono"
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-violet-500 outline-none font-mono"
                           />
                         </div>
 
@@ -474,7 +474,7 @@ export function AdminWizardModal({
                           <select 
                             value={selectedSchoolId}
                             onChange={(e) => setSelectedSchoolId(e.target.value)}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-4 text-sm focus:border-indigo-500 outline-none"
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-4 text-sm focus:border-violet-500 outline-none"
                           >
                             {schools.map(s => (
                               <option key={s.id} value={s.id}>{s.name}</option>
@@ -500,7 +500,7 @@ export function AdminWizardModal({
                           </label>
                           <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-3.5 text-sm font-bold flex items-center justify-between">
                             <span>{PILOT_CLASS_NAME}</span>
-                            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
+                            <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
                           </div>
                         </div>
 
@@ -511,7 +511,7 @@ export function AdminWizardModal({
                           <select
                             value={classType}
                             onChange={(e) => setClassType(e.target.value)}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-bold"
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-violet-500 outline-none font-bold"
                           >
                             <option value="קבוצת ביקורת פיילוט">קבוצת ביקורת פיילוט</option>
                             <option value="כיתת פיילוט סטנדרטית">כיתת פיילוט סטנדרטית</option>
@@ -529,7 +529,7 @@ export function AdminWizardModal({
                             // field that the save ignored promised a capacity it never set.
                             <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-3.5 text-sm font-bold flex items-center justify-between">
                               <span>{PILOT_CLASS_CAPACITY} תלמידים</span>
-                              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
+                              <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
                             </div>
                           ) : (
                             <input
@@ -550,7 +550,7 @@ export function AdminWizardModal({
                                 setClassError("");
                                 setStudentLimit(e.target.value === "" ? "" : String(Math.max(1, val || 1)));
                               }}
-                              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-indigo-500 outline-none font-bold"
+                              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-3.5 text-sm focus:border-violet-500 outline-none font-bold"
                             />
                           )}
                         </div>
@@ -570,25 +570,25 @@ export function AdminWizardModal({
                     <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
                       <div className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4">
                         <h4 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
-                          <ShieldCheck className="w-5 h-5 text-indigo-500" />
+                          <ShieldCheck className="w-5 h-5 text-violet-500" />
                           אישור פרטי ההקמה המוסדית
                         </h4>
 
                         <div className="space-y-3 divide-y divide-slate-200 dark:divide-slate-800 text-sm">
                           <div className="pt-2 flex justify-between">
-                            <span className="text-slate-500">שם המוסד:</span>
+                            <span className="text-slate-600">שם המוסד:</span>
                             <span className="font-bold text-slate-800 dark:text-slate-100">{PILOT_SCHOOL_NAME}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
-                            <span className="text-slate-500">מורה אחראי (דוא"ל SSO מורשה):</span>
-                            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400" dir="ltr">{teacherSsoEmail}</span>
+                            <span className="text-slate-600">מורה אחראי (דוא"ל SSO מורשה):</span>
+                            <span className="font-mono font-bold text-violet-600 dark:text-violet-400" dir="ltr">{teacherSsoEmail}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
-                            <span className="text-slate-500">כיתה ראשונה:</span>
+                            <span className="text-slate-600">כיתה ראשונה:</span>
                             <span className="font-bold text-cyan-600 dark:text-cyan-400">{PILOT_CLASS_NAME}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
-                            <span className="text-slate-500">מכסת תלמידים:</span>
+                            <span className="text-slate-600">מכסת תלמידים:</span>
                             <span className="font-bold text-slate-800 dark:text-slate-200">{studentLimit} תלמידים</span>
                           </div>
                         </div>
@@ -620,7 +620,7 @@ export function AdminWizardModal({
                     <UdlButton 
                       semanticColor="primary" 
                       onClick={handleNext}
-                      className="gap-2 px-6 py-2.5 rounded-xl shadow-md shadow-indigo-500/20"
+                      className="gap-2 px-6 py-2.5 rounded-xl shadow-md shadow-violet-500/20"
                     >
                       המשך לשלב הבא
                       <ChevronLeft className="w-4 h-4" />
@@ -641,7 +641,7 @@ export function AdminWizardModal({
                     semanticColor="primary" 
                     onClick={handleQuickAddTeacher}
                     disabled={isSubmitting}
-                    className="gap-2 px-8 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg disabled:opacity-50"
+                    className="gap-2 px-8 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold shadow-lg disabled:opacity-50"
                   >
                     {isSubmitting ? "שומר בשרת..." : "שמירת מורה במערכת"}
                   </UdlButton>

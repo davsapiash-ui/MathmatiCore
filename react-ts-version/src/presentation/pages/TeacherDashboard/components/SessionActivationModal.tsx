@@ -53,10 +53,10 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStar
               פתיחת מפגש {sessionNumber} לכלל הכיתה
             </h2>
             {/* The name the children will see on their lobby card (owner, 27.9.2026). */}
-            <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300 mt-1">
+            <p className="text-sm font-bold text-violet-700 dark:text-violet-300 mt-1">
               {meetingLabelHe(sessionNumber)}
             </p>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
               אישור הפעולה יפתח את המפגש עבור כל 12 הלומדים במקביל.
             </p>
           </div>
@@ -67,13 +67,13 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStar
           <div className="px-6 py-5">
             <ul className="text-sm text-slate-700 dark:text-slate-300 space-y-2 list-disc pr-5">
               {currentlyActive && (
-                <li className="text-amber-700 dark:text-amber-400">
+                <li className="text-stone-700 dark:text-stone-400">
                   המפגש הפעיל כעת, {meetingShortLabelHe(currentlyActive.sessionNumber)}, ייסגר, וכל הלומדים יעברו מיד ל{meetingShortLabelHe(sessionNumber)}.
                 </li>
               )}
               <li>המפגש יישאר פעיל עד שתפתחו מפגש אחר.</li>
               {isReopen && (
-                <li className="text-emerald-700 dark:text-emerald-400">
+                <li className="text-violet-700 dark:text-violet-400">
                   מפגש זה כבר הושלם. חזרה אליו אפשרית ומותרת, ואינה מוחקת נתונים קיימים.
                 </li>
               )}
@@ -91,7 +91,7 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStar
             <button
               onClick={() => onConfirm(sessionNumber)}
               disabled={isStarting}
-              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white font-bold text-sm shadow-sm cursor-pointer flex items-center gap-2"
+              className="px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:bg-violet-400 disabled:cursor-not-allowed text-white font-bold text-sm shadow-sm cursor-pointer flex items-center gap-2"
             >
               {isStarting ? (
                 <>

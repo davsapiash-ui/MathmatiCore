@@ -209,36 +209,36 @@ export function ClassManagement({
     <div className="p-6 md:p-10 max-w-7xl mx-auto w-full h-full flex flex-col space-y-8 animate-in fade-in duration-500" dir="rtl">
       
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 p-8 text-white shadow-xl shadow-indigo-500/20 border border-indigo-400/20">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-violet-50 dark:bg-slate-900 p-8 text-slate-900 dark:text-white shadow-sm border border-violet-200 dark:border-violet-900/60">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-indigo-100">
-              <span className="bg-white/15 border border-white/20 px-3 py-1 rounded-full flex items-center gap-1.5 backdrop-blur-sm">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <div className="flex items-center gap-2 text-xs font-bold text-violet-900 dark:text-violet-100">
+              <span className="bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 px-3 py-1 rounded-full flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-violet-600 dark:text-violet-300" />
                 בית ספר ביקורת
               </span>
               <ChevronRight className="w-4 h-4 opacity-70 rotate-180" />
-              <span className="bg-white/15 border border-white/20 px-3 py-1 rounded-full text-white backdrop-blur-sm">
+              <span className="bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 px-3 py-1 rounded-full">
                 כיתת המבקרים
               </span>
             </div>
 
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white flex items-center gap-3">
-              <Users className="w-9 h-9 text-indigo-200" />
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+              <Users className="w-9 h-9 text-violet-700 dark:text-violet-200" />
               ניהול כיתה, פרופילים ו{TEACHER_GATE_HE}
             </h1>
-            <p className="text-indigo-100 text-sm md:text-base font-medium max-w-2xl">
+            <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base font-medium max-w-2xl">
               הגדרת תמיכה שקטה לכל לומד, אישור מסלול המעבר ל{meetingShortLabelHe(3)}, ושמירה על כיתה של עד 12 לומדים.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
-            <div className="flex items-center gap-3 bg-white/15 border border-white/25 backdrop-blur-md px-4 py-3 rounded-2xl">
+            <div className="flex items-center gap-3 bg-white dark:bg-slate-950/40 border border-violet-200 dark:border-slate-700 px-4 py-3 rounded-2xl">
               <div className="text-center">
-                <span className="text-[11px] text-indigo-100 block font-semibold">תלמידי הפיילוט</span>
-                <span className="text-xl font-black text-white">12 / 12</span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-300 block font-semibold">תלמידי הפיילוט</span>
+                <span className="text-xl font-black text-violet-800 dark:text-white">12 / 12</span>
               </div>
             </div>
           </div>
@@ -251,10 +251,10 @@ export function ClassManagement({
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-              <ShieldCheck className="w-6 h-6 text-indigo-600" />
+              <ShieldCheck className="w-6 h-6 text-violet-600" />
               {TEACHER_GATE_HE} לפני {meetingShortLabelHe(3)}
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               בסיום {meetingShortLabelHe(2)}, התלמידים ממתינים במסך ההמתנה. אישור המורה כאן משחרר את הנתיב מיידית (פחות משנייה אחת).
             </p>
           </div>
@@ -270,9 +270,9 @@ export function ClassManagement({
                 key={student.id}
                 className={`p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
                   isApproved
-                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800'
+                    ? 'bg-violet-50/50 dark:bg-violet-950/20 border-violet-300 dark:border-violet-800'
                     : isDoneM2
-                    ? 'bg-amber-50/60 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700 shadow-sm'
+                    ? 'bg-stone-50/60 dark:bg-stone-950/20 border-stone-300 dark:border-stone-700 shadow-sm'
                     : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 opacity-75'
                 }`}
               >
@@ -281,22 +281,19 @@ export function ClassManagement({
                     <h3 className="font-black text-base text-slate-900 dark:text-white">
                       תלמיד {student.studentNumber}
                     </h3>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                      מזהה: {student.id}
-                    </span>
                   </div>
 
                   {isApproved ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-2.5 py-1 rounded-lg">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/60 px-2.5 py-1 rounded-lg">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       מאושר ל{meetingShortLabelHe(3)}
                     </span>
                   ) : isDoneM2 ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 px-2.5 py-1 rounded-lg animate-pulse">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-900/60 px-2.5 py-1 rounded-lg animate-pulse">
                       ממתין ב{TEACHER_GATE_HE}
                     </span>
                   ) : (
-                    <span className="text-[11px] font-bold text-slate-500 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-md">
+                    <span className="text-[11px] font-bold text-slate-600 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-md">
                       טרם השלים את {meetingShortLabelHe(2)}
                     </span>
                   )}
@@ -308,10 +305,10 @@ export function ClassManagement({
                     <span className="font-bold text-slate-600 dark:text-slate-400">המלצת מטריקס:</span>
                     <span className={`font-black px-2 py-0.5 rounded-md ${
                       student.recommendedPath === 'צמצום פערי קדם'
-                        ? 'bg-amber-200/80 text-amber-900 dark:bg-amber-900 dark:text-amber-100'
+                        ? 'bg-stone-200/80 text-stone-900 dark:bg-stone-900 dark:text-stone-100'
                         : student.recommendedPath === 'טרם נקבעה'
                         ? 'bg-slate-200/80 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                        : 'bg-emerald-200/80 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100'
+                        : 'bg-violet-200/80 text-violet-900 dark:bg-violet-900 dark:text-violet-100'
                     }`}>
                       {student.recommendedPath === 'ירוק' ? ROUTE_NAME_HE.green_path : student.recommendedPath === 'צמצום פערי קדם' ? ROUTE_NAME_HE.remediation_path : student.recommendedPath}
                     </span>
@@ -324,8 +321,8 @@ export function ClassManagement({
                       aria-pressed={student.approvedPath === 'ירוק'}
                       className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer active:scale-[0.97] ${
                         student.approvedPath === 'ירוק'
-                          ? 'bg-emerald-600 text-white shadow-md'
-                          : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200'
+                          ? 'bg-emerald-700 text-white shadow-md'
+                          : 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200'
                       }`}
                     >
                       {ROUTE_APPROVE_HE.green_path}
@@ -336,8 +333,8 @@ export function ClassManagement({
                       aria-pressed={student.approvedPath === 'צמצום פערי קדם'}
                       className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer active:scale-[0.97] ${
                         student.approvedPath === 'צמצום פערי קדם'
-                          ? 'bg-amber-600 text-white shadow-md'
-                          : 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-200'
+                          ? 'bg-stone-600 text-white shadow-md'
+                          : 'bg-stone-100 text-stone-800 hover:bg-stone-200 dark:bg-stone-900/40 dark:text-stone-200'
                       }`}
                     >
                       {ROUTE_APPROVE_HE.remediation_path}
@@ -368,7 +365,7 @@ export function ClassManagement({
               <Sliders className="w-6 h-6 text-purple-600" />
               תמיכה קוגניטיבית שקטה
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               הפעלת פרופיל תמיכה מוגבר נועלת את המקלדת בשורת התוצאה עד להמרה בלבני הדינס. הפעולה סמויה ב-100% ללא תיוג בממשק התלמיד.
             </p>
           </div>

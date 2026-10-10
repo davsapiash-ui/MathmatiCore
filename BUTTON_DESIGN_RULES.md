@@ -10,8 +10,8 @@
 ### 1.1 כפתור ראשי / שער מעבר (Primary / Gate Action)
 * **ייעוד:** פעולות קריטיות (אישור שער מורה, שמירה והפעלת מפגש, שליחת מבחן).
 * **עיצוב:**
-  * רקע: גרדיאנט פרימיום עשיר `bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white`.
-  * צל: צל צבעוני רך `shadow-lg shadow-indigo-600/25`.
+  * רקע: סגול מותג אחיד, בלי גרדיאנט: `bg-violet-700 hover:bg-violet-800 text-white` (במסכי מורה ומנהל; ראו `DESIGN_SYSTEM_RULES.md` סעיף 3.3).
+  * צל: צל עדין `shadow-sm`.
   * פינות: מעוגלות מודרניות `rounded-xl` או `rounded-2xl`.
   * טיפוגרפיה: `font-extrabold text-sm`.
   * שילוב אייקון: אייקון מוביל מודגש (`Sparkles`, `CheckCircle2`, `ArrowLeft`).
@@ -25,7 +25,7 @@
   * טיפוגרפיה: `font-bold text-xs`.
 
 ### 1.3 כפתור התקדמות והצלחה (Success / Advance Action)
-* **ייעוד:** התקדמות בתרגיל, אישור הצלחה, סיום שלב.
+* **ייעוד:** התקדמות בתרגיל, אישור הצלחה, סיום שלב. **במסכי התלמיד בלבד.** במסכי מורה ומנהל משתמשים בכפתור הראשי (1.1), כי הירוק שמור לרדאר.
 * **עיצוב:**
   * רקע: `bg-emerald-600 hover:bg-emerald-700 text-white`.
   * טיפוגרפיה: `font-display font-extrabold`.
@@ -73,6 +73,6 @@
   * כפתור פעיל: `cursor-pointer`.
   * כפתור מושבת: `disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none`.
 * **פוקוס מקלדת:**
-  * טבעת פוקוס נקייה: `focus-visible:ring-4 focus-visible:ring-indigo-500/40 focus-visible:outline-none`.
+  * טבעת פוקוס נקייה: `focus-visible:ring-4 focus-visible:ring-violet-500/40 focus-visible:outline-none`.
 * **ייצוג רב-ערוצי:**
   * כל כפתור מלווה באייקון גרפי לצד הטקסט להקלה קוגניטיבית.

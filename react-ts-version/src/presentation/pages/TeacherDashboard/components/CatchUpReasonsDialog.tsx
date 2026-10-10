@@ -178,18 +178,18 @@ function DialogBody({
           type="button"
           onClick={handleCancel}
           aria-label={CATCHUP_DIALOG_HE.closeWindow}
-          className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500"
+          className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600"
         >
           <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600">
+          <div className="p-3 rounded-2xl bg-stone-50 dark:bg-stone-950/50 text-stone-600">
             <Clock className="w-7 h-7" aria-hidden="true" />
           </div>
           <div>
             <h3 id={titleId} className="text-xl font-black text-slate-900 dark:text-white">{title}</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{catchUpDialogLeadHe(trigger, meeting)}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{catchUpDialogLeadHe(trigger, meeting)}</p>
           </div>
         </div>
 
@@ -209,7 +209,7 @@ function DialogBody({
               value={sameForAll}
               onChange={(e) => applySameForAll(e.target.value as CatchUpReasonKey | '')}
               disabled={isSaving}
-              className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500"
+              className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-violet-500"
             >
               <option value="">{CATCHUP_DIALOG_HE.reasonPlaceholder}</option>
               {CATCHUP_REASON_KEYS.map((key) => (
@@ -232,7 +232,7 @@ function DialogBody({
                 <div className="flex items-baseline justify-between gap-2 mb-2">
                   <span className="text-sm font-black text-slate-900 dark:text-white">תלמיד {n}</span>
                   {l.stoppedAtHe && (
-                    <span className="text-xs text-slate-500 dark:text-slate-400">הגיע עד: {l.stoppedAtHe}</span>
+                    <span className="text-xs text-slate-600 dark:text-slate-400">הגיע עד: {l.stoppedAtHe}</span>
                   )}
                 </div>
                 <select
@@ -242,7 +242,7 @@ function DialogBody({
                   value={row.reason}
                   onChange={(e) => setRow(n, { reason: e.target.value as CatchUpReasonKey | '' })}
                   disabled={isSaving}
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 mb-2"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-violet-500 mb-2"
                 >
                   <option value="" disabled>{CATCHUP_DIALOG_HE.reasonPlaceholder}</option>
                   {CATCHUP_REASON_KEYS.map((key) => (
@@ -261,7 +261,7 @@ function DialogBody({
                   disabled={isSaving}
                   placeholder={CATCHUP_DIALOG_HE.notePlaceholder}
                   aria-invalid={row.noteError ? true : undefined}
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-violet-500"
                 />
                 {row.noteError && (
                   <p role="alert" className="mt-1.5 text-xs font-bold text-red-700 dark:text-red-300">{row.noteError}</p>
@@ -272,7 +272,7 @@ function DialogBody({
         </ul>
 
         {!allReasons && (
-          <p className="mb-3 text-xs font-semibold text-amber-700 dark:text-amber-300">{CATCHUP_DIALOG_HE.needAllReasons}</p>
+          <p className="mb-3 text-xs font-semibold text-stone-700 dark:text-stone-300">{CATCHUP_DIALOG_HE.needAllReasons}</p>
         )}
         {isSaving && (
           <p role="status" className="mb-3 flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -287,12 +287,12 @@ function DialogBody({
               type="button"
               onClick={() => act(onReopen)}
               disabled={!canAct}
-              className="w-full px-5 py-2.5 text-sm font-bold text-white rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
+              className="w-full px-5 py-2.5 text-sm font-bold text-white rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed bg-stone-600 hover:bg-stone-700 disabled:opacity-50"
             >
               <RotateCcw className="w-4 h-4" aria-hidden="true" />
               <span>{CATCHUP_DIALOG_HE.reopen}</span>
             </button>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{reopenHintHe(trigger, meeting, nextMeeting)}</p>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{reopenHintHe(trigger, meeting, nextMeeting)}</p>
           </div>
           <div>
             <button
@@ -304,7 +304,7 @@ function DialogBody({
               <span>{CATCHUP_DIALOG_HE.continue}</span>
               <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{continueHintHe(trigger, meeting, nextMeeting)}</p>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{continueHintHe(trigger, meeting, nextMeeting)}</p>
           </div>
           <div className="flex justify-end">
             <button

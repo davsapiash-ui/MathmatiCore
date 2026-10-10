@@ -140,20 +140,20 @@ export function AdminSchoolsView() {
   return (
     <div className="p-2 sm:p-4 xl:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 p-8 text-white shadow-xl border border-indigo-400/40">
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-violet-50 dark:bg-slate-900 p-8 text-slate-900 dark:text-white shadow-sm border border-violet-200 dark:border-violet-900/60">
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 border border-white/25 text-white text-xs font-semibold backdrop-blur-md">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5 text-violet-600 dark:text-violet-300" />
               <span>ניהול מוסדות, סגלי הוראה וכיתות</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
               פריסת מוסדות, מורים וכיתות
             </h1>
-            <p className="text-indigo-100 text-sm md:text-base max-w-2xl font-light leading-relaxed">
+            <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base max-w-2xl leading-relaxed">
               מערכת ניהול להקמה ולליווי של מוסדות לימוד, שיוך מורים והגדרת כיתות בהתאם לתקן הפיילוט.
             </p>
           </div>
@@ -162,20 +162,20 @@ export function AdminSchoolsView() {
             {/* Module 25 §ד: printable login cards for the 12 learners. */}
             <UdlButton
               semanticColor="neutral"
-              className="gap-2 bg-white/15 hover:bg-white/25 text-white font-bold py-3.5 px-5 rounded-2xl shadow-lg border border-white/30 transition-all text-xs cursor-pointer"
+              className="gap-2 bg-white hover:bg-violet-100 text-violet-900 font-bold py-3.5 px-5 rounded-2xl shadow-sm border border-violet-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-violet-100 dark:border-slate-700 transition-all text-xs cursor-pointer"
               onClick={() => navigate("/admin/login-cards")}
             >
-              <Printer className="w-4 h-4 text-white" />
+              <Printer className="w-4 h-4 text-violet-700 dark:text-violet-200" />
               <span>הדפסת כרטיסי כניסה לתלמידים</span>
             </UdlButton>
 
             <UdlButton
               semanticColor="neutral"
-              className="gap-2 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3.5 px-5 rounded-2xl shadow-lg border border-rose-400/40 transition-all hover:scale-105 active:scale-95 text-xs cursor-pointer"
+              className="gap-2 bg-white hover:bg-rose-50 text-rose-900 font-bold py-3.5 px-5 rounded-2xl shadow-sm border border-rose-300 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800 transition-all active:scale-95 text-xs cursor-pointer"
               onClick={handleResetPilot}
               disabled={isResetting}
             >
-              <Trash2 className="w-4 h-4 text-white" />
+              <Trash2 className="w-4 h-4 text-rose-700 dark:text-rose-300" />
               <span>{isResetting ? "מאפס נתונים..." : "איפוס נתונים למבנה הפיילוט הרשמי"}</span>
             </UdlButton>
 
@@ -183,7 +183,7 @@ export function AdminSchoolsView() {
             {schools.length === 0 && (
             <UdlButton 
               semanticColor="primary" 
-              className="gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-indigo-600/30 border border-indigo-400/30 transition-all hover:scale-105 active:scale-95"
+              className="gap-2 bg-violet-700 hover:bg-violet-800 text-white font-bold py-3.5 px-6 rounded-2xl shadow-sm border border-violet-700 transition-all active:scale-95"
               onClick={() => openWizard("full_setup")}
             >
               <Plus className="w-5 h-5" />
@@ -194,33 +194,33 @@ export function AdminSchoolsView() {
         </div>
 
         {/* Pilot Scale Progress Bar */}
-        <div className="mt-8 pt-6 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between">
+        <div className="mt-8 pt-6 border-t border-violet-200/70 dark:border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white dark:bg-slate-950/40 border border-violet-100 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between">
             <div>
-              <span className="text-xs text-slate-300 block">מוסדות חינוך פעילים</span>
-              <span className="text-2xl font-black text-indigo-300">{schools.length} / 1</span>
+              <span className="text-xs text-slate-600 dark:text-slate-300 block">מוסדות חינוך פעילים</span>
+              <span className="text-2xl font-black text-violet-800 dark:text-violet-200">{schools.length} / 1</span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
+            <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-500/20 border border-violet-200 dark:border-violet-400/30 flex items-center justify-center text-violet-700 dark:text-violet-300">
               <Building className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-950/40 border border-violet-100 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between">
             <div>
-              <span className="text-xs text-slate-300 block">סגל מורים רשום</span>
-              <span className="text-2xl font-black text-emerald-300">{teachers.length}</span>
+              <span className="text-xs text-slate-600 dark:text-slate-300 block">סגל מורים רשום</span>
+              <span className="text-2xl font-black text-violet-800 dark:text-violet-200">{teachers.length}</span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300">
+            <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-500/20 border border-violet-200 dark:border-violet-400/30 flex items-center justify-center text-violet-700 dark:text-violet-300">
               <Users className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-950/40 border border-violet-100 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between">
             <div>
-              <span className="text-xs text-slate-300 block">כיתות לימוד פעילות</span>
-              <span className="text-2xl font-black text-cyan-300">{classes.length}</span>
+              <span className="text-xs text-slate-600 dark:text-slate-300 block">כיתות לימוד פעילות</span>
+              <span className="text-2xl font-black text-violet-800 dark:text-violet-200">{classes.length}</span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300">
+            <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-500/20 border border-violet-200 dark:border-violet-400/30 flex items-center justify-center text-violet-700 dark:text-violet-300">
               <Layers className="w-5 h-5" />
             </div>
           </div>
@@ -232,14 +232,14 @@ export function AdminSchoolsView() {
         {/* Capacity Settings Panel */}
         <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-violet-50 dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0">
               <Settings className="w-6 h-6" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                 מכסת תלמידים מרבית לכיתה
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 מספר התלמידים המרבי המורשה להשתתפות בכל כיתת לימוד
               </p>
             </div>
@@ -247,13 +247,13 @@ export function AdminSchoolsView() {
 
           <div className="flex flex-col items-start sm:items-end gap-0.5 shrink-0">
             <span className="text-2xl font-black text-slate-900 dark:text-white whitespace-nowrap">{PILOT_CLASS_CAPACITY} תלמידים</span>
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">קבוע לפי תקן הפיילוט</span>
+            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">קבוע לפי תקן הפיילוט</span>
           </div>
         </div>
 
         {/* Search Bar */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex items-center gap-3">
-          <Search className="w-5 h-5 text-slate-400 shrink-0" />
+          <Search className="w-5 h-5 text-slate-600 shrink-0" />
           <input 
             type="text" 
             placeholder="חפש לפי שם מוסד או מורה..."
@@ -268,19 +268,19 @@ export function AdminSchoolsView() {
       <div className="grid gap-8">
         {filteredSchools.length === 0 ? (
           <div className="col-span-full text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
+            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto text-slate-600">
               <Building className="w-8 h-8 opacity-60" />
             </div>
             <h3 className="text-xl font-bold text-slate-700 dark:text-slate-300">
               {searchQuery ? "לא נמצאו מוסדות התואמים לחיפוש" : "טרם הוקמו מוסדות חינוכיים במערכת"}
             </h3>
-            <p className="text-slate-500 text-sm max-w-sm mx-auto">
+            <p className="text-slate-600 text-sm max-w-sm mx-auto">
               לחץ על לחצן הקמת מוסד חדש כדי להפעיל את אשף ההקמה המונחה.
             </p>
             {!searchQuery && (
               <UdlButton 
                 semanticColor="primary" 
-                className="mt-2 px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-bold"
+                className="mt-2 px-6 py-2.5 rounded-xl bg-violet-600 text-white font-bold"
                 onClick={() => openWizard("full_setup")}
               >
                 הפעל אשף הקמה
@@ -299,19 +299,19 @@ export function AdminSchoolsView() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="relative rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden flex flex-col transition-all hover:border-indigo-300 dark:hover:border-indigo-700/60 hover:shadow-2xl"
+                className="relative rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden flex flex-col transition-all hover:border-violet-300 dark:hover:border-violet-700/60 hover:shadow-2xl"
               >
                 {/* School Card Top Bar */}
                 <div className="bg-slate-50 dark:bg-slate-950/60 p-6 flex justify-between items-center border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20 font-bold">
+                    <div className="w-12 h-12 rounded-2xl bg-violet-700 text-white flex items-center justify-center shadow-lg shadow-violet-500/20 font-bold">
                       <Building className="w-6 h-6" />
                     </div>
                     <div>
                       <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                         {school.name}
                       </h3>
-                      <p className="text-xs text-slate-400 font-mono mt-0.5">
+                      <p className="text-xs text-slate-600 font-mono mt-0.5">
                         מזהה מוסד: {school.id}
                       </p>
                     </div>
@@ -320,7 +320,7 @@ export function AdminSchoolsView() {
                   <button 
                     onClick={() => handleDeleteSchool(school)}
                     disabled={isDeletingId === school.id}
-                    className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-400 transition-colors flex items-center justify-center cursor-pointer"
+                    className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 transition-colors flex items-center justify-center cursor-pointer"
                     title="מחק מוסד"
                   >
                     {isDeletingId === school.id ? (
@@ -335,19 +335,19 @@ export function AdminSchoolsView() {
                 <div className="p-6 md:p-8 flex-1 flex flex-col space-y-6">
                   {/* Stats Cards */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-indigo-50/40 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 p-4 rounded-2xl flex items-center justify-between">
+                    <div className="bg-violet-50/40 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-900/40 p-4 rounded-2xl flex items-center justify-between">
                       <div>
-                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">סגל הוראה רשום</span>
-                        <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">
+                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">סגל הוראה רשום</span>
+                        <span className="text-3xl font-black text-violet-600 dark:text-violet-400">
                           {schoolTeachers.length}
                         </span>
                       </div>
-                      <Users className="w-7 h-7 text-indigo-400/60" />
+                      <Users className="w-7 h-7 text-violet-400/60" />
                     </div>
 
                     <div className="bg-cyan-50/40 dark:bg-cyan-950/30 border border-cyan-100 dark:border-cyan-900/40 p-4 rounded-2xl flex items-center justify-between">
                       <div>
-                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">כיתות מוגדרות</span>
+                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">כיתות מוגדרות</span>
                         <span className="text-3xl font-black text-cyan-600 dark:text-cyan-400">
                           {schoolClasses.length}
                         </span>
@@ -359,19 +359,19 @@ export function AdminSchoolsView() {
                   {/* Registered Teachers List */}
                   <div className="space-y-3">
                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-600">
                         סגל מורים פעיל:
                       </h4>
                       <button 
                         onClick={() => openWizard("add_teacher", school.id)}
-                        className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer"
+                        className="text-xs text-violet-600 dark:text-violet-400 font-bold hover:underline cursor-pointer"
                       >
                         + הוסף מורה
                       </button>
                     </div>
 
                     {schoolTeachers.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic py-2">טרם נרשמו מורים למוסד זה.</p>
+                      <p className="text-xs text-slate-600 italic py-2">טרם נרשמו מורים למוסד זה.</p>
                     ) : (
                       <div className="space-y-2">
                         {schoolTeachers.map((teacher) => (
@@ -392,9 +392,9 @@ export function AdminSchoolsView() {
                                   </span>
                                 )}
                               </div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3">
+                              <div className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-3">
                                 <span className="flex items-center gap-1 font-mono min-w-0">
-                                  <KeyRound className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <KeyRound className="w-3 h-3 text-slate-600 shrink-0" />
                                   <span className="break-all">דוא"ל SSO: <bdi dir="ltr">{teacher.ssoEmail}</bdi></span>
                                 </span>
                               </div>
@@ -403,7 +403,7 @@ export function AdminSchoolsView() {
                             <button 
                               onClick={() => handleDeleteTeacher(teacher)}
                               disabled={isDeletingId === teacher.id}
-                              className="shrink-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-xl transition-all cursor-pointer"
+                              className="shrink-0 text-slate-600 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-xl transition-all cursor-pointer"
                               title="מחק מורה"
                             >
                               {isDeletingId === teacher.id ? (
@@ -421,14 +421,14 @@ export function AdminSchoolsView() {
                   {/* Registered Classes List */}
                   <div className="space-y-3">
                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-600">
                         כיתות לימוד במוסד:
                       </h4>
                       {/* Module 25 §ב.1: the one class can be (re)created only when none exists. */}
                       {classes.length === 0 && (
                         <button
                           onClick={() => openWizard("add_class", school.id)}
-                          className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer"
+                          className="text-xs text-violet-600 dark:text-violet-400 font-bold hover:underline cursor-pointer"
                         >
                           + הקמת כיתת המבקרים
                         </button>
@@ -436,7 +436,7 @@ export function AdminSchoolsView() {
                     </div>
 
                     {schoolClasses.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic py-2">טרם הוקמו כיתות במוסד זה.</p>
+                      <p className="text-xs text-slate-600 italic py-2">טרם הוקמו כיתות במוסד זה.</p>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {schoolClasses.map((cls) => (
@@ -452,7 +452,7 @@ export function AdminSchoolsView() {
                             <button 
                               onClick={() => handleDeleteClass(cls)}
                               disabled={isDeletingId === cls.id}
-                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-1.5 rounded-lg transition-all cursor-pointer"
+                              className="text-slate-600 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-1.5 rounded-lg transition-all cursor-pointer"
                               title="מחק כיתה"
                             >
                               {isDeletingId === cls.id ? (
@@ -471,7 +471,7 @@ export function AdminSchoolsView() {
                   <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex gap-3 mt-auto">
                     <UdlButton 
                       semanticColor="neutral" 
-                      className="flex-1 justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-bold py-3 rounded-xl transition-all cursor-pointer"
+                      className="flex-1 justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-violet-50 dark:hover:bg-violet-950 hover:text-violet-600 dark:hover:text-violet-400 text-xs font-bold py-3 rounded-xl transition-all cursor-pointer"
                       onClick={() => openWizard("add_teacher", school.id)}
                     >
                       <Users className="w-4 h-4" />

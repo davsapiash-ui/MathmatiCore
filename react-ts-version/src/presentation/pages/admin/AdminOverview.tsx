@@ -279,41 +279,41 @@ export function AdminOverview() {
   return (
     <div className="p-2 sm:p-4 xl:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 p-8 text-white shadow-2xl border border-indigo-400/40">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-violet-50 dark:bg-slate-900 p-8 text-slate-900 dark:text-white shadow-sm border border-violet-200 dark:border-violet-900/60">
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 border border-white/25 text-white text-xs font-bold shadow-sm backdrop-blur-md">
-              <Zap className="w-4 h-4 text-amber-300" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 text-xs font-bold">
+              <Zap className="w-4 h-4 text-violet-600 dark:text-violet-300" />
               <span>לוח בקרה ניהולי בזמן אמת</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white drop-shadow-sm">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
               סקירה כללית ומדדי מערכת
             </h1>
-            <p className="text-indigo-100 text-sm md:text-base font-normal">
+            <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base">
               מעקב אחר פעילות הלמידה במערכת MathmatiCore, היקף השימוש, אבטחת מידע ותקני פרטיות.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <UdlButton
-              semanticColor="success"
+              semanticColor="primary"
               onClick={handleExportReport}
               disabled={isExportingReport}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-lg border border-emerald-400/40 active:scale-95 transition-all"
+              className="gap-2 bg-violet-700 hover:bg-violet-800 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-sm border border-violet-700 active:scale-95 transition-all"
               title="הפקת דוח PDF והעלאה ישירה למרחב השיתופי ב-Google Drive"
             >
               <UploadCloud className="w-4 h-4" />
               <span>{isExportingReport ? "מעלה דוח ל-Google Drive..." : "הפקת דוח והעלאה ל-Google Drive ☁️"}</span>
             </UdlButton>
 
-            <div className={`flex items-center gap-2.5 backdrop-blur-md border px-4 py-2.5 rounded-2xl text-xs font-bold text-white shadow-md transition-all ${
+            <div className={`flex items-center gap-2.5 border px-4 py-2.5 rounded-2xl text-xs font-bold bg-white dark:bg-slate-950/60 transition-all ${
               isFirebaseConnected 
-                ? 'bg-emerald-500/20 border-emerald-400/40' 
-                : 'bg-rose-500/30 border-rose-400/50'
+                ? 'border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100' 
+                : 'border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200'
             }`}>
               <span className={`w-2.5 h-2.5 rounded-full ${
-                isFirebaseConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+                isFirebaseConnected ? 'bg-slate-500' : 'bg-rose-700'
               }`} />
               <span>
                 {isFirebaseConnected 
@@ -327,7 +327,7 @@ export function AdminOverview() {
 
       {/* Module 24 §ב/§ה: quiet indicator naming the cache and its last update.
           The console renders aggregates only — never a live per-student query. */}
-      <div className="flex items-center justify-end gap-2 text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+      <div className="flex items-center justify-end gap-2 text-[11px] font-semibold text-slate-600 dark:text-slate-500">
         <Clock className="w-3.5 h-3.5" />
         <span>
           {cacheUpdatedAt
@@ -338,69 +338,69 @@ export function AdminOverview() {
 
       {/* Metrics Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-blue-500/50 transition-all">
-          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-blue-500 to-indigo-600" />
+        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-violet-500/50 transition-all">
+          <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">מוסדות פעילים</p>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">מוסדות פעילים</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{schools.length}</h3>
-              <div className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold pt-1">
+              <div className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold pt-1">
                 <TrendingUp className="w-3.5 h-3.5" />
                 <span>בהתאם לתקן הפיילוט</span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-500/20">
+            <div className="w-12 h-12 rounded-2xl bg-violet-500/10 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 flex items-center justify-center border border-violet-500/20">
               <GraduationCap className="w-6 h-6" />
             </div>
           </div>
         </AccessibleCard>
 
-        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-emerald-500/50 transition-all">
-          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-emerald-500 to-teal-600" />
+        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-violet-500/50 transition-all">
+          <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">מורים מובילים</p>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">מורים מובילים</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{teachers.length}</h3>
-              <div className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold pt-1">
+              <div className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold pt-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>רישיונות פעילים</span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+            <div className="w-12 h-12 rounded-2xl bg-violet-500/10 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 flex items-center justify-center border border-violet-500/20">
               <Users className="w-6 h-6" />
             </div>
           </div>
         </AccessibleCard>
 
-        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-purple-500/50 transition-all">
-          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-purple-500 to-indigo-600" />
+        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-violet-500/50 transition-all">
+          <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">תלמידים במערכת</p>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">תלמידים במערכת</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{totalStudents}</h3>
-              <div className="flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold pt-1">
+              <div className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold pt-1">
                 <Activity className="w-3.5 h-3.5" />
                 <span>רשומים לפיילוט</span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-500/20">
+            <div className="w-12 h-12 rounded-2xl bg-violet-500/10 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 flex items-center justify-center border border-violet-500/20">
               <Activity className="w-6 h-6" />
             </div>
           </div>
         </AccessibleCard>
 
-        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-amber-500/50 transition-all">
-          <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-amber-500 to-orange-600" />
+        <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl relative overflow-hidden group hover:border-stone-500/50 transition-all">
+          <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">שיעור השלמת מפגשים</p>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">שיעור השלמת מפגשים</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{completionRatePercent}%</h3>
-              <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold pt-1">
+              <div className="flex items-center gap-1 text-[11px] text-stone-600 dark:text-stone-400 font-semibold pt-1">
                 <ShieldAlert className="w-3.5 h-3.5" />
                 <span>מדד מרוכז ממסד הנתונים</span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20">
+            <div className="w-12 h-12 rounded-2xl bg-stone-500/10 dark:bg-stone-500/20 text-stone-600 dark:text-stone-400 flex items-center justify-center border border-stone-500/20">
               <ShieldAlert className="w-6 h-6" />
             </div>
           </div>
@@ -412,16 +412,16 @@ export function AdminOverview() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-indigo-600" />
+              <BarChart3 className="w-5 h-5 text-violet-600" />
               תמונת מצב פדגוגית מרוכזת (מפגשים 3–8)
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               נתונים מצרפיים בלבד (ללא חשיפת נתוני למידה פרטניים, להגנה על פרטיות הלומד)
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl border border-indigo-200 dark:border-indigo-800">
+            <span className="px-3 py-1 bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-300 font-bold text-xs rounded-xl border border-violet-200 dark:border-violet-800">
               אנונימיות מלאה (Zero PII)
             </span>
           </div>
@@ -434,24 +434,24 @@ export function AdminOverview() {
                 <span className="font-extrabold text-xs text-slate-900 dark:text-white">
                   {stat.title}
                   {stat.childName && (
-                    <span className="block font-bold text-[11px] text-slate-500 dark:text-slate-400">אצל התלמידים: {stat.childName}</span>
+                    <span className="block font-bold text-[11px] text-slate-600 dark:text-slate-400">אצל התלמידים: {stat.childName}</span>
                   )}
                 </span>
                 {stat.hasData && (
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold text-violet-600 bg-violet-50 dark:bg-violet-950 px-1.5 py-0.5 rounded">
                     {stat.completionRate}
                   </span>
                 )}
               </div>
               {stat.hasData ? (
-                <div className="text-[11px] text-slate-500 space-y-0.5">
+                <div className="text-[11px] text-slate-600 space-y-0.5">
                   <div>שיעור השלמה: <span className="font-bold text-slate-800 dark:text-slate-200">{stat.completionRate}</span></div>
                   <div>ממוצע {FIRST_ATTEMPT_SCORE_LABEL_HE}: {stat.averageScore !== null
-                    ? <span className="font-bold text-indigo-600 dark:text-indigo-400">{stat.averageScore}</span>
-                    : <span className="text-slate-400 italic">אין נתונים עדיין</span>}</div>
+                    ? <span className="font-bold text-violet-600 dark:text-violet-400">{stat.averageScore}</span>
+                    : <span className="text-slate-600 italic">אין נתונים עדיין</span>}</div>
                 </div>
               ) : (
-                <div className="text-[11px] text-slate-400 italic">אין נתונים עדיין</div>
+                <div className="text-[11px] text-slate-600 italic">אין נתונים עדיין</div>
               )}
             </div>
           ))}
@@ -464,10 +464,10 @@ export function AdminOverview() {
       <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
         <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
           <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Activity className="w-5 h-5 text-indigo-600" />
+            <Activity className="w-5 h-5 text-violet-600" />
             תרגילים ומדדי שגיאות (כל המפגשים)
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
             סכומים מצרפיים של כל הכיתה, מחושבים בשרת
           </p>
         </div>
@@ -488,11 +488,11 @@ export function AdminOverview() {
               <span className="font-extrabold text-xs text-slate-900 dark:text-white">{m.label}</span>
               {typeof m.value === 'number' ? (
                 <>
-                  <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{m.value}</span>
-                  {m.sub && <span className="text-[11px] text-slate-500">{m.sub}</span>}
+                  <span className="text-2xl font-black text-violet-600 dark:text-violet-400">{m.value}</span>
+                  {m.sub && <span className="text-[11px] text-slate-600">{m.sub}</span>}
                 </>
               ) : (
-                <span className="text-[11px] text-slate-400 italic">אין נתונים עדיין</span>
+                <span className="text-[11px] text-slate-600 italic">אין נתונים עדיין</span>
               )}
             </div>
           ))}
@@ -512,7 +512,7 @@ export function AdminOverview() {
                 <BarChart3 className="w-5 h-5 text-purple-500" />
                 התפלגות כיתות ומורים לפי מוסד
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                 מספר המורים והכיתות בכל מוסד חינוכי
               </p>
             </div>
@@ -547,7 +547,7 @@ export function AdminOverview() {
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-800 dark:text-slate-200">הצפנת נתונים במנוחה (At Rest)</h4>
-                  <p className="text-slate-500">הצפנה פעילה ברמת מסד הנתונים</p>
+                  <p className="text-slate-600">הצפנה פעילה ברמת מסד הנתונים</p>
                 </div>
               </div>
 
@@ -559,12 +559,12 @@ export function AdminOverview() {
                   button here read an RTDB node (`replays`) that nothing writes,
                   so it could only ever answer "אין נתוני הקלטות". */}
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center shrink-0">
                   <ShieldAlert className="w-5 h-5" />
                 </div>
                 <div className="space-y-1 flex-1">
                   <h4 className="font-bold text-slate-800 dark:text-slate-200">הקלטות ומחיקת נתוני לומדים</h4>
-                  <p className="text-slate-500 leading-relaxed">
+                  <p className="text-slate-600 leading-relaxed">
                     ההקלטות מתעדות שינויים במסך ובבית המספרים בלבד — ללא מצלמה, מיקרופון או שמע.
                     מנהל המערכת אינו ניגש לנתוני לומד פרטניים; איפוס ומחיקה של נתוני
                     כיתה מתבצעים על ידי המורה מלוח הבקרה של הכיתה, עם גיבוי אוטומטי לפני המחיקה.
@@ -580,10 +580,10 @@ export function AdminOverview() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Clock className="w-5 h-5 text-indigo-500" />
+              <Clock className="w-5 h-5 text-violet-500" />
               יומן אירועי אבטחה וביקורת (Audit Log)
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               תיעוד רציף של פעולות ניהוליות, עדכון מכסות והקמת מוסדות
             </p>
           </div>
@@ -591,7 +591,7 @@ export function AdminOverview() {
           {/* Search & Category Filter */}
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-xl text-xs flex-1 md:flex-none">
-              <Search className="w-4 h-4 text-slate-400" />
+              <Search className="w-4 h-4 text-slate-600" />
               <input 
                 type="text" 
                 placeholder="חיפוש ביומן אירועים..."
@@ -604,19 +604,19 @@ export function AdminOverview() {
             <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
               <button 
                 onClick={() => setLogFilter("ALL")}
-                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ALL" ? "bg-indigo-600 text-white shadow" : "text-slate-500"}`}
+                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ALL" ? "bg-violet-600 text-white shadow" : "text-slate-600"}`}
               >
                 הכל
               </button>
               <button 
                 onClick={() => setLogFilter("ADMIN")}
-                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ADMIN" ? "bg-indigo-600 text-white shadow" : "text-slate-500"}`}
+                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ADMIN" ? "bg-violet-600 text-white shadow" : "text-slate-600"}`}
               >
                 הנהלה
               </button>
               <button 
                 onClick={() => setLogFilter("TEACHER")}
-                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "TEACHER" ? "bg-indigo-600 text-white shadow" : "text-slate-500"}`}
+                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "TEACHER" ? "bg-violet-600 text-white shadow" : "text-slate-600"}`}
               >
                 מורים
               </button>
@@ -627,7 +627,7 @@ export function AdminOverview() {
         <div className="overflow-x-auto">
           <table className="w-full text-right border-collapse table-fixed">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 uppercase tracking-wider">
                 <th className="py-3 px-4 w-[22%]">זמן ביצוע</th>
                 <th className="py-3 px-4 w-[24%]">פעולה</th>
                 <th className="py-3 px-4 w-[22%]">משתמש מבצע</th>
@@ -638,11 +638,11 @@ export function AdminOverview() {
               {filteredLogs.length > 0 ? (
                 filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 text-xs font-mono">
+                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 text-xs font-mono">
                       {log.timestamp ? new Date(log.timestamp).toLocaleString('he-IL') : 'לא ידוע'}
                     </td>
                     <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs border border-indigo-200 dark:border-indigo-800">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 text-xs border border-violet-200 dark:border-violet-800">
                         {log.action}
                       </span>
                     </td>
@@ -656,7 +656,7 @@ export function AdminOverview() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center text-slate-400 text-sm">
+                  <td colSpan={4} className="py-12 text-center text-slate-600 text-sm">
                     לא נמצאו אירועי ביקורת התואמים את הסינון.
                   </td>
                 </tr>
