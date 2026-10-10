@@ -281,9 +281,6 @@ export function ClassManagement({
                     <h3 className="font-black text-base text-slate-900 dark:text-white">
                       תלמיד {student.studentNumber}
                     </h3>
-                    <span className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
-                      מזהה: {student.id}
-                    </span>
                   </div>
 
                   {isApproved ? (
