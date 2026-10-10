@@ -864,7 +864,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     <button
                       onClick={() => handleApproveGate(st.id, 'ירוק')}
                       disabled={Boolean(approvingStudentId)}
-                      className="px-2.5 py-1 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                      className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                     >
                       {isApprovingThis && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                       <span>{ROUTE_APPROVE_HE.green_path}</span>
@@ -1019,7 +1019,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                         <span title={meetingLabelHe(student.sessionNumber)}>{meetingShortLabelHe(student.sessionNumber)}</span>
                         {/* No approved path, no path tag. */}
                         {student.currentPath && (
-                          <span data-testid={`tile-path-${student.studentNumber}`} className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100' : 'bg-violet-100 text-violet-900 dark:bg-violet-950 dark:text-violet-200'}`}>
+                          <span data-testid={`tile-path-${student.studentNumber}`} className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100' : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'}`}>
                             {radarPathLabelHe(student.currentPath)}
                           </span>
                         )}
@@ -1067,7 +1067,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       <button
                         onClick={() => handleApproveGate(student.id, 'ירוק')}
                         disabled={Boolean(approvingStudentId)}
-                        className="px-2 py-0.5 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                        className="px-2 py-0.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                         title={ROUTE_APPROVE_HE.green_path}
                       >
                         {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
@@ -1158,7 +1158,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                     <span className="text-xs text-slate-600 font-bold block mb-1">מסלול למידה נוכחי</span>
-                    <span data-testid="detail-current-path" className={`text-base font-extrabold ${liveSelectedStudent.currentPath === 'צמצום פערים' ? 'text-slate-700 dark:text-slate-200' : liveSelectedStudent.currentPath === 'ירוק' ? 'text-violet-700 dark:text-violet-300' : 'text-slate-600 dark:text-slate-400'}`}>
+                    <span data-testid="detail-current-path" className={`text-base font-extrabold ${liveSelectedStudent.currentPath === 'צמצום פערים' ? 'text-slate-700 dark:text-slate-200' : liveSelectedStudent.currentPath === 'ירוק' ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-600 dark:text-slate-400'}`}>
                       {liveSelectedStudent.currentPath ? radarPathLabelHe(liveSelectedStudent.currentPath) : 'עדיין לא נקבע'}
                     </span>
                   </div>

@@ -321,8 +321,8 @@ export function ClassManagement({
                       aria-pressed={student.approvedPath === 'ירוק'}
                       className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer active:scale-[0.97] ${
                         student.approvedPath === 'ירוק'
-                          ? 'bg-violet-600 text-white shadow-md'
-                          : 'bg-violet-100 text-violet-800 hover:bg-violet-200 dark:bg-violet-900/40 dark:text-violet-200'
+                          ? 'bg-emerald-700 text-white shadow-md'
+                          : 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200'
                       }`}
                     >
                       {ROUTE_APPROVE_HE.green_path}

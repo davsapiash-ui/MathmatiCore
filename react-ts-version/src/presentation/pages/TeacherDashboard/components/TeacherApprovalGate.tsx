@@ -246,7 +246,7 @@ export function TeacherApprovalGate({
 
                       <td className="p-4">
                         {st.recommendedPath === 'green_path' ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-violet-100 text-violet-800 dark:bg-violet-950/60 dark:text-violet-300">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-300">
                             <Sparkles className="w-3 h-3" />
                             {ROUTE_NAME_HE.green_path}
                           </span>

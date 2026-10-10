@@ -204,7 +204,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                 <dt className="font-bold text-slate-600 dark:text-slate-300">המלצת המטריקס</dt>
                 <dd data-testid="gate-drawer-recommendation">
                   {recommendation === 'green_path' ? (
-                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-violet-100 text-violet-800 dark:bg-violet-950/60 dark:text-violet-300">
+                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-300">
                       {ROUTE_NAME_HE.green_path}
                     </span>
                   ) : recommendation === 'remediation_path' ? (
@@ -264,19 +264,19 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                 onClick={() => setSelectedPath('green_path')}
                 className={`text-right p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
                   selectedPath === 'green_path'
-                    ? 'border-violet-600 bg-violet-50/60 dark:bg-violet-950/40 shadow-sm ring-2 ring-violet-500/20'
+                    ? 'border-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/40 shadow-sm ring-2 ring-emerald-500/20'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-violet-500" />
+                    <span className="w-3 h-3 rounded-full bg-emerald-500" />
                     <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
                       {ROUTE_NAME_HE.green_path}
                     </span>
                   </div>
                   {selectedPath === 'green_path' && (
-                    <CheckCircle2 className="w-4 h-4 text-violet-600" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-700" />
                   )}
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">

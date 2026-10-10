@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import React from 'react';
-import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { resolve, join, relative } from 'path';
@@ -89,6 +89,14 @@ describe('1 — the child reads where it is, not the exercise title', () => {
 
   describe('rendered', () => {
     const STUDENT = 'student_user6';
+    // TaskCard's first import starts the Firebase sync, whose first (offline)
+    // snapshot replaces the learner record in the store. Load it once, before
+    // each test seeds that record, or the seeded path is gone by initSession.
+    let TaskCard: React.ComponentType;
+    beforeAll(async () => {
+      ({ TaskCard } = await import('@/features/workspace/tasks/TaskCard'));
+      await new Promise((r) => setTimeout(r, 0));
+    });
     beforeEach(() => {
       useAuthStore.setState({ user: { uid: STUDENT, name: 'user6' } as any, role: 'student', isAuthenticated: true });
       useStore.setState({ students: { [STUDENT]: { pedagogicalPath: 'green_path' } } as any });
@@ -99,7 +107,6 @@ describe('1 — the child reads where it is, not the exercise title', () => {
     // ("משימה 1 מתוך 7: קוראים וכותבים מספרים" — owner, 9.10.2026: a general topic);
     // the teacher's exercise title is still nowhere.
     it('meeting 3, first exercise: "משימה 1 מתוך 7: <topic>", and its title is nowhere', async () => {
-      const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
       useWorkspaceStore.getState().initSession(3, false);
       const { container } = render(<TaskCard />);
       expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('משימה 1 מתוך 7: קוראים וכותבים מספרים');
@@ -112,7 +119,6 @@ describe('1 — the child reads where it is, not the exercise title', () => {
     });
 
     it('meeting 2: "משימה 1 מתוך 7", not the diagnostic task’s title', async () => {
-      const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
       useWorkspaceStore.getState().initSession(2, false);
       const { container } = render(<TaskCard />);
       expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`משימה 1 מתוך ${DIAGNOSTIC_TASKS.length}`);
