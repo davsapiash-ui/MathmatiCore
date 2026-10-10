@@ -212,18 +212,18 @@ export function AdminCurriculumView() {
   return (
     <div className="p-6 md:p-10 pb-24 max-w-7xl mx-auto space-y-8" dir="rtl">
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 p-8 text-white shadow-2xl border border-purple-500/20">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-violet-50 dark:bg-slate-900 p-8 text-slate-900 dark:text-white shadow-sm border border-violet-200 dark:border-violet-900/60">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-300 text-xs font-semibold">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 text-xs font-semibold">
               <BookOpen className="w-3.5 h-3.5" />
               <span>תוכנית הלימודים והפצה מרוכזת</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
               קטלוג פדגוגי וכיול מנוע הלמידה
             </h1>
-            <p className="text-slate-300 text-sm md:text-base font-light">
+            <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base">
               מאגרי המשימות של 8 המפגשים (משימות חובה, ביסוס ואתגר לפי מסלול), פרסום התוכן למסד הנתונים וכיול סף ההיסוס של רדאר הלמידה.
             </p>
           </div>
@@ -242,7 +242,7 @@ export function AdminCurriculumView() {
             <button
               onClick={handlePublishCatalog}
               disabled={isPublishingCatalog}
-              className="px-5 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-500 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-violet-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              className="px-5 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-violet-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
             >
               <BookOpen className="w-4 h-4" />
               <span>{isPublishingCatalog ? 'מפרסם תוכנית לימודים...' : 'פרסום תוכנית הלימודים'}</span>
@@ -438,7 +438,7 @@ export function AdminCurriculumView() {
 
             <UdlButton 
               semanticColor="primary" 
-              className="w-full justify-center py-3.5 rounded-2xl font-bold bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/25 cursor-pointer disabled:opacity-50"
+              className="w-full justify-center py-3.5 rounded-2xl font-bold bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/25 cursor-pointer disabled:opacity-50"
               onClick={handleSaveCalibration}
               disabled={isSavingCalibration}
             >

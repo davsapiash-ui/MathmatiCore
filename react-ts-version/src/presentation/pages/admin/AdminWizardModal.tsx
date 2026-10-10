@@ -641,7 +641,7 @@ export function AdminWizardModal({
                     semanticColor="primary" 
                     onClick={handleQuickAddTeacher}
                     disabled={isSubmitting}
-                    className="gap-2 px-8 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold shadow-lg disabled:opacity-50"
+                    className="gap-2 px-8 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold shadow-lg disabled:opacity-50"
                   >
                     {isSubmitting ? "שומר בשרת..." : "שמירת מורה במערכת"}
                   </UdlButton>

@@ -59,17 +59,17 @@ function PointerRow({
 export function AdminSettingsView() {
   return (
     <div className="p-6 md:p-10 pb-24 max-w-5xl mx-auto space-y-8" dir="rtl">
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-violet-950 to-slate-900 p-8 text-white shadow-2xl border border-violet-500/20">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-violet-50 dark:bg-slate-900 p-8 text-slate-900 dark:text-white shadow-sm border border-violet-200 dark:border-violet-900/60">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/20 border border-violet-400/30 text-violet-300 text-xs font-semibold">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 text-xs font-semibold">
             <Info className="w-3.5 h-3.5" />
             <span>מידע מערכתי — הגדרות מנוהלות ברמת המורה והתוכן</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
             נגישות והרדאר הפדגוגי השקט
           </h1>
-          <p className="text-slate-300 text-sm md:text-base font-light max-w-3xl">
+          <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base max-w-3xl">
             ההתאמות האישיות וכיול הרדאר הפדגוגי מנוהלים במקומות הייעודיים להם. להלן פירוט אופן הפעלתם במערכת:
           </p>
         </div>
