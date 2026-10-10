@@ -277,7 +277,7 @@ export function AdminWizardModal({
             {/* Header */}
             <div className="p-6 pb-4 [@media(max-height:820px)]:p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-violet-500/20">
+                <div className="w-10 h-10 rounded-2xl bg-violet-700 flex items-center justify-center text-white shadow-lg shadow-violet-500/20">
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
@@ -288,14 +288,14 @@ export function AdminWizardModal({
                       ? "הקמת כיתת לימוד" 
                       : "אשף הקמת מוסד חינוכי חדש"}
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
                     תקני פיילוט ומבנה מוסדי
                   </p>
                 </div>
               </div>
               <button 
                 onClick={resetAndClose}
-                className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 transition-colors"
+                className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-600 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -308,7 +308,7 @@ export function AdminWizardModal({
                   {/* Connecting Line */}
                   <div className="absolute top-1/2 left-0 right-0 h-1 bg-slate-200 dark:bg-slate-800 -translate-y-1/2 z-0" />
                   <div 
-                    className="absolute top-1/2 right-0 h-1 bg-gradient-to-l from-violet-500 to-cyan-400 -translate-y-1/2 z-0 transition-all duration-500"
+                    className="absolute top-1/2 right-0 h-1 bg-gradient-to-l from-violet-500 to-violet-400 -translate-y-1/2 z-0 transition-all duration-500"
                     style={{ width: `${((step - 1) / 3) * 100}%` }}
                   />
 
@@ -331,12 +331,12 @@ export function AdminWizardModal({
                               ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" 
                               : isActive 
                               ? "bg-violet-600 text-white shadow-lg shadow-violet-600/30 ring-4 ring-violet-100 dark:ring-violet-950" 
-                              : "bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                              : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
                           }`}
                         >
                           {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <IconComponent className="w-4 h-4" />}
                         </div>
-                        <span className={`text-[11px] font-semibold ${isActive ? "text-violet-600 dark:text-violet-400 font-bold" : "text-slate-500 dark:text-slate-400"}`}>
+                        <span className={`text-[11px] font-semibold ${isActive ? "text-violet-600 dark:text-violet-400 font-bold" : "text-slate-600 dark:text-slate-400"}`}>
                           {s.title}
                         </span>
                       </div>
@@ -396,7 +396,7 @@ export function AdminWizardModal({
                         </label>
                         <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-4 text-base font-bold flex items-center justify-between">
                           <span>{PILOT_SCHOOL_NAME}</span>
-                          <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
+                          <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
                         </div>
                         {schoolError && (
                           <p className="text-xs text-rose-500 font-semibold flex items-center gap-1 mt-2">
@@ -500,7 +500,7 @@ export function AdminWizardModal({
                           </label>
                           <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-3.5 text-sm font-bold flex items-center justify-between">
                             <span>{PILOT_CLASS_NAME}</span>
-                            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
+                            <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
                           </div>
                         </div>
 
@@ -529,7 +529,7 @@ export function AdminWizardModal({
                             // field that the save ignored promised a capacity it never set.
                             <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl p-3.5 text-sm font-bold flex items-center justify-between">
                               <span>{PILOT_CLASS_CAPACITY} תלמידים</span>
-                              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
+                              <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-500">קבוע לפי תקן הפיילוט</span>
                             </div>
                           ) : (
                             <input
@@ -576,19 +576,19 @@ export function AdminWizardModal({
 
                         <div className="space-y-3 divide-y divide-slate-200 dark:divide-slate-800 text-sm">
                           <div className="pt-2 flex justify-between">
-                            <span className="text-slate-500">שם המוסד:</span>
+                            <span className="text-slate-600">שם המוסד:</span>
                             <span className="font-bold text-slate-800 dark:text-slate-100">{PILOT_SCHOOL_NAME}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
-                            <span className="text-slate-500">מורה אחראי (דוא"ל SSO מורשה):</span>
+                            <span className="text-slate-600">מורה אחראי (דוא"ל SSO מורשה):</span>
                             <span className="font-mono font-bold text-violet-600 dark:text-violet-400" dir="ltr">{teacherSsoEmail}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
-                            <span className="text-slate-500">כיתה ראשונה:</span>
+                            <span className="text-slate-600">כיתה ראשונה:</span>
                             <span className="font-bold text-cyan-600 dark:text-cyan-400">{PILOT_CLASS_NAME}</span>
                           </div>
                           <div className="pt-3 flex justify-between">
-                            <span className="text-slate-500">מכסת תלמידים:</span>
+                            <span className="text-slate-600">מכסת תלמידים:</span>
                             <span className="font-bold text-slate-800 dark:text-slate-200">{studentLimit} תלמידים</span>
                           </div>
                         </div>

@@ -202,7 +202,7 @@ export function AdminChatView() {
             )}
           </div>
 
-          <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-950/50 p-2 rounded-xl border border-emerald-200 dark:border-emerald-800">
+          <div className="flex items-center gap-1 text-[11px] text-emerald-800 font-bold bg-emerald-50 dark:bg-emerald-950/50 p-2 rounded-xl border border-emerald-200 dark:border-emerald-800">
             <ShieldCheck className="w-4 h-4 shrink-0" />
             <span>מנגנון הגנת פרטיות פעיל: שמות התלמידים מוחלפים במספרים 1–12</span>
           </div>
@@ -241,7 +241,7 @@ export function AdminChatView() {
 
         <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
           {filteredTeachers.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-sm">לא נמצאו מורים תואמים.</div>
+            <div className="p-8 text-center text-slate-600 text-sm">לא נמצאו מורים תואמים.</div>
           ) : (
             filteredTeachers.map(({ teacher, unreadCount, lastMsg, isUnanswered }) => {
               const isSelected = selectedTeacherId === teacher.id;
@@ -257,7 +257,7 @@ export function AdminChatView() {
                 >
                   <div className="flex items-start gap-3">
                     <div className="relative">
-                      <UserCircle2 className={`w-10 h-10 ${isSelected ? 'text-violet-600' : 'text-slate-400'}`} />
+                      <UserCircle2 className={`w-10 h-10 ${isSelected ? 'text-violet-600' : 'text-slate-600'}`} />
                       {isUnanswered && (
                         <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-rose-500 ring-2 ring-white animate-ping" />
                       )}
@@ -273,9 +273,9 @@ export function AdminChatView() {
                           </span>
                         )}
                       </div>
-                      {teacher.subtitle && <div className="text-xs text-slate-500 mt-0.5">{teacher.subtitle}</div>}
+                      {teacher.subtitle && <div className="text-xs text-slate-600 mt-0.5">{teacher.subtitle}</div>}
                       {lastMsg && (
-                        <div className="text-xs text-slate-400 truncate max-w-[150px] mt-1">
+                        <div className="text-xs text-slate-600 truncate max-w-[150px] mt-1">
                           {lastMsg.message_body}
                         </div>
                       )}
@@ -302,21 +302,21 @@ export function AdminChatView() {
             <div className="p-4 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 shadow-sm z-10">
               <button 
                 onClick={() => setSelectedTeacherId(null)}
-                className="md:hidden mr-2 p-2 min-h-10 min-w-10 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-700"
+                className="md:hidden mr-2 p-2 min-h-10 min-w-10 flex items-center justify-center rounded-lg text-slate-600 hover:text-slate-700"
               >
                 &rarr; חזור
               </button>
-              <UserCircle2 className="w-10 h-10 text-slate-400" />
+              <UserCircle2 className="w-10 h-10 text-slate-600" />
               <div>
                 <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100"><bdi dir="auto">{selectedTeacher.label}</bdi></h3>
-                {selectedTeacher.subtitle && <p className="text-xs text-slate-500">{selectedTeacher.subtitle}</p>}
+                {selectedTeacher.subtitle && <p className="text-xs text-slate-600">{selectedTeacher.subtitle}</p>}
               </div>
             </div>
 
             {/* Messages */}
             <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4">
               {conversationMessages.length === 0 ? (
-                <div className="m-auto text-slate-400 text-sm">אין הודעות בערוץ זה. ניתן לשלוח הודעה כדי לפתוח בשיחה.</div>
+                <div className="m-auto text-slate-600 text-sm">אין הודעות בערוץ זה. ניתן לשלוח הודעה כדי לפתוח בשיחה.</div>
               ) : (
                 conversationMessages.map(msg => {
                   const isAdmin = msg.sender_id === "admin";
@@ -327,7 +327,7 @@ export function AdminChatView() {
                             only, and forbids it in the teacher and admin interfaces. */}
                         {msg.message_body && <span>{msg.message_body}</span>}
                       </div>
-                      <span className="text-[10px] text-slate-400 mt-1 px-1">
+                      <span className="text-[10px] text-slate-600 mt-1 px-1">
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
@@ -359,7 +359,7 @@ export function AdminChatView() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center flex-col text-slate-400 gap-4">
+          <div className="flex-1 flex items-center justify-center flex-col text-slate-600 gap-4">
             <Users className="w-16 h-16 opacity-20" />
             <p>יש לבחור מורה מהרשימה לצפייה בשיחה או למענה</p>
           </div>

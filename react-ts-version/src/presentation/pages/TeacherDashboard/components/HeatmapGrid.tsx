@@ -760,7 +760,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               </button>
             </div>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
             מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת כדי לראות את פרטי התלמיד: המסלול, המפגש, סיווגי הטעות ושאלות מנחות.
           </p>
         </div>
@@ -800,12 +800,12 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
       {/* Progressive Disclosure: Contextual Teacher Gate Banner (Only when students are waiting) */}
       {pendingGateStudents.length > 0 && (
-        <section className="bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-800 rounded-2xl p-4 shadow-md animate-in fade-in slide-in-from-top-2 duration-300">
+        <section className="bg-violet-50 dark:bg-violet-950/40 border-2 border-violet-300 dark:border-violet-800 rounded-2xl p-4 shadow-md animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-2.5">
-              <span className="w-3 h-3 rounded-full bg-amber-500" />
-              <span className="font-extrabold text-sm text-amber-950 dark:text-amber-100 flex items-center gap-2">
-                <DoorOpen className="w-4 h-4 text-amber-600" />
+              <span className="w-3 h-3 rounded-full bg-violet-500" />
+              <span className="font-extrabold text-sm text-violet-950 dark:text-violet-100 flex items-center gap-2">
+                <DoorOpen className="w-4 h-4 text-violet-600" />
                 {pendingGateStudents.length === 1 
                   ? `תלמיד ${pendingGateStudents[0].studentNumber} סיים את שלב האבחון וממתין ב${TEACHER_GATE_HE} לפני מפגש 3`
                   : `${pendingGateStudents.length} תלמידים סיימו את שלב האבחון וממתינים ב${TEACHER_GATE_HE} לפני מפגש 3`}
@@ -815,13 +815,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               {pendingGateStudents.map(st => {
                 const isApprovingThis = approvingStudentId === st.id;
                 return (
-                  <div key={st.id} className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-2.5 min-h-11 rounded-xl border border-amber-200 dark:border-amber-800 shadow-xs">
+                  <div key={st.id} className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-2.5 min-h-11 rounded-xl border border-violet-200 dark:border-violet-800 shadow-xs">
                     <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">תלמיד {st.studentNumber}</span>
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">המלצה: {radarPathLabelHe(st.recommendedPath)}</span>
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">המלצה: {radarPathLabelHe(st.recommendedPath)}</span>
                     <button
                       onClick={() => handleApproveGate(st.id, 'ירוק')}
                       disabled={Boolean(approvingStudentId)}
-                      className="px-2.5 py-1 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                      className="px-2.5 py-1 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                     >
                       {isApprovingThis && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                       <span>{ROUTE_APPROVE_HE.green_path}</span>
@@ -829,7 +829,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     <button
                       onClick={() => handleApproveGate(st.id, 'צמצום פערים')}
                       disabled={Boolean(approvingStudentId)}
-                      className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                      className="px-2.5 py-1 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                     >
                       {isApprovingThis && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                       <span>{ROUTE_APPROVE_HE.remediation_path}</span>
@@ -925,7 +925,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       {CARD_OPEN_HE}
                     </span>
                   ) : !student.isOnline ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-400 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="לא מחובר">
+                    <span className="inline-flex items-center gap-1 bg-slate-600 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="לא מחובר">
                       <WifiOff className="w-3 h-3" aria-hidden="true" />
                       מנותק
                     </span>
@@ -963,7 +963,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 </div>
 
                 {!student.isOnline ? (
-                  <div className="flex flex-col justify-center items-center py-2 text-slate-400 dark:text-slate-500">
+                  <div className="flex flex-col justify-center items-center py-2 text-slate-600 dark:text-slate-500">
                     <span className="text-xs font-semibold">
                       {!isClassSessionActive ? 'אין מפגש פתוח' : 'לא מחובר כעת'}
                     </span>
@@ -976,7 +976,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                         <span title={meetingLabelHe(student.sessionNumber)}>{meetingShortLabelHe(student.sessionNumber)}</span>
                         {/* No approved path, no path tag. */}
                         {student.currentPath && (
-                          <span data-testid={`tile-path-${student.studentNumber}`} className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'}`}>
+                          <span data-testid={`tile-path-${student.studentNumber}`} className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100' : 'bg-violet-100 text-violet-900 dark:bg-violet-950 dark:text-violet-200'}`}>
                             {radarPathLabelHe(student.currentPath)}
                           </span>
                         )}
@@ -1024,7 +1024,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       <button
                         onClick={() => handleApproveGate(student.id, 'ירוק')}
                         disabled={Boolean(approvingStudentId)}
-                        className="px-2 py-0.5 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                        className="px-2 py-0.5 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                         title={ROUTE_APPROVE_HE.green_path}
                       >
                         {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
@@ -1033,7 +1033,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       <button
                         onClick={() => handleApproveGate(student.id, 'צמצום פערים')}
                         disabled={Boolean(approvingStudentId)}
-                        className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                        className="px-2 py-0.5 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                         title={ROUTE_APPROVE_HE.remediation_path}
                       >
                         {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
@@ -1081,14 +1081,14 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <div className="flex-1 min-h-0 overflow-y-auto p-6 md:p-8 pb-4 md:pb-4">
                 <div className="flex justify-between items-center pb-4 mb-6 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white font-black text-lg flex items-center justify-center shadow-lg shadow-violet-500/25">
+                    <div className="w-12 h-12 rounded-2xl bg-violet-700 text-white font-black text-lg flex items-center justify-center shadow-lg shadow-violet-500/25">
                       {selectedStudent.displayName.replace('תלמיד ', '')}
                     </div>
                     <div>
                       <h3 className="text-2xl font-black text-slate-900 dark:text-white">
                         {selectedStudent.displayName}
                       </h3>
-                      <p className="text-xs text-slate-400 font-mono mt-0.5">
+                      <p className="text-xs text-slate-600 font-mono mt-0.5">
                         מזהה מערכת: {selectedStudent.id}
                       </p>
                     </div>
@@ -1096,7 +1096,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
 
                   <button 
                     onClick={() => setSelectedStudent(null)}
-                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white font-bold"
+                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 hover:text-slate-900 dark:hover:text-white font-bold"
                   >
                     ✕ סגירה
                   </button>
@@ -1114,18 +1114,18 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 {/* State Badges */}
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                    <span className="text-xs text-slate-500 font-bold block mb-1">מסלול למידה נוכחי</span>
-                    <span data-testid="detail-current-path" className={`text-base font-extrabold ${liveSelectedStudent.currentPath === 'צמצום פערים' ? 'text-amber-600' : liveSelectedStudent.currentPath === 'ירוק' ? 'text-emerald-600' : 'text-slate-500 dark:text-slate-400'}`}>
+                    <span className="text-xs text-slate-600 font-bold block mb-1">מסלול למידה נוכחי</span>
+                    <span data-testid="detail-current-path" className={`text-base font-extrabold ${liveSelectedStudent.currentPath === 'צמצום פערים' ? 'text-slate-700 dark:text-slate-200' : liveSelectedStudent.currentPath === 'ירוק' ? 'text-violet-700 dark:text-violet-300' : 'text-slate-600 dark:text-slate-400'}`}>
                       {liveSelectedStudent.currentPath ? radarPathLabelHe(liveSelectedStudent.currentPath) : 'עדיין לא נקבע'}
                     </span>
                   </div>
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                    <span className="text-xs text-slate-500 font-bold block mb-1">התקדמות ברצף המפגשים</span>
+                    <span className="text-xs text-slate-600 font-bold block mb-1">התקדמות ברצף המפגשים</span>
                     <span className="text-base font-extrabold text-violet-600">
                       מפגש {liveSelectedStudent.sessionNumber} מתוך 8
                     </span>
                     {stationNameHe(liveSelectedStudent.sessionNumber) && (
-                      <span className="block text-xs font-bold text-slate-500 mt-1">
+                      <span className="block text-xs font-bold text-slate-600 mt-1">
                         אצל התלמידים: {stationNameHe(liveSelectedStudent.sessionNumber)}
                       </span>
                     )}
@@ -1148,10 +1148,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                         <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">
                           התפלגות סיווגי הטעות · {meetingShortLabelHe(liveSelectedStudent.sessionNumber)}
                         </span>
-                        <span className="text-xs font-bold text-slate-400">{total} סיווגים</span>
+                        <span className="text-xs font-bold text-slate-600">{total} סיווגים</span>
                       </div>
                       {total === 0 ? (
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
                           לא נרשמו סיווגי טעות עבור לומד זה במפגש הנוכחי.
                         </p>
                       ) : (
@@ -1213,7 +1213,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       setSelectedStudent(null);
                       onDrillDown(sid);
                     }}
-                    className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-extrabold text-sm shadow-lg shadow-violet-600/25 active:scale-[0.97] transition-all text-center cursor-pointer"
+                    className="flex-1 py-3 px-4 rounded-xl bg-violet-700 hover:bg-violet-800 text-white font-extrabold text-sm shadow-lg shadow-violet-600/25 active:scale-[0.97] transition-all text-center cursor-pointer"
                   >
                     מעבר לניתוח מעמיק
                   </button>

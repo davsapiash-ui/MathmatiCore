@@ -109,7 +109,7 @@ export function AdminLayout() {
               </div>
               <Logo textClassName="text-slate-900 font-bold text-xl tracking-tight" />
             </div>
-            <p className="text-[11px] text-slate-500 mt-2 tracking-widest uppercase font-bold [@media(max-height:820px)]:hidden">ממשק ניהול מערכת</p>
+            <p className="text-[11px] text-slate-600 mt-2 tracking-widest uppercase font-bold [@media(max-height:820px)]:hidden">ממשק ניהול מערכת</p>
           </SidebarHeader>
 
           <SidebarContent className="p-4 bg-white ![scrollbar-width:thin]">
@@ -188,7 +188,7 @@ export function AdminLayout() {
               </div>
               <div className="flex-1 overflow-hidden">
                 <div className="font-bold text-sm truncate">{(user?.displayName as string) || "System Admin"}</div>
-                <div className="text-[9px] text-slate-500 dark:text-slate-400 tracking-wider uppercase font-semibold">
+                <div className="text-[9px] text-slate-600 dark:text-slate-400 tracking-wider uppercase font-semibold">
                   Root Access
                 </div>
               </div>
@@ -210,7 +210,7 @@ export function AdminLayout() {
                 <h1 className="font-display font-black text-xl md:text-2xl text-slate-900 dark:text-white tracking-tight">
                   ממשק ניהול מערכת
                 </h1>
-                <p className="text-xs text-slate-500 font-medium">ניהול מוסדות, מורים, פדגוגיה ואבטחה</p>
+                <p className="text-xs text-slate-600 font-medium">ניהול מוסדות, מורים, פדגוגיה ואבטחה</p>
               </div>
             </div>
 
@@ -243,7 +243,7 @@ export function AdminLayout() {
                 <div className="flex flex-col items-start leading-tight">
                   <span className="text-xs font-black text-slate-800 dark:text-slate-100">{(user?.displayName as string) || "מנהל מערכת"}</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    {user?.email ? <span className="text-[10px] font-semibold text-slate-500">{user.email as string}</span> : null}
+                    {user?.email ? <span className="text-[10px] font-semibold text-slate-600">{user.email as string}</span> : null}
                     <span className="bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-violet-200 dark:border-violet-800">
                       מנהל מערכת
                     </span>
@@ -252,7 +252,7 @@ export function AdminLayout() {
               </div>
 
               {/* Logout Button */}
-              <LogoutButton className="bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 rounded-full px-3.5 py-2 text-xs font-bold transition-all border border-rose-200/60 dark:border-rose-800/40 shadow-sm" />
+              <LogoutButton className="bg-rose-50 hover:bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 rounded-full px-3.5 py-2 text-xs font-bold transition-all border border-rose-200/60 dark:border-rose-800/40 shadow-sm" />
             </div>
           </header>
 

@@ -103,7 +103,7 @@ export function TeacherApprovalGate({
               {TEACHER_GATE_HE} לפני {meetingShortLabelHe(3)} 🛡️
             </h2>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
             אישור מעבר מ{meetingShortLabelHe(2)} ל{meetingShortLabelHe(3)} ובחירת מסלול מותאם לפי תוצאות האבחון.
           </p>
         </div>
@@ -114,7 +114,7 @@ export function TeacherApprovalGate({
               type="button"
               onClick={handleBatchApprove}
               disabled={isLoading || approvingId === 'ALL' || readyStudents.length === 0}
-              className="px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-violet-600/25 active:scale-[0.97] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-5 py-2.5 bg-violet-700 hover:bg-violet-800 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-violet-600/25 active:scale-[0.97] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <UserCheck className="w-4 h-4" />
               <span>
@@ -124,7 +124,7 @@ export function TeacherApprovalGate({
               </span>
             </button>
             {undecidedCount > 0 && (
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
                 {undecidedCount === 1
                   ? 'לתלמיד אחד טרם נקבעה המלצה. יש לבחור עבורו מסלול בטבלה.'
                   : `ל-${undecidedCount} תלמידים טרם נקבעה המלצה. יש לבחור עבורם מסלול בטבלה.`}
@@ -191,7 +191,7 @@ export function TeacherApprovalGate({
         </div>
 
         {waitingStudents.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">
+          <div className="p-8 text-center text-slate-600 text-sm">
             {/* After level 3 nobody has finished meeting 2: "all approved" was not true then. */}
             {approvedStudents.length === 0
               ? `עדיין אף תלמיד לא סיים את ${meetingShortLabelHe(2)}, ולכן אין תלמידים שממתינים לאישור.`
@@ -201,7 +201,7 @@ export function TeacherApprovalGate({
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/50 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                <tr className="bg-slate-50 dark:bg-slate-800/50 text-[11px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                   <th className="p-4">מזהה תלמיד</th>
                   <th className="p-4">תוצאות אבחון מיומנויות</th>
                   <th className="p-4">מסלול מומלץ</th>
@@ -300,7 +300,7 @@ export function TeacherApprovalGate({
 
       {/* Approved Students Summary */}
       {approvedStudents.length > 0 && (
-        <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-500 flex items-center justify-between">
+        <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-600 flex items-center justify-between">
           <span>תלמידים שכבר אושרו ל{meetingShortLabelHe(3)}: {approvedStudents.length}</span>
           {/* The approval lets them in; the meeting itself opens only when the
               teacher opens it for the class (PRD 14 §ב0). */}

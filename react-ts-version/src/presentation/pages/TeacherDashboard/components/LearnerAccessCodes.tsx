@@ -45,7 +45,7 @@ export function LearnerAccessCodes() {
           <KeyRound className="w-6 h-6 text-violet-600" />
           קודי גישה
         </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
           לכל תלמיד קוד גישה אישי בן 4 ספרות. מסרו לכל תלמיד את הקוד שלו. אחרי "קוד חדש" הקוד הקודם אינו פעיל עוד.
         </p>
       </div>

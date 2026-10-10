@@ -239,7 +239,7 @@ export function AdminSchoolsView() {
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                 מכסת תלמידים מרבית לכיתה
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 מספר התלמידים המרבי המורשה להשתתפות בכל כיתת לימוד
               </p>
             </div>
@@ -247,13 +247,13 @@ export function AdminSchoolsView() {
 
           <div className="flex flex-col items-start sm:items-end gap-0.5 shrink-0">
             <span className="text-2xl font-black text-slate-900 dark:text-white whitespace-nowrap">{PILOT_CLASS_CAPACITY} תלמידים</span>
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">קבוע לפי תקן הפיילוט</span>
+            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">קבוע לפי תקן הפיילוט</span>
           </div>
         </div>
 
         {/* Search Bar */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex items-center gap-3">
-          <Search className="w-5 h-5 text-slate-400 shrink-0" />
+          <Search className="w-5 h-5 text-slate-600 shrink-0" />
           <input 
             type="text" 
             placeholder="חפש לפי שם מוסד או מורה..."
@@ -268,13 +268,13 @@ export function AdminSchoolsView() {
       <div className="grid gap-8">
         {filteredSchools.length === 0 ? (
           <div className="col-span-full text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
+            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto text-slate-600">
               <Building className="w-8 h-8 opacity-60" />
             </div>
             <h3 className="text-xl font-bold text-slate-700 dark:text-slate-300">
               {searchQuery ? "לא נמצאו מוסדות התואמים לחיפוש" : "טרם הוקמו מוסדות חינוכיים במערכת"}
             </h3>
-            <p className="text-slate-500 text-sm max-w-sm mx-auto">
+            <p className="text-slate-600 text-sm max-w-sm mx-auto">
               לחץ על לחצן הקמת מוסד חדש כדי להפעיל את אשף ההקמה המונחה.
             </p>
             {!searchQuery && (
@@ -304,14 +304,14 @@ export function AdminSchoolsView() {
                 {/* School Card Top Bar */}
                 <div className="bg-slate-50 dark:bg-slate-950/60 p-6 flex justify-between items-center border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/20 font-bold">
+                    <div className="w-12 h-12 rounded-2xl bg-violet-700 text-white flex items-center justify-center shadow-lg shadow-violet-500/20 font-bold">
                       <Building className="w-6 h-6" />
                     </div>
                     <div>
                       <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                         {school.name}
                       </h3>
-                      <p className="text-xs text-slate-400 font-mono mt-0.5">
+                      <p className="text-xs text-slate-600 font-mono mt-0.5">
                         מזהה מוסד: {school.id}
                       </p>
                     </div>
@@ -320,7 +320,7 @@ export function AdminSchoolsView() {
                   <button 
                     onClick={() => handleDeleteSchool(school)}
                     disabled={isDeletingId === school.id}
-                    className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-400 transition-colors flex items-center justify-center cursor-pointer"
+                    className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 transition-colors flex items-center justify-center cursor-pointer"
                     title="מחק מוסד"
                   >
                     {isDeletingId === school.id ? (
@@ -337,7 +337,7 @@ export function AdminSchoolsView() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-violet-50/40 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-900/40 p-4 rounded-2xl flex items-center justify-between">
                       <div>
-                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">סגל הוראה רשום</span>
+                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">סגל הוראה רשום</span>
                         <span className="text-3xl font-black text-violet-600 dark:text-violet-400">
                           {schoolTeachers.length}
                         </span>
@@ -347,7 +347,7 @@ export function AdminSchoolsView() {
 
                     <div className="bg-cyan-50/40 dark:bg-cyan-950/30 border border-cyan-100 dark:border-cyan-900/40 p-4 rounded-2xl flex items-center justify-between">
                       <div>
-                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">כיתות מוגדרות</span>
+                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">כיתות מוגדרות</span>
                         <span className="text-3xl font-black text-cyan-600 dark:text-cyan-400">
                           {schoolClasses.length}
                         </span>
@@ -359,7 +359,7 @@ export function AdminSchoolsView() {
                   {/* Registered Teachers List */}
                   <div className="space-y-3">
                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-600">
                         סגל מורים פעיל:
                       </h4>
                       <button 
@@ -371,7 +371,7 @@ export function AdminSchoolsView() {
                     </div>
 
                     {schoolTeachers.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic py-2">טרם נרשמו מורים למוסד זה.</p>
+                      <p className="text-xs text-slate-600 italic py-2">טרם נרשמו מורים למוסד זה.</p>
                     ) : (
                       <div className="space-y-2">
                         {schoolTeachers.map((teacher) => (
@@ -392,9 +392,9 @@ export function AdminSchoolsView() {
                                   </span>
                                 )}
                               </div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3">
+                              <div className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-3">
                                 <span className="flex items-center gap-1 font-mono min-w-0">
-                                  <KeyRound className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <KeyRound className="w-3 h-3 text-slate-600 shrink-0" />
                                   <span className="break-all">דוא"ל SSO: <bdi dir="ltr">{teacher.ssoEmail}</bdi></span>
                                 </span>
                               </div>
@@ -403,7 +403,7 @@ export function AdminSchoolsView() {
                             <button 
                               onClick={() => handleDeleteTeacher(teacher)}
                               disabled={isDeletingId === teacher.id}
-                              className="shrink-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-xl transition-all cursor-pointer"
+                              className="shrink-0 text-slate-600 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-xl transition-all cursor-pointer"
                               title="מחק מורה"
                             >
                               {isDeletingId === teacher.id ? (
@@ -421,7 +421,7 @@ export function AdminSchoolsView() {
                   {/* Registered Classes List */}
                   <div className="space-y-3">
                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-600">
                         כיתות לימוד במוסד:
                       </h4>
                       {/* Module 25 §ב.1: the one class can be (re)created only when none exists. */}
@@ -436,7 +436,7 @@ export function AdminSchoolsView() {
                     </div>
 
                     {schoolClasses.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic py-2">טרם הוקמו כיתות במוסד זה.</p>
+                      <p className="text-xs text-slate-600 italic py-2">טרם הוקמו כיתות במוסד זה.</p>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {schoolClasses.map((cls) => (
@@ -452,7 +452,7 @@ export function AdminSchoolsView() {
                             <button 
                               onClick={() => handleDeleteClass(cls)}
                               disabled={isDeletingId === cls.id}
-                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-1.5 rounded-lg transition-all cursor-pointer"
+                              className="text-slate-600 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-1.5 rounded-lg transition-all cursor-pointer"
                               title="מחק כיתה"
                             >
                               {isDeletingId === cls.id ? (

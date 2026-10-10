@@ -200,7 +200,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           onClick={handleClose}
           disabled={isSubmitting}
           aria-label="סגירת החלון"
-          className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500"
+          className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600"
         >
           <X className="w-5 h-5" aria-hidden="true" />
         </button>
@@ -226,7 +226,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
               <p className="text-sm font-bold text-stone-700 dark:text-stone-300 mt-0.5">{meetingLabelHe(activeSessionNumber)}</p>
             ) : null}
             {/* Level 1 deletes no learning data and needs no backup (PRD 23א §ב.1); it used to claim one. */}
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
               {isLevel2 || isLevel3
                 ? 'לפני שנמחק משהו נשמר גיבוי, והפעולה נרשמת ביומן האיפוסים.'
                 : 'הפעולה נרשמת ביומן האיפוסים. לא נשמר גיבוי, כי לא נמחקים נתוני למידה.'}
@@ -370,7 +370,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                       <span className="block font-bold text-slate-800 dark:text-slate-200">
                         {activeSessionNumber ? `המפגש הזה בלבד (ברירת המחדל): ${meetingLabel}` : 'המפגש הזה בלבד (ברירת המחדל)'}
                       </span>
-                      <span className="block text-slate-500 dark:text-slate-400">התלמיד מתחיל את המפגש הזה מההתחלה. העבודה במפגשים האחרים נשמרת.</span>
+                      <span className="block text-slate-600 dark:text-slate-400">התלמיד מתחיל את המפגש הזה מההתחלה. העבודה במפגשים האחרים נשמרת.</span>
                     </span>
                   </label>
                   <label className={`flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${scope === 'full_student' ? 'border-red-400 bg-red-50/60 dark:bg-red-950/30' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
@@ -384,7 +384,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                     />
                     <span className="text-xs">
                       <span className="block font-bold text-slate-800 dark:text-slate-200">איפוס מוחלט של התלמיד</span>
-                      <span className="block text-slate-500 dark:text-slate-400">ההתקדמות בכל 8 המפגשים, תוצאות האבחון, המסלול, ההקלטות והצ'אט נמחקים. ההגדרות של התלמיד נשמרות.</span>
+                      <span className="block text-slate-600 dark:text-slate-400">ההתקדמות בכל 8 המפגשים, תוצאות האבחון, המסלול, ההקלטות והצ'אט נמחקים. ההגדרות של התלמיד נשמרות.</span>
                     </span>
                   </label>
                 </div>

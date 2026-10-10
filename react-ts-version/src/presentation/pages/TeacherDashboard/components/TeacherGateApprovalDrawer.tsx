@@ -172,7 +172,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                 {alreadyApproved
                   ? (approvedPath ? `המסלול שאושר: ${ROUTE_NAME_HE[approvedPath]}` : 'המסלול של התלמיד כבר אושר')
                   : `אישור מסלול לימוד ותוכנית תרגילים לקראת ${meetingShortLabelHe(3)}`}
@@ -182,7 +182,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
 
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-600 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
             title="סגרו את החלון"
           >
             <X className="w-5 h-5" />
@@ -236,7 +236,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                       ))}
                     </ul>
                   ) : (
-                    <span className="text-slate-500 dark:text-slate-400">לא נמצאו משימות הדורשות חיזוק.</span>
+                    <span className="text-slate-600 dark:text-slate-400">לא נמצאו משימות הדורשות חיזוק.</span>
                   )}
                 </dd>
               </div>
@@ -279,7 +279,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                     <CheckCircle2 className="w-4 h-4 text-violet-600" />
                   )}
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                   {ROUTE_CARD_HE.green_path}
                 </p>
               </button>
@@ -306,7 +306,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                     <CheckCircle2 className="w-4 h-4 text-stone-600" />
                   )}
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                   {ROUTE_CARD_HE.remediation_path}
                 </p>
               </button>
@@ -328,7 +328,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
             onClick={handleApprove}
             disabled={isApproving || selectedPath === null || nothingToSave}
             title={selectedPath === null ? 'יש לבחור מסלול לפני האישור' : nothingToSave ? 'כדי לשנות את המסלול, בחרו במסלול האחר' : undefined}
-            className="px-7 py-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-violet-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+            className="px-7 py-3 bg-violet-700 hover:bg-violet-800 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-violet-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
           >
             <CheckCircle2 className="w-5 h-5 text-stone-300" />
             <span>

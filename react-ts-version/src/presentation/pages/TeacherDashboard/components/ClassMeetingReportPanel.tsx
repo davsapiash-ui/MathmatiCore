@@ -282,7 +282,7 @@ export function ClassMeetingReportPanel() {
             <button
               type="button"
               onClick={() => { void openFile('pdf'); }}
-              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-violet-600/40 cursor-pointer"
             >
               <FileText className="w-3.5 h-3.5" />
               פתחו PDF
@@ -293,7 +293,7 @@ export function ClassMeetingReportPanel() {
               type="button"
               onClick={() => { void openFile('csv'); }}
               title="טבלת הלומדים של המפגש, שורה לכל תלמיד, לשימוש המחקר"
-              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-violet-600/40 cursor-pointer"
             >
               <FileDown className="w-3.5 h-3.5" />
               טבלה למחקר (CSV)
@@ -303,7 +303,7 @@ export function ClassMeetingReportPanel() {
             type="button"
             onClick={requestReport}
             disabled={state === 'generating' || state === 'loading'}
-            className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-violet-700 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {state === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-stone-300" />}
             {state === 'generating' ? 'מעבד את כל פעולות המפגש… (עד דקה)' : report ? 'הפיקו מחדש' : `הפיקו דוח כיתה למפגש ${selectedSession}`}
@@ -312,7 +312,7 @@ export function ClassMeetingReportPanel() {
             <button
               type="button"
               onClick={() => setIsExpanded((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-violet-600/40 cursor-pointer transition-colors"
               title={isExpanded ? 'כווצו את הפירוט הכיתתי' : 'הציגו פירוט כיתתי מלא'}
             >
               {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}

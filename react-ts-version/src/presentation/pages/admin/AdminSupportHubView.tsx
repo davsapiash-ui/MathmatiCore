@@ -180,7 +180,7 @@ export function AdminSupportHubView() {
       {/* Filters Bar */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-600 absolute right-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="חיפוש פנייה לפי נושא, מספר תלמיד או תיאור..."
@@ -216,7 +216,7 @@ export function AdminSupportHubView() {
         {/* Tickets List / Table */}
         <div className="lg:col-span-2 space-y-3">
           {filteredTickets.length === 0 ? (
-            <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-400">
+            <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-600">
               <LifeBuoy className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p className="font-bold text-base">לא נמצאו פניות תמיכה תואמות</p>
             </div>
@@ -258,7 +258,7 @@ export function AdminSupportHubView() {
                       {ticket.description}
                     </p>
 
-                    <div className="flex items-center gap-4 text-[11px] text-slate-400 pt-1">
+                    <div className="flex items-center gap-4 text-[11px] text-slate-600 pt-1">
                       <span>מוסד: {ticket.school_name} ({ticket.class_name})</span>
                       <span>•</span>
                       <span>מזהה מורה: {ticket.teacher_id}</span>
@@ -266,7 +266,7 @@ export function AdminSupportHubView() {
                   </div>
 
                   <div className="flex flex-col justify-between items-end shrink-0 text-left">
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-slate-600">
                       {new Date(ticket.created_at || Date.now()).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                     </span>
 
@@ -301,7 +301,7 @@ export function AdminSupportHubView() {
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">{selectedTicket.subject}</p>
+                <p className="text-xs text-slate-600 mt-1">{selectedTicket.subject}</p>
               </div>
 
               {/* Description */}
@@ -311,7 +311,7 @@ export function AdminSupportHubView() {
 
               {/* Conversation Log */}
               <div className="space-y-3">
-                <h4 className="font-bold text-xs text-slate-500 uppercase tracking-wider">
+                <h4 className="font-bold text-xs text-slate-600 uppercase tracking-wider">
                   היסטוריית תגובות ועדכונים
                 </h4>
 
@@ -321,7 +321,7 @@ export function AdminSupportHubView() {
                       <div key={i} className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/60 text-xs space-y-1">
                         <div className="flex justify-between font-bold text-slate-800 dark:text-slate-200">
                           <span>{resp.author}</span>
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-[10px] text-slate-600">
                             {new Date(resp.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
@@ -329,17 +329,17 @@ export function AdminSupportHubView() {
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-slate-400 italic">טרם נוספו תגובות לפנייה זו.</p>
+                    <p className="text-xs text-slate-600 italic">טרם נוספו תגובות לפנייה זו.</p>
                   )}
                 </div>
               </div>
 
-              <p className="text-[11px] text-slate-400 leading-relaxed pt-2 border-t border-slate-100 dark:border-slate-800">
+              <p className="text-[11px] text-slate-600 leading-relaxed pt-2 border-t border-slate-100 dark:border-slate-800">
                 מענה למורה נשלח דרך "ערוץ פניות מורים" — כל הודעה עוברת סינון פרטיות קפדני (Zero PII) בצד השרת טרם שליחתה.
               </p>
             </div>
           ) : (
-            <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-400">
+            <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-600">
               <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-30" />
               <p className="text-xs font-bold">יש לבחור פנייה מהרשימה לצפייה בפרטים ובמענה</p>
             </div>

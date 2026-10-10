@@ -327,7 +327,7 @@ export function AdminOverview() {
 
       {/* Module 24 §ב/§ה: quiet indicator naming the cache and its last update.
           The console renders aggregates only — never a live per-student query. */}
-      <div className="flex items-center justify-end gap-2 text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+      <div className="flex items-center justify-end gap-2 text-[11px] font-semibold text-slate-600 dark:text-slate-500">
         <Clock className="w-3.5 h-3.5" />
         <span>
           {cacheUpdatedAt
@@ -342,7 +342,7 @@ export function AdminOverview() {
           <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">מוסדות פעילים</p>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">מוסדות פעילים</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{schools.length}</h3>
               <div className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold pt-1">
                 <TrendingUp className="w-3.5 h-3.5" />
@@ -359,7 +359,7 @@ export function AdminOverview() {
           <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">מורים מובילים</p>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">מורים מובילים</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{teachers.length}</h3>
               <div className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold pt-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -376,7 +376,7 @@ export function AdminOverview() {
           <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">תלמידים במערכת</p>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">תלמידים במערכת</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{totalStudents}</h3>
               <div className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold pt-1">
                 <Activity className="w-3.5 h-3.5" />
@@ -393,7 +393,7 @@ export function AdminOverview() {
           <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">שיעור השלמת מפגשים</p>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">שיעור השלמת מפגשים</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{completionRatePercent}%</h3>
               <div className="flex items-center gap-1 text-[11px] text-stone-600 dark:text-stone-400 font-semibold pt-1">
                 <ShieldAlert className="w-3.5 h-3.5" />
@@ -415,7 +415,7 @@ export function AdminOverview() {
               <BarChart3 className="w-5 h-5 text-violet-600" />
               תמונת מצב פדגוגית מרוכזת (מפגשים 3–8)
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               נתונים מצרפיים בלבד (ללא חשיפת נתוני למידה פרטניים, להגנה על פרטיות הלומד)
             </p>
           </div>
@@ -434,7 +434,7 @@ export function AdminOverview() {
                 <span className="font-extrabold text-xs text-slate-900 dark:text-white">
                   {stat.title}
                   {stat.childName && (
-                    <span className="block font-bold text-[11px] text-slate-500 dark:text-slate-400">אצל התלמידים: {stat.childName}</span>
+                    <span className="block font-bold text-[11px] text-slate-600 dark:text-slate-400">אצל התלמידים: {stat.childName}</span>
                   )}
                 </span>
                 {stat.hasData && (
@@ -444,14 +444,14 @@ export function AdminOverview() {
                 )}
               </div>
               {stat.hasData ? (
-                <div className="text-[11px] text-slate-500 space-y-0.5">
+                <div className="text-[11px] text-slate-600 space-y-0.5">
                   <div>שיעור השלמה: <span className="font-bold text-slate-800 dark:text-slate-200">{stat.completionRate}</span></div>
                   <div>ממוצע {FIRST_ATTEMPT_SCORE_LABEL_HE}: {stat.averageScore !== null
                     ? <span className="font-bold text-violet-600 dark:text-violet-400">{stat.averageScore}</span>
-                    : <span className="text-slate-400 italic">אין נתונים עדיין</span>}</div>
+                    : <span className="text-slate-600 italic">אין נתונים עדיין</span>}</div>
                 </div>
               ) : (
-                <div className="text-[11px] text-slate-400 italic">אין נתונים עדיין</div>
+                <div className="text-[11px] text-slate-600 italic">אין נתונים עדיין</div>
               )}
             </div>
           ))}
@@ -467,7 +467,7 @@ export function AdminOverview() {
             <Activity className="w-5 h-5 text-violet-600" />
             תרגילים ומדדי שגיאות (כל המפגשים)
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
             סכומים מצרפיים של כל הכיתה, מחושבים בשרת
           </p>
         </div>
@@ -489,10 +489,10 @@ export function AdminOverview() {
               {typeof m.value === 'number' ? (
                 <>
                   <span className="text-2xl font-black text-violet-600 dark:text-violet-400">{m.value}</span>
-                  {m.sub && <span className="text-[11px] text-slate-500">{m.sub}</span>}
+                  {m.sub && <span className="text-[11px] text-slate-600">{m.sub}</span>}
                 </>
               ) : (
-                <span className="text-[11px] text-slate-400 italic">אין נתונים עדיין</span>
+                <span className="text-[11px] text-slate-600 italic">אין נתונים עדיין</span>
               )}
             </div>
           ))}
@@ -512,7 +512,7 @@ export function AdminOverview() {
                 <BarChart3 className="w-5 h-5 text-purple-500" />
                 התפלגות כיתות ומורים לפי מוסד
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                 מספר המורים והכיתות בכל מוסד חינוכי
               </p>
             </div>
@@ -547,7 +547,7 @@ export function AdminOverview() {
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-800 dark:text-slate-200">הצפנת נתונים במנוחה (At Rest)</h4>
-                  <p className="text-slate-500">הצפנה פעילה ברמת מסד הנתונים</p>
+                  <p className="text-slate-600">הצפנה פעילה ברמת מסד הנתונים</p>
                 </div>
               </div>
 
@@ -564,7 +564,7 @@ export function AdminOverview() {
                 </div>
                 <div className="space-y-1 flex-1">
                   <h4 className="font-bold text-slate-800 dark:text-slate-200">הקלטות ומחיקת נתוני לומדים</h4>
-                  <p className="text-slate-500 leading-relaxed">
+                  <p className="text-slate-600 leading-relaxed">
                     ההקלטות מתעדות שינויים במסך ובבית המספרים בלבד — ללא מצלמה, מיקרופון או שמע.
                     מנהל המערכת אינו ניגש לנתוני לומד פרטניים; איפוס ומחיקה של נתוני
                     כיתה מתבצעים על ידי המורה מלוח הבקרה של הכיתה, עם גיבוי אוטומטי לפני המחיקה.
@@ -583,7 +583,7 @@ export function AdminOverview() {
               <Clock className="w-5 h-5 text-violet-500" />
               יומן אירועי אבטחה וביקורת (Audit Log)
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               תיעוד רציף של פעולות ניהוליות, עדכון מכסות והקמת מוסדות
             </p>
           </div>
@@ -591,7 +591,7 @@ export function AdminOverview() {
           {/* Search & Category Filter */}
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-xl text-xs flex-1 md:flex-none">
-              <Search className="w-4 h-4 text-slate-400" />
+              <Search className="w-4 h-4 text-slate-600" />
               <input 
                 type="text" 
                 placeholder="חיפוש ביומן אירועים..."
@@ -604,19 +604,19 @@ export function AdminOverview() {
             <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
               <button 
                 onClick={() => setLogFilter("ALL")}
-                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ALL" ? "bg-violet-600 text-white shadow" : "text-slate-500"}`}
+                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ALL" ? "bg-violet-600 text-white shadow" : "text-slate-600"}`}
               >
                 הכל
               </button>
               <button 
                 onClick={() => setLogFilter("ADMIN")}
-                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ADMIN" ? "bg-violet-600 text-white shadow" : "text-slate-500"}`}
+                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "ADMIN" ? "bg-violet-600 text-white shadow" : "text-slate-600"}`}
               >
                 הנהלה
               </button>
               <button 
                 onClick={() => setLogFilter("TEACHER")}
-                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "TEACHER" ? "bg-violet-600 text-white shadow" : "text-slate-500"}`}
+                className={`px-3 py-1 rounded-lg transition-all ${logFilter === "TEACHER" ? "bg-violet-600 text-white shadow" : "text-slate-600"}`}
               >
                 מורים
               </button>
@@ -627,7 +627,7 @@ export function AdminOverview() {
         <div className="overflow-x-auto">
           <table className="w-full text-right border-collapse table-fixed">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 uppercase tracking-wider">
                 <th className="py-3 px-4 w-[22%]">זמן ביצוע</th>
                 <th className="py-3 px-4 w-[24%]">פעולה</th>
                 <th className="py-3 px-4 w-[22%]">משתמש מבצע</th>
@@ -638,7 +638,7 @@ export function AdminOverview() {
               {filteredLogs.length > 0 ? (
                 filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 text-xs font-mono">
+                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 text-xs font-mono">
                       {log.timestamp ? new Date(log.timestamp).toLocaleString('he-IL') : 'לא ידוע'}
                     </td>
                     <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100">
@@ -656,7 +656,7 @@ export function AdminOverview() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center text-slate-400 text-sm">
+                  <td colSpan={4} className="py-12 text-center text-slate-600 text-sm">
                     לא נמצאו אירועי ביקורת התואמים את הסינון.
                   </td>
                 </tr>

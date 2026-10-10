@@ -167,7 +167,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                   התאמת תנאי למידה — תלמיד {studentNum}
                 </h2>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                 מצב שקט חזותי, שחזור מהלכים ואיפוס נתונים
               </p>
             </div>
@@ -198,7 +198,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
 
             <button 
               onClick={onClose}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-600 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
               title="סגרו את החלון"
             >
               <X className="w-5 h-5" />
@@ -244,7 +244,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                 className={`flex items-center gap-2 px-3.5 py-3 font-bold text-xs rounded-t-xl transition-all whitespace-nowrap cursor-pointer border-b-2 ${
                   isActive
                     ? 'border-violet-600 text-violet-700 dark:text-violet-400 bg-white dark:bg-slate-800 shadow-sm'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    : 'border-transparent text-slate-600 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -266,7 +266,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                     <EyeOff className="w-4 h-4 text-purple-600" />
                     שקט חזותי והתאמת קשב
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                     התאמת סביבת הלמידה לתלמידים עם רגישות חושית או הפרעות קשב וריכוז.
                   </p>
                 </div>
@@ -276,7 +276,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                     <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">
                       הפעלת מצב שקט חזותי (הפחתת גירויים)
                     </span>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                       מפסיק הבהובים, קפיצות ופעימות במסכים של התלמיד ומצמצם את אפקטי התנועה, כדי שהמסך יהיה רגוע.
                     </p>
                   </div>
@@ -312,7 +312,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                   <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
                     מסע הלמידה ושחזור מהלכים — תלמיד {studentNum}
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
                     התצוגה המלאה כוללת שחזור ויזואלי של מסך התלמיד, ציר החלטות מפורט ודוחות למידה לכל שמונת המפגשים בתצוגת מסך מפוצל.
                   </p>
                 </div>
@@ -326,7 +326,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                         onClose();
                       }
                     }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold text-xs shadow-md shadow-violet-600/20 active:scale-95 transition-all cursor-pointer"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-700 hover:bg-violet-800 text-white font-bold text-xs shadow-md shadow-violet-600/20 active:scale-95 transition-all cursor-pointer"
                   >
                     <span>מעבר למסע לומד ושחזור מלא</span>
                     <ExternalLink className="w-4 h-4" />
@@ -340,7 +340,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
 
         {/* Footer with Save Action */}
         <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between shrink-0">
-          <span className="text-xs text-slate-500 dark:text-slate-400">
+          <span className="text-xs text-slate-600 dark:text-slate-400">
             * השינוי מגיע למסכים של התלמיד מיד אחרי השמירה
           </span>
           <div className="flex gap-2">

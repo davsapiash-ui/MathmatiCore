@@ -107,7 +107,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
           <div className="flex-1 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-950" ref={scrollRef}>
             <div className="flex flex-col gap-3">
               {studentMessages.length === 0 ? (
-                <div className="text-center text-xs text-slate-400 mt-8">אין הודעות קודמות. התחילו התכתבות.</div>
+                <div className="text-center text-xs text-slate-600 mt-8">אין הודעות קודמות. התחילו התכתבות.</div>
               ) : (
                 studentMessages.map(msg => {
                   const isTeacher = msg.senderId === teacherId || isTeacherOrAdminId(msg.senderId) || msg.senderName === 'מורה';
@@ -119,7 +119,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
                           : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-bl-xs'
                       }`}>
                         {msg.text && <p className="leading-relaxed">{msg.text}</p>}
-                        <div className={`text-[10px] flex items-center justify-end gap-1 ${isTeacher ? 'text-violet-200' : 'text-slate-400'}`}>
+                        <div className={`text-[10px] flex items-center justify-end gap-1 ${isTeacher ? 'text-violet-200' : 'text-slate-600'}`}>
                           <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           {isTeacher && (
                             <CheckCheck className={`w-3 h-3 ${msg.read ? 'text-violet-300' : 'opacity-60'}`} />

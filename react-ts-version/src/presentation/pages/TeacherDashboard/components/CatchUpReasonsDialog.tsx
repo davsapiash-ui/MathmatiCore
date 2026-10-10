@@ -178,7 +178,7 @@ function DialogBody({
           type="button"
           onClick={handleCancel}
           aria-label={CATCHUP_DIALOG_HE.closeWindow}
-          className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500"
+          className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600"
         >
           <X className="w-5 h-5" aria-hidden="true" />
         </button>
@@ -189,7 +189,7 @@ function DialogBody({
           </div>
           <div>
             <h3 id={titleId} className="text-xl font-black text-slate-900 dark:text-white">{title}</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{catchUpDialogLeadHe(trigger, meeting)}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{catchUpDialogLeadHe(trigger, meeting)}</p>
           </div>
         </div>
 
@@ -232,7 +232,7 @@ function DialogBody({
                 <div className="flex items-baseline justify-between gap-2 mb-2">
                   <span className="text-sm font-black text-slate-900 dark:text-white">תלמיד {n}</span>
                   {l.stoppedAtHe && (
-                    <span className="text-xs text-slate-500 dark:text-slate-400">הגיע עד: {l.stoppedAtHe}</span>
+                    <span className="text-xs text-slate-600 dark:text-slate-400">הגיע עד: {l.stoppedAtHe}</span>
                   )}
                 </div>
                 <select
@@ -292,7 +292,7 @@ function DialogBody({
               <RotateCcw className="w-4 h-4" aria-hidden="true" />
               <span>{CATCHUP_DIALOG_HE.reopen}</span>
             </button>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{reopenHintHe(trigger, meeting, nextMeeting)}</p>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{reopenHintHe(trigger, meeting, nextMeeting)}</p>
           </div>
           <div>
             <button
@@ -304,7 +304,7 @@ function DialogBody({
               <span>{CATCHUP_DIALOG_HE.continue}</span>
               <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             </button>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{continueHintHe(trigger, meeting, nextMeeting)}</p>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{continueHintHe(trigger, meeting, nextMeeting)}</p>
           </div>
           <div className="flex justify-end">
             <button

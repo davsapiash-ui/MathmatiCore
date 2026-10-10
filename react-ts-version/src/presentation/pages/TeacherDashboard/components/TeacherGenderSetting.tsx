@@ -49,8 +49,8 @@ export function TeacherGenderSetting() {
                 className="peer sr-only"
               />
               <span
-                className={`flex min-h-11 items-center justify-center rounded-xl text-sm font-bold transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-ws-accent peer-focus-visible:ring-offset-2 ${
-                  checked ? 'bg-ws-accentSoft text-ws-accent shadow-sm' : 'bg-ws-bg text-ws-soft hover:text-ws-ink'
+                className={`flex min-h-11 items-center justify-center rounded-xl text-sm font-bold transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-violet-500 peer-focus-visible:ring-offset-2 ${
+                  checked ? 'bg-violet-50 text-violet-800 shadow-sm' : 'bg-ws-bg text-ws-soft hover:text-ws-ink'
                 }`}
               >
                 {option.label}

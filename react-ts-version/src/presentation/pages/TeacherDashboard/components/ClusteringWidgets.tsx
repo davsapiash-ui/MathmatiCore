@@ -30,19 +30,19 @@ export const CLUSTER_WIDGETS: readonly {
     key: 'decimal_structure',
     label: CONCEPT_LABELS_HE.decimal_structure,
     strugglingLabel: 'מתקשים במבנה העשרוני והאפס',
-    color: 'from-blue-500 to-cyan-500',
+    color: 'bg-violet-600',
   },
   {
     key: 'regrouping_fluency',
     label: CONCEPT_LABELS_HE.regrouping_fluency,
     strugglingLabel: 'מתקשים בהקבצה ובפריטה',
-    color: 'from-purple-500 to-violet-500',
+    color: 'bg-violet-600',
   },
   {
     key: 'procedural_fluency',
     label: CONCEPT_LABELS_HE.procedural_fluency,
     strugglingLabel: 'מתקשים בחישוב במאונך',
-    color: 'from-red-500 to-rose-500',
+    color: 'bg-violet-600',
   },
 ];
 
@@ -95,7 +95,7 @@ export function ClusteringWidgets({ students, onFilterChange, activeFilter }: Pr
                 : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800'
               }`}
           >
-            <div className={`absolute top-0 right-0 w-full h-1 bg-gradient-to-l ${widget.color}`} />
+            <div className={`absolute top-0 right-0 w-full h-1 ${widget.color}`} />
             <div className="text-3xl font-black mb-1 text-slate-800 dark:text-slate-100">{count}</div>
             <div className="text-sm font-medium text-slate-600 dark:text-slate-400">
               {widget.strugglingLabel}

@@ -411,7 +411,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
         <button
           type="button"
           onClick={() => setReloadNonce((n) => n + 1)}
-          className="text-xs font-bold text-ws-soft hover:text-ws-accent flex items-center gap-1.5 px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-surface cursor-pointer"
+          className="text-xs font-bold text-ws-soft hover:text-violet-800 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-surface cursor-pointer"
           title="טעינה מחדש של הפעולות המתועדות"
         >
           <RotateCcw className="w-3.5 h-3.5" />
@@ -441,9 +441,9 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
               onClick={() => selectSession(n)}
               className={`text-right px-2.5 py-2 rounded-xl border transition-all cursor-pointer ${
                 selected
-                  ? 'bg-ws-accentSoft border-ws-accent/40 shadow-sm'
+                  ? 'bg-violet-50 border-violet-600/40 shadow-sm'
                   : hasData
-                    ? 'bg-ws-surface border-ws-surface2 hover:border-ws-accent/40'
+                    ? 'bg-ws-surface border-ws-surface2 hover:border-violet-600/40'
                     : 'bg-ws-bg border-ws-surface2 opacity-60'
               }`}
               aria-pressed={selected}
@@ -495,7 +495,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
               <button
                 type="button"
                 onClick={() => chooseExercise(null)}
-                className={`text-xs font-bold px-3 py-1.5 rounded-full border cursor-pointer ${selectedExercise === null ? 'bg-ws-accent text-white border-ws-accent' : 'bg-ws-surface text-ws-ink border-ws-surface2'}`}
+                className={`text-xs font-bold px-3 py-1.5 rounded-full border cursor-pointer ${selectedExercise === null ? 'bg-violet-700 text-white border-violet-600' : 'bg-ws-surface text-ws-ink border-ws-surface2'}`}
               >
                 הכול
               </button>
@@ -514,7 +514,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                       if (chapter) requestSeek(chapter.start);
                     }}
                     title={exerciseTitle(selectedSession, id)}
-                    className={`text-xs font-bold px-3 py-1.5 rounded-full border cursor-pointer ${active ? 'bg-ws-accent text-white border-ws-accent' : 'bg-ws-surface text-ws-ink border-ws-surface2 hover:border-ws-accent/40'}`}
+                    className={`text-xs font-bold px-3 py-1.5 rounded-full border cursor-pointer ${active ? 'bg-violet-700 text-white border-violet-600' : 'bg-ws-surface text-ws-ink border-ws-surface2 hover:border-violet-600/40'}`}
                   >
                     {number !== null ? `${number}. ` : ''}{exerciseTitle(selectedSession, id)}{chapter ? '' : ' (ללא הקלטה)'}
                   </button>
@@ -551,7 +551,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                     type="button"
                     onClick={openReportPdf}
                     disabled={reportState === 'opening' || reportState === 'generating'}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-ws-accent/40 cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-ws-surface2 bg-ws-bg text-ws-ink hover:border-violet-600/40 cursor-pointer disabled:opacity-50"
                   >
                     {reportState === 'opening' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
                     פתחו PDF
@@ -562,7 +562,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   onClick={requestReport}
                   disabled={!meetingSessionId || reportState === 'generating' || reportState === 'loading'}
                   title={meetingSessionId ? 'ניתוח אוטומטי של הפעולות המתועדות במפגש זה' : 'אין פעולות מתועדות במפגש זה, אין מה לנתח'}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-violet-700 text-white shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {reportState === 'generating' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-stone-300" />}
                   {reportState === 'generating' ? 'הדוח בעיבוד… (כ-20 שניות)' : report ? 'הפיקו מחדש' : `הפיקו דוח למפגש ${selectedSession}`}
@@ -589,7 +589,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                           type="button"
                           onClick={() => { setSelectedReportId(r.reportId); setReportError(''); if (reportState === 'error') setReportState('idle'); }}
                           aria-pressed={active}
-                          className={`text-[11px] font-bold px-3 py-1.5 rounded-full border cursor-pointer ${active ? 'bg-ws-accent text-white border-ws-accent' : 'bg-ws-bg text-ws-ink border-ws-surface2 hover:border-ws-accent/40'}`}
+                          className={`text-[11px] font-bold px-3 py-1.5 rounded-full border cursor-pointer ${active ? 'bg-violet-700 text-white border-violet-600' : 'bg-ws-bg text-ws-ink border-ws-surface2 hover:border-violet-600/40'}`}
                         >
                           {r.generatedAt !== null ? `הופק ${formatDate(r.generatedAt)} ${formatClock(r.generatedAt)}` : 'דוח ללא תאריך הפקה'}
                           {isReportBeforeReset(r, sessionResets) ? ` · ${REPORT_BEFORE_RESET_LABEL_HE}` : ''}
@@ -778,7 +778,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
             <div className="min-w-0 bg-ws-surface border border-ws-surface2 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-ws-surface2 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-black text-ws-ink">
-                  <ListOrdered className="w-4 h-4 text-ws-accent" />
+                  <ListOrdered className="w-4 h-4 text-violet-800" />
                   ציר ההחלטות · {meetingShortLabelHe(selectedSession)}
                 </div>
                 <span className="text-[11px] text-ws-soft">{visibleEvents.length} פעולות</span>
@@ -839,7 +839,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                             ref={isHighlighted ? highlightedRowRef : undefined}
                             onClick={() => requestSeek(e.timestamp)}
                             title={`לחיצה מקפיצה את ההקלטה לשעה ${formatClock(e.timestamp)}`}
-                            className={`cursor-pointer transition-colors ${isHighlighted ? 'bg-ws-accentSoft border-r-4 border-ws-accent' : 'hover:bg-ws-bg'} ${desc.attention ? 'text-stone-900 dark:text-stone-200' : 'text-ws-ink'}`}
+                            className={`cursor-pointer transition-colors ${isHighlighted ? 'bg-violet-50 border-r-4 border-violet-600' : 'hover:bg-ws-bg'} ${desc.attention ? 'text-stone-900 dark:text-stone-200' : 'text-ws-ink'}`}
                           >
                             <td className="p-2 font-mono text-[11px] text-ws-soft whitespace-nowrap" dir="ltr">{formatClock(e.timestamp)}</td>
                             <td className="p-2 whitespace-nowrap" title={exerciseTitle(selectedSession, e.exerciseId)}>{exerciseCell}</td>
@@ -866,7 +866,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   <MonitorPlay className="w-4 h-4 text-violet-300" aria-hidden="true" />
                   שחזור מסך העבודה, ללא קול · {meetingShortLabelHe(selectedSession)}
                 </span>
-                <span className="flex items-center gap-2 text-slate-400">
+                <span className="flex items-center gap-2 text-slate-600">
                   {sessionRecordings.length > 0 ? `${sessionRecordings.reduce((s, r) => s + r.chunkCount, 0)} מקטעי הקלטה` : ''}
                   {/* Owner, 6.10.2026: the whole meeting — every action and the
                       recording — as one file (meetingExport.ts). */}
@@ -921,7 +921,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                         word "וידאו" stays until the owner changes the PRD or
                         registers a deviation; the line below says what is true. */}
                     <p className="font-bold text-slate-200">וידאו השחזור בהכנה</p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-slate-600">
                       {/* A recording that failed to load may well exist: no claim either way. */}
                       {recordingFailed
                         ? 'הפעולות המתועדות מוצגות בטבלה.'

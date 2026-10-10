@@ -209,36 +209,36 @@ export function ClassManagement({
     <div className="p-6 md:p-10 max-w-7xl mx-auto w-full h-full flex flex-col space-y-8 animate-in fade-in duration-500" dir="rtl">
       
       {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-violet-600 via-violet-700 to-purple-600 p-8 text-white shadow-xl shadow-violet-500/20 border border-violet-400/20">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+      <header className="relative overflow-hidden rounded-3xl bg-violet-50 dark:bg-slate-900 p-8 text-slate-900 dark:text-white shadow-sm border border-violet-200 dark:border-violet-900/60">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-violet-100">
-              <span className="bg-white/15 border border-white/20 px-3 py-1 rounded-full flex items-center gap-1.5 backdrop-blur-sm">
-                <Sparkles className="w-3.5 h-3.5 text-stone-300" />
+            <div className="flex items-center gap-2 text-xs font-bold text-violet-900 dark:text-violet-100">
+              <span className="bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 px-3 py-1 rounded-full flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-violet-600 dark:text-violet-300" />
                 בית ספר ביקורת
               </span>
               <ChevronRight className="w-4 h-4 opacity-70 rotate-180" />
-              <span className="bg-white/15 border border-white/20 px-3 py-1 rounded-full text-white backdrop-blur-sm">
+              <span className="bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 px-3 py-1 rounded-full">
                 כיתת המבקרים
               </span>
             </div>
 
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white flex items-center gap-3">
-              <Users className="w-9 h-9 text-violet-200" />
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+              <Users className="w-9 h-9 text-violet-700 dark:text-violet-200" />
               ניהול כיתה, פרופילים ו{TEACHER_GATE_HE}
             </h1>
-            <p className="text-violet-100 text-sm md:text-base font-medium max-w-2xl">
+            <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base font-medium max-w-2xl">
               הגדרת תמיכה שקטה לכל לומד, אישור מסלול המעבר ל{meetingShortLabelHe(3)}, ושמירה על כיתה של עד 12 לומדים.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
-            <div className="flex items-center gap-3 bg-white/15 border border-white/25 backdrop-blur-md px-4 py-3 rounded-2xl">
+            <div className="flex items-center gap-3 bg-white dark:bg-slate-950/40 border border-violet-200 dark:border-slate-700 px-4 py-3 rounded-2xl">
               <div className="text-center">
-                <span className="text-[11px] text-violet-100 block font-semibold">תלמידי הפיילוט</span>
-                <span className="text-xl font-black text-white">12 / 12</span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-300 block font-semibold">תלמידי הפיילוט</span>
+                <span className="text-xl font-black text-violet-800 dark:text-white">12 / 12</span>
               </div>
             </div>
           </div>
@@ -254,7 +254,7 @@ export function ClassManagement({
               <ShieldCheck className="w-6 h-6 text-violet-600" />
               {TEACHER_GATE_HE} לפני {meetingShortLabelHe(3)}
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               בסיום {meetingShortLabelHe(2)}, התלמידים ממתינים במסך ההמתנה. אישור המורה כאן משחרר את הנתיב מיידית (פחות משנייה אחת).
             </p>
           </div>
@@ -281,7 +281,7 @@ export function ClassManagement({
                     <h3 className="font-black text-base text-slate-900 dark:text-white">
                       תלמיד {student.studentNumber}
                     </h3>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                    <span className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
                       מזהה: {student.id}
                     </span>
                   </div>
@@ -296,7 +296,7 @@ export function ClassManagement({
                       ממתין ב{TEACHER_GATE_HE}
                     </span>
                   ) : (
-                    <span className="text-[11px] font-bold text-slate-500 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-md">
+                    <span className="text-[11px] font-bold text-slate-600 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-md">
                       טרם השלים את {meetingShortLabelHe(2)}
                     </span>
                   )}
@@ -368,7 +368,7 @@ export function ClassManagement({
               <Sliders className="w-6 h-6 text-purple-600" />
               תמיכה קוגניטיבית שקטה
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               הפעלת פרופיל תמיכה מוגבר נועלת את המקלדת בשורת התוצאה עד להמרה בלבני הדינס. הפעולה סמויה ב-100% ללא תיוג בממשק התלמיד.
             </p>
           </div>

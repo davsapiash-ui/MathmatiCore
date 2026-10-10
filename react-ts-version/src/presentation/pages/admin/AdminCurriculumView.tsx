@@ -285,7 +285,7 @@ export function AdminCurriculumView() {
               <Layers className="w-5 h-5 text-purple-600" />
               קטלוג מפגשי הלמידה (משימות חובה + משימות בחירה לפי מסלול)
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               מבנה המשימות המוצג לתלמידים — נגזר ישירות ממאגרי התוכן המפורסמים במערכת
             </p>
           </div>
@@ -319,7 +319,7 @@ export function AdminCurriculumView() {
                       <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
                         {item.sessionTitle}
                       </h3>
-                      <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5">
+                      <div className="flex items-center gap-3 text-[11px] text-slate-600 mt-0.5">
                         <span>
                           {item.unscored
                             ? `${compulsoryCount} תרגילי ריענון, ללא ציון`
@@ -335,7 +335,7 @@ export function AdminCurriculumView() {
                     </div>
                   </div>
 
-                  <div className="text-slate-400">
+                  <div className="text-slate-600">
                     {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                   </div>
                 </button>
@@ -362,7 +362,7 @@ export function AdminCurriculumView() {
                             <span>משימות בחירה לאחר 7 החובה</span>
                           </div>
                           {bank.reinforcement.length === 0 && bank.challenge.length === 0 ? (
-                            <p className="text-xs text-slate-400">אין משימות בחירה במפגש זה.</p>
+                            <p className="text-xs text-slate-600">אין משימות בחירה במפגש זה.</p>
                           ) : (
                             <div className="text-xs text-slate-600 dark:text-slate-300 space-y-2">
                               {bank.reinforcement.length > 0 && (
@@ -398,7 +398,7 @@ export function AdminCurriculumView() {
               <SlidersHorizontal className="w-5 h-5 text-violet-500" />
               כיול הרדאר הפדגוגי השקט (Trace Data Calibration)
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               הגדרת סף הרגישות שבו הרדאר של המורה מסמן קושי סמוי במהלך עבודת התלמיד
             </p>
           </div>
@@ -421,7 +421,7 @@ export function AdminCurriculumView() {
                 onChange={(e) => setHesitationThreshold(parseInt(e.target.value, 10))}
                 className="w-full accent-violet-600 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer" 
               />
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 משך הזמן (בשניות) שבו הלומד משתהה ללא פעולה במרחב הלמידה, בטרם הריבוע שלו מסמן היסוס ברדאר של המורה.
               </p>
               <p className="text-xs text-stone-700 dark:text-stone-400 leading-relaxed font-semibold">

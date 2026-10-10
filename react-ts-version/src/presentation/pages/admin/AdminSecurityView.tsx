@@ -34,7 +34,7 @@ function StatusRow({
         className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
           active
             ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-            : "bg-slate-400/10 text-slate-400"
+            : "bg-slate-400/10 text-slate-600"
         }`}
       >
         {active ? <CheckCircle2 className="w-5 h-5" /> : <MinusCircle className="w-5 h-5" />}
@@ -46,13 +46,13 @@ function StatusRow({
             className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
               active
                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
             }`}
           >
             {active ? "אכיפה פעילה" : "לא מוגדר"}
           </span>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{detail}</p>
+        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{detail}</p>
       </div>
     </div>
   );
@@ -84,7 +84,7 @@ export function AdminSecurityView() {
               <Fingerprint className="w-5 h-5 text-violet-500" />
               הזדהות אחידה (SSO)
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               מנגנוני ההזדהות המאובטחים הפעילים עבור צוות ההוראה.
             </p>
           </div>
@@ -110,7 +110,7 @@ export function AdminSecurityView() {
                 <Clock className="w-5 h-5 text-stone-500" />
                 מדיניות ניתוק בעת חוסר פעילות
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                 פרקי הזמן הנאכפים במערכת לשמירה על אבטחת החשבון.
               </p>
             </div>
@@ -160,7 +160,7 @@ export function AdminSecurityView() {
               </li>
             </ul>
 
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3 leading-relaxed">
+            <p className="text-[11px] text-slate-600 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3 leading-relaxed">
               עדכון כללי ההרשאות מתבצע בקובצי האבטחה ונפרס באופן אוטומטי ומבוקר בענן.
             </p>
           </AccessibleCard>
