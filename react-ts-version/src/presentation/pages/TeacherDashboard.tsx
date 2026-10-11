@@ -20,6 +20,7 @@ import { workspaceSavedAt } from "@/core/workspaceSnapshot";
 import type { CatchUpAction, CatchUpReasonEntry, CatchUpRecord, UnfinishedLearner } from "@/core/catchUp";
 import { recordCatchUpReasons, subscribeCatchUpRecords } from "@/infrastructure/services/CatchUpService";
 import { CatchUpReasonsDialog } from "./TeacherDashboard/components/CatchUpReasonsDialog";
+import { TeacherGuideDownloadButton } from './TeacherDashboard/components/TeacherGuideDownloadButton';
 import { database, auth, functions, firestore, serverNow, fetchServerClockOffset, isServerClockKnown } from "@/infrastructure/firebase";
 import { doc, getDoc, onSnapshot, collection, writeBatch, deleteField } from "firebase/firestore";
 import { activationMirror } from "@/core/classActivationMirror";
@@ -1803,6 +1804,9 @@ export function TeacherDashboard() {
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
               <span className={sidebarCollapsed ? 'md:sr-only' : ''}>ארגז חול למקרן</span>
             </button>
+            <div className="mt-2">
+              <TeacherGuideDownloadButton collapsed={sidebarCollapsed} />
+            </div>
           </div>
         </div>
 
