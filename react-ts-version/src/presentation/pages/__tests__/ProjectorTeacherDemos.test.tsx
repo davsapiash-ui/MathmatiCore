@@ -169,17 +169,17 @@ describe('the station picker', () => {
       expect(screen.queryByRole('group', { name: 'בחירת חלק ההדגמה' })).toBeNull();
     }
     pick(4);
-    expect(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getAllByRole('button').map((b) => b.textContent)).toEqual(['תרגיל במאונך', 'תשובות לבחירה']);
+    expect(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getAllByRole('button').map((b) => b.textContent)).toEqual(['חלק א · תרגיל במאונך', 'חלק ב · תשובות לבחירה']);
     pick(3);
     const parts = screen.getByRole('group', { name: 'בחירת חלק ההדגמה' });
-    expect(within(parts).getAllByRole('button').map((b) => b.textContent)).toEqual(['חלק א', 'חלק ב']);
+    expect(within(parts).getAllByRole('button').map((b) => b.textContent)).toEqual(['חלק א · פורטים לבנים', 'חלק ב · קוראים וכותבים']);
     expect(screen.getByTestId('task-heading').textContent).toContain('פורטים לבנים');
     act(() => useWorkspaceStore.getState().applyDrop({ source: 'palette', sourcePlace: 'hundreds', target: { kind: 'column', place: 'hundreds' } } as never));
-    fireEvent.click(within(parts).getByRole('button', { name: 'חלק ב' }));
+    fireEvent.click(within(parts).getByRole('button', { name: 'חלק ב · קוראים וכותבים' }));
     expect(screen.getByTestId('task-heading').textContent).toContain('קוראים וכותבים מספרים');
     expect(useWorkspaceStore.getState().counts.hundreds).toBe(0);
     pick(7);
-    expect(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getAllByRole('button').map((b) => b.textContent)).toEqual(['דוגמה א', 'דוגמה ב']);
+    expect(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getAllByRole('button').map((b) => b.textContent)).toEqual(['חלק א · מגלים מה חסר', 'חלק ב · משנים מספר']);
   });
 });
 
@@ -249,7 +249,7 @@ describe('the demonstration aids (owner, 9.10.2026)', () => {
       expect(colours()).toBeNull();
     }
     pick(4);
-    fireEvent.click(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getByRole('button', { name: 'תשובות לבחירה' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getByRole('button', { name: 'חלק ב · תשובות לבחירה' }));
     expect(colours()).toBeNull();
     for (const n of [4, 5, 6]) {
       pick(n);
@@ -325,7 +325,7 @@ describe('the demonstration aids (owner, 9.10.2026)', () => {
   it('station 4 "תשובות לבחירה": the green path\'s choice exercise, three options, the selection shows and nothing is checked', () => {
     renderProjector();
     pick(4);
-    fireEvent.click(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getByRole('button', { name: 'תשובות לבחירה' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getByRole('button', { name: 'חלק ב · תשובות לבחירה' }));
     const card = screen.getByTestId('demo-task-card');
     expect(card.textContent).toContain('238 + 146 = 384');
     const options = within(card).getAllByRole('radio');
@@ -389,7 +389,7 @@ describe('demo mode writes nothing', () => {
     fireEvent.click(screen.getByTestId('demo-colours-toggle'));
     fireEvent.click(screen.getByTestId('demo-colours-toggle'));
     answerEveryOption();
-    fireEvent.click(screen.getByRole('button', { name: 'תשובות לבחירה' }));
+    fireEvent.click(screen.getByRole('button', { name: 'חלק ב · תשובות לבחירה' }));
     for (const r of screen.getAllByRole('radio')) fireEvent.click(r);
     answerEveryOption();
 
@@ -397,7 +397,7 @@ describe('demo mode writes nothing', () => {
     pick(7);
     fireEvent.change(screen.getByLabelText('הספרה החסרה במספר הראשון: ספרה 2 מתוך 3'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('ספרה 3 מתוך 3 בשורת התוצאה'), { target: { value: '7' } });
-    fireEvent.click(screen.getByRole('button', { name: 'דוגמה ב' }));
+    fireEvent.click(screen.getByRole('button', { name: 'חלק ב · משנים מספר' }));
     fireEvent.click(screen.getByText('התחילו מחדש'));
 
     expect(emitTelemetry).not.toHaveBeenCalled();
