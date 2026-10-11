@@ -265,7 +265,7 @@ describe('the radar: the learner\'s pair, and the level as a stripe', () => {
   it('an approved level is a stripe plus its name; the tile background stays the status colour', () => {
     const students = [base(1, { currentPath: 'יסודות' }), base(2), ...[3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => base(n))];
     render(<HeatmapGrid initialStudents={students} />);
-    expect(screen.getByTestId('tile-stripe-1').className).toContain('bg-violet-300');
+    expect(screen.getByTestId('tile-stripe-1').className).toContain('bg-violet-200');
     expect(screen.getByTestId('tile-path-1').textContent).toBe(ROUTE_NAME_HE.graded_foundation_path);
     expect(screen.queryByTestId('tile-stripe-2')).toBeNull();
     const tile = (n: number) => screen.getAllByRole('button').find((el) => el.getAttribute('aria-label')?.startsWith(`תלמיד ${n}.`))!;

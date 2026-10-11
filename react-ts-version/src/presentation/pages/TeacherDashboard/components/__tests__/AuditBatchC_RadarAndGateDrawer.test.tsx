@@ -50,6 +50,7 @@ const toastSuccess = vi.hoisted(() => vi.fn());
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: vi.fn(), warning: vi.fn() } }));
 
 import { HeatmapGrid, describeRadarCell, TEACHER_OFFLINE_RADAR_HE, type AnonymousStudent } from '../HeatmapGrid';
+import { RadarColourMap } from '../RadarColourMap';
 import { TeacherGateApprovalDrawer, gateApprovedToastHe, ROUTE_CARD_HE } from '../TeacherGateApprovalDrawer';
 import { RECOMMENDED_MARK_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 import type { StudentData } from '@/application/useStore';
@@ -185,10 +186,10 @@ describe('around the radar', () => {
   });
 
   it('radar-15: the legend\'s help dot never animates, also while a learner is calling (owner, 11.10.2026)', () => {
-    const { unmount } = render(<HeatmapGrid initialStudents={[base(1)]} />);
+    const { unmount } = render(<><HeatmapGrid initialStudents={[base(1)]} /><RadarColourMap /></>);
     expect(screen.getByTestId('legend-help-dot').className).not.toContain('animate-');
     unmount();
-    render(<HeatmapGrid initialStudents={[base(1, { helpRequested: true })]} />);
+    render(<><HeatmapGrid initialStudents={[base(1, { helpRequested: true })]} /><RadarColourMap /></>);
     expect(screen.getByTestId('legend-help-dot').className).not.toContain('animate-');
   });
 

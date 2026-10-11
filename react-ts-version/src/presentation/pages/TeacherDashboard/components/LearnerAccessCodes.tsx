@@ -41,10 +41,10 @@ export function LearnerAccessCodes() {
   };
 
   return (
-    <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none">
-      <div className="mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-          <KeyRound className="w-6 h-6 text-violet-600" />
+    <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 md:p-4 shadow-sm">
+      <div className="mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+        <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+          <KeyRound className="w-4 h-4 text-violet-700 dark:text-violet-300" aria-hidden="true" />
           קודי גישה
         </h2>
         <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">

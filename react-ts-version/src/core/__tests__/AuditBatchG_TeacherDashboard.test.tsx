@@ -356,8 +356,10 @@ describe('source: layout, dead code and wording', () => {
     expect(dash).toMatch(/<div onClick=\{\(\) => handleTabChange\("heatmap"\)\}[^>]*>\s*<Logo/);
     expect(dash).toContain("window.open('/projector', 'mathmaticore_projector')");
     expect(dash).not.toContain("window.open('/projector', '_blank')");
-    expect(dash).toMatch(/useDismissableOverlay<HTMLDivElement>\(\s*deadlineNotice !== null/);
-    expect(dash).toMatch(/ref=\{deadlineNoticeRef\}\s*role="dialog"/);
+    // Module 14 §ב1, owner 11.10.2026: the notice is a banner in the bar the teacher closes, not a blocking window.
+    expect(dash).not.toContain('deadlineNoticeRef');
+    expect(dash).toContain('data-testid="deadline-banner"');
+    expect(dash).toContain('onClick={() => setDeadlineNotice(null)}');
   });
 
   it('M-wording / clustering-5 / chat-5 / chat-10 / M-quiet-mode', () => {

@@ -45,6 +45,8 @@ export interface CatchUpReasonsDialogProps {
   onContinue: (entries: CatchUpReasonEntry[]) => void;
   /** Escape / backdrop / X: nothing written, nothing closed or opened. */
   onCancel: () => void;
+  /** Inside the closing checklist (owner, 11.10.2026): the content only, no window of its own. */
+  embedded?: boolean;
 }
 
 export const CATCHUP_DIALOG_HE = {
@@ -88,12 +90,80 @@ function continueHintHe(trigger: 'close' | 'open_other', meeting: number, nextMe
 export function CatchUpReasonsDialog(props: CatchUpReasonsDialogProps): ReactElement | null {
   if (!props.isOpen) return null;
   // Mounted only while open: every opening starts with no reason chosen.
+  if (props.embedded) return <CatchUpReasonsForm {...props} />;
   return <DialogBody {...props} />;
 }
 
 type RowState = { reason: CatchUpReasonKey | ''; note: string; noteError: string | null };
 
-function DialogBody({
+function DialogBody(props: CatchUpReasonsDialogProps): ReactElement {
+  const { meeting, trigger, nextMeeting, onCancel } = props;
+  // Cancel always works, also while the reasons are being saved: the teacher
+  // is never held in this window by a slow or missing network.
+  const handleCancel = () => {
+    onCancel();
+  };
+  const dialogRef = useDismissableOverlay<HTMLDivElement>(true, handleCancel);
+
+  const title = catchUpDialogTitleHe(trigger, meeting, nextMeeting);
+  const titleId = `catchup-title-${meeting}-${trigger}`;
+
+  // Same layer as the reset confirmation: above the learner drawer.
+  return createPortal(
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in"
+      dir="rtl"
+      onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
+      data-testid="catchup-backdrop"
+    >
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl relative">
+        <button
+          type="button"
+          onClick={handleCancel}
+          aria-label={CATCHUP_DIALOG_HE.closeWindow}
+          className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600"
+        >
+          <X className="w-5 h-5" aria-hidden="true" />
+        </button>
+
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-3 rounded-2xl bg-stone-50 dark:bg-stone-950/50 text-stone-600">
+            <Clock className="w-7 h-7" aria-hidden="true" />
+          </div>
+          <div>
+            <h3 id={titleId} className="text-xl font-black text-slate-900 dark:text-white">{title}</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{catchUpDialogLeadHe(trigger, meeting)}</p>
+          </div>
+        </div>
+
+        <CatchUpReasonsForm {...props} />
+
+        <div className="flex justify-end pt-2">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+          >
+            {CATCHUP_DIALOG_HE.cancel}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/**
+ * The reasons themselves — the rows, the two actions and their hints — without
+ * the window around them. The dialog above wraps it; the closing checklist
+ * (owner, 11.10.2026) embeds it as its step 3, the same content and the same rule:
+ * neither action until every learner has a reason.
+ */
+export function CatchUpReasonsForm({
   meeting,
   learners,
   trigger,
@@ -102,17 +172,9 @@ function DialogBody({
   isSaving,
   onReopen,
   onContinue,
-  onCancel,
-}: CatchUpReasonsDialogProps): ReactElement {
+}: Omit<CatchUpReasonsDialogProps, 'isOpen' | 'onCancel' | 'embedded'>): ReactElement {
   const [rows, setRows] = useState<Record<number, RowState>>({});
   const [sameForAll, setSameForAll] = useState<CatchUpReasonKey | ''>('');
-
-  // Cancel always works, also while the reasons are being saved: the teacher
-  // is never held in this window by a slow or missing network.
-  const handleCancel = () => {
-    onCancel();
-  };
-  const dialogRef = useDismissableOverlay<HTMLDivElement>(true, handleCancel);
 
   const rowOf = (n: number): RowState => rows[n] ?? { reason: '', note: '', noteError: null };
   const setRow = (n: number, patch: Partial<RowState>) =>
@@ -161,41 +223,8 @@ function DialogBody({
     if (entries) handler(entries);
   };
 
-  const title = catchUpDialogTitleHe(trigger, meeting, nextMeeting);
-  const titleId = `catchup-title-${meeting}-${trigger}`;
-
-  // Same layer as the reset confirmation: above the learner drawer.
-  return createPortal(
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in"
-      dir="rtl"
-      onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
-      data-testid="catchup-backdrop"
-    >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl relative">
-        <button
-          type="button"
-          onClick={handleCancel}
-          aria-label={CATCHUP_DIALOG_HE.closeWindow}
-          className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600"
-        >
-          <X className="w-5 h-5" aria-hidden="true" />
-        </button>
-
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 rounded-2xl bg-stone-50 dark:bg-stone-950/50 text-stone-600">
-            <Clock className="w-7 h-7" aria-hidden="true" />
-          </div>
-          <div>
-            <h3 id={titleId} className="text-xl font-black text-slate-900 dark:text-white">{title}</h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{catchUpDialogLeadHe(trigger, meeting)}</p>
-          </div>
-        </div>
-
+  return (
+    <div data-testid="catchup-form">
         {isMeeting2 && (
           <p className="p-3 mb-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-xs font-semibold text-slate-700 dark:text-slate-300">
             {CATCHUP_DIALOG_HE.meeting2}
@@ -309,18 +338,7 @@ function DialogBody({
             </button>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{continueHintHe(trigger, meeting, nextMeeting)}</p>
           </div>
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-            >
-              {CATCHUP_DIALOG_HE.cancel}
-            </button>
-          </div>
         </div>
-      </div>
-    </div>,
-    document.body
+    </div>
   );
 }

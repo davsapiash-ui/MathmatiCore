@@ -12,7 +12,7 @@ import type { RoutePath } from './routeLabels';
  * Tailwind reads these class names from the source, so they are written out in full.
  */
 export interface RouteColor {
-  /** A thin edge stripe (radar tile, table row, catalog card). */
+  /** A thin edge stripe (radar tile, table row, catalog card): a muted shade, a quiet side mark apart from the status colours (owner, 11.10.2026). */
   stripe: string;
   /** A small dot next to the level's name. */
   dot: string;
@@ -27,7 +27,7 @@ export interface RouteColor {
 
 export const ROUTE_COLOR: Readonly<Record<RoutePath, RouteColor>> = {
   green_path: {
-    stripe: 'bg-emerald-600',
+    stripe: 'bg-emerald-300 dark:bg-emerald-700',
     dot: 'bg-emerald-600',
     chip: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200',
     buttonOn: 'bg-emerald-700 text-white shadow-sm',
@@ -35,7 +35,7 @@ export const ROUTE_COLOR: Readonly<Record<RoutePath, RouteColor>> = {
     cardOn: 'border-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20',
   },
   remediation_path: {
-    stripe: 'bg-stone-500',
+    stripe: 'bg-stone-300 dark:bg-stone-600',
     dot: 'bg-stone-500',
     chip: 'bg-stone-100 text-stone-800 dark:bg-stone-900/60 dark:text-stone-200',
     buttonOn: 'bg-stone-600 text-white shadow-sm',
@@ -43,7 +43,7 @@ export const ROUTE_COLOR: Readonly<Record<RoutePath, RouteColor>> = {
     cardOn: 'border-stone-600 bg-stone-50/60 dark:bg-stone-950/40 ring-2 ring-stone-500/20',
   },
   graded_path: {
-    stripe: 'bg-violet-600',
+    stripe: 'bg-violet-400 dark:bg-violet-500',
     dot: 'bg-violet-600',
     chip: 'bg-violet-100 text-violet-900 dark:bg-violet-950/60 dark:text-violet-200',
     buttonOn: 'bg-violet-700 text-white shadow-sm',
@@ -53,7 +53,7 @@ export const ROUTE_COLOR: Readonly<Record<RoutePath, RouteColor>> = {
   // Module 18 §ב: outside the radar's status colours the staff screens use the brand violet and greys only, so the
   // foundations level is the graded level's light shade, set apart by its outline.
   graded_foundation_path: {
-    stripe: 'bg-violet-300',
+    stripe: 'bg-violet-200 dark:bg-violet-800',
     dot: 'bg-violet-300',
     chip: 'bg-violet-50 text-violet-800 border border-violet-300 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-700',
     buttonOn: 'bg-violet-200 text-violet-950 border-2 border-violet-500 shadow-sm',

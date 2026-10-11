@@ -221,7 +221,7 @@ describe('the side action queue on the radar tab', () => {
 });
 
 describe('closing the meeting with unrecorded events', () => {
-  it('lists them with "סגירה בכל זאת", and never blocks the close', async () => {
+  it('lists them in the closing checklist (step 4), and never blocks the close', async () => {
     const startedAt = openMeeting(4);
     // Finished, so no catch-up reasons are asked after the mediation dialog.
     learner(7, { workspaceState: { sessionNumber: 4, flowStatus: 'choice_branch', standardTaskIdx: 7, savedAt: 1 } });
@@ -230,12 +230,13 @@ describe('closing the meeting with unrecorded events', () => {
     const close = (await screen.findByText('סגרו את המפגש', {}, { timeout: 5000 })).closest('button') as HTMLButtonElement;
     await waitFor(() => expect(screen.getByTestId('mediation-pending-counter').textContent).toContain('לתיעוד: 1'));
     await act(async () => { fireEvent.click(close); });
-    const dialog = screen.getByTestId('mediation-close-dialog');
-    expect(dialog.textContent).toContain('יש אירוע אחד שלא תועד');
-    expect(within(dialog).getAllByTestId('mediation-close-row')).toHaveLength(1);
-    expect(dialog.textContent).toContain('תלמיד 7 · כרטיס החניכה נפתח');
+    const dialog = screen.getByTestId('close-checklist');
+    const step = within(dialog).getByTestId('close-step-mediation');
+    expect(step.textContent).toContain('יש אירוע אחד שלא תועד');
+    expect(within(step).getAllByTestId('mediation-close-row')).toHaveLength(1);
+    expect(step.textContent).toContain('תלמיד 7 · כרטיס החניכה נפתח');
     expect(h.seq).toEqual([]);
-    await act(async () => { fireEvent.click(within(dialog).getByTestId('mediation-close-anyway')); });
+    await act(async () => { fireEvent.click(within(dialog).getByTestId('close-checklist-confirm')); });
     await waitFor(() => expect(h.seq).toEqual(['close:teacher']));
   });
 });
@@ -269,7 +270,7 @@ describe('the no-scroll layout at 1366×768 (owner, 11.10.2026)', () => {
     expect(dash).not.toContain('הכיתה בזמן אמת');
     expect(dash).not.toContain('12 תלמידים אנונימיים על הרדאר הפדגוגי השקט');
     expect(heat).toContain('title={RADAR_EXPLANATION_HE}');
-    expect(heat).toContain('min-h-[80px]');
+    expect(heat).toContain('minmax(72px, 1fr)');
     expect(heat).not.toContain('min-h-[125px]');
   });
   it('the queue sits beside the grid and the floating chat never opens over it on the radar tab', () => {

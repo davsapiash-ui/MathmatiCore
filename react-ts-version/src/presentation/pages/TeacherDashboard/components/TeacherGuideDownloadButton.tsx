@@ -18,12 +18,12 @@ export function TeacherGuideDownloadButton({ collapsed = false }: { collapsed?: 
       aria-disabled="true"
       data-testid="teacher-guide-download"
       title={`${TEACHER_GUIDE_LABEL_HE} — ${TEACHER_GUIDE_SOON_HE}`}
-      className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-600 border border-slate-300 px-4 py-2.5 min-h-11 rounded-xl text-sm font-bold cursor-not-allowed dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600"
+      className="w-full flex items-center justify-center gap-2 bg-transparent text-slate-500 border border-dashed border-slate-300 px-3 py-1.5 min-h-9 rounded-lg text-xs font-medium cursor-not-allowed dark:text-slate-400 dark:border-slate-700"
     >
       <FileDown className="w-4 h-4 shrink-0" aria-hidden="true" />
       <span className={`flex flex-col items-center leading-tight ${collapsed ? 'md:sr-only' : ''}`}>
         <span>{TEACHER_GUIDE_LABEL_HE}</span>
-        <span className="text-[11px] font-semibold">{TEACHER_GUIDE_SOON_HE}</span>
+        <span className="text-[10px] font-normal">{TEACHER_GUIDE_SOON_HE}</span>
       </span>
     </button>
   );

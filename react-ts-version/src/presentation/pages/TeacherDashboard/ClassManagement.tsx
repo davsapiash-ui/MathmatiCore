@@ -27,6 +27,7 @@ import {
 } from '@/core/routeLabels';
 import { ROUTE_COLOR } from '@/core/routeColors';
 import { meetingShortLabelHe } from '@/core/stationNames';
+import { TeacherTabHeader } from './components/TeacherTabHeader';
 
 /** The page's one name, in the sidebar and as its title (owner, 11.10.2026). */
 export const CLASS_MANAGEMENT_TITLE_HE = 'ניהול כיתה ומסלולים';
@@ -286,7 +287,7 @@ export function ClassManagement({
     const levelColour = row.approvedPath ? ROUTE_COLOR[row.approvedPath] : null;
     return (
       <tr key={row.id} data-testid={`class-row-${row.studentNumber}`} className="bg-slate-50 dark:bg-slate-800/40 align-middle">
-        <th scope="row" className="relative px-3 py-1 rounded-r-xl font-black text-sm text-slate-900 dark:text-white">
+        <th scope="row" className="relative px-3 py-1 rounded-r-xl font-bold text-sm text-slate-900 dark:text-white">
           {/* The approved level as a thin stripe on the row's edge; its name is on the pressed button. */}
           {levelColour && <span aria-hidden="true" data-testid={`class-row-stripe-${row.studentNumber}`} className={`absolute inset-y-1 right-0 w-1 rounded-full ${levelColour.stripe}`} />}
           {/* The learner and the state in one cell (one row per learner, owner 11.10.2026); the stage keeps its name (PRD Module 20). */}
@@ -296,7 +297,7 @@ export function ClassManagement({
                 type="button"
                 onClick={() => onOpenReport(`student_user${row.studentNumber}`)}
                 title="פתיחת דוח האבחון של התלמיד"
-                className={`min-h-11 whitespace-nowrap font-black underline decoration-dotted underline-offset-4 hover:text-violet-700 dark:hover:text-violet-300 cursor-pointer rounded ${FOCUS_RING}`}
+                className={`min-h-11 whitespace-nowrap font-bold underline decoration-dotted underline-offset-4 hover:text-violet-700 dark:hover:text-violet-300 cursor-pointer rounded ${FOCUS_RING}`}
               >
                 {label}
               </button>
@@ -305,12 +306,12 @@ export function ClassManagement({
             )}
             <span data-testid={`class-row-state-${row.studentNumber}`} className="text-xs leading-tight">
               {row.isApproved ? (
-                <span title={`מאושר ל${meetingShortLabelHe(3)}`} className="inline-flex items-center gap-1 font-extrabold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/60 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                <span title={`מאושר ל${meetingShortLabelHe(3)}`} className="inline-flex items-center gap-1 font-semibold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/60 px-2 py-0.5 rounded-lg whitespace-nowrap">
                   <CheckCircle2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                   המסלול אושר
                 </span>
               ) : row.session2Completed ? (
-                <span className="inline-block font-extrabold text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-900/60 px-2 py-0.5 rounded-lg">
+                <span className="inline-block font-semibold text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-900/60 px-2 py-0.5 rounded-lg">
                   ממתין ב{TEACHER_GATE_HE}
                 </span>
               ) : (
@@ -364,14 +365,14 @@ export function ClassManagement({
                   aria-pressed={row.approvedPath === path}
                   aria-label={`${ROUTE_APPROVE_HE[path]}${recommended ? ` (${RECOMMENDED_MARK_HE})` : ''} — ${label}`}
                   title={readOnly ? READ_ONLY_TITLE : !row.session2Completed ? `אפשר לאשר מסלול רק בסיום ${meetingShortLabelHe(2)}` : ROUTE_APPROVE_HE[path]}
-                  className={`min-h-11 inline-flex items-center gap-1 py-1 px-2 rounded-lg text-[11px] font-extrabold whitespace-nowrap transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING} ${
+                  className={`min-h-11 inline-flex items-center gap-1 py-1 px-2 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING} ${
                     row.approvedPath === path ? ROUTE_COLOR[path].buttonOn : ROUTE_COLOR[path].buttonOff
                   }`}
                 >
                   {row.approvedPath === path && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
                   <span>{ROUTE_APPROVE_HE[path]}</span>
                   {recommended && (
-                    <span data-testid="recommended-mark" className="text-[10px] font-black px-1.5 py-0.5 rounded bg-white/80 text-slate-800 border border-slate-300">
+                    <span data-testid="recommended-mark" className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 text-slate-800 border border-slate-300">
                       {RECOMMENDED_MARK_HE}
                     </span>
                   )}
@@ -426,16 +427,12 @@ export function ClassManagement({
   return (
     <div className="max-w-7xl mx-auto w-full flex flex-col gap-3" dir="rtl">
 
-      {/* One title line and one sentence (owner, 11.10.2026: less scrolling). */}
-      <header>
-        <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-          <Users className="w-6 h-6 text-violet-700 dark:text-violet-200" aria-hidden="true" />
-          {CLASS_MANAGEMENT_TITLE_HE}
-        </h1>
-        <p className="text-slate-600 dark:text-slate-300 text-sm font-medium">
-          שורה אחת לכל לומד: המסלול, פרופיל התמיכה המוגבר, חלונית הלומד ואיפוס. כל שינוי נשמר מיד, והלומד אינו רואה על המסך שום סימון.
-        </p>
-      </header>
+      {/* One title line and one sentence, the same heading as every teacher tab (owner, 11.10.2026). */}
+      <TeacherTabHeader
+        title={CLASS_MANAGEMENT_TITLE_HE}
+        icon={Users}
+        sentence="שורה אחת לכל לומד: המסלול, פרופיל התמיכה המוגבר, חלונית הלומד ואיפוס. כל שינוי נשמר מיד, והלומד אינו רואה על המסך שום סימון."
+      />
 
       {/* PRD Module 20: the stage, for the whole class. */}
       {gate && <TeacherApprovalGate {...gate} />}
@@ -485,7 +482,7 @@ export function ClassManagement({
                   scope="colgroup"
                   colSpan={6}
                   style={{ top: stickyTop }}
-                  className="sticky z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur px-2 pt-3 pb-1 text-right text-sm font-black text-slate-900 dark:text-white"
+                  className="sticky z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur px-2 pt-3 pb-1 text-right text-sm font-bold text-slate-900 dark:text-white"
                 >
                   {section.title} ({section.rows.length})
                 </th>
