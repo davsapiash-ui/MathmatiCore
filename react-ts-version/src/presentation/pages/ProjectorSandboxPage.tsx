@@ -58,7 +58,7 @@ const STATIONS: SessionNumber[] = [1, 2, 3, 4, 5, 6, 7, 8];
 const SEGMENT_CLASS = (on: boolean) =>
   `px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${
     on
-      ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
+      ? 'bg-white dark:bg-slate-700 text-violet-700 dark:text-violet-300 shadow-xs'
       : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
   }`;
 const CONTROL_CLASS =
@@ -323,7 +323,7 @@ export function ProjectorSandboxPage() {
           <Logo className="scale-90" />
           <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
           <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
+            <span className="p-1.5 rounded-lg bg-violet-50 dark:bg-violet-950/50 text-violet-700 dark:text-violet-400">
               <Tv className="w-5 h-5" />
             </span>
             {/* The line under the title gave the spec's module number and an
@@ -352,12 +352,12 @@ export function ProjectorSandboxPage() {
               onClick={toggleBroadcast}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${
                 isBroadcasting
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 shadow-xs'
-                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                  ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-800 dark:text-violet-200 border-violet-300 dark:border-violet-700 shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border-slate-300 dark:border-slate-600'
               }`}
               title={isBroadcasting ? 'לחצו להשהיית השידור למסכי התלמידים' : 'לחצו להפעלת שידור ונעילת מסכי התלמידים'}
             >
-              <span className={`w-2 h-2 rounded-full ${isBroadcasting ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+              <span className={`w-2 h-2 rounded-full ${isBroadcasting ? 'bg-violet-600' : 'bg-slate-500'}`} />
               <span>{isBroadcasting ? 'שידור פעיל (תלמידים בהמתנה)' : 'שידור מושהה (תלמידים פעילים)'}</span>
             </button>
           )}
@@ -379,7 +379,7 @@ export function ProjectorSandboxPage() {
         <div className="flex items-center gap-2.5">
           <button
             onClick={handleReturnToDashboard}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/20 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-violet-700 hover:bg-violet-800 text-white shadow-sm transition-all cursor-pointer"
           >
             <ArrowRight className="w-4 h-4" />
             <span>חזרה לדשבורד המורה</span>
@@ -389,7 +389,7 @@ export function ProjectorSandboxPage() {
               screen. The class is released first, while this window still
               holds the teacher's permission to write it. */}
           <div onClickCapture={releaseLearnerScreens}>
-            <LogoutButton className="min-h-9 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 rounded-xl px-3 py-2 text-xs font-bold transition-all border border-rose-200 dark:border-rose-800/60" />
+            <LogoutButton className="min-h-9 bg-rose-50 hover:bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 rounded-xl px-3 py-2 text-xs font-bold transition-all border border-rose-200 dark:border-rose-800/60" />
           </div>
         </div>
       </header>
