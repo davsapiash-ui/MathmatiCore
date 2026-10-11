@@ -31,7 +31,8 @@ describe('which exercise is a choice exercise (teacher side)', () => {
         for (const t of bank.challenge) { expect(exercisePathType(t.id), t.id).toBe('challenge'); count++; }
       }
     }
-    expect(count).toBe(30);
+    // Three paths × five meetings × three choice exercises (the graded path since 11.10.2026).
+    expect(count).toBe(45);
   });
 
   it('no exercise of a published compulsory bank', () => {

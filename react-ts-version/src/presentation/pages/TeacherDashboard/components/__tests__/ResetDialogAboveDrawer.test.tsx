@@ -59,7 +59,7 @@ function openResetFromDrawer(onClose = vi.fn()) {
   fireEvent.click(screen.getByRole('button', { name: 'איפוס נתונים של תלמיד 4' }));
   return {
     onClose,
-    drawer: screen.getByRole('dialog', { name: /התאמת תנאי למידה — תלמיד 4/ }),
+    drawer: screen.getByRole('dialog', { name: /חלונית הלומד — תלמיד 4/ }),
     confirm: screen.getByRole('dialog', { name: 'אישור איפוס נתונים' }),
   };
 }
@@ -79,7 +79,7 @@ describe('the reset confirmation sits above the learner drawer', () => {
     act(() => { fireEvent.keyDown(window, { key: 'Escape' }); });
     expect(screen.queryByRole('dialog', { name: 'אישור איפוס נתונים' })).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog', { name: /התאמת תנאי למידה — תלמיד 4/ })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: /חלונית הלומד — תלמיד 4/ })).toBeTruthy();
 
     // The next Escape belongs to the drawer again.
     act(() => { fireEvent.keyDown(window, { key: 'Escape' }); });

@@ -64,7 +64,7 @@ export interface AnonymousStudent {
   displayName: string; // "תלמיד 1"
   sessionNumber: number; // 1-8
   /** The path the gate approved; null while none is (never green by default). */
-  currentPath: 'ירוק' | 'צמצום פערים' | null;
+  currentPath: 'ירוק' | 'צמצום פערים' | 'מדורג' | null;
   status: 'active' | 'locked' | 'completed';
   hesitationSeconds: number;
   errorCount: number;
@@ -185,9 +185,9 @@ export function describeRadarCell(
  * also after a meeting-2 reset, a full learner reset or a system reset, when
  * there is no path at all (owner, 28.9.2026: never green by default).
  */
-export function radarCurrentPathOf(record: Record<string, unknown> | null | undefined): 'ירוק' | 'צמצום פערים' | null {
+export function radarCurrentPathOf(record: Record<string, unknown> | null | undefined): 'ירוק' | 'צמצום פערים' | 'מדורג' | null {
   const path = recordLearningPath(record);
-  return path === 'remediation_path' ? 'צמצום פערים' : path === 'green_path' ? 'ירוק' : null;
+  return path === 'remediation_path' ? 'צמצום פערים' : path === 'green_path' ? 'ירוק' : path === 'graded_path' ? 'מדורג' : null;
 }
 
 /**
@@ -647,12 +647,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   const [approvingStudentId, setApprovingStudentId] = useState<string | null>(null);
   const approvingStudentIdRef = useRef<string | null>(null);
 
-  const handleApproveGate = async (studentId: string, path: 'ירוק' | 'צמצום פערים') => {
+  const handleApproveGate = async (studentId: string, path: 'ירוק' | 'צמצום פערים' | 'מדורג') => {
     if (approvingStudentId || approvingStudentIdRef.current) return;
     approvingStudentIdRef.current = studentId;
     setApprovingStudentId(studentId);
     const num = studentId.replace(/\D/g, '') || '1';
     const isRemediation = path === 'צמצום פערים';
+    const storedPath = isRemediation ? 'remediation_path' as const : path === 'מדורג' ? 'graded_path' as const : 'green_path' as const;
 
     try {
       // PRD v7.1 Module 20: the session-2 SessionDocument in Firestore is the
@@ -661,7 +662,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       // canonical record every other approval surface relies on. Route
       // through the one shared implementation instead.
       const teacherId = useAuthStore.getState().user?.uid || null;
-      const result = await approveTeacherGate(studentId, isRemediation ? 'remediation_path' : 'green_path', teacherId);
+      const result = await approveTeacherGate(studentId, storedPath, teacherId);
 
       if (!result.ok) {
         toast.error(result.message);
@@ -672,7 +673,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
       useStore.getState().approveRoute(`student_${num}`);
       useStore.getState().approveRoute(num);
 
-      toast.success(gateApprovedToastHe(num, isRemediation ? 'remediation_path' : 'green_path'));
+      toast.success(gateApprovedToastHe(num, storedPath));
     } catch (err) {
       console.error('Failed to approve gate:', err);
       toast.error(`שגיאה ב${TEACHER_GATE_HE}`);
@@ -877,6 +878,14 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       {isApprovingThis && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                       <span>{ROUTE_APPROVE_HE.remediation_path}</span>
                     </button>
+                    <button
+                      onClick={() => handleApproveGate(st.id, 'מדורג')}
+                      disabled={Boolean(approvingStudentId)}
+                      className="px-2.5 py-1 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                    >
+                      {isApprovingThis && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                      <span>{ROUTE_APPROVE_HE.graded_path}</span>
+                    </button>
                   </div>
                 );
               })}
@@ -1019,7 +1028,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                         <span title={meetingLabelHe(student.sessionNumber)}>{meetingShortLabelHe(student.sessionNumber)}</span>
                         {/* No approved path, no path tag. */}
                         {student.currentPath && (
-                          <span data-testid={`tile-path-${student.studentNumber}`} className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100' : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'}`}>
+                          <span data-testid={`tile-path-${student.studentNumber}`} className={`px-1.5 py-0.5 rounded-md text-[10px] ${student.currentPath === 'צמצום פערים' ? 'bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100' : student.currentPath === 'מדורג' ? 'bg-violet-100 text-violet-900 dark:bg-violet-950 dark:text-violet-200' : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'}`}>
                             {radarPathLabelHe(student.currentPath)}
                           </span>
                         )}
@@ -1081,6 +1090,15 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                       >
                         {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
                         <span>{ROUTE_NAME_HE.remediation_path}</span>
+                      </button>
+                      <button
+                        onClick={() => handleApproveGate(student.id, 'מדורג')}
+                        disabled={Boolean(approvingStudentId)}
+                        className="px-2 py-0.5 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                        title={ROUTE_APPROVE_HE.graded_path}
+                      >
+                        {approvingStudentId === student.id && <span className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />}
+                        <span>{ROUTE_NAME_HE.graded_path}</span>
                       </button>
                     </div>
                   </div>
@@ -1158,7 +1176,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                     <span className="text-xs text-slate-600 font-bold block mb-1">מסלול למידה נוכחי</span>
-                    <span data-testid="detail-current-path" className={`text-base font-extrabold ${liveSelectedStudent.currentPath === 'צמצום פערים' ? 'text-slate-700 dark:text-slate-200' : liveSelectedStudent.currentPath === 'ירוק' ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-600 dark:text-slate-400'}`}>
+                    <span data-testid="detail-current-path" className={`text-base font-extrabold ${liveSelectedStudent.currentPath === 'צמצום פערים' ? 'text-slate-700 dark:text-slate-200' : liveSelectedStudent.currentPath === 'מדורג' ? 'text-violet-800 dark:text-violet-300' : liveSelectedStudent.currentPath === 'ירוק' ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-600 dark:text-slate-400'}`}>
                       {liveSelectedStudent.currentPath ? radarPathLabelHe(liveSelectedStudent.currentPath) : 'עדיין לא נקבע'}
                     </span>
                   </div>

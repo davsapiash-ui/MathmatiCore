@@ -51,7 +51,7 @@ export function TeacherApprovalGate({
   // — until the teacher picks a path herself (Module 20: the recommendation
   // comes from the diagnostic, never from a default).
   const effectivePath = (s: GateStudentItem): PedagogicalPath | null =>
-    selectedPaths[s.studentId] ?? s.recommendedPath;
+    selectedPaths[s.studentId] ?? (s.gradedTrack ? 'graded_path' : s.recommendedPath);
 
   const waitingStudents = students.filter((s) => !s.isApproved);
   const approvedStudents = students.filter((s) => s.isApproved);
@@ -274,6 +274,7 @@ export function TeacherApprovalGate({
                           )}
                           <option value="green_path">{ROUTE_NAME_HE.green_path}</option>
                           <option value="remediation_path">{ROUTE_NAME_HE.remediation_path}</option>
+                          <option value="graded_path">{ROUTE_NAME_HE.graded_path}</option>
                         </select>
                       </td>
 

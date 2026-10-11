@@ -37,7 +37,6 @@ export const FEEDBACK_READ_HOLD_MAX_MS = 30_000;
 export function FeedbackToast({ placement = 'floating' }: { placement?: 'floating' | 'inline' }) {
   const storeFeedback = useWorkspaceStore((s) => s.feedback);
   const feedbackNonce = useWorkspaceStore((s) => s.feedbackNonce);
-  const isASD = useWorkspaceStore((s) => s.isASD);
   /** The message the learner asked to hear, kept while it is read. */
   const [beingRead, setBeingRead] = useState<typeof storeFeedback>(null);
   useEffect(() => {
@@ -70,16 +69,19 @@ export function FeedbackToast({ placement = 'floating' }: { placement?: 'floatin
   const speechText = feedback ? (feedback.sub ? `${feedback.title}. ${feedback.sub}` : feedback.title) : '';
 
   useEffect(() => {
-    if (feedback?.correct && !feedback.neutral && !isASD && lastCelebrated !== feedback) {
+    // No per-learner quiet mode (owner, 11.10.2026); the device's reduced-motion
+    // setting still turns the confetti off.
+    if (feedback?.correct && !feedback.neutral && lastCelebrated !== feedback) {
       lastCelebrated = feedback;
       confetti({
         particleCount: 150,
         spread: 70,
         origin: { y: 0.3 },
         colors: ['#10B981', '#3B82F6', '#F59E0B'],
+        disableForReducedMotion: true,
       });
     }
-  }, [feedback, isASD]);
+  }, [feedback]);
 
   return (
     <AnimatePresence>

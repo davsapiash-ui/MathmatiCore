@@ -81,6 +81,7 @@ import { GEMINI_MODEL_ID, GEMINI_SECRETS, classifyGeminiError, generateGeminiTex
 import { recordAiCall, type AiOutcome } from "./aiMonitoring";
 import { REPORT_RETRY_MIN_MS, REPORT_TERMS_HE, REPORT_THINKING, keepHebrewLines, reportAnalysisOutcome, reportTextViolation } from "./reportAnalysis";
 import { compareTelemetryOrder } from "./telemetryOrder";
+import { learnerPathOf, type LearningPath } from "./learningPath";
 
 /**
  * Module 23 — the CLASS report of one meeting (owner decision, 6.9.2026,
@@ -116,7 +117,7 @@ export type { ExerciseOutcome };
 export interface ClassLearnerRow {
   student_id: number;
   /** PRD 23 §ב: the path of THIS meeting (the bank most exercises were opened from, else the record); null in meetings 1–2. */
-  learning_path: "green_path" | "remediation_path" | null;
+  learning_path: LearningPath | null;
   /** null when this meeting's compulsory count is unknown — there is no score to state. */
   score_percent: number | null;
   score_source: "session_document" | "telemetry_first_attempt";
@@ -217,7 +218,7 @@ export interface ClassAggregates {
   score_min: number | null;
   score_max: number | null;
   tiers: Record<RecommendationTier, number[]>;
-  paths: { green_path: number; remediation_path: number };
+  paths: { green_path: number; remediation_path: number; graded_path: number };
   active_minutes_mean: number;
   recording_minutes_total: number;
   events_total: number;
@@ -259,7 +260,7 @@ export function buildLearnerRow(
   studentId: number,
   events: Record<string, any>[],
   compulsoryTotal: number | null,
-  learningPath: "green_path" | "remediation_path",
+  learningPath: LearningPath,
   sessionDoc: Record<string, any> | null,
   recording: { minutes: number; truncated: boolean } | null,
   reflectionsCount: number,
@@ -458,6 +459,7 @@ export function aggregateClass(
     paths: {
       green_path: rows.filter((r) => r.learning_path === "green_path").length,
       remediation_path: rows.filter((r) => r.learning_path === "remediation_path").length,
+      graded_path: rows.filter((r) => r.learning_path === "graded_path").length,
     },
     // Over every learner with data. It was divided by the learners with a
     // score, so an unscored learner's minutes were summed but not counted, and
@@ -868,7 +870,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       rtlText(doc, `לומדים עם נתונים: ${a.learners_with_data} מתוך 12`, 200, cardY, { width: 190 });
       if (scored) {
         rtlText(doc, `${FIRST_ATTEMPT_SCORE_MEAN_LABEL_HE}: ${pct(a.score_mean)}`, 55, cardY + 20, { width: 490 });
-        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | ${ROUTE_NAME_HE.green_path}: ${a.paths.green_path} | ${ROUTE_NAME_HE.remediation_path}: ${a.paths.remediation_path}`, 55, cardY + 40, { width: 490 });
+        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | ${ROUTE_NAME_HE.green_path}: ${a.paths.green_path} | ${ROUTE_NAME_HE.remediation_path}: ${a.paths.remediation_path} | ${ROUTE_NAME_HE.graded_path}: ${a.paths.graded_path ?? 0}`, 55, cardY + 40, { width: 490 });
       } else {
         rtlText(doc, "מפגש היכרות וריענון — ללא ציון וללא קבוצות עבודה", 55, cardY + 25, { width: 490 });
       }
@@ -1092,7 +1094,7 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   const studentsSnap = await rtdb.ref("users/students").get();
   // Recordings live in their own node (recordingsNode.ts); older ones still on the record.
   const studentsNode: Record<string, any> = withRecordings(studentsSnap.val(), (await rtdb.ref(RECORDINGS_ROOT).get()).val());
-  const learnerPath = new Map<number, "green_path" | "remediation_path">();
+  const learnerPath = new Map<number, LearningPath>();
   const recordingByLearner = new Map<number, { minutes: number; truncated: boolean }>();
   // users/students can hold a learner under several keys (student_user3,
   // student_3, 3 — the reset writes all three). The live client writes the
@@ -1107,7 +1109,7 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
     if (n === null || !raw || typeof raw !== "object") continue;
     const node = raw as Record<string, any>;
     if (!learnerPath.has(n)) {
-      learnerPath.set(n, node.teacher_selected_path === "remediation_path" || node.pedagogicalPath === "remediation_path" ? "remediation_path" : "green_path");
+      learnerPath.set(n, learnerPathOf(node));
     }
     const recordings = node.telemetry_sessions && typeof node.telemetry_sessions === "object" ? node.telemetry_sessions : {};
     for (const rec of Object.values(recordings as Record<string, any>)) {

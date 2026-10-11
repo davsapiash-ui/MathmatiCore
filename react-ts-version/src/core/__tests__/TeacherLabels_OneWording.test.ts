@@ -82,8 +82,8 @@ const teacherTexts = (): Array<[string, string]> => [
 
 describe('the names, one wording', () => {
   it('the two routes, the approval buttons, the gate, the open card', () => {
-    expect(ROUTE_NAME_HE).toEqual({ green_path: 'המסלול הירוק', remediation_path: 'מסלול צמצום פערי קדם' });
-    expect(ROUTE_APPROVE_HE).toEqual({ green_path: 'אישור המסלול הירוק', remediation_path: 'אישור מסלול צמצום פערי קדם' });
+    expect(ROUTE_NAME_HE).toEqual({ green_path: 'המסלול הירוק', remediation_path: 'מסלול צמצום פערי קדם', graded_path: 'המסלול המדורג' });
+    expect(ROUTE_APPROVE_HE).toEqual({ green_path: 'אישור המסלול הירוק', remediation_path: 'אישור מסלול צמצום פערי קדם', graded_path: 'אישור המסלול המדורג' });
     expect(TEACHER_GATE_HE).toBe('שלב החלוקה למסלולים');
     expect(CARD_OPEN_HE).toBe('כרטיס החניכה פתוח');
     expect(routeNameHe('green_path')).toBe('המסלול הירוק');
@@ -120,8 +120,10 @@ describe('the names, one wording', () => {
     expect(heat).toContain('<span>{ROUTE_APPROVE_HE.remediation_path}</span>');
     expect(heat).toContain('<span>{CARD_OPEN_HE}</span>');
     const cm = code('presentation/pages/TeacherDashboard/ClassManagement.tsx');
-    expect(cm).toContain('{ROUTE_APPROVE_HE.green_path}');
-    expect(cm).toContain('{ROUTE_APPROVE_HE.remediation_path}');
+    // One row per learner (11.10.2026): the three approve buttons are drawn from one list of the three paths.
+    expect(cm).toContain('{ROUTE_APPROVE_HE[path]}');
+    expect(cm).toContain("const PATHS: PedagogicalPath[] = ['green_path', 'remediation_path', 'graded_path'];");
+    expect(heat).toContain('<span>{ROUTE_APPROVE_HE.graded_path}</span>');
     for (const f of ['presentation/pages/TeacherDashboard/components/TeacherGateApprovalDrawer.tsx', 'presentation/pages/TeacherDashboard/components/TeacherApprovalGate.tsx']) {
       const text = code(f);
       expect(text, f).toContain('{TEACHER_GATE_HE}');

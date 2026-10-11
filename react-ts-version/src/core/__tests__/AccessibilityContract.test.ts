@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { readFileSync, existsSync, readdirSync } from 'fs';
+import { resolve, join } from 'path';
 import { payloadByteSize, enforceMaxPayloadBytes, MAX_PAYLOAD_BYTES } from '@/infrastructure/services/FirebaseSyncService';
 
 /**
  * חוזה הנגישות של מסמך העיצוב (DESIGN_SYSTEM_RULES.md), כפי שהוא מיושם
  * בפועל.
  *
- * שלוש הדרישות שנבדקות כאן — טבעת פוקוס על כל אלמנט לחיץ, Escape בכל
- * מגירה וחלון, ומצב שקט חזותי — היו כתובות במסמך אך כמעט לא מומשו. הן
+ * הדרישות שנבדקות כאן — טבעת פוקוס על כל אלמנט לחיץ, Escape בכל
+ * מגירה וחלון, ותנועה מופחתת לפי הגדרת המכשיר — היו כתובות במסמך אך כמעט לא מומשו. הן
  * נבדקות על הקוד עצמו ולא על התנהגות זמן-ריצה, כי הן חיות ב-CSS
  * גלובלי ובהוק משותף; מה שחשוב לנעול הוא שהמימוש המשותף נשאר במקומו
  * ושאף מסך לא חזר לפתור את זה בעצמו.
@@ -57,48 +57,45 @@ describe('מסמך העיצוב §1.2 — ניווט מקלדת מלא', () => {
   });
 });
 
-describe('מסמך העיצוב §1.3 — מצב שקט חזותי', () => {
-  it('סימון הרגישות החושית מגיע לשורש מרחב העבודה', () => {
+describe('תנועה: אין מצב שקט חזותי לפי לומד (החלטת בעל המוצר 11.10.2026)', () => {
+  // The design is a gentle UDL design for everyone. The few short animations
+  // that teach (the regroup motion, the hint rings) stay for every learner;
+  // the device's own reduced-motion setting is the only switch that turns them off.
+  it('no data-quiet attribute or rule anywhere', () => {
+    const root = resolve(__dirname, '../..');
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, e.name);
+        if (e.isDirectory()) { if (e.name !== '__tests__') walk(p); continue; }
+        if (/\.(tsx?|css)$/.test(e.name) && readFileSync(p, 'utf-8').includes('data-quiet')) offenders.push(p);
+      }
+    };
+    walk(root);
+    expect(offenders).toEqual([]);
+    expect(css).not.toContain('data-quiet');
+    expect(read('src/features/workspace/StudentWorkspacePage.tsx')).not.toContain('data-quiet');
+    expect(read('src/App.tsx')).not.toContain('data-quiet');
+    expect(existsSync(resolve(__dirname, '../../..', 'src/hooks/useQuietMode.ts'))).toBe(false);
+    expect(read('src/App.tsx')).not.toContain('useQuietMode');
+  });
+
+  it('the workspace no longer reads the learner flag isASD', () => {
     const page = read('src/features/workspace/StudentWorkspacePage.tsx');
-    expect(page).toContain("data-quiet={isASDMode ? 'true' : undefined}");
-  });
-
-  it('מצב שקט מכבה תנועה חוזרת ונשנית', () => {
-    expect(css).toMatch(/\[data-quiet='true'\] \.animate-pulse/);
-    expect(css).toMatch(/\[data-quiet='true'\] \.animate-bounce/);
-    expect(css).toMatch(/\[data-quiet='true'\] \.animate-ping/);
-  });
-
-  it('תנועה שמלמדת שורדת את מצב השקט', () => {
-    expect(css).toMatch(/\[data-quiet='true'\] \.motion-essential/);
-    // מסך סיום המפגש: החגיגה היא משוב, לא קישוט, ולכן היא שורדת את מצב השקט.
-    expect(read('src/features/workspace/StudentWorkspacePage.tsx')).toContain('motion-essential');
+    expect(page).not.toMatch(/myData\??\.isASD/);
+    expect(page).not.toContain('isASDMode');
   });
 
   it('העדפת תנועה מופחתת של מערכת ההפעלה מכובדת גלובלית', () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]{0,200}animation-duration: 0\.01ms/);
   });
 
-  it('מצב השקט מכסה גם תנועת framer-motion, לא רק כיתות CSS', () => {
-    // מסכי ההמתנה מנפישים ב-repeat: Infinity דרך סגנון מוטבע ב-JavaScript.
-    // כלל ה-CSS לא נוגע בהם כלל, ולכן הם המשיכו לפעום מול ילד רגיש חושית
-    // וגם מול מי שביקש תנועה מופחתת במערכת ההפעלה.
-    expect(read('src/App.tsx')).toContain("reducedMotion={isQuiet ? 'always' : 'user'}");
-    expect(read('src/features/workspace/StudentWorkspacePage.tsx'))
-      .toContain("reducedMotion={isASDMode ? 'always' : 'user'}");
-  });
-
-  it('מצב השקט הוא תכונה של הלומד וחל על כל מסך שהוא רואה', () => {
-    // הגרסה הראשונה סימנה רק את מרחב העבודה, ולכן הלובי — המסך שילד
-    // רגיש חושית מבלה בו הכי הרבה זמן בהמתנה — נשאר פועם.
-    const hook = read('src/hooks/useQuietMode.ts');
-    expect(hook).toContain("root.setAttribute('data-quiet', 'true')");
-    expect(read('src/App.tsx')).toContain('useQuietMode()');
-    // App renders the hook once per page load: the learner id must be a
-    // subscription, or a learner who signs in on that page is never quiet
-    // (2.10.2026). Behaviour: QuietMode_FollowsSignIn.test.tsx.
-    expect(hook).toContain('useAuthStore((s) => studentUidOf(s.user))');
-    expect(hook).not.toMatch(/=\s*currentStudentUid\(\)/);
+  it('framer-motion follows the device setting only', () => {
+    // מסכי ההמתנה מנפישים ב-repeat: Infinity דרך סגנון מוטבע ב-JavaScript;
+    // MotionConfig reducedMotion="user" עוצר אותם למי שביקש תנועה מופחתת.
+    expect(read('src/App.tsx')).toContain('<MotionConfig reducedMotion="user">');
+    expect(read('src/features/workspace/StudentWorkspacePage.tsx')).toContain('<MotionConfig reducedMotion="user">');
+    expect(read('src/App.tsx')).not.toContain("'always'");
   });
 });
 

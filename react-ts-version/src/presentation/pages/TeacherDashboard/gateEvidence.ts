@@ -20,6 +20,8 @@ export interface GateStudentItem {
    * then says "טרם נקבעה" and the teacher picks the path herself.
    */
   recommendedPath: PedagogicalPath | null;
+  /** The teacher marked the learner for the graded path before meeting 1: the gate opens on it. */
+  gradedTrack?: boolean;
   /** session_score_percent of meeting 2, or null when it has not been computed yet. */
   scorePercent: number | null;
   isCompleted: boolean;
@@ -92,6 +94,7 @@ export function buildGateStudentItem(
     anonymousLabel: `תלמיד ${n}`,
     session2Doc,
     recommendedPath,
+    gradedTrack: record.graded_track === true,
     scorePercent,
     isCompleted,
     isApproved,

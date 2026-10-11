@@ -120,9 +120,9 @@ describe('learning_path of a meeting (PRD 23 §ב, 24 §ב)', () => {
     expect(row.learning_path).toBe('remediation_path');
   });
 
-  it('is empty in meetings 1–2 in the research export', () => {
+  it('is empty in meetings 1–2 in the research export, except the graded path for a learner the teacher marked graded', () => {
     const src = readFileSync(resolve(__dirname, '../exportDriveReport.ts'), 'utf-8');
-    expect(src).toContain('learning_path: m >= 3 ? path : "",');
+    expect(src).toContain('learning_path: m >= 3 ? path : gradedTrack.has(n) ? "graded_path" : "",');
   });
 });
 

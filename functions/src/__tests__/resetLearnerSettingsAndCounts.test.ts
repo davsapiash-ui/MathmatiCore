@@ -85,6 +85,7 @@ vi.mock('firebase-admin', async (importOriginal) => {
 
 import {
   backupAndResetSessionData,
+  buildActiveSessionResetValues,
   buildResetScope,
   executeResetDeletion,
   LEARNER_SETTINGS_FIELDS,
@@ -102,7 +103,7 @@ const SETTINGS = {
   support_profile_version: 3,
   support_profile_updated_at: 1790000000000,
   support_profile_updated_by: 'teacher-uid',
-  isASD: true,
+  graded_track: true,
 };
 
 beforeEach(() => {
@@ -126,9 +127,21 @@ describe('A — a full learner reset keeps the settings the teacher set', () => 
 
   it('pickKeptFields: the settings present, nothing else; null when the record has none', () => {
     expect(pickKeptFields({ ...SETTINGS, workspaceState: { a: 1 }, highestCompletedMeeting: 4 }, LEARNER_SETTINGS_FIELDS)).toEqual(SETTINGS);
-    expect(pickKeptFields({ isASD: false }, LEARNER_SETTINGS_FIELDS)).toEqual({ isASD: false });
+    expect(pickKeptFields({ graded_track: false }, LEARNER_SETTINGS_FIELDS)).toEqual({ graded_track: false });
     expect(pickKeptFields({ workspaceState: {} }, LEARNER_SETTINGS_FIELDS)).toBeNull();
     expect(pickKeptFields(null, LEARNER_SETTINGS_FIELDS)).toBeNull();
+  });
+
+  it('the graded track is a kept setting; quiet mode (isASD) was removed from the product and is not (owner, 11.10.2026)', () => {
+    expect(LEARNER_SETTINGS_FIELDS).toContain('graded_track');
+    expect(LEARNER_SETTINGS_FIELDS).not.toContain('isASD');
+    expect(pickKeptFields({ isASD: true, workspaceState: {} }, LEARNER_SETTINGS_FIELDS)).toBeNull();
+  });
+
+  it('the meeting-2 reset leaves the graded track on the record (the diagnostic is redone graded)', () => {
+    const values = buildActiveSessionResetValues(2, { graded_track: true, highestCompletedMeeting: 2 });
+    expect(values).not.toHaveProperty('graded_track');
+    expect(values).toMatchObject({ teacher_selected_path: null, pedagogicalPath: null });
   });
 
   it('end to end: each alias record is replaced by its settings; a record without settings is removed', async () => {
@@ -141,7 +154,7 @@ describe('A — a full learner reset keeps the settings the teacher set', () => 
       qMatrixResults: { task1: true },
     };
     h.rtdbData['users/students/student_5'] = { support_profile_id: 'enhanced_cognitive_support', support_profile_version: 3 };
-    h.rtdbData['users/students/5'] = { isASD: true, overrideUpdatedAt: 1 };
+    h.rtdbData['users/students/5'] = { graded_track: true, overrideUpdatedAt: 1 };
     h.rtdbData['users/students/user5'] = { lastPing: 1 };
     h.rtdbData['chat_messages/student_user5'] = { m1: { text: 'x' } };
 
@@ -155,7 +168,7 @@ describe('A — a full learner reset keeps the settings the teacher set', () => 
       { op: 'update', path: 'users/students/student_user5', values: { forceReload: true, lastAction: 'אופס ע״י המורה', highestCompletedMeeting: 0 } },
     ]);
     expect(at('users/students/student_5')).toEqual([{ op: 'set', path: 'users/students/student_5', values: { support_profile_id: 'enhanced_cognitive_support', support_profile_version: 3 } }]);
-    expect(at('users/students/5')).toEqual([{ op: 'set', path: 'users/students/5', values: { isASD: true } }]);
+    expect(at('users/students/5')).toEqual([{ op: 'set', path: 'users/students/5', values: { graded_track: true } }]);
     expect(at('users/students/user5')).toEqual([{ op: 'remove', path: 'users/students/user5' }]);
     expect(at('chat_messages/student_user5')).toEqual([{ op: 'remove', path: 'chat_messages/student_user5' }]);
 
@@ -204,7 +217,7 @@ describe('C4 — records_deleted_count counts deletions only', () => {
     // Meeting 3 is open for the class now, and learner 4 is in it (not finished).
     h.rtdbData['active_class_session'] = { active: true, status: 'active', sessionNumber: 3, startedAt: Date.now() };
     h.rtdbData['users/students/student_user4'] = { activeSessionNumber: 3, highestCompletedMeeting: 2, workspaceState: {} };
-    h.rtdbData['users/students/student_4'] = { isASD: true };
+    h.rtdbData['users/students/student_4'] = { graded_track: true };
     h.rtdbData['users/students/4'] = { lastPing: 1 };
     const result = await run({ reset_level: 'single_student', reset_scope: 'active_session', student_id: 4, session_number: 3 });
     expect(result.status).toBe('SUCCESS');

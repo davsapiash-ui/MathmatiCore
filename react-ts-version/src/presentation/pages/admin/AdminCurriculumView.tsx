@@ -14,11 +14,11 @@ import {
 import { collection, doc, getDoc, getDocs, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/infrastructure/firebase";
 import { toast } from "sonner";
-import { getHardcodedCatalogBanks, SESSION1_TASKS, SESSION2_TASKS, SESSIONS_BY_PATH, type SessionTask } from "@/data/sessionTasks";
+import { getHardcodedCatalogBanks, SESSION1_TASKS, SESSION1_GRADED_TASKS, SESSION2_TASKS, SESSIONS_BY_PATH, type SessionTask } from "@/data/sessionTasks";
 import { getSessionBranchTasks } from "@/data/sessionBranchTasks";
 import { DEFAULT_HESITATION_THRESHOLD_SECONDS } from "@/core/hesitationCalibration";
 import { compareCatalog, freshnessMessageHe, type CatalogFreshness } from "@/core/catalogFreshness";
-import { MEETING_NUMBERS, meetingLabelHe, type MeetingNumber } from "@/core/stationNames";
+import { MEETING_NUMBERS, meetingLabelHe, meetingShortLabelHe, type MeetingNumber } from "@/core/stationNames";
 import { ROUTE_NAME_HE } from "@/core/routeLabels";
 
 interface PathBank {
@@ -71,7 +71,11 @@ export function buildSessionCatalog(): SessionCurriculumItem[] {
   items.push({
     sessionId: 1,
     sessionTitle: SESSION_TITLES[1],
-    banks: [{ label: "מסלול אחיד", compulsory: titles(SESSION1_TASKS), reinforcement: [], challenge: [] }],
+    banks: [
+      { label: "מסלול אחיד", compulsory: titles(SESSION1_TASKS), reinforcement: [], challenge: [] },
+      // The graded path's refresh mirrors its graded diagnostic (owner, 11.10.2026).
+      { label: `${ROUTE_NAME_HE.graded_path} (לפני ${meetingShortLabelHe(2)})`, compulsory: titles(SESSION1_GRADED_TASKS), reinforcement: [], challenge: [] },
+    ],
     unscored: true,
   });
   items.push({
@@ -81,8 +85,8 @@ export function buildSessionCatalog(): SessionCurriculumItem[] {
   });
   for (const n of [3, 4, 5, 6, 7, 8] as const) {
     const byPath = SESSIONS_BY_PATH[n];
-    const banks: PathBank[] = (["green_path", "remediation_path"] as const).map((path) => ({
-      label: path === "green_path" ? `${ROUTE_NAME_HE.green_path} (עד 10,000)` : `${ROUTE_NAME_HE.remediation_path} (עד 1,000)`,
+    const banks: PathBank[] = (["green_path", "remediation_path", "graded_path"] as const).map((path) => ({
+      label: path === "green_path" ? `${ROUTE_NAME_HE.green_path} (עד 10,000)` : path === "remediation_path" ? `${ROUTE_NAME_HE.remediation_path} (עד 1,000)` : `${ROUTE_NAME_HE.graded_path} (עד 1,000, בדירוג)`,
       compulsory: titles((byPath?.[path] ?? []) as SessionTask[]),
       reinforcement: titles(getSessionBranchTasks(n, "reinforcement", path)),
       challenge: titles(getSessionBranchTasks(n, "challenge", path)),

@@ -3,6 +3,7 @@ import { GEMINI_MODEL_ID, classifyGeminiError, generateGeminiText, type GeminiTh
 import { recordAiCall, type AiOutcome } from "./aiMonitoring";
 import { SANDBOX_MEETING_PURPOSE_HE, exercisePathType, isExerciseEvent, type ExercisePathType } from "./meetingMetrics";
 import { COLUMN_NAMES_HE } from "./teacherLabels";
+import type { LearningPath } from "./learningPath";
 
 /**
  * PRD Module 23 — layer two of the pedagogical report: the verbal analysis.
@@ -62,7 +63,7 @@ export interface ReportExerciseTemplate {
   exercise_template_id: string;
   session_number: number;
   order_index: number;
-  learning_path: "green_path" | "remediation_path" | null;
+  learning_path: LearningPath | null;
   path_type: ExercisePathType;
   operation: "addition" | "subtraction" | "representation" | "inquiry";
   operand_a: number | null;
@@ -265,7 +266,7 @@ export function buildFailedExercises(
   regroupingColumnsByExercise: Record<string, number[]>,
   catalogTasks: Record<string, any>[],
   sessionNumber: number,
-  learningPath: "green_path" | "remediation_path" | null
+  learningPath: LearningPath | null
 ): ReportExerciseTemplate[] {
   const byId = new Map<string, Record<string, any>>();
   catalogTasks.forEach((task, idx) => {

@@ -11,19 +11,29 @@
  * held equal to this one by a test.
  */
 
-/** The ten-thousands route and the hundreds/thousands route. */
+/**
+ * The ten-thousands route, the hundreds/thousands route for prior knowledge, and the graded route for
+ * special education (owner, 11.10.2026).
+ */
 export const ROUTE_NAME_HE = {
   green_path: 'המסלול הירוק',
   remediation_path: 'מסלול צמצום פערי קדם',
+  graded_path: 'המסלול המדורג',
 } as const;
 
 export type RoutePath = keyof typeof ROUTE_NAME_HE;
 
-/** The two approval buttons at the gate. */
+/** The three approval buttons at the gate. */
 export const ROUTE_APPROVE_HE: Readonly<Record<RoutePath, string>> = {
   green_path: 'אישור המסלול הירוק',
   remediation_path: 'אישור מסלול צמצום פערי קדם',
+  graded_path: 'אישור המסלול המדורג',
 };
+
+/** A stored path value as a route key, or null for anything else. */
+export function asRoutePath(path: unknown): RoutePath | null {
+  return path === 'green_path' || path === 'remediation_path' || path === 'graded_path' ? path : null;
+}
 
 /** The gate between meeting 2 and meeting 3 (PRD Module 20). */
 export const TEACHER_GATE_HE = 'שלב החלוקה למסלולים';
@@ -94,15 +104,17 @@ export function resetReasonHe(reason: unknown): string | null {
 
 /** The route's name for a stored path value, or null for anything else. */
 export function routeNameHe(path: unknown): string | null {
-  return path === 'green_path' || path === 'remediation_path' ? ROUTE_NAME_HE[path] : null;
+  const key = asRoutePath(path);
+  return key ? ROUTE_NAME_HE[key] : null;
 }
 
 /**
  * The radar's own path values stay as they are ('ירוק' / 'צמצום פערים'); what
  * the teacher reads is the route's one name (owner, 27.9.2026).
  */
-export function radarPathLabelHe(path: 'ירוק' | 'צמצום פערים' | 'טרם נקבעה' | undefined): string {
+export function radarPathLabelHe(path: 'ירוק' | 'צמצום פערים' | 'מדורג' | 'טרם נקבעה' | undefined): string {
   if (path === 'ירוק') return ROUTE_NAME_HE.green_path;
   if (path === 'צמצום פערים') return ROUTE_NAME_HE.remediation_path;
+  if (path === 'מדורג') return ROUTE_NAME_HE.graded_path;
   return path ?? 'טרם נקבעה';
 }

@@ -182,7 +182,7 @@ describe('an exercise with no hidden operand digit keeps exactly the label it ha
   });
 
   it('a missing result digit (the answer there) is in no label: its box is empty and named without a digit', () => {
-    expect(missingResult.map((t) => t.id).sort()).toEqual(['s4_r_t7', 's6_r_t7']);
+    expect(missingResult.map((t) => t.id).sort()).toEqual(['s4_d_t7', 's4_r_t7', 's6_d_t7', 's6_r_t7']);
     for (const t of missingResult) {
       cleanup();
       const { container, label, a, b, target } = sheet(t);

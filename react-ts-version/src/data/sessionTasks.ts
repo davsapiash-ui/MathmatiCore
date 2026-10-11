@@ -22,6 +22,15 @@ import type { QMatrixTask } from '@/core/QMatrix';
 import type { Place, PlaceCounts } from '@/core/placeValue';
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService';
 import {
+  S1_GRADED_REPLACES,
+  SESSION3_GRADED_TASKS,
+  SESSION4_GRADED_TASKS,
+  SESSION5_GRADED_TASKS,
+  SESSION6_GRADED_TASKS,
+  SESSION7_GRADED_TASKS,
+  SESSION8_GRADED_TASKS,
+} from './sessionGradedTasks';
+import {
   addition,
   subtraction,
   skeleton,
@@ -48,7 +57,19 @@ import {
 
 /* ── Types ── */
 
-export type LearningPath = 'green_path' | 'remediation_path';
+/**
+ * The three learning paths (owner, 11.10.2026): green up to 10,000, remediation up to 1,000 for prior
+ * knowledge not yet acquired, and graded — special education, the same topics graded within 1,000
+ * (sessionGradedTasks.ts).
+ */
+export type LearningPath = 'green_path' | 'remediation_path' | 'graded_path';
+
+export const LEARNING_PATHS: readonly LearningPath[] = ['green_path', 'remediation_path', 'graded_path'];
+
+/** A stored path value, or null when it is none of the three. */
+export function asLearningPathValue(value: unknown): LearningPath | null {
+  return value === 'green_path' || value === 'remediation_path' || value === 'graded_path' ? value : null;
+}
 
 export type TaskType =
   | 'session1_intro'
@@ -306,6 +327,12 @@ export const SESSION1_TASKS: SessionTask[] = [
     'פתרו: 806 − 351.\nבנו את 806 בבית המספרים.\nגררו לפח האשפה את הלבנים שאתם מחסרים.\nאם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו. לחצו על הלבנה, או גררו אותה אל הטור שמימין.\nאחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.\nכתבו את התוצאה בשורת התוצאה.',
     { scaffoldLevel: 1 })),
 ];
+
+/**
+ * Meeting 1 for a learner the teacher marked as graded (owner, 11.10.2026): the same steps and refresh
+ * exercises, except the two that mirror diagnostic tasks 6 and 7, which mirror the graded diagnostic.
+ */
+export const SESSION1_GRADED_TASKS: SessionTask[] = SESSION1_TASKS.map((t) => S1_GRADED_REPLACES[t.id] ?? t);
 
 /* ── Session 2 — the 5 Q-Matrix diagnostic tasks (מפגש 2: מיפוי יכולות ואבחון סמוי) ── */
 
@@ -750,12 +777,12 @@ export const SUPPORT_CONTENT: Record<SupportType, SupportContent> = {
 /* ── Sessions map: meeting number → task bank by learning path ── */
 
 export const SESSIONS_BY_PATH: Record<3 | 4 | 5 | 6 | 7 | 8, Record<LearningPath, SessionTask[]>> = {
-  3: { green_path: SESSION3_GREEN_TASKS, remediation_path: SESSION3_REMEDIATION_TASKS },
-  4: { green_path: SESSION4_GREEN_TASKS, remediation_path: SESSION4_REMEDIATION_TASKS },
-  5: { green_path: SESSION5_GREEN_TASKS, remediation_path: SESSION5_REMEDIATION_TASKS },
-  6: { green_path: SESSION6_GREEN_TASKS, remediation_path: SESSION6_REMEDIATION_TASKS },
-  7: { green_path: SESSION7_GREEN_TASKS, remediation_path: SESSION7_REMEDIATION_TASKS },
-  8: { green_path: SESSION8_GREEN_TASKS, remediation_path: SESSION8_REMEDIATION_TASKS },
+  3: { green_path: SESSION3_GREEN_TASKS, remediation_path: SESSION3_REMEDIATION_TASKS, graded_path: SESSION3_GRADED_TASKS },
+  4: { green_path: SESSION4_GREEN_TASKS, remediation_path: SESSION4_REMEDIATION_TASKS, graded_path: SESSION4_GRADED_TASKS },
+  5: { green_path: SESSION5_GREEN_TASKS, remediation_path: SESSION5_REMEDIATION_TASKS, graded_path: SESSION5_GRADED_TASKS },
+  6: { green_path: SESSION6_GREEN_TASKS, remediation_path: SESSION6_REMEDIATION_TASKS, graded_path: SESSION6_GRADED_TASKS },
+  7: { green_path: SESSION7_GREEN_TASKS, remediation_path: SESSION7_REMEDIATION_TASKS, graded_path: SESSION7_GRADED_TASKS },
+  8: { green_path: SESSION8_GREEN_TASKS, remediation_path: SESSION8_REMEDIATION_TASKS, graded_path: SESSION8_GRADED_TASKS },
 };
 
 /** Default (green_path) bank per session — kept for callers that do not resolve a path. */
@@ -775,7 +802,7 @@ const PATH_SPLIT_SESSIONS = [3, 4, 5, 6, 7, 8] as const;
  * PRD v7.2 Modules 4/26: the hardcoded banks in their canonical Firestore
  * `curriculum_catalog` document layout — used by the admin publish action to
  * seed/refresh the server catalog. Always reads the hardcoded constants,
- * never the live overrides. 13 banks: session 1, and both paths of sessions 3–8.
+ * never the live overrides. 20 banks: session 1 and its graded variant, and the three paths of sessions 3–8.
  */
 export function getHardcodedCatalogBanks(): Array<{
   id: string;
@@ -785,10 +812,12 @@ export function getHardcodedCatalogBanks(): Array<{
 }> {
   const banks: Array<{ id: string; session_number: number; learning_path: LearningPath | null; tasks: SessionTask[] }> = [
     { id: 'session_1', session_number: 1, learning_path: null, tasks: SESSIONS[1] },
+    { id: 'session_1_graded_path', session_number: 1, learning_path: 'graded_path', tasks: SESSION1_GRADED_TASKS },
   ];
   for (const n of PATH_SPLIT_SESSIONS) {
     banks.push({ id: `session_${n}_green_path`, session_number: n, learning_path: 'green_path', tasks: SESSIONS_BY_PATH[n].green_path });
     banks.push({ id: `session_${n}_remediation_path`, session_number: n, learning_path: 'remediation_path', tasks: SESSIONS_BY_PATH[n].remediation_path });
+    banks.push({ id: `session_${n}_graded_path`, session_number: n, learning_path: 'graded_path', tasks: SESSIONS_BY_PATH[n].graded_path });
   }
   return banks;
 }
@@ -798,8 +827,14 @@ export function getSessionTasks(
   path: LearningPath = 'green_path'
 ): SessionTask[] {
   const isSplit = meeting >= 3 && meeting <= 8;
+  // Meeting 1 has one bank for everyone and one for the graded path, whose refresh exercises mirror
+  // the graded diagnostic (owner, 11.10.2026).
+  if (meeting === 1 && path === 'graded_path') {
+    return curriculumCatalog.getActiveBank(1, 'graded_path') ?? SESSION1_GRADED_TASKS;
+  }
+  // No fallback to another path's bank: PRD Module 26 forbids loading a bank that does not match the path.
   const hardcoded = isSplit
-    ? (SESSIONS_BY_PATH[meeting as 3 | 4 | 5 | 6 | 7 | 8]?.[path] || SESSIONS_BY_PATH[meeting as 3 | 4 | 5 | 6 | 7 | 8]?.green_path || [])
+    ? (SESSIONS_BY_PATH[meeting as 3 | 4 | 5 | 6 | 7 | 8]?.[path] || [])
     : (SESSIONS[meeting] || []);
 
   // PRD v7.2 Modules 4/26: a bank published to the Firestore curriculum_catalog

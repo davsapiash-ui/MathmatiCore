@@ -44,7 +44,7 @@ import {
   type QMatrixFlowState,
 } from '@/core/qmatrixFlow';
 import { stateReducer } from '@/machines/vraMachine';
-import { computeCognitiveMastery, hasOneDiagnosticAnswerBox, TASKS } from '@/core/QMatrix';
+import { computeCognitiveMastery, hasOneDiagnosticAnswerBox, activeDiagnosticTasks, setActiveDiagnosticGraded } from '@/core/QMatrix';
 import { useStore } from '@/application/useStore';
 import { announceRegroup, REGROUP_ANIMATION_MS } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
@@ -52,7 +52,7 @@ import { useBoardFocusStore } from '@/application/useBoardFocusStore';
 import { useTeacherGenderStore } from '@/application/useTeacherGender';
 import { teacherSentenceHe } from '@/core/teacherGender';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
-import { getSessionTasks, SESSION1_TASKS, type SessionTask, type LearningPath } from '@/data/sessionTasks';
+import { getSessionTasks, SESSION1_TASKS, SESSION1_GRADED_TASKS, asLearningPathValue, type SessionTask, type LearningPath } from '@/data/sessionTasks';
 import { boardStaysOpen } from '@/core/boardVisibility';
 import { isPlaceError, resultBoxCount } from '@/core/placeCues';
 import { heldFromNumber } from '@/core/columnFocus';
@@ -448,7 +448,7 @@ export interface WorkspaceState {
    * users/students/{id}/pendingAdaptation and applied only in startTask(),
    * never mid-exercise. */
   pendingAdaptation: {
-    pedagogicalPath?: 'green_path' | 'remediation_path';
+    pedagogicalPath?: LearningPath;
     currentPath?: string;
     scaffoldLevel?: 0 | 1 | 2;
     forceAdditionHelper?: boolean;
@@ -599,7 +599,7 @@ export interface WorkspaceState {
    * מופרע." המסלול החדש נכנס לתוקף בתרגיל הבא, באותו גבול החלה בטוח של
    * מודול 19. `null` = טרם ידוע מה אושר, ואז נקראת ההכרעה החיה.
    */
-  activeBankPath: 'green_path' | 'remediation_path' | null;
+  activeBankPath: LearningPath | null;
   keyboardState: KeyboardState;
   /**
    * The Module 10 grid is open. Register decision ב: nothing closes it
@@ -1795,14 +1795,15 @@ export const SESSION1_ORDER_29_9_MIDDAY: readonly string[] = [
 function restoredSession1Order(saved: { standardTaskIdx?: number; activeTask?: { id?: unknown } | null }): SessionTask[] | null {
   const idx = saved.standardTaskIdx ?? 0;
   const savedId = saved.activeTask?.id;
-  const bank = getSessionTasks(1) ?? [];
+  const bank = getSessionTasks(1, learnerIsGraded() ? 'graded_path' : undefined) ?? [];
   // The place and the id agree with the bank, or there is no id to compare
   // (a snapshot trimmed to its minimal core): nothing to translate.
   if (typeof savedId !== 'string' || bank[idx]?.id === savedId) return null;
   // The exercises this device knows: the cached bank, and this code's own (a
   // place counted in a newer order can reach a device whose cached catalog is older).
-  const byId = new Map([...SESSION1_TASKS, ...bank].map((t) => [t.id, t]));
-  const codeIds = SESSION1_TASKS.map((t) => t.id);
+  const codeTasks = learnerIsGraded() ? SESSION1_GRADED_TASKS : SESSION1_TASKS;
+  const byId = new Map([...codeTasks, ...bank].map((t) => [t.id, t]));
+  const codeIds = codeTasks.map((t) => t.id);
   const withAdded = (ids: readonly string[]) => [...ids, ...codeIds.filter((id) => !ids.includes(id))];
   // Each known order as it was, and as it goes on once the exercises added
   // since are put at its end (a second reload on one of those lands here).
@@ -1820,6 +1821,8 @@ export function getActiveTasks(s: WorkspaceState): SessionTask[] {
   // Session 2 runs through the Q-Matrix flow — it has no standard task list.
   if (s.sessionNumber === 2) return [];
   if (s.dynamicTasks) return s.dynamicTasks;
+  // Meeting 1 has no path; a learner marked as graded does its refresh exercises in the graded bank.
+  if (s.sessionNumber === 1) return getSessionTasks(1, learnerIsGraded() ? 'graded_path' : undefined) ?? [];
   // מודול 26 §ב: המאגר נקבע לפי המסלול שננעץ בתחילת התרגיל, לא לפי הערך
   // החי. שינוי מסלול באמצע תרגיל נכנס לתוקף רק בתרגיל הבא (ראו activeBankPath).
   const path = s.activeBankPath ?? resolveLearningPath();
@@ -1837,7 +1840,25 @@ export function isPathSplitMeeting(sessionNumber: number): boolean {
 }
 
 function asLearningPath(raw: unknown): LearningPath | null {
-  return raw === 'remediation_path' || raw === 'green_path' ? raw : null;
+  return asLearningPathValue(raw);
+}
+
+/**
+ * Whether the teacher marked this learner record for the graded path (owner, 11.10.2026): `graded_track`,
+ * set before meeting 1, so that the refresh exercises of meeting 1 and the diagnostic of meeting 2 are the
+ * graded ones. Meetings 3–8 follow the path the teacher approves at the gate, as for everyone.
+ */
+export function recordIsGraded(record: Record<string, unknown> | null | undefined): boolean {
+  return record?.graded_track === true;
+}
+
+/** recordIsGraded for the signed-in learner. */
+export function learnerIsGraded(): boolean {
+  const auth = useAuthStore.getState();
+  const students = useStore.getState().students;
+  const canonical = currentStudentUid();
+  const student = (canonical ? students[canonical] : null) ?? (auth.user?.uid ? students[auth.user.uid] : null);
+  return recordIsGraded(student as Record<string, unknown> | null);
 }
 
 /**
@@ -3038,7 +3059,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // the last task no next task follows (the waiting screen, or the
         // correction round with its own toast), so the sub is left out (A3-112).
         // taskIdx is still the task just answered: advance() runs after the toast.
-        const nextTaskSub = get().qflow.taskIdx < TASKS.length - 1 ? 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' : undefined;
+        const nextTaskSub = get().qflow.taskIdx < activeDiagnosticTasks().length - 1 ? 'עוֹבְרִים לַמְּשִׂימָה הַבָּאָה...' : undefined;
         showFeedback({ correct: true, neutral: true, title: 'הַתְּשׁוּבָה הִתְקַבְּלָה!', sub: nextTaskSub }, 1500, continueAfterPrimaryAnswer);
         break;
       }
@@ -3048,7 +3069,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // (owner, 29.9.2026): the task itself coming back is "מְשִׂימָה חוֹזֶרֶת";
       // the simpler exercise before it (tasks 3, 6, 7) is another task.
       case 'start_correction': {
-        const task = TASKS.find((t) => t.id === event.taskId);
+        const task = activeDiagnosticTasks().find((t) => t.id === event.taskId);
         const title = task && hasProbeExercise(task) ? 'מְשִׂימָה נוֹסֶפֶת 📝' : 'מְשִׂימָה חוֹזֶרֶת 📝';
         // The step starts with its toast, not after it: the flow had already
         // moved to it, so for 1.8 seconds the new step sat on the screen with
@@ -3883,6 +3904,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         storeMeetingDeadline(sanitized, learnerUid, deadline);
       }
 
+      // Meeting 2 runs the graded diagnostic for a learner the teacher marked as graded (QMatrix.ts).
+      setActiveDiagnosticGraded(sanitized === 2 && learnerIsGraded());
       const qflow = initQFlow();
       set({
         sessionNumber: sanitized,
@@ -4090,10 +4113,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // was not saved, so a reload re-resolved it — and before the learner
       // record arrived that was the green bank, for every learner.
       const bankPath = savedBankPath(saved) ?? pinnableLearningPath();
+      setActiveDiagnosticGraded(sanitized === 2 && learnerIsGraded());
 
       set({
         sessionNumber: sanitized,
-        isASD: saved.isASD ?? false,
+        // No per-learner quiet mode (owner, 11.10.2026): an old copy's isASD is ignored.
+        isASD: false,
         sessionDurationMinutes: durationMin,
         sessionDeadlineTime: sessionDeadline,
         activeBankPath: bankPath,
@@ -4134,7 +4159,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // The card itself is not restored (helpState closes below), so a
         // keyboard saved mid-card as SOCRATIC_ONLY resumes as the Module 9 lock
         // it came from rather than as a state no action can leave.
-        keyboardState: saved.keyboardState === 'SOCRATIC_ONLY' ? 'LOCKED' : (saved.keyboardState ?? (saved.isASD ? 'LOCKED' : 'UNLOCKED')),
+        keyboardState: saved.keyboardState === 'SOCRATIC_ONLY' ? 'LOCKED' : (saved.keyboardState ?? 'UNLOCKED'),
         scaffoldFadeLevel: 0,
         errorPlace: null,
         feedback: null,

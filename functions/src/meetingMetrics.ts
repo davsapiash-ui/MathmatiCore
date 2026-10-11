@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { isCompletedReset } from "./resetAudit";
 import { compareTelemetryOrder } from "./telemetryOrder";
+import { LEARNING_PATHS, pathOfIdLetter, type LearningPath } from "./learningPath";
 
 /**
  * Per-meeting measurements derived from the learner's own telemetry events.
@@ -190,10 +191,10 @@ export type ExercisePathType = "compulsory" | "consolidation" | "challenge";
 /**
  * The choice banks (react-ts-version/src/data/sessionBranchTasks.ts) are not
  * published to the catalog, so the server knows a choice exercise by its id:
- * `s{N}_{g|r}_reinforce_{k}` and `s{N}_{g|r}_challenge_{k}`. A test pins every
+ * `s{N}_{g|r|d}_reinforce_{k}` and `s{N}_{g|r|d}_challenge_{k}`. A test pins every
  * id of those banks, and every compulsory id, against this pattern.
  */
-const CHOICE_EXERCISE_ID = /^s\d+_[gr]_(reinforce|challenge)_\d+$/;
+const CHOICE_EXERCISE_ID = /^s\d+_[grd]_(reinforce|challenge)_\d+$/;
 
 /**
  * מסמך 03: "ביצועי הלומדים במשימות האקסטרה של נתיבי הבחירה … יופיעו בדוחות
@@ -254,6 +255,22 @@ export const CHOICE_TITLES_HE: Readonly<Record<string, string>> = {
   s7_g_reinforce_1: "ביסוס 1: שתי ספרות חסרות בחיבור עם המרה אחת",
   s7_g_reinforce_2: "ביסוס 2: הקבצת 10 מאות לאלף אחד",
   s7_g_challenge_1: "אתגר: תרגיל שלד בתחום הרבבה עם ארבע ספרות חסרות",
+  // The graded path (owner, 11.10.2026).
+  s3_d_reinforce_1: "ביסוס 1: ייצוג סטנדרטי של 430",
+  s3_d_reinforce_2: "ביסוס 2: 430 בעשרות בלבד",
+  s3_d_challenge_1: "אתגר: כל הדרכים לייצג את 250",
+  s4_d_reinforce_1: "ביסוס 1: חיבור ללא המרה",
+  s4_d_reinforce_2: "ביסוס 2: המרה אחת בטור היחידות",
+  s4_d_challenge_1: "אתגר: שתי המרות עוקבות",
+  s5_d_reinforce_1: "ביסוס 1: חיסור ללא פריטה",
+  s5_d_reinforce_2: "ביסוס 2: פריטה אחת בטור היחידות",
+  s5_d_challenge_1: "אתגר: שתי פריטות עוקבות",
+  s6_d_reinforce_1: "ביסוס 1: קריאת האפס כשומר מקום, ללא פריטה",
+  s6_d_reinforce_2: "ביסוס 2: חיסור ללא פריטה",
+  s6_d_challenge_1: "אתגר: שתי פריטות, כשבמחוסר יש אפסים בטור העשרות ובטור היחידות",
+  s7_d_reinforce_1: "ביסוס 1: ספרת יחידות חסרה בחיבור ללא המרה",
+  s7_d_reinforce_2: "ביסוס 2: ספרת עשרות חסרה בחיסור ללא פריטה",
+  s7_d_challenge_1: "אתגר: תרגיל שלד עם שלוש ספרות חסרות",
 };
 
 /**
@@ -271,7 +288,7 @@ export function exerciseLabelHe(titles: Record<string, string> | null | undefine
   const id = String(exerciseId ?? "");
   const known = CHOICE_TITLES_HE[id];
   if (known) return known;
-  const choice = /^s(\d+)_(?:[gr]_)?(reinforce|challenge)_(\d+)$/.exec(id);
+  const choice = /^s(\d+)_(?:[grd]_)?(reinforce|challenge)_(\d+)$/.exec(id);
   if (choice) return `${choice[2] === "challenge" ? "אתגר" : "ביסוס"} ${Number(choice[3])} במפגש ${choice[1]}`;
   const meeting = /^(?:ex|s)_?(\d+)_(.*)$/.exec(id);
   if (meeting) {
@@ -622,8 +639,8 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
 }
 
 /**
- * The Hebrew title of every exercise in a meeting's published banks (both
- * paths), as the teacher's screens show them — the reports used to print the
+ * The Hebrew title of every exercise in a meeting's published banks (all
+ * three paths), as the teacher's screens show them — the reports used to print the
  * ids ("s4_g_t1"). The choice banks are not published, so a choice exercise is
  * not here and keeps its id.
  */
@@ -632,7 +649,7 @@ export async function readExerciseTitles(
   sessionNumber: number
 ): Promise<Record<string, string>> {
   const titles: Record<string, string> = {};
-  for (const bankId of [`session_${sessionNumber}`, `session_${sessionNumber}_green_path`, `session_${sessionNumber}_remediation_path`]) {
+  for (const bankId of [`session_${sessionNumber}`, ...LEARNING_PATHS.map((p) => `session_${sessionNumber}_${p}`)]) {
     try {
       const bankDoc = await db.collection("curriculum_catalog").doc(bankId).get();
       const tasks = bankDoc.exists ? (bankDoc.data() || {}).tasks : null;
@@ -667,7 +684,7 @@ export async function readExerciseTitles(
 export async function resolveCompulsoryTotal(
   db: admin.firestore.Firestore,
   sessionNumber: number,
-  path: "green_path" | "remediation_path",
+  path: LearningPath,
   cache: Map<string, number | null> = new Map(),
   idsOut?: Map<string, ReadonlySet<string>>
 ): Promise<number | null> {
@@ -940,10 +957,10 @@ export function meetingRunsByLearner(
   return out;
 }
 
-export type LearningPath = "green_path" | "remediation_path";
+export type { LearningPath } from "./learningPath";
 
-/** The id spelling of the compulsory and choice banks of meetings 3–8: s4_g_t1, s4_r_reinforce_2. */
-const PATH_EXERCISE_ID = /^s\d+_([gr])_/;
+/** The id spelling of the compulsory and choice banks of meetings 3–8: s4_g_t1, s4_r_reinforce_2, s4_d_t1. */
+const PATH_EXERCISE_ID = /^s\d+_([grd])_/;
 
 /**
  * The path the learner actually worked on in one meeting, from the exercises
@@ -959,20 +976,22 @@ export function pathOfMeeting(
   events: Record<string, any>[],
   idsByPath: Partial<Record<LearningPath, ReadonlySet<string> | null | undefined>> = {}
 ): LearningPath | null {
-  const seen: Record<LearningPath, Set<string>> = { green_path: new Set(), remediation_path: new Set() };
+  const seen: Record<LearningPath, Set<string>> = { green_path: new Set(), remediation_path: new Set(), graded_path: new Set() };
   for (const ev of events) {
     const exId = String(ev?.exercise_id || "");
     if (!exId || !isExerciseEvent(ev)) continue;
-    if (idsByPath.green_path?.has(exId)) seen.green_path.add(exId);
-    else if (idsByPath.remediation_path?.has(exId)) seen.remediation_path.add(exId);
+    const fromBank = LEARNING_PATHS.find((p) => idsByPath[p]?.has(exId));
+    if (fromBank) seen[fromBank].add(exId);
     else {
       const m = PATH_EXERCISE_ID.exec(exId);
-      if (m) seen[m[1] === "g" ? "green_path" : "remediation_path"].add(exId);
+      const byId = m ? pathOfIdLetter(m[1]) : null;
+      if (byId) seen[byId].add(exId);
     }
   }
-  const g = seen.green_path.size;
-  const r = seen.remediation_path.size;
-  return g === r ? null : g > r ? "green_path" : "remediation_path";
+  // The path with the most exercises; null when none, or when two paths share the most.
+  const counts = LEARNING_PATHS.map((p) => [p, seen[p].size] as const).sort((a, b) => b[1] - a[1]);
+  if (counts[0][1] === 0 || counts[0][1] === counts[1][1]) return null;
+  return counts[0][0];
 }
 
 /**
@@ -990,12 +1009,12 @@ export async function resolveMeetingPath(
   idsOut: Map<string, ReadonlySet<string>> = new Map()
 ): Promise<LearningPath> {
   if (sessionNumber < 3 || sessionNumber > 8) return fallback;
-  await resolveCompulsoryTotal(db, sessionNumber, "green_path", cache, idsOut);
-  await resolveCompulsoryTotal(db, sessionNumber, "remediation_path", cache, idsOut);
-  return pathOfMeeting(events, {
-    green_path: idsOut.get(`${sessionNumber}:green_path`),
-    remediation_path: idsOut.get(`${sessionNumber}:remediation_path`),
-  }) ?? fallback;
+  const idsByPath: Partial<Record<LearningPath, ReadonlySet<string> | undefined>> = {};
+  for (const p of LEARNING_PATHS) {
+    await resolveCompulsoryTotal(db, sessionNumber, p, cache, idsOut);
+    idsByPath[p] = idsOut.get(`${sessionNumber}:${p}`);
+  }
+  return pathOfMeeting(events, idsByPath) ?? fallback;
 }
 
 export async function readLastResetOfMeeting(
@@ -1058,6 +1077,13 @@ export const FADING_PAIRS: Record<string, string> = {
   s8_g_t3: "s5_g_t1", // 5,432 − 2,118
   s8_g_t4: "s5_g_t5", // 6,284 − 1,157
   s8_g_t5: "s6_g_t3", // 4,000 − 1,562
+  // The graded path (owner, 11.10.2026; react-ts-version/src/data/sessionGradedTasks.ts).
+  s8_d_t1: "s4_d_t1", // 43 + 25
+  s8_d_t2: "s4_d_t2", // 65 + 29
+  s8_d_t3: "s4_d_t4", // 352 + 61
+  s8_d_t4: "s5_d_t1", // 87 − 35
+  s8_d_t5: "s5_d_t2", // 62 − 18
+  s8_d_t6: "s6_d_t5", // 703 − 458
 };
 
 /** A session-8 exercise finished faster than this, without the blocks, is flagged as rushed (calibration point; owner may change). */
@@ -1161,6 +1187,9 @@ export const REPRESENTATION_EXERCISES: ReadonlySet<string> = new Set([
   "s3_g_t1", "s3_g_t2", "s3_g_t3", "s3_g_t4", "s3_g_t5", "s3_g_t6", "s3_g_t7",
   "s7_r_t1", "s7_r_t6", "s7_r_t7",
   "s7_g_t1", "s7_g_t5", "s7_g_t6",
+  // The graded path, by the same kind: s3_d_t6 is a missing-element task, as s3_r_t7 is.
+  "s3_d_t1", "s3_d_t2", "s3_d_t3", "s3_d_t4", "s3_d_t5", "s3_d_t7",
+  "s7_d_t1", "s7_d_t6", "s7_d_t7",
 ]);
 
 export const FLEXIBILITY_SESSIONS: readonly number[] = [3, 7];

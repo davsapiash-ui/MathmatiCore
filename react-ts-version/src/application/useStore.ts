@@ -110,6 +110,8 @@ export interface StudentData {
   pedagogicalPath?: string;
   /** The gate's approved path (Module 20 §ב); before 2.9.2026 the gate mirrored only this, not pedagogicalPath. */
   teacher_selected_path?: string | null;
+  /** The teacher marked this learner for the graded path before meeting 1 (owner, 11.10.2026). */
+  graded_track?: boolean | null;
   isBoardLocked?: boolean;
   helpRequested?: boolean;
   handRaised?: boolean;
@@ -382,6 +384,7 @@ export const initStoreSubscriptions = (): (() => void) => {
               : (prev.support_profile_id ?? null),
             scaffoldLevel: row.scaffoldLevel !== undefined ? row.scaffoldLevel : prev.scaffoldLevel,
             pedagogicalPath: row.pedagogicalPath || prev.pedagogicalPath,
+            graded_track: row.graded_track !== undefined ? row.graded_track === true : prev.graded_track,
             teacher_gate_approved: row.teacher_gate_approved !== undefined ? row.teacher_gate_approved : prev.teacher_gate_approved,
             isBoardLocked: row.isBoardLocked !== undefined ? Boolean(row.isBoardLocked) : prev.isBoardLocked,
             helpRequested: Boolean(row.helpRequested ?? prev.helpRequested ?? false),
@@ -1090,6 +1093,8 @@ async function applyStudentResetSuccess(
       ...cleanStudent,
       ...(before?.isASD !== undefined ? { isASD: before.isASD } : {}),
       ...(before?.support_profile_id !== undefined ? { support_profile_id: before.support_profile_id } : {}),
+      // The graded mark is a learner setting too (owner, 11.10.2026).
+      ...(before?.graded_track !== undefined ? { graded_track: before.graded_track } : {}),
     };
     return {
       students: {
@@ -1141,6 +1146,7 @@ async function applySystemResetSuccess(data: unknown): Promise<void> {
         reflections: null,
         enhanced_support_profile: null, // the legacy alias (core/supportProfile.ts) is removed, not written
       support_profile_id: null,
+        graded_track: null,
         physicalOverride: false,
         physicalOverrideActive: false,
         forceAdditionHelper: false,

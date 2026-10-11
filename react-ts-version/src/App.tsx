@@ -7,7 +7,6 @@ import { LandingPage } from "@/presentation/pages/LandingPage";
 import { StudentWorkspacePage } from "@/features/workspace/StudentWorkspacePage";
 import { StudentHub } from "@/presentation/pages/StudentHub";
 import { AppShell } from "@/presentation/components/layout/AppShell";
-import { useQuietMode } from '@/hooks/useQuietMode';
 import { MotionConfig } from 'framer-motion';
 import { Toaster } from "sonner";
 import { useAuthStore } from "@/application/useAuthStore";
@@ -214,13 +213,11 @@ function RoleRouter({ studentForm = false }: { studentForm?: boolean }) {
 }
 
 function App() {
-  // מסמך העיצוב §1.3: שקט חזותי הוא תכונה של הלומד ולא של מסך מסוים.
-  // הסימון נקבע כאן, ברמת האפליקציה, כדי שיכסה גם את הלובי ואת השכבות
-  // הצפות שנפתחות דרך פורטלים — ולא רק את מרחב העבודה.
-  const isQuiet = useQuietMode();
-
+  // There is no per-learner quiet mode (owner decision, 11.10.2026): the design is
+  // a gentle UDL design for everyone. Only the device's own reduced-motion setting
+  // turns motion off.
   return (
-    <MotionConfig reducedMotion={isQuiet ? 'always' : 'user'}>
+    <MotionConfig reducedMotion="user">
     <BrowserRouter>
       {/* Toast host: without it every toast.success/error in the app is a no-op */}
       <Toaster position="top-center" richColors closeButton dir="rtl" />

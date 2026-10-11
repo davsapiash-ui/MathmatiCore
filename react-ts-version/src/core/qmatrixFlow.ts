@@ -6,7 +6,7 @@
  */
 
 import type { QMatrixTask, TaskPhase, CorrectionSubphase } from '@/core/QMatrix';
-import { TASKS, Q_FAIL_TAG } from '@/core/QMatrix';
+import { activeDiagnosticTasks, Q_FAIL_TAG } from '@/core/QMatrix';
 
 export interface QTaskResult {
   correct: boolean;
@@ -41,7 +41,7 @@ export function initQFlow(): QMatrixFlowState {
 }
 
 export function getCurrentQTask(state: QMatrixFlowState): QMatrixTask | null {
-  return TASKS[state.taskIdx] ?? null;
+  return activeDiagnosticTasks()[state.taskIdx] ?? null;
 }
 
 /**
@@ -55,7 +55,7 @@ export function hasProbeExercise(task: QMatrixTask): boolean {
 }
 
 function firstSubphase(taskId: string): CorrectionSubphase {
-  const task = TASKS.find((t) => t.id === taskId);
+  const task = activeDiagnosticTasks().find((t) => t.id === taskId);
   return task && hasProbeExercise(task) ? 'subtask' : 'retry';
 }
 
@@ -133,11 +133,11 @@ export function recordResult(
 export function advance(state: QMatrixFlowState): { state: QMatrixFlowState; event: QFlowEvent | null } {
   if (state.phase === 'primary') {
     const nextIdx = state.taskIdx + 1;
-    if (nextIdx < TASKS.length) {
+    if (nextIdx < activeDiagnosticTasks().length) {
       return { state: { ...state, taskIdx: nextIdx }, event: null };
     }
     // Primary round complete — collect failures.
-    const failedTasks = TASKS.filter((t) => state.results[t.id] && !state.results[t.id].correct).map((t) => t.id);
+    const failedTasks = activeDiagnosticTasks().filter((t) => state.results[t.id] && !state.results[t.id].correct).map((t) => t.id);
     if (failedTasks.length > 0) {
       const firstFailedId = failedTasks[0];
       return {
@@ -147,7 +147,7 @@ export function advance(state: QMatrixFlowState): { state: QMatrixFlowState; eve
           subphase: firstSubphase(firstFailedId),
           failedTasks,
           correctionIdx: 0,
-          taskIdx: TASKS.findIndex((t) => t.id === firstFailedId),
+          taskIdx: activeDiagnosticTasks().findIndex((t) => t.id === firstFailedId),
         },
         event: { type: 'start_correction', taskId: firstFailedId },
       };
@@ -172,7 +172,7 @@ export function advance(state: QMatrixFlowState): { state: QMatrixFlowState; eve
         ...state,
         correctionIdx: nextCorrectionIdx,
         subphase: firstSubphase(nextFailedId),
-        taskIdx: TASKS.findIndex((t) => t.id === nextFailedId),
+        taskIdx: activeDiagnosticTasks().findIndex((t) => t.id === nextFailedId),
       },
       event: { type: 'start_correction', taskId: nextFailedId },
     };
@@ -183,7 +183,7 @@ export function advance(state: QMatrixFlowState): { state: QMatrixFlowState; eve
 /** Every step of the diagnostic has been answered: the meeting only has to end. */
 export function isQFlowComplete(state: QMatrixFlowState): boolean {
   return state.phase === 'primary'
-    ? state.taskIdx >= TASKS.length
+    ? state.taskIdx >= activeDiagnosticTasks().length
     : state.correctionIdx >= (state.failedTasks?.length ?? 0);
 }
 
@@ -225,7 +225,7 @@ export function settlePendingQResults(state: QMatrixFlowState): { state: QMatrix
   let next = state;
   let moved = false;
   // One move per answered step; the bound only guards against a corrupt snapshot.
-  for (let i = 0; i < TASKS.length * 3 && hasPendingQResult(next); i++) {
+  for (let i = 0; i < activeDiagnosticTasks().length * 3 && hasPendingQResult(next); i++) {
     next = advance(next).state;
     moved = true;
   }

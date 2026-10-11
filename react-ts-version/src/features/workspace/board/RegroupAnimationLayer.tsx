@@ -31,9 +31,8 @@ import { BLOCK_SIZES, BLOCK_SVGS } from './DienesBlock';
  *
  * Calm by design: under a second, opacity and position only — no flashing,
  * no bounce, no repeat. A learner whose device asks for reduced motion gets
- * the move instantly, as before. Quiet mode (the teacher's sensory flag) keeps
- * it: document 03 describes this motion as how the child sees ten become one,
- * which is the teaching motion index.css keeps in quiet mode (motion-essential).
+ * the move instantly, as before. Every other learner sees it: document 03
+ * describes this motion as how the child sees ten become one.
  */
 
 /** The regroup to draw right now — null when there is none, the learner asks

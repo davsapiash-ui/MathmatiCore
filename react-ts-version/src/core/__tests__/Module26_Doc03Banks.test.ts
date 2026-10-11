@@ -20,8 +20,10 @@ import { PLACE_ORDER, PLACE_VALUES, getValue, EMPTY_COUNTS, digitAt, type Place 
  */
 
 type Pair = [number, '+' | '-', number];
+/** The two paths מסמך 03 lists; the graded path (11.10.2026) has its own test, GradedPath_Banks.test.ts. */
+type Doc03Path = Exclude<LearningPath, 'graded_path'>;
 
-const DOC03_COMPULSORY: Record<4 | 5 | 6 | 8, Record<LearningPath, Pair[]>> = {
+const DOC03_COMPULSORY: Record<4 | 5 | 6 | 8, Record<Doc03Path, Pair[]>> = {
   4: { remediation_path: [[142, '+', 23], [128, '+', 35], [247, '+', 135], [456, '+', 281], [354, '+', 128], [507, '+', 125]], green_path: [[1245, '+', 328], [2356, '+', 1427], [3456, '+', 2183], [4821, '+', 1534], [5678, '+', 2453], [7045, '+', 1283]] },
   // green_path exercises 3 and 4 are the owner-approved replacements of 3.9.2026 (מרשם הסטיות, item 3):
   // the document's 7,651 − 3,325 and 8,762 − 4,439 borrow in the units only, so the skills their labels
@@ -33,7 +35,7 @@ const DOC03_COMPULSORY: Record<4 | 5 | 6 | 8, Record<LearningPath, Pair[]>> = {
 };
 
 /** מסמך 03 §3.3 — the number each representation task is about, in order (7 per path). */
-const DOC03_S3_NUMBERS: Record<LearningPath, number[]> = {
+const DOC03_S3_NUMBERS: Record<Doc03Path, number[]> = {
   remediation_path: [340, 340, 450, 85, 506, 506, 160],
   green_path: [3400, 3400, 4500, 5230, 6030, 6030, 2100],
 };
@@ -47,7 +49,7 @@ const DOC03_BRANCH: Record<4 | 5 | 6, Pair[]> = {
 /** §3.3 branch numbers: 270 (twice), 320 | 3,600 (twice), 4,200. */
 const DOC03_S3_BRANCH_NUMBERS = [270, 320, 3600, 4200];
 
-const PATHS: LearningPath[] = ['remediation_path', 'green_path'];
+const PATHS: Doc03Path[] = ['remediation_path', 'green_path'];
 const pairOf = (t: SessionTask): Pair => [t.numberA ?? NaN, t.isSubtraction ? '-' : '+', t.numberB ?? NaN];
 const branchFlat = (session: 3 | 4 | 5 | 6 | 7) => {
   const b = SESSION_BRANCH_TASKS[session];
@@ -194,13 +196,15 @@ describe('bank structure', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('the hardcoded catalog seed publishes 13 banks: session 1 and both paths of sessions 3–8', () => {
+  it('the hardcoded catalog seed publishes 20 banks: session 1 and its graded variant, and the three paths of sessions 3–8', () => {
     const ids = getHardcodedCatalogBanks().map((b) => b.id);
-    expect(ids).toHaveLength(13);
+    expect(ids).toHaveLength(20);
     expect(ids).toContain('session_1');
+    expect(ids).toContain('session_1_graded_path');
     for (const s of [3, 4, 5, 6, 7, 8]) {
       expect(ids).toContain(`session_${s}_green_path`);
       expect(ids).toContain(`session_${s}_remediation_path`);
+      expect(ids).toContain(`session_${s}_graded_path`);
     }
   });
 

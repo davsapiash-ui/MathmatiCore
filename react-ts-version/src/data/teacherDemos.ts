@@ -5,7 +5,7 @@ import { S4_ADD, S5_SUB, S6_SUB } from './taskBuilders';
 /**
  * The teacher's demonstration exercises (PRD Module 15 §ג, "מסך ההדגמה של
  * המורה"; numbers decided by the owner on 9.10.2026). One demonstration per
- * station, shared by both learning paths, in the number range of מסלול צמצום
+ * station, shared by the three learning paths (owner, 11.10.2026), in the number range of מסלול צמצום
  * פערי קדם, with numbers that differ from every exercise the learners get.
  *
  * Fixed here on purpose: these are not learner exercises. They are not in the

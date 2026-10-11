@@ -14,7 +14,7 @@ import {
   ClipboardList
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
+import { ROUTE_NAME_HE, TEACHER_GATE_HE, asRoutePath } from '@/core/routeLabels';
 import { meetingShortLabelHe } from '@/core/stationNames';
 import { NO_RECOMMENDATION_HE, type GateStudentItem } from '../gateEvidence';
 
@@ -28,10 +28,11 @@ export function gateApprovedToastHe(studentNumber: string | number, path: Pedago
   return `✓ ${TEACHER_GATE_HE}: תלמיד ${studentNumber} אושר ל${ROUTE_NAME_HE[path].replace(/^ה/, '')}.`;
 }
 
-/** The two route cards: the number range of each route's bank (PRD Module 26). */
+/** The three route cards: the number range of each route's bank (PRD Module 26). */
 export const ROUTE_CARD_HE: Readonly<Record<PedagogicalPath, string>> = {
   green_path: 'חיבור וחיסור במאונך בתחום הרבבה, במספרים עד 10,000.',
   remediation_path: 'חיבור וחיסור במאונך בתחום המאה והאלף, במספרים עד 1,000, לצמצום פערי קדם.',
+  graded_path: 'אותם נושאים בדירוג לחינוך המיוחד: חיבור וחיסור במאונך בתחום האלף.',
 };
 
 interface Props {
@@ -59,7 +60,8 @@ function recommendationOf(student: Record<string, unknown>, evidence?: GateStude
  * a default colour). This used to fall back to green for everyone.
  */
 function pathToPreselect(s: Record<string, unknown>, evidence?: GateStudentItem | null): PedagogicalPath | null {
-  return approvedPathOf(s, evidence) ?? recommendationOf(s, evidence);
+  // A learner the teacher marked as graded before meeting 1 opens on the graded path (owner, 11.10.2026).
+  return approvedPathOf(s, evidence) ?? (s.graded_track === true ? 'graded_path' : recommendationOf(s, evidence));
 }
 
 /** Whether the gate already approved this learner. */
@@ -70,7 +72,7 @@ function isGateApproved(s: Record<string, unknown>, evidence?: GateStudentItem |
 /** The path the gate approved, or null while none is. */
 function approvedPathOf(s: Record<string, unknown>, evidence?: GateStudentItem | null): PedagogicalPath | null {
   if (!isGateApproved(s, evidence)) return null;
-  return s.pedagogicalPath === 'remediation_path' || s.pedagogicalPath === 'green_path' ? s.pedagogicalPath : null;
+  return asRoutePath(s.pedagogicalPath);
 }
 
 export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApproveSuccess }: Props) {
@@ -308,6 +310,33 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                   {ROUTE_CARD_HE.remediation_path}
+                </p>
+              </button>
+
+              {/* Graded Path (owner, 11.10.2026) */}
+              <button
+                type="button"
+                aria-pressed={selectedPath === 'graded_path'}
+                onClick={() => setSelectedPath('graded_path')}
+                className={`text-right p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
+                  selectedPath === 'graded_path'
+                    ? 'border-violet-600 bg-violet-50/60 dark:bg-violet-950/40 shadow-sm ring-2 ring-violet-500/20'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-violet-500" />
+                    <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
+                      {ROUTE_NAME_HE.graded_path}
+                    </span>
+                  </div>
+                  {selectedPath === 'graded_path' && (
+                    <CheckCircle2 className="w-4 h-4 text-violet-700" />
+                  )}
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  {ROUTE_CARD_HE.graded_path}
                 </p>
               </button>
             </div>

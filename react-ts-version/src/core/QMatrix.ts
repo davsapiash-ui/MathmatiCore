@@ -205,6 +205,55 @@ export const TASKS: QMatrixTask[] = [
   },
 ];
 
+/**
+ * The diagnostic of a learner on the graded path (owner, 11.10.2026; data/sessionGradedTasks.ts): the same
+ * seven tasks, ids and domains, except tasks 6 and 7, which move down one step as the Ministry's grading for
+ * special education does (two digits before three): 54 + 28 (מסמך 05's example; one grouping, in the units)
+ * and 203 − 41 (one borrow from the hundreds into a zero tens, a two-digit subtrahend). Task 6 then measures
+ * an easier skill than the regular task 6 — a grouping in the units, not in the tens — on purpose.
+ * The ids are kept, so the matrix domains, the regrouping kinds and every id-keyed table read them as they are.
+ */
+export const GRADED_DIAGNOSTIC_OVERRIDES: Record<string, Pick<QMatrixTask, 'titleHe' | 'numberA' | 'numberB' | 'correctAnswer'> & { probeA: number; probeB: number; probeAnswer: number }> = {
+  task6_vertical_addition: {
+    titleHe: 'חיבור במאונך עם המרה ביחידות',
+    numberA: 54, numberB: 28, correctAnswer: 82,
+    // No grouping at all, as 120 + 70 for the regular task.
+    probeA: 50, probeB: 20, probeAnswer: 70,
+  },
+  task7_subtraction_zero_tens: {
+    titleHe: 'חיסור במאונך עם פריטה אחת, כשבמחוסר יש 0 בטור העשרות',
+    numberA: 203, numberB: 41, correctAnswer: 162,
+    // No borrow at all, as 400 − 100 for the regular task.
+    probeA: 300, probeB: 100, probeAnswer: 200,
+  },
+};
+
+export const GRADED_TASKS: QMatrixTask[] = TASKS.map((t) => {
+  const o = GRADED_DIAGNOSTIC_OVERRIDES[t.id];
+  if (!o) return t;
+  const { probeA, probeB, probeAnswer, ...rest } = o;
+  return {
+    ...t,
+    ...rest,
+    backwardDiagnosis: t.backwardDiagnosis ? { ...t.backwardDiagnosis, probeA, probeB, probeAnswer } : t.backwardDiagnosis,
+  };
+});
+
+/** The seven diagnostic tasks for a learner: the graded ones when the teacher marked the learner as graded. */
+export function diagnosticTasksFor(graded: boolean | null | undefined): QMatrixTask[] {
+  return graded ? GRADED_TASKS : TASKS;
+}
+
+let activeDiagnosticIsGraded = false;
+/** The learner's workspace sets which diagnostic it runs (meeting 2), from the learner record's graded_track. */
+export function setActiveDiagnosticGraded(graded: boolean): void {
+  activeDiagnosticIsGraded = graded;
+}
+/** The diagnostic the learner's workspace runs now. */
+export function activeDiagnosticTasks(): QMatrixTask[] {
+  return diagnosticTasksFor(activeDiagnosticIsGraded);
+}
+
 export class QMatrixEvaluator {
   static evaluateGeneric(
     task: QMatrixTask,

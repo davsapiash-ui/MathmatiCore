@@ -1,0 +1,177 @@
+// MathmatiCore — 11.10.2026: the graded track for special-education learners, one design for everyone
+// (no separate quiet mode), and the teacher's single row per learner.
+// Documents 03 and 04, and the literature review. NOT the PRD (a separate, owner-run set of ops) and NOT document 01/05.
+// Run applyAll. Safe to run more than once. Independent of apply_11oct_teacher_mediation.gs: no sentence is shared.
+//
+// Each edit: [exact old sentence, new sentence, marker]. The old sentence must occur EXACTLY ONCE in the whole
+// document (counted on the plain text, not by pattern), otherwise the edit is skipped and logged. The marker is a short
+// phrase that exists only in the new text: if it is already there, the edit is counted as done.
+var DOCS = [
+  { name: "מסמך 03", id: '1deVf-QeccnmA37jb5lkFHh-6Df1NMYGSFrWQL29gK4A', edits: [
+    ["הפעלת פרופיל תמיכה קוגניטיבי מוגבר משנה באופן דינמי את רמת התמיכה הפדגוגית בצד התלמיד ללא שום סימון חזותי חיצוני על מסך הלומד למניעת תחושת תיוג חברתי.",
+     "המורה קובעת ללומד באופן סמוי שתי התאמות נפרדות. הראשונה היא מסלול הלמידה, הקובע את תחום המספרים ואת הדירוג בתרגילים: המסלול הירוק, מסלול צמצום פערי קדם או המסלול המדורג. השנייה היא פרופיל תמיכה קוגניטיבי מוגבר, המשנה באופן דינמי את רמת התמיכה הפדגוגית בצד התלמיד: נעילת המקלדת בטורים המצריכים המרה, לוח החיבור האדפטיבי, וצבעי הטורים עם כותרות ערך המקום בשורת התוצאה. המורה מפעילה את הפרופיל ידנית, והוא אינו תלוי במסלול. אין על מסך הלומד שום סימון חזותי חיצוני, למניעת תחושת תיוג חברתי. בשכבה הכללית, הנגישה לכלל הלומדים, העיצוב עדין ומצמצם עומס גירויים, והוא משרת את תהליך הלמידה וההבנה. האנימציות מעטות, קצרות ואיטיות. תפקידן להראות את הפעולה המתמטית, כמו עשר לבני יחידה שהופכות ללבנת עשרת אחת, או להפנות את תשומת הלב לצעד הבא, כמו הטבעת סביב כפתור ביטול הפעולה. הן אינן מיועדות לעורר גירוי כבמשחקי מחשב, ולכן אין התאמה נפרדת שמכבה אותן. העדפת תנועה מופחתת שהלומד הגדיר במכשיר שלו נשמרת.",
+     "אין התאמה נפרדת שמכבה אותן"],
+    ["(המסלול הירוק או מסלול צמצום פערי קדם) לבין פרופיל התמיכה הקוגניטיבי המוגבר",
+     "(המסלול הירוק, מסלול צמצום פערי קדם או המסלול המדורג) לבין פרופיל התמיכה הקוגניטיבי המוגבר",
+     "או המסלול המדורג) לבין פרופיל"],
+    ["להמשך שהוא המסלול הירוק העוסק בתחום הרבבה או מסלול צמצום פערי קדם העוסק בתחומי המאה והאלף.",
+     "להמשך שהוא המסלול הירוק העוסק בתחום הרבבה, מסלול צמצום פערי קדם העוסק בתחומי המאה והאלף, או המסלול המדורג, המיועד ללומדים בחינוך המיוחד. המסלול המדורג עוסק באותם נושאים בדיוק, בלי עזרים נוספים: החיבור והחיסור במאונך נשארים בתחום האלף, וערך המקום מתחיל במאות שלמות ומתרחב אל האלפים. כך מודרג התחום כפי שמשרד החינוך מתיר (\"ניתן לדרג תחום ה-1000 ובהמשך רבבה\"), והתרגילים עולים מחיבור וחיסור בלי המרה, להמרה אחת, ואחר כך ליותר מהמרה אחת. המסלול המדורג שונה ממסלול צמצום פערי קדם: מסלול צמצום פערי קדם מיועד לחזרה על ידע קודם שלא נרכש, והמסלול המדורג אינו נקבע לפי פער בידע. המורה מסמנת את הלומד במסלול המדורג כבר לפני מפגש 1, והריענון והאבחון שלו מותאמים לכך. זוהי החלטת עיצוב של הפרויקט, הנשענת על מסמכי משרד החינוך ואינה ממצא מהספרות.",
+     "או המסלול המדורג, המיועד ללומדים בחינוך המיוחד"]
+  ] },
+  { name: "מסמך 04", id: '1d_pYxI_h9K-pY4VYy2cwJagxuYSRP-9-ovML40iSoeM', edits: [
+    ["\"המסלול הירוק\" או \"אישור מסלול צמצום פערי קדם\", לצד מצבו של הלומד בשלב החלוקה למסלולים והמלצת המטריקס",
+     "\"המסלול הירוק\", \"אישור מסלול צמצום פערי קדם\" או \"המסלול המדורג\" (שאותו המורה יכולה לסמן כבר לפני מפגש 1), לצד מצבו של הלומד בשלב החלוקה למסלולים והמלצת המטריקס",
+     "או \"המסלול המדורג\" (שאותו"],
+    ["תמיכה קוגניטיבית שקטה – הפעלה וביטול של פרופיל התמיכה המוגבר לכל לומד, ללא תיוג במסך הלומד",
+     "פרופיל התמיכה המוגבר – מתג נפרד בשורתו של כל לומד, לצד המסלול ובלי תלות בו, ללא תיוג במסך הלומד",
+     "מתג נפרד בשורתו של כל לומד"],
+    ["רדאר פדגוגי שקט, שממנו נפתחת לכל לומד חלונית \"התאמת תנאי למידה\" (שקט חזותי ונגישות, שחזור מהלכים)",
+     "רדאר פדגוגי שקט, שממנו נפתחת לכל לומד \"חלונית הלומד\" (שחזור מהלכים, צ'אט ואיפוס)",
+     "חלונית הלומד\" (שחזור מהלכים"],
+    ["עם חשיפה הדרגתית של כלי עזר.",
+     "עם חשיפה הדרגתית של כלי עזר. האנימציות מעטות, קצרות ואיטיות ותפקידן לימודי בלבד, ולכן אין התאמה נפרדת שמכבה אותן.",
+     "ותפקידן לימודי בלבד, ולכן אין התאמה נפרדת"]
+  ] },
+  { name: "סקירת הספרות", id: '1y043Lzby0iGWcDx3HjIVVxzFNjlU4jw5-Gpxfm_06y8', edits: [
+    ["לא מצאנו בספרות שנסקרה מודל שמקשר כך בין אבחון לאחור לבין ניתוב מותאם.",
+     "לא מצאנו בספרות שנסקרה מודל שמקשר כך בין אבחון לאחור לבין ניתוב מותאם. לצד זאת, ללומדים בחינוך המיוחד מוצע בפרויקט מסלול נוסף, 'המסלול המדורג', שאינו מיועד לסגירת פערי קדם אלא להדרגת תחום המספרים: תחום האלף תחילה ובהמשך תחום הרבבה, כפי שמתירים מסמכי משרד החינוך. הצעה זו נשענת על מסמכי המשרד ולא על מחקר: במקורות שנסקרו לא נמצא מחקר המשווה תחומי מספרים בהוראת חשבון ללומדים עם אוטיזם. זוהי החלטת עיצוב של הפרויקט.",
+     "'המסלול המדורג', שאינו מיועד"],
+    ["זהו פער חשוב, כי אנו מצפים שהכפתור ייתן לילד ביטחון רגשי ולא רק יעזור לו טכנית.",
+     "זהו פער חשוב, כי אנו מצפים שהכפתור ייתן לילד ביטחון רגשי ולא רק יעזור לו טכנית. פער דומה נוגע לאפקטים החזותיים העדינים בממשק, כמו הטבעת סביב כפתור ביטול הפעולה: לא מצאנו בספרות שנסקרה מחקר הבודק אם אפקטים כאלה יוצרים עומס אצל לומדים עם אוטיזם או מסייעים להם למקד את תשומת הלב. בהיעדר מחקר כזה בחרנו בעיצוב עדין לכלל הלומדים, ללא התאמה נפרדת שמכבה את האפקטים. זוהי החלטת עיצוב של הפרויקט שטרם נבדקה.",
+     "בהיעדר מחקר כזה בחרנו בעיצוב עדין לכלל הלומדים"]
+  ] }
+];
+
+function applyAll() {
+  DOCS.forEach(function (d) {
+    var body = DocumentApp.openById(d.id).getBody();
+    var done = 0, already = 0, skipped = 0;
+    d.edits.forEach(function (e) {
+      var oldText = e[0], newText = e[1], marker = e[2];
+      var plain = body.getText();
+      if (plain.indexOf(marker) !== -1) { already++; return; }
+      var n = plain.split(oldText).length - 1;
+      if (n !== 1) {
+        skipped++;
+        Logger.log(d.name + ': נמצא ' + n + ' פעמים במקום פעם אחת, דולג: ' + oldText.slice(0, 50));
+        return;
+      }
+      if (!replaceOnce_(body, oldText, newText)) {
+        skipped++;
+        Logger.log(d.name + ': המחרוזת נמצאה אבל אינה בתוך רצף עיצוב אחד, דולג: ' + oldText.slice(0, 50));
+        return;
+      }
+      done++;
+    });
+    Logger.log(d.name + ' — הוחלפו: ' + done + '. כבר היו מעודכנים: ' + already + '. דולגו: ' + skipped + '.');
+  });
+}
+
+// Replaces the one occurrence of oldText that lies entirely inside a single text run (same formatting), so the
+// formatting stays as it is. The pattern is only the first words of the sentence; the exact match is made on the run's text.
+function replaceOnce_(body, oldText, newText) {
+  var head = oldText.slice(0, 40);
+  var r = body.findText(esc_(head));
+  while (r) {
+    var t = r.getElement().asText();
+    var s = t.getText().indexOf(oldText);
+    if (s !== -1) {
+      t.deleteText(s, s + oldText.length - 1);
+      t.insertText(s, newText);
+      return true;
+    }
+    r = body.findText(esc_(head), r);
+  }
+  return false;
+}
+
+function esc_(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE PRD — a separate function, applyPrd. AGENTS.md Rule 1: only the owner writes the PRD. Run it only if you, the
+// owner, decide that these sentences go into the PRD; the code on the branch follows them. Run it AFTER
+// apply_11oct_teacher_mediation.gs (that script sets version 7.19; this one sets 7.20). No sentence is shared.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+var PRD = { name: "PRD", id: '1siy2VT-bPVy9LflxJBt-Xr7uQEW5umHPEh_vMVlmbWY', version: "7.20", edits: [
+  ["פרט למעבר צבע של עד 200 אלפיות השנייה, שאינו קיים במצב השקט.",
+   "פרט למעבר צבע של עד 200 אלפיות השנייה, שאינו קיים כשהלומד הגדיר במכשיר שלו העדפת תנועה מופחתת. אין במערכת מצב שקט חזותי נפרד: העיצוב עדין לכלל הלומדים, והאנימציות מעטות, קצרות ובעלות תפקיד לימודי בלבד (החלטת בעל המוצר, 11.10.2026).",
+   "אין במערכת מצב שקט חזותי נפרד"],
+  ["מודול 19) ומצב השקט החזותי של הלומד. כל השאר נמחק.",
+   "מודול 19) וסימון המסלול המדורג של הלומד (graded_track). כל השאר נמחק.",
+   "וסימון המסלול המדורג של הלומד (graded_track). כל השאר"],
+  ["לרבות הגדרות הלומדים (פרופיל התמיכה ומצב השקט החזותי)",
+   "לרבות הגדרות הלומדים (פרופיל התמיכה וסימון המסלול המדורג)",
+   "לרבות הגדרות הלומדים (פרופיל התמיכה וסימון המסלול המדורג)"],
+  ["(כולל ההגדרות: פרופיל התמיכה ומצב השקט החזותי)",
+   "(כולל ההגדרות: פרופיל התמיכה וסימון המסלול המדורג)",
+   "(כולל ההגדרות: פרופיל התמיכה וסימון המסלול המדורג)"],
+  ["and the visual-quiet state)",
+   "and the graded_track mark)",
+   "and the graded_track mark)"],
+  ["הדגמה אחת משותפת לשני המסלולים",
+   "הדגמה אחת משותפת לשלושת המסלולים",
+   "הדגמה אחת משותפת לשלושת המסלולים"],
+  ["one demonstration shared by both paths",
+   "one demonstration shared by the three paths",
+   "one demonstration shared by the three paths"],
+  ["עבור כל מפגש בטווח 3 עד 7 מוגדרים שני מאגרים נפרדים ובלתי תלויים של שבעה תרגילי חובה: מאגר אחד עבור green_path בתחום הרבבה עד 10,000, ומאגר שני עבור remediation_path בתחום המאה והאלף עד 1,000.",
+   "עבור כל מפגש בטווח 3 עד 7 מוגדרים שלושה מאגרים נפרדים ובלתי תלויים של שבעה תרגילי חובה: מאגר עבור green_path בתחום הרבבה עד 10,000, מאגר עבור remediation_path בתחום המאה והאלף עד 1,000, ומאגר עבור graded_path, \"המסלול המדורג\", ללומדים בחינוך המיוחד: אותם נושאים ואותם כלים, בלי שום עזר נוסף, בדירוג שמשרד החינוך מתיר (תחום האלף תחילה; בלי המרה, המרה אחת ואחר כך יותר מהמרה אחת). מאגרי graded_path, לפי הסדר: מפגש 3 — 500 (\"חמש מאות\"), 3 לבני מאה ו-2 לבני עשרת עם פריטת מאה (320), 6 לבני עשרת ו-4 לבני יחידה עם פריטת עשרת (64), 290 מלבני עשרת בלבד, 608 (\"שש מאות ושמונה\"), 140 שהוא מאה ועוד 40, ו-4,052 (\"ארבעת אלפים חמישים ושתיים\", גשר לתחום האלפים, מסמך 05). מפגש 4 — 43 + 25, 65 + 29, 126 + 37, 352 + 61, 275 + 39, 452 + 389, וספרה חסרה בתוצאה 228 + 154 = 3▢2. מפגש 5 — 87 − 35, 62 − 18, 144 − 27, 253 − 71, 423 − 158, 614 − 239, ו-5▢3 − 128 = 415. מפגש 6 — 70 − 25, 804 − 31, 507 − 243, 600 − 237, 703 − 458, 900 − 468, וספרה חסרה בתוצאה 800 − 258 = 5▢2. מפגש 7 — הקבצת 14 לבני עשרת ו-3 לבני יחידה (143), 42▢ + 153 = 578, 2▢7 + 164 = 421, 4▢▢ − 156 = 337, ניתוח טעות של 227 + 149 (הלומד הדמיוני כתב 366), 240 ועוד 3 מאות פחות 5 עשרות (490), ושתי דרכים לבנות 240 מלבני מאה ועשרת. מפגש 8 — 43 + 25, 65 + 29, 352 + 61, 87 − 35, 62 − 18, 703 − 458, ו-3▢2 + 61 = 413. תרגילי הבחירה: מפגש 3 — 430 בכתיבה, 430 מלבני עשרת, אתגר: דרכים לבנות 250; מפגש 4 — 231 + 46, 147 + 28, אתגר 268 + 157; מפגש 5 — 96 − 43, 92 − 47, אתגר 432 − 175; מפגש 6 — 408 − 203, 270 − 140, אתגר 400 − 263; מפגש 7 — 52▢ + 241 = 765, 6▢8 − 325 = 343, אתגר ▢▢▢ + 247 = 692.",
+   "ומאגר עבור graded_path, \"המסלול המדורג\""],
+  ["maintain two fully independent banks of seven compulsory exercises: one for green_path scoped to the myriad range up to 10,000, and one for remediation_path scoped to hundreds and thousands up to 1,000.",
+   "maintain three fully independent banks of seven compulsory exercises: one for green_path scoped to the myriad range up to 10,000, one for remediation_path scoped to hundreds and thousands up to 1,000, and one for graded_path (special education: the same topics graded within 1,000, with one bridge number into the thousands in session 3).",
+   "and one for graded_path (special education"],
+  ["במפגשים 1 ו-2 אין מסלול, והערך ריק.",
+   "במפגשים 1 ו-2 אין מסלול, והערך ריק, פרט לייצוא המחקר של לומד שהמורה סימנה במסלול המדורג (graded_track), שבו הערך graded_path.",
+   "שבו הערך graded_path."],
+  ["כשם מסלול.",
+   "כשם מסלול. המסלול graded_path נקרא \"המסלול המדורג\", וכפתור האישור שלו \"אישור המסלול המדורג\". את המסלול המדורג המורה יכולה לסמן לכל לומד כבר לפני מפגש 1 (השדה graded_track ברשומת הלומד, שהמורה בלבד כותבת), ואז הריענון של מפגש 1 והאבחון של מפגש 2 הם הגרסה המדורגת: באבחון משתנות רק משימות 6 ו-7, ל-54 + 28 ול-203 − 41 (בסבב התיקונים 50 + 20 ו-300 − 100), ותרגילי הריענון המשקפים אותן הם 47 + 26 ו-307 − 63. המלצת המטריקס נשארת בין המסלול הירוק למסלול צמצום פערי קדם; המסלול המדורג הוא בחירת המורה בלבד, ובשער מוצגים שלושה כפתורי אישור.",
+   "המסלול graded_path נקרא \"המסלול המדורג\""],
+  ["teacher_selected_path: 'green_path' | 'remediation_path' | null;",
+   "teacher_selected_path: 'green_path' | 'remediation_path' | 'graded_path' | null;",
+   "| 'remediation_path' | 'graded_path' | null;"],
+  ["learning_path: 'green_path' | 'remediation_path';",
+   "learning_path: 'green_path' | 'remediation_path' | 'graded_path';",
+   "learning_path: 'green_path' | 'remediation_path' | 'graded_path';"],
+  ["ופרופילי תמיכה (support_profile_id וסביבתו)",
+   "ופרופילי תמיכה (support_profile_id וסביבתו) ואת סימון המסלול המדורג (graded_track)",
+   "ואת סימון המסלול המדורג (graded_track)"],
+  ["זהה לחלוטין לממשק הסטנדרטי (ללא תגים, אייקונים או הודעות מיוחדות).",
+   "זהה לחלוטין לממשק הסטנדרטי (ללא תגים, אייקונים או הודעות מיוחדות). הפרופיל אינו תלוי במסלול הלמידה: המורה מפעילה אותו ידנית לכל לומד בכל אחד משלושת המסלולים, והוא אינו מופעל אוטומטית עם המסלול המדורג.",
+   "והוא אינו מופעל אוטומטית עם המסלול המדורג"]
+] };
+
+function applyPrd() {
+  var body = DocumentApp.openById(PRD.id).getBody();
+  var done = 0, already = 0, skipped = 0;
+  PRD.edits.forEach(function (e) {
+    var oldText = e[0], newText = e[1], marker = e[2];
+    var plain = body.getText();
+    if (plain.indexOf(marker) !== -1) { already++; return; }
+    var n = plain.split(oldText).length - 1;
+    if (n !== 1) { skipped++; Logger.log('PRD: נמצא ' + n + ' פעמים במקום פעם אחת, דולג: ' + oldText.slice(0, 50)); return; }
+    if (!replaceOnce_(body, oldText, newText)) { skipped++; Logger.log('PRD: לא ברצף עיצוב אחד, דולג: ' + oldText.slice(0, 50)); return; }
+    done++;
+  });
+  if (done > 0) updateVersionLine_(body, PRD.version);
+  Logger.log('PRD — הוחלפו: ' + done + '. כבר היו מעודכנים: ' + already + '. דולגו: ' + skipped + '.');
+}
+
+function updateVersionLine_(body, version) {
+  var MONTHS = ['בינואר', 'בפברואר', 'במרץ', 'באפריל', 'במאי', 'ביוני', 'ביולי', 'באוגוסט', 'בספטמבר', 'באוקטובר', 'בנובמבר', 'בדצמבר'];
+  var pattern = 'גרסה [0-9.]+ \\| עודכן [^\\n]*';
+  var matches = [], r = body.findText(pattern);
+  while (r) { matches.push(r); r = body.findText(pattern, r); }
+  if (matches.length !== 1) { Logger.log('שורת הגרסה נמצאה ' + matches.length + ' פעמים במקום 1; לא עודכנה.'); return; }
+  var now = new Date();
+  var day = Number(Utilities.formatDate(now, 'Asia/Jerusalem', 'd'));
+  var month = Number(Utilities.formatDate(now, 'Asia/Jerusalem', 'M'));
+  var year = Utilities.formatDate(now, 'Asia/Jerusalem', 'yyyy');
+  var time = Utilities.formatDate(now, 'Asia/Jerusalem', 'HH:mm');
+  var line = 'גרסה ' + version + ' | עודכן ' + day + ' ' + MONTHS[month - 1] + ' ' + year + ', ' + time + ' (שעון ישראל)';
+  var found = matches[0];
+  var t = found.getElement().asText();
+  var s = found.getStartOffset();
+  t.deleteText(s, found.getEndOffsetInclusive());
+  t.insertText(s, line);
+  Logger.log('שורת הגרסה: ' + line);
+}
