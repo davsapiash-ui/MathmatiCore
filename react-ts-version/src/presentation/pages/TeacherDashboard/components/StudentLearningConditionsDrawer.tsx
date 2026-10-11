@@ -2,7 +2,6 @@ import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { type StudentData, useStore } from '@/application/useStore';
-import { normalizeStudentId } from '@/application/useChatStore';
 import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 import {
   X,
@@ -16,8 +15,7 @@ import {
 } from 'lucide-react';
 import { ResetConfirmationModal } from './ResetConfirmationModal';
 import { LEARNER_RESET_TOOLTIP_HE, RESET_ACTION_HE } from '@/core/routeLabels';
-import { ref, update } from 'firebase/database';
-import { database } from '@/infrastructure/firebase';
+import { clearHelpRequest } from '@/infrastructure/services/HelpRequestService';
 import { toast } from 'sonner';
 import type { ResetReason, SingleStudentResetScope } from '@/types';
 
@@ -80,18 +78,9 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
     if (!student.studentId || isClearingHelp || isClearingHelpRef.current) return;
     isClearingHelpRef.current = true;
     setIsClearingHelp(true);
-    const normId = normalizeStudentId(student.studentId);
-    const rawNum = student.studentId.replace(/[^0-9]/g, '');
-    const ids = Array.from(new Set([student.studentId, normId, rawNum, `student_user${rawNum}`].filter(Boolean)));
-    
-    const studentClearPayload = {
-      helpRequested: false,
-      handRaised: false,
-      isStruggling: false,
-      lastAction: 'המורה סימן את בקשת העזרה כטופלה',
-    };
     try {
-      await Promise.all(ids.map((id) => update(ref(database, `users/students/${id}`), studentClearPayload)));
+      // The same write the side action queue makes (HelpRequestService).
+      await clearHelpRequest(student.studentId);
       toast.success('בקשת העזרה סומנה כטופלה');
     } catch (err) {
       console.error('Failed to clear help request:', err);
@@ -177,7 +166,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
         {hasHelpRequest && (
           <div className="px-6 py-3 bg-stone-50 dark:bg-stone-950/40 border-b border-stone-200 dark:border-stone-900 flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2 text-xs font-bold text-stone-900 dark:text-stone-200">
-              <BellRing className="w-4 h-4 text-stone-600 animate-bounce" />
+              <BellRing className="w-4 h-4 text-stone-600" />
               {/* No count: nothing in the system writes one, so it always read "0 קריאות תועדו". */}
               <span>התלמיד ביקש עזרה</span>
             </div>

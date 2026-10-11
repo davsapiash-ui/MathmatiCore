@@ -121,7 +121,8 @@ describe('the names, one wording', () => {
     // Each learner's two approve buttons (owner, 11.10.2026) say the approve label, on the radar and the row.
     expect(heat).toContain('<span>{ROUTE_APPROVE_HE[path]}</span>');
     expect(heat).toContain('routePairFor(student.gradedTrack === true)');
-    expect(heat).toContain('<span>{CARD_OPEN_HE}</span>');
+    // The radar's legend says the open card in the same words (owner, 11.10.2026).
+    expect(heat).toContain('meaning: `${CARD_OPEN_HE} אצלו`');
     const cm = code('presentation/pages/TeacherDashboard/ClassManagement.tsx');
     expect(cm).toContain('<span>{ROUTE_APPROVE_HE[path]}</span>');
     expect(cm).toContain('const PATHS = routePairFor(row.gradedTrack);');

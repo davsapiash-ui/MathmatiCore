@@ -22,6 +22,11 @@ import { workspaceSavedAt } from "@/core/workspaceSnapshot";
 import type { CatchUpAction, CatchUpReasonEntry, CatchUpRecord, UnfinishedLearner } from "@/core/catchUp";
 import { recordCatchUpReasons, subscribeCatchUpRecords } from "@/infrastructure/services/CatchUpService";
 import { CatchUpReasonsDialog } from "./TeacherDashboard/components/CatchUpReasonsDialog";
+import { MediationCloseDialog, MediationPendingButton } from "./TeacherDashboard/components/MediationJournal";
+import { MediationQueue } from "./TeacherDashboard/components/MediationQueue";
+import { useOpenMediationEvents, useTeacherMediationStore, useTeacherMediationSync } from "@/application/useTeacherMediationStore";
+import { QUEUE_HE } from "@/core/teacherMediation";
+import { useProjectorMode } from "@/application/useProjectorMode";
 import { TeacherGuideDownloadButton } from './TeacherDashboard/components/TeacherGuideDownloadButton';
 import { database, auth, functions, firestore, serverNow, fetchServerClockOffset, isServerClockKnown } from "@/infrastructure/firebase";
 import { doc, getDoc, onSnapshot, collection, writeBatch, deleteField } from "firebase/firestore";
@@ -41,7 +46,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users, Mail, Radar, LayoutGrid, FileText, School, PanelRightClose, PanelRightOpen, Play, Pause, Square } from "lucide-react";
+import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users, Mail, Radar, LayoutGrid, FileText, School, PanelRightClose, PanelRightOpen, Play, Pause, Square, Lock } from "lucide-react";
 
 import { ClassManagement, CLASS_MANAGEMENT_TITLE_HE } from "./TeacherDashboard/ClassManagement";
 import { LearnerJourney } from "./TeacherDashboard/components/LearnerJourney";
@@ -75,7 +80,7 @@ import { approveTeacherGate } from "@/core/teacherGate";
 import { PILOT_CLASS_ID, PILOT_SCHOOL_ID } from "@/core/pilotInstitution";
 import { meetingLabelHe, meetingShortLabelHe } from "@/core/stationNames";
 import { MEETING_FORMAL_HE } from "@/core/meetingFormalNames";
-import { ROUTE_NAME_HE, TEACHER_GATE_HE, routeNameHe } from "@/core/routeLabels";
+import { PROJECTOR_CHIP_HE, ROUTE_NAME_HE, TEACHER_GATE_HE, routeNameHe } from "@/core/routeLabels";
 
 /**
  * Two per-meeting maps of one learner (workspaceByMeeting, completedMeetings)
@@ -142,6 +147,8 @@ export function TeacherDashboard() {
   // Owner decision 11.10.2026: a read-only staff account sees everything and
   // changes nothing; every control that writes is disabled with this title.
   const readOnly = useIsReadOnlyStaff();
+  // Module 15: whether the learners' screens are locked for a demonstration (read only here).
+  const isProjectorModeActive = useProjectorMode();
 
   useEffect(() => {
     initSync();
@@ -272,6 +279,14 @@ export function TeacherDashboard() {
   // Module 14 §ב0: the eight-session picker is always visible, so its choice must
   // not be the live session number (that only changes on a confirmed activation).
   const [pickedSessionNum, setPickedSessionNum] = useState<number>(1);
+
+  // Measure 5 (owner, 11.10.2026): the mediation events of the open meeting's
+  // run and the teacher's records of them, for the bubbles, the counter, the
+  // tiles, the tile drawer and the close dialog.
+  useTeacherMediationSync(isClassSessionActive ? selectedSessionNum : null, isClassSessionActive ? _sessionStartTime : null);
+  const unrecordedMediationCount = useOpenMediationEvents().length;
+  const [mediationPendingOpen, setMediationPendingOpen] = useState(false);
+  const [mediationCloseOpen, setMediationCloseOpen] = useState(false);
   // Module 14 §ב0: activation goes through an explicit confirmation window
   const [pendingActivationSession, setPendingActivationSession] = useState<number | null>(null);
   // Module 14 §ב1: teacher-only, one-time-per-session deadline notice
@@ -1183,6 +1198,23 @@ export function TeacherDashboard() {
   const pendingApprovalsBadgeCount =
     gateStudentItems.filter((g) => !g.isApproved).length + (isMeeting2Open ? 0 : unfinishedMeeting2.length);
 
+  // The side action queue (owner, 11.10.2026): the radar's help flags, and in
+  // meeting 2 the learners waiting at the gate.
+  const learnerNumberOf = (studentId: string): number | null => {
+    const n = parseInt(String(studentId).replace(/\D/g, ''), 10);
+    return Number.isInteger(n) && n >= 1 && n <= 12 ? n : null;
+  };
+  const queueLearners = allStudents
+    .map((s) => ({ studentNumber: learnerNumberOf(s.studentId), helpRequested: Boolean(s.helpRequested || s.handRaised) }))
+    .filter((l): l is { studentNumber: number; helpRequested: boolean } => l.studentNumber !== null);
+  const queueGateLearners = isMeeting2Open
+    ? gateStudentItems.filter((g) => !g.isApproved).map((g) => gateLearnerNumber(g.studentId)).filter((n): n is number => n !== null)
+    : [];
+  const openGateForLearner = (n: number) => {
+    const st = allStudents.find((s) => learnerNumberOf(s.studentId) === n);
+    if (st) setGateStudent(st);
+  };
+
   // ── Catch-up time ──────────────────────────────────────────────────────────
   // Owner decision, 2.10.2026: "המורה יקח את אותם ילדים שלא סיימו למפגש נוסף \
   // זמן נוסף וזה יתועד מה הסיבה לכך ואז אחרי שהם יישרו קו נמשיך עם כל הקבוצה
@@ -1197,6 +1229,11 @@ export function TeacherDashboard() {
     if (catchUpMeeting === 2) return unfinishedMeeting2AsLearners(unfinishedMeeting2);
     return buildUnfinishedLearners(students as unknown as Record<string, Record<string, unknown>>, catchUpMeeting);
   }, [catchUpMeeting, students, unfinishedMeeting2]);
+
+  /** "N תלמידים (עוד) לא סיימו את מפגש M": the strip's heading, and the bar's chip during a meeting. */
+  const catchUpHeadingHe = unfinishedInCatchUpMeeting.length === 1
+    ? `תלמיד אחד ${isClassSessionActive ? 'עוד ' : ''}לא סיים את מפגש ${catchUpMeeting}`
+    : `${unfinishedInCatchUpMeeting.length} תלמידים ${isClassSessionActive ? 'עוד ' : ''}לא סיימו את מפגש ${catchUpMeeting}`;
 
   // The reasons already recorded for that meeting (catchup_records), live.
   const [catchUpRecords, setCatchUpRecords] = useState<{ meeting: number; records: Record<number, CatchUpRecord> } | null>(null);
@@ -1251,8 +1288,14 @@ export function TeacherDashboard() {
   };
 
   /** "סגרו את המפגש": the reasons first, when someone who started has not finished. */
-  const requestCloseClassSession = async () => {
+  const requestCloseClassSession = async (skipMediationCheck = false) => {
     if (isUpdatingSession || isUpdatingSessionRef.current || isSavingCatchUp) return;
+    // Measure 5 (owner, 11.10.2026): unrecorded mediation events are shown
+    // before the close, with "סגירה בכל זאת" — never a block.
+    if (!skipMediationCheck && unrecordedMediationCount > 0) {
+      setMediationCloseOpen(true);
+      return;
+    }
     const learners = learnersNeedingReason(selectedSessionNum, _sessionStartTime);
     if (learners.length > 0) {
       setCatchUpDialog({ meeting: selectedSessionNum, trigger: 'close', nextMeeting: null, learners, wasOpen: true });
@@ -1724,9 +1767,57 @@ export function TeacherDashboard() {
   const openUnreadStudentChat = () => {
     const unread = messages.find((m) => !m.read && allStudents.some((s) => normalizeStudentId(s.studentId) === normalizeStudentId(m.senderId)));
     const learner = unread ? allStudents.find((s) => normalizeStudentId(s.studentId) === normalizeStudentId(unread.senderId)) : undefined;
-    if (learner) setFloatingChatStudent(learner);
+    if (learner) openLearnerChat(learner);
     else handleTabChange('chat_students');
   };
+  // On the radar tab the conversation opens inline in the side action queue
+  // (owner, 11.10.2026), so the floating panel never covers the queue; on the
+  // other tabs it is the floating panel, as before.
+  function openLearnerChat(st: StudentData) {
+    const n = learnerNumberOf(st.studentId);
+    if (activeTab === 'heatmap' && n !== null) {
+      setDrawerStudentId(null);
+      useTeacherMediationStore.getState().setExpandedLearner(n);
+      return;
+    }
+    setFloatingChatStudent(st);
+  }
+  useEffect(() => {
+    if (activeTab !== 'heatmap' || !floatingChatStudent) return;
+    const n = learnerNumberOf(floatingChatStudent.studentId);
+    if (n !== null) useTeacherMediationStore.getState().setExpandedLearner(n);
+    setFloatingChatStudent(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, floatingChatStudent]);
+
+  // New help calls and learner messages while the teacher is on another tab:
+  // a short toast that leads to the radar's queue (owner, 11.10.2026). Not for
+  // a read-only account, which records nothing.
+  const queueSeenRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const fresh = queueLearners.filter((l) => l.helpRequested).map((l) => `help:${l.studentNumber}`);
+    const unread = messages
+      .filter((m) => !m.read && /^student_user\d{1,2}$/.test(String(m.senderId)))
+      .map((m) => `chat:${m.id}:${m.senderId}`);
+    const keys = [...fresh, ...unread];
+    if (queueSeenRef.current === null) {
+      queueSeenRef.current = new Set(keys);
+      return;
+    }
+    const seen = queueSeenRef.current;
+    const added = keys.filter((k) => !seen.has(k));
+    // A cleared call may come again later: forget the keys no longer present.
+    queueSeenRef.current = new Set(keys);
+    if (readOnly || activeTab === 'heatmap' || added.length === 0) return;
+    for (const k of added) {
+      const n = Number(k.startsWith('help:') ? k.slice(5) : k.split(':').pop()!.replace(/\D/g, ''));
+      toast(k.startsWith('help:') ? QUEUE_HE.newHelpToast(n) : QUEUE_HE.newChatToast(n), {
+        id: k,
+        action: { label: QUEUE_HE.toQueue, onClick: () => handleTabChange('heatmap') },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queueLearners.map((l) => `${l.studentNumber}:${l.helpRequested}`).join(','), messages, readOnly, activeTab]);
 
   if (isLoading) {
     return (
@@ -1777,7 +1868,7 @@ export function TeacherDashboard() {
         {/* The menu folds to a strip of icons (owner, 6.10.2026), so the page gets
             the width. Its own scrollbar, when it needs one, sits on the outer
             edge of the screen ([direction:ltr]), away from the page's. */}
-        <aside data-collapsed={sidebarCollapsed ? 'true' : undefined} className={`w-full ${sidebarCollapsed ? 'md:w-16' : 'md:w-64 lg:w-72'} bg-white dark:bg-slate-900 border-b md:border-b-0 md:border-l border-slate-200/80 dark:border-slate-800 flex flex-col shadow-md z-20 transition-all shrink-0 md:sticky md:top-0 md:self-start md:h-full overflow-y-auto custom-scrollbar md:[direction:ltr] md:[&>*]:[direction:rtl]`}>
+        <aside data-collapsed={sidebarCollapsed ? 'true' : undefined} className={`w-full ${sidebarCollapsed ? 'md:w-16' : 'md:w-56 2xl:w-72'} bg-white dark:bg-slate-900 border-b md:border-b-0 md:border-l border-slate-200/80 dark:border-slate-800 flex flex-col shadow-md z-20 transition-all shrink-0 md:sticky md:top-0 md:self-start md:h-full overflow-y-auto custom-scrollbar md:[direction:ltr] md:[&>*]:[direction:rtl]`}>
         <div className={`h-20 flex items-center justify-between gap-2 border-b border-ws-surface2 bg-white/40 dark:bg-slate-800/40 shrink-0 ${sidebarCollapsed ? 'px-6 md:px-0 md:justify-center' : 'px-6'}`}>
           {/* The dashboard stays mounted across its own routes, so the link
               alone left the teacher on the tab she was on. */}
@@ -1886,7 +1977,7 @@ export function TeacherDashboard() {
           >
             <span className="flex items-center gap-2" title="צ'אט עם תלמידים"><MessageCircle className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>צ'אט עם תלמידים</span></span>
             {unreadStudentsCount > 0 && (
-              <span className="bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-rose-500/30 badge-alert animate-soft-heartbeat">
+              <span className="bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-rose-500/30 badge-alert">
                 {unreadStudentsCount}
               </span>
             )}
@@ -1897,7 +1988,7 @@ export function TeacherDashboard() {
           >
             <span className="flex items-center gap-2" title="צ'אט הנהלה"><Mail className="w-4 h-4 shrink-0" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>צ'אט הנהלה</span></span>
             {unreadAdminCount > 0 && (
-              <span className="bg-violet-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg shadow-violet-600/30 animate-bounce">
+              <span className="bg-violet-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg shadow-violet-600/30">
                 {unreadAdminCount}
               </span>
             )}
@@ -1914,7 +2005,9 @@ export function TeacherDashboard() {
       {/* On the student chat the page itself does not scroll: main takes exactly the
           screen height and the conversation fills what the session bar leaves, so
           the typing line is always in view. Only the message list scrolls. */}
-      <main className={`flex-1 min-w-0 md:min-h-0 md:h-full overflow-y-auto custom-scrollbar p-4 md:p-8 relative ${activeTab === "chat_students" ? "md:flex md:flex-col" : ""}`}>
+      {/* md:p-5, not p-8 (owner, 11.10.2026): the radar's twelve tiles fit a
+          1366×768 laptop screen without scrolling. */}
+      <main className={`flex-1 min-w-0 md:min-h-0 md:h-full overflow-y-auto custom-scrollbar p-4 md:p-5 relative ${activeTab === "chat_students" ? "md:flex md:flex-col" : ""}`}>
         {/* Subtle background glow effect */}
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-violet-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
@@ -1923,25 +2016,27 @@ export function TeacherDashboard() {
             10.10.2026): it stays at the top of the page on every tab, so the
             three actions of Module 14 §ב, the clock and the learners' messages
             are always one click away. Icons, not emoji (DESIGN_SYSTEM_RULES 1.1). */}
-        <div data-testid="live-session-bar" className="sticky top-0 z-30 -mx-4 md:-mx-8 -mt-4 md:-mt-8 px-4 md:px-8 pt-4 md:pt-6 pb-3 mb-3 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm shrink-0">
-        <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col min-[1700px]:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div aria-hidden="true" className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${
+        {/* One row from md up (owner, 11.10.2026): it used to stack below
+            1700px and push the radar under the fold of a 1366×768 laptop. */}
+        <div data-testid="live-session-bar" className="sticky -top-4 md:-top-5 z-30 -mx-4 md:-mx-5 -mt-4 md:-mt-5 px-4 md:px-5 pt-3 pb-2 mb-2 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm shrink-0">
+        <div data-testid="live-session-bar-row" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 py-2 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex items-center gap-2.5 min-w-0 md:max-w-[14rem] 2xl:max-w-none">
+            <div aria-hidden="true" className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center ${
               classSessionStatus === 'active' ? 'bg-violet-100 text-violet-700' : classSessionStatus === 'paused' ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-600'
             }`}>
-              {classSessionStatus === 'active' ? <Play className="w-6 h-6" /> : classSessionStatus === 'paused' ? <Pause className="w-6 h-6" /> : <School className="w-6 h-6" />}
+              {classSessionStatus === 'active' ? <Play className="w-5 h-5" /> : classSessionStatus === 'paused' ? <Pause className="w-5 h-5" /> : <School className="w-5 h-5" />}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 {/* The open meeting under the station name the children see on
                     their lobby card (owner, 27.9.2026). Its state is in the badge. */}
-                <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">
+                <h3 className="font-bold text-sm leading-tight text-slate-900 dark:text-slate-100 truncate min-w-0" title={classSessionStatus === 'active' || classSessionStatus === 'paused' ? meetingLabelHe(selectedSessionNum) : undefined}>
                   {classSessionStatus === 'active' || classSessionStatus === 'paused'
                     ? meetingLabelHe(selectedSessionNum)
                     : 'ניהול המפגש בזמן אמת'}
                 </h3>
                 {classSessionStatus === 'active' && (
-                  <span className="bg-violet-50 text-violet-800 border border-violet-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                  <span className="shrink-0 bg-violet-50 text-violet-800 border border-violet-200 text-[11px] font-black px-2 py-0.5 rounded-full flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-violet-600"></span>
                     פתוח ללמידה
                   </span>
@@ -1953,11 +2048,12 @@ export function TeacherDashboard() {
                   </span>
                 )}
               </div>
-              <p className="text-slate-600 dark:text-slate-300 text-xs mt-1" data-testid="live-session-line">
+              <p className="text-slate-600 dark:text-slate-300 text-[11px] leading-snug mt-0.5" data-testid="live-session-line">
                 {classSessionStatus === 'active'
                   ? (
                     <>
-                      <span>{`מפגש ${selectedSessionNum} פתוח כעת עבור התלמידים בכיתה.`}</span>
+                      {/* Said by the badge above; kept for screen readers (owner, 11.10.2026: one row). */}
+                      <span className="sr-only">{`מפגש ${selectedSessionNum} פתוח כעת עבור התלמידים בכיתה.`}</span>
                       {' '}
                       <span data-testid="live-session-status" className="font-bold text-slate-800 dark:text-slate-100">
                         {`${onlineCount} מתוך 12 מחוברים${elapsedMinutes === null ? '' : ` · ${elapsedMinutes === 1 ? 'חלפה דקה אחת' : `חלפו ${elapsedMinutes} דקות`} מתוך ${getSessionDurationMinutes(selectedSessionNum)}`}`}
@@ -1971,16 +2067,45 @@ export function TeacherDashboard() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full min-[1700px]:w-auto justify-end">
+          <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto justify-end">
+            {/* Module 15 (owner, 11.10.2026): the teacher sees that the learners' screens are locked for a
+                demonstration. Read only — the projector page alone writes this record. */}
+            {isProjectorModeActive && (
+              <span data-testid="projector-chip" className="inline-flex items-center gap-1.5 min-h-9 px-3 rounded-xl bg-violet-50 dark:bg-violet-950/50 border border-violet-300 dark:border-violet-800 text-violet-900 dark:text-violet-100 text-xs font-extrabold">
+                <Lock className="w-3.5 h-3.5" aria-hidden="true" />
+                {PROJECTOR_CHIP_HE}
+              </span>
+            )}
+            {/* Catch-up time during an open meeting: a chip; its list opens under it (owner, 11.10.2026).
+                With no meeting open the full strip below says the same. */}
+            {isClassSessionActive && catchUpMeeting !== null && unfinishedInCatchUpMeeting.length > 0 && (
+              <details data-testid="catchup-chip" className="relative">
+                <summary title={catchUpHeadingHe} className="list-none inline-flex items-center gap-1.5 min-h-9 px-2.5 rounded-xl bg-stone-50 dark:bg-stone-950/40 border border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100 text-[11px] font-extrabold cursor-pointer whitespace-nowrap">
+                  {`${unfinishedInCatchUpMeeting.length} עוד לא סיימו`}
+                </summary>
+                <div className="absolute z-40 top-full mt-1 left-0 w-64 p-2 flex flex-col gap-1 rounded-xl bg-white dark:bg-slate-900 border border-stone-200 dark:border-stone-800 shadow-xl">
+                <h3 className="px-2 text-xs font-extrabold text-stone-950 dark:text-stone-100">{catchUpHeadingHe}</h3>
+                <ul className="flex flex-col gap-1">
+                  {unfinishedInCatchUpMeeting.map((l) => (
+                    <li key={l.studentNumber} className="px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-200">
+                      תלמיד {l.studentNumber} · {l.stoppedAtHe}
+                    </li>
+                  ))}
+                </ul>
+                </div>
+              </details>
+            )}
+            {/* Measure 5 (owner, 11.10.2026): every unrecorded mediation event of the meeting. */}
+            <MediationPendingButton readOnly={readOnly} open={mediationPendingOpen} onOpenChange={setMediationPendingOpen} />
             <button
               type="button"
               onClick={openUnreadStudentChat}
               aria-label={unreadStudentsCount > 0 ? `הודעות מתלמידים, ${unreadStudentsCount} שלא נקראו` : 'הודעות מתלמידים'}
               title="הודעות מתלמידים"
-              className="relative inline-flex items-center gap-2 min-h-11 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-xl shadow-sm font-bold text-xs transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/40 cursor-pointer"
+              className="relative inline-flex items-center gap-1.5 min-h-9 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-xl shadow-sm font-bold text-xs transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/40 cursor-pointer"
             >
               <MessageCircle className="w-4 h-4" />
-              <span>הודעות מתלמידים</span>
+              <span className="hidden 2xl:inline">הודעות מתלמידים</span>
               {unreadStudentsCount > 0 && (
                 <span data-testid="live-bar-unread" className="min-w-5 h-5 px-1.5 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-[11px] font-black">
                   {unreadStudentsCount}
@@ -1993,7 +2118,7 @@ export function TeacherDashboard() {
             <select
               value={pickedSessionNum}
               onChange={(e) => setPickedSessionNum(parseInt(e.target.value, 10))}
-              className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer shadow-sm"
+              className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer shadow-sm w-40 2xl:w-auto truncate"
             >
               {sessionRows.map((row) => (
                 <option key={row.sessionNumber} value={row.sessionNumber}>
@@ -2006,7 +2131,7 @@ export function TeacherDashboard() {
               onClick={() => setPendingActivationSession(pickedSessionNum)}
               disabled={readOnly || (isClassSessionActive && pickedSessionNum === selectedSessionNum) || isUpdatingSession || isStartingSession}
               title={readOnly ? READ_ONLY_TITLE : isClassSessionActive && pickedSessionNum === selectedSessionNum ? `${meetingShortLabelHe(pickedSessionNum)} כבר פתוח עכשיו` : `פתיחת ${meetingShortLabelHe(pickedSessionNum)} לכל הכיתה`}
-              className="px-6 py-2.5 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="px-2.5 py-2 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <Play className="w-4 h-4" aria-hidden="true" />
               <span>הפעילו מפגש</span>
@@ -2018,7 +2143,7 @@ export function TeacherDashboard() {
                     onClick={handleResumeClassSession}
                     disabled={readOnly || isUpdatingSession}
                     title={readOnly ? READ_ONLY_TITLE : undefined}
-                    className="px-5 py-2.5 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                    className="px-2.5 py-2 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                   >
                     {isUpdatingSession ? (
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2032,7 +2157,7 @@ export function TeacherDashboard() {
                     onClick={handlePauseClassSession}
                     disabled={readOnly || isUpdatingSession}
                     title={readOnly ? READ_ONLY_TITLE : undefined}
-                    className="px-5 py-2.5 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                    className="px-2.5 py-2 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                   >
                     {isUpdatingSession ? (
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2046,7 +2171,7 @@ export function TeacherDashboard() {
                   onClick={() => { void requestCloseClassSession(); }}
                   disabled={readOnly || isUpdatingSession || isSavingCatchUp}
                   title={readOnly ? READ_ONLY_TITLE : undefined}
-                  className="px-5 py-2.5 bg-rose-800 hover:bg-rose-900 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                  className="px-2.5 py-2 bg-rose-800 hover:bg-rose-900 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                 >
                   {isUpdatingSession ? (
                     <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2066,15 +2191,14 @@ export function TeacherDashboard() {
             the last) meeting and has not finished it, and where they stopped.
             After a close by time this is where the teacher sees them; the
             reasons are asked at the next close or opening. */}
-        {catchUpMeeting !== null && unfinishedInCatchUpMeeting.length > 0 && (
+        {/* During an open meeting this is the chip in the bar above (owner, 11.10.2026). */}
+        {!isClassSessionActive && catchUpMeeting !== null && unfinishedInCatchUpMeeting.length > 0 && (
           <section
             aria-labelledby="catchup-unfinished-title"
-            className="-mt-3 mb-6 shrink-0 bg-stone-50 dark:bg-stone-950/30 border border-stone-200 dark:border-stone-900 rounded-2xl px-5 py-3 flex flex-col gap-2"
+            className="mb-4 shrink-0 bg-stone-50 dark:bg-stone-950/30 border border-stone-200 dark:border-stone-900 rounded-2xl px-5 py-3 flex flex-col gap-2"
           >
             <h3 id="catchup-unfinished-title" className="font-extrabold text-sm text-stone-950 dark:text-stone-100">
-              {unfinishedInCatchUpMeeting.length === 1
-                ? `תלמיד אחד ${isClassSessionActive ? 'עוד ' : ''}לא סיים את מפגש ${catchUpMeeting}`
-                : `${unfinishedInCatchUpMeeting.length} תלמידים ${isClassSessionActive ? 'עוד ' : ''}לא סיימו את מפגש ${catchUpMeeting}`}
+              {catchUpHeadingHe}
             </h3>
             <ul className="flex flex-wrap gap-2">
               {unfinishedInCatchUpMeeting.map((l) => (
@@ -2091,21 +2215,27 @@ export function TeacherDashboard() {
 
         {activeTab === "heatmap" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <header className="mb-6">
-              <h1 className="text-4xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                הכיתה בזמן אמת
-              </h1>
-              <p className="text-ws-soft mt-2 text-lg">
-                12 תלמידים אנונימיים על הרדאר הפדגוגי השקט.
-              </p>
-            </header>
-            <HeatmapGrid
-              onDrillDown={(studentId) => {
-                const norm = normalizeStudentId(studentId);
-                const student = allStudents.find(s => s.studentId === studentId || normalizeStudentId(s.studentId) === norm);
-                if (student) setDrawerStudentId(normalizeStudentId(student.studentId));
-              }}
-            />
+            {/* Owner, 11.10.2026: no page heading here — the twelve tiles fit a
+                1366×768 screen — and the side action queue beside the grid (on
+                the left in RTL), never over it. */}
+            <div data-testid="radar-and-queue" className="flex flex-col lg:flex-row items-start gap-4">
+              <div className="flex-1 min-w-0 w-full">
+                <HeatmapGrid
+                  onDrillDown={(studentId) => {
+                    const norm = normalizeStudentId(studentId);
+                    const student = allStudents.find(s => s.studentId === studentId || normalizeStudentId(s.studentId) === norm);
+                    if (student) setDrawerStudentId(normalizeStudentId(student.studentId));
+                  }}
+                />
+              </div>
+              <MediationQueue
+                learners={queueLearners}
+                gateLearners={queueGateLearners}
+                onOpenGate={openGateForLearner}
+                readOnly={readOnly}
+                teacherId={(user?.uid as string) || TEACHER_ID}
+              />
+            </div>
           </div>
         )}
 
@@ -2909,7 +3039,7 @@ export function TeacherDashboard() {
                           </div>
                         </div>
                         {unreadCount > 0 && (
-                          <span className="bg-rose-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-md shrink-0 animate-bounce">
+                          <span className="bg-rose-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-md shrink-0">
                             {unreadCount}
                           </span>
                         )}
@@ -3065,7 +3195,7 @@ export function TeacherDashboard() {
             student={drawerStudent}
             activeSessionNumber={isClassSessionActive ? selectedSessionNum : null}
             onClose={() => setDrawerStudentId(null)}
-            onOpenChat={(st) => setFloatingChatStudent(st)}
+            onOpenChat={(st) => openLearnerChat(st)}
             onOpenFullJourney={(sId) => {
               setSelectedStudentId(sId);
               setSelectedReplayStudentId(sId);
@@ -3136,6 +3266,14 @@ export function TeacherDashboard() {
             }
           }}
         />
+
+        {mediationCloseOpen && (
+          <MediationCloseDialog
+            readOnly={readOnly}
+            onBack={() => setMediationCloseOpen(false)}
+            onCloseAnyway={() => { setMediationCloseOpen(false); void requestCloseClassSession(true); }}
+          />
+        )}
 
         {/* Catch-up time (owner decision 2.10.2026): why each learner did not
             finish, before the close or the other meeting is written. */}

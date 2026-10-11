@@ -10,9 +10,9 @@ import { resolve } from 'path';
  *
  * Eight elements pulsed, including the "מחובר" and "פעיל" dots — the normal
  * state of most of the class — so ten cells throbbed at once and nothing stood
- * out. The grid is still now; the one exception is the blue call-for-help
- * legend, which breathes slowly (2s) because it marks a learner actually
- * waiting for the teacher.
+ * out. The grid is still now. The blue call-for-help legend breathed slowly
+ * while a learner called; the owner removed that too on 11.10.2026 (Module 18
+ * "אינו מהבהב ואינו פועם"): the tile's colour and frame carry the call.
  */
 const src = readFileSync(
   resolve(__dirname, '../../presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx'),
@@ -39,11 +39,9 @@ describe('Module 18: the radar is still', () => {
     }
   });
 
-  it('the blue call for help breathes slowly rather than blinking', () => {
-    expect(src).toContain('animate-radar-call');
-    expect(css).toContain('.animate-radar-call');
-    expect(css).toMatch(/animation: radar-call 2s ease-in-out infinite/);
-    expect(css).toMatch(/@keyframes radar-call/);
+  it('the blue call for help does not breathe either (owner, 11.10.2026)', () => {
+    expect(src).not.toContain('animate-radar-call');
+    expect(src).not.toMatch(/animate-(bounce|soft-heartbeat)/);
   });
 
   it('the slow breath respects prefers-reduced-motion', () => {
