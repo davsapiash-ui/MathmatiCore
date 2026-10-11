@@ -28,7 +28,8 @@ import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncServi
 
 const emitted: Array<Record<string, any>> = [];
 
-const src = (p: string) => readFileSync(resolve(__dirname, '../../', p), 'utf-8');
+// Line endings normalised: a Windows checkout (core.autocrlf) has CRLF, and the anchors below are LF.
+const src = (p: string) => readFileSync(resolve(__dirname, '../../', p), 'utf-8').replace(/\r\n/g, '\n');
 
 describe('telemetryStamp — device_id and sequence_number', () => {
   beforeEach(() => {
