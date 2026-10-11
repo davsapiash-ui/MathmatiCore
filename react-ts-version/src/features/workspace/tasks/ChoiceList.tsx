@@ -32,9 +32,14 @@ export function ChoiceList({ choices, promptHe }: { choices: TaskChoice[]; promp
               {choice.id}
             </span>
             <span className="text-ws-ink pt-1.5 flex-1 leading-snug"><MathText text={choice.textHe} /></span>
-            {isSelected && (
-              <span aria-hidden="true" className="shrink-0 text-ws-accent text-xl font-black pt-1">✓</span>
-            )}
+            {/* A neutral "selected" mark, never a tick: the choice is not checked here, and a ✓ on a
+                wrong option read as "correct" on the projector (owner, 11.10.2026). */}
+            <span
+              aria-hidden="true"
+              className={`shrink-0 mt-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-ws-accent' : 'border-ws-surface2'}`}
+            >
+              {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-ws-accent" />}
+            </span>
           </button>
         );
       })}

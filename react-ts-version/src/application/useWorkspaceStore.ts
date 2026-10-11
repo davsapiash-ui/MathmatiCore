@@ -49,6 +49,7 @@ import { useStore } from '@/application/useStore';
 import { announceRegroup, REGROUP_ANIMATION_MS } from '@/application/useRegroupAnimationStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
 import { useBoardFocusStore } from '@/application/useBoardFocusStore';
+import { useReadOnlyStaffStore } from '@/application/useIsReadOnlyStaff';
 import { useTeacherGenderStore } from '@/application/useTeacherGender';
 import { teacherSentenceHe } from '@/core/teacherGender';
 import { syncQMatrixEvaluation } from '@/core/ExerciseValidationEngine';
@@ -699,11 +700,14 @@ export interface WorkspaceState {
   /** The demonstration screen's "נקו את בית המספרים": the blocks go, the typed input stays; undo brings the blocks back. */
   clearProjectorBoard: () => void;
   /**
-   * The demonstration screen's "דוגמה לכרטיס החניכה" (owner, 9.10.2026): the
-   * learner's coaching card opens with this static card — no hourglass, no
-   * engine request, no event, no lock after a wrong option. Demo mode only.
+   * The demonstration screen's "דוגמה לכרטיס החניכה" (owner, 9.10.2026 and
+   * 11.10.2026): the learner's coaching card for this exercise and the board as
+   * it is now — the hourglass, then the engine's card (trigger hesitation_45s),
+   * or the static card of the board when the engine fails, is late or is
+   * refused. A read-only account gets the static card only. No event, no
+   * learner record, no lock after a wrong option. Demo mode only.
    */
-  openDemoCoachingCard: (card: SocraticHintResponse) => void;
+  openDemoCoachingCard: (task: SessionTask | undefined) => Promise<void>;
   /** The demonstration screen's "הצגת הצבעים בשורת התוצאה": the result row's scaffold on or off. Demo mode only. */
   setDemoPlaceCues: (shown: boolean) => void;
   restoreSession: (savedState: any) => void;
@@ -1253,6 +1257,21 @@ export function staticCardContextFor(
   // No previous card here (audit D18): the levels follow the kinds already
   // shown, and the card identity is the store's (socraticCardRefusal).
   return out;
+}
+
+/**
+ * The demonstration screen's example card (owner, 11.10.2026): what the
+ * static chooser knows, for the demonstration exercise and the board as it is
+ * now, after 45 seconds without a step. Every opening is a first card of the
+ * exercise: nothing records the kinds shown in the demonstration.
+ */
+function demoCardContext(s: StaticCardStoreState, task: SessionTask | undefined): StaticCardContext {
+  return { ...staticCardContextFor(s, task?.id, task, { reason: 'hesitation_45s', place: null }), shownKinds: [] };
+}
+
+/** The static card of the demonstration board as it is now — the example card's fallback. */
+export function demoStaticCoachingCard(s: StaticCardStoreState, task: SessionTask | undefined): SocraticHintResponse {
+  return SocraticEngine.getSynchronousTaskHint(task, s.counts ?? { ...EMPTY_COUNTS }, demoCardContext(s, task));
 }
 
 function withCardKind(
@@ -4007,18 +4026,88 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       });
     },
 
-    openDemoCoachingCard: (card) => {
-      if (!get().projectorBoard) return;
+    openDemoCoachingCard: async (task) => {
+      const s = get();
+      if (!s.projectorBoard) return;
       cancelSocraticRequest();
+      const request = socraticRequestSeq;
+      // The static card of the board as it is now: what a learner gets when
+      // the engine does not answer (fetchSocraticHint), and the engine's anchor.
+      const staticCard: SocraticHintResponse = { ...demoStaticCoachingCard(s, task), error_category: null, source: 'static' };
       // currentState stays PROBLEM_ACTIVE: nothing of the learner's flow runs.
-      set({
-        helpState: 'socratic',
-        aiSocraticHint: { ...card, source: 'static' },
-        socraticPending: false,
+      const opened = {
+        helpState: 'socratic' as HelpState,
         isSocraticCardLocked: false,
         socraticLockDeadline: null,
         socraticDistractorHint: null,
-      });
+      };
+      // A read-only account asks the engine nothing (owner, 11.10.2026): the
+      // call spends the project's quota, and the server refuses it anyway.
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (useReadOnlyStaffStore.getState().readOnly || offline) {
+        set({ ...opened, aiSocraticHint: staticCard, socraticPending: false });
+        return;
+      }
+      set({ ...opened, aiSocraticHint: null, socraticPending: true });
+      const openedOn = cardStateSignature(s);
+
+      const settle = (hint: SocraticHintResponse) => {
+        if (request !== socraticRequestSeq) return; // closed, superseded or already settled
+        cancelSocraticRequest();
+        const now = get();
+        if (!now.projectorBoard || now.helpState !== 'socratic') {
+          set({ socraticPending: false });
+          return;
+        }
+        // The teacher went on working under the hourglass: the card is built
+        // again from the board on the screen now, as the learner's is.
+        const shown = cardStateSignature(now) !== openedOn
+          ? { ...demoStaticCoachingCard(now, task), error_category: null, source: 'static' as const }
+          : hint;
+        set({ aiSocraticHint: shown, socraticPending: false });
+      };
+
+      socraticDeadline = setTimeout(() => settle({ ...staticCard, fallbackReason: 'timeout' }), SOCRATIC_PROXY_TIMEOUT_MS);
+      try {
+        const eff = task && typeof task.numberA === 'number' && typeof task.numberB === 'number' ? effectiveArithmetic(task, false) : null;
+        const cardContext = demoCardContext(s, task);
+        // What the learner's request carries (fetchSocraticHint), from the
+        // demonstration board — and no learner: no id, no recent events.
+        const monitoring: SocraticMonitoringSnapshot = {
+          demo: true,
+          sessionNumber: s.sessionNumber,
+          triggerReason: 'hesitation_45s',
+          consecutiveErrors: 0,
+          consecutiveUndos: 0,
+          hesitationSeconds: 45,
+          memoryCircles: s.carryDigits,
+          answerDigits: s.answerDigits,
+          operands: eff ? { a: eff.a, b: eff.b, isSubtraction: Boolean(task?.isSubtraction) } : null,
+          activeColumnIndex: socraticCardColumnIndex(s),
+          hasRegroupedInCanvas: Boolean(s.hasUngrouped || s.hasGrouped),
+          conversionsDone: eff && task
+            ? PLACE_ORDER.filter((p) => columnRequiresConversion(p, eff.a, eff.b, task.isSubtraction) &&
+                conversionRecordedInColumn(s, p, task.isSubtraction))
+            : undefined,
+          cardContext,
+        };
+        const hint = await SocraticEngine.getSocraticHint(
+          task ?? {},
+          task?.targetNode || 'q_matrix_general',
+          s.counts,
+          undefined,
+          false,
+          monitoring.activeColumnIndex ?? 0,
+          [],
+          monitoring
+        );
+        settle(hint && hint.error_category
+          ? hint
+          : { ...staticCard, fallbackReason: hint?.fallbackReason ?? 'error', ...(hint?.fallbackDetail ? { fallbackDetail: hint.fallbackDetail } : {}) });
+      } catch (error) {
+        console.warn('[Projector] example coaching card: the engine failed, the static card is shown.', error);
+        settle({ ...staticCard, fallbackReason: 'error' });
+      }
     },
 
     setDemoPlaceCues: (shown) => {

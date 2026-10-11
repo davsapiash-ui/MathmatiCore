@@ -18,7 +18,7 @@ import { DienesBlock } from '@/features/workspace/board/DienesBlock';
 import { DemoStation1Card, DemoTaskCard } from '@/features/workspace/tasks/DemoTaskCard';
 import { SocraticSidePanel } from '@/features/workspace/overlays/HelpOverlays';
 import { ProceedButton } from '@/features/workspace/ProceedButton';
-import { demoCoachingCard } from '@/application/teacherDemoTasks';
+import { demoCoachingTask } from '@/application/teacherDemoTasks';
 import { NarrationContext } from '@/presentation/design-system/UdlSpeechButton';
 import {
   BOARD_ZONE_CLASS,
@@ -116,8 +116,8 @@ export function ProjectorSandboxPage() {
       return;
     }
     setCardOpening((k) => k + 1);
-    if (station === 1) openDemoCoachingCard(demoCoachingCard(1, null));
-    else if (part && isDemoStation(station)) openDemoCoachingCard(demoCoachingCard(station, part));
+    if (station === 1) void openDemoCoachingCard(demoCoachingTask(1, null));
+    else if (part && isDemoStation(station)) void openDemoCoachingCard(demoCoachingTask(station, part));
   };
   // Opening this page used to start broadcasting immediately: preparing a demo
   // mid-lesson blanked all twelve screens before the teacher had arranged
@@ -450,7 +450,7 @@ export function ProjectorSandboxPage() {
 
             {/* Stations 3–7 only (Module 15 §ג): station 1 has no demonstration to restart. */}
             {part && (
-              <button type="button" onClick={handleRestart} className={CONTROL_CLASS} title="ההדגמה חוזרת להתחלה: בית מספרים ריק ושום דבר לא כתוב">
+              <button type="button" onClick={handleRestart} className={CONTROL_CLASS} title="ההדגמה חוזרת להתחלה: בית המספרים מתרוקן, ומה שנכתב נמחק">
                 <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
                 <span>התחילו מחדש</span>
               </button>

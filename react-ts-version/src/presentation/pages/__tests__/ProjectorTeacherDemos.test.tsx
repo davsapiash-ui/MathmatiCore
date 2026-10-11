@@ -45,12 +45,20 @@ import { set as rtdbSet, update as rtdbUpdate } from 'firebase/database';
 import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { ProjectorSandboxPage } from '../ProjectorSandboxPage';
 import { useAuthStore } from '@/application/useAuthStore';
-import { useWorkspaceStore } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, demoStaticCoachingCard } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
+import { useReadOnlyStaffStore } from '@/application/useIsReadOnlyStaff';
 import { NO_DEMO_HE, TEACHER_DEMOS, DEMO_CARD_HE, DEMO_SHOW_COLOURS_HE, DEMO_HIDE_COLOURS_HE } from '@/data/teacherDemos';
 import { demoGuide } from '@/features/workspace/tasks/DemoTaskCard';
-import { demoCoachingCard } from '@/application/teacherDemoTasks';
+import { demoCoachingTask } from '@/application/teacherDemoTasks';
+import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 import { PLACE_CUE_LINE_HE } from '@/core/placeCues';
+
+/** The static card of the board on the screen now: the example card when the engine does not answer. */
+const staticCardNow = (station: 1 | 3 | 4 | 5 | 6 | 7, partIdx = 0): SocraticHintResponse =>
+  demoStaticCoachingCard(useWorkspaceStore.getState(), demoCoachingTask(station, station === 1 ? null : TEACHER_DEMOS[station][partIdx]));
+/** The engine's request settles (a resolved promise): let it reach the store. */
+const settle = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
 function renderProjector() {
   return render(
@@ -72,6 +80,9 @@ beforeEach(() => {
     isAuthenticated: true,
     isStudentAuthenticated: false,
   });
+  useReadOnlyStaffStore.setState({ readOnly: false });
+  // The engine is out of reach unless a test says otherwise: the static card.
+  vi.spyOn(SocraticEngine, 'getSocraticHint').mockResolvedValue(null);
 });
 afterEach(() => {
   cleanup();
@@ -270,15 +281,16 @@ describe('the demonstration aids (owner, 9.10.2026)', () => {
     expect(DEMO_HIDE_COLOURS_HE).toBe('הסתרת הצבעים בשורת התוצאה');
   });
 
-  it('"דוגמה לכרטיס החניכה": stations 1 and 3–7, the learner\'s card with the station\'s static card', () => {
+  it('"דוגמה לכרטיס החניכה": stations 1 and 3–7, the learner\'s card — the static card of the board when the engine does not answer', async () => {
     renderProjector();
-    for (const n of [1, 3, 4, 5, 6, 7]) {
+    for (const n of [1, 3, 4, 5, 6, 7] as const) {
       pick(n);
       expect(cardButton()!.textContent).toBe(DEMO_CARD_HE);
       fireEvent.click(cardButton()!);
+      await settle();
       const card = screen.getByTestId('socratic-card');
       expect(within(card).getByTestId('socratic-card-title').textContent).toContain('כרטיס החניכה');
-      const expected = n === 1 ? demoCoachingCard(1, null) : demoCoachingCard(n as 3, TEACHER_DEMOS[n as 3][0]);
+      const expected = staticCardNow(n);
       expect(card.textContent).toContain(expected.questionHe);
       expect(within(card).getAllByRole('button').filter((b) => expected.choices.some((c) => b.textContent?.includes(c.textHe)))).toHaveLength(3);
       expect(within(card).queryByLabelText('הקראה בקול')).toBeNull();
@@ -294,13 +306,76 @@ describe('the demonstration aids (owner, 9.10.2026)', () => {
     expect(DEMO_CARD_HE).toBe('דוגמה לכרטיס החניכה');
   });
 
-  it('the card: a wrong option shows its hint with no pause, the right one closes the card after 4 seconds, "הבנתי" closes it', () => {
+  it('the card is asked of the engine about the board on the screen now, as the learner\'s is (owner, 11.10.2026)', async () => {
+    let answer: (h: SocraticHintResponse | null) => void = () => {};
+    const ask = vi.mocked(SocraticEngine.getSocraticHint).mockImplementation(() => new Promise((r) => { answer = r; }));
+    renderProjector();
+    pick(4);
+    const drop = (place: string) =>
+      act(() => useWorkspaceStore.getState().applyDrop({ source: 'palette', sourcePlace: place, target: { kind: 'column', place } } as never));
+    drop('hundreds');
+    drop('tens');
+    drop('tens');
+    const counts = { ...useWorkspaceStore.getState().counts };
+    fireEvent.click(cardButton()!);
+    // While it waits: the learner's hourglass.
+    expect(screen.getByTestId('socratic-card-pending')).toBeTruthy();
+    expect(ask).toHaveBeenCalledTimes(1);
+    const [task, , askedCounts, , , , , monitoring] = ask.mock.calls[0];
+    expect((task as { id: string }).id).toBe(demoCoachingTask(4, TEACHER_DEMOS[4][0])!.id);
+    expect(askedCounts).toEqual(counts);
+    expect(monitoring).toMatchObject({ demo: true, sessionNumber: 4, triggerReason: 'hesitation_45s' });
+    expect(monitoring?.studentId).toBeUndefined();
+    // The engine's card is the one shown.
+    const fromStatic = staticCardNow(4);
+    const engineCard: SocraticHintResponse = { ...fromStatic, error_category: 'procedural', source: 'gemini' };
+    await act(async () => { answer(engineCard); await Promise.resolve(); });
+    expect(useWorkspaceStore.getState().aiSocraticHint?.source).toBe('gemini');
+    expect(screen.queryByTestId('socratic-card-pending')).toBeNull();
+  });
+
+  it('the engine fails or is late: the static card of the board as it is now', async () => {
+    renderProjector();
+    pick(4);
+    act(() => useWorkspaceStore.getState().applyDrop({ source: 'palette', sourcePlace: 'hundreds', target: { kind: 'column', place: 'hundreds' } } as never));
+    vi.mocked(SocraticEngine.getSocraticHint).mockRejectedValueOnce(new Error('proxy down'));
+    fireEvent.click(cardButton()!);
+    await settle();
+    const shown = useWorkspaceStore.getState().aiSocraticHint!;
+    expect(shown.source).toBe('static');
+    expect(shown.questionHe).toBe(staticCardNow(4).questionHe);
+    fireEvent.click(cardButton()!);
+
+    vi.useFakeTimers();
+    try {
+      vi.mocked(SocraticEngine.getSocraticHint).mockImplementation(() => new Promise(() => {}));
+      fireEvent.click(cardButton()!);
+      expect(screen.getByTestId('socratic-card-pending')).toBeTruthy();
+      act(() => vi.advanceTimersByTime(SOCRATIC_PROXY_TIMEOUT_MS + 10));
+      expect(useWorkspaceStore.getState().aiSocraticHint).toMatchObject({ source: 'static', fallbackReason: 'timeout', questionHe: staticCardNow(4).questionHe });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a read-only account gets the static card only: the engine is not asked', async () => {
+    useReadOnlyStaffStore.setState({ readOnly: true });
+    renderProjector();
+    pick(3);
+    fireEvent.click(cardButton()!);
+    expect(SocraticEngine.getSocraticHint).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('socratic-card-pending')).toBeNull();
+    expect(screen.getByTestId('socratic-card').textContent).toContain(staticCardNow(3).questionHe);
+  });
+
+  it('the card: a wrong option shows its hint with no pause, the right one closes the card after 4 seconds, "הבנתי" closes it', async () => {
     vi.useFakeTimers();
     try {
       renderProjector();
       pick(4);
       fireEvent.click(cardButton()!);
-      const card = demoCoachingCard(4, TEACHER_DEMOS[4][0]);
+      await settle();
+      const card = staticCardNow(4);
       const wrong = card.choices.find((c) => !c.isCorrect)!;
       const right = card.choices.find((c) => c.isCorrect)!;
       fireEvent.click(screen.getByRole('button', { name: new RegExp(wrong.textHe.slice(0, 20)) }));
@@ -315,6 +390,7 @@ describe('the demonstration aids (owner, 9.10.2026)', () => {
       expect(useWorkspaceStore.getState().helpState).toBe('closed');
 
       fireEvent.click(cardButton()!);
+      await settle();
       fireEvent.click(screen.getByRole('button', { name: 'הבנתי, סגירת החלונית' }));
       expect(useWorkspaceStore.getState().helpState).toBe('closed');
     } finally {
@@ -339,7 +415,13 @@ describe('the demonstration aids (owner, 9.10.2026)', () => {
 });
 
 describe('demo mode writes nothing', () => {
-  it('no telemetry, no research trace, no learner record — only the broadcast flag', () => {
+  it('no telemetry, no research trace, no learner record — only the broadcast flag', async () => {
+    // The engine answers here: its card is shown and answered like the static one.
+    vi.mocked(SocraticEngine.getSocraticHint).mockImplementation(async (task, _node, counts) => ({
+      ...SocraticEngine.getSynchronousTaskHint(task, counts, { trigger: 'hesitation_45s' }),
+      error_category: 'procedural',
+      source: 'gemini',
+    }));
     vi.mocked(rtdbSet).mockClear();
     vi.mocked(rtdbUpdate).mockClear();
     emitTelemetry.mockClear();
@@ -361,12 +443,14 @@ describe('demo mode writes nothing', () => {
     // Its result row, "ממשיכים", and the example card with every option.
     fireEvent.change(screen.getByLabelText('ספרת המאות בשורת התוצאה'), { target: { value: '3' } });
     fireEvent.click(screen.getByTestId('proceed-button'));
-    const answerEveryOption = () => {
+    const answerEveryOption = async () => {
       fireEvent.click(screen.getByTestId('demo-card-toggle'));
+      await settle();
+      expect(useWorkspaceStore.getState().aiSocraticHint?.source).toBe('gemini');
       for (const b of within(screen.getByTestId('socratic-options')).getAllByRole('button')) fireEvent.click(b);
       fireEvent.click(screen.getByRole('button', { name: 'הבנתי, סגירת החלונית' }));
     };
-    answerEveryOption();
+    await answerEveryOption();
 
     // Station 3: build, break a hundred, write the number.
     pick(3);
@@ -388,10 +472,10 @@ describe('demo mode writes nothing', () => {
     // The colours on and off, the example card, then the choice exercise.
     fireEvent.click(screen.getByTestId('demo-colours-toggle'));
     fireEvent.click(screen.getByTestId('demo-colours-toggle'));
-    answerEveryOption();
+    await answerEveryOption();
     fireEvent.click(screen.getByRole('button', { name: 'חלק ב · תשובות לבחירה' }));
     for (const r of screen.getAllByRole('radio')) fireEvent.click(r);
-    answerEveryOption();
+    await answerEveryOption();
 
     // Station 7: the hidden digit of the first number, then the other example.
     pick(7);
@@ -421,5 +505,24 @@ describe('demo mode writes nothing', () => {
     expect(useWorkspaceStore.getState().projectorBoard).toBe(true);
     unmount();
     expect(useWorkspaceStore.getState().projectorBoard).toBe(false);
+  });
+
+  it('the engine request of the example card names no learner: the demo flag, a demo session, no learner\'s events', async () => {
+    const proxy = vi.spyOn(SocraticEngine, 'callGeminiProxy').mockResolvedValue({ data: null });
+    const task = demoCoachingTask(4, TEACHER_DEMOS[4][0])!;
+    const counts = { units: 0, tens: 2, hundreds: 1, thousands: 0 };
+    await SocraticEngine.fetchGroundedGeminiSocraticQuery({
+      currentTask: task,
+      targetNode: 'q_matrix_general',
+      activeColumnName: 'יחידות',
+      counts,
+      qMatrixAnchor: SocraticEngine.getSynchronousTaskHint(task, counts),
+      monitoring: { demo: true, sessionNumber: 4, triggerReason: 'hesitation_45s' },
+    });
+    const payload = proxy.mock.calls[0][0];
+    expect(payload.demo).toBe(true);
+    expect(payload.socratic_request!.session_id).toBe('session_4_demo');
+    expect(payload.socratic_request!.student_progress_state?.recent_actions ?? []).toEqual([]);
+    expect(payload.socratic_request!.workspace_state).toMatchObject({ ones_count: 0, tens_count: 2, hundreds_count: 1 });
   });
 });

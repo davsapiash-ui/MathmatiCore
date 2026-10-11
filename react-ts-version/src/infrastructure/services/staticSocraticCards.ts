@@ -1711,9 +1711,56 @@ export function skeletonShown(task: any): string {
   const hiddenA: Place[] = task.hiddenDigits?.a ?? [];
   const hiddenB: Place[] = task.hiddenDigits?.b ?? [];
   const sign = sub ? '−' : '+';
+  // A result digit missing too (2▢3 + 134 = 35▢, the teacher's demonstration
+  // of station 7): the result as the screen shows it, never the whole number.
+  const hiddenR = hiddenResultPlaces(task);
   return hiddenA.length + hiddenB.length > 0
-    ? `${masked(a, hiddenA)} ${sign} ${masked(b, hiddenB)} = ${formatNumberHe(result)}`
+    ? `${masked(a, hiddenA)} ${sign} ${masked(b, hiddenB)} = ${hiddenR.length ? masked(result, hiddenR) : formatNumberHe(result)}`
     : `${formatNumberHe(a)} ${sign} ${formatNumberHe(b)}`;
+}
+
+/** The result's places a skeleton leaves as boxes (revealedResultDigits names the ones shown). */
+function hiddenResultPlaces(task: any): Place[] {
+  if (!Array.isArray(task?.revealedResultDigits) || typeof task.numberA !== 'number' || typeof task.numberB !== 'number') return [];
+  const result = task.isSubtraction ? task.numberA - task.numberB : task.numberA + task.numberB;
+  return places(result).filter((p) => !task.revealedResultDigits.includes(p));
+}
+
+/**
+ * An addition skeleton with a digit missing in an addend AND in the result
+ * (2▢3 + 134 = 35▢; owner, 11.10.2026: its card was refused for showing the
+ * whole result, and the child got the general card). Column by column from
+ * the units: where both digits of the numbers are known, they add up to the
+ * result's digit; where an addend's digit is missing, it is what the known
+ * digit still needs to reach the result's digit. No digit is computed here.
+ */
+function skeletonAddAndResultCard(task: any, known: number, blocks: boolean): SocraticHintResponse {
+  const K = formatNumberHe(known);
+  return card(`${OPEN}בתרגיל ${skeletonShown(task)}, איך מגלים את הספרות החסרות?`, 'procedural', blocks ? 'tour-place-value-board' : HL('units'), [
+    ['עוברים טור אחר טור, ובודקים בכל טור מה ידוע ומה חסר', blocks
+      ? `נכון מאוד! בנו את ${K} בבית המספרים. התחילו בטור היחידות, ובדקו בכל טור איזו ספרה חסרה.`
+      : 'נכון מאוד! התחילו בטור היחידות, ובדקו בכל טור איזו ספרה חסרה.'],
+    ['מתחילים מהטור השמאלי', HINT.startAdd],
+    ['מנחשים ספרות וכותבים אותן בתיבות', blocks ? 'רמז: איך אפשר לבדוק בבית המספרים אם הספרות נכונות?' : 'רמז: איך אפשר לבדוק בחישוב אם הספרות נכונות?'],
+  ], 'skeleton', frame('skeleton_missing_addend_and_result', 1, 'טור אחר טור מטור היחידות: איפה ששתי הספרות ידועות מחברים, ואיפה שחסרה ספרה במספר בודקים כמה חסר עד ספרת התוצאה'));
+}
+
+/**
+ * The same skeleton, the second card, in a column whose result digit is the
+ * box and both digits of the numbers are on the screen: add them (and the 1
+ * of the memory circle, when the column on the right passed 10).
+ */
+function skeletonResultColumnCard(a: number, b: number, p: Place): SocraticHintResponse {
+  const cin = carryInto(a, b, p);
+  const passes = digit(a, p) + digit(b, p) + cin >= 10;
+  const write = passes && next(p)
+    ? `נכון מאוד! כתבו בתיבה רק את ספרת היחידות של מה שיצא. רשמו 1 בעיגול הזיכרון שמעל ${COLUMN[next(p)!]}.`
+    : 'נכון מאוד! כתבו בתיבה הריקה את מה שיצא.';
+  return card(`${OPEN}ב${COLUMN[p]} חסרה ספרה בשורת התוצאה. איך מגלים אותה?`, 'procedural', HL(p), [
+    [cin ? 'מחברים את שתי הספרות של הטור ואת ה-1 שבעיגול הזיכרון' : 'מחברים את שתי הספרות של הטור', write],
+    ['כותבים את הגדולה מבין שתי הספרות', 'רמז: מה עושים בתרגיל חיבור עם הספרות של הטור?'],
+    ['מחסרים את הספרה הקטנה מהגדולה', 'רמז: האם בתרגיל הזה מחברים או מחסרים?'],
+  ], 'skeleton_2', frame('skeleton_missing_result_column', 2, `ב${COLUMN[p]} שתי הספרות של המספרים ידועות: מחברים אותן, ועם מה שעבר מהטור שמימין`));
 }
 
 /**
@@ -1752,7 +1799,10 @@ function skeletonAddColumnCard(hiddenOf: number, known: number, p: Place, blocks
   const cin = carryInto(hiddenOf, known, p);
   const start = db + cin;
   if (start === 0) return null;
-  const base = cin ? `${db} ועוד 1` : `${db}`;
+  // The carried 1 by name where a hidden digit is 1 (▢▢▢ + 258 = 673: the
+  // tens' hidden digit is 1, and "5 ועוד 1" read as giving it away — the iron
+  // rule refused the card; owner, 11.10.2026): it is the memory circle's 1.
+  const base = !cin ? `${db}` : h === 1 || hiddenDigits.includes(1) ? `${db} ועוד ה-1 שבעיגול הזיכרון` : `${db} ועוד 1`;
   const pass = start + h >= 10;
   const target = pass ? 10 + r : r;
   const write = blocks ? 'כתבו בתיבה הריקה כמה לבנים הוספתם' : 'כתבו בתיבה הריקה כמה הוספתם';
@@ -1848,6 +1898,25 @@ function skeletonCard(task: any, blocks: boolean, ctx: StaticCardContext): Socra
   const hiddenOf = side === 'a' ? a : b;
   const known = side === 'a' ? b : a;
   const plural = hidden.length > 1;
+  // A result digit missing as well (addition only — no subtraction skeleton
+  // hides one): the card of both, then the column the child is at.
+  const hiddenR = sub ? [] : hiddenResultPlaces(task);
+  if (hiddenR.length) {
+    if (!shownIn(ctx, 'skeleton')) return skeletonAddAndResultCard(task, known, blocks);
+    const all = [...new Set([...hidden, ...hiddenR])].sort((x, y) => LOW_TO_HIGH.indexOf(x) - LOW_TO_HIGH.indexOf(y));
+    const result = a + b;
+    const right = (q: Place) => {
+      const v = hidden.includes(q) ? ctx.operandDigits?.[side]?.[q] : ctx.answerDigits?.[q];
+      return v !== undefined && v !== '' && Number(v) === digit(hidden.includes(q) ? hiddenOf : result, q);
+    };
+    const f = ctx.focusColumn && all.includes(ctx.focusColumn) && columnTrigger(ctx) ? ctx.focusColumn : null;
+    const q = f ?? all.find((x) => !right(x)) ?? all[0];
+    // A column with both a hidden addend digit and a hidden result digit has no single answer: the first card.
+    if (hiddenR.includes(q) && hidden.includes(q)) return skeletonAddAndResultCard(task, known, blocks);
+    if (hiddenR.includes(q)) return skeletonResultColumnCard(a, b, q);
+    return skeletonAddColumnCard(hiddenOf, known, q, blocks, [...hidden.map((x) => digit(hiddenOf, x)), ...hiddenR.map((x) => digit(result, x))])
+      ?? skeletonAddAndResultCard(task, known, blocks);
+  }
   if (!shownIn(ctx, 'skeleton')) {
     return sub ? skeletonSubCard(task, a, b, blocks, plural) : skeletonAddCard(task, known, blocks, plural);
   }
@@ -2471,6 +2540,10 @@ const STEPS_BY_ID: Record<string, { start: number; add: Counts; remove: Counts; 
   s7_d_t6: { start: 240, add: { hundreds: 3 }, remove: { tens: 5 }, addWords: 'שלוש המאות', removeWords: 'חמש העשרות', removeIndef: 'חמש עשרות' },
   // The graded foundations path (owner, 11.10.2026).
   s7_f_t6: { start: 130, add: { hundreds: 2 }, remove: { tens: 4 }, addWords: 'שתי המאות', removeWords: 'ארבע העשרות', removeIndef: 'ארבע עשרות' },
+  // The teacher's demonstration of station 7, part ב (data/teacherDemos.ts,
+  // DEMO_S7_B_STEPS): its instruction names the blocks ("הוסיפו לבנת מאה אחת,
+  // ואז הוציאו 8 לבני עשרת"), and so do its cards.
+  s7_demo_s7_b: { start: 260, add: { hundreds: 1 }, remove: { tens: 8 }, addWords: 'לבנת המאה', removeWords: 'שמונה לבני העשרת', removeIndef: 'שמונה לבני עשרת' },
 };
 export const stepsOf = (task: any) => (typeof task?.id === 'string' ? STEPS_BY_ID[task.id] ?? null : null);
 
@@ -2693,8 +2766,17 @@ export function exerciseCard(task: any, counts?: BoardCounts, ctx: StaticCardCon
   // C1 and C7 ask about the number after the break / the grouping: only once
   // every conversion the instruction names is done (s7_g_t1: both groupings).
   // Before that, the conversion itself.
-  if (composing && built && ctx.conversionDone === false) {
-    const conv = conversionCard(task, kind, ctx, counts!);
+  // A break exercise whose task object carries no kind for the store (an id
+  // known only to REPRESENTATION_KIND_BY_ID: a bank published before the
+  // field, a teacher demonstration) sends no conversion record: the board
+  // tells it — until the blocks are the ones after the break, it is not done
+  // (owner, 11.10.2026: the card of 350 before the break asked whether the
+  // break had changed the number).
+  const conversionDone = ctx.conversionDone ??
+    (kind === 'compose_break' && !task.representationKind && counts && task.requiredCounts && typeof task.numberA === 'number' && boardValue(counts) <= task.numberA
+      ? sameCounts(counts, task.requiredCounts) : undefined);
+  if (composing && built && conversionDone === false) {
+    const conv = conversionCard(task, kind, { ...ctx, conversionDone }, counts!);
     if (conv) return conv;
   }
   // What the board shows against the instruction (1.10.2026): a block broken
@@ -3012,6 +3094,10 @@ export function meeting1Card(task: any, counts: BoardCounts, ctx: StaticCardCont
       const wrongBreak = s1WrongBreakCard(task, counts, ctx);
       if (wrongBreak) return wrongBreak;
       if (value > n) return stray(strayWhichCard);
+      // Still building 347 (3 hundreds only, owner, 11.10.2026: the exercise's
+      // own card asked what breaking a ten does, with no ten on the board):
+      // build every block of the instruction before the break.
+      if (value < n) return conversionCard({ ...task, correctAnswer: n }, 'compose_break', ctx, counts);
       if (level2 && (counts.tens ?? 0) > 0) return conversionCard({ ...task, correctAnswer: n }, 'compose_break', ctx, counts);
       return null;
     }

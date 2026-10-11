@@ -24,6 +24,8 @@ import { staticCardContextFor, cardFocusPlace, emptyColumnConversions, placeToCo
 import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 import { SESSION1_TASKS, getSessionTasks, type SessionTask } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
+import { TEACHER_DEMOS, type DemoStation } from '@/data/teacherDemos';
+import { demoSessionTask } from '@/application/teacherDemoTasks';
 import { EMPTY_COUNTS, type Place } from '@/core/placeValue';
 import { validateSocraticRequest, deriveSocraticFacts, validateSocraticResponse } from '../../../../functions/src/socraticContract';
 import { CARD_SITUATIONS } from './fixtures/staticCardSituations_2_10';
@@ -36,6 +38,8 @@ for (const m of [3, 4, 5, 6, 7, 8] as const) {
     if (m <= 7) for (const b of ['reinforcement', 'challenge'] as const) bank.push(...getSessionBranchTasks(m, b, p));
   }
 }
+// The teacher's demonstrations get the learners' static cards (owner, 11.10.2026): the same check.
+for (const [st, parts] of Object.entries(TEACHER_DEMOS)) for (const part of parts) bank.push(demoSessionTask(Number(st) as DemoStation, part));
 const byId = (id: string) => bank.find((x) => x.id === id)!;
 type Counts = Record<Place, number>;
 const C = (th: number, h: number, t: number, u: number): Counts => ({ thousands: th, hundreds: h, tens: t, units: u });
