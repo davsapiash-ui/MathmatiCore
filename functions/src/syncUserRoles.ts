@@ -73,7 +73,8 @@ export const syncUserRoles = onCall(
         const teacherDoc = await firestore.collection("authorizedTeachers").doc(normalizedEmail).get();
         if (teacherDoc.exists) {
           const data = teacherDoc.data();
-          isReadOnly = data?.readOnly === true;
+          // Typed in the console as a boolean or as the text "true" (owner, 11.10.2026: the text is easier to enter).
+          isReadOnly = data?.readOnly === true || String(data?.readOnly ?? "").trim().toLowerCase() === "true";
           if (data?.role === "admin") {
             isAuthorizedAdmin = true;
           } else {

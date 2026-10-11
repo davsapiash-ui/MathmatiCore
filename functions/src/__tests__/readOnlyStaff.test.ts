@@ -90,6 +90,16 @@ describe('syncUserRoles: the readOnly claim', () => {
     expect(res.resolvedUid).toBe('lecturer-uid');
   });
 
+  it('accepts the mark typed as the text "true" (owner, 11.10.2026), and nothing else as text', async () => {
+    h.docs[`authorizedTeachers/${LECTURER}`] = { email: LECTURER, role: 'admin', readOnly: 'true' };
+    await run(syncUserRoles, { auth: staffAuth('lecturer-uid', LECTURER), data: { role: 'admin' } });
+    expect(h.stamped[0].claims).toMatchObject({ role: 'admin', readOnly: true });
+    h.stamped.length = 0;
+    h.docs[`authorizedTeachers/${LECTURER}`] = { email: LECTURER, role: 'admin', readOnly: 'false' };
+    await run(syncUserRoles, { auth: staffAuth('lecturer-uid', LECTURER), data: { role: 'admin' } });
+    expect(h.stamped[0].claims).not.toHaveProperty('readOnly');
+  });
+
   it('stamps readOnly on an admin sign-in and never presents it as the shared admin identity', async () => {
     h.docs[`authorizedTeachers/${LECTURER}`] = { email: LECTURER, role: 'admin', enabled: true, readOnly: true };
     const res = await run(syncUserRoles, { auth: staffAuth('lecturer-uid', LECTURER), data: { role: 'admin' } });
