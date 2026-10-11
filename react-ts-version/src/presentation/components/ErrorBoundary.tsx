@@ -3,6 +3,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import {
   claimQuietReload,
   isSignedInStaff,
+  isStaleBuildError,
   loginPage,
   pageReload,
   QUIET_RECOVERY_TEXT,
@@ -24,6 +25,8 @@ interface State {
   quiet: boolean;
   /** The quiet reloads of the last minute are used up: one calm button. */
   recoveryExhausted: boolean;
+  /** A chunk of the previous deploy failed to load: a reload is the whole fix. */
+  staleBuild: boolean;
 }
 
 /**
@@ -35,7 +38,8 @@ interface State {
  * three buttons, one of which signed the child out. Now anyone but signed-in
  * staff gets the quiet recovery of quietRecovery.ts: a calm screen, one
  * automatic reload, and after repeated crashes one "נסו שוב" button. Staff keep
- * the technical view below.
+ * the technical view below — except after a deploy, when a code-split chunk of
+ * the old build is gone and a quiet reload is all it takes.
  */
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
@@ -45,12 +49,16 @@ export class ErrorBoundary extends Component<Props, State> {
     copied: false,
     quiet: false,
     recoveryExhausted: false,
+    staleBuild: false,
   };
 
   private reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
   public static getDerivedStateFromError(error: Error): Partial<State> {
-    return { hasError: true, error, quiet: !isSignedInStaff() };
+    // A page open across a deploy reloads quietly for staff too: the error
+    // screen would only tell them to press "רענן דף".
+    const staleBuild = isStaleBuildError(error);
+    return { hasError: true, error, staleBuild, quiet: staleBuild || !isSignedInStaff() };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -60,6 +68,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
     if (claimQuietReload()) {
       this.reloadTimer = setTimeout(() => pageReload.run(), QUIET_RELOAD_DELAY_MS);
+    } else if (this.state.staleBuild && isSignedInStaff()) {
+      // The reloads did not help, so it is not a stale page: staff get the
+      // technical view after all.
+      this.setState({ quiet: false });
     } else {
       this.setState({ recoveryExhausted: true });
     }
