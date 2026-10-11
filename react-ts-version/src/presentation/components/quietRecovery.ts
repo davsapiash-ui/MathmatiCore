@@ -48,6 +48,19 @@ export function isSignedInStaff(): boolean {
   }
 }
 
+/**
+ * A page left open across a deploy: its old index asks for a code-split chunk
+ * (the teacher dashboard, an admin view) whose hashed file the deploy removed.
+ * Nothing is broken — a reload fetches the new build. Each browser words it
+ * differently: Chrome "Failed to fetch dynamically imported module", Firefox
+ * "error loading dynamically imported module", Safari "Importing a module
+ * script failed".
+ */
+export function isStaleBuildError(error: unknown): boolean {
+  const text = error instanceof Error ? `${error.name}: ${error.message}` : String(error ?? '');
+  return /dynamically imported module|importing a module script failed/i.test(text);
+}
+
 function recentQuietReloads(now: number): number[] {
   try {
     const raw = localStorage.getItem(QUIET_RELOADS_KEY);
