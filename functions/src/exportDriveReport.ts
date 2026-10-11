@@ -21,6 +21,7 @@ import {
   type BackupKind,
   type DriveFolderName,
 } from "./driveNames";
+import { buildTeacherMediationRows } from "./teacherMediationRows";
 import {
   ALL_LEARNERS,
   RESET_LOCK_REFUSAL_HE,
@@ -2348,7 +2349,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
 
     const meetingRows: Record<string, any>[] = [];
     // Catch-up time (owner, 2.10.2026): read once, one record per learner × meeting.
-    const catchUpByKey = catchUpRecordsByLearnerMeeting(await readAllDocs(db.collection(CATCHUP_COLLECTION)));
+    const catchUpDocs = await readAllDocs(db.collection(CATCHUP_COLLECTION));
+    const catchUpByKey = catchUpRecordsByLearnerMeeting(catchUpDocs);
     // The keys are "learner:meeting". A plain sort() compares them as text, so
     // learners 10-12 came before learner 1; compare the two numbers.
     const byNumbers = (a: [string, unknown], b: [string, unknown]) => {
@@ -2509,13 +2511,26 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
 
     // ── 4. Every reset audit entry ──────────────────────────────────────────
 
-    const [labelActions, labelMeetings, labelRecordings, labelReflections, labelResetLog] = RESEARCH_FILE_LABELS;
+    // The sixth file (Module 24 §ב): the system side of the researcher's journal for measure 5.
+    const mediationRows = buildTeacherMediationRows(
+      {
+        telemetry: allTelemetry,
+        chat: (await rtdb.ref("chat_messages").get()).val(),
+        sessionDocs,
+        students: studentsNode,
+        catchUp: catchUpDocs,
+      },
+      scopedSession,
+    );
+
+    const [labelActions, labelMeetings, labelRecordings, labelReflections, labelResetLog, labelMediation] = RESEARCH_FILE_LABELS;
     const files: Array<{ name: string; csv: string; rows: number }> = [
       { name: labelActions, csv: toCsv(telemetryRows), rows: telemetryRows.length },
       { name: labelMeetings, csv: toCsv(meetingRows), rows: meetingRows.length },
       { name: labelRecordings, csv: toCsv(recordingRows), rows: recordingRows.length },
       { name: labelReflections, csv: toCsv(reflectionRows), rows: reflectionRows.length },
       { name: labelResetLog, csv: toCsv(resetRows), rows: resetRows.length },
+      { name: labelMediation, csv: toCsv(mediationRows), rows: mediationRows.length },
     ];
 
     // Requirement 3: PII Detection check across all CSV outputs

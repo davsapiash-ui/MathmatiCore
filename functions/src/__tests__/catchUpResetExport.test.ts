@@ -177,7 +177,7 @@ describe('research export — the meetings file', () => {
 
   it('reads catchup_records once, before the rows', () => {
     expect(fn.match(/db\.collection\(CATCHUP_COLLECTION\)/g)).toHaveLength(1);
-    const read = fn.indexOf('const catchUpByKey = catchUpRecordsByLearnerMeeting(await readAllDocs(db.collection(CATCHUP_COLLECTION)));');
+    const read = fn.indexOf('const catchUpDocs = await readAllDocs(db.collection(CATCHUP_COLLECTION));');
     expect(read).toBeGreaterThan(-1);
     expect(read).toBeLessThan(fn.indexOf('for (const [k, events] of Array.from(byLearnerMeeting.entries()).sort(byNumbers))'));
   });

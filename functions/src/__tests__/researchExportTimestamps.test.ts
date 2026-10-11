@@ -160,8 +160,8 @@ describe('the export after a reset and after an earlier export', () => {
     h.collections.reset_audit_log = [resetEntry('reset_1'), exportEntry];
     const result = await run(teacher());
     expect(result.status).toBe('SUCCESS');
-    // Drive is unavailable in tests: the five files wait in Storage (register gap יב).
-    expect(h.saved.filter((p) => p.endsWith('.csv'))).toHaveLength(5);
+    // Drive is unavailable in tests: the six files wait in Storage (register gap יב).
+    expect(h.saved.filter((p) => p.endsWith('.csv'))).toHaveLength(6);
     expect(h.sets.some((s) => s.name === 'reset_audit_log' && s.values.reset_level === 'export')).toBe(true);
   });
 

@@ -44,11 +44,11 @@ describe('Module 24 — research export covers the whole process', () => {
     }
   });
 
-  it('exports five files: actions, meetings, recordings, reflections, reset log', () => {
-    // PRD Module 24 §ב: the five files, by the names the PRD gives them (driveNames.ts).
+  it('exports six files: actions, meetings, recordings, reflections, reset log, teacher mediation', () => {
+    // PRD Module 24 §ב: the six files, by the names the PRD gives them (driveNames.ts).
     const names = readFileSync(resolve(__dirname, '../../../../functions/src/driveNames.ts'), 'utf-8');
-    expect(names).toContain('export const RESEARCH_FILE_LABELS = ["פעולות", "מפגשים", "הקלטות", "רפלקציות", "יומן איפוסים"] as const;');
-    for (const label of ['labelActions', 'labelMeetings', 'labelRecordings', 'labelReflections', 'labelResetLog']) {
+    expect(names).toContain('export const RESEARCH_FILE_LABELS = ["פעולות", "מפגשים", "הקלטות", "רפלקציות", "יומן איפוסים", "תיווך המורה"] as const;');
+    for (const label of ['labelActions', 'labelMeetings', 'labelRecordings', 'labelReflections', 'labelResetLog', 'labelMediation']) {
       expect(exportSection).toContain(`{ name: ${label},`);
     }
   });
