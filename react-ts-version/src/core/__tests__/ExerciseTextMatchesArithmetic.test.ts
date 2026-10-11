@@ -15,7 +15,7 @@ import { PLACE_ORDER, digitAt, type Place } from '@/core/placeValue';
  *
  * הבדיקה הזו לא מסתכלת על ניסוח. היא מחשבת את הטורים בפועל ומשווה למילים.
  */
-const PATHS: LearningPath[] = ['remediation_path', 'green_path', 'graded_path'];
+const PATHS: LearningPath[] = ['remediation_path', 'green_path', 'graded_path', 'graded_foundation_path'];
 
 const everyTask: SessionTask[] = [
   ...([3, 4, 5, 6, 7, 8] as const).flatMap((s) => PATHS.flatMap((p) => SESSIONS_BY_PATH[s][p])),
@@ -173,8 +173,8 @@ describe('מפגש 5 — ההוראה אינה אומרת מראש אילו לב
     ...SESSION_BRANCH_TASKS[5][p].challenge,
   ]).filter((t) => t.type === 'vertical_addition' && t.isSubtraction && !t.hiddenDigits);
 
-  it('מכסה את כל 27 תרגילי החיסור במאונך של מפגש 5 (18 חובה, 9 בחירה; המסלול המדורג מ-11.10.2026)', () => {
-    expect(session5).toHaveLength(27);
+  it('מכסה את כל 36 תרגילי החיסור במאונך של מפגש 5 (24 חובה, 12 בחירה; שני המסלולים המדורגים מ-11.10.2026)', () => {
+    expect(session5).toHaveLength(36);
   });
 
   // Owner, 30.9.2026: the instruction no longer says in advance where to borrow —

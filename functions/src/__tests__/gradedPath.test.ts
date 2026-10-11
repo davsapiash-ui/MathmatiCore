@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { GATE_PATHS } from '../teacherGate';
-import { asLearningPath, learnerPathOf } from '../learningPath';
+import { asLearningPath, learnerPathOf, recommendedPathFor } from '../learningPath';
 import {
   CHOICE_TITLES_HE,
   FADING_PAIRS,
@@ -58,8 +58,8 @@ const catalog = (banks: Record<string, string[]>) => ({
 });
 
 describe('the gate and the learner record', () => {
-  it('the teacher may approve any of the three paths', () => {
-    expect([...GATE_PATHS]).toEqual(['green_path', 'remediation_path', 'graded_path']);
+  it('the teacher may approve any of the four paths', () => {
+    expect([...GATE_PATHS]).toEqual(['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path']);
     expect(asLearningPath('graded_path')).toBe('graded_path');
     expect(asLearningPath('yellow')).toBeNull();
   });
@@ -138,7 +138,7 @@ describe('the class report counts three paths', () => {
   const a = aggregateClass(rows, new Map(rows.map((r) => [r.student_id, []])));
 
   it('in the aggregates', () => {
-    expect(a.paths).toEqual({ green_path: 1, remediation_path: 1, graded_path: 2 });
+    expect(a.paths).toEqual({ green_path: 1, remediation_path: 1, graded_path: 2, graded_foundation_path: 0 });
     expect(rows[2].learning_path).toBe('graded_path');
   });
 
@@ -204,5 +204,84 @@ describe('measure 3 (representation) counts the graded representation exercises'
     // s3_d_t6 is a missing-element task (as s3_r_t7), s7_d_t2 a skeleton.
     expect(REPRESENTATION_EXERCISES.has('s3_d_t6')).toBe(false);
     expect(REPRESENTATION_EXERCISES.has('s7_d_t2')).toBe(false);
+  });
+});
+
+/**
+ * The fourth path, המסלול המדורג – יסודות (owner, 11.10.2026): stored value 'graded_foundation_path', bank ids
+ * s{N}_f_*, catalog banks session_{N}_graded_foundation_path. A learner the teacher marked graded is recommended
+ * the graded path at 50% or more in meeting 2, and this one below; a regular learner keeps green / remediation.
+ */
+describe('the graded foundations path', () => {
+  it('the recommendation: two levels for every learner, by the teacher\'s graded mark', () => {
+    expect(recommendedPathFor(50, false)).toBe('green_path');
+    expect(recommendedPathFor(49, false)).toBe('remediation_path');
+    expect(recommendedPathFor(50, true)).toBe('graded_path');
+    expect(recommendedPathFor(49, true)).toBe('graded_foundation_path');
+    expect(recommendedPathFor(100, true)).toBe('graded_path');
+    expect(recommendedPathFor(0, true)).toBe('graded_foundation_path');
+    expect(recommendedPathFor(0, false)).toBe('remediation_path');
+  });
+
+  it('is a path of its own: the gate, the record, the id letter', () => {
+    expect(GATE_PATHS).toContain('graded_foundation_path');
+    expect(asLearningPath('graded_foundation_path')).toBe('graded_foundation_path');
+    expect(learnerPathOf({ teacher_selected_path: 'graded_foundation_path' })).toBe('graded_foundation_path');
+    expect(learnerPathOf({ graded_track: true, pedagogicalPath: 'graded_foundation_path' })).toBe('graded_foundation_path');
+    // The two fields disagree: the foundations level wins over the graded one, as remediation over green.
+    expect(learnerPathOf({ teacher_selected_path: 'graded_path', pedagogicalPath: 'graded_foundation_path' })).toBe('graded_foundation_path');
+    // Before the gate a marked learner is on the shared graded meetings 1–2.
+    expect(learnerPathOf({ graded_track: true })).toBe('graded_path');
+    expect(pathOfMeeting(['s4_f_t1', 's4_f_t2', 's4_f_t3'].map((id, i) => done(id, i + 1)))).toBe('graded_foundation_path');
+    expect(pathOfMeeting([done('s4_f_t1', 1), done('s4_d_t1', 2)])).toBeNull();
+    expect(learnerPathsFromRecords({ student_user8: { teacher_selected_path: 'graded_foundation_path' } }).get(8)).toBe('graded_foundation_path');
+  });
+
+  it('the class report counts it, and prints it by the screens\' name', () => {
+    const rows = [
+      buildLearnerRow(1, [done('s4_f_t1', 1)], 7, 'graded_foundation_path', null, null, 0),
+      buildLearnerRow(2, [done('s4_d_t1', 1)], 7, 'graded_path', null, null, 0),
+    ];
+    const a = aggregateClass(rows, new Map(rows.map((r) => [r.student_id, []])));
+    expect(a.paths).toEqual({ green_path: 0, remediation_path: 0, graded_path: 1, graded_foundation_path: 1 });
+    const html = classReportHtml({ session_number: 4, aggregates: a, learners: rows });
+    expect(ROUTE_NAME_HE.graded_foundation_path).toBe('המסלול המדורג – יסודות');
+    expect(html).toContain(`${ROUTE_NAME_HE.graded_foundation_path}:</b> 1`);
+  });
+
+  it('its choice exercises are choice exercises, with their bank titles', () => {
+    expect(exercisePathType('s4_f_reinforce_2')).toBe('consolidation');
+    expect(exercisePathType('s6_f_challenge_1')).toBe('challenge');
+    expect(exercisePathType('s4_f_t1')).toBe('compulsory');
+    expect(Object.keys(CHOICE_TITLES_HE).filter((id) => /_f_/.test(id))).toHaveLength(15);
+    expect(exerciseLabelHe(null, 's3_f_challenge_1')).toBe('אתגר: כל הדרכים לייצג את 180');
+  });
+
+  it('its meeting-8 exercises pair with the meeting 4–6 exercises whose operands they repeat', () => {
+    const operands = new Map<string, [number, number]>();
+    for (const m of gradedSource.matchAll(/\b(?:addition|subtraction|skeleton|missingResultDigit)\('(s\d_f_t\d)',\s*(\d+),\s*(\d+)/g)) {
+      operands.set(m[1], [Number(m[2]), Number(m[3])]);
+    }
+    const pairs = Object.entries(FADING_PAIRS).filter(([id]) => id.startsWith('s8_f_'));
+    expect(pairs.map(([id]) => id).sort()).toEqual(['s8_f_t1', 's8_f_t2', 's8_f_t3', 's8_f_t4', 's8_f_t5', 's8_f_t6']); // s8_f_t7 is a skeleton
+    for (const [now, before] of pairs) {
+      expect(operands.get(now), now).toBeDefined();
+      expect(operands.get(now), `${now} ↔ ${before}`).toEqual(operands.get(before));
+      expect(before, before).toMatch(/^s[4-6]_f_t\d$/);
+    }
+    const gap = computeFadingGap(
+      [done('s8_f_t1', 1, 8, 20_000), done('s8_f_t6', 2, 8, 20_000)],
+      [done('s4_f_t1', 1, 4), done('s6_f_t5', 2, 6)]
+    );
+    expect(gap.pairs_measured).toBe(2);
+    expect(gap.unpaired_exercises).toEqual([]);
+  });
+
+  it('measure 3 counts its representation exercises, by the same kinds', () => {
+    for (const id of ['s3_f_t1', 's3_f_t2', 's3_f_t3', 's3_f_t4', 's3_f_t5', 's3_f_t7', 's7_f_t1', 's7_f_t6', 's7_f_t7']) {
+      expect(REPRESENTATION_EXERCISES.has(id), id).toBe(true);
+    }
+    expect(REPRESENTATION_EXERCISES.has('s3_f_t6')).toBe(false);
+    expect(REPRESENTATION_EXERCISES.has('s7_f_t2')).toBe(false);
   });
 });

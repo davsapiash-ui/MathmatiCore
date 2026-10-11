@@ -14,7 +14,8 @@
  * disturbed.
  *
  * Firestore document layout — one document per bank:
- *   id: `session_1`, `session_1_graded_path`, or `session_{3..8}_{green_path|remediation_path|graded_path}`
+ *   id: `session_1`, `session_1_graded_path`, or
+ *   `session_{3..8}_{green_path|remediation_path|graded_path|graded_foundation_path}`
  *   { session_number: number, learning_path: string | null,
  *     updated_at: number, tasks: SessionTask[] }
  */
@@ -23,7 +24,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { firestore } from '@/infrastructure/firebase';
 import type { SessionTask } from '@/data/sessionTasks';
 
-export type LearningPath = 'green_path' | 'remediation_path' | 'graded_path';
+export type LearningPath = 'green_path' | 'remediation_path' | 'graded_path' | 'graded_foundation_path';
 
 export interface CatalogBankDoc {
   session_number: number;
@@ -33,13 +34,14 @@ export interface CatalogBankDoc {
 }
 
 export function catalogBankId(sessionNumber: number, path?: LearningPath | null): string {
-  // Sessions 3–8 carry a bank per path (green / remediation / graded); session 1 one bank, and one more
-  // for the graded path, whose refresh exercises mirror the graded diagnostic (owner, 11.10.2026).
+  // Sessions 3–8 carry a bank per path (green / remediation / graded / graded foundations); session 1 one
+  // bank, and one more for the two special-education paths, whose refresh exercises mirror the graded
+  // diagnostic (owner, 11.10.2026).
   if (sessionNumber >= 3 && sessionNumber <= 8) {
-    const p = path === 'remediation_path' || path === 'graded_path' ? path : 'green_path';
+    const p = path === 'remediation_path' || path === 'graded_path' || path === 'graded_foundation_path' ? path : 'green_path';
     return `session_${sessionNumber}_${p}`;
   }
-  if (sessionNumber === 1 && path === 'graded_path') return 'session_1_graded_path';
+  if (sessionNumber === 1 && (path === 'graded_path' || path === 'graded_foundation_path')) return 'session_1_graded_path';
   return `session_${sessionNumber}`;
 }
 

@@ -43,8 +43,9 @@ describe('Module 20: the approval gate cannot be bypassed or mis-routed', () => 
 
   it('the approval path falls back to the LIVE recommendation, never to green', () => {
     expect(gate.includes("selectedPaths[studentId] || 'green_path'")).toBe(false);
-    // A learner the teacher marked as graded opens on the graded path (11.10.2026); otherwise the live recommendation.
-    expect(gate.includes("selectedPaths[s.studentId] ?? (s.gradedTrack ? 'graded_path' : s.recommendedPath)")).toBe(true);
+    // The live recommendation knows the graded mark (11.10.2026: graded_path or graded_foundation_path for a
+    // marked learner); a marked learner with no recommendation yet opens on the graded path.
+    expect(gate.includes("selectedPaths[s.studentId] ?? s.recommendedPath ?? (s.gradedTrack ? 'graded_path' : null)")).toBe(true);
   });
 
   it('batch approval is built at click time from waiting learners and reports a real tally', () => {

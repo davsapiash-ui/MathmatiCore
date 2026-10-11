@@ -29,6 +29,12 @@ import {
   SESSION6_GRADED_TASKS,
   SESSION7_GRADED_TASKS,
   SESSION8_GRADED_TASKS,
+  SESSION3_FOUNDATION_TASKS,
+  SESSION4_FOUNDATION_TASKS,
+  SESSION5_FOUNDATION_TASKS,
+  SESSION6_FOUNDATION_TASKS,
+  SESSION7_FOUNDATION_TASKS,
+  SESSION8_FOUNDATION_TASKS,
 } from './sessionGradedTasks';
 import {
   addition,
@@ -58,17 +64,25 @@ import {
 /* ── Types ── */
 
 /**
- * The three learning paths (owner, 11.10.2026): green up to 10,000, remediation up to 1,000 for prior
- * knowledge not yet acquired, and graded — special education, the same topics graded within 1,000
- * (sessionGradedTasks.ts).
+ * The four learning paths (owner, 11.10.2026): green up to 10,000, remediation up to 1,000 for prior
+ * knowledge not yet acquired, and the two special-education levels — graded, the same topics graded
+ * within 1,000, and graded foundations, the same topics within the hundred and from whole hundreds
+ * (sessionGradedTasks.ts). A learner the teacher marked as graded gets one of the last two.
  */
-export type LearningPath = 'green_path' | 'remediation_path' | 'graded_path';
+export type LearningPath = 'green_path' | 'remediation_path' | 'graded_path' | 'graded_foundation_path';
 
-export const LEARNING_PATHS: readonly LearningPath[] = ['green_path', 'remediation_path', 'graded_path'];
+export const LEARNING_PATHS: readonly LearningPath[] = ['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'];
 
-/** A stored path value, or null when it is none of the three. */
+/** The two special-education paths; they share the graded meetings 1–2 (owner, 11.10.2026). */
+export function isSpecialEdPath(path: unknown): path is 'graded_path' | 'graded_foundation_path' {
+  return path === 'graded_path' || path === 'graded_foundation_path';
+}
+
+/** A stored path value, or null when it is none of the four. */
 export function asLearningPathValue(value: unknown): LearningPath | null {
-  return value === 'green_path' || value === 'remediation_path' || value === 'graded_path' ? value : null;
+  return value === 'green_path' || value === 'remediation_path' || value === 'graded_path' || value === 'graded_foundation_path'
+    ? value
+    : null;
 }
 
 export type TaskType =
@@ -777,12 +791,12 @@ export const SUPPORT_CONTENT: Record<SupportType, SupportContent> = {
 /* ── Sessions map: meeting number → task bank by learning path ── */
 
 export const SESSIONS_BY_PATH: Record<3 | 4 | 5 | 6 | 7 | 8, Record<LearningPath, SessionTask[]>> = {
-  3: { green_path: SESSION3_GREEN_TASKS, remediation_path: SESSION3_REMEDIATION_TASKS, graded_path: SESSION3_GRADED_TASKS },
-  4: { green_path: SESSION4_GREEN_TASKS, remediation_path: SESSION4_REMEDIATION_TASKS, graded_path: SESSION4_GRADED_TASKS },
-  5: { green_path: SESSION5_GREEN_TASKS, remediation_path: SESSION5_REMEDIATION_TASKS, graded_path: SESSION5_GRADED_TASKS },
-  6: { green_path: SESSION6_GREEN_TASKS, remediation_path: SESSION6_REMEDIATION_TASKS, graded_path: SESSION6_GRADED_TASKS },
-  7: { green_path: SESSION7_GREEN_TASKS, remediation_path: SESSION7_REMEDIATION_TASKS, graded_path: SESSION7_GRADED_TASKS },
-  8: { green_path: SESSION8_GREEN_TASKS, remediation_path: SESSION8_REMEDIATION_TASKS, graded_path: SESSION8_GRADED_TASKS },
+  3: { green_path: SESSION3_GREEN_TASKS, remediation_path: SESSION3_REMEDIATION_TASKS, graded_path: SESSION3_GRADED_TASKS, graded_foundation_path: SESSION3_FOUNDATION_TASKS },
+  4: { green_path: SESSION4_GREEN_TASKS, remediation_path: SESSION4_REMEDIATION_TASKS, graded_path: SESSION4_GRADED_TASKS, graded_foundation_path: SESSION4_FOUNDATION_TASKS },
+  5: { green_path: SESSION5_GREEN_TASKS, remediation_path: SESSION5_REMEDIATION_TASKS, graded_path: SESSION5_GRADED_TASKS, graded_foundation_path: SESSION5_FOUNDATION_TASKS },
+  6: { green_path: SESSION6_GREEN_TASKS, remediation_path: SESSION6_REMEDIATION_TASKS, graded_path: SESSION6_GRADED_TASKS, graded_foundation_path: SESSION6_FOUNDATION_TASKS },
+  7: { green_path: SESSION7_GREEN_TASKS, remediation_path: SESSION7_REMEDIATION_TASKS, graded_path: SESSION7_GRADED_TASKS, graded_foundation_path: SESSION7_FOUNDATION_TASKS },
+  8: { green_path: SESSION8_GREEN_TASKS, remediation_path: SESSION8_REMEDIATION_TASKS, graded_path: SESSION8_GRADED_TASKS, graded_foundation_path: SESSION8_FOUNDATION_TASKS },
 };
 
 /** Default (green_path) bank per session — kept for callers that do not resolve a path. */
@@ -802,7 +816,7 @@ const PATH_SPLIT_SESSIONS = [3, 4, 5, 6, 7, 8] as const;
  * PRD v7.2 Modules 4/26: the hardcoded banks in their canonical Firestore
  * `curriculum_catalog` document layout — used by the admin publish action to
  * seed/refresh the server catalog. Always reads the hardcoded constants,
- * never the live overrides. 20 banks: session 1 and its graded variant, and the three paths of sessions 3–8.
+ * never the live overrides. 26 banks: session 1 and its graded variant, and the four paths of sessions 3–8.
  */
 export function getHardcodedCatalogBanks(): Array<{
   id: string;
@@ -818,6 +832,7 @@ export function getHardcodedCatalogBanks(): Array<{
     banks.push({ id: `session_${n}_green_path`, session_number: n, learning_path: 'green_path', tasks: SESSIONS_BY_PATH[n].green_path });
     banks.push({ id: `session_${n}_remediation_path`, session_number: n, learning_path: 'remediation_path', tasks: SESSIONS_BY_PATH[n].remediation_path });
     banks.push({ id: `session_${n}_graded_path`, session_number: n, learning_path: 'graded_path', tasks: SESSIONS_BY_PATH[n].graded_path });
+    banks.push({ id: `session_${n}_graded_foundation_path`, session_number: n, learning_path: 'graded_foundation_path', tasks: SESSIONS_BY_PATH[n].graded_foundation_path });
   }
   return banks;
 }
@@ -828,8 +843,8 @@ export function getSessionTasks(
 ): SessionTask[] {
   const isSplit = meeting >= 3 && meeting <= 8;
   // Meeting 1 has one bank for everyone and one for the graded path, whose refresh exercises mirror
-  // the graded diagnostic (owner, 11.10.2026).
-  if (meeting === 1 && path === 'graded_path') {
+  // the graded diagnostic (owner, 11.10.2026). Both special-education paths share it.
+  if (meeting === 1 && isSpecialEdPath(path)) {
     return curriculumCatalog.getActiveBank(1, 'graded_path') ?? SESSION1_GRADED_TASKS;
   }
   // No fallback to another path's bank: PRD Module 26 forbids loading a bank that does not match the path.

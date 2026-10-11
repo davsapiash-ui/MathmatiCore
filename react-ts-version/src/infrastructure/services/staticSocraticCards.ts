@@ -2469,6 +2469,8 @@ const STEPS_BY_ID: Record<string, { start: number; add: Counts; remove: Counts; 
   s7_g_t5: { start: 3400, add: { thousands: 1 }, remove: { hundreds: 6 }, addWords: 'האלף', removeWords: 'שש המאות', removeIndef: 'שש מאות' },
   // The graded path (owner, 11.10.2026).
   s7_d_t6: { start: 240, add: { hundreds: 3 }, remove: { tens: 5 }, addWords: 'שלוש המאות', removeWords: 'חמש העשרות', removeIndef: 'חמש עשרות' },
+  // The graded foundations path (owner, 11.10.2026).
+  s7_f_t6: { start: 130, add: { hundreds: 2 }, remove: { tens: 4 }, addWords: 'שתי המאות', removeWords: 'ארבע העשרות', removeIndef: 'ארבע עשרות' },
 };
 export const stepsOf = (task: any) => (typeof task?.id === 'string' ? STEPS_BY_ID[task.id] ?? null : null);
 
@@ -2586,7 +2588,7 @@ function placeCuesCard(): SocraticHintResponse {
 }
 
 /** Station 7's error analysis: "תלמיד פתר 247 + 135 וקיבל 372…" (s7_r_t5), 4,857 + 3,568 → 7,425 (s7_g_t4). */
-const ERROR_ANALYSIS_IDS = new Set(['s7_r_t5', 's7_g_t4', 's7_d_t5']);
+const ERROR_ANALYSIS_IDS = new Set(['s7_r_t5', 's7_g_t4', 's7_d_t5', 's7_f_t5']);
 const isErrorAnalysis = (task: any) =>
   ERROR_ANALYSIS_IDS.has(task?.id) || (typeof task?.instructionHe === 'string' && /תלמיד פתר .+ וקיבל/.test(task.instructionHe));
 

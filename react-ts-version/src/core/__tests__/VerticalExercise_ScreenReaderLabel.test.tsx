@@ -154,9 +154,16 @@ describe('a skeleton exercise: the label says "ספרה חסרה" and never the 
     for (const t of skeletons) {
       cleanup();
       const { label } = sheet(t);
+      expect(t.instructionHe, t.id).toContain('▢');
+      // A hidden digit in the second number: no bank has one today; kept so such an exercise is read right.
+      if (t.hiddenDigits?.b?.length) {
+        const operandB = label.match(new RegExp(` ${operator(t)} (.+)$`))![1];
+        expect(operandB, t.id).toContain(MISSING);
+        expect(speakMissingDigits(t.instructionHe), t.id).toContain(` ${t.isSubtraction ? '−' : '+'} ${operandB}`);
+        continue;
+      }
       const operandA = label.match(new RegExp(`^תרגיל במאונך: (.+) ${operator(t)} `))![1];
       expect(operandA, t.id).toContain(MISSING);
-      expect(t.instructionHe, t.id).toContain('▢');
       expect(speakMissingDigits(t.instructionHe), t.id).toContain(`${operandA} ${t.isSubtraction ? '−' : '+'} `);
     }
   });
@@ -182,7 +189,7 @@ describe('an exercise with no hidden operand digit keeps exactly the label it ha
   });
 
   it('a missing result digit (the answer there) is in no label: its box is empty and named without a digit', () => {
-    expect(missingResult.map((t) => t.id).sort()).toEqual(['s4_d_t7', 's4_r_t7', 's6_d_t7', 's6_r_t7']);
+    expect(missingResult.map((t) => t.id).sort()).toEqual(['s4_d_t7', 's4_f_t7', 's4_r_t7', 's6_d_t7', 's6_f_t7', 's6_r_t7']);
     for (const t of missingResult) {
       cleanup();
       const { container, label, a, b, target } = sheet(t);

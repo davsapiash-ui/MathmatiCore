@@ -12,7 +12,7 @@ import { useStore } from '@/application/useStore';
 describe('LIVE PROOF: Early Finisher & Branching Policy, sessions 3 to 7', () => {
   const sessions: SessionNumber[] = [3, 4, 5, 6, 7];
   for (const sessionNum of sessions) {
-    for (const path of ['green_path', 'remediation_path', 'graded_path'] as const) {
+    for (const path of ['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'] as const) {
       it(`Session ${sessionNum} / ${path}: mandatory completion -> choice_branch -> branch task injection`, () => {
         const store = useWorkspaceStore.getState();
         store.resetWorkspace();

@@ -37,9 +37,9 @@ describe('the route names in the reports are the screens’ names', () => {
   it('the copy equals the frontend source', () => {
     const fe = read(resolve(__dirname, '../../../react-ts-version/src/core/routeLabels.ts'));
     const block = fe.slice(fe.indexOf('export const ROUTE_NAME_HE = {'), fe.indexOf('} as const;', fe.indexOf('export const ROUTE_NAME_HE = {')));
-    const names = Object.fromEntries([...block.matchAll(/(green_path|remediation_path|graded_path): '([^']+)'/g)].map((m) => [m[1], m[2]]));
+    const names = Object.fromEntries([...block.matchAll(/(green_path|remediation_path|graded_path|graded_foundation_path): '([^']+)'/g)].map((m) => [m[1], m[2]]));
     expect(names).toEqual({ ...ROUTE_NAME_HE });
-    expect(ROUTE_NAME_HE).toEqual({ green_path: 'המסלול הירוק', remediation_path: 'מסלול צמצום פערי קדם', graded_path: 'המסלול המדורג' });
+    expect(ROUTE_NAME_HE).toEqual({ green_path: 'המסלול הירוק', remediation_path: 'מסלול צמצום פערי קדם', graded_path: 'המסלול המדורג', graded_foundation_path: 'המסלול המדורג – יסודות' });
   });
 
   it('the reports use them and no longer say "צהוב", "מואץ", "העמקה (ירוק)" or "מסלול ביסוס"', () => {

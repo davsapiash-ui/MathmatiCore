@@ -20,8 +20,8 @@ import { PLACE_ORDER, PLACE_VALUES, getValue, EMPTY_COUNTS, digitAt, type Place 
  */
 
 type Pair = [number, '+' | '-', number];
-/** The two paths מסמך 03 lists; the graded path (11.10.2026) has its own test, GradedPath_Banks.test.ts. */
-type Doc03Path = Exclude<LearningPath, 'graded_path'>;
+/** The two paths מסמך 03 lists; the two graded paths (11.10.2026) have their own test, GradedPath_Banks.test.ts. */
+type Doc03Path = Exclude<LearningPath, 'graded_path' | 'graded_foundation_path'>;
 
 const DOC03_COMPULSORY: Record<4 | 5 | 6 | 8, Record<Doc03Path, Pair[]>> = {
   4: { remediation_path: [[142, '+', 23], [128, '+', 35], [247, '+', 135], [456, '+', 281], [354, '+', 128], [507, '+', 125]], green_path: [[1245, '+', 328], [2356, '+', 1427], [3456, '+', 2183], [4821, '+', 1534], [5678, '+', 2453], [7045, '+', 1283]] },
@@ -196,15 +196,16 @@ describe('bank structure', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('the hardcoded catalog seed publishes 20 banks: session 1 and its graded variant, and the three paths of sessions 3–8', () => {
+  it('the hardcoded catalog seed publishes 26 banks: session 1 and its graded variant, and the four paths of sessions 3–8', () => {
     const ids = getHardcodedCatalogBanks().map((b) => b.id);
-    expect(ids).toHaveLength(20);
+    expect(ids).toHaveLength(26);
     expect(ids).toContain('session_1');
     expect(ids).toContain('session_1_graded_path');
     for (const s of [3, 4, 5, 6, 7, 8]) {
       expect(ids).toContain(`session_${s}_green_path`);
       expect(ids).toContain(`session_${s}_remediation_path`);
       expect(ids).toContain(`session_${s}_graded_path`);
+      expect(ids).toContain(`session_${s}_graded_foundation_path`);
     }
   });
 

@@ -28,11 +28,12 @@ export function gateApprovedToastHe(studentNumber: string | number, path: Pedago
   return `✓ ${TEACHER_GATE_HE}: תלמיד ${studentNumber} אושר ל${ROUTE_NAME_HE[path].replace(/^ה/, '')}.`;
 }
 
-/** The three route cards: the number range of each route's bank (PRD Module 26). */
+/** The four route cards: the number range of each route's bank (PRD Module 26). */
 export const ROUTE_CARD_HE: Readonly<Record<PedagogicalPath, string>> = {
   green_path: 'חיבור וחיסור במאונך בתחום הרבבה, במספרים עד 10,000.',
   remediation_path: 'חיבור וחיסור במאונך בתחום המאה והאלף, במספרים עד 1,000, לצמצום פערי קדם.',
   graded_path: 'אותם נושאים בדירוג לחינוך המיוחד: חיבור וחיסור במאונך בתחום האלף.',
+  graded_foundation_path: 'אותם נושאים לחינוך המיוחד, ברמת יסודות: חיבור וחיסור במאונך בתחום המאה, וערך המקום ממאות שלמות.',
 };
 
 interface Props {
@@ -60,8 +61,9 @@ function recommendationOf(student: Record<string, unknown>, evidence?: GateStude
  * a default colour). This used to fall back to green for everyone.
  */
 function pathToPreselect(s: Record<string, unknown>, evidence?: GateStudentItem | null): PedagogicalPath | null {
-  // A learner the teacher marked as graded before meeting 1 opens on the graded path (owner, 11.10.2026).
-  return approvedPathOf(s, evidence) ?? (s.graded_track === true ? 'graded_path' : recommendationOf(s, evidence));
+  // The recommendation knows the graded mark (owner, 11.10.2026): graded_path or graded_foundation_path for a
+  // marked learner. A marked learner with no recommendation yet opens on the graded path.
+  return approvedPathOf(s, evidence) ?? recommendationOf(s, evidence) ?? (s.graded_track === true ? 'graded_path' : null);
 }
 
 /** Whether the gate already approved this learner. */
@@ -213,6 +215,14 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                     <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-stone-100 text-stone-800 dark:bg-stone-950/60 dark:text-stone-300">
                       {ROUTE_NAME_HE.remediation_path}
                     </span>
+                  ) : recommendation === 'graded_path' ? (
+                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-violet-100 text-violet-900 dark:bg-violet-950/60 dark:text-violet-300">
+                      {ROUTE_NAME_HE.graded_path}
+                    </span>
+                  ) : recommendation === 'graded_foundation_path' ? (
+                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-teal-100 text-teal-900 dark:bg-teal-950/60 dark:text-teal-300">
+                      {ROUTE_NAME_HE.graded_foundation_path}
+                    </span>
                   ) : (
                     <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
                       {NO_RECOMMENDATION_HE}
@@ -337,6 +347,33 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                   {ROUTE_CARD_HE.graded_path}
+                </p>
+              </button>
+
+              {/* Graded foundations path (owner, 11.10.2026) */}
+              <button
+                type="button"
+                aria-pressed={selectedPath === 'graded_foundation_path'}
+                onClick={() => setSelectedPath('graded_foundation_path')}
+                className={`text-right p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
+                  selectedPath === 'graded_foundation_path'
+                    ? 'border-teal-600 bg-teal-50/60 dark:bg-teal-950/40 shadow-sm ring-2 ring-teal-500/20'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-teal-500" />
+                    <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
+                      {ROUTE_NAME_HE.graded_foundation_path}
+                    </span>
+                  </div>
+                  {selectedPath === 'graded_foundation_path' && (
+                    <CheckCircle2 className="w-4 h-4 text-teal-700" />
+                  )}
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  {ROUTE_CARD_HE.graded_foundation_path}
                 </p>
               </button>
             </div>

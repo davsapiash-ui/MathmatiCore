@@ -85,8 +85,11 @@ export function buildSessionCatalog(): SessionCurriculumItem[] {
   });
   for (const n of [3, 4, 5, 6, 7, 8] as const) {
     const byPath = SESSIONS_BY_PATH[n];
-    const banks: PathBank[] = (["green_path", "remediation_path", "graded_path"] as const).map((path) => ({
-      label: path === "green_path" ? `${ROUTE_NAME_HE.green_path} (עד 10,000)` : path === "remediation_path" ? `${ROUTE_NAME_HE.remediation_path} (עד 1,000)` : `${ROUTE_NAME_HE.graded_path} (עד 1,000, בדירוג)`,
+    const banks: PathBank[] = (["green_path", "remediation_path", "graded_path", "graded_foundation_path"] as const).map((path) => ({
+      label: path === "green_path" ? `${ROUTE_NAME_HE.green_path} (עד 10,000)`
+        : path === "remediation_path" ? `${ROUTE_NAME_HE.remediation_path} (עד 1,000)`
+        : path === "graded_path" ? `${ROUTE_NAME_HE.graded_path} (עד 1,000, בדירוג)`
+        : `${ROUTE_NAME_HE.graded_foundation_path} (בתחום המאה, ומאות שלמות עד 1,000)`,
       compulsory: titles((byPath?.[path] ?? []) as SessionTask[]),
       reinforcement: titles(getSessionBranchTasks(n, "reinforcement", path)),
       challenge: titles(getSessionBranchTasks(n, "challenge", path)),

@@ -50,8 +50,10 @@ export function TeacherApprovalGate({
   // chosen yet: the learner is then not approved — not even by the batch button
   // — until the teacher picks a path herself (Module 20: the recommendation
   // comes from the diagnostic, never from a default).
+  // The recommendation knows the graded mark (owner, 11.10.2026: graded_path or graded_foundation_path for
+  // a marked learner); a marked learner with no recommendation yet stays on the graded path.
   const effectivePath = (s: GateStudentItem): PedagogicalPath | null =>
-    selectedPaths[s.studentId] ?? (s.gradedTrack ? 'graded_path' : s.recommendedPath);
+    selectedPaths[s.studentId] ?? s.recommendedPath ?? (s.gradedTrack ? 'graded_path' : null);
 
   const waitingStudents = students.filter((s) => !s.isApproved);
   const approvedStudents = students.filter((s) => s.isApproved);
@@ -255,6 +257,14 @@ export function TeacherApprovalGate({
                             <AlertCircle className="w-3 h-3" />
                             {ROUTE_NAME_HE.remediation_path}
                           </span>
+                        ) : st.recommendedPath === 'graded_path' ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-violet-100 text-violet-900 dark:bg-violet-950/60 dark:text-violet-300">
+                            {ROUTE_NAME_HE.graded_path}
+                          </span>
+                        ) : st.recommendedPath === 'graded_foundation_path' ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-teal-100 text-teal-900 dark:bg-teal-950/60 dark:text-teal-300">
+                            {ROUTE_NAME_HE.graded_foundation_path}
+                          </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                             {NO_RECOMMENDATION_HE}
@@ -275,6 +285,7 @@ export function TeacherApprovalGate({
                           <option value="green_path">{ROUTE_NAME_HE.green_path}</option>
                           <option value="remediation_path">{ROUTE_NAME_HE.remediation_path}</option>
                           <option value="graded_path">{ROUTE_NAME_HE.graded_path}</option>
+                          <option value="graded_foundation_path">{ROUTE_NAME_HE.graded_foundation_path}</option>
                         </select>
                       </td>
 

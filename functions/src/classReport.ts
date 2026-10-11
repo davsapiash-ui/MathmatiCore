@@ -218,7 +218,7 @@ export interface ClassAggregates {
   score_min: number | null;
   score_max: number | null;
   tiers: Record<RecommendationTier, number[]>;
-  paths: { green_path: number; remediation_path: number; graded_path: number };
+  paths: { green_path: number; remediation_path: number; graded_path: number; graded_foundation_path: number };
   active_minutes_mean: number;
   recording_minutes_total: number;
   events_total: number;
@@ -460,6 +460,7 @@ export function aggregateClass(
       green_path: rows.filter((r) => r.learning_path === "green_path").length,
       remediation_path: rows.filter((r) => r.learning_path === "remediation_path").length,
       graded_path: rows.filter((r) => r.learning_path === "graded_path").length,
+      graded_foundation_path: rows.filter((r) => r.learning_path === "graded_foundation_path").length,
     },
     // Over every learner with data. It was divided by the learners with a
     // score, so an unscored learner's minutes were summed but not counted, and
@@ -870,7 +871,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       rtlText(doc, `לומדים עם נתונים: ${a.learners_with_data} מתוך 12`, 200, cardY, { width: 190 });
       if (scored) {
         rtlText(doc, `${FIRST_ATTEMPT_SCORE_MEAN_LABEL_HE}: ${pct(a.score_mean)}`, 55, cardY + 20, { width: 490 });
-        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | ${ROUTE_NAME_HE.green_path}: ${a.paths.green_path} | ${ROUTE_NAME_HE.remediation_path}: ${a.paths.remediation_path} | ${ROUTE_NAME_HE.graded_path}: ${a.paths.graded_path ?? 0}`, 55, cardY + 40, { width: 490 });
+        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | ${ROUTE_NAME_HE.green_path}: ${a.paths.green_path} | ${ROUTE_NAME_HE.remediation_path}: ${a.paths.remediation_path} | ${ROUTE_NAME_HE.graded_path}: ${a.paths.graded_path ?? 0} | ${ROUTE_NAME_HE.graded_foundation_path}: ${a.paths.graded_foundation_path ?? 0}`, 55, cardY + 40, { width: 490 });
       } else {
         rtlText(doc, "מפגש היכרות וריענון — ללא ציון וללא קבוצות עבודה", 55, cardY + 25, { width: 490 });
       }

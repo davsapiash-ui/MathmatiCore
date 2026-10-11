@@ -56,7 +56,7 @@ const SOME = { units: 3, tens: 2, hundreds: 1, thousands: 0 };
 
 const tasks: SessionTask[] = [];
 for (const meeting of [3, 4, 5, 6, 7, 8] as const) {
-  for (const path of ['green_path', 'remediation_path', 'graded_path'] as const) {
+  for (const path of ['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'] as const) {
     tasks.push(...getSessionTasks(meeting, path));
     if (meeting <= 7) for (const b of ['reinforcement', 'challenge'] as const) tasks.push(...getSessionBranchTasks(meeting, b, path));
   }

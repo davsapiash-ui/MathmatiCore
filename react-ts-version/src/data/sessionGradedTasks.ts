@@ -195,3 +195,138 @@ export const SESSION8_GRADED_TASKS: SessionTask[] = [
     'בתרגיל 3▢2 + 61 = 413 חסרה ספרת העשרות במספר הראשון. גלו אותה. כתבו אותה בתיבה הריקה.',
     { scaffoldLevel: 1, targetNode: 'relational_thinking' }),
 ];
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════
+ * The graded foundations path (המסלול המדורג – יסודות), owner, 11.10.2026.
+ *
+ * A learner in special education the teacher marked before meeting 1 has two levels after the graded
+ * diagnostic, as every other learner has two: the graded path above (the special-education milestone of
+ * grade 3 in מסמך 05, the thousand) and this one, for a learner the diagnostic shows is not there yet. It is
+ * the special-education milestone of grade 2 in מסמך 05: "חיבור וחיסור עם המרה בתחום ה-100", "תחום ה-1,000",
+ * "ביסוס מאות שלמות תחילה". The Ministry's special-education adaptations (pp. 76, 93–96) order the steps:
+ * within the hundred without conversion, then with conversion within the hundred, then larger numbers; the
+ * outline (p. 6): "דירוג: 100, 1000. תחום האלף: להתחיל ממאות שלמות", and (p. 2) the learner advances in the
+ * topics of the grade while the gaps close alongside. So: the same topics and tools as every path, in the
+ * hundred for addition and subtraction and from whole hundreds for place value. Ids carry the letter f.
+ * ════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Meeting 3: place value. Whole hundreds, a two-digit number, a hundred, tens only, the zero, the thousand. ── */
+
+export const SESSION3_FOUNDATION_TASKS: SessionTask[] = [
+  readWrite('s3_f_t1', 200, 'מאתיים',
+    'ביסוס מאות שלמות'),
+  composeBreak('s3_f_t2', { tens: 5, units: 3 }, ['tens'],
+    'פירוק עשרת ליחידות בתחום המאה'),
+  composeBreak('s3_f_t3', { hundreds: 2, tens: 1 }, ['hundreds'],
+    'פירוק מאה לעשרות'),
+  decompose('s3_f_t4', 170, 'tens',
+    'ייצוג מספר בעשרות בלבד'),
+  readWrite('s3_f_t5', 709, 'שבע מאות ותשע',
+    'ייצוג מספר עם אפס שומר מקום',
+    { targetNode: 'decimal_structure' }),
+  withOpts({
+    id: 's3_f_t6', type: 'missing_element', numberA: 100, numberB: 130, correctAnswer: 30,
+    titleHe: 'משימת חקר ואינטגרציה',
+    instructionHe: 'בנו את המספר 130 בבית המספרים. המספר 130 מורכב ממאה אחת ועוד כמה? כתבו את החלק החסר בתיבה הריקה.',
+    targetNode: 'decimal_structure',
+  }, {}),
+  // מסמך 05, the special-education column of grade 2: "ספירה במאות שלמות עד 1,000".
+  readWrite('s3_f_t7', 1000, 'אלף',
+    'ביסוס האלף: עשר מאות',
+    { targetNode: 'decimal_structure' }),
+];
+
+/* ── Meeting 4: vertical addition within the hundred. No conversion, then one conversion in the units. ── */
+
+export const SESSION4_FOUNDATION_TASKS: SessionTask[] = [
+  addition('s4_f_t1', 32, 14, 'ביסוס אלגוריתם ללא המרה בתחום המאה', S4_ADD('32 + 14')),
+  addition('s4_f_t2', 51, 27, 'תרגול נוסף ללא המרה בתחום המאה', S4_ADD('51 + 27')),
+  // The Ministry's order (p. 95): a one-digit number with a two-digit one first, then two two-digit numbers.
+  addition('s4_f_t3', 24, 9, 'המרה ראשונה ביחידות: מספר חד ספרתי ודו ספרתי', S4_ADD('24 + 9')),
+  addition('s4_f_t4', 45, 18, 'המרה ביחידות בתחום המאה', S4_ADD('45 + 18')),
+  addition('s4_f_t5', 56, 37, 'תרגול נוסף של המרה ביחידות', S4_ADD('56 + 37')),
+  addition('s4_f_t6', 39, 44, 'ביסוס המרה ביחידות', S4_ADD('39 + 44')),
+  missingResultDigit('s4_f_t7', 28, 57, false, 'tens',
+    'משימת חקר וגילוי ספרה חסרה',
+    S4_MISSING_TENS('28 + 57'),
+    INQUIRY),
+];
+
+/* ── Meeting 5: vertical subtraction within the hundred. No borrow, then one borrow from the tens. ── */
+
+export const SESSION5_FOUNDATION_TASKS: SessionTask[] = [
+  subtraction('s5_f_t1', 68, 23, 'ביסוס אלגוריתם ללא פריטה בתחום המאה', S5_SUB('68 − 23', 68, 23)),
+  subtraction('s5_f_t2', 97, 54, 'תרגול נוסף ללא פריטה בתחום המאה', S5_SUB('97 − 54', 97, 54)),
+  subtraction('s5_f_t3', 52, 8, 'פריטה ראשונה: מספר דו ספרתי פחות חד ספרתי', S5_SUB('52 − 8', 52, 8)),
+  subtraction('s5_f_t4', 84, 47, 'פריטה מעשרות ליחידות בתחום המאה', S5_SUB('84 − 47', 84, 47)),
+  subtraction('s5_f_t5', 92, 58, 'תרגול נוסף של פריטה מעשרות ליחידות', S5_SUB('92 − 58', 92, 58)),
+  subtraction('s5_f_t6', 65, 39, 'ביסוס פריטה מעשרות ליחידות', S5_SUB('65 − 39', 65, 39)),
+  skeleton('s5_f_t7', 73, 28, true, { a: ['tens'] },
+    'משימת חקר וגילוי ספרה חסרה',
+    'בתרגיל ▢3 − 28 = 45 חסרה ספרת העשרות במספר הראשון. גלו את הספרה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
+    INQUIRY),
+];
+
+/* ── Meeting 6: the zero within the hundred, and last the hundred itself (two borrows across zeros). ── */
+
+export const SESSION6_FOUNDATION_TASKS: SessionTask[] = [
+  subtraction('s6_f_t1', 40, 17, 'פריטה עם אפס בטור היחידות של המחוסר', S6_SUB('40 − 17', 40, 17), ZERO),
+  subtraction('s6_f_t2', 60, 23, 'תרגול נוסף של פריטה עם אפס בטור היחידות', S6_SUB('60 − 23', 60, 23), ZERO),
+  subtraction('s6_f_t3', 90, 43, 'ביסוס פריטה עם אפס בטור היחידות', S6_SUB('90 − 43', 90, 43), ZERO),
+  subtraction('s6_f_t4', 80, 29, 'פריטה עם אפס, כשבמחסר יש 9 ביחידות', S6_SUB('80 − 29', 80, 29), ZERO),
+  subtraction('s6_f_t5', 100, 45, 'שתי פריטות, כשבמחוסר יש אפסים בטור העשרות ובטור היחידות', S6_SUB('100 − 45', 100, 45), ZERO),
+  subtraction('s6_f_t6', 100, 72, 'ביסוס שתי פריטות מן המאה', S6_SUB('100 − 72', 100, 72), ZERO),
+  missingResultDigit('s6_f_t7', 50, 18, true, 'tens',
+    'משימת חקר וספרה חסרה',
+    S6_MISSING_TENS('50 − 18', 50, 18),
+    ZERO),
+];
+
+/* ── Meeting 7: inquiry within the hundred. The kinds of the other paths, with this path's numbers. ── */
+
+export const SESSION7_FOUNDATION_TASKS: SessionTask[] = [
+  composeGroup('s7_f_t1', { tens: 12, units: 5 }, ['tens'],
+    'משימת הוכחת ערך מקום',
+    INQUIRY),
+  skeleton('s7_f_t2', 41, 31, false, { a: ['units'] },
+    'ספרה חסרה אחת בחיבור ללא המרה',
+    'בתרגיל 4▢ + 31 = 72 חסרה ספרת היחידות במספר הראשון. גלו אותה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
+    INQUIRY),
+  skeleton('s7_f_t3', 58, 26, false, { a: ['tens'] },
+    'ספרה חסרה בחיבור עם המרה',
+    'בתרגיל ▢8 + 26 = 84 חסרה ספרת העשרות במספר הראשון. גלו את הספרה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
+    INQUIRY),
+  skeleton('s7_f_t4', 64, 37, true, { a: ['units'] },
+    'ספרת יחידות חסרה בחיסור עם פריטה',
+    'בתרגיל 6▢ − 37 = 27 חסרה ספרת היחידות במספר הראשון. גלו אותה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
+    INQUIRY),
+  // The imaginary learner forgot the carry from the units, as in the other paths.
+  addition('s7_f_t5', 46, 29,
+    'ניתוח שגיאה של לומד דמיוני',
+    'תלמיד פתר 46 + 29 וקיבל 65. מצאו את הטעות ותקנו אותה בעזרת הלבנים. כתבו את התוצאה הנכונה בשורת התוצאה.',
+    INQUIRY),
+  // 130, two hundreds more (330), four tens taken away by breaking a hundred: 2 hundreds and 9 tens.
+  representation('s7_f_t6', 290, { hundreds: 2, tens: 9 },
+    'אינטגרציה דו שלבית של הוספה והפחתה',
+    'בנו את המספר 130 בבית המספרים. הוסיפו 2 מאות, ואז הוציאו 4 עשרות. השאירו את הלבנים בבית המספרים. איזה מספר קיבלתם? כתבו אותו בשורת התוצאה.',
+    INQUIRY),
+  flexible('s7_f_t7', 160,
+    'בעיית חקר פתוחה למחצה של הרכבים משתנים',
+    `מצאו שתי דרכים שונות לבנות את המספר 160. השתמשו רק בלבני מאה ועשרת. ${FLEX_HOWTO}`,
+    { ...INQUIRY, noUnitBlocks: true }),
+];
+
+/* ── Meeting 8: without blocks, numbers this path met in meetings 4–6 (מסמך 03 §3.8, the fading gap). ── */
+
+export const SESSION8_FOUNDATION_TASKS: SessionTask[] = [
+  addition('s8_f_t1', 32, 14, 'חיבור ללא המרה בתחום המאה', S8_ADD('32 + 14'), { scaffoldLevel: 1 }),
+  addition('s8_f_t2', 45, 18, 'חיבור עם המרה ביחידות', S8_ADD('45 + 18'), { scaffoldLevel: 1 }),
+  addition('s8_f_t3', 56, 37, 'תרגול נוסף של חיבור עם המרה ביחידות', S8_ADD('56 + 37'), { scaffoldLevel: 1 }),
+  subtraction('s8_f_t4', 68, 23, 'חיסור ללא פריטה בתחום המאה', S8_SUB('68 − 23'), { scaffoldLevel: 1 }),
+  subtraction('s8_f_t5', 84, 47, 'חיסור עם פריטה מעשרות ליחידות', S8_SUB('84 − 47'), { scaffoldLevel: 1 }),
+  subtraction('s8_f_t6', 100, 45, 'חיסור עם שתי פריטות מן המאה', S8_SUB('100 − 45'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
+  skeleton('s8_f_t7', 56, 37, false, { a: ['units'] },
+    'בעיית חקר של גילוי ספרה חסרה בתחום המאה',
+    'בתרגיל 5▢ + 37 = 93 חסרה ספרת היחידות במספר הראשון. גלו אותה. כתבו אותה בתיבה הריקה.',
+    { scaffoldLevel: 1, targetNode: 'relational_thinking' }),
+];

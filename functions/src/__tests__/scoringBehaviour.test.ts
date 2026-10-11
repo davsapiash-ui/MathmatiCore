@@ -289,6 +289,24 @@ describe('re-scoring a completed meeting (PRD 14 §ב0)', () => {
     expect(h.docs[doc2]).toMatchObject({ session_score_percent: 100, previous_score_percent: 43, teacher_gate_approved: true, teacher_selected_path: 'remediation_path' });
   });
 
+  it('meeting 2 of a learner the teacher marked graded: graded_path or graded_foundation_path (owner, 11.10.2026)', async () => {
+    const doc2 = `sessions/session_02_student_${L}`;
+    const ids = ['task1_read_write_zero', 'task2_digit_value', 'task3_subtraction_regrouping', 'task4_decompose_number', 'task5_units_to_tens', 'task6_vertical_addition', 'task7_subtraction_zero_tens'];
+    const answer = (id: string, right: boolean) => {
+      const steps: Array<[string, Record<string, unknown>]> = right
+        ? [['PROBLEM_LOAD', {}], ['DIGIT_ENTERED', { is_correct: true }], ['PROBLEM_COMPLETE', {}]]
+        : [['PROBLEM_LOAD', {}], ['DIGIT_ENTERED', { is_correct: false }], ['DIGIT_ENTERED', { is_correct: true }], ['PROBLEM_COMPLETE', {}]];
+      for (const [type, details] of steps) addEvent(id, type, details).session_id = `session_2_student_student_user${L}`;
+    };
+    // Three of seven right the first time: 43%, below the line.
+    ids.forEach((id, i) => answer(id, i < 3));
+    h.rtdb = { users: { students: { [`student_user${L}`]: { graded_track: true } } } };
+    h.docs[doc2] = { is_completed: true, session_number: 2, session_score_percent: 100, matrix_recommended_path: 'graded_path', evaluated_at: stamp(1) };
+    expect(await rescoreCompletedMeeting(db(), L, 2)).toBe('rescored');
+    expect(h.docs[doc2]).toMatchObject({ session_score_percent: 43, matrix_recommended_path: 'graded_foundation_path' });
+    expect(h.rtdb.users.students[`student_user${L}`]).toEqual({ graded_track: true, session_score_percent: 43, matrix_recommended_path: 'graded_foundation_path' });
+  });
+
   it('the same score writes nothing', async () => {
     h.docs[DOC] = { ...approved, session_score_percent: 71, matrix_recommended_path: 'green_path', previous_score_percent: 43, evaluated_at: stamp(1) };
     TASKS.slice(0, 5).forEach(solved);

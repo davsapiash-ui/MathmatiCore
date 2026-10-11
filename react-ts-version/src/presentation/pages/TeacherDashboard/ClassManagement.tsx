@@ -19,8 +19,11 @@ interface StudentRowState {
   id: string;
   studentNumber: number;
   session2Completed: boolean;
-  /** The matrix recommendation: two-valued (PRD Module 20), null while there is none. */
-  recommendedPath: 'green_path' | 'remediation_path' | null;
+  /**
+   * The matrix recommendation (PRD Module 20), null while there is none: green / remediation for a regular
+   * learner, graded / graded foundations for a learner marked graded (owner, 11.10.2026).
+   */
+  recommendedPath: PedagogicalPath | null;
   isApproved: boolean;
   /** The path the teacher approved (teacher_selected_path), which may differ from the recommendation. */
   approvedPath: PedagogicalPath | null;
@@ -50,6 +53,7 @@ const PATH_BUTTON_CLASS: Record<PedagogicalPath, { on: string; off: string }> = 
   green_path: { on: 'bg-emerald-700 text-white shadow-md', off: 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200' },
   remediation_path: { on: 'bg-stone-600 text-white shadow-md', off: 'bg-stone-100 text-stone-800 hover:bg-stone-200 dark:bg-stone-900/40 dark:text-stone-200' },
   graded_path: { on: 'bg-violet-700 text-white shadow-md', off: 'bg-violet-100 text-violet-900 hover:bg-violet-200 dark:bg-violet-900/40 dark:text-violet-200' },
+  graded_foundation_path: { on: 'bg-teal-700 text-white shadow-md', off: 'bg-teal-100 text-teal-900 hover:bg-teal-200 dark:bg-teal-900/40 dark:text-teal-200' },
 };
 
 /** A switch the teacher reads at a glance: the state in words and in the knob's place. */
@@ -76,7 +80,8 @@ function TeacherSwitch({ checked, disabled, label, onToggle }: { checked: boolea
  * decision the teacher makes about that learner, in one place:
  *   - the path: before meeting 1 she may mark the learner for the graded path (המסלול המדורג, special
  *     education), so that meeting 1's refresh and meeting 2's diagnostic are the graded ones; at the gate
- *     after meeting 2 she approves one of the three paths, next to the matrix recommendation;
+ *     after meeting 2 she approves one of the four paths, next to the matrix recommendation (a marked
+ *     learner is recommended the graded path or the graded foundations path);
  *   - the enhanced support profile (PRD Module 19): one switch, saved at once, never shown to the learner;
  *   - the learner's window (replay, chat, reset) and the learner reset.
  * There is no quiet visual mode any more: the design is gentle for everyone (owner, 11.10.2026).
@@ -128,7 +133,7 @@ export function ClassManagement({
               id: uid,
               studentNumber: num,
               session2Completed: session2Done,
-              recommendedPath: recommended === 'remediation_path' || recommended === 'green_path' ? recommended : null,
+              recommendedPath: recommended,
               isApproved,
               approvedPath,
               gradedTrack: data.graded_track === true,
@@ -184,7 +189,7 @@ export function ClassManagement({
     }
   };
 
-  // Module 20: the gate, one of the three paths.
+  // Module 20: the gate, one of the four paths.
   const handleApproveGate = async (row: StudentRowState, path: PedagogicalPath) => {
     setUpdatingId(row.id);
     try {
@@ -226,7 +231,8 @@ export function ClassManagement({
     }
   };
 
-  const PATHS: PedagogicalPath[] = ['green_path', 'remediation_path', 'graded_path'];
+  // Two by two: the two regular paths, then the two special-education levels (owner, 11.10.2026).
+  const PATHS: PedagogicalPath[] = ['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'];
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto w-full h-full flex flex-col space-y-8 animate-in fade-in duration-500" dir="rtl">
@@ -277,7 +283,7 @@ export function ClassManagement({
           </h2>
           <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1 list-disc pr-4">
             <li>
-              <strong>{ROUTE_NAME_HE.graded_path}</strong>: ללומדים בחינוך המיוחד. אותם נושאים בדיוק, בדירוג: חיבור וחיסור במאונך בתחום האלף. סמנו לפני {meetingShortLabelHe(1)}, כדי שהריענון והאבחון יהיו מותאמים.
+              <strong>{ROUTE_NAME_HE.graded_path}</strong>: ללומדים בחינוך המיוחד. אותם נושאים בדיוק, בדירוג: חיבור וחיסור במאונך בתחום האלף. סמנו לפני {meetingShortLabelHe(1)}, כדי שהריענון והאבחון יהיו מותאמים. אחרי האבחון לומד שסומן מקבל המלצה לאחת משתי רמות: {ROUTE_NAME_HE.graded_path}, או <strong>{ROUTE_NAME_HE.graded_foundation_path}</strong>, בתחום המאה ובמאות שלמות.
             </li>
             <li>
               <strong>{TEACHER_GATE_HE}</strong>: בסיום {meetingShortLabelHe(2)} הלומדים ממתינים, ואישור מסלול כאן משחרר אותם ל{meetingShortLabelHe(3)}.
@@ -343,7 +349,7 @@ export function ClassManagement({
                     </td>
 
                     <td className="px-3 py-3">
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="grid grid-cols-2 gap-1.5 min-w-[22rem]">
                         {PATHS.map((path) => (
                           <button
                             key={path}

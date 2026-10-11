@@ -41,7 +41,7 @@ const UNIT: Record<Place, number> = { units: 1, tens: 10, hundreds: 100, thousan
 function allTasks(): SessionTask[] {
   const out: SessionTask[] = [];
   for (const m of [1, 3, 4, 5, 6, 7, 8] as const) {
-    for (const p of ['green_path', 'remediation_path', 'graded_path'] as const) {
+    for (const p of ['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'] as const) {
       out.push(...(getSessionTasks(m as any, p) ?? []));
       out.push(...getSessionBranchTasks(m, 'reinforcement', p), ...getSessionBranchTasks(m, 'challenge', p));
     }
@@ -191,7 +191,7 @@ describe('Rule 2 — meetings 5–6 ask the child to check each column (owner 28
   const NEW = 'אם בטור אין מספיק לבנים, אפשר לפרוט לבנה מהטור שמשמאלו. לחצו על הלבנה, או גררו אותה אל הטור שמימין. אחרי שפרטתם, רשמו בעיגולי הזיכרון כמה לבנים יש עכשיו בכל טור שהשתנה.';
   it('every subtraction of meetings 5–6 carries it; none says in advance how many times to borrow', () => {
     const subs = allTasks().filter((t) => /^s[56]_/.test(t.id) && t.isSubtraction && !t.hiddenDigits && !t.revealedResultDigits?.length);
-    expect(subs.length).toBe(54); // 36, and the graded path's 18 (11.10.2026)
+    expect(subs.length).toBe(72); // 36, the graded path's 18 and the graded foundations path's 18 (11.10.2026)
     expect(subs.filter((t) => !(t.instructionHe ?? '').includes(NEW)).map((t) => t.id)).toEqual([]);
     expect(allTasks().some((t) => /אין כאן צורך בפריטה|כאן דרושה פריטה|הפריטה הכפולה בלבנים|הפריטה המשולשת בלבנים|פרטו פעמיים|פרטו שלוש פעמים|פרטו פעם אחת/.test(t.instructionHe ?? ''))).toBe(false);
   });
@@ -501,6 +501,7 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
     s7_g_reinforce_2: { hundreds: 14, tens: 3 },
     s7_g_t6: { thousands: 1, hundreds: 16, tens: 13 },
     s7_d_t1: { tens: 14, units: 3 },
+    s7_f_t1: { tens: 12, units: 5 },
   };
 
   it('every declared lock names a representation exercise, and matches its numbers', () => {
@@ -519,6 +520,8 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
           if (id === 's7_g_t5') expect([p, 3400 + 1000 - 600]).toEqual(['hundreds', 3800]);
           // The graded twin of s7_r_t6 (11.10.2026): 4 tens cannot give 5, so a hundred is decomposed mid-way.
           else if (id === 's7_d_t6') expect([p, 240 + 300 - 50]).toEqual(['tens', 490]);
+          // The graded foundations twin (11.10.2026): 3 tens cannot give 4, so a hundred is decomposed mid-way.
+          else if (id === 's7_f_t6') expect([p, 130 + 200 - 40]).toEqual(['tens', 290]);
           else expect(req[p], `${id} ${p}`).toBeGreaterThanOrEqual(10);
         } else {
           // The source column starts with ten or more and ends below ten.
@@ -533,6 +536,7 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
       's3_r_t1', 's3_r_t3', 's3_r_t5', 's3_g_t1', 's3_g_t3', 's3_g_t5',
       's3_r_reinforce_1', 's3_r_reinforce_2', 's3_g_reinforce_1', 's3_g_reinforce_2', 's7_r_t6',
       's3_d_t1', 's3_d_t4', 's3_d_t5', 's3_d_t7', 's3_d_reinforce_1', 's3_d_reinforce_2',
+      's3_f_t1', 's3_f_t4', 's3_f_t5', 's3_f_t7', 's3_f_reinforce_1', 's3_f_reinforce_2',
     ]) {
       expect(REPRESENTATION_LOCKS[none], none).toBeUndefined();
     }
@@ -615,8 +619,8 @@ describe('Rule 6 — only the conversion columns lock, for enhanced support only
     // s7_g_t6 opens with its blocks on the board since 4.10.2026 (owner), so the rule above finds it.
     expect(needs).toContain('s7_g_t6');
     // s7_g_t5 ends in standard form; its conversion is in the instruction.
-    // s7_d_t6 (240 + 300 − 50, the graded path, 11.10.2026) too.
-    expect([...needs, 's7_g_t5', 's7_d_t6'].sort()).toEqual(Object.keys(REPRESENTATION_LOCKS).sort());
+    // s7_d_t6 (240 + 300 − 50, the graded path, 11.10.2026) and s7_f_t6 (130 + 200 − 40, graded foundations) too.
+    expect([...needs, 's7_g_t5', 's7_d_t6', 's7_f_t6'].sort()).toEqual(Object.keys(REPRESENTATION_LOCKS).sort());
   });
 
   it('safety valve: a board equal to requiredCounts opens the box and every column', () => {

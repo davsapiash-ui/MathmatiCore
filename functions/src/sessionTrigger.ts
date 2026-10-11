@@ -20,18 +20,20 @@ import {
   COMPULSORY_EXERCISES_PER_MEETING,
 } from "./meetingMetrics";
 import { CATCHUP_COLLECTION, catchUpDocId } from "./catchUp";
-import { asLearningPath, type LearningPath } from "./learningPath";
+import { asLearningPath, recommendedPathFor, type LearningPath, type RecommendedPath } from "./learningPath";
 
 export type MeetingScore =
-  | { outcome: "scored"; scorePercent: number; recommendedPath: "green_path" | "remediation_path" }
+  | { outcome: "scored"; scorePercent: number; recommendedPath: RecommendedPath }
   | { outcome: "no_telemetry" }
   | { outcome: "no_denominator" };
 
 /**
  * One learner's score in one meeting, from the meeting's telemetry (PRD 23 §ב:
  * first-attempt correct ÷ compulsory), and the path it recommends (≥ 50% →
- * green_path). Shared by the completion trigger below and the re-scoring of
- * every later completion (rescoreCompletedMeeting).
+ * green_path; for a learner the teacher marked graded, ≥ 50% → graded_path,
+ * else graded_foundation_path — owner, 11.10.2026). Shared by the completion
+ * trigger below and the re-scoring of every later completion
+ * (rescoreCompletedMeeting).
  *
  * Meetings 3–8 are scored on the path the learner worked on in THAT meeting
  * (PRD 23 §ב: the bank most of the learner's exercises were opened from), and
@@ -63,11 +65,29 @@ export async function computeMeetingScore(
     compulsoryIds.get(`${sessionNum}:${scoringPath}`) ?? null
   );
   if (computed.scorePercent === null) return { outcome: "no_denominator" };
+  // The teacher's graded mark on the learner record decides which two levels the score chooses between.
+  const gradedTrack = await readGradedTrack(studentNum);
   return {
     outcome: "scored",
     scorePercent: computed.scorePercent,
-    recommendedPath: computed.scorePercent >= 50 ? "green_path" : "remediation_path",
+    recommendedPath: recommendedPathFor(computed.scorePercent, gradedTrack),
   };
+}
+
+/**
+ * The teacher's graded mark (graded_track) on the learner's record — the record
+ * mirrorGateScore writes to. A read that fails counts as unmarked and is logged;
+ * the teacher screens read a green / remediation recommendation of a marked
+ * learner by the same 50% line (react-ts-version core/recommendedPath.ts).
+ */
+async function readGradedTrack(studentNum: number): Promise<boolean> {
+  try {
+    const snap = await admin.database().ref(`users/students/student_user${studentNum}/graded_track`).get();
+    return snap.val() === true;
+  } catch (err) {
+    logger.warn(`Learner ${studentNum}: the graded mark could not be read; recommended as an unmarked learner:`, err);
+    return false;
+  }
 }
 
 /**
@@ -89,7 +109,7 @@ export async function computeMeetingScore(
 export function rescoreFields(
   stored: { session_score_percent?: unknown; matrix_recommended_path?: unknown } | null | undefined,
   scorePercent: number,
-  recommendedPath: "green_path" | "remediation_path",
+  recommendedPath: RecommendedPath,
   scoreBeforeCatchUp: number | null = null
 ): { changed: boolean; previousScore: number | null; fields: Record<string, unknown> } {
   const storedScore = stored?.session_score_percent;
@@ -378,7 +398,8 @@ function sameStamp(a: unknown, b: unknown): boolean {
  * Module 14 / Module 20: onSessionCompleteTrigger
  * Background trigger on session completion calculating closed-form cognitive mastery score
  * Formula: (correct_first_attempt_mandatory_tasks / 7) * 100
- * Threshold: Score >= 50% -> 'green_path', Score < 50% -> 'remediation_path'
+ * Threshold: Score >= 50% -> 'green_path', Score < 50% -> 'remediation_path';
+ * for a learner marked graded (graded_track): 'graded_path' / 'graded_foundation_path'.
  */
 export const onSessionCompleteTrigger = onDocumentWritten({
   document: "sessions/{sessionId}",

@@ -12,7 +12,7 @@ import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 
 const tasks: SessionTask[] = [];
 for (const m of [3, 7] as const) {
-  for (const p of ['remediation_path', 'green_path', 'graded_path'] as const) {
+  for (const p of ['remediation_path', 'green_path', 'graded_path', 'graded_foundation_path'] as const) {
     tasks.push(...getSessionTasks(m, p), ...getSessionBranchTasks(m, 'reinforcement', p), ...getSessionBranchTasks(m, 'challenge', p));
   }
 }

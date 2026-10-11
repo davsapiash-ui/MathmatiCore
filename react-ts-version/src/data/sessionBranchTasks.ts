@@ -69,6 +69,20 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
           `מצאו דרכים שונות לבנות את המספר 250. השתמשו רק בלבני מאה ועשרת. ${FLEX_HOWTO}`, { ...C, noUnitBlocks: true }),
       ],
     },
+    // The graded foundations path (owner, 11.10.2026; sessionGradedTasks.ts): from whole hundreds, within the thousand.
+    graded_foundation_path: {
+      reinforcement: [
+        readWrite('s3_f_reinforce_1', 640, 'שש מאות וארבעים',
+          'ביסוס 1: ייצוג סטנדרטי של 640', R),
+        decompose('s3_f_reinforce_2', 150, 'tens',
+          'ביסוס 2: 150 בעשרות בלבד', R),
+      ],
+      challenge: [
+        flexible('s3_f_challenge_1', 180,
+          'אתגר: כל הדרכים לייצג את 180',
+          `מצאו דרכים שונות לבנות את המספר 180. השתמשו רק בלבני מאה ועשרת. ${FLEX_HOWTO}`, { ...C, noUnitBlocks: true }),
+      ],
+    },
   },
 
   // ── מפגש 4: אלגוריתם החיבור במאונך והמרה פשוטה ──
@@ -98,6 +112,15 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       ],
       challenge: [
         addition('s4_d_challenge_1', 268, 157, 'אתגר: שתי המרות עוקבות', S4_ADD('268 + 157'), C),
+      ],
+    },
+    graded_foundation_path: {
+      reinforcement: [
+        addition('s4_f_reinforce_1', 34, 52, 'ביסוס 1: חיבור ללא המרה', S4_ADD('34 + 52'), R),
+        addition('s4_f_reinforce_2', 19, 47, 'ביסוס 2: המרה אחת בטור היחידות', S4_ADD('19 + 47'), R),
+      ],
+      challenge: [
+        addition('s4_f_challenge_1', 87, 46, 'אתגר: שתי המרות עוקבות, אל מעבר למאה', S4_ADD('87 + 46'), C),
       ],
     },
   },
@@ -131,6 +154,15 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
         subtraction('s5_d_challenge_1', 432, 175, 'אתגר: שתי פריטות עוקבות', S5_SUB('432 − 175', 432, 175), C),
       ],
     },
+    graded_foundation_path: {
+      reinforcement: [
+        subtraction('s5_f_reinforce_1', 76, 41, 'ביסוס 1: חיסור ללא פריטה', S5_SUB('76 − 41', 76, 41), R),
+        subtraction('s5_f_reinforce_2', 91, 37, 'ביסוס 2: פריטה אחת בטור היחידות', S5_SUB('91 − 37', 91, 37), R),
+      ],
+      challenge: [
+        subtraction('s5_f_challenge_1', 160, 84, 'אתגר: שתי פריטות עוקבות, ממספר שמעל המאה', S5_SUB('160 − 84', 160, 84), C),
+      ],
+    },
   },
 
   // ── מפגש 6: אתגר האפס כשומר מקום ──
@@ -160,6 +192,15 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       ],
       challenge: [
         subtraction('s6_d_challenge_1', 400, 263, 'אתגר: שתי פריטות, כשבמחוסר יש אפסים בטור העשרות ובטור היחידות', S6_SUB('400 − 263', 400, 263), { ...C, targetNode: 'zero_placeholder' }),
+      ],
+    },
+    graded_foundation_path: {
+      reinforcement: [
+        subtraction('s6_f_reinforce_1', 90, 60, 'ביסוס 1: קריאת האפס כשומר מקום, ללא פריטה', S6_SUB('90 − 60', 90, 60), { ...R, targetNode: 'zero_placeholder' }),
+        subtraction('s6_f_reinforce_2', 30, 14, 'ביסוס 2: פריטה עם אפס בטור היחידות', S6_SUB('30 − 14', 30, 14), { ...R, targetNode: 'zero_placeholder' }),
+      ],
+      challenge: [
+        subtraction('s6_f_challenge_1', 200, 63, 'אתגר: שתי פריטות, כשבמחוסר יש אפסים בטור העשרות ובטור היחידות', S6_SUB('200 − 63', 200, 63), { ...C, targetNode: 'zero_placeholder' }),
       ],
     },
   },
@@ -222,6 +263,24 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
         skeleton('s7_d_challenge_1', 436, 247, false, { a: ['hundreds', 'tens', 'units'] },
           'אתגר: תרגיל שלד עם שלוש ספרות חסרות',
           'בתרגיל ▢▢▢ + 247 = 683 חסרות שלוש ספרות במספר הראשון, בטורים שונים. גלו אותן בעזרת הלבנים בבית המספרים. כתבו אותן בתיבות הריקות.',
+          { ...C, targetNode: 'relational_thinking' }),
+      ],
+    },
+    graded_foundation_path: {
+      reinforcement: [
+        skeleton('s7_f_reinforce_1', 64, 25, false, { a: ['units'] },
+          'ביסוס 1: ספרת יחידות חסרה בחיבור ללא המרה',
+          'בתרגיל 6▢ + 25 = 89 חסרה ספרת היחידות במספר הראשון. גלו אותה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
+          { ...R, targetNode: 'relational_thinking' }),
+        skeleton('s7_f_reinforce_2', 79, 46, true, { a: ['tens'] },
+          'ביסוס 2: ספרת עשרות חסרה בחיסור ללא פריטה',
+          'בתרגיל ▢9 − 46 = 33 חסרה ספרת העשרות במספר הראשון. גלו אותה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
+          { ...R, targetNode: 'relational_thinking' }),
+      ],
+      challenge: [
+        skeleton('s7_f_challenge_1', 33, 48, false, { a: ['tens', 'units'] },
+          'אתגר: תרגיל שלד עם שתי ספרות חסרות',
+          'בתרגיל ▢▢ + 48 = 81 חסרות שתי ספרות במספר הראשון. גלו אותן בעזרת הלבנים בבית המספרים. כתבו אותן בתיבות הריקות.',
           { ...C, targetNode: 'relational_thinking' }),
       ],
     },

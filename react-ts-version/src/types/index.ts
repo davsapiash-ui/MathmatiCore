@@ -37,10 +37,14 @@ export interface ClassDocument {
   created_at: number; // auxiliary
 }
 
-/** The path the teacher approves at the gate (owner, 11.10.2026: three paths). */
-export type PedagogicalPath = 'green_path' | 'remediation_path' | 'graded_path';
-/** The matrix recommendation stays two-valued: the graded path is the teacher's choice, never computed. */
-export type RecommendedPath = 'green_path' | 'remediation_path';
+/** The path the teacher approves at the gate (owner, 11.10.2026: four paths). */
+export type PedagogicalPath = 'green_path' | 'remediation_path' | 'graded_path' | 'graded_foundation_path';
+/**
+ * The meeting-2 recommendation (owner, 11.10.2026): one of four values, but never across the line the
+ * teacher drew before meeting 1 — a regular learner gets green_path or remediation_path, a learner marked
+ * graded (graded_track) gets graded_path or graded_foundation_path (functions/src/sessionTrigger.ts).
+ */
+export type RecommendedPath = PedagogicalPath;
 
 export interface SessionDocument {
   session_id: string;
@@ -55,7 +59,7 @@ export interface SessionDocument {
   gate_approved_at: number | null;
   gate_approved_by: string | null;
   teacher_selected_path: PedagogicalPath | null;
-  matrix_recommended_path: 'green_path' | 'remediation_path' | null;
+  matrix_recommended_path: RecommendedPath | null;
 }
 
 export interface ExerciseTemplate {

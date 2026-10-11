@@ -134,7 +134,7 @@ export function cardFrameOf(card: SocraticHintResponse, task?: any): NonNullable
 export function normalizeTaskIdForHints(id?: string): string {
   if (!id) return '';
   // Normalize e.g. s3_g_t1 or s3_r_t1 -> s3_t1
-  return id.replace(/^(s\d+)_[grd]_t(\d+)$/, '$1_t$2');
+  return id.replace(/^(s\d+)_[grdf]_t(\d+)$/, '$1_t$2');
 }
 
 /**
@@ -179,7 +179,7 @@ export function groundCardInExercise(card: SocraticHintResponse, currentTask?: a
  * shares it; only session 3 differs by path (34 tens vs 34 hundreds).
  */
 export function sessionCardKeysForTaskId(id?: string): string[] {
-  const m = id ? /^s([3-8])_(?:([grd])_)?(?:t\d+|reinforce_\d+|challenge_\d+)$/.exec(id) : null;
+  const m = id ? /^s([3-8])_(?:([grdf])_)?(?:t\d+|reinforce_\d+|challenge_\d+)$/.exec(id) : null;
   if (!m) return [];
   const [, session, path] = m;
   return path ? [`s${session}_${path}_card`, `s${session}_card`] : [`s${session}_card`];
