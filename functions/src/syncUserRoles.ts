@@ -24,6 +24,13 @@ export const syncUserRoles = onCall(
       throw new HttpsError("invalid-argument", "Email is required for role sync");
     }
 
+    // The role comes from the address in the token. An address the provider has
+    // not verified proves nothing about who holds it (a password sign-up could
+    // claim any teacher's address). Google staff sign-in always carries true.
+    if (request.auth.token.email_verified !== true) {
+      throw new HttpsError("permission-denied", "The e-mail address is not verified");
+    }
+
     const normalizedEmail = email.toLowerCase().trim();
 
     // authorizedTeachers is the single source of truth. Five hardcoded

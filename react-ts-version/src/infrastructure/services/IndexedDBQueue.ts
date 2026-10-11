@@ -968,10 +968,18 @@ export class IndexedDBQueue {
           };
 
           tx.oncomplete = () => resolve(true);
-          tx.onerror = () => {
+          // A transaction can abort with no error event (a full storage quota
+          // at commit): without this the promise never settles, enqueue waits
+          // forever and the item is neither stored nor kept in memory.
+          let settled = false;
+          const keepOnce = () => {
+            if (settled) return;
+            settled = true;
             this.keepInMemory(item);
             resolve(false);
           };
+          tx.onerror = keepOnce;
+          tx.onabort = keepOnce;
         } catch {
           this.keepInMemory(item);
           resolve(false);
