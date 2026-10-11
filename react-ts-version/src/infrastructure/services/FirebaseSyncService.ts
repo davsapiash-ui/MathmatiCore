@@ -171,7 +171,7 @@ export interface SessionState {
   student_id: string;
   session_number: number; // 1-8
   status: 'active' | 'locked' | 'completed';
-  current_path: 'green_path' | 'remediation_path' | 'graded_path' | null;
+  current_path: 'green_path' | 'remediation_path' | 'graded_path' | 'graded_foundation_path' | null;
   hesitation_seconds?: number;
   error_count?: number;
   physical_override?: boolean;

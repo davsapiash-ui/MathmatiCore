@@ -129,8 +129,9 @@ describe('Admin curriculum', () => {
         expect(bank.compulsory).toHaveLength(7);
       }
     }
-    // Sessions 3–8 carry a green, a remediation and a graded bank (Module 26; graded since 11.10.2026).
-    for (const session of catalog.slice(2)) expect(session.banks).toHaveLength(3);
+    // Sessions 3–8 carry a green, a remediation, a graded and a graded foundations bank (Module 26; the two
+    // graded banks since 11.10.2026).
+    for (const session of catalog.slice(2)) expect(session.banks).toHaveLength(4);
     // Sessions 3–7 offer reinforcement/challenge branches after the 7 compulsory tasks (Module 14 §ג).
     for (const session of catalog.slice(2, 7)) {
       for (const bank of session.banks) {

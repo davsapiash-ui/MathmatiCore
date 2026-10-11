@@ -25,10 +25,10 @@ import { assertCallerClass, validateClassId } from "./exportDriveReport";
  *      approval's time and author.
  */
 
-/** The teacher may approve any of the three paths (owner, 11.10.2026: the graded path is the teacher's choice). */
-export type GatePath = "green_path" | "remediation_path" | "graded_path";
+/** The teacher may approve any of the four paths (owner, 11.10.2026). */
+export type GatePath = "green_path" | "remediation_path" | "graded_path" | "graded_foundation_path";
 
-export const GATE_PATHS: readonly GatePath[] = ["green_path", "remediation_path", "graded_path"];
+export const GATE_PATHS: readonly GatePath[] = ["green_path", "remediation_path", "graded_path", "graded_foundation_path"];
 
 /** The learner 1–12 named by a request: 5, "5", "student_user5", "student_5". */
 export function gateLearnerNumber(raw: unknown): number | null {

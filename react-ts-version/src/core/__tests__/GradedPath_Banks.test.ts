@@ -12,6 +12,7 @@ import { TASKS, GRADED_TASKS, diagnosticTasksFor, setActiveDiagnosticGraded, act
 import { catalogBankId } from '@/infrastructure/services/CurriculumCatalogService';
 import { borrowCount } from '@/data/taskBuilders';
 import { ROUTE_NAME_HE, ROUTE_APPROVE_HE, routeNameHe } from '@/core/routeLabels';
+import { recommendedPathOf } from '@/core/recommendedPath';
 
 /**
  * The graded path (owner, 11.10.2026): special education, the same topics and tools, the range graded as the
@@ -49,7 +50,7 @@ describe('the graded path: structure', () => {
 
   it('ids carry the path letter d and are unique across all three paths', () => {
     const all = [
-      ...([3, 4, 5, 6, 7, 8] as const).flatMap((s) => (['green_path', 'remediation_path', 'graded_path'] as const).flatMap((p) => SESSIONS_BY_PATH[s][p].map((t) => t.id))),
+      ...([3, 4, 5, 6, 7, 8] as const).flatMap((s) => (['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'] as const).flatMap((p) => SESSIONS_BY_PATH[s][p].map((t) => t.id))),
       ...([3, 4, 5, 6, 7] as const).flatMap((s) => Object.values(SESSION_BRANCH_TASKS[s]).flatMap((b) => [...b.reinforcement, ...b.challenge].map((t) => t.id))),
     ];
     expect(new Set(all).size).toBe(all.length);
@@ -166,5 +167,139 @@ describe('what the teacher reads', () => {
     expect(ROUTE_APPROVE_HE.graded_path).toBe('אישור המסלול המדורג');
     expect(routeNameHe('graded_path')).toBe('המסלול המדורג');
     expect(routeNameHe('anything')).toBeNull();
+  });
+});
+
+/**
+ * The graded foundations path (owner, 11.10.2026): the second special-education level, for a marked learner whose
+ * graded diagnostic is below 50%. The same topics and tools, addition and subtraction within the hundred (up to 200
+ * at most in a challenge), place value from whole hundreds; ids with the letter f. Meetings 1–2 are the graded ones,
+ * shared with the graded path.
+ */
+const foundation = (s: 3 | 4 | 5 | 6 | 7 | 8): SessionTask[] => SESSIONS_BY_PATH[s].graded_foundation_path;
+const foundationChoices = (s: 3 | 4 | 5 | 6 | 7) => [
+  ...SESSION_BRANCH_TASKS[s].graded_foundation_path.reinforcement,
+  ...SESSION_BRANCH_TASKS[s].graded_foundation_path.challenge,
+];
+const allFoundation = () => [...([3, 4, 5, 6, 7, 8] as const).flatMap(foundation), ...([3, 4, 5, 6, 7] as const).flatMap(foundationChoices)];
+/** The numbers of the teacher's demonstrations (data/teacherDemos.ts): a learner never meets them in an exercise. */
+const TEACHER_DEMO_NUMBERS = [350, 407, 238, 146, 186, 384, 424, 324, 414, 74, 38, 36, 700, 234, 466, 223, 134, 357, 260, 360, 280];
+
+describe('the graded foundations path', () => {
+  it('sessions 3–8 have seven compulsory exercises, sessions 3–7 two reinforcements and one challenge', () => {
+    for (const s of [3, 4, 5, 6, 7, 8] as const) {
+      expect(foundation(s)).toHaveLength(7);
+      for (const t of foundation(s)) expect(t.isCompulsory).toBe(true);
+    }
+    for (const s of [3, 4, 5, 6, 7] as const) {
+      expect(SESSION_BRANCH_TASKS[s].graded_foundation_path.reinforcement).toHaveLength(2);
+      expect(SESSION_BRANCH_TASKS[s].graded_foundation_path.challenge).toHaveLength(1);
+      for (const t of foundationChoices(s)) expect(t.isOptionalChoiceTask).toBe(true);
+    }
+  });
+
+  it('ids carry the path letter f, are unique, and are unique across all four paths', () => {
+    for (const s of [3, 4, 5, 6, 7, 8] as const) for (const t of foundation(s)) expect(t.id).toMatch(new RegExp(`^s${s}_f_t[1-7]$`));
+    for (const s of [3, 4, 5, 6, 7] as const) for (const t of foundationChoices(s)) expect(t.id).toMatch(new RegExp(`^s${s}_f_(reinforce|challenge)_[12]$`));
+    const ids = allFoundation().map((t) => t.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('addition and subtraction of meetings 4–6 stay within 200 (the hundred, and a challenge just past it)', () => {
+    const tasks = [...([4, 5, 6] as const).flatMap(foundation), ...([4, 5, 6] as const).flatMap(foundationChoices)];
+    for (const t of tasks) {
+      expect(t.type, t.id).toBe('vertical_addition');
+      for (const n of [t.numberA, t.numberB, Number(t.correctAnswer)]) expect(n, t.id).toBeLessThanOrEqual(200);
+    }
+  });
+
+  it('every vertical exercise has the right result', () => {
+    for (const t of allFoundation().filter((x) => x.type === 'vertical_addition')) {
+      expect(Number(t.correctAnswer), t.id).toBe(t.isSubtraction ? t.numberA! - t.numberB! : t.numberA! + t.numberB!);
+    }
+  });
+
+  it('no exercise uses a number of the teacher demonstrations', () => {
+    for (const t of allFoundation()) {
+      for (const n of [t.numberA, t.numberB, Number(t.correctAnswer)]) {
+        if (Number.isFinite(n)) expect(TEACHER_DEMO_NUMBERS, `${t.id}: ${n}`).not.toContain(n);
+      }
+    }
+  });
+
+  it('station 4 grades no grouping → one grouping in the units; station 5 no borrow → one borrow', () => {
+    expect(foundation(4).slice(0, 6).map((t) => carryCount(t.numberA!, t.numberB!))).toEqual([0, 0, 1, 1, 1, 1]);
+    expect(foundation(5).slice(0, 6).map((t) => borrowCount(t.numberA!, t.numberB!))).toEqual([0, 0, 1, 1, 1, 1]);
+  });
+
+  it('station 6 has a zero in the minuend in every exercise', () => {
+    for (const t of foundation(6)) expect(String(t.numberA), t.id).toContain('0');
+  });
+
+  it('every missing-digit exercise has exactly one solution', () => {
+    const skeletons = allFoundation().filter((t) => t.hiddenDigits?.a?.length || t.hiddenDigits?.b?.length);
+    expect(skeletons.length).toBeGreaterThan(0);
+    const pow = { units: 1, tens: 10, hundreds: 100, thousands: 1000 } as const;
+    for (const t of skeletons) {
+      const side = t.hiddenDigits!.a?.length ? 'a' : 'b';
+      const places = t.hiddenDigits![side]!;
+      const a = t.numberA!;
+      const b = t.numberB!;
+      const result = t.isSubtraction ? a - b : a + b;
+      const own = side === 'a' ? a : b;
+      const base = places.reduce((acc, p) => acc - Math.floor(own / pow[p]) % 10 * pow[p], own);
+      let solutions = 0;
+      const tryAll = (i: number, acc: number) => {
+        if (i === places.length) {
+          const [x, y] = side === 'a' ? [acc, b] : [a, acc];
+          if ((t.isSubtraction ? x - y : x + y) === result) solutions++;
+          return;
+        }
+        for (let d = 0; d <= 9; d++) tryAll(i + 1, acc + d * pow[places[i]]);
+      };
+      tryAll(0, base);
+      expect(solutions, t.id).toBe(1);
+    }
+  });
+
+  it('session 8 is vertical only and reuses numbers the learner met in sessions 4–6', () => {
+    const met = new Set(([4, 5, 6] as const).flatMap((s) => foundation(s).map((t) => `${t.numberA}${t.isSubtraction ? '-' : '+'}${t.numberB}`)));
+    for (const t of foundation(8)) {
+      expect(t.type).toBe('vertical_addition');
+      if (t.hiddenDigits) continue; // s8_f_t7, the missing-digit inquiry
+      expect(met.has(`${t.numberA}${t.isSubtraction ? '-' : '+'}${t.numberB}`), t.id).toBe(true);
+    }
+  });
+
+  it('its own banks, no fallback; meeting 1 is the graded refresh bank, shared with the graded path', () => {
+    expect(getSessionTasks(4, 'graded_foundation_path').map((t) => t.id)[0]).toBe('s4_f_t1');
+    expect(getSessionBranchTasks(4, 'challenge', 'graded_foundation_path').map((t) => t.id)).toEqual(['s4_f_challenge_1']);
+    expect(catalogBankId(4, 'graded_foundation_path')).toBe('session_4_graded_foundation_path');
+    expect(catalogBankId(1, 'graded_foundation_path')).toBe('session_1_graded_path');
+    expect(getSessionTasks(1, 'graded_foundation_path').map((t) => t.id)).toEqual(SESSION1_GRADED_TASKS.map((t) => t.id));
+    expect(asLearningPathValue('graded_foundation_path')).toBe('graded_foundation_path');
+  });
+
+  it('one name and one approve button', () => {
+    expect(ROUTE_NAME_HE.graded_foundation_path).toBe('המסלול המדורג – יסודות');
+    expect(ROUTE_APPROVE_HE.graded_foundation_path).toBe('אישור המסלול המדורג – יסודות');
+    expect(routeNameHe('graded_foundation_path')).toBe('המסלול המדורג – יסודות');
+  });
+});
+
+describe('the recommendation the teacher screens read (core/recommendedPath.ts)', () => {
+  it('a regular learner: green or remediation; a marked learner: graded or graded foundations, at the same 50% line', () => {
+    expect(recommendedPathOf({ session_score_percent: 50 })).toBe('green_path');
+    expect(recommendedPathOf({ session_score_percent: 49 })).toBe('remediation_path');
+    expect(recommendedPathOf({ session_score_percent: 50, graded_track: true })).toBe('graded_path');
+    expect(recommendedPathOf({ session_score_percent: 49, graded_track: true })).toBe('graded_foundation_path');
+    expect(recommendedPathOf({ matrix_recommended_path: 'graded_foundation_path', graded_track: true })).toBe('graded_foundation_path');
+    // The session document carries no mark: the caller passes the learner record's.
+    expect(recommendedPathOf({ session_score_percent: 29 }, true)).toBe('graded_foundation_path');
+    // Stored before the server knew the two graded levels: read by the same line.
+    expect(recommendedPathOf({ matrix_recommended_path: 'green_path', graded_track: true })).toBe('graded_path');
+    expect(recommendedPathOf({ matrix_recommended_path: 'remediation_path', graded_track: true })).toBe('graded_foundation_path');
+    expect(recommendedPathOf({})).toBeNull();
+    expect(recommendedPathOf({ graded_track: true })).toBeNull();
   });
 });

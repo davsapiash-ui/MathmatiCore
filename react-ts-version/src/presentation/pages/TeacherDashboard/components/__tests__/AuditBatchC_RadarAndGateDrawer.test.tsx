@@ -51,7 +51,7 @@ vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: vi.fn(), warni
 
 import { HeatmapGrid, describeRadarCell, TEACHER_OFFLINE_RADAR_HE, type AnonymousStudent } from '../HeatmapGrid';
 import { TeacherGateApprovalDrawer, gateApprovedToastHe, ROUTE_CARD_HE } from '../TeacherGateApprovalDrawer';
-import { ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
+import { RECOMMENDED_MARK_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 import type { StudentData } from '@/application/useStore';
 
 /**
@@ -167,8 +167,9 @@ describe('the radar tile', () => {
     expect(tile(1).textContent).toContain('אין מפגש פתוח');
     expect(tile(1).textContent).not.toContain('שיעור');
     const row = within(tile(2)).getByTestId('gate-row-student-2');
+    // The learner's own pair (owner, 11.10.2026), each button saying what it does, the recommended one marked.
     const labels = within(row).getAllByRole('button').map((b) => b.textContent);
-    expect(labels).toEqual([ROUTE_NAME_HE.green_path, ROUTE_NAME_HE.remediation_path, ROUTE_NAME_HE.graded_path]);
+    expect(labels).toEqual([`${ROUTE_APPROVE_HE.green_path}${RECOMMENDED_MARK_HE}`, ROUTE_APPROVE_HE.remediation_path]);
   });
 });
 
@@ -283,7 +284,7 @@ describe('the gate drawer', () => {
 
   it('gate-8: choosing the other path offers a change, and saves it', async () => {
     render(<TeacherGateApprovalDrawer student={approved} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(ROUTE_NAME_HE.remediation_path) }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${ROUTE_NAME_HE.remediation_path}`) }));
     const change = screen.getByRole('button', { name: 'שנו את המסלול' }) as HTMLButtonElement;
     expect(change.disabled).toBe(false);
     await act(async () => { fireEvent.click(change); });
@@ -299,8 +300,8 @@ describe('the gate drawer', () => {
 
   it('gate-9: the cards give each route\'s range (PRD Module 26), without peer teaching', () => {
     render(<TeacherGateApprovalDrawer student={learner()} onClose={vi.fn()} />);
-    const green = screen.getByRole('button', { name: new RegExp(ROUTE_NAME_HE.green_path) });
-    const remediation = screen.getByRole('button', { name: new RegExp(ROUTE_NAME_HE.remediation_path) });
+    const green = screen.getByRole('button', { name: new RegExp(`^${ROUTE_NAME_HE.green_path}`) });
+    const remediation = screen.getByRole('button', { name: new RegExp(`^${ROUTE_NAME_HE.remediation_path}`) });
     expect(green.textContent).toContain(ROUTE_CARD_HE.green_path);
     expect(green.textContent).toContain('10,000');
     expect(green.textContent).not.toContain('תלת-ספרתיים');

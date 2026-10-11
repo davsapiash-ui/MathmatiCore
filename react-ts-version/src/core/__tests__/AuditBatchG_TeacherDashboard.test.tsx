@@ -268,15 +268,21 @@ describe('TeacherApprovalGate', () => {
   } as never;
   const approved = { ...(waiting as object), studentId: 'student_5', anonymousLabel: 'תלמיד 5', isApproved: true } as never;
 
-  it('gate-11: a row opens the learner', () => {
-    const onOpenLearner = vi.fn();
-    render(<TeacherApprovalGate students={[waiting]} onApproveStudent={async () => true} onApproveAll={async () => {}} onOpenLearner={onOpenLearner} />);
-    fireEvent.click(screen.getByRole('button', { name: 'תלמיד 4' }));
-    expect(onOpenLearner).toHaveBeenCalledWith('student_4');
+  // The learner rows moved into ניהול כיתה ומסלולים (owner, 11.10.2026): the learner's number there opens the report.
+  it('gate-11: a row opens the learner', async () => {
+    const onOpenReport = vi.fn();
+    render(<ClassManagement allStudents={[]} onOpenReport={onOpenReport} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'תלמיד 4' }));
+    expect(onOpenReport).toHaveBeenCalledWith('student_user4');
+  });
+
+  it('the whole-class part counts the waiting learners', () => {
+    render(<TeacherApprovalGate students={[waiting]} onApproveAll={async () => {}} />);
+    expect(screen.getByText(/ממתינים לאישור: 1\./)).toBeTruthy();
   });
 
   it('M-gate-opened-msg: approval does not say the meeting is open', () => {
-    render(<TeacherApprovalGate students={[approved]} onApproveStudent={async () => true} onApproveAll={async () => {}} />);
+    render(<TeacherApprovalGate students={[approved]} onApproveAll={async () => {}} />);
     expect(screen.queryByText(/פתוח עבורם/)).toBeNull();
     expect(screen.getByText('ייכנסו כשתפתחו את המפגש לכיתה')).toBeTruthy();
   });

@@ -122,7 +122,7 @@ describe('regrouping errors never turn on the scaffold, in any vertical exercise
   const byColumn = (f: (p: Place) => number) => PLACES.reduce((s, p) => s + (((f(p) % 10) + 10) % 10) * PV[p], 0);
   const tasks: SessionTask[] = [];
   for (const m of [3, 4, 5, 6, 7] as const) {
-    for (const p of ['green_path', 'remediation_path', 'graded_path'] as const) {
+    for (const p of ['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'] as const) {
       tasks.push(...(getSessionTasks(m as any, p) ?? []), ...getSessionBranchTasks(m, 'reinforcement', p), ...getSessionBranchTasks(m, 'challenge', p));
     }
   }

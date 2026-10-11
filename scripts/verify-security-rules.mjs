@@ -138,6 +138,14 @@ await check('המורה בוחרת בשער את המסלול המדורג', () 
     update(ref(tdb, node), { teacher_selected_path: 'graded_path', pedagogicalPath: 'graded_path' })
   )
 );
+await check('המורה בוחרת בשער את המסלול המדורג – יסודות', () =>
+  assertSucceeds(
+    update(ref(tdb, node), { teacher_selected_path: 'graded_foundation_path', pedagogicalPath: 'graded_foundation_path' })
+  )
+);
+await check('הלומד אינו כותב לעצמו המלצה למסלול המדורג – יסודות', () =>
+  assertFails(update(ref(ldb, node), { matrix_recommended_path: 'graded_foundation_path' }))
+);
 await check('הלומד אינו בוחר לעצמו את המסלול המדורג', async () => {
   await assertFails(update(ref(ldb, node), { teacher_selected_path: 'green_path' }));
   await assertFails(update(ref(ldb, node), { pedagogicalPath: 'green_path' }));
@@ -293,6 +301,15 @@ await check('המורה בוחרת במסמך המפגש את המסלול המ�
     setDoc(
       doc(tfs, 'sessions', 'session_02_student_3'),
       { teacher_selected_path: 'graded_path', gate_approved_at: 6, gate_approved_by: 'teacher_1' },
+      { merge: true }
+    )
+  )
+);
+await check('המורה בוחרת במסמך המפגש את המסלול המדורג – יסודות', () =>
+  assertSucceeds(
+    setDoc(
+      doc(tfs, 'sessions', 'session_02_student_3'),
+      { teacher_selected_path: 'graded_foundation_path', gate_approved_at: 7, gate_approved_by: 'teacher_1' },
       { merge: true }
     )
   )

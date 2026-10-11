@@ -39,7 +39,7 @@ const board = (c: Partial<PlaceCounts>) => useWorkspaceStore.setState({ counts: 
 
 function byId(id: string): SessionTask {
   for (const m of [4, 7] as const) {
-    for (const p of ['green_path', 'remediation_path', 'graded_path'] as const) {
+    for (const p of ['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'] as const) {
       const t = (getSessionTasks(m as any, p) ?? []).find((x) => x.id === id);
       if (t) return t;
     }

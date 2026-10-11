@@ -39,9 +39,9 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users, Mail, Radar, LayoutGrid, FileText, ShieldCheck, School, PanelRightClose, PanelRightOpen, Play, Pause, Square } from "lucide-react";
+import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users, Mail, Radar, LayoutGrid, FileText, School, PanelRightClose, PanelRightOpen, Play, Pause, Square } from "lucide-react";
 
-import { ClassManagement } from "./TeacherDashboard/ClassManagement";
+import { ClassManagement, CLASS_MANAGEMENT_TITLE_HE } from "./TeacherDashboard/ClassManagement";
 import { LearnerJourney } from "./TeacherDashboard/components/LearnerJourney";
 import { ClassMeetingReportPanel } from "./TeacherDashboard/components/ClassMeetingReportPanel";
 import { StudentLearningConditionsDrawer } from "./TeacherDashboard/components/StudentLearningConditionsDrawer";
@@ -49,7 +49,6 @@ import { TeacherGateApprovalDrawer } from "./TeacherDashboard/components/Teacher
 import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPanel";
 import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
 import { ClusteringWidgets, isStudentBelow } from "./TeacherDashboard/components/ClusteringWidgets";
-import { TeacherApprovalGate } from "./TeacherDashboard/components/TeacherApprovalGate";
 import { TeacherGenderSetting } from "./TeacherDashboard/components/TeacherGenderSetting";
 import { useTeacherGender, useTeacherGenderStore } from "@/application/useTeacherGender";
 import { teacherSentenceHe } from "@/core/teacherGender";
@@ -111,8 +110,7 @@ type TabType =
   | "clustering"
   | "diagnostic_reports"
   | "chat_students"
-  | "class_management"
-  | "approvals";
+  | "class_management";
 
 
 /**
@@ -416,7 +414,7 @@ export function TeacherDashboard() {
         // the teacher is told where the learners who did not finish are.
         toast.info(
           closedMeeting === 2
-            ? `המפגש נסגר אוטומטית: עברו 45 דקות מההפעלה. מי שלא סיים מופיע בלשונית "${TEACHER_GATE_HE}", ושם אפשר לפתוח שוב את המפגש לכיתה.`
+            ? `המפגש נסגר אוטומטית: עברו 45 דקות מההפעלה. מי שלא סיים מופיע ב"${CLASS_MANAGEMENT_TITLE_HE}", תחת "${TEACHER_GATE_HE}", ושם אפשר לפתוח שוב את המפגש לכיתה.`
             : 'המפגש נסגר אוטומטית: עברו 45 דקות מההפעלה.'
         );
       }
@@ -1417,8 +1415,7 @@ export function TeacherDashboard() {
       | "clustering"
       | "diagnostic_reports"
       | "chat_students"
-      | "class_management"
-      | "approvals",
+      | "class_management",
   ) => {
     setActiveTab(tab);
     setInputText("");
@@ -1845,28 +1842,24 @@ export function TeacherDashboard() {
           >
             <span className="flex items-center gap-2"><FileText className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>דוחות אבחון אישיים</span></span>
           </button>
-          <button
-            onClick={() => handleTabChange("approvals")}
-              role="tab"
-              aria-selected={activeTab === "approvals"}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "approvals" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
-          >
-            <span className="flex items-center gap-2" title={TEACHER_GATE_HE}><ShieldCheck className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>{TEACHER_GATE_HE}</span></span>
-            {/* Badge: learners waiting at the Module 20 gate. */}
-            {pendingApprovalsBadgeCount > 0 && (
-              <span className="bg-violet-700 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
-                {pendingApprovalsBadgeCount}
-              </span>
-            )}
-          </button>
-
+          {/* One place for every decision about a learner (owner, 11.10.2026): שלב החלוקה למסלולים lives
+              inside "ניהול כיתה ומסלולים", and its badge counts the learners waiting there. */}
           <button
             onClick={() => handleTabChange("class_management")}
               role="tab"
               aria-selected={activeTab === "class_management"}
             className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "class_management" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            <span className="flex items-center gap-2" title="ניהול כיתה ותנאי למידה"><School className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>ניהול כיתה ותנאי למידה</span></span>
+            <span className="flex items-center gap-2" title={CLASS_MANAGEMENT_TITLE_HE}><School className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>{CLASS_MANAGEMENT_TITLE_HE}</span></span>
+            {/* Badge: learners waiting at the Module 20 gate. */}
+            {pendingApprovalsBadgeCount > 0 && (
+              <span
+                className="bg-violet-700 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg"
+                title={`ממתינים ב${TEACHER_GATE_HE}: ${pendingApprovalsBadgeCount}`}
+              >
+                {pendingApprovalsBadgeCount}
+              </span>
+            )}
           </button>
 
           <div className={`text-[10px] font-bold text-slate-600  mb-2 mt-6 px-2 uppercase tracking-widest ${sidebarCollapsed ? 'md:sr-only' : ''}`}>
@@ -2333,6 +2326,32 @@ export function TeacherDashboard() {
                 const student = allStudents.find(s => s.studentId === studentId || normalizeStudentId(s.studentId) === norm);
                 if (student) setDrawerStudentId(normalizeStudentId(student.studentId));
               }}
+              // Module 20: שלב החלוקה למסלולים for the whole class — the batch approval and the learners
+              // who did not finish meeting 2 (Module 14 §ב), with the reopen through the activation window.
+              gate={{
+                students: gateStudentItems,
+                onApproveAll: handleBatchApproveAll,
+                isLoading: isApprovingGate,
+                unfinished: unfinishedMeeting2,
+                isMeeting2Open,
+                onReopenMeeting2: () => {
+                  // The dashboard's own activation window (Module 14 §ב0).
+                  setPickedSessionNum(2);
+                  setPendingActivationSession(2);
+                },
+              }}
+              // The learner's diagnostic evidence, in the gate drawer (the same evidence: gateEvidenceFor).
+              onOpenGateEvidence={(studentId) => {
+                const norm = normalizeStudentId(studentId);
+                const student = allStudents.find(s => s.studentId === studentId || normalizeStudentId(s.studentId) === norm);
+                if (student) setGateStudent(student);
+              }}
+              onOpenReport={(studentId) => {
+                const id = normalizeStudentId(studentId);
+                setSelectedStudentId(id);
+                setSelectedReplayStudentId(id);
+                setActiveTab("diagnostic_reports");
+              }}
             />
           </div>
         )}
@@ -2622,10 +2641,10 @@ export function TeacherDashboard() {
                                           semanticColor="primary"
                                           className="flex-1 font-bold shadow-md shadow-violet-500/20 cursor-pointer"
                                           onClick={() => {
-                                          handleTabChange("approvals");
+                                          handleTabChange("class_management");
                                         }}
                                       >
-                                        מעבר ל{TEACHER_GATE_HE}
+                                        מעבר ל{CLASS_MANAGEMENT_TITLE_HE}
                                       </UdlButton>
                                       <button
                                         onClick={() => setGateStudent(s)}
@@ -2649,32 +2668,6 @@ export function TeacherDashboard() {
                 </>
               );
             })()}
-          </div>
-        )}
-
-        {activeTab === "approvals" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-8">
-            {/* Module 20: Canonical Zero-PII Teacher Approval Gate (WP6 Firestore & RTDB Sync) */}
-            <TeacherApprovalGate
-              students={gateStudentItems}
-              onApproveStudent={handleApproveGateStudent}
-              onApproveAll={handleBatchApproveAll}
-              isLoading={isApprovingGate}
-              unfinished={unfinishedMeeting2}
-              isMeeting2Open={isMeeting2Open}
-              onOpenLearner={(studentId) => {
-                const id = normalizeStudentId(studentId);
-                setSelectedStudentId(id);
-                setSelectedReplayStudentId(id);
-                setActiveTab("diagnostic_reports");
-              }}
-              onReopenMeeting2={() => {
-                // The dashboard's own activation window (Module 14 §ב0).
-                setPickedSessionNum(2);
-                setPendingActivationSession(2);
-              }}
-            />
-
           </div>
         )}
 

@@ -42,7 +42,7 @@ function statesFor(t: any): Record<string, any> {
 }
 
 const tasks: any[] = [...SESSION1_TASKS];
-for (const m of [3, 4, 5, 6, 7, 8] as const) for (const path of ['green_path', 'remediation_path', 'graded_path'] as const) {
+for (const m of [3, 4, 5, 6, 7, 8] as const) for (const path of ['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'] as const) {
   tasks.push(...getSessionTasks(m, path));
   if (m <= 7) for (const b of ['reinforcement', 'challenge'] as const) tasks.push(...getSessionBranchTasks(m, b, path));
 }
@@ -86,7 +86,7 @@ const main = { ...(MAIN as Record<string, Record<string, string | null>>), ...AD
  * change shows up the same way; the test below still checks that the research category agrees with the card.
  */
 for (const t of tasks) {
-  if (!/^s\d_d_/.test(t.id) || main[t.id]) continue;
+  if (!/^s\d_[df]_/.test(t.id) || main[t.id]) continue;
   main[t.id] = Object.fromEntries(Object.entries(statesFor(t)).map(([name, counts]) => [name, SocraticEngine.getSynchronousTaskHint(t, counts).error_category ?? null]));
 }
 const APPROVED: Record<string, string> = { s3_r_t7: 'conceptual' };

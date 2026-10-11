@@ -60,6 +60,10 @@
  *   s3_d_t3           6 tens, 4 units → 5 tens, 14 units: a ten into units.
  *   s7_d_t1           14 tens, 3 units → 1 hundred, 4 tens, 3 units: ten tens grouped into a hundred.
  *   s7_d_t6           240 + 300 − 50: 4 tens cannot give 5, so a hundred is decomposed into tens (490).
+ *   s3_f_t2           5 tens, 3 units → 4 tens, 13 units: a ten into units (graded foundations, 11.10.2026).
+ *   s3_f_t3           2 hundreds, 1 ten → 1 hundred, 11 tens: a hundred into tens.
+ *   s7_f_t1           12 tens, 5 units → 1 hundred, 2 tens, 5 units: ten tens grouped into a hundred.
+ *   s7_f_t6           130 + 200 − 40: 3 tens cannot give 4, so a hundred is decomposed into tens (290).
  * No conversion (not listed): station 3's read_write and decompose exercises
  * (s3_r_t1, s3_r_t3, s3_r_t5, s3_g_t1, s3_g_t3, s3_g_t5 and the four
  * reinforcements), s7_r_t6 (340 + 200 − 30 = 510, 4 tens give 3 without a
@@ -95,6 +99,11 @@ export const REPRESENTATION_LOCKS: Record<string, RepresentationLock> = {
   s3_d_t3: { conversion: 'decomposition', columns: ['units'] },
   s7_d_t1: { conversion: 'composition', columns: ['tens'] },
   s7_d_t6: { conversion: 'decomposition', columns: ['tens'] },
+  // The graded foundations path (owner, 11.10.2026).
+  s3_f_t2: { conversion: 'decomposition', columns: ['units'] },
+  s3_f_t3: { conversion: 'decomposition', columns: ['tens'] },
+  s7_f_t1: { conversion: 'composition', columns: ['tens'] },
+  s7_f_t6: { conversion: 'decomposition', columns: ['tens'] },
 };
 
 export type RepresentationKindName = 'read_write' | 'compose_break' | 'decompose' | 'compose_group';
@@ -116,6 +125,11 @@ export const REPRESENTATION_KIND_BY_ID: Record<string, RepresentationKindName> =
   s3_d_t2: 'compose_break', s3_d_t3: 'compose_break',
   s3_d_t4: 'decompose', s3_d_reinforce_2: 'decompose',
   s7_d_t1: 'compose_group',
+  // The graded foundations path (owner, 11.10.2026).
+  s3_f_t1: 'read_write', s3_f_t5: 'read_write', s3_f_t7: 'read_write', s3_f_reinforce_1: 'read_write',
+  s3_f_t2: 'compose_break', s3_f_t3: 'compose_break',
+  s3_f_t4: 'decompose', s3_f_reinforce_2: 'decompose',
+  s7_f_t1: 'compose_group',
 };
 const KIND_NAMES: readonly string[] = ['read_write', 'compose_break', 'decompose', 'compose_group'];
 

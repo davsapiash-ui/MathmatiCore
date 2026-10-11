@@ -1846,7 +1846,9 @@ function asLearningPath(raw: unknown): LearningPath | null {
 /**
  * Whether the teacher marked this learner record for the graded path (owner, 11.10.2026): `graded_track`,
  * set before meeting 1, so that the refresh exercises of meeting 1 and the diagnostic of meeting 2 are the
- * graded ones. Meetings 3–8 follow the path the teacher approves at the gate, as for everyone.
+ * graded ones. Meetings 3–8 follow the path the teacher approves at the gate, as for everyone: for a
+ * marked learner, graded_path or graded_foundation_path — both share these graded meetings 1–2 (the
+ * meeting-1 bank of either path is session_1_graded_path; sessionTasks.getSessionTasks).
  */
 export function recordIsGraded(record: Record<string, unknown> | null | undefined): boolean {
   return record?.graded_track === true;

@@ -12,28 +12,49 @@
  */
 
 /**
- * The ten-thousands route, the hundreds/thousands route for prior knowledge, and the graded route for
- * special education (owner, 11.10.2026).
+ * The ten-thousands route, the hundreds/thousands route for prior knowledge, and the two graded routes for
+ * special education — the thousand, and the foundations within the hundred (owner, 11.10.2026).
  */
 export const ROUTE_NAME_HE = {
   green_path: 'המסלול הירוק',
   remediation_path: 'מסלול צמצום פערי קדם',
   graded_path: 'המסלול המדורג',
+  graded_foundation_path: 'המסלול המדורג – יסודות',
 } as const;
 
 export type RoutePath = keyof typeof ROUTE_NAME_HE;
 
-/** The three approval buttons at the gate. */
+/** The approval buttons at the gate (each learner sees the two of their own pair, routePairFor). */
 export const ROUTE_APPROVE_HE: Readonly<Record<RoutePath, string>> = {
   green_path: 'אישור המסלול הירוק',
   remediation_path: 'אישור מסלול צמצום פערי קדם',
   graded_path: 'אישור המסלול המדורג',
+  graded_foundation_path: 'אישור המסלול המדורג – יסודות',
 };
 
 /** A stored path value as a route key, or null for anything else. */
 export function asRoutePath(path: unknown): RoutePath | null {
-  return path === 'green_path' || path === 'remediation_path' || path === 'graded_path' ? path : null;
+  return path === 'green_path' || path === 'remediation_path' || path === 'graded_path' || path === 'graded_foundation_path'
+    ? path
+    : null;
 }
+
+/**
+ * Every learner has exactly two levels, and the graded mark (graded_track) decides which two (owner,
+ * 11.10.2026): the regular pair, or the special-education pair. The gate offers only the learner's own pair.
+ */
+export function routePairFor(gradedTrack: boolean): readonly [RoutePath, RoutePath] {
+  return gradedTrack ? ['graded_path', 'graded_foundation_path'] : ['green_path', 'remediation_path'];
+}
+
+/** The two groups of learners on the class-management screen and the radar's legend. */
+export const LEARNER_GROUP_HE = {
+  regular: 'תלמידים בתוכנית הרגילה',
+  graded: 'תלמידי חינוך מיוחד',
+} as const;
+
+/** The marker on the approve button the matrix recommends — a word, not a colour alone. */
+export const RECOMMENDED_MARK_HE = 'מומלץ';
 
 /** The gate between meeting 2 and meeting 3 (PRD Module 20). */
 export const TEACHER_GATE_HE = 'שלב החלוקה למסלולים';
@@ -112,9 +133,10 @@ export function routeNameHe(path: unknown): string | null {
  * The radar's own path values stay as they are ('ירוק' / 'צמצום פערים'); what
  * the teacher reads is the route's one name (owner, 27.9.2026).
  */
-export function radarPathLabelHe(path: 'ירוק' | 'צמצום פערים' | 'מדורג' | 'טרם נקבעה' | undefined): string {
+export function radarPathLabelHe(path: 'ירוק' | 'צמצום פערים' | 'מדורג' | 'יסודות' | 'טרם נקבעה' | undefined): string {
   if (path === 'ירוק') return ROUTE_NAME_HE.green_path;
   if (path === 'צמצום פערים') return ROUTE_NAME_HE.remediation_path;
   if (path === 'מדורג') return ROUTE_NAME_HE.graded_path;
+  if (path === 'יסודות') return ROUTE_NAME_HE.graded_foundation_path;
   return path ?? 'טרם נקבעה';
 }

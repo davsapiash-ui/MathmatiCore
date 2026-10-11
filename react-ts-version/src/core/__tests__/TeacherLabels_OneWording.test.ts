@@ -82,8 +82,8 @@ const teacherTexts = (): Array<[string, string]> => [
 
 describe('the names, one wording', () => {
   it('the two routes, the approval buttons, the gate, the open card', () => {
-    expect(ROUTE_NAME_HE).toEqual({ green_path: 'המסלול הירוק', remediation_path: 'מסלול צמצום פערי קדם', graded_path: 'המסלול המדורג' });
-    expect(ROUTE_APPROVE_HE).toEqual({ green_path: 'אישור המסלול הירוק', remediation_path: 'אישור מסלול צמצום פערי קדם', graded_path: 'אישור המסלול המדורג' });
+    expect(ROUTE_NAME_HE).toEqual({ green_path: 'המסלול הירוק', remediation_path: 'מסלול צמצום פערי קדם', graded_path: 'המסלול המדורג', graded_foundation_path: 'המסלול המדורג – יסודות' });
+    expect(ROUTE_APPROVE_HE).toEqual({ green_path: 'אישור המסלול הירוק', remediation_path: 'אישור מסלול צמצום פערי קדם', graded_path: 'אישור המסלול המדורג', graded_foundation_path: 'אישור המסלול המדורג – יסודות' });
     expect(TEACHER_GATE_HE).toBe('שלב החלוקה למסלולים');
     expect(CARD_OPEN_HE).toBe('כרטיס החניכה פתוח');
     expect(routeNameHe('green_path')).toBe('המסלול הירוק');
@@ -105,6 +105,8 @@ describe('the names, one wording', () => {
   it('the radar keeps its internal path values and shows the route names', () => {
     expect(radarPathLabelHe('ירוק')).toBe('המסלול הירוק');
     expect(radarPathLabelHe('צמצום פערים')).toBe('מסלול צמצום פערי קדם');
+    expect(radarPathLabelHe('מדורג')).toBe('המסלול המדורג');
+    expect(radarPathLabelHe('יסודות')).toBe('המסלול המדורג – יסודות');
     expect(radarPathLabelHe('טרם נקבעה')).toBe('טרם נקבעה');
   });
 
@@ -116,20 +118,18 @@ describe('the names, one wording', () => {
     // (audit 2.10, M-dead-topbar); the side menu keeps the name as its label.
     expect(dash).toContain('aria-label="המסך של המורה"');
     const heat = code('presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx');
-    expect(heat).toContain('<span>{ROUTE_APPROVE_HE.green_path}</span>');
-    expect(heat).toContain('<span>{ROUTE_APPROVE_HE.remediation_path}</span>');
+    // Each learner's two approve buttons (owner, 11.10.2026) say the approve label, on the radar and the row.
+    expect(heat).toContain('<span>{ROUTE_APPROVE_HE[path]}</span>');
+    expect(heat).toContain('routePairFor(student.gradedTrack === true)');
     expect(heat).toContain('<span>{CARD_OPEN_HE}</span>');
     const cm = code('presentation/pages/TeacherDashboard/ClassManagement.tsx');
-    // One row per learner (11.10.2026): the three approve buttons are drawn from one list of the three paths.
-    expect(cm).toContain('{ROUTE_APPROVE_HE[path]}');
-    expect(cm).toContain("const PATHS: PedagogicalPath[] = ['green_path', 'remediation_path', 'graded_path'];");
-    expect(heat).toContain('<span>{ROUTE_APPROVE_HE.graded_path}</span>');
-    for (const f of ['presentation/pages/TeacherDashboard/components/TeacherGateApprovalDrawer.tsx', 'presentation/pages/TeacherDashboard/components/TeacherApprovalGate.tsx']) {
-      const text = code(f);
-      expect(text, f).toContain('{TEACHER_GATE_HE}');
-      expect(text, f).toContain('{ROUTE_NAME_HE.green_path}');
-      expect(text, f).toContain('{ROUTE_NAME_HE.remediation_path}');
-    }
+    expect(cm).toContain('<span>{ROUTE_APPROVE_HE[path]}</span>');
+    expect(cm).toContain('const PATHS = routePairFor(row.gradedTrack);');
+    const drawer = code('presentation/pages/TeacherDashboard/components/TeacherGateApprovalDrawer.tsx');
+    expect(drawer).toContain('{TEACHER_GATE_HE}');
+    expect(drawer).toContain('{ROUTE_NAME_HE[path]}');
+    expect(drawer).toContain('ROUTE_APPROVE_HE[selectedPath]');
+    expect(code('presentation/pages/TeacherDashboard/components/TeacherApprovalGate.tsx')).toContain('{TEACHER_GATE_HE}');
   });
 });
 

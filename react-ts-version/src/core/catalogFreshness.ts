@@ -111,11 +111,12 @@ const PATH_LABEL: Record<string, string> = {
   green_path: ROUTE_NAME_HE.green_path,
   remediation_path: ROUTE_NAME_HE.remediation_path,
   graded_path: ROUTE_NAME_HE.graded_path,
+  graded_foundation_path: ROUTE_NAME_HE.graded_foundation_path,
 };
 
 /** `session_4_green_path` → "מפגש 4 · חיבור במאונך עם הקבצה — המסלול הירוק". */
 export function bankLabelHe(bankId: string): string {
-  const match = /^session_(\d+)(?:_(green_path|remediation_path|graded_path))?$/.exec(bankId);
+  const match = /^session_(\d+)(?:_(green_path|remediation_path|graded_path|graded_foundation_path))?$/.exec(bankId);
   if (!match) return bankId;
   const path = match[2] ? ` — ${PATH_LABEL[match[2]]}` : '';
   return `${meetingShortLabelHe(Number(match[1]))}${path}`;

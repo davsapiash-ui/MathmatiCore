@@ -83,7 +83,7 @@ const cardOpen = () => ws().helpState === 'socratic';
 function allTasks(): SessionTask[] {
   const out: SessionTask[] = [];
   for (const m of [1, 3, 4, 5, 6, 7, 8] as const) {
-    for (const p of ['green_path', 'remediation_path', 'graded_path'] as const) {
+    for (const p of ['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'] as const) {
       out.push(...(getSessionTasks(m as any, p) ?? []));
       out.push(...getSessionBranchTasks(m, 'reinforcement', p), ...getSessionBranchTasks(m, 'challenge', p));
     }

@@ -9,6 +9,7 @@ import { resolve } from 'path';
 import { TeacherApprovalGate } from '../TeacherApprovalGate';
 import { buildUnfinishedMeeting2Item, buildUnfinishedMeeting2Items } from '../../gateEvidence';
 import { meetingShortLabelHe } from '@/core/stationNames';
+import { TEACHER_GATE_HE } from '@/core/routeLabels';
 import type { StudentData } from '@/application/useStore';
 
 /**
@@ -60,12 +61,13 @@ describe('who started meeting 2 and did not finish', () => {
 
 describe('the gate tab shows them, with the reopen action', () => {
   const unfinished = [{ studentId: 'student_2', anonymousLabel: 'תלמיד 2', currentTask: 4 }];
-  const base = { students: [], onApproveStudent: vi.fn(), onApproveAll: vi.fn(), unfinished };
+  const base = { students: [], onApproveAll: vi.fn(), unfinished };
 
   it('meeting 2 closed: the list, what was kept, and one button that opens meeting 2 again', () => {
     const onReopenMeeting2 = vi.fn();
     render(<TeacherApprovalGate {...base} isMeeting2Open={false} onReopenMeeting2={onReopenMeeting2} />);
-    expect(screen.getByRole('heading', { name: 'תלמידים שהתחילו את המפגש ולא סיימו (1)' })).toBeTruthy();
+    // PRD Module 20: the heading still names the stage, now that it sits in ניהול כיתה ומסלולים.
+    expect(screen.getByRole('heading', { name: `${TEACHER_GATE_HE}: תלמידים שהתחילו את המפגש ולא סיימו (1)` })).toBeTruthy();
     expect(screen.getByText(meetingShortLabelHe(2))).toBeTruthy();
     expect(screen.getByText(/מי שסיים את כל המשימות, או שכבר אישרתם לו מסלול, לא יעשה את המפגש שוב/)).toBeTruthy();
     expect(screen.getByText('תלמיד 2 · עצר במשימה 4 מתוך 7')).toBeTruthy();
@@ -92,11 +94,12 @@ describe('the dashboard', () => {
   it('counts them on the tab once meeting 2 is closed, and reopens through the activation window', () => {
     expect(dash).toContain('buildUnfinishedMeeting2Items(students, firestoreSession2Docs)');
     expect(dash).toContain('(isMeeting2Open ? 0 : unfinishedMeeting2.length)');
-    expect(dash).toMatch(/onReopenMeeting2=\{\(\) => \{[\s\S]{0,300}setPendingActivationSession\(2\);/);
+    // The stage sits in ניהול כיתה ומסלולים (owner, 11.10.2026): the dashboard hands it the reopen action.
+    expect(dash).toMatch(/onReopenMeeting2: \(\) => \{[\s\S]{0,300}setPendingActivationSession\(2\);/);
   });
 
   it('the 45-minute close of meeting 2 tells the teacher where they are', () => {
-    expect(dash).toContain('מי שלא סיים מופיע בלשונית "${TEACHER_GATE_HE}", ושם אפשר לפתוח שוב את המפגש לכיתה.');
+    expect(dash).toContain('מי שלא סיים מופיע ב"${CLASS_MANAGEMENT_TITLE_HE}", תחת "${TEACHER_GATE_HE}", ושם אפשר לפתוח שוב את המפגש לכיתה.');
     // Read before the close is written: the SDK raises our own set() on the
     // listener at once, and the record is then the closed one (seen live).
     const read = dash.indexOf('const closedMeeting = Number(lastVal.sessionNumber);');

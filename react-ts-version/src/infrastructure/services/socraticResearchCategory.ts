@@ -33,7 +33,7 @@ const EXERCISE_CARDS_WITHOUT_CATEGORY = new Set([
 ]);
 
 function sessionCardKeys(id?: string): string[] {
-  const m = id ? /^s([3-8])_(?:([grd])_)?(?:t\d+|reinforce_\d+|challenge_\d+)$/.exec(id) : null;
+  const m = id ? /^s([3-8])_(?:([grdf])_)?(?:t\d+|reinforce_\d+|challenge_\d+)$/.exec(id) : null;
   if (!m) return [];
   const [, session, path] = m;
   return path ? [`s${session}_${path}_card`, `s${session}_card`] : [`s${session}_card`];
@@ -95,7 +95,7 @@ export function researchErrorCategory(task: any, counts?: Counts): Category {
   if (mainLiveCardFires(task, targetNode, c)) return null;
 
   const id: string | undefined = task?.id;
-  const normalized = id ? id.replace(/^(s\d+)_[grd]_t(\d+)$/, '$1_t$2') : '';
+  const normalized = id ? id.replace(/^(s\d+)_[grdf]_t(\d+)$/, '$1_t$2') : '';
   if ((id && EXERCISE_CARDS_WITHOUT_CATEGORY.has(id)) || EXERCISE_CARDS_WITHOUT_CATEGORY.has(normalized)) return null;
   if (task?.type === 'session1_intro') return null;
 

@@ -64,7 +64,7 @@ import {
   reportFooterTemplate,
 } from "./reportHtml";
 import { compareTelemetryOrder } from "./telemetryOrder";
-import { asLearningPath, isGradedTrack, learnerPathOf } from "./learningPath";
+import { asLearningPath, isGradedTrack, learnerPathOf, recommendedPathFor } from "./learningPath";
 
 export const EXACT_AI_FALLBACK_TEXT = EXACT_AI_FALLBACK_TEXT_HE;
 
@@ -762,7 +762,8 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       session_number: resolvedSessionNumber,
       is_completed: telemetryDocs.some((d) => d.event_type === "SESSION_END" || d.event_type === "PROBLEM_COMPLETE"),
       session_score_percent: first.scorePercent,
-      matrix_recommended_path: first.scorePercent >= 50 ? "green_path" : "remediation_path",
+      // A learner the teacher marked graded is recommended one of the two graded levels (owner, 11.10.2026).
+      matrix_recommended_path: recommendedPathFor(first.scorePercent, isGradedTrack(studentVal)),
       teacher_selected_path: studentVal.teacher_selected_path || null,
       teacher_gate_approved: Boolean(studentVal.teacher_gate_approved),
       first_attempt: first,
@@ -783,7 +784,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       session_number: 2,
       is_completed: true,
       session_score_percent: computedScore,
-      matrix_recommended_path: computedScore >= 50 ? "green_path" : "remediation_path",
+      matrix_recommended_path: recommendedPathFor(computedScore, isGradedTrack(studentVal)),
       teacher_selected_path: studentVal.teacher_selected_path || null,
       teacher_gate_approved: Boolean(studentVal.teacher_gate_approved),
     };
@@ -877,9 +878,13 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     // does not exist — so the engine received "addition, operands unknown" for
     // every exercise, a subtraction included.
     const templatePath = analysisPath ?? "green_path";
-    // Meeting 1 of a graded learner: the graded refresh bank first (session_1_graded_path).
-    const bankIds = (resolvedSessionNumber >= 3 && resolvedSessionNumber <= 8) || (resolvedSessionNumber === 1 && analysisPath === "graded_path")
+    // Meeting 1 of a graded learner, on either special-education level: the graded refresh bank first
+    // (session_1_graded_path; both levels share it, owner 11.10.2026).
+    const gradedMeeting1 = resolvedSessionNumber === 1 && (analysisPath === "graded_path" || analysisPath === "graded_foundation_path");
+    const bankIds = resolvedSessionNumber >= 3 && resolvedSessionNumber <= 8
       ? [`session_${resolvedSessionNumber}_${templatePath}`, `session_${resolvedSessionNumber}`]
+      : gradedMeeting1
+      ? ["session_1_graded_path", "session_1"]
       : [`session_${resolvedSessionNumber}`];
     for (const bankId of bankIds) {
       const bankDoc = await db.collection("curriculum_catalog").doc(bankId).get();
@@ -997,7 +1002,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     // had not finished meeting 3 belonged in remediation.
     matrix_recommended_path: score === null || resolvedSessionNumber !== 2
       ? null
-      : sessionData.matrix_recommended_path || (score >= 50 ? "green_path" : "remediation_path"),
+      : sessionData.matrix_recommended_path || recommendedPathFor(score, isGradedTrack(studentVal)),
     teacher_selected_path: sessionData.teacher_selected_path || null,
     teacher_gate_approved: Boolean(sessionData.teacher_gate_approved),
     routing_group: routingGroup,
@@ -1024,7 +1029,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     catch_up: catchUp,
     summary_text_he: score === null
       ? `דוח היכרות וריענון למפגש ${resolvedSessionNumber}, ללא ציון. כלים שעוד לא הופעלו: ${toolMastery && toolMastery.not_used.length > 0 ? toolMastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") : "אין"}.`
-      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון ניסיון ראשון (מדד 1): ${score}%.${resolvedSessionNumber === 2 ? ` מסלול מומלץ: ${score >= 50 ? ROUTE_NAME_HE.green_path : ROUTE_NAME_HE.remediation_path}.` : ""}`
+      : `דוח פדגוגי למפגש ${resolvedSessionNumber}. ציון ניסיון ראשון (מדד 1): ${score}%.${resolvedSessionNumber === 2 ? ` מסלול מומלץ: ${ROUTE_NAME_HE[recommendedPathFor(score, isGradedTrack(studentVal))]}.` : ""}`
   };
 
   // Render authoritative server-side PDF binary & Upload to Cloud Storage

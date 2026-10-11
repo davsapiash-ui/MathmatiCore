@@ -19,10 +19,13 @@ import { getSessionBranchTasks } from "@/data/sessionBranchTasks";
 import { DEFAULT_HESITATION_THRESHOLD_SECONDS } from "@/core/hesitationCalibration";
 import { compareCatalog, freshnessMessageHe, type CatalogFreshness } from "@/core/catalogFreshness";
 import { MEETING_NUMBERS, meetingLabelHe, meetingShortLabelHe, type MeetingNumber } from "@/core/stationNames";
-import { ROUTE_NAME_HE } from "@/core/routeLabels";
+import { ROUTE_NAME_HE, type RoutePath } from "@/core/routeLabels";
+import { ROUTE_COLOR } from "@/core/routeColors";
 
 interface PathBank {
   label: string;
+  /** The level the bank belongs to, for its colour (core/routeColors.ts); none for a bank shared by all. */
+  path?: RoutePath;
   compulsory: string[];
   reinforcement: string[];
   challenge: string[];
@@ -85,8 +88,12 @@ export function buildSessionCatalog(): SessionCurriculumItem[] {
   });
   for (const n of [3, 4, 5, 6, 7, 8] as const) {
     const byPath = SESSIONS_BY_PATH[n];
-    const banks: PathBank[] = (["green_path", "remediation_path", "graded_path"] as const).map((path) => ({
-      label: path === "green_path" ? `${ROUTE_NAME_HE.green_path} (עד 10,000)` : path === "remediation_path" ? `${ROUTE_NAME_HE.remediation_path} (עד 1,000)` : `${ROUTE_NAME_HE.graded_path} (עד 1,000, בדירוג)`,
+    const banks: PathBank[] = (["green_path", "remediation_path", "graded_path", "graded_foundation_path"] as const).map((path) => ({
+      path,
+      label: path === "green_path" ? `${ROUTE_NAME_HE.green_path} (עד 10,000)`
+        : path === "remediation_path" ? `${ROUTE_NAME_HE.remediation_path} (עד 1,000)`
+        : path === "graded_path" ? `${ROUTE_NAME_HE.graded_path} (עד 1,000, בדירוג)`
+        : `${ROUTE_NAME_HE.graded_foundation_path} (בתחום המאה, ומאות שלמות עד 1,000)`,
       compulsory: titles((byPath?.[path] ?? []) as SessionTask[]),
       reinforcement: titles(getSessionBranchTasks(n, "reinforcement", path)),
       challenge: titles(getSessionBranchTasks(n, "challenge", path)),
@@ -348,7 +355,9 @@ export function AdminCurriculumView() {
                   <div className="p-4 pt-0 border-t border-slate-100 dark:border-slate-800/80 space-y-3 mt-2">
                     {item.banks.map((bank) => (
                       <div key={bank.label} className="grid md:grid-cols-2 gap-4">
-                        <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
+                        <div className="relative overflow-hidden p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
+                          {/* The level's colour as a stripe on the edge; its name is in the label (core/routeColors.ts). */}
+                          {bank.path && <span aria-hidden="true" className={`absolute inset-y-0 right-0 w-1 ${ROUTE_COLOR[bank.path].stripe}`} />}
                           <div className="text-xs font-bold text-violet-600 flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>{bank.label}: {item.unscored ? "שלבי היכרות ותרגילי ריענון, ללא ציון" : "משימות חובה"} ({bank.compulsory.length})</span>

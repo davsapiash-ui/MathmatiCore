@@ -328,7 +328,8 @@ describe('QA Battery 1: Hammer & Race-Condition Testing (Multi-Clicks & In-Fligh
     render(<HeatmapGrid />);
 
     // Find the quick-approval "אשר ירוק" button in the gate banner
-    const greenApproveBtn = await screen.findByRole('button', { name: /אישור המסלול הירוק/i }) as HTMLButtonElement;
+    // The strip above the grid and the tile both carry the learner's pair; the strip's comes first.
+    const greenApproveBtn = (await screen.findAllByRole('button', { name: /אישור המסלול הירוק/i }))[0] as HTMLButtonElement;
     expect(greenApproveBtn.disabled).toBe(false);
 
     // HAMMER: 5 rapid clicks within 50ms
@@ -347,7 +348,7 @@ describe('QA Battery 1: Hammer & Race-Condition Testing (Multi-Clicks & In-Fligh
     expect(greenApproveBtn.querySelector('.animate-spin')).not.toBeNull();
 
     // Sibling button "אשר צמצום" must also be disabled during this in-flight approval
-    const redApproveBtn = screen.getByRole('button', { name: /אישור מסלול צמצום פערי קדם/i }) as HTMLButtonElement;
+    const redApproveBtn = screen.getAllByRole('button', { name: /אישור מסלול צמצום פערי קדם/i })[0] as HTMLButtonElement;
     expect(redApproveBtn.disabled).toBe(true);
 
     // Resolve flight

@@ -191,10 +191,10 @@ export type ExercisePathType = "compulsory" | "consolidation" | "challenge";
 /**
  * The choice banks (react-ts-version/src/data/sessionBranchTasks.ts) are not
  * published to the catalog, so the server knows a choice exercise by its id:
- * `s{N}_{g|r|d}_reinforce_{k}` and `s{N}_{g|r|d}_challenge_{k}`. A test pins every
+ * `s{N}_{g|r|d|f}_reinforce_{k}` and `s{N}_{g|r|d|f}_challenge_{k}`. A test pins every
  * id of those banks, and every compulsory id, against this pattern.
  */
-const CHOICE_EXERCISE_ID = /^s\d+_[grd]_(reinforce|challenge)_\d+$/;
+const CHOICE_EXERCISE_ID = /^s\d+_[grdf]_(reinforce|challenge)_\d+$/;
 
 /**
  * מסמך 03: "ביצועי הלומדים במשימות האקסטרה של נתיבי הבחירה … יופיעו בדוחות
@@ -271,6 +271,22 @@ export const CHOICE_TITLES_HE: Readonly<Record<string, string>> = {
   s7_d_reinforce_1: "ביסוס 1: ספרת יחידות חסרה בחיבור ללא המרה",
   s7_d_reinforce_2: "ביסוס 2: ספרת עשרות חסרה בחיסור ללא פריטה",
   s7_d_challenge_1: "אתגר: תרגיל שלד עם שלוש ספרות חסרות",
+  // The graded foundations path (owner, 11.10.2026).
+  s3_f_reinforce_1: "ביסוס 1: ייצוג סטנדרטי של 640",
+  s3_f_reinforce_2: "ביסוס 2: 150 בעשרות בלבד",
+  s3_f_challenge_1: "אתגר: כל הדרכים לייצג את 180",
+  s4_f_reinforce_1: "ביסוס 1: חיבור ללא המרה",
+  s4_f_reinforce_2: "ביסוס 2: המרה אחת בטור היחידות",
+  s4_f_challenge_1: "אתגר: שתי המרות עוקבות, אל מעבר למאה",
+  s5_f_reinforce_1: "ביסוס 1: חיסור ללא פריטה",
+  s5_f_reinforce_2: "ביסוס 2: פריטה אחת בטור היחידות",
+  s5_f_challenge_1: "אתגר: שתי פריטות עוקבות, ממספר שמעל המאה",
+  s6_f_reinforce_1: "ביסוס 1: קריאת האפס כשומר מקום, ללא פריטה",
+  s6_f_reinforce_2: "ביסוס 2: פריטה עם אפס בטור היחידות",
+  s6_f_challenge_1: "אתגר: שתי פריטות, כשבמחוסר יש אפסים בטור העשרות ובטור היחידות",
+  s7_f_reinforce_1: "ביסוס 1: ספרת יחידות חסרה בחיבור ללא המרה",
+  s7_f_reinforce_2: "ביסוס 2: ספרת עשרות חסרה בחיסור ללא פריטה",
+  s7_f_challenge_1: "אתגר: תרגיל שלד עם שתי ספרות חסרות",
 };
 
 /**
@@ -288,7 +304,7 @@ export function exerciseLabelHe(titles: Record<string, string> | null | undefine
   const id = String(exerciseId ?? "");
   const known = CHOICE_TITLES_HE[id];
   if (known) return known;
-  const choice = /^s(\d+)_(?:[grd]_)?(reinforce|challenge)_(\d+)$/.exec(id);
+  const choice = /^s(\d+)_(?:[grdf]_)?(reinforce|challenge)_(\d+)$/.exec(id);
   if (choice) return `${choice[2] === "challenge" ? "אתגר" : "ביסוס"} ${Number(choice[3])} במפגש ${choice[1]}`;
   const meeting = /^(?:ex|s)_?(\d+)_(.*)$/.exec(id);
   if (meeting) {
@@ -640,7 +656,7 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
 
 /**
  * The Hebrew title of every exercise in a meeting's published banks (all
- * three paths), as the teacher's screens show them — the reports used to print the
+ * four paths), as the teacher's screens show them — the reports used to print the
  * ids ("s4_g_t1"). The choice banks are not published, so a choice exercise is
  * not here and keeps its id.
  */
@@ -959,8 +975,8 @@ export function meetingRunsByLearner(
 
 export type { LearningPath } from "./learningPath";
 
-/** The id spelling of the compulsory and choice banks of meetings 3–8: s4_g_t1, s4_r_reinforce_2, s4_d_t1. */
-const PATH_EXERCISE_ID = /^s\d+_([grd])_/;
+/** The id spelling of the compulsory and choice banks of meetings 3–8: s4_g_t1, s4_r_reinforce_2, s4_d_t1, s4_f_t1. */
+const PATH_EXERCISE_ID = /^s\d+_([grdf])_/;
 
 /**
  * The path the learner actually worked on in one meeting, from the exercises
@@ -976,7 +992,7 @@ export function pathOfMeeting(
   events: Record<string, any>[],
   idsByPath: Partial<Record<LearningPath, ReadonlySet<string> | null | undefined>> = {}
 ): LearningPath | null {
-  const seen: Record<LearningPath, Set<string>> = { green_path: new Set(), remediation_path: new Set(), graded_path: new Set() };
+  const seen: Record<LearningPath, Set<string>> = { green_path: new Set(), remediation_path: new Set(), graded_path: new Set(), graded_foundation_path: new Set() };
   for (const ev of events) {
     const exId = String(ev?.exercise_id || "");
     if (!exId || !isExerciseEvent(ev)) continue;
@@ -1084,6 +1100,13 @@ export const FADING_PAIRS: Record<string, string> = {
   s8_d_t4: "s5_d_t1", // 87 − 35
   s8_d_t5: "s5_d_t2", // 62 − 18
   s8_d_t6: "s6_d_t5", // 703 − 458
+  // The graded foundations path (owner, 11.10.2026; sessionGradedTasks.ts).
+  s8_f_t1: "s4_f_t1", // 32 + 14
+  s8_f_t2: "s4_f_t4", // 45 + 18
+  s8_f_t3: "s4_f_t5", // 56 + 37
+  s8_f_t4: "s5_f_t1", // 68 − 23
+  s8_f_t5: "s5_f_t4", // 84 − 47
+  s8_f_t6: "s6_f_t5", // 100 − 45
 };
 
 /** A session-8 exercise finished faster than this, without the blocks, is flagged as rushed (calibration point; owner may change). */
@@ -1190,6 +1213,9 @@ export const REPRESENTATION_EXERCISES: ReadonlySet<string> = new Set([
   // The graded path, by the same kind: s3_d_t6 is a missing-element task, as s3_r_t7 is.
   "s3_d_t1", "s3_d_t2", "s3_d_t3", "s3_d_t4", "s3_d_t5", "s3_d_t7",
   "s7_d_t1", "s7_d_t6", "s7_d_t7",
+  // The graded foundations path, by the same kind: s3_f_t6 is a missing-element task too.
+  "s3_f_t1", "s3_f_t2", "s3_f_t3", "s3_f_t4", "s3_f_t5", "s3_f_t7",
+  "s7_f_t1", "s7_f_t6", "s7_f_t7",
 ]);
 
 export const FLEXIBILITY_SESSIONS: readonly number[] = [3, 7];

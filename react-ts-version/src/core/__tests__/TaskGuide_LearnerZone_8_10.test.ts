@@ -20,7 +20,7 @@ import { session1Checklist } from '@/core/session1Checklist';
 const banks = (): { meeting: number; task: SessionTask }[] => {
   const out = SESSION1_TASKS.map((task) => ({ meeting: 1, task }));
   for (const meeting of [3, 4, 5, 6, 7] as const)
-    for (const path of ['remediation_path', 'green_path', 'graded_path'] as const) for (const task of getSessionTasks(meeting, path)) out.push({ meeting, task });
+    for (const path of ['remediation_path', 'green_path', 'graded_path', 'graded_foundation_path'] as const) for (const task of getSessionTasks(meeting, path)) out.push({ meeting, task });
   for (const [m, byPath] of Object.entries(SESSION_BRANCH_TASKS))
     for (const kinds of Object.values(byPath as unknown as Record<string, Record<string, SessionTask[]>>))
       for (const list of Object.values(kinds)) for (const task of list) out.push({ meeting: Number(m), task });
@@ -134,6 +134,27 @@ describe('every exercise of stations 1 and 3–7 has a guide; stations 2 and 8 k
       s7_d_reinforce_1: 'מגלים מה חסר',
       s7_d_reinforce_2: 'מגלים מה חסר',
       s7_d_challenge_1: 'מגלים מה חסר',
+      // The graded foundations path (owner, 11.10.2026): the same kinds as the graded path.
+      s3_f_t1: 'קוראים וכותבים מספרים',
+      s3_f_t2: 'פורטים לבנים',
+      s3_f_t3: 'פורטים לבנים',
+      s3_f_t4: 'בונים מספר בדרכים שונות',
+      s3_f_t5: 'קוראים וכותבים מספרים',
+      s3_f_t6: 'מגלים מה חסר',
+      s3_f_t7: 'קוראים וכותבים מספרים',
+      s3_f_reinforce_1: 'קוראים וכותבים מספרים',
+      s3_f_reinforce_2: 'בונים מספר בדרכים שונות',
+      s3_f_challenge_1: 'בונים מספר בדרכים שונות',
+      s7_f_t1: 'מקבצים לבנים',
+      s7_f_t2: 'מגלים מה חסר',
+      s7_f_t3: 'מגלים מה חסר',
+      s7_f_t4: 'מגלים מה חסר',
+      s7_f_t5: 'בודקים פתרון',
+      s7_f_t6: 'משנים מספר',
+      s7_f_t7: 'בונים מספר בדרכים שונות',
+      s7_f_reinforce_1: 'מגלים מה חסר',
+      s7_f_reinforce_2: 'מגלים מה חסר',
+      s7_f_challenge_1: 'מגלים מה חסר',
       s7_r_t1: 'מקבצים לבנים',
       s7_r_t2: 'מגלים מה חסר',
       s7_r_t3: 'מגלים מה חסר',
@@ -310,7 +331,8 @@ describe('tick rule (proposal §ג): carried out, not right', () => {
     }
     // Nothing else is sticky: no other exercise of the banks waits on builtTrack.
     const sticky = banks().filter(({ meeting, task }) => stickyBuildValue(task, meeting) !== null).map(({ task }) => task.id);
-    expect(sticky.sort()).toEqual(['s7_d_t6', 's7_g_t5', 's7_r_t6']); // s7_d_t6: the graded path's twin (11.10.2026)
+    // s7_d_t6 and s7_f_t6: the graded paths' twins (11.10.2026).
+    expect(sticky.sort()).toEqual(['s7_d_t6', 's7_f_t6', 's7_g_t5', 's7_r_t6']);
   });
 
   // PRD 14 §ב rule (3): "כשכל התיבות מולאו" — never after the units digit alone

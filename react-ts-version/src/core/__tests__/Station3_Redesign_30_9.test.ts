@@ -37,7 +37,7 @@ const PLACES: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
 
 function stationTasks(meeting: 3 | 7): SessionTask[] {
   const out: SessionTask[] = [];
-  for (const p of ['remediation_path', 'green_path', 'graded_path'] as const) {
+  for (const p of ['remediation_path', 'green_path', 'graded_path', 'graded_foundation_path'] as const) {
     out.push(...getSessionTasks(meeting, p));
     out.push(...getSessionBranchTasks(meeting, 'reinforcement', p), ...getSessionBranchTasks(meeting, 'challenge', p));
   }
@@ -109,6 +109,39 @@ const APPROVED: Record<string, { kind: string; text: string; numberA: number; an
   s3_d_reinforce_2: {
     kind: 'decompose', numberA: 430, answer: 43, board: { tens: 43 },
     text: 'בנו בבית המספרים את המספר 430 מלבני עשרת בלבד. בכמה לבני עשרת השתמשתם? כתבו את התשובה בשורת התוצאה.',
+  },
+  // The graded foundations path (owner, 11.10.2026; sessionGradedTasks.ts, sessionBranchTasks.ts).
+  s3_f_t1: {
+    kind: 'read_write', numberA: 200, answer: 200, board: { hundreds: 2 },
+    text: 'בנו בבית המספרים את המספר מאתיים. כתבו אותו בספרות בשורת התוצאה.',
+  },
+  s3_f_t2: {
+    kind: 'compose_break', numberA: 53, answer: 53, board: { tens: 4, units: 13 },
+    text: 'בנו בבית המספרים 5 לבני עשרת ו-3 לבני יחידה. פרטו לבנת עשרת אחת לעשר לבני יחידה. איזה מספר הלבנים מראות לאחר הפריטה? כתבו אותו בשורת התוצאה.',
+  },
+  s3_f_t3: {
+    kind: 'compose_break', numberA: 210, answer: 210, board: { hundreds: 1, tens: 11 },
+    text: 'בנו בבית המספרים 2 לבני מאה ולבנת עשרת אחת. פרטו לבנת מאה אחת לעשר לבני עשרת. איזה מספר הלבנים מראות לאחר הפריטה? כתבו אותו בשורת התוצאה.',
+  },
+  s3_f_t4: {
+    kind: 'decompose', numberA: 170, answer: 17, board: { tens: 17 },
+    text: 'בנו בבית המספרים את המספר 170 מלבני עשרת בלבד. בכמה לבני עשרת השתמשתם? כתבו את התשובה בשורת התוצאה.',
+  },
+  s3_f_t5: {
+    kind: 'read_write', numberA: 709, answer: 709, board: { hundreds: 7, units: 9 },
+    text: 'בנו בבית המספרים את המספר שבע מאות ותשע. כתבו אותו בספרות בשורת התוצאה.',
+  },
+  s3_f_t7: {
+    kind: 'read_write', numberA: 1000, answer: 1000, board: { thousands: 1 },
+    text: 'בנו בבית המספרים את המספר אלף. כתבו אותו בספרות בשורת התוצאה.',
+  },
+  s3_f_reinforce_1: {
+    kind: 'read_write', numberA: 640, answer: 640, board: { hundreds: 6, tens: 4 },
+    text: 'בנו בבית המספרים את המספר שש מאות וארבעים. כתבו אותו בספרות בשורת התוצאה.',
+  },
+  s3_f_reinforce_2: {
+    kind: 'decompose', numberA: 150, answer: 15, board: { tens: 15 },
+    text: 'בנו בבית המספרים את המספר 150 מלבני עשרת בלבד. בכמה לבני עשרת השתמשתם? כתבו את התשובה בשורת התוצאה.',
   },
   s3_g_t1: {
     kind: 'read_write', numberA: 3400, answer: 3400, board: { thousands: 3, hundreds: 4 },
@@ -277,8 +310,9 @@ describe('no instruction of stations 3 and 7 holds its own answer', () => {
       checked.push(t.id);
     }
     // 12 + 4 in station 3, s3_r_t7, and s7_r_t1, s7_g_t1, s7_g_reinforce_2, s7_r_t6, s7_g_t5, s7_g_t6;
-    // and the graded path's 7 + 2 in station 3 and s7_d_t1, s7_d_t6 (11.10.2026).
-    expect(checked).toHaveLength(34);
+    // and the graded path's 7 + 2 in station 3 and s7_d_t1, s7_d_t6 (11.10.2026), and the graded
+    // foundations path's the same (s3_f_*, s7_f_t1, s7_f_t6).
+    expect(checked).toHaveLength(45);
   });
 
   it('the representation exercises of both stations: nor the board to build, where the blocks are the answer', () => {
@@ -678,9 +712,9 @@ describe('the one answer box: its digits are recorded when "התקדם" is press
 describe('the banks (sanity): 7 compulsory per path, ids unchanged', () => {
   it('station 3 and station 7 keep their seven ids per path', () => {
     for (const m of [3, 7] as const) {
-      for (const p of ['remediation_path', 'green_path', 'graded_path'] as const) {
+      for (const p of ['remediation_path', 'green_path', 'graded_path', 'graded_foundation_path'] as const) {
         const ids = SESSIONS_BY_PATH[m][p].map((t) => t.id);
-        expect(ids).toEqual([1, 2, 3, 4, 5, 6, 7].map((i) => `s${m}_${p === 'green_path' ? 'g' : p === 'graded_path' ? 'd' : 'r'}_t${i}`));
+        expect(ids).toEqual([1, 2, 3, 4, 5, 6, 7].map((i) => `s${m}_${p === 'green_path' ? 'g' : p === 'graded_path' ? 'd' : p === 'graded_foundation_path' ? 'f' : 'r'}_t${i}`));
       }
     }
     expect(SESSION_BRANCH_TASKS[3].remediation_path.reinforcement.map((t) => t.id)).toEqual(['s3_r_reinforce_1', 's3_r_reinforce_2']);

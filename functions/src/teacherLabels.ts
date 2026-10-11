@@ -12,6 +12,7 @@ export const ROUTE_NAME_HE = {
   green_path: "המסלול הירוק",
   remediation_path: "מסלול צמצום פערי קדם",
   graded_path: "המסלול המדורג",
+  graded_foundation_path: "המסלול המדורג – יסודות",
 } as const;
 
 /**

@@ -79,9 +79,11 @@ export function buildGateStudentItem(
   // No synthetic default: a score that was never computed stays null.
   const scorePercent = finiteNumber(session2Doc?.session_score_percent) ?? finiteNumber(record.session_score_percent);
 
-  // PRD Module 20 §ב (≥ 50 → green_path, else remediation_path), read through the
-  // one helper every teacher screen uses. Null when there is nothing to read.
-  const recommendedPath = recommendedPathOf(session2Doc) ?? recommendedPathOf(record);
+  // PRD Module 20 §ב (≥ 50 → green_path, else remediation_path; for a learner marked graded,
+  // graded_path or graded_foundation_path — owner, 11.10.2026), read through the one helper
+  // every teacher screen uses. Null when there is nothing to read.
+  const gradedTrack = record.graded_track === true;
+  const recommendedPath = recommendedPathOf(session2Doc, gradedTrack) ?? recommendedPathOf(record, gradedTrack);
 
   // Real failed diagnostic tasks from the learner's own Q-Matrix results.
   // getFailedDiagnosticTasks is the one shared reading of that value.
@@ -94,7 +96,7 @@ export function buildGateStudentItem(
     anonymousLabel: `תלמיד ${n}`,
     session2Doc,
     recommendedPath,
-    gradedTrack: record.graded_track === true,
+    gradedTrack,
     scorePercent,
     isCompleted,
     isApproved,

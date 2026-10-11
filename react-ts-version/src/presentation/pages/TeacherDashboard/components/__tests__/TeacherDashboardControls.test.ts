@@ -43,13 +43,17 @@ describe('Module 20: the approval gate cannot be bypassed or mis-routed', () => 
 
   it('the approval path falls back to the LIVE recommendation, never to green', () => {
     expect(gate.includes("selectedPaths[studentId] || 'green_path'")).toBe(false);
-    // A learner the teacher marked as graded opens on the graded path (11.10.2026); otherwise the live recommendation.
-    expect(gate.includes("selectedPaths[s.studentId] ?? (s.gradedTrack ? 'graded_path' : s.recommendedPath)")).toBe(true);
+    // The live recommendation knows the graded mark (11.10.2026: graded_path or graded_foundation_path for a
+    // marked learner); a marked learner with no recommendation yet opens on the graded path.
+    // The per-learner choice is on the class-management row now (owner, 11.10.2026); the batch takes the
+    // recommendation, and only inside the learner's pair.
+    expect(gate.includes("const path = s.recommendedPath ?? (s.gradedTrack ? 'graded_path' : null);")).toBe(true);
+    expect(gate.includes('routePairFor(s.gradedTrack === true).includes(path)')).toBe(true);
   });
 
   it('batch approval is built at click time from waiting learners and reports a real tally', () => {
     // A learner with no recommendation and no choice is left out — never defaulted.
-    expect(gate).toMatch(/waitingStudents\.forEach\(\(s\) => \{\s*const path = effectivePath\(s\);\s*if \(path\) pathMap\[s\.studentId\] = path;/);
+    expect(gate).toMatch(/readyStudents\.forEach\(\(s\) => \{\s*const path = effectivePath\(s\);\s*if \(path\) pathMap\[s\.studentId\] = path;/);
     expect(dash.includes('if (await handleApproveGateStudent(sId, path)) succeeded++;')).toBe(true);
     expect(dash.includes("toast.success('כל התלמידים הממתינים אושרו בהצלחה למפגש 3! 🚀')")).toBe(false);
   });
@@ -183,7 +187,10 @@ describe('Dead controls removed / dead screens exposed', () => {
   });
 
   it('ClassManagement is reachable from the sidebar', () => {
-    expect(dash.includes('ניהול כיתה ותנאי למידה')).toBe(true);
+    // Renamed when שלב החלוקה למסלולים moved into it (owner, 11.10.2026); the separate tab is gone.
+    expect(dash.includes('{CLASS_MANAGEMENT_TITLE_HE}')).toBe(true);
+    expect(read('../../ClassManagement.tsx').includes("CLASS_MANAGEMENT_TITLE_HE = 'ניהול כיתה ומסלולים'")).toBe(true);
+    expect(dash.includes('"approvals"')).toBe(false);
   });
 
   it('the clustering filter actually filters the group cards, with one threshold', () => {

@@ -67,7 +67,7 @@ const STUDENT = 'student_user6';
 
 const bank: SessionTask[] = [...SESSION1_TASKS];
 for (const m of [3, 4, 5, 6, 7, 8] as const) {
-  for (const p of ['green_path', 'remediation_path', 'graded_path'] as const) {
+  for (const p of ['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'] as const) {
     bank.push(...getSessionTasks(m, p));
     if (m !== 8) bank.push(...getSessionBranchTasks(m, 'reinforcement', p), ...getSessionBranchTasks(m, 'challenge', p));
   }
@@ -179,8 +179,8 @@ describe('2 — 320, 2,100, 4,200: a way with unit blocks is refused; 150 is not
   });
 
   it('only these three exercises carry the rule; each says "השתמשו רק" (owner, 9.10.2026)', () => {
-    // And the graded path's two (11.10.2026), worded the same way.
-    expect(bank.filter((t) => t.noUnitBlocks).map((t) => t.id).sort()).toEqual(['s3_d_challenge_1', 's3_g_challenge_1', 's3_g_t7', 's3_r_challenge_1', 's7_d_t7']);
+    // And the two graded paths' two each (11.10.2026), worded the same way.
+    expect(bank.filter((t) => t.noUnitBlocks).map((t) => t.id).sort()).toEqual(['s3_d_challenge_1', 's3_f_challenge_1', 's3_g_challenge_1', 's3_g_t7', 's3_r_challenge_1', 's7_d_t7', 's7_f_t7']);
     expect(byId('s3_r_challenge_1').instructionHe).toContain('מצאו דרכים שונות לבנות את המספר 320. השתמשו רק בלבני מאה ועשרת. ');
     expect(byId('s3_g_t7').instructionHe).toContain('מצאו דרכים שונות לבנות את המספר 2,100. השתמשו רק בלבני אלף, מאה ועשרת. ');
     expect(byId('s3_g_challenge_1').instructionHe).toContain('מצאו דרכים שונות לבנות את המספר 4,200. השתמשו רק בלבני אלף, מאה ועשרת. ');
@@ -288,8 +288,8 @@ describe('3 — a result digit missing: the instruction says what to do with the
   // station 8 keeps the PRD paragraph at 1.55.
   it('400 − 156 is the one instruction over 320 characters: on screen it is a goal and steps, not one paragraph', async () => {
     // 9.10.2026: stations 5–6 name both numbers and say one action a sentence (≈300 characters); 400 − 156 is still the longest.
-    // Its graded twin 800 − 258 (11.10.2026) is the same sentence with other numbers.
-    expect(bank.filter((t) => (t.instructionHe ?? '').length > 320).map((t) => t.id).sort()).toEqual(['s6_d_t7', 's6_r_t7']);
+    // Its graded twins 800 − 258 and 50 − 18 (11.10.2026) are the same sentence with other numbers.
+    expect(bank.filter((t) => (t.instructionHe ?? '').length > 320).map((t) => t.id).sort()).toEqual(['s6_d_t7', 's6_f_t7', 's6_r_t7']);
     const { TaskCard } = await import('@/features/workspace/tasks/TaskCard');
     load(6, byId('s6_r_t7'));
     render(<TaskCard />);

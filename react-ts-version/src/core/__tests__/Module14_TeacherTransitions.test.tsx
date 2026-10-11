@@ -141,6 +141,7 @@ import { useAuthStore } from '@/application/useAuthStore';
 import { TEACHER_DISCONNECT_GRACE_MS } from '@/core/classSession';
 import { ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 import { NO_RECOMMENDATION_HE } from '@/presentation/pages/TeacherDashboard/gateEvidence';
+import { CLASS_MANAGEMENT_TITLE_HE } from '@/presentation/pages/TeacherDashboard/ClassManagement';
 
 const MIN = 60 * 1000;
 
@@ -372,22 +373,22 @@ describe('core/recommendedPath.ts: no score yet, no colour (live finding, 28.9.2
   it('the gate: no path recommended or preselected, approval waits for a choice', async () => {
     justFinished();
     renderDashboard();
-    await waitFor(() => expect(tab(TEACHER_GATE_HE).textContent).toContain('1'), { timeout: 2000 });
-    fireEvent.click(tab(TEACHER_GATE_HE));
+    // שלב החלוקה למסלולים lives in ניהול כיתה ומסלולים (owner, 11.10.2026); its badge counts the waiting learner.
+    await waitFor(() => expect(tab(CLASS_MANAGEMENT_TITLE_HE).textContent).toContain('1'), { timeout: 2000 });
+    fireEvent.click(tab(CLASS_MANAGEMENT_TITLE_HE));
 
-    const row = (await screen.findByText('תלמיד 7')).closest('tr')!;
+    const row = await screen.findByTestId('class-row-7');
+    await waitFor(() => expect(row.textContent).toContain(`ממתין ב${TEACHER_GATE_HE}`), { timeout: 2000 });
     // It used to read מסלול צמצום פערי קדם here, preselected, for a learner
     // who had answered everything correctly.
     expect(within(row).getByText(NO_RECOMMENDATION_HE)).toBeTruthy();
-    const select = within(row).getByRole('combobox') as HTMLSelectElement;
-    expect(select.value).toBe('');
-    const approve = within(row).getByRole('button', { name: /אשרו את המסלול/ }) as HTMLButtonElement;
-    expect(approve.disabled).toBe(true);
-    expect((screen.getByRole('button', { name: /אישור 0 התלמידים שנקבע להם מסלול/ }) as HTMLButtonElement).disabled).toBe(true);
-
-    // The teacher chooses: now it can be approved.
-    fireEvent.change(select, { target: { value: 'green_path' } });
-    expect(approve.disabled).toBe(false);
+    expect(within(row).queryByText('מומלץ')).toBeNull();
+    const pair = within(within(row).getByTestId('class-row-approve-7')).getAllByRole('button');
+    expect(pair.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false']);
+    // The batch approves recommendations only: with none, it has nothing to approve.
+    expect((screen.getByRole('button', { name: /אישור ההמלצה/ }) as HTMLButtonElement).disabled).toBe(true);
+    // The teacher chooses on the row: one of the learner's own two buttons.
+    expect((pair[0] as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('the reports tab: the badge names no route and has no colour', async () => {

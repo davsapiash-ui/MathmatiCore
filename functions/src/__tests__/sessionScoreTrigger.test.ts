@@ -38,8 +38,11 @@ describe('the server recomputes the meeting score', () => {
     expect(noDenominator).toBeLessThan(write);
   });
 
-  it('the PRD 50% rule decides the path', () => {
-    expect(body).toContain("recommendedPath: computed.scorePercent >= 50 ? \"green_path\" : \"remediation_path\",");
+  it("the PRD 50% rule decides the path, between the two levels of the learner's own track (owner, 11.10.2026)", () => {
+    // The graded mark is read from the learner record, and the score chooses between the two levels it allows.
+    expect(body).toContain('const gradedTrack = await readGradedTrack(studentNum);');
+    expect(body).toContain('recommendedPath: recommendedPathFor(computed.scorePercent, gradedTrack),');
+    expect(body).toContain('users/students/student_user${studentNum}/graded_track');
   });
 
   it('mirrors the result to the learner record, which is what the teacher screens read', () => {
