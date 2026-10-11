@@ -159,6 +159,9 @@ for (const viewport of selectedViewports().filter((v) => v.tier === 'A')) {
       expect(drawer.x + drawer.width).toBeLessThanOrEqual(taskOpen.x + taskOpen.width + 1);
       expect(drawer.y + drawer.height).toBeLessThanOrEqual(taskOpen.y + taskOpen.height + 1);
       expect(overlaps(drawer, boardOpen), 'the drawer covers nothing of the board').toBe(false);
+      // In place of the steps (owner, 11.10.2026): the goal line above them stays in view.
+      const goal = await box(page, '[data-testid="task-goal"]');
+      expect(drawer.y, 'the drawer starts under the goal line').toBeGreaterThanOrEqual(goal.y + goal.height - 1);
       // PRD 7 §א rule 6 (v7.15): over the instruction, in place of the steps —
       // never over the work area: no box of the vertical sheet is under it.
       const boxes = page.locator('[aria-label^="תרגיל במאונך"] input');

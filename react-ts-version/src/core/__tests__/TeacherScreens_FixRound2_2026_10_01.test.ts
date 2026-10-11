@@ -61,18 +61,25 @@ describe('Module 14 §ב0 — the picker does not call a held meeting "never ope
     const rows = buildSessionRows([4, 4, 3, 4], null);
     expect(rows[3]).toMatchObject({ sessionNumber: 4, state: 'partial', completedCount: 3, learnerCount: 4 });
     expect(sessionStateLabelHe(rows[3])).toBe('סיימו 3 מתוך 4');
-    expect(sessionStateLabelHe(rows[2])).toBe('הושלם');
+    // PRD 14 §ב0: "סיימו X מתוך 12" beside every meeting, whatever its state.
+    expect(sessionStateLabelHe(rows[2])).toBe('הושלם · סיימו 4 מתוך 4');
   });
 
   it('finished by none: "טרם הושלם", which is true whether or not it was opened', () => {
     const rows = buildSessionRows([4, 4, 3, 4], null);
     expect(rows[4].state).toBe('pending');
-    expect(sessionStateLabelHe(rows[4])).toBe('טרם הושלם');
+    expect(sessionStateLabelHe(rows[4])).toBe('טרם הושלם · סיימו 0 מתוך 4');
   });
 
-  it('the open meeting is "פעיל כעת"', () => {
+  it('the open meeting is "פעיל כעת", with how many finished it', () => {
     const rows = buildSessionRows([4, 4], 5);
-    expect(sessionStateLabelHe(rows[4])).toBe('פעיל כעת');
+    expect(sessionStateLabelHe(rows[4])).toBe('פעיל כעת · סיימו 0 מתוך 2');
+    const twelve = buildSessionRows([3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2], 3);
+    expect(sessionStateLabelHe(twelve[2])).toBe('פעיל כעת · סיימו 3 מתוך 12');
+  });
+
+  it('before the records load, the count is out of the class\'s twelve', () => {
+    expect(sessionStateLabelHe(buildSessionRows([], 1)[0])).toBe('פעיל כעת · סיימו 0 מתוך 12');
   });
 
   it('the dashboard builds its picker from it, and no longer writes "טרם נפתח"', () => {

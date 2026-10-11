@@ -5,7 +5,8 @@ import { Send, UserCircle2, Users, ShieldCheck } from "lucide-react";
 import { collection, query, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/infrastructure/firebase";
-import { containsPII } from "@/core/security/PiiFilter";
+import { validateChatInputForPII, reportPiiFilterFailure } from "@/core/security/PiiFilter";
+import { indexedDBQueue } from "@/infrastructure/services/IndexedDBQueue";
 import { toast } from "sonner";
 import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 
@@ -156,30 +157,60 @@ export function AdminChatView() {
     );
   }, [messages, selectedTeacherId]);
 
-  const handleSend = async () => {
-    if (!inputText.trim() || !selectedTeacherId || isSending) return;
-
-    // Layer 1: Client-side PII check
-    if (containsPII(inputText)) {
-      toast.error("ההודעה מכילה פרטים מזהים. נא לנסח מחדש ללא שמות, תעודות זהות או מספרי טלפון.");
-      return;
+  // Layer 1, the same live scan as the teacher's chat (PRD Module 22 §ב.1): while the box holds a forbidden
+  // pattern the send button is blocked and a gentle notice sits under it. The scan does not detect names, so
+  // the notice does not mention them. A filter failure locks nothing (Module 3 §א); it is logged.
+  const inputPiiNotice = useMemo(() => {
+    if (!inputText.trim()) return null;
+    try {
+      const validation = validateChatInputForPII(inputText);
+      return validation.valid ? null : (validation.errorHe || "ההודעה מכילה פרטים מזהים. נסחו אותה מחדש בלי מספרי זהות, מספרי טלפון או כתובות דואר אלקטרוני.");
+    } catch (err) {
+      reportPiiFilterFailure("AdminChatView (live scan)", err);
+      return null;
     }
+  }, [inputText]);
+
+  const handleSend = async () => {
+    if (readOnly || !inputText.trim() || !selectedTeacherId || isSending) return;
+    if (inputPiiNotice) return; // the notice is already on screen, under the box
+
+    // Layer 2: sent strictly through the Cloud Function sendTeacherAdminMessage, whose anonymizer runs on it.
+    // Module 22 §ה, as in the teacher's chat: with no network the message is queued (IndexedDB, Module 17) and
+    // sent through the same function when the connection returns. client_message_id is the document id on the
+    // server: a retry overwrites, never duplicates.
+    const payload = {
+      receiver_id: selectedTeacherId,
+      message_body: inputText.trim(),
+      school_id: selectedTeacher?.schoolId || "school_pilot_01",
+      class_name: "המבקרים",
+      client_message_id: `adm_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+    };
+    const queueForReconnect = async () => {
+      await indexedDBQueue.enqueueCallable("sendTeacherAdminMessage", payload, payload.client_message_id);
+      setInputText("");
+      toast.info("אין חיבור לרשת. ההודעה נשמרה ותישלח למורה כשהחיבור יחזור.");
+    };
 
     try {
       setIsSending(true);
-      
-      // Layer 2: Send strictly through Cloud Function sendTeacherAdminMessage
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        await queueForReconnect();
+        return;
+      }
       const sendFn = httpsCallable(functions, "sendTeacherAdminMessage");
-      await sendFn({
-        receiver_id: selectedTeacherId,
-        message_body: inputText.trim(),
-        school_id: selectedTeacher?.schoolId || "school_pilot_01",
-        class_name: "המבקרים",
-      });
+      await sendFn(payload);
 
       setInputText("");
-      toast.success("ההודעה נשלחה בהצלחה לאחר אימות פרטיות (Zero PII).");
+      toast.success("ההודעה נשלחה אחרי בדיקת פרטים מזהים.");
     } catch (err: any) {
+      const code = String(err?.code ?? "");
+      const transient = code.endsWith("unavailable") || code.endsWith("deadline-exceeded") || code.endsWith("internal")
+        || (typeof navigator !== "undefined" && navigator.onLine === false);
+      if (transient) {
+        await queueForReconnect();
+        return;
+      }
       console.error("Failed to send teacher-admin message:", err);
       toast.error("שגיאה בשליחת ההודעה לשרת.");
     } finally {
@@ -198,7 +229,7 @@ export function AdminChatView() {
               <span>ערוץ פניות מורים והנהלה</span>
             </h2>
             {unansweredTotal > 0 && (
-              <span className="bg-rose-500 text-white text-xs font-black px-2.5 py-1 rounded-full shadow-md animate-pulse">
+              <span className="bg-rose-500 text-white text-xs font-black px-2.5 py-1 rounded-full shadow-md">
                 {unansweredTotal} ממתינות למענה
               </span>
             )}
@@ -261,7 +292,7 @@ export function AdminChatView() {
                     <div className="relative">
                       <UserCircle2 className={`w-10 h-10 ${isSelected ? 'text-violet-600' : 'text-slate-600'}`} />
                       {isUnanswered && (
-                        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-rose-500 ring-2 ring-white animate-ping" />
+                        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-rose-500 ring-2 ring-white" />
                       )}
                     </div>
                     <div>
@@ -285,7 +316,7 @@ export function AdminChatView() {
                   </div>
 
                   {unreadCount > 0 && (
-                    <span className="bg-rose-600 text-white text-xs font-black w-6 h-6 flex items-center justify-center rounded-full shadow-md animate-bounce">
+                    <span className="bg-rose-600 text-white text-xs font-black w-6 h-6 flex items-center justify-center rounded-full shadow-md">
                       {unreadCount}
                     </span>
                   )}
@@ -340,6 +371,11 @@ export function AdminChatView() {
 
             {/* Input */}
             <div className="p-4 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2 shrink-0 z-20">
+              {inputPiiNotice && (
+                <p id="admin-console-chat-pii-notice" role="status" data-testid="admin-chat-pii-notice" className="text-xs font-bold text-stone-800 dark:text-stone-300">
+                  {inputPiiNotice}
+                </p>
+              )}
               <div className="flex gap-2 items-center">
                 <input
                   type="text"
@@ -349,11 +385,13 @@ export function AdminChatView() {
                   placeholder="הקלדת הודעה (ללא פרטים מזהים)..."
                   disabled={readOnly}
                   title={readOnly ? READ_ONLY_TITLE : undefined}
-                  className="flex-1 bg-slate-100 dark:bg-slate-900 border-none rounded-full px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-800 dark:text-slate-100 shadow-inner"
+                  aria-invalid={inputPiiNotice ? true : undefined}
+                  aria-describedby={inputPiiNotice ? "admin-console-chat-pii-notice" : undefined}
+                  className={`flex-1 bg-slate-100 dark:bg-slate-900 rounded-full px-6 py-3 focus:outline-none focus:ring-2 transition-all text-slate-800 dark:text-slate-100 shadow-inner ${inputPiiNotice ? 'border border-stone-400 focus:ring-stone-400' : 'border-none focus:ring-blue-500'}`}
                 />
-                <UdlButton 
-                  onClick={handleSend} 
-                  disabled={readOnly || !inputText.trim() || isSending}
+                <UdlButton
+                  onClick={handleSend}
+                  disabled={readOnly || !inputText.trim() || isSending || inputPiiNotice !== null}
                   title={readOnly ? READ_ONLY_TITLE : undefined}
                   aria-label="שלח"
                   className="rounded-full w-12 h-12 p-0 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white transition-all disabled:opacity-50 shadow-md"

@@ -71,10 +71,22 @@ describe('Q18 — the whole-class meeting restart keeps the help calls', () => {
     expect(record.forceReload).toBe(true);
   });
 
-  it('one learner\'s meeting reset is unchanged: it still clears that learner\'s flags', async () => {
+  // Audit L32 (12.10.2026): one learner's meeting reset follows the same rule —
+  // the help call stays until the teacher clears it or the learner takes it back.
+  it('one learner\'s meeting reset keeps that learner\'s help call too, and closes the card', async () => {
+    const scope = buildResetScope('single_student', '4', 'active_session', 4, 'student');
+    for (const reset of scope.fieldResets || []) expect(reset.values.__keepHelpCalls).toBe(true);
     const { rtdb, read } = fakeRtdb({ users: { students: { student_user4: caller } } });
-    await executeResetDeletion(rtdb, emptyDb, buildResetScope('single_student', '4', 'active_session', 4, 'student'));
-    expect(read('users/students/student_user4')).toMatchObject({ helpRequested: false, handRaised: false, isStruggling: false, isSocraticActive: false });
+    await executeResetDeletion(rtdb, emptyDb, scope);
+    const record = read('users/students/student_user4');
+    expect(record).toMatchObject({ helpRequested: true, handRaised: true, isStruggling: true, isSocraticActive: false, forceReload: true });
+    expect(record.workspaceState).toBeNull();
+  });
+
+  it('a full learner reset still deletes the record, help call included (it is not a meeting reset)', () => {
+    const scope = buildResetScope('single_student', '4', 'full_student');
+    expect(scope.fieldResets).toBeUndefined();
+    expect(scope.rtdbPaths).toContain('users/students/student_user4');
   });
 
   it('buildActiveSessionResetValues writes no help-call field when asked to keep them', () => {

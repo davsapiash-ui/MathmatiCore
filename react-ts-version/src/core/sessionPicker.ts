@@ -48,12 +48,18 @@ export function buildSessionRows(
   });
 }
 
-/** The picker's words for a meeting's state. */
+/**
+ * The picker's words for a meeting's state. PRD 14 §ב0: beside every meeting,
+ * the number of learners who finished it ("סיימו X מתוך 12") — the open meeting
+ * too, e.g. "פעיל כעת · סיימו 3 מתוך 12".
+ */
 export function sessionStateLabelHe(row: SessionRow): string {
+  // Before the learners' records load there are none to count: the class's twelve.
+  const finished = `סיימו ${row.completedCount ?? 0} מתוך ${row.learnerCount || 12}`;
   switch (row.state) {
-    case 'active': return 'פעיל כעת';
-    case 'completed': return 'הושלם';
-    case 'partial': return `סיימו ${row.completedCount} מתוך ${row.learnerCount}`;
-    default: return 'טרם הושלם';
+    case 'active': return `פעיל כעת · ${finished}`;
+    case 'completed': return `הושלם · ${finished}`;
+    case 'partial': return finished;
+    default: return `טרם הושלם · ${finished}`;
   }
 }

@@ -18,6 +18,7 @@
  * OfflineReload_KeepsWork.test.ts).
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readDeviceCopy, resetDeviceCopiesForTests } from '@/infrastructure/services/deviceCopyStore';
 
 const rtdb = vi.hoisted(() => ({
   listeners: new Map<string, (snap: any) => void>(),
@@ -164,6 +165,7 @@ beforeEach(() => {
   resetThrottledWrites();
   svc.completedMarksSent.clear();
   localStorage.clear();
+  resetDeviceCopiesForTests(); // this device's copies live in IndexedDB + memory (11.10.2026)
   serverClockOffset(0);
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });

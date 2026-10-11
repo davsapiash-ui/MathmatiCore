@@ -8,14 +8,13 @@ import { NEUTRAL_BOX_BORDER } from '../placeColors';
 import { probeExerciseText } from './probeExerciseText';
 import { getValue } from '@/core/placeValue';
 import { motion } from 'framer-motion';
-import { VisualGraphicOrganizer } from './VisualGraphicOrganizer';
 
 /**
  * "מעוף הדבורה" — תת-משימת אבחון לאחור: גרסה פשוטה יותר של המשימה שנכשלה.
  * לתלמיד זה נראה כמו עוד משימה רגילה (שקוף לחלוטין, ללא תיוג).
  * Rendering per vanilla renderBackwardDiagnosis (app.js 876–937).
  */
-export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTask; qflow: QMatrixFlowState; isASD: boolean }) {
+export function BackwardDiagnosisView({ task, qflow }: { task: QMatrixTask; qflow: QMatrixFlowState }) {
   const diag = task.backwardDiagnosis;
   const demoUngroup = useWorkspaceStore((s) => s.demoUngroup);
   const probeAnswer = useWorkspaceStore((s) => s.probeAnswer);
@@ -27,11 +26,11 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
   if (!diag) return null;
 
   const instruction = diag.subtaskInstructionHe ?? diag.probeInstructionHe ?? '';
-  const effNumber = getEffectiveNumber(task, qflow, isASD);
+  const effNumber = getEffectiveNumber(task, qflow);
   const choices = getEffectiveChoices(task, qflow);
 
-  const effProbeA = isASD && diag.asdProbeA !== undefined ? diag.asdProbeA : diag.probeA;
-  const effProbeB = isASD && diag.asdProbeB !== undefined ? diag.asdProbeB : diag.probeB;
+  const effProbeA = diag.probeA;
+  const effProbeB = diag.probeB;
 
   // Four of the seven diagnostic tasks reach the correction round with none of
   // the specialised branches below matching: subtaskChoices, showAutoUngroup
@@ -123,41 +122,21 @@ export function BackwardDiagnosisView({ task, qflow, isASD }: { task: QMatrixTas
       {/* Fact-vs-procedure probe (task4) and missing_element probe (tasks 7 & 8) */}
       {effProbeA !== undefined && (task.type === 'vertical_addition' || task.type === 'missing_element') && (
         <div className="flex flex-col items-center gap-4">
-          {isASD && diag.graphicOrganizerASD ? (
-            /* ASD: graphic organizer instead of long text — cubes row */
-            <div className="flex flex-col gap-3 w-full">
-              <VisualGraphicOrganizer isSubtraction={task.isSubtraction} />
-              <div className="flex justify-center items-center gap-4 bg-ws-surface2/50 rounded-2xl p-5" dir="ltr" aria-label={`${effProbeA} ${task.isSubtraction ? 'פחות' : 'ועוד'} ${effProbeB}`}>
-                <div className="flex gap-1">
-                  {Array.from({ length: effProbeA }).map((_, i) => (
-                    <span key={i} className="w-6 h-6 rounded bg-block-unit inline-block" />
-                  ))}
-                </div>
-                <span className="font-display font-black text-3xl text-ws-ink">{task.isSubtraction ? '-' : '+'}</span>
-                <div className="flex gap-1">
-                  {Array.from({ length: effProbeB ?? 0 }).map((_, i) => (
-                    <span key={i} className="w-6 h-6 rounded bg-block-hundred inline-block" />
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-ws-surface2/50 rounded-2xl px-8 py-4">
-              {/* Plain text, once (row 2.23): the KaTeX rendering showed the
-                  exercise twice — its stylesheet is loaded nowhere, so the
-                  hidden MathML copy was visible too — and both copies read
-                  "\text?" because the production build mangles the component. */}
-              <span
-                role="img"
-                data-testid="probe-exercise"
-                className="font-mono font-black text-4xl text-ws-ink tabular-nums"
-                dir="ltr"
-                aria-label={`תרגיל: ${effProbeA} ${task.isSubtraction ? 'פחות' : 'ועוד'} ${task.type === 'missing_element' ? 'כמה' : effProbeB} שווה ${task.type === 'missing_element' ? effProbeB : 'כמה'}`}
-              >
-                {probeExerciseText(task, effProbeA, effProbeB)}
-              </span>
-            </div>
-          )}
+          <div className="bg-ws-surface2/50 rounded-2xl px-8 py-4">
+            {/* Plain text, once (row 2.23): the KaTeX rendering showed the
+                exercise twice — its stylesheet is loaded nowhere, so the
+                hidden MathML copy was visible too — and both copies read
+                "\text?" because the production build mangles the component. */}
+            <span
+              role="img"
+              data-testid="probe-exercise"
+              className="font-mono font-black text-4xl text-ws-ink tabular-nums"
+              dir="ltr"
+              aria-label={`תרגיל: ${effProbeA} ${task.isSubtraction ? 'פחות' : 'ועוד'} ${task.type === 'missing_element' ? 'כמה' : effProbeB} שווה ${task.type === 'missing_element' ? effProbeB : 'כמה'}`}
+            >
+              {probeExerciseText(task, effProbeA, effProbeB)}
+            </span>
+          </div>
           <input
             type="text"
             inputMode="numeric"

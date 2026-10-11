@@ -122,18 +122,6 @@ export function PlaceValueBoard({
               </span>
             </div>
 
-            {/* Board locked indicator */}
-            {isBoardLocked && (
-              <div 
-                role="status"
-                aria-live="polite"
-                className="bg-amber-500/15 border border-amber-500/30 text-amber-900 dark:text-amber-200 px-4 py-2 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs shrink-0 animate-in fade-in"
-              >
-                <span aria-hidden="true">🔒</span>
-                <span>בית המספרים נעול זמנית על ידי המורה</span>
-              </div>
-            )}
-
             {/* Place-value columns with permanent clear solid borders */}
             <div ref={columnsRef} dir="rtl" className="relative flex-1 flex flex-row gap-2 min-h-0 select-none" role="group" aria-label="טורי ערך המקום">
               {placesToRender.map((place) => (

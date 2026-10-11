@@ -156,7 +156,7 @@ describe('class management: two sections, two buttons per row', () => {
 });
 
 describe('the batch approval approves each waiting learner\'s recommendation', () => {
-  it('a marked learner without a recommendation goes to the graded path; an unmarked one waits', () => {
+  it('only the button marked "מומלץ": a learner without a recommendation waits, marked graded or not (owner, 11.10.2026)', () => {
     const onApproveAll = vi.fn().mockResolvedValue(undefined);
     const item = (n: number, over: object) => ({
       studentId: `student_${n}`, anonymousLabel: `תלמיד ${n}`, recommendedPath: null, scorePercent: null,
@@ -172,8 +172,9 @@ describe('the batch approval approves each waiting learner\'s recommendation', (
         onApproveAll={onApproveAll}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'אישור ההמלצה ל-2 מתוך 3 התלמידים הממתינים' }));
-    expect(onApproveAll).toHaveBeenCalledWith({ student_1: 'graded_foundation_path', student_2: 'graded_path' });
+    expect(screen.getByText('ל-2 תלמידים טרם נקבעה המלצה. יש לבחור עבורם מסלול בטבלה.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'אישור ההמלצה ל-1 מתוך 3 התלמידים הממתינים' }));
+    expect(onApproveAll).toHaveBeenCalledWith({ student_1: 'graded_foundation_path' });
   });
 });
 
@@ -193,15 +194,16 @@ describe('the mark toggled after meeting 2: the recommendation follows the learn
     expect(unmarked[1]).toBe(`${ROUTE_APPROVE_HE.remediation_path} (${RECOMMENDED_MARK_HE}) — תלמיד 11`);
   });
 
-  it('the drawer preselects the mapped level and offers the current pair only', () => {
+  it('the drawer marks the mapped level "מומלץ", preselects nothing, and offers the current pair only', () => {
     const student = { studentId: 'student_user10', name: 'תלמיד 10', ...stale, graded_track: true } as unknown as StudentData;
     render(<TeacherGateApprovalDrawer student={student} onClose={vi.fn()} />);
     expect(screen.getByTestId('gate-drawer-recommendation').textContent).toBe(ROUTE_NAME_HE.graded_path);
     const options = screen.getAllByRole('button').filter((b) => b.hasAttribute('aria-pressed'));
     expect(options).toHaveLength(2);
-    expect(options[0].getAttribute('aria-pressed')).toBe('true');
-    expect(options[0].textContent).toContain(ROUTE_NAME_HE.graded_path);
-    expect(screen.getByRole('button', { name: ROUTE_APPROVE_HE.graded_path })).toBeTruthy();
+    expect(options.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false']);
+    expect(options[0].textContent).toContain(ROUTE_APPROVE_HE.graded_path);
+    expect(options[0].textContent).toContain(RECOMMENDED_MARK_HE);
+    expect(screen.getByRole('button', { name: `${ROUTE_APPROVE_HE.graded_path} (${RECOMMENDED_MARK_HE}) — תלמיד 10` })).toBeTruthy();
   });
 
   it('the batch never approves a path outside the learner\'s pair', () => {
@@ -242,7 +244,7 @@ describe('the radar: the learner\'s pair, and the level as a stripe', () => {
     isSocraticActive: false, helpRequested: false, lastAction: '', isOnline: true, ...over,
   });
 
-  it('the tile and the strip offer only the learner\'s own two levels, the recommended one marked', () => {
+  it('the tile offers only the learner\'s own two levels, the recommended one marked; the strip above the grid has none', () => {
     const students = [
       base(1, { isWaitingAtGate: true, recommendedPath: 'צמצום פערים' }),
       base(2, { isWaitingAtGate: true, recommendedPath: 'מדורג', gradedTrack: true }),
@@ -258,8 +260,11 @@ describe('the radar: the learner\'s pair, and the level as a stripe', () => {
       'radar-approve-graded_path-2', 'radar-approve-graded_foundation_path-2',
     ]);
     expect(within(tile2).getByRole('button', { name: `${ROUTE_APPROVE_HE.graded_path} (${RECOMMENDED_MARK_HE}) — תלמיד 2` })).toBeTruthy();
-    // Two per waiting learner, on the tile and in the strip above the grid.
-    expect(screen.getAllByTestId(/^radar-approve-/)).toHaveLength(8);
+    // Two per waiting learner, on the tile only (owner, 11.10.2026): the strip above the grid leads to the tile.
+    expect(screen.getAllByTestId(/^radar-approve-/)).toHaveLength(4);
+    expect(within(screen.getByTestId('gate-band-learner-1')).queryByRole('button')).toBeNull();
+    fireEvent.click(screen.getByTestId('gate-band-learner-2'));
+    expect(document.activeElement?.getAttribute('data-testid')).toBe('radar-approve-graded_path-2');
   });
 
   it('an approved level is a stripe plus its name; the tile background stays the status colour', () => {

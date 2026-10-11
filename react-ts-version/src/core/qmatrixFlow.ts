@@ -232,27 +232,23 @@ export function settlePendingQResults(state: QMatrixFlowState): { state: QMatrix
   return { state: next, moved };
 }
 
-// ── Effective-value helpers (ASD + correction-subtask aware; vanilla 188–232) ──
+// ── Effective-value helpers (correction-subtask aware; vanilla 188–232) ──
 
 export function isSubtaskActive(state: QMatrixFlowState): boolean {
   return state.phase === 'correction' && state.subphase === 'subtask';
 }
 
-export function getEffectiveNumber(task: QMatrixTask, state: QMatrixFlowState, isASD: boolean): number | undefined {
+export function getEffectiveNumber(task: QMatrixTask, state: QMatrixFlowState): number | undefined {
   if (isSubtaskActive(state)) {
-    if (isASD && task.backwardDiagnosis?.asdSubtaskNumber !== undefined) return task.backwardDiagnosis.asdSubtaskNumber;
     if (task.backwardDiagnosis?.subtaskNumber !== undefined) return task.backwardDiagnosis.subtaskNumber;
   }
-  if (isASD && task.asdNumber !== undefined) return task.asdNumber;
   return task.number;
 }
 
-export function getEffectiveRange(task: QMatrixTask, state: QMatrixFlowState, isASD: boolean): [number, number] | undefined {
+export function getEffectiveRange(task: QMatrixTask, state: QMatrixFlowState): [number, number] | undefined {
   if (isSubtaskActive(state)) {
-    if (isASD && task.backwardDiagnosis?.asdSubtaskRange !== undefined) return task.backwardDiagnosis.asdSubtaskRange;
     if (task.backwardDiagnosis?.subtaskRange) return task.backwardDiagnosis.subtaskRange;
   }
-  if (isASD && task.asdRange) return task.asdRange;
   return task.range;
 }
 
@@ -263,11 +259,9 @@ export function getEffectiveChoices(task: QMatrixTask, state: QMatrixFlowState):
 
 export function getExpectedBlocks(
   task: QMatrixTask,
-  state: QMatrixFlowState,
-  isASD: boolean
+  state: QMatrixFlowState
 ): { hundreds?: number; tens?: number; units?: number } | null {
   if (isSubtaskActive(state)) return null; // blocks are not validated in backward subtasks
-  if (isASD && task.asdExpectedBlocks) return task.asdExpectedBlocks;
   return task.expectedBlocks ?? null;
 }
 

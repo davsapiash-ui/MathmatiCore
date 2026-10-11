@@ -80,11 +80,11 @@ describe('the class CSV catch-up columns', () => {
   const rowOf = (n: number) => buildLearnerRow(n, [], 7, 'green_path', null, null, 0, null, { sessionNumber: 3, allEvents: [] });
   const parse = (line: string) => line.split('","').map((c) => c.replace(/^﻿?"|"$/g, ''));
 
-  it('appended at the END, in the export order; the earlier columns do not move', () => {
+  it('after chat_help_requests, in the export order; the place cues by profile follow them', () => {
     const before = parse(buildClassCsv([rowOf(1)], []).split('\n')[0]);
     const after = parse(buildClassCsv([rowOf(1)], [], { 1: record(1, { r_1: round() }) }).split('\n')[0]);
-    expect(after.slice(0, -4)).toEqual(before.slice(0, -4));
-    expect(after.slice(-5)).toEqual(['chat_help_requests', ...CATCHUP_EXPORT_COLUMNS]);
+    expect(after).toEqual(before);
+    expect(after.slice(-7)).toEqual(['chat_help_requests', ...CATCHUP_EXPORT_COLUMNS, 'place_cues_regular', 'place_cues_enhanced']);
     expect([...CATCHUP_EXPORT_COLUMNS]).toEqual(['catchup_rounds', 'catchup_minutes', 'catchup_reason', 'catchup_note']);
   });
 
@@ -96,8 +96,8 @@ describe('the class CSV catch-up columns', () => {
       }),
     });
     const [, one, two] = csv.split('\n').map(parse);
-    expect(one.slice(-4)).toEqual(['1', '4', 'technical_fault|other', 'המחשב נתקע']);
-    expect(two.slice(-4)).toEqual(['0', '0', '', '']);
+    expect(one.slice(-6, -2)).toEqual(['1', '4', 'technical_fault|other', 'המחשב נתקע']);
+    expect(two.slice(-6, -2)).toEqual(['0', '0', '', '']);
   });
 });
 

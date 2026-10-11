@@ -132,9 +132,6 @@ export interface SessionTask {
   numberB?: number;
   correctAnswer?: number | string; // s1_welcome uses the choice id 'א'
   isSubtraction?: boolean;
-  /* ASD simplified operands */
-  asdNumberA?: number;
-  asdNumberB?: number;
 
   /* Closed choices */
   thoughtQuestionHe?: string;

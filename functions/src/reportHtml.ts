@@ -44,7 +44,7 @@ export const EXACT_AI_FALLBACK_TEXT_HE =
  * score counts the compulsory exercises only.
  */
 export const CHOICE_EXERCISES_HEADING_HE =
-  "תרגילי בחירה (אחרי תרגילי החובה) — בנפרד מתרגילי החובה, ואינם נכללים בציון השליטה";
+  "תרגילי בחירה (אחרי תרגילי החובה) — בנפרד מתרגילי החובה, ואינם נכללים בציון ניסיון ראשון (מדד 1)";
 
 export const TIER_LABEL_HE: Record<RecommendationTier, string> = {
   below_50: "קבוצה הומוגנית קטנה, תבניות עשר פיזיות ומקלות מנייה (ציון מתחת ל-50%)",
@@ -148,7 +148,7 @@ export function reportFooterTemplate(generatedAt: number | string | undefined): 
   const genTime = generatedAt ? new Date(generatedAt) : new Date();
   const dateHe = genTime.toLocaleDateString("he-IL");
   return `<div dir="rtl" style="width:100%; padding:0 14mm; font-family: Arial, sans-serif; font-size:7.5pt; color:#94a3b8; display:flex; justify-content:space-between;">
-    <span>נוצר אוטומטית בתאריך ${esc(dateHe)} | מנוע MathematiCore v7.0</span>
+    <span>נוצר אוטומטית בתאריך ${esc(dateHe)}</span>
     <span>עמוד <span class="pageNumber"></span> מתוך <span class="totalPages"></span></span>
   </div>`;
 }
@@ -270,6 +270,39 @@ export function classCatchUpSection(catchUp: ClassCatchUpSummary | null | undefi
     <table><thead><tr><th>תלמיד</th><th>סבבי השלמה</th><th>דקות השלמה</th><th>סיבה</th><th>הערה</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
+/**
+ * The same block as plain lines, for the pdfkit renderer (classReport.ts): the
+ * total, the reasons and one line per learner. Empty when no learner has a record.
+ */
+export function classCatchUpLinesHe(catchUp: ClassCatchUpSummary | null | undefined): string[] {
+  const learners = Array.isArray(catchUp?.learners) ? catchUp!.learners : [];
+  if (learners.length === 0) return [];
+  const counts = (catchUp!.reason_counts ?? {}) as Partial<Record<CatchUpReasonKey, number>>;
+  const withRounds = Number(catchUp!.learners_with_rounds) || 0;
+  const reasons = CATCHUP_REASON_KEYS
+    .filter((k) => (counts[k] ?? 0) > 0)
+    .map((k) => `${CATCHUP_REASON_HE[k]}: ${learnersCountHe(counts[k] ?? 0)}`);
+  return [
+    ...(withRounds > 0 ? [`קיבלו זמן השלמה: ${learnersCountHe(withRounds)}, ${minutesCountHe(Number(catchUp!.total_minutes) || 0)} בסך הכול`] : []),
+    ...(reasons.length > 0 ? [`סיבות שנרשמו: ${reasons.join(" | ")}`] : []),
+    ...learners.map((l) => `תלמיד ${l.student_number}: ${l.line_he}`),
+  ];
+}
+
+/**
+ * The class's scaffold and help counters, one line for both renderers and the
+ * dashboard's panel (react-ts-version ClassMeetingReportPanel scaffoldsLineHe).
+ * PRD 23 §ב: the result-row scaffold by the profile it appeared in (Module 9 §א);
+ * a report stored before the split has no profile counts and prints the total alone.
+ */
+export function classScaffoldsLineHe(a: ClassAggregates): string {
+  const byProfile = typeof a.place_cues_regular_total === "number" && typeof a.place_cues_enhanced_total === "number"
+    ? ` (${a.place_cues_regular_total} בפרופיל הרגיל, ${a.place_cues_enhanced_total} בפרופיל התמיכה המוגבר)`
+    : "";
+  // A counter a stored report does not have yet reads 0, never "undefined".
+  return `לוח החיבור: נפתח ${a.grid_openings_total ?? 0}, הוחזר על ידי הלומד ${a.grid_reopenings_total ?? 0} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total ?? 0} | קריאות שקטות למורה: ${a.help_requests_total ?? 0}${a.help_withdrawals_total ? ` (הלומדים ביטלו ${a.help_withdrawals_total} מהן)` : ""} | בקשות עזרה מהצ׳אט: ${a.chat_help_requests_total ?? 0} | פיגום בשורת התוצאה: ${a.place_cue_scaffolds_total ?? 0}${byProfile}`;
+}
+
 /** One learner's tools: how often each was operated, and "לא הופעל" where it never was. */
 function toolMasteryTable(m: ToolMastery | null | undefined): string {
   if (!m) return "";
@@ -331,7 +364,7 @@ function sandboxReportHtml(report: Record<string, any>): string {
     <h2>2. תרגילי הריענון</h2>
     ${refreshOutcomesList(report.exercise_outcomes, report.exercise_titles)}
 
-    <h2>3. סיפור התרגילים הכרונולוגי</h2>
+    <h2>3. סיפור התרגילים</h2>
     ${narratives.length > 0 ? bulletList(narratives, "") : ""}
     ${preResetSection(report.pre_reset)}
 
@@ -363,7 +396,7 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
   let insights: string;
   if (gaps.length > 0 || teaching.length > 0) {
     insights = "";
-    if (gaps.length > 0) insights += `<h3>פערי ידע שאותרו:</h3>${bulletList(gaps, "amber-text")}`;
+    if (gaps.length > 0) insights += `<h3>פערי הידע שאותרו:</h3>${bulletList(gaps, "amber-text")}`;
     if (teaching.length > 0) insights += `<h3>המלצות הוראה להמשך העבודה בכיתה:</h3>${bulletList(teaching, "amber-text")}`;
   } else {
     // The PRD fixes this sentence verbatim for the engine-unavailable case.
@@ -389,12 +422,12 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
       <p><b>פירוט פדגוגי:</b> ${esc(report.recommendation_details_he || report.routing_label_he)}</p>
     </div>
 
-    <h2>2. סיפור התרגילים הכרונולוגי</h2>
+    <h2>2. סיפור התרגילים</h2>
     ${narratives.length > 0 ? bulletList(narratives, "") : ""}
     ${choiceNarratives.length > 0 ? `<h3>${esc(CHOICE_EXERCISES_HEADING_HE)}</h3>${bulletList(choiceNarratives, "")}` : ""}
     ${preResetSection(report.pre_reset)}
 
-    <h2 class="amber">3. תובנות קוגניטיביות פדגוגיות</h2>
+    <h2 class="amber">3. פערי הידע והמלצות ההוראה</h2>
     ${insights}
     ${researchMeasuresCard(report.research_measures, 4)}
   `;
@@ -583,14 +616,16 @@ export function classReportHtml(report: Record<string, any>): string {
   // מסמך 03: the choice exercises marked as such, apart from the compulsory ones.
   const compulsoryExercises = a.exercises.filter((ex) => pathTypeOf(ex) === "compulsory");
   const choiceExercises = a.exercises.filter((ex) => pathTypeOf(ex) !== "compulsory");
+  // Meeting 1 is not scored (Module 14 §ב, PRD 23 "בלי אחוז"): its table counts learners, with no percentage.
+  const withPercent = a.scored !== false;
   const exerciseTable = (list: ClassAggregates["exercises"], choice: boolean) => `<table>
-        <thead><tr><th>תרגיל</th>${choice ? "<th>נתיב</th>" : ""}<th>פתחו</th><th>סיימו</th><th>בניסיון ראשון</th><th>אחוז בניסיון ראשון</th><th>ספרות שגויות</th><th>כרטיסים</th><th>היסוסים</th></tr></thead>
+        <thead><tr><th>תרגיל</th>${choice ? "<th>נתיב</th>" : ""}<th>פתחו</th><th>סיימו</th><th>בניסיון ראשון</th>${withPercent ? "<th>אחוז בניסיון ראשון</th>" : ""}<th>ספרות שגויות</th><th>כרטיסים</th><th>היסוסים</th></tr></thead>
         <tbody>${list.map((ex) => `
           <tr>
             <td class="label">${exerciseName(titles, ex.exercise_id)}</td>
             ${choice ? `<td>${esc(choiceLabelOf(ex))}</td>` : ""}
             <td>${esc(ex.attempted)}</td><td>${esc(ex.completed)}</td><td>${esc(ex.first_try)}</td>
-            <td>${esc(ex.first_try_percent)}%</td><td>${esc(ex.wrong_digits)}</td>
+            ${withPercent ? `<td>${esc(ex.first_try_percent)}%</td>` : ""}<td>${esc(ex.wrong_digits)}</td>
             <td>${esc(ex.socratic_cards)}</td><td>${esc(ex.hesitations)}</td>
           </tr>`).join("")}
         </tbody></table>`;
@@ -642,6 +677,7 @@ export function classReportHtml(report: Record<string, any>): string {
       (${COLUMN_NAMES_HE[0]} ${esc(a.wrong_digits_by_column.units)}, עשרות ${esc(a.wrong_digits_by_column.tens)}, מאות ${esc(a.wrong_digits_by_column.hundreds)}, אלפים ${esc(a.wrong_digits_by_column.thousands)})</p>
     <p>מחיקות: ${esc(a.deletions_total)} | ביטולים: ${esc(a.undos_total)} | היסוסים: ${esc(a.hesitations_total)} (${esc(a.hesitation_seconds_total)} שניות) | המרות (הקבצה/פריטה): ${esc(a.regroupings_total)}</p>
     <p>כרטיסי חניכה: ${esc(a.socratic_cards_total)}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}</p>
+    <p>${esc(classScaffoldsLineHe(a))}</p>
 
     <h2>3. תרגילי הריענון: כמה לומדים פתרו בניסיון ראשון</h2>
     ${exercises}
@@ -683,7 +719,7 @@ export function classReportHtml(report: Record<string, any>): string {
       (${COLUMN_NAMES_HE[0]} ${esc(a.wrong_digits_by_column.units)}, עשרות ${esc(a.wrong_digits_by_column.tens)}, מאות ${esc(a.wrong_digits_by_column.hundreds)}, אלפים ${esc(a.wrong_digits_by_column.thousands)})</p>
     <p>מחיקות: ${esc(a.deletions_total)} | ביטולים: ${esc(a.undos_total)} | היסוסים: ${esc(a.hesitations_total)} (${esc(a.hesitation_seconds_total)} שניות) | המרות (הקבצה/פריטה): ${esc(a.regroupings_total)}</p>
     <p>כרטיסי חניכה: ${esc(a.socratic_cards_total)}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}</p>
-    <p>לוח החיבור: נפתח ${esc(a.grid_openings_total)}, הוחזר על ידי הלומד ${esc(a.grid_reopenings_total)} | הקלדה לפני המרה (מקלדת נעולה): ${esc(a.keyboard_lock_blocks_total)} | קריאות שקטות למורה: ${esc(a.help_requests_total)}${a.help_withdrawals_total ? ` (הלומדים ביטלו ${esc(a.help_withdrawals_total)} מהן)` : ""} | בקשות עזרה מהצ׳אט: ${esc(a.chat_help_requests_total ?? 0)} | פיגום בשורת התוצאה: ${esc(a.place_cue_scaffolds_total)}</p>
+    <p>${esc(classScaffoldsLineHe(a))}</p>
     <p>זמן פעילות ממוצע: ${esc(a.active_minutes_mean)} דקות | דקות הקלטה: ${esc(a.recording_minutes_total)} | רפלקציות: ${esc(a.reflections_submitted)} מתוך ${esc(a.learners_with_data)}</p>
 
     <h2>3. תרגילים: כמה לומדים פתרו בניסיון ראשון</h2>

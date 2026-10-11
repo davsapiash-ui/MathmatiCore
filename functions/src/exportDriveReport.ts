@@ -9,7 +9,12 @@ import { scrubPII } from "./geminiProxy";
 import { researchDetailsColumns, researchStampColumns } from "./researchTelemetryRow";
 import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
 import { CATCHUP_COLLECTION, catchUpExportCells, type CatchUpRecord } from "./catchUp";
-import { AI_REJECTIONS_COLLECTION } from "./aiMonitoring";
+import { AI_MONITORING_DOC, AI_REJECTIONS_COLLECTION } from "./aiMonitoring";
+import { FieldValue } from "firebase-admin/firestore";
+import * as fs from "fs";
+import { esc, layout } from "./reportHtml";
+import { CHROMIUM_PDF_RUNTIME, fontPath, renderHtmlToPdf, renderWithFallback } from "./htmlPdf";
+import { rtlText } from "./hebrewPdf";
 import { finishedMeetingRefusalHe, resolveActiveSessionNumber, resolveClassSessionNumber, validMeetingNumber } from "./resetMeetingTarget";
 import { LATE_MARKERS_ROOT, lateRecordingMarkerRevert, lateRecordingMarkerUpdates } from "./lateRecordings";
 import {
@@ -18,11 +23,13 @@ import {
   adminReportFileName,
   backupFileName,
   backupStoragePath,
+  israelDate,
+  israelTime,
   researchExportFileName,
   type BackupKind,
   type DriveFolderName,
 } from "./driveNames";
-import { buildTeacherMediationRows } from "./teacherMediationRows";
+import { MEDIATION_COLUMNS, buildTeacherMediationRows } from "./teacherMediationRows";
 import {
   ALL_LEARNERS,
   RESET_LOCK_REFUSAL_HE,
@@ -46,121 +53,99 @@ export { DRIVE_FOLDERS, researchExportFileName };
 const GOOGLE_DRIVE_FOLDER_ID = "0AMiALsm_TxT5Uk9PVA";
 
 /**
- * Generate a valid, robust PDF binary buffer with exact stream length positioning
- * containing full system metrics, governance audit & Google Drive target metadata.
+ * PRD Module 24 §ב, the admin report in the Drive folder "4 מנהל": counts only
+ * (schools, teachers, learners, active radar alerts), no e-mail address, not
+ * the admin's and not the service account's. In Hebrew, dated by the Israeli
+ * calendar and clock (audit L14, 12.10.2026): it used to be an English page
+ * stamped with a UTC ISO time.
+ *
+ * A "SECURITY & PRIVACY COMPLIANCE AUDIT" section used to sit in this report:
+ * four hardcoded lines reading ENFORCED / COMPLIANT / ACTIVE, measured from
+ * nothing. Two were untrue — the 30-day replay retention job does not exist,
+ * and the institutional domain restriction was deliberately waived by the
+ * product owner. A governance report that certifies controls nobody checked
+ * is worse than no report. Only the counts the caller measured are printed.
  */
-function createPDFBuffer(data: {
+export interface AdminReportCounts {
   schoolsCount: number;
   teachersCount: number;
   studentsCount: number;
   alertsCount: number;
-  timestamp: string;
-}): Buffer {
-  const lines = [
-    "BT",
-    "/F1 18 Tf",
-    "50 740 Td",
-    "(MathmatiCore - Executive System & Governance Report) Tj",
-    "/F1 10 Tf",
-    "0 -24 Td",
-    `(Export Date: ${data.timestamp}) Tj`,
-    // PRD Module 24 §ב: counts only — no e-mail address, neither the admin's
-    // nor the service account's.
-    "0 -28 Td",
-    "/F1 14 Tf",
-    "(1. SYSTEM METRICS & INFRASTRUCTURE SUMMARY) Tj",
-    "/F1 11 Tf",
-    "0 -22 Td",
-    `(- Total Active Partner Schools: ${data.schoolsCount}) Tj`,
-    "0 -18 Td",
-    `(- Registered Lead & System Teachers: ${data.teachersCount}) Tj`,
-    "0 -18 Td",
-    `(- Total Active Enrolled Students: ${data.studentsCount}) Tj`,
-    "0 -18 Td",
-    `(- Active Realtime Pedagogical Radar Alerts: ${data.alertsCount}) Tj`,
-    // A "SECURITY & PRIVACY COMPLIANCE AUDIT" section used to sit here: four
-    // hardcoded lines reading ENFORCED / COMPLIANT / ACTIVE, measured from
-    // nothing. Two were untrue — the 30-day replay retention job does not
-    // exist, and the institutional domain restriction was deliberately waived
-    // by the product owner; the spec sets no domain filter. A governance report that
-    // certifies controls nobody checked is worse than no report. The counts
-    // above are real values the caller measured; nothing else is asserted.
-    "ET"
+}
+
+export const ADMIN_REPORT_TITLE_HE = "דוח מנהל";
+export const ADMIN_REPORT_NOTE_HE = "הדוח כולל ספירות בלבד. אין בו כתובות דוא״ל ואין בו פרטים מזהים.";
+
+/** "תאריך ההפקה: 12.10.2026, 14:30 (שעון ישראל)". */
+export function adminReportDateLineHe(ms: number): string {
+  return `תאריך ההפקה: ${israelDate(ms)}, ${israelTime(ms).replace("-", ":")} (שעון ישראל)`;
+}
+
+/** The four counts, labelled as PRD Module 24 §ב names them. */
+export function adminReportRowsHe(counts: AdminReportCounts): Array<{ label: string; value: number }> {
+  return [
+    { label: "בתי ספר", value: counts.schoolsCount },
+    { label: "מורים", value: counts.teachersCount },
+    { label: "לומדים", value: counts.studentsCount },
+    { label: "התראות רדאר פעילות", value: counts.alertsCount },
   ];
+}
 
-  const streamContent = lines.join("\n");
-  const streamLength = Buffer.byteLength(streamContent, "utf-8");
+/** The report as plain lines (the pdfkit fallback, and the tests). */
+export function adminReportLinesHe(counts: AdminReportCounts, ms: number): string[] {
+  return [
+    ADMIN_REPORT_TITLE_HE,
+    adminReportDateLineHe(ms),
+    ADMIN_REPORT_NOTE_HE,
+    "",
+    ...adminReportRowsHe(counts).map((r) => `${r.label}: ${r.value}`),
+  ];
+}
 
-  const pdfHead = `%PDF-1.4
-1 0 obj
-<<
-  /Type /Catalog
-  /Pages 2 0 R
->>
-endobj
-2 0 obj
-<<
-  /Type /Pages
-  /Kids [3 0 R]
-  /Count 1
->>
-endobj
-3 0 obj
-<<
-  /Type /Page
-  /Parent 2 0 R
-  /Resources <<
-    /Font <<
-      /F1 4 0 R
-    >>
-  >>
-  /MediaBox [0 0 612 792]
-  /Contents 5 0 R
->>
-endobj
-4 0 obj
-<<
-  /Type /Font
-  /Subtype /Type1
-  /BaseFont /Helvetica-Bold
->>
-endobj
-5 0 obj
-<< /Length ${streamLength} >>
-stream
-${streamContent}
-endstream
-endobj
-`;
+/** The report as a complete right-to-left HTML document (printed by Chromium). */
+export function adminReportHtml(counts: AdminReportCounts, ms: number): string {
+  const rows = adminReportRowsHe(counts)
+    .map((r) => `<tr><td class="label">${esc(r.label)}</td><td>${r.value}</td></tr>`)
+    .join("");
+  return layout(ADMIN_REPORT_TITLE_HE, [
+    `<h1>${esc(ADMIN_REPORT_TITLE_HE)}</h1>`,
+    `<p class="subtitle">${esc(adminReportDateLineHe(ms))}</p>`,
+    `<p class="muted">${esc(ADMIN_REPORT_NOTE_HE)}</p>`,
+    `<table><tbody>${rows}</tbody></table>`,
+  ].join("\n"));
+}
 
-  const obj1Offset = pdfHead.indexOf("1 0 obj");
-  const obj2Offset = pdfHead.indexOf("2 0 obj");
-  const obj3Offset = pdfHead.indexOf("3 0 obj");
-  const obj4Offset = pdfHead.indexOf("4 0 obj");
-  const obj5Offset = pdfHead.indexOf("5 0 obj");
-  const startXrefOffset = pdfHead.length;
+function adminReportPdfWithPdfkit(counts: AdminReportCounts, ms: number): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    try {
+      const PDFDocument = require("pdfkit");
+      const doc = new PDFDocument({ size: "A4", margin: 40 });
+      const chunks: Buffer[] = [];
+      doc.on("data", (c: any) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", (err: any) => reject(err));
+      // A Hebrew font: pdfkit's built-in Helvetica has no Hebrew glyphs.
+      const font = fontPath("Arial.ttf");
+      if (fs.existsSync(font)) doc.font(font);
+      doc.fontSize(12).fillColor("#0f172a");
+      for (const line of adminReportLinesHe(counts, ms)) {
+        if (line === "") doc.moveDown(0.5);
+        else rtlText(doc, line);
+      }
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
 
-  const padOffset = (num: number) => String(num).padStart(10, "0");
-
-  const pdfFull = `${pdfHead}xref
-0 6
-0000000000 65535 f 
-${padOffset(obj1Offset)} 00000 n 
-${padOffset(obj2Offset)} 00000 n 
-${padOffset(obj3Offset)} 00000 n 
-${padOffset(obj4Offset)} 00000 n 
-${padOffset(obj5Offset)} 00000 n 
-trailer
-<<
-  /Size 6
-  /Root 1 0 R
->>
-startxref
-${startXrefOffset}
-%%EOF
-`;
-
-  return Buffer.from(pdfFull, "utf-8");
+/** Chromium first, pdfkit when it fails (htmlPdf.ts), as every Hebrew report. */
+export function createAdminReportPdf(counts: AdminReportCounts, ms: number): Promise<Buffer> {
+  return renderWithFallback(
+    "adminReport",
+    () => renderHtmlToPdf(adminReportHtml(counts, ms)),
+    () => adminReportPdfWithPdfkit(counts, ms)
+  );
 }
 
 /**
@@ -200,7 +185,8 @@ async function getDriveAccessToken(): Promise<string | null> {
  * Generates an executive PDF report and uploads it directly to Google Drive
  * folder "4 מנהל" (PRD Module 24 §ב): counts only, no e-mail address.
  */
-export const exportAdminReportToDrive = onCall(async (request) => {
+// The Hebrew PDF is printed by Chromium (htmlPdf.ts), which needs its runtime.
+export const exportAdminReportToDrive = onCall(CHROMIUM_PDF_RUNTIME, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated to export reports.");
   }
@@ -233,19 +219,13 @@ export const exportAdminReportToDrive = onCall(async (request) => {
   }
 
   const now = Date.now();
-  const timestampStr = new Date(now).toISOString();
   // PRD Module 24 §ב: "דוח מנהל DD.MM.YYYY.pdf" in the flat folder "4 מנהל".
   const fileName = adminReportFileName(now);
 
   logger.info(`Generating the admin report PDF into the Drive folder "${DRIVE_FOLDERS.admin}"`);
 
-  const pdfBuffer = createPDFBuffer({
-    schoolsCount,
-    teachersCount,
-    studentsCount,
-    alertsCount,
-    timestamp: timestampStr,
-  });
+  // In Hebrew, dated by the Israeli clock (audit L14).
+  const pdfBuffer = await createAdminReportPdf({ schoolsCount, teachersCount, studentsCount, alertsCount }, now);
 
   // The admin report is not parked in Storage: the admin is told it failed.
   const upload = await uploadBufferToDrive(pdfBuffer, fileName, "application/pdf", DRIVE_FOLDERS.admin, { park: false });
@@ -367,7 +347,13 @@ export interface DriveUploadOptions {
   signal?: AbortSignal;
 }
 
-export type DriveUploadResult = { success: boolean; fileId: string; webViewLink: string; error?: string; fallbackStoragePath?: string; fallbackDownloadUrl?: string | null };
+/** folderId: the Drive folder the file was written into (success only; the export's audit entry links to it). */
+export type DriveUploadResult = { success: boolean; fileId: string; webViewLink: string; folderId?: string; error?: string; fallbackStoragePath?: string; fallbackDownloadUrl?: string | null };
+
+/** The web link of a Drive folder. */
+export function driveFolderLink(folderId: string): string {
+  return `https://drive.google.com/drive/folders/${folderId}`;
+}
 
 /**
  * Upload a buffer into one of the four flat Drive folders. Every call creates
@@ -415,7 +401,7 @@ export async function uploadBufferToDrive(
     if (response.ok) {
       const resData = await response.json();
       if (!resData.id) return await parkInStorage("Drive API returned no file id");
-      return { success: true, fileId: resData.id, webViewLink: `https://drive.google.com/file/d/${resData.id}/view` };
+      return { success: true, fileId: resData.id, webViewLink: `https://drive.google.com/file/d/${resData.id}/view`, folderId: parentFolderId };
     }
     const errText = await response.text();
     return await parkInStorage(`Drive API ${response.status}: ${errText}`);
@@ -588,6 +574,10 @@ export const SINGLE_STUDENT_RESET_SCOPES: readonly SingleStudentResetScope[] = [
 export type ResetTarget = 'student' | 'class';
 export const RESET_TARGETS: readonly ResetTarget[] = ['student', 'class'];
 
+/** The refusal of "the whole class, full reset" (PRD 23א §ב.2): level 3, named by its dashboard button. */
+export const RESET_CLASS_FULL_REFUSAL_HE =
+  'איפוס המפגש לכיתה מאפס את המפגש הפעיל בלבד. כדי למחוק את כל נתוני הכיתה, בחרו "איפוס כל נתוני הכיתה" (רמה 3). לא נמחקו נתונים.';
+
 /**
  * Module 23א: backupAndResetSessionData
  * Enforces strict Backup-Before-Delete sequencing:
@@ -652,11 +642,10 @@ async function runBackupAndReset(request: CallableRequest<any>) {
     throw new HttpsError("invalid-argument", "reset_target 'class' belongs to reset_level 'single_student' (level 2) only.");
   }
   const isClassTarget = reset_level === 'single_student' && reset_target === 'class';
+  // PRD 23א §ב.2: the server refuses and sends the teacher to level 3, by the
+  // name of its button on the dashboard ("איפוס כל נתוני הכיתה").
   if (isClassTarget && reset_scope === 'full_student') {
-    throw new HttpsError(
-      "invalid-argument",
-      "איפוס לכל הכיתה מאפס את המפגש הפעיל בלבד. למחיקת כל נתוני הכיתה יש להשתמש באיפוס מערכת (רמה 3)."
-    );
+    throw new HttpsError("invalid-argument", RESET_CLASS_FULL_REFUSAL_HE);
   }
 
   // PRD Module 23א §F: learning-data resets belong to the class teacher; a
@@ -1051,6 +1040,11 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
   if (written.channel === 'storage') {
     logger.warn(`Reset ${resetId}: the backup is in Cloud Storage (${written.url}); the daily job copies it to Drive. Drive said: ${written.driveError}`);
   }
+  // Audit L36: a backup that is only in Storage has no Drive link to open; the
+  // dashboard gets a short-lived signed link to it with the result.
+  const backupDownloadUrl = written.channel === 'storage'
+    ? await signedStorageReadUrl(backupStoragePath(class_id, resetId, backupName), BACKUP_LINK_TTL_MS)
+    : null;
 
   // Step 2b: the markers again, now with every recording id in the backup.
   if (fullReset) {
@@ -1118,6 +1112,19 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
   // not make the deletion 'partial' (§ד: only the records in scope decide).
   const sideEffectErrors: string[] = [];
 
+  // Audit L34: a system reset also takes the class's report files out of Cloud
+  // Storage. Each is copied into this reset's backup folder first; only a file
+  // whose copy succeeded is deleted, after the records (backupClassReportFiles).
+  let reportFiles: { copied: StorageFileLike[]; failures: string[] } | null = null;
+  if (reset_level === 'system') {
+    try {
+      reportFiles = await backupClassReportFiles(admin.storage().bucket() as unknown as StorageBucketLike, class_id, resetId);
+    } catch (err: any) {
+      reportFiles = { copied: [], failures: [`${classReportsStoragePrefix(class_id)} (report files): ${err?.message || String(err)}`] };
+    }
+    sideEffectErrors.push(...reportFiles.failures);
+  }
+
   // Step 4: delete ONLY after the backup write and the audit entry were
   // confirmed — the very same scope that was just backed up, and every record
   // of it (no page limits).
@@ -1127,12 +1134,27 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
   if (reset_level === 'system') {
     // A class that starts over has no projector and — Module 14: session
     // activation is exclusively a teacher action — no active session.
-    await rtdb.ref("system_control/projector_mode").set({ active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch((e) => sideEffectErrors.push(`system_control/projector_mode: ${e?.message || e}`));
+    // The node's three fields, as every writer writes them (PRD Module 4; database.rules.json): the
+    // server's clock (".sv", what admin.database.ServerValue.TIMESTAMP is), and the teacher who reset.
+    await rtdb.ref("system_control/projector_mode").set({
+      projector_mode: false,
+      projector_mode_updated_at: { ".sv": "timestamp" },
+      updated_by_teacher_id: performedBy,
+    }).catch((e) => sideEffectErrors.push(`system_control/projector_mode: ${e?.message || e}`));
     await rtdb.ref("active_class_session").set({ active: false, status: "closed", sessionNumber: null, endedAt: Date.now() }).catch((e) => sideEffectErrors.push(`active_class_session: ${e?.message || e}`));
     // Module 24's store_cache/admin_metrics is derived from the data just
     // deleted; recompute it now so the admin console does not keep showing
     // the pre-reset summary until the next scheduled run.
     await recomputeAdminMetrics(db).catch((e) => sideEffectErrors.push(`store_cache/admin_metrics: ${e?.message || e}`));
+    // Audit L35: the AI engine's call counters counted the trial lessons too.
+    await db.collection("store_cache").doc(AI_MONITORING_DOC).set(aiMonitoringCountsReset(Date.now()), { merge: true })
+      .catch((e: any) => sideEffectErrors.push(`store_cache/${AI_MONITORING_DOC}: ${e?.message || e}`));
+    // Audit L34: the report files, now that their records are gone — only those backed up.
+    if (reportFiles && reportFiles.copied.length > 0) {
+      const removed = await deleteBackedUpFiles(reportFiles.copied);
+      sideEffectErrors.push(...removed.failures);
+      logger.info(`Reset ${resetId}: ${removed.deleted} report files backed up to ${backupStoragePath(class_id, resetId, "")} and deleted.`);
+    }
   }
 
   // Step 5: the real number of records deleted, and how the deletion ended
@@ -1175,6 +1197,8 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
     resetId,
     backupChannel: written.channel,
     webViewLink: written.url,
+    // Audit L36: the Storage-only backup, as a link the dashboard can open (BACKUP_LINK_TTL_MS).
+    ...(backupDownloadUrl ? { backupDownloadUrl } : {}),
     backedUpRecords: backup.counts.total,
     deletedRecords: deletion.total,
     ...(sideEffectErrors.length > 0 ? { sideEffectErrors } : {}),
@@ -1190,6 +1214,109 @@ const ALL_STUDENT_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 /** Every key a learner record has been stored under over the project's history. */
 function studentAliases(rawNum: string): string[] {
   return [`student_user${rawNum}`, `student_${rawNum}`, `user${rawNum}`, rawNum];
+}
+
+/**
+ * Audit L36: how long the dashboard's link to a reset backup kept only in
+ * Cloud Storage works. The link is shown once, with the reset's result, and
+ * the backup holds every record of the reset (chat text included), so it does
+ * not outlive the moment; the daily job puts the file in Drive anyway.
+ */
+export const BACKUP_LINK_TTL_MS = 60 * 60 * 1000;
+
+/** A signed read link to a file in the default bucket; null when none could be issued (the reset stands either way). */
+export async function signedStorageReadUrl(storagePath: string, ttlMs: number): Promise<string | null> {
+  try {
+    const [url] = await admin.storage().bucket().file(storagePath).getSignedUrl({ action: "read", expires: Date.now() + ttlMs });
+    return typeof url === "string" && url ? url : null;
+  } catch (err: any) {
+    logger.warn(`No signed link could be issued for ${storagePath}: ${err?.message || err}`);
+    return null;
+  }
+}
+
+/**
+ * Audit L34 (owner, 11.10.2026: the system starts clean before the research
+ * run). The class's report files in Cloud Storage — each learner report's PDF
+ * and each class report's PDF and CSV, under reports/{class_id}/ (Module 23) —
+ * belong to the report records a system reset deletes. Backup before delete
+ * (§ג): each file is first copied into the reset's own backup folder,
+ * backups/{class_id}/{reset_id}/ (where its JSON backup goes; the class
+ * teacher reads it, storage.rules) under its original path, and only a file
+ * whose copy succeeded is deleted, after the records. A file that could not be
+ * copied stays where it is. drive_fallback/ is not touched: audit entries
+ * point at its files (an export that Drive refused, a legacy backup the daily
+ * job still copies).
+ */
+export function classReportsStoragePrefix(classId: string): string {
+  return `reports/${classId}/`;
+}
+
+/** The part of a Cloud Storage file the report backup uses. */
+export interface StorageFileLike {
+  name: string;
+  copy(destination: any): Promise<unknown>;
+  delete(options?: { ignoreNotFound?: boolean }): Promise<unknown>;
+}
+
+/** The part of a Cloud Storage bucket the report backup uses. */
+export interface StorageBucketLike {
+  getFiles(query: { prefix: string }): Promise<[StorageFileLike[], ...unknown[]]>;
+  file(path: string): unknown;
+}
+
+/** Copies every report file of the class into the reset's backup folder; returns the files copied. */
+export async function backupClassReportFiles(
+  bucket: StorageBucketLike,
+  classId: string,
+  resetId: string
+): Promise<{ copied: StorageFileLike[]; failures: string[] }> {
+  const prefix = classReportsStoragePrefix(classId);
+  let files: StorageFileLike[];
+  try {
+    [files] = await bucket.getFiles({ prefix });
+  } catch (err: any) {
+    return { copied: [], failures: [`${prefix} (report files, not listed; nothing deleted): ${err?.message || String(err)}`] };
+  }
+  const copied: StorageFileLike[] = [];
+  const failures: string[] = [];
+  for (const file of files) {
+    try {
+      await file.copy(bucket.file(backupStoragePath(classId, resetId, file.name)));
+      copied.push(file);
+    } catch (err: any) {
+      failures.push(`${file.name} (report file, not backed up; kept): ${err?.message || String(err)}`);
+    }
+  }
+  return { copied, failures };
+}
+
+/** Deletes files that were backed up; a failure is reported, the others still go. */
+export async function deleteBackedUpFiles(files: StorageFileLike[]): Promise<{ deleted: number; failures: string[] }> {
+  let deleted = 0;
+  const failures: string[] = [];
+  for (const file of files) {
+    try {
+      await file.delete({ ignoreNotFound: true });
+      deleted += 1;
+    } catch (err: any) {
+      failures.push(`${file.name} (report file, backed up, not deleted): ${err?.message || String(err)}`);
+    }
+  }
+  return { deleted, failures };
+}
+
+/**
+ * Audit L35: a system reset zeroes the AI engine's call counters in
+ * store_cache/ai_monitoring (aiMonitoring.ts) — per feature, per day, per
+ * model, and the last call and failure: they counted the trial lessons' cards.
+ * The last live test call (last_test) and the model id are not counts and stay.
+ */
+export const AI_MONITORING_COUNT_FIELDS = ["totals", "daily", "by_model", "last_call", "last_failure"] as const;
+
+/** The write (set with merge) that empties the counters. */
+export function aiMonitoringCountsReset(now: number): Record<string, unknown> {
+  return { ...Object.fromEntries(AI_MONITORING_COUNT_FIELDS.map((f) => [f, FieldValue.delete()])), updated_at: now };
 }
 
 /**
@@ -1348,11 +1475,13 @@ export function highestCompletedAfterReset(sessionNumber: number, current: Recor
  * (register deviation 10: "במפגש 8 גם הרפלקציה"). The whole-class restart
  * keeps reflections (deviation 20) and does not set it.
  *
- * `keepHelpCalls` is set by the whole-class restart. Register deviation 20,
- * "מה לא משתנה": "ההתראות ברדאר אינן מאופסות (זו רמה 1)". The learner's help
- * call (helpRequested / handRaised / isStruggling) stays until the teacher
- * clears it ("איפוס התראות") or the learner takes it back. isSocraticActive is
- * not an alert but the card's live state, and the restart closes the card.
+ * `keepHelpCalls` is set by every meeting reset: the whole-class restart
+ * (register deviation 20, "מה לא משתנה": "ההתראות ברדאר אינן מאופסות (זו רמה
+ * 1)") and, by the same rule, one learner's meeting reset (audit L32). The
+ * learner's help call (helpRequested / handRaised / isStruggling) stays until
+ * the teacher clears it ("איפוס התראות") or the learner takes it back.
+ * isSocraticActive is not an alert but the card's live state, and the restart
+ * closes the card.
  */
 export function buildActiveSessionResetValues(
   sessionNumber: number,
@@ -1507,9 +1636,10 @@ export function buildResetScope(
         ...aliases.map((a) => `chat_messages/${a}`),
       ],
       // Values are computed against the live record at deletion time (see executeResetDeletion).
+      // The learner's help call stays, as in the class restart (audit L32).
       fieldResets: aliases.map((a) => ({
         path: `users/students/${a}`,
-        values: { __activeSessionNumber: sessionNumber, ...(clearsReflection ? { __clearReflection: true } : {}) },
+        values: { __activeSessionNumber: sessionNumber, __keepHelpCalls: true, ...(clearsReflection ? { __clearReflection: true } : {}) },
       })),
       firestore: LEARNING_COLLECTIONS.map((collection) => {
         const reflectionOfMeeting = clearsReflection && collection === "srl_reflections";
@@ -1988,7 +2118,7 @@ async function getOrCreateDriveFolder(
  *   יומן_איפוסים — every reset audit entry
  *
  * Still enforced: teacher/admin only, scoped to the caller's class; PII scan
- * over every file; Drive hierarchy under "02 נתוני מחקר"; an audit entry.
+ * over every file; the flat Drive folder "2 נתוני מחקר"; an audit entry.
  * `session_number` narrows the export to one meeting; omit it (or pass "all")
  * for the whole process.
  */
@@ -2101,7 +2231,13 @@ function isoTimeValue(key: string, v: unknown): unknown {
  * file. The gate itself is unchanged, and still refuses a real nine-digit number.
  */
 export function researchCsv(rows: Record<string, any>[], columns?: string[]): string {
-  if (!rows || rows.length === 0) return "﻿empty\n";
+  // Audit L3: a file with no rows still carries its header row, so every file
+  // of an export has the same columns whether or not anything happened. Only a
+  // caller that names no columns gets the old one-word file.
+  if (!rows || rows.length === 0) {
+    if (!columns || columns.length === 0) return "﻿empty\n";
+    return "﻿" + columns.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",");
+  }
   const headerSet = new Set<string>();
   rows.forEach((r) => Object.keys(r).forEach((k) => headerSet.add(k)));
   const headers = columns ?? Array.from(headerSet);
@@ -2128,6 +2264,53 @@ export function researchFilesContainPii(content: string): boolean {
  */
 export const RESEARCH_EXPORT_PII_REFUSAL_HE =
   "ייצוא נתוני המחקר נעצר: בקבצים נמצא מידע שנראה מזהה (כתובת מייל, מספר טלפון או מספר בן 9 ספרות). שום קובץ לא נשלח. ניסיון חוזר לא יעזור, כי הנתונים לא השתנו. פנו למנהל המערכת.";
+
+/**
+ * The school id the learner's client once wrote into a session document's
+ * class_id (classReport.ts). It names the pilot's school, not another class.
+ */
+const LEGACY_SCHOOL_IDS_IN_CLASS_ID: readonly string[] = ["school_bikorot"];
+
+/**
+ * Audit L7: the research export carries the requested class's data only. A
+ * document that names another class in class_id is left out. One that names
+ * none belongs to the class: telemetry events and reflections carry no
+ * class_id (firestore.rules allows none), and the pilot has one class (Module
+ * 25 §ב.1). Neither does the legacy school id name another class.
+ */
+export function belongsToExportClass(data: unknown, classId: string): boolean {
+  const named = data && typeof data === "object" ? (data as Record<string, unknown>).class_id : undefined;
+  if (typeof named !== "string" || named === "") return true;
+  return named === classId || LEGACY_SCHOOL_IDS_IN_CLASS_ID.includes(named);
+}
+
+/** Audit L3: the "הקלטות" file's columns, the keys of its rows in their order. */
+export const RESEARCH_RECORDING_COLUMNS = [
+  "student_id", "session_number", "recording_id", "start_iso", "end_iso", "minutes", "chunks", "exercises", "truncated",
+] as const;
+
+/**
+ * Audit L3: the "יומן איפוסים" file's columns when the log is empty — the
+ * ResetAuditEntry fields (PRD 23א §ד) after log_id, without the person who
+ * performed it (performed_by_teacher_id stays in Firestore).
+ */
+export const RESEARCH_RESET_LOG_COLUMNS = [
+  "log_id", "reset_id", "reset_level", "performed_at", "class_id", "affected_student_ids", "backup_file_url",
+  "backup_status", "reset_reason", "reason_note", "records_deleted_count", "reset_target", "reset_scope",
+  "session_number", "created_at", "backup_channel", "backup_drive_copied_at", "deletion_status",
+  "late_recording_files", "side_effect_errors",
+] as const;
+
+/**
+ * Audit L4: the export's backup_file_url (PRD 23א §ד: "המצביע על הקבצים
+ * שנוצרו") — the Drive folder the files were written into, then any file Drive
+ * refused by its Storage path, " | " between them; null when nothing was
+ * written. Without a folder id the Drive files' own links stand in for it.
+ */
+export function exportFilesUrl(driveFolderId: string | null, parkedUrls: readonly string[], driveFileLinks: readonly string[] = []): string | null {
+  const parts = [...(driveFolderId ? [driveFolderLink(driveFolderId)] : driveFileLinks), ...parkedUrls];
+  return parts.length > 0 ? parts.join(" | ") : null;
+}
 
 export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
   if (!request.auth) {
@@ -2170,17 +2353,23 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
 
   try {
     // ── 1. Every telemetry event (optionally one meeting) ──────────────────
-    const allTelemetry = await readAllDocs(db.collection("telemetry_logs"));
-    const telemetry = allTelemetry
+    // Audit L7: the requested class's documents only (belongsToExportClass).
+    const allTelemetry = (await readAllDocs(db.collection("telemetry_logs"))).filter(({ data }) => belongsToExportClass(data, class_id));
+    // Audit M10: every meeting, in order. The meetings file's cumulative
+    // columns and meeting 8's baseline (meetings 4–6) are computed from all of
+    // it; a single-meeting export narrows only the rows it writes.
+    const orderedTelemetry = allTelemetry
       .map(({ id, data }) => ({ id, data, session_number: sessionNumberFromId(String(data.session_id || "")) }))
-      .filter((e) => scopedSession === null || e.session_number === scopedSession)
       .sort((a, b) => compareTelemetryOrder(a.data, b.data));
+    const telemetry = orderedTelemetry.filter((e) => scopedSession === null || e.session_number === scopedSession);
 
-    const telemetryRows = telemetry.map(({ id, data, session_number }) => {
+    const telemetryRowOf = ({ id, data, session_number }: { id: string; data: Record<string, any>; session_number: number | null }) => {
       const d = data.details && typeof data.details === "object" ? data.details : {};
       return {
         log_id: id,
-        student_id: studentNumber(data.student_id) ?? data.student_id ?? "",
+        // Audit M12: a learner is 1–12 or no one. The raw value an event
+        // carried is never written; the row stays (one row per event).
+        student_id: studentNumber(data.student_id) ?? "",
         session_number: session_number ?? "",
         session_id: data.session_id ?? "",
         exercise_id: data.exercise_id ?? "",
@@ -2211,14 +2400,18 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         // PRD Module 24 column contract / Module 5 §ב: appended at the end of the row.
         ...researchStampColumns(data, (v) => timestampIso(v) ?? ""),
       };
-    });
+    };
+    const telemetryRows = telemetry.map(telemetryRowOf);
+    // Audit L3: the columns of an empty "פעולות" file, from the same row builder.
+    const actionColumns = Object.keys(telemetryRowOf({ id: "", data: {}, session_number: null }));
 
     // ── 2. One row per learner × meeting ───────────────────────────────────
     // See classReport.ts: the class_id filter matched no document (the client
     // wrote the school id there), so four research columns were empty for all
-    // twelve learners. One class in the pilot; documents are identified by id,
-    // and the document that carries the score wins over a stub.
-    const sessionDocs = await readAllDocs(db.collection("sessions"));
+    // twelve learners. Documents are identified by id, and the document that
+    // carries the score wins over a stub. Audit L7: a document that names
+    // another class is left out (belongsToExportClass keeps the school id).
+    const sessionDocs = (await readAllDocs(db.collection("sessions"))).filter(({ data }) => belongsToExportClass(data, class_id));
     const sessionDocByKey = new Map<string, Record<string, any>>();
     for (const { id, data } of sessionDocs) {
       const n = studentNumber(data.student_id) ?? studentNumberFromSessionId(String(data.session_id || "")) ?? studentNumberFromSessionId(id);
@@ -2283,8 +2476,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       }
     }
 
+    // Every meeting of every learner (audit M10); the rows are narrowed below.
     const byLearnerMeeting = new Map<string, Record<string, any>[]>();
-    for (const e of telemetry) {
+    for (const e of orderedTelemetry) {
       const n = studentNumber(e.data.student_id);
       if (n === null || e.session_number === null) continue;
       const k = `${n}:${e.session_number}`;
@@ -2292,8 +2486,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     }
     const compulsoryCache = new Map<string, number | null>();
     const compulsoryIdsByBank = new Map<string, ReadonlySet<string>>();
+    // Audit L7: the fallback read used to hand every class's entries to the export.
     const resetLogs = await readAllDocs(db.collection("reset_audit_log").where("class_id", "==", class_id))
-      .catch(async () => readAllDocs(db.collection("reset_audit_log")));
+      .catch(async () => (await readAllDocs(db.collection("reset_audit_log"))).filter(({ data }) => data.class_id === class_id));
 
     // החלטת בעל המוצר, 23.9.2026 (פער יג): מפגש שאופס באמצע מוחזר ללומד
     // מתרגיל 1, והוא פותר תרגילים שכבר ראה. מדד 1 של המחקר הוא "ניסיון
@@ -2349,10 +2544,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       const run = afterRun(n, m);
       const awaiting = isAwaitingRerun(run);
       const events = awaiting ? [] : run?.current ?? [];
-      // Over the same meetings as flexibility/mediation_cumulative above (the export's scope),
-      // so a single-meeting export agrees with them when nothing was reset.
-      const inScope = scopedSession === null ? [1, 2, 3, 4, 5, 6, 7, 8] : [scopedSession];
-      const allAfter = inScope.flatMap((e) => (isAwaitingRerun(afterRun(n, e)) ? [] : afterRun(n, e)?.current ?? []));
+      // Over every meeting, as flexibility/mediation_cumulative below (audit M10:
+      // cumulative means all of the learner's meetings, in a single-meeting export too).
+      const allAfter = [1, 2, 3, 4, 5, 6, 7, 8].flatMap((e) => (isAwaitingRerun(afterRun(n, e)) ? [] : afterRun(n, e)?.current ?? []));
       const path = await resolveMeetingPath(db, m, events, fallbackPath, compulsoryCache, compulsoryIdsByBank);
       const compulsory = await resolveCompulsoryTotal(db, m, path, compulsoryCache, compulsoryIdsByBank);
       const score = awaiting || !isScoredMeeting(m) ? null : computeFirstAttemptScore(events, compulsory, compulsoryIdsByBank.get(`${m}:${path}`) ?? null);
@@ -2377,7 +2571,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     const meetingRows: Record<string, any>[] = [];
     // Catch-up time (owner, 2.10.2026): read once, one record per learner × meeting.
     const catchUpDocs = await readAllDocs(db.collection(CATCHUP_COLLECTION));
-    const catchUpByKey = catchUpRecordsByLearnerMeeting(catchUpDocs);
+    // Audit L7: a catch-up record names its class; another class's is left out.
+    const classCatchUpDocs = catchUpDocs.filter(({ data }) => belongsToExportClass(data, class_id));
+    const catchUpByKey = catchUpRecordsByLearnerMeeting(classCatchUpDocs);
     // The keys are "learner:meeting". A plain sort() compares them as text, so
     // learners 10-12 came before learner 1; compare the two numbers.
     const byNumbers = (a: [string, unknown], b: [string, unknown]) => {
@@ -2385,10 +2581,19 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
       const [bn, bm] = b[0].split(":").map(Number);
       return an - bn || am - bm;
     };
+    // Audit M10: a single-meeting export writes that meeting's rows only.
+    const inExportScope = (m: number) => scopedSession === null || m === scopedSession;
+    // Audit L3: with no row to write, one probe row (no events) is built by the
+    // same code below and then dropped, so the empty file still has its header.
+    const meetingProbeKey = Array.from(byLearnerMeeting.keys()).some((key) => inExportScope(Number(key.split(":")[1])))
+      ? null
+      : `1:${scopedSession ?? 1}`;
+    if (meetingProbeKey) byLearnerMeeting.set(meetingProbeKey, []);
     for (const [k, events] of Array.from(byLearnerMeeting.entries()).sort(byNumbers)) {
       const [nStr, mStr] = k.split(":");
       const n = Number(nStr);
       const m = Number(mStr);
+      if (!inExportScope(m)) continue;
       // The path the learner worked on in THIS meeting, not the current one: the
       // two paths have different exercise ids, so a learner moved to the other
       // track afterwards scored 0% on every earlier meeting (audit reports-14).
@@ -2501,11 +2706,21 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         // completion, next to the new one (session_doc_score_percent); empty
         // when there was none. Appended last.
         previous_score_percent: isScoredMeeting(m) && isPercent(sessionDoc?.previous_score_percent) ? sessionDoc!.previous_score_percent : "",
+        // PRD 23 §ב: PLACE_CUES_SHOWN by the profile it appeared in (Module 9 §א). Appended last.
+        place_cues_regular: summary.place_cues_regular ?? 0,
+        place_cues_enhanced: summary.place_cues_enhanced ?? 0,
       });
     }
 
+    // Audit L3: the probe row gave the header; it is not a row of the file.
+    const meetingColumns = Object.keys(meetingRows[0] ?? {});
+    if (meetingProbeKey) {
+      meetingRows.length = 0;
+      byLearnerMeeting.delete(meetingProbeKey);
+    }
+
     // ── 3. Reflections: Firestore + the learners' RTDB nodes + the shared node ──
-    const fsReflections = await readAllDocs(db.collection("srl_reflections"));
+    const fsReflections = (await readAllDocs(db.collection("srl_reflections"))).filter(({ data }) => belongsToExportClass(data, class_id));
     const sharedReflectionsSnap = await rtdb.ref("reflections").get();
     const sharedReflections: Record<string, any> = sharedReflectionsSnap.val() || {};
     // Only the Module 16 fields leave the building. Every reflection source
@@ -2546,21 +2761,26 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         chat: (await rtdb.ref("chat_messages").get()).val(),
         sessionDocs,
         students: studentsNode,
-        catchUp: catchUpDocs,
-        // Measure 5: the teacher's live records of this class (owner, 11.10.2026).
-        teacherLog: (await readAllDocs(db.collection("teacher_mediation_log"))).filter(({ data }) => data.class_id === class_id),
+        catchUp: classCatchUpDocs,
+        // Measure 5: the teacher's live records of this class (owner, 11.10.2026),
+        // read by class (audit L7) rather than read whole, and checked again.
+        teacherLog: (await readAllDocs(db.collection("teacher_mediation_log").where("class_id", "==", class_id))).filter(({ data }) => data.class_id === class_id),
       },
       scopedSession,
     );
 
+    // Audit L3: each file's columns when it has no row. The rows' own keys
+    // decide otherwise (researchCsv), so a file with rows is unchanged.
+    const emptyColumns = (rows: Record<string, any>[], columns: readonly string[]): string[] | undefined =>
+      rows.length > 0 ? undefined : [...columns];
     const [labelActions, labelMeetings, labelRecordings, labelReflections, labelResetLog, labelMediation] = RESEARCH_FILE_LABELS;
     const files: Array<{ name: string; csv: string; rows: number }> = [
-      { name: labelActions, csv: toCsv(telemetryRows), rows: telemetryRows.length },
-      { name: labelMeetings, csv: toCsv(meetingRows), rows: meetingRows.length },
-      { name: labelRecordings, csv: toCsv(recordingRows), rows: recordingRows.length },
-      { name: labelReflections, csv: toCsv(reflectionRows), rows: reflectionRows.length },
-      { name: labelResetLog, csv: toCsv(resetRows), rows: resetRows.length },
-      { name: labelMediation, csv: toCsv(mediationRows), rows: mediationRows.length },
+      { name: labelActions, csv: toCsv(telemetryRows, emptyColumns(telemetryRows, actionColumns)), rows: telemetryRows.length },
+      { name: labelMeetings, csv: toCsv(meetingRows, emptyColumns(meetingRows, meetingColumns)), rows: meetingRows.length },
+      { name: labelRecordings, csv: toCsv(recordingRows, emptyColumns(recordingRows, RESEARCH_RECORDING_COLUMNS)), rows: recordingRows.length },
+      { name: labelReflections, csv: toCsv(reflectionRows, emptyColumns(reflectionRows, ["source", "reflection_id", ...REFLECTION_FIELDS])), rows: reflectionRows.length },
+      { name: labelResetLog, csv: toCsv(resetRows, emptyColumns(resetRows, RESEARCH_RESET_LOG_COLUMNS)), rows: resetRows.length },
+      { name: labelMediation, csv: toCsv(mediationRows, emptyColumns(mediationRows, MEDIATION_COLUMNS)), rows: mediationRows.length },
     ];
 
     // Requirement 3: PII Detection check across all CSV outputs
@@ -2588,9 +2808,12 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     const uploadedLinks: string[] = [];
     // קבצים שהדרייב דחה והמתינו באחסון (החלטת בעל המוצר, 23.9.2026).
     const parked: Array<{ name: string; url: string | null; path: string }> = [];
+    // The folder "2 נתוני מחקר" the files went into (audit L4: the audit entry links to it).
+    let driveFolderId: string | null = null;
     for (const f of files) {
       const res = await uploadBufferToDrive(Buffer.from(f.csv, "utf-8"), researchExportFileName(f.name, scopedSession, exportedAt), "text/csv", DRIVE_FOLDERS.researchData);
       uploads[f.name] = res.success ? res.webViewLink : `failed: ${res.error}`;
+      if (res.success && res.folderId) driveFolderId = res.folderId;
       if (res.success) uploadedLinks.push(res.webViewLink);
       else if (res.fallbackStoragePath) {
         parked.push({ name: f.name, url: res.fallbackDownloadUrl ?? null, path: res.fallbackStoragePath });
@@ -2605,8 +2828,10 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
 
     // Module 23א §ד / 24 §ב: the export is logged with reset_level 'export', in
     // the ResetAuditEntry shape, without deleting anything and without an
-    // e-mail address. backup_file_url points to the files created (the first
-    // Drive file; the reason note names every file and its row count).
+    // e-mail address. backup_file_url points to the files created: the Drive
+    // folder they were written into (audit L4; it used to name the first file
+    // only), and any file Drive refused by its Storage path. The reason note
+    // names every file and its row count.
     const exportLogId = `export_${exportedAt}_${Math.random().toString(36).substring(2, 7)}`;
     const fileList = files.map((f) => `${researchExportFileName(f.name, scopedSession, exportedAt)} (${f.rows})`).join("; ");
     const where = uploadedLinks.length > 0
@@ -2618,7 +2843,7 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         teacherUid: request.auth.uid,
         classId: class_id,
         affectedStudentIds: ALL_LEARNERS,
-        fileUrl: uploadedLinks[0] ?? (parked[0] ? `gs://${admin.storage().bucket().name}/${parked[0].path}` : null),
+        fileUrl: exportFilesUrl(driveFolderId, parked.map((p) => `gs://${admin.storage().bucket().name}/${p.path}`), uploadedLinks),
         note: `ייצוא נתוני מחקר, ${scopeLabel}, ${where}: ${fileList}`,
         sessionNumber: scopedSession,
         now: exportedAt,

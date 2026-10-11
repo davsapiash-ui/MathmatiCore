@@ -116,7 +116,7 @@ describe('the individual report', () => {
     expect(compulsory.join(' ')).not.toMatch(/השמיני|התשיעי|reinforce|challenge/);
     expect(choice).toEqual([
       `${CHOICE_PATH_LABEL_HE.consolidation} (ביסוס 1: חיבור ללא המרה): הלומד השלים את התרגיל בניסיון הראשון.`,
-      `${CHOICE_PATH_LABEL_HE.challenge} (אתגר: שלוש המרות רצופות): הלומד הזין ספרה שגויה (פעם אחת), והשלים את התרגיל לאחר תיקון.`,
+      `${CHOICE_PATH_LABEL_HE.challenge} (אתגר: שלוש המרות רצופות): הלומד הזין בשורת התוצאה ספרה שגויה (פעם אחת, הספרה 1), והשלים את התרגיל לאחר תיקון.`,
     ]);
   });
 

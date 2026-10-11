@@ -94,7 +94,8 @@ describe('the tile hover card (owner, 11.10.2026)', () => {
     ({ colour, thresholdSeconds: 45, now: NOW, openMediation: 0, inOpenMeeting: true, ...over });
   it('blue: the call and the wait', () => {
     const lines = tileHoverLinesHe(students[2], ctx('BLUE', { openMediation: 2 }));
-    expect(lines[0]).toBe('קרא למורה · מחכה 1:23');
+    // The state's name first, as the tile's tag and the colour map say it (PRD Module 18 §ב).
+    expect(lines[0]).toBe('קריאה לעזרה · מחכה 1:23');
     expect(lines).toContain('לתיעוד: 2');
   });
   it('red: the card and how long it is open', () => {
@@ -102,8 +103,13 @@ describe('the tile hover card (owner, 11.10.2026)', () => {
   });
   it('yellow: the seconds without action', () => {
     const lines = tileHoverLinesHe(base(9, { hesitationSeconds: 52 }), ctx('YELLOW'));
-    expect(lines[0]).toBe('היסוס: 52 שניות בלי פעולה');
+    expect(lines[0]).toBe('היסוס · 52 שניות בלי פעולה');
     expect(lines).toContain('אין אירועים לתיעוד');
+  });
+  it('green and grey: "פעיל", "מנותק", "טרם התחיל" — the tags\' names, never "עובד" or "לא מחובר"', () => {
+    expect(tileHoverLinesHe(students[0], ctx('GREEN'))[0]).toBe('פעיל · פעולה ב-45 השניות האחרונות');
+    expect(tileHoverLinesHe(base(10, { isOnline: false }), ctx('GREY'))[0]).toBe('מנותק');
+    expect(tileHoverLinesHe(base(11, { isOnline: true }), ctx('GREY'))[0]).toBe('טרם התחיל את המפגש');
   });
   it('the exercise, the error letter and the level', () => {
     const lines = tileHoverLinesHe(students[0], ctx('GREEN'));
@@ -117,7 +123,7 @@ describe('the tile hover card (owner, 11.10.2026)', () => {
     fireEvent.mouseEnter(wrapper);
     expect(screen.queryByTestId('tile-hover-3')).toBeNull();
     const card = await screen.findByTestId('tile-hover-3', {}, { timeout: 1500 });
-    expect(card.textContent).toContain('קרא למורה · מחכה');
+    expect(card.textContent).toContain('קריאה לעזרה · מחכה');
     expect(card.className).toContain('absolute');
     expect(tile(3).getAttribute('aria-describedby')).toBe('tile-hover-3');
     fireEvent.mouseLeave(wrapper);

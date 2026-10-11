@@ -1,30 +1,43 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import confetti from 'canvas-confetti';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotionConfig } from 'framer-motion';
 import { useWorkspaceStore } from '@/application/useWorkspaceStore';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { MathText, SentenceLines } from '../tasks/MathText';
-
-/** The last feedback that already fired confetti — a remount must not fire it again. */
-let lastCelebrated: unknown = null;
 
 /** Longest a message stays on screen past its own time while it is read aloud (a read that never reports its end). */
 export const FEEDBACK_READ_HOLD_MAX_MS = 30_000;
 
 /**
- * משוב נכון/שגוי. Success fires confetti (150 particles, spread 70).
- * Display duration is owned by the store (nonce-guarded timers).
+ * The slot the feedback sentence sits in, under the work area (PRD Module 7
+ * §א: "אזור העבודה ... ומתחתיו משפט הפיגום או המשוב"; owner, 11.10.2026). It
+ * comes after the work area, so the work area never moves when a sentence
+ * appears or goes, and it reserves up to 64px from the start of the exercise.
+ * It is the one item of the column that gives way (flex-shrink, down to 0)
+ * when the card is short: a reservation that does not fit would make the card
+ * scroll (PRD Module 7 rule 7). In the vertical exercises at 1366×633 and
+ * 1280×585 there is less than 64px under the sheet, so a note shown there
+ * runs past the card's bottom (open question for the owner, 11.10.2026).
+ */
+export const FEEDBACK_SLOT_CLASS = 'relative grow-0 shrink basis-16 min-h-0';
+
+export function FeedbackSlot() {
+  return (
+    <div className={FEEDBACK_SLOT_CLASS} data-testid="feedback-slot">
+      <FeedbackToast placement="inline" />
+    </div>
+  );
+}
+
+/**
+ * משוב נכון/שגוי. Display duration is owned by the store (nonce-guarded timers).
+ * Calm (owner, 11.10.2026; PRD Module 7 rule 8): no confetti, no spring, no
+ * slide — a 200 ms opacity fade only, none with reduced motion.
  *
  * Where it appears:
- *  - `inline` (meetings with the number house, 1 and 3–7): a compact note at
- *    the top of the task column, just under its position label ("משימה N
- *    מתוך 7"), over the instruction. It used to float over the middle of the screen, where
- *    for a few seconds it covered the units column's name and digit, the
- *    exercise title, and the open coaching card — מסמך 03 §3.1 asks for a side
- *    card "השומר על נראות מלאה של התרגיל בבית המספרים ללא חלונות קופצים"
- *    (report row 1.15). Under the exercise it fell below a 768 px screen; laid
- *    over the heading it hid "משימה N מתוך 7" and the station chip (UX-004).
- *    In the flow it pushed the result row out of the card on short windows.
+ *  - `inline` (meetings with the number house, 1 and 3–7): in the flow of
+ *    FeedbackSlot, under the work area (the result row or the vertical sheet),
+ *    in a slot whose height is reserved — never over the heading, the guide or
+ *    the exercise (UX-004, report row 1.15).
  *  - `floating` (meetings 2 and 8, the sheet alone in the middle): centred
  *    by its own motion value — framer-motion's transform replaced Tailwind's
  *    -translate-x-1/2, so its left edge sat at the centre (A3-117).
@@ -48,59 +61,27 @@ export function FeedbackToast({ placement = 'floating' }: { placement?: 'floatin
     return () => clearTimeout(t);
   }, [beingRead]);
   const feedback = storeFeedback ?? beingRead;
-  // Inline: the note lies just under the position label ("משימה N מתוך 7"),
-  // out of the flow. In the flow it pushed the result row out of the card on
-  // short windows (s5_g_t1 at 1280×585); laid over the top of the card it hid
-  // the label and the station chip (UX-004). The card is the offset parent.
-  const inlineRef = useRef<HTMLDivElement | null>(null);
-  const [inlineTop, setInlineTop] = useState<number | null>(null);
-  useLayoutEffect(() => {
-    if (placement !== 'inline' || !feedback) return;
-    const el = inlineRef.current;
-    const card = el?.parentElement;
-    const label = card?.querySelector('h1');
-    if (!el || !card || !label) {
-      setInlineTop(null);
-      return;
-    }
-    const top = label.getBoundingClientRect().bottom - card.getBoundingClientRect().top + card.scrollTop + 4;
-    setInlineTop(Math.round(top));
-  }, [placement, feedback]);
+  const reduceMotion = useReducedMotionConfig();
   const speechText = feedback ? (feedback.sub ? `${feedback.title}. ${feedback.sub}` : feedback.title) : '';
 
-  useEffect(() => {
-    // No per-learner quiet mode (owner, 11.10.2026); the device's reduced-motion
-    // setting still turns the confetti off.
-    if (feedback?.correct && !feedback.neutral && lastCelebrated !== feedback) {
-      lastCelebrated = feedback;
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.3 },
-        colors: ['#10B981', '#3B82F6', '#F59E0B'],
-        disableForReducedMotion: true,
-      });
-    }
-  }, [feedback]);
-
   return (
-    <AnimatePresence>
+    // Inline, the note is in the slot's flow: a leaving note is lifted out of it
+    // (popLayout) while it fades, so a newer one takes its place at once and the two never stack.
+    <AnimatePresence mode={placement === 'inline' ? 'popLayout' : 'sync'}>
       {feedback && (
         <motion.div
-          ref={placement === 'inline' ? inlineRef : undefined}
-          style={placement === 'inline' ? { top: inlineTop ?? 8 } : undefined}
           key={feedback.nonce || feedbackNonce || `${feedback.title}-${feedback.correct}`}
           role="status"
           aria-live="assertive"
           data-testid="feedback-toast"
           data-placement={placement}
-          initial={placement === 'inline' ? { opacity: 0, y: -8 } : { x: '-50%', y: -80, opacity: 0, scale: 0.95 }}
-          animate={placement === 'inline' ? { opacity: 1, y: 0 } : { x: '-50%', y: 0, opacity: 1, scale: 1 }}
-          exit={placement === 'inline' ? { opacity: 0 } : { x: '-50%', y: -80, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+          initial={placement === 'inline' ? { opacity: 0 } : { x: '-50%', opacity: 0 }}
+          animate={placement === 'inline' ? { opacity: 1 } : { x: '-50%', opacity: 1 }}
+          exit={placement === 'inline' ? { opacity: 0 } : { x: '-50%', opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.2 }}
           className={`${
             placement === 'inline'
-              ? 'absolute inset-x-3 z-20 rounded-2xl px-4 py-1.5 gap-3 shadow-[0_12px_28px_-14px_hsl(var(--ws-shadow-warm)/0.45)]'
+              ? 'relative w-full mt-2 rounded-2xl px-4 py-2 gap-2'
               : 'fixed top-24 left-1/2 z-50 min-w-[340px] max-w-[540px] rounded-3xl px-6 py-5 shadow-[0_24px_48px_-16px_hsl(var(--ws-shadow-warm)/0.45)]'
           } flex items-start ${placement === 'inline' ? '' : 'gap-4'} bg-ws-surface border-2 ${
             feedback.neutral ? 'border-ws-ink/20' : feedback.correct ? 'border-ws-success/50' : 'border-ws-accent/50'

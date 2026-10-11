@@ -609,7 +609,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                     ? 'בודק אם כבר יש דוח למפגש זה…'
                     : selectedSession === 1
                       ? 'עדיין לא הופק דוח למפגש זה. מפגש 1 אינו מקבל ציון: הדוח מראה באילו כלים הלומד כבר שולט, איך הסתיים כל תרגיל ריענון, ועל מה לשים לב לקראת האבחון.'
-                      : 'עדיין לא הופק דוח למפגש זה. הדוח נבנה מכלל הפעולות המתועדות במפגש: שיעור ההצלחה בניסיון ראשון, קבוצת למידה מומלצת, מהלך הפתרון בכל תרגיל, מוקדי קושי שאותרו והמלצות להמשך ההוראה.'}
+                      : `עדיין לא הופק דוח למפגש זה. הדוח נבנה מכלל הפעולות המתועדות במפגש: ${FIRST_ATTEMPT_SCORE_LABEL_HE}, קבוצת למידה מומלצת, סיפור התרגילים, פערי הידע שאותרו והמלצות להמשך ההוראה.`}
               </p>
             )}
 
@@ -694,7 +694,7 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   )}
                   {report.exerciseNarratives.length > 0 && (
                     <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2">
-                      <div className="font-black text-ws-ink mb-1">מהלך הפתרון לפי תרגילים</div>
+                      <div className="font-black text-ws-ink mb-1">סיפור התרגילים</div>
                       <ul className="space-y-1 text-ws-ink">
                         {report.exerciseNarratives.map((n, i) => <li key={i}>• {n}</li>)}
                       </ul>
@@ -720,12 +720,12 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
                   )}
                 </div>
                 <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-stone-950 dark:bg-stone-950/40 dark:border-stone-800 dark:text-stone-100 space-y-2">
-                  <div className="font-black">{report.sandbox ? 'לקראת האבחון' : 'תובנות פדגוגיות וניתוח למידה'}</div>
+                  <div className="font-black">{report.sandbox ? 'לקראת האבחון' : 'פערי הידע והמלצות ההוראה'}</div>
                   {report.aiAnalysisAvailable ? (
                     <>
                       <div className="text-[11px] font-bold opacity-70">נותח אוטומטית מהפעולות המתועדות. ההחלטה הפדגוגית נותרת בידי המורה.</div>
                       <div>
-                        <div className="font-bold mb-1">{report.sandbox ? 'נקודות לתשומת לב לקראת האבחון' : 'מוקדי קושי והבנה שאותרו'}</div>
+                        <div className="font-bold mb-1">{report.sandbox ? 'נקודות לתשומת לב לקראת האבחון' : 'פערי הידע שאותרו'}</div>
                         {report.knowledgeGaps.length > 0
                           ? <ul className="space-y-1">{report.knowledgeGaps.map((g, i) => <li key={i}>• {g}</li>)}</ul>
                           : <div className="opacity-80">לא אותרו פערים בפעולות המתועדות.</div>}

@@ -4,14 +4,12 @@ import {
   Activity, 
   Users, 
   GraduationCap, 
-  ShieldAlert, 
-  Lock, 
-  CheckCircle2, 
-  Search, 
-  Clock, 
+  ShieldAlert,
+  Lock,
+  Search,
+  Clock,
   Zap,
   BarChart3,
-  TrendingUp,
   UploadCloud
 } from "lucide-react";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
@@ -20,15 +18,6 @@ import { useAdminStore } from "@/application/useAdminStore";
 import { stationNameHe } from "@/core/stationNames";
 // PRD 23 §ב: measure 1 has one name in every report and on every screen.
 import { FIRST_ATTEMPT_SCORE_LABEL_HE } from "@/infrastructure/services/LearnerJourneyService";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
-} from "recharts";
 import { ref, onValue, query, orderByChild, limitToLast, get } from "firebase/database";
 import { doc, onSnapshot } from "firebase/firestore";
 import { database, firestore } from "@/infrastructure/firebase";
@@ -55,7 +44,7 @@ type GlobalErrorMetrics = {
 };
 
 export function AdminOverview() {
-  const { schools, teachers, classes } = useAdminStore();
+  const { schools, teachers } = useAdminStore();
   const [auditLogs, setAuditLogs] = useState<AuditLogEvent[]>([]);
   const [logSearch, setLogSearch] = useState("");
   const [logFilter, setLogFilter] = useState<string>("ALL");
@@ -68,6 +57,8 @@ export function AdminOverview() {
   // aggregator into the same cache document, and never shown until now.
   const [exercisesCompleted, setExercisesCompleted] = useState<number | null>(null);
   const [errorMetrics, setErrorMetrics] = useState<GlobalErrorMetrics | null>(null);
+  // Module 24 §ב: "ממוצע ציון הניסיון הראשון של מי שהשלים, ללא מפגש 1" — over all meetings.
+  const [overallAverageScore, setOverallAverageScore] = useState<number | null>(null);
 
   // Class-wide completion rate, derived from the cached per-session aggregates only.
   const completionRatePercent = useMemo(() => {
@@ -122,6 +113,7 @@ export function AdminOverview() {
         setSessionBreakdown((data.session_breakdown as SessionBreakdown) || {});
         setExercisesCompleted(typeof data.total_exercises_completed === 'number' ? data.total_exercises_completed : null);
         setErrorMetrics(data.global_error_metrics && typeof data.global_error_metrics === 'object' ? (data.global_error_metrics as GlobalErrorMetrics) : null);
+        setOverallAverageScore(typeof data.average_mastery_percent === 'number' ? data.average_mastery_percent : null);
       },
       (err) => {
         console.warn('[AdminOverview] store_cache listener notice:', err);
@@ -246,22 +238,15 @@ export function AdminOverview() {
     });
   }, [auditLogs, logSearch, logFilter]);
 
-  const schoolDistributionData = useMemo(() => {
-    return schools.map(s => {
-      const teacherCount = teachers.filter(t => t.schoolId === s.id).length;
-      const classCount = classes.filter(c => c.schoolId === s.id).length;
-      return {
-        name: s.name.length > 12 ? `${s.name.substring(0, 12)}...` : s.name,
-        teachers: teacherCount,
-        classes: classCount,
-      };
-    });
-  }, [schools, teachers, classes]);
+  // Module 24 §ד: "ללא חשיפת בתי ספר, כיתות או תלמידים ספציפיים" — the
+  // per-school chart of teachers and classes (named schools) is gone.
 
   // Module 24 §ב: real per-session rows only — sessions absent from the cache
   // render an honest "no data yet" state rather than a fabricated number.
+  // All eight meetings. Meeting 1 is not scored (PRD Module 14 §ב, Module 23:
+  // "הדשבורד מציג 'לא נמדד' ולא 0%"), so its card has no average score.
   const pedagogicalSessionRows = useMemo(() => {
-    return [3, 4, 5, 6, 7, 8].map((session) => {
+    return [1, 2, 3, 4, 5, 6, 7, 8].map((session) => {
       const row = sessionBreakdown[String(session)];
       return {
         session,
@@ -269,9 +254,10 @@ export function AdminOverview() {
         // The station name the children see (owner, 27.9.2026).
         childName: stationNameHe(session),
         hasData: Boolean(row),
+        scored: session !== 1,
         completionRate: row ? `${Math.round(row.completion_rate_percent)}%` : null,
         // No score yet (null) is not a score of 0: the card shows its empty state.
-        averageScore: row && typeof row.average_score_percent === "number" ? `${Math.round(row.average_score_percent)}%` : null,
+        averageScore: session !== 1 && row && typeof row.average_score_percent === "number" ? `${Math.round(row.average_score_percent)}%` : null,
       };
     });
   }, [sessionBreakdown]);
@@ -285,7 +271,7 @@ export function AdminOverview() {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 text-xs font-bold">
               <Zap className="w-4 h-4 text-violet-600 dark:text-violet-300" />
-              <span>לוח בקרה ניהולי בזמן אמת</span>
+              <span>לוח בקרה ניהולי</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
               סקירה כללית ומדדי מערכת
@@ -316,9 +302,9 @@ export function AdminOverview() {
                 isFirebaseConnected ? 'bg-slate-500' : 'bg-rose-700'
               }`} />
               <span>
-                {isFirebaseConnected 
-                  ? `סנכרון נתונים פעיל בזמן אמת${latencyMs !== null ? ` (${latencyMs} מ״ש)` : ''}` 
-                  : 'חיבור נתונים בזמן אמת מנותק'}
+                {isFirebaseConnected
+                  ? `סנכרון נתונים פעיל${latencyMs !== null ? ` (${latencyMs} מ״ש)` : ''}`
+                  : 'אין חיבור למסד הנתונים'}
               </span>
             </div>
           </div>
@@ -344,10 +330,6 @@ export function AdminOverview() {
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">מוסדות פעילים</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{schools.length}</h3>
-              <div className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold pt-1">
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span>בהתאם לתקן הפיילוט</span>
-              </div>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-violet-500/10 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 flex items-center justify-center border border-violet-500/20">
               <GraduationCap className="w-6 h-6" />
@@ -359,12 +341,8 @@ export function AdminOverview() {
           <div className="absolute top-0 right-0 w-2 h-full bg-violet-600" />
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">מורים מובילים</p>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">סגל מורים רשום</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{teachers.length}</h3>
-              <div className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold pt-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>רישיונות פעילים</span>
-              </div>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-violet-500/10 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 flex items-center justify-center border border-violet-500/20">
               <Users className="w-6 h-6" />
@@ -378,10 +356,6 @@ export function AdminOverview() {
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">תלמידים במערכת</p>
               <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{totalStudents}</h3>
-              <div className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold pt-1">
-                <Activity className="w-3.5 h-3.5" />
-                <span>רשומים לפיילוט</span>
-              </div>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-violet-500/10 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 flex items-center justify-center border border-violet-500/20">
               <Activity className="w-6 h-6" />
@@ -407,16 +381,22 @@ export function AdminOverview() {
         </AccessibleCard>
       </div>
 
-      {/* Module 24: Aggregate Sessions 3-8 Overview Card (Granular telemetry blocked) */}
+      {/* Module 24: Aggregate Sessions 1-8 Overview Card (Granular telemetry blocked) */}
       <AccessibleCard className="p-6 md:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-violet-600" />
-              תמונת מצב פדגוגית מרוכזת (מפגשים 3–8)
+              תמונת מצב פדגוגית מרוכזת (מפגשים 1–8)
             </h2>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               נתונים מצרפיים בלבד (ללא חשיפת נתוני למידה פרטניים, להגנה על פרטיות הלומד)
+            </p>
+            <p className="text-xs text-slate-700 dark:text-slate-300 mt-2" data-testid="overall-average-score">
+              ממוצע {FIRST_ATTEMPT_SCORE_LABEL_HE} בכל המפגשים, ללא מפגש 1:{' '}
+              {overallAverageScore !== null
+                ? <span className="font-bold text-violet-600 dark:text-violet-400">{Math.round(overallAverageScore)}%</span>
+                : <span className="text-slate-600 italic">אין נתונים עדיין</span>}
             </p>
           </div>
 
@@ -427,7 +407,7 @@ export function AdminOverview() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {pedagogicalSessionRows.map((stat) => (
             <div key={stat.session} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex flex-col gap-2">
               <div className="flex justify-between items-center">
@@ -446,7 +426,9 @@ export function AdminOverview() {
               {stat.hasData ? (
                 <div className="text-[11px] text-slate-600 space-y-0.5">
                   <div>שיעור השלמה: <span className="font-bold text-slate-800 dark:text-slate-200">{stat.completionRate}</span></div>
-                  <div>ממוצע {FIRST_ATTEMPT_SCORE_LABEL_HE}: {stat.averageScore !== null
+                  <div>ממוצע {FIRST_ATTEMPT_SCORE_LABEL_HE}: {!stat.scored
+                    ? <span className="text-slate-600 italic">לא נמדד</span>
+                    : stat.averageScore !== null
                     ? <span className="font-bold text-violet-600 dark:text-violet-400">{stat.averageScore}</span>
                     : <span className="text-slate-600 italic">אין נתונים עדיין</span>}</div>
                 </div>
@@ -499,40 +481,15 @@ export function AdminOverview() {
         </div>
       </AccessibleCard>
 
-      {/* School distribution & privacy compliance. A "צמיחת נפח הפעילות"
-          historical growth chart used to sit alongside these, but it rendered
-          fabricated fixture numbers (up to 750 "active students" against this
-          pilot's hard 12-student cap) — store_cache/admin_metrics carries no
-          real historical time series to replace it with, so it's gone rather
-          than kept fake (Module 24 §ב: never fabricate). */}
-      <div className="grid xl:grid-cols-2 gap-8">
-          <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl flex flex-col justify-between space-y-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-purple-500" />
-                התפלגות כיתות ומורים לפי מוסד
-              </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                מספר המורים והכיתות בכל מוסד חינוכי
-              </p>
-            </div>
-
-            <div className="h-44 w-full" dir="ltr">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={schoolDistributionData.length > 0 ? schoolDistributionData : [{ name: 'אין מוסדות', teachers: 0, classes: 0 }]}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.15} />
-                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} allowDecimals={false} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', color: '#fff', border: 'none' }}
-                  />
-                  <Bar dataKey="teachers" name="מורים" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="classes" name="כיתות" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </AccessibleCard>
-
+      {/* Privacy compliance. A "צמיחת נפח הפעילות" historical growth chart
+          used to sit beside it, but it rendered fabricated fixture numbers (up
+          to 750 "active students" against this pilot's hard 12-student cap) —
+          store_cache/admin_metrics carries no real historical time series to
+          replace it with, so it's gone rather than kept fake (Module 24 §ב:
+          never fabricate). The per-school chart of teachers and classes is
+          gone too (Module 24 §ד: no specific schools or classes), and so is an
+          "encryption at rest" line the system had nothing to back. */}
+      <div className="grid gap-8">
           {/* Privacy & COPPA Compliance Card */}
           <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-4">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center gap-2">
@@ -541,16 +498,6 @@ export function AdminOverview() {
             </h3>
 
             <div className="space-y-4 text-xs">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800 dark:text-slate-200">הצפנת נתונים במנוחה (At Rest)</h4>
-                  <p className="text-slate-600">הצפנה פעילה ברמת מסד הנתונים</p>
-                </div>
-              </div>
-
               {/* Module 21: recordings are DOM/canvas only — no camera, no
                   microphone, no audio ever leaves the device. Module 24 blocks
                   the admin from per-student telemetry; deleting learner data is

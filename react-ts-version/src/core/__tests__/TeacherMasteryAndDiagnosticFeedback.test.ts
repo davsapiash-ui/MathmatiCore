@@ -56,10 +56,10 @@ describe('מפגש 2 — אישור שקט, לא חגיגה על טעות', () =
     expect(matches).toHaveLength(5);
   });
 
-  it('קונפטי אינו יורה על משוב ניטרלי', () => {
-    expect(toast).toContain('if (feedback?.correct && !feedback.neutral && lastCelebrated !== feedback)');
-    // No per-learner quiet mode (owner, 11.10.2026); the device's reduced-motion setting still stops it.
-    expect(toast).toContain('disableForReducedMotion: true');
+  it('קונפטי אינו יורה על משוב ניטרלי — ואין קונפטי בכלל (בעל המוצר, 11.10.2026)', () => {
+    expect(toast).not.toContain('canvas-confetti');
+    expect(toast).not.toContain('confetti(');
+    expect(toast).not.toContain("type: 'spring'");
     expect(toast).not.toContain('isASD');
   });
 

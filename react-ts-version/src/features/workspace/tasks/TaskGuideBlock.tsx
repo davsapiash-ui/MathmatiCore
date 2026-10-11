@@ -16,7 +16,6 @@ export function TaskGuideBlock({ task, guide, positionHeading }: { task: Session
   const s = useWorkspaceStore(
     useShallow((st) => ({
       sessionNumber: st.sessionNumber,
-      isASD: st.isASD,
       counts: st.counts,
       answerDigits: st.answerDigits,
       operandDigits: st.operandDigits,

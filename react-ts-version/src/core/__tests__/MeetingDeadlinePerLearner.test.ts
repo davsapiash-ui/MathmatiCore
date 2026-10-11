@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { resetDeviceCopiesForTests } from '@/infrastructure/services/deviceCopyStore';
 
 /**
  * PRD 7.3 Module 14 §ב: each meeting has its time limit (20 / 25 / 15 minutes),
@@ -99,6 +100,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   at(T0);
   mockLocalStorage.clear();
+  resetDeviceCopiesForTests(); // this device's copies live in IndexedDB + memory (11.10.2026)
   useAuthStore.setState({ user: null, role: null, isAuthenticated: false, isStudentAuthenticated: false } as any);
   ws().resetWorkspace();
 });
@@ -111,14 +113,14 @@ afterEach(() => {
 describe('Module 14 §ב: the meeting time limit belongs to the learner, not to the tablet', () => {
   it('two learners on one device in the same meeting each keep their own deadline', () => {
     signIn(3);
-    ws().initSession(4, false);
+    ws().initSession(4, false, 0, T0 + 15 * MIN);
     expect(ws().sessionDeadlineTime).toBe(T0 + 15 * MIN);
     unifiedLogout();
 
     // Six minutes later the next child on the same tablet opens the same meeting.
     at(T0 + 6 * MIN);
     signIn(7);
-    ws().initSession(4, false);
+    ws().initSession(4, false, 0, T0 + 21 * MIN);
     expect(ws().sessionDeadlineTime).toBe(T0 + 21 * MIN); // their own 15 minutes, not learner 3's
     unifiedLogout();
 
@@ -146,7 +148,7 @@ describe('Module 14 §ב: the meeting time limit belongs to the learner, not to 
 
   it('a learner who signs out and back in keeps their deadline; sign-out does not clear it', () => {
     signIn(5);
-    ws().initSession(2, false);
+    ws().initSession(2, false, 0, T0 + 25 * MIN);
     expect(ws().sessionDeadlineTime).toBe(T0 + 25 * MIN);
 
     unifiedLogout();
@@ -162,26 +164,31 @@ describe('Module 14 §ב: the meeting time limit belongs to the learner, not to 
     expect(ws().sessionDeadlineTime).toBe(T0 + 25 * MIN);
   });
 
-  it('once the learner\'s own time has run out, opening the meeting again starts a new time limit for that learner only', () => {
+  // The client never starts a time limit of its own (PRD 14 §ב): the meeting's
+  // clock is startedAt on the RTDB node active_class_session.
+  it('opening a meeting starts no time limit on the device, also after the learner\'s own has run out', () => {
     signIn(3);
     ws().initSession(4, false);
+    expect(ws().sessionDeadlineTime).toBeNull();
+    expect(stored(meetingDeadlineKey(4, 'student_user3'))).toBeNull();
+    ws().initSession(4, false, 0, T0 + 15 * MIN);
     unifiedLogout();
     at(T0 + 2 * MIN);
     signIn(7);
-    ws().initSession(4, false);
+    ws().initSession(4, false, 0, T0 + 17 * MIN);
     unifiedLogout();
 
     // The teacher opens meeting 4 again next week.
     at(T0 + 7 * 24 * 60 * MIN);
     signIn(3);
     ws().initSession(4, false);
-    expect(ws().sessionDeadlineTime).toBe(T0 + 7 * 24 * 60 * MIN + 15 * MIN);
+    expect(ws().sessionDeadlineTime).toBeNull();
     expect(stored(meetingDeadlineKey(4, 'student_user7'))).toBe(String(T0 + 17 * MIN));
   });
 
   it('a deadline handed in (the server\'s) wins over the device copy, and a reload keeps it', () => {
     signIn(3);
-    ws().initSession(4, false);
+    ws().initSession(4, false, 0, T0 + 15 * MIN);
     expect(ws().sessionDeadlineTime).toBe(T0 + 15 * MIN);
 
     const serverDeadline = T0 + 12 * MIN;
@@ -196,13 +203,13 @@ describe('Module 14 §ב: the meeting time limit belongs to the learner, not to 
   it('with no identified learner nothing is kept on the device and no stored deadline is used', () => {
     mockStorage[legacyMeetingDeadlineKey(1)] = String(T0 + 10 * MIN);
     ws().initSession(1, false);
-    expect(ws().sessionDeadlineTime).toBe(T0 + 20 * MIN);
+    expect(ws().sessionDeadlineTime).toBeNull();
     expect(Object.keys(mockStorage).filter((k) => k.startsWith('mathmaticore_session_1_deadline_'))).toEqual([]);
   });
 
   it('a reload judges the learner\'s deadline on the server clock, not the tablet\'s', () => {
     signIn(3);
-    ws().initSession(4, false);
+    ws().initSession(4, false, 0, T0 + 15 * MIN);
     expect(ws().sessionDeadlineTime).toBe(T0 + 15 * MIN);
 
     // The tablet is 2 minutes slow: it reads 14 minutes in, the server 16. The time is up.
@@ -220,14 +227,14 @@ describe('Module 14 §ב: the meeting time limit belongs to the learner, not to 
 
   it('meeting 8 is 25 minutes, kept per learner like every other meeting', () => {
     signIn(3);
-    ws().initSession(8, false);
+    ws().initSession(8, false, 0, T0 + 25 * MIN);
     expect(ws().sessionDurationMinutes).toBe(25);
     expect(ws().sessionDeadlineTime).toBe(T0 + 25 * MIN);
     unifiedLogout();
 
     at(T0 + 4 * MIN);
     signIn(7);
-    ws().initSession(8, false);
+    ws().initSession(8, false, 0, T0 + 29 * MIN);
     expect(ws().sessionDeadlineTime).toBe(T0 + 29 * MIN);
     unifiedLogout();
 
@@ -276,10 +283,10 @@ describe('the device-wide deadline the previous version left behind', () => {
     expect(ws().sessionDeadlineTime).toBe(LEGACY);
   });
 
-  it('is not given to a learner who was not working this meeting on this device: they start their own', () => {
+  it('is not given to a learner who was not working this meeting on this device', () => {
     signIn(7);
     ws().initSession(4, false);
-    expect(ws().sessionDeadlineTime).toBe(NOW + 15 * MIN);
+    expect(ws().sessionDeadlineTime).toBeNull();
     expect(stored(legacyMeetingDeadlineKey(4))).toBe(String(LEGACY)); // left for whoever it belongs to
   });
 
@@ -294,11 +301,11 @@ describe('the device-wide deadline the previous version left behind', () => {
     progressOnThisDevice(8, 3, T0 + 4 * MIN);       // today, but meeting 3
     signIn(7);
     ws().initSession(4, false);
-    expect(ws().sessionDeadlineTime).toBe(NOW + 15 * MIN);
+    expect(ws().sessionDeadlineTime).toBeNull();
     unifiedLogout();
     signIn(8);
     ws().initSession(4, false);
-    expect(ws().sessionDeadlineTime).toBe(NOW + 15 * MIN);
+    expect(ws().sessionDeadlineTime).toBeNull();
   });
 
   it('is never consulted by a learner who already has a deadline of their own for the meeting', () => {
@@ -313,7 +320,7 @@ describe('the device-wide deadline the previous version left behind', () => {
     reload(4);
     expect(ws().sessionDeadlineTime).toBeNull();
     ws().initSession(4, false);
-    expect(ws().sessionDeadlineTime).toBe(NOW + 15 * MIN);
+    expect(ws().sessionDeadlineTime).toBeNull();
   });
 
   it('is removed once it has run out, for every meeting, and so is a value that is not a time', () => {
@@ -367,7 +374,7 @@ describe('the device-wide deadline the previous version left behind', () => {
     reload(4);
     expect(ws().sessionDeadlineTime).toBeNull();
     ws().initSession(4, false);
-    expect(ws().sessionDeadlineTime).toBe(NOW + 17 * MIN);
+    expect(ws().sessionDeadlineTime).toBeNull();
     unifiedLogout();
 
     // Learner 3, who was on it, still keeps it.
@@ -409,10 +416,10 @@ describe('the device-wide deadline of meeting 8 is judged on 25 minutes, not 15'
     expect(ws().sessionDeadlineTime).toBe(LEGACY_8);
   });
 
-  it('is not given to a learner who was not on it: they start their own 25 minutes', () => {
+  it('is not given to a learner who was not on it', () => {
     signIn(7);
     ws().initSession(8, false);
-    expect(ws().sessionDeadlineTime).toBe(NOW + 25 * MIN);
+    expect(ws().sessionDeadlineTime).toBeNull();
     expect(stored(legacyMeetingDeadlineKey(8))).toBe(String(LEGACY_8));
   });
 });

@@ -15,7 +15,7 @@ export function boardDimmedColumns(s: WorkspaceState, focusedMemoryCircle: Place
   let vertical: VerticalBoxes | undefined;
   let work: VerticalWork | undefined;
   if (task && (task.type === 'vertical_addition' || task.type === 'addition_simple')) {
-    const { a, b, target } = effectiveArithmetic(task, s.isASD === true);
+    const { a, b, target } = effectiveArithmetic(task);
     vertical = verticalBoxes(a, b, target, task.hiddenDigits, task.revealedResultDigits, resultBoxCount(s.sessionNumber, a, b, target));
     const numbers = { a, b, isSubtraction: task.isSubtraction === true, hidden: task.hiddenDigits };
     // The number a subtraction on the board starts from: the first number

@@ -21,6 +21,7 @@ const h = vi.hoisted(() => ({
   fs: {} as Record<string, Record<string, Record<string, unknown>>>,
   storage: {} as Record<string, Buffer>,
   storageFails: false,
+  copyFails: false,
   driveFails: false,
   adminMetricsFails: false,
   fetchCalls: [] as Array<{ url: string; init: RequestInit }>,
@@ -106,16 +107,31 @@ vi.mock('firebase-admin', async (importOriginal) => {
     }),
   });
   const firestore = Object.assign(firestoreFn, actual.firestore);
+  const storageFile = (p: string) => ({
+    name: p,
+    save: async (b: Buffer) => {
+      if (h.storageFails) throw new Error('storage down');
+      h.log.push(`storage.save ${p.split('/')[0]}`);
+      h.storage[p] = b;
+    },
+    // Audit L36: the signed link to a Storage-only backup.
+    getSignedUrl: async () => [`https://signed.example/${p}`],
+    // Audit L34: the report files a system reset backs up, then deletes.
+    copy: async (dest: { name: string }) => {
+      if (h.copyFails) throw new Error("copy refused");
+      h.log.push(`storage.copy ${p} -> ${dest.name}`);
+      h.storage[dest.name] = h.storage[p];
+    },
+    delete: async () => {
+      h.log.push(`storage.delete ${p}`);
+      delete h.storage[p];
+    },
+  });
   const storage = () => ({
     bucket: () => ({
       name: 'test-bucket',
-      file: (p: string) => ({
-        save: async (b: Buffer) => {
-          if (h.storageFails) throw new Error('storage down');
-          h.log.push(`storage.save ${p.split('/')[0]}`);
-          h.storage[p] = b;
-        },
-      }),
+      file: storageFile,
+      getFiles: async ({ prefix }: { prefix: string }) => [Object.keys(h.storage).filter((k) => k.startsWith(prefix)).map(storageFile)],
     }),
   });
   const mocked = { ...actual, database, firestore, storage, app: () => ({ options: {} }) };
@@ -136,6 +152,7 @@ function seed() {
   h.log = [];
   h.storage = {};
   h.storageFails = false;
+  h.copyFails = false;
   h.driveFails = false;
   h.adminMetricsFails = false;
   h.fetchCalls = [];
@@ -242,6 +259,73 @@ describe('the reset end to end (Module 23א §ג–§ד)', () => {
     expect(entry.deletion_status).toBe('completed');
     expect(entry.side_effect_errors).toEqual([expect.stringContaining('metrics down')]);
     expect(h.rtdb.late_recording_markers.learner_4.recordings.session_777).toBeDefined();
+  });
+
+  // Audit L36 (12.10.2026): a backup only in Storage has no Drive link; the result carries a signed one.
+  it('Drive fails: the result carries a signed link to the Storage backup; with Drive it carries none', async () => {
+    h.driveFails = true;
+    const res = await (backupAndResetSessionData as any).run(fullLearner4());
+    expect(res.backupChannel).toBe('storage');
+    expect(res.backupDownloadUrl).toMatch(/^https:\/\/signed\.example\/backups\/class_1\/reset_/);
+    seed();
+    const viaDrive = await (backupAndResetSessionData as any).run(fullLearner4());
+    expect(viaDrive.backupChannel).toBe('drive');
+    expect(viaDrive.backupDownloadUrl).toBeUndefined();
+  });
+
+  // Audit L34 (12.10.2026): the class's report files leave Storage with the system reset — backed up first.
+  it('a system reset copies the class\'s report files into its backup folder, then deletes them; nothing else in Storage moves', async () => {
+    h.storage['reports/class_1/session_3/class_report_1.pdf'] = Buffer.from('pdf');
+    h.storage['reports/class_1/session_3/student_4_1.pdf'] = Buffer.from('pdf4');
+    h.storage['reports/class_2/session_3/class_report_1.pdf'] = Buffer.from('other class');
+    h.storage['drive_fallback/2026-10-01/1_export.csv'] = Buffer.from('parked');
+    const res = await (backupAndResetSessionData as any).run(request({ reset_level: 'system' }));
+    expect(res).toMatchObject({ status: 'SUCCESS' });
+    expect(res.sideEffectErrors).toBeUndefined();
+    const resetId = res.resetId as string;
+    expect(h.storage[`backups/class_1/${resetId}/reports/class_1/session_3/class_report_1.pdf`]?.toString()).toBe('pdf');
+    expect(h.storage[`backups/class_1/${resetId}/reports/class_1/session_3/student_4_1.pdf`]?.toString()).toBe('pdf4');
+    expect(h.storage['reports/class_1/session_3/class_report_1.pdf']).toBeUndefined();
+    expect(h.storage['reports/class_1/session_3/student_4_1.pdf']).toBeUndefined();
+    expect(h.storage['reports/class_2/session_3/class_report_1.pdf']?.toString()).toBe('other class');
+    expect(h.storage['drive_fallback/2026-10-01/1_export.csv']?.toString()).toBe('parked');
+    // Backup before delete: every copy precedes the entry 'in_progress' is followed by; every file delete follows the records.
+    const lastCopy = h.log.map((s) => s.startsWith('storage.copy')).lastIndexOf(true);
+    const firstFileDelete = firstIndex((s) => s.startsWith('storage.delete'));
+    const lastRecordDelete = h.log.map(isDelete).lastIndexOf(true);
+    expect(lastCopy).toBeGreaterThan(firstIndex((s) => s === 'fs.set reset_audit_log in_progress success'));
+    expect(firstFileDelete).toBeGreaterThan(lastCopy);
+    expect(firstFileDelete).toBeGreaterThan(lastRecordDelete);
+  });
+
+  it('a report file that could not be copied stays in place, and the reset says so', async () => {
+    h.copyFails = true;
+    h.storage['reports/class_1/session_3/class_report_1.pdf'] = Buffer.from('pdf');
+    const res = await (backupAndResetSessionData as any).run(request({ reset_level: 'system' }));
+    expect(res.status).toBe('SUCCESS');
+    expect(h.storage['reports/class_1/session_3/class_report_1.pdf']?.toString()).toBe('pdf');
+    expect(h.log.some((s) => s.startsWith('storage.delete'))).toBe(false);
+    expect(res.sideEffectErrors).toEqual([expect.stringContaining('reports/class_1/session_3/class_report_1.pdf (report file, not backed up; kept)')]);
+    const [entry] = Object.values(h.fs.reset_audit_log);
+    expect(entry.deletion_status).toBe('completed');
+  });
+
+  // Audit L35 (12.10.2026): the AI engine's call counters start again from zero.
+  it('a system reset empties the AI call counters (its write, set with merge, names only the counts); a meeting reset does not touch them', async () => {
+    const { FieldValue } = await import('firebase-admin/firestore');
+    h.fs.store_cache = { ai_monitoring: { totals: { socratic: { calls: 9 } }, last_test: { ok: true } } };
+    await (backupAndResetSessionData as any).run(fullLearner4());
+    expect(h.fs.store_cache.ai_monitoring.totals).toEqual({ socratic: { calls: 9 } });
+    seed();
+    h.fs.store_cache = { ai_monitoring: { totals: { socratic: { calls: 9 } }, last_test: { ok: true } } };
+    await (backupAndResetSessionData as any).run(request({ reset_level: 'system' }));
+    const written = h.fs.store_cache.ai_monitoring as Record<string, any>;
+    for (const field of ['totals', 'daily', 'by_model', 'last_call', 'last_failure']) {
+      expect(FieldValue.delete().isEqual(written[field]), field).toBe(true);
+    }
+    expect(typeof written.updated_at).toBe('number');
+    // The fake set replaces the document: what is left is exactly the write, and it does not name last_test.
+    expect(written).not.toHaveProperty('last_test');
   });
 });
 

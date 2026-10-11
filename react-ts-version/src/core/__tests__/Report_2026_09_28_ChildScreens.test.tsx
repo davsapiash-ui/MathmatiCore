@@ -126,7 +126,7 @@ describe('the column\'s digit sits beside its name, not over it (seen on screen 
 
 describe('row 1.15 — the feedback covers neither the board nor the coaching card', () => {
   for (const meeting of [1, 3, 4, 7] as const) {
-    it(`meeting ${meeting}: the feedback sits in the task card, over its heading, not floating over the page`, () => {
+    it(`meeting ${meeting}: the feedback sits in the task card, under the work area, not floating over the page`, () => {
       vi.useFakeTimers();
       ws().initSession(meeting, false, meeting === 1 ? SESSION1_TASKS.findIndex((t) => t.id === 's1_t8') : 0);
       render(<TaskCard />);
@@ -136,14 +136,19 @@ describe('row 1.15 — the feedback covers neither the board nor the coaching ca
       const toast = screen.getByTestId('feedback-toast');
       expect(toast.getAttribute('data-placement')).toBe('inline');
       expect(toast.className).not.toContain('fixed');
-      // Out of the flow, just under the position label (UX-004; review of #238): the
-      // label stays visible and the result row is never pushed out of the card.
-      expect(toast.className).toContain('absolute inset-x-3');
-      expect(toast.style.top).not.toBe('');
+      // PRD Module 7 §א (owner, 11.10.2026): under the work area, in the flow of a
+      // slot whose height is reserved — never over the heading or the guide.
+      expect(toast.className).not.toContain('absolute');
+      const slot = screen.getByTestId('feedback-slot');
+      expect(slot.contains(toast)).toBe(true);
+      expect(slot.className).toContain('basis-16');
       const card = document.getElementById('tour-task-card')!;
       expect(card.contains(toast)).toBe(true);
-      // it comes before the column in the DOM, not under the exercise
-      expect(toast.compareDocumentPosition(screen.getByTestId('task-column')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // after the guide block and the work area in the DOM
+      const guide = document.querySelector('[data-testid="task-instruction"]') ?? screen.getByTestId('task-heading');
+      expect(guide.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const row = document.querySelector('[data-testid="result-row"], [aria-label^="תרגיל במאונך"]');
+      if (row) expect(row.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
   }
 

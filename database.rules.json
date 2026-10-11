@@ -26,6 +26,7 @@
       "students": {
         ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true)",
         "$studentId": {
+          ".validate": "$studentId.matches(/^(student_user|student_|user)?([1-9]|1[0-2])$/)",
           ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || $studentId == 'student_user' + auth.token.student_id || $studentId == 'student_' + auth.token.student_id || $studentId == 'user' + auth.token.student_id || $studentId == '' + auth.token.student_id)",
           ".write": "auth != null && auth.token.readOnly !== true && (auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || (($studentId == 'student_user' + auth.token.student_id || $studentId == 'student_' + auth.token.student_id || $studentId == 'user' + auth.token.student_id || $studentId == '' + auth.token.student_id) && newData.child('session_score_percent').val() == data.child('session_score_percent').val() && newData.child('matrix_recommended_path').val() == data.child('matrix_recommended_path').val() && newData.child('teacher_selected_path').val() == data.child('teacher_selected_path').val() && newData.child('gate_approved_at').val() == data.child('gate_approved_at').val() && newData.child('gate_approved_by').val() == data.child('gate_approved_by').val() && newData.child('support_profile_id').val() == data.child('support_profile_id').val() && newData.child('enhanced_support_profile').val() == data.child('enhanced_support_profile').val() && newData.child('support_profile_version').val() == data.child('support_profile_version').val() && newData.child('support_profile_updated_at').val() == data.child('support_profile_updated_at').val() && newData.child('support_profile_updated_by').val() == data.child('support_profile_updated_by').val() && newData.child('graded_track').val() == data.child('graded_track').val() && (data.child('teacher_gate_approved').val() != true || newData.child('teacher_gate_approved').val() == true) && (data.child('routeStatus').val() != 'APPROVED' || newData.child('routeStatus').val() == 'APPROVED'))))",
           "routeStatus": {
@@ -86,6 +87,7 @@
     "students": {
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true)",
       "$studentId": {
+        ".validate": "$studentId.matches(/^(student_user|student_|user)?([1-9]|1[0-2])$/)",
         ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || $studentId == 'student_user' + auth.token.student_id || $studentId == 'student_' + auth.token.student_id || $studentId == 'user' + auth.token.student_id || $studentId == '' + auth.token.student_id)",
         ".write": "auth != null && auth.token.readOnly !== true && (auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || (($studentId == 'student_user' + auth.token.student_id || $studentId == 'student_' + auth.token.student_id || $studentId == 'user' + auth.token.student_id || $studentId == '' + auth.token.student_id) && newData.child('session_score_percent').val() == data.child('session_score_percent').val() && newData.child('matrix_recommended_path').val() == data.child('matrix_recommended_path').val() && newData.child('teacher_selected_path').val() == data.child('teacher_selected_path').val() && newData.child('gate_approved_at').val() == data.child('gate_approved_at').val() && newData.child('gate_approved_by').val() == data.child('gate_approved_by').val() && newData.child('support_profile_id').val() == data.child('support_profile_id').val() && newData.child('enhanced_support_profile').val() == data.child('enhanced_support_profile').val() && newData.child('support_profile_version').val() == data.child('support_profile_version').val() && newData.child('support_profile_updated_at').val() == data.child('support_profile_updated_at').val() && newData.child('support_profile_updated_by').val() == data.child('support_profile_updated_by').val() && newData.child('graded_track').val() == data.child('graded_track').val() && (data.child('teacher_gate_approved').val() != true || newData.child('teacher_gate_approved').val() == true) && (data.child('routeStatus').val() != 'APPROVED' || newData.child('routeStatus').val() == 'APPROVED'))))",
         "routeStatus": {
@@ -138,7 +140,11 @@
       },
       "projector_mode": {
         ".write": "auth != null && auth.token.readOnly !== true && (auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true))",
-        ".validate": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true)"
+        ".validate": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true) && newData.hasChildren(['projector_mode', 'projector_mode_updated_at', 'updated_by_teacher_id'])",
+        "projector_mode": { ".validate": "newData.isBoolean()" },
+        "projector_mode_updated_at": { ".validate": "newData.isNumber()" },
+        "updated_by_teacher_id": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 128" },
+        "$other": { ".validate": false }
       },
       "teacher_gender": {
         ".write": "auth != null && auth.token.readOnly !== true && (auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true))",
@@ -147,7 +153,8 @@
     },
     "active_class_session": {
       ".read": "auth != null",
-      ".write": "auth != null && auth.token.readOnly !== true && (auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true))"
+      ".write": "auth != null && auth.token.readOnly !== true && (auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true))",
+      "startedAt": { ".validate": "newData.val() == now" }
     },
     "audit_logs": {
       ".read": "auth != null && (auth.token.role == 'teacher' || auth.token.role == 'TEACHER' || auth.token.teacher == true || auth.token.role == 'admin' || auth.token.role == 'ADMIN' || auth.token.admin == true)",

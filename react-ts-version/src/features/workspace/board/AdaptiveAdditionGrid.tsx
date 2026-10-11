@@ -15,9 +15,14 @@ export const GRID_TAB_RETURN_TITLE_HE = `החזרת ${ADDITION_GRID_HE} למסך
 /** …and a grid that was offered beside the coaching card, and never shown yet, is shown. */
 export const GRID_TAB_FIRST_LABEL_HE = `הצגת ${ADDITION_GRID_HE}`;
 
-/** The grid's instruction lines: before a row is chosen, and before a column is. */
+/**
+ * The grid's instruction lines: before a row is chosen, and before the second
+ * number is. The second number is picked in the grid's top row; the line says
+ * so instead of "עמודה" (PRD Module 7 §א: on the learner's screens a column is
+ * "טור", and "טור" belongs to בית המספרים — owner, 11.10.2026).
+ */
 export const GRID_PICK_ROW_HE = 'לחצו על מספר שורה כדי להתחיל.';
-export const GRID_PICK_COL_HE = 'עכשיו בחרו מספר עמודה כדי לראות את החיבור.';
+export const GRID_PICK_COL_HE = 'עכשיו בחרו מספר בשורה העליונה כדי לראות את החיבור.';
 
 /**
  * Where the grid lives: PRD 10 §א, "הפינה השמאלית התחתונה של מרחב העבודה" —
@@ -154,7 +159,7 @@ export function AdaptiveAdditionGrid({ onSelection, onClose, className = '', hid
         </div>
 
         {activeRow !== null && activeCol !== null ? (
-          <div className="mb-2 min-h-11 flex items-center justify-center bg-amber-50 dark:bg-amber-950/30 border border-amber-300/60 rounded-xl px-2 text-center text-amber-700 dark:text-amber-300 font-display font-black text-lg animate-pulse" dir="ltr">
+          <div className="mb-2 min-h-11 flex items-center justify-center bg-amber-50 dark:bg-amber-950/30 border border-amber-300/60 rounded-xl px-2 text-center text-amber-700 dark:text-amber-300 font-display font-black text-lg" dir="ltr">
             {activeRow} + {activeCol} = {activeRow + activeCol}
           </div>
         ) : (

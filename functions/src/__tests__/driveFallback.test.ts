@@ -40,8 +40,9 @@ describe('קובץ שהדרייב דחה אינו נזרק', () => {
   it('ייצוא המחקר מדווח על הקבצים הממתינים ואינו מכריז כישלון כשהם קיימים', () => {
     expect(src).toContain('const parked: Array<{ name: string; url: string | null; path: string }> = [];');
     expect(src).toContain('if (uploadedLinks.length === 0 && parked.length === 0) {');
-    // The export's audit entry (reset_level 'export') points at the parked file when Drive took none.
-    expect(src).toContain('fileUrl: uploadedLinks[0] ?? (parked[0] ? `gs://${admin.storage().bucket().name}/${parked[0].path}` : null),');
+    // The export's audit entry (reset_level 'export') points at the Drive folder and at every
+    // parked file (audit L4: it used to name the first file only).
+    expect(src).toContain('fileUrl: exportFilesUrl(driveFolderId, parked.map((p) => `gs://${admin.storage().bucket().name}/${p.path}`), uploadedLinks),');
     expect(src).toContain('"ב-Cloud Storage בלבד (הדרייב לא היה זמין)"');
   });
 

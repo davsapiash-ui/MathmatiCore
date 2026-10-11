@@ -176,11 +176,19 @@ describe('the coaching trigger "wrong digit before the conversion" is per column
     await flush();
     expect(ws().socraticTriggerReason).toBe('conversion_not_performed');
 
-    // Subtraction: the new digit above the next column records the decomposition.
+    // Subtraction (PRD Module 12 §ב trigger 5; owner, 11.10.2026): THIS column's
+    // circle records the decomposition — how many it holds after it (13).
+    start({ session: 8, a: 53, b: 18, sub: true, enhanced: false });
+    ws().setCarryDigit('units', '13');
+    ws().setAnswerDigit('units', '3');
+    await flush();
+    expect(ws().helpState).not.toBe('socratic');
+
+    // The next column's circle alone is not the record of this column's decomposition.
     start({ session: 8, a: 53, b: 18, sub: true, enhanced: false });
     ws().setCarryDigit('tens', '4');
     ws().setAnswerDigit('units', '3');
     await flush();
-    expect(ws().helpState).not.toBe('socratic');
+    expect(ws().socraticTriggerReason).toBe('conversion_not_performed');
   });
 });

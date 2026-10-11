@@ -13,6 +13,7 @@ import {
 import type { DragSource, Place, DropInput } from '@/core/placeValue';
 import { useWorkspaceStore, type SessionNumber } from '@/application/useWorkspaceStore';
 import { READ_ONLY_TITLE, useIsReadOnlyStaff, useReadOnlyStaffStore } from '@/application/useIsReadOnlyStaff';
+import { ReadOnlyBanner } from '@/presentation/components/ui/ReadOnlyBanner';
 import { PlaceValueBoard } from '@/features/workspace/board/PlaceValueBoard';
 import { DienesBlock } from '@/features/workspace/board/DienesBlock';
 import { DemoStation1Card, DemoTaskCard } from '@/features/workspace/tasks/DemoTaskCard';
@@ -323,6 +324,13 @@ export function ProjectorSandboxPage() {
         so the projected area looks as the learners' screen does. */}
     <div dir="rtl" className={`relative h-[100dvh] w-full flex flex-col overflow-hidden select-none ${WORKSPACE_SURFACE_CLASS}`}>
       <WorkspaceBackdrop />
+
+      {/* Owner decision 11.10.2026: a read-only sign-in says so on every staff
+          page. A row of its own (shrink-0) inside the full-height column, so
+          the page still fits the screen; nothing for any other sign-in. */}
+      <div className="relative z-30 shrink-0 empty:hidden">
+        <ReadOnlyBanner />
+      </div>
 
       {/* ── Teacher Dedicated Projector Topbar ── */}
       {/* The teacher's two bars together stay close to the learners' one top

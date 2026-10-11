@@ -79,12 +79,23 @@ describe('פונקציות שנוגעות בלומד יחיד — המורה, ל
     expect(s).not.toMatch(/admin:\s*true,\s*\n\s*teacher:\s*true/);
   });
 
-  it('יצירת מסמך מפגש, טלמטריה בשם לומד ורמז לעבודת לומד — רק למורה או ללומד עצמו', () => {
-    for (const f of ['sessionTrigger.ts', 'index.ts', 'geminiProxy.ts']) {
+  it('רמז לעבודת לומד — רק למורה או ללומד עצמו', () => {
+    for (const f of ['geminiProxy.ts']) {
       const s = src(f);
       expect(s, f).toContain('readCallerRoles(');
       expect(s, f).not.toMatch(/callerRole === "teacher" \|\| callerRole === "admin"/);
       expect(s, f).not.toMatch(/lowered\.includes\("teacher"\) \|\| lowered\.includes\("admin"\)/);
     }
+  });
+
+  // createSessionWithServerDeadline (sessionTrigger.ts) and onStudentEvent /
+  // verifyTeacherSSO (index.ts) had no caller and were removed, with the staff
+  // addresses verifyTeacherSSO hard-coded.
+  it('the session-document and telemetry callables with no caller are gone', () => {
+    expect(src('sessionTrigger.ts')).not.toContain('createSessionWithServerDeadline');
+    const index = src('index.ts');
+    expect(index).not.toContain('export const onStudentEvent');
+    expect(index).not.toContain('export const verifyTeacherSSO');
+    expect(index).not.toContain('@edu-haifa.org.il');
   });
 });

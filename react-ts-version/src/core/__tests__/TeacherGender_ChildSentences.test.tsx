@@ -172,10 +172,12 @@ describe('the children’s screens follow the teacher’s choice, on the screen 
     expect(store).toContain("teacherSentenceHe('helpCallReceived', useTeacherGenderStore.getState().gender)");
   });
 
-  it('the teacher’s pause and close notices quote the children’s screen in the same form', () => {
+  it('the teacher’s close notice quotes the children’s screen in the same form; the pause notice is short', () => {
     const dashboard = src('presentation/pages/TeacherDashboard.tsx');
-    expect(dashboard).toContain("כל התלמידים רואים עכשיו \"${teacherSentenceHe('closedTitle', useTeacherGenderStore.getState().gender)}\"");
-    expect(dashboard).toContain("כל התלמידים רואים עכשיו \"${teacherSentenceHe('pausedTitle', useTeacherGenderStore.getState().gender)}\"");
+    // Owner, 12.10.2026: only a learner who has not finished sees the close screen.
+    expect(dashboard).toContain("המפגש נסגר. מי שלא סיים רואה \"${teacherSentenceHe('closedTitle', useTeacherGenderStore.getState().gender)}\"; מי שסיים רואה את מסך הסיום.");
+    expect(dashboard).toContain("toast.info('המפגש נעצר.');");
+    expect(dashboard).not.toContain('המפגש הושהה. כל התלמידים רואים עכשיו');
     expect(dashboard).not.toContain('"המורה סגרה את התחנה"');
     expect(dashboard).not.toContain('"המורה עצרה את הפעילות לרגע"');
     // The dashboard holds the value itself — the admin's embedded view has no side menu.

@@ -120,6 +120,8 @@ describe('station 3: one answer box', () => {
 });
 
 describe('station 7, s7_g_t6: a box per digit, per column', () => {
+  // Station 7 follows the result row's rule (owner, 11.10.2026): the enhanced profile has the
+  // colours, and the place names only as the scaffold — so the boxes are named by position.
   // 1 thousand, 16 hundreds, 13 tens → 2,730: tens grouped into a hundred, hundreds into a thousand.
   const task = taskOf(7, 'green_path', 's7_g_t6');
 
@@ -127,8 +129,8 @@ describe('station 7, s7_g_t6: a box per digit, per column', () => {
 
   it('a digit key in a locked box is rejected, logged with its column, and shakes that box only', () => {
     render(<RepresentationTask task={task} />);
-    const tens = screen.getByLabelText('ספרת העשרות בשורת התוצאה') as HTMLInputElement;
-    const units = screen.getByLabelText('ספרת היחידות בשורת התוצאה') as HTMLInputElement;
+    const tens = screen.getByLabelText('ספרה 3 מתוך 4 בשורת התוצאה') as HTMLInputElement;
+    const units = screen.getByLabelText('ספרה 4 מתוך 4 בשורת התוצאה') as HTMLInputElement;
     expect(tens.readOnly).toBe(true);
     expect(units.readOnly).toBe(false);
     fireEvent.keyDown(tens, { key: '3' });
@@ -142,13 +144,20 @@ describe('station 7, s7_g_t6: a box per digit, per column', () => {
     expect(screen.queryByTestId('representation-number')).toBeNull();
   });
 
+  it('after a digit in the wrong place: the names under the boxes and the scaffold sentence under the row', () => {
+    act(() => useWorkspaceStore.setState({ placeCuesShown: true }));
+    render(<RepresentationTask task={task} />);
+    expect(screen.getByLabelText('ספרת העשרות בשורת התוצאה')).toBeTruthy();
+    expect(screen.getByTestId('place-cue-line').textContent).toContain('שימו לב לכותרות שמתחת לתיבות.');
+  });
+
   it('the open box takes a digit, and the locked one opens after the grouping', () => {
     render(<RepresentationTask task={task} />);
-    const units = screen.getByLabelText('ספרת היחידות בשורת התוצאה') as HTMLInputElement;
+    const units = screen.getByLabelText('ספרה 4 מתוך 4 בשורת התוצאה') as HTMLInputElement;
     fireEvent.change(units, { target: { value: '0' } });
     expect(useWorkspaceStore.getState().answerDigits.units).toBe('0');
     act(() => useWorkspaceStore.getState().groupColumnClick('tens'));
-    const tens = screen.getByLabelText('ספרת העשרות בשורת התוצאה') as HTMLInputElement;
+    const tens = screen.getByLabelText('ספרה 3 מתוך 4 בשורת התוצאה') as HTMLInputElement;
     expect(tens.readOnly).toBe(false);
   });
 });

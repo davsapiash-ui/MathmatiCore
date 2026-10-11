@@ -45,7 +45,8 @@ describe('A — 368: the second card is about the written number', () => {
       const card = openings(task, counts).find((c) => c.cardKind === 'digit_column');
       expect(card, 'the digit card is served on this board').toBeTruthy();
       expect(card!.questionHe).toBe('נסו לחשוב: במספר 368, הספרה 6 היא ספרת היחידות, ספרת העשרות או ספרת המאות?');
-      expect([right(card!).textHe, right(card!).feedbackHe]).toEqual(['ספרת העשרות', 'נכון מאוד! כמה שוות 6 לבני עשרת יחד?']);
+      // 11.10.2026 (item 13-2): "כמה שוות 6 לבני עשרת יחד?" lists the 60 as blocks; the iron rule refuses it now.
+      expect([right(card!).textHe, right(card!).feedbackHe]).toEqual(['ספרת העשרות', 'נכון מאוד! כמה שווה הספרה 6 במספר 368?']);
       expect(wrong(card!).map((c) => [c.textHe, c.feedbackHe]).sort()).toEqual([
         ['ספרת היחידות', 'רמז: איזו ספרה במספר 368 היא ספרת היחידות?'],
         ['ספרת המאות', 'רמז: איזו ספרה במספר 368 היא ספרת המאות?'],

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckSquare, Square, CircleDot, HelpCircle, Award, ArrowLeft, Loader2 } from 'lucide-react';
+import { CheckSquare, Square, CircleDot, HelpCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import type { SRLReflectionResult } from '@/core/srlReflection';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 import { encouragementSentenceHe, persistenceIndexPercent, splitEncouragement } from '@/core/persistenceEncouragement';
@@ -114,6 +114,12 @@ export function reflectionSpeech(step: 1 | 2 | 3, encouragement = ''): string {
   return [t.stepLabelSpoken[3], encouragement].join(' ').trim();
 }
 
+/**
+ * The steps change by opacity alone, 200 ms (PRD Module 7 rule 8; owner,
+ * 11.10.2026): no slide, no zoom.
+ */
+const STEP_FADE = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.2 } };
+
 /** סרגל קווי: שלושה פסים בגובה עולה, ו-`filled` מהם צבועים. */
 function EffortBars({ filled }: { filled: 1 | 2 | 3 }) {
   // Three bars of rising height (מסמך 04: "שלושה פסים בגובה עולה"). The first
@@ -124,7 +130,7 @@ function EffortBars({ filled }: { filled: 1 | 2 | 3 }) {
       {heights.map((h, i) => (
         <span
           key={h}
-          className={`w-3 rounded-sm ${h} ${i < filled ? 'bg-indigo-500 dark:bg-indigo-400' : 'bg-slate-200 dark:bg-slate-700'}`}
+          className={`w-3 rounded-sm ${h} ${i < filled ? 'bg-ws-accent' : 'bg-ws-surface2'}`}
         />
       ))}
     </span>
@@ -195,31 +201,28 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-md p-4 font-body" dir="rtl">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="max-w-2xl w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-10 shadow-2xl relative overflow-hidden"
-      >
+    // The station's calm colours, like the finish screen (owner, 11.10.2026):
+    // the student area's background and one still card — no dark blurred
+    // backdrop, no zoom, no trophy.
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ws-bg text-ws-ink p-4 font-body" dir="rtl">
+      <div className="max-w-2xl w-full bg-ws-surface border-2 border-ws-surface2 rounded-3xl p-6 md:p-10 shadow-sm relative overflow-hidden">
         <AnimatePresence mode="wait">
           {/* שלב 1: הערכת מאמץ — סמל חזותי ושם (PRD מודול 16 §ג) */}
           {step === 1 && (
             <motion.div
               key="step1"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
+              {...STEP_FADE}
               className="flex flex-col items-center text-center gap-6"
             >
               <div>
-                <span className="text-xs font-black text-indigo-600 block mb-1">{t.stepLabel(1)}</span>
+                <span className="text-sm font-black text-ws-soft block mb-1">{t.stepLabel(1)}</span>
                 <div className="flex items-center justify-center gap-3">
-                  <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
+                  <h1 className="text-2xl md:text-3xl font-display font-black text-ws-ink">
                     {t.effortQuestion}
                   </h1>
                   <UdlSpeechButton text={reflectionSpeech(1)} className="shrink-0" />
                 </div>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{t.effortInstruction}</p>
+                <p className="text-ws-soft text-sm mt-1">{t.effortInstruction}</p>
               </div>
 
               <div className="grid grid-cols-3 gap-4 w-full pt-2" role="group" aria-label={t.effortQuestion}>
@@ -233,12 +236,12 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                     title={level.spokenHe}
                     className={`flex flex-col items-center justify-center gap-2 p-5 rounded-2xl border-2 transition-all cursor-pointer ${
                       effortLevel === level.id
-                        ? 'border-indigo-600 bg-indigo-50/60 dark:bg-indigo-950/30 shadow-md scale-105'
-                        : 'border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 hover:scale-102'
+                        ? 'border-ws-accent bg-ws-accentSoft shadow-sm'
+                        : 'border-ws-surface2 bg-ws-bg hover:border-ws-accent/60'
                     }`}
                   >
                     <EffortBars filled={level.bars} />
-                    <span aria-hidden="true" className="text-sm font-extrabold text-slate-700 dark:text-slate-200">{level.spokenHe}</span>
+                    <span aria-hidden="true" className="text-sm font-extrabold text-ws-ink">{level.spokenHe}</span>
                   </button>
                 ))}
               </div>
@@ -247,7 +250,7 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                 type="button"
                 disabled={!effortLevel}
                 onClick={() => setStep(2)}
-                className="mt-4 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-base rounded-2xl shadow-lg shadow-indigo-600/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2"
+                className="mt-4 px-8 py-3.5 bg-ws-accent hover:bg-ws-accent/90 text-white font-extrabold text-base rounded-2xl shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2"
               >
                 <span>{t.next}</span>
                 <ArrowLeft className="w-4 h-4" />
@@ -259,20 +262,18 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
           {step === 2 && (
             <motion.div
               key="step2"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
+              {...STEP_FADE}
               className="flex flex-col items-center text-center gap-6"
             >
               <div>
-                <span className="text-xs font-black text-purple-600 block mb-1">{t.stepLabel(2)}</span>
+                <span className="text-sm font-black text-ws-soft block mb-1">{t.stepLabel(2)}</span>
                 <div className="flex items-center justify-center gap-3">
-                  <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
+                  <h1 className="text-2xl md:text-3xl font-display font-black text-ws-ink">
                     {t.strategyQuestion}
                   </h1>
                   <UdlSpeechButton text={reflectionSpeech(2)} className="shrink-0" />
                 </div>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{t.strategyInstruction}</p>
+                <p className="text-ws-soft text-sm mt-1">{t.strategyInstruction}</p>
               </div>
 
               <div className="flex flex-col gap-3 w-full text-right pt-2">
@@ -289,26 +290,26 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                       onClick={() => toggleStrategy(strat.id)}
                       className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-4 cursor-pointer text-right ${
                         isChecked
-                          ? 'border-purple-600 bg-purple-50/50 dark:bg-purple-950/30 shadow-sm'
-                          : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100'
+                          ? 'border-ws-accent bg-ws-accentSoft shadow-sm'
+                          : 'border-ws-surface2 bg-ws-bg hover:border-ws-accent/60'
                       }`}
                     >
                       <div className="flex items-center gap-3.5">
                         {Icon ? (
-                          <div className={`p-2 rounded-xl ${isChecked ? 'bg-purple-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                          <div className={`p-2 rounded-xl ${isChecked ? 'bg-ws-accent text-white' : 'bg-ws-surface2 text-ws-soft'}`}>
                             <Icon className="w-5 h-5" />
                           </div>
                         ) : (
                           // Keeps the three labels aligned.
                           <div className="w-9 h-9 shrink-0" aria-hidden="true" />
                         )}
-                        <span className="font-bold text-sm text-slate-900 dark:text-white">
+                        <span className="font-bold text-sm text-ws-ink">
                           {strat.label}
                         </span>
                       </div>
 
-                      <div className="text-purple-600 shrink-0">
-                        {isChecked ? <CheckSquare className="w-6 h-6 fill-purple-100" /> : <Square className="w-6 h-6 text-slate-400" />}
+                      <div className="text-ws-accent shrink-0">
+                        {isChecked ? <CheckSquare className="w-6 h-6 fill-ws-accentSoft" /> : <Square className="w-6 h-6 text-ws-soft" />}
                       </div>
                     </button>
                   );
@@ -319,14 +320,14 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="py-3.5 px-6 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 transition-all cursor-pointer"
+                  className="py-3.5 px-6 rounded-2xl bg-ws-surface2 text-ws-ink font-bold text-sm hover:bg-ws-surface2/80 transition-colors cursor-pointer"
                 >
                   {t.back}
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="flex-1 py-3.5 px-8 bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-base rounded-2xl shadow-lg shadow-purple-600/25 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  className="flex-1 py-3.5 px-8 bg-ws-accent hover:bg-ws-accent/90 text-white font-extrabold text-base rounded-2xl shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
                 >
                   <span>{t.next}</span>
                   <ArrowLeft className="w-4 h-4" />
@@ -339,25 +340,19 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
           {step === 3 && (
             <motion.div
               key="step3"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
+              {...STEP_FADE}
               className="flex flex-col items-center text-center gap-6"
             >
-              <div className="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center text-3xl shadow-inner" aria-hidden="true">
-                🏆
-              </div>
-
               <div>
-                <span className="text-xs font-black text-emerald-600 block mb-1">{t.stepLabel(3)}</span>
+                <span className="text-sm font-black text-ws-soft block mb-1">{t.stepLabel(3)}</span>
                 <div className="flex items-center justify-center gap-3">
-                  <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white">
+                  <h1 className="text-2xl md:text-3xl font-display font-black text-ws-ink">
                     {encouragementTitle}
                   </h1>
                   <UdlSpeechButton text={reflectionSpeech(3, encouragement)} className="shrink-0" />
                 </div>
                 {encouragementBody && (
-                  <p className="text-slate-600 dark:text-slate-300 text-base mt-2 max-w-md leading-relaxed">
+                  <p className="text-ws-soft text-base mt-2 max-w-md leading-relaxed">
                     {encouragementBody}
                   </p>
                 )}
@@ -372,23 +367,22 @@ export function Session8ReflectionScreen({ onComplete, metrics }: Session8Reflec
                 onClick={handleComplete}
                 disabled={isSubmitting}
                 aria-busy={isSubmitting}
-                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-base rounded-2xl shadow-lg shadow-emerald-600/25 transition-all cursor-pointer flex items-center justify-center gap-2 mt-2 disabled:cursor-wait disabled:opacity-80 disabled:hover:bg-emerald-600"
+                className="w-full py-4 bg-ws-accent hover:bg-ws-accent/90 text-white font-extrabold text-base rounded-2xl shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2 mt-2 disabled:cursor-wait disabled:opacity-80 disabled:hover:bg-ws-accent"
               >
-                {isSubmitting
-                  ? <Loader2 aria-hidden="true" className="w-5 h-5 animate-spin" />
-                  : <Award aria-hidden="true" className="w-5 h-5" />}
+                {/* No award icon (owner, 11.10.2026): the button is its words. */}
+                {isSubmitting && <Loader2 aria-hidden="true" className="w-5 h-5 animate-spin" />}
                 <span>{isSubmitting ? t.saving : t.finish}</span>
               </button>
               {notSaved && (
                 <div className="flex items-center justify-center gap-3 -mt-2">
-                  <p role="alert" className="text-sm font-bold text-slate-700 dark:text-slate-200">{t.notSaved}</p>
+                  <p role="alert" className="text-sm font-bold text-ws-ink">{t.notSaved}</p>
                   <UdlSpeechButton text={t.notSavedSpoken} className="shrink-0" />
                 </div>
               )}
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </div>
     </div>
   );
 }

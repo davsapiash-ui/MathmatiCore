@@ -266,15 +266,8 @@ export function VerticalAdditionTask({
   );
 
   return (
-    <div className="shrink-0 self-center w-full max-w-md flex flex-col items-center gap-fl-4-16 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] p-fl-8-24 relative">
-      {/* The scaffold line (owner, 30.9.2026): it stays until the end of the
-          exercise, with a read-aloud button — played only on the child's click. */}
-      {cueLine && (
-        <div data-testid="place-cue-line" className="w-full flex items-center gap-2 rounded-xl bg-ws-surface2/60 px-3 py-1" dir="rtl">
-          <p className="flex-1 text-sm font-bold text-ws-ink leading-snug">{cueLine}</p>
-          <UdlSpeechButton text={cueLine} className="shrink-0" />
-        </div>
-      )}
+    // PRD Module 7 rule (2): the 8px rhythm — 8px between the sheet's rows, 16px / 8px inside its frame.
+    <div className="shrink-0 self-center w-full max-w-md flex flex-col items-center gap-2 bg-ws-surface rounded-3xl border border-ws-surface2 shadow-[0_10px_28px_-14px_hsl(var(--ws-shadow-warm)/0.3)] px-4 py-2 relative">
       {/* Notebook paper: background squares EXACTLY the size of a grid column */}
       <div
         dir="ltr"
@@ -491,7 +484,8 @@ export function VerticalAdditionTask({
       {(cues.labels || scaffoldStation) && (
       <div
         dir="ltr"
-        className="grid"
+        // Attached to the paper it names (no gap): the names are the boxes' captions.
+        className="grid -mt-2"
         data-testid="sheet-place-labels"
         aria-hidden={cues.labels ? undefined : true}
         style={{ gridTemplateColumns: `${COL} repeat(${cols}, ${COL})`, visibility: cues.labels ? 'visible' : 'hidden' }}
@@ -517,6 +511,22 @@ export function VerticalAdditionTask({
         )}
       </div>
       )}
+      {/* The scaffold line (owner, 30.9.2026): it stays until the end of the
+          exercise, with a read-aloud button — played only on the child's click.
+          Under the sheet, never over it (PRD Module 7 §א: "אזור העבודה ...
+          ומתחתיו משפט הפיגום או המשוב"; owner, 11.10.2026), so the sheet does
+          not move when it appears. */}
+      {cueLine && <PlaceCueLine text={cueLine} />}
+    </div>
+  );
+}
+
+/** The result row's scaffold sentence, under the work area, with its read-aloud button (click only). */
+export function PlaceCueLine({ text }: { text: string }) {
+  return (
+    <div data-testid="place-cue-line" className="w-full flex items-center gap-2 rounded-xl bg-ws-surface2/60 px-2 py-1" dir="rtl">
+      <p className="flex-1 text-sm font-bold text-ws-ink leading-snug">{text}</p>
+      <UdlSpeechButton text={text} className="shrink-0" />
     </div>
   );
 }

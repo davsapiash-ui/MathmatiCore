@@ -19,7 +19,8 @@ import { isWhitelistedTeacherEmail } from '@/infrastructure/services/AuthService
  * המערכת לא יינעל מחוץ למערכת שלו אם Firestore אינו זמין.
  */
 const repo = (p: string) => readFileSync(resolve(__dirname, '../../../..', p), 'utf-8');
-const server = repo('functions/src/syncUserRoles.ts');
+// The env-var fallback lives in roleClaims.ts (envFallbackRole), shared with the authorizedTeachers update trigger.
+const server = repo('functions/src/syncUserRoles.ts') + '\n' + repo('functions/src/roleClaims.ts');
 
 describe('השרת — אין כתובת מוטמעת בקוד', () => {
   const code = server.split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');

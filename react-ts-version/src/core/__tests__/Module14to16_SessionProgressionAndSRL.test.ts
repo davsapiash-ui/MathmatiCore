@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { readDeviceCopy, resetDeviceCopiesForTests } from '@/infrastructure/services/deviceCopyStore';
 import { useWorkspaceStore } from '../../application/useWorkspaceStore';
 import { SESSION1_TASKS, SESSION3_TASKS } from '../../data/sessionTasks';
 import { getSessionBranchTasks } from '../../data/sessionBranchTasks';
@@ -11,6 +12,7 @@ describe('Work Package 4 (WP4): Session Progression (1-8), Projector Sync & SRL 
     approvePath(); // Module 26: meetings 3–8 run on the learner's approved path
     if (typeof localStorage !== 'undefined') {
       localStorage.clear();
+      resetDeviceCopiesForTests(); // this device's copies live in IndexedDB + memory (11.10.2026)
     }
   });
 
@@ -43,7 +45,8 @@ describe('Work Package 4 (WP4): Session Progression (1-8), Projector Sync & SRL 
       // Session 1 sandbox: 20 minutes (PRD v7.1 Module 14 §ב)
       store.initSession(1, false);
       expect(useWorkspaceStore.getState().sessionDurationMinutes).toBe(20);
-      expect(useWorkspaceStore.getState().sessionDeadlineTime).toBeGreaterThan(Date.now());
+      // The client starts no deadline of its own: the clock is the RTDB startedAt.
+      expect(useWorkspaceStore.getState().sessionDeadlineTime).toBeNull();
       expect(useWorkspaceStore.getState().getSessionRemainingSeconds()).toBeGreaterThanOrEqual(20 * 60 - 2);
 
       // Session 2: 25 minutes

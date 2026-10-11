@@ -180,6 +180,10 @@ export function useActiveClassSession() {
     const refreshTimer = setInterval(refreshFromServer, 15000);
     const onVisible = () => { if (document.visibilityState === 'visible') refreshFromServer(); };
     document.addEventListener('visibilitychange', onVisible);
+    // A window that regains focus without its tab ever being hidden (another
+    // window was in front of it, a kiosk app returned) raises no
+    // visibilitychange: it reads the record too.
+    window.addEventListener('focus', refreshFromServer);
 
     // 2. Re-attach on authReady resolution
     authReady.then(() => {
@@ -205,6 +209,7 @@ export function useActiveClassSession() {
       clearInterval(graceTimer);
       clearInterval(refreshTimer);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', refreshFromServer);
       if (retryTimer) clearTimeout(retryTimer);
       if (unsubDB) unsubDB();
       if (unsubAuth) unsubAuth();

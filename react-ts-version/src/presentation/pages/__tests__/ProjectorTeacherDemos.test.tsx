@@ -50,7 +50,9 @@ import { useStore } from '@/application/useStore';
 import { useReadOnlyStaffStore } from '@/application/useIsReadOnlyStaff';
 import { NO_DEMO_HE, TEACHER_DEMOS, DEMO_CARD_HE, DEMO_SHOW_COLOURS_HE, DEMO_HIDE_COLOURS_HE } from '@/data/teacherDemos';
 import { demoGuide } from '@/features/workspace/tasks/DemoTaskCard';
-import { demoCoachingTask } from '@/application/teacherDemoTasks';
+import { demoCoachingTask, STATION1_DEMO_TASK } from '@/application/teacherDemoTasks';
+import { SESSION1_TASKS } from '@/data/sessionTasks';
+import { buildFirstCard } from '@/infrastructure/services/staticSocraticCards';
 import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 import { PLACE_CUE_LINE_HE } from '@/core/placeCues';
 
@@ -308,6 +310,30 @@ describe('the demonstration aids (owner, 9.10.2026)', () => {
       expect(cardButton()).toBeNull();
     }
     expect(DEMO_CARD_HE).toBe('דוגמה לכרטיס החניכה');
+  });
+
+  it('station 1: the card is about the tools demonstration, never a learner\'s exercise — the "build first" card on the empty board, no 347 (owner, 11.10.2026)', async () => {
+    const task = demoCoachingTask(1, null)!;
+    expect(task).toBe(STATION1_DEMO_TASK);
+    expect(task.id).toBe('s1_demo_tools');
+    expect(SESSION1_TASKS.some((t) => t.id === task.id)).toBe(false);
+    expect(task.numberA).toBeUndefined();
+    expect(`${task.titleHe} ${task.instructionHe}`).not.toMatch(/\d/);
+
+    renderProjector();
+    pick(1);
+    fireEvent.click(cardButton()!);
+    await settle();
+    const shown = useWorkspaceStore.getState().aiSocraticHint!;
+    expect(shown.source).toBe('static');
+    expect(shown.questionHe).toBe(buildFirstCard().questionHe);
+    const card = screen.getByTestId('socratic-card');
+    expect(card.textContent).toContain('בית המספרים עדיין ריק. מה עושים קודם?');
+    expect(card.textContent).not.toContain('347');
+    // The engine is asked about the demonstration, not about the target task.
+    const [asked] = vi.mocked(SocraticEngine.getSocraticHint).mock.calls[0];
+    expect((asked as { id: string }).id).toBe('s1_demo_tools');
+    expect(JSON.stringify(asked)).not.toContain('347');
   });
 
   it('the card is asked of the engine about the board on the screen now, as the learner\'s is (owner, 11.10.2026)', async () => {

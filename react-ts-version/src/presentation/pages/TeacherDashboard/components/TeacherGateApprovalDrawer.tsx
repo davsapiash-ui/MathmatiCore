@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { type StudentData, useStore } from '@/application/useStore';
@@ -57,18 +57,6 @@ function recommendationOf(student: Record<string, unknown>, evidence?: GateStude
   return evidence?.recommendedPath ?? recommendedPathOf(student, evidence?.gradedTrack ?? student.graded_track === true);
 }
 
-/**
- * What the drawer opens with: the path the gate already approved, else the
- * diagnostic's recommendation, else nothing — the teacher then chooses
- * herself (Module 20: the recommendation comes from the diagnostic, never from
- * a default colour). This used to fall back to green for everyone.
- */
-function pathToPreselect(s: Record<string, unknown>, evidence?: GateStudentItem | null): PedagogicalPath | null {
-  // The recommendation knows the graded mark (owner, 11.10.2026): graded_path or graded_foundation_path for a
-  // marked learner. A marked learner with no recommendation yet opens on the graded path.
-  return approvedPathOf(s, evidence) ?? recommendationOf(s, evidence) ?? (s.graded_track === true ? 'graded_path' : null);
-}
-
 /** Whether the gate already approved this learner. */
 function isGateApproved(s: Record<string, unknown>, evidence?: GateStudentItem | null): boolean {
   return s.teacher_gate_approved === true || s.routeStatus === 'APPROVED' || evidence?.isApproved === true;
@@ -80,22 +68,18 @@ function approvedPathOf(s: Record<string, unknown>, evidence?: GateStudentItem |
   return asRoutePath(s.pedagogicalPath);
 }
 
+/**
+ * The gate drawer (opened from "ראיות האבחון" in "ניהול כיתה ומסלולים"): the diagnostic evidence, then the
+ * learner's own two approve buttons, the recommended one marked "מומלץ" — the same buttons as the learner's
+ * row (PRD Module 20). Nothing is preselected: a press approves that level. Once approved, the other level
+ * of the pair can still be approved instead.
+ */
 export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApproveSuccess }: Props) {
-  const [isApproving, setIsApproving] = useState(false);
+  // The level being approved right now, or null.
+  const [approvingPath, setApprovingPath] = useState<PedagogicalPath | null>(null);
   const readOnly = useIsReadOnlyStaff();
   const sAny = (student || {}) as any;
-
-  const [selectedPath, setSelectedPath] = useState<PedagogicalPath | null>(() => pathToPreselect(sAny, evidence));
-
-  // Re-seed only when a different learner is opened, or when the learner's
-  // recommendation itself arrives — never over a choice the teacher made.
   const recommendation = recommendationOf(sAny, evidence);
-  useEffect(() => {
-    if (student) {
-      setSelectedPath(pathToPreselect(student as any, evidence));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [student?.studentId, recommendation]);
 
   // מסמך העיצוב §1.2: Escape סוגר, הפוקוס נלכד בתוך המגירה, ובסגירה חוזר
   // לאלמנט שממנו היא נפתחה.
@@ -106,25 +90,24 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
   const studentNum = student.studentId.replace(/\D/g, '') || student.studentId;
   const scorePercent = evidence?.scorePercent ?? null;
   const supportTasks = evidence?.errorNodes ?? [];
-  // An approved learner is not "ממתין להחלטתכם", and there is nothing to
-  // approve again: the drawer says so, and its button only changes the path.
+  // An approved learner is not "ממתין להחלטתכם", and the approved level has
+  // nothing to approve again: only the other level of the pair can be pressed.
   const alreadyApproved = isGateApproved(sAny, evidence);
   const approvedPath = approvedPathOf(sAny, evidence);
-  const nothingToSave = alreadyApproved && approvedPath !== null && selectedPath === approvedPath;
   // The learner's own pair of levels: the graded mark decides which (owner, 11.10.2026). A path approved
   // before the mark changed stays visible, so the drawer never hides what the learner is on.
   const pair = routePairFor(evidence?.gradedTrack ?? sAny.graded_track === true);
   const pathOptions: PedagogicalPath[] = approvedPath && !pair.includes(approvedPath) ? [...pair, approvedPath] : [...pair];
 
-  const handleApprove = async () => {
-    if (!selectedPath) return;
-    setIsApproving(true);
+  const handleApprove = async (path: PedagogicalPath) => {
+    if (approvingPath) return;
+    setApprovingPath(path);
     try {
       // PRD v7.1 Module 20: the session-2 SessionDocument in Firestore is the sole
       // source of truth; approveTeacherGate performs the authoritative write and
       // mirrors to RTDB only so the learner's listener unlocks immediately.
       const teacherId = useAuthStore.getState().user?.uid || null;
-      const result = await approveTeacherGate(student.studentId, selectedPath, teacherId);
+      const result = await approveTeacherGate(student.studentId, path, teacherId);
 
       if (!result.ok) {
         toast.error(result.message);
@@ -132,14 +115,14 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
       }
 
       useStore.getState().approveRoute(student.studentId);
-      toast.success(gateApprovedToastHe(studentNum, selectedPath));
+      toast.success(gateApprovedToastHe(studentNum, path));
       if (onApproveSuccess) onApproveSuccess();
       onClose();
     } catch (err) {
       console.error('Error approving gate:', err);
       toast.error(`שגיאה ב${TEACHER_GATE_HE}`);
     } finally {
-      setIsApproving(false);
+      setApprovingPath(null);
     }
   };
 
@@ -236,9 +219,10 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
                 <dt className="font-bold text-slate-600 dark:text-slate-300">מוקדי חיזוק</dt>
                 <dd data-testid="gate-drawer-support">
                   {supportTasks.length > 0 ? (
+                    // Stone, not rose: the radar keeps its colours for itself (PRD Module 18).
                     <ul className="flex flex-wrap gap-1.5">
                       {supportTasks.map((task) => (
-                        <li key={task} className="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900 font-bold">
+                        <li key={task} className="px-2 py-0.5 rounded-lg bg-stone-100 text-stone-800 border border-stone-300 dark:bg-stone-900/50 dark:text-stone-200 dark:border-stone-700 font-bold">
                           {task}
                         </li>
                       ))}
@@ -251,84 +235,62 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
             </dl>
           </section>
 
-          {/* STEP 2: CHOOSE PEDAGOGICAL PATH */}
+          {/* STEP 2: the learner's two approve buttons, as on the learner's row in "ניהול כיתה ומסלולים". */}
           <div className="space-y-3">
-            <label className="block text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 uppercase tracking-wide">
+            <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <Compass className="w-4 h-4 text-violet-600" />
-              <span>2. קביעת מסלול הלימוד ל{meetingShortLabelHe(3)} ואילך:</span>
-            </label>
+              <span>2. אשרו מסלול ל{meetingShortLabelHe(3)} ואילך:</span>
+            </h3>
 
-            {selectedPath === null && (
+            {recommendation === null && !alreadyApproved && (
               <p data-testid="gate-drawer-choose-hint" className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2">
-                טרם נקבעה המלצה. יש לבחור מסלול כדי לאשר.
+                טרם נקבעה המלצה. בחרו את המסלול בעצמכם.
               </p>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* The learner's own two levels (owner, 11.10.2026); the other pair stays hidden. */}
+            {/* The learner's own two levels (owner, 11.10.2026); the other pair stays hidden. A press approves. */}
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="gate-drawer-approve">
               {pathOptions.map((path) => {
-                const chosen = selectedPath === path;
+                const isApproved = approvedPath === path;
                 const isRecommended = recommendation === path;
                 return (
-                  <button
-                    key={path}
-                    type="button"
-                    aria-pressed={chosen}
-                    onClick={() => setSelectedPath(path)}
-                    className={`text-right p-4 rounded-2xl border-2 transition-colors cursor-pointer relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
-                      chosen
-                        ? ROUTE_COLOR[path].cardOn
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2 gap-2">
-                      <div className="flex items-center gap-2">
-                        <span aria-hidden="true" className={`w-3 h-3 rounded-full ${ROUTE_COLOR[path].dot}`} />
-                        <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-                          {ROUTE_NAME_HE[path]}
+                  <li key={path} className="flex flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => { void handleApprove(path); }}
+                      disabled={readOnly || approvingPath !== null || isApproved}
+                      aria-pressed={isApproved}
+                      aria-label={`${ROUTE_APPROVE_HE[path]}${isRecommended ? ` (${RECOMMENDED_MARK_HE})` : ''} — תלמיד ${studentNum}`}
+                      title={readOnly ? READ_ONLY_TITLE : isApproved ? 'המסלול כבר אושר' : ROUTE_APPROVE_HE[path]}
+                      className={`min-h-11 inline-flex items-center gap-1 py-1 px-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1 ${
+                        isApproved ? ROUTE_COLOR[path].buttonOn : `${ROUTE_COLOR[path].buttonOff} disabled:opacity-40`
+                      }`}
+                    >
+                      {isApproved && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
+                      <span>{approvingPath === path ? 'מאשר...' : ROUTE_APPROVE_HE[path]}</span>
+                      {isRecommended && (
+                        <span data-testid="recommended-mark" className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 text-slate-800 border border-slate-300">
+                          {RECOMMENDED_MARK_HE}
                         </span>
-                        {isRecommended && (
-                          <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-white text-slate-800 border border-slate-300">
-                            {RECOMMENDED_MARK_HE}
-                          </span>
-                        )}
-                      </div>
-                      {chosen && (
-                        <CheckCircle2 className="w-4 h-4 text-slate-800 dark:text-slate-100" aria-hidden="true" />
                       )}
-                    </div>
+                    </button>
                     <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                       {ROUTE_CARD_HE[path]}
                     </p>
-                  </button>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           </div>
 
         </div>
 
-        {/* Footer with Approve Action */}
-        <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-gradient-to-l from-violet-50/70 via-purple-50/40 to-white dark:from-violet-950/40 dark:via-purple-950/20 dark:to-slate-900 backdrop-blur-md flex items-center justify-between shrink-0">
+        <div className="p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end shrink-0">
           <button
             onClick={onClose}
             className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer"
           >
-            ביטול
-          </button>
-
-          <button
-            onClick={handleApprove}
-            disabled={readOnly || isApproving || selectedPath === null || nothingToSave}
-            title={readOnly ? READ_ONLY_TITLE : selectedPath === null ? 'יש לבחור מסלול לפני האישור' : nothingToSave ? 'כדי לשנות את המסלול, בחרו במסלול האחר' : undefined}
-            className="px-7 py-3 bg-violet-700 hover:bg-violet-800 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-violet-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-          >
-            <CheckCircle2 className="w-5 h-5 text-stone-300" />
-            <span>
-              {alreadyApproved
-                ? (isApproving ? 'מעדכן...' : nothingToSave ? 'המסלול כבר אושר' : 'שנו את המסלול')
-                : (isApproving ? 'מאשר ומפעיל...' : selectedPath ? ROUTE_APPROVE_HE[selectedPath] : `אשרו והפעילו את התוכנית ל${meetingShortLabelHe(3)}`)}
-            </span>
+            סגירה
           </button>
         </div>
       </div>

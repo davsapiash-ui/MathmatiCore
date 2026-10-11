@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 const GAP_PX = 8;
 
 const INSTRUCTION = '[data-testid="task-instruction"]';
+const STEPS = '[data-testid="guide-steps"]';
 
 /**
  * Where the coaching card's drawer sits in the task-and-response zone (PRD
@@ -12,14 +13,16 @@ const INSTRUCTION = '[data-testid="task-instruction"]';
  * התוצאה".
  *
  * The zone keeps its 45% (workspaceZones.ts) and the task card keeps its layout. The drawer is laid
- * over the card's guide block (the goal and the steps, data-testid
- * "task-instruction"), from its top — the location row and the topic heading
- * above it stay in view — and never lower than the work area under it (the
- * result row, or the first box of the vertical sheet, whose blank top margin
- * it may cover; the work area is the element after the guide block): its
- * height is capped there and its content scrolls inside it as a last resort.
- * While it is open the covered guide block is inert (out of the tab order and
- * the accessibility tree); closing the drawer gives it back exactly as it was.
+ * over the guide block's steps — from the "מה עושים:" line above the steps
+ * (data-testid "guide-steps") down — so the location row, the topic heading
+ * and the goal line stay in view (owner, 11.10.2026: "במקום הצעדים"), and
+ * never lower than the work area under it (the result row, or the first box
+ * of the vertical sheet, whose blank top margin it may cover; the work area is
+ * the element after the guide block): its height is capped there and its
+ * content scrolls inside it. A guide block with no steps (a station-1 tool
+ * step) is covered from its own top, as before. While it is open the covered
+ * steps are inert (out of the tab order and the accessibility tree); closing
+ * the drawer gives them back exactly as they were.
  *
  * Everything is read from the card from the outside (#tour-task-card and the
  * test id above), so the card itself is not touched. The work area does not
@@ -39,19 +42,26 @@ export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }
     }
     const zone = slot?.closest<HTMLElement>('[data-testid="task-zone"]');
     if (!slot || !zone) return;
-    let covered: HTMLElement | null = null;
+    let covered: HTMLElement[] = [];
     const release = () => {
-      if (covered) {
-        covered.removeAttribute('inert');
-        covered.removeAttribute('aria-hidden');
-        covered = null;
+      for (const el of covered) {
+        el.removeAttribute('inert');
+        el.removeAttribute('aria-hidden');
       }
+      covered = [];
     };
     const measure = () => {
       const zr = zone.getBoundingClientRect();
       const card = zone.querySelector<HTMLElement>('#tour-task-card');
       const instruction = zone.querySelector<HTMLElement>(INSTRUCTION);
       const work = instruction?.nextElementSibling as HTMLElement | null | undefined;
+      // The steps: their "מה עושים:" line, and the slot that holds the list
+      // (and the done box) — or the list itself when it has no slot.
+      const steps = instruction?.querySelector<HTMLElement>(STEPS) ?? null;
+      const stepsHeading = steps ? instruction?.querySelector<HTMLElement>(':scope > h2') ?? null : null;
+      const stepsBody = steps ? (steps.closest<HTMLElement>('[data-testid="guide-slot"]') ?? steps) : null;
+      const coverFrom = stepsHeading ?? stepsBody ?? instruction;
+      const toCover = steps ? [stepsHeading, stepsBody].filter((el): el is HTMLElement => Boolean(el)) : instruction ? [instruction] : [];
       const cardBottom = card ? card.getBoundingClientRect().bottom : zr.bottom;
       // A vertical sheet starts with blank paper above its memory circles: the
       // drawer may lie over that margin, down to the sheet's first box. Any
@@ -62,16 +72,19 @@ export function TaskZoneDrawerSlot({ children, atTop = false, covering = false }
       // (Module 15 §ג), a result row and nothing above it — gets the drawer
       // under its result row, which it must not hide (PRD 7 §א rule 6).
       const row = instruction ? null : zone.querySelector<HTMLElement>('[data-testid="result-row"]');
-      const anchor = instruction ? instruction.getBoundingClientRect().top : row ? row.getBoundingClientRect().bottom + GAP_PX : zr.top;
+      const anchor = coverFrom ? coverFrom.getBoundingClientRect().top : row ? row.getBoundingClientRect().bottom + GAP_PX : zr.top;
       const top = Math.round(anchor - zr.top);
       const room = Math.round((row ? cardBottom : workTop) - GAP_PX - anchor);
-      // The covered guide block takes no focus and is not announced (re-applied
-      // when the card renders a new one, for the next task).
-      if (covering && instruction && instruction !== covered) {
+      // The covered steps take no focus and are not announced (re-applied
+      // when the card renders new ones, for the next task).
+      const same = covered.length === toCover.length && covered.every((el, i) => el === toCover[i]);
+      if (covering && toCover.length && !same) {
         release();
-        instruction.setAttribute('inert', '');
-        instruction.setAttribute('aria-hidden', 'true');
-        covered = instruction;
+        for (const el of toCover) {
+          el.setAttribute('inert', '');
+          el.setAttribute('aria-hidden', 'true');
+        }
+        covered = toCover;
       } else if (!covering) {
         release();
       }

@@ -18,7 +18,8 @@ describe('Admin: reset to the pilot structure keeps every staff member (owner, 1
   it('never removes an admin entry when a teacher is removed', () => {
     const auth = src('infrastructure/services/AuthService.ts');
     const fn = auth.slice(auth.indexOf('export async function removeAuthorizedTeacherFirestore'));
-    expect(fn.slice(0, 900)).toContain('role === "admin"');
+    expect(fn.slice(0, 900)).toContain('isProtectedStaffEntry(existing.data())');
+    expect(auth).toContain('return data?.role === "admin" || data?.readOnly === true;');
   });
 });
 

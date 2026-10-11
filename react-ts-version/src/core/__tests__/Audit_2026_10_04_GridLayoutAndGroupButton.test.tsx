@@ -72,7 +72,8 @@ describe('A7-015 — the grid\'s instruction has a read-aloud button, read on th
 
   it('the texts: plural imperative, a full stop, "עכשיו" not "כעת"', () => {
     expect(GRID_PICK_ROW_HE).toBe('לחצו על מספר שורה כדי להתחיל.');
-    expect(GRID_PICK_COL_HE).toBe('עכשיו בחרו מספר עמודה כדי לראות את החיבור.');
+    expect(GRID_PICK_COL_HE).toBe('עכשיו בחרו מספר בשורה העליונה כדי לראות את החיבור.');
+    expect(GRID_PICK_COL_HE).not.toMatch(/עמוד|טור/);
   });
 });
 
@@ -121,8 +122,8 @@ describe('PRD 7.4 Module 7 §א — one name for the grouping button: caption, t
       const button = screen.getByRole('button', { name: label });
       expect(button.getAttribute('title')).toBe(label);
       expect(button.getAttribute('aria-label')).toBe(label);
-      // The ✨ is decoration (aria-hidden) and gives way in a narrow column.
-      expect(button.textContent?.replace('✨', '')).toBe(label);
+      // No ✨ (owner, 11.10.2026): the caption is the whole content.
+      expect(button.textContent).toBe(label);
       expect(button.outerHTML).not.toContain('לבנים ל');
     });
   }

@@ -220,10 +220,11 @@ describe('E2 — where the child gets it', () => {
     }
   });
 
-  it('the end screen shows it, with this meeting’s counts', () => {
+  it('the end screen shows it, with this meeting’s counts — the store’s, or this meeting’s saved copy when the store is on another meeting (owner, 11.10.2026)', () => {
     const page = read(resolve(SRC, 'features/workspace/StudentWorkspacePage.tsx'));
     const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"));
-    expect(end).toContain('<ClosingSentence sessionNumber={sessionNumber} counts={meetingPersistence} />');
+    expect(end).toContain('<ClosingSentence sessionNumber={endStation} counts={closingCounts} />');
+    expect(end).toMatch(/endStation === sessionNumber\s*\?\s*meetingPersistence\s*:\s*restoredMeetingPersistence\(/);
     // Meeting 8's board gets meeting 8's own counts.
     expect(page).toContain('const { undos: undoCount, wrongDigits: errorCount, wrongOptions: guessCount } = meetingPersistence;');
   });
@@ -245,8 +246,9 @@ describe('one praise, one sentence at the end of meetings 3–7', () => {
   it('meetings 3–7 end on the one sentence alone (PRD 14 §ג: no heading, no number; owner, OWNER-1)', () => {
     const page = read(resolve(SRC, 'features/workspace/StudentWorkspacePage.tsx'));
     const end = page.slice(page.indexOf("if (endScreen === 'sessionDone') {"), page.indexOf('{classStateOverlays}', page.indexOf("if (endScreen === 'sessionDone') {")));
-    expect(end).toContain("hasClosingSentence(endStation) && endStation === sessionNumber ? 'encouragement'");
-    expect(end).toMatch(/endKind === 'encouragement' \? \(\s*\/\/[^\n]*\n\s*<ClosingSentence sessionNumber=\{sessionNumber\} counts=\{meetingPersistence\} \/>/);
+    // Every station 3–7 end, also one the teacher's close found on another meeting (owner, 11.10.2026).
+    expect(end).toContain(": hasClosingSentence(endStation) ? 'encouragement'");
+    expect(end).toMatch(/endKind === 'encouragement' \? \(\s*\/\/[^\n]*\n\s*<ClosingSentence sessionNumber=\{endStation\} counts=\{closingCounts\} \/>/);
     expect(end).not.toContain('`סיימתם את תחנה ${');
     expect(end).not.toContain('כל הכבוד');
   });

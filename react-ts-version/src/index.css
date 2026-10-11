@@ -546,21 +546,12 @@
 /*
  * Station 1, step 5 (owner, 29.9.2026): the text asks for "כפתור ביטול פעולה",
  * and on the bar that button is an arrow with no words. Until it is pressed it
- * wears a ring that breathes, so the child sees which button the step means.
- * The ring itself always shows; only its breathing stops for reduced motion.
+ * wears a ring, so the child sees which button the step means. The ring is
+ * static (owner, 11.10.2026: the learner screens are calm) — a solid ring and
+ * a soft halo, no breathing.
  */
-@keyframes ws-hint-ring {
-  0%, 100% { box-shadow: 0 0 0 3px hsl(var(--ws-accent) / 0.9), 0 0 0 3px hsl(var(--ws-accent) / 0.35); }
-  50% { box-shadow: 0 0 0 3px hsl(var(--ws-accent) / 0.9), 0 0 0 10px hsl(var(--ws-accent) / 0); }
-}
 .ws-hint-ring {
-  box-shadow: 0 0 0 3px hsl(var(--ws-accent) / 0.9);
-  animation: ws-hint-ring 1.4s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .ws-hint-ring {
-    animation: none !important;
-  }
+  box-shadow: 0 0 0 3px hsl(var(--ws-accent) / 0.9), 0 0 0 7px hsl(var(--ws-accent) / 0.25);
 }
 
 @keyframes float-emoji {

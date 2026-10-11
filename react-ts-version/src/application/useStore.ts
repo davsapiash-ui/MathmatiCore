@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ref, onValue, update, remove, set as fbSet } from 'firebase/database';
+import { ref, onValue } from 'firebase/database';
 import { database, functions } from '@/infrastructure/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { toast } from 'sonner';
@@ -91,7 +91,6 @@ export interface StudentData {
   routeRecommendation: RoutePath | null;
   routeStatus: RouteStatus | string | null;
   difficultyRecommendation?: string | number | null;
-  isASD?: boolean;
   physicalOverride?: boolean;
   physicalOverrideActive?: boolean;
   overrideUpdatedAt?: number;
@@ -200,16 +199,22 @@ export function backupSavedHe(webViewLink: unknown): { text: string; driveLink: 
   return /^https:\/\/drive\.google\.com\//.test(link)
     ? { text: 'הגיבוי נשמר ב-Google Drive.', driveLink: link }
     // PRD 23א §ג: Drive did not take it within 90 seconds; the daily job copies it there.
-    : { text: 'הגיבוי נשמר ב-Cloud Storage, ויועתק לתיקיית "3 גיבויים" בדרייב בהעתקה היומית.', driveLink: null };
+    // Plain Hebrew on screen, not the service's English name (Cloud Storage).
+    : { text: 'הגיבוי נשמר באחסון הענן של המערכת, ויועתק לתיקיית "3 גיבויים" בדרייב בהעתקה היומית.', driveLink: null };
 }
 
 /** The success toast of a reset that deleted: what happened, then where the backup is. */
 function resetSuccessToast(message: string, data: unknown): void {
   const backup = backupSavedHe((data as { webViewLink?: unknown } | null | undefined)?.webViewLink);
   const text = `${message} ${backup.text}`;
+  // Audit L36: a backup kept only in the system's storage opens through the
+  // short-lived link the server signed for it (backupDownloadUrl).
+  const storageLink = (data as { backupDownloadUrl?: unknown } | null | undefined)?.backupDownloadUrl;
   if (backup.driveLink) {
     const link = backup.driveLink;
     toast.success(text, { duration: 10000, action: { label: 'פתיחת הגיבוי', onClick: () => window.open(link, '_blank', 'noopener,noreferrer') } });
+  } else if (typeof storageLink === 'string' && /^https:\/\//.test(storageLink)) {
+    toast.success(text, { duration: 10000, action: { label: 'פתיחת הגיבוי', onClick: () => window.open(storageLink, '_blank', 'noopener,noreferrer') } });
   } else {
     toast.success(text);
   }
@@ -289,7 +294,6 @@ interface AppState {
     overrideData: {
       routeStatus: string;
       difficultyRecommendation: string;
-      isASD: boolean;
       physicalOverride: boolean;
       physicalOverrideActive?: boolean;
       overrideUpdatedAt: number;
@@ -356,7 +360,6 @@ export const initStoreSubscriptions = (): (() => void) => {
             routeRecommendation: row.routeRecommendation || prev.routeRecommendation || null,
             routeStatus: row.routeStatus || prev.routeStatus || null,
             difficultyRecommendation: row.difficultyRecommendation || prev.difficultyRecommendation || null,
-            isASD: row.isASD !== undefined ? row.isASD : prev.isASD,
             physicalOverride: Boolean(row.physicalOverride ?? prev.physicalOverride ?? false),
             physicalOverrideActive: Boolean(row.physicalOverrideActive ?? prev.physicalOverrideActive ?? false),
             // Server stamp against the server clock (Module 18 §ג, core/presence.ts).
@@ -733,7 +736,6 @@ export const useStore = create<AppState>()(
           ...(overrideData.difficultyRecommendation !== undefined && {
             difficultyRecommendation: overrideData.difficultyRecommendation,
           }),
-          isASD: overrideData.isASD,
           physicalOverride: overrideData.physicalOverride,
           overrideUpdatedAt: overrideData.overrideUpdatedAt,
         };
@@ -996,67 +998,14 @@ async function applyStudentResetSuccess(
     return;
   }
 
-  // Direct RTDB Reset for guaranteed real-time responsiveness
-  try {
-    const cleanPayload = {
-      completedMeeting1: false,
-      completedMeeting2: false,
-      completedMeeting3: false,
-      completedMeeting4: false,
-      completedMeeting5: false,
-      completedMeeting6: false,
-      completedMeeting7: false,
-      completedMeeting8: false,
-      session_1_completed: false,
-      session_2_completed: false,
-      session_3_completed: false,
-      highestCompletedMeeting: 0,
-      session_completed: 0,
-      workspaceState: null,
-      // Catch-up time: every meeting's saved copy and finished mark (core/meetingCompletion.ts).
-      workspaceByMeeting: null,
-      completedMeetings: null,
-      sessionState: null,
-      routeStatus: null,
-      routeRecommendation: null,
-      teacher_gate_approved: false,
-      forceReload: true,
-      lastAction: 'אופס ע״י המורה',
-      lastPing: 0,
-      isOnline: false,
-      activeSessionId: 1,
-      qMatrixResults: null,
-      traceData: null,
-      reflections: null,
-      // The support profile and quiet mode are the teacher's settings for
-      // the learner and survive a full learner reset (owner, 2.10.2026);
-      // the server keeps them on the record (LEARNER_SETTINGS_FIELDS).
-      physicalOverride: false,
-      physicalOverrideActive: false,
-      forceAdditionHelper: false,
-      additionBoardEnabled: false,
-      scaffoldLevel: 0,
-      // No path until the gate approves one (owner, 28.9.2026; Module 26): never green by default.
-      pedagogicalPath: null,
-      isBoardLocked: false,
-      helpRequested: false,
-      handRaised: false,
-      isStruggling: false,
-    };
-    // The canonical record only (student_userN). The same payload used to
-    // be written under student_N, userN and N as well: an update creates
-    // the node it names, so every reset left alias records of learners
-    // that the teacher's screens then had to merge. The server removes
-    // the aliases that exist.
-    await update(ref(database, `users/students/${normId}`), cleanPayload).catch(() => {});
-    await remove(ref(database, `chat_messages/${normId}`)).catch(() => {});
-    firebaseSyncService.clearLocalSessionProgress(normId);
-    firebaseSyncService.clearLocalSessionProgress(studentId);
-    firebaseSyncService.clearLocalSessionProgress(`student_${num}`);
-    firebaseSyncService.clearLocalSessionProgress(`user${num}`);
-    firebaseSyncService.clearLocalSessionProgress(num);
-  } catch (rtdbErr) {
-    console.error('[useStore] Direct RTDB reset notice:', rtdbErr);
+  // The server already deleted the learner's record and chat (keeping the
+  // teacher's settings for the learner) and wrote the restart command
+  // (FULL_RESET_RESTART_COMMAND). The client writes nothing to the database
+  // after it: a second write recreated the record — with activeSessionId 1, so
+  // a later "current meeting only" reset with no open meeting restarted
+  // meeting 1 instead of being refused. Only the local copy is cleared.
+  for (const id of [normId, studentId, `student_${num}`, `user${num}`, num]) {
+    firebaseSyncService.clearLocalSessionProgress(id);
   }
 
   const cleanStudent: StudentData = {
@@ -1091,7 +1040,6 @@ async function applyStudentResetSuccess(
     const before = state.students[normId] || state.students[studentId];
     const kept: StudentData = {
       ...cleanStudent,
-      ...(before?.isASD !== undefined ? { isASD: before.isASD } : {}),
       ...(before?.support_profile_id !== undefined ? { support_profile_id: before.support_profile_id } : {}),
       // The graded mark is a learner setting too (owner, 11.10.2026).
       ...(before?.graded_track !== undefined ? { graded_track: before.graded_track } : {}),
@@ -1106,76 +1054,30 @@ async function applyStudentResetSuccess(
     };
   });
 
-  useChatStore.getState().clearStudentMessages(normId);
+  // The local copy of the learner's chat only: the server deleted it already
+  // (clearStudentMessages would delete it from the database a second time).
+  useChatStore.setState((state) => ({
+    messages: state.messages.filter(
+      (m) => normalizeStudentId(m.senderId) !== normId && normalizeStudentId(m.receiverId) !== normId
+    ),
+  }));
   resetSuccessToast(`${defaultName} אופס כולו: ההתקדמות בכל המפגשים, תוצאות האבחון, המסלול, ההקלטות והצ'אט נמחקו. ההגדרות שלו נשמרו.`, resetData);
 }
 
 /** Level 3: the local mirrors follow the server's system reset. */
 async function applySystemResetSuccess(data: unknown): Promise<void> {
-  // Direct RTDB Reset for all 12 students and sessions
+  // The server already deleted every learning node, turned the projector off
+  // and closed the class's meeting (Module 14: no active session after a
+  // system reset). The client writes nothing to the database after it: its
+  // second write recreated all twelve learner records, with activeSessionId 1,
+  // so a later "current meeting only" reset with no open meeting restarted
+  // meeting 1 instead of being refused. Only the local copy is cleared.
   try {
     for (let i = 1; i <= 12; i++) {
-      const cleanPayload = {
-        completedMeeting1: false,
-        completedMeeting2: false,
-        completedMeeting3: false,
-        completedMeeting4: false,
-        completedMeeting5: false,
-        completedMeeting6: false,
-        completedMeeting7: false,
-        completedMeeting8: false,
-        session_1_completed: false,
-        session_2_completed: false,
-        session_3_completed: false,
-        highestCompletedMeeting: 0,
-        session_completed: 0,
-        workspaceState: null,
-        workspaceByMeeting: null,
-        completedMeetings: null,
-        sessionState: null,
-        routeStatus: null,
-        routeRecommendation: null,
-        teacher_gate_approved: false,
-        forceReload: true,
-        lastAction: 'אופס ע״י המורה',
-        lastPing: 0,
-        isOnline: false,
-        activeSessionId: 1,
-        qMatrixResults: null,
-        traceData: null,
-        reflections: null,
-        enhanced_support_profile: null, // the legacy alias (core/supportProfile.ts) is removed, not written
-      support_profile_id: null,
-        graded_track: null,
-        physicalOverride: false,
-        physicalOverrideActive: false,
-        forceAdditionHelper: false,
-        additionBoardEnabled: false,
-        scaffoldLevel: 0,
-        // No path until the gate approves one (owner, 28.9.2026; Module 26): never green by default.
-        pedagogicalPath: null,
-        isBoardLocked: false,
-        helpRequested: false,
-        handRaised: false,
-        isStruggling: false,
-      };
-      // The canonical record only: no alias records are created (see resetStudentData).
-      await update(ref(database, `users/students/student_user${i}`), cleanPayload).catch(() => {});
-      firebaseSyncService.clearLocalSessionProgress(`student_user${i}`);
-      firebaseSyncService.clearLocalSessionProgress(`student_${i}`);
-      firebaseSyncService.clearLocalSessionProgress(`user${i}`);
-      firebaseSyncService.clearLocalSessionProgress(`${i}`);
+      for (const id of [`student_user${i}`, `student_${i}`, `user${i}`, `${i}`]) {
+        firebaseSyncService.clearLocalSessionProgress(id);
+      }
     }
-    await remove(ref(database, 'chat_messages')).catch(() => {});
-    await remove(ref(database, 'radar_alerts')).catch(() => {});
-    await remove(ref(database, 'replays')).catch(() => {});
-    await remove(ref(database, 'sessions')).catch(() => {});
-    await remove(ref(database, 'telemetry_sessions')).catch(() => {});
-    await fbSet(ref(database, 'system_control/projector_mode'), { active: false, projector_mode: false, projector_mode_updated_at: Date.now() }).catch(() => {});
-    // PRD v7.1 Module 14: session activation is exclusively a teacher action.
-    // A system reset must leave NO active session; the teacher reopens explicitly.
-    await fbSet(ref(database, 'active_class_session'), { active: false, status: 'closed', sessionNumber: null, endedAt: Date.now() }).catch(() => {});
-    
     if (typeof window !== 'undefined') {
       Object.keys(localStorage).forEach((k) => {
         if (k.startsWith('mathmaticore_') || k.startsWith('offline_queue_')) {
@@ -1184,8 +1086,8 @@ async function applySystemResetSuccess(data: unknown): Promise<void> {
       });
     }
     useWorkspaceStore.getState().resetWorkspace?.();
-  } catch (rtdbErr) {
-    console.error('[useStore] Direct RTDB class reset notice:', rtdbErr);
+  } catch (localErr) {
+    console.error('[useStore] Clearing the local copy after the class reset failed:', localErr);
   }
 
   const cleanStudents: Record<string, StudentData> = {};
@@ -1222,7 +1124,9 @@ async function applySystemResetSuccess(data: unknown): Promise<void> {
   }
 
   useStore.setState({ students: cleanStudents });
-  useChatStore.getState().clearAllMessages();
+  // The local copy of the chat only: the server deleted chat_messages already
+  // (clearAllMessages would delete it from the database a second time).
+  useChatStore.setState({ messages: [], unreadCount: 0 });
   resetSuccessToast('כל נתוני הלמידה של הכיתה נמחקו, וכל 12 התלמידים מתחילים מההתחלה.', data);
 }
 
@@ -1238,9 +1142,10 @@ function startResetOutcomeWatch(pending: PendingReset): void {
       // The server performs every deletion itself. This success path only
       // mirrors them on the teacher's side, which is right while the reset is
       // still the latest thing that happened. Past the longest a reset can run
-      // the children may already have worked again: writing empty records over
-      // them would erase that work (and close the meeting now open). The
-      // teacher is told it finished and the screen shows the server's state.
+      // the children may already have worked again: emptying the teacher's
+      // local copy would hide that work until a reload (the success path
+      // writes nothing to the database). The teacher is told it finished and
+      // the screen shows the server's state.
       if (Date.now() - p.startedAt > RESET_OUTCOME_WAIT_MS) {
         resetSuccessToast('האיפוס הסתיים בשרת. רעננו את המסך כדי לראות את המצב העדכני.', data);
         return;

@@ -62,7 +62,7 @@ import { ClassMeetingReportPanel } from "./TeacherDashboard/components/ClassMeet
 import { StudentLearningConditionsDrawer } from "./TeacherDashboard/components/StudentLearningConditionsDrawer";
 import { TeacherGateApprovalDrawer } from "./TeacherDashboard/components/TeacherGateApprovalDrawer";
 import { FloatingChatPanel } from "./TeacherDashboard/components/FloatingChatPanel";
-import { HeatmapGrid } from "./TeacherDashboard/components/HeatmapGrid";
+import { HeatmapGrid, focusTileGateApproval } from "./TeacherDashboard/components/HeatmapGrid";
 import { ClusteringWidgets, isStudentBelow } from "./TeacherDashboard/components/ClusteringWidgets";
 import { TeacherGenderSetting } from "./TeacherDashboard/components/TeacherGenderSetting";
 import { useTeacherGender, useTeacherGenderStore } from "@/application/useTeacherGender";
@@ -140,6 +140,9 @@ const CATCH_UP_SAVE_WAIT_MS = 5_000;
 
 /** The automatic close (45 minutes, or the disconnect window) was refused by the server. */
 const AUTO_CLOSE_NOT_SAVED_HE = 'הסגירה האוטומטית של המפגש לא נשמרה בשרת. אצל התלמידים המפגש כבר נסגר.';
+
+/** The live bar while the meeting is paused: after the connected learners and the minutes, and as the chip's tooltip. */
+const PAUSED_BAR_LINE_HE = 'העבודה של התלמידים שמורה. "המשיכו את המפגש" מחזיר אותם לאותה נקודה.';
 
 export function TeacherDashboard() {
   const { id: routeStudentId } = useParams<{ id: string }>();
@@ -876,7 +879,8 @@ export function TeacherDashboard() {
       if (outcome === 'queued') {
         toast.info('אין חיבור לאינטרנט. המפגש ייסגר כשהחיבור יחזור.', { id: 'session-write-offline' });
       } else {
-        toast.info(`המפגש נסגר. כל התלמידים רואים עכשיו "${teacherSentenceHe('closedTitle', useTeacherGenderStore.getState().gender)}".`);
+        // A learner who finished sees the end screen, not the close screen (PRD 14 §ב0).
+        toast.info(`המפגש נסגר. מי שלא סיים רואה "${teacherSentenceHe('closedTitle', useTeacherGenderStore.getState().gender)}"; מי שסיים רואה את מסך הסיום.`);
       }
       return true;
     } catch (err) {
@@ -907,7 +911,7 @@ export function TeacherDashboard() {
       if (outcome === 'queued') {
         toast.info('אין חיבור לאינטרנט. המפגש יושהה כשהחיבור יחזור.', { id: 'session-write-offline' });
       } else {
-        toast.info(`המפגש הושהה. כל התלמידים רואים עכשיו "${teacherSentenceHe('pausedTitle', useTeacherGenderStore.getState().gender)}".`);
+        toast.info('המפגש נעצר.');
       }
     } catch (err) {
       console.error('Error pausing class session:', err);
@@ -1249,7 +1253,10 @@ export function TeacherDashboard() {
   const queueGateLearners = isMeeting2Open
     ? gateStudentItems.filter((g) => !g.isApproved).map((g) => gateLearnerNumber(g.studentId)).filter((n): n is number => n !== null)
     : [];
+  // The queue's gate item leads to the approval on the learner's tile (owner, 11.10.2026: no approval of its
+  // own); the evidence drawer only if the tile is not on screen.
   const openGateForLearner = (n: number) => {
+    if (focusTileGateApproval(n)) return;
     const st = allStudents.find((s) => learnerNumberOf(s.studentId) === n);
     if (st) setGateStudent(st);
   };
@@ -1466,6 +1473,10 @@ export function TeacherDashboard() {
         ok = d.nextMeeting === null || (await openMeetingForClass(d.nextMeeting));
       }
       if (ok) sub.done = true;
+      // A meeting this dialog opened is the teacher's own activation: she lands
+      // on the radar, as from the activation window (PRD 14 §ב, owner 10.10.2026).
+      const openedMeeting = action === 'reopen' || (d.trigger !== 'close' && d.nextMeeting !== null);
+      if (ok && openedMeeting) handleTabChange("heatmap");
       if (saved === 'refused' && ok) toast.error(notSavedHe);
     } finally {
       setIsSavingCatchUp(false);
@@ -1533,7 +1544,8 @@ export function TeacherDashboard() {
         if (await handleApproveGateStudent(sId, path)) succeeded++;
       }
       if (succeeded === entries.length) {
-        toast.success(`כל ${succeeded} התלמידים הממתינים אושרו בהצלחה למפגש 3! 🚀`);
+        // Only the learners with a recommendation are in the map; the rest still wait (owner, 11.10.2026).
+        toast.success(succeeded === 1 ? 'המסלול המומלץ אושר לתלמיד אחד.' : `המסלול המומלץ אושר ל-${succeeded} תלמידים.`);
       } else if (succeeded > 0) {
         toast.warning(`אושרו ${succeeded} מתוך ${entries.length} תלמידים. עבור השאר הוצגה שגיאה מפורטת.`);
       }
@@ -1887,7 +1899,8 @@ export function TeacherDashboard() {
     const added = keys.filter((k) => !seen.has(k));
     // A cleared call may come again later: forget the keys no longer present.
     queueSeenRef.current = new Set(keys);
-    if (readOnly || activeTab === 'heatmap' || added.length === 0) return;
+    // A read-only account gets the same toasts (owner, 11.10.2026): they only point to the queue.
+    if (activeTab === 'heatmap' || added.length === 0) return;
     for (const k of added) {
       const n = Number(k.startsWith('help:') ? k.slice(5) : k.split(':').pop()!.replace(/\D/g, ''));
       toast(k.startsWith('help:') ? QUEUE_HE.newHelpToast(n) : QUEUE_HE.newChatToast(n), {
@@ -1896,7 +1909,7 @@ export function TeacherDashboard() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queueLearners.map((l) => `${l.studentNumber}:${l.helpRequested}`).join(','), messages, readOnly, activeTab]);
+  }, [queueLearners.map((l) => `${l.studentNumber}:${l.helpRequested}`).join(','), messages, activeTab]);
 
   if (isLoading) {
     // Skeleton placeholders in the shape of the page (owner, 11.10.2026), not a spinner. Still: no pulse.
@@ -2065,7 +2078,7 @@ export function TeacherDashboard() {
           >
             <span className="flex items-center gap-2 min-w-0" title="צ'אט עם תלמידים"><MessageCircle className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : 'truncate'}>צ'אט עם תלמידים</span></span>
             {unreadStudentsCount > 0 && (
-              <span className={`shrink-0 bg-rose-600 text-white text-xs font-bold px-2 py-0.5 rounded-full${sidebarCollapsed ? ' md:absolute md:top-0.5 md:left-1.5 md:min-w-[18px] md:h-[18px] md:px-1 md:py-0 md:text-[10px] md:leading-[18px] md:text-center' : ''}`}>
+              <span className={`shrink-0 bg-violet-700 text-white text-xs font-bold px-2 py-0.5 rounded-full${sidebarCollapsed ? ' md:absolute md:top-0.5 md:left-1.5 md:min-w-[18px] md:h-[18px] md:px-1 md:py-0 md:text-[10px] md:leading-[18px] md:text-center' : ''}`}>
                 {unreadStudentsCount}
               </span>
             )}
@@ -2106,8 +2119,9 @@ export function TeacherDashboard() {
         {/* The one "glass" touch (owner, 11.10.2026): the sticky bar is translucent with a blur; its text sits on the white row inside, so contrast stays AA. */}
         <div data-testid="live-session-bar" className="sticky -top-4 md:-top-5 z-30 -mx-4 md:-mx-5 -mt-4 md:-mt-5 px-4 md:px-5 pt-3 pb-2 mb-[clamp(8px,1vw,16px)] bg-stone-50/70 dark:bg-slate-950/70 backdrop-blur-md shrink-0">
         <div data-testid="live-session-bar-row" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap items-center justify-between gap-x-3 gap-y-2">
-          {/* State and time on one line (owner, 11.10.2026). The open meeting's name is in the picker beside
-              the actions (Module 14 §ב0), so it is not said twice; the state is the chip. */}
+          {/* State and time on one line (owner, 11.10.2026); the state is the chip. The open meeting's
+              full name is shown beside it, never only as a tooltip and never cut off: the picker beside
+              the actions shows the meeting picked to open next, which may be another one. */}
           <div className="flex items-center gap-2 min-w-0">
             <div className="min-w-0 flex items-center gap-2">
                 {classSessionStatus !== 'active' && classSessionStatus !== 'paused' && (
@@ -2116,24 +2130,32 @@ export function TeacherDashboard() {
                   </h3>
                 )}
                 {classSessionStatus === 'active' && (
-                  <span title={meetingLabelHe(selectedSessionNum)} className="shrink-0 bg-violet-50 text-violet-800 border border-violet-200 dark:bg-violet-950/50 dark:text-violet-100 dark:border-violet-800 text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="shrink-0 bg-violet-50 text-violet-800 border border-violet-200 dark:bg-violet-950/50 dark:text-violet-100 dark:border-violet-800 text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1.5 whitespace-nowrap">
                     <span className="w-1.5 h-1.5 rounded-full bg-violet-600"></span>
                     פתוח ללמידה
                   </span>
                 )}
                 {classSessionStatus === 'paused' && (
-                  <span title={meetingLabelHe(selectedSessionNum)} className="shrink-0 bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1.5 whitespace-nowrap">
+                  <span title={PAUSED_BAR_LINE_HE} className="shrink-0 bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1.5 whitespace-nowrap">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
                     מושהה · התלמידים ממתינים
                   </span>
                 )}
+                {(classSessionStatus === 'active' || classSessionStatus === 'paused') && (
+                  <span data-testid="live-session-meeting" className="min-w-0 text-xs font-semibold leading-snug text-slate-800 dark:text-slate-100">
+                    {meetingLabelHe(selectedSessionNum)}
+                  </span>
+                )}
               <p className="min-w-0 truncate text-slate-600 dark:text-slate-300 text-xs leading-snug" data-testid="live-session-line">
-                {classSessionStatus === 'active'
+                {classSessionStatus === 'active' || classSessionStatus === 'paused'
                   ? (
                     <>
                       {/* Said by the badge above; kept for screen readers (owner, 11.10.2026: one row). */}
-                      <span className="sr-only">{`מפגש ${selectedSessionNum} פתוח כעת עבור התלמידים בכיתה.`}</span>
+                      {classSessionStatus === 'active' && (
+                        <span className="sr-only">{`מפגש ${selectedSessionNum} פתוח כעת עבור התלמידים בכיתה.`}</span>
+                      )}
                       {' '}
+                      {/* PRD 14 §ב: the connected learners and the minutes, while the meeting is paused too. */}
                       {/* Short on the bar, the full sentence in the tooltip (owner, 11.10.2026). */}
                       <span
                         data-testid="live-session-status"
@@ -2142,11 +2164,10 @@ export function TeacherDashboard() {
                       >
                         {`${onlineCount}/12 מחוברים${elapsedMinutes === null ? '' : ` · ${elapsedMinutes} מתוך ${getSessionDurationMinutes(selectedSessionNum)} דק׳`}`}
                       </span>
+                      {classSessionStatus === 'paused' && <>{' · '}{PAUSED_BAR_LINE_HE}</>}
                     </>
                   )
-                  : classSessionStatus === 'paused'
-                    ? 'העבודה של התלמידים שמורה. "המשיכו את המפגש" מחזיר אותם לאותה נקודה.'
-                    : pickedSessionNum >= 3 && pickedSessionNum <= 7
+                  : pickedSessionNum >= 3 && pickedSessionNum <= 7
                       // The prepare step (owner, 11.10.2026): the demonstration on the projector comes first.
                       ? <span data-testid="prepare-reminder" className="font-bold text-slate-800 dark:text-slate-100">{LESSON_FLOW_HE.prepare(pickedSessionNum)}</span>
                       : 'בחרו מפגש ולחצו על "הפעילו מפגש" כדי לפתוח את הלמידה לתלמידים.'}
@@ -2208,9 +2229,9 @@ export function TeacherDashboard() {
               className="relative inline-flex items-center gap-1.5 min-h-9 px-2.5 py-1.5 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 cursor-pointer"
             >
               <MessageCircle className="w-4 h-4" />
-              <span className="hidden min-[1800px]:inline whitespace-nowrap">הודעות מתלמידים</span>
+              <span className="hidden lg:inline whitespace-nowrap">הודעות מתלמידים</span>
               {unreadStudentsCount > 0 && (
-                <span data-testid="live-bar-unread" className="min-w-5 h-5 px-1.5 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-[11px] font-black">
+                <span data-testid="live-bar-unread" className="min-w-5 h-5 px-1.5 inline-flex items-center justify-center rounded-full bg-violet-700 text-white text-[11px] font-black">
                   {unreadStudentsCount}
                 </span>
               )}
@@ -2277,10 +2298,10 @@ export function TeacherDashboard() {
                   onClick={() => { void requestCloseClassSession(); }}
                   disabled={readOnly || isUpdatingSession || isSavingCatchUp}
                   title={readOnly ? READ_ONLY_TITLE : undefined}
-                  className="px-3 min-h-9 bg-white hover:bg-rose-50 dark:bg-slate-900 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900 disabled:text-slate-400 disabled:cursor-not-allowed text-rose-800 dark:text-rose-200 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  className="px-3 min-h-9 bg-white hover:bg-stone-50 dark:bg-slate-900 dark:hover:bg-stone-900/40 border-2 border-stone-400 dark:border-stone-600 disabled:text-slate-400 disabled:cursor-not-allowed text-stone-900 dark:text-stone-100 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                 >
                   {isUpdatingSession ? (
-                    <span className="w-4 h-4 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-stone-400 border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <Square className="w-4 h-4" aria-hidden="true" />
                   )}
@@ -3167,7 +3188,7 @@ export function TeacherDashboard() {
                           </div>
                         </div>
                         {unreadCount > 0 && (
-                          <span className="bg-rose-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-md shrink-0">
+                          <span className="bg-violet-700 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-md shrink-0">
                             {unreadCount}
                           </span>
                         )}

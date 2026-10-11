@@ -60,26 +60,13 @@ describe('פונקציות ענן — אין נקודת קצה ציבורית ש
   });
 });
 
-describe('קליטת אירועי תלמיד — הכותב חייב להיות הילד שעליו כותבים', () => {
-  it('מספר התלמיד נאכף לטווח 1 עד 12, ולא רק מתועד כך בהערה', () => {
-    expect(fnIndex).toMatch(/numericStudentId < 1 \|\| numericStudentId > 12/);
-    expect(fnIndex).toContain('invalid-argument');
-  });
-
-  it('לומד אינו יכול להגיש אירוע על שם לומד אחר', () => {
-    expect(fnIndex).toContain('callerStudentId !== numericStudentId');
-    expect(fnIndex).toContain('permission-denied');
-  });
-
-  it('המורה כן רשאית להגיש בשם לומד; כניסת מנהל לא (PRD מודול 24 §ב, דוח 28.9 נ.2)', () => {
-    expect(fnIndex).toContain('readCallerRoles(request.auth.token as Record<string, unknown>).isTeacher');
-    expect(fnIndex).not.toMatch(/callerRole === "teacher" \|\| callerRole === "admin"/);
-  });
-
-  it('אפס מידע מזהה: רק שדות מספריים מוכרים נשמרים', () => {
-    // details הועתק קודם כמו שהוא, כך שאפשר היה להשתיל בו שם של ילד —
-    // בפונקציה שהחוזה שלה הוא "strict PII scrubbing".
-    expect(fnIndex).toContain('NUMERIC_DETAIL_KEYS');
-    expect(fnIndex).not.toMatch(/details: interaction_data\?\.details \|\| \{\}/);
+describe('קליטת אירועי תלמיד — אין פונקציה שאיש אינו קורא לה', () => {
+  // onStudentEvent and verifyTeacherSSO had no caller and were removed (L64),
+  // with the staff addresses verifyTeacherSSO hard-coded. Learner telemetry is
+  // written to telemetry_logs under the Firestore rules.
+  it('onStudentEvent ו-verifyTeacherSSO הוסרו, וכך גם הכתובות המוטמעות', () => {
+    expect(fnIndex).not.toContain('export const onStudentEvent');
+    expect(fnIndex).not.toContain('export const verifyTeacherSSO');
+    expect(fnIndex).not.toContain('@edu-haifa.org.il');
   });
 });

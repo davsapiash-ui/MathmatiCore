@@ -18,7 +18,7 @@ import { PLACE_COLORS } from '../placeColors';
 const COLUMN_COLORS = PLACE_COLORS;
 
 /** Below this width of the blocks' space (a column under ~110px), the
- *  grouping button drops its ✨ and its side padding, so its words fit. */
+ *  grouping button drops its side padding, so its words fit. */
 const NARROW_COLUMN_SPACE_PX = 92;
 
 /**
@@ -74,7 +74,7 @@ export function PlaceColumn({
   // Ten or more here is the exercise's own goal — a representation whose board
   // holds it (347 as 3, 3 and 17), a "two ways" task, a subtraction after a
   // borrow (the same rule as the coaching cards, SocraticEngine): the button
-  // stays, but does not pulse, so it does not invite undoing the step just made.
+  // stays, but without its ring, so it does not invite undoing the step just made.
   const crowdingIsTheGoal = useWorkspaceStore((s) => {
     const t = getActiveTasks(s)[s.standardTaskIdx];
     if (!t) return false;
@@ -190,24 +190,29 @@ export function PlaceColumn({
 
       {/* Explicit Group Button */}
       {count >= 10 && place !== 'thousands' && canGroup && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
+        // A short fade only (PRD Module 7 rule 8): no scale, no pulse.
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
           className={`${narrow ? 'p-1' : 'p-1.5'} flex justify-center border-b border-ws-surface2/60 bg-ws-bg/40 shrink-0 pointer-events-auto`}
         >
           <button
             onClick={() => groupColumnClick(place)}
-            data-pulse={crowdingIsTheGoal ? undefined : 'true'}
+            // Static emphasis instead of a pulse and a ✨ (owner, 11.10.2026:
+            // the learner screens are calm): a ring marks the grouping the
+            // step invites.
+            data-emphasis={crowdingIsTheGoal ? undefined : 'true'}
             // The main action of a column that holds ten or more: a 44px-high
             // target, like every child button (DESIGN_SYSTEM_RULES.md; audit
             // UX-005, meeting 1 task 8: it was 24px). The blocks below make
             // room by shrinking together (core/blockLayout.ts), never by clipping.
             // In a narrow column (four columns beside the addition grid or the
             // coaching card on a 1024px screen: 67px) the words wrap inside the
-            // button and the ✨ gives way, so the text never leaves the button.
+            // button, so the text never leaves the button.
             data-narrow={narrow ? 'true' : undefined}
             className={`w-full min-w-0 min-h-11 py-1 ${narrow ? 'px-0.5' : 'px-2'} rounded-xl text-sm leading-tight font-black text-white shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 cursor-pointer ${
-              crowdingIsTheGoal ? '' : 'animate-pulse hover:animate-none'
+              crowdingIsTheGoal ? '' : 'ring-2 ring-offset-2 ring-ws-accent'
             }`}
             style={{ backgroundColor: colors.header }}
             // One name per component (PRD 7.4 Module 7 §א): the label, the
@@ -215,7 +220,6 @@ export function PlaceColumn({
             title={groupLabel}
             aria-label={groupLabel}
           >
-            {!narrow && <span aria-hidden="true">✨</span>}
             <span className="min-w-0 text-center">{groupLabel}</span>
           </button>
         </motion.div>

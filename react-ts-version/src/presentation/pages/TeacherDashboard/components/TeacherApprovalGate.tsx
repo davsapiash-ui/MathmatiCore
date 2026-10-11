@@ -40,13 +40,14 @@ export function TeacherApprovalGate({
   const [isBatchApproving, setIsBatchApproving] = useState(false);
   const readOnly = useIsReadOnlyStaff();
 
-  // The recommendation knows the graded mark (graded_path or graded_foundation_path for a marked learner).
-  // A marked learner with no recommendation yet stays on the graded path; anyone else with none waits for
-  // the teacher's own choice on the row (Module 20: never a default colour).
-  // The recommendation is read with the learner's CURRENT mark (gateEvidence → recommendedPathOf), so a mark
-  // toggled after meeting 2 moves it into the new pair; a path outside the pair is never approved.
+  // Approve-all approves only the button marked "מומלץ" (owner, 11.10.2026). The recommendation knows the
+  // graded mark (graded_path or graded_foundation_path for a marked learner). A learner with no
+  // recommendation — graded mark or not — waits for the teacher's own choice on the row (Module 20: never a
+  // default colour). The recommendation is read with the learner's CURRENT mark (gateEvidence →
+  // recommendedPathOf), so a mark toggled after meeting 2 moves it into the new pair; a path outside the
+  // pair is never approved.
   const effectivePath = (s: GateStudentItem): PedagogicalPath | null => {
-    const path = s.recommendedPath ?? (s.gradedTrack ? 'graded_path' : null);
+    const path = s.recommendedPath;
     return path && routePairFor(s.gradedTrack === true).includes(path) ? path : null;
   };
 

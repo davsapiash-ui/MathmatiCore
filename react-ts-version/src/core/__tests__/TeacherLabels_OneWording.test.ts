@@ -128,8 +128,9 @@ describe('the names, one wording', () => {
     expect(cm).toContain('const PATHS = routePairFor(row.gradedTrack);');
     const drawer = code('presentation/pages/TeacherDashboard/components/TeacherGateApprovalDrawer.tsx');
     expect(drawer).toContain('{TEACHER_GATE_HE}');
-    expect(drawer).toContain('{ROUTE_NAME_HE[path]}');
-    expect(drawer).toContain('ROUTE_APPROVE_HE[selectedPath]');
+    // The drawer's two buttons are the row's (owner, 11.10.2026): the approve label, the recommended one marked.
+    expect(drawer).toContain("{approvingPath === path ? 'מאשר...' : ROUTE_APPROVE_HE[path]}");
+    expect(drawer).toContain('{RECOMMENDED_MARK_HE}');
     expect(code('presentation/pages/TeacherDashboard/components/TeacherApprovalGate.tsx')).toContain('{TEACHER_GATE_HE}');
   });
 });
@@ -161,10 +162,12 @@ describe('the teacher is addressed in the plural', () => {
     expect(hits(texts(), SINGULAR)).toEqual([]);
   });
 
-  it('the questions the teacher may ask a learner are plural too', () => {
+  it('the tile detail carries no pre-written questions for the teacher to ask (owner, 11.10.2026; PRD Module 18)', () => {
+    // The "💡" card of guiding questions was the agent's, not the PRD's: the detail shows the classification distribution only.
     const heat = code('presentation/pages/TeacherDashboard/components/HeatmapGrid.tsx');
-    expect(heat).toContain('איזה צעד ראשון שקלתם לבצע? מה גורם לכם להתלבט בטור הפעיל?');
-    expect(heat).toContain('האם תרצו שנבדוק יחד דוגמה פשוטה יותר במספרים קטנים?');
-    expect(heat).toContain('איך תוכלו להסביר את תהליך הפתרון לחבר בכיתה?');
+    expect(heat).not.toContain('getPedagogicalRecommendations');
+    expect(heat).not.toContain('💡');
+    expect(heat).not.toContain('איזה צעד ראשון שקלתם לבצע?');
+    expect(heat).not.toContain('ושאלות מנחות');
   });
 });

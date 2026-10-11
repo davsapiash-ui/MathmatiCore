@@ -73,7 +73,8 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStar
                   המפגש הפעיל כעת, {meetingShortLabelHe(currentlyActive.sessionNumber)}, ייסגר, וכל הלומדים יעברו מיד ל{meetingShortLabelHe(sessionNumber)}.
                 </li>
               )}
-              <li>המפגש יישאר פעיל עד שתפתחו מפגש אחר.</li>
+              {/* PRD 14 §ב0: open until the teacher stops it, closes it or opens another — at most 45 minutes. */}
+              <li>המפגש יישאר פעיל עד שתעצרו אותו, תסגרו אותו או תפתחו מפגש אחר, ולכל היותר 45 דקות מההפעלה.</li>
               {isReopen && (
                 <li className="text-violet-700 dark:text-violet-400">
                   מפגש זה כבר הושלם. חזרה אליו אפשרית ומותרת, ואינה מוחקת נתונים קיימים.

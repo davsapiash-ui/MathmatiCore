@@ -22,7 +22,7 @@ export const CHOICE_PATH_LABEL_HE: Record<Exclude<ExercisePathType, 'compulsory'
 
 /** אותה כותרת כמו בדוחות ה-PDF (functions/src/reportHtml.ts). */
 export const CHOICE_EXERCISES_HEADING_HE =
-  'תרגילי בחירה (אחרי תרגילי החובה) — בנפרד מתרגילי החובה, ואינם נכללים בציון השליטה';
+  'תרגילי בחירה (אחרי תרגילי החובה) — בנפרד מתרגילי החובה, ואינם נכללים בציון ניסיון ראשון (מדד 1)';
 
 const CHOICE_TASKS: ReadonlyMap<string, SessionTask> = new Map(
   Object.values(SESSION_BRANCH_TASKS).flatMap((byPath) =>

@@ -50,7 +50,9 @@ describe('the radar', () => {
   });
   it('the colour map rows fit one line; the full sentence is the tooltip', () => {
     const items = radarLegendItems(45);
-    expect(items.map((i) => i.short)).toEqual(['עובד', 'היסוס: 45 שנ׳ בלי פעולה', 'כרטיס החניכה פתוח', 'קרא למורה', 'לא מחובר / לא התחיל']);
+    // The names of the tile's tags (PRD Module 18 §ב), one name per state (owner, 11.10.2026); the seconds stay in the tooltip.
+    expect(items.map((i) => i.short)).toEqual(['פעיל', 'היסוס', 'כרטיס החניכה פתוח', 'קריאה לעזרה', 'מנותק / טרם התחיל']);
+    expect(items.find((i) => i.color === 'YELLOW')!.meaning).toBe('היסוס: 45 שניות בלי פעולה');
   });
   it('the normal tile is quiet: no chip, no bar, no shadow; the bar only on blue/red/yellow; a 2px muted level stripe; the help tile keeps a 2px blue ring without glow', () => {
     expect(heat).toContain("(['BLUE', 'RED', 'YELLOW'] as RadarColor[]).includes(tileColourOf(student)) && (");

@@ -80,3 +80,31 @@ export function withReadOnlyFlag(claims: RoleClaims, readOnly: boolean): RoleCla
   }
   return rest;
 }
+
+/**
+ * An authorizedTeachers document's read-only flag, typed in the console as a
+ * boolean or as the text "true" (owner, 11.10.2026: the text is easier to enter).
+ */
+export function isReadOnlyEntry(data: Record<string, unknown> | null | undefined): boolean {
+  return data?.readOnly === true || String(data?.readOnly ?? "").trim().toLowerCase() === "true";
+}
+
+/** The authorisation an authorizedTeachers document grants: admin, or else teacher. */
+export function entryRole(data: Record<string, unknown> | null | undefined): StaffRole {
+  return data?.role === "admin" ? "admin" : "teacher";
+}
+
+/**
+ * The owner's emergency addresses (environment variables, honoured only when
+ * they look like an address). Their authorisation never comes from the
+ * authorizedTeachers document, so neither does a read-only flag.
+ */
+export function envFallbackRole(normalizedEmail: string): StaffRole | null {
+  const envEmail = (name: string): string | null => {
+    const raw = (process.env[name] || "").toLowerCase().trim();
+    return raw.includes("@") ? raw : null;
+  };
+  if ([envEmail("ADMIN_SSO_PRIMARY_EMAIL"), envEmail("ADMIN_SSO_ALIAS_EMAIL")].includes(normalizedEmail)) return "admin";
+  if (envEmail("TEACHER_SSO_PRIMARY_EMAIL") === normalizedEmail) return "teacher";
+  return null;
+}

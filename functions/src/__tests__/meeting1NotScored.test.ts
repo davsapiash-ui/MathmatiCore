@@ -191,6 +191,10 @@ describe('the meeting 1 class report', () => {
       '"chat_help_requests"',
       // Catch-up time (owner, 2.10.2026), appended last.
       '"catchup_rounds"', '"catchup_minutes"', '"catchup_reason"', '"catchup_note"',
+      // PRD 23 §ב: the place-cue scaffold by profile, then the per-exercise outcomes
+      // last of all — their number changes from meeting to meeting (owner, 11.10.2026).
+      '"place_cues_regular"', '"place_cues_enhanced"',
+      ...a.exercises.map((e) => `"outcome_${e.exercise_id}"`),
     ].join(','))).toBe(true);
     // Measure 2ב renamed in place; no old column name is reused with a new meaning.
     expect(header).toContain('"self_correction_undos","self_correction_wrong_digits","self_correction_wrong_options","self_correction_percent"');

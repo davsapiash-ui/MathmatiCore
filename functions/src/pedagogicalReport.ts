@@ -45,7 +45,7 @@ import {
 } from "./meetingMetrics";
 import { GEMINI_SECRETS } from "./geminiConfig";
 import { CATCHUP_COLLECTION, catchUpDocId, catchUpSummaryHe, summarizeCatchUpRecord, type CatchUpRecord, type CatchUpSummary } from "./catchUp";
-import { AWAITING_RERUN_REASON_HE, buildPreResetRecord, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE } from "./preResetRecord";
+import { AWAITING_RERUN_REASON_HE, buildPreResetRecord, lastResetAtOf, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE, splitCatchUpAtReset } from "./preResetRecord";
 import {
   buildFailedExercises,
   buildTelemetrySummary,
@@ -88,10 +88,15 @@ export const EXACT_AI_FALLBACK_TEXT = EXACT_AI_FALLBACK_TEXT_HE;
 export function generateExerciseNarrativeFromEvents(
   telemetryDocs: Record<string, any>[],
   // The Hebrew titles the teacher's screens show; an exercise without one keeps its id.
-  titles: Record<string, string> = {}
+  titles: Record<string, string> = {},
+  // The meeting's compulsory exercises in the bank's order, when known: an
+  // exercise of them the learner never opened gets its own line (PRD 23 §ב:
+  // the chapter covers "כל אחד משבעת תרגילי החובה").
+  compulsoryIds: readonly string[] | null = null
 ): ExerciseNarratives {
   const narratives: string[] = [];
   const choiceNarratives: string[] = [];
+  const compulsoryEntries: Array<{ exId: string; body: string | null }> = [];
   const exerciseMap: Record<string, any[]> = {};
 
   // Group events chronologically by exercise_id
@@ -118,7 +123,9 @@ export function generateExerciseNarrativeFromEvents(
     // than a fixed sentence with counters plugged into it.
     const clauses: string[] = [];
     let representedColumns: number[] = [];
-    let pendingDigits: { col: number | null; wrong: number }[] = [];
+    // `circle`: typed in a memory circle (input_target "carry_circle"), else in a
+    // row of the exercise; `value`: the digit typed (digit_value), when recorded.
+    let pendingDigits: PendingDigit[] = [];
     let firstAttemptCorrect = true;
     let completed = false;
 
@@ -131,22 +138,65 @@ export function generateExerciseNarrativeFromEvents(
       Array.from(new Set(digits.map((d) => colName(d.col)).filter(Boolean))) as string[];
     const inColumns = (cols: string[]) => (cols.length > 0 ? ` בטור ה${cols.join(" ובטור ה")}` : "");
 
-    const flushDigits = () => {
-      if (pendingDigits.length === 0) return;
-      const wrong = pendingDigits.filter((d) => d.wrong > 0);
+    // PRD 23 §ב: "הזנת ספרות בעיגולי הזיכרון ובשורת התוצאה", with the digits
+    // typed. "בעיגול הזיכרון של טור העשרות" / "בעיגולי הזיכרון של טור העשרות ושל טור המאות".
+    const inCircles = (cols: string[]) =>
+      cols.length === 0
+        ? "בעיגול הזיכרון"
+        : `${cols.length === 1 ? "בעיגול" : "בעיגולי"} הזיכרון של טור ה${cols.join(" ושל טור ה")}`;
+    const digitsHe = (values: number[]) =>
+      values.length === 1 ? `הספרה ${values[0]}` : `הספרות ${values.slice(0, -1).join(", ")} ו-${values[values.length - 1]}`;
+    // "הספרה 5 בטור היחידות" / "הספרות 5 בטור היחידות ו-7 בטור העשרות".
+    const digitsInColumnsHe = (run: PendingDigit[]) => {
+      const parts = run.map((d) => `${d.value}${colName(d.col) ? ` בטור ה${colName(d.col)}` : ""}`);
+      return parts.length === 1 ? `הספרה ${parts[0]}` : `הספרות ${parts.slice(0, -1).join(", ")} ו-${parts[parts.length - 1]}`;
+    };
+    const timesHe = (n: number) => (n === 1 ? "פעם אחת" : n === 2 ? "פעמיים" : `${n} פעמים`);
+
+    const flushRun = (run: PendingDigit[]) => {
+      const circle = run[0].circle;
+      const place = circle ? null : "בשורת התוצאה";
+      const wrong = run.filter((d) => d.wrong > 0);
       // Wrong digits name only the columns they were typed in: one wrong digit
       // in a run over four columns used to read as a mistake in all four. A
       // run with no wrong digit names every column it covered.
-      const where = inColumns(columnsOf(wrong.length > 0 ? wrong : pendingDigits));
-      if (wrong.length === 1) {
-        clauses.push(`הזין ספרה שגויה${where} (פעם אחת)`);
-      } else if (wrong.length === 2) {
-        clauses.push(`הזין ספרות שגויות${where} (פעמיים)`);
-      } else if (wrong.length > 2) {
-        clauses.push(`הזין ספרות שגויות${where} (${wrong.length} פעמים)`);
-      } else {
-        clauses.push(`הזין את הספרות${where}`);
+      if (wrong.length > 0) {
+        const cols = columnsOf(wrong);
+        const values = wrong.map((d) => d.value).filter((v): v is number => v !== null);
+        const what = wrong.length === 1 ? "ספרה שגויה" : "ספרות שגויות";
+        const count = `${timesHe(wrong.length)}${values.length === wrong.length ? `, ${digitsHe(values)}` : ""}`;
+        clauses.push(circle ? `הזין ${inCircles(cols)} ${what} (${count})` : `הזין ${place} ${what}${inColumns(cols)} (${count})`);
+        return;
       }
+      if (run.every((d) => d.value !== null)) {
+        if (circle) {
+          const cols = columnsOf(run);
+          clauses.push(cols.length <= 1
+            ? `הזין ${inCircles(cols)} את ${digitsHe(run.map((d) => d.value as number))}`
+            : `הזין בעיגולי הזיכרון את ${digitsInColumnsHe(run)}`);
+        } else {
+          clauses.push(`הזין ${place} את ${digitsInColumnsHe(run)}`);
+        }
+        return;
+      }
+      // A digit stored without its value (older events): the columns only.
+      clauses.push(circle
+        ? `הזין ${run.length === 1 ? "ספרה" : "ספרות"} ${inCircles(columnsOf(run))}`
+        : `הזין ${place} את הספרות${inColumns(columnsOf(run))}`);
+    };
+
+    const flushDigits = () => {
+      if (pendingDigits.length === 0) return;
+      // The memory circles and the rows of the exercise apart, in the order typed.
+      let run: PendingDigit[] = [];
+      for (const d of pendingDigits) {
+        if (run.length > 0 && run[0].circle !== d.circle) {
+          flushRun(run);
+          run = [];
+        }
+        run.push(d);
+      }
+      if (run.length > 0) flushRun(run);
       pendingDigits = [];
     };
 
@@ -176,13 +226,23 @@ export function generateExerciseNarrativeFromEvents(
         case "DIGIT_ENTERED": {
           const isCorrect = ev.details?.is_correct;
           if (isCorrect === false) firstAttemptCorrect = false;
-          pendingDigits.push({ col, wrong: isCorrect === false ? 1 : 0 });
+          const typed = ev.details?.digit_value;
+          pendingDigits.push({
+            col,
+            wrong: isCorrect === false ? 1 : 0,
+            circle: ev.details?.input_target === "carry_circle",
+            value: typeof typed === "number" && Number.isInteger(typed) && typed >= 0 && typed <= 9 ? typed : null,
+          });
           break;
         }
         case "DIGIT_DELETED": {
           flushDigits();
           const where = colName(col);
-          clauses.push(where ? `מחק את הספרה בטור ה${where}` : "מחק ספרה");
+          if (ev.details?.input_target === "carry_circle") {
+            clauses.push(where ? `מחק את הספרה מעיגול הזיכרון של טור ה${where}` : "מחק ספרה מעיגול הזיכרון");
+          } else {
+            clauses.push(where ? `מחק את הספרה בטור ה${where}` : "מחק ספרה");
+          }
           break;
         }
         case "UNDO_EXECUTED": {
@@ -238,8 +298,26 @@ export function generateExerciseNarrativeFromEvents(
       choiceNarratives.push(`${CHOICE_PATH_LABEL_HE[pathType]} (${exerciseLabelHe(titles, exId)}): הלומד ${body}${ending}.`);
       continue;
     }
+    compulsoryEntries.push({ exId, body: `הלומד ${body}${ending}` });
+  }
+
+  // A compulsory exercise the learner never opened says so, in its place in
+  // the meeting — only when the bank is the one this learner worked in (at
+  // least one of its exercises was opened); another track's bank would list
+  // seven exercises this learner was never given.
+  const bank = (compulsoryIds ?? []).filter((id) => Boolean(id) && exercisePathType(id) === "compulsory" && isExerciseEvent({ exercise_id: id }));
+  const opened = new Set(compulsoryEntries.map((e) => e.exId));
+  if (bank.some((id) => opened.has(id))) {
+    const position = new Map(bank.map((id, i) => [id, i] as const));
+    const at = (id: string) => position.get(id) ?? bank.length;
+    compulsoryEntries.push(...bank.filter((id) => !opened.has(id)).map((id) => ({ exId: id, body: null })));
+    // Stable: exercises outside the bank keep the order the learner met them, after it.
+    compulsoryEntries.sort((a, b) => at(a.exId) - at(b.exId));
+  }
+  for (const entry of compulsoryEntries) {
     const ordinal = ORDINALS_HE[exerciseIdx - 1] || `ה-${exerciseIdx}`;
-    narratives.push(`בתרגיל ${ordinal} (${exerciseLabelHe(titles, exId)}) הלומד ${body}${ending}.`);
+    const label = exerciseLabelHe(titles, entry.exId);
+    narratives.push(entry.body === null ? `התרגיל ${ordinal} (${label}) לא נפתח.` : `בתרגיל ${ordinal} (${label}) ${entry.body}.`);
     exerciseIdx++;
   }
 
@@ -261,6 +339,16 @@ export function reportCatchUpOf(record: Partial<CatchUpRecord> | null | undefine
 }
 
 /** The narrative, split: the compulsory exercises, and the choice exercises marked and apart. */
+/** One digit typed, as the narrative tells it (generateExerciseNarrativeFromEvents). */
+interface PendingDigit {
+  col: number | null;
+  wrong: number;
+  /** Typed in a memory circle (details.input_target "carry_circle"), else in a row of the exercise. */
+  circle: boolean;
+  /** details.digit_value, 0–9; null when it was not recorded. */
+  value: number | null;
+}
+
 export interface ExerciseNarratives {
   compulsory: string[];
   choice: string[];
@@ -388,7 +476,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
 
       // Chronological Exercise Narratives
       doc.fontSize(14).fillColor("#1e293b");
-      rtlText(doc, `${sandbox ? "3" : "2"}. סיפור התרגילים הכרונולוגי`);
+      rtlText(doc, `${sandbox ? "3" : "2"}. סיפור התרגילים`);
       doc.moveDown(0.4);
       if (report.exercise_narratives && Array.isArray(report.exercise_narratives)) {
         for (const narrative of report.exercise_narratives) {
@@ -433,7 +521,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
 
       // AI Insights (Module 23 layer 2) / Exact Fallback
       doc.fontSize(14).fillColor("#92400e");
-      rtlText(doc, sandbox ? "4. לקראת האבחון" : "3. תובנות קוגניטיביות פדגוגיות");
+      rtlText(doc, sandbox ? "4. לקראת האבחון" : "3. פערי הידע והמלצות ההוראה");
       doc.moveDown(0.3);
       const gaps: string[] = Array.isArray(report.knowledge_gaps) ? report.knowledge_gaps : [];
       const teaching: string[] = Array.isArray(report.teaching_recommendations)
@@ -443,7 +531,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
       if (gaps.length > 0 || teaching.length > 0) {
         if (gaps.length > 0) {
           doc.fontSize(11).fillColor("#92400e");
-          rtlText(doc, sandbox ? "נקודות לתשומת לב לקראת האבחון:" : "פערי ידע שאותרו:");
+          rtlText(doc, sandbox ? "נקודות לתשומת לב לקראת האבחון:" : "פערי הידע שאותרו:");
           doc.moveDown(0.2);
           for (const gap of gaps) {
             doc.fontSize(10).fillColor("#78350f");
@@ -493,7 +581,7 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
 
       // Footer
       const genTime = report.generated_at ? new Date(report.generated_at) : new Date();
-      const footerText = `נוצר אוטומטית בתאריך ${genTime.toLocaleDateString("he-IL")} | מנוע MathematiCore v7.0`;
+      const footerText = `נוצר אוטומטית בתאריך ${genTime.toLocaleDateString("he-IL")}`;
       doc.fontSize(8).fillColor("#94a3b8");
       rtlText(doc, footerText, 40, Math.max(doc.y + 10, 780), { width: 515, align: "center" });
 
@@ -711,7 +799,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   const scoredMeeting = isScoredMeeting(resolvedSessionNumber);
 
   let sessionData: Record<string, any>;
-  let scoreSource: "session_document" | "telemetry_first_attempt" | "q_matrix" | "not_scored";
+  let scoreSource: "session_document" | "telemetry_first_attempt" | "not_scored";
   if (!scoredMeeting) {
     if (telemetryDocs.length === 0) {
       throw new HttpsError("not-found", `אין פעולות מתועדות למפגש ${resolvedSessionNumber} של תלמיד ${clampedStudentNum}; אין מה לנתח.`);
@@ -769,27 +857,10 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       first_attempt: first,
     };
     scoreSource = "telemetry_first_attempt";
-  } else if (resolvedSessionNumber === 2 && studentVal.qMatrixResults) {
-    // Diagnostic meeting with no telemetry reachable: the per-task Q-matrix
-    // results synced to RTDB carry the same first-attempt verdicts.
-    const qResults = studentVal.qMatrixResults || {};
-    const compulsoryKeys = [
-      "task1_read_write_zero", "task2_digit_value", "task3_subtraction_regrouping",
-      "task4_decompose_number", "task5_units_to_tens", "task6_vertical_addition",
-      "task7_subtraction_zero_tens",
-    ];
-    const correctCount = compulsoryKeys.filter((k) => qResults[k] === "success").length;
-    const computedScore = Math.round((correctCount / compulsoryKeys.length) * 100);
-    sessionData = {
-      session_number: 2,
-      is_completed: true,
-      session_score_percent: computedScore,
-      matrix_recommended_path: recommendedPathFor(computedScore, isGradedTrack(studentVal)),
-      teacher_selected_path: studentVal.teacher_selected_path || null,
-      teacher_gate_approved: Boolean(studentVal.teacher_gate_approved),
-    };
-    scoreSource = "q_matrix";
   } else {
+    // No telemetry and no stored score: nothing to analyse. There used to be a
+    // fallback that scored meeting 2 from the learner record's qMatrixResults —
+    // a second score formula beside PRD 23's, removed by the owner's decision.
     throw new HttpsError("not-found", `אין פעולות מתועדות למפגש ${resolvedSessionNumber} של תלמיד ${clampedStudentNum}; אין מה לנתח.`);
   }
 
@@ -926,7 +997,14 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       .map((t) => [t.id as string, t.titleHe as string])
   );
   const exerciseTitles: Record<string, string> | null = scoredMeeting ? null : titlesById;
-  const narrativesByPath = generateExerciseNarrativeFromEvents(telemetryDocs, titlesById);
+  // The compulsory exercises of the bank, in its order (as resolveCompulsoryTotal reads them):
+  // an exercise of them the learner never opened is told too. Meeting 1 has none (Module 14 §ב).
+  const compulsoryIdsInOrder: string[] | null = scoredMeeting
+    ? catalogTasks
+      .filter((t) => t && typeof t.id === "string" && t.isOptionalChoiceTask !== true)
+      .map((t) => t.id as string)
+    : null;
+  const narrativesByPath = generateExerciseNarrativeFromEvents(telemetryDocs, titlesById, compulsoryIdsInOrder);
   const exerciseNarratives = narrativesByPath.compulsory;
   const choiceExerciseNarratives = narrativesByPath.choice;
 
@@ -938,8 +1016,6 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     ...telemetryDocs,
     ...otherMeetings.flatMap((n) => learnerRuns.get(n)?.current ?? []),
   ];
-  // "לפני האיפוס": where the learner went wrong before this meeting's last reset. Never scored.
-  const preReset = meetingRuns ? buildPreResetRecord(meetingRuns, titlesById) : null;
   const researchMeasures = {
     // Measure 2ב, self-correction; the key keeps its old name (owner, 30.9.2026).
     persistence: computeSelfCorrectionIndex(telemetryDocs),
@@ -955,13 +1031,23 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // נוסף \ זמן נוסף וזה יתועד מה הסיבה לכך"): the extra minutes this learner got
   // in this meeting and the reasons the teacher recorded. Best-effort: a record
   // that cannot be read leaves the line out and never fails the report.
+  // PRD 23 §ב: the rounds recorded before the meeting's last reset belong to
+  // "לפני האיפוס"; the card shows only the rounds since (splitCatchUpAtReset).
   let catchUp: ReportCatchUp | null = null;
+  let catchUpBeforeReset: Partial<CatchUpRecord> | null = null;
   try {
     const catchUpSnap = await db.collection(CATCHUP_COLLECTION).doc(catchUpDocId(resolvedSessionNumber, clampedStudentNum)).get();
-    catchUp = catchUpSnap.exists ? reportCatchUpOf(catchUpSnap.data() as Partial<CatchUpRecord>) : null;
+    if (catchUpSnap.exists) {
+      const split = splitCatchUpAtReset(catchUpSnap.data() as Partial<CatchUpRecord>, lastResetAtOf(meetingRuns));
+      catchUp = reportCatchUpOf(split.after);
+      catchUpBeforeReset = split.before;
+    }
   } catch (err) {
     logger.warn("[Module23] catch-up record unavailable for the report.", { session_id: sessionId, error: String(err) });
   }
+  // "לפני האיפוס": where the learner went wrong before this meeting's last reset,
+  // and the catch-up time recorded before it. Never scored.
+  const preReset = meetingRuns ? buildPreResetRecord(meetingRuns, titlesById, catchUpBeforeReset) : null;
 
   // PRD 14 §ב0: the session document keeps the score before the latest
   // completion (sessionTrigger.ts). Only beside a score of that same document.

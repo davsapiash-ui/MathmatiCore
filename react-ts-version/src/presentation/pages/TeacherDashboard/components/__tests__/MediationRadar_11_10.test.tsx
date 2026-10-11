@@ -94,7 +94,10 @@ describe('the radar legend', () => {
       'קרא למורה',
       'לא מחובר או לא התחיל את המפגש',
     ]) expect(titles).toContain(meaning);
-    for (const short of ['קרא למורה', 'כרטיס החניכה פתוח', 'לא מחובר / לא התחיל', 'היסוס: 45 שנ׳ בלי פעולה', 'עובד']) expect(text).toContain(short);
+    // The rows say the names of the tile's tags (PRD Module 18 §ב), the same as the hover card's first line.
+    for (const short of ['קריאה לעזרה', 'כרטיס החניכה פתוח', 'מנותק / טרם התחיל', 'היסוס', 'פעיל']) expect(text).toContain(short);
+    expect(text).not.toContain('קרא למורה');
+    expect(text).not.toContain('עובד');
     expect(screen.getByTestId('radar-legend-label-GREEN').className).toContain('whitespace-nowrap');
     for (const letter of ['טעות בהבנת ערך המקום', 'טעות חישוב', 'טעות בשלבי הפתרון']) expect(text).toContain(letter);
     expect(RADAR_LEGEND_LETTERS.map((l) => l.glyph)).toEqual(['מ', 'ח', 'ר']);

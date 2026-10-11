@@ -524,7 +524,10 @@ describe('live coaching card (SocraticEngine.analyzeLiveBoardState), meetings 3â
     const t2 = task(3, 'remediation_path', 's3_r_t2'); // 2 hundreds, 14 tens
     expect(isGroupCard(card(t2, { hundreds: 2, tens: 14 }))).toBe(false);
     const t1 = task(3, 'remediation_path', 's3_r_t1'); // 3 hundreds, 4 tens
-    expect(isGroupCard(card(t1, { hundreds: 3, tens: 14 }))).toBe(true);
+    // Worth less than 340 (330): blocks are short, the "10 or more" card speaks.
+    expect(isGroupCard(card(t1, { hundreds: 2, tens: 13 }))).toBe(true);
+    // Worth more than 340 (440): blocks too many â€” the stray-blocks card, not grouping (11.10.2026).
+    expect(isGroupCard(card(t1, { hundreds: 3, tens: 14 }))).toBe(false);
   });
 });
 
@@ -637,7 +640,6 @@ function payloadBeforeToday() {
   const currentTask = getActiveTasks(state)[state.standardTaskIdx] || null;
   return {
     sessionNumber: state.sessionNumber,
-    isASD: state.isASD,
     standardTaskIdx: state.standardTaskIdx,
     selectedBranch: state.selectedBranch ?? null,
     qflow: state.qflow,

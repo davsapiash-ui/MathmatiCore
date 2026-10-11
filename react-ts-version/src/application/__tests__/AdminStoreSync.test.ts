@@ -35,7 +35,7 @@ describe('Admin Store State Synchronization & Creation/Deletion', () => {
     });
   });
 
-  it('adds and deletes the pilot school optimistically with state sync (Module 25 §ב.1 fixes its id and name)', () => {
+  it('adds the pilot school optimistically with state sync (Module 25 §ב.1 fixes its id and name)', () => {
     const store = useAdminStore.getState();
     expect(store.schools).toHaveLength(0);
 
@@ -44,9 +44,12 @@ describe('Admin Store State Synchronization & Creation/Deletion', () => {
     expect(updatedState.schools).toHaveLength(1);
     expect(updatedState.schools[0].id).toBe(PILOT_SCHOOL_ID);
     expect(updatedState.schools[0].name).toBe(PILOT_SCHOOL_NAME);
+  });
 
-    useAdminStore.getState().deleteSchool(PILOT_SCHOOL_ID);
-    expect(useAdminStore.getState().schools).toHaveLength(0);
+  it('has no school or class deletion (owner, 11.10.2026): staff are never removed by deleting a school', () => {
+    const state = useAdminStore.getState() as unknown as Record<string, unknown>;
+    expect(state.deleteSchool).toBeUndefined();
+    expect(state.deleteClassRoom).toBeUndefined();
   });
 
   it('adds and deletes teachers optimistically with state sync', () => {
@@ -62,7 +65,7 @@ describe('Admin Store State Synchronization & Creation/Deletion', () => {
     expect(useAdminStore.getState().teachers).toHaveLength(0);
   });
 
-  it('adds and deletes the pilot class optimistically with state sync', async () => {
+  it('adds the pilot class optimistically with state sync', async () => {
     useAdminStore.getState().addSchool('ignored');
     const schoolId = useAdminStore.getState().schools[0].id;
 
@@ -75,27 +78,18 @@ describe('Admin Store State Synchronization & Creation/Deletion', () => {
     expect(stateWithClass.classes[0].id).toBe(PILOT_CLASS_ID);
     expect(stateWithClass.classes[0].name).toBe(PILOT_CLASS_NAME);
     expect(stateWithClass.classes[0].studentLimit).toBe(12);
-
-    useAdminStore.getState().deleteClassRoom(PILOT_CLASS_ID);
-    expect(useAdminStore.getState().classes).toHaveLength(0);
   });
 
-  it('cascades school deletion to associated teachers and classes', async () => {
-    useAdminStore.getState().addSchool('ignored');
-    const schoolId = useAdminStore.getState().schools[0].id;
-
-    useAdminStore.getState().addTeacher(schoolId, '987654321');
-    await useAdminStore.getState().addClassRoom(schoolId, '987654321', 'ignored');
-
-    expect(useAdminStore.getState().schools).toHaveLength(1);
-    expect(useAdminStore.getState().teachers).toHaveLength(1);
-    expect(useAdminStore.getState().classes).toHaveLength(1);
-
-    useAdminStore.getState().deleteSchool(schoolId);
-
-    expect(useAdminStore.getState().schools).toHaveLength(0);
-    expect(useAdminStore.getState().teachers).toHaveLength(0);
-    expect(useAdminStore.getState().classes).toHaveLength(0);
+  it('refuses to remove an admin entry or a read-only entry (owner, 11.10.2026)', async () => {
+    useAdminStore.setState({
+      teachers: [
+        { id: 'owner_example_org', schoolId: PILOT_SCHOOL_ID, ssoEmail: 'owner@example.org', licenseActive: false, createdAt: 1, role: 'admin' },
+        { id: 'lecturer_example_org', schoolId: PILOT_SCHOOL_ID, ssoEmail: 'lecturer@example.org', licenseActive: false, createdAt: 1, role: 'teacher', readOnly: true },
+      ],
+    });
+    await expect(useAdminStore.getState().deleteTeacher('owner_example_org')).rejects.toThrow('staff/protected-entry');
+    await expect(useAdminStore.getState().deleteTeacher('lecturer_example_org')).rejects.toThrow('staff/protected-entry');
+    expect(useAdminStore.getState().teachers).toHaveLength(2);
   });
 
   it('updates global student limit synchronously', () => {

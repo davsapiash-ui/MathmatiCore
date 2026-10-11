@@ -534,7 +534,6 @@ export function guideSpeechHe(heading: string, guide: TaskGuide, labels: string[
 
 export interface GuideTickState {
   sessionNumber: number;
-  isASD: boolean;
   counts: PlaceCounts;
   answerDigits: Partial<Record<Place, string>>;
   operandDigits: { a: Partial<Record<Place, string>>; b: Partial<Record<Place, string>> };
@@ -557,7 +556,7 @@ export function answerFilled(task: SessionTask, s: GuideTickState): boolean {
     return ORDER.slice(0, String(value).length).every((p) => (s.answerDigits[p] ?? '') !== '');
   }
   if (task.type === 'vertical_addition' || task.type === 'addition_simple') {
-    const { a, b, target } = effectiveArithmetic(task, s.isASD);
+    const { a, b, target } = effectiveArithmetic(task);
     if (task.hiddenDigits) return hiddenDigitsStatus(s, task, a, b).complete;
     if (task.revealedResultDigits?.length) {
       const missing = ORDER.slice(0, String(target).length).filter((p) => !task.revealedResultDigits!.includes(p));

@@ -49,7 +49,7 @@ vi.mock('firebase-admin', async (importOriginal) => {
   return { ...actual, default: { ...actual, firestore, database }, firestore, database };
 });
 
-import { approveTeacherGate, gateLearnerNumber } from '../teacherGate';
+import { approveTeacherGate, gateLearnerNumber, gatePairFor } from '../teacherGate';
 
 const TEACHER = { role: 'teacher', teacher: true, class_id: 'class_1' };
 const call = (data: unknown, token: Record<string, unknown> | null, uid = 'teacher_uid') =>
@@ -87,8 +87,9 @@ describe('approveTeacherGate — who may call it', () => {
     expect(h.rtdbUpdates).toEqual([]);
   });
 
-  it('accepts the graded path, the teacher\'s choice (owner, 11.10.2026); the recommendation stays as computed', async () => {
+  it('accepts the graded path for a learner marked graded (owner, 11.10.2026); the recommendation stays as computed', async () => {
     completedDoc(5);
+    h.rtdb['users/students/student_user5/graded_track'] = true;
     const res = await call({ studentId: 'student_user5', path: 'graded_path' }, TEACHER);
     expect(res).toEqual({ ok: true, studentId: 5, path: 'graded_path' });
     expect(h.docs['sessions/session_02_student_5']).toMatchObject({
@@ -104,6 +105,43 @@ describe('approveTeacherGate — who may call it', () => {
     expect(gateLearnerNumber('student_user12')).toBe(12);
     expect(gateLearnerNumber('student_3')).toBe(3);
     expect(gateLearnerNumber(0)).toBeNull();
+  });
+});
+
+describe('approveTeacherGate — only the learner\'s own pair (PRD Module 20, owner 11.10.2026)', () => {
+  it('the pairs: regular green / remediation, graded graded / foundations', () => {
+    expect(gatePairFor(false)).toEqual(['green_path', 'remediation_path']);
+    expect(gatePairFor(true)).toEqual(['graded_path', 'graded_foundation_path']);
+  });
+
+  it('an unmarked learner: a graded level is refused, and nothing is written', async () => {
+    completedDoc(5);
+    for (const path of ['graded_path', 'graded_foundation_path']) {
+      await expect(call({ studentId: 'student_user5', path }, TEACHER))
+        .rejects.toMatchObject({ code: 'invalid-argument', details: { reason: 'not_in_pair' } });
+    }
+    expect(h.docs['sessions/session_02_student_5'].teacher_gate_approved).toBe(false);
+    expect(h.rtdbUpdates).toEqual([]);
+  });
+
+  it('a learner marked graded: the regular levels are refused, the graded foundations accepted', async () => {
+    completedDoc(6);
+    h.rtdb['users/students/student_user6/graded_track'] = true;
+    for (const path of ['green_path', 'remediation_path']) {
+      await expect(call({ studentId: 6, path }, TEACHER))
+        .rejects.toMatchObject({ code: 'invalid-argument', details: { reason: 'not_in_pair' } });
+    }
+    expect(h.rtdbUpdates).toEqual([]);
+    await expect(call({ studentId: 6, path: 'graded_foundation_path' }, TEACHER)).resolves.toMatchObject({ ok: true, path: 'graded_foundation_path' });
+  });
+
+  it('after approval, the other level of the same pair is still allowed; the other pair is not', async () => {
+    completedDoc(7, { teacher_gate_approved: true, teacher_selected_path: 'graded_path' });
+    h.rtdb['users/students/student_user7/graded_track'] = true;
+    await call({ studentId: 7, path: 'graded_foundation_path' }, TEACHER);
+    expect(h.docs['sessions/session_02_student_7'].teacher_selected_path).toBe('graded_foundation_path');
+    await expect(call({ studentId: 7, path: 'green_path' }, TEACHER)).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(h.docs['sessions/session_02_student_7'].teacher_selected_path).toBe('graded_foundation_path');
   });
 });
 

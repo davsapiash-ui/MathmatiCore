@@ -61,7 +61,8 @@ import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogSe
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
-import { STATIC_CARD_KINDS, cardFamilyOf, cardVariantKey, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
+import { STATIC_CARD_KINDS, applyCardVariant, buildFirstCard, cardFamilyOf, cardVariantKey, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
+import { STATION1_DEMO_TASK_ID } from '@/application/teacherDemoTasks';
 import { serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { normalizeStudentId } from '@/application/useChatStore';
@@ -179,7 +180,7 @@ const freshMeetingPersistence = (sessionNumber: number): MeetingPersistenceTally
 });
 
 /** A saved tally, if it is a tally of this meeting; otherwise a fresh one. */
-function restoredMeetingPersistence(saved: unknown, sessionNumber: number): MeetingPersistenceTally {
+export function restoredMeetingPersistence(saved: unknown, sessionNumber: number): MeetingPersistenceTally {
   const s = saved as Partial<MeetingPersistenceTally> | null | undefined;
   if (!s || Number(s.sessionNumber) !== sessionNumber) return freshMeetingPersistence(sessionNumber);
   const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
@@ -416,7 +417,6 @@ export interface WorkspaceState {
 
   // session / flow
   sessionNumber: SessionNumber;
-  isASD: boolean;
   standardTaskIdx: number;
   qflow: QMatrixFlowState;
   flowStatus: FlowStatus;
@@ -689,7 +689,12 @@ export interface WorkspaceState {
   toggleAdditionHelper: () => void;
   injectTask: (task: SessionTask, position: 'next' | 'end') => void;
   startSession: (meeting: number) => void;
-  initSession: (meeting: SessionNumber, isASD: boolean, startingTaskIdx?: number, existingDeadline?: number | null) => void;
+  /**
+   * The second argument was the per-learner quiet mode, removed (owner,
+   * 11.10.2026). It is ignored, and stays only so every caller's position for
+   * startingTaskIdx and existingDeadline is unchanged.
+   */
+  initSession: (meeting: SessionNumber, _unused?: boolean, startingTaskIdx?: number, existingDeadline?: number | null) => void;
   /**
    * The teacher's demonstration screen (Module 15 §ג): an empty board, no
    * typed input and no undo history, in the station's number range — and demo
@@ -970,10 +975,10 @@ type ColumnStatus = 'wrong' | 'empty' | 'ok';
  * digit: empty or 0 is right there.
  */
 function verticalColumnStatus(
-  s: Pick<WorkspaceState, 'sessionNumber' | 'isASD' | 'answerDigits' | 'operandDigits'>,
+  s: Pick<WorkspaceState, 'sessionNumber' | 'answerDigits' | 'operandDigits'>,
   task: SessionTask
 ): Array<{ place: Place; status: ColumnStatus }> {
-  const { a, b, target } = effectiveArithmetic(task, s.isASD);
+  const { a, b, target } = effectiveArithmetic(task);
   const typed = effectiveAnswerDigits(s, task, target);
   const resultPlaces = PLACE_ORDER.slice(0, resultBoxCount(s.sessionNumber, a, b, target));
   return PLACE_ORDER.map((place) => {
@@ -1009,9 +1014,9 @@ function verticalColumnStatus(
  * not the result's digit. Null when the board passes, and in meeting 8 (no
  * blocks on the screen).
  */
-function verticalBoardPlace(s: Pick<WorkspaceState, 'sessionNumber' | 'isASD' | 'counts'>, task: SessionTask): Place | null {
+function verticalBoardPlace(s: Pick<WorkspaceState, 'sessionNumber' | 'counts'>, task: SessionTask): Place | null {
   if (s.sessionNumber === 8) return null;
-  const { a, b, target } = effectiveArithmetic(task, s.isASD);
+  const { a, b, target } = effectiveArithmetic(task);
   const value = getValue(s.counts);
   const discovered = (task.hiddenDigits?.a?.length ? [a] : []).concat(task.hiddenDigits?.b?.length ? [b] : []);
   const shows = value === target || (s.sessionNumber >= 3 && s.sessionNumber <= 7 && discovered.includes(value)) ? value : target;
@@ -1040,7 +1045,7 @@ function verticalBoardPlace(s: Pick<WorkspaceState, 'sessionNumber' | 'isASD' | 
  * wrong or empty digit of the answer. Null when the exercise has no columns.
  */
 export function cardFocusPlace(
-  s: Pick<WorkspaceState, 'sessionNumber' | 'isASD' | 'focusedPlace' | 'answerDigits' | 'operandDigits' | 'counts' | 'conversionsByColumn'>,
+  s: Pick<WorkspaceState, 'sessionNumber' | 'focusedPlace' | 'answerDigits' | 'operandDigits' | 'counts' | 'conversionsByColumn'>,
   task: SessionTask | null | undefined,
   reason: SocraticTriggerReason,
   focusedMemoryCircle: Place | null = null
@@ -1088,7 +1093,7 @@ export function cardFocusPlace(
 export type StaticCardStoreState = Pick<WorkspaceState, 'placeCuesShown' | 'socraticCardKinds'> &
   Partial<Pick<WorkspaceState,
     | 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped' | 'counts'
-    | 'sessionNumber' | 'isASD' | 'socraticTriggerReason' | 'socraticCardPlace'
+    | 'sessionNumber' | 'socraticTriggerReason' | 'socraticCardPlace'
     | 'answerDigits' | 'carryDigits' | 'operandDigits' | 'boardOpen' | 'hasDeletedBlock' | 'takeAwayTrack' | 'undoStack' | 'socraticCardHistory'>>;
 
 /** Subtraction with blocks, one exercise: the board held the first number (`held`); a block left it after that (`started`). */
@@ -1236,7 +1241,7 @@ export function staticCardContextFor(
   // The conversions done per column — the same reading as the engine's
   // request (fetchSocraticHint): the blocks, or meeting 8's memory circles.
   if (typeof task.numberA === 'number' && typeof task.numberB === 'number' && s.sessionNumber !== undefined) {
-    const { a, b } = effectiveArithmetic(task, s.isASD === true);
+    const { a, b } = effectiveArithmetic(task);
     const sub = task.isSubtraction;
     out.conversionsDone = PLACE_ORDER.filter((p) => columnRequiresConversion(p, a, b, sub) &&
       conversionRecordedInColumn({
@@ -1310,7 +1315,14 @@ function commitDemoCardShown(): void {
 
 /** The static card of the demonstration board as it is now — the example card's fallback. */
 export function demoStaticCoachingCard(s: StaticCardStoreState, task: SessionTask | undefined): SocraticHintResponse {
-  return SocraticEngine.getSynchronousTaskHint(task, s.counts ?? { ...EMPTY_COUNTS }, demoCardContext(s, task));
+  const counts = s.counts ?? { ...EMPTY_COUNTS };
+  // Station 1's tools demonstration has no number (teacherDemoTasks, owner 11.10.2026). On the empty board its
+  // card — the fallback and the anchor of the example card — is the learners' "build first" card, in the
+  // wording this showing reaches, as on a learner's empty board in station 1.
+  if (task?.id === STATION1_DEMO_TASK_ID && getValue(counts) === 0) {
+    return applyCardVariant(buildFirstCard(), demoCardContext(s, task));
+  }
+  return SocraticEngine.getSynchronousTaskHint(task, counts, demoCardContext(s, task));
 }
 
 function withCardKind(
@@ -1384,7 +1396,7 @@ function restoredCardHistory(raw: unknown): WorkspaceState['socraticCardHistory'
   return { taskId: typeof r.taskId === 'string' ? r.taskId : null, cards };
 }
 
-function resetTaskInteraction(_isASD = false) {
+function resetTaskInteraction() {
   return {
     counts: { ...EMPTY_COUNTS },
     undoStack: [] as UndoFrame[],
@@ -1429,7 +1441,8 @@ function resetTaskInteraction(_isASD = false) {
     // Nor isAdditionHelperOpen / additionHelperOffered: the grid and its
     // return tab belong to the meeting (register 18, decision ב) — initSession
     // clears them when a meeting starts.
-    helpRequestCount: 0,
+    // Nor helpRequestCount: help_count counts the calls of the meeting, not of
+    // the exercise (owner, 11.10.2026) — initSession resets it.
     taskStartTime: Date.now(),
     keyboardState: 'UNLOCKED' as KeyboardState,
     hasDigitErrorInTask: false,
@@ -1437,16 +1450,16 @@ function resetTaskInteraction(_isASD = false) {
 }
 
 /**
- * Effective operands + result for an arithmetic task, ASD-aware.
- * The result is DERIVED from the displayed operands so the shown exercise and the
- * validated answer can never diverge.
+ * Operands + result for an arithmetic task. The result is DERIVED from the
+ * displayed operands so the shown exercise and the validated answer can never
+ * diverge. One exercise for every learner: the quiet mode's simplified
+ * operands are gone (owner, 11.10.2026).
  */
 export function effectiveArithmetic(
-  task: { numberA?: number; numberB?: number; asdNumberA?: number; asdNumberB?: number; isSubtraction?: boolean },
-  isASD: boolean
+  task: { numberA?: number; numberB?: number; isSubtraction?: boolean }
 ): { a: number; b: number; target: number } {
-  const a = isASD && task.asdNumberA !== undefined ? task.asdNumberA : task.numberA ?? 0;
-  const b = isASD && task.asdNumberB !== undefined ? task.asdNumberB : task.numberB ?? 0;
+  const a = task.numberA ?? 0;
+  const b = task.numberB ?? 0;
   const target = task.isSubtraction ? a - b : a + b;
   return { a, b, target };
 }
@@ -1750,18 +1763,15 @@ export function activeExerciseId(s: WorkspaceState): string {
  * proceedQ grades against its answer, so the digits are judged against it too.
  */
 export function diagnosticDigitTask(
-  qflow: QMatrixFlowState,
-  isASD: boolean
+  qflow: QMatrixFlowState
 ): { numberA?: number; numberB?: number; isSubtraction?: boolean; correctAnswer?: number } | null {
   const task = getCurrentQTask(qflow);
   if (!task || hasOneDiagnosticAnswerBox(task)) return null;
   if (isSubtaskActive(qflow)) {
     const d = task.backwardDiagnosis;
-    const answer = isASD && d?.asdProbeAnswer !== undefined ? d.asdProbeAnswer : d?.probeAnswer;
+    const answer = d?.probeAnswer;
     if (answer === undefined) return null;
-    const a = isASD && d?.asdProbeA !== undefined ? d.asdProbeA : d?.probeA;
-    const b = isASD && d?.asdProbeB !== undefined ? d.asdProbeB : d?.probeB;
-    return { numberA: a, numberB: b, isSubtraction: task.isSubtraction, correctAnswer: answer };
+    return { numberA: d?.probeA, numberB: d?.probeB, isSubtraction: task.isSubtraction, correctAnswer: answer };
   }
   // proceedQ grades against task.correctAnswer; the digits follow the same answer.
   return { numberA: task.numberA, numberB: task.numberB, isSubtraction: task.isSubtraction, correctAnswer: task.correctAnswer };
@@ -2073,10 +2083,11 @@ export function columnRequiresConversion(
  * The third coaching trigger's "the conversion was done in this column".
  * Meetings with blocks (מסמכים 01–03: "לפני שההמרה בוצעה בלבנים") — the
  * blocks performed this column's conversion, the same notion that opens the
- * keyboard lock. Meeting 8 has no blocks (מסמך 03 §3.8: "בלי רישום ההמרה
- * בעיגול הזיכרון") — the conversion is recorded in a memory circle: the
- * carried 1 above the next column in addition, the new digit above the next
- * column (or the regrouped value above this one) in subtraction.
+ * keyboard lock. Meeting 8 has no blocks — PRD Module 12 §ב trigger 5: the
+ * conversion is recorded when its memory circle is not empty. In addition,
+ * the circle of the NEXT column, which receives the carry; in subtraction,
+ * THIS column's circle, where the child writes how many it holds after the
+ * decomposition (owner, 11.10.2026). Every conversionsDone list reads this.
  */
 export function conversionRecordedInColumn(
   s: Pick<WorkspaceState, 'sessionNumber' | 'carryDigits' | 'conversionsByColumn'>,
@@ -2084,12 +2095,9 @@ export function conversionRecordedInColumn(
   isSubtraction: boolean | undefined
 ): boolean {
   if (s.sessionNumber === 8) {
+    if (isSubtraction) return Boolean(s.carryDigits[place]);
     const next = PLACE_ORDER[PLACE_ORDER.indexOf(place) + 1];
-    // Addition carries one ten into the next column: one digit, 1–9. Two digits
-    // in that circle (12) are not a recorded carry (1.10.2026). Subtraction
-    // notes are the learner's own (the 4 above the tens, the 13 above the units).
-    if (!isSubtraction) return Boolean(next && /^[1-9]$/.test(s.carryDigits[next] ?? ''));
-    return Boolean((next && s.carryDigits[next]) || s.carryDigits[place]);
+    return Boolean(next && s.carryDigits[next]);
   }
   return conversionDoneInColumn(s.conversionsByColumn, place, isSubtraction);
 }
@@ -2116,7 +2124,7 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     if (!task) return false;
 
     if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
-      const { a, b, target } = effectiveArithmetic(task, s.isASD);
+      const { a, b, target } = effectiveArithmetic(task);
       return answerDigitsToNumber(effectiveAnswerDigits(s, task, target)) !== null && hiddenDigitsStatus(s, task, a, b).complete;
     }
     return s.hasInteracted;
@@ -2144,7 +2152,7 @@ export function selectCanProceed(s: WorkspaceState): boolean {
     return s.q3Reps.length >= 2;
   }
   if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
-    const { a, b } = effectiveArithmetic(task, s.isASD);
+    const { a, b } = effectiveArithmetic(task);
     // What the child typed, not the result digits the exercise reveals: with
     // those (s4_r_t7, s6_r_t7) "התקדם" was open before any action, and each
     // press counted as a wrong answer (register 17: an empty answer is not one).
@@ -2280,7 +2288,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
   }
 
   if (task.type === 'addition_simple' || task.type === 'vertical_addition') {
-    const { target } = effectiveArithmetic(task, s.isASD);
+    const { target } = effectiveArithmetic(task);
     const boardVal = getValue(s.counts);
     const isBoardEmpty = boardVal === 0 && target !== 0;
 
@@ -2307,7 +2315,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
       // the order below unchanged.
       const skeletonHidden = s.sessionNumber >= 3 && s.sessionNumber <= 7 && hasHiddenDigits(task);
       if (skeletonHidden) {
-        const { a: hA, b: hB } = effectiveArithmetic(task, s.isASD);
+        const { a: hA, b: hB } = effectiveArithmetic(task);
         const hiddenCheck = hiddenDigitsStatus(s, task, hA, hB);
         if (!hiddenCheck.complete) {
           return failure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', missingHiddenDigitsHe(task), 3000);
@@ -2352,7 +2360,7 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
       }
     }
 
-    const { a: opA, b: opB } = effectiveArithmetic(task, s.isASD);
+    const { a: opA, b: opB } = effectiveArithmetic(task);
     const hidden = hiddenDigitsStatus(s, task, opA, opB);
     if (!hidden.complete) {
       return failure('missing_answer', 'הַקְלָדַת תְּשׁוּבָה ✏️', missingHiddenDigitsHe(task), 3000);
@@ -2568,8 +2576,19 @@ function judgeStandardTaskChecks(s: WorkspaceState, task: SessionTask): Standard
     // The value of a digit (368 → 60) is not the number the blocks show, so
     // its messages speak of the value of the digit, not of the blocks.
     const asksDigitValue = typeof task.correctAnswer === 'number' && task.correctAnswer !== task.numberA;
-    if (typed !== (typeof task.correctAnswer === 'number' ? task.correctAnswer : task.numberA ?? 0)) {
-      return failure('wrong_numeric', 'כִּמְעַט... 🧐', asksDigitValue ? 'זה עוד לא הערך של הספרה. הסתכלו בבית המספרים ובדקו שוב!' : 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!', 2800);
+    const expectedValue = typeof task.correctAnswer === 'number' ? task.correctAnswer : task.numberA ?? 0;
+    if (typed !== expectedValue) {
+      // Station 7's digit-per-box rows (s7_r_t6, s7_g_t5, s7_g_t6, s7_d_t6,
+      // s7_f_t6) follow the result row's rule, as the vertical rows do (PRD
+      // Module 9 §א; owner, 11.10.2026): a digit in the wrong place turns on
+      // the place cues until the end of the exercise (ResultRowBoxes).
+      return failure(
+        'wrong_numeric',
+        'כִּמְעַט... 🧐',
+        asksDigitValue ? 'זה עוד לא הערך של הספרה. הסתכלו בבית המספרים ובדקו שוב!' : 'המספר שכתבתם לא מתאים ללבנים בבית המספרים. בדקו שוב!',
+        2800,
+        { placeError: s.sessionNumber >= 3 && s.sessionNumber <= 7 && isPlaceError(s.answerDigits, expectedValue) }
+      );
     }
     // 347 is a guided step: the checklist already shows its done note, so its
     // success is the tool steps' one (audit A2-F13).
@@ -2750,7 +2769,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   function computeExpectedDigitForColumn(
     task: any,
     place: Place,
-    isASD: boolean = false,
     isCarry: boolean = false
   ): number | null {
     if (!task) return null;
@@ -2765,7 +2783,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // first attempt (Module 23 §ב), the Persistence Index's E was inflated, and
       // a coaching card whose advice was followed counted as ineffective.
       if (!task.numberA || !task.numberB || task.isSubtraction) return null;
-      const { a, b } = effectiveArithmetic(task, isASD);
+      const { a, b } = effectiveArithmetic(task);
       const uA = a % 10;
       const uB = b % 10;
       const carryToTens = (uA + uB) >= 10 ? 1 : 0;
@@ -2789,7 +2807,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
 
     if (task.numberA !== undefined) {
-      const { target } = effectiveArithmetic(task, isASD);
+      const { target } = effectiveArithmetic(task);
       const colIdx = placeToColumnIndex(place);
       return Math.floor(Math.abs(target) / Math.pow(10, colIdx)) % 10;
     }
@@ -2804,9 +2822,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    */
   function expectedDigitInActiveTask(s: WorkspaceState, place: Place, isCarry: boolean): number | null {
     const task = s.sessionNumber === 2
-      ? diagnosticDigitTask(s.qflow, s.isASD)
+      ? diagnosticDigitTask(s.qflow)
       : getActiveTasks(s)[s.standardTaskIdx] || null;
-    return computeExpectedDigitForColumn(task, place, s.isASD, isCarry);
+    return computeExpectedDigitForColumn(task, place, isCarry);
   }
 
   /** Flash a constraint violation on a column, then clear the tint (shake lasts 400ms). */
@@ -3326,7 +3344,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
    * et al.; מסמך 03 §1.3 ד' "שגיאות חוזרות"). The first wrong answer gets the
    * feedback line and the learner's own tools (Undo, memory circles, blocks).
    * The coaching card opens on the second wrong answer in a row on the same
-   * exercise, through the 300 ms "נסו לחשוב…" beat.
+   * exercise, 300 ms after the press (the helpState 'friction' delay; no overlay since 11.10.2026).
    *
    * The beat shows only when the card will open after it (1.10.2026): with a
    * card already open or under its hourglass, the press used to start a beat
@@ -3350,9 +3368,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     }
   }
 
+  /** True only while the 300 ms delay hands over to the card it was started for (helpFrictionDone). */
+  let frictionHandoff = false;
+
   /**
    * Why a coaching card for `reason` would not open now, or null when it
-   * would. One rule for every trigger, and for the "נסו לחשוב…" beat before
+   * would. One rule for every trigger, and for the 300 ms delay before
    * the card of a second wrong answer.
    */
   function socraticCardRefusal(s: WorkspaceState, reason: SocraticTriggerReason, place?: Place): string | null {
@@ -3364,6 +3385,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (s.flowStatus !== 'task' || s.awaitingNext) return 'no_exercise';
     // One card at a time: never over a card on the screen or under its hourglass.
     if (s.helpState === 'socratic') return 'card_open';
+    // …nor while a card is on its way (PRD Module 12 §ב: "כשכרטיס אחר פתוח או
+    // בדרך להיפתח"): the 300 ms delay before a second wrong answer's card. Only
+    // that delay's own card passes (owner, 11.10.2026).
+    if (s.helpState === 'friction' && !frictionHandoff) return 'card_coming';
     // The lock is released by the countdown the OPEN card polls. Closing the
     // card during the lockout (its close button stays enabled, and typing a
     // digit closes it too) stopped the polling; the remaining time is read
@@ -3693,9 +3718,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // Q-matrix and the teacher's gate decision, so it has to be graded
       // against the probe's own answer.
       const diag = task.backwardDiagnosis;
-      const probeExpected = s.isASD && diag?.asdProbeAnswer !== undefined
-        ? diag.asdProbeAnswer
-        : diag?.probeAnswer;
+      const probeExpected = diag?.probeAnswer;
       if (probeExpected !== undefined) expected = probeExpected;
     } else if (hasOneDiagnosticAnswerBox(task)) {
       // Owner's ruling 28.9.2026: task 2 is judged by the value in its one box
@@ -3781,7 +3804,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     genericUndoStack: [],
 
     sessionNumber: 1,
-    isASD: false,
     standardTaskIdx: 0,
     qflow: initQFlow(),
     flowStatus: 'task',
@@ -3931,10 +3953,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       if (current.sessionNumber === sanitized && current.standardTaskIdx > 0 && current.flowStatus !== 'sessionDone') {
         return;
       }
-      get().initSession(sanitized, get().isASD);
+      get().initSession(sanitized);
     },
 
-    initSession: (meeting, isASD, startingTaskIdx, existingDeadline) => {
+    initSession: (meeting, _unused, startingTaskIdx, existingDeadline) => {
       flowEpoch++;
       const sanitized = sanitizeSessionNumber(meeting);
       // PRD v7.1 Module 26: promote pending curriculum-catalog updates only at
@@ -3960,19 +3982,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           ownProgress: () => ownSavedProgress(learnerUid, sanitized),
         });
       }
-      if (!deadline) {
-        // יש לקרוא fetchServerClockOffset לפני כן (StudentHubPage / StudentWorkspacePage)
-        // אם עדיין לא נקרא — serverNow() == Date.now() (offset=0, בטוח)
-        deadline = serverNow() + durationMin * 60 * 1000;
-        storeMeetingDeadline(sanitized, learnerUid, deadline);
-      }
+      // No deadline of the client's own (PRD 14 §ב: the browser is not
+      // authorised to set times). The meeting's clock is startedAt on the RTDB
+      // node active_class_session; a fresh deadline computed here was read by
+      // no screen, and it is gone.
 
       // Meeting 2 runs the graded diagnostic for a learner the teacher marked as graded (QMatrix.ts).
       setActiveDiagnosticGraded(sanitized === 2 && learnerIsGraded());
       const qflow = initQFlow();
       set({
         sessionNumber: sanitized,
-        isASD,
         sessionDurationMinutes: durationMin,
         sessionDeadlineTime: deadline,
         selectedBranch: null,
@@ -4002,7 +4021,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         openingScreenSeen: false,
         // …and meeting 8's reflection board on its first stage, with nothing chosen.
         reflectionDraft: freshReflectionDraft(),
-        ...resetTaskInteraction(isASD),
+        ...resetTaskInteraction(),
+        // help_count counts the calls of the whole meeting (owner, 11.10.2026).
+        helpRequestCount: 0,
         // The addition grid and its return tab belong to the meeting (register
         // 18): a new meeting starts without them.
         isAdditionHelperOpen: false,
@@ -4042,10 +4063,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       flowEpoch++;
       cancelSocraticRequest();
       set({
-        ...resetTaskInteraction(false),
+        ...resetTaskInteraction(),
         projectorBoard: true,
         sessionNumber: sanitizeSessionNumber(station),
-        isASD: false,
         selectedBranch: null,
         dynamicTasks: null,
         standardTaskIdx: 0,
@@ -4115,7 +4135,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       socraticDeadline = setTimeout(() => settle({ ...staticCard, fallbackReason: 'timeout' }), SOCRATIC_PROXY_TIMEOUT_MS);
       try {
-        const eff = task && typeof task.numberA === 'number' && typeof task.numberB === 'number' ? effectiveArithmetic(task, false) : null;
+        const eff = task && typeof task.numberA === 'number' && typeof task.numberB === 'number' ? effectiveArithmetic(task) : null;
         const cardContext = demoCardContext(s, task);
         // What the learner's request carries (fetchSocraticHint), from the
         // demonstration board — and no learner: no id, no recent events.
@@ -4254,8 +4274,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
       set({
         sessionNumber: sanitized,
-        // No per-learner quiet mode (owner, 11.10.2026): an old copy's isASD is ignored.
-        isASD: false,
+        // No per-learner quiet mode (owner, 11.10.2026): an old copy's isASD is not read.
         sessionDurationMinutes: durationMin,
         sessionDeadlineTime: sessionDeadline,
         activeBankPath: bankPath,
@@ -4487,10 +4506,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           // and the report counted every block taken from the palette as a use
           // of the trash (owner, 28.9.2026: "אי מצב שהשתמשתי בפח 85 פעם").
           const sourceColIdx = input.source === 'column' ? placeToColumnIndex(input.sourcePlace) : null;
-          // A palette ten dropped on the units is a ten that landed as ten units
-          // (DropResult.paletteUngroup): the block is the ten.
-          const blockPlace = result.paletteUngroup ? input.sourcePlace : input.target.place;
-          const blockVal = PLACE_VALUES[blockPlace];
+          const blockVal = PLACE_VALUES[input.target.place];
           emitTelemetry({
             session_id: sessionId,
             student_id: studentId,
@@ -4525,9 +4541,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
         // מסמך 03 §3.3–3.5 / מודול 8 §א: the drag-right decomposition runs the
         // same animation as the click. View only — the counts above are final.
-        // A palette block that lands as ten lower blocks shows the same split
-        // (the drop stays allowed), without being recorded as a break.
-        const split = result.ungroupEvent ?? result.paletteUngroup;
+        const split = result.ungroupEvent;
         if (split) {
           announceRegroup({ kind: 'split', from: split.from, to: split.to, toCount: result.counts[split.to] });
         } else if (result.regroupEvents && result.regroupEvents.length > 0) {
@@ -4958,14 +4972,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
             // recorded is its own (coordinator's decision, 2.10.2026): one
             // card per keystroke. The conversion card used to open first and
             // the streak's card was then refused as "a card is open".
+            // The place-error exception is the result-row scaffold's, and that
+            // scaffold exists in stations 3–7 only (PRD Module 9 §א, Module 12
+            // §ב trigger 5; owner, 11.10.2026): in stations 1 and 8 the card
+            // opens as usual.
             const streak = nextDigitErrorStreak(s, place, isCorrect);
             let conversionMissed = false;
             if (isCorrect === false && task && isVerticalTask(task)) {
-              const { a, b, target } = effectiveArithmetic(task, s.isASD);
+              const { a, b, target } = effectiveArithmetic(task);
+              const scaffoldAnswers =
+                s.sessionNumber >= 3 && s.sessionNumber <= 7 &&
+                isPlaceError({ [place]: val }, target, { a, b, isSubtraction: task.isSubtraction });
               conversionMissed =
                 columnRequiresConversion(place, a, b, task.isSubtraction) &&
                 !conversionRecordedInColumn(s, place, task.isSubtraction) &&
-                !isPlaceError({ [place]: val }, target, { a, b, isSubtraction: task.isSubtraction });
+                !scaffoldAnswers;
             }
             if (conversionMissed && streak.digitErrorStreak < 4) {
               setTimeout(() => get().openSocraticCard('conversion_not_performed', place), 0);
@@ -5144,7 +5165,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       let needsTenBlocks = false;
       if (s.sessionNumber === 2) {
         const task = getCurrentQTask(s.qflow);
-        target = task ? getEffectiveNumber(task, s.qflow, s.isASD) : undefined;
+        target = task ? getEffectiveNumber(task, s.qflow) : undefined;
       } else {
         const task = getActiveTasks(s)[s.standardTaskIdx];
         target = task?.numberA;
@@ -5400,10 +5421,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         
         // PRD Module 13, pillar 3: the engine gets what the platform MONITORED —
         // the trigger, the streaks, the memory circles and the typed digits —
-        // not a prose summary of them. Operands are ASD-effective so "completed
-        // columns" is judged against the exercise actually on screen.
+        // not a prose summary of them. "Completed columns" is judged against
+        // the exercise actually on screen.
         const hasOperands = currentTask && typeof currentTask.numberA === 'number' && typeof currentTask.numberB === 'number';
-        const eff = hasOperands ? effectiveArithmetic(currentTask, s.isASD) : null;
+        const eff = hasOperands ? effectiveArithmetic(currentTask) : null;
         const authUid = useAuthStore.getState().user?.uid;
         const monitoring: SocraticMonitoringSnapshot = {
           studentId: authUid ? normalizeStudentId(authUid) : undefined,
@@ -5424,7 +5445,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
                 conversionRecordedInColumn(s, p, currentTask?.isSubtraction))
             : undefined,
           // Phase 2 (1.10.2026): shorter, more concrete cards for the enhanced profile and the quiet mode.
-          learnerProfile: { enhanced: s.activeSupportProfileId === 'enhanced_cognitive_support', quiet: s.isASD === true },
+          // `quiet` is always false: the quiet mode is removed (owner, 11.10.2026); the field
+          // goes when SocraticEngine's type drops it.
+          learnerProfile: { enhanced: s.activeSupportProfileId === 'enhanced_cognitive_support' },
           cardContext,
         };
 
@@ -5513,7 +5536,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     helpFrictionDone: () => {
       if (get().helpState !== 'friction') return;
-      get().openSocraticCard('repeated_errors');
+      frictionHandoff = true;
+      try {
+        get().openSocraticCard('repeated_errors');
+      } finally {
+        frictionHandoff = false;
+      }
       // A card refused after the beat (it was decided before it, but 300 ms
       // can change the exercise) ends through closeHelp, like every other
       // closing: setting helpState alone left the machine in SOCRATIC_ACTIVE
@@ -5719,7 +5747,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const task = getActiveTasks(s)[s.standardTaskIdx] || null;
       const studentId = currentStudentUid();
       if (clean !== '' && task) {
-        const { a, b } = effectiveArithmetic(task, s.isASD);
+        const { a, b } = effectiveArithmetic(task);
         const expected = digitAt(which === 'a' ? a : b, place);
         const isCorrect = parseInt(clean, 10) === expected;
         emitTelemetry({
@@ -5757,7 +5785,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           details: { deleted_digit_value: deleted },
         }).catch(console.error);
         // The same deletion rule as the result row (nextDigitErrorStreakOnDelete).
-        const { a, b } = effectiveArithmetic(task, s.isASD);
+        const { a, b } = effectiveArithmetic(task);
         streak = nextDigitErrorStreakOnDelete(s, place, deleted === digitAt(which === 'a' ? a : b, place));
         if (streak.digitErrorStreak >= 4) openCardForDigitErrorStreak(place);
       }
@@ -5869,7 +5897,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         return false;
       }
 
-      // A keyboard restored as LOCKED (a saved session, or the ASD default)
+      // A keyboard restored as LOCKED (a saved session)
       // used to lock EVERY column until a grouping or a right card answer —
       // also the columns that need no conversion at all. The lock is per
       // column (Module 9 §א: "ננעלת בטורים הדורשים המרה"), whatever the
@@ -5907,7 +5935,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         sessionNumber: 1,
         // The lobby's live session number belongs to the learner who signed out.
         lobbySessionId: null,
-        isASD: false,
         standardTaskIdx: 0,
         qflow: initQFlow(),
         flowStatus: 'task',
@@ -6102,7 +6129,7 @@ useWorkspaceStore.subscribe((s, prev) => {
   if (s.counts === prev.counts || s.takeAwayTrack !== prev.takeAwayTrack) return;
   const task = getActiveTasks(s)[s.standardTaskIdx];
   if (!task || !task.isSubtraction || typeof task.numberA !== 'number' || typeof task.numberB !== 'number') return;
-  const { a } = effectiveArithmetic(task, s.isASD === true);
+  const { a } = effectiveArithmetic(task);
   const next = nextTakeAwayTrack(s.takeAwayTrack, task.id, a, getValue(prev.counts), getValue(s.counts));
   const was = s.takeAwayTrack;
   if (was && was.taskId === next.taskId && was.held === next.held && was.started === next.started) return;
@@ -6119,7 +6146,7 @@ useWorkspaceStore.subscribe((s, prev) => {
   if (s.counts === prev.counts || s.heldFromTrack !== prev.heldFromTrack) return;
   const task = getActiveTasks(s)[s.standardTaskIdx];
   if (!task || !task.hiddenDigits || (task.type !== 'vertical_addition' && task.type !== 'addition_simple')) return;
-  const { a, b } = effectiveArithmetic(task, s.isASD === true);
+  const { a, b } = effectiveArithmetic(task);
   const from = heldFromNumber({ a, b, isSubtraction: task.isSubtraction === true, hidden: task.hiddenDigits });
   if (from === null) return;
   const next = nextHeldFromTrack(s.heldFromTrack, task.id, from, getValue(s.counts));

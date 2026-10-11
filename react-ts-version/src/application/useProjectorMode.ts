@@ -19,14 +19,15 @@ export function useProjectorMode(): boolean {
         if (snap.exists()) {
           const val = snap.val();
           if (typeof val === 'object' && val !== null) {
-            const timestamp = val.projector_mode_updated_at || val.updated_at || 0;
+            // The node's own fields only (PRD Module 4): every writer writes projector_mode and projector_mode_updated_at.
+            const timestamp = Number(val.projector_mode_updated_at) || 0;
             if (timestamp > 0 && timestamp <= lastTimestampRef.current) {
               return; // Ignore stale / out-of-order updates
             }
             if (timestamp > 0) {
               lastTimestampRef.current = timestamp;
             }
-            setIsActive(Boolean(val.projector_mode ?? val.active));
+            setIsActive(val.projector_mode === true);
           } else {
             setIsActive(Boolean(val));
           }

@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
-import { claimsForSignIn, parseRequestedRole, withReadOnlyFlag } from "./roleClaims";
+import { claimsForSignIn, entryRole, envFallbackRole, isReadOnlyEntry, parseRequestedRole, withReadOnlyFlag } from "./roleClaims";
 
 const UNIFIED_ADMIN_UID = "admin_unified_identity";
 
@@ -43,15 +43,8 @@ export const syncUserRoles = onCall(
     //
     // The emergency hatch is the environment variables, which are the owner's
     // own configuration rather than a value anyone can guess. They are honoured
-    // only when they look like an address.
-    const envEmail = (name: string): string | null => {
-      const raw = (process.env[name] || "").toLowerCase().trim();
-      return raw.includes("@") ? raw : null;
-    };
-    const teacherFallbacks = new Set([envEmail("TEACHER_SSO_PRIMARY_EMAIL")].filter(Boolean) as string[]);
-    const adminFallbacks = new Set(
-      [envEmail("ADMIN_SSO_PRIMARY_EMAIL"), envEmail("ADMIN_SSO_ALIAS_EMAIL")].filter(Boolean) as string[]
-    );
+    // only when they look like an address (roleClaims.ts envFallbackRole).
+    const fallbackRole = envFallbackRole(normalizedEmail);
 
     const firestore = admin.firestore();
     let isAuthorizedTeacher = false;
@@ -63,9 +56,9 @@ export const syncUserRoles = onCall(
     let resolvedUid = request.auth.uid;
 
     // Check the documented pilot fallback addresses
-    if (adminFallbacks.has(normalizedEmail)) {
+    if (fallbackRole === "admin") {
       isAuthorizedAdmin = true;
-    } else if (teacherFallbacks.has(normalizedEmail)) {
+    } else if (fallbackRole === "teacher") {
       isAuthorizedTeacher = true;
     } else {
       // Dynamic check against Firestore authorizedTeachers collection
@@ -73,9 +66,8 @@ export const syncUserRoles = onCall(
         const teacherDoc = await firestore.collection("authorizedTeachers").doc(normalizedEmail).get();
         if (teacherDoc.exists) {
           const data = teacherDoc.data();
-          // Typed in the console as a boolean or as the text "true" (owner, 11.10.2026: the text is easier to enter).
-          isReadOnly = data?.readOnly === true || String(data?.readOnly ?? "").trim().toLowerCase() === "true";
-          if (data?.role === "admin") {
+          isReadOnly = isReadOnlyEntry(data);
+          if (entryRole(data) === "admin") {
             isAuthorizedAdmin = true;
           } else {
             isAuthorizedTeacher = true;

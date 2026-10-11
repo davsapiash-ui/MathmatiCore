@@ -27,8 +27,8 @@ const LOCK_SENTENCE_HE = 'רגע לחשיבה. אפשר לבחור תשובה ש
 /**
  * PRD Module 12: the only in-task help is the Socratic coaching card —
  * a non-blocking side card with one guiding question and three closed options.
- * It opens on Module 12's triggers and after a mistake (a 300ms "let's think"
- * beat, then the card). Nothing else pops up.
+ * It opens on Module 12's triggers, and after a second wrong answer 300 ms
+ * after the press (Module 12 §ב, condition 4). Nothing else pops up.
  *
  * A "which help would you like?" palette with a thinking hint and a worked
  * example used to live here. No button ever opened it, so no learner ever saw
@@ -38,56 +38,22 @@ const LOCK_SENTENCE_HE = 'רגע לחשיבה. אפשר לבחור תשובה ש
  */
 
 /**
- * The beat's second line: what comes next, addressed to the children (owner,
- * 1.10.2026, D11a). It said "מכין רמז מותאם אישית..." — masculine singular,
- * a voice the screens do not use, and a "hint" the card is not: the card asks
- * one question with three options.
+ * PRD Module 12 §ב, condition 4: the card of a second wrong answer opens 300 ms
+ * after the press. Only the delay is kept (owner, 11.10.2026): the full-screen
+ * dark, blurred "נסו לחשוב…" layer with its spinning 🤔 is gone — nothing
+ * covers the board or blocks the learner's work in those 300 ms.
  */
-const FRICTION_NEXT_HE = 'עוד רגע תופיע שאלה שתעזור לכם.';
-
 export function HelpOverlays() {
   const helpState = useWorkspaceStore((s) => s.helpState);
   const helpFrictionDone = useWorkspaceStore((s) => s.helpFrictionDone);
 
-  // Fast, smooth transition (300ms) for snappy help response without lag.
   useEffect(() => {
     if (helpState !== 'friction') return;
     const t = window.setTimeout(helpFrictionDone, 300);
     return () => window.clearTimeout(t);
   }, [helpState, helpFrictionDone]);
 
-  return (
-    <>
-      {/* The 300 ms "נסו לחשוב…" beat before the card */}
-      <AnimatePresence>
-        {helpState === 'friction' && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            /* Every overlay here releases the pointer the instant it starts
-               leaving: a fading element is invisible long before AnimatePresence
-               unmounts it, and with pointer events still on it kept swallowing
-               the learner's drags onto the number house. */
-            exit={{ opacity: 0, pointerEvents: 'none' }}
-            className="fixed inset-0 z-50 bg-ws-ink/50 backdrop-blur-sm flex flex-col items-center justify-center gap-4"
-            role="status"
-            aria-live="polite"
-          >
-            <motion.span
-              animate={{ rotate: [0, -8, 8, 0] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="text-6xl"
-              aria-hidden="true"
-            >
-              🤔
-            </motion.span>
-            <p className="font-display font-extrabold text-2xl text-white">נסו לחשוב…</p>
-            <p className="text-white/80 font-medium">{FRICTION_NEXT_HE}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
+  return null;
 }
 
 /**
@@ -329,7 +295,8 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
                     </button>
                   </div>
                   <div className="flex-1 flex items-center justify-center">
-                    <span aria-hidden="true" className="text-5xl motion-safe:animate-pulse">⏳</span>
+                    {/* Still (owner, 11.10.2026): the hourglass does not pulse. */}
+                    <span aria-hidden="true" className="text-5xl">⏳</span>
                   </div>
                 </div>
               ) : (<>
@@ -394,7 +361,8 @@ function CardTitle({ inTaskZone = false }: { inTaskZone?: boolean }) {
   return (
     <p
       // In the task zone no text is under 14px (PRD 7 §א rule 1).
-      className={`font-extrabold ${inTaskZone ? 'text-sm' : 'text-xs'} text-ws-soft whitespace-nowrap mb-[clamp(0.125rem,0.5vh,0.375rem)]`}
+      // No text in the card is under 14px (PRD 7 §א rule 1; owner, 11.10.2026), in the task zone and beside meeting 8's card.
+      className="font-extrabold text-sm text-ws-soft whitespace-nowrap mb-[clamp(0.125rem,0.5vh,0.375rem)]"
       data-testid="socratic-card-title"
     >
       <span className="me-1" aria-hidden="true">💡</span>
@@ -496,7 +464,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
     wsState.recordSocraticAnswer(Boolean(opt.correct));
 
     if (!opt.correct) {
-      // PRD Module 12: 30-second penalty lock on the card's answer buttons after a wrong distractor
+      // PRD Module 12 §ב: a 15-second lock on the card's answer buttons after a wrong option
       triggerSocraticPenaltyLockout(opt.hint);
     } else {
       const state = useWorkspaceStore.getState();
@@ -530,7 +498,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
           <p className="font-extrabold text-sm text-ws-soft">{!locked && !answered ? 'בחרו תשובה:' : ''}</p>
           {closeButton}
         </div>
-      ) : (!locked && !answered && <p className="font-extrabold text-xs text-ws-soft">בחרו תשובה:</p>)}
+      ) : (!locked && !answered && <p className="font-extrabold text-sm text-ws-soft">בחרו תשובה:</p>)}
       {/* In the task zone, once the right answer is chosen the options are
           done (they take no second press) and the hint below says it: they
           give their row to the hint, so the drawer stays as short as the
@@ -549,7 +517,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
             onClick={() => handleSelect(opt)}
             // At least 44px tall, the child's touch target (DESIGN_SYSTEM_RULES.md;
             // UX audit 4.10.2026: 36–42px on 585–729px-high windows).
-            className={`min-h-11 ${columns ? 'px-2 py-1 justify-center text-center' : 'px-3 text-right py-[clamp(0.3125rem,1.3vh,0.75rem)]'} rounded-2xl border-2 font-medium ${columns ? 'text-sm' : 'text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug transition-all flex items-center gap-2 ${
+            className={`min-h-11 ${columns ? 'px-2 py-1 justify-center text-center' : 'px-3 text-right py-[clamp(0.3125rem,1.3vh,0.75rem)]'} rounded-2xl border-2 font-medium text-sm leading-snug transition-all flex items-center gap-2 ${
               isCorrectChosen
                 ? 'border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100'
                 : isWrongChosen
@@ -573,7 +541,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
         <div
           role="status"
           aria-live="assertive"
-          className={`rounded-2xl px-3 ${columns ? 'py-1.5 text-sm' : 'py-[clamp(0.25rem,1vh,0.75rem)] text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug font-semibold ${
+          className={`rounded-2xl px-3 text-sm ${columns ? 'py-1.5' : 'py-[clamp(0.25rem,1vh,0.75rem)]'} leading-snug font-semibold ${
           selectedOpt && options.find(o => o.id === selectedOpt)?.correct
             ? 'bg-emerald-50 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800'
             : 'bg-rose-50 text-rose-950 dark:bg-rose-950/50 dark:text-rose-200 border border-rose-300 dark:border-rose-800'
@@ -599,7 +567,7 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
         // שעון חול עדין ומשפט אחד, בלי מספרים. `role="status"` מכריז על
         // המשפט פעם אחת, כשהנעילה מתחילה.
         <div role="status" data-testid="socratic-lock-indicator"
-          className={`flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl px-3 py-[clamp(0.25rem,1vh,0.75rem)] text-amber-900 dark:text-amber-200 ${columns ? 'text-sm' : 'text-[clamp(0.75rem,2vh,0.875rem)]'} leading-snug font-bold`}>
+          className={`flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl px-3 py-[clamp(0.25rem,1vh,0.75rem)] text-amber-900 dark:text-amber-200 text-sm leading-snug font-bold`}>
           <span aria-hidden="true" className="text-base">⏳</span>
           <span>רגע לחשיבה. אפשר לבחור תשובה שוב עוד מעט.</span>
           {!folded && <UdlSpeechButton text={LOCK_SENTENCE_HE} className="shrink-0" />}

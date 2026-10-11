@@ -43,17 +43,12 @@ describe('a full learner reset keeps the teacher\'s settings for the learner', (
     mockUpdate.mockClear();
   });
 
-  it('the client writes no support-profile field, so the profile the server kept stays', async () => {
+  it('the client writes nothing to the record after the server reset, so the profile the server kept stays', async () => {
     mockCallable.mockResolvedValueOnce({ data: { status: 'SUCCESS' } });
     await useStore.getState().resetStudentData('student_user5', 'technical_fault', undefined, { scope: 'full_student' });
-    expect(mockUpdate).toHaveBeenCalled();
-    for (const [, payload] of mockUpdate.mock.calls) {
-      expect(payload).not.toHaveProperty('support_profile_id');
-      expect(payload).not.toHaveProperty('enhanced_support_profile');
-      expect(payload).not.toHaveProperty('isASD');
-      // Everything else is still reset.
-      expect(payload).toMatchObject({ highestCompletedMeeting: 0, workspaceState: null, pedagogicalPath: null, forceReload: true });
-    }
+    // The server deletes the record, keeps the settings and writes the
+    // restart command itself (functions FULL_RESET_RESTART_COMMAND).
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it('the teacher\'s copy of the learner keeps quiet mode and the profile, and loses the progress', async () => {
@@ -66,7 +61,6 @@ describe('a full learner reset keeps the teacher\'s settings for the learner', (
           name: 'תלמיד 6',
           completedMeeting2: true,
           highestCompletedMeeting: 4,
-          isASD: true,
           support_profile_id: 'enhanced_cognitive_support',
         } as any,
       },
@@ -74,11 +68,10 @@ describe('a full learner reset keeps the teacher\'s settings for the learner', (
     mockCallable.mockResolvedValueOnce({ data: { status: 'SUCCESS' } });
     await useStore.getState().resetStudentData('student_user6', 'technical_fault', undefined, { scope: 'full_student' });
     const after = useStore.getState().students.student_user6;
-    expect(after.isASD).toBe(true);
     expect(after.support_profile_id).toBe('enhanced_cognitive_support');
     expect(after.highestCompletedMeeting).toBe(0);
     expect(after.completedMeeting2).toBe(false);
-    expect(useStore.getState().students.student_6.isASD).toBe(true);
+    expect(useStore.getState().students.student_6.support_profile_id).toBe('enhanced_cognitive_support');
   });
 
   it('a learner with no settings gets none invented', async () => {
@@ -88,7 +81,6 @@ describe('a full learner reset keeps the teacher\'s settings for the learner', (
     mockCallable.mockResolvedValueOnce({ data: { status: 'SUCCESS' } });
     await useStore.getState().resetStudentData('student_user7', 'technical_fault', undefined, { scope: 'full_student' });
     const after = useStore.getState().students.student_user7;
-    expect(after.isASD).toBeUndefined();
     expect(after.support_profile_id).toBeUndefined();
   });
 });

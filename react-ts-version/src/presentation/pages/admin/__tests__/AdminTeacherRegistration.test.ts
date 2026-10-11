@@ -17,6 +17,8 @@ const read = (p: string) => readFileSync(resolve(__dirname, p), 'utf-8');
 const firestoreMock = vi.hoisted(() => ({
   setDoc: vi.fn(() => Promise.resolve()),
   deleteDoc: vi.fn(() => Promise.resolve()),
+  // authorizedTeachers documents by address; absent = not on the list.
+  docs: {} as Record<string, Record<string, unknown>>,
 }));
 
 vi.mock('firebase/database', () => ({
@@ -51,7 +53,10 @@ vi.mock('firebase/database', () => ({
 
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db: unknown, col: string, id: string) => ({ col, id })),
-  getDoc: vi.fn(() => Promise.resolve({ exists: () => false, data: () => null })),
+  getDoc: vi.fn((r: { col: string; id: string }) => {
+    const d = r?.col === 'authorizedTeachers' ? firestoreMock.docs[r.id] : undefined;
+    return Promise.resolve({ exists: () => Boolean(d), data: () => d ?? null });
+  }),
   getDocs: vi.fn(() => Promise.resolve({ empty: true, docs: [] })),
   collection: vi.fn(),
   query: vi.fn(),
@@ -71,7 +76,7 @@ vi.mock('@/infrastructure/firebase', () => ({
   functions: {},
 }));
 
-import { useAdminStore, normalizeTeacherRecords } from '@/application/useAdminStore';
+import { useAdminStore, staffFromAuthorizedTeachers, isProtectedStaff } from '@/application/useAdminStore';
 import { teacherRecordKey, firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
 import { update } from 'firebase/database';
 
@@ -117,10 +122,22 @@ describe('Module 25: registering a second teacher for the pilot school', () => {
 
   it('destructive actions on the school card ask before deleting', () => {
     expect(view.includes('window.confirm(message)')).toBe(true);
-    for (const h of ['handleDeleteSchool', 'handleDeleteTeacher', 'handleDeleteClass']) {
-      expect(view.includes(`${h}(`)).toBe(true);
-    }
+    expect(view.includes('handleDeleteTeacher(')).toBe(true);
     expect(view).toMatch(/const handleResetPilot = async \(\) => \{\s*if \(!confirmAction\(/);
+  });
+
+  it('the school and the class cannot be deleted from the card (owner, 11.10.2026)', () => {
+    for (const gone of ['handleDeleteSchool', 'handleDeleteClass', 'deleteSchool', 'deleteClassRoom', 'מחק מוסד', 'מחק כיתה']) {
+      expect(view.includes(gone), gone).toBe(false);
+    }
+    const sync = read('../../../../infrastructure/services/FirebaseSyncService.ts');
+    expect(sync).not.toContain('public async deleteSchool');
+    expect(sync).not.toContain('public async deleteClassRoom');
+  });
+
+  it('an admin entry or a read-only entry has no working remove button', () => {
+    expect(view).toContain('disabled={readOnly || isProtectedStaff(teacher) || isDeletingId === teacher.id}');
+    expect(view).toContain('if (isProtectedStaff(teacher)) return;');
   });
 });
 
@@ -223,20 +240,96 @@ describe('useAdminStore teacher lifecycle (mocked Firebase)', () => {
     expect((firestoreMock.deleteDoc.mock.calls[0] as unknown as [{ id: string }])[0].id).toBe('lead@school.org.il');
   });
 
-  it('presence stubs and e-mail-less junk under users/teachers are not counted as staff', () => {
-    const teachers = normalizeTeacherRecords({
-      teacher_1002220159: { isOnline: true, lastPing: 1 },
-      lead_school_org_il: { id: 'lead_school_org_il', schoolId: 'school_1', ssoEmail: 'lead@school.org.il', name: 'מובילה' },
-      login_created: { email: 'other@school.org.il', name: 'x' },
-    });
-    expect(teachers.map((t) => t.id)).toEqual(['lead_school_org_il', 'login_created']);
-    expect(teachers[1].ssoEmail).toBe('other@school.org.il');
+  it('the staff list is authorizedTeachers (Module 25 §ב.3), keyed as every other path keys the teacher', () => {
+    const teachers = staffFromAuthorizedTeachers([
+      { id: 'lead@school.org.il', data: { email: 'lead@school.org.il', role: 'teacher', schoolId: 'school_1', createdAt: 5 } },
+      { id: 'owner@school.org.il', data: { email: 'owner@school.org.il', role: 'admin' } },
+      { id: 'lecturer@uni.ac.il', data: { email: 'lecturer@uni.ac.il', readOnly: true } },
+      { id: 'not-an-address', data: {} },
+    ]);
+    expect(teachers.map((t) => t.id)).toEqual(['lead_school_org_il', 'owner_school_org_il', 'lecturer_uni_ac_il']);
+    expect(teachers[0]).toMatchObject({ ssoEmail: 'lead@school.org.il', schoolId: 'school_1', role: 'teacher', createdAt: 5 });
+    // One school in the pilot: an entry with none belongs to it.
+    expect(teachers[1].schoolId).toBe('school_bikorot');
+    expect(isProtectedStaff(teachers[0])).toBe(false);
+    expect(isProtectedStaff(teachers[1])).toBe(true);
+    expect(isProtectedStaff(teachers[2])).toBe(true);
   });
 
-  it('firebaseSyncService.addTeacher keys by teacherRecordKey and whitelists the e-mail', async () => {
+  it('the console no longer reads users/teachers for its staff list', () => {
+    const store = read('../../../../application/useAdminStore.ts');
+    const sync = read('../../../../infrastructure/services/FirebaseSyncService.ts');
+    expect(store).toContain("onSnapshot(collection(firestore, 'authorizedTeachers')");
+    expect(store).not.toMatch(/onValue\(teachersRef/);
+    expect(store).not.toContain('unsubTeachers');
+    expect(sync).not.toMatch(/onValue\(teachersRef/);
+  });
+
+  it('firebaseSyncService.addTeacher keys by teacherRecordKey, whitelists the e-mail, and writes no address to RTDB', async () => {
+    const { set } = await import('firebase/database');
+    vi.mocked(set).mockClear();
     const t = await firebaseSyncService.addTeacher('school_1', 'Dana@School.org.il');
     expect(t.id).toBe('dana_school_org_il');
+    expect(t.ssoEmail).toBe('dana@school.org.il');
     expect(firestoreMock.setDoc).toHaveBeenCalledTimes(1);
+    const rtdbRecord = vi.mocked(set).mock.calls[0][1] as Record<string, unknown>;
+    expect(rtdbRecord).toEqual({ id: 'dana_school_org_il', schoolId: 'school_1', licenseActive: false, createdAt: expect.any(Number) });
+    expect(JSON.stringify(rtdbRecord)).not.toContain('@');
+  });
+
+  it('no RTDB teacher write carries an address (Module 25 §ב.3)', () => {
+    const store = read('../../../../application/useAdminStore.ts');
+    const auth = read('../../../../infrastructure/services/AuthService.ts');
+    expect(store).toContain("updates[`users/teachers/${teacherKey}`] = { id: teacherKey, schoolId, licenseActive: false, createdAt: timestamp };");
+    expect(store).toContain("{ [pilotTeacherKey]: cleanTeacherRecord }");
+    const ensure = auth.slice(auth.indexOf('async function ensureTeacherRecord'), auth.indexOf('export interface AuthenticatedUserPayload'));
+    expect(ensure).not.toContain('ssoEmail');
+    expect(ensure).not.toMatch(/^\s+email(: email)?,\s*$/m);
+  });
+});
+
+describe('the whitelist keeps an existing role (owner, 11.10.2026)', () => {
+  beforeEach(() => {
+    firestoreMock.setDoc.mockClear();
+    firestoreMock.docs = {};
+  });
+
+  it('an existing admin document is not turned into a teacher by the pilot reset', async () => {
+    firestoreMock.docs['1002220159@edu-haifa.org.il'] = { email: '1002220159@edu-haifa.org.il', role: 'admin', createdAt: 1 };
+    useAdminStore.setState({ schools: [], teachers: [], classes: [] });
+    await useAdminStore.getState().resetInstitutionsToOfficialPilot();
+    const whitelistWrites = (firestoreMock.setDoc.mock.calls as unknown as [{ col: string; id: string }, Record<string, unknown>][])
+      .filter(([ref]) => ref.col === 'authorizedTeachers');
+    expect(whitelistWrites).toHaveLength(1);
+    expect(whitelistWrites[0][1]).toEqual({ email: '1002220159@edu-haifa.org.il', schoolId: 'school_bikorot' });
+    expect(whitelistWrites[0][1]).not.toHaveProperty('role');
+    expect(whitelistWrites[0][1]).not.toHaveProperty('createdAt');
+  });
+
+  it('a new address gets the role', async () => {
+    const { addAuthorizedTeacherFirestore } = await import('@/infrastructure/services/AuthService');
+    await addAuthorizedTeacherFirestore('new@school.org.il', 'teacher', 'school_bikorot');
+    const [, data] = firestoreMock.setDoc.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
+    expect(data).toMatchObject({ email: 'new@school.org.il', role: 'teacher', schoolId: 'school_bikorot' });
+  });
+});
+
+describe('teacher removal refuses an admin or a read-only entry (owner, 11.10.2026)', () => {
+  beforeEach(() => {
+    firestoreMock.deleteDoc.mockClear();
+    firestoreMock.docs = {};
+    vi.mocked(update).mockClear();
+  });
+
+  it('the service refuses before anything is written, reading authorizedTeachers', async () => {
+    firestoreMock.docs['lecturer@uni.ac.il'] = { email: 'lecturer@uni.ac.il', role: 'teacher', readOnly: true };
+    await expect(firebaseSyncService.deleteTeacher('lecturer_uni_ac_il', { email: 'lecturer@uni.ac.il', successorId: null }))
+      .rejects.toThrow('staff/protected-entry');
+    firestoreMock.docs['owner@school.org.il'] = { email: 'owner@school.org.il', role: 'admin' };
+    await expect(firebaseSyncService.deleteTeacher('owner_school_org_il', { email: 'owner@school.org.il', successorId: null }))
+      .rejects.toThrow('staff/protected-entry');
+    expect(vi.mocked(update)).not.toHaveBeenCalled();
+    expect(firestoreMock.deleteDoc).not.toHaveBeenCalled();
   });
 });
 

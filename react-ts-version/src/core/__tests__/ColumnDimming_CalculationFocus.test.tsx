@@ -26,7 +26,7 @@ vi.mock('@/infrastructure/services/FirebaseSyncService', async (importOriginal) 
 import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import {
-  dimmedColumns, verticalBoxes, lowestEmptyPlace, breakSources, boardOperation, heldFromNumber, DIMMED_COLUMN_FILTER,
+  dimmedColumns, verticalBoxes, lowestEmptyPlace, breakSources, boardBreakSources, boardOperation, heldFromNumber, DIMMED_COLUMN_FILTER,
   type ColumnFocusInput, type VerticalWork, type VerticalBoxes,
 } from '@/core/columnFocus';
 import { resultBoxCount } from '@/core/placeCues';
@@ -426,16 +426,8 @@ describe('every vertical exercise × every stage, through the store', () => {
   const variants: Array<{ t: SessionTask; session: number; isASD: boolean; label: string }> = [];
   {
     const vertical = bankTasks.filter(({ t }) => isVertical(t));
-    for (const v of vertical) for (const isASD of [false, true]) variants.push({ ...v, isASD, label: `${v.t.id}${isASD ? ' ASD' : ''}` });
-    // No bank exercise carries ASD numbers today (the catalog may): each plain
-    // exercise once more with the numbers of another of its kind as ASD numbers,
-    // so a selector or record that read numberA instead would show.
-    const plain = vertical.filter(({ t }) => !t.hiddenDigits && !t.revealedResultDigits);
-    plain.forEach(({ t, session }, i) => {
-      const other = plain.slice(i + 1).concat(plain.slice(0, i)).find(({ t: u }) => u.isSubtraction === t.isSubtraction && u.numberA !== t.numberA);
-      if (!other) return;
-      variants.push({ t: { ...t, asdNumberA: other.t.numberA, asdNumberB: other.t.numberB }, session, isASD: true, label: `${t.id} ASD=${other.t.id}` });
-    });
+    // One exercise for every learner (the quiet mode's ASD numbers are gone, 11.10.2026).
+    for (const v of vertical) variants.push({ ...v, isASD: false, label: v.t.id });
   }
 
   // The store as the other tests find it.
@@ -445,7 +437,7 @@ describe('every vertical exercise × every stage, through the store', () => {
 
   const loadTask = (t: SessionTask, session: number, isASD: boolean) => {
     useWorkspaceStore.setState({
-      sessionNumber: session, isASD, dynamicTasks: [t], standardTaskIdx: 0,
+      sessionNumber: session, dynamicTasks: [t], standardTaskIdx: 0,
       counts: { ...EMPTY_COUNTS }, focusedPlace: null, answerDigits: {}, operandDigits: { a: {}, b: {} },
       takeAwayTrack: null, heldFromTrack: null,
     } as any);
@@ -459,7 +451,7 @@ describe('every vertical exercise × every stage, through the store', () => {
     const violations: string[] = [];
     const neverDims: string[] = [];
     for (const { t, session, isASD, label } of variants) {
-      const { a, b, target } = effectiveArithmetic(t, isASD);
+      const { a, b, target } = effectiveArithmetic(t);
       const boxes: VerticalBoxes = verticalBoxes(a, b, target, t.hiddenDigits, t.revealedResultDigits, resultBoxCount(session, a, b, target));
       const boxed = (p: Place) => boxes.result.includes(p) || boxes.operandA.includes(p) || boxes.operandB.includes(p);
       const op = opOf(t, a, b);
@@ -498,7 +490,9 @@ describe('every vertical exercise × every stage, through the store', () => {
         boards.forEach((c, k) => {
           useWorkspaceStore.setState({ counts: c });
           const done = (p: Place) => boxed(p) && PLACE_ORDER.indexOf(p) < k;
-          const involved = (p: Place): Place[] => (op.subtract ? [p, ...(chain[p] ?? [])] : [p]);
+          // A column's break sources only while the board still lacks blocks there (owner, 11.10.2026).
+          const involved = (p: Place): Place[] =>
+            op.subtract && (c[p] ?? 0) < digit(op.other, PLACE_ORDER.indexOf(p)) ? [p, ...boardBreakSources(c, p)] : [p];
           const forFocus = (q: Place) => {
             const s = new Set<Place>();
             for (const p of PLACE_ORDER.slice(0, PLACE_ORDER.indexOf(q) + 1)) if (p === q || !done(p)) involved(p).forEach((x) => s.add(x));
@@ -511,7 +505,7 @@ describe('every vertical exercise × every stage, through the store', () => {
             else if (f.circle) {
               needed = forFocus(f.circle);
               // The circle records a break: the whole chain, its digit written or not.
-              for (const p of PLACE_ORDER) if (chain[p]?.includes(f.circle)) involved(p).forEach((x) => needed.add(x));
+              for (const p of PLACE_ORDER) if (chain[p]?.includes(f.circle)) [p, ...(chain[p] ?? [])].forEach((x) => needed.add(x));
             }
             const d = dimNow(k, f);
             // Owner, 7.10.2026: no box or circle, no dimming.
@@ -555,10 +549,10 @@ describe('verticalBoxes matches the exercise sheet', () => {
     expect(all.some((t) => t.hiddenDigits?.a?.length)).toBe(true);
   });
 
-  it.each([false, true])('isASD=%s', (isASD) => {
+  it('every exercise, for every learner', () => {
     for (const t of all) {
       cleanup();
-      const { a, b, target } = effectiveArithmetic(t, isASD);
+      const { a, b, target } = effectiveArithmetic(t);
       const revealed: Partial<Record<Place, string>> = {};
       for (const p of t.revealedResultDigits ?? []) revealed[p] = '0';
       const { container } = render(
@@ -828,7 +822,8 @@ describe('held, through the store', () => {
     expect(dims('units')).toEqual(['hundreds', 'thousands']);
     ws().splitBlockClick('tens');
     trash('units', 4);
-    expect(dims('units')).toEqual(['hundreds', 'thousands']);
+    // The units hold enough after the break: the tens go dark (owner, 11.10.2026).
+    expect(dims('units')).toEqual(['tens', 'hundreds', 'thousands']);
     undo(5);
     expect(ws().heldFromTrack).toEqual({ taskId: 's7_g_t2', held: true }); // back at 4,191
     undo();
@@ -862,14 +857,14 @@ describe('held, through the store', () => {
     drag('thousands', 4); drag('hundreds', 1); drag('tens', 9); drag('units', 1);
     ws().splitBlockClick('tens');
     trash('units', 4);
-    expect(dims('units')).toEqual(['hundreds', 'thousands']);
+    expect(dims('units')).toEqual(['tens', 'hundreds', 'thousands']);
     const saved = likeTheDatabase(svc.getSyncableWorkspaceState());
     expect(saved.heldFromTrack).toEqual({ taskId: 's7_g_t2', held: true });
     ws().resetWorkspace();
     approvePath('green_path');
     ws().restoreSession(saved);
     expect(ws().heldFromTrack).toEqual({ taskId: 's7_g_t2', held: true });
-    expect(dims('units')).toEqual(['hundreds', 'thousands']);
+    expect(dims('units')).toEqual(['tens', 'hundreds', 'thousands']);
     undo(6);
     expect(ws().heldFromTrack).toEqual({ taskId: 's7_g_t2', held: false }); // the frame saved before 4,191
     expect(dims('units')).toEqual([]);
@@ -882,19 +877,4 @@ describe('held, through the store', () => {
     for (const p of PLACE_ORDER) expect(dims(p)).toEqual([]);
   });
 
-  it('the ASD numbers: the record and the dimming follow them', () => {
-    // 53 − 18 with the ASD numbers of 61 − 24 (test numbers, not a bank exercise).
-    const t = { ...byId('s5_r_t2'), asdNumberA: 61, asdNumberB: 24 };
-    load(5, t, true);
-    drag('tens', 5);
-    drag('units', 3);
-    expect(ws().takeAwayTrack).toMatchObject({ held: false }); // 53 is not the ASD first number
-    expect(dims('units')).toEqual([]);
-    trash('tens', 5);
-    trash('units', 3);
-    drag('tens', 6);
-    drag('units', 1);
-    expect(ws().takeAwayTrack).toMatchObject({ held: true });
-    expect(dims('units')).toEqual(['hundreds', 'thousands']);
-  });
 });

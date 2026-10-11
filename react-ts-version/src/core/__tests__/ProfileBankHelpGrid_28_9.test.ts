@@ -293,10 +293,11 @@ describe('X16 — never the wrong path’s bank (PRD 26; owner, 28.9.2026)', () 
     expect(resolveLearningPath()).toBeNull();
   });
 
-  it('(d) the client resets write pedagogicalPath: null, as the server reset does', () => {
+  it('(d) only the server reset writes pedagogicalPath: null; the client reset clears its local copy and writes nothing (audit M2, 12.10.2026)', () => {
     const store = src('application/useStore.ts');
     expect(store).not.toContain("pedagogicalPath: 'green_path'");
-    expect(store.match(/pedagogicalPath: null,/g)).toHaveLength(2);
+    expect(store).not.toMatch(/pedagogicalPath: null,/);
+    expect(src('../../functions/src/exportDriveReport.ts')).toMatch(/pedagogicalPath: null,/);
   });
 
   it('a record that loses its path mid-meeting keeps the meeting on its pinned path at the next exercise', () => {

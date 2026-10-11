@@ -43,13 +43,32 @@ async function shownCounts(page: Page): Promise<Partial<Counts>> {
   });
 }
 
-/** This device's copy of meeting `meeting` (localStorage), or null. */
+/** This device's copy of meeting `meeting` (IndexedDB since 11.10.2026 — deviceCopyStore.ts), or null. */
 async function deviceCopy(page: Page, meeting: number): Promise<{ counts?: Counts; standardTaskIdx?: number; qflow?: { taskIdx?: number } } | null> {
-  return page.evaluate((m) => {
-    for (const k of Object.keys(localStorage)) {
+  return page.evaluate(async (m) => {
+    const db = await new Promise<IDBDatabase | null>((resolve) => {
+      const req = indexedDB.open('mathmaticore_device_copies', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('copies');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
+    if (!db) return null;
+    const entries = await new Promise<Array<[string, unknown]>>((resolve) => {
+      const out: Array<[string, unknown]> = [];
+      const req = db.transaction('copies', 'readonly').objectStore('copies').openCursor();
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (!cursor) return resolve(out);
+        out.push([String(cursor.key), cursor.value]);
+        cursor.continue();
+      };
+      req.onerror = () => resolve(out);
+    });
+    db.close();
+    for (const [k, v] of entries) {
       if (!k.startsWith('mathmaticore_session_cache_') || !k.endsWith(`_m${m}`)) continue;
       try {
-        const copy = JSON.parse(localStorage.getItem(k) || 'null');
+        const copy = JSON.parse(String(v) || 'null');
         if (copy && copy.sessionNumber === m) return copy;
       } catch {
         /* next */

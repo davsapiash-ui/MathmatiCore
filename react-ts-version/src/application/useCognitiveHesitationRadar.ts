@@ -149,7 +149,7 @@ export function useCognitiveHesitationRadar({
       // appears beside the card, and the learner may press it. And it is
       // deferred, not dropped: it opens when the card closes, unless a
       // cognitive action came first or the learner opened it from the tab.
-      // The same during the 300 ms "נסו לחשוב…" beat before a card: the card
+      // The same during the 300 ms delay before a card: the card
       // is on its way, and a grid opened now would be hidden at once.
       if (wsState.helpState !== 'closed') {
         wsState.offerAdditionHelper();

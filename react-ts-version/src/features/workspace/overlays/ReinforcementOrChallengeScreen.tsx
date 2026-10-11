@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { ShieldCheck, Rocket, CheckCircle2 } from 'lucide-react';
 import { UdlSpeechButton } from '@/presentation/design-system/UdlSpeechButton';
 
@@ -61,10 +60,8 @@ export function ReinforcementOrChallengeScreen({
       dir="rtl"
       className="min-h-[100dvh] w-full flex flex-col items-center justify-center p-[clamp(0.75rem,3vh,1.5rem)] bg-slate-50 dark:bg-slate-950 font-body text-slate-900 dark:text-slate-100 select-none"
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+      {/* Still, like every child screen: no entrance motion, no growing on hover or press. */}
+      <div
         className="w-full max-w-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-3xl p-[clamp(1.25rem,4vh,2rem)] shadow-2xl flex flex-col items-center text-center gap-[clamp(0.75rem,3vh,1.5rem)]"
       >
         {/* Badge */}
@@ -88,13 +85,12 @@ export function ReinforcementOrChallengeScreen({
         {/* Choice Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full pt-2">
           {/* Reinforcement (ביסוס) */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <button
+            type="button"
             onClick={() => onSelectBranch('reinforcement')}
-            className="flex flex-col items-center text-center p-6 rounded-3xl border-2 border-emerald-300 dark:border-emerald-700/60 bg-emerald-50/50 dark:bg-emerald-950/20 hover:border-emerald-500 transition-all cursor-pointer group shadow-md"
+            className="flex flex-col items-center text-center p-6 rounded-3xl border-2 border-emerald-300 dark:border-emerald-700/60 bg-emerald-50/50 dark:bg-emerald-950/20 hover:border-emerald-500 transition-colors cursor-pointer shadow-md"
           >
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center mb-3">
               <ShieldCheck className="w-8 h-8" />
             </div>
             <h3 className="font-display font-black text-xl text-emerald-900 dark:text-emerald-200">
@@ -103,16 +99,15 @@ export function ReinforcementOrChallengeScreen({
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed font-medium">
               {BRANCH_CHOICE_TEXT.reinforcement}
             </p>
-          </motion.button>
+          </button>
 
           {/* Challenge (אתגר) */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <button
+            type="button"
             onClick={() => onSelectBranch('challenge')}
-            className="flex flex-col items-center text-center p-6 rounded-3xl border-2 border-purple-300 dark:border-purple-700/60 bg-purple-50/50 dark:bg-purple-950/20 hover:border-purple-500 transition-all cursor-pointer group shadow-md"
+            className="flex flex-col items-center text-center p-6 rounded-3xl border-2 border-purple-300 dark:border-purple-700/60 bg-purple-50/50 dark:bg-purple-950/20 hover:border-purple-500 transition-colors cursor-pointer shadow-md"
           >
-            <div className="w-14 h-14 rounded-2xl bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-300 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <div className="w-14 h-14 rounded-2xl bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-300 flex items-center justify-center mb-3">
               <Rocket className="w-8 h-8" />
             </div>
             <h3 className="font-display font-black text-xl text-purple-900 dark:text-purple-200">
@@ -121,7 +116,7 @@ export function ReinforcementOrChallengeScreen({
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed font-medium">
               {BRANCH_CHOICE_TEXT.challenge}
             </p>
-          </motion.button>
+          </button>
         </div>
 
         {/* Skip to Finish option */}
@@ -132,7 +127,7 @@ export function ReinforcementOrChallengeScreen({
         >
           {BRANCH_CHOICE_TEXT.finish}
         </button>
-      </motion.div>
+      </div>
     </div>
   );
 }

@@ -30,7 +30,9 @@ describe('Module 24 — research export covers the whole process', () => {
   it('exports all meetings by default and one meeting on request', () => {
     expect(exportSection).toMatch(/rawSession === "all" \? null : Number\(rawSession\) \|\| null/);
     expect(exportSection).toMatch(/scopedSession === null \|\| e\.session_number === scopedSession/);
-    expect(radar).toContain("exportFn({ class_id: 'class_1', session_number: 'all' })");
+    // The meeting choice beside the button (owner, 11.10.2026): "all" by default, or one meeting 1–8.
+    expect(radar).toContain("exportFn({ class_id: 'class_1', session_number: exportScope })");
+    expect(radar).toContain("useState<ResearchExportScope>('all')");
   });
 
   it('writes one row per learner × meeting with the PRD first-attempt score for every meeting', () => {

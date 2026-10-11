@@ -208,7 +208,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         </button>
 
         <div className="flex items-center gap-3 mb-4">
-          <div className={`p-3 rounded-2xl ${isLevel3 ? 'bg-red-50 dark:bg-red-950/50 text-red-600' : isLevel2 ? 'bg-stone-50 dark:bg-stone-950/50 text-stone-600' : 'bg-blue-50 dark:bg-blue-950/50 text-blue-600'}`}>
+          <div className={`p-3 rounded-2xl ${isLevel3 ? 'bg-stone-100 dark:bg-stone-900/60 text-stone-900 dark:text-stone-100 ring-2 ring-stone-500' : isLevel2 ? 'bg-stone-50 dark:bg-stone-950/50 text-stone-600' : 'bg-violet-50 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300'}`}>
             {isLevel3 ? <ShieldAlert className="w-7 h-7" /> : <AlertTriangle className="w-7 h-7" />}
           </div>
           <div>
@@ -243,10 +243,11 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             {isLevel3 && (
               <>
                 <li className="text-stone-700 dark:text-stone-300 font-semibold">לפני שנמחק משהו נשמר גיבוי של הנתונים של כל 12 התלמידים.</li>
-                <li className="text-red-700 dark:text-red-300 font-semibold">יימחקו כל נתוני הלמידה של הכיתה: ההתקדמות בכל המפגשים, ציוני האבחון והמסלולים שאושרו, ההקלטות, הודעות הצ'אט, הדוחות, הרפלקציות, רישום הפעולות והתראות הרדאר.</li>
+                <li className="text-stone-900 dark:text-stone-100 font-extrabold">יימחקו כל נתוני הלמידה של הכיתה: ההתקדמות בכל המפגשים, ציוני האבחון והמסלולים שאושרו, ההקלטות, הודעות הצ'אט, הדוחות, הרפלקציות, רישום הפעולות, התראות הרדאר ורישומי זמן ההשלמה.</li>
                 <li>יימחקו גם ההגדרות של כל התלמידים: פרופיל התמיכה המוגברת וסימון המסלול המדורג.</li>
-                <li>יימחקו גם יומן התיווך של המורה ורישומי התשובות שהבינה המלאכותית פסלה.</li>
-                <li>המפגש הפתוח ייסגר, והשידור למסכי התלמידים ייעצר.</li>
+                {/* PRD 23א §ב.3, in its own words: "רישומי כרטיסי החניכה שנדחו", "מצב המקרן כבה". */}
+                <li>יימחקו גם יומן התיווך של המורה ורישומי כרטיסי החניכה שנדחו.</li>
+                <li>המפגש הפתוח ייסגר, ומצב המקרן יכבה.</li>
                 <li>כל 12 התלמידים יתחילו מההתחלה.</li>
                 <li>{RESET_LOG_LINE_HE}</li>
               </>
@@ -260,13 +261,13 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <li>{`הקריאות לעזרה של התלמידים נשארות ברדאר. כדי לנקות אותן לחצו על "${RESET_ACTION_HE.alerts}".`}</li>
                 {activeSessionNumber === 2 && (
                   // Register deviation 10/20: the diagnostic's outputs are part of meeting 2's progress.
-                  <li className="text-red-700 dark:text-red-300 font-semibold">
+                  <li className="text-stone-900 dark:text-stone-100 font-extrabold">
                     במפגש 2 יימחקו גם ציוני האבחון, ההמלצות והמסלולים שאושרו ב"{TEACHER_GATE_HE}" לכל התלמידים. מי שכבר התקדם למפגש 3 ואילך ימתין עד שיעשה שוב את מפגש 2 ותאשרו לו מסלול מחדש.
                   </li>
                 )}
                 {activeSessionNumber === 8 && (
                   // PRD 23א §ב.2: in meeting 8 the class reset deletes the meeting's reflections, so the class can redo it.
-                  <li className="text-red-700 dark:text-red-300 font-semibold">במפגש 8 יימחקו גם הרפלקציות של המפגש, כדי שאפשר יהיה לבצע את המפגש מחדש בכיתה. הן נשמרות בגיבוי.</li>
+                  <li className="text-stone-900 dark:text-stone-100 font-extrabold">במפגש 8 יימחקו גם הרפלקציות של המפגש, כדי שאפשר יהיה לבצע את המפגש מחדש בכיתה. הן נשמרות בגיבוי.</li>
                 )}
                 <li>המפגש של הכיתה נשאר פתוח, והשעון שלו ממשיך מהרגע שהופעל.</li>
                 <li>{RESET_LOG_LINE_HE}</li>
@@ -280,9 +281,9 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 {resetMeeting.loading ? (
                   <li>בודקים איזה מפגש יאופס…</li>
                 ) : !resetMeeting.target ? (
-                  <li className="text-red-700 dark:text-red-300 font-semibold">אין מפגש פתוח לכיתה, ולא ידוע באיזה מפגש התלמיד נמצא, ולכן אין מפגש לאפס.</li>
+                  <li className="text-stone-900 dark:text-stone-100 font-extrabold">אין מפגש פתוח לכיתה, ולא ידוע באיזה מפגש התלמיד נמצא, ולכן אין מפגש לאפס.</li>
                 ) : finishedTarget ? (
-                  <li className="text-red-700 dark:text-red-300 font-semibold">
+                  <li className="text-stone-900 dark:text-stone-100 font-extrabold">
                     {finishedMeetingRefusalHe(String(targetStudentId ?? '').replace(/\D/g, '') || learnerLabelOf(targetStudentName), finishedTarget.sessionNumber)}
                   </li>
                 ) : (
@@ -297,7 +298,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                     )}
                     {resetMeeting.target.sessionNumber === 2 && (
                       // Register deviation 10: "במפגש 2 גם תוצאות המטריקס, ההמלצה והשער".
-                      <li className="text-red-700 dark:text-red-300 font-semibold">
+                      <li className="text-stone-900 dark:text-stone-100 font-extrabold">
                         במפגש 2 יימחקו גם ציון האבחון, ההמלצה והמסלול שאושר ב"{TEACHER_GATE_HE}". אם התלמיד כבר התקדם למפגש 3 ואילך, הוא לא ימשיך משם: הוא ימתין עד שיעשה שוב את מפגש 2 ותאשרו לו מסלול מחדש.
                       </li>
                     )}
@@ -313,7 +314,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             {isFullStudent && (
               <>
                 <li className="text-stone-700 dark:text-stone-300 font-semibold">לפני האיפוס נשמר גיבוי של כל הנתונים של {learnerName}.</li>
-                <li className="text-red-700 dark:text-red-300 font-semibold">יימחקו: ההתקדמות בכל 8 המפגשים, תוצאות האבחון וההמלצה, המסלול שאושר ב"{TEACHER_GATE_HE}", ההקלטות והודעות הצ'אט.</li>
+                <li className="text-stone-900 dark:text-stone-100 font-extrabold">יימחקו: ההתקדמות בכל 8 המפגשים, תוצאות האבחון וההמלצה, המסלול שאושר ב"{TEACHER_GATE_HE}", ההקלטות, הודעות הצ'אט ורישומי זמן ההשלמה.</li>
                 {/* Owner, 2.10.2026: the teacher's settings stay (functions LEARNER_SETTINGS_FIELDS). */}
                 <li>יישמרו: ההגדרות שקבעתם לתלמיד (פרופיל התמיכה המוגברת וסימון המסלול המדורג), רישום הפעולות של התלמיד למחקר, הדוחות והרפלקציות.</li>
                 <li>התלמיד יתחיל מההתחלה. כדי להגיע למפגש 3 הוא יצטרך לעשות שוב את מפגש 2, ותצטרכו לאשר לו מסלול מחדש.</li>
@@ -371,19 +372,20 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                     <span className="text-xs">
                       {/* No meeting to reset (none determined, or a finished one): no meeting named here either. */}
                       <span className="block font-bold text-slate-800 dark:text-slate-200">
-                        {activeSessionNumber ? `המפגש הזה בלבד (ברירת המחדל): ${meetingLabel}` : 'המפגש הזה בלבד (ברירת המחדל)'}
+                        {/* PRD 23א §ב.2, the option's name in the PRD's words. */}
+                        {activeSessionNumber ? `המפגש הנוכחי בלבד (ברירת המחדל): ${meetingLabel}` : 'המפגש הנוכחי בלבד (ברירת המחדל)'}
                       </span>
                       <span className="block text-slate-600 dark:text-slate-400">התלמיד מתחיל את המפגש הזה מההתחלה. העבודה במפגשים האחרים נשמרת.</span>
                     </span>
                   </label>
-                  <label className={`flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${scope === 'full_student' ? 'border-red-400 bg-red-50/60 dark:bg-red-950/30' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
+                  <label className={`flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${scope === 'full_student' ? 'border-stone-600 ring-1 ring-stone-600 bg-stone-50 dark:bg-stone-900/40 dark:border-stone-400 dark:ring-stone-400' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
                     <input
                       type="radio"
                       name="reset-scope"
                       value="full_student"
                       checked={scope === 'full_student'}
                       onChange={() => setScope('full_student')}
-                      className="mt-0.5 w-4 h-4 text-red-600 focus:ring-red-500"
+                      className="mt-0.5 w-4 h-4 text-stone-800 focus:ring-violet-500"
                     />
                     <span className="text-xs">
                       <span className="block font-bold text-slate-800 dark:text-slate-200">איפוס מוחלט של התלמיד</span>
@@ -423,13 +425,15 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
               <input
                 type="text"
                 value={reasonNote}
+                // PRD 23א §ד: reason_note is limited to 500 characters.
+                maxLength={500}
                 onChange={(e) => { setReasonNote(e.target.value); if (noteError) setNoteError(null); }}
                 placeholder="הסבר קצר על נסיבות האיפוס, בלי שמות. אפשר לכתוב מספר תלמיד."
                 aria-invalid={noteError ? true : undefined}
                 className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-violet-500"
               />
               {noteError && (
-                <p role="alert" className="mt-1.5 text-xs font-bold text-red-700 dark:text-red-300">{noteError}</p>
+                <p role="alert" className="mt-1.5 text-xs font-extrabold text-stone-900 dark:text-stone-100">{noteError}</p>
               )}
             </div>
           </div>
@@ -438,7 +442,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         {/* Step 2: System Double Confirmation */}
         {step === 2 && isLevel3 && (
           <div className="space-y-4 mb-6 animate-in fade-in">
-            <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 text-sm">
+            <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-900/60 border-2 border-stone-500 text-stone-900 dark:text-stone-100 text-sm">
               <p className="font-extrabold mb-1">⚠️ נדרש אישור נוסף ל{RESET_ACTION_HE.system}</p>
               {/* The backup is written only after this confirmation; this used to say it already existed. */}
               <p className="text-xs leading-relaxed">
@@ -451,7 +455,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 type="checkbox"
                 checked={doubleConfirmed}
                 onChange={(e) => setDoubleConfirmed(e.target.checked)}
-                className="w-5 h-5 rounded text-red-600 focus:ring-red-500"
+                className="w-5 h-5 rounded text-stone-800 focus:ring-violet-500"
               />
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                 כן, למחוק את כל נתוני הלמידה של הכיתה.
@@ -478,7 +482,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             disabled={readOnly || isSubmitting || !selectedReason || (isLevel3 && step === 2 && !doubleConfirmed) || (isClassTarget && (!activeSessionNumber || !classConfirmed)) || (isOneLearner && scope === 'active_session' && !activeSessionNumber)}
             className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed ${
               isLevel3
-                ? 'bg-red-600 hover:bg-red-700 disabled:opacity-50'
+                ? 'bg-stone-900 hover:bg-stone-950 font-extrabold ring-2 ring-stone-900 ring-offset-2 dark:ring-stone-300 dark:ring-offset-slate-900 disabled:opacity-50'
                 : isLevel2
                 ? 'bg-stone-600 hover:bg-stone-700 disabled:opacity-50'
                 : 'bg-violet-600 hover:bg-violet-700 disabled:opacity-50'
@@ -494,7 +498,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
             ) : (
               <>
                 <Check className="w-4 h-4" />
-                <span>בצעו איפוס מבוקר</span>
+                {/* Level 3's final button carries the action's PRD name (23א §ב.3: "איפוס כל נתוני הכיתה"). */}
+                <span>{isLevel3 ? RESET_ACTION_HE.system : 'בצעו איפוס מבוקר'}</span>
               </>
             )}
           </button>

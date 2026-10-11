@@ -1,10 +1,11 @@
 import { create } from "zustand";
 import { AuditLogger } from "@/infrastructure/services/AuditLogger";
 import { firebaseSyncService } from "@/infrastructure/services/FirebaseSyncService";
-import { addAuthorizedTeacherFirestore } from "@/infrastructure/services/AuthService";
+import { addAuthorizedTeacherFirestore, PROTECTED_STAFF_REMOVAL_ERROR } from "@/infrastructure/services/AuthService";
 import { teacherRecordKey } from "@/infrastructure/services/FirebaseSyncService";
 import { ref, onValue, update, type Unsubscribe } from "firebase/database";
-import { database } from "@/infrastructure/firebase";
+import { collection, onSnapshot } from "firebase/firestore";
+import { database, firestore } from "@/infrastructure/firebase";
 import { PILOT_SCHOOL_ID, PILOT_SCHOOL_NAME, PILOT_CLASS_ID, PILOT_CLASS_NAME, PILOT_CLASS_CAPACITY, ONE_INSTITUTION_MESSAGE } from "@/core/pilotInstitution";
 
 export interface School {
@@ -23,9 +24,13 @@ export interface School {
 export interface Teacher {
   id: string;
   schoolId: string;
-  ssoEmail: string; // Institutional Google SSO email — the sole teacher identity
+  ssoEmail: string; // Institutional Google SSO email — the sole teacher identity (in memory only; read from authorizedTeachers)
   licenseActive: boolean;
   createdAt: number;
+  /** The role in authorizedTeachers. An admin entry is never removed from the console. */
+  role?: 'teacher' | 'admin';
+  /** A read-only staff entry (the lecturers, owner decision 11.10.2026); never removed from the console. */
+  readOnly?: boolean;
 }
 
 export interface ClassRoom {
@@ -64,15 +69,17 @@ interface AdminState {
   updateStoreCache: (partial: Partial<AdminStoreCache>) => void;
   setGlobalStudentLimit: (limit: number) => Promise<void>;
   
+  // No deleteSchool and no deleteClassRoom (owner, 11.10.2026): the pilot's
+  // one school and one class are not deleted from the console, and a staff
+  // member is never removed by deleting a school.
   addSchool: (name: string) => void;
-  deleteSchool: (id: string) => Promise<void>;
-  
+
   /** Resolves once the RTDB record AND the login whitelist are written; rejects (and rolls back) otherwise. */
   addTeacher: (schoolId: string, ssoEmail: string) => Promise<Teacher>;
+  /** Refuses (rejects) an admin entry or a read-only entry. */
   deleteTeacher: (id: string) => Promise<void>;
-  
+
   addClassRoom: (schoolId: string, teacherId: string, name: string, classType?: string) => Promise<void>;
-  deleteClassRoom: (id: string) => Promise<void>;
 
   provisionFullInstitution: (params: {
     schoolName: string;
@@ -86,28 +93,38 @@ interface AdminState {
 }
 
 /**
- * users/teachers may still hold presence stubs ({isOnline, lastPing}) that the
- * teacher dashboard once tried to write (it no longer does — the rules refuse
- * a teacher's write there), and login-time records that carry `email` instead of
- * `ssoEmail`. Only a record with an e-mail is a teacher the console can show,
- * count, or address; presence stubs are dropped rather than counted as staff.
+ * Module 25 §ב.3: "כתובות הדוא"ל של אנשי הצוות נשמרות רק לצורך הזדהות, ברשימת
+ * המורשים (authorizedTeachers) וב-Firebase Auth". The console's staff list is
+ * that collection — the RTDB users/teachers node keeps no address any more,
+ * and its presence stubs and login-time records are no longer read.
+ *
+ * `id` is the key every other path already uses for the teacher (class
+ * teacherId, the teacher–admin chat): teacherRecordKey(email), computed here
+ * in memory. The pilot has one school (Module 25 §ב.1), so an entry without a
+ * school belongs to it.
  */
-export function normalizeTeacherRecords(val: Record<string, unknown>): Teacher[] {
+export function staffFromAuthorizedTeachers(docs: Array<{ id: string; data: Record<string, unknown> | undefined }>): Teacher[] {
   const out: Teacher[] = [];
-  for (const [key, raw] of Object.entries(val || {})) {
-    if (!raw || typeof raw !== 'object') continue;
-    const r = raw as Partial<Teacher> & { email?: string };
-    const email = typeof r.ssoEmail === 'string' && r.ssoEmail ? r.ssoEmail : typeof r.email === 'string' ? r.email : '';
-    if (!email) continue;
+  for (const { id, data } of docs) {
+    const d = data || {};
+    const email = String((typeof d.email === 'string' && d.email) || id || '').toLowerCase().trim();
+    if (!email.includes('@')) continue;
     out.push({
-      id: r.id || key,
-      schoolId: r.schoolId || '',
-      ssoEmail: email.toLowerCase().trim(),
-      licenseActive: Boolean(r.licenseActive),
-      createdAt: typeof r.createdAt === 'number' ? r.createdAt : 0,
+      id: teacherRecordKey(email),
+      schoolId: typeof d.schoolId === 'string' && d.schoolId ? d.schoolId : PILOT_SCHOOL_ID,
+      ssoEmail: email,
+      licenseActive: false,
+      createdAt: typeof d.createdAt === 'number' ? d.createdAt : 0,
+      role: d.role === 'admin' ? 'admin' : 'teacher',
+      ...(d.readOnly === true ? { readOnly: true } : {}),
     });
   }
   return out;
+}
+
+/** An admin entry or a read-only entry: shown in the console, never removed from it (owner, 11.10.2026). */
+export function isProtectedStaff(t: Pick<Teacher, 'role' | 'readOnly'> | null | undefined): boolean {
+  return t?.role === 'admin' || t?.readOnly === true;
 }
 
 let adminUnsubscribes: Unsubscribe[] = [];
@@ -163,16 +180,6 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
         }
       }, (err) => console.error("Error subscribing to schools:", err));
 
-      const teachersRef = ref(database, 'users/teachers');
-      const unsubTeachers = onValue(teachersRef, (snap) => {
-        if (snap.exists()) {
-          const val = snap.val() || {};
-          set({ teachers: normalizeTeacherRecords(val) });
-        } else {
-          set({ teachers: [] });
-        }
-      }, (err) => console.error("Error subscribing to teachers:", err));
-
       const classesRef = ref(database, 'classes');
       const unsubClasses = onValue(classesRef, (snap) => {
         if (snap.exists()) {
@@ -192,10 +199,23 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
         }
       }, (err) => console.error("Error subscribing to limit:", err));
 
-      adminUnsubscribes = [unsubSchools, unsubTeachers, unsubClasses, unsubLimit];
+      adminUnsubscribes = [unsubSchools, unsubClasses, unsubLimit];
       set({ isSubscribed: true });
     } catch (e) {
       console.error("Failed to initialize admin subscriptions:", e);
+    }
+
+    // The staff list: authorizedTeachers (Module 25 §ב.3), not users/teachers.
+    // Its own try: a failure here leaves the RTDB listeners above running.
+    try {
+      const unsubStaff = onSnapshot(collection(firestore, 'authorizedTeachers'), (snap) => {
+        const docs: Array<{ id: string; data: Record<string, unknown> | undefined }> = [];
+        snap.forEach((d) => { docs.push({ id: d.id, data: d.data() as Record<string, unknown> | undefined }); });
+        set({ teachers: staffFromAuthorizedTeachers(docs) });
+      }, (err) => console.error("Error subscribing to authorizedTeachers:", err));
+      if (typeof unsubStaff === 'function') adminUnsubscribes.push(unsubStaff);
+    } catch (e) {
+      console.error("Failed to subscribe to authorizedTeachers:", e);
     }
 
     return () => {
@@ -214,12 +234,21 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     };
     const pilotTeacherEmail = "1002220159@edu-haifa.org.il";
     const pilotTeacherKey = teacherRecordKey(pilotTeacherEmail);
-    const cleanTeacher: Teacher = {
+    // Module 25 §ב.3: the RTDB record carries no e-mail address.
+    const cleanTeacherRecord = {
       id: pilotTeacherKey,
       schoolId: "school_bikorot",
-      ssoEmail: pilotTeacherEmail,
       licenseActive: false,
       createdAt: timestamp,
+    };
+    // The pilot address keeps whatever role and readOnly mark it has in
+    // authorizedTeachers (owner, 11.10.2026: never downgrade an admin).
+    const listedPilot = get().teachers.find((t) => t.id === pilotTeacherKey);
+    const cleanTeacher: Teacher = {
+      ...cleanTeacherRecord,
+      ssoEmail: pilotTeacherEmail,
+      ...(listedPilot?.role ? { role: listedPilot.role } : {}),
+      ...(listedPilot?.readOnly ? { readOnly: true } : {}),
     };
     const cleanClass: ClassRoom = {
       id: "class_1",
@@ -256,13 +285,15 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     // נשבר באמצע: בתי הספר כבר נמחקו, המורות נשארו, והמסך הציג "שגיאה
     // באיפוס מוסדות הפיילוט". עדכון רב-נתיבי נבדק מול כל ילד בנפרד, ולכן
     // עובר — ונשאר פעולה אחת שלמה.
-    await update(ref(database, 'users/teachers'), { [pilotTeacherKey]: cleanTeacher });
+    await update(ref(database, 'users/teachers'), { [pilotTeacherKey]: cleanTeacherRecord });
     await firebaseSet(ref(database, 'classes'), { class_1: cleanClass });
     await firebaseSet(ref(database, 'public_classes'), { class_1: cleanPublicClass });
     await firebaseSet(ref(database, 'system_control/globalStudentLimit'), 12);
     // The reset must leave the pilot teacher able to sign in. A swallowed
     // failure here left the console showing a teacher who exists but cannot
     // log in — and the reset reported success. Let it surface.
+    // An existing authorizedTeachers document keeps its role (an admin stays an
+    // admin): addAuthorizedTeacherFirestore writes the role only to a new one.
     await addAuthorizedTeacherFirestore(pilotTeacherEmail, 'teacher', cleanSchool.id);
 
     AuditLogger.log("איפוס מוסדות לפיילוט", "admin", "המוסדות אופסו למבנה הפיילוט הרשמי (בית ספר ביקורת, כיתת המבקרים); המורות והמרצות נשארו");
@@ -334,7 +365,8 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     // Atomic Multi-Node Firebase RTDB update
     const updates: Record<string, any> = {};
     updates[`schools/${schoolId}`] = school;
-    updates[`users/teachers/${teacherKey}`] = teacher;
+    // Module 25 §ב.3: no e-mail address in RTDB — the address is in authorizedTeachers (below).
+    updates[`users/teachers/${teacherKey}`] = { id: teacherKey, schoolId, licenseActive: false, createdAt: timestamp };
     updates[`classes/${classId}`] = classRoom;
     updates[`public_classes/${classId}`] = { id: classId, name: classRoom.name, schoolId };
 
@@ -370,29 +402,6 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     });
   },
 
-  // מחיקת מוסד מסירה יחד איתו את המורות שלו — ואת הרשאות הכניסה שלהן.
-  // עד כה המחיקה בוצעה מקומית והכתיבה לשרת נשלחה בלי להמתין לה, כך
-  // שכשל בשרת הותיר את המנהל עם הודעת "נמחק" בזמן שהמוסד, המורות
-  // וההרשאות שלהן ממשיכים להתקיים. אותו דפוס בדיוק כמו deleteTeacher:
-  // עדכון אופטימי, החזרה לאחור בכשל, וזריקת השגיאה החוצה.
-  deleteSchool: async (id) => {
-    const school = get().schools.find(s => s.id === id);
-    const previous = { schools: get().schools, teachers: get().teachers, classes: get().classes };
-    set((state) => ({
-      schools: state.schools.filter(s => s.id !== id),
-      teachers: state.teachers.filter(t => t.schoolId !== id),
-      classes: state.classes.filter(c => c.schoolId !== id)
-    }));
-    try {
-      await firebaseSyncService.deleteSchool(id);
-      if (school) AuditLogger.log("מחיקת מוסד", "admin", `מוסד נמחק: ${school.name}`);
-    } catch (err) {
-      set(previous);
-      console.error("Failed to delete school from Firebase", err);
-      throw err;
-    }
-  },
-
   addTeacher: async (schoolId, ssoEmail) => {
     const id = ssoEmail.trim().toLowerCase();
     const teacherKey = teacherRecordKey(id);
@@ -421,17 +430,24 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
 
   deleteTeacher: async (id) => {
     const teacher = get().teachers.find(t => t.id === id || t.ssoEmail === id);
+    // Owner, 11.10.2026: an admin entry or a read-only entry (the lecturers)
+    // is never removed. The service refuses it too, from authorizedTeachers.
+    if (isProtectedStaff(teacher)) {
+      throw new Error(PROTECTED_STAFF_REMOVAL_ERROR);
+    }
     const key = teacher?.id ?? id;
     const previous = { teachers: get().teachers, classes: get().classes };
     // A class is never deleted with its teacher (see FirebaseSyncService.deleteTeacher):
-    // it is handed to another teacher of the same school when there is one.
-    const successor = get().teachers.find(t => t.id !== key && t.schoolId === teacher?.schoolId);
+    // it is handed to another teacher of the same school when there is one —
+    // a teacher, not an admin or a read-only entry.
+    const successor = get().teachers.find(t => t.id !== key && t.schoolId === teacher?.schoolId && !isProtectedStaff(t));
     set((state) => ({
       teachers: state.teachers.filter(t => t.id !== key && t.ssoEmail !== id),
       classes: state.classes.map(c => c.teacherId === key && successor ? { ...c, teacherId: successor.id } : c),
     }));
     try {
-      await firebaseSyncService.deleteTeacher(key);
+      // Not on the console's list: the service reads the old record and chooses itself.
+      await firebaseSyncService.deleteTeacher(key, teacher ? { email: teacher.ssoEmail, successorId: successor?.id ?? null } : {});
       if (teacher) AuditLogger.log("מחיקת מורה", "admin", `מורה נמחק: ${teacher.ssoEmail}`);
     } catch (err) {
       set(previous);
@@ -472,19 +488,5 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       throw err;
     }
   },
-
-  deleteClassRoom: async (id) => {
-    const classRoom = get().classes.find(c => c.id === id);
-    const previous = get().classes;
-    set((state) => ({ classes: state.classes.filter(c => c.id !== id) }));
-    try {
-      await firebaseSyncService.deleteClassRoom(id);
-      if (classRoom) AuditLogger.log("מחיקת כיתה", "admin", `כיתה נמחקה: ${classRoom.name}`);
-    } catch (err) {
-      set({ classes: previous });
-      console.error("Failed to delete class from Firebase", err);
-      throw err;
-    }
-  }
 }));
 

@@ -218,6 +218,8 @@ describe('3 — A1-059: the teacher closed the chat', () => {
     expect(b.hasAttribute('title')).toBe(false);
     const tip = screen.getByTestId('chat-closed-tooltip');
     expect(tip.textContent).toBe(CHAT_CLOSED_HE);
+    // The standard read-aloud button (owner, 11.10.2026).
+    expect(tip.querySelector('[data-testid="speech"]')?.getAttribute('data-text')).toBe(CHAT_CLOSED_HE);
     expect(tip.className).toContain('group-hover:opacity-100');
     expect(tip.className).toContain('group-focus-within:opacity-100');
     expect(tip.className).toContain('opacity-0');

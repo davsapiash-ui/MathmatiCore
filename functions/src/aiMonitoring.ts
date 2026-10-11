@@ -34,6 +34,14 @@ export type AiOutcome =
   | "language_reject"
   /** The card left its frame (a level-1 card that names a column). */
   | "frame_reject"
+  /**
+   * Rejection records only (owner decision, 11.10.2026, item 13-1): the
+   * engine's card passed this server and the client's own check refused it,
+   * so the learner got the static card.
+   */
+  | "client_reject"
+  /** Rejection records only: a static card the client's iron rule refused, so the learner got the fallback card. */
+  | "static_reject"
   /** A report's analysis came back well-formed with nothing to report: the fallback sentence ships, but nothing failed. */
   | "empty"
   | "not_json"

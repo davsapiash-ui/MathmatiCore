@@ -60,22 +60,86 @@ export const REJECTION_KIND_LABEL_HE: Readonly<Record<string, string>> = {
   forbidden_term: "מונח אסור",
   language_reject: "ניסוח, סגנון או התאמה למסך",
   frame_reject: "חריגה ממסגרת הכרטיס",
-  not_json: "הפלט אינו JSON תקין",
+  not_json: "הפלט אינו בפורמט הנדרש",
   schema_reject: "מבנה כרטיס שגוי",
+  client_reject: "נדחה בבדיקה במחשב של הלומד",
+  static_reject: "כרטיס קבוע שנדחה בבדיקה במחשב של הלומד",
 };
+
+/**
+ * The validator's reason in Hebrew (owner decision, 11.10.2026, item 13-10:
+ * no English in the report). The stored reason is the validator's own English
+ * sentence (socraticContract.validateSocraticResponse) or the client's rule
+ * (SocraticEngine); each is matched by its opening words, the most specific
+ * first. An unknown reason reads "סיבה אחרת".
+ */
+const REASON_LABELS_HE: ReadonlyArray<[RegExp, string]> = [
+  [/^response is not (JSON|an object)/i, "הפלט אינו בפורמט הנדרש"],
+  [/^error_category/i, "חסר סוג הטעות"],
+  [/^guiding_question/i, "השאלה המנחה חסרה, ארוכה מדי או לא בעברית"],
+  [/^options must be exactly 3/i, "בכרטיס אין שלוש אפשרויות"],
+  [/^option_text/i, "נוסח של אפשרות חסר, ארוך מדי או לא בעברית"],
+  [/^feedback_text/i, "משוב ארוך מדי או לא בעברית"],
+  [/^exactly one option must be correct/i, "בכרטיס אין בדיוק תשובה נכונה אחת"],
+  [/^forbidden terminology/i, "מונח אסור"],
+  [/^final answer leaked as block counts/i, "התוצאה נחשפה כמספר לבנים"],
+  [/^final answer leaked: the card states the result digit/i, "נחשפה ספרה של התוצאה"],
+  [/^(final answer leaked|hidden number leaked)/i, "התוצאה או מספר שהלומד מחפש נחשפו"],
+  [/^hidden digits leaked/i, "ספרה מוסתרת נחשפה"],
+  [/^secret number leaked as block counts/i, "המספר שהלומד מחפש נחשף כמספר לבנים"],
+  [/^secret number leaked: s1_target_347/i, "נחשף מה שהלומד צריך לגלות בתרגיל 347"],
+  [/^secret number leaked/i, "המספר שהלומד מחפש נחשף"],
+  [/^names an aid that is not on the screen/i, "הכרטיס מזכיר עזר שאינו על המסך"],
+  [/^start_given/i, "הכרטיס אומר שהלומד בנה את הלבנים שהתרגיל נתן"],
+  [/^frame: this is a level-1 card/i, "כרטיס כללי שמזכיר את הטור שבו הקושי"],
+  [/^frame: the 10 or more blocks are the break/i, "הכרטיס מבקש לקבץ לבנים שהפריטה דורשת"],
+  [/^(frame: )?marks the instruction'?s representation wrong/i, "הכרטיס פוסל את הלבנים שההוראה מבקשת"],
+  [/^frame/i, "חריגה ממסגרת הכרטיס"],
+  [/^counts: meeting 1/i, "מפגש 1: השאלה מזכירה את הטור שבו הקושי"],
+  [/^counts: the card states how many blocks|^states a column'?s block count/i, "הכרטיס אומר כמה לבנים יש בטור"],
+  [/^screen: meeting 1/i, "מפגש 1: הכרטיס מזכיר טור או כפתור שאין על המסך"],
+  [/^screen: this task has no memory circles/i, "הכרטיס מזכיר עיגול זיכרון בתרגיל שאין בו"],
+  [/^form: the guiding question must be a direct question/i, "השאלה המנחה אינה שאלה ישירה"],
+  [/^form: the only opening/i, "פתיחה שאינה «נסו לחשוב:»"],
+  [/^form: the correct option's feedback must open/i, "משוב התשובה הנכונה אינו נפתח ב«נכון מאוד!»"],
+  [/^form: the correct option's feedback must not contain a hint/i, "רמז בתוך משוב התשובה הנכונה"],
+  [/^form: a wrong option's feedback must open/i, "רמז שאינו נפתח ב«רמז:»"],
+  [/^form: a wrong option's feedback must be ONE question/, "רמז עם יותר משאלה אחת"],
+  [/^form: a wrong option's feedback must be one guiding question/i, "רמז שאינו שאלה"],
+  [/^wrong-option hint is not a guiding question/i, "רמז שאינו שאלה מנחה"],
+  [/^language: (first_person|first_person_plural)/i, "לשון: גוף ראשון רבים"],
+  [/^language: second_person_singular/i, "לשון: פנייה ביחיד"],
+  [/^language: (break_into_column|parsing_verb|subtraction_verb|not_a_form_kabetz)/i, "לשון: פועל של פריטה, הקבצה או חיסור"],
+  [/^language: (name_not_on_screen|result_box_name|action_not_on_screen_mark)/i, "לשון: שם או פעולה שאינם על המסך"],
+  [/^language/i, "לשון: כלל כתיבה"],
+  [/^style: (length_question|length_option|length_hint|length_feedback)/i, "סגנון: ארוך מדי"],
+  [/^style: instruction_quoted/i, "סגנון: העתקה של ההוראה"],
+  [/^style: title_repeated/i, "סגנון: כותרת המשימה בכרטיס"],
+  [/^style: comma_after_fronted_clause/i, "סגנון: חסר פסיק"],
+  [/^style: misleading_phrase/i, "סגנון: ניסוח מטעה"],
+  [/^style/i, "סגנון: כלל כתיבה"],
+  [/^fields|^options$|^json$|^empty$/i, "מבנה כרטיס שגוי"],
+];
+export const OTHER_REASON_HE = "סיבה אחרת";
+export function validatorReasonLabelHe(reason: string): string {
+  const r = reason.trim();
+  for (const [re, label] of REASON_LABELS_HE) if (re.test(r)) return label;
+  return OTHER_REASON_HE;
+}
 const OTHER_KIND_LABEL_HE = "אחר";
 const UNKNOWN_MEETING_HE = "מפגש לא ידוע";
 
-export const AI_REJECTIONS_TITLE_HE = "כרטיסי חניכה שנדחו בבדיקת השרת – דוח שבועי";
+export const AI_REJECTIONS_TITLE_HE = "כרטיסי חניכה שנדחו בבדיקה – דוח שבועי";
 export const AI_REJECTIONS_HEADINGS_HE = {
   byKind: "לפי סוג הדחייה",
-  byValidator: "לפי נוסח הבודק",
+  byValidator: "לפי סיבת הדחייה",
   byMeeting: "לפי מפגש",
   examples: "דוגמאות (עד 5)",
 } as const;
 export const AI_REJECTIONS_NOTE_HE =
-  "כל תשובה של מנוע הבינה המלאכותית שבודק השרת דחה נספרת כאן, גם ניסיון ראשון שתוקן בניסיון השני. " +
-  "במקום תשובה שנדחתה הלומד קיבל כרטיס מתוקן או את הכרטיס הקבוע. " +
+  "כל תשובה של מנוע הבינה המלאכותית שבודק השרת דחה נספרת כאן, גם ניסיון ראשון שתוקן בניסיון השני, " +
+  "וכך גם כרטיס שנדחה בבדיקה במחשב של הלומד, של המנוע או כרטיס קבוע. " +
+  "במקום כרטיס שנדחה הלומד קיבל כרטיס מתוקן, את הכרטיס הקבוע או כרטיס כללי של התרגיל. " +
   "אין בדוח פרט מזהה של לומד, ואין בו טקסט שהלומדים כתבו.";
 export const AI_REJECTIONS_EMPTY_HE = "השבוע לא נדחה אף כרטיס חניכה.";
 
@@ -158,7 +222,7 @@ export function buildAiRejectionsReport(rows: AiRejectionRow[], period: { from_m
     .map(([code, count]) => ({ code, label_he: kindLabel(code), count }))
     .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
 
-  const byValidator = [...countBy(clean, (r) => shorten(r.reason, 120) || "—")]
+  const byValidator = [...countBy(clean, (r) => validatorReasonLabelHe(r.reason))]
     .map(([reason, count]) => ({ reason, count }))
     .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason))
     .slice(0, MAX_VALIDATOR_REASONS);
@@ -201,7 +265,7 @@ export function buildAiRejectionsReport(rows: AiRejectionRow[], period: { from_m
       meeting_label_he: r.meeting === null ? UNKNOWN_MEETING_HE : meetingShortLabelHe(r.meeting),
       kind_label_he: kindLabel(r.code),
       code: r.code,
-      reason: shorten(r.reason, 120) || "—",
+      reason: validatorReasonLabelHe(r.reason),
       card_excerpt: cardExcerpt(r.card_text) || "—",
     })),
   };
@@ -214,15 +278,15 @@ export function aiRejectionsReportLines(report: AiRejectionsReport): string[] {
   lines.push(`סך הכול דחיות: ${report.total}`);
   if (report.demo_count > 0) lines.push(`מתוכן בכרטיס ההדגמה של המורה: ${report.demo_count}`);
   lines.push("", AI_REJECTIONS_HEADINGS_HE.byKind);
-  for (const k of report.by_kind) lines.push(`• ${k.label_he} (${k.code}): ${k.count}`);
+  for (const k of report.by_kind) lines.push(`• ${k.label_he}: ${k.count}`);
   lines.push("", AI_REJECTIONS_HEADINGS_HE.byValidator);
   for (const v of report.by_validator_reason) lines.push(`• ${v.reason}: ${v.count}`);
   lines.push("", AI_REJECTIONS_HEADINGS_HE.byMeeting);
   for (const m of report.by_meeting) lines.push(`• ${m.label_he}: ${m.count}`);
   lines.push("", AI_REJECTIONS_HEADINGS_HE.examples);
   report.examples.forEach((e, i) => {
-    lines.push(`${i + 1}. תרגיל ${e.exercise_id} · ${e.meeting_label_he} · ${e.kind_label_he} (${e.code})`);
-    lines.push(`   נוסח הבודק: ${e.reason}`);
+    lines.push(`${i + 1}. תרגיל ${e.exercise_id} · ${e.meeting_label_he} · ${e.kind_label_he}`);
+    lines.push(`   סיבת הדחייה: ${e.reason}`);
     lines.push(`   הכרטיס שנדחה: ${e.card_excerpt}`);
   });
   return lines;
@@ -242,21 +306,21 @@ export function aiRejectionsReportHtml(report: AiRejectionsReport): string {
   parts.push(
     `<p><b>סך הכול דחיות: ${report.total}</b>${report.demo_count > 0 ? ` · מתוכן בכרטיס ההדגמה של המורה: ${report.demo_count}` : ""}</p>`,
     `<h2>${esc(AI_REJECTIONS_HEADINGS_HE.byKind)}</h2>`,
-    `<table><thead><tr><th>סוג הדחייה</th><th>קוד</th><th>מספר</th></tr></thead><tbody>`,
-    ...report.by_kind.map((k) => `<tr><td class="label">${esc(k.label_he)}</td><td dir="ltr">${esc(k.code)}</td><td>${k.count}</td></tr>`),
+    `<table><thead><tr><th>סוג הדחייה</th><th>מספר</th></tr></thead><tbody>`,
+    ...report.by_kind.map((k) => `<tr><td class="label">${esc(k.label_he)}</td><td>${k.count}</td></tr>`),
     `</tbody></table>`,
     `<h2>${esc(AI_REJECTIONS_HEADINGS_HE.byValidator)}</h2>`,
-    `<table><thead><tr><th>נוסח הבודק (כפי שנרשם)</th><th>מספר</th></tr></thead><tbody>`,
-    ...report.by_validator_reason.map((v) => `<tr><td dir="ltr" style="text-align:left">${esc(v.reason)}</td><td>${v.count}</td></tr>`),
+    `<table><thead><tr><th>סיבת הדחייה</th><th>מספר</th></tr></thead><tbody>`,
+    ...report.by_validator_reason.map((v) => `<tr><td class="label">${esc(v.reason)}</td><td>${v.count}</td></tr>`),
     `</tbody></table>`,
     `<h2>${esc(AI_REJECTIONS_HEADINGS_HE.byMeeting)}</h2>`,
     `<table><thead><tr><th>מפגש</th><th>מספר</th></tr></thead><tbody>`,
     ...report.by_meeting.map((m) => `<tr><td class="label">${esc(m.label_he)}</td><td>${m.count}</td></tr>`),
     `</tbody></table>`,
     `<h2>${esc(AI_REJECTIONS_HEADINGS_HE.examples)}</h2>`,
-    `<table><thead><tr><th>תרגיל</th><th>מפגש</th><th>סוג הדחייה</th><th>נוסח הבודק</th><th>הכרטיס שנדחה (מקוצר)</th></tr></thead><tbody>`,
+    `<table><thead><tr><th>תרגיל</th><th>מפגש</th><th>סוג הדחייה</th><th>סיבת הדחייה</th><th>הכרטיס שנדחה (מקוצר)</th></tr></thead><tbody>`,
     ...report.examples.map((e) =>
-      `<tr><td dir="ltr">${esc(e.exercise_id)}</td><td>${esc(e.meeting_label_he)}</td><td>${esc(e.kind_label_he)}</td><td dir="ltr" style="text-align:left">${esc(e.reason)}</td><td style="text-align:start">${esc(e.card_excerpt)}</td></tr>`
+      `<tr><td dir="ltr">${esc(e.exercise_id)}</td><td>${esc(e.meeting_label_he)}</td><td>${esc(e.kind_label_he)}</td><td>${esc(e.reason)}</td><td style="text-align:start">${esc(e.card_excerpt)}</td></tr>`
     ),
     `</tbody></table>`,
   );

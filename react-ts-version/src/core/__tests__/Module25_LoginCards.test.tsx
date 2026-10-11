@@ -43,6 +43,7 @@ vi.mock('firebase/functions', () => ({
 }));
 
 import { StudentLoginCardsPage } from '@/presentation/pages/admin/StudentLoginCardsPage';
+import { READ_ONLY_TITLE, useReadOnlyStaffStore } from '@/application/useIsReadOnlyStaff';
 
 const renderPage = () =>
   render(
@@ -94,6 +95,31 @@ describe('כרטיסי כניסה לתלמידים', () => {
     expect(screen.queryByText('0458')).toBeNull();
     expect(screen.getByText('0558')).toBeTruthy();
     expect(h.calls[1]).toEqual({ name: 'regenerateLearnerAccessCode', data: { studentId: 4 } });
+  });
+
+  it('a read-only account sees the cards, the read-only line above the title (not printed), and "קוד חדש" disabled (owner, 11.10.2026)', async () => {
+    useReadOnlyStaffStore.setState({ readOnly: true });
+    try {
+      renderPage();
+      await screen.findAllByTestId('login-card');
+      const banner = screen.getByTestId('read-only-banner');
+      expect(banner.parentElement!.className.split(/\s+/)).toContain('print:hidden');
+      // Above the title.
+      expect(banner.compareDocumentPosition(screen.getByRole('heading', { name: 'כרטיסי כניסה לתלמידים' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const button = screen.getByRole('button', { name: 'קוד חדש לתלמיד 4' }) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      expect(button.title).toBe(READ_ONLY_TITLE);
+      fireEvent.click(button);
+      expect(h.calls.map((c) => c.name)).toEqual(['getStudentLoginCards']);
+    } finally {
+      useReadOnlyStaffStore.setState({ readOnly: false });
+    }
+  });
+
+  it('a staff account that may write: no read-only line', async () => {
+    renderPage();
+    await screen.findAllByTestId('login-card');
+    expect(screen.queryByTestId('read-only-banner')).toBeNull();
   });
 
   it('הדף פתוח למנהל המערכת בלבד, והפונקציה מיוצאת', () => {

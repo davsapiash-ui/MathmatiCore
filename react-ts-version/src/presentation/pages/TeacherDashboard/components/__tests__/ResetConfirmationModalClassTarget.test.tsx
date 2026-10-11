@@ -107,7 +107,7 @@ describe('ResetConfirmationModal — level 2, one learner (unchanged)', () => {
     const label = 'מפגש 4 · אצל התלמידים: חיבור במאונך עם הקבצה';
     // Default scope: the line under the heading and the "… בלבד" choice both carry the station name.
     expect(screen.getByText(label)).toBeTruthy();
-    expect(screen.getByRole('radio', { name: new RegExp(`המפגש הזה בלבד \\(ברירת המחדל\\): ${label}`) })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: new RegExp(`המפגש הנוכחי בלבד \\(ברירת המחדל\\): ${label}`) })).toBeTruthy();
     expect(screen.getByText(`יימחקו העבודה וההתקדמות של התלמיד ב${label}.`)).toBeTruthy();
 
     // The full reset touches all eight meetings: no single meeting under the heading.

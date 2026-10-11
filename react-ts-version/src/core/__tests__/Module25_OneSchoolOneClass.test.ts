@@ -58,10 +58,17 @@ describe('Module 25 §ב.1 — one school, one class', () => {
     expect(service).not.toContain("push(ref(database, 'classes'))");
   });
 
-  it('the login screen offers only the pilot school and class', () => {
+  it('the login screen reads the public lists once, and falls back to the pilot school and class (owner, 11.10.2026)', () => {
     expect(login).not.toContain('useAdminStore');
-    expect(login).toContain('const schoolsList = PILOT_SCHOOLS;');
-    expect(login).toContain('const classesForSelectedSchool = PILOT_CLASSES;');
+    // The nodes the rules let the page's anonymous session read, and that admit the pilot ids only.
+    expect(login).toContain('get(ref(database, "schools"))');
+    expect(login).toContain('get(ref(database, "public_classes"))');
+    expect(login).toContain('await authReady;');
+    expect(login).toContain('useState<LoginSchool[]>(PILOT_SCHOOLS)');
+    expect(login).toContain('useState<LoginClass[]>(PILOT_CLASSES)');
+    expect(login).toContain('return forSchool.length > 0 ? forSchool : PILOT_CLASSES;');
+    expect(rtdbRules.rules.schools['.read']).toBe('auth != null');
+    expect(rtdbRules.rules.public_classes['.read']).toBe('auth != null');
   });
 
   it('the teacher dashboard activates the pilot class, not whichever class is first', () => {
