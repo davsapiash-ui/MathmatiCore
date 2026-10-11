@@ -61,8 +61,8 @@ export function classReportFileName(sessionNumber: number, ext: "pdf" | "csv", m
   return `מפגש ${sessionNumber} - כיתה - ${israelDate(ms)}.${ext}`;
 }
 
-/** The five research files (Module 24 §ב), by the names the PRD gives them. */
-export const RESEARCH_FILE_LABELS = ["פעולות", "מפגשים", "הקלטות", "רפלקציות", "יומן איפוסים"] as const;
+/** The six research files (Module 24 §ב), by the names the PRD gives them. */
+export const RESEARCH_FILE_LABELS = ["פעולות", "מפגשים", "הקלטות", "רפלקציות", "יומן איפוסים", "תיווך המורה"] as const;
 
 /**
  * "ייצוא 08.10.2026 14-30 - פעולות.csv" for all sessions,
