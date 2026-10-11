@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
-import { ClipboardList, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { CheckCircle2, ClipboardList, X } from 'lucide-react';
+import { AnimatedNumber } from './AnimatedNumber';
 import { READ_ONLY_TITLE } from '@/application/useIsReadOnlyStaff';
 import { useOpenMediationEvents, useTeacherMediationStore } from '@/application/useTeacherMediationStore';
 import { MEDIATION_HE, bubbleLineHe, type MediationEvent } from '@/core/teacherMediation';
@@ -7,15 +8,20 @@ import { MediationControls } from './MediationControls';
 
 /**
  * Measure 5 on the teacher's side (owner, 11.10.2026): the dashboard helps the
- * teacher not get stuck and not forget — the top-bar counter and the close
- * dialog here, the side action queue in MediationQueue. Nothing blinks or
+ * teacher not get stuck and not forget — the top-bar counter and the open list
+ * here (the closing checklist embeds it), the side action queue in MediationQueue. Nothing blinks or
  * pulses (Module 18).
  */
 
 /** Open events as rows: the learner, the kind, the time and the two questions. Newest first. */
 export function MediationOpenList({ events, readOnly, testIdPrefix }: { events: MediationEvent[]; readOnly: boolean; testIdPrefix: string }) {
   if (events.length === 0) {
-    return <p className="text-xs text-slate-600 dark:text-slate-400">{MEDIATION_HE.noOpenEvents}</p>;
+    return (
+      <p className="flex items-center gap-2 text-sm leading-normal text-slate-600 dark:text-slate-400">
+        <CheckCircle2 className="w-4 h-4 shrink-0 text-slate-400" aria-hidden="true" />
+        {MEDIATION_HE.noOpenEvents}
+      </p>
+    );
   }
   return (
     <ul className="flex flex-col gap-2" data-testid={`${testIdPrefix}-list`}>
@@ -42,21 +48,30 @@ export function MediationPendingButton({ readOnly, open, onOpenChange }: { readO
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onOpenChange]);
+  // Hovering the counter previews the list (owner, 11.10.2026); a click keeps it open.
+  const [preview, setPreview] = useState(false);
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (previewTimer.current) clearTimeout(previewTimer.current); }, []);
   if (meeting === null) return null;
+  const shown = open || preview;
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onMouseEnter={() => { if (previewTimer.current) clearTimeout(previewTimer.current); previewTimer.current = setTimeout(() => setPreview(true), 250); }}
+      onMouseLeave={() => { if (previewTimer.current) clearTimeout(previewTimer.current); setPreview(false); }}
+    >
       <button
         type="button"
         data-testid="mediation-pending-counter"
         aria-expanded={open}
         title={readOnly ? READ_ONLY_TITLE : MEDIATION_HE.pendingListTitle}
         onClick={() => onOpenChange(!open)}
-        className="inline-flex items-center gap-1.5 min-h-9 px-2.5 py-1.5 whitespace-nowrap bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-xl shadow-sm font-bold text-xs cursor-pointer"
+        className="inline-flex items-center gap-1.5 min-h-9 px-2.5 py-1.5 whitespace-nowrap transition-colors duration-150 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs cursor-pointer"
       >
         <ClipboardList className="w-4 h-4" aria-hidden="true" />
-        <span>{MEDIATION_HE.pendingCounter(events.length)}</span>
+        <span className="inline-flex items-center whitespace-pre">{MEDIATION_HE.pendingCounter(events.length).replace(/\d+$/, '')}<AnimatedNumber value={events.length} /></span>
       </button>
-      {open && (
+      {shown && (
         <div
           role="dialog"
           aria-label={MEDIATION_HE.pendingListTitle}
@@ -73,47 +88,6 @@ export function MediationPendingButton({ readOnly, open, onOpenChange }: { readO
           <MediationOpenList events={events} readOnly={readOnly} testIdPrefix="mediation-pending" />
         </div>
       )}
-    </div>
-  );
-}
-
-/**
- * Before the meeting closes with unrecorded events: "יש N אירועים שלא תועדו",
- * the list inline, and "סגירה בכל זאת". It never blocks the close.
- */
-export function MediationCloseDialog({ readOnly, onCloseAnyway, onBack }: { readOnly: boolean; onCloseAnyway: () => void; onBack: () => void }) {
-  // Recording a row inline shrinks the list, and the title follows it.
-  const events = useOpenMediationEvents();
-  return (
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4" dir="rtl">
-      <div className="absolute inset-0 bg-slate-950/50" onClick={onBack} />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={MEDIATION_HE.closeAnyway}
-        data-testid="mediation-close-dialog"
-        className="relative w-full max-w-lg max-h-[85vh] flex flex-col bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-5 gap-3"
-      >
-        <h2 className="text-lg font-black text-slate-900 dark:text-white">
-          {events.length > 0 ? MEDIATION_HE.closeUnrecorded(events.length) : MEDIATION_HE.noOpenEvents}
-        </h2>
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <MediationOpenList events={events} readOnly={readOnly} testIdPrefix="mediation-close" />
-        </div>
-        <div className="flex gap-2 justify-end">
-          <button type="button" onClick={onBack} className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold text-sm cursor-pointer">
-            {MEDIATION_HE.back}
-          </button>
-          <button
-            type="button"
-            data-testid="mediation-close-anyway"
-            onClick={onCloseAnyway}
-            className="px-4 py-2.5 rounded-xl bg-rose-800 hover:bg-rose-900 text-white font-bold text-sm cursor-pointer"
-          >
-            {MEDIATION_HE.closeAnyway}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

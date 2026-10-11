@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { BellRing, ChevronDown, DoorOpen, MessageCircle, UserCheck } from 'lucide-react';
+import { BellRing, ChevronDown, DoorOpen, Inbox, MessageCircle, UserCheck } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { READ_ONLY_TITLE } from '@/application/useIsReadOnlyStaff';
 import { useChatStore } from '@/application/useChatStore';
@@ -22,10 +23,10 @@ import { MediationControls } from './MediationControls';
 import { MediationOpenList } from './MediationJournal';
 
 const chip = (pressed: boolean) =>
-  `min-h-9 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+  `min-h-9 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
     pressed
       ? 'bg-violet-700 border-violet-700 text-white'
-      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
+      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700'
   }`;
 
 /**
@@ -69,11 +70,17 @@ function QueueItemCard({ item, readOnly, teacherId }: { item: QueueItem; readOnl
   };
 
   return (
-    <li
+    // Enters and leaves with a short slide and fade; the rest of the list moves, never jumps (owner, 11.10.2026).
+    <motion.li
+      layout
+      initial={{ opacity: 0, x: 12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -12 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       data-testid="queue-item"
       data-learner={item.studentNumber}
       data-kind={item.kind}
-      className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex flex-col"
+      className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 transition-colors duration-150 hover:border-slate-300 dark:hover:border-slate-600 flex flex-col"
     >
       <button
         type="button"
@@ -83,17 +90,17 @@ function QueueItemCard({ item, readOnly, teacherId }: { item: QueueItem; readOnl
         onClick={() => setExpandedLearner(expanded ? null : item.studentNumber)}
         className="w-full flex items-center justify-between gap-2 px-3 pt-2.5 pb-1.5 text-right cursor-pointer"
       >
-        <span className="flex items-center gap-1.5 text-xs font-extrabold text-slate-900 dark:text-slate-100">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 min-w-0">
           {item.kind === 'help'
-            ? <BellRing className="w-3.5 h-3.5 text-slate-800 dark:text-slate-100 shrink-0" aria-hidden="true" />
-            : <MessageCircle className="w-3.5 h-3.5 text-slate-600 shrink-0" aria-hidden="true" />}
-          <span>{MEDIATION_HE.learner(item.studentNumber)}</span>
-          <span className="font-bold text-slate-700 dark:text-slate-300">
+            ? <BellRing className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" aria-hidden="true" />
+            : <MessageCircle className="w-3.5 h-3.5 text-slate-500 shrink-0" aria-hidden="true" />}
+          <span className="text-[13px] font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">{MEDIATION_HE.learner(item.studentNumber)}</span>
+          <span className="truncate">
             · {item.kind === 'help' ? QUEUE_HE.helpItem : QUEUE_HE.chatItem(item.unreadCount)}
             {first ? ` · ${clockHe(first.at)}` : ''}
           </span>
           {item.kind === 'help' && item.unreadCount > 0 && (
-            <span className="ms-1 inline-flex items-center gap-0.5 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+            <span className="ms-1 inline-flex items-center gap-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
               <MessageCircle className="w-3 h-3" aria-hidden="true" />{item.unreadCount}
             </span>
           )}
@@ -103,7 +110,8 @@ function QueueItemCard({ item, readOnly, teacherId }: { item: QueueItem; readOnl
 
       {(item.events.length > 0 || item.helpRequested) && (
         <div className="px-3 pb-2.5 flex flex-col gap-1.5">
-          <div role="group" aria-label={MEDIATION_HE.whatDidIDo} className="flex flex-wrap items-center gap-1.5">
+          {/* Equal buttons (owner, 11.10.2026): two by two in a queue narrower than 360px, one row of four from 360px. */}
+          <div role="group" aria-label={MEDIATION_HE.whatDidIDo} data-testid="queue-actions" className="grid grid-cols-2 [@container(min-width:360px)]:grid-cols-4 gap-1.5">
             {MEDIATION_ACTIONS.map((a) => (
               <button
                 key={a}
@@ -113,7 +121,7 @@ function QueueItemCard({ item, readOnly, teacherId }: { item: QueueItem; readOnl
                 disabled={readOnly || saving}
                 title={title}
                 onClick={() => { void onAction(a); }}
-                className={chip(action === a)}
+                className={`${chip(action === a)} w-full text-center leading-tight [@container(min-width:360px)]:px-1`}
               >
                 {MEDIATION_ACTION_HE[a]}
               </button>
@@ -145,7 +153,7 @@ function QueueItemCard({ item, readOnly, teacherId }: { item: QueueItem; readOnl
           <ChatThread studentId={`student_user${item.studentNumber}`} teacherId={teacherId} listClassName="max-h-56 overflow-y-auto p-3" />
         </div>
       )}
-    </li>
+    </motion.li>
   );
 }
 
@@ -163,7 +171,7 @@ function SelfApproach({ readOnly }: { readOnly: boolean }) {
         disabled={readOnly}
         title={readOnly ? READ_ONLY_TITLE : undefined}
         onClick={() => (open ? close() : setOpen(true))}
-        className="inline-flex items-center justify-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        className="inline-flex items-center justify-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <UserCheck className="w-3.5 h-3.5" aria-hidden="true" />
         {MEDIATION_HE.selfApproach}
@@ -227,26 +235,41 @@ export function MediationQueue({
     <aside
       data-testid="mediation-queue"
       aria-label={QUEUE_HE.title}
-      className="w-full lg:w-80 2xl:w-[25rem] shrink-0 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7.5rem)] overflow-y-auto custom-scrollbar flex flex-col gap-2.5 p-3 rounded-2xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800"
+      className="w-full flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col gap-2.5 p-[clamp(12px,1vw,16px)] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 [container-type:inline-size]"
       dir="rtl"
     >
-      <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{QUEUE_HE.title}</h2>
+      {/* The queue is the screen's focal point (owner, 11.10.2026): a clear header with the count. */}
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-[15px] font-bold text-slate-900 dark:text-slate-100">{QUEUE_HE.title}</h2>
+        {queue.items.length + gateLearners.length > 0 && (
+          <span data-testid="queue-count" className="min-w-6 h-6 px-2 inline-flex items-center justify-center rounded-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 text-xs font-bold tabular-nums">
+            {queue.items.length + gateLearners.length}
+          </span>
+        )}
+      </div>
       {meeting !== null && <SelfApproach readOnly={readOnly} />}
 
-      {nothing && <p className="text-xs text-slate-600 dark:text-slate-400">{QUEUE_HE.empty}</p>}
+      {nothing && (
+        <p className="flex items-center gap-2 text-sm leading-normal text-slate-600 dark:text-slate-400">
+          <Inbox className="w-4 h-4 shrink-0 text-slate-400" aria-hidden="true" />
+          {QUEUE_HE.empty}
+        </p>
+      )}
 
       {queue.items.length > 0 && (
         <ul className="flex flex-col gap-2" data-testid="queue-items">
+          <AnimatePresence initial={false}>
           {queue.items.map((item) => (
             <QueueItemCard key={item.studentNumber} item={item} readOnly={readOnly} teacherId={teacherId} />
           ))}
+          </AnimatePresence>
         </ul>
       )}
 
       {gateLearners.length > 0 && (
         <ul className="flex flex-col gap-2" data-testid="queue-gate">
           {gateLearners.map((n) => (
-            <li key={n} className="rounded-xl border border-violet-200 dark:border-violet-800 bg-white dark:bg-slate-900 px-3 py-2 flex items-center justify-between gap-2">
+            <li key={n} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 flex items-center justify-between gap-2">
               <span className="flex items-center gap-1.5 text-xs font-extrabold text-slate-900 dark:text-slate-100" title={`ממתין ב${TEACHER_GATE_HE}`}>
                 <DoorOpen className="w-3.5 h-3.5 text-violet-700 shrink-0" aria-hidden="true" />
                 {MEDIATION_HE.learner(n)} · {QUEUE_HE.gateItem}
@@ -270,7 +293,7 @@ export function MediationQueue({
             data-testid="queue-to-record-toggle"
             aria-expanded={toRecordOpen}
             onClick={() => setToRecordOpen((v) => !v)}
-            className="flex items-center justify-between gap-2 px-1 text-xs font-extrabold text-slate-700 dark:text-slate-200 cursor-pointer"
+            className="flex items-center justify-between gap-2 px-1 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer"
           >
             <span>{QUEUE_HE.toRecordList(queue.toRecord.length)}</span>
             <ChevronDown className={`w-3.5 h-3.5 ${toRecordOpen ? 'rotate-180' : ''}`} aria-hidden="true" />

@@ -26,11 +26,20 @@ describe('Module 18: Silent Radar colour precedence (PRD v7.1)', () => {
     expect(resolveRadarColor({ helpRequested: false, socraticActive: false, isOnline: true, hesitationSeconds: 0 })).toBe('GREEN');
   });
 
-  it('every colour has a cell class for both themes', () => {
+  it('every colour has a cell class for both themes: one neutral 1px hairline, the normal state untinted (owner, 11.10.2026)', () => {
     const colors: RadarColor[] = ['BLUE', 'RED', 'GREY', 'YELLOW', 'GREEN'];
     for (const c of colors) {
       expect(RADAR_CELL_CLASSES[c]).toBeTruthy();
-      expect(RADAR_CELL_CLASSES[c]).toContain('border-2');
+      expect(RADAR_CELL_CLASSES[c].split(' ')).toContain('border');
+      expect(RADAR_CELL_CLASSES[c]).not.toContain('border-2');
+      expect(RADAR_CELL_CLASSES[c]).toMatch(/border-slate-200/);
+      expect(RADAR_CELL_CLASSES[c]).toMatch(/dark:/);
+      expect(RADAR_CELL_CLASSES[c]).not.toMatch(/shadow/);
     }
+    // Management by exception: a working learner's tile is plain; only blue, red and yellow are tinted.
+    expect(RADAR_CELL_CLASSES.GREEN).toContain('bg-white');
+    expect(RADAR_CELL_CLASSES.BLUE).toContain('bg-blue-50');
+    expect(RADAR_CELL_CLASSES.RED).toContain('bg-rose-50');
+    expect(RADAR_CELL_CLASSES.YELLOW).toContain('bg-amber-50');
   });
 });

@@ -22,11 +22,9 @@ const css = readFileSync(resolve(__dirname, '../../index.css'), 'utf-8');
 
 describe('Module 18: the radar is still', () => {
   it('no cell tag, status dot or banner pulses or pings any more', () => {
-    // The single remaining pulse is the export button's in-flight spinner,
-    // which is a transient action indicator and not part of the radar grid.
-    const pulses = src.match(/animate-pulse/g) || [];
-    expect(pulses).toHaveLength(1);
-    expect(src).toContain("isExportingDataset ? 'animate-pulse' : ''");
+    // Owner, 11.10.2026 (round two): no pulse at all on teacher screens — the
+    // export button's in-flight pulse is gone too; its label says "מייצא...".
+    expect(src).not.toContain('animate-pulse');
     expect(src).not.toContain('animate-ping');
   });
 

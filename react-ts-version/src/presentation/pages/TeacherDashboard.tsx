@@ -22,9 +22,16 @@ import { workspaceSavedAt } from "@/core/workspaceSnapshot";
 import type { CatchUpAction, CatchUpReasonEntry, CatchUpRecord, UnfinishedLearner } from "@/core/catchUp";
 import { recordCatchUpReasons, subscribeCatchUpRecords } from "@/infrastructure/services/CatchUpService";
 import { CatchUpReasonsDialog } from "./TeacherDashboard/components/CatchUpReasonsDialog";
-import { MediationCloseDialog, MediationPendingButton } from "./TeacherDashboard/components/MediationJournal";
+import { MediationPendingButton } from "./TeacherDashboard/components/MediationJournal";
 import { MediationQueue } from "./TeacherDashboard/components/MediationQueue";
-import { useOpenMediationEvents, useTeacherMediationStore, useTeacherMediationSync } from "@/application/useTeacherMediationStore";
+import { CloseMeetingChecklist } from "./TeacherDashboard/components/CloseMeetingChecklist";
+import { MeetingSummaryPanel } from "./TeacherDashboard/components/MeetingSummaryPanel";
+import { TeacherTabHeader } from "./TeacherDashboard/components/TeacherTabHeader";
+import { RadarColourMap } from "./TeacherDashboard/components/RadarColourMap";
+import { useMediationEvents, useOpenMediationEvents, useTeacherMediationStore, useTeacherMediationSync } from "@/application/useTeacherMediationStore";
+import { LESSON_FLOW_HE, buildMeetingSummary, type MeetingSummary } from "@/core/teacherLessonFlow";
+import { clearHelpRequest } from "@/infrastructure/services/HelpRequestService";
+import { getHesitationThresholdSeconds, useHesitationThresholdSeconds } from "@/core/hesitationCalibration";
 import { QUEUE_HE } from "@/core/teacherMediation";
 import { useProjectorMode } from "@/application/useProjectorMode";
 import { TeacherGuideDownloadButton } from './TeacherDashboard/components/TeacherGuideDownloadButton';
@@ -33,6 +40,7 @@ import { doc, getDoc, onSnapshot, collection, writeBatch, deleteField } from "fi
 import { activationMirror } from "@/core/classActivationMirror";
 import type { SessionDocument, PedagogicalPath } from "@/types";
 import { httpsCallable } from "firebase/functions";
+import { MotionConfig } from "framer-motion";
 import { ensureStaffRoleClaims } from "@/infrastructure/services/staffRoleClaims";
 import { SocraticEngine } from "@/infrastructure/services/SocraticEngine";
 import { indexedDBQueue } from "@/infrastructure/services/IndexedDBQueue";
@@ -46,7 +54,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users, Mail, Radar, LayoutGrid, FileText, School, PanelRightClose, PanelRightOpen, Play, Pause, Square, Lock } from "lucide-react";
+import { Send, MessageCircle, ShieldAlert, Sliders, Search, Check, CheckCheck, Sparkles, Users, Mail, Radar, LayoutGrid, FileText, School, PanelRightClose, PanelRightOpen, Play, Pause, Square, Lock, Clock, Timer, Undo2 } from "lucide-react";
 
 import { ClassManagement, CLASS_MANAGEMENT_TITLE_HE } from "./TeacherDashboard/ClassManagement";
 import { LearnerJourney } from "./TeacherDashboard/components/LearnerJourney";
@@ -176,16 +184,37 @@ export function TeacherDashboard() {
     return initial;
   });
 
-  // The side menu folded to icons (owner, 6.10.2026). A per-teacher convenience:
-  // remembered in this browser only, and the page works the same without it.
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
-    try { return localStorage.getItem('teacher_sidebar_collapsed') === '1'; } catch { return false; }
+  // The side menu folded to icons (owner, 6.10.2026). Below 1600px it starts as
+  // the icon rail, so the radar gets the width (owner, 11.10.2026); the
+  // teacher's own choice, once made, wins and is remembered in this browser
+  // only — the page works the same without it.
+  const [sidebarChoice, setSidebarChoice] = useState<boolean | null>(() => {
+    try {
+      const v = localStorage.getItem('teacher_sidebar_collapsed');
+      return v === '1' ? true : v === '0' ? false : null;
+    } catch { return null; }
   });
+  const [isNarrowScreen, setIsNarrowScreen] = useState<boolean>(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(max-width: 1599px)').matches
+      : typeof window !== 'undefined' && window.innerWidth < 1600);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mql = window.matchMedia('(max-width: 1599px)');
+    const onChange = () => setIsNarrowScreen(mql.matches);
+    mql.addEventListener?.('change', onChange);
+    return () => mql.removeEventListener?.('change', onChange);
+  }, []);
+  const sidebarCollapsed = sidebarChoice ?? isNarrowScreen;
+  // The teacher screens' own type (index.css, .teacher-ui), on <html> so the drawers in portals get it too.
+  useEffect(() => {
+    document.documentElement.classList.add('teacher-ui');
+    return () => document.documentElement.classList.remove('teacher-ui');
+  }, []);
   const toggleSidebar = () => {
-    setSidebarCollapsed((c) => {
-      try { localStorage.setItem('teacher_sidebar_collapsed', c ? '0' : '1'); } catch { /* storage unavailable */ }
-      return !c;
-    });
+    const next = !sidebarCollapsed;
+    try { localStorage.setItem('teacher_sidebar_collapsed', next ? '1' : '0'); } catch { /* storage unavailable */ }
+    setSidebarChoice(next);
   };
   // Personal reports: the class report folded to one line unless the teacher
   // opened it (remembered in this browser; owner, 6.10.2026).
@@ -285,8 +314,17 @@ export function TeacherDashboard() {
   // tiles, the tile drawer and the close dialog.
   useTeacherMediationSync(isClassSessionActive ? selectedSessionNum : null, isClassSessionActive ? _sessionStartTime : null);
   const unrecordedMediationCount = useOpenMediationEvents().length;
+  const mediationEvents = useMediationEvents();
   const [mediationPendingOpen, setMediationPendingOpen] = useState(false);
-  const [mediationCloseOpen, setMediationCloseOpen] = useState(false);
+  // Below 1024px (a tablet in portrait) the queue and the colour map are a bottom sheet (owner, 11.10.2026).
+  const [queueSheetOpen, setQueueSheetOpen] = useState(false);
+  // One closing checklist (owner, 11.10.2026): help calls, the projector, the
+  // reasons of who did not finish, and the unrecorded mediation events.
+  const [closeChecklistOpen, setCloseChecklistOpen] = useState(false);
+  // The teacher-only summary of the meeting she has just closed (owner, 11.10.2026).
+  const [meetingSummary, setMeetingSummary] = useState<MeetingSummary | null>(null);
+  // Keeps the calibration listener alive for the summary's colour rule (Module 26).
+  useHesitationThresholdSeconds();
   // Module 14 §ב0: activation goes through an explicit confirmation window
   const [pendingActivationSession, setPendingActivationSession] = useState<number | null>(null);
   // Module 14 §ב1: teacher-only, one-time-per-session deadline notice
@@ -300,11 +338,6 @@ export function TeacherDashboard() {
   const adminChatDrawerRef = useDismissableOverlay<HTMLDivElement>(
     isAdminChatDrawerOpen,
     () => setIsAdminChatDrawerOpen(false)
-  );
-  // מסמך העיצוב §1.2: also the "עברו X דקות" window closes on Escape.
-  const deadlineNoticeRef = useDismissableOverlay<HTMLDivElement>(
-    deadlineNotice !== null,
-    () => setDeadlineNotice(null)
   );
   const [isUpdatingSession, setIsUpdatingSession] = useState(false);
   const isUpdatingSessionRef = useRef(false);
@@ -511,6 +544,12 @@ export function TeacherDashboard() {
     const timer = setInterval(evaluate, 15000);
     return () => clearInterval(timer);
   }, [isClassSessionActive, _sessionStartTime, selectedSessionNum]);
+
+  // The notice belongs to the open meeting; the summary to the one just closed.
+  useEffect(() => {
+    if (isClassSessionActive) setMeetingSummary(null);
+    else setDeadlineNotice(null);
+  }, [isClassSessionActive]);
 
 
   // Teacher-disconnect grace window (core/classSession.ts, 15 minutes).
@@ -1287,21 +1326,60 @@ export function TeacherDashboard() {
     }
   };
 
-  /** "סגרו את המפגש": the reasons first, when someone who started has not finished. */
-  const requestCloseClassSession = async (skipMediationCheck = false) => {
-    if (isUpdatingSession || isUpdatingSessionRef.current || isSavingCatchUp) return;
-    // Measure 5 (owner, 11.10.2026): unrecorded mediation events are shown
-    // before the close, with "סגירה בכל זאת" — never a block.
-    if (!skipMediationCheck && unrecordedMediationCount > 0) {
-      setMediationCloseOpen(true);
-      return;
+  /** Learners whose help call is on now (the radar's blue tiles). */
+  const helpLearnerNumbers = queueLearners.filter((l) => l.helpRequested).map((l) => l.studentNumber).sort((a, b) => a - b);
+
+  /**
+   * The summary of the open meeting at this moment, before the close turns
+   * every tile grey: read-only, from the records and the mediation log.
+   */
+  const captureMeetingSummary = (): MeetingSummary | null => {
+    if (!isClassSessionActive) return null;
+    return buildMeetingSummary({
+      records: students as unknown as Record<string, Record<string, unknown>>,
+      meeting: selectedSessionNum,
+      events: mediationEvents,
+      serverNow: serverNow(),
+      hesitationThresholdSeconds: getHesitationThresholdSeconds(),
+    });
+  };
+
+  /** The teacher's close, then the summary of what was closed. */
+  const closeWithSummary = async (): Promise<boolean> => {
+    const summary = captureMeetingSummary();
+    const ok = await handleEndClassSession();
+    if (ok && summary) setMeetingSummary(summary);
+    return ok;
+  };
+
+  /** Step 1 of the checklist: every open help call marked handled, in one click. */
+  const clearAllHelpCalls = async () => {
+    if (readOnly) return;
+    try {
+      await Promise.all(helpLearnerNumbers.map((n) => clearHelpRequest(`student_user${n}`)));
+    } catch (err) {
+      console.error('[TeacherDashboard] clearing the help calls failed:', err);
+      toast.error(LESSON_FLOW_HE.clearAllHelpFailed);
     }
+  };
+
+  /**
+   * "סגרו את המפגש" (owner, 11.10.2026): one checklist when there is anything to
+   * look at — help calls, the projector, who did not finish (their reasons stay
+   * mandatory), unrecorded mediation events, and in meeting 2 what the close
+   * does. With nothing to look at, the close goes ahead as before.
+   */
+  const requestCloseClassSession = async () => {
+    if (isUpdatingSession || isUpdatingSessionRef.current || isSavingCatchUp) return;
     const learners = learnersNeedingReason(selectedSessionNum, _sessionStartTime);
     if (learners.length > 0) {
       setCatchUpDialog({ meeting: selectedSessionNum, trigger: 'close', nextMeeting: null, learners, wasOpen: true });
+    }
+    if (learners.length > 0 || helpLearnerNumbers.length > 0 || isProjectorModeActive || unrecordedMediationCount > 0 || selectedSessionNum === 2) {
+      setCloseChecklistOpen(true);
       return;
     }
-    await handleEndClassSession();
+    await closeWithSummary();
   };
 
   /**
@@ -1373,6 +1451,7 @@ export function TeacherDashboard() {
       }
       if (catchUpCancelledRef.current) return;
       setCatchUpDialog(null);
+      setCloseChecklistOpen(false);
 
       let ok: boolean;
       if (action === 'reopen') {
@@ -1382,7 +1461,7 @@ export function TeacherDashboard() {
         // place, with no close in between; only "סגרו את המפגש" completes.
         ok = !(d.wasOpen && d.meeting !== 2 && !(await handleEndClassSession())) && (await openMeetingForClass(d.meeting));
       } else if (d.trigger === 'close') {
-        ok = await handleEndClassSession();
+        ok = await closeWithSummary();
       } else {
         ok = d.nextMeeting === null || (await openMeetingForClass(d.nextMeeting));
       }
@@ -1820,17 +1899,26 @@ export function TeacherDashboard() {
   }, [queueLearners.map((l) => `${l.studentNumber}:${l.helpRequested}`).join(','), messages, readOnly, activeTab]);
 
   if (isLoading) {
+    // Skeleton placeholders in the shape of the page (owner, 11.10.2026), not a spinner. Still: no pulse.
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
-          <p className="text-slate-600 font-medium">טוען נתוני תלמידים...</p>
+      <div className="flex h-screen bg-stone-50 dark:bg-slate-950" dir="rtl" data-testid="dashboard-skeleton">
+        <div className="hidden md:block w-56 shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800" />
+        <div className="flex-1 p-5 flex flex-col gap-4">
+          <div className="h-14 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800" />
+          <div className="grid grid-cols-4 gap-4">
+            {Array.from({ length: 12 }, (_, i) => (
+              <div key={i} className="h-24 rounded-2xl bg-slate-200/70 dark:bg-slate-800" />
+            ))}
+          </div>
+          <p role="status" className="sr-only">טוען נתוני תלמידים...</p>
         </div>
       </div>
     );
   }
 
   return (
+    // Motion on the teacher screens follows the viewer's "reduce motion" setting (owner, 11.10.2026).
+    <MotionConfig reducedMotion="user">
     <div
       // overflow-x-clip, not -hidden: "hidden" turns this element into the scroll
       // container of the sticky side menu, and since it never scrolls itself
@@ -1839,7 +1927,7 @@ export function TeacherDashboard() {
       // and only the page (main) scrolls, with its own scrollbar beside it
       // (owner, 6.10.2026: the page scrolled with the window's bar, beyond the
       // menu, and the bar beside the page belonged to the menu).
-      className="flex flex-col min-h-screen md:h-screen bg-slate-50 font-sans text-slate-900 selection:bg-violet-100 overflow-x-clip"
+      className="flex flex-col min-h-screen md:h-screen bg-stone-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-violet-100 overflow-x-clip"
       data-load-timed-out={loadTimedOut ? 'true' : undefined}
       dir="rtl"
     >
@@ -1868,7 +1956,7 @@ export function TeacherDashboard() {
         {/* The menu folds to a strip of icons (owner, 6.10.2026), so the page gets
             the width. Its own scrollbar, when it needs one, sits on the outer
             edge of the screen ([direction:ltr]), away from the page's. */}
-        <aside data-collapsed={sidebarCollapsed ? 'true' : undefined} className={`w-full ${sidebarCollapsed ? 'md:w-16' : 'md:w-56 2xl:w-72'} bg-white dark:bg-slate-900 border-b md:border-b-0 md:border-l border-slate-200/80 dark:border-slate-800 flex flex-col shadow-md z-20 transition-all shrink-0 md:sticky md:top-0 md:self-start md:h-full overflow-y-auto custom-scrollbar md:[direction:ltr] md:[&>*]:[direction:rtl]`}>
+        <aside data-collapsed={sidebarCollapsed ? 'true' : undefined} className={`w-full ${sidebarCollapsed ? 'md:w-16' : 'md:w-56 2xl:w-72'} bg-white dark:bg-slate-900 border-b md:border-b-0 md:border-l border-slate-200/80 dark:border-slate-800 flex flex-col z-20 transition-all shrink-0 md:sticky md:top-0 md:self-start md:h-full overflow-y-auto custom-scrollbar md:[direction:ltr] md:[&>*]:[direction:rtl]`}>
         <div className={`h-20 flex items-center justify-between gap-2 border-b border-ws-surface2 bg-white/40 dark:bg-slate-800/40 shrink-0 ${sidebarCollapsed ? 'px-6 md:px-0 md:justify-center' : 'px-6'}`}>
           {/* The dashboard stays mounted across its own routes, so the link
               alone left the teacher on the tab she was on. */}
@@ -1888,22 +1976,22 @@ export function TeacherDashboard() {
           </button>
         </div>
         
-        <div className={`border-b border-ws-surface2 ${sidebarCollapsed ? 'p-6 md:p-2' : 'p-6'}`}>
-          <h2 className={`font-display font-black text-xl text-ws-ink tracking-tight mb-2 ${sidebarCollapsed ? 'md:sr-only' : ''}`}>
+        <div className={`border-b border-ws-surface2 ${sidebarCollapsed ? 'p-4 md:p-2' : 'p-4'}`}>
+          <h2 className={`font-display font-bold text-sm text-slate-500 dark:text-slate-400 tracking-tight mb-1 truncate ${sidebarCollapsed ? 'md:sr-only' : ''}`}>
             תחנת עבודה מורה
           </h2>
           
-          <div className={sidebarCollapsed ? 'mt-4 md:mt-0' : 'mt-4'}>
+          <div className={sidebarCollapsed ? 'mt-2 md:mt-0' : 'mt-2'}>
             <button
               // One named window: a second click brings the same projector
               // window back instead of opening another, and each extra window
               // released the children's screens when it opened or closed.
               onClick={() => window.open('/projector', 'mathmaticore_projector')}
               title="ארגז חול למקרן"
-              className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-3 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 shadow-md font-bold text-sm"
+              className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 px-3 py-2 min-h-9 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 font-semibold text-sm"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
-              <span className={sidebarCollapsed ? 'md:sr-only' : ''}>ארגז חול למקרן</span>
+              <span className={sidebarCollapsed ? 'md:sr-only' : 'truncate'}>ארגז חול למקרן</span>
             </button>
             <div className="mt-2">
               <TeacherGuideDownloadButton collapsed={sidebarCollapsed} />
@@ -1920,30 +2008,30 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("heatmap")}
               role="tab"
               aria-selected={activeTab === "heatmap"}
-            className={`w-full flex items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "heatmap" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+            className={`relative w-full flex items-center text-right px-3 py-2.5 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "heatmap" ? "bg-violet-50 text-violet-800 dark:bg-violet-950/60 dark:text-violet-100 font-semibold" : "hover:bg-ws-bg text-ws-soft "}`}
             title="הרדאר הפדגוגי השקט"
           >
-            <span className="flex items-center gap-2"><Radar className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>הרדאר הפדגוגי השקט</span></span>
+            <span className="flex items-center gap-2 min-w-0"><Radar className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : 'truncate'}>הרדאר הפדגוגי השקט</span></span>
           </button>
           <button
             id="tour-tab-clustering"
             onClick={() => handleTabChange("clustering")}
               role="tab"
               aria-selected={activeTab === "clustering"}
-            className={`w-full flex items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "clustering" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`relative w-full flex items-center text-right px-3 py-2.5 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "clustering" ? "bg-violet-50 text-violet-800 dark:bg-violet-950/60 dark:text-violet-100 font-semibold" : "hover:bg-ws-bg  text-ws-soft "}`}
             title="מיפוי מיומנויות כיתתי"
           >
-            <span className="flex items-center gap-2"><LayoutGrid className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>מיפוי מיומנויות כיתתי</span></span>
+            <span className="flex items-center gap-2 min-w-0"><LayoutGrid className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : 'truncate'}>מיפוי מיומנויות כיתתי</span></span>
           </button>
           <button
             id="tour-tab-reports"
             onClick={() => handleTabChange("diagnostic_reports")}
               role="tab"
               aria-selected={activeTab === "diagnostic_reports"}
-            className={`w-full flex items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "diagnostic_reports" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg text-ws-soft "}`}
+            className={`relative w-full flex items-center text-right px-3 py-2.5 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "diagnostic_reports" ? "bg-violet-50 text-violet-800 dark:bg-violet-950/60 dark:text-violet-100 font-semibold" : "hover:bg-ws-bg text-ws-soft "}`}
             title="דוחות אבחון אישיים"
           >
-            <span className="flex items-center gap-2"><FileText className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>דוחות אבחון אישיים</span></span>
+            <span className="flex items-center gap-2 min-w-0"><FileText className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : 'truncate'}>דוחות אבחון אישיים</span></span>
           </button>
           {/* One place for every decision about a learner (owner, 11.10.2026): שלב החלוקה למסלולים lives
               inside "ניהול כיתה ומסלולים", and its badge counts the learners waiting there. */}
@@ -1951,13 +2039,13 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("class_management")}
               role="tab"
               aria-selected={activeTab === "class_management"}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "class_management" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`relative w-full flex justify-between items-center gap-2 text-right px-3 py-2.5 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "class_management" ? "bg-violet-50 text-violet-800 dark:bg-violet-950/60 dark:text-violet-100 font-semibold" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            <span className="flex items-center gap-2" title={CLASS_MANAGEMENT_TITLE_HE}><School className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>{CLASS_MANAGEMENT_TITLE_HE}</span></span>
+            <span className="flex items-center gap-2 min-w-0" title={CLASS_MANAGEMENT_TITLE_HE}><School className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : 'truncate'}>{CLASS_MANAGEMENT_TITLE_HE}</span></span>
             {/* Badge: learners waiting at the Module 20 gate. */}
             {pendingApprovalsBadgeCount > 0 && (
               <span
-                className="bg-violet-700 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg"
+                className={`shrink-0 bg-violet-700 text-white text-xs font-bold px-2 py-0.5 rounded-full${sidebarCollapsed ? ' md:absolute md:top-0.5 md:left-1.5 md:min-w-[18px] md:h-[18px] md:px-1 md:py-0 md:text-[10px] md:leading-[18px] md:text-center' : ''}`}
                 title={`ממתינים ב${TEACHER_GATE_HE}: ${pendingApprovalsBadgeCount}`}
               >
                 {pendingApprovalsBadgeCount}
@@ -1973,22 +2061,22 @@ export function TeacherDashboard() {
             onClick={() => handleTabChange("chat_students")}
               role="tab"
               aria-selected={activeTab === "chat_students"}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "chat_students" ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`relative w-full flex justify-between items-center gap-2 text-right px-3 py-2.5 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${activeTab === "chat_students" ? "bg-violet-50 text-violet-800 dark:bg-violet-950/60 dark:text-violet-100 font-semibold" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            <span className="flex items-center gap-2" title="צ'אט עם תלמידים"><MessageCircle className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>צ'אט עם תלמידים</span></span>
+            <span className="flex items-center gap-2 min-w-0" title="צ'אט עם תלמידים"><MessageCircle className="w-4 h-4 shrink-0" aria-hidden="true" /><span className={sidebarCollapsed ? 'md:sr-only' : 'truncate'}>צ'אט עם תלמידים</span></span>
             {unreadStudentsCount > 0 && (
-              <span className="bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-rose-500/30 badge-alert">
+              <span className={`shrink-0 bg-rose-600 text-white text-xs font-bold px-2 py-0.5 rounded-full${sidebarCollapsed ? ' md:absolute md:top-0.5 md:left-1.5 md:min-w-[18px] md:h-[18px] md:px-1 md:py-0 md:text-[10px] md:leading-[18px] md:text-center' : ''}`}>
                 {unreadStudentsCount}
               </span>
             )}
           </button>
           <button
             onClick={() => setIsAdminChatDrawerOpen(true)}
-            className={`w-full flex justify-between items-center text-right px-4 py-3 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${isAdminChatDrawerOpen ? "bg-violet-50 text-violet-800 font-bold shadow-sm" : "hover:bg-ws-bg  text-ws-soft "}`}
+            className={`relative w-full flex justify-between items-center gap-2 text-right px-3 py-2.5 ${sidebarCollapsed ? 'md:px-0 md:justify-center' : ''} rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 ${isAdminChatDrawerOpen ? "bg-violet-50 text-violet-800 dark:bg-violet-950/60 dark:text-violet-100 font-semibold" : "hover:bg-ws-bg  text-ws-soft "}`}
           >
-            <span className="flex items-center gap-2" title="צ'אט הנהלה"><Mail className="w-4 h-4 shrink-0" /><span className={sidebarCollapsed ? 'md:sr-only' : ''}>צ'אט הנהלה</span></span>
+            <span className="flex items-center gap-2 min-w-0" title="צ'אט הנהלה"><Mail className="w-4 h-4 shrink-0" /><span className={sidebarCollapsed ? 'md:sr-only' : 'truncate'}>צ'אט הנהלה</span></span>
             {unreadAdminCount > 0 && (
-              <span className="bg-violet-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg shadow-violet-600/30">
+              <span className={`shrink-0 bg-violet-700 text-white text-xs font-bold px-2 py-0.5 rounded-full${sidebarCollapsed ? ' md:absolute md:top-0.5 md:left-1.5 md:min-w-[18px] md:h-[18px] md:px-1 md:py-0 md:text-[10px] md:leading-[18px] md:text-center' : ''}`}>
                 {unreadAdminCount}
               </span>
             )}
@@ -2007,10 +2095,7 @@ export function TeacherDashboard() {
           the typing line is always in view. Only the message list scrolls. */}
       {/* md:p-5, not p-8 (owner, 11.10.2026): the radar's twelve tiles fit a
           1366×768 laptop screen without scrolling. */}
-      <main className={`flex-1 min-w-0 md:min-h-0 md:h-full overflow-y-auto custom-scrollbar p-4 md:p-5 relative ${activeTab === "chat_students" ? "md:flex md:flex-col" : ""}`}>
-        {/* Subtle background glow effect */}
-        <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-br from-violet-500/5 via-transparent to-transparent pointer-events-none -z-10"></div>
-        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-gradient-to-tl from-cyan-500/5 via-transparent to-transparent pointer-events-none -z-10 rounded-full blur-3xl"></div>
+      <main className={`flex-1 min-w-0 md:min-h-0 md:h-full overflow-y-auto custom-scrollbar p-4 md:p-5 relative ${activeTab === "chat_students" || activeTab === "heatmap" ? "md:flex md:flex-col" : ""}`}>
 
         {/* Class Session Control Bar — the one bar for the live lesson (owner,
             10.10.2026): it stays at the top of the page on every tab, so the
@@ -2018,56 +2103,58 @@ export function TeacherDashboard() {
             are always one click away. Icons, not emoji (DESIGN_SYSTEM_RULES 1.1). */}
         {/* One row from md up (owner, 11.10.2026): it used to stack below
             1700px and push the radar under the fold of a 1366×768 laptop. */}
-        <div data-testid="live-session-bar" className="sticky -top-4 md:-top-5 z-30 -mx-4 md:-mx-5 -mt-4 md:-mt-5 px-4 md:px-5 pt-3 pb-2 mb-2 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm shrink-0">
-        <div data-testid="live-session-bar-row" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 py-2 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <div className="flex items-center gap-2.5 min-w-0 md:max-w-[14rem] 2xl:max-w-none">
-            <div aria-hidden="true" className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center ${
-              classSessionStatus === 'active' ? 'bg-violet-100 text-violet-700' : classSessionStatus === 'paused' ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-600'
-            }`}>
-              {classSessionStatus === 'active' ? <Play className="w-5 h-5" /> : classSessionStatus === 'paused' ? <Pause className="w-5 h-5" /> : <School className="w-5 h-5" />}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                {/* The open meeting under the station name the children see on
-                    their lobby card (owner, 27.9.2026). Its state is in the badge. */}
-                <h3 className="font-bold text-sm leading-tight text-slate-900 dark:text-slate-100 truncate min-w-0" title={classSessionStatus === 'active' || classSessionStatus === 'paused' ? meetingLabelHe(selectedSessionNum) : undefined}>
-                  {classSessionStatus === 'active' || classSessionStatus === 'paused'
-                    ? meetingLabelHe(selectedSessionNum)
-                    : 'ניהול המפגש בזמן אמת'}
-                </h3>
+        {/* The one "glass" touch (owner, 11.10.2026): the sticky bar is translucent with a blur; its text sits on the white row inside, so contrast stays AA. */}
+        <div data-testid="live-session-bar" className="sticky -top-4 md:-top-5 z-30 -mx-4 md:-mx-5 -mt-4 md:-mt-5 px-4 md:px-5 pt-3 pb-2 mb-[clamp(8px,1vw,16px)] bg-stone-50/70 dark:bg-slate-950/70 backdrop-blur-md shrink-0">
+        <div data-testid="live-session-bar-row" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap items-center justify-between gap-x-3 gap-y-2">
+          {/* State and time on one line (owner, 11.10.2026). The open meeting's name is in the picker beside
+              the actions (Module 14 §ב0), so it is not said twice; the state is the chip. */}
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="min-w-0 flex items-center gap-2">
+                {classSessionStatus !== 'active' && classSessionStatus !== 'paused' && (
+                  <h3 className="font-bold text-sm leading-tight text-slate-900 dark:text-slate-100 whitespace-nowrap shrink-0">
+                    {'ניהול המפגש בזמן אמת'}
+                  </h3>
+                )}
                 {classSessionStatus === 'active' && (
-                  <span className="shrink-0 bg-violet-50 text-violet-800 border border-violet-200 text-[11px] font-black px-2 py-0.5 rounded-full flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-violet-600"></span>
+                  <span title={meetingLabelHe(selectedSessionNum)} className="shrink-0 bg-violet-50 text-violet-800 border border-violet-200 dark:bg-violet-950/50 dark:text-violet-100 dark:border-violet-800 text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-600"></span>
                     פתוח ללמידה
                   </span>
                 )}
                 {classSessionStatus === 'paused' && (
-                  <span className="bg-stone-50 text-stone-700 border border-stone-200 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-stone-500"></span>
+                  <span title={meetingLabelHe(selectedSessionNum)} className="shrink-0 bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
                     מושהה · התלמידים ממתינים
                   </span>
                 )}
-              </div>
-              <p className="text-slate-600 dark:text-slate-300 text-[11px] leading-snug mt-0.5" data-testid="live-session-line">
+              <p className="min-w-0 truncate text-slate-600 dark:text-slate-300 text-xs leading-snug" data-testid="live-session-line">
                 {classSessionStatus === 'active'
                   ? (
                     <>
                       {/* Said by the badge above; kept for screen readers (owner, 11.10.2026: one row). */}
                       <span className="sr-only">{`מפגש ${selectedSessionNum} פתוח כעת עבור התלמידים בכיתה.`}</span>
                       {' '}
-                      <span data-testid="live-session-status" className="font-bold text-slate-800 dark:text-slate-100">
-                        {`${onlineCount} מתוך 12 מחוברים${elapsedMinutes === null ? '' : ` · ${elapsedMinutes === 1 ? 'חלפה דקה אחת' : `חלפו ${elapsedMinutes} דקות`} מתוך ${getSessionDurationMinutes(selectedSessionNum)}`}`}
+                      {/* Short on the bar, the full sentence in the tooltip (owner, 11.10.2026). */}
+                      <span
+                        data-testid="live-session-status"
+                        title={`${onlineCount} מתוך 12 מחוברים${elapsedMinutes === null ? '' : ` · ${elapsedMinutes === 1 ? 'חלפה דקה אחת' : `חלפו ${elapsedMinutes} דקות`} מתוך ${getSessionDurationMinutes(selectedSessionNum)}`}`}
+                        className="font-medium tabular-nums text-slate-700 dark:text-slate-200 whitespace-nowrap"
+                      >
+                        {`${onlineCount}/12 מחוברים${elapsedMinutes === null ? '' : ` · ${elapsedMinutes} מתוך ${getSessionDurationMinutes(selectedSessionNum)} דק׳`}`}
                       </span>
                     </>
                   )
                   : classSessionStatus === 'paused'
                     ? 'העבודה של התלמידים שמורה. "המשיכו את המפגש" מחזיר אותם לאותה נקודה.'
-                    : 'בחרו מפגש ולחצו על "הפעילו מפגש" כדי לפתוח את הלמידה לתלמידים.'}
+                    : pickedSessionNum >= 3 && pickedSessionNum <= 7
+                      // The prepare step (owner, 11.10.2026): the demonstration on the projector comes first.
+                      ? <span data-testid="prepare-reminder" className="font-bold text-slate-800 dark:text-slate-100">{LESSON_FLOW_HE.prepare(pickedSessionNum)}</span>
+                      : 'בחרו מפגש ולחצו על "הפעילו מפגש" כדי לפתוח את הלמידה לתלמידים.'}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto justify-end">
+          <div className="flex flex-wrap lg:flex-nowrap items-center gap-1.5 w-full md:w-auto justify-end">
             {/* Module 15 (owner, 11.10.2026): the teacher sees that the learners' screens are locked for a
                 demonstration. Read only — the projector page alone writes this record. */}
             {isProjectorModeActive && (
@@ -2080,7 +2167,7 @@ export function TeacherDashboard() {
                 With no meeting open the full strip below says the same. */}
             {isClassSessionActive && catchUpMeeting !== null && unfinishedInCatchUpMeeting.length > 0 && (
               <details data-testid="catchup-chip" className="relative">
-                <summary title={catchUpHeadingHe} className="list-none inline-flex items-center gap-1.5 min-h-9 px-2.5 rounded-xl bg-stone-50 dark:bg-stone-950/40 border border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100 text-[11px] font-extrabold cursor-pointer whitespace-nowrap">
+                <summary title={catchUpHeadingHe} className="list-none inline-flex items-center gap-1.5 min-h-9 px-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold cursor-pointer whitespace-nowrap hover:bg-slate-50">
                   {`${unfinishedInCatchUpMeeting.length} עוד לא סיימו`}
                 </summary>
                 <div className="absolute z-40 top-full mt-1 left-0 w-64 p-2 flex flex-col gap-1 rounded-xl bg-white dark:bg-slate-900 border border-stone-200 dark:border-stone-800 shadow-xl">
@@ -2097,15 +2184,31 @@ export function TeacherDashboard() {
             )}
             {/* Measure 5 (owner, 11.10.2026): every unrecorded mediation event of the meeting. */}
             <MediationPendingButton readOnly={readOnly} open={mediationPendingOpen} onOpenChange={setMediationPendingOpen} />
+            {/* Below 1024px: the queue and the colour map open as a bottom sheet (owner, 11.10.2026). */}
+            {activeTab === 'heatmap' && (
+              <button
+                type="button"
+                data-testid="queue-sheet-toggle"
+                onClick={() => setQueueSheetOpen((o) => !o)}
+                aria-expanded={queueSheetOpen}
+                className="lg:hidden inline-flex items-center gap-1.5 min-h-9 px-2.5 py-1.5 bg-white hover:bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs cursor-pointer transition-colors"
+              >
+                <Users className="w-4 h-4" aria-hidden="true" />
+                <span>{QUEUE_HE.title}</span>
+                {helpLearnerNumbers.length > 0 && (
+                  <span className="min-w-5 h-5 px-1.5 inline-flex items-center justify-center rounded-full bg-blue-600 text-white text-[11px] font-black">{helpLearnerNumbers.length}</span>
+                )}
+              </button>
+            )}
             <button
               type="button"
               onClick={openUnreadStudentChat}
               aria-label={unreadStudentsCount > 0 ? `הודעות מתלמידים, ${unreadStudentsCount} שלא נקראו` : 'הודעות מתלמידים'}
               title="הודעות מתלמידים"
-              className="relative inline-flex items-center gap-1.5 min-h-9 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-xl shadow-sm font-bold text-xs transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/40 cursor-pointer"
+              className="relative inline-flex items-center gap-1.5 min-h-9 px-2.5 py-1.5 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 cursor-pointer"
             >
               <MessageCircle className="w-4 h-4" />
-              <span className="hidden 2xl:inline">הודעות מתלמידים</span>
+              <span className="hidden min-[1800px]:inline whitespace-nowrap">הודעות מתלמידים</span>
               {unreadStudentsCount > 0 && (
                 <span data-testid="live-bar-unread" className="min-w-5 h-5 px-1.5 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-[11px] font-black">
                   {unreadStudentsCount}
@@ -2115,10 +2218,11 @@ export function TeacherDashboard() {
             {/* Module 14 §ב0: the picker shows all eight sessions and their state at all
                 times. Opening another session replaces the active one directly — a
                 session stays active until the teacher opens a different one. */}
+            <span aria-hidden="true" className="hidden md:block w-px h-6 mx-1 bg-slate-200 dark:bg-slate-700" />
             <select
               value={pickedSessionNum}
               onChange={(e) => setPickedSessionNum(parseInt(e.target.value, 10))}
-              className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-xl px-2 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer shadow-sm w-40 2xl:w-auto truncate"
+              className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg px-2 min-h-9 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer w-44 min-[1800px]:w-auto truncate"
             >
               {sessionRows.map((row) => (
                 <option key={row.sessionNumber} value={row.sessionNumber}>
@@ -2127,15 +2231,17 @@ export function TeacherDashboard() {
               ))}
             </select>
 
+            {!(isClassSessionActive && pickedSessionNum === selectedSessionNum) && (
             <button
               onClick={() => setPendingActivationSession(pickedSessionNum)}
               disabled={readOnly || (isClassSessionActive && pickedSessionNum === selectedSessionNum) || isUpdatingSession || isStartingSession}
               title={readOnly ? READ_ONLY_TITLE : isClassSessionActive && pickedSessionNum === selectedSessionNum ? `${meetingShortLabelHe(pickedSessionNum)} כבר פתוח עכשיו` : `פתיחת ${meetingShortLabelHe(pickedSessionNum)} לכל הכיתה`}
-              className="px-2.5 py-2 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              className="px-3 min-h-9 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <Play className="w-4 h-4" aria-hidden="true" />
               <span>הפעילו מפגש</span>
             </button>
+            )}
             {isClassSessionActive && (
               <>
                 {classSessionStatus === 'paused' ? (
@@ -2143,7 +2249,7 @@ export function TeacherDashboard() {
                     onClick={handleResumeClassSession}
                     disabled={readOnly || isUpdatingSession}
                     title={readOnly ? READ_ONLY_TITLE : undefined}
-                    className="px-2.5 py-2 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                    className="px-3 min-h-9 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                   >
                     {isUpdatingSession ? (
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2157,10 +2263,10 @@ export function TeacherDashboard() {
                     onClick={handlePauseClassSession}
                     disabled={readOnly || isUpdatingSession}
                     title={readOnly ? READ_ONLY_TITLE : undefined}
-                    className="px-2.5 py-2 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                    className="px-3 min-h-9 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed text-slate-800 dark:text-slate-100 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                   >
                     {isUpdatingSession ? (
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <Pause className="w-4 h-4" aria-hidden="true" />
                     )}
@@ -2171,10 +2277,10 @@ export function TeacherDashboard() {
                   onClick={() => { void requestCloseClassSession(); }}
                   disabled={readOnly || isUpdatingSession || isSavingCatchUp}
                   title={readOnly ? READ_ONLY_TITLE : undefined}
-                  className="px-2.5 py-2 bg-rose-800 hover:bg-rose-900 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  className="px-3 min-h-9 bg-white hover:bg-rose-50 dark:bg-slate-900 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900 disabled:text-slate-400 disabled:cursor-not-allowed text-rose-800 dark:text-rose-200 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                 >
                   {isUpdatingSession ? (
-                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <Square className="w-4 h-4" aria-hidden="true" />
                   )}
@@ -2185,7 +2291,30 @@ export function TeacherDashboard() {
 
           </div>
         </div>
+        {/* Module 14 §ב1 (owner, 11.10.2026): the one-time "עברו X דקות" is a banner in the bar that the
+            teacher closes with a click — it no longer stops her work with a window. Same trigger, same text. */}
+        {deadlineNotice !== null && (
+          <div role="status" data-testid="deadline-banner" className="mt-2 flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-violet-50 dark:bg-violet-950/50 border border-violet-300 dark:border-violet-800 text-violet-950 dark:text-violet-100">
+            <span className="flex items-center gap-2 text-sm font-black">
+              <Clock className="w-4 h-4 shrink-0" aria-hidden="true" />
+              {LESSON_FLOW_HE.deadline(deadlineNotice.minutes)}
+            </span>
+            <button
+              type="button"
+              data-testid="deadline-banner-dismiss"
+              onClick={() => setDeadlineNotice(null)}
+              className="px-3 py-1.5 min-h-9 rounded-xl bg-violet-700 hover:bg-violet-800 text-white text-xs font-bold cursor-pointer"
+            >
+              {LESSON_FLOW_HE.deadlineDismiss}
+            </button>
+          </div>
+        )}
         </div>
+
+        {/* The meeting just closed, for the class discussion: teacher-only, anonymous (owner, 11.10.2026). */}
+        {meetingSummary !== null && !isClassSessionActive && (
+          <MeetingSummaryPanel summary={meetingSummary} thresholdSeconds={getHesitationThresholdSeconds()} onClose={() => setMeetingSummary(null)} />
+        )}
 
         {/* Catch-up time (owner decision 2.10.2026): who started the open (or
             the last) meeting and has not finished it, and where they stopped.
@@ -2214,12 +2343,12 @@ export function TeacherDashboard() {
         )}
 
         {activeTab === "heatmap" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="md:flex-1 md:min-h-0 flex flex-col">
             {/* Owner, 11.10.2026: no page heading here — the twelve tiles fit a
                 1366×768 screen — and the side action queue beside the grid (on
                 the left in RTL), never over it. */}
-            <div data-testid="radar-and-queue" className="flex flex-col lg:flex-row items-start gap-4">
-              <div className="flex-1 min-w-0 w-full">
+            <div data-testid="radar-and-queue" className="flex flex-col lg:flex-row items-start lg:items-stretch gap-[clamp(12px,1.1vw,24px)] flex-1 min-h-0">
+              <div className="flex-1 min-w-0 min-h-0 w-full self-stretch flex flex-col">
                 <HeatmapGrid
                   onDrillDown={(studentId) => {
                     const norm = normalizeStudentId(studentId);
@@ -2228,42 +2357,51 @@ export function TeacherDashboard() {
                   }}
                 />
               </div>
-              <MediationQueue
-                learners={queueLearners}
-                gateLearners={queueGateLearners}
-                onOpenGate={openGateForLearner}
-                readOnly={readOnly}
-                teacherId={(user?.uid as string) || TEACHER_ID}
-              />
+              {/* The left column (owner, 11.10.2026): the action queue first, the colour map under it. The queue
+                  shrinks and scrolls inside itself; the map stays whole, so the page never scrolls twice. */}
+              {/* Widths per screen (owner, 11.10.2026): 320px on a laptop, 360px from 1440, 400px from 1920. Below
+                  1024px it is a bottom sheet opened from the bar ("תור פעולות"). */}
+              <div
+                data-testid="radar-side-column"
+                data-sheet-open={queueSheetOpen ? 'true' : undefined}
+                className={`lg:w-80 min-[1440px]:w-[22.5rem] min-[1920px]:w-[25rem] shrink-0 lg:min-h-0 lg:self-stretch flex flex-col gap-3 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-h-[75dvh] max-lg:overflow-y-auto max-lg:p-3 max-lg:bg-stone-50 max-lg:dark:bg-slate-950 max-lg:rounded-t-2xl max-lg:shadow-2xl max-lg:border-t max-lg:border-slate-200 ${queueSheetOpen ? '' : 'max-lg:hidden'}`}
+              >
+                <button type="button" onClick={() => setQueueSheetOpen(false)} className="lg:hidden self-end px-3 py-1.5 min-h-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer">
+                  סגירה
+                </button>
+                <MediationQueue
+                  learners={queueLearners}
+                  gateLearners={queueGateLearners}
+                  onOpenGate={openGateForLearner}
+                  readOnly={readOnly}
+                  teacherId={(user?.uid as string) || TEACHER_ID}
+                />
+                <RadarColourMap />
+              </div>
             </div>
           </div>
         )}
 
         {activeTab === "clustering" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-l from-slate-900 via-violet-950 to-slate-700 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                  קיבוץ תלמידים לפי מיומנויות ופערי למידה
-                </h1>
-                <p className="text-ws-soft mt-2 text-base md:text-lg">
-                  חלוקה אוטומטית של הכיתה לפי שלושת תחומי האבחון: המבנה העשרוני והאפס, הקבצה ופריטה, וחישוב במאונך.
-                </p>
-              </div>
-              {/* המסך הזה נבנה על פרופיל השליטה, שנוצר בסיום מפגש האבחון.
-                  קודם לכן הוא הציג טבלאות ריקות ועמודות אפס בלי לומר למורה
-                  אם אין נתונים או שאין בעיות. */}
-              <div className="shrink-0 text-xs font-bold px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                מבוסס על {studentsWithMastery} מתוך {allStudents.length || 12} תלמידים
-              </div>
-            </header>
+          <div>
+            {/* One title line and one sentence, as on every teacher tab (owner, 11.10.2026). The count says
+                whether the empty groups mean "no data yet" or "no difficulty". */}
+            <TeacherTabHeader
+              title="מיפוי מיומנויות כיתתי"
+              icon={LayoutGrid}
+              sentence="הכיתה מחולקת לפי שלושת תחומי האבחון: המבנה העשרוני והאפס, הקבצה ופריטה, וחישוב במאונך."
+              aside={
+                <div className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  מבוסס על {studentsWithMastery} מתוך {allStudents.length || 12} תלמידים
+                </div>
+              }
+            />
 
             {studentsWithMastery === 0 && (
               <div
                 role="status"
-                className="mb-6 flex items-start gap-3 rounded-2xl border border-stone-200 dark:border-stone-900 bg-stone-50 dark:bg-stone-950/30 p-5"
+                className="mb-3 flex items-start gap-3 rounded-2xl border border-stone-200 dark:border-stone-900 bg-stone-50 dark:bg-stone-950/30 px-4 py-3"
               >
-                <span aria-hidden="true" className="text-2xl leading-none">▲</span>
                 <div>
                   <p className="font-bold text-stone-950 dark:text-stone-100">מיפוי המיומנויות עדיין ריק</p>
                   <p className="text-sm text-stone-900/80 dark:text-stone-200/80 mt-1">
@@ -2275,7 +2413,7 @@ export function TeacherDashboard() {
             )}
 
             {/* Interactive Concept Group Widgets */}
-            <div className="mb-6">
+            <div className="mb-3">
               <ClusteringWidgets 
                 students={allStudents} 
                 activeFilter={activeClusterFilter} 
@@ -2283,17 +2421,14 @@ export function TeacherDashboard() {
               />
             </div>
 
-            <AccessibleCard className="p-8 bg-ws-surface/80 backdrop-blur-xl mb-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-r from-violet-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <h2 className="text-2xl font-bold mb-8 flex items-center gap-3">
-                <span className="w-1.5 h-6 bg-violet-500 rounded-full"></span>
+            <AccessibleCard className="p-4 bg-white dark:bg-slate-900 mb-3 shadow-sm border border-slate-200 dark:border-slate-800 rounded-2xl">
+              <h2 className="text-base font-black mb-2 text-slate-900 dark:text-slate-100">
                 התפלגות שליטה במיומנויות (כיתה שלמה)
               </h2>
-              <div className="h-[350px] w-full relative z-10" dir="ltr">
+              <div className="h-[240px] w-full" dir="ltr">
                 {qMatrixData.every(d => d.success === 0 && d.struggle === 0) ? (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-600 bg-slate-50/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <span className="text-5xl mb-4 opacity-40 animate-pulse">📊</span>
-                    <p className="font-bold text-lg text-slate-600 dark:text-slate-300">אין עדיין נתונים מהתלמידים</p>
+                  <div className="h-full flex flex-col items-center justify-center text-slate-600 bg-slate-50/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800" dir="rtl">
+                    <p className="font-bold text-base text-slate-600 dark:text-slate-300">אין עדיין נתונים מהתלמידים</p>
                     <p className="text-sm opacity-80 mt-1">התפלגות השליטה תוצג כאן לאחר סיום שלב האבחון</p>
                   </div>
                 ) : (
@@ -2362,18 +2497,18 @@ export function TeacherDashboard() {
               </div>
             </AccessibleCard>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6 pb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3 pb-4">
               {(!activeClusterFilter || activeClusterFilter === 'decimal_structure') && (
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-ws-surface/80 backdrop-blur-xl shadow-md hover:shadow-xl transition-all duration-300 border border-ws-surface2 rounded-2xl relative overflow-hidden group min-h-[340px]">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-violet-600"></div>
+              <AccessibleCard className="flex flex-col p-4 bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-violet-600"></div>
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-ws-ink">
+                  <h3 className="text-base font-black mb-1 text-slate-900 dark:text-slate-100">
                     {CONCEPT_LABELS_HE.decimal_structure}
                   </h3>
-                  <p className="text-ws-soft mb-4 text-sm leading-relaxed">
+                  <p className="text-slate-600 dark:text-slate-400 mb-2 text-xs leading-relaxed">
                     תלמידים שהתקשו בקריאה וכתיבה של מספר עם אפס (משימה 1), בערך הספרה (משימה 2), בפירוק מספר לרכיביו (משימה 4) או בחיסור עם פריטה אחת כשבמחוסר יש 0 בטור העשרות (משימה 7).
                   </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-ws-surface2 shadow-inner">
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800">
                     <DataGrid
                       emptyMessage={emptyGroupHe}
                       columns={[
@@ -2395,16 +2530,16 @@ export function TeacherDashboard() {
                   parts beside it, never merged silently (owner, 26.9.2026):
                   הקבצה = tasks 5 and 6, פריטה = tasks 3 and 7. */}
               {(!activeClusterFilter || activeClusterFilter === 'regrouping_fluency') && (
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-violet-600"></div>
+              <AccessibleCard className="flex flex-col p-4 bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-violet-600"></div>
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
+                  <h3 className="text-base font-black mb-1 text-slate-900 dark:text-slate-100">
                     {CONCEPT_LABELS_HE.regrouping_fluency}
                   </h3>
-                  <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
+                  <p className="text-slate-600 dark:text-slate-400 mb-2 text-xs leading-relaxed">
                     הקבצה: המרת יחידות לעשרות (משימה 5) וחיבור עם המרה (משימה 6). פריטה: חיסור עם פריטה (משימה 3) וחיסור עם פריטה אחת כשבמחוסר יש 0 בטור העשרות (משימה 7). "רמת שליטה" מאחדת את ארבע המשימות; שני החלקים מוצגים לצידה.
                   </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800">
                     <DataGrid
                       emptyMessage={emptyGroupHe}
                       columns={[
@@ -2430,16 +2565,16 @@ export function TeacherDashboard() {
               )}
 
               {(!activeClusterFilter || activeClusterFilter === 'procedural_fluency') && (
-              <AccessibleCard className="flex flex-col justify-between p-6 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden group min-h-[340px]">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-violet-600"></div>
+              <AccessibleCard className="flex flex-col p-4 bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-violet-600"></div>
                 <div>
-                  <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
+                  <h3 className="text-base font-black mb-1 text-slate-900 dark:text-slate-100">
                     {CONCEPT_LABELS_HE.procedural_fluency}
                   </h3>
-                  <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm leading-relaxed">
+                  <p className="text-slate-600 dark:text-slate-400 mb-2 text-xs leading-relaxed">
                     תלמידים שהתקשו בתרגילי החיבור והחיסור במאונך (משימות 3, 6 ו-7).
                   </p>
-                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800 shadow-inner">
+                  <div className="rounded-xl overflow-y-auto max-h-[160px] border border-slate-200 dark:border-slate-800">
                     <DataGrid
                       emptyMessage={emptyGroupHe}
                       columns={[
@@ -2462,7 +2597,7 @@ export function TeacherDashboard() {
 
 
         {activeTab === "class_management" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div>
             <ClassManagement
               allStudents={allStudents}
               activeSessionNumber={isClassSessionActive ? selectedSessionNum : null}
@@ -2502,21 +2637,18 @@ export function TeacherDashboard() {
         )}
 
         {activeTab === "diagnostic_reports" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <header className="mb-5">
-              <h1 className="text-2xl font-black bg-gradient-to-l from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent tracking-tight">
-                דוחות אבחון אישיים
-              </h1>
-              <p className="text-ws-soft mt-1 text-sm">
-                תצוגה פדגוגית המשלבת שחזור מהלכים, נתוני רדאר, מיפוי מיומנויות והמלצות להוראה מותאמת אישית.
-              </p>
-            </header>
+          <div>
+            <TeacherTabHeader
+              title="דוחות אבחון אישיים"
+              icon={FileText}
+              sentence="לכל תלמיד: מסע הלמידה, מיפוי מיומנויות היסוד וסיכום האבחון והמסלול."
+            />
 
             {/* Module 23, owner decision 6.9.2026 (register item 9): every
                 meeting has a class report beside the learner reports. */}
             {/* Folded to one line by default (owner, 6.10.2026: the screen was
                 crowded); the panel itself is unchanged when opened. */}
-            <div className="mb-4">
+            <div className="mb-3">
               <button
                 type="button"
                 onClick={toggleClassReport}
@@ -2524,7 +2656,7 @@ export function TeacherDashboard() {
                 data-testid="class-report-toggle"
                 className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-2xl border border-ws-surface2 bg-ws-surface text-sm font-black text-ws-ink hover:border-violet-600/40 cursor-pointer"
               >
-                <span className="flex items-center gap-2"><Users className="w-4 h-4 text-violet-500" aria-hidden="true" />דוח כיתה למפגש</span>
+                <span className="flex items-center gap-2 min-w-0"><Users className="w-4 h-4 text-violet-500" aria-hidden="true" />דוח כיתה למפגש</span>
                 <span className="text-xs font-bold text-ws-soft">{classReportOpen ? 'הסתרה ▴' : 'הצגה ▾'}</span>
               </button>
               {classReportOpen && (
@@ -2569,7 +2701,7 @@ export function TeacherDashboard() {
                     הקישור לא מוביל לאף תלמיד בכיתה. מספרי התלמידים הם 1 עד 12. בחרו תלמיד מהרשימה.
                   </p>
                 )}
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
                   {/* Student picker: one compact row of numbers above the report
                       (owner, 6.10.2026), instead of a column beside it, so the
                       report gets the full width. */}
@@ -2605,7 +2737,7 @@ export function TeacherDashboard() {
                   </div>
 
                   {/* Main Profile Area */}
-                  <div className="flex-1 flex flex-col gap-6">
+                  <div className="flex-1 flex flex-col gap-3">
                     {!s ? (
                       <div className="p-12 text-center bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
                         <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4 text-slate-600">
@@ -2629,9 +2761,9 @@ export function TeacherDashboard() {
                         const journeyRecommendation = gateEvidenceFor(sNum)?.recommendedPath ?? null;
 
                         return (
-                          <div className="animate-in fade-in zoom-in-95 duration-300">
+                          <div>
                             {/* Top Action Bar: Open Drawer for Physical Override & Full Student Profile */}
-                            <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                            <div className="mb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white dark:bg-slate-900 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                               <div className="flex items-center gap-3">
                                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
                                   תלמיד {sNum}
@@ -2693,7 +2825,7 @@ export function TeacherDashboard() {
                             </div>
 
                             {/* Video Replay & Logs Summary Banner */}
-                            <div className="mb-6">
+                            <div className="mb-3">
                               <LearnerJourney studentId={effectiveReplayStudentId} />
                             </div>
 
@@ -2701,12 +2833,11 @@ export function TeacherDashboard() {
                                 above; the skill map is meeting 2's diagnostic and stands on its
                                 own (owner, 6.10.2026: a second meeting picker here was the same
                                 choice twice). */}
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
                               {/* Q-Matrix Report */}
                               {(
-                                <AccessibleCard className="p-6 bg-white dark:bg-slate-900 border border-ws-surface2 shadow-md rounded-2xl h-full">
-                                  <h3 className="text-xl font-bold text-ws-ink mb-1 flex items-center gap-2">
-                                    <span className="text-violet-800">📊</span>
+                                <AccessibleCard className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl h-full">
+                                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100 mb-1">
                                     תוצאות מיפוי מיומנויות היסוד ({meetingShortLabelHe(2)})
                                   </h3>
                                   <p className="text-xs text-ws-soft mb-4">שבע משימות אבחון בשלושה תחומים: המבנה העשרוני והאפס, הקבצה ופריטה, וחישוב במאונך. ליד משימה שמודדת הקבצה או פריטה כתוב איזו מהשתיים. "שליטה" מעידה על פתרון מדויק בניסיון ראשון.</p>
@@ -2733,9 +2864,8 @@ export function TeacherDashboard() {
                               )}
 
                               {/* Trace Data & AI Plan */}
-                              <AccessibleCard className="p-6 border shadow-md rounded-2xl flex flex-col h-full bg-violet-50/40 border-violet-100">
-                                <h3 className="text-xl font-bold text-ws-ink mb-4 flex items-center gap-2">
-                                  <span className="text-violet-800">🧭</span>
+                              <AccessibleCard className="p-4 border shadow-sm rounded-2xl flex flex-col h-full bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                                <h3 className="text-base font-black text-slate-900 dark:text-slate-100 mb-3">
                                   סיכום האבחון והמסלול
                                 </h3>
                                 
@@ -2744,25 +2874,24 @@ export function TeacherDashboard() {
                                   <div className="flex gap-4">
                                     <div className="flex-1 flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                                       <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-sm">⏱️</div>
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200"><Timer className="w-4 h-4" aria-hidden="true" /></div>
                                         <span className="font-semibold text-sm">אירועי היסוס (חשיבה ארוכה)</span>
                                       </div>
-                                      <span className="text-xl font-black text-orange-600">{traceData.hesitation_events || 0}</span>
+                                      <span className="text-xl font-black text-slate-900 dark:text-slate-100">{traceData.hesitation_events || 0}</span>
                                     </div>
                                     <div className="flex-1 flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                                       <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-sm">↩️</div>
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200"><Undo2 className="w-4 h-4" aria-hidden="true" /></div>
                                         <span className="font-semibold text-sm">פעולות בקרה וויסות עצמי (מחיקה וביטול פעולה)</span>
                                       </div>
-                                      <span className="text-xl font-black text-red-600">{traceData.undo_clicks || 0}</span>
+                                      <span className="text-xl font-black text-slate-900 dark:text-slate-100">{traceData.undo_clicks || 0}</span>
                                     </div>
                                   </div>
 
                                   {/* Clinical Diagnosis & Action Plan - Only rendered when real diagnostic exists */}
                                   {!hasCompletedDiagnosticM2 ? (
                                     <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-violet-100 dark:border-violet-900 shadow-sm">
-                                      <h4 className="font-bold text-violet-900 mb-2 text-base flex items-center gap-2">
-                                        <span className="text-violet-600">ℹ️</span>
+                                      <h4 className="font-black text-slate-900 dark:text-slate-100 mb-2 text-sm">
                                         סטטוס מיפוי פדגוגי
                                       </h4>
                                       <div className="bg-violet-50/60 p-3.5 rounded-xl border border-violet-100 text-violet-950 text-xs leading-relaxed">
@@ -2776,8 +2905,7 @@ export function TeacherDashboard() {
                                     </div>
                                   ) : (
                                     <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-violet-100 dark:border-violet-900 shadow-sm">
-                                      <h4 className="font-bold text-violet-900 mb-3 text-lg flex items-center gap-2">
-                                        <span className="text-violet-600">🎯</span>
+                                      <h4 className="font-black text-slate-900 dark:text-slate-100 mb-3 text-sm">
                                         המלצות פדגוגיות ומסלול מותאם למפגש 3 ואילך:
                                       </h4>
                                       <div className="flex gap-3">
@@ -2944,7 +3072,7 @@ export function TeacherDashboard() {
 
         {/* STUDENTS CHAT */}
         {activeTab === "chat_students" && (
-          <div className={`h-[calc(100dvh-110px)] md:h-auto md:flex-1 md:min-h-[320px] flex flex-col md:flex-row bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in duration-300`}>
+          <div className={`h-[calc(100dvh-110px)] md:h-auto md:flex-1 md:min-h-[320px] flex flex-col md:flex-row bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden`}>
             {/* Student List Sidebar */}
             <div
               className={`${selectedStudentId ? "hidden md:flex" : "flex"} w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-l border-slate-200 dark:border-slate-800 flex-col h-full bg-slate-50/50 dark:bg-slate-900/50 shrink-0`}
@@ -3267,17 +3395,31 @@ export function TeacherDashboard() {
           }}
         />
 
-        {mediationCloseOpen && (
-          <MediationCloseDialog
+        {closeChecklistOpen && isClassSessionActive && (
+          <CloseMeetingChecklist
+            meeting={selectedSessionNum}
+            helpLearners={helpLearnerNumbers}
+            onClearAllHelp={clearAllHelpCalls}
+            projectorOn={isProjectorModeActive}
+            reasonLearners={catchUpDialog?.trigger === 'close' ? catchUpDialog.learners : []}
+            isSaving={isSavingCatchUp}
+            busy={isUpdatingSession}
             readOnly={readOnly}
-            onBack={() => setMediationCloseOpen(false)}
-            onCloseAnyway={() => { setMediationCloseOpen(false); void requestCloseClassSession(true); }}
+            onReopen={(entries) => { void handleCatchUpChoice('reopen', entries); }}
+            onContinue={(entries) => { void handleCatchUpChoice('continue', entries); }}
+            onClose={() => { setCloseChecklistOpen(false); void closeWithSummary(); }}
+            onCancel={() => {
+              // Also while saving: the teacher is never held here; the chosen action is then not taken.
+              if (isSavingCatchUp) catchUpCancelledRef.current = true;
+              setCatchUpDialog(null);
+              setCloseChecklistOpen(false);
+            }}
           />
         )}
 
         {/* Catch-up time (owner decision 2.10.2026): why each learner did not
             finish, before the close or the other meeting is written. */}
-        {catchUpDialog !== null && (
+        {catchUpDialog !== null && !closeChecklistOpen && (
           <CatchUpReasonsDialog
             isOpen
             meeting={catchUpDialog.meeting}
@@ -3296,34 +3438,10 @@ export function TeacherDashboard() {
           />
         )}
 
-        {/* Module 14 §ב1: teacher-only one-time deadline notice */}
-        {deadlineNotice !== null && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" dir="rtl">
-            <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={() => setDeadlineNotice(null)} />
-            <div
-              ref={deadlineNoticeRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label={`עברו ${deadlineNotice.minutes} דקות`}
-              className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center space-y-4"
-            >
-              {/* §ב1 specifies this popup's text exactly: "עברו X דקות" — nothing more. */}
-              <p className="text-2xl font-black text-slate-900 dark:text-white">
-                עברו {deadlineNotice.minutes} דקות
-              </p>
-              <button
-                onClick={() => setDeadlineNotice(null)}
-                className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm cursor-pointer"
-              >
-                הבנתי
-              </button>
-            </div>
-          </div>
-        )}
-
       </main>
       </div>
     </div>
+    </MotionConfig>
   );
 }
 

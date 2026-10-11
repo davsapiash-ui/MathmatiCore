@@ -610,3 +610,25 @@
 .task-zone-cells {
   container-type: inline-size;
 }
+
+/* Teacher screens' type (owner, 11.10.2026): one Hebrew UI face, Heebo, at 400 / 500 / 700 —
+   no 800/900 — normal letter-spacing, tabular figures, nothing below 12px. The dashboard sets
+   .teacher-ui on <html> while it is mounted (so its drawers in portals get it too); the
+   learner's screens never carry the class and keep their own type. */
+.teacher-ui body,
+.teacher-ui .font-sans,
+.teacher-ui .font-body {
+  font-family: 'Heebo', 'Assistant', ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
+}
+.teacher-ui h1, .teacher-ui h2, .teacher-ui h3, .teacher-ui h4, .teacher-ui h5, .teacher-ui h6,
+.teacher-ui .font-display {
+  font-family: inherit;
+  letter-spacing: normal;
+}
+.teacher-ui h1, .teacher-ui h2, .teacher-ui h3, .teacher-ui h4, .teacher-ui h5, .teacher-ui h6 { font-weight: 700; }
+.teacher-ui .font-black, .teacher-ui .font-extrabold { font-weight: 700; }
+.teacher-ui .font-semibold { font-weight: 500; }
+.teacher-ui .tracking-tight, .teacher-ui .tracking-tighter, .teacher-ui .tracking-wide, .teacher-ui .tracking-wider, .teacher-ui .tracking-widest { letter-spacing: normal; }
+.teacher-ui .text-\[10px\], .teacher-ui .text-\[11px\] { font-size: 12px; }

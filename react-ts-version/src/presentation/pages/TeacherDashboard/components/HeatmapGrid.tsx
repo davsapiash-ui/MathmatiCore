@@ -20,7 +20,8 @@ import {
   Rocket,
   Shield,
   Settings,
-  ChevronDown
+  ChevronDown,
+  CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/application/useStore';
@@ -28,7 +29,7 @@ import { recordLearningPath } from '@/application/useWorkspaceStore';
 import { ResetConfirmationModal } from './ResetConfirmationModal';
 import { recommendedPathOf } from '@/core/recommendedPath';
 import { hasEnhancedSupport } from '@/core/supportProfile';
-import { resolveRadarColor, RADAR_CELL_CLASSES } from '@/core/radarColor';
+import { resolveRadarColor, RADAR_BAR_CLASSES, RADAR_CELL_CLASSES, type RadarColor } from '@/core/radarColor';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { isClassSessionLive } from '@/core/classSession';
 import { meetingLabelHe, meetingShortLabelHe, stationNameHe } from '@/core/stationNames';
@@ -38,6 +39,8 @@ import { ROUTE_COLOR } from '@/core/routeColors';
 import type { PedagogicalPath } from '@/types';
 import { hasLegacyRecordings } from '@/core/legacyRecordings';
 import { LegacyRecordingsButton } from './LegacyRecordingsButton';
+import { TILE_HE, elapsedClockHe, stateSinceOf, tileProgressHe, tileProgressOf, type TileProgress } from '@/core/teacherLessonFlow';
+import { useRadarColourMapStore, useRadarHighlight } from './RadarColourMap';
 import { gateApprovedToastHe } from './TeacherGateApprovalDrawer';
 import { MediationLogSection } from './MediationLogSection';
 import { useOpenMediationEvents } from '@/application/useTeacherMediationStore';
@@ -72,14 +75,15 @@ export function getCognitiveGlyph(errorCategory: 'calculation' | 'procedural' | 
 /** What the radar is and what a tile opens — the radar heading's tooltip. */
 export const RADAR_EXPLANATION_HE = 'מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת כדי לראות את פרטי התלמיד: המסלול, המפגש, סיווגי הטעות ושאלות מנחות.';
 
-export function radarLegendItems(thresholdSeconds: number): Array<{ color: 'GREEN' | 'YELLOW' | 'RED' | 'BLUE' | 'GREY'; meaning: string; dot: string }> {
+export function radarLegendItems(thresholdSeconds: number): Array<{ color: 'GREEN' | 'YELLOW' | 'RED' | 'BLUE' | 'GREY'; meaning: string; short: string; dot: string }> {
   // The dot shows the colour; no colour word ("צהוב" is not a word the teacher reads, owner 27.9.2026).
+  // `short` fits one line of the colour map at 320px (owner, 11.10.2026); the full sentence is its tooltip.
   return [
-    { color: 'GREEN', meaning: `עובד (פעולה ב-${thresholdSeconds} השניות האחרונות)`, dot: 'bg-emerald-500' },
-    { color: 'YELLOW', meaning: `תקוע: ${thresholdSeconds} שניות בלי פעולה`, dot: 'bg-amber-400' },
-    { color: 'RED', meaning: `${CARD_OPEN_HE} אצלו`, dot: 'bg-rose-500' },
-    { color: 'BLUE', meaning: 'קרא למורה', dot: 'bg-blue-500' },
-    { color: 'GREY', meaning: 'לא מחובר או לא התחיל את המפגש', dot: 'bg-slate-300 dark:bg-slate-600' },
+    { color: 'GREEN', meaning: `עובד (פעולה ב-${thresholdSeconds} השניות האחרונות)`, short: 'עובד', dot: 'bg-emerald-500' },
+    { color: 'YELLOW', meaning: `היסוס: ${thresholdSeconds} שניות בלי פעולה`, short: `היסוס: ${thresholdSeconds} שנ׳ בלי פעולה`, dot: 'bg-amber-400' },
+    { color: 'RED', meaning: `${CARD_OPEN_HE} אצלו`, short: CARD_OPEN_HE, dot: 'bg-rose-500' },
+    { color: 'BLUE', meaning: 'קרא למורה', short: 'קרא למורה', dot: 'bg-blue-500' },
+    { color: 'GREY', meaning: 'לא מחובר או לא התחיל את המפגש', short: 'לא מחובר / לא התחיל', dot: 'bg-slate-300 dark:bg-slate-600' },
   ];
 }
 
@@ -119,6 +123,59 @@ export interface AnonymousStudent {
   gradedTrack?: boolean;
   /** PRD Module 17 §ב: events the server refused 5 times, still kept on the learner's device ("אירועים שנדחו"). */
   refusedEvents?: number;
+  /** Owner, 11.10.2026: where the learner is in the open meeting ("סיים", "ברפלקציה", "משימה N/7"). */
+  progress?: TileProgress | null;
+  /** Server-clock ms since the help call is on (a blue tile's "מחכה M:SS"), else null. */
+  helpSince?: number | null;
+  /** Server-clock ms since the coaching card is open (a red tile's "כרטיס פתוח M:SS"), else null. */
+  cardSince?: number | null;
+  /** The exercise on the learner's board (workspaceState.activeTask), for the hover card. */
+  exercise?: { a: number; b: number; subtraction: boolean } | null;
+}
+
+/**
+ * The tile's hover card (owner, 11.10.2026): the state in words and why, the
+ * exercise, the last error letter, the level and the mediation events waiting —
+ * all from what the radar already holds. The first line is the state.
+ */
+/** The tile's inline metrics, only those that are not zero ("היסוס", as in the radar's legend, Module 18). */
+export function tileInlineMetricsHe(student: Pick<AnonymousStudent, 'hesitationSeconds' | 'undoCount' | 'mistakeCount'>): string[] {
+  const out: string[] = [];
+  if (student.hesitationSeconds > 0) out.push(`היסוס: ${student.hesitationSeconds} שנ׳`);
+  if ((student.undoCount ?? 0) > 0) out.push(`ביטולים: ${student.undoCount}`);
+  if ((student.mistakeCount ?? 0) > 0) out.push(`טעויות: ${student.mistakeCount}`);
+  return out;
+}
+
+export function tileHoverLinesHe(
+  student: AnonymousStudent,
+  ctx: { colour: RadarColor; thresholdSeconds: number; now: number; openMediation: number; inOpenMeeting: boolean }
+): string[] {
+  const lines: string[] = [];
+  if (ctx.colour === 'BLUE') {
+    lines.push(student.helpSince != null ? `קרא למורה · ${TILE_HE.waiting(elapsedClockHe(ctx.now - student.helpSince))}` : 'קרא למורה');
+  } else if (ctx.colour === 'RED') {
+    lines.push(student.cardSince != null ? `${CARD_OPEN_HE} · ${elapsedClockHe(ctx.now - student.cardSince)}` : CARD_OPEN_HE);
+  } else if (ctx.colour === 'YELLOW') {
+    lines.push(`היסוס: ${student.hesitationSeconds} שניות בלי פעולה`);
+  } else if (ctx.colour === 'GREY') {
+    lines.push(!student.isOnline ? 'לא מחובר' : 'לא התחיל את המפגש');
+  } else {
+    lines.push(`עובד (פעולה ב-${ctx.thresholdSeconds} השניות האחרונות)`);
+  }
+  // Isolated left-to-right (U+2066 … U+2069), so "352 + 61" never reads backwards inside the Hebrew line.
+  const exercise = student.exercise ? `\u2066${student.exercise.a} ${student.exercise.subtraction ? '−' : '+'} ${student.exercise.b}\u2069` : null;
+  const progress = ctx.inOpenMeeting && student.progress ? tileProgressHe(student.progress) : null;
+  // "משימה 4/7 · 352 + 61" while on a task; "סיים" / "ברפלקציה" alone; the exercise alone outside the open meeting.
+  const onTask = ctx.inOpenMeeting && student.progress?.kind === 'task';
+  const workLine = onTask ? [progress, exercise].filter(Boolean).join(' · ') : progress ?? exercise;
+  if (workLine) lines.push(workLine);
+  if (student.isOnline) lines.push(`היסוס: ${student.hesitationSeconds} שנ׳ · ביטולים: ${student.undoCount ?? 0} · טעויות: ${student.mistakeCount ?? 0}`);
+  const glyph = getCognitiveGlyph(student.errorCategory);
+  if (glyph) lines.push(`${glyph.glyph}: ${glyph.title}`);
+  lines.push(student.currentPath ? `מסלול: ${radarPathLabelHe(student.currentPath)}` : 'מסלול: עדיין לא נקבע');
+  lines.push(ctx.openMediation > 0 ? MEDIATION_HE.pendingCounter(ctx.openMediation) : 'אין אירועים לתיעוד');
+  return lines;
 }
 
 /**
@@ -202,6 +259,8 @@ export function describeRadarCell(
   // PRD Module 18 §ב gives the tile's colour to activity, connection and help
   // alone; the gate is Module 20's, so it is said after the state, not instead.
   if (student.isWaitingAtGate) parts.push(`סיים אבחון וממתין ב${TEACHER_GATE_HE} לפני מפגש 3`);
+
+  if (student.progress && isSessionActive) parts.push(tileProgressHe(student.progress));
 
   const glyph = getCognitiveGlyph(student.errorCategory);
   if (glyph) parts.push(glyph.title);
@@ -461,6 +520,12 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   // Module 21: recordings of earlier versions still on the learner records (see LegacyRecordingsButton).
   const [legacyRecordings, setLegacyRecordings] = useState(false);
 
+  // The tile's clocks (owner, 11.10.2026): when this dashboard first saw each
+  // learner's help call and open card. A help call also carries the stamp the
+  // learner's client wrote with it (lastHelpTimestamp); the card has none.
+  const helpSeenAtRef = useRef<Record<number, number>>({});
+  const cardSeenAtRef = useRef<Record<number, number>>({});
+
   // Subscribe to live Firebase data and merge with 12 pilot student slots (sorted strictly by student ID 1..12)
   useEffect(() => {
     let throttleTimeout: NodeJS.Timeout | null = null;
@@ -546,6 +611,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           const helpRequested = data.helpRequested === true || data.handRaised === true;
           const isSocraticActive = isOnline && (wsState.helpState === 'socratic' || data.isSocraticActive === true);
           const isStruggling = isOnline && (hesitationSeconds >= hesitationThreshold || isYellowPath || errorCount > 2 || enhancedSupport || isSocraticActive || helpRequested);
+          // The tile's clock follows its colour: blue (a help call) first, then red (an open card).
+          if (helpRequested) helpSeenAtRef.current[studentNum] ??= serverClockNow;
+          else delete helpSeenAtRef.current[studentNum];
+          if (isSocraticActive) cardSeenAtRef.current[studentNum] ??= serverClockNow;
+          else delete cardSeenAtRef.current[studentNum];
+          const helpSince = helpRequested ? stateSinceOf(data.lastHelpTimestamp, helpSeenAtRef.current[studentNum]) : null;
+          const cardSince = isSocraticActive && !helpRequested ? cardSeenAtRef.current[studentNum] ?? null : null;
 
           const activeBroadcastSession = isClassSessionActive && activeSessionNum ? activeSessionNum : null;
           const rawSessionNum = wsState.sessionNumber || sessionState.session_number || activeBroadcastSession || (data.highestCompletedMeeting ? Math.min(8, data.highestCompletedMeeting + 1) : 1);
@@ -613,6 +685,12 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             recommendedPath,
             gradedTrack: data.graded_track === true,
             refusedEvents: refusedEventsOf(data),
+            progress: activeBroadcastSession !== null ? tileProgressOf(data, activeBroadcastSession) : null,
+            helpSince,
+            cardSince,
+            exercise: isOnline && wsState.activeTask && typeof wsState.activeTask.numberA === 'number' && typeof wsState.activeTask.numberB === 'number'
+              ? { a: wsState.activeTask.numberA, b: wsState.activeTask.numberB, subtraction: wsState.activeTask.isSubtraction === true }
+              : null,
           };
         }
         return updated;
@@ -650,6 +728,65 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
     // alone kept the old number after a direct switch from one open meeting to
     // another (3 → 5): the flag never changed, so the tiles said "מפגש 3".
   }, [isClassSessionActive, activeSessionNum]);
+
+  // The hover card of one tile at a time: opens after ~250ms (500ms for a long press), closes at once.
+  const [hoverTile, setHoverTile] = useState<number | null>(null);
+  // The tiles grow with the free height (owner, 11.10.2026); a tall tile has room for the metrics row inline.
+  const tilesRef = useRef<HTMLElement>(null);
+  const [roomyTiles, setRoomyTiles] = useState(false);
+  useEffect(() => {
+    const el = tilesRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const measure = () => {
+      const tile = el.querySelector<HTMLElement>('[data-radar-color]');
+      setRoomyTiles(tile !== null && tile.offsetHeight >= 120 && tile.offsetWidth >= 170);
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    measure();
+    return () => ro.disconnect();
+  }, []);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openHoverSoon = (n: number, delay = 250) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => setHoverTile(n), delay);
+  };
+  const closeHover = () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    setHoverTile(null);
+  };
+  useEffect(() => () => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }, []);
+
+  // A one-second clock only while a tile shows one (a blue or a red tile): the
+  // digits change, the tile does not move (Module 18: nothing blinks or pulses).
+  const anyClock = students.some((s) => s.helpSince != null || s.cardSince != null);
+  const [clockNow, setClockNow] = useState(() => serverNow());
+  useEffect(() => {
+    if (!anyClock) return;
+    setClockNow(serverNow());
+    const id = setInterval(() => setClockNow(serverNow()), 1000);
+    return () => clearInterval(id);
+  }, [anyClock]);
+
+  // Each tile's colour by the radar rule (Module 18 §ב), once — for the tile and for the
+  // colour map's live counts beside the queue (owner, 11.10.2026).
+  const tileColourOf = (student: AnonymousStudent) => resolveRadarColor({
+    helpRequested: student.helpRequested,
+    socraticActive: student.isSocraticActive,
+    isOnline: Boolean(student.isOnline),
+    hesitationSeconds: student.hesitationSeconds,
+    hesitationThresholdSeconds: getHesitationThresholdSeconds(),
+    sessionStarted: hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum),
+  });
+  const colourCounts = { BLUE: 0, RED: 0, GREY: 0, YELLOW: 0, GREEN: 0 };
+  for (const s of students) colourCounts[tileColourOf(s)]++;
+  const countsKey = `${colourCounts.BLUE},${colourCounts.RED},${colourCounts.GREY},${colourCounts.YELLOW},${colourCounts.GREEN}`;
+  useEffect(() => {
+    useRadarColourMapStore.getState().setCounts({ ...colourCounts });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countsKey]);
+  // A row of the colour map pressed: the tiles in that state get an outline (no colour change, no motion).
+  const highlightColour = useRadarHighlight();
 
   const getPedagogicalRecommendations = (student: AnonymousStudent) => {
     if (student.errorCount >= 3 || student.lastAction?.includes('ללא פריטה')) {
@@ -820,18 +957,15 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   const pendingGateStudents = useMemo(() => students.filter(s => s.isWaitingAtGate), [students]);
 
   return (
-    <div className="flex flex-col gap-2.5" dir="rtl">
-      {/* Module 18: Clean Header & Legend for Silent Radar Matrix */}
-      <section className="bg-white dark:bg-slate-900 rounded-2xl px-2.5 py-2 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2.5 h-full min-h-0" dir="rtl">
+      {/* Module 18: the radar's header — a plain toolbar row aligned to the grid, no card (owner, 11.10.2026: calm). */}
+      <section className="shrink-0 flex flex-col">
         <div>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center justify-between gap-3 flex-wrap min-h-8">
             {/* The explanation is the heading's tooltip (owner, 11.10.2026): the tiles fit a 1366×768 screen. */}
-            <h2 title={RADAR_EXPLANATION_HE} className="text-sm font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-              <Users className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+            <h2 title={RADAR_EXPLANATION_HE} className="text-sm font-bold text-slate-900 dark:text-white tracking-tight flex items-baseline gap-2">
               <span>הרדאר הפדגוגי השקט</span>
-              <span className="text-xs bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400 border border-violet-200/60 dark:border-violet-800 px-2.5 py-0.5 rounded-full font-bold">
-                12 תלמידים
-              </span>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">12 תלמידים</span>
             </h2>
 
             <div className="flex items-center gap-2">
@@ -841,10 +975,10 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <button
                 onClick={handleExportResearchDataset}
                 disabled={isExportingDataset}
-                className="px-2.5 py-1 min-h-8 rounded-lg border border-violet-200 hover:border-violet-400 bg-violet-50/60 hover:bg-violet-100 dark:bg-violet-950/40 dark:border-violet-800 text-violet-700 dark:text-violet-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                className="px-2.5 py-1 min-h-8 rounded-lg border border-slate-200 hover:bg-slate-50 bg-white dark:bg-slate-900 dark:hover:bg-slate-800 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                 title="ייצוא נתוני מחקר גולמיים ואנונימיים (טלמטריה, מפגשים, רפלקציות, לוג איפוסים) ל-Drive"
               >
-                <FileDown className={`w-3.5 h-3.5 ${isExportingDataset ? 'animate-pulse' : ''}`} />
+                <FileDown className="w-3.5 h-3.5" />
                 <span>{isExportingDataset ? 'מייצא...' : 'ייצוא נתוני מחקר'}</span>
               </button>
 
@@ -862,7 +996,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   aria-expanded={resetMenuOpen}
                   data-testid="reset-menu-button"
                   title="איפוס התראות, איפוס המפגש לכיתה ואיפוס כל נתוני הכיתה"
-                  className="px-2.5 py-1 min-h-8 rounded-lg border border-slate-200/80 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold transition-all active:scale-[0.97] flex items-center gap-1.5 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/40"
+                  className="px-2.5 py-1 min-h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
                 >
                   <Settings className="w-3.5 h-3.5" />
                   <span>הגדרות ואיפוס</span>
@@ -920,39 +1054,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
             </div>
           </div>
         </div>
-
-        {/* 5-Color Status Legend per PRD v7.1 Module 18 (BLUE > RED > GREY > YELLOW > GREEN) */}
-        {/* Owner, 11.10.2026: the colour map always in view, each colour with what it means, and the letters. */}
-        <div data-testid="radar-legend" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] leading-tight font-semibold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 rounded-xl border border-slate-200/60 dark:border-slate-700">
-          {radarLegendItems(getHesitationThresholdSeconds()).map((item) => (
-            <span key={item.color} data-testid={`radar-legend-${item.color}`} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-900">
-              {/* A key, never animated (owner, 11.10.2026; Module 18 "אינו מהבהב ואינו פועם"). */}
-              <span aria-hidden="true" data-testid={item.color === 'BLUE' ? 'legend-help-dot' : undefined} className={`w-3 h-3 shrink-0 rounded-full ${item.dot}`} />
-              <span>{item.meaning}</span>
-            </span>
-          ))}
-          {/* The letters and the level stripe follow the colours in the same flow. */}
-          <div className="contents">
-          <span data-testid="radar-legend-letters" className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 ps-1">
-            {RADAR_LEGEND_LETTERS.map((l) => (
-              <span key={l.glyph} className="inline-flex items-center gap-1.5">
-                <span aria-hidden="true" className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] font-black rounded bg-slate-900/10 dark:bg-white/10 text-slate-900 dark:text-slate-100 border border-slate-400/40">{l.glyph}</span>
-                <span>{l.meaning}</span>
-              </span>
-            ))}
-          </span>
-          {/* The level stripe on a tile's edge (core/routeColors.ts): its own key, apart from the status colours. */}
-          <div data-testid="radar-level-legend" className="flex flex-wrap items-center gap-x-2 gap-y-1 ps-1">
-            <span className="font-bold">פס בקצה המשבצת:</span>
-            {(['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'] as const).map((path) => (
-              <span key={path} className="flex items-center gap-1.5">
-                <span aria-hidden="true" className={`w-1.5 h-3.5 rounded-sm ${ROUTE_COLOR[path].stripe}`} />
-                <span>{ROUTE_NAME_HE[path]}</span>
-              </span>
-            ))}
-          </div>
-          </div>
-        </div>
+        {/* The colour key is the "מפת הצבעים" card under the action queue (owner, 11.10.2026): the strip here was crowded. */}
       </section>
 
       {isTeacherOffline && (
@@ -998,22 +1100,45 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           PRD Module 18 §ב: "גריד קבוע של 3×4" — three rows of four, at every
           width. A breakpoint used to drop it to three columns (four rows) on a
           narrow screen, moving every tile from 4 on. */}
-      <section className="w-full">
+      <section
+        ref={tilesRef}
+        data-testid="radar-grid"
+        className="grid grid-cols-4 gap-x-[clamp(10px,1.1vw,24px)] gap-y-[clamp(8px,0.9vw,20px)] w-full flex-1 min-h-0"
+        style={{ gridTemplateRows: (['regular', 'graded'] as const)
+          .map((g) => students.filter((s) => (s.gradedTrack === true) === (g === 'graded')).length)
+          .filter((n) => n > 0)
+          .map((n) => `auto repeat(${Math.ceil(n / 4)}, minmax(72px, 1fr))`)
+          .join(' ') }}
+      >
         {/* Owner, 11.10.2026: two groups, regular and special education (the graded mark, set before meeting 1, so a
             tile does not move during the meetings). In each group the tiles keep the number order, four to a row. */}
         {(['regular', 'graded'] as const).map((group) => {
           const members = students.filter((s) => (s.gradedTrack === true) === (group === 'graded'));
           if (members.length === 0) return null;
           return (
-            <div key={group} data-testid={`radar-group-${group}`} className="max-w-4xl mx-auto w-full mb-1.5">
-              <h3 className="text-[11px] leading-tight font-extrabold text-slate-700 dark:text-slate-200 mb-0.5">{LEARNER_GROUP_HE[group]} ({members.length})</h3>
-        <div data-testid="radar-grid" className="grid grid-cols-4 gap-2 w-full">
+            <div key={group} data-testid={`radar-group-${group}`} className="contents">
+              <h3 className={`col-span-4 self-end -mb-1 text-xs leading-snug font-semibold text-slate-500 dark:text-slate-400 ${group === 'graded' ? 'pt-1' : ''}`}>{LEARNER_GROUP_HE[group]} ({members.length})</h3>
+        {/* Four columns that fill the width; the gap and the tile height follow the screen (owner, 11.10.2026):
+            ~12px at 768, ~15px at 1366, ~18px at 1680, ~21px at 1920; the height leaves room for four rows. */}
+        {/* One grid for both groups: four columns, equal rows that share the free height (owner, 11.10.2026). */}
+        <div className="contents">
           {members.map((student) => {
+            const hoverOpen = hoverTile === student.studentNumber;
             return (
+              <div
+                key={student.id}
+                className="relative min-h-0"
+                onMouseEnter={() => openHoverSoon(student.studentNumber)}
+                onMouseLeave={closeHover}
+                onFocus={() => openHoverSoon(student.studentNumber)}
+                onBlur={closeHover}
+                onTouchStart={() => openHoverSoon(student.studentNumber, 500)}
+                onTouchEnd={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
+              >
               <div
                 role="button"
                 tabIndex={0}
-                key={student.id}
+                aria-describedby={hoverOpen ? `tile-hover-${student.studentNumber}` : undefined}
                 aria-label={describeRadarCell(student, hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum), getHesitationThresholdSeconds())}
                 onClick={() => setSelectedStudent(student)}
                 onKeyDown={(e) => {
@@ -1022,30 +1147,18 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     setSelectedStudent(student);
                   }
                 }}
-                data-radar-color={resolveRadarColor({
-                  helpRequested: student.helpRequested,
-                  socraticActive: student.isSocraticActive,
-                  isOnline: Boolean(student.isOnline),
-                  hesitationSeconds: student.hesitationSeconds,
-                  hesitationThresholdSeconds: getHesitationThresholdSeconds(),
-                  sessionStarted: hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum),
-                })}
-                className={`p-2 rounded-xl border text-right transition-colors duration-500 ease-in-out flex flex-col justify-between min-h-[80px] relative overflow-hidden shadow-sm hover:shadow-md cursor-pointer ${
+                data-radar-color={tileColourOf(student)}
+                data-highlighted={highlightColour !== null && tileColourOf(student) === highlightColour ? 'true' : undefined}
+                // One cross-fade of the colour (300ms) and a 1px lift on hover — never a repeating pulse (Module 18).
+                className={`h-full px-3 pb-2.5 pt-3.5 rounded-xl text-right transition-[background-color,border-color] duration-300 ease-out motion-reduce:transition-none flex flex-col justify-start gap-1.5 relative overflow-hidden hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer ${
                   // PRD Module 18 §ב: BLUE > RED > GREY > YELLOW > GREEN, and "the
                   // background colours remain driven strictly by activity timing,
                   // connection state, and help requests". Waiting at the teacher's
                   // gate (Module 20) is none of those, so it never colours the
                   // tile; it is shown in the gate table above and in its own row
                   // below (report 28.9.2026, מ.5).
-                  RADAR_CELL_CLASSES[resolveRadarColor({
-                    helpRequested: student.helpRequested,
-                    socraticActive: student.isSocraticActive,
-                    isOnline: Boolean(student.isOnline),
-                    hesitationSeconds: student.hesitationSeconds,
-                    hesitationThresholdSeconds: getHesitationThresholdSeconds(),
-                    sessionStarted: hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum),
-                  })]
-                }${student.helpRequested ? ' ring-2 ring-blue-600 ring-offset-2 ring-offset-slate-50 dark:ring-offset-slate-950' : ''}`}
+                  RADAR_CELL_CLASSES[tileColourOf(student)]
+                }${student.helpRequested ? ' ring-2 ring-blue-500 dark:ring-blue-400' : ''}${highlightColour !== null && tileColourOf(student) === highlightColour ? ' outline outline-[3px] outline-offset-2 outline-slate-900 dark:outline-slate-100' : ''}`}
               >
                 {/* The approved level as a thin stripe on the tile's edge (core/routeColors.ts), next to its name in the
                     path tag below — never the background, which stays the status colour (PRD Module 18 §ב). */}
@@ -1053,13 +1166,19 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   <span
                     aria-hidden="true"
                     data-testid={`tile-stripe-${student.studentNumber}`}
-                    className={`absolute inset-y-0 right-0 w-1.5 ${radarLevelColour(student.currentPath)?.stripe ?? ''}`}
+                    className={`absolute inset-y-0 right-0 w-[2px] ${radarLevelColour(student.currentPath)?.stripe ?? ''}`}
                   />
                 )}
+                {/* The status bar on the top edge (owner, 11.10.2026): 3px, only on the three states that need the teacher
+                    (blue, red, yellow). A working tile has its small dot only; a grey tile stays muted. */}
+                {(['BLUE', 'RED', 'YELLOW'] as RadarColor[]).includes(tileColourOf(student)) && (
+                  <span aria-hidden="true" data-testid={`tile-bar-${student.studentNumber}`} className={`absolute inset-x-0 top-0 h-[3px] transition-colors duration-300 motion-reduce:transition-none ${RADAR_BAR_CLASSES[tileColourOf(student)]}`} />
+                )}
                 {/* Top Badge Row */}
-                <div className="flex justify-between items-start w-full">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-black text-xs tracking-tight text-slate-900 dark:text-slate-100">
+                {/* The name on its own line and the status tag under it (owner, 11.10.2026): the tag never wraps on a laptop tile. */}
+                <div className="flex flex-col items-start gap-1.5 w-full [&>span]:whitespace-nowrap">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className={`font-bold text-lg leading-none tabular-nums tracking-tight whitespace-nowrap ${tileColourOf(student) === 'GREY' ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>
                       תלמיד {student.studentNumber}
                     </span>
                     {/* Module 18(e) Cognitive Glyph (ח/ר/מ) - static, unmoving, non-blinking */}
@@ -1090,55 +1209,54 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   
                   {/* Status tag — help, card, connection and hesitation in the colour's order (Module 18): a yellow tile says "היסוס", also in a challenge or reinforcement branch; the gate has its own row below */}
                   {student.helpRequested ? (
-                    <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="קריאה לעזרה">
+                    <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-100 text-[11px] leading-tight font-semibold px-1.5 py-0.5 rounded-md" title="קריאה לעזרה">
                       <BellRing className="w-3 h-3" aria-hidden="true" />
                       קריאה לעזרה
                     </span>
                   ) : student.isSocraticActive ? (
-                    <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={CARD_OPEN_HE}>
+                    <span className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-100 text-[11px] leading-tight font-semibold px-1.5 py-0.5 rounded-md" title={CARD_OPEN_HE}>
                       <ShieldAlert className="w-3 h-3" />
                       {CARD_OPEN_HE}
                     </span>
                   ) : !student.isOnline ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-600 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="לא מחובר">
+                    <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 text-[11px] leading-tight font-semibold px-1.5 py-0.5 rounded-md" title="לא מחובר">
                       <WifiOff className="w-3 h-3" aria-hidden="true" />
                       מנותק
                     </span>
                   ) : !isClassSessionActive ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר וממתין בלובי">
-                      <span className="w-2 h-2 rounded-full bg-white" />
+                    <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 text-[11px] leading-tight font-semibold px-1.5 py-0.5 rounded-md" title="מחובר וממתין בלובי">
                       בלובי
                     </span>
                   ) : !hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum) ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר וממתין לאישור המסלול">
-                      <span className="w-2 h-2 rounded-full bg-white" />
+                    <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 text-[11px] leading-tight font-semibold px-1.5 py-0.5 rounded-md" title="מחובר וממתין לאישור המסלול">
                       ממתין לאישור מסלול
                     </span>
                   ) : student.hesitationSeconds >= getHesitationThresholdSeconds() ? (
-                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={`היסוס > ${getHesitationThresholdSeconds()} שניות`}>
+                    <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-100 text-[11px] leading-tight font-semibold px-1.5 py-0.5 rounded-md" title={`היסוס > ${getHesitationThresholdSeconds()} שניות`}>
                       <AlertTriangle className="w-3 h-3" />
                       היסוס
                     </span>
                   ) : student.activeBranch === 'challenge' ? (
-                    <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מבצע משימות אתגר (לומד מהיר)">
+                    <span className="inline-flex items-center gap-1 border border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-200 text-[11px] leading-tight font-semibold px-1.5 py-0.5 rounded-md" title="מבצע משימות אתגר (לומד מהיר)">
                       <Rocket className="w-3 h-3" aria-hidden="true" />
                       משימות אתגר
                     </span>
                   ) : student.activeBranch === 'reinforcement' ? (
-                    <span className="inline-flex items-center gap-1 bg-emerald-700 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מבצע משימות ביסוס">
+                    <span className="inline-flex items-center gap-1 border border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-200 text-[11px] leading-tight font-semibold px-1.5 py-0.5 rounded-md" title="מבצע משימות ביסוס">
                       <Shield className="w-3 h-3" aria-hidden="true" />
                       משימות ביסוס
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="פעיל ותקין">
-                      <span className="w-2 h-2 rounded-full bg-white" />
-                      פעיל
+                    // The normal state is quiet (owner, 11.10.2026: management by exception): a small dot; the word for screen readers and the tooltip.
+                    <span className="inline-flex items-center h-[18px]" title="פעיל ותקין">
+                      <span aria-hidden="true" className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="sr-only">פעיל</span>
                     </span>
                   )}
                 </div>
 
                 {!student.isOnline ? (
-                  <div className="flex flex-col justify-center items-center py-1 text-slate-600 dark:text-slate-500">
+                  <div className="flex flex-col justify-center items-center py-1 my-auto text-slate-500 dark:text-slate-400">
                     <span className="text-xs font-semibold">
                       {!isClassSessionActive ? 'אין מפגש פתוח' : 'לא מחובר כעת'}
                     </span>
@@ -1146,26 +1264,53 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 ) : (
                   <>
                     {/* Session & Path Info */}
-                    <div className="flex flex-col gap-1 my-0.5">
+                    <div className="flex flex-col gap-1 mt-auto">
                       {/* One line: the meeting truncates, its full name is the tooltip (owner, 11.10.2026: twelve tiles in 1366×768). */}
-                      <div className="flex flex-nowrap items-center justify-between gap-1 text-[11px] font-bold min-w-0">
-                        <span className="truncate min-w-0" title={meetingLabelHe(student.sessionNumber)}>{meetingShortLabelHe(student.sessionNumber)}</span>
+                      <div className="flex flex-nowrap items-center justify-between gap-1 text-[12px] font-medium text-slate-600 dark:text-slate-300 min-w-0">
+                        {/* In the open meeting the bar above names it, so the tile says where the learner is in it
+                            (owner, 11.10.2026); the meeting stays the tooltip. */}
+                        {student.progress && isClassSessionActive && student.sessionNumber === activeSessionNum ? (
+                          <span
+                            data-testid={`tile-progress-${student.studentNumber}`}
+                            title={meetingLabelHe(student.sessionNumber)}
+                            className={`shrink-0 whitespace-nowrap inline-flex items-center gap-1 ${student.progress.kind === 'finished' ? 'text-slate-800 dark:text-slate-100' : ''}`}
+                          >
+                            {student.progress.kind === 'finished' && <CheckCircle2 className="w-3 h-3 shrink-0" aria-hidden="true" />}
+                            {tileProgressHe(student.progress)}
+                          </span>
+                        ) : (
+                          <span className="truncate min-w-0" title={meetingLabelHe(student.sessionNumber)}>{meetingShortLabelHe(student.sessionNumber)}</span>
+                        )}
+                        {/* The wait since a help call (blue) or the time the card is open (red): digits only, no motion. */}
+                        {student.helpSince != null ? (
+                          <span data-testid={`tile-clock-${student.studentNumber}`} className="shrink-0 whitespace-nowrap tabular-nums font-semibold text-slate-800 dark:text-slate-100">
+                            {TILE_HE.waiting(elapsedClockHe(clockNow - student.helpSince))}
+                          </span>
+                        ) : student.cardSince != null ? (
+                          <span data-testid={`tile-clock-${student.studentNumber}`} className="shrink-0 whitespace-nowrap tabular-nums font-semibold text-slate-800 dark:text-slate-100">
+                            {TILE_HE.cardOpen(elapsedClockHe(clockNow - student.cardSince))}
+                          </span>
+                        ) : null}
                         {/* No approved path, no path tag. */}
                         {student.currentPath && (
-                          <span data-testid={`tile-path-${student.studentNumber}`} className={`shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded-md text-[10px] ${radarLevelColour(student.currentPath)?.chip ?? ''}`}>
+                          <span data-testid={`tile-path-${student.studentNumber}`} className="hidden min-[1440px]:inline min-w-0 truncate whitespace-nowrap text-[11px] font-normal text-slate-500 dark:text-slate-400">
                             {radarPathLabelHe(student.currentPath)}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Real-Time Trace Metrics */}
-                    <div className="text-[10px] text-slate-600 dark:text-slate-300 flex flex-nowrap gap-x-1.5 justify-between items-center pt-0.5 border-t border-slate-200/60 dark:border-slate-800 font-bold overflow-hidden">
-                      {/* "היסוס", as in the radar's legend (Module 18). */}
-                      <span className="whitespace-nowrap">היסוס: {student.hesitationSeconds} שנ׳</span>
-                      <span className="whitespace-nowrap">ביטולים: {student.undoCount ?? 0}</span>
-                      <span className="whitespace-nowrap">טעויות: {student.mistakeCount ?? 0}</span>
-                    </div>
+                    {/* Real-Time Trace Metrics: inline when the tile is tall enough (it grows with the screen), and only the
+                        ones that are not zero — no row of zeros on every tile (owner, 11.10.2026). The hover card keeps the full set. */}
+                    {(() => {
+                      const metrics = tileInlineMetricsHe(student);
+                      if (metrics.length === 0) return null;
+                      return (
+                        <div data-testid={`tile-metrics-${student.studentNumber}`} className={`${roomyTiles ? 'flex' : 'hidden'} text-[11px] text-slate-600 dark:text-slate-300 flex-nowrap gap-x-3 items-center pt-1 border-t border-slate-200/70 dark:border-slate-800 font-medium tabular-nums overflow-hidden`}>
+                          {metrics.map((m) => <span key={m} className="whitespace-nowrap">{m}</span>)}
+                        </div>
+                      );
+                    })()}
 
                   </>
                 )}
@@ -1201,6 +1346,30 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     </div>
                   </div>
                 )}
+              </div>
+              {/* The hover card (owner, 11.10.2026): after ~250ms of hover or on keyboard focus (a long press on
+                  touch), over the tiles below — the tile's own width, so it never reaches the action queue, and
+                  absolutely placed, so nothing moves. Data already on this screen only. */}
+              {hoverOpen && (
+                <div
+                  id={`tile-hover-${student.studentNumber}`}
+                  role="tooltip"
+                  data-testid={`tile-hover-${student.studentNumber}`}
+                  className="absolute z-30 top-full inset-x-0 mt-1.5 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg text-right pointer-events-none"
+                >
+                  <ul className="flex flex-col gap-1 text-xs leading-normal text-slate-700 dark:text-slate-200">
+                    {tileHoverLinesHe(student, {
+                      colour: tileColourOf(student),
+                      thresholdSeconds: getHesitationThresholdSeconds(),
+                      now: clockNow,
+                      openMediation: openMediationByLearner[student.studentNumber] ?? 0,
+                      inOpenMeeting: isClassSessionActive && student.sessionNumber === activeSessionNum,
+                    }).map((line, i) => (
+                      <li key={i} className={i === 0 ? 'text-sm font-extrabold text-slate-900 dark:text-slate-100' : ''}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               </div>
             );
           })}

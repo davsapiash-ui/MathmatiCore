@@ -45,8 +45,15 @@ export function MediationControls({
     if (ok) onSaved?.();
   };
 
-  const chip = (pressed: boolean) =>
-    `min-h-9 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+  // A segmented control for the action (one of four) and two pills for yes / no (owner, 11.10.2026).
+  const segment = (pressed: boolean) =>
+    `min-h-9 px-2.5 py-1.5 rounded-lg text-xs font-bold transition duration-150 active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+      pressed
+        ? 'bg-violet-700 text-white shadow-sm'
+        : 'text-slate-800 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-700'
+    }`;
+  const pill = (pressed: boolean) =>
+    `min-h-9 px-3.5 py-1.5 rounded-full border text-xs font-bold transition duration-150 active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
       pressed
         ? 'bg-violet-700 border-violet-700 text-white'
         : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -58,6 +65,7 @@ export function MediationControls({
       {!selfApproach && (
         <div role="group" aria-label={MEDIATION_HE.whatDidIDo} className="flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 me-1">{MEDIATION_HE.whatDidIDo}</span>
+          <span className="inline-flex flex-wrap gap-0.5 p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
           {MEDIATION_ACTIONS.map((a) => (
             <button
               key={a}
@@ -67,11 +75,12 @@ export function MediationControls({
               disabled={readOnly || saving}
               title={title}
               onClick={() => { setAction(a); void save(a, dataLed); }}
-              className={chip(action === a)}
+              className={segment(action === a)}
             >
               {MEDIATION_ACTION_HE[a]}
             </button>
           ))}
+          </span>
         </div>
       )}
       <div role="group" aria-label={MEDIATION_HE.dataLed} className="flex flex-wrap items-center gap-1.5">
@@ -85,7 +94,7 @@ export function MediationControls({
             disabled={readOnly || saving}
             title={title}
             onClick={() => { setDataLed(v); void save(action, v); }}
-            className={chip(dataLed === v)}
+            className={pill(dataLed === v)}
           >
             {v ? MEDIATION_HE.yes : MEDIATION_HE.no}
           </button>

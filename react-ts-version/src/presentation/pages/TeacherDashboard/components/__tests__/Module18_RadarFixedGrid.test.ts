@@ -14,7 +14,7 @@ import { resolve } from 'path';
 const grid = (() => {
   const file = readFileSync(resolve(__dirname, '../HeatmapGrid.tsx'), 'utf-8');
   const at = file.indexOf('data-testid="radar-grid"');
-  const tag = file.slice(file.lastIndexOf('<div', at), file.indexOf('>', at) + 1);
+  const tag = file.slice(file.lastIndexOf('<section', at), file.indexOf('>', at) + 1);
   return /className="([^"]*)"/.exec(tag)?.[1].split(/\s+/) ?? [];
 })();
 

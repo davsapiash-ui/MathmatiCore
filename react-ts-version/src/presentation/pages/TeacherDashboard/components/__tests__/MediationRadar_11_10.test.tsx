@@ -5,8 +5,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within, fireEvent, cleanup, act, waitFor } from '@testing-library/react';
 
 /**
- * Measure 5 on the radar (owner, 11.10.2026): the colour legend always above
- * the grid, the tile's number of unrecorded events, and "תיעוד התיווך" in the
+ * Measure 5 on the radar (owner, 11.10.2026): the colour map card beside
+ * the grid (under the action queue), the tile's number of unrecorded events, and "תיעוד התיווך" in the
  * tile's drawer — two taps to record, disabled for a read-only account.
  */
 vi.mock('@/infrastructure/firebase', () => ({
@@ -44,6 +44,7 @@ vi.mock('@/infrastructure/services/TeacherMediationService', () => ({
 }));
 
 import { HeatmapGrid, radarLegendItems, RADAR_LEGEND_LETTERS, type AnonymousStudent } from '../HeatmapGrid';
+import { RadarColourMap, useRadarColourMapStore } from '../RadarColourMap';
 import { useTeacherMediationStore } from '@/application/useTeacherMediationStore';
 import { useReadOnlyStaffStore, READ_ONLY_TITLE } from '@/application/useIsReadOnlyStaff';
 import { buildActionQueue, clockHe, type MediationEvent } from '@/core/teacherMediation';
@@ -80,27 +81,77 @@ afterEach(() => {
 });
 
 describe('the radar legend', () => {
-  it('shows the five colour meanings and the three letters, above the grid, with the calibrated seconds', () => {
-    render(<HeatmapGrid initialStudents={[base(1)]} />);
+  it('shows the five colour meanings and the three letters in the colour map card, with the calibrated seconds', () => {
+    render(<><HeatmapGrid initialStudents={[base(1)]} /><RadarColourMap /></>);
     const legend = screen.getByTestId('radar-legend');
     const text = legend.textContent ?? '';
+    // The full sentence is each row's tooltip and accessible name; the row shows the short label on one line (owner, 11.10.2026).
+    const titles = [...legend.querySelectorAll('[data-testid^="radar-legend-"][title]')].map((b) => b.getAttribute('title'));
     for (const meaning of [
       'עובד (פעולה ב-45 השניות האחרונות)',
-      'תקוע: 45 שניות בלי פעולה',
+      'היסוס: 45 שניות בלי פעולה',
       'כרטיס החניכה פתוח אצלו',
       'קרא למורה',
       'לא מחובר או לא התחיל את המפגש',
-    ]) expect(text).toContain(meaning);
+    ]) expect(titles).toContain(meaning);
+    for (const short of ['קרא למורה', 'כרטיס החניכה פתוח', 'לא מחובר / לא התחיל', 'היסוס: 45 שנ׳ בלי פעולה', 'עובד']) expect(text).toContain(short);
+    expect(screen.getByTestId('radar-legend-label-GREEN').className).toContain('whitespace-nowrap');
     for (const letter of ['טעות בהבנת ערך המקום', 'טעות חישוב', 'טעות בשלבי הפתרון']) expect(text).toContain(letter);
     expect(RADAR_LEGEND_LETTERS.map((l) => l.glyph)).toEqual(['מ', 'ח', 'ר']);
-    expect(radarLegendItems(30).find((i) => i.color === 'YELLOW')!.meaning).toBe('תקוע: 30 שניות בלי פעולה');
+    expect(radarLegendItems(30).find((i) => i.color === 'YELLOW')!.meaning).toBe('היסוס: 30 שניות בלי פעולה');
     expect(radarLegendItems(30).find((i) => i.color === 'GREEN')!.meaning).toBe('עובד (פעולה ב-30 השניות האחרונות)');
     // The level stripe key is kept, once.
     expect(screen.getAllByTestId('radar-level-legend')).toHaveLength(1);
-    // Before the grid in the document.
-    const grid = screen.getByTestId('radar-grid');
-    expect(legend.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Owner, 11.10.2026 (after the live radar): no strip above the grid any more — the card is the key.
     expect(legend.innerHTML).not.toMatch(/animate-/);
+  });
+
+  it('the grid alone draws no legend strip', () => {
+    render(<HeatmapGrid initialStudents={[base(1)]} />);
+    expect(screen.queryByTestId('radar-legend')).toBeNull();
+  });
+});
+
+describe('"מפת הצבעים" — live counts and the highlight (owner, 11.10.2026)', () => {
+  afterEach(() => useRadarColourMapStore.setState({ highlight: null }));
+  const learners = [
+    base(1, { helpRequested: true }),
+    base(2, { helpRequested: true }),
+    base(3, { isSocraticActive: true }),
+    base(4, { hesitationSeconds: 120 }),
+    base(5),
+    base(6, { isOnline: false }),
+  ];
+  it('rows in the radar priority, each with the number of learners in that state now', async () => {
+    render(<><HeatmapGrid initialStudents={learners} /><RadarColourMap /></>);
+    const legend = screen.getByTestId('radar-legend');
+    const order = within(legend).getAllByRole('button', { pressed: false }).map((b) => b.getAttribute('data-testid'));
+    expect(order).toEqual(['radar-legend-BLUE', 'radar-legend-RED', 'radar-legend-GREY', 'radar-legend-YELLOW', 'radar-legend-GREEN']);
+    await waitFor(() => expect(within(legend).getByTestId('radar-legend-count-BLUE').textContent).toBe('2'));
+    expect(within(legend).getByTestId('radar-legend-count-RED').textContent).toBe('1');
+    expect(within(legend).getByTestId('radar-legend-count-YELLOW').textContent).toBe('0'); // no meeting open here: grey, as the tiles (Module 18)
+    expect(within(legend).getByTestId('radar-legend-count-GREEN').textContent).toBe('0');
+    expect(within(legend).getByTestId('radar-legend-count-GREY').textContent).toBe('3');
+  });
+  it('a click outlines the tiles in that state only (no colour change, no motion); a second click clears', async () => {
+    render(<><HeatmapGrid initialStudents={learners} /><RadarColourMap /></>);
+    const tileOf = (n: number) => screen.getAllByRole('button').find((el) => el.getAttribute('aria-label')?.startsWith(`תלמיד ${n}.`))!;
+    const before = tileOf(1).getAttribute('data-radar-color');
+    fireEvent.click(screen.getByTestId('radar-legend-BLUE'));
+    expect(screen.getByTestId('radar-legend-BLUE').getAttribute('aria-pressed')).toBe('true');
+    expect(tileOf(1).getAttribute('data-highlighted')).toBe('true');
+    expect(tileOf(2).getAttribute('data-highlighted')).toBe('true');
+    expect(tileOf(3).getAttribute('data-highlighted')).toBeNull();
+    expect(tileOf(1).className).toContain('outline');
+    expect(tileOf(1).className).not.toMatch(/animate-/);
+    expect(tileOf(1).getAttribute('data-radar-color')).toBe(before);
+    fireEvent.click(screen.getByTestId('radar-legend-BLUE'));
+    expect(tileOf(1).getAttribute('data-highlighted')).toBeNull();
+  });
+  it('a read-only account uses it the same way', () => {
+    useReadOnlyStaffStore.setState({ readOnly: true });
+    render(<><HeatmapGrid initialStudents={learners} /><RadarColourMap /></>);
+    expect((screen.getByTestId('radar-legend-RED') as HTMLButtonElement).disabled).toBe(false);
   });
 });
 

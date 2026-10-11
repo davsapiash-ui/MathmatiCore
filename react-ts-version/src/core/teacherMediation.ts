@@ -68,14 +68,13 @@ export const MEDIATION_HE = {
   selfApproachKind: 'ניגשתי בלי קריאה',
   pendingCounter: (n: number) => `לתיעוד: ${n}`,
   noOpenEvents: 'אין אירועים שממתינים לתיעוד.',
-  noMeeting: 'אין מפגש פתוח. התיעוד פתוח בזמן מפגש.',
+  noMeeting: 'אין מפגש פתוח. אפשר לתעד רק בזמן מפגש.',
   recorded: 'תועד',
   olderOpen: 'אירועים קודמים שלא תועדו',
   recordedList: 'אירועים שתועדו',
   saveFailed: 'התיעוד לא נשמר. נסו שוב.',
   pendingListTitle: 'אירועים שלא תועדו במפגש',
   closeUnrecorded: (n: number) => (n === 1 ? 'יש אירוע אחד שלא תועד' : `יש ${n} אירועים שלא תועדו`),
-  closeAnyway: 'סגירה בכל זאת',
   back: 'חזרה',
   learner: (n: number) => `תלמיד ${n}`,
 } as const;
@@ -297,7 +296,7 @@ export function buildActionQueue(input: {
 
 export const QUEUE_HE = {
   title: 'תור פעולות',
-  empty: 'אין קריאות או הודעות שמחכות.',
+  empty: 'אין קריאות או הודעות שממתינות.',
   helpItem: 'קרא למורה',
   chatItem: (n: number) => (n === 1 ? 'הודעה אחת שלא נקראה' : `${n} הודעות שלא נקראו`),
   gateItem: 'ממתין לאישור מסלול',
