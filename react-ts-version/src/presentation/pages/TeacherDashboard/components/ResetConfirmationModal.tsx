@@ -333,7 +333,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           <div className="space-y-4 mb-6">
             {isClassTarget && !activeSessionNumber && (
               <div role="alert" className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                אין מפגש פתוח לכיתה, ולכן אי אפשר לאפס את המפגש לכל הכיתה. לאיפוס של תלמיד אחד, לחצו על המשבצת שלו ברדאר, אחר כך על "מעבר לניתוח מעמיק" ואז על "איפוס נתונים".
+                אין מפגש פתוח לכיתה, ולכן אי אפשר לאפס את המפגש לכל הכיתה. לאיפוס של תלמיד אחד, לחצו על המשבצת שלו ברדאר, אחר כך על "פתיחת חלונית הלומד" ואז על "איפוס נתונים".
               </div>
             )}
             {isClassTarget && activeSessionNumber && (

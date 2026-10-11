@@ -1135,7 +1135,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 exit={{ x: '100%' }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
                 // The content scrolls and the actions stay in view: on a laptop
-                // screen "מעבר לניתוח מעמיק" and "סגירה" were below the fold.
+                // screen "פתיחת חלונית הלומד" and "סגירה" were below the fold.
                 className="relative z-10 w-full max-w-xl h-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-r border-slate-200 dark:border-slate-800"
                 dir="rtl"
               >
@@ -1276,7 +1276,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     }}
                     className="flex-1 py-3 px-4 rounded-xl bg-violet-700 hover:bg-violet-800 text-white font-extrabold text-sm shadow-lg shadow-violet-600/25 active:scale-[0.97] transition-all text-center cursor-pointer"
                   >
-                    מעבר לניתוח מעמיק
+                    פתיחת חלונית הלומד
                   </button>
                 )}
                 <button

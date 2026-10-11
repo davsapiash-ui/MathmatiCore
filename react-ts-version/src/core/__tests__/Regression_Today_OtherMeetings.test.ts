@@ -78,7 +78,7 @@ import {
 } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
-import { getSessionTasks, getHardcodedCatalogBanks, SESSION1_TASKS, type SessionTask } from '@/data/sessionTasks';
+import { getSessionTasks, getHardcodedCatalogBanks, SESSION1_TASKS, type SessionTask, type LearningPath } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { TASKS as DIAGNOSTIC_TASKS, hasOneDiagnosticAnswerBox } from '@/core/QMatrix';
 import { EMPTY_COUNTS, MAX_VISIBLE_BLOCKS, type Place, type PlaceCounts } from '@/core/placeValue';
@@ -105,14 +105,14 @@ const placesOf = (n: number): Place[] => PLACES.slice(0, String(Math.abs(n)).len
 const current = (): SessionTask => getActiveTasks(ws())[ws().standardTaskIdx];
 const svc = firebaseSyncService as any;
 
-function signIn(path: 'green_path' | 'remediation_path' = 'green_path') {
+function signIn(path: LearningPath = 'green_path') {
   useAuthStore.setState({ user: { uid: STUDENT, name: 'user12' } as any, role: 'student', isAuthenticated: true } as any);
   useStore.setState((s) => ({
     students: { ...s.students, [STUDENT]: { ...(s.students[STUDENT] ?? {}), pedagogicalPath: path } as any },
   }));
 }
 
-function startMeeting(meeting: 2 | 3 | 4 | 5 | 6 | 7 | 8, path: 'green_path' | 'remediation_path' = 'green_path') {
+function startMeeting(meeting: 2 | 3 | 4 | 5 | 6 | 7 | 8, path: LearningPath = 'green_path') {
   signIn(path);
   ws().resetWorkspace();
   ws().initSession(meeting, false);

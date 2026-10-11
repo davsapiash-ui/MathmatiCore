@@ -123,7 +123,7 @@ describe('level 2 — the whole class', () => {
 
   it('no meeting open: the real way to reset one learner', () => {
     open(null);
-    expect(screen.getByRole('alert').textContent).toBe('אין מפגש פתוח לכיתה, ולכן אי אפשר לאפס את המפגש לכל הכיתה. לאיפוס של תלמיד אחד, לחצו על המשבצת שלו ברדאר, אחר כך על "מעבר לניתוח מעמיק" ואז על "איפוס נתונים".');
+    expect(screen.getByRole('alert').textContent).toBe('אין מפגש פתוח לכיתה, ולכן אי אפשר לאפס את המפגש לכל הכיתה. לאיפוס של תלמיד אחד, לחצו על המשבצת שלו ברדאר, אחר כך על "פתיחת חלונית הלומד" ואז על "איפוס נתונים".');
   });
 });
 

@@ -38,7 +38,7 @@ vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => vi.fn().mockRe
 import { StudentLearningConditionsDrawer } from '../StudentLearningConditionsDrawer';
 
 /**
- * Radar tile → "מעבר לניתוח מעמיק" → the learner drawer → "איפוס נתונים".
+ * Radar tile → "פתיחת חלונית הלומד" → the learner drawer → "איפוס נתונים".
  * The confirmation window was portalled at z-50, under the drawer's backdrop
  * (z-[9998]) and panel (z-[9999]): the confirm click hit the backdrop and
  * closed everything, and one Escape closed both windows.
