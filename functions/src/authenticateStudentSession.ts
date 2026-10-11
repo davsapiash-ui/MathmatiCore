@@ -102,6 +102,13 @@ export const releaseStudentSession = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "No session to release");
     }
+    // setCustomUserClaims({}) removes every claim. Called from a browser that
+    // holds a staff (Google) session, it would strip the teacher's or admin's
+    // own access; only the anonymous user a learner signed in on is released.
+    const provider = (request.auth.token as Record<string, any>)?.firebase?.sign_in_provider;
+    if (provider !== "anonymous") {
+      return { released: false };
+    }
     const uid = request.auth.uid;
     await admin.auth().setCustomUserClaims(uid, {});
     logger.info(`Released student claims on UID ${uid}`);

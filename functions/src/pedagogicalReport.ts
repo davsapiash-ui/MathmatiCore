@@ -575,6 +575,16 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   requireTeacherForIndividualData(request.auth.token as Record<string, unknown>);
 
   const { sessionId, classId = "class_1", sessionNumber, studentId: explicitStudentId } = request.data || {};
+  // class_id goes into the Storage path and the stored report, so it must be a
+  // plain id, and it must be the caller's own class (getClassReportDownloadUrl
+  // and the class report apply the same rule).
+  if (typeof classId !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(classId)) {
+    throw new HttpsError("invalid-argument", "Invalid classId.");
+  }
+  const callerClassId = (request.auth.token as Record<string, unknown>).class_id;
+  if (callerClassId && callerClassId !== classId) {
+    throw new HttpsError("permission-denied", "Access denied: teacher not assigned to this class.");
+  }
   if (!sessionId || typeof sessionId !== "string") {
     throw new HttpsError("invalid-argument", "Missing sessionId.");
   }

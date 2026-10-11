@@ -173,4 +173,28 @@ describe('the dashboard: no answer, then the outcome when the connection returns
     await flush();
     expect(toastError).not.toHaveBeenCalled();
   });
+
+  // Audit 11.10.2026: a reset whose answer came after the longest a reset can
+  // run (a closed laptop, a reload hours later) used to run the success path,
+  // which writes empty records over all 12 learners and closes the open
+  // meeting, erasing what the children did after the server's reset.
+  it('an outcome that arrives after the longest a reset can run is shown, but writes nothing over the learners', async () => {
+    const { savePendingReset } = await import('@/application/resetOutcome');
+    const { set, update, remove } = await import('firebase/database');
+    const startedAt = Date.now() - RESET_OUTCOME_WAIT_MS - 60_000;
+    savePendingReset({ resetId: 'reset_late', kind: 'system', startedAt });
+    mockFetchEntry.mockResolvedValue(entry({ reset_id: 'reset_late', reset_level: 'system', deletion_status: 'completed', session_number: null }));
+    vi.mocked(set).mockClear();
+    vi.mocked(update).mockClear();
+    vi.mocked(remove).mockClear();
+
+    resumePendingResetWatch();
+    await flush();
+
+    expect(toastSuccess).toHaveBeenCalledTimes(1);
+    expect(String(toastSuccess.mock.calls[0][0])).toContain('האיפוס הסתיים בשרת');
+    expect(set).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  });
 });

@@ -7,6 +7,7 @@ import { useChatStore, normalizeStudentId } from '@/application/useChatStore';
 import { invalidateLearnerEventsCache, fetchResetAuditEntry } from '@/infrastructure/services/LearnerJourneyService';
 import {
   RESET_OUTCOME_MESSAGES_HE,
+  RESET_OUTCOME_WAIT_MS,
   loadPendingReset,
   newResetId,
   savePendingReset,
@@ -1228,6 +1229,16 @@ function startResetOutcomeWatch(pending: PendingReset): void {
   watchResetOutcome(pending, {
     fetchEntry: fetchResetAuditEntry,
     onCompleted: (p, data) => {
+      // The server performs every deletion itself. This success path only
+      // mirrors them on the teacher's side, which is right while the reset is
+      // still the latest thing that happened. Past the longest a reset can run
+      // the children may already have worked again: writing empty records over
+      // them would erase that work (and close the meeting now open). The
+      // teacher is told it finished and the screen shows the server's state.
+      if (Date.now() - p.startedAt > RESET_OUTCOME_WAIT_MS) {
+        resetSuccessToast('האיפוס הסתיים בשרת. רעננו את המסך כדי לראות את המצב העדכני.', data);
+        return;
+      }
       if (p.kind === 'class') applyClassResetSuccess(data.sessionNumber ?? p.sessionNumber, data);
       else if (p.kind === 'student') void applyStudentResetSuccess(p.studentId, p.scope, data.sessionNumber ?? p.sessionNumber, data);
       else void applySystemResetSuccess(data);
