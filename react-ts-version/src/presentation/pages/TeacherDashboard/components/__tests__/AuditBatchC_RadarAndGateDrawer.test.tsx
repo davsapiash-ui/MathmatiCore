@@ -274,36 +274,44 @@ describe('the gate drawer', () => {
   } as StudentData);
   const approved = learner({ routeStatus: 'APPROVED', teacher_gate_approved: true, pedagogicalPath: 'green_path' });
 
-  it('gate-8: an approved learner is shown as approved, with nothing to approve again', () => {
+  // The drawer's two buttons are the learner's row's (owner, 11.10.2026): a press approves that level.
+  const approveButton = (path: keyof typeof ROUTE_APPROVE_HE) =>
+    screen.getByRole('button', { name: new RegExp(`^${ROUTE_APPROVE_HE[path]}`) }) as HTMLButtonElement;
+
+  it('gate-8: an approved learner is shown as approved; the approved level has nothing to approve again', () => {
     render(<TeacherGateApprovalDrawer student={approved} onClose={vi.fn()} />);
     expect(screen.getByTestId('gate-drawer-state').textContent).toBe('המסלול אושר');
     expect(screen.queryByText('ממתין להחלטתכם')).toBeNull();
     expect(screen.getByText(`המסלול שאושר: ${ROUTE_NAME_HE.green_path}`)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /אשרו והפעילו/ })).toBeNull();
-    const save = screen.getByRole('button', { name: 'המסלול כבר אושר' }) as HTMLButtonElement;
-    expect(save.disabled).toBe(true);
+    const green = approveButton('green_path');
+    expect(green.getAttribute('aria-pressed')).toBe('true');
+    expect(green.disabled).toBe(true);
+    expect(green.title).toBe('המסלול כבר אושר');
+    expect(approveButton('remediation_path').disabled).toBe(false);
   });
 
-  it('gate-8: choosing the other path offers a change, and saves it', async () => {
+  it('gate-8: the other level of the pair can still be approved, in one press', async () => {
     render(<TeacherGateApprovalDrawer student={approved} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${ROUTE_NAME_HE.remediation_path}`) }));
-    const change = screen.getByRole('button', { name: 'שנו את המסלול' }) as HTMLButtonElement;
-    expect(change.disabled).toBe(false);
-    await act(async () => { fireEvent.click(change); });
+    await act(async () => { fireEvent.click(approveButton('remediation_path')); });
     expect(approveTeacherGate).toHaveBeenCalledWith('student_user5', 'remediation_path', null);
     expect(toastSuccess).toHaveBeenCalledWith(gateApprovedToastHe('5', 'remediation_path'));
   });
 
-  it('gate-8: a learner not yet approved still waits for the decision', () => {
+  it('gate-8: a learner not yet approved waits for the decision: two approve buttons, nothing pressed, no "! 🚀"', () => {
     render(<TeacherGateApprovalDrawer student={learner()} onClose={vi.fn()} />);
     expect(screen.getByTestId('gate-drawer-state').textContent).toBe('ממתין להחלטתכם');
-    expect(screen.getByRole('button', { name: /אשרו והפעילו/ })).toBeTruthy();
+    expect(screen.getByText(/אשרו מסלול ל/)).toBeTruthy();
+    const buttons = within(screen.getByTestId('gate-drawer-approve')).getAllByRole('button') as HTMLButtonElement[];
+    expect(buttons.map((b) => b.textContent)).toEqual([ROUTE_APPROVE_HE.green_path, ROUTE_APPROVE_HE.remediation_path]);
+    expect(buttons.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false']);
+    expect(document.body.textContent).not.toContain('🚀');
   });
 
-  it('gate-9: the cards give each route\'s range (PRD Module 26), without peer teaching', () => {
+  it('gate-9: beside each button the route\'s range (PRD Module 26), without peer teaching', () => {
     render(<TeacherGateApprovalDrawer student={learner()} onClose={vi.fn()} />);
-    const green = screen.getByRole('button', { name: new RegExp(`^${ROUTE_NAME_HE.green_path}`) });
-    const remediation = screen.getByRole('button', { name: new RegExp(`^${ROUTE_NAME_HE.remediation_path}`) });
+    const items = within(screen.getByTestId('gate-drawer-approve')).getAllByRole('listitem');
+    const [green, remediation] = items;
     expect(green.textContent).toContain(ROUTE_CARD_HE.green_path);
     expect(green.textContent).toContain('10,000');
     expect(green.textContent).not.toContain('תלת-ספרתיים');

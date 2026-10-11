@@ -25,10 +25,19 @@ import { assertCallerClass, validateClassId } from "./exportDriveReport";
  *      approval's time and author.
  */
 
-/** The teacher may approve any of the four paths (owner, 11.10.2026). */
+/** The four stored paths. A learner is approved for one of their own pair only (gatePairFor). */
 export type GatePath = "green_path" | "remediation_path" | "graded_path" | "graded_foundation_path";
 
 export const GATE_PATHS: readonly GatePath[] = ["green_path", "remediation_path", "graded_path", "graded_foundation_path"];
+
+/**
+ * PRD Module 20 (owner, 11.10.2026): each learner has two levels, and the gate shows only their two approve
+ * buttons — the graded pair for a learner the teacher marked graded (graded_track), else the regular pair.
+ * The server refuses any other path; changing to the other level of the same pair after approval is allowed.
+ */
+export function gatePairFor(gradedTrack: boolean): readonly GatePath[] {
+  return gradedTrack ? ["graded_path", "graded_foundation_path"] : ["green_path", "remediation_path"];
+}
 
 /** The learner 1–12 named by a request: 5, "5", "student_user5", "student_5". */
 export function gateLearnerNumber(raw: unknown): number | null {
@@ -70,6 +79,19 @@ export const approveTeacherGate = onCall(async (request) => {
   if (n === null) throw new HttpsError("invalid-argument", "מזהה הלומד אינו תקין. האישור לא נשמר.");
   const path = request.data?.path as GatePath;
   if (!GATE_PATHS.includes(path)) throw new HttpsError("invalid-argument", "המסלול אינו תקין. האישור לא נשמר.");
+
+  // The learner's pair: the teacher's graded mark on the learner record (the same field sessionTrigger
+  // reads for the recommendation). A mark that cannot be read approves nothing.
+  let gradedTrack: boolean;
+  try {
+    gradedTrack = (await admin.database().ref(`users/students/student_user${n}/graded_track`).get()).val() === true;
+  } catch (err) {
+    logger.error(`approveTeacherGate: learner ${n}: the graded mark could not be read; nothing approved.`, err);
+    throw new HttpsError("unavailable", "לא ניתן היה לבדוק את המסלולים של התלמיד. האישור לא נשמר. נסו שוב.");
+  }
+  if (!gatePairFor(gradedTrack).includes(path)) {
+    throw new HttpsError("invalid-argument", "המסלול אינו אחד משני המסלולים של התלמיד. האישור לא נשמר.", { reason: "not_in_pair" });
+  }
 
   const db = admin.firestore();
   const docRef = db.collection("sessions").doc(gateSessionDocId(n));

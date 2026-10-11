@@ -190,4 +190,17 @@ describe('CatchUpReasonsDialog', () => {
     setup({ meeting: 4, isMeeting2: false });
     expect(screen.queryByText(/במפגש 2, "המשיכו בכל זאת" מסיים/)).toBeNull();
   });
+
+  // Owner decision 11.10.2026 (PRD 14 §ב0): only "סגרו את המפגש" completes meeting 2.
+  it('meeting 2, opening another meeting: says the learners who did not finish are not completed', () => {
+    setup({ meeting: 2, isMeeting2: true, trigger: 'open_other', nextMeeting: 3 });
+    expect(screen.queryByText(/מסיים את המפגש כרגיל/)).toBeNull();
+    expect(screen.getByText(/במפגש 2, רק "סגרו את המפגש" מעביר את מי שלא סיים/)).toBeTruthy();
+    expect(screen.getByText(/ברשימת התלמידים שהתחילו ולא סיימו/)).toBeTruthy();
+    cleanup();
+    setup({ meeting: 2, isMeeting2: true, trigger: 'open_other', nextMeeting: 2 });
+    expect(screen.queryByText(/מסיים את המפגש כרגיל/)).toBeNull();
+    expect(screen.getByText(/במפגש 2, רק "סגרו את המפגש"/)).toBeTruthy();
+    expect(screen.queryByText(/ושם תוכלו לפתוח שוב את מפגש 2/)).toBeNull();
+  });
 });

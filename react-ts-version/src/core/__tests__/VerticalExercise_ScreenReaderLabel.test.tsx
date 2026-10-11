@@ -53,7 +53,7 @@ const operator = (t: { isSubtraction?: boolean }) => (t.isSubtraction ? 'פחו�
 
 /** The sheet exactly as TaskCard draws it for a meeting's exercise. */
 function sheet(t: SessionTask, isASD = false) {
-  const { a, b, target } = effectiveArithmetic(t, isASD);
+  const { a, b, target } = effectiveArithmetic(t);
   const revealed: Partial<Record<Place, string>> = {};
   for (const p of t.revealedResultDigits ?? []) revealed[p] = String(digitAt(target, p));
   const { container } = render(

@@ -31,6 +31,13 @@ describe('choice screen labels (PRD Module 14 §ג)', () => {
     expect(texts).not.toContain('מסלול');
   });
 
+  it('the screen is still: no entrance motion, no growing on hover or press (calm child screens)', () => {
+    const src = readFileSync(resolve(__dirname, '../ReinforcementOrChallengeScreen.tsx'), 'utf8');
+    expect(src).not.toContain('framer-motion');
+    expect(src).not.toMatch(/<motion\./);
+    expect(src).not.toMatch(/whileHover|whileTap|initial=\{|scale-110/);
+  });
+
   it('the store opens the choice screen in meetings 3–7 without any time condition', () => {
     const store = readFileSync(resolve(__dirname, '../../../../application/useWorkspaceStore.ts'), 'utf8');
     const at = store.indexOf("set({ flowStatus: 'choice_branch'");

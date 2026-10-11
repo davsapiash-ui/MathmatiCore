@@ -4,6 +4,8 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "@/infrastructure/firebase";
 import { PILOT_CLASS_NAME, PILOT_SCHOOL_NAME } from "@/core/pilotInstitution";
 import { toast } from "sonner";
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from "@/application/useIsReadOnlyStaff";
+import { ReadOnlyBanner } from "@/presentation/components/ui/ReadOnlyBanner";
 
 /**
  * כרטיסי כניסה להדפסה — PRD מודול 25 §ד ומסמך 04 ("מחולל כרטיסי כניסה להדפסה").
@@ -28,6 +30,8 @@ export function StudentLoginCardsPage({ audience = "admin" }: { audience?: "admi
   const [data, setData] = useState<CardsData | null>(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
+  // A read-only account sees the cards and prints them; "קוד חדש" is disabled (owner, 11.10.2026).
+  const readOnly = useIsReadOnlyStaff();
 
   const handleNewCode = async (studentId: number) => {
     setBusyId(studentId);
@@ -60,6 +64,7 @@ export function StudentLoginCardsPage({ audience = "admin" }: { audience?: "admi
     <div dir="rtl" className="min-h-screen bg-white text-slate-900 p-6 print:p-0">
       <style>{`@media print { @page { size: A4; margin: 10mm; } .login-card { break-inside: avoid; } }`}</style>
 
+      {readOnly && <div className="print:hidden mb-4"><ReadOnlyBanner /></div>}
       <div className="print:hidden flex flex-wrap items-center gap-3 mb-6">
         <h1 className="text-2xl font-black flex-1">כרטיסי כניסה לתלמידים</h1>
         <button
@@ -108,7 +113,8 @@ export function StudentLoginCardsPage({ audience = "admin" }: { audience?: "admi
               {audience === "admin" && <button
                 type="button"
                 onClick={() => handleNewCode(id)}
-                disabled={busyId !== null}
+                disabled={readOnly || busyId !== null}
+                title={readOnly ? READ_ONLY_TITLE : undefined}
                 aria-label={`קוד חדש לתלמיד ${id}`}
                 className="print:hidden self-start h-9 px-4 rounded-full text-sm font-bold border border-slate-300 disabled:opacity-50"
               >

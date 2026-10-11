@@ -3,8 +3,10 @@
  *
  * PRD 7.3 Module 14 §ב: the server is the only authority for the meeting's
  * time (session_deadline_time); the browser store "is for display only and is
- * not authorised to set or extend times". No screen calls
- * createSessionWithServerDeadline today, and the synced workspace snapshot does
+ * not authorised to set or extend times". createSessionWithServerDeadline was
+ * removed (no screen ever called it), and the client no longer starts a
+ * deadline of its own (the meeting's clock is startedAt on the RTDB node
+ * active_class_session). The synced workspace snapshot does
  * not carry the deadline, so this device copy is what a reload reads. A
  * deadline the caller already holds (the server's) always wins over it.
  *

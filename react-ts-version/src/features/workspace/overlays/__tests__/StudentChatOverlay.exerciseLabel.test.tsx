@@ -67,6 +67,21 @@ describe('chat help messages name the exercise (owner, 1.10.2026)', () => {
     expect(withExerciseHe('א', null)).toBe('א');
   });
 
+  it('the learner writes to "teacher", never to a staff id (Module 25 §ב.3, owner 11.10.2026)', async () => {
+    const { container } = open();
+    fireEvent.click(button(container, READY_HELP_MESSAGE_HE));
+    expect(sendMessage.mock.calls[0][2]).toBe('teacher');
+    const { readFileSync } = await import('fs');
+    const { resolve } = await import('path');
+    const overlay = readFileSync(resolve(__dirname, '../StudentChatOverlay.tsx'), 'utf-8');
+    const chatStore = readFileSync(resolve(__dirname, '../../../../application/useChatStore.ts'), 'utf-8');
+    for (const src of [overlay, chatStore]) {
+      expect(src).not.toContain('1002220159');
+      expect(src).not.toMatch(/@edu-haifa/);
+    }
+    expect(overlay).not.toContain('useAdminStore');
+  });
+
   it('"אפשר עזרה בתרגיל?" sends exactly what the button says, with the exercise, and is recorded', () => {
     const { container } = open();
     fireEvent.click(button(container, READY_HELP_MESSAGE_HE));

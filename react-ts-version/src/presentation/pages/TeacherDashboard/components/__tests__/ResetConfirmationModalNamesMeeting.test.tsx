@@ -41,7 +41,8 @@ describe('a single learner\'s reset names the meeting before the teacher confirm
     expect(screen.getByText('אין מפגש פתוח לכיתה, ולכן יאופס מפגש 5, המפגש שהתלמיד נמצא בו.')).toBeTruthy();
     // The heading line and the default choice name it too, as the children see it.
     expect(screen.getByText('מפגש 5 · אצל התלמידים: חיסור במאונך עם פריטה')).toBeTruthy();
-    expect(screen.queryByText(/המפגש הנוכחי/)).toBeNull();
+    // No vague "המפגש הנוכחי" for a meeting: only the option's PRD name, "המפגש הנוכחי בלבד (ברירת המחדל)" (23א §ב.2).
+    expect(screen.queryByText(/המפגש הנוכחי(?! בלבד \(ברירת המחדל\): מפגש 5)/)).toBeNull();
     chooseReason();
     await act(async () => { fireEvent.click(executeButton()); });
     expect(onConfirm).toHaveBeenCalledWith('student_stuck', undefined, { scope: 'active_session', sessionNumber: 5 });

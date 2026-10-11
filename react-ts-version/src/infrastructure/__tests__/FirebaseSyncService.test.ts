@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { 
-  syncSessionState, 
-  logTelemetryEvent, 
-  fetchTeacherClassrooms, 
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+import {
+  syncSessionState,
+  fetchTeacherClassrooms,
   fetchClassroomSessions,
   firebaseSyncService,
   type SessionState,
@@ -71,16 +72,19 @@ describe('FirebaseSyncService', () => {
     await expect(syncSessionState('student_123', sessionState)).resolves.not.toThrow();
   });
 
-  it('should define and export logTelemetryEvent function', async () => {
-    const event: TelemetryEvent = {
-      event_type: 'vector_replay',
-      session_id: 'session_1',
-      timestamp: Date.now(),
-      interaction_data: { action: 'drag_block', from: 'palette', to: 'units' },
-      somatic_indicators: { hesitation_detected: false, undo_triggered: false }
-    };
-
-    await expect(logTelemetryEvent('student_123', event)).resolves.not.toThrow();
+  it('keeps no dead writer to RTDB telemetry_events or system_control/activeStudentCount (L64)', () => {
+    // Neither node has a rule, so every write was refused; nothing called them.
+    const src = readFileSync(resolve(__dirname, '../services/FirebaseSyncService.ts'), 'utf-8');
+    const firebaseTs = readFileSync(resolve(__dirname, '../firebase.ts'), 'utf-8');
+    expect(src).not.toContain('`telemetry_events/');
+    expect(src).not.toContain("'system_control/activeStudentCount'");
+    expect(src).not.toContain('public async logTelemetryEvent');
+    expect(src).not.toContain('public async registerStudentAtomic');
+    expect(firebaseTs).not.toContain('logTelemetryEvent');
+    expect((firebaseSyncService as unknown as Record<string, unknown>).logTelemetryEvent).toBeUndefined();
+    // The type stays: TelemetryEvent is still part of the service's schema.
+    const event: TelemetryEvent | null = null;
+    expect(event).toBeNull();
   });
 
   it('should fetch teacher classrooms successfully', async () => {
@@ -118,10 +122,9 @@ describe('FirebaseSyncService', () => {
     await expect(service.logMilestoneEvent('student_test_123', 'session_1', 'INPUT_SUBMIT', { digit: 5, place: 'tens' })).resolves.not.toThrow();
   });
 
-  it('syncPhysicalOverride updates workspaceState/isASD via dotted path without wiping workspaceState', async () => {
+  it('syncPhysicalOverride writes the override without wiping workspaceState (no quiet-mode isASD, 11.10.2026)', async () => {
     const service = firebaseSyncService;
     await expect(service.syncPhysicalOverride('student_test_123', {
-      isASD: true,
       physicalOverride: true,
       routeStatus: 'APPROVED'
     })).resolves.not.toThrow();

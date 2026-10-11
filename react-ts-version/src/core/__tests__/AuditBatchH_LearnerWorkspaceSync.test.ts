@@ -95,14 +95,13 @@ describe('support: saving learning conditions writes the profile once and keeps 
     const sync = vi.spyOn(firebaseSyncService, 'syncPhysicalOverride').mockResolvedValue(undefined);
     useStore.setState({ students: { student_user5: learner({}) } });
     useStore.getState().applyPhysicalOverride('student_user5', {
-      isASD: true,
       applyAtTaskBoundaryOnly: true,
       overrideUpdatedAt: 1,
       physicalOverride: false,
     } as any);
     expect(sync).not.toHaveBeenCalled();
     const s = useStore.getState().students.student_user5;
-    expect(s.isASD).toBe(true);
+    expect(s.physicalOverride).toBe(false);
     // Fields the drawer does not send keep their value.
     expect(s.routeStatus).toBe('APPROVED');
     expect(s.difficultyRecommendation).toBe('LEVEL_1');
@@ -137,8 +136,11 @@ describe('reset: the client creates no alias records (ids 1-12 only)', () => {
     expect(store).not.toContain('users/students/student_${i}');
     expect(store).not.toContain('users/students/user${i}');
     expect(store).not.toContain('users/students/${i}');
-    expect(store).toContain('users/students/${normId}`), cleanPayload');
-    expect(store).toContain('users/students/student_user${i}`), cleanPayload');
+    // Since 12.10.2026 the client writes no learner record at all after a
+    // reset: the server's reset is the only write (the client's second write
+    // recreated the records with activeSessionId 1).
+    expect(store).not.toContain('cleanPayload');
+    expect(store).not.toContain('activeSessionId: 1');
   });
 });
 

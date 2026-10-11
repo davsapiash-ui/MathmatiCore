@@ -19,6 +19,7 @@
  * and update() is recorded. The device clock is a number the test sets.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readDeviceCopy, resetDeviceCopiesForTests } from '@/infrastructure/services/deviceCopyStore';
 
 const rtdb = vi.hoisted(() => ({
   listeners: new Map<string, (snap: any) => void>(),
@@ -167,6 +168,7 @@ beforeEach(() => {
   rtdb.updates.length = 0;
   resetThrottledWrites();
   localStorage.clear();
+  resetDeviceCopiesForTests(); // this device's copies live in IndexedDB + memory (11.10.2026)
   serverClockOffset(0);
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
@@ -206,35 +208,35 @@ describe('Module 17 — work after a reload without a connection stays on the de
   it('before the meeting is started or restored, the defaults in the store never replace the device copy', () => {
     workOnlineInMeeting4();
     reloadPage(0);
-    const saved = localStorage.getItem(CACHE_KEY);
+    const saved = readDeviceCopy(CACHE_KEY);
     expect(saved).toBeTruthy();
 
     // The store holds defaults (meeting 1, nothing on the board). Changes land on it
     // before the page has restored anything: the record's teacher fields, a stray touch.
     ws().receiveSupportProfile(null);
-    useWorkspaceStore.setState({ isASD: true });
+    useWorkspaceStore.setState({ boardOpen: false });
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, units: 3 } });
-    expect(localStorage.getItem(CACHE_KEY)).toBe(saved);
+    expect(readDeviceCopy(CACHE_KEY)).toBe(saved);
 
     // A store started for another learner is not this learner's …
     useWorkspaceStore.setState({
       workspaceInitializedFor: { learner: 'student_user6', meeting: 1, restoredSavedAt: 0 },
       counts: { ...EMPTY_COUNTS, units: 4 },
     });
-    expect(localStorage.getItem(CACHE_KEY)).toBe(saved);
+    expect(readDeviceCopy(CACHE_KEY)).toBe(saved);
     // … nor one that holds another meeting than the one it was started for.
     useWorkspaceStore.setState({
       workspaceInitializedFor: { learner: STUDENT, meeting: 4, restoredSavedAt: 0 },
       counts: { ...EMPTY_COUNTS, units: 5 },
     });
-    expect(localStorage.getItem(CACHE_KEY)).toBe(saved);
+    expect(readDeviceCopy(CACHE_KEY)).toBe(saved);
 
     // After a sign-out the store is reset: nothing of it is the learner's any more.
     useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
     pageRestoresDeviceCopy(4);
     ws().resetWorkspace();
     useWorkspaceStore.setState({ counts: { ...EMPTY_COUNTS, units: 7 } });
-    expect(localStorage.getItem(CACHE_KEY)).toBe(saved);
+    expect(readDeviceCopy(CACHE_KEY)).toBe(saved);
   });
 
   it('in the lobby after a sign-in, with the record loaded, the defaults never replace either copy', () => {
@@ -242,7 +244,7 @@ describe('Module 17 — work after a reload without a connection stays on the de
     // A fresh page lands in the lobby: the record arrives, the store still holds defaults.
     reloadPage(TEN_MIN);
     deliverRecord({ ...APPROVED, workspaceState: recordCopy });
-    const saved = localStorage.getItem(CACHE_KEY);
+    const saved = readDeviceCopy(CACHE_KEY);
     const mark = rtdb.updates.length;
 
     // The teacher locks the boards, marks the call handled, turns on ASD: each
@@ -253,7 +255,7 @@ describe('Module 17 — work after a reload without a connection stays on the de
     sendNow();
 
     expect(workspaceWritesSince(mark), 'the record keeps the meeting 4 copy').toHaveLength(0);
-    expect(localStorage.getItem(CACHE_KEY), 'this device keeps it too').toBe(saved);
+    expect(readDeviceCopy(CACHE_KEY), 'this device keeps it too').toBe(saved);
 
     // Entering the meeting restores it, and from there the learner's changes are saved as always.
     pageRestoresDeviceCopy(4);
@@ -266,12 +268,12 @@ describe('Module 17 — work after a reload without a connection stays on the de
 
   it('the restore itself is not saved again: the copy keeps the stamp it had', () => {
     const recordCopy = workOnlineInMeeting4();
-    const saved = localStorage.getItem(CACHE_KEY);
+    const saved = readDeviceCopy(CACHE_KEY);
     reloadPage(0);
     clock.device += 5 * 60_000;
     pageRestoresDeviceCopy(4);
     // A copy saved again would take today's stamp and beat a later copy on the record.
-    expect(localStorage.getItem(CACHE_KEY)).toBe(saved);
+    expect(readDeviceCopy(CACHE_KEY)).toBe(saved);
     expect(workspaceSavedAt(deviceCopy())).toBe(workspaceSavedAt(recordCopy));
   });
 });
@@ -430,6 +432,7 @@ function workOnlineInMeeting2(taskIdx: number): Record<string, any> {
  */
 function freshStartOffline(meeting: 1 | 2) {
   localStorage.clear();
+  resetDeviceCopiesForTests(); // this device's copies live in IndexedDB + memory (11.10.2026)
   reloadPage(0);
   ws().initSession(meeting, false);
   expect(ws().workspaceInitializedFor?.restoredSavedAt).toBeNull();

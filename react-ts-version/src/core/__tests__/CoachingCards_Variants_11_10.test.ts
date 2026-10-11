@@ -39,20 +39,18 @@ describe('card wordings (owner, 11.10.2026)', () => {
     expect(bad.map(label)).toEqual([]);
   });
 
-  it('most situations of the matrix have at least two more wordings', () => {
+  it('every situation of the matrix has at least two more wordings', () => {
     const keys = new Map<string, number>();
     for (const r of rows) if (r.variant === 0) keys.set(`${r.card.cardKind}/${r.card.situation}`, Math.max(keys.get(`${r.card.cardKind}/${r.card.situation}`) ?? 0, r.card.sameSituationCards?.length ?? 0));
-    const covered = [...keys.values()].filter((n) => n >= 2).length;
-    expect(covered / keys.size).toBeGreaterThan(0.75);
+    expect([...keys.entries()].filter(([, n]) => n < 2).map(([k]) => k)).toEqual([]);
   });
 
-  it('every wording a repeat shows passes the server validator', async () => {
+  it('every wording, the first one included (decided 11.10.2026), passes the server validator', async () => {
     const quiet = [vi.spyOn(console, 'warn').mockImplementation(() => undefined), vi.spyOn(console, 'error').mockImplementation(() => undefined)];
     const seen = new Set<string>();
     const bad: string[] = [];
     try {
       for (const r of rows) {
-        if (!r.card.cardVariant) continue;
         const k = `${r.task.id}|${r.card.questionHe}|${r.card.choices.map((c) => c.textHe + c.feedbackHe).join('|')}|${JSON.stringify(r.counts)}|${r.trigger}`;
         if (seen.has(k)) continue;
         seen.add(k);

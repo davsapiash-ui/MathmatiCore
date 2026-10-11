@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildTeacherMediationRows, MEDIATION_COLUMNS } from '../teacherMediationRows';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+import { buildTeacherMediationRows, CHAT_HELP_PAIR_MS, MEDIATION_COLUMNS } from '../teacherMediationRows';
 
 /**
  * The sixth research file, "תיווך המורה" (PRD Module 24 §ב): the system side of the
@@ -47,7 +49,10 @@ describe('buildTeacherMediationRows', () => {
     const rows = buildTeacherMediationRows({ telemetry, chat, sessionDocs: [], students: null, catchUp: [] }, null);
     const chatRows = rows.filter((r) => r.event_source === 'chat');
     expect(chatRows.map((r) => r.event_kind)).toEqual(['chat_teacher_message', 'chat_learner_message']);
-    expect(chatRows[0]).toMatchObject({ detail_code: 'read', detail_number: 'שלום דנה, כל הכבוד'.length, session_number: 4, session_number_basis: 'telemetry_window' });
+    // Read/unread is not claimed (L5): the stored flag does not say the teacher read it.
+    expect(chatRows[0]).toMatchObject({ detail_code: '', detail_number: 'שלום דנה, כל הכבוד'.length, session_number: 4, session_number_basis: 'telemetry_window' });
+    expect(chatRows.every((r) => r.detail_code === '')).toBe(true);
+    expect(rows.some((r) => r.detail_code === 'read' || r.detail_code === 'unread')).toBe(false);
     const flat = JSON.stringify(rows);
     expect(flat).not.toContain('שלום');
     expect(flat).not.toContain('AbCdTeacherUid');
@@ -139,6 +144,54 @@ describe('measure 5: the teacher live records (owner, 11.10.2026)', () => {
     });
     const scoped = buildTeacherMediationRows({ telemetry: [], chat: null, sessionDocs: [], students: null, catchUp: [], teacherLog }, 5);
     expect(scoped.map((r) => r.ref_id)).toEqual(['selfB']);
+  });
+
+  // L6: the client lists a chat help call once (mergeMediationEvents, CHAT_HELP_PAIR_MS);
+  // the learner message within 10 seconds of it takes the call's record here too.
+  it('a learner message within 10 seconds of a chat help call of the same learner takes the call\'s record', () => {
+    const telemetry = [ev('log_chat_help', 'CHAT_HELP_REQUESTED', 3, 4, T, { kind: 'call' })];
+    const chat = {
+      student_user3: {
+        '-Nnear': { id: '-Nnear', senderId: 'student_user3', text: 'קראו למורה', timestamp: T + 10_000 },
+        '-Nfar': { id: '-Nfar', senderId: 'student_user3', text: 'עוד שאלה', timestamp: T + 10_001 },
+      },
+      student_user5: { '-Nother': { id: '-Nother', senderId: 'student_user5', text: 'עזרה', timestamp: T + 1_000 } },
+    };
+    const teacherLog = [
+      rec('ev_log_chat_help', { student_id: 3, event_ref: 'log_chat_help', event_time_iso: new Date(T).toISOString(), action: 'approached', data_led: true, recorded_at: T + 30_000 }),
+    ];
+    const rows = buildTeacherMediationRows({ telemetry, chat, sessionDocs: [], students: null, catchUp: [], teacherLog }, null);
+    expect(rows.find((r) => r.ref_id === 'log_chat_help')).toMatchObject({ teacher_action: 'ניגשה', data_led: 'כן' });
+    const learner3 = rows.filter((r) => r.event_kind === 'chat_learner_message' && r.student_id === 3);
+    expect(learner3.map((r) => r.event_time_iso)).toEqual([new Date(T + 10_000).toISOString(), new Date(T + 10_001).toISOString()]);
+    // Inside the window: the call's record. One millisecond past it: a message of its own, unrecorded.
+    expect(learner3[0]).toMatchObject({ teacher_action: 'ניגשה', data_led: 'כן', ref_id: '' });
+    expect(learner3[1]).toMatchObject({ teacher_action: '', data_led: '' });
+    // Another learner's message at the same moment is not that call.
+    expect(rows.find((r) => r.student_id === 5)).toMatchObject({ teacher_action: '', data_led: '' });
+  });
+
+  it('a paired message keeps its own record when it has one, and a teacher message is never paired', () => {
+    const telemetry = [ev('log_chat_help', 'CHAT_HELP_REQUESTED', 3, 4, T, { kind: 'ready_message' })];
+    const chat = {
+      student_user3: {
+        '-Nown': { id: '-Nown', senderId: 'student_user3', text: 'אפשר עזרה בתרגיל?', timestamp: T - 4_000 },
+        '-Nteacher': { id: '-Nteacher', senderId: 'TeacherUid', text: 'בא', timestamp: T + 2_000, read: true },
+      },
+    };
+    const teacherLog = [
+      rec('ev_log_chat_help', { student_id: 3, event_ref: 'log_chat_help', event_time_iso: '', action: 'approached', data_led: true, recorded_at: T + 30_000 }),
+      rec('ev_chat__Nown', { student_id: 3, event_ref: 'chat:-Nown', event_time_iso: '', action: 'wrote', data_led: false, recorded_at: T + 31_000 }),
+    ];
+    const rows = buildTeacherMediationRows({ telemetry, chat, sessionDocs: [], students: null, catchUp: [], teacherLog }, null);
+    expect(rows.find((r) => r.event_kind === 'chat_learner_message')).toMatchObject({ teacher_action: 'כתבה', data_led: 'לא' });
+    expect(rows.find((r) => r.event_kind === 'chat_teacher_message')).toMatchObject({ teacher_action: '', data_led: '', detail_code: '' });
+  });
+
+  it('the pairing window is the client\'s, to the millisecond', () => {
+    const client = readFileSync(resolve(__dirname, '../../../react-ts-version/src/core/teacherMediation.ts'), 'utf-8');
+    expect(client).toContain(`export const CHAT_HELP_PAIR_MS = ${CHAT_HELP_PAIR_MS.toLocaleString('en-US').replace(/,/g, '_')};`);
+    expect(client).toContain('Math.abs(h.at - c.at) <= CHAT_HELP_PAIR_MS');
   });
 
   it('a record never fills the row of another learner', () => {

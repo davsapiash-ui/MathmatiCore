@@ -154,10 +154,10 @@ describe('Module 12: the coaching card never blocks the number house', () => {
   it('every help overlay releases the pointer as soon as it starts leaving (source pin)', () => {
     const src = read('features/workspace/overlays/HelpOverlays.tsx');
     const exits = [...(src.match(/exit=\{\{[^}]*\}\}/g) || []), ...(src.match(/exit: \{[^}]*\}/g) || [])];
-    // friction overlay + the Socratic drawer, in its two placements: over the
-    // instruction in the task zone, and beside meeting 8's centred card (the
-    // dead help palette and its modal were deleted 14.9.2026).
-    expect(exits.length).toBe(3);
+    // The Socratic drawer, in its two placements: over the steps in the task
+    // zone, and beside meeting 8's centred card (the dead help palette and its
+    // modal were deleted 14.9.2026; the full-screen "נסו לחשוב…" layer, 11.10.2026).
+    expect(exits.length).toBe(2);
     for (const exit of exits) {
       expect(exit).toContain("pointerEvents: 'none'");
     }

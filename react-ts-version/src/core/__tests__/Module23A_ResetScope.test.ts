@@ -167,7 +167,8 @@ describe('Module 23א — level 2 for the whole class (register, deviation 20)',
 
   it('the class target cannot wipe learners completely — that is level 3', () => {
     expect(fn).toMatch(/if \(isClassTarget && reset_scope === 'full_student'\) \{\s*throw new HttpsError\(\s*"invalid-argument"/);
-    expect(fn).toContain('למחיקת כל נתוני הכיתה יש להשתמש באיפוס מערכת (רמה 3)');
+    // Level 3 by the name of its dashboard button (PRD 23א §ב.2, audit L29).
+    expect(fn).toContain('כדי למחוק את כל נתוני הכיתה, בחרו "איפוס כל נתוני הכיתה" (רמה 3)');
     // Nothing is removed whole, and the system-only nodes are not in this scope at all.
     expect(classScope).toMatch(/rtdbPaths: \[\],/);
     expect(classScope).not.toContain('"replays"');

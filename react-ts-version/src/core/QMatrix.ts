@@ -6,23 +6,16 @@ export type QMatrixResults = Record<string, string | null>;
 export interface BackwardDiagnosis {
   triggerOn: string;
   subtaskNumber?: number;
-  asdSubtaskNumber?: number;
   subtaskInstructionHe?: string;
   subtaskChoices?: { id: string; textHe: string }[];
   correctChoice?: string;
   deviationPct?: number;
   subtaskRange?: [number, number];
-  asdSubtaskRange?: [number, number];
-  asdAnchors?: number[];
   showAutoUngroup?: boolean;
   probeA?: number;
   probeB?: number;
   probeAnswer?: number;
-  asdProbeA?: number;
-  asdProbeB?: number;
-  asdProbeAnswer?: number;
   probeInstructionHe?: string;
-  graphicOrganizerASD?: boolean;
   visualHint?: boolean;
   hintHe?: string;
 }
@@ -38,23 +31,16 @@ export interface QMatrixTask {
   number?: number;
   highlightedDigit?: string;
   highlightIndex?: number;
-  asdNumber?: number;
   numberA?: number;
   numberB?: number;
-  asdNumberA?: number;
-  asdNumberB?: number;
   correctAnswer?: number;
-  asdCorrectAnswer?: number;
   choices?: { id: string; textHe: string }[];
   correctChoice?: string;
   expectedBlocks?: { hundreds?: number; tens?: number; units?: number };
-  asdExpectedBlocks?: { hundreds?: number; tens?: number; units?: number };
   range?: [number, number];
-  asdRange?: [number, number];
   errorMarginPct?: number;
   scaffoldLevel?: number;
   validRepresentations?: { hundreds?: number; tens?: number; units?: number; thousands?: number }[];
-  asdValidRepresentations?: { hundreds?: number; tens?: number; units?: number; thousands?: number }[];
   givenHe?: string;
   /** Meeting 2, task 5: how many unit blocks the still picture shows (the question itself). */
   pictureUnitBlocks?: number;

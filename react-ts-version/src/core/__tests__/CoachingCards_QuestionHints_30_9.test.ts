@@ -273,8 +273,8 @@ describe('C1 — a number built, then a block broken (station 3)', () => {
       expect(c.questionHe).toBe('נסו לחשוב: לפני הפריטה בניתם מספר. האם הפריטה שינתה אותו?');
       expect(c.choices.map((o) => [o.textHe, o.feedbackHe, o.isCorrect])).toEqual([
         ['לא. הלבנים השתנו, אבל המספר נשאר אותו מספר', 'נכון מאוד! איזה מספר בניתם לפני הפריטה?', true],
-        ['כן. עכשיו יש יותר לבנים, ולכן המספר גדל', 'רמז: מאיפה הגיעו לבני העשרת החדשות? האם הוספתם לבנים?', false],
-        ['כן. עכשיו יש פחות לבני מאה, ולכן המספר קטן', 'רמז: מה קרה ללבנת המאה? מה קיבלתם במקומה?', false],
+        ['כן. עכשיו יש יותר לבנים, ולכן המספר גדל', 'רמז: מאיפה הגיעו לבני העשרת החדשות?', false],
+        ['כן. עכשיו יש פחות לבני מאה, ולכן המספר קטן', 'רמז: מה קיבלתם במקום לבנת המאה?', false],
       ]);
       expect(c.cardKind).toBe('compose_break');
     }
@@ -283,14 +283,14 @@ describe('C1 — a number built, then a block broken (station 3)', () => {
   it('85: a ten broken into units', () => {
     const c = card('s3_r_t4');
     expect(c.choices.map((o) => o.textHe)[2]).toBe('כן. עכשיו יש פחות לבני עשרת, ולכן המספר קטן');
-    expect(wrongHints(c)).toEqual(['רמז: מאיפה הגיעו לבני היחידה החדשות? האם הוספתם לבנים?', 'רמז: מה קרה ללבנת העשרת? מה קיבלתם במקומה?']);
+    expect(wrongHints(c)).toEqual(['רמז: מאיפה הגיעו לבני היחידה החדשות?', 'רמז: מה קיבלתם במקום לבנת העשרת?']);
   });
 
   it('the green path: a thousand broken into hundreds (5,230 breaks a thousand first)', () => {
     for (const id of ['s3_g_t2', 's3_g_t4', 's3_g_t6']) {
       const c = card(id);
       expect(c.choices.map((o) => o.textHe)[2], id).toBe('כן. עכשיו יש פחות לבני אלף, ולכן המספר קטן');
-      expect(wrongHints(c), id).toEqual(['רמז: מאיפה הגיעו לבני המאה החדשות? האם הוספתם לבנים?', 'רמז: מה קרה ללבנת האלף? מה קיבלתם במקומה?']);
+      expect(wrongHints(c), id).toEqual(['רמז: מאיפה הגיעו לבני המאה החדשות?', 'רמז: מה קיבלתם במקום לבנת האלף?']);
     }
   });
 
@@ -418,7 +418,7 @@ describe('C5 → the column\'s card, within one exercise (stations 5–6)', () =
     expect(first.choices.map((o) => [o.textHe, o.feedbackHe])).toEqual([
       ['אם יש בטור מספיק לבנים כדי לחסר', 'נכון מאוד! מצאו את הטור שאין בו מספיק לבנים.'],
       ['כמה לבנים יש בבית המספרים כולו', 'רמז: בחיסור במאונך, האם מחסרים את כל המספר בבת אחת?'],
-      ['אם יש בטור 10 לבנים או יותר', 'רמז: מתי מקבצים 10 לבנים, בחיבור או בחיסור? ומה בודקים בחיסור?'],
+      ['אם יש בטור 10 לבנים או יותר', 'רמז: בחיסור, האם מקבצים לבנים או פורטים אותן?'],
     ]);
     const second = q(t, built, { shownKinds: ['borrow_check'] });
     // The column, and not its count (owner, 30.9.2026): the child counts the blocks.
@@ -466,8 +466,8 @@ describe('C7 — blocks built one way, then grouped (station 7)', () => {
       expect(c.questionHe).toBe('נסו לחשוב: לפני ההקבצה בניתם מספר. האם ההקבצה שינתה אותו?');
       expect(c.choices.map((o) => [o.textHe, o.feedbackHe])).toEqual([
         ['לא. הלבנים השתנו, אבל המספר נשאר אותו מספר', 'נכון מאוד! איזה מספר בניתם לפני ההקבצה?'],
-        ['כן. עכשיו יש פחות לבנים, ולכן המספר קטן', 'רמז: מה קרה ל-10 לבני העשרת? מה קיבלתם במקומן?'],
-        ['כן. עכשיו יש לבנת מאה, ולכן המספר גדל', 'רמז: מאיפה הגיעה לבנת המאה? האם הוספתם לבנה?'],
+        ['כן. עכשיו יש פחות לבנים, ולכן המספר קטן', 'רמז: מה קיבלתם במקום 10 לבני העשרת?'],
+        ['כן. עכשיו יש לבנת מאה, ולכן המספר גדל', 'רמז: מאיפה הגיעה לבנת המאה?'],
       ]);
     }
   });
@@ -476,7 +476,7 @@ describe('C7 — blocks built one way, then grouped (station 7)', () => {
     for (const task of [REDESIGN.find((t) => t.id === 's7_g_t1'), byId('s7_g_t1')]) {
       const c = q(task, { ...EMPTY, thousands: 2, hundreds: 5 });
       expect(c.choices.map((o) => o.textHe)[2]).toBe('כן. עכשיו יש לבני אלף, ולכן המספר גדל');
-      expect(wrongHints(c)).toEqual(['רמז: מה קרה ל-20 לבני המאה? מה קיבלתם במקומן?', 'רמז: מאיפה הגיעו לבני האלף? האם הוספתם לבנים?']);
+      expect(wrongHints(c)).toEqual(['רמז: מה קיבלתם במקום 20 לבני המאה?', 'רמז: מאיפה הגיעו לבני האלף?']);
       // The 20 is the blocks grouped, not the answer: 2,500 is never shown, in digits or in blocks.
       const secrets = secretNumbersOf(task);
       expect(secrets).toContain(2500);
@@ -492,8 +492,8 @@ describe('C7 — blocks built one way, then grouped (station 7)', () => {
     expect(c.questionHe).toBe('נסו לחשוב: לפני ההקבצה בניתם מספר. האם ההקבצה שינתה אותו?');
     expect(c.choices.map((o) => [o.textHe, o.feedbackHe])).toEqual([
       ['לא. הלבנים השתנו, אבל המספר נשאר אותו מספר', 'נכון מאוד! איזה מספר בניתם לפני ההקבצה?'],
-      ['כן. עכשיו יש פחות לבנים, ולכן המספר קטן', 'רמז: מה קרה ל-10 לבני המאה? מה קיבלתם במקומן?'],
-      ['כן. עכשיו יש לבנת אלף, ולכן המספר גדל', 'רמז: מאיפה הגיעה לבנת האלף? האם הוספתם לבנה?'],
+      ['כן. עכשיו יש פחות לבנים, ולכן המספר קטן', 'רמז: מה קיבלתם במקום 10 לבני המאה?'],
+      ['כן. עכשיו יש לבנת אלף, ולכן המספר גדל', 'רמז: מאיפה הגיעה לבנת האלף?'],
     ]);
     expect(revealsSecret(textsOf(c), secretNumbersOf(task))).toBeNull();
     // It is a grouping composition by its id too, until the task carries its kind.

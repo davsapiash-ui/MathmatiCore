@@ -133,7 +133,7 @@ describe('regrouping errors never turn on the scaffold, in any vertical exercise
     const offenders: string[] = [];
     for (const t of vertical) {
       for (const isASD of [false, true]) {
-        const { a, b, target } = effectiveArithmetic(t, isASD);
+        const { a, b, target } = effectiveArithmetic(t);
         const worked = Math.max(String(a).length, String(b).length);
         const wrongs = t.isSubtraction
           ? [byColumn((p) => Math.abs(digitAt(a, p) - digitAt(b, p))), byColumn((p) => digitAt(a, p) - digitAt(b, p) + 10)]

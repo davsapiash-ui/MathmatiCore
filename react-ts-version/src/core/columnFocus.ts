@@ -47,9 +47,10 @@
  *       a skeleton): the child works it out on the board, and the digit in
  *       the focus column depends on it (328 + 145, the tens missing: the
  *       units are grouped first);
- *     · in a column that lacks blocks for the subtraction, the columns its
- *       break comes from — the one to its left and, through an empty column,
- *       on to the first that holds a block (53 − 18: the tens with the units;
+ *     · in a column that lacks blocks for the subtraction — on the board, now:
+ *       fewer blocks than the digit taken away (owner, 11.10.2026) — the
+ *       columns its break comes from, the one to its left and, through an
+ *       empty column, on to the first that holds a block (53 − 18: the tens with the units;
  *       4,000 − 1,562: tens, hundreds and thousands with the units). The
  *       child clicks or drags a block there, and writes that column's new
  *       count in its memory circle. A grouping needs no other column: its
@@ -222,6 +223,20 @@ export function breakSources(from: number, take: number): Map<Place, Place[]> {
 }
 
 /**
+ * The columns a break into `place` comes from on the board as it is now: the
+ * column to its left and, through empty columns, on to the first that holds a
+ * block. Empty when no column to its left holds one.
+ */
+export function boardBreakSources(counts: Partial<Record<Place, number>>, place: Place): Place[] {
+  const via: Place[] = [];
+  for (const r of PLACE_ORDER.slice(PLACE_ORDER.indexOf(place) + 1)) {
+    via.push(r);
+    if ((counts[r] ?? 0) > 0) return via;
+  }
+  return [];
+}
+
+/**
  * Still building the numbers, against the board work: an addition while the
  * board is not worth the two numbers together; a subtraction until the board
  * has held the number it starts from.
@@ -255,7 +270,21 @@ function litColumns(focus: Place, circle: Place | null, input: ColumnFocusInput)
           if (p === circle || via.includes(circle)) [p, ...via].forEach((q) => lit.add(q));
         }
       }
-      for (const q of [...lit]) sources.get(q)?.forEach((p) => lit.add(p));
+      // A column's break sources are lit only while the board itself still
+      // lacks blocks there — fewer blocks than the digit being taken away
+      // (PRD Module 7 §א, owner 11.10.2026). Once the child has broken a block
+      // into it, its sources go dark again; the chain is read from the board
+      // too: the column to its left and, through empty columns, on to the
+      // first that holds a block. Without the board's counts: the exercise's
+      // numbers, as before.
+      const counts = input.work.counts;
+      for (const q of [...lit]) {
+        if (!counts) {
+          sources.get(q)?.forEach((p) => lit.add(p));
+        } else if ((counts[q] ?? 0) < digitAt(op.other, q)) {
+          boardBreakSources(counts, q).forEach((p) => lit.add(p));
+        }
+      }
     } else {
       // A lower column still to be grouped carries into the focus.
       for (const q of PLACE_ORDER.slice(0, at)) if ((input.work.counts?.[q] ?? 0) >= 10) lit.add(q);

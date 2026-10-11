@@ -31,6 +31,7 @@ import { useAdminStore, type School, type Teacher, type ClassRoom } from '@/appl
 import { throttledRtdbUpdate, throttledRtdbChildUpdate, rtdbUpdateNow, flushThrottledWrites, dropPendingFields } from './ThrottledRtdbWriter';
 import { indexedDBQueue, SERVER_SCORED_FIELDS, preReadFailure, type RtdbDelivery } from './IndexedDBQueue';
 import { recordRecentTelemetry } from './recentTelemetry';
+import { DEVICE_COPY_PREFIX, readDeviceCopy, removeDeviceCopy, writeDeviceCopy } from './deviceCopyStore';
 import { getDeviceId, newTelemetryKey, nextSequenceNumber } from './telemetryStamp';
 import type { SessionDocument, PedagogicalPath } from '@/types';
 import {
@@ -113,8 +114,8 @@ const RESET_RECORD_FRESH_MS = 10_000;
 /** The meetings a device keeps a copy of (Module 14: eight). */
 const MEETINGS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 
-/** This device's copy of a learner's workspace: the latest one, of whatever meeting. */
-const deviceCacheKey = (studentId: string) => `mathmaticore_session_cache_${studentId}`;
+/** This device's copy of a learner's workspace: the latest one, of whatever meeting (kept in IndexedDB — deviceCopyStore.ts). */
+const deviceCacheKey = (studentId: string) => `${DEVICE_COPY_PREFIX}${studentId}`;
 /** This device's copy of one meeting (catch-up, 2.10.2026). */
 const deviceMeetingCacheKey = (studentId: string, meeting: number) => `${deviceCacheKey(studentId)}_${meetingKey(meeting)}`;
 
@@ -326,7 +327,6 @@ export function enforceMaxPayloadBytes(data: Record<string, any>): Record<string
     undoCount: data.undoCount,
     hesitationCount: data.hesitationCount,
     hasInteracted: data.hasInteracted,
-    isASD: data.isASD,
   };
   console.error(
     '[FirebaseSyncService] Payload still over the limit after trimming; syncing the minimal state core only.'
@@ -476,7 +476,6 @@ export class FirebaseSyncService {
   private unsubscribeSchools: (() => void) | null = null;
   private unsubscribeClasses: (() => void) | null = null;
   private unsubscribePublicClasses: (() => void) | null = null;
-  private unsubscribeTeachers: (() => void) | null = null;
   private unsubscribeGlobalStudentLimit: (() => void) | null = null;
 
   private constructor() {
@@ -499,7 +498,6 @@ export class FirebaseSyncService {
     overrideData: {
       routeStatus: string;
       difficultyRecommendation: string;
-      isASD: boolean;
       physicalOverride: boolean;
       physicalOverrideActive?: boolean;
       overrideUpdatedAt: number;
@@ -698,8 +696,8 @@ export class FirebaseSyncService {
           mayReceiveDeviceWork = true;
 
           // Real-time synchronization of teacher adaptations to student workspace
-          // isASD is not copied (owner, 11.10.2026: the per-learner quiet mode
-          // is removed); the workspace's isASD stays false.
+          // An old record's isASD is not read (owner, 11.10.2026: the per-learner
+          // quiet mode is removed).
           const wsOverrides: Record<string, any> = {};
           // PRD Modules 9/19: the authoritative support profile. Module 19 §ב:
           // "שינוי פרופיל במהלך תרגיל פעיל נשמר כהתאמה ממתינה (Pending
@@ -1210,7 +1208,6 @@ export class FirebaseSyncService {
 
     const raw = {
       sessionNumber: state.sessionNumber,
-      isASD: state.isASD,
       standardTaskIdx: state.standardTaskIdx,
       qflow: state.qflow,
       flowStatus: state.flowStatus,
@@ -1346,30 +1343,10 @@ export class FirebaseSyncService {
     }
   }
 
-  public async loadTeacher(teacherId: string) {
-    const teacherRef = ref(database, `users/teachers/${teacherId}`);
-    const snapshot = await get(teacherRef);
-    return snapshot.val();
-  }
-
-  public async authenticateTeacher(ssoEmail: string) {
-    const teacherRef = ref(database, `users/teachers/${ssoEmail}`);
-    const snapshot = await get(teacherRef);
-    if (!snapshot.exists()) return null;
-    return snapshot.val();
-  }
-
-  public async registerTeacher(teacherData: Record<string, unknown>) {
-    const id = (teacherData.id || teacherData.ssoEmail || teacherData.uid) as string;
-    if (!id) throw new Error("Missing teacher ID for registration");
-    const dataToSave = {
-      ...teacherData,
-      id,
-      licenseActive: false, // Security rules require licenseActive to be false upon new registration
-    };
-    const teacherRef = ref(database, `users/teachers/${id}`);
-    await set(teacherRef, dataToSave);
-  }
+  // loadTeacher / authenticateTeacher / registerTeacher were removed: nothing
+  // called them, and they read and wrote users/teachers by a raw e-mail.
+  // Module 25 §ב.3: staff addresses live in authorizedTeachers and Firebase
+  // Auth only.
 
   // --- Sync specific fields of the learner record ---
   // PRD Module 18 §ב: client writes to users/students are throttled to one per
@@ -1451,7 +1428,6 @@ export class FirebaseSyncService {
     overrideInput: boolean | {
       routeStatus?: string;
       difficultyRecommendation?: string;
-      isASD?: boolean;
       physicalOverride?: boolean;
       physicalOverrideActive?: boolean;
       overrideUpdatedAt?: number;
@@ -1464,17 +1440,16 @@ export class FirebaseSyncService {
       : overrideInput;
 
     // Module 20: the gate override is NEVER implied. The old `?? true` default
-    // meant that saving any learning-conditions payload (ASD toggle, scaffold
-    // level) silently stamped physicalOverride: true — and the student route
+    // meant that saving any learning-conditions payload (a scaffold level)
+    // silently stamped physicalOverride: true — and the student route
     // guard treats that flag as a full bypass of the teacher approval gate.
     const isPhysical = overrideData.physicalOverride ?? false;
-    const isASD = overrideData.isASD ?? false;
     const updatedAt = overrideData.overrideUpdatedAt ?? Date.now();
 
     // routeStatus is the teacher-gate decision (Module 20) and is owned by
     // core/teacherGate.ts. This function used to default a missing routeStatus
     // to 'APPROVED' and write it unconditionally, so saving unrelated learning
-    // conditions (scaffold, ASD, addition helper) for a learner still
+    // conditions (scaffold, addition helper) for a learner still
     // PENDING_TEACHER_APPROVAL silently unlocked them into session 3 with no
     // gate decision ever made — and left Firestore (no teacher_gate_approved)
     // disagreeing with RTDB. Gate fields are written only when the caller
@@ -1489,7 +1464,7 @@ export class FirebaseSyncService {
       ...(overrideData.difficultyRecommendation !== undefined && {
         difficultyRecommendation: overrideData.difficultyRecommendation,
       }),
-      isASD: isASD,
+      // No isASD (owner, 11.10.2026): the per-learner quiet mode is removed.
       ...(gateFlagsSupplied && {
         physicalOverride: isPhysical,
         physicalOverrideActive: overrideData.physicalOverrideActive ?? isPhysical,
@@ -1497,10 +1472,7 @@ export class FirebaseSyncService {
       overrideUpdatedAt: updatedAt,
     };
 
-    await update(ref(database, `users/students/${studentId}`), {
-      ...studentOverridePayload,
-      'workspaceState/isASD': isASD,
-    }).catch((err) => {
+    await update(ref(database, `users/students/${studentId}`), studentOverridePayload).catch((err) => {
       console.error(`[FirebaseSyncService] Failed to sync physical override for ${studentId}:`, err);
       throw err;
     });
@@ -1635,6 +1607,8 @@ export class FirebaseSyncService {
   // caller), and one copy per meeting. A meeting started without a connection
   // replaces the latest copy but never another meeting's own copy, so a
   // meeting reopened for catch-up still finds what this device saved of it.
+  // In IndexedDB, not localStorage (PRD Modules 4, 8 §א, 17; owner, 11.10.2026):
+  // deviceCopyStore.ts, with the same keys and the same JSON.
   public saveSessionProgressLocally(studentId: string, sessionData: any): void {
     if (typeof window === 'undefined' || !studentId) return;
     try {
@@ -1642,9 +1616,9 @@ export class FirebaseSyncService {
         ...sessionData,
         updatedAt: Date.now()
       });
-      localStorage.setItem(deviceCacheKey(studentId), json);
+      writeDeviceCopy(deviceCacheKey(studentId), json);
       const meeting = sessionData?.sessionNumber;
-      if (isMeetingNumber(meeting)) localStorage.setItem(deviceMeetingCacheKey(studentId, meeting), json);
+      if (isMeetingNumber(meeting)) writeDeviceCopy(deviceMeetingCacheKey(studentId, meeting), json);
     } catch (e) {
       console.warn("Failed to cache session progress locally:", e);
     }
@@ -1659,7 +1633,7 @@ export class FirebaseSyncService {
   public getLocalSessionProgress(studentId: string, meeting?: number): any | null {
     if (typeof window === 'undefined' || !studentId) return null;
     const read = (key: string) => {
-      const raw = localStorage.getItem(key);
+      const raw = readDeviceCopy(key);
       return raw ? JSON.parse(raw) : null;
     };
     try {
@@ -1688,16 +1662,16 @@ export class FirebaseSyncService {
     if (typeof window === 'undefined' || !studentId) return;
     try {
       if (meeting === undefined) {
-        localStorage.removeItem(deviceCacheKey(studentId));
-        for (const m of MEETINGS) localStorage.removeItem(deviceMeetingCacheKey(studentId, m));
+        removeDeviceCopy(deviceCacheKey(studentId));
+        for (const m of MEETINGS) removeDeviceCopy(deviceMeetingCacheKey(studentId, m));
         return;
       }
       if (!isMeetingNumber(meeting)) return;
-      localStorage.removeItem(deviceMeetingCacheKey(studentId, meeting));
+      removeDeviceCopy(deviceMeetingCacheKey(studentId, meeting));
       let latestMeeting: unknown;
-      try { latestMeeting = JSON.parse(localStorage.getItem(deviceCacheKey(studentId)) || 'null')?.sessionNumber; } catch { latestMeeting = meeting; }
+      try { latestMeeting = JSON.parse(readDeviceCopy(deviceCacheKey(studentId)) || 'null')?.sessionNumber; } catch { latestMeeting = meeting; }
       // A latest copy that names no meeting cannot be told apart: it goes too.
-      if (latestMeeting === meeting || !isMeetingNumber(latestMeeting)) localStorage.removeItem(deviceCacheKey(studentId));
+      if (latestMeeting === meeting || !isMeetingNumber(latestMeeting)) removeDeviceCopy(deviceCacheKey(studentId));
     } catch {
       // ignore
     }
@@ -1986,21 +1960,10 @@ export class FirebaseSyncService {
     }
   }
 
-  public async logTelemetryEvent(studentId: string, event: TelemetryEvent): Promise<void> {
-    if (!studentId) return;
-    const refPath = `telemetry_events/${studentId}`;
-    
-    if (!this.isOnline) {
-      this.enqueueOfflineTransaction(refPath, event);
-      return;
-    }
-
-    try {
-      await push(ref(database, refPath), event);
-    } catch {
-      this.enqueueOfflineTransaction(refPath, event);
-    }
-  }
+  // logTelemetryEvent (RTDB telemetry_events) was removed: nothing called it,
+  // and no rule admits that node, so every write was refused. Telemetry goes
+  // through emitTelemetry and the offline queue to Firestore telemetry_logs
+  // (PRD Modules 4, 17).
 
   /**
    * The learner's side of the meeting-2 completion. It carries no score and
@@ -2186,12 +2149,9 @@ export class FirebaseSyncService {
     // 'כיתה 1' and teacher teacher.demo@… on the admin's first load, so the
     // setup wizard (Module 25) never appeared. An empty system now shows it.
 
-    const teachersRef = ref(database, 'users/teachers');
-    this.unsubscribeTeachers = onValue(teachersRef, (snapshot) => {
-      const teachersVal = snapshot.val();
-      const teachers = teachersVal ? Object.values(teachersVal) as Teacher[] : [];
-      useAdminStore.setState({ teachers });
-    });
+    // No users/teachers listener: the console's staff list is authorizedTeachers
+    // (useAdminStore.initAdminSubscriptions; Module 25 §ב.3). This listener used
+    // to overwrite that list with the raw RTDB records.
 
     const limitRef = ref(database, 'system_control/globalStudentLimit');
     this.unsubscribeGlobalStudentLimit = onValue(limitRef, (snapshot) => {
@@ -2202,15 +2162,11 @@ export class FirebaseSyncService {
   }
 
   private stopAdminSync() {
-    if (this.unsubscribeTeachers) {
-      this.unsubscribeTeachers();
-      this.unsubscribeTeachers = null;
-    }
     if (this.unsubscribeGlobalStudentLimit) {
       this.unsubscribeGlobalStudentLimit();
       this.unsubscribeGlobalStudentLimit = null;
     }
-    useAdminStore.setState({ teachers: [], globalStudentLimit: 12 });
+    useAdminStore.setState({ globalStudentLimit: 12 });
   }
 
   // --- Admin actions syncing to Firebase ---
@@ -2222,45 +2178,10 @@ export class FirebaseSyncService {
     return school;
   }
 
-  public async deleteSchool(schoolId: string) {
-    // Fetch the latest teachers/classes list from Firebase via get()
-    const teachersSnapshot = await get(ref(database, 'users/teachers'));
-    const classesSnapshot = await get(ref(database, 'classes'));
-
-    const teachersVal = teachersSnapshot.val() || {};
-    const classesVal = classesSnapshot.val() || {};
-
-    const teachers = Object.values(teachersVal) as Teacher[];
-    const classes = Object.values(classesVal) as ClassRoom[];
-
-    const updates: Record<string, null> = {};
-    updates[`schools/${schoolId}`] = null;
-
-    // Cascade delete teachers in this school
-    const schoolTeachers = teachers.filter(t => t.schoolId === schoolId);
-    schoolTeachers.forEach(t => {
-      updates[`users/teachers/${t.id}`] = null;
-    });
-
-    // Cascade delete classes in this school (from both classes and public_classes)
-    const schoolClasses = classes.filter(c => c.schoolId === schoolId);
-    schoolClasses.forEach(c => {
-      updates[`classes/${c.id}`] = null;
-      updates[`public_classes/${c.id}`] = null;
-    });
-
-    await update(ref(database), updates);
-
-    // The whitelist is what admits a teacher at login; a deleted school's
-    // teachers must not keep a working key.
-    const { removeAuthorizedTeacherFirestore } = await import('./AuthService');
-    for (const t of schoolTeachers) {
-      const email = t.ssoEmail || (t as { email?: string }).email;
-      if (email && email.includes('@')) {
-        await removeAuthorizedTeacherFirestore(email).catch(console.error);
-      }
-    }
-  }
+  // There is no deleteSchool (owner, 11.10.2026). It removed the school's
+  // teachers with it — their records and their login rights — and the pilot
+  // class the twelve learners sign in through. The pilot has exactly one school
+  // (Module 25 §ב.1), and a staff member is never removed by deleting a school.
 
   public async addTeacher(schoolId: string, ssoEmail: string): Promise<Teacher> {
     // A raw email contains '.', which Firebase RTDB rejects as a key segment
@@ -2270,14 +2191,12 @@ export class FirebaseSyncService {
     // every teacher-lookup path uses.
     const email = ssoEmail.trim().toLowerCase();
     const id = teacherRecordKey(email);
-    const newTeacher: Teacher = {
-      id,
-      schoolId,
-      ssoEmail: email,
-      licenseActive: false,
-      createdAt: Date.now()
-    };
-    await set(ref(database, `users/teachers/${id}`), newTeacher);
+    const createdAt = Date.now();
+    // Module 25 §ב.3: the RTDB record carries no e-mail address — staff
+    // addresses are kept in authorizedTeachers and Firebase Auth only. The
+    // address is returned to the console (in memory), never stored here.
+    await set(ref(database, `users/teachers/${id}`), { id, schoolId, licenseActive: false, createdAt });
+    const newTeacher: Teacher = { id, schoolId, ssoEmail: email, licenseActive: false, createdAt };
     // Module 25: the Firestore whitelist IS the teacher's key
     // to the door (isWhitelistedTeacherEmailAsync + syncUserRoles read it).
     // A failure here must reach the admin, not a console nobody watches.
@@ -2296,30 +2215,45 @@ export class FirebaseSyncService {
    * class is where twelve learners log in, and losing it because a staff
    * member left is the wrong trade. A class the teacher owned is handed to
    * another teacher of the same school when there is one.
+   *
+   * The address comes from the console's list (authorizedTeachers — Module 25
+   * §ב.3: the RTDB record keeps none); a record written before that may still
+   * carry one, and is read as a fallback. The successor is the console's
+   * choice when it gives one (`successorId`, null for none).
+   *
+   * Owner, 11.10.2026: an admin entry or a read-only entry (the lecturers) is
+   * never removed — refused here before anything is written, as in the console.
    */
-  public async deleteTeacher(teacherId: string) {
+  public async deleteTeacher(teacherId: string, options: { email?: string; successorId?: string | null } = {}) {
+    const { assertRemovableStaff, removeAuthorizedTeacherFirestore } = await import('./AuthService');
+    const knownEmail = (options.email || '').trim().toLowerCase();
+    if (knownEmail.includes('@')) await assertRemovableStaff(knownEmail);
+
     const [teacherSnap, teachersSnap, classesSnapshot] = await Promise.all([
       get(ref(database, `users/teachers/${teacherId}`)),
       get(ref(database, 'users/teachers')),
       get(ref(database, 'classes')),
     ]);
-    const record = (teacherSnap.val() || null) as Teacher | null;
+    const record = (teacherSnap.val() || null) as (Partial<Teacher> & { email?: string }) | null;
     const allTeachers = Object.values(teachersSnap.val() || {}) as Teacher[];
     const classes = Object.values(classesSnapshot.val() || {}) as ClassRoom[];
+
+    const email = knownEmail || (record?.ssoEmail || record?.email || '').trim().toLowerCase();
+    if (!knownEmail && email.includes('@')) await assertRemovableStaff(email);
 
     const updates: Record<string, unknown> = {};
     updates[`users/teachers/${teacherId}`] = null;
 
-    const successor = allTeachers.find(t => t && t.id !== teacherId && record && t.schoolId === record.schoolId && typeof t.ssoEmail === 'string');
+    const successorId = options.successorId !== undefined
+      ? options.successorId
+      : allTeachers.find(t => t && t.id !== teacherId && record && t.schoolId === record.schoolId && typeof t.ssoEmail === 'string')?.id ?? null;
     classes.filter(c => c.teacherId === teacherId).forEach(c => {
-      if (successor) updates[`classes/${c.id}/teacherId`] = successor.id;
+      if (successorId) updates[`classes/${c.id}/teacherId`] = successorId;
     });
 
     await update(ref(database), updates);
 
-    const email = record?.ssoEmail || (record as { email?: string } | null)?.email;
-    if (email && email.includes('@')) {
-      const { removeAuthorizedTeacherFirestore } = await import('./AuthService');
+    if (email.includes('@')) {
       await removeAuthorizedTeacherFirestore(email);
     }
   }
@@ -2368,38 +2302,13 @@ export class FirebaseSyncService {
     }, { merge: true });
   }
 
-  public async deleteClassRoom(id: string) {
-    const updates: Record<string, null> = {};
-    updates[`classes/${id}`] = null;
-    updates[`public_classes/${id}`] = null;
-    await update(ref(database), updates);
-  }
-
-  public async registerStudentAtomic(studentId: string): Promise<boolean> {
-    if (!studentId) throw new Error("Student ID is required for atomic registration");
-    const limitRef = ref(database, 'system_control/globalStudentLimit');
-    const limitSnap = await get(limitRef);
-    const limit = limitSnap.exists() ? Number(limitSnap.val()) : 12;
-
-    const countRef = ref(database, 'system_control/activeStudentCount');
-    let transactionPassed = false;
-
-    await runTransaction(countRef, (currentCount) => {
-      const count = currentCount || 0;
-      if (count >= limit) {
-        transactionPassed = false;
-        return; // Abort transaction if limit reached
-      }
-      transactionPassed = true;
-      return count + 1;
-    });
-
-    if (!transactionPassed) {
-      throw new Error(`Student registration blocked: Global limit (${limit}) reached.`);
-    }
-
-    return true;
-  }
+  // There is no deleteClassRoom (owner, 11.10.2026): class_1 is the one class
+  // the twelve learners sign in through (Module 25 §ב.1), and deleting it took
+  // their way in with it.
+  //
+  // registerStudentAtomic was removed too: nothing called it, and it counted
+  // learners in system_control/activeStudentCount, a node no rule admits. The
+  // 12-learner cap is the server's (authenticateStudentSession, Module 25 §ב.2).
 
   public async setGlobalStudentLimit(limit: number) {
     if (typeof limit !== 'number' || limit < 1) {
@@ -2445,9 +2354,6 @@ export function acknowledgeTeacherReset(
 
 export const syncSessionState = (studentId: string, sessionState: SessionState) =>
   firebaseSyncService.syncSessionState(studentId, sessionState);
-
-export const logTelemetryEvent = (studentId: string, event: TelemetryEvent) =>
-  firebaseSyncService.logTelemetryEvent(studentId, event);
 
 export const fetchTeacherClassrooms = (teacherId: string) =>
   firebaseSyncService.fetchTeacherClassrooms(teacherId);

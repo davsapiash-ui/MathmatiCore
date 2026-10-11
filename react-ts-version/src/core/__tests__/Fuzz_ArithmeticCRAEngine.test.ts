@@ -9,7 +9,6 @@ import {
   splitBlockClick,
   ungroupBlock,
   groupBlocksManually,
-  addUngroupedFromPalette,
   resolveDrop,
   PLACE_ORDER,
   PLACE_VALUES,

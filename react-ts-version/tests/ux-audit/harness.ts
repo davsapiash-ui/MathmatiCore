@@ -460,6 +460,14 @@ export async function openContext(browser: Browser, viewport: Viewport, opts: Co
         Object.keys(localStorage)
           .filter((k) => k.startsWith('mathmaticore_session_') || k.startsWith('mathmaticore_deadline_notice_'))
           .forEach((k) => localStorage.removeItem(k));
+        // This device's copies of the workspace live in IndexedDB since
+        // 11.10.2026 (deviceCopyStore.ts). The app's open() is queued behind
+        // this delete, so the page never reads a copy of an earlier entry.
+        try {
+          indexedDB.deleteDatabase('mathmaticore_device_copies');
+        } catch {
+          /* no IndexedDB: nothing kept */
+        }
       }
       // Every load: no memory of a failed WebSocket. The SDK would fall back to
       // long-polling, which this harness blocks (a real tablet's long-polling

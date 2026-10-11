@@ -1,5 +1,4 @@
 import type { SessionTask } from '@/data/sessionTasks';
-import { SESSION1_TASKS } from '@/data/sessionTasks';
 import type { DemoStation, TeacherDemoPart } from '@/data/teacherDemos';
 
 /**
@@ -39,20 +38,32 @@ export function demoSessionTask(station: DemoStation, part: TeacherDemoPart): Se
   return { ...base, type: 'representation', numberA: body.answer, correctAnswer: body.answer, requiredCounts: body.finalCounts };
 }
 
+/** The id of station 1's demonstration task (STATION1_DEMO_TASK). */
+export const STATION1_DEMO_TASK_ID = 's1_demo_tools';
+
 /**
- * Station 1 has no demonstration exercise: its example card is about the
- * station's target task (347), the exercise a learner builds on this board.
+ * Station 1 has no demonstration exercise, and its example card is never
+ * about a learner's exercise (owner, 11.10.2026 — it used to be the target
+ * task, 347). The card is about this demonstration of the tools instead: no
+ * number, in no bank, checked and recorded by nothing. On the empty board its
+ * static card is the learners' "build first" card
+ * (useWorkspaceStore.demoStaticCoachingCard).
  */
-const STATION1_CARD_TASK_ID = 's1_target_347';
+export const STATION1_DEMO_TASK: SessionTask = {
+  id: STATION1_DEMO_TASK_ID,
+  type: 'representation',
+  titleHe: 'מכירים את הכלים',
+  instructionHe: 'בנו בבית המספרים מספר בעזרת לבני הדינס.',
+};
 
 /**
  * "דוגמה לכרטיס החניכה" (owner, 11.10.2026): the exercise the example card is
- * about — the demonstration on the screen, or station 1's target task. The
- * card itself is the learner's: asked of the engine about this exercise and
- * the board as it is now, with the static card of that board as its fallback
- * (useWorkspaceStore.openDemoCoachingCard).
+ * about — the demonstration on the screen, or station 1's tools demonstration.
+ * The card itself is the learner's: asked of the engine about this exercise
+ * and the board as it is now, with the static card of that board as its
+ * fallback (useWorkspaceStore.openDemoCoachingCard).
  */
 export function demoCoachingTask(station: 1 | DemoStation, part: TeacherDemoPart | null): SessionTask | undefined {
-  if (station === 1 || part === null) return SESSION1_TASKS.find((t) => t.id === STATION1_CARD_TASK_ID);
+  if (station === 1 || part === null) return STATION1_DEMO_TASK;
   return demoSessionTask(station, part);
 }

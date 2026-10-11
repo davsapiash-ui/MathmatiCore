@@ -1,5 +1,6 @@
 import { COLUMN_NAMES_HE, resetReasonHe } from "./teacherLabels";
-import { isExerciseEvent, type MeetingReset, type MeetingRuns } from "./meetingMetrics";
+import { exerciseLabelHe, isExerciseEvent, type MeetingReset, type MeetingRuns } from "./meetingMetrics";
+import { catchUpSummaryHe, summarizeCatchUpRecord, type CatchUpRecord, type CatchUpRound } from "./catchUp";
 
 /**
  * "לפני האיפוס": what the learner did in a meeting before it was last reset.
@@ -46,6 +47,8 @@ export interface PreResetRecord {
   lines_he: string[];
   /** One short line for the class report. */
   class_note_he: string;
+  /** The catch-up time recorded before the reset (preResetCatchUpLineHe); null when none. Absent on older reports. */
+  catch_up_line_he?: string | null;
 }
 
 /**
@@ -148,6 +151,47 @@ function exerciseLineHe(ex: Omit<PreResetExercise, "line_he">, title: string): s
   return `${title}: ${parts.join(", ")}. ${ex.completed ? "התרגיל הושלם לפני האיפוס." : "התרגיל לא הושלם לפני האיפוס."}`;
 }
 
+/**
+ * PRD 14 §ב0 / 23 §ב / 23א §ב: a meeting reset keeps the meeting's catch-up
+ * record ("רישום ההשלמה"), and the report shows it "בסעיף 'לפני האיפוס'". The
+ * rounds recorded before the meeting's last reset go there; the report's card
+ * and the class report's catch-up block count only the rounds since. A round's
+ * time is when it was recorded (recorded_at, else opened_at); a round with
+ * neither counts as current. No reset: the whole record is current. Either
+ * half is null when it has no round.
+ */
+export function splitCatchUpAtReset(
+  record: Partial<CatchUpRecord> | null | undefined,
+  resetAtMs: number | null | undefined
+): { before: Partial<CatchUpRecord> | null; after: Partial<CatchUpRecord> | null } {
+  const rounds = record?.rounds && typeof record.rounds === "object" ? Object.entries(record.rounds) : [];
+  if (!record || rounds.length === 0) return { before: null, after: record ?? null };
+  if (resetAtMs === null || resetAtMs === undefined || !Number.isFinite(resetAtMs)) return { before: null, after: record };
+  const before: Record<string, CatchUpRound> = {};
+  const after: Record<string, CatchUpRound> = {};
+  for (const [key, round] of rounds) {
+    const at = Number(round?.recorded_at) || Number(round?.opened_at) || null;
+    if (at !== null && at <= resetAtMs) before[key] = round;
+    else after[key] = round;
+  }
+  const part = (rs: Record<string, CatchUpRound>) => (Object.keys(rs).length > 0 ? { ...record, rounds: rs } : null);
+  return { before: part(before), after: part(after) };
+}
+
+/** The meeting's last reset (the cut of MeetingRuns), or null. */
+export function lastResetAtOf(runs: MeetingRuns | null | undefined): number | null {
+  return runs && runs.resets.length > 0 ? runs.resets[runs.resets.length - 1].at : null;
+}
+
+/**
+ * The "לפני האיפוס" line of the catch-up time recorded before the reset, in
+ * the PRD's words ("רישום זמן ההשלמה"), or null when none was recorded.
+ */
+export function preResetCatchUpLineHe(record: Partial<CatchUpRecord> | null | undefined): string | null {
+  const line = catchUpSummaryHe(summarizeCatchUpRecord(record));
+  return line ? `רישום זמן ההשלמה — ${line}` : null;
+}
+
 /** "3 ספרות שגויות" / "ספרה שגויה אחת" and the like, for the class note. */
 function countHe(n: number, one: string, many: string): string {
   return n === 1 ? one : `${n} ${many}`;
@@ -157,8 +201,14 @@ function countHe(n: number, one: string, many: string): string {
  * The record of one learner's meeting, or null when nothing happened in it
  * before its last reset (no reset, or a reset before the learner started it).
  */
-export function buildPreResetRecord(runs: MeetingRuns, titles: Record<string, string> = {}): PreResetRecord | null {
-  if (runs.beforeReset.length === 0 || runs.resets.length === 0) return null;
+export function buildPreResetRecord(
+  runs: MeetingRuns,
+  titles: Record<string, string> = {},
+  /** The rounds of the meeting's catch-up record from before its last reset (splitCatchUpAtReset). */
+  catchUpBefore: Partial<CatchUpRecord> | null = null
+): PreResetRecord | null {
+  const catchUpLine = preResetCatchUpLineHe(catchUpBefore);
+  if (runs.resets.length === 0 || (runs.beforeReset.length === 0 && catchUpLine === null)) return null;
   // A reset of the whole learner before this meeting was started cut nothing here.
   const resets = runs.resets.filter((r) => runs.firstWrittenAtMs === null || r.at >= runs.firstWrittenAtMs);
   const shown = resets.length > 0 ? resets : [runs.resets[runs.resets.length - 1]];
@@ -205,13 +255,15 @@ export function buildPreResetRecord(runs: MeetingRuns, titles: Record<string, st
     const marks = sum(ex.wrong_digits_by_column) + ex.wrong_digits_no_column + sum(ex.deletions_by_column) +
       ex.deletions_no_column + ex.undos + ex.wrong_card_choices;
     if (marks === 0) continue;
-    exercises.push({ ...ex, line_he: exerciseLineHe(ex, titles[ex.exercise_id] ?? ex.exercise_id) });
+    // Never the raw id: a Hebrew label when the exercise has no title (exerciseLabelHe).
+    exercises.push({ ...ex, line_he: exerciseLineHe(ex, exerciseLabelHe(titles, ex.exercise_id)) });
   }
 
   const resetEntries = shown.map((r) => ({ ...r, line_he: resetLineHe(r) }));
   const lines = [
     ...resetEntries.map((r) => r.line_he),
     ...(exercises.length > 0 ? exercises.map((e) => e.line_he) : [PRE_RESET_NO_MISTAKES_HE]),
+    ...(catchUpLine ? [catchUpLine] : []),
   ];
 
   // The class report's short line: when, why, and how many of each mistake.
@@ -245,6 +297,7 @@ export function buildPreResetRecord(runs: MeetingRuns, titles: Record<string, st
     events: runs.beforeReset.length,
     exercises,
     lines_he: lines,
-    class_note_he: classNote,
+    class_note_he: catchUpLine ? `${classNote} ${catchUpLine}.` : classNote,
+    catch_up_line_he: catchUpLine,
   };
 }

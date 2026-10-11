@@ -87,7 +87,7 @@ describe('research export — every typed details field has a column', () => {
 
   it('the export spreads these columns into every row of "פעולות"', () => {
     const src = readFileSync(resolve(__dirname, '../exportDriveReport.ts'), 'utf-8');
-    const rows = src.slice(src.indexOf('const telemetryRows = telemetry.map('), src.indexOf('// ── 2. One row per learner × meeting'));
+    const rows = src.slice(src.indexOf('const telemetryRowOf = ('), src.indexOf('// ── 2. One row per learner × meeting'));
     expect(rows).toContain('...researchDetailsColumns(data.event_type, d),');
     expect(rows).not.toContain('details_json: d');
   });
@@ -113,7 +113,7 @@ describe('research export — the stamps and BRANCH_SELECTED', () => {
 
   it('the stamp columns are the last cells of the row, in the contract order', () => {
     const src = readFileSync(resolve(__dirname, '../exportDriveReport.ts'), 'utf-8');
-    const row = src.slice(src.indexOf('const telemetryRows = telemetry.map('), src.indexOf('// ── 2. One row per learner'));
+    const row = src.slice(src.indexOf('const telemetryRowOf = ('), src.indexOf('// ── 2. One row per learner'));
     expect(row.indexOf('...researchDetailsColumns(')).toBeLessThan(row.indexOf('...researchStampColumns('));
     expect(row.slice(row.indexOf('...researchStampColumns(')).match(/^\s+[a-z_]+:/m)).toBeNull();
     expect(Object.keys(researchStampColumns({}, iso))).toEqual(['sequence_number', 'device_id', 'server_received_at']);

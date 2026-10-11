@@ -3,6 +3,9 @@ import { useWorkspaceStore, answerTextFromDigits } from '@/application/useWorksp
 import { PLACE_ORDER, PLACE_NAMES_HE, type Place } from '@/core/placeValue';
 import type { SessionTask } from '@/data/sessionTasks';
 import { NEUTRAL_BOX_BORDER } from '../placeColors';
+import { PLACE_CUE_LINE_HE, resultRowCues } from '@/core/placeCues';
+import { useEnhancedSupport } from './useEnhancedSupport';
+import { PlaceCueLine } from './VerticalAdditionTask';
 
 /** One square of the result row: the sheet's notebook square (--ws-cell, index.css). */
 const CELL = 'var(--ws-cell)';
@@ -49,7 +52,8 @@ export function RepresentationAnswerBox() {
   };
 
   return (
-    <div className="flex flex-col items-center gap-fl-6-20 mt-fl-0-16 flex-1 min-h-0">
+    // Its own height only: the feedback slot sits right under it (TaskCard, PRD Module 7 §א).
+    <div className="shrink-0 flex flex-col items-center gap-2 mt-2">
       <div className="shrink-0" role="group" aria-label="שורת התוצאה" data-testid="result-row">
         <input
           type="text"
@@ -96,7 +100,7 @@ export function RepresentationAnswerBox() {
 
 /**
  * Station 1 and station 7's other representation exercises (s7_r_t6, s7_g_t5,
- * s7_g_t6): a box per digit, high place on the left.
+ * s7_g_t6, s7_d_t6, s7_f_t6): a box per digit, high place on the left.
  */
 function RepresentationResultRow({ task }: { task: SessionTask }) {
   // The number the result row holds: the number built, or its own answer when
@@ -107,11 +111,25 @@ function RepresentationResultRow({ task }: { task: SessionTask }) {
 }
 
 /**
- * The boxes of station 1's result row, high place on the left, each with its
- * column's colour and name. Also on the teacher's demonstration of station 1
- * (Module 15 §ג), in the 1,000 range: hundreds, tens, units.
+ * The boxes of a representation's result row, high place on the left. Also on
+ * the teacher's demonstration of station 1 (Module 15 §ג), in the 1,000 range:
+ * hundreds, tens, units.
+ *
+ * Colours and names follow the result row's rule (core/placeCues.ts, PRD
+ * Module 9 §א; owner, 11.10.2026), as in the vertical exercises: station 1
+ * keeps both; in stations 3–7 (station 7's digit-per-box exercises) the
+ * regular profile starts neutral and without names until a digit in the wrong
+ * place, and the enhanced profile has the colours from the start and the
+ * names as the scaffold — with the scaffold sentence under the row. A name not
+ * shown is not spoken either.
  */
 export function ResultRowBoxes({ places }: { places: Place[] }) {
+  const sessionNumber = useWorkspaceStore((s) => s.sessionNumber);
+  const enhancedSupport = useEnhancedSupport();
+  const placeCuesShown = useWorkspaceStore((s) => s.placeCuesShown);
+  const cues = resultRowCues(sessionNumber, enhancedSupport, placeCuesShown);
+  const scaffoldStation = sessionNumber >= 3 && sessionNumber <= 7;
+  const cueLine = scaffoldStation && placeCuesShown ? PLACE_CUE_LINE_HE[enhancedSupport ? 'enhanced' : 'regular'] : null;
   const answerDigits = useWorkspaceStore((s) => s.answerDigits);
   const setAnswerDigit = useWorkspaceStore((s) => s.setAnswerDigit);
   const setFocusedPlace = useWorkspaceStore((s) => s.setFocusedPlace);
@@ -128,7 +146,8 @@ export function ResultRowBoxes({ places }: { places: Place[] }) {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   return (
-    <div className="flex flex-col items-center gap-fl-6-20 mt-fl-0-16 flex-1 min-h-0">
+    // Its own height only: the feedback slot sits right under it (TaskCard, PRD Module 7 §א).
+    <div className="shrink-0 flex flex-col items-center gap-2 mt-2">
       {/* Result row (שורת התוצאה) — first under the instruction, so it is in
           view without scrolling (owner, 27.9.2026). */}
       <div dir="ltr" className="shrink-0 grid gap-2" style={{ gridTemplateColumns: `repeat(${places.length}, ${CELL})` }} role="group" aria-label="שורת התוצאה" data-testid="result-row">
@@ -147,7 +166,7 @@ export function ResultRowBoxes({ places }: { places: Place[] }) {
               value={answerDigits[place] ?? ''}
               readOnly={locked}
               aria-disabled={locked}
-              aria-label={`ספרת ה${PLACE_NAMES_HE[place]} בשורת התוצאה`}
+              aria-label={cues.labels ? `ספרת ה${PLACE_NAMES_HE[place]} בשורת התוצאה` : `ספרה ${i + 1} מתוך ${places.length} בשורת התוצאה`}
               className={`rounded-xl border-2 text-center font-mono font-black bg-ws-surface text-ws-ink transition-all focus:outline-none focus:ring-2 focus:ring-ws-accent ${
                 locked ? 'cursor-not-allowed opacity-75' : ''
               }`}
@@ -156,7 +175,7 @@ export function ResultRowBoxes({ places }: { places: Place[] }) {
                 width: `calc(${CELL} - 6px)`,
                 height: `calc(${CELL} - 6px)`,
                 fontSize: `calc(${CELL} * 0.6)`,
-                borderColor: PLACE_TINT[place],
+                borderColor: cues.colours ? PLACE_TINT[place] : NEUTRAL_BOX_BORDER,
                 ...(shakingPlace === place ? { animation: 'shake 0.5s ease-in-out' } : {}),
               }}
               onFocus={() => setFocusedPlace(place)}
@@ -194,7 +213,13 @@ export function ResultRowBoxes({ places }: { places: Place[] }) {
                 }
               }}
             />
-            <span className="font-bold" style={{ fontSize: `max(14px, calc(${CELL} * 0.22))`, color: PLACE_TINT[place] }}>
+            {/* Hidden, not removed, in stations 3–7: the row keeps its height when the names come. */}
+            <span
+              className="font-bold"
+              data-place-label
+              aria-hidden={cues.labels ? undefined : true}
+              style={{ fontSize: `max(14px, calc(${CELL} * 0.22))`, color: PLACE_TINT[place], visibility: cues.labels ? 'visible' : 'hidden' }}
+            >
               {PLACE_NAMES_HE[place]}
             </span>
           </div>
@@ -205,6 +230,8 @@ export function ResultRowBoxes({ places }: { places: Place[] }) {
       {/* No box listing the blocks to build and the blocks now on the board
           (owner, 28.9.2026): it is in no document. The instruction names what
           to build, and the number house shows every column. */}
+      {/* The scaffold sentence, under the row (PRD Module 9 §א), with its read-aloud button. */}
+      {cueLine && <PlaceCueLine text={cueLine} />}
 
     </div>
   );

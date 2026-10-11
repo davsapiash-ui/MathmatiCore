@@ -23,9 +23,13 @@ describe('the teacher close carries the marker the server acts on', () => {
   });
 
   it('a system reset closes without it, so a reset completes no one', () => {
-    const resetClose = store.match(/fbSet\(ref\(database, 'active_class_session'\), \{[^}]*\}\)/g) ?? [];
+    // The server closes the meeting on a system reset; the client no longer
+    // writes active_class_session after it (12.10.2026).
+    const reset = read('../../../../functions/src/exportDriveReport.ts');
+    const resetClose = reset.match(/rtdb\.ref\("active_class_session"\)\.set\(\{[^}]*\}\)/g) ?? [];
     expect(resetClose.length).toBeGreaterThan(0);
     for (const w of resetClose) expect(w).not.toContain('closedBy');
+    expect(store).not.toContain("ref(database, 'active_class_session')");
   });
 
   it('the server listens for the same marker and the same seven tasks', () => {

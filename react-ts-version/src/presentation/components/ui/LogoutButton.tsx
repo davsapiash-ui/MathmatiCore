@@ -47,7 +47,8 @@ export function LogoutButton({ className = "", showIconOnly = false, labelClassN
       aria-label={LOGOUT_ARIA_HE}
     >
       {/* One name, neutral, for every screen (owner, 28.9.2026; core/toolbarNames). */}
-      <LogOut aria-hidden="true" className={`w-5 h-5 shrink-0 ${isLoggingOut ? 'animate-spin' : ''}`} />
+      {/* Still while signing out (owner, 11.10.2026): the words "יוצאים…" say it; the icon does not spin. */}
+      <LogOut aria-hidden="true" className="w-5 h-5 shrink-0" />
       {!showIconOnly && <span className={labelClassName}>{isLoggingOut ? LOGGING_OUT_HE : LOGOUT_HE}</span>}
     </button>
   );

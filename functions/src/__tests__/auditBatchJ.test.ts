@@ -90,7 +90,8 @@ describe('the exercise narrative names only the columns of the wrong digits', ()
       ev('DIGIT_ENTERED', { is_correct: true }, 4, 3),
       ev('PROBLEM_COMPLETE', {}, 5),
     ]);
-    expect(compulsory[0]).toContain('הזין ספרה שגויה בטור העשרות (פעם אחת)');
+    // PRD 23 §ב: where the digit was typed — the result row (no input_target) — is named too.
+    expect(compulsory[0]).toContain('הזין בשורת התוצאה ספרה שגויה בטור העשרות (פעם אחת)');
     expect(compulsory[0]).not.toContain('ובטור');
   });
 
@@ -100,7 +101,8 @@ describe('the exercise narrative names only the columns of the wrong digits', ()
       ev('DIGIT_ENTERED', { is_correct: true }, 2, 1),
       ev('PROBLEM_COMPLETE', {}, 3),
     ]);
-    expect(compulsory[0]).toContain('הזין את הספרות בטור היחידות ובטור העשרות');
+    // No digit_value recorded: the columns only.
+    expect(compulsory[0]).toContain('הזין בשורת התוצאה את הספרות בטור היחידות ובטור העשרות');
   });
 });
 

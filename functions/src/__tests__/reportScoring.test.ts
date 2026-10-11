@@ -88,7 +88,8 @@ describe('SESSION_START and REFLECTION_SUBMITTED are not exercises', () => {
   it('the learner report\'s narrative skips them too', () => {
     const report = readFileSync(resolve(__dirname, '../pedagogicalReport.ts'), 'utf-8');
     const start = report.indexOf('function generateExerciseNarrativeFromEvents');
-    expect(report.slice(start, start + 900)).toContain('if (!isExerciseEvent(doc)) continue;');
+    // The function's head: its parameters (titles, the compulsory ids) and the grouping loop.
+    expect(report.slice(start, start + 1400)).toContain('if (!isExerciseEvent(doc)) continue;');
   });
 });
 

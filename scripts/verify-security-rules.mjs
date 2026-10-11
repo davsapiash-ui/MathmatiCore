@@ -33,7 +33,7 @@ try {
 
 const { initializeTestEnvironment, assertFails, assertSucceeds } = rulesTesting;
 const { doc, setDoc, getDoc, deleteDoc, serverTimestamp } = firestoreSdk;
-const { ref, update, set, get } = databaseSdk;
+const { ref, update, set, get, serverTimestamp: rtdbServerTimestamp } = databaseSdk;
 
 const env = await initializeTestEnvironment({
   projectId: 'demo-mathmaticore',
@@ -76,8 +76,10 @@ const tdb = teacher.database();
 const node = 'users/students/student_user3';
 
 console.log('\nRTDB — שער המעבר של מודול 20');
-await check('הלומד רשאי לבקש אישור מעבר', () =>
-  assertSucceeds(
+// Since 9.10.2026 (cb09cf34) the gate state is mirrored by the server only
+// (PRD module 20): the learner never writes routeStatus, not even "pending".
+await check('הלומד אינו כותב את מצב שלב החלוקה למסלולים', () =>
+  assertFails(
     update(ref(ldb, node), {
       routeStatus: 'PENDING_TEACHER_APPROVAL',
       teacher_gate_approved: false,
@@ -171,6 +173,15 @@ await check('המורה מדליקה ומכבה את המקרן', async () => {
 await check('לומד אינו משנה את מצב המקרן', () =>
   assertFails(set(ref(ldb, 'system_control/projector_mode'), { projector_mode: true }))
 );
+// שלושת השדות בלבד, בסוגים שכל הכותבים כותבים: בלי השדה הישן active, ובלי שדה חסר.
+await check('מצב המקרן: שלושת השדות בסוגיהם, ולא שום שדה אחר', async () => {
+  await assertFails(set(ref(tdb, 'system_control/projector_mode'), { projector_mode: true, projector_mode_updated_at: 3, updated_by_teacher_id: 'teacher_1', active: true }));
+  await assertFails(set(ref(tdb, 'system_control/projector_mode'), { projector_mode: true, projector_mode_updated_at: 3 }));
+  await assertFails(set(ref(tdb, 'system_control/projector_mode'), { projector_mode: 'yes', projector_mode_updated_at: 3, updated_by_teacher_id: 'teacher_1' }));
+  await assertFails(set(ref(tdb, 'system_control/projector_mode'), { projector_mode: true, projector_mode_updated_at: '3', updated_by_teacher_id: 'teacher_1' }));
+  await assertFails(set(ref(tdb, 'system_control/projector_mode'), true));
+  await assertSucceeds(set(ref(tdb, 'system_control/projector_mode'), { projector_mode: false, projector_mode_updated_at: rtdbServerTimestamp(), updated_by_teacher_id: 'teacher_1' }));
+});
 await check('שאר system_control נשאר סגור בפני המורה', () =>
   assertFails(set(ref(tdb, 'system_control/globalStudentLimit'), 99))
 );
@@ -560,9 +571,14 @@ await check('מורה לצפייה בלבד קוראת את היומן ואינ�
   await assertFails(setDoc(doc(rotfs, 'teacher_mediation_log', 'ro_1'), mediationRecord('ro_teacher', { event_ref: 'log_ro' })));
   await assertFails(setDoc(doc(rotfs, 'teacher_mediation_log', 'ev_log_help_1'), mediationRecord('ro_teacher', { recorded_at: 3 })));
 });
-await check('המנהל קורא את היומן ואינו כותב בו', async () => {
-  await assertSucceeds(getDoc(doc(admin.firestore(), 'teacher_mediation_log', 'ev_log_help_1')));
+// PRD מודול 24 §ב: היומן נקרא בידי המורה של הכיתה בלבד, והמנהל אינו קורא נתוני למידה אישיים.
+await check('המנהל אינו קורא את היומן ואינו כותב בו', async () => {
+  await assertFails(getDoc(doc(admin.firestore(), 'teacher_mediation_log', 'ev_log_help_1')));
   await assertFails(setDoc(doc(admin.firestore(), 'teacher_mediation_log', 'adm_1'), mediationRecord('admin_1', { event_ref: 'log_adm' })));
+});
+await check('מורה של כיתה אחרת אינה קוראת את היומן', async () => {
+  const otherClassTeacher = env.authenticatedContext('teacher_2', { role: 'teacher', class_id: 'class_2' }).firestore();
+  await assertFails(getDoc(doc(otherClassTeacher, 'teacher_mediation_log', 'ev_log_help_1')));
 });
 await check('הלומד אינו קורא ואינו כותב ביומן', async () => {
   await assertFails(getDoc(doc(lfs, 'teacher_mediation_log', 'ev_log_help_1')));
@@ -581,6 +597,45 @@ await check('לומד, מורה ומנהל אינם קוראים ואינם כו
     await assertFails(setDoc(doc(fs, 'ai_rejections', 'r2'), rejection));
     await assertFails(deleteDoc(doc(fs, 'ai_rejections', 'r1')));
   }
+});
+
+// L56: the meeting's clock is the server's stamp, never a client time.
+console.log('\nRTDB — שעת פתיחת המפגש (startedAt)');
+await check('פתיחה עם חותמת השרת מתקבלת; עצירה וסגירה בלי startedAt עוברות', async () => {
+  await assertSucceeds(set(ref(tdb, 'active_class_session'), { active: true, status: 'active', sessionNumber: 3, startedAt: rtdbServerTimestamp(), teacherId: 'teacher_1' }));
+  await assertSucceeds(update(ref(tdb, 'active_class_session'), { status: 'paused', pausedAt: 1 }));
+  await assertSucceeds(set(ref(tdb, 'active_class_session'), { active: false, status: 'closed', sessionNumber: null, endedAt: 1, closedBy: 'teacher', lastSessionNumber: 3, lastStartedAt: 1 }));
+});
+await check('שעת פתיחה שהדפדפן קבע נדחית', async () => {
+  await assertFails(set(ref(tdb, 'active_class_session'), { active: true, status: 'active', sessionNumber: 3, startedAt: 1_700_000_000_000 }));
+  await assertFails(update(ref(tdb, 'active_class_session'), { startedAt: 1 }));
+});
+
+// L62: learner keys are the twelve pilot learners only, in the alias forms the client writes.
+console.log('\nמפתחות הלומדים — 1 עד 12 בלבד');
+await check('RTDB: המורה כותבת לכל צורות המפתח של לומדים 1–12', async () => {
+  for (const key of ['student_user12', 'student_5', 'user7', '9']) {
+    await assertSucceeds(update(ref(tdb, `users/students/${key}`), { onlineStatus: 'active' }));
+  }
+  await assertSucceeds(update(ref(tdb, 'students/student_user4'), { overrideUpdatedAt: 1 }));
+});
+await check('RTDB: מפתח מחוץ ל-1–12 או בצורה אחרת נדחה, גם למורה', async () => {
+  for (const key of ['student_user13', 'student_user0', 'student_0', 'slot_1', 'learner', 'abcUid']) {
+    await assertFails(update(ref(tdb, `users/students/${key}`), { onlineStatus: 'active' }));
+  }
+  await assertFails(update(ref(tdb, 'students/student_user13'), { overrideUpdatedAt: 1 }));
+});
+await check('Firestore: מסמך לומד רק student_user1–student_user12', async () => {
+  await assertSucceeds(setDoc(doc(tfs, 'students', 'student_user12'), { ...studentDoc, student_id: 12 }, { merge: true }));
+  await assertFails(setDoc(doc(tfs, 'students', 'student_user13'), { ...studentDoc, student_id: 12 }, { merge: true }));
+  await assertFails(setDoc(doc(tfs, 'students', 'student_3'), studentDoc, { merge: true }));
+});
+
+// H3: the pilot's one school is never deleted from a client.
+console.log('\nFirestore — בית הספר אינו נמחק');
+await check('גם מנהל אינו מוחק את מסמך בית הספר', async () => {
+  await assertSucceeds(setDoc(doc(admin.firestore(), 'schools', 'school_bikorot'), { name: 'x' }));
+  await assertFails(deleteDoc(doc(admin.firestore(), 'schools', 'school_bikorot')));
 });
 
 console.log('\nצוות רגיל — ללא שינוי');

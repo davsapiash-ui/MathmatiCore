@@ -93,12 +93,15 @@ describe('D2 — no English in the headings', () => {
     }
     const html = pedagogicalReportHtml({ session_number: 4, score_percent: 86, exercise_narratives: ['x'] });
     expect(html).toContain('מדיניות אפס מידע מזהה');
-    expect(html).toContain('2. סיפור התרגילים הכרונולוגי</h2>');
+    // PRD 23 §ב: the chapter is "סיפור התרגילים".
+    expect(html).toContain('2. סיפור התרגילים</h2>');
+    expect(html).toContain('3. פערי הידע והמלצות ההוראה</h2>');
+    expect(html).not.toContain('MathematiCore v7');
   });
 
   it('the narrative names each exercise by its title', () => {
     const { compulsory } = generateExerciseNarrativeFromEvents([...meeting], titles);
-    expect(compulsory[0]).toMatch(/^בתרגיל הראשון \(חיבור במאונך עם המרה\) הלומד הזין ספרה שגויה בטור היחידות/);
+    expect(compulsory[0]).toMatch(/^בתרגיל הראשון \(חיבור במאונך עם המרה\) הלומד הזין בשורת התוצאה ספרה שגויה בטור היחידות \(פעם אחת, הספרה 4\)/);
     expect(compulsory.join(' ')).not.toMatch(/s4_g_t|אחדות/);
     // Without a title (the catalog unavailable) a Hebrew label, never the id (coordinator, 2.10.2026).
     expect(generateExerciseNarrativeFromEvents([...meeting]).compulsory[0]).toContain('(תרגיל במפגש 4, מס׳ זיהוי 1)');

@@ -217,7 +217,9 @@ export const useChatStore = create<ChatState>()(
         if (isReceiverStaff && !isSenderStaff) {
           // Teacher/Staff reading messages from a Student (senderId is student)
           const isFromTargetStudent = msgSend === normSender || msg.senderId === senderId;
-          const isToStaff = isTeacherOrAdminId(msg.receiverId) || msgRecv === normReceiver || !msg.receiverId || msg.receiverId === 'teacher' || msg.receiverId === '1002220159';
+          // No staff member's id is hard-coded here: isTeacherOrAdminId already
+          // recognises "teacher", a staff uid and an older message's staff id.
+          const isToStaff = isTeacherOrAdminId(msg.receiverId) || msgRecv === normReceiver || !msg.receiverId;
           return isFromTargetStudent && isToStaff;
         } else if (!isReceiverStaff && isSenderStaff) {
           // Student reading messages from Staff (senderId is staff)

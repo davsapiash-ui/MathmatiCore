@@ -411,7 +411,7 @@ export function ClassManagement({
               type="button"
               onClick={() => setStudentToReset({ id: row.id, name: label })}
               disabled={readOnly || busy}
-              className={`min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg border border-rose-200 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${FOCUS_RING}`}
+              className={`min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg border border-stone-300 hover:border-stone-500 bg-stone-50 hover:bg-stone-100 text-stone-700 dark:bg-stone-900/40 dark:hover:bg-stone-900/70 dark:text-stone-200 dark:border-stone-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${FOCUS_RING}`}
               // The dialog offers both scopes, the meeting alone by default (PRD 23א §ב.2).
               title={readOnly ? READ_ONLY_TITLE : LEARNER_RESET_TOOLTIP_HE}
               aria-label={`${RESET_ACTION_HE.learner} של ${label}`}

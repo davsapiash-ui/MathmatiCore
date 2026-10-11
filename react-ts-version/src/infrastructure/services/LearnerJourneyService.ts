@@ -456,7 +456,7 @@ export function resetSeparatorHe(r: MeetingResetMark): string {
 }
 
 /** PRD 23א §ג: the dashboard marks a reset whose backup has not reached Drive yet. */
-export const BACKUP_NOT_IN_DRIVE_HE = 'הגיבוי של האיפוס הזה שמור ב-Cloud Storage ועוד לא הגיע לתיקיית "3 גיבויים" בדרייב; הוא יועתק לשם אוטומטית פעם ביום.';
+export const BACKUP_NOT_IN_DRIVE_HE = 'הגיבוי של האיפוס הזה שמור בינתיים באחסון הענן של המערכת, ועוד לא הגיע לתיקיית "3 גיבויים" בדרייב; הוא יועתק לשם אוטומטית פעם ביום.';
 
 /**
  * The answers of the server's rule (meetingMetrics ANSWER_EVENT_TYPES): a
@@ -1097,7 +1097,8 @@ function sandboxPartOf(d: Record<string, any>): SandboxReportPart {
     tools: used ? TOOL_LABELS_HE.map(([key, label]) => ({ label, count: Number(used[key]) || 0 })) : [],
     toolsNotUsed: used ? TOOL_LABELS_HE.filter(([key]) => !(Number(used[key]) > 0)).map(([, label]) => label) : [],
     refresh: Object.entries(outcomes as Record<string, string>).map(([id, o]) => ({
-      title: typeof titles[id] === 'string' ? titles[id] : id,
+      // Never the raw id: the bank's title, else a Hebrew label (exerciseTitle, as the server's exerciseLabelHe).
+      title: typeof titles[id] === 'string' && titles[id].trim() ? titles[id] : exerciseTitle(1, id),
       outcomeHe: OUTCOME_LABELS_HE[o] ?? o,
     })),
     outdated: used === null,

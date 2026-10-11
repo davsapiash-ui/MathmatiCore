@@ -73,17 +73,30 @@ export function getCognitiveGlyph(errorCategory: 'calculation' | 'procedural' | 
  * calibrated hesitation threshold (45 seconds by default).
  */
 /** What the radar is and what a tile opens — the radar heading's tooltip. */
-export const RADAR_EXPLANATION_HE = 'מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת כדי לראות את פרטי התלמיד: המסלול, המפגש, סיווגי הטעות ושאלות מנחות.';
+export const RADAR_EXPLANATION_HE = 'מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת כדי לראות את פרטי התלמיד: המסלול, המפגש וסיווגי הטעות.';
+
+/**
+ * The five radar states under the names of the tile's tags (PRD Module 18 §ב): the colour map's rows and the
+ * hover card's first line say the same words. Grey covers both of the tile's tags, "מנותק" and not started.
+ */
+export const STATE_NAME_HE: Readonly<Record<RadarColor, string>> = {
+  BLUE: 'קריאה לעזרה',
+  RED: CARD_OPEN_HE,
+  GREY: 'מנותק / טרם התחיל',
+  YELLOW: 'היסוס',
+  GREEN: 'פעיל',
+};
 
 export function radarLegendItems(thresholdSeconds: number): Array<{ color: 'GREEN' | 'YELLOW' | 'RED' | 'BLUE' | 'GREY'; meaning: string; short: string; dot: string }> {
   // The dot shows the colour; no colour word ("צהוב" is not a word the teacher reads, owner 27.9.2026).
   // `short` fits one line of the colour map at 320px (owner, 11.10.2026); the full sentence is its tooltip.
+  // `short` is the state's name as the tile's tag says it (PRD Module 18 §ב), so one state has one name.
   return [
-    { color: 'GREEN', meaning: `עובד (פעולה ב-${thresholdSeconds} השניות האחרונות)`, short: 'עובד', dot: 'bg-emerald-500' },
-    { color: 'YELLOW', meaning: `היסוס: ${thresholdSeconds} שניות בלי פעולה`, short: `היסוס: ${thresholdSeconds} שנ׳ בלי פעולה`, dot: 'bg-amber-400' },
-    { color: 'RED', meaning: `${CARD_OPEN_HE} אצלו`, short: CARD_OPEN_HE, dot: 'bg-rose-500' },
-    { color: 'BLUE', meaning: 'קרא למורה', short: 'קרא למורה', dot: 'bg-blue-500' },
-    { color: 'GREY', meaning: 'לא מחובר או לא התחיל את המפגש', short: 'לא מחובר / לא התחיל', dot: 'bg-slate-300 dark:bg-slate-600' },
+    { color: 'GREEN', meaning: `עובד (פעולה ב-${thresholdSeconds} השניות האחרונות)`, short: STATE_NAME_HE.GREEN, dot: 'bg-emerald-500' },
+    { color: 'YELLOW', meaning: `היסוס: ${thresholdSeconds} שניות בלי פעולה`, short: STATE_NAME_HE.YELLOW, dot: 'bg-amber-400' },
+    { color: 'RED', meaning: `${CARD_OPEN_HE} אצלו`, short: STATE_NAME_HE.RED, dot: 'bg-rose-500' },
+    { color: 'BLUE', meaning: 'קרא למורה', short: STATE_NAME_HE.BLUE, dot: 'bg-blue-500' },
+    { color: 'GREY', meaning: 'לא מחובר או לא התחיל את המפגש', short: STATE_NAME_HE.GREY, dot: 'bg-slate-300 dark:bg-slate-600' },
   ];
 }
 
@@ -152,16 +165,17 @@ export function tileHoverLinesHe(
   ctx: { colour: RadarColor; thresholdSeconds: number; now: number; openMediation: number; inOpenMeeting: boolean }
 ): string[] {
   const lines: string[] = [];
+  // The state's name first, as the tile's tag and the colour map say it (PRD Module 18 §ב), then why.
   if (ctx.colour === 'BLUE') {
-    lines.push(student.helpSince != null ? `קרא למורה · ${TILE_HE.waiting(elapsedClockHe(ctx.now - student.helpSince))}` : 'קרא למורה');
+    lines.push(student.helpSince != null ? `${STATE_NAME_HE.BLUE} · ${TILE_HE.waiting(elapsedClockHe(ctx.now - student.helpSince))}` : STATE_NAME_HE.BLUE);
   } else if (ctx.colour === 'RED') {
-    lines.push(student.cardSince != null ? `${CARD_OPEN_HE} · ${elapsedClockHe(ctx.now - student.cardSince)}` : CARD_OPEN_HE);
+    lines.push(student.cardSince != null ? `${STATE_NAME_HE.RED} · ${elapsedClockHe(ctx.now - student.cardSince)}` : STATE_NAME_HE.RED);
   } else if (ctx.colour === 'YELLOW') {
-    lines.push(`היסוס: ${student.hesitationSeconds} שניות בלי פעולה`);
+    lines.push(`${STATE_NAME_HE.YELLOW} · ${student.hesitationSeconds} שניות בלי פעולה`);
   } else if (ctx.colour === 'GREY') {
-    lines.push(!student.isOnline ? 'לא מחובר' : 'לא התחיל את המפגש');
+    lines.push(!student.isOnline ? 'מנותק' : 'טרם התחיל את המפגש');
   } else {
-    lines.push(`עובד (פעולה ב-${ctx.thresholdSeconds} השניות האחרונות)`);
+    lines.push(`${STATE_NAME_HE.GREEN} · פעולה ב-${ctx.thresholdSeconds} השניות האחרונות`);
   }
   // Isolated left-to-right (U+2066 … U+2069), so "352 + 61" never reads backwards inside the Hebrew line.
   const exercise = student.exercise ? `\u2066${student.exercise.a} ${student.exercise.subtraction ? '−' : '+'} ${student.exercise.b}\u2069` : null;
@@ -358,6 +372,31 @@ function RadarApproveButtons({
       })}
     </>
   );
+}
+
+/** The id of the gate row on a learner's tile: the approval the action queue and the band above the radar lead to. */
+export const tileGateRowId = (studentNumber: number) => `radar-gate-row-${studentNumber}`;
+
+/**
+ * Brings the learner's tile approval into view and puts the focus on its first approve button (no smooth
+ * scroll: the radar stays calm). False when the tile has no gate row on screen.
+ */
+export function focusTileGateApproval(studentNumber: number): boolean {
+  if (typeof document === 'undefined') return false;
+  const row = document.getElementById(tileGateRowId(studentNumber));
+  if (!row) return false;
+  row.scrollIntoView?.({ block: 'nearest' });
+  row.querySelector<HTMLButtonElement>('button')?.focus();
+  return true;
+}
+
+/** The research export's `session_number`: every meeting, or one meeting 1–8 (exportResearchDataset accepts both). */
+export type ResearchExportScope = 'all' | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export const RESEARCH_EXPORT_SCOPES: readonly ResearchExportScope[] = ['all', 1, 2, 3, 4, 5, 6, 7, 8];
+
+/** The scope in words: the choice next to the export button, and the success message. */
+export function researchExportScopeHe(scope: ResearchExportScope): string {
+  return scope === 'all' ? 'כל המפגשים' : `מפגש ${scope}`;
 }
 
 /**
@@ -788,68 +827,17 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   // A row of the colour map pressed: the tiles in that state get an outline (no colour change, no motion).
   const highlightColour = useRadarHighlight();
 
-  const getPedagogicalRecommendations = (student: AnonymousStudent) => {
-    if (student.errorCount >= 3 || student.lastAction?.includes('ללא פריטה')) {
-      return {
-        category: 'קושי בפריטה והמרה עשרונית',
-        questions: [
-          'איך אפשר לייצג את המספר בצורה נוספת באמצעות עשרות ויחידות?',
-          'מה קורה כאשר מגיעים ל-10 יחידות בעמודת היחידות בבית המספרים?',
-          'מדוע נדרש לפרוט עשרת אחת לפני שניתן לחסר מתוך עמודת היחידות?'
-        ]
-      };
-    }
-    if (student.hesitationSeconds >= getHesitationThresholdSeconds()) {
-      return {
-        category: `עומס קוגניטיבי / השהייה מעל ${getHesitationThresholdSeconds()} שניות`,
-        questions: [
-          'איזה צעד ראשון שקלתם לבצע? מה גורם לכם להתלבט בטור הפעיל?',
-          'איזה כלי עזר בבית המספרים יכול לעזור לכם להתחיל?',
-          'האם תרצו שנבדוק יחד דוגמה פשוטה יותר במספרים קטנים?'
-        ]
-      };
-    }
-    if (student.isSocraticActive) {
-      return {
-        category: CARD_OPEN_HE,
-        questions: [
-          'התלמיד מתמודד עם שאלת חקר מנחה.',
-          'מומלץ לאפשר לו לחשוב עצמאית לפני התערבות פרונטלית.',
-          'בדקו האם השאלה בכרטיס החניכה מכוונת אותו למקור השגיאה.'
-        ]
-      };
-    }
-    if (student.currentPath === 'צמצום פערים') {
-      return {
-        category: `${ROUTE_NAME_HE.remediation_path} - חיזוק תפיסת המבנה`,
-        questions: [
-          'מה מייצגת כל ספרה במספר הזה לפי עמודת הערך המקומי שלה?',
-          'מה תפקיד הספרה 0 במספר? מה ישתנה אם נשמיט אותה?',
-          'איך ניתן לבדוק את התוצאה שקיבלתם באמצעות חישוב הפוך?'
-        ]
-      };
-    }
-    return {
-      // The route's name only when the gate approved it (never green by default).
-      category: student.currentPath === 'ירוק' ? `שיח פדגוגי מעמיק (${ROUTE_NAME_HE.green_path})` : 'שיח פדגוגי מעמיק',
-      questions: [
-        'איזו אסטרטגיה בחרתם לפתרון הבעיה ומדוע היא יעילה בעיניכם?',
-        'האם קיימת דרך נוספת להגיע לאותה התוצאה?',
-        'איך תוכלו להסביר את תהליך הפתרון לחבר בכיתה?'
-      ]
-    };
-  };
-
   const [isResettingClass, setIsResettingClass] = useState(false);
   const [isExportingDataset, setIsExportingDataset] = useState(false);
+  // The export's scope, chosen next to its button: every meeting (the default — owner, 5.9.2026: the research
+  // is the whole process) or one meeting 1–8 (PRD Module 24; the server takes either).
+  const [exportScope, setExportScope] = useState<ResearchExportScope>('all');
 
   const handleExportResearchDataset = async () => {
     setIsExportingDataset(true);
     try {
       const exportFn = httpsCallable(functions, 'exportResearchDataset', { timeout: 540_000 });
-      // Owner decision (5.9.2026): the research is the whole process, so the
-      // export covers every meeting of every learner, not just the live one.
-      const res: any = await exportFn({ class_id: 'class_1', session_number: 'all' });
+      const res: any = await exportFn({ class_id: 'class_1', session_number: exportScope });
       if (res?.data?.status === 'SUCCESS') {
         const counts = res.data.rowCounts && typeof res.data.rowCounts === 'object'
           ? Object.entries(res.data.rowCounts as Record<string, number>).map(([k, v]) => `${k}: ${v}`).join(' · ')
@@ -883,7 +871,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           });
         }
         if (failedFiles.length === 0 && parked.length === 0) {
-          toast.success(`ייצוא נתוני המחקר (כל המפגשים) נשמר בדרייב, תיקייה "02 נתוני מחקר". ${counts}`);
+          toast.success(`ייצוא נתוני המחקר (${researchExportScopeHe(exportScope)}) נשמר בדרייב, בתיקייה "2 נתוני מחקר". ${counts}`);
         }
       } else {
         toast.warning('הייצוא הסתיים אך ללא אישור מפורש מהשרת. בדקו את תיקיית Drive.');
@@ -945,7 +933,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   };
 
   // The learner window reads the live list, not the copy taken when the tile
-  // was clicked: the meeting, the path, the classifications and the questions
+  // was clicked: the meeting, the path and the classifications
   // stayed as they were at the click until the window was reopened.
   const liveSelectedStudent = selectedStudent
     ? students.find((s) => s.id === selectedStudent.id) ?? selectedStudent
@@ -968,15 +956,29 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">12 תלמידים</span>
             </h2>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Module 24 §ב — teacher-triggered raw research dataset export.
                   exportResearchDataset already existed server-side; this was
                   the only UI affordance for it anywhere in the app. */}
+              <label className="sr-only" htmlFor="research-export-scope">היקף הייצוא</label>
+              <select
+                id="research-export-scope"
+                data-testid="research-export-scope"
+                value={String(exportScope)}
+                onChange={(e) => setExportScope(e.target.value === 'all' ? 'all' : (Number(e.target.value) as ResearchExportScope))}
+                disabled={isExportingDataset}
+                title="היקף הייצוא: כל המפגשים או מפגש אחד"
+                className="px-2 py-1 min-h-8 rounded-lg border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+              >
+                {RESEARCH_EXPORT_SCOPES.map((scope) => (
+                  <option key={String(scope)} value={String(scope)}>{researchExportScopeHe(scope)}</option>
+                ))}
+              </select>
               <button
                 onClick={handleExportResearchDataset}
                 disabled={isExportingDataset}
                 className="px-2.5 py-1 min-h-8 rounded-lg border border-slate-200 hover:bg-slate-50 bg-white dark:bg-slate-900 dark:hover:bg-slate-800 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
-                title="ייצוא נתוני מחקר גולמיים ואנונימיים (טלמטריה, מפגשים, רפלקציות, לוג איפוסים) ל-Drive"
+                title="ייצוא נתוני מחקר גולמיים ואנונימיים (פעולות, מפגשים, הקלטות, רפלקציות, יומן איפוסים, תיווך המורה) ל-Drive"
               >
                 <FileDown className="w-3.5 h-3.5" />
                 <span>{isExportingDataset ? 'מייצא...' : 'ייצוא נתוני מחקר'}</span>
@@ -1042,7 +1044,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <button
                 onClick={() => { setResetMenuOpen(false); handleResetAllClass(); }}
                 disabled={readOnly || isResettingClass}
-                className="w-full px-3 py-2.5 min-h-11 rounded-xl border border-rose-300 hover:border-rose-500 bg-white hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                className="w-full px-3 py-2.5 min-h-11 rounded-xl border-2 border-stone-400 hover:border-stone-600 bg-white hover:bg-stone-50 dark:bg-slate-800 dark:hover:bg-stone-900/40 dark:border-stone-600 text-stone-900 dark:text-stone-100 text-xs font-extrabold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
                 title={readOnly ? READ_ONLY_TITLE : "מוחק את כל נתוני הלמידה של 12 התלמידים, אחרי שנשמר גיבוי"}
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${isResettingClass ? 'animate-spin' : ''}`} />
@@ -1077,14 +1079,22 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   : `${pendingGateStudents.length} תלמידים סיימו את שלב האבחון וממתינים ב${TEACHER_GATE_HE} לפני מפגש 3`}
               </span>
             </div>
+            {/* No approve buttons here (owner, 11.10.2026): the approval is on the learner's tile and in
+                "ניהול כיתה ומסלולים". Each learner leads to the approval on their tile. */}
             <div className="flex items-center gap-2.5 flex-wrap">
               {pendingGateStudents.map(st => {
                 return (
-                  <div key={st.id} className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-2.5 min-h-11 rounded-xl border border-violet-200 dark:border-violet-800 shadow-xs">
+                  <button
+                    key={st.id}
+                    type="button"
+                    data-testid={`gate-band-learner-${st.studentNumber}`}
+                    onClick={() => focusTileGateApproval(st.studentNumber)}
+                    title="מעבר לאישור המסלול במשבצת התלמיד"
+                    className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3 py-2.5 min-h-11 rounded-xl border border-violet-200 dark:border-violet-800 shadow-xs hover:bg-violet-50 dark:hover:bg-slate-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+                  >
                     <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">תלמיד {st.studentNumber}</span>
                     <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">המלצה: {radarPathLabelHe(st.recommendedPath)}</span>
-                    <RadarApproveButtons student={st} approvingStudentId={approvingStudentId} onApprove={handleApproveGate} />
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -1161,8 +1171,9 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 }${student.helpRequested ? ' ring-2 ring-blue-500 dark:ring-blue-400' : ''}${highlightColour !== null && tileColourOf(student) === highlightColour ? ' outline outline-[3px] outline-offset-2 outline-slate-900 dark:outline-slate-100' : ''}`}
               >
                 {/* The approved level as a thin stripe on the tile's edge (core/routeColors.ts), next to its name in the
-                    path tag below — never the background, which stays the status colour (PRD Module 18 §ב). */}
-                {student.isOnline && student.currentPath && (
+                    path tag below — never the background, which stays the status colour (PRD Module 18 §ב). Also while the
+                    learner is offline: the level does not change with the connection. */}
+                {student.currentPath && (
                   <span
                     aria-hidden="true"
                     data-testid={`tile-stripe-${student.studentNumber}`}
@@ -1291,9 +1302,9 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                             {TILE_HE.cardOpen(elapsedClockHe(clockNow - student.cardSince))}
                           </span>
                         ) : null}
-                        {/* No approved path, no path tag. */}
+                        {/* No approved path, no path tag. At every width (owner, 11.10.2026): it truncates on a narrow tile, the full name is its tooltip. */}
                         {student.currentPath && (
-                          <span data-testid={`tile-path-${student.studentNumber}`} className="hidden min-[1440px]:inline min-w-0 truncate whitespace-nowrap text-[11px] font-normal text-slate-500 dark:text-slate-400">
+                          <span data-testid={`tile-path-${student.studentNumber}`} title={radarPathLabelHe(student.currentPath)} className="min-w-0 truncate whitespace-nowrap text-[11px] font-normal text-slate-500 dark:text-slate-400">
                             {radarPathLabelHe(student.currentPath)}
                           </span>
                         )}
@@ -1331,6 +1342,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     מ.5). Shown whether or not the learner is connected. */}
                 {student.isWaitingAtGate && (
                   <div
+                    id={tileGateRowId(student.studentNumber)}
                     data-testid={`gate-row-student-${student.studentNumber}`}
                     className="mt-2 pt-2 border-t border-slate-300/80 dark:border-slate-600/80 flex flex-col gap-1 z-10"
                     onClick={e => e.stopPropagation()}
@@ -1471,10 +1483,11 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 {(() => {
                   const dist = liveSelectedStudent.errorCategoryDistribution || { calculation: 0, procedural: 0, conceptual: 0 };
                   const total = dist.calculation + dist.procedural + dist.conceptual;
+                  // Grey and the brand violet only: the radar keeps its five colours for itself (PRD Module 18); the letter and the name carry the meaning.
                   const rows = [
-                    { key: 'calculation', glyph: 'ח', label: ERROR_CATEGORY_HE.calculation, count: dist.calculation, bar: 'bg-sky-500' },
-                    { key: 'procedural', glyph: 'ר', label: ERROR_CATEGORY_HE.procedural, count: dist.procedural, bar: 'bg-violet-500' },
-                    { key: 'conceptual', glyph: 'מ', label: ERROR_CATEGORY_HE.conceptual, count: dist.conceptual, bar: 'bg-rose-500' },
+                    { key: 'calculation', glyph: 'ח', label: ERROR_CATEGORY_HE.calculation, count: dist.calculation, bar: 'bg-slate-400 dark:bg-slate-500' },
+                    { key: 'procedural', glyph: 'ר', label: ERROR_CATEGORY_HE.procedural, count: dist.procedural, bar: 'bg-violet-400' },
+                    { key: 'conceptual', glyph: 'מ', label: ERROR_CATEGORY_HE.conceptual, count: dist.conceptual, bar: 'bg-violet-800 dark:bg-violet-300' },
                   ];
                   return (
                     <div className="mb-6 p-4 rounded-2xl bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
@@ -1510,29 +1523,6 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                           ))}
                         </div>
                       )}
-                    </div>
-                  );
-                })()}
-
-                {/* Pedagogical Recommendations */}
-                {(() => {
-                  const rec = getPedagogicalRecommendations(liveSelectedStudent);
-                  return (
-                    <div className="p-5 rounded-2xl bg-violet-50/70 dark:bg-slate-800/80 border border-violet-100 dark:border-slate-700 mb-6">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-lg">💡</span>
-                        <h4 className="font-extrabold text-sm text-violet-950 dark:text-violet-200">
-                          {rec.category}
-                        </h4>
-                      </div>
-                      <ul className="flex flex-col gap-2">
-                        {rec.questions.map((q, i) => (
-                          <li key={i} className="text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
-                            <span className="text-violet-500 font-bold">•</span>
-                            <span>{q}</span>
-                          </li>
-                        ))}
-                      </ul>
                     </div>
                   );
                 })()}

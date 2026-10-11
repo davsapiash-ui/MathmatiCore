@@ -225,7 +225,7 @@ describe('Meeting 2, task 1 — one box, judged like task 2 (owner, 4.10.2026)',
 
 describe('diagnosticDigitTask', () => {
   it('task 1 has no per-digit target (owner, 4.10.2026)', () => {
-    expect(diagnosticDigitTask({ ...initQFlow(), taskIdx: taskIdx('task1_read_write_zero') }, false)).toBeNull();
+    expect(diagnosticDigitTask({ ...initQFlow(), taskIdx: taskIdx('task1_read_write_zero') })).toBeNull();
   });
 
   it('in the correction round’s simpler exercise, digits follow the probe (40 − 10 = 30), as proceedQ does', () => {
@@ -236,7 +236,7 @@ describe('diagnosticDigitTask', () => {
       failedTasks: ['task3_subtraction_regrouping'],
       taskIdx: taskIdx('task3_subtraction_regrouping'),
     };
-    expect(diagnosticDigitTask(qflow, false)).toMatchObject({ numberA: 40, numberB: 10, correctAnswer: 30, isSubtraction: true });
+    expect(diagnosticDigitTask(qflow)).toMatchObject({ numberA: 40, numberB: 10, correctAnswer: 30, isSubtraction: true });
   });
 
   it('in the retry, digits follow the task itself', () => {
@@ -247,10 +247,10 @@ describe('diagnosticDigitTask', () => {
       failedTasks: ['task3_subtraction_regrouping'],
       taskIdx: taskIdx('task3_subtraction_regrouping'),
     };
-    expect(diagnosticDigitTask(qflow, false)).toMatchObject({ numberA: 42, numberB: 15, correctAnswer: 27 });
+    expect(diagnosticDigitTask(qflow)).toMatchObject({ numberA: 42, numberB: 15, correctAnswer: 27 });
   });
 
   it('task 2 has no per-digit target', () => {
-    expect(diagnosticDigitTask({ ...initQFlow(), taskIdx: taskIdx('task2_digit_value') }, false)).toBeNull();
+    expect(diagnosticDigitTask({ ...initQFlow(), taskIdx: taskIdx('task2_digit_value') })).toBeNull();
   });
 });

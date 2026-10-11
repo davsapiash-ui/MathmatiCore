@@ -21,8 +21,6 @@ export interface RouteColor {
   /** An approve button: pressed (the approved level) and not. */
   buttonOn: string;
   buttonOff: string;
-  /** A selectable card (the gate drawer): chosen. */
-  cardOn: string;
 }
 
 export const ROUTE_COLOR: Readonly<Record<RoutePath, RouteColor>> = {
@@ -30,9 +28,9 @@ export const ROUTE_COLOR: Readonly<Record<RoutePath, RouteColor>> = {
     stripe: 'bg-emerald-300 dark:bg-emerald-700',
     dot: 'bg-emerald-600',
     chip: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200',
-    buttonOn: 'bg-emerald-700 text-white shadow-sm',
-    buttonOff: 'bg-white text-emerald-900 border border-emerald-300 hover:bg-emerald-50 dark:bg-slate-800 dark:text-emerald-200 dark:border-emerald-800',
-    cardOn: 'border-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20',
+    // Green is the green path's tag only (PRD Module 18 §ב): its approve buttons are the brand violet.
+    buttonOn: 'bg-violet-700 text-white shadow-sm',
+    buttonOff: 'bg-white text-violet-900 border border-violet-300 hover:bg-violet-50 dark:bg-slate-800 dark:text-violet-200 dark:border-violet-800',
   },
   remediation_path: {
     stripe: 'bg-stone-300 dark:bg-stone-600',
@@ -40,7 +38,6 @@ export const ROUTE_COLOR: Readonly<Record<RoutePath, RouteColor>> = {
     chip: 'bg-stone-100 text-stone-800 dark:bg-stone-900/60 dark:text-stone-200',
     buttonOn: 'bg-stone-600 text-white shadow-sm',
     buttonOff: 'bg-white text-stone-800 border border-stone-300 hover:bg-stone-50 dark:bg-slate-800 dark:text-stone-200 dark:border-stone-700',
-    cardOn: 'border-stone-600 bg-stone-50/60 dark:bg-stone-950/40 ring-2 ring-stone-500/20',
   },
   graded_path: {
     stripe: 'bg-violet-400 dark:bg-violet-500',
@@ -48,7 +45,6 @@ export const ROUTE_COLOR: Readonly<Record<RoutePath, RouteColor>> = {
     chip: 'bg-violet-100 text-violet-900 dark:bg-violet-950/60 dark:text-violet-200',
     buttonOn: 'bg-violet-700 text-white shadow-sm',
     buttonOff: 'bg-white text-violet-900 border border-violet-300 hover:bg-violet-50 dark:bg-slate-800 dark:text-violet-200 dark:border-violet-800',
-    cardOn: 'border-violet-600 bg-violet-50/60 dark:bg-violet-950/40 ring-2 ring-violet-500/20',
   },
   // Module 18 §ב: outside the radar's status colours the staff screens use the brand violet and greys only, so the
   // foundations level is the graded level's light shade, set apart by its outline.
@@ -58,6 +54,5 @@ export const ROUTE_COLOR: Readonly<Record<RoutePath, RouteColor>> = {
     chip: 'bg-violet-50 text-violet-800 border border-violet-300 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-700',
     buttonOn: 'bg-violet-200 text-violet-950 border-2 border-violet-500 shadow-sm',
     buttonOff: 'bg-white text-violet-800 border border-dashed border-violet-300 hover:bg-violet-50 dark:bg-slate-800 dark:text-violet-200 dark:border-violet-700',
-    cardOn: 'border-violet-400 bg-violet-50/40 dark:bg-violet-950/20 ring-2 ring-violet-300/30',
   },
 };

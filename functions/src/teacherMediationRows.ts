@@ -90,6 +90,15 @@ const TEACHER_ACTION_HE: Record<string, string> = {
 /** The join key of a learner chat message: the same as the client's chatEventRef (core/teacherMediation.ts). */
 export const chatMediationRef = (pushId: string): string => "chat:" + pushId;
 
+/**
+ * A help call from the chat is logged twice: the CHAT_HELP_REQUESTED event and
+ * the learner's chat message. The teacher records it once, on the help call;
+ * a learner message within this window of a chat help call of the same learner
+ * is that call. The same rule and window as the client's mergeMediationEvents
+ * (react-ts-version core/teacherMediation.ts CHAT_HELP_PAIR_MS).
+ */
+export const CHAT_HELP_PAIR_MS = 10_000;
+
 /** A stored teacher_mediation_log record, or null when it is not one. Closed values only. */
 function teacherRecordOf(data: Record<string, any>): { ref: string | null; action: string; dataLed: string; at: number; n: number; meeting: number; timeMs: number } | null {
   const n = learnerNumber(data.student_id);
@@ -109,7 +118,8 @@ function teacherRecordOf(data: Record<string, any>): { ref: string | null; actio
 }
 
 export function buildTeacherMediationRows(input: MediationInput, scopedSession: number | null): MediationRow[] {
-  const rows: Array<MediationRow & { _ms: number; _join: string }> = [];
+  // _pair: the chat help call a learner message belongs to (CHAT_HELP_PAIR_MS), whose record covers it.
+  const rows: Array<MediationRow & { _ms: number; _join: string; _pair?: string }> = [];
 
   // The window each learner worked in each meeting, from the telemetry, to place
   // an event that carries no meeting (a chat message, a profile change) when the
@@ -179,7 +189,27 @@ export function buildTeacherMediationRows(input: MediationInput, scopedSession: 
     push(data.client_timestamp, learnerNumber(data.student_id), meeting, kind, "telemetry", id, code, num);
   }
 
+  // The chat help calls, per learner, for the pairing below (CHAT_HELP_PAIR_MS).
+  const chatHelpCalls: Array<{ id: string; n: number; at: number }> = [];
+  for (const { id, data } of input.telemetry) {
+    if (String(data.event_type) !== "CHAT_HELP_REQUESTED") continue;
+    const n = learnerNumber(data.student_id);
+    const at = data.client_timestamp;
+    if (n !== null && typeof at === "number" && Number.isFinite(at) && at > 0) chatHelpCalls.push({ id, n, at });
+  }
+  const pairedHelpCall = (n: number, at: unknown): string | undefined => {
+    if (typeof at !== "number" || !Number.isFinite(at)) return undefined;
+    let best: { id: string; d: number } | undefined;
+    for (const h of chatHelpCalls) {
+      const d = Math.abs(h.at - at);
+      if (h.n === n && d <= CHAT_HELP_PAIR_MS && (!best || d < best.d)) best = { id: h.id, d };
+    }
+    return best?.id;
+  };
+
   // 2. Chat: who wrote, when, how long. The text is never exported (no server filter, names pass).
+  // Whether the teacher read a message is not claimed: detail_code stays blank
+  // for every chat row (the stored flag does not say she read it).
   for (const [room, messages] of Object.entries(input.chat ?? {})) {
     const n = learnerNumber(room);
     if (n === null || !messages || typeof messages !== "object") continue;
@@ -187,6 +217,7 @@ export function buildTeacherMediationRows(input: MediationInput, scopedSession: 
       if (!raw || typeof raw !== "object") continue;
       const fromLearner = /^student_user\d+$/.test(String(raw.senderId ?? ""));
       const length = typeof raw.text === "string" ? raw.text.length : "";
+      const before = rows.length;
       push(
         raw.timestamp,
         n,
@@ -194,11 +225,13 @@ export function buildTeacherMediationRows(input: MediationInput, scopedSession: 
         fromLearner ? "chat_learner_message" : "chat_teacher_message",
         "chat",
         "",
-        fromLearner ? "" : raw.read === true ? "read" : "unread",
+        "",
         length,
         // ref_id stays blank for chat; the teacher's record joins on the push id.
         chatMediationRef(pushId),
       );
+      // A learner message that is a chat help call takes the help call's record (the client lists it once, on the call).
+      if (fromLearner && rows.length > before) rows[rows.length - 1]._pair = pairedHelpCall(n, raw.timestamp);
     }
   }
 
@@ -262,7 +295,9 @@ export function buildTeacherMediationRows(input: MediationInput, scopedSession: 
     if (!prev || r.at >= prev.at) latest.set(r.ref, r);
   }
   for (const row of rows) {
-    const r = row._join ? latest.get(row._join) : undefined;
+    // Its own record first; a learner message paired with a chat help call then takes the call's.
+    const own = row._join ? latest.get(row._join) : undefined;
+    const r = own && own.n === row.student_id ? own : row._pair ? latest.get(row._pair) : undefined;
     if (!r || r.n !== row.student_id) continue;
     row.teacher_action = r.action;
     row.data_led = r.dataLed;
@@ -276,5 +311,5 @@ export function buildTeacherMediationRows(input: MediationInput, scopedSession: 
         a._ms - b._ms ||
         String(a.event_kind).localeCompare(String(b.event_kind)),
     )
-    .map(({ _ms, _join, ...row }) => row);
+    .map(({ _ms, _join, _pair, ...row }) => row);
 }

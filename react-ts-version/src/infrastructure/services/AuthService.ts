@@ -28,12 +28,48 @@ export async function addAuthorizedTeacherFirestore(email: string, role: "teache
   // "non-blocking" warning while the wizard reported success, and the new
   // teacher was then refused at Google sign-in with no way to tell why.
   const teacherDocRef = doc(firestore, "authorizedTeachers", normalized);
+  // Owner, 11.10.2026: an address already on the list keeps its role and its
+  // readOnly mark. The pilot reset re-authorises the pilot teacher's address,
+  // which is also the owner's admin address (dual account, register gap יא),
+  // and writing role "teacher" over it took the admin's console away. The role
+  // is written only when the document is new; an existing one gets its address
+  // and school only.
+  const existing = await getDoc(teacherDocRef);
+  if (existing.exists()) {
+    await setDoc(teacherDocRef, {
+      email: normalized,
+      ...(schoolId ? { schoolId } : {}),
+    }, { merge: true });
+    return;
+  }
   await setDoc(teacherDocRef, {
     email: normalized,
     role,
     schoolId: schoolId || "",
     createdAt: Date.now(),
   }, { merge: true });
+}
+
+/**
+ * Owner, 11.10.2026: removing a teacher never removes an admin entry or a
+ * read-only entry (the lecturers). Both are read from the address's own
+ * authorizedTeachers document — the list the console shows.
+ */
+export function isProtectedStaffEntry(data: Record<string, unknown> | null | undefined): boolean {
+  return data?.role === "admin" || data?.readOnly === true;
+}
+
+/** The refusal the console shows when a protected entry is asked to be removed. */
+export const PROTECTED_STAFF_REMOVAL_ERROR = "staff/protected-entry";
+
+/** Throws PROTECTED_STAFF_REMOVAL_ERROR when the address is an admin or a read-only entry. */
+export async function assertRemovableStaff(email: string): Promise<void> {
+  const normalized = email.toLowerCase().trim();
+  if (!normalized || !isFirestoreAvailable()) return;
+  const existing = await getDoc(doc(firestore, "authorizedTeachers", normalized));
+  if (existing.exists() && isProtectedStaffEntry(existing.data())) {
+    throw Object.assign(new Error(PROTECTED_STAFF_REMOVAL_ERROR), { code: PROTECTED_STAFF_REMOVAL_ERROR });
+  }
 }
 
 /** Revokes a teacher's login: removes the whitelist document syncUserRoles stamps claims from. */
@@ -43,9 +79,10 @@ export async function removeAuthorizedTeacherFirestore(email: string): Promise<v
   const ref = doc(firestore, "authorizedTeachers", normalized);
   // Removing a teacher never removes an admin: the owner's own address can
   // also sit in the teacher list (dual account, register gap יא), and deleting
-  // its entry would strip the admin's claims (revokeRemovedStaff).
+  // its entry would strip the admin's claims (revokeRemovedStaff). Nor a
+  // read-only lecturer (owner, 11.10.2026).
   const existing = await getDoc(ref);
-  if (existing.exists() && existing.data()?.role === "admin") return;
+  if (existing.exists() && isProtectedStaffEntry(existing.data())) return;
   await deleteDoc(ref);
 }
 
@@ -169,6 +206,9 @@ export function isWhitelistedTeacherEmail(email?: string | null): boolean {
  * school-less record "1002220159" on first sign-in, which the console then
  * counted as another teacher. Non-blocking: the security rules only let an
  * admin write here, so for a plain teacher this is a no-op by design.
+ *
+ * Module 25 §ב.3: the record carries no e-mail address. Staff addresses are
+ * kept in authorizedTeachers and Firebase Auth only.
  */
 async function ensureTeacherRecord(email: string): Promise<void> {
   const key = teacherRecordKey(email);
@@ -181,8 +221,6 @@ async function ensureTeacherRecord(email: string): Promise<void> {
     if (current.exists() || (legacy && legacy.exists())) return;
     await set(ref(database, `users/teachers/${key}`), {
       id: key,
-      ssoEmail: email,
-      email,
       licenseActive: false,
       createdAt: Date.now()
     });

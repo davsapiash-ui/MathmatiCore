@@ -43,8 +43,9 @@ describe('Module 23 — Hebrew in the PDF reports', () => {
     expect(learner).toContain('rtlText(doc, report.ai_fallback_text || EXACT_AI_FALLBACK_TEXT, { lineGap: 3 });');
     expect(learner).toContain('rtlText(doc, "1. המלצת ניתוב פדגוגי");');
     // Section 2 in a scored meeting, 3 in meeting 1 (which opens with tools and refresh exercises).
-    expect(learner).toContain('rtlText(doc, `${sandbox ? "3" : "2"}. סיפור התרגילים הכרונולוגי`);');
-    expect(learner).toContain('rtlText(doc, sandbox ? "4. לקראת האבחון" : "3. תובנות קוגניטיביות פדגוגיות");');
+    // PRD 23 §ב names the chapters "סיפור התרגילים" and "פערי הידע והמלצות ההוראה".
+    expect(learner).toContain('rtlText(doc, `${sandbox ? "3" : "2"}. סיפור התרגילים`);');
+    expect(learner).toContain('rtlText(doc, sandbox ? "4. לקראת האבחון" : "3. פערי הידע והמלצות ההוראה");');
     expect(klass).toContain('line(EXACT_AI_FALLBACK_TEXT, 10, "#78350f");');
   });
 });

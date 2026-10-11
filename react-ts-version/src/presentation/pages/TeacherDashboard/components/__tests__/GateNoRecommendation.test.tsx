@@ -34,7 +34,7 @@ import { TeacherApprovalGate } from '../TeacherApprovalGate';
 import { TeacherGateApprovalDrawer } from '../TeacherGateApprovalDrawer';
 import { buildGateStudentItem, buildGateStudentItems, gateLearnerNumber } from '../../gateEvidence';
 import { TASKS, Q_FAIL_TAG, diagnosticTaskLabelHe } from '@/core/QMatrix';
-import { ROUTE_NAME_HE } from '@/core/routeLabels';
+import { RECOMMENDED_MARK_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE } from '@/core/routeLabels';
 import type { StudentData } from '@/application/useStore';
 
 /**
@@ -125,31 +125,33 @@ describe('שלב החלוקה למסלולים, the whole-class approval', () =>
 });
 
 describe('the approval drawer (from the learner journey)', () => {
-  it('shows the matrix recommendation, the score and the tasks that need support', () => {
+  // The learner's two approve buttons, as on the row in "ניהול כיתה ומסלולים" (owner, 11.10.2026).
+  const approveButton = (path: keyof typeof ROUTE_APPROVE_HE) =>
+    screen.getByRole('button', { name: new RegExp(`^${ROUTE_APPROVE_HE[path]}`) }) as HTMLButtonElement;
+
+  it('shows the matrix recommendation, the score and the tasks that need support; the recommended button says "מומלץ", nothing preselected', () => {
     render(<TeacherGateApprovalDrawer student={students.student_user2} evidence={buildGateStudentItem(2, students, docs)} onClose={vi.fn()} />);
     expect(screen.getByTestId('gate-drawer-recommendation').textContent).toBe(ROUTE_NAME_HE.remediation_path);
     expect(screen.getByTestId('gate-drawer-score').textContent).toBe('29% (7 משימות חובה)');
     expect(screen.getByTestId('gate-drawer-support').textContent).toContain(diagnosticTaskLabelHe(failedTask));
-    expect(screen.getByRole('button', { name: new RegExp(`^${ROUTE_NAME_HE.remediation_path}`) }).getAttribute('aria-pressed')).toBe('true');
+    const remediation = approveButton('remediation_path');
+    expect(remediation.getAttribute('aria-label')).toBe(`${ROUTE_APPROVE_HE.remediation_path} (${RECOMMENDED_MARK_HE}) — תלמיד 2`);
+    expect(remediation.getAttribute('aria-pressed')).toBe('false');
+    expect(approveButton('green_path').getAttribute('aria-label')).toBe(`${ROUTE_APPROVE_HE.green_path} — תלמיד 2`);
   });
 
-  it('with no recommendation: "טרם נקבעה", nothing preselected, approve disabled until a path is chosen', () => {
+  it('with no recommendation: "טרם נקבעה", nothing marked or pressed; a press approves that level', () => {
     render(<TeacherGateApprovalDrawer student={students.student_user1} evidence={buildGateStudentItem(1, students, docs)} onClose={vi.fn()} />);
     expect(screen.getByTestId('gate-drawer-recommendation').textContent).toBe('טרם נקבעה');
     expect(screen.getByTestId('gate-drawer-score').textContent).toBe('טרם חושב');
     expect(screen.getByTestId('gate-drawer-support').textContent).toBe('לא נמצאו משימות הדורשות חיזוק.');
     expect(screen.getByTestId('gate-drawer-choose-hint')).toBeTruthy();
-    const green = screen.getByRole('button', { name: new RegExp(`^${ROUTE_NAME_HE.green_path}`) });
-    const remediation = screen.getByRole('button', { name: new RegExp(`^${ROUTE_NAME_HE.remediation_path}`) });
+    const green = approveButton('green_path');
+    const remediation = approveButton('remediation_path');
     expect(green.getAttribute('aria-pressed')).toBe('false');
     expect(remediation.getAttribute('aria-pressed')).toBe('false');
-    const approve = screen.getByRole('button', { name: /אשרו והפעילו/ }) as HTMLButtonElement;
-    expect(approve.disabled).toBe(true);
-
+    expect(screen.queryByTestId('recommended-mark')).toBeNull();
     fireEvent.click(green);
-    expect(approve.disabled).toBe(false);
-    expect(screen.queryByTestId('gate-drawer-choose-hint')).toBeNull();
-    fireEvent.click(approve);
     expect(approveTeacherGate).toHaveBeenCalledWith('student_user1', 'green_path', null);
   });
 });

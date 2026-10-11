@@ -118,7 +118,6 @@ describe('HARDCORE REALTIME CHAOS & UNCOMPROMISING STRESS TEST HARNESS', () => {
     useStore.setState({ students: {}, firebaseLoaded: false });
     useWorkspaceStore.setState({
       counts: { units: 0, tens: 0, hundreds: 0, thousands: 0 },
-      isASD: false,
       standardTaskIdx: 0,
       undoCount: 0,
       hesitationCount: 0,
@@ -245,7 +244,6 @@ describe('HARDCORE REALTIME CHAOS & UNCOMPROMISING STRESS TEST HARNESS', () => {
         for (let s = 1; s <= 15; s++) {
           const normId = normalizeStudentId(`user_${s}`);
           await syncService.syncPhysicalOverride(normId, {
-            isASD: true,
             physicalOverride: true,
             routeStatus: 'APPROVED'
           });

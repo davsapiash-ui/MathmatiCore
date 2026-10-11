@@ -80,8 +80,9 @@ describe('מודול 27 — מי כותב מה (סבב 1.10.2026)', () => {
     for (const name of ['students', 'users/students']) {
       const b = block(name);
       // canWrite(): a read-only staff account writes nothing (owner decision 11.10.2026).
-      expect(b, name).toContain('allow create: if canWrite() && isTeacher() && isValidStudentDoc() &&');
-      expect(b, name).toContain('allow update: if canWrite() && isTeacher() && isValidStudentDoc() &&');
+      // L62: and only the twelve pilot learners' ids (student_user1 … student_user12).
+      expect(b, name).toContain('allow create: if canWrite() && isTeacher() && isPilotLearnerDocId(studentId) && isValidStudentDoc() &&');
+      expect(b, name).toContain('allow update: if canWrite() && isTeacher() && isPilotLearnerDocId(studentId) && isValidStudentDoc() &&');
       expect(b, name).not.toMatch(/allow (create|update): if (canWrite\(\) && )?\(isTeacher\(\) \|\| isOwningStudent/);
       // קריאת המסמך של עצמו נשארת.
       expect(b, name).toContain('allow read: if (isTeacher() || isOwningStudent(studentId)) && !isAdmin();');

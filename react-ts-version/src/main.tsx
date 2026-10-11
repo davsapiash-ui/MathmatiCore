@@ -6,6 +6,7 @@ import { ErrorBoundary } from '@/presentation/components/ErrorBoundary'
 import '@/infrastructure/services/FirebaseSyncService'
 import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogService'
 import { fetchServerClockOffset } from '@/infrastructure/firebase'
+import { deviceCopiesReady } from '@/infrastructure/services/deviceCopyStore'
 
 // PRD v7.1 Modules 4/26: load the curriculum catalog (IndexedDB cache first,
 // Firestore refresh in background; hardcoded banks remain the offline fallback).
@@ -17,10 +18,16 @@ curriculumCatalog.init().catch(() => {})
 // בחצי שעה סוגר לעצמו מפגש שעדיין רץ.
 fetchServerClockOffset().catch(() => {})
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </StrictMode>,
-)
+// This device's copies of the learner's workspace live in IndexedDB (PRD
+// Modules 4, 8, 17; deviceCopyStore.ts). The restore reads them at once, so
+// they are read into memory before the first render — a moment, and never
+// more than 1.5 s, so a storage that does not answer cannot hold the app.
+Promise.race([deviceCopiesReady, new Promise<void>((resolve) => setTimeout(resolve, 1500))]).finally(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </StrictMode>,
+  )
+})

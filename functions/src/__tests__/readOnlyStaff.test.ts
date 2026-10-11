@@ -46,7 +46,6 @@ import { assertCanWrite, isReadOnlyToken, READ_ONLY_MESSAGE } from '../callerIde
 import { syncUserRoles } from '../syncUserRoles';
 import { approveTeacherGate } from '../teacherGate';
 import { backupAndResetSessionData } from '../exportDriveReport';
-import { createSessionWithServerDeadline } from '../sessionTrigger';
 import { sendTeacherAdminMessage } from '../teacherAdminChat';
 import { regenerateLearnerAccessCode } from '../learnerAccessCodes';
 import { moveLegacyRecordings } from '../moveLegacyRecordings';
@@ -171,14 +170,6 @@ describe('state-changing functions refuse a read-only staff caller', () => {
         data: { reset_level, reason: 'TECHNICAL_ISSUE', class_id: 'class_1', student_id: 3 },
       })).rejects.toMatchObject(refused);
     }
-    expect(h.dbTouched).toBe(0);
-  });
-
-  it('createSessionWithServerDeadline', async () => {
-    await expect(run(createSessionWithServerDeadline, {
-      auth: { uid: 'ro', token: RO_TEACHER },
-      data: { student_id: 3, class_id: 'class_1', session_number: 3 },
-    })).rejects.toMatchObject(refused);
     expect(h.dbTouched).toBe(0);
   });
 

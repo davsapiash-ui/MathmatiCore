@@ -3,9 +3,6 @@ import { useStudentChatOpen } from '@/application/useStudentChatOpen';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { useChatStore, normalizeStudentId, isTeacherOrAdminId } from '@/application/useChatStore';
 import { useAuthStore, currentStudentUid } from '@/application/useAuthStore';
-import { useStore } from '@/application/useStore';
-import { useAdminStore } from '@/application/useAdminStore';
-import { useActiveClassSession } from '@/application/useActiveClassSession';
 import { Check, CheckCheck, Send, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { validateChatInputForPII, anonymizeChatMessageBody, reportPiiFilterFailure } from '@/core/security/PiiFilter';
@@ -64,20 +61,19 @@ export function StudentChatOverlay() {
   const [text, setText] = useState('');
   const { messages, sendMessage, markAsRead, initSync } = useChatStore();
   const user = useAuthStore(s => s.user);
-  const activeSession = useActiveClassSession();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastReadySentRef = useRef<{ text: string; at: number } | null>(null);
 
-  const students = useStore(s => s.students);
-  const classes = useAdminStore(s => s.classes);
-  
   // חדר הצ'אט נגזר מהמזהה הקנוני. normalizeStudentId על מזהה Auth גולמי
   // תופס את הספרה הראשונה שבו וממפה אותה לתלמיד כלשהו — כלומר ההודעות
   // של ילד אחד היו יכולות להיכנס לשיחה של ילד אחר עם המורה.
   const normUid = currentStudentUid();
-  const studentData = normUid ? students[normUid] : null;
-  const studentClass = classes.find(c => c.id === studentData?.classId);
-  const targetTeacherId = studentClass?.teacherId || activeSession?.teacherId || '1002220159';
+  // The learner writes to "the teacher", never to a staff member's id: the
+  // teacher's screens find the conversation by the learner's number (ChatThread),
+  // and a staff id here was a key derived from an e-mail address, or a
+  // hard-coded one (Module 25 §ב.3: staff addresses live in authorizedTeachers
+  // and Firebase Auth only; invariant 1, Zero-PII).
+  const targetTeacherId = 'teacher';
 
   // Ensure chat is synced with Firebase on mount and on user authentication change
   useEffect(() => {
@@ -95,7 +91,6 @@ export function StudentChatOverlay() {
   useEffect(() => {
     if (isOpen && user?.uid) {
       markAsRead(normUid, targetTeacherId);
-      markAsRead(normUid, 'teacher');
       markAsRead(normUid, 'admin');
     }
   }, [isOpen, user?.uid, messages, markAsRead, normUid, targetTeacherId]);

@@ -246,17 +246,20 @@ export function WorkspaceTopbar({ isDragging = false }: WorkspaceTopbarProps) {
           )}
         </button>
         {!globalChatEnabled && (
-          // The button's own name says it already, so the tooltip is hidden
-          // from screen readers rather than read twice.
+          // The button's own name says it already, so the sentence itself is
+          // hidden from screen readers rather than read twice. Like every
+          // sentence on the learner's screen it has the standard read-aloud
+          // button, played only on the child's click (PRD Module 7 §א; owner,
+          // 11.10.2026). The note takes the pointer only while it is shown, so
+          // a hidden note never catches a click meant for what is under it.
           <span
-            role="tooltip"
-            aria-hidden="true"
             data-testid="chat-closed-tooltip"
-            className={`pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 z-30 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-md transition-opacity dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 group-hover:opacity-100 group-focus-within:opacity-100 ${
-              chatClosedNote !== null ? 'opacity-100' : 'opacity-0'
+            className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 z-30 flex items-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-md transition-opacity dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto ${
+              chatClosedNote !== null ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
             }`}
           >
-            {CHAT_CLOSED_HE}
+            <span role="tooltip" aria-hidden="true">{CHAT_CLOSED_HE}</span>
+            <UdlSpeechButton text={CHAT_CLOSED_HE} className="shrink-0" />
           </span>
         )}
         </span>

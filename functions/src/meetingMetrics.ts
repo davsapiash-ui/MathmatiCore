@@ -92,7 +92,9 @@ export function computeExerciseOutcomes(events: Record<string, any>[]): Record<s
     if (exId && !outcomes[exId]) outcomes[exId] = "incomplete";
     if (ev.event_type === "DIGIT_ENTERED" && ev.details?.is_correct === false) {
       if (exId) wrongInExercise.add(exId);
-    } else if (ev.event_type === "PROBLEM_COMPLETE" && exId) {
+    } else if (ev.event_type === "PROBLEM_COMPLETE" && exId && outcomes[exId] === "incomplete") {
+      // The first completion decides, as in the score: an exercise reopened and
+      // completed again after a wrong digit stays "first_try".
       outcomes[exId] = wrongInExercise.has(exId) ? "after_correction" : "first_try";
     }
   }
@@ -532,6 +534,12 @@ export interface MeetingSummary {
   place_cue_scaffolds: number;
   /** Requests for help from the chat (owner, 1.10.2026). Also help in measure 2א. */
   chat_help_requests: number;
+  /**
+   * PRD 23 §ב: PLACE_CUES_SHOWN "לפי הפרופיל שבו הופיעו" (Module 9 §א) — details.profile
+   * "regular" or "enhanced". An event with neither value counts in place_cue_scaffolds only.
+   */
+  place_cues_regular: number;
+  place_cues_enhanced: number;
 }
 
 /**
@@ -605,6 +613,8 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
     help_withdrawals: 0,
     place_cue_scaffolds: 0,
     chat_help_requests: 0,
+    place_cues_regular: 0,
+    place_cues_enhanced: 0,
   };
   for (const ev of events) {
     const t = typeof ev.client_timestamp === "number" ? ev.client_timestamp : null;
@@ -636,7 +646,11 @@ export function summarizeMeeting(events: Record<string, any>[]): MeetingSummary 
       case "KEYBOARD_LOCK_BLOCKED": s.keyboard_lock_blocks++; break;
       case "HELP_REQUESTED": s.help_requests++; break;
       case "HELP_WITHDRAWN": s.help_withdrawals++; break;
-      case "PLACE_CUES_SHOWN": s.place_cue_scaffolds++; break;
+      case "PLACE_CUES_SHOWN":
+        s.place_cue_scaffolds++;
+        if (ev.details?.profile === "regular") s.place_cues_regular++;
+        else if (ev.details?.profile === "enhanced") s.place_cues_enhanced++;
+        break;
       case "CHAT_HELP_REQUESTED": s.chat_help_requests++; break;
       default: break;
     }
@@ -755,19 +769,23 @@ export async function readMeetingTelemetry(
   db: admin.firestore.Firestore,
   studentNumber: number,
   sessionNumber: number,
-  options: { writtenAfterMs?: number | null } = {}
+  /**
+   * resetAtMs: the performed_at of the meeting's last reset (readLastResetOfMeeting);
+   * only the events after it are read (isAfterReset). writtenAfterMs is its old
+   * name and means the same.
+   */
+  options: { resetAtMs?: number | null; writtenAfterMs?: number | null } = {}
 ): Promise<Record<string, any>[]> {
   const snap = await db.collection("telemetry_logs").where("student_id", "==", studentNumber).get();
-  const after = options.writtenAfterMs;
+  const after = options.resetAtMs ?? options.writtenAfterMs ?? null;
   const docs = snap.docs
-    // The server's own write time, not the tablet's clock: a device clock that
-    // runs behind would otherwise drop the new run's events as "before".
-    .filter((d) => after == null || (d.createTime?.toMillis?.() ?? Infinity) > after)
     .map((d) => {
       const data = d.data();
       noteEventArrival(data, d.createTime?.toMillis?.() ?? null);
       return data;
     })
+    // PRD 23: by the event's client_timestamp, the arrival time only when it has none.
+    .filter((e) => isAfterReset(e, after))
     .filter((e) => sessionNumberFromId(String(e?.session_id || "")) === sessionNumber);
   docs.sort(compareTelemetryOrder);
   return docs;
@@ -841,8 +859,9 @@ export function resetsOfMeeting(
  *
  * Owner, 2.10.2026: "אני כן רוצה אבל שיהיה תיעוד איפה היו טעויות בלי הורדת
  * ציונים". The score, the working group and the exercise table of every report
- * count `current` only — the run since the last reset, by the server's write
- * time, as the meeting-2 gate score already did (PR #161). `beforeReset` is
+ * count `current` only — the run since the last reset, by each event's
+ * client_timestamp against the reset's performed_at (PRD 23, isAfterReset), as
+ * the meeting-2 gate score does. `beforeReset` is
  * kept for the reports' "לפני האיפוס" section, which documents the earlier
  * mistakes and never enters a score.
  */
@@ -856,7 +875,7 @@ export interface MeetingRuns {
   firstWrittenAtMs: number | null;
 }
 
-/** A telemetry event with the server's own write time (null when unknown: counted in the current run). */
+/** A telemetry event with the server's own write time (null when unknown); isAfterReset uses it only for an event with no client_timestamp. */
 export interface WrittenEvent {
   data: Record<string, any>;
   writtenAtMs: number | null;
@@ -864,6 +883,23 @@ export interface WrittenEvent {
 
 /** Module 5 §ב: client_timestamp, ties by sequence_number. */
 const byClientTime = (a: Record<string, any>, b: Record<string, any>) => compareTelemetryOrder(a, b);
+
+/**
+ * PRD 23 ("הדוח לאחר איפוס מפגש"): whether an event belongs to the run since a
+ * reset — "לפי client_timestamp של כל אירוע מול performed_at של רישום האיפוס:
+ * אירוע שנוצר במכשיר לפני האיפוס שייך ל'לפני האיפוס' גם אם הגיע לשרת אחריו".
+ * Only an event with no client_timestamp is placed by its arrival
+ * (eventArrivalMs: server_received_at, else the document's write time); an
+ * event with neither counts in the current run. No reset: every event is current.
+ * The one test of readMeetingTelemetry and splitMeetingRuns.
+ */
+export function isAfterReset(event: Record<string, any> | null | undefined, resetAtMs: number | null | undefined): boolean {
+  if (resetAtMs === null || resetAtMs === undefined || !Number.isFinite(resetAtMs)) return true;
+  const created = event?.client_timestamp;
+  if (typeof created === "number" && Number.isFinite(created)) return created > resetAtMs;
+  const arrived = eventArrivalMs(event);
+  return arrived === null || arrived > resetAtMs;
+}
 
 export function splitMeetingRuns(events: WrittenEvent[], resets: MeetingReset[]): MeetingRuns {
   const cut = resets.length === 0 ? null : resets[resets.length - 1].at;
@@ -873,8 +909,7 @@ export function splitMeetingRuns(events: WrittenEvent[], resets: MeetingReset[])
   for (const e of events) {
     noteEventArrival(e.data, e.writtenAtMs);
     if (e.writtenAtMs !== null && (first === null || e.writtenAtMs < first)) first = e.writtenAtMs;
-    // The same test as readMeetingTelemetry's writtenAfterMs.
-    if (cut === null || e.writtenAtMs === null || e.writtenAtMs > cut) current.push(e.data);
+    if (isAfterReset(e.data, cut)) current.push(e.data);
     else beforeReset.push(e.data);
   }
   current.sort(byClientTime);

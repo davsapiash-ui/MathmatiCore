@@ -73,11 +73,11 @@ type Rec = Record<string, unknown> | null | undefined;
  * endedBy 'auto_45min' / 'teacher_disconnect_grace') — none of them completes
  * a learner (PRD 14 §ב1: never by time; owner decision 2.10.2026, above).
  *
- * Opening another meeting while meeting 2 is open closes meeting 2 too — the
- * activation window tells the teacher so ("המפגש הפעיל כעת, מפגש 2, ייסגר").
- * Only a teacher token may write the class record (database.rules.json), so
- * the switch is the teacher's act. It used to complete no one, and the
- * learners who had not finished never reached the gate.
+ * Opening another meeting while meeting 2 is open closes meeting 2 too, but
+ * completes no one: PRD 14 §ב0/§ב1 — "במפגש 2 בלבד, סגירה בכפתור "סגרו את
+ * המפגש" משלימה כל מי שהתחיל" (owner decision, 11.10.2026). The learners who
+ * started and did not finish stay unfinished; the teacher sees them in "שלב
+ * החלוקה למסלולים" and can open meeting 2 again for them.
  *
  * A meeting 2 already past its 45-minute cap, or past the teacher-disconnect
  * window, at the moment of the write is not open, even when no dashboard was
@@ -94,8 +94,7 @@ export function isTeacherCloseOfMeeting2(before: Rec, after: Rec, atMs: number =
   if (Number(before.sessionNumber) !== 2) return false;
   const wasOpen = isClassSessionOpenAt(before, atMs);
   const isClosed = after.active !== true && after.status === "closed";
-  const switchedAway = after.active === true && Number(after.sessionNumber) !== 2;
-  return wasOpen && ((isClosed && after.closedBy === TEACHER_CLOSE_MARKER) || switchedAway);
+  return wasOpen && isClosed && after.closedBy === TEACHER_CLOSE_MARKER;
 }
 
 /**

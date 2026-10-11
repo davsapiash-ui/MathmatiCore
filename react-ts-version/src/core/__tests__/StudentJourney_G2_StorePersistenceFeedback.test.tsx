@@ -74,7 +74,7 @@ import { Session8ReflectionScreen, REFLECTION_TEXT_HE } from '@/presentation/com
 import { FlexibleDecompTask } from '@/features/workspace/tasks/FlexibleDecompTask';
 import { PlaceValueInputBoxes } from '@/features/workspace/tasks/PlaceValueInputBoxes';
 import { ProgressDots } from '@/features/workspace/ProgressDots';
-import { FeedbackToast } from '@/features/workspace/overlays/FeedbackToast';
+import { FeedbackToast, FeedbackSlot } from '@/features/workspace/overlays/FeedbackToast';
 
 const bank: SessionTask[] = [];
 for (const m of [3, 4, 5, 6, 7, 8] as const) {
@@ -420,20 +420,14 @@ describe('A3-117 / UX-004: where the feedback toast sits', () => {
     expect(toast.style.transform).toContain('translateX(-50%)');
   });
 
-  it('inline (meetings 1, 3–7): out of the flow, placed under the position label', () => {
+  it('inline (meetings 1, 3–7): in the flow of its reserved slot under the work area (owner, 11.10.2026)', () => {
     ws().resetWorkspace();
     useWorkspaceStore.setState({ feedback: { correct: false, title: 'כִּמְעַט... 🧐', sub: 'בדקו שוב.' }, feedbackNonce: 1 } as any);
-    render(
-      <div style={{ position: 'relative' }}>
-        <FeedbackToast placement="inline" />
-        <h1>משימה 1 מתוך 7</h1>
-      </div>
-    );
+    render(<FeedbackSlot />);
     const toast = screen.getByTestId('feedback-toast');
-    expect(toast.className).toMatch(/\babsolute\b/);
-    expect(toast.className).not.toMatch(/\bfixed\b|\btop-2\b/);
-    // jsdom has no layout: the label's bottom is 0, so the note sits 4px under it.
-    expect(toast.style.top).toBe('4px');
+    expect(toast.className).not.toMatch(/\babsolute\b|\bfixed\b/);
+    expect(toast.style.top).toBe('');
+    expect(screen.getByTestId('feedback-slot').contains(toast)).toBe(true);
   });
 });
 

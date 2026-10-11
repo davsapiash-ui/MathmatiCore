@@ -181,14 +181,14 @@ describe('no demonstration is a learner exercise', () => {
     // the exercise (3,600 from hundreds only: 36 blocks); the number built
     // (numberA) is what it shares with the others.
     const answer = t.representationKind === 'decompose' ? undefined : t.correctAnswer;
-    for (const n of [t.numberA, t.numberB, t.asdNumberA, t.asdNumberB, answer]) {
+    for (const n of [t.numberA, t.numberB, answer]) {
       if (typeof n === 'number') learnerNumbers.add(n);
     }
     if (t.requiredCounts && t.representationKind !== 'decompose') learnerNumbers.add(valueOf(t.requiredCounts));
     if (t.initialCounts) learnerNumbers.add(valueOf(t.initialCounts));
   }
   for (const q of QMATRIX_TASKS) {
-    for (const n of [q.number, q.asdNumber, q.numberA, q.numberB, q.asdNumberA, q.asdNumberB, q.correctAnswer, q.asdCorrectAnswer]) {
+    for (const n of [q.number, q.numberA, q.numberB, q.correctAnswer]) {
       if (typeof n === 'number') learnerNumbers.add(n);
     }
   }

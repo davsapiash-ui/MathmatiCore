@@ -123,13 +123,15 @@ let seq = 0;
 let writeClock: number | null = null;
 function addEvent(student: number, exercise_id: string, event_type: string, details: Record<string, unknown> = {}) {
   seq++;
-  if (writeClock !== null) h.createTimes[`telemetry_logs/ev_${seq}`] = writeClock++;
+  const writtenAt = writeClock !== null ? writeClock++ : null;
+  if (writtenAt !== null) h.createTimes[`telemetry_logs/ev_${seq}`] = writtenAt;
   h.docs[`telemetry_logs/ev_${seq}`] = {
     student_id: student,
     session_id: `session_2_student_student_user${student}`,
     exercise_id,
     event_type,
-    client_timestamp: 1_000 + seq,
+    // PRD 23: a reset is cut by the event's client_timestamp; here each event is sent as it is typed.
+    client_timestamp: writtenAt ?? 1_000 + seq,
     details,
   };
 }
@@ -188,10 +190,13 @@ describe('which write is the teacher closing meeting 2', () => {
     expect(isTeacherCloseOfMeeting2({ ...open2, status: 'paused' }, teacherClose)).toBe(true);
   });
 
-  it('the teacher opening another meeting while meeting 2 is open or paused', () => {
+  // Owner decision 11.10.2026 (PRD 14 §ב0): only "סגרו את המפגש" completes meeting 2.
+  it('not the teacher opening another meeting while meeting 2 is open or paused', () => {
     const open3 = { active: true, status: 'active', sessionNumber: 3, teacherId: 't' };
-    expect(isTeacherCloseOfMeeting2(open2, open3)).toBe(true);
-    expect(isTeacherCloseOfMeeting2({ ...open2, status: 'paused' }, { ...open3, sessionNumber: 1 })).toBe(true);
+    expect(isTeacherCloseOfMeeting2(open2, open3)).toBe(false);
+    expect(isTeacherCloseOfMeeting2({ ...open2, status: 'paused' }, { ...open3, sessionNumber: 1 })).toBe(false);
+    // Even when the switch carries the teacher's marker: the record stays active.
+    expect(isTeacherCloseOfMeeting2(open2, { ...open3, closedBy: 'teacher' })).toBe(false);
     // Resuming or re-opening meeting 2 itself is not a close.
     expect(isTeacherCloseOfMeeting2({ ...open2, status: 'paused' }, open2)).toBe(false);
   });
@@ -581,9 +586,9 @@ describe('a meeting 2 that already ended by time is not closed by the teacher', 
   const teacherClose = { active: false, status: 'closed', sessionNumber: null, closedBy: 'teacher' };
   const open3 = { active: true, status: 'active', sessionNumber: 3 };
 
-  it('within the 45 minutes: the close and the switch count', () => {
+  it('within the 45 minutes: the close counts, the switch does not', () => {
     expect(isTeacherCloseOfMeeting2(open2(), teacherClose, AT)).toBe(true);
-    expect(isTeacherCloseOfMeeting2(open2(), open3, AT)).toBe(true);
+    expect(isTeacherCloseOfMeeting2(open2(), open3, AT)).toBe(false);
   });
 
   it('past the 45-minute cap, though no dashboard wrote the close: neither counts', () => {
@@ -594,18 +599,26 @@ describe('a meeting 2 that already ended by time is not closed by the teacher', 
 
   it('past the teacher-disconnect window: neither counts', () => {
     const gone = open2({ teacherDisconnectedAt: AT - 16 * MIN });
-    expect(isTeacherCloseOfMeeting2(gone, open3, AT)).toBe(false);
-    expect(isTeacherCloseOfMeeting2(open2({ teacherDisconnectedAt: AT - 5 * MIN }), open3, AT)).toBe(true);
+    expect(isTeacherCloseOfMeeting2(gone, teacherClose, AT)).toBe(false);
+    expect(isTeacherCloseOfMeeting2(open2({ teacherDisconnectedAt: AT - 5 * MIN }), teacherClose, AT)).toBe(true);
   });
 
   it('the trigger judges by the write\'s own time', async () => {
     opened(6, TASKS[0]);
     const snap = (v: unknown) => ({ val: () => v });
     const time = new Date(AT).toISOString();
-    await (onMeeting2ClosedByTeacher as any).run({ time, data: { before: snap(open2({ startedAt: AT - 50 * MIN })), after: snap(open3) } });
+    await (onMeeting2ClosedByTeacher as any).run({ time, data: { before: snap(open2({ startedAt: AT - 50 * MIN })), after: snap(teacherClose) } });
     expect(h.docs['sessions/session_02_student_6']).toBeUndefined();
-    await (onMeeting2ClosedByTeacher as any).run({ time, data: { before: snap(open2()), after: snap(open3) } });
+    await (onMeeting2ClosedByTeacher as any).run({ time, data: { before: snap(open2()), after: snap(teacherClose) } });
     expect(h.docs['sessions/session_02_student_6']).toMatchObject({ is_completed: true });
+  });
+
+  it('the trigger completes no one when the teacher opens another meeting instead', async () => {
+    opened(7, TASKS[0]);
+    const snap = (v: unknown) => ({ val: () => v });
+    const time = new Date(AT).toISOString();
+    await (onMeeting2ClosedByTeacher as any).run({ time, data: { before: snap(open2()), after: snap(open3) } });
+    expect(h.docs['sessions/session_02_student_7']).toBeUndefined();
   });
 });
 

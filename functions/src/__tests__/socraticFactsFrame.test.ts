@@ -139,9 +139,9 @@ describe('the frame and the leaks', () => {
     expect(validateSocraticResponse(choice, f).ok).toBe(true);
   });
 
-  it('the enhanced profile or the quiet mode asks for shorter, concrete wording', () => {
+  it('the enhanced profile asks for shorter, concrete wording', () => {
     const req = arith({ session: 4, op: 'addition', a: 128, b: 35, counts: [13, 5, 1, 0] });
-    const v = validateSocraticRequest({ ...req, learner_profile: { enhanced: true, quiet: false } });
+    const v = validateSocraticRequest({ ...req, learner_profile: { enhanced: true } });
     if (!v.ok) throw new Error(v.reason);
     const f = deriveSocraticFacts(v.value);
     expect(f.concise).toBe(true);

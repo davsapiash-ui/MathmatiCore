@@ -106,7 +106,7 @@ import {
   pedagogicalReportDocId,
 } from '../pedagogicalReport';
 import { generateClassMeetingReport } from '../classReport';
-import { pathOfMeeting, splitMeetingRuns, resetsOfMeeting } from '../meetingMetrics';
+import { isAfterReset, pathOfMeeting, splitMeetingRuns, resetsOfMeeting } from '../meetingMetrics';
 import { AWAITING_RERUN_REASON_HE, buildPreResetRecord, nothingToAnalyseAfterResetHe, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE } from '../preResetRecord';
 import { exportResearchDataset } from '../exportDriveReport';
 import { buildAdminMetrics, currentRunEvents, groupTelemetryByMeeting } from '../adminAggregator';
@@ -300,16 +300,28 @@ describe('the class report after a reset and a track change', () => {
 });
 
 describe('the split itself', () => {
-  it('cuts at the last reset by server write time; an event without one counts as new', () => {
+  it('PRD 23: cuts at the last reset by each event\'s client_timestamp; the arrival only when there is none', () => {
     const resets = resetsOfMeeting([resetOfMeeting3(4).data, resetOfMeeting3(4, T_RESET - 10_000).data], 4, 3);
     expect(resets.map((r) => r.at)).toEqual([T_RESET - 10_000, T_RESET]);
     const runs = splitMeetingRuns([
-      { data: { client_timestamp: 1 }, writtenAtMs: T_RESET - 1 },
-      { data: { client_timestamp: 2 }, writtenAtMs: T_RESET + 1 },
-      { data: { client_timestamp: 3 }, writtenAtMs: null },
+      { data: { id: 'before', client_timestamp: T_RESET - 1 }, writtenAtMs: T_RESET - 1 },
+      // Created on the tablet before the reset, reached the server after it: "לפני האיפוס".
+      { data: { id: 'late-upload', client_timestamp: T_RESET - 5_000 }, writtenAtMs: T_RESET + 60_000 },
+      { data: { id: 'after', client_timestamp: T_RESET + 1 }, writtenAtMs: T_RESET + 2 },
+      // No client_timestamp: by its arrival — the server stamp first, then the write time.
+      { data: { id: 'no-clock-late' }, writtenAtMs: T_RESET + 1 },
+      { data: { id: 'no-clock-stamped-early', server_received_at: T_RESET - 1 }, writtenAtMs: T_RESET + 1 },
+      { data: { id: 'unknown' }, writtenAtMs: null },
     ], resets);
-    expect(runs.beforeReset).toHaveLength(1);
-    expect(runs.current).toHaveLength(2);
+    expect(runs.beforeReset.map((e) => e.id).sort()).toEqual(['before', 'late-upload', 'no-clock-stamped-early']);
+    expect(runs.current.map((e) => e.id).sort()).toEqual(['after', 'no-clock-late', 'unknown']);
+  });
+
+  it('isAfterReset: no reset keeps every event', () => {
+    expect(isAfterReset({ client_timestamp: 1 }, null)).toBe(true);
+    expect(isAfterReset({ client_timestamp: 1 }, undefined)).toBe(true);
+    expect(isAfterReset({ client_timestamp: T_RESET }, T_RESET)).toBe(false);
+    expect(isAfterReset({ client_timestamp: T_RESET + 1 }, T_RESET)).toBe(true);
   });
 
   it('nothing before the reset: no record', () => {
@@ -361,22 +373,32 @@ describe('the research export adds the after-reset numbers and keeps the rest', 
     expect(cols.indexOf('score_after_reset_percent')).toBeGreaterThan(cols.indexOf('chat_help_requests'));
   });
 
-  it('a single-meeting export: the after-reset cumulative values cover the same meetings as the old ones', async () => {
-    // Learner 5 also did a meeting-7 representation exercise after a mistake; a meeting-3 export leaves it out.
+  // Audit M10 (owner, 12.10.2026): "cumulative" is every meeting of the learner,
+  // in a single-meeting export too — it used to cover that meeting only. The
+  // after-reset cumulative values cover the same meetings as the old ones.
+  it('a single-meeting export: the cumulative values cover every meeting, as in the whole-process export', async () => {
+    // Learner 5 also did a meeting-7 representation exercise after a mistake; a meeting-3 export now counts it.
     h.collections.telemetry_logs.push(event(5, 's7_g_t1', 'PROBLEM_COMPLETE', T_RESET + 500_000, { session_id: 'session_7_student_student_user5', details: { error_count: 1 } }));
-    await (exportResearchDataset as any).run({
-      auth: { uid: 'teacher-uid', token: { role: 'teacher', roles: ['TEACHER'], teacher: true, class_id: 'class_1' } },
-      data: { class_id: 'class_1', session_number: 3 },
-    });
-    const file = h.files.find((f) => /_-_מפגשים\.csv$/.test(f.path))!;
-    const [head, ...lines] = file.text.replace(/^﻿/, '').split('\n');
-    const split = (l: string) => l.split('","').map((c) => c.replace(/^"|"$/g, ''));
-    const cols = split(head);
-    const cells = lines.map(split).find((c) => c[0] === '5' && c[1] === '3')!;
-    const row = Object.fromEntries(cols.map((c, i) => [c, cells[i]]));
-    expect(row.flexibility_cumulative_percent).toBe('100');
-    expect(row.flexibility_cumulative_percent_after_reset).toBe(row.flexibility_cumulative_percent);
-    expect(row.mediation_cumulative_percent_after_reset).toBe(row.mediation_cumulative_percent);
+    const rowOf = async (session_number: number | undefined) => {
+      h.files.length = 0;
+      await (exportResearchDataset as any).run({
+        auth: { uid: 'teacher-uid', token: { role: 'teacher', roles: ['TEACHER'], teacher: true, class_id: 'class_1' } },
+        data: { class_id: 'class_1', ...(session_number === undefined ? {} : { session_number }) },
+      });
+      const file = h.files.find((f) => /_-_מפגשים\.csv$/.test(f.path))!;
+      const [head, ...lines] = file.text.replace(/^﻿/, '').split('\n');
+      const split = (l: string) => l.split('","').map((c) => c.replace(/^"|"$/g, ''));
+      const cols = split(head);
+      const cells = lines.map(split).find((c) => c[0] === '5' && c[1] === '3')!;
+      return Object.fromEntries(cols.map((c, i) => [c, cells[i]]));
+    };
+    const scoped = await rowOf(3);
+    const whole = await rowOf(undefined);
+    expect(scoped.flexibility_cumulative_percent).not.toBe('100');
+    expect(scoped.flexibility_cumulative_percent).toBe(whole.flexibility_cumulative_percent);
+    expect(scoped.mediation_cumulative_percent).toBe(whole.mediation_cumulative_percent);
+    expect(scoped.flexibility_cumulative_percent_after_reset).toBe(scoped.flexibility_cumulative_percent);
+    expect(scoped.mediation_cumulative_percent_after_reset).toBe(scoped.mediation_cumulative_percent);
   });
 });
 

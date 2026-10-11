@@ -114,7 +114,7 @@ describe('Module 23א: backup-before-delete hard gate (regression for Antigravit
       );
     });
 
-    it("wipes the learner's record locally too when the teacher chose a full reset", async () => {
+    it('a full reset is left to the server: the client clears only its local copy and writes nothing', async () => {
       mockCallable.mockResolvedValueOnce({ data: { status: 'SUCCESS' } });
 
       await useStore.getState().resetStudentData('student_1', 'technical_fault', undefined, { scope: 'full_student' });
@@ -122,8 +122,13 @@ describe('Module 23א: backup-before-delete hard gate (regression for Antigravit
       expect(mockCallable).toHaveBeenCalledWith(
         expect.objectContaining({ reset_level: 'single_student', reset_scope: 'full_student' })
       );
-      expect(mockUpdate).toHaveBeenCalled();
-      expect(mockRemove).toHaveBeenCalled();
+      // The server deleted the record and wrote the restart command. A second
+      // write from here recreated the record with activeSessionId 1.
+      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockRemove).not.toHaveBeenCalled();
+      expect(mockSet).not.toHaveBeenCalled();
+      expect(useStore.getState().students.student_user1?.highestCompletedMeeting).toBe(0);
+      expect(useStore.getState().students.student_user1).not.toHaveProperty('activeSessionId');
     });
   });
 
@@ -190,7 +195,7 @@ describe('Module 23א: backup-before-delete hard gate (regression for Antigravit
       expect(shown).not.toContain('לא נמחקו נתונים');
     });
 
-    it('proceeds with the full class RTDB wipe once the backup callable succeeds', async () => {
+    it('once the server reset succeeds, the client clears only its local copy and writes nothing', async () => {
       mockCallable.mockResolvedValueOnce({ data: { status: 'SUCCESS' } });
 
       await useStore.getState().resetEntireSystemUsageData('technical_fault');
@@ -198,8 +203,17 @@ describe('Module 23א: backup-before-delete hard gate (regression for Antigravit
       expect(mockCallable).toHaveBeenCalledWith(
         expect.objectContaining({ reset_level: 'system', reason: 'technical_fault' })
       );
-      expect(mockUpdate).toHaveBeenCalled();
-      expect(mockRemove).toHaveBeenCalled();
+      // The server deleted every node, turned the projector off and closed the
+      // meeting. A second write from here recreated twelve learner records
+      // with activeSessionId 1.
+      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockRemove).not.toHaveBeenCalled();
+      expect(mockSet).not.toHaveBeenCalled();
+      const students = useStore.getState().students;
+      for (let i = 1; i <= 12; i++) {
+        expect(students[`student_user${i}`]?.highestCompletedMeeting).toBe(0);
+        expect(students[`student_user${i}`]).not.toHaveProperty('activeSessionId');
+      }
     });
   });
 

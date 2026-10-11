@@ -745,22 +745,20 @@ describe('item 8 — two digits in an addition memory circle', () => {
   });
 });
 
-describe('item 9 — a new block from the palette dropped as ten lower blocks is not a break', () => {
-  it('allowed and shown, but no conversion, no lock released, no REGROUPING event — and the conversion card still opens', async () => {
+describe('item 9 — a new block from the toolbox dropped on the column to the right of its own is rejected (owner, 11.10.2026)', () => {
+  it('rejected: no blocks added, no conversion, no lock released, no telemetry — and the conversion card still opens', async () => {
     load(5, byId('s5_r_t2'), { activeSupportProfileId: 'enhanced_cognitive_support' }); // 53 − 18: the units need a break
     board({ tens: 5, units: 3 });
     expect(ws().isColumnInputLocked('units', 53, 18, true)).toBe(true);
     ws().applyDrop({ source: 'palette', sourcePlace: 'tens', target: { kind: 'column', place: 'units' } });
-    expect(ws().counts.units).toBe(13);
+    expect(ws().counts.units).toBe(3);
+    expect(ws().errorPlace).toBe('units'); // the column shakes
     expect(ws().conversionsByColumn.decomposed.units).toBeUndefined();
     expect(ws().hasUngrouped).toBe(false);
     expect(ws().isColumnInputLocked('units', 53, 18, true)).toBe(true);
     expect(ofType('REGROUPING_SUCCESS')).toHaveLength(0);
     expect(ofType('REGROUPING_TRIGGERED')).toHaveLength(0);
-    const drag = ofType('BLOCK_DRAG_COMPLETE');
-    expect(drag).toHaveLength(1);
-    expect(drag[0].details.block_value).toBe(10);
-    expect(drag[0].column_index).toBe(0);
+    expect(ofType('BLOCK_DRAG_COMPLETE')).toHaveLength(0);
 
     // A ten of the board broken by the child is the break.
     ws().splitBlockClick('tens');
@@ -873,13 +871,12 @@ describe('D3 — while the call to the teacher is open, no hesitation card', () 
 });
 
 describe('the child texts of this round (D11a, D11c, D12)', () => {
-  it('the beat before the card says what comes next, addressed to the children', () => {
-    render(React.createElement(HelpOverlays, null));
+  it('the 300 ms before the card shows nothing: no overlay, no text over the board (owner, 11.10.2026)', () => {
+    const { container } = render(React.createElement(HelpOverlays, null));
     load(4, T4());
     act(() => { useWorkspaceStore.setState({ helpState: 'friction' }); });
-    expect(document.body.textContent).toContain('נסו לחשוב…');
-    expect(document.body.textContent).toContain('עוד רגע תופיע שאלה שתעזור לכם.');
-    expect(document.body.textContent).not.toContain('מכין רמז');
+    expect(container.innerHTML).toBe('');
+    expect(document.body.textContent).not.toContain('נסו לחשוב…');
   });
 
   it('a hidden minuend is found "בעזרת הלבנים", not by "the break" (s6_g_t7, s7_r_t4, s7_g_t3)', () => {

@@ -116,17 +116,18 @@ describe('X32 — the narrative follows the actual order, in correct Hebrew', ()
       ev('s4_g_t2', 'DIGIT_ENTERED', { digit_value: 6, is_correct: true }, 5, 0),
       ev('s4_g_t2', 'PROBLEM_COMPLETE', {}, 6),
     ]);
-    expect(compulsory[0]).toBe('בתרגיל הראשון (תרגיל במפגש 4, מס׳ זיהוי 1) הלומד הזין ספרה שגויה בטור היחידות (פעם אחת), והשלים את התרגיל לאחר תיקון.');
+    // PRD 23 §ב: the result row named, and the digits typed (owner, 11.10.2026).
+    expect(compulsory[0]).toBe('בתרגיל הראשון (תרגיל במפגש 4, מס׳ זיהוי 1) הלומד הזין בשורת התוצאה ספרה שגויה בטור היחידות (פעם אחת, הספרה 3), והשלים את התרגיל לאחר תיקון.');
     // Only the columns the wrong digits were typed in are named (audit 4.10.2026):
     // the correct digit in the units column is not a mistake there.
-    expect(compulsory[1]).toBe('בתרגיל השני (תרגיל במפגש 4, מס׳ זיהוי 2) הלומד הזין ספרות שגויות בטור העשרות (פעמיים), והשלים את התרגיל לאחר תיקון.');
+    expect(compulsory[1]).toBe('בתרגיל השני (תרגיל במפגש 4, מס׳ זיהוי 2) הלומד הזין בשורת התוצאה ספרות שגויות בטור העשרות (פעמיים, הספרות 3 ו-5), והשלים את התרגיל לאחר תיקון.');
     expect(compulsory.join(' ')).not.toMatch(/\((1|2) פעמים\)/);
   });
 
   it('three wrong digits or more read "(N פעמים)"', () => {
     const wrong = (t: number) => ev('s4_g_t1', 'DIGIT_ENTERED', { digit_value: t, is_correct: false }, t, 0);
     const { compulsory } = generateExerciseNarrativeFromEvents([wrong(1), wrong(2), wrong(3), ev('s4_g_t1', 'PROBLEM_COMPLETE', {}, 4)]);
-    expect(compulsory[0]).toBe('בתרגיל הראשון (תרגיל במפגש 4, מס׳ זיהוי 1) הלומד הזין ספרות שגויות בטור היחידות (3 פעמים), והשלים את התרגיל לאחר תיקון.');
+    expect(compulsory[0]).toBe('בתרגיל הראשון (תרגיל במפגש 4, מס׳ זיהוי 1) הלומד הזין בשורת התוצאה ספרות שגויות בטור היחידות (3 פעמים, הספרות 1, 2 ו-3), והשלים את התרגיל לאחר תיקון.');
   });
 
   it('the canvas representation sits where the first drag happened, not hoisted to the front', () => {

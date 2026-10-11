@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BellRing, ChevronDown, DoorOpen, Inbox, MessageCircle, UserCheck } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -32,8 +32,13 @@ const chip = (pressed: boolean) =>
 /**
  * One queue item: the learner, what is waiting, the two questions inline, and
  * the conversation when the teacher opens it. Pressing an action on a help call
- * clears the call (the write "סמנו כטופל" makes) at once; the כן / לא answer
- * then saves the action for every open help and chat event of the learner.
+ * clears the call (the write "סמנו כטופל" makes); the כן / לא answer then saves
+ * the action for every open help and chat event of the learner.
+ *
+ * The call flag can arrive before its HELP_REQUESTED event. Clearing it then
+ * would drop the learner from the queue with nothing to record, so the action
+ * stays pending: the call is cleared, and the question asked, once the event
+ * is there.
  */
 function QueueItemCard({ item, readOnly, teacherId }: { item: QueueItem; readOnly: boolean; teacherId: string }) {
   const expanded = useTeacherMediationStore((s) => s.expandedLearner === item.studentNumber);
@@ -44,22 +49,39 @@ function QueueItemCard({ item, readOnly, teacherId }: { item: QueueItem; readOnl
   const [saving, setSaving] = useState(false);
   const title = readOnly ? READ_ONLY_TITLE : undefined;
   const first = item.events[0];
+  const hasHelpEvent = item.events.some((e) => e.kind === 'help_called' || e.kind === 'chat_help_called');
+  // A call flagged on the learner record whose event has not arrived yet.
+  const awaitingHelpEvent = item.helpRequested && !hasHelpEvent;
+  const clearingRef = useRef(false);
+
+  const clearCall = async () => {
+    if (clearingRef.current) return;
+    clearingRef.current = true;
+    try {
+      await clearHelpRequest(`student_user${item.studentNumber}`);
+    } catch (err) {
+      console.error('Failed to clear help request:', err);
+      toast.error('סימון הטיפול נדחה בשרת. נסו שוב.');
+    } finally {
+      clearingRef.current = false;
+    }
+  };
 
   const onAction = async (a: MediationAction) => {
     if (readOnly) return;
     setPendingAction(item.studentNumber, a);
-    if (item.helpRequested) {
-      try {
-        await clearHelpRequest(`student_user${item.studentNumber}`);
-      } catch (err) {
-        console.error('Failed to clear help request:', err);
-        toast.error('סימון הטיפול נדחה בשרת. נסו שוב.');
-      }
-    }
+    if (item.helpRequested && hasHelpEvent) await clearCall();
   };
 
+  // The action was pressed before the call's event arrived: clear the call now that it is here.
+  useEffect(() => {
+    if (readOnly || action === null || !item.helpRequested || !hasHelpEvent) return;
+    void clearCall();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasHelpEvent]);
+
   const onDataLed = async (dataLed: boolean) => {
-    if (readOnly || action === null || saving || item.events.length === 0) return;
+    if (readOnly || action === null || saving || item.events.length === 0 || awaitingHelpEvent) return;
     setSaving(true);
     let ok = true;
     for (const e of item.events) {
@@ -127,7 +149,7 @@ function QueueItemCard({ item, readOnly, teacherId }: { item: QueueItem; readOnl
               </button>
             ))}
           </div>
-          {action !== null && item.events.length > 0 && (
+          {action !== null && item.events.length > 0 && !awaitingHelpEvent && (
             <div role="group" aria-label={MEDIATION_HE.dataLed} className="flex flex-wrap items-center gap-1.5">
               <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 me-1">{MEDIATION_HE.dataLed}</span>
               {([true, false] as const).map((v) => (

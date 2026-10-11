@@ -120,7 +120,7 @@ export function BlockPalette({ scaffoldLevel, compact = false }: { scaffoldLevel
     <div
       id="tour-block-palette"
       role="toolbar"
-      aria-label="ארגז כלים — גררו לבנים לבית המספרים"
+      aria-label="ארגז הכלים — גררו לבנים לבית המספרים"
       data-compact={compact ? 'true' : undefined}
       className={`relative shrink-0 ws-card !rounded-2xl flex items-center max-w-full select-none bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800 shadow-sm ${
         compact ? 'px-3 py-2 gap-2 flex-wrap justify-center' : 'px-5 py-2.5 gap-4 justify-between overflow-x-auto no-scrollbar'
@@ -133,7 +133,7 @@ export function BlockPalette({ scaffoldLevel, compact = false }: { scaffoldLevel
           className="absolute -top-2.5 right-5 inline-flex items-center gap-1 rounded-full px-2 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 text-xs font-black text-slate-800 dark:text-slate-100 leading-4 whitespace-nowrap pointer-events-none"
         >
           <span>🧰</span>
-          ארגז כלים
+          ארגז הכלים
         </span>
       )}
       {/* Title & Legend (RTL Right side) */}
@@ -141,7 +141,7 @@ export function BlockPalette({ scaffoldLevel, compact = false }: { scaffoldLevel
         <span aria-hidden="true" className="text-xl drop-shadow-xs">🧰</span>
         <div className="flex flex-col">
           <span className="text-xs font-black text-slate-800 tracking-wide leading-tight">
-            ארגז כלים
+            ארגז הכלים
           </span>
           <span className="text-xs font-bold text-slate-400 leading-none">
             לבנים

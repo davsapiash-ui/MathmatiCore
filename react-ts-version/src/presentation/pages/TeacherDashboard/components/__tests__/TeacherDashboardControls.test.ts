@@ -41,13 +41,13 @@ describe('Module 20: the approval gate cannot be bypassed or mis-routed', () => 
     expect(drawer).not.toMatch(/physicalOverride\s*:/);
   });
 
-  it('the approval path falls back to the LIVE recommendation, never to green', () => {
+  it('the batch approves only the LIVE recommendation ("מומלץ"), never a default', () => {
     expect(gate.includes("selectedPaths[studentId] || 'green_path'")).toBe(false);
     // The live recommendation knows the graded mark (11.10.2026: graded_path or graded_foundation_path for a
-    // marked learner); a marked learner with no recommendation yet opens on the graded path.
-    // The per-learner choice is on the class-management row now (owner, 11.10.2026); the batch takes the
-    // recommendation, and only inside the learner's pair.
-    expect(gate.includes("const path = s.recommendedPath ?? (s.gradedTrack ? 'graded_path' : null);")).toBe(true);
+    // marked learner). Approve-all approves only the button marked "מומלץ" (owner, 11.10.2026): a learner with
+    // no recommendation — marked graded or not — stays waiting, and only inside the learner's pair.
+    expect(gate.includes('const path = s.recommendedPath;')).toBe(true);
+    expect(gate.includes("s.gradedTrack ? 'graded_path' : null")).toBe(false);
     expect(gate.includes('routePairFor(s.gradedTrack === true).includes(path)')).toBe(true);
   });
 
@@ -148,8 +148,9 @@ describe('Server callables gained the role checks their rules assume', () => {
   it('sendTeacherAdminMessage is staff-only', () => {
     expect(chatFn.includes('Only teachers and admins may use this channel.')).toBe(true);
   });
-  it('createSessionWithServerDeadline is staff or the owning learner', () => {
-    expect(sessionFn.includes("Not authorized for this learner's session.")).toBe(true);
+  // No screen ever called it; the meeting's clock is startedAt on the RTDB node active_class_session.
+  it('createSessionWithServerDeadline is gone, so it cannot stamp a session for anyone', () => {
+    expect(sessionFn.includes('export const createSessionWithServerDeadline')).toBe(false);
   });
 });
 

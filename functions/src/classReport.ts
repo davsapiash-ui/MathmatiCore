@@ -54,7 +54,7 @@ import {
   meetingRunsByLearner,
   resolveMeetingPath,
 } from "./meetingMetrics";
-import { buildPreResetRecord, classPreResetNotes, nothingToAnalyseAfterResetHe, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE, type PreResetRecord } from "./preResetRecord";
+import { buildPreResetRecord, classPreResetNotes, lastResetAtOf, nothingToAnalyseAfterResetHe, PRE_RESET_HEADING_HE, PRE_RESET_NOTE_HE, RESET_LOG_UNAVAILABLE_HE, splitCatchUpAtReset, type PreResetRecord } from "./preResetRecord";
 import { EXACT_AI_FALLBACK_TEXT } from "./pedagogicalReport";
 import {
   CATCHUP_COLLECTION,
@@ -70,7 +70,12 @@ import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htm
 import {
   CHOICE_EXERCISES_HEADING_HE,
   CLASS_REPORT_PDF_OPTIONS,
+  FIRST_ATTEMPT_SCORE_LABEL_HE,
   FIRST_ATTEMPT_SCORE_MEAN_LABEL_HE,
+  CATCH_UP_HEADING_HE,
+  CATCH_UP_NOTE_HE,
+  classCatchUpLinesHe,
+  classScaffoldsLineHe,
   OUTCOME_HE,
   TIER_LABEL_HE,
   classReportHtml,
@@ -152,6 +157,9 @@ export interface ClassLearnerRow {
   help_withdrawals: number;
   /** Register deviation 28: the result-row place-cue scaffold appeared (stations 3–7). */
   place_cue_scaffolds: number;
+  /** PRD 23 §ב: the same scaffold by the profile it appeared in (Module 9 §א). Absent on reports stored before. */
+  place_cues_regular?: number;
+  place_cues_enhanced?: number;
   /** Requests for help from the chat (owner, 1.10.2026). Also help in measure 2א. */
   chat_help_requests: number;
   reflection_submitted: boolean;
@@ -239,6 +247,9 @@ export interface ClassAggregates {
   help_requests_total: number;
   help_withdrawals_total: number;
   place_cue_scaffolds_total: number;
+  /** PRD 23 §ב: by the profile the scaffold appeared in. Absent on reports stored before. */
+  place_cues_regular_total?: number;
+  place_cues_enhanced_total?: number;
   chat_help_requests_total: number;
   reflections_submitted: number;
   exercises: ClassExerciseRow[];
@@ -342,6 +353,8 @@ export function buildLearnerRow(
     help_requests: summary.help_requests,
     help_withdrawals: summary.help_withdrawals ?? 0,
     place_cue_scaffolds: summary.place_cue_scaffolds ?? 0,
+    place_cues_regular: summary.place_cues_regular ?? 0,
+    place_cues_enhanced: summary.place_cues_enhanced ?? 0,
     chat_help_requests: summary.chat_help_requests ?? 0,
     reflection_submitted: summary.reflection_submitted || reflectionsCount > 0,
     reflections_count: reflectionsCount,
@@ -490,6 +503,8 @@ export function aggregateClass(
     help_requests_total: sum((r) => r.help_requests),
     help_withdrawals_total: sum((r) => r.help_withdrawals ?? 0),
     place_cue_scaffolds_total: sum((r) => r.place_cue_scaffolds),
+    place_cues_regular_total: sum((r) => r.place_cues_regular ?? 0),
+    place_cues_enhanced_total: sum((r) => r.place_cues_enhanced ?? 0),
     chat_help_requests_total: sum((r) => r.chat_help_requests ?? 0),
     reflections_submitted: rows.filter((r) => r.reflection_submitted).length,
     exercises,
@@ -758,7 +773,6 @@ export function buildClassCsv(
     "flexibility_cumulative_completed", "flexibility_cumulative_first_try", "flexibility_cumulative_percent",
     "mediation_cards", "mediation_effective", "mediation_percent",
     "mediation_cumulative_cards", "mediation_cumulative_effective", "mediation_cumulative_percent",
-    ...exerciseIds.map((id) => `outcome_${id}`),
     // Appended last, so every column a research script already reads keeps its place.
     ...TOOLS.map((tool) => `tool_${tool}`),
     "place_cue_scaffolds",
@@ -770,6 +784,11 @@ export function buildClassCsv(
     // Catch-up time (owner, 2.10.2026), appended last: the same four columns
     // and values as the research export's meetings file.
     ...CATCHUP_EXPORT_COLUMNS,
+    // PRD 23 §ב: the result-row scaffold by the profile it appeared in (Module 9 §א).
+    "place_cues_regular", "place_cues_enhanced",
+    // One column per exercise of the meeting — their number changes from meeting
+    // to meeting, so they come last and every fixed column keeps its place.
+    ...exerciseIds.map((id) => `outcome_${id}`),
   ];
   const lines = rows.map((r) =>
     [
@@ -789,7 +808,6 @@ export function buildClassCsv(
       r.flexibility_cumulative?.completed ?? "", r.flexibility_cumulative?.first_try ?? "", r.flexibility_cumulative?.percent ?? "",
       r.mediation?.cards ?? "", r.mediation?.effective ?? "", r.mediation?.percent ?? "",
       r.mediation_cumulative?.cards ?? "", r.mediation_cumulative?.effective ?? "", r.mediation_cumulative?.percent ?? "",
-      ...exerciseIds.map((id) => r.exercise_outcomes[id] ?? "not_attempted"),
       ...TOOLS.map((tool) => r.tool_mastery?.used[tool] ?? ""),
       r.place_cue_scaffolds,
       r.persistence_without_help?.exercises_with_errors ?? "", r.persistence_without_help?.solved_without_help ?? "",
@@ -797,6 +815,8 @@ export function buildClassCsv(
       r.help_withdrawals ?? "",
       r.chat_help_requests ?? "",
       ...catchUpCells(catchUpRecords[r.student_id]),
+      r.place_cues_regular ?? 0, r.place_cues_enhanced ?? 0,
+      ...exerciseIds.map((id) => r.exercise_outcomes[id] ?? "not_attempted"),
     ].map(cell).join(",")
   );
   return "﻿" + [headers.map(cell).join(","), ...lines].join("\n");
@@ -825,7 +845,8 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       // Loaded here, not at the top: every function instance loads index.js,
       // and the coaching card's instance never prints a PDF (cold start, 2.10.2026).
       const PDFDocument = require("pdfkit");
-      const doc = new PDFDocument({ size: "A4", margin: 40 });
+      // Landscape, as the Chromium renderer prints it (CLASS_REPORT_PDF_OPTIONS): the learner lines are long.
+      const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 40 });
       const chunks: Buffer[] = [];
       doc.on("data", (chunk: any) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
       doc.on("end", () => resolve(Buffer.concat(chunks)));
@@ -863,17 +884,19 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       rtlText(doc, "דוח כיתתי חסוי | מדיניות אפס מידע מזהה | לומדים מזוהים במספר בלבד", { align: "center" });
       doc.moveDown(1);
 
-      doc.rect(40, doc.y, 515, 75).fillAndStroke("#f8fafc", "#cbd5e1");
+      // The card was laid out for portrait A4 (595.28pt wide): its right-hand items move with the page width.
+      const shift = doc.page.width - 595.28;
+      doc.rect(40, doc.y, doc.page.width - 80, 75).fillAndStroke("#f8fafc", "#cbd5e1");
       doc.fillColor("#0f172a").fontSize(11);
       const cardY = doc.y + 12;
       const scored = a.scored !== false;
-      rtlText(doc, `מפגש: ${report.session_number}`, 400, cardY, { width: 140 });
-      rtlText(doc, `לומדים עם נתונים: ${a.learners_with_data} מתוך 12`, 200, cardY, { width: 190 });
+      rtlText(doc, `מפגש: ${report.session_number}`, 400 + shift, cardY, { width: 140 });
+      rtlText(doc, `לומדים עם נתונים: ${a.learners_with_data} מתוך 12`, 200 + shift, cardY, { width: 190 });
       if (scored) {
-        rtlText(doc, `${FIRST_ATTEMPT_SCORE_MEAN_LABEL_HE}: ${pct(a.score_mean)}`, 55, cardY + 20, { width: 490 });
-        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | ${ROUTE_NAME_HE.green_path}: ${a.paths.green_path} | ${ROUTE_NAME_HE.remediation_path}: ${a.paths.remediation_path} | ${ROUTE_NAME_HE.graded_path}: ${a.paths.graded_path ?? 0} | ${ROUTE_NAME_HE.graded_foundation_path}: ${a.paths.graded_foundation_path ?? 0}`, 55, cardY + 40, { width: 490 });
+        rtlText(doc, `${FIRST_ATTEMPT_SCORE_MEAN_LABEL_HE}: ${pct(a.score_mean)}`, 55, cardY + 20, { width: 490 + shift });
+        rtlText(doc, `חציון: ${pct(a.score_median)} | טווח: ${pct(a.score_min)}–${pct(a.score_max)} | ${ROUTE_NAME_HE.green_path}: ${a.paths.green_path} | ${ROUTE_NAME_HE.remediation_path}: ${a.paths.remediation_path} | ${ROUTE_NAME_HE.graded_path}: ${a.paths.graded_path ?? 0} | ${ROUTE_NAME_HE.graded_foundation_path}: ${a.paths.graded_foundation_path ?? 0}`, 55, cardY + 40, { width: 490 + shift });
       } else {
-        rtlText(doc, "מפגש היכרות וריענון — ללא ציון וללא קבוצות עבודה", 55, cardY + 25, { width: 490 });
+        rtlText(doc, "מפגש היכרות וריענון — ללא ציון וללא קבוצות עבודה", 55, cardY + 25, { width: 490 + shift });
       }
       doc.x = 40;
       doc.y = cardY + 75;
@@ -902,14 +925,15 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       const triggers = triggerCountsHe(a.socratic_triggers);
       const categories = errorCategoryCountsHe(a.error_categories);
       line(`כרטיסי חניכה: ${a.socratic_cards_total}${triggers ? ` (${triggers})` : ""} | סיווגי שגיאה: ${categories || "אין"}`);
-      line(`לוח החיבור: נפתח ${a.grid_openings_total}, הוחזר על ידי הלומד ${a.grid_reopenings_total} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total} | קריאות שקטות למורה: ${a.help_requests_total}${a.help_withdrawals_total ? ` (הלומדים ביטלו ${a.help_withdrawals_total} מהן)` : ""} | בקשות עזרה מהצ׳אט: ${a.chat_help_requests_total} | פיגום בשורת התוצאה: ${a.place_cue_scaffolds_total}`);
+      line(classScaffoldsLineHe(a));
       line(`זמן פעילות ממוצע: ${a.active_minutes_mean} דקות | דקות הקלטה: ${a.recording_minutes_total} | רפלקציות: ${a.reflections_submitted} מתוך ${a.learners_with_data}`);
 
       heading("3. תרגילים: כמה לומדים פתרו בניסיון ראשון");
       if (a.exercises.length === 0) line("לא נרשמו תרגילים.");
       const titles: Record<string, string> = report.exercise_titles ?? {};
       const exerciseLine = (ex: ClassExerciseRow) =>
-        `${exerciseLabelHe(titles, ex.exercise_id)}: פתחו ${ex.attempted}, סיימו ${ex.completed}, בניסיון ראשון ${ex.first_try} (${ex.first_try_percent}%) | ספרות שגויות ${ex.wrong_digits} | כרטיסים ${ex.socratic_cards} | היסוסים ${ex.hesitations}`;
+        // Meeting 1 is not scored: the counts without a percentage.
+        `${exerciseLabelHe(titles, ex.exercise_id)}: פתחו ${ex.attempted}, סיימו ${ex.completed}, בניסיון ראשון ${ex.first_try}${scored ? ` (${ex.first_try_percent}%)` : ""} | ספרות שגויות ${ex.wrong_digits} | כרטיסים ${ex.socratic_cards} | היסוסים ${ex.hesitations}`;
       // מסמך 03: the choice exercises marked as such, apart from the compulsory ones.
       const choiceTypeOf = (ex: ClassExerciseRow) => ex.path_type ?? exercisePathType(ex.exercise_id);
       for (const ex of a.exercises.filter((e) => choiceTypeOf(e) === "compulsory")) line(exerciseLine(ex));
@@ -925,7 +949,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       heading("4. טבלת הלומדים (כל מה שנמדד ליחיד)");
       line(
         scored
-          ? "לומד | ציון | נכון בניסיון ראשון | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסים | דקות | רפלקציה"
+          ? `לומד | ${FIRST_ATTEMPT_SCORE_LABEL_HE} | נכון בניסיון ראשון | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסים | דקות | רפלקציה`
           : "לומד | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסים | דקות | כלים שלא הופעלו",
         8, "#64748b"
       );
@@ -969,6 +993,14 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
         for (const note of preResetNotes) line(note, 9, "#0f172a");
       }
 
+      // The catch-up block, as the Chromium renderer prints it (classCatchUpSection).
+      const catchUpLines = classCatchUpLinesHe(report.catch_up);
+      if (catchUpLines.length > 0) {
+        heading(`4ד. ${CATCH_UP_HEADING_HE}`);
+        line(CATCH_UP_NOTE_HE, 9, "#64748b");
+        for (const l of catchUpLines) line(l, 9, "#0f172a");
+      }
+
       heading(scored ? "5. ניתוח הבינה: דפוסים כיתתיים והמלצות הוראה" : "5. ניתוח הבינה: לקראת האבחון", "#92400e");
       const patterns: string[] = Array.isArray(report.class_patterns) ? report.class_patterns : [];
       const teaching: string[] = Array.isArray(report.teaching_recommendations) ? report.teaching_recommendations : [];
@@ -989,7 +1021,7 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       doc.moveDown(1.5);
       const genTime = report.generated_at ? new Date(report.generated_at) : new Date();
       doc.fontSize(8).fillColor("#94a3b8");
-      rtlText(doc, `נוצר אוטומטית בתאריך ${genTime.toLocaleDateString("he-IL")} | מנוע MathematiCore v7.0`, { align: "center" });
+      rtlText(doc, `נוצר אוטומטית בתאריך ${genTime.toLocaleDateString("he-IL")}`, { align: "center" });
       doc.end();
     } catch (err) {
       reject(err);
@@ -1165,6 +1197,30 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
   const learners: ClassLearnerRow[] = [];
   // The exercises by the titles the teacher's screens show, not by their ids.
   const exerciseTitles = await readExerciseTitles(db, sessionNumber);
+
+  // Catch-up time (owner, 2.10.2026): "וזה יתועד מה הסיבה לכך". Every learner
+  // the teacher recorded a reason for in this meeting, also one without a
+  // telemetry row. A read failure leaves the block out (null) and does not
+  // stop the report; the reasons stay in catchup_records.
+  // PRD 23 §ב: the rounds recorded before a learner's last reset of this meeting
+  // go to "לפני האיפוס" (4ג); the catch-up block counts only the rounds since.
+  let catchUpRecords: Record<number, Partial<CatchUpRecord>> = {};
+  let catchUp: ClassCatchUpSummary | null = null;
+  const catchUpBeforeReset = new Map<number, Partial<CatchUpRecord> | null>();
+  try {
+    catchUpRecords = await readCatchUpRecords(db, sessionNumber);
+    const sinceReset: Record<number, Partial<CatchUpRecord>> = {};
+    for (const [key, record] of Object.entries(catchUpRecords)) {
+      const n = Number(key);
+      const split = splitCatchUpAtReset(record, lastResetAtOf(runsByKey.get(`${n}:${sessionNumber}`)));
+      if (split.after) sinceReset[n] = split.after;
+      catchUpBeforeReset.set(n, split.before);
+    }
+    catchUp = buildClassCatchUpSummary(sinceReset);
+  } catch (err) {
+    logger.warn("[classReport] catchup_records could not be read; the report has no catch-up block:", err);
+  }
+
   for (const n of Array.from(eventsByLearner.keys()).sort((a, b) => a - b)) {
     const events = eventsByLearner.get(n) ?? [];
     // Scored on the path the learner worked on in THIS meeting, not the current
@@ -1180,28 +1236,15 @@ export const generateClassMeetingReport = onCall(CLASS_REPORT_RUNTIME, async (re
         { sessionNumber, allEvents: allByLearner.get(n) ?? [] },
         compulsoryIdsByBank.get(`${sessionNumber}:${pathOf}`) ?? null
       ),
-      pre_reset: run ? buildPreResetRecord(run, exerciseTitles) : null,
+      pre_reset: run ? buildPreResetRecord(run, exerciseTitles, catchUpBeforeReset.get(n) ?? null) : null,
     });
   }
   // Reset and not yet worked on again: listed with their note, without a row or a score.
   const awaitingRerunNotes = awaitingRerun.map((n) => {
     const run = runsByKey.get(`${n}:${sessionNumber}`);
-    return { student_id: n, pre_reset: run ? buildPreResetRecord(run, exerciseTitles) : null };
+    return { student_id: n, pre_reset: run ? buildPreResetRecord(run, exerciseTitles, catchUpBeforeReset.get(n) ?? null) : null };
   });
   const aggregates = aggregateClass(learners, eventsByLearner, sessionNumber, awaitingRerun);
-
-  // Catch-up time (owner, 2.10.2026): "וזה יתועד מה הסיבה לכך". Every learner
-  // the teacher recorded a reason for in this meeting, also one without a
-  // telemetry row. A read failure leaves the block out (null) and does not
-  // stop the report; the reasons stay in catchup_records.
-  let catchUpRecords: Record<number, Partial<CatchUpRecord>> = {};
-  let catchUp: ClassCatchUpSummary | null = null;
-  try {
-    catchUpRecords = await readCatchUpRecords(db, sessionNumber);
-    catchUp = buildClassCatchUpSummary(catchUpRecords);
-  } catch (err) {
-    logger.warn("[classReport] catchup_records could not be read; the report has no catch-up block:", err);
-  }
 
   // ── 5. Layer 2 ──────────────────────────────────────────────────────────
   const analysis = await generateClassAnalysis({ class_id: classId, session_number: sessionNumber, aggregates, learners });

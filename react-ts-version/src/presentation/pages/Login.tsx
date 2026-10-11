@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/application/useAuthStore";
@@ -9,8 +9,9 @@ import { UdlSpeechButton } from "@/presentation/design-system/UdlSpeechButton";
 import { tts } from "@/infrastructure/services/TTSService";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { Button } from "@/components/ui/button";
-import { auth, functions } from "@/infrastructure/firebase";
+import { auth, authReady, database, functions } from "@/infrastructure/firebase";
 import { signInAnonymously } from "firebase/auth";
+import { ref, get } from "firebase/database";
 import { httpsCallable } from "firebase/functions";
 import { claimDeviceOwnership } from "@/application/deviceOwnership";
 
@@ -23,8 +24,30 @@ const ROLES = [
 // Module 25 §ב.1: one school and one class, fixed by the spec. The lists used to
 // come from the admin store (and subscribed to the admin nodes on the login page),
 // so any extra school or class in the database would have been offered to a child.
+// Owner, 11.10.2026: the lists are read once from RTDB `schools` and
+// `public_classes` (the rules admit the pilot ids only, and any signed-in
+// session — the page's anonymous one — may read them). These constants are the
+// fallback whenever that read gives nothing: offline, refused, or empty.
 const PILOT_SCHOOLS = [{ id: PILOT_SCHOOL_ID, name: PILOT_SCHOOL_NAME }];
 const PILOT_CLASSES = [{ id: PILOT_CLASS_ID, name: PILOT_CLASS_NAME, schoolId: PILOT_SCHOOL_ID }];
+
+type LoginSchool = { id: string; name: string };
+type LoginClass = { id: string; name: string; schoolId: string };
+
+/** The entries of an RTDB node that have a string id and name; anything else is dropped. */
+export function loginListFrom<T extends LoginSchool>(val: unknown, withSchool = false): T[] {
+  if (!val || typeof val !== "object") return [];
+  const out: T[] = [];
+  for (const [key, raw] of Object.entries(val as Record<string, unknown>)) {
+    if (!raw || typeof raw !== "object") continue;
+    const r = raw as Record<string, unknown>;
+    const id = typeof r.id === "string" && r.id ? r.id : key;
+    if (typeof r.name !== "string" || !r.name) continue;
+    if (withSchool && (typeof r.schoolId !== "string" || !r.schoolId)) continue;
+    out.push((withSchool ? { id, name: r.name, schoolId: r.schoolId } : { id, name: r.name }) as T);
+  }
+  return out;
+}
 
 /**
  * PRD Module 1 §א: "במקרה של פקיעת זמן, המערכת מאפסת את השדות למניעת מצב ביניים
@@ -63,7 +86,31 @@ export function Login({ studentForm = false }: { studentForm?: boolean } = {}) {
   const { login } = useStore();
   const navigate = useNavigate();
 
-  const schoolsList = PILOT_SCHOOLS;
+  const [schoolsList, setSchoolsList] = useState<LoginSchool[]>(PILOT_SCHOOLS);
+  const [classesList, setClassesList] = useState<LoginClass[]>(PILOT_CLASSES);
+
+  // One read, after the page's anonymous session exists (authReady). Any
+  // failure keeps the pilot constants above.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        await authReady;
+        const [schoolsSnap, classesSnap] = await Promise.all([
+          get(ref(database, "schools")),
+          get(ref(database, "public_classes")),
+        ]);
+        if (!alive) return;
+        const schools = loginListFrom<LoginSchool>(schoolsSnap?.val?.());
+        const classes = loginListFrom<LoginClass>(classesSnap?.val?.(), true);
+        if (schools.length > 0) setSchoolsList(schools);
+        if (classes.length > 0) setClassesList(classes);
+      } catch (err) {
+        console.warn("Login lists: using the pilot school and class", err);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(studentForm ? "student" : null);
   // '/login' and '/auth' may render this same instance one after the other
@@ -75,7 +122,10 @@ export function Login({ studentForm = false }: { studentForm?: boolean } = {}) {
   }
   const [selectedSchool, setSelectedSchool] = useState<string>("school_bikorot");
 
-  const classesForSelectedSchool = PILOT_CLASSES;
+  const classesForSelectedSchool = useMemo(() => {
+    const forSchool = classesList.filter((c) => c.schoolId === selectedSchool);
+    return forSchool.length > 0 ? forSchool : PILOT_CLASSES;
+  }, [classesList, selectedSchool]);
 
   const [selectedClass, setSelectedClass] = useState<string>("class_1");
   const [selectedStudentNum, setSelectedStudentNum] = useState<number>(1);

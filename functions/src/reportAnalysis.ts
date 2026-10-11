@@ -1,7 +1,7 @@
 import * as logger from "firebase-functions/logger";
 import { GEMINI_MODEL_ID, classifyGeminiError, generateGeminiText, type GeminiThinking } from "./geminiConfig";
 import { recordAiCall, type AiOutcome } from "./aiMonitoring";
-import { SANDBOX_MEETING_PURPOSE_HE, exercisePathType, isExerciseEvent, type ExercisePathType } from "./meetingMetrics";
+import { SANDBOX_MEETING_PURPOSE_HE, exerciseLabelHe, exercisePathType, isExerciseEvent, type ExercisePathType } from "./meetingMetrics";
 import { COLUMN_NAMES_HE } from "./teacherLabels";
 import type { LearningPath } from "./learningPath";
 
@@ -65,7 +65,8 @@ export interface ReportExerciseTemplate {
   order_index: number;
   learning_path: LearningPath | null;
   path_type: ExercisePathType;
-  operation: "addition" | "subtraction" | "representation" | "inquiry";
+  /** null when the exercise is not in the catalog: unknown, never a default. */
+  operation: "addition" | "subtraction" | "representation" | "inquiry" | null;
   operand_a: number | null;
   operand_b: number | null;
   expected_result: number | string | null;
@@ -288,13 +289,15 @@ export function buildFailedExercises(
         learning_path: learningPath,
         // The choice banks are not in the catalog; the id still says what the exercise is.
         path_type: exercisePathType(exerciseId),
-        operation: "addition",
+        // Unknown, not "addition": a subtraction was described to the engine as an addition.
+        operation: null,
         operand_a: null,
         operand_b: null,
         expected_result: null,
         required_regroupings: regroupingColumns.length,
         regrouping_columns: regroupingColumns,
-        label: exerciseId,
+        // A Hebrew label, never the id (the analysis must not name an exercise by its id).
+        label: exerciseLabelHe(null, exerciseId),
       };
     }
 
@@ -324,7 +327,7 @@ export function buildFailedExercises(
           : null,
       required_regroupings: regroupingColumns.length,
       regrouping_columns: regroupingColumns,
-      label: typeof task.titleHe === "string" ? task.titleHe : exerciseId,
+      label: exerciseLabelHe({ [exerciseId]: typeof task.titleHe === "string" ? task.titleHe : "" }, exerciseId),
     };
   });
 }
@@ -402,6 +405,8 @@ const TELEMETRY_DETAIL_KEYS = [
   "blocks_removed",
   // PLACE_CUES_SHOWN (register deviation 28): regular | enhanced.
   "profile",
+  // DIGIT_ENTERED / DIGIT_DELETED typed in a memory circle: "carry_circle" (Appendix A §3).
+  "input_target",
 ] as const;
 
 /**
@@ -439,6 +444,10 @@ export function buildTelemetrySummary(telemetryDocs: Record<string, any>[]): Rep
     // else: any other value, or the key on another event, does not reach the engine.
     if (!(doc?.event_type === "PLACE_CUES_SHOWN" && (details.profile === "regular" || details.profile === "enhanced"))) {
       delete details.profile;
+    }
+    // `input_target` is the memory circle of a digit event and nothing else (the same rule).
+    if (!((doc?.event_type === "DIGIT_ENTERED" || doc?.event_type === "DIGIT_DELETED") && details.input_target === "carry_circle")) {
+      delete details.input_target;
     }
     const event: ReportTelemetryEvent = {
       event_type: String(doc?.event_type || "UNKNOWN"),

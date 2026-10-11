@@ -94,6 +94,12 @@ export interface ClassScaffoldCounters {
   helpWithdrawals: number;
   chatHelpRequests: number;
   placeCueScaffolds: number;
+  /**
+   * PRD 23 §ב: the result-row scaffold by the profile it appeared in (Module 9 §א).
+   * null on a report stored before the server counted them.
+   */
+  placeCuesRegular: number | null;
+  placeCuesEnhanced: number | null;
 }
 
 export interface ClassExerciseRow {
@@ -368,6 +374,8 @@ export function classReportFromData(d: Record<string, any>): ClassMeetingReport 
       helpWithdrawals: num(a.help_withdrawals_total),
       chatHelpRequests: num(a.chat_help_requests_total),
       placeCueScaffolds: num(a.place_cue_scaffolds_total),
+      placeCuesRegular: typeof a.place_cues_regular_total === 'number' ? a.place_cues_regular_total : null,
+      placeCuesEnhanced: typeof a.place_cues_enhanced_total === 'number' ? a.place_cues_enhanced_total : null,
     },
     reflectionsSubmitted: num(a.reflections_submitted),
     exercises: (Array.isArray(a.exercises) ? a.exercises : []).map((e: Record<string, any>) => ({

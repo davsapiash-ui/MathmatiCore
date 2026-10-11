@@ -248,8 +248,8 @@ service cloud.firestore {
     // SDK — החוקים אינם חלים עליו). לומד אינו קובע אותם, אינו משנה אותם ואינו
     // מרוקן אותם. הכלל הקודם בדק רק את המצב שאחרי הכתיבה, ולכן לומד יכול היה
     // למחוק אישור שכבר ניתן ולשנות ציון שהשרת כבר חישב (בעל המוצר, 29.9.2026).
-    // ערך חסר ו-null הם אותו דבר: createSessionWithServerDeadline יוצר את
-    // השדות כ-null, ומסמכים ישנים חסרים אותם.
+    // ערך חסר ו-null הם אותו דבר: createSessionWithServerDeadline (שהוסרה)
+    // יצרה את השדות כ-null, ומסמכים ישנים חסרים אותם.
     function learnerCreateLeavesStaffFieldsEmpty() {
       let d = request.resource.data;
       return d.get('teacher_selected_path', null) == null &&
@@ -304,11 +304,17 @@ service cloud.firestore {
     // the teacher's meeting activation (TeacherDashboard) and by the Admin SDK.
     // A learner token could still create up to four documents for itself, with
     // any student_id, and adminAggregator counts this collection as total_students.
+    // L62: a learner document is one of the twelve pilot learners
+    // (student_user1 … student_user12, the only id any client writes).
+    function isPilotLearnerDocId(studentId) {
+      return studentId.matches('^student_user([1-9]|1[0-2])$');
+    }
+
     match /students/{studentId} {
       allow read: if (isTeacher() || isOwningStudent(studentId)) && !isAdmin();
-      allow create: if canWrite() && isTeacher() && isValidStudentDoc() &&
+      allow create: if canWrite() && isTeacher() && isPilotLearnerDocId(studentId) && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnCreate();
-      allow update: if canWrite() && isTeacher() && isValidStudentDoc() &&
+      allow update: if canWrite() && isTeacher() && isPilotLearnerDocId(studentId) && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnUpdate();
       // Module 23א §ו: deleting learning data is a reset, and the admin is
       // blocked from resets. Resets run in backupAndResetSessionData (Admin SDK).
@@ -317,9 +323,9 @@ service cloud.firestore {
 
     match /users/students/{studentId} {
       allow read: if (isTeacher() || isOwningStudent(studentId)) && !isAdmin();
-      allow create: if canWrite() && isTeacher() && isValidStudentDoc() &&
+      allow create: if canWrite() && isTeacher() && isPilotLearnerDocId(studentId) && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnCreate();
-      allow update: if canWrite() && isTeacher() && isValidStudentDoc() &&
+      allow update: if canWrite() && isTeacher() && isPilotLearnerDocId(studentId) && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnUpdate();
       // Module 23א §ו: deleting learning data is a reset, and the admin is
       // blocked from resets. Resets run in backupAndResetSessionData (Admin SDK).
@@ -409,7 +415,8 @@ service cloud.firestore {
     match /schools/{schoolId} {
       allow read: if isAuthenticated();
       allow create, update: if canWrite() && isAdmin() && schoolId == 'school_bikorot';
-      allow delete: if canWrite() && isAdmin();
+      // H3: the pilot's one school is never deleted from a client (school deletion is removed).
+      allow delete: if false;
     }
 
     // Module 27 §ב.4: a learner is "חסום מקריאת אוספי כיתות או תלמידים
@@ -709,7 +716,8 @@ service cloud.firestore {
     }
 
     match /teacher_mediation_log/{logId} {
-      allow read: if isTeacher() || isAdmin();
+      // The class teacher only (PRD Module 24 §ב): the admin never reads individual learning data.
+      allow read: if isTeacherOfClass(resource.data.class_id);
       allow create: if canWrite() && isTeacherOfClass(request.resource.data.class_id) && isValidMediationLogDoc();
       // A choice can be changed; what it is about cannot.
       allow update: if canWrite() && isTeacherOfClass(resource.data.class_id) && isValidMediationLogDoc() &&

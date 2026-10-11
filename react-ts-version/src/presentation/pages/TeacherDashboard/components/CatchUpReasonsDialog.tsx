@@ -60,7 +60,17 @@ export const CATCHUP_DIALOG_HE = {
   needAllReasons: 'כדי להמשיך, בחרו סיבה לכל תלמיד.',
   saving: 'שומרים את הסיבות…',
   meeting2: 'במפגש 2, "המשיכו בכל זאת" מסיים את המפגש כרגיל, גם למי שלא סיים. "פתחו שוב את המפגש להשלמה" נותן להם זמן להמשיך מהמקום שבו עצרו.',
+  // Owner decision 11.10.2026 (PRD 14 §ב0): only "סגרו את המפגש" completes meeting 2 — opening another meeting does not.
+  meeting2OnlyClose: 'במפגש 2, רק "סגרו את המפגש" מעביר את מי שלא סיים לטבלת שלב החלוקה למסלולים.',
+  meeting2OpenOther: 'אחרי "המשיכו בכל זאת" הם יופיעו ב"שלב החלוקה למסלולים" ברשימת התלמידים שהתחילו ולא סיימו, ושם תוכלו לפתוח שוב את מפגש 2. "פתחו שוב את המפגש להשלמה" נותן להם זמן להמשיך מהמקום שבו עצרו.',
 } as const;
+
+/** The meeting-2 note: the close completes started learners; opening another meeting does not. */
+export function meeting2NoteHe(trigger: 'close' | 'open_other', meeting: number, nextMeeting: number | null): string {
+  if (trigger === 'close') return CATCHUP_DIALOG_HE.meeting2;
+  if (nextMeeting === meeting) return CATCHUP_DIALOG_HE.meeting2OnlyClose;
+  return `${CATCHUP_DIALOG_HE.meeting2OnlyClose} ${CATCHUP_DIALOG_HE.meeting2OpenOther}`;
+}
 
 export function catchUpDialogTitleHe(trigger: 'close' | 'open_other', meeting: number, nextMeeting: number | null): string {
   if (trigger === 'close') return `לפני שסוגרים את מפגש ${meeting}`;
@@ -227,7 +237,7 @@ export function CatchUpReasonsForm({
     <div data-testid="catchup-form">
         {isMeeting2 && (
           <p className="p-3 mb-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-xs font-semibold text-slate-700 dark:text-slate-300">
-            {CATCHUP_DIALOG_HE.meeting2}
+            {meeting2NoteHe(trigger, meeting, nextMeeting)}
           </p>
         )}
 

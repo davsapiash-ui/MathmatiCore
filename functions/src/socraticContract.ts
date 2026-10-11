@@ -285,10 +285,10 @@ export interface SocraticRequest {
   card_frame?: SocraticCardFrame;
   /**
    * The learner's support settings (phase 2, 1.10.2026): the enhanced
-   * cognitive-support profile and the quiet mode. Two booleans — no name, no
+   * cognitive-support profile (the quiet mode was removed, 11.10.2026). One boolean — no name, no
    * diagnosis — so the card is written shorter and more concrete.
    */
-  learner_profile?: { enhanced?: boolean; quiet?: boolean };
+  learner_profile?: { enhanced?: boolean };
   workspace_state: SocraticWorkspaceState;
   student_progress_state?: SocraticProgressState;
   recent_actions: SocraticRecentAction[];
@@ -585,7 +585,7 @@ export function validateSocraticRequest(raw: unknown): Validation<SocraticReques
       ...(task_context ? { task_context } : {}),
       ...(card_frame ? { card_frame } : {}),
       ...(isPlainObject(raw.learner_profile)
-        ? { learner_profile: { enhanced: raw.learner_profile.enhanced === true, quiet: raw.learner_profile.quiet === true } }
+        ? { learner_profile: { enhanced: raw.learner_profile.enhanced === true } }
         : {}),
       workspace_state: {
         ...counts,
@@ -717,6 +717,12 @@ export interface SocraticFacts {
   hidden_operands: number[];
   /** Numbers the child is asked to find (representation tasks) — kept ONLY for the leak check. */
   secret_numbers: number[];
+  /**
+   * The board the instruction asks for (task_context.required_counts; the
+   * child's own board when the exercise accepts any build of its number) —
+   * kept ONLY for the representation check (requiredRepresentationContradicted).
+   */
+  required_counts?: SocraticCounts | null;
   /** Result digits the screen hides, by column — kept ONLY for the leak check. */
   hidden_result_digits: { column: SocraticColumn; digit: number }[];
   active_column: SocraticColumn;
@@ -758,7 +764,7 @@ export interface SocraticFacts {
   earlier_card_kinds: string[];
   /** The card frame the client's static selection set, or null (an older client). */
   card_frame: SocraticCardFrame | null;
-  /** The enhanced profile or the quiet mode is on: shorter, more concrete wording. */
+  /** The enhanced profile is on: shorter, more concrete wording. */
   concise: boolean;
   /** The exercise's id (request.exercise_id) — rules that belong to one exercise read it (s1_target_347). */
   exercise_id?: string | null;
@@ -1452,6 +1458,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     title_he: ec?.session_topic || null,
     hidden_operands: ec?.hidden_places ? [...(ec.hidden_places.a.length ? [ec.number_a] : []), ...(ec.hidden_places.b.length ? [ec.number_b] : [])] : [],
     secret_numbers: tc?.secret_numbers ?? [],
+    required_counts: tc?.required_counts ?? null,
     hidden_result_digits: ec && tc?.hidden_result_places
       ? tc.hidden_result_places.map((c) => ({ column: c, digit: digitAt(ec.operation === "subtraction" ? ec.number_a - ec.number_b : ec.number_a + ec.number_b, c) }))
       : [],
@@ -1488,7 +1495,7 @@ export function deriveSocraticFacts(req: SocraticRequest): SocraticFacts {
     crowding_intended,
     earlier_card_kinds: ps?.earlier_card_kinds ?? [],
     card_frame: req.card_frame ?? null,
-    concise: Boolean(req.learner_profile?.enhanced || req.learner_profile?.quiet),
+    concise: Boolean(req.learner_profile?.enhanced),
     exercise_id: req.exercise_id ?? null,
     suggested_category,
     suggested_focus_he,
@@ -2486,6 +2493,54 @@ function namesColumnNotInInstruction(text: string, allowed: Set<SocraticColumn>)
 /** Meeting 1 has three columns only: no thousands column, no "קבצו 10" on the hundreds. */
 const MEETING_1_ABSENT = /טור האלפים|לבנ(?:ת|י)\s+(?:ה)?אלף|קבצו 10 לאלף|(?:מקבצים|קבצו|לקבץ)\s+(?:כל\s+)?10\s+(?:ה)?מאות|מאות\s+לאלף|(?:^|[^א-ת])[לב]?אלף אחד/;
 
+/**
+ * An option that offers a set of blocks as the answer — "בונים 3 לבני מאה ו-4
+ * לבני עשרת", "משתמשים ב-34 מאות", or the first person the model may still
+ * write ("נבנה…") — read as counts; null for any other option. Mirrors the
+ * client's chosenCounts (staticSocraticCards.ts).
+ */
+const REPRESENTATION_CHOICE = /^(נשתמש|משתמשים|נבנה|בונים|נייצג|מייצגים)(\s+אותו|\s+את(\s+המספר)?(\s+[\d,]+)?)?\s+(?:ב-?)?(?=\d|יחידה|עשרת|מאה|אלף|לבנת)/;
+export function representationOfOption(text: string): Record<SocraticColumn, number> | null {
+  const t = text.trim();
+  if (!REPRESENTATION_CHOICE.test(t)) return null;
+  const rest = stripDigitGroupSeparators(t.replace(REPRESENTATION_CHOICE, "")).replace(/[.!]\s*$/, "");
+  const out: Record<SocraticColumn, number> = { units: 0, tens: 0, hundreds: 0, thousands: 0 };
+  let lastEnd = 0;
+  let parts = 0;
+  for (const m of rest.matchAll(BOARD_PART)) {
+    const column = BOARD_PART_COLUMN[m[2] ?? m[3] ?? m[4] ?? m[5]];
+    if (!column || out[column] > 0) return null;
+    // One run of blocks and nothing else: only a comma or "ו" between the parts.
+    if (rest.slice(lastEnd, m.index).replace(/[\s,]+|ו-?/g, "") !== "") return null;
+    out[column] = m[1] ? Number(m[1].replace(/,/g, "")) : 1;
+    lastEnd = m.index! + m[0].length;
+    parts++;
+  }
+  if (parts === 0 || rest.slice(lastEnd).replace(/[\s,]+/g, "") !== "") return null;
+  return out;
+}
+
+/**
+ * A representation task (the kinds of meeting 3 and 7): the card marks the
+ * instruction's own blocks wrong, or offers other blocks as the right answer.
+ */
+export function requiredRepresentationContradicted(
+  facts: Pick<SocraticFacts, "task_kind" | "required_counts">,
+  options: { option_text: string; is_correct: boolean }[],
+): boolean {
+  const required = facts.required_counts;
+  const kinds: (SocraticTaskKind | null)[] = ["representation", "read_write", "compose_break", "decompose", "compose_group"];
+  if (!required || !kinds.includes(facts.task_kind)) return false;
+  for (const o of options) {
+    const chosen = representationOfOption(o.option_text);
+    if (!chosen) continue;
+    const same = sameCounts(required, chosen);
+    if (!o.is_correct && same) return true;
+    if (o.is_correct && !same) return true;
+  }
+  return false;
+}
+
 /** A card that tells the child to group: refused while a break is the intended step. */
 /**
  * s1_target_347 asks which number the blocks show after the break: that it is
@@ -2675,6 +2730,13 @@ export function validateSocraticResponse(raw: unknown, facts?: SocraticFacts | n
   // the coaching — the client draws the same line).
   if (facts && !facts.operation && secretInBlockCounts(texts, secrets) !== null) {
     return { ok: false, reason: "secret number leaked as block counts — even the instruction's own blocks give the number away; ask about the blocks without listing them" };
+  }
+
+  // The instruction's own blocks marked wrong, or another set of blocks marked
+  // right (owner, 28.9.2026, שהB.1; until 11.10.2026 the client's check only:
+  // item 13-1, so the model gets its retry instead of the child the static card).
+  if (facts && requiredRepresentationContradicted(facts, options)) {
+    return { ok: false, reason: "frame: marks the instruction's representation wrong — the blocks the instruction asks for are never a wrong option, and an option that offers blocks as the right answer is exactly those blocks" };
   }
 
   // The card's form and language (owner, 30.9 and 1.10.2026): checked here,

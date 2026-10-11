@@ -14,6 +14,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { ResetConfirmationModal } from './ResetConfirmationModal';
+import { MediationLogSection } from './MediationLogSection';
 import { LEARNER_RESET_TOOLTIP_HE, RESET_ACTION_HE } from '@/core/routeLabels';
 import { clearHelpRequest } from '@/infrastructure/services/HelpRequestService';
 import { toast } from 'sonner';
@@ -133,7 +134,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
             <button
               onClick={() => setIsResetModalOpen(true)}
               disabled={readOnly || isResetting}
-              className="px-2.5 py-1.5 rounded-xl border border-rose-200 hover:border-rose-300 bg-rose-50/70 hover:bg-rose-100 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+              className="px-2.5 py-1.5 rounded-xl border border-stone-300 hover:border-stone-400 bg-stone-50/70 hover:bg-stone-100 text-stone-800 dark:bg-stone-900/40 dark:text-stone-200 dark:border-stone-700 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
               // The dialog offers both scopes, the meeting alone by default (PRD 23א §ב.2).
               title={readOnly ? READ_ONLY_TITLE : LEARNER_RESET_TOOLTIP_HE}
               aria-label={`${RESET_ACTION_HE.learner} של תלמיד ${studentNum}`}
@@ -188,6 +189,10 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
 
         {/* Body: one panel, so no tabs. */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+          {/* Measure 5 (PRD module 18): "בחלונית הלומד מתעדים כל אירוע לחוד" —
+              the same "תיעוד התיווך" section as in the radar tile's detail. */}
+          <MediationLogSection studentNumber={Number(studentNum)} readOnly={readOnly} />
 
           {/* A per-learner "hesitation threshold" tab stood here, offering 15 /
               30 / 60 seconds. The learner never saw any of it: the radar hook

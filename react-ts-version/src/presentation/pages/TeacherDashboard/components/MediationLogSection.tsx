@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { READ_ONLY_TITLE } from '@/application/useIsReadOnlyStaff';
 import { useMediationEvents, useMediationRecords, useTeacherMediationStore } from '@/application/useTeacherMediationStore';
 import { MEDIATION_HE, clockHe, eventLineHe, recordsByRef } from '@/core/teacherMediation';
@@ -16,6 +16,8 @@ export function MediationLogSection({ studentNumber, readOnly }: { studentNumber
   const events = useMediationEvents().filter((e) => e.studentNumber === studentNumber);
   const records = useMediationRecords().filter((r) => r.student_id === studentNumber);
   const [selfOpen, setSelfOpen] = useState(false);
+  // The section shows in the tile detail and in the learner panel, which can be open together.
+  const titleId = useId();
   const done = recordsByRef(records);
   const open = events.filter((e) => !done.has(e.ref));
   const newest = open.length > 0 ? open[open.length - 1] : null;
@@ -24,8 +26,8 @@ export function MediationLogSection({ studentNumber, readOnly }: { studentNumber
   const selfRecords = records.filter((r) => r.event_ref === null).sort((a, b) => b.event_time_iso.localeCompare(a.event_time_iso));
 
   return (
-    <section data-testid="mediation-log-section" aria-labelledby="mediation-log-title" className="mb-6 p-4 rounded-2xl bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 flex flex-col gap-3">
-      <h4 id="mediation-log-title" className="text-sm font-extrabold text-slate-800 dark:text-slate-100">{MEDIATION_HE.sectionTitle}</h4>
+    <section data-testid="mediation-log-section" aria-labelledby={titleId} className="mb-6 p-4 rounded-2xl bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 flex flex-col gap-3">
+      <h4 id={titleId} className="text-sm font-extrabold text-slate-800 dark:text-slate-100">{MEDIATION_HE.sectionTitle}</h4>
       {meeting === null ? (
         <p className="text-xs text-slate-600 dark:text-slate-400">{MEDIATION_HE.noMeeting}</p>
       ) : (

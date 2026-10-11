@@ -1,9 +1,7 @@
 import { onDocumentWritten, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
-import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { assertCanWrite, readCallerRoles } from "./callerIdentity";
 import {
   computeFirstAttemptScore,
   isChoiceExercise,
@@ -48,9 +46,10 @@ export async function computeMeetingScore(
   // By learner and meeting, not by the document's session_id: the document is
   // `session_02_student_4` while its events carry `session_2_student_student_user4`,
   // so reading by that id matched nothing and would have scored every learner 0%.
-  // Only the run since the last reset of this meeting (meetingMetrics.lastResetOfMeeting).
-  const writtenAfterMs = await readLastResetOfMeeting(db, studentNum, sessionNum);
-  const telemetry = await readMeetingTelemetry(db, studentNum, sessionNum, { writtenAfterMs });
+  // Only the run since the last reset of this meeting (meetingMetrics.lastResetOfMeeting):
+  // PRD 23, each event's client_timestamp against the reset's performed_at (isAfterReset).
+  const resetAtMs = await readLastResetOfMeeting(db, studentNum, sessionNum);
+  const telemetry = await readMeetingTelemetry(db, studentNum, sessionNum, { resetAtMs });
   if (telemetry.length === 0) return { outcome: "no_telemetry" };
 
   const compulsoryIds = new Map<string, ReadonlySet<string>>();
@@ -692,92 +691,3 @@ export const onMeetingTelemetryArrived = onDocumentCreated({
   }
 });
 
-/**
- * createSessionWithServerDeadline
- * Stamping authoritative session_deadline_time on the server side (Module 14).
- */
-export const createSessionWithServerDeadline = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be authenticated.");
-  }
-
-  const { student_id, class_id, session_number } = request.data || {};
-  if (!student_id || !class_id || !session_number) {
-    throw new HttpsError("invalid-argument", "Missing required session parameters.");
-  }
-  const sessionNumber = Number(session_number);
-  if (!Number.isInteger(sessionNumber) || sessionNumber < 1 || sessionNumber > 8) {
-    throw new HttpsError("invalid-argument", "session_number must be an integer between 1 and 8.");
-  }
-  if (typeof class_id !== "string" || !/^[A-Za-z0-9_-]{1,40}$/.test(class_id)) {
-    throw new HttpsError("invalid-argument", "class_id is not a valid class identifier.");
-  }
-
-  // A session document may be stamped only by the teacher, or by the learner
-  // it belongs to (auth.token.student_id 1-12). Without this, any signed-in
-  // identity could create/overwrite any learner's session deadline. A session
-  // document is a learner's personal document, so an admin sign-in is not
-  // staff here (PRD Module 24 §ב).
-  const token = request.auth.token as Record<string, unknown>;
-  assertCanWrite(token);
-  const isTeacher = readCallerRoles(token).isTeacher;
-  const ownStudent = String(token.student_id ?? "") === String(student_id);
-  if (!isTeacher && !ownStudent) {
-    throw new HttpsError("permission-denied", "Not authorized for this learner's session.");
-  }
-
-  // PRD v7.0 Module 14 §B: Session 1 = 20 min sandbox, Sessions 2 & 8 = 25 min, Sessions 3-7 = 15 min
-  const durationMinutes = sessionNumber === 1 ? 20 : (sessionNumber === 2 || sessionNumber === 8) ? 25 : 15;
-  const deadlineTimeMs = Date.now() + durationMinutes * 60 * 1000;
-  const sessionId = `session_${String(sessionNumber).padStart(2, "0")}_student_${student_id}`;
-
-  const db = admin.firestore();
-  const sessionDocRef = db.collection("sessions").doc(sessionId);
-
-  // This function creates a session. It used to write its whole payload with
-  // merge:true over whatever was already there — including
-  // teacher_gate_approved:false, gate_approved_at:null, gate_approved_by:null
-  // and teacher_selected_path:null. A learner is allowed to call it for their
-  // own id, so calling it again erased the teacher's Module 20 gate decision
-  // and reset the meeting deadline, through an Admin-SDK path the security
-  // rules cannot see. A session that already exists is not re-created.
-  const existing = await sessionDocRef.get();
-  if (existing.exists) {
-    const data = existing.data() || {};
-    return {
-      status: "ALREADY_EXISTS",
-      sessionId,
-      deadlineTimeMs: Number(data.session_deadline_time) || null,
-      durationMinutes,
-    };
-  }
-
-  const sessionData = {
-    session_id: sessionId,
-    class_id,
-    session_number: sessionNumber,
-    session_start_time: Date.now(),
-    session_deadline_time: deadlineTimeMs,
-    active_exercise_id: `ex_${session_number}_01`,
-    is_completed: false,
-    // Not 0: a meeting that has not been worked on has no score yet, and every
-    // report reads a number here as a measurement (Module 24 §ב). Meeting 1
-    // never gets one (Module 14 §ב); the others get theirs from the trigger.
-    session_score_percent: null,
-    teacher_gate_approved: false,
-    gate_approved_at: null,
-    gate_approved_by: null,
-    teacher_selected_path: null,
-    matrix_recommended_path: null,
-  };
-
-  await sessionDocRef.create(sessionData).catch((err: unknown) => {
-    // Another caller won the race between the read above and this write.
-    // Creating is the only thing this function may do, so yield to them.
-    logger.warn(`Session ${sessionId} already created concurrently:`, err);
-  });
-
-  logger.info(`Created authoritative session ${sessionId} with deadline ${deadlineTimeMs}`);
-
-  return { status: "SUCCESS", sessionId, deadlineTimeMs, durationMinutes };
-});

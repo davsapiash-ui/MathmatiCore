@@ -189,7 +189,7 @@ export function CloseMeetingChecklist(props: CloseMeetingChecklistProps): ReactE
               onClick={props.onClose}
               disabled={readOnly || busy}
               title={readOnly ? READ_ONLY_TITLE : undefined}
-              className="px-4 py-2.5 rounded-xl bg-rose-800 hover:bg-rose-900 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-sm cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-violet-800 hover:bg-violet-900 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-sm cursor-pointer"
             >
               {LESSON_FLOW_HE.closeNow}
             </button>

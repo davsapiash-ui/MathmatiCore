@@ -120,8 +120,9 @@ describe('one source for the station names', () => {
 describe('the teacher and the admin see the child’s station name next to each meeting', () => {
   it('the class controller: the open meeting in full, the picker in short form', () => {
     const dash = code('presentation/pages/TeacherDashboard.tsx');
-    // The open meeting in full is the state chip's tooltip; the bar shows its name once, in the picker (owner, 11.10.2026).
-    expect(dash).toContain('<span title={meetingLabelHe(selectedSessionNum)}');
+    // The open meeting in full is shown on the bar beside the state chip, not only as a tooltip
+    // (owner, 12.10.2026): the picker shows the meeting picked to open next.
+    expect(dash).toMatch(/<span data-testid="live-session-meeting"[^>]*>\s*\{meetingLabelHe\(selectedSessionNum\)\}/);
     expect(dash).toContain('{`${meetingShortLabelHe(row.sessionNumber)} — ${sessionStateLabelHe(row)}`}');
     expect(dash).not.toContain('פעיל בכיתה`');
   });
@@ -287,10 +288,11 @@ describe('the child reads "בית המספרים" and "לבנים"', () => {
     }
   });
 
-  it('the board button and the lock notice name the board', () => {
+  it('the board button names the board', () => {
     const topbar = code('features/workspace/WorkspaceTopbar.tsx');
     expect(topbar).toContain("staysOpen ? BOARD_OPEN_HE : boardOpen ? 'הסתרת בית המספרים' : 'הצגת בית המספרים'");
-    expect(code('features/workspace/board/PlaceValueBoard.tsx')).toContain('בית המספרים נעול זמנית על ידי המורה');
+    // The "locked by the teacher" notice is gone: nothing ever locks the board (11.10.2026).
+    expect(code('features/workspace/board/PlaceValueBoard.tsx')).not.toContain('נעול זמנית');
   });
 
   it('a digit cell belongs to the result row, not to the board', () => {

@@ -275,7 +275,6 @@ describe('מבחן הקבלה של מודול 14 §ד — רענון דפדפן 
     // זה מה שנשמר לשרת (אותם שדות שהשירות שולח), וזה מה שחוזר אחרי רענון.
     const saved = {
       sessionNumber: before.sessionNumber,
-      isASD: before.isASD,
       sessionDeadlineTime: before.sessionDeadlineTime,
       selectedBranch: before.selectedBranch,
       standardTaskIdx: before.standardTaskIdx,

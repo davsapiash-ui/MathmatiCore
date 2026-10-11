@@ -214,3 +214,28 @@ describe('projector sign-out: the shared "יציאה" button', () => {
     expect(screen.queryByTitle('התנתקו מהמערכת')).toBeNull();
   });
 });
+
+/**
+ * Owner decision 11.10.2026 (M15): a read-only sign-in says so on every staff
+ * page, the projector too — it sits outside the dashboard that shows the
+ * banner. A row of its own (shrink-0) in the full-height column.
+ */
+describe('projector: the read-only banner', () => {
+  afterEach(async () => {
+    const { useReadOnlyStaffStore } = await import('@/application/useIsReadOnlyStaff');
+    useReadOnlyStaffStore.setState({ readOnly: false });
+  });
+
+  it('shows for a read-only sign-in, as a shrink-0 row', async () => {
+    const { useReadOnlyStaffStore } = await import('@/application/useIsReadOnlyStaff');
+    useReadOnlyStaffStore.setState({ readOnly: true });
+    renderProjector();
+    const banner = screen.getByTestId('read-only-banner');
+    expect(banner.parentElement?.className).toContain('shrink-0');
+  });
+
+  it('is absent for any other sign-in', () => {
+    renderProjector();
+    expect(screen.queryByTestId('read-only-banner')).toBeNull();
+  });
+});

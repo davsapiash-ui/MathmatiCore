@@ -25,6 +25,10 @@
  * Drive link replaces the old one in late_recording_files (the old Drive file
  * holds a subset and is left in place). A failed copy leaves the gs:// url,
  * and the entry's late_recording_drive_pending flag, for the next run.
+ *
+ * It also copies research-export files Drive refused (parked under
+ * drive_fallback/) to "2 נתוני מחקר" (owner decision 11.10.2026; see
+ * pendingExportFallbackCopies below).
  */
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
@@ -174,6 +178,86 @@ export async function copyLateRecordingsToDrive(pending: PendingLateCopy[], deps
   return { copied, relinked, failed };
 }
 
+/**
+ * Owner decision 11.10.2026: a research-export file Drive refused waits in
+ * Cloud Storage under drive_fallback/ (exportResearchDataset parks it, and its
+ * reset_audit_log entry, reset_level 'export', names it by its gs:// url in
+ * backup_file_url, " | " between the parts). The same daily run copies it to
+ * the Drive folder "2 נתוני מחקר", replaces the gs:// url in the entry by the
+ * Drive link, and keeps the Storage copy. A failed copy leaves the gs:// url
+ * for the next run.
+ */
+export const DRIVE_FALLBACK_PREFIX = "drive_fallback/";
+
+export interface PendingExportCopy {
+  entryId: string;
+  storageUrl: string;
+  storagePath: string;
+  /** The parked name without its time prefix (spaces were stored as "_"); the Storage metadata's original_name wins. */
+  fileName: string;
+}
+
+/** The parts of an export's backup_file_url. */
+export function exportUrlParts(fileUrl: unknown): string[] {
+  return typeof fileUrl === "string" ? fileUrl.split(" | ").map((s) => s.trim()).filter(Boolean) : [];
+}
+
+/** The export files still waiting under drive_fallback/. */
+export function pendingExportFallbackCopies(entries: Array<{ id: string; data: Record<string, unknown> }>): PendingExportCopy[] {
+  const out: PendingExportCopy[] = [];
+  for (const { id, data } of entries) {
+    if (data.reset_level !== "export") continue;
+    for (const url of exportUrlParts(data.backup_file_url)) {
+      const gs = parseGsUrl(url);
+      if (!gs || !gs.path.startsWith(DRIVE_FALLBACK_PREFIX)) continue;
+      out.push({ entryId: id, storageUrl: url, storagePath: gs.path, fileName: baseName(gs.path).replace(/^\d{10,}_/, "") });
+    }
+  }
+  return out;
+}
+
+/** backup_file_url after a copy: the gs:// url out, the Drive link in its place, once. */
+export function nextExportFileUrl(fileUrl: unknown, storageUrl: string, driveLink: string): string {
+  const parts = exportUrlParts(fileUrl);
+  const next: string[] = [];
+  for (const p of parts) {
+    const value = p === storageUrl ? driveLink : p;
+    if (!next.includes(value)) next.push(value);
+  }
+  if (!next.includes(driveLink)) next.push(driveLink);
+  return next.join(" | ");
+}
+
+export interface ExportCopyDeps {
+  readStorage: (path: string) => Promise<Buffer>;
+  /** The file's original name (Storage metadata original_name), if it has one. */
+  readOriginalName?: (path: string) => Promise<string | null>;
+  writeDrive: (buffer: Buffer, fileName: string) => Promise<{ success: boolean; webViewLink?: string; error?: string }>;
+  /** In one write: backup_file_url = nextExportFileUrl(…), and backup_drive_copied_at once no gs:// url is left. */
+  markExportCopied: (entryId: string, storageUrl: string, driveLink: string, at: number) => Promise<void>;
+  now?: () => number;
+}
+
+/** Copies each waiting export file to "2 נתוני מחקר"; one failure does not stop the others. */
+export async function copyExportFallbacksToDrive(pending: PendingExportCopy[], deps: ExportCopyDeps): Promise<{ copied: string[]; failed: string[] }> {
+  const copied: string[] = [];
+  const failed: string[] = [];
+  for (const p of pending) {
+    try {
+      const buffer = await deps.readStorage(p.storagePath);
+      const original = deps.readOriginalName ? await deps.readOriginalName(p.storagePath).catch(() => null) : null;
+      const res = await deps.writeDrive(buffer, original || p.fileName);
+      if (!res.success || !res.webViewLink) throw new Error(res.error || "Drive upload failed");
+      await deps.markExportCopied(p.entryId, p.storageUrl, res.webViewLink, (deps.now ?? Date.now)());
+      copied.push(p.storagePath);
+    } catch (err: any) {
+      logger.warn(`Export file ${p.storagePath} is still only in Cloud Storage: ${err?.message || err}`);
+      failed.push(p.storagePath);
+    }
+  }
+  return { copied, failed };
+}
+
 export const copyStorageBackupsToDrive = onSchedule({
   schedule: "every day 03:10",
   timeZone: "Asia/Jerusalem",
@@ -219,6 +303,35 @@ export const copyStorageBackupsToDrive = onSchedule({
     }
   } catch (err: any) {
     logger.error("copyStorageBackupsToDrive: the late recording files could not be copied to Drive (they stay in Cloud Storage):", err);
+  }
+  // Owner decision 11.10.2026: export files Drive refused, to "2 נתוני מחקר".
+  try {
+    const exportSnap = await db.collection("reset_audit_log").where("reset_level", "==", "export").get();
+    const exportPending = pendingExportFallbackCopies(exportSnap.docs.map((d) => ({ id: d.id, data: d.data() })));
+    if (exportPending.length > 0) {
+      const exported = await copyExportFallbacksToDrive(exportPending, {
+        readStorage,
+        readOriginalName: async (path) => {
+          const [meta] = await bucket.file(path).getMetadata();
+          const name = (meta?.metadata as Record<string, unknown> | undefined)?.original_name;
+          return typeof name === "string" && name.trim() ? name : null;
+        },
+        writeDrive: (buffer, fileName) =>
+          uploadBufferToDrive(buffer, fileName, "text/csv", DRIVE_FOLDERS.researchData, { park: false }),
+        markExportCopied: async (entryId, storageUrl, driveLink, at) => {
+          const ref = db.collection("reset_audit_log").doc(entryId);
+          await db.runTransaction(async (tx) => {
+            const snap = await tx.get(ref);
+            const next = nextExportFileUrl(snap.get("backup_file_url"), storageUrl, driveLink);
+            const waiting = exportUrlParts(next).some((u) => parseGsUrl(u)?.path.startsWith(DRIVE_FALLBACK_PREFIX));
+            tx.update(ref, { backup_file_url: next, ...(waiting ? {} : { backup_drive_copied_at: at }) });
+          });
+        },
+      });
+      logger.info(`copyStorageBackupsToDrive: ${exported.copied.length} export files copied to "${DRIVE_FOLDERS.researchData}", ${exported.failed.length} still only in Storage.`);
+    }
+  } catch (err: any) {
+    logger.error("copyStorageBackupsToDrive: the waiting export files could not be copied to Drive (they stay in Cloud Storage):", err);
   }
   const [storageSnap, legacySnap] = await Promise.all([
     db.collection("reset_audit_log").where("backup_channel", "==", "storage").get(),

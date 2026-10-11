@@ -15,7 +15,7 @@ afterEach(cleanup);
 describe('the toolbox keeps its name in every form (A4-F04, A5-F08)', () => {
   // The cards say "גוררים לבנים מארגז הכלים": the box must be on the screen
   // under that name, with the side panel open or the board narrow.
-  it.each([false, true])('compact = %s: "ארגז כלים" is visible', (compact) => {
+  it.each([false, true])('compact = %s: "ארגז הכלים" is visible', (compact) => {
     useWorkspaceStore.setState({ sessionNumber: 4 } as never);
     const { container } = render(
       <DndContext>
@@ -24,7 +24,7 @@ describe('the toolbox keeps its name in every form (A4-F04, A5-F08)', () => {
     );
     const tray = container.querySelector('#tour-block-palette')!;
     const visibleName = Array.from(tray.querySelectorAll('span, div')).find(
-      (el) => el.textContent?.replace(/🧰/g, '').trim() === 'ארגז כלים' && !el.closest('.hidden')
+      (el) => el.textContent?.replace(/🧰/g, '').trim() === 'ארגז הכלים' && !el.closest('.hidden')
     );
     expect(visibleName).toBeDefined();
   });

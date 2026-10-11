@@ -339,7 +339,7 @@ export function AdminSupportHubView() {
               </div>
 
               <p className="text-[11px] text-slate-600 leading-relaxed pt-2 border-t border-slate-100 dark:border-slate-800">
-                מענה למורה נשלח דרך "ערוץ פניות מורים" — כל הודעה עוברת סינון פרטיות קפדני (Zero PII) בצד השרת טרם שליחתה.
+                מענה למורה נשלח דרך "ערוץ פניות מורים". כל הודעה עוברת בשרת בדיקת פרטים מזהים לפני שהיא נשלחת.
               </p>
             </div>
           ) : (

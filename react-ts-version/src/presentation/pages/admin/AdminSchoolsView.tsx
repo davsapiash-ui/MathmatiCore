@@ -16,11 +16,15 @@ import {
   Layers,
   Printer
 } from "lucide-react";
-import { useAdminStore } from "@/application/useAdminStore";
+import { useAdminStore, isProtectedStaff, type Teacher } from "@/application/useAdminStore";
 import { PILOT_CLASS_CAPACITY } from "@/core/pilotInstitution";
 import { AdminWizardModal } from "./AdminWizardModal";
 import { toast } from "sonner";
 import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
+import { PROTECTED_STAFF_REMOVAL_ERROR } from "@/infrastructure/services/AuthService";
+
+/** Owner, 11.10.2026: an admin entry or a read-only entry (the lecturers) is never removed from here. */
+export const PROTECTED_STAFF_TITLE = "אי אפשר להסיר מנהל מערכת או חשבון צפייה בלבד";
 
 export function AdminSchoolsView() {
   const navigate = useNavigate();
@@ -28,9 +32,7 @@ export function AdminSchoolsView() {
     schools,
     teachers,
     classes,
-    deleteSchool,
     deleteTeacher,
-    deleteClassRoom,
     resetInstitutionsToOfficialPilot
   } = useAdminStore();
 
@@ -58,7 +60,9 @@ export function AdminSchoolsView() {
 
   // One click on a trash icon used to wipe a whole school — teachers, the
   // pilot class the twelve learners log in through, and their login rights —
-  // with no confirmation and no undo. Deletion is irreversible, so it asks.
+  // with no confirmation and no undo. Owner, 11.10.2026: the school and the
+  // class are not deleted from here at all, and a staff member is never
+  // removed by deleting a school. What is left irreversible asks first.
   const confirmAction = (message: string) =>
     typeof window === "undefined" || typeof window.confirm !== "function" ? true : window.confirm(message);
 
@@ -91,45 +95,20 @@ export function AdminSchoolsView() {
 
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
-  const handleDeleteSchool = async (school: { id: string; name: string }) => {
+  const handleDeleteTeacher = async (teacher: Teacher) => {
     if (isDeletingId) return;
-    const teacherCount = teachers.filter((t) => t.schoolId === school.id).length;
-    const classCount = classes.filter((c) => c.schoolId === school.id).length;
-    if (!confirmAction(`למחוק את המוסד "${school.name}"?\nיימחקו יחד איתו ${teacherCount} מורות (כולל הרשאת הכניסה שלהן) ו-${classCount} כיתות. פעולה זו אינה הפיכה.`)) return;
-    setIsDeletingId(school.id);
-    try {
-      await deleteSchool(school.id);
-      toast.success(`המוסד "${school.name}" נמחק.`);
-    } catch {
-      toast.error("מחיקת המוסד נכשלה בשרת.");
-    } finally {
-      setIsDeletingId(null);
-    }
-  };
-
-  const handleDeleteTeacher = async (teacher: { id: string; ssoEmail: string }) => {
-    if (isDeletingId) return;
+    // Owner, 11.10.2026: an admin entry or a read-only entry is never removed.
+    if (isProtectedStaff(teacher)) return;
     if (!confirmAction(`להסיר את המורה ${teacher.ssoEmail}?\nהרשאת הכניסה שלה תבוטל מיד. הכיתות אינן נמחקות.`)) return;
     setIsDeletingId(teacher.id);
     try {
       await deleteTeacher(teacher.id);
       toast.success(`המורה ${teacher.ssoEmail} הוסרה והרשאת הכניסה שלה בוטלה.`);
-    } catch {
-      toast.error("הסרת המורה נכשלה בשרת. ודא שאתה מחובר כמנהל מערכת.");
-    } finally {
-      setIsDeletingId(null);
-    }
-  };
-
-  const handleDeleteClass = async (cls: { id: string; name: string }) => {
-    if (isDeletingId) return;
-    if (!confirmAction(`למחוק את הכיתה "${cls.name}"?\nהלומדים לא יוכלו להיכנס לכיתה זו. פעולה זו אינה הפיכה.`)) return;
-    setIsDeletingId(cls.id);
-    try {
-      await deleteClassRoom(cls.id);
-      toast.success(`הכיתה "${cls.name}" נמחקה.`);
-    } catch {
-      toast.error("מחיקת הכיתה נכשלה בשרת.");
+    } catch (err) {
+      // The server's list may mark the address admin or read-only even when this screen does not yet.
+      toast.error((err as Error)?.message === PROTECTED_STAFF_REMOVAL_ERROR
+        ? PROTECTED_STAFF_TITLE
+        : "הסרת המורה נכשלה בשרת. ודא שאתה מחובר כמנהל מערכת.");
     } finally {
       setIsDeletingId(null);
     }
@@ -326,19 +305,6 @@ export function AdminSchoolsView() {
                       </p>
                     </div>
                   </div>
-
-                  <button 
-                    onClick={() => handleDeleteSchool(school)}
-                    disabled={readOnly || isDeletingId === school.id}
-                    className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 transition-colors flex items-center justify-center cursor-pointer"
-                    title={roTitle ?? "מחק מוסד"}
-                  >
-                    {isDeletingId === school.id ? (
-                      <span className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Trash2 className="w-5 h-5" />
-                    )}
-                  </button>
                 </div>
 
                 {/* Card Content Body */}
@@ -394,6 +360,16 @@ export function AdminSchoolsView() {
                             <div className="space-y-0.5 min-w-0 flex-1">
                               <div className="font-bold text-slate-900 dark:text-white flex flex-wrap items-center gap-x-2 gap-y-1">
                                 <span className="font-mono break-all min-w-0" dir="ltr">{teacher.ssoEmail}</span>
+                                {teacher.role === 'admin' && (
+                                  <span className="shrink-0 bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-200 text-[10px] font-bold px-2 py-0.5 rounded-full border border-violet-300 dark:border-violet-800">
+                                    מנהל מערכת
+                                  </span>
+                                )}
+                                {teacher.readOnly && (
+                                  <span className="shrink-0 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-300 dark:border-slate-700">
+                                    {READ_ONLY_TITLE}
+                                  </span>
+                                )}
                                 {schoolClasses.some((c) => c.teacherId === teacher.id) ? (
                                   <span className="shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
                                     מורה מובילה
@@ -412,11 +388,12 @@ export function AdminSchoolsView() {
                               </div>
                             </div>
 
-                            <button 
+                            <button
                               onClick={() => handleDeleteTeacher(teacher)}
-                              disabled={readOnly || isDeletingId === teacher.id}
+                              disabled={readOnly || isProtectedStaff(teacher) || isDeletingId === teacher.id}
                               className="shrink-0 text-slate-600 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-xl transition-all cursor-pointer"
-                              title={roTitle ?? "מחק מורה"}
+                              title={roTitle ?? (isProtectedStaff(teacher) ? PROTECTED_STAFF_TITLE : "מחק מורה")}
+                              data-testid="remove-teacher"
                             >
                               {isDeletingId === teacher.id ? (
                                 <span className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
@@ -462,19 +439,6 @@ export function AdminSchoolsView() {
                               <ShieldCheck className="w-4 h-4 text-cyan-500" />
                               <span className="font-bold text-slate-800 dark:text-slate-200">{cls.name}</span>
                             </div>
-
-                            <button 
-                              onClick={() => handleDeleteClass(cls)}
-                              disabled={readOnly || isDeletingId === cls.id}
-                              className="text-slate-600 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-1.5 rounded-lg transition-all cursor-pointer"
-                              title={roTitle ?? "מחק כיתה"}
-                            >
-                              {isDeletingId === cls.id ? (
-                                <span className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <Trash2 className="w-3.5 h-3.5" />
-                              )}
-                            </button>
                           </div>
                         ))}
                       </div>

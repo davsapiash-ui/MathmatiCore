@@ -244,9 +244,8 @@ describe('💀 THE GRAND INQUISITION: Unforgiving Chaos, Concurrency & Adversari
         }
       };
 
-      // 2. Teacher executes physical override with ASD toggle
+      // 2. Teacher executes physical override (no quiet-mode isASD since 11.10.2026)
       await service.syncPhysicalOverride(studentId, {
-        isASD: true,
         physicalOverride: true,
         routeStatus: 'APPROVED',
         difficultyRecommendation: 'ASD_SUPPORT'
@@ -254,10 +253,10 @@ describe('💀 THE GRAND INQUISITION: Unforgiving Chaos, Concurrency & Adversari
 
       const updatedStudent = mockDatabase[`users/students/${studentId}`];
 
-      // Invariants: ASD mode must be true, BUT student counts and digits must be intact!
-      expect(updatedStudent.isASD).toBe(true);
+      // Invariants: the override is written, no isASD is written, and the student's counts and digits are intact!
+      expect(updatedStudent.isASD).toBeUndefined();
       expect(updatedStudent.physicalOverride).toBe(true);
-      expect(updatedStudent.workspaceState.isASD).toBe(true);
+      expect(updatedStudent.workspaceState.isASD).toBe(false);
       expect(updatedStudent.workspaceState.counts).toEqual({ units: 7, tens: 4, hundreds: 2, thousands: 1 });
       expect(updatedStudent.workspaceState.answerDigits).toEqual({ units: '7', tens: '4', hundreds: '2', thousands: '1' });
       expect(updatedStudent.workspaceState.carryDigits).toEqual({ units: '0', tens: '1', hundreds: '0', thousands: '0' });

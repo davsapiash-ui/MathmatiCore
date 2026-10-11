@@ -13,7 +13,8 @@ import { resolve } from 'path';
  * ביקורת הדשבורד, 20.9.2026; אישור בעל המוצר לתיקון.
  */
 const trigger = readFileSync(resolve(__dirname, '../sessionTrigger.ts'), 'utf-8');
-const body = trigger.slice(0, trigger.indexOf('export const createSessionWithServerDeadline'));
+// createSessionWithServerDeadline, which used to follow the triggers, is gone.
+const body = trigger;
 
 describe('the server recomputes the meeting score', () => {
   it('no longer waits for a missing recommendation — it runs on every completion', () => {

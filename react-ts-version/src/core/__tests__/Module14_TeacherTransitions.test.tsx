@@ -463,7 +463,8 @@ describe('PRD 14 §ב0 — the picker states what the learners finished (fix rou
     expect(options.some((t) => t.includes('טרם נפתח'))).toBe(false);
     const meeting4 = options.find((t) => t.startsWith('מפגש 4'))!;
     expect(meeting4).toMatch(/סיימו 1 מתוך \d+/);
-    expect(options.find((t) => t.startsWith('מפגש 5'))).toMatch(/טרם הושלם$/);
+    // "סיימו X מתוך 12" beside every meeting, the unfinished ones too.
+    expect(options.find((t) => t.startsWith('מפגש 5'))).toMatch(/טרם הושלם · סיימו 0 מתוך \d+$/);
   });
 });
 

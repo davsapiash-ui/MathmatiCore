@@ -72,7 +72,6 @@ describe('Teacher Dashboard Domain Comprehensive Audit & Verification Suite', ()
         classId: 'demo',
         routeStatus: 'SANDBOX',
         difficultyRecommendation: 'LEVEL_1',
-        isASD: false,
         physicalOverride: false,
         qMatrixResults: {} as any,
         traceData: { hesitation_events: 0, undo_clicks: 0 },
@@ -90,7 +89,6 @@ describe('Teacher Dashboard Domain Comprehensive Audit & Verification Suite', ()
       useStore.getState().applyPhysicalOverride('student_test_101', {
         routeStatus: 'ADAPTIVE',
         difficultyRecommendation: 'LEVEL_2',
-        isASD: true,
         physicalOverride: true,
         physicalOverrideActive: true,
         overrideUpdatedAt: Date.now(),
@@ -98,14 +96,12 @@ describe('Teacher Dashboard Domain Comprehensive Audit & Verification Suite', ()
 
       let updated = useStore.getState().students['student_test_101'];
       expect(updated.physicalOverride).toBe(true);
-      expect(updated.isASD).toBe(true);
       expect(updated.routeStatus).toBe('ADAPTIVE');
 
       // Cleanup / Deactivate Physical Override
       useStore.getState().applyPhysicalOverride('student_test_101', {
         routeStatus: 'APPROVED',
         difficultyRecommendation: 'LEVEL_1',
-        isASD: false,
         physicalOverride: false,
         physicalOverrideActive: false,
         overrideUpdatedAt: Date.now(),
@@ -113,7 +109,6 @@ describe('Teacher Dashboard Domain Comprehensive Audit & Verification Suite', ()
 
       updated = useStore.getState().students['student_test_101'];
       expect(updated.physicalOverride).toBe(false);
-      expect(updated.isASD).toBe(false);
       expect(updated.routeStatus).toBe('APPROVED');
     });
   });
@@ -138,7 +133,6 @@ describe('Teacher Dashboard Domain Comprehensive Audit & Verification Suite', ()
       const overridePayload = {
         routeStatus: 'ADAPTIVE',
         difficultyRecommendation: 'LEVEL_1',
-        isASD: true,
         physicalOverride: true,
         physicalOverrideActive: true,
         overrideUpdatedAt: 1000,

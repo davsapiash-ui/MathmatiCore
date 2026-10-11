@@ -96,6 +96,25 @@ describe('learner 8: a first run with mistakes, a reset, then a perfect run', ()
     expect(score.scorePercent).toBe(100);
   });
 
+  it('PRD 23: an event typed before the reset that reached the server after it stays before (client_timestamp)', async () => {
+    const lateUpload = { ...event('t1', 'DIGIT_ENTERED', T_RESET - 1_000, { is_correct: false }), writtenAt: T_RESET + 30_000 };
+    const late = fakeDb({ telemetry_logs: [lateUpload, ...perfectRun], reset_audit_log: [{ data: reset({}) }] });
+    const run = await readMeetingTelemetry(late, 8, 2, { resetAtMs: T_RESET });
+    expect(run).toHaveLength(7);
+    expect(computeFirstAttemptScore(run, 7, new Set(TASKS)).scorePercent).toBe(100);
+    // The old option name means the same.
+    expect(await readMeetingTelemetry(late, 8, 2, { writtenAfterMs: T_RESET })).toHaveLength(7);
+  });
+
+  it('an event with no client_timestamp is placed by its arrival time', async () => {
+    const noClock = (writtenAt: number) => ({
+      data: { student_id: 8, session_id: 'session_2_student_student_user8', exercise_id: 't1', event_type: 'DIGIT_ENTERED', details: {} },
+      writtenAt,
+    });
+    const db2 = fakeDb({ telemetry_logs: [noClock(T_RESET - 1), noClock(T_RESET + 1)], reset_audit_log: [] });
+    expect(await readMeetingTelemetry(db2, 8, 2, { resetAtMs: T_RESET })).toHaveLength(1);
+  });
+
   it('with no reset, the whole meeting is read as before', async () => {
     const noReset = fakeDb({ telemetry_logs: [...firstRun, ...perfectRun], reset_audit_log: [] });
     expect(await readLastResetOfMeeting(noReset, 8, 2)).toBeNull();

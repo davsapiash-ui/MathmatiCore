@@ -29,7 +29,6 @@ const banks = (): { meeting: number; task: SessionTask }[] => {
 
 const state = (over: Partial<GuideTickState> = {}): GuideTickState => ({
   sessionNumber: 1,
-  isASD: false,
   counts: { ...EMPTY_COUNTS },
   answerDigits: {},
   operandDigits: { a: {}, b: {} },

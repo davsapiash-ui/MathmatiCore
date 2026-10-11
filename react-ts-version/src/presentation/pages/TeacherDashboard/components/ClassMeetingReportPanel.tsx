@@ -27,7 +27,7 @@ const SESSION_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const TIER_ORDER: RecommendationTier[] = ['below_50', 'between_50_75', 'above_75'];
 const OUTCOME_HE = { first_try: 'ניסיון ראשון', after_correction: 'אחרי תיקון', incomplete: 'לא הושלם' } as const;
 
-function ExerciseRows({ rows, choice, sessionNumber }: { rows: ClassExerciseRow[]; choice: boolean; sessionNumber?: number }) {
+function ExerciseRows({ rows, choice, sessionNumber, scored = true }: { rows: ClassExerciseRow[]; choice: boolean; sessionNumber?: number; scored?: boolean }) {
   return (
     <table className="w-full text-[11px]">
       <thead className="text-ws-soft">
@@ -40,7 +40,8 @@ function ExerciseRows({ rows, choice, sessionNumber }: { rows: ClassExerciseRow[
             {choice && <td className="text-right">{ex.pathType === 'compulsory' ? '' : CHOICE_PATH_LABEL_HE[ex.pathType]}</td>}
             <td className="text-center">{ex.attempted}</td>
             <td className="text-center">{ex.completed}</td>
-            <td className="text-center">{ex.firstTry} ({ex.firstTryPercent}%)</td>
+            {/* Meeting 1 is not scored (Module 14 §ב): the count, no percentage. */}
+            <td className="text-center">{scored ? `${ex.firstTry} (${ex.firstTryPercent}%)` : ex.firstTry}</td>
             <td className="text-center">{ex.wrongDigits}</td>
             <td className="text-center">{ex.socraticCards}</td>
             <td className="text-center">{ex.hesitations}</td>
@@ -55,19 +56,19 @@ function ExerciseRows({ rows, choice, sessionNumber }: { rows: ClassExerciseRow[
  * מסמך 03: the choice exercises appear "מסומנים כתרגילי בחירה, בנפרד משבעת
  * תרגילי החובה" — their own table, each row naming its path.
  */
-export function ClassExerciseTables({ exercises, sessionNumber }: { exercises: ClassExerciseRow[]; sessionNumber?: number }) {
+export function ClassExerciseTables({ exercises, sessionNumber, scored = true }: { exercises: ClassExerciseRow[]; sessionNumber?: number; scored?: boolean }) {
   const compulsory = exercises.filter((ex) => ex.pathType === 'compulsory');
   const choice = exercises.filter((ex) => ex.pathType !== 'compulsory');
   return (
     <div className="p-3 rounded-xl bg-ws-bg border border-ws-surface2 overflow-x-auto space-y-3">
       <div>
         <div className="font-black text-ws-ink mb-1">התפלגות הצלחה בניסיון ראשון לפי תרגיל</div>
-        {compulsory.length > 0 ? <ExerciseRows rows={compulsory} choice={false} sessionNumber={sessionNumber} /> : <div className="text-ws-soft">לא נרשמו תרגילי חובה.</div>}
+        {compulsory.length > 0 ? <ExerciseRows rows={compulsory} choice={false} sessionNumber={sessionNumber} scored={scored} /> : <div className="text-ws-soft">לא נרשמו תרגילי חובה.</div>}
       </div>
       {choice.length > 0 && (
         <div data-testid="choice-exercises">
           <div className="font-black text-ws-ink mb-1">{CHOICE_EXERCISES_HEADING_HE}</div>
-          <ExerciseRows rows={choice} choice sessionNumber={sessionNumber} />
+          <ExerciseRows rows={choice} choice sessionNumber={sessionNumber} scored={scored} />
         </div>
       )}
     </div>
@@ -83,9 +84,16 @@ export function countsLineHe(counts: Record<string, number>, names: Readonly<Rec
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
-/** The scaffold and help line, as the server's class PDF prints it (functions/src/classReport.ts). */
+/**
+ * The scaffold and help line, as the server's class PDF prints it (functions/src/reportHtml.ts
+ * classScaffoldsLineHe). PRD 23 §ב: the result-row scaffold by the profile it appeared in —
+ * two numbers, each with its profile; a report stored before the split shows the total alone.
+ */
 export function scaffoldsLineHe(s: ClassScaffoldCounters): string {
-  return `לוח החיבור: נפתח ${s.gridOpenings}, הוחזר על ידי הלומד ${s.gridReopenings} · הקלדה לפני המרה (מקלדת נעולה): ${s.keyboardLockBlocks} · קריאות שקטות למורה: ${s.helpRequests}${s.helpWithdrawals > 0 ? ` (הלומדים ביטלו ${s.helpWithdrawals} מהן)` : ''} · בקשות עזרה מהצ׳אט: ${s.chatHelpRequests} · פיגום בשורת התוצאה: ${s.placeCueScaffolds}`;
+  const byProfile = s.placeCuesRegular !== null && s.placeCuesEnhanced !== null
+    ? ` (${s.placeCuesRegular} בפרופיל הרגיל, ${s.placeCuesEnhanced} בפרופיל התמיכה המוגבר)`
+    : '';
+  return `לוח החיבור: נפתח ${s.gridOpenings}, הוחזר על ידי הלומד ${s.gridReopenings} · הקלדה לפני המרה (מקלדת נעולה): ${s.keyboardLockBlocks} · קריאות שקטות למורה: ${s.helpRequests}${s.helpWithdrawals > 0 ? ` (הלומדים ביטלו ${s.helpWithdrawals} מהן)` : ''} · בקשות עזרה מהצ׳אט: ${s.chatHelpRequests} · פיגום בשורת התוצאה: ${s.placeCueScaffolds}${byProfile}`;
 }
 
 /**
@@ -334,7 +342,7 @@ export function ClassMeetingReportPanel() {
             ? 'בודק אם כבר יש דוח כיתה למפגש זה…'
             : selectedSession === 1
               ? 'עדיין לא הופק דוח כיתה למפגש זה. מפגש 1 אינו מקבל ציון: הדוח מראה מי עוד לא הפעיל כל אחד מכלי המערכת, איך הסתיים כל תרגיל ריענון, ועל מה לשים לב לקראת האבחון. הקובץ נשמר גם בדרייב, תיקייה "1 דוחות".'
-              : 'עדיין לא הופק דוח כיתה למפגש זה. הדוח נבנה מכל הפעולות המתועדות של כל התלמידים במפגש: שיעור ההצלחה בניסיון ראשון לכל תלמיד, חלוקה לקבוצות למידה, טעויות לפי טור, ביטולים, היסוסים, כרטיסי חניכה, הצלחה בכל תרגיל, ותובנות פדגוגיות כיתתיות. הקובץ נשמר גם בדרייב, תיקייה "1 דוחות".'}
+              : `עדיין לא הופק דוח כיתה למפגש זה. הדוח נבנה מכל הפעולות המתועדות של כל התלמידים במפגש: ${FIRST_ATTEMPT_SCORE_LABEL_HE} לכל תלמיד, חלוקה לקבוצות למידה, טעויות לפי טור, ביטולים, היסוסים, כרטיסי חניכה, הצלחה בכל תרגיל, ותובנות פדגוגיות כיתתיות. הקובץ נשמר גם בדרייב, תיקייה "1 דוחות".`}
         </p>
       )}
 
@@ -352,7 +360,7 @@ export function ClassMeetingReportPanel() {
             ) : (
               <Stat label="מפגש היכרות וריענון" value="ללא ציון" sub={`זמן פעילות ממוצע ${report.activeMinutesMean} דקות`} />
             )}
-            <Stat label="ספרות שגויות" value={String(report.wrongDigitsTotal)} sub={`יחידות ${report.wrongDigitsByColumn.units} · עשרות ${report.wrongDigitsByColumn.tens} · מאות ${report.wrongDigitsByColumn.hundreds}`} />
+            <Stat label="ספרות שגויות" value={String(report.wrongDigitsTotal)} sub={`יחידות ${report.wrongDigitsByColumn.units} · עשרות ${report.wrongDigitsByColumn.tens} · מאות ${report.wrongDigitsByColumn.hundreds} · אלפים ${report.wrongDigitsByColumn.thousands}`} />
             <Stat label="כרטיסי חניכה" value={String(report.socraticCardsTotal)} sub={`היסוסים ${report.hesitationsTotal} · ביטולים ${report.undosTotal} · מחיקות ${report.deletionsTotal}`} />
           </div>
 
@@ -375,7 +383,7 @@ export function ClassMeetingReportPanel() {
               <div className="p-3 rounded-xl bg-violet-50 border border-violet-200 text-violet-900 dark:bg-violet-950/40 dark:border-violet-800 dark:text-violet-100">
                 {report.scored ? (
                   <>
-                    <div className="font-black mb-1">חלוקה לקבוצות למידה דיפרנציאליות (לפי רמת הישג)</div>
+                    <div className="font-black mb-1">חלוקה לקבוצות למידה דיפרנציאליות</div>
                     <ul className="space-y-1">
                       {TIER_ORDER.map((tier) => (
                         <li key={tier}>
@@ -408,7 +416,7 @@ export function ClassMeetingReportPanel() {
               </div>
 
               {/* Exercises */}
-              {report.exercises.length > 0 && <ClassExerciseTables exercises={report.exercises} sessionNumber={selectedSession} />}
+              {report.exercises.length > 0 && <ClassExerciseTables exercises={report.exercises} sessionNumber={selectedSession} scored={report.scored} />}
 
               <CardsAndScaffolds report={report} />
             </div>
@@ -445,7 +453,7 @@ export function ClassMeetingReportPanel() {
               <thead className="text-ws-soft">
                 <tr>
                   <th className="text-right">תלמיד</th><th>מסלול</th>{report.scored && <><th>{FIRST_ATTEMPT_SCORE_LABEL_HE}</th><th>נכון בניסיון ראשון</th></>}<th>תרגילים</th>
-                  <th>שגויות (א/ע/מ)</th><th>מחיקות</th><th>ביטולים</th><th>היסוסים</th><th>המרות</th><th>כרטיסים</th><th>דקות</th><th>הקלטה</th><th>רפלקציה</th><th className="text-right">תרגילים</th>
+                  <th>שגויות (א/ע/מ/אל)</th><th>מחיקות</th><th>ביטולים</th><th>היסוסים</th><th>המרות</th><th>כרטיסים</th><th>דקות</th><th>הקלטה</th><th>רפלקציה</th><th className="text-right">תרגילים</th>
                 </tr>
               </thead>
               <tbody className="text-ws-ink">
@@ -460,7 +468,7 @@ export function ClassMeetingReportPanel() {
                       </>
                     )}
                     <td className="text-center">{l.exercisesCompleted}/{l.exercisesAttempted}</td>
-                    <td className="text-center">{l.wrongDigits} ({l.wrongDigitsByColumn[0]}/{l.wrongDigitsByColumn[1]}/{l.wrongDigitsByColumn[2]})</td>
+                    <td className="text-center">{l.wrongDigits} ({l.wrongDigitsByColumn[0]}/{l.wrongDigitsByColumn[1]}/{l.wrongDigitsByColumn[2]}/{l.wrongDigitsByColumn[3]})</td>
                     <td className="text-center">{l.deletions}</td>
                     <td className="text-center">{l.undos}</td>
                     <td className="text-center">{l.hesitations}{l.hesitationSecondsTotal > 0 ? ` (${Math.round(l.hesitationSecondsTotal)} שנ׳)` : ''}</td>

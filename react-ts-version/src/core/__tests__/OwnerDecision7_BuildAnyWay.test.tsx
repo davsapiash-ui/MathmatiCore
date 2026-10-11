@@ -113,7 +113,7 @@ describe('2. the research category follows the same rule', () => {
   });
 });
 
-describe('3. the "קבצו 10" button does not pulse on an accepted board', () => {
+describe('3. the "קבצו 10" button has no emphasis on an accepted board, and never pulses', () => {
   const show = (t: SessionTask, counts: PlaceCounts) => {
     useWorkspaceStore.setState({ sessionNumber: 3, dynamicTasks: [t, { ...t, id: `${t.id}_next` }], standardTaskIdx: 0, flowStatus: 'task', counts } as never);
     const { container } = render(
@@ -129,13 +129,17 @@ describe('3. the "קבצו 10" button does not pulse on an accepted board', () =
 
   it('340 as 34 tens: the button is there and still', () => {
     const b = show(s3('s3_r_t1'), board({ tens: 34 }));
-    expect(b.getAttribute('data-pulse')).toBeNull();
+    expect(b.getAttribute('data-emphasis')).toBeNull();
     expect(b.className).not.toContain('animate-pulse');
+    expect(b.className).not.toContain('ring-2');
   });
 
-  it('33 tens (another number): the button pulses', () => {
+  it('33 tens (another number): the button is marked by a static ring — no pulse, no ✨', () => {
     const b = show(s3('s3_r_t1'), board({ tens: 33 }));
-    expect(b.getAttribute('data-pulse')).toBe('true');
+    expect(b.getAttribute('data-emphasis')).toBe('true');
+    expect(b.className).toContain('ring-2');
+    expect(b.className).not.toContain('animate-pulse');
+    expect(b.textContent).not.toContain('✨');
   });
 });
 

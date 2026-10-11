@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
 import type { DragSource, Place } from '@/core/placeValue';
-import { useWorkspaceStore, selectBoardOpen, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, type SessionNumber } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, selectBoardOpen, getActiveTasks, activeExerciseId, isPathSplitMeeting, savedBankPath, recordLearningPath, isAdditionExercise, selectStandardTask, restoredMeetingPersistence, type SessionNumber } from '@/application/useWorkspaceStore';
 import { useAuthStore, stampStudentWindowClosed, touchStudentActivity, currentStudentUid } from '@/application/useAuthStore';
 import { submitSRLReflection, hasSavedSRLReflection } from '@/core/srlReflection';
 import { useActiveClassSession } from '@/application/useActiveClassSession';
@@ -205,14 +205,15 @@ export function StudentWorkspacePage() {
         if (snap.exists()) {
           const val = snap.val();
           if (typeof val === 'object' && val !== null) {
-            const timestamp = val.projector_mode_updated_at || val.updated_at || 0;
+            // The node's own fields only (PRD Module 4): every writer writes projector_mode and projector_mode_updated_at.
+            const timestamp = Number(val.projector_mode_updated_at) || 0;
             if (timestamp > 0 && timestamp <= lastProjectorTimestampRef.current) {
               return; // Ignore stale / out-of-order updates
             }
             if (timestamp > 0) {
               lastProjectorTimestampRef.current = timestamp;
             }
-            setIsProjectorModeActive(Boolean(val.projector_mode ?? val.active));
+            setIsProjectorModeActive(val.projector_mode === true);
           } else {
             setIsProjectorModeActive(Boolean(val));
           }
@@ -1303,8 +1304,21 @@ export function StudentWorkspacePage() {
     const endKind: 'station1' | 'station8' | 'encouragement' | 'generic' =
       endStation === 1 ? 'station1'
       : endStation === 8 ? 'station8'
-      : hasClosingSentence(endStation) && endStation === sessionNumber ? 'encouragement'
+      : hasClosingSentence(endStation) ? 'encouragement'
       : 'generic';
+    // Stations 3–7 always end on their one encouragement sentence (PRD 14 §ג,
+    // 16 §ב; owner, 11.10.2026) — also when the teacher's close finds this
+    // device's store on another meeting: the sentence is then chosen by the
+    // counts saved with this meeting's own copy (this device's, else the
+    // record's), and by an empty count when no copy has them.
+    const closingCounts =
+      endStation === sessionNumber
+        ? meetingPersistence
+        : restoredMeetingPersistence(
+            (normUid ? readDeviceCopy(normUid, endStation)?.meetingPersistence : undefined) ??
+              (myData as { workspaceByMeeting?: Record<string, { meetingPersistence?: unknown }> } | null)?.workspaceByMeeting?.[`m${endStation}`]?.meetingPersistence,
+            endStation
+          );
     const endLines: string[] =
       endKind === 'station1' ? ['סיימתם את תחנה 1!', savedLine, teacherSentenceHe('nextStation', teacherGender)]
       : endKind === 'station8' ? ['סיימתם את תחנה 8, התחנה האחרונה!', savedLine]
@@ -1315,7 +1329,7 @@ export function StudentWorkspacePage() {
         <div className="bg-ws-surface p-10 rounded-3xl shadow-sm max-w-md w-full text-center border-2 border-ws-surface2 space-y-6">
           {endKind === 'encouragement' ? (
             // The one sentence, with its own read-aloud button (on click only).
-            <ClosingSentence sessionNumber={sessionNumber} counts={meetingPersistence} />
+            <ClosingSentence sessionNumber={endStation} counts={closingCounts} />
           ) : (
             <div className="flex items-start justify-center gap-3">
               <div className="flex flex-col gap-3">
@@ -1351,7 +1365,8 @@ export function StudentWorkspacePage() {
   if (isInitializing || !isInitialized) {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body">
-        <div className="animate-spin text-4xl mb-4">⏳</div>
+        {/* A still indicator: the child's screens are calm (no spinning). */}
+        <div className="text-4xl mb-4" aria-hidden="true">⏳</div>
         <h2 className="text-xl font-bold">טוענים את המשימות שלכם...</h2>
       </div>
     );
@@ -1361,7 +1376,7 @@ export function StudentWorkspacePage() {
   if (!isTeacherOrAdmin && activeClassSession.isLoaded && isTeacherSessionActive && Number(activeClassSession?.sessionNumber) !== meeting) {
     return (
       <div dir="rtl" className="h-screen w-full flex flex-col items-center justify-center bg-ws-bg text-ws-ink font-body">
-        <div className="animate-spin text-4xl mb-4">⏳</div>
+        <div className="text-4xl mb-4" aria-hidden="true">⏳</div>
         <h2 className="text-xl font-bold text-ws-ink">עוברים לתחנה {activeClassSession?.sessionNumber}...</h2>
       </div>
     );

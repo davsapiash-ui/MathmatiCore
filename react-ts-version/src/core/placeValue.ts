@@ -99,18 +99,6 @@ export function groupBlocksManually(counts: PlaceCounts, fromPlace: Place): { co
   };
 }
 
-/** Palette block dropped on the adjacent-lower column: fresh +10 low, nothing decremented, no auto-group. */
-export function addUngroupedFromPalette(counts: PlaceCounts, fromPlace: Place): { counts: PlaceCounts; event: UngroupEvent } | null {
-  const fromIdx = PLACE_ORDER.indexOf(fromPlace);
-  if (fromIdx <= 0) return null;
-  const toPlace = PLACE_ORDER[fromIdx - 1];
-  if (counts[toPlace] + 10 > MAX_VISIBLE_BLOCKS) return null;
-  return {
-    counts: { ...counts, [toPlace]: counts[toPlace] + 10 },
-    event: { from: fromPlace, to: toPlace },
-  };
-}
-
 export function ungroupBlock(counts: PlaceCounts, place: Place): { counts: PlaceCounts; event: UngroupEvent } | null {
   const fromIdx = PLACE_ORDER.indexOf(place);
   if (fromIdx <= 0) return null;
@@ -145,14 +133,6 @@ export type DropResult =
       regroupEvents: RegroupEvent[];
       /** A block of the board broke apart into ten of the column to its right (a decomposition the child performed). */
       ungroupEvent?: UngroupEvent;
-      /**
-       * A NEW block from the palette, dropped on the column to the right of its
-       * own, landed as ten blocks of that column (1.10.2026). Allowed, and
-       * animated like a break — but no block of the board broke apart: it is
-       * ten blocks added, not a decomposition the child performed (no
-       * conversion, no keyboard unlock, no REGROUPING_SUCCESS).
-       */
-      paletteUngroup?: UngroupEvent;
       removed?: Place;
     }
   | { ok: false; reason: 'silent' }
@@ -180,28 +160,19 @@ export function resolveDrop(counts: PlaceCounts, input: DropInput, _scaffoldLeve
   const targetPlace = input.target.place;
 
   if (input.source === 'palette') {
-    // Same place: plain add (scaffold-conditional auto-group, chained).
-    if (srcIdx === tgtIdx) {
-      const { counts: next, events } = addBlock(counts, targetPlace, autoGroup);
-      return { ok: true, counts: next, regroupEvents: events };
-    }
-    // Adjacent lower: a fresh palette block lands as ten blocks of the lower
-    // column (+10 low). Nothing on the board was broken, so it is not an
-    // ungroupEvent (see DropResult.paletteUngroup).
-    if (srcIdx - tgtIdx === 1) {
-      const res = addUngroupedFromPalette(counts, input.sourcePlace);
-      if (!res) return { ok: false, reason: 'constraint', place: targetPlace };
-      return { ok: true, counts: res.counts, regroupEvents: [], paletteUngroup: res.event };
-    }
-    // A block dropped on a column of a higher value (a unit on the tens) is
-    // rejected, in every meeting (owner, 28.9.2026): moving it to its own
-    // column in silence hid a place-value error from the teacher, logged it as
-    // a ten in the tens column, and counted it in meeting 1's "5 לבנים". Only a
-    // block released OUTSIDE the columns goes to its own column (doc 03 §3.1,
-    // Drag & Drop Forgiveness) — the page routes those before they reach here.
-    if (tgtIdx > srcIdx) return { ok: false, reason: 'constraint', place: targetPlace };
-    // Any other drop of a palette block onto the board routes safely to its own column
-    const { counts: next, events } = addBlock(counts, input.sourcePlace, autoGroup);
+    // PRD module 8 §א: a toolbox block lands only in its own column. Released
+    // on any other column — higher (a unit on the tens, owner 28.9.2026) or
+    // lower (a ten on the units, owner 11.10.2026) — it is rejected and the
+    // column shakes, in every meeting. Moving it in silence hid a place-value
+    // error from the teacher, and the old "ten on the units lands as ten
+    // units" added blocks the child never built (not in the PRD). Only a block
+    // released OUTSIDE the columns goes to its own column — the page routes
+    // those to their own place before they reach here.
+    if (srcIdx !== tgtIdx) return { ok: false, reason: 'constraint', place: targetPlace };
+    // PRD module 7: a column holds up to 50 blocks. A drop on a full column is
+    // rejected — no block, no telemetry, no undo step, no counter.
+    if (counts[targetPlace] >= MAX_VISIBLE_BLOCKS) return { ok: false, reason: 'constraint', place: targetPlace };
+    const { counts: next, events } = addBlock(counts, targetPlace, autoGroup);
     return { ok: true, counts: next, regroupEvents: events };
   }
 

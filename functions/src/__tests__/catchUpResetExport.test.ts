@@ -188,7 +188,9 @@ describe('research export — the meetings file', () => {
     const row = push.slice(0, end);
     expect(row.indexOf('...catchUpExportCells(catchUpByKey.get(k)),')).toBeGreaterThan(0);
     expect(row.indexOf('previous_score_percent:')).toBeGreaterThan(row.indexOf('...catchUpExportCells('));
-    expect(/previous_score_percent:[^\n]*,$/.test(row.trimEnd())).toBe(true);
+    // PRD 23 §ב: the place cues by profile were appended after it, and are last.
+    expect(row.indexOf('place_cues_regular:')).toBeGreaterThan(row.indexOf('previous_score_percent:'));
+    expect(/place_cues_enhanced:[^\n]*,$/.test(row.trimEnd())).toBe(true);
     // The earlier columns are unchanged and still in their places.
     expect(row.indexOf('was_reset:')).toBeLessThan(row.indexOf('reset_times_iso:'));
     expect(row.indexOf('...afterValues,')).toBeLessThan(row.indexOf('...catchUpExportCells('));
