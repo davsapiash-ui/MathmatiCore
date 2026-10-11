@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { meetingLabelHe, meetingShortLabelHe } from '@/core/stationNames';
 import type { SessionRow } from '@/core/sessionPicker';
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 
 /**
  * PRD v7.1 Module 14 §ב0 — Session Activation.
@@ -26,6 +27,7 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStar
   // מסמך העיצוב §1.2. בזמן ההפעלה עצמה החלון אינו נסגר ב-Escape, בדיוק כמו
   // שהוא אינו נסגר בלחיצה על הרקע — כדי שלא ייסגר באמצע שידור לכיתה.
   const dialogRef = useDismissableOverlay<HTMLDivElement>(isOpen, isStarting ? () => {} : onClose);
+  const readOnly = useIsReadOnlyStaff();
 
   if (!isOpen || sessionNumber === null) return null;
 
@@ -90,7 +92,8 @@ export function SessionActivationModal({ isOpen, sessionNumber, sessions, isStar
             </button>
             <button
               onClick={() => onConfirm(sessionNumber)}
-              disabled={isStarting}
+              disabled={readOnly || isStarting}
+              title={readOnly ? READ_ONLY_TITLE : undefined}
               className="px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:bg-violet-400 disabled:cursor-not-allowed text-white font-bold text-sm shadow-sm cursor-pointer flex items-center gap-2"
             >
               {isStarting ? (

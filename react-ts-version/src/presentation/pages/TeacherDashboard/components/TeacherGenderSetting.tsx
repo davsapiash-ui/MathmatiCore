@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 import { useTeacherGender, saveTeacherGender } from '@/application/useTeacherGender';
 import { teacherSentenceHe, type TeacherGender } from '@/core/teacherGender';
 
@@ -21,9 +22,10 @@ const OPTIONS: ReadonlyArray<{ value: TeacherGender; label: string }> = [
  */
 export function TeacherGenderSetting() {
   const gender = useTeacherGender();
+  const readOnly = useIsReadOnlyStaff();
 
   const choose = (next: TeacherGender) => {
-    if (next === gender) return;
+    if (readOnly || next === gender) return;
     saveTeacherGender(next).catch((err) => {
       console.warn('[TeacherGenderSetting] save refused:', err);
       toast.error('השמירה נכשלה. נסו שוב.');
@@ -39,13 +41,14 @@ export function TeacherGenderSetting() {
         {OPTIONS.map((option) => {
           const checked = option.value === gender;
           return (
-            <label key={option.value} className="relative cursor-pointer">
+            <label key={option.value} className={readOnly ? 'relative cursor-not-allowed opacity-60' : 'relative cursor-pointer'} title={readOnly ? READ_ONLY_TITLE : undefined}>
               <input
                 type="radio"
                 name="teacher-gender"
                 value={option.value}
                 checked={checked}
                 onChange={() => choose(option.value)}
+                disabled={readOnly}
                 className="peer sr-only"
               />
               <span

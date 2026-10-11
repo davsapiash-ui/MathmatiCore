@@ -61,9 +61,10 @@ describe('catchup_records — the rules follow the contract', () => {
 
   it('only the teacher of the class writes; a create carries one round, an update adds exactly one and changes none', () => {
     const b = block();
-    expect(b).toContain('allow create: if isTeacherOfClass(request.resource.data.class_id)');
+    // canWrite(): a read-only staff account writes nothing (owner decision 11.10.2026).
+    expect(b).toContain('allow create: if canWrite() && isTeacherOfClass(request.resource.data.class_id)');
     expect(b).toContain('request.resource.data.rounds.keys().size() == 1');
-    expect(b).toContain('allow update: if isTeacherOfClass(resource.data.class_id)');
+    expect(b).toContain('allow update: if canWrite() && isTeacherOfClass(resource.data.class_id)');
     expect(b).toContain(".affectedKeys().hasOnly(['rounds'])");
     expect(b).toContain('.removedKeys().size() == 0');
     expect(b).toContain('.changedKeys().size() == 0');

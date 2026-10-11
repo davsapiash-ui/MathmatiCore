@@ -6,6 +6,7 @@ import type { ResetReason, ResetTarget, SingleStudentResetScope } from '@/types'
 import { validateChatInputForPII, anonymizeChatMessageBody, reportPiiFilterFailure } from '@/core/security/PiiFilter';
 import { meetingLabelHe } from '@/core/stationNames';
 import { useResetMeetingTarget } from '@/application/useResetMeetingTarget';
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 import { finishedMeetingRefusalHe } from '@/core/resetMeetingTarget';
 import { RESET_ACTION_HE, RESET_LOG_LINE_HE, RESET_REASON_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 
@@ -67,6 +68,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   const [reasonNote, setReasonNote] = useState('');
   const [noteError, setNoteError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const readOnly = useIsReadOnlyStaff();
   const [doubleConfirmed, setDoubleConfirmed] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   // PRD Module 23א §ב.2: the default is the active meeting only.
@@ -471,7 +473,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
           <button
             type="button"
             onClick={handleExecute}
-            disabled={isSubmitting || !selectedReason || (isLevel3 && step === 2 && !doubleConfirmed) || (isClassTarget && (!activeSessionNumber || !classConfirmed)) || (isOneLearner && scope === 'active_session' && !activeSessionNumber)}
+            title={readOnly ? READ_ONLY_TITLE : undefined}
+            disabled={readOnly || isSubmitting || !selectedReason || (isLevel3 && step === 2 && !doubleConfirmed) || (isClassTarget && (!activeSessionNumber || !classConfirmed)) || (isOneLearner && scope === 'active_session' && !activeSessionNumber)}
             className={`px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed ${
               isLevel3
                 ? 'bg-red-600 hover:bg-red-700 disabled:opacity-50'

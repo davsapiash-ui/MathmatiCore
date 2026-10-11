@@ -7,6 +7,7 @@ import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/infrastructure/firebase";
 import { containsPII } from "@/core/security/PiiFilter";
 import { toast } from "sonner";
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 
 interface ChatMessage {
   id: string;
@@ -33,6 +34,7 @@ export function AdminChatView() {
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [inputText, setInputText] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const readOnly = useIsReadOnlyStaff();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTab, setFilterTab] = useState<"ALL" | "UNANSWERED" | "ANSWERED">("ALL");
 
@@ -93,13 +95,13 @@ export function AdminChatView() {
   // this the "ממתין למענה" badges and the bell never cleared from here — only
   // from the support hub's "handled" button.
   useEffect(() => {
-    if (!selectedTeacherId) return;
+    if (!selectedTeacherId || readOnly) return;
     const unread = messages.filter((m) => m.sender_id === selectedTeacherId && m.receiver_id === "admin" && !m.read);
     if (unread.length === 0) return;
     Promise.all(unread.map((m) => updateDoc(doc(db, "messages", m.id), { read: true }))).catch((err) => {
       console.warn("[AdminChatView] mark-as-read notice:", err);
     });
-  }, [selectedTeacherId, messages]);
+  }, [selectedTeacherId, messages, readOnly]);
 
   const selectedTeacher = useMemo(() => 
     anonymousTeachers.find(t => t.id === selectedTeacherId), 
@@ -345,11 +347,14 @@ export function AdminChatView() {
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                   placeholder="הקלדת הודעה (ללא פרטים מזהים)..."
+                  disabled={readOnly}
+                  title={readOnly ? READ_ONLY_TITLE : undefined}
                   className="flex-1 bg-slate-100 dark:bg-slate-900 border-none rounded-full px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-800 dark:text-slate-100 shadow-inner"
                 />
                 <UdlButton 
                   onClick={handleSend} 
-                  disabled={!inputText.trim() || isSending}
+                  disabled={readOnly || !inputText.trim() || isSending}
+                  title={readOnly ? READ_ONLY_TITLE : undefined}
                   aria-label="שלח"
                   className="rounded-full w-12 h-12 p-0 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white transition-all disabled:opacity-50 shadow-md"
                 >

@@ -58,3 +58,23 @@ export function requireAdmin(token: Record<string, unknown>): CallerRoles {
   }
   return caller;
 }
+
+/**
+ * Owner decision 11.10.2026: a staff account may be marked read-only in its
+ * authorizedTeachers document (`readOnly: true`). It is not a fourth role —
+ * the account signs in as teacher or admin like any other — but every sign-in
+ * carries the custom claim `readOnly: true` (syncUserRoles), and nothing that
+ * changes state may run for it. The rules say the same (canWrite()).
+ */
+export const READ_ONLY_MESSAGE = "חשבון לצפייה בלבד: אין הרשאה לשנות נתונים.";
+
+export function isReadOnlyToken(token: Record<string, unknown> | null | undefined): boolean {
+  return token?.readOnly === true;
+}
+
+/** Refuses a state-changing call from a read-only staff sign-in. */
+export function assertCanWrite(token: Record<string, unknown> | null | undefined): void {
+  if (isReadOnlyToken(token)) {
+    throw new HttpsError("permission-denied", READ_ONLY_MESSAGE);
+  }
+}

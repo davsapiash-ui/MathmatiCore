@@ -8,6 +8,7 @@ import { ref, onValue, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { normalizeStudentId } from '@/application/useChatStore';
 import { useAuthStore } from '@/application/useAuthStore';
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 import { approveTeacherGate } from '@/core/teacherGate';
 import { recommendedPathOf } from '@/core/recommendedPath';
 import { hasEnhancedSupport, buildSupportProfilePayload } from '@/core/supportProfile';
@@ -68,13 +69,14 @@ const INITIAL_ROWS: StudentRowState[] = Array.from({ length: 12 }, (_, index) =>
 });
 
 /** A switch the teacher reads at a glance: the state in words and in the knob's place. 44px to touch. */
-function TeacherSwitch({ checked, disabled, label, onToggle }: { checked: boolean; disabled?: boolean; label: string; onToggle: () => void }) {
+function TeacherSwitch({ checked, disabled, label, onToggle, title }: { checked: boolean; disabled?: boolean; label: string; onToggle: () => void; title?: string }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      title={title}
       disabled={disabled}
       onClick={onToggle}
       className="group inline-flex min-h-11 min-w-11 items-center justify-center rounded-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
@@ -121,6 +123,8 @@ export function ClassManagement({
   onOpenReport?: (studentId: string) => void;
 }) {
   const [rows, setRows] = useState<StudentRowState[]>(INITIAL_ROWS);
+  // Owner decision 11.10.2026: a read-only staff account changes nothing here.
+  const readOnly = useIsReadOnlyStaff();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // The section titles stick just under the dashboard's own sticky meeting bar, whatever its height.
@@ -340,7 +344,8 @@ export function ClassManagement({
           <TeacherSwitch
             checked={row.gradedTrack}
             // Once a path is approved, the path decides; the mark only shapes meetings 1–2.
-            disabled={busy || row.isApproved}
+            disabled={readOnly || busy || row.isApproved}
+            title={readOnly ? READ_ONLY_TITLE : undefined}
             label={`${ROUTE_NAME_HE.graded_path} — ${label}`}
             onToggle={() => handleToggleGradedTrack(row)}
           />
@@ -355,10 +360,10 @@ export function ClassManagement({
                   key={path}
                   type="button"
                   onClick={() => handleApproveGate(row, path)}
-                  disabled={busy || !row.session2Completed}
+                  disabled={readOnly || busy || !row.session2Completed}
                   aria-pressed={row.approvedPath === path}
                   aria-label={`${ROUTE_APPROVE_HE[path]}${recommended ? ` (${RECOMMENDED_MARK_HE})` : ''} — ${label}`}
-                  title={!row.session2Completed ? `אפשר לאשר מסלול רק בסיום ${meetingShortLabelHe(2)}` : ROUTE_APPROVE_HE[path]}
+                  title={readOnly ? READ_ONLY_TITLE : !row.session2Completed ? `אפשר לאשר מסלול רק בסיום ${meetingShortLabelHe(2)}` : ROUTE_APPROVE_HE[path]}
                   className={`min-h-11 inline-flex items-center gap-1 py-1 px-2 rounded-lg text-[11px] font-extrabold whitespace-nowrap transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING} ${
                     row.approvedPath === path ? ROUTE_COLOR[path].buttonOn : ROUTE_COLOR[path].buttonOff
                   }`}
@@ -379,7 +384,8 @@ export function ClassManagement({
         <td className="px-1 py-1">
           <TeacherSwitch
             checked={row.enhancedSupport}
-            disabled={busy}
+            disabled={readOnly || busy}
+            title={readOnly ? READ_ONLY_TITLE : undefined}
             label={`פרופיל תמיכה מוגבר — ${label}`}
             onToggle={() => handleToggleEnhancedSupport(row)}
           />
@@ -403,10 +409,10 @@ export function ClassManagement({
             <button
               type="button"
               onClick={() => setStudentToReset({ id: row.id, name: label })}
-              disabled={busy}
-              className={`min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg border border-rose-200 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer ${FOCUS_RING}`}
+              disabled={readOnly || busy}
+              className={`min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg border border-rose-200 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${FOCUS_RING}`}
               // The dialog offers both scopes, the meeting alone by default (PRD 23א §ב.2).
-              title={LEARNER_RESET_TOOLTIP_HE}
+              title={readOnly ? READ_ONLY_TITLE : LEARNER_RESET_TOOLTIP_HE}
               aria-label={`${RESET_ACTION_HE.learner} של ${label}`}
             >
               <RotateCcw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} aria-hidden="true" />

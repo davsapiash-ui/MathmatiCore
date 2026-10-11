@@ -25,7 +25,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { requireTeacherForIndividualData } from "./callerIdentity";
+import { assertCanWrite, requireTeacherForIndividualData } from "./callerIdentity";
 import {
   DRIVE_FOLDERS,
   assertCallerClass,
@@ -249,6 +249,7 @@ export const moveLegacyRecordings = onCall(MOVE_RUNTIME, async (request) => {
   const token = request.auth.token as Record<string, unknown>;
   // The recordings are individual learner data (Module 24 §ב): the class teacher only.
   requireTeacherForIndividualData(token);
+  assertCanWrite(token);
   const class_id = validateClassId(request.data?.class_id, "מזהה הכיתה אינו תקין. לא הועברו הקלטות.");
   assertCallerClass(token, class_id, "אפשר להעביר רק את ההקלטות של הכיתה המשויכת לחשבון המחובר. לא הועברו הקלטות.");
 

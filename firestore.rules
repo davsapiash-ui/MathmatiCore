@@ -15,6 +15,15 @@ service cloud.firestore {
       );
     }
     
+    // Owner decision 11.10.2026: a staff account marked readOnly in
+    // authorizedTeachers signs in with the claim readOnly: true (syncUserRoles).
+    // It reads what its role reads and writes nothing. Every client write rule
+    // below starts with canWrite(); a learner token never carries the claim.
+    function canWrite() {
+      return isAuthenticated() &&
+        !('readOnly' in request.auth.token && request.auth.token.readOnly == true);
+    }
+
     // Helper function to check admin claim
     function isAdmin() {
       return isAuthenticated() && (
@@ -297,9 +306,9 @@ service cloud.firestore {
     // any student_id, and adminAggregator counts this collection as total_students.
     match /students/{studentId} {
       allow read: if (isTeacher() || isOwningStudent(studentId)) && !isAdmin();
-      allow create: if isTeacher() && isValidStudentDoc() &&
+      allow create: if canWrite() && isTeacher() && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnCreate();
-      allow update: if isTeacher() && isValidStudentDoc() &&
+      allow update: if canWrite() && isTeacher() && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnUpdate();
       // Module 23א §ו: deleting learning data is a reset, and the admin is
       // blocked from resets. Resets run in backupAndResetSessionData (Admin SDK).
@@ -308,9 +317,9 @@ service cloud.firestore {
 
     match /users/students/{studentId} {
       allow read: if (isTeacher() || isOwningStudent(studentId)) && !isAdmin();
-      allow create: if isTeacher() && isValidStudentDoc() &&
+      allow create: if canWrite() && isTeacher() && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnCreate();
-      allow update: if isTeacher() && isValidStudentDoc() &&
+      allow update: if canWrite() && isTeacher() && isValidStudentDoc() &&
                        writerMayTouchSupportProfileOnUpdate();
       // Module 23א §ו: deleting learning data is a reset, and the admin is
       // blocked from resets. Resets run in backupAndResetSessionData (Admin SDK).
@@ -321,7 +330,7 @@ service cloud.firestore {
     // Module 24 §ב: a learner's session document is a personal document — no admin read.
     match /sessions/{sessionId} {
       allow read: if isTeacher() || isOwningSession(sessionId);
-      allow create: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
+      allow create: if canWrite() && (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
                        // Module 4: the client writes a session document for meeting 2 only.
                        (isTeacher() || request.resource.data.session_number == 2) &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == false) &&
@@ -329,7 +338,7 @@ service cloud.firestore {
                        createLeavesServerScoreFieldsEmpty();
       // Module 27 §ב.5: a teacher updates the approval fields only (the gate,
       // core/teacherGate.ts, is the one teacher-side writer of this collection).
-      allow update: if (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
+      allow update: if canWrite() && (isTeacher() || isOwningSession(sessionId)) && isValidSessionDoc() &&
                        (!isTeacher() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teacher_gate_approved', 'gate_approved_at', 'gate_approved_by', 'teacher_selected_path'])) &&
                        (isTeacher() || request.resource.data.teacher_gate_approved == resource.data.teacher_gate_approved) &&
                        (isTeacher() || learnerUpdateKeepsStaffFields()) &&
@@ -342,7 +351,7 @@ service cloud.firestore {
       // Module 24 blocks system admins from individual telemetry. A dual identity
       // (teacher + admin) reads as the teacher; only an admin-only identity is blocked.
       allow read: if isTeacher() || (isOwningStudent(string(resource.data.student_id)) && !isAdmin());
-      allow create: if isAuthenticated() &&
+      allow create: if canWrite() && isAuthenticated() &&
                        (isOwningStudent(string(request.resource.data.student_id))) &&
                        (request.resource.data.idempotency_key == logId) &&
                        // Module 4: the document id is the event's idempotency_key, a UUID v4.
@@ -368,7 +377,7 @@ service cloud.firestore {
                      (isAuthenticated() && 'email' in request.auth.token &&
                       request.auth.token.email is string &&
                       email == request.auth.token.email.lower());
-      allow write: if isAdmin();
+      allow write: if canWrite() && isAdmin();
     }
 
     // 4. Class Document Schema Allowlist (Module 4 / Module 25)
@@ -399,8 +408,8 @@ service cloud.firestore {
     // Module 25 §ב.1: one school (school_bikorot) and one class (class_1).
     match /schools/{schoolId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAdmin() && schoolId == 'school_bikorot';
-      allow delete: if isAdmin();
+      allow create, update: if canWrite() && isAdmin() && schoolId == 'school_bikorot';
+      allow delete: if canWrite() && isAdmin();
     }
 
     // Module 27 §ב.4: a learner is "חסום מקריאת אוספי כיתות או תלמידים
@@ -410,8 +419,8 @@ service cloud.firestore {
     // the RTDB class-session broadcast and never touches it.
     match /classes/{classId} {
       allow read: if isTeacher() || isAdmin();
-      allow create, update: if classId == 'class_1' && (isTeacherOfClass(classId) || isAdmin()) && isValidClassDoc();
-      allow delete: if isAdmin();
+      allow create, update: if canWrite() && classId == 'class_1' && (isTeacherOfClass(classId) || isAdmin()) && isValidClassDoc();
+      allow delete: if canWrite() && isAdmin();
     }
 
     // Teacher-Admin Messages (Module 22: Direct client create is BLOCKED; writes permitted exclusively via sendTeacherAdminMessage Cloud Function)
@@ -421,10 +430,10 @@ service cloud.firestore {
                       request.auth.uid == resource.data.receiver_id ||
                       isAdmin() || isTeacher());
       allow create: if false;
-      allow update: if isAuthenticated() &&
+      allow update: if canWrite() && isAuthenticated() &&
                        (request.auth.uid == resource.data.receiver_id || isAdmin() || isTeacher()) &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
-      allow delete: if isAdmin();
+      allow delete: if canWrite() && isAdmin();
     }
 
     // Admin Cached Store (Module 24: Store Cache)
@@ -443,7 +452,7 @@ service cloud.firestore {
     // individual data — the teacher's and the learner's, not the admin's.
     match /workspace_states/{stateId} {
       allow read: if isTeacher() || isOwningStudent(string(resource.data.student_id));
-      allow create, update: if (isTeacher() || isOwningStudent(string(request.resource.data.student_id))) &&
+      allow create, update: if canWrite() && (isTeacher() || isOwningStudent(string(request.resource.data.student_id))) &&
                                request.resource.data.keys().hasOnly([
                                  'student_id', 'session_id', 'exercise_id', 'active_column_index', 'ones_count', 'tens_count', 'hundreds_count', 'memory_circles', 'updated_at'
                                ]);
@@ -457,7 +466,7 @@ service cloud.firestore {
 
     match /audit_logs/{logId} {
       allow read: if isTeacher() || isAdmin();
-      allow write: if isAdmin();
+      allow write: if canWrite() && isAdmin();
     }
 
     // Reset Audit Logs (Module 23א: Immutable Audit Log for All Data Resets & Dataset Exports)
@@ -565,25 +574,25 @@ service cloud.firestore {
 
     match /support_tickets/{ticketId} {
       allow read: if isTeacher() || isAdmin();
-      allow create, update: if (isTeacher() || isAdmin()) && isValidSupportTicketDoc();
-      allow delete: if isAdmin();
+      allow create, update: if canWrite() && (isTeacher() || isAdmin()) && isValidSupportTicketDoc();
+      allow delete: if canWrite() && isAdmin();
     }
 
     // System Control (Module 26: Curriculum & Batch Distribution)
     match /system_control/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if canWrite() && isAdmin();
     }
 
     // Curriculum Catalog (Module 4 & Module 26: Canonical Exercise Templates)
     match /curriculum_catalog/{templateId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if canWrite() && isAdmin();
     }
 
     match /srl_reflections/{reflectionId} {
       allow read: if isTeacher() || isOwningStudent(string(resource.data.student_id));
-      allow create: if isOwningStudent(string(request.resource.data.student_id)) &&
+      allow create: if canWrite() && isOwningStudent(string(request.resource.data.student_id)) &&
                        isValidSRLReflectionDoc(reflectionId);
       allow update: if false;
       allow delete: if false; // Module 23א §ו — see students
@@ -654,13 +663,13 @@ service cloud.firestore {
       // Readable by the class teacher only (as reset_audit_log). A missing
       // document reads as nothing rather than as a refusal.
       allow read: if isClassTeacherReading();
-      allow create: if isTeacherOfClass(request.resource.data.class_id) &&
+      allow create: if canWrite() && isTeacherOfClass(request.resource.data.class_id) &&
                        isValidCatchUpDoc(docId) &&
                        request.resource.data.keys().hasOnly(['student_id', 'session_number', 'class_id', 'rounds']) &&
                        request.resource.data.rounds.keys().size() == 1 &&
                        request.resource.data.rounds.keys()[0].matches('r_[0-9]+') &&
                        isValidCatchUpRound(request.resource.data.rounds[request.resource.data.rounds.keys()[0]]);
-      allow update: if isTeacherOfClass(resource.data.class_id) &&
+      allow update: if canWrite() && isTeacherOfClass(resource.data.class_id) &&
                        isValidCatchUpDoc(docId) &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rounds']) &&
                        request.resource.data.rounds.diff(resource.data.rounds).removedKeys().size() == 0 &&

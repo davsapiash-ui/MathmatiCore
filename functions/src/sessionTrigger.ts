@@ -3,7 +3,7 @@ import { onValueWritten } from "firebase-functions/v2/database";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { readCallerRoles } from "./callerIdentity";
+import { assertCanWrite, readCallerRoles } from "./callerIdentity";
 import {
   computeFirstAttemptScore,
   isChoiceExercise,
@@ -719,6 +719,7 @@ export const createSessionWithServerDeadline = onCall(async (request) => {
   // document is a learner's personal document, so an admin sign-in is not
   // staff here (PRD Module 24 §ב).
   const token = request.auth.token as Record<string, unknown>;
+  assertCanWrite(token);
   const isTeacher = readCallerRoles(token).isTeacher;
   const ownStudent = String(token.student_id ?? "") === String(student_id);
   if (!isTeacher && !ownStudent) {

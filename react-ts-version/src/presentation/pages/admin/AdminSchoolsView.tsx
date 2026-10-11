@@ -20,6 +20,7 @@ import { useAdminStore } from "@/application/useAdminStore";
 import { PILOT_CLASS_CAPACITY } from "@/core/pilotInstitution";
 import { AdminWizardModal } from "./AdminWizardModal";
 import { toast } from "sonner";
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 
 export function AdminSchoolsView() {
   const navigate = useNavigate();
@@ -35,6 +36,9 @@ export function AdminSchoolsView() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isResetting, setIsResetting] = useState(false);
+  // Owner decision 11.10.2026: a read-only staff account adds, removes and resets nothing.
+  const readOnly = useIsReadOnlyStaff();
+  const roTitle = readOnly ? READ_ONLY_TITLE : undefined;
   
   // Real-time Firebase Sync for Schools, Teachers and Classes
   useEffect(() => {
@@ -132,6 +136,7 @@ export function AdminSchoolsView() {
   };
 
   const openWizard = (mode: "full_setup" | "add_teacher" | "add_class", schoolId: string | null = null) => {
+    if (readOnly) return;
     setWizardMode(mode);
     setTargetSchoolId(schoolId);
     setWizardOpen(true);
@@ -173,7 +178,8 @@ export function AdminSchoolsView() {
               semanticColor="neutral"
               className="gap-2 bg-white hover:bg-rose-50 text-rose-900 font-bold py-3.5 px-5 rounded-2xl shadow-sm border border-rose-300 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800 transition-all active:scale-95 text-xs cursor-pointer"
               onClick={handleResetPilot}
-              disabled={isResetting}
+              disabled={readOnly || isResetting}
+              title={roTitle}
             >
               <Trash2 className="w-4 h-4 text-rose-700 dark:text-rose-300" />
               <span>{isResetting ? "מאפס נתונים..." : "איפוס נתונים למבנה הפיילוט הרשמי"}</span>
@@ -185,6 +191,8 @@ export function AdminSchoolsView() {
               semanticColor="primary" 
               className="gap-2 bg-violet-700 hover:bg-violet-800 text-white font-bold py-3.5 px-6 rounded-2xl shadow-sm border border-violet-700 transition-all active:scale-95"
               onClick={() => openWizard("full_setup")}
+              disabled={readOnly}
+              title={roTitle}
             >
               <Plus className="w-5 h-5" />
               <span>הקמת מוסד חדש (אשף מונחה)</span>
@@ -282,6 +290,8 @@ export function AdminSchoolsView() {
                 semanticColor="primary" 
                 className="mt-2 px-6 py-2.5 rounded-xl bg-violet-600 text-white font-bold"
                 onClick={() => openWizard("full_setup")}
+                disabled={readOnly}
+                title={roTitle}
               >
                 הפעל אשף הקמה
               </UdlButton>
@@ -319,9 +329,9 @@ export function AdminSchoolsView() {
 
                   <button 
                     onClick={() => handleDeleteSchool(school)}
-                    disabled={isDeletingId === school.id}
+                    disabled={readOnly || isDeletingId === school.id}
                     className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 transition-colors flex items-center justify-center cursor-pointer"
-                    title="מחק מוסד"
+                    title={roTitle ?? "מחק מוסד"}
                   >
                     {isDeletingId === school.id ? (
                       <span className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
@@ -364,7 +374,9 @@ export function AdminSchoolsView() {
                       </h4>
                       <button 
                         onClick={() => openWizard("add_teacher", school.id)}
-                        className="text-xs text-violet-600 dark:text-violet-400 font-bold hover:underline cursor-pointer"
+                        disabled={readOnly}
+                        title={roTitle}
+                        className="text-xs text-violet-600 dark:text-violet-400 font-bold hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
                       >
                         + הוסף מורה
                       </button>
@@ -402,9 +414,9 @@ export function AdminSchoolsView() {
 
                             <button 
                               onClick={() => handleDeleteTeacher(teacher)}
-                              disabled={isDeletingId === teacher.id}
+                              disabled={readOnly || isDeletingId === teacher.id}
                               className="shrink-0 text-slate-600 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-xl transition-all cursor-pointer"
-                              title="מחק מורה"
+                              title={roTitle ?? "מחק מורה"}
                             >
                               {isDeletingId === teacher.id ? (
                                 <span className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
@@ -428,7 +440,9 @@ export function AdminSchoolsView() {
                       {classes.length === 0 && (
                         <button
                           onClick={() => openWizard("add_class", school.id)}
-                          className="text-xs text-violet-600 dark:text-violet-400 font-bold hover:underline cursor-pointer"
+                          disabled={readOnly}
+                          title={roTitle}
+                          className="text-xs text-violet-600 dark:text-violet-400 font-bold hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
                         >
                           + הקמת כיתת המבקרים
                         </button>
@@ -451,9 +465,9 @@ export function AdminSchoolsView() {
 
                             <button 
                               onClick={() => handleDeleteClass(cls)}
-                              disabled={isDeletingId === cls.id}
+                              disabled={readOnly || isDeletingId === cls.id}
                               className="text-slate-600 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-50 disabled:cursor-not-allowed p-1.5 rounded-lg transition-all cursor-pointer"
-                              title="מחק כיתה"
+                              title={roTitle ?? "מחק כיתה"}
                             >
                               {isDeletingId === cls.id ? (
                                 <span className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
@@ -473,6 +487,8 @@ export function AdminSchoolsView() {
                       semanticColor="neutral" 
                       className="flex-1 justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-violet-50 dark:hover:bg-violet-950 hover:text-violet-600 dark:hover:text-violet-400 text-xs font-bold py-3 rounded-xl transition-all cursor-pointer"
                       onClick={() => openWizard("add_teacher", school.id)}
+                      disabled={readOnly}
+                      title={roTitle}
                     >
                       <Users className="w-4 h-4" />
                       רישום מורה

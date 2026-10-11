@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { type StudentData, useStore } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 import {
   X,
   Sliders,
@@ -43,6 +44,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
   const [isClearingHelp, setIsClearingHelp] = useState(false);
   const isClearingHelpRef = useRef(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const readOnly = useIsReadOnlyStaff();
 
   const sAny = (student || {}) as any;
 
@@ -141,10 +143,10 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setIsResetModalOpen(true)}
-              disabled={isResetting}
+              disabled={readOnly || isResetting}
               className="px-2.5 py-1.5 rounded-xl border border-rose-200 hover:border-rose-300 bg-rose-50/70 hover:bg-rose-100 text-rose-700 dark:text-rose-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
               // The dialog offers both scopes, the meeting alone by default (PRD 23א §ב.2).
-              title={LEARNER_RESET_TOOLTIP_HE}
+              title={readOnly ? READ_ONLY_TITLE : LEARNER_RESET_TOOLTIP_HE}
               aria-label={`${RESET_ACTION_HE.learner} של תלמיד ${studentNum}`}
             >
               <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
@@ -181,7 +183,8 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
             </div>
             <button
               onClick={handleClearHelpRequest}
-              disabled={isClearingHelp}
+              disabled={readOnly || isClearingHelp}
+              title={readOnly ? READ_ONLY_TITLE : undefined}
               className="px-3 py-1.5 rounded-xl bg-stone-600 hover:bg-stone-700 disabled:bg-stone-400 disabled:cursor-not-allowed text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer"
             >
               {isClearingHelp ? (

@@ -65,3 +65,18 @@ export function claimsForSignIn(
   }
   return { ...GUEST_CLAIMS };
 }
+
+/**
+ * Owner decision 11.10.2026: a read-only staff account gets `readOnly: true`
+ * on every staff sign-in (teacher or admin). setCustomUserClaims replaces all
+ * claims, so a sign-in without the flag leaves no readOnly claim behind, and a
+ * guest never carries it.
+ */
+export function withReadOnlyFlag(claims: RoleClaims, readOnly: boolean): RoleClaims {
+  const rest: RoleClaims = { ...claims };
+  delete rest.readOnly;
+  if (readOnly && (rest.role === "teacher" || rest.role === "admin")) {
+    rest.readOnly = true;
+  }
+  return rest;
+}

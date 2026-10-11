@@ -1,6 +1,7 @@
 import * as logger from "firebase-functions/logger";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { assertCanWrite } from "./callerIdentity";
 import { GEMINI_MODEL_ID, GEMINI_SECRETS, SOCRATIC_PRIMARY_MODEL, classifyGeminiError, generateGeminiText, getGeminiKeyStatus } from "./geminiConfig";
 
 /**
@@ -287,6 +288,8 @@ export const getAiServiceStatus = onCall({ ...GEMINI_SECRETS, timeoutSeconds: 30
 
   const key = getGeminiKeyStatus();
   const wantsTest = (request.data as { test_call?: unknown } | null)?.test_call === true;
+  // A live test call spends quota and stores its result: not for a read-only account.
+  if (wantsTest) assertCanWrite(request.auth.token as Record<string, unknown>);
 
   let counters: Record<string, unknown> | null = null;
   try {

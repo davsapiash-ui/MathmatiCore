@@ -3,6 +3,7 @@ import { type StudentData } from '@/application/useStore';
 import { X, Send, Minus, CheckCheck } from 'lucide-react';
 import { useChatStore, normalizeStudentId, isTeacherOrAdminId } from '@/application/useChatStore';
 import { toast } from 'sonner';
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 import { validateChatInputForPII, anonymizeChatMessageBody, reportPiiFilterFailure } from '@/core/security/PiiFilter';
 
 interface Props {
@@ -15,6 +16,7 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [inputText, setInputText] = useState('');
   const { messages, sendMessage, markAsRead, initSync } = useChatStore();
+  const readOnly = useIsReadOnlyStaff();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,10 +31,10 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
   useEffect(() => {
     // Mark as read when opened
     const unread = studentMessages.some(m => normalizeStudentId(m.senderId) === normStudentId && !m.read);
-    if (unread && !isMinimized) {
+    if (unread && !isMinimized && !readOnly) {
       markAsRead(teacherId, normStudentId);
     }
-  }, [studentMessages, isMinimized, teacherId, normStudentId, markAsRead]);
+  }, [studentMessages, isMinimized, teacherId, normStudentId, markAsRead, readOnly]);
 
   useEffect(() => {
     // Auto-scroll to bottom
@@ -140,11 +142,15 @@ export function FloatingChatPanel({ student, onClose, teacherId }: Props) {
               onChange={e => setInputText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
               placeholder="כתבו הודעה לתלמיד..."
+              disabled={readOnly}
+              title={readOnly ? READ_ONLY_TITLE : undefined}
               className="flex-1 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
             />
             
             <button 
               onClick={handleSend}
+              disabled={readOnly}
+              title={readOnly ? READ_ONLY_TITLE : undefined}
               aria-label="שליחת ההודעה"
               className="bg-violet-600 hover:bg-violet-700 text-white p-2 rounded-full transition-colors flex items-center justify-center w-9 h-9 shrink-0 shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >

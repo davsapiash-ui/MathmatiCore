@@ -278,7 +278,10 @@ describe('the teacher marks it in the side menu', () => {
   it('nothing waits on the network: the choices stay open while a write is pending', async () => {
     render(<TeacherGenderSetting />);
     for (const radio of screen.getAllByRole('radio') as HTMLInputElement[]) expect(radio.disabled).toBe(false);
-    expect(src('presentation/pages/TeacherDashboard/components/TeacherGenderSetting.tsx')).not.toMatch(/disabled=|isSaving/);
+    // The only lock is the read-only staff account's (owner decision 11.10.2026), never a pending write.
+    const setting = src('presentation/pages/TeacherDashboard/components/TeacherGenderSetting.tsx');
+    expect(setting).not.toMatch(/isSaving/);
+    expect(setting.match(/disabled=\{[^}]*\}/g)).toEqual(['disabled={readOnly}']);
   });
 
   it('a refused write is shown to the teacher and the choice stays as it was', async () => {

@@ -7,6 +7,7 @@ import { Settings, Shield, Users, Layers, GraduationCap, Bell, UserCircle, LifeB
 import { useAuthStore } from "@/application/useAuthStore";
 import { Logo } from "@/presentation/components/ui/Logo";
 import { LogoutButton } from "@/presentation/components/ui/LogoutButton";
+import { ReadOnlyBanner } from "@/presentation/components/ui/ReadOnlyBanner";
 
 /**
  * Unread teacher→admin messages. Module 22 stores this channel in Firestore
@@ -199,6 +200,8 @@ export function AdminLayout() {
 
         {/* Main Fluid Content Area */}
         <main className="flex-1 p-3 md:p-6 min-w-0 overflow-y-auto custom-scrollbar">
+          {/* Owner decision 11.10.2026: a read-only staff sign-in is told so at the top. */}
+          <div className="mb-3 rounded-2xl overflow-hidden empty:hidden"><ReadOnlyBanner /></div>
           {/* Top Bar Header matching Teacher Topbar for UI consistency */}
           <header className="hidden lg:flex items-center justify-between p-4 px-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 rounded-2xl mb-4 shadow-sm z-10 sticky top-0 transition-all">
             {/* Title */}

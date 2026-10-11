@@ -2,7 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as dotenv from "dotenv";
-import { readCallerRoles } from "./callerIdentity";
+import { assertCanWrite, readCallerRoles } from "./callerIdentity";
 
 admin.initializeApp();
 
@@ -63,6 +63,7 @@ export const verifyTeacherSSO = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "User must be logged in.");
   }
 
+  assertCanWrite(request.auth.token as Record<string, unknown>);
   const email = request.auth.token.email || "";
   const domain = email.split("@")[1];
 
@@ -133,6 +134,7 @@ export const onStudentEvent = onCall(async (request) => {
   // The teacher may write on a learner's behalf; a learner may only write
   // their own. An admin sign-in may not: Module 24 §ב blocks the admin from
   // individual telemetry.
+  assertCanWrite(request.auth.token as Record<string, unknown>);
   const isTeacher = readCallerRoles(request.auth.token as Record<string, unknown>).isTeacher;
   const callerStudentId = Number(request.auth.token.student_id);
   if (!isTeacher && callerStudentId !== numericStudentId) {
