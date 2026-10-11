@@ -1,8 +1,6 @@
 import type { SessionTask } from '@/data/sessionTasks';
 import { SESSION1_TASKS } from '@/data/sessionTasks';
 import type { DemoStation, TeacherDemoPart } from '@/data/teacherDemos';
-import { EMPTY_COUNTS, type PlaceCounts } from '@/core/placeValue';
-import { SocraticEngine, type SocraticHintResponse } from '@/infrastructure/services/SocraticEngine';
 
 /**
  * A demonstration (data/teacherDemos.ts) as the learners' code reads an
@@ -42,22 +40,19 @@ export function demoSessionTask(station: DemoStation, part: TeacherDemoPart): Se
 }
 
 /**
- * Station 1 has no demonstration exercise: its example card is the one a
- * learner gets at the station's target task (347) on an empty board — the
- * board the teacher's station 1 opens with.
+ * Station 1 has no demonstration exercise: its example card is about the
+ * station's target task (347), the exercise a learner builds on this board.
  */
 const STATION1_CARD_TASK_ID = 's1_target_347';
 
 /**
- * "דוגמה לכרטיס החניכה": the static coaching card a learner gets for this
- * exercise and board after 45 seconds without a step (Module 12) — the
- * engine's own static card, never an AI call. The same card every time.
+ * "דוגמה לכרטיס החניכה" (owner, 11.10.2026): the exercise the example card is
+ * about — the demonstration on the screen, or station 1's target task. The
+ * card itself is the learner's: asked of the engine about this exercise and
+ * the board as it is now, with the static card of that board as its fallback
+ * (useWorkspaceStore.openDemoCoachingCard).
  */
-export function demoCoachingCard(station: 1 | DemoStation, part: TeacherDemoPart | null): SocraticHintResponse {
-  if (station === 1 || part === null) {
-    const task = SESSION1_TASKS.find((t) => t.id === STATION1_CARD_TASK_ID);
-    return SocraticEngine.getSynchronousTaskHint(task, { ...EMPTY_COUNTS }, { trigger: 'hesitation_45s' });
-  }
-  const counts: PlaceCounts = { ...EMPTY_COUNTS, ...part.coachingBoard };
-  return SocraticEngine.getSynchronousTaskHint(demoSessionTask(station, part), counts, { trigger: 'hesitation_45s' });
+export function demoCoachingTask(station: 1 | DemoStation, part: TeacherDemoPart | null): SessionTask | undefined {
+  if (station === 1 || part === null) return SESSION1_TASKS.find((t) => t.id === STATION1_CARD_TASK_ID);
+  return demoSessionTask(station, part);
 }

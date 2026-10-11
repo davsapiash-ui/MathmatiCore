@@ -294,6 +294,21 @@ export const callGeminiSocraticProxy = onCall(
       return { warm: true };
     }
 
+    // The teacher's demonstration screen ("דוגמה לכרטיס החניכה", owner,
+    // 11.10.2026): the learner's card, asked about the demonstration board.
+    // The same prompt and the same validator; a teacher sign-in only, never a
+    // read-only one (it spends the project's quota), and nothing is recorded
+    // about any learner — the monitoring counters count the call, with no
+    // learner, session or exercise attached.
+    const demo = data.demo === true;
+    if (demo) {
+      const token = request.auth.token as Record<string, unknown>;
+      if (!readCallerRoles(token).isTeacher) {
+        throw new HttpsError("permission-denied", "The demonstration card is for the teacher only.");
+      }
+      assertCanWrite(token);
+    }
+
     // 3. Credential check up front, so a missing key is one clear log line
     //    and one clear monitoring row instead of an SDK stack trace per call.
     const keyStatus = getGeminiKeyStatus();
@@ -321,9 +336,10 @@ export const callGeminiSocraticProxy = onCall(
       // model quota and file monitoring rows against any of the twelve
       // learners. The teacher may ask on a learner's behalf; an admin sign-in
       // may not (PRD Module 24 §ב: no individual learner data for the admin).
+      // (The demonstration's caller was checked above: a teacher, not read-only.)
       const isTeacher = readCallerRoles(request.auth.token as Record<string, unknown>).isTeacher;
       const callerStudentId = Number(request.auth.token.student_id);
-      if (!isTeacher && callerStudentId !== req.student_id) {
+      if (!demo && !isTeacher && callerStudentId !== req.student_id) {
         recordAiCall({ feature: "socratic", outcome: "invalid_request", latency_ms: 0, model_id: GEMINI_MODEL_ID, detail: "caller_student_mismatch" });
         throw new HttpsError("permission-denied", "A learner may only request a hint for their own work.");
       }
@@ -341,9 +357,9 @@ export const callGeminiSocraticProxy = onCall(
         latency_ms: latency,
         // The model that gave this answer (or failed last): the fallback answers some calls.
         model_id: attempt.model_id,
-        student_id: req.student_id,
-        session_id: req.session_id,
-        exercise_id: req.exercise_id,
+        // The demonstration's request carries a placeholder learner id (the
+        // contract requires one): it is never recorded.
+        ...(demo ? { demo: true } : { student_id: req.student_id, session_id: req.session_id, exercise_id: req.exercise_id }),
         trigger_reason: facts.trigger_reason ?? undefined,
         attempts: attempt.attempts,
       };

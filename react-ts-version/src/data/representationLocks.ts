@@ -130,6 +130,10 @@ export const REPRESENTATION_KIND_BY_ID: Record<string, RepresentationKindName> =
   s3_f_t2: 'compose_break', s3_f_t3: 'compose_break',
   s3_f_t4: 'decompose', s3_f_reinforce_2: 'decompose',
   s7_f_t1: 'compose_group',
+  // The teacher's demonstrations (data/teacherDemos.ts, with the ids that
+  // application/teacherDemoTasks.ts gives them): the learners' cards for the
+  // same kind of exercise (owner, 11.10.2026).
+  s3_demo_s3_a: 'compose_break', s3_demo_s3_b: 'read_write',
 };
 const KIND_NAMES: readonly string[] = ['read_write', 'compose_break', 'decompose', 'compose_group'];
 

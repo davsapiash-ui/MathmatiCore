@@ -72,13 +72,6 @@ export interface TeacherDemoPart {
   /** The instruction on the card, in the style of the station's learner exercises. */
   instructionHe: string;
   body: DemoBody;
-  /**
-   * The board at the moment the example coaching card speaks of ("דוגמה לכרטיס
-   * החניכה"): the card is the station's static card for this exercise and this
-   * board (SocraticEngine), so the teacher shows the card a learner gets at the
-   * station's core step, the same card every time.
-   */
-  coachingBoard: Partial<PlaceCounts>;
 }
 
 export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
@@ -87,12 +80,14 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       id: 'demo_s3_a',
       partLabelHe: 'חלק א · פורטים לבנים',
       topicHe: 'פורטים לבנים',
+      // The learners' compose_break sentences (taskBuilders.composeBreak): the
+      // blocks, not the number, so the teacher can ask the class "איזה מספר יש
+      // בבית המספרים?" (מסמך 03 §3.3) without the screen answering. The last
+      // step says "את המספר": in the task zone it stands under the question.
       instructionHe:
-        'בנו בבית המספרים את המספר 350. פרטו לבנת מאה אחת לעשר לבני עשרת. כתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו.',
+        'בנו בבית המספרים 3 לבני מאה ו-5 לבני עשרת. פרטו לבנת מאה אחת לעשר לבני עשרת. איזה מספר הלבנים מראות לאחר הפריטה? כתבו את המספר בשורת התוצאה.',
       // 3 hundreds and 5 tens; a hundred broken into ten tens: 2 hundreds and 15 tens, still 350.
       body: { kind: 'build', answer: 350, finalCounts: { hundreds: 2, tens: 15 } },
-      // 350 built, before the break.
-      coachingBoard: { hundreds: 3, tens: 5 },
     },
     {
       id: 'demo_s3_b',
@@ -100,8 +95,6 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       topicHe: 'קוראים וכותבים מספרים',
       instructionHe: 'בנו בבית המספרים את המספר ארבע מאות ושבע. כתבו אותו בספרות בשורת התוצאה.',
       body: { kind: 'build', answer: 407, finalCounts: { hundreds: 4, units: 7 } },
-      // 407 built, before it is written.
-      coachingBoard: { hundreds: 4, units: 7 },
     },
   ],
   4: [
@@ -112,8 +105,6 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       // One grouping, in the units (8 + 6 = 14): the memory circle over the tens gets 1.
       instructionHe: S4_ADD('238 + 146'),
       body: { kind: 'vertical', a: 238, b: 146, isSubtraction: false, answer: 384, memoryCircles: { tens: '1' } },
-      // Both numbers built: 14 unit blocks, before the grouping.
-      coachingBoard: { hundreds: 3, tens: 7, units: 14 },
     },
     {
       // ★ chosen (owner, 9.10.2026: "תשובות לבחירה" in the demonstration of
@@ -126,7 +117,7 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       id: 'demo_s4_choice',
       partLabelHe: 'חלק ב · תשובות לבחירה',
       topicHe: 'מחברים במאונך',
-      instructionHe: 'השוו בין שני תרגילים קרובים: איך הקבצה בטור העשרות משפיעה על הטורים הבאים?',
+      instructionHe: 'השוו בין שני תרגילים קרובים: איך שינוי בספרת העשרות משפיע על ההקבצות ועל התוצאה?',
       body: {
         kind: 'choice',
         a: 238,
@@ -140,7 +131,6 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
           { id: 'ג', textHe: 'תהיה הקבצה רק בטור העשרות, והתוצאה תהיה 414' },
         ],
       },
-      coachingBoard: {},
     },
   ],
   5: [
@@ -151,8 +141,6 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       // One break, a ten into the units: 6 tens, 14 units.
       instructionHe: S5_SUB('74 − 38', 74, 38),
       body: { kind: 'vertical', a: 74, b: 38, isSubtraction: true, answer: 36, memoryCircles: { tens: '6', units: '14' } },
-      // 74 built, before anything is taken away.
-      coachingBoard: { tens: 7, units: 4 },
     },
   ],
   6: [
@@ -170,8 +158,6 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
         answer: 466,
         memoryCircles: { hundreds: '6', tens: '9', units: '10' },
       },
-      // 700 built, before anything is taken away.
-      coachingBoard: { hundreds: 7 },
     },
   ],
   7: [
@@ -181,7 +167,7 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       topicHe: 'מגלים מה חסר',
       // 2▢3 + 134 = 35▢: the units give 3 + 4 = 7, then the tens ▢ + 3 = 5, so 223 + 134 = 357.
       instructionHe:
-        'בתרגיל 2▢3 + 134 = 35▢ חסרות ספרת העשרות במספר הראשון וספרת היחידות בשורת התוצאה. גלו אותן בעזרת הלבנים. כתבו אותן בתיבות הריקות.',
+        'בתרגיל 2▢3 + 134 = 35▢ חסרות שתי ספרות: ספרת העשרות במספר הראשון וספרת היחידות בשורת התוצאה. גלו אותן בעזרת הלבנים. כתבו אותן בתיבות הריקות.',
       body: {
         kind: 'vertical',
         a: 223,
@@ -192,7 +178,6 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
         revealedResult: ['hundreds', 'tens'],
         memoryCircles: {},
       },
-      coachingBoard: {},
     },
     {
       id: 'demo_s7_b',
@@ -200,11 +185,12 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       topicHe: 'משנים מספר',
       // 260, one hundred more: 360. Six tens are too few to take 8 away: a
       // hundred is broken into ten tens (2 hundreds, 16 tens), then 8 tens go: 280.
+      // The blocks by name, as מסמך 03 §7.3 says the action ("מוסיפים לבנת מאה
+      // אחת ומוציאים 8 לבני עשרת"); "כתבו את המספר" — the step stands under
+      // the question in the task zone, so it names what it writes.
       instructionHe:
-        'בנו את המספר 260 בבית המספרים. הוסיפו מאה אחת, ואז הוציאו 8 עשרות. השאירו את הלבנים בבית המספרים. איזה מספר קיבלתם? כתבו אותו בשורת התוצאה.',
+        'בנו את המספר 260 בבית המספרים. הוסיפו לבנת מאה אחת, ואז הוציאו 8 לבני עשרת. השאירו את הלבנים בבית המספרים. איזה מספר קיבלתם? כתבו את המספר בשורת התוצאה.',
       body: { kind: 'build', answer: 280, finalCounts: { hundreds: 2, tens: 8 } },
-      // An empty board: the card of the start ("מה עושים קודם?").
-      coachingBoard: {},
     },
   ],
 };

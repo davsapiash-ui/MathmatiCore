@@ -20,6 +20,12 @@ export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOptio
 export interface SocraticProxyPayload {
   socratic_request?: GeminiSocraticRequest;
   anchor?: { questionHe: string; pedagogical_intent?: string; choices: { id: string; textHe: string; isCorrect?: boolean }[] };
+  /**
+   * The teacher's demonstration screen (owner, 11.10.2026): the same request,
+   * about the demonstration board. The server accepts it from a teacher sign-in
+   * that is not read-only, and records nothing about any learner for it.
+   */
+  demo?: true;
 }
 
 async function ready(): Promise<void> {
@@ -228,6 +234,13 @@ export interface SocraticMonitoringSnapshot {
    * the card the child would see. Never sent to the server.
    */
   cardContext?: StaticCardContext;
+  /**
+   * The teacher's demonstration screen ("דוגמה לכרטיס החניכה", owner,
+   * 11.10.2026): no learner is asking. The request carries a placeholder id
+   * (the contract requires one), the session "session_<station>_demo", no
+   * learner's recent events, and the server's demo flag.
+   */
+  demo?: boolean;
 }
 
 const WIRE_COLUMNS: Place[] = ['units', 'tens', 'hundreds', 'thousands'];
@@ -1016,7 +1029,7 @@ const NODE_HINTS: Record<string, SocraticHintResponse> = {
   }
 };
 
-const GENERAL_FALLBACK: SocraticHintResponse = {
+export const GENERAL_FALLBACK: SocraticHintResponse = {
   pedagogical_intent: "focus",
   tts_text: "בדקו מה בנוי בבית המספרים ומה הצעד הבא הנדרש.",
   suggested_highlight: "tour-place-value-board",
@@ -1024,9 +1037,10 @@ const GENERAL_FALLBACK: SocraticHintResponse = {
   // The card of stations 3–7 when a card is refused (enforceIronRule): its
   // wrong options get a guiding question like every other (owner, 30.9.2026).
   choices: [
-    { id: "opt_1", textHe: "בודקים את בית המספרים — מספר הלבנים בכל טור ומה חסר", feedbackHe: "נכון מאוד! בדקו כמה לבנים יש בכל טור." },
-    { id: "opt_2", textHe: "כותבים את התשובה מיד", feedbackHe: "רמז: איך תדעו שהתשובה נכונה בלי לבדוק את בית המספרים?" },
-    { id: "opt_3", textHe: "מוחקים הכול ומתחילים מחדש", feedbackHe: "רמז: מה כבר בנוי בבית המספרים?" }
+    // Each option says whether it is right (owner, 11.10.2026: exactly one isCorrect on every card).
+    { id: "opt_1", textHe: "בודקים את בית המספרים — מספר הלבנים בכל טור ומה חסר", feedbackHe: "נכון מאוד! בדקו כמה לבנים יש בכל טור.", isCorrect: true },
+    { id: "opt_2", textHe: "כותבים את התשובה מיד", feedbackHe: "רמז: איך תדעו שהתשובה נכונה בלי לבדוק את בית המספרים?", isCorrect: false },
+    { id: "opt_3", textHe: "מוחקים הכול ומתחילים מחדש", feedbackHe: "רמז: מה כבר בנוי בבית המספרים?", isCorrect: false }
   ],
   correctChoiceId: "opt_1",
   situation: 'general_next_step',
@@ -1540,7 +1554,8 @@ export class SocraticEngine {
       const studentNum = typeof rawStudent === 'number' ? rawStudent : parseInt(String(rawStudent).replace(/\D/g, '') || '1', 10);
       const studentId = Math.min(12, Math.max(1, Number.isNaN(studentNum) ? 1 : studentNum));
       const sessionNumber = monitoring.sessionNumber ?? (parseInt(String(currentTask?.id ?? '').replace(/^s(\d+).*/, '$1'), 10) || 0);
-      const sessionId = `session_${sessionNumber || 'x'}_student_${studentId}`;
+      const demo = monitoring.demo === true;
+      const sessionId = demo ? `session_${sessionNumber || 'x'}_demo` : `session_${sessionNumber || 'x'}_student_${studentId}`;
       const exerciseId = String(currentTask?.id ?? targetNode ?? 'unknown').slice(0, 64);
 
       let exerciseContext: GeminiSocraticRequest['exercise_context'];
@@ -1574,7 +1589,8 @@ export class SocraticEngine {
           : (monitoring.consecutiveUndos ?? 0) >= 3
           ? 'consecutive_undos_3'
           : 'hesitation_45s');
-      const recentEvents = recentEventsFor(monitoring, studentId, exerciseId);
+      // The demonstration has no learner: no learner's events go with it.
+      const recentEvents = demo ? [] : recentEventsFor(monitoring, studentId, exerciseId);
 
       const socraticRequest = SocraticEngine.buildGeminiSocraticRequest({
         studentId,
@@ -1635,6 +1651,7 @@ export class SocraticEngine {
         SocraticEngine.callGeminiProxy({
           socratic_request: socraticRequest,
           anchor,
+          ...(demo ? { demo: true as const } : {}),
         }),
         timeoutPromise,
       ]).finally(() => {
