@@ -111,10 +111,10 @@ describe('Module 19 — the profile is support_profile_id, and nothing writes th
 describe('Module 20 — the class-management card fills the path the teacher approved', () => {
   const card = src('presentation/pages/TeacherDashboard/ClassManagement.tsx');
   it('reads teacher_selected_path, not the recommendation', () => {
-    expect(card).toContain('data.teacher_selected_path ?? data.pedagogicalPath');
-    expect(card).toContain("student.approvedPath === 'ירוק'");
-    expect(card).toContain("student.approvedPath === 'צמצום פערי קדם'");
-    expect(card).not.toMatch(/isApproved && student\.recommendedPath ===/);
+    expect(card).toContain('asRoutePath(data.teacher_selected_path ?? data.pedagogicalPath)');
+    // The pressed button is the approved path, one of three (11.10.2026), never the recommendation.
+    expect(card).toContain('aria-pressed={row.approvedPath === path}');
+    expect(card).not.toMatch(/isApproved && row\.recommendedPath ===/);
   });
 });
 

@@ -20,6 +20,7 @@ import {
   COMPULSORY_EXERCISES_PER_MEETING,
 } from "./meetingMetrics";
 import { CATCHUP_COLLECTION, catchUpDocId } from "./catchUp";
+import { asLearningPath, type LearningPath } from "./learningPath";
 
 export type MeetingScore =
   | { outcome: "scored"; scorePercent: number; recommendedPath: "green_path" | "remediation_path" }
@@ -40,7 +41,7 @@ export async function computeMeetingScore(
   db: admin.firestore.Firestore,
   studentNum: number,
   sessionNum: number,
-  path: "green_path" | "remediation_path"
+  path: LearningPath
 ): Promise<MeetingScore> {
   // By learner and meeting, not by the document's session_id: the document is
   // `session_02_student_4` while its events carry `session_2_student_student_user4`,
@@ -309,7 +310,8 @@ export async function rescoreCompletedMeeting(
   for (let attempt = 0; attempt < RESCORE_ATTEMPTS; attempt++) {
     if (data.is_completed !== true) return "not_completed";
     if (!data.evaluated_at) return "not_scored_yet";
-    const path = data.teacher_selected_path === "remediation_path" ? "remediation_path" : "green_path";
+    // Only the fallback: meetings 3–8 are scored on the bank the learner worked in (resolveMeetingPath).
+    const path = asLearningPath(data.teacher_selected_path) ?? "green_path";
     const computed = await computeMeetingScore(db, studentNum, sessionNum, path);
     if (computed.outcome !== "scored") return "no_score";
     const { scorePercent, recommendedPath } = computed;
@@ -425,7 +427,7 @@ export const onSessionCompleteTrigger = onDocumentWritten({
   }
 
   const db = admin.firestore();
-  const path = afterData.teacher_selected_path === "remediation_path" ? "remediation_path" : "green_path";
+  const path = asLearningPath(afterData.teacher_selected_path) ?? "green_path";
   const computed = await computeMeetingScore(db, studentNum, sessionNum, path);
   if (computed.outcome === "no_telemetry") {
     // Nothing to measure. Module 24 §ב forbids inventing one, and a 0%

@@ -87,7 +87,17 @@ describe('approveTeacherGate — who may call it', () => {
     expect(h.rtdbUpdates).toEqual([]);
   });
 
-  it('refuses a learner outside 1–12 and a path that is not one of the two', async () => {
+  it('accepts the graded path, the teacher\'s choice (owner, 11.10.2026); the recommendation stays as computed', async () => {
+    completedDoc(5);
+    const res = await call({ studentId: 'student_user5', path: 'graded_path' }, TEACHER);
+    expect(res).toEqual({ ok: true, studentId: 5, path: 'graded_path' });
+    expect(h.docs['sessions/session_02_student_5']).toMatchObject({
+      teacher_gate_approved: true, teacher_selected_path: 'graded_path', matrix_recommended_path: 'remediation_path',
+    });
+    expect(h.rtdb['users/students/student_user5']).toMatchObject({ teacher_selected_path: 'graded_path', pedagogicalPath: 'graded_path' });
+  });
+
+  it('refuses a learner outside 1–12 and a path that is not one of the three', async () => {
     await expect(call({ studentId: 'student_user13', path: 'green_path' }, TEACHER)).rejects.toMatchObject({ code: 'invalid-argument' });
     await expect(call({ studentId: 'x', path: 'green_path' }, TEACHER)).rejects.toMatchObject({ code: 'invalid-argument' });
     await expect(call({ studentId: 5, path: 'yellow' }, TEACHER)).rejects.toMatchObject({ code: 'invalid-argument' });

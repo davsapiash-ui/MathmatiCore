@@ -349,6 +349,8 @@ export function pedagogicalReportHtml(report: Record<string, any>): string {
     ? ROUTE_NAME_HE.green_path
     : report.matrix_recommended_path === "remediation_path"
     ? ROUTE_NAME_HE.remediation_path
+    : report.matrix_recommended_path === "graded_path"
+    ? ROUTE_NAME_HE.graded_path
     : null;
   const narratives = asStringArray(report.exercise_narratives);
   const choiceNarratives = asStringArray(report.choice_exercise_narratives);
@@ -665,7 +667,7 @@ export function classReportHtml(report: Record<string, any>): string {
       <div><b>${esc(FIRST_ATTEMPT_SCORE_MEAN_LABEL_HE)}:</b> ${esc(pctHe(a.score_mean))}</div>
       <div><b>חציון:</b> ${esc(pctHe(a.score_median))}</div>
       <div><b>טווח:</b> ${a.score_min === null ? "לא נמדד" : `${esc(a.score_min)}%–${esc(a.score_max)}%`}</div>
-      <div><b>${esc(ROUTE_NAME_HE.green_path)}:</b> ${esc(a.paths.green_path)} | <b>${esc(ROUTE_NAME_HE.remediation_path)}:</b> ${esc(a.paths.remediation_path)}</div>
+      <div><b>${esc(ROUTE_NAME_HE.green_path)}:</b> ${esc(a.paths.green_path)} | <b>${esc(ROUTE_NAME_HE.remediation_path)}:</b> ${esc(a.paths.remediation_path)} | <b>${esc(ROUTE_NAME_HE.graded_path)}:</b> ${esc(a.paths.graded_path ?? 0)}</div>
     </div>
 
     <h2 class="green">1. קבוצות עבודה לפי כלל האחוזים (שכבה 1, דטרמיניסטית)</h2>

@@ -216,6 +216,17 @@ const STATION1: Record<string, Station1Spec> = {
     steps: [{ tick: { kind: 'boardValue', value: 806 } }, { tick: { kind: 'none' }, subs: 2 }, { tick: fill }],
     correctHe: `נכון! ${RLM}806 ${minus} 351 = 455, וגם בבית המספרים נשארו 455.`,
   },
+  // The graded path's two refresh exercises (owner, 11.10.2026; sessionGradedTasks.ts).
+  s1_d_add47: {
+    topicHe: 'מחברים בעזרת הלבנים',
+    steps: [{ tick: { kind: 'boardValue', value: 73 }, subs: 2 }, { tick: fill }],
+    correctHe: `נכון! קיבצתם 10 לבני יחידה ללבנת עשרת אחת: ${RLM}47 + 26 = 73.`,
+  },
+  s1_d_sub307: {
+    topicHe: 'מחסרים בעזרת הלבנים',
+    steps: [{ tick: { kind: 'boardValue', value: 307 } }, { tick: { kind: 'none' }, subs: 2 }, { tick: fill }],
+    correctHe: `נכון! ${RLM}307 ${minus} 63 = 244, וגם בבית המספרים נשארו 244.`,
+  },
 };
 
 /** A station-1 guide: the instruction's lines (goal, then each step and its condition lines) with the spec's ticks. */

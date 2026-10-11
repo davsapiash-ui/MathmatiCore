@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { type StudentData, useStore } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
-import { firebaseSyncService } from '@/infrastructure/services/FirebaseSyncService';
-import { 
-  X, 
-  Sliders, 
-  EyeOff, 
-  Video, 
+import {
+  X,
+  Sliders,
+  Video,
   MessageCircle, 
   RotateCcw, 
   Check, 
@@ -31,29 +29,22 @@ interface Props {
   activeSessionNumber?: number | null;
 }
 
+/**
+ * "חלונית הלומד" — the teacher's window for one learner: reset, chat, clearing a
+ * help request, and the way into the full journey and replay.
+ *
+ * It used to be "התאמת תנאי למידה", with a per-learner quiet visual mode
+ * (isASD). The owner removed that mode on 11.10.2026: the design is a gentle
+ * UDL design for everyone, and only the device's reduced-motion setting turns
+ * motion off. Nothing here writes isASD any more.
+ */
 export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, onOpenFullJourney, activeSessionNumber = null }: Props) {
-  const [activeTab, setActiveTab] = useState<'accessibility' | 'replay'>('accessibility');
   const [isResetting, setIsResetting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [isClearingHelp, setIsClearingHelp] = useState(false);
   const isClearingHelpRef = useRef(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
-  // Form State
   const sAny = (student || {}) as any;
-  const [isASD, setIsASD] = useState<boolean>(
-    Boolean(student?.isASD || sAny.isASD)
-  );
-
-  // The dashboard hands in the live learner, a new object on every update of
-  // the class (each heartbeat). The form follows the STORED value only when it
-  // changes, or when another learner is opened, so a toggle not yet saved is
-  // not thrown away every few seconds.
-  const storedIsASD = Boolean(student?.isASD || sAny.isASD);
-  useEffect(() => {
-    if (student) setIsASD(storedIsASD);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [student?.studentId, storedIsASD]);
 
   // מסמך העיצוב §1.2: Escape סוגר, הפוקוס נלכד בתוך המגירה, ובסגירה חוזר
   // לאלמנט שממנו היא נפתחה.
@@ -63,32 +54,6 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
 
   const hasHelpRequest = sAny.helpRequested || sAny.handRaised || sAny.isStruggling;
   const studentNum = student.studentId.replace(/\D/g, '') || student.studentId;
-
-  const handleSaveSettings = async () => {
-    setIsSaving(true);
-    try {
-      // One write, to the learner's canonical record (student_user1–12). The
-      // save used to write three times — the record as the dashboard named
-      // it, the canonical one, and a bare-number twin ("4") nothing reads —
-      // with two flags nothing reads either (applyAtTaskBoundaryOnly,
-      // adaptationQueuedAt), and then a fourth time through the store.
-      // Module 20: no gate field is passed, so the save neither grants nor
-      // revokes a gate decision made elsewhere.
-      const normId = normalizeStudentId(student.studentId);
-      const overrideUpdatedAt = Date.now();
-      await firebaseSyncService.syncPhysicalOverride(normId, { isASD, overrideUpdatedAt });
-
-      // Local state only; the listener on the record brings the same value.
-      useStore.getState().updateStudent(student.studentId, { isASD, overrideUpdatedAt });
-
-      toast.success(`✓ תנאי הלמידה עבור תלמיד ${studentNum} עודכנו בהצלחה!`);
-    } catch (err) {
-      console.error('Failed to save learning conditions:', err);
-      toast.error('שגיאה בשמירת תנאי הלמידה');
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleConfirmResetStudent = async (
     reason: ResetReason,
@@ -148,7 +113,7 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
         ref={drawerRef}
         role="dialog"
         aria-modal="true"
-        aria-label={`התאמת תנאי למידה — תלמיד ${studentNum}`}
+        aria-label={`חלונית הלומד — תלמיד ${studentNum}`}
         className="fixed top-0 right-0 w-full sm:w-[580px] h-[100dvh] bg-white dark:bg-slate-900 shadow-2xl z-[9999] flex flex-col transform transition-transform duration-300 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right"
         dir="rtl"
       >
@@ -164,11 +129,11 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
-                  התאמת תנאי למידה — תלמיד {studentNum}
+                  חלונית הלומד — תלמיד {studentNum}
                 </h2>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                מצב שקט חזותי, שחזור מהלכים ואיפוס נתונים
+                שחזור מהלכים, צ'אט ואיפוס
               </p>
             </div>
           </div>
@@ -229,67 +194,8 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
           </div>
         )}
 
-        {/* Modern Tabs */}
-        <div className="flex border-b border-slate-100 dark:border-slate-800 px-6 pt-2 bg-slate-50/40 dark:bg-slate-900/40 shrink-0 gap-2 overflow-x-auto no-scrollbar">
-          {[
-            { id: 'accessibility', label: 'שקט חזותי ונגישות', icon: EyeOff },
-            { id: 'replay', label: 'שחזור מהלכים', icon: Video },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-3.5 py-3 font-bold text-xs rounded-t-xl transition-all whitespace-nowrap cursor-pointer border-b-2 ${
-                  isActive
-                    ? 'border-violet-600 text-violet-700 dark:text-violet-400 bg-white dark:bg-slate-800 shadow-sm'
-                    : 'border-transparent text-slate-600 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Tab Body */}
+        {/* Body: one panel, so no tabs. */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
-          {/* TAB 2: ACCESSIBILITY & VISUAL CALM */}
-          {activeTab === 'accessibility' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4">
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <EyeOff className="w-4 h-4 text-purple-600" />
-                    שקט חזותי והתאמת קשב
-                  </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    התאמת סביבת הלמידה לתלמידים עם רגישות חושית או הפרעות קשב וריכוז.
-                  </p>
-                </div>
-
-                <label className="flex items-start justify-between p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
-                  <div className="space-y-1">
-                    <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">
-                      הפעלת מצב שקט חזותי (הפחתת גירויים)
-                    </span>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      מפסיק הבהובים, קפיצות ופעימות במסכים של התלמיד ומצמצם את אפקטי התנועה, כדי שהמסך יהיה רגוע.
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={isASD}
-                    onChange={(e) => setIsASD(e.target.checked)}
-                    className="w-5 h-5 text-purple-600 rounded-md focus:ring-purple-500 cursor-pointer shrink-0 mt-1"
-                  />
-                </label>
-              </div>
-            </div>
-          )}
 
           {/* A per-learner "hesitation threshold" tab stood here, offering 15 /
               30 / 60 seconds. The learner never saw any of it: the radar hook
@@ -301,9 +207,8 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
               stages at 30s and 45s, and Module 26 owns the one calibratable
               value, for the whole cohort. Calibration lives in the admin
               catalog screen. */}
-          {/* TAB 4: REPLAY & TRACES */}
-          {activeTab === 'replay' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Replay & traces */}
+          <div className="space-y-6">
               <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 text-center space-y-4 shadow-sm">
                 <div className="w-14 h-14 rounded-2xl bg-violet-50 dark:bg-violet-950/40 text-violet-600 flex items-center justify-center mx-auto text-2xl shadow-inner">
                   <Video className="w-7 h-7 text-violet-600 dark:text-violet-400" />
@@ -333,31 +238,6 @@ export function StudentLearningConditionsDrawer({ student, onClose, onOpenChat, 
                   </button>
                 </div>
               </div>
-            </div>
-          )}
-
-        </div>
-
-        {/* Footer with Save Action */}
-        <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between shrink-0">
-          <span className="text-xs text-slate-600 dark:text-slate-400">
-            * השינוי מגיע למסכים של התלמיד מיד אחרי השמירה
-          </span>
-          <div className="flex gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer"
-            >
-              ביטול
-            </button>
-            <button
-              onClick={handleSaveSettings}
-              disabled={isSaving}
-              className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs rounded-xl shadow-md shadow-violet-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
-            >
-              <Check className="w-4 h-4" />
-              <span>{isSaving ? 'שומר שינויים...' : 'שמרו את תנאי הלמידה'}</span>
-            </button>
           </div>
         </div>
       </div>

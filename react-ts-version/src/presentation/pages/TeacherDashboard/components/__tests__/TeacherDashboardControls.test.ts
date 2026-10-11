@@ -35,13 +35,16 @@ describe('Module 20: the approval gate cannot be bypassed or mis-routed', () => 
     // The drawer passes the no-bypass intent explicitly and keeps the flag out
     // of its raw RTDB updates.
     // (Since 4.10.2026: one write through the sync service, with no gate field at all.)
-    expect(drawer.includes('syncPhysicalOverride(normId, { isASD, overrideUpdatedAt })')).toBe(true);
+    // Since 11.10.2026 the drawer has no save at all: the quiet-mode switch was removed.
+    expect(drawer).not.toContain('syncPhysicalOverride');
+    expect(drawer).not.toMatch(/isASD\s*[,:}]/);
     expect(drawer).not.toMatch(/physicalOverride\s*:/);
   });
 
   it('the approval path falls back to the LIVE recommendation, never to green', () => {
     expect(gate.includes("selectedPaths[studentId] || 'green_path'")).toBe(false);
-    expect(gate.includes('selectedPaths[s.studentId] ?? s.recommendedPath')).toBe(true);
+    // A learner the teacher marked as graded opens on the graded path (11.10.2026); otherwise the live recommendation.
+    expect(gate.includes("selectedPaths[s.studentId] ?? (s.gradedTrack ? 'graded_path' : s.recommendedPath)")).toBe(true);
   });
 
   it('batch approval is built at click time from waiting learners and reports a real tally', () => {

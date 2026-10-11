@@ -14,6 +14,7 @@ import {
   resolveMeetingPath,
 } from "./meetingMetrics";
 import { compareTelemetryOrder } from "./telemetryOrder";
+import { learnerPathOf, type LearningPath } from "./learningPath";
 
 /**
  * hourlyAdminAggregator (Module 24: Store Cache & Admin Aggregator)
@@ -103,7 +104,7 @@ export async function recomputeAdminMetrics(db: admin.firestore.Firestore) {
   return aggregatedMetrics;
 }
 
-type LearnerPath = "green_path" | "remediation_path";
+type LearnerPath = LearningPath;
 
 /** Every event of every learner's meetings that the reports count: each meeting from its last reset on. */
 export function currentRunEvents(
@@ -144,7 +145,7 @@ async function readLearnerRecords(): Promise<{
       highestCompletedByLearner.set(n, rec.highestCompletedMeeting);
     }
     if (!pathByLearner.has(n)) {
-      pathByLearner.set(n, rec.teacher_selected_path === "remediation_path" || rec.pedagogicalPath === "remediation_path" ? "remediation_path" : "green_path");
+      pathByLearner.set(n, learnerPathOf(rec));
     }
   }
   return { highestCompletedByLearner, pathByLearner };

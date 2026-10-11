@@ -75,10 +75,13 @@ describe('Fix round 3', () => {
     expect(page).toMatch(/isActive: !isOverlayActive && flowStatus !== 'choice_branch' && flowStatus !== 'reflection'/);
   });
 
-  it('the class screens outside the inert workspace still get the quiet mode', () => {
+  it('the class screens sit outside the inert workspace; no quiet-mode wrapper (owner, 11.10.2026)', () => {
     const page = src('features/workspace/StudentWorkspacePage.tsx');
-    const at = page.indexOf('<div data-quiet={isASDMode ? \'true\' : undefined} className="contents">');
-    expect(at).toBeGreaterThan(-1);
-    expect(page.slice(at, at + 200)).toContain('{classStateOverlays}');
+    expect(page).not.toContain('data-quiet');
+    const inertAt = page.indexOf('inert={isClassScreenUp || undefined}');
+    const dragOverlayAt = page.indexOf('<DragOverlay');
+    const overlaysAt = page.lastIndexOf('{classStateOverlays}', dragOverlayAt);
+    expect(inertAt).toBeGreaterThan(-1);
+    expect(overlaysAt).toBeGreaterThan(inertAt);
   });
 });

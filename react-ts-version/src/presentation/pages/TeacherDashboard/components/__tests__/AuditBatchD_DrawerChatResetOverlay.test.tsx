@@ -85,25 +85,46 @@ describe('the learner drawer says and writes only what is true', () => {
     expect(document.body.textContent).not.toMatch(/קריאות תועדו/);
   });
 
-  it('the texts promise only what the quiet-mode switch does', () => {
-    render(<StudentLearningConditionsDrawer student={student} onClose={vi.fn()} />);
+  // Owner decision 11.10.2026: the per-learner quiet visual mode is removed.
+  // The window is "חלונית הלומד" and keeps reset, chat, help-clear and replay.
+  it('is named "חלונית הלומד — תלמיד N" and offers no quiet-mode switch and no save', () => {
+    render(<StudentLearningConditionsDrawer student={student} onClose={vi.fn()} onOpenChat={vi.fn()} />);
+    expect(screen.getByRole('dialog', { name: 'חלונית הלומד — תלמיד 4' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'חלונית הלומד — תלמיד 4' })).toBeTruthy();
+    expect(screen.getByText("שחזור מהלכים, צ'אט ואיפוס")).toBeTruthy();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
     const text = document.body.textContent ?? '';
+    expect(text).not.toMatch(/שקט חזותי|התאמת תנאי למידה|שמרו את תנאי הלמידה/);
     expect(text).not.toMatch(/פיגום|צלילים|ניגודיות|בתרגיל הבא/);
-    expect(text).toContain('השינוי מגיע למסכים של התלמיד מיד אחרי השמירה');
   });
 
-  it('saving writes once, to the canonical record, with no gate field and no bare-number twin', async () => {
-    const sync = vi.spyOn(firebaseSyncService, 'syncPhysicalOverride').mockResolvedValue(undefined);
-    render(<StudentLearningConditionsDrawer student={{ studentId: '4', name: 'תלמיד 4' } as never} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole('checkbox'));
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /שמרו את תנאי הלמידה/ })); });
+  it('still offers reset, chat, help-clear and replay', async () => {
+    const onOpenChat = vi.fn();
+    const onOpenFullJourney = vi.fn();
+    render(
+      <StudentLearningConditionsDrawer
+        student={student}
+        onClose={vi.fn()}
+        onOpenChat={onOpenChat}
+        onOpenFullJourney={onOpenFullJourney}
+      />
+    );
+    expect(screen.getByRole('button', { name: /של תלמיד 4/ })).toBeTruthy(); // reset
+    fireEvent.click(screen.getByTitle("צ'אט ישיר עם התלמיד"));
+    expect(onOpenChat).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'מעבר למסע לומד ושחזור מלא' }));
+    expect(onOpenFullJourney).toHaveBeenCalledWith('student_user4');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /סמנו כטופל/ })); });
+    expect(update).toHaveBeenCalled();
+    const payloads = vi.mocked(update).mock.calls.map((c) => c[1] as Record<string, unknown>);
+    expect(payloads.every((p) => p.helpRequested === false && !('isASD' in p))).toBe(true);
+  });
 
-    expect(sync).toHaveBeenCalledTimes(1);
-    const [id, payload] = sync.mock.calls[0];
-    expect(id).toBe('student_user4');
-    expect(Object.keys(payload as object).sort()).toEqual(['isASD', 'overrideUpdatedAt']);
-    expect((payload as { isASD: boolean }).isASD).toBe(true);
-    expect(update).not.toHaveBeenCalled();
+  it('writes no isASD through syncPhysicalOverride', () => {
+    const sync = vi.spyOn(firebaseSyncService, 'syncPhysicalOverride').mockResolvedValue(undefined);
+    render(<StudentLearningConditionsDrawer student={student} onClose={vi.fn()} />);
+    expect(sync).not.toHaveBeenCalled();
   });
 });
 
@@ -123,7 +144,7 @@ describe('the floating chat', () => {
         <StudentLearningConditionsDrawer student={student} onClose={vi.fn()} />
       </>
     );
-    const drawer = screen.getByRole('dialog', { name: /התאמת תנאי למידה — תלמיד 4/ });
+    const drawer = screen.getByRole('dialog', { name: /חלונית הלומד — תלמיד 4/ });
     const chat = screen.getByPlaceholderText('כתבו הודעה לתלמיד...').closest('div.fixed')!;
     expect(zOf(chat)).toBeGreaterThan(zOf(drawer));
   });

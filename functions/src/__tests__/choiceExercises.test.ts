@@ -25,10 +25,12 @@ import { generateExerciseNarrativeFromEvents } from '../pedagogicalReport';
 const FRONTEND = resolve(__dirname, '../../../react-ts-version/src/data');
 const branchSource = readFileSync(resolve(FRONTEND, 'sessionBranchTasks.ts'), 'utf-8');
 const compulsorySource = readFileSync(resolve(FRONTEND, 'sessionTasks.ts'), 'utf-8');
+/** The graded path's compulsory banks (owner, 11.10.2026). */
+const gradedSource = readFileSync(resolve(FRONTEND, 'sessionGradedTasks.ts'), 'utf-8');
 
 /** Every choice exercise of the banks, with the branch its builder call declares (`, R)` / `, C)`). */
 function branchTasksFromSource(): Array<{ id: string; branch: 'R' | 'C' }> {
-  const idRe = /'(s\d+_[gr]_[a-z]+_\d+)'/g;
+  const idRe = /'(s\d+_[grd]_[a-z]+_\d+)'/g;
   const found: Array<{ id: string; at: number }> = [];
   for (let m = idRe.exec(branchSource); m; m = idRe.exec(branchSource)) found.push({ id: m[1], at: m.index });
   return found.map(({ id, at }, i) => {
@@ -62,26 +64,28 @@ const meeting = [
 describe('which exercise is a choice exercise', () => {
   it('every exercise of the choice banks, by the branch its bank declares', () => {
     const tasks = branchTasksFromSource();
-    expect(tasks).toHaveLength(30); // sessions 3–7 × two paths × (2 consolidation + 1 challenge)
+    expect(tasks).toHaveLength(45); // sessions 3–7 × three paths × (2 consolidation + 1 challenge)
     for (const { id, branch } of tasks) {
       expect(exercisePathType(id), id).toBe(branch === 'C' ? 'challenge' : 'consolidation');
     }
-    expect(tasks.filter((t) => t.branch === 'C')).toHaveLength(10);
+    expect(tasks.filter((t) => t.branch === 'C')).toHaveLength(15);
+    expect(tasks.filter((t) => /^s\d+_d_/.test(t.id))).toHaveLength(15);
   });
 
   it('the server\'s copy of the choice titles is the bank\'s, id by id (the teacher\'s screen shows the bank\'s)', () => {
     const titles: Record<string, string> = {};
-    const found = Array.from(branchSource.matchAll(/'(s\d+_[gr]_(?:reinforce|challenge)_\d+)'/g), (m) => ({ id: m[1], at: m.index ?? 0 }));
+    const found = Array.from(branchSource.matchAll(/'(s\d+_[grd]_(?:reinforce|challenge)_\d+)'/g), (m) => ({ id: m[1], at: m.index ?? 0 }));
     found.forEach(({ id, at }, i) => {
       const call = branchSource.slice(at, i + 1 < found.length ? found[i + 1].at : branchSource.length);
       titles[id] = /'((?:ביסוס|אתגר)[^']*)'/.exec(call)?.[1] ?? '';
     });
-    expect(Object.keys(titles)).toHaveLength(30);
+    expect(Object.keys(titles)).toHaveLength(45);
     expect(CHOICE_TITLES_HE).toEqual(titles);
   });
 
   it('no compulsory exercise looks like one', () => {
-    const ids = Array.from(compulsorySource.matchAll(/'(s\d+_[a-z0-9_]+)'/g), (m) => m[1]);
+    const ids = Array.from((compulsorySource + gradedSource).matchAll(/'(s\d+_[a-z0-9_]+)'/g), (m) => m[1]);
+    expect(ids.filter((id) => /^s\d+_d_t\d$/.test(id))).toHaveLength(42); // the graded path: meetings 3–8 × 7
     expect(ids.length).toBeGreaterThan(40);
     for (const id of ids) expect(isChoiceExercise(id), id).toBe(false);
     for (const id of ['task1_read_write_zero', 's8_g_t7', 'ex_3_01', '']) expect(isChoiceExercise(id)).toBe(false);

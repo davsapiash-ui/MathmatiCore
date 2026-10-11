@@ -29,11 +29,11 @@ const SESSION_CARD: Record<string, Category> = {
 
 /** Main's per-exercise cards: meeting 1 only, none with a category. */
 const EXERCISE_CARDS_WITHOUT_CATEGORY = new Set([
-  's1_sandbox_controlled', 's1_target_347', 's1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806',
+  's1_sandbox_controlled', 's1_target_347', 's1_r_group26', 's1_t8', 's1_r_sub61', 's1_r_sub806', 's1_d_add47', 's1_d_sub307',
 ]);
 
 function sessionCardKeys(id?: string): string[] {
-  const m = id ? /^s([3-8])_(?:([gr])_)?(?:t\d+|reinforce_\d+|challenge_\d+)$/.exec(id) : null;
+  const m = id ? /^s([3-8])_(?:([grd])_)?(?:t\d+|reinforce_\d+|challenge_\d+)$/.exec(id) : null;
   if (!m) return [];
   const [, session, path] = m;
   return path ? [`s${session}_${path}_card`, `s${session}_card`] : [`s${session}_card`];
@@ -95,7 +95,7 @@ export function researchErrorCategory(task: any, counts?: Counts): Category {
   if (mainLiveCardFires(task, targetNode, c)) return null;
 
   const id: string | undefined = task?.id;
-  const normalized = id ? id.replace(/^(s\d+)_[gr]_t(\d+)$/, '$1_t$2') : '';
+  const normalized = id ? id.replace(/^(s\d+)_[grd]_t(\d+)$/, '$1_t$2') : '';
   if ((id && EXERCISE_CARDS_WITHOUT_CATEGORY.has(id)) || EXERCISE_CARDS_WITHOUT_CATEGORY.has(normalized)) return null;
   if (task?.type === 'session1_intro') return null;
 

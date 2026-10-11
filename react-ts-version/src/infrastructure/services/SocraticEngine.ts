@@ -134,7 +134,7 @@ export function cardFrameOf(card: SocraticHintResponse, task?: any): NonNullable
 export function normalizeTaskIdForHints(id?: string): string {
   if (!id) return '';
   // Normalize e.g. s3_g_t1 or s3_r_t1 -> s3_t1
-  return id.replace(/^(s\d+)_[gr]_t(\d+)$/, '$1_t$2');
+  return id.replace(/^(s\d+)_[grd]_t(\d+)$/, '$1_t$2');
 }
 
 /**
@@ -179,7 +179,7 @@ export function groundCardInExercise(card: SocraticHintResponse, currentTask?: a
  * shares it; only session 3 differs by path (34 tens vs 34 hundreds).
  */
 export function sessionCardKeysForTaskId(id?: string): string[] {
-  const m = id ? /^s([3-8])_(?:([gr])_)?(?:t\d+|reinforce_\d+|challenge_\d+)$/.exec(id) : null;
+  const m = id ? /^s([3-8])_(?:([grd])_)?(?:t\d+|reinforce_\d+|challenge_\d+)$/.exec(id) : null;
   if (!m) return [];
   const [, session, path] = m;
   return path ? [`s${session}_${path}_card`, `s${session}_card`] : [`s${session}_card`];
@@ -766,6 +766,44 @@ export const TASK_HINTS: Record<string, SocraticHintResponse> = {
       // D10 (owner, 1.10.2026): guiding questions.
       { id: "opt_2", textHe: "כשפרטתם עוד מאה אחת", isCorrect: false, feedbackHe: "רמז: מתי פורטים לבנה: כשיש בטור מספיק לבנים, או כשאין?" },
       { id: "opt_3", textHe: "כשהוספתם 351 לבית המספרים", isCorrect: false, feedbackHe: HINT.addOrTakeOut }
+    ],
+    correctChoiceId: "opt_1",
+    cardKind: 's1_card',
+    situation: 's1_finished_taking_away',
+    frameLevel: 1,
+    intentHe: 'מסיימים להוציא כשהוצאתם את כל המספר השני, ואז כותבים את מה שנשאר',
+  },
+
+  // The graded path's refresh exercises (owner, 11.10.2026): the cards of s1_t8 and s1_r_sub806 with
+  // their own numbers; both mirrors keep the same structure (one grouping; a borrow into an empty tens column).
+  's1_d_add47': {
+    pedagogical_intent: "procedural",
+    tts_text: "נסו לחשוב: בתרגיל 47 + 26, מה עושים כשבאחד הטורים יש 10 לבנים או יותר?",
+    suggested_highlight: "tour-place-value-board",
+    questionHe: "נסו לחשוב: בתרגיל 47 + 26, מה עושים כשבאחד הטורים יש 10 לבנים או יותר?",
+    choices: [
+      { id: "opt_1", textHe: "מקבצים 10 לבנים ללבנה אחת בטור שמשמאלו", isCorrect: true, feedbackHe: 'נכון מאוד! לחצו על הכפתור שמופיע בראש אותו טור.' },
+      // D10 (owner, 1.10.2026): the guiding questions of stations 3–8.
+      { id: "opt_2", textHe: "מוחקים 10 לבנים לפח בלי להוסיף לבנה", isCorrect: false, feedbackHe: HINT.deleteBlocks },
+      { id: "opt_3", textHe: "רושמים 10 בתיבה אחת בשורת התוצאה", isCorrect: false, feedbackHe: HINT.oneDigitPerBox }
+    ],
+    correctChoiceId: "opt_1",
+    cardKind: 's1_card',
+    situation: 's1_group_in_addition',
+    frameLevel: 1,
+    intentHe: 'בחיבור, כשבאחד הטורים יש 10 לבנים או יותר, מקבצים אותן ללבנה אחת של הטור שמשמאל',
+  },
+
+  's1_d_sub307': {
+    pedagogical_intent: "procedural",
+    tts_text: "נסו לחשוב: בחיסור 307 − 63, איך יודעים שסיימתם להוציא מבית המספרים?",
+    suggested_highlight: "tour-place-value-board",
+    questionHe: "נסו לחשוב: בחיסור 307 − 63, איך יודעים שסיימתם להוציא מבית המספרים?",
+    choices: [
+      { id: "opt_1", textHe: "כשהוצאתם 63 מבית המספרים", isCorrect: true, feedbackHe: "נכון מאוד! בדקו כמה כבר הוצאתם, וכתבו בשורת התוצאה את מה שנשאר בבית המספרים." },
+      // D10 (owner, 1.10.2026): guiding questions.
+      { id: "opt_2", textHe: "כשפרטתם עוד מאה אחת", isCorrect: false, feedbackHe: "רמז: מתי פורטים לבנה: כשיש בטור מספיק לבנים, או כשאין?" },
+      { id: "opt_3", textHe: "כשהוספתם 63 לבית המספרים", isCorrect: false, feedbackHe: HINT.addOrTakeOut }
     ],
     correctChoiceId: "opt_1",
     cardKind: 's1_card',

@@ -38,6 +38,7 @@ import {
   type LockStore,
 } from "./resetAudit";
 import { compareTelemetryOrder } from "./telemetryOrder";
+import { isGradedTrack, learnerPathOf, type LearningPath } from "./learningPath";
 
 export { DRIVE_FOLDERS, researchExportFileName };
 
@@ -1250,8 +1251,11 @@ interface ResetScope {
  * 2.10.2026: "ברור שלשמור את הגדרות התלמיד אין צורך להקים לו את זה מחדש"):
  * the support profile — the four Appendix A fields the class-management toggle
  * writes (core/supportProfile.ts) and the legacy boolean its readers still
- * honour — and quiet mode (isASD, the learning-conditions drawer). Level 3
- * still deletes them with everything else.
+ * honour — and the graded track (graded_track: the teacher marks a learner
+ * for the graded path before meeting 1, owner 11.10.2026, so the mark
+ * outlives the meeting-2 reset and a full learner reset). Level 3 still
+ * deletes them with everything else. Quiet mode (isASD) was removed from the
+ * product on 11.10.2026 and is no longer kept.
  */
 export const LEARNER_SETTINGS_FIELDS = [
   "support_profile_id",
@@ -1259,7 +1263,7 @@ export const LEARNER_SETTINGS_FIELDS = [
   "support_profile_updated_at",
   "support_profile_updated_by",
   "enhanced_support_profile",
-  "isASD",
+  "graded_track",
 ] as const;
 
 /**
@@ -1606,16 +1610,32 @@ export function catchUpRecordsByLearnerMeeting(docs: Array<{ id: string; data: u
  * the canonical record (student_user<N>) decides; an alias only when the
  * learner has no canonical record.
  */
-export function learnerPathsFromRecords(studentsNode: Record<string, any> | null | undefined): Map<number, "green_path" | "remediation_path"> {
-  const paths = new Map<number, "green_path" | "remediation_path">();
+export function learnerPathsFromRecords(studentsNode: Record<string, any> | null | undefined): Map<number, LearningPath> {
+  const paths = new Map<number, LearningPath>();
   for (const [key, raw] of Object.entries(studentsNode ?? {})) {
     const n = parseInt(key.replace(/\D/g, ""), 10);
     if (!(n >= 1 && n <= 12) || !raw || typeof raw !== "object") continue;
     const node = raw as Record<string, any>;
-    const path = node.teacher_selected_path === "remediation_path" || node.pedagogicalPath === "remediation_path" ? "remediation_path" : "green_path";
+    const path = learnerPathOf(node);
     if (!paths.has(n) || key === `student_user${n}`) paths.set(n, path);
   }
   return paths;
+}
+
+/**
+ * The learners the teacher marked for the graded path (graded_track), by the
+ * same canonical-record rule. Meetings 1–2 have no path of their own, but a
+ * graded learner did the graded refresh and the graded diagnostic there, so
+ * the research export names the graded path for them (owner, 11.10.2026).
+ */
+export function gradedTrackLearnersFromRecords(studentsNode: Record<string, any> | null | undefined): Set<number> {
+  const graded = new Map<number, boolean>();
+  for (const [key, raw] of Object.entries(studentsNode ?? {})) {
+    const n = parseInt(key.replace(/\D/g, ""), 10);
+    if (!(n >= 1 && n <= 12) || !raw || typeof raw !== "object") continue;
+    if (!graded.has(n) || key === `student_user${n}`) graded.set(n, isGradedTrack(raw as Record<string, any>));
+  }
+  return new Set(Array.from(graded.entries()).filter(([, g]) => g).map(([n]) => n));
 }
 
 export interface ResetBackupFile {
@@ -2209,6 +2229,7 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     // and the gate write. A leftover alias used to win whenever it came first
     // in the node, and gave a remediation learner the green path.
     const learnerPath = learnerPathsFromRecords(studentsNode);
+    const gradedTrack = gradedTrackLearnersFromRecords(studentsNode);
     const recordingRows: Record<string, any>[] = [];
     const recordingMinutesByKey = new Map<string, { minutes: number; truncated: boolean }>();
     const rtdbReflectionRows: Record<string, any>[] = [];
@@ -2318,7 +2339,7 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     // redone (nothing answered since) they are empty and reset_awaiting_rerun says so.
     const runsAfterReset = meetingRunsByLearner(allTelemetry, resetLogs.map(({ data }) => data));
     const afterRun = (n: number, m: number) => runsAfterReset.get(`${n}:${m}`) ?? null;
-    const afterResetColumns = async (n: number, m: number, fallbackPath: "green_path" | "remediation_path") => {
+    const afterResetColumns = async (n: number, m: number, fallbackPath: LearningPath) => {
       const run = afterRun(n, m);
       const awaiting = isAwaitingRerun(run);
       const events = awaiting ? [] : run?.current ?? [];
@@ -2447,8 +2468,9 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         recording_minutes: rec?.minutes ?? 0,
         recording_truncated: rec?.truncated ?? false,
         // PRD 23 §ב / 24 §ב: the bank most of the learner's exercises in this
-        // meeting were opened from, else the learner's record; meetings 1–2 have none.
-        learning_path: m >= 3 ? path : "",
+        // meeting were opened from, else the learner's record; meetings 1–2 have
+        // none, except for a learner marked graded (graded refresh and diagnostic).
+        learning_path: m >= 3 ? path : gradedTrack.has(n) ? "graded_path" : "",
         // Module 14 §ב: meeting 1 is not scored, whatever a stored document says.
         session_doc_score_percent: isScoredMeeting(m) ? (sessionDoc?.session_score_percent ?? "") : "",
         session_doc_recommended_path: sessionDoc?.matrix_recommended_path ?? "",

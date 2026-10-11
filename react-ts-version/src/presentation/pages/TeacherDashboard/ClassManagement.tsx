@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Sparkles, ChevronRight, Zap, CheckCircle2, Sliders, ShieldCheck, RotateCcw } from 'lucide-react';
+import { Users, Sparkles, ChevronRight, CheckCircle2, ShieldCheck, RotateCcw, PanelLeftOpen } from 'lucide-react';
 import { useStore, type StudentData } from '@/application/useStore';
 import { ResetConfirmationModal } from './components/ResetConfirmationModal';
 import { LearnerAccessCodes } from './components/LearnerAccessCodes';
@@ -11,53 +11,86 @@ import { approveTeacherGate } from '@/core/teacherGate';
 import { recommendedPathOf } from '@/core/recommendedPath';
 import { hasEnhancedSupport, buildSupportProfilePayload } from '@/core/supportProfile';
 import { toast } from 'sonner';
-import type { ResetReason, SingleStudentResetScope } from '@/types';
-import { LEARNER_RESET_TOOLTIP_HE, RESET_ACTION_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
+import type { PedagogicalPath, ResetReason, SingleStudentResetScope } from '@/types';
+import { LEARNER_RESET_TOOLTIP_HE, RESET_ACTION_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE, asRoutePath } from '@/core/routeLabels';
 import { meetingShortLabelHe } from '@/core/stationNames';
 
-interface StudentGateState {
+interface StudentRowState {
   id: string;
   studentNumber: number;
   session2Completed: boolean;
-  recommendedPath: 'ירוק' | 'צמצום פערי קדם' | 'טרם נקבעה';
+  /** The matrix recommendation: two-valued (PRD Module 20), null while there is none. */
+  recommendedPath: 'green_path' | 'remediation_path' | null;
   isApproved: boolean;
   /** The path the teacher approved (teacher_selected_path), which may differ from the recommendation. */
-  approvedPath: 'ירוק' | 'צמצום פערי קדם' | null;
+  approvedPath: PedagogicalPath | null;
+  /** The teacher marked the learner for the graded path before meeting 1 (graded_track). */
+  gradedTrack: boolean;
   enhancedSupport: boolean;
   supportProfileVersion: number;
 }
 
-const INITIAL_GATE_STUDENTS: StudentGateState[] = Array.from({ length: 12 }, (_, index) => {
+const INITIAL_ROWS: StudentRowState[] = Array.from({ length: 12 }, (_, index) => {
   const num = index + 1;
   return {
     id: `student_${num}`,
     studentNumber: num,
     session2Completed: false,
-    recommendedPath: 'טרם נקבעה',
+    recommendedPath: null,
     isApproved: false,
     approvedPath: null,
+    gradedTrack: false,
     enhancedSupport: false,
     supportProfileVersion: 0,
   };
 });
 
+/** What each approve button looks like, pressed and not. */
+const PATH_BUTTON_CLASS: Record<PedagogicalPath, { on: string; off: string }> = {
+  green_path: { on: 'bg-emerald-700 text-white shadow-md', off: 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200' },
+  remediation_path: { on: 'bg-stone-600 text-white shadow-md', off: 'bg-stone-100 text-stone-800 hover:bg-stone-200 dark:bg-stone-900/40 dark:text-stone-200' },
+  graded_path: { on: 'bg-violet-700 text-white shadow-md', off: 'bg-violet-100 text-violet-900 hover:bg-violet-200 dark:bg-violet-900/40 dark:text-violet-200' },
+};
+
+/** A switch the teacher reads at a glance: the state in words and in the knob's place. */
+function TeacherSwitch({ checked, disabled, label, onToggle }: { checked: boolean; disabled?: boolean; label: string; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onToggle}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+        checked ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-600'
+      }`}
+    >
+      <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? '-translate-x-5' : '-translate-x-0.5'}`} />
+    </button>
+  );
+}
+
 /**
- * מודולים 19 ו-20: ניהול כיתה, פרופיל תמיכה מוגבר ושער אישור מורה (Teacher Gate & Profiles)
- * 1. רשת 12 תלמידים קבועה (מזהים 1-12 בלבד, ללא שמות).
- * 2. מתג שקט להפעלת enhanced_support_profile הנשמר ישירות ב-Firestore/RTDB ללא חיווי בתלמיד.
- * 3. שער אישור מורה: אישור מסלול מעבר למפגש 3 (teacher_gate_approved = true).
- * 4. אכיפת מגבלת 12 תלמידים פעילים לכיתת המבקרים תחת בית ספר ביקורת.
+ * ניהול כיתה ותנאי למידה (owner, 11.10.2026): one row per learner (1–12, numbers only), holding every
+ * decision the teacher makes about that learner, in one place:
+ *   - the path: before meeting 1 she may mark the learner for the graded path (המסלול המדורג, special
+ *     education), so that meeting 1's refresh and meeting 2's diagnostic are the graded ones; at the gate
+ *     after meeting 2 she approves one of the three paths, next to the matrix recommendation;
+ *   - the enhanced support profile (PRD Module 19): one switch, saved at once, never shown to the learner;
+ *   - the learner's window (replay, chat, reset) and the learner reset.
+ * There is no quiet visual mode any more: the design is gentle for everyone (owner, 11.10.2026).
  */
-export function ClassManagement({ 
+export function ClassManagement({
   activeSessionNumber = null,
   onDrillDown,
-}: { 
-  allStudents: StudentData[]; 
+}: {
+  allStudents: StudentData[];
   onDrillDown?: (studentId: string) => void;
   /** The meeting the teacher currently has open (Module 14), for the level-2 reset dialog. */
   activeSessionNumber?: number | null;
 }) {
-  const [studentStates, setStudentStates] = useState<StudentGateState[]>(INITIAL_GATE_STUDENTS);
+  const [rows, setRows] = useState<StudentRowState[]>(INITIAL_ROWS);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,18 +101,12 @@ export function ClassManagement({
         if (!snapshot.exists()) return;
         const raw = snapshot.val() || {};
 
-        setStudentStates((prev) => {
+        setRows((prev) => {
           return prev.map((s, index) => {
             const num = index + 1;
             const uid = `student_${num}`;
-            // student_user{N} is the canonical node every live student write
-            // (session-2 completion, route recommendation, highest meeting)
-            // lands on. student_{N} is only a write-side mirror alias touched
-            // by gate approval and the enhanced-support toggle, so once either
-            // ran it became a permanent tiny node that this first-truthy pick
-            // preferred forever — leaving the card stuck on "טרם השלים מפגש 2"
-            // after the learner had actually finished and was waiting at the
-            // gate. Prefer the node the learner actually updates.
+            // student_user{N} is the canonical node every live student write lands on; student_{N} is only a
+            // write-side mirror alias, so the node the learner actually updates is preferred.
             const data = raw[`student_user${num}`] || raw[uid] || raw[`slot_${num}`] || {};
 
             const session2Done = Boolean(
@@ -91,30 +118,21 @@ export function ClassManagement({
             );
 
             // core/recommendedPath.ts — the diagnostic's own result, never a default colour.
-            const diagnosticPath = recommendedPathOf(data);
+            const recommended = recommendedPathOf(data);
             const isApproved = data.teacher_gate_approved === true || data.routeStatus === 'APPROVED';
-            // Module 20 / Appendix A: teacher_selected_path and
-            // matrix_recommended_path are two fields. The card filled the
-            // recommended path's button once a learner was approved, so a
-            // teacher who approved the other path saw the one she had not
-            // chosen (and neither, with no recommendation). The approval's
-            // own field decides; pedagogicalPath is the copy older approvals
-            // carry (core/teacherGate.ts writes both).
-            const approvedRaw = data.teacher_selected_path ?? data.pedagogicalPath;
-            const approvedPath = !isApproved ? null
-              : approvedRaw === 'remediation_path' ? 'צמצום פערי קדם'
-              : approvedRaw === 'green_path' ? 'ירוק'
-              : null;
-            const enhanced = hasEnhancedSupport(data);
+            // Module 20 / Appendix A: the approval's own field decides (teacher_selected_path); pedagogicalPath is
+            // the copy older approvals carry (core/teacherGate.ts writes both).
+            const approvedPath = isApproved ? asRoutePath(data.teacher_selected_path ?? data.pedagogicalPath) : null;
 
             return {
               id: uid,
               studentNumber: num,
               session2Completed: session2Done,
-              recommendedPath: diagnosticPath === 'remediation_path' ? 'צמצום פערי קדם' : diagnosticPath === 'green_path' ? 'ירוק' : 'טרם נקבעה',
+              recommendedPath: recommended === 'remediation_path' || recommended === 'green_path' ? recommended : null,
               isApproved,
               approvedPath,
-              enhancedSupport: enhanced,
+              gradedTrack: data.graded_track === true,
+              enhancedSupport: hasEnhancedSupport(data),
               supportProfileVersion: typeof data.support_profile_version === 'number' ? data.support_profile_version : 0,
             };
           });
@@ -128,54 +146,57 @@ export function ClassManagement({
     return () => unsub();
   }, []);
 
-  // Module 19: Toggle enhanced support profile for a specific student ID (1..12)
-  const handleToggleEnhancedSupport = async (student: StudentGateState) => {
-    const nextVal = !student.enhancedSupport;
-    setUpdatingId(student.id);
+  /** Writes a teacher-owned field to the learner record and its mirror alias (the profile does the same). */
+  const writeLearnerFields = async (row: StudentRowState, payload: Record<string, unknown>) => {
+    await update(ref(database, `users/students/${row.id}`), payload);
+    const normId = normalizeStudentId(row.id);
+    if (normId !== row.id) {
+      await update(ref(database, `users/students/${normId}`), payload);
+    }
+  };
 
+  // Module 19: the enhanced support profile of one learner.
+  const handleToggleEnhancedSupport = async (row: StudentRowState) => {
+    setUpdatingId(row.id);
     try {
       // PRD v7.1 Module 19 §B: support_profile_id is the authoritative server field.
       const teacherId = useAuthStore.getState().user?.uid || null;
-      const studentPayload = buildSupportProfilePayload(nextVal, teacherId, student.supportProfileVersion);
-
-      await update(ref(database, `users/students/${student.id}`), studentPayload);
-      const normId = normalizeStudentId(student.id);
-      if (normId !== student.id) {
-        await update(ref(database, `users/students/${normId}`), studentPayload);
-      }
+      await writeLearnerFields(row, buildSupportProfilePayload(!row.enhancedSupport, teacherId, row.supportProfileVersion));
     } catch (err) {
       console.error('Failed to update enhanced support profile:', err);
-      // The switch renders from the live listener, so a denied write looked
-      // identical to a successful no-op — the teacher must be told.
+      // The switch renders from the live listener, so a denied write looked identical to a no-op.
       toast.error('עדכון פרופיל התמיכה נדחה בשרת. נסו שוב.');
     } finally {
       setUpdatingId(null);
     }
   };
 
-  // Module 20: Approve Teacher Gate for Session 3
-  const handleApproveGate = async (student: StudentGateState, chosenPath?: 'ירוק' | 'צמצום פערי קדם') => {
-    const path = chosenPath || student.recommendedPath;
-    if (path === 'טרם נקבעה') {
-      toast.error('אין עדיין המלצת מטריקס ללומד הזה. בחרו מסלול במפורש.');
-      return;
-    }
-    setUpdatingId(student.id);
-
+  // The graded mark (owner, 11.10.2026): set before meeting 1; removable until the gate approves a path.
+  const handleToggleGradedTrack = async (row: StudentRowState) => {
+    setUpdatingId(row.id);
     try {
-      // PRD v7.1 Module 20: approval is written to the session-2 SessionDocument
-      // in Firestore — the sole source of truth — never to a student-level flag.
+      await writeLearnerFields(row, { graded_track: row.gradedTrack ? null : true });
+    } catch (err) {
+      console.error('Failed to update the graded mark:', err);
+      toast.error('סימון המסלול המדורג נדחה בשרת. נסו שוב.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // Module 20: the gate, one of the three paths.
+  const handleApproveGate = async (row: StudentRowState, path: PedagogicalPath) => {
+    setUpdatingId(row.id);
+    try {
+      // PRD v7.1 Module 20: approval is written to the session-2 SessionDocument in Firestore — the sole
+      // source of truth — never to a student-level flag.
       const teacherId = useAuthStore.getState().user?.uid || null;
-      const result = await approveTeacherGate(
-        student.id,
-        path === 'צמצום פערי קדם' ? 'remediation_path' : 'green_path',
-        teacherId
-      );
+      const result = await approveTeacherGate(row.id, path, teacherId);
       if (!result.ok) {
         toast.error(result.message);
         return;
       }
-      toast.success(`✓ ${TEACHER_GATE_HE}: המסלול של תלמיד ${student.studentNumber} אושר`);
+      toast.success(`✓ ${TEACHER_GATE_HE}: המסלול של תלמיד ${row.studentNumber} אושר`);
     } catch (err) {
       console.error('Failed to approve teacher gate:', err);
       toast.error(`שגיאה ב${TEACHER_GATE_HE}`);
@@ -205,13 +226,15 @@ export function ClassManagement({
     }
   };
 
+  const PATHS: PedagogicalPath[] = ['green_path', 'remediation_path', 'graded_path'];
+
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto w-full h-full flex flex-col space-y-8 animate-in fade-in duration-500" dir="rtl">
-      
+
       {/* Header Banner */}
       <header className="relative overflow-hidden rounded-3xl bg-violet-50 dark:bg-slate-900 p-8 text-slate-900 dark:text-white shadow-sm border border-violet-200 dark:border-violet-900/60">
         <div className="absolute top-0 right-0 w-80 h-80 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
-        
+
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-xs font-bold text-violet-900 dark:text-violet-100">
@@ -227,10 +250,10 @@ export function ClassManagement({
 
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
               <Users className="w-9 h-9 text-violet-700 dark:text-violet-200" />
-              ניהול כיתה, פרופילים ו{TEACHER_GATE_HE}
+              ניהול כיתה ותנאי למידה
             </h1>
             <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base font-medium max-w-2xl">
-              הגדרת תמיכה שקטה לכל לומד, אישור מסלול המעבר ל{meetingShortLabelHe(3)}, ושמירה על כיתה של עד 12 לומדים.
+              שורה אחת לכל לומד: המסלול, פרופיל התמיכה המוגבר, חלונית הלומד ואיפוס. כל שינוי נשמר מיד, והלומד אינו רואה על המסך שום סימון.
             </p>
           </div>
 
@@ -243,184 +266,144 @@ export function ClassManagement({
             </div>
           </div>
         </div>
-
       </header>
 
-      {/* Module 20: Teacher Gate Approvals Section */}
+      {/* One row per learner: the path (graded mark before meeting 1, the gate after meeting 2) and the profile. */}
       <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-              <ShieldCheck className="w-6 h-6 text-violet-600" />
-              {TEACHER_GATE_HE} לפני {meetingShortLabelHe(3)}
-            </h2>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-              בסיום {meetingShortLabelHe(2)}, התלמידים ממתינים במסך ההמתנה. אישור המורה כאן משחרר את הנתיב מיידית (פחות משנייה אחת).
-            </p>
-          </div>
+        <div className="mb-6 pb-4 border-b border-slate-100 dark:border-slate-800 space-y-2">
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+            <ShieldCheck className="w-6 h-6 text-violet-600" />
+            התאמות לכל לומד
+          </h2>
+          <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1 list-disc pr-4">
+            <li>
+              <strong>{ROUTE_NAME_HE.graded_path}</strong>: ללומדים בחינוך המיוחד. אותם נושאים בדיוק, בדירוג: חיבור וחיסור במאונך בתחום האלף. סמנו לפני {meetingShortLabelHe(1)}, כדי שהריענון והאבחון יהיו מותאמים.
+            </li>
+            <li>
+              <strong>{TEACHER_GATE_HE}</strong>: בסיום {meetingShortLabelHe(2)} הלומדים ממתינים, ואישור מסלול כאן משחרר אותם ל{meetingShortLabelHe(3)}.
+            </li>
+            <li>
+              <strong>פרופיל תמיכה מוגבר</strong>: נעילת המקלדת בטורים שדורשים המרה עד ההמרה בלבני הדינס, לוח החיבור, וצבעי הטורים וכותרות ערך המקום בשורת התוצאה. אינו תלוי במסלול.
+            </li>
+          </ul>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {studentStates.map((student) => {
-            const isDoneM2 = student.session2Completed;
-            const isApproved = student.isApproved;
+        <div className="overflow-x-auto">
+          <table className="w-full text-right text-xs border-separate border-spacing-y-2">
+            <thead>
+              <tr className="text-slate-600 dark:text-slate-400">
+                <th scope="col" className="px-3 py-1 font-bold">לומד</th>
+                <th scope="col" className="px-3 py-1 font-bold">מצב</th>
+                <th scope="col" className="px-3 py-1 font-bold">המלצת המטריקס</th>
+                <th scope="col" className="px-3 py-1 font-bold">{ROUTE_NAME_HE.graded_path}</th>
+                <th scope="col" className="px-3 py-1 font-bold">אישור מסלול</th>
+                <th scope="col" className="px-3 py-1 font-bold">פרופיל תמיכה מוגבר</th>
+                <th scope="col" className="px-3 py-1 font-bold"><span className="sr-only">פעולות</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const busy = updatingId === row.id;
+                const label = `תלמיד ${row.studentNumber}`;
+                return (
+                  <tr key={row.id} data-testid={`class-row-${row.studentNumber}`} className="bg-slate-50 dark:bg-slate-800/40">
+                    <th scope="row" className="px-3 py-3 rounded-r-xl font-black text-sm text-slate-900 dark:text-white whitespace-nowrap">
+                      {label}
+                    </th>
 
-            return (
-              <div 
-                key={student.id}
-                className={`p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
-                  isApproved
-                    ? 'bg-violet-50/50 dark:bg-violet-950/20 border-violet-300 dark:border-violet-800'
-                    : isDoneM2
-                    ? 'bg-stone-50/60 dark:bg-stone-950/20 border-stone-300 dark:border-stone-700 shadow-sm'
-                    : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 opacity-75'
-                }`}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-black text-base text-slate-900 dark:text-white">
-                      תלמיד {student.studentNumber}
-                    </h3>
-                  </div>
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      {row.isApproved ? (
+                        <span className="inline-flex items-center gap-1 font-extrabold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/60 px-2.5 py-1 rounded-lg">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          מאושר ל{meetingShortLabelHe(3)}
+                        </span>
+                      ) : row.session2Completed ? (
+                        <span className="inline-flex items-center gap-1 font-extrabold text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-900/60 px-2.5 py-1 rounded-lg">
+                          ממתין ב{TEACHER_GATE_HE}
+                        </span>
+                      ) : (
+                        <span className="font-bold text-slate-600 bg-slate-200 dark:bg-slate-700 dark:text-slate-200 px-2 py-0.5 rounded-md">
+                          טרם השלים את {meetingShortLabelHe(2)}
+                        </span>
+                      )}
+                    </td>
 
-                  {isApproved ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/60 px-2.5 py-1 rounded-lg">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      מאושר ל{meetingShortLabelHe(3)}
-                    </span>
-                  ) : isDoneM2 ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-900/60 px-2.5 py-1 rounded-lg animate-pulse">
-                      ממתין ב{TEACHER_GATE_HE}
-                    </span>
-                  ) : (
-                    <span className="text-[11px] font-bold text-slate-600 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-md">
-                      טרם השלים את {meetingShortLabelHe(2)}
-                    </span>
-                  )}
-                </div>
+                    <td className="px-3 py-3 whitespace-nowrap font-bold text-slate-800 dark:text-slate-200">
+                      {row.recommendedPath ? ROUTE_NAME_HE[row.recommendedPath] : 'טרם נקבעה'}
+                    </td>
 
-                {/* Recommendation & Approval Actions */}
-                <div className="flex flex-col gap-2 pt-2 border-t border-slate-200 dark:border-slate-700/60">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-slate-600 dark:text-slate-400">המלצת מטריקס:</span>
-                    <span className={`font-black px-2 py-0.5 rounded-md ${
-                      student.recommendedPath === 'צמצום פערי קדם'
-                        ? 'bg-stone-200/80 text-stone-900 dark:bg-stone-900 dark:text-stone-100'
-                        : student.recommendedPath === 'טרם נקבעה'
-                        ? 'bg-slate-200/80 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                        : 'bg-violet-200/80 text-violet-900 dark:bg-violet-900 dark:text-violet-100'
-                    }`}>
-                      {student.recommendedPath === 'ירוק' ? ROUTE_NAME_HE.green_path : student.recommendedPath === 'צמצום פערי קדם' ? ROUTE_NAME_HE.remediation_path : student.recommendedPath}
-                    </span>
-                  </div>
+                    <td className="px-3 py-3">
+                      <TeacherSwitch
+                        checked={row.gradedTrack}
+                        // Once a path is approved, the path decides; the mark only shapes meetings 1–2.
+                        disabled={busy || row.isApproved}
+                        label={`${ROUTE_NAME_HE.graded_path} — ${label}`}
+                        onToggle={() => handleToggleGradedTrack(row)}
+                      />
+                    </td>
 
-                  <div className="flex gap-2 mt-1">
-                    <button
-                      onClick={() => handleApproveGate(student, 'ירוק')}
-                      disabled={updatingId === student.id}
-                      aria-pressed={student.approvedPath === 'ירוק'}
-                      className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer active:scale-[0.97] ${
-                        student.approvedPath === 'ירוק'
-                          ? 'bg-emerald-700 text-white shadow-md'
-                          : 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200'
-                      }`}
-                    >
-                      {ROUTE_APPROVE_HE.green_path}
-                    </button>
-                    <button
-                      onClick={() => handleApproveGate(student, 'צמצום פערי קדם')}
-                      disabled={updatingId === student.id}
-                      aria-pressed={student.approvedPath === 'צמצום פערי קדם'}
-                      className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer active:scale-[0.97] ${
-                        student.approvedPath === 'צמצום פערי קדם'
-                          ? 'bg-stone-600 text-white shadow-md'
-                          : 'bg-stone-100 text-stone-800 hover:bg-stone-200 dark:bg-stone-900/40 dark:text-stone-200'
-                      }`}
-                    >
-                      {ROUTE_APPROVE_HE.remediation_path}
-                    </button>
-                    <button
-                      onClick={() => setStudentToReset({ id: student.id, name: `תלמיד ${student.studentNumber}` })}
-                      disabled={updatingId === student.id}
-                      className="p-2 rounded-xl border border-rose-200 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all cursor-pointer active:scale-[0.97]"
-                      // The dialog offers both scopes, the meeting alone by default (PRD 23א §ב.2).
-                      title={LEARNER_RESET_TOOLTIP_HE}
-                      aria-label={`${RESET_ACTION_HE.learner} של תלמיד ${student.studentNumber}`}
-                    >
-                      <RotateCcw className={`w-3.5 h-3.5 ${updatingId === student.id ? 'animate-spin' : ''}`} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {PATHS.map((path) => (
+                          <button
+                            key={path}
+                            type="button"
+                            onClick={() => handleApproveGate(row, path)}
+                            disabled={busy || !row.session2Completed}
+                            aria-pressed={row.approvedPath === path}
+                            aria-label={`${ROUTE_APPROVE_HE[path]} — ${label}`}
+                            title={!row.session2Completed ? `אפשר לאשר מסלול רק בסיום ${meetingShortLabelHe(2)}` : undefined}
+                            className={`py-1.5 px-2.5 rounded-lg font-extrabold transition-all cursor-pointer active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed ${
+                              row.approvedPath === path ? PATH_BUTTON_CLASS[path].on : PATH_BUTTON_CLASS[path].off
+                            }`}
+                          >
+                            {ROUTE_APPROVE_HE[path]}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
 
-      {/* Module 19: Enhanced Cognitive Support Profiles Section */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-              <Sliders className="w-6 h-6 text-purple-600" />
-              תמיכה קוגניטיבית שקטה
-            </h2>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-              הפעלת פרופיל תמיכה מוגבר נועלת את המקלדת בשורת התוצאה עד להמרה בלבני הדינס. הפעולה סמויה ב-100% ללא תיוג בממשק התלמיד.
-            </p>
-          </div>
-        </div>
+                    <td className="px-3 py-3">
+                      <TeacherSwitch
+                        checked={row.enhancedSupport}
+                        disabled={busy}
+                        label={`פרופיל תמיכה מוגבר — ${label}`}
+                        onToggle={() => handleToggleEnhancedSupport(row)}
+                      />
+                    </td>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {studentStates.map((student) => (
-            <div 
-              key={student.id}
-              className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 transition-all ${
-                student.enhancedSupport
-                  ? 'bg-purple-50 dark:bg-purple-950/20 border-purple-300 dark:border-purple-800 shadow-sm'
-                  : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700'
-              }`}
-            >
-              <div className="flex justify-between items-center">
-                <span className="font-black text-sm text-slate-900 dark:text-white">
-                  תלמיד {student.studentNumber}
-                </span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  student.enhancedSupport
-                    ? 'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-100'
-                    : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
-                }`}>
-                  {student.enhancedSupport ? 'תמיכה מוגברת' : 'תמיכה רגילה'}
-                </span>
-              </div>
-
-              <button
-                onClick={() => handleToggleEnhancedSupport(student)}
-                disabled={updatingId === student.id}
-                className={`w-full py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                  student.enhancedSupport
-                    ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-md'
-                    : 'bg-white hover:bg-purple-50 text-purple-700 border-2 border-purple-200 dark:bg-slate-800 dark:text-purple-300 dark:border-purple-800'
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span>{student.enhancedSupport ? 'בטלו תמיכה מוגברת' : 'הפעילו תמיכה מוגברת'}</span>
-              </button>
-              {/* The tab is "ניהול כיתה ותנאי למידה": the learner's conditions
-                  window (quiet mode) opens from here too. */}
-              {onDrillDown && (
-                <button
-                  type="button"
-                  onClick={() => onDrillDown(`student_user${student.studentNumber}`)}
-                  aria-label={`התאמת תנאי למידה — תלמיד ${student.studentNumber}`}
-                  className="w-full py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700"
-                >
-                  <Sliders className="w-3.5 h-3.5" />
-                  <span>התאמת תנאי למידה</span>
-                </button>
-              )}
-            </div>
-          ))}
+                    <td className="px-3 py-3 rounded-l-xl">
+                      <div className="flex items-center gap-1.5 justify-end">
+                        {onDrillDown && (
+                          <button
+                            type="button"
+                            onClick={() => onDrillDown(`student_user${row.studentNumber}`)}
+                            aria-label={`חלונית הלומד — ${label}`}
+                            title="שחזור מהלכים, צ'אט ואיפוס"
+                            className="inline-flex items-center gap-1 py-1.5 px-2.5 rounded-lg font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 cursor-pointer"
+                          >
+                            <PanelLeftOpen className="w-3.5 h-3.5" />
+                            <span>חלונית הלומד</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setStudentToReset({ id: row.id, name: label })}
+                          disabled={busy}
+                          className="p-2 rounded-lg border border-rose-200 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all cursor-pointer active:scale-[0.97]"
+                          // The dialog offers both scopes, the meeting alone by default (PRD 23א §ב.2).
+                          title={LEARNER_RESET_TOOLTIP_HE}
+                          aria-label={`${RESET_ACTION_HE.learner} של ${label}`}
+                        >
+                          <RotateCcw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
 

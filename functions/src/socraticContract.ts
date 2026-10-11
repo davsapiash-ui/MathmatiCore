@@ -1876,7 +1876,7 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
       : `רישום שגוי: בעיגול הזיכרון שמעל טור היחידות רשום ${facts.memory_circles[w]}, אבל בחיבור לא עוברת המרה אל טור היחידות.`);
   }
   if (facts.hesitation_seconds) lines.push(`זמן בלי פעולה לפני הכרטיס: ${facts.hesitation_seconds} שניות.`);
-  if (facts.concise) lines.push("הלומד עובד בפרופיל תמיכה מוגבר או במצב שקט: כתבו קצר ומוחשי במיוחד — שאלה של עד 12 מילים, כל אפשרות עד 6 מילים, כל משוב משפט אחד, ורק פעולות שרואים על המסך.");
+  if (facts.concise) lines.push("הלומד עובד בפרופיל תמיכה מוגבר: כתבו קצר ומוחשי במיוחד — שאלה של עד 12 מילים, כל אפשרות עד 6 מילים, כל משוב משפט אחד, ורק פעולות שרואים על המסך.");
   if (facts.typing_pattern === "carry_forgotten") {
     lines.push(`דפוס בהקלדה: הספרה השגויה בטור הפעיל מתאימה לחיבור בלי ${facts.meeting === 1 ? "הלבנה שעברה מהטור שמימין" : carryIntoHe(facts.active_column)}.${facts.carry_state_he ? ` ${facts.carry_state_he}` : ""}`);
   }

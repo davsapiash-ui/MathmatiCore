@@ -78,7 +78,7 @@ import {
 } from '@/application/useWorkspaceStore';
 import { useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
-import { getSessionTasks, getHardcodedCatalogBanks, SESSION1_TASKS, type SessionTask } from '@/data/sessionTasks';
+import { getSessionTasks, getHardcodedCatalogBanks, SESSION1_TASKS, type SessionTask, type LearningPath } from '@/data/sessionTasks';
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { TASKS as DIAGNOSTIC_TASKS, hasOneDiagnosticAnswerBox } from '@/core/QMatrix';
 import { EMPTY_COUNTS, MAX_VISIBLE_BLOCKS, type Place, type PlaceCounts } from '@/core/placeValue';
@@ -105,14 +105,14 @@ const placesOf = (n: number): Place[] => PLACES.slice(0, String(Math.abs(n)).len
 const current = (): SessionTask => getActiveTasks(ws())[ws().standardTaskIdx];
 const svc = firebaseSyncService as any;
 
-function signIn(path: 'green_path' | 'remediation_path' = 'green_path') {
+function signIn(path: LearningPath = 'green_path') {
   useAuthStore.setState({ user: { uid: STUDENT, name: 'user12' } as any, role: 'student', isAuthenticated: true } as any);
   useStore.setState((s) => ({
     students: { ...s.students, [STUDENT]: { ...(s.students[STUDENT] ?? {}), pedagogicalPath: path } as any },
   }));
 }
 
-function startMeeting(meeting: 2 | 3 | 4 | 5 | 6 | 7 | 8, path: 'green_path' | 'remediation_path' = 'green_path') {
+function startMeeting(meeting: 2 | 3 | 4 | 5 | 6 | 7 | 8, path: LearningPath = 'green_path') {
   signIn(path);
   ws().resetWorkspace();
   ws().initSession(meeting, false);
@@ -250,7 +250,7 @@ function throughDatabase(value: unknown): any {
 
 describe('meetings 3–8: the seven compulsory exercises still complete, in order, through the real store', () => {
   for (const meeting of [3, 4, 5, 6, 7, 8] as const) {
-    for (const path of ['green_path', 'remediation_path'] as const) {
+    for (const path of ['green_path', 'remediation_path', 'graded_path'] as const) {
       it(`meeting ${meeting}, ${path}`, () => {
         if (meeting === 8) vi.useFakeTimers();
         try {
@@ -294,6 +294,7 @@ describe('meetings 3–8: the seven compulsory exercises still complete, in orde
   }
 
   it('meeting 3 exercise 3 can be built: 45 in one column fits under the cap (מסמך 03 §3.3)', () => {
+    // The two paths of מסמך 03; the graded path's exercise 3 is 64 (sessionGradedTasks.ts).
     for (const path of ['green_path', 'remediation_path'] as const) {
       startMeeting(3, path);
       solve(current());
@@ -317,7 +318,7 @@ describe('meetings 3–8: the seven compulsory exercises still complete, in orde
     const banks = getHardcodedCatalogBanks().filter((b) => b.session_number >= 3);
     const branch = ([3, 4, 5, 6, 7] as const).flatMap((n) =>
       (['reinforcement', 'challenge'] as const).flatMap((k) =>
-        (['green_path', 'remediation_path'] as const).flatMap((p) => getSessionBranchTasks(n, k, p))
+        (['green_path', 'remediation_path', 'graded_path'] as const).flatMap((p) => getSessionBranchTasks(n, k, p))
       )
     );
     const all = [...banks.flatMap((b) => b.tasks), ...branch];
@@ -610,7 +611,7 @@ describe('report numbers for meetings 2–8 are unchanged by MEETING1_TOOL_STEPS
   it('the same events count as exercises, and attempted/completed are what they were', () => {
     const streams: Array<[number, string[]]> = [[2, DIAGNOSTIC_TASKS.map((t) => t.id)]];
     for (const n of [3, 4, 5, 6, 7, 8] as const) {
-      for (const p of ['green_path', 'remediation_path'] as const) {
+      for (const p of ['green_path', 'remediation_path', 'graded_path'] as const) {
         const extra = n <= 7 ? getSessionBranchTasks(n, 'challenge', p).map((t) => t.id) : [];
         streams.push([n, [...getSessionTasks(n, p).map((t) => t.id), ...extra]]);
       }

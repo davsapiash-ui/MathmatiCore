@@ -692,7 +692,7 @@ export function exerciseTitle(sessionNumber: number | null, exerciseId: string):
     if (t) return t.titleHe;
   } else if (sessionNumber && sessionNumber !== 2) {
     const meeting = sessionNumber as 1 | 3 | 4 | 5 | 6 | 7 | 8;
-    for (const path of ['green_path', 'remediation_path'] as const) {
+    for (const path of ['green_path', 'remediation_path', 'graded_path'] as const) {
       try {
         const t = getSessionTasks(meeting, path).find((x) => x.id === exerciseId);
         if (t) return t.titleHe;

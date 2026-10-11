@@ -114,6 +114,35 @@ await check('הלומד ממשיך לכתוב את מצב העבודה הרגי�
   assertSucceeds(update(ref(ldb, node), { onlineStatus: 'active', currentTaskIdx: 2 }))
 );
 
+console.log('\nRTDB — המסלול המדורג (בעל המוצר, 11.10.2026)');
+await check('המורה מסמנת לומד למסלול המדורג ומבטלת את הסימון', async () => {
+  await assertSucceeds(update(ref(tdb, node), { graded_track: true }));
+  await assertSucceeds(update(ref(tdb, node), { graded_track: null }));
+  await assertSucceeds(update(ref(tdb, node), { graded_track: true }));
+});
+await check('הסימון נשמר רק כערך בוליאני', () =>
+  assertFails(update(ref(tdb, node), { graded_track: 'yes' }))
+);
+await check('הלומד אינו משנה את הסימון ואינו מוחק אותו', async () => {
+  await assertFails(update(ref(ldb, node), { graded_track: false }));
+  await assertFails(update(ref(ldb, node), { graded_track: null }));
+});
+await check('כתיבה רגילה של הלומד שאינה נוגעת בסימון עוברת', () =>
+  assertSucceeds(update(ref(ldb, node), { onlineStatus: 'active', currentTaskIdx: 3 }))
+);
+await check('הלומד אינו יוצר לעצמו סימון בלגאסי students/{id}', () =>
+  assertFails(update(ref(ldb, 'students/student_user3'), { graded_track: true }))
+);
+await check('המורה בוחרת בשער את המסלול המדורג', () =>
+  assertSucceeds(
+    update(ref(tdb, node), { teacher_selected_path: 'graded_path', pedagogicalPath: 'graded_path' })
+  )
+);
+await check('הלומד אינו בוחר לעצמו את המסלול המדורג', async () => {
+  await assertFails(update(ref(ldb, node), { teacher_selected_path: 'green_path' }));
+  await assertFails(update(ref(ldb, node), { pedagogicalPath: 'green_path' }));
+});
+
 console.log('\nRTDB — מצב מקרן (מודול 15)');
 await check('המורה מדליקה ומכבה את המקרן', async () => {
   await assertSucceeds(
@@ -255,6 +284,15 @@ await check('המורה מאשרת ובוחרת מסלול', () =>
         gate_approved_at: 5,
         gate_approved_by: 'teacher_1',
       },
+      { merge: true }
+    )
+  )
+);
+await check('המורה בוחרת במסמך המפגש את המסלול המדורג', () =>
+  assertSucceeds(
+    setDoc(
+      doc(tfs, 'sessions', 'session_02_student_3'),
+      { teacher_selected_path: 'graded_path', gate_approved_at: 6, gate_approved_by: 'teacher_1' },
       { merge: true }
     )
   )

@@ -55,6 +55,20 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
           `מצאו דרכים שונות לבנות את המספר 4,200. השתמשו רק בלבני אלף, מאה ועשרת. ${FLEX_HOWTO}`, { ...C, noUnitBlocks: true }),
       ],
     },
+    // The graded path (owner, 11.10.2026; sessionGradedTasks.ts): the same kinds, within the thousand.
+    graded_path: {
+      reinforcement: [
+        readWrite('s3_d_reinforce_1', 430, 'ארבע מאות ושלושים',
+          'ביסוס 1: ייצוג סטנדרטי של 430', R),
+        decompose('s3_d_reinforce_2', 430, 'tens',
+          'ביסוס 2: 430 בעשרות בלבד', R),
+      ],
+      challenge: [
+        flexible('s3_d_challenge_1', 250,
+          'אתגר: כל הדרכים לייצג את 250',
+          `מצאו דרכים שונות לבנות את המספר 250. השתמשו רק בלבני מאה ועשרת. ${FLEX_HOWTO}`, { ...C, noUnitBlocks: true }),
+      ],
+    },
   },
 
   // ── מפגש 4: אלגוריתם החיבור במאונך והמרה פשוטה ──
@@ -75,6 +89,15 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       ],
       challenge: [
         addition('s4_g_challenge_1', 4687, 2459, 'אתגר: שלוש המרות רצופות', S4_ADD('4,687 + 2,459'), C),
+      ],
+    },
+    graded_path: {
+      reinforcement: [
+        addition('s4_d_reinforce_1', 231, 46, 'ביסוס 1: חיבור ללא המרה', S4_ADD('231 + 46'), R),
+        addition('s4_d_reinforce_2', 147, 28, 'ביסוס 2: המרה אחת בטור היחידות', S4_ADD('147 + 28'), R),
+      ],
+      challenge: [
+        addition('s4_d_challenge_1', 268, 157, 'אתגר: שתי המרות עוקבות', S4_ADD('268 + 157'), C),
       ],
     },
   },
@@ -99,6 +122,15 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
         subtraction('s5_g_challenge_1', 7214, 3568, 'אתגר: שלוש פריטות רצופות', S5_SUB('7,214 − 3,568', 7214, 3568), C),
       ],
     },
+    graded_path: {
+      reinforcement: [
+        subtraction('s5_d_reinforce_1', 96, 43, 'ביסוס 1: חיסור ללא פריטה', S5_SUB('96 − 43', 96, 43), R),
+        subtraction('s5_d_reinforce_2', 92, 47, 'ביסוס 2: פריטה אחת בטור היחידות', S5_SUB('92 − 47', 92, 47), R),
+      ],
+      challenge: [
+        subtraction('s5_d_challenge_1', 432, 175, 'אתגר: שתי פריטות עוקבות', S5_SUB('432 − 175', 432, 175), C),
+      ],
+    },
   },
 
   // ── מפגש 6: אתגר האפס כשומר מקום ──
@@ -119,6 +151,15 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
       ],
       challenge: [
         subtraction('s6_g_challenge_1', 8000, 2376, 'אתגר: שלוש פריטות, כשבמחוסר יש אפסים בטורי המאות, העשרות והיחידות', S6_SUB('8,000 − 2,376', 8000, 2376), { ...C, targetNode: 'zero_placeholder' }),
+      ],
+    },
+    graded_path: {
+      reinforcement: [
+        subtraction('s6_d_reinforce_1', 408, 203, 'ביסוס 1: קריאת האפס כשומר מקום, ללא פריטה', S6_SUB('408 − 203', 408, 203), { ...R, targetNode: 'zero_placeholder' }),
+        subtraction('s6_d_reinforce_2', 270, 140, 'ביסוס 2: חיסור ללא פריטה', S6_SUB('270 − 140', 270, 140), { ...R, targetNode: 'zero_placeholder' }),
+      ],
+      challenge: [
+        subtraction('s6_d_challenge_1', 400, 263, 'אתגר: שתי פריטות, כשבמחוסר יש אפסים בטור העשרות ובטור היחידות', S6_SUB('400 − 263', 400, 263), { ...C, targetNode: 'zero_placeholder' }),
       ],
     },
   },
@@ -166,6 +207,24 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
           { ...C, targetNode: 'relational_thinking' }),
       ],
     },
+    graded_path: {
+      reinforcement: [
+        skeleton('s7_d_reinforce_1', 524, 241, false, { a: ['units'] },
+          'ביסוס 1: ספרת יחידות חסרה בחיבור ללא המרה',
+          'בתרגיל 52▢ + 241 = 765 חסרה ספרת היחידות במספר הראשון. גלו אותה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
+          { ...R, targetNode: 'relational_thinking' }),
+        skeleton('s7_d_reinforce_2', 668, 325, true, { a: ['tens'] },
+          'ביסוס 2: ספרת עשרות חסרה בחיסור ללא פריטה',
+          'בתרגיל 6▢8 − 325 = 343 חסרה ספרת העשרות במספר הראשון. גלו אותה בעזרת הלבנים. כתבו אותה בתיבה הריקה.',
+          { ...R, targetNode: 'relational_thinking' }),
+      ],
+      challenge: [
+        skeleton('s7_d_challenge_1', 436, 247, false, { a: ['hundreds', 'tens', 'units'] },
+          'אתגר: תרגיל שלד עם שלוש ספרות חסרות',
+          'בתרגיל ▢▢▢ + 247 = 683 חסרות שלוש ספרות במספר הראשון, בטורים שונים. גלו אותן בעזרת הלבנים בבית המספרים. כתבו אותן בתיבות הריקות.',
+          { ...C, targetNode: 'relational_thinking' }),
+      ],
+    },
   },
 };
 
@@ -180,6 +239,8 @@ export function getSessionBranchTasks(
 ): SessionTask[] {
   const session = SESSION_BRANCH_TASKS[sessionNumber as BranchSession];
   if (!session) return [];
-  const bank = session[path] ?? session.green_path;
+  // No fallback to another path's choice bank (PRD Module 26: never a bank that does not match the path).
+  const bank = session[path];
+  if (!bank) return [];
   return bank[branch] ?? bank.reinforcement;
 }

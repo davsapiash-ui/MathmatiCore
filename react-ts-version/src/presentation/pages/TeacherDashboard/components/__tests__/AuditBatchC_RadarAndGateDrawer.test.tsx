@@ -168,7 +168,7 @@ describe('the radar tile', () => {
     expect(tile(1).textContent).not.toContain('שיעור');
     const row = within(tile(2)).getByTestId('gate-row-student-2');
     const labels = within(row).getAllByRole('button').map((b) => b.textContent);
-    expect(labels).toEqual([ROUTE_NAME_HE.green_path, ROUTE_NAME_HE.remediation_path]);
+    expect(labels).toEqual([ROUTE_NAME_HE.green_path, ROUTE_NAME_HE.remediation_path, ROUTE_NAME_HE.graded_path]);
   });
 });
 

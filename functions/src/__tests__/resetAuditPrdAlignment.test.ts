@@ -167,7 +167,7 @@ describe('1 — records_deleted_count counts records, not fields (l.1048)', () =
   });
 
   it('end to end: a full learner reset with a record and a chat logs 2', async () => {
-    h.rtdbData['users/students/student_user4'] = { ...TEN_FIELDS, isASD: true };
+    h.rtdbData['users/students/student_user4'] = { ...TEN_FIELDS, graded_track: true };
     h.rtdbData['chat_messages/student_user4'] = { m1: { text: 'x' }, m2: { text: 'y' } };
     const result = await reset({ reset_level: 'single_student', reset_scope: 'full_student', student_id: 4 });
     expect(result.deletedRecords).toBe(2);

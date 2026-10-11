@@ -64,6 +64,7 @@ import {
   reportFooterTemplate,
 } from "./reportHtml";
 import { compareTelemetryOrder } from "./telemetryOrder";
+import { asLearningPath, isGradedTrack, learnerPathOf } from "./learningPath";
 
 export const EXACT_AI_FALLBACK_TEXT = EXACT_AI_FALLBACK_TEXT_HE;
 
@@ -335,7 +336,8 @@ export function createPedagogicalReportPdfBufferWithPdfkit(report: Record<string
           rtlText(doc, `${PREVIOUS_SCORE_LABEL_HE}: ${report.previous_score_percent}%`, 55, cardY + 40, { width: 490 });
         }
         // Meeting 2 only: no path in meetings 3–8, and never a colour by default.
-        const path = report.matrix_recommended_path === 'green_path' || report.matrix_recommended_path === 'remediation_path' ? ROUTE_NAME_HE[report.matrix_recommended_path as 'green_path' | 'remediation_path'] : null;
+        const recommended = asLearningPath(report.matrix_recommended_path);
+        const path = recommended ? ROUTE_NAME_HE[recommended] : null;
         if (path) rtlText(doc, `מסלול מומלץ: ${path}`, 55, cardY + 25, { width: 490 });
       }
       doc.x = 40;
@@ -697,9 +699,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     )
   );
   const studentVal = aliasSnaps.find((snap) => snap.exists())?.val() || {};
-  const currentPath: LearningPath =
-    studentVal.teacher_selected_path === "remediation_path" || studentVal.pedagogicalPath === "remediation_path"
-      ? "remediation_path" : "green_path";
+  const currentPath: LearningPath = learnerPathOf(studentVal);
   // Meetings 3–8: the path of the exercises the learner answered in this meeting (null elsewhere).
   const meetingPath: LearningPath | null = resolvedSessionNumber >= 3 && resolvedSessionNumber <= 8
     ? await resolveMeetingPath(db, resolvedSessionNumber, telemetryDocs, currentPath)
@@ -860,10 +860,11 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // real operands and labels. Absent bank is not an error — buildFailedExercises
   // then describes only what the telemetry proves.
   // Meetings 3–8: the bank of the path this meeting was worked on, so its exercises are found.
-  const analysisPath: "green_path" | "remediation_path" | null = meetingPath ??
-    (sessionData.teacher_selected_path === "green_path" ||
-    sessionData.teacher_selected_path === "remediation_path"
-      ? sessionData.teacher_selected_path
+  // A learner the teacher marked graded (graded_track) did the graded refresh and diagnostic in meetings 1–2.
+  const analysisPath: LearningPath | null = meetingPath ??
+    asLearningPath(sessionData.teacher_selected_path) ??
+    (isGradedTrack(studentVal)
+      ? "graded_path"
       : sessionData.matrix_recommended_path === "remediation_path"
       ? "remediation_path"
       : null);
@@ -876,7 +877,8 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     // does not exist — so the engine received "addition, operands unknown" for
     // every exercise, a subtraction included.
     const templatePath = analysisPath ?? "green_path";
-    const bankIds = resolvedSessionNumber >= 3 && resolvedSessionNumber <= 8
+    // Meeting 1 of a graded learner: the graded refresh bank first (session_1_graded_path).
+    const bankIds = (resolvedSessionNumber >= 3 && resolvedSessionNumber <= 8) || (resolvedSessionNumber === 1 && analysisPath === "graded_path")
       ? [`session_${resolvedSessionNumber}_${templatePath}`, `session_${resolvedSessionNumber}`]
       : [`session_${resolvedSessionNumber}`];
     for (const bankId of bankIds) {

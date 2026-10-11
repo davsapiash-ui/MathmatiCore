@@ -392,7 +392,6 @@ export function StudentWorkspacePage() {
   const students = useStore((s) => s.students);
   const firebaseLoaded = useStore((s) => s.firebaseLoaded);
   const myData = normUid ? (students[normUid] || (user?.uid ? students[user.uid] : null)) : null;
-  const isASDMode = myData?.isASD ?? false;
 
   // --- PRD Section 4.5 & Module 20: Gate Locked / Pending Approval Guard ---
   const isGateApproved = Boolean(myData?.teacher_gate_approved === true || myData?.routeStatus === 'APPROVED');
@@ -680,9 +679,9 @@ export function StudentWorkspacePage() {
         rtdbUpdateNow(`users/students/${normUid}`, { isOnline: false, onlineStatus: 'offline', lastPing: 0, lastAction: 'לא מחובר' }).catch(() => {});
       }
     };
-    // Not isASDMode: nothing here reads it, and with it in the list a teacher
-    // saving quiet mode restarted this effect — the cleanup wrote the learner
-    // offline, and the radar showed "יצא מהחלון" until the next heartbeat.
+    // Keep this list to the learner and the meeting: an extra dependency restarts
+    // the effect, the cleanup writes the learner offline, and the radar shows
+    // "יצא מהחלון" until the next heartbeat.
   }, [normUid, meeting]);
 
   // PRD v7.1 Module 10: Load adaptive addition grid strictly and only when the
@@ -795,7 +794,7 @@ export function StudentWorkspacePage() {
     const enterMeeting = (uid: string) => {
       const entry = planMeetingEntry(myData as Record<string, unknown> | null, readDeviceCopy(uid, meeting), meeting);
       if (entry.kind === 'start') {
-        initSession(meeting, isASDMode, 0);
+        initSession(meeting, false, 0);
         return;
       }
       restoreSession(entry.snapshot);
@@ -834,7 +833,7 @@ export function StudentWorkspacePage() {
           if (cancelled) return;
 
           if (!username) {
-            initSession(meeting, isASDMode, 0);
+            initSession(meeting, false, 0);
             markInitialized();
             return;
           }
@@ -874,7 +873,7 @@ export function StudentWorkspacePage() {
           waitForApprovedPath();
           return;
         } else {
-          initSession(meeting, isASDMode, 0);
+          initSession(meeting, false, 0);
         }
         markInitialized();
       }
@@ -920,7 +919,7 @@ export function StudentWorkspacePage() {
       cancelled = true;
       if (fallbackTimer) clearTimeout(fallbackTimer);
     };
-  }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, isASDMode, activeClassSession, isTeacherSessionActive, needsApprovedPath, hasApprovedPath]);
+  }, [meeting, firebaseLoaded, isInitialized, myData, initSession, restoreSession, activeClassSession, isTeacherSessionActive, needsApprovedPath, hasApprovedPath]);
 
   // --- Module 21: screen recording (rrweb) ---
   // It runs only for this meeting's own recording: once the class session's
@@ -1385,11 +1384,9 @@ export function StudentWorkspacePage() {
   }
 
   return (
-    // מצב שקט חזותי חייב לכסות גם את framer-motion, לא רק כיתות CSS:
-    // מסכי ההמתנה (המורה השהתה / סגרה, מצב מקרן) מנפישים ב-repeat: Infinity
-    // דרך סגנון מוטבע, והמשיכו לפעום מול ילד שהמורה סימנה כרגיש חושית.
-    // 'always' מכבה תנועת תמרה וגודל ומשאיר מעברי שקיפות רגועים.
-    <MotionConfig reducedMotion={isASDMode ? 'always' : 'user'}>
+    // No per-learner quiet mode (owner decision, 11.10.2026): the device's own
+    // reduced-motion setting is the only switch.
+    <MotionConfig reducedMotion="user">
     <DndContext
       sensors={sensors}
       collisionDetection={collisionDetectionStrategy}
@@ -1399,12 +1396,6 @@ export function StudentWorkspacePage() {
     >
       <div
       dir="rtl"
-      // מסמך העיצוב §1.3 ("מצב שקט חזותי"): המורה כבר מסמנת רגישות חושית
-      // בתנאי הלמידה, אבל הסימון הזה לא השפיע על שום דבר במסך הילד. כאן
-      // הוא מכבה את התנועה הדקורטיבית — פעימות, ריצודים והבהובים — בלי
-      // לגעת בתנועה שמלמדת (היד המנחה, חגיגת הסיום), שמסומנת
-      // motion-essential.
-      data-quiet={isASDMode ? 'true' : undefined}
       // Module 15 §ב: under the projector, pause or close screen the workspace
       // is kept as it is and takes no focus, typing or keyboard drag.
       inert={isClassScreenUp || undefined}
@@ -1513,11 +1504,8 @@ export function StudentWorkspacePage() {
       {/* Module 15 projector, teacher pause and teacher close (register 7):
           wait in place, board untouched underneath. המורה סגרה את המפגש.
           Outside the workspace, which is inert while they are up: their
-          read-aloud buttons must still work. The quiet mode still reaches
-          them (a display: contents wrapper adds no box). */}
-      <div data-quiet={isASDMode ? 'true' : undefined} className="contents">
-        {classStateOverlays}
-      </div>
+          read-aloud buttons must still work. */}
+      {classStateOverlays}
 
       <DragOverlay dropAnimation={null}>
         {activeDrag ? (

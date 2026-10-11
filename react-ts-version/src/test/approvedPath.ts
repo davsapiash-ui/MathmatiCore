@@ -10,7 +10,7 @@ import { useStore } from '@/application/useStore';
  * Signs in learner 1 when no learner is signed in, and keeps whatever else the
  * test already put on the learner's record.
  */
-export function approvePath(path: 'green_path' | 'remediation_path' = 'green_path'): string {
+export function approvePath(path: 'green_path' | 'remediation_path' | 'graded_path' = 'green_path'): string {
   let uid = currentStudentUid();
   if (!uid) {
     const user = useAuthStore.getState().user ?? {};

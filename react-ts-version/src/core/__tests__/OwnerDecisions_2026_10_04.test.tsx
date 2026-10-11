@@ -267,7 +267,8 @@ describe('4 — A5-F03 / A4-F07: two conversions, the plural of מסמך 03', ()
     expect(conversionNounHe(false, byId('s7_r_t1'))).toBe('ההקבצה');
     // Counted from the numbers, not the words: every compose exercise of the banks.
     const compose = allTasks().filter((t: any) => t.representationKind === 'compose_break' || t.representationKind === 'compose_group');
-    expect(compose.length).toBe(8);
+    // 8, and the graded path's three (s3_d_t2, s3_d_t3, s7_d_t1; 11.10.2026).
+    expect(compose.length).toBe(11);
     for (const task of compose) {
       const brk = task.representationKind === 'compose_break';
       const verbs = (task.instructionHe as string).split(/[^א-ת]+/).filter((w) => w === (brk ? 'פרטו' : 'קבצו')).length;

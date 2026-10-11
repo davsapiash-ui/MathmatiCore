@@ -429,9 +429,9 @@ describe('the learner drawer shows the learner as they are now', () => {
     fireEvent.click(tile);
     // allStudents fills after the dashboard's 300 ms debounce.
     await new Promise((r) => setTimeout(r, 350));
-    fireEvent.click(await screen.findByRole('button', { name: 'מעבר לניתוח מעמיק' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'פתיחת חלונית הלומד' }));
 
-    const drawer = await screen.findByRole('dialog', { name: /התאמת תנאי למידה — תלמיד 3/ });
+    const drawer = await screen.findByRole('dialog', { name: /חלונית הלומד — תלמיד 3/ });
     expect(within(drawer).getByText(/התלמיד ביקש עזרה/)).toBeTruthy();
 
     await act(async () => { fireEvent.click(within(drawer).getByRole('button', { name: /סמנו כטופל/ })); });

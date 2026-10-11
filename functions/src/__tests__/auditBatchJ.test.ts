@@ -300,9 +300,9 @@ describe('a full reset: the server itself tells the learner\'s screen to start o
   });
 
   it('full learner reset: the teacher\'s settings for the learner stay next to the command', async () => {
-    const { rtdb, read } = fakeRtdb({ users: { students: { student_user4: { ...learner, isASD: true } } } });
+    const { rtdb, read } = fakeRtdb({ users: { students: { student_user4: { ...learner, graded_track: true } } } });
     await executeResetDeletion(rtdb, emptyDb, buildResetScope('single_student', '4', 'full_student', null, 'student'));
-    expect(read('users/students/student_user4')).toEqual({ isASD: true, ...FULL_RESET_RESTART_COMMAND });
+    expect(read('users/students/student_user4')).toEqual({ graded_track: true, ...FULL_RESET_RESTART_COMMAND });
   });
 
   it('level 3: every learner who had a record gets the command; a learner who never signed in gets no record', async () => {

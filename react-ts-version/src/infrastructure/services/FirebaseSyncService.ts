@@ -171,7 +171,7 @@ export interface SessionState {
   student_id: string;
   session_number: number; // 1-8
   status: 'active' | 'locked' | 'completed';
-  current_path: 'green_path' | 'remediation_path' | null;
+  current_path: 'green_path' | 'remediation_path' | 'graded_path' | null;
   hesitation_seconds?: number;
   error_count?: number;
   physical_override?: boolean;
@@ -698,10 +698,9 @@ export class FirebaseSyncService {
           mayReceiveDeviceWork = true;
 
           // Real-time synchronization of teacher adaptations to student workspace
+          // isASD is not copied (owner, 11.10.2026: the per-learner quiet mode
+          // is removed); the workspace's isASD stays false.
           const wsOverrides: Record<string, any> = {};
-          if (data.isASD !== undefined && data.isASD !== useWorkspaceStore.getState().isASD) {
-            wsOverrides.isASD = Boolean(data.isASD);
-          }
           // PRD Modules 9/19: the authoritative support profile. Module 19 §ב:
           // "שינוי פרופיל במהלך תרגיל פעיל נשמר כהתאמה ממתינה (Pending
           // Adaptation) ומוחל אך ורק במעבר לתרגיל הבא" — it used to be copied
@@ -729,7 +728,6 @@ export class FirebaseSyncService {
             wsOverrides.isBoardLocked = targetBoardLocked;
           }
           teacherControls.isBoardLocked = targetBoardLocked;
-          if (data.isASD !== undefined) teacherControls.isASD = Boolean(data.isASD);
           if (Object.keys(wsOverrides).length > 0) {
             useWorkspaceStore.setState(wsOverrides);
           }
@@ -747,7 +745,6 @@ export class FirebaseSyncService {
             ...(data.routeRecommendation !== undefined && { routeRecommendation: data.routeRecommendation }),
             ...(data.routeStatus !== undefined && { routeStatus: data.routeStatus }),
             ...(data.difficultyRecommendation !== undefined && { difficultyRecommendation: data.difficultyRecommendation }),
-            ...(data.isASD !== undefined && { isASD: data.isASD }),
             ...(data.physicalOverride !== undefined && { physicalOverride: data.physicalOverride }),
             ...(data.overrideUpdatedAt !== undefined && { overrideUpdatedAt: data.overrideUpdatedAt }),
             ...(data.isOnline !== undefined && { isOnline: data.isOnline }),
@@ -766,6 +763,8 @@ export class FirebaseSyncService {
             pedagogicalPath: data.pedagogicalPath ?? undefined,
             // A learner approved before 2.9.2026 carries only the gate's own field (recordLearningPath).
             teacher_selected_path: data.teacher_selected_path ?? undefined,
+            // The teacher's graded mark (owner, 11.10.2026): meeting 1's refresh and meeting 2's diagnostic follow it.
+            graded_track: data.graded_track === true,
             ...(data.teacher_gate_approved !== undefined && { teacher_gate_approved: data.teacher_gate_approved }),
             ...(targetBoardLocked !== undefined && { isBoardLocked: targetBoardLocked }),
             ...((data.support_profile_id !== undefined || data.enhanced_support_profile !== undefined) && {
@@ -1132,8 +1131,8 @@ export class FirebaseSyncService {
       if (start.restoredSavedAt === null) {
         if (isRestorableFor(record, start.meeting) && !keepsFreshStartWork(record, deviceCopy, start.meeting)) {
           state.restoreSession(record);
-          // restoreSession clears the board lock and takes isASD from the copy;
-          // the teacher's values on the record stand.
+          // restoreSession clears the board lock; the teacher's values on the
+          // record stand.
           useWorkspaceStore.setState(teacherControls);
           return;
         }
@@ -1179,6 +1178,8 @@ export class FirebaseSyncService {
     delete sanitizedPayload.teacher_gate_approved;
     delete sanitizedPayload.routeStatus;
     delete sanitizedPayload.physicalOverride;
+    // The teacher's graded mark (owner, 11.10.2026) is hers alone, like the support profile.
+    delete sanitizedPayload.graded_track;
     return sanitizedPayload;
   }
 
@@ -2107,7 +2108,7 @@ export class FirebaseSyncService {
           student_id: s.student_id || s.studentId || '',
           session_number: s.session_number || s.sessionNumber || 1,
           status: s.status || 'active',
-          current_path: s.current_path || s.currentPath || 'green_path',
+          current_path: s.current_path || s.currentPath || null,
           hesitation_seconds: s.hesitation_seconds || 0,
           error_count: s.error_count || 0,
           physical_override: s.physical_override || false,

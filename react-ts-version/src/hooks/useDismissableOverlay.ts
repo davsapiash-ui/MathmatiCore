@@ -36,7 +36,7 @@ const openOverlays: object[] = [];
 /**
  * The last few elements that held focus, newest last. The opener is often
  * gone by the time the overlay closes, or even before it opens: the radar's
- * learner window closes itself as "מעבר לניתוח מעמיק" opens the drawer, so
+ * learner window closes itself as "פתיחת חלונית הלומד" opens the drawer, so
  * focus is already on <body> when the drawer mounts, and closing it dropped
  * the teacher at the top of the page. With the history, focus goes back to
  * the nearest element still on the page — there, the learner's radar tile.

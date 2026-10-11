@@ -78,7 +78,7 @@ import { FeedbackToast } from '@/features/workspace/overlays/FeedbackToast';
 
 const bank: SessionTask[] = [];
 for (const m of [3, 4, 5, 6, 7, 8] as const) {
-  for (const p of ['green_path', 'remediation_path'] as const) {
+  for (const p of ['green_path', 'remediation_path', 'graded_path'] as const) {
     bank.push(...getSessionTasks(m, p), ...getSessionBranchTasks(m, 'reinforcement', p), ...getSessionBranchTasks(m, 'challenge', p));
   }
 }

@@ -19,12 +19,15 @@ const WORD: Record<string, keyof typeof PLACES> = {
 };
 
 const tasks: SessionTask[] = [];
-for (const path of ['green_path', 'remediation_path'] as const) {
+for (const path of ['green_path', 'remediation_path', 'graded_path'] as const) {
   tasks.push(...getSessionTasks(3, path));
   for (const b of ['reinforcement', 'challenge'] as const) tasks.push(...getSessionBranchTasks(3, b, path));
 }
 const byId = (id: string) => tasks.find((t) => t.id === id)!;
 const reps = tasks.filter((t) => t.type === 'representation');
+// The synthetic "named" instruction below (namesBoth) is a form no real exercise uses since 30.9.2026; it is
+// checked on the two paths of מסמך 03. The graded path's real cards are checked with the others.
+const docReps = reps.filter((t) => !/^s\d_d_/.test(t.id));
 
 /**
  * Since the owner's redesign of 30.9.2026 (sessionTasks.ts) no station-3
@@ -58,7 +61,7 @@ function namesBoth(t: SessionTask): SessionTask {
     instructionHe: `בנו את המספר ${N.toLocaleString('en-US')} מ-${blocks}.${empty ? ` ${COLUMN_HE[empty]} נשאר ריק.` : ''} כתבו אותו בשורת התוצאה.`,
   };
 }
-const namedBoth = reps.map(namesBoth);
+const namedBoth = docReps.map(namesBoth);
 const namedBothId = (id: string) => namedBoth.find((t) => t.id === `${id}_named`)!;
 
 /** "משתמשים ב-4 אלפים, 11 מאות ו-13 עשרות" → { thousands: 4, hundreds: 11, tens: 13 }. */
@@ -81,10 +84,10 @@ const same = (a: object, b: object) =>
   (Object.keys(PLACES) as (keyof typeof PLACES)[]).every((p) => ((a as any)[p] ?? 0) === ((b as any)[p] ?? 0));
 
 describe('meeting 3: the static card fits each exercise (שהB.1)', () => {
-  it('covers all 20 meeting-3 exercises: 16 representation tasks, s3_g_t7, s3_r_t7, 2 challenges', () => {
-    expect(tasks).toHaveLength(20);
-    expect(reps).toHaveLength(16); // t1–t6 × 2 tracks + 4 reinforcements
-    expect(tasks.filter((t) => t.type === 'flexible_decomp').map((t) => t.id).sort()).toEqual(['s3_g_challenge_1', 's3_g_t7', 's3_r_challenge_1']);
+  it('covers all 30 meeting-3 exercises of the three paths (the graded path since 11.10.2026)', () => {
+    expect(tasks).toHaveLength(30);
+    expect(reps).toHaveLength(24); // t1–t6 × 2 tracks + 4 reinforcements, and the graded path's 6 + 2
+    expect(tasks.filter((t) => t.type === 'flexible_decomp').map((t) => t.id).sort()).toEqual(['s3_d_challenge_1', 's3_g_challenge_1', 's3_g_t7', 's3_r_challenge_1']);
     expect(byId('s3_r_t7').type).toBe('missing_element');
   });
 

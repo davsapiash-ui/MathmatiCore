@@ -37,7 +37,10 @@ export interface ClassDocument {
   created_at: number; // auxiliary
 }
 
-export type PedagogicalPath = 'green_path' | 'remediation_path';
+/** The path the teacher approves at the gate (owner, 11.10.2026: three paths). */
+export type PedagogicalPath = 'green_path' | 'remediation_path' | 'graded_path';
+/** The matrix recommendation stays two-valued: the graded path is the teacher's choice, never computed. */
+export type RecommendedPath = 'green_path' | 'remediation_path';
 
 export interface SessionDocument {
   session_id: string;
@@ -51,7 +54,7 @@ export interface SessionDocument {
   teacher_gate_approved: boolean;
   gate_approved_at: number | null;
   gate_approved_by: string | null;
-  teacher_selected_path: 'green_path' | 'remediation_path' | null;
+  teacher_selected_path: PedagogicalPath | null;
   matrix_recommended_path: 'green_path' | 'remediation_path' | null;
 }
 
@@ -59,7 +62,7 @@ export interface ExerciseTemplate {
   exercise_template_id: string;
   session_number: number; // 1 to 8
   order_index: number; // 1 to 7 for compulsory
-  learning_path: 'green_path' | 'remediation_path';
+  learning_path: PedagogicalPath;
   path_type: 'compulsory' | 'consolidation' | 'challenge';
   operation: 'addition' | 'subtraction' | 'representation' | 'inquiry';
   operand_a: number;

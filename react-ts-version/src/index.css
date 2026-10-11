@@ -43,34 +43,12 @@
   }
 
   /*
-   * מסמך העיצוב §1.3 — "מצב שקט חזותי": כיבוי אנימציות רקע ורעש ויזואלי
-   * ללומדים עם רגישות חושית או הפרעות קשב.
-   *
-   * המורה מסמנת את הלומד בתנאי הלמידה, והסימון נכתב כ-data-quiet על שורש
-   * מרחב העבודה. כאן נכבית כל תנועה חוזרת ונשנית בתוכו. תנועה שמלמדת —
-   * היד המנחה בהדרכה, חגיגת הסיום — מסומנת motion-essential ונשארת.
-   */
-  [data-quiet='true'] .animate-pulse,
-  [data-quiet='true'] .animate-bounce,
-  [data-quiet='true'] .animate-ping,
-  [data-quiet='true'] .animate-breathe,
-  [data-quiet='true'] .animate-soft-heartbeat,
-  [data-quiet='true'] .animate-radar-call {
-    animation: none !important;
-  }
-  [data-quiet='true'] .motion-essential {
-    animation: revert !important;
-  }
-
-  /*
    * PRD מודול 7 §א, כלל (8): מצב הצעד באגף המשימה מתחלף במעבר צבע של עד
-   * 200 אלפיות השנייה, "שאינו קיים במצב השקט" — וגם לא למי שביקש תנועה מופחתת.
+   * 200 אלפיות השנייה — ולא למי שביקש תנועה מופחתת במכשיר.
+   * (מצב השקט החזותי לפי לומד הוסר, החלטת בעל המוצר 11.10.2026.)
    */
   .tz-step-color {
     transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
-  }
-  [data-quiet='true'] .tz-step-color {
-    transition: none !important;
   }
   @media (prefers-reduced-motion: reduce) {
     .tz-step-color {
@@ -569,8 +547,7 @@
  * Station 1, step 5 (owner, 29.9.2026): the text asks for "כפתור ביטול פעולה",
  * and on the bar that button is an arrow with no words. Until it is pressed it
  * wears a ring that breathes, so the child sees which button the step means.
- * The ring itself always shows; only its breathing stops for reduced motion
- * and for the teacher's quiet mode (מסמך העיצוב §1.3).
+ * The ring itself always shows; only its breathing stops for reduced motion.
  */
 @keyframes ws-hint-ring {
   0%, 100% { box-shadow: 0 0 0 3px hsl(var(--ws-accent) / 0.9), 0 0 0 3px hsl(var(--ws-accent) / 0.35); }
@@ -579,9 +556,6 @@
 .ws-hint-ring {
   box-shadow: 0 0 0 3px hsl(var(--ws-accent) / 0.9);
   animation: ws-hint-ring 1.4s ease-in-out infinite;
-}
-[data-quiet='true'] .ws-hint-ring {
-  animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .ws-hint-ring {

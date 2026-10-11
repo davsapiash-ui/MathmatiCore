@@ -22,6 +22,8 @@ describe('Modules 4/26: curriculum catalog contract', () => {
     expect(catalogBankId(3, 'green_path')).toBe('session_3_green_path');
     expect(catalogBankId(5, 'remediation_path')).toBe('session_5_remediation_path');
     expect(catalogBankId(7, null)).toBe('session_7_green_path');
+    expect(catalogBankId(7, 'graded_path')).toBe('session_7_graded_path');
+    expect(catalogBankId(1, 'graded_path')).toBe('session_1_graded_path');
   });
 
   it('validation rejects malformed banks (fail-safe to hardcoded)', () => {
@@ -43,14 +45,16 @@ describe('Modules 4/26: curriculum catalog contract', () => {
     expect(resolveCatalogBank(new Map([['session_3_green_path', []]]), 3, 'green_path', fallback)[0].id).toBe('hard_1');
   });
 
-  it('hardcoded seed covers all banks: session 1 and both paths for 3-8 (13 banks)', () => {
+  it('hardcoded seed covers all banks: session 1 and its graded variant, and the three paths for 3-8 (20 banks)', () => {
     const banks = getHardcodedCatalogBanks();
-    expect(banks).toHaveLength(13);
+    expect(banks).toHaveLength(20);
     const ids = banks.map((b) => b.id);
     expect(ids).toContain('session_1');
+    expect(ids).toContain('session_1_graded_path');
     for (const n of [3, 4, 5, 6, 7, 8]) {
       expect(ids).toContain(`session_${n}_green_path`);
       expect(ids).toContain(`session_${n}_remediation_path`);
+      expect(ids).toContain(`session_${n}_graded_path`);
     }
     for (const bank of banks) {
       expect(isValidCatalogBank({ session_number: bank.session_number, learning_path: bank.learning_path, updated_at: 1, tasks: bank.tasks })).toBe(true);

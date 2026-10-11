@@ -302,7 +302,7 @@ describe('support-5 — the class-management tab opens the learning conditions',
   it('each learner card has a button that calls onDrillDown with the canonical id', async () => {
     const onDrillDown = vi.fn();
     render(<ClassManagement allStudents={[]} onDrillDown={onDrillDown} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'התאמת תנאי למידה — תלמיד 5' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'חלונית הלומד — תלמיד 5' }));
     expect(onDrillDown).toHaveBeenCalledWith('student_user5');
   });
 });
@@ -363,7 +363,9 @@ describe('source: layout, dead code and wording', () => {
     expect(dash).not.toContain('זמין כעת לפניות ותמיכה');
     expect(dash).not.toContain('תמונה מצורפת');
     expect(dash).not.toContain('title="מתקשה"');
-    expect(dash).toContain('title="שקט חזותי לתלמיד ושחזור מהלכים"');
+    expect(dash).toContain(`title="שחזור מהלכים, צ'אט ואיפוס"`);
+    expect(dash).toContain('<span>חלונית הלומד</span>');
+    expect(dash).not.toContain('שקט חזותי');
     expect(dash).toContain('key={normalizeStudentId(floatingChatStudent.studentId)}');
     expect(dash).toContain('ref={adminMessagesScrollRef}');
     expect(dash).toContain("toast.error('ההודעות מההנהלה לא סומנו כנקראו. סגרו את החלון ופתחו אותו שוב.', { id: 'admin-mark-read-failed' })");

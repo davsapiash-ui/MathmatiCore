@@ -1028,6 +1028,7 @@ export function TeacherDashboard() {
             forceAdditionHelper: Boolean(row.forceAdditionHelper || existingLocal?.forceAdditionHelper),
             scaffoldLevel: row.scaffoldLevel !== undefined ? row.scaffoldLevel : existingLocal?.scaffoldLevel,
             pedagogicalPath: row.pedagogicalPath || existingLocal?.pedagogicalPath,
+            graded_track: row.graded_track === true,
             teacher_gate_approved: row.teacher_gate_approved ?? existingLocal?.teacher_gate_approved ?? false,
             reflections: row.reflections ?? existingLocal?.reflections ?? null,
             currentTask: row.workspaceState?.standardTaskIdx || 0,
@@ -1375,7 +1376,7 @@ export function TeacherDashboard() {
       approveRoute(`student_${normNum}`);
       approveRoute(normNum);
 
-      toast.success(`תלמיד ${normNum} אושר ל${meetingShortLabelHe(3)} (${ROUTE_NAME_HE[path === 'green_path' ? 'green_path' : 'remediation_path']}).`);
+      toast.success(`תלמיד ${normNum} אושר ל${meetingShortLabelHe(3)} (${ROUTE_NAME_HE[path]}).`);
       return true;
     } catch (err: any) {
       console.error('[TeacherDashboard] Gate approval write failed:', err);
@@ -2504,10 +2505,10 @@ export function TeacherDashboard() {
                                 <button
                                   onClick={() => setDrawerStudentId(normalizeStudentId(s.studentId))}
                                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700/70 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-600 shadow-sm transition-all active:scale-95 cursor-pointer"
-                                  title="שקט חזותי לתלמיד ושחזור מהלכים"
+                                  title="שחזור מהלכים, צ'אט ואיפוס"
                                 >
                                   <Sliders className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-                                  <span>התאמת תנאי למידה</span>
+                                  <span>חלונית הלומד</span>
                                 </button>
 
                                 {/* Button 2: Teacher Gate Approval (Available ONLY when completing Session 2 / at Gate) */}

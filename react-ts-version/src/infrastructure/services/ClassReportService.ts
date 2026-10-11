@@ -40,7 +40,7 @@ export interface ClassLearnerMeasures {
 export interface ClassLearnerRow {
   studentId: number;
   /** PRD 23 §ב: the path of this meeting; null in meetings 1–2, which have none. */
-  learningPath: 'green_path' | 'remediation_path' | null;
+  learningPath: 'green_path' | 'remediation_path' | 'graded_path' | null;
   /** null = not measured (the meeting's compulsory count is unknown). Never shown as 0%. */
   scorePercent: number | null;
   scoreSource: string;
@@ -130,7 +130,7 @@ export interface ClassMeetingReport {
   scoreMin: number | null;
   scoreMax: number | null;
   tiers: Record<RecommendationTier, number[]>;
-  paths: { green_path: number; remediation_path: number };
+  paths: { green_path: number; remediation_path: number; graded_path: number };
   activeMinutesMean: number;
   recordingMinutesTotal: number;
   eventsTotal: number;
@@ -262,7 +262,7 @@ function learnerFromData(d: Record<string, any>): ClassLearnerRow {
       : null;
   return {
     studentId: num(d.student_id),
-    learningPath: d.learning_path === 'remediation_path' ? 'remediation_path' : d.learning_path === 'green_path' ? 'green_path' : null,
+    learningPath: d.learning_path === 'remediation_path' || d.learning_path === 'green_path' || d.learning_path === 'graded_path' ? d.learning_path : null,
     scorePercent: numOrNull(d.score_percent),
     scoreSource: String(d.score_source ?? ''),
     tier,
@@ -338,7 +338,7 @@ export function classReportFromData(d: Record<string, any>): ClassMeetingReport 
       between_50_75: numList(tiersRaw.between_50_75),
       above_75: numList(tiersRaw.above_75),
     },
-    paths: { green_path: num(pathsRaw.green_path), remediation_path: num(pathsRaw.remediation_path) },
+    paths: { green_path: num(pathsRaw.green_path), remediation_path: num(pathsRaw.remediation_path), graded_path: num(pathsRaw.graded_path) },
     activeMinutesMean: num(a.active_minutes_mean),
     recordingMinutesTotal: num(a.recording_minutes_total),
     eventsTotal: num(a.events_total),
