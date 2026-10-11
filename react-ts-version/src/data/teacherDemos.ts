@@ -85,7 +85,7 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
   3: [
     {
       id: 'demo_s3_a',
-      partLabelHe: 'חלק א',
+      partLabelHe: 'חלק א · פורטים לבנים',
       topicHe: 'פורטים לבנים',
       instructionHe:
         'בנו בבית המספרים את המספר 350. פרטו לבנת מאה אחת לעשר לבני עשרת. כתבו בשורת התוצאה איזה מספר הלבנים מראות עכשיו.',
@@ -96,7 +96,7 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
     },
     {
       id: 'demo_s3_b',
-      partLabelHe: 'חלק ב',
+      partLabelHe: 'חלק ב · קוראים וכותבים',
       topicHe: 'קוראים וכותבים מספרים',
       instructionHe: 'בנו בבית המספרים את המספר ארבע מאות ושבע. כתבו אותו בספרות בשורת התוצאה.',
       body: { kind: 'build', answer: 407, finalCounts: { hundreds: 4, units: 7 } },
@@ -107,7 +107,7 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
   4: [
     {
       id: 'demo_s4',
-      partLabelHe: 'תרגיל במאונך',
+      partLabelHe: 'חלק א · תרגיל במאונך',
       topicHe: 'מחברים במאונך',
       // One grouping, in the units (8 + 6 = 14): the memory circle over the tens gets 1.
       instructionHe: S4_ADD('238 + 146'),
@@ -124,7 +124,7 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
       // the tens' 1 into the hundreds (324) and the units' 1 into the tens (414).
       // None of these numbers is in a learner exercise (TeacherDemos_Arithmetic.test.ts).
       id: 'demo_s4_choice',
-      partLabelHe: 'תשובות לבחירה',
+      partLabelHe: 'חלק ב · תשובות לבחירה',
       topicHe: 'מחברים במאונך',
       instructionHe: 'השוו בין שני תרגילים קרובים: איך הקבצה בטור העשרות משפיעה על הטורים הבאים?',
       body: {
@@ -177,7 +177,7 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
   7: [
     {
       id: 'demo_s7_a',
-      partLabelHe: 'דוגמה א',
+      partLabelHe: 'חלק א · מגלים מה חסר',
       topicHe: 'מגלים מה חסר',
       // 2▢3 + 134 = 35▢: the units give 3 + 4 = 7, then the tens ▢ + 3 = 5, so 223 + 134 = 357.
       instructionHe:
@@ -196,7 +196,7 @@ export const TEACHER_DEMOS: Record<DemoStation, TeacherDemoPart[]> = {
     },
     {
       id: 'demo_s7_b',
-      partLabelHe: 'דוגמה ב',
+      partLabelHe: 'חלק ב · משנים מספר',
       topicHe: 'משנים מספר',
       // 260, one hundred more: 360. Six tens are too few to take 8 away: a
       // hundred is broken into ten tens (2 hundreds, 16 tens), then 8 tens go: 280.

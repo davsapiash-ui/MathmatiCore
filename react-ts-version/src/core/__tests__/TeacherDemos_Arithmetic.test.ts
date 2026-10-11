@@ -125,7 +125,7 @@ describe('demonstration arithmetic', () => {
 
   it('station 4 "תשובות לבחירה": 238 + 146 = 384 groups in the units; 238 + 186 = 424 groups in the units and the tens', () => {
     const part = TEACHER_DEMOS[4][1];
-    expect(part.partLabelHe).toBe('תשובות לבחירה');
+    expect(part.partLabelHe).toBe('חלק ב · תשובות לבחירה');
     const c = part.body as DemoChoiceBody;
     expect(c.kind).toBe('choice');
     expect(c.a + c.b).toBe(384);
