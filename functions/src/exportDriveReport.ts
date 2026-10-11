@@ -1965,7 +1965,8 @@ async function getOrCreateDriveFolder(
  * `session_number` narrows the export to one meeting; omit it (or pass "all")
  * for the whole process.
  */
-const EXPORT_RUNTIME = { timeoutSeconds: 540, memory: "1GiB" as const };
+// The export reads every learner's telemetry and counts the screen-recording chunks, which can be up to 50MB per learner and meeting.
+const EXPORT_RUNTIME = { timeoutSeconds: 540, memory: "4GiB" as const };
 
 /**
  * `was_reset` marks a meeting that was reset. PRD Module 23א §ד: only a reset
@@ -2348,7 +2349,14 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
     const meetingRows: Record<string, any>[] = [];
     // Catch-up time (owner, 2.10.2026): read once, one record per learner × meeting.
     const catchUpByKey = catchUpRecordsByLearnerMeeting(await readAllDocs(db.collection(CATCHUP_COLLECTION)));
-    for (const [k, events] of Array.from(byLearnerMeeting.entries()).sort()) {
+    // The keys are "learner:meeting". A plain sort() compares them as text, so
+    // learners 10-12 came before learner 1; compare the two numbers.
+    const byNumbers = (a: [string, unknown], b: [string, unknown]) => {
+      const [an, am] = a[0].split(":").map(Number);
+      const [bn, bm] = b[0].split(":").map(Number);
+      return an - bn || am - bm;
+    };
+    for (const [k, events] of Array.from(byLearnerMeeting.entries()).sort(byNumbers)) {
       const [nStr, mStr] = k.split(":");
       const n = Number(nStr);
       const m = Number(mStr);

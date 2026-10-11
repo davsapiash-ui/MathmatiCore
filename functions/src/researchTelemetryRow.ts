@@ -26,6 +26,7 @@
 type Details = Record<string, unknown>;
 
 const num = (v: unknown): number | "" => (typeof v === "number" && Number.isFinite(v) ? v : "");
+const positiveOrBlank = (v: unknown): number | "" => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : "");
 const intIn = (v: unknown, min: number, max: number): number | "" =>
   typeof v === "number" && Number.isInteger(v) && v >= min && v <= max ? v : "";
 const oneOf = <T extends string>(v: unknown, allowed: readonly T[]): T | "" =>
@@ -65,7 +66,10 @@ export function researchDetailsColumns(eventType: unknown, raw: unknown): Record
     // BLOCK_DRAG_COMPLETE: the column a block came from (null for a palette block).
     source_column_index: only(eventType, "BLOCK_DRAG_COMPLETE") ? intIn(d.source_column_index, 0, 3) : "",
     // REGROUPING_SUCCESS
-    duration_ms: only(eventType, "REGROUPING_SUCCESS") ? num(d.duration_ms) : "",
+    // The client never records when a conversion became possible, so it sends 0
+    // for every event. A column of constant zeros reads as a measurement; an
+    // unknown duration is left blank (a real conversion cannot take 0 ms).
+    duration_ms: only(eventType, "REGROUPING_SUCCESS") ? positiveOrBlank(d.duration_ms) : "",
     // SOCRATIC_CARD_SHOWN (1.10.2026): who wrote the card — the AI engine or the static card — and which model.
     card_source: only(eventType, "SOCRATIC_CARD_SHOWN") ? oneOf(d.card_source, ["ai", "static"] as const) : "",
     card_model_id: only(eventType, "SOCRATIC_CARD_SHOWN") && typeof d.model_id === "string" && /^gemini-[a-z0-9.-]{1,40}$/.test(d.model_id) ? d.model_id : "",
@@ -108,6 +112,9 @@ export function researchDetailsColumns(eventType: unknown, raw: unknown): Record
     blocks_removed: only(eventType, "BOARD_CLEARED") ? num(d.blocks_removed) : "",
     // BRANCH_SELECTED (Appendix A §3, Module 14 §ג). New columns go at the end of the row (Module 24).
     branch: only(eventType, "BRANCH_SELECTED") ? oneOf(d.branch, ["reinforcement", "challenge"] as const) : "",
+    // DIGIT_ENTERED / DIGIT_DELETED typed in a carry (memory) circle. Without this column a memory-circle digit
+    // reads exactly like a digit of the result row (doc 01: memory circles are a self-regulation strategy).
+    input_target: only(eventType, "DIGIT_ENTERED", "DIGIT_DELETED") ? oneOf(d.input_target, ["carry_circle"] as const) : "",
   };
 }
 
