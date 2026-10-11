@@ -89,7 +89,7 @@ describe('meeting 1, the target task', () => {
 
 describe('other representation exercises: no "בנו בלוח בדיוק / בלוח כרגע" box (owner, 28.9.2026)', () => {
   for (const meeting of [3, 4, 7] as const) {
-    for (const path of ['green_path', 'remediation_path'] as const) {
+    for (const path of ['green_path', 'remediation_path', 'graded_path'] as const) {
       it(`meeting ${meeting}, ${path}: every representation exercise has its result row and no box`, () => {
         const tasks = getSessionTasks(meeting, path);
         tasks.forEach((t, idx) => {

@@ -219,9 +219,9 @@ export const SESSION_BRANCH_TASKS: Record<BranchSession, Record<LearningPath, Br
           { ...R, targetNode: 'relational_thinking' }),
       ],
       challenge: [
-        skeleton('s7_d_challenge_1', 445, 247, false, { a: ['hundreds', 'tens', 'units'] },
+        skeleton('s7_d_challenge_1', 436, 247, false, { a: ['hundreds', 'tens', 'units'] },
           'אתגר: תרגיל שלד עם שלוש ספרות חסרות',
-          'בתרגיל ▢▢▢ + 247 = 692 חסרות שלוש ספרות במספר הראשון, בטורים שונים. גלו אותן בעזרת הלבנים בבית המספרים. כתבו אותן בתיבות הריקות.',
+          'בתרגיל ▢▢▢ + 247 = 683 חסרות שלוש ספרות במספר הראשון, בטורים שונים. גלו אותן בעזרת הלבנים בבית המספרים. כתבו אותן בתיבות הריקות.',
           { ...C, targetNode: 'relational_thinking' }),
       ],
     },

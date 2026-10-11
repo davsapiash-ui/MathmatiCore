@@ -73,7 +73,7 @@ describe('C — the hidden board: the blocks, built or given', () => {
 describe('D — a break through a zero, with blocks: one breaks a block', () => {
   const bank: SessionTask[] = [...SESSION1_TASKS];
   for (const m of [3, 4, 5, 6, 7, 8] as const) {
-    for (const p of ['green_path', 'remediation_path'] as const) {
+    for (const p of ['green_path', 'remediation_path', 'graded_path'] as const) {
       bank.push(...getSessionTasks(m, p));
       if (m <= 7) for (const b of ['reinforcement', 'challenge'] as const) bank.push(...getSessionBranchTasks(m as 3 | 4 | 5 | 6 | 7, b, p));
     }

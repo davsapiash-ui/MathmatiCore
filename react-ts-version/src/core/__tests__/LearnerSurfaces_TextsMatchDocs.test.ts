@@ -132,7 +132,7 @@ describe('the early-finisher choice screen tells the truth (מסמך 03 §3.3–
   it('matches the bank: two reinforcement exercises and one challenge in every meeting and track', async () => {
     const { SESSION_BRANCH_TASKS } = await import('@/data/sessionBranchTasks');
     for (const s of [3, 4, 5, 6, 7] as const) {
-      for (const p of ['remediation_path', 'green_path'] as const) {
+      for (const p of ['remediation_path', 'green_path', 'graded_path'] as const) {
         expect(SESSION_BRANCH_TASKS[s][p].reinforcement, `${s} ${p}`).toHaveLength(2);
         expect(SESSION_BRANCH_TASKS[s][p].challenge, `${s} ${p}`).toHaveLength(1);
       }

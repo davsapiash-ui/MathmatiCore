@@ -336,7 +336,7 @@ describe('no educator word reaches the child (register ט)', () => {
       ...SESSION1_TASKS,
       ...[3, 4, 5, 6, 7, 8].flatMap((n) =>
         (['reinforcement', 'challenge'] as const).flatMap((br) =>
-          (['green_path', 'remediation_path'] as const).flatMap((p) => getSessionBranchTasks(n, br, p))
+          (['green_path', 'remediation_path', 'graded_path'] as const).flatMap((p) => getSessionBranchTasks(n, br, p))
         )
       ),
       ...DIAGNOSTIC_TASKS,

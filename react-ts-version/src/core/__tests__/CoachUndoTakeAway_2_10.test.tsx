@@ -53,7 +53,7 @@ import { SESSION1_TASKS, getSessionTasks, type SessionTask } from '@/data/sessio
 import { EMPTY_COUNTS, type Place, type PlaceCounts } from '@/core/placeValue';
 
 const bank: SessionTask[] = [...SESSION1_TASKS];
-for (const m of [3, 4, 5, 6, 7, 8] as const) for (const p of ['green_path', 'remediation_path'] as const) bank.push(...getSessionTasks(m, p));
+for (const m of [3, 4, 5, 6, 7, 8] as const) for (const p of ['green_path', 'remediation_path', 'graded_path'] as const) bank.push(...getSessionTasks(m, p));
 const byId = (id: string) => {
   const t = bank.find((x) => x.id === id);
   if (!t) throw new Error(`no task ${id}`);
