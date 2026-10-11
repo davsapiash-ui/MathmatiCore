@@ -5,18 +5,14 @@ import { resolve } from 'path';
 /** Fixes from the system check of 1.10.2026. */
 const src = (p: string) => readFileSync(resolve(__dirname, '../../', p), 'utf-8');
 
-describe('Admin: reset to the pilot structure removes the added teachers', () => {
+describe('Admin: reset to the pilot structure keeps every staff member (owner, 11.10.2026)', () => {
   const store = src('application/useAdminStore.ts');
   const reset = store.slice(store.indexOf('resetInstitutionsToOfficialPilot: async'), store.indexOf('setGlobalStudentLimit: async'));
 
-  it('reads the teachers to remove before the store is replaced', () => {
-    expect(reset.indexOf('const removedTeachers = get().teachers')).toBeGreaterThan(-1);
-    expect(reset.indexOf('const removedTeachers = get().teachers')).toBeLessThan(reset.indexOf('set({'));
-    expect(reset).not.toContain('for (const teacher of get().teachers)');
-  });
-
-  it('also removes their login right (whitelist entry)', () => {
-    expect(reset).toContain('removeAuthorizedTeacherFirestore(t.ssoEmail)');
+  it('removes no teacher and no login right', () => {
+    expect(reset).not.toContain('removeAuthorizedTeacherFirestore');
+    expect(reset).toContain('teachers: [cleanTeacher, ...keptTeachers]');
+    expect(reset).not.toMatch(/teacherWipe|] = null/);
   });
 
   it('never removes an admin entry when a teacher is removed', () => {

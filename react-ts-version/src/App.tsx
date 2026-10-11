@@ -267,6 +267,15 @@ function App() {
           </AuthGuard>
         } />
 
+        {/* Owner, 11.10.2026: the teacher prints the login cards too, from class management. */}
+        <Route path="/teacher/login-cards" element={
+          <AuthGuard allowedRoles={TEACHER_ONLY}>
+            <FirebaseGate>
+              <StaffClaimsGate role="teacher"><StudentLoginCardsPage audience="teacher" /></StaffClaimsGate>
+            </FirebaseGate>
+          </AuthGuard>
+        } />
+
         {/* PRD Section 4.3 Navigation Redundancy for student reports */}
         <Route path="/reports/student/:id" element={
           <AuthGuard allowedRoles={TEACHER_ONLY}>

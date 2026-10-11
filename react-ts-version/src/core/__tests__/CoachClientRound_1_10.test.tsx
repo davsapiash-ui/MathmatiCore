@@ -454,15 +454,18 @@ describe('item 4 — the same card does not come back again and again', () => {
   it('a card family (trigger, column, situation family) climbs its levels; its last card opens twice at most', async () => {
     load(4, T4());
     const questions: string[] = [];
+    const kinds: (string | undefined)[] = [];
     for (let i = 0; i < 3; i++) {
       ws().openSocraticCard('hesitation_45s');
       await flush();
       expect(cardOpen(), `opening ${i + 1}`).toBe(true);
       questions.push(ws().aiSocraticHint!.questionHe);
+      kinds.push(ws().aiSocraticHint!.cardKind);
       ws().closeHelp();
     }
     expect(questions[1]).not.toBe(questions[0]); // the next level, not the first card again
-    expect(questions[2]).toBe(questions[1]); // the last level, a second time
+    expect(kinds[2]).toBe(kinds[1]); // the last level, a second time…
+    expect(questions[2]).not.toBe(questions[1]); // …in its next wording (owner, 11.10.2026)
     expect(MAX_IDENTICAL_SOCRATIC_CARDS).toBe(2);
     ws().openSocraticCard('hesitation_45s');
     expect(cardOpen()).toBe(false);

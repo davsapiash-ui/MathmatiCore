@@ -253,16 +253,20 @@ describe('the demonstration aids (owner, 9.10.2026)', () => {
   const colours = () => screen.queryByTestId('demo-colours-toggle');
   const cardButton = () => screen.queryByTestId('demo-card-toggle');
 
-  it('"הצגת הצבעים בשורת התוצאה": stations 4–6 only, off by default; the learner\'s scaffold line without read-aloud', () => {
+  it('"הצגת הצבעים בשורת התוצאה": every vertical part of stations 4–7, off by default; the learner\'s scaffold line without read-aloud', () => {
     renderProjector();
-    for (const n of [1, 3, 7]) {
+    for (const n of [1, 3]) {
       pick(n);
       expect(colours()).toBeNull();
     }
     pick(4);
     fireEvent.click(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getByRole('button', { name: 'חלק ב · תשובות לבחירה' }));
     expect(colours()).toBeNull();
-    for (const n of [4, 5, 6]) {
+    // Owner, 11.10.2026: station 7 part א (vertical) has the toggle too; part ב has no coloured result row.
+    pick(7);
+    fireEvent.click(within(screen.getByRole('group', { name: 'בחירת חלק ההדגמה' })).getByRole('button', { name: 'חלק ב · משנים מספר' }));
+    expect(colours()).toBeNull();
+    for (const n of [4, 5, 6, 7]) {
       pick(n);
       expect(colours()!.textContent).toBe(DEMO_SHOW_COLOURS_HE);
       expect(colours()!.getAttribute('aria-pressed')).toBe('false');

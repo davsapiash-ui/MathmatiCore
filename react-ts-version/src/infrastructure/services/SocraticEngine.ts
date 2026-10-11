@@ -7,7 +7,7 @@ import { digitAt, type Place } from "@/core/placeValue";
 import { researchErrorCategory } from "./socraticResearchCategory";
 import { builtAnyWay } from "@/data/representationLocks";
 import { recentTelemetryFor, MAX_RECENT_FOR_ENGINE } from "./recentTelemetry";
-import { exerciseCard, givenBlocksChangedCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, framed, meeting1Card, s1NoButtonCard, s1GroupActionCard, s1DeficitSecondCard, s1WrongBreakCard, s1StartChangedCard, groupActionCard, strayAddition, strayBlocksCard, multiStepTarget, showBoardCard, boardHiddenCard, noBoardColumnCard, revealsHiddenDigit, ladder as cardLadder, buildNumberCard, digitsInColumnsCard, addBuildCard, skeletonShown, inFamily, withKind, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
+import { exerciseCard, givenBlocksChangedCard, whichNumberIsBuiltCard, meetingOfTaskId, blocksOnScreen, secretNumbersOf, revealsSecret, formatNumberHe, stripDigitGroupSeparators, revealsSecretInCounts, contradictsRequiredRepresentation, wrongHintViolation, statesBoardCount, numbersInInstruction, HINT, tenBlocksHint, representationKindOf, framed, meeting1Card, s1NoButtonCard, s1GroupActionCard, s1DeficitSecondCard, s1WrongBreakCard, s1StartChangedCard, groupActionCard, strayAddition, strayBlocksCard, multiStepTarget, showBoardCard, boardHiddenCard, noBoardColumnCard, revealsHiddenDigit, ladder as cardLadder, applyCardVariant, withWordings, buildNumberCard, digitsInColumnsCard, addBuildCard, skeletonShown, inFamily, withKind, type StaticCardContext, type StaticCardKind } from "./staticSocraticCards";
 
 export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOption };
 
@@ -19,7 +19,13 @@ export type { GeminiSocraticRequest, GeminiSocraticResponse, GeminiSocraticOptio
  */
 export interface SocraticProxyPayload {
   socratic_request?: GeminiSocraticRequest;
-  anchor?: { questionHe: string; pedagogical_intent?: string; choices: { id: string; textHe: string; isCorrect?: boolean }[] };
+  anchor?: {
+    questionHe: string;
+    pedagogical_intent?: string;
+    choices: { id: string; textHe: string; isCorrect?: boolean; feedbackHe?: string }[];
+    /** Owner, 11.10.2026: other approved wordings of the same situation, for this exercise — the engine's few-shot examples. */
+    examples?: { questionHe: string; choices: { textHe: string; isCorrect?: boolean; feedbackHe?: string }[] }[];
+  };
   /**
    * The teacher's demonstration screen (owner, 11.10.2026): the same request,
    * about the demonstration board. The server accepts it from a teacher sign-in
@@ -77,6 +83,23 @@ export interface SocraticHintResponse {
   fallbackDetail?: string;
   /** How long the hourglass turned before this card appeared (SOCRATIC_CARD_SHOWN.card_wait_ms). */
   waitMs?: number;
+  /**
+   * Owner, 11.10.2026: the other wordings of the same static card, for the
+   * same exercise and board. Set by the card builders; the static chooser
+   * shows one of them (staticSocraticCards.applyCardVariant) and keeps the
+   * rest in `sameSituationCards`. Never on a card the child sees.
+   */
+  variants?: CardWording[];
+  /** Which wording of the static card this is (0: the first one); a repeat of the same situation in the exercise shows the next. */
+  cardVariant?: number;
+  /** The wordings of the same situation not shown — the engine's examples of the situation (few-shot, 11.10.2026). */
+  sameSituationCards?: CardWording[];
+}
+
+/** One wording of a static card: its question and its three options. */
+export interface CardWording {
+  questionHe: string;
+  choices: SocraticChoice[];
 }
 
 /**
@@ -175,6 +198,7 @@ export function groundCardInExercise(card: SocraticHintResponse, currentTask?: a
     ...card,
     questionHe: grounded(card.questionHe),
     tts_text: card.tts_text ? grounded(card.tts_text) : card.tts_text,
+    ...(card.variants ? { variants: card.variants.map((v) => ({ ...v, questionHe: grounded(v.questionHe) })) } : {}),
   };
 }
 
@@ -1638,6 +1662,21 @@ export class SocraticEngine {
           isCorrect: c.isCorrect ?? (qMatrixAnchor.correctChoiceId ? c.id === qMatrixAnchor.correctChoiceId : undefined),
           ...(c.feedbackHe ? { feedbackHe: c.feedbackHe } : {}),
         })),
+        // Owner, 11.10.2026: two more approved wordings of the same situation,
+        // filled for this exercise (staticSocraticCards.applyCardVariant) — the
+        // engine's examples of the situation, beside the anchor.
+        ...(qMatrixAnchor.sameSituationCards?.length
+          ? {
+              examples: qMatrixAnchor.sameSituationCards.slice(0, 2).map((w) => ({
+                questionHe: w.questionHe,
+                choices: w.choices.slice(0, 3).map((c) => ({
+                  textHe: c.textHe,
+                  isCorrect: c.isCorrect,
+                  ...(c.feedbackHe ? { feedbackHe: c.feedbackHe } : {}),
+                })),
+              })),
+            }
+          : {}),
       };
 
       // Both guards use the same ceiling: the callable's own timeout, and a
@@ -1988,8 +2027,11 @@ export class SocraticEngine {
     counts?: { units: number; tens: number; hundreds: number; thousands: number },
     context?: StaticCardContext
   ): SocraticHintResponse {
+    // Owner, 11.10.2026: the wording follows how many times this card was
+    // already shown in the exercise (applyCardVariant); the iron rule checks
+    // the wording the child will read.
     const card = SocraticEngine.enforceIronRule(
-      SocraticEngine.resolveStaticHint(currentTask, counts, context),
+      applyCardVariant(SocraticEngine.resolveStaticHint(currentTask, counts, context), context),
       currentTask
     );
     // What the child reads follows the exercise; the category stays what main

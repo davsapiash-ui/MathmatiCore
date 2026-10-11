@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KeyRound, RefreshCw } from 'lucide-react';
+import { KeyRound, Printer, RefreshCw } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/infrastructure/firebase';
 import { toast } from 'sonner';
@@ -43,10 +43,20 @@ export function LearnerAccessCodes() {
   return (
     <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 md:p-4 shadow-sm">
       <div className="mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
-        <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <KeyRound className="w-4 h-4 text-violet-700 dark:text-violet-300" aria-hidden="true" />
-          קודי גישה
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <KeyRound className="w-4 h-4 text-violet-700 dark:text-violet-300" aria-hidden="true" />
+            קודי גישה
+          </h2>
+          {/* Owner, 11.10.2026: the teacher prints the 12 login cards from here. */}
+          <a
+            href="/teacher/login-cards"
+            className="h-9 px-4 rounded-full text-sm font-bold border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 inline-flex items-center gap-2"
+          >
+            <Printer className="w-4 h-4 text-slate-500" aria-hidden="true" />
+            הדפסת כרטיסי כניסה לתלמידים
+          </a>
+        </div>
         <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
           לכל תלמיד קוד גישה אישי בן 4 ספרות. מסרו לכל תלמיד את הקוד שלו. אחרי "קוד חדש" הקוד הקודם אינו פעיל עוד.
         </p>
