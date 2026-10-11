@@ -3,7 +3,7 @@
 // remediation path. A learner marked for the graded path: the graded path or the graded foundations path, which is the
 // grade-2 special-education milestone of document 05 (addition and subtraction within 100, place value from whole
 // hundreds within 1,000). Same topics, same tools, no other aid.
-// Run applyAll (documents 02, 03, 04 and the literature review) and applyPrd (the PRD, version 7.21).
+// Run applyAll (documents 02, 03, 04 and the literature review) and applyPrd (the PRD, version 8.0).
 // Safe to run more than once: each edit runs only if its old sentence occurs exactly the expected number of times,
 // and an edit whose marker is already in the document counts as done.
 var DOCS = [
@@ -97,9 +97,9 @@ function applyAll() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
-// THE PRD — applyPrd. Version 7.21. The code follows these sentences.
+// THE PRD — applyPrd. Version 8.0 (the line gets the date and time of the run, Israel time). The code follows these sentences.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
-var PRD = { name: "PRD", id: '1siy2VT-bPVy9LflxJBt-Xr7uQEW5umHPEh_vMVlmbWY', version: "7.21", edits: [
+var PRD = { name: "PRD", id: '1siy2VT-bPVy9LflxJBt-Xr7uQEW5umHPEh_vMVlmbWY', version: "8.0", edits: [
   ["הדגמה אחת משותפת לשלושת המסלולים",
    "הדגמה אחת משותפת לכל המסלולים",
    "הדגמה אחת משותפת לכל המסלולים"],
@@ -250,4 +250,10 @@ function updateVersionLine_(body, version) {
   t.deleteText(s, found.getEndOffsetInclusive());
   t.insertText(s, line);
   Logger.log('שורת הגרסה: ' + line);
+}
+
+// One run for everything: documents 02, 03, 04, the literature review, and the PRD (version 8.0, with the run's date and time).
+function runAll() {
+  applyAll();
+  applyPrd();
 }
