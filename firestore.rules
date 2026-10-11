@@ -734,5 +734,13 @@ service cloud.firestore {
     match /learner_access_codes/{classId} {
       allow read, write: if false;
     }
+
+    // Owner decision 11.10.2026: the coaching cards the validator rejected
+    // (geminiProxy.ts → aiMonitoring.writeAiRejection), read by the weekly
+    // report (aiRejectionsReport.ts). Server-only: closed to every client,
+    // staff included; the Admin SDK bypasses these rules.
+    match /ai_rejections/{rejectionId} {
+      allow read, write: if false;
+    }
   }
 }

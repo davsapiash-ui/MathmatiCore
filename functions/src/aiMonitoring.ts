@@ -135,6 +135,65 @@ export function recordAiCall(rec: AiCallRecord): void {
 }
 
 /**
+ * Owner decision, 11.10.2026: every card the validator rejects is kept, in a
+ * minimal form, for the weekly report (aiRejectionsReport.ts). Server-only
+ * collection: firestore.rules closes it to every client, staff included.
+ *
+ * What a record holds, and nothing else: the exercise id, the meeting, the
+ * validator's reason, the monitoring outcome, the model, which try it was,
+ * the demonstration flag, the time, and the rejected card itself (the model's
+ * own output, scrubbed and capped). Never a learner id, a session id, a uid,
+ * or anything a learner typed.
+ */
+export const AI_REJECTIONS_COLLECTION = "ai_rejections";
+/** The rejected card's raw text is cut here. */
+export const AI_REJECTION_TEXT_MAX = 2000;
+/** The validator's reason is cut here (it is our own short sentence). */
+export const AI_REJECTION_REASON_MAX = 300;
+
+export interface AiRejectionRecord {
+  exercise_id: string | null;
+  /** Meeting 1–8, or null when neither the request nor the exercise id gives one. */
+  meeting: number | null;
+  reason: string;
+  outcome: AiOutcome;
+  model_id: string;
+  /** 1 = the first try, 2 = the second try. */
+  attempt: number;
+  demo: boolean;
+  card_text: string;
+}
+
+/** The fields a rejection record may carry; the writer drops anything else. */
+export const AI_REJECTION_FIELDS: ReadonlyArray<keyof AiRejectionRecord> = [
+  "exercise_id", "meeting", "reason", "outcome", "model_id", "attempt", "demo", "card_text",
+];
+
+/** The record as written: the listed fields only, plus the server time. */
+export function aiRejectionDoc(rec: AiRejectionRecord): Record<string, unknown> {
+  const doc: Record<string, unknown> = {};
+  for (const k of AI_REJECTION_FIELDS) doc[k] = rec[k];
+  return doc;
+}
+
+/**
+ * Writes one rejection record. Never throws, never delays the card: the write
+ * starts after the current turn (setImmediate) and a failure is a warning.
+ */
+export function writeAiRejection(rec: AiRejectionRecord): void {
+  const doc = aiRejectionDoc(rec);
+  setImmediate(() => {
+    try {
+      getFirestore().collection(AI_REJECTIONS_COLLECTION).add({ ...doc, created_at: FieldValue.serverTimestamp() }).catch((err) => {
+        logger.warn("[ai-monitor] rejection record write failed", { error: String(err) });
+      });
+    } catch (err) {
+      logger.warn("[ai-monitor] rejection record skipped", { error: String(err) });
+    }
+  });
+}
+
+/**
  * The teacher's warm-up ping (TeacherDashboard, on activating a meeting)
  * builds the Firestore client and opens its channel with one read, so the
  * first child's card finds it ready. Reads only; never throws; bounded.

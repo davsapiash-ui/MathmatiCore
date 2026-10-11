@@ -61,7 +61,7 @@ import { curriculumCatalog } from '@/infrastructure/services/CurriculumCatalogSe
 import { getSessionBranchTasks } from '@/data/sessionBranchTasks';
 import { AuditLogger } from '@/infrastructure/services/AuditLogger';
 import { SocraticEngine, SOCRATIC_PROXY_TIMEOUT_MS, type SocraticHintResponse, type SocraticMonitoringSnapshot } from '@/infrastructure/services/SocraticEngine';
-import { STATIC_CARD_KINDS, cardFamilyOf, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
+import { STATIC_CARD_KINDS, cardFamilyOf, cardVariantKey, type StaticCardContext, type StaticCardKind } from '@/infrastructure/services/staticSocraticCards';
 import { serverNow } from '@/infrastructure/firebase';
 import { throttledRtdbUpdate } from '@/infrastructure/services/ThrottledRtdbWriter';
 import { normalizeStudentId } from '@/application/useChatStore';
@@ -1089,7 +1089,7 @@ export type StaticCardStoreState = Pick<WorkspaceState, 'placeCuesShown' | 'socr
   Partial<Pick<WorkspaceState,
     | 'conversionsByColumn' | 'hasGrouped' | 'hasUngrouped' | 'counts'
     | 'sessionNumber' | 'isASD' | 'socraticTriggerReason' | 'socraticCardPlace'
-    | 'answerDigits' | 'carryDigits' | 'operandDigits' | 'boardOpen' | 'hasDeletedBlock' | 'takeAwayTrack' | 'undoStack'>>;
+    | 'answerDigits' | 'carryDigits' | 'operandDigits' | 'boardOpen' | 'hasDeletedBlock' | 'takeAwayTrack' | 'undoStack' | 'socraticCardHistory'>>;
 
 /** Subtraction with blocks, one exercise: the board held the first number (`held`); a block left it after that (`started`). */
 export interface TakeAwayTrack {
@@ -1213,6 +1213,18 @@ export function staticCardContextFor(
     shownKinds: shown && taskId && shown.taskId === taskId ? shown.kinds : [],
     ...conversions,
   };
+  // Owner, 11.10.2026: each card shown in this exercise, counted by its kind
+  // (or family) — the next showing of the same card is its next wording.
+  const history = s.socraticCardHistory;
+  if (history && taskId && history.taskId === taskId) {
+    const shows: Record<string, number> = {};
+    for (const c of history.cards) {
+      if (!c.shown) continue;
+      const key = c.kind ?? c.family;
+      if (key) shows[key] = (shows[key] ?? 0) + 1;
+    }
+    if (Object.keys(shows).length) out.cardShows = shows;
+  }
   const trigger = opening?.reason ?? s.socraticTriggerReason ?? null;
   if (trigger) out.trigger = trigger;
   const focus = opening ? opening.place : s.socraticCardPlace ?? null;
@@ -1266,7 +1278,34 @@ export function staticCardContextFor(
  * exercise: nothing records the kinds shown in the demonstration.
  */
 function demoCardContext(s: StaticCardStoreState, task: SessionTask | undefined): StaticCardContext {
-  return { ...staticCardContextFor(s, task?.id, task, { reason: 'hesitation_45s', place: null }), shownKinds: [] };
+  const base = { ...staticCardContextFor(s, task?.id, task, { reason: 'hesitation_45s', place: null }), shownKinds: [] };
+  const shows = task && demoCardShows.taskId === task.id ? demoCardShows.shows : null;
+  return shows && Object.keys(shows).length ? { ...base, cardShows: { ...shows } } : base;
+}
+
+/**
+ * The demonstration's card showings, per exercise (owner, 11.10.2026): the
+ * same card opened again on the projector is its next wording, as a
+ * learner's is. Kept in memory for the open projector screen only — nothing
+ * of the demonstration is saved.
+ */
+let demoCardShows: { taskId: string | null; shows: Record<string, number> } = { taskId: null, shows: {} };
+/** The card on the projector now: counted when the next card opens, so the card on the screen stays "the current one". */
+let demoCardOnScreen: { taskId: string; key: string } | null = null;
+
+/** Records that `card` is on the projector in the demonstration exercise `taskId`. */
+export function recordDemoCardShown(taskId: string | undefined, card: SocraticHintResponse): void {
+  demoCardOnScreen = taskId ? { taskId, key: cardVariantKey(card) } : null;
+}
+
+/** The card that was on the projector counts as shown once another card opens. */
+function commitDemoCardShown(): void {
+  const c = demoCardOnScreen;
+  demoCardOnScreen = null;
+  if (!c) return;
+  const shows = demoCardShows.taskId === c.taskId ? { ...demoCardShows.shows } : {};
+  shows[c.key] = (shows[c.key] ?? 0) + 1;
+  demoCardShows = { taskId: c.taskId, shows };
 }
 
 /** The static card of the demonstration board as it is now — the example card's fallback. */
@@ -3351,7 +3390,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const family = cardFamilyOf(staticNow);
     const same = history.filter((c) => c.shown && c.reason === reason && c.place === cardPlace && (c.family ?? c.staticQuestionHe) === family);
     if (same.some((c) => c.answeredCorrect === true)) return 'repeat';
-    if (same.filter((c) => c.staticQuestionHe === staticNow.questionHe).length >= MAX_IDENTICAL_SOCRATIC_CARDS) return 'repeat';
+    // The very same card in any of its wordings (owner, 11.10.2026: a repeat
+    // shows the card's next wording, and it is still the same card).
+    const wordings = new Set([staticNow.questionHe, ...(staticNow.sameSituationCards ?? []).map((w) => w.questionHe)]);
+    if (same.filter((c) => wordings.has(c.staticQuestionHe)).length >= MAX_IDENTICAL_SOCRATIC_CARDS) return 'repeat';
     return null;
   }
 
@@ -4029,6 +4071,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     openDemoCoachingCard: async (task) => {
       const s = get();
       if (!s.projectorBoard) return;
+      commitDemoCardShown();
       cancelSocraticRequest();
       const request = socraticRequestSeq;
       // The static card of the board as it is now: what a learner gets when
@@ -4046,6 +4089,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
       if (useReadOnlyStaffStore.getState().readOnly || offline) {
         set({ ...opened, aiSocraticHint: staticCard, socraticPending: false });
+        recordDemoCardShown(task?.id, staticCard);
         return;
       }
       set({ ...opened, aiSocraticHint: null, socraticPending: true });
@@ -4065,6 +4109,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           ? { ...demoStaticCoachingCard(now, task), error_category: null, source: 'static' as const }
           : hint;
         set({ aiSocraticHint: shown, socraticPending: false });
+        // The static card counts as shown when the engine's card, anchored on it, is the one on the screen.
+        recordDemoCardShown(task?.id, shown === hint ? staticCard : shown);
       };
 
       socraticDeadline = setTimeout(() => settle({ ...staticCard, fallbackReason: 'timeout' }), SOCRATIC_PROXY_TIMEOUT_MS);

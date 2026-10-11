@@ -130,7 +130,8 @@ const BASE_CSS = `
   .outcome-not_attempted { color: #94a3b8; }
 `;
 
-function layout(title: string, body: string): string {
+/** A complete RTL report document with the embedded font and the report styles. */
+export function layout(title: string, body: string): string {
   return `<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>

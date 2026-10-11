@@ -569,6 +569,20 @@ await check('הלומד אינו קורא ואינו כותב ביומן', async
   await assertFails(setDoc(doc(lfs, 'teacher_mediation_log', 'l_1'), mediationRecord('student_user3', { event_ref: 'log_l' })));
 });
 
+// בעל המוצר, 11.10.2026: כרטיסי החניכה שהבודק דחה נשמרים לשרת בלבד.
+console.log('\nFirestore — כרטיסים שנדחו (ai_rejections)');
+const rejection = { exercise_id: 's4_add_1', meeting: 4, reason: 'forbidden terminology: x', outcome: 'forbidden_term', model_id: 'm', attempt: 1, demo: false, card_text: '{}' };
+await env.withSecurityRulesDisabled(async (ctx) => {
+  await setDoc(doc(ctx.firestore(), 'ai_rejections', 'r1'), rejection);
+});
+await check('לומד, מורה ומנהל אינם קוראים ואינם כותבים', async () => {
+  for (const fs of [lfs, teacher.firestore(), admin.firestore(), rotfs]) {
+    await assertFails(getDoc(doc(fs, 'ai_rejections', 'r1')));
+    await assertFails(setDoc(doc(fs, 'ai_rejections', 'r2'), rejection));
+    await assertFails(deleteDoc(doc(fs, 'ai_rejections', 'r1')));
+  }
+});
+
 console.log('\nצוות רגיל — ללא שינוי');
 await check('מורה רגילה עדיין פותחת מפגש ומסמנת מסלול מדורג', async () => {
   await assertSucceeds(set(ref(tdb, 'active_class_session'), { session_number: 3, status: 'active' }));

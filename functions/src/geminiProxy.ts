@@ -11,7 +11,15 @@ import {
   getGeminiClient,
   getGeminiKeyStatus,
 } from "./geminiConfig";
-import { recordAiCall, warmAiMonitoring, type AiOutcome } from "./aiMonitoring";
+import {
+  AI_REJECTION_REASON_MAX,
+  AI_REJECTION_TEXT_MAX,
+  recordAiCall,
+  warmAiMonitoring,
+  writeAiRejection,
+  type AiOutcome,
+  type AiRejectionRecord,
+} from "./aiMonitoring";
 import { assertCanWrite, readCallerRoles } from "./callerIdentity";
 import { redactPhoneNumbers } from "./phonePattern";
 import {
@@ -152,7 +160,59 @@ function rejectionOutcome(reason: string): AiOutcome {
   return "schema_reject";
 }
 
-async function generateOnce(prompt: string, facts: SocraticFacts | null, timeoutMs: number, model: GeminiModelChoice): Promise<Attempt> {
+/**
+ * What a rejection record may say about the call (owner decision, 11.10.2026):
+ * the exercise and the meeting, and whether it was the teacher's
+ * demonstration. Deliberately no learner id and no session id.
+ */
+export interface RejectionContext {
+  exercise_id: string | null;
+  meeting: number | null;
+  demo: boolean;
+}
+
+/** The meeting of an exercise id ("s4_add_1" → 4), or null. */
+export function meetingFromExerciseId(exerciseId: string | null | undefined): number | null {
+  const m = typeof exerciseId === "string" ? /^s(\d)_/.exec(exerciseId) : null;
+  const n = m ? Number(m[1]) : NaN;
+  return n >= 1 && n <= 8 ? n : null;
+}
+
+/**
+ * The minimal, anonymised record of one rejected card. The card text is the
+ * model's own output (never learner text), scrubbed and capped.
+ */
+export function buildAiRejectionRecord(input: {
+  context: RejectionContext;
+  reason: string;
+  outcome: AiOutcome;
+  model_id: string;
+  attempt: number;
+  raw: string;
+}): AiRejectionRecord {
+  const { context } = input;
+  const meeting = Number.isInteger(context.meeting) && (context.meeting as number) >= 1 && (context.meeting as number) <= 8
+    ? (context.meeting as number)
+    : meetingFromExerciseId(context.exercise_id);
+  return {
+    exercise_id: typeof context.exercise_id === "string" ? context.exercise_id.slice(0, 64) : null,
+    meeting,
+    reason: scrubPII(String(input.reason ?? "").trim()).slice(0, AI_REJECTION_REASON_MAX),
+    outcome: input.outcome,
+    model_id: input.model_id,
+    attempt: input.attempt,
+    demo: context.demo === true,
+    card_text: scrubPII(String(input.raw ?? "")).slice(0, AI_REJECTION_TEXT_MAX),
+  };
+}
+
+async function generateOnce(
+  prompt: string,
+  facts: SocraticFacts | null,
+  timeoutMs: number,
+  model: GeminiModelChoice,
+  rejection?: { context: RejectionContext; attempt: number }
+): Promise<Attempt> {
   let raw: string;
   try {
     const result = await generateGeminiText({
@@ -180,7 +240,16 @@ async function generateOnce(prompt: string, facts: SocraticFacts | null, timeout
 
   const reason = validated.reason;
   logger.warn("[socratic-proxy] response rejected", { reason, model_id: model.id, raw_length: raw.length });
-  return { ok: false, outcome: rejectionOutcome(reason), detail: reason, raw, model_id: model.id };
+  const outcome = rejectionOutcome(reason);
+  if (rejection) {
+    // Fire-and-forget: the record never delays or breaks the card.
+    try {
+      writeAiRejection(buildAiRejectionRecord({ context: rejection.context, reason, outcome, model_id: model.id, attempt: rejection.attempt, raw }));
+    } catch (err) {
+      logger.warn("[socratic-proxy] rejection record skipped", { error: String(err) });
+    }
+  }
+  return { ok: false, outcome, detail: reason, raw, model_id: model.id };
 }
 
 /** The first try failed in the transport or the model is gone: the second try goes to the other model. */
@@ -197,9 +266,14 @@ const TRY_AGAIN_CORRECTED: AiOutcome[] = ["schema_reject", "answer_leak", "forbi
  * faster fallback when less than CORRECTED_RETRY_ON_PRIMARY_MIN_MS is left.
  * An auth failure is never retried: the key is the same for both models.
  */
-export async function generateWithRetry(prompt: string, facts: SocraticFacts | null): Promise<Attempt & { attempts: number; first_outcome?: AiOutcome }> {
+export async function generateWithRetry(
+  prompt: string,
+  facts: SocraticFacts | null,
+  context?: RejectionContext
+): Promise<Attempt & { attempts: number; first_outcome?: AiOutcome }> {
   const started = Date.now();
-  const first = await generateOnce(prompt, facts, SOCRATIC_AI_TIMEOUT_MS, SOCRATIC_PRIMARY_MODEL);
+  const first = await generateOnce(prompt, facts, SOCRATIC_AI_TIMEOUT_MS, SOCRATIC_PRIMARY_MODEL, context ? { context, attempt: 1 } : undefined);
+  const secondTry = context ? { context, attempt: 2 } : undefined;
   if (first.ok) return { ...first, attempts: 1 };
 
   const remaining = SOCRATIC_TOTAL_BUDGET_MS - (Date.now() - started);
@@ -208,11 +282,11 @@ export async function generateWithRetry(prompt: string, facts: SocraticFacts | n
   if (TRY_AGAIN_CORRECTED.includes(first.outcome)) {
     const correction = `${prompt}\n\nYOUR PREVIOUS ANSWER WAS REJECTED: ${first.detail}. Fix exactly that and return the JSON again.`;
     const model = remaining >= CORRECTED_RETRY_ON_PRIMARY_MIN_MS ? SOCRATIC_PRIMARY_MODEL : SOCRATIC_FALLBACK_MODEL;
-    const second = await generateOnce(correction, facts, remaining, model);
+    const second = await generateOnce(correction, facts, remaining, model, secondTry);
     return { ...second, attempts: 2, first_outcome: first.outcome };
   }
   if (TRY_THE_OTHER_MODEL.includes(first.outcome)) {
-    const second = await generateOnce(prompt, facts, remaining, SOCRATIC_FALLBACK_MODEL);
+    const second = await generateOnce(prompt, facts, remaining, SOCRATIC_FALLBACK_MODEL, secondTry);
     return { ...second, attempts: 2, first_outcome: first.outcome };
   }
   return { ...first, attempts: 1 };
@@ -350,7 +424,12 @@ export const callGeminiSocraticProxy = onCall(
       const safeAnchor = validateSocraticAnchor(anchor);
       const builtPrompt = buildSocraticPrompt(req, facts, safeAnchor);
 
-      const attempt = await generateWithRetry(builtPrompt, facts);
+      // A rejected card is recorded with its exercise and meeting only (owner, 11.10.2026).
+      const attempt = await generateWithRetry(builtPrompt, facts, {
+        exercise_id: typeof req.exercise_id === "string" ? req.exercise_id : null,
+        meeting: facts.meeting,
+        demo,
+      });
       const latency = Date.now() - started;
       const base = {
         feature: "socratic" as const,

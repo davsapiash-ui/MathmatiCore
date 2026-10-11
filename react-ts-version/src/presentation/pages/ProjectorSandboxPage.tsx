@@ -104,7 +104,9 @@ export function ProjectorSandboxPage() {
   // Owner, 9.10.2026: stations 4–6 show the result row's colours on request —
   // the scaffold a learner gets after a digit in another column's box. Stations
   // 3 and 7 have a one-box row, or a sheet whose row the colours do not explain.
-  const hasColourScaffold = (station === 4 || station === 5 || station === 6) && part?.body.kind === 'vertical';
+  // Owner, 11.10.2026: wherever the part on screen has a result row with column colours —
+  // the vertical exercises of stations 4–7 (station 7 part א included).
+  const hasColourScaffold = station >= 4 && station <= 7 && part?.body.kind === 'vertical';
   // Owner, 9.10.2026: an example of the coaching card in stations 1 and 3–7.
   const hasCardExample = station === 1 || part !== null;
   // Each opening is a fresh card: its options unanswered, even while the last

@@ -16,10 +16,14 @@ import { toast } from "sonner";
  *
  * לכל לומד קוד הגישה האישי שלו (מודול 1 §א, מודול 25 §ב.3 ו-§ד). מנהל המערכת
  * יכול לשנות כאן קוד של לומד ("קוד חדש"); הכפתור אינו מודפס.
+ *
+ * בעל המוצר (11.10.2026): גם המורה מדפיסה את הכרטיסים, מתוך מסך "ניהול כיתה
+ * ומסלולים", בלי להיכנס לקונסולת המנהל. הקודים מגיעים מאותה פונקציה שמציגה
+ * למורה את "קודי גישה" באותו מסך; "קוד חדש" נשאר שם, ולא בדף ההדפסה של המורה.
  */
 type CardsData = { studentIds: number[]; codes: Record<string, string> };
 
-export function StudentLoginCardsPage() {
+export function StudentLoginCardsPage({ audience = "admin" }: { audience?: "admin" | "teacher" }) {
   const navigate = useNavigate();
   const [data, setData] = useState<CardsData | null>(null);
   const [error, setError] = useState("");
@@ -42,11 +46,15 @@ export function StudentLoginCardsPage() {
 
   useEffect(() => {
     let alive = true;
-    httpsCallable<unknown, CardsData>(functions, "getStudentLoginCards")()
-      .then((res) => { if (alive) setData(res.data); })
-      .catch(() => { if (alive) setError("לא ניתן לטעון את הכרטיסים. הדף פתוח למנהל המערכת בלבד."); });
+    const load = audience === "teacher"
+      ? httpsCallable<unknown, { codes: Record<string, string> }>(functions, "getLearnerAccessCodes")()
+          .then((res) => ({ studentIds: Array.from({ length: 12 }, (_, i) => i + 1), codes: res.data.codes }))
+      : httpsCallable<unknown, CardsData>(functions, "getStudentLoginCards")().then((res) => res.data);
+    load
+      .then((cards) => { if (alive) setData(cards); })
+      .catch(() => { if (alive) setError(audience === "teacher" ? "לא ניתן לטעון את הכרטיסים. נסו שוב בעוד רגע." : "לא ניתן לטעון את הכרטיסים. הדף פתוח למנהל המערכת בלבד."); });
     return () => { alive = false; };
-  }, []);
+  }, [audience]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-white text-slate-900 p-6 print:p-0">
@@ -64,7 +72,7 @@ export function StudentLoginCardsPage() {
         </button>
         <button
           type="button"
-          onClick={() => navigate("/admin/schools")}
+          onClick={() => (audience === "teacher" ? navigate(-1) : navigate("/admin/schools"))}
           className="h-11 px-6 rounded-full font-bold border border-slate-300"
         >
           חזרה
@@ -97,7 +105,7 @@ export function StudentLoginCardsPage() {
               <p className="text-lg">
                 קוד גישה: <strong className="font-mono tracking-widest" dir="ltr">{data.codes[String(id)]}</strong>
               </p>
-              <button
+              {audience === "admin" && <button
                 type="button"
                 onClick={() => handleNewCode(id)}
                 disabled={busyId !== null}
@@ -105,7 +113,7 @@ export function StudentLoginCardsPage() {
                 className="print:hidden self-start h-9 px-4 rounded-full text-sm font-bold border border-slate-300 disabled:opacity-50"
               >
                 קוד חדש
-              </button>
+              </button>}
             </section>
           ))}
         </div>

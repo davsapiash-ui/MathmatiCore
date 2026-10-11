@@ -316,6 +316,27 @@ export interface SocraticAnchor {
   questionHe: string;
   choices: { id: string; textHe: string; isCorrect?: boolean; feedbackHe?: string }[];
   pedagogical_intent?: string;
+  /**
+   * Owner, 11.10.2026: up to two more approved static cards of the SAME
+   * situation, filled for this exercise by the client — few-shot examples
+   * beside the anchor. Same caps as the anchor; never trusted as instructions.
+   */
+  examples?: { questionHe: string; choices: { textHe: string; isCorrect?: boolean; feedbackHe?: string }[] }[];
+}
+
+/** One approved card (question + options) from the client, capped and shaped, or null. */
+function cleanAnchorCard(raw: unknown): { questionHe: string; choices: { textHe: string; isCorrect?: boolean; feedbackHe?: string }[] } | null {
+  if (!isPlainObject(raw) || typeof raw.questionHe !== "string" || !Array.isArray(raw.choices)) return null;
+  const choices = raw.choices
+    .filter((c): c is Record<string, unknown> => isPlainObject(c) && typeof c.textHe === "string")
+    .slice(0, 3)
+    .map((c) => ({
+      textHe: (c.textHe as string).slice(0, 200),
+      isCorrect: typeof c.isCorrect === "boolean" ? c.isCorrect : undefined,
+      ...(typeof c.feedbackHe === "string" && c.feedbackHe.trim() ? { feedbackHe: (c.feedbackHe as string).slice(0, 200) } : {}),
+    }));
+  if (choices.length !== 3 || choices.filter((c) => c.isCorrect === true).length !== 1) return null;
+  return { questionHe: raw.questionHe.slice(0, 300), choices };
 }
 
 export interface SocraticOption {
@@ -593,10 +614,14 @@ export function validateSocraticAnchor(raw: unknown): SocraticAnchor | undefined
       ...(typeof c.feedbackHe === "string" && c.feedbackHe.trim() ? { feedbackHe: (c.feedbackHe as string).slice(0, 200) } : {}),
     }));
   if (choices.length === 0) return undefined;
+  const examples = Array.isArray(raw.examples)
+    ? raw.examples.slice(0, 2).map(cleanAnchorCard).filter((e): e is NonNullable<ReturnType<typeof cleanAnchorCard>> => e !== null)
+    : [];
   return {
     questionHe: raw.questionHe.slice(0, 300),
     choices,
     pedagogical_intent: typeof raw.pedagogical_intent === "string" ? raw.pedagogical_intent.slice(0, 20) : undefined,
+    ...(examples.length ? { examples } : {}),
   };
 }
 
@@ -1920,6 +1945,14 @@ export function buildSocraticPrompt(req: SocraticRequest, facts: SocraticFacts, 
     lines.push("=== כרטיס הדוגמה: הכרטיס הסטטי שהלומד היה מקבל (נכתב ואושר בידי בעל המוצר) ===");
     lines.push(`שאלה: ${anchor.questionHe}`);
     for (const ch of anchor.choices) lines.push(`  - ${ch.textHe}${ch.isCorrect ? " (נכון)" : ""}${ch.feedbackHe ? ` — משוב: ${ch.feedbackHe}` : ""}`);
+    // Owner, 11.10.2026: more approved cards of the same situation (few-shot), compact: question, options, (נכון) on the right one, the hints.
+    if (anchor.examples?.length) {
+      lines.push("כרטיסים מאושרים נוספים לאותו מצב (ניסוחים אחרים של אותה כוונה):");
+      anchor.examples.forEach((ex, i) => {
+        lines.push(`${i + 2}. שאלה: ${ex.questionHe}`);
+        for (const ch of ex.choices) lines.push(`  - ${ch.textHe}${ch.isCorrect ? " (נכון)" : ""}${ch.feedbackHe ? ` — משוב: ${ch.feedbackHe}` : ""}`);
+      });
+    }
     lines.push("כתבו כרטיס משלכם באותה כוונה, באותה רמה ובאותה צורה כמו כרטיס הדוגמה: אם הוא שואל מה בודקים, גם הכרטיס שלכם שואל מה בודקים — בלי לתת את הטור או את הצעד שהוא משאיר ללומד. השתמשו רק במונחים ובפעולות שבכרטיס הדוגמה ובפרק \"המסך\". התאימו את הניסוח לתרגיל הזה ולמה שהלומד הזה עשה, ואל תסתרו את כרטיס הדוגמה.");
   }
 

@@ -9,6 +9,7 @@ import { scrubPII } from "./geminiProxy";
 import { researchDetailsColumns, researchStampColumns } from "./researchTelemetryRow";
 import { RECORDINGS_ROOT, withRecordings } from "./recordingsNode";
 import { CATCHUP_COLLECTION, catchUpExportCells, type CatchUpRecord } from "./catchUp";
+import { AI_REJECTIONS_COLLECTION } from "./aiMonitoring";
 import { finishedMeetingRefusalHe, resolveActiveSessionNumber, resolveClassSessionNumber, validMeetingNumber } from "./resetMeetingTarget";
 import { LATE_MARKERS_ROOT, lateRecordingMarkerRevert, lateRecordingMarkerUpdates } from "./lateRecordings";
 import {
@@ -1560,7 +1561,10 @@ export function buildResetScope(
       "approved_tasks",
       "ai_pending_approvals",
     ],
-    firestore: LEARNING_COLLECTIONS.map((collection) => ({ collection })),
+    // Owner, 11.10.2026: the system starts clean before the research run — the
+    // teacher's mediation log (measure 5) and the rejected-AI records go too,
+    // so nothing from a trial lesson reaches the research export.
+    firestore: [...LEARNING_COLLECTIONS, "teacher_mediation_log", AI_REJECTIONS_COLLECTION].map((collection) => ({ collection })),
   };
 }
 

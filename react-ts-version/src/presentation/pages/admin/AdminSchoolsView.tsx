@@ -63,7 +63,7 @@ export function AdminSchoolsView() {
     typeof window === "undefined" || typeof window.confirm !== "function" ? true : window.confirm(message);
 
   const handleResetPilot = async () => {
-    if (!confirmAction("לאפס את כל המוסדות למבנה הפיילוט הרשמי?\nכל המורות שנוספו יימחקו (כולל הרשאות הכניסה שלהן) ויישארו רק \"בית ספר ביקורת\", המורה המובילה וכיתת \"המבקרים\". פעולה זו אינה הפיכה.")) return;
+    if (!confirmAction("לאפס את מבנה המוסדות למבנה הפיילוט הרשמי?\nיישארו \"בית ספר ביקורת\" וכיתת \"המבקרים\". המורות והמרצות נשארות, עם הרשאות הכניסה שלהן. נתוני התלמידים לא נמחקים כאן: כדי למחוק אותם, לוחצים על \"איפוס כל נתוני הכיתה\" במסך הרדאר.")) return;
     setIsResetting(true);
     try {
       await resetInstitutionsToOfficialPilot();

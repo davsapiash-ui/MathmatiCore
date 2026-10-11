@@ -101,6 +101,14 @@ export function adminReportFileName(ms: number = Date.now()): string {
   return `דוח מנהל ${israelDate(ms)}.pdf`;
 }
 
+/**
+ * The weekly report of rejected coaching cards (owner decision, 11.10.2026),
+ * folder "4 מנהל": "כרטיסי חניכה שנדחו - 04.10.2026-11.10.2026.pdf".
+ */
+export function aiRejectionsReportFileName(fromMs: number, toMs: number): string {
+  return `כרטיסי חניכה שנדחו - ${israelDate(fromMs)}-${israelDate(toMs)}.pdf`;
+}
+
 /** Module 23א §ג: recording chunks that arrive after a full learner or a system reset. */
 export const LATE_RECORDING_LABEL = "הקלטה שהגיעה אחרי האיפוס";
 

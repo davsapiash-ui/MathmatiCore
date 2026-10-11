@@ -32,6 +32,8 @@ export { exportAdminReportToDrive, backupAndResetSessionData, exportResearchData
 export { copyStorageBackupsToDrive } from "./backupDriveCopy";
 // Module 23א §ג: recording chunks that reach the server after a full learner or system reset.
 export { onLateRecordingChunk, onLateRecordingFlag } from "./lateRecordings";
+// Owner decision 11.10.2026: the weekly report of coaching cards the validator rejected (Drive folder "1 דוחות").
+export { weeklyAiRejectionsReport } from "./aiRejectionsReport";
 
 // Export WP6 Cloud Functions (Module 14, 20, 22, 24, 27)
 export { onSessionCompleteTrigger, onMeetingCompletionMarked, onMeetingTelemetryArrived, createSessionWithServerDeadline } from "./sessionTrigger";
