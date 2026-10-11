@@ -10,6 +10,7 @@ import { useAdminStore } from '@/application/useAdminStore';
 import { collection, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/infrastructure/firebase';
 import { toast } from 'sonner';
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 
 export interface SupportTicket {
   id: string;
@@ -75,6 +76,7 @@ export function AdminSupportHubView() {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const readOnly = useIsReadOnlyStaff();
 
   // Module 28 §ב: "מרכז הפניות מציג למנהל המערכת הודעות נכנסות מערוצי השיח של
   // המורים (מודול 22)" — the hub's feed IS the teacher chat channel. It used to
@@ -295,7 +297,9 @@ export function AdminSupportHubView() {
                   <div className="flex gap-1.5">
                     <button
                       onClick={() => handleUpdateStatus(selectedTicket.id, 'RESOLVED')}
-                      className="px-4 py-2.5 min-h-10 text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg cursor-pointer transition-all"
+                      disabled={readOnly}
+                      title={readOnly ? READ_ONLY_TITLE : undefined}
+                      className="px-4 py-2.5 min-h-10 text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       סמן כנפתרה
                     </button>

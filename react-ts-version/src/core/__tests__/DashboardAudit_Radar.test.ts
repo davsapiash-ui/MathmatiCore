@@ -118,7 +118,8 @@ describe('the lesson survives the teacher\'s connection', () => {
     expect(start).toBeGreaterThan(-1);
     expect(effect).toContain("onValue(ref(database, '.info/connected')");
     expect(effect).toContain('if (isConnected) armPresence();');
-    expect(effect).toContain('if (!rec || stamp === null || !isConnected) return;');
+    // A read-only staff page clears and closes nothing (owner decision 11.10.2026).
+    expect(effect).toContain('if (!rec || stamp === null || !isConnected || isReadOnlyNow()) return;');
     // Never cleared blindly at the moment of reconnecting: past the grace
     // window the meeting stays closed (PRD 14 §ב0, register item 21) — the
     // behaviour is covered in Module14_TeacherTransitions.test.tsx.

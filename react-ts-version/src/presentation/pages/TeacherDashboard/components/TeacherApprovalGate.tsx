@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 import { UserCheck } from 'lucide-react';
 import type { PedagogicalPath } from '@/types';
 import { TEACHER_GATE_HE, routePairFor } from '@/core/routeLabels';
@@ -37,6 +38,7 @@ export function TeacherApprovalGate({
   onReopenMeeting2,
 }: TeacherApprovalGateProps) {
   const [isBatchApproving, setIsBatchApproving] = useState(false);
+  const readOnly = useIsReadOnlyStaff();
 
   // The recommendation knows the graded mark (graded_path or graded_foundation_path for a marked learner).
   // A marked learner with no recommendation yet stays on the graded path; anyone else with none waits for
@@ -110,8 +112,8 @@ export function TeacherApprovalGate({
             <button
               type="button"
               onClick={handleBatchApprove}
-              disabled={isLoading || isBatchApproving || readyStudents.length === 0}
-              title="כל תלמיד ממתין מאושר למסלול שהמטריקס ממליץ לו"
+              disabled={readOnly || isLoading || isBatchApproving || readyStudents.length === 0}
+              title={readOnly ? READ_ONLY_TITLE : "כל תלמיד ממתין מאושר למסלול שהמטריקס ממליץ לו"}
               className="min-h-11 px-4 py-2 bg-violet-700 hover:bg-violet-800 text-white font-extrabold text-xs rounded-xl flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
             >
               <UserCheck className="w-4 h-4" aria-hidden="true" />
@@ -166,7 +168,9 @@ export function TeacherApprovalGate({
                 <button
                   type="button"
                   onClick={onReopenMeeting2}
-                  className="self-start min-h-11 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-xs rounded-xl transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+                  disabled={readOnly}
+                  title={readOnly ? READ_ONLY_TITLE : undefined}
+                  className="self-start min-h-11 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-xs rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
                 >
                   פתחו שוב את {meetingShortLabelHe(2)}
                 </button>

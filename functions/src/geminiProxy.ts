@@ -12,7 +12,7 @@ import {
   getGeminiKeyStatus,
 } from "./geminiConfig";
 import { recordAiCall, warmAiMonitoring, type AiOutcome } from "./aiMonitoring";
-import { readCallerRoles } from "./callerIdentity";
+import { assertCanWrite, readCallerRoles } from "./callerIdentity";
 import { redactPhoneNumbers } from "./phonePattern";
 import {
   SOCRATIC_RESPONSE_SCHEMA,
@@ -327,6 +327,9 @@ export const callGeminiSocraticProxy = onCall(
         recordAiCall({ feature: "socratic", outcome: "invalid_request", latency_ms: 0, model_id: GEMINI_MODEL_ID, detail: "caller_student_mismatch" });
         throw new HttpsError("permission-denied", "A learner may only request a hint for their own work.");
       }
+      // A read-only staff account asks the model nothing on a learner's behalf:
+      // the call spends quota and files monitoring rows (owner decision 11.10.2026).
+      assertCanWrite(request.auth.token as Record<string, unknown>);
       const facts = deriveSocraticFacts(req);
       const safeAnchor = validateSocraticAnchor(anchor);
       const builtPrompt = buildSocraticPrompt(req, facts, safeAnchor);

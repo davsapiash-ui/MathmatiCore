@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { UdlButton } from "@/presentation/design-system/UdlButton";
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 import {
   SlidersHorizontal,
   CheckCircle2,
@@ -111,6 +112,8 @@ export function AdminCurriculumView() {
   const [hesitationThreshold, setHesitationThreshold] = useState<number>(DEFAULT_HESITATION_THRESHOLD_SECONDS);
   const [isSaved, setIsSaved] = useState(false);
   const [isSavingCalibration, setIsSavingCalibration] = useState(false);
+  // Owner decision 11.10.2026: a read-only staff account publishes and saves nothing.
+  const readOnly = useIsReadOnlyStaff();
   const sessionCatalog = useMemo(() => buildSessionCatalog(), []);
 
   const [expandedSession, setExpandedSession] = useState<number | null>(1);
@@ -252,8 +255,9 @@ export function AdminCurriculumView() {
           <div className="flex items-center gap-3">
             <button
               onClick={handlePublishCatalog}
-              disabled={isPublishingCatalog}
-              className="px-5 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-violet-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              disabled={readOnly || isPublishingCatalog}
+              title={readOnly ? READ_ONLY_TITLE : undefined}
+              className="px-5 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-violet-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <BookOpen className="w-4 h-4" />
               <span>{isPublishingCatalog ? 'מפרסם תוכנית לימודים...' : 'פרסום תוכנית הלימודים'}</span>
@@ -432,6 +436,8 @@ export function AdminCurriculumView() {
                 max="120" 
                 value={hesitationThreshold}
                 onChange={(e) => setHesitationThreshold(parseInt(e.target.value, 10))}
+                disabled={readOnly}
+                title={readOnly ? READ_ONLY_TITLE : undefined}
                 className="w-full accent-violet-600 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer" 
               />
               <p className="text-xs text-slate-600 leading-relaxed">
@@ -453,7 +459,8 @@ export function AdminCurriculumView() {
               semanticColor="primary" 
               className="w-full justify-center py-3.5 rounded-2xl font-bold bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/25 cursor-pointer disabled:opacity-50"
               onClick={handleSaveCalibration}
-              disabled={isSavingCalibration}
+              disabled={readOnly || isSavingCalibration}
+              title={readOnly ? READ_ONLY_TITLE : undefined}
             >
               {isSavingCalibration ? 'שומר...' : 'שמירת הגדרות כיול'}
             </UdlButton>

@@ -12,6 +12,7 @@ import {
 } from '@dnd-kit/core';
 import type { DragSource, Place, DropInput } from '@/core/placeValue';
 import { useWorkspaceStore, type SessionNumber } from '@/application/useWorkspaceStore';
+import { READ_ONLY_TITLE, useIsReadOnlyStaff, useReadOnlyStaffStore } from '@/application/useIsReadOnlyStaff';
 import { PlaceValueBoard } from '@/features/workspace/board/PlaceValueBoard';
 import { DienesBlock } from '@/features/workspace/board/DienesBlock';
 import { DemoStation1Card, DemoTaskCard } from '@/features/workspace/tasks/DemoTaskCard';
@@ -82,6 +83,7 @@ const CONTROL_CLASS =
 export function ProjectorSandboxPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const readOnly = useIsReadOnlyStaff();
   const applyDrop = useWorkspaceStore((s) => s.applyDrop);
   const undo = useWorkspaceStore((s) => s.undo);
   const canUndo = useWorkspaceStore((s) => s.undoStack.length > 0);
@@ -154,6 +156,9 @@ export function ProjectorSandboxPage() {
   // סנכרון מצב שידור מקרן מול Firebase RTDB
   useEffect(() => {
     const projectorRef = ref(database, 'system_control/projector_mode');
+    // Owner decision 11.10.2026: a read-only staff account watches the demo
+    // and writes nothing — not the release on opening, not on disconnect.
+    if (readOnly) setBroadcastError(false);
     // Learners ignore an update whose timestamp is not newer than the last one
     // they saw (out-of-order guard). The release used to take Date.now() HERE,
     // before the broadcast below took its own — so the release was never newer:
@@ -188,27 +193,30 @@ export function ProjectorSandboxPage() {
       if (snap.val() === true) {
         wasConnected = true;
         setConnectionLost(false);
-        onDisconnect(projectorRef).set(release).catch(() => {});
+        if (!readOnly) onDisconnect(projectorRef).set(release).catch(() => {});
       } else if (wasConnected) {
         setConnectionLost(true);
       }
     });
 
     // The page opens with the class released.
-    set(projectorRef, release)
-      .then(() => setBroadcastError(false))
-      .catch((err) => {
-        console.error('[Projector] broadcast write rejected:', err);
-        setBroadcastError(true);
-      });
+    if (!readOnly) {
+      set(projectorRef, release)
+        .then(() => setBroadcastError(false))
+        .catch((err) => {
+          console.error('[Projector] broadcast write rejected:', err);
+          setBroadcastError(true);
+        });
+    }
 
     return () => {
       unsubscribeMode();
       unsubscribeConnected();
+      if (readOnly || useReadOnlyStaffStore.getState().readOnly) return;
       onDisconnect(projectorRef).cancel().catch(() => {});
       set(projectorRef, release).catch(console.error);
     };
-  }, [user?.uid]);
+  }, [user?.uid, readOnly]);
 
   // One write per press. Turning the broadcast on used to go through the
   // effect above: its cleanup wrote the release and its body wrote the
@@ -216,6 +224,7 @@ export function ProjectorSandboxPage() {
   // millisecond left the learners on the release, because they drop an update
   // that is not newer than the last one they saw.
   const toggleBroadcast = () => {
+    if (readOnly) return;
     set(ref(database, 'system_control/projector_mode'), {
       projector_mode: !isBroadcasting,
       projector_mode_updated_at: serverTimestamp(),
@@ -233,6 +242,7 @@ export function ProjectorSandboxPage() {
 
   // שחרור מסכי התלמידים
   const releaseLearnerScreens = () => {
+    if (readOnly) return;
     const projectorRef = ref(database, 'system_control/projector_mode');
     set(projectorRef, {
       projector_mode: false,
@@ -350,12 +360,13 @@ export function ProjectorSandboxPage() {
           ) : (
             <button
               onClick={toggleBroadcast}
+              disabled={readOnly}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${
                 isBroadcasting
                   ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-800 dark:text-violet-200 border-violet-300 dark:border-violet-700 shadow-xs'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border-slate-300 dark:border-slate-600'
               }`}
-              title={isBroadcasting ? 'לחצו להשהיית השידור למסכי התלמידים' : 'לחצו להפעלת שידור ונעילת מסכי התלמידים'}
+              title={readOnly ? READ_ONLY_TITLE : isBroadcasting ? 'לחצו להשהיית השידור למסכי התלמידים' : 'לחצו להפעלת שידור ונעילת מסכי התלמידים'}
             >
               <span className={`w-2 h-2 rounded-full ${isBroadcasting ? 'bg-violet-600' : 'bg-slate-500'}`} />
               <span>{isBroadcasting ? 'שידור פעיל (תלמידים בהמתנה)' : 'שידור מושהה (תלמידים פעילים)'}</span>

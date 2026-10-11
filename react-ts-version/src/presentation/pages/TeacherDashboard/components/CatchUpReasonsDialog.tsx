@@ -17,6 +17,7 @@ import { useState, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import { Clock, X, RotateCcw, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
+import { useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 import {
   CATCHUP_REASON_KEYS,
   CATCHUP_REASON_HE,
@@ -119,7 +120,9 @@ function DialogBody({
 
   const allReasons = learners.length > 0 && learners.every((l) => rowOf(l.studentNumber).reason !== '');
   const anyNoteError = learners.some((l) => rowOf(l.studentNumber).noteError !== null);
-  const canAct = allReasons && !anyNoteError && !isSaving;
+  // A read-only staff account (owner decision 11.10.2026) never saves reasons.
+  const readOnly = useIsReadOnlyStaff();
+  const canAct = !readOnly && allReasons && !anyNoteError && !isSaving;
 
   const applySameForAll = (value: CatchUpReasonKey | '') => {
     setSameForAll(value);

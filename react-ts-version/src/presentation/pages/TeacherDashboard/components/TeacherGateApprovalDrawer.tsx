@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useDismissableOverlay } from '@/hooks/useDismissableOverlay';
 import { type StudentData, useStore } from '@/application/useStore';
 import { useAuthStore } from '@/application/useAuthStore';
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 import { approveTeacherGate } from '@/core/teacherGate';
 import { recommendedPathOf } from '@/core/recommendedPath';
 import type { PedagogicalPath } from '@/types';
@@ -81,6 +82,7 @@ function approvedPathOf(s: Record<string, unknown>, evidence?: GateStudentItem |
 
 export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApproveSuccess }: Props) {
   const [isApproving, setIsApproving] = useState(false);
+  const readOnly = useIsReadOnlyStaff();
   const sAny = (student || {}) as any;
 
   const [selectedPath, setSelectedPath] = useState<PedagogicalPath | null>(() => pathToPreselect(sAny, evidence));
@@ -317,8 +319,8 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
 
           <button
             onClick={handleApprove}
-            disabled={isApproving || selectedPath === null || nothingToSave}
-            title={selectedPath === null ? 'יש לבחור מסלול לפני האישור' : nothingToSave ? 'כדי לשנות את המסלול, בחרו במסלול האחר' : undefined}
+            disabled={readOnly || isApproving || selectedPath === null || nothingToSave}
+            title={readOnly ? READ_ONLY_TITLE : selectedPath === null ? 'יש לבחור מסלול לפני האישור' : nothingToSave ? 'כדי לשנות את המסלול, בחרו במסלול האחר' : undefined}
             className="px-7 py-3 bg-violet-700 hover:bg-violet-800 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-violet-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
           >
             <CheckCircle2 className="w-5 h-5 text-stone-300" />

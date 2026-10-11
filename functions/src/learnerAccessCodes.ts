@@ -2,7 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { randomInt, timingSafeEqual } from "crypto";
-import { readCallerRoles } from "./callerIdentity";
+import { assertCanWrite, readCallerRoles } from "./callerIdentity";
 
 /**
  * Personal learner access codes — PRD Module 1 §א (screen 2) and Module 25 §ב.3:
@@ -165,6 +165,7 @@ export const regenerateLearnerAccessCode = onCall({ cors: true }, async (request
     throw new HttpsError("unauthenticated", "User must be signed in.");
   }
   requireStaffOfPilotClass(request.auth.token as Record<string, unknown>);
+  assertCanWrite(request.auth.token as Record<string, unknown>);
   const studentId = (request.data as { studentId?: unknown } | undefined)?.studentId;
   if (typeof studentId !== "number" || !Number.isInteger(studentId) || studentId < 1 || studentId > 12) {
     throw new HttpsError("invalid-argument", "Student ID must be an integer between 1 and 12");

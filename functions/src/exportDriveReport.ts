@@ -1,5 +1,5 @@
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { requireAdmin, requireTeacherForIndividualData } from "./callerIdentity";
+import { assertCanWrite, requireAdmin, requireTeacherForIndividualData } from "./callerIdentity";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { computeToolMastery, truncatedRecordingMeetings, isScoredMeeting, TOOLS, computeFirstAttemptScore, readAllDocs, resolveCompulsoryTotal, sessionNumberFromId, studentNumberFromSessionId, summarizeMeeting, computeFadingGap, computeFlexibilityIndex, computeMediationEffectiveness, computePersistenceIndex, computeSelfCorrectionIndex, FLEXIBILITY_SESSIONS, resolveMeetingPath, meetingRunsByLearner, isAwaitingRerun } from "./meetingMetrics";
@@ -627,6 +627,8 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
+  // Owner decision 11.10.2026: a read-only staff account resets nothing, at any level.
+  assertCanWrite(request.auth.token as Record<string, unknown>);
 
   const { reset_level, reason, student_id, reset_scope, session_number, reset_target } = request.data || {};
   const class_id = validateClassId(request.data?.class_id, "מזהה הכיתה אינו תקין. האיפוס בוטל ולא נמחקו נתונים.");

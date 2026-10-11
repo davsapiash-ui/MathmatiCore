@@ -7,6 +7,8 @@ import { UdlButton } from "@/presentation/design-system/UdlButton";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { DataGrid } from "@/presentation/design-system/DataGrid";
 import { useAuthStore } from "@/application/useAuthStore";
+import { READ_ONLY_TITLE, useIsReadOnlyStaff, useReadOnlyStaffStore } from "@/application/useIsReadOnlyStaff";
+import { ReadOnlyBanner } from "@/presentation/components/ui/ReadOnlyBanner";
 import { useAdminStore } from "@/application/useAdminStore";
 import { useChatStore, normalizeStudentId, type ChatMessage } from "@/application/useChatStore";
 import { extractTeacherId } from "@/infrastructure/services/FirebaseSyncService";
@@ -79,6 +81,9 @@ import { ROUTE_NAME_HE, TEACHER_GATE_HE, routeNameHe } from "@/core/routeLabels"
  * Two per-meeting maps of one learner (workspaceByMeeting, completedMeetings)
  * from two rows of one snapshot, key by key; null when neither has any.
  */
+/** A read-only staff sign-in (owner decision 11.10.2026): no automatic write either. */
+const isReadOnlyNow = () => useReadOnlyStaffStore.getState().readOnly;
+
 function mergeByMeeting(
   earlier: unknown,
   later: unknown,
@@ -134,6 +139,9 @@ export function TeacherDashboard() {
   // same choice the children's screens do (core/teacherGender.ts) — with or
   // without the side menu that shows it.
   useTeacherGender();
+  // Owner decision 11.10.2026: a read-only staff account sees everything and
+  // changes nothing; every control that writes is disabled with this title.
+  const readOnly = useIsReadOnlyStaff();
 
   useEffect(() => {
     initSync();
@@ -392,7 +400,7 @@ export function TeacherDashboard() {
       // also records the close so the shared record says so. Once per start.
       const autoCloseAt = getSessionAutoCloseAt(val);
       const startedAt = readSessionStartedAt(val);
-      if (lastVal?.active === true && autoCloseAt !== null && serverNow() >= autoCloseAt && startedAt !== autoClosedStart) {
+      if (lastVal?.active === true && autoCloseAt !== null && serverNow() >= autoCloseAt && startedAt !== autoClosedStart && !isReadOnlyNow()) {
         autoClosedStart = startedAt;
         // Read before the write: the SDK raises our own set() on this listener
         // at once, and lastVal is then the closed record (sessionNumber null).
@@ -520,6 +528,9 @@ export function TeacherDashboard() {
     // dropped tells the teacher.
     let droppedHere = false;
     const armPresence = () => {
+      // A read-only account is not the teacher of the lesson: its page arms no
+      // disconnect stamp that could close the meeting for the learners.
+      if (isReadOnlyNow()) return;
       // Cancel any legacy whole-session close hook an older client left armed,
       // then stamp the disconnect time. A refused hook must not surface as an
       // unhandled rejection; the grace window then simply is not armed.
@@ -555,7 +566,7 @@ export function TeacherDashboard() {
     const unsubStamp = onValue(activeSessionRef, (snap) => {
       const rec = snap.exists() ? (snap.val() as Record<string, unknown>) : null;
       const stamp = typeof rec?.teacherDisconnectedAt === 'number' ? rec.teacherDisconnectedAt : null;
-      if (!rec || stamp === null || !isConnected) return;
+      if (!rec || stamp === null || !isConnected || isReadOnlyNow()) return;
       const graceMinutes = Math.round(TEACHER_DISCONNECT_GRACE_MS / 60000);
       if (rec.active === true && serverNow() - stamp > TEACHER_DISCONNECT_GRACE_MS) {
         // A meeting also past its 45-minute limit (left open yesterday) is
@@ -827,7 +838,7 @@ export function TeacherDashboard() {
   // Pause keeps the meeting open (active: true) and stamps status: 'paused';
   // every learner's screen shows the waiting overlay in place. Resume clears it.
   const handlePauseClassSession = async () => {
-    if (isUpdatingSession || isUpdatingSessionRef.current) return;
+    if (readOnly || isUpdatingSession || isUpdatingSessionRef.current) return;
     isUpdatingSessionRef.current = true;
     setIsUpdatingSession(true);
     try {
@@ -854,7 +865,7 @@ export function TeacherDashboard() {
   };
 
   const handleResumeClassSession = async () => {
-    if (isUpdatingSession || isUpdatingSessionRef.current) return;
+    if (readOnly || isUpdatingSession || isUpdatingSessionRef.current) return;
     isUpdatingSessionRef.current = true;
     setIsUpdatingSession(true);
     try {
@@ -1530,7 +1541,7 @@ export function TeacherDashboard() {
   }, [activeTab, selectedStudentId, allStudents, messages]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || readOnly) return;
     
     // Process admin messages. They live in Firestore `messages` (Module 22),
     // so they are marked read there — this used to call the RTDB chat
@@ -1557,7 +1568,7 @@ export function TeacherDashboard() {
         markAsRead(user.uid as string, targetId);
       }
     }
-  }, [isAdminChatDrawerOpen, activeTab, selectedStudentId, messages, adminMessages, user, markAsRead]);
+  }, [isAdminChatDrawerOpen, activeTab, selectedStudentId, messages, adminMessages, user, markAsRead, readOnly]);
 
   // PRD 7.3 Module 22 §ב.1: "הלקוח סורק בזמן אמת את תיבת הקלט. אם זוהו ...
   // כפתור השליחה נחסם ומוצגת התראה עדינה". The scan used to run only on
@@ -1575,7 +1586,7 @@ export function TeacherDashboard() {
   }, [adminInputText]);
 
   const handleSendAdmin = async () => {
-    if (!adminInputText.trim() || !user || isSendingAdmin || isSendingAdminRef.current) return;
+    if (readOnly || !adminInputText.trim() || !user || isSendingAdmin || isSendingAdminRef.current) return;
     if (adminInputPiiNotice) return; // the notice is already on screen, under the box
     isSendingAdminRef.current = true;
     setIsSendingAdmin(true);
@@ -1658,7 +1669,7 @@ export function TeacherDashboard() {
   }, [inputText]);
 
   const handleSendStudent = () => {
-    if (!inputText.trim() || !user || !selectedStudentId) return;
+    if (readOnly || !inputText.trim() || !user || !selectedStudentId) return;
     if (studentInputPiiNotice) return; // the notice is already on screen, under the box
 
     // Module 22: Tier 1 client-side check. PRD Module 3 §א (v7.9): if the
@@ -1741,6 +1752,7 @@ export function TeacherDashboard() {
       data-load-timed-out={loadTimedOut ? 'true' : undefined}
       dir="rtl"
     >
+      <ReadOnlyBanner />
       {loadTimedOut && (
         <div role="alert" className="w-full bg-rose-50 border-b border-rose-200 text-rose-800 text-sm font-bold px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
           <span>
@@ -1992,8 +2004,8 @@ export function TeacherDashboard() {
 
             <button
               onClick={() => setPendingActivationSession(pickedSessionNum)}
-              disabled={(isClassSessionActive && pickedSessionNum === selectedSessionNum) || isUpdatingSession || isStartingSession}
-              title={isClassSessionActive && pickedSessionNum === selectedSessionNum ? `${meetingShortLabelHe(pickedSessionNum)} כבר פתוח עכשיו` : `פתיחת ${meetingShortLabelHe(pickedSessionNum)} לכל הכיתה`}
+              disabled={readOnly || (isClassSessionActive && pickedSessionNum === selectedSessionNum) || isUpdatingSession || isStartingSession}
+              title={readOnly ? READ_ONLY_TITLE : isClassSessionActive && pickedSessionNum === selectedSessionNum ? `${meetingShortLabelHe(pickedSessionNum)} כבר פתוח עכשיו` : `פתיחת ${meetingShortLabelHe(pickedSessionNum)} לכל הכיתה`}
               className="px-6 py-2.5 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
             >
               <Play className="w-4 h-4" aria-hidden="true" />
@@ -2004,7 +2016,8 @@ export function TeacherDashboard() {
                 {classSessionStatus === 'paused' ? (
                   <button
                     onClick={handleResumeClassSession}
-                    disabled={isUpdatingSession}
+                    disabled={readOnly || isUpdatingSession}
+                    title={readOnly ? READ_ONLY_TITLE : undefined}
                     className="px-5 py-2.5 bg-violet-700 hover:bg-violet-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                   >
                     {isUpdatingSession ? (
@@ -2017,7 +2030,8 @@ export function TeacherDashboard() {
                 ) : (
                   <button
                     onClick={handlePauseClassSession}
-                    disabled={isUpdatingSession}
+                    disabled={readOnly || isUpdatingSession}
+                    title={readOnly ? READ_ONLY_TITLE : undefined}
                     className="px-5 py-2.5 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                   >
                     {isUpdatingSession ? (
@@ -2030,7 +2044,8 @@ export function TeacherDashboard() {
                 )}
                 <button
                   onClick={() => { void requestCloseClassSession(); }}
-                  disabled={isUpdatingSession || isSavingCatchUp}
+                  disabled={readOnly || isUpdatingSession || isSavingCatchUp}
+                  title={readOnly ? READ_ONLY_TITLE : undefined}
                   className="px-5 py-2.5 bg-rose-800 hover:bg-rose-900 disabled:bg-slate-200 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
                   {isUpdatingSession ? (
@@ -2775,7 +2790,8 @@ export function TeacherDashboard() {
                 onChange={(e) => setAdminInputText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSendAdmin()}
                 placeholder="הקלידו הודעה למנהל המערכת..."
-                disabled={isSendingAdmin}
+                disabled={readOnly || isSendingAdmin}
+                title={readOnly ? READ_ONLY_TITLE : undefined}
                 aria-invalid={adminInputPiiNotice ? true : undefined}
                 aria-describedby={adminInputPiiNotice ? "admin-chat-pii-notice" : undefined}
                 className={`flex-1 bg-slate-50 dark:bg-slate-800 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-white disabled:opacity-60 ${adminInputPiiNotice ? 'border-stone-400 focus:ring-stone-400' : 'border-slate-200 dark:border-slate-700 focus:ring-violet-500'}`}
@@ -2783,7 +2799,8 @@ export function TeacherDashboard() {
 
               <button
                 onClick={handleSendAdmin}
-                disabled={!adminInputText.trim() || isSendingAdmin || adminInputPiiNotice !== null}
+                disabled={readOnly || !adminInputText.trim() || isSendingAdmin || adminInputPiiNotice !== null}
+                title={readOnly ? READ_ONLY_TITLE : undefined}
                 aria-label="שליחת ההודעה"
                 className="rounded-full w-10 h-10 flex items-center justify-center bg-violet-600 hover:bg-violet-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0 cursor-pointer disabled:cursor-not-allowed"
               >
@@ -2811,8 +2828,9 @@ export function TeacherDashboard() {
                     {unreadStudentsCount > 0 && (
                       <button
                         onClick={() => markAllAsRead()}
-                        className="text-xs font-bold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 hover:underline transition-colors px-1"
-                        title="סמנו את כל ההודעות כנקראו"
+                        disabled={readOnly}
+                        className="text-xs font-bold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 hover:underline transition-colors px-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+                        title={readOnly ? READ_ONLY_TITLE : "סמנו את כל ההודעות כנקראו"}
                       >
                         סמנו הכול כנקרא
                       </button>
@@ -3007,6 +3025,8 @@ export function TeacherDashboard() {
                       onChange={(e) => setInputText(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendStudent()}
                       placeholder="הקלידו הודעה לתלמיד..."
+                      disabled={readOnly}
+                      title={readOnly ? READ_ONLY_TITLE : undefined}
                       aria-invalid={studentInputPiiNotice ? true : undefined}
                       aria-describedby={studentInputPiiNotice ? "student-chat-pii-notice" : undefined}
                       className={`flex-1 bg-slate-50 dark:bg-slate-800 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all text-slate-900 dark:text-white ${studentInputPiiNotice ? 'border-stone-400 focus:ring-stone-400' : 'border-slate-200 dark:border-slate-700 focus:ring-violet-500'}`}
@@ -3014,7 +3034,8 @@ export function TeacherDashboard() {
 
                     <button
                       onClick={handleSendStudent}
-                      disabled={!inputText.trim() || studentInputPiiNotice !== null}
+                      disabled={readOnly || !inputText.trim() || studentInputPiiNotice !== null}
+                      title={readOnly ? READ_ONLY_TITLE : undefined}
                       aria-label="שליחת ההודעה"
                       className="rounded-full w-10 h-10 flex items-center justify-center bg-violet-600 hover:bg-violet-700 text-white transition-all disabled:opacity-40 shadow-md shrink-0"
                     >

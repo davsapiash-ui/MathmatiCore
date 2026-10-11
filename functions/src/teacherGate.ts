@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { requireTeacherForIndividualData } from "./callerIdentity";
+import { assertCanWrite, requireTeacherForIndividualData } from "./callerIdentity";
 import { assertCallerClass, validateClassId } from "./exportDriveReport";
 
 /**
@@ -64,6 +64,7 @@ export const approveTeacherGate = onCall(async (request) => {
   // The gate is the teacher's decision (Module 20, Module 24 §ב): a teacher
   // sign-in only — an admin sign-in is refused, as the RTDB rules refuse it.
   requireTeacherForIndividualData(token);
+  assertCanWrite(token);
 
   const n = gateLearnerNumber(request.data?.studentId);
   if (n === null) throw new HttpsError("invalid-argument", "מזהה הלומד אינו תקין. האישור לא נשמר.");

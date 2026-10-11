@@ -32,7 +32,7 @@ try {
 }
 
 const { initializeTestEnvironment, assertFails, assertSucceeds } = rulesTesting;
-const { doc, setDoc, serverTimestamp } = firestoreSdk;
+const { doc, setDoc, getDoc, deleteDoc, serverTimestamp } = firestoreSdk;
 const { ref, update, set, get } = databaseSdk;
 
 const env = await initializeTestEnvironment({
@@ -451,6 +451,82 @@ await check('הלומד אינו כותב אירוע על ילד אחר', () =>
     })
   )
 );
+
+// בעל המוצר, 11.10.2026: חשבון צוות לצפייה בלבד. אותו תפקיד (מורה או מנהל),
+// עם הטענה readOnly: true. קורא כל מה שהתפקיד קורא, ואינו כותב דבר.
+const roTeacher = env.authenticatedContext('ro_teacher', {
+  role: 'teacher', teacher: true, admin: false, class_id: 'class_1', readOnly: true,
+});
+const roAdmin = env.authenticatedContext('ro_admin', {
+  role: 'admin', admin: true, teacher: false, email: 'lecturer@example.org', readOnly: true,
+});
+const admin = env.authenticatedContext('admin_1', { role: 'admin', admin: true, teacher: false });
+const rotdb = roTeacher.database();
+const rotfs = roTeacher.firestore();
+const roadb = roAdmin.database();
+const roafs = roAdmin.firestore();
+
+console.log('\nצפייה בלבד — מורה (בעל המוצר, 11.10.2026)');
+await check('מורה לצפייה בלבד קוראת את נתוני הכיתה', async () => {
+  await assertSucceeds(get(ref(rotdb, node)));
+  await assertSucceeds(get(ref(rotdb, 'users/students')));
+  await assertSucceeds(get(ref(rotdb, 'active_class_session')));
+  await assertSucceeds(getDoc(doc(rotfs, 'students', 'student_user3')));
+  await assertSucceeds(getDoc(doc(rotfs, 'sessions', 'session_02_student_3')));
+});
+await check('אינה מאשרת שער, אינה בוחרת מסלול ואינה מסמנת מסלול מדורג', async () => {
+  await assertFails(update(ref(rotdb, node), { routeStatus: 'APPROVED', teacher_gate_approved: true }));
+  await assertFails(update(ref(rotdb, node), { pedagogicalPath: 'green_path' }));
+  await assertFails(update(ref(rotdb, node), { graded_track: true }));
+  await assertFails(
+    setDoc(doc(rotfs, 'sessions', 'session_02_student_3'),
+      { teacher_selected_path: 'green_path', gate_approved_at: 8, gate_approved_by: 'ro_teacher' }, { merge: true })
+  );
+});
+await check('אינה משנה פרופיל תמיכה', () =>
+  assertFails(setDoc(doc(rotfs, 'students', 'student_user3'), { support_profile_id: 'enhanced_cognitive_support' }, { merge: true }))
+);
+await check('אינה פותחת, עוצרת או סוגרת מפגש', async () => {
+  await assertFails(set(ref(rotdb, 'active_class_session'), { session_number: 3, status: 'active' }));
+  await assertFails(update(ref(rotdb, 'active_class_session'), { status: 'closed' }));
+});
+await check('אינה משנה מקרן ולשון מורה', async () => {
+  await assertFails(set(ref(rotdb, 'system_control/projector_mode'), { projector_mode: true, projector_mode_updated_at: 9, updated_by_teacher_id: 'ro_teacher' }));
+  await assertFails(set(ref(rotdb, 'system_control/teacher_gender'), 'male'));
+});
+await check('אינה כותבת לצ׳אט, להתראות המכ"ם וליומן', async () => {
+  await assertFails(set(ref(rotdb, 'chat_messages/student_user3/m1'), { text: 'שלום', timestamp: 1 }));
+  await assertFails(set(ref(rotdb, 'radar_alerts/student_user3_a'), null));
+  await assertFails(set(ref(rotdb, 'audit_logs/log_ro'), { user_id: 'ro_teacher', timestamp: 1 }));
+});
+
+console.log('\nצפייה בלבד — מנהל');
+await check('מנהל לצפייה בלבד קורא את הקטלוג ואת רשימת הצוות', async () => {
+  await assertSucceeds(getDoc(doc(roafs, 'curriculum_catalog', 'meeting_3')));
+  await assertSucceeds(getDoc(doc(roafs, 'authorizedTeachers', 'someone@example.org')));
+  await assertSucceeds(get(ref(roadb, 'users/teachers')));
+});
+await check('אינו מפרסם קטלוג ואינו משנה system_control', async () => {
+  await assertFails(setDoc(doc(roafs, 'curriculum_catalog', 'meeting_3'), { published: true }));
+  await assertFails(setDoc(doc(roafs, 'system_control', 'calibration'), { x: 1 }));
+  await assertFails(set(ref(roadb, 'system_control/globalStudentLimit'), 10));
+});
+await check('אינו מוסיף או מסיר מורה, ואינו מבטל לעצמו את דגל הצפייה', async () => {
+  await assertFails(setDoc(doc(roafs, 'authorizedTeachers', 'new@example.org'), { email: 'new@example.org', role: 'teacher' }));
+  await assertFails(deleteDoc(doc(roafs, 'authorizedTeachers', 'someone@example.org')));
+  await assertFails(setDoc(doc(roafs, 'authorizedTeachers', 'lecturer@example.org'), { readOnly: false }, { merge: true }));
+  await assertFails(set(ref(roadb, 'users/teachers/t1'), { licenseActive: true }));
+});
+
+console.log('\nצוות רגיל — ללא שינוי');
+await check('מורה רגילה עדיין פותחת מפגש ומסמנת מסלול מדורג', async () => {
+  await assertSucceeds(set(ref(tdb, 'active_class_session'), { session_number: 3, status: 'active' }));
+  await assertSucceeds(update(ref(tdb, node), { graded_track: true }));
+});
+await check('מנהל רגיל עדיין מפרסם קטלוג ומוסיף מורה', async () => {
+  await assertSucceeds(setDoc(doc(admin.firestore(), 'curriculum_catalog', 'meeting_3'), { published: true }));
+  await assertSucceeds(setDoc(doc(admin.firestore(), 'authorizedTeachers', 'new@example.org'), { email: 'new@example.org', role: 'teacher' }));
+});
 
 await env.cleanup();
 console.log(`\n${passed} עברו, ${failed} נכשלו`);

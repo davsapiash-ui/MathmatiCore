@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
-import { claimsForSignIn, parseRequestedRole } from "./roleClaims";
+import { claimsForSignIn, parseRequestedRole, withReadOnlyFlag } from "./roleClaims";
 
 const UNIFIED_ADMIN_UID = "admin_unified_identity";
 
@@ -56,6 +56,10 @@ export const syncUserRoles = onCall(
     const firestore = admin.firestore();
     let isAuthorizedTeacher = false;
     let isAuthorizedAdmin = false;
+    // Owner decision 11.10.2026: a read-only staff account (authorizedTeachers
+    // doc `readOnly: true`) sees everything and changes nothing. Only the
+    // whitelist document can set it; the env-var fallbacks are the owner's own.
+    let isReadOnly = false;
     let resolvedUid = request.auth.uid;
 
     // Check the documented pilot fallback addresses
@@ -69,6 +73,7 @@ export const syncUserRoles = onCall(
         const teacherDoc = await firestore.collection("authorizedTeachers").doc(normalizedEmail).get();
         if (teacherDoc.exists) {
           const data = teacherDoc.data();
+          isReadOnly = data?.readOnly === true;
           if (data?.role === "admin") {
             isAuthorizedAdmin = true;
           } else {
@@ -87,8 +92,16 @@ export const syncUserRoles = onCall(
 
     // The role this sign-in chose on the login screen (register, gap יא).
     const requestedRole = parseRequestedRole(request.data);
-    const claims = claimsForSignIn({ isAuthorizedAdmin, isAuthorizedTeacher }, requestedRole);
-    if (isAuthorizedAdmin && claims.role === "admin") {
+    const claims = withReadOnlyFlag(
+      claimsForSignIn({ isAuthorizedAdmin, isAuthorizedTeacher }, requestedRole),
+      isReadOnly
+    );
+    // The claims always go on the caller's own uid (setCustomUserClaims below).
+    // UNIFIED_ADMIN_UID is only a label returned to the client — no account's
+    // claims change through it, and no client code reads it. A read-only
+    // sign-in keeps its own uid even as that label, so it is never presented
+    // as the owner's shared admin identity nor makes that identity read-only.
+    if (isAuthorizedAdmin && claims.role === "admin" && claims.readOnly !== true) {
       resolvedUid = UNIFIED_ADMIN_UID;
     }
 
@@ -114,7 +127,7 @@ export const syncUserRoles = onCall(
       // Set Auth Custom Claims on the actual token
       await admin.auth().setCustomUserClaims(request.auth.uid, claims);
       
-      logger.info(`Stamped roles for ${normalizedEmail}: role=${claims.role}`);
+      logger.info(`Stamped roles for ${normalizedEmail}: role=${claims.role}${claims.readOnly === true ? " (read-only)" : ""}`);
 
       return {
         success: true,

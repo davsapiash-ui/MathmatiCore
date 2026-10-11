@@ -77,8 +77,9 @@ describe('Module 25 §ב.1 — one school, one class', () => {
     expect(rtdbRules.rules.schools.$schoolId['.validate']).toBe("$schoolId == 'school_bikorot'");
     expect(rtdbRules.rules.classes.$classId['.validate']).toBe("$classId == 'class_1'");
     expect(rtdbRules.rules.public_classes.$classId['.validate']).toBe("$classId == 'class_1'");
-    expect(firestoreRules).toContain("allow create, update: if isAdmin() && schoolId == 'school_bikorot';");
-    expect(firestoreRules).toContain("allow create, update: if classId == 'class_1' && (isTeacherOfClass(classId) || isAdmin()) && isValidClassDoc();");
+    // canWrite(): a read-only staff account writes nothing (owner decision 11.10.2026).
+    expect(firestoreRules).toContain("allow create, update: if canWrite() && isAdmin() && schoolId == 'school_bikorot';");
+    expect(firestoreRules).toContain("allow create, update: if canWrite() && classId == 'class_1' && (isTeacherOfClass(classId) || isAdmin()) && isValidClassDoc();");
   });
 });
 

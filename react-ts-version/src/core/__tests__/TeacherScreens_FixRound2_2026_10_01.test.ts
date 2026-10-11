@@ -122,7 +122,8 @@ describe('Module 22 §ב.1 — tier 1 scans the box as the teacher types and blo
   const dash = src('presentation/pages/TeacherDashboard.tsx');
   it('a live scan of the input, a disabled button and a notice under the box', () => {
     expect(dash).toMatch(/const adminInputPiiNotice = useMemo\(\(\) => \{[\s\S]*?validateChatInputForPII\(adminInputText\)[\s\S]*?\}, \[adminInputText\]\);/);
-    expect(dash).toContain('disabled={!adminInputText.trim() || isSendingAdmin || adminInputPiiNotice !== null}');
+    // readOnly: a read-only staff account sends nothing (owner decision 11.10.2026).
+    expect(dash).toContain('disabled={readOnly || !adminInputText.trim() || isSendingAdmin || adminInputPiiNotice !== null}');
     expect(dash).toContain('id="admin-chat-pii-notice"');
     expect(dash).toContain('if (adminInputPiiNotice) return;');
   });

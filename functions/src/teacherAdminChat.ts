@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { assertCanWrite } from "./callerIdentity";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { scrubPII } from "./geminiProxy";
@@ -42,6 +43,7 @@ export const sendTeacherAdminMessage = onCall(async (request) => {
   if (!isStaff) {
     throw new HttpsError("permission-denied", "Only teachers and admins may use this channel.");
   }
+  assertCanWrite(token);
 
   const { receiver_id, message_body, school_id, class_name, class_id = "class_1", client_message_id } = request.data || {};
   if (!receiver_id || !message_body) {

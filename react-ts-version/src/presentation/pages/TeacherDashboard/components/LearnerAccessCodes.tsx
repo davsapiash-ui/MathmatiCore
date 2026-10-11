@@ -3,6 +3,7 @@ import { KeyRound, RefreshCw } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/infrastructure/firebase';
 import { toast } from 'sonner';
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 
 /**
  * קודי הגישה האישיים — PRD מודול 1 §א ומודול 25 §ב.3: לכל לומד קוד בן 4 ספרות.
@@ -16,6 +17,7 @@ export function LearnerAccessCodes() {
   const [codes, setCodes] = useState<Record<string, string> | null>(null);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
+  const readOnly = useIsReadOnlyStaff();
 
   useEffect(() => {
     let alive = true;
@@ -68,7 +70,8 @@ export function LearnerAccessCodes() {
               <button
                 type="button"
                 onClick={() => handleNewCode(id)}
-                disabled={busyId !== null}
+                disabled={readOnly || busyId !== null}
+                title={readOnly ? READ_ONLY_TITLE : undefined}
                 aria-label={`קוד חדש לתלמיד ${id}`}
                 className="w-full py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-white hover:bg-violet-50 text-violet-700 border border-violet-200 dark:bg-slate-800 dark:text-violet-300 dark:border-violet-800 disabled:opacity-50"
               >

@@ -3,6 +3,7 @@ import { httpsCallable } from "firebase/functions";
 import { BrainCircuit, RefreshCw, CheckCircle2, AlertTriangle, MinusCircle } from "lucide-react";
 import { AccessibleCard } from "@/presentation/design-system/AccessibleCard";
 import { functions } from "@/infrastructure/firebase";
+import { READ_ONLY_TITLE, useIsReadOnlyStaff } from '@/application/useIsReadOnlyStaff';
 
 /**
  * Module 13 / Module 27 §ב.6 — the admin console's read-only view of the
@@ -127,6 +128,8 @@ export function AiEngineStatusCard() {
   const [loading, setLoading] = useState(false);
 
   const [testing, setTesting] = useState(false);
+  // A live test spends quota and stores its result: not for a read-only account.
+  const readOnly = useIsReadOnlyStaff();
   const load = useCallback(async (testCall = false) => {
     if (testCall) setTesting(true);
     else setLoading(true);
@@ -266,7 +269,8 @@ export function AiEngineStatusCard() {
             <button
               type="button"
               onClick={() => load(true)}
-              disabled={testing || loading}
+              disabled={readOnly || testing || loading}
+              title={readOnly ? READ_ONLY_TITLE : undefined}
               className="px-3 py-1.5 rounded-xl text-sm font-bold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
             >
               {testing ? "בבדיקה…" : "בדיקת חיבור למודל"}
