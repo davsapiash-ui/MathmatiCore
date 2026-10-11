@@ -39,6 +39,9 @@ import type { PedagogicalPath } from '@/types';
 import { hasLegacyRecordings } from '@/core/legacyRecordings';
 import { LegacyRecordingsButton } from './LegacyRecordingsButton';
 import { gateApprovedToastHe } from './TeacherGateApprovalDrawer';
+import { MediationLogSection } from './MediationLogSection';
+import { useOpenMediationEvents } from '@/application/useTeacherMediationStore';
+import { MEDIATION_HE, openCountByLearner } from '@/core/teacherMediation';
 
 // Radar status color resolution lives in core/radarColor.ts (resolveRadarColor)
 // — the full BLUE > RED > GREY > YELLOW > GREEN priority actually rendered
@@ -60,6 +63,32 @@ export function getCognitiveGlyph(errorCategory: 'calculation' | 'procedural' | 
   }
   return null;
 }
+
+/**
+ * The radar's colour map, always above the grid (owner, 11.10.2026). The
+ * meanings are Module 18 §ב's, unchanged; green and yellow follow the
+ * calibrated hesitation threshold (45 seconds by default).
+ */
+/** What the radar is and what a tile opens — the radar heading's tooltip. */
+export const RADAR_EXPLANATION_HE = 'מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת כדי לראות את פרטי התלמיד: המסלול, המפגש, סיווגי הטעות ושאלות מנחות.';
+
+export function radarLegendItems(thresholdSeconds: number): Array<{ color: 'GREEN' | 'YELLOW' | 'RED' | 'BLUE' | 'GREY'; meaning: string; dot: string }> {
+  // The dot shows the colour; no colour word ("צהוב" is not a word the teacher reads, owner 27.9.2026).
+  return [
+    { color: 'GREEN', meaning: `עובד (פעולה ב-${thresholdSeconds} השניות האחרונות)`, dot: 'bg-emerald-500' },
+    { color: 'YELLOW', meaning: `תקוע: ${thresholdSeconds} שניות בלי פעולה`, dot: 'bg-amber-400' },
+    { color: 'RED', meaning: `${CARD_OPEN_HE} אצלו`, dot: 'bg-rose-500' },
+    { color: 'BLUE', meaning: 'קרא למורה', dot: 'bg-blue-500' },
+    { color: 'GREY', meaning: 'לא מחובר או לא התחיל את המפגש', dot: 'bg-slate-300 dark:bg-slate-600' },
+  ];
+}
+
+/** The tile letters (Module 18), under the names Module 18 gives the three classifications. */
+export const RADAR_LEGEND_LETTERS = [
+  { glyph: 'מ', meaning: ERROR_CATEGORY_HE.conceptual },
+  { glyph: 'ח', meaning: ERROR_CATEGORY_HE.calculation },
+  { glyph: 'ר', meaning: ERROR_CATEGORY_HE.procedural },
+] as const;
 
 export interface AnonymousStudent {
   id: string; // e.g. "student_1"
@@ -348,6 +377,8 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   const [resetMenuOpen, setResetMenuOpen] = useState(false);
   // Owner decision 11.10.2026: the menu opens for a read-only account; its resets do not.
   const readOnly = useIsReadOnlyStaff();
+  // Measure 5 (owner, 11.10.2026): unrecorded mediation events per learner, as a number on the tile.
+  const openMediationByLearner = openCountByLearner(useOpenMediationEvents());
   const resetMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!resetMenuOpen) return;
@@ -789,13 +820,14 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
   const pendingGateStudents = useMemo(() => students.filter(s => s.isWaitingAtGate), [students]);
 
   return (
-    <div className="flex flex-col gap-6" dir="rtl">
+    <div className="flex flex-col gap-2.5" dir="rtl">
       {/* Module 18: Clean Header & Legend for Silent Radar Matrix */}
-      <section className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <section className="bg-white dark:bg-slate-900 rounded-2xl px-2.5 py-2 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col gap-1.5">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
-              <Users className="w-6 h-6 text-violet-600 dark:text-violet-400" />
+            {/* The explanation is the heading's tooltip (owner, 11.10.2026): the tiles fit a 1366×768 screen. */}
+            <h2 title={RADAR_EXPLANATION_HE} className="text-sm font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <Users className="w-5 h-5 text-violet-600 dark:text-violet-400" />
               <span>הרדאר הפדגוגי השקט</span>
               <span className="text-xs bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400 border border-violet-200/60 dark:border-violet-800 px-2.5 py-0.5 rounded-full font-bold">
                 12 תלמידים
@@ -809,7 +841,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               <button
                 onClick={handleExportResearchDataset}
                 disabled={isExportingDataset}
-                className="px-3 py-2.5 min-h-11 rounded-xl border border-violet-200 hover:border-violet-400 bg-violet-50/60 hover:bg-violet-100 dark:bg-violet-950/40 dark:border-violet-800 text-violet-700 dark:text-violet-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                className="px-2.5 py-1 min-h-8 rounded-lg border border-violet-200 hover:border-violet-400 bg-violet-50/60 hover:bg-violet-100 dark:bg-violet-950/40 dark:border-violet-800 text-violet-700 dark:text-violet-300 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
                 title="ייצוא נתוני מחקר גולמיים ואנונימיים (טלמטריה, מפגשים, רפלקציות, לוג איפוסים) ל-Drive"
               >
                 <FileDown className={`w-3.5 h-3.5 ${isExportingDataset ? 'animate-pulse' : ''}`} />
@@ -830,7 +862,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   aria-expanded={resetMenuOpen}
                   data-testid="reset-menu-button"
                   title="איפוס התראות, איפוס המפגש לכיתה ואיפוס כל נתוני הכיתה"
-                  className="px-3 py-2.5 min-h-11 rounded-xl border border-slate-200/80 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold transition-all active:scale-[0.97] flex items-center gap-1.5 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/40"
+                  className="px-2.5 py-1 min-h-8 rounded-lg border border-slate-200/80 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold transition-all active:scale-[0.97] flex items-center gap-1.5 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/40"
                 >
                   <Settings className="w-3.5 h-3.5" />
                   <span>הגדרות ואיפוס</span>
@@ -887,36 +919,30 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
               </div>
             </div>
           </div>
-          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-            מרכז בקרה אחוד. עדכוני צבע בלבד ללא הפרעה לתלמיד. לחצו על משבצת כדי לראות את פרטי התלמיד: המסלול, המפגש, סיווגי הטעות ושאלות מנחות.
-          </p>
         </div>
 
         {/* 5-Color Status Legend per PRD v7.1 Module 18 (BLUE > RED > GREY > YELLOW > GREEN) */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700">
-          <div className="flex items-center gap-1.5">
-            {/* The slow breath is for a live call only; it ran here all lesson long, with no call open. */}
-            <span data-testid="legend-help-dot" className={`w-3 h-3 rounded-full bg-blue-500 shadow-sm ${students.some((s) => s.helpRequested) ? 'animate-radar-call' : ''}`} />
-            <span>קריאה לעזרה</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
-            <span>תקין</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-amber-400 shadow-sm" />
-            <span>היסוס ({getHesitationThresholdSeconds()} שנ׳)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-rose-500 shadow-sm" />
-            <span>{CARD_OPEN_HE}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600 shadow-sm" />
-            <span>מנותק או ממתין למפגש</span>
-          </div>
+        {/* Owner, 11.10.2026: the colour map always in view, each colour with what it means, and the letters. */}
+        <div data-testid="radar-legend" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] leading-tight font-semibold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 rounded-xl border border-slate-200/60 dark:border-slate-700">
+          {radarLegendItems(getHesitationThresholdSeconds()).map((item) => (
+            <span key={item.color} data-testid={`radar-legend-${item.color}`} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-900">
+              {/* A key, never animated (owner, 11.10.2026; Module 18 "אינו מהבהב ואינו פועם"). */}
+              <span aria-hidden="true" data-testid={item.color === 'BLUE' ? 'legend-help-dot' : undefined} className={`w-3 h-3 shrink-0 rounded-full ${item.dot}`} />
+              <span>{item.meaning}</span>
+            </span>
+          ))}
+          {/* The letters and the level stripe follow the colours in the same flow. */}
+          <div className="contents">
+          <span data-testid="radar-legend-letters" className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 ps-1">
+            {RADAR_LEGEND_LETTERS.map((l) => (
+              <span key={l.glyph} className="inline-flex items-center gap-1.5">
+                <span aria-hidden="true" className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] font-black rounded bg-slate-900/10 dark:bg-white/10 text-slate-900 dark:text-slate-100 border border-slate-400/40">{l.glyph}</span>
+                <span>{l.meaning}</span>
+              </span>
+            ))}
+          </span>
           {/* The level stripe on a tile's edge (core/routeColors.ts): its own key, apart from the status colours. */}
-          <div data-testid="radar-level-legend" className="flex flex-wrap items-center gap-x-3 gap-y-1 w-full pt-1.5 border-t border-slate-200/60 dark:border-slate-700">
+          <div data-testid="radar-level-legend" className="flex flex-wrap items-center gap-x-2 gap-y-1 ps-1">
             <span className="font-bold">פס בקצה המשבצת:</span>
             {(['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'] as const).map((path) => (
               <span key={path} className="flex items-center gap-1.5">
@@ -924,6 +950,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 <span>{ROUTE_NAME_HE[path]}</span>
               </span>
             ))}
+          </div>
           </div>
         </div>
       </section>
@@ -978,9 +1005,9 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
           const members = students.filter((s) => (s.gradedTrack === true) === (group === 'graded'));
           if (members.length === 0) return null;
           return (
-            <div key={group} data-testid={`radar-group-${group}`} className="max-w-4xl mx-auto w-full mb-4">
-              <h3 className="text-sm font-extrabold text-slate-700 dark:text-slate-200 mb-2">{LEARNER_GROUP_HE[group]} ({members.length})</h3>
-        <div data-testid="radar-grid" className="grid grid-cols-4 gap-2 sm:gap-4 w-full">
+            <div key={group} data-testid={`radar-group-${group}`} className="max-w-4xl mx-auto w-full mb-1.5">
+              <h3 className="text-[11px] leading-tight font-extrabold text-slate-700 dark:text-slate-200 mb-0.5">{LEARNER_GROUP_HE[group]} ({members.length})</h3>
+        <div data-testid="radar-grid" className="grid grid-cols-4 gap-2 w-full">
           {members.map((student) => {
             return (
               <div
@@ -1003,7 +1030,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                   hesitationThresholdSeconds: getHesitationThresholdSeconds(),
                   sessionStarted: hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum),
                 })}
-                className={`p-4 rounded-2xl border text-right transition-colors duration-500 ease-in-out flex flex-col justify-between min-h-[125px] relative overflow-hidden shadow-sm hover:shadow-md cursor-pointer ${
+                className={`p-2 rounded-xl border text-right transition-colors duration-500 ease-in-out flex flex-col justify-between min-h-[80px] relative overflow-hidden shadow-sm hover:shadow-md cursor-pointer ${
                   // PRD Module 18 §ב: BLUE > RED > GREY > YELLOW > GREEN, and "the
                   // background colours remain driven strictly by activity timing,
                   // connection state, and help requests". Waiting at the teacher's
@@ -1049,51 +1076,61 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                         </span>
                       );
                     })()}
+                    {/* Measure 5: events waiting to be recorded — a number, never a colour change of the tile. */}
+                    {(openMediationByLearner[student.studentNumber] ?? 0) > 0 && (
+                      <span
+                        data-testid={`mediation-badge-${student.studentNumber}`}
+                        title={MEDIATION_HE.pendingCounter(openMediationByLearner[student.studentNumber])}
+                        className="inline-flex items-center justify-center min-w-4 h-4 px-1 text-[10px] font-black rounded-full bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 select-none"
+                      >
+                        {openMediationByLearner[student.studentNumber]}
+                      </span>
+                    )}
                   </div>
                   
                   {/* Status tag — help, card, connection and hesitation in the colour's order (Module 18): a yellow tile says "היסוס", also in a challenge or reinforcement branch; the gate has its own row below */}
                   {student.helpRequested ? (
-                    <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="קריאה לעזרה">
+                    <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="קריאה לעזרה">
                       <BellRing className="w-3 h-3" aria-hidden="true" />
                       קריאה לעזרה
                     </span>
                   ) : student.isSocraticActive ? (
-                    <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title={CARD_OPEN_HE}>
+                    <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={CARD_OPEN_HE}>
                       <ShieldAlert className="w-3 h-3" />
                       {CARD_OPEN_HE}
                     </span>
                   ) : !student.isOnline ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-600 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="לא מחובר">
+                    <span className="inline-flex items-center gap-1 bg-slate-600 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="לא מחובר">
                       <WifiOff className="w-3 h-3" aria-hidden="true" />
                       מנותק
                     </span>
                   ) : !isClassSessionActive ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="מחובר וממתין בלובי">
+                    <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר וממתין בלובי">
                       <span className="w-2 h-2 rounded-full bg-white" />
                       בלובי
                     </span>
                   ) : !hasLearnerMeetingStarted(student, isClassSessionActive, activeSessionNum) ? (
-                    <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="מחובר וממתין לאישור המסלול">
+                    <span className="inline-flex items-center gap-1 bg-slate-500 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מחובר וממתין לאישור המסלול">
                       <span className="w-2 h-2 rounded-full bg-white" />
                       ממתין לאישור מסלול
                     </span>
                   ) : student.hesitationSeconds >= getHesitationThresholdSeconds() ? (
-                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title={`היסוס > ${getHesitationThresholdSeconds()} שניות`}>
+                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title={`היסוס > ${getHesitationThresholdSeconds()} שניות`}>
                       <AlertTriangle className="w-3 h-3" />
                       היסוס
                     </span>
                   ) : student.activeBranch === 'challenge' ? (
-                    <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="מבצע משימות אתגר (לומד מהיר)">
+                    <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מבצע משימות אתגר (לומד מהיר)">
                       <Rocket className="w-3 h-3" aria-hidden="true" />
                       משימות אתגר
                     </span>
                   ) : student.activeBranch === 'reinforcement' ? (
-                    <span className="inline-flex items-center gap-1 bg-emerald-700 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="מבצע משימות ביסוס">
+                    <span className="inline-flex items-center gap-1 bg-emerald-700 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="מבצע משימות ביסוס">
                       <Shield className="w-3 h-3" aria-hidden="true" />
                       משימות ביסוס
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-xs font-extrabold px-2 py-0.5 rounded-md shadow-sm" title="פעיל ותקין">
+                    <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-[11px] leading-tight font-extrabold px-1.5 py-0.5 rounded-md shadow-sm" title="פעיל ותקין">
                       <span className="w-2 h-2 rounded-full bg-white" />
                       פעיל
                     </span>
@@ -1101,7 +1138,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 </div>
 
                 {!student.isOnline ? (
-                  <div className="flex flex-col justify-center items-center py-2 text-slate-600 dark:text-slate-500">
+                  <div className="flex flex-col justify-center items-center py-1 text-slate-600 dark:text-slate-500">
                     <span className="text-xs font-semibold">
                       {!isClassSessionActive ? 'אין מפגש פתוח' : 'לא מחובר כעת'}
                     </span>
@@ -1109,12 +1146,13 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                 ) : (
                   <>
                     {/* Session & Path Info */}
-                    <div className="flex flex-col gap-1 my-1">
-                      <div className="flex flex-wrap justify-between gap-1 text-[11px] font-bold">
-                        <span title={meetingLabelHe(student.sessionNumber)}>{meetingShortLabelHe(student.sessionNumber)}</span>
+                    <div className="flex flex-col gap-1 my-0.5">
+                      {/* One line: the meeting truncates, its full name is the tooltip (owner, 11.10.2026: twelve tiles in 1366×768). */}
+                      <div className="flex flex-nowrap items-center justify-between gap-1 text-[11px] font-bold min-w-0">
+                        <span className="truncate min-w-0" title={meetingLabelHe(student.sessionNumber)}>{meetingShortLabelHe(student.sessionNumber)}</span>
                         {/* No approved path, no path tag. */}
                         {student.currentPath && (
-                          <span data-testid={`tile-path-${student.studentNumber}`} className={`px-1.5 py-0.5 rounded-md text-[10px] ${radarLevelColour(student.currentPath)?.chip ?? ''}`}>
+                          <span data-testid={`tile-path-${student.studentNumber}`} className={`shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded-md text-[10px] ${radarLevelColour(student.currentPath)?.chip ?? ''}`}>
                             {radarPathLabelHe(student.currentPath)}
                           </span>
                         )}
@@ -1122,7 +1160,7 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     </div>
 
                     {/* Real-Time Trace Metrics */}
-                    <div className="text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap gap-x-2 justify-between items-center pt-1 border-t border-slate-200/60 dark:border-slate-800 font-mono font-bold">
+                    <div className="text-[10px] text-slate-600 dark:text-slate-300 flex flex-nowrap gap-x-1.5 justify-between items-center pt-0.5 border-t border-slate-200/60 dark:border-slate-800 font-bold overflow-hidden">
                       {/* "היסוס", as in the radar's legend (Module 18). */}
                       <span className="whitespace-nowrap">היסוס: {student.hesitationSeconds} שנ׳</span>
                       <span className="whitespace-nowrap">ביטולים: {student.undoCount ?? 0}</span>
@@ -1234,6 +1272,9 @@ export function HeatmapGrid({ onDrillDown, initialStudents }: HeatmapGridProps =
                     <span>התלמיד ביקש עזרה</span>
                   </div>
                 )}
+
+                {/* Measure 5 (owner, 11.10.2026): what the teacher did about this learner's events, recorded live. */}
+                <MediationLogSection studentNumber={liveSelectedStudent.studentNumber} readOnly={readOnly} />
 
                 {/* State Badges */}
                 <div className="grid grid-cols-2 gap-3 mb-6">

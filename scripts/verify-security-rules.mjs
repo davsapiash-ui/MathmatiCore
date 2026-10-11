@@ -518,6 +518,57 @@ await check('אינו מוסיף או מסיר מורה, ואינו מבטל ל�
   await assertFails(set(ref(roadb, 'users/teachers/t1'), { licenseActive: true }));
 });
 
+// מדד 5 (בעל המוצר, 11.10.2026): המורה מתעד בזמן המפגש מה עשה בכל אירוע תיווך.
+console.log('\nFirestore — יומן תיווך המורה (מדד 5)');
+const mediationRecord = (uid, over = {}) => ({
+  class_id: 'class_1',
+  student_id: 3,
+  session_number: 4,
+  event_ref: 'log_help_1',
+  event_time_iso: '2026-10-11T08:00:00.000Z',
+  action: 'approached',
+  data_led: true,
+  note: null,
+  recorded_at: 1,
+  recorded_by: uid,
+  ...over,
+});
+const tfsMediation = teacher.firestore();
+await check('המורה מתעד אירוע, משנה את הבחירה, וקורא את היומן', async () => {
+  await assertSucceeds(setDoc(doc(tfsMediation, 'teacher_mediation_log', 'ev_log_help_1'), mediationRecord('teacher_1')));
+  await assertSucceeds(setDoc(doc(tfsMediation, 'teacher_mediation_log', 'ev_log_help_1'), mediationRecord('teacher_1', { action: 'wrote', data_led: false, recorded_at: 2 })));
+  await assertSucceeds(getDoc(doc(tfsMediation, 'teacher_mediation_log', 'ev_log_help_1')));
+});
+await check('המורה מתעד גישה בלי קריאה (event_ref ריק, ניגשתי בלבד)', async () => {
+  await assertSucceeds(setDoc(doc(tfsMediation, 'teacher_mediation_log', 'self_1'), mediationRecord('teacher_1', { event_ref: null })));
+  await assertFails(setDoc(doc(tfsMediation, 'teacher_mediation_log', 'self_2'), mediationRecord('teacher_1', { event_ref: null, action: 'wrote' })));
+});
+await check('אין הערה חופשית, אין שדה נוסף, אין לומד מחוץ ל-1–12, ואין רישום בשם מורה אחר', async () => {
+  await assertFails(setDoc(doc(tfsMediation, 'teacher_mediation_log', 'bad_1'), mediationRecord('teacher_1', { note: 'דנה' })));
+  await assertFails(setDoc(doc(tfsMediation, 'teacher_mediation_log', 'bad_2'), mediationRecord('teacher_1', { student_name: 'דנה' })));
+  await assertFails(setDoc(doc(tfsMediation, 'teacher_mediation_log', 'bad_3'), mediationRecord('teacher_1', { student_id: 13 })));
+  await assertFails(setDoc(doc(tfsMediation, 'teacher_mediation_log', 'bad_4'), mediationRecord('someone_else')));
+  await assertFails(setDoc(doc(tfsMediation, 'teacher_mediation_log', 'bad_5'), mediationRecord('teacher_1', { action: 'shouted' })));
+});
+await check('שינוי בחירה אינו מעביר את הרישום לאירוע או ללומד אחר, ואין מחיקה', async () => {
+  await assertFails(setDoc(doc(tfsMediation, 'teacher_mediation_log', 'ev_log_help_1'), mediationRecord('teacher_1', { student_id: 4 })));
+  await assertFails(setDoc(doc(tfsMediation, 'teacher_mediation_log', 'ev_log_help_1'), mediationRecord('teacher_1', { event_ref: 'log_other' })));
+  await assertFails(deleteDoc(doc(tfsMediation, 'teacher_mediation_log', 'ev_log_help_1')));
+});
+await check('מורה לצפייה בלבד קוראת את היומן ואינה כותבת בו', async () => {
+  await assertSucceeds(getDoc(doc(rotfs, 'teacher_mediation_log', 'ev_log_help_1')));
+  await assertFails(setDoc(doc(rotfs, 'teacher_mediation_log', 'ro_1'), mediationRecord('ro_teacher', { event_ref: 'log_ro' })));
+  await assertFails(setDoc(doc(rotfs, 'teacher_mediation_log', 'ev_log_help_1'), mediationRecord('ro_teacher', { recorded_at: 3 })));
+});
+await check('המנהל קורא את היומן ואינו כותב בו', async () => {
+  await assertSucceeds(getDoc(doc(admin.firestore(), 'teacher_mediation_log', 'ev_log_help_1')));
+  await assertFails(setDoc(doc(admin.firestore(), 'teacher_mediation_log', 'adm_1'), mediationRecord('admin_1', { event_ref: 'log_adm' })));
+});
+await check('הלומד אינו קורא ואינו כותב ביומן', async () => {
+  await assertFails(getDoc(doc(lfs, 'teacher_mediation_log', 'ev_log_help_1')));
+  await assertFails(setDoc(doc(lfs, 'teacher_mediation_log', 'l_1'), mediationRecord('student_user3', { event_ref: 'log_l' })));
+});
+
 console.log('\nצוות רגיל — ללא שינוי');
 await check('מורה רגילה עדיין פותחת מפגש ומסמנת מסלול מדורג', async () => {
   await assertSucceeds(set(ref(tdb, 'active_class_session'), { session_number: 3, status: 'active' }));

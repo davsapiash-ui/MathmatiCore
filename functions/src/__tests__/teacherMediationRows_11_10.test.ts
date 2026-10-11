@@ -28,6 +28,11 @@ describe('buildTeacherMediationRows', () => {
   it('has exactly the agreed columns, in order', () => {
     const rows = buildTeacherMediationRows({ telemetry: [ev('a', 'HESITATION_DETECTED', 1, 3, T, { hesitation_seconds: 31 })], chat: null, sessionDocs: [], students: null, catchUp: [] }, null);
     expect(Object.keys(rows[0])).toEqual([...MEDIATION_COLUMNS]);
+    // The PRD's nine columns in their order, then the teacher's three, appended last (owner, 11.10.2026).
+    expect([...MEDIATION_COLUMNS]).toEqual([
+      'event_time_iso', 'student_id', 'session_number', 'session_number_basis', 'event_kind', 'event_source', 'ref_id', 'detail_code', 'detail_number',
+      'teacher_action', 'data_led', 'teacher_note',
+    ]);
     expect(rows[0]).toMatchObject({ event_kind: 'radar_hesitation', detail_number: 31 });
   });
 
@@ -84,5 +89,62 @@ describe('buildTeacherMediationRows', () => {
     const telemetry = [ev('a', 'HELP_REQUESTED', 10, 3, T), ev('b', 'HELP_REQUESTED', 2, 3, T + 1)];
     const rows = buildTeacherMediationRows({ telemetry, chat: null, sessionDocs: [], students: null, catchUp: [] }, null);
     expect(rows.map((r) => r.student_id)).toEqual([2, 10]);
+  });
+});
+
+describe('measure 5: the teacher live records (owner, 11.10.2026)', () => {
+  const rec = (id: string, data: Record<string, unknown>) => ({ id, data: { class_id: 'class_1', session_number: 4, note: null, recorded_by: 'uid-teacher', ...data } });
+
+  it('joins a record to its telemetry row by ref_id, and to a learner chat message by its push id', () => {
+    const telemetry = [ev('log_help', 'HELP_REQUESTED', 3, 4, T, { help_count: 1 }), ev('log_hes', 'HESITATION_DETECTED', 3, 4, T + 30_000, { hesitation_seconds: 45 })];
+    const chat = { student_user3: { '-Nmsg1': { id: '-Nmsg1', senderId: 'student_user3', text: 'עזרה', timestamp: T + 10_000, read: false } } };
+    const teacherLog = [
+      rec('ev_log_help', { student_id: 3, event_ref: 'log_help', event_time_iso: new Date(T).toISOString(), action: 'approached', data_led: true, recorded_at: T + 60_000 }),
+      rec('ev_chat__Nmsg1', { student_id: 3, event_ref: 'chat:-Nmsg1', event_time_iso: new Date(T + 10_000).toISOString(), action: 'wrote', data_led: false, recorded_at: T + 61_000 }),
+    ];
+    const rows = buildTeacherMediationRows({ telemetry, chat, sessionDocs: [], students: null, catchUp: [], teacherLog }, null);
+    const help = rows.find((r) => r.ref_id === 'log_help')!;
+    expect(help).toMatchObject({ teacher_action: 'ניגשה', data_led: 'כן', teacher_note: '' });
+    const msg = rows.find((r) => r.event_kind === 'chat_learner_message')!;
+    expect(msg).toMatchObject({ ref_id: '', teacher_action: 'כתבה', data_led: 'לא' });
+    // An event with no record keeps the three cells blank.
+    expect(rows.find((r) => r.ref_id === 'log_hes')).toMatchObject({ teacher_action: '', data_led: '', teacher_note: '' });
+    const flat = JSON.stringify(rows);
+    expect(flat).not.toContain('uid-teacher');
+    expect(flat).not.toContain('chat:-Nmsg1');
+  });
+
+  it('the latest record of an event wins (the teacher changed the choice)', () => {
+    const telemetry = [ev('log_card', 'SOCRATIC_CARD_SHOWN', 5, 4, T, { card_level: 1 })];
+    const teacherLog = [
+      rec('a', { student_id: 5, event_ref: 'log_card', event_time_iso: '', action: 'none', data_led: false, recorded_at: T + 1 }),
+      rec('b', { student_id: 5, event_ref: 'log_card', event_time_iso: '', action: 'wrote_and_approached', data_led: true, recorded_at: T + 2 }),
+    ];
+    const rows = buildTeacherMediationRows({ telemetry, chat: null, sessionDocs: [], students: null, catchUp: [], teacherLog }, null);
+    expect(rows[0]).toMatchObject({ teacher_action: 'כתבה וניגשה', data_led: 'כן' });
+  });
+
+  it('a physical approach without an event is its own row, and a single-meeting export keeps only its meeting', () => {
+    const teacherLog = [
+      rec('selfA', { student_id: 7, event_ref: null, event_time_iso: new Date(T + 5_000).toISOString(), action: 'approached', data_led: true, recorded_at: T + 5_000 }),
+      rec('selfB', { student_id: 7, session_number: 5, event_ref: null, event_time_iso: new Date(T + 9_000).toISOString(), action: 'approached', data_led: false, recorded_at: T + 9_000 }),
+      // Not a record: no data_led.
+      rec('bad', { student_id: 7, event_ref: null, event_time_iso: new Date(T).toISOString(), action: 'approached' }),
+    ];
+    const all = buildTeacherMediationRows({ telemetry: [], chat: null, sessionDocs: [], students: null, catchUp: [], teacherLog }, null);
+    expect(all).toHaveLength(2);
+    expect(all[0]).toMatchObject({
+      student_id: 7, session_number: 4, session_number_basis: 'stored', event_kind: 'teacher_approach_self', event_source: 'teacher_log',
+      ref_id: 'selfA', event_time_iso: new Date(T + 5_000).toISOString(), teacher_action: 'ניגשה', data_led: 'כן', teacher_note: '',
+    });
+    const scoped = buildTeacherMediationRows({ telemetry: [], chat: null, sessionDocs: [], students: null, catchUp: [], teacherLog }, 5);
+    expect(scoped.map((r) => r.ref_id)).toEqual(['selfB']);
+  });
+
+  it('a record never fills the row of another learner', () => {
+    const telemetry = [ev('log_x', 'HELP_REQUESTED', 2, 4, T)];
+    const teacherLog = [rec('c', { student_id: 9, event_ref: 'log_x', event_time_iso: '', action: 'wrote', data_led: true, recorded_at: T })];
+    const rows = buildTeacherMediationRows({ telemetry, chat: null, sessionDocs: [], students: null, catchUp: [], teacherLog }, null);
+    expect(rows[0].teacher_action).toBe('');
   });
 });

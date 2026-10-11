@@ -176,19 +176,20 @@ describe('the radar tile', () => {
 describe('around the radar', () => {
   it('radar-10: the line above the radar promises only what the tile opens', () => {
     render(<HeatmapGrid initialStudents={[base(1)]} />);
-    const line = screen.getByText(/לחצו על משבצת/);
-    expect(line.textContent).not.toContain('הקלטות');
-    expect(line.textContent).not.toContain('מסך התלמיד');
-    expect(line.textContent).toContain('פרטי התלמיד');
+    // The line is the radar heading's tooltip since 11.10.2026 (the tiles fit a 1366×768 screen).
+    const line = screen.getByTitle(/לחצו על משבצת/).getAttribute('title') ?? '';
+    expect(line).not.toContain('הקלטות');
+    expect(line).not.toContain('מסך התלמיד');
+    expect(line).toContain('פרטי התלמיד');
     expect(describeRadarCell(base(1), true, 45)).not.toContain('מסך התלמיד');
   });
 
-  it('radar-15: the legend\'s help dot breathes only while a learner is calling', () => {
+  it('radar-15: the legend\'s help dot never animates, also while a learner is calling (owner, 11.10.2026)', () => {
     const { unmount } = render(<HeatmapGrid initialStudents={[base(1)]} />);
     expect(screen.getByTestId('legend-help-dot').className).not.toContain('animate-');
     unmount();
     render(<HeatmapGrid initialStudents={[base(1, { helpRequested: true })]} />);
-    expect(screen.getByTestId('legend-help-dot').className).toContain('animate-radar-call');
+    expect(screen.getByTestId('legend-help-dot').className).not.toContain('animate-');
   });
 
   it('M-teacher-offline-radar: the teacher\'s own drop is said, and the class does not turn grey', () => {

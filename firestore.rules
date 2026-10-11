@@ -681,6 +681,46 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Measure 5 (PRD Module 23; owner decision 11.10.2026): the teacher records
+    // live what he did about each mediation event, joined to the "תיווך המורה"
+    // export row by event_ref (the row's ref_id, or chat:<push id>); a physical
+    // approach without an event has event_ref null and is always 'approached'.
+    // Zero-PII: a learner number, closed values and times; the note is not
+    // collected (always null) and no name is stored. The teacher of the class
+    // writes (never a read-only account); teacher and admin read; learners
+    // have no access.
+    function isValidMediationLogDoc() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['class_id', 'student_id', 'session_number', 'event_ref', 'event_time_iso',
+                               'action', 'data_led', 'note', 'recorded_at', 'recorded_by']) &&
+             d.keys().hasAll(['class_id', 'student_id', 'session_number', 'event_ref', 'event_time_iso',
+                              'action', 'data_led', 'note', 'recorded_at', 'recorded_by']) &&
+             d.class_id is string &&
+             d.student_id is int && d.student_id >= 1 && d.student_id <= 12 &&
+             d.session_number is int && d.session_number >= 1 && d.session_number <= 8 &&
+             (d.event_ref == null || (d.event_ref is string && d.event_ref.size() > 0 && d.event_ref.size() <= 200)) &&
+             d.event_time_iso is string && d.event_time_iso.size() <= 40 &&
+             d.action in ['wrote', 'approached', 'wrote_and_approached', 'none'] &&
+             (d.event_ref != null || d.action == 'approached') &&
+             d.data_led is bool &&
+             d.note == null &&
+             d.recorded_at is number &&
+             d.recorded_by == request.auth.uid;
+    }
+
+    match /teacher_mediation_log/{logId} {
+      allow read: if isTeacher() || isAdmin();
+      allow create: if canWrite() && isTeacherOfClass(request.resource.data.class_id) && isValidMediationLogDoc();
+      // A choice can be changed; what it is about cannot.
+      allow update: if canWrite() && isTeacherOfClass(resource.data.class_id) && isValidMediationLogDoc() &&
+                       request.resource.data.class_id == resource.data.class_id &&
+                       request.resource.data.student_id == resource.data.student_id &&
+                       request.resource.data.session_number == resource.data.session_number &&
+                       request.resource.data.event_ref == resource.data.event_ref &&
+                       request.resource.data.event_time_iso == resource.data.event_time_iso;
+      allow delete: if false;
+    }
+
     // Module 23 — the class report of one meeting (generateClassMeetingReport).
     match /class_reports/{reportId} {
       allow get: if isTeacher() && (resource == null || isTeacherOfClass(resource.data.class_id));

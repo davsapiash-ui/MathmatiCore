@@ -9,7 +9,9 @@
  *
  * Only values that are already stored. Every cell is a number, a time or a value
  * from a closed list: no chat text, no note, no teacher identity (a teacher uid
- * is a person; the learners are anonymous 1-12).
+ * is a person; the learners are anonymous 1-12). The last three columns are the
+ * teacher's own live record of each event (teacher_mediation_log, owner
+ * 11.10.2026), in the journal's closed words.
  */
 
 export interface MediationInput {
@@ -23,6 +25,12 @@ export interface MediationInput {
   students: Record<string, any> | null | undefined;
   /** Firestore catchup_records documents. */
   catchUp: Array<{ id: string; data: Record<string, any> }>;
+  /**
+   * Firestore teacher_mediation_log documents of the class (measure 5, owner
+   * 11.10.2026): what the teacher recorded live about each event. Optional so
+   * an older caller still builds the file without the teacher's columns filled.
+   */
+  teacherLog?: Array<{ id: string; data: Record<string, any> }>;
 }
 
 export const MEDIATION_COLUMNS = [
@@ -35,6 +43,10 @@ export const MEDIATION_COLUMNS = [
   "ref_id",
   "detail_code",
   "detail_number",
+  // Measure 5, recorded live by the teacher (owner, 11.10.2026), appended last.
+  "teacher_action",
+  "data_led",
+  "teacher_note",
 ] as const;
 
 export type MediationRow = Record<(typeof MEDIATION_COLUMNS)[number], string | number>;
@@ -67,8 +79,37 @@ const isoOf = (ms: unknown): string => (typeof ms === "number" && Number.isFinit
 const closedCode = (v: unknown): string => (typeof v === "string" && /^[a-z0-9_]{1,40}$/.test(v) ? v : "");
 const finiteOrBlank = (v: unknown): number | "" => (typeof v === "number" && Number.isFinite(v) ? v : "");
 
+/** The teacher's action, in the words of the researcher's journal (PRD Module 23, measure 5). */
+const TEACHER_ACTION_HE: Record<string, string> = {
+  wrote: "כתבה",
+  approached: "ניגשה",
+  wrote_and_approached: "כתבה וניגשה",
+  none: "לא פעלה",
+};
+
+/** The join key of a learner chat message: the same as the client's chatEventRef (core/teacherMediation.ts). */
+export const chatMediationRef = (pushId: string): string => "chat:" + pushId;
+
+/** A stored teacher_mediation_log record, or null when it is not one. Closed values only. */
+function teacherRecordOf(data: Record<string, any>): { ref: string | null; action: string; dataLed: string; at: number; n: number; meeting: number; timeMs: number } | null {
+  const n = learnerNumber(data.student_id);
+  const meeting = meetingNumber(data.session_number);
+  const action = TEACHER_ACTION_HE[String(data.action)];
+  if (n === null || meeting === null || !action || typeof data.data_led !== "boolean") return null;
+  const timeMs = typeof data.event_time_iso === "string" ? Date.parse(data.event_time_iso) : NaN;
+  return {
+    ref: typeof data.event_ref === "string" && data.event_ref ? data.event_ref : null,
+    action,
+    dataLed: data.data_led ? "כן" : "לא",
+    at: typeof data.recorded_at === "number" ? data.recorded_at : 0,
+    n,
+    meeting,
+    timeMs,
+  };
+}
+
 export function buildTeacherMediationRows(input: MediationInput, scopedSession: number | null): MediationRow[] {
-  const rows: Array<MediationRow & { _ms: number }> = [];
+  const rows: Array<MediationRow & { _ms: number; _join: string }> = [];
 
   // The window each learner worked in each meeting, from the telemetry, to place
   // an event that carries no meeting (a chat message, a profile change) when the
@@ -98,6 +139,7 @@ export function buildTeacherMediationRows(input: MediationInput, scopedSession: 
     refId: string,
     code: string,
     num: number | "",
+    joinKey: string = refId,
   ) => {
     if (n === null || typeof ms !== "number" || !Number.isFinite(ms) || ms <= 0) return;
     const derived = stored === null ? meetingAt(n, ms) : null;
@@ -113,6 +155,10 @@ export function buildTeacherMediationRows(input: MediationInput, scopedSession: 
       ref_id: refId,
       detail_code: code,
       detail_number: num,
+      teacher_action: "",
+      data_led: "",
+      teacher_note: "",
+      _join: joinKey,
     });
   };
 
@@ -137,7 +183,7 @@ export function buildTeacherMediationRows(input: MediationInput, scopedSession: 
   for (const [room, messages] of Object.entries(input.chat ?? {})) {
     const n = learnerNumber(room);
     if (n === null || !messages || typeof messages !== "object") continue;
-    for (const raw of Object.values(messages as Record<string, any>)) {
+    for (const [pushId, raw] of Object.entries(messages as Record<string, any>)) {
       if (!raw || typeof raw !== "object") continue;
       const fromLearner = /^student_user\d+$/.test(String(raw.senderId ?? ""));
       const length = typeof raw.text === "string" ? raw.text.length : "";
@@ -150,6 +196,8 @@ export function buildTeacherMediationRows(input: MediationInput, scopedSession: 
         "",
         fromLearner ? "" : raw.read === true ? "read" : "unread",
         length,
+        // ref_id stays blank for chat; the teacher's record joins on the push id.
+        chatMediationRef(pushId),
       );
     }
   }
@@ -192,6 +240,34 @@ export function buildTeacherMediationRows(input: MediationInput, scopedSession: 
     }
   }
 
+  // 6. Measure 5: the teacher's live records (owner, 11.10.2026). An event's
+  // record fills its row's last three columns (the latest record of that
+  // event); a physical approach without an event is a row of its own. The note
+  // is not collected (Module 3: a name cannot be recognised), so teacher_note
+  // stays blank for the researcher to fill by hand.
+  const latest = new Map<string, NonNullable<ReturnType<typeof teacherRecordOf>>>();
+  for (const { id, data } of input.teacherLog ?? []) {
+    const r = teacherRecordOf(data);
+    if (!r) continue;
+    if (r.ref === null) {
+      const before = rows.length;
+      push(r.timeMs, r.n, r.meeting, "teacher_approach_self", "teacher_log", id, "", "", "");
+      if (rows.length > before) {
+        rows[rows.length - 1].teacher_action = r.action;
+        rows[rows.length - 1].data_led = r.dataLed;
+      }
+      continue;
+    }
+    const prev = latest.get(r.ref);
+    if (!prev || r.at >= prev.at) latest.set(r.ref, r);
+  }
+  for (const row of rows) {
+    const r = row._join ? latest.get(row._join) : undefined;
+    if (!r || r.n !== row.student_id) continue;
+    row.teacher_action = r.action;
+    row.data_led = r.dataLed;
+  }
+
   return rows
     .filter((r) => scopedSession === null || r.session_number === scopedSession)
     .sort(
@@ -200,5 +276,5 @@ export function buildTeacherMediationRows(input: MediationInput, scopedSession: 
         a._ms - b._ms ||
         String(a.event_kind).localeCompare(String(b.event_kind)),
     )
-    .map(({ _ms, ...row }) => row);
+    .map(({ _ms, _join, ...row }) => row);
 }

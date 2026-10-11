@@ -2543,6 +2543,8 @@ export const exportResearchDataset = onCall(EXPORT_RUNTIME, async (request) => {
         sessionDocs,
         students: studentsNode,
         catchUp: catchUpDocs,
+        // Measure 5: the teacher's live records of this class (owner, 11.10.2026).
+        teacherLog: (await readAllDocs(db.collection("teacher_mediation_log"))).filter(({ data }) => data.class_id === class_id),
       },
       scopedSession,
     );

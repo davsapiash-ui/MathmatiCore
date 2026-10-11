@@ -140,3 +140,6 @@ export function radarPathLabelHe(path: 'ירוק' | 'צמצום פערים' | '�
   if (path === 'יסודות') return ROUTE_NAME_HE.graded_foundation_path;
   return path ?? 'טרם נקבעה';
 }
+
+/** The teacher's top bar while the projector mode locks the learners' screens (Module 15; owner, 11.10.2026). */
+export const PROJECTOR_CHIP_HE = 'מסכי התלמידים נעולים להדגמה';

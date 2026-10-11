@@ -230,7 +230,10 @@ describe('Resets and reports tell the truth', () => {
   });
 
   it('"סמן כטופל" awaits the server and reports failure', () => {
-    expect(drawer.includes('await Promise.all(ids.map((id) => update(')).toBe(true);
+    // The write lives in HelpRequestService since 11.10.2026, shared with the side action queue.
+    const helpService = read('../../../../../infrastructure/services/HelpRequestService.ts');
+    expect(drawer.includes('await clearHelpRequest(student.studentId);')).toBe(true);
+    expect(helpService.includes('await Promise.all(helpRecordIdsOf(studentId).map((id) => update(')).toBe(true);
     expect(drawer.includes('סימון הטיפול נדחה בשרת')).toBe(true);
   });
 });
