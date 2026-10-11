@@ -19,14 +19,14 @@ const grid = (() => {
 })();
 
 describe('PRD 18 §ב — the radar is a fixed 3×4 grid that never reflows', () => {
-  it('four columns and three rows, at every width', () => {
+  // Owner, 11.10.2026: two groups (regular, special education), each four to a row in number order.
+  it('four columns at every width', () => {
     expect(grid).toContain('grid');
     expect(grid).toContain('grid-cols-4');
-    expect(grid).toContain('grid-rows-3');
   });
 
   it('no breakpoint changes the columns or the rows', () => {
-    expect(grid.filter((c) => /(^|:)grid-(cols|rows)-/.test(c))).toEqual(['grid-cols-4', 'grid-rows-3']);
+    expect(grid.filter((c) => /(^|:)grid-(cols|rows)-/.test(c))).toEqual(['grid-cols-4']);
     expect(grid.some((c) => /^[a-z0-9]+:grid-(cols|rows)-/.test(c))).toBe(false);
   });
 });

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Users, Sparkles, ChevronRight, CheckCircle2, ShieldCheck, RotateCcw, PanelLeftOpen } from 'lucide-react';
+import { Users, CheckCircle2, RotateCcw, PanelLeftOpen, ClipboardList, Info } from 'lucide-react';
 import { useStore, type StudentData } from '@/application/useStore';
 import { ResetConfirmationModal } from './components/ResetConfirmationModal';
 import { LearnerAccessCodes } from './components/LearnerAccessCodes';
+import { TeacherApprovalGate, type TeacherApprovalGateProps } from './components/TeacherApprovalGate';
 import { ref, onValue, update } from 'firebase/database';
 import { database } from '@/infrastructure/firebase';
 import { normalizeStudentId } from '@/application/useChatStore';
@@ -12,8 +13,26 @@ import { recommendedPathOf } from '@/core/recommendedPath';
 import { hasEnhancedSupport, buildSupportProfilePayload } from '@/core/supportProfile';
 import { toast } from 'sonner';
 import type { PedagogicalPath, ResetReason, SingleStudentResetScope } from '@/types';
-import { LEARNER_RESET_TOOLTIP_HE, RESET_ACTION_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE, asRoutePath } from '@/core/routeLabels';
+import {
+  LEARNER_GROUP_HE,
+  LEARNER_RESET_TOOLTIP_HE,
+  RECOMMENDED_MARK_HE,
+  RESET_ACTION_HE,
+  ROUTE_APPROVE_HE,
+  ROUTE_NAME_HE,
+  TEACHER_GATE_HE,
+  asRoutePath,
+  routePairFor,
+} from '@/core/routeLabels';
+import { ROUTE_COLOR } from '@/core/routeColors';
 import { meetingShortLabelHe } from '@/core/stationNames';
+
+/** The page's one name, in the sidebar and as its title (owner, 11.10.2026). */
+export const CLASS_MANAGEMENT_TITLE_HE = 'ניהול כיתה ומסלולים';
+
+/** When to turn on the enhanced support profile (owner, 11.10.2026), next to the profile column. */
+export const SUPPORT_PROFILE_WHEN_HE =
+  'מתי כדאי להפעיל את פרופיל התמיכה המוגבר? כשהתלמיד מתקשה לזכור עובדות חיבור עד 20 (לוח החיבור); כשהוא נוטה להקליד תשובה בלי לבצע את ההמרה בלבנים (נעילת המקלדת עד ההמרה); או כשהוא מתבלבל בין הטורים (צבעי הטורים והכותרות). אפשר להפעיל לפני מפגש 1, לבדוק שוב אחרי האבחון, ולשנות בכל תחנה. הפרופיל אינו אוטומטי ואינו תלוי במסלול.';
 
 interface StudentRowState {
   id: string;
@@ -48,15 +67,7 @@ const INITIAL_ROWS: StudentRowState[] = Array.from({ length: 12 }, (_, index) =>
   };
 });
 
-/** What each approve button looks like, pressed and not. */
-const PATH_BUTTON_CLASS: Record<PedagogicalPath, { on: string; off: string }> = {
-  green_path: { on: 'bg-emerald-700 text-white shadow-md', off: 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200' },
-  remediation_path: { on: 'bg-stone-600 text-white shadow-md', off: 'bg-stone-100 text-stone-800 hover:bg-stone-200 dark:bg-stone-900/40 dark:text-stone-200' },
-  graded_path: { on: 'bg-violet-700 text-white shadow-md', off: 'bg-violet-100 text-violet-900 hover:bg-violet-200 dark:bg-violet-900/40 dark:text-violet-200' },
-  graded_foundation_path: { on: 'bg-teal-700 text-white shadow-md', off: 'bg-teal-100 text-teal-900 hover:bg-teal-200 dark:bg-teal-900/40 dark:text-teal-200' },
-};
-
-/** A switch the teacher reads at a glance: the state in words and in the knob's place. */
+/** A switch the teacher reads at a glance: the state in words and in the knob's place. 44px to touch. */
 function TeacherSwitch({ checked, disabled, label, onToggle }: { checked: boolean; disabled?: boolean; label: string; onToggle: () => void }) {
   return (
     <button
@@ -66,37 +77,63 @@ function TeacherSwitch({ checked, disabled, label, onToggle }: { checked: boolea
       aria-label={label}
       disabled={disabled}
       onClick={onToggle}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-        checked ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-600'
-      }`}
+      className="group inline-flex min-h-11 min-w-11 items-center justify-center rounded-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
     >
-      <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? '-translate-x-5' : '-translate-x-0.5'}`} />
+      <span
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+          checked ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-600'
+        }`}
+      >
+        <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? '-translate-x-5' : '-translate-x-0.5'}`} />
+      </span>
     </button>
   );
 }
 
+const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1';
+
 /**
- * ניהול כיתה ותנאי למידה (owner, 11.10.2026): one row per learner (1–12, numbers only), holding every
- * decision the teacher makes about that learner, in one place:
- *   - the path: before meeting 1 she may mark the learner for the graded path (המסלול המדורג, special
- *     education), so that meeting 1's refresh and meeting 2's diagnostic are the graded ones; at the gate
- *     after meeting 2 she approves one of the four paths, next to the matrix recommendation (a marked
- *     learner is recommended the graded path or the graded foundations path);
- *   - the enhanced support profile (PRD Module 19): one switch, saved at once, never shown to the learner;
- *   - the learner's window (replay, chat, reset) and the learner reset.
+ * ניהול כיתה ומסלולים (owner, 11.10.2026): every decision the teacher makes about a learner, in one place.
+ *   - At the top, שלב החלוקה למסלולים for the whole class (PRD Module 20): how many wait, approving every
+ *     waiting learner's recommendation at once, and the learners who did not finish meeting 2 (Module 14 §ב).
+ *   - Then one row per learner (1–12, numbers only), in two sections: the regular programme, and special
+ *     education (the graded mark). Each row carries the mark, the matrix recommendation, the learner's own two
+ *     levels to approve (the recommended one marked "מומלץ"), the diagnostic evidence, the enhanced support
+ *     profile (PRD Module 19, never shown to the learner), the learner's window and the learner reset.
  * There is no quiet visual mode any more: the design is gentle for everyone (owner, 11.10.2026).
  */
 export function ClassManagement({
   activeSessionNumber = null,
   onDrillDown,
+  gate,
+  onOpenGateEvidence,
+  onOpenReport,
 }: {
   allStudents: StudentData[];
   onDrillDown?: (studentId: string) => void;
   /** The meeting the teacher currently has open (Module 14), for the level-2 reset dialog. */
   activeSessionNumber?: number | null;
+  /** שלב החלוקה למסלולים for the whole class (the dashboard owns the evidence and the activation window). */
+  gate?: TeacherApprovalGateProps;
+  /** Opens the gate drawer with the learner's diagnostic evidence (score, tasks needing support, recommendation). */
+  onOpenGateEvidence?: (studentId: string) => void;
+  /** Opens the learner's diagnostic report. */
+  onOpenReport?: (studentId: string) => void;
 }) {
   const [rows, setRows] = useState<StudentRowState[]>(INITIAL_ROWS);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // The section titles stick just under the dashboard's own sticky meeting bar, whatever its height.
+  const [stickyTop, setStickyTop] = useState(0);
+  useEffect(() => {
+    const bar = typeof document !== 'undefined' ? document.querySelector<HTMLElement>('[data-testid="live-session-bar"]') : null;
+    if (!bar || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setStickyTop(Math.round(bar.getBoundingClientRect().height));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(bar);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const studentsRef = ref(database, 'users/students');
@@ -189,7 +226,7 @@ export function ClassManagement({
     }
   };
 
-  // Module 20: the gate, one of the four paths.
+  // Module 20: the gate, one of the learner's two levels.
   const handleApproveGate = async (row: StudentRowState, path: PedagogicalPath) => {
     setUpdatingId(row.id);
     try {
@@ -231,185 +268,232 @@ export function ClassManagement({
     }
   };
 
-  // Two by two: the two regular paths, then the two special-education levels (owner, 11.10.2026).
-  const PATHS: PedagogicalPath[] = ['green_path', 'remediation_path', 'graded_path', 'graded_foundation_path'];
+  // Two sections (owner, 11.10.2026): the mark decides the section, and with it the learner's pair of levels.
+  const sections = [
+    { key: 'regular', title: LEARNER_GROUP_HE.regular, rows: rows.filter((r) => !r.gradedTrack) },
+    { key: 'graded', title: LEARNER_GROUP_HE.graded, rows: rows.filter((r) => r.gradedTrack) },
+  ] as const;
+
+  const renderRow = (row: StudentRowState) => {
+    const busy = updatingId === row.id;
+    const label = `תלמיד ${row.studentNumber}`;
+    // The learner's own two levels; the other two are not offered (owner, 11.10.2026).
+    const PATHS = routePairFor(row.gradedTrack);
+    const levelColour = row.approvedPath ? ROUTE_COLOR[row.approvedPath] : null;
+    return (
+      <tr key={row.id} data-testid={`class-row-${row.studentNumber}`} className="bg-slate-50 dark:bg-slate-800/40 align-middle">
+        <th scope="row" className="relative px-3 py-1 rounded-r-xl font-black text-sm text-slate-900 dark:text-white">
+          {/* The approved level as a thin stripe on the row's edge; its name is on the pressed button. */}
+          {levelColour && <span aria-hidden="true" data-testid={`class-row-stripe-${row.studentNumber}`} className={`absolute inset-y-1 right-0 w-1 rounded-full ${levelColour.stripe}`} />}
+          {/* The learner and the state in one cell (one row per learner, owner 11.10.2026); the stage keeps its name (PRD Module 20). */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            {onOpenReport ? (
+              <button
+                type="button"
+                onClick={() => onOpenReport(`student_user${row.studentNumber}`)}
+                title="פתיחת דוח האבחון של התלמיד"
+                className={`min-h-11 whitespace-nowrap font-black underline decoration-dotted underline-offset-4 hover:text-violet-700 dark:hover:text-violet-300 cursor-pointer rounded ${FOCUS_RING}`}
+              >
+                {label}
+              </button>
+            ) : (
+              <span className="whitespace-nowrap">{label}</span>
+            )}
+            <span data-testid={`class-row-state-${row.studentNumber}`} className="text-xs leading-tight">
+              {row.isApproved ? (
+                <span title={`מאושר ל${meetingShortLabelHe(3)}`} className="inline-flex items-center gap-1 font-extrabold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/60 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                  המסלול אושר
+                </span>
+              ) : row.session2Completed ? (
+                <span className="inline-block font-extrabold text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-900/60 px-2 py-0.5 rounded-lg">
+                  ממתין ב{TEACHER_GATE_HE}
+                </span>
+              ) : (
+                <span title={`טרם השלים את ${meetingShortLabelHe(2)}`} className="inline-block font-bold text-slate-600 bg-slate-200 dark:bg-slate-700 dark:text-slate-200 px-2 py-0.5 rounded-md">
+                  טרם השלים את האבחון
+                </span>
+              )}
+            </span>
+          </div>
+        </th>
+
+        {/* The matrix recommendation; once meeting 2 is done it also opens the diagnostic evidence (the gate drawer). */}
+        <td className="px-2 py-1.5 w-24 font-bold text-slate-800 dark:text-slate-200 leading-tight">
+          {onOpenGateEvidence && row.session2Completed ? (
+            <button
+              type="button"
+              onClick={() => onOpenGateEvidence(`student_user${row.studentNumber}`)}
+              aria-label={`ראיות האבחון — ${label}`}
+              title="ראיות האבחון: המלצת המטריקס, ציון האבחון ומוקדי החיזוק"
+              className={`min-h-11 inline-flex items-center gap-1 text-right font-bold underline decoration-dotted underline-offset-4 hover:text-violet-700 dark:hover:text-violet-300 cursor-pointer rounded ${FOCUS_RING}`}
+            >
+              <ClipboardList className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+              <span>{row.recommendedPath ? ROUTE_NAME_HE[row.recommendedPath] : 'טרם נקבעה'}</span>
+            </button>
+          ) : (
+            row.recommendedPath ? ROUTE_NAME_HE[row.recommendedPath] : 'טרם נקבעה'
+          )}
+        </td>
+
+        <td className="px-1 py-1">
+          <TeacherSwitch
+            checked={row.gradedTrack}
+            // Once a path is approved, the path decides; the mark only shapes meetings 1–2.
+            disabled={busy || row.isApproved}
+            label={`${ROUTE_NAME_HE.graded_path} — ${label}`}
+            onToggle={() => handleToggleGradedTrack(row)}
+          />
+        </td>
+
+        <td className="px-2 py-1.5">
+          <div className="flex flex-wrap gap-1.5" data-testid={`class-row-approve-${row.studentNumber}`}>
+            {PATHS.map((path) => {
+              const recommended = row.recommendedPath === path;
+              return (
+                <button
+                  key={path}
+                  type="button"
+                  onClick={() => handleApproveGate(row, path)}
+                  disabled={busy || !row.session2Completed}
+                  aria-pressed={row.approvedPath === path}
+                  aria-label={`${ROUTE_APPROVE_HE[path]}${recommended ? ` (${RECOMMENDED_MARK_HE})` : ''} — ${label}`}
+                  title={!row.session2Completed ? `אפשר לאשר מסלול רק בסיום ${meetingShortLabelHe(2)}` : ROUTE_APPROVE_HE[path]}
+                  className={`min-h-11 inline-flex items-center gap-1 py-1 px-2 rounded-lg text-[11px] font-extrabold whitespace-nowrap transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING} ${
+                    row.approvedPath === path ? ROUTE_COLOR[path].buttonOn : ROUTE_COLOR[path].buttonOff
+                  }`}
+                >
+                  {row.approvedPath === path && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
+                  <span>{ROUTE_APPROVE_HE[path]}</span>
+                  {recommended && (
+                    <span data-testid="recommended-mark" className="text-[10px] font-black px-1.5 py-0.5 rounded bg-white/80 text-slate-800 border border-slate-300">
+                      {RECOMMENDED_MARK_HE}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </td>
+
+        <td className="px-1 py-1">
+          <TeacherSwitch
+            checked={row.enhancedSupport}
+            disabled={busy}
+            label={`פרופיל תמיכה מוגבר — ${label}`}
+            onToggle={() => handleToggleEnhancedSupport(row)}
+          />
+        </td>
+
+        <td className="px-2 py-1.5 rounded-l-xl">
+          <div className="flex items-center gap-1.5 justify-end">
+            {onDrillDown && (
+              <button
+                type="button"
+                onClick={() => onDrillDown(`student_user${row.studentNumber}`)}
+                aria-label={`חלונית הלומד — ${label}`}
+                title="שחזור מהלכים, צ'אט ואיפוס"
+                className={`min-h-11 inline-flex items-center gap-1 py-1 px-2.5 rounded-lg font-bold whitespace-nowrap bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 cursor-pointer ${FOCUS_RING}`}
+              >
+                <PanelLeftOpen className="w-3.5 h-3.5" aria-hidden="true" />
+                {/* Named as in doc 04; on a narrower screen the icon carries it, with the same name to a screen reader. */}
+                <span className="hidden 2xl:inline">חלונית הלומד</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setStudentToReset({ id: row.id, name: label })}
+              disabled={busy}
+              className={`min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg border border-rose-200 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer ${FOCUS_RING}`}
+              // The dialog offers both scopes, the meeting alone by default (PRD 23א §ב.2).
+              title={LEARNER_RESET_TOOLTIP_HE}
+              aria-label={`${RESET_ACTION_HE.learner} של ${label}`}
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} aria-hidden="true" />
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
 
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto w-full h-full flex flex-col space-y-8 animate-in fade-in duration-500" dir="rtl">
+    <div className="max-w-7xl mx-auto w-full flex flex-col gap-3" dir="rtl">
 
-      {/* Header Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-violet-50 dark:bg-slate-900 p-8 text-slate-900 dark:text-white shadow-sm border border-violet-200 dark:border-violet-900/60">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-violet-200/50 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-violet-900 dark:text-violet-100">
-              <span className="bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 px-3 py-1 rounded-full flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-violet-600 dark:text-violet-300" />
-                בית ספר ביקורת
-              </span>
-              <ChevronRight className="w-4 h-4 opacity-70 rotate-180" />
-              <span className="bg-white dark:bg-violet-950/60 border border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-200 px-3 py-1 rounded-full">
-                כיתת המבקרים
-              </span>
-            </div>
-
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-              <Users className="w-9 h-9 text-violet-700 dark:text-violet-200" />
-              ניהול כיתה ותנאי למידה
-            </h1>
-            <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base font-medium max-w-2xl">
-              שורה אחת לכל לומד: המסלול, פרופיל התמיכה המוגבר, חלונית הלומד ואיפוס. כל שינוי נשמר מיד, והלומד אינו רואה על המסך שום סימון.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
-            <div className="flex items-center gap-3 bg-white dark:bg-slate-950/40 border border-violet-200 dark:border-slate-700 px-4 py-3 rounded-2xl">
-              <div className="text-center">
-                <span className="text-[11px] text-slate-600 dark:text-slate-300 block font-semibold">תלמידי הפיילוט</span>
-                <span className="text-xl font-black text-violet-800 dark:text-white">12 / 12</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* One title line and one sentence (owner, 11.10.2026: less scrolling). */}
+      <header>
+        <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+          <Users className="w-6 h-6 text-violet-700 dark:text-violet-200" aria-hidden="true" />
+          {CLASS_MANAGEMENT_TITLE_HE}
+        </h1>
+        <p className="text-slate-600 dark:text-slate-300 text-sm font-medium">
+          שורה אחת לכל לומד: המסלול, פרופיל התמיכה המוגבר, חלונית הלומד ואיפוס. כל שינוי נשמר מיד, והלומד אינו רואה על המסך שום סימון.
+        </p>
       </header>
 
-      {/* One row per learner: the path (graded mark before meeting 1, the gate after meeting 2) and the profile. */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none">
-        <div className="mb-6 pb-4 border-b border-slate-100 dark:border-slate-800 space-y-2">
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-violet-600" />
-            התאמות לכל לומד
-          </h2>
-          <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1 list-disc pr-4">
-            <li>
-              <strong>{ROUTE_NAME_HE.graded_path}</strong>: ללומדים בחינוך המיוחד. אותם נושאים בדיוק, בדירוג: חיבור וחיסור במאונך בתחום האלף. סמנו לפני {meetingShortLabelHe(1)}, כדי שהריענון והאבחון יהיו מותאמים. אחרי האבחון לומד שסומן מקבל המלצה לאחת משתי רמות: {ROUTE_NAME_HE.graded_path}, או <strong>{ROUTE_NAME_HE.graded_foundation_path}</strong>, בתחום המאה ובמאות שלמות.
-            </li>
-            <li>
-              <strong>{TEACHER_GATE_HE}</strong>: בסיום {meetingShortLabelHe(2)} הלומדים ממתינים, ואישור מסלול כאן משחרר אותם ל{meetingShortLabelHe(3)}.
-            </li>
-            <li>
-              <strong>פרופיל תמיכה מוגבר</strong>: נעילת המקלדת בטורים שדורשים המרה עד ההמרה בלבני הדינס, לוח החיבור, וצבעי הטורים וכותרות ערך המקום בשורת התוצאה. אינו תלוי במסלול.
-            </li>
-          </ul>
-        </div>
+      {/* PRD Module 20: the stage, for the whole class. */}
+      {gate && <TeacherApprovalGate {...gate} />}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-right text-xs border-separate border-spacing-y-2">
-            <thead>
-              <tr className="text-slate-600 dark:text-slate-400">
-                <th scope="col" className="px-3 py-1 font-bold">לומד</th>
-                <th scope="col" className="px-3 py-1 font-bold">מצב</th>
-                <th scope="col" className="px-3 py-1 font-bold">המלצת המטריקס</th>
-                <th scope="col" className="px-3 py-1 font-bold">{ROUTE_NAME_HE.graded_path}</th>
-                <th scope="col" className="px-3 py-1 font-bold">אישור מסלול</th>
-                <th scope="col" className="px-3 py-1 font-bold">פרופיל תמיכה מוגבר</th>
-                <th scope="col" className="px-3 py-1 font-bold"><span className="sr-only">פעולות</span></th>
+      {/* One row per learner, in two sections. */}
+      <section aria-label="התאמות לכל לומד" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2 md:p-3">
+        {/* One short line per concept: the pair of levels (the stage is above, the profile has its own help). */}
+        <p className="text-xs text-slate-600 dark:text-slate-400 mb-2">
+          לכל תלמיד שתי רמות. בתוכנית הרגילה: {ROUTE_NAME_HE.green_path} או {ROUTE_NAME_HE.remediation_path}. לתלמיד שסומן ל{ROUTE_NAME_HE.graded_path.replace(/^ה/, '')} לפני {meetingShortLabelHe(1)}: {ROUTE_NAME_HE.graded_path} או {ROUTE_NAME_HE.graded_foundation_path}.
+        </p>
+
+        {/* No horizontal page scroll: on a narrow tablet the table scrolls inside its own card (from 1024px it fits, and the section titles stay sticky). */}
+        <div className="max-lg:overflow-x-auto max-lg:[contain:paint]">
+        <table className="w-full text-right text-xs border-separate border-spacing-y-1">
+          <thead>
+            <tr className="text-slate-600 dark:text-slate-400 whitespace-nowrap align-bottom">
+              <th scope="col" className="px-3 py-1 font-bold">לומד ומצב</th>
+              <th scope="col" className="px-2 py-1 font-bold whitespace-normal">המלצת המטריקס</th>
+              <th scope="col" className="px-1 py-1 font-bold whitespace-normal w-16">{ROUTE_NAME_HE.graded_path}</th>
+              <th scope="col" className="px-2 py-1 font-bold">אישור מסלול</th>
+              <th scope="col" className="relative px-1 py-1 font-bold whitespace-normal w-16">
+                <span className="flex flex-col items-start">
+                  פרופיל תמיכה מוגבר
+                  {/* When to turn it on (owner, 11.10.2026): a small disclosure, never a modal. */}
+                  <details data-testid="support-profile-help" className="inline-block font-normal">
+                    <summary
+                      aria-label="מתי כדאי להפעיל את פרופיל התמיכה המוגבר?"
+                      title="מתי כדאי להפעיל?"
+                      className={`list-none inline-flex items-center justify-center min-h-11 min-w-11 cursor-pointer text-violet-700 dark:text-violet-300 rounded-full ${FOCUS_RING}`}
+                    >
+                      <Info className="w-4 h-4" aria-hidden="true" />
+                    </summary>
+                    <p className="absolute z-20 top-full left-0 w-80 max-w-[80vw] text-right text-xs leading-relaxed text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 border border-violet-200 dark:border-violet-800 rounded-xl px-3 py-2 shadow-lg">
+                      {SUPPORT_PROFILE_WHEN_HE}
+                    </p>
+                  </details>
+                </span>
+              </th>
+              <th scope="col" className="px-2 py-1 font-bold"><span className="sr-only">פעולות</span></th>
+            </tr>
+          </thead>
+          {sections.map((section) => (
+            <tbody key={section.key} data-testid={`class-section-${section.key}`}>
+              <tr>
+                {/* Sticky inside the page's own scroll: the section's name stays in view over its rows. */}
+                <th
+                  scope="colgroup"
+                  colSpan={6}
+                  style={{ top: stickyTop }}
+                  className="sticky z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur px-2 pt-3 pb-1 text-right text-sm font-black text-slate-900 dark:text-white"
+                >
+                  {section.title} ({section.rows.length})
+                </th>
               </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const busy = updatingId === row.id;
-                const label = `תלמיד ${row.studentNumber}`;
-                return (
-                  <tr key={row.id} data-testid={`class-row-${row.studentNumber}`} className="bg-slate-50 dark:bg-slate-800/40">
-                    <th scope="row" className="px-3 py-3 rounded-r-xl font-black text-sm text-slate-900 dark:text-white whitespace-nowrap">
-                      {label}
-                    </th>
-
-                    <td className="px-3 py-3 whitespace-nowrap">
-                      {row.isApproved ? (
-                        <span className="inline-flex items-center gap-1 font-extrabold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/60 px-2.5 py-1 rounded-lg">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          מאושר ל{meetingShortLabelHe(3)}
-                        </span>
-                      ) : row.session2Completed ? (
-                        <span className="inline-flex items-center gap-1 font-extrabold text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-900/60 px-2.5 py-1 rounded-lg">
-                          ממתין ב{TEACHER_GATE_HE}
-                        </span>
-                      ) : (
-                        <span className="font-bold text-slate-600 bg-slate-200 dark:bg-slate-700 dark:text-slate-200 px-2 py-0.5 rounded-md">
-                          טרם השלים את {meetingShortLabelHe(2)}
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="px-3 py-3 whitespace-nowrap font-bold text-slate-800 dark:text-slate-200">
-                      {row.recommendedPath ? ROUTE_NAME_HE[row.recommendedPath] : 'טרם נקבעה'}
-                    </td>
-
-                    <td className="px-3 py-3">
-                      <TeacherSwitch
-                        checked={row.gradedTrack}
-                        // Once a path is approved, the path decides; the mark only shapes meetings 1–2.
-                        disabled={busy || row.isApproved}
-                        label={`${ROUTE_NAME_HE.graded_path} — ${label}`}
-                        onToggle={() => handleToggleGradedTrack(row)}
-                      />
-                    </td>
-
-                    <td className="px-3 py-3">
-                      <div className="grid grid-cols-2 gap-1.5 min-w-[22rem]">
-                        {PATHS.map((path) => (
-                          <button
-                            key={path}
-                            type="button"
-                            onClick={() => handleApproveGate(row, path)}
-                            disabled={busy || !row.session2Completed}
-                            aria-pressed={row.approvedPath === path}
-                            aria-label={`${ROUTE_APPROVE_HE[path]} — ${label}`}
-                            title={!row.session2Completed ? `אפשר לאשר מסלול רק בסיום ${meetingShortLabelHe(2)}` : undefined}
-                            className={`py-1.5 px-2.5 rounded-lg font-extrabold transition-all cursor-pointer active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed ${
-                              row.approvedPath === path ? PATH_BUTTON_CLASS[path].on : PATH_BUTTON_CLASS[path].off
-                            }`}
-                          >
-                            {ROUTE_APPROVE_HE[path]}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-
-                    <td className="px-3 py-3">
-                      <TeacherSwitch
-                        checked={row.enhancedSupport}
-                        disabled={busy}
-                        label={`פרופיל תמיכה מוגבר — ${label}`}
-                        onToggle={() => handleToggleEnhancedSupport(row)}
-                      />
-                    </td>
-
-                    <td className="px-3 py-3 rounded-l-xl">
-                      <div className="flex items-center gap-1.5 justify-end">
-                        {onDrillDown && (
-                          <button
-                            type="button"
-                            onClick={() => onDrillDown(`student_user${row.studentNumber}`)}
-                            aria-label={`חלונית הלומד — ${label}`}
-                            title="שחזור מהלכים, צ'אט ואיפוס"
-                            className="inline-flex items-center gap-1 py-1.5 px-2.5 rounded-lg font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 cursor-pointer"
-                          >
-                            <PanelLeftOpen className="w-3.5 h-3.5" />
-                            <span>חלונית הלומד</span>
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setStudentToReset({ id: row.id, name: label })}
-                          disabled={busy}
-                          className="p-2 rounded-lg border border-rose-200 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all cursor-pointer active:scale-[0.97]"
-                          // The dialog offers both scopes, the meeting alone by default (PRD 23א §ב.2).
-                          title={LEARNER_RESET_TOOLTIP_HE}
-                          aria-label={`${RESET_ACTION_HE.learner} של ${label}`}
-                        >
-                          <RotateCcw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {section.rows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-3 py-2 text-slate-500 dark:text-slate-400">אין תלמידים בקבוצה זו.</td>
+                </tr>
+              ) : (
+                section.rows.map(renderRow)
+              )}
             </tbody>
-          </table>
+          ))}
+        </table>
         </div>
       </section>
 

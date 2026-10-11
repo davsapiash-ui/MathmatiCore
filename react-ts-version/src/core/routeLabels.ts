@@ -24,7 +24,7 @@ export const ROUTE_NAME_HE = {
 
 export type RoutePath = keyof typeof ROUTE_NAME_HE;
 
-/** The four approval buttons at the gate. */
+/** The approval buttons at the gate (each learner sees the two of their own pair, routePairFor). */
 export const ROUTE_APPROVE_HE: Readonly<Record<RoutePath, string>> = {
   green_path: 'אישור המסלול הירוק',
   remediation_path: 'אישור מסלול צמצום פערי קדם',
@@ -38,6 +38,23 @@ export function asRoutePath(path: unknown): RoutePath | null {
     ? path
     : null;
 }
+
+/**
+ * Every learner has exactly two levels, and the graded mark (graded_track) decides which two (owner,
+ * 11.10.2026): the regular pair, or the special-education pair. The gate offers only the learner's own pair.
+ */
+export function routePairFor(gradedTrack: boolean): readonly [RoutePath, RoutePath] {
+  return gradedTrack ? ['graded_path', 'graded_foundation_path'] : ['green_path', 'remediation_path'];
+}
+
+/** The two groups of learners on the class-management screen and the radar's legend. */
+export const LEARNER_GROUP_HE = {
+  regular: 'תלמידים בתוכנית הרגילה',
+  graded: 'תלמידי חינוך מיוחד',
+} as const;
+
+/** The marker on the approve button the matrix recommends — a word, not a colour alone. */
+export const RECOMMENDED_MARK_HE = 'מומלץ';
 
 /** The gate between meeting 2 and meeting 3 (PRD Module 20). */
 export const TEACHER_GATE_HE = 'שלב החלוקה למסלולים';

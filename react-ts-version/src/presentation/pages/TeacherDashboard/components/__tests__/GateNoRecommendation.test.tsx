@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -112,37 +112,14 @@ describe('gate evidence: one reading for the table, the drawer and the journey b
   });
 });
 
-describe('the approvals table', () => {
-  it('shows "טרם נקבעה", preselects nothing and keeps the approve button disabled until the teacher chooses', () => {
-    const onApproveStudent = vi.fn().mockResolvedValue(true);
-    const onApproveAll = vi.fn().mockResolvedValue(undefined);
-    render(<TeacherApprovalGate students={buildGateStudentItems(students, docs)} onApproveStudent={onApproveStudent} onApproveAll={onApproveAll} />);
-
-    const row = screen.getByText('תלמיד 1').closest('tr') as HTMLElement;
-    expect(within(row).getByText('טרם נקבעה')).toBeTruthy();
-    expect(within(row).queryByText(ROUTE_NAME_HE.remediation_path, { selector: 'span' })).toBeNull();
-    const select = within(row).getByRole('combobox') as HTMLSelectElement;
-    expect(select.value).toBe('');
-    const approve = within(row).getByRole('button', { name: /אשרו את המסלול/ }) as HTMLButtonElement;
-    expect(approve.disabled).toBe(true);
-
-    fireEvent.change(select, { target: { value: 'remediation_path' } });
-    expect(approve.disabled).toBe(false);
-    fireEvent.click(approve);
-    expect(onApproveStudent).toHaveBeenCalledWith('student_1', 'remediation_path');
-  });
-
-  it('a learner with a recommendation keeps it preselected', () => {
-    render(<TeacherApprovalGate students={buildGateStudentItems(students, docs)} onApproveStudent={vi.fn()} onApproveAll={vi.fn()} />);
-    const row = screen.getByText('תלמיד 2').closest('tr') as HTMLElement;
-    expect((within(row).getByRole('combobox') as HTMLSelectElement).value).toBe('remediation_path');
-  });
-
+// The learner rows moved into ניהול כיתה ומסלולים (owner, 11.10.2026); their "טרם נקבעה" and pair of
+// buttons are covered in ClassManagementPairs.test.tsx. The stage keeps the whole-class approval here.
+describe('שלב החלוקה למסלולים, the whole-class approval', () => {
   it('the batch button leaves an undecided learner waiting and says so', () => {
     const onApproveAll = vi.fn().mockResolvedValue(undefined);
-    render(<TeacherApprovalGate students={buildGateStudentItems(students, docs)} onApproveStudent={vi.fn()} onApproveAll={onApproveAll} />);
+    render(<TeacherApprovalGate students={buildGateStudentItems(students, docs)} onApproveAll={onApproveAll} />);
     expect(screen.getByText('לתלמיד אחד טרם נקבעה המלצה. יש לבחור עבורו מסלול בטבלה.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'אישור 2 התלמידים שנקבע להם מסלול' }));
+    fireEvent.click(screen.getByRole('button', { name: 'אישור ההמלצה ל-2 מתוך 3 התלמידים הממתינים' }));
     expect(onApproveAll).toHaveBeenCalledWith({ student_2: 'remediation_path', student_3: 'green_path' });
   });
 });
@@ -153,7 +130,7 @@ describe('the approval drawer (from the learner journey)', () => {
     expect(screen.getByTestId('gate-drawer-recommendation').textContent).toBe(ROUTE_NAME_HE.remediation_path);
     expect(screen.getByTestId('gate-drawer-score').textContent).toBe('29% (7 משימות חובה)');
     expect(screen.getByTestId('gate-drawer-support').textContent).toContain(diagnosticTaskLabelHe(failedTask));
-    expect(screen.getByRole('button', { name: new RegExp(ROUTE_NAME_HE.remediation_path) }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: new RegExp(`^${ROUTE_NAME_HE.remediation_path}`) }).getAttribute('aria-pressed')).toBe('true');
   });
 
   it('with no recommendation: "טרם נקבעה", nothing preselected, approve disabled until a path is chosen', () => {
@@ -162,8 +139,8 @@ describe('the approval drawer (from the learner journey)', () => {
     expect(screen.getByTestId('gate-drawer-score').textContent).toBe('טרם חושב');
     expect(screen.getByTestId('gate-drawer-support').textContent).toBe('לא נמצאו משימות הדורשות חיזוק.');
     expect(screen.getByTestId('gate-drawer-choose-hint')).toBeTruthy();
-    const green = screen.getByRole('button', { name: new RegExp(ROUTE_NAME_HE.green_path) });
-    const remediation = screen.getByRole('button', { name: new RegExp(ROUTE_NAME_HE.remediation_path) });
+    const green = screen.getByRole('button', { name: new RegExp(`^${ROUTE_NAME_HE.green_path}`) });
+    const remediation = screen.getByRole('button', { name: new RegExp(`^${ROUTE_NAME_HE.remediation_path}`) });
     expect(green.getAttribute('aria-pressed')).toBe('false');
     expect(remediation.getAttribute('aria-pressed')).toBe('false');
     const approve = screen.getByRole('button', { name: /אשרו והפעילו/ }) as HTMLButtonElement;

@@ -14,7 +14,8 @@ import {
   ClipboardList
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { ROUTE_NAME_HE, TEACHER_GATE_HE, asRoutePath } from '@/core/routeLabels';
+import { RECOMMENDED_MARK_HE, ROUTE_APPROVE_HE, ROUTE_NAME_HE, TEACHER_GATE_HE, asRoutePath, routePairFor } from '@/core/routeLabels';
+import { ROUTE_COLOR } from '@/core/routeColors';
 import { meetingShortLabelHe } from '@/core/stationNames';
 import { NO_RECOMMENDATION_HE, type GateStudentItem } from '../gateEvidence';
 
@@ -28,7 +29,7 @@ export function gateApprovedToastHe(studentNumber: string | number, path: Pedago
   return `✓ ${TEACHER_GATE_HE}: תלמיד ${studentNumber} אושר ל${ROUTE_NAME_HE[path].replace(/^ה/, '')}.`;
 }
 
-/** The four route cards: the number range of each route's bank (PRD Module 26). */
+/** The route cards (the learner sees the two of their pair): the number range of each route's bank (PRD Module 26). */
 export const ROUTE_CARD_HE: Readonly<Record<PedagogicalPath, string>> = {
   green_path: 'חיבור וחיסור במאונך בתחום הרבבה, במספרים עד 10,000.',
   remediation_path: 'חיבור וחיסור במאונך בתחום המאה והאלף, במספרים עד 1,000, לצמצום פערי קדם.',
@@ -51,7 +52,8 @@ interface Props {
 
 /** The diagnostic's recommendation: the evidence row first, else the learner's own record. */
 function recommendationOf(student: Record<string, unknown>, evidence?: GateStudentItem | null): PedagogicalPath | null {
-  return evidence?.recommendedPath ?? recommendedPathOf(student);
+  // Read with the learner's current mark: toggled after meeting 2, the recommendation moves into the new pair.
+  return evidence?.recommendedPath ?? recommendedPathOf(student, evidence?.gradedTrack ?? student.graded_track === true);
 }
 
 /**
@@ -107,6 +109,10 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
   const alreadyApproved = isGateApproved(sAny, evidence);
   const approvedPath = approvedPathOf(sAny, evidence);
   const nothingToSave = alreadyApproved && approvedPath !== null && selectedPath === approvedPath;
+  // The learner's own pair of levels: the graded mark decides which (owner, 11.10.2026). A path approved
+  // before the mark changed stays visible, so the drawer never hides what the learner is on.
+  const pair = routePairFor(evidence?.gradedTrack ?? sAny.graded_track === true);
+  const pathOptions: PedagogicalPath[] = approvedPath && !pair.includes(approvedPath) ? [...pair, approvedPath] : [...pair];
 
   const handleApprove = async () => {
     if (!selectedPath) return;
@@ -207,21 +213,9 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
               <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
                 <dt className="font-bold text-slate-600 dark:text-slate-300">המלצת המטריקס</dt>
                 <dd data-testid="gate-drawer-recommendation">
-                  {recommendation === 'green_path' ? (
-                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-300">
-                      {ROUTE_NAME_HE.green_path}
-                    </span>
-                  ) : recommendation === 'remediation_path' ? (
-                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-stone-100 text-stone-800 dark:bg-stone-950/60 dark:text-stone-300">
-                      {ROUTE_NAME_HE.remediation_path}
-                    </span>
-                  ) : recommendation === 'graded_path' ? (
-                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-violet-100 text-violet-900 dark:bg-violet-950/60 dark:text-violet-300">
-                      {ROUTE_NAME_HE.graded_path}
-                    </span>
-                  ) : recommendation === 'graded_foundation_path' ? (
-                    <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-teal-100 text-teal-900 dark:bg-teal-950/60 dark:text-teal-300">
-                      {ROUTE_NAME_HE.graded_foundation_path}
+                  {recommendation ? (
+                    <span className={`inline-flex px-3 py-1 rounded-full font-extrabold ${ROUTE_COLOR[recommendation].chip}`}>
+                      {ROUTE_NAME_HE[recommendation]}
                     </span>
                   ) : (
                     <span className="inline-flex px-3 py-1 rounded-full font-extrabold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
@@ -269,113 +263,44 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Green Path */}
-              <button
-                type="button"
-                aria-pressed={selectedPath === 'green_path'}
-                onClick={() => setSelectedPath('green_path')}
-                className={`text-right p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
-                  selectedPath === 'green_path'
-                    ? 'border-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/40 shadow-sm ring-2 ring-emerald-500/20'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-emerald-500" />
-                    <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-                      {ROUTE_NAME_HE.green_path}
-                    </span>
-                  </div>
-                  {selectedPath === 'green_path' && (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                  )}
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {ROUTE_CARD_HE.green_path}
-                </p>
-              </button>
-
-              {/* Remediation Path */}
-              <button
-                type="button"
-                aria-pressed={selectedPath === 'remediation_path'}
-                onClick={() => setSelectedPath('remediation_path')}
-                className={`text-right p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
-                  selectedPath === 'remediation_path'
-                    ? 'border-stone-600 bg-stone-50/60 dark:bg-stone-950/40 shadow-sm ring-2 ring-stone-500/20'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-stone-500" />
-                    <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-                      {ROUTE_NAME_HE.remediation_path}
-                    </span>
-                  </div>
-                  {selectedPath === 'remediation_path' && (
-                    <CheckCircle2 className="w-4 h-4 text-stone-600" />
-                  )}
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {ROUTE_CARD_HE.remediation_path}
-                </p>
-              </button>
-
-              {/* Graded Path (owner, 11.10.2026) */}
-              <button
-                type="button"
-                aria-pressed={selectedPath === 'graded_path'}
-                onClick={() => setSelectedPath('graded_path')}
-                className={`text-right p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
-                  selectedPath === 'graded_path'
-                    ? 'border-violet-600 bg-violet-50/60 dark:bg-violet-950/40 shadow-sm ring-2 ring-violet-500/20'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-violet-500" />
-                    <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-                      {ROUTE_NAME_HE.graded_path}
-                    </span>
-                  </div>
-                  {selectedPath === 'graded_path' && (
-                    <CheckCircle2 className="w-4 h-4 text-violet-700" />
-                  )}
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {ROUTE_CARD_HE.graded_path}
-                </p>
-              </button>
-
-              {/* Graded foundations path (owner, 11.10.2026) */}
-              <button
-                type="button"
-                aria-pressed={selectedPath === 'graded_foundation_path'}
-                onClick={() => setSelectedPath('graded_foundation_path')}
-                className={`text-right p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
-                  selectedPath === 'graded_foundation_path'
-                    ? 'border-teal-600 bg-teal-50/60 dark:bg-teal-950/40 shadow-sm ring-2 ring-teal-500/20'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-teal-500" />
-                    <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-                      {ROUTE_NAME_HE.graded_foundation_path}
-                    </span>
-                  </div>
-                  {selectedPath === 'graded_foundation_path' && (
-                    <CheckCircle2 className="w-4 h-4 text-teal-700" />
-                  )}
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {ROUTE_CARD_HE.graded_foundation_path}
-                </p>
-              </button>
+              {/* The learner's own two levels (owner, 11.10.2026); the other pair stays hidden. */}
+              {pathOptions.map((path) => {
+                const chosen = selectedPath === path;
+                const isRecommended = recommendation === path;
+                return (
+                  <button
+                    key={path}
+                    type="button"
+                    aria-pressed={chosen}
+                    onClick={() => setSelectedPath(path)}
+                    className={`text-right p-4 rounded-2xl border-2 transition-colors cursor-pointer relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                      chosen
+                        ? ROUTE_COLOR[path].cardOn
+                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2 gap-2">
+                      <div className="flex items-center gap-2">
+                        <span aria-hidden="true" className={`w-3 h-3 rounded-full ${ROUTE_COLOR[path].dot}`} />
+                        <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
+                          {ROUTE_NAME_HE[path]}
+                        </span>
+                        {isRecommended && (
+                          <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-white text-slate-800 border border-slate-300">
+                            {RECOMMENDED_MARK_HE}
+                          </span>
+                        )}
+                      </div>
+                      {chosen && (
+                        <CheckCircle2 className="w-4 h-4 text-slate-800 dark:text-slate-100" aria-hidden="true" />
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                      {ROUTE_CARD_HE[path]}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -400,7 +325,7 @@ export function TeacherGateApprovalDrawer({ student, evidence, onClose, onApprov
             <span>
               {alreadyApproved
                 ? (isApproving ? 'מעדכן...' : nothingToSave ? 'המסלול כבר אושר' : 'שנו את המסלול')
-                : (isApproving ? 'מאשר ומפעיל...' : `אשרו והפעילו את התוכנית ל${meetingShortLabelHe(3)}`)}
+                : (isApproving ? 'מאשר ומפעיל...' : selectedPath ? ROUTE_APPROVE_HE[selectedPath] : `אשרו והפעילו את התוכנית ל${meetingShortLabelHe(3)}`)}
             </span>
           </button>
         </div>
