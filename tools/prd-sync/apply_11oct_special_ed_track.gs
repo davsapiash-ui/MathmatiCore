@@ -215,3 +215,9 @@ function updateVersionLine_(body, version) {
   t.insertText(s, line);
   Logger.log('שורת הגרסה: ' + line);
 }
+
+// Run this ONLY after apply_11oct_teacher_mediation.gs, if that script was run after applyPrd: it sets the version
+// line back to 7.19; this puts it at 7.20 again (both sets of changes are then in the PRD).
+function setVersion720() {
+  updateVersionLine_(DocumentApp.openById(PRD.id).getBody(), PRD.version);
+}
