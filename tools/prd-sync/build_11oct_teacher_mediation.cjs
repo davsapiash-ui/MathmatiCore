@@ -57,6 +57,18 @@ const edits = [
     old: 'הרפלקציות ויומן האיפוסים)',
     new: 'הרפלקציות, יומן האיפוסים ויומן תיווך המורה, הכולל עם זמנים את קריאות העזרה, התראות הרדאר והודעות המורה, בלי טקסט ובלי זיהוי של המורה)',
   },
+  {
+    doc: 'סקירה',
+    where: 'תמה 1, הפער המחקרי, אחרי ההסתייגות על האוכלוסייה (11.10.2026)',
+    old: 'ולכן גם לממצאיהם המצוטטים בתמות השנייה והחמישית.',
+    add: ' השוואה ישירה בין עזרים מוחשיים לבין עזרים וירטואליים אינה נכללת בתכנון המחקר הנוכחי, משום שהמערכת מציגה ייצוגים וירטואליים בלבד. לכן הצד המוחשי של ההשוואה נשען על הספרות שנסקרה (Bassette et al., 2019, 2020; Bouck et al., 2017), ואילו נתוני המערכת מאפשרים להשוות בין עבודה עם לבני הדינס הוירטואליות, במפגשים 3 עד 7, לבין עבודה בלעדיהן, במפגשים 2 ו־8.',
+  },
+  {
+    doc: 'סקירה',
+    where: 'תמה 3, הפער המחקרי, סוף הפסקה (11.10.2026)',
+    old: 'על המסך נותרה פתוחה.',
+    add: ' הקלטות מסך העבודה, המתעדות שינויי מסך בלבד, נשמרות במערכת ומשמשות כיום לשחזור על ידי המורה. שלב מתוכנן בהמשך הפיתוח הוא ניתוח אוטומטי שלהן, שיתבסס על המרת ההקלטה לציר זמן מספרי של פעולות, בלי שטקסט שהלומד כתב יגיע אל מנוע הבינה. הניתוח ישלים את נתוני האירועים בסימנים מוטוריים, כמו משך גרירה והיסוס קצר לפני בדיקה, והגדרת הסימנים האלה תיקבע לפני הפיתוח. עוד בנוגע לתיווך המורה: השימוש של המורה בנתונים נבחן ביומן חוקר, ולצידו המערכת שומרת עם זמנים את קריאות העזרה, התראות הרדאר והודעות המורה, כדי שאפשר יהיה להצליב ביניהם.',
+  },
 ].map((e) => ({ doc: e.doc, where: e.where, old: e.old, new: e.new ?? e.old + e.add }));
 
 // 1. ops JSON
@@ -67,6 +79,7 @@ const ids = {
   'PRD': { id: '1siy2VT-bPVy9LflxJBt-Xr7uQEW5umHPEh_vMVlmbWY', version: '7.19' },
   'מסמך 01': { id: '1fD7rDVBHbwskJ7b2ybKNUjgSuCHijHxTkPvjZ3oXhMI', version: null },
   'מסמך 04': { id: '1d_pYxI_h9K-pY4VYy2cwJagxuYSRP-9-ovML40iSoeM', version: null },
+  'סקירה': { id: '1y043Lzby0iGWcDx3HjIVVxzFNjlU4jw5-Gpxfm_06y8', version: null },
 };
 const docsJs = Object.entries(ids).map(([name, d]) => {
   const list = edits.filter((e) => e.doc === name).map((e) => `  [${JSON.stringify(e.old)}, ${JSON.stringify(e.new)}]`).join(',\n');
@@ -89,6 +102,19 @@ for (const e of edits.filter((x) => x.doc === 'PRD')) {
   if (n !== 1) throw new Error(`PRD anchor found ${n} times: ${e.old.slice(0, 60)}`);
   prd = prd.replace(from, () => to);
 }
+// The version line at the top, as the script writes it into the Doc: version, date and time (Israel).
+const now = new Date();
+const part = (opt) => new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', ...opt }).format(now);
+const MONTHS = ['בינואר', 'בפברואר', 'במרץ', 'באפריל', 'במאי', 'ביוני', 'ביולי', 'באוגוסט', 'בספטמבר', 'באוקטובר', 'בנובמבר', 'בדצמבר'];
+const day = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', day: 'numeric' }).format(now));
+const month = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', month: 'numeric' }).format(now));
+const year = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', year: 'numeric' }).format(now);
+const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
+const versionLine = `גרסה ${ids['PRD'].version} | עודכן ${day} ${MONTHS[month - 1]} ${year}, ${time} (שעון ישראל)`;
+const vm = prd.match(/^גרסה [0-9.]+ \| עודכן [^\n]*/m);
+if (!vm) throw new Error('PRD version line not found');
+prd = prd.replace(vm[0], versionLine);
+void part;
 if (crlf) prd = prd.replace(/\n/g, '\r\n');
 fs.writeFileSync(PRD_MD, prd, 'utf8');
 }
