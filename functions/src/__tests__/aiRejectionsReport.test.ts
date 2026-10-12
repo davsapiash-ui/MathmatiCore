@@ -184,7 +184,7 @@ describe('the weekly report builder', () => {
     expect(all).not.toContain('student_id');
     expect(all).not.toContain('session_4_student_7');
     expect(all).not.toContain('abc123');
-    expect(Object.keys(r.examples[0]).sort()).toEqual(['card_excerpt', 'code', 'exercise_id', 'kind_label_he', 'meeting_label_he', 'reason']);
+    expect(Object.keys(r.examples[0]).sort()).toEqual(['card_excerpt', 'code', 'exercise_id', 'exercise_label_he', 'kind_label_he', 'meeting_label_he', 'reason']);
   });
 
   it('an empty week still says so', () => {

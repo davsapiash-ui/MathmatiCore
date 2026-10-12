@@ -93,7 +93,7 @@ export function scaffoldsLineHe(s: ClassScaffoldCounters): string {
   const byProfile = s.placeCuesRegular !== null && s.placeCuesEnhanced !== null
     ? ` (${s.placeCuesRegular} בפרופיל הרגיל, ${s.placeCuesEnhanced} בפרופיל התמיכה המוגבר)`
     : '';
-  return `לוח החיבור: נפתח ${s.gridOpenings}, הוחזר על ידי הלומד ${s.gridReopenings} · הקלדה לפני המרה (מקלדת נעולה): ${s.keyboardLockBlocks} · קריאות שקטות למורה: ${s.helpRequests}${s.helpWithdrawals > 0 ? ` (הלומדים ביטלו ${s.helpWithdrawals} מהן)` : ''} · בקשות עזרה מהצ׳אט: ${s.chatHelpRequests} · פיגום בשורת התוצאה: ${s.placeCueScaffolds}${byProfile}`;
+  return `לוח החיבור: נפתח ${s.gridOpenings}, הוחזר בידי הלומדים ${s.gridReopenings} · הקלדה לפני המרה (מקלדת נעולה): ${s.keyboardLockBlocks} · קריאות שקטות למורה: ${s.helpRequests}${s.helpWithdrawals > 0 ? ` (הלומדים ביטלו ${s.helpWithdrawals} מהן)` : ''} · בקשות עזרה מהצ׳אט: ${s.chatHelpRequests} · פיגום בשורת התוצאה: ${s.placeCueScaffolds}${byProfile}`;
 }
 
 /**

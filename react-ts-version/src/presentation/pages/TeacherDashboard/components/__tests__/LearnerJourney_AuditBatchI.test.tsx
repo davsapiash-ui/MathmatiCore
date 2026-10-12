@@ -205,7 +205,7 @@ describe('the service', () => {
       .toBe('היסוס 45 שניות: 6 · לא בוצעה המרה נדרשת: 2 · סיבה אחרת: 1');
     expect(countsLineHe({}, {}, 'x')).toBeNull();
     const r = classReportFromData({ session_number: 4, aggregates: { grid_openings_total: 3, grid_reopenings_total: 1, keyboard_lock_blocks_total: 2, help_requests_total: 4, help_withdrawals_total: 1, chat_help_requests_total: 5, place_cue_scaffolds_total: 6 } });
-    expect(scaffoldsLineHe(r.scaffolds)).toBe('לוח החיבור: נפתח 3, הוחזר על ידי הלומד 1 · הקלדה לפני המרה (מקלדת נעולה): 2 · קריאות שקטות למורה: 4 (הלומדים ביטלו 1 מהן) · בקשות עזרה מהצ׳אט: 5 · פיגום בשורת התוצאה: 6');
+    expect(scaffoldsLineHe(r.scaffolds)).toBe('לוח החיבור: נפתח 3, הוחזר בידי הלומדים 1 · הקלדה לפני המרה (מקלדת נעולה): 2 · קריאות שקטות למורה: 4 (הלומדים ביטלו 1 מהן) · בקשות עזרה מהצ׳אט: 5 · פיגום בשורת התוצאה: 6');
     expect(scaffoldsLineHe(classReportFromData({ session_number: 4 }).scaffolds)).not.toContain('ביטלו');
   });
 
