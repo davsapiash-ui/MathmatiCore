@@ -74,10 +74,23 @@ const ADDED_AFTER_MAIN: Record<string, Record<string, string | null>> = {
  * (u12, t16, h12), 'procedural' everywhere else — locked the same way.
  */
 const S7_GROUPING = { empty: 'procedural', some: 'procedural', u12: null, t16: null, h1: 'procedural', h1t6: 'procedural', h12: null, a: 'procedural', req: 'procedural' };
+/**
+ * Meeting 8's skeletons, rebuilt by the owner on 12.10.2026 on other exercises of sessions 4–6 (each was the
+ * skeleton of an exercise solved earlier in the same meeting): 3▢4 + 128 = 482, 4,▢2▢ + 1,534 = 6,355 and
+ * 5,▢▢▢ − 2,345 = 2,655. Main's values belong to the old numbers; these are the engine's for the new ones on the
+ * day of the change, locked the same way. Meeting 8 has no board, so the empty board — null in all three, as on
+ * main — is the only state a learner meets; the others are the fixture's synthetic boards.
+ */
+const S8_SKELETONS_12_10: Record<string, Record<string, string | null>> = {
+  s8_r_t7: { empty: null, some: null, u12: null, t16: null, h1: null, h1t6: null, h12: null, a: null, b: 'procedural', sum: null, diff: null, aPlus: null },
+  s8_g_t6: { empty: null, some: null, u12: null, t16: null, h1: null, h1t6: null, h12: null, a: null, b: 'procedural', sum: 'procedural', diff: 'procedural', aPlus: null },
+  s8_g_t7: { empty: null, some: null, u12: null, t16: null, h1: null, h1t6: null, h12: null, a: null, b: 'procedural', sum: 'procedural', diff: 'procedural', aPlus: null },
+};
 const REDESIGNED_AFTER_MAIN: Record<string, Record<string, string | null>> = {
   s7_r_t1: S7_GROUPING,
   s7_g_t1: S7_GROUPING,
   s7_g_reinforce_2: S7_GROUPING,
+  ...S8_SKELETONS_12_10,
 };
 const main = { ...(MAIN as Record<string, Record<string, string | null>>), ...ADDED_AFTER_MAIN, ...REDESIGNED_AFTER_MAIN };
 /**
@@ -115,6 +128,12 @@ describe('SOCRATIC_CARD_SHOWN.error_category is what main recorded (research dat
       }
     }
     expect(diff).toEqual([]);
+  });
+
+  it('meeting 8\'s rebuilt skeletons (12.10.2026) keep main\'s value on the empty board, the only board of meeting 8', () => {
+    for (const id of Object.keys(S8_SKELETONS_12_10)) {
+      expect(S8_SKELETONS_12_10[id].empty, id).toBe((MAIN as Record<string, Record<string, string | null>>)[id].empty);
+    }
   });
 
   it('s3_r_t7 was null on main in the states the child meets first (the approved change)', () => {

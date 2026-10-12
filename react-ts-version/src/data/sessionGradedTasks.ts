@@ -190,9 +190,12 @@ export const SESSION8_GRADED_TASKS: SessionTask[] = [
   subtraction('s8_d_t4', 87, 35, 'חיסור ללא פריטה בתחום המאה', S8_SUB('87 − 35'), { scaffoldLevel: 1 }),
   subtraction('s8_d_t5', 62, 18, 'חיסור עם פריטה פשוטה בתחום המאה', S8_SUB('62 − 18'), { scaffoldLevel: 1 }),
   subtraction('s8_d_t6', 703, 458, 'חיסור עם שתי פריטות, כשבמחוסר יש 0 בטור העשרות', S8_SUB('703 − 458'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
-  skeleton('s8_d_t7', 352, 61, false, { a: ['tens'] },
+  // Built on s4_d_t5 (275 + 39). Owner, 12.10.2026: until then 3▢2 + 61 = 413, the skeleton of s8_d_t3, solved
+  // minutes earlier in this meeting. The hidden tens still pass a hundred (▢ + 3 + 1 = 11, so 7), with the ten
+  // the units pass (5 + 9 = 14) coming in.
+  skeleton('s8_d_t7', 275, 39, false, { a: ['tens'] },
     'בעיית חקר של גילוי ספרה חסרה בתחום האלף',
-    'בתרגיל 3▢2 + 61 = 413 חסרה ספרת העשרות במספר הראשון. גלו אותה. כתבו אותה בתיבה הריקה.',
+    'בתרגיל 2▢5 + 39 = 314 חסרה ספרת העשרות במספר הראשון. גלו אותה. כתבו אותה בתיבה הריקה.',
     { scaffoldLevel: 1, targetNode: 'relational_thinking' }),
 ];
 
@@ -325,8 +328,10 @@ export const SESSION8_FOUNDATION_TASKS: SessionTask[] = [
   subtraction('s8_f_t4', 68, 23, 'חיסור ללא פריטה בתחום המאה', S8_SUB('68 − 23'), { scaffoldLevel: 1 }),
   subtraction('s8_f_t5', 84, 47, 'חיסור עם פריטה מעשרות ליחידות', S8_SUB('84 − 47'), { scaffoldLevel: 1 }),
   subtraction('s8_f_t6', 100, 45, 'חיסור עם שתי פריטות מן המאה', S8_SUB('100 − 45'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
-  skeleton('s8_f_t7', 56, 37, false, { a: ['units'] },
+  // Built on s4_f_t6 (39 + 44). Owner, 12.10.2026: until then 5▢ + 37 = 93, the skeleton of s8_f_t3, solved
+  // minutes earlier in this meeting. The hidden units still pass a ten (▢ + 4 = 13, so 9).
+  skeleton('s8_f_t7', 39, 44, false, { a: ['units'] },
     'בעיית חקר של גילוי ספרה חסרה בתחום המאה',
-    'בתרגיל 5▢ + 37 = 93 חסרה ספרת היחידות במספר הראשון. גלו אותה. כתבו אותה בתיבה הריקה.',
+    'בתרגיל 3▢ + 44 = 83 חסרה ספרת היחידות במספר הראשון. גלו אותה. כתבו אותה בתיבה הריקה.',
     { scaffoldLevel: 1, targetNode: 'relational_thinking' }),
 ];
