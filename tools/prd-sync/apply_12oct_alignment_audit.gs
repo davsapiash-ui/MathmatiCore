@@ -566,12 +566,17 @@ function applyAfter_(texts, name, e, dry) {
   return 'done';
 }
 
+function isHigh_(c) { return c >= 0xD800 && c <= 0xDBFF; }
+function isLow_(c) { return c >= 0xDC00 && c <= 0xDFFF; }
+
 // Replaces only the part that differs, so the formatting of the unchanged start and end stays as it is.
 function replaceAt_(t, p, oldT, newT) {
   var pre = 0;
   while (pre < oldT.length && pre < newT.length && oldT.charAt(pre) === newT.charAt(pre)) pre++;
+  if (pre > 0 && isHigh_(oldT.charCodeAt(pre - 1))) pre--;
   var suf = 0;
   while (suf < oldT.length - pre && suf < newT.length - pre && oldT.charAt(oldT.length - 1 - suf) === newT.charAt(newT.length - 1 - suf)) suf++;
+  if (suf > 0 && isLow_(oldT.charCodeAt(oldT.length - suf))) suf--;
   var start = p + pre, end = p + oldT.length - suf - 1, ins = newT.substring(pre, newT.length - suf);
   if (end >= start) t.deleteText(start, end);
   if (ins.length) t.insertText(start, ins);
