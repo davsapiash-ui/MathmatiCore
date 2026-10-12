@@ -8,8 +8,13 @@ import { getSessionTasks } from '@/data/sessionTasks';
  * to send the child to check "בעזרת הלבנים בבית המספרים" — two things that
  * are not on that screen. Review of PR #125, item 5.
  */
-const ids = ['s8_r_t7', 's8_g_t6', 's8_g_t7'];
-const bank = [...getSessionTasks(8, 'green_path'), ...getSessionTasks(8, 'remediation_path')];
+const ids = ['s8_r_t7', 's8_g_t6', 's8_g_t7', 's8_d_t7', 's8_f_t7'];
+const bank = [
+  ...getSessionTasks(8, 'green_path'),
+  ...getSessionTasks(8, 'remediation_path'),
+  ...getSessionTasks(8, 'graded_path'),
+  ...getSessionTasks(8, 'graded_foundation_path'),
+];
 
 describe('meeting 8 skeleton tasks: the feedback names nothing that is not on the screen', () => {
   beforeEach(() => {

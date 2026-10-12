@@ -665,10 +665,13 @@ export const SESSION8_REMEDIATION_TASKS: SessionTask[] = [
   // against the section's own rule. Replaced by session 6 exercise 5 (602 − 145 = 457): the same two
   // decompositions with a single zero, in the tens, so the title stays true and the fading gap can be measured.
   subtraction('s8_r_t6', 602, 145, 'חיסור עם שתי פריטות, כשבמחוסר יש 0 בטור העשרות', S8_SUB('602 − 145'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
-  // ★ chosen: reuses 456 + 281 (session 4) as מסמך 03 requires known numbers; the tens digit of an addend is hidden.
-  skeleton('s8_r_t7', 456, 281, false, { a: ['tens'] },
+  // ★ chosen: built on session 4 exercise 5 (354 + 128) as מסמך 03 requires known numbers; the tens digit of an
+  // addend is hidden, and the ten the units pass (4 + 8 = 12) goes into its column: ▢ + 2 + 1 = 8, so 5.
+  // Owner, 12.10.2026: until then it was 4▢6 + 281 = 737, the skeleton of s8_r_t3 solved minutes earlier in this
+  // meeting, so it could be answered from memory. No skeleton of meeting 8 repeats another of its exercises.
+  skeleton('s8_r_t7', 354, 128, false, { a: ['tens'] },
     'בעיית חקר של גילוי ספרה חסרה בתחום האלף',
-    'בתרגיל 4▢6 + 281 = 737 חסרה ספרת העשרות במספר הראשון. גלו אותה. כתבו אותה בתיבה הריקה.',
+    'בתרגיל 3▢4 + 128 = 482 חסרה ספרת העשרות במספר הראשון. גלו אותה. כתבו אותה בתיבה הריקה.',
     { scaffoldLevel: 1, targetNode: 'relational_thinking' }),
 ];
 
@@ -680,15 +683,20 @@ export const SESSION8_GREEN_TASKS: SessionTask[] = [
   // session 5 exercise 5 (6,284 − 1,157 = 5,127): one decomposition, units only (titles: owner, 9.10.2026, one per exercise).
   subtraction('s8_g_t4', 6284, 1157, 'חיסור עם פריטה אחת בטור היחידות בתחום הרבבה (14 − 7 ביחידות)', S8_SUB('6,284 − 1,157'), { scaffoldLevel: 1 }),
   subtraction('s8_g_t5', 4000, 1562, 'חיסור עם שלוש פריטות, כשבמחוסר יש אפסים בטורי המאות, העשרות והיחידות', S8_SUB('4,000 − 1,562'), { scaffoldLevel: 1, targetNode: 'zero_placeholder' }),
-  // ★ chosen: reuses 5,678 + 2,453 (session 4); two addend digits hidden.
-  skeleton('s8_g_t6', 5678, 2453, false, { a: ['hundreds', 'units'] },
+  // ★ chosen: built on session 4 exercise 4 (4,821 + 1,534); the hundreds and the units digits of the first number
+  // hidden, as before. The hundreds pass a thousand (▢ + 5 = 13, so 8; 4 + 1 + 1 = 6 shows it), the units do not
+  // (▢ + 4 = 5, so 1). Owner, 12.10.2026: until then it was 5,▢7▢ + 2,453 = 8,131, the skeleton of s8_g_t2 solved
+  // earlier in this meeting. 5,678 + 2,453 is the only addition of sessions 4–6 with three groupings, and it is
+  // s8_g_t2 itself, so this skeleton has one grouping.
+  skeleton('s8_g_t6', 4821, 1534, false, { a: ['hundreds', 'units'] },
     'בעיית חקר של ספרות חסרות בחיבור',
-    'בתרגיל 5,▢7▢ + 2,453 = 8,131 חסרות שתי ספרות במספר הראשון. גלו אותן. כתבו אותן בתיבות הריקות.',
+    'בתרגיל 4,▢2▢ + 1,534 = 6,355 חסרות שתי ספרות במספר הראשון. גלו אותן. כתבו אותן בתיבות הריקות.',
     { scaffoldLevel: 1, targetNode: 'relational_thinking' }),
-  // ★ chosen: reuses 4,000 − 1,562 (session 6); three minuend digits hidden.
-  skeleton('s8_g_t7', 4000, 1562, true, { a: ['hundreds', 'tens', 'units'] },
+  // ★ chosen: built on session 6 exercise 4 (5,000 − 2,345); three minuend digits hidden, three decompositions
+  // across zeros, as before. Owner, 12.10.2026: until then it was 4,▢▢▢ − 1,562 = 2,438, the skeleton of s8_g_t5.
+  skeleton('s8_g_t7', 5000, 2345, true, { a: ['hundreds', 'tens', 'units'] },
     'בעיית חקר של ספרות חסרות בחיסור',
-    'בתרגיל 4,▢▢▢ − 1,562 = 2,438 חסרות שלוש ספרות במספר הראשון. גלו אותן. כתבו אותן בתיבות הריקות.',
+    'בתרגיל 5,▢▢▢ − 2,345 = 2,655 חסרות שלוש ספרות במספר הראשון. גלו אותן. כתבו אותן בתיבות הריקות.',
     { scaffoldLevel: 1, targetNode: 'relational_thinking' }),
 ];
 

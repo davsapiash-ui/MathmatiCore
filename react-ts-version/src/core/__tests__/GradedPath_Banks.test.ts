@@ -266,7 +266,7 @@ describe('the graded foundations path', () => {
     const met = new Set(([4, 5, 6] as const).flatMap((s) => foundation(s).map((t) => `${t.numberA}${t.isSubtraction ? '-' : '+'}${t.numberB}`)));
     for (const t of foundation(8)) {
       expect(t.type).toBe('vertical_addition');
-      if (t.hiddenDigits) continue; // s8_f_t7, the missing-digit inquiry
+      // s8_f_t7, the missing-digit inquiry, too: built on 39 + 44 since 12.10.2026 (owner), not on s8_f_t3's 56 + 37.
       expect(met.has(`${t.numberA}${t.isSubtraction ? '-' : '+'}${t.numberB}`), t.id).toBe(true);
     }
   });

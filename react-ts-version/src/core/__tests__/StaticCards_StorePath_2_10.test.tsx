@@ -479,7 +479,7 @@ describe('4. through the real store: the fields the cards read reach them (audit
   });
 
   it('D13: meeting 8, three undos on a skeleton — מסמך 03\'s card, grounded in the exercise as the screen shows it (no hidden digit)', async () => {
-    load(8, byId('s8_r_t7')); // 4▢6 + 281 = 737
+    load(8, byId('s8_r_t7')); // 3▢4 + 128 = 482 (owner, 12.10.2026; until then 4▢6 + 281 = 737)
     ws().setOperandDigit('a', 'tens', '1');
     ws().setOperandDigit('a', 'tens', '2');
     ws().setOperandDigit('a', 'tens', '3');
@@ -488,7 +488,7 @@ describe('4. through the real store: the fields the cards read reach them (audit
     expect(ws().socraticTriggerReason).toBe('consecutive_undos_3');
     const card = ws().aiSocraticHint!;
     expect(card.situation).toBe('guessing_loop');
-    expect(card.questionHe).toContain('4▢6 + 281 = 737');
+    expect(card.questionHe).toContain('3▢4 + 128 = 482');
     expect(revealsSecret(textsOf(card), secretNumbersOf(byId('s8_r_t7')))).toBeNull();
   });
 

@@ -174,7 +174,7 @@ describe('Rule 1 — skeleton exercises of meetings 3–7 accept the result or t
   });
 
   it('unchanged: meeting 8 skeletons never look at the board', () => {
-    const e = byId('s8_r_t7'); // 4▢6 + 281 = 737
+    const e = byId('s8_r_t7'); // 3▢4 + 128 = 482 (owner, 12.10.2026)
     load(8, e);
     ws().setOperandDigit('a', 'tens', '5');
     proceed();

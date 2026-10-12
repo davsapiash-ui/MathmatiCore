@@ -319,6 +319,56 @@ describe('every exercise is arithmetically sound', () => {
   });
 });
 
+/**
+ * Owner, 12.10.2026: meeting 8's missing-digit exercise was the skeleton of an exercise the learner had solved
+ * minutes earlier in the same meeting (4▢6 + 281 after 456 + 281, and so in every path), so it could be answered
+ * from memory. Each skeleton is now built on ANOTHER exercise of sessions 4–6 of the same path (מסמך 03 §3.8:
+ * numbers the learner already met), one that no other exercise of meeting 8 uses.
+ */
+describe('meeting 8: no skeleton repeats an exercise of the same meeting (owner, 12.10.2026)', () => {
+  const ALL_PATHS: LearningPath[] = ['remediation_path', 'green_path', 'graded_path', 'graded_foundation_path'];
+  const key = (t: SessionTask) => `${t.numberA}${t.isSubtraction ? '-' : '+'}${t.numberB}`;
+
+  it('every path: each skeleton\'s exercise was met in sessions 4–6 of the path and appears nowhere else in meeting 8', () => {
+    for (const path of ALL_PATHS) {
+      const bank = SESSIONS_BY_PATH[8][path];
+      const met = new Set(([4, 5, 6] as const).flatMap((s) => SESSIONS_BY_PATH[s][path].map(key)));
+      const skeletons = bank.filter((t) => t.hiddenDigits);
+      expect(skeletons.length, path).toBeGreaterThan(0);
+      for (const t of skeletons) {
+        expect(met.has(key(t)), `${path} ${t.id} ${key(t)}`).toBe(true);
+        const others = bank.filter((x) => x.id !== t.id).map(key);
+        expect(others, `${path} ${t.id} ${key(t)}`).not.toContain(key(t));
+      }
+    }
+  });
+
+  it('the five skeletons, as the screen shows them, and the exercise of sessions 4–6 each is built on', () => {
+    const byId = (path: LearningPath, id: string) => SESSIONS_BY_PATH[8][path].find((t) => t.id === id)!;
+    const cases: [LearningPath, string, string, number, '+' | '-', number, Place[], string][] = [
+      ['remediation_path', 's8_r_t7', 's4_r_t5', 354, '+', 128, ['tens'], 'בתרגיל 3▢4 + 128 = 482 חסרה ספרת העשרות במספר הראשון. גלו אותה. כתבו אותה בתיבה הריקה.'],
+      ['green_path', 's8_g_t6', 's4_g_t4', 4821, '+', 1534, ['hundreds', 'units'], 'בתרגיל 4,▢2▢ + 1,534 = 6,355 חסרות שתי ספרות במספר הראשון. גלו אותן. כתבו אותן בתיבות הריקות.'],
+      ['green_path', 's8_g_t7', 's6_g_t4', 5000, '-', 2345, ['hundreds', 'tens', 'units'], 'בתרגיל 5,▢▢▢ − 2,345 = 2,655 חסרות שלוש ספרות במספר הראשון. גלו אותן. כתבו אותן בתיבות הריקות.'],
+      ['graded_path', 's8_d_t7', 's4_d_t5', 275, '+', 39, ['tens'], 'בתרגיל 2▢5 + 39 = 314 חסרה ספרת העשרות במספר הראשון. גלו אותה. כתבו אותה בתיבה הריקה.'],
+      ['graded_foundation_path', 's8_f_t7', 's4_f_t6', 39, '+', 44, ['units'], 'בתרגיל 3▢ + 44 = 83 חסרה ספרת היחידות במספר הראשון. גלו אותה. כתבו אותה בתיבה הריקה.'],
+    ];
+    for (const [path, id, twinId, a, op, b, hidden, instruction] of cases) {
+      const t = byId(path, id);
+      expect(pairOf(t), id).toEqual([a, op, b]);
+      expect(t.hiddenDigits, id).toEqual({ a: hidden });
+      expect(t.instructionHe, id).toBe(instruction);
+      const twin = ([4, 5, 6] as const).flatMap((s) => SESSIONS_BY_PATH[s][path]).find((x) => x.id === twinId)!;
+      expect(pairOf(twin), `${id} ← ${twinId}`).toEqual([a, op, b]);
+    }
+  });
+
+  it('the green path keeps two different skeletons, an addition and a subtraction', () => {
+    const [t6, t7] = ['s8_g_t6', 's8_g_t7'].map((id) => SESSIONS_BY_PATH[8].green_path.find((t) => t.id === id)!);
+    expect(key(t6)).not.toBe(key(t7));
+    expect([Boolean(t6.isSubtraction), Boolean(t7.isSubtraction)]).toEqual([false, true]);
+  });
+});
+
 describe('skill coverage the owner asked to guarantee (3.9.2026)', () => {
   const borrowColumns = (a: number, b: number): Place[] => {
     const out: Place[] = [];
