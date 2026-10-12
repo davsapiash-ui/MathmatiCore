@@ -26,6 +26,7 @@ import { scrubPII } from "./geminiProxy";
 import { DRIVE_FOLDERS, aiRejectionsReportFileName, israelDate } from "./driveNames";
 import { meetingShortLabelHe } from "./stationNames";
 import { esc, layout } from "./reportHtml";
+import { exerciseLabelHe } from "./meetingMetrics";
 import { CHROMIUM_PDF_RUNTIME, renderHtmlToPdf, renderWithFallback } from "./htmlPdf";
 import { rtlText } from "./hebrewPdf";
 
@@ -127,6 +128,7 @@ export function validatorReasonLabelHe(reason: string): string {
   return OTHER_REASON_HE;
 }
 const OTHER_KIND_LABEL_HE = "אחר";
+const OTHER_KIND_CODE = "other";
 const UNKNOWN_MEETING_HE = "מפגש לא ידוע";
 
 export const AI_REJECTIONS_TITLE_HE = "כרטיסי חניכה שנדחו בבדיקה – דוח שבועי";
@@ -137,8 +139,8 @@ export const AI_REJECTIONS_HEADINGS_HE = {
   examples: "דוגמאות (עד 5)",
 } as const;
 export const AI_REJECTIONS_NOTE_HE =
-  "כל תשובה של מנוע הבינה המלאכותית שבודק השרת דחה נספרת כאן, גם ניסיון ראשון שתוקן בניסיון השני, " +
-  "וכך גם כרטיס שנדחה בבדיקה במחשב של הלומד, של המנוע או כרטיס קבוע. " +
+  "נספרת כאן כל תשובה של מנוע הבינה המלאכותית שבודק השרת דחה, גם ניסיון ראשון שתוקן בניסיון השני. " +
+  "נספר גם כל כרטיס שנדחה בבדיקה במחשב של הלומד, בין שכתב אותו המנוע ובין שהוא כרטיס קבוע. " +
   "במקום כרטיס שנדחה הלומד קיבל כרטיס מתוקן, את הכרטיס הקבוע או כרטיס כללי של התרגיל. " +
   "אין בדוח פרט מזהה של לומד, ואין בו טקסט שהלומדים כתבו.";
 export const AI_REJECTIONS_EMPTY_HE = "השבוע לא נדחה אף כרטיס חניכה.";
@@ -153,7 +155,7 @@ export interface AiRejectionsReport {
   by_kind: Array<{ code: string; label_he: string; count: number }>;
   by_validator_reason: Array<{ reason: string; count: number }>;
   by_meeting: Array<{ meeting: number | null; label_he: string; count: number }>;
-  examples: Array<{ exercise_id: string; meeting_label_he: string; kind_label_he: string; code: string; reason: string; card_excerpt: string }>;
+  examples: Array<{ exercise_id: string; exercise_label_he: string; meeting_label_he: string; kind_label_he: string; code: string; reason: string; card_excerpt: string }>;
 }
 
 function str(v: unknown, max: number): string {
@@ -207,7 +209,12 @@ function countBy<K>(items: K[], key: (k: K) => string): Map<string, number> {
  * The report, from the stored rows and the period. Pure: no Firebase, no clock.
  * Only the listed fields are read from a row.
  */
-export function buildAiRejectionsReport(rows: AiRejectionRow[], period: { from_ms: number; to_ms: number }): AiRejectionsReport {
+export function buildAiRejectionsReport(
+  rows: AiRejectionRow[],
+  period: { from_ms: number; to_ms: number },
+  /** The catalog's Hebrew titles by exercise id: the examples name an exercise as the teacher's screens do, never by its id. */
+  titles: Record<string, string> | null = null
+): AiRejectionsReport {
   const clean = rows.map((r) => ({
     exercise_id: str(r.exercise_id, 64),
     meeting: meetingOf(r.meeting),
@@ -218,7 +225,8 @@ export function buildAiRejectionsReport(rows: AiRejectionRow[], period: { from_m
     at: typeof r.created_at_ms === "number" ? r.created_at_ms : 0,
   }));
 
-  const byKind = [...countBy(clean, (r) => r.code)]
+  // By the Hebrew label: two unknown codes both read "אחר" and are one row, not two rows of the same name.
+  const byKind = [...countBy(clean, (r) => (REJECTION_KIND_LABEL_HE[r.code] ? r.code : OTHER_KIND_CODE))]
     .map(([code, count]) => ({ code, label_he: kindLabel(code), count }))
     .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
 
@@ -262,6 +270,7 @@ export function buildAiRejectionsReport(rows: AiRejectionRow[], period: { from_m
     by_meeting: byMeeting,
     examples: picked.map((r) => ({
       exercise_id: r.exercise_id || "—",
+      exercise_label_he: r.exercise_id ? exerciseLabelHe(titles, r.exercise_id) : "—",
       meeting_label_he: r.meeting === null ? UNKNOWN_MEETING_HE : meetingShortLabelHe(r.meeting),
       kind_label_he: kindLabel(r.code),
       code: r.code,
@@ -285,7 +294,7 @@ export function aiRejectionsReportLines(report: AiRejectionsReport): string[] {
   for (const m of report.by_meeting) lines.push(`• ${m.label_he}: ${m.count}`);
   lines.push("", AI_REJECTIONS_HEADINGS_HE.examples);
   report.examples.forEach((e, i) => {
-    lines.push(`${i + 1}. תרגיל ${e.exercise_id} · ${e.meeting_label_he} · ${e.kind_label_he}`);
+    lines.push(`${i + 1}. ${e.exercise_label_he} · ${e.meeting_label_he} · ${e.kind_label_he}`);
     lines.push(`   סיבת הדחייה: ${e.reason}`);
     lines.push(`   הכרטיס שנדחה: ${e.card_excerpt}`);
   });
@@ -320,7 +329,7 @@ export function aiRejectionsReportHtml(report: AiRejectionsReport): string {
     `<h2>${esc(AI_REJECTIONS_HEADINGS_HE.examples)}</h2>`,
     `<table><thead><tr><th>תרגיל</th><th>מפגש</th><th>סוג הדחייה</th><th>סיבת הדחייה</th><th>הכרטיס שנדחה (מקוצר)</th></tr></thead><tbody>`,
     ...report.examples.map((e) =>
-      `<tr><td dir="ltr">${esc(e.exercise_id)}</td><td>${esc(e.meeting_label_he)}</td><td>${esc(e.kind_label_he)}</td><td>${esc(e.reason)}</td><td style="text-align:start">${esc(e.card_excerpt)}</td></tr>`
+      `<tr><td>${esc(e.exercise_label_he)}</td><td>${esc(e.meeting_label_he)}</td><td>${esc(e.kind_label_he)}</td><td>${esc(e.reason)}</td><td style="text-align:start">${esc(e.card_excerpt)}</td></tr>`
     ),
     `</tbody></table>`,
   );
@@ -379,7 +388,19 @@ export const weeklyAiRejectionsReport = onSchedule(AI_REJECTIONS_REPORT_OPTIONS,
   });
   if (rows.length >= READ_LIMIT) logger.warn(`weeklyAiRejectionsReport: read capped at ${READ_LIMIT} rows`);
 
-  const report = buildAiRejectionsReport(rows, { from_ms: fromMs, to_ms: toMs });
+  // The exercises by their catalog titles (best effort: without them each reads "תרגיל במפגש N").
+  const titles: Record<string, string> = {};
+  try {
+    const catalog = await db.collection("curriculum_catalog").get();
+    for (const doc of catalog.docs) {
+      const tasks = (doc.data() || {}).tasks;
+      if (!Array.isArray(tasks)) continue;
+      for (const t of tasks) if (t && typeof t.id === "string" && typeof t.titleHe === "string" && t.titleHe.trim()) titles[t.id] = t.titleHe;
+    }
+  } catch (err) {
+    logger.warn(`weeklyAiRejectionsReport: catalog titles unavailable (${String(err)})`);
+  }
+  const report = buildAiRejectionsReport(rows, { from_ms: fromMs, to_ms: toMs }, titles);
   const pdf = await createAiRejectionsPdf(report);
   // Loaded here: exportDriveReport pulls in the whole reset module.
   const { uploadBufferToDrive } = await import("./exportDriveReport");

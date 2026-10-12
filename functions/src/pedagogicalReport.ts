@@ -278,7 +278,9 @@ export function generateExerciseNarrativeFromEvents(
     // than a drag tally, at the place the first drag happened.
     if (representationClauseAt >= 0) {
       const distinct = Array.from(new Set(representedColumns)).sort((a, b) => b - a);
-      clauses[representationClauseAt] = `ייצג את המספרים בבית המספרים באמצעות לבני הדינס של ${distinct.join(", ")}`;
+      // "של 100, 10 ו-1": the last value joins with "ו-", as every list in the narrative.
+      const valuesHe = distinct.length > 1 ? `${distinct.slice(0, -1).join(", ")} ו-${distinct[distinct.length - 1]}` : `${distinct[0]}`;
+      clauses[representationClauseAt] = `ייצג את המספרים בבית המספרים באמצעות לבני הדינס של ${valuesHe}`;
     }
 
     const ending = completed

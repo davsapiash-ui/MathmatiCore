@@ -44,7 +44,7 @@ export const EXACT_AI_FALLBACK_TEXT_HE =
  * score counts the compulsory exercises only.
  */
 export const CHOICE_EXERCISES_HEADING_HE =
-  "תרגילי בחירה (אחרי תרגילי החובה) — בנפרד מתרגילי החובה, ואינם נכללים בציון ניסיון ראשון (מדד 1)";
+  "תרגילי בחירה (אחרי תרגילי החובה) — אינם נכללים בציון ניסיון ראשון (מדד 1)";
 
 export const TIER_LABEL_HE: Record<RecommendationTier, string> = {
   below_50: "קבוצה הומוגנית קטנה, תבניות עשר פיזיות ומקלות מנייה (ציון מתחת ל-50%)",
@@ -186,8 +186,8 @@ function researchMeasuresCard(m: Record<string, any> | null | undefined, section
     <table><thead><tr><th>מדד</th><th>במפגש זה</th><th>מצטבר</th><th>מה המדד אומר</th></tr></thead><tbody>
       ${row("persistence", persistenceCell(m.persistence_without_help), "—")}
       ${row("self_correction", selfCorrectionHe(m.persistence ?? null), "—")}
-      ${row("flexibility", flexibilityHe(m.flexibility ?? null), `${flexibilityHe(m.flexibility_cumulative ?? null)} (מפגשים 3 ו-7)`)}
-      ${row("mediation", mediationHe(m.mediation ?? null), `${mediationHe(m.mediation_cumulative ?? null)} (כל המפגשים)`)}
+      ${row("flexibility", flexibilityHe(m.flexibility ?? null), `מפגשים 3 ו-7: ${flexibilityHe(m.flexibility_cumulative ?? null)}`)}
+      ${row("mediation", mediationHe(m.mediation ?? null), `כל המפגשים: ${mediationHe(m.mediation_cumulative ?? null)}`)}
     </tbody></table>`;
 }
 
@@ -300,7 +300,7 @@ export function classScaffoldsLineHe(a: ClassAggregates): string {
     ? ` (${a.place_cues_regular_total} בפרופיל הרגיל, ${a.place_cues_enhanced_total} בפרופיל התמיכה המוגבר)`
     : "";
   // A counter a stored report does not have yet reads 0, never "undefined".
-  return `לוח החיבור: נפתח ${a.grid_openings_total ?? 0}, הוחזר על ידי הלומד ${a.grid_reopenings_total ?? 0} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total ?? 0} | קריאות שקטות למורה: ${a.help_requests_total ?? 0}${a.help_withdrawals_total ? ` (הלומדים ביטלו ${a.help_withdrawals_total} מהן)` : ""} | בקשות עזרה מהצ׳אט: ${a.chat_help_requests_total ?? 0} | פיגום בשורת התוצאה: ${a.place_cue_scaffolds_total ?? 0}${byProfile}`;
+  return `לוח החיבור: נפתח ${a.grid_openings_total ?? 0}, הוחזר בידי הלומדים ${a.grid_reopenings_total ?? 0} | הקלדה לפני המרה (מקלדת נעולה): ${a.keyboard_lock_blocks_total ?? 0} | קריאות שקטות למורה: ${a.help_requests_total ?? 0}${a.help_withdrawals_total ? ` (הלומדים ביטלו ${a.help_withdrawals_total} מהן)` : ""} | בקשות עזרה מהצ׳אט: ${a.chat_help_requests_total ?? 0} | פיגום בשורת התוצאה: ${a.place_cue_scaffolds_total ?? 0}${byProfile}`;
 }
 
 /** One learner's tools: how often each was operated, and "לא הופעל" where it never was. */
@@ -456,7 +456,7 @@ function learnersTable(rows: ClassLearnerRow[], scored = true): string {
   const head = [
     "לומד", ...(scored ? [FIRST_ATTEMPT_SCORE_LABEL_HE, "נכון בניסיון ראשון"] : []), "תרגילים שנפתחו", "תרגילים שהושלמו", "ספרות שגויות",
     ...COLUMN_NAMES_HE.map((c) => `שגויות: ${c}`),
-    "מחיקות", "ביטולים", "היסוסים", "המרות", "כרטיסים", "דקות", "רפלקציה",
+    "מחיקות", "ביטולים", "היסוסים", "המרות", "כרטיסי חניכה", "דקות פעילות", "דקות הקלטה", "רפלקציה", "מסלול",
   ];
   const body = rows.map((r) => `
     <tr>
@@ -476,7 +476,9 @@ function learnersTable(rows: ClassLearnerRow[], scored = true): string {
       <td>${esc(r.regroupings)}</td>
       <td>${esc(r.socratic_cards)}</td>
       <td>${esc(r.active_minutes)}</td>
+      <td>${esc(r.recording_minutes ?? 0)}</td>
       <td>${r.reflection_submitted ? "כן" : "לא"}</td>
+      <td>${r.learning_path ? esc(ROUTE_NAME_HE[r.learning_path]) : "—"}</td>
     </tr>`).join("");
   return `<table class="dense"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
 }
@@ -584,7 +586,7 @@ function classToolsSection(rows: ClassLearnerRow[], a: ClassAggregates): string 
     <table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
-/** The class report is table-heavy (17 columns per learner), so it prints landscape. */
+/** The class report is table-heavy (19 columns per learner), so it prints landscape. */
 export const CLASS_REPORT_PDF_OPTIONS = { landscape: true };
 
 export function classReportHtml(report: Record<string, any>): string {
@@ -619,7 +621,7 @@ export function classReportHtml(report: Record<string, any>): string {
   // Meeting 1 is not scored (Module 14 §ב, PRD 23 "בלי אחוז"): its table counts learners, with no percentage.
   const withPercent = a.scored !== false;
   const exerciseTable = (list: ClassAggregates["exercises"], choice: boolean) => `<table>
-        <thead><tr><th>תרגיל</th>${choice ? "<th>נתיב</th>" : ""}<th>פתחו</th><th>סיימו</th><th>בניסיון ראשון</th>${withPercent ? "<th>אחוז בניסיון ראשון</th>" : ""}<th>ספרות שגויות</th><th>כרטיסים</th><th>היסוסים</th></tr></thead>
+        <thead><tr><th>תרגיל</th>${choice ? "<th>נתיב</th>" : ""}<th>פתחו</th><th>סיימו</th><th>בניסיון ראשון</th>${withPercent ? "<th>אחוז בניסיון ראשון</th>" : ""}<th>ספרות שגויות</th><th>כרטיסי חניכה</th><th>היסוסים</th></tr></thead>
         <tbody>${list.map((ex) => `
           <tr>
             <td class="label">${exerciseName(titles, ex.exercise_id)}</td>

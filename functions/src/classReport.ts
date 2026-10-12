@@ -949,15 +949,15 @@ export function createClassReportPdfBufferWithPdfkit(report: Record<string, any>
       heading("4. טבלת הלומדים (כל מה שנמדד ליחיד)");
       line(
         scored
-          ? `לומד | ${FIRST_ATTEMPT_SCORE_LABEL_HE} | נכון בניסיון ראשון | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסים | דקות | רפלקציה`
-          : "לומד | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסים | דקות | כלים שלא הופעלו",
+          ? `לומד | ${FIRST_ATTEMPT_SCORE_LABEL_HE} | נכון בניסיון ראשון | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסי חניכה | דקות פעילות | דקות הקלטה | רפלקציה | מסלול`
+          : "לומד | תרגילים | ספרות שגויות (א/ע/מ/אל) | מחיקות | ביטולים | היסוסים | המרות | כרטיסי חניכה | דקות פעילות | דקות הקלטה | כלים שלא הופעלו",
         8, "#64748b"
       );
       for (const r of rows) {
-        const common = `${r.exercises_completed}/${r.exercises_attempted} | ${r.wrong_digits} (${r.wrong_digits_units}/${r.wrong_digits_tens}/${r.wrong_digits_hundreds}/${r.wrong_digits_thousands}) | ${r.deletions} | ${r.undos} | ${r.hesitations} | ${r.regroupings} | ${r.socratic_cards} | ${r.active_minutes}`;
+        const common = `${r.exercises_completed}/${r.exercises_attempted} | ${r.wrong_digits} (${r.wrong_digits_units}/${r.wrong_digits_tens}/${r.wrong_digits_hundreds}/${r.wrong_digits_thousands}) | ${r.deletions} | ${r.undos} | ${r.hesitations} | ${r.regroupings} | ${r.socratic_cards} | ${r.active_minutes} | ${r.recording_minutes ?? 0}`;
         line(
           scored
-            ? `תלמיד ${r.student_id} | ${pct(r.score_percent)} | ${r.score_percent === null ? "לא נמדד" : `${r.correct_first_attempt}/${r.compulsory_total}`} | ${common} | ${r.reflection_submitted ? "כן" : "לא"}`
+            ? `תלמיד ${r.student_id} | ${pct(r.score_percent)} | ${r.score_percent === null ? "לא נמדד" : `${r.correct_first_attempt}/${r.compulsory_total}`} | ${common} | ${r.reflection_submitted ? "כן" : "לא"} | ${r.learning_path ? ROUTE_NAME_HE[r.learning_path] : "—"}`
             : `תלמיד ${r.student_id} | ${common} | ${r.tool_mastery.not_used.map((t) => TOOL_LABEL_HE[t]).join(", ") || "אין"}`,
           9, "#0f172a"
         );
