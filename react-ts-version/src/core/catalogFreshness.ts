@@ -122,11 +122,17 @@ export function bankLabelHe(bankId: string): string {
   return `${meetingShortLabelHe(Number(match[1]))}${path}`;
 }
 
+/** The date and time of publication, in Israel time: "12.10.2026 בשעה 14:35" (owner, 12.10.2026). */
+export function publishedWhenHe(publishedAt: number | string | Date): string {
+  const d = new Date(publishedAt);
+  const date = d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'Asia/Jerusalem' });
+  const time = d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jerusalem' });
+  return `${date} בשעה ${time}`;
+}
+
 /** משפט אחד למסך המנהל. */
 export function freshnessMessageHe(freshness: CatalogFreshness): string {
-  const when = freshness.publishedAt
-    ? new Date(freshness.publishedAt).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: 'numeric' })
-    : null;
+  const when = freshness.publishedAt ? publishedWhenHe(freshness.publishedAt) : null;
 
   if (freshness.status === 'never_published') {
     return 'הקטלוג לא פורסם מעולם. הילדים מקבלים את התרגילים ישירות מהקוד — זה תקין ואין מה לעשות.';

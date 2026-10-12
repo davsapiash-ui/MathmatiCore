@@ -131,3 +131,16 @@ describe('המסך מחובר לחיווי', () => {
     expect(view).toContain('אי אפשר להגיד אם מה שפורסם מעודכן');
   });
 });
+
+describe('מצב הפרסום מציג תאריך ושעה בשעון ישראל (בעל המוצר, 12.10.2026)', () => {
+  it('משפט "זהים לקוד" כולל את השעה', async () => {
+    const { freshnessMessageHe } = await import('../catalogFreshness');
+    const msg = freshnessMessageHe({ status: 'match', publishedAt: Date.parse('2026-10-12T11:35:00Z'), changedBankIds: [], missingBankIds: [], extraBankIds: [] });
+    expect(msg).toBe('התרגילים שפורסמו זהים לקוד. פורסם ב-12.10.2026 בשעה 14:35.');
+  });
+  it('משפט "הקוד השתנה" כולל את השעה', async () => {
+    const { freshnessMessageHe } = await import('../catalogFreshness');
+    const msg = freshnessMessageHe({ status: 'stale', publishedAt: Date.parse('2026-10-12T05:07:00Z'), changedBankIds: [], missingBankIds: [], extraBankIds: [] });
+    expect(msg.startsWith('פורסם ב-12.10.2026 בשעה 08:07 — מאז הקוד השתנה.')).toBe(true);
+  });
+});
