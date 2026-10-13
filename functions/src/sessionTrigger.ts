@@ -18,6 +18,7 @@ import {
   COMPULSORY_EXERCISES_PER_MEETING,
 } from "./meetingMetrics";
 import { CATCHUP_COLLECTION, catchUpDocId } from "./catchUp";
+import { quarantineLateClearedAction, type ActionsBucket } from "./clearedActions";
 import { asLearningPath, recommendedPathFor, type LearningPath, type RecommendedPath } from "./learningPath";
 
 export type MeetingScore =
@@ -682,6 +683,20 @@ export const onMeetingTelemetryArrived = onDocumentCreated({
   region: "us-central1",
 }, async (event) => {
   const data = event.data?.data();
+  // PRD 23א §ג (owner, 12.10.2026): an action of a meeting whose list was
+  // cleared, made on the device before that reset, never returns to the list.
+  // One read of the learner's marker document per event.
+  try {
+    const moved = await quarantineLateClearedAction(
+      admin.firestore(), admin.storage().bucket() as unknown as ActionsBucket, event.params.logId, data as Record<string, unknown> | undefined
+    );
+    if (moved) {
+      logger.info(`Telemetry ${event.params.logId}: made before a reset that cleared its meeting's actions; moved beside that reset's backup.`);
+      return;
+    }
+  } catch (err) {
+    logger.error(`Telemetry ${event.params.logId}: the check against cleared actions failed:`, err);
+  }
   if (!lateCompletionCandidate(data)) return;
   try {
     const outcome = await completeMeetingOnLateTelemetry(admin.firestore(), admin.database(), data);

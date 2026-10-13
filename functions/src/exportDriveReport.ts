@@ -18,6 +18,10 @@ import { rtlText } from "./hebrewPdf";
 import { finishedMeetingRefusalHe, resolveActiveSessionNumber, resolveClassSessionNumber, validMeetingNumber } from "./resetMeetingTarget";
 import { LATE_MARKERS_ROOT, lateRecordingMarkerRevert, lateRecordingMarkerUpdates } from "./lateRecordings";
 import {
+  CLEARED_ACTIONS_FORMAT, addClearedActionsMarker, clearedActionsOfBackup, removeClearedActionsMarker,
+  sweepLateClearedActions, writeClearedActionsFile, type ActionsBucket, type ClearedActionsMarker,
+} from "./clearedActions";
+import {
   DRIVE_FOLDERS,
   RESEARCH_FILE_LABELS,
   adminReportFileName,
@@ -553,6 +557,14 @@ export interface ResetAuditEntry {
   late_recording_files?: string[];
   /** Follow-up steps that failed after the deletion (§ד). */
   side_effect_errors?: string[];
+  /** §ב.2 (owner, 12.10.2026): "לנקות גם את רשימת הפעולות" was ticked; the actions are only in the backup. */
+  actions_cleared?: boolean;
+  /** How many actions the reset cleared. */
+  cleared_actions_count?: number;
+  /** The file of the cleared actions in Cloud Storage, which the read-only table and the report read. */
+  cleared_actions_path?: string;
+  /** The backup's copy in Cloud Storage; the daily job's Drive link never replaces it. */
+  backup_storage_path?: string;
 }
 
 /**
@@ -647,6 +659,16 @@ async function runBackupAndReset(request: CallableRequest<any>) {
   if (isClassTarget && reset_scope === 'full_student') {
     throw new HttpsError("invalid-argument", RESET_CLASS_FULL_REFUSAL_HE);
   }
+  // PRD 23א §ב.2 (owner, 12.10.2026): "לנקות גם את רשימת הפעולות" exists in the
+  // single-learner reset only — never for the class, never at levels 1 and 3.
+  const rawClearActions = request.data?.clear_actions;
+  if (rawClearActions !== undefined && rawClearActions !== null && typeof rawClearActions !== 'boolean') {
+    throw new HttpsError("invalid-argument", "Invalid clear_actions. Must be a boolean.");
+  }
+  const clearActions = rawClearActions === true;
+  if (clearActions && (reset_level !== 'single_student' || isClassTarget)) {
+    throw new HttpsError("invalid-argument", CLEAR_ACTIONS_ONE_LEARNER_REFUSAL_HE);
+  }
 
   // PRD Module 23א §F: learning-data resets belong to the class teacher; a
   // system-admin identity is blocked (class-isolation principle).
@@ -697,9 +719,13 @@ async function runBackupAndReset(request: CallableRequest<any>) {
 
   return resetUnderLock(request, {
     reset_level, reason, student_id, reset_scope, session_number,
-    class_id, reason_note, isClassTarget, performedBy, rtdb, db, resetId, clientNamedReset,
+    class_id, reason_note, isClassTarget, performedBy, rtdb, db, resetId, clientNamedReset, clearActions,
   });
 }
+
+/** PRD 23א §ב.2: the actions list is cleared in a single-learner reset only. */
+export const CLEAR_ACTIONS_ONE_LEARNER_REFUSAL_HE =
+  'ניקוי רשימת הפעולות אפשרי רק באיפוס של תלמיד אחד. לא נמחקו נתונים.';
 
 /**
  * §ז: when reset_audit_log already holds an entry under this reset id, the
@@ -769,12 +795,14 @@ interface ResetContext {
   resetId: string;
   /** The dashboard named this reset (reset_id): a repeat of it never runs twice (§ז). */
   clientNamedReset: boolean;
+  /** PRD 23א §ב.2: "לנקות גם את רשימת הפעולות" was ticked (one learner only). */
+  clearActions: boolean;
 }
 
 async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext) {
   const {
     reset_level, reason, student_id, reset_scope, session_number,
-    class_id, reason_note, isClassTarget, performedBy, rtdb, db, resetId, clientNamedReset,
+    class_id, reason_note, isClassTarget, performedBy, rtdb, db, resetId, clientNamedReset, clearActions,
   } = ctx;
 
   // Level 1: Alerts only (no destructive workspace/session deletion, but mandatory audit log)
@@ -1075,6 +1103,77 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
     }
   }
 
+  // Step 2c (PRD 23א §ב.2, §ג; owner, 12.10.2026): "לנקות גם את רשימת הפעולות".
+  // The backup is always also in Cloud Storage, and beside it the file of the
+  // cleared actions, which the read-only table and the report from the backup
+  // read. The learner's marker makes the telemetry trigger move every late
+  // event of the cleared meeting out of the actions list. Only then may the
+  // actions be deleted — exactly those read into the backup (deleteIds).
+  const learnerNum = parseInt(rawNum, 10);
+  const clearSession: number | null = singleScope === 'active_session' ? activeSessionNumber : null;
+  let clearAudit: Pick<ResetAuditEntry, 'actions_cleared' | 'cleared_actions_count' | 'cleared_actions_path' | 'backup_storage_path'> = {};
+  let clearMarker: ClearedActionsMarker | null = null;
+  let clearedIds: ReadonlySet<string> = new Set();
+  if (clearActions) {
+    const cleared = clearedActionsOfBackup(backup.firestore.telemetry_logs, learnerNum, clearSession);
+    const bucket = admin.storage().bucket();
+    const storagePath = backupStoragePath(class_id, resetId, backupName);
+    try {
+      if (written.channel !== 'storage') {
+        await bucket.file(storagePath).save(backupBuffer, {
+          contentType: "application/json",
+          metadata: { metadata: { reset_id: resetId, class_id, original_name: backupName } },
+        });
+      }
+      const clearedPath = await writeClearedActionsFile(bucket as unknown as ActionsBucket, {
+        format: CLEARED_ACTIONS_FORMAT,
+        reset_id: resetId,
+        class_id,
+        student_id: learnerNum,
+        session_number: clearSession,
+        performed_at: performedAt,
+        actions: cleared,
+      });
+      clearMarker = { reset_id: resetId, class_id, performed_at: performedAt, session_number: clearSession };
+      await addClearedActionsMarker(db, learnerNum, clearMarker);
+      const telemetryEntry = scope.firestore.find((e) => e.collection === "telemetry_logs");
+      if (telemetryEntry) {
+        telemetryEntry.backupOnly = false;
+        telemetryEntry.deleteIds = cleared.map((a) => a.id);
+      }
+      clearedIds = new Set(cleared.map((a) => a.id));
+      clearAudit = {
+        actions_cleared: true,
+        cleared_actions_count: cleared.length,
+        cleared_actions_path: clearedPath,
+        backup_storage_path: storagePath,
+      };
+    } catch (err: any) {
+      logger.error(`Reset ${resetId}: the cleared actions could not be kept in Cloud Storage; nothing is deleted:`, err);
+      if (clearMarker) await removeClearedActionsMarker(db, learnerNum, clearMarker).catch(() => {});
+      await revertMarkers();
+      await db.collection("reset_audit_log").doc(resetId).set({
+        reset_id: resetId,
+        reset_level,
+        performed_by_teacher_id: performedBy,
+        performed_at: performedAt,
+        class_id,
+        affected_student_ids: affectedStudentIds,
+        backup_file_url: written.url,
+        backup_status: 'success',
+        reset_reason: reason,
+        reason_note,
+        records_deleted_count: 0,
+        backup_channel: written.channel,
+        backup_drive_copied_at: null,
+        deletion_status: 'not_required',
+        ...level2Audit,
+        created_at: Date.now(),
+      }).catch((auditErr) => logger.error("Failed to write the aborted-reset audit entry:", auditErr));
+      throw new HttpsError("failed-precondition", CLEARED_ACTIONS_NOT_KEPT_HE);
+    }
+  }
+
   // Step 3: the audit entry, BEFORE anything is deleted (Module 23א §ד), with
   // deletion_status 'in_progress'. A failed write aborts the reset while the
   // backup is safe and nothing is gone.
@@ -1095,12 +1194,14 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
     backup_drive_copied_at: null,
     deletion_status: 'in_progress',
     ...level2Audit,
+    ...clearAudit,
     created_at: Date.now(),
   };
   try {
     await auditRef.set(auditEntry);
   } catch (auditErr) {
     logger.error(`Reset ${resetId}: the audit entry could not be written; the reset is aborted before any deletion:`, auditErr);
+    if (clearMarker) await removeClearedActionsMarker(db, learnerNum, clearMarker).catch(() => {});
     await revertMarkers();
     throw new HttpsError(
       "failed-precondition",
@@ -1130,6 +1231,19 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
   // of it (no page limits).
   const deletion = await executeResetDeletion(rtdb, db, scope);
   sideEffectErrors.push(...deletion.side_effect_failures);
+
+  // PRD 23א §ג: actions of the cleared meeting that reached the server while
+  // the backup was collected and written are not in it; they go to "פעולות
+  // שהגיעו אחרי האיפוס" like any late one, and never stay in the list.
+  if (clearMarker) {
+    try {
+      const studentValues = Array.from(new Set<string | number>([rawNum, learnerNum, ...studentAliases(rawNum)]));
+      const moved = await sweepLateClearedActions(db, admin.storage().bucket() as unknown as ActionsBucket, clearMarker, learnerNum, studentValues, clearedIds);
+      if (moved > 0) logger.info(`Reset ${resetId}: ${moved} actions that arrived during the backup were moved beside it.`);
+    } catch (err: any) {
+      sideEffectErrors.push(`telemetry_logs (actions that arrived during the backup): ${err?.message || String(err)}`);
+    }
+  }
 
   if (reset_level === 'system') {
     // A class that starts over has no projector and — Module 14: session
@@ -1203,9 +1317,14 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
     deletedRecords: deletion.total,
     ...(sideEffectErrors.length > 0 ? { sideEffectErrors } : {}),
     ...(reset_level === 'single_student' ? { resetScope: singleScope, sessionNumber: activeSessionNumber, resetTarget } : {}),
+    ...(clearMarker ? { actionsCleared: true, clearedActionsCount: clearedIds.size } : {}),
   };
   });
 }
+
+/** PRD 23א §ג: without the cleared actions in Cloud Storage the system could not read them back, so nothing is deleted. */
+export const CLEARED_ACTIONS_NOT_KEPT_HE =
+  'הגיבוי נשמר, אבל לא הצלחנו לשמור את רשימת הפעולות באחסון כך שאפשר יהיה להציג אותה אחר כך. לכן האיפוס בוטל ולא נמחקו נתונים.';
 
 // ─── Reset scope, backup and deletion helpers (Module 23א) ───────────────────
 
@@ -1349,6 +1468,12 @@ interface FirestoreScopeEntry {
    * entry is still backed up.
    */
   sessionNumber?: number;
+  /**
+   * PRD 23א §ב.2, "לנקות גם את רשימת הפעולות" (owner, 12.10.2026): exactly
+   * these documents are deleted — the cleared actions as read into the backup,
+   * never one that arrived after it was collected. Set after the backup.
+   */
+  deleteIds?: string[];
 }
 
 /** An RTDB node that is reset field-by-field instead of removed (level 2, active meeting only). */
@@ -2022,7 +2147,9 @@ export async function executeResetDeletion(
   for (const entry of scope.firestore) {
     if (entry.backupOnly) continue;
     try {
-      const n = entry.sessionNumber
+      const n = entry.deleteIds
+        ? await deleteDocsById(db, entry.collection, entry.deleteIds)
+        : entry.sessionNumber
         ? await deleteSessionDocsOfMeeting(db, entry, entry.sessionNumber)
         : await deleteCollectionFully(db, entry);
       counts.firestore[entry.collection] = n;
@@ -2033,6 +2160,19 @@ export async function executeResetDeletion(
   }
 
   return counts;
+}
+
+/** Deletes the named documents of one collection, and returns how many existed. */
+async function deleteDocsById(db: admin.firestore.Firestore, collection: string, ids: string[]): Promise<number> {
+  let deleted = 0;
+  for (let i = 0; i < ids.length; i += FIRESTORE_PAGE) {
+    const refs = ids.slice(i, i + FIRESTORE_PAGE).map((id) => db.collection(collection).doc(id));
+    const snaps = await db.getAll(...refs);
+    const batch = db.batch();
+    for (const s of snaps) if (s.exists) { batch.delete(s.ref); deleted += 1; }
+    await batch.commit();
+  }
+  return deleted;
 }
 
 /** Deletes only the entry's documents that belong to one meeting, and returns how many. */

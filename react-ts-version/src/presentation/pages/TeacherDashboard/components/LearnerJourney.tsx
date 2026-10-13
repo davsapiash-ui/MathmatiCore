@@ -52,6 +52,7 @@ import {
   PREVIOUS_SCORE_LABEL_HE,
 } from '@/infrastructure/services/LearnerJourneyService';
 import { STATION_NAMES_HE, meetingShortLabelHe } from '@/core/stationNames';
+import { ClearedActionsFromBackup } from './ClearedActionsFromBackup';
 import { MEETING_FORMAL_HE, meetingFullLabelHe } from '@/core/meetingFormalNames';
 
 interface Props {
@@ -769,6 +770,11 @@ function LearnerJourneyOfOneLearner({ studentId }: Props) {
               </div>
             )}
           </div>
+
+          {/* PRD 23א §ב.2 (owner, 12.10.2026): the actions a reset cleared, from the backup. */}
+          {studentNum !== null && selectedSession !== null && (
+            <ClearedActionsFromBackup studentNum={studentNum} sessionNumber={selectedSession} resets={sessionResets} />
+          )}
 
           {/* Split screen: table (right in RTL) + player (left). Side by side
               from 1280px: at 1024 each half was ~350px, the table ran under the

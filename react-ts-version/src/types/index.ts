@@ -319,4 +319,12 @@ export interface ResetAuditEntry {
   late_recording_files?: string[];
   /** Follow-up steps that failed after the deletion (Module 23א §ד). */
   side_effect_errors?: string[];
+  /** §ב.2 (owner, 12.10.2026): "לנקות גם את רשימת הפעולות" was ticked; the actions are only in the backup. */
+  actions_cleared?: boolean;
+  /** How many actions the reset cleared. */
+  cleared_actions_count?: number;
+  /** The file of the cleared actions in Cloud Storage. */
+  cleared_actions_path?: string;
+  /** The backup's copy in Cloud Storage. */
+  backup_storage_path?: string;
 }

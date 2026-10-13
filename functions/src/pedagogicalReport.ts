@@ -1,5 +1,9 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { requireTeacherForIndividualData } from "./callerIdentity";
+import { clearedResetEntryFor, loadClearedActions, type ActionsBucket } from "./clearedActions";
+
+/** "דוח מהגיבוי" (PRD 23 §ב, owner 12.10.2026): the title of a report built from the actions a reset cleared. */
+export const BACKUP_REPORT_TITLE_SUFFIX_HE = " · מהגיבוי";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as path from "path";
@@ -666,7 +670,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   // (roleClaims.ts).
   requireTeacherForIndividualData(request.auth.token as Record<string, unknown>);
 
-  const { sessionId, classId = "class_1", sessionNumber, studentId: explicitStudentId } = request.data || {};
+  const { sessionId, classId = "class_1", sessionNumber, studentId: explicitStudentId, fromBackupResetId } = request.data || {};
   // class_id goes into the Storage path and the stored report, so it must be a
   // plain id, and it must be the caller's own class (getClassReportDownloadUrl
   // and the class report apply the same rule).
@@ -746,12 +750,39 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     logger.error("[Module23] reset_audit_log could not be read; report not produced:", err);
     throw new HttpsError("unavailable", RESET_LOG_UNAVAILABLE_HE);
   }
-  const meetingRuns = learnerRuns.get(resolvedSessionNumber) ?? null;
+  // PRD 23 §ב and 23א §ב.2 (owner, 12.10.2026): "דוח מהגיבוי" — the same report,
+  // built from the actions a learner reset cleared, read from the backup. They
+  // are the meeting's run as it was before that reset; nothing is written back.
+  const backupEntry = fromBackupResetId === undefined || fromBackupResetId === null
+    ? null
+    : await clearedResetEntryFor(db, request.auth.token as Record<string, unknown>, fromBackupResetId);
+  if (backupEntry) {
+    const learners = Array.isArray(backupEntry.affected_student_ids) ? backupEntry.affected_student_ids : [];
+    if (!learners.includes(clampedStudentNum)) {
+      throw new HttpsError("invalid-argument", `האיפוס הזה לא נגע בתלמיד ${clampedStudentNum}. הדוח לא הופק.`);
+    }
+    if (typeof backupEntry.session_number === "number" && backupEntry.session_number !== resolvedSessionNumber) {
+      throw new HttpsError("invalid-argument", `באיפוס הזה נמחקו הפעולות של מפגש ${backupEntry.session_number} בלבד. הדוח לא הופק.`);
+    }
+  }
+  let backupActions: Record<string, any>[] = [];
+  if (backupEntry) {
+    try {
+      backupActions = (await loadClearedActions(admin.storage().bucket() as unknown as ActionsBucket, backupEntry, resolvedSessionNumber))
+        .map((a) => a.data as Record<string, any>);
+    } catch (err) {
+      logger.error(`[Module23] the cleared actions of ${backupEntry.reset_id} could not be read:`, err);
+      throw new HttpsError("unavailable", "לא ניתן לקרוא כרגע את הפעולות מהגיבוי. נסו שוב בעוד רגע.");
+    }
+  }
+  const meetingRuns: MeetingRuns | null = backupEntry
+    ? { resets: [], current: backupActions, beforeReset: [], firstWrittenAtMs: null }
+    : learnerRuns.get(resolvedSessionNumber) ?? null;
   const telemetryDocs = meetingRuns ? meetingRuns.current : [];
   // Reset and nothing answered since. The client logs SESSION_START and
   // PROBLEM_LOAD as soon as the meeting reopens, and those alone scored 0%
   // and sent the child to remediation before they had started.
-  if (isAwaitingRerun(meetingRuns)) {
+  if (!backupEntry && isAwaitingRerun(meetingRuns)) {
     // PRD 23 §ב, word for word: the request "נדחית, עם הנימוק: 'מאז האיפוס עוד
     // לא נרשמה לו אף תשובה'". "לא נרשמה תשובה" is true both when the child has
     // not started and when the child pressed things that send no telemetry (a
@@ -813,7 +844,8 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       teacher_gate_approved: Boolean(studentVal.teacher_gate_approved),
     };
     scoreSource = "not_scored";
-  } else if (sessionDoc.exists && sessionDoc.data()?.session_score_percent !== undefined && sessionDoc.data()?.session_score_percent !== null) {
+  } else if (!backupEntry && sessionDoc.exists && sessionDoc.data()?.session_score_percent !== undefined && sessionDoc.data()?.session_score_percent !== null) {
+    // The stored score belongs to the run in the system; a report from the backup scores the backup's run.
     sessionData = sessionDoc.data() || {};
     scoreSource = "session_document";
   } else if (telemetryDocs.length > 0) {
@@ -1038,8 +1070,9 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   let catchUp: ReportCatchUp | null = null;
   let catchUpBeforeReset: Partial<CatchUpRecord> | null = null;
   try {
-    const catchUpSnap = await db.collection(CATCHUP_COLLECTION).doc(catchUpDocId(resolvedSessionNumber, clampedStudentNum)).get();
-    if (catchUpSnap.exists) {
+    // A report from the backup describes the run before the reset only: no catch-up card of the run in the system.
+    const catchUpSnap = backupEntry ? null : await db.collection(CATCHUP_COLLECTION).doc(catchUpDocId(resolvedSessionNumber, clampedStudentNum)).get();
+    if (catchUpSnap?.exists) {
       const split = splitCatchUpAtReset(catchUpSnap.data() as Partial<CatchUpRecord>, lastResetAtOf(meetingRuns));
       catchUp = reportCatchUpOf(split.after);
       catchUpBeforeReset = split.before;
@@ -1049,7 +1082,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   }
   // "לפני האיפוס": where the learner went wrong before this meeting's last reset,
   // and the catch-up time recorded before it. Never scored.
-  const preReset = meetingRuns ? buildPreResetRecord(meetingRuns, titlesById, catchUpBeforeReset) : null;
+  const preReset = meetingRuns && !backupEntry ? buildPreResetRecord(meetingRuns, titlesById, catchUpBeforeReset) : null;
 
   // PRD 14 §ב0: the session document keeps the score before the latest
   // completion (sessionTrigger.ts). Only beside a score of that same document.
@@ -1069,8 +1102,8 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     session_id: sessionId,
     generated_at: generatedAt,
     title_he: scoredMeeting
-      ? `MathematiCore - דוח פדגוגי · ${meetingLabelHe(resolvedSessionNumber)}`
-      : `MathematiCore - דוח היכרות וריענון · ${meetingLabelHe(resolvedSessionNumber)}`,
+      ? `MathematiCore - דוח פדגוגי · ${meetingLabelHe(resolvedSessionNumber)}` + (backupEntry ? BACKUP_REPORT_TITLE_SUFFIX_HE : "")
+      : `MathematiCore - דוח היכרות וריענון · ${meetingLabelHe(resolvedSessionNumber)}` + (backupEntry ? BACKUP_REPORT_TITLE_SUFFIX_HE : ""),
     anonymous_student_label: `תלמיד ${clampedStudentNum}`,
     student_id: clampedStudentNum,
     session_number: resolvedSessionNumber,
@@ -1154,7 +1187,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     // caller passed created a second, two-field "session" per report: the admin
     // overview counted each as a meeting that was started and never completed,
     // so the completion rate fell every time a teacher produced a report.
-    if (sessionDoc.exists) {
+    if (sessionDoc.exists && !backupEntry) {
       await sessionDoc.ref.set({
         pedagogical_report_pdf_path: storageFilePath,
         pedagogical_report_generated_at: generatedAt,
@@ -1191,6 +1224,8 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
       teaching_recommendations: report.teaching_recommendations,
       ai_analysis_available: report.ai_analysis_available,
       telemetry_event_count: telemetryDocs.length,
+      // "דוח מהגיבוי": built from the actions this reset cleared (PRD 23א §ב.2).
+      ...(backupEntry ? { from_backup_reset_id: backupEntry.reset_id } : {}),
       generated_at: report.generated_at,
       created_at: admin.firestore.FieldValue.serverTimestamp(),
       is_read_only: true,
@@ -1204,7 +1239,9 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
     try {
       // PRD Module 23, "תיקיות הדרייב": "מפגש 3 - תלמיד 01 - 08.10.2026.pdf" in
       // the flat folder "1 דוחות". A regenerated report is a new file.
-      const driveFileName = learnerReportFileName(resolvedSessionNumber, clampedStudentNum);
+      const driveFileName = backupEntry
+        ? learnerReportFileName(resolvedSessionNumber, clampedStudentNum).replace(/\.pdf$/, " - מהגיבוי.pdf")
+        : learnerReportFileName(resolvedSessionNumber, clampedStudentNum);
       const driveResult = await uploadBufferToDrive(pdfBuffer, driveFileName, "application/pdf", DRIVE_FOLDERS.reports);
       if (driveResult.success) {
         driveMirrorUrl = driveResult.webViewLink;

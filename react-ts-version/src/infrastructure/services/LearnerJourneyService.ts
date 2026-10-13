@@ -227,6 +227,10 @@ export interface MeetingResetMark {
    * copied it to the Drive folder "3 גיבויים". Present only when true.
    */
   backupNotInDrive?: true;
+  /** PRD 23א §ב.2 (owner, 12.10.2026): the reset cleared the actions list; they are only in the backup. Present only when true. */
+  actionsCleared?: true;
+  /** The reset's id in the reset log (reads the cleared actions back). */
+  resetId?: string;
 }
 
 /**
@@ -265,7 +269,14 @@ export function resetsOfMeeting(entries: Record<string, any>[], studentNum: numb
             : null;
     const at = Number(e.performed_at);
     if (scope === null || !Number.isFinite(at)) continue;
-    out.push({ at, reasonHe: resetReasonHe(e.reset_reason), scope, ...(backupNotYetInDrive(e) ? { backupNotInDrive: true as const } : {}) });
+    out.push({
+      at,
+      reasonHe: resetReasonHe(e.reset_reason),
+      scope,
+      ...(backupNotYetInDrive(e) ? { backupNotInDrive: true as const } : {}),
+      ...(e.actions_cleared === true ? { actionsCleared: true as const } : {}),
+      ...(typeof e.reset_id === 'string' && e.reset_id ? { resetId: e.reset_id } : {}),
+    });
   }
   return out.sort((a, b) => a.at - b.at);
 }
@@ -430,11 +441,12 @@ export function withResetSeparators(events: JourneyEvent[], resets: MeetingReset
   for (const event of events) {
     while (pending.length > 0 && pending[0].at < event.timestamp) {
       const reset = pending.shift()!;
-      if (rows.some((r) => r.kind === 'event')) rows.push({ kind: 'reset', reset });
+      if (reset.actionsCleared || rows.some((r) => r.kind === 'event')) rows.push({ kind: 'reset', reset });
     }
     rows.push({ kind: 'event', event });
   }
-  for (const reset of pending) if (rows.some((r) => r.kind === 'event')) rows.push({ kind: 'reset', reset });
+  // A reset that cleared the actions list has nothing before it here, and still cut the meeting.
+  for (const reset of pending) if (reset.actionsCleared || rows.some((r) => r.kind === 'event')) rows.push({ kind: 'reset', reset });
   return rows;
 }
 
@@ -452,8 +464,11 @@ export function resetWhatHe(scope: MeetingResetMark['scope']): string {
 
 /** The separator's text: "איפוס · 2.10.2026 14:05 · המפגש אופס. הסיבה: …". */
 export function resetSeparatorHe(r: MeetingResetMark): string {
-  return `איפוס · ${formatDate(r.at)} ${formatClock(r.at)} · ${resetWhatHe(r.scope)}.${r.reasonHe ? ` הסיבה: ${r.reasonHe}.` : ''} הדוח של המפגש נבנה רק מהעבודה שמכאן והלאה.${r.backupNotInDrive ? ` ${BACKUP_NOT_IN_DRIVE_HE}` : ''}`;
+  return `איפוס · ${formatDate(r.at)} ${formatClock(r.at)} · ${resetWhatHe(r.scope)}.${r.reasonHe ? ` הסיבה: ${r.reasonHe}.` : ''} הדוח של המפגש נבנה רק מהעבודה שמכאן והלאה.${r.actionsCleared ? ` ${ACTIONS_CLEARED_NOTE_HE}` : ''}${r.backupNotInDrive ? ` ${BACKUP_NOT_IN_DRIVE_HE}` : ''}`;
 }
+
+/** PRD 23א §ב.2 (owner, 12.10.2026): the separator of a reset that cleared the actions list. */
+export const ACTIONS_CLEARED_NOTE_HE = 'הפעולות שלפני האיפוס נמחקו מהרשימה ונשמרו בגיבוי.';
 
 /** PRD 23א §ג: the dashboard marks a reset whose backup has not reached Drive yet. */
 export const BACKUP_NOT_IN_DRIVE_HE = 'הגיבוי של האיפוס הזה שמור בינתיים באחסון הענן של המערכת, ועוד לא הגיע לתיקיית "3 גיבויים" בדרייב; הוא יועתק לשם אוטומטית פעם ביום.';
@@ -1019,6 +1034,8 @@ export interface MeetingReport {
    * when the meeting was not reset (and on reports stored before this existed).
    */
   preReset: { lines: string[] } | null;
+  /** "דוח מהגיבוי" (PRD 23 §ב, owner 12.10.2026): built from the actions a reset cleared. */
+  fromBackup: boolean;
   /** The copy of the PDF in the shared Drive folder; null when it was not saved there (the copy is best-effort). */
   driveUrl: string | null;
   /**
@@ -1143,6 +1160,7 @@ export function reportFromData(
     researchMeasures: researchMeasureLines(d.research_measures),
     pdfFailureMessage,
     preReset: strList(d.pre_reset?.lines_he).length > 0 ? { lines: strList(d.pre_reset.lines_he) } : null,
+    fromBackup: typeof d.from_backup_reset_id === 'string' && d.from_backup_reset_id !== '',
   };
 }
 
@@ -1182,13 +1200,15 @@ export async function fetchMeetingReports(sessionId: string): Promise<MeetingRep
 }
 
 /** Asks the server to build (or rebuild) the report for one meeting. Takes up to ~20 seconds. */
-export async function generateMeetingReport(params: { studentNum: number; sessionNumber: number; sessionId: string }): Promise<MeetingReport> {
+export async function generateMeetingReport(params: { studentNum: number; sessionNumber: number; sessionId: string; fromBackupResetId?: string }): Promise<MeetingReport> {
   const call = httpsCallable(functions, 'generatePedagogicalReportPDF', { timeout: 120_000 });
   const res = await call({
     sessionId: params.sessionId,
     classId: 'class_1',
     sessionNumber: params.sessionNumber,
     studentId: params.studentNum,
+    // "דוח מהגיבוי" (PRD 23 §ב): the actions this reset cleared, read from the backup.
+    ...(params.fromBackupResetId ? { fromBackupResetId: params.fromBackupResetId } : {}),
   });
   const data = (res.data ?? {}) as Record<string, any>;
   if (!data.report) throw new Error('השרת לא החזיר דוח');
@@ -1220,4 +1240,20 @@ export async function fetchMeetingReportUrl(sessionId: string, reportId: string)
   const url = (res.data as Record<string, any> | undefined)?.downloadUrl;
   if (typeof url !== 'string' || !url) throw new Error('לא התקבל קישור לקובץ');
   return url;
+}
+
+/**
+ * "הצגת הפעולות מהגיבוי" (PRD 23א §ב.2, owner 12.10.2026): the actions a reset
+ * cleared, read from the backup by the server, oldest first. Read-only.
+ */
+export async function fetchClearedActions(resetId: string, sessionNumber: number | null): Promise<JourneyEvent[]> {
+  const call = httpsCallable(functions, 'getClearedActionsFromBackup', { timeout: 120_000 });
+  const res = await call({ resetId, ...(sessionNumber ? { sessionNumber } : {}) });
+  const list = ((res.data as Record<string, any> | undefined)?.actions ?? []) as Array<Record<string, any>>;
+  const events: JourneyEvent[] = [];
+  for (const a of list) {
+    const e = journeyEventFromDoc(String(a.id ?? ''), a);
+    if (e) events.push(e);
+  }
+  return events.sort(compareJourneyEvents);
 }
