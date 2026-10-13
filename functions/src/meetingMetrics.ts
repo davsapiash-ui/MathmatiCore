@@ -823,6 +823,11 @@ export interface MeetingReset {
   reason: string | null;
   /** What was reset: the whole system, the whole learner, or this meeting. */
   scope: "system" | "full_student" | "active_session";
+  /**
+   * PRD 23א §ב.2 (owner, 12.10.2026): the reset also cleared the actions list;
+   * the meeting's earlier actions are only in the backup. Present only when true.
+   */
+  actionsCleared?: true;
 }
 
 /**
@@ -849,7 +854,12 @@ export function resetsOfMeeting(
             : null;
     const at = Number(e.performed_at);
     if (scope === null || !Number.isFinite(at)) continue;
-    out.push({ at, reason: typeof e.reset_reason === "string" ? e.reset_reason : null, scope });
+    out.push({
+      at,
+      reason: typeof e.reset_reason === "string" ? e.reset_reason : null,
+      scope,
+      ...(e.actions_cleared === true ? { actionsCleared: true as const } : {}),
+    });
   }
   return out.sort((a, b) => a.at - b.at);
 }
@@ -975,9 +985,13 @@ export function hasAnswerEvent(events: Record<string, any>[]): boolean {
  * Reset, worked on before it, and not answered anything since: the meeting has
  * not been redone yet. Scoring the screen-open events of the new run gave 0%
  * and the lowest group to a child who had not started (review of PR #209).
+ * When the last reset cleared the actions list (PRD 23א §ב.2), the work before
+ * it is only in the backup and `beforeReset` is empty: the reset itself says
+ * the meeting was worked on.
  */
 export function isAwaitingRerun(runs: MeetingRuns | null | undefined): boolean {
-  return Boolean(runs && runs.resets.length > 0 && runs.beforeReset.length > 0 && !hasAnswerEvent(runs.current));
+  if (!runs || runs.resets.length === 0 || hasAnswerEvent(runs.current)) return false;
+  return runs.beforeReset.length > 0 || runs.resets[runs.resets.length - 1].actionsCleared === true;
 }
 
 /**

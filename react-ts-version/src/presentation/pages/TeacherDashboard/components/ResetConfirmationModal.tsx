@@ -11,6 +11,10 @@ import { finishedMeetingRefusalHe } from '@/core/resetMeetingTarget';
 import { RESET_ACTION_HE, RESET_LOG_LINE_HE, RESET_REASON_HE, TEACHER_GATE_HE } from '@/core/routeLabels';
 
 /** "תלמיד 3" → "3", for a sentence that already says "תלמיד". */
+/** PRD 23א §ב.2 (owner, 12.10.2026): the checkbox, in the PRD's words. */
+export const CLEAR_ACTIONS_LABEL_HE = 'לנקות גם את רשימת הפעולות';
+export const CLEAR_ACTIONS_HINT_HE = 'הפעולות יימחקו מהמערכת ויישמרו רק בגיבוי. במסע הלמידה של התלמיד אפשר יהיה להציג אותן ולהפיק מהן דוח.';
+
 function learnerLabelOf(name: string | undefined): string {
   return String(name ?? '').replace(/\D/g, '') || String(name ?? '');
 }
@@ -76,6 +80,8 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
   // Twelve learners lose the work of the open meeting: one explicit tick, so
   // the button next to "איפוס התראות" cannot do it on a stray click.
   const [classConfirmed, setClassConfirmed] = useState(false);
+  // PRD 23א §ב.2 (owner, 12.10.2026): one learner only, unticked by default.
+  const [clearActions, setClearActions] = useState(false);
   const classSessionNumber = activeSessionProp && activeSessionProp >= 1 && activeSessionProp <= 8 ? activeSessionProp : null;
   const isClassTarget = resetLevel === 'single_student' && resetTarget === 'class';
   // PRD 23א §ה: the meeting is named before the teacher confirms. For one
@@ -98,6 +104,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
     setReasonNote('');
     // The red line under the note stayed for the next reset, over an empty field.
     setNoteError(null);
+    setClearActions(false);
     setScope('active_session');
     setClassConfirmed(false);
     onClose();
@@ -162,7 +169,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
         selectedReason,
         trimmedNote ? anonymizeChatMessageBody(trimmedNote) : undefined,
         resetLevel === 'single_student'
-          ? { scope: isClassTarget ? 'active_session' : scope, sessionNumber: activeSessionNumber }
+          ? { scope: isClassTarget ? 'active_session' : scope, sessionNumber: activeSessionNumber, ...(isOneLearner && clearActions ? { clearActions: true } : {}) }
           : undefined
       );
       handleClose();
@@ -278,6 +285,9 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <li className="text-stone-700 dark:text-stone-300 font-semibold">לפני האיפוס נשמר גיבוי של כל הנתונים של {learnerName}.</li>
                 {activeSessionNumber ? <li>יימחקו העבודה וההתקדמות של התלמיד ב{meetingLabel}.</li> : null}
                 <li>התלמיד יחזור לתחילת המפגש. העבודה במפגשים האחרים, ההקלטות והודעות הצ'אט נשמרות.</li>
+                {clearActions && activeSessionNumber ? (
+                  <li className="text-stone-900 dark:text-stone-100 font-extrabold">{`רשימת הפעולות של התלמיד ב${meetingLabel} תימחק מהמערכת ותישמר רק בגיבוי.`}</li>
+                ) : null}
                 {resetMeeting.loading ? (
                   <li>בודקים איזה מפגש יאופס…</li>
                 ) : !resetMeeting.target ? (
@@ -316,7 +326,14 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 <li className="text-stone-700 dark:text-stone-300 font-semibold">לפני האיפוס נשמר גיבוי של כל הנתונים של {learnerName}.</li>
                 <li className="text-stone-900 dark:text-stone-100 font-extrabold">יימחקו: ההתקדמות בכל 8 המפגשים, תוצאות האבחון וההמלצה, המסלול שאושר ב"{TEACHER_GATE_HE}", ההקלטות, הודעות הצ'אט ורישומי זמן ההשלמה.</li>
                 {/* Owner, 2.10.2026: the teacher's settings stay (functions LEARNER_SETTINGS_FIELDS). */}
-                <li>יישמרו: ההגדרות שקבעתם לתלמיד (פרופיל התמיכה המוגברת וסימון המסלול המדורג), רישום הפעולות של התלמיד למחקר, הדוחות והרפלקציות.</li>
+                {clearActions ? (
+                  <>
+                    <li className="text-stone-900 dark:text-stone-100 font-extrabold">רשימת הפעולות של התלמיד בכל המפגשים תימחק מהמערכת ותישמר רק בגיבוי.</li>
+                    <li>יישארו במערכת: ההגדרות שקבעתם לתלמיד (פרופיל התמיכה המוגברת וסימון המסלול המדורג), הדוחות והרפלקציות.</li>
+                  </>
+                ) : (
+                  <li>יישמרו: ההגדרות שקבעתם לתלמיד (פרופיל התמיכה המוגברת וסימון המסלול המדורג), רישום הפעולות של התלמיד למחקר, הדוחות והרפלקציות.</li>
+                )}
                 <li>התלמיד יתחיל מההתחלה. כדי להגיע למפגש 3 הוא יצטרך לעשות שוב את מפגש 2, ותצטרכו לאשר לו מסלול מחדש.</li>
                 <li>{RESET_LOG_LINE_HE}</li>
               </>
@@ -394,6 +411,22 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                   </label>
                 </div>
               </fieldset>
+            )}
+            {isLevel2 && !isClassTarget && (
+              // PRD 23א §ב.2 (owner, 12.10.2026): in both scopes, unticked by default.
+              <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={clearActions}
+                  onChange={(e) => setClearActions(e.target.checked)}
+                  data-testid="reset-clear-actions"
+                  className="mt-0.5 w-4 h-4 rounded text-stone-600 focus:ring-stone-500"
+                />
+                <span className="text-xs">
+                  <span className="block font-bold text-slate-800 dark:text-slate-200">{CLEAR_ACTIONS_LABEL_HE}</span>
+                  <span className="block text-slate-600 dark:text-slate-400">{CLEAR_ACTIONS_HINT_HE}</span>
+                </span>
+              </label>
             )}
             <div>
               <label htmlFor="reset-reason" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">

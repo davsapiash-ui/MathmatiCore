@@ -91,7 +91,8 @@ describe('ResetConfirmationModal — level 2, one learner (unchanged)', () => {
       <ResetConfirmationModal isOpen onClose={() => {}} resetLevel="single_student" targetStudentId="student_user3" targetStudentName="תלמיד 3" activeSessionNumber={4} onConfirm={onConfirm} />
     );
     expect(screen.getByText('איפוס של תלמיד אחד (רמה 2): תלמיד 3')).toBeTruthy();
-    expect(screen.queryByRole('checkbox')).toBeNull();
+    // Owner, 12.10.2026: the only tick is "לנקות גם את רשימת הפעולות", unticked, and the reset needs none.
+    expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(false);
     expect(executeButton().disabled).toBe(true); // no reason chosen yet
     chooseReason('student_stuck');
     expect(executeButton().disabled).toBe(false);

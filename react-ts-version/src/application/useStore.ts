@@ -257,6 +257,12 @@ export interface SingleStudentResetOptions {
    * (functions/src/resetMeetingTarget.ts).
    */
   sessionNumber?: number | null;
+  /**
+   * PRD 23א §ב.2 (owner, 12.10.2026): "לנקות גם את רשימת הפעולות". The
+   * learner's actions of the reset meeting (all of them in a full reset) are
+   * then kept only in the backup. Unticked by default.
+   */
+  clearActions?: boolean;
 }
 
 interface AppState {
@@ -839,6 +845,7 @@ export const useStore = create<AppState>()(
             reset_scope: scope,
             session_number: requestedSession,
             reset_id: resetId,
+            ...(options?.clearActions === true ? { clear_actions: true } : {}),
           });
           resetData = result?.data ?? null;
           const returned = Number((result?.data as { sessionNumber?: unknown } | undefined)?.sessionNumber);

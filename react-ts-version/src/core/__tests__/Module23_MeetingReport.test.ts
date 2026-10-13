@@ -45,7 +45,7 @@ describe('Module 23 — report for every meeting (server)', () => {
   });
 
   it('takes the learner number and the meeting number explicitly, and never silently falls back to learner 1', () => {
-    expect(server).toMatch(/studentId: explicitStudentId \} = request\.data/);
+    expect(server).toMatch(/studentId: explicitStudentId, fromBackupResetId \} = request\.data/);
     expect(server).toContain('throw new HttpsError("invalid-argument", "Missing studentId (1-12).");');
     expect(server).not.toMatch(/replace\(\/\\D\/g, ''\) \|\| '1'/);
   });

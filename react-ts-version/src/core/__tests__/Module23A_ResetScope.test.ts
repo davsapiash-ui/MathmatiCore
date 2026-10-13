@@ -219,7 +219,7 @@ describe('Module 23א — level 2 for the whole class (register, deviation 20)',
     // reset is recorded also when it failed), the failed backup, the backup
     // saved but the late-recording markers not written (nothing deleted), and
     // the success.
-    expect((fn.match(/\.\.\.level2Audit,/g) || []).length).toBe(4);
+    expect((fn.match(/\.\.\.level2Audit,/g) || []).length).toBe(5); // + the abort when the cleared actions cannot be kept (owner, 12.10.2026)
   });
 
   it('the teacher store sends level 2 + class + active_session, and never a learner id', () => {
@@ -242,7 +242,7 @@ describe('Module 23א — level 2 for the whole class (register, deviation 20)',
   it('the dialog offers no full wipe for the class, needs an open meeting and an explicit tick', () => {
     expect(modal).toContain("const isClassTarget = resetLevel === 'single_student' && resetTarget === 'class';");
     expect(modal).toContain('{isLevel2 && !isClassTarget && (');
-    expect(modal).toContain("? { scope: isClassTarget ? 'active_session' : scope, sessionNumber: activeSessionNumber }");
+    expect(modal).toContain("? { scope: isClassTarget ? 'active_session' : scope, sessionNumber: activeSessionNumber, ...(isOneLearner && clearActions ? { clearActions: true } : {}) }");
     expect(modal).toContain('if (isClassTarget && (!activeSessionNumber || !classConfirmed)) {');
     expect(modal).toContain('(isClassTarget && (!activeSessionNumber || !classConfirmed))');
     // Escape must not leave the tick behind for the next opening (same trap as the level-3 double confirm).

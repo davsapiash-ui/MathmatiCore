@@ -35,6 +35,8 @@ export { exportAdminReportToDrive, backupAndResetSessionData, exportResearchData
 export { copyStorageBackupsToDrive } from "./backupDriveCopy";
 // Module 23א §ג: recording chunks that reach the server after a full learner or system reset.
 export { onLateRecordingChunk, onLateRecordingFlag } from "./lateRecordings";
+// Module 23א §ב.2 (owner, 12.10.2026): the actions a learner reset cleared, read-only from the backup.
+export { getClearedActionsFromBackup } from "./clearedActions";
 // Owner decision 11.10.2026: the weekly report of coaching cards the validator rejected (Drive folder "1 דוחות").
 export { weeklyAiRejectionsReport } from "./aiRejectionsReport";
 
