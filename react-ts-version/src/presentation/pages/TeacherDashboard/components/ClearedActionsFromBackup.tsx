@@ -19,8 +19,10 @@ export const SHOW_FROM_BACKUP_HE = 'הצגת הפעולות מהגיבוי';
 export const REPORT_FROM_BACKUP_HE = 'דוח מהגיבוי';
 export const HIDE_FROM_BACKUP_HE = 'הסתרת הפעולות מהגיבוי';
 
-export function clearedResetLineHe(r: Pick<MeetingResetMark, 'at'>): string {
-  return `באיפוס מ-${formatDate(r.at)} בשעה ${formatClock(r.at)} נמחקו הפעולות מהרשימה. הן שמורות בגיבוי.`;
+export function clearedResetLineHe(r: Pick<MeetingResetMark, 'at' | 'scope'>, sessionNumber: number): string {
+  const time = new Date(r.at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  const which = r.scope === 'active_session' ? ` של מפגש ${sessionNumber}` : '';
+  return `באיפוס שנעשה ב-${formatDate(r.at)} בשעה ${time} נמחקה רשימת הפעולות${which}. הפעולות שמורות בגיבוי.`;
 }
 
 interface Props {
@@ -100,7 +102,7 @@ function ClearedReset({ studentNum, sessionNumber, reset }: { studentNum: number
       <div className="flex flex-wrap items-center gap-2 justify-between">
         <p className="text-xs font-bold text-stone-800 dark:text-stone-200 flex items-center gap-2">
           <Archive className="w-4 h-4 shrink-0" aria-hidden="true" />
-          {clearedResetLineHe(reset)}
+          {clearedResetLineHe(reset, sessionNumber)}
         </p>
         <div className="flex flex-wrap gap-2">
           <button

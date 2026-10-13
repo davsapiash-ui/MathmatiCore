@@ -468,7 +468,7 @@ export function resetSeparatorHe(r: MeetingResetMark): string {
 }
 
 /** PRD 23א §ב.2 (owner, 12.10.2026): the separator of a reset that cleared the actions list. */
-export const ACTIONS_CLEARED_NOTE_HE = 'הפעולות שלפני האיפוס נמחקו מהרשימה ונשמרו בגיבוי.';
+export const ACTIONS_CLEARED_NOTE_HE = 'הפעולות שלפני האיפוס נמחקו מהרשימה. הן שמורות בגיבוי.';
 
 /** PRD 23א §ג: the dashboard marks a reset whose backup has not reached Drive yet. */
 export const BACKUP_NOT_IN_DRIVE_HE = 'הגיבוי של האיפוס הזה שמור בינתיים באחסון הענן של המערכת, ועוד לא הגיע לתיקיית "3 גיבויים" בדרייב; הוא יועתק לשם אוטומטית פעם ביום.';

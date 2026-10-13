@@ -290,7 +290,7 @@ export const getClearedActionsFromBackup = onCall({ memory: "1GiB" }, async (req
     actions = await loadClearedActions(admin.storage().bucket() as unknown as ActionsBucket, entry, sessionNumber);
   } catch (err) {
     logger.error(`Cleared actions of ${entry.reset_id} could not be read:`, err);
-    throw new HttpsError("unavailable", "לא ניתן לקרוא כרגע את הפעולות מהגיבוי. נסו שוב בעוד רגע.");
+    throw new HttpsError("unavailable", "לא ניתן להציג כרגע את הפעולות מהגיבוי. נסו שוב בעוד רגע.");
   }
   return {
     resetId: entry.reset_id,

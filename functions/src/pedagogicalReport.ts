@@ -759,10 +759,10 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
   if (backupEntry) {
     const learners = Array.isArray(backupEntry.affected_student_ids) ? backupEntry.affected_student_ids : [];
     if (!learners.includes(clampedStudentNum)) {
-      throw new HttpsError("invalid-argument", `האיפוס הזה לא נגע בתלמיד ${clampedStudentNum}. הדוח לא הופק.`);
+      throw new HttpsError("invalid-argument", `האיפוס הזה לא כלל את תלמיד ${clampedStudentNum}, ולכן הדוח לא הופק.`);
     }
     if (typeof backupEntry.session_number === "number" && backupEntry.session_number !== resolvedSessionNumber) {
-      throw new HttpsError("invalid-argument", `באיפוס הזה נמחקו הפעולות של מפגש ${backupEntry.session_number} בלבד. הדוח לא הופק.`);
+      throw new HttpsError("invalid-argument", `באיפוס הזה נמחקה רק רשימת הפעולות של מפגש ${backupEntry.session_number}, ולכן אפשר להפיק מהגיבוי רק את הדוח של מפגש ${backupEntry.session_number}.`);
     }
   }
   let backupActions: Record<string, any>[] = [];
@@ -772,7 +772,7 @@ export const generatePedagogicalReportPDF = onCall({ ...GEMINI_SECRETS, ...CHROM
         .map((a) => a.data as Record<string, any>);
     } catch (err) {
       logger.error(`[Module23] the cleared actions of ${backupEntry.reset_id} could not be read:`, err);
-      throw new HttpsError("unavailable", "לא ניתן לקרוא כרגע את הפעולות מהגיבוי. נסו שוב בעוד רגע.");
+      throw new HttpsError("unavailable", "לא ניתן להציג כרגע את הפעולות מהגיבוי. נסו שוב בעוד רגע.");
     }
   }
   const meetingRuns: MeetingRuns | null = backupEntry

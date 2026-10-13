@@ -1324,7 +1324,7 @@ async function resetUnderLock(_request: CallableRequest<any>, ctx: ResetContext)
 
 /** PRD 23א §ג: without the cleared actions in Cloud Storage the system could not read them back, so nothing is deleted. */
 export const CLEARED_ACTIONS_NOT_KEPT_HE =
-  'הגיבוי נשמר, אבל לא הצלחנו לשמור את רשימת הפעולות באחסון כך שאפשר יהיה להציג אותה אחר כך. לכן האיפוס בוטל ולא נמחקו נתונים.';
+  'לא הצלחנו לשמור את רשימת הפעולות כך שאפשר יהיה להציג אותה אחר כך מהגיבוי. לכן האיפוס בוטל, ולא נמחקו נתונים.';
 
 // ─── Reset scope, backup and deletion helpers (Module 23א) ───────────────────
 

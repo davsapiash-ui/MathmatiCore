@@ -13,7 +13,7 @@ import { RESET_ACTION_HE, RESET_LOG_LINE_HE, RESET_REASON_HE, TEACHER_GATE_HE } 
 /** "תלמיד 3" → "3", for a sentence that already says "תלמיד". */
 /** PRD 23א §ב.2 (owner, 12.10.2026): the checkbox, in the PRD's words. */
 export const CLEAR_ACTIONS_LABEL_HE = 'לנקות גם את רשימת הפעולות';
-export const CLEAR_ACTIONS_HINT_HE = 'הפעולות יימחקו מהמערכת ויישמרו רק בגיבוי. במסע הלמידה של התלמיד אפשר יהיה להציג אותן ולהפיק עליהן דוח.';
+export const CLEAR_ACTIONS_HINT_HE = 'הפעולות יימחקו מהמערכת ויישמרו רק בגיבוי. במסע הלמידה של התלמיד אפשר יהיה להציג אותן ולהפיק מהן דוח.';
 
 function learnerLabelOf(name: string | undefined): string {
   return String(name ?? '').replace(/\D/g, '') || String(name ?? '');
@@ -329,7 +329,7 @@ export const ResetConfirmationModal: React.FC<ResetConfirmationModalProps> = ({
                 {clearActions ? (
                   <>
                     <li className="text-stone-900 dark:text-stone-100 font-extrabold">רשימת הפעולות של התלמיד בכל המפגשים תימחק מהמערכת ותישמר רק בגיבוי.</li>
-                    <li>יישמרו: ההגדרות שקבעתם לתלמיד (פרופיל התמיכה המוגברת וסימון המסלול המדורג), הדוחות והרפלקציות.</li>
+                    <li>יישארו במערכת: ההגדרות שקבעתם לתלמיד (פרופיל התמיכה המוגברת וסימון המסלול המדורג), הדוחות והרפלקציות.</li>
                   </>
                 ) : (
                   <li>יישמרו: ההגדרות שקבעתם לתלמיד (פרופיל התמיכה המוגברת וסימון המסלול המדורג), רישום הפעולות של התלמיד למחקר, הדוחות והרפלקציות.</li>
