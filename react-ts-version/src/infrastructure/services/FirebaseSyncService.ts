@@ -19,7 +19,7 @@ import {
 } from '@/core/meetingCompletion';
 import { deleteField, doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/application/useAuthStore';
-import { useWorkspaceStore, getActiveTasks, resolveLearningPath, type WorkspaceInitialization } from '@/application/useWorkspaceStore';
+import { useWorkspaceStore, getActiveTasks, activeExerciseId, resolveLearningPath, type WorkspaceInitialization } from '@/application/useWorkspaceStore';
 import { useStore, type QMatrix, type TraceData } from '@/application/useStore';
 import { normalizeStudentId } from '@/application/useChatStore';
 
@@ -42,7 +42,6 @@ import {
   type PlaceCuesShownDetails,
   type SocraticCardShownDetails,
   type SocraticOptionSelectedDetails,
-  type UndoExecutedDetails,
   validateTelemetryColumnIndexRule,
 } from '@/types/telemetry';
 
@@ -1784,12 +1783,16 @@ export class FirebaseSyncService {
     const idempotency_key = newTelemetryKey();
 
     // 3. Build TelemetryPayload<T>
+    // A missing id is taken from the learner's workspace, never invented: a
+    // fixed 'session_1' / 'ex_1' filed the event under meeting 1 and an
+    // exercise that does not exist.
+    const ws = useWorkspaceStore.getState();
     const payload: TelemetryPayload<T> = {
       idempotency_key,
       client_timestamp: Date.now(),
-      session_id: event.session_id || 'session_1',
+      session_id: event.session_id || `session_${ws.sessionNumber}_student_${normUid}`,
       student_id: numStudentId,
-      exercise_id: event.exercise_id || 'ex_1',
+      exercise_id: event.exercise_id || activeExerciseId(ws),
       event_type: event.event_type,
       ...(event.column_index !== undefined ? { column_index: event.column_index } : {}),
       details: event.details,
@@ -1873,9 +1876,11 @@ export class FirebaseSyncService {
       if (details.is_correct) {
         rtdbLiveUpdate.isSocraticActive = false;
       }
-    } else if (event.event_type === 'UNDO_EXECUTED') {
-      rtdbLiveUpdate['workspaceState/undoCount'] = (event.details as UndoExecutedDetails).undo_stack_depth_before;
     }
+    // workspaceState/undoCount is the exercise's undo count, written by the
+    // workspace snapshot (StudentWorkspacePage). It is not written here: the
+    // stack depth of UNDO_EXECUTED is a different number and used to overwrite
+    // the count the radar shows.
 
     // Write live snapshot to RTDB for both student aliases — merged into the
     // record's one write per window (PRD 18: at most once per 1000 ms). It used
