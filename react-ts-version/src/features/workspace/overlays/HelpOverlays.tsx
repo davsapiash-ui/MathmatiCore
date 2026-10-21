@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   useWorkspaceStore,
   getActiveTasks,
+  activeExerciseId,
   socraticCardColumnIndex,
   staticCardContextFor,
   SOCRATIC_CORRECT_AUTO_CLOSE_MS,
@@ -148,18 +149,20 @@ export function SocraticSidePanel({ inTaskZone = false }: { inTaskZone?: boolean
     const ws = useWorkspaceStore.getState();
     const studentId = currentStudentUid();
     const task = getActiveTasks(ws)[ws.standardTaskIdx] || null;
-    // Every opening path records its trigger in the store; the fallback only
-    // covers a card restored from a saved session.
-    const triggerReason =
-      ws.socraticTriggerReason ??
-      (ws.sessionNumber === 8 && (ws.consecutiveUndoCount ?? 0) >= 3
-        ? 'consecutive_undos_3'
-        : 'consecutive_errors_4');
+    // Every opening path (openSocraticCard) records its trigger in the store,
+    // and a card is never restored from a saved session. Module 12 §ב: the
+    // actual reason, never an inferred one — a card without a recorded reason
+    // is reported, not filed under a guessed trigger.
+    const triggerReason = ws.socraticTriggerReason;
+    if (!triggerReason) {
+      console.error('[SocraticSidePanel] SOCRATIC_CARD_SHOWN not recorded: the card has no recorded trigger_reason.');
+      return;
+    }
 
     emitTelemetry({
       session_id: `session_${ws.sessionNumber}_student_${studentId}`,
       student_id: studentId,
-      exercise_id: task?.id || `ex_${ws.sessionNumber}_01`,
+      exercise_id: activeExerciseId(ws),
       event_type: 'SOCRATIC_CARD_SHOWN',
       // A "four errors" card is about the streak's column, not the box the cursor moved to (שהB.2).
       column_index: socraticCardColumnIndex(ws),
@@ -447,13 +450,12 @@ function SocraticPenaltyLockOptions({ choices, onClose, folded = false, columns 
     // pause after a wrong option — the teacher goes on at once.
     if (wsState.projectorBoard) return;
     const studentId = currentStudentUid();
-    const currentTask = getActiveTasks(wsState)[wsState.standardTaskIdx] || null;
     const optionKey = socraticOptionKey(opt.id);
 
     emitTelemetry({
       session_id: `session_${wsState.sessionNumber}_student_${studentId}`,
       student_id: studentId,
-      exercise_id: currentTask?.id || `ex_${wsState.sessionNumber}_01`,
+      exercise_id: activeExerciseId(wsState),
       event_type: 'SOCRATIC_OPTION_SELECTED',
       details: {
         option_id: optionKey,
