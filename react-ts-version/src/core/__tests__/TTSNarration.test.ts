@@ -323,8 +323,22 @@ describe('אופליין — קולות הרשת אילמים, והאפליקצ�
     expect(synth.queue[0].voice?.localService).toBe(true);
   });
 
-  it('כשמחוברים לרשת אין העדפה למקומי — קול הרשת האיכותי נשאר זמין', async () => {
+  it('גם כשמחוברים לרשת נבחר הקול המקומי — קול רשת תלוי בשרת שמסנן בית ספרי יכול לחסום', async () => {
     const tts = await setupTts([REAL_HEBREW_VOICES.chromeOs, REAL_HEBREW_VOICES.windows]);
+    setOnline(true);
+    tts.speak('שלום');
+    expect(synth.queue[0].voice?.name).toBe(REAL_HEBREW_VOICES.windows.name);
+  });
+
+  it('Edge עם Asaf מותקן: נבחר Asaf המקומי ולא Hila שברשת', async () => {
+    const tts = await setupTts([REAL_HEBREW_VOICES.edgeHila, REAL_HEBREW_VOICES.windows]);
+    setOnline(true);
+    tts.speak('שלום');
+    expect(synth.queue[0].voice?.name).toBe(REAL_HEBREW_VOICES.windows.name);
+  });
+
+  it('כשאין קול מקומי (כרומבוק), קול הרשת עדיין נבחר', async () => {
+    const tts = await setupTts([REAL_HEBREW_VOICES.english, REAL_HEBREW_VOICES.chromeOs]);
     setOnline(true);
     tts.speak('שלום');
     expect(synth.queue[0].voice?.name).toBe(REAL_HEBREW_VOICES.chromeOs.name);
@@ -559,6 +573,27 @@ describe('F4 — הכפתור אינו נתקע באמצע הקראה', () => {
 });
 
 describe('F5 — לחיצה לפני שרשימת הקולות נטענה', () => {
+  it('הקראה שעוד חיכתה לקולות ונדחקה על ידי לחיצה אחרת משחררת את הכפתור שלה מיד', async () => {
+    // Nothing was handed to the engine yet, so no engine event can ever release it.
+    const tts = await setupTts([]);
+    const firstEnded = vi.fn();
+    tts.speak('ראשונה.', 'he-IL', firstEnded);
+    tts.speak('שנייה.');
+    expect(firstEnded).toHaveBeenCalledTimes(1);
+  });
+
+  it('הקראה שנדחקה במנוע שאינו מודיע דבר ב-cancel משחררת את הכפתור מיד, ופעם אחת בלבד', async () => {
+    const tts = await setupTts();
+    const firstEnded = vi.fn();
+    tts.speak('ראשונה.', 'he-IL', firstEnded);
+    expect(synth.queue).toHaveLength(1);
+    tts.speak('שנייה.'); // FakeSynth.cancel() fires neither onend nor onerror
+    expect(firstEnded).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(10_000);
+    synth.finishAll();
+    expect(firstEnded).toHaveBeenCalledTimes(1);
+  });
+
   it('ממתינה לקולות ואז מקריאה בקול עברי', async () => {
     const tts = await setupTts([]); // getVoices() ריק, כמו בכרומיום בטעינה קרה
     tts.speak('שלום');
@@ -667,7 +702,7 @@ describe('שער השמע בכניסת הילד', () => {
   it('נגיעה ראשונה שהיא עצמה לחיצה על רמקול: ההקראה נשמעת, והשער לא בולע אותה', async () => {
     const tts = await setupTts();
     tts.armAudioGate();
-    window.dispatchEvent(new Event('pointerdown')); // השער: נמסר ונמשך מיד
+    window.dispatchEvent(new Event('click')); // השער: נמסר ונמשך מיד
     tts.speak('גררו לבנים לטורים.'); // הלחיצה עצמה, באותו רגע
     vi.advanceTimersByTime(500);
 
@@ -680,11 +715,20 @@ describe('שער השמע בכניסת הילד', () => {
     tts.armAudioGate();
     expect(synth.all).toHaveLength(0); // עוד לא נגעו במסך
 
-    window.dispatchEvent(new Event('pointerdown'));
+    window.dispatchEvent(new Event('touchend'));
 
     expect(tts.isAudioUnlocked()).toBe(true);
     expect(synth.all).toHaveLength(1);
     expect(synth.all[0].volume).toBe(0);
+  });
+
+  it('נגיעת אצבע (pointerdown) לבדה אינה פותחת — הדפדפן לא מאשר בה שמע, והשער מחכה לסוף הנגיעה', async () => {
+    const tts = await setupTts();
+    tts.armAudioGate();
+    window.dispatchEvent(new Event('pointerdown'));
+    expect(tts.isAudioUnlocked()).toBe(false);
+    window.dispatchEvent(new Event('touchend'));
+    expect(tts.isAudioUnlocked()).toBe(true);
   });
 
   it('מקלדת בלבד פותחת את השמע גם היא', async () => {
@@ -697,8 +741,8 @@ describe('שער השמע בכניסת הילד', () => {
   it('אינו חוזר על עצמו: נגיעה שנייה אינה מוסיפה עוד utterance', async () => {
     const tts = await setupTts();
     tts.armAudioGate();
-    window.dispatchEvent(new Event('pointerdown'));
-    window.dispatchEvent(new Event('pointerdown'));
+    window.dispatchEvent(new Event('mousedown'));
+    window.dispatchEvent(new Event('click'));
     tts.initializeAudioGate();
 
     expect(synth.all).toHaveLength(1);
